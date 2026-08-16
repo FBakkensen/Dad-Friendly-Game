@@ -33,6 +33,8 @@ How we build is dad-friendly too. The interview format (one question, three opti
 ## Finish the sitting, not the idea pile
 
 - One issue is one sliver. If the feature grows, do not enlarge the issue. Suggest a new issue and link it.
+- File that issue. Do not start it. The current sitting and PR stay on the issue we already picked.
+- One branch, one PR, until that PR is merged or closed. Never open a second branch or PR for the same sitting. Never stack PRs.
 - New ideas that appear mid-work go on GitHub. They do not sneak into the current PR.
 - The agent keeps `blocked-by` / `blocking` / parent links truthful so the next sitting can start from unblocked work.
 
