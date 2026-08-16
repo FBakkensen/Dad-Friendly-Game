@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: saves
+    // Document ID: Firebase Auth uid
+    // Fields:
+    //   - version: int (required, must be 1)
+    //   - grid: map (required)
+    //       - width: int (required, must be 3)
+    //       - height: int (required, must be 3)
+    //       - cells: list (required, size 9)
+    //           - kind: string (required, 'covered' or 'dug')
+    // Ownership is the document ID. No uid, role, or PII fields.
+    //
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == resource.data.uid;
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidCell(cell) {
+      return cell is map &&
+        cell.keys().hasOnly(['kind']) &&
+        cell.kind is string &&
+        cell.kind in ['covered', 'dug'];
+    }
+
+    function isValidGrid(grid) {
+      return grid is map &&
+        grid.keys().hasOnly(['width', 'height', 'cells']) &&
+        grid.width is int &&
+        grid.width == 3 &&
+        grid.height is int &&
+        grid.height == 3 &&
+        grid.cells is list &&
+        grid.cells.size() == 9 &&
+        isValidCell(grid.cells[0]) &&
+        isValidCell(grid.cells[1]) &&
+        isValidCell(grid.cells[2]) &&
+        isValidCell(grid.cells[3]) &&
+        isValidCell(grid.cells[4]) &&
+        isValidCell(grid.cells[5]) &&
+        isValidCell(grid.cells[6]) &&
+        isValidCell(grid.cells[7]) &&
+        isValidCell(grid.cells[8]);
+    }
+
+    function isValidSave(data) {
+      return hasOnlyAllowedFields(['version', 'grid']) &&
+        uidUnchanged() &&
+        data.version is int &&
+        data.version == 1 &&
+        isValidGrid(data.grid);
+    }
+
+    match /saves/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidSave(request.resource.data);
+      allow update: if isOwner(userId) &&
+        isValidSave(request.resource.data) &&
+        uidNotModified();
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

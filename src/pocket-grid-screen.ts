@@ -11,6 +11,11 @@ import {
   type CellIndex,
   type PocketGrid,
 } from "./grid";
+import {
+  applySignedInSave,
+  createNoopCloudSave,
+  type CloudSave,
+} from "./cloud-save";
 import { readGridSave, writeGridSave } from "./persist";
 
 const CELL_INDEXES = [
@@ -25,16 +30,23 @@ export function mountPocketGridScreen({
   cellSheetUrl,
   storage = window.localStorage,
   auth = createUnconfiguredAuth(),
+  cloudSave = createNoopCloudSave(),
 }: {
   root: HTMLElement;
   lanternUrl: string;
   cellSheetUrl: string;
   storage?: Storage;
   auth?: AuthController;
+  cloudSave?: CloudSave;
 }): void {
   let grid: PocketGrid = readGridSave({ storage });
+  let hydrateGeneration = 0;
   const persist = (): void => {
     writeGridSave({ storage, grid });
+    const state = auth.getState();
+    if (state.kind === "signed-in") {
+      void cloudSave.write({ uid: state.user.uid, grid });
+    }
   };
 
   const lantern = document.createElement("img");
@@ -153,8 +165,35 @@ export function mountPocketGridScreen({
     { signal },
   );
   window.addEventListener("pagehide", persist, { signal });
-  const unsubscribeAuth = auth.subscribe(renderAuth);
-  signal.addEventListener("abort", unsubscribeAuth);
+  const unsubscribeAuth = auth.subscribe((state) => {
+    renderAuth(state);
+    if (state.kind !== "signed-in") {
+      hydrateGeneration += 1;
+      return;
+    }
+    const generation = (hydrateGeneration += 1);
+    const uid = state.user.uid;
+    const gridAtLoad = grid;
+    void cloudSave.load({ uid }).then((remote) => {
+      if (generation !== hydrateGeneration) {
+        return;
+      }
+      if (grid !== gridAtLoad) {
+        return;
+      }
+      const next = applySignedInSave({ local: grid, remote });
+      grid = next.grid;
+      writeGridSave({ storage, grid });
+      if (next.upload) {
+        void cloudSave.write({ uid, grid });
+      }
+      render();
+    });
+  });
+  signal.addEventListener("abort", () => {
+    hydrateGeneration += 1;
+    unsubscribeAuth();
+  });
 
   root.replaceChildren(lantern, board, status, authStatus, authButton);
   render();

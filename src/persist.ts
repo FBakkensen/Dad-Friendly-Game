@@ -2,10 +2,27 @@ import { createPocketGrid, parsePocketGrid, type PocketGrid } from "./grid";
 
 export const GRID_SAVE_KEY = "dad-friendly-game.pocket-grid";
 
-type GridSaveV1 = {
+export type GridSaveV1 = {
   readonly version: 1;
   readonly grid: PocketGrid;
 };
+
+export function serializeGridSave({ grid }: { grid: PocketGrid }): GridSaveV1 {
+  return { version: 1, grid };
+}
+
+export function parseGridSaveValue(value: unknown): PocketGrid | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  if (!("version" in value) || !("grid" in value)) {
+    return undefined;
+  }
+  if (value.version !== 1) {
+    return undefined;
+  }
+  return parsePocketGrid(value.grid);
+}
 
 export function readGridSave({ storage }: { storage: Storage }): PocketGrid {
   let raw: string | null;
@@ -17,7 +34,7 @@ export function readGridSave({ storage }: { storage: Storage }): PocketGrid {
   if (raw === null) {
     return createPocketGrid();
   }
-  return parseGridSave(raw) ?? createPocketGrid();
+  return parseGridSaveJson(raw) ?? createPocketGrid();
 }
 
 export function writeGridSave({
@@ -27,7 +44,7 @@ export function writeGridSave({
   storage: Storage;
   grid: PocketGrid;
 }): void {
-  const save = { version: 1, grid } satisfies GridSaveV1;
+  const save = serializeGridSave({ grid });
   try {
     storage.setItem(GRID_SAVE_KEY, JSON.stringify(save));
   } catch {
@@ -35,21 +52,12 @@ export function writeGridSave({
   }
 }
 
-function parseGridSave(raw: string): PocketGrid | undefined {
+function parseGridSaveJson(raw: string): PocketGrid | undefined {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw) as unknown;
   } catch {
     return undefined;
   }
-  if (typeof parsed !== "object" || parsed === null) {
-    return undefined;
-  }
-  if (!("version" in parsed) || !("grid" in parsed)) {
-    return undefined;
-  }
-  if (parsed.version !== 1) {
-    return undefined;
-  }
-  return parsePocketGrid(parsed.grid);
+  return parseGridSaveValue(parsed);
 }
