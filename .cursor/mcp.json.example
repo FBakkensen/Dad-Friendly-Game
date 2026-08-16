@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "pixellab": {
+      "url": "https://api.pixellab.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_SECRET"
+      }
+    }
+  }
+}

@@ -27,24 +27,9 @@ Cap: **one sheet or one loop per sitting**. No "while we are here, generate the 
 
 Do not curl the REST API. Do not invent PNGs. Do not draw rectangles.
 
-Tell them to add the PixelLab MCP in Cursor (https://www.pixellab.ai/mcp):
+This project expects PixelLab in `.cursor/mcp.json` (gitignored). Copy `.cursor/mcp.json.example` and put the bearer token locally. Token comes from https://www.pixellab.ai/mcp. Never put the bearer token in git. Never read `.cursor/mcp.json` aloud.
 
-```json
-{
-  "mcpServers": {
-    "pixellab": {
-      "url": "https://api.pixellab.ai/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_SECRET"
-      }
-    }
-  }
-}
-```
-
-Token comes from their PixelLab account. Never put the bearer token in git.
-
-Then inspect the server tools and use those. Names may be prefixed.
+Then inspect the server tools and use those. In Cursor the server id is often `project-0-Dad-Friendly-Game-pixellab`, not `pixellab`.
 
 ## Ceiling
 
