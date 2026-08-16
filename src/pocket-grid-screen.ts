@@ -1,5 +1,4 @@
 import {
-  createPocketGrid,
   dig,
   dugCount,
   isCellIndex,
@@ -7,21 +6,29 @@ import {
   type CellIndex,
   type PocketGrid,
 } from "./grid";
+import { readGridSave, writeGridSave } from "./persist";
 
 const CELL_INDEXES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8,
 ] as const satisfies readonly CellIndex[];
 
+let persistLifetime: AbortController | undefined;
+
 export function mountPocketGridScreen({
   root,
   lanternUrl,
   cellSheetUrl,
+  storage = window.localStorage,
 }: {
   root: HTMLElement;
   lanternUrl: string;
   cellSheetUrl: string;
+  storage?: Storage;
 }): void {
-  let grid: PocketGrid = createPocketGrid();
+  let grid: PocketGrid = readGridSave({ storage });
+  const persist = (): void => {
+    writeGridSave({ storage, grid });
+  };
 
   const lantern = document.createElement("img");
   lantern.className = "lantern";
@@ -53,6 +60,7 @@ export function mountPocketGridScreen({
         return;
       }
       grid = dig({ grid, index: raw });
+      persist();
       render();
     });
     return button;
@@ -75,6 +83,20 @@ export function mountPocketGridScreen({
     }
     status.textContent = `${String(dugCount(grid))} of 9 dug`;
   };
+
+  persistLifetime?.abort();
+  persistLifetime = new AbortController();
+  const { signal } = persistLifetime;
+  document.addEventListener(
+    "visibilitychange",
+    () => {
+      if (document.visibilityState === "hidden") {
+        persist();
+      }
+    },
+    { signal },
+  );
+  window.addEventListener("pagehide", persist, { signal });
 
   root.replaceChildren(lantern, board, status);
   render();
