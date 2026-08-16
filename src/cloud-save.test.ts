@@ -31,44 +31,33 @@ describe("applySignedInSave", () => {
     ).toEqual({ grid: remoteGrid, upload: false });
   });
 
-  it("keeps local and uploads when the cloud has no save", () => {
+  it("keeps the session grid and uploads when the cloud has no save", () => {
     expect(applySignedInSave({ local, remote: { kind: "missing" } })).toEqual({
       grid: local,
       upload: true,
     });
   });
 
-  it("keeps local and does not upload when the cloud is down", () => {
+  it("keeps the session grid and does not upload when the cloud is down", () => {
     expect(
       applySignedInSave({ local, remote: { kind: "unavailable" } }),
     ).toEqual({ grid: local, upload: false });
   });
+
+  it("keeps the session grid when cloud save is disabled", () => {
+    expect(applySignedInSave({ local, remote: { kind: "disabled" } })).toEqual({
+      grid: local,
+      upload: false,
+    });
+  });
 });
 
 describe("createCloudSave", () => {
-  it("skips Firebase on localhost", async () => {
-    const firebaseCalls: FirebaseWebOptions[] = [];
-    const cloud = createCloudSave({
-      config: readyConfig,
-      hostname: "localhost",
-      createFirebase: ({ options }) => {
-        firebaseCalls.push(options);
-        return createMemoryCloudSave();
-      },
-    });
-
-    expect(firebaseCalls).toEqual([]);
-    await expect(cloud.load({ uid: "local" })).resolves.toEqual({
-      kind: "missing",
-    });
-  });
-
-  it("uses Firebase on a real host when config is ready", () => {
+  it("uses Firebase when config is ready", () => {
     const stub = createMemoryCloudSave();
     const firebaseCalls: FirebaseWebOptions[] = [];
     const cloud = createCloudSave({
       config: readyConfig,
-      hostname: "dad-friendly-game.web.app",
       createFirebase: ({ options }) => {
         firebaseCalls.push(options);
         return stub;
@@ -79,36 +68,46 @@ describe("createCloudSave", () => {
     expect(cloud).toBe(stub);
   });
 
-  it("stays local on a real host when config is missing", async () => {
+  it("stays disabled when config is missing", async () => {
     const cloud = createCloudSave({
       config: { kind: "absent" },
-      hostname: "dad-friendly-game.web.app",
       createFirebase: () => {
         throw new Error("Firebase should not start");
       },
     });
 
     await expect(cloud.load({ uid: "anyone" })).resolves.toEqual({
-      kind: "missing",
+      kind: "disabled",
     });
   });
 });
 
 describe("createMemoryCloudSave", () => {
-  it("round-trips a grid for one uid", async () => {
+  it("round-trips a grid for one uid and notifies watchers", async () => {
     const docs = new Map<string, PocketGrid>();
     const cloud = createMemoryCloudSave({ docs });
     const grid = dig({ grid: createPocketGrid(), index: 4 });
+    const seen: string[] = [];
+    const stop = cloud.watch({
+      uid: "dad",
+      onChange: (remote) => {
+        seen.push(remote.kind);
+      },
+    });
 
     await expect(cloud.load({ uid: "dad" })).resolves.toEqual({
       kind: "missing",
     });
-    await cloud.write({ uid: "dad", grid });
+    await expect(cloud.write({ uid: "dad", grid })).resolves.toEqual({
+      kind: "ok",
+    });
     await expect(cloud.load({ uid: "dad" })).resolves.toEqual({
       kind: "found",
       grid,
     });
     expect(docs.get("dad")).toEqual(grid);
+    expect(seen).toEqual(["missing", "found"]);
+    stop();
   });
 });
 
@@ -120,7 +119,7 @@ describe("createNoopCloudSave", () => {
       grid: createPocketGrid(),
     });
     await expect(cloud.load({ uid: "dad" })).resolves.toEqual({
-      kind: "missing",
+      kind: "disabled",
     });
   });
 });

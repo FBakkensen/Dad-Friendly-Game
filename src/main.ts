@@ -20,15 +20,12 @@ const config = parseFirebaseWebConfig({
     VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
   },
 });
-const hostname = window.location.hostname;
 const auth = createAuth({
   config,
-  hostname,
   createFirebase: createFirebaseAuth,
 });
 const cloudSave = createCloudSave({
   config,
-  hostname,
   createFirebase: createFirebaseCloudSave,
 });
 

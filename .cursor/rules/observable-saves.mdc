@@ -1,0 +1,35 @@
+---
+description: Cloud save is the only save. Failures must be visible and logged.
+alwaysApply: true
+---
+
+# Observable saves
+
+Signed-in progress lives in one Firestore document per Google uid. There is no second save in `localStorage`.
+
+## Do
+
+- Treat the cloud document as the grid while signed in. Watch it. Write it on a dig, hide, and pagehide.
+- Show a save line: account, loading, or unreachable.
+- Record structured log events (`code`, `detail`, counts). Put the latest on the save line as `data-log`.
+- Keep boot HTML `no-cache, no-store`. Hashed `/assets/**` may be immutable.
+
+## Don't
+
+```ts
+// BAD: a second save, and a swallowed failure
+writeGridSave({ storage: localStorage, grid });
+try {
+  await setDoc(ref, payload);
+} catch {
+  return;
+}
+
+// GOOD: cloud only, caller sees the miss
+const result = await cloudSave.write({ uid, grid });
+if (result.kind === "failed") {
+  logger.record({ level: "error", code: "save.write", detail: result.message });
+}
+```
+
+Do not claim phone and PC match from code inspection. Read the save line in the browser.

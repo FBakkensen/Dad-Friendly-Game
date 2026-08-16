@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createMemoryAuth } from "./auth";
 import {
   createMemoryCloudSave,
@@ -8,7 +8,6 @@ import {
 } from "./cloud-save";
 import { createPocketGrid, dig, type PocketGrid } from "./grid";
 import { mountPocketGridScreen } from "./pocket-grid-screen";
-import { GRID_SAVE_KEY } from "./persist";
 
 const tileUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
@@ -16,12 +15,7 @@ const tileUrl =
 const screen = {
   lanternUrl: tileUrl,
   cellSheetUrl: tileUrl,
-  storage: sessionStorage,
 };
-
-beforeEach(() => {
-  sessionStorage.removeItem(GRID_SAVE_KEY);
-});
 
 describe("mountPocketGridScreen", () => {
   it("keeps the lantern and uncovers a cell on tap", () => {
@@ -31,12 +25,14 @@ describe("mountPocketGridScreen", () => {
     const lantern = root.querySelector("img.lantern");
     const cells = root.querySelectorAll("button.dig-cell");
     const status = root.querySelector(".dig-status");
+    const saveStatus = root.querySelector(".save-status");
     const first = cells[0];
     if (
       !(lantern instanceof HTMLImageElement) ||
       cells.length !== 9 ||
       !(first instanceof HTMLButtonElement) ||
-      !(status instanceof HTMLElement)
+      !(status instanceof HTMLElement) ||
+      !(saveStatus instanceof HTMLElement)
     ) {
       throw new Error("pocket grid did not render");
     }
@@ -44,6 +40,7 @@ describe("mountPocketGridScreen", () => {
     expect(lantern.alt).toBe("Lantern");
     expect(first.dataset["kind"]).toBe("covered");
     expect(status.textContent).toBe("0 of 9 dug");
+    expect(saveStatus.textContent).toBe("Sign in to save");
 
     first.click();
 
@@ -56,7 +53,7 @@ describe("mountPocketGridScreen", () => {
     expect(status.textContent).toBe("1 of 9 dug");
   });
 
-  it("restores dug cells after remount", () => {
+  it("does not keep unsigned digs after remount", () => {
     const root = document.createElement("div");
     mountPocketGridScreen({ root, ...screen });
 
@@ -77,25 +74,8 @@ describe("mountPocketGridScreen", () => {
       throw new Error("pocket grid did not remount");
     }
 
-    expect(restored.dataset["kind"]).toBe("dug");
-    expect(status.textContent).toBe("1 of 9 dug");
-  });
-
-  it("writes the grid on pagehide and when the tab hides", () => {
-    const root = document.createElement("div");
-    mountPocketGridScreen({ root, ...screen });
-
-    sessionStorage.removeItem(GRID_SAVE_KEY);
-    window.dispatchEvent(new Event("pagehide"));
-    expect(sessionStorage.getItem(GRID_SAVE_KEY)).not.toBeNull();
-
-    sessionStorage.removeItem(GRID_SAVE_KEY);
-    Object.defineProperty(document, "visibilityState", {
-      configurable: true,
-      get: () => "hidden",
-    });
-    document.dispatchEvent(new Event("visibilitychange"));
-    expect(sessionStorage.getItem(GRID_SAVE_KEY)).not.toBeNull();
+    expect(restored.dataset["kind"]).toBe("covered");
+    expect(status.textContent).toBe("0 of 9 dug");
   });
 
   it("signs in with Google and signs out", () => {
@@ -149,9 +129,15 @@ describe("mountPocketGridScreen", () => {
     expect(
       root.querySelectorAll("button.dig-cell")[8]?.getAttribute("data-kind"),
     ).toBe("dug");
+    expect(root.querySelector(".save-status")?.textContent).toBe(
+      "Saved to your account",
+    );
+    expect(
+      root.querySelector(".save-status")?.getAttribute("data-log"),
+    ).toContain("save.remote found");
   });
 
-  it("uploads a local dig when the cloud has no save", async () => {
+  it("uploads a session dig when the cloud has no save", async () => {
     const docs = new Map<string, PocketGrid>();
     const root = document.createElement("div");
     mountPocketGridScreen({
@@ -201,7 +187,7 @@ describe("mountPocketGridScreen", () => {
     expect(docs.get("test-dad")?.cells[0]).toEqual({ kind: "dug" });
   });
 
-  it("keeps the local grid when the cloud is down", async () => {
+  it("keeps the session grid when the cloud is down", async () => {
     const root = document.createElement("div");
     mountPocketGridScreen({
       root,
@@ -223,21 +209,30 @@ describe("mountPocketGridScreen", () => {
 
     await Promise.resolve();
     expect(root.querySelector(".dig-status")?.textContent).toBe("1 of 9 dug");
+    expect(root.querySelector(".save-status")?.textContent).toBe(
+      "Couldn't reach your save",
+    );
+    expect(
+      root.querySelector(".save-status")?.getAttribute("data-log"),
+    ).toContain("save.remote unavailable");
   });
 
-  it("does not apply a stale cloud load after a local dig", async () => {
+  it("does not dig until the cloud save has loaded", async () => {
     let finishLoad: (result: CloudLoadResult) => void = () => {
       throw new Error("load was not pending");
     };
     const docs = new Map<string, PocketGrid>();
     const cloudSave: CloudSave = {
-      load: () =>
-        new Promise((resolve) => {
-          finishLoad = resolve;
-        }),
+      load: () => Promise.resolve({ kind: "missing" }),
       write: ({ uid, grid }) => {
         docs.set(uid, grid);
-        return Promise.resolve();
+        return Promise.resolve({ kind: "ok" });
+      },
+      watch: ({ onChange }) => {
+        finishLoad = onChange;
+        return () => {
+          return;
+        };
       },
     };
     const user = { uid: "test-dad", label: "Test Dad" };
@@ -254,11 +249,98 @@ describe("mountPocketGridScreen", () => {
       throw new Error("pocket grid did not render");
     }
     first.click();
+    expect(root.querySelector(".dig-status")?.textContent).toBe("0 of 9 dug");
 
-    finishLoad({ kind: "found", grid: createPocketGrid() });
+    finishLoad({
+      kind: "found",
+      grid: dig({ grid: createPocketGrid(), index: 8 }),
+    });
     await Promise.resolve();
 
     expect(root.querySelector(".dig-status")?.textContent).toBe("1 of 9 dug");
+    expect(
+      root.querySelectorAll("button.dig-cell")[8]?.getAttribute("data-kind"),
+    ).toBe("dug");
+  });
+
+  it("shows the same cloud grid on a second signed-in screen", async () => {
+    const docs = new Map<string, PocketGrid>();
+    const cloudSave = createMemoryCloudSave({ docs });
+    const user = { uid: "test-dad", label: "Test Dad" };
+    const authA = createMemoryAuth({
+      state: { kind: "signed-in", user },
+      user,
+    });
+    const authB = createMemoryAuth({
+      state: { kind: "signed-in", user },
+      user,
+    });
+    const rootA = document.createElement("div");
+    const rootB = document.createElement("div");
+    mountPocketGridScreen({
+      root: rootA,
+      ...screen,
+      auth: authA,
+      cloudSave,
+    });
+    mountPocketGridScreen({
+      root: rootB,
+      ...screen,
+      auth: authB,
+      cloudSave,
+    });
+
+    await vi.waitFor(() => {
+      expect(rootA.querySelector(".save-status")?.textContent).toBe(
+        "Saved to your account",
+      );
+      expect(rootB.querySelector(".save-status")?.textContent).toBe(
+        "Saved to your account",
+      );
+    });
+
+    const first = rootA.querySelector("button.dig-cell");
+    if (!(first instanceof HTMLButtonElement)) {
+      throw new Error("pocket grid did not render");
+    }
+    first.click();
+
+    await vi.waitFor(() => {
+      expect(rootB.querySelector(".dig-status")?.textContent).toBe(
+        "1 of 9 dug",
+      );
+    });
+    expect(
+      rootB.querySelectorAll("button.dig-cell")[0]?.getAttribute("data-kind"),
+    ).toBe("dug");
+  });
+
+  it("writes the cloud grid when the tab hides", async () => {
+    const docs = new Map<string, PocketGrid>();
+    const user = { uid: "test-dad", label: "Test Dad" };
+    const root = document.createElement("div");
+    mountPocketGridScreen({
+      root,
+      ...screen,
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: createMemoryCloudSave({ docs }),
+    });
+
+    await vi.waitFor(() => {
+      expect(docs.has("test-dad")).toBe(true);
+    });
+
+    const first = root.querySelector("button.dig-cell");
+    if (!(first instanceof HTMLButtonElement)) {
+      throw new Error("pocket grid did not render");
+    }
+    first.click();
+    docs.delete("test-dad");
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
     expect(docs.get("test-dad")?.cells[0]).toEqual({ kind: "dug" });
   });
 });

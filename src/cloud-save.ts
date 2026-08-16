@@ -4,11 +4,23 @@ import type { PocketGrid } from "./grid";
 export type CloudLoadResult =
   | { readonly kind: "found"; readonly grid: PocketGrid }
   | { readonly kind: "missing" }
-  | { readonly kind: "unavailable" };
+  | { readonly kind: "unavailable" }
+  | { readonly kind: "disabled" };
+
+export type CloudWriteResult =
+  | { readonly kind: "ok" }
+  | { readonly kind: "failed"; readonly message: string };
 
 export type CloudSave = {
   readonly load: (args: { uid: string }) => Promise<CloudLoadResult>;
-  readonly write: (args: { uid: string; grid: PocketGrid }) => Promise<void>;
+  readonly write: (args: {
+    uid: string;
+    grid: PocketGrid;
+  }) => Promise<CloudWriteResult>;
+  readonly watch: (args: {
+    uid: string;
+    onChange: (remote: CloudLoadResult) => void;
+  }) => () => void;
 };
 
 export type HydratedSave = {
@@ -29,6 +41,7 @@ export function applySignedInSave({
     case "missing":
       return { grid: local, upload: true };
     case "unavailable":
+    case "disabled":
       return { grid: local, upload: false };
     default: {
       const _exhaustive: never = remote;
@@ -39,8 +52,14 @@ export function applySignedInSave({
 
 export function createNoopCloudSave(): CloudSave {
   return {
-    load: () => Promise.resolve({ kind: "missing" }),
-    write: () => Promise.resolve(),
+    load: () => Promise.resolve({ kind: "disabled" }),
+    write: () => Promise.resolve({ kind: "ok" }),
+    watch: ({ onChange }) => {
+      onChange({ kind: "disabled" });
+      return () => {
+        return;
+      };
+    },
   };
 }
 
@@ -49,17 +68,45 @@ export function createMemoryCloudSave({
 }: {
   docs?: Map<string, PocketGrid>;
 } = {}): CloudSave {
+  const watchers = new Map<string, Set<(remote: CloudLoadResult) => void>>();
+
+  const current = (uid: string): CloudLoadResult => {
+    const grid = docs.get(uid);
+    if (grid === undefined) {
+      return { kind: "missing" };
+    }
+    return { kind: "found", grid };
+  };
+
+  const emit = (uid: string): void => {
+    const remote = current(uid);
+    const listeners = watchers.get(uid);
+    if (listeners === undefined) {
+      return;
+    }
+    for (const listener of listeners) {
+      listener(remote);
+    }
+  };
+
   return {
-    load: ({ uid }) => {
-      const grid = docs.get(uid);
-      if (grid === undefined) {
-        return Promise.resolve({ kind: "missing" });
-      }
-      return Promise.resolve({ kind: "found", grid });
-    },
+    load: ({ uid }) => Promise.resolve(current(uid)),
     write: ({ uid, grid }) => {
       docs.set(uid, grid);
-      return Promise.resolve();
+      emit(uid);
+      return Promise.resolve({ kind: "ok" });
+    },
+    watch: ({ uid, onChange }) => {
+      let listeners = watchers.get(uid);
+      if (listeners === undefined) {
+        listeners = new Set();
+        watchers.set(uid, listeners);
+      }
+      listeners.add(onChange);
+      onChange(current(uid));
+      return () => {
+        listeners.delete(onChange);
+      };
     },
   };
 }
@@ -67,22 +114,23 @@ export function createMemoryCloudSave({
 export function createUnavailableCloudSave(): CloudSave {
   return {
     load: () => Promise.resolve({ kind: "unavailable" }),
-    write: () => Promise.resolve(),
+    write: () => Promise.resolve({ kind: "failed", message: "unavailable" }),
+    watch: ({ onChange }) => {
+      onChange({ kind: "unavailable" });
+      return () => {
+        return;
+      };
+    },
   };
 }
 
 export function createCloudSave({
   config,
-  hostname,
   createFirebase,
 }: {
   config: FirebaseWebConfig;
-  hostname: string;
   createFirebase: (args: { options: FirebaseWebOptions }) => CloudSave;
 }): CloudSave {
-  if (hostname === "localhost" || hostname === "127.0.0.1") {
-    return createNoopCloudSave();
-  }
   switch (config.kind) {
     case "ready":
       return createFirebase({ options: config.options });

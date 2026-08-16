@@ -56,7 +56,7 @@ describe("Firebase Hosting cache headers", () => {
     const html = blocks.find((block) => block.source === "**");
     const assets = blocks.find((block) => block.source === "/assets/**");
     expect(html?.headers).toEqual([
-      { key: "Cache-Control", value: "no-cache" },
+      { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
     ]);
     expect(assets?.headers).toEqual([
       {
