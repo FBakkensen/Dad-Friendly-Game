@@ -32,6 +32,7 @@ If the human (or the agent) wants more:
 1. Stop enlarging the current issue.
 2. Suggest a **new** issue. Show title, parent, `blocked-by` / `blocking`.
 3. Create it only after they say yes.
+4. Do not start that issue. Do not branch, implement, or open a PR for it until this sitting's PR is done and they pick it.
 
 New ideas that appear through work follow the same path. They do not sneak into the current PR.
 
@@ -58,8 +59,9 @@ Simple ideas still get an issue. One or two sentences is enough.
 
 - No issue, no implementation. File it, then code.
 - Do not start an issue that is still blocked.
-- One PR closes one issue when possible (`Fixes #N`).
-- If the diff grows a second sliver, stop. File the second issue. Keep this PR on `#N`.
+- One branch and one PR at a time. Never a second branch, stacked PR, or parallel PR.
+- One PR closes one issue (`Fixes #N`).
+- If the diff grows a second sliver, stop. File the second issue. Do not start it. Keep this PR on `#N`.
 
 ## No remote yet
 
