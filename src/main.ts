@@ -1,5 +1,6 @@
-import { mountBootScreen } from "./boot-screen";
-import tileUrl from "./assets/boot-tile.png";
+import { mountPocketGridScreen } from "./pocket-grid-screen";
+import lanternUrl from "./assets/boot-tile.png";
+import cellSheetUrl from "./assets/dig-cells.png";
 import "./style.css";
 
 const root = document.getElementById("app");
@@ -7,4 +8,4 @@ if (!(root instanceof HTMLElement)) {
   throw new Error("missing #app");
 }
 
-mountBootScreen({ root, tileUrl });
+mountPocketGridScreen({ root, lanternUrl, cellSheetUrl });
