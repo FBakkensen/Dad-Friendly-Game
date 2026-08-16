@@ -56,6 +56,22 @@ export function parseFirebaseWebConfig({
   };
 }
 
+export function assertProductionFirebaseWebConfig({
+  mode,
+  env,
+}: {
+  mode: string;
+  env: FirebaseEnv;
+}): void {
+  if (mode !== "production") {
+    return;
+  }
+  const config = parseFirebaseWebConfig({ env });
+  if (config.kind === "absent") {
+    throw new Error("production build needs VITE_FIREBASE_*");
+  }
+}
+
 export const LOCAL_AUTH_USER: AuthUser = {
   uid: "local",
   label: "Local",
