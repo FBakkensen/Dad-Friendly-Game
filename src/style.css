@@ -79,9 +79,36 @@ body {
   background-position: 100% 0;
 }
 
-.dig-status {
+.dig-status,
+.auth-status {
   margin: 0;
   min-height: 1.5em;
   font-size: 1.25rem;
   letter-spacing: 0.02em;
+}
+
+.auth-action {
+  appearance: none;
+  min-height: 64px;
+  min-width: min(calc(3 * min(28vw, 104px) + 24px), 100%);
+  padding: 16px 24px;
+  border: 0;
+  border-radius: 12px;
+  background: #e8a84a;
+  color: #120c0a;
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 650;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.auth-action:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.auth-action:focus-visible {
+  outline: 4px solid #e8d4b8;
+  outline-offset: 4px;
 }

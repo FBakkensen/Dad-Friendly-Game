@@ -1,4 +1,9 @@
 import {
+  createUnconfiguredAuth,
+  type AuthController,
+  type AuthState,
+} from "./auth";
+import {
   dig,
   dugCount,
   isCellIndex,
@@ -19,11 +24,13 @@ export function mountPocketGridScreen({
   lanternUrl,
   cellSheetUrl,
   storage = window.localStorage,
+  auth = createUnconfiguredAuth(),
 }: {
   root: HTMLElement;
   lanternUrl: string;
   cellSheetUrl: string;
   storage?: Storage;
+  auth?: AuthController;
 }): void {
   let grid: PocketGrid = readGridSave({ storage });
   const persist = (): void => {
@@ -72,6 +79,55 @@ export function mountPocketGridScreen({
   status.className = "dig-status";
   status.setAttribute("aria-live", "polite");
 
+  const authStatus = document.createElement("p");
+  authStatus.className = "auth-status";
+  authStatus.setAttribute("aria-live", "polite");
+
+  const authButton = document.createElement("button");
+  authButton.type = "button";
+  authButton.className = "auth-action";
+  authButton.addEventListener("click", () => {
+    const state = auth.getState();
+    switch (state.kind) {
+      case "signed-out":
+        void auth.signIn();
+        return;
+      case "signing-in":
+        return;
+      case "signed-in":
+        void auth.signOut();
+        return;
+      default: {
+        const _exhaustive: never = state;
+        return _exhaustive;
+      }
+    }
+  });
+
+  const renderAuth = (state: AuthState): void => {
+    switch (state.kind) {
+      case "signed-out":
+        authButton.textContent = "Sign in with Google";
+        authButton.disabled = false;
+        authStatus.textContent = "";
+        return;
+      case "signing-in":
+        authButton.textContent = "Signing in...";
+        authButton.disabled = true;
+        authStatus.textContent = "";
+        return;
+      case "signed-in":
+        authButton.textContent = "Sign out";
+        authButton.disabled = false;
+        authStatus.textContent = `Signed in as ${state.user.label}`;
+        return;
+      default: {
+        const _exhaustive: never = state;
+        return _exhaustive;
+      }
+    }
+  };
+
   const render = (): void => {
     for (const [index, button] of buttons.entries()) {
       if (!isCellIndex(index)) {
@@ -97,8 +153,10 @@ export function mountPocketGridScreen({
     { signal },
   );
   window.addEventListener("pagehide", persist, { signal });
+  const unsubscribeAuth = auth.subscribe(renderAuth);
+  signal.addEventListener("abort", unsubscribeAuth);
 
-  root.replaceChildren(lantern, board, status);
+  root.replaceChildren(lantern, board, status, authStatus, authButton);
   render();
 }
 
