@@ -1,5 +1,5 @@
 ---
-description: Review-fix until only nits before filing a PR. After filing, babysit CI and reviews through squash merge, then update local main.
+description: Review-fix until only nits before filing a PR. After filing, babysit CI and reviews through squash merge, watch hosting deploy on main, then update local main.
 alwaysApply: true
 ---
 
@@ -36,5 +36,7 @@ gh pr merge --squash
 git checkout main
 git pull
 ```
+
+Then watch the workflows that merge commit started, including `deploy-hosting`. Do not invent work while they run. If deploy fails, read the log, fix the cause, re-run. Never force-push. Never edit CI just to go green. The sitting is not done until those runs succeed.
 
 Do not delete the local feature branch unless asked. Stop and ask on auth, secrets, or a real product question.

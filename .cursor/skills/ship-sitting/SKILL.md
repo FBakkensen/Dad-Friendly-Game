@@ -1,11 +1,11 @@
 ---
 name: ship-sitting
-description: Commits the current sitting, runs a /code-review pass, fixes non-nits, opens one PR, then babysits CI and reviews through squash-merge. Use when the user asks to ship, commit and PR, file the PR, finish the sitting, or babysit the PR.
+description: Commits the current sitting, runs a /code-review pass, fixes non-nits, opens one PR, babysits CI and reviews through squash-merge, then watches the hosting deploy on main. Use when the user asks to ship, commit and PR, file the PR, finish the sitting, or babysit the PR.
 ---
 
 # Ship sitting
 
-Commit, `/code-review`, fix, open the PR, babysit until squash-merge. Stay in this conversation. Do not use the autopilot skill, Cursor `/babysit`, or a cloud agent.
+Commit, `/code-review`, fix, open the PR, babysit until squash-merge, then watch the deploy workflow on `main`. Stay in this conversation. Do not use the autopilot skill, Cursor `/babysit`, or a cloud agent.
 
 One issue, one branch, one PR. `Fixes #N`. Use the github-issues skill for the graph.
 
@@ -14,6 +14,7 @@ One issue, one branch, one PR. `Fixes #N`. Use the github-issues skill for the g
 - Uncommitted work, no PR: start at Commit.
 - Committed, no PR: start at `/code-review`.
 - PR already open: start at Babysit.
+- Merged, deploy still running or failed: start at After merge.
 - Nothing to ship: stop.
 
 ## Gate
@@ -80,4 +81,22 @@ git checkout main
 git pull
 ```
 
-Do not delete the local feature branch unless asked. Return the PR URL.
+Do not delete the local feature branch unless asked. Then go to After merge. Do not return the PR URL yet.
+
+## After merge
+
+The sitting is not done at squash-merge. `deploy-hosting` runs on `main` and can fail after the PR is green.
+
+Refresh the merge commit, then watch every workflow that commit started:
+
+```bash
+git rev-parse HEAD
+gh run list --commit "$(git rev-parse HEAD)" --json databaseId,name,status,conclusion,url
+gh run watch <id>
+```
+
+Watch `check` if it ran again, and `deploy-hosting`. Do not invent work while they run.
+
+If deploy fails, read the log (`gh run view <id> --log-failed`). Fix the cause. Push if it is code. Re-run the workflow (`gh run rerun <id>`). Never force-push. Never edit CI just to go green.
+
+Return the PR URL only after those runs succeed.
