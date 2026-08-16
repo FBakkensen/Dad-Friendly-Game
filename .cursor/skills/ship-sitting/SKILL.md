@@ -87,15 +87,22 @@ Do not delete the local feature branch unless asked. Then go to After merge. Do 
 
 The sitting is not done at squash-merge. `deploy-hosting` runs on `main` and can fail after the PR is green.
 
-Refresh the merge commit, then watch every workflow that commit started:
+Refresh the merge commit, then list the workflows that commit started:
 
 ```bash
 git rev-parse HEAD
 gh run list --commit "$(git rev-parse HEAD)" --json databaseId,name,status,conclusion,url
-gh run watch <id>
 ```
 
-Watch `check` if it ran again, and `deploy-hosting`. Do not invent work while they run.
+If the list is empty, wait and list again. Do not treat an empty list as success.
+
+Watch each run to completion, including `check` if it ran again, and `deploy-hosting`:
+
+```bash
+gh run watch <id> --exit-status
+```
+
+Do not invent work while they run.
 
 If deploy fails, read the log (`gh run view <id> --log-failed`). Fix the cause. Push if it is code. Re-run the workflow (`gh run rerun <id>`). Never force-push. Never edit CI just to go green.
 
