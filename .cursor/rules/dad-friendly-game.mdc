@@ -1,0 +1,44 @@
+---
+description: What a dad-friendly game is. Apply to design, UX, persistence, art, audio, and runtime AI.
+alwaysApply: true
+---
+
+# Dad-friendly game
+
+The player is an adult after lights-out. Kids are asleep in the house. Content may be sharp. Audio must not be.
+
+A dad-friendly game has at least these characteristics:
+
+- can be played in short interrupted sessions
+- is relaxing for the brain after a long day when the kids is finally asleep
+- can be played everywhere both PC and mobile
+- can survive instant quit and picked up later
+
+## Session
+
+- Built for about two minutes. May stretch if the house stays quiet.
+- Gentle loop. A little craft is good. Never punishing. Losing a minute is fine. Losing the evening is not.
+- Close is pause. No confirm dialog. Kill the tab or lock the phone. Next open is the same moment, minus at most one in-flight tap.
+- Persist on every meaningful mutation, on `visibilitychange` hidden, and on `pagehide`.
+
+## Shape
+
+Turn-based or idle are both in bounds. Real-time twitch play is not.
+
+- Turn-based: a sitting is one turn or a short run of turns. Close mid-turn is still pause.
+- Idle: progress may accrue while away. Compute it from timestamps on the next open. Idle is not a live server.
+
+## Devices
+
+- One web app on phone and PC. Touch-first. Fat targets. Mouse uses the same UI.
+- Same save on every device from day one. Identity is one-tap Google. Backend is a save blob, not a live world. No SpaceTimeDB.
+
+## Senses and art
+
+- Silent until the player unmutes. No autoplay.
+- PixelLab pixel art. Simple animation loops. No tileset world, no 8-direction walker, no isometric map until that ceiling is raised on purpose.
+- No placeholders. The human cannot abstract from boxes. If art is missing, stop and use the pixellab skill.
+
+## AI in play
+
+- Optional spice. Never required to progress. If the model or network is down, the game still plays.

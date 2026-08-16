@@ -1,0 +1,42 @@
+---
+description: Dad-friendly development. Short sittings, no long spec, typed and tested slivers, proof in the browser.
+alwaysApply: true
+---
+
+# Dad-friendly work
+
+How we build is dad-friendly too. The interview format (one question, three options, one recommended) is the model for decisions.
+
+## Sittings
+
+- No long spec. No design doc. Open GitHub issues are the plan.
+- One sitting produces one user-visible sliver. The game still boots. Next sitting starts from a running game.
+- Chores (lint, folders, vendor setup) are not a sitting by themselves unless they unblock that same sliver.
+- Do not pick the game until the human asks. When they do, it is turn-based or idle.
+- GitHub is the backbone: issues, PRs, and the dependency graph. Even a one-line idea gets an issue. Use the github-issues skill.
+
+## Chassis (until a game exists)
+
+- TypeScript web app. Vite. Installable PWA.
+- Firebase: Google auth and one JSON save document per user.
+- Game engine unpicked. Do not add Phaser, Pixi, or similar until the genre needs it.
+- Fat-finger UI from the first screen.
+- Never commit Firebase, PixelLab, or other secrets.
+
+## Done means proven
+
+- Strongly typed TypeScript. Illegal save states should be hard to represent (discriminated unions, not optional-field bags).
+- `tsc` clean. Unit tests green for the sliver (Vitest).
+- Agent verifies in Cursor's integrated browser. Load the app. Tap the fat target. Do not add Playwright unless asked.
+- Do not claim a sliver is done from code inspection alone.
+
+## Finish the sitting, not the idea pile
+
+- One issue is one sliver. If the feature grows, do not enlarge the issue. Suggest a new issue and link it.
+- New ideas that appear mid-work go on GitHub. They do not sneak into the current PR.
+- The agent keeps `blocked-by` / `blocking` / parent links truthful so the next sitting can start from unblocked work.
+
+## Art and next work
+
+- PixelLab MCP generates assets. Ask first. Never placeholders. Use the pixellab skill.
+- When the human asks what next, what to build, or for improvement suggestions, use the what-next skill. Prefer unblocked GitHub issues as the options.
