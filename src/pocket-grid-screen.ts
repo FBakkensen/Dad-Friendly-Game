@@ -173,8 +173,12 @@ export function mountPocketGridScreen({
     }
     const generation = (hydrateGeneration += 1);
     const uid = state.user.uid;
+    const gridAtLoad = grid;
     void cloudSave.load({ uid }).then((remote) => {
       if (generation !== hydrateGeneration) {
+        return;
+      }
+      if (grid !== gridAtLoad) {
         return;
       }
       const next = applySignedInSave({ local: grid, remote });

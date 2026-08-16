@@ -24,7 +24,7 @@ export function createFirebaseCloudSave({
         const data: unknown = snap.data();
         const grid = parseGridSaveValue(data);
         if (grid === undefined) {
-          return { kind: "missing" };
+          return { kind: "unavailable" };
         }
         return { kind: "found", grid };
       } catch {
