@@ -74,6 +74,66 @@ export function dugCount(grid: PocketGrid): number {
   return grid.cells.filter((cell) => cell.kind === "dug").length;
 }
 
+export function parsePocketGrid(value: unknown): PocketGrid | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  if (!("width" in value) || !("height" in value) || !("cells" in value)) {
+    return undefined;
+  }
+  if (value.width !== 3 || value.height !== 3) {
+    return undefined;
+  }
+  const cells = parseCells(value.cells);
+  if (cells === undefined) {
+    return undefined;
+  }
+  return { width: 3, height: 3, cells };
+}
+
+function parseCell(value: unknown): Cell | undefined {
+  if (typeof value !== "object" || value === null || !("kind" in value)) {
+    return undefined;
+  }
+  switch (value.kind) {
+    case "covered":
+      return { kind: "covered" };
+    case "dug":
+      return { kind: "dug" };
+    default:
+      return undefined;
+  }
+}
+
+function parseCells(value: unknown): PocketGrid["cells"] | undefined {
+  if (!Array.isArray(value) || value.length !== 9) {
+    return undefined;
+  }
+  const c0 = parseCell(value[0]);
+  const c1 = parseCell(value[1]);
+  const c2 = parseCell(value[2]);
+  const c3 = parseCell(value[3]);
+  const c4 = parseCell(value[4]);
+  const c5 = parseCell(value[5]);
+  const c6 = parseCell(value[6]);
+  const c7 = parseCell(value[7]);
+  const c8 = parseCell(value[8]);
+  if (
+    c0 === undefined ||
+    c1 === undefined ||
+    c2 === undefined ||
+    c3 === undefined ||
+    c4 === undefined ||
+    c5 === undefined ||
+    c6 === undefined ||
+    c7 === undefined ||
+    c8 === undefined
+  ) {
+    return undefined;
+  }
+  return [c0, c1, c2, c3, c4, c5, c6, c7, c8];
+}
+
 function setCell({
   cells,
   index,

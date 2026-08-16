@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPocketGrid, dig, dugCount } from "./grid";
+import { createPocketGrid, dig, dugCount, parsePocketGrid } from "./grid";
 
 describe("createPocketGrid", () => {
   it("starts every cell covered", () => {
@@ -30,5 +30,46 @@ describe("dig", () => {
 
     expect(twice).toBe(once);
     expect(twice.cells[0]).toEqual({ kind: "dug" });
+  });
+});
+
+describe("parsePocketGrid", () => {
+  it("rebuilds a valid grid", () => {
+    const dug = dig({ grid: createPocketGrid(), index: 2 });
+    const parsed = parsePocketGrid({
+      width: 3,
+      height: 3,
+      cells: dug.cells.map((cell) => ({ kind: cell.kind })),
+    });
+
+    expect(parsed).toEqual(dug);
+  });
+
+  it("rejects the wrong size or an unknown cell", () => {
+    expect(parsePocketGrid({ width: 2, height: 3, cells: [] })).toBeUndefined();
+    expect(
+      parsePocketGrid({
+        width: 3,
+        height: 3,
+        cells: Array.from({ length: 8 }, () => ({ kind: "covered" })),
+      }),
+    ).toBeUndefined();
+    expect(
+      parsePocketGrid({
+        width: 3,
+        height: 3,
+        cells: [
+          { kind: "covered" },
+          { kind: "covered" },
+          { kind: "covered" },
+          { kind: "covered" },
+          { kind: "lava" },
+          { kind: "covered" },
+          { kind: "covered" },
+          { kind: "covered" },
+          { kind: "covered" },
+        ],
+      }),
+    ).toBeUndefined();
   });
 });
