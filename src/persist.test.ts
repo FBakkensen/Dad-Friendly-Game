@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createPocketGrid, dig } from "./grid";
-import { GRID_SAVE_KEY, readGridSave, writeGridSave } from "./persist";
+import {
+  GRID_SAVE_KEY,
+  parseGridSaveValue,
+  readGridSave,
+  serializeGridSave,
+  writeGridSave,
+} from "./persist";
 
 beforeEach(() => {
   sessionStorage.removeItem(GRID_SAVE_KEY);
@@ -28,5 +34,27 @@ describe("writeGridSave and readGridSave", () => {
       JSON.stringify({ version: 2, grid: createPocketGrid() }),
     );
     expect(readGridSave({ storage: sessionStorage })).toEqual(fresh);
+  });
+});
+
+describe("serializeGridSave and parseGridSaveValue", () => {
+  it("round-trips a dug grid object", () => {
+    const grid = dig({ grid: createPocketGrid(), index: 3 });
+
+    expect(parseGridSaveValue(serializeGridSave({ grid }))).toEqual(grid);
+  });
+
+  it("rejects missing fields, the wrong version, or a bad grid", () => {
+    expect(parseGridSaveValue(null)).toBeUndefined();
+    expect(parseGridSaveValue({ version: 1 })).toBeUndefined();
+    expect(
+      parseGridSaveValue({ version: 2, grid: createPocketGrid() }),
+    ).toBeUndefined();
+    expect(
+      parseGridSaveValue({
+        version: 1,
+        grid: { width: 2, height: 2, cells: [] },
+      }),
+    ).toBeUndefined();
   });
 });
