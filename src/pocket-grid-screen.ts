@@ -4,6 +4,7 @@ import {
   type AuthState,
 } from "./auth";
 import {
+  createPocketGrid,
   dig,
   dugCount,
   isCellIndex,
@@ -14,13 +15,16 @@ import {
 import {
   applySignedInSave,
   createNoopCloudSave,
+  type CloudLoadResult,
   type CloudSave,
 } from "./cloud-save";
-import { readGridSave, writeGridSave } from "./persist";
+import { createLogger, formatLogEvent, type Logger } from "./log";
 
 const CELL_INDEXES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8,
 ] as const satisfies readonly CellIndex[];
+
+type SaveKind = "unsigned" | "loading" | "account" | "error";
 
 let persistLifetime: AbortController | undefined;
 
@@ -28,25 +32,60 @@ export function mountPocketGridScreen({
   root,
   lanternUrl,
   cellSheetUrl,
-  storage = window.localStorage,
   auth = createUnconfiguredAuth(),
   cloudSave = createNoopCloudSave(),
+  logger = createLogger({ limit: 20 }),
 }: {
   root: HTMLElement;
   lanternUrl: string;
   cellSheetUrl: string;
-  storage?: Storage;
   auth?: AuthController;
   cloudSave?: CloudSave;
+  logger?: Logger;
 }): void {
-  let grid: PocketGrid = readGridSave({ storage });
+  let grid: PocketGrid = createPocketGrid();
   let hydrateGeneration = 0;
-  const persist = (): void => {
-    writeGridSave({ storage, grid });
+  let hydrated = false;
+  let inFlightWrites = 0;
+  let saveKind: SaveKind = "unsigned";
+  let unwatch: (() => void) | undefined;
+
+  const persistCloud = (): void => {
     const state = auth.getState();
-    if (state.kind === "signed-in") {
-      void cloudSave.write({ uid: state.user.uid, grid });
+    if (state.kind !== "signed-in" || !hydrated) {
+      return;
     }
+    const uid = state.user.uid;
+    const dug = dugCount(grid);
+    inFlightWrites += 1;
+    void cloudSave.write({ uid, grid }).then((result) => {
+      inFlightWrites -= 1;
+      switch (result.kind) {
+        case "ok":
+          saveKind = "account";
+          logger.record({
+            level: "info",
+            code: "save.write",
+            detail: "ok",
+            data: { dug },
+          });
+          break;
+        case "failed":
+          saveKind = "error";
+          logger.record({
+            level: "error",
+            code: "save.write",
+            detail: result.message,
+            data: { dug },
+          });
+          break;
+        default: {
+          const _exhaustive: never = result;
+          return _exhaustive;
+        }
+      }
+      render();
+    });
   };
 
   const lantern = document.createElement("img");
@@ -74,12 +113,16 @@ export function mountPocketGridScreen({
 
     button.append(art);
     button.addEventListener("click", () => {
+      const state = auth.getState();
+      if (state.kind === "signed-in" && !hydrated) {
+        return;
+      }
       const raw = Number(button.dataset["index"]);
       if (!isCellIndex(raw)) {
         return;
       }
       grid = dig({ grid, index: raw });
-      persist();
+      persistCloud();
       render();
     });
     return button;
@@ -90,6 +133,10 @@ export function mountPocketGridScreen({
   const status = document.createElement("p");
   status.className = "dig-status";
   status.setAttribute("aria-live", "polite");
+
+  const saveStatus = document.createElement("p");
+  saveStatus.className = "save-status";
+  saveStatus.setAttribute("aria-live", "polite");
 
   const authStatus = document.createElement("p");
   authStatus.className = "auth-status";
@@ -140,16 +187,85 @@ export function mountPocketGridScreen({
     }
   };
 
+  const renderSave = (): void => {
+    switch (saveKind) {
+      case "unsigned":
+        saveStatus.textContent = "Sign in to save";
+        saveStatus.dataset["kind"] = "unsigned";
+        break;
+      case "loading":
+        saveStatus.textContent = "Loading your save...";
+        saveStatus.dataset["kind"] = "loading";
+        break;
+      case "account":
+        saveStatus.textContent = "Saved to your account";
+        saveStatus.dataset["kind"] = "account";
+        break;
+      case "error":
+        saveStatus.textContent = "Couldn't reach your save";
+        saveStatus.dataset["kind"] = "error";
+        break;
+      default: {
+        const _exhaustive: never = saveKind;
+        return _exhaustive;
+      }
+    }
+    const latest = logger.latest();
+    if (latest === undefined) {
+      delete saveStatus.dataset["log"];
+      return;
+    }
+    saveStatus.dataset["log"] = formatLogEvent(latest);
+  };
+
   const render = (): void => {
+    const state = auth.getState();
+    const waitForCloud = state.kind === "signed-in" && !hydrated;
     for (const [index, button] of buttons.entries()) {
       if (!isCellIndex(index)) {
         continue;
       }
       const cell = grid.cells[index];
       button.dataset["kind"] = cell.kind;
+      button.disabled = waitForCloud;
       button.setAttribute("aria-label", cellLabel({ cell, index }));
     }
     status.textContent = `${String(dugCount(grid))} of 9 dug`;
+    renderSave();
+  };
+
+  const applyRemote = (remote: CloudLoadResult): void => {
+    if (inFlightWrites > 0 && remote.kind === "found") {
+      return;
+    }
+    const next = applySignedInSave({ local: grid, remote });
+    grid = next.grid;
+    logger.record({
+      level: remote.kind === "unavailable" ? "error" : "info",
+      code: "save.remote",
+      detail: remote.kind,
+      data: { dug: dugCount(grid) },
+    });
+    switch (remote.kind) {
+      case "found":
+      case "missing":
+        hydrated = true;
+        saveKind = "account";
+        if (next.upload) {
+          persistCloud();
+        }
+        break;
+      case "unavailable":
+      case "disabled":
+        hydrated = false;
+        saveKind = "error";
+        break;
+      default: {
+        const _exhaustive: never = remote;
+        return _exhaustive;
+      }
+    }
+    render();
   };
 
   persistLifetime?.abort();
@@ -159,43 +275,57 @@ export function mountPocketGridScreen({
     "visibilitychange",
     () => {
       if (document.visibilityState === "hidden") {
-        persist();
+        persistCloud();
       }
     },
     { signal },
   );
-  window.addEventListener("pagehide", persist, { signal });
+  window.addEventListener("pagehide", persistCloud, { signal });
   const unsubscribeAuth = auth.subscribe((state) => {
     renderAuth(state);
+    unwatch?.();
+    unwatch = undefined;
     if (state.kind !== "signed-in") {
       hydrateGeneration += 1;
+      hydrated = false;
+      saveKind = "unsigned";
+      render();
       return;
     }
     const generation = (hydrateGeneration += 1);
-    const uid = state.user.uid;
-    const gridAtLoad = grid;
-    void cloudSave.load({ uid }).then((remote) => {
-      if (generation !== hydrateGeneration) {
-        return;
-      }
-      if (grid !== gridAtLoad) {
-        return;
-      }
-      const next = applySignedInSave({ local: grid, remote });
-      grid = next.grid;
-      writeGridSave({ storage, grid });
-      if (next.upload) {
-        void cloudSave.write({ uid, grid });
-      }
-      render();
+    hydrated = false;
+    saveKind = "loading";
+    logger.record({
+      level: "info",
+      code: "save.watch",
+      detail: "start",
+      data: { dug: dugCount(grid) },
+    });
+    render();
+    unwatch = cloudSave.watch({
+      uid: state.user.uid,
+      onChange: (remote) => {
+        if (generation !== hydrateGeneration) {
+          return;
+        }
+        applyRemote(remote);
+      },
     });
   });
   signal.addEventListener("abort", () => {
     hydrateGeneration += 1;
+    unwatch?.();
     unsubscribeAuth();
   });
 
-  root.replaceChildren(lantern, board, status, authStatus, authButton);
+  root.replaceChildren(
+    lantern,
+    board,
+    status,
+    saveStatus,
+    authStatus,
+    authButton,
+  );
   render();
 }
 

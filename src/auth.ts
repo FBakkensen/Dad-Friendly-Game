@@ -72,23 +72,13 @@ export function assertProductionFirebaseWebConfig({
   }
 }
 
-export const LOCAL_AUTH_USER: AuthUser = {
-  uid: "local",
-  label: "Local",
-};
-
 export function createAuth({
   config,
-  hostname,
   createFirebase,
 }: {
   config: FirebaseWebConfig;
-  hostname: string;
   createFirebase: (args: { options: FirebaseWebOptions }) => AuthController;
 }): AuthController {
-  if (hostname === "localhost" || hostname === "127.0.0.1") {
-    return createLocalAuth();
-  }
   switch (config.kind) {
     case "ready":
       return createFirebase({ options: config.options });
@@ -99,10 +89,6 @@ export function createAuth({
       return _exhaustive;
     }
   }
-}
-
-function createLocalAuth(): AuthController {
-  return createMemoryAuth({ user: LOCAL_AUTH_USER });
 }
 
 export function createUnconfiguredAuth(): AuthController {
