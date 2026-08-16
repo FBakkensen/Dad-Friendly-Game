@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { createMemoryAuth } from "./auth";
 import { mountPocketGridScreen } from "./pocket-grid-screen";
 import { GRID_SAVE_KEY } from "./persist";
 
@@ -88,5 +89,33 @@ describe("mountPocketGridScreen", () => {
     });
     document.dispatchEvent(new Event("visibilitychange"));
     expect(sessionStorage.getItem(GRID_SAVE_KEY)).not.toBeNull();
+  });
+
+  it("signs in with Google and signs out", () => {
+    const root = document.createElement("div");
+    const auth = createMemoryAuth();
+    mountPocketGridScreen({ root, ...screen, auth });
+
+    const button = root.querySelector("button.auth-action");
+    const authStatus = root.querySelector(".auth-status");
+    if (
+      !(button instanceof HTMLButtonElement) ||
+      !(authStatus instanceof HTMLElement)
+    ) {
+      throw new Error("sign-in control did not render");
+    }
+
+    expect(button.textContent).toBe("Sign in with Google");
+    expect(authStatus.textContent).toBe("");
+
+    button.click();
+
+    expect(button.textContent).toBe("Sign out");
+    expect(authStatus.textContent).toBe("Signed in as Test Dad");
+
+    button.click();
+
+    expect(button.textContent).toBe("Sign in with Google");
+    expect(authStatus.textContent).toBe("");
   });
 });
