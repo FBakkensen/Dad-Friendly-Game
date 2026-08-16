@@ -62,6 +62,7 @@ Simple ideas still get an issue. One or two sentences is enough.
 - One branch and one PR at a time. Never a second branch, stacked PR, or parallel PR.
 - One PR closes one issue (`Fixes #N`).
 - If the diff grows a second sliver, stop. File the second issue. Do not start it. Keep this PR on `#N`.
+- To commit, `/code-review`, file, and babysit, use the ship-sitting skill.
 
 ## No remote yet
 

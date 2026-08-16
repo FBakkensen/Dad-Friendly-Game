@@ -1,0 +1,40 @@
+---
+description: Review-fix until only nits before filing a PR. After filing, babysit CI and reviews through squash merge, then update local main.
+alwaysApply: true
+---
+
+# File and babysit the PR
+
+When the human asks to ship, commit and open a PR, file the PR, or finish the sitting, use the ship-sitting skill. This rule is the `/code-review` and babysit contract that skill runs.
+
+## Before you file
+
+Do not run `gh pr create` until a `/code-review` pass returns only nits, or no findings.
+
+A review pass covers the branch diff that would merge. It prioritizes bugs, behavioral regressions, security issues, and missing tests. Findings first, by severity. The review pass makes no edits.
+
+Then fix every non-nit. Asking to file the PR includes those fix commits. Review again. Repeat.
+
+Nits can ship. If a non-nit is still there after two fix rounds, stop and ask.
+
+## After you file
+
+Stay in this conversation. Do not use the autopilot skill, Cursor `/babysit`, or a cloud agent.
+
+Babysit with `gh` here:
+
+1. Refresh live PR state each pass (`gh pr view`, `gh pr checks`). Do not act on stale state.
+2. Conflicts first, then unresolved review comments, then failing CI.
+3. Watch CI to completion (`gh pr checks --watch`). Do not invent work while checks run.
+4. Fix CI caused by this PR. Read the failing log. Push the fix. Never force-push. Never edit CI config just to go green.
+5. If GitHub later adds PR code review, handle those comments here. Fix real in-scope issues. Dismiss invalid ones with a reason. Ask the human on security or product calls. Nits do not block merge.
+
+When the PR is mergeable, required CI is green, and every non-nit comment is fixed or dismissed, squash-merge without waiting:
+
+```bash
+gh pr merge --squash
+git checkout main
+git pull
+```
+
+Do not delete the local feature branch unless asked. Stop and ask on auth, secrets, or a real product question.
