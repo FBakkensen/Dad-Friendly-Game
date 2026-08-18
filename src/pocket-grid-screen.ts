@@ -323,6 +323,9 @@ export function mountPocketGridScreen({
   );
 
   const unsubscribeProgress = progress.subscribe((next) => {
+    if (next.grid !== view.grid) {
+      selected = undefined;
+    }
     view = next;
     render();
   });

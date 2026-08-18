@@ -279,6 +279,46 @@ describe("mountPocketGridScreen", () => {
     expect(authStatus.textContent).toBe("");
   });
 
+  it("clears a selected stone when the cloud grid replaces this tab", async () => {
+    const remote = dig({ grid: createPocketGrid(), index: 8 });
+    const docs = new Map([["test-dad", remote]]);
+    const root = document.createElement("div");
+    mountScreen({
+      root,
+      auth: createMemoryAuth(),
+      cloudSave: createMemoryCloudSave({ docs }),
+      sessionStorage: createMemoryStorage(),
+    });
+
+    const cells = root.querySelectorAll("button.dig-cell");
+    const first = cells[0];
+    const button = root.querySelector("button.auth-action");
+    if (
+      !(first instanceof HTMLButtonElement) ||
+      !(button instanceof HTMLButtonElement)
+    ) {
+      throw new Error("pocket grid did not render");
+    }
+    first.click();
+    first.click();
+    first.click();
+
+    expect(first.dataset["selected"]).toBe("true");
+
+    button.click();
+
+    await vi.waitFor(() => {
+      expect(root.querySelector(".save-status")?.textContent).toBe(
+        "Saved to your account",
+      );
+    });
+    expect(first.dataset["selected"]).toBeUndefined();
+    expect(first.dataset["kind"]).toBe("covered");
+    expect(
+      root.querySelectorAll("button.dig-cell")[8]?.getAttribute("data-kind"),
+    ).toBe("dug");
+  });
+
   it("loads the cloud grid after sign-in", async () => {
     const remote = dig({ grid: createPocketGrid(), index: 8 });
     const docs = new Map([["test-dad", remote]]);
