@@ -7,7 +7,9 @@ import {
   createPocketGrid,
   dig,
   dugCount,
+  hand,
   isCellIndex,
+  place,
   type Cell,
   type CellIndex,
   type PocketGrid,
@@ -32,6 +34,7 @@ export function mountPocketGridScreen({
   root,
   lanternUrl,
   cellSheetUrl,
+  stoneUrl,
   auth = createUnconfiguredAuth(),
   cloudSave = createNoopCloudSave(),
   logger = createLogger({ limit: 20 }),
@@ -39,6 +42,7 @@ export function mountPocketGridScreen({
   root: HTMLElement;
   lanternUrl: string;
   cellSheetUrl: string;
+  stoneUrl: string;
   auth?: AuthController;
   cloudSave?: CloudSave;
   logger?: Logger;
@@ -56,7 +60,7 @@ export function mountPocketGridScreen({
       return;
     }
     const uid = state.user.uid;
-    const dug = dugCount(grid);
+    const counts = saveCounts(grid);
     inFlightWrites += 1;
     void cloudSave.write({ uid, grid }).then((result) => {
       inFlightWrites -= 1;
@@ -67,7 +71,7 @@ export function mountPocketGridScreen({
             level: "info",
             code: "save.write",
             detail: "ok",
-            data: { dug },
+            data: counts,
           });
           break;
         case "failed":
@@ -76,7 +80,7 @@ export function mountPocketGridScreen({
             level: "error",
             code: "save.write",
             detail: result.message,
-            data: { dug },
+            data: counts,
           });
           break;
         default: {
@@ -96,6 +100,19 @@ export function mountPocketGridScreen({
   lantern.height = 32;
   lantern.draggable = false;
 
+  const handSlot = document.createElement("div");
+  handSlot.className = "hand-slot";
+  handSlot.setAttribute("role", "status");
+
+  const held = document.createElement("img");
+  held.className = "held-piece";
+  held.src = stoneUrl;
+  held.alt = "Held stone";
+  held.width = 32;
+  held.height = 32;
+  held.draggable = false;
+  handSlot.append(held);
+
   const board = document.createElement("div");
   board.className = "pocket-grid";
   board.setAttribute("role", "group");
@@ -111,7 +128,15 @@ export function mountPocketGridScreen({
     art.className = "cell-art";
     art.style.backgroundImage = `url("${cellSheetUrl}")`;
 
-    button.append(art);
+    const piece = document.createElement("img");
+    piece.className = "piece-art";
+    piece.src = stoneUrl;
+    piece.alt = "";
+    piece.width = 32;
+    piece.height = 32;
+    piece.draggable = false;
+
+    button.append(art, piece);
     button.addEventListener("click", () => {
       const state = auth.getState();
       if (state.kind === "signed-in" && !hydrated) {
@@ -121,7 +146,21 @@ export function mountPocketGridScreen({
       if (!isCellIndex(raw)) {
         return;
       }
-      grid = dig({ grid, index: raw });
+      const cell = grid.cells[raw];
+      switch (cell.kind) {
+        case "covered":
+          grid = dig({ grid, index: raw });
+          break;
+        case "dug":
+          grid = place({ grid, index: raw });
+          break;
+        case "stone":
+          break;
+        default: {
+          const _exhaustive: never = cell;
+          return _exhaustive;
+        }
+      }
       persistCloud();
       render();
     });
@@ -230,7 +269,27 @@ export function mountPocketGridScreen({
       button.disabled = waitForCloud;
       button.setAttribute("aria-label", cellLabel({ cell, index }));
     }
-    status.textContent = `${String(dugCount(grid))} of 9 dug`;
+    const heldStone = hand(grid);
+    switch (heldStone.kind) {
+      case "stone":
+        held.hidden = false;
+        held.alt = "Held stone";
+        handSlot.dataset["kind"] = "stone";
+        handSlot.setAttribute("aria-label", "Hand, holding a stone");
+        status.textContent = `Holding a stone. ${String(dugCount(grid))} of 9 dug`;
+        break;
+      case "empty":
+        held.hidden = true;
+        held.alt = "";
+        handSlot.dataset["kind"] = "empty";
+        handSlot.setAttribute("aria-label", "Hand, empty");
+        status.textContent = `Stone placed. ${String(dugCount(grid))} of 9 dug`;
+        break;
+      default: {
+        const _exhaustive: never = heldStone;
+        return _exhaustive;
+      }
+    }
     renderSave();
   };
 
@@ -244,7 +303,7 @@ export function mountPocketGridScreen({
       level: remote.kind === "unavailable" ? "error" : "info",
       code: "save.remote",
       detail: remote.kind,
-      data: { dug: dugCount(grid) },
+      data: saveCounts(grid),
     });
     switch (remote.kind) {
       case "found":
@@ -299,7 +358,7 @@ export function mountPocketGridScreen({
       level: "info",
       code: "save.watch",
       detail: "start",
-      data: { dug: dugCount(grid) },
+      data: saveCounts(grid),
     });
     render();
     unwatch = cloudSave.watch({
@@ -320,6 +379,7 @@ export function mountPocketGridScreen({
 
   root.replaceChildren(
     lantern,
+    handSlot,
     board,
     status,
     saveStatus,
@@ -337,9 +397,18 @@ function cellLabel({ cell, index }: { cell: Cell; index: CellIndex }): string {
       return `Covered earth, row ${String(row)}, column ${String(column)}`;
     case "dug":
       return `Dug earth, row ${String(row)}, column ${String(column)}`;
+    case "stone":
+      return `Stone, row ${String(row)}, column ${String(column)}`;
     default: {
       const _exhaustive: never = cell;
       return _exhaustive;
     }
   }
+}
+
+function saveCounts(grid: PocketGrid): { dug: number; held: number } {
+  return {
+    dug: dugCount(grid),
+    held: hand(grid).kind === "stone" ? 1 : 0,
+  };
 }

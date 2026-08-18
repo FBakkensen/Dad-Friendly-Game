@@ -1,6 +1,8 @@
-export type Cell = { kind: "covered" } | { kind: "dug" };
+export type Cell = { kind: "covered" } | { kind: "dug" } | { kind: "stone" };
 
 export type CellIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
+export type Hand = { kind: "stone" } | { kind: "empty" };
 
 export type PocketGrid = {
   readonly width: 3;
@@ -52,6 +54,15 @@ export function isCellIndex(index: number): index is CellIndex {
   );
 }
 
+export function hand(grid: PocketGrid): Hand {
+  for (const cell of grid.cells) {
+    if (cell.kind === "stone") {
+      return { kind: "empty" };
+    }
+  }
+  return { kind: "stone" };
+}
+
 export function dig({
   grid,
   index,
@@ -59,7 +70,7 @@ export function dig({
   grid: PocketGrid;
   index: CellIndex;
 }): PocketGrid {
-  if (grid.cells[index].kind === "dug") {
+  if (grid.cells[index].kind !== "covered") {
     return grid;
   }
 
@@ -70,8 +81,29 @@ export function dig({
   };
 }
 
+export function place({
+  grid,
+  index,
+}: {
+  grid: PocketGrid;
+  index: CellIndex;
+}): PocketGrid {
+  if (grid.cells[index].kind !== "dug") {
+    return grid;
+  }
+  if (hand(grid).kind !== "stone") {
+    return grid;
+  }
+
+  return {
+    width: grid.width,
+    height: grid.height,
+    cells: setCell({ cells: grid.cells, index, cell: { kind: "stone" } }),
+  };
+}
+
 export function dugCount(grid: PocketGrid): number {
-  return grid.cells.filter((cell) => cell.kind === "dug").length;
+  return grid.cells.filter((cell) => cell.kind !== "covered").length;
 }
 
 export function parsePocketGrid(value: unknown): PocketGrid | undefined {
@@ -100,6 +132,8 @@ function parseCell(value: unknown): Cell | undefined {
       return { kind: "covered" };
     case "dug":
       return { kind: "dug" };
+    case "stone":
+      return { kind: "stone" };
     default:
       return undefined;
   }

@@ -13,7 +13,7 @@ service cloud.firestore {
     //       - width: int (required, must be 3)
     //       - height: int (required, must be 3)
     //       - cells: list (required, size 9)
-    //           - kind: string (required, 'covered' or 'dug')
+    //           - kind: string (required, 'covered', 'dug', or 'stone')
     // Ownership is the document ID. No uid, role, or PII fields.
     //
     // ===============================================================
@@ -46,7 +46,7 @@ service cloud.firestore {
       return cell is map &&
         cell.keys().hasOnly(['kind']) &&
         cell.kind is string &&
-        cell.kind in ['covered', 'dug'];
+        cell.kind in ['covered', 'dug', 'stone'];
     }
 
     function isValidGrid(grid) {

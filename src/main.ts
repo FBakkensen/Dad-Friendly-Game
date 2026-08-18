@@ -5,6 +5,7 @@ import { createFirebaseCloudSave } from "./firebase-save";
 import { mountPocketGridScreen } from "./pocket-grid-screen";
 import lanternUrl from "./assets/boot-tile.png";
 import cellSheetUrl from "./assets/dig-cells.png";
+import stoneUrl from "./assets/ore-lump.png";
 import "./style.css";
 
 const root = document.getElementById("app");
@@ -29,4 +30,11 @@ const cloudSave = createCloudSave({
   createFirebase: createFirebaseCloudSave,
 });
 
-mountPocketGridScreen({ root, lanternUrl, cellSheetUrl, auth, cloudSave });
+mountPocketGridScreen({
+  root,
+  lanternUrl,
+  cellSheetUrl,
+  stoneUrl,
+  auth,
+  cloudSave,
+});

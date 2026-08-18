@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { createPocketGrid, dig } from "./grid";
+import { createPocketGrid, dig, place } from "./grid";
 import { parseGridSaveValue, serializeGridSave } from "./persist";
 
 describe("serializeGridSave and parseGridSaveValue", () => {
   it("round-trips a dug grid object", () => {
     const grid = dig({ grid: createPocketGrid(), index: 3 });
+
+    expect(parseGridSaveValue(serializeGridSave({ grid }))).toEqual(grid);
+  });
+
+  it("round-trips a placed stone", () => {
+    const grid = place({
+      grid: dig({ grid: createPocketGrid(), index: 3 }),
+      index: 3,
+    });
 
     expect(parseGridSaveValue(serializeGridSave({ grid }))).toEqual(grid);
   });

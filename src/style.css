@@ -38,6 +38,28 @@ body {
   pointer-events: none;
 }
 
+.hand-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(20vw, 80px);
+  aspect-ratio: 1;
+}
+
+.held-piece {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.held-piece[hidden] {
+  display: none;
+}
+
 .pocket-grid {
   display: grid;
   grid-template-columns: repeat(3, min(28vw, 104px));
@@ -46,6 +68,7 @@ body {
 
 .dig-cell {
   appearance: none;
+  position: relative;
   display: block;
   width: min(28vw, 104px);
   aspect-ratio: 1;
@@ -75,8 +98,24 @@ body {
   background-position: 0 0;
 }
 
-.dig-cell[data-kind="dug"] .cell-art {
+.dig-cell[data-kind="dug"] .cell-art,
+.dig-cell[data-kind="stone"] .cell-art {
   background-position: 100% 0;
+}
+
+.piece-art {
+  display: none;
+  position: absolute;
+  inset: 16%;
+  width: 68%;
+  height: 68%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.dig-cell[data-kind="stone"] .piece-art {
+  display: block;
 }
 
 .dig-status,
