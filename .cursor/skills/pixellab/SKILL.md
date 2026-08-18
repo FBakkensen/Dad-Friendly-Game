@@ -14,6 +14,7 @@ Tool list: https://api.pixellab.ai/mcp/docs
 Before any create/edit/animate call, send one short ask:
 
 - What asset (idle loop, button, item, scene)
+- With an init PNG or without
 - Which tool you would call
 - Size in pixels
 - The prompt you would send
@@ -22,6 +23,45 @@ Before any create/edit/animate call, send one short ask:
 Wait for a yes. If they change the prompt, use theirs.
 
 Cap: **one sheet or one loop per sitting**. No "while we are here, generate the cast."
+
+## With an image or without
+
+Ask which. Both are valid.
+
+**With init.** `create_image_pixflux` with `init_image_base64` or `init_image_url`. `init_image_strength` is how much of the input is kept: 500 barely moves, 300 is a tint, 150 is a real edit, ~50 keeps the silhouette. Use this when the new sprite is the next rung of an existing item (ore-lump → denser chunk).
+
+**Without init.** Text prompt only. Optional `color_image_base64` / `color_image_url` to steal a palette without copying the drawing (lantern → first ore). Pixen has no init image.
+
+Do not use `edit_image` for one 32×32 still. It bills 20–40 generations.
+
+### Init image through MCP (what actually worked)
+
+MCP often truncates large base64 in tool args. PixelLab then reports "Could not decode image" or "broken data stream". That happened with the repo's `ore-lump.png` (692 bytes, palette-alpha) sent as `init_image_base64`, and again as a `data:` URL on `init_image_url`.
+
+Before calling PixelLab, re-encode the init PNG to vanilla 8-bit RGBA so the file shrinks and decodes reliably:
+
+```bash
+magick src/assets/ore-lump.png -depth 8 rgba:/tmp/ore.rgba
+python3 - <<'PY'
+from pathlib import Path
+import struct, zlib, base64
+rgba = Path("/tmp/ore.rgba").read_bytes()
+w = h = 32
+def chunk(tag, data):
+    return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+raw = b"".join(b"\x00" + rgba[y * w * 4 : (y + 1) * w * 4] for y in range(h))
+ihdr = struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)
+png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
+Path("/tmp/ore-init.png").write_bytes(png)
+print(base64.b64encode(png).decode("ascii"))
+PY
+```
+
+For a 32×32, that landed around 380 bytes and ~512 base64 chars. Pass that string to `init_image_base64` (not both base64 and url).
+
+Then call `create_image_pixflux` with the text prompt, `init_image_strength: 150`, `no_background: true`, and style hints (`view`, `outline`, `shading`). Poll `get_image(job_id)`. Download the PNG from the job's download URL into `src/assets/`.
+
+If decode still fails, the init was probably truncated again. Re-encode smaller or quantize further before retrying once.
 
 ## If MCP is missing
 

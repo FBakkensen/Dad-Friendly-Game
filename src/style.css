@@ -99,7 +99,8 @@ body {
 }
 
 .dig-cell[data-kind="dug"] .cell-art,
-.dig-cell[data-kind="stone"] .cell-art {
+.dig-cell[data-kind="stone"] .cell-art,
+.dig-cell[data-kind="chunk"] .cell-art {
   background-position: 100% 0;
 }
 
@@ -114,8 +115,14 @@ body {
   pointer-events: none;
 }
 
-.dig-cell[data-kind="stone"] .piece-art {
+.dig-cell[data-kind="stone"] .piece-art,
+.dig-cell[data-kind="chunk"] .piece-art {
   display: block;
+}
+
+.dig-cell[data-selected="true"] {
+  outline: 4px solid #e8a84a;
+  outline-offset: 4px;
 }
 
 .dig-status,

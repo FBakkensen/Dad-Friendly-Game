@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  combine,
   createPocketGrid,
   dig,
   dugCount,
@@ -91,6 +92,74 @@ describe("place", () => {
   });
 });
 
+describe("combine", () => {
+  it("fuses two neighbor stones into a chunk and frees a hole", () => {
+    const first = place({
+      grid: dig({ grid: createPocketGrid(), index: 0 }),
+      index: 0,
+    });
+    const grid = place({
+      grid: dig({ grid: first, index: 1 }),
+      index: 1,
+    });
+    const fused = combine({ grid, from: 0, to: 1 });
+
+    expect(fused.cells[0]).toEqual({ kind: "dug" });
+    expect(fused.cells[1]).toEqual({ kind: "chunk" });
+    expect(dugCount(fused)).toBe(2);
+    expect(hand()).toEqual({ kind: "stone" });
+  });
+
+  it("does not fuse stones that are not neighbors", () => {
+    const first = place({
+      grid: dig({ grid: createPocketGrid(), index: 0 }),
+      index: 0,
+    });
+    const grid = place({
+      grid: dig({ grid: first, index: 2 }),
+      index: 2,
+    });
+    const skipped = combine({ grid, from: 0, to: 2 });
+
+    expect(skipped).toBe(grid);
+  });
+
+  it("does not fuse diagonal stones", () => {
+    const first = place({
+      grid: dig({ grid: createPocketGrid(), index: 0 }),
+      index: 0,
+    });
+    const grid = place({
+      grid: dig({ grid: first, index: 4 }),
+      index: 4,
+    });
+    const skipped = combine({ grid, from: 0, to: 4 });
+
+    expect(skipped).toBe(grid);
+  });
+
+  it("does not fuse a stone with a chunk", () => {
+    const first = place({
+      grid: dig({ grid: createPocketGrid(), index: 0 }),
+      index: 0,
+    });
+    const two = place({
+      grid: dig({ grid: first, index: 1 }),
+      index: 1,
+    });
+    const fused = combine({ grid: two, from: 0, to: 1 });
+    const third = place({
+      grid: dig({ grid: fused, index: 2 }),
+      index: 2,
+    });
+    const skipped = combine({ grid: third, from: 2, to: 1 });
+
+    expect(skipped).toBe(third);
+    expect(third.cells[1]).toEqual({ kind: "chunk" });
+    expect(third.cells[2]).toEqual({ kind: "stone" });
+  });
+});
+
 describe("parsePocketGrid", () => {
   it("rebuilds a valid grid", () => {
     const dug = dig({ grid: createPocketGrid(), index: 2 });
@@ -116,6 +185,25 @@ describe("parsePocketGrid", () => {
 
     expect(parsed).toEqual(placed);
     expect(hand()).toEqual({ kind: "stone" });
+  });
+
+  it("rebuilds a grid with a combined chunk", () => {
+    const first = place({
+      grid: dig({ grid: createPocketGrid(), index: 3 }),
+      index: 3,
+    });
+    const two = place({
+      grid: dig({ grid: first, index: 4 }),
+      index: 4,
+    });
+    const fused = combine({ grid: two, from: 3, to: 4 });
+    const parsed = parsePocketGrid({
+      width: 3,
+      height: 3,
+      cells: fused.cells.map((cell) => ({ kind: cell.kind })),
+    });
+
+    expect(parsed).toEqual(fused);
   });
 
   it("rejects the wrong size or an unknown cell", () => {
