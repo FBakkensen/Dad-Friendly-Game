@@ -54,12 +54,7 @@ export function isCellIndex(index: number): index is CellIndex {
   );
 }
 
-export function hand(grid: PocketGrid): Hand {
-  for (const cell of grid.cells) {
-    if (cell.kind === "stone") {
-      return { kind: "empty" };
-    }
-  }
+export function hand(): Hand {
   return { kind: "stone" };
 }
 
@@ -91,7 +86,7 @@ export function place({
   if (grid.cells[index].kind !== "dug") {
     return grid;
   }
-  if (hand(grid).kind !== "stone") {
+  if (hand().kind !== "stone") {
     return grid;
   }
 

@@ -16,7 +16,7 @@ describe("createPocketGrid", () => {
     expect(grid.height).toBe(3);
     expect(grid.cells.every((cell) => cell.kind === "covered")).toBe(true);
     expect(dugCount(grid)).toBe(0);
-    expect(hand(grid)).toEqual({ kind: "stone" });
+    expect(hand()).toEqual({ kind: "stone" });
   });
 });
 
@@ -30,7 +30,7 @@ describe("dig", () => {
       grid.cells.filter((cell, index) => index !== 4 && cell.kind === "covered")
         .length,
     ).toBe(8);
-    expect(hand(grid)).toEqual({ kind: "stone" });
+    expect(hand()).toEqual({ kind: "stone" });
   });
 
   it("keeps a dug cell dug", () => {
@@ -57,7 +57,7 @@ describe("place", () => {
     const placed = place({ grid: dug, index: 2 });
 
     expect(placed.cells[2]).toEqual({ kind: "stone" });
-    expect(hand(placed)).toEqual({ kind: "empty" });
+    expect(hand()).toEqual({ kind: "stone" });
     expect(dugCount(placed)).toBe(1);
   });
 
@@ -66,19 +66,28 @@ describe("place", () => {
     const placed = place({ grid, index: 0 });
 
     expect(placed).toBe(grid);
-    expect(hand(placed)).toEqual({ kind: "stone" });
+    expect(hand()).toEqual({ kind: "stone" });
   });
 
-  it("does not place a second stone", () => {
+  it("places a second stone on a second dug hole", () => {
     const firstDug = dig({ grid: createPocketGrid(), index: 0 });
     const placed = place({ grid: firstDug, index: 0 });
     const secondDug = dig({ grid: placed, index: 1 });
     const twice = place({ grid: secondDug, index: 1 });
 
-    expect(twice).toBe(secondDug);
     expect(twice.cells[0]).toEqual({ kind: "stone" });
-    expect(twice.cells[1]).toEqual({ kind: "dug" });
-    expect(hand(twice)).toEqual({ kind: "empty" });
+    expect(twice.cells[1]).toEqual({ kind: "stone" });
+    expect(hand()).toEqual({ kind: "stone" });
+  });
+
+  it("does not place on a cell that already has a stone", () => {
+    const dug = dig({ grid: createPocketGrid(), index: 0 });
+    const placed = place({ grid: dug, index: 0 });
+    const again = place({ grid: placed, index: 0 });
+
+    expect(again).toBe(placed);
+    expect(again.cells[0]).toEqual({ kind: "stone" });
+    expect(hand()).toEqual({ kind: "stone" });
   });
 });
 
@@ -106,7 +115,7 @@ describe("parsePocketGrid", () => {
     });
 
     expect(parsed).toEqual(placed);
-    expect(hand(parsed ?? createPocketGrid())).toEqual({ kind: "empty" });
+    expect(hand()).toEqual({ kind: "stone" });
   });
 
   it("rejects the wrong size or an unknown cell", () => {

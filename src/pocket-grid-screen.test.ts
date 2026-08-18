@@ -80,9 +80,9 @@ describe("mountPocketGridScreen", () => {
     first.click();
 
     expect(first.dataset["kind"]).toBe("stone");
-    expect(status.textContent).toBe("Stone placed. 1 of 9 dug");
-    expect(held.hidden).toBe(true);
-    expect(handSlot.dataset["kind"]).toBe("empty");
+    expect(status.textContent).toBe("Holding a stone. 1 of 9 dug");
+    expect(held.hidden).toBe(false);
+    expect(handSlot.dataset["kind"]).toBe("stone");
     expect(root.querySelector(".hand-slot")).toBe(handSlot);
     expect(second.dataset["kind"]).toBe("covered");
 
@@ -91,7 +91,14 @@ describe("mountPocketGridScreen", () => {
 
     second.click();
     expect(second.dataset["kind"]).toBe("dug");
-    expect(status.textContent).toBe("Stone placed. 2 of 9 dug");
+    expect(status.textContent).toBe("Holding a stone. 2 of 9 dug");
+
+    second.click();
+    expect(second.dataset["kind"]).toBe("stone");
+    expect(first.dataset["kind"]).toBe("stone");
+    expect(held.hidden).toBe(false);
+    expect(handSlot.dataset["kind"]).toBe("stone");
+    expect(status.textContent).toBe("Holding a stone. 2 of 9 dug");
   });
 
   it("does not keep unsigned digs after remount", () => {
@@ -277,14 +284,14 @@ describe("mountPocketGridScreen", () => {
 
     await vi.waitFor(() => {
       expect(root.querySelector(".dig-status")?.textContent).toBe(
-        "Stone placed. 1 of 9 dug",
+        "Holding a stone. 1 of 9 dug",
       );
     });
     expect(
       root.querySelectorAll("button.dig-cell")[8]?.getAttribute("data-kind"),
     ).toBe("stone");
     expect(root.querySelector("img.held-piece")?.hasAttribute("hidden")).toBe(
-      true,
+      false,
     );
   });
 
