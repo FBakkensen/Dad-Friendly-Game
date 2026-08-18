@@ -3,6 +3,7 @@ import { createCloudSave } from "./cloud-save";
 import { createFirebaseAuth } from "./firebase-auth";
 import { createFirebaseCloudSave } from "./firebase-save";
 import { mountPocketGridScreen } from "./pocket-grid-screen";
+import { createProgressStore } from "./progress-store";
 import lanternUrl from "./assets/boot-tile.png";
 import cellSheetUrl from "./assets/dig-cells.png";
 import stoneUrl from "./assets/ore-lump.png";
@@ -31,6 +32,7 @@ const cloudSave = createCloudSave({
   createFirebase: createFirebaseCloudSave,
 });
 
+const progress = createProgressStore({ auth, cloudSave });
 mountPocketGridScreen({
   root,
   lanternUrl,
@@ -38,5 +40,5 @@ mountPocketGridScreen({
   stoneUrl,
   chunkUrl,
   auth,
-  cloudSave,
+  progress,
 });

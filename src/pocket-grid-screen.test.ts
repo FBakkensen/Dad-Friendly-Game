@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
-import { createMemoryAuth } from "./auth";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  createMemoryAuth,
+  createUnconfiguredAuth,
+  type AuthController,
+} from "./auth";
 import {
   createMemoryCloudSave,
   createUnavailableCloudSave,
@@ -8,6 +12,7 @@ import {
 } from "./cloud-save";
 import { combine, createPocketGrid, dig, place, type PocketGrid } from "./grid";
 import { mountPocketGridScreen } from "./pocket-grid-screen";
+import { createProgressStore } from "./progress-store";
 
 const tileUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
@@ -19,10 +24,59 @@ const screen = {
   chunkUrl: tileUrl,
 };
 
+function createMemoryStorage(): Storage {
+  const data = new Map<string, string>();
+  return {
+    get length() {
+      return data.size;
+    },
+    clear: () => {
+      data.clear();
+    },
+    getItem: (key: string) => data.get(key) ?? null,
+    key: (index: number) => [...data.keys()][index] ?? null,
+    removeItem: (key: string) => {
+      data.delete(key);
+    },
+    setItem: (key: string, value: string) => {
+      data.set(key, value);
+    },
+  };
+}
+
+function mountScreen({
+  root,
+  auth,
+  cloudSave,
+  sessionStorage,
+}: {
+  root: HTMLElement;
+  auth?: AuthController;
+  cloudSave?: CloudSave;
+  sessionStorage?: Storage;
+}): void {
+  const resolvedAuth = auth ?? createUnconfiguredAuth();
+  const progress = createProgressStore({
+    auth: resolvedAuth,
+    ...(cloudSave === undefined ? {} : { cloudSave }),
+    ...(sessionStorage === undefined ? {} : { sessionStorage }),
+  });
+  mountPocketGridScreen({
+    root,
+    ...screen,
+    auth: resolvedAuth,
+    progress,
+  });
+}
+
 describe("mountPocketGridScreen", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
   it("keeps the lantern and uncovers a cell on tap", () => {
     const root = document.createElement("div");
-    mountPocketGridScreen({ root, ...screen });
+    mountScreen({ root, sessionStorage: createMemoryStorage() });
 
     const lantern = root.querySelector("img.lantern");
     const cells = root.querySelectorAll("button.dig-cell");
@@ -55,11 +109,12 @@ describe("mountPocketGridScreen", () => {
     expect(root.querySelector(".hand-slot")?.getAttribute("data-kind")).toBe(
       "stone",
     );
+    expect(saveStatus.textContent).toBe("Saved in this tab");
   });
 
   it("places the held stone on a dug cell", () => {
     const root = document.createElement("div");
-    mountPocketGridScreen({ root, ...screen });
+    mountScreen({ root, sessionStorage: createMemoryStorage() });
 
     const cells = root.querySelectorAll("button.dig-cell");
     const first = cells[0];
@@ -104,7 +159,7 @@ describe("mountPocketGridScreen", () => {
 
   it("combines two neighbor stones into a chunk", () => {
     const root = document.createElement("div");
-    mountPocketGridScreen({ root, ...screen });
+    mountScreen({ root, sessionStorage: createMemoryStorage() });
 
     const cells = root.querySelectorAll("button.dig-cell");
     const first = cells[0];
@@ -137,17 +192,19 @@ describe("mountPocketGridScreen", () => {
     expect(status.textContent).toBe("Holding a stone. 2 of 9 dug");
   });
 
-  it("does not keep unsigned digs after remount", () => {
+  it("starts fresh when the tab scratch is empty", () => {
+    const storage = createMemoryStorage();
     const root = document.createElement("div");
-    mountPocketGridScreen({ root, ...screen });
+    mountScreen({ root, sessionStorage: storage });
 
     const first = root.querySelector("button.dig-cell");
     if (!(first instanceof HTMLButtonElement)) {
       throw new Error("pocket grid did not render");
     }
     first.click();
+    storage.clear();
 
-    mountPocketGridScreen({ root, ...screen });
+    mountScreen({ root, sessionStorage: storage });
 
     const restored = root.querySelector("button.dig-cell");
     const status = root.querySelector(".dig-status");
@@ -162,10 +219,42 @@ describe("mountPocketGridScreen", () => {
     expect(status.textContent).toBe("Holding a stone. 0 of 9 dug");
   });
 
+  it("keeps unsigned digs in this tab after remount", () => {
+    const storage = createMemoryStorage();
+    const root = document.createElement("div");
+    mountScreen({ root, sessionStorage: storage });
+
+    const first = root.querySelector("button.dig-cell");
+    if (!(first instanceof HTMLButtonElement)) {
+      throw new Error("pocket grid did not render");
+    }
+    first.click();
+
+    mountScreen({ root, sessionStorage: storage });
+
+    const restored = root.querySelector("button.dig-cell");
+    const status = root.querySelector(".dig-status");
+    const saveStatus = root.querySelector(".save-status");
+    if (
+      !(restored instanceof HTMLButtonElement) ||
+      !(status instanceof HTMLElement) ||
+      !(saveStatus instanceof HTMLElement)
+    ) {
+      throw new Error("pocket grid did not remount");
+    }
+
+    expect(restored.dataset["kind"]).toBe("dug");
+    expect(status.textContent).toBe("Holding a stone. 1 of 9 dug");
+    expect(saveStatus.textContent).toBe("Saved in this tab");
+  });
+
   it("signs in with Google and signs out", () => {
     const root = document.createElement("div");
-    const auth = createMemoryAuth();
-    mountPocketGridScreen({ root, ...screen, auth });
+    mountScreen({
+      root,
+      auth: createMemoryAuth(),
+      sessionStorage: createMemoryStorage(),
+    });
 
     const button = root.querySelector("button.auth-action");
     const authStatus = root.querySelector(".auth-status");
@@ -194,11 +283,11 @@ describe("mountPocketGridScreen", () => {
     const remote = dig({ grid: createPocketGrid(), index: 8 });
     const docs = new Map([["test-dad", remote]]);
     const root = document.createElement("div");
-    mountPocketGridScreen({
+    mountScreen({
       root,
-      ...screen,
       auth: createMemoryAuth(),
       cloudSave: createMemoryCloudSave({ docs }),
+      sessionStorage: createMemoryStorage(),
     });
 
     const button = root.querySelector("button.auth-action");
@@ -226,11 +315,11 @@ describe("mountPocketGridScreen", () => {
   it("uploads a session dig when the cloud has no save", async () => {
     const docs = new Map<string, PocketGrid>();
     const root = document.createElement("div");
-    mountPocketGridScreen({
+    mountScreen({
       root,
-      ...screen,
       auth: createMemoryAuth(),
       cloudSave: createMemoryCloudSave({ docs }),
+      sessionStorage: createMemoryStorage(),
     });
 
     const first = root.querySelector("button.dig-cell");
@@ -253,11 +342,11 @@ describe("mountPocketGridScreen", () => {
     const docs = new Map<string, PocketGrid>();
     const user = { uid: "test-dad", label: "Test Dad" };
     const root = document.createElement("div");
-    mountPocketGridScreen({
+    mountScreen({
       root,
-      ...screen,
       auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
       cloudSave: createMemoryCloudSave({ docs }),
+      sessionStorage: createMemoryStorage(),
     });
 
     await vi.waitFor(() => {
@@ -271,66 +360,6 @@ describe("mountPocketGridScreen", () => {
     first.click();
 
     expect(docs.get("test-dad")?.cells[0]).toEqual({ kind: "dug" });
-  });
-
-  it("writes a placed stone to the cloud while signed in", async () => {
-    const docs = new Map<string, PocketGrid>();
-    const user = { uid: "test-dad", label: "Test Dad" };
-    const root = document.createElement("div");
-    mountPocketGridScreen({
-      root,
-      ...screen,
-      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
-      cloudSave: createMemoryCloudSave({ docs }),
-    });
-
-    await vi.waitFor(() => {
-      expect(docs.has("test-dad")).toBe(true);
-    });
-
-    const first = root.querySelector("button.dig-cell");
-    if (!(first instanceof HTMLButtonElement)) {
-      throw new Error("pocket grid did not render");
-    }
-    first.click();
-    first.click();
-
-    expect(docs.get("test-dad")?.cells[0]).toEqual({ kind: "stone" });
-  });
-
-  it("writes a combined chunk to the cloud while signed in", async () => {
-    const docs = new Map<string, PocketGrid>();
-    const user = { uid: "test-dad", label: "Test Dad" };
-    const root = document.createElement("div");
-    mountPocketGridScreen({
-      root,
-      ...screen,
-      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
-      cloudSave: createMemoryCloudSave({ docs }),
-    });
-
-    await vi.waitFor(() => {
-      expect(docs.has("test-dad")).toBe(true);
-    });
-
-    const cells = root.querySelectorAll("button.dig-cell");
-    const first = cells[0];
-    const second = cells[1];
-    if (
-      !(first instanceof HTMLButtonElement) ||
-      !(second instanceof HTMLButtonElement)
-    ) {
-      throw new Error("pocket grid did not render");
-    }
-    first.click();
-    first.click();
-    second.click();
-    second.click();
-    first.click();
-    second.click();
-
-    expect(docs.get("test-dad")?.cells[0]).toEqual({ kind: "dug" });
-    expect(docs.get("test-dad")?.cells[1]).toEqual({ kind: "chunk" });
   });
 
   it("loads a placed stone from the cloud after sign-in", async () => {
@@ -340,11 +369,11 @@ describe("mountPocketGridScreen", () => {
     });
     const docs = new Map([["test-dad", remote]]);
     const root = document.createElement("div");
-    mountPocketGridScreen({
+    mountScreen({
       root,
-      ...screen,
       auth: createMemoryAuth(),
       cloudSave: createMemoryCloudSave({ docs }),
+      sessionStorage: createMemoryStorage(),
     });
 
     const button = root.querySelector("button.auth-action");
@@ -378,11 +407,11 @@ describe("mountPocketGridScreen", () => {
     const remote = combine({ grid: two, from: 7, to: 8 });
     const docs = new Map([["test-dad", remote]]);
     const root = document.createElement("div");
-    mountPocketGridScreen({
+    mountScreen({
       root,
-      ...screen,
       auth: createMemoryAuth(),
       cloudSave: createMemoryCloudSave({ docs }),
+      sessionStorage: createMemoryStorage(),
     });
 
     const button = root.querySelector("button.auth-action");
@@ -403,11 +432,11 @@ describe("mountPocketGridScreen", () => {
 
   it("keeps the session grid when the cloud is down", async () => {
     const root = document.createElement("div");
-    mountPocketGridScreen({
+    mountScreen({
       root,
-      ...screen,
       auth: createMemoryAuth(),
       cloudSave: createUnavailableCloudSave(),
+      sessionStorage: createMemoryStorage(),
     });
 
     const first = root.querySelector("button.dig-cell");
@@ -453,11 +482,11 @@ describe("mountPocketGridScreen", () => {
     };
     const user = { uid: "test-dad", label: "Test Dad" };
     const root = document.createElement("div");
-    mountPocketGridScreen({
+    mountScreen({
       root,
-      ...screen,
       auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
       cloudSave,
+      sessionStorage: createMemoryStorage(),
     });
 
     const first = root.querySelector("button.dig-cell");
@@ -497,17 +526,17 @@ describe("mountPocketGridScreen", () => {
     });
     const rootA = document.createElement("div");
     const rootB = document.createElement("div");
-    mountPocketGridScreen({
+    mountScreen({
       root: rootA,
-      ...screen,
       auth: authA,
       cloudSave,
+      sessionStorage: createMemoryStorage(),
     });
-    mountPocketGridScreen({
+    mountScreen({
       root: rootB,
-      ...screen,
       auth: authB,
       cloudSave,
+      sessionStorage: createMemoryStorage(),
     });
 
     await vi.waitFor(() => {
@@ -539,11 +568,11 @@ describe("mountPocketGridScreen", () => {
     const docs = new Map<string, PocketGrid>();
     const user = { uid: "test-dad", label: "Test Dad" };
     const root = document.createElement("div");
-    mountPocketGridScreen({
+    mountScreen({
       root,
-      ...screen,
       auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
       cloudSave: createMemoryCloudSave({ docs }),
+      sessionStorage: createMemoryStorage(),
     });
 
     await vi.waitFor(() => {

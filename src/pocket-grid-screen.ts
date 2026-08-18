@@ -5,7 +5,6 @@ import {
 } from "./auth";
 import {
   combine,
-  createPocketGrid,
   dig,
   dugCount,
   hand,
@@ -13,21 +12,16 @@ import {
   place,
   type Cell,
   type CellIndex,
-  type PocketGrid,
 } from "./grid";
 import {
-  applySignedInSave,
-  createNoopCloudSave,
-  type CloudLoadResult,
-  type CloudSave,
-} from "./cloud-save";
-import { createLogger, formatLogEvent, type Logger } from "./log";
+  createProgressStore,
+  type ProgressSnapshot,
+  type ProgressStore,
+} from "./progress-store";
 
 const CELL_INDEXES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8,
 ] as const satisfies readonly CellIndex[];
-
-type SaveKind = "unsigned" | "loading" | "account" | "error";
 
 let persistLifetime: AbortController | undefined;
 
@@ -38,8 +32,7 @@ export function mountPocketGridScreen({
   stoneUrl,
   chunkUrl,
   auth = createUnconfiguredAuth(),
-  cloudSave = createNoopCloudSave(),
-  logger = createLogger({ limit: 20 }),
+  progress: progressArg,
 }: {
   root: HTMLElement;
   lanternUrl: string;
@@ -47,54 +40,12 @@ export function mountPocketGridScreen({
   stoneUrl: string;
   chunkUrl: string;
   auth?: AuthController;
-  cloudSave?: CloudSave;
-  logger?: Logger;
+  progress?: ProgressStore;
 }): void {
-  let grid: PocketGrid = createPocketGrid();
+  const ownedProgress = progressArg === undefined;
+  const progress = progressArg ?? createProgressStore({ auth });
   let selected: CellIndex | undefined;
-  let hydrateGeneration = 0;
-  let hydrated = false;
-  let inFlightWrites = 0;
-  let saveKind: SaveKind = "unsigned";
-  let unwatch: (() => void) | undefined;
-
-  const persistCloud = (): void => {
-    const state = auth.getState();
-    if (state.kind !== "signed-in" || !hydrated) {
-      return;
-    }
-    const uid = state.user.uid;
-    const counts = saveCounts(grid);
-    inFlightWrites += 1;
-    void cloudSave.write({ uid, grid }).then((result) => {
-      inFlightWrites -= 1;
-      switch (result.kind) {
-        case "ok":
-          saveKind = "account";
-          logger.record({
-            level: "info",
-            code: "save.write",
-            detail: "ok",
-            data: counts,
-          });
-          break;
-        case "failed":
-          saveKind = "error";
-          logger.record({
-            level: "error",
-            code: "save.write",
-            detail: result.message,
-            data: counts,
-          });
-          break;
-        default: {
-          const _exhaustive: never = result;
-          return _exhaustive;
-        }
-      }
-      render();
-    });
-  };
+  let view: ProgressSnapshot = progress.getSnapshot();
 
   const lantern = document.createElement("img");
   lantern.className = "lantern";
@@ -142,31 +93,30 @@ export function mountPocketGridScreen({
 
     button.append(art, piece);
     button.addEventListener("click", () => {
-      const state = auth.getState();
-      if (state.kind === "signed-in" && !hydrated) {
+      if (!view.ready) {
         return;
       }
       const raw = Number(button.dataset["index"]);
       if (!isCellIndex(raw)) {
         return;
       }
+      const grid = view.grid;
       const cell = grid.cells[raw];
-      const previous = grid;
       switch (cell.kind) {
         case "covered":
           selected = undefined;
-          grid = dig({ grid, index: raw });
+          progress.applyMutation(dig({ grid, index: raw }));
           break;
         case "dug":
           selected = undefined;
-          grid = place({ grid, index: raw });
+          progress.applyMutation(place({ grid, index: raw }));
           break;
         case "stone":
           if (selected !== undefined) {
             const fused = combine({ grid, from: selected, to: raw });
             if (fused !== grid) {
-              grid = fused;
               selected = undefined;
+              progress.applyMutation(fused);
               break;
             }
           }
@@ -179,9 +129,6 @@ export function mountPocketGridScreen({
           const _exhaustive: never = cell;
           return _exhaustive;
         }
-      }
-      if (grid !== previous) {
-        persistCloud();
       }
       render();
     });
@@ -248,10 +195,14 @@ export function mountPocketGridScreen({
   };
 
   const renderSave = (): void => {
-    switch (saveKind) {
+    switch (view.saveKind) {
       case "unsigned":
         saveStatus.textContent = "Sign in to save";
         saveStatus.dataset["kind"] = "unsigned";
+        break;
+      case "session":
+        saveStatus.textContent = "Saved in this tab";
+        saveStatus.dataset["kind"] = "session";
         break;
       case "loading":
         saveStatus.textContent = "Loading your save...";
@@ -266,33 +217,30 @@ export function mountPocketGridScreen({
         saveStatus.dataset["kind"] = "error";
         break;
       default: {
-        const _exhaustive: never = saveKind;
+        const _exhaustive: never = view.saveKind;
         return _exhaustive;
       }
     }
-    const latest = logger.latest();
-    if (latest === undefined) {
+    if (view.log === undefined) {
       delete saveStatus.dataset["log"];
       return;
     }
-    saveStatus.dataset["log"] = formatLogEvent(latest);
+    saveStatus.dataset["log"] = view.log;
   };
 
   const render = (): void => {
-    const state = auth.getState();
-    const waitForCloud = state.kind === "signed-in" && !hydrated;
     for (const [index, button] of buttons.entries()) {
       if (!isCellIndex(index)) {
         continue;
       }
-      const cell = grid.cells[index];
+      const cell = view.grid.cells[index];
       button.dataset["kind"] = cell.kind;
       if (selected === index) {
         button.dataset["selected"] = "true";
       } else {
         delete button.dataset["selected"];
       }
-      button.disabled = waitForCloud;
+      button.disabled = !view.ready;
       button.setAttribute(
         "aria-label",
         cellLabel({ cell, index, selected: selected === index }),
@@ -324,14 +272,14 @@ export function mountPocketGridScreen({
         held.alt = "Held stone";
         handSlot.dataset["kind"] = "stone";
         handSlot.setAttribute("aria-label", "Hand, holding a stone");
-        status.textContent = `Holding a stone. ${String(dugCount(grid))} of 9 dug`;
+        status.textContent = `Holding a stone. ${String(dugCount(view.grid))} of 9 dug`;
         break;
       case "empty":
         held.hidden = true;
         held.alt = "";
         handSlot.dataset["kind"] = "empty";
         handSlot.setAttribute("aria-label", "Hand, empty");
-        status.textContent = `Stone placed. ${String(dugCount(grid))} of 9 dug`;
+        status.textContent = `Stone placed. ${String(dugCount(view.grid))} of 9 dug`;
         break;
       default: {
         const _exhaustive: never = heldStone;
@@ -339,44 +287,9 @@ export function mountPocketGridScreen({
       }
     }
     if (selected !== undefined) {
-      status.textContent = `Tap a neighbor stone to combine. ${String(dugCount(grid))} of 9 dug`;
+      status.textContent = `Tap a neighbor stone to combine. ${String(dugCount(view.grid))} of 9 dug`;
     }
     renderSave();
-  };
-
-  const applyRemote = (remote: CloudLoadResult): void => {
-    if (inFlightWrites > 0 && remote.kind === "found") {
-      return;
-    }
-    const next = applySignedInSave({ local: grid, remote });
-    grid = next.grid;
-    selected = undefined;
-    logger.record({
-      level: remote.kind === "unavailable" ? "error" : "info",
-      code: "save.remote",
-      detail: remote.kind,
-      data: saveCounts(grid),
-    });
-    switch (remote.kind) {
-      case "found":
-      case "missing":
-        hydrated = true;
-        saveKind = "account";
-        if (next.upload) {
-          persistCloud();
-        }
-        break;
-      case "unavailable":
-      case "disabled":
-        hydrated = false;
-        saveKind = "error";
-        break;
-      default: {
-        const _exhaustive: never = remote;
-        return _exhaustive;
-      }
-    }
-    render();
   };
 
   persistLifetime?.abort();
@@ -386,48 +299,18 @@ export function mountPocketGridScreen({
     "visibilitychange",
     () => {
       if (document.visibilityState === "hidden") {
-        persistCloud();
+        progress.flush();
       }
     },
     { signal },
   );
-  window.addEventListener("pagehide", persistCloud, { signal });
-  const unsubscribeAuth = auth.subscribe((state) => {
-    renderAuth(state);
-    unwatch?.();
-    unwatch = undefined;
-    if (state.kind !== "signed-in") {
-      hydrateGeneration += 1;
-      hydrated = false;
-      saveKind = "unsigned";
-      render();
-      return;
-    }
-    const generation = (hydrateGeneration += 1);
-    hydrated = false;
-    saveKind = "loading";
-    logger.record({
-      level: "info",
-      code: "save.watch",
-      detail: "start",
-      data: saveCounts(grid),
-    });
-    render();
-    unwatch = cloudSave.watch({
-      uid: state.user.uid,
-      onChange: (remote) => {
-        if (generation !== hydrateGeneration) {
-          return;
-        }
-        applyRemote(remote);
-      },
-    });
-  });
-  signal.addEventListener("abort", () => {
-    hydrateGeneration += 1;
-    unwatch?.();
-    unsubscribeAuth();
-  });
+  window.addEventListener(
+    "pagehide",
+    () => {
+      progress.flush();
+    },
+    { signal },
+  );
 
   root.replaceChildren(
     lantern,
@@ -438,7 +321,19 @@ export function mountPocketGridScreen({
     authStatus,
     authButton,
   );
-  render();
+
+  const unsubscribeProgress = progress.subscribe((next) => {
+    view = next;
+    render();
+  });
+  const unsubscribeAuth = auth.subscribe(renderAuth);
+  signal.addEventListener("abort", () => {
+    unsubscribeProgress();
+    unsubscribeAuth();
+    if (ownedProgress) {
+      progress.dispose();
+    }
+  });
 }
 
 function cellLabel({
@@ -467,11 +362,4 @@ function cellLabel({
       return _exhaustive;
     }
   }
-}
-
-function saveCounts(grid: PocketGrid): { dug: number; held: number } {
-  return {
-    dug: dugCount(grid),
-    held: hand().kind === "stone" ? 1 : 0,
-  };
 }
