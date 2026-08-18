@@ -269,7 +269,7 @@ export function mountPocketGridScreen({
       button.disabled = waitForCloud;
       button.setAttribute("aria-label", cellLabel({ cell, index }));
     }
-    const heldStone = hand(grid);
+    const heldStone = hand();
     switch (heldStone.kind) {
       case "stone":
         held.hidden = false;
@@ -409,6 +409,6 @@ function cellLabel({ cell, index }: { cell: Cell; index: CellIndex }): string {
 function saveCounts(grid: PocketGrid): { dug: number; held: number } {
   return {
     dug: dugCount(grid),
-    held: hand(grid).kind === "stone" ? 1 : 0,
+    held: hand().kind === "stone" ? 1 : 0,
   };
 }

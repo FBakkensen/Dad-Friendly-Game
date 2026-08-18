@@ -9,10 +9,14 @@ describe("serializeGridSave and parseGridSaveValue", () => {
     expect(parseGridSaveValue(serializeGridSave({ grid }))).toEqual(grid);
   });
 
-  it("round-trips a placed stone", () => {
-    const grid = place({
+  it("round-trips two placed stones", () => {
+    const first = place({
       grid: dig({ grid: createPocketGrid(), index: 3 }),
       index: 3,
+    });
+    const grid = place({
+      grid: dig({ grid: first, index: 4 }),
+      index: 4,
     });
 
     expect(parseGridSaveValue(serializeGridSave({ grid }))).toEqual(grid);
