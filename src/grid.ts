@@ -1,4 +1,5 @@
-export type Cell = { kind: "covered" } | { kind: "dug" } | { kind: "stone" };
+export type Cell =
+  { kind: "covered" } | { kind: "dug" } | { kind: "stone" } | { kind: "chunk" };
 
 export type CellIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
@@ -97,6 +98,46 @@ export function place({
   };
 }
 
+function areNeighbors({ a, b }: { a: CellIndex; b: CellIndex }): boolean {
+  if (a === b) {
+    return false;
+  }
+  const columnA = a % 3;
+  const rowA = (a - columnA) / 3;
+  const columnB = b % 3;
+  const rowB = (b - columnB) / 3;
+  const columnGap = columnA < columnB ? columnB - columnA : columnA - columnB;
+  const rowGap = rowA < rowB ? rowB - rowA : rowA - rowB;
+  return (columnGap === 1 && rowGap === 0) || (columnGap === 0 && rowGap === 1);
+}
+
+export function combine({
+  grid,
+  from,
+  to,
+}: {
+  grid: PocketGrid;
+  from: CellIndex;
+  to: CellIndex;
+}): PocketGrid {
+  if (!areNeighbors({ a: from, b: to })) {
+    return grid;
+  }
+  if (grid.cells[from].kind !== "stone" || grid.cells[to].kind !== "stone") {
+    return grid;
+  }
+  const emptied = setCell({
+    cells: grid.cells,
+    index: from,
+    cell: { kind: "dug" },
+  });
+  return {
+    width: grid.width,
+    height: grid.height,
+    cells: setCell({ cells: emptied, index: to, cell: { kind: "chunk" } }),
+  };
+}
+
 export function dugCount(grid: PocketGrid): number {
   return grid.cells.filter((cell) => cell.kind !== "covered").length;
 }
@@ -129,6 +170,8 @@ function parseCell(value: unknown): Cell | undefined {
       return { kind: "dug" };
     case "stone":
       return { kind: "stone" };
+    case "chunk":
+      return { kind: "chunk" };
     default:
       return undefined;
   }

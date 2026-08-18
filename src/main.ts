@@ -6,6 +6,7 @@ import { mountPocketGridScreen } from "./pocket-grid-screen";
 import lanternUrl from "./assets/boot-tile.png";
 import cellSheetUrl from "./assets/dig-cells.png";
 import stoneUrl from "./assets/ore-lump.png";
+import chunkUrl from "./assets/ore-chunk.png";
 import "./style.css";
 
 const root = document.getElementById("app");
@@ -35,6 +36,7 @@ mountPocketGridScreen({
   lanternUrl,
   cellSheetUrl,
   stoneUrl,
+  chunkUrl,
   auth,
   cloudSave,
 });

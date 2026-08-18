@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPocketGrid, dig, place } from "./grid";
+import { combine, createPocketGrid, dig, place } from "./grid";
 import { parseGridSaveValue, serializeGridSave } from "./persist";
 
 describe("serializeGridSave and parseGridSaveValue", () => {
@@ -18,6 +18,20 @@ describe("serializeGridSave and parseGridSaveValue", () => {
       grid: dig({ grid: first, index: 4 }),
       index: 4,
     });
+
+    expect(parseGridSaveValue(serializeGridSave({ grid }))).toEqual(grid);
+  });
+
+  it("round-trips a combined chunk", () => {
+    const first = place({
+      grid: dig({ grid: createPocketGrid(), index: 3 }),
+      index: 3,
+    });
+    const two = place({
+      grid: dig({ grid: first, index: 4 }),
+      index: 4,
+    });
+    const grid = combine({ grid: two, from: 3, to: 4 });
 
     expect(parseGridSaveValue(serializeGridSave({ grid }))).toEqual(grid);
   });

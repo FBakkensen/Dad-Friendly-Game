@@ -4,6 +4,7 @@ import {
   type AuthState,
 } from "./auth";
 import {
+  combine,
   createPocketGrid,
   dig,
   dugCount,
@@ -35,6 +36,7 @@ export function mountPocketGridScreen({
   lanternUrl,
   cellSheetUrl,
   stoneUrl,
+  chunkUrl,
   auth = createUnconfiguredAuth(),
   cloudSave = createNoopCloudSave(),
   logger = createLogger({ limit: 20 }),
@@ -43,11 +45,13 @@ export function mountPocketGridScreen({
   lanternUrl: string;
   cellSheetUrl: string;
   stoneUrl: string;
+  chunkUrl: string;
   auth?: AuthController;
   cloudSave?: CloudSave;
   logger?: Logger;
 }): void {
   let grid: PocketGrid = createPocketGrid();
+  let selected: CellIndex | undefined;
   let hydrateGeneration = 0;
   let hydrated = false;
   let inFlightWrites = 0;
@@ -147,21 +151,38 @@ export function mountPocketGridScreen({
         return;
       }
       const cell = grid.cells[raw];
+      const previous = grid;
       switch (cell.kind) {
         case "covered":
+          selected = undefined;
           grid = dig({ grid, index: raw });
           break;
         case "dug":
+          selected = undefined;
           grid = place({ grid, index: raw });
           break;
         case "stone":
+          if (selected !== undefined) {
+            const fused = combine({ grid, from: selected, to: raw });
+            if (fused !== grid) {
+              grid = fused;
+              selected = undefined;
+              break;
+            }
+          }
+          selected = selected === raw ? undefined : raw;
+          break;
+        case "chunk":
+          selected = undefined;
           break;
         default: {
           const _exhaustive: never = cell;
           return _exhaustive;
         }
       }
-      persistCloud();
+      if (grid !== previous) {
+        persistCloud();
+      }
       render();
     });
     return button;
@@ -266,8 +287,35 @@ export function mountPocketGridScreen({
       }
       const cell = grid.cells[index];
       button.dataset["kind"] = cell.kind;
+      if (selected === index) {
+        button.dataset["selected"] = "true";
+      } else {
+        delete button.dataset["selected"];
+      }
       button.disabled = waitForCloud;
-      button.setAttribute("aria-label", cellLabel({ cell, index }));
+      button.setAttribute(
+        "aria-label",
+        cellLabel({ cell, index, selected: selected === index }),
+      );
+      const piece = button.querySelector("img.piece-art");
+      if (!(piece instanceof HTMLImageElement)) {
+        continue;
+      }
+      switch (cell.kind) {
+        case "stone":
+          piece.src = stoneUrl;
+          break;
+        case "chunk":
+          piece.src = chunkUrl;
+          break;
+        case "covered":
+        case "dug":
+          break;
+        default: {
+          const _exhaustive: never = cell;
+          return _exhaustive;
+        }
+      }
     }
     const heldStone = hand();
     switch (heldStone.kind) {
@@ -290,6 +338,9 @@ export function mountPocketGridScreen({
         return _exhaustive;
       }
     }
+    if (selected !== undefined) {
+      status.textContent = `Tap a neighbor stone to combine. ${String(dugCount(grid))} of 9 dug`;
+    }
     renderSave();
   };
 
@@ -299,6 +350,7 @@ export function mountPocketGridScreen({
     }
     const next = applySignedInSave({ local: grid, remote });
     grid = next.grid;
+    selected = undefined;
     logger.record({
       level: remote.kind === "unavailable" ? "error" : "info",
       code: "save.remote",
@@ -389,16 +441,27 @@ export function mountPocketGridScreen({
   render();
 }
 
-function cellLabel({ cell, index }: { cell: Cell; index: CellIndex }): string {
+function cellLabel({
+  cell,
+  index,
+  selected,
+}: {
+  cell: Cell;
+  index: CellIndex;
+  selected: boolean;
+}): string {
   const row = Math.floor(index / 3) + 1;
   const column = (index % 3) + 1;
+  const spot = `row ${String(row)}, column ${String(column)}`;
   switch (cell.kind) {
     case "covered":
-      return `Covered earth, row ${String(row)}, column ${String(column)}`;
+      return `Covered earth, ${spot}`;
     case "dug":
-      return `Dug earth, row ${String(row)}, column ${String(column)}`;
+      return `Dug earth, ${spot}`;
     case "stone":
-      return `Stone, row ${String(row)}, column ${String(column)}`;
+      return selected ? `Selected stone, ${spot}` : `Stone, ${spot}`;
+    case "chunk":
+      return `Chunk, ${spot}`;
     default: {
       const _exhaustive: never = cell;
       return _exhaustive;
