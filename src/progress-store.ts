@@ -5,7 +5,7 @@ import {
   type CloudLoadResult,
   type CloudSave,
 } from "./cloud-save";
-import { createPocketGrid, dugCount, hand, type PocketGrid } from "./grid";
+import { createPocketGrid, dugCount, type PocketGrid } from "./grid";
 import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
   clearSessionSave,
@@ -290,9 +290,6 @@ export function createProgressStore({
   };
 }
 
-function saveCounts(grid: PocketGrid): { dug: number; held: number } {
-  return {
-    dug: dugCount(grid),
-    held: hand().kind === "stone" ? 1 : 0,
-  };
+function saveCounts(grid: PocketGrid): { dug: number } {
+  return { dug: dugCount(grid) };
 }

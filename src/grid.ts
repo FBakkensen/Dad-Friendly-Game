@@ -3,8 +3,6 @@ export type Cell =
 
 export type CellIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
-export type Hand = { kind: "stone" } | { kind: "empty" };
-
 export type PocketGrid = {
   readonly width: 3;
   readonly height: 3;
@@ -42,21 +40,7 @@ export function createPocketGrid(): PocketGrid {
 }
 
 export function isCellIndex(index: number): index is CellIndex {
-  return (
-    index === 0 ||
-    index === 1 ||
-    index === 2 ||
-    index === 3 ||
-    index === 4 ||
-    index === 5 ||
-    index === 6 ||
-    index === 7 ||
-    index === 8
-  );
-}
-
-export function hand(): Hand {
-  return { kind: "stone" };
+  return Number.isInteger(index) && index >= 0 && index <= 8;
 }
 
 export function dig({
@@ -85,9 +69,6 @@ export function place({
   index: CellIndex;
 }): PocketGrid {
   if (grid.cells[index].kind !== "dug") {
-    return grid;
-  }
-  if (hand().kind !== "stone") {
     return grid;
   }
 
@@ -181,29 +162,10 @@ function parseCells(value: unknown): PocketGrid["cells"] | undefined {
   if (!Array.isArray(value) || value.length !== 9) {
     return undefined;
   }
-  const c0 = parseCell(value[0]);
-  const c1 = parseCell(value[1]);
-  const c2 = parseCell(value[2]);
-  const c3 = parseCell(value[3]);
-  const c4 = parseCell(value[4]);
-  const c5 = parseCell(value[5]);
-  const c6 = parseCell(value[6]);
-  const c7 = parseCell(value[7]);
-  const c8 = parseCell(value[8]);
-  if (
-    c0 === undefined ||
-    c1 === undefined ||
-    c2 === undefined ||
-    c3 === undefined ||
-    c4 === undefined ||
-    c5 === undefined ||
-    c6 === undefined ||
-    c7 === undefined ||
-    c8 === undefined
-  ) {
-    return undefined;
-  }
-  return [c0, c1, c2, c3, c4, c5, c6, c7, c8];
+  const cells = value.map(parseCell);
+  return cells.every((cell) => cell !== undefined)
+    ? (cells as unknown as PocketGrid["cells"])
+    : undefined;
 }
 
 function setCell({
@@ -215,15 +177,7 @@ function setCell({
   index: CellIndex;
   cell: Cell;
 }): PocketGrid["cells"] {
-  return [
-    index === 0 ? cell : cells[0],
-    index === 1 ? cell : cells[1],
-    index === 2 ? cell : cells[2],
-    index === 3 ? cell : cells[3],
-    index === 4 ? cell : cells[4],
-    index === 5 ? cell : cells[5],
-    index === 6 ? cell : cells[6],
-    index === 7 ? cell : cells[7],
-    index === 8 ? cell : cells[8],
-  ];
+  const next = [...cells];
+  next[index] = cell;
+  return next as unknown as PocketGrid["cells"];
 }

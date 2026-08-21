@@ -1,4 +1,3 @@
-import type { FirebaseWebConfig, FirebaseWebOptions } from "./auth";
 import type { PocketGrid } from "./grid";
 
 export type CloudLoadResult =
@@ -122,23 +121,4 @@ export function createUnavailableCloudSave(): CloudSave {
       };
     },
   };
-}
-
-export function createCloudSave({
-  config,
-  createFirebase,
-}: {
-  config: FirebaseWebConfig;
-  createFirebase: (args: { options: FirebaseWebOptions }) => CloudSave;
-}): CloudSave {
-  switch (config.kind) {
-    case "ready":
-      return createFirebase({ options: config.options });
-    case "absent":
-      return createNoopCloudSave();
-    default: {
-      const _exhaustive: never = config;
-      return _exhaustive;
-    }
-  }
 }
