@@ -32,3 +32,6 @@ firestore-rules-analysis.md
 *.njsproj
 *.sln
 *.sw?
+
+# MCP adapter project overrides (never tokens)
+.pi/mcp.json
