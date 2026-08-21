@@ -131,4 +131,20 @@ describe("createAppServices", () => {
     });
     expect(now()).toBe(91000);
   });
+
+  it("ignores dev flags when devMode is off", async () => {
+    const { auth, progress } = await createAppServices({
+      env: {},
+      search: "?memorySave=1&idleOffsetMs=90000",
+      baseNow: () => 1000,
+      devMode: false,
+      importers: {
+        importAuth: vi.fn(),
+        importCloudSave: vi.fn(),
+      },
+    });
+    expect(auth.getState().kind).toBe("signed-out");
+    expect(progress.getSnapshot().saveKind).toBe("unsigned");
+    progress.dispose();
+  });
 });

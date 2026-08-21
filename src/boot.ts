@@ -66,14 +66,17 @@ export async function createAppServices({
   env,
   search = window.location.search,
   baseNow = () => Date.now(),
+  devMode = import.meta.env.DEV,
   importers = firebaseImporters,
 }: {
   env: FirebaseEnv;
   search?: string;
   baseNow?: () => number;
+  devMode?: boolean;
   importers?: FirebaseImporters;
 }): Promise<AppServices> {
-  const options = parseBootOptions(search);
+  const parsed = parseBootOptions(search);
+  const options = devMode ? parsed : { memorySave: false, idleOffsetMs: 0 };
   const now = createOffsetNow({
     base: baseNow,
     offsetMs: options.idleOffsetMs,
