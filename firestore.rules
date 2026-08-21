@@ -8,12 +8,13 @@ service cloud.firestore {
     // Collection: saves
     // Document ID: Firebase Auth uid
     // Fields:
-    //   - version: int (required, must be 1)
+    //   - version: int (required, must be 1 or 2)
     //   - grid: map (required)
     //       - width: int (required, must be 3)
     //       - height: int (required, must be 3)
     //       - cells: list (required, size 9)
     //           - kind: string (required, 'covered', 'dug', 'stone', or 'chunk')
+    //   - lastSeen: int (required iff version == 2; epoch ms)
     // Ownership is the document ID. No uid, role, or PII fields.
     //
     // ===============================================================
@@ -70,10 +71,17 @@ service cloud.firestore {
     }
 
     function isValidSave(data) {
-      return hasOnlyAllowedFields(['version', 'grid']) &&
+      return hasOnlyAllowedFields(
+        data.version == 2 ? ['version', 'grid', 'lastSeen'] : ['version', 'grid']
+      ) &&
         uidUnchanged() &&
         data.version is int &&
-        data.version == 1 &&
+        (data.version == 1 || (
+          data.version == 2 &&
+          'lastSeen' in data &&
+          data.lastSeen is int &&
+          data.lastSeen >= 0
+        )) &&
         isValidGrid(data.grid);
     }
 
