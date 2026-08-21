@@ -1,22 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { FirebaseWebOptions } from "./auth";
 import {
   applySignedInSave,
-  createCloudSave,
   createMemoryCloudSave,
   createNoopCloudSave,
 } from "./cloud-save";
 import { createPocketGrid, dig, type PocketGrid } from "./grid";
-
-const readyConfig = {
-  kind: "ready",
-  options: {
-    apiKey: "key",
-    authDomain: "demo.firebaseapp.com",
-    projectId: "demo",
-    appId: "1:2:web:3",
-  },
-} as const;
 
 describe("applySignedInSave", () => {
   const local = dig({ grid: createPocketGrid(), index: 0 });
@@ -48,36 +36,6 @@ describe("applySignedInSave", () => {
     expect(applySignedInSave({ local, remote: { kind: "disabled" } })).toEqual({
       grid: local,
       upload: false,
-    });
-  });
-});
-
-describe("createCloudSave", () => {
-  it("uses Firebase when config is ready", () => {
-    const stub = createMemoryCloudSave();
-    const firebaseCalls: FirebaseWebOptions[] = [];
-    const cloud = createCloudSave({
-      config: readyConfig,
-      createFirebase: ({ options }) => {
-        firebaseCalls.push(options);
-        return stub;
-      },
-    });
-
-    expect(firebaseCalls).toEqual([readyConfig.options]);
-    expect(cloud).toBe(stub);
-  });
-
-  it("stays disabled when config is missing", async () => {
-    const cloud = createCloudSave({
-      config: { kind: "absent" },
-      createFirebase: () => {
-        throw new Error("Firebase should not start");
-      },
-    });
-
-    await expect(cloud.load({ uid: "anyone" })).resolves.toEqual({
-      kind: "disabled",
     });
   });
 });

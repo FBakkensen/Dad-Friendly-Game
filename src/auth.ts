@@ -72,25 +72,6 @@ export function assertProductionFirebaseWebConfig({
   }
 }
 
-export function createAuth({
-  config,
-  createFirebase,
-}: {
-  config: FirebaseWebConfig;
-  createFirebase: (args: { options: FirebaseWebOptions }) => AuthController;
-}): AuthController {
-  switch (config.kind) {
-    case "ready":
-      return createFirebase({ options: config.options });
-    case "absent":
-      return createUnconfiguredAuth();
-    default: {
-      const _exhaustive: never = config;
-      return _exhaustive;
-    }
-  }
-}
-
 export function createUnconfiguredAuth(): AuthController {
   const store = createAuthStore({ kind: "signed-out" });
   return {

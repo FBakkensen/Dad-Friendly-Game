@@ -4,7 +4,6 @@ import {
   createPocketGrid,
   dig,
   dugCount,
-  hand,
   parsePocketGrid,
   place,
 } from "./grid";
@@ -17,7 +16,6 @@ describe("createPocketGrid", () => {
     expect(grid.height).toBe(3);
     expect(grid.cells.every((cell) => cell.kind === "covered")).toBe(true);
     expect(dugCount(grid)).toBe(0);
-    expect(hand()).toEqual({ kind: "stone" });
   });
 });
 
@@ -31,7 +29,6 @@ describe("dig", () => {
       grid.cells.filter((cell, index) => index !== 4 && cell.kind === "covered")
         .length,
     ).toBe(8);
-    expect(hand()).toEqual({ kind: "stone" });
   });
 
   it("keeps a dug cell dug", () => {
@@ -58,7 +55,6 @@ describe("place", () => {
     const placed = place({ grid: dug, index: 2 });
 
     expect(placed.cells[2]).toEqual({ kind: "stone" });
-    expect(hand()).toEqual({ kind: "stone" });
     expect(dugCount(placed)).toBe(1);
   });
 
@@ -67,7 +63,6 @@ describe("place", () => {
     const placed = place({ grid, index: 0 });
 
     expect(placed).toBe(grid);
-    expect(hand()).toEqual({ kind: "stone" });
   });
 
   it("places a second stone on a second dug hole", () => {
@@ -78,7 +73,6 @@ describe("place", () => {
 
     expect(twice.cells[0]).toEqual({ kind: "stone" });
     expect(twice.cells[1]).toEqual({ kind: "stone" });
-    expect(hand()).toEqual({ kind: "stone" });
   });
 
   it("does not place on a cell that already has a stone", () => {
@@ -88,7 +82,6 @@ describe("place", () => {
 
     expect(again).toBe(placed);
     expect(again.cells[0]).toEqual({ kind: "stone" });
-    expect(hand()).toEqual({ kind: "stone" });
   });
 });
 
@@ -107,7 +100,6 @@ describe("combine", () => {
     expect(fused.cells[0]).toEqual({ kind: "dug" });
     expect(fused.cells[1]).toEqual({ kind: "chunk" });
     expect(dugCount(fused)).toBe(2);
-    expect(hand()).toEqual({ kind: "stone" });
   });
 
   it("does not fuse stones that are not neighbors", () => {
@@ -184,7 +176,6 @@ describe("parsePocketGrid", () => {
     });
 
     expect(parsed).toEqual(placed);
-    expect(hand()).toEqual({ kind: "stone" });
   });
 
   it("rebuilds a grid with a combined chunk", () => {

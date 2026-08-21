@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   assertProductionFirebaseWebConfig,
-  createAuth,
   createMemoryAuth,
   parseFirebaseWebConfig,
-  type AuthController,
-  type FirebaseWebOptions,
 } from "./auth";
 
 const readyConfig = {
@@ -69,37 +66,6 @@ describe("assertProductionFirebaseWebConfig", () => {
         },
       });
     }).not.toThrow();
-  });
-});
-
-describe("createAuth", () => {
-  it("uses Firebase when config is ready", () => {
-    const firebaseCalls: FirebaseWebOptions[] = [];
-    const stub: AuthController = createMemoryAuth({
-      user: { uid: "prod", label: "Prod" },
-    });
-    const auth = createAuth({
-      config: readyConfig,
-      createFirebase: ({ options }) => {
-        firebaseCalls.push(options);
-        return stub;
-      },
-    });
-
-    expect(firebaseCalls).toEqual([readyConfig.options]);
-    expect(auth).toBe(stub);
-  });
-
-  it("stays signed out when config is missing", async () => {
-    const auth = createAuth({
-      config: { kind: "absent" },
-      createFirebase: () => {
-        throw new Error("Firebase should not start");
-      },
-    });
-
-    await auth.signIn();
-    expect(auth.getState()).toEqual({ kind: "signed-out" });
   });
 });
 

@@ -7,7 +7,6 @@ import {
   combine,
   dig,
   dugCount,
-  hand,
   isCellIndex,
   place,
   type Cell,
@@ -22,8 +21,6 @@ import {
 const CELL_INDEXES = [
   0, 1, 2, 3, 4, 5, 6, 7, 8,
 ] as const satisfies readonly CellIndex[];
-
-let persistLifetime: AbortController | undefined;
 
 export function mountPocketGridScreen({
   root,
@@ -42,7 +39,6 @@ export function mountPocketGridScreen({
   auth?: AuthController;
   progress?: ProgressStore;
 }): void {
-  const ownedProgress = progressArg === undefined;
   const progress = progressArg ?? createProgressStore({ auth });
   let selected: CellIndex | undefined;
   let view: ProgressSnapshot = progress.getSnapshot();
@@ -58,6 +54,8 @@ export function mountPocketGridScreen({
   const handSlot = document.createElement("div");
   handSlot.className = "hand-slot";
   handSlot.setAttribute("role", "status");
+  handSlot.dataset["kind"] = "stone";
+  handSlot.setAttribute("aria-label", "Hand, holding a stone");
 
   const held = document.createElement("img");
   held.className = "held-piece";
@@ -265,52 +263,21 @@ export function mountPocketGridScreen({
         }
       }
     }
-    const heldStone = hand();
-    switch (heldStone.kind) {
-      case "stone":
-        held.hidden = false;
-        held.alt = "Held stone";
-        handSlot.dataset["kind"] = "stone";
-        handSlot.setAttribute("aria-label", "Hand, holding a stone");
-        status.textContent = `Holding a stone. ${String(dugCount(view.grid))} of 9 dug`;
-        break;
-      case "empty":
-        held.hidden = true;
-        held.alt = "";
-        handSlot.dataset["kind"] = "empty";
-        handSlot.setAttribute("aria-label", "Hand, empty");
-        status.textContent = `Stone placed. ${String(dugCount(view.grid))} of 9 dug`;
-        break;
-      default: {
-        const _exhaustive: never = heldStone;
-        return _exhaustive;
-      }
-    }
+    status.textContent = `Holding a stone. ${String(dugCount(view.grid))} of 9 dug`;
     if (selected !== undefined) {
       status.textContent = `Tap a neighbor stone to combine. ${String(dugCount(view.grid))} of 9 dug`;
     }
     renderSave();
   };
 
-  persistLifetime?.abort();
-  persistLifetime = new AbortController();
-  const { signal } = persistLifetime;
-  document.addEventListener(
-    "visibilitychange",
-    () => {
-      if (document.visibilityState === "hidden") {
-        progress.flush();
-      }
-    },
-    { signal },
-  );
-  window.addEventListener(
-    "pagehide",
-    () => {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
       progress.flush();
-    },
-    { signal },
-  );
+    }
+  });
+  window.addEventListener("pagehide", () => {
+    progress.flush();
+  });
 
   root.replaceChildren(
     lantern,
@@ -322,21 +289,14 @@ export function mountPocketGridScreen({
     authButton,
   );
 
-  const unsubscribeProgress = progress.subscribe((next) => {
+  progress.subscribe((next) => {
     if (next.grid !== view.grid) {
       selected = undefined;
     }
     view = next;
     render();
   });
-  const unsubscribeAuth = auth.subscribe(renderAuth);
-  signal.addEventListener("abort", () => {
-    unsubscribeProgress();
-    unsubscribeAuth();
-    if (ownedProgress) {
-      progress.dispose();
-    }
-  });
+  auth.subscribe(renderAuth);
 }
 
 function cellLabel({
