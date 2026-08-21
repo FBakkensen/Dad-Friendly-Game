@@ -33,8 +33,8 @@ describe("session save", () => {
     const storage = createMemoryStorage();
     const grid = dig({ grid: createPocketGrid(), index: 2 });
 
-    expect(writeSessionSave({ storage, grid })).toBe(true);
-    expect(readSessionSave({ storage })).toEqual(grid);
+    expect(writeSessionSave({ storage, grid, lastSeen: 1234 })).toBe(true);
+    expect(readSessionSave({ storage })).toEqual({ grid, lastSeen: 1234 });
   });
 
   it("round-trips a placed stone", () => {
@@ -44,13 +44,13 @@ describe("session save", () => {
       index: 0,
     });
 
-    expect(writeSessionSave({ storage, grid })).toBe(true);
-    expect(readSessionSave({ storage })).toEqual(grid);
+    expect(writeSessionSave({ storage, grid, lastSeen: 1234 })).toBe(true);
+    expect(readSessionSave({ storage })).toEqual({ grid, lastSeen: 1234 });
   });
 
   it("clears the scratch pad", () => {
     const storage = createMemoryStorage();
-    writeSessionSave({ storage, grid: createPocketGrid() });
+    writeSessionSave({ storage, grid: createPocketGrid(), lastSeen: 1234 });
 
     clearSessionSave({ storage });
 
@@ -87,7 +87,9 @@ describe("session save", () => {
       },
     };
 
-    expect(writeSessionSave({ storage, grid: createPocketGrid() })).toBe(false);
+    expect(
+      writeSessionSave({ storage, grid: createPocketGrid(), lastSeen: 1234 }),
+    ).toBe(false);
     expect(readSessionSave({ storage })).toBeUndefined();
     expect(() => {
       clearSessionSave({ storage });

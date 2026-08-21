@@ -6,6 +6,7 @@ import {
   dugCount,
   parsePocketGrid,
   place,
+  settleStones,
 } from "./grid";
 
 describe("createPocketGrid", () => {
@@ -223,5 +224,48 @@ describe("parsePocketGrid", () => {
         ],
       }),
     ).toBeUndefined();
+  });
+});
+
+describe("settleStones", () => {
+  it("does nothing with no elapsed time or no dug cells", () => {
+    const grid = dig({ grid: createPocketGrid(), index: 0 });
+
+    expect(settleStones({ grid, elapsedMs: 0 })).toEqual({ grid, settled: 0 });
+    expect(
+      settleStones({ grid: createPocketGrid(), elapsedMs: 60 * 60 * 1000 }),
+    ).toEqual({ grid: createPocketGrid(), settled: 0 });
+  });
+
+  it("turns one dug cell into a stone per five minutes away", () => {
+    let grid = createPocketGrid();
+    for (const index of [3, 4] as const) {
+      grid = dig({ grid, index });
+    }
+    const result = settleStones({
+      grid,
+      elapsedMs: 2 * 5 * 60 * 1000,
+    });
+
+    expect(result.settled).toBe(2);
+    expect(result.grid.cells[3]).toEqual({ kind: "stone" });
+    expect(result.grid.cells[4]).toEqual({ kind: "stone" });
+  });
+
+  it("caps the stones per absence and skips non-dug cells", () => {
+    let grid = createPocketGrid();
+    for (const index of [1, 4] as const) {
+      grid = place({ grid: dig({ grid, index }), index });
+    }
+    for (const index of [0, 2] as const) {
+      grid = dig({ grid, index });
+    }
+    const result = settleStones({ grid, elapsedMs: 24 * 60 * 60 * 1000 });
+
+    expect(result.settled).toBe(2);
+    expect(result.grid.cells[0]).toEqual({ kind: "stone" });
+    expect(result.grid.cells[2]).toEqual({ kind: "stone" });
+    expect(result.grid.cells[1]).toEqual({ kind: "stone" });
+    expect(result.grid.cells[4]).toEqual({ kind: "stone" });
   });
 });

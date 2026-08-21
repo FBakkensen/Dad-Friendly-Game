@@ -33,11 +33,11 @@ export function createFirebaseCloudSave({
     if (!snap.exists()) {
       return { kind: "missing" };
     }
-    const grid = parseGridSaveValue(snap.data());
-    if (grid === undefined) {
+    const parsed = parseGridSaveValue(snap.data());
+    if (parsed === undefined) {
       return { kind: "unavailable" };
     }
-    return { kind: "found", grid };
+    return { kind: "found", grid: parsed.grid, lastSeen: parsed.lastSeen };
   };
 
   return {
@@ -48,9 +48,13 @@ export function createFirebaseCloudSave({
         return { kind: "unavailable" };
       }
     },
-    write: async ({ uid, grid }): Promise<CloudWriteResult> => {
+    write: async ({
+      uid,
+      grid,
+      lastSeen = Date.now(),
+    }): Promise<CloudWriteResult> => {
       try {
-        await setDoc(ref(uid), serializeGridSave({ grid }));
+        await setDoc(ref(uid), serializeGridSave({ grid, lastSeen }));
         return { kind: "ok" };
       } catch (error: unknown) {
         return { kind: "failed", message: cloudErrorMessage(error) };

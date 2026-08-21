@@ -3,10 +3,15 @@ import { combine, createPocketGrid, dig, place } from "./grid";
 import { parseGridSaveValue, serializeGridSave } from "./persist";
 
 describe("serializeGridSave and parseGridSaveValue", () => {
+  const lastSeen = 1_700_000_000_000;
+
   it("round-trips a dug grid object", () => {
     const grid = dig({ grid: createPocketGrid(), index: 3 });
 
-    expect(parseGridSaveValue(serializeGridSave({ grid }))).toEqual(grid);
+    expect(parseGridSaveValue(serializeGridSave({ grid, lastSeen }))).toEqual({
+      grid,
+      lastSeen,
+    });
   });
 
   it("round-trips two placed stones", () => {
@@ -19,7 +24,10 @@ describe("serializeGridSave and parseGridSaveValue", () => {
       index: 4,
     });
 
-    expect(parseGridSaveValue(serializeGridSave({ grid }))).toEqual(grid);
+    expect(parseGridSaveValue(serializeGridSave({ grid, lastSeen }))).toEqual({
+      grid,
+      lastSeen,
+    });
   });
 
   it("round-trips a combined chunk", () => {
@@ -33,7 +41,19 @@ describe("serializeGridSave and parseGridSaveValue", () => {
     });
     const grid = combine({ grid: two, from: 3, to: 4 });
 
-    expect(parseGridSaveValue(serializeGridSave({ grid }))).toEqual(grid);
+    expect(parseGridSaveValue(serializeGridSave({ grid, lastSeen }))).toEqual({
+      grid,
+      lastSeen,
+    });
+  });
+
+  it("parses a legacy v1 save without a timestamp", () => {
+    const grid = createPocketGrid();
+
+    expect(parseGridSaveValue({ version: 1, grid })).toEqual({
+      grid,
+      lastSeen: undefined,
+    });
   });
 
   it("rejects missing fields, the wrong version, or a bad grid", () => {
@@ -41,6 +61,13 @@ describe("serializeGridSave and parseGridSaveValue", () => {
     expect(parseGridSaveValue({ version: 1 })).toBeUndefined();
     expect(
       parseGridSaveValue({ version: 2, grid: createPocketGrid() }),
+    ).toBeUndefined();
+    expect(
+      parseGridSaveValue({
+        version: 2,
+        grid: createPocketGrid(),
+        lastSeen: "x",
+      }),
     ).toBeUndefined();
     expect(
       parseGridSaveValue({

@@ -57,7 +57,7 @@ describe("createProgressStore", () => {
 
     expect(progress.getSnapshot().saveKind).toBe("session");
     expect(progress.getSnapshot().grid).toEqual(dug);
-    expect(readSessionSave({ storage })).toEqual(dug);
+    expect(readSessionSave({ storage })?.grid).toEqual(dug);
     expect(progress.getSnapshot().log).toContain("save.session ok");
 
     progress.dispose();
@@ -281,7 +281,7 @@ describe("createProgressStore", () => {
     await auth.signOut();
     expect(progress.getSnapshot().grid).toEqual(dug);
     expect(progress.getSnapshot().saveKind).toBe("session");
-    expect(readSessionSave({ storage })).toEqual(dug);
+    expect(readSessionSave({ storage })?.grid).toEqual(dug);
   });
 
   it("does not write unsigned digs to a signed-in session scratch", async () => {
@@ -301,5 +301,41 @@ describe("createProgressStore", () => {
 
     expect(readSessionSave({ storage })).toBeUndefined();
     expect(docs.get("test-dad")?.cells[1]).toEqual({ kind: "dug" });
+  });
+
+  it("settles stones while away and stamps the return moment", async () => {
+    const docs = new Map<string, PocketGrid>();
+    const cloud = createMemoryCloudSave({ docs });
+    const awayGrid = (() => {
+      let g = createPocketGrid();
+      for (const index of [0, 1] as const) {
+        g = dig({ grid: g, index });
+      }
+      return g;
+    })();
+    const oldSeen = 1_000_000;
+    await cloud.write({ uid: "test-dad", grid: awayGrid, lastSeen: oldSeen });
+
+    // 11 minutes away: two settle intervals, so two stones.
+    let clock = oldSeen + 11 * 60 * 1000;
+    const user = { uid: "test-dad", label: "Test Dad" };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      now: () => clock,
+    });
+
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("account");
+    });
+    expect(progress.getSnapshot().grid.cells[0]).toEqual({ kind: "stone" });
+    expect(progress.getSnapshot().awayNote).toContain("2 stones settled in");
+
+    clock += 60 * 1000;
+    progress.flush();
+    await vi.waitFor(() => {
+      expect(docs.get("test-dad")?.cells[0]).toEqual({ kind: "stone" });
+    });
+    progress.dispose();
   });
 });
