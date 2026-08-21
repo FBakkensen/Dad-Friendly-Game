@@ -139,6 +139,10 @@ export function mountPocketGridScreen({
   status.className = "dig-status";
   status.setAttribute("aria-live", "polite");
 
+  const awayNoteEl = document.createElement("p");
+  awayNoteEl.className = "away-note";
+  awayNoteEl.setAttribute("aria-live", "polite");
+
   const saveStatus = document.createElement("p");
   saveStatus.className = "save-status";
   saveStatus.setAttribute("aria-live", "polite");
@@ -227,6 +231,7 @@ export function mountPocketGridScreen({
   };
 
   const render = (): void => {
+    awayNoteEl.textContent = view.awayNote ?? "";
     for (const [index, button] of buttons.entries()) {
       if (!isCellIndex(index)) {
         continue;
@@ -284,6 +289,7 @@ export function mountPocketGridScreen({
     handSlot,
     board,
     status,
+    awayNoteEl,
     saveStatus,
     authStatus,
     authButton,

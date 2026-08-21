@@ -1,7 +1,11 @@
 import type { PocketGrid } from "./grid";
 
 export type CloudLoadResult =
-  | { readonly kind: "found"; readonly grid: PocketGrid }
+  | {
+      readonly kind: "found";
+      readonly grid: PocketGrid;
+      readonly lastSeen?: number | undefined;
+    }
   | { readonly kind: "missing" }
   | { readonly kind: "unavailable" }
   | { readonly kind: "disabled" };
@@ -15,6 +19,7 @@ export type CloudSave = {
   readonly write: (args: {
     uid: string;
     grid: PocketGrid;
+    lastSeen?: number;
   }) => Promise<CloudWriteResult>;
   readonly watch: (args: {
     uid: string;
@@ -68,13 +73,14 @@ export function createMemoryCloudSave({
   docs?: Map<string, PocketGrid>;
 } = {}): CloudSave {
   const watchers = new Map<string, Set<(remote: CloudLoadResult) => void>>();
+  const lastSeenByUid = new Map<string, number>();
 
   const current = (uid: string): CloudLoadResult => {
     const grid = docs.get(uid);
     if (grid === undefined) {
       return { kind: "missing" };
     }
-    return { kind: "found", grid };
+    return { kind: "found", grid, lastSeen: lastSeenByUid.get(uid) };
   };
 
   const emit = (uid: string): void => {
@@ -90,8 +96,11 @@ export function createMemoryCloudSave({
 
   return {
     load: ({ uid }) => Promise.resolve(current(uid)),
-    write: ({ uid, grid }) => {
+    write: ({ uid, grid, lastSeen }) => {
       docs.set(uid, grid);
+      if (lastSeen !== undefined) {
+        lastSeenByUid.set(uid, lastSeen);
+      }
       emit(uid);
       return Promise.resolve({ kind: "ok" });
     },

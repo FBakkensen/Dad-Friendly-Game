@@ -119,6 +119,39 @@ export function combine({
   };
 }
 
+// ponytail: flat 1 stone per 5 min away, cap 3 per absence; tune the constants when the loop demands it
+const SETTLE_MS_PER_STONE = 5 * 60 * 1000;
+const SETTLE_CAP = 3;
+const CELL_ORDER: readonly CellIndex[] = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+
+export function settleStones({
+  grid,
+  elapsedMs,
+}: {
+  grid: PocketGrid;
+  elapsedMs: number;
+}): { grid: PocketGrid; settled: number } {
+  const due = Math.max(
+    0,
+    Math.min(SETTLE_CAP, Math.floor(elapsedMs / SETTLE_MS_PER_STONE)),
+  );
+  let cells = grid.cells;
+  let settled = 0;
+  for (const index of CELL_ORDER) {
+    if (settled >= due) {
+      break;
+    }
+    if (cells[index].kind !== "dug") {
+      continue;
+    }
+    cells = setCell({ cells, index, cell: { kind: "stone" } });
+    settled += 1;
+  }
+  return settled === 0
+    ? { grid, settled: 0 }
+    : { grid: { width: 3, height: 3, cells }, settled };
+}
+
 export function dugCount(grid: PocketGrid): number {
   return grid.cells.filter((cell) => cell.kind !== "covered").length;
 }

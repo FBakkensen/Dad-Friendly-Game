@@ -1,5 +1,9 @@
 import type { PocketGrid } from "./grid";
-import { parseGridSaveValue, serializeGridSave } from "./persist";
+import {
+  parseGridSaveValue,
+  serializeGridSave,
+  type ParsedGridSave,
+} from "./persist";
 
 export const SESSION_SAVE_KEY = "dad-friendly-session";
 
@@ -19,7 +23,7 @@ export function readSessionSave({
   storage,
 }: {
   storage: Storage;
-}): PocketGrid | undefined {
+}): ParsedGridSave | undefined {
   try {
     const raw = storage.getItem(SESSION_SAVE_KEY);
     if (raw === null) {
@@ -34,14 +38,16 @@ export function readSessionSave({
 export function writeSessionSave({
   storage,
   grid,
+  lastSeen,
 }: {
   storage: Storage;
   grid: PocketGrid;
+  lastSeen: number;
 }): boolean {
   try {
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify(serializeGridSave({ grid })),
+      JSON.stringify(serializeGridSave({ grid, lastSeen })),
     );
     return true;
   } catch {

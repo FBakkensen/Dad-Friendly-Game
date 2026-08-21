@@ -5,7 +5,12 @@ import {
   type CloudLoadResult,
   type CloudSave,
 } from "./cloud-save";
-import { createPocketGrid, dugCount, type PocketGrid } from "./grid";
+import {
+  createPocketGrid,
+  dugCount,
+  settleStones,
+  type PocketGrid,
+} from "./grid";
 import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
   clearSessionSave,
@@ -20,6 +25,7 @@ export type ProgressSnapshot = {
   readonly grid: PocketGrid;
   readonly saveKind: SaveKind;
   readonly ready: boolean;
+  readonly awayNote: string | undefined;
   readonly log: string | undefined;
 };
 
@@ -38,18 +44,22 @@ export function createProgressStore({
   cloudSave = createNoopCloudSave(),
   logger = createLogger({ limit: 20 }),
   sessionStorage: sessionArg,
+  now = Date.now,
 }: {
   auth: AuthController;
   cloudSave?: CloudSave;
   logger?: Logger;
   sessionStorage?: Storage;
+  now?: () => number;
 }): ProgressStore {
   const sessionStore = sessionArg ?? tryGetSessionStorage();
   let grid: PocketGrid = createPocketGrid();
+  let lastSeen: number | undefined;
   let hydrateGeneration = 0;
   let hydrated = false;
   let inFlightWrites = 0;
   let saveKind: SaveKind = "unsigned";
+  let awayNote: string | undefined;
   let watchingCloud = false;
   let unwatch: (() => void) | undefined;
   let disposed = false;
@@ -61,6 +71,7 @@ export function createProgressStore({
       grid,
       saveKind,
       ready: auth.getState().kind !== "signed-in" || hydrated,
+      awayNote,
       log: latest === undefined ? undefined : formatLogEvent(latest),
     };
   };
@@ -76,7 +87,13 @@ export function createProgressStore({
     if (auth.getState().kind === "signed-in" || sessionStore === undefined) {
       return;
     }
-    if (!writeSessionSave({ storage: sessionStore, grid })) {
+    if (
+      !writeSessionSave({
+        storage: sessionStore,
+        grid,
+        lastSeen: lastSeen ?? now(),
+      })
+    ) {
       return;
     }
     saveKind = "session";
@@ -97,37 +114,66 @@ export function createProgressStore({
     const generation = hydrateGeneration;
     const counts = saveCounts(grid);
     inFlightWrites += 1;
-    void cloudSave.write({ uid, grid }).then((result) => {
-      inFlightWrites -= 1;
-      if (disposed || generation !== hydrateGeneration) {
-        return;
-      }
-      switch (result.kind) {
-        case "ok":
-          saveKind = "account";
-          logger.record({
-            level: "info",
-            code: "save.write",
-            detail: "ok",
-            data: counts,
-          });
-          break;
-        case "failed":
-          saveKind = "error";
-          logger.record({
-            level: "error",
-            code: "save.write",
-            detail: result.message,
-            data: counts,
-          });
-          break;
-        default: {
-          const _exhaustive: never = result;
-          return _exhaustive;
+    void cloudSave
+      .write({ uid, grid, lastSeen: lastSeen ?? now() })
+      .then((result) => {
+        inFlightWrites -= 1;
+        if (disposed || generation !== hydrateGeneration) {
+          return;
         }
-      }
-      emit();
+        switch (result.kind) {
+          case "ok":
+            saveKind = "account";
+            logger.record({
+              level: "info",
+              code: "save.write",
+              detail: "ok",
+              data: counts,
+            });
+            break;
+          case "failed":
+            saveKind = "error";
+            logger.record({
+              level: "error",
+              code: "save.write",
+              detail: result.message,
+              data: counts,
+            });
+            break;
+          default: {
+            const _exhaustive: never = result;
+            return _exhaustive;
+          }
+        }
+        emit();
+      });
+  };
+
+  /** Fold away-time into the grid and stamp the moment we are live again. */
+  const settleAway = (storedLastSeen: number | undefined): number => {
+    const at = now();
+    const elapsedMs =
+      storedLastSeen === undefined ? 0 : Math.max(0, at - storedLastSeen);
+    const result = settleStones({ grid, elapsedMs });
+    lastSeen = at;
+    if (result.settled === 0) {
+      return 0;
+    }
+    grid = result.grid;
+    awayNote =
+      result.settled === 1
+        ? "While you were away, 1 stone settled in."
+        : `While you were away, ${String(result.settled)} stones settled in.`;
+    logger.record({
+      level: "info",
+      code: "idle.settle",
+      detail: `${String(result.settled)} while away`,
+      data: {
+        settled: result.settled,
+        awayMinutes: Math.round(elapsedMs / 60000),
+      },
     });
+    return result.settled;
   };
 
   const applyRemote = (remote: CloudLoadResult): void => {
@@ -136,6 +182,12 @@ export function createProgressStore({
     }
     const next = applySignedInSave({ local: grid, remote });
     grid = next.grid;
+    let settled = 0;
+    if (remote.kind === "found") {
+      settled = settleAway(remote.lastSeen);
+    } else {
+      lastSeen = now();
+    }
     logger.record({
       level: remote.kind === "unavailable" ? "error" : "info",
       code: "save.remote",
@@ -147,7 +199,7 @@ export function createProgressStore({
       case "missing":
         hydrated = true;
         saveKind = "account";
-        if (next.upload) {
+        if (next.upload || settled > 0) {
           persistCloud();
         }
         break;
@@ -184,7 +236,8 @@ export function createProgressStore({
       emit();
       return;
     }
-    grid = stored;
+    grid = stored.grid;
+    settleAway(stored.lastSeen);
     saveKind = "session";
     logger.record({
       level: "info",
@@ -266,6 +319,8 @@ export function createProgressStore({
         return;
       }
       grid = next;
+      lastSeen = now();
+      awayNote = undefined;
       persistCloud();
       persistSession();
       emit();
@@ -274,6 +329,7 @@ export function createProgressStore({
       if (disposed) {
         return;
       }
+      lastSeen = now();
       persistCloud();
       if (saveKind === "session") {
         persistSession();
