@@ -71,7 +71,7 @@ body {
   appearance: none;
   display: block;
   /* Shrinks on short screens so the hire button stays above the fold. */
-  width: clamp(160px, min(78vw, 40dvh), 340px);
+  width: clamp(160px, min(78vw, 34dvh), 340px);
   aspect-ratio: 1;
   padding: 0;
   border: 0;
@@ -215,7 +215,8 @@ body {
 }
 
 .welcome-back,
-.relic-reveal {
+.relic-reveal,
+.shelf-dialog {
   position: fixed;
   inset: 0;
   overflow-y: auto;
@@ -232,12 +233,14 @@ body {
 }
 
 .welcome-back[hidden],
-.relic-reveal[hidden] {
+.relic-reveal[hidden],
+.shelf-dialog[hidden] {
   display: none;
 }
 
 .welcome-card,
-.reveal-card {
+.reveal-card,
+.shelf-card {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -252,7 +255,8 @@ body {
 }
 
 .welcome-card h2,
-.reveal-card h2 {
+.reveal-card h2,
+.shelf-card h2 {
   margin: 0;
   font-size: 1.5rem;
   color: #e8d4b8;
@@ -279,7 +283,8 @@ body {
 }
 
 .welcome-continue,
-.reveal-continue {
+.reveal-continue,
+.shelf-close {
   appearance: none;
   width: 100%;
   min-height: 64px;
@@ -294,7 +299,8 @@ body {
 }
 
 .welcome-continue:focus-visible,
-.reveal-continue:focus-visible {
+.reveal-continue:focus-visible,
+.shelf-close:focus-visible {
   outline: 4px solid #e8d4b8;
   outline-offset: 4px;
 }
@@ -445,4 +451,99 @@ body {
 .reveal-power {
   margin: 0;
   font-size: 1.05rem;
+}
+
+.relic-shelf {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 6px 12px;
+  border: 1px solid #6b4a2a;
+  border-radius: 12px;
+  background: rgba(30, 19, 13, 0.8);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.relic-shelf:focus-visible {
+  outline: 4px solid #e8a84a;
+  outline-offset: 2px;
+}
+
+.shelf-slot {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+
+/* Missing relics are dark silhouettes; found ones glow. */
+.shelf-slot[data-found="false"],
+.shelf-list li[data-found="false"] img {
+  filter: brightness(0) opacity(0.45);
+}
+
+.shelf-slot[data-found="true"],
+.shelf-list li[data-found="true"] img {
+  filter: drop-shadow(0 0 6px rgba(255, 214, 102, 0.8));
+}
+
+.shelf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.shelf-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shelf-list img {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  image-rendering: pixelated;
+}
+
+.shelf-name {
+  margin: 0;
+  font-weight: 700;
+  color: #f2c46d;
+}
+
+.shelf-list li[data-found="false"] .shelf-name {
+  color: #a88a62;
+}
+
+.shelf-detail {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #c9b391;
+}
+
+.shelf-card {
+  gap: 12px;
+  padding: 20px 16px;
+}
+
+.shelf-list {
+  gap: clamp(4px, 1.2dvh, 10px);
+}
+
+.shelf-list img {
+  width: clamp(32px, 6dvh, 44px);
+  height: clamp(32px, 6dvh, 44px);
+}
+
+.shelf-card h2 {
+  font-size: 1.25rem;
 }
