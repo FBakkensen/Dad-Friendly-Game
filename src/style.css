@@ -22,15 +22,24 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
+  gap: clamp(6px, 1.6dvh, 18px);
+  padding: max(10px, env(safe-area-inset-top)) 16px
+    max(16px, env(safe-area-inset-bottom));
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 24px;
-  padding: 24px;
-  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  gap: 8px;
+  width: 100%;
 }
 
 .lantern {
   display: block;
-  width: min(36vw, 144px);
+  flex: none;
+  width: clamp(28px, 5dvh, 44px);
   height: auto;
   aspect-ratio: 1;
   object-fit: contain;
@@ -41,7 +50,8 @@ body {
 .stones-left {
   text-align: center;
   margin: 0;
-  font-size: clamp(1.75rem, 7vw, 2.5rem);
+  font-size: clamp(1.2rem, min(5.6vw, 3.4dvh), 2rem);
+  white-space: nowrap;
   font-weight: 700;
   color: #f2c46d;
   text-shadow: 0 0 18px rgba(232, 168, 74, 0.45);
@@ -51,7 +61,8 @@ body {
 .mountain {
   appearance: none;
   display: block;
-  width: min(72vw, 320px);
+  /* Shrinks on short screens so the hire button stays above the fold. */
+  width: clamp(160px, min(78vw, 40dvh), 340px);
   aspect-ratio: 1;
   padding: 0;
   border: 0;
@@ -92,13 +103,13 @@ body {
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   font-variant-numeric: tabular-nums;
 }
 
 .pocket img {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   image-rendering: pixelated;
 }
 
@@ -106,8 +117,7 @@ body {
 .save-status,
 .auth-status {
   margin: 0;
-  min-height: 1.5em;
-  font-size: 1.25rem;
+  font-size: 1rem;
   letter-spacing: 0.02em;
 }
 
@@ -138,15 +148,18 @@ body {
 }
 
 .goal {
-  max-width: 32ch;
+  max-width: 34ch;
+  min-height: 0;
   text-align: center;
+  font-size: clamp(0.9rem, 2.2dvh, 1.1rem);
+  color: #c9b391;
 }
 
 .crew {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   width: min(320px, 100%);
   text-align: center;
 }
@@ -154,15 +167,15 @@ body {
 .crew-status,
 .hire-note {
   margin: 0;
-  min-height: 1.5em;
-  font-size: 1.1rem;
+  min-height: 1.4em;
+  font-size: 1rem;
 }
 
 .hire-helper {
   appearance: none;
   width: 100%;
-  min-height: 64px;
-  padding: 16px 24px;
+  min-height: 56px;
+  padding: 12px 20px;
   border: 2px solid #e8a84a;
   border-radius: 12px;
   background: #2a1a10;
@@ -187,6 +200,7 @@ body {
 .welcome-back {
   position: fixed;
   inset: 0;
+  overflow-y: auto;
   z-index: 10;
   display: flex;
   align-items: center;
@@ -225,7 +239,7 @@ body {
 
 .welcome-mined {
   margin: 0;
-  font-size: clamp(2.5rem, 12vw, 3.5rem);
+  font-size: clamp(2rem, min(12vw, 7dvh), 3.5rem);
   font-weight: 800;
   color: #f2c46d;
   text-shadow: 0 0 24px rgba(232, 168, 74, 0.6);
@@ -304,9 +318,17 @@ body {
 }
 
 .vein-note {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
   margin: 0;
-  min-height: 1.5em;
-  font-size: 1.25rem;
+  padding: 2px 10px;
+  border-radius: 8px;
+  background: rgba(18, 12, 10, 0.75);
+  white-space: nowrap;
+  pointer-events: none;
+  font-size: 1.1rem;
   font-weight: 700;
   color: #ffd666;
 }
@@ -326,4 +348,8 @@ body {
     animation: none;
     box-shadow: 0 0 20px 6px rgba(255, 214, 102, 0.6);
   }
+}
+
+.vein-note:empty {
+  display: none;
 }
