@@ -56,6 +56,7 @@ function mountScreen({
   const progress = createProgressStore({
     auth,
     sessionStorage: storage,
+    cloudWriteGapMs: 0,
     ...(cloudSave === undefined ? {} : { cloudSave }),
   });
   mountMountainScreen({

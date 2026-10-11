@@ -116,6 +116,7 @@ describe("createProgressStore", () => {
       auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
       cloudSave: createMemoryCloudSave({ docs }),
       sessionStorage: createMemoryStorage(),
+      cloudWriteGapMs: 0,
     });
 
     await vi.waitFor(() => {
@@ -193,11 +194,13 @@ describe("createProgressStore", () => {
       auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
       cloudSave,
       sessionStorage: createMemoryStorage(),
+      cloudWriteGapMs: 0,
     });
     const second = createProgressStore({
       auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
       cloudSave,
       sessionStorage: createMemoryStorage(),
+      cloudWriteGapMs: 0,
     });
 
     await vi.waitFor(() => {
@@ -263,6 +266,7 @@ describe("createProgressStore", () => {
       auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
       cloudSave: createMemoryCloudSave({ docs }),
       sessionStorage: storage,
+      cloudWriteGapMs: 0,
     });
 
     await vi.waitFor(() => {
@@ -272,5 +276,87 @@ describe("createProgressStore", () => {
 
     expect(readSessionSave({ storage })).toBeUndefined();
     expect(docs.get("test-dad")?.pocket).toBe(2);
+  });
+});
+
+describe("cloud write throttle", () => {
+  it("writes the first tap at once, folds a burst into one trailing write, and ignores stale echoes meanwhile", async () => {
+    vi.useFakeTimers();
+    try {
+      const writes: Mountain[] = [];
+      let push: (remote: CloudLoadResult) => void = () => undefined;
+      const cloudSave: CloudSave = {
+        load: () => Promise.resolve({ kind: "missing" }),
+        write: ({ mountain }) => {
+          writes.push(mountain);
+          return Promise.resolve({ kind: "ok" });
+        },
+        watch: ({ onChange }) => {
+          push = onChange;
+          onChange({ kind: "found", mountain: createMountain() });
+          return () => undefined;
+        },
+      };
+      let clock = 10_000;
+      const user = { uid: "test-dad", label: "Test Dad" };
+      const progress = createProgressStore({
+        auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+        cloudSave,
+        sessionStorage: createMemoryStorage(),
+        now: () => clock,
+        cloudWriteGapMs: 1000,
+      });
+
+      progress.applyMutation(minedMountain(1));
+      expect(writes).toEqual([minedMountain(1)]);
+      await Promise.resolve();
+
+      for (let taps = 2; taps <= 5; taps += 1) {
+        clock += 100;
+        progress.applyMutation(minedMountain(taps));
+      }
+      expect(writes).toHaveLength(1);
+
+      push({ kind: "found", mountain: minedMountain(1) });
+      expect(progress.getSnapshot().mountain).toEqual(minedMountain(5));
+
+      clock += 500;
+      await vi.advanceTimersByTimeAsync(500);
+      expect(writes).toHaveLength(1);
+      clock += 400;
+      await vi.advanceTimersByTimeAsync(400);
+      expect(writes).toEqual([minedMountain(1), minedMountain(5)]);
+      progress.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("flush writes a pending burst immediately", async () => {
+    vi.useFakeTimers();
+    try {
+      const docs = new Map<string, Mountain>();
+      const user = { uid: "test-dad", label: "Test Dad" };
+      const progress = createProgressStore({
+        auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+        cloudSave: createMemoryCloudSave({ docs }),
+        sessionStorage: createMemoryStorage(),
+        now: () => 5_000,
+      });
+      await vi.waitFor(() => {
+        expect(docs.has("test-dad")).toBe(true);
+      });
+      progress.applyMutation(minedMountain(1));
+      progress.applyMutation(minedMountain(2));
+      expect(docs.get("test-dad")).toEqual(createMountain());
+
+      progress.flush();
+      expect(docs.get("test-dad")).toEqual(minedMountain(2));
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(docs.get("test-dad")).toEqual(minedMountain(2));
+      progress.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

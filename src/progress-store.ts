@@ -33,18 +33,23 @@ export type ProgressStore = {
   readonly dispose: () => void;
 };
 
+/** Firestore sustains about one write per second per document. */
+const CLOUD_WRITE_GAP_MS = 1000;
+
 export function createProgressStore({
   auth,
   cloudSave = createNoopCloudSave(),
   logger = createLogger({ limit: 20 }),
   sessionStorage: sessionArg,
   now = Date.now,
+  cloudWriteGapMs = CLOUD_WRITE_GAP_MS,
 }: {
   auth: AuthController;
   cloudSave?: CloudSave;
   logger?: Logger;
   sessionStorage?: Storage;
   now?: () => number;
+  cloudWriteGapMs?: number;
 }): ProgressStore {
   const sessionStore = sessionArg ?? tryGetGuestStorage();
   let mountain: Mountain = createMountain();
@@ -56,6 +61,8 @@ export function createProgressStore({
   let watchingCloud = false;
   let unwatch: (() => void) | undefined;
   let disposed = false;
+  let lastCloudWriteAt = Number.NEGATIVE_INFINITY;
+  let pendingCloudWrite: ReturnType<typeof setTimeout> | undefined;
   const listeners = new Set<(snapshot: ProgressSnapshot) => void>();
 
   const snapshot = (): ProgressSnapshot => {
@@ -97,13 +104,40 @@ export function createProgressStore({
     });
   };
 
+  const cancelPendingCloudWrite = (): void => {
+    if (pendingCloudWrite !== undefined) {
+      clearTimeout(pendingCloudWrite);
+      pendingCloudWrite = undefined;
+    }
+  };
+
+  /** Taps are unbounded, so cloud writes are throttled; the last tap always lands. */
+  const persistCloudSoon = (): void => {
+    if (pendingCloudWrite !== undefined) {
+      return;
+    }
+    const wait = lastCloudWriteAt + cloudWriteGapMs - now();
+    if (wait <= 0) {
+      persistCloud();
+      return;
+    }
+    pendingCloudWrite = setTimeout(() => {
+      pendingCloudWrite = undefined;
+      if (!disposed) {
+        persistCloud();
+      }
+    }, wait);
+  };
+
   const persistCloud = (): void => {
+    cancelPendingCloudWrite();
     const state = auth.getState();
     if (state.kind !== "signed-in" || !hydrated) {
       return;
     }
     const uid = state.user.uid;
     const generation = hydrateGeneration;
+    lastCloudWriteAt = now();
     const counts = saveCounts(mountain);
     inFlightWrites += 1;
     void cloudSave
@@ -142,7 +176,8 @@ export function createProgressStore({
   };
 
   const applyRemote = (remote: CloudLoadResult): void => {
-    if (inFlightWrites > 0 && remote.kind === "found") {
+    const localAhead = inFlightWrites > 0 || pendingCloudWrite !== undefined;
+    if (localAhead && remote.kind === "found") {
       return;
     }
     const next = applySignedInSave({ local: mountain, remote });
@@ -177,6 +212,7 @@ export function createProgressStore({
   };
 
   const stopWatch = (): void => {
+    cancelPendingCloudWrite();
     hydrateGeneration += 1;
     hydrated = false;
     unwatch?.();
@@ -280,7 +316,7 @@ export function createProgressStore({
       }
       mountain = next;
       lastSeen = now();
-      persistCloud();
+      persistCloudSoon();
       persistSession();
       emit();
     },
@@ -296,6 +332,7 @@ export function createProgressStore({
     },
     dispose: () => {
       disposed = true;
+      cancelPendingCloudWrite();
       hydrateGeneration += 1;
       unwatch?.();
       unwatch = undefined;
