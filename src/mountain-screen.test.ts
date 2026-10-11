@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createMemoryAuth,
   createUnconfiguredAuth,
@@ -14,6 +14,17 @@ import { mountMountainScreen } from "./mountain-screen";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
 import { minedMountain } from "./test-fixtures";
+
+function setReducedMotion(reduce: boolean): void {
+  window.matchMedia = ((query: string) => ({
+    matches: reduce && query.includes("reduce"),
+  })) as unknown as typeof window.matchMedia;
+}
+
+// Animations are opted into per test; most tests want instant numbers.
+beforeEach(() => {
+  setReducedMotion(true);
+});
 
 const tileUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
@@ -751,6 +762,100 @@ describe("menu", () => {
       ).toBe(false);
     } finally {
       screen.root.remove();
+    }
+  });
+});
+
+describe("what the crew gives", () => {
+  const seededCrew = () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      SESSION_SAVE_KEY,
+      JSON.stringify({
+        version: 4,
+        mountain: { ...minedMountain(400), helpers: 2, carts: 3 },
+        lastSeen: Date.now(),
+      }),
+    );
+    return storage;
+  };
+
+  it("shows each tier's output per unit and its current total", () => {
+    const screen = mountScreen({ storage: seededCrew() });
+    expect(screen.text('[data-tier="helper"] .tier-rate')).toBe(
+      "+1/s each · 2/s",
+    );
+    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
+      "+8/s each · 24/s",
+    );
+  });
+
+  it("floats +8/s from a bought cart and counts the crew line up", async () => {
+    vi.useFakeTimers();
+    setReducedMotion(false);
+    try {
+      const screen = mountScreen({ storage: seededCrew() });
+      const cart =
+        screen.root.querySelector<HTMLButtonElement>('[data-tier="cart"]');
+      cart?.click();
+      expect(cart?.querySelector(".float-gain")?.textContent).toBe("+8/s");
+      expect(screen.text(".crew-status")).toBe(
+        "Your crew mines 26 stones a second",
+      );
+      await vi.advanceTimersByTimeAsync(240);
+      const midway = screen.text(".crew-status");
+      expect(midway).not.toBe("Your crew mines 26 stones a second");
+      expect(midway).not.toBe("Your crew mines 34 stones a second");
+      await vi.advanceTimersByTimeAsync(400);
+      expect(screen.text(".crew-status")).toBe(
+        "Your crew mines 34 stones a second",
+      );
+      expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
+        "+8/s each · 32/s",
+      );
+      await vi.advanceTimersByTimeAsync(1_200);
+      expect(cart?.querySelector(".float-gain")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+      setReducedMotion(true);
+    }
+  });
+
+  it("floats the crew's stones over the mountain every second", async () => {
+    vi.useFakeTimers();
+    setReducedMotion(false);
+    try {
+      const screen = mountScreen({ storage: seededCrew() });
+      await vi.advanceTimersByTimeAsync(1_000);
+      const floats = screen.root.querySelectorAll(
+        ".mountain-wrap .mountain-float",
+      );
+      expect(floats).toHaveLength(1);
+      expect(floats[0]?.textContent).toBe("+26");
+      expect(floats[0]?.getAttribute("aria-hidden")).toBe("true");
+    } finally {
+      vi.useRealTimers();
+      setReducedMotion(true);
+    }
+  });
+
+  it("skips floats and counting with reduced motion", async () => {
+    vi.useFakeTimers();
+    setReducedMotion(true);
+    try {
+      const screen = mountScreen({ storage: seededCrew() });
+      const cart =
+        screen.root.querySelector<HTMLButtonElement>('[data-tier="cart"]');
+      cart?.click();
+      expect(cart?.querySelector(".float-gain")).toBeNull();
+      expect(screen.text(".crew-status")).toBe(
+        "Your crew mines 34 stones a second",
+      );
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(screen.root.querySelector(".mountain-float")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+      setReducedMotion(true);
     }
   });
 });

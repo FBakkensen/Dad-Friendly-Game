@@ -223,18 +223,84 @@ export function mountMountainScreen({
     name.className = "tier-name";
     const cost = document.createElement("span");
     cost.className = "tier-cost";
-    words.append(name, cost);
+    const rate = document.createElement("span");
+    rate.className = "tier-rate";
+    words.append(name, cost, rate);
     card.append(art, words);
     card.addEventListener("click", () => {
       if (!view.ready) {
         return;
       }
+      const before = owned(view.mountain, tier);
+      const rateBefore = stonesPerSecond(view.mountain);
       progress.applyMutation((mountain) => buyTier(mountain, tier.id));
+      if (owned(view.mountain, tier) > before) {
+        floatText(card, `+${formatCount(tier.perSecond)}/s`, "float-gain");
+        countCrewRate(rateBefore, stonesPerSecond(view.mountain));
+      }
     });
     tierGrid.append(card);
-    return { tier, card, name, cost };
+    return { tier, card, name, cost, rate };
   });
   crew.append(crewStatus, tierGrid);
+
+  /** No matchMedia (very old browsers, tests) counts as reduced motion. */
+  const reducedMotion = (): boolean =>
+    typeof window.matchMedia !== "function" ||
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /** A short-lived number that drifts up and fades; skipped for reduced motion. */
+  const floatText = (
+    parent: HTMLElement,
+    text: string,
+    className: string,
+    leftPercent?: number,
+  ): void => {
+    if (reducedMotion()) {
+      return;
+    }
+    const float = document.createElement("span");
+    float.className = className;
+    float.textContent = text;
+    float.setAttribute("aria-hidden", "true");
+    if (leftPercent !== undefined) {
+      float.style.left = `${String(leftPercent)}%`;
+    }
+    parent.append(float);
+    setTimeout(() => {
+      float.remove();
+    }, FLOAT_MS);
+  };
+
+  /** The crew line counts up to the new rate after a purchase. */
+  let rateShown: number | undefined;
+  let countTimer: ReturnType<typeof setInterval> | undefined;
+  const countCrewRate = (from: number, to: number): void => {
+    if (countTimer !== undefined) {
+      clearInterval(countTimer);
+      countTimer = undefined;
+    }
+    if (reducedMotion() || to <= from) {
+      rateShown = undefined;
+      renderCrew();
+      return;
+    }
+    let step = 0;
+    rateShown = from;
+    renderCrew();
+    countTimer = setInterval(() => {
+      step += 1;
+      rateShown =
+        step >= COUNT_STEPS
+          ? undefined
+          : Math.round(from + ((to - from) * step) / COUNT_STEPS);
+      if (rateShown === undefined) {
+        clearInterval(countTimer);
+        countTimer = undefined;
+      }
+      renderCrew();
+    }, COUNT_STEP_MS);
+  };
 
   const welcome = document.createElement("div");
   welcome.className = "welcome-back";
@@ -696,7 +762,7 @@ export function mountMountainScreen({
 
   const renderCrew = (): void => {
     const { mountain: current } = view;
-    const rate = stonesPerSecond(current);
+    const rate = rateShown ?? stonesPerSecond(current);
     crewStatus.textContent =
       rate === 0
         ? "No crew yet. Hire a helper to mine while you rest."
@@ -704,7 +770,7 @@ export function mountMountainScreen({
     tierGrid.dataset["shown"] = String(
       TIERS.filter((tier) => tierShown(current, tier)).length,
     );
-    for (const { tier, card, name, cost } of tierCards) {
+    for (const { tier, card, name, cost, rate: tierRate } of tierCards) {
       const count = owned(current, tier);
       const price = tierCost(tier, count);
       card.hidden = !tierShown(current, tier);
@@ -712,6 +778,10 @@ export function mountMountainScreen({
       name.textContent =
         count === 0 ? tier.name : `${tier.name} ×${formatCount(count)}`;
       cost.textContent = `${formatCount(price)} stones`;
+      tierRate.textContent =
+        count === 0
+          ? `+${formatCount(tier.perSecond)}/s each`
+          : `+${formatCount(tier.perSecond)}/s each · ${formatCount(count * tier.perSecond)}/s`;
       card.setAttribute(
         "aria-label",
         `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(tier.perSecond)}. You have ${formatCount(count)}.`,
@@ -752,6 +822,19 @@ export function mountMountainScreen({
   setInterval(() => {
     progress.tick();
     stepVein();
+    const crewRate = stonesPerSecond(view.mountain);
+    if (
+      crewRate > 0 &&
+      view.mountain.remaining > 0 &&
+      document.visibilityState !== "hidden"
+    ) {
+      floatText(
+        mountainWrap,
+        `+${formatCount(crewRate)}`,
+        "mountain-float",
+        25 + random() * 50,
+      );
+    }
   }, 1000);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
@@ -767,6 +850,10 @@ export function mountMountainScreen({
   });
   auth.subscribe(renderAuth);
 }
+
+const FLOAT_MS = 1200;
+const COUNT_STEPS = 8;
+const COUNT_STEP_MS = 60;
 
 function perSecond(rate: number): string {
   return rate === 1
