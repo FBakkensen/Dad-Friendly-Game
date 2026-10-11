@@ -325,7 +325,7 @@ describe("crew tiers on screen", () => {
     const borer = tierCard(screen.root, "borer");
     expect(borer.querySelector(".tier-name")?.textContent).toBe("Borer");
     expect(borer.querySelector(".tier-rate")?.textContent).toBe(
-      "+450\u2009·\u2009900/s",
+      "+64\u2009·\u2009128/s",
     );
     expect(borer.querySelector(".tier-count")?.textContent).toBe("×2");
     expect(borer.getAttribute("aria-label")).toContain("tunnel borer");
@@ -369,7 +369,7 @@ describe("crew tiers on screen", () => {
       storage,
       mountain: {
         ...minedMountain(25_000_000),
-        pocket: 700_000,
+        pocket: 41_000_000,
         drills: 1,
         borers: 1,
       },
@@ -379,10 +379,10 @@ describe("crew tiers on screen", () => {
     const machine = tierCard(screen.root, "machine");
     expect(machine.classList.contains("tier-locked")).toBe(false);
     expect(machine.disabled).toBe(false);
-    expect(machine.querySelector(".tier-cost")?.textContent).toBe("600K");
+    expect(machine.querySelector(".tier-cost")?.textContent).toBe("40M");
     machine.click();
     expect(machine.querySelector(".tier-count")?.textContent).toBe("×1");
-    expect(screen.text(".pocket")).toBe("100 thousand stones");
+    expect(screen.text(".pocket")).toBe("1 million stones");
   });
 
   it("keeps the roomy two-column cards while three or fewer show", () => {
@@ -439,11 +439,11 @@ describe("crew tiers on screen", () => {
       );
       expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Helper");
       expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×1");
-      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("12");
+      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("16");
       expect(hire.disabled).toBe(true);
       expect(cart.hidden).toBe(false);
       expect(hire.getAttribute("aria-label")).toBe(
-        "Buy a helper for 12 stones, mines 1 stone a second. You have 1.",
+        "Buy a helper for 16 stones, mines 1 stone a second. You have 1.",
       );
 
       await vi.advanceTimersByTimeAsync(3_000);
@@ -453,7 +453,7 @@ describe("crew tiers on screen", () => {
     }
   });
 
-  it("buys a mine cart that mines 8 stones a second", async () => {
+  it("buys a mine cart that mines 4 stones a second", async () => {
     vi.useFakeTimers();
     try {
       const storage = createMemoryStorage();
@@ -461,29 +461,29 @@ describe("crew tiers on screen", () => {
         SESSION_SAVE_KEY,
         JSON.stringify({
           version: 4,
-          mountain: { ...minedMountain(150), helpers: 1 },
+          mountain: { ...minedMountain(500), helpers: 1 },
           lastSeen: Date.now(),
         }),
       );
       const screen = mountScreen({ storage });
       const cart = tierCard(screen.root, "cart");
-      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("150");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("500");
       expect(cart.disabled).toBe(false);
 
       cart.click();
       expect(screen.text(".pocket")).toBe("0 stones");
       expect(screen.text('[data-tier="cart"] .tier-name')).toBe("Mine cart");
       expect(screen.text('[data-tier="cart"] .tier-count')).toBe("×1");
-      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("173");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("800");
       expect(screen.text(".crew-status")).toBe(
-        "Your crew mines 9 stones a second",
+        "Your crew mines 5 stones a second",
       );
       expect(
         screen.root.querySelector(".tier-grid")?.getAttribute("data-shown"),
       ).toBe("3");
 
       await vi.advanceTimersByTimeAsync(2_000);
-      expect(screen.text(".pocket")).toBe("18 stones");
+      expect(screen.text(".pocket")).toBe("10 stones");
     } finally {
       vi.useRealTimers();
     }
@@ -974,7 +974,7 @@ describe("what the crew gives", () => {
       JSON.stringify({
         version: 4,
         mountain: {
-          ...minedMountain(400),
+          ...minedMountain(2_500),
           helpers: 2,
           carts: 3,
           drills: 0,
@@ -992,10 +992,10 @@ describe("what the crew gives", () => {
     expect(screen.text('[data-tier="helper"] .tier-rate')).toBe(
       "+1 each · 2/s",
     );
-    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe("+8 each · 24/s");
+    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe("+4 each · 12/s");
   });
 
-  it("floats +8/s from a bought cart and counts the crew line up", async () => {
+  it("floats +4/s from a bought cart and counts the crew line up", async () => {
     vi.useFakeTimers();
     setReducedMotion(false);
     try {
@@ -1003,20 +1003,20 @@ describe("what the crew gives", () => {
       const cart =
         screen.root.querySelector<HTMLButtonElement>('[data-tier="cart"]');
       cart?.click();
-      expect(cart?.querySelector(".float-gain")?.textContent).toBe("+8/s");
+      expect(cart?.querySelector(".float-gain")?.textContent).toBe("+4/s");
       expect(screen.text(".crew-status")).toBe(
-        "Your crew mines 26 stones a second",
+        "Your crew mines 14 stones a second",
       );
       await vi.advanceTimersByTimeAsync(240);
       const midway = screen.text(".crew-status");
-      expect(midway).not.toBe("Your crew mines 26 stones a second");
-      expect(midway).not.toBe("Your crew mines 34 stones a second");
+      expect(midway).not.toBe("Your crew mines 14 stones a second");
+      expect(midway).not.toBe("Your crew mines 18 stones a second");
       await vi.advanceTimersByTimeAsync(400);
       expect(screen.text(".crew-status")).toBe(
-        "Your crew mines 34 stones a second",
+        "Your crew mines 18 stones a second",
       );
       expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
-        "+8 each · 32/s",
+        "+4 each · 16/s",
       );
       await vi.advanceTimersByTimeAsync(1_200);
       expect(cart?.querySelector(".float-gain")).toBeNull();
@@ -1036,7 +1036,7 @@ describe("what the crew gives", () => {
         ".mountain-stage .crew-float",
       );
       expect(floats).toHaveLength(1);
-      expect(floats[0]?.textContent).toBe("+26 crew");
+      expect(floats[0]?.textContent).toBe("+14 crew");
       expect(floats[0]?.getAttribute("aria-hidden")).toBe("true");
     } finally {
       vi.useRealTimers();
@@ -1069,7 +1069,7 @@ describe("what the crew gives", () => {
       cart?.click();
       expect(cart?.querySelector(".float-gain")).toBeNull();
       expect(screen.text(".crew-status")).toBe(
-        "Your crew mines 34 stones a second",
+        "Your crew mines 18 stones a second",
       );
       await vi.advanceTimersByTimeAsync(1_000);
       expect(screen.root.querySelector(".crew-float")).toBeNull();

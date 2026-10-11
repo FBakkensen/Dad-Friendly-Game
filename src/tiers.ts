@@ -2,7 +2,7 @@ import type { Mountain } from "./mountain";
 import type { RelicId } from "./relics";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
-const COST_GROWTH = 1.15;
+const COST_GROWTH = 1.6;
 
 export type TierId = "helper" | "cart" | "drill" | "borer" | "machine";
 
@@ -23,7 +23,7 @@ export type Tier = {
   readonly needs?: RelicId;
 };
 
-/** Cheapest first. Each tier is roughly 15× the cost and 8× the speed of the last. */
+/** Cheapest first. Each tier is 4× (the Great Machine ~8×) the speed of the last; tuned by src/pacing.test.ts. */
 export const TIERS: readonly Tier[] = [
   {
     id: "helper",
@@ -38,32 +38,32 @@ export const TIERS: readonly Tier[] = [
     field: "carts",
     name: "Mine cart",
     shortName: "Cart",
-    firstCost: 150,
-    perSecond: 8,
+    firstCost: 500,
+    perSecond: 4,
   },
   {
     id: "drill",
     field: "drills",
     name: "Steam drill",
     shortName: "Drill",
-    firstCost: 2_500,
-    perSecond: 60,
+    firstCost: 25_000,
+    perSecond: 16,
   },
   {
     id: "borer",
     field: "borers",
     name: "Tunnel borer",
     shortName: "Borer",
-    firstCost: 40_000,
-    perSecond: 450,
+    firstCost: 1_500_000,
+    perSecond: 64,
   },
   {
     id: "machine",
     field: "machines",
     name: "Great Machine",
     shortName: "Machine",
-    firstCost: 600_000,
-    perSecond: 3_500,
+    firstCost: 40_000_000,
+    perSecond: 500,
     needs: "hammer",
   },
 ];
@@ -80,9 +80,12 @@ export function owned(mountain: Mountain, tier: Tier): number {
   return mountain[tier.field];
 }
 
-/** Cookie Clicker curve: each one costs 15% more than the last. */
+/** Cookie Clicker curve, but steeper: each one costs 60% more than the last. */
 export function tierCost(tier: Tier, ownedCount: number): number {
-  return Math.ceil(tier.firstCost * COST_GROWTH ** ownedCount);
+  // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
+  return Math.ceil(
+    Number((tier.firstCost * COST_GROWTH ** ownedCount).toPrecision(12)),
+  );
 }
 
 /** Pays for one of the tier from the pocket; unaffordable returns the same mountain. */
