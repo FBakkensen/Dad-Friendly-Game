@@ -21,6 +21,8 @@ import {
   type RelicId,
 } from "./relics";
 import { buyCrew, tierLocked } from "./crew";
+import { effectiveRates } from "./rates";
+import { UPGRADES, buyUpgrade, upgradeCost, upgradeLevel } from "./upgrades";
 import {
   LANTERN_VEIN_GAP_SCALE,
   advanceVein,
@@ -41,6 +43,9 @@ import {
 /** Away pay, said plainly: the crew works slower without the boss. */
 const restingPace = `at a resting pace (${String(Math.round(AWAY_PAY_RATE * 100))}% of their speed)`;
 
+const tapWords = (stones: number): string =>
+  stones === 1 ? "one stone" : `${formatCount(stones)} stones`;
+
 /** From this many tiers on screen, cards go three to a row. */
 const COMPACT_TIER_COUNT = 4;
 
@@ -52,6 +57,7 @@ export function mountMountainScreen({
   veinUrl,
   tierArt,
   relicArt,
+  upgradesUrl,
   auth = createUnconfiguredAuth(),
   progress: progressArg,
   now = Date.now,
@@ -65,6 +71,7 @@ export function mountMountainScreen({
   veinUrl: string;
   tierArt: Readonly<Record<TierId, string>>;
   relicArt: Readonly<Record<RelicId, string>>;
+  upgradesUrl: string;
   auth?: AuthController;
   progress?: ProgressStore;
   now?: () => number;
@@ -477,6 +484,87 @@ export function mountMountainScreen({
     render();
   });
 
+  // Upgrades: one compact button beside the pocket (they're bought with it),
+  // opening a sheet so the main screen keeps its no-scroll budget.
+  const upgradesButton = document.createElement("button");
+  upgradesButton.type = "button";
+  upgradesButton.className = "upgrades-button";
+  upgradesButton.setAttribute("aria-label", "Upgrades");
+  upgradesButton.setAttribute("aria-haspopup", "dialog");
+  const upgradesIcon = document.createElement("img");
+  upgradesIcon.src = upgradesUrl;
+  upgradesIcon.alt = "";
+  upgradesIcon.width = 32;
+  upgradesIcon.height = 32;
+  upgradesIcon.draggable = false;
+  upgradesButton.append(upgradesIcon);
+  let upgradesOpen = false;
+  upgradesButton.addEventListener("click", () => {
+    upgradesOpen = true;
+    render();
+  });
+  const upgradesSheet = document.createElement("div");
+  upgradesSheet.className = "upgrades-dialog";
+  upgradesSheet.setAttribute("role", "dialog");
+  upgradesSheet.setAttribute("aria-modal", "true");
+  upgradesSheet.setAttribute("aria-labelledby", "upgrades-title");
+  upgradesSheet.hidden = true;
+  const upgradesCard = document.createElement("div");
+  upgradesCard.className = "upgrades-card";
+  const upgradesTitle = document.createElement("h2");
+  upgradesTitle.id = "upgrades-title";
+  upgradesTitle.textContent = "Upgrades";
+  const upgradesPocket = document.createElement("p");
+  upgradesPocket.className = "upgrades-pocket";
+  const upgradeList = document.createElement("ul");
+  upgradeList.className = "upgrade-list";
+  const upgradeRows = UPGRADES.map((upgrade) => {
+    const item = document.createElement("li");
+    item.className = "upgrade";
+    item.dataset["upgrade"] = upgrade.id;
+    const title = document.createElement("p");
+    title.className = "upgrade-name";
+    const effect = document.createElement("p");
+    effect.className = "upgrade-effect";
+    effect.textContent = upgrade.perLevel;
+    const now = document.createElement("p");
+    now.className = "upgrade-now";
+    const buy = document.createElement("button");
+    buy.type = "button";
+    buy.className = "upgrade-buy";
+    buy.addEventListener("click", () => {
+      if (!view.ready) {
+        return;
+      }
+      progress.applyMutation((current) => buyUpgrade(current, upgrade.id));
+    });
+    item.append(title, effect, now, buy);
+    upgradeList.append(item);
+    return { upgrade, title, now, buy };
+  });
+  const upgradesClose = document.createElement("button");
+  upgradesClose.type = "button";
+  upgradesClose.className = "upgrades-close";
+  upgradesClose.textContent = "Back to the mountain";
+  const closeUpgrades = (): void => {
+    upgradesOpen = false;
+    render();
+    upgradesButton.focus();
+  };
+  upgradesClose.addEventListener("click", closeUpgrades);
+  upgradesSheet.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeUpgrades();
+    }
+  });
+  upgradesCard.append(
+    upgradesTitle,
+    upgradesPocket,
+    upgradeList,
+    upgradesClose,
+  );
+  upgradesSheet.append(upgradesCard);
+
   // Account and Start over live in a tucked-away menu so the main screen fits a phone.
   const menuButton = document.createElement("button");
   menuButton.type = "button";
@@ -704,7 +792,7 @@ export function mountMountainScreen({
       "aria-label",
       left === 0
         ? "The mountain is mined out"
-        : "Mountain, tap to mine one stone",
+        : `Mountain, tap to mine ${tapWords(effectiveRates(view.mountain).tapYield)}`,
     );
     renderCrew();
     renderVein();
@@ -714,7 +802,40 @@ export function mountMountainScreen({
     renderShelf();
     renderConfirm();
     renderMenu();
+    renderUpgrades();
     renderSave();
+  };
+
+  const renderUpgrades = (): void => {
+    const current = view.mountain;
+    let anyAffordable = false;
+    for (const { upgrade, title, now, buy } of upgradeRows) {
+      const level = upgradeLevel(current, upgrade.id);
+      const cost = upgradeCost(upgrade, level);
+      const affordable = cost !== undefined && current.pocket >= cost;
+      anyAffordable ||= affordable;
+      title.textContent = `${upgrade.name} · level ${String(level)} of ${String(upgrade.maxLevel)}`;
+      now.textContent = `Each tap now mines ${formatCount(effectiveRates(current).tapYield)}.`;
+      buy.disabled = !view.ready || !affordable;
+      buy.textContent =
+        cost === undefined
+          ? "All levels bought"
+          : `Buy for ${formatCount(cost)} stones`;
+    }
+    upgradesPocket.textContent = `You have ${formatCount(current.pocket)} stones.`;
+    upgradesButton.classList.toggle(
+      "upgrades-ready",
+      anyAffordable && view.ready,
+    );
+    upgradesButton.setAttribute(
+      "aria-label",
+      anyAffordable ? "Upgrades, one is affordable" : "Upgrades",
+    );
+    const wasOpen = !upgradesSheet.hidden;
+    upgradesSheet.hidden = !upgradesOpen;
+    if (upgradesOpen && !wasOpen) {
+      upgradesClose.focus();
+    }
   };
 
   const renderMenu = (): void => {
@@ -890,6 +1011,10 @@ export function mountMountainScreen({
 
   menuCard.append(menuTitle, authStatus, authButton, startOverLink, menuClose);
 
+  const pocketRow = document.createElement("div");
+  pocketRow.className = "pocket-row";
+  pocketRow.append(pocket, upgradesButton);
+
   const header = document.createElement("header");
   header.className = "top-bar";
   header.append(lantern, remaining, menuButton);
@@ -899,7 +1024,7 @@ export function mountMountainScreen({
     guide,
     shelfButton,
     mountainWrap,
-    pocket,
+    pocketRow,
     crew,
     saveStatus,
     welcome,
@@ -907,6 +1032,7 @@ export function mountMountainScreen({
     shelf,
     confirm,
     menu,
+    upgradesSheet,
   );
 
   setInterval(() => {

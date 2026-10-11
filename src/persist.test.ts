@@ -24,6 +24,20 @@ describe("serializeSave and parseSaveValue", () => {
     });
   });
 
+  it("round-trips upgrades, and leaves them out when there are none", () => {
+    const mountain = { ...minedMountain(42), upgrades: { tap: 4 } };
+    const saved = serializeSave({ mountain, lastSeen: 1 });
+    expect(saved.mountain.upgrades).toEqual({ tap: 4 });
+    expect(parseSaveValue(JSON.parse(JSON.stringify(saved)))?.mountain).toEqual(
+      mountain,
+    );
+    const none = serializeSave({
+      mountain: { ...minedMountain(42), upgrades: {} },
+      lastSeen: 1,
+    });
+    expect("upgrades" in none.mountain).toBe(false);
+  });
+
   it("scales a v3 (1M) save into the 100M mountain at the same place", () => {
     expect(
       parseSaveValue({
@@ -89,6 +103,20 @@ describe("serializeSave and parseSaveValue", () => {
       parseSaveValue({
         version: 4,
         mountain: { ...base, machines: -1 },
+        lastSeen: 1,
+      }),
+    ).toBeUndefined();
+    expect(
+      parseSaveValue({
+        version: 4,
+        mountain: { ...base, upgrades: { tap: 2 } },
+        lastSeen: 1,
+      })?.mountain.upgrades,
+    ).toEqual({ tap: 2 });
+    expect(
+      parseSaveValue({
+        version: 4,
+        mountain: { ...base, upgrades: { tap: 99 } },
         lastSeen: 1,
       }),
     ).toBeUndefined();

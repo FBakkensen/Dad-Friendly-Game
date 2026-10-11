@@ -1,4 +1,13 @@
 import { buyCrew, tierLocked } from "./crew";
+import { AWAY_CAP_MS } from "./mountain";
+import { AWAY_PAY_RATE, effectiveRates } from "./rates";
+import {
+  TAP_SHARE_PER_LEVEL,
+  buyUpgrade,
+  upgradeById,
+  upgradeCost,
+  upgradeLevel,
+} from "./upgrades";
 import {
   accrue,
   accrueAway,
@@ -18,19 +27,51 @@ const DAD = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** The tier giving the most speed per stone that can be built now. */
-function bestValue(mountain: Mountain) {
-  let best:
-    | { id: (typeof TIERS)[number]["id"]; cost: number; value: number }
-    | undefined;
+type Pick = {
+  readonly buy: (mountain: Mountain) => Mountain;
+  readonly cost: number;
+  readonly value: number;
+};
+
+/** Stones a day one more stone a second of crew speed earns, live plus away. */
+const CREW_DAY_SECONDS =
+  DAD.sessionsPerDay *
+  (DAD.sessionSeconds + (AWAY_CAP_MS / 1000) * AWAY_PAY_RATE);
+/** Taps only pay while playing. */
+const TAP_DAY_SECONDS = DAD.sessionsPerDay * DAD.sessionSeconds;
+
+/** The buy giving the most stones a day per stone spent, among what's on offer. */
+function bestValue(
+  mountain: Mountain,
+  withUpgrades: boolean,
+): Pick | undefined {
+  let best: Pick | undefined;
+  const consider = (pick: Pick) => {
+    if (best === undefined || pick.value > best.value) {
+      best = pick;
+    }
+  };
   for (const tier of TIERS) {
     if (!tierShown(mountain, tier) || tierLocked(mountain, tier)) {
       continue;
     }
     const cost = tierCost(tier, owned(mountain, tier));
-    const value = tier.perSecond / cost;
-    if (best === undefined || value > best.value) {
-      best = { id: tier.id, cost, value };
+    consider({
+      buy: (current) => buyCrew(current, tier.id),
+      cost,
+      value: (tier.perSecond * CREW_DAY_SECONDS) / cost,
+    });
+  }
+  if (withUpgrades) {
+    const cost = upgradeCost(upgradeById("tap"), upgradeLevel(mountain, "tap"));
+    if (cost !== undefined) {
+      const extraPerTap =
+        effectiveRates(mountain).crewPerSecond * TAP_SHARE_PER_LEVEL;
+      consider({
+        buy: (current) => buyUpgrade(current, "tap"),
+        cost,
+        value: (extraPerTap * DAD.tapsPerSecond * TAP_DAY_SECONDS) / cost,
+      });
     }
   }
   return best;
@@ -44,7 +85,10 @@ function bestValue(mountain: Mountain) {
 export function simulateDad({
   milestones,
   maxDays = 30,
+  buysUpgrades = false,
 }: {
+  /** Also weighs Strong arms against crew, by stones a day per stone. */
+  buysUpgrades?: boolean;
   milestones: readonly number[];
   maxDays?: number;
 }): Map<number, number> {
@@ -67,11 +111,11 @@ export function simulateDad({
       mountain = accrue({ mountain, from: clock, to: clock + 1000 }).mountain;
       clock += 1000;
       for (
-        let pick = bestValue(mountain);
+        let pick = bestValue(mountain, buysUpgrades);
         pick !== undefined && pick.cost <= mountain.pocket;
-        pick = bestValue(mountain)
+        pick = bestValue(mountain, buysUpgrades)
       ) {
-        mountain = buyCrew(mountain, pick.id);
+        mountain = pick.buy(mountain);
       }
       note();
     }

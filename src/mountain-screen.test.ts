@@ -82,6 +82,7 @@ function mountScreen({
     mountainUrl: tileUrl,
     stoneUrl: tileUrl,
     veinUrl: tileUrl,
+    upgradesUrl: tileUrl,
     tierArt: {
       helper: "helper.png",
       cart: "cart.png",
@@ -1093,5 +1094,88 @@ describe("what the crew gives", () => {
       vi.useRealTimers();
       setReducedMotion(true);
     }
+  });
+});
+
+describe("upgrades on screen", () => {
+  const seededWith = (mountain: Mountain) => {
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain, lastSeen: Date.now() });
+    return storage;
+  };
+
+  it("opens the sheet from beside the pocket, buys Strong arms, and taps harder", () => {
+    setReducedMotion(false);
+    const screen = mountScreen({
+      storage: seededWith({ ...minedMountain(30_000), carts: 50 }),
+    });
+    document.body.append(screen.root);
+    const button = screen.root.querySelector<HTMLButtonElement>(
+      ".pocket-row .upgrades-button",
+    );
+    const sheet = screen.root.querySelector<HTMLElement>(".upgrades-dialog");
+    expect(button?.classList.contains("upgrades-ready")).toBe(true);
+    expect(button?.getAttribute("aria-label")).toBe(
+      "Upgrades, one is affordable",
+    );
+    expect(sheet?.hidden).toBe(true);
+
+    button?.click();
+    expect(sheet?.hidden).toBe(false);
+    expect(document.activeElement).toBe(
+      screen.root.querySelector(".upgrades-close"),
+    );
+    expect(screen.text('[data-upgrade="tap"] .upgrade-name')).toBe(
+      "Strong arms · level 0 of 10",
+    );
+    expect(screen.text('[data-upgrade="tap"] .upgrade-now')).toBe(
+      "Each tap now mines 1.",
+    );
+    const buy = screen.root.querySelector<HTMLButtonElement>(
+      '[data-upgrade="tap"] .upgrade-buy',
+    );
+    expect(buy?.textContent).toBe("Buy for 5,000 stones");
+    buy?.click();
+    expect(screen.text('[data-upgrade="tap"] .upgrade-name')).toBe(
+      "Strong arms · level 1 of 10",
+    );
+    expect(screen.text('[data-upgrade="tap"] .upgrade-now')).toBe(
+      "Each tap now mines 6.",
+    );
+    expect(buy?.textContent).toBe("Buy for 25 thousand stones");
+    expect(buy?.disabled).toBe(false);
+
+    screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
+    expect(sheet?.hidden).toBe(true);
+    expect(document.activeElement).toBe(button);
+
+    screen.mountain.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, detail: 1 }),
+    );
+    expect(screen.root.querySelector(".tap-float")?.textContent).toBe("+6");
+    expect(screen.mountain.getAttribute("aria-label")).toBe(
+      "Mountain, tap to mine 6 stones",
+    );
+    screen.root.remove();
+    setReducedMotion(true);
+  });
+
+  it("dims the button and the buy line when nothing is affordable", () => {
+    const screen = mountScreen({ storage: seededWith(minedMountain(10)) });
+    expect(
+      screen.root
+        .querySelector(".upgrades-button")
+        ?.classList.contains("upgrades-ready"),
+    ).toBe(false);
+    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    expect(
+      screen.root.querySelector<HTMLButtonElement>(".upgrade-buy")?.disabled,
+    ).toBe(true);
+    screen.root
+      .querySelector(".upgrades-dialog")
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(
+      screen.root.querySelector<HTMLElement>(".upgrades-dialog")?.hidden,
+    ).toBe(true);
   });
 });

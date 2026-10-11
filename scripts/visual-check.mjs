@@ -223,6 +223,25 @@ for (const viewport of VIEWPORTS) {
     `${size} start-over confirm is laid over the game`,
   );
   await page.tap(".start-over-cancel");
+  await page.tap(".upgrades-button");
+  check(
+    await coversViewport(page, ".upgrades-dialog"),
+    `${size} upgrades sheet is laid over the game`,
+  );
+  // Every buy button and the way back can be reached (the sheet may scroll).
+  const sheetReachable = await page.$eval(".upgrades-dialog", (sheet) => {
+    const buttons = [...sheet.querySelectorAll("button")];
+    return (
+      buttons.length >= 2 &&
+      buttons.every((button) => {
+        const box = button.getBoundingClientRect();
+        return box.height >= 44 && box.left >= 0 && box.right <= innerWidth;
+      }) &&
+      sheet.scrollHeight - sheet.clientHeight >= 0
+    );
+  });
+  check(sheetReachable, `${size} upgrades sheet buttons are tappable`);
+  await page.tap(".upgrades-close");
   await close();
 }
 
@@ -306,7 +325,11 @@ for (const viewport of VIEWPORTS) {
   );
   const insideSafeArea = await page.evaluate(
     (bottomInset) =>
-      [...document.querySelectorAll(".tier, .save-status, .menu-button")]
+      [
+        ...document.querySelectorAll(
+          ".tier, .save-status, .menu-button, .upgrades-button",
+        ),
+      ]
         .filter((element) => !element.hidden)
         .every(
           (element) =>

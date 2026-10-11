@@ -4,6 +4,7 @@ import cartUrl from "./assets/mine-cart.png";
 import drillUrl from "./assets/steam-drill.png";
 import borerUrl from "./assets/tunnel-borer.png";
 import machineUrl from "./assets/great-machine.png";
+import upgradesUrl from "./assets/upgrades-icon.png";
 import veinUrl from "./assets/gold-nugget.png";
 import mountainUrl from "./assets/mountain.png";
 import stoneUrl from "./assets/ore-lump.png";
@@ -45,6 +46,7 @@ try {
       borer: borerUrl,
       machine: machineUrl,
     },
+    upgradesUrl,
     relicArt: {
       lantern: relicLantern,
       shield: relicShield,
