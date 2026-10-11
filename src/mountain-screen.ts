@@ -12,7 +12,9 @@ import {
   mineByHand,
   stonesPerSecond,
 } from "./mountain";
+import { hasRelic, nextRelic, RELICS, type RelicId } from "./relics";
 import {
+  LANTERN_VEIN_GAP_SCALE,
   advanceVein,
   mineVein,
   veinReward,
@@ -32,6 +34,7 @@ export function mountMountainScreen({
   stoneUrl,
   veinUrl,
   helperUrl,
+  relicArt,
   auth = createUnconfiguredAuth(),
   progress: progressArg,
   now = Date.now,
@@ -43,6 +46,7 @@ export function mountMountainScreen({
   stoneUrl: string;
   veinUrl: string;
   helperUrl: string;
+  relicArt: Readonly<Record<RelicId, string>>;
   auth?: AuthController;
   progress?: ProgressStore;
   now?: () => number;
@@ -65,8 +69,19 @@ export function mountMountainScreen({
 
   const goal = document.createElement("p");
   goal.className = "goal";
-  goal.textContent =
-    "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.";
+  const guide = document.createElement("div");
+  guide.className = "guide";
+  const guideBar = document.createElement("div");
+  guideBar.className = "guide-bar";
+  guideBar.setAttribute("role", "progressbar");
+  guideBar.setAttribute("aria-valuemin", "0");
+  guideBar.setAttribute("aria-valuemax", "100");
+  const guideFill = document.createElement("span");
+  guideBar.append(guideFill);
+  guide.append(goal, guideBar);
+
+  const veinGapScale = (): number =>
+    hasRelic(view.mountain, "lantern") ? LANTERN_VEIN_GAP_SCALE : 1;
 
   const mountain = document.createElement("button");
   mountain.type = "button";
@@ -109,7 +124,11 @@ export function mountMountainScreen({
 
   mountainWrap.append(veinNote);
 
-  let veinState: VeinState = waitForVein({ now: now(), random });
+  let veinState: VeinState = waitForVein({
+    now: now(),
+    random,
+    gapScale: veinGapScale(),
+  });
   let veinNoteUntil = 0;
 
   const renderVein = (): void => {
@@ -131,7 +150,12 @@ export function mountMountainScreen({
     if (!view.ready || view.mountain.remaining === 0) {
       return;
     }
-    veinState = advanceVein({ vein: veinState, now: now(), random });
+    veinState = advanceVein({
+      vein: veinState,
+      now: now(),
+      random,
+      gapScale: veinGapScale(),
+    });
     renderVein();
   };
 
@@ -144,7 +168,7 @@ export function mountMountainScreen({
       reward = veinReward(latest);
       return mineVein(latest);
     });
-    veinState = waitForVein({ now: now(), random });
+    veinState = waitForVein({ now: now(), random, gapScale: veinGapScale() });
     veinNote.textContent = `Golden vein! +${formatCount(reward)} ${reward === 1 ? "stone" : "stones"}`;
     veinNoteUntil = now() + 4000;
     renderVein();
@@ -224,6 +248,46 @@ export function mountMountainScreen({
     welcomeContinue,
   );
   welcome.append(welcomeCard);
+
+  const reveal = document.createElement("div");
+  reveal.className = "relic-reveal";
+  reveal.setAttribute("role", "dialog");
+  reveal.setAttribute("aria-modal", "true");
+  reveal.setAttribute("aria-labelledby", "relic-reveal-title");
+  reveal.hidden = true;
+  const revealCard = document.createElement("div");
+  revealCard.className = "reveal-card";
+  const revealKicker = document.createElement("p");
+  revealKicker.className = "reveal-kicker";
+  revealKicker.textContent = "A Legendary Relic of Fatherhood";
+  const revealArt = document.createElement("img");
+  revealArt.className = "reveal-art";
+  revealArt.alt = "";
+  revealArt.width = 64;
+  revealArt.height = 64;
+  revealArt.draggable = false;
+  const revealTitle = document.createElement("h2");
+  revealTitle.id = "relic-reveal-title";
+  const revealVirtue = document.createElement("p");
+  revealVirtue.className = "reveal-virtue";
+  const revealPower = document.createElement("p");
+  revealPower.className = "reveal-power";
+  const revealContinue = document.createElement("button");
+  revealContinue.type = "button";
+  revealContinue.className = "reveal-continue";
+  revealContinue.textContent = "Carry it with pride";
+  revealContinue.addEventListener("click", () => {
+    progress.dismissReveal();
+  });
+  revealCard.append(
+    revealKicker,
+    revealArt,
+    revealTitle,
+    revealVirtue,
+    revealPower,
+    revealContinue,
+  );
+  reveal.append(revealCard);
 
   const saveStatus = document.createElement("p");
   saveStatus.className = "save-status";
@@ -328,8 +392,49 @@ export function mountMountainScreen({
     );
     renderCrew();
     renderVein();
+    renderGuide();
     renderWelcome();
+    renderReveal();
     renderSave();
+  };
+
+  const renderGuide = (): void => {
+    const next = nextRelic(view.mountain);
+    const guided = hasRelic(view.mountain, "lantern");
+    guideBar.hidden = !guided || next === undefined;
+    if (!guided) {
+      goal.textContent =
+        "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.";
+      return;
+    }
+    if (next === undefined) {
+      goal.textContent = "Every relic is yours. You are a legend.";
+      return;
+    }
+    const mined = MOUNTAIN_STONES - view.mountain.remaining;
+    const previous = RELICS.filter((relic) => relic.depth <= mined).at(-1);
+    const from = previous?.depth ?? 0;
+    const percent = Math.floor(((mined - from) / (next.depth - from)) * 100);
+    goal.textContent = `Next: ${next.name}, ${formatCount(next.depth - mined)} stones deeper`;
+    guideFill.style.width = `${String(percent)}%`;
+    guideBar.setAttribute("aria-valuenow", String(percent));
+    guideBar.setAttribute("aria-label", `Progress to the ${next.name}`);
+  };
+
+  const renderReveal = (): void => {
+    const relic = view.away === undefined ? view.revealed : undefined;
+    const wasOpen = !reveal.hidden;
+    reveal.hidden = relic === undefined;
+    if (relic === undefined) {
+      return;
+    }
+    revealArt.src = relicArt[relic.id];
+    revealTitle.textContent = `You found the ${relic.name}`;
+    revealVirtue.textContent = `The virtue of ${relic.virtue}.`;
+    revealPower.textContent = relic.power;
+    if (!wasOpen) {
+      revealContinue.focus();
+    }
   };
 
   const renderWelcome = (): void => {
@@ -382,7 +487,7 @@ export function mountMountainScreen({
 
   root.replaceChildren(
     header,
-    goal,
+    guide,
     mountainWrap,
     pocket,
     crew,
@@ -390,6 +495,7 @@ export function mountMountainScreen({
     authStatus,
     authButton,
     welcome,
+    reveal,
   );
 
   setInterval(() => {
@@ -399,7 +505,7 @@ export function mountMountainScreen({
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       // Veins are for active play only: a fresh wait starts on every return.
-      veinState = waitForVein({ now: now(), random });
+      veinState = waitForVein({ now: now(), random, gapScale: veinGapScale() });
       renderVein();
     }
   });

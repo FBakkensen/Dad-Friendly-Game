@@ -3,6 +3,12 @@ import helperUrl from "./assets/helper-miner.png";
 import veinUrl from "./assets/gold-nugget.png";
 import mountainUrl from "./assets/mountain.png";
 import stoneUrl from "./assets/ore-lump.png";
+import relicCrown from "./assets/relics/crown.png";
+import relicHammer from "./assets/relics/hammer.png";
+import relicHeart from "./assets/relics/heart.png";
+import relicLantern from "./assets/relics/lantern.png";
+import relicMantle from "./assets/relics/mantle.png";
+import relicShield from "./assets/relics/shield.png";
 import { createAppServices } from "./boot";
 import { mountMountainScreen } from "./mountain-screen";
 import { registerServiceWorker } from "./pwa";
@@ -29,6 +35,14 @@ try {
     stoneUrl,
     veinUrl,
     helperUrl,
+    relicArt: {
+      lantern: relicLantern,
+      shield: relicShield,
+      hammer: relicHammer,
+      heart: relicHeart,
+      crown: relicCrown,
+      mantle: relicMantle,
+    },
     auth,
     progress,
   });

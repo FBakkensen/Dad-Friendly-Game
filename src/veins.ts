@@ -18,18 +18,20 @@ export type VeinState =
       readonly y: number;
     };
 
+/** The Lantern of Guidance makes veins glint 40% sooner. */
+export const LANTERN_VEIN_GAP_SCALE = 0.6;
+
 export function waitForVein({
   now,
   random,
+  gapScale = 1,
 }: {
   now: number;
   random: () => number;
+  gapScale?: number;
 }): VeinState {
-  return {
-    kind: "waiting",
-    appearsAt:
-      now + VEIN_MIN_GAP_MS + random() * (VEIN_MAX_GAP_MS - VEIN_MIN_GAP_MS),
-  };
+  const gap = VEIN_MIN_GAP_MS + random() * (VEIN_MAX_GAP_MS - VEIN_MIN_GAP_MS);
+  return { kind: "waiting", appearsAt: now + gap * gapScale };
 }
 
 /** Moves the vein along in time: waiting → glinting → (missed) waiting again. */
@@ -37,10 +39,12 @@ export function advanceVein({
   vein,
   now,
   random,
+  gapScale = 1,
 }: {
   vein: VeinState;
   now: number;
   random: () => number;
+  gapScale?: number;
 }): VeinState {
   switch (vein.kind) {
     case "waiting":
@@ -53,7 +57,7 @@ export function advanceVein({
             y: 0.4 + random() * 0.4,
           };
     case "glinting":
-      return now < vein.until ? vein : waitForVein({ now, random });
+      return now < vein.until ? vein : waitForVein({ now, random, gapScale });
     default: {
       const _exhaustive: never = vein;
       return _exhaustive;
