@@ -1,3 +1,4 @@
+import { RELICS } from "./relics";
 import { writeSessionSave } from "./session-save";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -726,9 +727,7 @@ describe("Lantern of Guidance on screen", () => {
 
     screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
     expect(reveal?.hidden).toBe(true);
-    expect(screen.text(".goal")).toBe(
-      "Next: Shield of Protection, 9 million stones deeper",
-    );
+    expect(screen.text(".goal")).toBe("Next: Shield of Protection · Far below");
     const bar = screen.root.querySelector<HTMLElement>(".guide-bar");
     expect(bar?.hidden).toBe(false);
     expect(bar?.getAttribute("aria-valuenow")).toBe("0");
@@ -787,16 +786,22 @@ describe("relic shelf", () => {
     const names = [...screen.root.querySelectorAll(".shelf-name")].map(
       (el) => el.textContent,
     );
-    expect(names).toEqual(Array.from({ length: 6 }, () => "???"));
+    expect(names).toEqual(RELICS.map((relic) => relic.name));
     expect(screen.text(".shelf-detail")).toBe(
-      "Still buried deep in the mountain.",
+      "A warm light waits in the dark below.",
     );
+    expect(screen.root.textContent).not.toContain("???");
+    expect(
+      [...screen.root.querySelectorAll<HTMLElement>(".shelf-hint")].every(
+        (hint) => hint.hidden,
+      ),
+    ).toBe(true);
 
     screen.root.querySelector<HTMLButtonElement>(".shelf-close")?.click();
     expect(dialog?.hidden).toBe(true);
   });
 
-  it("lights up found relics and, with the Lantern, shows where the rest lie", () => {
+  it("lights up found relics, teases the rest, and hints only how near the next one is", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(12_000_000)) });
     expect(
       screen.root.querySelector(".relic-shelf")?.getAttribute("aria-label"),
@@ -819,10 +824,22 @@ describe("relic shelf", () => {
     expect(rows[1]?.querySelector(".shelf-detail")?.textContent).toContain(
       "The virtue of Protection.",
     );
-    expect(rows[2]?.querySelector(".shelf-name")?.textContent).toBe("???");
-    expect(rows[2]?.querySelector(".shelf-detail")?.textContent).toBe(
-      "Lies 25 million stones deep.",
+    expect(rows[2]?.querySelector(".shelf-name")?.textContent).toBe(
+      "Hammer of the Builder",
     );
+    expect(rows[2]?.querySelector(".shelf-detail")?.textContent).toBe(
+      "Somewhere down there lies the hammer that built great things.",
+    );
+    // 12M is 2M into the 15M stretch to the Hammer: still far below.
+    expect(rows[2]?.querySelector(".shelf-hint")?.textContent).toBe(
+      "Next · Far below",
+    );
+    expect(rows[3]?.querySelector<HTMLElement>(".shelf-hint")?.hidden).toBe(
+      true,
+    );
+    for (const row of rows.slice(2)) {
+      expect(row.textContent).not.toMatch(/\d|\?/);
+    }
   });
 });
 

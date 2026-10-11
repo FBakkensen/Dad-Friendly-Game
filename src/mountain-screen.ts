@@ -25,6 +25,7 @@ import {
   nextRelic,
   RELICS,
   type RelicId,
+  depthHint,
 } from "./relics";
 import { buyCrew, tierLocked } from "./crew";
 import { BOOSTS, boostCost, boostLeft, buyBoost } from "./boosts";
@@ -585,10 +586,12 @@ export function mountMountainScreen({
     name.className = "shelf-name";
     const detail = document.createElement("p");
     detail.className = "shelf-detail";
-    words.append(name, detail);
+    const hint = document.createElement("p");
+    hint.className = "shelf-hint";
+    words.append(name, detail, hint);
     row.append(art, words);
     shelfList.append(row);
-    return { row, art, name, detail };
+    return { row, art, name, detail, hint };
   });
   const shelfClose = document.createElement("button");
   shelfClose.type = "button";
@@ -1059,6 +1062,8 @@ export function mountMountainScreen({
       `Relic shelf, ${String(found)} of ${String(RELICS.length)} found`,
     );
     const guided = hasRelic(view.mountain, "lantern");
+    const next = nextRelic(view.mountain);
+    const hint = depthHint(view.mountain);
     for (const [index, relic] of RELICS.entries()) {
       const has = hasRelic(view.mountain, relic.id);
       const slot = shelfSlots[index];
@@ -1069,12 +1074,13 @@ export function mountMountainScreen({
       slot.dataset["found"] = String(has);
       row.row.dataset["found"] = String(has);
       row.art.src = relicArt[relic.id];
-      row.name.textContent = has ? relic.name : "???";
+      row.name.textContent = relic.name;
       row.detail.textContent = has
         ? `The virtue of ${relic.virtue}. ${relic.power}`
-        : guided
-          ? `Lies ${formatCount(relic.depth)} stones deep.`
-          : "Still buried deep in the mountain.";
+        : relic.tease;
+      const isNext = guided && relic === next && hint !== undefined;
+      row.hint.hidden = !isNext;
+      row.hint.textContent = isNext ? `Next · ${hint}` : "";
     }
     const wasOpen = !shelf.hidden;
     shelf.hidden = !shelfOpen;
@@ -1100,7 +1106,7 @@ export function mountMountainScreen({
     const previous = RELICS.filter((relic) => relic.depth <= mined).at(-1);
     const from = previous?.depth ?? 0;
     const percent = Math.floor(((mined - from) / (next.depth - from)) * 100);
-    goal.textContent = `Next: ${next.name}, ${formatCount(next.depth - mined)} stones deeper`;
+    goal.textContent = `Next: ${next.name} · ${depthHint(view.mountain) ?? ""}`;
     guideFill.style.width = `${String(percent)}%`;
     guideBar.setAttribute("aria-valuenow", String(percent));
     guideBar.setAttribute("aria-label", `Progress to the ${next.name}`);
