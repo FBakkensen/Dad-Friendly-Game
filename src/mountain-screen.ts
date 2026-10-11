@@ -4,7 +4,13 @@ import {
   type AuthState,
 } from "./auth";
 import { formatCount } from "./format";
-import { MOUNTAIN_STONES, mineByHand } from "./mountain";
+import {
+  MOUNTAIN_STONES,
+  helperCost,
+  hireHelper,
+  mineByHand,
+  stonesPerSecond,
+} from "./mountain";
 import {
   createProgressStore,
   type ProgressSnapshot,
@@ -58,7 +64,7 @@ export function mountMountainScreen({
     if (!view.ready) {
       return;
     }
-    progress.applyMutation(mineByHand(view.mountain));
+    progress.applyMutation(mineByHand);
   });
 
   const pocket = document.createElement("p");
@@ -71,6 +77,25 @@ export function mountMountainScreen({
   pocketIcon.draggable = false;
   const pocketText = document.createElement("span");
   pocket.append(pocketIcon, pocketText);
+
+  const crew = document.createElement("section");
+  crew.className = "crew";
+  crew.setAttribute("aria-label", "Helper miners");
+  const crewStatus = document.createElement("p");
+  crewStatus.className = "crew-status";
+  const hire = document.createElement("button");
+  hire.type = "button";
+  hire.className = "hire-helper";
+  hire.addEventListener("click", () => {
+    if (!view.ready) {
+      return;
+    }
+    progress.applyMutation(hireHelper);
+  });
+  const hireNote = document.createElement("p");
+  hireNote.className = "hire-note";
+  hireNote.setAttribute("aria-live", "polite");
+  crew.append(crewStatus, hire, hireNote);
 
   const saveStatus = document.createElement("p");
   saveStatus.className = "save-status";
@@ -173,7 +198,24 @@ export function mountMountainScreen({
         ? "The mountain is mined out"
         : "Mountain, tap to mine one stone",
     );
+    renderCrew();
     renderSave();
+  };
+
+  const renderCrew = (): void => {
+    const { helpers, pocket } = view.mountain;
+    crewStatus.textContent =
+      helpers === 0
+        ? "No helpers yet. Hire one to mine while you rest."
+        : `${formatCount(helpers)} ${helpers === 1 ? "helper" : "helpers"} mining ${perSecond(stonesPerSecond(view.mountain))}`;
+    const cost = helperCost(helpers);
+    hire.textContent = `Hire a helper: ${formatCount(cost)} stones`;
+    const short = cost - pocket;
+    hire.disabled = !view.ready || short > 0;
+    hireNote.textContent =
+      short > 0
+        ? `Mine ${formatCount(short)} more ${short === 1 ? "stone" : "stones"} to hire`
+        : "";
   };
 
   document.addEventListener("visibilitychange", () => {
@@ -191,14 +233,23 @@ export function mountMountainScreen({
     goal,
     mountain,
     pocket,
+    crew,
     saveStatus,
     authStatus,
     authButton,
   );
+
+  setInterval(progress.tick, 1000);
 
   progress.subscribe((next) => {
     view = next;
     render();
   });
   auth.subscribe(renderAuth);
+}
+
+function perSecond(rate: number): string {
+  return rate === 1
+    ? "1 stone a second"
+    : `${formatCount(rate)} stones a second`;
 }

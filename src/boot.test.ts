@@ -64,7 +64,7 @@ describe("createAppServices", () => {
       expect(snapshot.ready).toBe(true);
     });
 
-    progress.applyMutation(minedMountain(1));
+    progress.applyMutation(() => minedMountain(1));
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });

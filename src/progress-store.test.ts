@@ -54,7 +54,7 @@ describe("createProgressStore", () => {
     });
     const dug = minedMountain(1);
 
-    progress.applyMutation(dug);
+    progress.applyMutation(() => dug);
 
     expect(progress.getSnapshot().saveKind).toBe("session");
     expect(progress.getSnapshot().mountain).toEqual(dug);
@@ -99,7 +99,7 @@ describe("createProgressStore", () => {
       cloudSave: createMemoryCloudSave({ docs }),
       sessionStorage: createMemoryStorage(),
     });
-    progress.applyMutation(minedMountain(1));
+    progress.applyMutation(() => minedMountain(1));
 
     await auth.signIn();
 
@@ -123,7 +123,7 @@ describe("createProgressStore", () => {
       expect(docs.has("test-dad")).toBe(true);
     });
 
-    progress.applyMutation(minedMountain(1));
+    progress.applyMutation(() => minedMountain(1));
 
     expect(docs.get("test-dad")?.pocket).toBe(1);
   });
@@ -136,7 +136,7 @@ describe("createProgressStore", () => {
       sessionStorage: createMemoryStorage(),
     });
     const dug = minedMountain(1);
-    progress.applyMutation(dug);
+    progress.applyMutation(() => dug);
 
     await auth.signIn();
     await Promise.resolve();
@@ -172,7 +172,7 @@ describe("createProgressStore", () => {
       sessionStorage: createMemoryStorage(),
     });
 
-    progress.applyMutation(minedMountain(1));
+    progress.applyMutation(() => minedMountain(1));
     expect(progress.getSnapshot().mountain).toEqual(createMountain());
     expect(progress.getSnapshot().ready).toBe(false);
 
@@ -208,7 +208,7 @@ describe("createProgressStore", () => {
       expect(second.getSnapshot().saveKind).toBe("account");
     });
 
-    first.applyMutation(minedMountain(1));
+    first.applyMutation(() => minedMountain(1));
 
     await vi.waitFor(() => {
       expect(second.getSnapshot().mountain.pocket).toBe(1);
@@ -228,7 +228,7 @@ describe("createProgressStore", () => {
       expect(docs.has("test-dad")).toBe(true);
     });
 
-    progress.applyMutation(minedMountain(1));
+    progress.applyMutation(() => minedMountain(1));
     docs.delete("test-dad");
     progress.flush();
     expect(docs.get("test-dad")?.pocket).toBe(1);
@@ -244,7 +244,7 @@ describe("createProgressStore", () => {
       sessionStorage: storage,
     });
     const dug = minedMountain(4);
-    progress.applyMutation(dug);
+    progress.applyMutation(() => dug);
 
     await auth.signIn();
     await vi.waitFor(() => {
@@ -272,7 +272,7 @@ describe("createProgressStore", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().ready).toBe(true);
     });
-    progress.applyMutation(minedMountain(2));
+    progress.applyMutation(() => minedMountain(2));
 
     expect(readSessionSave({ storage })).toBeUndefined();
     expect(docs.get("test-dad")?.pocket).toBe(2);
@@ -307,13 +307,13 @@ describe("cloud write throttle", () => {
         cloudWriteGapMs: 1000,
       });
 
-      progress.applyMutation(minedMountain(1));
+      progress.applyMutation(() => minedMountain(1));
       expect(writes).toEqual([minedMountain(1)]);
       await Promise.resolve();
 
       for (let taps = 2; taps <= 5; taps += 1) {
         clock += 100;
-        progress.applyMutation(minedMountain(taps));
+        progress.applyMutation(() => minedMountain(taps));
       }
       expect(writes).toHaveLength(1);
 
@@ -346,8 +346,8 @@ describe("cloud write throttle", () => {
       await vi.waitFor(() => {
         expect(docs.has("test-dad")).toBe(true);
       });
-      progress.applyMutation(minedMountain(1));
-      progress.applyMutation(minedMountain(2));
+      progress.applyMutation(() => minedMountain(1));
+      progress.applyMutation(() => minedMountain(2));
       expect(docs.get("test-dad")).toEqual(createMountain());
 
       progress.flush();
@@ -358,5 +358,68 @@ describe("cloud write throttle", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("helpers mining live", () => {
+  it("ticks helpers' stones into the snapshot without saving, then saves on flush", () => {
+    const storage = createMemoryStorage();
+    let clock = 1_000;
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    progress.applyMutation(() => ({ remaining: 500, pocket: 0, helpers: 3 }));
+
+    clock += 2_500;
+    progress.tick();
+    expect(progress.getSnapshot().mountain.pocket).toBe(6);
+    expect(readSessionSave({ storage })?.mountain.pocket).toBe(0);
+
+    progress.flush();
+    expect(readSessionSave({ storage })).toEqual({
+      mountain: { remaining: 494, pocket: 6, helpers: 3 },
+      lastSeen: 3_000,
+    });
+  });
+
+  it("settles helpers' work before a player action so a hire sees the latest pocket", () => {
+    let clock = 0;
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: createMemoryStorage(),
+      now: () => clock,
+    });
+    progress.applyMutation(() => ({ remaining: 500, pocket: 0, helpers: 1 }));
+    clock += 10_000;
+
+    let seen = -1;
+    progress.applyMutation((mountain) => {
+      seen = mountain.pocket;
+      return mountain;
+    });
+    expect(seen).toBe(10);
+    expect(progress.getSnapshot().mountain.pocket).toBe(10);
+  });
+
+  it("does not tick before the cloud save has loaded", () => {
+    let clock = 0;
+    const user = { uid: "test-dad", label: "Test Dad" };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: {
+        load: () => Promise.resolve({ kind: "missing" }),
+        write: () => Promise.resolve({ kind: "ok" }),
+        watch: () => () => undefined,
+      },
+      sessionStorage: createMemoryStorage(),
+      now: () => clock,
+    });
+    const listener = vi.fn();
+    progress.subscribe(listener);
+    clock += 5_000;
+    progress.tick();
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 });

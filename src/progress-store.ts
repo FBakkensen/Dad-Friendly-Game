@@ -5,7 +5,7 @@ import {
   type CloudLoadResult,
   type CloudSave,
 } from "./cloud-save";
-import { createMountain, minedOut, type Mountain } from "./mountain";
+import { accrue, createMountain, minedOut, type Mountain } from "./mountain";
 import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
   clearSessionSave,
@@ -28,7 +28,10 @@ export type ProgressStore = {
   readonly subscribe: (
     listener: (snapshot: ProgressSnapshot) => void,
   ) => () => void;
-  readonly applyMutation: (mountain: Mountain) => void;
+  /** Applies a player action to the latest mountain (helpers' work settled first) and saves it. */
+  readonly applyMutation: (update: (mountain: Mountain) => Mountain) => void;
+  /** Settles helpers' work up to now for display. Does not save; saves happen on actions, hide, and pagehide. */
+  readonly tick: () => void;
   readonly flush: () => void;
   readonly dispose: () => void;
 };
@@ -295,6 +298,18 @@ export function createProgressStore({
     resumeFromSession();
   });
 
+  const canPlay = (): boolean =>
+    !disposed && (auth.getState().kind !== "signed-in" || hydrated);
+
+  /** Folds helpers' work since lastSeen into the mountain. Returns stones mined. */
+  const settle = (): number => {
+    const at = now();
+    const result = accrue({ mountain, from: lastSeen ?? at, to: at });
+    mountain = result.mountain;
+    lastSeen = result.settledAt;
+    return result.mined;
+  };
+
   return {
     getSnapshot: snapshot,
     subscribe: (listener) => {
@@ -304,27 +319,35 @@ export function createProgressStore({
         listeners.delete(listener);
       };
     },
-    applyMutation: (next) => {
-      if (disposed) {
+    applyMutation: (update) => {
+      if (!canPlay()) {
         return;
       }
-      if (auth.getState().kind === "signed-in" && !hydrated) {
-        return;
-      }
+      const mined = settle();
+      const next = update(mountain);
       if (next === mountain) {
+        if (mined > 0) {
+          emit();
+        }
         return;
       }
       mountain = next;
-      lastSeen = now();
       persistCloudSoon();
       persistSession();
       emit();
+    },
+    tick: () => {
+      if (canPlay() && settle() > 0) {
+        emit();
+      }
     },
     flush: () => {
       if (disposed) {
         return;
       }
-      lastSeen = now();
+      if (canPlay()) {
+        settle();
+      }
       persistCloud();
       if (saveKind === "session") {
         persistSession();

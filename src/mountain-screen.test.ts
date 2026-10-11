@@ -254,3 +254,49 @@ describe("mountMountainScreen", () => {
     expect(docs.get("test-dad")).toEqual(minedMountain(1));
   });
 });
+
+describe("helper miners on screen", () => {
+  it("hires a helper when affordable, raises the price, and mines every second", async () => {
+    vi.useFakeTimers();
+    try {
+      const storage = createMemoryStorage();
+      storage.setItem(
+        SESSION_SAVE_KEY,
+        JSON.stringify({
+          version: 3,
+          mountain: minedMountain(9),
+          lastSeen: Date.now(),
+        }),
+      );
+      const screen = mountScreen({ storage });
+      const hire = screen.root.querySelector(".hire-helper");
+      if (!(hire instanceof HTMLButtonElement)) {
+        throw new Error("hire button did not render");
+      }
+
+      expect(screen.text(".crew-status")).toBe(
+        "No helpers yet. Hire one to mine while you rest.",
+      );
+      expect(hire.textContent).toBe("Hire a helper: 10 stones");
+      expect(hire.disabled).toBe(true);
+      expect(screen.text(".hire-note")).toBe("Mine 1 more stone to hire");
+
+      screen.mountain.click();
+      expect(hire.disabled).toBe(false);
+      expect(screen.text(".hire-note")).toBe("");
+
+      hire.click();
+      expect(screen.text(".pocket")).toBe("0 stones");
+      expect(screen.text(".crew-status")).toBe(
+        "1 helper mining 1 stone a second",
+      );
+      expect(hire.textContent).toBe("Hire a helper: 12 stones");
+      expect(hire.disabled).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(screen.text(".pocket")).toBe("3 stones");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
