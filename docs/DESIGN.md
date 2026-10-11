@@ -92,8 +92,25 @@ Hand mining can't move a 100-million-stone mountain. Each tier is a visible jump
 - UI: a compact two-column grid of tier cards (art, name and count, cost) under one total line ("42 stones a second"). A tier not shown yet takes no space. All primary controls must stay visible at 360x560.
 - Pacing target: the mountain takes **days** for a dad who plays two short sessions a day and lets the crew mine the rest (8-hour away cap). Lantern on day 1, Hammer around days 2–3, the bottom around days 5–7. A pacing simulation test pins this, so tuning can't silently turn it into minutes. The numbers above are the first cut and that test tunes them.
 
+### M3: Strategy (boosts vs long-term upgrades)
+
+M2 gives the player one choice: which tier to buy next. M3 adds the real idle-game decision: **spend now for a short burst, or invest in something permanent**.
+
+- **Quick boosts** (timed, bought with stones, one of each running at a time, shown with a countdown):
+  - _Sharper picks_: taps yield ×2 for 10 minutes.
+  - _Overtime_: crew output ×2 for 30 minutes.
+  - Boosts run only while the game is open; they never multiply away earnings, so they reward active play without punishing rest.
+- **Permanent upgrades** (one-time purchases, Cookie Clicker style, unlocked by owning enough of a tier):
+  - _Better boots_: helpers +10% speed (more levels later).
+  - _Steady hands_: away earnings +25%.
+- **Crew synergies** (permanent, make mixed crews pay): e.g. each helper adds +1% to cart speed.
+- **Tap power scaling**: upgrades that make a tap yield a share of the crew rate (e.g. +1% of crew/s per tap), so tapping stays meaningful at a million stones a second instead of being +1.
+- **Prestige: pass the mine to your kid** (later, with the Mantle of the Hero): reset the mountain for a permanent multiplier. This is the ultimate long-term choice.
+- All multipliers live in one pure function over the save (`effectiveRates`), so live ticks, away earnings and the UI agree. Boost timers use absolute end times in the save. Away earnings ignore boosts.
+- UI: an "Upgrades" sheet behind one compact button. The main screen keeps its no-scroll budget (the browser check runs in CI).
+
 ### Later (sketch)
 
 - **M2: Automation.** See above.
-- **M3: Patience.** Heart of Patience, richer away screen, gentle daily rhythm.
-- **M4: Legacy.** Crown of Wisdom, Mantle of the Hero, prestige (pass the mine to your kid).
+- **M4: Patience.** Heart of Patience, richer away screen, gentle daily rhythm.
+- **M5: Legacy.** Crown of Wisdom, Mantle of the Hero, prestige (pass the mine to your kid).
