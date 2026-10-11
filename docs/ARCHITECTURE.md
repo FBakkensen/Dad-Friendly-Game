@@ -18,7 +18,7 @@ page is the map, plus the rules that keep it that way.
    its methods.
 4. **Screen:** `mountain-screen` builds the page and wires panels; panels are
    their own modules with a `create…Panel` factory returning their elements
-   and a `render()` (first one: `upgrades-panel`). Shared player-facing
+   and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `menu-panel`, `crew-panel`). Shared player-facing
    wording lives in `screen-words`.
 
 ## Findings
@@ -31,11 +31,17 @@ page is the map, plus the rules that keep it that way.
 - **`mountain-screen.ts` was ~1,500 lines** doing layout, ten dialogs and
   their copy. Split plan, one panel per PR, the screen tests unchanged by each
   move (they are the characterization tests, 97% line coverage):
-  1. Upgrades sheet + boost chips' text → `upgrades-panel` (done).
-  2. Shelf, relic detail, relic reveal and Legend finale → `relic-panels`.
-  3. Welcome-back card → `welcome-panel`.
-  4. Menu, account and Start over confirm → `menu-panel`.
-  5. Tier grid and crew line → `crew-panel`.
+  1. Upgrades sheet + boost chips' text → `upgrades-panel` (#121).
+  2. Shelf, relic detail, relic reveal and Legend finale → `relic-panels`
+     (#122, #123).
+  3. Welcome-back card → `welcome-panel` (#124).
+  4. Menu, account and Start over confirm → `menu-panel` (#125).
+  5. Tier grid and crew line → `crew-panel`; the purchase float moved to
+     `float-text` (#126).
+
+  Done: `mountain-screen.ts` is now ~460 lines: layout, the mountain and
+  vein taps, the guide bar, save status, and wiring the panels.
+
 - **Panel contract:** a panel gets `progress`, `getView`, `now` and a
   `requestRender` callback; it never reads another panel's elements, and it
   owns its open/closed state.
