@@ -1181,10 +1181,13 @@ export function mountMountainScreen({
     crewStatus.classList.toggle("crew-short", rates.helpersShort > 0);
     crewStatus.textContent =
       rates.helpersShort > 0
-        ? `${formatCompact(rate)}/s · ${String(idle)} idle, need ${String(rates.helpersShort)} more ${rates.helpersShort === 1 ? "helper" : "helpers"}`
+        ? `${formatCompact(rate)}/s · ${formatCompact(idle)} idle, need ${formatCompact(rates.helpersShort)} ${rates.helpersShort === 1 ? "helper" : "helpers"}`
         : rate === 0
           ? "No crew yet. Hire a helper to mine while you rest."
-          : `Your crew mines ${perSecond(rate)}`;
+          : rate >= 1_000
+            ? // Compact once it's big, so the line never wraps on a phone.
+              `Your crew mines ${formatCompact(rate)} stones/s`
+            : `Your crew mines ${perSecond(rate)}`;
     const shownCount = TIERS.filter((tier) => tierShown(current, tier)).length;
     tierGrid.dataset["shown"] = String(shownCount);
     // Three to a row once there are four or more, so every tier fits in two rows.
