@@ -12,6 +12,9 @@ const REQUIRED_SELECTORS = [
   ".start-over",
   ".game-menu",
   ".menu-button",
+  ".upgrades-dialog",
+  ".upgrades-button",
+  ".pocket-row",
   ".welcome-card",
   ".reveal-card",
   ".shelf-card",
@@ -35,6 +38,7 @@ describe("style.css", () => {
     ".shelf-dialog",
     ".start-over",
     ".game-menu",
+    ".upgrades-dialog",
   ])("lays %s over the game", (selector) => {
     const group = /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
       css.slice(css.indexOf(".welcome-back,")),

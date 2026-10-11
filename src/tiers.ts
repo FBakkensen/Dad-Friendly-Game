@@ -113,10 +113,3 @@ export function tierShown(mountain: Mountain, tier: Tier): boolean {
     (previous !== undefined && owned(mountain, previous) > 0)
   );
 }
-
-export function crewStonesPerSecond(mountain: Mountain): number {
-  return TIERS.reduce(
-    (total, tier) => total + owned(mountain, tier) * tier.perSecond,
-    0,
-  );
-}

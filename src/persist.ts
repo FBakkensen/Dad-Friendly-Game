@@ -37,6 +37,10 @@ export function serializeSave({
       drills: mountain.drills,
       borers: mountain.borers,
       machines: mountain.machines,
+      ...(mountain.upgrades === undefined ||
+      Object.keys(mountain.upgrades).length === 0
+        ? {}
+        : { upgrades: mountain.upgrades }),
       ...(mountain.startedAt === undefined
         ? {}
         : { startedAt: mountain.startedAt }),

@@ -1,14 +1,12 @@
-import { crewStonesPerSecond } from "./tiers";
+import { effectiveRates } from "./rates";
+import { parseUpgrades, type Upgrades } from "./upgrades";
+
+export { AWAY_PAY_RATE } from "./rates";
 
 /** Mountain numbers live here; tier numbers in src/tiers.ts. See docs/DESIGN.md. */
 export const MOUNTAIN_STONES = 100_000_000;
 /** Base away cap; the Shield of Protection relic will lift it. */
 export const AWAY_CAP_MS = 8 * 60 * 60 * 1000;
-/**
- * Share of the crew's speed paid for time away (app closed or in the
- * background). Tuned by src/pacing.test.ts; the Heart of Patience may raise it.
- */
-export const AWAY_PAY_RATE = 0.3;
 
 export type Mountain = {
   /** Stones still in the mountain. 0..MOUNTAIN_STONES. */
@@ -21,6 +19,8 @@ export type Mountain = {
   readonly drills: number;
   readonly borers: number;
   readonly machines: number;
+  /** Permanent upgrade levels (src/upgrades.ts); missing means none. */
+  readonly upgrades?: Upgrades;
   /**
    * When this run began (epoch ms), set by "Start over". Missing means the
    * first run. A save from an older run never replaces a newer one.
@@ -49,20 +49,21 @@ export function minedOut(mountain: Mountain): number {
   return MOUNTAIN_STONES - mountain.remaining;
 }
 
-/** One tap, one stone. An empty mountain returns the same object. */
+/** One tap mines its yield (see effectiveRates); an empty mountain returns the same object. */
 export function mineByHand(mountain: Mountain): Mountain {
   if (mountain.remaining === 0) {
     return mountain;
   }
+  const mined = Math.min(mountain.remaining, effectiveRates(mountain).tapYield);
   return {
     ...mountain,
-    remaining: mountain.remaining - 1,
-    pocket: mountain.pocket + 1,
+    remaining: mountain.remaining - mined,
+    pocket: mountain.pocket + mined,
   };
 }
 
 export function stonesPerSecond(mountain: Mountain): number {
-  return crewStonesPerSecond(mountain);
+  return effectiveRates(mountain).crewPerSecond;
 }
 
 export type Accrual = {
@@ -136,7 +137,7 @@ export function accrueAway({
     mountain,
     from: capped ? now - AWAY_CAP_MS : lastSeen,
     to: now,
-    pay: AWAY_PAY_RATE,
+    pay: effectiveRates(mountain).awayPay,
   });
   return { ...result, report: { mined: result.mined, awayMs, capped } };
 }
@@ -157,6 +158,7 @@ export function parseMountain(
     drills = 0,
     borers = 0,
     machines = 0,
+    upgrades,
     startedAt,
   } = value as Record<string, unknown>;
   if (
@@ -168,7 +170,8 @@ export function parseMountain(
     !isCount(drills) ||
     !isCount(borers) ||
     !isCount(machines) ||
-    (startedAt !== undefined && !isCount(startedAt))
+    (startedAt !== undefined && !isCount(startedAt)) ||
+    (upgrades !== undefined && parseUpgrades(upgrades) === undefined)
   ) {
     return undefined;
   }
@@ -181,7 +184,15 @@ export function parseMountain(
     borers,
     machines,
   };
-  return startedAt === undefined ? mountain : { ...mountain, startedAt };
+  const parsedUpgrades =
+    upgrades === undefined ? undefined : parseUpgrades(upgrades);
+  return {
+    ...mountain,
+    ...(parsedUpgrades === undefined || Object.keys(parsedUpgrades).length === 0
+      ? {}
+      : { upgrades: parsedUpgrades }),
+    ...(startedAt === undefined ? {} : { startedAt }),
+  };
 }
 
 function isCount(value: unknown): value is number {
