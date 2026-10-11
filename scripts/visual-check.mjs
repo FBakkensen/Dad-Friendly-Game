@@ -205,7 +205,11 @@ for (const viewport of VIEWPORTS) {
       box.left + box.width / 2,
       box.top + box.height / 2,
     );
-    return `shelf at ${String(Math.round(box.top))}+${String(Math.round(box.height))} of ${String(innerHeight)}, hit ${hit?.className ?? "nothing"}`;
+    const tag =
+      hit === null
+        ? "nothing"
+        : `${hit.tagName}#${hit.id}.${String(hit.className)} in ${String(hit.parentElement?.className)}`;
+    return `shelf at ${String(Math.round(box.top))}+${String(Math.round(box.height))} of ${String(innerHeight)}, hit ${tag}, open ${String(document.querySelector(".shelf-dialog")?.hidden === false)}`;
   });
   console.log(`info ${size} ${shelfSpot}`);
   await page.tap(".relic-shelf");
