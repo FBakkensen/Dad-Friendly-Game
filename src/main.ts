@@ -3,6 +3,7 @@ import rockUrl from "./assets/dig-cells.png";
 import stoneUrl from "./assets/ore-lump.png";
 import { createAppServices } from "./boot";
 import { mountMountainScreen } from "./mountain-screen";
+import { registerServiceWorker } from "./pwa";
 import "./style.css";
 
 const root = document.getElementById("app");
@@ -20,6 +21,7 @@ try {
     },
   });
   mountMountainScreen({ root, lanternUrl, rockUrl, stoneUrl, auth, progress });
+  void registerServiceWorker();
 } catch (error) {
   console.error(error);
   root.textContent = "Boot failed — reload to try again.";
