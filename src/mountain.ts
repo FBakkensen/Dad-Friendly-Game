@@ -35,7 +35,12 @@ export type Mountain = {
    * load, one time (see staffExisting in crew.ts). New mountains start set.
    */
   readonly staffed?: true;
+  /** Mountains passed to your kid (M6); missing means none. */
+  readonly legacy?: number;
 };
+
+/** A sanity cap for saves; no dad gets near it. Mirrored in firestore.rules. */
+const MAX_LEGACY = 1000;
 
 /** 0 for a first run that was never started over. */
 export function runStartedAt(mountain: Mountain): number {
@@ -185,6 +190,7 @@ export function parseMountain(
     boosts,
     startedAt,
     staffed,
+    legacy,
   } = value as Record<string, unknown>;
   if (
     !isCount(remaining) ||
@@ -198,6 +204,7 @@ export function parseMountain(
     !isCount(kids) ||
     (startedAt !== undefined && !isCount(startedAt)) ||
     (staffed !== undefined && staffed !== true) ||
+    (legacy !== undefined && (!isCount(legacy) || legacy > MAX_LEGACY)) ||
     (upgrades !== undefined && parseUpgrades(upgrades) === undefined) ||
     (boosts !== undefined && parseBoosts(boosts) === undefined)
   ) {
@@ -226,6 +233,7 @@ export function parseMountain(
       : { boosts: parsedBoosts }),
     ...(startedAt === undefined ? {} : { startedAt }),
     ...(staffed === true ? { staffed } : {}),
+    ...(typeof legacy === "number" && legacy > 0 ? { legacy } : {}),
   };
 }
 

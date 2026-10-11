@@ -77,7 +77,7 @@ service cloud.firestore {
     function isValidMountain(mountain, total) {
       return mountain is map &&
         mountain.keys().hasAll(['remaining', 'pocket', 'helpers']) &&
-        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts', 'drills', 'borers', 'machines', 'kids', 'upgrades', 'boosts', 'startedAt', 'staffed']) &&
+        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts', 'drills', 'borers', 'machines', 'kids', 'upgrades', 'boosts', 'startedAt', 'staffed', 'legacy']) &&
         mountain.remaining is int &&
         mountain.remaining >= 0 &&
         mountain.remaining <= total &&
@@ -104,7 +104,8 @@ service cloud.firestore {
           (!('sharper' in mountain.boosts) || (mountain.boosts.sharper is int && mountain.boosts.sharper >= 0)) &&
           (!('overtime' in mountain.boosts) || (mountain.boosts.overtime is int && mountain.boosts.overtime >= 0)))) &&
         (!('startedAt' in mountain) || (mountain.startedAt is int && mountain.startedAt >= 0)) &&
-        (!('staffed' in mountain) || mountain.staffed == true);
+        (!('staffed' in mountain) || mountain.staffed == true) &&
+        (!('legacy' in mountain) || (mountain.legacy is int && mountain.legacy >= 0 && mountain.legacy <= 1000));
     }
 
     function runStart(data) {

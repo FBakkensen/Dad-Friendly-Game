@@ -50,6 +50,9 @@ export function serializeSave({
         ? {}
         : { startedAt: mountain.startedAt }),
       ...(mountain.staffed === true ? { staffed: true } : {}),
+      ...(mountain.legacy === undefined || mountain.legacy === 0
+        ? {}
+        : { legacy: mountain.legacy }),
     },
     lastSeen,
   };

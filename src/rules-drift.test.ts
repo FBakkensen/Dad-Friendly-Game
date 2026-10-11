@@ -53,6 +53,7 @@ describe("firestore.rules match the game", () => {
       boosts: {},
       startedAt: 0,
       staffed: true,
+      legacy: 0,
     };
     const match = /mountain\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/.exec(rules);
     const allowed = (match?.[1] ?? "")

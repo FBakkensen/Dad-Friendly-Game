@@ -764,6 +764,7 @@ describe("start over", () => {
         borers: 0,
         machines: 0,
         kids: 0,
+        legacy: 2,
       },
       lastSeen: 0,
     });

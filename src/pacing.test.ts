@@ -36,3 +36,18 @@ describe.each([
     expect(day("mantle")).toBeLessThanOrEqual(7);
   });
 });
+
+// Second run (M6): the kid's crew is ×1.5 and should reach the bottom in
+// roughly 4 days, a clearly shorter climb than the first.
+describe("pacing: a second run with one Legacy (×1.5)", () => {
+  const reached = simulateDad({
+    milestones: [depth("mantle")],
+    legacy: 1,
+    buysUpgrades: true,
+  });
+  it("reaches the bottom on day 3, 4 or 5", () => {
+    const day = Math.floor(reached.get(depth("mantle")) ?? Infinity);
+    expect(day).toBeGreaterThanOrEqual(3);
+    expect(day).toBeLessThanOrEqual(5);
+  });
+});

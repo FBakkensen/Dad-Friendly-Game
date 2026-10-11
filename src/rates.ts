@@ -32,6 +32,14 @@ export function heartBonus(mountain: Mountain, paidMs: number): number {
   return 1 + HEART_MAX_BONUS * Math.min(1, Math.max(0, paidMs) / HEART_FULL_MS);
 }
 
+/** Each Legacy (a mountain passed to your kid) adds this to crew and tap speed. */
+export const LEGACY_STEP = 0.5;
+
+/** ×1, ×1.5, ×2, …: the kid's crew and taps. Never away pay's share. */
+export function legacyBonus(mountain: Mountain): number {
+  return 1 + LEGACY_STEP * (mountain.legacy ?? 0);
+}
+
 /** Crown of Wisdom: each kid helper makes every helper and kid this much faster. */
 const KID_TEACH_PER_KID = 0.02;
 
@@ -75,8 +83,9 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
           : tier.perSecond,
     ]),
   ) as Record<TierId, number>;
+  const legacy = legacyBonus(mountain);
   for (const tier of TIERS) {
-    tierSpeed[tier.id] *= 1 + tierSynergy(mountain, tier.id);
+    tierSpeed[tier.id] *= (1 + tierSynergy(mountain, tier.id)) * legacy;
   }
   // Staffing: helpers run the fastest machines first; the rest sit idle.
   // Helpers still mine by hand while they run a machine.
@@ -106,7 +115,11 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
   // Tap power takes its share of the crew's own speed, before Overtime.
   const tapShare = upgradeLevel(mountain, "tap") * TAP_SHARE_PER_LEVEL;
   return {
-    tapYield: (1 + Math.floor(baseCrew * tapShare)) * boosted("sharper"),
+    // Legacy multiplies the whole tap; its share of the crew is taken before it.
+    tapYield:
+      Math.floor(
+        (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
+      ) * boosted("sharper"),
     tierSpeed,
     running,
     helpersShort: Math.max(0, needed - mountain.helpers - mountain.kids),

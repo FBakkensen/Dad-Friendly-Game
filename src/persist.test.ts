@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MOUNTAIN_STONES, createMountain } from "./mountain";
+import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { migrateLegacyGrid, parseSaveValue, serializeSave } from "./persist";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 
@@ -14,6 +14,28 @@ const legacyGrid = (kinds: readonly string[]) => ({
 });
 
 describe("serializeSave and parseSaveValue", () => {
+  it("round-trip every save field (a new field must be serialized, #130)", () => {
+    // Required<Mountain>: adding a field is a type error here until it's set.
+    const everyField: Required<Mountain> = {
+      remaining: 5,
+      pocket: 6,
+      helpers: 7,
+      carts: 1,
+      drills: 1,
+      borers: 1,
+      machines: 1,
+      kids: 1,
+      upgrades: { tap: 1 },
+      boosts: { sharper: 9 },
+      startedAt: 3,
+      staffed: true,
+      legacy: 2,
+    };
+    expect(
+      parseSaveValue(serializeSave({ mountain: everyField, lastSeen: 1 })),
+    ).toEqual({ mountain: everyField, lastSeen: 1 });
+  });
+
   it("round-trips a v4 mountain save", () => {
     const mountain = { ...minedMountain(42), helpers: 3 };
     const saved = serializeSave({ mountain, lastSeen: 1234 });
