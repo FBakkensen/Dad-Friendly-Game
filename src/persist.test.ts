@@ -38,6 +38,21 @@ describe("serializeSave and parseSaveValue", () => {
     expect("upgrades" in none.mountain).toBe(false);
   });
 
+  it("round-trips running boosts so a reload keeps the countdown", () => {
+    const mountain = { ...minedMountain(42), boosts: { overtime: 123_456 } };
+    const saved = serializeSave({ mountain, lastSeen: 1 });
+    expect(parseSaveValue(JSON.parse(JSON.stringify(saved)))?.mountain).toEqual(
+      mountain,
+    );
+    expect(
+      parseSaveValue({
+        version: 4,
+        mountain: { ...minedMountain(1), boosts: { turbo: 1 } },
+        lastSeen: 1,
+      }),
+    ).toBeUndefined();
+  });
+
   it("scales a v3 (1M) save into the 100M mountain at the same place", () => {
     expect(
       parseSaveValue({

@@ -1,4 +1,5 @@
 import { effectiveRates } from "./rates";
+import { parseBoosts, type Boosts } from "./boosts";
 import { parseUpgrades, type Upgrades } from "./upgrades";
 
 export { AWAY_PAY_RATE } from "./rates";
@@ -21,6 +22,8 @@ export type Mountain = {
   readonly machines: number;
   /** Permanent upgrade levels (src/upgrades.ts); missing means none. */
   readonly upgrades?: Upgrades;
+  /** Running quick boosts as end times (src/boosts.ts); missing means none. */
+  readonly boosts?: Boosts;
   /**
    * When this run began (epoch ms), set by "Start over". Missing means the
    * first run. A save from an older run never replaces a newer one.
@@ -50,11 +53,14 @@ export function minedOut(mountain: Mountain): number {
 }
 
 /** One tap mines its yield (see effectiveRates); an empty mountain returns the same object. */
-export function mineByHand(mountain: Mountain): Mountain {
+export function mineByHand(mountain: Mountain, now?: number): Mountain {
   if (mountain.remaining === 0) {
     return mountain;
   }
-  const mined = Math.min(mountain.remaining, effectiveRates(mountain).tapYield);
+  const mined = Math.min(
+    mountain.remaining,
+    effectiveRates(mountain, now).tapYield,
+  );
   return {
     ...mountain,
     remaining: mountain.remaining - mined,
@@ -62,8 +68,9 @@ export function mineByHand(mountain: Mountain): Mountain {
   };
 }
 
-export function stonesPerSecond(mountain: Mountain): number {
-  return effectiveRates(mountain).crewPerSecond;
+/** The crew's speed; pass `now` while playing to count running boosts. */
+export function stonesPerSecond(mountain: Mountain, now?: number): number {
+  return effectiveRates(mountain, now).crewPerSecond;
 }
 
 export type Accrual = {
@@ -83,14 +90,17 @@ export function accrue({
   from,
   to,
   pay = 1,
+  live = false,
 }: {
   mountain: Mountain;
   from: number;
   to: number;
   /** Share of the crew's speed paid: 1 while playing, AWAY_PAY_RATE away. */
   pay?: number;
+  /** Live play counts boosts running at `from`; away time never does. */
+  live?: boolean;
 }): Accrual {
-  const rate = stonesPerSecond(mountain);
+  const rate = stonesPerSecond(mountain, live ? from : undefined);
   if (to <= from) {
     return { mountain, mined: 0, settledAt: Math.max(from, to) };
   }
@@ -159,6 +169,7 @@ export function parseMountain(
     borers = 0,
     machines = 0,
     upgrades,
+    boosts,
     startedAt,
   } = value as Record<string, unknown>;
   if (
@@ -171,7 +182,8 @@ export function parseMountain(
     !isCount(borers) ||
     !isCount(machines) ||
     (startedAt !== undefined && !isCount(startedAt)) ||
-    (upgrades !== undefined && parseUpgrades(upgrades) === undefined)
+    (upgrades !== undefined && parseUpgrades(upgrades) === undefined) ||
+    (boosts !== undefined && parseBoosts(boosts) === undefined)
   ) {
     return undefined;
   }
@@ -184,6 +196,7 @@ export function parseMountain(
     borers,
     machines,
   };
+  const parsedBoosts = boosts === undefined ? undefined : parseBoosts(boosts);
   const parsedUpgrades =
     upgrades === undefined ? undefined : parseUpgrades(upgrades);
   return {
@@ -191,6 +204,9 @@ export function parseMountain(
     ...(parsedUpgrades === undefined || Object.keys(parsedUpgrades).length === 0
       ? {}
       : { upgrades: parsedUpgrades }),
+    ...(parsedBoosts === undefined || Object.keys(parsedBoosts).length === 0
+      ? {}
+      : { boosts: parsedBoosts }),
     ...(startedAt === undefined ? {} : { startedAt }),
   };
 }

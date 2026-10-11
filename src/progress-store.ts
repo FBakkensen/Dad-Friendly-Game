@@ -430,7 +430,12 @@ export function createProgressStore({
     if (lastSeen !== undefined && at - lastSeen > LIVE_GAP_MS) {
       return settleSince(lastSeen);
     }
-    const result = accrue({ mountain, from: lastSeen ?? at, to: at });
+    const result = accrue({
+      mountain,
+      from: lastSeen ?? at,
+      to: at,
+      live: true,
+    });
     mountain = result.mountain;
     lastSeen = result.settledAt;
     return result.mined;

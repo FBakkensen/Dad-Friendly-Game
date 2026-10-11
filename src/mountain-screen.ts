@@ -21,6 +21,7 @@ import {
   type RelicId,
 } from "./relics";
 import { buyCrew, tierLocked } from "./crew";
+import { BOOSTS, boostCost, boostLeft, buyBoost } from "./boosts";
 import { effectiveRates } from "./rates";
 import { UPGRADES, buyUpgrade, upgradeCost, upgradeLevel } from "./upgrades";
 import {
@@ -42,6 +43,17 @@ import {
 
 /** Away pay, said plainly: the crew works slower without the boss. */
 const restingPace = `at a resting pace (${String(Math.round(AWAY_PAY_RATE * 100))}% of their speed)`;
+
+/** 9:05, or 1:02:03 past an hour. */
+const formatClock = (ms: number): string => {
+  const total = Math.ceil(ms / 1000);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = String(total % 60).padStart(2, "0");
+  return hours > 0
+    ? `${String(hours)}:${String(minutes).padStart(2, "0")}:${seconds}`
+    : `${String(minutes)}:${seconds}`;
+};
 
 const tapWords = (stones: number): string =>
   stones === 1 ? "one stone" : `${formatCount(stones)} stones`;
@@ -126,7 +138,7 @@ export function mountMountainScreen({
       return;
     }
     const before = view.mountain.remaining;
-    progress.applyMutation(mineByHand);
+    progress.applyMutation((current) => mineByHand(current, now()));
     const mined = before - view.mountain.remaining;
     if (mined > 0) {
       // Above the finger so a thumb doesn't hide it; keyboard "clicks" have no point.
@@ -170,6 +182,21 @@ export function mountMountainScreen({
   veinNote.setAttribute("aria-live", "polite");
 
   mountainWrap.append(veinNote);
+
+  // Running boosts, counting down in the mountain's corner (no layout cost).
+  const boostChips = document.createElement("div");
+  boostChips.className = "boost-chips";
+  const chipFor = new Map(
+    BOOSTS.map((boost) => {
+      const chip = document.createElement("p");
+      chip.className = "boost-chip";
+      chip.dataset["boost"] = boost.id;
+      chip.hidden = true;
+      boostChips.append(chip);
+      return [boost.id, chip] as const;
+    }),
+  );
+  mountainWrap.append(boostChips);
 
   // The wait for the next vein counts play time only, and survives the phone
   // locking or the PWA being closed, so short sessions still add up to a vein.
@@ -302,11 +329,11 @@ export function mountMountainScreen({
         return;
       }
       const before = owned(view.mountain, tier);
-      const rateBefore = stonesPerSecond(view.mountain);
+      const rateBefore = stonesPerSecond(view.mountain, now());
       progress.applyMutation((mountain) => buyCrew(mountain, tier.id));
       if (owned(view.mountain, tier) > before) {
         floatText(card, `+${formatCount(tier.perSecond)}/s`, "float-gain");
-        countCrewRate(rateBefore, stonesPerSecond(view.mountain));
+        countCrewRate(rateBefore, stonesPerSecond(view.mountain, now()));
       }
     });
     tierGrid.append(card);
@@ -516,6 +543,45 @@ export function mountMountainScreen({
   upgradesTitle.textContent = "Upgrades";
   const upgradesPocket = document.createElement("p");
   upgradesPocket.className = "upgrades-pocket";
+  const boostHeading = document.createElement("h3");
+  boostHeading.className = "upgrades-heading";
+  boostHeading.textContent = "Quick boosts";
+  const boostList = document.createElement("ul");
+  boostList.className = "upgrade-list";
+  const boostRows = BOOSTS.map((boost) => {
+    const item = document.createElement("li");
+    item.className = "upgrade boost";
+    item.dataset["boost"] = boost.id;
+    const title = document.createElement("p");
+    title.className = "upgrade-name";
+    title.textContent = boost.name;
+    const effect = document.createElement("p");
+    effect.className = "upgrade-effect";
+    effect.textContent = boost.effect;
+    const buy = document.createElement("button");
+    buy.type = "button";
+    buy.className = "upgrade-buy";
+    buy.addEventListener("click", () => {
+      if (!view.ready) {
+        return;
+      }
+      const at = now();
+      progress.applyMutation((current) =>
+        buyBoost({
+          mountain: current,
+          id: boost.id,
+          now: at,
+          crewPerSecond: stonesPerSecond(current),
+        }),
+      );
+    });
+    item.append(title, effect, buy);
+    boostList.append(item);
+    return { boost, buy };
+  });
+  const lastingHeading = document.createElement("h3");
+  lastingHeading.className = "upgrades-heading";
+  lastingHeading.textContent = "Lasting upgrades";
   const upgradeList = document.createElement("ul");
   upgradeList.className = "upgrade-list";
   const upgradeRows = UPGRADES.map((upgrade) => {
@@ -560,6 +626,9 @@ export function mountMountainScreen({
   upgradesCard.append(
     upgradesTitle,
     upgradesPocket,
+    boostHeading,
+    boostList,
+    lastingHeading,
     upgradeList,
     upgradesClose,
   );
@@ -792,7 +861,7 @@ export function mountMountainScreen({
       "aria-label",
       left === 0
         ? "The mountain is mined out"
-        : `Mountain, tap to mine ${tapWords(effectiveRates(view.mountain).tapYield)}`,
+        : `Mountain, tap to mine ${tapWords(effectiveRates(view.mountain, now()).tapYield)}`,
     );
     renderCrew();
     renderVein();
@@ -808,14 +877,31 @@ export function mountMountainScreen({
 
   const renderUpgrades = (): void => {
     const current = view.mountain;
+    const at = now();
     let anyAffordable = false;
+    for (const { boost, buy } of boostRows) {
+      const left = boostLeft(current, boost.id, at);
+      const cost = boostCost(boost, stonesPerSecond(current));
+      const affordable = left === 0 && current.pocket >= cost;
+      anyAffordable ||= affordable;
+      buy.disabled = !view.ready || !affordable;
+      buy.textContent =
+        left > 0
+          ? `Running · ${formatClock(left)} left`
+          : `Buy for ${formatCount(cost)} stones`;
+      const chip = chipFor.get(boost.id);
+      if (chip !== undefined) {
+        chip.hidden = left === 0;
+        chip.textContent = `${boost.name} ×${String(boost.multiplier)} · ${formatClock(left)}`;
+      }
+    }
     for (const { upgrade, title, now, buy } of upgradeRows) {
       const level = upgradeLevel(current, upgrade.id);
       const cost = upgradeCost(upgrade, level);
       const affordable = cost !== undefined && current.pocket >= cost;
       anyAffordable ||= affordable;
       title.textContent = `${upgrade.name} · level ${String(level)} of ${String(upgrade.maxLevel)}`;
-      now.textContent = `Each tap now mines ${formatCount(effectiveRates(current).tapYield)}.`;
+      now.textContent = `Each tap now mines ${formatCount(effectiveRates(current, at).tapYield)}.`;
       buy.disabled = !view.ready || !affordable;
       buy.textContent =
         cost === undefined
@@ -950,7 +1036,7 @@ export function mountMountainScreen({
 
   const renderCrew = (): void => {
     const { mountain: current } = view;
-    const rate = rateShown ?? stonesPerSecond(current);
+    const rate = rateShown ?? stonesPerSecond(current, now());
     crewStatus.textContent =
       rate === 0
         ? "No crew yet. Hire a helper to mine while you rest."
@@ -1038,7 +1124,7 @@ export function mountMountainScreen({
   setInterval(() => {
     progress.tick();
     stepVein();
-    const crewRate = stonesPerSecond(view.mountain);
+    const crewRate = stonesPerSecond(view.mountain, now());
     if (
       crewRate > 0 &&
       view.mountain.remaining > 0 &&

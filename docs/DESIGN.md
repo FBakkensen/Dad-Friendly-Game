@@ -103,6 +103,7 @@ M2 gives the player one choice: which tier to buy next. M3 adds the real idle-ga
   - _Sharper picks_: taps yield ×2 for 10 minutes.
   - _Overtime_: crew output ×2 for 30 minutes.
   - Boosts run only while the game is open; they never multiply away earnings, so they reward active play without punishing rest.
+  - _Built (#79)_: priced from the crew's unboosted speed — Sharper picks costs 60 s of crew work (min 100), Overtime 600 s (min 500) — so they scale with progress. Saved as absolute end times (`mountain.boosts`), so a reload keeps the countdown; the clock keeps running while away, but away pay always uses the unboosted rate (`effectiveRates(mountain)` without `now`). Sharper picks doubles the whole tap yield including Strong arms; Strong arms takes its share of the unboosted crew. Bought in the Upgrades sheet ("Quick boosts"); running boosts show as countdown chips in the mountain's top-left corner (no layout cost). The pacing sim doesn't buy them: Overtime only pays off over a session longer than 10 minutes, so the sim's dad is the slow, cautious case.
 - **Permanent upgrades** (one-time purchases, Cookie Clicker style, unlocked by owning enough of a tier):
   - _Better boots_: helpers +10% speed (more levels later).
   - _Steady hands_: away earnings +25%.

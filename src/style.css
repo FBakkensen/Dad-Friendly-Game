@@ -164,6 +164,42 @@ body {
   box-shadow: 0 0 14px rgba(232, 168, 74, 0.55);
 }
 
+.upgrades-heading {
+  align-self: flex-start;
+  margin: 4px 0 -6px;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: #c9b08e;
+}
+
+/* Running boosts: small chips in the mountain's top corner, never in the flow. */
+.boost-chips {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.boost-chip {
+  margin: 0;
+  padding: 2px 8px;
+  border: 1px solid #f2c46d;
+  border-radius: 999px;
+  background: rgba(18, 12, 10, 0.8);
+  color: #ffe08a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.boost-chip[hidden] {
+  display: none;
+}
+
 .upgrades-pocket {
   margin: 0;
   color: #f2c46d;
@@ -985,4 +1021,13 @@ body {
   .goal {
     font-size: 0.85rem;
   }
+}
+
+/* The sheet can outgrow a short phone: it scrolls, and starts at its top. */
+.upgrades-dialog {
+  align-items: flex-start;
+}
+
+.upgrades-card {
+  margin-block: auto;
 }
