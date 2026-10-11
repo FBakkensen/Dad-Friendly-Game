@@ -5,9 +5,10 @@ import { parseUpgrades, type Upgrades } from "./upgrades";
 export { AWAY_PAY_RATE } from "./rates";
 
 /** Mountain numbers live here; tier numbers in src/tiers.ts. See docs/DESIGN.md. */
-export const MOUNTAIN_STONES = 100_000_000;
+import { MOUNTAIN_STONES } from "./scale";
+
+export { MOUNTAIN_STONES };
 /** Base away cap; the Shield of Protection relic will lift it. */
-export const AWAY_CAP_MS = 8 * 60 * 60 * 1000;
 
 export type Mountain = {
   /** Stones still in the mountain. 0..MOUNTAIN_STONES. */
@@ -137,7 +138,7 @@ export type AwayReport = {
   readonly capped: boolean;
 };
 
-/** The crew's work while the game was closed: AWAY_PAY_RATE of their speed, for at most AWAY_CAP_MS. */
+/** The crew's work while the game was closed: away pay of their speed, up to the away cap (see effectiveRates). */
 export function accrueAway({
   mountain,
   lastSeen,
@@ -148,12 +149,13 @@ export function accrueAway({
   now: number;
 }): Accrual & { readonly report: AwayReport } {
   const awayMs = Math.max(0, now - lastSeen);
-  const capped = awayMs > AWAY_CAP_MS;
+  const rates = effectiveRates(mountain);
+  const capped = awayMs > rates.awayCapMs;
   const result = accrue({
     mountain,
-    from: capped ? now - AWAY_CAP_MS : lastSeen,
+    from: capped ? now - rates.awayCapMs : lastSeen,
     to: now,
-    pay: effectiveRates(mountain).awayPay,
+    pay: rates.awayPay,
   });
   return { ...result, report: { mined: result.mined, awayMs, capped } };
 }

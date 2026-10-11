@@ -43,7 +43,7 @@ M1 shipped the first relic only. The mountain was 1,000,000 stones then; it is n
 - All game numbers live in one module (`src/mountain.ts`) as named constants. Change a number there, not in the UI.
 - Integers only in the save. Live and away mining use the same pure function: `accrue(state, from, to)` turns elapsed whole seconds into stones and returns the time it consumed, so fractions are never lost and offline and online math cannot drift apart.
 - Helper cost: `ceil(base × 1.15^owned)` (the Cookie Clicker curve). First helper: 10 stones, 1 stone per second.
-- Base away cap: 8 hours, lifted by the Shield.
+- Base away cap: 8 hours; the Shield lifts it to 24 hours (built, #104: `effectiveRates().awayCapMs`). Paying the sim dad's full 11h40 nights made the bottom day 5.0, so the borer's first cost rose 2.5M → 8M (bottom back to day 6 for both sim dads; Lantern 1.5, Hammer 3–3.5).
 - Away pay rate: time away (app closed, or sitting in the background with no ticks for over 10 seconds) pays `AWAY_PAY_RATE` = **30%** of the crew's speed; live play pays in full. It is the main pacing lever. The Heart of Patience can raise it later (e.g. toward 60% after long absences), and so can M3's _Steady hands_.
 - Big numbers: plain digits under 10,000, then one decimal with a word ("12.3 thousand", "1.2 million").
 - Pacing target for M1: first helper within a minute of tapping; first relic after roughly 1–2 evenings of short sessions.
@@ -84,7 +84,7 @@ Hand mining can't move a 100-million-stone mountain. Each tier is a visible jump
 | Helper miner  | 20                  | 1                    | from the start                                     |
 | Mine cart     | 100                 | 10                   | shown once you own a helper                        |
 | Steam drill   | 20,000              | 60                   | shown once you own a cart                          |
-| Tunnel borer  | 2,500,000           | 350                  | shown once you own a drill                         |
+| Tunnel borer  | 8,000,000           | 350                  | shown once you own a drill                         |
 | Great Machine | 80,000,000          | 3,500                | needs the Hammer of the Builder (25,000,000 mined) |
 
 - Every machine tier uses a steep Cookie Clicker curve: `ceil(firstCost × 2^owned)`, so each one costs twice the last. Helpers grow gently (`1.15^owned`, since #89) because they staff the machines. Each tier is 6–10× faster than the one before, a big visible jump. The Great Machine is the endgame purchase: the pacing dad buys his one near the bottom. These numbers come from the pacing simulation; see Pacing below.
