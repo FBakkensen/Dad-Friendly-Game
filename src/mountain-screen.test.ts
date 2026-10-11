@@ -80,7 +80,7 @@ function mountScreen({
     mountainUrl: tileUrl,
     stoneUrl: tileUrl,
     veinUrl: tileUrl,
-    tierArt: { helper: "helper.png", cart: "cart.png" },
+    tierArt: { helper: "helper.png", cart: "cart.png", drill: "drill.png" },
     relicArt: {
       lantern: "lantern.png",
       shield: "shield.png",
@@ -180,6 +180,7 @@ describe("mountMountainScreen", () => {
       pocket: MOUNTAIN_STONES,
       helpers: 0,
       carts: 0,
+      drills: 0,
     };
     storage.setItem(
       SESSION_SAVE_KEY,
@@ -374,7 +375,7 @@ describe("crew tiers on screen", () => {
       );
       expect(
         screen.root.querySelector(".tier-grid")?.getAttribute("data-shown"),
-      ).toBe("2");
+      ).toBe("3");
 
       await vi.advanceTimersByTimeAsync(2_000);
       expect(screen.text(".pocket")).toBe("18 stones");
@@ -389,7 +390,13 @@ describe("crew tiers on screen", () => {
       SESSION_SAVE_KEY,
       JSON.stringify({
         version: 4,
-        mountain: { remaining: 100_000_000, pocket: 0, helpers: 4, carts: 0 },
+        mountain: {
+          remaining: 100_000_000,
+          pocket: 0,
+          helpers: 4,
+          carts: 0,
+          drills: 0,
+        },
         lastSeen: Date.now() - (2 * 60 + 5) * 60_000,
       }),
     );
@@ -421,7 +428,13 @@ describe("crew tiers on screen", () => {
       SESSION_SAVE_KEY,
       JSON.stringify({
         version: 4,
-        mountain: { remaining: 100_000_000, pocket: 0, helpers: 1, carts: 0 },
+        mountain: {
+          remaining: 100_000_000,
+          pocket: 0,
+          helpers: 1,
+          carts: 0,
+          drills: 0,
+        },
         lastSeen: Date.now() - 26 * 3_600_000,
       }),
     );
@@ -654,7 +667,12 @@ describe("start over", () => {
       SESSION_SAVE_KEY,
       JSON.stringify({
         version: 4,
-        mountain: { ...minedMountain(12_000_000), helpers: 4, carts: 1 },
+        mountain: {
+          ...minedMountain(12_000_000),
+          helpers: 4,
+          carts: 1,
+          drills: 0,
+        },
         lastSeen: Date.now(),
       }),
     );
@@ -732,7 +750,13 @@ describe("start over", () => {
     };
     expect(saved).toMatchObject({
       version: 4,
-      mountain: { remaining: 100_000_000, pocket: 0, helpers: 0, carts: 0 },
+      mountain: {
+        remaining: 100_000_000,
+        pocket: 0,
+        helpers: 0,
+        carts: 0,
+        drills: 0,
+      },
     });
     expect(typeof saved.mountain.startedAt).toBe("number");
   });
@@ -780,7 +804,7 @@ describe("what the crew gives", () => {
       SESSION_SAVE_KEY,
       JSON.stringify({
         version: 4,
-        mountain: { ...minedMountain(400), helpers: 2, carts: 3 },
+        mountain: { ...minedMountain(400), helpers: 2, carts: 3, drills: 0 },
         lastSeen: Date.now(),
       }),
     );

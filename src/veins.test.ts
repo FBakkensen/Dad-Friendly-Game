@@ -52,23 +52,42 @@ describe("golden veins", () => {
 
   it("pays a minute of crew output, at least 50, capped by the mountain", () => {
     expect(
-      veinReward({ remaining: 1_000, pocket: 0, helpers: 0, carts: 0 }),
+      veinReward({
+        remaining: 1_000,
+        pocket: 0,
+        helpers: 0,
+        carts: 0,
+        drills: 0,
+      }),
     ).toBe(50);
     expect(
-      veinReward({ remaining: 1_000, pocket: 0, helpers: 3, carts: 0 }),
+      veinReward({
+        remaining: 1_000,
+        pocket: 0,
+        helpers: 3,
+        carts: 0,
+        drills: 0,
+      }),
     ).toBe(180);
-    expect(veinReward({ remaining: 20, pocket: 0, helpers: 3, carts: 0 })).toBe(
-      20,
-    );
     expect(
-      mineVein({ remaining: 1_000, pocket: 7, helpers: 3, carts: 0 }),
+      veinReward({ remaining: 20, pocket: 0, helpers: 3, carts: 0, drills: 0 }),
+    ).toBe(20);
+    expect(
+      mineVein({
+        remaining: 1_000,
+        pocket: 7,
+        helpers: 3,
+        carts: 0,
+        drills: 0,
+      }),
     ).toEqual({
       remaining: 820,
       pocket: 187,
       helpers: 3,
       carts: 0,
+      drills: 0,
     });
-    const empty = { remaining: 0, pocket: 7, helpers: 3, carts: 0 };
+    const empty = { remaining: 0, pocket: 7, helpers: 3, carts: 0, drills: 0 };
     expect(mineVein(empty)).toBe(empty);
   });
 

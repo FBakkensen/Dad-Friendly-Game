@@ -3,9 +3,9 @@ import type { Mountain } from "./mountain";
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
 const COST_GROWTH = 1.15;
 
-export type TierId = "helper" | "cart";
+export type TierId = "helper" | "cart" | "drill";
 
-type CrewField = "helpers" | "carts";
+type CrewField = "helpers" | "carts" | "drills";
 
 export type Tier = {
   readonly id: TierId;
@@ -33,6 +33,13 @@ export const TIERS: readonly Tier[] = [
     name: "Mine cart",
     firstCost: 150,
     perSecond: 8,
+  },
+  {
+    id: "drill",
+    field: "drills",
+    name: "Steam drill",
+    firstCost: 2_500,
+    perSecond: 60,
   },
 ];
 
