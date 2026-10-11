@@ -10,6 +10,7 @@ import {
   accrueAway,
   createMountain,
   minedOut,
+  runStartedAt,
   type AwayReport,
   type Mountain,
 } from "./mountain";
@@ -46,6 +47,11 @@ export type ProgressStore = {
   readonly tick: () => void;
   /** Closes the current relic reveal; the next one (if any) follows. */
   readonly dismissReveal: () => void;
+  /**
+   * Throws this player's single save away and starts a fresh mountain, on the
+   * device and (signed in) in the cloud right away.
+   */
+  readonly startOver: () => void;
   /** Closes the welcome-back card. */
   readonly dismissAway: () => void;
   readonly flush: () => void;
@@ -264,6 +270,22 @@ export function createProgressStore({
     if (localAhead && remote.kind === "found") {
       return;
     }
+    if (
+      hydrated &&
+      remote.kind === "found" &&
+      runStartedAt(remote.mountain) < runStartedAt(mountain)
+    ) {
+      // A snapshot from before "Start over" (or a stale device): keep the new run.
+      logger.record({
+        level: "info",
+        code: "save.remote",
+        detail: "older run ignored",
+        data: saveCounts(remote.mountain),
+      });
+      persistCloudSoon();
+      emit();
+      return;
+    }
     const next = applySignedInSave({ local: mountain, remote });
     mountain = next.mountain;
     let paid = 0;
@@ -435,6 +457,27 @@ export function createProgressStore({
         return;
       }
       reveals.shift();
+      emit();
+    },
+    startOver: () => {
+      if (disposed || !canPlay()) {
+        return;
+      }
+      cancelPendingCloudWrite();
+      const at = now();
+      mountain = { ...createMountain(), startedAt: at };
+      lastSeen = at;
+      away = undefined;
+      reveals.length = 0;
+      revealBaseline = 0;
+      logger.record({
+        level: "info",
+        code: "save.reset",
+        detail: "start over",
+        data: saveCounts(mountain),
+      });
+      persistSession();
+      persistCloud();
       emit();
     },
     dismissAway: () => {

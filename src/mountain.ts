@@ -13,7 +13,17 @@ export type Mountain = {
   /** Owned per tier (src/tiers.ts). */
   readonly helpers: number;
   readonly carts: number;
+  /**
+   * When this run began (epoch ms), set by "Start over". Missing means the
+   * first run. A save from an older run never replaces a newer one.
+   */
+  readonly startedAt?: number;
 };
+
+/** 0 for a first run that was never started over. */
+export function runStartedAt(mountain: Mountain): number {
+  return mountain.startedAt ?? 0;
+}
 
 export function createMountain(): Mountain {
   return { remaining: MOUNTAIN_STONES, pocket: 0, helpers: 0, carts: 0 };
@@ -124,17 +134,20 @@ export function parseMountain(
     pocket,
     helpers,
     carts = 0,
+    startedAt,
   } = value as Record<string, unknown>;
   if (
     !isCount(remaining) ||
     remaining > total ||
     !isCount(pocket) ||
     !isCount(helpers) ||
-    !isCount(carts)
+    !isCount(carts) ||
+    (startedAt !== undefined && !isCount(startedAt))
   ) {
     return undefined;
   }
-  return { remaining, pocket, helpers, carts };
+  const mountain = { remaining, pocket, helpers, carts };
+  return startedAt === undefined ? mountain : { ...mountain, startedAt };
 }
 
 function isCount(value: unknown): value is number {

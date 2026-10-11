@@ -628,3 +628,129 @@ describe("relic shelf", () => {
     );
   });
 });
+
+describe("start over", () => {
+  const seededDad = () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      SESSION_SAVE_KEY,
+      JSON.stringify({
+        version: 4,
+        mountain: { ...minedMountain(12_000_000), helpers: 4, carts: 1 },
+        lastSeen: Date.now(),
+      }),
+    );
+    return storage;
+  };
+
+  it("asks first, in a danger dialog that defaults to keeping the mountain", () => {
+    const storage = seededDad();
+    const screen = mountScreen({ storage });
+    document.body.append(screen.root);
+    try {
+      const dialog = screen.root.querySelector<HTMLElement>(".start-over");
+      expect(dialog?.hidden).toBe(true);
+      expect(dialog?.getAttribute("role")).toBe("alertdialog");
+
+      screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();
+      expect(dialog?.hidden).toBe(false);
+      expect(screen.text("#start-over-detail")).toContain(
+        "every relic you found",
+      );
+      expect(document.activeElement).toBe(
+        screen.root.querySelector(".start-over-cancel"),
+      );
+
+      screen.root
+        .querySelector<HTMLButtonElement>(".start-over-cancel")
+        ?.click();
+      expect(dialog?.hidden).toBe(true);
+      expect(document.activeElement).toBe(
+        screen.root.querySelector(".menu-button"),
+      );
+
+      screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();
+      dialog?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      expect(dialog?.hidden).toBe(true);
+
+      expect(
+        screen.root.querySelector(".relic-shelf")?.getAttribute("aria-label"),
+      ).toBe("Relic shelf, 2 of 6 found");
+      expect(
+        JSON.parse(storage.getItem(SESSION_SAVE_KEY) ?? "{}"),
+      ).toMatchObject({ mountain: { helpers: 4 } });
+    } finally {
+      screen.root.remove();
+    }
+  });
+
+  it("wipes stones, crew and relics on confirm, on screen and on the device", () => {
+    const storage = seededDad();
+    const screen = mountScreen({ storage });
+
+    screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".start-over-confirm")
+      ?.click();
+
+    expect(screen.root.querySelector<HTMLElement>(".start-over")?.hidden).toBe(
+      true,
+    );
+    expect(screen.text(".stones-left")).toBe("100 million stones left");
+    expect(screen.text(".pocket")).toBe("0 stones");
+    expect(screen.text(".crew-status")).toBe(
+      "No crew yet. Hire a helper to mine while you rest.",
+    );
+    expect(
+      screen.root.querySelector(".relic-shelf")?.getAttribute("aria-label"),
+    ).toBe("Relic shelf, 0 of 6 found");
+    expect(
+      screen.root.querySelector<HTMLElement>(".relic-reveal")?.hidden,
+    ).toBe(true);
+    const saved = JSON.parse(storage.getItem(SESSION_SAVE_KEY) ?? "{}") as {
+      mountain: { startedAt?: unknown };
+    };
+    expect(saved).toMatchObject({
+      version: 4,
+      mountain: { remaining: 100_000_000, pocket: 0, helpers: 0, carts: 0 },
+    });
+    expect(typeof saved.mountain.startedAt).toBe("number");
+  });
+});
+
+describe("menu", () => {
+  it("tucks account and Start over away behind the menu button", () => {
+    const screen = mountScreen();
+    document.body.append(screen.root);
+    try {
+      const menu = screen.root.querySelector<HTMLElement>(".game-menu");
+      const button =
+        screen.root.querySelector<HTMLButtonElement>(".menu-button");
+      expect(screen.root.querySelector(".top-bar .menu-button")).toBe(button);
+      expect(menu?.hidden).toBe(true);
+      expect(menu?.querySelector(".auth-action")).not.toBeNull();
+      expect(menu?.querySelector(".auth-status")).not.toBeNull();
+      expect(menu?.querySelector(".start-over-link")).not.toBeNull();
+
+      button?.click();
+      expect(menu?.hidden).toBe(false);
+      expect(document.activeElement).toBe(menu?.querySelector(".menu-close"));
+      menu?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      expect(menu?.hidden).toBe(true);
+      expect(document.activeElement).toBe(button);
+
+      button?.click();
+      menu?.querySelector<HTMLButtonElement>(".start-over-link")?.click();
+      expect(menu?.hidden).toBe(true);
+      expect(
+        screen.root.querySelector<HTMLElement>(".start-over")?.hidden,
+      ).toBe(false);
+    } finally {
+      screen.root.remove();
+    }
+  });
+});

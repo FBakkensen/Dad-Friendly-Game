@@ -333,6 +333,105 @@ export function mountMountainScreen({
   shelf.append(shelfCard);
   let shelfOpen = false;
 
+  const startOverLink = document.createElement("button");
+  startOverLink.type = "button";
+  startOverLink.className = "start-over-link";
+  startOverLink.textContent = "Start over";
+  let confirmingStartOver = false;
+  startOverLink.addEventListener("click", () => {
+    menuOpen = false;
+    confirmingStartOver = true;
+    render();
+  });
+
+  // Account and Start over live in a tucked-away menu so the main screen fits a phone.
+  const menuButton = document.createElement("button");
+  menuButton.type = "button";
+  menuButton.className = "menu-button";
+  menuButton.setAttribute("aria-label", "Menu");
+  menuButton.setAttribute("aria-haspopup", "dialog");
+  menuButton.textContent = "☰";
+  let menuOpen = false;
+  menuButton.addEventListener("click", () => {
+    menuOpen = true;
+    render();
+  });
+  const menu = document.createElement("div");
+  menu.className = "game-menu";
+  menu.setAttribute("role", "dialog");
+  menu.setAttribute("aria-modal", "true");
+  menu.setAttribute("aria-labelledby", "game-menu-title");
+  menu.hidden = true;
+  const menuCard = document.createElement("div");
+  menuCard.className = "menu-card";
+  const menuTitle = document.createElement("h2");
+  menuTitle.id = "game-menu-title";
+  menuTitle.textContent = "Menu";
+  const menuClose = document.createElement("button");
+  menuClose.type = "button";
+  menuClose.className = "menu-close";
+  menuClose.textContent = "Back to the mountain";
+  const closeMenu = (): void => {
+    menuOpen = false;
+    render();
+    menuButton.focus();
+  };
+  menuClose.addEventListener("click", closeMenu);
+  menu.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenu();
+    }
+  });
+  menu.append(menuCard);
+
+  const confirm = document.createElement("div");
+  confirm.className = "start-over";
+  confirm.setAttribute("role", "alertdialog");
+  confirm.setAttribute("aria-modal", "true");
+  confirm.setAttribute("aria-labelledby", "start-over-title");
+  confirm.setAttribute("aria-describedby", "start-over-detail");
+  confirm.hidden = true;
+  const confirmCard = document.createElement("div");
+  confirmCard.className = "start-over-card";
+  const confirmTitle = document.createElement("h2");
+  confirmTitle.id = "start-over-title";
+  confirmTitle.textContent = "Start over?";
+  const confirmDetail = document.createElement("p");
+  confirmDetail.id = "start-over-detail";
+  confirmDetail.textContent =
+    "You will lose all your progress: every stone mined, your whole crew, and every relic you found. The mountain fills back up. This can't be undone.";
+  const confirmCancel = document.createElement("button");
+  confirmCancel.type = "button";
+  confirmCancel.className = "start-over-cancel";
+  confirmCancel.textContent = "Keep my mountain";
+  const confirmYes = document.createElement("button");
+  confirmYes.type = "button";
+  confirmYes.className = "start-over-confirm";
+  confirmYes.textContent = "Yes, start over";
+  const closeConfirm = (): void => {
+    confirmingStartOver = false;
+    render();
+    menuButton.focus();
+  };
+  confirmCancel.addEventListener("click", closeConfirm);
+  confirmYes.addEventListener("click", () => {
+    confirmingStartOver = false;
+    progress.startOver();
+    veinState = waitForVein({ now: now(), random, gapScale: veinGapScale() });
+    renderVein();
+    render();
+  });
+  confirm.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeConfirm();
+    }
+  });
+  const confirmActions = document.createElement("div");
+  confirmActions.className = "start-over-actions";
+  confirmActions.append(confirmCancel, confirmYes);
+  confirmCard.append(confirmTitle, confirmDetail, confirmActions);
+  confirm.append(confirmCard);
+
   const reveal = document.createElement("div");
   reveal.className = "relic-reveal";
   reveal.setAttribute("role", "dialog");
@@ -480,7 +579,26 @@ export function mountMountainScreen({
     renderWelcome();
     renderReveal();
     renderShelf();
+    renderConfirm();
+    renderMenu();
     renderSave();
+  };
+
+  const renderMenu = (): void => {
+    const wasOpen = !menu.hidden;
+    menu.hidden = !menuOpen;
+    if (menuOpen && !wasOpen) {
+      menuClose.focus();
+    }
+  };
+
+  const renderConfirm = (): void => {
+    startOverLink.disabled = !view.ready;
+    const wasOpen = !confirm.hidden;
+    confirm.hidden = !confirmingStartOver;
+    if (confirmingStartOver && !wasOpen) {
+      confirmCancel.focus();
+    }
   };
 
   const renderShelf = (): void => {
@@ -610,9 +728,11 @@ export function mountMountainScreen({
     progress.flush();
   });
 
+  menuCard.append(menuTitle, authStatus, authButton, startOverLink, menuClose);
+
   const header = document.createElement("header");
   header.className = "top-bar";
-  header.append(lantern, remaining);
+  header.append(lantern, remaining, menuButton);
 
   root.replaceChildren(
     header,
@@ -622,11 +742,11 @@ export function mountMountainScreen({
     pocket,
     crew,
     saveStatus,
-    authStatus,
-    authButton,
     welcome,
     reveal,
     shelf,
+    confirm,
+    menu,
   );
 
   setInterval(() => {
