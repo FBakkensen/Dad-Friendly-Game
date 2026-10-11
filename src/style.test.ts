@@ -16,6 +16,7 @@ const REQUIRED_SELECTORS = [
   ".reveal-card",
   ".shelf-card",
   ".mountain-wrap",
+  ".mountain-stage",
   ".golden-vein",
   ".vein-note",
   ".tier-grid",

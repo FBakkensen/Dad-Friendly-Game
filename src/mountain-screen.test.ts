@@ -314,7 +314,12 @@ describe("crew tiers on screen", () => {
         "No crew yet. Hire a helper to mine while you rest.",
       );
       expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Helper");
-      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("10 stones");
+      expect(
+        screen.root.querySelector<HTMLElement>(
+          '[data-tier="helper"] .tier-count',
+        )?.hidden,
+      ).toBe(true);
+      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("10");
       expect(hire.disabled).toBe(true);
       expect(cart.hidden).toBe(true);
 
@@ -326,8 +331,9 @@ describe("crew tiers on screen", () => {
       expect(screen.text(".crew-status")).toBe(
         "Your crew mines 1 stone a second",
       );
-      expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Helper ×1");
-      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("12 stones");
+      expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Helper");
+      expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×1");
+      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("12");
       expect(hire.disabled).toBe(true);
       expect(cart.hidden).toBe(false);
       expect(hire.getAttribute("aria-label")).toBe(
@@ -355,13 +361,14 @@ describe("crew tiers on screen", () => {
       );
       const screen = mountScreen({ storage });
       const cart = tierCard(screen.root, "cart");
-      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("150 stones");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("150");
       expect(cart.disabled).toBe(false);
 
       cart.click();
       expect(screen.text(".pocket")).toBe("0 stones");
-      expect(screen.text('[data-tier="cart"] .tier-name')).toBe("Mine cart ×1");
-      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("173 stones");
+      expect(screen.text('[data-tier="cart"] .tier-name')).toBe("Mine cart");
+      expect(screen.text('[data-tier="cart"] .tier-count')).toBe("×1");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("173");
       expect(screen.text(".crew-status")).toBe(
         "Your crew mines 9 stones a second",
       );
@@ -828,15 +835,30 @@ describe("what the crew gives", () => {
       const screen = mountScreen({ storage: seededCrew() });
       await vi.advanceTimersByTimeAsync(1_000);
       const floats = screen.root.querySelectorAll(
-        ".mountain-wrap .mountain-float",
+        ".mountain-stage .crew-float",
       );
       expect(floats).toHaveLength(1);
-      expect(floats[0]?.textContent).toBe("+26");
+      expect(floats[0]?.textContent).toBe("+26 crew");
       expect(floats[0]?.getAttribute("aria-hidden")).toBe("true");
     } finally {
       vi.useRealTimers();
       setReducedMotion(true);
     }
+  });
+
+  it("shows a tap's own yield where it landed, apart from the crew's", () => {
+    setReducedMotion(false);
+    const screen = mountScreen({ storage: seededCrew() });
+    screen.mountain.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, detail: 1 }),
+    );
+    const tap = screen.root.querySelector<HTMLElement>(
+      ".mountain-stage .tap-float",
+    );
+    expect(tap?.textContent).toBe("+1");
+    expect(tap?.getAttribute("aria-hidden")).toBe("true");
+    expect(screen.root.querySelector(".crew-float")).toBeNull();
+    setReducedMotion(true);
   });
 
   it("skips floats and counting with reduced motion", async () => {
@@ -852,7 +874,9 @@ describe("what the crew gives", () => {
         "Your crew mines 34 stones a second",
       );
       await vi.advanceTimersByTimeAsync(1_000);
-      expect(screen.root.querySelector(".mountain-float")).toBeNull();
+      expect(screen.root.querySelector(".crew-float")).toBeNull();
+      screen.mountain.click();
+      expect(screen.root.querySelector(".tap-float")).toBeNull();
     } finally {
       vi.useRealTimers();
       setReducedMotion(true);

@@ -3,7 +3,7 @@ import {
   type AuthController,
   type AuthState,
 } from "./auth";
-import { formatCount, formatDuration } from "./format";
+import { formatCompact, formatCount, formatDuration } from "./format";
 import {
   AWAY_CAP_MS,
   MOUNTAIN_STONES,
@@ -106,11 +106,25 @@ export function mountMountainScreen({
   peak.height = 114;
   peak.draggable = false;
   mountain.append(peak);
-  mountain.addEventListener("click", () => {
+  mountain.addEventListener("click", (event) => {
     if (!view.ready) {
       return;
     }
+    const before = view.mountain.remaining;
     progress.applyMutation(mineByHand);
+    const mined = before - view.mountain.remaining;
+    if (mined > 0) {
+      // Where the finger landed; keyboard "clicks" have no point, so the middle.
+      const box = mountain.getBoundingClientRect();
+      const pointed = event.detail > 0 && box.width > 0 && box.height > 0;
+      floatText(
+        mountainStage,
+        `+${formatCount(mined)}`,
+        "tap-float",
+        pointed ? ((event.clientX - box.left) / box.width) * 100 : 50,
+        pointed ? ((event.clientY - box.top) / box.height) * 100 : 50,
+      );
+    }
   });
 
   const vein = document.createElement("button");
@@ -126,9 +140,13 @@ export function mountMountainScreen({
   veinArt.draggable = false;
   vein.append(veinArt);
 
+  // The stage is exactly the mountain's box, so vein positions land on the art.
+  const mountainStage = document.createElement("div");
+  mountainStage.className = "mountain-stage";
+  mountainStage.append(mountain, vein);
   const mountainWrap = document.createElement("div");
   mountainWrap.className = "mountain-wrap";
-  mountainWrap.append(mountain, vein);
+  mountainWrap.append(mountainStage);
 
   const veinNote = document.createElement("p");
   veinNote.className = "vein-note";
@@ -223,10 +241,22 @@ export function mountMountainScreen({
     name.className = "tier-name";
     const cost = document.createElement("span");
     cost.className = "tier-cost";
+    const costIcon = document.createElement("img");
+    costIcon.className = "tier-cost-icon";
+    costIcon.src = stoneUrl;
+    costIcon.alt = "";
+    costIcon.width = 14;
+    costIcon.height = 14;
+    const costText = document.createElement("span");
+    cost.append(costIcon, costText);
+    // The count is a corner badge so a growing number never wraps the card.
+    const countBadge = document.createElement("span");
+    countBadge.className = "tier-count";
+    countBadge.setAttribute("aria-hidden", "true");
     const rate = document.createElement("span");
     rate.className = "tier-rate";
     words.append(name, cost, rate);
-    card.append(art, words);
+    card.append(art, words, countBadge);
     card.addEventListener("click", () => {
       if (!view.ready) {
         return;
@@ -240,7 +270,7 @@ export function mountMountainScreen({
       }
     });
     tierGrid.append(card);
-    return { tier, card, name, cost, rate };
+    return { tier, card, name, costText, countBadge, rate };
   });
   crew.append(crewStatus, tierGrid);
 
@@ -255,6 +285,7 @@ export function mountMountainScreen({
     text: string,
     className: string,
     leftPercent?: number,
+    topPercent?: number,
   ): void => {
     if (reducedMotion()) {
       return;
@@ -265,6 +296,9 @@ export function mountMountainScreen({
     float.setAttribute("aria-hidden", "true");
     if (leftPercent !== undefined) {
       float.style.left = `${String(leftPercent)}%`;
+    }
+    if (topPercent !== undefined) {
+      float.style.top = `${String(topPercent)}%`;
     }
     parent.append(float);
     setTimeout(() => {
@@ -770,18 +804,26 @@ export function mountMountainScreen({
     tierGrid.dataset["shown"] = String(
       TIERS.filter((tier) => tierShown(current, tier)).length,
     );
-    for (const { tier, card, name, cost, rate: tierRate } of tierCards) {
+    for (const {
+      tier,
+      card,
+      name,
+      costText,
+      countBadge,
+      rate: tierRate,
+    } of tierCards) {
       const count = owned(current, tier);
       const price = tierCost(tier, count);
       card.hidden = !tierShown(current, tier);
       card.disabled = !view.ready || current.pocket < price;
-      name.textContent =
-        count === 0 ? tier.name : `${tier.name} ×${formatCount(count)}`;
-      cost.textContent = `${formatCount(price)} stones`;
+      name.textContent = tier.name;
+      countBadge.textContent = `×${formatCompact(count)}`;
+      countBadge.hidden = count === 0;
+      costText.textContent = formatCompact(price);
       tierRate.textContent =
         count === 0
           ? `+${formatCount(tier.perSecond)}/s each`
-          : `+${formatCount(tier.perSecond)}/s each · ${formatCount(count * tier.perSecond)}/s`;
+          : `+${formatCompact(tier.perSecond)}/s each · ${formatCompact(count * tier.perSecond)}/s`;
       card.setAttribute(
         "aria-label",
         `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(tier.perSecond)}. You have ${formatCount(count)}.`,
@@ -828,11 +870,12 @@ export function mountMountainScreen({
       view.mountain.remaining > 0 &&
       document.visibilityState !== "hidden"
     ) {
+      // Rises from the mine door, away from where taps land, and says whose it is.
       floatText(
-        mountainWrap,
-        `+${formatCount(crewRate)}`,
-        "mountain-float",
-        25 + random() * 50,
+        mountainStage,
+        `+${formatCount(crewRate)} crew`,
+        "crew-float",
+        44 + random() * 12,
       );
     }
   }, 1000);

@@ -11,6 +11,10 @@ export function formatCount(count: number): string {
   if (whole < 10_000) {
     return whole.toLocaleString("en-US");
   }
+  if (whole >= 1e15) {
+    // Late tier prices grow without bound; keep the text short and honest.
+    return "1,000+ trillion";
+  }
   for (const { value, word } of SCALES) {
     if (whole >= value) {
       const tenths = Math.floor((whole * 10) / value) / 10;
@@ -45,4 +49,30 @@ export function formatDuration(ms: number): string {
   return rest === 0
     ? plural(days, "day")
     : `${plural(days, "day")} ${plural(rest, "hour")}`;
+}
+
+const COMPACT: readonly { readonly value: number; readonly suffix: string }[] =
+  [
+    { value: 1e12, suffix: "T" },
+    { value: 1e9, suffix: "B" },
+    { value: 1e6, suffix: "M" },
+    { value: 1e3, suffix: "K" },
+  ];
+
+/** For tight spots like tier cards: "9,999", "12.4K", "190.1M", ">999T". Rounds down. */
+export function formatCompact(count: number): string {
+  const whole = Math.max(0, Math.floor(count));
+  if (whole < 10_000) {
+    return whole.toLocaleString("en-US");
+  }
+  if (whole >= 1e15) {
+    return ">999T";
+  }
+  for (const { value, suffix } of COMPACT) {
+    if (whole >= value) {
+      const tenths = Math.floor((whole * 10) / value) / 10;
+      return `${tenths.toLocaleString("en-US", { maximumFractionDigits: 1 })}${suffix}`;
+    }
+  }
+  return whole.toLocaleString("en-US");
 }
