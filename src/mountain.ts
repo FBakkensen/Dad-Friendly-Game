@@ -1,4 +1,4 @@
-import { effectiveRates } from "./rates";
+import { effectiveRates, heartBonus } from "./rates";
 import { parseBoosts, type Boosts } from "./boosts";
 import { parseUpgrades, type Upgrades } from "./upgrades";
 
@@ -136,6 +136,8 @@ export type AwayReport = {
   /** Real time away, before the cap. */
   readonly awayMs: number;
   readonly capped: boolean;
+  /** Heart of Patience multiplier on away pay (1 without the Heart). */
+  readonly heart: number;
 };
 
 /** The crew's work while the game was closed: away pay of their speed, up to the away cap (see effectiveRates). */
@@ -151,13 +153,16 @@ export function accrueAway({
   const awayMs = Math.max(0, now - lastSeen);
   const rates = effectiveRates(mountain);
   const capped = awayMs > rates.awayCapMs;
+  const paidMs = capped ? rates.awayCapMs : awayMs;
+  const heart = heartBonus(mountain, paidMs);
   const result = accrue({
     mountain,
-    from: capped ? now - rates.awayCapMs : lastSeen,
+    from: now - paidMs,
     to: now,
-    pay: rates.awayPay,
+    // Rounded so 0.3 × 1.5 pays 0.45, not 0.44999… (one stone short).
+    pay: Math.round(rates.awayPay * heart * 1e9) / 1e9,
   });
-  return { ...result, report: { mined: result.mined, awayMs, capped } };
+  return { ...result, report: { mined: result.mined, awayMs, capped, heart } };
 }
 
 /** Builds a mountain from untrusted data; every field must be a sane whole number. */

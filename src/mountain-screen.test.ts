@@ -1501,3 +1501,18 @@ describe("Shield of Protection on the welcome card", () => {
     );
   });
 });
+
+describe("Heart of Patience on the welcome card", () => {
+  it("names the bonus", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(45_000_000), pocket: 0, helpers: 1 },
+      lastSeen: Date.now() - 6 * 3_600_000,
+    });
+    const screen = mountScreen({ storage });
+    expect(screen.text(".welcome-detail")).toContain(
+      "The Heart of Patience made it ×1.25.",
+    );
+  });
+});

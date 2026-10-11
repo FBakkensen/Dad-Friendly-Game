@@ -43,7 +43,8 @@ export const RELICS: readonly Relic[] = [
     id: "heart",
     name: "Heart of Patience",
     virtue: "Patience",
-    power: "Your crew grows stronger the longer you're away.",
+    power:
+      "The longer you're away, the harder your crew works: up to half again the away pay after 12 hours.",
     depth: 45_000_000,
   },
   {
