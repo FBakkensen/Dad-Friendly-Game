@@ -31,7 +31,15 @@ const VIEWPORTS = [
   [412, 915],
   [470, 860],
 ];
-const CREW = { remaining: 90_700_000, pocket: 9_765, helpers: 51, carts: 24 };
+// Every tier so far on screen: the compact, three-to-a-row grid.
+const CREW = {
+  remaining: 90_700_000,
+  pocket: 9_765,
+  helpers: 51,
+  carts: 24,
+  drills: 6,
+  borers: 2,
+};
 // One stone short of the Lantern of Guidance, away for ten minutes.
 const BEFORE_LANTERN = {
   remaining: 99_000_001,
@@ -220,17 +228,20 @@ for (const viewport of VIEWPORTS) {
 
 // Tier cards keep one fixed height and never truncate, even at x999 and huge prices.
 for (const viewport of [
+  [360, 560],
   [360, 640],
   [390, 844],
   [412, 915],
 ]) {
   const size = `${String(viewport[0])}x${String(viewport[1])}`;
   for (const [crew, font] of [
-    [{ helpers: 999, carts: 999 }, undefined],
+    [{ helpers: 999, carts: 999, drills: 999, borers: 999 }, undefined],
+    [{ helpers: 120, carts: 85, drills: 40, borers: 0 }, undefined],
     [{ helpers: 120, carts: 85 }, undefined],
     [{ helpers: 1, carts: 0 }, undefined],
     // CI's fallback font is wide; it must fit there too.
     [{ helpers: 999, carts: 999 }, "DejaVu Sans"],
+    [{ helpers: 999, carts: 999, drills: 999, borers: 999 }, "DejaVu Sans"],
   ]) {
     const { page, close } = await open(viewport, {
       version: 4,

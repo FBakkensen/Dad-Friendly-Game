@@ -3,15 +3,17 @@ import type { Mountain } from "./mountain";
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
 const COST_GROWTH = 1.15;
 
-export type TierId = "helper" | "cart" | "drill";
+export type TierId = "helper" | "cart" | "drill" | "borer";
 
-type CrewField = "helpers" | "carts" | "drills";
+type CrewField = "helpers" | "carts" | "drills" | "borers";
 
 export type Tier = {
   readonly id: TierId;
   /** Save field counting how many are owned. */
   readonly field: CrewField;
   readonly name: string;
+  /** For the compact, three-to-a-row card. */
+  readonly shortName: string;
   /** Stones the first one costs. */
   readonly firstCost: number;
   /** Stones a second each one mines. */
@@ -24,6 +26,7 @@ export const TIERS: readonly Tier[] = [
     id: "helper",
     field: "helpers",
     name: "Helper",
+    shortName: "Helper",
     firstCost: 10,
     perSecond: 1,
   },
@@ -31,6 +34,7 @@ export const TIERS: readonly Tier[] = [
     id: "cart",
     field: "carts",
     name: "Mine cart",
+    shortName: "Cart",
     firstCost: 150,
     perSecond: 8,
   },
@@ -38,8 +42,17 @@ export const TIERS: readonly Tier[] = [
     id: "drill",
     field: "drills",
     name: "Steam drill",
+    shortName: "Drill",
     firstCost: 2_500,
     perSecond: 60,
+  },
+  {
+    id: "borer",
+    field: "borers",
+    name: "Tunnel borer",
+    shortName: "Borer",
+    firstCost: 40_000,
+    perSecond: 450,
   },
 ];
 
