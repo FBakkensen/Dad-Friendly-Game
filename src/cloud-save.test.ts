@@ -4,47 +4,48 @@ import {
   createMemoryCloudSave,
   createNoopCloudSave,
 } from "./cloud-save";
-import { createPocketGrid, dig, type PocketGrid } from "./grid";
+import { createMountain, type Mountain } from "./mountain";
+import { minedMountain } from "./test-fixtures";
 
 describe("applySignedInSave", () => {
-  const local = dig({ grid: createPocketGrid(), index: 0 });
-  const remoteGrid = dig({ grid: createPocketGrid(), index: 8 });
+  const local = minedMountain(1);
+  const remoteMountain = minedMountain(9);
 
-  it("uses the cloud grid when one is found", () => {
+  it("uses the cloud mountain when one is found", () => {
     expect(
       applySignedInSave({
         local,
-        remote: { kind: "found", grid: remoteGrid },
+        remote: { kind: "found", mountain: remoteMountain },
       }),
-    ).toEqual({ grid: remoteGrid, upload: false });
+    ).toEqual({ mountain: remoteMountain, upload: false });
   });
 
-  it("keeps the session grid and uploads when the cloud has no save", () => {
+  it("keeps the session mountain and uploads when the cloud has no save", () => {
     expect(applySignedInSave({ local, remote: { kind: "missing" } })).toEqual({
-      grid: local,
+      mountain: local,
       upload: true,
     });
   });
 
-  it("keeps the session grid and does not upload when the cloud is down", () => {
+  it("keeps the session mountain and does not upload when the cloud is down", () => {
     expect(
       applySignedInSave({ local, remote: { kind: "unavailable" } }),
-    ).toEqual({ grid: local, upload: false });
+    ).toEqual({ mountain: local, upload: false });
   });
 
-  it("keeps the session grid when cloud save is disabled", () => {
+  it("keeps the session mountain when cloud save is disabled", () => {
     expect(applySignedInSave({ local, remote: { kind: "disabled" } })).toEqual({
-      grid: local,
+      mountain: local,
       upload: false,
     });
   });
 });
 
 describe("createMemoryCloudSave", () => {
-  it("round-trips a grid for one uid and notifies watchers", async () => {
-    const docs = new Map<string, PocketGrid>();
+  it("round-trips a mountain for one uid and notifies watchers", async () => {
+    const docs = new Map<string, Mountain>();
     const cloud = createMemoryCloudSave({ docs });
-    const grid = dig({ grid: createPocketGrid(), index: 4 });
+    const mountain = minedMountain(5);
     const seen: string[] = [];
     const stop = cloud.watch({
       uid: "dad",
@@ -56,25 +57,25 @@ describe("createMemoryCloudSave", () => {
     await expect(cloud.load({ uid: "dad" })).resolves.toEqual({
       kind: "missing",
     });
-    await expect(cloud.write({ uid: "dad", grid })).resolves.toEqual({
+    await expect(cloud.write({ uid: "dad", mountain })).resolves.toEqual({
       kind: "ok",
     });
     await expect(cloud.load({ uid: "dad" })).resolves.toEqual({
       kind: "found",
-      grid,
+      mountain,
     });
-    expect(docs.get("dad")).toEqual(grid);
+    expect(docs.get("dad")).toEqual(mountain);
     expect(seen).toEqual(["missing", "found"]);
     stop();
   });
 });
 
 describe("createNoopCloudSave", () => {
-  it("never stores a grid", async () => {
+  it("never stores a mountain", async () => {
     const cloud = createNoopCloudSave();
     await cloud.write({
       uid: "dad",
-      grid: createPocketGrid(),
+      mountain: createMountain(),
     });
     await expect(cloud.load({ uid: "dad" })).resolves.toEqual({
       kind: "disabled",

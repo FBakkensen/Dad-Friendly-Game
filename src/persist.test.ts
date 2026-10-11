@@ -1,79 +1,80 @@
 import { describe, expect, it } from "vitest";
-import { combine, createPocketGrid, dig, place } from "./grid";
-import { parseGridSaveValue, serializeGridSave } from "./persist";
+import { MOUNTAIN_STONES, createMountain } from "./mountain";
+import { migrateLegacyGrid, parseSaveValue, serializeSave } from "./persist";
+import { minedMountain } from "./test-fixtures";
 
-describe("serializeGridSave and parseGridSaveValue", () => {
-  const lastSeen = 1_700_000_000_000;
+const covered = { kind: "covered" };
+const legacyGrid = (kinds: readonly string[]) => ({
+  width: 3,
+  height: 3,
+  cells: [
+    ...kinds.map((kind) => ({ kind })),
+    ...Array.from({ length: 9 - kinds.length }, () => covered),
+  ],
+});
 
-  it("round-trips a dug grid object", () => {
-    const grid = dig({ grid: createPocketGrid(), index: 3 });
-
-    expect(parseGridSaveValue(serializeGridSave({ grid, lastSeen }))).toEqual({
-      grid,
-      lastSeen,
+describe("serializeSave and parseSaveValue", () => {
+  it("round-trips a v3 mountain save", () => {
+    const mountain = { ...minedMountain(42), helpers: 3 };
+    const saved = serializeSave({ mountain, lastSeen: 1234 });
+    expect(saved).toEqual({ version: 3, mountain, lastSeen: 1234 });
+    expect(parseSaveValue(JSON.parse(JSON.stringify(saved)))).toEqual({
+      mountain,
+      lastSeen: 1234,
     });
   });
 
-  it("round-trips two placed stones", () => {
-    const first = place({
-      grid: dig({ grid: createPocketGrid(), index: 3 }),
-      index: 3,
-    });
-    const grid = place({
-      grid: dig({ grid: first, index: 4 }),
-      index: 4,
-    });
-
-    expect(parseGridSaveValue(serializeGridSave({ grid, lastSeen }))).toEqual({
-      grid,
-      lastSeen,
+  it("migrates a v2 grid save and keeps its timestamp", () => {
+    expect(
+      parseSaveValue({
+        version: 2,
+        grid: legacyGrid(["dug", "stone", "chunk", "dug"]),
+        lastSeen: 99,
+      }),
+    ).toEqual({
+      mountain: { remaining: MOUNTAIN_STONES - 4, pocket: 3, helpers: 0 },
+      lastSeen: 99,
     });
   });
 
-  it("round-trips a combined chunk", () => {
-    const first = place({
-      grid: dig({ grid: createPocketGrid(), index: 3 }),
-      index: 3,
-    });
-    const two = place({
-      grid: dig({ grid: first, index: 4 }),
-      index: 4,
-    });
-    const grid = combine({ grid: two, from: 3, to: 4 });
-
-    expect(parseGridSaveValue(serializeGridSave({ grid, lastSeen }))).toEqual({
-      grid,
-      lastSeen,
-    });
-  });
-
-  it("parses a legacy v1 save without a timestamp", () => {
-    const grid = createPocketGrid();
-
-    expect(parseGridSaveValue({ version: 1, grid })).toEqual({
-      grid,
+  it("migrates a v1 grid save without a timestamp", () => {
+    expect(parseSaveValue({ version: 1, grid: legacyGrid([]) })).toEqual({
+      mountain: createMountain(),
       lastSeen: undefined,
     });
   });
 
-  it("rejects missing fields, the wrong version, or a bad grid", () => {
-    expect(parseGridSaveValue(null)).toBeUndefined();
-    expect(parseGridSaveValue({ version: 1 })).toBeUndefined();
+  it("rejects missing fields, unknown versions, and bad shapes", () => {
+    for (const bad of [
+      null,
+      { version: 3 },
+      { version: 3, mountain: createMountain() },
+      {
+        version: 3,
+        mountain: { remaining: -1, pocket: 0, helpers: 0 },
+        lastSeen: 1,
+      },
+      { version: 2, grid: legacyGrid([]) },
+      { version: 2, grid: { width: 2, height: 2, cells: [] }, lastSeen: 1 },
+      { version: 4, mountain: createMountain(), lastSeen: 1 },
+    ]) {
+      expect(parseSaveValue(bad)).toBeUndefined();
+    }
+  });
+});
+
+describe("migrateLegacyGrid", () => {
+  it("counts every uncovered cell as mined and pays 1 per stone, 2 per chunk", () => {
     expect(
-      parseGridSaveValue({ version: 2, grid: createPocketGrid() }),
-    ).toBeUndefined();
+      migrateLegacyGrid(legacyGrid(Array.from({ length: 9 }, () => "chunk"))),
+    ).toEqual({ remaining: MOUNTAIN_STONES - 9, pocket: 18, helpers: 0 });
+  });
+
+  it("rejects unknown cell kinds, including prototype keys", () => {
+    expect(migrateLegacyGrid(legacyGrid(["gold"]))).toBeUndefined();
+    expect(migrateLegacyGrid(legacyGrid(["toString"]))).toBeUndefined();
     expect(
-      parseGridSaveValue({
-        version: 2,
-        grid: createPocketGrid(),
-        lastSeen: "x",
-      }),
-    ).toBeUndefined();
-    expect(
-      parseGridSaveValue({
-        version: 1,
-        grid: { width: 2, height: 2, cells: [] },
-      }),
+      migrateLegacyGrid(legacyGrid([1 as unknown as string])),
     ).toBeUndefined();
   });
 });

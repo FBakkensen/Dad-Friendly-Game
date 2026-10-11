@@ -12,7 +12,7 @@ import type {
   CloudSave,
   CloudWriteResult,
 } from "./cloud-save";
-import { parseGridSaveValue, serializeGridSave } from "./persist";
+import { parseSaveValue, serializeSave } from "./persist";
 
 const SAVES = "saves";
 
@@ -33,11 +33,15 @@ export function createFirebaseCloudSave({
     if (!snap.exists()) {
       return { kind: "missing" };
     }
-    const parsed = parseGridSaveValue(snap.data());
+    const parsed = parseSaveValue(snap.data());
     if (parsed === undefined) {
       return { kind: "unavailable" };
     }
-    return { kind: "found", grid: parsed.grid, lastSeen: parsed.lastSeen };
+    return {
+      kind: "found",
+      mountain: parsed.mountain,
+      lastSeen: parsed.lastSeen,
+    };
   };
 
   return {
@@ -50,11 +54,11 @@ export function createFirebaseCloudSave({
     },
     write: async ({
       uid,
-      grid,
+      mountain,
       lastSeen = Date.now(),
     }): Promise<CloudWriteResult> => {
       try {
-        await setDoc(ref(uid), serializeGridSave({ grid, lastSeen }));
+        await setDoc(ref(uid), serializeSave({ mountain, lastSeen }));
         return { kind: "ok" };
       } catch (error: unknown) {
         return { kind: "failed", message: cloudErrorMessage(error) };

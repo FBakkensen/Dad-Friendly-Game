@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppServices, parseBootOptions } from "./boot";
 import type { AuthController } from "./auth";
 import type { CloudSave } from "./cloud-save";
-import { createPocketGrid, dig } from "./grid";
+import { minedMountain } from "./test-fixtures";
 
 const firebaseStubs = vi.hoisted(() => ({
   auth: vi.fn(),
@@ -64,7 +64,7 @@ describe("createAppServices", () => {
       expect(snapshot.ready).toBe(true);
     });
 
-    progress.applyMutation(dig({ grid: createPocketGrid(), index: 0 }));
+    progress.applyMutation(minedMountain(1));
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });

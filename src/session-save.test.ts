@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createPocketGrid, dig, place } from "./grid";
+import { createMountain } from "./mountain";
+import { minedMountain } from "./test-fixtures";
 import {
   clearSessionSave,
   migrateSessionSave,
@@ -30,28 +31,25 @@ function createMemoryStorage(): Storage {
 }
 
 describe("session save", () => {
-  it("round-trips a dug grid", () => {
+  it("round-trips a dug mountain", () => {
     const storage = createMemoryStorage();
-    const grid = dig({ grid: createPocketGrid(), index: 2 });
+    const mountain = minedMountain(3);
 
-    expect(writeSessionSave({ storage, grid, lastSeen: 1234 })).toBe(true);
-    expect(readSessionSave({ storage })).toEqual({ grid, lastSeen: 1234 });
+    expect(writeSessionSave({ storage, mountain, lastSeen: 1234 })).toBe(true);
+    expect(readSessionSave({ storage })).toEqual({ mountain, lastSeen: 1234 });
   });
 
   it("round-trips a placed stone", () => {
     const storage = createMemoryStorage();
-    const grid = place({
-      grid: dig({ grid: createPocketGrid(), index: 0 }),
-      index: 0,
-    });
+    const mountain = minedMountain(11);
 
-    expect(writeSessionSave({ storage, grid, lastSeen: 1234 })).toBe(true);
-    expect(readSessionSave({ storage })).toEqual({ grid, lastSeen: 1234 });
+    expect(writeSessionSave({ storage, mountain, lastSeen: 1234 })).toBe(true);
+    expect(readSessionSave({ storage })).toEqual({ mountain, lastSeen: 1234 });
   });
 
   it("clears the scratch pad", () => {
     const storage = createMemoryStorage();
-    writeSessionSave({ storage, grid: createPocketGrid(), lastSeen: 1234 });
+    writeSessionSave({ storage, mountain: createMountain(), lastSeen: 1234 });
 
     clearSessionSave({ storage });
 
@@ -59,7 +57,7 @@ describe("session save", () => {
     expect(readSessionSave({ storage })).toBeUndefined();
   });
 
-  it("rejects corrupt JSON or a bad grid", () => {
+  it("rejects corrupt JSON or a bad mountain", () => {
     const storage = createMemoryStorage();
     storage.setItem(SESSION_SAVE_KEY, "{not json");
     expect(readSessionSave({ storage })).toBeUndefined();
@@ -89,7 +87,7 @@ describe("session save", () => {
     };
 
     expect(
-      writeSessionSave({ storage, grid: createPocketGrid(), lastSeen: 1234 }),
+      writeSessionSave({ storage, mountain: createMountain(), lastSeen: 1234 }),
     ).toBe(false);
     expect(readSessionSave({ storage })).toBeUndefined();
     expect(() => {
@@ -103,14 +101,18 @@ describe("session save", () => {
 
   it("moves an older tab save into localStorage on first use", () => {
     globalThis.localStorage.clear();
-    const grid = dig({ grid: createPocketGrid(), index: 7 });
-    writeSessionSave({ storage: globalThis.sessionStorage, grid, lastSeen: 9 });
+    const mountain = minedMountain(8);
+    writeSessionSave({
+      storage: globalThis.sessionStorage,
+      mountain,
+      lastSeen: 9,
+    });
 
     const storage = tryGetGuestStorage();
 
     expect(storage).toBe(globalThis.localStorage);
     expect(readSessionSave({ storage: globalThis.localStorage })).toEqual({
-      grid,
+      mountain,
       lastSeen: 9,
     });
     expect(globalThis.sessionStorage.getItem(SESSION_SAVE_KEY)).toBeNull();
@@ -121,26 +123,33 @@ describe("migrateSessionSave", () => {
   it("moves a legacy tab save into the device store", () => {
     const from = createMemoryStorage();
     const to = createMemoryStorage();
-    const grid = dig({ grid: createPocketGrid(), index: 5 });
-    writeSessionSave({ storage: from, grid, lastSeen: 42 });
+    const mountain = minedMountain(6);
+    writeSessionSave({ storage: from, mountain, lastSeen: 42 });
 
     migrateSessionSave({ from, to });
 
-    expect(readSessionSave({ storage: to })).toEqual({ grid, lastSeen: 42 });
+    expect(readSessionSave({ storage: to })).toEqual({
+      mountain,
+      lastSeen: 42,
+    });
     expect(from.getItem(SESSION_SAVE_KEY)).toBeNull();
   });
 
   it("keeps an existing device save over the legacy one", () => {
     const from = createMemoryStorage();
     const to = createMemoryStorage();
-    const kept = dig({ grid: createPocketGrid(), index: 1 });
-    writeSessionSave({ storage: from, grid: createPocketGrid(), lastSeen: 1 });
-    writeSessionSave({ storage: to, grid: kept, lastSeen: 2 });
+    const kept = minedMountain(2);
+    writeSessionSave({
+      storage: from,
+      mountain: createMountain(),
+      lastSeen: 1,
+    });
+    writeSessionSave({ storage: to, mountain: kept, lastSeen: 2 });
 
     migrateSessionSave({ from, to });
 
     expect(readSessionSave({ storage: to })).toEqual({
-      grid: kept,
+      mountain: kept,
       lastSeen: 2,
     });
     expect(from.getItem(SESSION_SAVE_KEY)).toBeNull();

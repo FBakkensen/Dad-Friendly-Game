@@ -8,13 +8,15 @@ service cloud.firestore {
     // Collection: saves
     // Document ID: Firebase Auth uid
     // Fields:
-    //   - version: int (required, must be 1 or 2)
-    //   - grid: map (required)
+    //   - version: int (required, 1, 2, or 3)
+    //   - mountain: map (required iff version == 3)
+    //       - remaining: int 0..1000000, pocket: int >= 0, helpers: int >= 0
+    //   - grid: map (required iff version is 1 or 2; legacy, read-migrated by the client)
     //       - width: int (required, must be 3)
     //       - height: int (required, must be 3)
     //       - cells: list (required, size 9)
     //           - kind: string (required, 'covered', 'dug', 'stone', or 'chunk')
-    //   - lastSeen: int (required iff version == 2; epoch ms)
+    //   - lastSeen: int (required iff version is 2 or 3; epoch ms)
     // Ownership is the document ID. No uid, role, or PII fields.
     //
     // ===============================================================
@@ -70,19 +72,38 @@ service cloud.firestore {
         isValidCell(grid.cells[8]);
     }
 
+    function isValidMountain(mountain) {
+      return mountain is map &&
+        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers']) &&
+        mountain.remaining is int &&
+        mountain.remaining >= 0 &&
+        mountain.remaining <= 1000000 &&
+        mountain.pocket is int &&
+        mountain.pocket >= 0 &&
+        mountain.helpers is int &&
+        mountain.helpers >= 0;
+    }
+
+    function hasValidLastSeen(data) {
+      return 'lastSeen' in data && data.lastSeen is int && data.lastSeen >= 0;
+    }
+
     function isValidSave(data) {
-      return hasOnlyAllowedFields(
-        data.version == 2 ? ['version', 'grid', 'lastSeen'] : ['version', 'grid']
-      ) &&
-        uidUnchanged() &&
+      return uidUnchanged() &&
         data.version is int &&
-        (data.version == 1 || (
-          data.version == 2 &&
-          'lastSeen' in data &&
-          data.lastSeen is int &&
-          data.lastSeen >= 0
-        )) &&
-        isValidGrid(data.grid);
+        (
+          (data.version == 3 &&
+            hasOnlyAllowedFields(['version', 'mountain', 'lastSeen']) &&
+            hasValidLastSeen(data) &&
+            isValidMountain(data.mountain)) ||
+          (data.version == 2 &&
+            hasOnlyAllowedFields(['version', 'grid', 'lastSeen']) &&
+            hasValidLastSeen(data) &&
+            isValidGrid(data.grid)) ||
+          (data.version == 1 &&
+            hasOnlyAllowedFields(['version', 'grid']) &&
+            isValidGrid(data.grid))
+        );
     }
 
     match /saves/{userId} {
