@@ -20,42 +20,42 @@ describe("tiers", () => {
     expect(
       TIERS.map(({ id, firstCost, perSecond }) => [id, firstCost, perSecond]),
     ).toEqual([
-      ["helper", 10, 1],
-      ["cart", 500, 4],
-      ["drill", 25_000, 16],
-      ["borer", 1_500_000, 64],
-      ["machine", 40_000_000, 500],
+      ["helper", 20, 1],
+      ["cart", 100, 10],
+      ["drill", 20_000, 60],
+      ["borer", 1_600_000, 350],
+      ["machine", 80_000_000, 3_500],
     ]);
     expect(tierById("machine").needs).toBe("hammer");
     for (const [index, tier] of TIERS.entries()) {
       const next = TIERS[index + 1];
       if (next !== undefined) {
-        expect(next.perSecond).toBeGreaterThanOrEqual(tier.perSecond * 4);
-        expect(next.firstCost).toBeGreaterThan(tier.firstCost * 25);
+        expect(next.perSecond).toBeGreaterThanOrEqual(tier.perSecond * 5);
+        expect(next.firstCost).toBeGreaterThanOrEqual(tier.firstCost * 5);
       }
     }
   });
 
-  it("costs grow 60% each, rounded up", () => {
+  it("costs double each, rounded up", () => {
     expect([0, 1, 2, 3].map((n) => tierCost(tierById("helper"), n))).toEqual([
-      10, 16, 26, 41,
+      20, 40, 80, 160,
     ]);
     expect([0, 1, 2].map((n) => tierCost(tierById("cart"), n))).toEqual([
-      500, 800, 1_280,
+      100, 200, 400,
     ]);
     expect([0, 1].map((n) => tierCost(tierById("machine"), n))).toEqual([
-      40_000_000, 64_000_000,
+      80_000_000, 160_000_000,
     ]);
   });
 
   it("buys only when the pocket covers the cost, and pays for it", () => {
-    const poor = at({ pocket: 499 });
+    const poor = at({ pocket: 99 });
     expect(buyTier(poor, "cart")).toBe(poor);
-    const one = buyTier(at({ pocket: 1_400 }), "cart");
-    expect(one).toEqual(at({ pocket: 900, carts: 1 }));
-    expect(buyTier(one, "cart")).toEqual(at({ pocket: 100, carts: 2 }));
+    const one = buyTier(at({ pocket: 350 }), "cart");
+    expect(one).toEqual(at({ pocket: 250, carts: 1 }));
+    expect(buyTier(one, "cart")).toEqual(at({ pocket: 50, carts: 2 }));
     expect(buyTier(at({ pocket: 25 }), "helper")).toEqual(
-      at({ pocket: 15, helpers: 1 }),
+      at({ pocket: 5, helpers: 1 }),
     );
   });
 
@@ -67,8 +67,11 @@ describe("tiers", () => {
       borers: 1,
       machines: 1,
     });
-    expect(stonesPerSecond(crew)).toBe(3 + 8 + 16 + 64 + 500);
-    expect(accrue({ mountain: crew, from: 0, to: 1_000 }).mined).toBe(591);
+    expect(stonesPerSecond(crew)).toBe(3 + 20 + 60 + 350 + 3_500);
+    expect(
+      accrue({ mountain: { ...crew, remaining: 10_000 }, from: 0, to: 1_000 })
+        .mined,
+    ).toBe(3_933);
   });
 
   it("shows each tier once the one before it is owned", () => {

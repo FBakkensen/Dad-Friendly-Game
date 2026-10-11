@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AWAY_CAP_MS,
+  AWAY_PAY_RATE,
   MOUNTAIN_STONES,
   accrueAway,
   accrue,
@@ -230,22 +231,36 @@ describe("accrueAway", () => {
 
   it("pays for the whole absence under the cap", () => {
     const result = accrueAway({ mountain: crew, lastSeen: 0, now: 90_500 });
-    expect(result.mined).toBe(180);
+    // 90 whole seconds × 2 a second × 30% away pay.
+    expect(result.mined).toBe(54);
     expect(result.settledAt).toBe(90_000);
     expect(result.report).toEqual({
-      mined: 180,
+      mined: 54,
       awayMs: 90_500,
       capped: false,
     });
   });
 
+  it("pays away time at AWAY_PAY_RATE, but live play in full", () => {
+    expect(AWAY_PAY_RATE).toBeGreaterThanOrEqual(0.25);
+    expect(AWAY_PAY_RATE).toBeLessThanOrEqual(0.35);
+    expect(accrue({ mountain: crew, from: 0, to: 10_000 }).mined).toBe(20);
+    expect(
+      accrue({ mountain: crew, from: 0, to: 10_000, pay: 0.3 }).mined,
+    ).toBe(6);
+    // Part-stones round down.
+    expect(accrue({ mountain: crew, from: 0, to: 1_000, pay: 0.3 }).mined).toBe(
+      0,
+    );
+  });
+
   it("pays at most the cap but reports the real time away", () => {
     const now = AWAY_CAP_MS * 3;
     const result = accrueAway({ mountain: crew, lastSeen: 0, now });
-    expect(result.mined).toBe((AWAY_CAP_MS / 1000) * 2);
+    expect(result.mined).toBe((AWAY_CAP_MS / 1000) * 2 * AWAY_PAY_RATE);
     expect(result.settledAt).toBe(now);
     expect(result.report).toEqual({
-      mined: (AWAY_CAP_MS / 1000) * 2,
+      mined: (AWAY_CAP_MS / 1000) * 2 * AWAY_PAY_RATE,
       awayMs: now,
       capped: true,
     });

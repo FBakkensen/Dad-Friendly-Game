@@ -7,6 +7,7 @@ import {
 import { formatCompact, formatCount, formatDuration } from "./format";
 import {
   AWAY_CAP_MS,
+  AWAY_PAY_RATE,
   MOUNTAIN_STONES,
   mineByHand,
   stonesPerSecond,
@@ -36,6 +37,9 @@ import {
   type ProgressSnapshot,
   type ProgressStore,
 } from "./progress-store";
+
+/** Away pay, said plainly: the crew works slower without the boss. */
+const restingPace = `at a resting pace (${String(Math.round(AWAY_PAY_RATE * 100))}% of their speed)`;
 
 /** From this many tiers on screen, cards go three to a row. */
 const COMPACT_TIER_COUNT = 4;
@@ -816,8 +820,8 @@ export function mountMountainScreen({
         ? "Your helper"
         : `Your ${formatCount(helpers)} helpers`;
     welcomeDetail.textContent = report.capped
-      ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for the first ${formatDuration(AWAY_CAP_MS)}.`
-      : `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined the whole time.`;
+      ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for the first ${formatDuration(AWAY_CAP_MS)}, ${restingPace}.`
+      : `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined the whole time, ${restingPace}.`;
     if (!wasOpen) {
       welcomeContinue.focus();
     }
@@ -864,7 +868,8 @@ export function mountMountainScreen({
             : `+${formatCompact(tier.perSecond)}\u2009·\u2009${formatCompact(count * tier.perSecond)}/s`
           : count === 0
             ? `+${formatCompact(tier.perSecond)}/s each`
-            : `+${formatCompact(tier.perSecond)} each · ${formatCompact(count * tier.perSecond)}/s`;
+            : // "each" drops out once the total needs four digits, so the line fits.
+              `+${formatCompact(tier.perSecond)}${count * tier.perSecond < 1_000 ? " each" : ""} · ${formatCompact(count * tier.perSecond)}/s`;
       card.setAttribute(
         "aria-label",
         locked
