@@ -653,6 +653,65 @@ for (const viewport of [
   await close();
 }
 
+// Pass the mine to your kid (#131): the confirm, then the new run's header.
+for (const viewport of [
+  [360, 560],
+  [390, 844],
+]) {
+  const label = `${String(viewport[0])}x${String(viewport[1])}`;
+  const { page, close } = await open(viewport, {
+    version: 4,
+    mountain: {
+      remaining: 1,
+      pocket: 0,
+      helpers: 999,
+      kids: 999,
+      staffed: true,
+      legacy: 1,
+    },
+    lastSeen: Date.now(),
+  });
+  await page.tap(".mountain");
+  await page.waitForSelector(".relic-reveal:not([hidden])");
+  await page.tap(".relic-reveal:not(.legend) .reveal-continue");
+  await page.tap(".legend .legend-pass");
+  check(
+    await coversViewport(page, ".legacy-dialog"),
+    `${label} pass-the-mine confirm is laid over the game`,
+  );
+  check(await noScroll(page), `${label} pass-the-mine confirm has no scroll`);
+  const fits = await page.$eval(".legacy-card", (card) => {
+    const box = card.getBoundingClientRect();
+    return box.top >= 0 && box.bottom <= innerHeight;
+  });
+  check(fits, `${label} pass-the-mine card fits the screen`);
+  await page.tap(".legacy-confirm");
+  check(
+    await page.$eval(".legacy-dialog", (el) => el.hidden),
+    `${label} pass-the-mine confirm closes`,
+  );
+  check(
+    await page.$eval(
+      ".legacy-badge",
+      (el) => !el.hidden && el.textContent === "×2",
+    ),
+    `${label} Legacy badge shows ×2`,
+  );
+  check(await noScroll(page), `${label} new run has no scroll`);
+  const header = await page.$eval(".top-bar", (bar) => {
+    const box = bar.getBoundingClientRect();
+    const kids = [...bar.children].map((el) => el.getBoundingClientRect());
+    return (
+      kids.every((k) => k.top >= box.top - 1 && k.bottom <= box.bottom + 1) &&
+      kids.every((k) => k.right <= innerWidth && k.left >= 0) &&
+      bar.querySelector(".stones-left").scrollWidth <=
+        bar.querySelector(".stones-left").clientWidth + 1
+    );
+  });
+  check(header, `${label} header with the Legacy badge stays on one row`);
+  await close();
+}
+
 await browser.close();
 await server?.close();
 if (failures.length > 0) {

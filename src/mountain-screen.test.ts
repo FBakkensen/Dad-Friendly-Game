@@ -1,5 +1,5 @@
 import { RELICS } from "./relics";
-import { writeSessionSave } from "./session-save";
+import { readSessionSave, writeSessionSave } from "./session-save";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createMemoryAuth,
@@ -1747,5 +1747,86 @@ describe("relic powers on the cards (shelf detail)", () => {
     for (const relic of RELICS) {
       expect(relic.boost).not.toMatch(/million|stones? deep|\d{3},\d{3}/);
     }
+  });
+});
+
+describe("pass the mine to your kid (#131)", () => {
+  const seeded = (mountain: Mountain) => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      SESSION_SAVE_KEY,
+      JSON.stringify({ version: 4, mountain, lastSeen: Date.now() }),
+    );
+    return storage;
+  };
+  const dialog = (screen: ReturnType<typeof mountScreen>) =>
+    screen.root.querySelector<HTMLElement>(".legacy-dialog");
+  const menuPass = (screen: ReturnType<typeof mountScreen>) =>
+    screen.root.querySelector<HTMLButtonElement>(".menu-pass");
+
+  it("is offered on the Legend card, asks first, and hands down a Legacy", () => {
+    const storage = seeded({
+      ...minedMountain(MOUNTAIN_STONES - 1),
+      helpers: 40,
+    });
+    const screen = mountScreen({ storage });
+    document.body.append(screen.root);
+    expect(
+      screen.root.querySelector<HTMLElement>(".legacy-badge")?.hidden,
+    ).toBe(true);
+    screen.mountain.click();
+    screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
+    const legend = screen.root.querySelector<HTMLElement>(".legend");
+    legend?.querySelector<HTMLButtonElement>(".legend-pass")?.click();
+
+    expect(legend?.hidden).toBe(true);
+    expect(dialog(screen)?.hidden).toBe(false);
+    expect(screen.text("#legacy-title")).toBe("Pass the mine to your kid?");
+    expect(screen.text(".legacy-detail")).toContain("×1.5");
+    expect(document.activeElement).toBe(
+      dialog(screen)?.querySelector(".legacy-cancel"),
+    );
+
+    dialog(screen)
+      ?.querySelector<HTMLButtonElement>(".legacy-confirm")
+      ?.click();
+
+    expect(dialog(screen)?.hidden).toBe(true);
+    expect(screen.text(".stones-left")).toBe("100 million stones left");
+    expect(screen.text(".pocket")).toBe("0 stones");
+    const badge = screen.root.querySelector<HTMLElement>(".legacy-badge");
+    expect(badge?.hidden).toBe(false);
+    expect(badge?.textContent).toBe("×1.5");
+    expect(badge?.getAttribute("aria-label")).toBe(
+      "Legacy 1: your crew and taps are ×1.5",
+    );
+    expect(screen.text(".goal")).toContain("Your kid's mine");
+    expect(readSessionSave({ storage })?.mountain.legacy).toBe(1);
+    screen.root.remove();
+  });
+
+  it("waits in the menu at the bottom; 'Not yet' changes nothing", () => {
+    const screen = mountScreen({
+      storage: seeded(minedMountain(MOUNTAIN_STONES)),
+    });
+    expect(menuPass(screen)?.hidden).toBe(false);
+    menuPass(screen)?.click();
+    expect(dialog(screen)?.hidden).toBe(false);
+    dialog(screen)?.querySelector<HTMLButtonElement>(".legacy-cancel")?.click();
+    expect(dialog(screen)?.hidden).toBe(true);
+    expect(screen.text(".stones-left")).toBe("0 stones left");
+    menuPass(screen)?.click();
+    dialog(screen)?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    expect(dialog(screen)?.hidden).toBe(true);
+  });
+
+  it("is never offered before the bottom", () => {
+    const screen = mountScreen({ storage: seeded(minedMountain(99_000_000)) });
+    expect(menuPass(screen)?.hidden).toBe(true);
+    expect(
+      screen.root.querySelector<HTMLElement>(".legacy-badge")?.hidden,
+    ).toBe(true);
   });
 });

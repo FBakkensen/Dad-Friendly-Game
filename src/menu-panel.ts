@@ -7,8 +7,11 @@ export function createMenuPanel({
   getView,
   auth,
   onStartOver,
+  extras = [],
   requestRender,
 }: {
+  /** More menu entries, shown above Start over (e.g. passing the mine). */
+  extras?: readonly HTMLElement[];
   progress: ProgressStore;
   getView: () => ProgressSnapshot;
   auth: AuthController;
@@ -181,7 +184,14 @@ export function createMenuPanel({
     }
   };
 
-  menuCard.append(menuTitle, authStatus, authButton, startOverLink, menuClose);
+  menuCard.append(
+    menuTitle,
+    authStatus,
+    authButton,
+    ...extras,
+    startOverLink,
+    menuClose,
+  );
 
   auth.subscribe(renderAuth);
 
@@ -190,5 +200,10 @@ export function createMenuPanel({
     renderMenu();
   };
 
-  return { menuButton, menu, confirm, render };
+  /** Closes the menu without moving focus (another dialog takes over). */
+  const close = (): void => {
+    menuOpen = false;
+  };
+
+  return { menuButton, menu, confirm, close, render };
 }
