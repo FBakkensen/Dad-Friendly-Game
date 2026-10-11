@@ -1,6 +1,7 @@
+import { minedMountain } from "./test-fixtures";
+import { BASE_AWAY_CAP_MS, SHIELD_AWAY_CAP_MS, effectiveRates } from "./rates";
 import { describe, expect, it } from "vitest";
 import {
-  AWAY_CAP_MS,
   AWAY_PAY_RATE,
   MOUNTAIN_STONES,
   accrueAway,
@@ -257,12 +258,12 @@ describe("accrueAway", () => {
   });
 
   it("pays at most the cap but reports the real time away", () => {
-    const now = AWAY_CAP_MS * 3;
+    const now = BASE_AWAY_CAP_MS * 3;
     const result = accrueAway({ mountain: crew, lastSeen: 0, now });
-    expect(result.mined).toBe((AWAY_CAP_MS / 1000) * 2 * AWAY_PAY_RATE);
+    expect(result.mined).toBe((BASE_AWAY_CAP_MS / 1000) * 2 * AWAY_PAY_RATE);
     expect(result.settledAt).toBe(now);
     expect(result.report).toEqual({
-      mined: (AWAY_CAP_MS / 1000) * 2 * AWAY_PAY_RATE,
+      mined: (BASE_AWAY_CAP_MS / 1000) * 2 * AWAY_PAY_RATE,
       awayMs: now,
       capped: true,
     });
@@ -276,5 +277,29 @@ describe("accrueAway", () => {
       awayMs: 0,
       capped: false,
     });
+  });
+});
+
+describe("Shield of Protection: away cap", () => {
+  const crew = { ...minedMountain(0), helpers: 10 };
+  const shielded = { ...minedMountain(10_000_000), helpers: 10 };
+  const DAY = 24 * 3_600_000;
+
+  it("pays 8 hours without the Shield and a whole day with it", () => {
+    const plain = accrueAway({ mountain: crew, lastSeen: 0, now: 2 * DAY });
+    expect(plain.report.capped).toBe(true);
+    expect(plain.mined).toBe(Math.floor(8 * 3600 * 10 * AWAY_PAY_RATE));
+    const safe = accrueAway({
+      mountain: shielded,
+      lastSeen: 0,
+      now: 20 * 3_600_000,
+    });
+    expect(safe.report.capped).toBe(false);
+    expect(safe.mined).toBe(Math.floor(20 * 3600 * 10 * AWAY_PAY_RATE));
+    const long = accrueAway({ mountain: shielded, lastSeen: 0, now: 3 * DAY });
+    expect(long.report.capped).toBe(true);
+    expect(long.mined).toBe(Math.floor(24 * 3600 * 10 * AWAY_PAY_RATE));
+    expect(effectiveRates(shielded).awayCapMs).toBe(SHIELD_AWAY_CAP_MS);
+    expect(effectiveRates(crew).awayCapMs).toBe(BASE_AWAY_CAP_MS);
   });
 });

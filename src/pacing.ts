@@ -1,6 +1,5 @@
 import { buyCrew, tierLocked } from "./crew";
-import { AWAY_CAP_MS } from "./mountain";
-import { AWAY_PAY_RATE, effectiveRates } from "./rates";
+import { AWAY_PAY_RATE, effectiveRates, BASE_AWAY_CAP_MS } from "./rates";
 import {
   BOOTS_SPEED_PER_LEVEL,
   STEADY_AWAY_PER_LEVEL,
@@ -42,7 +41,7 @@ type Pick = {
 /** Stones a day one more stone a second of crew speed earns, live plus away. */
 const CREW_DAY_SECONDS =
   DAD.sessionsPerDay *
-  (DAD.sessionSeconds + (AWAY_CAP_MS / 1000) * AWAY_PAY_RATE);
+  (DAD.sessionSeconds + (BASE_AWAY_CAP_MS / 1000) * AWAY_PAY_RATE);
 /** Taps only pay while playing. */
 const TAP_DAY_SECONDS = DAD.sessionsPerDay * DAD.sessionSeconds;
 
@@ -140,7 +139,7 @@ function bestValue(
         AWAY_PAY_RATE *
         STEADY_AWAY_PER_LEVEL *
         DAD.sessionsPerDay *
-        (AWAY_CAP_MS / 1000),
+        (BASE_AWAY_CAP_MS / 1000),
     );
   }
   return best;

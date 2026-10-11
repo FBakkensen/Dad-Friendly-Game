@@ -1485,3 +1485,19 @@ describe("free helpers note (#89 grant)", () => {
     ).toBe(false);
   });
 });
+
+describe("Shield of Protection on the welcome card", () => {
+  it("says the crew mined for a whole day", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(10_000_000), pocket: 0, helpers: 1 },
+      lastSeen: Date.now() - 30 * 3_600_000,
+    });
+    const screen = mountScreen({ storage });
+    expect(screen.text(".welcome-mined")).toBe("+25.9 thousand stones");
+    expect(screen.text(".welcome-detail")).toBe(
+      "You were gone 1 day 6 hours. Your helper mined for a whole day, at a resting pace (30% of their speed).",
+    );
+  });
+});

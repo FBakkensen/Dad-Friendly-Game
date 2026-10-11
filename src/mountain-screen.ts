@@ -6,7 +6,6 @@ import {
 } from "./auth";
 import { formatCompact, formatCount, formatDuration } from "./format";
 import {
-  AWAY_CAP_MS,
   type Mountain,
   MOUNTAIN_STONES,
   mineByHand,
@@ -140,6 +139,12 @@ const unlockWords = (upgrade: Upgrade): string => {
     ? `Unlocks with your first ${tier.name.toLowerCase()}`
     : `Unlocks at ${String(upgrade.unlock.count)} ${tier.name.toLowerCase()}s`;
 };
+
+/** "the first 8 hours", or "a whole day" once the Shield lifts the cap. */
+const capWords = (capMs: number): string =>
+  capMs >= 24 * 3_600_000
+    ? "a whole day"
+    : `the first ${formatDuration(capMs)}`;
 
 const tapWords = (stones: number): string =>
   stones === 1 ? "one stone" : `${formatCount(stones)} stones`;
@@ -1148,7 +1153,7 @@ export function mountMountainScreen({
         ? "Your helper"
         : `Your ${formatCount(helpers)} helpers`;
     welcomeDetail.textContent = report.capped
-      ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for the first ${formatDuration(AWAY_CAP_MS)}, ${restingPace(view.mountain)}.`
+      ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for ${capWords(effectiveRates(view.mountain).awayCapMs)}, ${restingPace(view.mountain)}.`
       : `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined the whole time, ${restingPace(view.mountain)}.`;
     if (!wasOpen) {
       welcomeContinue.focus();

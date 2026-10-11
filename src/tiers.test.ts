@@ -24,7 +24,7 @@ describe("tiers", () => {
       ["helper", 20, 1],
       ["cart", 100, 10],
       ["drill", 20_000, 60],
-      ["borer", 2_500_000, 350],
+      ["borer", 8_000_000, 350],
       ["machine", 80_000_000, 3_500],
     ]);
     expect(tierById("machine").needs).toBe("hammer");

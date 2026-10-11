@@ -64,7 +64,7 @@ export const TIERS: readonly Tier[] = [
     field: "borers",
     name: "Tunnel borer",
     shortName: "Borer",
-    firstCost: 2_500_000,
+    firstCost: 8_000_000,
     perSecond: 350,
     staff: 4,
   },

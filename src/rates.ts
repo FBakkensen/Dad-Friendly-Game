@@ -1,5 +1,6 @@
 import type { Mountain } from "./mountain";
 import { TIERS, owned, type TierId } from "./tiers";
+import { hasRelic } from "./relics";
 import { boostById, boostLeft } from "./boosts";
 import {
   BOOTS_SPEED_PER_LEVEL,
@@ -15,7 +16,13 @@ import {
  */
 export const AWAY_PAY_RATE = 0.3;
 
+/** Longest time away that pays: 8 hours, a whole day with the Shield. */
+export const BASE_AWAY_CAP_MS = 8 * 60 * 60 * 1000;
+export const SHIELD_AWAY_CAP_MS = 24 * 60 * 60 * 1000;
+
 export type Rates = {
+  /** Longest stretch of time away that pays (Shield of Protection lifts it). */
+  readonly awayCapMs: number;
   /** Stones one tap mines. */
   readonly tapYield: number;
   /** Stones a second one of each tier mines. */
@@ -81,6 +88,9 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
     running,
     helpersShort: Math.max(0, needed - mountain.helpers),
     crewPerSecond: baseCrew * boosted("overtime"),
+    awayCapMs: hasRelic(mountain, "shield")
+      ? SHIELD_AWAY_CAP_MS
+      : BASE_AWAY_CAP_MS,
     awayPay:
       AWAY_PAY_RATE *
       (1 + upgradeLevel(mountain, "steady") * STEADY_AWAY_PER_LEVEL),

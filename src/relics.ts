@@ -1,4 +1,5 @@
-import { MOUNTAIN_STONES, minedOut, type Mountain } from "./mountain";
+import { minedOut, type Mountain } from "./mountain";
+import { MOUNTAIN_STONES } from "./scale";
 
 export type RelicId =
   "lantern" | "shield" | "hammer" | "heart" | "crown" | "mantle";
@@ -27,7 +28,8 @@ export const RELICS: readonly Relic[] = [
     id: "shield",
     name: "Shield of Protection",
     virtue: "Protection",
-    power: "Your crew keeps mining however long you're away.",
+    power:
+      "Your crew keeps mining for a whole day while you're away, not just 8 hours.",
     depth: 10_000_000,
   },
   {
