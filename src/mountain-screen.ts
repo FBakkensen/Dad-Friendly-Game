@@ -1155,6 +1155,10 @@ export function mountMountainScreen({
     welcomeDetail.textContent = report.capped
       ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for ${capWords(effectiveRates(view.mountain).awayCapMs)}, ${restingPace(view.mountain)}.`
       : `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined the whole time, ${restingPace(view.mountain)}.`;
+    welcomeDetail.textContent +=
+      report.heart > 1
+        ? ` The Heart of Patience made it ×${report.heart.toFixed(2).replace(/0$/, "")}.`
+        : "";
     if (!wasOpen) {
       welcomeContinue.focus();
     }

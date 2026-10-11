@@ -20,6 +20,18 @@ export const AWAY_PAY_RATE = 0.3;
 export const BASE_AWAY_CAP_MS = 8 * 60 * 60 * 1000;
 export const SHIELD_AWAY_CAP_MS = 24 * 60 * 60 * 1000;
 
+/** Heart of Patience: away pay climbs from ×1 to ×2 over this long away. */
+const HEART_MAX_BONUS = 0.5;
+const HEART_FULL_MS = 12 * 60 * 60 * 1000;
+
+/** The Heart of Patience multiplier for a stretch of paid time away (×1 without the Heart). */
+export function heartBonus(mountain: Mountain, paidMs: number): number {
+  if (!hasRelic(mountain, "heart")) {
+    return 1;
+  }
+  return 1 + HEART_MAX_BONUS * Math.min(1, Math.max(0, paidMs) / HEART_FULL_MS);
+}
+
 export type Rates = {
   /** Longest stretch of time away that pays (Shield of Protection lifts it). */
   readonly awayCapMs: number;

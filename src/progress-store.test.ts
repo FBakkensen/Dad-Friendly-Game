@@ -474,6 +474,7 @@ describe("away earnings", () => {
       mined: 540,
       awayMs: 600_000,
       capped: false,
+      heart: 1,
     });
     expect(readSessionSave({ storage })).toEqual({
       mountain: {
