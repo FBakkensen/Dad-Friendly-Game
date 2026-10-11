@@ -126,12 +126,33 @@ M2 gives the player one choice: which tier to buy next. M3 adds the real idle-ga
   - Retune: helpers became the bottleneck, so their cost growth dropped from ×2 to ×1.15 (the 50th helper costs ~21.7k, not 2e16). That made the crew cheaper overall, so the borer's first cost rose 1.6M → 2.5M. Pacing (plain dad / upgrade-buying dad): Lantern 1.5 / 1.5, Hammer 3 / 3, bottom 6.5 / 6. The sim weighs a machine together with the helpers it still needs, and a helper by the speed it adds (its own plus any idle machine it starts).
   - Existing saves: on load, a save without the `staffed` mark gets enough free helpers to run every machine it owns, then is marked `staffed: true` so it never repeats (`staffExisting` in `src/crew.ts`, applied in the progress store for guest and cloud loads before away pay). New mountains and Start over begin marked. The welcome card says "Your crew grew: N helpers joined to run your machines." (alone, or under the away report). firestore.rules allow only `staffed == true`.
 - **Tap power scaling** (built, #82): _Strong arms_, 10 levels, first 5,000 stones then 5× each level. Each level adds 1% of the crew's speed to every tap (`1 + floor(crew/s × 1% × level)`), so tapping stays meaningful at thousands a second. The tap float shows the real yield. Bought from the Upgrades sheet: a small button beside the pocket (with a glow when something is affordable), opening a sheet so the main screen keeps its no-scroll budget.
-- **Prestige: pass the mine to your kid** (later, with the Mantle of the Hero): reset the mountain for a permanent multiplier. This is the ultimate long-term choice.
+- **Prestige: pass the mine to your kid** (design note, #83; built in M5 with the Mantle of the Hero). The ultimate long-term choice.
+  - _When_: offered only after the Mantle (the bottom). Never forced; the finished mountain stays as it is until you choose.
+  - _Resets_: the mountain (100M stones back), pocket, every tier including helpers and kids, upgrades, boosts, relics found (the shelf starts empty again), golden-vein timer.
+  - _Kept_: a **Legacy** count (how many mountains handed down), the account/save itself, settings, and the staffing mark.
+  - _Multiplier_: every Legacy makes the whole crew and every tap faster: `legacyBonus = 1 + 0.5 × legacies` (×1.5, ×2, ×2.5, …), applied in `effectiveRates` to crew speed and tap yield (not to away pay, which stays the patience lever). Simple, visible ("Legacy ×2: your kid's crew mines twice as fast"), and linear so it never runs away. The pacing sim gets a second-run target: a ×1.5 run should reach the bottom in roughly 4 days.
+  - _Not Start over_: Start over (M2) throws everything away, including Legacy, and gives nothing. Prestige is the reward path; Start over stays tucked in the menu as the clean-slate escape hatch. Both share the same reset plumbing (fresh `startedAt` so stale cloud snapshots can't clobber the new run).
+  - _Save_: `legacy: int >= 0` on the save (rules + emulator test), migrated as 0.
 - All multipliers live in one pure function over the save (`effectiveRates` in `src/rates.ts`, built in #78), returning tap yield, per-tier speed, crew speed and away pay, so live ticks, away earnings and the UI agree. Boost timers use absolute end times in the save. Away earnings ignore boosts.
 - UI: an "Upgrades" sheet behind one compact button. The main screen keeps its no-scroll budget (the browser check runs in CI).
 
 ### Later (sketch)
 
 - **M2: Automation.** See above.
-- **M4: Patience.** Heart of Patience, richer away screen, gentle daily rhythm.
-- **M5: Legacy.** Crown of Wisdom, Mantle of the Hero, prestige (pass the mine to your kid).
+- **M4: Patience.** Every relic finally does what its card promises. See below.
+- **M5: Legacy.** Prestige (pass the mine to your kid), per the #83 note above.
+
+### M4: Patience (relic powers)
+
+The relics are the spine of the game; by M4 each one changes how you play. All of it lives in `effectiveRates` (or the away accrual it feeds), so live, away and UI agree, and the pacing sim keeps Lantern day 1, Hammer days 2–3, bottom days 5–7.
+
+| Relic                                 | Power (built in M4 unless noted)                                                                                                                                      |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lantern of Guidance (1M)              | Built in M1: lights the way, golden veins 40% more often.                                                                                                             |
+| Shield of Protection (10M)            | Away cap 8 h → **24 h**: a whole day away still pays. (Uncapped would let a week away skip the game; 24 h covers sleep + a workday + a busy evening.)                 |
+| Hammer of the Builder (25M)           | Built in M2: unlocks the Great Machine.                                                                                                                               |
+| Heart of Patience (45M)               | Away pay grows the longer you're gone: ×1 at first, rising linearly to **×2 after 12 h** (stacks with Steady hands). The welcome card names the bonus.                |
+| Crown of Wisdom (70M)                 | **Kid helpers**, a new tier: they mine like helpers, count as staff for machines, and each kid makes every helper and kid 2% faster ("teach"). Shown after the Crown. |
+| Mantle of the Hero (100M, the bottom) | The finale: a "You became a Legend" card with the full shelf and your days on the mountain; prestige comes in M5.                                                     |
+
+Issues (milestone _M4: Patience_), one PR each, in order: Shield away cap (#104) → Heart away bonus (#101) → Crown kid helpers (#102) → Mantle finale (#103). Each must update the relic's `power` text to match exactly what it does, extend the pacing sim if the power touches it (the Heart and the kids do), and add rules + emulator tests for any save change (kids add a `kids` field).
