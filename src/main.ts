@@ -1,5 +1,6 @@
 import lanternUrl from "./assets/boot-tile.png";
 import helperUrl from "./assets/helper-miner.png";
+import cartUrl from "./assets/mine-cart.png";
 import veinUrl from "./assets/gold-nugget.png";
 import mountainUrl from "./assets/mountain.png";
 import stoneUrl from "./assets/ore-lump.png";
@@ -34,7 +35,7 @@ try {
     mountainUrl,
     stoneUrl,
     veinUrl,
-    helperUrl,
+    tierArt: { helper: helperUrl, cart: cartUrl },
     relicArt: {
       lantern: relicLantern,
       shield: relicShield,

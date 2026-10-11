@@ -32,7 +32,7 @@ describe("serializeSave and parseSaveValue", () => {
         lastSeen: 5,
       }),
     ).toEqual({
-      mountain: { remaining: 98_000_000, pocket: 77, helpers: 4 },
+      mountain: { remaining: 98_000_000, pocket: 77, helpers: 4, carts: 0 },
       lastSeen: 5,
     });
     expect(
@@ -51,6 +51,22 @@ describe("serializeSave and parseSaveValue", () => {
     ).toBeUndefined();
   });
 
+  it("reads a save without carts as zero carts and rejects bad carts", () => {
+    const base = { remaining: 5, pocket: 1, helpers: 2 };
+    expect(
+      parseSaveValue({ version: 4, mountain: base, lastSeen: 1 })?.mountain,
+    ).toEqual({ ...base, carts: 0 });
+    for (const carts of [-1, 1.5, "3", null]) {
+      expect(
+        parseSaveValue({
+          version: 4,
+          mountain: { ...base, carts },
+          lastSeen: 1,
+        }),
+      ).toBeUndefined();
+    }
+  });
+
   it("migrates a v2 grid save and keeps its timestamp", () => {
     expect(
       parseSaveValue({
@@ -59,7 +75,12 @@ describe("serializeSave and parseSaveValue", () => {
         lastSeen: 99,
       }),
     ).toEqual({
-      mountain: { remaining: MOUNTAIN_STONES - 4, pocket: 3, helpers: 0 },
+      mountain: {
+        remaining: MOUNTAIN_STONES - 4,
+        pocket: 3,
+        helpers: 0,
+        carts: 0,
+      },
       lastSeen: 99,
     });
   });
@@ -94,7 +115,12 @@ describe("migrateLegacyGrid", () => {
   it("counts every uncovered cell as mined and pays 1 per stone, 2 per chunk", () => {
     expect(
       migrateLegacyGrid(legacyGrid(Array.from({ length: 9 }, () => "chunk"))),
-    ).toEqual({ remaining: MOUNTAIN_STONES - 9, pocket: 18, helpers: 0 });
+    ).toEqual({
+      remaining: MOUNTAIN_STONES - 9,
+      pocket: 18,
+      helpers: 0,
+      carts: 0,
+    });
   });
 
   it("rejects unknown cell kinds, including prototype keys", () => {

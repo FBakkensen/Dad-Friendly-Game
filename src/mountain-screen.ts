@@ -7,11 +7,17 @@ import { formatCount, formatDuration } from "./format";
 import {
   AWAY_CAP_MS,
   MOUNTAIN_STONES,
-  helperCost,
-  hireHelper,
   mineByHand,
   stonesPerSecond,
 } from "./mountain";
+import {
+  TIERS,
+  buyTier,
+  owned,
+  tierCost,
+  tierShown,
+  type TierId,
+} from "./tiers";
 import {
   foundRelics,
   hasRelic,
@@ -39,7 +45,7 @@ export function mountMountainScreen({
   mountainUrl,
   stoneUrl,
   veinUrl,
-  helperUrl,
+  tierArt,
   relicArt,
   auth = createUnconfiguredAuth(),
   progress: progressArg,
@@ -51,7 +57,7 @@ export function mountMountainScreen({
   mountainUrl: string;
   stoneUrl: string;
   veinUrl: string;
-  helperUrl: string;
+  tierArt: Readonly<Record<TierId, string>>;
   relicArt: Readonly<Record<RelicId, string>>;
   auth?: AuthController;
   progress?: ProgressStore;
@@ -193,32 +199,42 @@ export function mountMountainScreen({
 
   const crew = document.createElement("section");
   crew.className = "crew";
-  crew.setAttribute("aria-label", "Helper miners");
-  const helperArt = document.createElement("img");
-  helperArt.className = "helper-art";
-  helperArt.src = helperUrl;
-  helperArt.alt = "";
-  helperArt.width = 47;
-  helperArt.height = 47;
-  helperArt.draggable = false;
+  crew.setAttribute("aria-label", "Your crew");
   const crewStatus = document.createElement("p");
   crewStatus.className = "crew-status";
-  const hire = document.createElement("button");
-  hire.type = "button";
-  hire.className = "hire-helper";
-  hire.addEventListener("click", () => {
-    if (!view.ready) {
-      return;
-    }
-    progress.applyMutation(hireHelper);
+  crewStatus.setAttribute("aria-live", "polite");
+  const tierGrid = document.createElement("div");
+  tierGrid.className = "tier-grid";
+  const tierCards = TIERS.map((tier) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "tier";
+    card.dataset["tier"] = tier.id;
+    const art = document.createElement("img");
+    art.className = "tier-art";
+    art.src = tierArt[tier.id];
+    art.alt = "";
+    art.width = 32;
+    art.height = 32;
+    art.draggable = false;
+    const words = document.createElement("span");
+    words.className = "tier-words";
+    const name = document.createElement("span");
+    name.className = "tier-name";
+    const cost = document.createElement("span");
+    cost.className = "tier-cost";
+    words.append(name, cost);
+    card.append(art, words);
+    card.addEventListener("click", () => {
+      if (!view.ready) {
+        return;
+      }
+      progress.applyMutation((mountain) => buyTier(mountain, tier.id));
+    });
+    tierGrid.append(card);
+    return { tier, card, name, cost };
   });
-  const hireNote = document.createElement("p");
-  hireNote.className = "hire-note";
-  hireNote.setAttribute("aria-live", "polite");
-  const crewLine = document.createElement("div");
-  crewLine.className = "crew-line";
-  crewLine.append(helperArt, crewStatus);
-  crew.append(crewLine, hire, hireNote);
+  crew.append(crewStatus, tierGrid);
 
   const welcome = document.createElement("div");
   welcome.className = "welcome-back";
@@ -545,9 +561,13 @@ export function mountMountainScreen({
       return;
     }
     welcomeMined.textContent = `+${formatCount(report.mined)} ${report.mined === 1 ? "stone" : "stones"}`;
-    const helpers = view.mountain.helpers;
-    const crewName =
-      helpers === 1 ? "Your helper" : `Your ${formatCount(helpers)} helpers`;
+    const { helpers } = view.mountain;
+    const onlyHelpers = stonesPerSecond(view.mountain) === helpers;
+    const crewName = !onlyHelpers
+      ? "Your crew"
+      : helpers === 1
+        ? "Your helper"
+        : `Your ${formatCount(helpers)} helpers`;
     welcomeDetail.textContent = report.capped
       ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for the first ${formatDuration(AWAY_CAP_MS)}.`
       : `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined the whole time.`;
@@ -557,19 +577,28 @@ export function mountMountainScreen({
   };
 
   const renderCrew = (): void => {
-    const { helpers, pocket } = view.mountain;
+    const { mountain: current } = view;
+    const rate = stonesPerSecond(current);
     crewStatus.textContent =
-      helpers === 0
-        ? "No helpers yet. Hire one to mine while you rest."
-        : `${formatCount(helpers)} ${helpers === 1 ? "helper" : "helpers"} mining ${perSecond(stonesPerSecond(view.mountain))}`;
-    const cost = helperCost(helpers);
-    hire.textContent = `Hire a helper: ${formatCount(cost)} stones`;
-    const short = cost - pocket;
-    hire.disabled = !view.ready || short > 0;
-    hireNote.textContent =
-      short > 0
-        ? `Mine ${formatCount(short)} more ${short === 1 ? "stone" : "stones"} to hire`
-        : "";
+      rate === 0
+        ? "No crew yet. Hire a helper to mine while you rest."
+        : `Your crew mines ${perSecond(rate)}`;
+    tierGrid.dataset["shown"] = String(
+      TIERS.filter((tier) => tierShown(current, tier)).length,
+    );
+    for (const { tier, card, name, cost } of tierCards) {
+      const count = owned(current, tier);
+      const price = tierCost(tier, count);
+      card.hidden = !tierShown(current, tier);
+      card.disabled = !view.ready || current.pocket < price;
+      name.textContent =
+        count === 0 ? tier.name : `${tier.name} ×${formatCount(count)}`;
+      cost.textContent = `${formatCount(price)} stones`;
+      card.setAttribute(
+        "aria-label",
+        `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(tier.perSecond)}. You have ${formatCount(count)}.`,
+      );
+    }
   };
 
   document.addEventListener("visibilitychange", () => {

@@ -69,7 +69,7 @@ function mountScreen({
     mountainUrl: tileUrl,
     stoneUrl: tileUrl,
     veinUrl: tileUrl,
-    helperUrl: tileUrl,
+    tierArt: { helper: "helper.png", cart: "cart.png" },
     relicArt: {
       lantern: "lantern.png",
       shield: "shield.png",
@@ -168,6 +168,7 @@ describe("mountMountainScreen", () => {
       remaining: 0,
       pocket: MOUNTAIN_STONES,
       helpers: 0,
+      carts: 0,
     };
     storage.setItem(
       SESSION_SAVE_KEY,
@@ -273,7 +274,15 @@ describe("mountMountainScreen", () => {
   });
 });
 
-describe("helper miners on screen", () => {
+describe("crew tiers on screen", () => {
+  const tierCard = (root: HTMLElement, id: string): HTMLButtonElement => {
+    const card = root.querySelector(`.tier[data-tier="${id}"]`);
+    if (!(card instanceof HTMLButtonElement)) {
+      throw new Error(`${id} card did not render`);
+    }
+    return card;
+  };
+
   it("hires a helper when affordable, raises the price, and mines every second", async () => {
     vi.useFakeTimers();
     try {
@@ -287,29 +296,32 @@ describe("helper miners on screen", () => {
         }),
       );
       const screen = mountScreen({ storage });
-      const hire = screen.root.querySelector(".hire-helper");
-      if (!(hire instanceof HTMLButtonElement)) {
-        throw new Error("hire button did not render");
-      }
+      const hire = tierCard(screen.root, "helper");
+      const cart = tierCard(screen.root, "cart");
 
       expect(screen.text(".crew-status")).toBe(
-        "No helpers yet. Hire one to mine while you rest.",
+        "No crew yet. Hire a helper to mine while you rest.",
       );
-      expect(hire.textContent).toBe("Hire a helper: 10 stones");
+      expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Helper");
+      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("10 stones");
       expect(hire.disabled).toBe(true);
-      expect(screen.text(".hire-note")).toBe("Mine 1 more stone to hire");
+      expect(cart.hidden).toBe(true);
 
       screen.mountain.click();
       expect(hire.disabled).toBe(false);
-      expect(screen.text(".hire-note")).toBe("");
 
       hire.click();
       expect(screen.text(".pocket")).toBe("0 stones");
       expect(screen.text(".crew-status")).toBe(
-        "1 helper mining 1 stone a second",
+        "Your crew mines 1 stone a second",
       );
-      expect(hire.textContent).toBe("Hire a helper: 12 stones");
+      expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Helper ×1");
+      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("12 stones");
       expect(hire.disabled).toBe(true);
+      expect(cart.hidden).toBe(false);
+      expect(hire.getAttribute("aria-label")).toBe(
+        "Buy a helper for 12 stones, mines 1 stone a second. You have 1.",
+      );
 
       await vi.advanceTimersByTimeAsync(3_000);
       expect(screen.text(".pocket")).toBe("3 stones");
@@ -317,16 +329,49 @@ describe("helper miners on screen", () => {
       vi.useRealTimers();
     }
   });
-});
 
-describe("welcome-back card", () => {
+  it("buys a mine cart that mines 8 stones a second", async () => {
+    vi.useFakeTimers();
+    try {
+      const storage = createMemoryStorage();
+      storage.setItem(
+        SESSION_SAVE_KEY,
+        JSON.stringify({
+          version: 4,
+          mountain: { ...minedMountain(150), helpers: 1 },
+          lastSeen: Date.now(),
+        }),
+      );
+      const screen = mountScreen({ storage });
+      const cart = tierCard(screen.root, "cart");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("150 stones");
+      expect(cart.disabled).toBe(false);
+
+      cart.click();
+      expect(screen.text(".pocket")).toBe("0 stones");
+      expect(screen.text('[data-tier="cart"] .tier-name')).toBe("Mine cart ×1");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("173 stones");
+      expect(screen.text(".crew-status")).toBe(
+        "Your crew mines 9 stones a second",
+      );
+      expect(
+        screen.root.querySelector(".tier-grid")?.getAttribute("data-shown"),
+      ).toBe("2");
+
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(screen.text(".pocket")).toBe("18 stones");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("celebrates what the crew mined and closes with one tap", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
       JSON.stringify({
         version: 4,
-        mountain: { remaining: 100_000_000, pocket: 0, helpers: 4 },
+        mountain: { remaining: 100_000_000, pocket: 0, helpers: 4, carts: 0 },
         lastSeen: Date.now() - (2 * 60 + 5) * 60_000,
       }),
     );
@@ -358,7 +403,7 @@ describe("welcome-back card", () => {
       SESSION_SAVE_KEY,
       JSON.stringify({
         version: 4,
-        mountain: { remaining: 100_000_000, pocket: 0, helpers: 1 },
+        mountain: { remaining: 100_000_000, pocket: 0, helpers: 1, carts: 0 },
         lastSeen: Date.now() - 26 * 3_600_000,
       }),
     );

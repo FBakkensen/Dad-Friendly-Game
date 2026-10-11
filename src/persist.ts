@@ -33,6 +33,7 @@ export function serializeSave({
       remaining: mountain.remaining,
       pocket: mountain.pocket,
       helpers: mountain.helpers,
+      carts: mountain.carts,
     },
     lastSeen,
   };
