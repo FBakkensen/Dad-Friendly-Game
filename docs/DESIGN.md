@@ -126,7 +126,7 @@ M2 gives the player one choice: which tier to buy next. M3 adds the real idle-ga
   - Retune: helpers became the bottleneck, so their cost growth dropped from ×2 to ×1.15 (the 50th helper costs ~21.7k, not 2e16). That made the crew cheaper overall, so the borer's first cost rose 1.6M → 2.5M. Pacing (plain dad / upgrade-buying dad): Lantern 1.5 / 1.5, Hammer 3 / 3, bottom 6.5 / 6. The sim weighs a machine together with the helpers it still needs, and a helper by the speed it adds (its own plus any idle machine it starts).
   - Existing saves: on load, a save without the `staffed` mark gets enough free helpers to run every machine it owns, then is marked `staffed: true` so it never repeats (`staffExisting` in `src/crew.ts`, applied in the progress store for guest and cloud loads before away pay). New mountains and Start over begin marked. The welcome card says "Your crew grew: N helpers joined to run your machines." (alone, or under the away report). firestore.rules allow only `staffed == true`.
 - **Tap power scaling** (built, #82): _Strong arms_, 10 levels, first 5,000 stones then 5× each level. Each level adds 1% of the crew's speed to every tap (`1 + floor(crew/s × 1% × level)`), so tapping stays meaningful at thousands a second. The tap float shows the real yield. Bought from the Upgrades sheet: a small button beside the pocket (with a glow when something is affordable), opening a sheet so the main screen keeps its no-scroll budget.
-- **Prestige: pass the mine to your kid** (design note, #83; built in M5 with the Mantle of the Hero). The ultimate long-term choice.
+- **Prestige: pass the mine to your kid** (design note, #83; built in M6 with the Mantle of the Hero). The ultimate long-term choice.
   - _When_: offered only after the Mantle (the bottom). Never forced; the finished mountain stays as it is until you choose.
   - _Resets_: the mountain (100M stones back), pocket, every tier including helpers and kids, upgrades, boosts, relics found (the shelf starts empty again), golden-vein timer.
   - _Kept_: a **Legacy** count (how many mountains handed down), the account/save itself, settings, and the staffing mark.
@@ -140,7 +140,25 @@ M2 gives the player one choice: which tier to buy next. M3 adds the real idle-ga
 
 - **M2: Automation.** See above.
 - **M4: Patience.** Every relic finally does what its card promises. See below.
-- **M5: Legacy.** Prestige (pass the mine to your kid), per the #83 note above.
+- **M5: Maintenance.** See below. Before any new feature.
+- **M6: Legacy.** Prestige (pass the mine to your kid), per the #83 note above.
+
+### M5: Maintenance
+
+Four milestones of features landed fast. Before Legacy, pay down the cost. Rules for every PR in this milestone:
+
+- **Behavior-preserving.** No player-visible change unless it fixes a bug found here (then its own PR, with a test that failed first).
+- **Tests first.** Before moving code, pin its behavior with characterization tests; the refactor PR must not touch those tests.
+- **Coverage never drops** on the critical modules (`mountain`, `rates`, `persist`, `progress-store`, `tiers`, `crew`, `upgrades`, `boosts`, `relics`), measured by `npm run coverage` (added in the test audit) with thresholds in CI.
+- Pacing sim, the browser layout check and the Firestore emulator rules tests all stay green. Small PRs, squash-merge on green only.
+
+Issues, in order:
+
+1. **Test audit.** (#114) Add v8 coverage with per-module thresholds; list gaps on the critical modules and fill them with behavior tests; fold redundant/overlapping tests (e.g. screen tests that only re-check rate math already covered in `rates`).
+2. **Architecture review** (#115) (pstack how/architect). Module boundaries and import direction (the relics↔mountain↔rates init cycle we hit in #104), and `mountain-screen.ts` (~1,500 lines): split it into per-panel modules (tiers, upgrades sheet, shelf + relic cards, welcome/away, menu) behind the same `mountMountainScreen` API. One panel per PR, characterization tests first.
+3. **Bug hunt** (#116) (pstack blast-radius) on save/sync/time math: clock skew and `lastSeen` in the future, background vs away, Start over vs late cloud snapshots, boost end times across reloads, rounding at the bottom of the mountain, the one-time migrations. Each bug found: failing test, then fix.
+4. **Simplify / dead code.** (#117) knip strict plus a read for one-use helpers, stale constants and comments, unused CSS.
+5. **pstack correct: guards for repeated mistakes.** (#118) Lint/test guards for what bit us twice: rules drift (save fields too, not only upgrade ids), constants exported but unused, prettier on docs, import cycles (`import/no-cycle` or madge in CI).
 
 ### M4: Patience (relic powers)
 
@@ -153,6 +171,6 @@ The relics are the spine of the game; by M4 each one changes how you play. All o
 | Hammer of the Builder (25M)           | Built in M2: unlocks the Great Machine.                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Heart of Patience (45M)               | Built (#101): away pay grows the longer you're gone, from ×1 rising linearly to **×1.5 after 12 h** (`heartBonus` in `src/rates.ts`, over the paid time only; stacks with Steady hands). The welcome card names it ("The Heart of Patience made it ×1.25."). Planned ×2, but ×2 pulled the sim bottom to day 5.0; ×1.5 lands it at 5.5 for both sim dads with Hammer at day 3 and no other retune.                                                        |
 | Crown of Wisdom (70M)                 | Built (#102): **Kid helper** tier (`kids` in the save; rules + emulator tests). 1M stones, then the helpers' ×1.15 curve; mines 1/s, counts as staff for machines, and each kid makes every helper and kid 2% faster. Shown (locked) once you own a Great Machine, buyable after the Crown. Kid sprite from PixelLab (`src/assets/kid-helper.png`). Pacing unchanged (bottom day 5.5).                                                                    |
-| Mantle of the Hero (100M, the bottom) | Built (#103): closing the Mantle's reveal opens the **Legend finale** ("You became a Legend"): the full shelf of six, "100 million stones moved. Six relics found. A crew of N beside you.", a nod to passing the mine to your kid (M5). Shown once per run (it rides on the one-time Mantle reveal, so no save field). Days on the mountain were dropped: first-run saves carry no start time, and adding one would need a save field for a single line. |
+| Mantle of the Hero (100M, the bottom) | Built (#103): closing the Mantle's reveal opens the **Legend finale** ("You became a Legend"): the full shelf of six, "100 million stones moved. Six relics found. A crew of N beside you.", a nod to passing the mine to your kid (M6). Shown once per run (it rides on the one-time Mantle reveal, so no save field). Days on the mountain were dropped: first-run saves carry no start time, and adding one would need a save field for a single line. |
 
 Issues (milestone _M4: Patience_), one PR each, in order: Shield away cap (#104) → Heart away bonus (#101) → Crown kid helpers (#102) → Mantle finale (#103). Each must update the relic's `power` text to match exactly what it does, extend the pacing sim if the power touches it (the Heart and the kids do), and add rules + emulator tests for any save change (kids add a `kids` field).
