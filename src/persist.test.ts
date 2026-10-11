@@ -39,6 +39,7 @@ describe("serializeSave and parseSaveValue", () => {
         carts: 0,
         drills: 0,
         borers: 0,
+        machines: 0,
       },
       lastSeen: 5,
     });
@@ -62,14 +63,14 @@ describe("serializeSave and parseSaveValue", () => {
     const base = { remaining: 5, pocket: 1, helpers: 2 };
     expect(
       parseSaveValue({ version: 4, mountain: base, lastSeen: 1 })?.mountain,
-    ).toEqual({ ...base, carts: 0, drills: 0, borers: 0 });
+    ).toEqual({ ...base, carts: 0, drills: 0, borers: 0, machines: 0 });
     expect(
       parseSaveValue({
         version: 4,
         mountain: { ...base, carts: 1, drills: 2 },
         lastSeen: 1,
       })?.mountain,
-    ).toEqual({ ...base, carts: 1, drills: 2, borers: 0 });
+    ).toEqual({ ...base, carts: 1, drills: 2, borers: 0, machines: 0 });
     expect(
       parseSaveValue({
         version: 4,
@@ -77,6 +78,20 @@ describe("serializeSave and parseSaveValue", () => {
         lastSeen: 1,
       })?.mountain.borers,
     ).toBe(7);
+    expect(
+      parseSaveValue({
+        version: 4,
+        mountain: { ...base, machines: 3 },
+        lastSeen: 1,
+      })?.mountain.machines,
+    ).toBe(3);
+    expect(
+      parseSaveValue({
+        version: 4,
+        mountain: { ...base, machines: -1 },
+        lastSeen: 1,
+      }),
+    ).toBeUndefined();
     for (const borers of [-1, 1.5, "3", null]) {
       expect(
         parseSaveValue({
@@ -121,6 +136,7 @@ describe("serializeSave and parseSaveValue", () => {
         carts: 0,
         drills: 0,
         borers: 0,
+        machines: 0,
       },
       lastSeen: 99,
     });
@@ -163,6 +179,7 @@ describe("migrateLegacyGrid", () => {
       carts: 0,
       drills: 0,
       borers: 0,
+      machines: 0,
     });
   });
 

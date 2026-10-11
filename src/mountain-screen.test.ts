@@ -87,6 +87,7 @@ function mountScreen({
       cart: "cart.png",
       drill: "drill.png",
       borer: "borer.png",
+      machine: "machine.png",
     },
     relicArt: {
       lantern: "lantern.png",
@@ -189,6 +190,7 @@ describe("mountMountainScreen", () => {
       carts: 0,
       drills: 0,
       borers: 0,
+      machines: 0,
     };
     storage.setItem(
       SESSION_SAVE_KEY,
@@ -318,7 +320,7 @@ describe("crew tiers on screen", () => {
     });
     const screen = mountScreen({ storage });
     const grid = screen.root.querySelector(".tier-grid");
-    expect(grid?.getAttribute("data-shown")).toBe("4");
+    expect(grid?.getAttribute("data-shown")).toBe("5");
     expect(grid?.classList.contains("tier-grid-compact")).toBe(true);
     const borer = tierCard(screen.root, "borer");
     expect(borer.querySelector(".tier-name")?.textContent).toBe("Borer");
@@ -327,6 +329,60 @@ describe("crew tiers on screen", () => {
     );
     expect(borer.querySelector(".tier-count")?.textContent).toBe("×2");
     expect(borer.getAttribute("aria-label")).toContain("tunnel borer");
+  });
+
+  it("shows the Great Machine dark and locked until the Hammer", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(24_999_999),
+        pocket: 10_000_000,
+        drills: 1,
+        borers: 1,
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const machine = tierCard(screen.root, "machine");
+    expect(machine.hidden).toBe(false);
+    expect(machine.disabled).toBe(true);
+    expect(machine.classList.contains("tier-locked")).toBe(true);
+    expect(machine.querySelector(".tier-cost")?.textContent).toBe("Locked");
+    expect(machine.querySelector(".tier-rate")?.textContent).toBe(
+      "Hammer · 25M",
+    );
+    expect(machine.getAttribute("aria-label")).toContain(
+      "Needs the Hammer of the Builder",
+    );
+    machine.click();
+    expect(
+      screen.root
+        .querySelector('.tier[data-tier="machine"] .tier-count')
+        ?.hasAttribute("hidden"),
+    ).toBe(true);
+  });
+
+  it("sells the Great Machine once the Hammer is found", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(25_000_000),
+        pocket: 700_000,
+        drills: 1,
+        borers: 1,
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const machine = tierCard(screen.root, "machine");
+    expect(machine.classList.contains("tier-locked")).toBe(false);
+    expect(machine.disabled).toBe(false);
+    expect(machine.querySelector(".tier-cost")?.textContent).toBe("600K");
+    machine.click();
+    expect(machine.querySelector(".tier-count")?.textContent).toBe("×1");
+    expect(screen.text(".pocket")).toBe("100 thousand stones");
   });
 
   it("keeps the roomy two-column cards while three or fewer show", () => {
@@ -446,6 +502,7 @@ describe("crew tiers on screen", () => {
           carts: 0,
           drills: 0,
           borers: 0,
+          machines: 0,
         },
         lastSeen: Date.now() - (2 * 60 + 5) * 60_000,
       }),
@@ -485,6 +542,7 @@ describe("crew tiers on screen", () => {
           carts: 0,
           drills: 0,
           borers: 0,
+          machines: 0,
         },
         lastSeen: Date.now() - 26 * 3_600_000,
       }),
@@ -780,6 +838,7 @@ describe("start over", () => {
           carts: 1,
           drills: 0,
           borers: 0,
+          machines: 0,
         },
         lastSeen: Date.now(),
       }),
@@ -865,6 +924,7 @@ describe("start over", () => {
         carts: 0,
         drills: 0,
         borers: 0,
+        machines: 0,
       },
     });
     expect(typeof saved.mountain.startedAt).toBe("number");
@@ -919,6 +979,7 @@ describe("what the crew gives", () => {
           carts: 3,
           drills: 0,
           borers: 0,
+          machines: 0,
         },
         lastSeen: Date.now(),
       }),

@@ -15,6 +15,7 @@ export type Mountain = {
   readonly carts: number;
   readonly drills: number;
   readonly borers: number;
+  readonly machines: number;
   /**
    * When this run began (epoch ms), set by "Start over". Missing means the
    * first run. A save from an older run never replaces a newer one.
@@ -35,6 +36,7 @@ export function createMountain(): Mountain {
     carts: 0,
     drills: 0,
     borers: 0,
+    machines: 0,
   };
 }
 
@@ -145,6 +147,7 @@ export function parseMountain(
     carts = 0,
     drills = 0,
     borers = 0,
+    machines = 0,
     startedAt,
   } = value as Record<string, unknown>;
   if (
@@ -155,11 +158,20 @@ export function parseMountain(
     !isCount(carts) ||
     !isCount(drills) ||
     !isCount(borers) ||
+    !isCount(machines) ||
     (startedAt !== undefined && !isCount(startedAt))
   ) {
     return undefined;
   }
-  const mountain = { remaining, pocket, helpers, carts, drills, borers };
+  const mountain = {
+    remaining,
+    pocket,
+    helpers,
+    carts,
+    drills,
+    borers,
+    machines,
+  };
   return startedAt === undefined ? mountain : { ...mountain, startedAt };
 }
 
