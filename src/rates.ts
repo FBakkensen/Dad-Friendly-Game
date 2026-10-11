@@ -20,6 +20,10 @@ export type Rates = {
   readonly tapYield: number;
   /** Stones a second one of each tier mines. */
   readonly tierSpeed: Readonly<Record<TierId, number>>;
+  /** How many of each tier have the helpers to run (helpers always run). */
+  readonly running: Readonly<Record<TierId, number>>;
+  /** Helpers short of running every machine; 0 when all are staffed. */
+  readonly helpersShort: number;
   /** The whole crew, stones a second. */
   readonly crewPerSecond: number;
   /** Share of crew speed paid for time away. */
@@ -48,10 +52,24 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
   for (const tier of TIERS) {
     tierSpeed[tier.id] *= 1 + tierSynergy(mountain, tier.id);
   }
+  // Staffing: helpers run the fastest machines first; the rest sit idle.
+  // Helpers still mine by hand while they run a machine.
+  const running = { helper: mountain.helpers } as Record<TierId, number>;
+  let free = mountain.helpers;
+  let needed = 0;
+  for (const tier of [...TIERS].reverse()) {
+    if (tier.staff === 0) {
+      continue;
+    }
+    const count = owned(mountain, tier);
+    running[tier.id] = Math.min(count, Math.floor(free / tier.staff));
+    free -= running[tier.id] * tier.staff;
+    needed += count * tier.staff;
+  }
   // Whole stones a second, so what the crew line says is what gets mined.
   const baseCrew = Math.floor(
     TIERS.reduce(
-      (total, tier) => total + owned(mountain, tier) * tierSpeed[tier.id],
+      (total, tier) => total + running[tier.id] * tierSpeed[tier.id],
       0,
     ) + 1e-9,
   );
@@ -60,6 +78,8 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
   return {
     tapYield: (1 + Math.floor(baseCrew * tapShare)) * boosted("sharper"),
     tierSpeed,
+    running,
+    helpersShort: Math.max(0, needed - mountain.helpers),
     crewPerSecond: baseCrew * boosted("overtime"),
     awayPay:
       AWAY_PAY_RATE *

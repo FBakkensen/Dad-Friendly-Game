@@ -312,7 +312,7 @@ describe("crew tiers on screen", () => {
       storage,
       mountain: {
         ...minedMountain(400),
-        helpers: 3,
+        helpers: 12,
         carts: 2,
         drills: 1,
         borers: 2,
@@ -440,11 +440,11 @@ describe("crew tiers on screen", () => {
       );
       expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Helper");
       expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×1");
-      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("40");
+      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("23");
       expect(hire.disabled).toBe(true);
       expect(cart.hidden).toBe(false);
       expect(hire.getAttribute("aria-label")).toBe(
-        "Buy a helper for 40 stones, mines 1 stone a second. You have 1.",
+        "Buy a helper for 23 stones, mines 1 stone a second. You have 1.",
       );
 
       await vi.advanceTimersByTimeAsync(3_000);
@@ -976,7 +976,7 @@ describe("what the crew gives", () => {
         version: 4,
         mountain: {
           ...minedMountain(2_500),
-          helpers: 2,
+          helpers: 4,
           carts: 3,
           drills: 0,
           borers: 0,
@@ -991,7 +991,7 @@ describe("what the crew gives", () => {
   it("shows each tier's output per unit and its current total", () => {
     const screen = mountScreen({ storage: seededCrew() });
     expect(screen.text('[data-tier="helper"] .tier-rate')).toBe(
-      "+1 each · 2/s",
+      "+1 each · 4/s",
     );
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
       "+10 each · 30/s",
@@ -1001,7 +1001,7 @@ describe("what the crew gives", () => {
         const storage = createMemoryStorage();
         writeSessionSave({
           storage,
-          mountain: { ...minedMountain(0), helpers: 1, carts: 150 },
+          mountain: { ...minedMountain(0), helpers: 150, carts: 150 },
           lastSeen: Date.now(),
         });
         return storage;
@@ -1020,15 +1020,15 @@ describe("what the crew gives", () => {
       cart?.click();
       expect(cart?.querySelector(".float-gain")?.textContent).toBe("+10/s");
       expect(screen.text(".crew-status")).toBe(
-        "Your crew mines 32 stones a second",
+        "Your crew mines 34 stones a second",
       );
       await vi.advanceTimersByTimeAsync(240);
       const midway = screen.text(".crew-status");
-      expect(midway).not.toBe("Your crew mines 32 stones a second");
-      expect(midway).not.toBe("Your crew mines 42 stones a second");
+      expect(midway).not.toBe("Your crew mines 34 stones a second");
+      expect(midway).not.toBe("Your crew mines 44 stones a second");
       await vi.advanceTimersByTimeAsync(400);
       expect(screen.text(".crew-status")).toBe(
-        "Your crew mines 42 stones a second",
+        "Your crew mines 44 stones a second",
       );
       expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
         "+10 each · 40/s",
@@ -1051,7 +1051,7 @@ describe("what the crew gives", () => {
         ".mountain-stage .crew-float",
       );
       expect(floats).toHaveLength(1);
-      expect(floats[0]?.textContent).toBe("+32 crew");
+      expect(floats[0]?.textContent).toBe("+34 crew");
       expect(floats[0]?.getAttribute("aria-hidden")).toBe("true");
     } finally {
       vi.useRealTimers();
@@ -1084,7 +1084,7 @@ describe("what the crew gives", () => {
       cart?.click();
       expect(cart?.querySelector(".float-gain")).toBeNull();
       expect(screen.text(".crew-status")).toBe(
-        "Your crew mines 42 stones a second",
+        "Your crew mines 44 stones a second",
       );
       await vi.advanceTimersByTimeAsync(1_000);
       expect(screen.root.querySelector(".crew-float")).toBeNull();
@@ -1107,7 +1107,7 @@ describe("upgrades on screen", () => {
   it("opens the sheet from beside the pocket, buys Strong arms, and taps harder", () => {
     setReducedMotion(false);
     const screen = mountScreen({
-      storage: seededWith({ ...minedMountain(30_000), carts: 50 }),
+      storage: seededWith({ ...minedMountain(30_000), helpers: 500 }),
     });
     document.body.append(screen.root);
     const button = screen.root.querySelector<HTMLButtonElement>(
@@ -1189,7 +1189,7 @@ describe("quick boosts on screen", () => {
       const storage = createMemoryStorage();
       writeSessionSave({
         storage,
-        mountain: { ...minedMountain(40_000), carts: 50 },
+        mountain: { ...minedMountain(40_000), helpers: 500 },
         lastSeen: clock,
       });
       const screen = mountScreen({ storage, now: () => clock });
@@ -1362,5 +1362,75 @@ describe("crew synergy copy before the tier exists", () => {
     expect(screen.text('[data-upgrade="machineSyn"] .upgrade-buy')).toBe(
       "Unlocks with the Great Machine",
     );
+  });
+});
+
+describe("crew staffing on screen", () => {
+  it("shows idle machines on their cards and how many helpers the crew line needs", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(0),
+        pocket: 1_000,
+        helpers: 5,
+        carts: 3,
+        drills: 2,
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    // 5 helpers: both drills (4), then one cart; 2 carts idle.
+    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe("2 idle");
+    expect(
+      screen.root
+        .querySelector('[data-tier="cart"]')
+        ?.classList.contains("tier-idle"),
+    ).toBe(true);
+    expect(
+      screen.root
+        .querySelector('[data-tier="cart"]')
+        ?.getAttribute("aria-label"),
+    ).toContain("2 idle: each needs 1 helper to run");
+    expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
+      "+60\u2009·\u2009120/s",
+    );
+    expect(screen.text(".crew-status")).toBe(
+      "135/s · 2 idle, need 2 more helpers",
+    );
+
+    // Hiring one helper starts one cart.
+    screen.root
+      .querySelector<HTMLButtonElement>('[data-tier="helper"]')
+      ?.click();
+    expect(screen.text(".crew-status")).toBe(
+      "146/s · 1 idle, need 1 more helper",
+    );
+  });
+
+  it("floats 'Needs helpers' when a new machine has nobody to run it", () => {
+    vi.useFakeTimers();
+    setReducedMotion(false);
+    try {
+      const storage = createMemoryStorage();
+      writeSessionSave({
+        storage,
+        mountain: { ...minedMountain(0), pocket: 1_000, helpers: 1, carts: 1 },
+        lastSeen: Date.now(),
+      });
+      const screen = mountScreen({ storage });
+      const cart =
+        screen.root.querySelector<HTMLButtonElement>('[data-tier="cart"]');
+      cart?.click();
+      expect(cart?.querySelector(".float-gain")?.textContent).toBe(
+        "Needs helpers",
+      );
+      expect(screen.text(".crew-status")).toBe(
+        "11/s · 1 idle, need 1 more helper",
+      );
+    } finally {
+      vi.useRealTimers();
+      setReducedMotion(true);
+    }
   });
 });

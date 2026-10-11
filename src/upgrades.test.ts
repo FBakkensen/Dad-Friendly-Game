@@ -13,7 +13,7 @@ import {
   upgradeUnlocked,
 } from "./upgrades";
 
-const crew = { ...minedMountain(0), carts: 50 }; // 500 stones a second
+const crew = { ...minedMountain(0), helpers: 500 }; // 500 stones a second
 
 describe("Strong arms (tap power)", () => {
   const arms = upgradeById("tap");
@@ -185,16 +185,16 @@ describe("crew synergies", () => {
   it("stacks with Better boots and other synergies", () => {
     const crew = {
       ...rich,
-      helpers: 10,
+      helpers: 30, // staffs 10 carts and 10 drills
       carts: 10,
       drills: 10,
       upgrades: { boots: 1, cartSyn: 1, drillSyn: 1 },
     };
     const rates = effectiveRates(crew);
     expect(rates.tierSpeed.helper).toBeCloseTo(1.1);
-    expect(rates.tierSpeed.cart).toBeCloseTo(11);
+    expect(rates.tierSpeed.cart).toBeCloseTo(13);
     expect(rates.tierSpeed.drill).toBeCloseTo(66);
-    expect(rates.crewPerSecond).toBe(11 + 110 + 660);
+    expect(rates.crewPerSecond).toBe(33 + 130 + 660);
   });
 
   it("save and load", () => {

@@ -418,9 +418,13 @@ export function mountMountainScreen({
       const rateBefore = stonesPerSecond(view.mountain, now());
       progress.applyMutation((mountain) => buyCrew(mountain, tier.id));
       if (owned(view.mountain, tier) > before) {
+        const after = effectiveRates(view.mountain);
+        // A new machine nobody can run says so, instead of promising speed.
         floatText(
           card,
-          `+${formatSpeed(effectiveRates(view.mountain).tierSpeed[tier.id])}/s`,
+          after.running[tier.id] > before
+            ? `+${formatSpeed(after.tierSpeed[tier.id])}/s`
+            : "Needs helpers",
           "float-gain",
         );
         countCrewRate(rateBefore, stonesPerSecond(view.mountain, now()));
@@ -1135,10 +1139,18 @@ export function mountMountainScreen({
   const renderCrew = (): void => {
     const { mountain: current } = view;
     const rate = rateShown ?? stonesPerSecond(current, now());
+    const rates = effectiveRates(current);
+    const idle = TIERS.reduce(
+      (total, tier) => total + owned(current, tier) - rates.running[tier.id],
+      0,
+    );
+    crewStatus.classList.toggle("crew-short", rates.helpersShort > 0);
     crewStatus.textContent =
-      rate === 0
-        ? "No crew yet. Hire a helper to mine while you rest."
-        : `Your crew mines ${perSecond(rate)}`;
+      rates.helpersShort > 0
+        ? `${formatCompact(rate)}/s · ${String(idle)} idle, need ${String(rates.helpersShort)} more ${rates.helpersShort === 1 ? "helper" : "helpers"}`
+        : rate === 0
+          ? "No crew yet. Hire a helper to mine while you rest."
+          : `Your crew mines ${perSecond(rate)}`;
     const shownCount = TIERS.filter((tier) => tierShown(current, tier)).length;
     tierGrid.dataset["shown"] = String(shownCount);
     // Three to a row once there are four or more, so every tier fits in two rows.
@@ -1165,30 +1177,39 @@ export function mountMountainScreen({
       countBadge.textContent = `×${formatCompact(count)}`;
       countBadge.hidden = count === 0;
       costText.textContent = locked ? "Locked" : formatCompact(price);
-      const speed = effectiveRates(current).tierSpeed[tier.id];
+      const speed = rates.tierSpeed[tier.id];
+      // Only staffed machines count; the rest show as idle.
+      const running = rates.running[tier.id];
+      const idleHere = count - running;
+      card.classList.toggle("tier-idle", !locked && idleHere > 0);
       // A bought crew synergy shows as "↑12%" in the rate line (just "↑" on tight cards).
       const synergy = tierSynergy(current, tier.id);
       const lift = `\u2191${String(Math.round(synergy * 100))}%`;
       tierRate.textContent = locked
         ? `${needed?.name.split(" ")[0] ?? "Relic"} · ${formatCompact(needed?.depth ?? 0)}`
-        : synergy > 0
+        : idleHere > 0
           ? compact
-            ? // Tight cards keep just the arrow; the sheet and label say how much.
-              `\u2191\u2009${formatCompact(count * speed)}/s`
-            : `+${formatSpeed(speed)} ${lift} · ${formatCompact(count * speed)}/s`
-          : compact
-            ? count === 0
-              ? `+${formatSpeed(speed)}/s`
-              : `+${formatSpeed(speed)}\u2009·\u2009${formatCompact(count * speed)}/s`
-            : count === 0
-              ? `+${formatSpeed(speed)}/s each`
-              : // "each" drops out once the total needs four digits, so the line fits.
-                `+${formatSpeed(speed)}${count * speed < 1_000 ? " each" : ""} · ${formatCompact(count * speed)}/s`;
+            ? // Tight cards: the idle count is the news; the crew line has the speed.
+              `${formatCompact(idleHere)} idle`
+            : `${formatCompact(idleHere)} idle\u2009·\u2009${formatCompact(running * speed)}/s`
+          : synergy > 0
+            ? compact
+              ? // Tight cards keep just the arrow; the sheet and label say how much.
+                `\u2191\u2009${formatCompact(running * speed)}/s`
+              : `+${formatSpeed(speed)} ${lift} · ${formatCompact(running * speed)}/s`
+            : compact
+              ? count === 0
+                ? `+${formatSpeed(speed)}/s`
+                : `+${formatSpeed(speed)}\u2009·\u2009${formatCompact(running * speed)}/s`
+              : count === 0
+                ? `+${formatSpeed(speed)}/s each`
+                : // "each" drops out once the total needs four digits, so the line fits.
+                  `+${formatSpeed(speed)}${running * speed < 1_000 ? " each" : ""} · ${formatCompact(running * speed)}/s`;
       card.setAttribute(
         "aria-label",
         locked
           ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.`
-          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}.`,
+          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(tier.staff)} ${tier.staff === 1 ? "helper" : "helpers"} to run` : ""}.`,
       );
     }
   };

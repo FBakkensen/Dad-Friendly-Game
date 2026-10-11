@@ -3,6 +3,11 @@ import type { RelicId } from "./relics";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
 const COST_GROWTH = 2;
+/**
+ * Helpers staff every machine, so they need far more of them: a gentle curve
+ * keeps the hundredth helper affordable. Tuned by src/pacing.test.ts.
+ */
+const HELPER_COST_GROWTH = 1.15;
 
 export type TierId = "helper" | "cart" | "drill" | "borer" | "machine";
 
@@ -19,6 +24,8 @@ export type Tier = {
   readonly firstCost: number;
   /** Stones a second each one mines. */
   readonly perSecond: number;
+  /** Helpers it takes to run one; without them it sits idle (see rates.ts). */
+  readonly staff: number;
   /** A relic that must be found before it can be built (see crew.ts). */
   readonly needs?: RelicId;
 };
@@ -32,6 +39,7 @@ export const TIERS: readonly Tier[] = [
     shortName: "Helper",
     firstCost: 20,
     perSecond: 1,
+    staff: 0,
   },
   {
     id: "cart",
@@ -40,6 +48,7 @@ export const TIERS: readonly Tier[] = [
     shortName: "Cart",
     firstCost: 100,
     perSecond: 10,
+    staff: 1,
   },
   {
     id: "drill",
@@ -48,14 +57,16 @@ export const TIERS: readonly Tier[] = [
     shortName: "Drill",
     firstCost: 20_000,
     perSecond: 60,
+    staff: 2,
   },
   {
     id: "borer",
     field: "borers",
     name: "Tunnel borer",
     shortName: "Borer",
-    firstCost: 1_600_000,
+    firstCost: 2_500_000,
     perSecond: 350,
+    staff: 4,
   },
   {
     id: "machine",
@@ -64,6 +75,7 @@ export const TIERS: readonly Tier[] = [
     shortName: "Machine",
     firstCost: 80_000_000,
     perSecond: 3_500,
+    staff: 10,
     needs: "hammer",
   },
 ];
@@ -80,11 +92,16 @@ export function owned(mountain: Mountain, tier: Tier): number {
   return mountain[tier.field];
 }
 
-/** Cookie Clicker curve, but steep: each one costs twice the last. */
+/** Cookie Clicker curve: machines double each time; helpers grow gently. */
 export function tierCost(tier: Tier, ownedCount: number): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
   return Math.ceil(
-    Number((tier.firstCost * COST_GROWTH ** ownedCount).toPrecision(12)),
+    Number(
+      (
+        tier.firstCost *
+        (tier.id === "helper" ? HELPER_COST_GROWTH : COST_GROWTH) ** ownedCount
+      ).toPrecision(12),
+    ),
   );
 }
 

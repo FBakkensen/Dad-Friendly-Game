@@ -57,15 +57,38 @@ function bestValue(
       best = pick;
     }
   };
+  const rates = effectiveRates(mountain);
+  const helper = tierById("helper");
+  const freeHelpers =
+    mountain.helpers -
+    TIERS.reduce((used, tier) => used + rates.running[tier.id] * tier.staff, 0);
   for (const tier of TIERS) {
     if (!tierShown(mountain, tier) || tierLocked(mountain, tier)) {
       continue;
     }
     const cost = tierCost(tier, owned(mountain, tier));
+    if (tier.staff === 0) {
+      // A helper is worth its own stones plus any idle machine it starts.
+      const gain =
+        effectiveRates(buyCrew({ ...mountain, pocket: cost }, tier.id))
+          .crewPerSecond - rates.crewPerSecond;
+      consider({
+        buy: (current) => buyCrew(current, tier.id),
+        cost,
+        value: (gain * CREW_DAY_SECONDS) / cost,
+      });
+      continue;
+    }
+    // A machine is weighed with the helpers it still needs, bought next.
+    const short = Math.max(0, tier.staff - freeHelpers);
+    let crewCost = 0;
+    for (let extra = 0; extra < short; extra += 1) {
+      crewCost += tierCost(helper, mountain.helpers + extra);
+    }
     consider({
       buy: (current) => buyCrew(current, tier.id),
       cost,
-      value: (tier.perSecond * CREW_DAY_SECONDS) / cost,
+      value: (rates.tierSpeed[tier.id] * CREW_DAY_SECONDS) / (cost + crewCost),
     });
   }
   if (withUpgrades) {

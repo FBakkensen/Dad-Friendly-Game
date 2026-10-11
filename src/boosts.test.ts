@@ -11,7 +11,7 @@ import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 
 const MIN = 60_000;
-const crew = { ...minedMountain(0), carts: 50, pocket: 1_000_000 }; // 500/s
+const crew = { ...minedMountain(0), helpers: 500, pocket: 1_000_000 }; // 500/s
 
 describe("quick boosts", () => {
   it("are priced from the crew's speed, with a floor for new dads", () => {

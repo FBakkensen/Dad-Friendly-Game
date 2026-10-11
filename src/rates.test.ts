@@ -7,7 +7,7 @@ describe("effectiveRates", () => {
   it("is the plain table with no upgrades: taps 1, tiers at list speed", () => {
     const rates = effectiveRates({
       ...minedMountain(0),
-      helpers: 2,
+      helpers: 11, // staffs the cart and the Great Machine
       carts: 1,
       machines: 1,
     });
@@ -15,7 +15,7 @@ describe("effectiveRates", () => {
     expect(rates.tierSpeed).toEqual(
       Object.fromEntries(TIERS.map((tier) => [tier.id, tier.perSecond])),
     );
-    expect(rates.crewPerSecond).toBe(2 + 10 + 3_500);
+    expect(rates.crewPerSecond).toBe(11 + 10 + 3_500);
     expect(rates.awayPay).toBe(AWAY_PAY_RATE);
   });
 });
