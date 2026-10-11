@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BOOSTS } from "./boosts";
+import type { Mountain } from "./mountain";
 import { UPGRADES } from "./upgrades";
 
 /**
@@ -34,5 +35,29 @@ describe("firestore.rules match the game", () => {
     expect(listed("boosts").sort()).toEqual(
       BOOSTS.map((boost) => boost.id).sort(),
     );
+  });
+
+  it("allows exactly the mountain's save fields (#118)", () => {
+    // Required<Mountain>: a new save field fails typecheck here until it's
+    // listed, and then this test fails until firestore.rules allows it.
+    const everyField: Required<Mountain> = {
+      remaining: 0,
+      pocket: 0,
+      helpers: 0,
+      carts: 0,
+      drills: 0,
+      borers: 0,
+      machines: 0,
+      kids: 0,
+      upgrades: {},
+      boosts: {},
+      startedAt: 0,
+      staffed: true,
+    };
+    const match = /mountain\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/.exec(rules);
+    const allowed = (match?.[1] ?? "")
+      .split(",")
+      .map((key) => key.trim().replace(/'/g, ""));
+    expect(allowed.sort()).toEqual(Object.keys(everyField).sort());
   });
 });

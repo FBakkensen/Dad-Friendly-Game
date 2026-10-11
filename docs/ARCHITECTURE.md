@@ -26,8 +26,10 @@ page is the map, plus the rules that keep it that way.
 - **Single source for rates holds.** All speed, tap and away math goes
   through `effectiveRates`; the screen never multiplies on its own.
 - **Import cycle (fixed in #104):** `relics` ↔ `mountain` ↔ `rates` broke at
-  module init; `MOUNTAIN_STONES` now lives in the leaf module `scale`. A CI
-  cycle guard comes in #118.
+  module init; `MOUNTAIN_STONES` now lives in the leaf module `scale`. `npm run cycles`
+  (part of `npm run check`, so CI) now fails on any runtime import cycle; it
+  found one more (`relics` → `mountain` for `minedOut`), fixed by moving
+  `minedOut` to `scale` (#118).
 - **`mountain-screen.ts` was ~1,500 lines** doing layout, ten dialogs and
   their copy. Split plan, one panel per PR, the screen tests unchanged by each
   move (they are the characterization tests, 97% line coverage):
@@ -45,3 +47,12 @@ page is the map, plus the rules that keep it that way.
 - **Panel contract:** a panel gets `progress`, `getView`, `now` and a
   `requestRender` callback; it never reads another panel's elements, and it
   owns its open/closed state.
+
+## Guards (#118)
+
+- `npm run cycles`: no runtime import cycles in `src`.
+- `rules-drift.test.ts`: `firestore.rules` allows exactly the `Mountain` save
+  fields (a `Required<Mountain>` sample makes a new field a type error until
+  listed), every upgrade id with its max level, and every boost id.
+- `knip` (strict): no unused files, exports or dependencies.
+- `prettier --check .` covers docs too; coverage floors per critical module.

@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "node scripts/knip-strict.js",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run knip && npm run coverage && npm run test:rules && npm run visual",
+    "cycles": "node scripts/check-cycles.mjs",
+    "check": "npm run typecheck && npm run lint && npm run cycles && npm run format:check && npm run knip && npm run coverage && npm run test:rules && npm run visual",
     "visual": "node scripts/visual-check.mjs",
     "test:rules": "node scripts/test-rules.mjs"
   },

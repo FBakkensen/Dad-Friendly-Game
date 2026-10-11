@@ -56,9 +56,7 @@ export function createMountain(): Mountain {
   };
 }
 
-export function minedOut(mountain: Mountain): number {
-  return MOUNTAIN_STONES - mountain.remaining;
-}
+export { minedOut } from "./scale";
 
 /** One tap mines its yield (see effectiveRates); an empty mountain returns the same object. */
 export function mineByHand(mountain: Mountain, now?: number): Mountain {

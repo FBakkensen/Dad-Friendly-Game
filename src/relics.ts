@@ -1,5 +1,5 @@
-import { minedOut, type Mountain } from "./mountain";
-import { MOUNTAIN_STONES } from "./scale";
+import type { Mountain } from "./mountain";
+import { MOUNTAIN_STONES, minedOut } from "./scale";
 
 export type RelicId =
   "lantern" | "shield" | "hammer" | "heart" | "crown" | "mantle";
