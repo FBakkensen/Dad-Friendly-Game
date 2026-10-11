@@ -28,6 +28,7 @@ describe("crew unlocks", () => {
     expect(buyCrew(nearHammer, "machine")).toBe(nearHammer);
     expect(buyCrew(atHammer, "machine")).toMatchObject({
       machines: 1,
+      kids: 0,
       pocket: 10_000_000,
     });
     expect(buyCrew(nearHammer, "borer")).toMatchObject({ borers: 2 });

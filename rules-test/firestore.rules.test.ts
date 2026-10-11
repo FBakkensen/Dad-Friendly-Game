@@ -87,6 +87,20 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     ).rejects.toThrow(/permission/i);
   });
 
+  it("Crown of Wisdom kid helpers (#102)", async () => {
+    const mountain = { ...createMountain(), helpers: 40, kids: 12 };
+    expect(await roundTrip(mountain)).toEqual(mountain);
+    const raw = serializeSave({ mountain, lastSeen: 1 });
+    for (const kids of [-1, 1.5, "7"]) {
+      await expect(
+        setDoc(doc(db, "saves", "dad"), {
+          ...raw,
+          mountain: { ...raw.mountain, kids },
+        }),
+      ).rejects.toThrow(/permission/i);
+    }
+  });
+
   it("rejects unknown upgrades and levels past the top", async () => {
     await expect(
       save({

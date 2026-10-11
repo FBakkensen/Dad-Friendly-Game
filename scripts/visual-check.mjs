@@ -292,7 +292,14 @@ for (const viewport of [
   const size = `${String(viewport[0])}x${String(viewport[1])}`;
   for (const [crew, font] of [
     [
-      { helpers: 999, carts: 999, drills: 999, borers: 999, machines: 999 },
+      {
+        helpers: 999,
+        carts: 999,
+        drills: 999,
+        borers: 999,
+        machines: 999,
+        kids: 999,
+      },
       undefined,
     ],
     [{ helpers: 120, carts: 85, drills: 40, borers: 0 }, undefined],
@@ -303,12 +310,26 @@ for (const viewport of [
     // CI's fallback font is wide; it must fit there too.
     [{ helpers: 999, carts: 999 }, "DejaVu Sans"],
     [
-      { helpers: 999, carts: 999, drills: 999, borers: 999, machines: 999 },
+      {
+        helpers: 999,
+        carts: 999,
+        drills: 999,
+        borers: 999,
+        machines: 999,
+        kids: 999,
+      },
       "DejaVu Sans",
     ],
     // Short of helpers: idle machines on every card, the longest crew line.
     [
-      { helpers: 1, carts: 999, drills: 999, borers: 999, machines: 999 },
+      {
+        helpers: 1,
+        carts: 999,
+        drills: 999,
+        borers: 999,
+        machines: 999,
+        kids: 0,
+      },
       "DejaVu Sans",
     ],
     // Every crew synergy bought: "↑999%" joins the rate line.

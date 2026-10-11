@@ -90,6 +90,7 @@ function mountScreen({
       drill: "drill.png",
       borer: "borer.png",
       machine: "machine.png",
+      kid: "kid.png",
     },
     relicArt: {
       lantern: "lantern.png",
@@ -193,6 +194,7 @@ describe("mountMountainScreen", () => {
       drills: 0,
       borers: 0,
       machines: 0,
+      kids: 0,
     };
     storage.setItem(
       SESSION_SAVE_KEY,
@@ -505,6 +507,7 @@ describe("crew tiers on screen", () => {
           drills: 0,
           borers: 0,
           machines: 0,
+          kids: 0,
         },
         lastSeen: Date.now() - (2 * 60 + 5) * 60_000,
       }),
@@ -545,6 +548,7 @@ describe("crew tiers on screen", () => {
           drills: 0,
           borers: 0,
           machines: 0,
+          kids: 0,
         },
         lastSeen: Date.now() - 26 * 3_600_000,
       }),
@@ -857,6 +861,7 @@ describe("start over", () => {
           drills: 0,
           borers: 0,
           machines: 0,
+          kids: 0,
         },
         lastSeen: Date.now(),
       }),
@@ -943,6 +948,7 @@ describe("start over", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
       },
     });
     expect(typeof saved.mountain.startedAt).toBe("number");
@@ -998,6 +1004,7 @@ describe("what the crew gives", () => {
           drills: 0,
           borers: 0,
           machines: 0,
+          kids: 0,
         },
         lastSeen: Date.now(),
       }),

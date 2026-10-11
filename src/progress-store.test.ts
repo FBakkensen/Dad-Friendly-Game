@@ -378,6 +378,7 @@ describe("helpers mining live", () => {
       drills: 0,
       borers: 0,
       machines: 0,
+      kids: 0,
     }));
 
     clock += 2_500;
@@ -395,6 +396,7 @@ describe("helpers mining live", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
       },
       lastSeen: 3_000,
     });
@@ -415,6 +417,7 @@ describe("helpers mining live", () => {
       drills: 0,
       borers: 0,
       machines: 0,
+      kids: 0,
     }));
     clock += 10_000;
 
@@ -457,6 +460,7 @@ describe("away earnings", () => {
     drills: 0,
     borers: 0,
     machines: 0,
+    kids: 0,
   };
 
   it("pays a guest 30% of the crew's speed for time away, saves it, and shows the card only once", () => {
@@ -485,6 +489,7 @@ describe("away earnings", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
         staffed: true,
       },
       lastSeen: 600_000,
@@ -721,6 +726,7 @@ describe("start over", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
       },
       lastSeen: 0,
     });

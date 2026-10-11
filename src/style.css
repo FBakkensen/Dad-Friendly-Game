@@ -1085,3 +1085,9 @@ body {
 .welcome-card [hidden] {
   display: none;
 }
+
+/* Kid helpers borrow the helper art, drawn smaller (no kid sprite yet). */
+.tier[data-tier="kid"] .tier-art {
+  transform: scale(0.75);
+  transform-origin: 50% 85%;
+}

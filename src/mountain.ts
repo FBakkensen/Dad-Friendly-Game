@@ -21,6 +21,8 @@ export type Mountain = {
   readonly drills: number;
   readonly borers: number;
   readonly machines: number;
+  /** Crown of Wisdom kid helpers; saved only once there are some. */
+  readonly kids: number;
   /** Permanent upgrade levels (src/upgrades.ts); missing means none. */
   readonly upgrades?: Upgrades;
   /** Running quick boosts as end times (src/boosts.ts); missing means none. */
@@ -51,6 +53,7 @@ export function createMountain(): Mountain {
     drills: 0,
     borers: 0,
     machines: 0,
+    kids: 0,
     staffed: true,
   };
 }
@@ -181,6 +184,7 @@ export function parseMountain(
     drills = 0,
     borers = 0,
     machines = 0,
+    kids = 0,
     upgrades,
     boosts,
     startedAt,
@@ -195,6 +199,7 @@ export function parseMountain(
     !isCount(drills) ||
     !isCount(borers) ||
     !isCount(machines) ||
+    !isCount(kids) ||
     (startedAt !== undefined && !isCount(startedAt)) ||
     (staffed !== undefined && staffed !== true) ||
     (upgrades !== undefined && parseUpgrades(upgrades) === undefined) ||
@@ -210,6 +215,7 @@ export function parseMountain(
     drills,
     borers,
     machines,
+    kids,
   };
   const parsedBoosts = boosts === undefined ? undefined : parseBoosts(boosts);
   const parsedUpgrades =

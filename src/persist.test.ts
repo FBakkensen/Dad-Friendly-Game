@@ -69,6 +69,7 @@ describe("serializeSave and parseSaveValue", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
       },
       lastSeen: 5,
     });
@@ -92,14 +93,28 @@ describe("serializeSave and parseSaveValue", () => {
     const base = { remaining: 5, pocket: 1, helpers: 2 };
     expect(
       parseSaveValue({ version: 4, mountain: base, lastSeen: 1 })?.mountain,
-    ).toEqual({ ...base, carts: 0, drills: 0, borers: 0, machines: 0 });
+    ).toEqual({
+      ...base,
+      carts: 0,
+      drills: 0,
+      borers: 0,
+      machines: 0,
+      kids: 0,
+    });
     expect(
       parseSaveValue({
         version: 4,
         mountain: { ...base, carts: 1, drills: 2 },
         lastSeen: 1,
       })?.mountain,
-    ).toEqual({ ...base, carts: 1, drills: 2, borers: 0, machines: 0 });
+    ).toEqual({
+      ...base,
+      carts: 1,
+      drills: 2,
+      borers: 0,
+      machines: 0,
+      kids: 0,
+    });
     expect(
       parseSaveValue({
         version: 4,
@@ -180,6 +195,7 @@ describe("serializeSave and parseSaveValue", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
         staffed: true,
       },
       lastSeen: 99,
@@ -224,6 +240,7 @@ describe("migrateLegacyGrid", () => {
       drills: 0,
       borers: 0,
       machines: 0,
+      kids: 0,
       staffed: true,
     });
   });
@@ -255,6 +272,22 @@ describe("the staffing mark", () => {
         mountain: { ...old, staffed: false },
         lastSeen: 1,
       }),
+    ).toBeUndefined();
+  });
+});
+
+describe("kid helpers in the save (#102)", () => {
+  it("round-trip, and a save from before kids reads zero", () => {
+    const mountain = { ...createMountain(), kids: 9 };
+    const saved = serializeSave({ mountain, lastSeen: 3 });
+    expect(saved.mountain.kids).toBe(9);
+    expect(parseSaveValue(saved)?.mountain.kids).toBe(9);
+    const old = Object.fromEntries(
+      Object.entries(saved.mountain).filter(([key]) => key !== "kids"),
+    );
+    expect(parseSaveValue({ ...saved, mountain: old })?.mountain.kids).toBe(0);
+    expect(
+      parseSaveValue({ ...saved, mountain: { ...old, kids: -2 } }),
     ).toBeUndefined();
   });
 });

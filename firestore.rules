@@ -10,7 +10,7 @@ service cloud.firestore {
     // Fields:
     //   - version: int (required, 1..4)
     //   - mountain: map (required iff version is 3 or 4)
-    //       - remaining: int 0..100000000 (v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts, drills, borers, machines: optional int >= 0, upgrades: optional map of known ids to int levels, boosts: optional map of known ids to int end times,
+    //       - remaining: int 0..100000000 (v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts, drills, borers, machines, kids: optional int >= 0, upgrades: optional map of known ids to int levels, boosts: optional map of known ids to int end times,
     //         startedAt: optional int >= 0 (run start; updates may not lower it)
     //         staffed: optional true (one-time #89 helper grant done)
     //   - grid: map (required iff version is 1 or 2; legacy, read-migrated by the client)
@@ -77,7 +77,7 @@ service cloud.firestore {
     function isValidMountain(mountain, total) {
       return mountain is map &&
         mountain.keys().hasAll(['remaining', 'pocket', 'helpers']) &&
-        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts', 'drills', 'borers', 'machines', 'upgrades', 'boosts', 'startedAt', 'staffed']) &&
+        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts', 'drills', 'borers', 'machines', 'kids', 'upgrades', 'boosts', 'startedAt', 'staffed']) &&
         mountain.remaining is int &&
         mountain.remaining >= 0 &&
         mountain.remaining <= total &&
@@ -89,6 +89,7 @@ service cloud.firestore {
         (!('drills' in mountain) || (mountain.drills is int && mountain.drills >= 0)) &&
         (!('borers' in mountain) || (mountain.borers is int && mountain.borers >= 0)) &&
         (!('machines' in mountain) || (mountain.machines is int && mountain.machines >= 0)) &&
+        (!('kids' in mountain) || (mountain.kids is int && mountain.kids >= 0)) &&
         (!('upgrades' in mountain) || (mountain.upgrades is map &&
           mountain.upgrades.keys().hasOnly(['tap', 'boots', 'steady', 'cartSyn', 'drillSyn', 'borerSyn', 'machineSyn']) &&
           (!('tap' in mountain.upgrades) || (mountain.upgrades.tap is int && mountain.upgrades.tap >= 0 && mountain.upgrades.tap <= 10)) &&
