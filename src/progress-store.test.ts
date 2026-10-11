@@ -564,6 +564,43 @@ describe("away earnings", () => {
     expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3 + 270);
   });
 
+  it("keeps the crew mining after the clock is set back (#116)", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: crew, lastSeen: 0 });
+    let clock = 0;
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    clock = 1_000;
+    progress.tick();
+    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3);
+    // The phone's clock jumps back an hour (time zone fix, manual change).
+    clock -= 60 * 60_000;
+    progress.tick();
+    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3);
+    clock += 1_000;
+    progress.tick();
+    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3 + 3);
+  });
+
+  it("doesn't save a future lastSeen after the clock is set back (#116)", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: crew, lastSeen: 0 });
+    let clock = 0;
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    clock = -60 * 60_000;
+    progress.tick();
+    progress.flush();
+    const saved = readSessionSave({ storage });
+    expect(saved?.lastSeen).toBeLessThanOrEqual(clock);
+  });
+
   it("pays a short absence quietly, with no welcome-back card", () => {
     const storage = createMemoryStorage();
     writeSessionSave({ storage, mountain: crew, lastSeen: 0 });

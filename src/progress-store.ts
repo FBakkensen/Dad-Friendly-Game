@@ -450,6 +450,12 @@ export function createProgressStore({
   /** Folds helpers' work since lastSeen into the mountain. Returns stones mined. */
   const settle = (): number => {
     const at = now();
+    // The clock went back (time zone fix, manual change): restart from now
+    // instead of waiting for it to catch up, paying nothing for the gap.
+    if (lastSeen !== undefined && at < lastSeen) {
+      lastSeen = at;
+      return 0;
+    }
     // Ticks come every second while the game is on screen. A longer gap means
     // the app sat in the background: that is time away, paid like it.
     if (lastSeen !== undefined && at - lastSeen > LIVE_GAP_MS) {
