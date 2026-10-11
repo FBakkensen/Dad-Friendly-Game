@@ -1,8 +1,7 @@
-/** All game numbers live here. See docs/DESIGN.md "Numbers and tuning". */
+import { crewStonesPerSecond } from "./tiers";
+
+/** Mountain numbers live here; tier numbers in src/tiers.ts. See docs/DESIGN.md. */
 export const MOUNTAIN_STONES = 100_000_000;
-const HELPER_BASE_COST = 10;
-const HELPER_COST_GROWTH = 1.15;
-const HELPER_STONES_PER_SECOND = 1;
 /** Base away cap; the Shield of Protection relic will lift it. */
 export const AWAY_CAP_MS = 8 * 60 * 60 * 1000;
 
@@ -11,12 +10,13 @@ export type Mountain = {
   readonly remaining: number;
   /** Stones mined and not yet spent. */
   readonly pocket: number;
-  /** Helper miners hired; each mines HELPER_STONES_PER_SECOND. */
+  /** Owned per tier (src/tiers.ts). */
   readonly helpers: number;
+  readonly carts: number;
 };
 
 export function createMountain(): Mountain {
-  return { remaining: MOUNTAIN_STONES, pocket: 0, helpers: 0 };
+  return { remaining: MOUNTAIN_STONES, pocket: 0, helpers: 0, carts: 0 };
 }
 
 export function minedOut(mountain: Mountain): number {
@@ -35,26 +35,8 @@ export function mineByHand(mountain: Mountain): Mountain {
   };
 }
 
-/** Cookie Clicker curve: each helper costs 15% more than the last. */
-export function helperCost(owned: number): number {
-  return Math.ceil(HELPER_BASE_COST * HELPER_COST_GROWTH ** owned);
-}
-
-/** Pays for one helper from the pocket; unaffordable returns the same mountain. */
-export function hireHelper(mountain: Mountain): Mountain {
-  const cost = helperCost(mountain.helpers);
-  if (mountain.pocket < cost) {
-    return mountain;
-  }
-  return {
-    ...mountain,
-    pocket: mountain.pocket - cost,
-    helpers: mountain.helpers + 1,
-  };
-}
-
 export function stonesPerSecond(mountain: Mountain): number {
-  return mountain.helpers * HELPER_STONES_PER_SECOND;
+  return crewStonesPerSecond(mountain);
 }
 
 export type Accrual = {
@@ -137,16 +119,22 @@ export function parseMountain(
   if (typeof value !== "object" || value === null) {
     return undefined;
   }
-  const { remaining, pocket, helpers } = value as Record<string, unknown>;
+  const {
+    remaining,
+    pocket,
+    helpers,
+    carts = 0,
+  } = value as Record<string, unknown>;
   if (
     !isCount(remaining) ||
     remaining > total ||
     !isCount(pocket) ||
-    !isCount(helpers)
+    !isCount(helpers) ||
+    !isCount(carts)
   ) {
     return undefined;
   }
-  return { remaining, pocket, helpers };
+  return { remaining, pocket, helpers, carts };
 }
 
 function isCount(value: unknown): value is number {

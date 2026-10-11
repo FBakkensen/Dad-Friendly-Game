@@ -370,7 +370,12 @@ describe("helpers mining live", () => {
       sessionStorage: storage,
       now: () => clock,
     });
-    progress.applyMutation(() => ({ remaining: 500, pocket: 0, helpers: 3 }));
+    progress.applyMutation(() => ({
+      remaining: 500,
+      pocket: 0,
+      helpers: 3,
+      carts: 0,
+    }));
 
     clock += 2_500;
     progress.tick();
@@ -379,7 +384,7 @@ describe("helpers mining live", () => {
 
     progress.flush();
     expect(readSessionSave({ storage })).toEqual({
-      mountain: { remaining: 494, pocket: 6, helpers: 3 },
+      mountain: { remaining: 494, pocket: 6, helpers: 3, carts: 0 },
       lastSeen: 3_000,
     });
   });
@@ -391,7 +396,12 @@ describe("helpers mining live", () => {
       sessionStorage: createMemoryStorage(),
       now: () => clock,
     });
-    progress.applyMutation(() => ({ remaining: 500, pocket: 0, helpers: 1 }));
+    progress.applyMutation(() => ({
+      remaining: 500,
+      pocket: 0,
+      helpers: 1,
+      carts: 0,
+    }));
     clock += 10_000;
 
     let seen = -1;
@@ -425,7 +435,7 @@ describe("helpers mining live", () => {
 });
 
 describe("away earnings", () => {
-  const crew = { remaining: 100_000_000, pocket: 5, helpers: 3 };
+  const crew = { remaining: 100_000_000, pocket: 5, helpers: 3, carts: 0 };
 
   it("pays a guest for time away, saves it, and shows the card only once", () => {
     const storage = createMemoryStorage();
@@ -444,7 +454,12 @@ describe("away earnings", () => {
       capped: false,
     });
     expect(readSessionSave({ storage })).toEqual({
-      mountain: { remaining: 100_000_000 - 1_800, pocket: 1_805, helpers: 3 },
+      mountain: {
+        remaining: 100_000_000 - 1_800,
+        pocket: 1_805,
+        helpers: 3,
+        carts: 0,
+      },
       lastSeen: 600_000,
     });
 
