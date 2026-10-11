@@ -1,0 +1,41 @@
+# Architecture
+
+Review for M5 (#115). The game is a small, framework-free TypeScript app. This
+page is the map, plus the rules that keep it that way.
+
+## Layers (imports point down only)
+
+1. **Rules of the game (pure, no DOM):** `scale` → `mountain`, `tiers`,
+   `relics`, `upgrades`, `boosts`, `veins`, `crew`, and `rates` (the one place
+   every multiplier is applied: live ticks, away pay, taps, the UI). `pacing`
+   simulates players on top of them. Every number lives here.
+2. **Saves:** `persist` (versioned save format and parser), `session-save`
+   (guest storage), `cloud-save` (interface + memory fake), `firebase-save`
+   (the SDK adapter), `firestore.rules` (server-side mirror of the parser,
+   guarded by `rules-drift.test.ts` and the emulator tests).
+3. **State:** `progress-store` owns the live mountain: settling time, away
+   pay, reveals, migrations, and when/where to save. The screen only calls
+   its methods.
+4. **Screen:** `mountain-screen` builds the page and wires panels; panels are
+   their own modules with a `create…Panel` factory returning their elements
+   and a `render()` (first one: `upgrades-panel`). Shared player-facing
+   wording lives in `screen-words`.
+
+## Findings
+
+- **Single source for rates holds.** All speed, tap and away math goes
+  through `effectiveRates`; the screen never multiplies on its own.
+- **Import cycle (fixed in #104):** `relics` ↔ `mountain` ↔ `rates` broke at
+  module init; `MOUNTAIN_STONES` now lives in the leaf module `scale`. A CI
+  cycle guard comes in #118.
+- **`mountain-screen.ts` was ~1,500 lines** doing layout, ten dialogs and
+  their copy. Split plan, one panel per PR, the screen tests unchanged by each
+  move (they are the characterization tests, 97% line coverage):
+  1. Upgrades sheet + boost chips' text → `upgrades-panel` (done).
+  2. Shelf, relic detail, relic reveal and Legend finale → `relic-panels`.
+  3. Welcome-back card → `welcome-panel`.
+  4. Menu, account and Start over confirm → `menu-panel`.
+  5. Tier grid and crew line → `crew-panel`.
+- **Panel contract:** a panel gets `progress`, `getView`, `now` and a
+  `requestRender` callback; it never reads another panel's elements, and it
+  owns its open/closed state.
