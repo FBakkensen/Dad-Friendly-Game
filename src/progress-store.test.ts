@@ -8,7 +8,7 @@ import {
 } from "./cloud-save";
 import { createMountain, type Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
-import { createProgressStore } from "./progress-store";
+import { WELCOME_MIN_AWAY_MS, createProgressStore } from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
 
 function createMemoryStorage(): Storage {
@@ -511,16 +511,28 @@ describe("away earnings", () => {
       auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
       cloudSave: cloud,
       sessionStorage: createMemoryStorage(),
-      now: () => 20_000,
+      now: () => 80_000,
       cloudWriteGapMs: 0,
     });
 
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    expect(progress.getSnapshot().away?.mined).toBe(60);
-    expect(docs.get("test-dad")?.pocket).toBe(65);
-    expect(progress.getSnapshot().mountain.pocket).toBe(65);
+    expect(progress.getSnapshot().away?.mined).toBe(240);
+    expect(docs.get("test-dad")?.pocket).toBe(245);
+    expect(progress.getSnapshot().mountain.pocket).toBe(245);
+  });
+
+  it("pays a short absence quietly, with no welcome-back card", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: crew, lastSeen: 0 });
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => WELCOME_MIN_AWAY_MS - 1_000,
+    });
+    expect(progress.getSnapshot().away).toBeUndefined();
+    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3 * 59);
   });
 
   it("pays another device's save silently after the first load", async () => {
