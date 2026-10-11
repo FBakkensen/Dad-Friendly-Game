@@ -47,10 +47,14 @@ function mountScreen({
   auth = createUnconfiguredAuth(),
   cloudSave,
   storage = createMemoryStorage(),
+  now,
+  random,
 }: {
   auth?: AuthController;
   cloudSave?: CloudSave;
   storage?: Storage;
+  now?: () => number;
+  random?: () => number;
 } = {}) {
   const root = document.createElement("div");
   const progress = createProgressStore({
@@ -66,6 +70,8 @@ function mountScreen({
     stoneUrl: tileUrl,
     auth,
     progress,
+    ...(now === undefined ? {} : { now }),
+    ...(random === undefined ? {} : { random }),
   });
   const find = <T extends Element>(selector: string, type: new () => T): T => {
     const el = root.querySelector(selector);
@@ -356,5 +362,67 @@ describe("welcome-back card", () => {
     expect(
       screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
     ).toBe(true);
+  });
+});
+
+describe("golden vein on screen", () => {
+  it("glints after a few minutes of play and pays a burst when tapped", async () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 0;
+      const screen = mountScreen({ now: () => clock, random: () => 0 });
+      const vein = screen.root.querySelector(".golden-vein");
+      if (!(vein instanceof HTMLButtonElement)) {
+        throw new Error("vein did not render");
+      }
+      expect(vein.hidden).toBe(true);
+
+      clock = 3 * 60_000 - 1_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(vein.hidden).toBe(true);
+
+      clock = 3 * 60_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(vein.hidden).toBe(false);
+      expect(vein.style.left).toBe("20%");
+
+      vein.click();
+      expect(vein.hidden).toBe(true);
+      expect(screen.text(".pocket")).toBe("50 stones");
+      expect(screen.text(".vein-note")).toBe("Golden vein! +50 stones");
+
+      clock += 5_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(screen.text(".vein-note")).toBe("");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("fades if missed, costs nothing, and starts a fresh wait after the tab was away", async () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 0;
+      const screen = mountScreen({ now: () => clock, random: () => 0 });
+      const vein = screen.root.querySelector(".golden-vein");
+      if (!(vein instanceof HTMLButtonElement)) {
+        throw new Error("vein did not render");
+      }
+      clock = 3 * 60_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(vein.hidden).toBe(false);
+
+      clock += 12_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(vein.hidden).toBe(true);
+      expect(screen.text(".pocket")).toBe("0 stones");
+
+      clock += 3 * 60_000;
+      document.dispatchEvent(new Event("visibilitychange"));
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(vein.hidden).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
