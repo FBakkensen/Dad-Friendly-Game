@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mineByHand, stonesPerSecond } from "./mountain";
-import { effectiveRates } from "./rates";
+import { accrue, accrueAway, mineByHand, stonesPerSecond } from "./mountain";
+import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 import {
   buyUpgrade,
@@ -8,6 +8,7 @@ import {
   upgradeById,
   upgradeCost,
   upgradeLevel,
+  upgradeUnlocked,
 } from "./upgrades";
 
 const crew = { ...minedMountain(0), carts: 50 }; // 500 stones a second
@@ -68,5 +69,66 @@ describe("Strong arms (tap power)", () => {
     ]) {
       expect(parseUpgrades(bad)).toBeUndefined();
     }
+  });
+});
+
+describe("lasting upgrades: Better boots and Steady hands", () => {
+  const base = { ...minedMountain(0), pocket: 20_000_000 };
+
+  it("unlock from the crew: boots at 10 helpers, steady hands with a first cart", () => {
+    const boots = upgradeById("boots");
+    const steady = upgradeById("steady");
+    expect(upgradeUnlocked({ ...base, helpers: 9 }, boots)).toBe(false);
+    expect(upgradeUnlocked({ ...base, helpers: 10 }, boots)).toBe(true);
+    expect(upgradeUnlocked(base, steady)).toBe(false);
+    expect(upgradeUnlocked({ ...base, carts: 1 }, steady)).toBe(true);
+    // Locked: buying does nothing.
+    expect(buyUpgrade(base, "boots")).toBe(base);
+    expect(buyUpgrade(base, "steady")).toBe(base);
+  });
+
+  it("are one-time buys", () => {
+    const once = buyUpgrade({ ...base, helpers: 10 }, "boots");
+    expect(once.upgrades).toEqual({ boots: 1 });
+    expect(once.pocket).toBe(20_000_000 - 15_000);
+    expect(buyUpgrade(once, "boots")).toBe(once);
+    expect(upgradeCost(upgradeById("steady"), 1)).toBeUndefined();
+  });
+
+  it("Better boots makes helpers 10% faster, in whole stones a second", () => {
+    const crew = { ...base, helpers: 15, carts: 2, upgrades: { boots: 1 } };
+    const rates = effectiveRates(crew);
+    expect(rates.tierSpeed.helper).toBeCloseTo(1.1);
+    expect(rates.tierSpeed.cart).toBe(effectiveRates(base).tierSpeed.cart);
+    // 15 × 1.1 = 16.5 → 16, plus 2 carts.
+    expect(rates.crewPerSecond).toBe(16 + 2 * rates.tierSpeed.cart);
+    expect(effectiveRates({ ...crew, helpers: 10 }).crewPerSecond).toBe(
+      11 + 2 * rates.tierSpeed.cart,
+    );
+  });
+
+  it("Steady hands pays time away 25% more, and live play is untouched", () => {
+    const crew = { ...base, helpers: 100 };
+    const steady = { ...crew, upgrades: { steady: 1 } };
+    expect(effectiveRates(steady).awayPay).toBeCloseTo(AWAY_PAY_RATE * 1.25);
+    expect(
+      accrueAway({ mountain: crew, lastSeen: 0, now: 100_000 }).mined,
+    ).toBe(3_000);
+    expect(
+      accrueAway({ mountain: steady, lastSeen: 0, now: 100_000 }).mined,
+    ).toBe(3_750);
+    expect(
+      accrue({ mountain: steady, from: 0, to: 100_000, live: true }).mined,
+    ).toBe(10_000);
+  });
+
+  it("saves and reads all three, and rejects levels past the top", () => {
+    expect(parseUpgrades({ tap: 3, boots: 1, steady: 1 })).toEqual({
+      tap: 3,
+      boots: 1,
+      steady: 1,
+    });
+    expect(parseUpgrades({ boots: 2 })).toBeUndefined();
+    expect(parseUpgrades({ steady: -1 })).toBeUndefined();
   });
 });

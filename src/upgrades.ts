@@ -1,7 +1,8 @@
 import type { Mountain } from "./mountain";
+import { owned, tierById, type TierId } from "./tiers";
 
 /** Permanent, one-level-at-a-time purchases. See docs/DESIGN.md "M3: Strategy". */
-export type UpgradeId = "tap";
+export type UpgradeId = "tap" | "boots" | "steady";
 
 export type Upgrades = Readonly<Partial<Record<UpgradeId, number>>>;
 
@@ -13,6 +14,8 @@ export type Upgrade = {
   readonly firstCost: number;
   readonly costGrowth: number;
   readonly maxLevel: number;
+  /** Shown and buyable once the crew has this many of a tier. */
+  readonly unlock?: { readonly tier: TierId; readonly count: number };
 };
 
 const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
@@ -24,12 +27,43 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
     costGrowth: 5,
     maxLevel: 10,
   },
+  boots: {
+    id: "boots",
+    name: "Better boots",
+    perLevel: "Helpers mine 10% faster.",
+    firstCost: 15_000,
+    costGrowth: 1,
+    maxLevel: 1,
+    unlock: { tier: "helper", count: 10 },
+  },
+  steady: {
+    id: "steady",
+    name: "Steady hands",
+    perLevel: "Time away pays 25% more.",
+    firstCost: 10_000_000,
+    costGrowth: 1,
+    maxLevel: 1,
+    unlock: { tier: "cart", count: 1 },
+  },
 };
 
 export const UPGRADES: readonly Upgrade[] = Object.values(BY_ID);
 
 /** Tap power: each level adds this share of the crew's speed to every tap. */
 export const TAP_SHARE_PER_LEVEL = 0.01;
+
+/** Better boots: helper speed gained per level. */
+export const BOOTS_SPEED_PER_LEVEL = 0.1;
+/** Steady hands: away pay gained per level, relative to the base rate. */
+export const STEADY_AWAY_PER_LEVEL = 0.25;
+
+/** Whether the crew owns enough to see and buy this upgrade. */
+export function upgradeUnlocked(mountain: Mountain, upgrade: Upgrade): boolean {
+  return (
+    upgrade.unlock === undefined ||
+    owned(mountain, tierById(upgrade.unlock.tier)) >= upgrade.unlock.count
+  );
+}
 
 export function upgradeById(id: UpgradeId): Upgrade {
   return BY_ID[id];
@@ -57,7 +91,11 @@ export function upgradeCost(
 export function buyUpgrade(mountain: Mountain, id: UpgradeId): Mountain {
   const level = upgradeLevel(mountain, id);
   const cost = upgradeCost(upgradeById(id), level);
-  if (cost === undefined || mountain.pocket < cost) {
+  if (
+    cost === undefined ||
+    mountain.pocket < cost ||
+    !upgradeUnlocked(mountain, upgradeById(id))
+  ) {
     return mountain;
   }
   return {

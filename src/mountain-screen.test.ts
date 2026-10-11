@@ -1254,3 +1254,61 @@ describe("quick boosts on screen", () => {
     );
   });
 });
+
+describe("lasting upgrades on screen", () => {
+  it("shows locked upgrades with their unlock, and boosted helper cards once bought", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(30_000), helpers: 9 },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    const boots = screen.root.querySelector<HTMLButtonElement>(
+      '[data-upgrade="boots"] .upgrade-buy',
+    );
+    expect(screen.text('[data-upgrade="boots"] .upgrade-name')).toBe(
+      "Better boots",
+    );
+    expect(boots?.textContent).toBe("Unlocks at 10 helpers");
+    expect(boots?.disabled).toBe(true);
+    expect(screen.text('[data-upgrade="steady"] .upgrade-buy')).toBe(
+      "Unlocks with your first mine cart",
+    );
+
+    screen.root
+      .querySelector<HTMLButtonElement>('[data-tier="helper"]')
+      ?.click();
+    expect(boots?.textContent).toBe("Buy for 15 thousand stones");
+    expect(screen.text('[data-upgrade="boots"] .upgrade-now')).toBe(
+      "Each helper now mines 1/s.",
+    );
+    boots?.click();
+    expect(boots?.textContent).toBe("Owned");
+    expect(boots?.disabled).toBe(true);
+    expect(screen.text('[data-upgrade="boots"] .upgrade-now')).toBe(
+      "Each helper now mines 1.1/s.",
+    );
+    expect(screen.text('[data-tier="helper"] .tier-rate')).toBe(
+      "+1.1 each · 11/s",
+    );
+    expect(screen.text(".crew-status")).toBe(
+      "Your crew mines 11 stones a second",
+    );
+  });
+
+  it("says the higher resting pace on the welcome-back card with Steady hands", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(0), helpers: 4, upgrades: { steady: 1 } },
+      lastSeen: Date.now() - (2 * 60 + 5) * 60_000,
+    });
+    const screen = mountScreen({ storage });
+    expect(screen.text(".welcome-mined")).toBe("+11.2 thousand stones");
+    expect(screen.text(".welcome-detail")).toBe(
+      "You were gone 2 hours 5 minutes. Your 4 helpers mined the whole time, at a resting pace (37.5% of their speed).",
+    );
+  });
+});
