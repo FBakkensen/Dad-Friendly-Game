@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MOUNTAIN_STONES } from "./mountain";
 import {
   RELICS,
+  depthHint,
   foundRelics,
   hasRelic,
   nextRelic,
@@ -67,5 +68,18 @@ describe("relics after the 100M rescale", () => {
     }
     expect(foundRelics(justLantern).map((r) => r.id)).toEqual(["lantern"]);
     expect(foundRelics(old).map((r) => r.id)).toEqual(["lantern", "shield"]);
+  });
+});
+
+describe("depthHint", () => {
+  it("says how near the next relic is in words, never numbers", () => {
+    expect(depthHint(minedMountain(1_000_000))).toBe("Far below");
+    expect(depthHint(minedMountain(4_000_000))).toBe("Getting closer");
+    expect(depthHint(minedMountain(7_000_000))).toBe("Close now");
+    expect(depthHint(minedMountain(9_500_000))).toBe("Almost there");
+    expect(depthHint(minedMountain(100_000_000))).toBeUndefined();
+    for (const relic of RELICS) {
+      expect(relic.tease).not.toMatch(/\d|\?/);
+    }
   });
 });

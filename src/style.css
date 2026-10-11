@@ -839,9 +839,33 @@ body {
 }
 
 /* Missing relics are dark silhouettes; found ones glow. */
-.shelf-slot[data-found="false"],
-.shelf-list li[data-found="false"] img {
+.shelf-slot[data-found="false"] {
   filter: brightness(0) opacity(0.45);
+}
+
+/* Undiscovered relics: dark silhouettes with a soft warm glow. */
+.shelf-list li[data-found="false"] img {
+  filter: brightness(0) drop-shadow(0 0 5px rgba(255, 196, 92, 0.55))
+    drop-shadow(0 0 12px rgba(255, 170, 60, 0.25));
+  opacity: 0.85;
+}
+
+.shelf-list li[data-found="false"] .shelf-detail {
+  font-style: italic;
+  color: #c9ae86;
+}
+
+.shelf-hint {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f2b85b;
+}
+
+.shelf-hint[hidden] {
+  display: none;
 }
 
 .shelf-slot[data-found="true"],

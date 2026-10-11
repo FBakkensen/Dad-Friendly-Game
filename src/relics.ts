@@ -10,6 +10,8 @@ export type Relic = {
   readonly virtue: string;
   /** What finding it does, in the player's words. */
   readonly power: string;
+  /** A one-line mystery shown before it is found; no numbers. */
+  readonly tease: string;
   /** Stones mined out of the mountain when it is uncovered. */
   readonly depth: number;
 };
@@ -18,6 +20,7 @@ export type Relic = {
 export const RELICS: readonly Relic[] = [
   {
     id: "lantern",
+    tease: "A warm light waits in the dark below.",
     name: "Lantern of Guidance",
     virtue: "Guidance",
     power:
@@ -26,6 +29,7 @@ export const RELICS: readonly Relic[] = [
   },
   {
     id: "shield",
+    tease: "A shield rests deep below, keeping watch.",
     name: "Shield of Protection",
     virtue: "Protection",
     power:
@@ -34,6 +38,7 @@ export const RELICS: readonly Relic[] = [
   },
   {
     id: "hammer",
+    tease: "Somewhere down there lies the hammer that built great things.",
     name: "Hammer of the Builder",
     virtue: "Building",
     power: "The Great Machine can be built, the mightiest crew of all.",
@@ -41,6 +46,7 @@ export const RELICS: readonly Relic[] = [
   },
   {
     id: "heart",
+    tease: "A patient heart beats beneath the stone.",
     name: "Heart of Patience",
     virtue: "Patience",
     power:
@@ -49,6 +55,7 @@ export const RELICS: readonly Relic[] = [
   },
   {
     id: "crown",
+    tease: "A crown of wisdom sleeps in the deep.",
     name: "Crown of Wisdom",
     virtue: "Wisdom",
     power: "Kid helpers can learn to run their own machines.",
@@ -56,6 +63,7 @@ export const RELICS: readonly Relic[] = [
   },
   {
     id: "mantle",
+    tease: "At the very bottom, a hero's mantle waits.",
     name: "Mantle of the Hero",
     virtue: "Heroism",
     power: "You become a legend.",
@@ -87,4 +95,26 @@ export function relicsUncovered({
   after: number;
 }): readonly Relic[] {
   return RELICS.filter((relic) => before < relic.depth && after >= relic.depth);
+}
+
+/** A vague sense of how near the next relic is; the progress bar carries the rest. */
+export function depthHint(mountain: Mountain): string | undefined {
+  const next = nextRelic(mountain);
+  if (next === undefined) {
+    return undefined;
+  }
+  const mined = MOUNTAIN_STONES - mountain.remaining;
+  const from =
+    RELICS.filter((relic) => relic.depth <= mined).at(-1)?.depth ?? 0;
+  const progress = (mined - from) / (next.depth - from);
+  if (progress >= 0.9) {
+    return "Almost there";
+  }
+  if (progress >= 0.6) {
+    return "Close now";
+  }
+  if (progress >= 0.25) {
+    return "Getting closer";
+  }
+  return "Far below";
 }
