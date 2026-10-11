@@ -67,7 +67,8 @@ export const RELICS: readonly Relic[] = [
     tease: "At the very bottom, a hero's mantle waits.",
     name: "Mantle of the Hero",
     virtue: "Heroism",
-    power: "You become a legend.",
+    power:
+      "You reached the bottom of the mountain. Every dad who keeps showing up is a hero.",
     depth: MOUNTAIN_STONES,
   },
 ];

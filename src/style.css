@@ -610,6 +610,25 @@ body {
   color: #e8d4b8;
 }
 
+.legend-shelf {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.legend-shelf img {
+  width: clamp(32px, 10vw, 40px);
+  height: clamp(32px, 10vw, 40px);
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 6px rgba(255, 214, 102, 0.8));
+}
+
+.legend-stats {
+  margin: 0;
+  color: #f2c46d;
+  font-weight: 700;
+}
+
 .welcome-mined {
   margin: 0;
   font-size: clamp(2rem, min(12vw, 7dvh), 3.5rem);

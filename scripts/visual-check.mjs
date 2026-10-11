@@ -563,6 +563,48 @@ for (const standalone of [false, true]) {
   await close();
 }
 
+// Mantle of the Hero: reveal, then the Legend finale over the game (#103).
+for (const viewport of [
+  [360, 560],
+  [390, 844],
+]) {
+  const label = `${String(viewport[0])}x${String(viewport[1])}`;
+  const { page, close } = await open(viewport, {
+    version: 4,
+    mountain: {
+      remaining: 1,
+      pocket: 0,
+      helpers: 999,
+      carts: 999,
+      drills: 999,
+      borers: 999,
+      machines: 999,
+      kids: 999,
+      staffed: true,
+    },
+    lastSeen: Date.now(),
+  });
+  await page.tap(".mountain");
+  await page.waitForSelector(".relic-reveal:not([hidden])");
+  await page.tap(".relic-reveal:not(.legend) .reveal-continue");
+  check(
+    await coversViewport(page, ".legend"),
+    `${label} Legend finale is laid over the game`,
+  );
+  check(await noScroll(page), `${label} Legend finale has no scroll`);
+  const fits = await page.$eval(".legend-card", (card) => {
+    const box = card.getBoundingClientRect();
+    return box.top >= 0 && box.bottom <= innerHeight;
+  });
+  check(fits, `${label} Legend card fits the screen`);
+  await page.tap(".legend .reveal-continue");
+  check(
+    await page.$eval(".legend", (el) => el.hidden),
+    `${label} Legend finale closes`,
+  );
+  await close();
+}
+
 await browser.close();
 await server?.close();
 if (failures.length > 0) {
