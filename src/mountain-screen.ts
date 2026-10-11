@@ -677,7 +677,7 @@ export function mountMountainScreen({
           mountain: current,
           id: boost.id,
           now: at,
-          crewPerSecond: stonesPerSecond(current),
+          pricing: effectiveRates(current),
         }),
       );
     });
@@ -1041,7 +1041,7 @@ export function mountMountainScreen({
     let anyAffordable = false;
     for (const { boost, buy } of boostRows) {
       const left = boostLeft(current, boost.id, at);
-      const cost = boostCost(boost, stonesPerSecond(current));
+      const cost = boostCost(boost, effectiveRates(current));
       const affordable = left === 0 && current.pocket >= cost;
       anyAffordable ||= affordable;
       buy.disabled = !view.ready || !affordable;

@@ -14,11 +14,56 @@ const MIN = 60_000;
 const crew = { ...minedMountain(0), helpers: 500, pocket: 1_000_000 }; // 500/s
 
 describe("quick boosts", () => {
-  it("are priced from the crew's speed, with a floor for new dads", () => {
-    expect(boostCost(boostById("sharper"), 500)).toBe(30_000);
-    expect(boostCost(boostById("overtime"), 500)).toBe(300_000);
-    expect(boostCost(boostById("sharper"), 0)).toBe(100);
-    expect(boostCost(boostById("overtime"), 0)).toBe(500);
+  it("are priced from what they boost, with a floor for new dads", () => {
+    // Sharper picks: 60 taps' worth. Overtime: 3 minutes of the crew.
+    const pricing = {
+      crewPerSecond: 500,
+      tapYield: 1_000,
+    };
+    expect(boostCost(boostById("sharper"), pricing)).toBe(60_000);
+    expect(boostCost(boostById("overtime"), pricing)).toBe(90_000);
+    const fresh = { crewPerSecond: 0, tapYield: 1 };
+    expect(boostCost(boostById("sharper"), fresh)).toBe(100);
+    expect(boostCost(boostById("overtime"), fresh)).toBe(500);
+  });
+
+  // A dad who plays a 10-minute session tapping about once a second.
+  const SESSION_S = 10 * 60;
+  const TAPS_PER_S = 1;
+  it.each([
+    ["a first helper", { helpers: 1 }],
+    ["a small crew", { helpers: 40, carts: 10 }],
+    ["mid game", { helpers: 120, carts: 40, drills: 15, upgrades: { tap: 3 } }],
+    [
+      "late game",
+      {
+        helpers: 400,
+        carts: 60,
+        drills: 30,
+        borers: 10,
+        machines: 4,
+        upgrades: { tap: 10 },
+      },
+    ],
+  ])("pay back more than they cost with %s", (_, fields) => {
+    const mountain = { ...minedMountain(30_000_000), ...fields };
+    const rates = effectiveRates(mountain);
+    // Overtime runs past a short session; count only the 10 minutes played.
+    const overtime = boostById("overtime");
+    const overtimeGain =
+      rates.crewPerSecond * (overtime.multiplier - 1) * SESSION_S;
+    const sharper = boostById("sharper");
+    const sharperGain =
+      rates.tapYield *
+      (sharper.multiplier - 1) *
+      TAPS_PER_S *
+      (sharper.durationMs / 1000);
+    if (rates.crewPerSecond * overtime.priceUnits >= overtime.minCost) {
+      expect(overtimeGain).toBeGreaterThanOrEqual(
+        3 * boostCost(overtime, rates),
+      );
+    }
+    expect(sharperGain).toBeGreaterThanOrEqual(5 * boostCost(sharper, rates));
   });
 
   it("start a countdown saved as an end time, one of each at a time", () => {
@@ -26,9 +71,9 @@ describe("quick boosts", () => {
       mountain: crew,
       id: "sharper",
       now: 1_000,
-      crewPerSecond: 500,
+      pricing: { crewPerSecond: 500, tapYield: 500 },
     });
-    expect(sharp.pocket).toBe(970_000);
+    expect(sharp.pocket).toBe(970_000); // 60 taps × 500
     expect(sharp.boosts).toEqual({ sharper: 1_000 + 10 * MIN });
     expect(boostLeft(sharp, "sharper", 1_000 + 4 * MIN)).toBe(6 * MIN);
     // Already running: can't stack or restart.
@@ -37,7 +82,7 @@ describe("quick boosts", () => {
         mountain: sharp,
         id: "sharper",
         now: 2_000,
-        crewPerSecond: 500,
+        pricing: { crewPerSecond: 500, tapYield: 500 },
       }),
     ).toBe(sharp);
     // The other one can run alongside.
@@ -45,7 +90,7 @@ describe("quick boosts", () => {
       mountain: sharp,
       id: "overtime",
       now: 2_000,
-      crewPerSecond: 500,
+      pricing: { crewPerSecond: 500, tapYield: 500 },
     });
     expect(both.boosts).toEqual({
       sharper: 1_000 + 10 * MIN,
@@ -59,13 +104,18 @@ describe("quick boosts", () => {
         mountain: both,
         id: "sharper",
         now: later,
-        crewPerSecond: 500,
+        pricing: { crewPerSecond: 500, tapYield: 500 },
       }).boosts?.sharper,
     ).toBe(later + 10 * MIN);
     // Too poor: nothing happens.
     const poor = { ...crew, pocket: 99 };
     expect(
-      buyBoost({ mountain: poor, id: "sharper", now: 0, crewPerSecond: 0 }),
+      buyBoost({
+        mountain: poor,
+        id: "sharper",
+        now: 0,
+        pricing: { crewPerSecond: 0, tapYield: 1 },
+      }),
     ).toBe(poor);
   });
 

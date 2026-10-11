@@ -43,3 +43,20 @@ describe("pacing: the same dad, also buying Strong arms when it pays best", () =
     expect(day("mantle")).toBeLessThanOrEqual(7);
   });
 });
+
+describe("pacing: the upgrade-buying dad who also starts every boost he can afford", () => {
+  const reached = simulateDad({
+    milestones: [depth("lantern"), depth("hammer"), depth("mantle")],
+    buysUpgrades: true,
+    buysBoosts: true,
+  });
+  const day = (id: string) => Math.floor(reached.get(depth(id)) ?? Infinity);
+
+  it("still hits the same windows: Lantern day 1, Hammer 2-3, bottom 5-7", () => {
+    expect(day("lantern")).toBe(1);
+    expect(day("hammer")).toBeGreaterThanOrEqual(2);
+    expect(day("hammer")).toBeLessThanOrEqual(3);
+    expect(day("mantle")).toBeGreaterThanOrEqual(5);
+    expect(day("mantle")).toBeLessThanOrEqual(7);
+  });
+});

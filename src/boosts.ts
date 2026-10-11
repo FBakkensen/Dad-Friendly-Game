@@ -13,8 +13,13 @@ export type Boost = {
   readonly durationMs: number;
   /** Multiplier while running: taps for Sharper picks, crew for Overtime. */
   readonly multiplier: number;
-  /** Price is this many seconds of the crew's (unboosted) work… */
-  readonly crewSeconds: number;
+  /**
+   * Price: this many seconds of the crew's work (Overtime) or this many taps
+   * (Sharper picks), unboosted. Kept a small fraction of what the boost pays
+   * back, so a boost is always worth it (src/boosts.test.ts proves it).
+   */
+  readonly priceIn: "crewSeconds" | "taps";
+  readonly priceUnits: number;
   /** …but never less than this, so a new dad can try it. */
   readonly minCost: number;
 };
@@ -26,7 +31,8 @@ const BY_ID: Readonly<Record<BoostId, Boost>> = {
     effect: "Taps mine ×2 for 10 minutes.",
     durationMs: 10 * 60 * 1000,
     multiplier: 2,
-    crewSeconds: 60,
+    priceIn: "taps",
+    priceUnits: 60,
     minCost: 100,
   },
   overtime: {
@@ -35,7 +41,8 @@ const BY_ID: Readonly<Record<BoostId, Boost>> = {
     effect: "Your crew mines ×2 for 30 minutes while you play.",
     durationMs: 30 * 60 * 1000,
     multiplier: 2,
-    crewSeconds: 600,
+    priceIn: "crewSeconds",
+    priceUnits: 180,
     minCost: 500,
   },
 };
@@ -55,9 +62,17 @@ export function boostLeft(
   return Math.max(0, (mountain.boosts?.[id] ?? 0) - now);
 }
 
-/** Priced from the crew's own speed, so it scales with progress. */
-export function boostCost(boost: Boost, crewPerSecond: number): number {
-  return Math.max(boost.minCost, Math.ceil(crewPerSecond * boost.crewSeconds));
+/** What the price scales with: the crew's speed and one tap's yield, unboosted. */
+export type BoostPricing = {
+  readonly crewPerSecond: number;
+  readonly tapYield: number;
+};
+
+/** Priced from the crew or the tap it boosts, so it scales with progress. */
+export function boostCost(boost: Boost, pricing: BoostPricing): number {
+  const per =
+    boost.priceIn === "taps" ? pricing.tapYield : pricing.crewPerSecond;
+  return Math.max(boost.minCost, Math.ceil(per * boost.priceUnits));
 }
 
 /** Starts a boost if it isn't already running and the pocket covers it. */
@@ -65,15 +80,15 @@ export function buyBoost({
   mountain,
   id,
   now,
-  crewPerSecond,
+  pricing,
 }: {
   mountain: Mountain;
   id: BoostId;
   now: number;
-  crewPerSecond: number;
+  pricing: BoostPricing;
 }): Mountain {
   const boost = boostById(id);
-  const cost = boostCost(boost, crewPerSecond);
+  const cost = boostCost(boost, pricing);
   if (boostLeft(mountain, id, now) > 0 || mountain.pocket < cost) {
     return mountain;
   }
