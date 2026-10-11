@@ -35,6 +35,8 @@ import {
   buyUpgrade,
   upgradeCost,
   upgradeLevel,
+  synergyBonus,
+  tierSynergy,
   upgradeUnlocked,
   type Upgrade,
 } from "./upgrades";
@@ -82,6 +84,29 @@ const formatClock = (ms: number): string => {
 };
 
 /** What the upgrade does for this crew right now. */
+/** "Your 12 helpers make carts 12% faster." — or would, before it's bought. */
+const synergyNow = (upgrade: Upgrade, mountain: Mountain): string => {
+  if (upgrade.synergy === undefined) {
+    return "";
+  }
+  const from = tierById(upgrade.synergy.from);
+  const to = tierById(upgrade.synergy.to);
+  const count = owned(mountain, from);
+  if (count === 0) {
+    return "";
+  }
+  const plural =
+    count === 1 ? from.name.toLowerCase() : `${from.name.toLowerCase()}s`;
+  const target =
+    to.id === "machine"
+      ? "the Great Machine"
+      : `${to.shortName.toLowerCase()}s`;
+  const bonus = percent(synergyBonus(mountain, upgrade));
+  return upgradeLevel(mountain, upgrade.id) > 0
+    ? `Your ${String(count)} ${plural} make ${target} ${bonus} faster.`
+    : `Your ${String(count)} ${plural} would make ${target} ${bonus} faster.`;
+};
+
 const upgradeNow = (
   upgrade: Upgrade,
   mountain: Mountain,
@@ -95,6 +120,11 @@ const upgradeNow = (
       return `Each helper now mines ${formatSpeed(rates.tierSpeed.helper)}/s.`;
     case "steady":
       return `Time away now pays ${percent(rates.awayPay)} of crew speed.`;
+    case "cartSyn":
+    case "drillSyn":
+    case "borerSyn":
+    case "machineSyn":
+      return synergyNow(upgrade, mountain);
   }
 };
 
@@ -103,6 +133,9 @@ const unlockWords = (upgrade: Upgrade): string => {
     return "Locked";
   }
   const tier = tierById(upgrade.unlock.tier);
+  if (tier.id === "machine") {
+    return "Unlocks with the Great Machine";
+  }
   return upgrade.unlock.count === 1
     ? `Unlocks with your first ${tier.name.toLowerCase()}`
     : `Unlocks at ${String(upgrade.unlock.count)} ${tier.name.toLowerCase()}s`;
@@ -1133,21 +1166,29 @@ export function mountMountainScreen({
       countBadge.hidden = count === 0;
       costText.textContent = locked ? "Locked" : formatCompact(price);
       const speed = effectiveRates(current).tierSpeed[tier.id];
+      // A bought crew synergy shows as "↑12%" in the rate line (just "↑" on tight cards).
+      const synergy = tierSynergy(current, tier.id);
+      const lift = `\u2191${String(Math.round(synergy * 100))}%`;
       tierRate.textContent = locked
         ? `${needed?.name.split(" ")[0] ?? "Relic"} · ${formatCompact(needed?.depth ?? 0)}`
-        : compact
-          ? count === 0
-            ? `+${formatSpeed(speed)}/s`
-            : `+${formatSpeed(speed)}\u2009·\u2009${formatCompact(count * speed)}/s`
-          : count === 0
-            ? `+${formatSpeed(speed)}/s each`
-            : // "each" drops out once the total needs four digits, so the line fits.
-              `+${formatSpeed(speed)}${count * speed < 1_000 ? " each" : ""} · ${formatCompact(count * speed)}/s`;
+        : synergy > 0
+          ? compact
+            ? // Tight cards keep just the arrow; the sheet and label say how much.
+              `\u2191\u2009${formatCompact(count * speed)}/s`
+            : `+${formatSpeed(speed)} ${lift} · ${formatCompact(count * speed)}/s`
+          : compact
+            ? count === 0
+              ? `+${formatSpeed(speed)}/s`
+              : `+${formatSpeed(speed)}\u2009·\u2009${formatCompact(count * speed)}/s`
+            : count === 0
+              ? `+${formatSpeed(speed)}/s each`
+              : // "each" drops out once the total needs four digits, so the line fits.
+                `+${formatSpeed(speed)}${count * speed < 1_000 ? " each" : ""} · ${formatCompact(count * speed)}/s`;
       card.setAttribute(
         "aria-label",
         locked
           ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.`
-          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}. You have ${formatCount(count)}.`,
+          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}.`,
       );
     }
   };

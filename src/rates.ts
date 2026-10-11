@@ -5,6 +5,7 @@ import {
   BOOTS_SPEED_PER_LEVEL,
   STEADY_AWAY_PER_LEVEL,
   TAP_SHARE_PER_LEVEL,
+  tierSynergy,
   upgradeLevel,
 } from "./upgrades";
 
@@ -44,6 +45,9 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
         : tier.perSecond,
     ]),
   ) as Record<TierId, number>;
+  for (const tier of TIERS) {
+    tierSpeed[tier.id] *= 1 + tierSynergy(mountain, tier.id);
+  }
   // Whole stones a second, so what the crew line says is what gets mined.
   const baseCrew = Math.floor(
     TIERS.reduce(

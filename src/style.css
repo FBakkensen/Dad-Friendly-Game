@@ -126,8 +126,11 @@ body {
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: 1.35rem;
+  /* Shrinks on narrow phones so the longest count still fits on one line. */
+  font-size: clamp(1.1rem, 5vw, 1.35rem);
   font-variant-numeric: tabular-nums;
+  /* One line, so the pocket row never grows taller ("501.4 thousand stones"). */
+  white-space: nowrap;
 }
 
 .pocket-row {
@@ -1030,4 +1033,8 @@ body {
 
 .upgrades-card {
   margin-block: auto;
+}
+
+.upgrade-now:empty {
+  display: none;
 }

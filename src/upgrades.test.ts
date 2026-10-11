@@ -5,6 +5,8 @@ import { minedMountain } from "./test-fixtures";
 import {
   buyUpgrade,
   parseUpgrades,
+  synergyBonus,
+  tierSynergy,
   upgradeById,
   upgradeCost,
   upgradeLevel,
@@ -130,5 +132,76 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
     });
     expect(parseUpgrades({ boots: 2 })).toBeUndefined();
     expect(parseUpgrades({ steady: -1 })).toBeUndefined();
+  });
+});
+
+describe("crew synergies", () => {
+  const rich = { ...minedMountain(0), pocket: 90_000_000 };
+
+  it("are one-time buys, unlocked by owning enough of the boosted tier", () => {
+    const helping = upgradeById("cartSyn");
+    expect(helping.name).toBe("Helping hands");
+    expect(upgradeUnlocked({ ...rich, carts: 4 }, helping)).toBe(false);
+    expect(
+      buyUpgrade({ ...rich, carts: 4 }, "cartSyn").upgrades,
+    ).toBeUndefined();
+    const bought = buyUpgrade({ ...rich, carts: 5 }, "cartSyn");
+    expect(bought.upgrades).toEqual({ cartSyn: 1 });
+    expect(bought.pocket).toBe(90_000_000 - 500_000);
+    expect(buyUpgrade(bought, "cartSyn")).toBe(bought);
+    expect(
+      ["drillSyn", "borerSyn", "machineSyn"].map((id) => {
+        const upgrade = upgradeById(id as "drillSyn");
+        return [upgrade.firstCost, upgrade.unlock, upgrade.synergy];
+      }),
+    ).toEqual([
+      [3_000_000, { tier: "drill", count: 5 }, { from: "cart", to: "drill" }],
+      [15_000_000, { tier: "borer", count: 3 }, { from: "drill", to: "borer" }],
+      [
+        30_000_000,
+        { tier: "machine", count: 1 },
+        { from: "borer", to: "machine" },
+      ],
+    ]);
+  });
+
+  it("each unit of the tier below adds 1% to the boosted tier, only once bought", () => {
+    const crew = { ...rich, helpers: 20, carts: 10, drills: 4 };
+    expect(synergyBonus(crew, upgradeById("cartSyn"))).toBeCloseTo(0.2);
+    expect(tierSynergy(crew, "cart")).toBe(0);
+    const boosted = { ...crew, upgrades: { cartSyn: 1 } };
+    expect(tierSynergy(boosted, "cart")).toBeCloseTo(0.2);
+    const rates = effectiveRates(boosted);
+    expect(rates.tierSpeed.cart).toBeCloseTo(12);
+    expect(rates.tierSpeed.drill).toBe(60);
+    // 20 helpers + 10 carts × 12 + 4 drills × 60.
+    expect(rates.crewPerSecond).toBe(20 + 120 + 240);
+    // Away pay uses the same rates.
+    expect(
+      accrueAway({ mountain: boosted, lastSeen: 0, now: 10_000 }).mined,
+    ).toBe(1_140);
+  });
+
+  it("stacks with Better boots and other synergies", () => {
+    const crew = {
+      ...rich,
+      helpers: 10,
+      carts: 10,
+      drills: 10,
+      upgrades: { boots: 1, cartSyn: 1, drillSyn: 1 },
+    };
+    const rates = effectiveRates(crew);
+    expect(rates.tierSpeed.helper).toBeCloseTo(1.1);
+    expect(rates.tierSpeed.cart).toBeCloseTo(11);
+    expect(rates.tierSpeed.drill).toBeCloseTo(66);
+    expect(rates.crewPerSecond).toBe(11 + 110 + 660);
+  });
+
+  it("save and load", () => {
+    expect(parseUpgrades({ cartSyn: 1, machineSyn: 1 })).toEqual({
+      cartSyn: 1,
+      machineSyn: 1,
+    });
+    expect(parseUpgrades({ cartSyn: 2 })).toBeUndefined();
   });
 });
