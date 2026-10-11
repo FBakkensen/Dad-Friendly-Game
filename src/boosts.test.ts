@@ -66,6 +66,16 @@ describe("quick boosts", () => {
     expect(sharperGain).toBeGreaterThanOrEqual(5 * boostCost(sharper, rates));
   });
 
+  it("never show more than a boost's full length after the clock is set back (#116)", () => {
+    const sharp = buyBoost({
+      mountain: crew,
+      id: "sharper",
+      now: 1_000,
+      pricing: { crewPerSecond: 500, tapYield: 500 },
+    });
+    expect(boostLeft(sharp, "sharper", 1_000 - 60 * MIN)).toBe(10 * MIN);
+  });
+
   it("start a countdown saved as an end time, one of each at a time", () => {
     const sharp = buyBoost({
       mountain: crew,

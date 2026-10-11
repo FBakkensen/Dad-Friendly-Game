@@ -59,7 +59,12 @@ export function boostLeft(
   id: BoostId,
   now: number,
 ): number {
-  return Math.max(0, (mountain.boosts?.[id] ?? 0) - now);
+  const endsAt = mountain.boosts?.[id];
+  if (endsAt === undefined) {
+    return 0;
+  }
+  // Capped at the full length, so a clock set back can't stretch a boost.
+  return Math.min(boostById(id).durationMs, Math.max(0, endsAt - now));
 }
 
 /** What the price scales with: the crew's speed and one tap's yield, unboosted. */
