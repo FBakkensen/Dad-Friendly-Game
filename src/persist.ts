@@ -37,6 +37,7 @@ export function serializeSave({
       drills: mountain.drills,
       borers: mountain.borers,
       machines: mountain.machines,
+      kids: mountain.kids,
       ...(mountain.upgrades === undefined ||
       Object.keys(mountain.upgrades).length === 0
         ? {}

@@ -59,7 +59,8 @@ function bestValue(
   const rates = effectiveRates(mountain);
   const helper = tierById("helper");
   const freeHelpers =
-    mountain.helpers -
+    mountain.helpers +
+    mountain.kids -
     TIERS.reduce((used, tier) => used + rates.running[tier.id] * tier.staff, 0);
   for (const tier of TIERS) {
     if (!tierShown(mountain, tier) || tierLocked(mountain, tier)) {

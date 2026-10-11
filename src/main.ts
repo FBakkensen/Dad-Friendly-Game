@@ -45,6 +45,8 @@ try {
       drill: drillUrl,
       borer: borerUrl,
       machine: machineUrl,
+      // No kid sprite yet: the helper art, drawn smaller on the card.
+      kid: helperUrl,
     },
     upgradesUrl,
     relicArt: {

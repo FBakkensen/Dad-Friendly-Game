@@ -10,6 +10,7 @@ describe("effectiveRates", () => {
       helpers: 11, // staffs the cart and the Great Machine
       carts: 1,
       machines: 1,
+      kids: 0,
     });
     expect(rates.tapYield).toBe(1);
     expect(rates.tierSpeed).toEqual(

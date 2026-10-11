@@ -32,6 +32,9 @@ export function heartBonus(mountain: Mountain, paidMs: number): number {
   return 1 + HEART_MAX_BONUS * Math.min(1, Math.max(0, paidMs) / HEART_FULL_MS);
 }
 
+/** Crown of Wisdom: each kid helper makes every helper and kid this much faster. */
+const KID_TEACH_PER_KID = 0.02;
+
 export type Rates = {
   /** Longest stretch of time away that pays (Shield of Protection lifts it). */
   readonly awayCapMs: number;
@@ -59,13 +62,17 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
     now !== undefined && boostLeft(mountain, id, now) > 0
       ? boostById(id).multiplier
       : 1;
+  const taught = 1 + mountain.kids * KID_TEACH_PER_KID;
   const tierSpeed = Object.fromEntries(
     TIERS.map((tier) => [
       tier.id,
       tier.id === "helper"
         ? tier.perSecond *
-          (1 + upgradeLevel(mountain, "boots") * BOOTS_SPEED_PER_LEVEL)
-        : tier.perSecond,
+          (1 + upgradeLevel(mountain, "boots") * BOOTS_SPEED_PER_LEVEL) *
+          taught
+        : tier.id === "kid"
+          ? tier.perSecond * taught
+          : tier.perSecond,
     ]),
   ) as Record<TierId, number>;
   for (const tier of TIERS) {
@@ -73,8 +80,12 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
   }
   // Staffing: helpers run the fastest machines first; the rest sit idle.
   // Helpers still mine by hand while they run a machine.
-  const running = { helper: mountain.helpers } as Record<TierId, number>;
-  let free = mountain.helpers;
+  // Kids count as staff too (Crown of Wisdom).
+  const running = {
+    helper: mountain.helpers,
+    kid: mountain.kids,
+  } as Record<TierId, number>;
+  let free = mountain.helpers + mountain.kids;
   let needed = 0;
   for (const tier of [...TIERS].reverse()) {
     if (tier.staff === 0) {
@@ -98,7 +109,7 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
     tapYield: (1 + Math.floor(baseCrew * tapShare)) * boosted("sharper"),
     tierSpeed,
     running,
-    helpersShort: Math.max(0, needed - mountain.helpers),
+    helpersShort: Math.max(0, needed - mountain.helpers - mountain.kids),
     crewPerSecond: baseCrew * boosted("overtime"),
     awayCapMs: hasRelic(mountain, "shield")
       ? SHIELD_AWAY_CAP_MS

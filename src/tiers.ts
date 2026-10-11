@@ -8,10 +8,13 @@ const COST_GROWTH = 2;
  * keeps the hundredth helper affordable. Tuned by src/pacing.test.ts.
  */
 const HELPER_COST_GROWTH = 1.15;
+/** Kids follow the helpers' gentle curve from a late-game price. */
+const KID_FIRST_COST = 1_000_000;
 
-export type TierId = "helper" | "cart" | "drill" | "borer" | "machine";
+export type TierId = "helper" | "cart" | "drill" | "borer" | "machine" | "kid";
 
-type CrewField = "helpers" | "carts" | "drills" | "borers" | "machines";
+type CrewField =
+  "helpers" | "carts" | "drills" | "borers" | "machines" | "kids";
 
 export type Tier = {
   readonly id: TierId;
@@ -78,6 +81,17 @@ export const TIERS: readonly Tier[] = [
     staff: 10,
     needs: "hammer",
   },
+  {
+    // Crown of Wisdom: kids mine, staff machines, and teach the crew (rates.ts).
+    id: "kid",
+    field: "kids",
+    name: "Kid helper",
+    shortName: "Kid",
+    firstCost: KID_FIRST_COST,
+    perSecond: 1,
+    staff: 0,
+    needs: "crown",
+  },
 ];
 
 export function tierById(id: TierId): Tier {
@@ -99,7 +113,7 @@ export function tierCost(tier: Tier, ownedCount: number): number {
     Number(
       (
         tier.firstCost *
-        (tier.id === "helper" ? HELPER_COST_GROWTH : COST_GROWTH) ** ownedCount
+        (tier.staff === 0 ? HELPER_COST_GROWTH : COST_GROWTH) ** ownedCount
       ).toPrecision(12),
     ),
   );

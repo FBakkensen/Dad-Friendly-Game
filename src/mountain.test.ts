@@ -27,6 +27,7 @@ describe("mountain", () => {
       drills: 0,
       borers: 0,
       machines: 0,
+      kids: 0,
       staffed: true,
     });
     expect(minedOut(createMountain())).toBe(0);
@@ -45,6 +46,7 @@ describe("mountain", () => {
       drills: 0,
       borers: 0,
       machines: 0,
+      kids: 0,
       staffed: true,
     });
     expect(minedOut(mountain)).toBe(3);
@@ -59,6 +61,7 @@ describe("mountain", () => {
       drills: 0,
       borers: 0,
       machines: 0,
+      kids: 0,
     };
     expect(mineByHand(empty)).toBe(empty);
   });
@@ -73,6 +76,7 @@ describe("mountain", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
       }),
     ).toEqual({
       remaining: 10,
@@ -82,6 +86,7 @@ describe("mountain", () => {
       drills: 0,
       borers: 0,
       machines: 0,
+      kids: 0,
     });
     for (const bad of [
       null,
@@ -95,6 +100,7 @@ describe("mountain", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
       },
       {
         remaining: MOUNTAIN_STONES + 1,
@@ -104,6 +110,7 @@ describe("mountain", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
       },
       {
         remaining: 1.5,
@@ -113,6 +120,7 @@ describe("mountain", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
       },
       {
         remaining: 1,
@@ -122,6 +130,7 @@ describe("mountain", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
       },
       {
         remaining: 1,
@@ -131,6 +140,7 @@ describe("mountain", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
       },
     ]) {
       expect(parseMountain(bad)).toBeUndefined();
@@ -147,6 +157,7 @@ describe("accrue", () => {
     drills: 0,
     borers: 0,
     machines: 0,
+    kids: 0,
   };
 
   it("mines whole seconds and keeps the leftover part-second unspent", () => {
@@ -159,6 +170,7 @@ describe("accrue", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
       },
       mined: 4,
       settledAt: 2_000,
@@ -187,6 +199,7 @@ describe("accrue", () => {
       drills: 0,
       borers: 0,
       machines: 0,
+      kids: 0,
     };
     expect(accrue({ mountain: almost, from: 0, to: 10_500 })).toEqual({
       mountain: {
@@ -197,6 +210,7 @@ describe("accrue", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        kids: 0,
       },
       mined: 3,
       settledAt: 10_500,
@@ -212,6 +226,7 @@ describe("accrue", () => {
       drills: 0,
       borers: 0,
       machines: 0,
+      kids: 0,
     };
     expect(accrue({ mountain: idle, from: 0, to: 9_000 })).toEqual({
       mountain: idle,
@@ -235,6 +250,7 @@ describe("accrueAway", () => {
     drills: 0,
     borers: 0,
     machines: 0,
+    kids: 0,
   };
 
   it("pays for the whole absence under the cap", () => {
