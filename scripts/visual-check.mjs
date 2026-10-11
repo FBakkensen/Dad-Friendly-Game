@@ -563,6 +563,54 @@ for (const standalone of [false, true]) {
   await close();
 }
 
+// Every relic found: the shelf scrolls inside itself, and a tapped relic's
+// detail card (art, virtue, "Your power") sits over the game and fits.
+for (const viewport of [
+  [360, 560],
+  [390, 844],
+]) {
+  const label = `${String(viewport[0])}x${String(viewport[1])}`;
+  const { page, close } = await open(viewport, {
+    version: 4,
+    mountain: {
+      remaining: 0,
+      pocket: 0,
+      helpers: 40,
+      carts: 10,
+      drills: 0,
+      borers: 0,
+      machines: 0,
+      kids: 0,
+      staffed: true,
+    },
+    lastSeen: Date.now(),
+  });
+  await page.tap(".relic-shelf");
+  check(await noScroll(page), `${label} full shelf has no page scroll`);
+  await page.evaluate(() => {
+    document.querySelectorAll(".shelf-list li")[4]?.scrollIntoView();
+  });
+  await page.$$eval(".shelf-list li", (rows) => {
+    rows[4]?.click();
+  });
+  check(
+    await coversViewport(page, ".relic-detail"),
+    `${label} relic detail is laid over the game`,
+  );
+  check(await noScroll(page), `${label} relic detail has no scroll`);
+  const fits = await page.$eval(".relic-detail .reveal-card", (card) => {
+    const box = card.getBoundingClientRect();
+    return box.top >= 0 && box.bottom <= innerHeight;
+  });
+  check(fits, `${label} relic detail card fits the screen`);
+  await page.tap(".relic-detail .reveal-continue");
+  check(
+    await page.$eval(".relic-detail", (el) => el.hidden),
+    `${label} relic detail closes back to the shelf`,
+  );
+  await close();
+}
+
 // Mantle of the Hero: reveal, then the Legend finale over the game (#103).
 for (const viewport of [
   [360, 560],
