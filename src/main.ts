@@ -1,9 +1,8 @@
 import lanternUrl from "./assets/boot-tile.png";
-import cellSheetUrl from "./assets/dig-cells.png";
+import rockUrl from "./assets/dig-cells.png";
 import stoneUrl from "./assets/ore-lump.png";
-import chunkUrl from "./assets/ore-chunk.png";
 import { createAppServices } from "./boot";
-import { mountPocketGridScreen } from "./pocket-grid-screen";
+import { mountMountainScreen } from "./mountain-screen";
 import "./style.css";
 
 const root = document.getElementById("app");
@@ -20,15 +19,7 @@ try {
       VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
     },
   });
-  mountPocketGridScreen({
-    root,
-    lanternUrl,
-    cellSheetUrl,
-    stoneUrl,
-    chunkUrl,
-    auth,
-    progress,
-  });
+  mountMountainScreen({ root, lanternUrl, rockUrl, stoneUrl, auth, progress });
 } catch (error) {
   console.error(error);
   root.textContent = "Boot failed — reload to try again.";

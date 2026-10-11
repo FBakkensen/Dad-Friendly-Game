@@ -1,9 +1,5 @@
-import type { PocketGrid } from "./grid";
-import {
-  parseGridSaveValue,
-  serializeGridSave,
-  type ParsedGridSave,
-} from "./persist";
+import type { Mountain } from "./mountain";
+import { parseSaveValue, serializeSave, type ParsedSave } from "./persist";
 
 export const SESSION_SAVE_KEY = "dad-friendly-session";
 
@@ -59,13 +55,13 @@ export function readSessionSave({
   storage,
 }: {
   storage: Storage;
-}): ParsedGridSave | undefined {
+}): ParsedSave | undefined {
   try {
     const raw = storage.getItem(SESSION_SAVE_KEY);
     if (raw === null) {
       return undefined;
     }
-    return parseGridSaveValue(JSON.parse(raw));
+    return parseSaveValue(JSON.parse(raw));
   } catch {
     return undefined;
   }
@@ -73,17 +69,17 @@ export function readSessionSave({
 
 export function writeSessionSave({
   storage,
-  grid,
+  mountain,
   lastSeen,
 }: {
   storage: Storage;
-  grid: PocketGrid;
+  mountain: Mountain;
   lastSeen: number;
 }): boolean {
   try {
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify(serializeGridSave({ grid, lastSeen })),
+      JSON.stringify(serializeSave({ mountain, lastSeen })),
     );
     return true;
   } catch {

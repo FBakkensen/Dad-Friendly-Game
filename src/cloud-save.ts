@@ -1,9 +1,9 @@
-import type { PocketGrid } from "./grid";
+import type { Mountain } from "./mountain";
 
 export type CloudLoadResult =
   | {
       readonly kind: "found";
-      readonly grid: PocketGrid;
+      readonly mountain: Mountain;
       readonly lastSeen?: number | undefined;
     }
   | { readonly kind: "missing" }
@@ -18,7 +18,7 @@ export type CloudSave = {
   readonly load: (args: { uid: string }) => Promise<CloudLoadResult>;
   readonly write: (args: {
     uid: string;
-    grid: PocketGrid;
+    mountain: Mountain;
     lastSeen?: number;
   }) => Promise<CloudWriteResult>;
   readonly watch: (args: {
@@ -28,7 +28,7 @@ export type CloudSave = {
 };
 
 export type HydratedSave = {
-  readonly grid: PocketGrid;
+  readonly mountain: Mountain;
   readonly upload: boolean;
 };
 
@@ -36,17 +36,17 @@ export function applySignedInSave({
   local,
   remote,
 }: {
-  local: PocketGrid;
+  local: Mountain;
   remote: CloudLoadResult;
 }): HydratedSave {
   switch (remote.kind) {
     case "found":
-      return { grid: remote.grid, upload: false };
+      return { mountain: remote.mountain, upload: false };
     case "missing":
-      return { grid: local, upload: true };
+      return { mountain: local, upload: true };
     case "unavailable":
     case "disabled":
-      return { grid: local, upload: false };
+      return { mountain: local, upload: false };
     default: {
       const _exhaustive: never = remote;
       return _exhaustive;
@@ -68,19 +68,19 @@ export function createNoopCloudSave(): CloudSave {
 }
 
 export function createMemoryCloudSave({
-  docs = new Map<string, PocketGrid>(),
+  docs = new Map<string, Mountain>(),
 }: {
-  docs?: Map<string, PocketGrid>;
+  docs?: Map<string, Mountain>;
 } = {}): CloudSave {
   const watchers = new Map<string, Set<(remote: CloudLoadResult) => void>>();
   const lastSeenByUid = new Map<string, number>();
 
   const current = (uid: string): CloudLoadResult => {
-    const grid = docs.get(uid);
-    if (grid === undefined) {
+    const mountain = docs.get(uid);
+    if (mountain === undefined) {
       return { kind: "missing" };
     }
-    return { kind: "found", grid, lastSeen: lastSeenByUid.get(uid) };
+    return { kind: "found", mountain, lastSeen: lastSeenByUid.get(uid) };
   };
 
   const emit = (uid: string): void => {
@@ -96,8 +96,8 @@ export function createMemoryCloudSave({
 
   return {
     load: ({ uid }) => Promise.resolve(current(uid)),
-    write: ({ uid, grid, lastSeen }) => {
-      docs.set(uid, grid);
+    write: ({ uid, mountain, lastSeen }) => {
+      docs.set(uid, mountain);
       if (lastSeen !== undefined) {
         lastSeenByUid.set(uid, lastSeen);
       }

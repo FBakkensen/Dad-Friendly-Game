@@ -5,12 +5,7 @@ import {
   type CloudLoadResult,
   type CloudSave,
 } from "./cloud-save";
-import {
-  createStarterGrid,
-  dugCount,
-  settleStones,
-  type PocketGrid,
-} from "./grid";
+import { createMountain, minedOut, type Mountain } from "./mountain";
 import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
   clearSessionSave,
@@ -22,10 +17,9 @@ import {
 type SaveKind = "unsigned" | "session" | "loading" | "account" | "error";
 
 export type ProgressSnapshot = {
-  readonly grid: PocketGrid;
+  readonly mountain: Mountain;
   readonly saveKind: SaveKind;
   readonly ready: boolean;
-  readonly awayNote: string | undefined;
   readonly log: string | undefined;
 };
 
@@ -34,7 +28,7 @@ export type ProgressStore = {
   readonly subscribe: (
     listener: (snapshot: ProgressSnapshot) => void,
   ) => () => void;
-  readonly applyMutation: (grid: PocketGrid) => void;
+  readonly applyMutation: (mountain: Mountain) => void;
   readonly flush: () => void;
   readonly dispose: () => void;
 };
@@ -53,13 +47,12 @@ export function createProgressStore({
   now?: () => number;
 }): ProgressStore {
   const sessionStore = sessionArg ?? tryGetGuestStorage();
-  let grid: PocketGrid = createStarterGrid();
+  let mountain: Mountain = createMountain();
   let lastSeen: number | undefined;
   let hydrateGeneration = 0;
   let hydrated = false;
   let inFlightWrites = 0;
   let saveKind: SaveKind = "unsigned";
-  let awayNote: string | undefined;
   let watchingCloud = false;
   let unwatch: (() => void) | undefined;
   let disposed = false;
@@ -68,10 +61,9 @@ export function createProgressStore({
   const snapshot = (): ProgressSnapshot => {
     const latest = logger.latest();
     return {
-      grid,
+      mountain,
       saveKind,
       ready: auth.getState().kind !== "signed-in" || hydrated,
-      awayNote,
       log: latest === undefined ? undefined : formatLogEvent(latest),
     };
   };
@@ -90,7 +82,7 @@ export function createProgressStore({
     if (
       !writeSessionSave({
         storage: sessionStore,
-        grid,
+        mountain,
         lastSeen: lastSeen ?? now(),
       })
     ) {
@@ -101,7 +93,7 @@ export function createProgressStore({
       level: "info",
       code: "save.session",
       detail: "ok",
-      data: saveCounts(grid),
+      data: saveCounts(mountain),
     });
   };
 
@@ -112,10 +104,10 @@ export function createProgressStore({
     }
     const uid = state.user.uid;
     const generation = hydrateGeneration;
-    const counts = saveCounts(grid);
+    const counts = saveCounts(mountain);
     inFlightWrites += 1;
     void cloudSave
-      .write({ uid, grid, lastSeen: lastSeen ?? now() })
+      .write({ uid, mountain, lastSeen: lastSeen ?? now() })
       .then((result) => {
         inFlightWrites -= 1;
         if (disposed || generation !== hydrateGeneration) {
@@ -149,57 +141,25 @@ export function createProgressStore({
       });
   };
 
-  /** Fold away-time into the grid and stamp the moment we are live again. */
-  const settleAway = (storedLastSeen: number | undefined): number => {
-    const at = now();
-    const elapsedMs =
-      storedLastSeen === undefined ? 0 : Math.max(0, at - storedLastSeen);
-    const result = settleStones({ grid, elapsedMs });
-    lastSeen = at;
-    if (result.settled === 0) {
-      return 0;
-    }
-    grid = result.grid;
-    awayNote =
-      result.settled === 1
-        ? "While you were away, 1 stone settled in."
-        : `While you were away, ${String(result.settled)} stones settled in.`;
-    logger.record({
-      level: "info",
-      code: "idle.settle",
-      detail: `${String(result.settled)} while away`,
-      data: {
-        settled: result.settled,
-        awayMinutes: Math.round(elapsedMs / 60000),
-      },
-    });
-    return result.settled;
-  };
-
   const applyRemote = (remote: CloudLoadResult): void => {
     if (inFlightWrites > 0 && remote.kind === "found") {
       return;
     }
-    const next = applySignedInSave({ local: grid, remote });
-    grid = next.grid;
-    let settled = 0;
-    if (remote.kind === "found") {
-      settled = settleAway(remote.lastSeen);
-    } else {
-      lastSeen = now();
-    }
+    const next = applySignedInSave({ local: mountain, remote });
+    mountain = next.mountain;
+    lastSeen = now();
     logger.record({
       level: remote.kind === "unavailable" ? "error" : "info",
       code: "save.remote",
       detail: remote.kind,
-      data: saveCounts(grid),
+      data: saveCounts(mountain),
     });
     switch (remote.kind) {
       case "found":
       case "missing":
         hydrated = true;
         saveKind = "account";
-        if (next.upload || settled > 0) {
+        if (next.upload) {
           persistCloud();
         }
         break;
@@ -236,14 +196,14 @@ export function createProgressStore({
       emit();
       return;
     }
-    grid = stored.grid;
-    settleAway(stored.lastSeen);
+    mountain = stored.mountain;
+    lastSeen = now();
     saveKind = "session";
     logger.record({
       level: "info",
       code: "save.session",
       detail: "resume",
-      data: saveCounts(grid),
+      data: saveCounts(mountain),
     });
     emit();
   };
@@ -265,7 +225,7 @@ export function createProgressStore({
       level: "info",
       code: "save.watch",
       detail: "start",
-      data: saveCounts(grid),
+      data: saveCounts(mountain),
     });
     emit();
     unwatch = cloudSave.watch({
@@ -315,12 +275,11 @@ export function createProgressStore({
       if (auth.getState().kind === "signed-in" && !hydrated) {
         return;
       }
-      if (next === grid) {
+      if (next === mountain) {
         return;
       }
-      grid = next;
+      mountain = next;
       lastSeen = now();
-      awayNote = undefined;
       persistCloud();
       persistSession();
       emit();
@@ -346,6 +305,6 @@ export function createProgressStore({
   };
 }
 
-function saveCounts(grid: PocketGrid): { dug: number } {
-  return { dug: dugCount(grid) };
+function saveCounts(mountain: Mountain): { mined: number; pocket: number } {
+  return { mined: minedOut(mountain), pocket: mountain.pocket };
 }

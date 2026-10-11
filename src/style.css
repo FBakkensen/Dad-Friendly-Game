@@ -38,95 +38,71 @@ body {
   pointer-events: none;
 }
 
-.hand-slot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: min(20vw, 80px);
-  aspect-ratio: 1;
+.stones-left {
+  text-align: center;
+  margin: 0;
+  font-size: clamp(1.75rem, 7vw, 2.5rem);
+  font-weight: 700;
+  color: #f2c46d;
+  text-shadow: 0 0 18px rgba(232, 168, 74, 0.45);
+  font-variant-numeric: tabular-nums;
 }
 
-.held-piece {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1;
-  object-fit: contain;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-
-.held-piece[hidden] {
-  display: none;
-}
-
-.pocket-grid {
-  display: grid;
-  grid-template-columns: repeat(3, min(28vw, 104px));
-  gap: 12px;
-}
-
-.dig-cell {
+.mountain {
   appearance: none;
-  position: relative;
   display: block;
-  width: min(28vw, 104px);
+  width: min(72vw, 320px);
   aspect-ratio: 1;
   padding: 0;
   border: 0;
+  border-radius: 16px;
   background: transparent;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease-out;
 }
 
-.dig-cell:focus-visible {
+.mountain:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.mountain:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.mountain:focus-visible {
   outline: 4px solid #e8a84a;
   outline-offset: 4px;
 }
 
-.cell-art {
+.mountain-art {
   display: block;
   width: 100%;
   height: 100%;
   background-repeat: no-repeat;
   background-size: 200% 100%;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-
-.dig-cell[data-kind="covered"] .cell-art {
   background-position: 0 0;
-}
-
-.dig-cell[data-kind="dug"] .cell-art,
-.dig-cell[data-kind="stone"] .cell-art,
-.dig-cell[data-kind="chunk"] .cell-art {
-  background-position: 100% 0;
-}
-
-.piece-art {
-  display: none;
-  position: absolute;
-  inset: 16%;
-  width: 68%;
-  height: 68%;
-  object-fit: contain;
   image-rendering: pixelated;
   pointer-events: none;
 }
 
-.dig-cell[data-kind="stone"] .piece-art,
-.dig-cell[data-kind="chunk"] .piece-art {
-  display: block;
+.pocket {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.dig-cell[data-selected="true"] {
-  outline: 4px solid #e8a84a;
-  outline-offset: 4px;
+.pocket img {
+  width: 40px;
+  height: 40px;
+  image-rendering: pixelated;
 }
 
 .goal,
-.dig-status,
 .save-status,
 .auth-status {
   margin: 0;
@@ -138,7 +114,7 @@ body {
 .auth-action {
   appearance: none;
   min-height: 64px;
-  min-width: min(calc(3 * min(28vw, 104px) + 24px), 100%);
+  min-width: min(320px, 100%);
   padding: 16px 24px;
   border: 0;
   border-radius: 12px;
@@ -159,4 +135,9 @@ body {
 .auth-action:focus-visible {
   outline: 4px solid #e8d4b8;
   outline-offset: 4px;
+}
+
+.goal {
+  max-width: 32ch;
+  text-align: center;
 }
