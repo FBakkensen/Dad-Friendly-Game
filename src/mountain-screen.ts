@@ -28,8 +28,10 @@ import {
 export function mountMountainScreen({
   root,
   lanternUrl,
-  rockUrl,
+  mountainUrl,
   stoneUrl,
+  veinUrl,
+  helperUrl,
   auth = createUnconfiguredAuth(),
   progress: progressArg,
   now = Date.now,
@@ -37,9 +39,10 @@ export function mountMountainScreen({
 }: {
   root: HTMLElement;
   lanternUrl: string;
-  /** Sprite sheet; the left half is the rock face. */
-  rockUrl: string;
+  mountainUrl: string;
   stoneUrl: string;
+  veinUrl: string;
+  helperUrl: string;
   auth?: AuthController;
   progress?: ProgressStore;
   now?: () => number;
@@ -68,10 +71,14 @@ export function mountMountainScreen({
   const mountain = document.createElement("button");
   mountain.type = "button";
   mountain.className = "mountain";
-  const rock = document.createElement("span");
-  rock.className = "mountain-art";
-  rock.style.backgroundImage = `url("${rockUrl}")`;
-  mountain.append(rock);
+  const peak = document.createElement("img");
+  peak.className = "mountain-art";
+  peak.src = mountainUrl;
+  peak.alt = "";
+  peak.width = 114;
+  peak.height = 114;
+  peak.draggable = false;
+  mountain.append(peak);
   mountain.addEventListener("click", () => {
     if (!view.ready) {
       return;
@@ -85,7 +92,7 @@ export function mountMountainScreen({
   vein.hidden = true;
   vein.setAttribute("aria-label", "Golden vein, tap for a burst of stones");
   const veinArt = document.createElement("img");
-  veinArt.src = stoneUrl;
+  veinArt.src = veinUrl;
   veinArt.alt = "";
   veinArt.width = 32;
   veinArt.height = 32;
@@ -157,6 +164,13 @@ export function mountMountainScreen({
   const crew = document.createElement("section");
   crew.className = "crew";
   crew.setAttribute("aria-label", "Helper miners");
+  const helperArt = document.createElement("img");
+  helperArt.className = "helper-art";
+  helperArt.src = helperUrl;
+  helperArt.alt = "";
+  helperArt.width = 47;
+  helperArt.height = 47;
+  helperArt.draggable = false;
   const crewStatus = document.createElement("p");
   crewStatus.className = "crew-status";
   const hire = document.createElement("button");
@@ -171,7 +185,10 @@ export function mountMountainScreen({
   const hireNote = document.createElement("p");
   hireNote.className = "hire-note";
   hireNote.setAttribute("aria-live", "polite");
-  crew.append(crewStatus, hire, hireNote);
+  const crewLine = document.createElement("div");
+  crewLine.className = "crew-line";
+  crewLine.append(helperArt, crewStatus);
+  crew.append(crewLine, hire, hireNote);
 
   const welcome = document.createElement("div");
   welcome.className = "welcome-back";

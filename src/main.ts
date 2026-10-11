@@ -1,5 +1,7 @@
 import lanternUrl from "./assets/boot-tile.png";
-import rockUrl from "./assets/dig-cells.png";
+import helperUrl from "./assets/helper-miner.png";
+import veinUrl from "./assets/gold-nugget.png";
+import mountainUrl from "./assets/mountain.png";
 import stoneUrl from "./assets/ore-lump.png";
 import { createAppServices } from "./boot";
 import { mountMountainScreen } from "./mountain-screen";
@@ -20,7 +22,16 @@ try {
       VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
     },
   });
-  mountMountainScreen({ root, lanternUrl, rockUrl, stoneUrl, auth, progress });
+  mountMountainScreen({
+    root,
+    lanternUrl,
+    mountainUrl,
+    stoneUrl,
+    veinUrl,
+    helperUrl,
+    auth,
+    progress,
+  });
   void registerServiceWorker();
 } catch (error) {
   console.error(error);

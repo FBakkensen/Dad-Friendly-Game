@@ -13,7 +13,7 @@ export type VeinState =
   | {
       readonly kind: "glinting";
       readonly until: number;
-      /** Spot on the mountain face, 0..1 from the left and top. */
+      /** Spot on the rock of the peak, 0..1 from the left and top of the art. */
       readonly x: number;
       readonly y: number;
     };
@@ -49,8 +49,8 @@ export function advanceVein({
         : {
             kind: "glinting",
             until: now + VEIN_GLINT_MS,
-            x: 0.2 + random() * 0.6,
-            y: 0.2 + random() * 0.6,
+            x: 0.35 + random() * 0.3,
+            y: 0.4 + random() * 0.4,
           };
     case "glinting":
       return now < vein.until ? vein : waitForVein({ now, random });

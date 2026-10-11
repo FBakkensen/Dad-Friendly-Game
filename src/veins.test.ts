@@ -31,12 +31,12 @@ describe("golden veins", () => {
       now: 3 * MINUTE,
       random: () => 0.5,
     });
-    expect(glint).toEqual({
-      kind: "glinting",
-      until: 3 * MINUTE + VEIN_GLINT_MS,
-      x: 0.5,
-      y: 0.5,
-    });
+    if (glint.kind !== "glinting") {
+      throw new Error("vein should glint");
+    }
+    expect(glint.until).toBe(3 * MINUTE + VEIN_GLINT_MS);
+    expect(glint.x).toBeCloseTo(0.5);
+    expect(glint.y).toBeCloseTo(0.6);
     expect(
       advanceVein({ vein: glint, now: 3 * MINUTE + 1_000, random: () => 0 }),
     ).toBe(glint);
