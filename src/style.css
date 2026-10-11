@@ -255,6 +255,58 @@ body {
   font-size: 0.85rem;
 }
 
+.tier-rate {
+  font-size: 0.75rem;
+  font-weight: 650;
+  opacity: 0.85;
+}
+
+.tier {
+  position: relative;
+}
+
+.float-gain,
+.mountain-float {
+  position: absolute;
+  pointer-events: none;
+  font-weight: 800;
+  color: #ffe08a;
+  text-shadow:
+    0 1px 0 #3a2410,
+    0 0 8px rgba(255, 214, 102, 0.8);
+  animation: float-up 1.2s ease-out forwards;
+}
+
+.float-gain {
+  top: -4px;
+  right: 8px;
+  font-size: 1.1rem;
+}
+
+.mountain-float {
+  bottom: 30%;
+  font-size: 0.95rem;
+  transform: translateX(-50%);
+}
+
+@keyframes float-up {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: 0 -40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .float-gain,
+  .mountain-float {
+    display: none;
+  }
+}
+
 .welcome-back,
 .relic-reveal,
 .shelf-dialog,
@@ -681,4 +733,11 @@ body {
 
 .menu-card .auth-status:empty {
   display: none;
+}
+
+/* Smallest phones: the tier rate line needs a little room. */
+@media (max-height: 600px) {
+  .mountain {
+    width: min(78vw, 30dvh);
+  }
 }
