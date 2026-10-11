@@ -1050,3 +1050,14 @@ body {
   color: #8a2600;
   opacity: 1;
 }
+
+.welcome-crew {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: #ffe08a;
+}
+
+.welcome-card [hidden] {
+  display: none;
+}

@@ -21,6 +21,7 @@ describe("mountain", () => {
       drills: 0,
       borers: 0,
       machines: 0,
+      staffed: true,
     });
     expect(minedOut(createMountain())).toBe(0);
   });
@@ -38,6 +39,7 @@ describe("mountain", () => {
       drills: 0,
       borers: 0,
       machines: 0,
+      staffed: true,
     });
     expect(minedOut(mountain)).toBe(3);
   });

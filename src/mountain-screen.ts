@@ -516,6 +516,9 @@ export function mountMountainScreen({
   welcomeCheer.className = "welcome-cheer";
   welcomeCheer.textContent =
     "Time with the people who matter is never wasted. Your crew kept the mountain moving.";
+  // One-time note for saves from before machines needed helpers (#89).
+  const welcomeCrew = document.createElement("p");
+  welcomeCrew.className = "welcome-crew";
   const welcomeContinue = document.createElement("button");
   welcomeContinue.type = "button";
   welcomeContinue.className = "welcome-continue";
@@ -528,6 +531,7 @@ export function mountMountainScreen({
     welcomeMined,
     welcomeDetail,
     welcomeCheer,
+    welcomeCrew,
     welcomeContinue,
   );
   welcome.append(welcomeCard);
@@ -1115,9 +1119,24 @@ export function mountMountainScreen({
 
   const renderWelcome = (): void => {
     const report = view.away;
+    const joined = view.crewJoined;
     const wasOpen = !welcome.hidden;
-    welcome.hidden = report === undefined;
+    welcome.hidden = report === undefined && joined === undefined;
+    welcomeCrew.hidden = joined === undefined;
+    welcomeCrew.textContent =
+      joined === undefined
+        ? ""
+        : // Alone, the title already says "Your crew grew".
+          `${report === undefined ? "" : "Your crew grew: "}${formatCount(joined)} ${joined === 1 ? "helper" : "helpers"} joined to run your machines.`;
+    welcomeTitle.textContent =
+      report === undefined ? "Your crew grew" : "While you were away";
+    welcomeMined.hidden = report === undefined;
+    welcomeDetail.hidden = report === undefined;
+    welcomeCheer.hidden = report === undefined;
     if (report === undefined) {
+      if (joined !== undefined && !wasOpen) {
+        welcomeContinue.focus();
+      }
       return;
     }
     welcomeMined.textContent = `+${formatCount(report.mined)} ${report.mined === 1 ? "stone" : "stones"}`;

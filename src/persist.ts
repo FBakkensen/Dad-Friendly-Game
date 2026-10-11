@@ -48,6 +48,7 @@ export function serializeSave({
       ...(mountain.startedAt === undefined
         ? {}
         : { startedAt: mountain.startedAt }),
+      ...(mountain.staffed === true ? { staffed: true } : {}),
     },
     lastSeen,
   };

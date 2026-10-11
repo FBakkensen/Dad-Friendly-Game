@@ -29,6 +29,11 @@ export type Mountain = {
    * first run. A save from an older run never replaces a newer one.
    */
   readonly startedAt?: number;
+  /**
+   * Set once machines need helpers (#89): older saves get free helpers on
+   * load, one time (see staffExisting in crew.ts). New mountains start set.
+   */
+  readonly staffed?: true;
 };
 
 /** 0 for a first run that was never started over. */
@@ -45,6 +50,7 @@ export function createMountain(): Mountain {
     drills: 0,
     borers: 0,
     machines: 0,
+    staffed: true,
   };
 }
 
@@ -171,6 +177,7 @@ export function parseMountain(
     upgrades,
     boosts,
     startedAt,
+    staffed,
   } = value as Record<string, unknown>;
   if (
     !isCount(remaining) ||
@@ -182,6 +189,7 @@ export function parseMountain(
     !isCount(borers) ||
     !isCount(machines) ||
     (startedAt !== undefined && !isCount(startedAt)) ||
+    (staffed !== undefined && staffed !== true) ||
     (upgrades !== undefined && parseUpgrades(upgrades) === undefined) ||
     (boosts !== undefined && parseBoosts(boosts) === undefined)
   ) {
@@ -208,6 +216,7 @@ export function parseMountain(
       ? {}
       : { boosts: parsedBoosts }),
     ...(startedAt === undefined ? {} : { startedAt }),
+    ...(staffed === true ? { staffed } : {}),
   };
 }
 
