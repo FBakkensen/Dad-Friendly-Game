@@ -89,10 +89,14 @@ service cloud.firestore {
         (!('borers' in mountain) || (mountain.borers is int && mountain.borers >= 0)) &&
         (!('machines' in mountain) || (mountain.machines is int && mountain.machines >= 0)) &&
         (!('upgrades' in mountain) || (mountain.upgrades is map &&
-          mountain.upgrades.keys().hasOnly(['tap', 'boots', 'steady']) &&
+          mountain.upgrades.keys().hasOnly(['tap', 'boots', 'steady', 'cartSyn', 'drillSyn', 'borerSyn', 'machineSyn']) &&
+          (!('tap' in mountain.upgrades) || (mountain.upgrades.tap is int && mountain.upgrades.tap >= 0 && mountain.upgrades.tap <= 10)) &&
           (!('boots' in mountain.upgrades) || (mountain.upgrades.boots is int && mountain.upgrades.boots >= 0 && mountain.upgrades.boots <= 1)) &&
           (!('steady' in mountain.upgrades) || (mountain.upgrades.steady is int && mountain.upgrades.steady >= 0 && mountain.upgrades.steady <= 1)) &&
-          (!('tap' in mountain.upgrades) || (mountain.upgrades.tap is int && mountain.upgrades.tap >= 0 && mountain.upgrades.tap <= 10)))) &&
+          (!('cartSyn' in mountain.upgrades) || (mountain.upgrades.cartSyn is int && mountain.upgrades.cartSyn >= 0 && mountain.upgrades.cartSyn <= 1)) &&
+          (!('drillSyn' in mountain.upgrades) || (mountain.upgrades.drillSyn is int && mountain.upgrades.drillSyn >= 0 && mountain.upgrades.drillSyn <= 1)) &&
+          (!('borerSyn' in mountain.upgrades) || (mountain.upgrades.borerSyn is int && mountain.upgrades.borerSyn >= 0 && mountain.upgrades.borerSyn <= 1)) &&
+          (!('machineSyn' in mountain.upgrades) || (mountain.upgrades.machineSyn is int && mountain.upgrades.machineSyn >= 0 && mountain.upgrades.machineSyn <= 1)))) &&
         (!('boosts' in mountain) || (mountain.boosts is map &&
           mountain.boosts.keys().hasOnly(['sharper', 'overtime']) &&
           (!('sharper' in mountain.boosts) || (mountain.boosts.sharper is int && mountain.boosts.sharper >= 0)) &&

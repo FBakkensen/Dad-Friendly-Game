@@ -23,5 +23,7 @@ export default defineConfig({
   ],
   test: {
     environment: "happy-dom",
+    // Rules tests need the Firestore emulator: npm run test:rules.
+    exclude: ["**/node_modules/**", "rules-test/**"],
   },
 });

@@ -13,13 +13,15 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "node scripts/knip-strict.js",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run knip && npm run test && npm run visual",
-    "visual": "node scripts/visual-check.mjs"
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run knip && npm run test && npm run test:rules && npm run visual",
+    "visual": "node scripts/visual-check.mjs",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-dad-friendly \"vitest run --config rules-test/vitest.config.ts\""
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
+    "firebase-tools": "^15.33.0",
     "happy-dom": "^20.11.2",
     "knip": "^6.32.2",
     "prettier": "^3.9.6",
