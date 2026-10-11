@@ -1,11 +1,12 @@
 import type { Mountain } from "./mountain";
+import type { RelicId } from "./relics";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
 const COST_GROWTH = 1.15;
 
-export type TierId = "helper" | "cart" | "drill" | "borer";
+export type TierId = "helper" | "cart" | "drill" | "borer" | "machine";
 
-type CrewField = "helpers" | "carts" | "drills" | "borers";
+type CrewField = "helpers" | "carts" | "drills" | "borers" | "machines";
 
 export type Tier = {
   readonly id: TierId;
@@ -18,6 +19,8 @@ export type Tier = {
   readonly firstCost: number;
   /** Stones a second each one mines. */
   readonly perSecond: number;
+  /** A relic that must be found before it can be built (see crew.ts). */
+  readonly needs?: RelicId;
 };
 
 /** Cheapest first. Each tier is roughly 15× the cost and 8× the speed of the last. */
@@ -53,6 +56,15 @@ export const TIERS: readonly Tier[] = [
     shortName: "Borer",
     firstCost: 40_000,
     perSecond: 450,
+  },
+  {
+    id: "machine",
+    field: "machines",
+    name: "Great Machine",
+    shortName: "Machine",
+    firstCost: 600_000,
+    perSecond: 3_500,
+    needs: "hammer",
   },
 ];
 

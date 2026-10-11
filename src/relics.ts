@@ -34,7 +34,7 @@ export const RELICS: readonly Relic[] = [
     id: "hammer",
     name: "Hammer of the Builder",
     virtue: "Building",
-    power: "Bigger machines can be built.",
+    power: "The Great Machine can be built, the mightiest crew of all.",
     depth: 25_000_000,
   },
   {

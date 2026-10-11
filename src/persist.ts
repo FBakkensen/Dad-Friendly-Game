@@ -36,6 +36,7 @@ export function serializeSave({
       carts: mountain.carts,
       drills: mountain.drills,
       borers: mountain.borers,
+      machines: mountain.machines,
       ...(mountain.startedAt === undefined
         ? {}
         : { startedAt: mountain.startedAt }),

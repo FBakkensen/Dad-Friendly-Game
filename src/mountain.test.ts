@@ -19,6 +19,7 @@ describe("mountain", () => {
       carts: 0,
       drills: 0,
       borers: 0,
+      machines: 0,
     });
     expect(minedOut(createMountain())).toBe(0);
   });
@@ -35,6 +36,7 @@ describe("mountain", () => {
       carts: 0,
       drills: 0,
       borers: 0,
+      machines: 0,
     });
     expect(minedOut(mountain)).toBe(3);
   });
@@ -47,6 +49,7 @@ describe("mountain", () => {
       carts: 0,
       drills: 0,
       borers: 0,
+      machines: 0,
     };
     expect(mineByHand(empty)).toBe(empty);
   });
@@ -60,6 +63,7 @@ describe("mountain", () => {
         carts: 0,
         drills: 0,
         borers: 0,
+        machines: 0,
       }),
     ).toEqual({
       remaining: 10,
@@ -68,12 +72,21 @@ describe("mountain", () => {
       carts: 0,
       drills: 0,
       borers: 0,
+      machines: 0,
     });
     for (const bad of [
       null,
       "x",
       {},
-      { remaining: -1, pocket: 0, helpers: 0, carts: 0, drills: 0, borers: 0 },
+      {
+        remaining: -1,
+        pocket: 0,
+        helpers: 0,
+        carts: 0,
+        drills: 0,
+        borers: 0,
+        machines: 0,
+      },
       {
         remaining: MOUNTAIN_STONES + 1,
         pocket: 0,
@@ -81,8 +94,17 @@ describe("mountain", () => {
         carts: 0,
         drills: 0,
         borers: 0,
+        machines: 0,
       },
-      { remaining: 1.5, pocket: 0, helpers: 0, carts: 0, drills: 0, borers: 0 },
+      {
+        remaining: 1.5,
+        pocket: 0,
+        helpers: 0,
+        carts: 0,
+        drills: 0,
+        borers: 0,
+        machines: 0,
+      },
       {
         remaining: 1,
         pocket: Number.NaN,
@@ -90,8 +112,17 @@ describe("mountain", () => {
         carts: 0,
         drills: 0,
         borers: 0,
+        machines: 0,
       },
-      { remaining: 1, pocket: 0, helpers: "2", carts: 0, drills: 0, borers: 0 },
+      {
+        remaining: 1,
+        pocket: 0,
+        helpers: "2",
+        carts: 0,
+        drills: 0,
+        borers: 0,
+        machines: 0,
+      },
     ]) {
       expect(parseMountain(bad)).toBeUndefined();
     }
@@ -106,6 +137,7 @@ describe("accrue", () => {
     carts: 0,
     drills: 0,
     borers: 0,
+    machines: 0,
   };
 
   it("mines whole seconds and keeps the leftover part-second unspent", () => {
@@ -117,6 +149,7 @@ describe("accrue", () => {
         carts: 0,
         drills: 0,
         borers: 0,
+        machines: 0,
       },
       mined: 4,
       settledAt: 2_000,
@@ -144,6 +177,7 @@ describe("accrue", () => {
       carts: 0,
       drills: 0,
       borers: 0,
+      machines: 0,
     };
     expect(accrue({ mountain: almost, from: 0, to: 10_500 })).toEqual({
       mountain: {
@@ -153,6 +187,7 @@ describe("accrue", () => {
         carts: 0,
         drills: 0,
         borers: 0,
+        machines: 0,
       },
       mined: 3,
       settledAt: 10_500,
@@ -167,6 +202,7 @@ describe("accrue", () => {
       carts: 0,
       drills: 0,
       borers: 0,
+      machines: 0,
     };
     expect(accrue({ mountain: idle, from: 0, to: 9_000 })).toEqual({
       mountain: idle,
@@ -189,6 +225,7 @@ describe("accrueAway", () => {
     carts: 0,
     drills: 0,
     borers: 0,
+    machines: 0,
   };
 
   it("pays for the whole absence under the cap", () => {

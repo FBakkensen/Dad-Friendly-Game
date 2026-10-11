@@ -11,17 +11,24 @@ const at = (
   carts: 0,
   drills: 0,
   borers: 0,
+  machines: 0,
   ...fields,
 });
 
 describe("tiers", () => {
-  it("lists helpers, carts, drills, then borers, each faster and dearer", () => {
+  it("lists helpers, carts, drills, borers, then the Great Machine, each faster and dearer", () => {
     expect(TIERS.map((tier) => tier.id)).toEqual([
       "helper",
       "cart",
       "drill",
       "borer",
+      "machine",
     ]);
+    expect(tierById("machine")).toMatchObject({
+      firstCost: 600_000,
+      perSecond: 3_500,
+      needs: "hammer",
+    });
     expect(tierById("borer")).toMatchObject({
       firstCost: 40_000,
       perSecond: 450,

@@ -62,6 +62,7 @@ describe("golden veins", () => {
         carts: 0,
         drills: 0,
         borers: 0,
+        machines: 0,
       }),
     ).toBe(50);
     expect(
@@ -72,6 +73,7 @@ describe("golden veins", () => {
         carts: 0,
         drills: 0,
         borers: 0,
+        machines: 0,
       }),
     ).toBe(180);
     expect(
@@ -82,6 +84,7 @@ describe("golden veins", () => {
         carts: 0,
         drills: 0,
         borers: 0,
+        machines: 0,
       }),
     ).toBe(20);
     expect(
@@ -92,6 +95,7 @@ describe("golden veins", () => {
         carts: 0,
         drills: 0,
         borers: 0,
+        machines: 0,
       }),
     ).toEqual({
       remaining: 820,
@@ -100,6 +104,7 @@ describe("golden veins", () => {
       carts: 0,
       drills: 0,
       borers: 0,
+      machines: 0,
     });
     const empty = {
       remaining: 0,
@@ -108,6 +113,7 @@ describe("golden veins", () => {
       carts: 0,
       drills: 0,
       borers: 0,
+      machines: 0,
     };
     expect(mineVein(empty)).toBe(empty);
   });

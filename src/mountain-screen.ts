@@ -11,14 +11,7 @@ import {
   mineByHand,
   stonesPerSecond,
 } from "./mountain";
-import {
-  TIERS,
-  buyTier,
-  owned,
-  tierCost,
-  tierShown,
-  type TierId,
-} from "./tiers";
+import { TIERS, owned, tierCost, tierShown, type TierId } from "./tiers";
 import {
   foundRelics,
   hasRelic,
@@ -26,6 +19,7 @@ import {
   RELICS,
   type RelicId,
 } from "./relics";
+import { buyCrew, tierLocked } from "./crew";
 import {
   LANTERN_VEIN_GAP_SCALE,
   advanceVein,
@@ -298,14 +292,14 @@ export function mountMountainScreen({
       }
       const before = owned(view.mountain, tier);
       const rateBefore = stonesPerSecond(view.mountain);
-      progress.applyMutation((mountain) => buyTier(mountain, tier.id));
+      progress.applyMutation((mountain) => buyCrew(mountain, tier.id));
       if (owned(view.mountain, tier) > before) {
         floatText(card, `+${formatCount(tier.perSecond)}/s`, "float-gain");
         countCrewRate(rateBefore, stonesPerSecond(view.mountain));
       }
     });
     tierGrid.append(card);
-    return { tier, card, name, costText, countBadge, rate };
+    return { tier, card, name, costText, countBadge, rate, costIcon };
   });
   crew.append(crewStatus, tierGrid);
 
@@ -848,25 +842,34 @@ export function mountMountainScreen({
       costText,
       countBadge,
       rate: tierRate,
+      costIcon,
     } of tierCards) {
       const count = owned(current, tier);
       const price = tierCost(tier, count);
       card.hidden = !tierShown(current, tier);
-      card.disabled = !view.ready || current.pocket < price;
+      const locked = tierLocked(current, tier);
+      const needed = RELICS.find((relic) => relic.id === tier.needs);
+      card.disabled = !view.ready || locked || current.pocket < price;
+      card.classList.toggle("tier-locked", locked);
+      costIcon.hidden = locked;
       name.textContent = compact ? tier.shortName : tier.name;
       countBadge.textContent = `×${formatCompact(count)}`;
       countBadge.hidden = count === 0;
-      costText.textContent = formatCompact(price);
-      tierRate.textContent = compact
-        ? count === 0
-          ? `+${formatCompact(tier.perSecond)}/s`
-          : `+${formatCompact(tier.perSecond)}\u2009·\u2009${formatCompact(count * tier.perSecond)}/s`
-        : count === 0
-          ? `+${formatCompact(tier.perSecond)}/s each`
-          : `+${formatCompact(tier.perSecond)} each · ${formatCompact(count * tier.perSecond)}/s`;
+      costText.textContent = locked ? "Locked" : formatCompact(price);
+      tierRate.textContent = locked
+        ? `${needed?.name.split(" ")[0] ?? "Relic"} · ${formatCompact(needed?.depth ?? 0)}`
+        : compact
+          ? count === 0
+            ? `+${formatCompact(tier.perSecond)}/s`
+            : `+${formatCompact(tier.perSecond)}\u2009·\u2009${formatCompact(count * tier.perSecond)}/s`
+          : count === 0
+            ? `+${formatCompact(tier.perSecond)}/s each`
+            : `+${formatCompact(tier.perSecond)} each · ${formatCompact(count * tier.perSecond)}/s`;
       card.setAttribute(
         "aria-label",
-        `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(tier.perSecond)}. You have ${formatCount(count)}.`,
+        locked
+          ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(tier.perSecond)} each.`
+          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(tier.perSecond)}. You have ${formatCount(count)}.`,
       );
     }
   };

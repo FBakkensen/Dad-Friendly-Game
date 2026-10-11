@@ -235,13 +235,24 @@ for (const viewport of [
 ]) {
   const size = `${String(viewport[0])}x${String(viewport[1])}`;
   for (const [crew, font] of [
-    [{ helpers: 999, carts: 999, drills: 999, borers: 999 }, undefined],
+    [
+      { helpers: 999, carts: 999, drills: 999, borers: 999, machines: 999 },
+      undefined,
+    ],
     [{ helpers: 120, carts: 85, drills: 40, borers: 0 }, undefined],
     [{ helpers: 120, carts: 85 }, undefined],
     [{ helpers: 1, carts: 0 }, undefined],
     // CI's fallback font is wide; it must fit there too.
     [{ helpers: 999, carts: 999 }, "DejaVu Sans"],
-    [{ helpers: 999, carts: 999, drills: 999, borers: 999 }, "DejaVu Sans"],
+    [
+      { helpers: 999, carts: 999, drills: 999, borers: 999, machines: 999 },
+      "DejaVu Sans",
+    ],
+    // Before the Hammer: the Great Machine card is locked.
+    [
+      { helpers: 9, carts: 9, drills: 9, borers: 9, remaining: 80_000_000 },
+      "DejaVu Sans",
+    ],
   ]) {
     const { page, close } = await open(viewport, {
       version: 4,
