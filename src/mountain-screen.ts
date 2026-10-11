@@ -392,7 +392,7 @@ export function mountMountainScreen({
     if (!guided) {
       goal.textContent =
         (view.mountain.legacy ?? 0) > 0
-          ? `Your kid's mine: six relics wait inside, and your Legacy makes it ${legacyWords(legacyBonus(view.mountain))}.`
+          ? `Your kid's mine: six relics wait inside. Legacy ${legacyWords(legacyBonus(view.mountain))}.`
           : "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.";
       return;
     }
@@ -425,7 +425,9 @@ export function mountMountainScreen({
 
   const header = document.createElement("header");
   header.className = "top-bar";
-  header.append(lantern, remaining, legacy.badge, menuButton);
+  header.append(lantern, remaining, menuButton);
+  // The Legacy sits in the mountain's other corner: no layout cost.
+  mountainStage.append(legacy.badge);
 
   root.replaceChildren(
     header,

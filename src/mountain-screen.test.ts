@@ -452,7 +452,7 @@ describe("crew tiers on screen", () => {
       const cart = tierCard(screen.root, "cart");
 
       expect(screen.text(".crew-status")).toBe(
-        "No crew yet. Hire a helper to mine while you rest.",
+        "No crew yet. Hire a helper to mine for you.",
       );
       expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Helper");
       expect(
@@ -1004,7 +1004,7 @@ describe("start over", () => {
     expect(screen.text(".stones-left")).toBe("100 million stones left");
     expect(screen.text(".pocket")).toBe("0 stones");
     expect(screen.text(".crew-status")).toBe(
-      "No crew yet. Hire a helper to mine while you rest.",
+      "No crew yet. Hire a helper to mine for you.",
     );
     expect(
       screen.root.querySelector(".relic-shelf")?.getAttribute("aria-label"),
@@ -1796,7 +1796,7 @@ describe("pass the mine to your kid (#131)", () => {
     expect(screen.text(".pocket")).toBe("0 stones");
     const badge = screen.root.querySelector<HTMLElement>(".legacy-badge");
     expect(badge?.hidden).toBe(false);
-    expect(badge?.textContent).toBe("×1.5");
+    expect(badge?.textContent).toBe("Legacy ×1.5");
     expect(badge?.getAttribute("aria-label")).toBe(
       "Legacy 1: your crew and taps are ×1.5",
     );

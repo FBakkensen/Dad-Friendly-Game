@@ -104,7 +104,7 @@ export function createLegacyPanel({
     const bonus = legacyBonus(mountain);
     const legacy = mountain.legacy ?? 0;
     badge.hidden = legacy === 0;
-    badge.textContent = legacyWords(bonus);
+    badge.textContent = `Legacy ${legacyWords(bonus)}`;
     badge.setAttribute(
       "aria-label",
       `Legacy ${formatCount(legacy)}: your crew and taps are ${legacyWords(bonus)}`,

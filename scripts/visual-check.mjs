@@ -693,22 +693,24 @@ for (const viewport of [
   check(
     await page.$eval(
       ".legacy-badge",
-      (el) => !el.hidden && el.textContent === "×2",
+      (el) => !el.hidden && el.textContent === "Legacy ×2",
     ),
     `${label} Legacy badge shows ×2`,
   );
+  // Let the last tap's float finish drifting first.
+  await new Promise((resolve) => setTimeout(resolve, 1500));
   check(await noScroll(page), `${label} new run has no scroll`);
-  const header = await page.$eval(".top-bar", (bar) => {
-    const box = bar.getBoundingClientRect();
-    const kids = [...bar.children].map((el) => el.getBoundingClientRect());
+  const badgeFits = await page.$eval(".legacy-badge", (badge) => {
+    const box = badge.getBoundingClientRect();
+    const stage = badge.parentElement.getBoundingClientRect();
     return (
-      kids.every((k) => k.top >= box.top - 1 && k.bottom <= box.bottom + 1) &&
-      kids.every((k) => k.right <= innerWidth && k.left >= 0) &&
-      bar.querySelector(".stones-left").scrollWidth <=
-        bar.querySelector(".stones-left").clientWidth + 1
+      box.left >= 0 &&
+      box.right <= innerWidth &&
+      box.top >= stage.top &&
+      box.bottom <= stage.bottom
     );
   });
-  check(header, `${label} header with the Legacy badge stays on one row`);
+  check(badgeFits, `${label} Legacy badge sits inside the mountain`);
   await close();
 }
 

@@ -70,7 +70,7 @@ body {
 .stones-left {
   text-align: center;
   margin: 0;
-  font-size: clamp(1.2rem, min(5.6vw, 3.4dvh), 2rem);
+  font-size: clamp(1.1rem, min(5vw, 3.4dvh), 2rem);
   white-space: nowrap;
   font-weight: 700;
   color: #f2c46d;
@@ -1188,15 +1188,18 @@ body {
   outline-offset: 3px;
 }
 
-/* Legacy ×1.5 beside the stones left: small, so the header never grows. */
+/* "Legacy ×1.5" in the mountain's top-right corner (boost chips are top-left). */
 .legacy-badge {
-  flex: none;
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  pointer-events: none;
   padding: 2px 8px;
   border: 1px solid rgba(242, 196, 109, 0.6);
   border-radius: 999px;
   background: rgba(232, 168, 74, 0.15);
   color: #f2c46d;
-  font-size: clamp(0.8rem, 2dvh, 1rem);
+  font-size: 0.8rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
