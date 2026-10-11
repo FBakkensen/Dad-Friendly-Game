@@ -31,12 +31,11 @@ export function migrateSessionSave({
   to: Storage;
 }): void {
   try {
-    const legacy = readSessionSave({ storage: from });
-    if (
-      legacy !== undefined &&
-      readSessionSave({ storage: to }) === undefined
-    ) {
-      to.setItem(SESSION_SAVE_KEY, from.getItem(SESSION_SAVE_KEY) ?? "");
+    const raw = from.getItem(SESSION_SAVE_KEY);
+    const legacyValid =
+      raw !== null && readSessionSave({ storage: from }) !== undefined;
+    if (legacyValid && readSessionSave({ storage: to }) === undefined) {
+      to.setItem(SESSION_SAVE_KEY, raw);
     }
     from.removeItem(SESSION_SAVE_KEY);
   } catch {

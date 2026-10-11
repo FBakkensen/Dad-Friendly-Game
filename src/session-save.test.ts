@@ -100,6 +100,21 @@ describe("session save", () => {
   it("prefers localStorage so guest saves outlive the tab", () => {
     expect(tryGetGuestStorage()).toBe(globalThis.localStorage);
   });
+
+  it("moves an older tab save into localStorage on first use", () => {
+    globalThis.localStorage.clear();
+    const grid = dig({ grid: createPocketGrid(), index: 7 });
+    writeSessionSave({ storage: globalThis.sessionStorage, grid, lastSeen: 9 });
+
+    const storage = tryGetGuestStorage();
+
+    expect(storage).toBe(globalThis.localStorage);
+    expect(readSessionSave({ storage: globalThis.localStorage })).toEqual({
+      grid,
+      lastSeen: 9,
+    });
+    expect(globalThis.sessionStorage.getItem(SESSION_SAVE_KEY)).toBeNull();
+  });
 });
 
 describe("migrateSessionSave", () => {

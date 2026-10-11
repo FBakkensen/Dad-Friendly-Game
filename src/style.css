@@ -125,6 +125,7 @@ body {
   outline-offset: 4px;
 }
 
+.goal,
 .dig-status,
 .save-status,
 .auth-status {
