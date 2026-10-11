@@ -1419,17 +1419,13 @@ describe("crew staffing on screen", () => {
     expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
       "+60\u2009·\u2009120/s",
     );
-    expect(screen.text(".crew-status")).toBe(
-      "135/s · 2 idle, need 2 more helpers",
-    );
+    expect(screen.text(".crew-status")).toBe("135/s · 2 idle, need 2 helpers");
 
     // Hiring one helper starts one cart.
     screen.root
       .querySelector<HTMLButtonElement>('[data-tier="helper"]')
       ?.click();
-    expect(screen.text(".crew-status")).toBe(
-      "146/s · 1 idle, need 1 more helper",
-    );
+    expect(screen.text(".crew-status")).toBe("146/s · 1 idle, need 1 helper");
   });
 
   it("floats 'Needs helpers' when a new machine has nobody to run it", () => {
@@ -1449,9 +1445,7 @@ describe("crew staffing on screen", () => {
       expect(cart?.querySelector(".float-gain")?.textContent).toBe(
         "Needs helpers",
       );
-      expect(screen.text(".crew-status")).toBe(
-        "11/s · 1 idle, need 1 more helper",
-      );
+      expect(screen.text(".crew-status")).toBe("11/s · 1 idle, need 1 helper");
     } finally {
       vi.useRealTimers();
       setReducedMotion(true);
@@ -1537,6 +1531,27 @@ describe("Heart of Patience on the welcome card", () => {
     const screen = mountScreen({ storage });
     expect(screen.text(".welcome-detail")).toContain(
       "The Heart of Patience made it ×1.25.",
+    );
+  });
+});
+
+describe("crew line at a big crew", () => {
+  it("goes compact past 1,000 a second so it fits one line", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(30_000_000),
+        pocket: 0,
+        helpers: 60,
+        borers: 6,
+        machines: 2,
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    expect(screen.text(".crew-status")).toMatch(
+      /^Your crew mines [\d,]+ stones\/s$/,
     );
   });
 });

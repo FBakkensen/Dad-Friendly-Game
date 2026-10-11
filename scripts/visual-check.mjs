@@ -420,6 +420,19 @@ for (const viewport of [
       );
     });
     check(pocketFits, `${label} keep the pocket on one line`);
+    const crewLineFits = await page.evaluate(() => {
+      const line = document.querySelector(".crew-status");
+      if (line === null) return false;
+      const box = line.getBoundingClientRect();
+      const height = parseFloat(getComputedStyle(line).lineHeight) || 24;
+      return (
+        line.scrollWidth <= line.clientWidth + 1 &&
+        box.left >= 0 &&
+        box.right <= innerWidth &&
+        box.height <= height * 1.5
+      );
+    });
+    check(crewLineFits, `${label} keep the crew line on one line`);
     await close();
   }
 }

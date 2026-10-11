@@ -1,5 +1,6 @@
 import lanternUrl from "./assets/boot-tile.png";
 import helperUrl from "./assets/helper-miner.png";
+import kidUrl from "./assets/kid-helper.png";
 import cartUrl from "./assets/mine-cart.png";
 import drillUrl from "./assets/steam-drill.png";
 import borerUrl from "./assets/tunnel-borer.png";
@@ -45,8 +46,7 @@ try {
       drill: drillUrl,
       borer: borerUrl,
       machine: machineUrl,
-      // No kid sprite yet: the helper art, drawn smaller on the card.
-      kid: helperUrl,
+      kid: kidUrl,
     },
     upgradesUrl,
     relicArt: {
