@@ -96,6 +96,10 @@ async function open([width, height], save, { standalone = false } = {}) {
 
 /** The overlay is fixed and covers the whole viewport. */
 async function coversViewport(page, selector) {
+  // A tap's click lands a frame later on a slow runner; let the overlay open first.
+  await page
+    .waitForSelector(`${selector}:not([hidden])`, { timeout: 2_000 })
+    .catch(() => undefined);
   return page.$eval(selector, (element) => {
     const rect = element.getBoundingClientRect();
     return (
