@@ -41,6 +41,10 @@ export function serializeSave({
       Object.keys(mountain.upgrades).length === 0
         ? {}
         : { upgrades: mountain.upgrades }),
+      ...(mountain.boosts === undefined ||
+      Object.keys(mountain.boosts).length === 0
+        ? {}
+        : { boosts: mountain.boosts }),
       ...(mountain.startedAt === undefined
         ? {}
         : { startedAt: mountain.startedAt }),

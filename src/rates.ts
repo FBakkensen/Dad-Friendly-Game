@@ -1,5 +1,6 @@
 import type { Mountain } from "./mountain";
 import { TIERS, owned, type TierId } from "./tiers";
+import { boostById, boostLeft } from "./boosts";
 import { TAP_SHARE_PER_LEVEL, upgradeLevel } from "./upgrades";
 
 /**
@@ -21,21 +22,27 @@ export type Rates = {
 
 /**
  * Every multiplier in one place: live ticks, away earnings, taps and the UI
- * all read from here, so they can't disagree.
+ * all read from here, so they can't disagree. Pass `now` while playing so
+ * running boosts count; leave it out for away time, which boosts never touch.
  */
-export function effectiveRates(mountain: Mountain): Rates {
+export function effectiveRates(mountain: Mountain, now?: number): Rates {
+  const boosted = (id: "sharper" | "overtime"): number =>
+    now !== undefined && boostLeft(mountain, id, now) > 0
+      ? boostById(id).multiplier
+      : 1;
   const tierSpeed = Object.fromEntries(
     TIERS.map((tier) => [tier.id, tier.perSecond]),
   ) as Record<TierId, number>;
-  const crewPerSecond = TIERS.reduce(
+  const baseCrew = TIERS.reduce(
     (total, tier) => total + owned(mountain, tier) * tierSpeed[tier.id],
     0,
   );
+  // Tap power takes its share of the crew's own speed, before Overtime.
   const tapShare = upgradeLevel(mountain, "tap") * TAP_SHARE_PER_LEVEL;
   return {
-    tapYield: 1 + Math.floor(crewPerSecond * tapShare),
+    tapYield: (1 + Math.floor(baseCrew * tapShare)) * boosted("sharper"),
     tierSpeed,
-    crewPerSecond,
+    crewPerSecond: baseCrew * boosted("overtime"),
     awayPay: AWAY_PAY_RATE,
   };
 }

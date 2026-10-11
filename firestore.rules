@@ -10,7 +10,7 @@ service cloud.firestore {
     // Fields:
     //   - version: int (required, 1..4)
     //   - mountain: map (required iff version is 3 or 4)
-    //       - remaining: int 0..100000000 (v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts, drills, borers, machines: optional int >= 0, upgrades: optional map of known ids to int levels,
+    //       - remaining: int 0..100000000 (v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts, drills, borers, machines: optional int >= 0, upgrades: optional map of known ids to int levels, boosts: optional map of known ids to int end times,
     //         startedAt: optional int >= 0 (run start; updates may not lower it)
     //   - grid: map (required iff version is 1 or 2; legacy, read-migrated by the client)
     //       - width: int (required, must be 3)
@@ -76,7 +76,7 @@ service cloud.firestore {
     function isValidMountain(mountain, total) {
       return mountain is map &&
         mountain.keys().hasAll(['remaining', 'pocket', 'helpers']) &&
-        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts', 'drills', 'borers', 'machines', 'upgrades', 'startedAt']) &&
+        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts', 'drills', 'borers', 'machines', 'upgrades', 'boosts', 'startedAt']) &&
         mountain.remaining is int &&
         mountain.remaining >= 0 &&
         mountain.remaining <= total &&
@@ -91,6 +91,10 @@ service cloud.firestore {
         (!('upgrades' in mountain) || (mountain.upgrades is map &&
           mountain.upgrades.keys().hasOnly(['tap']) &&
           (!('tap' in mountain.upgrades) || (mountain.upgrades.tap is int && mountain.upgrades.tap >= 0 && mountain.upgrades.tap <= 10)))) &&
+        (!('boosts' in mountain) || (mountain.boosts is map &&
+          mountain.boosts.keys().hasOnly(['sharper', 'overtime']) &&
+          (!('sharper' in mountain.boosts) || (mountain.boosts.sharper is int && mountain.boosts.sharper >= 0)) &&
+          (!('overtime' in mountain.boosts) || (mountain.boosts.overtime is int && mountain.boosts.overtime >= 0)))) &&
         (!('startedAt' in mountain) || (mountain.startedAt is int && mountain.startedAt >= 0));
     }
 

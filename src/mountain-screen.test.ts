@@ -1179,3 +1179,78 @@ describe("upgrades on screen", () => {
     ).toBe(true);
   });
 });
+
+describe("quick boosts on screen", () => {
+  it("buys Sharper picks from the sheet: taps double, a chip counts down, and it ends", async () => {
+    vi.useFakeTimers();
+    setReducedMotion(false);
+    try {
+      let clock = 1_000_000;
+      const storage = createMemoryStorage();
+      writeSessionSave({
+        storage,
+        mountain: { ...minedMountain(40_000), carts: 50 },
+        lastSeen: clock,
+      });
+      const screen = mountScreen({ storage, now: () => clock });
+      const chip = screen.root.querySelector<HTMLElement>(
+        '.mountain-wrap .boost-chip[data-boost="sharper"]',
+      );
+      expect(chip?.hidden).toBe(true);
+      screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+      const buy = screen.root.querySelector<HTMLButtonElement>(
+        '[data-boost="sharper"] .upgrade-buy',
+      );
+      expect(screen.text('[data-boost="sharper"] .upgrade-name')).toBe(
+        "Sharper picks",
+      );
+      expect(buy?.textContent).toBe("Buy for 30 thousand stones");
+      buy?.click();
+      expect(buy?.disabled).toBe(true);
+      expect(buy?.textContent).toBe("Running · 10:00 left");
+      expect(chip?.hidden).toBe(false);
+      expect(chip?.textContent).toBe("Sharper picks ×2 · 10:00");
+      screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
+
+      screen.mountain.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, detail: 1 }),
+      );
+      expect(screen.root.querySelector(".tap-float")?.textContent).toBe("+2");
+
+      clock += 4 * 60_000 + 30_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(chip?.textContent).toBe("Sharper picks ×2 · 5:30");
+
+      clock += 6 * 60_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(chip?.hidden).toBe(true);
+      expect(screen.mountain.getAttribute("aria-label")).toBe(
+        "Mountain, tap to mine one stone",
+      );
+    } finally {
+      vi.useRealTimers();
+      setReducedMotion(true);
+    }
+  });
+
+  it("shows a doubled crew line under Overtime, and keeps it across a reload", () => {
+    const clock = 5_000_000;
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(0),
+        helpers: 3,
+        boosts: { overtime: clock + 20 * 60_000 },
+      },
+      lastSeen: clock,
+    });
+    const screen = mountScreen({ storage, now: () => clock });
+    expect(screen.text(".crew-status")).toBe(
+      "Your crew mines 6 stones a second",
+    );
+    expect(screen.text('.boost-chip[data-boost="overtime"]')).toBe(
+      "Overtime ×2 · 20:00",
+    );
+  });
+});

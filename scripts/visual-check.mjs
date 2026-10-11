@@ -39,6 +39,8 @@ const CREW = {
   carts: 24,
   drills: 6,
   borers: 2,
+  // Both boosts running: their chips must sit in the mountain, not the flow.
+  boosts: { sharper: Date.now() + 3_600_000, overtime: Date.now() + 3_600_000 },
 };
 // One stone short of the Lantern of Guidance, away for ten minutes.
 const BEFORE_LANTERN = {
@@ -205,6 +207,29 @@ for (const viewport of VIEWPORTS) {
   });
   check(veinInside, `${size} golden vein sits inside the mountain`);
 
+  const chipsInside = await page.evaluate(() => {
+    const wrap = document
+      .querySelector(".mountain-wrap")
+      ?.getBoundingClientRect();
+    const chips = [...document.querySelectorAll(".boost-chip")].filter(
+      (chip) => !chip.hidden,
+    );
+    return (
+      wrap !== undefined &&
+      chips.length === 2 &&
+      chips.every((chip) => {
+        const box = chip.getBoundingClientRect();
+        return (
+          box.top >= wrap.top &&
+          box.bottom <= wrap.bottom &&
+          box.left >= wrap.left &&
+          box.right <= wrap.right
+        );
+      })
+    );
+  });
+  check(chipsInside, `${size} boost countdowns sit inside the mountain`);
+
   await page.waitForSelector(".relic-shelf", { visible: true });
   await page.tap(".relic-shelf");
   check(
@@ -228,16 +253,23 @@ for (const viewport of VIEWPORTS) {
     await coversViewport(page, ".upgrades-dialog"),
     `${size} upgrades sheet is laid over the game`,
   );
-  // Every buy button and the way back can be reached (the sheet may scroll).
+  // Every buy button and the way back can be reached, scrolling if it must.
   const sheetReachable = await page.$eval(".upgrades-dialog", (sheet) => {
     const buttons = [...sheet.querySelectorAll("button")];
+    const wide = buttons.every((button) => {
+      const box = button.getBoundingClientRect();
+      return box.height >= 44 && box.left >= 0 && box.right <= innerWidth;
+    });
+    sheet.scrollTop = 0;
+    const titleTop =
+      sheet.querySelector("h2")?.getBoundingClientRect().top ?? -1;
+    sheet.scrollTop = sheet.scrollHeight;
+    const closeBottom =
+      sheet.querySelector(".upgrades-close")?.getBoundingClientRect().bottom ??
+      Infinity;
+    sheet.scrollTop = 0;
     return (
-      buttons.length >= 2 &&
-      buttons.every((button) => {
-        const box = button.getBoundingClientRect();
-        return box.height >= 44 && box.left >= 0 && box.right <= innerWidth;
-      }) &&
-      sheet.scrollHeight - sheet.clientHeight >= 0
+      buttons.length >= 4 && wide && titleTop >= 0 && closeBottom <= innerHeight
     );
   });
   check(sheetReachable, `${size} upgrades sheet buttons are tappable`);
