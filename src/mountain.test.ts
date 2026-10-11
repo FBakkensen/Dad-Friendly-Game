@@ -6,8 +6,8 @@ import {
   heartBonus,
 } from "./rates";
 import { describe, expect, it } from "vitest";
+import { AWAY_PAY_RATE } from "./rates";
 import {
-  AWAY_PAY_RATE,
   MOUNTAIN_STONES,
   accrueAway,
   accrue,

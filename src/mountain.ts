@@ -2,8 +2,6 @@ import { effectiveRates, heartBonus } from "./rates";
 import { parseBoosts, type Boosts } from "./boosts";
 import { parseUpgrades, type Upgrades } from "./upgrades";
 
-export { AWAY_PAY_RATE } from "./rates";
-
 /** Mountain numbers live here; tier numbers in src/tiers.ts. See docs/DESIGN.md. */
 import { MOUNTAIN_STONES } from "./scale";
 
