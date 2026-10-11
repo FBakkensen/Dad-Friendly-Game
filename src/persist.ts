@@ -34,6 +34,9 @@ export function serializeSave({
       pocket: mountain.pocket,
       helpers: mountain.helpers,
       carts: mountain.carts,
+      ...(mountain.startedAt === undefined
+        ? {}
+        : { startedAt: mountain.startedAt }),
     },
     lastSeen,
   };

@@ -9,6 +9,9 @@ const REQUIRED_SELECTORS = [
   ".welcome-back",
   ".relic-reveal",
   ".shelf-dialog",
+  ".start-over",
+  ".game-menu",
+  ".menu-button",
   ".welcome-card",
   ".reveal-card",
   ".shelf-card",
@@ -25,8 +28,16 @@ describe("style.css", () => {
     expect(css).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));
   });
 
-  it("lays dialogs over the game", () => {
-    const overlay = /\.welcome-back,[^{]*\{[^}]*position:\s*fixed/;
-    expect(css).toMatch(overlay);
+  it.each([
+    ".welcome-back",
+    ".relic-reveal",
+    ".shelf-dialog",
+    ".start-over",
+    ".game-menu",
+  ])("lays %s over the game", (selector) => {
+    const group = /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
+      css.slice(css.indexOf(".welcome-back,")),
+    );
+    expect(group?.[1]?.split(",\n")).toContain(selector);
   });
 });

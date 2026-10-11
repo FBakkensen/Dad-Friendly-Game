@@ -626,3 +626,129 @@ describe("relic reveals", () => {
     expect(progress.getSnapshot().revealed).toBeUndefined();
   });
 });
+
+describe("start over", () => {
+  const signedInCloud = (start: Mountain) => {
+    const writes: Mountain[] = [];
+    let push: (remote: CloudLoadResult) => void = () => undefined;
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: ({ mountain }) => {
+        writes.push(mountain);
+        return Promise.resolve({ kind: "ok" });
+      },
+      watch: ({ onChange }) => {
+        push = onChange;
+        onChange({ kind: "found", mountain: start, lastSeen: 0 });
+        return () => undefined;
+      },
+    };
+    return {
+      writes,
+      cloudSave,
+      push: (remote: CloudLoadResult) => {
+        push(remote);
+      },
+    };
+  };
+  const user = { uid: "test-dad", label: "Test Dad" };
+
+  it("gives a guest a fresh mountain on the device, with no reveal or welcome", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(2_000_000), helpers: 5, carts: 2 },
+      lastSeen: 0,
+    });
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 60_000,
+    });
+    expect(progress.getSnapshot().away).toBeDefined();
+
+    progress.startOver();
+
+    const fresh = { ...createMountain(), startedAt: 60_000 };
+    expect(progress.getSnapshot().mountain).toEqual(fresh);
+    expect(progress.getSnapshot().away).toBeUndefined();
+    expect(progress.getSnapshot().revealed).toBeUndefined();
+    expect(readSessionSave({ storage })).toEqual({
+      mountain: fresh,
+      lastSeen: 60_000,
+    });
+  });
+
+  it("writes the fresh mountain to the cloud at once, even inside the write throttle", async () => {
+    const cloud = signedInCloud(minedMountain(5_000_000));
+    let clock = 10_000;
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud.cloudSave,
+      sessionStorage: createMemoryStorage(),
+      now: () => clock,
+      cloudWriteGapMs: 1000,
+    });
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      pocket: mountain.pocket + 1,
+    }));
+    await Promise.resolve();
+    clock += 10;
+
+    progress.startOver();
+
+    expect(cloud.writes.at(-1)).toEqual({
+      ...createMountain(),
+      startedAt: 10_010,
+    });
+    expect(progress.getSnapshot().mountain.remaining).toBe(
+      createMountain().remaining,
+    );
+  });
+
+  it("ignores a stale snapshot from before the reset and re-uploads the new run", async () => {
+    vi.useFakeTimers();
+    try {
+      const cloud = signedInCloud(minedMountain(5_000_000));
+      const progress = createProgressStore({
+        auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+        cloudSave: cloud.cloudSave,
+        sessionStorage: createMemoryStorage(),
+        now: () => Date.now(),
+        cloudWriteGapMs: 0,
+      });
+      progress.startOver();
+      await Promise.resolve();
+      const writesAfterReset = cloud.writes.length;
+
+      cloud.push({
+        kind: "found",
+        mountain: minedMountain(5_000_000),
+        lastSeen: 0,
+      });
+
+      expect(progress.getSnapshot().mountain.remaining).toBe(
+        createMountain().remaining,
+      );
+      expect(progress.getSnapshot().revealed).toBeUndefined();
+      expect(cloud.writes.length).toBe(writesAfterReset + 1);
+      expect(cloud.writes.at(-1)?.startedAt).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("adopts another device's newer run", () => {
+    const cloud = signedInCloud({ ...minedMountain(5_000_000), startedAt: 1 });
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud.cloudSave,
+      sessionStorage: createMemoryStorage(),
+      now: () => 0,
+    });
+    const newer = { ...minedMountain(3), startedAt: 2 };
+    cloud.push({ kind: "found", mountain: newer, lastSeen: 0 });
+    expect(progress.getSnapshot().mountain).toEqual(newer);
+  });
+});

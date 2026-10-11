@@ -10,7 +10,8 @@ service cloud.firestore {
     // Fields:
     //   - version: int (required, 1..4)
     //   - mountain: map (required iff version is 3 or 4)
-    //       - remaining: int 0..100000000 (v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts: optional int >= 0
+    //       - remaining: int 0..100000000 (v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts: optional int >= 0,
+    //         startedAt: optional int >= 0 (run start; updates may not lower it)
     //   - grid: map (required iff version is 1 or 2; legacy, read-migrated by the client)
     //       - width: int (required, must be 3)
     //       - height: int (required, must be 3)
@@ -75,7 +76,7 @@ service cloud.firestore {
     function isValidMountain(mountain, total) {
       return mountain is map &&
         mountain.keys().hasAll(['remaining', 'pocket', 'helpers']) &&
-        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts']) &&
+        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts', 'startedAt']) &&
         mountain.remaining is int &&
         mountain.remaining >= 0 &&
         mountain.remaining <= total &&
@@ -83,7 +84,17 @@ service cloud.firestore {
         mountain.pocket >= 0 &&
         mountain.helpers is int &&
         mountain.helpers >= 0 &&
-        (!('carts' in mountain) || (mountain.carts is int && mountain.carts >= 0));
+        (!('carts' in mountain) || (mountain.carts is int && mountain.carts >= 0)) &&
+        (!('startedAt' in mountain) || (mountain.startedAt is int && mountain.startedAt >= 0));
+    }
+
+    function runStart(data) {
+      return data.get('mountain', {}).get('startedAt', 0);
+    }
+
+    // "Start over" begins a newer run; a stale tab can't write an older run back.
+    function notOlderRun() {
+      return runStart(request.resource.data) >= runStart(resource.data);
     }
 
     function hasValidLastSeen(data) {
@@ -117,7 +128,8 @@ service cloud.firestore {
       allow create: if isOwner(userId) && isValidSave(request.resource.data);
       allow update: if isOwner(userId) &&
         isValidSave(request.resource.data) &&
-        uidNotModified();
+        uidNotModified() &&
+        notOlderRun();
       allow delete: if false;
     }
 

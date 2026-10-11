@@ -257,7 +257,9 @@ body {
 
 .welcome-back,
 .relic-reveal,
-.shelf-dialog {
+.shelf-dialog,
+.start-over,
+.game-menu {
   position: fixed;
   inset: 0;
   overflow-y: auto;
@@ -275,13 +277,17 @@ body {
 
 .welcome-back[hidden],
 .relic-reveal[hidden],
-.shelf-dialog[hidden] {
+.shelf-dialog[hidden],
+.start-over[hidden],
+.game-menu[hidden] {
   display: none;
 }
 
 .welcome-card,
 .reveal-card,
-.shelf-card {
+.shelf-card,
+.start-over-card,
+.menu-card {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -297,7 +303,9 @@ body {
 
 .welcome-card h2,
 .reveal-card h2,
-.shelf-card h2 {
+.shelf-card h2,
+.start-over-card h2,
+.menu-card h2 {
   margin: 0;
   font-size: 1.5rem;
   color: #e8d4b8;
@@ -325,7 +333,8 @@ body {
 
 .welcome-continue,
 .reveal-continue,
-.shelf-close {
+.shelf-close,
+.menu-close {
   appearance: none;
   width: 100%;
   min-height: 64px;
@@ -341,7 +350,8 @@ body {
 
 .welcome-continue:focus-visible,
 .reveal-continue:focus-visible,
-.shelf-close:focus-visible {
+.shelf-close:focus-visible,
+.menu-close:focus-visible {
   outline: 4px solid #e8d4b8;
   outline-offset: 4px;
 }
@@ -573,4 +583,102 @@ body {
 
 .shelf-card h2 {
   font-size: 1.25rem;
+}
+
+/* Tucked away: small and quiet, but still a 44px tap target. */
+.start-over-link {
+  appearance: none;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 0;
+  background: none;
+  color: #8a7258;
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.start-over-link:disabled {
+  visibility: hidden;
+}
+
+.start-over-link:focus-visible,
+.start-over-cancel:focus-visible,
+.start-over-confirm:focus-visible {
+  outline: 4px solid #e8d4b8;
+  outline-offset: 3px;
+}
+
+.start-over-card {
+  border-color: #c0392b;
+  box-shadow: 0 0 40px rgba(192, 57, 43, 0.35);
+}
+
+.start-over-card h2 {
+  color: #ff8a7a;
+}
+
+.start-over-card p {
+  margin: 0;
+}
+
+.start-over-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.start-over-cancel,
+.start-over-confirm {
+  appearance: none;
+  min-height: 52px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.start-over-cancel {
+  border: 2px solid #f2c46d;
+  background: linear-gradient(#f2c46d, #c98a32);
+  color: #1e130d;
+}
+
+.start-over-confirm {
+  border: 2px solid #e74c3c;
+  background: #7b1e14;
+  color: #fff3f0;
+}
+
+.menu-button {
+  appearance: none;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-left: auto;
+  border: 1px solid #6b4a2a;
+  border-radius: 10px;
+  background: rgba(30, 19, 13, 0.8);
+  color: #f2c46d;
+  font: inherit;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.menu-button:focus-visible {
+  outline: 4px solid #e8d4b8;
+  outline-offset: 2px;
+}
+
+.menu-card .auth-action {
+  width: 100%;
+}
+
+.menu-card .auth-status:empty {
+  display: none;
 }
