@@ -459,7 +459,7 @@ describe("away earnings", () => {
     machines: 0,
   };
 
-  it("pays a guest for time away, saves it, and shows the card only once", () => {
+  it("pays a guest 30% of the crew's speed for time away, saves it, and shows the card only once", () => {
     const storage = createMemoryStorage();
     writeSessionSave({ storage, mountain: crew, lastSeen: 0 });
     let clock = 10 * 60_000;
@@ -469,16 +469,16 @@ describe("away earnings", () => {
       sessionStorage: storage,
       now: () => clock,
     });
-    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 1_800);
+    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 540);
     expect(progress.getSnapshot().away).toEqual({
-      mined: 1_800,
+      mined: 540,
       awayMs: 600_000,
       capped: false,
     });
     expect(readSessionSave({ storage })).toEqual({
       mountain: {
-        remaining: 100_000_000 - 1_800,
-        pocket: 1_805,
+        remaining: 100_000_000 - 540,
+        pocket: 545,
         helpers: 3,
         carts: 0,
         drills: 0,
@@ -499,7 +499,7 @@ describe("away earnings", () => {
       now: () => clock,
     });
     expect(reopened.getSnapshot().away).toBeUndefined();
-    expect(reopened.getSnapshot().mountain.pocket).toBe(1_805);
+    expect(reopened.getSnapshot().mountain.pocket).toBe(545);
   });
 
   it("shows no card when nothing was mined", () => {
@@ -534,9 +534,27 @@ describe("away earnings", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    expect(progress.getSnapshot().away?.mined).toBe(240);
-    expect(docs.get("test-dad")?.pocket).toBe(245);
-    expect(progress.getSnapshot().mountain.pocket).toBe(245);
+    expect(progress.getSnapshot().away?.mined).toBe(72);
+    expect(docs.get("test-dad")?.pocket).toBe(77);
+    expect(progress.getSnapshot().mountain.pocket).toBe(77);
+  });
+
+  it("pays time in the background like time away, not as live play", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: crew, lastSeen: 0 });
+    let clock = 0;
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    clock = 1_000;
+    progress.tick();
+    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3);
+    // Phone locked for five minutes: ticks stop, then one late tick.
+    clock += 5 * 60_000;
+    progress.tick();
+    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3 + 270);
   });
 
   it("pays a short absence quietly, with no welcome-back card", () => {
@@ -548,7 +566,7 @@ describe("away earnings", () => {
       now: () => WELCOME_MIN_AWAY_MS - 1_000,
     });
     expect(progress.getSnapshot().away).toBeUndefined();
-    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3 * 59);
+    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 53);
   });
 
   it("pays another device's save silently after the first load", async () => {
@@ -574,7 +592,7 @@ describe("away earnings", () => {
     await Promise.resolve();
     push({ kind: "found", mountain: crew, lastSeen: 40_000 });
     await Promise.resolve();
-    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 30);
+    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 9);
     expect(progress.getSnapshot().away).toBeUndefined();
   });
 });
@@ -629,9 +647,9 @@ describe("relic reveals", () => {
     const progress = createProgressStore({
       auth: createMemoryAuth(),
       sessionStorage: storage,
-      now: () => 200_000,
+      now: () => 400_000,
     });
-    expect(progress.getSnapshot().away?.mined).toBe(2_000);
+    expect(progress.getSnapshot().away?.mined).toBe(1_200);
     expect(progress.getSnapshot().revealed?.id).toBe("lantern");
   });
 

@@ -14,7 +14,7 @@ It stays a dad-friendly game (see `AGENTS.md`): two-minute sessions, gentle, nev
 
 1. **Tap the mountain.** Each tap mines one stone. Stones are the currency.
 2. **Hire helpers.** Spend stones on helpers who mine for you every second. Each helper costs more than the last (escalating cost), so the next one is always just in reach.
-3. **Leave.** Helpers keep mining while you are away. Earnings are computed from timestamps on the next open; there is no live server.
+3. **Leave.** Helpers keep mining while you are away, at a resting pace (30% of their speed, up to 8 hours). Earnings are computed from timestamps on the next open; there is no live server.
 4. **Come back.** A "While you were away" screen celebrates what your crew mined.
 5. **Hit a relic depth.** Relics sit at fixed depths (stones mined out of the mountain). Reaching one uncovers it and unlocks its power.
 6. **Golden veins.** Now and then a glinting vein appears; tap it for a short boost. Missing one costs nothing.
@@ -44,6 +44,7 @@ M1 shipped the first relic only. The mountain was 1,000,000 stones then; it is n
 - Integers only in the save. Live and away mining use the same pure function: `accrue(state, from, to)` turns elapsed whole seconds into stones and returns the time it consumed, so fractions are never lost and offline and online math cannot drift apart.
 - Helper cost: `ceil(base × 1.15^owned)` (the Cookie Clicker curve). First helper: 10 stones, 1 stone per second.
 - Base away cap: 8 hours, lifted by the Shield.
+- Away pay rate: time away (app closed, or sitting in the background with no ticks for over 10 seconds) pays `AWAY_PAY_RATE` = **30%** of the crew's speed; live play pays in full. It is the main pacing lever. The Heart of Patience can raise it later (e.g. toward 60% after long absences), and so can M3's _Steady hands_.
 - Big numbers: plain digits under 10,000, then one decimal with a word ("12.3 thousand", "1.2 million").
 - Pacing target for M1: first helper within a minute of tapping; first relic after roughly 1–2 evenings of short sessions.
 
@@ -80,19 +81,19 @@ Hand mining can't move a 100-million-stone mountain. Each tier is a visible jump
 
 | Tier          | First cost (stones) | Stones a second each | Unlock                                             |
 | ------------- | ------------------- | -------------------- | -------------------------------------------------- |
-| Helper miner  | 10                  | 1                    | from the start                                     |
-| Mine cart     | 500                 | 4                    | shown once you own a helper                        |
-| Steam drill   | 25,000              | 16                   | shown once you own a cart                          |
-| Tunnel borer  | 1,500,000           | 64                   | shown once you own a drill                         |
-| Great Machine | 40,000,000          | 500                  | needs the Hammer of the Builder (25,000,000 mined) |
+| Helper miner  | 20                  | 1                    | from the start                                     |
+| Mine cart     | 100                 | 10                   | shown once you own a helper                        |
+| Steam drill   | 20,000              | 60                   | shown once you own a cart                          |
+| Tunnel borer  | 1,600,000           | 350                  | shown once you own a drill                         |
+| Great Machine | 80,000,000          | 3,500                | needs the Hammer of the Builder (25,000,000 mined) |
 
-- Every tier uses a steep Cookie Clicker curve: `ceil(firstCost × 1.6^owned)`. Each tier is 4× faster than the one before (the Great Machine about 8×). So the newest tier is the best deal for a while, then the older tiers catch up. These numbers come from the pacing simulation (#69); see Pacing below.
+- Every tier uses a steep Cookie Clicker curve: `ceil(firstCost × 2^owned)`, so each one costs twice the last. Each tier is 6–10× faster than the one before, a big visible jump. The Great Machine is the endgame purchase: the pacing dad buys his one near the bottom. These numbers come from the pacing simulation; see Pacing below.
 - One table of tiers (`src/tiers.ts`) drives buying, the speed total and the UI. `accrue` sums every tier, so away earnings use the same math automatically.
 - Layout: up to three tiers show as roomy two-column cards. From four on, the grid goes three to a row with short names (Helper, Cart, Drill, Borer, Machine), so all five tiers fit in two rows and the screen never scrolls, even at 360x560.
 - Save: the mountain gets one whole-number field per tier (`carts`, `drills`, `borers`, `machines`). A missing field reads as 0, so older saves load unchanged. Firestore rules allow those fields.
 - UI: a compact two-column grid of tier cards (art, name and count, cost) under one total line ("42 stones a second"). A tier not shown yet takes no space. All primary controls must stay visible at 360x560.
 - Pacing target: the mountain takes **days** for a dad who plays two short sessions a day and lets the crew mine the rest (8-hour away cap). Lantern on day 1, Hammer around days 2–3, the bottom around days 5–7.
-- **Pacing** (`src/pacing.ts`, pinned by `src/pacing.test.ts`): a deterministic dad plays two 10-minute sessions a day, 12 hours apart, taps 3 stones a second and always buys the most speed per stone, and is paid at most 8 hours of each gap. With the numbers above he finds the Lantern (1M) on day 1 (session 2), the Hammer (25M) on day 3, and reaches the bottom (100M) on day 5 (late), owning about 21 helpers, 15 carts, 10 drills, 4 borers and 1 Great Machine. The first cut (1.15 growth, carts at 150 and 8/s, up to 3,500/s machines) emptied the whole mountain in a day and a half: one night of 8-hour earnings bought enough crew to finish. The 8-hour away pay is the big lever. Any change to it, the tiers or the relic depths must keep this test green.
+- **Pacing** (`src/pacing.ts`, pinned by `src/pacing.test.ts`): a deterministic dad plays two 10-minute sessions a day, 12 hours apart, taps 3 stones a second, always buys the most speed per stone, and is paid 30% of crew speed for at most 8 hours of each gap. With the numbers above he finds the Lantern (1M) on day 1 (session 2), the Hammer (25M) on day 3, and the bottom (100M) on day 6, owning about 11 helpers, 12 carts, 7 drills, 3 borers and 1 Great Machine. The milestones hold at 2 or 4 taps a second too. History: the first cut (1.15 growth, full away pay) emptied the mountain in 1.5 days; the next (1.6 growth, full away pay) needed slow tiers (carts 4/s); paying away time at 30% (#91) brought back punchy tiers. Any change to away pay, tiers or relic depths must keep this test green.
 
 ### M3: Strategy (boosts vs long-term upgrades)
 

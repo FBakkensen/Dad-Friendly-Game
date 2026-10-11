@@ -4,6 +4,11 @@ import { crewStonesPerSecond } from "./tiers";
 export const MOUNTAIN_STONES = 100_000_000;
 /** Base away cap; the Shield of Protection relic will lift it. */
 export const AWAY_CAP_MS = 8 * 60 * 60 * 1000;
+/**
+ * Share of the crew's speed paid for time away (app closed or in the
+ * background). Tuned by src/pacing.test.ts; the Heart of Patience may raise it.
+ */
+export const AWAY_PAY_RATE = 0.3;
 
 export type Mountain = {
   /** Stones still in the mountain. 0..MOUNTAIN_STONES. */
@@ -76,10 +81,13 @@ export function accrue({
   mountain,
   from,
   to,
+  pay = 1,
 }: {
   mountain: Mountain;
   from: number;
   to: number;
+  /** Share of the crew's speed paid: 1 while playing, AWAY_PAY_RATE away. */
+  pay?: number;
 }): Accrual {
   const rate = stonesPerSecond(mountain);
   if (to <= from) {
@@ -89,7 +97,7 @@ export function accrue({
     return { mountain, mined: 0, settledAt: to };
   }
   const seconds = Math.floor((to - from) / 1000);
-  const mined = Math.min(mountain.remaining, seconds * rate);
+  const mined = Math.min(mountain.remaining, Math.floor(seconds * rate * pay));
   const settledAt = mined === mountain.remaining ? to : from + seconds * 1000;
   if (mined === 0) {
     return { mountain, mined: 0, settledAt };
@@ -112,7 +120,7 @@ export type AwayReport = {
   readonly capped: boolean;
 };
 
-/** Helpers' work while the game was closed, paid for at most AWAY_CAP_MS. */
+/** The crew's work while the game was closed: AWAY_PAY_RATE of their speed, for at most AWAY_CAP_MS. */
 export function accrueAway({
   mountain,
   lastSeen,
@@ -128,6 +136,7 @@ export function accrueAway({
     mountain,
     from: capped ? now - AWAY_CAP_MS : lastSeen,
     to: now,
+    pay: AWAY_PAY_RATE,
   });
   return { ...result, report: { mined: result.mined, awayMs, capped } };
 }

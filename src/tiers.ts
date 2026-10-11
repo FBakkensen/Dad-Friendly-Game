@@ -2,7 +2,7 @@ import type { Mountain } from "./mountain";
 import type { RelicId } from "./relics";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
-const COST_GROWTH = 1.6;
+const COST_GROWTH = 2;
 
 export type TierId = "helper" | "cart" | "drill" | "borer" | "machine";
 
@@ -23,14 +23,14 @@ export type Tier = {
   readonly needs?: RelicId;
 };
 
-/** Cheapest first. Each tier is 4× (the Great Machine ~8×) the speed of the last; tuned by src/pacing.test.ts. */
+/** Cheapest first. Each tier is 6–10× the speed of the last; tuned by src/pacing.test.ts. */
 export const TIERS: readonly Tier[] = [
   {
     id: "helper",
     field: "helpers",
     name: "Helper",
     shortName: "Helper",
-    firstCost: 10,
+    firstCost: 20,
     perSecond: 1,
   },
   {
@@ -38,32 +38,32 @@ export const TIERS: readonly Tier[] = [
     field: "carts",
     name: "Mine cart",
     shortName: "Cart",
-    firstCost: 500,
-    perSecond: 4,
+    firstCost: 100,
+    perSecond: 10,
   },
   {
     id: "drill",
     field: "drills",
     name: "Steam drill",
     shortName: "Drill",
-    firstCost: 25_000,
-    perSecond: 16,
+    firstCost: 20_000,
+    perSecond: 60,
   },
   {
     id: "borer",
     field: "borers",
     name: "Tunnel borer",
     shortName: "Borer",
-    firstCost: 1_500_000,
-    perSecond: 64,
+    firstCost: 1_600_000,
+    perSecond: 350,
   },
   {
     id: "machine",
     field: "machines",
     name: "Great Machine",
     shortName: "Machine",
-    firstCost: 40_000_000,
-    perSecond: 500,
+    firstCost: 80_000_000,
+    perSecond: 3_500,
     needs: "hammer",
   },
 ];
@@ -80,7 +80,7 @@ export function owned(mountain: Mountain, tier: Tier): number {
   return mountain[tier.field];
 }
 
-/** Cookie Clicker curve, but steeper: each one costs 60% more than the last. */
+/** Cookie Clicker curve, but steep: each one costs twice the last. */
 export function tierCost(tier: Tier, ownedCount: number): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
   return Math.ceil(

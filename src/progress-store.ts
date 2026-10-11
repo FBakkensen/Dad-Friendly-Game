@@ -62,6 +62,8 @@ export type ProgressStore = {
 const CLOUD_WRITE_GAP_MS = 1000;
 /** Shorter absences still pay out, quietly, without the welcome-back card. */
 export const WELCOME_MIN_AWAY_MS = 60 * 1000;
+/** Longer than this between ticks and the game was not on screen. */
+const LIVE_GAP_MS = 10 * 1000;
 
 export function createProgressStore({
   auth,
@@ -423,6 +425,11 @@ export function createProgressStore({
   /** Folds helpers' work since lastSeen into the mountain. Returns stones mined. */
   const settle = (): number => {
     const at = now();
+    // Ticks come every second while the game is on screen. A longer gap means
+    // the app sat in the background: that is time away, paid like it.
+    if (lastSeen !== undefined && at - lastSeen > LIVE_GAP_MS) {
+      return settleSince(lastSeen);
+    }
     const result = accrue({ mountain, from: lastSeen ?? at, to: at });
     mountain = result.mountain;
     lastSeen = result.settledAt;

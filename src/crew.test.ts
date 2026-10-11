@@ -6,12 +6,12 @@ import { tierById } from "./tiers";
 describe("crew unlocks", () => {
   const nearHammer = {
     ...minedMountain(24_999_999),
-    pocket: 50_000_000,
+    pocket: 90_000_000,
     borers: 1,
   };
   const atHammer = {
     ...minedMountain(25_000_000),
-    pocket: 50_000_000,
+    pocket: 90_000_000,
     borers: 1,
   };
 
