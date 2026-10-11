@@ -137,6 +137,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/menu-panel.ts": {
+          statements: 99,
+          branches: 83,
+          functions: 100,
+          lines: 99,
+        },
         "src/screen-words.ts": {
           statements: 95,
           branches: 90,
