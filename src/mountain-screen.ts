@@ -822,8 +822,8 @@ export function mountMountainScreen({
       costText.textContent = formatCompact(price);
       tierRate.textContent =
         count === 0
-          ? `+${formatCount(tier.perSecond)}/s each`
-          : `+${formatCompact(tier.perSecond)}/s each · ${formatCompact(count * tier.perSecond)}/s`;
+          ? `+${formatCompact(tier.perSecond)}/s each`
+          : `+${formatCompact(tier.perSecond)} each · ${formatCompact(count * tier.perSecond)}/s`;
       card.setAttribute(
         "aria-label",
         `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(tier.perSecond)}. You have ${formatCount(count)}.`,

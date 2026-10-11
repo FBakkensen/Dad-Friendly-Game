@@ -790,11 +790,9 @@ describe("what the crew gives", () => {
   it("shows each tier's output per unit and its current total", () => {
     const screen = mountScreen({ storage: seededCrew() });
     expect(screen.text('[data-tier="helper"] .tier-rate')).toBe(
-      "+1/s each · 2/s",
+      "+1 each · 2/s",
     );
-    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
-      "+8/s each · 24/s",
-    );
+    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe("+8 each · 24/s");
   });
 
   it("floats +8/s from a bought cart and counts the crew line up", async () => {
@@ -818,7 +816,7 @@ describe("what the crew gives", () => {
         "Your crew mines 34 stones a second",
       );
       expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
-        "+8/s each · 32/s",
+        "+8 each · 32/s",
       );
       await vi.advanceTimersByTimeAsync(1_200);
       expect(cart?.querySelector(".float-gain")).toBeNull();

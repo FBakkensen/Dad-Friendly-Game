@@ -214,16 +214,23 @@ for (const viewport of [
   [412, 915],
 ]) {
   const size = `${String(viewport[0])}x${String(viewport[1])}`;
-  for (const crew of [
-    { helpers: 999, carts: 999 },
-    { helpers: 120, carts: 85 },
-    { helpers: 1, carts: 0 },
+  for (const [crew, font] of [
+    [{ helpers: 999, carts: 999 }, undefined],
+    [{ helpers: 120, carts: 85 }, undefined],
+    [{ helpers: 1, carts: 0 }, undefined],
+    // CI's fallback font is wide; it must fit there too.
+    [{ helpers: 999, carts: 999 }, "DejaVu Sans"],
   ]) {
     const { page, close } = await open(viewport, {
       version: 4,
       mountain: { remaining: 50_000_000, pocket: 49_999_999, ...crew },
       lastSeen: Date.now(),
     });
+    if (font !== undefined) {
+      await page.addStyleTag({
+        content: `* { font-family: "${font}" !important; }`,
+      });
+    }
     const cards = await page.evaluate(() =>
       [...document.querySelectorAll(".tier")]
         .filter((card) => !card.hidden)
@@ -236,7 +243,7 @@ for (const viewport of [
             .map((line) => line.textContent),
         })),
     );
-    const label = `${size} tier cards with ${String(crew.helpers)} helpers, ${String(crew.carts)} carts`;
+    const label = `${size} tier cards with ${String(crew.helpers)} helpers, ${String(crew.carts)} carts${font === undefined ? "" : ` in ${font}`}`;
     check(
       cards.every((card) => card.height === 64),
       `${label} are all 64px tall`,
