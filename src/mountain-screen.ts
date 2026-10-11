@@ -13,6 +13,13 @@ import {
   stonesPerSecond,
 } from "./mountain";
 import {
+  advanceVein,
+  mineVein,
+  veinReward,
+  waitForVein,
+  type VeinState,
+} from "./veins";
+import {
   createProgressStore,
   type ProgressSnapshot,
   type ProgressStore,
@@ -25,6 +32,8 @@ export function mountMountainScreen({
   stoneUrl,
   auth = createUnconfiguredAuth(),
   progress: progressArg,
+  now = Date.now,
+  random = Math.random,
 }: {
   root: HTMLElement;
   lanternUrl: string;
@@ -33,6 +42,8 @@ export function mountMountainScreen({
   stoneUrl: string;
   auth?: AuthController;
   progress?: ProgressStore;
+  now?: () => number;
+  random?: () => number;
 }): void {
   const progress = progressArg ?? createProgressStore({ auth });
   let view: ProgressSnapshot = progress.getSnapshot();
@@ -66,6 +77,68 @@ export function mountMountainScreen({
       return;
     }
     progress.applyMutation(mineByHand);
+  });
+
+  const vein = document.createElement("button");
+  vein.type = "button";
+  vein.className = "golden-vein";
+  vein.hidden = true;
+  vein.setAttribute("aria-label", "Golden vein, tap for a burst of stones");
+  const veinArt = document.createElement("img");
+  veinArt.src = stoneUrl;
+  veinArt.alt = "";
+  veinArt.width = 32;
+  veinArt.height = 32;
+  veinArt.draggable = false;
+  vein.append(veinArt);
+
+  const mountainWrap = document.createElement("div");
+  mountainWrap.className = "mountain-wrap";
+  mountainWrap.append(mountain, vein);
+
+  const veinNote = document.createElement("p");
+  veinNote.className = "vein-note";
+  veinNote.setAttribute("aria-live", "polite");
+
+  let veinState: VeinState = waitForVein({ now: now(), random });
+  let veinNoteUntil = 0;
+
+  const renderVein = (): void => {
+    const glinting =
+      veinState.kind === "glinting" &&
+      view.ready &&
+      view.mountain.remaining > 0;
+    vein.hidden = !glinting;
+    if (veinState.kind === "glinting") {
+      vein.style.left = `${String(veinState.x * 100)}%`;
+      vein.style.top = `${String(veinState.y * 100)}%`;
+    }
+    if (now() >= veinNoteUntil) {
+      veinNote.textContent = "";
+    }
+  };
+
+  const stepVein = (): void => {
+    if (!view.ready || view.mountain.remaining === 0) {
+      return;
+    }
+    veinState = advanceVein({ vein: veinState, now: now(), random });
+    renderVein();
+  };
+
+  vein.addEventListener("click", () => {
+    if (veinState.kind !== "glinting" || !view.ready) {
+      return;
+    }
+    let reward = 0;
+    progress.applyMutation((latest) => {
+      reward = veinReward(latest);
+      return mineVein(latest);
+    });
+    veinState = waitForVein({ now: now(), random });
+    veinNote.textContent = `Golden vein! +${formatCount(reward)} ${reward === 1 ? "stone" : "stones"}`;
+    veinNoteUntil = now() + 4000;
+    renderVein();
   });
 
   const pocket = document.createElement("p");
@@ -235,6 +308,7 @@ export function mountMountainScreen({
         : "Mountain, tap to mine one stone",
     );
     renderCrew();
+    renderVein();
     renderWelcome();
     renderSave();
   };
@@ -287,7 +361,8 @@ export function mountMountainScreen({
     remaining,
     lantern,
     goal,
-    mountain,
+    mountainWrap,
+    veinNote,
     pocket,
     crew,
     saveStatus,
@@ -296,7 +371,17 @@ export function mountMountainScreen({
     welcome,
   );
 
-  setInterval(progress.tick, 1000);
+  setInterval(() => {
+    progress.tick();
+    stepVein();
+  }, 1000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      // Veins are for active play only: a fresh wait starts on every return.
+      veinState = waitForVein({ now: now(), random });
+      renderVein();
+    }
+  });
 
   progress.subscribe((next) => {
     view = next;
