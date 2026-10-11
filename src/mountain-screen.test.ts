@@ -1228,7 +1228,8 @@ describe("quick boosts on screen", () => {
       expect(screen.text('[data-boost="sharper"] .upgrade-name')).toBe(
         "Sharper picks",
       );
-      expect(buy?.textContent).toBe("Buy for 30 thousand stones");
+      // 60 taps of 1 stone, but never under the 100-stone floor.
+      expect(buy?.textContent).toBe("Buy for 100 stones");
       buy?.click();
       expect(buy?.disabled).toBe(true);
       expect(buy?.textContent).toBe("Running · 10:00 left");

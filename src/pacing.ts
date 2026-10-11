@@ -1,3 +1,4 @@
+import { BOOSTS, buyBoost } from "./boosts";
 import { buyCrew, tierLocked } from "./crew";
 import { AWAY_PAY_RATE, effectiveRates, BASE_AWAY_CAP_MS } from "./rates";
 import {
@@ -155,7 +156,10 @@ export function simulateDad({
   milestones,
   maxDays = 30,
   buysUpgrades = false,
+  buysBoosts = false,
 }: {
+  /** Also starts Sharper picks and Overtime whenever they're affordable and idle. */
+  buysBoosts?: boolean;
   /** Also weighs Strong arms, Better boots and Steady hands against crew, by stones a day per stone. */
   buysUpgrades?: boolean;
   milestones: readonly number[];
@@ -174,10 +178,25 @@ export function simulateDad({
   const gapMs = DAY_MS / DAD.sessionsPerDay - DAD.sessionSeconds * 1000;
   for (let session = 0; session < maxDays * DAD.sessionsPerDay; session += 1) {
     for (let second = 0; second < DAD.sessionSeconds; second += 1) {
-      for (let tap = 0; tap < DAD.tapsPerSecond; tap += 1) {
-        mountain = mineByHand(mountain);
+      if (buysBoosts) {
+        for (const boost of BOOSTS) {
+          mountain = buyBoost({
+            mountain,
+            id: boost.id,
+            now: clock,
+            pricing: effectiveRates(mountain),
+          });
+        }
       }
-      mountain = accrue({ mountain, from: clock, to: clock + 1000 }).mountain;
+      for (let tap = 0; tap < DAD.tapsPerSecond; tap += 1) {
+        mountain = mineByHand(mountain, clock);
+      }
+      mountain = accrue({
+        mountain,
+        from: clock,
+        to: clock + 1000,
+        live: true,
+      }).mountain;
       clock += 1000;
       for (
         let pick = bestValue(mountain, buysUpgrades);
