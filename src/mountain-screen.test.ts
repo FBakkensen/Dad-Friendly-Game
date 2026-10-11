@@ -62,10 +62,12 @@ function mountScreen({
   storage = createMemoryStorage(),
   now,
   random,
+  veinStorage = storage,
 }: {
   auth?: AuthController;
   cloudSave?: CloudSave;
   storage?: Storage;
+  veinStorage?: Pick<Storage, "getItem" | "setItem">;
   now?: () => number;
   random?: () => number;
 } = {}) {
@@ -78,7 +80,7 @@ function mountScreen({
   });
   mountMountainScreen({
     root,
-    veinStorage: storage,
+    veinStorage,
     lanternUrl: tileUrl,
     mountainUrl: tileUrl,
     stoneUrl: tileUrl,
@@ -684,6 +686,52 @@ describe("golden vein on screen", () => {
       clock += 60_000;
       await vi.advanceTimersByTimeAsync(1_000);
       expect(vein.hidden).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("starts a fresh wait when the saved wait can't be read", async () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 0;
+      const screen = mountScreen({
+        now: () => clock,
+        random: () => 0,
+        veinStorage: {
+          getItem: () => {
+            throw new Error("blocked");
+          },
+          setItem: () => undefined,
+        },
+      });
+      const vein = screen.root.querySelector(".golden-vein") as HTMLElement;
+      clock = 3 * 60_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(vein.hidden).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("doesn't glint while the save is still loading", async () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 0;
+      const screen = mountScreen({
+        auth: signedIn(),
+        cloudSave: {
+          ...createMemoryCloudSave(),
+          watch: () => () => undefined,
+        },
+        now: () => clock,
+        random: () => 0,
+      });
+      const vein = screen.root.querySelector(".golden-vein") as HTMLElement;
+      clock = 10 * 60_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(screen.text(".save-status")).toBe("Loading your save...");
+      expect(vein.hidden).toBe(true);
     } finally {
       vi.useRealTimers();
     }

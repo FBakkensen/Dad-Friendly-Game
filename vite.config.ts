@@ -143,6 +143,18 @@ export default defineConfig({
           functions: 100,
           lines: 99,
         },
+        "src/float-text.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/crew-panel.ts": {
+          statements: 97,
+          branches: 88,
+          functions: 100,
+          lines: 97,
+        },
         "src/screen-words.ts": {
           statements: 95,
           branches: 90,
