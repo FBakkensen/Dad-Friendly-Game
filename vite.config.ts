@@ -25,5 +25,113 @@ export default defineConfig({
     environment: "happy-dom",
     // Rules tests need the Firestore emulator: npm run test:rules.
     exclude: ["**/node_modules/**", "rules-test/**"],
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      // Thin wiring around the Firebase SDK and the DOM entry point; covered by
+      // the emulator rules tests and the browser layout check instead.
+      exclude: [
+        "src/**/*.test.ts",
+        "src/main.ts",
+        "src/firebase-auth.ts",
+        "src/firebase-save.ts",
+        "src/test-fixtures.ts",
+      ],
+      reporter: ["text-summary", "json-summary"],
+      // Floors per module (#114): coverage may rise, never drop. Raise these
+      // when tests improve; never lower them to make a PR pass.
+      thresholds: {
+        "src/boosts.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/cloud-save.ts": {
+          statements: 82,
+          branches: 93,
+          functions: 72,
+          lines: 82,
+        },
+        "src/crew.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/format.ts": {
+          statements: 94,
+          branches: 100,
+          functions: 100,
+          lines: 94,
+        },
+        "src/mountain-screen.ts": {
+          statements: 97,
+          branches: 86,
+          functions: 100,
+          lines: 97,
+        },
+        "src/mountain.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/pacing.ts": {
+          statements: 100,
+          branches: 96,
+          functions: 100,
+          lines: 100,
+        },
+        "src/persist.ts": {
+          statements: 97,
+          branches: 94,
+          functions: 100,
+          lines: 97,
+        },
+        "src/progress-store.ts": {
+          statements: 95,
+          branches: 92,
+          functions: 96,
+          lines: 95,
+        },
+        "src/rates.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/relics.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/session-save.ts": {
+          statements: 100,
+          branches: 91,
+          functions: 100,
+          lines: 100,
+        },
+        "src/tiers.ts": {
+          statements: 95,
+          branches: 90,
+          functions: 100,
+          lines: 94,
+        },
+        "src/upgrades.ts": {
+          statements: 100,
+          branches: 96,
+          functions: 100,
+          lines: 100,
+        },
+        "src/veins.ts": {
+          statements: 90,
+          branches: 95,
+          functions: 100,
+          lines: 90,
+        },
+      },
+    },
   },
 });

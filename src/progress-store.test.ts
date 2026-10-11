@@ -915,3 +915,111 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
     });
   });
 });
+
+describe("save status on the unhappy paths (#114 coverage)", () => {
+  const user = { uid: "test-dad", label: "Test Dad" };
+
+  it("shows an error and logs it when a cloud write fails", async () => {
+    const docs = new Map([["test-dad", minedMountain(5)]]);
+    const memory = createMemoryCloudSave({ docs });
+    const failing: CloudSave = {
+      ...memory,
+      write: () => Promise.resolve({ kind: "failed", message: "denied" }),
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: failing,
+      sessionStorage: createMemoryStorage(),
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("account");
+    });
+    progress.applyMutation((current) => ({ ...current, pocket: 99 }));
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("error");
+    });
+    expect(progress.getSnapshot().log).toContain("save.write denied");
+    progress.dispose();
+  });
+
+  it("shows an error when the cloud is switched off for a signed-in dad", async () => {
+    const disabled: CloudSave = {
+      load: () => Promise.resolve({ kind: "disabled" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        onChange({ kind: "disabled" });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: disabled,
+      sessionStorage: createMemoryStorage(),
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("error");
+    });
+    progress.dispose();
+  });
+
+  it("keeps playing, unsigned, when the device refuses to save", () => {
+    const full = createMemoryStorage();
+    full.setItem = () => {
+      throw new Error("QuotaExceededError");
+    };
+    const refused = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: full,
+    });
+    refused.applyMutation(() => minedMountain(2));
+    expect(refused.getSnapshot().saveKind).toBe("unsigned");
+    expect(refused.getSnapshot().mountain).toEqual(minedMountain(2));
+  });
+
+  it("ignores a cloud snapshot from a watch that was already replaced", async () => {
+    const callbacks: ((remote: CloudLoadResult) => void)[] = [];
+    const cloud: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        callbacks.push(onChange);
+        return () => undefined;
+      },
+    };
+    const auth = createMemoryAuth();
+    const progress = createProgressStore({
+      auth,
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+    });
+    await auth.signIn();
+    await auth.signOut();
+    await auth.signIn();
+    await vi.waitFor(() => {
+      expect(callbacks).toHaveLength(2);
+    });
+    callbacks[0]?.({ kind: "found", mountain: minedMountain(77) });
+    expect(progress.getSnapshot().mountain).not.toEqual(minedMountain(77));
+    callbacks[1]?.({ kind: "found", mountain: minedMountain(88) });
+    expect(progress.getSnapshot().mountain.pocket).toBe(88);
+    progress.dispose();
+    callbacks[1]?.({ kind: "found", mountain: minedMountain(99) });
+    expect(progress.getSnapshot().mountain.pocket).toBe(88);
+  });
+
+  it("treats dismissing nothing, and starting over after dispose, as no-ops", () => {
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: createMemoryStorage(),
+    });
+    progress.applyMutation(() => minedMountain(3));
+    const before = progress.getSnapshot();
+    progress.dismissReveal();
+    progress.dismissAway();
+    expect(progress.getSnapshot()).toEqual(before);
+    progress.dispose();
+    progress.startOver();
+    expect(progress.getSnapshot().mountain).toEqual(minedMountain(3));
+  });
+});

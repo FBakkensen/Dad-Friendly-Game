@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
 import {
@@ -164,5 +164,43 @@ describe("migrateSessionSave", () => {
 
     expect(to.getItem(SESSION_SAVE_KEY)).toBeNull();
     expect(from.getItem(SESSION_SAVE_KEY)).toBeNull();
+  });
+});
+
+describe("tryGetGuestStorage when the browser blocks storage (#114 coverage)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+  const blocked = (): Storage => {
+    const storage = createMemoryStorage();
+    storage.setItem = () => {
+      throw new Error("SecurityError");
+    };
+    return storage;
+  };
+
+  it("falls back to this tab's storage when localStorage is blocked", () => {
+    const tab = createMemoryStorage();
+    vi.stubGlobal("localStorage", blocked());
+    vi.stubGlobal("sessionStorage", tab);
+    expect(tryGetGuestStorage()).toBe(tab);
+  });
+
+  it("plays without saving when both are blocked", () => {
+    vi.stubGlobal("localStorage", blocked());
+    vi.stubGlobal("sessionStorage", blocked());
+    expect(tryGetGuestStorage()).toBeUndefined();
+  });
+
+  it("leaves both stores alone if reading the old save throws", () => {
+    const from = createMemoryStorage();
+    from.getItem = () => {
+      throw new Error("SecurityError");
+    };
+    const to = createMemoryStorage();
+    expect(() => {
+      migrateSessionSave({ from, to });
+    }).not.toThrow();
+    expect(to.getItem(SESSION_SAVE_KEY)).toBeNull();
   });
 });
