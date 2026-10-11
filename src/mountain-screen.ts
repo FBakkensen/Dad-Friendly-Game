@@ -63,7 +63,7 @@ export function mountMountainScreen({
   const goal = document.createElement("p");
   goal.className = "goal";
   goal.textContent =
-    "Six Legendary Relics of Fatherhood lie deep in this mountain. Tap to mine, one stone at a time.";
+    "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.";
 
   const mountain = document.createElement("button");
   mountain.type = "button";
@@ -99,6 +99,8 @@ export function mountMountainScreen({
   const veinNote = document.createElement("p");
   veinNote.className = "vein-note";
   veinNote.setAttribute("aria-live", "polite");
+
+  mountainWrap.append(veinNote);
 
   let veinState: VeinState = waitForVein({ now: now(), random });
   let veinNoteUntil = 0;
@@ -357,12 +359,14 @@ export function mountMountainScreen({
     progress.flush();
   });
 
+  const header = document.createElement("header");
+  header.className = "top-bar";
+  header.append(lantern, remaining);
+
   root.replaceChildren(
-    remaining,
-    lantern,
+    header,
     goal,
     mountainWrap,
-    veinNote,
     pocket,
     crew,
     saveStatus,
