@@ -12,6 +12,8 @@ export type Relic = {
   readonly power: string;
   /** A one-line mystery shown before it is found; no numbers. */
   readonly tease: string;
+  /** The plain "Your power" line: what finding it changes. No depths. */
+  readonly boost: string;
   /** Stones mined out of the mountain when it is uncovered. */
   readonly depth: number;
 };
@@ -20,6 +22,8 @@ export type Relic = {
 export const RELICS: readonly Relic[] = [
   {
     id: "lantern",
+    boost:
+      "Golden veins appear 40% sooner, and it lights the way to the next relic.",
     tease: "A warm light waits in the dark below.",
     name: "Lantern of Guidance",
     virtue: "Guidance",
@@ -29,6 +33,7 @@ export const RELICS: readonly Relic[] = [
   },
   {
     id: "shield",
+    boost: "Your crew keeps mining up to 24 hours while you're away.",
     tease: "A shield rests deep below, keeping watch.",
     name: "Shield of Protection",
     virtue: "Protection",
@@ -38,6 +43,7 @@ export const RELICS: readonly Relic[] = [
   },
   {
     id: "hammer",
+    boost: "Unlocks the Great Machine.",
     tease: "Somewhere down there lies the hammer that built great things.",
     name: "Hammer of the Builder",
     virtue: "Building",
@@ -46,6 +52,7 @@ export const RELICS: readonly Relic[] = [
   },
   {
     id: "heart",
+    boost: "Away pay grows the longer you're gone, up to ×1.5 after 12 hours.",
     tease: "A patient heart beats beneath the stone.",
     name: "Heart of Patience",
     virtue: "Patience",
@@ -55,6 +62,8 @@ export const RELICS: readonly Relic[] = [
   },
   {
     id: "crown",
+    boost:
+      "Kid helpers join the crew: they mine, run machines, and make every helper and kid 2% faster.",
     tease: "A crown of wisdom sleeps in the deep.",
     name: "Crown of Wisdom",
     virtue: "Wisdom",
@@ -64,6 +73,8 @@ export const RELICS: readonly Relic[] = [
   },
   {
     id: "mantle",
+    boost:
+      "Ends the run as a Legend. Later, it lets you pass the mine to your kid.",
     tease: "At the very bottom, a hero's mantle waits.",
     name: "Mantle of the Hero",
     virtue: "Heroism",

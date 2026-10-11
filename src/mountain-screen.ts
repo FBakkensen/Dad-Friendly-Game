@@ -22,6 +22,7 @@ import {
 import {
   foundRelics,
   hasRelic,
+  type Relic,
   nextRelic,
   RELICS,
   type RelicId,
@@ -593,6 +594,64 @@ export function mountMountainScreen({
     shelfList.append(row);
     return { row, art, name, detail, hint };
   });
+  // Found relics open a detail card with their power.
+  for (const [index, { row }] of shelfRows.entries()) {
+    const open = (): void => {
+      const relic = RELICS[index];
+      if (relic !== undefined && hasRelic(view.mountain, relic.id)) {
+        detailRelic = relic;
+        render();
+      }
+    };
+    row.addEventListener("click", open);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        open();
+      }
+    });
+  }
+  let detailRelic: Relic | undefined;
+  const detail = document.createElement("div");
+  detail.className = "relic-reveal relic-detail";
+  detail.setAttribute("role", "dialog");
+  detail.setAttribute("aria-modal", "true");
+  detail.setAttribute("aria-labelledby", "relic-detail-title");
+  detail.hidden = true;
+  const detailCard = document.createElement("div");
+  detailCard.className = "reveal-card";
+  const detailKicker = document.createElement("p");
+  detailKicker.className = "reveal-kicker";
+  detailKicker.textContent = "A Legendary Relic of Fatherhood";
+  const detailArt = document.createElement("img");
+  detailArt.className = "reveal-art";
+  detailArt.alt = "";
+  detailArt.width = 64;
+  detailArt.height = 64;
+  detailArt.draggable = false;
+  const detailTitle = document.createElement("h2");
+  detailTitle.id = "relic-detail-title";
+  const detailVirtue = document.createElement("p");
+  detailVirtue.className = "reveal-virtue";
+  const detailBoost = document.createElement("p");
+  detailBoost.className = "relic-boost";
+  const detailBack = document.createElement("button");
+  detailBack.type = "button";
+  detailBack.className = "reveal-continue";
+  detailBack.textContent = "Back to the shelf";
+  detailBack.addEventListener("click", () => {
+    detailRelic = undefined;
+    render();
+  });
+  detailCard.append(
+    detailKicker,
+    detailArt,
+    detailTitle,
+    detailVirtue,
+    detailBoost,
+    detailBack,
+  );
+  detail.append(detailCard);
   const shelfClose = document.createElement("button");
   shelfClose.type = "button";
   shelfClose.className = "shelf-close";
@@ -851,6 +910,8 @@ export function mountMountainScreen({
   revealVirtue.className = "reveal-virtue";
   const revealPower = document.createElement("p");
   revealPower.className = "reveal-power";
+  const revealBoost = document.createElement("p");
+  revealBoost.className = "relic-boost";
   const revealContinue = document.createElement("button");
   revealContinue.type = "button";
   revealContinue.className = "reveal-continue";
@@ -866,6 +927,7 @@ export function mountMountainScreen({
     revealTitle,
     revealVirtue,
     revealPower,
+    revealBoost,
     revealContinue,
   );
   reveal.append(revealCard);
@@ -1130,11 +1192,31 @@ export function mountMountainScreen({
       row.art.src = relicArt[relic.id];
       row.name.textContent = relic.name;
       row.detail.textContent = has
-        ? `The virtue of ${relic.virtue}. ${relic.power}`
+        ? `The virtue of ${relic.virtue}. Your power: ${relic.boost}`
         : relic.tease;
+      if (has) {
+        row.row.tabIndex = 0;
+        row.row.setAttribute("role", "button");
+        row.row.setAttribute("aria-label", `${relic.name}: see your power`);
+      } else {
+        row.row.removeAttribute("tabindex");
+        row.row.removeAttribute("role");
+        row.row.removeAttribute("aria-label");
+      }
       const isNext = guided && relic === next && hint !== undefined;
       row.hint.hidden = !isNext;
       row.hint.textContent = isNext ? `Next · ${hint}` : "";
+    }
+    const detailWasOpen = !detail.hidden;
+    detail.hidden = !shelfOpen || detailRelic === undefined;
+    if (detailRelic !== undefined && !detail.hidden) {
+      detailArt.src = relicArt[detailRelic.id];
+      detailTitle.textContent = detailRelic.name;
+      detailVirtue.textContent = `The virtue of ${detailRelic.virtue}.`;
+      detailBoost.textContent = `Your power: ${detailRelic.boost}`;
+      if (!detailWasOpen) {
+        detailBack.focus();
+      }
     }
     const wasOpen = !shelf.hidden;
     shelf.hidden = !shelfOpen;
@@ -1177,6 +1259,7 @@ export function mountMountainScreen({
     revealTitle.textContent = `You found the ${relic.name}`;
     revealVirtue.textContent = `The virtue of ${relic.virtue}.`;
     revealPower.textContent = relic.power;
+    revealBoost.textContent = `Your power: ${relic.boost}`;
     if (!wasOpen) {
       revealContinue.focus();
     }
@@ -1352,6 +1435,7 @@ export function mountMountainScreen({
     reveal,
     legend,
     shelf,
+    detail,
     confirm,
     menu,
     upgradesSheet,

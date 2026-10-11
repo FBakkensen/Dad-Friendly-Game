@@ -1605,3 +1605,70 @@ describe("Mantle of the Hero finale (#103)", () => {
     );
   });
 });
+
+describe("relic powers on the cards (shelf detail)", () => {
+  const seeded = (mountain: Mountain) => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      SESSION_SAVE_KEY,
+      JSON.stringify({ version: 4, mountain, lastSeen: Date.now() }),
+    );
+    return storage;
+  };
+
+  it("says 'Your power' on the relic-found card", () => {
+    const screen = mountScreen({ storage: seeded(minedMountain(9_999_999)) });
+    screen.mountain.click();
+    expect(screen.text(".relic-reveal .relic-boost")).toBe(
+      "Your power: Your crew keeps mining up to 24 hours while you're away.",
+    );
+  });
+
+  it("opens a found relic from the shelf with its art, virtue and power; hidden ones stay shut", () => {
+    const screen = mountScreen({ storage: seeded(minedMountain(26_000_000)) });
+    document.body.append(screen.root);
+    screen.root.querySelector<HTMLButtonElement>(".relic-shelf")?.click();
+    const rows = [
+      ...screen.root.querySelectorAll<HTMLElement>(".shelf-list li"),
+    ];
+    const detail = screen.root.querySelector<HTMLElement>(".relic-detail");
+    expect(rows[2]?.getAttribute("role")).toBe("button");
+    expect(rows[3]?.hasAttribute("role")).toBe(false);
+
+    rows[3]?.click();
+    expect(detail?.hidden).toBe(true);
+
+    rows[2]?.click();
+    expect(detail?.hidden).toBe(false);
+    expect(screen.text("#relic-detail-title")).toBe("Hammer of the Builder");
+    expect(screen.text(".relic-detail .reveal-virtue")).toBe(
+      "The virtue of Building.",
+    );
+    expect(screen.text(".relic-detail .relic-boost")).toBe(
+      "Your power: Unlocks the Great Machine.",
+    );
+    expect(
+      detail
+        ?.querySelector<HTMLImageElement>(".reveal-art")
+        ?.getAttribute("src"),
+    ).toBe("hammer.png");
+    expect(document.activeElement).toBe(
+      detail?.querySelector(".reveal-continue"),
+    );
+    detail?.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
+    expect(detail?.hidden).toBe(true);
+    expect(
+      screen.root.querySelector<HTMLElement>(".shelf-dialog")?.hidden,
+    ).toBe(false);
+
+    rows[0]?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(screen.text("#relic-detail-title")).toBe("Lantern of Guidance");
+    screen.root.remove();
+  });
+
+  it("never names a depth in any power line", () => {
+    for (const relic of RELICS) {
+      expect(relic.boost).not.toMatch(/million|stones? deep|\d{3},\d{3}/);
+    }
+  });
+});
