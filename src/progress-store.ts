@@ -6,7 +6,7 @@ import {
   type CloudSave,
 } from "./cloud-save";
 import {
-  createPocketGrid,
+  createStarterGrid,
   dugCount,
   settleStones,
   type PocketGrid,
@@ -15,7 +15,7 @@ import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
   clearSessionSave,
   readSessionSave,
-  tryGetSessionStorage,
+  tryGetGuestStorage,
   writeSessionSave,
 } from "./session-save";
 
@@ -52,8 +52,8 @@ export function createProgressStore({
   sessionStorage?: Storage;
   now?: () => number;
 }): ProgressStore {
-  const sessionStore = sessionArg ?? tryGetSessionStorage();
-  let grid: PocketGrid = createPocketGrid();
+  const sessionStore = sessionArg ?? tryGetGuestStorage();
+  let grid: PocketGrid = createStarterGrid();
   let lastSeen: number | undefined;
   let hydrateGeneration = 0;
   let hydrated = false;

@@ -39,6 +39,11 @@ export function createPocketGrid(): PocketGrid {
   };
 }
 
+/** New players start with the center dug so away-time has somewhere to settle. */
+export function createStarterGrid(): PocketGrid {
+  return dig({ grid: createPocketGrid(), index: 4 });
+}
+
 export function isCellIndex(index: number): index is CellIndex {
   return Number.isInteger(index) && index >= 0 && index <= 8;
 }

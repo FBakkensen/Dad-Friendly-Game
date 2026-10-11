@@ -93,15 +93,16 @@ describe("mountPocketGridScreen", () => {
       throw new Error("pocket grid did not render");
     }
 
+    expect(root.querySelector(".goal")?.textContent).toContain("Chunk");
     expect(lantern.alt).toBe("Lantern");
     expect(first.dataset["kind"]).toBe("covered");
-    expect(status.textContent).toBe("Holding a stone. 0 of 9 dug");
+    expect(status.textContent).toBe("Holding a stone. 1 of 9 dug");
     expect(saveStatus.textContent).toBe("Sign in to save");
 
     first.click();
 
     expect(first.dataset["kind"]).toBe("dug");
-    expect(status.textContent).toBe("Holding a stone. 1 of 9 dug");
+    expect(status.textContent).toBe("Holding a stone. 2 of 9 dug");
     expect(cells[1]?.getAttribute("data-kind")).toBe("covered");
     expect(root.querySelector("img.held-piece")?.hasAttribute("hidden")).toBe(
       false,
@@ -109,7 +110,7 @@ describe("mountPocketGridScreen", () => {
     expect(root.querySelector(".hand-slot")?.getAttribute("data-kind")).toBe(
       "stone",
     );
-    expect(saveStatus.textContent).toBe("Saved in this tab");
+    expect(saveStatus.textContent).toBe("Saved on this device");
   });
 
   it("places the held stone on a dug cell", () => {
@@ -136,7 +137,7 @@ describe("mountPocketGridScreen", () => {
     first.click();
 
     expect(first.dataset["kind"]).toBe("stone");
-    expect(status.textContent).toBe("Holding a stone. 1 of 9 dug");
+    expect(status.textContent).toBe("Holding a stone. 2 of 9 dug");
     expect(held.hidden).toBe(false);
     expect(handSlot.dataset["kind"]).toBe("stone");
     expect(root.querySelector(".hand-slot")).toBe(handSlot);
@@ -147,14 +148,14 @@ describe("mountPocketGridScreen", () => {
 
     second.click();
     expect(second.dataset["kind"]).toBe("dug");
-    expect(status.textContent).toBe("Holding a stone. 2 of 9 dug");
+    expect(status.textContent).toBe("Holding a stone. 3 of 9 dug");
 
     second.click();
     expect(second.dataset["kind"]).toBe("stone");
     expect(first.dataset["kind"]).toBe("stone");
     expect(held.hidden).toBe(false);
     expect(handSlot.dataset["kind"]).toBe("stone");
-    expect(status.textContent).toBe("Holding a stone. 2 of 9 dug");
+    expect(status.textContent).toBe("Holding a stone. 3 of 9 dug");
   });
 
   it("combines two neighbor stones into a chunk", () => {
@@ -179,9 +180,15 @@ describe("mountPocketGridScreen", () => {
     second.click();
     first.click();
 
+    expect(root.querySelector("img.held-piece")?.hasAttribute("hidden")).toBe(
+      true,
+    );
+    expect(root.querySelector(".hand-slot")?.getAttribute("aria-label")).toBe(
+      "Hand, stone selected",
+    );
     expect(first.dataset["selected"]).toBe("true");
     expect(status.textContent).toBe(
-      "Tap a neighbor stone to combine. 2 of 9 dug",
+      "Stone selected. Tap a neighbor stone to combine. 3 of 9 dug",
     );
 
     second.click();
@@ -189,7 +196,7 @@ describe("mountPocketGridScreen", () => {
     expect(first.dataset["kind"]).toBe("dug");
     expect(second.dataset["kind"]).toBe("chunk");
     expect(first.dataset["selected"]).toBeUndefined();
-    expect(status.textContent).toBe("Holding a stone. 2 of 9 dug");
+    expect(status.textContent).toBe("Holding a stone. 3 of 9 dug");
   });
 
   it("starts fresh when the tab scratch is empty", () => {
@@ -216,7 +223,7 @@ describe("mountPocketGridScreen", () => {
     }
 
     expect(restored.dataset["kind"]).toBe("covered");
-    expect(status.textContent).toBe("Holding a stone. 0 of 9 dug");
+    expect(status.textContent).toBe("Holding a stone. 1 of 9 dug");
   });
 
   it("keeps unsigned digs in this tab after remount", () => {
@@ -244,8 +251,8 @@ describe("mountPocketGridScreen", () => {
     }
 
     expect(restored.dataset["kind"]).toBe("dug");
-    expect(status.textContent).toBe("Holding a stone. 1 of 9 dug");
-    expect(saveStatus.textContent).toBe("Saved in this tab");
+    expect(status.textContent).toBe("Holding a stone. 2 of 9 dug");
+    expect(saveStatus.textContent).toBe("Saved on this device");
   });
 
   it("signs in with Google and signs out", () => {
@@ -492,7 +499,7 @@ describe("mountPocketGridScreen", () => {
 
     await Promise.resolve();
     expect(root.querySelector(".dig-status")?.textContent).toBe(
-      "Holding a stone. 1 of 9 dug",
+      "Holding a stone. 2 of 9 dug",
     );
     expect(root.querySelector(".save-status")?.textContent).toBe(
       "Couldn't reach your save",
@@ -535,7 +542,7 @@ describe("mountPocketGridScreen", () => {
     }
     first.click();
     expect(root.querySelector(".dig-status")?.textContent).toBe(
-      "Holding a stone. 0 of 9 dug",
+      "Holding a stone. 1 of 9 dug",
     );
 
     finishLoad({
@@ -596,7 +603,7 @@ describe("mountPocketGridScreen", () => {
 
     await vi.waitFor(() => {
       expect(rootB.querySelector(".dig-status")?.textContent).toBe(
-        "Holding a stone. 1 of 9 dug",
+        "Holding a stone. 2 of 9 dug",
       );
     });
     expect(

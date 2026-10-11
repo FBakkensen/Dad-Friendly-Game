@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   combine,
   createPocketGrid,
+  createStarterGrid,
   dig,
   dugCount,
   parsePocketGrid,
@@ -267,5 +268,13 @@ describe("settleStones", () => {
     expect(result.grid.cells[2]).toEqual({ kind: "stone" });
     expect(result.grid.cells[1]).toEqual({ kind: "stone" });
     expect(result.grid.cells[4]).toEqual({ kind: "stone" });
+  });
+});
+
+describe("createStarterGrid", () => {
+  it("digs only the center so idle stones have a home", () => {
+    const grid = createStarterGrid();
+    expect(grid.cells[4]).toEqual({ kind: "dug" });
+    expect(dugCount(grid)).toBe(1);
   });
 });
