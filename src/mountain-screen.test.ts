@@ -514,3 +514,70 @@ describe("Lantern of Guidance on screen", () => {
     expect(reveal?.hidden).toBe(false);
   });
 });
+
+describe("relic shelf", () => {
+  const seeded = (mountain: Mountain) => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      SESSION_SAVE_KEY,
+      JSON.stringify({ version: 3, mountain, lastSeen: Date.now() }),
+    );
+    return storage;
+  };
+
+  it("shows six silhouettes for a new dad and opens a list of buried relics", () => {
+    const screen = mountScreen();
+    const button = screen.root.querySelector<HTMLButtonElement>(".relic-shelf");
+    const slots = [...screen.root.querySelectorAll<HTMLElement>(".shelf-slot")];
+    expect(button?.getAttribute("aria-label")).toBe(
+      "Relic shelf, 0 of 6 found",
+    );
+    expect(slots.map((slot) => slot.dataset["found"])).toEqual(
+      Array.from({ length: 6 }, () => "false"),
+    );
+
+    const dialog = screen.root.querySelector<HTMLElement>(".shelf-dialog");
+    expect(dialog?.hidden).toBe(true);
+    button?.click();
+    expect(dialog?.hidden).toBe(false);
+    const names = [...screen.root.querySelectorAll(".shelf-name")].map(
+      (el) => el.textContent,
+    );
+    expect(names).toEqual(Array.from({ length: 6 }, () => "???"));
+    expect(screen.text(".shelf-detail")).toBe(
+      "Still buried deep in the mountain.",
+    );
+
+    screen.root.querySelector<HTMLButtonElement>(".shelf-close")?.click();
+    expect(dialog?.hidden).toBe(true);
+  });
+
+  it("lights up found relics and, with the Lantern, shows where the rest lie", () => {
+    const screen = mountScreen({ storage: seeded(minedMountain(120_000)) });
+    expect(
+      screen.root.querySelector(".relic-shelf")?.getAttribute("aria-label"),
+    ).toBe("Relic shelf, 2 of 6 found");
+    const slots = [...screen.root.querySelectorAll<HTMLElement>(".shelf-slot")];
+    expect(slots.map((slot) => slot.dataset["found"])).toEqual([
+      "true",
+      "true",
+      "false",
+      "false",
+      "false",
+      "false",
+    ]);
+
+    screen.root.querySelector<HTMLButtonElement>(".relic-shelf")?.click();
+    const rows = [...screen.root.querySelectorAll(".shelf-list li")];
+    expect(rows[0]?.querySelector(".shelf-name")?.textContent).toBe(
+      "Lantern of Guidance",
+    );
+    expect(rows[1]?.querySelector(".shelf-detail")?.textContent).toContain(
+      "The virtue of Protection.",
+    );
+    expect(rows[2]?.querySelector(".shelf-name")?.textContent).toBe("???");
+    expect(rows[2]?.querySelector(".shelf-detail")?.textContent).toBe(
+      "Lies 250 thousand stones deep.",
+    );
+  });
+});

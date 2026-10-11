@@ -12,7 +12,13 @@ import {
   mineByHand,
   stonesPerSecond,
 } from "./mountain";
-import { hasRelic, nextRelic, RELICS, type RelicId } from "./relics";
+import {
+  foundRelics,
+  hasRelic,
+  nextRelic,
+  RELICS,
+  type RelicId,
+} from "./relics";
 import {
   LANTERN_VEIN_GAP_SCALE,
   advanceVein,
@@ -249,6 +255,68 @@ export function mountMountainScreen({
   );
   welcome.append(welcomeCard);
 
+  const shelfButton = document.createElement("button");
+  shelfButton.type = "button";
+  shelfButton.className = "relic-shelf";
+  const shelfSlots = RELICS.map((relic) => {
+    const slot = document.createElement("img");
+    slot.className = "shelf-slot";
+    slot.src = relicArt[relic.id];
+    slot.alt = "";
+    slot.width = 32;
+    slot.height = 32;
+    slot.draggable = false;
+    shelfButton.append(slot);
+    return slot;
+  });
+  shelfButton.addEventListener("click", () => {
+    shelfOpen = true;
+    render();
+  });
+
+  const shelf = document.createElement("div");
+  shelf.className = "shelf-dialog";
+  shelf.setAttribute("role", "dialog");
+  shelf.setAttribute("aria-modal", "true");
+  shelf.setAttribute("aria-labelledby", "shelf-title");
+  shelf.hidden = true;
+  const shelfCard = document.createElement("div");
+  shelfCard.className = "shelf-card";
+  const shelfTitle = document.createElement("h2");
+  shelfTitle.id = "shelf-title";
+  shelfTitle.textContent = "Legendary Relics of Fatherhood";
+  const shelfList = document.createElement("ul");
+  shelfList.className = "shelf-list";
+  const shelfRows = RELICS.map(() => {
+    const row = document.createElement("li");
+    const art = document.createElement("img");
+    art.alt = "";
+    art.width = 48;
+    art.height = 48;
+    art.draggable = false;
+    const words = document.createElement("div");
+    const name = document.createElement("p");
+    name.className = "shelf-name";
+    const detail = document.createElement("p");
+    detail.className = "shelf-detail";
+    words.append(name, detail);
+    row.append(art, words);
+    shelfList.append(row);
+    return { row, art, name, detail };
+  });
+  const shelfClose = document.createElement("button");
+  shelfClose.type = "button";
+  shelfClose.className = "shelf-close";
+  shelfClose.textContent = "Back to the mountain";
+  shelfClose.addEventListener("click", () => {
+    shelfOpen = false;
+    render();
+    shelfButton.focus();
+  });
+  shelfCard.append(shelfTitle, shelfList, shelfClose);
+  shelf.append(shelfCard);
+  let shelfOpen = false;
+
   const reveal = document.createElement("div");
   reveal.className = "relic-reveal";
   reveal.setAttribute("role", "dialog");
@@ -395,7 +463,39 @@ export function mountMountainScreen({
     renderGuide();
     renderWelcome();
     renderReveal();
+    renderShelf();
     renderSave();
+  };
+
+  const renderShelf = (): void => {
+    const found = foundRelics(view.mountain).length;
+    shelfButton.setAttribute(
+      "aria-label",
+      `Relic shelf, ${String(found)} of ${String(RELICS.length)} found`,
+    );
+    const guided = hasRelic(view.mountain, "lantern");
+    for (const [index, relic] of RELICS.entries()) {
+      const has = hasRelic(view.mountain, relic.id);
+      const slot = shelfSlots[index];
+      const row = shelfRows[index];
+      if (slot === undefined || row === undefined) {
+        continue;
+      }
+      slot.dataset["found"] = String(has);
+      row.row.dataset["found"] = String(has);
+      row.art.src = relicArt[relic.id];
+      row.name.textContent = has ? relic.name : "???";
+      row.detail.textContent = has
+        ? `The virtue of ${relic.virtue}. ${relic.power}`
+        : guided
+          ? `Lies ${formatCount(relic.depth)} stones deep.`
+          : "Still buried deep in the mountain.";
+    }
+    const wasOpen = !shelf.hidden;
+    shelf.hidden = !shelfOpen;
+    if (shelfOpen && !wasOpen) {
+      shelfClose.focus();
+    }
   };
 
   const renderGuide = (): void => {
@@ -488,6 +588,7 @@ export function mountMountainScreen({
   root.replaceChildren(
     header,
     guide,
+    shelfButton,
     mountainWrap,
     pocket,
     crew,
@@ -496,6 +597,7 @@ export function mountMountainScreen({
     authButton,
     welcome,
     reveal,
+    shelf,
   );
 
   setInterval(() => {
