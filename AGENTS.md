@@ -48,7 +48,7 @@ How we build is dad-friendly too. The interview format (one question, three opti
 
 ### Sittings
 
-- No long spec. No design doc. Open GitHub issues are the plan.
+- No long spec. `docs/DESIGN.md` holds the short game vision; open GitHub issues are the plan.
 - One sitting produces one user-visible sliver. The game still boots. Next sitting starts from a running game.
 - Chores (lint, folders, vendor setup) are not a sitting by themselves unless they unblock that same sliver.
 - Do not pick the game until the human asks. When they do, it is turn-based or idle.
