@@ -5,7 +5,14 @@ import {
   type CloudLoadResult,
   type CloudSave,
 } from "./cloud-save";
-import { accrue, createMountain, minedOut, type Mountain } from "./mountain";
+import {
+  accrue,
+  accrueAway,
+  createMountain,
+  minedOut,
+  type AwayReport,
+  type Mountain,
+} from "./mountain";
 import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
   clearSessionSave,
@@ -21,6 +28,8 @@ export type ProgressSnapshot = {
   readonly saveKind: SaveKind;
   readonly ready: boolean;
   readonly log: string | undefined;
+  /** Set once per open when helpers mined while the game was closed. */
+  readonly away: AwayReport | undefined;
 };
 
 export type ProgressStore = {
@@ -32,6 +41,8 @@ export type ProgressStore = {
   readonly applyMutation: (update: (mountain: Mountain) => Mountain) => void;
   /** Settles helpers' work up to now for display. Does not save; saves happen on actions, hide, and pagehide. */
   readonly tick: () => void;
+  /** Closes the welcome-back card. */
+  readonly dismissAway: () => void;
   readonly flush: () => void;
   readonly dispose: () => void;
 };
@@ -64,6 +75,8 @@ export function createProgressStore({
   let watchingCloud = false;
   let unwatch: (() => void) | undefined;
   let disposed = false;
+  let away: AwayReport | undefined;
+  let welcomed = false;
   let lastCloudWriteAt = Number.NEGATIVE_INFINITY;
   let pendingCloudWrite: ReturnType<typeof setTimeout> | undefined;
   const listeners = new Set<(snapshot: ProgressSnapshot) => void>();
@@ -75,6 +88,7 @@ export function createProgressStore({
       saveKind,
       ready: auth.getState().kind !== "signed-in" || hydrated,
       log: latest === undefined ? undefined : formatLogEvent(latest),
+      away,
     };
   };
 
@@ -178,6 +192,38 @@ export function createProgressStore({
       });
   };
 
+  /**
+   * Pays helpers for time the save says we were gone. The first payout of an
+   * open becomes the welcome-back card; later ones (another device's save
+   * arriving) are paid silently. Returns stones mined.
+   */
+  const settleSince = (savedLastSeen: number | undefined): number => {
+    const at = now();
+    if (savedLastSeen === undefined) {
+      lastSeen = at;
+      return 0;
+    }
+    const result = accrueAway({ mountain, lastSeen: savedLastSeen, now: at });
+    mountain = result.mountain;
+    lastSeen = result.settledAt;
+    if (result.mined === 0) {
+      return 0;
+    }
+    if (!welcomed) {
+      away = result.report;
+    }
+    logger.record({
+      level: "info",
+      code: "idle.away",
+      detail: `${String(result.mined)} while away`,
+      data: {
+        mined: result.mined,
+        awayMinutes: Math.round(result.report.awayMs / 60000),
+      },
+    });
+    return result.mined;
+  };
+
   const applyRemote = (remote: CloudLoadResult): void => {
     const localAhead = inFlightWrites > 0 || pendingCloudWrite !== undefined;
     if (localAhead && remote.kind === "found") {
@@ -185,7 +231,12 @@ export function createProgressStore({
     }
     const next = applySignedInSave({ local: mountain, remote });
     mountain = next.mountain;
-    lastSeen = now();
+    let paid = 0;
+    if (remote.kind === "found") {
+      paid = settleSince(remote.lastSeen);
+    } else {
+      lastSeen ??= now();
+    }
     logger.record({
       level: remote.kind === "unavailable" ? "error" : "info",
       code: "save.remote",
@@ -197,8 +248,9 @@ export function createProgressStore({
       case "missing":
         hydrated = true;
         saveKind = "account";
-        if (next.upload) {
-          persistCloud();
+        welcomed = true;
+        if (next.upload || paid > 0) {
+          persistCloudSoon();
         }
         break;
       case "unavailable":
@@ -236,7 +288,8 @@ export function createProgressStore({
       return;
     }
     mountain = stored.mountain;
-    lastSeen = now();
+    const paid = settleSince(stored.lastSeen);
+    welcomed = true;
     saveKind = "session";
     logger.record({
       level: "info",
@@ -244,6 +297,9 @@ export function createProgressStore({
       detail: "resume",
       data: saveCounts(mountain),
     });
+    if (paid > 0) {
+      persistSession();
+    }
     emit();
   };
 
@@ -334,6 +390,13 @@ export function createProgressStore({
       mountain = next;
       persistCloudSoon();
       persistSession();
+      emit();
+    },
+    dismissAway: () => {
+      if (away === undefined) {
+        return;
+      }
+      away = undefined;
       emit();
     },
     tick: () => {

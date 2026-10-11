@@ -3,8 +3,9 @@ import {
   type AuthController,
   type AuthState,
 } from "./auth";
-import { formatCount } from "./format";
+import { formatCount, formatDuration } from "./format";
 import {
+  AWAY_CAP_MS,
   MOUNTAIN_STONES,
   helperCost,
   hireHelper,
@@ -96,6 +97,41 @@ export function mountMountainScreen({
   hireNote.className = "hire-note";
   hireNote.setAttribute("aria-live", "polite");
   crew.append(crewStatus, hire, hireNote);
+
+  const welcome = document.createElement("div");
+  welcome.className = "welcome-back";
+  welcome.setAttribute("role", "dialog");
+  welcome.setAttribute("aria-modal", "true");
+  welcome.setAttribute("aria-labelledby", "welcome-back-title");
+  welcome.hidden = true;
+  const welcomeCard = document.createElement("div");
+  welcomeCard.className = "welcome-card";
+  const welcomeTitle = document.createElement("h2");
+  welcomeTitle.id = "welcome-back-title";
+  welcomeTitle.textContent = "While you were away";
+  const welcomeMined = document.createElement("p");
+  welcomeMined.className = "welcome-mined";
+  const welcomeDetail = document.createElement("p");
+  welcomeDetail.className = "welcome-detail";
+  const welcomeCheer = document.createElement("p");
+  welcomeCheer.className = "welcome-cheer";
+  welcomeCheer.textContent =
+    "Time with the people who matter is never wasted. Your crew kept the mountain moving.";
+  const welcomeContinue = document.createElement("button");
+  welcomeContinue.type = "button";
+  welcomeContinue.className = "welcome-continue";
+  welcomeContinue.textContent = "Back to the mountain";
+  welcomeContinue.addEventListener("click", () => {
+    progress.dismissAway();
+  });
+  welcomeCard.append(
+    welcomeTitle,
+    welcomeMined,
+    welcomeDetail,
+    welcomeCheer,
+    welcomeContinue,
+  );
+  welcome.append(welcomeCard);
 
   const saveStatus = document.createElement("p");
   saveStatus.className = "save-status";
@@ -199,7 +235,27 @@ export function mountMountainScreen({
         : "Mountain, tap to mine one stone",
     );
     renderCrew();
+    renderWelcome();
     renderSave();
+  };
+
+  const renderWelcome = (): void => {
+    const report = view.away;
+    const wasOpen = !welcome.hidden;
+    welcome.hidden = report === undefined;
+    if (report === undefined) {
+      return;
+    }
+    welcomeMined.textContent = `+${formatCount(report.mined)} ${report.mined === 1 ? "stone" : "stones"}`;
+    const helpers = view.mountain.helpers;
+    const crewName =
+      helpers === 1 ? "Your helper" : `Your ${formatCount(helpers)} helpers`;
+    welcomeDetail.textContent = report.capped
+      ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for the first ${formatDuration(AWAY_CAP_MS)}.`
+      : `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined the whole time.`;
+    if (!wasOpen) {
+      welcomeContinue.focus();
+    }
   };
 
   const renderCrew = (): void => {
@@ -237,6 +293,7 @@ export function mountMountainScreen({
     saveStatus,
     authStatus,
     authButton,
+    welcome,
   );
 
   setInterval(progress.tick, 1000);

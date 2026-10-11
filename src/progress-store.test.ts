@@ -9,7 +9,7 @@ import {
 import { createMountain, type Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
 import { createProgressStore } from "./progress-store";
-import { readSessionSave } from "./session-save";
+import { readSessionSave, writeSessionSave } from "./session-save";
 
 function createMemoryStorage(): Storage {
   const data = new Map<string, string>();
@@ -421,5 +421,108 @@ describe("helpers mining live", () => {
     clock += 5_000;
     progress.tick();
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("away earnings", () => {
+  const crew = { remaining: 1_000_000, pocket: 5, helpers: 3 };
+
+  it("pays a guest for time away, saves it, and shows the card only once", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: crew, lastSeen: 0 });
+    let clock = 10 * 60_000;
+
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 1_800);
+    expect(progress.getSnapshot().away).toEqual({
+      mined: 1_800,
+      awayMs: 600_000,
+      capped: false,
+    });
+    expect(readSessionSave({ storage })).toEqual({
+      mountain: { remaining: 1_000_000 - 1_800, pocket: 1_805, helpers: 3 },
+      lastSeen: 600_000,
+    });
+
+    progress.dismissAway();
+    expect(progress.getSnapshot().away).toBeUndefined();
+    progress.dispose();
+
+    clock += 500;
+    const reopened = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    expect(reopened.getSnapshot().away).toBeUndefined();
+    expect(reopened.getSnapshot().mountain.pocket).toBe(1_805);
+  });
+
+  it("shows no card when nothing was mined", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...crew, helpers: 0 },
+      lastSeen: 0,
+    });
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 3_600_000,
+    });
+    expect(progress.getSnapshot().away).toBeUndefined();
+    expect(progress.getSnapshot().mountain.pocket).toBe(5);
+  });
+
+  it("pays a signed-in dad from the cloud save once and writes it back", async () => {
+    const docs = new Map<string, Mountain>();
+    const cloud = createMemoryCloudSave({ docs });
+    await cloud.write({ uid: "test-dad", mountain: crew, lastSeen: 0 });
+    const user = { uid: "test-dad", label: "Test Dad" };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+      now: () => 20_000,
+      cloudWriteGapMs: 0,
+    });
+
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("account");
+    });
+    expect(progress.getSnapshot().away?.mined).toBe(60);
+    expect(docs.get("test-dad")?.pocket).toBe(65);
+    expect(progress.getSnapshot().mountain.pocket).toBe(65);
+  });
+
+  it("pays another device's save silently after the first load", async () => {
+    let push: (remote: CloudLoadResult) => void = () => undefined;
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        push = onChange;
+        onChange({ kind: "found", mountain: crew, lastSeen: 50_000 });
+        return () => undefined;
+      },
+    };
+    const user = { uid: "test-dad", label: "Test Dad" };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave,
+      sessionStorage: createMemoryStorage(),
+      now: () => 50_000,
+    });
+    expect(progress.getSnapshot().away).toBeUndefined();
+
+    await Promise.resolve();
+    push({ kind: "found", mountain: crew, lastSeen: 40_000 });
+    await Promise.resolve();
+    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 30);
+    expect(progress.getSnapshot().away).toBeUndefined();
   });
 });
