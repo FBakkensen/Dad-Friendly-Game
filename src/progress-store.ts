@@ -14,6 +14,7 @@ import {
   type AwayReport,
   type Mountain,
 } from "./mountain";
+import { staffExisting } from "./crew";
 import { relicsUncovered, type Relic } from "./relics";
 import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
@@ -34,6 +35,8 @@ export type ProgressSnapshot = {
   readonly away: AwayReport | undefined;
   /** The next relic uncovered during this open and not yet celebrated. */
   readonly revealed: Relic | undefined;
+  /** Free helpers hired on load so an older save's machines run (#89), once. */
+  readonly crewJoined: number | undefined;
 };
 
 export type ProgressStore = {
@@ -98,6 +101,25 @@ export function createProgressStore({
    */
   let revealBaseline: number | undefined;
   let welcomed = false;
+  let crewJoined: number | undefined;
+  /** Hires the one-time free staff for a loaded save; true if it changed. */
+  const staffLoaded = (): boolean => {
+    const result = staffExisting(mountain);
+    if (result.mountain === mountain) {
+      return false;
+    }
+    mountain = result.mountain;
+    if (result.joined > 0) {
+      crewJoined = (crewJoined ?? 0) + result.joined;
+      logger.record({
+        level: "info",
+        code: "save.staffed",
+        detail: `${String(result.joined)} helpers joined`,
+        data: saveCounts(mountain),
+      });
+    }
+    return true;
+  };
   let lastCloudWriteAt = Number.NEGATIVE_INFINITY;
   let pendingCloudWrite: ReturnType<typeof setTimeout> | undefined;
   const listeners = new Set<(snapshot: ProgressSnapshot) => void>();
@@ -111,6 +133,7 @@ export function createProgressStore({
       log: latest === undefined ? undefined : formatLogEvent(latest),
       away,
       revealed: reveals[0],
+      crewJoined,
     };
   };
 
@@ -293,6 +316,7 @@ export function createProgressStore({
     }
     const next = applySignedInSave({ local: mountain, remote });
     mountain = next.mountain;
+    const staffed = remote.kind === "found" && staffLoaded();
     let paid = 0;
     if (remote.kind === "found") {
       revealBaseline ??= minedOut(mountain);
@@ -312,7 +336,7 @@ export function createProgressStore({
         hydrated = true;
         saveKind = "account";
         welcomed = true;
-        if (next.upload || paid > 0) {
+        if (next.upload || paid > 0 || staffed) {
           persistCloudSoon();
         }
         break;
@@ -351,6 +375,7 @@ export function createProgressStore({
       return;
     }
     mountain = stored.mountain;
+    const staffed = staffLoaded();
     revealBaseline = minedOut(mountain);
     const paid = settleSince(stored.lastSeen);
     welcomed = true;
@@ -361,7 +386,7 @@ export function createProgressStore({
       detail: "resume",
       data: saveCounts(mountain),
     });
-    if (paid > 0) {
+    if (paid > 0 || staffed) {
       persistSession();
     }
     emit();
@@ -496,10 +521,11 @@ export function createProgressStore({
       emit();
     },
     dismissAway: () => {
-      if (away === undefined) {
+      if (away === undefined && crewJoined === undefined) {
         return;
       }
       away = undefined;
+      crewJoined = undefined;
       emit();
     },
     tick: () => {

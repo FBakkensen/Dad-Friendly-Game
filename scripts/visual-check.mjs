@@ -98,7 +98,12 @@ async function open([width, height], save, { standalone = false } = {}) {
       }
     },
     SAVE_KEY,
-    JSON.stringify(save),
+    // Seeds are current saves (already staffed) unless they say `legacy`.
+    JSON.stringify(
+      save.legacy || save.mountain === undefined
+        ? { ...save, legacy: undefined }
+        : { ...save, mountain: { staffed: true, ...save.mountain } },
+    ),
   );
   await page.goto(BASE, { waitUntil: "networkidle0" });
   return { page, close: () => context.close() };
@@ -468,6 +473,39 @@ for (const viewport of VIEWPORTS) {
       `${size} standalone golden vein pays when tapped`,
     );
   }
+  await close();
+}
+
+// A save from before staffing: the one-time "Your crew grew" card, at the
+// smallest phone, over the game and dismissable, with no scroll.
+for (const standalone of [false, true]) {
+  const viewport = [360, 560];
+  const label = `360x560${standalone ? " standalone" : ""}`;
+  const { page, close } = await open(
+    viewport,
+    {
+      legacy: true,
+      version: 4,
+      mountain: { ...CREW, helpers: 3 },
+      lastSeen: Date.now(),
+    },
+    { standalone },
+  );
+  const crewText = await page.$eval(".welcome-crew", (el) => el.textContent);
+  check(
+    crewText?.endsWith("joined to run your machines.") === true,
+    `${label} crew-grew note shows for an old save`,
+  );
+  check(
+    await coversViewport(page, ".welcome-back"),
+    `${label} crew-grew card is laid over the game`,
+  );
+  check(await noScroll(page), `${label} crew-grew card has no scroll`);
+  await page.tap(".welcome-continue");
+  check(
+    await page.$eval(".welcome-back", (el) => el.hidden),
+    `${label} crew-grew card closes`,
+  );
   await close();
 }
 

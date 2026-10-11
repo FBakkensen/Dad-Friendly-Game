@@ -14,7 +14,7 @@ import { MOUNTAIN_STONES, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
-import { minedMountain } from "./test-fixtures";
+import { minedMountain, unstaffedSave } from "./test-fixtures";
 
 function setReducedMotion(reduce: boolean): void {
   window.matchMedia = ((query: string) => ({
@@ -1432,5 +1432,56 @@ describe("crew staffing on screen", () => {
       vi.useRealTimers();
       setReducedMotion(true);
     }
+  });
+});
+
+describe("free helpers note (#89 grant)", () => {
+  const oldSave = (fields: Partial<Mountain>): Mountain => {
+    return unstaffedSave({
+      ...minedMountain(0),
+      ...fields,
+    });
+  };
+
+  it("greets an older save with how many helpers joined, once", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: oldSave({ helpers: 4, carts: 6, drills: 2 }),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(false);
+    expect(screen.text("#welcome-back-title")).toBe("Your crew grew");
+    expect(screen.text(".welcome-crew")).toBe(
+      "6 helpers joined to run your machines.",
+    );
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-mined")?.hidden,
+    ).toBe(true);
+    screen.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(true);
+    expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×10");
+  });
+
+  it("adds the note under the away report when both happen", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: oldSave({ helpers: 0, carts: 1 }),
+      lastSeen: Date.now() - 2 * 3_600_000,
+    });
+    const screen = mountScreen({ storage });
+    expect(screen.text("#welcome-back-title")).toBe("While you were away");
+    expect(screen.text(".welcome-crew")).toBe(
+      "Your crew grew: 1 helper joined to run your machines.",
+    );
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-mined")?.hidden,
+    ).toBe(false);
   });
 });

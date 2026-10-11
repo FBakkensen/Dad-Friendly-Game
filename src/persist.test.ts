@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MOUNTAIN_STONES, createMountain } from "./mountain";
 import { migrateLegacyGrid, parseSaveValue, serializeSave } from "./persist";
-import { minedMountain } from "./test-fixtures";
+import { minedMountain, unstaffedSave } from "./test-fixtures";
 
 const covered = { kind: "covered" };
 const legacyGrid = (kinds: readonly string[]) => ({
@@ -180,6 +180,7 @@ describe("serializeSave and parseSaveValue", () => {
         drills: 0,
         borers: 0,
         machines: 0,
+        staffed: true,
       },
       lastSeen: 99,
     });
@@ -223,6 +224,7 @@ describe("migrateLegacyGrid", () => {
       drills: 0,
       borers: 0,
       machines: 0,
+      staffed: true,
     });
   });
 
@@ -231,6 +233,28 @@ describe("migrateLegacyGrid", () => {
     expect(migrateLegacyGrid(legacyGrid(["toString"]))).toBeUndefined();
     expect(
       migrateLegacyGrid(legacyGrid([1 as unknown as string])),
+    ).toBeUndefined();
+  });
+});
+
+describe("the staffing mark", () => {
+  it("round-trips, and only `true` is accepted", () => {
+    const mountain = minedMountain(3);
+    expect(mountain.staffed).toBe(true);
+    const saved = serializeSave({ mountain, lastSeen: 1 });
+    expect(parseSaveValue(JSON.parse(JSON.stringify(saved)))?.mountain).toEqual(
+      mountain,
+    );
+    const old = unstaffedSave(mountain);
+    expect(
+      parseSaveValue({ version: 4, mountain: old, lastSeen: 1 })?.mountain,
+    ).toEqual(old);
+    expect(
+      parseSaveValue({
+        version: 4,
+        mountain: { ...old, staffed: false },
+        lastSeen: 1,
+      }),
     ).toBeUndefined();
   });
 });
