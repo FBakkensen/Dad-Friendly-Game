@@ -5,8 +5,12 @@ import {
   type Mountain,
 } from "./mountain";
 
-export type MountainSaveV3 = {
-  readonly version: 3;
+/** v3 saves were a 1,000,000-stone mountain; v4 is 100,000,000. */
+const V3_MOUNTAIN_STONES = 1_000_000;
+const V3_SCALE = MOUNTAIN_STONES / V3_MOUNTAIN_STONES;
+
+export type MountainSaveV4 = {
+  readonly version: 4;
   readonly mountain: Mountain;
   readonly lastSeen: number;
 };
@@ -22,9 +26,9 @@ export function serializeSave({
 }: {
   mountain: Mountain;
   lastSeen: number;
-}): MountainSaveV3 {
+}): MountainSaveV4 {
   return {
-    version: 3,
+    version: 4,
     mountain: {
       remaining: mountain.remaining,
       pocket: mountain.pocket,
@@ -34,7 +38,10 @@ export function serializeSave({
   };
 }
 
-/** Accepts v3 (mountain) and migrates the legacy v1/v2 3x3 grid saves. */
+/**
+ * Accepts v4 (100M mountain), scales v3 (1M mountain) up, and migrates the
+ * legacy v1/v2 3x3 grid saves.
+ */
 export function parseSaveValue(value: unknown): ParsedSave | undefined {
   if (typeof value !== "object" || value === null || !("version" in value)) {
     return undefined;
@@ -48,7 +55,8 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
         : { mountain, lastSeen: undefined };
     }
     case 2:
-    case 3: {
+    case 3:
+    case 4: {
       const lastSeen = record["lastSeen"];
       if (typeof lastSeen !== "number" || !Number.isFinite(lastSeen)) {
         return undefined;
@@ -56,7 +64,9 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
       const mountain =
         record["version"] === 2
           ? migrateLegacyGrid(record["grid"])
-          : parseMountain(record["mountain"]);
+          : record["version"] === 3
+            ? scaleV3(parseMountain(record["mountain"], V3_MOUNTAIN_STONES))
+            : parseMountain(record["mountain"]);
       return mountain === undefined ? undefined : { mountain, lastSeen };
     }
     default:
@@ -99,4 +109,16 @@ export function migrateLegacyGrid(grid: unknown): Mountain | undefined {
     pocket += LEGACY_CELL_STONES[kind as keyof typeof LEGACY_CELL_STONES];
   }
   return { ...createMountain(), remaining: MOUNTAIN_STONES - dug, pocket };
+}
+
+/**
+ * Keeps a v3 dad at the same place in the deeper mountain: stones mined are
+ * scaled up, so relics already found stay found. Pocket and crew are kept.
+ */
+function scaleV3(mountain: Mountain | undefined): Mountain | undefined {
+  if (mountain === undefined) {
+    return undefined;
+  }
+  const mined = (V3_MOUNTAIN_STONES - mountain.remaining) * V3_SCALE;
+  return { ...mountain, remaining: MOUNTAIN_STONES - mined };
 }

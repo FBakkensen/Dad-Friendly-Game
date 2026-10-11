@@ -8,15 +8,15 @@ service cloud.firestore {
     // Collection: saves
     // Document ID: Firebase Auth uid
     // Fields:
-    //   - version: int (required, 1, 2, or 3)
-    //   - mountain: map (required iff version == 3)
-    //       - remaining: int 0..1000000, pocket: int >= 0, helpers: int >= 0
+    //   - version: int (required, 1..4)
+    //   - mountain: map (required iff version is 3 or 4)
+    //       - remaining: int 0..100000000 (v3: 0..1000000), pocket: int >= 0, helpers: int >= 0
     //   - grid: map (required iff version is 1 or 2; legacy, read-migrated by the client)
     //       - width: int (required, must be 3)
     //       - height: int (required, must be 3)
     //       - cells: list (required, size 9)
     //           - kind: string (required, 'covered', 'dug', 'stone', or 'chunk')
-    //   - lastSeen: int (required iff version is 2 or 3; epoch ms)
+    //   - lastSeen: int (required iff version >= 2; epoch ms)
     // Ownership is the document ID. No uid, role, or PII fields.
     //
     // ===============================================================
@@ -72,12 +72,12 @@ service cloud.firestore {
         isValidCell(grid.cells[8]);
     }
 
-    function isValidMountain(mountain) {
+    function isValidMountain(mountain, total) {
       return mountain is map &&
         mountain.keys().hasOnly(['remaining', 'pocket', 'helpers']) &&
         mountain.remaining is int &&
         mountain.remaining >= 0 &&
-        mountain.remaining <= 1000000 &&
+        mountain.remaining <= total &&
         mountain.pocket is int &&
         mountain.pocket >= 0 &&
         mountain.helpers is int &&
@@ -92,10 +92,14 @@ service cloud.firestore {
       return uidUnchanged() &&
         data.version is int &&
         (
+          (data.version == 4 &&
+            hasOnlyAllowedFields(['version', 'mountain', 'lastSeen']) &&
+            hasValidLastSeen(data) &&
+            isValidMountain(data.mountain, 100000000)) ||
           (data.version == 3 &&
             hasOnlyAllowedFields(['version', 'mountain', 'lastSeen']) &&
             hasValidLastSeen(data) &&
-            isValidMountain(data.mountain)) ||
+            isValidMountain(data.mountain, 1000000)) ||
           (data.version == 2 &&
             hasOnlyAllowedFields(['version', 'grid', 'lastSeen']) &&
             hasValidLastSeen(data) &&

@@ -100,16 +100,18 @@ function mountScreen({
 }
 
 describe("mountMountainScreen", () => {
-  it("shows a million stones and mines one per tap", () => {
+  it("shows a hundred million stones and mines one per tap", () => {
     const screen = mountScreen();
 
-    expect(screen.text(".stones-left")).toBe("1 million stones left");
+    expect(screen.text(".stones-left")).toBe("100 million stones left");
     expect(screen.text(".pocket")).toBe("0 stones");
     expect(screen.text(".goal")).toContain("Legendary Relics of Fatherhood");
     expect(screen.text(".save-status")).toBe("Sign in to save");
 
     screen.mountain.click();
-    expect(screen.text(".stones-left")).toBe("999.9 thousand stones left");
+    expect(
+      screen.root.querySelector(".stones-left")?.getAttribute("title"),
+    ).toBe("99,999,999 of 100,000,000");
     expect(screen.text(".pocket")).toBe("1 stone");
     expect(screen.text(".save-status")).toBe("Saved on this device");
 
@@ -117,7 +119,7 @@ describe("mountMountainScreen", () => {
     expect(screen.text(".pocket")).toBe("2 stones");
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe("999,998 of 1,000,000");
+    ).toBe("99,999,998 of 100,000,000");
   });
 
   it("keeps guest progress after the page is opened again", () => {
@@ -157,7 +159,7 @@ describe("mountMountainScreen", () => {
     expect(screen.text(".pocket")).toBe("3 stones");
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe("999,997 of 1,000,000");
+    ).toBe("99,999,997 of 100,000,000");
   });
 
   it("disables the mountain once it is mined out", () => {
@@ -169,7 +171,7 @@ describe("mountMountainScreen", () => {
     };
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 3, mountain: done, lastSeen: 1 }),
+      JSON.stringify({ version: 4, mountain: done, lastSeen: 1 }),
     );
 
     const screen = mountScreen({ storage });
@@ -279,7 +281,7 @@ describe("helper miners on screen", () => {
       storage.setItem(
         SESSION_SAVE_KEY,
         JSON.stringify({
-          version: 3,
+          version: 4,
           mountain: minedMountain(9),
           lastSeen: Date.now(),
         }),
@@ -323,8 +325,8 @@ describe("welcome-back card", () => {
     storage.setItem(
       SESSION_SAVE_KEY,
       JSON.stringify({
-        version: 3,
-        mountain: { remaining: 1_000_000, pocket: 0, helpers: 4 },
+        version: 4,
+        mountain: { remaining: 100_000_000, pocket: 0, helpers: 4 },
         lastSeen: Date.now() - (2 * 60 + 5) * 60_000,
       }),
     );
@@ -355,8 +357,8 @@ describe("welcome-back card", () => {
     storage.setItem(
       SESSION_SAVE_KEY,
       JSON.stringify({
-        version: 3,
-        mountain: { remaining: 1_000_000, pocket: 0, helpers: 1 },
+        version: 4,
+        mountain: { remaining: 100_000_000, pocket: 0, helpers: 1 },
         lastSeen: Date.now() - 26 * 3_600_000,
       }),
     );
@@ -443,7 +445,7 @@ describe("Lantern of Guidance on screen", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 3, mountain, lastSeen }),
+      JSON.stringify({ version: 4, mountain, lastSeen }),
     );
     return storage;
   };
@@ -459,7 +461,7 @@ describe("Lantern of Guidance on screen", () => {
   });
 
   it("reveals the Lantern on the tap that uncovers it, then guides to the Shield", () => {
-    const screen = mountScreen({ storage: seeded(minedMountain(19_999)) });
+    const screen = mountScreen({ storage: seeded(minedMountain(999_999)) });
     document.body.append(screen.root);
     const reveal = screen.root.querySelector<HTMLElement>(".relic-reveal");
     expect(reveal?.hidden).toBe(true);
@@ -483,7 +485,7 @@ describe("Lantern of Guidance on screen", () => {
     screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
     expect(reveal?.hidden).toBe(true);
     expect(screen.text(".goal")).toBe(
-      "Next: Shield of Protection, 80 thousand stones deeper",
+      "Next: Shield of Protection, 9 million stones deeper",
     );
     const bar = screen.root.querySelector<HTMLElement>(".guide-bar");
     expect(bar?.hidden).toBe(false);
@@ -492,7 +494,7 @@ describe("Lantern of Guidance on screen", () => {
   });
 
   it("fills the guide bar between relics", () => {
-    const screen = mountScreen({ storage: seeded(minedMountain(60_000)) });
+    const screen = mountScreen({ storage: seeded(minedMountain(5_500_000)) });
     expect(
       screen.root.querySelector(".guide-bar")?.getAttribute("aria-valuenow"),
     ).toBe("50");
@@ -500,7 +502,7 @@ describe("Lantern of Guidance on screen", () => {
 
   it("shows the welcome-back card before a relic found while away", () => {
     const storage = seeded(
-      { ...minedMountain(19_000), helpers: 10 },
+      { ...minedMountain(999_000), helpers: 10 },
       Date.now() - 200_000,
     );
     const screen = mountScreen({ storage });
@@ -520,7 +522,7 @@ describe("relic shelf", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 3, mountain, lastSeen: Date.now() }),
+      JSON.stringify({ version: 4, mountain, lastSeen: Date.now() }),
     );
     return storage;
   };
@@ -553,7 +555,7 @@ describe("relic shelf", () => {
   });
 
   it("lights up found relics and, with the Lantern, shows where the rest lie", () => {
-    const screen = mountScreen({ storage: seeded(minedMountain(120_000)) });
+    const screen = mountScreen({ storage: seeded(minedMountain(12_000_000)) });
     expect(
       screen.root.querySelector(".relic-shelf")?.getAttribute("aria-label"),
     ).toBe("Relic shelf, 2 of 6 found");
@@ -577,7 +579,7 @@ describe("relic shelf", () => {
     );
     expect(rows[2]?.querySelector(".shelf-name")?.textContent).toBe("???");
     expect(rows[2]?.querySelector(".shelf-detail")?.textContent).toBe(
-      "Lies 250 thousand stones deep.",
+      "Lies 25 million stones deep.",
     );
   });
 });

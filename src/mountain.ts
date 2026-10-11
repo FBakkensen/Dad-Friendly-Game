@@ -1,5 +1,5 @@
 /** All game numbers live here. See docs/DESIGN.md "Numbers and tuning". */
-export const MOUNTAIN_STONES = 1_000_000;
+export const MOUNTAIN_STONES = 100_000_000;
 const HELPER_BASE_COST = 10;
 const HELPER_COST_GROWTH = 1.15;
 const HELPER_STONES_PER_SECOND = 1;
@@ -130,14 +130,17 @@ export function accrueAway({
 }
 
 /** Builds a mountain from untrusted data; every field must be a sane whole number. */
-export function parseMountain(value: unknown): Mountain | undefined {
+export function parseMountain(
+  value: unknown,
+  total: number = MOUNTAIN_STONES,
+): Mountain | undefined {
   if (typeof value !== "object" || value === null) {
     return undefined;
   }
   const { remaining, pocket, helpers } = value as Record<string, unknown>;
   if (
     !isCount(remaining) ||
-    remaining > MOUNTAIN_STONES ||
+    remaining > total ||
     !isCount(pocket) ||
     !isCount(helpers)
   ) {

@@ -4,7 +4,7 @@ This is the north star for the game. Open GitHub issues stay the plan; this page
 
 ## Vision
 
-Deep inside a mountain of about **1,000,000 stones** lie the six Legendary Relics of Fatherhood, left by the great dads of history. You start with your bare hands: one tap, one stone. The mountain is far too big to dig by hand, and that is the point. Scale makes automation necessary, the way it does in _Needle In A Haystack_ and _Cookie Clicker_. Each relic you uncover is a power spike and a virtue of fatherhood.
+Deep inside a mountain of **100,000,000 stones** lie the six Legendary Relics of Fatherhood, left by the great dads of history. You start with your bare hands: one tap, one stone. The mountain is far too big to dig by hand, and that is the point. Scale makes automation necessary, the way it does in _Needle In A Haystack_ and _Cookie Clicker_. Each relic you uncover is a power spike and a virtue of fatherhood.
 
 The tone lifts dads up. It honors them; it does not joke at their expense.
 
@@ -19,24 +19,24 @@ It stays a dad-friendly game (see `AGENTS.md`): two-minute sessions, gentle, nev
 5. **Hit a relic depth.** Relics sit at fixed depths (stones mined out of the mountain). Reaching one uncovers it and unlocks its power.
 6. **Golden veins.** Now and then a glinting vein appears; tap it for a short boost. Missing one costs nothing.
 
-The always-visible counter shows stones left in the mountain, written readably ("987,654" → "987.7 thousand", "1.2 million").
+The always-visible counter shows stones left in the mountain, written readably ("987,654" → "987.7 thousand", "98.7 million").
 
 ## Relics
 
 Depths are fractions of the mountain so tuning is one number. Order is the story: guide, protect, build, be patient, teach, become the hero.
 
-| #   | Relic                 | Virtue          | Depth (stones mined)   | Power (first cut)                                                                                               |
-| --- | --------------------- | --------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 1   | Lantern of Guidance   | Guide           | 20,000                 | Shows the next relic and a progress bar toward it; golden veins appear 40% sooner.                              |
-| 2   | Shield of Protection  | Protect         | 100,000                | Away earnings are no longer capped (base cap is 8 hours). Progress is safe while you live your life.            |
-| 3   | Hammer of the Builder | Build           | 250,000                | Unlocks the second, bigger helper tier (×10 output per helper class).                                           |
-| 4   | Heart of Patience     | Patience        | 450,000                | Away earnings grow the longer you are gone (bonus up to ×2 after 12 hours). Putting the phone down is rewarded. |
-| 5   | Crown of Wisdom       | Teach           | 700,000                | Kid helper miners: a helper tier that also boosts every other helper a little.                                  |
-| 6   | Mantle of the Hero    | Become the hero | 1,000,000 (the bottom) | Final relic. You become a Legend; unlocks prestige (pass the mine to your kid) later.                           |
+| #   | Relic                 | Virtue          | Depth (stones mined)     | Power (first cut)                                                                                               |
+| --- | --------------------- | --------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| 1   | Lantern of Guidance   | Guide           | 1,000,000                | Shows the next relic and a progress bar toward it; golden veins appear 40% sooner.                              |
+| 2   | Shield of Protection  | Protect         | 10,000,000               | Away earnings are no longer capped (base cap is 8 hours). Progress is safe while you live your life.            |
+| 3   | Hammer of the Builder | Build           | 25,000,000               | Unlocks the Great Machine, the biggest automation tier.                                                         |
+| 4   | Heart of Patience     | Patience        | 45,000,000               | Away earnings grow the longer you are gone (bonus up to ×2 after 12 hours). Putting the phone down is rewarded. |
+| 5   | Crown of Wisdom       | Teach           | 70,000,000               | Kid helper miners: a helper tier that also boosts every other helper a little.                                  |
+| 6   | Mantle of the Hero    | Become the hero | 100,000,000 (the bottom) | Final relic. You become a Legend; unlocks prestige (pass the mine to your kid) later.                           |
 
 Relics are derived from stones mined (`src/relics.ts`), so the save has no relic field. A relic is celebrated once, in the session where it is uncovered (by tapping, helpers, a vein, or away earnings).
 
-M1 ships the first relic only (Lantern of Guidance, 20,000 stones), reachable in the first evening or two with a few helpers.
+M1 shipped the first relic only. The mountain was 1,000,000 stones then; it is now 100,000,000 (save v4). A v3 save's stones mined are scaled ×100, so a dad keeps his place and every relic he found. The Lantern sits at 1% (earlier than the old 2%) so it still lands in the first evening.
 
 ## Numbers and tuning
 
@@ -74,8 +74,26 @@ Old saves are migrated, not wiped: dug cells count as stones already mined out o
 - Relic shelf
 - UI reskin to the lantern-light look
 
+### M2: Automation
+
+Hand mining can't move a 100-million-stone mountain. Each tier is a visible jump in speed.
+
+| Tier          | First cost (stones) | Stones a second each | Unlock                                             |
+| ------------- | ------------------- | -------------------- | -------------------------------------------------- |
+| Helper miner  | 10                  | 1                    | from the start                                     |
+| Mine cart     | 150                 | 8                    | shown once you own a helper                        |
+| Steam drill   | 2,500               | 60                   | shown once you own a cart                          |
+| Tunnel borer  | 40,000              | 450                  | shown once you own a drill                         |
+| Great Machine | 600,000             | 3,500                | needs the Hammer of the Builder (25,000,000 mined) |
+
+- Every tier uses the Cookie Clicker curve: `ceil(firstCost × 1.15^owned)`. Each tier costs about 15× and is about 7.5× faster than the one before. So the newest tier is the best deal for a while, then the older tiers catch up.
+- One table of tiers (`src/tiers.ts`) drives buying, the speed total and the UI. `accrue` sums every tier, so away earnings use the same math automatically.
+- Save: the mountain gets one whole-number field per tier (`carts`, `drills`, `borers`, `machines`). A missing field reads as 0, so older saves load unchanged. Firestore rules allow those fields.
+- UI: a compact two-column grid of tier cards (art, name and count, cost) under one total line ("42 stones a second"). A tier not shown yet takes no space. All primary controls must stay visible at 360x560.
+- Pacing target: the mountain takes **days** for a dad who plays two short sessions a day and lets the crew mine the rest (8-hour away cap). Lantern on day 1, Hammer around days 2–3, the bottom around days 5–7. A pacing simulation test pins this, so tuning can't silently turn it into minutes. The numbers above are the first cut and that test tunes them.
+
 ### Later (sketch)
 
-- **M2: The Crew.** More helper tiers, Hammer of the Builder, Shield of Protection.
+- **M2: Automation.** See above.
 - **M3: Patience.** Heart of Patience, richer away screen, gentle daily rhythm.
 - **M4: Legacy.** Crown of Wisdom, Mantle of the Hero, prestige (pass the mine to your kid).
