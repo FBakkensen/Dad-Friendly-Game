@@ -2,7 +2,14 @@ import type { Mountain } from "./mountain";
 import { owned, tierById, type TierId } from "./tiers";
 
 /** Permanent, one-level-at-a-time purchases. See docs/DESIGN.md "M3: Strategy". */
-export type UpgradeId = "tap" | "boots" | "steady";
+export type UpgradeId =
+  | "tap"
+  | "boots"
+  | "steady"
+  | "cartSyn"
+  | "drillSyn"
+  | "borerSyn"
+  | "machineSyn";
 
 export type Upgrades = Readonly<Partial<Record<UpgradeId, number>>>;
 
@@ -16,6 +23,8 @@ export type Upgrade = {
   readonly maxLevel: number;
   /** Shown and buyable once the crew has this many of a tier. */
   readonly unlock?: { readonly tier: TierId; readonly count: number };
+  /** Crew synergy: each `from` owned makes every `to` SYNERGY_PER_UNIT faster. */
+  readonly synergy?: { readonly from: TierId; readonly to: TierId };
 };
 
 const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
@@ -45,12 +54,55 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
     maxLevel: 1,
     unlock: { tier: "cart", count: 1 },
   },
+  cartSyn: {
+    id: "cartSyn",
+    name: "Helping hands",
+    perLevel: "Each helper makes carts 1% faster.",
+    firstCost: 500_000,
+    costGrowth: 1,
+    maxLevel: 1,
+    unlock: { tier: "cart", count: 5 },
+    synergy: { from: "helper", to: "cart" },
+  },
+  drillSyn: {
+    id: "drillSyn",
+    name: "Cart roads",
+    perLevel: "Each cart makes drills 1% faster.",
+    firstCost: 3_000_000,
+    costGrowth: 1,
+    maxLevel: 1,
+    unlock: { tier: "drill", count: 5 },
+    synergy: { from: "cart", to: "drill" },
+  },
+  borerSyn: {
+    id: "borerSyn",
+    name: "Drill crews",
+    perLevel: "Each drill makes borers 1% faster.",
+    firstCost: 15_000_000,
+    costGrowth: 1,
+    maxLevel: 1,
+    unlock: { tier: "borer", count: 3 },
+    synergy: { from: "drill", to: "borer" },
+  },
+  machineSyn: {
+    id: "machineSyn",
+    name: "Borer tracks",
+    perLevel: "Each borer makes the Great Machine 1% faster.",
+    firstCost: 30_000_000,
+    costGrowth: 1,
+    maxLevel: 1,
+    unlock: { tier: "machine", count: 1 },
+    synergy: { from: "borer", to: "machine" },
+  },
 };
 
 export const UPGRADES: readonly Upgrade[] = Object.values(BY_ID);
 
 /** Tap power: each level adds this share of the crew's speed to every tap. */
 export const TAP_SHARE_PER_LEVEL = 0.01;
+
+/** Crew synergies: speed each `from` unit adds to its `to` tier. */
+export const SYNERGY_PER_UNIT = 0.01;
 
 /** Better boots: helper speed gained per level. */
 export const BOOTS_SPEED_PER_LEVEL = 0.1;
@@ -63,6 +115,23 @@ export function upgradeUnlocked(mountain: Mountain, upgrade: Upgrade): boolean {
     upgrade.unlock === undefined ||
     owned(mountain, tierById(upgrade.unlock.tier)) >= upgrade.unlock.count
   );
+}
+
+/** Extra speed (0.2 = +20%) a synergy gives its tier with the crew as it is. */
+export function synergyBonus(mountain: Mountain, upgrade: Upgrade): number {
+  return upgrade.synergy === undefined
+    ? 0
+    : owned(mountain, tierById(upgrade.synergy.from)) * SYNERGY_PER_UNIT;
+}
+
+/** The bought synergy boosting this tier, if any. */
+export function tierSynergy(mountain: Mountain, tier: TierId): number {
+  const upgrade = UPGRADES.find(
+    (candidate) =>
+      candidate.synergy?.to === tier &&
+      upgradeLevel(mountain, candidate.id) > 0,
+  );
+  return upgrade === undefined ? 0 : synergyBonus(mountain, upgrade);
 }
 
 export function upgradeById(id: UpgradeId): Upgrade {

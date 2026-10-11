@@ -1312,3 +1312,55 @@ describe("lasting upgrades on screen", () => {
     );
   });
 });
+
+describe("crew synergies on screen", () => {
+  it("previews the bonus, then shows it in the cart card's rate line once bought", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(1_000_000), helpers: 12, carts: 5 },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    expect(screen.text('[data-upgrade="cartSyn"] .upgrade-name')).toBe(
+      "Helping hands",
+    );
+    expect(screen.text('[data-upgrade="cartSyn"] .upgrade-now')).toBe(
+      "Your 12 helpers would make carts 12% faster.",
+    );
+    expect(screen.text('[data-upgrade="drillSyn"] .upgrade-buy')).toBe(
+      "Unlocks at 5 steam drills",
+    );
+    screen.root
+      .querySelector<HTMLButtonElement>('[data-upgrade="cartSyn"] .upgrade-buy')
+      ?.click();
+    expect(screen.text('[data-upgrade="cartSyn"] .upgrade-now')).toBe(
+      "Your 12 helpers make carts 12% faster.",
+    );
+    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
+      "+11 \u219112% · 56/s",
+    );
+    expect(
+      screen.root
+        .querySelector('[data-tier="cart"]')
+        ?.getAttribute("aria-label"),
+    ).toContain("12% faster from crew synergy");
+  });
+});
+
+describe("crew synergy copy before the tier exists", () => {
+  it("skips the preview line with none of the tier below, and names the Great Machine", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(0), helpers: 3 },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    expect(screen.text('[data-upgrade="machineSyn"] .upgrade-now')).toBe("");
+    expect(screen.text('[data-upgrade="machineSyn"] .upgrade-buy')).toBe(
+      "Unlocks with the Great Machine",
+    );
+  });
+});

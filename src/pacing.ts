@@ -4,6 +4,9 @@ import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import {
   BOOTS_SPEED_PER_LEVEL,
   STEADY_AWAY_PER_LEVEL,
+  SYNERGY_PER_UNIT,
+  UPGRADES,
+  type UpgradeId,
   TAP_SHARE_PER_LEVEL,
   buyUpgrade,
   upgradeById,
@@ -77,7 +80,7 @@ function bestValue(
       });
     }
     const rates = effectiveRates(mountain);
-    const oneShot = (id: "boots" | "steady", stonesPerDay: number): void => {
+    const oneShot = (id: UpgradeId, stonesPerDay: number): void => {
       const upgrade = upgradeById(id);
       const price = upgradeCost(upgrade, upgradeLevel(mountain, id));
       if (price !== undefined && upgradeUnlocked(mountain, upgrade)) {
@@ -95,6 +98,19 @@ function bestValue(
         BOOTS_SPEED_PER_LEVEL *
         CREW_DAY_SECONDS,
     );
+    for (const upgrade of UPGRADES) {
+      if (upgrade.synergy !== undefined) {
+        const to = tierById(upgrade.synergy.to);
+        oneShot(
+          upgrade.id,
+          owned(mountain, tierById(upgrade.synergy.from)) *
+            SYNERGY_PER_UNIT *
+            owned(mountain, to) *
+            to.perSecond *
+            CREW_DAY_SECONDS,
+        );
+      }
+    }
     oneShot(
       "steady",
       rates.crewPerSecond *

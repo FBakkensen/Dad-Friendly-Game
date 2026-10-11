@@ -293,10 +293,46 @@ for (const viewport of [
     [{ helpers: 120, carts: 85, drills: 40, borers: 0 }, undefined],
     [{ helpers: 120, carts: 85 }, undefined],
     [{ helpers: 1, carts: 0 }, undefined],
+    // The longest pocket ("888.8 thousand stones") stays on one line.
+    [{ helpers: 24, carts: 12, pocket: 888_888 }, "DejaVu Sans"],
     // CI's fallback font is wide; it must fit there too.
     [{ helpers: 999, carts: 999 }, "DejaVu Sans"],
     [
       { helpers: 999, carts: 999, drills: 999, borers: 999, machines: 999 },
+      "DejaVu Sans",
+    ],
+    // Every crew synergy bought: "↑999%" joins the rate line.
+    [
+      {
+        helpers: 999,
+        carts: 999,
+        drills: 999,
+        borers: 999,
+        machines: 999,
+        upgrades: {
+          boots: 1,
+          cartSyn: 1,
+          drillSyn: 1,
+          borerSyn: 1,
+          machineSyn: 1,
+        },
+      },
+      "DejaVu Sans",
+    ],
+    [
+      {
+        helpers: 120,
+        carts: 85,
+        drills: 40,
+        borers: 7,
+        upgrades: {
+          boots: 1,
+          cartSyn: 1,
+          drillSyn: 1,
+          borerSyn: 1,
+          machineSyn: 1,
+        },
+      },
       "DejaVu Sans",
     ],
     // Before the Hammer: the Great Machine card is locked.
@@ -338,6 +374,21 @@ for (const viewport of [
       `${label} show every line in full ${clipped.join(" | ")}`,
     );
     check(await noScroll(page), `${label} have no scroll`);
+    const pocketFits = await page.evaluate(() => {
+      const row = document
+        .querySelector(".pocket-row")
+        ?.getBoundingClientRect();
+      const pocket = document.querySelector(".pocket");
+      return (
+        row !== undefined &&
+        pocket !== null &&
+        row.left >= 0 &&
+        row.right <= innerWidth &&
+        pocket.scrollWidth <= pocket.clientWidth + 1 &&
+        pocket.getBoundingClientRect().height <= 48
+      );
+    });
+    check(pocketFits, `${label} keep the pocket on one line`);
     await close();
   }
 }

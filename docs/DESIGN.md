@@ -110,6 +110,16 @@ M2 gives the player one choice: which tier to buy next. M3 adds the real idle-ga
   - _Built (#80)_: one-time buys in the Upgrades sheet under "Lasting upgrades". Better boots — 15,000 stones, unlocks at 10 helpers, helpers 1 → 1.1/s. Steady hands — 10,000,000 stones, shown from the first cart, away pay 30% → 37.5% (relative +25%; the Heart of Patience can stack on top later). Locked rows show their unlock ("Unlocks at 10 helpers"); bought ones read "Owned". Crew speed is floored to whole stones a second in `effectiveRates`, so the crew line is exactly what gets mined; tier cards and buy floats show the boosted per-unit speed (one decimal while under 10). The welcome-back card reads the live away rate.
   - Pacing: Steady hands is the strong one. Priced at 25,000 it pulled the upgrade-buying dad's bottom to day 5.0 (edge of the window); at 10M it's a mid-game buy and the sim stays Lantern day 1.5, Hammer day 3.5, bottom day 6 — for both the plain dad and the one buying Strong arms, boots and Steady hands (the sim weighs each by stones a day per stone).
 - **Crew synergies** (permanent, make mixed crews pay): e.g. each helper adds +1% to cart speed.
+  - _Built (#81)_: four one-time buys in "Lasting upgrades", each unlocked by owning enough of the tier it boosts. Every unit of the tier below adds +1% to it:
+
+    | Synergy | From → to | Unlocks at | Cost |
+    |---|---|---|---|
+    | Helping hands | helpers → carts | 5 carts | 500,000 |
+    | Cart roads | carts → drills | 5 drills | 3,000,000 |
+    | Drill crews | drills → borers | 3 borers | 15,000,000 |
+    | Borer tracks | borers → Great Machine | 1 machine | 30,000,000 |
+
+    Applied in `effectiveRates` (so live, away and the UI agree), stacking with Better boots. The sheet previews the bonus before buying ("Your 12 helpers would make carts 12% faster."). Tier cards show it in the rate line: "+11 ↑12% · 56/s", or just "↑ 1,870/s" on compact cards (the visual check failed "↑120%" there at 360px with the wide CI font). Pacing: Helping hands at 50,000 pulled the upgrade-buying dad's bottom to day 5.5; at 500,000 both dads stay at Lantern 1.5 / Hammer 3.5 / bottom 6.
 - **Crew staffing** (Flemming's idea): machines need helpers to run them. A cart needs 1 helper, a drill 2, a borer 4 and the Great Machine 10. A machine without enough helpers sits idle, and the crew line and cards say so ("3 drills idle: need 6 more helpers"). This makes helpers matter all game, gives a real choice between more machines and more hands, and pairs with crew synergies and the Crown of Wisdom's kid helpers (kids count as staff). The staffing check lives in the same rate function, so away earnings respect it, and the pacing simulation must stay green once it's in.
 - **Tap power scaling** (built, #82): _Strong arms_, 10 levels, first 5,000 stones then 5× each level. Each level adds 1% of the crew's speed to every tap (`1 + floor(crew/s × 1% × level)`), so tapping stays meaningful at thousands a second. The tap float shows the real yield. Bought from the Upgrades sheet: a small button beside the pocket (with a glow when something is affordable), opening a sheet so the main screen keeps its no-scroll budget.
 - **Prestige: pass the mine to your kid** (later, with the Mantle of the Hero): reset the mountain for a permanent multiplier. This is the ultimate long-term choice.
