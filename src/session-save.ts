@@ -7,9 +7,46 @@ import {
 
 export const SESSION_SAVE_KEY = "dad-friendly-session";
 
-export function tryGetSessionStorage(): Storage | undefined {
+/**
+ * Guest saves live in localStorage so away-time survives closing the tab.
+ * A save left in sessionStorage by an older build is moved over once.
+ */
+export function tryGetGuestStorage(): Storage | undefined {
+  const storage = probeStorage(() => globalThis.localStorage);
+  if (storage === undefined) {
+    return probeStorage(() => globalThis.sessionStorage);
+  }
+  const legacy = probeStorage(() => globalThis.sessionStorage);
+  if (legacy !== undefined) {
+    migrateSessionSave({ from: legacy, to: storage });
+  }
+  return storage;
+}
+
+export function migrateSessionSave({
+  from,
+  to,
+}: {
+  from: Storage;
+  to: Storage;
+}): void {
   try {
-    const storage = globalThis.sessionStorage;
+    const legacy = readSessionSave({ storage: from });
+    if (
+      legacy !== undefined &&
+      readSessionSave({ storage: to }) === undefined
+    ) {
+      to.setItem(SESSION_SAVE_KEY, from.getItem(SESSION_SAVE_KEY) ?? "");
+    }
+    from.removeItem(SESSION_SAVE_KEY);
+  } catch {
+    return;
+  }
+}
+
+function probeStorage(get: () => Storage): Storage | undefined {
+  try {
+    const storage = get();
     const probe = `${SESSION_SAVE_KEY}:probe`;
     storage.setItem(probe, "1");
     storage.removeItem(probe);

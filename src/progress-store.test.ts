@@ -6,7 +6,14 @@ import {
   type CloudLoadResult,
   type CloudSave,
 } from "./cloud-save";
-import { combine, createPocketGrid, dig, place, type PocketGrid } from "./grid";
+import {
+  combine,
+  createPocketGrid,
+  createStarterGrid,
+  dig,
+  place,
+  type PocketGrid,
+} from "./grid";
 import { createProgressStore } from "./progress-store";
 import { readSessionSave } from "./session-save";
 
@@ -31,14 +38,14 @@ function createMemoryStorage(): Storage {
 }
 
 describe("createProgressStore", () => {
-  it("starts unsigned with an empty grid", () => {
+  it("starts unsigned with the center already dug", () => {
     const progress = createProgressStore({
       auth: createMemoryAuth(),
       sessionStorage: createMemoryStorage(),
     });
 
     expect(progress.getSnapshot()).toMatchObject({
-      grid: createPocketGrid(),
+      grid: createStarterGrid(),
       saveKind: "unsigned",
       ready: true,
     });
@@ -201,7 +208,7 @@ describe("createProgressStore", () => {
     });
 
     progress.applyMutation(dig({ grid: createPocketGrid(), index: 0 }));
-    expect(progress.getSnapshot().grid).toEqual(createPocketGrid());
+    expect(progress.getSnapshot().grid).toEqual(createStarterGrid());
     expect(progress.getSnapshot().ready).toBe(false);
 
     finishLoad({

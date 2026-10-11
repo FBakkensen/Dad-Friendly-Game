@@ -135,6 +135,11 @@ export function mountPocketGridScreen({
 
   board.append(...buttons);
 
+  const goal = document.createElement("p");
+  goal.className = "goal";
+  goal.textContent =
+    "Goal: dig, place stones, then tap two neighboring stones to fuse a Chunk (a bigger lump of ore).";
+
   const status = document.createElement("p");
   status.className = "dig-status";
   status.setAttribute("aria-live", "polite");
@@ -203,7 +208,7 @@ export function mountPocketGridScreen({
         saveStatus.dataset["kind"] = "unsigned";
         break;
       case "session":
-        saveStatus.textContent = "Saved in this tab";
+        saveStatus.textContent = "Saved on this device";
         saveStatus.dataset["kind"] = "session";
         break;
       case "loading":
@@ -268,10 +273,16 @@ export function mountPocketGridScreen({
         }
       }
     }
-    status.textContent = `Holding a stone. ${String(dugCount(view.grid))} of 9 dug`;
-    if (selected !== undefined) {
-      status.textContent = `Tap a neighbor stone to combine. ${String(dugCount(view.grid))} of 9 dug`;
-    }
+    const dugText = `${String(dugCount(view.grid))} of 9 dug`;
+    status.textContent =
+      selected === undefined
+        ? `Holding a stone. ${dugText}`
+        : `Stone selected. Tap a neighbor stone to combine. ${dugText}`;
+    held.hidden = selected !== undefined;
+    handSlot.setAttribute(
+      "aria-label",
+      selected === undefined ? "Hand, holding a stone" : "Hand, stone selected",
+    );
     renderSave();
   };
 
@@ -286,6 +297,7 @@ export function mountPocketGridScreen({
 
   root.replaceChildren(
     lantern,
+    goal,
     handSlot,
     board,
     status,

@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createPocketGrid, dig, place } from "./grid";
 import {
   clearSessionSave,
+  migrateSessionSave,
   readSessionSave,
   SESSION_SAVE_KEY,
-  tryGetSessionStorage,
+  tryGetGuestStorage,
   writeSessionSave,
 } from "./session-save";
 
@@ -96,7 +97,48 @@ describe("session save", () => {
     }).not.toThrow();
   });
 
-  it("probes the real sessionStorage when it is available", () => {
-    expect(tryGetSessionStorage()).toBe(globalThis.sessionStorage);
+  it("prefers localStorage so guest saves outlive the tab", () => {
+    expect(tryGetGuestStorage()).toBe(globalThis.localStorage);
+  });
+});
+
+describe("migrateSessionSave", () => {
+  it("moves a legacy tab save into the device store", () => {
+    const from = createMemoryStorage();
+    const to = createMemoryStorage();
+    const grid = dig({ grid: createPocketGrid(), index: 5 });
+    writeSessionSave({ storage: from, grid, lastSeen: 42 });
+
+    migrateSessionSave({ from, to });
+
+    expect(readSessionSave({ storage: to })).toEqual({ grid, lastSeen: 42 });
+    expect(from.getItem(SESSION_SAVE_KEY)).toBeNull();
+  });
+
+  it("keeps an existing device save over the legacy one", () => {
+    const from = createMemoryStorage();
+    const to = createMemoryStorage();
+    const kept = dig({ grid: createPocketGrid(), index: 1 });
+    writeSessionSave({ storage: from, grid: createPocketGrid(), lastSeen: 1 });
+    writeSessionSave({ storage: to, grid: kept, lastSeen: 2 });
+
+    migrateSessionSave({ from, to });
+
+    expect(readSessionSave({ storage: to })).toEqual({
+      grid: kept,
+      lastSeen: 2,
+    });
+    expect(from.getItem(SESSION_SAVE_KEY)).toBeNull();
+  });
+
+  it("drops a corrupt legacy save instead of copying it", () => {
+    const from = createMemoryStorage();
+    const to = createMemoryStorage();
+    from.setItem(SESSION_SAVE_KEY, "{not json");
+
+    migrateSessionSave({ from, to });
+
+    expect(to.getItem(SESSION_SAVE_KEY)).toBeNull();
+    expect(from.getItem(SESSION_SAVE_KEY)).toBeNull();
   });
 });
