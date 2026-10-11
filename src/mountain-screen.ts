@@ -574,6 +574,7 @@ export function mountMountainScreen({
       case "signed-in":
         void auth.signOut();
         return;
+      /* v8 ignore next 4 -- exhaustiveness guard, unreachable */
       default: {
         const _exhaustive: never = state;
         return _exhaustive;
@@ -598,6 +599,7 @@ export function mountMountainScreen({
         authButton.disabled = false;
         authStatus.textContent = `Signed in as ${state.user.label}`;
         return;
+      /* v8 ignore next 4 -- exhaustiveness guard, unreachable */
       default: {
         const _exhaustive: never = state;
         return _exhaustive;
@@ -627,6 +629,7 @@ export function mountMountainScreen({
         saveStatus.textContent = "Couldn't reach your save";
         saveStatus.dataset["kind"] = "error";
         break;
+      /* v8 ignore next 4 -- exhaustiveness guard, unreachable */
       default: {
         const _exhaustive: never = view.saveKind;
         return _exhaustive;

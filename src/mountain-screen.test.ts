@@ -259,6 +259,35 @@ describe("mountMountainScreen", () => {
     expect(screen.authButton.textContent).toBe("Sign in with Google");
   });
 
+  it("shows sign-in in progress with a disabled button", () => {
+    const screen = mountScreen({
+      auth: createMemoryAuth({ state: { kind: "signing-in" } }),
+    });
+    expect(screen.authButton.textContent).toBe("Signing in...");
+    expect(screen.authButton.disabled).toBe(true);
+    expect(screen.text(".auth-status")).toBe("");
+  });
+
+  it("says it couldn't reach the save when cloud writes fail", async () => {
+    const memory = createMemoryCloudSave({
+      docs: new Map([["test-dad", minedMountain(5)]]),
+    });
+    const screen = mountScreen({
+      auth: signedIn(),
+      cloudSave: {
+        ...memory,
+        write: () => Promise.resolve({ kind: "failed", message: "denied" }),
+      },
+    });
+    await vi.waitFor(() => {
+      expect(screen.text(".save-status")).toBe("Saved to your account");
+    });
+    screen.mountain.click();
+    await vi.waitFor(() => {
+      expect(screen.text(".save-status")).toBe("Couldn't reach your save");
+    });
+  });
+
   it("writes every tap to the cloud while signed in", async () => {
     const docs = new Map<string, Mountain>();
     const screen = mountScreen({
