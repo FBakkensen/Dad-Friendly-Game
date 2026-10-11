@@ -81,17 +81,18 @@ Hand mining can't move a 100-million-stone mountain. Each tier is a visible jump
 | Tier          | First cost (stones) | Stones a second each | Unlock                                             |
 | ------------- | ------------------- | -------------------- | -------------------------------------------------- |
 | Helper miner  | 10                  | 1                    | from the start                                     |
-| Mine cart     | 150                 | 8                    | shown once you own a helper                        |
-| Steam drill   | 2,500               | 60                   | shown once you own a cart                          |
-| Tunnel borer  | 40,000              | 450                  | shown once you own a drill                         |
-| Great Machine | 600,000             | 3,500                | needs the Hammer of the Builder (25,000,000 mined) |
+| Mine cart     | 500                 | 4                    | shown once you own a helper                        |
+| Steam drill   | 25,000              | 16                   | shown once you own a cart                          |
+| Tunnel borer  | 1,500,000           | 64                   | shown once you own a drill                         |
+| Great Machine | 40,000,000          | 500                  | needs the Hammer of the Builder (25,000,000 mined) |
 
-- Every tier uses the Cookie Clicker curve: `ceil(firstCost × 1.15^owned)`. Each tier costs about 15× and is about 7.5× faster than the one before. So the newest tier is the best deal for a while, then the older tiers catch up.
+- Every tier uses a steep Cookie Clicker curve: `ceil(firstCost × 1.6^owned)`. Each tier is 4× faster than the one before (the Great Machine about 8×). So the newest tier is the best deal for a while, then the older tiers catch up. These numbers come from the pacing simulation (#69); see Pacing below.
 - One table of tiers (`src/tiers.ts`) drives buying, the speed total and the UI. `accrue` sums every tier, so away earnings use the same math automatically.
 - Layout: up to three tiers show as roomy two-column cards. From four on, the grid goes three to a row with short names (Helper, Cart, Drill, Borer, Machine), so all five tiers fit in two rows and the screen never scrolls, even at 360x560.
 - Save: the mountain gets one whole-number field per tier (`carts`, `drills`, `borers`, `machines`). A missing field reads as 0, so older saves load unchanged. Firestore rules allow those fields.
 - UI: a compact two-column grid of tier cards (art, name and count, cost) under one total line ("42 stones a second"). A tier not shown yet takes no space. All primary controls must stay visible at 360x560.
-- Pacing target: the mountain takes **days** for a dad who plays two short sessions a day and lets the crew mine the rest (8-hour away cap). Lantern on day 1, Hammer around days 2–3, the bottom around days 5–7. A pacing simulation test pins this, so tuning can't silently turn it into minutes. The numbers above are the first cut and that test tunes them.
+- Pacing target: the mountain takes **days** for a dad who plays two short sessions a day and lets the crew mine the rest (8-hour away cap). Lantern on day 1, Hammer around days 2–3, the bottom around days 5–7.
+- **Pacing** (`src/pacing.ts`, pinned by `src/pacing.test.ts`): a deterministic dad plays two 10-minute sessions a day, 12 hours apart, taps 3 stones a second and always buys the most speed per stone, and is paid at most 8 hours of each gap. With the numbers above he finds the Lantern (1M) on day 1 (session 2), the Hammer (25M) on day 3, and reaches the bottom (100M) on day 5 (late), owning about 21 helpers, 15 carts, 10 drills, 4 borers and 1 Great Machine. The first cut (1.15 growth, carts at 150 and 8/s, up to 3,500/s machines) emptied the whole mountain in a day and a half: one night of 8-hour earnings bought enough crew to finish. The 8-hour away pay is the big lever. Any change to it, the tiers or the relic depths must keep this test green.
 
 ### M3: Strategy (boosts vs long-term upgrades)
 
@@ -105,6 +106,7 @@ M2 gives the player one choice: which tier to buy next. M3 adds the real idle-ga
   - _Better boots_: helpers +10% speed (more levels later).
   - _Steady hands_: away earnings +25%.
 - **Crew synergies** (permanent, make mixed crews pay): e.g. each helper adds +1% to cart speed.
+- **Crew staffing** (Flemming's idea): machines need helpers to run them. A cart needs 1 helper, a drill 2, a borer 4 and the Great Machine 10. A machine without enough helpers sits idle, and the crew line and cards say so ("3 drills idle: need 6 more helpers"). This makes helpers matter all game, gives a real choice between more machines and more hands, and pairs with crew synergies and the Crown of Wisdom's kid helpers (kids count as staff). The staffing check lives in the same rate function, so away earnings respect it, and the pacing simulation must stay green once it's in.
 - **Tap power scaling**: upgrades that make a tap yield a share of the crew rate (e.g. +1% of crew/s per tap), so tapping stays meaningful at a million stones a second instead of being +1.
 - **Prestige: pass the mine to your kid** (later, with the Mantle of the Hero): reset the mountain for a permanent multiplier. This is the ultimate long-term choice.
 - All multipliers live in one pure function over the save (`effectiveRates`), so live ticks, away earnings and the UI agree. Boost timers use absolute end times in the save. Away earnings ignore boosts.
