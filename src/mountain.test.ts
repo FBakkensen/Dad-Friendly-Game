@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   MOUNTAIN_STONES,
+  accrue,
+  helperCost,
+  hireHelper,
+  stonesPerSecond,
   createMountain,
   mineByHand,
   minedOut,
@@ -53,5 +57,69 @@ describe("mountain", () => {
     ]) {
       expect(parseMountain(bad)).toBeUndefined();
     }
+  });
+});
+
+describe("helpers", () => {
+  it("costs 10, then 15% more each, rounded up", () => {
+    expect([0, 1, 2, 3, 10].map(helperCost)).toEqual([10, 12, 14, 16, 41]);
+  });
+
+  it("hires only when the pocket covers the cost, and pays for it", () => {
+    const poor = { remaining: 100, pocket: 9, helpers: 0 };
+    expect(hireHelper(poor)).toBe(poor);
+
+    const one = hireHelper({ remaining: 100, pocket: 25, helpers: 0 });
+    expect(one).toEqual({ remaining: 100, pocket: 15, helpers: 1 });
+    expect(hireHelper(one)).toEqual({ remaining: 100, pocket: 3, helpers: 2 });
+    expect(stonesPerSecond({ remaining: 1, pocket: 0, helpers: 3 })).toBe(3);
+  });
+});
+
+describe("accrue", () => {
+  const crew = { remaining: 1000, pocket: 0, helpers: 2 };
+
+  it("mines whole seconds and keeps the leftover part-second unspent", () => {
+    expect(accrue({ mountain: crew, from: 0, to: 2_750 })).toEqual({
+      mountain: { remaining: 996, pocket: 4, helpers: 2 },
+      mined: 4,
+      settledAt: 2_000,
+    });
+  });
+
+  it("adds up to the same total however the time is sliced", () => {
+    let mountain = crew;
+    let at = 0;
+    for (const to of [300, 1_200, 2_300, 4_750, 5_000]) {
+      const result = accrue({ mountain, from: at, to });
+      mountain = result.mountain;
+      at = result.settledAt;
+    }
+    expect(mountain).toEqual(
+      accrue({ mountain: crew, from: 0, to: 5_000 }).mountain,
+    );
+  });
+
+  it("stops at an empty mountain and spends the rest of the time", () => {
+    const almost = { remaining: 3, pocket: 0, helpers: 2 };
+    expect(accrue({ mountain: almost, from: 0, to: 10_500 })).toEqual({
+      mountain: { remaining: 0, pocket: 3, helpers: 2 },
+      mined: 3,
+      settledAt: 10_500,
+    });
+  });
+
+  it("does nothing without helpers or when the clock goes backwards", () => {
+    const idle = { remaining: 10, pocket: 0, helpers: 0 };
+    expect(accrue({ mountain: idle, from: 0, to: 9_000 })).toEqual({
+      mountain: idle,
+      mined: 0,
+      settledAt: 9_000,
+    });
+    expect(accrue({ mountain: crew, from: 5_000, to: 1_000 })).toEqual({
+      mountain: crew,
+      mined: 0,
+      settledAt: 5_000,
+    });
   });
 });

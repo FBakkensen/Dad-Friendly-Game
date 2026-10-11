@@ -1,12 +1,15 @@
 /** All game numbers live here. See docs/DESIGN.md "Numbers and tuning". */
 export const MOUNTAIN_STONES = 1_000_000;
+const HELPER_BASE_COST = 10;
+const HELPER_COST_GROWTH = 1.15;
+const HELPER_STONES_PER_SECOND = 1;
 
 export type Mountain = {
   /** Stones still in the mountain. 0..MOUNTAIN_STONES. */
   readonly remaining: number;
   /** Stones mined and not yet spent. */
   readonly pocket: number;
-  /** Helper miners hired. Mining by helpers arrives with issue #49. */
+  /** Helper miners hired; each mines HELPER_STONES_PER_SECOND. */
   readonly helpers: number;
 };
 
@@ -27,6 +30,73 @@ export function mineByHand(mountain: Mountain): Mountain {
     ...mountain,
     remaining: mountain.remaining - 1,
     pocket: mountain.pocket + 1,
+  };
+}
+
+/** Cookie Clicker curve: each helper costs 15% more than the last. */
+export function helperCost(owned: number): number {
+  return Math.ceil(HELPER_BASE_COST * HELPER_COST_GROWTH ** owned);
+}
+
+/** Pays for one helper from the pocket; unaffordable returns the same mountain. */
+export function hireHelper(mountain: Mountain): Mountain {
+  const cost = helperCost(mountain.helpers);
+  if (mountain.pocket < cost) {
+    return mountain;
+  }
+  return {
+    ...mountain,
+    pocket: mountain.pocket - cost,
+    helpers: mountain.helpers + 1,
+  };
+}
+
+export function stonesPerSecond(mountain: Mountain): number {
+  return mountain.helpers * HELPER_STONES_PER_SECOND;
+}
+
+export type Accrual = {
+  readonly mountain: Mountain;
+  readonly mined: number;
+  /** The moment the work is accounted up to. Leftover part-seconds stay unspent. */
+  readonly settledAt: number;
+};
+
+/**
+ * Helpers' work between two moments, in whole seconds. Live ticks and away
+ * time both use this, so they cannot drift apart. Time with nothing to do
+ * (no helpers, empty mountain) is spent, not banked.
+ */
+export function accrue({
+  mountain,
+  from,
+  to,
+}: {
+  mountain: Mountain;
+  from: number;
+  to: number;
+}): Accrual {
+  const rate = stonesPerSecond(mountain);
+  if (to <= from) {
+    return { mountain, mined: 0, settledAt: Math.max(from, to) };
+  }
+  if (rate === 0 || mountain.remaining === 0) {
+    return { mountain, mined: 0, settledAt: to };
+  }
+  const seconds = Math.floor((to - from) / 1000);
+  const mined = Math.min(mountain.remaining, seconds * rate);
+  const settledAt = mined === mountain.remaining ? to : from + seconds * 1000;
+  if (mined === 0) {
+    return { mountain, mined: 0, settledAt };
+  }
+  return {
+    mountain: {
+      ...mountain,
+      remaining: mountain.remaining - mined,
+      pocket: mountain.pocket + mined,
+    },
+    mined,
+    settledAt,
   };
 }
 
