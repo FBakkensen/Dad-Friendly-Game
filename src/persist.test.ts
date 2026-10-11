@@ -14,14 +14,41 @@ const legacyGrid = (kinds: readonly string[]) => ({
 });
 
 describe("serializeSave and parseSaveValue", () => {
-  it("round-trips a v3 mountain save", () => {
+  it("round-trips a v4 mountain save", () => {
     const mountain = { ...minedMountain(42), helpers: 3 };
     const saved = serializeSave({ mountain, lastSeen: 1234 });
-    expect(saved).toEqual({ version: 3, mountain, lastSeen: 1234 });
+    expect(saved).toEqual({ version: 4, mountain, lastSeen: 1234 });
     expect(parseSaveValue(JSON.parse(JSON.stringify(saved)))).toEqual({
       mountain,
       lastSeen: 1234,
     });
+  });
+
+  it("scales a v3 (1M) save into the 100M mountain at the same place", () => {
+    expect(
+      parseSaveValue({
+        version: 3,
+        mountain: { remaining: 980_000, pocket: 77, helpers: 4 },
+        lastSeen: 5,
+      }),
+    ).toEqual({
+      mountain: { remaining: 98_000_000, pocket: 77, helpers: 4 },
+      lastSeen: 5,
+    });
+    expect(
+      parseSaveValue({
+        version: 3,
+        mountain: { remaining: 0, pocket: 0, helpers: 0 },
+        lastSeen: 5,
+      })?.mountain.remaining,
+    ).toBe(0);
+    expect(
+      parseSaveValue({
+        version: 3,
+        mountain: { remaining: 1_000_001, pocket: 0, helpers: 0 },
+        lastSeen: 5,
+      }),
+    ).toBeUndefined();
   });
 
   it("migrates a v2 grid save and keeps its timestamp", () => {
@@ -56,7 +83,7 @@ describe("serializeSave and parseSaveValue", () => {
       },
       { version: 2, grid: legacyGrid([]) },
       { version: 2, grid: { width: 2, height: 2, cells: [] }, lastSeen: 1 },
-      { version: 4, mountain: createMountain(), lastSeen: 1 },
+      { version: 5, mountain: createMountain(), lastSeen: 1 },
     ]) {
       expect(parseSaveValue(bad)).toBeUndefined();
     }

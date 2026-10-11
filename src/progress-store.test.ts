@@ -425,7 +425,7 @@ describe("helpers mining live", () => {
 });
 
 describe("away earnings", () => {
-  const crew = { remaining: 1_000_000, pocket: 5, helpers: 3 };
+  const crew = { remaining: 100_000_000, pocket: 5, helpers: 3 };
 
   it("pays a guest for time away, saves it, and shows the card only once", () => {
     const storage = createMemoryStorage();
@@ -444,7 +444,7 @@ describe("away earnings", () => {
       capped: false,
     });
     expect(readSessionSave({ storage })).toEqual({
-      mountain: { remaining: 1_000_000 - 1_800, pocket: 1_805, helpers: 3 },
+      mountain: { remaining: 100_000_000 - 1_800, pocket: 1_805, helpers: 3 },
       lastSeen: 600_000,
     });
 
@@ -530,7 +530,11 @@ describe("away earnings", () => {
 describe("relic reveals", () => {
   it("celebrates the Lantern when a tap crosses its depth, once", () => {
     const storage = createMemoryStorage();
-    writeSessionSave({ storage, mountain: minedMountain(19_999), lastSeen: 0 });
+    writeSessionSave({
+      storage,
+      mountain: minedMountain(999_999),
+      lastSeen: 0,
+    });
     const progress = createProgressStore({
       auth: createMemoryAuth(),
       sessionStorage: storage,
@@ -538,13 +542,13 @@ describe("relic reveals", () => {
     });
     expect(progress.getSnapshot().revealed).toBeUndefined();
 
-    progress.applyMutation(() => minedMountain(20_000));
+    progress.applyMutation(() => minedMountain(1_000_000));
     expect(progress.getSnapshot().revealed?.id).toBe("lantern");
     expect(progress.getSnapshot().log).toContain("relic.found lantern");
 
     progress.dismissReveal();
     expect(progress.getSnapshot().revealed).toBeUndefined();
-    progress.applyMutation(() => minedMountain(20_001));
+    progress.applyMutation(() => minedMountain(1_000_001));
     expect(progress.getSnapshot().revealed).toBeUndefined();
   });
 
@@ -552,7 +556,7 @@ describe("relic reveals", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: minedMountain(150_000),
+      mountain: minedMountain(15_000_000),
       lastSeen: 0,
     });
     const progress = createProgressStore({
@@ -567,7 +571,7 @@ describe("relic reveals", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(19_000), helpers: 10 },
+      mountain: { ...minedMountain(999_000), helpers: 10 },
       lastSeen: 0,
     });
     const progress = createProgressStore({
@@ -580,7 +584,7 @@ describe("relic reveals", () => {
   });
 
   it("does not celebrate relics in a signed-in dad's cloud save", async () => {
-    const docs = new Map([["test-dad", minedMountain(150_000)]]);
+    const docs = new Map([["test-dad", minedMountain(15_000_000)]]);
     const user = { uid: "test-dad", label: "Test Dad" };
     const progress = createProgressStore({
       auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
@@ -599,7 +603,7 @@ describe("relic reveals", () => {
       sessionStorage: createMemoryStorage(),
       now: () => 0,
     });
-    progress.applyMutation(() => minedMountain(120_000));
+    progress.applyMutation(() => minedMountain(12_000_000));
     expect(progress.getSnapshot().revealed?.id).toBe("lantern");
     progress.dismissReveal();
     expect(progress.getSnapshot().revealed?.id).toBe("shield");

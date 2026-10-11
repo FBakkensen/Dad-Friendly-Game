@@ -16,7 +16,7 @@ import {
 describe("mountain", () => {
   it("starts with a million stones, an empty pocket, and no helpers", () => {
     expect(createMountain()).toEqual({
-      remaining: 1_000_000,
+      remaining: 100_000_000,
       pocket: 0,
       helpers: 0,
     });
@@ -127,7 +127,7 @@ describe("accrue", () => {
 });
 
 describe("accrueAway", () => {
-  const crew = { remaining: 1_000_000, pocket: 0, helpers: 2 };
+  const crew = { remaining: 100_000_000, pocket: 0, helpers: 2 };
 
   it("pays for the whole absence under the cap", () => {
     const result = accrueAway({ mountain: crew, lastSeen: 0, now: 90_500 });
