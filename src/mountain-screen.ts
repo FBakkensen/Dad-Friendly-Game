@@ -1,3 +1,4 @@
+import { tapFloatSpot } from "./tap-float";
 import {
   createUnconfiguredAuth,
   type AuthController,
@@ -114,15 +115,17 @@ export function mountMountainScreen({
     progress.applyMutation(mineByHand);
     const mined = before - view.mountain.remaining;
     if (mined > 0) {
-      // Where the finger landed; keyboard "clicks" have no point, so the middle.
-      const box = mountain.getBoundingClientRect();
-      const pointed = event.detail > 0 && box.width > 0 && box.height > 0;
+      // Above the finger so a thumb doesn't hide it; keyboard "clicks" have no point.
+      const spot = tapFloatSpot(
+        mountain.getBoundingClientRect(),
+        event.detail > 0 ? { x: event.clientX, y: event.clientY } : undefined,
+      );
       floatText(
         mountainStage,
         `+${formatCount(mined)}`,
         "tap-float",
-        pointed ? ((event.clientX - box.left) / box.width) * 100 : 50,
-        pointed ? ((event.clientY - box.top) / box.height) * 100 : 50,
+        spot.x,
+        spot.y,
       );
     }
   });
