@@ -300,3 +300,61 @@ describe("helper miners on screen", () => {
     }
   });
 });
+
+describe("welcome-back card", () => {
+  it("celebrates what the crew mined and closes with one tap", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      SESSION_SAVE_KEY,
+      JSON.stringify({
+        version: 3,
+        mountain: { remaining: 1_000_000, pocket: 0, helpers: 4 },
+        lastSeen: Date.now() - (2 * 60 + 5) * 60_000,
+      }),
+    );
+    const screen = mountScreen({ storage });
+    const card = screen.root.querySelector(".welcome-back");
+    const close = screen.root.querySelector(".welcome-continue");
+    if (
+      !(card instanceof HTMLElement) ||
+      !(close instanceof HTMLButtonElement)
+    ) {
+      throw new Error("welcome-back card did not render");
+    }
+
+    expect(card.hidden).toBe(false);
+    expect(card.getAttribute("role")).toBe("dialog");
+    expect(screen.text(".welcome-mined")).toBe("+30 thousand stones");
+    expect(screen.text(".welcome-detail")).toBe(
+      "You were gone 2 hours 5 minutes. Your 4 helpers mined the whole time.",
+    );
+
+    close.click();
+    expect(card.hidden).toBe(true);
+    expect(screen.text(".pocket")).toBe("30 thousand stones");
+  });
+
+  it("says when the 8-hour cap was reached", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      SESSION_SAVE_KEY,
+      JSON.stringify({
+        version: 3,
+        mountain: { remaining: 1_000_000, pocket: 0, helpers: 1 },
+        lastSeen: Date.now() - 26 * 3_600_000,
+      }),
+    );
+    const screen = mountScreen({ storage });
+    expect(screen.text(".welcome-mined")).toBe("+28.8 thousand stones");
+    expect(screen.text(".welcome-detail")).toBe(
+      "You were gone 1 day 2 hours. Your helper mined for the first 8 hours.",
+    );
+  });
+
+  it("stays hidden for a fresh game", () => {
+    const screen = mountScreen();
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(true);
+  });
+});

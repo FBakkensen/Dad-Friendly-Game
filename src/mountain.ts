@@ -3,6 +3,8 @@ export const MOUNTAIN_STONES = 1_000_000;
 const HELPER_BASE_COST = 10;
 const HELPER_COST_GROWTH = 1.15;
 const HELPER_STONES_PER_SECOND = 1;
+/** Base away cap; the Shield of Protection relic will lift it. */
+export const AWAY_CAP_MS = 8 * 60 * 60 * 1000;
 
 export type Mountain = {
   /** Stones still in the mountain. 0..MOUNTAIN_STONES. */
@@ -98,6 +100,33 @@ export function accrue({
     mined,
     settledAt,
   };
+}
+
+export type AwayReport = {
+  readonly mined: number;
+  /** Real time away, before the cap. */
+  readonly awayMs: number;
+  readonly capped: boolean;
+};
+
+/** Helpers' work while the game was closed, paid for at most AWAY_CAP_MS. */
+export function accrueAway({
+  mountain,
+  lastSeen,
+  now,
+}: {
+  mountain: Mountain;
+  lastSeen: number;
+  now: number;
+}): Accrual & { readonly report: AwayReport } {
+  const awayMs = Math.max(0, now - lastSeen);
+  const capped = awayMs > AWAY_CAP_MS;
+  const result = accrue({
+    mountain,
+    from: capped ? now - AWAY_CAP_MS : lastSeen,
+    to: now,
+  });
+  return { ...result, report: { mined: result.mined, awayMs, capped } };
 }
 
 /** Builds a mountain from untrusted data; every field must be a sane whole number. */

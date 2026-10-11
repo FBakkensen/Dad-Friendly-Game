@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  AWAY_CAP_MS,
   MOUNTAIN_STONES,
+  accrueAway,
   accrue,
   helperCost,
   hireHelper,
@@ -120,6 +122,43 @@ describe("accrue", () => {
       mountain: crew,
       mined: 0,
       settledAt: 5_000,
+    });
+  });
+});
+
+describe("accrueAway", () => {
+  const crew = { remaining: 1_000_000, pocket: 0, helpers: 2 };
+
+  it("pays for the whole absence under the cap", () => {
+    const result = accrueAway({ mountain: crew, lastSeen: 0, now: 90_500 });
+    expect(result.mined).toBe(180);
+    expect(result.settledAt).toBe(90_000);
+    expect(result.report).toEqual({
+      mined: 180,
+      awayMs: 90_500,
+      capped: false,
+    });
+  });
+
+  it("pays at most the cap but reports the real time away", () => {
+    const now = AWAY_CAP_MS * 3;
+    const result = accrueAway({ mountain: crew, lastSeen: 0, now });
+    expect(result.mined).toBe((AWAY_CAP_MS / 1000) * 2);
+    expect(result.settledAt).toBe(now);
+    expect(result.report).toEqual({
+      mined: (AWAY_CAP_MS / 1000) * 2,
+      awayMs: now,
+      capped: true,
+    });
+  });
+
+  it("pays nothing for a clock that went backwards", () => {
+    expect(
+      accrueAway({ mountain: crew, lastSeen: 5_000, now: 1_000 }).report,
+    ).toEqual({
+      mined: 0,
+      awayMs: 0,
+      capped: false,
     });
   });
 });
