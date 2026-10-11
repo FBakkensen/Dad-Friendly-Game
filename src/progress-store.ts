@@ -60,6 +60,8 @@ export type ProgressStore = {
 
 /** Firestore sustains about one write per second per document. */
 const CLOUD_WRITE_GAP_MS = 1000;
+/** Shorter absences still pay out, quietly, without the welcome-back card. */
+export const WELCOME_MIN_AWAY_MS = 60 * 1000;
 
 export function createProgressStore({
   auth,
@@ -250,7 +252,8 @@ export function createProgressStore({
     if (result.mined === 0) {
       return 0;
     }
-    if (!welcomed) {
+    // A reload or a quick app switch isn't "away": only greet after a real break.
+    if (!welcomed && result.report.awayMs >= WELCOME_MIN_AWAY_MS) {
       away = result.report;
     }
     logger.record({

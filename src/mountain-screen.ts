@@ -1,3 +1,4 @@
+import { tapFloatSpot } from "./tap-float";
 import {
   createUnconfiguredAuth,
   type AuthController,
@@ -29,6 +30,9 @@ import {
   LANTERN_VEIN_GAP_SCALE,
   advanceVein,
   mineVein,
+  pauseVein,
+  resumeVein,
+  veinWaitLeft,
   veinReward,
   waitForVein,
   type VeinState,
@@ -51,6 +55,7 @@ export function mountMountainScreen({
   progress: progressArg,
   now = Date.now,
   random = Math.random,
+  veinStorage,
 }: {
   root: HTMLElement;
   lanternUrl: string;
@@ -63,6 +68,8 @@ export function mountMountainScreen({
   progress?: ProgressStore;
   now?: () => number;
   random?: () => number;
+  /** Where the vein wait is carried between sessions; localStorage by default. */
+  veinStorage?: Pick<Storage, "getItem" | "setItem">;
 }): void {
   const progress = progressArg ?? createProgressStore({ auth });
   let view: ProgressSnapshot = progress.getSnapshot();
@@ -114,15 +121,17 @@ export function mountMountainScreen({
     progress.applyMutation(mineByHand);
     const mined = before - view.mountain.remaining;
     if (mined > 0) {
-      // Where the finger landed; keyboard "clicks" have no point, so the middle.
-      const box = mountain.getBoundingClientRect();
-      const pointed = event.detail > 0 && box.width > 0 && box.height > 0;
+      // Above the finger so a thumb doesn't hide it; keyboard "clicks" have no point.
+      const spot = tapFloatSpot(
+        mountain.getBoundingClientRect(),
+        event.detail > 0 ? { x: event.clientX, y: event.clientY } : undefined,
+      );
       floatText(
         mountainStage,
         `+${formatCount(mined)}`,
         "tap-float",
-        pointed ? ((event.clientX - box.left) / box.width) * 100 : 50,
-        pointed ? ((event.clientY - box.top) / box.height) * 100 : 50,
+        spot.x,
+        spot.y,
       );
     }
   });
@@ -154,11 +163,34 @@ export function mountMountainScreen({
 
   mountainWrap.append(veinNote);
 
-  let veinState: VeinState = waitForVein({
+  // The wait for the next vein counts play time only, and survives the phone
+  // locking or the PWA being closed, so short sessions still add up to a vein.
+  const VEIN_WAIT_KEY = "dad-friendly-vein-wait";
+  const storedWait = (): unknown => {
+    try {
+      const raw = (veinStorage ?? localStorage).getItem(VEIN_WAIT_KEY);
+      return raw === null ? undefined : Number(raw);
+    } catch {
+      return undefined;
+    }
+  };
+  const storeWait = (): void => {
+    try {
+      (veinStorage ?? localStorage).setItem(
+        VEIN_WAIT_KEY,
+        String(Math.round(veinWaitLeft(veinState, now()))),
+      );
+    } catch {
+      // Private mode or full storage: the next session just starts a fresh wait.
+    }
+  };
+  let veinState: VeinState = resumeVein({
+    waitLeft: storedWait(),
     now: now(),
     random,
     gapScale: veinGapScale(),
   });
+  let hiddenAt: number | undefined;
   let veinNoteUntil = 0;
 
   const renderVein = (): void => {
@@ -880,12 +912,17 @@ export function mountMountainScreen({
     }
   }, 1000);
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      // Veins are for active play only: a fresh wait starts on every return.
-      veinState = waitForVein({ now: now(), random, gapScale: veinGapScale() });
+    if (document.visibilityState === "hidden") {
+      hiddenAt ??= now();
+      storeWait();
+    } else if (hiddenAt !== undefined) {
+      // Veins are for active play: time away is skipped, time played is kept.
+      veinState = pauseVein(veinState, now() - hiddenAt);
+      hiddenAt = undefined;
       renderVein();
     }
   });
+  window.addEventListener("pagehide", storeWait);
 
   progress.subscribe((next) => {
     view = next;

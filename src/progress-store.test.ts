@@ -8,7 +8,7 @@ import {
 } from "./cloud-save";
 import { createMountain, type Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
-import { createProgressStore } from "./progress-store";
+import { WELCOME_MIN_AWAY_MS, createProgressStore } from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
 
 function createMemoryStorage(): Storage {
@@ -375,6 +375,7 @@ describe("helpers mining live", () => {
       pocket: 0,
       helpers: 3,
       carts: 0,
+      drills: 0,
     }));
 
     clock += 2_500;
@@ -384,7 +385,7 @@ describe("helpers mining live", () => {
 
     progress.flush();
     expect(readSessionSave({ storage })).toEqual({
-      mountain: { remaining: 494, pocket: 6, helpers: 3, carts: 0 },
+      mountain: { remaining: 494, pocket: 6, helpers: 3, carts: 0, drills: 0 },
       lastSeen: 3_000,
     });
   });
@@ -401,6 +402,7 @@ describe("helpers mining live", () => {
       pocket: 0,
       helpers: 1,
       carts: 0,
+      drills: 0,
     }));
     clock += 10_000;
 
@@ -435,7 +437,13 @@ describe("helpers mining live", () => {
 });
 
 describe("away earnings", () => {
-  const crew = { remaining: 100_000_000, pocket: 5, helpers: 3, carts: 0 };
+  const crew = {
+    remaining: 100_000_000,
+    pocket: 5,
+    helpers: 3,
+    carts: 0,
+    drills: 0,
+  };
 
   it("pays a guest for time away, saves it, and shows the card only once", () => {
     const storage = createMemoryStorage();
@@ -459,6 +467,7 @@ describe("away earnings", () => {
         pocket: 1_805,
         helpers: 3,
         carts: 0,
+        drills: 0,
       },
       lastSeen: 600_000,
     });
@@ -502,16 +511,28 @@ describe("away earnings", () => {
       auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
       cloudSave: cloud,
       sessionStorage: createMemoryStorage(),
-      now: () => 20_000,
+      now: () => 80_000,
       cloudWriteGapMs: 0,
     });
 
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    expect(progress.getSnapshot().away?.mined).toBe(60);
-    expect(docs.get("test-dad")?.pocket).toBe(65);
-    expect(progress.getSnapshot().mountain.pocket).toBe(65);
+    expect(progress.getSnapshot().away?.mined).toBe(240);
+    expect(docs.get("test-dad")?.pocket).toBe(245);
+    expect(progress.getSnapshot().mountain.pocket).toBe(245);
+  });
+
+  it("pays a short absence quietly, with no welcome-back card", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: crew, lastSeen: 0 });
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => WELCOME_MIN_AWAY_MS - 1_000,
+    });
+    expect(progress.getSnapshot().away).toBeUndefined();
+    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3 * 59);
   });
 
   it("pays another device's save silently after the first load", async () => {
@@ -657,7 +678,12 @@ describe("start over", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(2_000_000), helpers: 5, carts: 2 },
+      mountain: {
+        ...minedMountain(2_000_000),
+        helpers: 5,
+        carts: 2,
+        drills: 0,
+      },
       lastSeen: 0,
     });
     const progress = createProgressStore({

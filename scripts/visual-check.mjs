@@ -74,6 +74,12 @@ async function open([width, height], save, { standalone = false } = {}) {
     );
   });
   await page.setViewport({ width, height, isMobile: true, hasTouch: true });
+  // A clock the check can push forward, for veins and other timed things.
+  await page.evaluateOnNewDocument(() => {
+    const realNow = Date.now.bind(Date);
+    globalThis.__skewMs = 0;
+    Date.now = () => realNow() + globalThis.__skewMs;
+  });
   await page.evaluateOnNewDocument(
     (key, value) => {
       if (sessionStorage.getItem("visual-seeded") === null) {
@@ -90,6 +96,10 @@ async function open([width, height], save, { standalone = false } = {}) {
 
 /** The overlay is fixed and covers the whole viewport. */
 async function coversViewport(page, selector) {
+  // A tap's click lands a frame later on a slow runner; let the overlay open first.
+  await page
+    .waitForSelector(`${selector}:not([hidden])`, { timeout: 2_000 })
+    .catch(() => undefined);
   return page.$eval(selector, (element) => {
     const rect = element.getBoundingClientRect();
     return (
@@ -187,6 +197,7 @@ for (const viewport of VIEWPORTS) {
   });
   check(veinInside, `${size} golden vein sits inside the mountain`);
 
+  await page.waitForSelector(".relic-shelf", { visible: true });
   await page.tap(".relic-shelf");
   check(
     await coversViewport(page, ".shelf-dialog"),
@@ -282,6 +293,48 @@ for (const viewport of VIEWPORTS) {
     STANDALONE_INSETS.bottom,
   );
   check(insideSafeArea, `${size} standalone controls clear the gesture bar`);
+
+  // A real vein after minutes of play: on screen, on top, and tappable.
+  await page.evaluate(() => {
+    globalThis.__skewMs = 7 * 60 * 1000;
+  });
+  await page
+    .waitForSelector(".golden-vein:not([hidden])", { timeout: 3_000 })
+    .catch(() => undefined);
+  const veinOnTop = await page.evaluate(() => {
+    const vein = document.querySelector(".golden-vein");
+    if (vein === null || vein.hidden) {
+      return false;
+    }
+    const box = vein.getBoundingClientRect();
+    const x = box.left + box.width / 2;
+    const y = box.top + box.height / 2;
+    const hit = document.elementFromPoint(x, y);
+    return (
+      box.width > 0 &&
+      y > 0 &&
+      y < innerHeight &&
+      x > 0 &&
+      x < innerWidth &&
+      hit !== null &&
+      vein.contains(hit)
+    );
+  });
+  check(
+    veinOnTop,
+    `${size} standalone golden vein appears on top of the mountain`,
+  );
+  if (veinOnTop) {
+    await page.tap(".golden-vein");
+    const note = await page.$eval(
+      ".vein-note",
+      (element) => element.textContent,
+    );
+    check(
+      note?.startsWith("Golden vein!") === true,
+      `${size} standalone golden vein pays when tapped`,
+    );
+  }
   await close();
 }
 

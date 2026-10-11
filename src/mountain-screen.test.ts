@@ -76,11 +76,12 @@ function mountScreen({
   });
   mountMountainScreen({
     root,
+    veinStorage: storage,
     lanternUrl: tileUrl,
     mountainUrl: tileUrl,
     stoneUrl: tileUrl,
     veinUrl: tileUrl,
-    tierArt: { helper: "helper.png", cart: "cart.png" },
+    tierArt: { helper: "helper.png", cart: "cart.png", drill: "drill.png" },
     relicArt: {
       lantern: "lantern.png",
       shield: "shield.png",
@@ -180,6 +181,7 @@ describe("mountMountainScreen", () => {
       pocket: MOUNTAIN_STONES,
       helpers: 0,
       carts: 0,
+      drills: 0,
     };
     storage.setItem(
       SESSION_SAVE_KEY,
@@ -374,7 +376,7 @@ describe("crew tiers on screen", () => {
       );
       expect(
         screen.root.querySelector(".tier-grid")?.getAttribute("data-shown"),
-      ).toBe("2");
+      ).toBe("3");
 
       await vi.advanceTimersByTimeAsync(2_000);
       expect(screen.text(".pocket")).toBe("18 stones");
@@ -389,7 +391,13 @@ describe("crew tiers on screen", () => {
       SESSION_SAVE_KEY,
       JSON.stringify({
         version: 4,
-        mountain: { remaining: 100_000_000, pocket: 0, helpers: 4, carts: 0 },
+        mountain: {
+          remaining: 100_000_000,
+          pocket: 0,
+          helpers: 4,
+          carts: 0,
+          drills: 0,
+        },
         lastSeen: Date.now() - (2 * 60 + 5) * 60_000,
       }),
     );
@@ -421,7 +429,13 @@ describe("crew tiers on screen", () => {
       SESSION_SAVE_KEY,
       JSON.stringify({
         version: 4,
-        mountain: { remaining: 100_000_000, pocket: 0, helpers: 1, carts: 0 },
+        mountain: {
+          remaining: 100_000_000,
+          pocket: 0,
+          helpers: 1,
+          carts: 0,
+          drills: 0,
+        },
         lastSeen: Date.now() - 26 * 3_600_000,
       }),
     );
@@ -475,7 +489,64 @@ describe("golden vein on screen", () => {
     }
   });
 
-  it("fades if missed, costs nothing, and starts a fresh wait after the tab was away", async () => {
+  it("keeps play time across the phone locking: time away is skipped, not a reset", async () => {
+    vi.useFakeTimers();
+    const setVisibility = (state: DocumentVisibilityState) => {
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        get: () => state,
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    };
+    try {
+      let clock = 0;
+      const screen = mountScreen({ now: () => clock, random: () => 0 });
+      const vein = screen.root.querySelector(".golden-vein") as HTMLElement;
+      // Two minutes of play, then the screen locks for ten.
+      clock = 2 * 60_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      setVisibility("hidden");
+      clock += 10 * 60_000;
+      setVisibility("visible");
+      // A spurious "visible" with no hide before it changes nothing.
+      setVisibility("visible");
+      clock += 60_000 - 1_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(vein.hidden).toBe(true);
+      clock += 1_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(vein.hidden).toBe(false);
+    } finally {
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        get: () => "visible",
+      });
+      vi.useRealTimers();
+    }
+  });
+
+  it("carries the wait over when the app is closed and reopened", async () => {
+    vi.useFakeTimers();
+    try {
+      const storage = createMemoryStorage();
+      let clock = 0;
+      mountScreen({ storage, now: () => clock, random: () => 0 });
+      clock = 2 * 60_000;
+      window.dispatchEvent(new Event("pagehide"));
+      expect(storage.getItem("dad-friendly-vein-wait")).toBe("60000");
+
+      clock = 50 * 60_000;
+      const again = mountScreen({ storage, now: () => clock, random: () => 0 });
+      const vein = again.root.querySelector(".golden-vein") as HTMLElement;
+      clock += 60_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(vein.hidden).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("fades if missed, costs nothing, and starts a fresh wait", async () => {
     vi.useFakeTimers();
     try {
       let clock = 0;
@@ -493,8 +564,7 @@ describe("golden vein on screen", () => {
       expect(vein.hidden).toBe(true);
       expect(screen.text(".pocket")).toBe("0 stones");
 
-      clock += 3 * 60_000;
-      document.dispatchEvent(new Event("visibilitychange"));
+      clock += 3 * 60_000 - 2_000;
       await vi.advanceTimersByTimeAsync(1_000);
       expect(vein.hidden).toBe(true);
     } finally {
@@ -654,7 +724,12 @@ describe("start over", () => {
       SESSION_SAVE_KEY,
       JSON.stringify({
         version: 4,
-        mountain: { ...minedMountain(12_000_000), helpers: 4, carts: 1 },
+        mountain: {
+          ...minedMountain(12_000_000),
+          helpers: 4,
+          carts: 1,
+          drills: 0,
+        },
         lastSeen: Date.now(),
       }),
     );
@@ -732,7 +807,13 @@ describe("start over", () => {
     };
     expect(saved).toMatchObject({
       version: 4,
-      mountain: { remaining: 100_000_000, pocket: 0, helpers: 0, carts: 0 },
+      mountain: {
+        remaining: 100_000_000,
+        pocket: 0,
+        helpers: 0,
+        carts: 0,
+        drills: 0,
+      },
     });
     expect(typeof saved.mountain.startedAt).toBe("number");
   });
@@ -780,7 +861,7 @@ describe("what the crew gives", () => {
       SESSION_SAVE_KEY,
       JSON.stringify({
         version: 4,
-        mountain: { ...minedMountain(400), helpers: 2, carts: 3 },
+        mountain: { ...minedMountain(400), helpers: 2, carts: 3, drills: 0 },
         lastSeen: Date.now(),
       }),
     );

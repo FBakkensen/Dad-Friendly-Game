@@ -488,7 +488,7 @@ body {
    * the viewport (browser chrome, installed PWA status and gesture bars).
    */
   flex: 1 1 0;
-  min-height: 120px;
+  min-height: 96px;
   width: 100%;
   display: flex;
   align-items: center;
@@ -820,4 +820,25 @@ body {
 
 .menu-card .auth-status:empty {
   display: none;
+}
+
+/* Short screens (an installed PWA on a small phone): tighten the chrome, not the controls. */
+@media (max-height: 600px) {
+  #app {
+    gap: 4px;
+  }
+
+  .relic-shelf {
+    min-height: 44px;
+    padding: 4px 10px;
+  }
+
+  .shelf-slot {
+    width: 28px;
+    height: 28px;
+  }
+
+  .goal {
+    font-size: 0.85rem;
+  }
 }

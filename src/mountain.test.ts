@@ -17,6 +17,7 @@ describe("mountain", () => {
       pocket: 0,
       helpers: 0,
       carts: 0,
+      drills: 0,
     });
     expect(minedOut(createMountain())).toBe(0);
   });
@@ -31,33 +32,47 @@ describe("mountain", () => {
       pocket: 3,
       helpers: 0,
       carts: 0,
+      drills: 0,
     });
     expect(minedOut(mountain)).toBe(3);
   });
 
   it("stops at zero and returns the same mountain", () => {
-    const empty = { remaining: 0, pocket: 5, helpers: 0, carts: 0 };
+    const empty = { remaining: 0, pocket: 5, helpers: 0, carts: 0, drills: 0 };
     expect(mineByHand(empty)).toBe(empty);
   });
 
   it("parses a sane mountain and rejects anything else", () => {
     expect(
-      parseMountain({ remaining: 10, pocket: 2, helpers: 1, carts: 0 }),
+      parseMountain({
+        remaining: 10,
+        pocket: 2,
+        helpers: 1,
+        carts: 0,
+        drills: 0,
+      }),
     ).toEqual({
       remaining: 10,
       pocket: 2,
       helpers: 1,
       carts: 0,
+      drills: 0,
     });
     for (const bad of [
       null,
       "x",
       {},
-      { remaining: -1, pocket: 0, helpers: 0, carts: 0 },
-      { remaining: MOUNTAIN_STONES + 1, pocket: 0, helpers: 0, carts: 0 },
-      { remaining: 1.5, pocket: 0, helpers: 0, carts: 0 },
-      { remaining: 1, pocket: Number.NaN, helpers: 0, carts: 0 },
-      { remaining: 1, pocket: 0, helpers: "2", carts: 0 },
+      { remaining: -1, pocket: 0, helpers: 0, carts: 0, drills: 0 },
+      {
+        remaining: MOUNTAIN_STONES + 1,
+        pocket: 0,
+        helpers: 0,
+        carts: 0,
+        drills: 0,
+      },
+      { remaining: 1.5, pocket: 0, helpers: 0, carts: 0, drills: 0 },
+      { remaining: 1, pocket: Number.NaN, helpers: 0, carts: 0, drills: 0 },
+      { remaining: 1, pocket: 0, helpers: "2", carts: 0, drills: 0 },
     ]) {
       expect(parseMountain(bad)).toBeUndefined();
     }
@@ -65,11 +80,11 @@ describe("mountain", () => {
 });
 
 describe("accrue", () => {
-  const crew = { remaining: 1000, pocket: 0, helpers: 2, carts: 0 };
+  const crew = { remaining: 1000, pocket: 0, helpers: 2, carts: 0, drills: 0 };
 
   it("mines whole seconds and keeps the leftover part-second unspent", () => {
     expect(accrue({ mountain: crew, from: 0, to: 2_750 })).toEqual({
-      mountain: { remaining: 996, pocket: 4, helpers: 2, carts: 0 },
+      mountain: { remaining: 996, pocket: 4, helpers: 2, carts: 0, drills: 0 },
       mined: 4,
       settledAt: 2_000,
     });
@@ -89,16 +104,16 @@ describe("accrue", () => {
   });
 
   it("stops at an empty mountain and spends the rest of the time", () => {
-    const almost = { remaining: 3, pocket: 0, helpers: 2, carts: 0 };
+    const almost = { remaining: 3, pocket: 0, helpers: 2, carts: 0, drills: 0 };
     expect(accrue({ mountain: almost, from: 0, to: 10_500 })).toEqual({
-      mountain: { remaining: 0, pocket: 3, helpers: 2, carts: 0 },
+      mountain: { remaining: 0, pocket: 3, helpers: 2, carts: 0, drills: 0 },
       mined: 3,
       settledAt: 10_500,
     });
   });
 
   it("does nothing without helpers or when the clock goes backwards", () => {
-    const idle = { remaining: 10, pocket: 0, helpers: 0, carts: 0 };
+    const idle = { remaining: 10, pocket: 0, helpers: 0, carts: 0, drills: 0 };
     expect(accrue({ mountain: idle, from: 0, to: 9_000 })).toEqual({
       mountain: idle,
       mined: 0,
@@ -113,7 +128,13 @@ describe("accrue", () => {
 });
 
 describe("accrueAway", () => {
-  const crew = { remaining: 100_000_000, pocket: 0, helpers: 2, carts: 0 };
+  const crew = {
+    remaining: 100_000_000,
+    pocket: 0,
+    helpers: 2,
+    carts: 0,
+    drills: 0,
+  };
 
   it("pays for the whole absence under the cap", () => {
     const result = accrueAway({ mountain: crew, lastSeen: 0, now: 90_500 });

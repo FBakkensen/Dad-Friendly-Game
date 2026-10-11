@@ -32,7 +32,13 @@ describe("serializeSave and parseSaveValue", () => {
         lastSeen: 5,
       }),
     ).toEqual({
-      mountain: { remaining: 98_000_000, pocket: 77, helpers: 4, carts: 0 },
+      mountain: {
+        remaining: 98_000_000,
+        pocket: 77,
+        helpers: 4,
+        carts: 0,
+        drills: 0,
+      },
       lastSeen: 5,
     });
     expect(
@@ -55,7 +61,23 @@ describe("serializeSave and parseSaveValue", () => {
     const base = { remaining: 5, pocket: 1, helpers: 2 };
     expect(
       parseSaveValue({ version: 4, mountain: base, lastSeen: 1 })?.mountain,
-    ).toEqual({ ...base, carts: 0 });
+    ).toEqual({ ...base, carts: 0, drills: 0 });
+    expect(
+      parseSaveValue({
+        version: 4,
+        mountain: { ...base, carts: 1, drills: 2 },
+        lastSeen: 1,
+      })?.mountain,
+    ).toEqual({ ...base, carts: 1, drills: 2 });
+    for (const drills of [-1, 1.5, "3", null]) {
+      expect(
+        parseSaveValue({
+          version: 4,
+          mountain: { ...base, drills },
+          lastSeen: 1,
+        }),
+      ).toBeUndefined();
+    }
     for (const carts of [-1, 1.5, "3", null]) {
       expect(
         parseSaveValue({
@@ -80,6 +102,7 @@ describe("serializeSave and parseSaveValue", () => {
         pocket: 3,
         helpers: 0,
         carts: 0,
+        drills: 0,
       },
       lastSeen: 99,
     });
@@ -120,6 +143,7 @@ describe("migrateLegacyGrid", () => {
       pocket: 18,
       helpers: 0,
       carts: 0,
+      drills: 0,
     });
   });
 
