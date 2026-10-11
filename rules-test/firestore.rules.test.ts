@@ -87,6 +87,20 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     ).rejects.toThrow(/permission/i);
   });
 
+  it("the Legacy count (#130)", async () => {
+    const mountain = { ...createMountain(), legacy: 2 };
+    expect(await roundTrip(mountain)).toEqual(mountain);
+    const raw = serializeSave({ mountain, lastSeen: 1 });
+    for (const legacy of [-1, 1.5, "2", 1001]) {
+      await expect(
+        setDoc(doc(db, "saves", "dad"), {
+          ...raw,
+          mountain: { ...raw.mountain, legacy },
+        }),
+      ).rejects.toThrow(/permission/i);
+    }
+  });
+
   it("Crown of Wisdom kid helpers (#102)", async () => {
     const mountain = { ...createMountain(), helpers: 40, kids: 12 };
     expect(await roundTrip(mountain)).toEqual(mountain);

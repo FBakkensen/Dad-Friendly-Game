@@ -157,7 +157,10 @@ export function simulateDad({
   maxDays = 30,
   buysUpgrades = false,
   buysBoosts = false,
+  legacy = 0,
 }: {
+  /** Mountains already passed down: a second run starts with legacy 1. */
+  legacy?: number;
   /** Also starts Sharper picks and Overtime whenever they're affordable and idle. */
   buysBoosts?: boolean;
   /** Also weighs Strong arms, Better boots and Steady hands against crew, by stones a day per stone. */
@@ -166,7 +169,8 @@ export function simulateDad({
   maxDays?: number;
 }): Map<number, number> {
   const reached = new Map<number, number>();
-  let mountain = createMountain();
+  let mountain: Mountain =
+    legacy > 0 ? { ...createMountain(), legacy } : createMountain();
   let clock = 0;
   const note = () => {
     for (const mark of milestones) {
