@@ -6,6 +6,9 @@ import {
   mineVein,
   veinReward,
   waitForVein,
+  pauseVein,
+  resumeVein,
+  veinWaitLeft,
 } from "./veins";
 
 const MINUTE = 60_000;
@@ -99,5 +102,38 @@ describe("golden veins", () => {
         gapScale: LANTERN_VEIN_GAP_SCALE,
       }),
     ).toEqual({ kind: "waiting", appearsAt: 1.8 * MINUTE });
+  });
+});
+
+describe("vein pause and resume", () => {
+  it("shifts a wait or a glint by the time away", () => {
+    expect(pauseVein({ kind: "waiting", appearsAt: 100 }, 50)).toEqual({
+      kind: "waiting",
+      appearsAt: 150,
+    });
+    expect(
+      pauseVein({ kind: "glinting", until: 100, x: 0.5, y: 0.5 }, 50),
+    ).toMatchObject({ until: 150 });
+    expect(pauseVein({ kind: "waiting", appearsAt: 100 }, -5)).toEqual({
+      kind: "waiting",
+      appearsAt: 100,
+    });
+  });
+
+  it("reports play time left and resumes only sane waits", () => {
+    expect(veinWaitLeft({ kind: "waiting", appearsAt: 900 }, 100)).toBe(800);
+    expect(
+      veinWaitLeft({ kind: "glinting", until: 900, x: 0, y: 0 }, 100),
+    ).toBe(0);
+    expect(resumeVein({ waitLeft: 800, now: 100, random: () => 0 })).toEqual({
+      kind: "waiting",
+      appearsAt: 900,
+    });
+    for (const waitLeft of [undefined, Number.NaN, -1, 7 * 60_000, "800"]) {
+      expect(resumeVein({ waitLeft, now: 0, random: () => 0 })).toEqual({
+        kind: "waiting",
+        appearsAt: 3 * 60_000,
+      });
+    }
   });
 });

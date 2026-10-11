@@ -84,3 +84,39 @@ export function mineVein(mountain: Mountain): Mountain {
     pocket: mountain.pocket + reward,
   };
 }
+
+/**
+ * Time away doesn't count toward the next vein, but time already played does:
+ * shifts the wait (or the glint) later by how long the game was hidden.
+ */
+export function pauseVein(vein: VeinState, hiddenMs: number): VeinState {
+  const away = Math.max(0, hiddenMs);
+  return vein.kind === "waiting"
+    ? { ...vein, appearsAt: vein.appearsAt + away }
+    : { ...vein, until: vein.until + away };
+}
+
+/** Play time left before the next vein, to carry over when the app is closed. */
+export function veinWaitLeft(vein: VeinState, now: number): number {
+  return vein.kind === "waiting" ? Math.max(0, vein.appearsAt - now) : 0;
+}
+
+/** A carried-over wait, if it is a sane one; otherwise a fresh wait. */
+export function resumeVein({
+  waitLeft,
+  now,
+  random,
+  gapScale = 1,
+}: {
+  waitLeft: unknown;
+  now: number;
+  random: () => number;
+  gapScale?: number;
+}): VeinState {
+  return typeof waitLeft === "number" &&
+    Number.isFinite(waitLeft) &&
+    waitLeft >= 0 &&
+    waitLeft <= VEIN_MAX_GAP_MS
+    ? { kind: "waiting", appearsAt: now + waitLeft }
+    : waitForVein({ now, random, gapScale });
+}
