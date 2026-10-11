@@ -4,7 +4,7 @@ import {
   type AuthController,
   type AuthState,
 } from "./auth";
-import { formatCompact, formatCount, formatDuration } from "./format";
+import { formatCompact, formatCount } from "./format";
 import { MOUNTAIN_STONES, mineByHand, stonesPerSecond } from "./mountain";
 import { TIERS, owned, tierCost, tierShown, type TierId } from "./tiers";
 import { hasRelic, nextRelic, RELICS, type RelicId, depthHint } from "./relics";
@@ -12,14 +12,9 @@ import { buyCrew, tierLocked } from "./crew";
 import { BOOSTS } from "./boosts";
 import { effectiveRates } from "./rates";
 import { createRelicPanels } from "./relic-panels";
+import { createWelcomePanel } from "./welcome-panel";
 import { createUpgradesPanel } from "./upgrades-panel";
-import {
-  capWords,
-  formatSpeed,
-  percent,
-  restingPace,
-  tapWords,
-} from "./screen-words";
+import { formatSpeed, percent, tapWords } from "./screen-words";
 import { tierSynergy } from "./upgrades";
 import {
   LANTERN_VEIN_GAP_SCALE,
@@ -391,44 +386,8 @@ export function mountMountainScreen({
     }, COUNT_STEP_MS);
   };
 
-  const welcome = document.createElement("div");
-  welcome.className = "welcome-back";
-  welcome.setAttribute("role", "dialog");
-  welcome.setAttribute("aria-modal", "true");
-  welcome.setAttribute("aria-labelledby", "welcome-back-title");
-  welcome.hidden = true;
-  const welcomeCard = document.createElement("div");
-  welcomeCard.className = "welcome-card";
-  const welcomeTitle = document.createElement("h2");
-  welcomeTitle.id = "welcome-back-title";
-  welcomeTitle.textContent = "While you were away";
-  const welcomeMined = document.createElement("p");
-  welcomeMined.className = "welcome-mined";
-  const welcomeDetail = document.createElement("p");
-  welcomeDetail.className = "welcome-detail";
-  const welcomeCheer = document.createElement("p");
-  welcomeCheer.className = "welcome-cheer";
-  welcomeCheer.textContent =
-    "Time with the people who matter is never wasted. Your crew kept the mountain moving.";
-  // One-time note for saves from before machines needed helpers (#89).
-  const welcomeCrew = document.createElement("p");
-  welcomeCrew.className = "welcome-crew";
-  const welcomeContinue = document.createElement("button");
-  welcomeContinue.type = "button";
-  welcomeContinue.className = "welcome-continue";
-  welcomeContinue.textContent = "Back to the mountain";
-  welcomeContinue.addEventListener("click", () => {
-    progress.dismissAway();
-  });
-  welcomeCard.append(
-    welcomeTitle,
-    welcomeMined,
-    welcomeDetail,
-    welcomeCheer,
-    welcomeCrew,
-    welcomeContinue,
-  );
-  welcome.append(welcomeCard);
+  const welcomePanel = createWelcomePanel({ progress, getView: () => view });
+  const { welcome } = welcomePanel;
 
   const relics = createRelicPanels({
     progress,
@@ -659,7 +618,7 @@ export function mountMountainScreen({
     renderCrew();
     renderVein();
     renderGuide();
-    renderWelcome();
+    welcomePanel.render();
     relics.render();
     renderConfirm();
     renderMenu();
@@ -705,48 +664,6 @@ export function mountMountainScreen({
     guideFill.style.width = `${String(percent)}%`;
     guideBar.setAttribute("aria-valuenow", String(percent));
     guideBar.setAttribute("aria-label", `Progress to the ${next.name}`);
-  };
-
-  const renderWelcome = (): void => {
-    const report = view.away;
-    const joined = view.crewJoined;
-    const wasOpen = !welcome.hidden;
-    welcome.hidden = report === undefined && joined === undefined;
-    welcomeCrew.hidden = joined === undefined;
-    welcomeCrew.textContent =
-      joined === undefined
-        ? ""
-        : // Alone, the title already says "Your crew grew".
-          `${report === undefined ? "" : "Your crew grew: "}${formatCount(joined)} ${joined === 1 ? "helper" : "helpers"} joined to run your machines.`;
-    welcomeTitle.textContent =
-      report === undefined ? "Your crew grew" : "While you were away";
-    welcomeMined.hidden = report === undefined;
-    welcomeDetail.hidden = report === undefined;
-    welcomeCheer.hidden = report === undefined;
-    if (report === undefined) {
-      if (joined !== undefined && !wasOpen) {
-        welcomeContinue.focus();
-      }
-      return;
-    }
-    welcomeMined.textContent = `+${formatCount(report.mined)} ${report.mined === 1 ? "stone" : "stones"}`;
-    const { helpers } = view.mountain;
-    const onlyHelpers = stonesPerSecond(view.mountain) === helpers;
-    const crewName = !onlyHelpers
-      ? "Your crew"
-      : helpers === 1
-        ? "Your helper"
-        : `Your ${formatCount(helpers)} helpers`;
-    welcomeDetail.textContent = report.capped
-      ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for ${capWords(effectiveRates(view.mountain).awayCapMs)}, ${restingPace(view.mountain)}.`
-      : `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined the whole time, ${restingPace(view.mountain)}.`;
-    welcomeDetail.textContent +=
-      report.heart > 1
-        ? ` The Heart of Patience made it ×${report.heart.toFixed(2).replace(/0$/, "")}.`
-        : "";
-    if (!wasOpen) {
-      welcomeContinue.focus();
-    }
   };
 
   const renderCrew = (): void => {
