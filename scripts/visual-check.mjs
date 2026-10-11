@@ -194,6 +194,16 @@ for (const viewport of VIEWPORTS) {
   check(veinInside, `${size} golden vein sits inside the mountain`);
 
   await page.waitForSelector(".relic-shelf", { visible: true });
+  const shelfSpot = await page.evaluate(() => {
+    const shelf = document.querySelector(".relic-shelf");
+    const box = shelf.getBoundingClientRect();
+    const hit = document.elementFromPoint(
+      box.left + box.width / 2,
+      box.top + box.height / 2,
+    );
+    return `shelf at ${String(Math.round(box.top))}+${String(Math.round(box.height))} of ${String(innerHeight)}, hit ${hit?.className ?? "nothing"}`;
+  });
+  console.log(`info ${size} ${shelfSpot}`);
   await page.tap(".relic-shelf");
   check(
     await coversViewport(page, ".shelf-dialog"),
