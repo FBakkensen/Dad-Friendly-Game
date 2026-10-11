@@ -88,6 +88,7 @@ Hand mining can't move a 100-million-stone mountain. Each tier is a visible jump
 
 - Every tier uses the Cookie Clicker curve: `ceil(firstCost × 1.15^owned)`. Each tier costs about 15× and is about 7.5× faster than the one before. So the newest tier is the best deal for a while, then the older tiers catch up.
 - One table of tiers (`src/tiers.ts`) drives buying, the speed total and the UI. `accrue` sums every tier, so away earnings use the same math automatically.
+- Layout: up to three tiers show as roomy two-column cards. From four on, the grid goes three to a row with short names (Helper, Cart, Drill, Borer, Machine), so all five tiers fit in two rows and the screen never scrolls, even at 360x560.
 - Save: the mountain gets one whole-number field per tier (`carts`, `drills`, `borers`, `machines`). A missing field reads as 0, so older saves load unchanged. Firestore rules allow those fields.
 - UI: a compact two-column grid of tier cards (art, name and count, cost) under one total line ("42 stones a second"). A tier not shown yet takes no space. All primary controls must stay visible at 360x560.
 - Pacing target: the mountain takes **days** for a dad who plays two short sessions a day and lets the crew mine the rest (8-hour away cap). Lantern on day 1, Hammer around days 2–3, the bottom around days 5–7. A pacing simulation test pins this, so tuning can't silently turn it into minutes. The numbers above are the first cut and that test tunes them.

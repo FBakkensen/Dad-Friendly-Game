@@ -2,6 +2,7 @@ import lanternUrl from "./assets/boot-tile.png";
 import helperUrl from "./assets/helper-miner.png";
 import cartUrl from "./assets/mine-cart.png";
 import drillUrl from "./assets/steam-drill.png";
+import borerUrl from "./assets/tunnel-borer.png";
 import veinUrl from "./assets/gold-nugget.png";
 import mountainUrl from "./assets/mountain.png";
 import stoneUrl from "./assets/ore-lump.png";
@@ -36,7 +37,12 @@ try {
     mountainUrl,
     stoneUrl,
     veinUrl,
-    tierArt: { helper: helperUrl, cart: cartUrl, drill: drillUrl },
+    tierArt: {
+      helper: helperUrl,
+      cart: cartUrl,
+      drill: drillUrl,
+      borer: borerUrl,
+    },
     relicArt: {
       lantern: relicLantern,
       shield: relicShield,

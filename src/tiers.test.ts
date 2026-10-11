@@ -1,26 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { accrue, stonesPerSecond } from "./mountain";
+import { accrue, stonesPerSecond, type Mountain } from "./mountain";
 import { TIERS, buyTier, tierById, tierCost, tierShown } from "./tiers";
 
 const at = (
-  fields: Partial<{
-    pocket: number;
-    helpers: number;
-    carts: number;
-    drills: number;
-  }>,
-) => ({
+  fields: Partial<Omit<Mountain, "remaining" | "startedAt">>,
+): Mountain => ({
   remaining: 1_000,
   pocket: 0,
   helpers: 0,
   carts: 0,
   drills: 0,
+  borers: 0,
   ...fields,
 });
 
 describe("tiers", () => {
-  it("lists helpers, carts, then drills, each faster and dearer", () => {
-    expect(TIERS.map((tier) => tier.id)).toEqual(["helper", "cart", "drill"]);
+  it("lists helpers, carts, drills, then borers, each faster and dearer", () => {
+    expect(TIERS.map((tier) => tier.id)).toEqual([
+      "helper",
+      "cart",
+      "drill",
+      "borer",
+    ]);
+    expect(tierById("borer")).toMatchObject({
+      firstCost: 40_000,
+      perSecond: 450,
+    });
     expect(tierById("cart")).toMatchObject({ firstCost: 150, perSecond: 8 });
     expect(tierById("drill")).toMatchObject({
       firstCost: 2_500,
@@ -85,5 +90,18 @@ describe("tiers", () => {
     expect(tierShown(at({ pocket: 10_000 }), cart)).toBe(false);
     expect(tierShown(at({ helpers: 1 }), cart)).toBe(true);
     expect(tierShown(at({ carts: 1 }), cart)).toBe(true);
+  });
+
+  it("prices borers 40,000 then 15% more, shows them once a drill is owned", () => {
+    const borer = tierById("borer");
+    expect([0, 1, 2].map((n) => tierCost(borer, n))).toEqual([
+      40_000, 46_000, 52_900,
+    ]);
+    expect(tierShown(at({ carts: 9 }), borer)).toBe(false);
+    expect(tierShown(at({ drills: 1 }), borer)).toBe(true);
+    expect(buyTier(at({ pocket: 40_000 }), "borer")).toEqual(
+      at({ pocket: 0, borers: 1 }),
+    );
+    expect(stonesPerSecond(at({ drills: 1, borers: 2 }))).toBe(960);
   });
 });

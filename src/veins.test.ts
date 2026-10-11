@@ -61,6 +61,7 @@ describe("golden veins", () => {
         helpers: 0,
         carts: 0,
         drills: 0,
+        borers: 0,
       }),
     ).toBe(50);
     expect(
@@ -70,10 +71,18 @@ describe("golden veins", () => {
         helpers: 3,
         carts: 0,
         drills: 0,
+        borers: 0,
       }),
     ).toBe(180);
     expect(
-      veinReward({ remaining: 20, pocket: 0, helpers: 3, carts: 0, drills: 0 }),
+      veinReward({
+        remaining: 20,
+        pocket: 0,
+        helpers: 3,
+        carts: 0,
+        drills: 0,
+        borers: 0,
+      }),
     ).toBe(20);
     expect(
       mineVein({
@@ -82,6 +91,7 @@ describe("golden veins", () => {
         helpers: 3,
         carts: 0,
         drills: 0,
+        borers: 0,
       }),
     ).toEqual({
       remaining: 820,
@@ -89,8 +99,16 @@ describe("golden veins", () => {
       helpers: 3,
       carts: 0,
       drills: 0,
+      borers: 0,
     });
-    const empty = { remaining: 0, pocket: 7, helpers: 3, carts: 0, drills: 0 };
+    const empty = {
+      remaining: 0,
+      pocket: 7,
+      helpers: 3,
+      carts: 0,
+      drills: 0,
+      borers: 0,
+    };
     expect(mineVein(empty)).toBe(empty);
   });
 

@@ -43,6 +43,9 @@ import {
   type ProgressStore,
 } from "./progress-store";
 
+/** From this many tiers on screen, cards go three to a row. */
+const COMPACT_TIER_COUNT = 4;
+
 export function mountMountainScreen({
   root,
   lanternUrl,
@@ -833,9 +836,11 @@ export function mountMountainScreen({
       rate === 0
         ? "No crew yet. Hire a helper to mine while you rest."
         : `Your crew mines ${perSecond(rate)}`;
-    tierGrid.dataset["shown"] = String(
-      TIERS.filter((tier) => tierShown(current, tier)).length,
-    );
+    const shownCount = TIERS.filter((tier) => tierShown(current, tier)).length;
+    tierGrid.dataset["shown"] = String(shownCount);
+    // Three to a row once there are four or more, so every tier fits in two rows.
+    const compact = shownCount >= COMPACT_TIER_COUNT;
+    tierGrid.classList.toggle("tier-grid-compact", compact);
     for (const {
       tier,
       card,
@@ -848,12 +853,15 @@ export function mountMountainScreen({
       const price = tierCost(tier, count);
       card.hidden = !tierShown(current, tier);
       card.disabled = !view.ready || current.pocket < price;
-      name.textContent = tier.name;
+      name.textContent = compact ? tier.shortName : tier.name;
       countBadge.textContent = `×${formatCompact(count)}`;
       countBadge.hidden = count === 0;
       costText.textContent = formatCompact(price);
-      tierRate.textContent =
-        count === 0
+      tierRate.textContent = compact
+        ? count === 0
+          ? `+${formatCompact(tier.perSecond)}/s`
+          : `+${formatCompact(tier.perSecond)}\u2009·\u2009${formatCompact(count * tier.perSecond)}/s`
+        : count === 0
           ? `+${formatCompact(tier.perSecond)}/s each`
           : `+${formatCompact(tier.perSecond)} each · ${formatCompact(count * tier.perSecond)}/s`;
       card.setAttribute(

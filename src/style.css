@@ -193,7 +193,7 @@ body {
   font-size: 1rem;
 }
 
-/* Two columns keep five tiers to three rows on a 360px phone. */
+/* Two columns for the first tiers; three (compact) once four show, so up to six fit in two rows. */
 .tier-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -217,6 +217,41 @@ body {
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+}
+
+.tier-grid-compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tier-grid-compact .tier {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0;
+  padding: 4px 6px;
+}
+
+/* The art tucks in beside the cost; the name gets the full width. */
+.tier-grid-compact .tier-art {
+  position: absolute;
+  right: 4px;
+  bottom: 18px;
+  width: 22px;
+  height: 22px;
+}
+
+.tier-grid-compact .tier-name {
+  font-size: 0.82rem;
+}
+
+.tier-grid-compact .tier-cost {
+  font-size: 0.78rem;
+  padding-right: 24px;
+}
+
+.tier-grid-compact .tier-rate {
+  font-size: 0.64rem;
+  letter-spacing: -0.01em;
 }
 
 .tier[hidden] {

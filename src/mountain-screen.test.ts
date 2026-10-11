@@ -1,3 +1,4 @@
+import { writeSessionSave } from "./session-save";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createMemoryAuth,
@@ -81,7 +82,12 @@ function mountScreen({
     mountainUrl: tileUrl,
     stoneUrl: tileUrl,
     veinUrl: tileUrl,
-    tierArt: { helper: "helper.png", cart: "cart.png", drill: "drill.png" },
+    tierArt: {
+      helper: "helper.png",
+      cart: "cart.png",
+      drill: "drill.png",
+      borer: "borer.png",
+    },
     relicArt: {
       lantern: "lantern.png",
       shield: "shield.png",
@@ -182,6 +188,7 @@ describe("mountMountainScreen", () => {
       helpers: 0,
       carts: 0,
       drills: 0,
+      borers: 0,
     };
     storage.setItem(
       SESSION_SAVE_KEY,
@@ -296,6 +303,47 @@ describe("crew tiers on screen", () => {
     return card;
   };
 
+  it("goes three to a row with short names once borers show", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(400),
+        helpers: 3,
+        carts: 2,
+        drills: 1,
+        borers: 2,
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const grid = screen.root.querySelector(".tier-grid");
+    expect(grid?.getAttribute("data-shown")).toBe("4");
+    expect(grid?.classList.contains("tier-grid-compact")).toBe(true);
+    const borer = tierCard(screen.root, "borer");
+    expect(borer.querySelector(".tier-name")?.textContent).toBe("Borer");
+    expect(borer.querySelector(".tier-rate")?.textContent).toBe(
+      "+450\u2009·\u2009900/s",
+    );
+    expect(borer.querySelector(".tier-count")?.textContent).toBe("×2");
+    expect(borer.getAttribute("aria-label")).toContain("tunnel borer");
+  });
+
+  it("keeps the roomy two-column cards while three or fewer show", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(400), helpers: 3, carts: 2 },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const grid = screen.root.querySelector(".tier-grid");
+    expect(grid?.classList.contains("tier-grid-compact")).toBe(false);
+    expect(
+      tierCard(screen.root, "cart").querySelector(".tier-name")?.textContent,
+    ).toBe("Mine cart");
+  });
+
   it("hires a helper when affordable, raises the price, and mines every second", async () => {
     vi.useFakeTimers();
     try {
@@ -397,6 +445,7 @@ describe("crew tiers on screen", () => {
           helpers: 4,
           carts: 0,
           drills: 0,
+          borers: 0,
         },
         lastSeen: Date.now() - (2 * 60 + 5) * 60_000,
       }),
@@ -435,6 +484,7 @@ describe("crew tiers on screen", () => {
           helpers: 1,
           carts: 0,
           drills: 0,
+          borers: 0,
         },
         lastSeen: Date.now() - 26 * 3_600_000,
       }),
@@ -729,6 +779,7 @@ describe("start over", () => {
           helpers: 4,
           carts: 1,
           drills: 0,
+          borers: 0,
         },
         lastSeen: Date.now(),
       }),
@@ -813,6 +864,7 @@ describe("start over", () => {
         helpers: 0,
         carts: 0,
         drills: 0,
+        borers: 0,
       },
     });
     expect(typeof saved.mountain.startedAt).toBe("number");
@@ -861,7 +913,13 @@ describe("what the crew gives", () => {
       SESSION_SAVE_KEY,
       JSON.stringify({
         version: 4,
-        mountain: { ...minedMountain(400), helpers: 2, carts: 3, drills: 0 },
+        mountain: {
+          ...minedMountain(400),
+          helpers: 2,
+          carts: 3,
+          drills: 0,
+          borers: 0,
+        },
         lastSeen: Date.now(),
       }),
     );
