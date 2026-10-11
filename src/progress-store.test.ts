@@ -526,3 +526,84 @@ describe("away earnings", () => {
     expect(progress.getSnapshot().away).toBeUndefined();
   });
 });
+
+describe("relic reveals", () => {
+  it("celebrates the Lantern when a tap crosses its depth, once", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: minedMountain(19_999), lastSeen: 0 });
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 0,
+    });
+    expect(progress.getSnapshot().revealed).toBeUndefined();
+
+    progress.applyMutation(() => minedMountain(20_000));
+    expect(progress.getSnapshot().revealed?.id).toBe("lantern");
+    expect(progress.getSnapshot().log).toContain("relic.found lantern");
+
+    progress.dismissReveal();
+    expect(progress.getSnapshot().revealed).toBeUndefined();
+    progress.applyMutation(() => minedMountain(20_001));
+    expect(progress.getSnapshot().revealed).toBeUndefined();
+  });
+
+  it("does not celebrate relics already in a loaded save", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: minedMountain(150_000),
+      lastSeen: 0,
+    });
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 0,
+    });
+    expect(progress.getSnapshot().revealed).toBeUndefined();
+  });
+
+  it("celebrates a relic the crew uncovered while away", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(19_000), helpers: 10 },
+      lastSeen: 0,
+    });
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 200_000,
+    });
+    expect(progress.getSnapshot().away?.mined).toBe(2_000);
+    expect(progress.getSnapshot().revealed?.id).toBe("lantern");
+  });
+
+  it("does not celebrate relics in a signed-in dad's cloud save", async () => {
+    const docs = new Map([["test-dad", minedMountain(150_000)]]);
+    const user = { uid: "test-dad", label: "Test Dad" };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: createMemoryCloudSave({ docs }),
+      sessionStorage: createMemoryStorage(),
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("account");
+    });
+    expect(progress.getSnapshot().revealed).toBeUndefined();
+  });
+
+  it("queues several relics found at once, shallowest first", () => {
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: createMemoryStorage(),
+      now: () => 0,
+    });
+    progress.applyMutation(() => minedMountain(120_000));
+    expect(progress.getSnapshot().revealed?.id).toBe("lantern");
+    progress.dismissReveal();
+    expect(progress.getSnapshot().revealed?.id).toBe("shield");
+    progress.dismissReveal();
+    expect(progress.getSnapshot().revealed).toBeUndefined();
+  });
+});

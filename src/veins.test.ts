@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  LANTERN_VEIN_GAP_SCALE,
   VEIN_GLINT_MS,
   advanceVein,
   mineVein,
@@ -60,5 +61,15 @@ describe("golden veins", () => {
     });
     const empty = { remaining: 0, pocket: 7, helpers: 3 };
     expect(mineVein(empty)).toBe(empty);
+  });
+
+  it("waits 40% less once the Lantern of Guidance is found", () => {
+    expect(
+      waitForVein({
+        now: 0,
+        random: () => 0,
+        gapScale: LANTERN_VEIN_GAP_SCALE,
+      }),
+    ).toEqual({ kind: "waiting", appearsAt: 1.8 * MINUTE });
   });
 });

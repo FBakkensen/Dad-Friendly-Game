@@ -70,6 +70,14 @@ function mountScreen({
     stoneUrl: tileUrl,
     veinUrl: tileUrl,
     helperUrl: tileUrl,
+    relicArt: {
+      lantern: "lantern.png",
+      shield: "shield.png",
+      hammer: "hammer.png",
+      heart: "heart.png",
+      crown: "crown.png",
+      mantle: "mantle.png",
+    },
     auth,
     progress,
     ...(now === undefined ? {} : { now }),
@@ -427,5 +435,82 @@ describe("golden vein on screen", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("Lantern of Guidance on screen", () => {
+  const seeded = (mountain: Mountain, lastSeen = Date.now()) => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      SESSION_SAVE_KEY,
+      JSON.stringify({ version: 3, mountain, lastSeen }),
+    );
+    return storage;
+  };
+
+  it("shows the goal and no guide bar before the Lantern", () => {
+    const screen = mountScreen({ storage: seeded(minedMountain(100)) });
+    expect(screen.text(".goal")).toContain(
+      "Six Legendary Relics of Fatherhood",
+    );
+    expect(screen.root.querySelector<HTMLElement>(".guide-bar")?.hidden).toBe(
+      true,
+    );
+  });
+
+  it("reveals the Lantern on the tap that uncovers it, then guides to the Shield", () => {
+    const screen = mountScreen({ storage: seeded(minedMountain(19_999)) });
+    document.body.append(screen.root);
+    const reveal = screen.root.querySelector<HTMLElement>(".relic-reveal");
+    expect(reveal?.hidden).toBe(true);
+
+    screen.mountain.click();
+
+    expect(reveal?.hidden).toBe(false);
+    expect(screen.text("#relic-reveal-title")).toBe(
+      "You found the Lantern of Guidance",
+    );
+    expect(screen.text(".reveal-virtue")).toBe("The virtue of Guidance.");
+    expect(
+      screen.root
+        .querySelector<HTMLImageElement>(".reveal-art")
+        ?.getAttribute("src"),
+    ).toBe("lantern.png");
+    expect(document.activeElement).toBe(
+      screen.root.querySelector(".reveal-continue"),
+    );
+
+    screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
+    expect(reveal?.hidden).toBe(true);
+    expect(screen.text(".goal")).toBe(
+      "Next: Shield of Protection, 80 thousand stones deeper",
+    );
+    const bar = screen.root.querySelector<HTMLElement>(".guide-bar");
+    expect(bar?.hidden).toBe(false);
+    expect(bar?.getAttribute("aria-valuenow")).toBe("0");
+    screen.root.remove();
+  });
+
+  it("fills the guide bar between relics", () => {
+    const screen = mountScreen({ storage: seeded(minedMountain(60_000)) });
+    expect(
+      screen.root.querySelector(".guide-bar")?.getAttribute("aria-valuenow"),
+    ).toBe("50");
+  });
+
+  it("shows the welcome-back card before a relic found while away", () => {
+    const storage = seeded(
+      { ...minedMountain(19_000), helpers: 10 },
+      Date.now() - 200_000,
+    );
+    const screen = mountScreen({ storage });
+    const reveal = screen.root.querySelector<HTMLElement>(".relic-reveal");
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(false);
+    expect(reveal?.hidden).toBe(true);
+
+    screen.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
+    expect(reveal?.hidden).toBe(false);
   });
 });

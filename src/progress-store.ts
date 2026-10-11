@@ -13,6 +13,7 @@ import {
   type AwayReport,
   type Mountain,
 } from "./mountain";
+import { relicsUncovered, type Relic } from "./relics";
 import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
   clearSessionSave,
@@ -30,6 +31,8 @@ export type ProgressSnapshot = {
   readonly log: string | undefined;
   /** Set once per open when helpers mined while the game was closed. */
   readonly away: AwayReport | undefined;
+  /** The next relic uncovered during this open and not yet celebrated. */
+  readonly revealed: Relic | undefined;
 };
 
 export type ProgressStore = {
@@ -41,6 +44,8 @@ export type ProgressStore = {
   readonly applyMutation: (update: (mountain: Mountain) => Mountain) => void;
   /** Settles helpers' work up to now for display. Does not save; saves happen on actions, hide, and pagehide. */
   readonly tick: () => void;
+  /** Closes the current relic reveal; the next one (if any) follows. */
+  readonly dismissReveal: () => void;
   /** Closes the welcome-back card. */
   readonly dismissAway: () => void;
   readonly flush: () => void;
@@ -76,6 +81,12 @@ export function createProgressStore({
   let unwatch: (() => void) | undefined;
   let disposed = false;
   let away: AwayReport | undefined;
+  const reveals: Relic[] = [];
+  /**
+   * Stones mined when relics were last checked. Unset until a save is loaded,
+   * so relics already in a loaded save are never celebrated again.
+   */
+  let revealBaseline: number | undefined;
   let welcomed = false;
   let lastCloudWriteAt = Number.NEGATIVE_INFINITY;
   let pendingCloudWrite: ReturnType<typeof setTimeout> | undefined;
@@ -89,10 +100,34 @@ export function createProgressStore({
       ready: auth.getState().kind !== "signed-in" || hydrated,
       log: latest === undefined ? undefined : formatLogEvent(latest),
       away,
+      revealed: reveals[0],
     };
   };
 
+  const noteReveals = (): void => {
+    if (auth.getState().kind === "signed-in" && !hydrated) {
+      return;
+    }
+    const mined = minedOut(mountain);
+    if (revealBaseline !== undefined) {
+      for (const relic of relicsUncovered({
+        before: revealBaseline,
+        after: mined,
+      })) {
+        reveals.push(relic);
+        logger.record({
+          level: "info",
+          code: "relic.found",
+          detail: relic.id,
+          data: { mined },
+        });
+      }
+    }
+    revealBaseline = mined;
+  };
+
   const emit = (): void => {
+    noteReveals();
     const next = snapshot();
     for (const listener of [...listeners]) {
       listener(next);
@@ -233,6 +268,7 @@ export function createProgressStore({
     mountain = next.mountain;
     let paid = 0;
     if (remote.kind === "found") {
+      revealBaseline ??= minedOut(mountain);
       paid = settleSince(remote.lastSeen);
     } else {
       lastSeen ??= now();
@@ -288,6 +324,7 @@ export function createProgressStore({
       return;
     }
     mountain = stored.mountain;
+    revealBaseline = minedOut(mountain);
     const paid = settleSince(stored.lastSeen);
     welcomed = true;
     saveKind = "session";
@@ -314,6 +351,7 @@ export function createProgressStore({
     }
     const generation = (hydrateGeneration += 1);
     hydrated = false;
+    revealBaseline = undefined;
     saveKind = "loading";
     unwatch?.();
     logger.record({
@@ -390,6 +428,13 @@ export function createProgressStore({
       mountain = next;
       persistCloudSoon();
       persistSession();
+      emit();
+    },
+    dismissReveal: () => {
+      if (reveals.length === 0) {
+        return;
+      }
+      reveals.shift();
       emit();
     },
     dismissAway: () => {

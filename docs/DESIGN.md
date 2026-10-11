@@ -23,18 +23,20 @@ The always-visible counter shows stones left in the mountain, written readably (
 
 ## Relics
 
-Depths are fractions of the mountain so tuning is one number. Order is the story: protect, guide, build, be patient, teach, become the hero.
+Depths are fractions of the mountain so tuning is one number. Order is the story: guide, protect, build, be patient, teach, become the hero.
 
-| #   | Relic                 | Virtue          | Power (first cut)                                                                                               |
-| --- | --------------------- | --------------- | --------------------------------------------------------------------------------------------------------------- |
-| 1   | Shield of Protection  | Protect         | Away earnings are no longer capped (base cap is 8 hours). Progress is safe while you live your life.            |
-| 2   | Lantern of Guidance   | Guide           | Shows the next relic's depth and a progress bar toward it; golden veins appear more often.                      |
-| 3   | Hammer of the Builder | Build           | Unlocks the second, bigger helper tier (×10 output per helper class).                                           |
-| 4   | Heart of Patience     | Patience        | Away earnings grow the longer you are gone (bonus up to ×2 after 12 hours). Putting the phone down is rewarded. |
-| 5   | Crown of Wisdom       | Teach           | Kid helper miners: a helper tier that also boosts every other helper a little.                                  |
-| 6   | Mantle of the Hero    | Become the hero | Final relic. You become a Legend; unlocks prestige (pass the mine to your kid) later.                           |
+| #   | Relic                 | Virtue          | Depth (stones mined)   | Power (first cut)                                                                                               |
+| --- | --------------------- | --------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 1   | Lantern of Guidance   | Guide           | 20,000                 | Shows the next relic and a progress bar toward it; golden veins appear 40% sooner.                              |
+| 2   | Shield of Protection  | Protect         | 100,000                | Away earnings are no longer capped (base cap is 8 hours). Progress is safe while you live your life.            |
+| 3   | Hammer of the Builder | Build           | 250,000                | Unlocks the second, bigger helper tier (×10 output per helper class).                                           |
+| 4   | Heart of Patience     | Patience        | 450,000                | Away earnings grow the longer you are gone (bonus up to ×2 after 12 hours). Putting the phone down is rewarded. |
+| 5   | Crown of Wisdom       | Teach           | 700,000                | Kid helper miners: a helper tier that also boosts every other helper a little.                                  |
+| 6   | Mantle of the Hero    | Become the hero | 1,000,000 (the bottom) | Final relic. You become a Legend; unlocks prestige (pass the mine to your kid) later.                           |
 
-M1 ships the first relic only (Lantern of Guidance) at a depth reachable in the first evening or two.
+Relics are derived from stones mined (`src/relics.ts`), so the save has no relic field. A relic is celebrated once, in the session where it is uncovered (by tapping, helpers, a vein, or away earnings).
+
+M1 ships the first relic only (Lantern of Guidance, 20,000 stones), reachable in the first evening or two with a few helpers.
 
 ## Numbers and tuning
 
