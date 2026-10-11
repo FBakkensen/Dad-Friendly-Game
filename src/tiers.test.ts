@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { accrue, stonesPerSecond, type Mountain } from "./mountain";
+import { accrue, accrueAway, stonesPerSecond, type Mountain } from "./mountain";
+import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { TIERS, buyTier, tierById, tierCost, tierShown } from "./tiers";
 
 const at = (
@@ -23,7 +24,7 @@ describe("tiers", () => {
       ["helper", 20, 1],
       ["cart", 100, 10],
       ["drill", 20_000, 60],
-      ["borer", 1_600_000, 350],
+      ["borer", 2_500_000, 350],
       ["machine", 80_000_000, 3_500],
     ]);
     expect(tierById("machine").needs).toBe("hammer");
@@ -36,10 +37,10 @@ describe("tiers", () => {
     }
   });
 
-  it("costs double each, rounded up", () => {
-    expect([0, 1, 2, 3].map((n) => tierCost(tierById("helper"), n))).toEqual([
-      20, 40, 80, 160,
-    ]);
+  it("machines cost double each; helpers grow gently (they staff machines)", () => {
+    expect(
+      [0, 1, 2, 3, 10, 50].map((n) => tierCost(tierById("helper"), n)),
+    ).toEqual([20, 23, 27, 31, 81, 21_674]);
     expect([0, 1, 2].map((n) => tierCost(tierById("cart"), n))).toEqual([
       100, 200, 400,
     ]);
@@ -61,17 +62,17 @@ describe("tiers", () => {
 
   it("adds every tier into the speed, and accrue pays them all", () => {
     const crew = at({
-      helpers: 3,
+      helpers: 18, // 2 carts + 2 + 4 + 10
       carts: 2,
       drills: 1,
       borers: 1,
       machines: 1,
     });
-    expect(stonesPerSecond(crew)).toBe(3 + 20 + 60 + 350 + 3_500);
+    expect(stonesPerSecond(crew)).toBe(18 + 20 + 60 + 350 + 3_500);
     expect(
       accrue({ mountain: { ...crew, remaining: 10_000 }, from: 0, to: 1_000 })
         .mined,
-    ).toBe(3_933);
+    ).toBe(3_948);
   });
 
   it("shows each tier once the one before it is owned", () => {
@@ -83,5 +84,59 @@ describe("tiers", () => {
     expect(tierShown(at({ drills: 1 }), tierById("borer"))).toBe(true);
     expect(tierShown(at({ borers: 1 }), tierById("machine"))).toBe(true);
     expect(tierShown(at({ machines: 1 }), tierById("machine"))).toBe(true);
+  });
+});
+
+describe("crew staffing", () => {
+  it("needs helpers to run each machine: cart 1, drill 2, borer 4, Great Machine 10", () => {
+    expect(TIERS.map(({ id, staff }) => [id, staff])).toEqual([
+      ["helper", 0],
+      ["cart", 1],
+      ["drill", 2],
+      ["borer", 4],
+      ["machine", 10],
+    ]);
+  });
+
+  it("leaves machines without helpers idle", () => {
+    expect(stonesPerSecond(at({ carts: 5 }))).toBe(0);
+    const rates = effectiveRates(at({ helpers: 3, carts: 5 }));
+    expect(rates.running.cart).toBe(3);
+    expect(rates.helpersShort).toBe(2);
+    expect(rates.crewPerSecond).toBe(3 + 30);
+  });
+
+  it("staffs the fastest machines first", () => {
+    // 6 helpers: the borer takes 4, the drill 2, the carts wait.
+    const rates = effectiveRates(
+      at({ helpers: 6, carts: 3, drills: 1, borers: 1 }),
+    );
+    expect(rates.running).toEqual({
+      helper: 6,
+      machine: 0,
+      borer: 1,
+      drill: 1,
+      cart: 0,
+    });
+    expect(rates.helpersShort).toBe(3);
+    expect(rates.crewPerSecond).toBe(6 + 60 + 350);
+  });
+
+  it("idles a machine rather than half-run it, and away pay agrees", () => {
+    // 9 helpers can't run a Great Machine (10); they run the carts instead.
+    const crew = {
+      ...at({ helpers: 9, carts: 4, machines: 1 }),
+      remaining: 1e6,
+    };
+    const rates = effectiveRates(crew);
+    expect(rates.running.machine).toBe(0);
+    expect(rates.running.cart).toBe(4);
+    expect(rates.crewPerSecond).toBe(9 + 40);
+    expect(accrueAway({ mountain: crew, lastSeen: 0, now: 10_000 }).mined).toBe(
+      Math.floor(10 * 49 * AWAY_PAY_RATE),
+    );
+    const staffed = effectiveRates({ ...crew, helpers: 14 });
+    expect(staffed.crewPerSecond).toBe(14 + 40 + 3_500);
+    expect(staffed.helpersShort).toBe(0);
   });
 });

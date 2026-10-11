@@ -301,6 +301,11 @@ for (const viewport of [
       { helpers: 999, carts: 999, drills: 999, borers: 999, machines: 999 },
       "DejaVu Sans",
     ],
+    // Short of helpers: idle machines on every card, the longest crew line.
+    [
+      { helpers: 1, carts: 999, drills: 999, borers: 999, machines: 999 },
+      "DejaVu Sans",
+    ],
     // Every crew synergy bought: "↑999%" joins the rate line.
     [
       {

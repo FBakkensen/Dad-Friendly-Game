@@ -1038,3 +1038,15 @@ body {
 .upgrade-now:empty {
   display: none;
 }
+
+/* Machines short of helpers: the rate line and crew line warn, quietly. */
+.tier-idle .tier-rate,
+.crew-short {
+  color: #ffb27a;
+}
+
+/* On a gold, affordable card the warning needs a dark ink to read. */
+.tier.tier-idle:enabled .tier-rate {
+  color: #8a2600;
+  opacity: 1;
+}
