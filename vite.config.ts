@@ -125,6 +125,18 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/screen-words.ts": {
+          statements: 95,
+          branches: 90,
+          functions: 100,
+          lines: 95,
+        },
+        "src/upgrades-panel.ts": {
+          statements: 98,
+          branches: 85,
+          functions: 100,
+          lines: 98,
+        },
         "src/veins.ts": {
           statements: 90,
           branches: 95,
