@@ -7,12 +7,19 @@ import {
 import { formatCompact, formatCount, formatDuration } from "./format";
 import {
   AWAY_CAP_MS,
-  AWAY_PAY_RATE,
+  type Mountain,
   MOUNTAIN_STONES,
   mineByHand,
   stonesPerSecond,
 } from "./mountain";
-import { TIERS, owned, tierCost, tierShown, type TierId } from "./tiers";
+import {
+  TIERS,
+  owned,
+  tierById,
+  tierCost,
+  tierShown,
+  type TierId,
+} from "./tiers";
 import {
   foundRelics,
   hasRelic,
@@ -23,7 +30,14 @@ import {
 import { buyCrew, tierLocked } from "./crew";
 import { BOOSTS, boostCost, boostLeft, buyBoost } from "./boosts";
 import { effectiveRates } from "./rates";
-import { UPGRADES, buyUpgrade, upgradeCost, upgradeLevel } from "./upgrades";
+import {
+  UPGRADES,
+  buyUpgrade,
+  upgradeCost,
+  upgradeLevel,
+  upgradeUnlocked,
+  type Upgrade,
+} from "./upgrades";
 import {
   LANTERN_VEIN_GAP_SCALE,
   advanceVein,
@@ -42,7 +56,19 @@ import {
 } from "./progress-store";
 
 /** Away pay, said plainly: the crew works slower without the boss. */
-const restingPace = `at a resting pace (${String(Math.round(AWAY_PAY_RATE * 100))}% of their speed)`;
+/** Away pay as a percentage people read, e.g. "30%" or "37.5%". */
+const percent = (share: number): string =>
+  `${String(Number((share * 100).toFixed(1)))}%`;
+
+/** Away pay can grow (Steady hands), so the copy reads the live rate. */
+const restingPace = (mountain: Mountain): string =>
+  `at a resting pace (${percent(effectiveRates(mountain).awayPay)} of their speed)`;
+
+/** Per-unit speed: one decimal while small and fractional (Better boots). */
+const formatSpeed = (speed: number): string =>
+  speed < 10 && !Number.isInteger(speed)
+    ? speed.toFixed(1)
+    : formatCompact(speed);
 
 /** 9:05, or 1:02:03 past an hour. */
 const formatClock = (ms: number): string => {
@@ -53,6 +79,33 @@ const formatClock = (ms: number): string => {
   return hours > 0
     ? `${String(hours)}:${String(minutes).padStart(2, "0")}:${seconds}`
     : `${String(minutes)}:${seconds}`;
+};
+
+/** What the upgrade does for this crew right now. */
+const upgradeNow = (
+  upgrade: Upgrade,
+  mountain: Mountain,
+  at: number,
+): string => {
+  const rates = effectiveRates(mountain, at);
+  switch (upgrade.id) {
+    case "tap":
+      return `Each tap now mines ${formatCount(rates.tapYield)}.`;
+    case "boots":
+      return `Each helper now mines ${formatSpeed(rates.tierSpeed.helper)}/s.`;
+    case "steady":
+      return `Time away now pays ${percent(rates.awayPay)} of crew speed.`;
+  }
+};
+
+const unlockWords = (upgrade: Upgrade): string => {
+  if (upgrade.unlock === undefined) {
+    return "Locked";
+  }
+  const tier = tierById(upgrade.unlock.tier);
+  return upgrade.unlock.count === 1
+    ? `Unlocks with your first ${tier.name.toLowerCase()}`
+    : `Unlocks at ${String(upgrade.unlock.count)} ${tier.name.toLowerCase()}s`;
 };
 
 const tapWords = (stones: number): string =>
@@ -332,7 +385,11 @@ export function mountMountainScreen({
       const rateBefore = stonesPerSecond(view.mountain, now());
       progress.applyMutation((mountain) => buyCrew(mountain, tier.id));
       if (owned(view.mountain, tier) > before) {
-        floatText(card, `+${formatCount(tier.perSecond)}/s`, "float-gain");
+        floatText(
+          card,
+          `+${formatSpeed(effectiveRates(view.mountain).tierSpeed[tier.id])}/s`,
+          "float-gain",
+        );
         countCrewRate(rateBefore, stonesPerSecond(view.mountain, now()));
       }
     });
@@ -898,14 +955,22 @@ export function mountMountainScreen({
     for (const { upgrade, title, now, buy } of upgradeRows) {
       const level = upgradeLevel(current, upgrade.id);
       const cost = upgradeCost(upgrade, level);
-      const affordable = cost !== undefined && current.pocket >= cost;
+      const unlocked = upgradeUnlocked(current, upgrade);
+      const affordable =
+        unlocked && cost !== undefined && current.pocket >= cost;
       anyAffordable ||= affordable;
-      title.textContent = `${upgrade.name} · level ${String(level)} of ${String(upgrade.maxLevel)}`;
-      now.textContent = `Each tap now mines ${formatCount(effectiveRates(current, at).tapYield)}.`;
+      title.textContent =
+        upgrade.maxLevel === 1
+          ? upgrade.name
+          : `${upgrade.name} · level ${String(level)} of ${String(upgrade.maxLevel)}`;
+      now.textContent = upgradeNow(upgrade, current, at);
       buy.disabled = !view.ready || !affordable;
-      buy.textContent =
-        cost === undefined
-          ? "All levels bought"
+      buy.textContent = !unlocked
+        ? unlockWords(upgrade)
+        : cost === undefined
+          ? upgrade.maxLevel === 1
+            ? "Owned"
+            : "All levels bought"
           : `Buy for ${formatCount(cost)} stones`;
     }
     upgradesPocket.textContent = `You have ${formatCount(current.pocket)} stones.`;
@@ -1027,8 +1092,8 @@ export function mountMountainScreen({
         ? "Your helper"
         : `Your ${formatCount(helpers)} helpers`;
     welcomeDetail.textContent = report.capped
-      ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for the first ${formatDuration(AWAY_CAP_MS)}, ${restingPace}.`
-      : `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined the whole time, ${restingPace}.`;
+      ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for the first ${formatDuration(AWAY_CAP_MS)}, ${restingPace(view.mountain)}.`
+      : `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined the whole time, ${restingPace(view.mountain)}.`;
     if (!wasOpen) {
       welcomeContinue.focus();
     }
@@ -1067,21 +1132,22 @@ export function mountMountainScreen({
       countBadge.textContent = `×${formatCompact(count)}`;
       countBadge.hidden = count === 0;
       costText.textContent = locked ? "Locked" : formatCompact(price);
+      const speed = effectiveRates(current).tierSpeed[tier.id];
       tierRate.textContent = locked
         ? `${needed?.name.split(" ")[0] ?? "Relic"} · ${formatCompact(needed?.depth ?? 0)}`
         : compact
           ? count === 0
-            ? `+${formatCompact(tier.perSecond)}/s`
-            : `+${formatCompact(tier.perSecond)}\u2009·\u2009${formatCompact(count * tier.perSecond)}/s`
+            ? `+${formatSpeed(speed)}/s`
+            : `+${formatSpeed(speed)}\u2009·\u2009${formatCompact(count * speed)}/s`
           : count === 0
-            ? `+${formatCompact(tier.perSecond)}/s each`
+            ? `+${formatSpeed(speed)}/s each`
             : // "each" drops out once the total needs four digits, so the line fits.
-              `+${formatCompact(tier.perSecond)}${count * tier.perSecond < 1_000 ? " each" : ""} · ${formatCompact(count * tier.perSecond)}/s`;
+              `+${formatSpeed(speed)}${count * speed < 1_000 ? " each" : ""} · ${formatCompact(count * speed)}/s`;
       card.setAttribute(
         "aria-label",
         locked
-          ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(tier.perSecond)} each.`
-          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(tier.perSecond)}. You have ${formatCount(count)}.`,
+          ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.`
+          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}. You have ${formatCount(count)}.`,
       );
     }
   };

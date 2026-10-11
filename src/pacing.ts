@@ -2,11 +2,14 @@ import { buyCrew, tierLocked } from "./crew";
 import { AWAY_CAP_MS } from "./mountain";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import {
+  BOOTS_SPEED_PER_LEVEL,
+  STEADY_AWAY_PER_LEVEL,
   TAP_SHARE_PER_LEVEL,
   buyUpgrade,
   upgradeById,
   upgradeCost,
   upgradeLevel,
+  upgradeUnlocked,
 } from "./upgrades";
 import {
   accrue,
@@ -16,7 +19,7 @@ import {
   minedOut,
   type Mountain,
 } from "./mountain";
-import { TIERS, owned, tierCost, tierShown } from "./tiers";
+import { TIERS, owned, tierById, tierCost, tierShown } from "./tiers";
 
 /** How a typical dad plays: see docs/DESIGN.md "Pacing". */
 const DAD = {
@@ -73,6 +76,33 @@ function bestValue(
         value: (extraPerTap * DAD.tapsPerSecond * TAP_DAY_SECONDS) / cost,
       });
     }
+    const rates = effectiveRates(mountain);
+    const oneShot = (id: "boots" | "steady", stonesPerDay: number): void => {
+      const upgrade = upgradeById(id);
+      const price = upgradeCost(upgrade, upgradeLevel(mountain, id));
+      if (price !== undefined && upgradeUnlocked(mountain, upgrade)) {
+        consider({
+          buy: (current) => buyUpgrade(current, id),
+          cost: price,
+          value: stonesPerDay / price,
+        });
+      }
+    };
+    oneShot(
+      "boots",
+      owned(mountain, tierById("helper")) *
+        rates.tierSpeed.helper *
+        BOOTS_SPEED_PER_LEVEL *
+        CREW_DAY_SECONDS,
+    );
+    oneShot(
+      "steady",
+      rates.crewPerSecond *
+        AWAY_PAY_RATE *
+        STEADY_AWAY_PER_LEVEL *
+        DAD.sessionsPerDay *
+        (AWAY_CAP_MS / 1000),
+    );
   }
   return best;
 }
@@ -87,7 +117,7 @@ export function simulateDad({
   maxDays = 30,
   buysUpgrades = false,
 }: {
-  /** Also weighs Strong arms against crew, by stones a day per stone. */
+  /** Also weighs Strong arms, Better boots and Steady hands against crew, by stones a day per stone. */
   buysUpgrades?: boolean;
   milestones: readonly number[];
   maxDays?: number;

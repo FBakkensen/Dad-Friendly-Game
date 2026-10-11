@@ -1,7 +1,12 @@
 import type { Mountain } from "./mountain";
 import { TIERS, owned, type TierId } from "./tiers";
 import { boostById, boostLeft } from "./boosts";
-import { TAP_SHARE_PER_LEVEL, upgradeLevel } from "./upgrades";
+import {
+  BOOTS_SPEED_PER_LEVEL,
+  STEADY_AWAY_PER_LEVEL,
+  TAP_SHARE_PER_LEVEL,
+  upgradeLevel,
+} from "./upgrades";
 
 /**
  * Share of the crew's speed paid for time away (app closed or in the
@@ -31,11 +36,20 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
       ? boostById(id).multiplier
       : 1;
   const tierSpeed = Object.fromEntries(
-    TIERS.map((tier) => [tier.id, tier.perSecond]),
+    TIERS.map((tier) => [
+      tier.id,
+      tier.id === "helper"
+        ? tier.perSecond *
+          (1 + upgradeLevel(mountain, "boots") * BOOTS_SPEED_PER_LEVEL)
+        : tier.perSecond,
+    ]),
   ) as Record<TierId, number>;
-  const baseCrew = TIERS.reduce(
-    (total, tier) => total + owned(mountain, tier) * tierSpeed[tier.id],
-    0,
+  // Whole stones a second, so what the crew line says is what gets mined.
+  const baseCrew = Math.floor(
+    TIERS.reduce(
+      (total, tier) => total + owned(mountain, tier) * tierSpeed[tier.id],
+      0,
+    ) + 1e-9,
   );
   // Tap power takes its share of the crew's own speed, before Overtime.
   const tapShare = upgradeLevel(mountain, "tap") * TAP_SHARE_PER_LEVEL;
@@ -43,6 +57,8 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
     tapYield: (1 + Math.floor(baseCrew * tapShare)) * boosted("sharper"),
     tierSpeed,
     crewPerSecond: baseCrew * boosted("overtime"),
-    awayPay: AWAY_PAY_RATE,
+    awayPay:
+      AWAY_PAY_RATE *
+      (1 + upgradeLevel(mountain, "steady") * STEADY_AWAY_PER_LEVEL),
   };
 }
