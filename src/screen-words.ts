@@ -31,7 +31,6 @@ export const formatClock = (ms: number): string => {
     : `${String(minutes)}:${seconds}`;
 };
 
-/** What the upgrade does for this crew right now. */
 /** "Your 12 helpers make carts 12% faster." — or would, before it's bought. */
 const synergyNow = (upgrade: Upgrade, mountain: Mountain): string => {
   if (upgrade.synergy === undefined) {
@@ -55,6 +54,7 @@ const synergyNow = (upgrade: Upgrade, mountain: Mountain): string => {
     : `Your ${String(count)} ${plural} would make ${target} ${bonus} faster.`;
 };
 
+/** What the upgrade does for this crew right now. */
 export const upgradeNow = (
   upgrade: Upgrade,
   mountain: Mountain,
