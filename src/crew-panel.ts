@@ -145,7 +145,7 @@ export function createCrewPanel({
       rates.helpersShort > 0
         ? `${formatCompact(rate)}/s · ${formatCompact(idle)} idle, need ${formatCompact(rates.helpersShort)} ${rates.helpersShort === 1 ? "helper" : "helpers"}`
         : rate === 0
-          ? "No crew yet. Hire a helper to mine while you rest."
+          ? "No crew yet. Hire a helper to mine for you."
           : rate >= 1_000
             ? // Compact once it's big, so the line never wraps on a phone.
               `Your crew mines ${formatCompact(rate)} stones/s`

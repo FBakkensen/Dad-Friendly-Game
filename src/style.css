@@ -70,7 +70,7 @@ body {
 .stones-left {
   text-align: center;
   margin: 0;
-  font-size: clamp(1.2rem, min(5.6vw, 3.4dvh), 2rem);
+  font-size: clamp(1.1rem, min(5vw, 3.4dvh), 2rem);
   white-space: nowrap;
   font-weight: 700;
   color: #f2c46d;
@@ -1127,4 +1127,94 @@ body {
 .shelf-list li[role="button"]:focus-visible {
   outline: 3px solid #f2c46d;
   outline-offset: 2px;
+}
+
+/* M6: pass the mine to your kid. Warm gold, not the red of Start over. */
+.legacy-card {
+  border-color: #f2c46d;
+  box-shadow: 0 0 40px rgba(232, 168, 74, 0.35);
+}
+
+.legacy-card h2 {
+  color: #f2c46d;
+}
+
+/* "Not yet" is the quiet choice here; "Pass it on" is the proud one. */
+.legacy-card .legacy-cancel {
+  border: 2px solid #8a6a45;
+  background: transparent;
+  color: #e8d4b8;
+}
+
+.legacy-confirm {
+  appearance: none;
+  min-height: 52px;
+  padding: 12px 16px;
+  border: 2px solid #f2c46d;
+  border-radius: 12px;
+  background: linear-gradient(#f2c46d, #c98a32);
+  color: #1e130d;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.legend-pass,
+.menu-pass {
+  appearance: none;
+  width: 100%;
+  min-height: 52px;
+  border: 2px solid #f2c46d;
+  border-radius: 12px;
+  background: transparent;
+  color: #f2c46d;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.legend-pass[hidden],
+.menu-pass[hidden],
+.legacy-badge[hidden] {
+  display: none;
+}
+
+.legacy-confirm:focus-visible,
+.legend-pass:focus-visible,
+.menu-pass:focus-visible {
+  outline: 4px solid #e8d4b8;
+  outline-offset: 3px;
+}
+
+/* "Legacy ×1.5" in the mountain's top-right corner (boost chips are top-left). */
+.legacy-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  pointer-events: none;
+  padding: 2px 8px;
+  border: 1px solid rgba(242, 196, 109, 0.6);
+  border-radius: 999px;
+  background: rgba(232, 168, 74, 0.15);
+  color: #f2c46d;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.legend-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.legend-actions > button {
+  flex: 1 1 0;
+  width: auto;
+  min-height: 56px;
+  padding: 8px 10px;
+  font-size: clamp(1rem, 4.4vw, 1.2rem);
 }

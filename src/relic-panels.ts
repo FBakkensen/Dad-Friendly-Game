@@ -17,11 +17,14 @@ export function createRelicPanels({
   progress,
   getView,
   relicArt,
+  onPassTheMine,
   requestRender,
 }: {
   progress: ProgressStore;
   getView: () => ProgressSnapshot;
   relicArt: Readonly<Record<RelicId, string>>;
+  /** Opens "Pass the mine to your kid" (M6) from the Legend card. */
+  onPassTheMine: () => void;
   requestRender: () => void;
 }) {
   const shelfButton = document.createElement("button");
@@ -223,22 +226,34 @@ export function createRelicPanels({
   const legendCheer = document.createElement("p");
   legendCheer.className = "reveal-power";
   legendCheer.textContent =
-    "Guidance, Protection, Building, Patience, Wisdom and Heroism: every relic of fatherhood is yours. One day you'll pass the mine to your kid.";
+    "Guidance, Protection, Building, Patience, Wisdom and Heroism: every relic of fatherhood is yours. Now you can pass the mine to your kid.";
   const legendContinue = document.createElement("button");
   legendContinue.type = "button";
   legendContinue.className = "reveal-continue";
-  legendContinue.textContent = "Stand proud on the mountain";
+  legendContinue.textContent = "Stand proud";
   legendContinue.addEventListener("click", () => {
     legendOpen = false;
     renderLegend();
   });
+  const legendPass = document.createElement("button");
+  legendPass.type = "button";
+  legendPass.className = "legend-pass";
+  legendPass.textContent = "Pass to your kid";
+  legendPass.addEventListener("click", () => {
+    legendOpen = false;
+    onPassTheMine();
+  });
+  // Side by side, so the finale still fits a short phone.
+  const legendActions = document.createElement("div");
+  legendActions.className = "legend-actions";
+  legendActions.append(legendContinue, legendPass);
   legendCard.append(
     legendKicker,
     legendTitle,
     legendShelf,
     legendStats,
     legendCheer,
-    legendContinue,
+    legendActions,
   );
   legend.append(legendCard);
 

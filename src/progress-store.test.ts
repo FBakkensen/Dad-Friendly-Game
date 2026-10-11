@@ -815,6 +815,35 @@ describe("start over", () => {
     );
   });
 
+  it("passes the mine to your kid only at the bottom, saving the Legacy at once (#131)", () => {
+    const cloud = signedInCloud(minedMountain(99_999_999));
+    let clock = 10_000;
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud.cloudSave,
+      sessionStorage: createMemoryStorage(),
+      now: () => clock,
+      cloudWriteGapMs: 60_000,
+    });
+    expect(progress.passTheMine()).toBe(false);
+    progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
+    clock += 10;
+
+    expect(progress.passTheMine()).toBe(true);
+
+    const fresh = { ...createMountain(), legacy: 1, startedAt: 10_010 };
+    expect(progress.getSnapshot().mountain).toEqual(fresh);
+    expect(progress.getSnapshot().revealed).toBeUndefined();
+    expect(cloud.writes.at(-1)).toEqual(fresh);
+    // A late snapshot of the finished run can't bring it back.
+    cloud.push({
+      kind: "found",
+      mountain: minedMountain(100_000_000),
+      lastSeen: 0,
+    });
+    expect(progress.getSnapshot().mountain.legacy).toBe(1);
+  });
+
   it("ignores a stale snapshot from before the reset and re-uploads the new run", async () => {
     vi.useFakeTimers();
     try {

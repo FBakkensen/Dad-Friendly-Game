@@ -15,6 +15,7 @@ import {
   type Mountain,
 } from "./mountain";
 import { staffExisting } from "./crew";
+import { passTheMine } from "./legacy";
 import { relicsUncovered, type Relic } from "./relics";
 import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
@@ -55,6 +56,8 @@ export type ProgressStore = {
    * device and (signed in) in the cloud right away.
    */
   readonly startOver: () => void;
+  /** Passes the finished mine to your kid (M6); false if it isn't finished. */
+  readonly passTheMine: () => boolean;
   /** Closes the welcome-back card. */
   readonly dismissAway: () => void;
   readonly flush: () => void;
@@ -472,6 +475,29 @@ export function createProgressStore({
     return result.mined;
   };
 
+  /** Starts a new run (Start over, or the mine passed down), saved at once. */
+  const beginRun = (next: Mountain, detail: string): boolean => {
+    if (disposed || !canPlay()) {
+      return false;
+    }
+    cancelPendingCloudWrite();
+    mountain = next;
+    lastSeen = runStartedAt(next);
+    away = undefined;
+    reveals.length = 0;
+    revealBaseline = 0;
+    logger.record({
+      level: "info",
+      code: "save.reset",
+      detail,
+      data: saveCounts(mountain),
+    });
+    persistSession();
+    persistCloud();
+    emit();
+    return true;
+  };
+
   return {
     getSnapshot: snapshot,
     subscribe: (listener) => {
@@ -506,25 +532,14 @@ export function createProgressStore({
       emit();
     },
     startOver: () => {
-      if (disposed || !canPlay()) {
-        return;
+      beginRun({ ...createMountain(), startedAt: now() }, "start over");
+    },
+    passTheMine: () => {
+      const next = passTheMine(mountain, now());
+      if (next === undefined) {
+        return false;
       }
-      cancelPendingCloudWrite();
-      const at = now();
-      mountain = { ...createMountain(), startedAt: at };
-      lastSeen = at;
-      away = undefined;
-      reveals.length = 0;
-      revealBaseline = 0;
-      logger.record({
-        level: "info",
-        code: "save.reset",
-        detail: "start over",
-        data: saveCounts(mountain),
-      });
-      persistSession();
-      persistCloud();
-      emit();
+      return beginRun(next, "passed to the kid");
     },
     dismissAway: () => {
       if (away === undefined && crewJoined === undefined) {

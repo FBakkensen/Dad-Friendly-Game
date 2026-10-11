@@ -161,6 +161,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/legacy-panel.ts": {
+          statements: 100,
+          branches: 85,
+          functions: 100,
+          lines: 100,
+        },
         "src/screen-words.ts": {
           statements: 95,
           branches: 90,

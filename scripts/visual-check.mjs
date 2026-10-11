@@ -653,6 +653,67 @@ for (const viewport of [
   await close();
 }
 
+// Pass the mine to your kid (#131): the confirm, then the new run's header.
+for (const viewport of [
+  [360, 560],
+  [390, 844],
+]) {
+  const label = `${String(viewport[0])}x${String(viewport[1])}`;
+  const { page, close } = await open(viewport, {
+    version: 4,
+    mountain: {
+      remaining: 1,
+      pocket: 0,
+      helpers: 999,
+      kids: 999,
+      staffed: true,
+      legacy: 1,
+    },
+    lastSeen: Date.now(),
+  });
+  await page.tap(".mountain");
+  await page.waitForSelector(".relic-reveal:not([hidden])");
+  await page.tap(".relic-reveal:not(.legend) .reveal-continue");
+  await page.tap(".legend .legend-pass");
+  check(
+    await coversViewport(page, ".legacy-dialog"),
+    `${label} pass-the-mine confirm is laid over the game`,
+  );
+  check(await noScroll(page), `${label} pass-the-mine confirm has no scroll`);
+  const fits = await page.$eval(".legacy-card", (card) => {
+    const box = card.getBoundingClientRect();
+    return box.top >= 0 && box.bottom <= innerHeight;
+  });
+  check(fits, `${label} pass-the-mine card fits the screen`);
+  await page.tap(".legacy-confirm");
+  check(
+    await page.$eval(".legacy-dialog", (el) => el.hidden),
+    `${label} pass-the-mine confirm closes`,
+  );
+  check(
+    await page.$eval(
+      ".legacy-badge",
+      (el) => !el.hidden && el.textContent === "Legacy ×2",
+    ),
+    `${label} Legacy badge shows ×2`,
+  );
+  // Let the last tap's float finish drifting first.
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  check(await noScroll(page), `${label} new run has no scroll`);
+  const badgeFits = await page.$eval(".legacy-badge", (badge) => {
+    const box = badge.getBoundingClientRect();
+    const stage = badge.parentElement.getBoundingClientRect();
+    return (
+      box.left >= 0 &&
+      box.right <= innerWidth &&
+      box.top >= stage.top &&
+      box.bottom <= stage.bottom
+    );
+  });
+  check(badgeFits, `${label} Legacy badge sits inside the mountain`);
+  await close();
+}
+
 await browser.close();
 await server?.close();
 if (failures.length > 0) {

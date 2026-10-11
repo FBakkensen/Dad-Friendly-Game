@@ -9,6 +9,8 @@ import { effectiveRates } from "./rates";
 import { createRelicPanels } from "./relic-panels";
 import { createWelcomePanel } from "./welcome-panel";
 import { createMenuPanel } from "./menu-panel";
+import { createLegacyPanel, legacyWords } from "./legacy-panel";
+import { legacyBonus } from "./legacy";
 import { createCrewPanel } from "./crew-panel";
 import { floatText } from "./float-text";
 import { createUpgradesPanel } from "./upgrades-panel";
@@ -263,10 +265,31 @@ export function mountMountainScreen({
   const welcomePanel = createWelcomePanel({ progress, getView: () => view });
   const { welcome } = welcomePanel;
 
+  const resetVein = (): void => {
+    veinState = waitForVein({ now: now(), random, gapScale: veinGapScale() });
+    renderVein();
+  };
+
+  // Pass the mine to your kid (M6): offered from the Legend card and the menu.
+  const legacy = createLegacyPanel({
+    progress,
+    getView: () => view,
+    onPassed: resetVein,
+    beforeOpen: () => {
+      menuPanel.close();
+    },
+    requestRender: () => {
+      render();
+    },
+  });
+
   const relics = createRelicPanels({
     progress,
     getView: () => view,
     relicArt,
+    onPassTheMine: () => {
+      legacy.open(undefined);
+    },
     requestRender: () => {
       render();
     },
@@ -277,10 +300,8 @@ export function mountMountainScreen({
     progress,
     getView: () => view,
     auth,
-    onStartOver: () => {
-      veinState = waitForVein({ now: now(), random, gapScale: veinGapScale() });
-      renderVein();
-    },
+    onStartOver: resetVein,
+    extras: [legacy.menuPass],
     requestRender: () => {
       render();
     },
@@ -359,6 +380,7 @@ export function mountMountainScreen({
     welcomePanel.render();
     relics.render();
     menuPanel.render();
+    legacy.render();
     upgrades.render();
     renderSave();
   };
@@ -369,7 +391,9 @@ export function mountMountainScreen({
     guideBar.hidden = !guided || next === undefined;
     if (!guided) {
       goal.textContent =
-        "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.";
+        (view.mountain.legacy ?? 0) > 0
+          ? `Your kid's mine: six relics wait inside. Legacy ${legacyWords(legacyBonus(view.mountain))}.`
+          : "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.";
       return;
     }
     if (next === undefined) {
@@ -402,6 +426,8 @@ export function mountMountainScreen({
   const header = document.createElement("header");
   header.className = "top-bar";
   header.append(lantern, remaining, menuButton);
+  // The Legacy sits in the mountain's other corner: no layout cost.
+  mountainStage.append(legacy.badge);
 
   root.replaceChildren(
     header,
@@ -417,6 +443,7 @@ export function mountMountainScreen({
     shelf,
     detail,
     confirm,
+    legacy.dialog,
     menu,
     upgradesSheet,
   );
