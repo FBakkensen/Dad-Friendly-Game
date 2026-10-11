@@ -66,8 +66,10 @@ function mountScreen({
   mountMountainScreen({
     root,
     lanternUrl: tileUrl,
-    rockUrl: tileUrl,
+    mountainUrl: tileUrl,
     stoneUrl: tileUrl,
+    veinUrl: tileUrl,
+    helperUrl: tileUrl,
     auth,
     progress,
     ...(now === undefined ? {} : { now }),
@@ -384,7 +386,8 @@ describe("golden vein on screen", () => {
       clock = 3 * 60_000;
       await vi.advanceTimersByTimeAsync(1_000);
       expect(vein.hidden).toBe(false);
-      expect(vein.style.left).toBe("20%");
+      expect(vein.style.left).toBe("35%");
+      expect(vein.style.top).toBe("40%");
 
       vein.click();
       expect(vein.hidden).toBe(true);
