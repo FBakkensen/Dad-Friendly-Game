@@ -856,6 +856,8 @@ export function mountMountainScreen({
   revealContinue.className = "reveal-continue";
   revealContinue.textContent = "Carry it with pride";
   revealContinue.addEventListener("click", () => {
+    // Closing the Mantle's card opens the finale, once per run.
+    legendOpen = view.revealed?.id === "mantle";
     progress.dismissReveal();
   });
   revealCard.append(
@@ -867,6 +869,57 @@ export function mountMountainScreen({
     revealContinue,
   );
   reveal.append(revealCard);
+
+  // Mantle of the Hero: the finale, shown after its reveal (#103).
+  let legendOpen = false;
+  const legend = document.createElement("div");
+  legend.className = "relic-reveal legend";
+  legend.setAttribute("role", "dialog");
+  legend.setAttribute("aria-modal", "true");
+  legend.setAttribute("aria-labelledby", "legend-title");
+  legend.hidden = true;
+  const legendCard = document.createElement("div");
+  legendCard.className = "reveal-card legend-card";
+  const legendKicker = document.createElement("p");
+  legendKicker.className = "reveal-kicker";
+  legendKicker.textContent = "The bottom of the mountain";
+  const legendTitle = document.createElement("h2");
+  legendTitle.id = "legend-title";
+  legendTitle.textContent = "You became a Legend";
+  const legendShelf = document.createElement("div");
+  legendShelf.className = "legend-shelf";
+  for (const relic of RELICS) {
+    const art = document.createElement("img");
+    art.src = relicArt[relic.id];
+    art.alt = relic.name;
+    art.width = 40;
+    art.height = 40;
+    art.draggable = false;
+    legendShelf.append(art);
+  }
+  const legendStats = document.createElement("p");
+  legendStats.className = "legend-stats";
+  const legendCheer = document.createElement("p");
+  legendCheer.className = "reveal-power";
+  legendCheer.textContent =
+    "Guidance, Protection, Building, Patience, Wisdom and Heroism: every relic of fatherhood is yours. One day you'll pass the mine to your kid.";
+  const legendContinue = document.createElement("button");
+  legendContinue.type = "button";
+  legendContinue.className = "reveal-continue";
+  legendContinue.textContent = "Stand proud on the mountain";
+  legendContinue.addEventListener("click", () => {
+    legendOpen = false;
+    renderLegend();
+  });
+  legendCard.append(
+    legendKicker,
+    legendTitle,
+    legendShelf,
+    legendStats,
+    legendCheer,
+    legendContinue,
+  );
+  legend.append(legendCard);
 
   const saveStatus = document.createElement("p");
   saveStatus.className = "save-status";
@@ -974,6 +1027,7 @@ export function mountMountainScreen({
     renderGuide();
     renderWelcome();
     renderReveal();
+    renderLegend();
     renderShelf();
     renderConfirm();
     renderMenu();
@@ -1125,6 +1179,22 @@ export function mountMountainScreen({
     revealPower.textContent = relic.power;
     if (!wasOpen) {
       revealContinue.focus();
+    }
+  };
+
+  const renderLegend = (): void => {
+    const wasOpen = !legend.hidden;
+    legend.hidden = !legendOpen || view.revealed !== undefined;
+    if (legend.hidden) {
+      return;
+    }
+    const crewSize = TIERS.reduce(
+      (total, tier) => total + owned(view.mountain, tier),
+      0,
+    );
+    legendStats.textContent = `${formatCount(MOUNTAIN_STONES)} stones moved. Six relics found. A crew of ${formatCount(crewSize)} beside you.`;
+    if (!wasOpen) {
+      legendContinue.focus();
     }
   };
 
@@ -1280,6 +1350,7 @@ export function mountMountainScreen({
     saveStatus,
     welcome,
     reveal,
+    legend,
     shelf,
     confirm,
     menu,

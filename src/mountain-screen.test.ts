@@ -1555,3 +1555,52 @@ describe("crew line at a big crew", () => {
     );
   });
 });
+
+describe("Mantle of the Hero finale (#103)", () => {
+  const seeded = (mountain: Mountain) => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      SESSION_SAVE_KEY,
+      JSON.stringify({ version: 4, mountain, lastSeen: Date.now() }),
+    );
+    return storage;
+  };
+
+  it("opens the Legend card after the Mantle's reveal, once, and closes with one tap", () => {
+    const screen = mountScreen({
+      storage: seeded({ ...minedMountain(MOUNTAIN_STONES - 1), helpers: 40 }),
+    });
+    document.body.append(screen.root);
+    const legend = screen.root.querySelector<HTMLElement>(".legend");
+    expect(legend?.hidden).toBe(true);
+
+    screen.mountain.click();
+    expect(screen.text("#relic-reveal-title")).toBe(
+      "You found the Mantle of the Hero",
+    );
+    expect(legend?.hidden).toBe(true);
+    screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
+
+    expect(legend?.hidden).toBe(false);
+    expect(screen.text("#legend-title")).toBe("You became a Legend");
+    expect(screen.text(".legend-stats")).toBe(
+      "100 million stones moved. Six relics found. A crew of 40 beside you.",
+    );
+    expect(legend?.querySelectorAll(".legend-shelf img")).toHaveLength(6);
+    expect(document.activeElement).toBe(
+      legend?.querySelector(".reveal-continue"),
+    );
+    legend?.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
+    expect(legend?.hidden).toBe(true);
+    screen.root.remove();
+  });
+
+  it("does not open for other relics", () => {
+    const screen = mountScreen({ storage: seeded(minedMountain(999_999)) });
+    screen.mountain.click();
+    screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
+    expect(screen.root.querySelector<HTMLElement>(".legend")?.hidden).toBe(
+      true,
+    );
+  });
+});
