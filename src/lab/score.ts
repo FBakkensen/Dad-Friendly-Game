@@ -20,6 +20,11 @@ export type ScoreInput = {
   readonly actions?: readonly Action[];
   readonly atMs: number;
   readonly trouble?: Trouble;
+  /**
+   * Spends this dad weighs. When omitted, the stretch uses `actions`
+   * (or the whole legal list, when that was omitted too).
+   */
+  readonly stretchActions?: readonly Action[];
 };
 
 type Priced = {
@@ -257,6 +262,15 @@ function optionKinds(actions: readonly Action[]): readonly Action["kind"][] {
   return MOVE_KINDS.filter((kind) => seen.has(kind));
 }
 
+function viewOf(summary: Summary): DecisionSample["stretch"]["payback"] {
+  return {
+    liveCount: summary.liveCount,
+    affordableLive: summary.affordableLive,
+    waitToAffordSec: summary.waitToAffordSec,
+    bestId: summary.bestId,
+  };
+}
+
 /** One decision sample from the mountain the dad is looking at. */
 export function scoreDecision(input: ScoreInput): DecisionSample {
   const actions =
@@ -266,6 +280,16 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
   );
   const payback = byPayback(priced);
   const value = byValue(priced);
+  const stretchPriced =
+    input.stretchActions === undefined
+      ? priced
+      : input.stretchActions.map((action) =>
+          price(input.mountain, action, input.context),
+        );
+  const stretchPayback =
+    input.stretchActions === undefined ? payback : byPayback(stretchPriced);
+  const stretchValue =
+    input.stretchActions === undefined ? value : byValue(stretchPriced);
   const rates = effectiveRates(input.mountain, input.now, input.trouble);
   return {
     atMs: input.atMs,
@@ -291,5 +315,10 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
       perStone: value.perStone,
     },
     nextPaybackRatio: nextPaybackRatio(priced),
+    stretch: {
+      payback: viewOf(stretchPayback),
+      value: viewOf(stretchValue),
+      nextPaybackRatio: nextPaybackRatio(stretchPriced),
+    },
   };
 }

@@ -16,3 +16,29 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+
+  strategy-lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Report only. A missed target is a warning. LAB_STRICT is what fails.
+      - run: npm run lab -- --ci
+      - name: Post the strategy lab report
+        if: always()
+        run: |
+          if [ -f reports/strategy-lab.md ]; then
+            cat reports/strategy-lab.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: strategy-lab
+          path: |
+            reports/strategy-lab.md
+            reports/strategy-lab.json
+          if-no-files-found: ignore

@@ -30,6 +30,9 @@ function decision(over: {
   readonly finishDay?: number;
   readonly valueLive?: number;
   readonly valueAffordable?: number;
+  readonly stretchLive?: number;
+  readonly stretchAffordable?: number;
+  readonly stretchWait?: number;
 }): DecisionSample {
   const liveCount = over.liveCount ?? 1;
   const affordableLive = over.affordableLive ?? 0;
@@ -54,6 +57,22 @@ function decision(over: {
       perStone: 1,
     },
     nextPaybackRatio: 1,
+    stretch: {
+      payback: {
+        liveCount: over.stretchLive ?? liveCount,
+        affordableLive: over.stretchAffordable ?? affordableLive,
+        waitToAffordSec: over.stretchWait ?? wait,
+        bestId,
+      },
+      value: {
+        liveCount: over.valueLive ?? over.stretchLive ?? liveCount,
+        affordableLive:
+          over.valueAffordable ?? over.stretchAffordable ?? affordableLive,
+        waitToAffordSec: over.stretchWait ?? wait,
+        bestId,
+      },
+      nextPaybackRatio: 1,
+    },
     ...(over.finishDay === undefined ? {} : { finishDay: over.finishDay }),
   };
 }
@@ -70,6 +89,7 @@ describe("measures", () => {
       "liveMedian",
       "liveP10",
       "longestDeadStretch",
+      "longestValueStretch",
       "regret",
       "singleShare",
       "typeEverBest",
@@ -170,6 +190,28 @@ describe("measures", () => {
     expect(longestDeadHours(samples, "value")).toBe(overnight / HOUR_MS);
   });
 
+  it("does not let a cheap affordable move hide the unpaid gap", () => {
+    const hour = HOUR_MS;
+    const samples = [
+      decision({
+        atMs: 0,
+        affordableLive: 1,
+        valueAffordable: 1,
+        waitToAffordSec: 0,
+        stretchAffordable: 0,
+        stretchWait: DEAD_STRETCH.minWaitSec,
+      }),
+      decision({
+        atMs: hour + hour,
+        affordableLive: 1,
+        valueAffordable: 1,
+        waitToAffordSec: 0,
+      }),
+    ];
+    expect(longestDeadHours(samples, "payback")).toBe(2);
+    expect(longestDeadHours(samples, "value")).toBe(0);
+  });
+
   it("leaves the first hour out of the dominant share", () => {
     const hour = HOUR_MS;
     const samples = [
@@ -204,6 +246,7 @@ describe("measures", () => {
       }),
     ];
     expect(featureShare.aggregate(samples)).toBeCloseTo(0.2, 5);
+    expect(featureShare.aggregate([])).toBeNaN();
     const first = samples[0];
     expect(first).toBeDefined();
     expect(featureShare.sample?.(first ?? decision({}))).toBeCloseTo(0.1, 5);

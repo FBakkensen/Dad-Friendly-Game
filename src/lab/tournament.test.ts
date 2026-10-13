@@ -19,7 +19,10 @@ import {
   renderReport,
   reportJson,
 } from "./report";
+import dominantShare from "./measures/dominantShare";
 import extremeWinMeasure from "./measures/extremeWin";
+import featureShare from "./measures/featureShare";
+import singleShare from "./measures/singleShare";
 import {
   judgeTournament,
   runTournament,
@@ -27,10 +30,14 @@ import {
   type TournamentResult,
 } from "./tournament";
 import {
+  BORER_SOURCE,
   CASUAL_REFERENCE_ID,
   DEAD_STRETCH,
   HOUR_MS,
   OPTIMIZER_REFERENCE_ID,
+  TARGETS,
+  TENDING_SOURCE,
+  meetsTarget,
   type Target,
 } from "./targets";
 
@@ -82,6 +89,21 @@ function decision(over: {
       perStone: 1,
     },
     nextPaybackRatio: over.nextPaybackRatio ?? 1,
+    stretch: {
+      payback: {
+        liveCount,
+        affordableLive: over.affordableLive ?? 0,
+        waitToAffordSec: over.waitToAffordSec ?? DEAD_STRETCH.minWaitSec,
+        bestId: over.bestId ?? "buyTier:helper",
+      },
+      value: {
+        liveCount,
+        affordableLive: over.affordableLive ?? 0,
+        waitToAffordSec: over.waitToAffordSec ?? DEAD_STRETCH.minWaitSec,
+        bestId: over.bestId ?? "buyTier:helper",
+      },
+      nextPaybackRatio: over.nextPaybackRatio ?? 1,
+    },
     ...(over.finishDay === undefined ? {} : { finishDay: over.finishDay }),
   };
 }
@@ -307,16 +329,18 @@ describe("tournament", () => {
         ]),
       ],
     });
+    const note = {
+      policyId: "alpha",
+      label: "Alpha",
+      seed: 1,
+      startDay: 1,
+      hours: 3,
+      savingFor: "buyTier:machine",
+      nextPaybackRatio: 4,
+    };
     expect(result.deadStretches).toEqual([
-      {
-        policyId: "alpha",
-        label: "Alpha",
-        seed: 1,
-        startDay: 1,
-        hours: 3,
-        savingFor: "buyTier:machine",
-        nextPaybackRatio: 4,
-      },
+      { ...note, score: "payback" },
+      { ...note, score: "value" },
     ]);
     const markdown = renderReport(result);
     expect(markdown).toContain("buyTier:machine");
@@ -561,6 +585,81 @@ describe("tournament", () => {
     expect(json).toContain('"suggestions"');
     expect(json).toContain('"deadStretches"');
     expect(json).toContain('"timelines"');
+  });
+
+  it("keeps single-share and dominant-share off the extremes", () => {
+    const casual = dad({ id: "alpha", label: "Alpha", kind: "casual" });
+    const extreme = dad({ id: "beta", label: "Beta", kind: "extreme" });
+    const result = judge({
+      policies: [casual, extreme],
+      measures: [singleShare, dominantShare],
+      targets: TARGETS.filter(
+        (target) =>
+          target.measure === "singleShare" ||
+          target.measure === "dominantShare",
+      ),
+      runs: [
+        run(casual, 1, [decision({ atMs: HOUR_MS, liveCount: 1 })]),
+        run(extreme, 1, [decision({ atMs: HOUR_MS, liveCount: 1 })]),
+      ],
+    });
+    expect(
+      result.rows[0]?.cells.flatMap((cell) =>
+        cell.judgements.map((judgement) => judgement.targetId),
+      ),
+    ).toEqual(["single-share", "dominant-share"]);
+    expect(
+      result.rows[1]?.cells.every((cell) => cell.judgements.length === 0),
+    ).toBe(true);
+  });
+
+  it("marks tending n/a when no sample owns a borer, and still judges one that does", () => {
+    const tending = TARGETS.find(
+      (target) => target.id === "tending-from-borer",
+    );
+    expect(tending).toBeDefined();
+    if (tending === undefined) {
+      return;
+    }
+    const plain = dad({ id: "alpha", label: "Alpha", kind: "extreme" });
+    const owner = dad({ id: "beta", label: "Beta", kind: "casual" });
+    const shared = {
+      measures: [featureShare],
+      targets: [tending],
+    };
+    const absent = judge({
+      ...shared,
+      policies: [plain],
+      runs: [run(plain, 1, [decision({ outputShare: { helper: 1 } })])],
+    });
+    const absentCell = absent.rows[0]?.cells[0];
+    expect(absentCell?.value).toBeNaN();
+    expect(absentCell?.judgements).toEqual([]);
+    expect(renderReport(absent)).toContain("| Alpha | extreme | n/a |");
+    const low = judge({
+      ...shared,
+      policies: [owner],
+      runs: [run(owner, 1, [decision({ outputShare: { [BORER_SOURCE]: 1 } })])],
+    });
+    const lowCell = low.rows[0]?.cells[0];
+    expect(lowCell?.judgements[0]?.value).toBe(0);
+    expect(lowCell?.judgements[0]?.pass).toBe(meetsTarget(tending, 0));
+    const mixed = judge({
+      ...shared,
+      policies: [owner],
+      seeds: [1, 2],
+      runs: [
+        run(owner, 1, [decision({ outputShare: { helper: 1 } })]),
+        run(owner, 2, [
+          decision({
+            outputShare: { [BORER_SOURCE]: 0.4, [TENDING_SOURCE]: 0.2 },
+          }),
+        ]),
+      ],
+    });
+    const mixedCell = mixed.rows[0]?.cells[0];
+    expect(mixedCell?.judgements[0]?.value).toBeCloseTo(0.2, 5);
+    expect(mixedCell?.judgements[0]?.pass).toBe(meetsTarget(tending, 0.2));
   });
 
   it("does not name a policy or a measure, and does not read the disk", () => {

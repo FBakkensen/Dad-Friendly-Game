@@ -7,35 +7,19 @@ export type Stretch = {
   readonly hours: number;
 };
 
-function table(
-  sample: DecisionSample,
-  method: ScoreMethod,
-): {
-  readonly live: number;
-  readonly affordable: number;
-  readonly waitSec: number;
-} {
-  if (method === "value") {
-    return {
-      live: sample.byValue.liveCount,
-      affordable: sample.byValue.affordableLive,
-      waitSec: sample.byValue.waitToAffordSec,
-    };
-  }
-  return {
-    live: sample.liveCount,
-    affordable: sample.affordableLive,
-    waitSec: sample.waitToAffordSec,
-  };
-}
-
 /**
- * True when nothing live can be paid for and the best live option is still
- * at least one session away. A shorter wait is just the end of a sitting.
+ * True when the only live options on this dad's spend table need at least
+ * one session of saving. A cheaper legal move the dad will not buy, or a
+ * free post, does not end the wait. A shorter save is the end of a sitting.
  */
 function isDeadSample(sample: DecisionSample, method: ScoreMethod): boolean {
-  const { live, affordable, waitSec } = table(sample, method);
-  return live > 0 && affordable === 0 && waitSec >= DEAD_STRETCH.minWaitSec;
+  const view =
+    method === "value" ? sample.stretch.value : sample.stretch.payback;
+  return (
+    view.liveCount > 0 &&
+    view.affordableLive === 0 &&
+    view.waitToAffordSec >= DEAD_STRETCH.minWaitSec
+  );
 }
 
 /** Every waiting run, in order. Length is hours until the wait breaks. */
