@@ -299,8 +299,8 @@ service cloud.firestore {
         isFieldBoostList(shot.boosts) &&
         isCrewCounts(shot.crew) &&
         shot.crewSpeed is number && shot.crewSpeed >= 0 && shot.crewSpeed <= 1000000000 &&
-        isFieldEngineers(shot.engineers) &&
-        isFieldTrips(shot.expeditions) &&
+        (!('engineers' in shot) || isFieldEngineers(shot.engineers)) &&
+        (!('expeditions' in shot) || isFieldTrips(shot.expeditions)) &&
         isIdleCounts(shot.idle) &&
         shot.left is int && shot.left >= 0 && shot.left <= 100000000 &&
         shot.legacy is int && shot.legacy >= 0 && shot.legacy <= 1000 &&

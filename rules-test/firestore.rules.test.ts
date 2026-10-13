@@ -329,6 +329,15 @@ const event = {
 };
 
 describe("firestore.rules: fieldLogs/{uid}", () => {
+  it("still accepts a snapshot from an older app with no engineers or expeditions", async () => {
+    const older: Record<string, unknown> = { ...gameSnapshot() };
+    delete older["engineers"];
+    delete older["expeditions"];
+    const written = { ...fieldLog([event]), snapshot: older };
+    await setDoc(doc(db, "fieldLogs", "dad"), written);
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
+  });
+
   it("accepts five engineers and five expeditions on the snapshot (#150)", async () => {
     const posts = ["cart", "drill", "borer", "machine", "camp"] as const;
     const tunnels = [
