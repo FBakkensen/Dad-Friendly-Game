@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ENGINEER_NAMES } from "./engineers";
+import { ENGINEER_NAMES, promoteCost } from "./engineers";
+import { createMountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { simulateDad, simulateDadRun, type DadRun } from "./pacing";
 import { RELICS } from "./relics";
@@ -40,16 +41,38 @@ describe.each([
   });
 });
 
+/** What a player pays for Nils, with Ada already in the crew. */
+const NILS_PRICE = promoteCost({
+  ...createMountain(),
+  engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+});
+
+/** The sim dad spends that price and one worker for Nils. */
+function expectPaidForNils(run: DadRun): void {
+  expect(NILS_PRICE).toBe(24_000);
+  expect(run.promotions).toHaveLength(1);
+  const paid = run.promotions[0];
+  expect(paid).toMatchObject({ name: "Nils", price: NILS_PRICE });
+  expect(paid?.helpersAfter).toBe((paid?.helpersBefore ?? 0) - 1);
+  expect(paid?.pocketAfter).toBe((paid?.pocketBefore ?? 0) - NILS_PRICE);
+  const borer = run.buys.find((buy) => buy.id === "borer");
+  expect(paid?.day).toBe(borer?.day);
+}
+
 // Second run (M6): the kid's crew is ×1.5 and should reach the bottom in
 // roughly 4 days, a clearly shorter climb than the first.
 describe("pacing: a second run with one Legacy (×1.5)", () => {
-  const reached = simulateDad({
+  const run = simulateDadRun({
     milestones: [depth("mantle")],
     legacy: 1,
     buysUpgrades: true,
   });
   it("reaches the bottom on day 4", () => {
-    expect(reached.get(depth("mantle"))).toBe(4);
+    expect(run.reached.get(depth("mantle"))).toBe(4);
+  });
+
+  it("pays the real promotion for Nils", () => {
+    expectPaidForNils(run);
   });
 });
 
@@ -99,6 +122,10 @@ describe.each([
       trips: 0,
       post: "machine",
     });
+  });
+
+  it("pays the real promotion for Nils", () => {
+    expectPaidForNils(run);
   });
 });
 

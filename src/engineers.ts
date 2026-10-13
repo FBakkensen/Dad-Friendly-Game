@@ -46,12 +46,13 @@ export const MASTER_TRIPS = 9;
 
 /**
  * Stones for the next promotion. Doubles for each engineer already in the
- * crew, so the first paid promotion with nobody here is 1,000,000 and the
- * one after the free borer engineer (already one in the crew) is 2,000,000.
- * The pacing dad does not pay it. A scout for the tunnels is seated beside
- * Ada in the sim, so the climb keeps its days (#148).
+ * crew: 12,000 with none, so 24,000 once Ada is here (Nils), then 48,000,
+ * 96,000 and 192,000. Was 1,000,000 × 2^n (2,000,000 for Nils). The pacing
+ * sim pays this same price. 24,200 for Nils pushes the plain dad's Great
+ * Machine to day 5 and the bottom to day 5.5, so 24,000 is the highest
+ * thousand that keeps the days. Doubling stays ×2 (#163).
  */
-export const PROMOTE_BASE_COST = 1_000_000;
+export const PROMOTE_BASE_COST = 12_000;
 
 /** +10 / +20 / +30 percent, as tenths, for ranks 0, 1 and 2. */
 const TENDING_TENTHS = [1, 2, 3] as const;
