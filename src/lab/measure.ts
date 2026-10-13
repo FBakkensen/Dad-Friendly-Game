@@ -33,6 +33,11 @@ export type DecisionSample = {
   };
   /** Day the mountain emptied, when the run finished. Same on every sample. */
   readonly finishDay?: number;
+  /**
+   * Second-best finite payback divided by the best. 1 when they match.
+   * Infinity when nothing else on the table pays back.
+   */
+  readonly nextPaybackRatio: number;
 };
 
 export type MeasureValue = number | readonly string[];

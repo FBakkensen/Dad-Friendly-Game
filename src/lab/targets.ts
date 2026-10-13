@@ -62,6 +62,14 @@ export const BORER_SOURCE = "borer";
 
 type PolicyKind = "casual" | "extreme" | "optimizer";
 
+/**
+ * Finish day passed to extreme win as `casualFinishDay`. The plain dad.
+ */
+export const CASUAL_REFERENCE_ID = "casual-2x10";
+
+/** Finish day passed to regret as `optimizerFinishDay`. */
+export const OPTIMIZER_REFERENCE_ID = "optimizer";
+
 export type TargetScope =
   | { readonly kind: "all" }
   | { readonly kind: "policies"; readonly ids: readonly string[] }
@@ -132,7 +140,7 @@ export const TARGETS: readonly Target[] = [
   {
     id: "casual-finish",
     measure: "finishDay",
-    scope: { kind: "policies", ids: ["casual-2x10"] },
+    scope: { kind: "policies", ids: [CASUAL_REFERENCE_ID] },
     op: "between",
     value: [5, 7],
     why: "A casual dad finishes inside a quiet week, and not before day five.",
@@ -174,6 +182,21 @@ export const TAPS_PER_SECOND = 3;
 
 /** How many days `runPolicy` plays when the caller does not name a cap. */
 export const DEFAULT_MAX_DAYS = 30;
+
+/**
+ * Seeds `npm run lab` plays, numbered 1 through this count.
+ * Two keeps a full run under a minute on CI. Raise it for a tighter read.
+ */
+export const MONTE_CARLO_SEEDS = 2;
+
+/** Dead stretches longer than this many hours are listed in the report. */
+export const REPORT_DEAD_HOURS = 2;
+
+/**
+ * Digits after the decimal in the strategy-lab report.
+ * Three keeps a miss like 0.078 from rounding onto a bound of 0.08.
+ */
+export const REPORT_FRACTION_DIGITS = 3;
 
 /** Scores closer than this are the same buy. Matches the pacing tie. */
 export const VALUE_TIE = 1e-9;

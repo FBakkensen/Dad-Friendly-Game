@@ -12,7 +12,8 @@ const NOTHING: SpendWeights = {
 
 /**
  * Taps, and that is the whole game. Never buys, promotes, explores, or
- * moves a post. Trouble is left for an engineer who is not coming.
+ * moves a post. Trouble is still put right on the fast delay: no engineer
+ * is coming, so the hand-fix is what clears it.
  */
 export default plainPolicy({
   id: "tap-only",

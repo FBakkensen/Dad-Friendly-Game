@@ -139,6 +139,32 @@ function byPayback(moves: readonly Priced[]): Summary {
   };
 }
 
+/**
+ * Next finite payback over the best one. The dead-stretch report uses it
+ * to say how far the second buy sits from the one the dad is saving for.
+ */
+function nextPaybackRatio(moves: readonly Priced[]): number {
+  let best: number | undefined;
+  let next: number | undefined;
+  for (const move of moves) {
+    if (!Number.isFinite(move.paybackSec)) {
+      continue;
+    }
+    if (best === undefined || move.paybackSec < best) {
+      next = best;
+      best = move.paybackSec;
+      continue;
+    }
+    if (next === undefined || move.paybackSec < next) {
+      next = move.paybackSec;
+    }
+  }
+  if (best === undefined || next === undefined || !(best > 0)) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return next / best;
+}
+
 function byValue(moves: readonly Priced[]): Summary {
   let best: Priced | undefined;
   for (const move of moves) {
@@ -264,5 +290,6 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
       waitToAffordSec: value.waitToAffordSec,
       perStone: value.perStone,
     },
+    nextPaybackRatio: nextPaybackRatio(priced),
   };
 }
