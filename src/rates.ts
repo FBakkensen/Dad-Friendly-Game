@@ -1,3 +1,4 @@
+import { factor } from "./economy/factors";
 import {
   staffNeeded,
   station,
@@ -90,16 +91,20 @@ export function effectiveRates(
       : 1;
   const taught = 1 + mountain.kids * KID_TEACH_PER_KID;
   const tierSpeed = Object.fromEntries(
-    TIERS.map((tier) => [
-      tier.id,
-      tier.id === "helper"
-        ? tier.perSecond *
-          (1 + upgradeLevel(mountain, "boots") * BOOTS_SPEED_PER_LEVEL) *
-          taught
-        : tier.id === "kid"
-          ? tier.perSecond * taught
-          : tier.perSecond,
-    ]),
+    TIERS.map((tier) => {
+      // A sweep scales the tier's own stones a second. The factor is 1 in play.
+      const output = tier.perSecond * factor(`output.${tier.id}`);
+      return [
+        tier.id,
+        tier.id === "helper"
+          ? output *
+            (1 + upgradeLevel(mountain, "boots") * BOOTS_SPEED_PER_LEVEL) *
+            taught
+          : tier.id === "kid"
+            ? output * taught
+            : output,
+      ];
+    }),
   ) as Record<TierId, number>;
   const legacy = legacyBonus(mountain);
   for (const tier of TIERS) {

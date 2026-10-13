@@ -369,3 +369,9 @@ The header names two finish days. **Optimizer finish day** is `optimizer`. **Cas
 Under the table: a per-hour timeline for each casual player type and the optimizer, on the first seed; a section per list measure (never the best buy is the dead-feature list); and dead stretches longer than `REPORT_DEAD_HOURS` (when they start, what the dad is saving for, and how many times slower the next payback is). The suggestions name the miss. They do not change a number.
 
 Adding a policy file adds a row. Adding a measure file adds a column. Adding a target adds a pass or fail on the cells it covers. No other edit.
+
+#### Sensitivity sweep
+
+`npm run lab:sweep` (`tools/sweep/cli.ts`) writes `reports/sweep.md` (gitignored). It is not part of `npm run check`. Morris elementary effects run first, over the knobs in `tools/sweep/knobs.ts`. A Saltelli Sobol design then runs on the top knobs: one scrambled Sobol sequence, fixed seed, S1 and ST tables. The default measures are `longestDeadStretch`, `singleShare`, `dominantShare`, and `finishDay` on `casual-2x10`. Any registered numeric measure can be named with `--measure`. Flags: `--seed`, `--morris`, `--sobol`, `--top`, `--days`, `--policy`, `--out`.
+
+A knob is one entry: a factor id the price, growth, output, or tending formula already reads, plus a low and a high multiplier. 1 is today's economy. The sweep multiplies that number for one run and puts it back. Play, the save, and the tournament are unchanged. The tool lives under `tools/` so its sample sizes and direction numbers stay out of `src/lab/targets.ts`.

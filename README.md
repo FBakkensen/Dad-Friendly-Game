@@ -17,6 +17,12 @@ npm run lab -- --policy casual-2x10 --seeds 1 --days 7
 
 A new file in `src/lab/policies/` adds a row. A new file in `src/lab/measures/` adds a column. A new entry in `src/lab/targets.ts` adds a pass or fail. Nothing else has to change.
 
+`npm run lab:sweep` asks which economy knobs move the measures. Morris screening runs first, then Sobol (S1 and ST) on the top knobs. The report is `reports/sweep.md`, also gitignored. It is not part of `npm run check`. The default run is the casual dad and `longestDeadStretch`, `singleShare`, `dominantShare`, and `finishDay`. Knobs are one entry each in `tools/sweep/knobs.ts`.
+
+```bash
+npm run lab:sweep -- --morris 4 --sobol 16 --top 4 --days 30
+```
+
 ## Field log reader
 
 Signed-in games copy a snapshot and the latest event ring to `fieldLogs/{uid}`.
