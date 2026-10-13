@@ -62,7 +62,13 @@ export type Rates = {
   readonly running: Readonly<Record<TierId, number>>;
   /** Helpers short of running every machine; 0 when all are staffed. */
   readonly helpersShort: number;
-  /** The whole crew, stones a second. */
+  /**
+   * Crew stones a second before the whole-stone floor. The difference of a
+   * buy keeps a fraction (11 workers with Better boots are +1.1/s). The
+   * crew line and what is mined stay on `crewPerSecond`.
+   */
+  readonly exactCrewPerSecond: number;
+  /** The whole crew, stones a second, in whole stones. */
   readonly crewPerSecond: number;
   /** Share of crew speed paid for time away. */
   readonly awayPay: number;
@@ -126,13 +132,12 @@ export function effectiveRates(
     free -= running[tier.id] * staff;
     needed += count * staff;
   }
-  // Whole stones a second, so what the crew line says is what gets mined.
-  const baseCrew = Math.floor(
-    TIERS.reduce(
-      (total, tier) => total + running[tier.id] * tierSpeed[tier.id],
-      0,
-    ) + 1e-9,
+  const exactBase = TIERS.reduce(
+    (total, tier) => total + running[tier.id] * tierSpeed[tier.id],
+    0,
   );
+  // Whole stones a second, so what the crew line says is what gets mined.
+  const baseCrew = Math.floor(exactBase + 1e-9);
   // Tap power takes its share of the crew's own speed, before Overtime.
   const tapShare = upgradeLevel(mountain, "tap") * TAP_SHARE_PER_LEVEL;
   // Legacy multiplies the whole tap; its share of the crew is taken before it.
@@ -145,6 +150,7 @@ export function effectiveRates(
     tierSpeed,
     running,
     helpersShort: Math.max(0, needed - mountain.helpers - mountain.kids),
+    exactCrewPerSecond: exactBase * boosted("overtime"),
     crewPerSecond: baseCrew * boosted("overtime"),
     awayCapMs: hasRelic(mountain, "shield")
       ? SHIELD_AWAY_CAP_MS

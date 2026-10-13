@@ -8,8 +8,10 @@ page is the map, plus the rules that keep it that way.
 1. **Rules of the game (pure, no DOM):** `scale` → `mountain`, `tiers`,
    `relics`, `upgrades`, `boosts`, `veins`, `crew`, `rates` (the one place
    every multiplier is applied: live ticks, away pay, taps, the UI), and
-   `field-log` (a JSON snapshot and an event ring). `pacing` simulates
-   players on top of them. Every number lives here.
+   `field-log` (a JSON snapshot and an event ring). `rates.exactCrewPerSecond`
+   is the crew speed before the whole-stone floor. `economy/actions` lists
+   every legal move, applies the existing functions, and values income from
+   that speed, taps, and away pay. `pacing` simulates players on top of them. Every number lives here.
 2. **Saves:** `persist` (versioned save format and parser), `session-save`
    (guest storage), `cloud-save` (interface + memory fake), `firebase-save`
    (the SDK adapter; mountain save plus `fieldLogs/{uid}`), `firestore.rules`
