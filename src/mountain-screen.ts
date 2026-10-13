@@ -331,6 +331,12 @@ export function mountMountainScreen({
     progress,
     getView: () => view,
     iconUrl: tierArt.helper,
+    badgeUrl: {
+      cart: tierArt.cart,
+      drill: tierArt.drill,
+      borer: tierArt.borer,
+      machine: tierArt.machine,
+    },
     chipHost: boostChips,
     now,
     requestRender: () => {

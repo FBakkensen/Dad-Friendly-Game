@@ -246,10 +246,11 @@ async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
         titleOk: title >= insets.top,
         closeOk: close <= innerHeight - insets.bottom,
         words:
-          text.includes("hum a little faster") &&
+          text.includes("Tend a machine") &&
+          text.includes("dig a bit faster") &&
           !text.includes("?") &&
           !text.includes("%") &&
-          !/trip/i.test(text),
+          !/\d/.test(text),
       };
     },
     { top, bottom },
@@ -265,7 +266,7 @@ async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
   const ok =
     covered &&
     detail.boxesOk &&
-    detail.count >= 6 &&
+    detail.count >= 4 &&
     detail.titleOk &&
     detail.closeOk &&
     detail.words &&
@@ -1172,17 +1173,18 @@ for (const standalone of [false, true]) {
         closeOk: close <= innerHeight - pad.bottom,
         recall: recall !== null && !recall.hidden,
         words:
-          text.includes("Recall") &&
-          text.includes("Away in a tunnel") &&
+          text.includes("Call her back") &&
+          text.includes("exploring the old shaft") &&
           !text.includes("?") &&
-          !text.includes("%"),
+          !text.includes("%") &&
+          !/\d/.test(text),
       };
     },
     insets,
   );
   check(
     sheet.boxesOk &&
-      sheet.count >= 6 &&
+      sheet.count >= 3 &&
       sheet.titleOk &&
       sheet.closeOk &&
       sheet.recall &&
@@ -1194,6 +1196,111 @@ for (const standalone of [false, true]) {
   }
   check(await noScroll(page), `${label} expedition sheet has no scroll`);
   await close();
+}
+
+// Five engineers, one open card and four rows, plus a keepsake they brought
+// home. Short phones and the installed PWA, with no scroll.
+for (const viewport of [
+  [360, 560],
+  [360, 640],
+  [375, 667],
+]) {
+  for (const standalone of [false, true]) {
+    const label = `${String(viewport[0])}x${String(viewport[1])}${standalone ? " standalone" : ""}`;
+    const now = Date.now();
+    const { page, close } = await open(
+      viewport,
+      {
+        version: 4,
+        mountain: {
+          remaining: 90_700_000,
+          pocket: 9_765,
+          helpers: 51,
+          carts: 24,
+          drills: 6,
+          borers: 2,
+          engineers: [
+            { name: "Ada", rank: 1, trips: 3, post: "borer" },
+            { name: "Nils", rank: 0, trips: 0, post: "camp" },
+            { name: "Ruth", rank: 2, trips: 9, post: "drill" },
+            { name: "Otto", rank: 0, trips: 0, post: "tunnel" },
+            { name: "Mae", rank: 0, trips: 0, post: "cart" },
+          ],
+          expeditions: [
+            {
+              engineer: "Otto",
+              tunnel: "old-shaft",
+              sentAt: now,
+              returnsAt: now + 40 * 60_000,
+              home: "camp",
+              find: { kind: "quiet" },
+            },
+          ],
+          finds: ["drawing", "watch"],
+        },
+        lastSeen: now,
+      },
+      { standalone },
+    );
+    const insets = standalone ? STANDALONE_INSETS : { top: 0, bottom: 0 };
+    await page.tap(".engineers-button");
+    const crew = await page.$eval(
+      ".engineers-dialog",
+      (dialog, pad) => {
+        const buttons = [...dialog.querySelectorAll("button")].filter(
+          (button) => !button.hidden && button.getClientRects().length > 0,
+        );
+        const boxesOk = buttons.every((button) => {
+          const box = button.getBoundingClientRect();
+          return (
+            box.height >= 44 &&
+            box.left >= 0 &&
+            box.right <= innerWidth &&
+            box.top >= pad.top &&
+            box.bottom <= innerHeight - pad.bottom &&
+            button.scrollWidth <= button.clientWidth + 1
+          );
+        });
+        const promote = dialog.querySelector(".engineer-promote");
+        const promoteBottom =
+          promote?.getBoundingClientRect().bottom ?? Infinity;
+        const brought = dialog.querySelector(".engineer-brought");
+        const broughtSize = brought
+          ? Number.parseFloat(getComputedStyle(brought).fontSize)
+          : 0;
+        const text = dialog.textContent ?? "";
+        return {
+          boxesOk,
+          open: dialog.querySelectorAll(".engineer.is-open").length,
+          mini: dialog.querySelectorAll(".engineer.is-mini").length,
+          promoteOk: promoteBottom <= innerHeight - pad.bottom,
+          brought: brought !== null && !brought.hidden,
+          broughtSize,
+          story: text.includes("A child's drawing"),
+          sheetScroll: dialog.scrollHeight <= dialog.clientHeight + 1,
+          words: !text.includes("?") && !/\d/.test(text),
+        };
+      },
+      insets,
+    );
+    check(
+      crew.boxesOk &&
+        crew.open === 1 &&
+        crew.mini === 4 &&
+        crew.promoteOk &&
+        crew.brought &&
+        crew.broughtSize >= 16 &&
+        crew.story &&
+        crew.sheetScroll &&
+        crew.words &&
+        (await noScroll(page)),
+      `${label} five engineers and a keepsake fit with no scroll`,
+    );
+    if (!crew.boxesOk || !crew.sheetScroll || !crew.promoteOk) {
+      console.log("five engineers", label, crew);
+    }
+    await close();
+  }
 }
 
 // Welcome card naming a find, over the game, at the short phone and the PWA.

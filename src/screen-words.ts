@@ -6,7 +6,13 @@ import {
   type EngineerRank,
 } from "./engineers";
 import type { LostToolId } from "./lost-tools";
-import type { KeepsakeId, SettledFind, TunnelId } from "./expeditions";
+import {
+  KEEPSAKES,
+  type FindId,
+  type KeepsakeId,
+  type SettledFind,
+  type TunnelId,
+} from "./expeditions";
 import { formatCompact, formatCount, formatDuration } from "./format";
 import type { TroubleKind } from "./hazards";
 import type { Mountain } from "./mountain";
@@ -153,17 +159,32 @@ export const fieldLogTitle = "Field log";
 export const fieldLogFallback = "Select the log and copy it from here.";
 export const fieldLogClose = "Back to the mountain";
 
-/** Where the sheet can send an engineer. A tunnel is a trip, not a post you pick. */
-export const ENGINEER_STATIONS: readonly {
-  readonly post: Exclude<EngineerPost, "tunnel">;
-  readonly label: string;
-}[] = [
-  { post: "cart", label: "Carts" },
-  { post: "drill", label: "Drills" },
-  { post: "borer", label: "Borers" },
-  { post: "machine", label: "Machine" },
-  { post: "camp", label: "Call to camp" },
-];
+export const ENGINEER_SHEET_TITLE = "Your engineers";
+
+export const ENGINEER_SHEET_SUB =
+  "Each one makes a machine better, or goes exploring for finds.";
+
+/** Posts the Tend list offers, in sheet order. A tunnel is not one of them. */
+export const TEND_POSTS = [
+  "cart",
+  "drill",
+  "borer",
+  "machine",
+  "camp",
+] as const satisfies readonly Exclude<EngineerPost, "tunnel">[];
+
+export type TendPost = (typeof TEND_POSTS)[number];
+
+export const TEND_MACHINE = "Tend a machine";
+export const SEND_EXPLORING = "Send exploring";
+export const KEEP_EXPLORING = "Keep exploring";
+export const CALL_BACK = "Call back";
+
+export const PROMOTE_TITLE = "Promote a worker";
+export const PROMOTE_WHY =
+  "A new engineer can tend another machine or explore while the others work.";
+export const PROMOTE_BUTTON = "Promote";
+export const PROMOTE_SHORT_POCKET = "The pocket is too light for that.";
 
 const RANK_LABEL: Readonly<Record<EngineerRank, string>> = {
   0: "Apprentice",
@@ -190,13 +211,91 @@ export const rankHint = (
   return undefined;
 };
 
-/** Where they stand right now, with no bonus percent. */
-export const postWords = (post: EngineerPost): string => {
+type Voice = {
+  readonly subject: "she" | "he";
+  readonly object: "her" | "him";
+  readonly possessive: "her" | "his";
+  readonly self: "herself" | "himself";
+};
+
+/** Ada, Ruth and Mae, then Nils and Otto. The sheet speaks to each of them. */
+function voice(name: Engineer["name"]): Voice {
+  if (name === "Nils" || name === "Otto") {
+    return {
+      subject: "he",
+      object: "him",
+      possessive: "his",
+      self: "himself",
+    };
+  }
+  return { subject: "she", object: "her", possessive: "her", self: "herself" };
+}
+
+/** How much faster that rank makes a machine. Never a percent. */
+const PACE = ["a bit", "quite a bit", "much"] as const;
+
+const TEND_TITLE: Readonly<Record<TendPost, string>> = {
+  cart: "The carts",
+  drill: "The drills",
+  borer: "The borers",
+  machine: "The Great Machine",
+  camp: "Rest at camp",
+};
+
+const TUNNEL_TITLE: Readonly<Record<TunnelId, string>> = {
+  "side-seam": "Quick look",
+  "old-shaft": "Old shaft",
+  "deep-dark": "The deep dark",
+};
+
+const TUNNEL_PLACE: Readonly<Record<TunnelId, string>> = {
+  "side-seam": "a side seam",
+  "old-shaft": "the old shaft",
+  "deep-dark": "the deep dark",
+};
+
+const TUNNEL_BENEFIT: Readonly<Record<TunnelId, string>> = {
+  "side-seam": "Back in a few minutes with a small find.",
+  "old-shaft": "About an hour, often a lost tool or keepsake.",
+  "deep-dark": "All night, the best chance of a relic hint or a new engineer.",
+};
+
+/**
+ * The open card's one sentence: what they are doing, and what it does.
+ * Rank changes the pace words only. A tunnel uses the trip lines instead.
+ */
+export function dutySentence(engineer: Engineer): string {
+  const { name, rank, post } = engineer;
+  const { subject, object, self } = voice(name);
+  const pace = PACE[rank];
   switch (post) {
     case "camp":
-      return "At camp";
+      return `${name} is resting at camp. Give ${object} a job below.`;
     case "tunnel":
-      return "Away in a tunnel";
+      return `${name} is out exploring.`;
+    case "machine":
+      return `${name} is tending the Great Machine, it digs ${pace} faster and ${subject} fixes trouble there ${self}.`;
+    case "cart":
+      return `${name} is tending the carts, they dig ${pace} faster and ${subject} fixes trouble there ${self}.`;
+    case "drill":
+      return `${name} is tending the drills, they dig ${pace} faster and ${subject} fixes trouble there ${self}.`;
+    case "borer":
+      return `${name} is tending the borers, they dig ${pace} faster and ${subject} fixes trouble there ${self}.`;
+  }
+}
+
+/** One line on a collapsed card. The countdown uses the same words as the chip. */
+export function dutyLine(
+  engineer: Engineer,
+  trip?: { readonly tunnel: TunnelId; readonly leftMs: number },
+): string {
+  switch (engineer.post) {
+    case "camp":
+      return "Resting at camp";
+    case "tunnel":
+      return trip === undefined
+        ? "Exploring a tunnel"
+        : `Exploring ${TUNNEL_PLACE[trip.tunnel]} · ${awayShort(trip.leftMs)}`;
     case "cart":
       return "Tending the carts";
     case "drill":
@@ -206,25 +305,85 @@ export const postWords = (post: EngineerPost): string => {
     case "machine":
       return "Tending the Great Machine";
   }
-};
+}
 
-/** The tending bonus as a sentence. Camp and a tunnel tend nothing. */
-export const tendingWords = (engineer: Engineer): string | undefined => {
-  const { name, post } = engineer;
+export function tendTitle(post: TendPost, here: boolean): string {
+  const title = TEND_TITLE[post];
+  return here ? `${title} · here now` : title;
+}
+
+/**
+ * What tending that post does, in one line.
+ * Cave-in on the carts, flood on the drills, jam on the borers and the
+ * Great Machine. The Great Machine also runs with far fewer workers.
+ */
+export function tendBenefit(post: TendPost, name: Engineer["name"]): string {
+  const { subject, self } = voice(name);
+  switch (post) {
+    case "cart":
+      return `They roll faster, and ${subject} shores up cave-ins ${self}.`;
+    case "drill":
+      return `They bite deeper, and ${subject} pumps out floods ${self}.`;
+    case "borer":
+      return `They dig faster, and ${subject} clears any jam ${self}.`;
+    case "machine":
+      return `It runs with far fewer workers, and ${subject} clears any jam ${self}.`;
+    case "camp":
+      return "Rests by the fire, ready for the next job.";
+  }
+}
+
+export function stationCheer(name: string, post: TendPost): string {
   switch (post) {
     case "camp":
-    case "tunnel":
-      return undefined;
+      return `${name} puts the kettle on at camp.`;
     case "cart":
-      return `Your carts hum a little faster while ${name} tends them.`;
+      return `${name} heads to the carts!`;
     case "drill":
-      return `Your drills hum a little faster while ${name} tends them.`;
+      return `${name} heads to the drills!`;
     case "borer":
-      return `Your borers hum a little faster while ${name} tends them.`;
+      return `${name} heads to the borers!`;
     case "machine":
-      return `The Great Machine hums a little faster while ${name} tends it.`;
+      return `${name} heads to the Great Machine!`;
   }
-};
+}
+
+export const exploreTitle = (tunnel: TunnelId): string => TUNNEL_TITLE[tunnel];
+
+export const exploreBenefit = (tunnel: TunnelId): string =>
+  TUNNEL_BENEFIT[tunnel];
+
+export function exploreAside(name: Engineer["name"]): string {
+  const { subject, possessive, object } = voice(name);
+  return `While ${subject} explores, ${possessive} machine works without ${object}.`;
+}
+
+export function exploreCheer(name: string): string {
+  return `${name} lights a lamp and heads in!`;
+}
+
+export function callBackLabel(name: Engineer["name"]): string {
+  return `Call ${voice(name).object} back`;
+}
+
+export function tripTitle(name: string, tunnel: TunnelId): string {
+  return `${name} is exploring ${TUNNEL_PLACE[tunnel]}.`;
+}
+
+/** Words-only countdown under the walker, plus what they hope to carry home. */
+export function tripDetail(name: Engineer["name"], leftMs: number): string {
+  const { subject } = voice(name);
+  const who = subject === "she" ? "She" : "He";
+  return `${expeditionChip(name, leftMs)} ${who}'ll bring home whatever is found.`;
+}
+
+export function homeCheer(name: string): string {
+  return `${name} is home, empty-handed.`;
+}
+
+export function promoteCheer(name: string): string {
+  return `${name} steps up. The crew cheers.`;
+}
 
 /** Best-ranked engineer posted on this tier, if someone is. */
 export const tendingEngineer = (
@@ -312,21 +471,36 @@ export const keepsakeWords = (
 export const BROUGHT_HOME = "Brought home";
 export const KEEPSAKES_TITLE = "Keepsakes";
 
-export const promotePriceWords = (cost: number): string =>
-  `Promote a worker for ${formatCount(cost)} stones`;
+/** Keepsakes on the shelf, in the order they came home. Tools stay on Upgrades. */
+export function keepsakesBroughtHome(
+  finds: readonly FindId[] | undefined,
+): readonly KeepsakeId[] {
+  if (finds === undefined) {
+    return [];
+  }
+  return finds.filter((id): id is KeepsakeId =>
+    (KEEPSAKES as readonly string[]).includes(id),
+  );
+}
+
+/** Names on the card row. The stories stay whole, at reading size. */
+export function broughtHomeNames(ids: readonly KeepsakeId[]): string {
+  return ids.map((id) => keepsakeWords(id).name).join(", ");
+}
+
+/** Every story, in a toast. Normal sentences, no counts. */
+export function broughtHomeToast(ids: readonly KeepsakeId[]): string {
+  return ids
+    .map((id) => {
+      const words = keepsakeWords(id);
+      return `${words.name}. ${words.story}`;
+    })
+    .join(" ");
+}
 
 /** Warm confirm. The name is whoever is about to step up. */
 export const promoteConfirm = (name: string): string =>
   `${name} steps up as engineer. One worker fewer at the machines.`;
-
-/** The three ways down. The sheet uses these sentences as the buttons. */
-const TUNNEL_OFFER: Readonly<Record<TunnelId, string>> = {
-  "side-seam": "A quick look down a side seam",
-  "old-shaft": "About an hour in the old shaft",
-  "deep-dark": "A long night in the deep dark",
-};
-
-export const tunnelOffer = (tunnel: TunnelId): string => TUNNEL_OFFER[tunnel];
 
 /** Why an Apprentice cannot lead the deep dark. Other tunnels stay open. */
 export const tunnelLock = (
@@ -358,11 +532,19 @@ export const expeditionChip = (name: string, leftMs: number): string => {
   return `${name} will be gone a long night.`;
 };
 
-const FROM_TUNNEL: Readonly<Record<TunnelId, string>> = {
-  "side-seam": "a side seam",
-  "old-shaft": "the old shaft",
-  "deep-dark": "the deep dark",
-};
+/** Short countdown for a collapsed row. Same buckets as the mountain chip. */
+function awayShort(leftMs: number): string {
+  if (leftMs <= A_LITTLE_WHILE_MS) {
+    return "back soon";
+  }
+  if (leftMs <= ABOUT_AN_HOUR_MS) {
+    return "gone a little while";
+  }
+  if (leftMs <= LONG_NIGHT_MS) {
+    return "gone about an hour";
+  }
+  return "gone a long night";
+}
 
 /** What a tool does, short enough for the welcome card on a small phone. */
 const TOOL_HELPS = {
@@ -393,7 +575,7 @@ export const cameBack = (
   tunnel: TunnelId,
   find: SettledFind,
 ): string => {
-  const from = FROM_TUNNEL[tunnel];
+  const from = TUNNEL_PLACE[tunnel];
   switch (find.kind) {
     case "tool":
       return `${name} came back from ${from} with ${TOOL_IN_SENTENCE[find.id]}. ${TOOL_HELPS[find.id]}`;

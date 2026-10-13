@@ -2592,7 +2592,7 @@ describe("engineers sheet (#145)", () => {
     const sheet = openSheet(screen.root);
     expect(sheet.hidden).toBe(false);
     expect(sheet.textContent).toContain(
-      "Your borers hum a little faster while Ada tends them.",
+      "Ada is tending the borers, they dig a bit faster and she fixes trouble there herself.",
     );
   });
 
@@ -2602,11 +2602,18 @@ describe("engineers sheet (#145)", () => {
     writeSessionSave({ storage, mountain: away, lastSeen: Date.now() });
     const screen = mountScreen({ storage });
     const sheet = openSheet(screen.root);
-    expect(screen.text(".engineer-post")).toBe("Away in a tunnel");
+    expect(screen.text(".engineer-trip-title")).toBe(
+      "Ada is exploring a side seam.",
+    );
     sheet
       .querySelector<HTMLButtonElement>('[data-name="Ada"] [data-post="camp"]')
       ?.click();
-    expect(screen.text(".engineer-post")).toBe("At camp");
+    expect(screen.text(".engineer-doing")).toBe(
+      "Ada is resting at camp. Give her a job below.",
+    );
+    expect(screen.text(".engineer-toast")).toBe(
+      "Ada puts the kettle on at camp.",
+    );
     const saved = readSessionSave({ storage })?.mountain;
     expect(saved?.expeditions).toBeUndefined();
     expect(saved?.engineers?.[0]).toEqual({
@@ -2642,17 +2649,41 @@ describe("engineers sheet (#145)", () => {
 
     const sheet = openSheet(screen.root);
     const ada = sheet.querySelector('[data-name="Ada"]');
-    expect(ada?.querySelectorAll(".lamp:not([hidden])")).toHaveLength(1);
+    expect(ada?.querySelectorAll(".engineer-rank .lamp.on")).toHaveLength(1);
+    expect(ada?.querySelectorAll(".engineer-rank .lamp")).toHaveLength(3);
     expect(
       ada?.querySelector(".engineer-lamps")?.getAttribute("aria-label"),
     ).toBe("Apprentice");
-    expect(sheet.textContent).not.toMatch(/trip|%|\?/);
+    expect(ada?.querySelector(".engineer-rank-word")?.textContent).toBe(
+      "Apprentice",
+    );
+    expect(sheet.textContent).not.toMatch(/\d|\?|%/);
+    ada?.querySelector<HTMLButtonElement>(".engineer-tend")?.click();
+    expect(ada?.textContent).toContain(
+      "They roll faster, and she shores up cave-ins herself.",
+    );
+    expect(ada?.textContent).toContain(
+      "They bite deeper, and she pumps out floods herself.",
+    );
+    expect(ada?.textContent).toContain(
+      "They dig faster, and she clears any jam herself.",
+    );
+    expect(ada?.textContent).toContain(
+      "It runs with far fewer workers, and she clears any jam herself.",
+    );
+    expect(ada?.textContent).toContain(
+      "Rests by the fire, ready for the next job.",
+    );
     ada?.querySelector<HTMLButtonElement>('[data-post="cart"]')?.click();
 
-    expect(screen.text(".engineer-tend")).toBe(
-      "Your carts hum a little faster while Ada tends them.",
+    expect(screen.text(".engineer-doing")).toBe(
+      "Ada is tending the carts, they dig a bit faster and she fixes trouble there herself.",
     );
-    expect(screen.text(".engineer-post")).toBe("Tending the carts");
+    expect(screen.text(".engineer-toast")).toBe("Ada heads to the carts!");
+    expect(ada?.classList.contains("is-lit")).toBe(true);
+    expect(
+      ada?.querySelector(".engineer-face")?.getAttribute("data-badge"),
+    ).toBe("cart");
     expect(
       ada?.querySelector('[data-post="cart"]')?.getAttribute("aria-pressed"),
     ).toBe("true");
@@ -2673,10 +2704,12 @@ describe("engineers sheet (#145)", () => {
     );
 
     ada?.querySelector<HTMLButtonElement>('[data-post="camp"]')?.click();
-    expect(screen.text(".engineer-post")).toBe("At camp");
-    expect(sheet.querySelector<HTMLElement>(".engineer-tend")?.hidden).toBe(
-      true,
+    expect(screen.text(".engineer-doing")).toBe(
+      "Ada is resting at camp. Give her a job below.",
     );
+    expect(
+      ada?.querySelector(".engineer-face")?.getAttribute("data-badge"),
+    ).toBe("camp");
     expect(cart?.querySelector<HTMLElement>(".engineer-mark")?.hidden).toBe(
       true,
     );
@@ -2706,12 +2739,16 @@ describe("engineers sheet (#145)", () => {
     });
     const screen = mountScreen({ storage });
     const sheet = openSheet(screen.root);
-    expect(screen.text(".engineer-post")).toBe("Away in a tunnel");
-    expect(sheet.querySelector<HTMLElement>(".engineer-tend")?.hidden).toBe(
-      true,
+    expect(screen.text(".engineer-trip-title")).toBe("Ada is out exploring.");
+    expect(sheet.querySelector<HTMLElement>(".engineer-recall")?.hidden).toBe(
+      false,
     );
-    sheet.querySelector<HTMLButtonElement>('[data-post="camp"]')?.click();
-    expect(screen.text(".engineer-post")).toBe("At camp");
+    sheet.querySelector<HTMLButtonElement>(".engineer-recall")?.click();
+    sheet.querySelector<HTMLButtonElement>(".recall-yes")?.click();
+    expect(screen.text(".engineer-doing")).toBe(
+      "Ada is resting at camp. Give her a job below.",
+    );
+    expect(screen.text(".engineer-toast")).toBe("Ada is home, empty-handed.");
     expect(readSessionSave({ storage })?.mountain.engineers?.[0]?.post).toBe(
       "camp",
     );
@@ -2726,9 +2763,11 @@ describe("engineers sheet (#145)", () => {
     });
     const screen = mountScreen({ storage });
     const sheet = openSheet(screen.root);
-    expect(screen.text(".engineer-promote")).toBe(
-      "Promote a worker for 2 million stones",
+    expect(screen.text(".engineer-promote")).toBe("Promote");
+    expect(screen.text(".engineer-promote-why")).toBe(
+      "A new engineer can tend another machine or explore while the others work.",
     );
+    expect(screen.text(".engineer-promote-why")).not.toMatch(/\d|\?/);
     sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
     expect(screen.text(".engineer-confirm-line")).toBe(
       "Nils steps up as engineer. One worker fewer at the machines.",
@@ -2755,8 +2794,14 @@ describe("engineers sheet (#145)", () => {
     expect(screen.text(".pocket")).toBe("3 million stones");
     expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×19");
     const nils = sheet.querySelector('[data-name="Nils"]');
-    expect(nils?.querySelector(".engineer-post")?.textContent).toBe("At camp");
-    expect(nils?.querySelectorAll(".lamp:not([hidden])")).toHaveLength(1);
+    expect(nils?.classList.contains("is-open")).toBe(true);
+    expect(nils?.querySelector(".engineer-doing")?.textContent).toBe(
+      "Nils is resting at camp. Give him a job below.",
+    );
+    expect(screen.text(".engineer-toast")).toBe(
+      "Nils steps up. The crew cheers.",
+    );
+    expect(nils?.querySelectorAll(".engineer-rank .lamp.on")).toHaveLength(1);
     expect(readSessionSave({ storage })?.mountain.engineers).toEqual([
       { name: "Ada", rank: 0, trips: 0, post: "borer" },
       { name: "Nils", rank: 0, trips: 0, post: "camp" },
@@ -2782,7 +2827,7 @@ describe("engineers sheet (#145)", () => {
     const screen = mountScreen({ storage });
     const sheet = openSheet(screen.root);
     const lamps = (name: string): number =>
-      sheet.querySelectorAll(`[data-name="${name}"] .lamp:not([hidden])`)
+      sheet.querySelectorAll(`[data-name="${name}"] .engineer-rank .lamp.on`)
         .length;
     expect(lamps("Ada")).toBe(1);
     expect(lamps("Nils")).toBe(2);
@@ -2802,7 +2847,7 @@ describe("engineers sheet (#145)", () => {
       sheet.querySelector<HTMLElement>('[data-name="Otto"] .engineer-hint')
         ?.hidden,
     ).toBe(true);
-    expect(sheet.textContent).not.toMatch(/trip|\?/);
+    expect(sheet.textContent).not.toMatch(/\d|\?/);
     expect(
       sheet
         .querySelector('[data-name="Otto"] .engineer-lamps')
@@ -2822,7 +2867,10 @@ describe("engineers sheet (#145)", () => {
     const promote =
       broke.root.querySelector<HTMLButtonElement>(".engineer-promote");
     expect(promote?.disabled).toBe(true);
-    expect(promote?.textContent).toBe("No worker is free to step up.");
+    expect(promote?.textContent).toBe("Promote");
+    expect(broke.text(".engineer-promote-why")).toBe(
+      "No worker is free to step up.",
+    );
     promote?.click();
     expect(
       broke.root.querySelector<HTMLElement>(".engineer-confirm")?.hidden,
@@ -2845,12 +2893,146 @@ describe("engineers sheet (#145)", () => {
     });
     const full = mountScreen({ storage: fullStorage });
     openSheet(full.root);
-    expect(full.text(".engineer-promote")).toBe(
+    expect(full.text(".engineer-promote")).toBe("Promote");
+    expect(full.text(".engineer-promote-why")).toBe(
       "Every named hand is already an engineer.",
     );
+    expect(full.root.querySelectorAll(".engineer.is-open")).toHaveLength(1);
+    expect(full.root.querySelectorAll(".engineer.is-mini")).toHaveLength(4);
     expect(
       full.root.querySelector<HTMLButtonElement>(".engineer-promote")?.disabled,
     ).toBe(true);
+    full.root
+      .querySelector<HTMLButtonElement>('[data-name="Mae"] .engineer-mini')
+      ?.click();
+    expect(
+      full.root.querySelector(".engineer.is-open")?.getAttribute("data-name"),
+    ).toBe("Mae");
+    expect(full.text(".engineer-duty")).toBe("Tending the borers");
+  });
+
+  it("greys promotion when the pocket is light, and a press shows", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: withAda({ pocket: 10 }),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const sheet = openSheet(screen.root);
+    const promote = sheet.querySelector<HTMLButtonElement>(".engineer-promote");
+    expect(promote?.disabled).toBe(true);
+    expect(screen.text(".engineer-promote-why")).toBe(
+      "The pocket is too light for that.",
+    );
+    promote?.click();
+    expect(sheet.querySelector<HTMLElement>(".engineer-confirm")?.hidden).toBe(
+      true,
+    );
+
+    const rich = createMemoryStorage();
+    writeSessionSave({
+      storage: rich,
+      mountain: withAda(),
+      lastSeen: Date.now(),
+    });
+    const ready = mountScreen({ storage: rich });
+    const open = openSheet(ready.root);
+    const tend = open.querySelector<HTMLButtonElement>(".engineer-tend");
+    tend?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    expect(tend?.classList.contains("is-pressed")).toBe(true);
+    ready.root.remove();
+    screen.root.remove();
+  });
+
+  it("shows keepsakes an engineer brought home, and toasts the story", () => {
+    const tools = createMemoryStorage();
+    writeSessionSave({
+      storage: tools,
+      mountain: withAda({ finds: ["pick"] }),
+      lastSeen: Date.now(),
+    });
+    const quiet = mountScreen({ storage: tools });
+    const quietSheet = openSheet(quiet.root);
+    expect(
+      quietSheet.querySelector<HTMLElement>(".engineer-brought")?.hidden,
+    ).toBe(true);
+    quiet.root.remove();
+
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: withAda({ finds: ["pick", "drawing", "watch"] }),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const sheet = openSheet(screen.root);
+    const row = sheet.querySelector<HTMLButtonElement>(".engineer-brought");
+    expect(row?.hidden).toBe(false);
+    expect(row?.textContent).toContain("Brought home");
+    expect(row?.textContent).toContain("A child's drawing");
+    expect(row?.textContent).toContain(
+      "A little figure with a lamp, folded for a pocket.",
+    );
+    expect(row?.textContent).toContain("A pocket watch");
+    expect(row?.textContent).toContain("Quiet in the hand. Someone loved it.");
+    expect(row?.textContent).not.toContain("Grandfather's pick");
+    expect(row?.textContent).not.toMatch(/\d|\?/);
+    row?.click();
+    const toast = sheet.querySelector(".engineer-toast");
+    expect(toast?.classList.contains("is-story")).toBe(true);
+    expect(toast?.textContent).toBe(
+      "A child's drawing. A little figure with a lamp, folded for a pocket. A pocket watch. Quiet in the hand. Someone loved it.",
+    );
+    screen.root.remove();
+  });
+
+  it("lets a press and a cheer fade, and ignores a post she already holds", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: withAda(),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const sheet = openSheet(screen.root);
+    vi.useFakeTimers();
+    try {
+      const tend = sheet.querySelector<HTMLButtonElement>(".engineer-tend");
+      tend?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      tend?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      const deep = sheet.querySelector<HTMLButtonElement>(
+        '[data-tunnel="deep-dark"]',
+      );
+      deep?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      deep?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      vi.advanceTimersByTime(200);
+      expect(tend?.classList.contains("is-pressed")).toBe(false);
+
+      sheet.querySelector<HTMLButtonElement>('[data-post="borer"]')?.click();
+      expect(sheet.querySelector<HTMLElement>(".engineer-toast")?.hidden).toBe(
+        true,
+      );
+      sheet.querySelector<HTMLButtonElement>('[data-post="drill"]')?.click();
+      sheet.querySelector<HTMLButtonElement>('[data-post="cart"]')?.click();
+      expect(screen.text(".engineer-toast")).toBe("Ada heads to the carts!");
+      expect(sheet.querySelector(".engineer.is-lit")).not.toBeNull();
+      sheet
+        .querySelectorAll<HTMLButtonElement>('[data-post="camp"]')[4]
+        ?.click();
+      sheet.querySelector<HTMLButtonElement>(".engineer-brought")?.click();
+      sheet.querySelector<HTMLButtonElement>(".recall-yes")?.click();
+      sheet.dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
+      expect(sheet.hidden).toBe(false);
+      vi.advanceTimersByTime(2_300);
+      expect(sheet.querySelector<HTMLElement>(".engineer-toast")?.hidden).toBe(
+        true,
+      );
+      expect(sheet.querySelector(".engineer.is-lit")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+    screen.root.remove();
   });
 });
 
@@ -2886,11 +3068,19 @@ describe("side tunnels (#147)", () => {
     const screen = mountScreen({ storage });
     const sheet = openSheet(screen.root);
     const ada = sheet.querySelector('[data-name="Ada"]');
-    expect(ada?.textContent).toContain("A quick look down a side seam");
-    expect(ada?.textContent).toContain("About an hour in the old shaft");
-    expect(ada?.textContent).toContain("A long night in the deep dark");
-    expect(ada?.querySelector(".engineer-lock")?.textContent).toBe(
-      "The deep dark waits for a Journeyman.",
+    ada?.querySelector<HTMLButtonElement>(".engineer-explore")?.click();
+    expect(ada?.textContent).toContain("Quick look");
+    expect(ada?.textContent).toContain(
+      "Back in a few minutes with a small find.",
+    );
+    expect(ada?.textContent).toContain("Old shaft");
+    expect(ada?.textContent).toContain(
+      "About an hour, often a lost tool or keepsake.",
+    );
+    expect(ada?.textContent).toContain("The deep dark");
+    expect(ada?.textContent).toContain("The deep dark waits for a Journeyman.");
+    expect(ada?.textContent).toContain(
+      "While she explores, her machine works without her.",
     );
     const deep = ada?.querySelector<HTMLButtonElement>(
       '[data-tunnel="deep-dark"]',
@@ -2900,11 +3090,20 @@ describe("side tunnels (#147)", () => {
     expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
 
     ada?.querySelector<HTMLButtonElement>('[data-tunnel="old-shaft"]')?.click();
-    expect(screen.text(".engineer-post")).toBe("Away in a tunnel");
-    expect(screen.text(".engineer-tend")).toBe(
-      "Ada will be gone about an hour.",
+    expect(screen.text(".engineer-trip-title")).toBe(
+      "Ada is exploring the old shaft.",
     );
-    expect(ada?.querySelector<HTMLElement>(".engineer-tunnels")?.hidden).toBe(
+    expect(screen.text(".engineer-trip-detail")).toBe(
+      "Ada will be gone about an hour. She'll bring home whatever is found.",
+    );
+    expect(screen.text(".engineer-toast")).toBe(
+      "Ada lights a lamp and heads in!",
+    );
+    expect(ada?.classList.contains("is-lit")).toBe(true);
+    expect(ada?.querySelector<HTMLElement>(".engineer-recall")?.hidden).toBe(
+      false,
+    );
+    expect(ada?.querySelector<HTMLElement>(".engineer-explore")?.hidden).toBe(
       true,
     );
     const chip = screen.root.querySelector<HTMLElement>(".expedition-chip");
@@ -2935,8 +3134,12 @@ describe("side tunnels (#147)", () => {
     recall?.click();
     expect(screen.text(".recall-line")).toBe("Ada comes home empty-handed.");
     expect(screen.text(".recall-line")).not.toMatch(/\d|\?/);
+    expect(screen.text(".recall-no")).toBe("Keep exploring");
+    expect(screen.text(".recall-yes")).toBe("Call back");
     sheet.querySelector<HTMLButtonElement>(".recall-no")?.click();
-    expect(screen.text(".engineer-post")).toBe("Away in a tunnel");
+    expect(screen.text(".engineer-trip-title")).toBe(
+      "Ada is exploring a side seam.",
+    );
     expect(sheet.querySelector<HTMLElement>(".recall-confirm")?.hidden).toBe(
       true,
     );
@@ -2944,11 +3147,16 @@ describe("side tunnels (#147)", () => {
     recall?.click();
     sheet.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(sheet.hidden).toBe(false);
-    expect(screen.text(".engineer-post")).toBe("Away in a tunnel");
+    expect(screen.text(".engineer-trip-title")).toBe(
+      "Ada is exploring a side seam.",
+    );
 
     recall?.click();
     sheet.querySelector<HTMLButtonElement>(".recall-yes")?.click();
-    expect(screen.text(".engineer-post")).toBe("Tending the borers");
+    expect(screen.text(".engineer-doing")).toBe(
+      "Ada is tending the borers, they dig a bit faster and she fixes trouble there herself.",
+    );
+    expect(screen.text(".engineer-toast")).toBe("Ada is home, empty-handed.");
     expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
     expect(screen.progress.getSnapshot().mountain.engineers?.[0]).toMatchObject(
       { trips: 0, post: "borer" },
@@ -2963,7 +3171,9 @@ describe("side tunnels (#147)", () => {
       ?.click();
     sheet.querySelector<HTMLButtonElement>(".engineer-recall")?.click();
     sheet.querySelector<HTMLButtonElement>('[data-post="camp"]')?.click();
-    expect(screen.text(".engineer-post")).toBe("At camp");
+    expect(screen.text(".engineer-doing")).toBe(
+      "Ada is resting at camp. Give her a job below.",
+    );
     expect(sheet.querySelector<HTMLElement>(".recall-confirm")?.hidden).toBe(
       true,
     );
@@ -2986,8 +3196,15 @@ describe("side tunnels (#147)", () => {
     const screen = mountScreen({ storage });
     const sheet = openSheet(screen.root);
     const ada = sheet.querySelector('[data-name="Ada"]');
-    expect(ada?.querySelector<HTMLElement>(".engineer-lock")?.hidden).toBe(
-      true,
+    expect(ada?.querySelector(".engineer-doing")?.textContent).toBe(
+      "Ada is resting at camp. Give her a job below.",
+    );
+    ada?.querySelector<HTMLButtonElement>(".engineer-explore")?.click();
+    expect(ada?.textContent).not.toContain(
+      "The deep dark waits for a Journeyman.",
+    );
+    expect(ada?.textContent).toContain(
+      "All night, the best chance of a relic hint or a new engineer.",
     );
     const deep = ada?.querySelector<HTMLButtonElement>(
       '[data-tunnel="deep-dark"]',
