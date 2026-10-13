@@ -66,16 +66,16 @@ function expectPaidForNils(run: DadRun): void {
   expect((paid?.day ?? 0) - (borer?.day ?? 0)).toBeLessThan(0.01);
 }
 
-// Second run (M6): the kid's crew is ×1.5. Paying for Nils lands the bottom
-// on day 4.5, still a shorter climb than the first.
+// Second run (M6): the kid's crew is ×1.5. Exact catalogue valuation lands
+// the bottom on day 4, still a shorter climb than the first.
 describe("pacing: a second run with one Legacy (×1.5)", () => {
   const run = simulateDadRun({
     milestones: [depth("mantle")],
     legacy: 1,
     buysUpgrades: true,
   });
-  it("reaches the bottom on day 4.5", () => {
-    expect(run.reached.get(depth("mantle"))).toBe(4.5);
+  it("reaches the bottom on day 4", () => {
+    expect(run.reached.get(depth("mantle"))).toBe(4);
   });
 
   it("pays the real promotion for Nils", () => {
@@ -173,7 +173,7 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
     expect(borer).toMatchObject({
       count: 1,
       price: 10_000_000,
-      short: 4,
+      short: 5,
     });
     expect(borer?.shortCost).toBeGreaterThan(0);
     expect((borer?.shortCost ?? 0) / (borer?.price ?? 1)).toBeLessThan(0.1);
