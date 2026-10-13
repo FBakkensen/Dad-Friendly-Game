@@ -38,8 +38,8 @@ export const TIERS: readonly Tier[] = [
   {
     id: "helper",
     field: "helpers",
-    name: "Helper",
-    shortName: "Helper",
+    name: "Worker",
+    shortName: "Worker",
     firstCost: 20,
     perSecond: 1,
     staff: 0,
@@ -85,7 +85,7 @@ export const TIERS: readonly Tier[] = [
     // Crown of Wisdom: kids mine, staff machines, and teach the crew (rates.ts).
     id: "kid",
     field: "kids",
-    name: "Kid helper",
+    name: "Kid worker",
     shortName: "Kid",
     firstCost: KID_FIRST_COST,
     perSecond: 1,

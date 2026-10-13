@@ -452,9 +452,9 @@ describe("crew tiers on screen", () => {
       const cart = tierCard(screen.root, "cart");
 
       expect(screen.text(".crew-status")).toBe(
-        "No crew yet. Hire a helper to mine for you.",
+        "No crew yet. Hire a worker to mine for you.",
       );
-      expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Helper");
+      expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Worker");
       expect(
         screen.root.querySelector<HTMLElement>(
           '[data-tier="helper"] .tier-count',
@@ -472,13 +472,13 @@ describe("crew tiers on screen", () => {
       expect(screen.text(".crew-status")).toBe(
         "Your crew mines 1 stone a second",
       );
-      expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Helper");
+      expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Worker");
       expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×1");
       expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("23");
       expect(hire.disabled).toBe(true);
       expect(cart.hidden).toBe(false);
       expect(hire.getAttribute("aria-label")).toBe(
-        "Buy a helper for 23 stones, mines 1 stone a second. You have 1.",
+        "Buy a worker for 23 stones, mines 1 stone a second. You have 1.",
       );
 
       await vi.advanceTimersByTimeAsync(3_000);
@@ -557,7 +557,7 @@ describe("crew tiers on screen", () => {
     expect(card.getAttribute("role")).toBe("dialog");
     expect(screen.text(".welcome-mined")).toBe("+9,000 stones");
     expect(screen.text(".welcome-detail")).toBe(
-      "You were gone 2 hours 5 minutes. Your 4 helpers mined the whole time, at a resting pace (30% of their speed).",
+      "You were gone 2 hours 5 minutes. Your 4 workers mined the whole time, at a resting pace (30% of their speed).",
     );
 
     close.click();
@@ -587,7 +587,7 @@ describe("crew tiers on screen", () => {
     const screen = mountScreen({ storage });
     expect(screen.text(".welcome-mined")).toBe("+8,640 stones");
     expect(screen.text(".welcome-detail")).toBe(
-      "You were gone 1 day 2 hours. Your helper mined for the first 8 hours, at a resting pace (30% of their speed).",
+      "You were gone 1 day 2 hours. Your worker mined for the first 8 hours, at a resting pace (30% of their speed).",
     );
   });
 
@@ -1004,7 +1004,7 @@ describe("start over", () => {
     expect(screen.text(".stones-left")).toBe("100 million stones left");
     expect(screen.text(".pocket")).toBe("0 stones");
     expect(screen.text(".crew-status")).toBe(
-      "No crew yet. Hire a helper to mine for you.",
+      "No crew yet. Hire a worker to mine for you.",
     );
     expect(
       screen.root.querySelector(".relic-shelf")?.getAttribute("aria-label"),
@@ -1373,7 +1373,7 @@ describe("lasting upgrades on screen", () => {
     expect(screen.text('[data-upgrade="boots"] .upgrade-name')).toBe(
       "Better boots",
     );
-    expect(boots?.textContent).toBe("Unlocks at 10 helpers");
+    expect(boots?.textContent).toBe("Unlocks at 10 workers");
     expect(boots?.disabled).toBe(true);
     expect(screen.text('[data-upgrade="steady"] .upgrade-buy')).toBe(
       "Unlocks with your first mine cart",
@@ -1384,13 +1384,13 @@ describe("lasting upgrades on screen", () => {
       ?.click();
     expect(boots?.textContent).toBe("Buy for 15 thousand stones");
     expect(screen.text('[data-upgrade="boots"] .upgrade-now')).toBe(
-      "Each helper now mines 1/s.",
+      "Each worker now mines 1/s.",
     );
     boots?.click();
     expect(boots?.textContent).toBe("Owned");
     expect(boots?.disabled).toBe(true);
     expect(screen.text('[data-upgrade="boots"] .upgrade-now')).toBe(
-      "Each helper now mines 1.1/s.",
+      "Each worker now mines 1.1/s.",
     );
     expect(screen.text('[data-tier="helper"] .tier-rate')).toBe(
       "+1.1 each · 11/s",
@@ -1410,7 +1410,7 @@ describe("lasting upgrades on screen", () => {
     const screen = mountScreen({ storage });
     expect(screen.text(".welcome-mined")).toBe("+11.2 thousand stones");
     expect(screen.text(".welcome-detail")).toBe(
-      "You were gone 2 hours 5 minutes. Your 4 helpers mined the whole time, at a resting pace (37.5% of their speed).",
+      "You were gone 2 hours 5 minutes. Your 4 workers mined the whole time, at a resting pace (37.5% of their speed).",
     );
   });
 });
@@ -1429,7 +1429,7 @@ describe("crew synergies on screen", () => {
       "Helping hands",
     );
     expect(screen.text('[data-upgrade="cartSyn"] .upgrade-now')).toBe(
-      "Your 12 helpers would make carts 12% faster.",
+      "Your 12 workers would make carts 12% faster.",
     );
     expect(screen.text('[data-upgrade="drillSyn"] .upgrade-buy')).toBe(
       "Unlocks at 5 steam drills",
@@ -1438,7 +1438,7 @@ describe("crew synergies on screen", () => {
       .querySelector<HTMLButtonElement>('[data-upgrade="cartSyn"] .upgrade-buy')
       ?.click();
     expect(screen.text('[data-upgrade="cartSyn"] .upgrade-now')).toBe(
-      "Your 12 helpers make carts 12% faster.",
+      "Your 12 workers make carts 12% faster.",
     );
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
       "+11 \u219112% · 56/s",
@@ -1493,20 +1493,20 @@ describe("crew staffing on screen", () => {
       screen.root
         .querySelector('[data-tier="cart"]')
         ?.getAttribute("aria-label"),
-    ).toContain("2 idle: each needs 1 helper to run");
+    ).toContain("2 idle: each needs 1 worker to run");
     expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
       "+60\u2009·\u2009120/s",
     );
-    expect(screen.text(".crew-status")).toBe("135/s · 2 idle, need 2 helpers");
+    expect(screen.text(".crew-status")).toBe("135/s · 2 idle, need 2 workers");
 
     // Hiring one helper starts one cart.
     screen.root
       .querySelector<HTMLButtonElement>('[data-tier="helper"]')
       ?.click();
-    expect(screen.text(".crew-status")).toBe("146/s · 1 idle, need 1 helper");
+    expect(screen.text(".crew-status")).toBe("146/s · 1 idle, need 1 worker");
   });
 
-  it("floats 'Needs helpers' when a new machine has nobody to run it", () => {
+  it("floats 'Needs workers' when a new machine has nobody to run it", () => {
     vi.useFakeTimers();
     setReducedMotion(false);
     try {
@@ -1521,9 +1521,9 @@ describe("crew staffing on screen", () => {
         screen.root.querySelector<HTMLButtonElement>('[data-tier="cart"]');
       cart?.click();
       expect(cart?.querySelector(".float-gain")?.textContent).toBe(
-        "Needs helpers",
+        "Needs workers",
       );
-      expect(screen.text(".crew-status")).toBe("11/s · 1 idle, need 1 helper");
+      expect(screen.text(".crew-status")).toBe("11/s · 1 idle, need 1 worker");
     } finally {
       vi.useRealTimers();
       setReducedMotion(true);
@@ -1552,7 +1552,7 @@ describe("free helpers note (#89 grant)", () => {
     ).toBe(false);
     expect(screen.text("#welcome-back-title")).toBe("Your crew grew");
     expect(screen.text(".welcome-crew")).toBe(
-      "6 helpers joined to run your machines.",
+      "6 workers joined to run your machines.",
     );
     expect(
       screen.root.querySelector<HTMLElement>(".welcome-mined")?.hidden,
@@ -1574,7 +1574,7 @@ describe("free helpers note (#89 grant)", () => {
     const screen = mountScreen({ storage });
     expect(screen.text("#welcome-back-title")).toBe("While you were away");
     expect(screen.text(".welcome-crew")).toBe(
-      "Your crew grew: 1 helper joined to run your machines.",
+      "Your crew grew: 1 worker joined to run your machines.",
     );
     expect(
       screen.root.querySelector<HTMLElement>(".welcome-mined")?.hidden,
@@ -1593,7 +1593,7 @@ describe("Shield of Protection on the welcome card", () => {
     const screen = mountScreen({ storage });
     expect(screen.text(".welcome-mined")).toBe("+25.9 thousand stones");
     expect(screen.text(".welcome-detail")).toBe(
-      "You were gone 1 day 6 hours. Your helper mined for a whole day, at a resting pace (30% of their speed).",
+      "You were gone 1 day 6 hours. Your worker mined for a whole day, at a resting pace (30% of their speed).",
     );
   });
 });
@@ -1828,5 +1828,136 @@ describe("pass the mine to your kid (#131)", () => {
     expect(
       screen.root.querySelector<HTMLElement>(".legacy-badge")?.hidden,
     ).toBe(true);
+  });
+});
+
+describe("player-facing workers (#139)", () => {
+  /** Text the player can read, including screen-reader labels. */
+  const mentionsHelper = (root: ParentNode): string[] => {
+    const hits: string[] = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node !== null) {
+      const text = node.textContent ?? "";
+      if (/helper/i.test(text)) {
+        hits.push(text.trim());
+      }
+      node = walker.nextNode();
+    }
+    for (const el of root.querySelectorAll("[aria-label], [title]")) {
+      for (const name of ["aria-label", "title"]) {
+        const value = el.getAttribute(name) ?? "";
+        if (/helper/i.test(value)) {
+          hits.push(value);
+        }
+      }
+    }
+    return hits;
+  };
+
+  it("never says helper on the mountain, the sheets, the welcome card, or the finale", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        // One stone short of the Crown. Away pay reaches the bottom, so the
+        // welcome card, the Crown's power, and the Legend finale all render.
+        ...minedMountain(69_999_999),
+        pocket: 80_000_000,
+        helpers: 10,
+        carts: 5,
+        borers: 1,
+        machines: 1,
+        kids: 1,
+        upgrades: { boots: 1, steady: 1, cartSyn: 1, tap: 2 },
+      },
+      lastSeen: Date.now() - 20 * 3_600_000,
+    });
+    const screen = mountScreen({ storage });
+    document.body.append(screen.root);
+    try {
+      expect(
+        screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+      ).toBe(false);
+      expect(screen.text(".welcome-detail")).toMatch(/mined the whole time/);
+      expect(screen.text(".crew-status")).toMatch(/need \d+ workers/);
+      expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Worker");
+      expect(screen.text('[data-tier="kid"] .tier-name')).toBe("Kid");
+
+      screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+      expect(
+        screen.root.querySelector<HTMLElement>(".upgrades-dialog")?.hidden,
+      ).toBe(false);
+      expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
+        "Workers mine 10% faster.",
+      );
+      expect(screen.text('[data-upgrade="cartSyn"] .upgrade-name')).toBe(
+        "Helping hands",
+      );
+      expect(screen.text('[data-upgrade="cartSyn"] .upgrade-now')).toMatch(
+        /workers make carts/,
+      );
+      screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
+
+      screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+      expect(screen.root.querySelector<HTMLElement>(".game-menu")?.hidden).toBe(
+        false,
+      );
+      screen.root.querySelector<HTMLButtonElement>(".menu-close")?.click();
+
+      screen.root.querySelector<HTMLButtonElement>(".relic-shelf")?.click();
+      const crown = [...screen.root.querySelectorAll(".shelf-list li")][4];
+      if (!(crown instanceof HTMLElement)) {
+        throw new Error("crown row did not render");
+      }
+      crown.click();
+      expect(
+        screen.root.querySelector<HTMLElement>(".relic-detail")?.hidden,
+      ).toBe(false);
+      expect(screen.text(".relic-detail .relic-boost")).toMatch(
+        /count as workers/,
+      );
+      screen.root
+        .querySelector<HTMLButtonElement>(".relic-detail .reveal-continue")
+        ?.click();
+      screen.root.querySelector<HTMLButtonElement>(".shelf-close")?.click();
+
+      const revealCard = (): HTMLElement => {
+        const reveal = screen.root.querySelector<HTMLElement>(
+          ".relic-reveal:not(.relic-detail):not(.legend)",
+        );
+        if (reveal === null) {
+          throw new Error("relic reveal did not render");
+        }
+        return reveal;
+      };
+      screen.root
+        .querySelector<HTMLButtonElement>(".welcome-continue")
+        ?.click();
+      const crownReveal = revealCard();
+      expect(crownReveal.hidden).toBe(false);
+      expect(
+        crownReveal.querySelector("#relic-reveal-title")?.textContent,
+      ).toBe("You found the Crown of Wisdom");
+      expect(crownReveal.querySelector(".reveal-power")?.textContent).toMatch(
+        /count as workers/,
+      );
+      expect(mentionsHelper(screen.root)).toEqual([]);
+      crownReveal.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
+      const mantleReveal = revealCard();
+      expect(
+        mantleReveal.querySelector("#relic-reveal-title")?.textContent,
+      ).toBe("You found the Mantle of the Hero");
+      mantleReveal
+        .querySelector<HTMLButtonElement>(".reveal-continue")
+        ?.click();
+      const legend = screen.root.querySelector<HTMLElement>(".legend");
+      expect(legend?.hidden).toBe(false);
+      expect(screen.text(".legend-stats")).toMatch(/Six relics found/);
+
+      expect(mentionsHelper(screen.root)).toEqual([]);
+    } finally {
+      screen.root.remove();
+    }
   });
 });

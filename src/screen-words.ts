@@ -31,7 +31,11 @@ export const formatClock = (ms: number): string => {
     : `${String(minutes)}:${seconds}`;
 };
 
-/** "Your 12 helpers make carts 12% faster." — or would, before it's bought. */
+/** "worker" or "workers". The save field stays `helpers`. */
+export const workerWords = (count: number): string =>
+  count === 1 ? "worker" : "workers";
+
+/** "Your 12 workers make carts 12% faster." — or would, before it's bought. */
 const synergyNow = (upgrade: Upgrade, mountain: Mountain): string => {
   if (upgrade.synergy === undefined) {
     return "";
@@ -65,7 +69,7 @@ export const upgradeNow = (
     case "tap":
       return `Each tap now mines ${formatCount(rates.tapYield)}.`;
     case "boots":
-      return `Each helper now mines ${formatSpeed(rates.tierSpeed.helper)}/s.`;
+      return `Each worker now mines ${formatSpeed(rates.tierSpeed.helper)}/s.`;
     case "steady":
       return `Time away now pays ${percent(rates.awayPay)} of crew speed.`;
     case "cartSyn":

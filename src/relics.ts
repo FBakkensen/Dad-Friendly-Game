@@ -63,12 +63,12 @@ export const RELICS: readonly Relic[] = [
   {
     id: "crown",
     boost:
-      "Kid helpers join the crew: they mine, run machines, and make every helper and kid 2% faster.",
+      "Kid workers join the crew: they mine, count as workers, and make every worker and kid 2% faster.",
     tease: "A crown of wisdom sleeps in the deep.",
     name: "Crown of Wisdom",
     virtue: "Wisdom",
     power:
-      "Kid helpers join the crew: they mine, run machines, and each one makes every helper and kid 2% faster.",
+      "Kid workers join the crew: they mine, count as workers, and each one makes every worker and kid 2% faster.",
     depth: 70_000_000,
   },
   {
