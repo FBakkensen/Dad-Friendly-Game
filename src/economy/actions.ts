@@ -434,8 +434,9 @@ type ValueClock = {
  * Stones a second of the schedule. Live time pays the unrounded crew and
  * each tap (`mineByHand`). Away time pays the same factor as `accrueAway`,
  * and only up to the away cap. The rest of a long absence pays nothing.
+ * The lab reads this for its lookahead so it does not keep a second formula.
  */
-function incomePerSecond(
+export function incomePerSecond(
   mountain: Mountain,
   context: ValueContext,
   clock?: ValueClock,

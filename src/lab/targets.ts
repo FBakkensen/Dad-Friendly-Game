@@ -6,7 +6,7 @@
 /** A live option pays back within this multiple of the best payback. */
 export const LIVE_RATIO = 1.5;
 
-const MS_PER_SECOND = 1000;
+export const MS_PER_SECOND = 1000;
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
 export const HOURS_PER_DAY = 24;
@@ -162,6 +162,76 @@ export const TARGETS: readonly Target[] = [
     why: "The smart dad may finish sooner, and not by more than a quarter.",
   },
 ];
+
+/**
+ * Sittings the optimizer may save across. One is the next session: that
+ * sitting plus the gap before it, because away pay shows up first.
+ */
+export const LOOKAHEAD_SESSIONS = 1;
+
+/** The plain dad taps this fast while the sitting is open. */
+export const TAPS_PER_SECOND = 3;
+
+/** How many days `runPolicy` plays when the caller does not name a cap. */
+export const DEFAULT_MAX_DAYS = 30;
+
+/** Scores closer than this are the same buy. Matches the pacing tie. */
+export const VALUE_TIE = 1e-9;
+
+/** The plain dad puts trouble right within three seconds. */
+export const FIX_FAST_MS = 3 * MS_PER_SECOND;
+
+/** A slow dad waits as long as an apprentice tending the machine. */
+export const FIX_SLOW_MS = 30 * MS_PER_SECOND;
+
+/** Two 10-minute sittings. Most registered dads share this day. */
+export const CASUAL_SESSIONS = 2;
+export const CASUAL_MINUTES = SESSION_MINUTES;
+
+/** One 20-minute evening. */
+export const EVENING_MINUTES = 20;
+
+/** Six 3-minute check-ins. The gap slides by a tenth. */
+export const CHECKER_SESSIONS = 6;
+export const CHECKER_MINUTES = 3;
+export const CHECKER_GAP_JITTER = 0.1;
+
+/** One 5-minute sitting, or one 3-hour sitting. */
+export const FIVE_MINUTES = 5;
+export const MARATHON_MINUTES = 3 * MINUTES_PER_HOUR;
+
+/** A hoarder pays only when the pocket holds this many times the sticker. */
+export const HOARD_MULTIPLE = 8;
+
+/** Both sides of a jitter roll, so the gap can land early or late. */
+const JITTER_POLES = 2;
+
+/**
+ * Slides `base` by `jitter` (a fraction) from the seed. Zero jitter returns
+ * `base`. The same seed and session always slide the same way.
+ */
+export function jitteredGap(
+  base: number,
+  jitter: number,
+  seed: number,
+  session: number,
+): number {
+  if (!(jitter > 0)) {
+    return base;
+  }
+  const swing = jitterUnit(seed, session) * JITTER_POLES - 1;
+  return Math.max(0, Math.round(base * (1 + swing * jitter)));
+}
+
+/** One deterministic 0..1 step. Same mixer the trouble rolls use. */
+function jitterUnit(seed: number, session: number): number {
+  const mixed =
+    (Math.imul(seed, 0x9e3779b1) ^ Math.imul(session + 1, 0x85ebca6b)) >>> 0;
+  let x = Math.imul(mixed ^ 0x9e3779b9, 0x85ebca6b);
+  x ^= x >>> 13;
+  x = Math.imul(x, 0xc2b2ae35);
+  return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
+}
 
 /** True when `actual` sits on the safe side of the guardrail. */
 export function meetsTarget(target: Target, actual: number): boolean {

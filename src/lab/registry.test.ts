@@ -3,8 +3,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { defineMeasure, parseMeasureExport, resultsOf } from "./measure";
+import { parsePolicyExport } from "./policy";
 import { assertKnownMeasures, discover, isDiscoveredFile } from "./registry";
-import { TARGETS } from "./targets";
+import { runPolicy } from "./run";
+import { MS_PER_SECOND, TARGETS } from "./targets";
 
 const labDir = path.resolve("src/lab");
 const measuresDir = path.join(labDir, "measures");
@@ -130,5 +132,46 @@ describe("registry", () => {
     expect(readers).toEqual(["registry.ts"]);
     const world = readFileSync(path.join(labDir, "world.ts"), "utf8");
     expect(world.includes("registry")).toBe(false);
+  });
+});
+
+describe("policy registry", () => {
+  it("runs a player type that exists only as a file in the folder", async () => {
+    const dir = path.join(labDir, "fixtures", "extra");
+    const names = readdirSync(dir).filter(isDiscoveredFile).sort();
+    const policies = await discover(dir, parsePolicyExport);
+    expect(readdirSync(dir).some((name) => name.endsWith(".test.ts"))).toBe(
+      true,
+    );
+    expect(policies).toHaveLength(names.length);
+    expect(policies.length).toBeGreaterThan(0);
+    for (const policy of policies) {
+      const run = runPolicy({ policy, seed: 1, maxLiveSeconds: 1 });
+      expect(run.world.clock).toBe(MS_PER_SECOND);
+    }
+  });
+
+  it("fails loudly when two policies share an id", async () => {
+    await expect(
+      discover(path.join(labDir, "fixtures", "duplicate"), parsePolicyExport),
+    ).rejects.toThrow(/Duplicate id "same-dad"/);
+  });
+
+  it("fails loudly when a policy file is not a policy", async () => {
+    await expect(
+      discover(path.join(labDir, "fixtures", "bad"), parsePolicyExport),
+    ).rejects.toThrow(/nope\.ts/);
+  });
+
+  it("loads every policy file through the same loader as measures", async () => {
+    const dir = path.join(labDir, "policies");
+    const policies = await discover(dir, parsePolicyExport);
+    const names = readdirSync(dir)
+      .filter(isDiscoveredFile)
+      .sort((left, right) => left.localeCompare(right));
+    expect(policies.map((policy) => policy.id)).toEqual(
+      names.map((name) => name.replace(/\.ts$/, "")),
+    );
+    expect(policies.some((policy) => policy.kind === "optimizer")).toBe(true);
   });
 });
