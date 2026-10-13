@@ -4,6 +4,7 @@ import {
   VEIN_GLINT_MS,
   advanceVein,
   mineVein,
+  veinGlintMs,
   veinReward,
   waitForVein,
   pauseVein,
@@ -122,6 +123,25 @@ describe("golden veins", () => {
       kids: 0,
     };
     expect(mineVein(empty)).toBe(empty);
+  });
+
+  it("lets a golden vein linger longer once the old miner's lamp is home", () => {
+    expect(veinGlintMs({})).toBe(VEIN_GLINT_MS);
+    expect(veinGlintMs({ finds: ["pick"] })).toBe(VEIN_GLINT_MS);
+    const lingered = veinGlintMs({ finds: ["lamp"] });
+    expect(lingered).toBe(VEIN_GLINT_MS * 2);
+
+    const waiting = waitForVein({ now: 0, random: () => 0 });
+    const glint = advanceVein({
+      vein: waiting,
+      now: 3 * MINUTE,
+      random: () => 0,
+      glintMs: lingered,
+    });
+    expect(glint).toMatchObject({
+      kind: "glinting",
+      until: 3 * MINUTE + lingered,
+    });
   });
 
   it("waits 40% less once the Lantern of Guidance is found", () => {

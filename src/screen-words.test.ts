@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
+import { KEEPSAKES } from "./expeditions";
+import { LOST_TOOLS } from "./lost-tools";
 import { JOURNEYMAN_TRIPS, MASTER_TRIPS, type Engineer } from "./engineers";
 import { glimmerText } from "./expeditions";
 import { RELICS } from "./relics";
 import {
+  BROUGHT_HOME,
   ENGINEER_STATIONS,
+  FOUND_LABEL,
+  KEEPSAKES_TITLE,
   PROMOTE_CREW_FULL,
   PROMOTE_NEEDS_WORKER,
+  keepsakeWords,
+  lostToolWords,
   cameBack,
   expeditionChip,
   postWords,
@@ -163,32 +170,42 @@ describe("engineer words", () => {
 
   it("says who came back and names the find, with no numbers", () => {
     expect(cameBack("Ada", "old-shaft", { kind: "tool", id: "pick" })).toBe(
-      "Ada came back from the old shaft with Grandfather's pick.",
+      "Ada came back from the old shaft with Grandfather's pick. Taps bite deeper.",
     );
     expect(cameBack("Ada", "side-seam", { kind: "tool", id: "lamp" })).toBe(
-      "Ada came back from a side seam with an old miner's lamp.",
+      "Ada came back from a side seam with an old miner's lamp. Golden veins linger.",
     );
     expect(cameBack("Nils", "deep-dark", { kind: "tool", id: "map" })).toBe(
-      "Nils came back from the deep dark with a worn map.",
+      "Nils came back from the deep dark with a worn map. Trips come home sooner.",
     );
     expect(cameBack("Ruth", "old-shaft", { kind: "tool", id: "boots" })).toBe(
-      "Ruth came back from the old shaft with steel-toe boots.",
+      "Ruth came back from the old shaft with steel-toe boots. Fewer troubles at the machines.",
     );
     expect(
       cameBack("Ada", "side-seam", { kind: "keepsake", id: "drawing" }),
-    ).toBe("Ada came back from a side seam with a child's drawing.");
+    ).toBe(
+      "Ada came back from a side seam with a child's drawing. It waits on the relic shelf.",
+    );
     expect(
       cameBack("Ada", "side-seam", { kind: "keepsake", id: "watch" }),
-    ).toBe("Ada came back from a side seam with a pocket watch.");
+    ).toBe(
+      "Ada came back from a side seam with a pocket watch. It waits on the relic shelf.",
+    );
     expect(
       cameBack("Ada", "side-seam", { kind: "keepsake", id: "whistle" }),
-    ).toBe("Ada came back from a side seam with a carved whistle.");
+    ).toBe(
+      "Ada came back from a side seam with a carved whistle. It waits on the relic shelf.",
+    );
     expect(
       cameBack("Ada", "side-seam", { kind: "keepsake", id: "pebble" }),
-    ).toBe("Ada came back from a side seam with a smooth pebble.");
+    ).toBe(
+      "Ada came back from a side seam with a smooth pebble. It waits on the relic shelf.",
+    );
     expect(
       cameBack("Ada", "side-seam", { kind: "keepsake", id: "ribbon" }),
-    ).toBe("Ada came back from a side seam with a faded ribbon.");
+    ).toBe(
+      "Ada came back from a side seam with a faded ribbon. It waits on the relic shelf.",
+    );
     expect(
       cameBack("Ada", "deep-dark", {
         kind: "engineer",
@@ -225,5 +242,25 @@ describe("engineer words", () => {
     }
     expect(recallConfirm("Ada")).toBe("Ada comes home empty-handed.");
     expect(recallConfirm("Ada")).not.toMatch(/\d|\?/);
+  });
+});
+
+describe("lost tools and keepsakes (#148)", () => {
+  it("gives every tool and keepsake a warm line with no number and no question mark", () => {
+    expect(FOUND_LABEL).toBe("Found");
+    expect(BROUGHT_HOME).toBe("Brought home");
+    expect(KEEPSAKES_TITLE).toBe("Keepsakes");
+    for (const id of LOST_TOOLS) {
+      const words = lostToolWords(id);
+      expect(words.name.length).toBeGreaterThan(0);
+      expect(words.line.length).toBeGreaterThan(0);
+      expect(`${words.name} ${words.line}`).not.toMatch(/[0-9?]/);
+    }
+    for (const id of KEEPSAKES) {
+      const words = keepsakeWords(id);
+      expect(words.name.length).toBeGreaterThan(0);
+      expect(words.story.length).toBeGreaterThan(0);
+      expect(`${words.name} ${words.story}`).not.toMatch(/[0-9?]/);
+    }
   });
 });

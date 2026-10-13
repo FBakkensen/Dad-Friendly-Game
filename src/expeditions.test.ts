@@ -79,6 +79,26 @@ describe("send and recall", () => {
     expect(sent.expeditions?.[0]?.find).toBeDefined();
   });
 
+  it("the worn map brings the next party home sooner, and a party already out keeps its clock", () => {
+    const mapped = { ...crew(), finds: ["map" as const] };
+    const sent = send(mapped, 0, "old-shaft", 0);
+    expect(sent.expeditions?.[0]?.returnsAt).toBe(45 * 60_000);
+    const seam = send(mapped, 0, "side-seam", 1_000);
+    expect(seam.expeditions?.[0]?.returnsAt).toBe(1_000 + 450_000);
+    const deep = send(
+      { ...crew([journeyman]), finds: ["map"] },
+      0,
+      "deep-dark",
+      0,
+    );
+    expect(deep.expeditions?.[0]?.returnsAt).toBe(3 * HOUR);
+    const already = send(crew(), 0, "old-shaft", 0);
+    expect(already.expeditions?.[0]?.returnsAt).toBe(HOUR);
+    const withMap = { ...already, finds: ["map" as const] };
+    expect(send(withMap, 0, "side-seam", 10)).toBe(withMap);
+    expect(withMap.expeditions?.[0]?.returnsAt).toBe(HOUR);
+  });
+
   it("refuses a stranger, a second trip, the deep dark for an apprentice, and a clock that cannot hold the return", () => {
     const before = crew();
     expect(send(before, 3, "side-seam", 0)).toBe(before);

@@ -48,7 +48,8 @@ export const MASTER_TRIPS = 9;
  * Stones for the next promotion. Doubles for each engineer already in the
  * crew, so the first paid promotion with nobody here is 1,000,000 and the
  * one after the free borer engineer (already one in the crew) is 2,000,000.
- * The pacing dad never pays it; he keeps the free engineer on the borers.
+ * The pacing dad does not pay it. A scout for the tunnels is seated beside
+ * Ada in the sim, so the climb keeps its days (#148).
  */
 export const PROMOTE_BASE_COST = 1_000_000;
 

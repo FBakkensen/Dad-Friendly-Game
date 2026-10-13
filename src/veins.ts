@@ -1,3 +1,4 @@
+import { glintScale } from "./lost-tools";
 import { stonesPerSecond, type Mountain } from "./mountain";
 
 /** Golden veins appear every 3–6 minutes of active play and glint for 12 seconds. */
@@ -21,6 +22,13 @@ export type VeinState =
 /** The Lantern of Guidance makes veins glint 40% sooner. */
 export const LANTERN_VEIN_GAP_SCALE = 0.6;
 
+/** How long the next glint lasts. The old miner's lamp lets it linger. */
+export function veinGlintMs(mountain: {
+  readonly finds?: readonly string[];
+}): number {
+  return VEIN_GLINT_MS * glintScale(mountain);
+}
+
 export function waitForVein({
   now,
   random,
@@ -40,11 +48,14 @@ export function advanceVein({
   now,
   random,
   gapScale = 1,
+  glintMs = VEIN_GLINT_MS,
 }: {
   vein: VeinState;
   now: number;
   random: () => number;
   gapScale?: number;
+  /** How long this glint stays. The screen passes `veinGlintMs`. */
+  glintMs?: number;
 }): VeinState {
   switch (vein.kind) {
     case "waiting":
@@ -52,7 +63,7 @@ export function advanceVein({
         ? vein
         : {
             kind: "glinting",
-            until: now + VEIN_GLINT_MS,
+            until: now + glintMs,
             x: 0.35 + random() * 0.3,
             y: 0.4 + random() * 0.4,
           };

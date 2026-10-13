@@ -5,7 +5,8 @@ import {
   type EngineerPost,
   type EngineerRank,
 } from "./engineers";
-import type { SettledFind, TunnelId } from "./expeditions";
+import type { LostToolId } from "./lost-tools";
+import type { KeepsakeId, SettledFind, TunnelId } from "./expeditions";
 import { formatCompact, formatCount, formatDuration } from "./format";
 import type { TroubleKind } from "./hazards";
 import type { Mountain } from "./mountain";
@@ -249,6 +250,68 @@ export const tendsNote = (name: string, tierId: TierId): string =>
 export const PROMOTE_NEEDS_WORKER = "No worker is free to step up.";
 export const PROMOTE_CREW_FULL = "Every named hand is already an engineer.";
 
+/** Status on a lost tool. The sheet shows this and the warm line, nothing else. */
+export const FOUND_LABEL = "Found";
+
+const LOST_TOOL_WORDS: Readonly<
+  Record<LostToolId, { readonly name: string; readonly line: string }>
+> = {
+  pick: {
+    name: "Grandfather's pick",
+    line: "Your taps bite a little deeper.",
+  },
+  lamp: {
+    name: "Old miner's lamp",
+    line: "Golden veins linger longer in its light.",
+  },
+  map: {
+    name: "Worn map",
+    line: "The tunnels bring them home a little sooner.",
+  },
+  boots: {
+    name: "Steel-toe boots",
+    line: "Trouble at the machines comes less often.",
+  },
+};
+
+/** Name and one warm line. No counts, no question marks. */
+export const lostToolWords = (
+  id: LostToolId,
+): { readonly name: string; readonly line: string } => LOST_TOOL_WORDS[id];
+
+const KEEPSAKE_WORDS: Readonly<
+  Record<KeepsakeId, { readonly name: string; readonly story: string }>
+> = {
+  drawing: {
+    name: "A child's drawing",
+    story: "A little figure with a lamp, folded for a pocket.",
+  },
+  watch: {
+    name: "A pocket watch",
+    story: "Quiet in the hand. Someone loved it.",
+  },
+  whistle: {
+    name: "A carved whistle",
+    story: "Soft notes, and the house stays asleep.",
+  },
+  pebble: {
+    name: "A smooth pebble",
+    story: "Warm from a hand that held it.",
+  },
+  ribbon: {
+    name: "A faded ribbon",
+    story: "Tied until the ends went soft.",
+  },
+};
+
+/** Name and one story. Found keepsakes only; the shelf stays quiet otherwise. */
+export const keepsakeWords = (
+  id: KeepsakeId,
+): { readonly name: string; readonly story: string } => KEEPSAKE_WORDS[id];
+
+export const BROUGHT_HOME = "Brought home";
+export const KEEPSAKES_TITLE = "Keepsakes";
+
 export const promotePriceWords = (cost: number): string =>
   `Promote a worker for ${formatCount(cost)} stones`;
 
@@ -301,14 +364,22 @@ const FROM_TUNNEL: Readonly<Record<TunnelId, string>> = {
   "deep-dark": "the deep dark",
 };
 
-const TOOL_WORDS = {
+/** What a tool does, short enough for the welcome card on a small phone. */
+const TOOL_HELPS = {
+  pick: "Taps bite deeper.",
+  lamp: "Golden veins linger.",
+  map: "Trips come home sooner.",
+  boots: "Fewer troubles at the machines.",
+} as const;
+
+const TOOL_IN_SENTENCE = {
   pick: "Grandfather's pick",
   lamp: "an old miner's lamp",
   map: "a worn map",
   boots: "steel-toe boots",
 } as const;
 
-const KEEPSAKE_WORDS = {
+const KEEPSAKE_IN_SENTENCE = {
   drawing: "a child's drawing",
   watch: "a pocket watch",
   whistle: "a carved whistle",
@@ -325,9 +396,9 @@ export const cameBack = (
   const from = FROM_TUNNEL[tunnel];
   switch (find.kind) {
     case "tool":
-      return `${name} came back from ${from} with ${TOOL_WORDS[find.id]}.`;
+      return `${name} came back from ${from} with ${TOOL_IN_SENTENCE[find.id]}. ${TOOL_HELPS[find.id]}`;
     case "keepsake":
-      return `${name} came back from ${from} with ${KEEPSAKE_WORDS[find.id]}.`;
+      return `${name} came back from ${from} with ${KEEPSAKE_IN_SENTENCE[find.id]}. It waits on the relic shelf.`;
     case "engineer":
       return find.joined
         ? `${name} came back from ${from} with ${find.name}, who joined the crew.`

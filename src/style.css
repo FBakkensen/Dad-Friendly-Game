@@ -1285,7 +1285,7 @@ body {
 .welcome-engineer,
 .welcome-return {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 650;
   color: #ffe08a;
 }
@@ -1318,6 +1318,103 @@ body {
 
 .welcome-card [hidden] {
   display: none;
+}
+
+.found-heading[hidden],
+.found-list[hidden],
+.found-tool[hidden],
+.keepsakes[hidden],
+.keepsake-list li[hidden] {
+  display: none;
+}
+
+.found-tool .upgrade-now {
+  color: #f2c46d;
+  font-weight: 700;
+}
+
+.keepsakes {
+  width: 100%;
+  text-align: left;
+}
+
+.keepsakes-title {
+  margin: 0 0 4px;
+  font-weight: 700;
+  color: #e8d4b8;
+  text-align: center;
+}
+
+.keepsake-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.keepsake-list li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  column-gap: 8px;
+  align-items: center;
+}
+
+.keepsake-list img {
+  width: 28px;
+  height: 28px;
+  grid-row: span 2;
+  image-rendering: pixelated;
+}
+
+.keepsake-name {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f2c46d;
+}
+
+.keepsake-story {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.15;
+  color: #c9b391;
+}
+
+/* Five stories still have to sit inside a short phone, with the way back. */
+.relic-detail:has(.keepsakes:not([hidden])) {
+  align-items: flex-start;
+  padding-top: max(8px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+
+.relic-detail .reveal-card:has(.keepsakes:not([hidden])) {
+  gap: 4px;
+  padding: 8px 12px;
+}
+
+.relic-detail .reveal-card:has(.keepsakes:not([hidden])) .reveal-art {
+  width: 40px;
+  height: 40px;
+}
+
+.relic-detail .reveal-card:has(.keepsakes:not([hidden])) .reveal-kicker,
+.relic-detail .reveal-card:has(.keepsakes:not([hidden])) .reveal-virtue {
+  font-size: 0.9rem;
+}
+
+.relic-detail .reveal-card:has(.keepsakes:not([hidden])) h2 {
+  font-size: 1.2rem;
+}
+
+.relic-detail .reveal-card:has(.keepsakes:not([hidden])) .relic-boost {
+  padding: 6px 10px;
+}
+
+.relic-detail .reveal-card:has(.keepsakes:not([hidden])) .reveal-continue {
+  min-height: 44px;
+  font-size: 1rem;
 }
 
 /* The plain "Your power" line on relic cards (#relic powers). */

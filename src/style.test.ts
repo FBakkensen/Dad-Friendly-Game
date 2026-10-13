@@ -32,6 +32,9 @@ const REQUIRED_SELECTORS = [
   ".tier-trouble",
   ".trouble-thanks",
   ".relic-shelf",
+  ".found-tool",
+  ".keepsakes",
+  ".keepsake-story",
 ];
 
 describe("style.css", () => {

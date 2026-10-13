@@ -1,3 +1,4 @@
+import { KEEPSAKES } from "./expeditions";
 import { formatCount } from "./format";
 import { MOUNTAIN_STONES } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
@@ -10,6 +11,7 @@ import {
   type Relic,
   type RelicId,
 } from "./relics";
+import { KEEPSAKES_TITLE, keepsakeWords } from "./screen-words";
 import { TIERS, owned } from "./tiers";
 
 /** The relic shelf, a found relic's detail card, the relic-found card and the Legend finale. */
@@ -17,12 +19,15 @@ export function createRelicPanels({
   progress,
   getView,
   relicArt,
+  keepsakeUrl,
   onPassTheMine,
   requestRender,
 }: {
   progress: ProgressStore;
   getView: () => ProgressSnapshot;
   relicArt: Readonly<Record<RelicId, string>>;
+  /** Existing treasure icon until PixelLab art is asked for. */
+  keepsakeUrl: string;
   /** Opens "Pass the mine to your kid" (M6) from the Legend card. */
   onPassTheMine: () => void;
   requestRender: () => void;
@@ -119,6 +124,36 @@ export function createRelicPanels({
   detailVirtue.className = "reveal-virtue";
   const detailBoost = document.createElement("p");
   detailBoost.className = "relic-boost";
+  const keepsakes = document.createElement("div");
+  keepsakes.className = "keepsakes";
+  keepsakes.hidden = true;
+  const keepsakesTitle = document.createElement("p");
+  keepsakesTitle.className = "keepsakes-title";
+  keepsakesTitle.textContent = KEEPSAKES_TITLE;
+  const keepsakeList = document.createElement("ul");
+  keepsakeList.className = "keepsake-list";
+  const keepsakeRows = KEEPSAKES.map((id) => {
+    const words = keepsakeWords(id);
+    const item = document.createElement("li");
+    item.dataset["keepsake"] = id;
+    item.hidden = true;
+    const art = document.createElement("img");
+    art.src = keepsakeUrl;
+    art.alt = "";
+    art.width = 28;
+    art.height = 28;
+    art.draggable = false;
+    const name = document.createElement("p");
+    name.className = "keepsake-name";
+    name.textContent = words.name;
+    const story = document.createElement("p");
+    story.className = "keepsake-story";
+    story.textContent = words.story;
+    item.append(art, name, story);
+    keepsakeList.append(item);
+    return { id, item };
+  });
+  keepsakes.append(keepsakesTitle, keepsakeList);
   const detailBack = document.createElement("button");
   detailBack.type = "button";
   detailBack.className = "reveal-continue";
@@ -133,6 +168,7 @@ export function createRelicPanels({
     detailTitle,
     detailVirtue,
     detailBoost,
+    keepsakes,
     detailBack,
   );
   detail.append(detailCard);
@@ -300,6 +336,14 @@ export function createRelicPanels({
       detailTitle.textContent = detailRelic.name;
       detailVirtue.textContent = `The virtue of ${detailRelic.virtue}.`;
       detailBoost.textContent = `Your power: ${detailRelic.boost}`;
+      const shelf = getView().mountain.finds ?? [];
+      let anyKeepsake = false;
+      for (const { id, item } of keepsakeRows) {
+        const found = shelf.includes(id);
+        item.hidden = !found;
+        anyKeepsake ||= found;
+      }
+      keepsakes.hidden = !anyKeepsake;
       if (!detailWasOpen) {
         detailBack.focus();
       }

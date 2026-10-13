@@ -42,4 +42,24 @@ describe("effectiveRates", () => {
     expect(effectiveRates(crew, 180_000, trouble).tierSpeed.cart).toBe(5);
     expect(effectiveRates(crew, undefined, trouble).tierSpeed.cart).toBe(7.5);
   });
+
+  it("Grandfather's pick makes taps a little stronger and leaves the crew alone", () => {
+    const crew = {
+      ...minedMountain(0),
+      helpers: 9,
+      carts: 1,
+      borers: 1,
+      kids: 0,
+    };
+    const plain = effectiveRates(crew);
+    const picked = effectiveRates({ ...crew, finds: ["pick"] });
+    expect(picked.tapYield).toBeGreaterThan(plain.tapYield);
+    expect(picked.tapYield).toBe(Math.ceil(plain.tapYield * 1.25));
+    expect(picked.crewPerSecond).toBe(plain.crewPerSecond);
+    expect(picked.tierSpeed).toEqual(plain.tierSpeed);
+    expect(picked.awayPay).toBe(plain.awayPay);
+    expect(
+      effectiveRates({ ...crew, finds: ["lamp", "map", "boots"] }).tapYield,
+    ).toBe(plain.tapYield);
+  });
 });
