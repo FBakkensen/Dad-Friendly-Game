@@ -322,3 +322,23 @@ describe("parseEngineers", () => {
     }
   });
 });
+
+describe("Flemming's save (63 workers, 16 carts, 9 drills, 1 borer)", () => {
+  it("keeps every machine running once Ada steps up, and needs no worker for her", () => {
+    const save = {
+      ...createMountain(),
+      helpers: 63,
+      carts: 16,
+      drills: 9,
+      borers: 1,
+    };
+    const before = effectiveRates(save);
+    const { mountain, joined } = grantFirstEngineer(save);
+    const after = effectiveRates(mountain);
+    expect(joined).toBe(true);
+    expect(mountain.helpers).toBe(63);
+    expect(after.running).toMatchObject({ cart: 16, drill: 9, borer: 1 });
+    expect(after.crewPerSecond).toBeGreaterThan(before.crewPerSecond);
+    expect(grantFirstEngineer(mountain).joined).toBe(false);
+  });
+});
