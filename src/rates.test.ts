@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Trouble } from "./hazards";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 import { TIERS } from "./tiers";
@@ -18,5 +19,27 @@ describe("effectiveRates", () => {
     );
     expect(rates.crewPerSecond).toBe(26 + 10 + 3_500);
     expect(rates.awayPay).toBe(AWAY_PAY_RATE);
+  });
+
+  it("slows the troubled tier from a quarter toward a half, and not the others", () => {
+    const crew = {
+      ...minedMountain(0),
+      helpers: 9,
+      carts: 1,
+      borers: 1,
+      kids: 0,
+    };
+    const trouble: Trouble = { kind: "cave-in", tier: "cart", startedAt: 0 };
+    const plain = effectiveRates(crew, 0);
+    const started = effectiveRates(crew, 0, trouble);
+    expect(plain.crewPerSecond).toBe(369);
+    expect(started.tierSpeed.cart).toBe(7.5);
+    expect(started.tierSpeed.borer).toBe(plain.tierSpeed.borer);
+    expect(started.awayPay).toBe(plain.awayPay);
+    expect(started.crewPerSecond).toBe(366);
+    expect(effectiveRates(crew, 60_000, trouble).tierSpeed.cart).toBe(6.25);
+    expect(effectiveRates(crew, 120_000, trouble).tierSpeed.cart).toBe(5);
+    expect(effectiveRates(crew, 180_000, trouble).tierSpeed.cart).toBe(5);
+    expect(effectiveRates(crew, undefined, trouble).tierSpeed.cart).toBe(7.5);
   });
 });

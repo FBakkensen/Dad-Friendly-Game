@@ -1,7 +1,15 @@
+import {
+  JOURNEYMAN_TRIPS,
+  MASTER_TRIPS,
+  type Engineer,
+  type EngineerPost,
+  type EngineerRank,
+} from "./engineers";
 import { formatCompact, formatCount, formatDuration } from "./format";
+import type { TroubleKind } from "./hazards";
 import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
-import { owned, tierById } from "./tiers";
+import { owned, tierById, type TierId } from "./tiers";
 import { synergyBonus, upgradeLevel, type Upgrade } from "./upgrades";
 
 // Player-facing wording shared by the screen's panels.
@@ -111,8 +119,138 @@ export const tapWords = (stones: number): string =>
 /** Older saves that already own a borer, the one time their first engineer arrives. */
 export const ENGINEER_WELCOME = "Your best worker steps up as engineer.";
 
+/** The card's shout. No counts, no timers. */
+export function troubleShout(kind: TroubleKind): string {
+  switch (kind) {
+    case "cave-in":
+      return "Cave-in!";
+    case "flood":
+      return "Flood!";
+    case "jam":
+      return "Jam!";
+  }
+}
+
+/** What a screen reader hears on a troubled card. No numbers. */
+export function troubleAria(
+  kind: TroubleKind,
+  tier: { readonly id: string; readonly name: string },
+): string {
+  const who =
+    tier.id === "machine"
+      ? "The Great Machine needs"
+      : `The ${tier.name.toLowerCase()}s need`;
+  return `${troubleShout(kind)} ${who} a hand. Tap a few times, or hold, to help.`;
+}
+
+export const TROUBLE_FIXED = "Fixed! The crew cheers.";
+
 export const fieldLogCopy = "Copy field log";
 export const fieldLogCopied = "Copied";
 export const fieldLogTitle = "Field log";
 export const fieldLogFallback = "Select the log and copy it from here.";
 export const fieldLogClose = "Back to the mountain";
+
+/** Where the sheet can send an engineer. A tunnel is a trip, not a post you pick. */
+export const ENGINEER_STATIONS: readonly {
+  readonly post: Exclude<EngineerPost, "tunnel">;
+  readonly label: string;
+}[] = [
+  { post: "cart", label: "Carts" },
+  { post: "drill", label: "Drills" },
+  { post: "borer", label: "Borers" },
+  { post: "machine", label: "Machine" },
+  { post: "camp", label: "Call to camp" },
+];
+
+const RANK_LABEL: Readonly<Record<EngineerRank, string>> = {
+  0: "Apprentice",
+  1: "Journeyman",
+  2: "Master engineer",
+};
+
+/** Rank in words, for the lamp group. The sheet never prints the number. */
+export const rankLabel = (rank: EngineerRank): string => RANK_LABEL[rank];
+
+/**
+ * One expedition from the next rank. Anything earlier stays quiet:
+ * a count of trips would be a number, and "nearly" means nearly.
+ */
+export const rankHint = (
+  engineer: Pick<Engineer, "rank" | "trips">,
+): string | undefined => {
+  if (engineer.rank === 0 && engineer.trips === JOURNEYMAN_TRIPS - 1) {
+    return "nearly a Journeyman";
+  }
+  if (engineer.rank === 1 && engineer.trips === MASTER_TRIPS - 1) {
+    return "nearly a Master";
+  }
+  return undefined;
+};
+
+/** Where they stand right now, with no bonus percent. */
+export const postWords = (post: EngineerPost): string => {
+  switch (post) {
+    case "camp":
+      return "At camp";
+    case "tunnel":
+      return "Away in a tunnel";
+    case "cart":
+      return "Tending the carts";
+    case "drill":
+      return "Tending the drills";
+    case "borer":
+      return "Tending the borers";
+    case "machine":
+      return "Tending the Great Machine";
+  }
+};
+
+/** The tending bonus as a sentence. Camp and a tunnel tend nothing. */
+export const tendingWords = (engineer: Engineer): string | undefined => {
+  const { name, post } = engineer;
+  switch (post) {
+    case "camp":
+    case "tunnel":
+      return undefined;
+    case "cart":
+      return `Your carts hum a little faster while ${name} tends them.`;
+    case "drill":
+      return `Your drills hum a little faster while ${name} tends them.`;
+    case "borer":
+      return `Your borers hum a little faster while ${name} tends them.`;
+    case "machine":
+      return `The Great Machine hums a little faster while ${name} tends it.`;
+  }
+};
+
+/** Best-ranked engineer posted on this tier, if someone is. */
+export const tendingEngineer = (
+  engineers: readonly Engineer[] | undefined,
+  tierId: TierId,
+): Engineer | undefined => {
+  let best: Engineer | undefined;
+  for (const engineer of engineers ?? []) {
+    if (engineer.post !== tierId) {
+      continue;
+    }
+    if (best === undefined || engineer.rank > best.rank) {
+      best = engineer;
+    }
+  }
+  return best;
+};
+
+/** Added to a tended card's label. Plural tiers, and the one Great Machine. */
+export const tendsNote = (name: string, tierId: TierId): string =>
+  tierId === "machine" ? `${name} tends it.` : `${name} tends them.`;
+
+export const PROMOTE_NEEDS_WORKER = "No worker is free to step up.";
+export const PROMOTE_CREW_FULL = "Every named hand is already an engineer.";
+
+export const promotePriceWords = (cost: number): string =>
+  `Promote a worker for ${formatCount(cost)} stones`;
+
+/** Warm confirm. The name is whoever is about to step up. */
+export const promoteConfirm = (name: string): string =>
+  `${name} steps up as engineer. One worker fewer at the machines.`;

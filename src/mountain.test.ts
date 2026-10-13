@@ -369,6 +369,34 @@ describe("Heart of Patience: away pay grows", () => {
     expect(plain.report.heart).toBe(1);
   });
 
+  it("pays the unslowed crew while a machine is in trouble", () => {
+    const crew = {
+      ...createMountain(),
+      remaining: 1_000_000,
+      helpers: 9,
+      carts: 1,
+      borers: 1,
+    };
+    const trouble = {
+      kind: "cave-in" as const,
+      tier: "cart" as const,
+      startedAt: 0,
+    };
+    const plain = accrue({ mountain: crew, from: 0, to: 10_000, live: true });
+    const slowed = accrue({
+      mountain: crew,
+      from: 0,
+      to: 10_000,
+      live: true,
+      trouble,
+    });
+    const ignored = accrue({ mountain: crew, from: 0, to: 10_000, trouble });
+    const away = accrueAway({ mountain: crew, lastSeen: 0, now: 10_000 });
+    expect(slowed.mined).toBeLessThan(plain.mined);
+    expect(ignored.mined).toBe(plain.mined);
+    expect(away.mined).toBe(Math.floor(plain.mined * AWAY_PAY_RATE));
+  });
+
   it("counts only the paid time, up to the Shield's 24 hours", () => {
     const away = accrueAway({ mountain: hearty, lastSeen: 0, now: 40 * HOUR });
     expect(away.report.heart).toBe(1.5);

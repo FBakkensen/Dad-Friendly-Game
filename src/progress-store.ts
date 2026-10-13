@@ -10,6 +10,17 @@ import { staffExisting } from "./crew";
 import { grantFirstEngineer } from "./engineers";
 import { settle as settleExpeditions } from "./expeditions";
 import {
+  closeHazards,
+  freshHazards,
+  fix as fixHazard,
+  kindForTier,
+  pressTrouble as pressHazard,
+  stepHazards,
+  type HazardState,
+  type Trouble,
+  type TroubleTier,
+} from "./hazards";
+import {
   APP_VERSION,
   EVENT_RING_LIMIT,
   EventRing,
@@ -60,6 +71,8 @@ export type ProgressSnapshot = {
   readonly crewJoined: number | undefined;
   /** Set once when an older save's first borer brings their first engineer. */
   readonly engineerJoined: true | undefined;
+  /** Trouble at one machine this session. Never saved, gone after a reload. */
+  readonly trouble: Trouble | undefined;
 };
 
 export type ProgressStore = {
@@ -87,6 +100,15 @@ export type ProgressStore = {
   readonly passTheMine: () => boolean;
   /** Closes the welcome-back card. */
   readonly dismissAway: () => void;
+  /** One tap on a troubled card. The fifth tap fixes it. */
+  readonly pressTrouble: (tier: TroubleTier) => void;
+  /** A short hold on a troubled card fixes it. */
+  readonly fixTrouble: (tier: TroubleTier) => void;
+  /**
+   * Shows trouble immediately. The dev boot and the layout check use this,
+   * because trouble is never part of a save.
+   */
+  readonly previewTrouble: (tier: TroubleTier) => void;
   readonly flush: () => void;
   readonly dispose: () => void;
 };
@@ -106,6 +128,7 @@ export function createProgressStore({
   now = Date.now,
   cloudWriteGapMs = CLOUD_WRITE_GAP_MS,
   fieldLogWriteGapMs = FIELD_LOG_WRITE_GAP_MS,
+  hazardSeed,
 }: {
   auth: AuthController;
   cloudSave?: CloudSave;
@@ -114,6 +137,8 @@ export function createProgressStore({
   now?: () => number;
   cloudWriteGapMs?: number;
   fieldLogWriteGapMs?: number;
+  /** Rolls the trouble schedule. Defaults to the clock, so each open differs. */
+  hazardSeed?: number;
 }): ProgressStore {
   const sessionStore = sessionArg ?? tryGetGuestStorage();
   let mountain: Mountain = createMountain();
@@ -135,6 +160,15 @@ export function createProgressStore({
   let welcomed = false;
   let crewJoined: number | undefined;
   let engineerJoined: true | undefined;
+  let hazards: HazardState = freshHazards(hazardSeed ?? now());
+  const activeTrouble = (): Trouble | undefined =>
+    hazards.phase === "trouble" ? hazards.trouble : undefined;
+  const troubleMark = (): string => {
+    const trouble = activeTrouble();
+    return trouble === undefined
+      ? ""
+      : `${trouble.tier}:${String(trouble.startedAt)}`;
+  };
   /** Hires the one-time free staff for a loaded save; true if it changed. */
   const staffLoaded = (): boolean => {
     const result = staffExisting(mountain);
@@ -216,6 +250,7 @@ export function createProgressStore({
       revealed: reveals[0],
       crewJoined,
       engineerJoined,
+      trouble: activeTrouble(),
     };
   };
 
@@ -423,6 +458,8 @@ export function createProgressStore({
     const result = accrueAway({ mountain, lastSeen: savedLastSeen, now: at });
     mountain = result.mountain;
     lastSeen = result.settledAt;
+    // Away is rest. Trouble ends, and the time away does not count toward the next one.
+    hazards = closeHazards(hazards, mountain);
     if (result.mined === 0) {
       return 0;
     }
@@ -623,14 +660,22 @@ export function createProgressStore({
     // A live gap is at most ten seconds, so coming home at the end of it
     // pays that short stretch with the bonus. Away time splits exactly.
     mountain = settleExpeditions(mountain, at).mountain;
+    const from = lastSeen ?? at;
+    const trouble = activeTrouble();
     const result = accrue({
       mountain,
-      from: lastSeen ?? at,
+      from,
       to: at,
       live: true,
+      ...(trouble === undefined ? {} : { trouble }),
     });
     mountain = result.mountain;
     lastSeen = result.settledAt;
+    hazards = stepHazards(hazards, {
+      now: at,
+      liveMs: Math.max(0, at - from),
+      mountain,
+    });
     return result.mined;
   };
 
@@ -645,6 +690,7 @@ export function createProgressStore({
     }
     cancelPendingCloudWrite();
     mountain = next;
+    hazards = freshHazards(now());
     lastSeen = runStartedAt(next);
     away = undefined;
     reveals.length = 0;
@@ -677,11 +723,12 @@ export function createProgressStore({
       if (!canPlay()) {
         return;
       }
+      const beforeTrouble = troubleMark();
       const mined = settle();
       const before = mountain;
       const next = update(mountain);
       if (next === before) {
-        if (mined > 0) {
+        if (mined > 0 || troubleMark() !== beforeTrouble) {
           emit();
         }
         return;
@@ -724,6 +771,48 @@ export function createProgressStore({
         events,
       };
     },
+    pressTrouble: (tier) => {
+      if (!canPlay()) {
+        return;
+      }
+      const before = troubleMark();
+      settle();
+      if (hazards.phase !== "trouble" || hazards.trouble.tier !== tier) {
+        if (troubleMark() !== before) {
+          emit();
+        }
+        return;
+      }
+      hazards = pressHazard(hazards, mountain);
+      emit();
+    },
+    fixTrouble: (tier) => {
+      if (!canPlay()) {
+        return;
+      }
+      const before = troubleMark();
+      settle();
+      if (hazards.phase !== "trouble" || hazards.trouble.tier !== tier) {
+        if (troubleMark() !== before) {
+          emit();
+        }
+        return;
+      }
+      hazards = fixHazard(hazards, mountain);
+      emit();
+    },
+    previewTrouble: (tier) => {
+      if (!canPlay()) {
+        return;
+      }
+      hazards = {
+        phase: "trouble",
+        seed: hazards.seed,
+        taps: 0,
+        trouble: { kind: kindForTier(tier), tier, startedAt: now() },
+      };
+      emit();
+    },
     dismissAway: () => {
       if (
         away === undefined &&
@@ -742,8 +831,9 @@ export function createProgressStore({
         return;
       }
       const before = mountain;
+      const beforeTrouble = troubleMark();
       const mined = settle();
-      if (mined > 0 || mountain !== before) {
+      if (mined > 0 || mountain !== before || troubleMark() !== beforeTrouble) {
         emit();
       }
     },

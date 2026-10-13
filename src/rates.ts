@@ -1,4 +1,5 @@
 import { staffNeeded, tendingTenths } from "./engineers";
+import { slowedSpeed, type Trouble } from "./hazards";
 import type { Mountain } from "./mountain";
 import { TIERS, owned, type TierId } from "./tiers";
 import { hasRelic } from "./relics";
@@ -66,7 +67,11 @@ export type Rates = {
  * all read from here, so they can't disagree. Pass `now` while playing so
  * running boosts count; leave it out for away time, which boosts never touch.
  */
-export function effectiveRates(mountain: Mountain, now?: number): Rates {
+export function effectiveRates(
+  mountain: Mountain,
+  now?: number,
+  trouble?: Trouble,
+): Rates {
   const boosted = (id: "sharper" | "overtime"): number =>
     now !== undefined && boostLeft(mountain, id, now) > 0
       ? boostById(id).multiplier
@@ -90,7 +95,11 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
       tierSpeed[tier.id] * (1 + tierSynergy(mountain, tier.id)) * legacy;
     const tenths = tendingTenths(mountain, tier.id);
     // Integer tenths so +10% of 350 is 385, not 385.00000000000006.
-    tierSpeed[tier.id] = tenths === 0 ? sped : (sped * (10 + tenths)) / 10;
+    const tended = tenths === 0 ? sped : (sped * (10 + tenths)) / 10;
+    tierSpeed[tier.id] =
+      trouble !== undefined && trouble.tier === tier.id
+        ? slowedSpeed(tended, trouble.startedAt, now ?? trouble.startedAt)
+        : tended;
   }
   // Staffing: helpers run the fastest machines first; the rest sit idle.
   // Helpers still mine by hand while they run a machine.

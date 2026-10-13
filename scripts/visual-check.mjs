@@ -1,4 +1,4 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL */
 /**
  * Real-browser layout guard (jsdom can't see CSS). Run it with:
  *   npm run visual   (starts its own dev server; part of npm run check, so CI runs it)
@@ -81,7 +81,11 @@ const browser = await puppeteer.launch({
 /** Installed PWA on Android: edge to edge, status bar and gesture bar as safe-area insets. */
 const STANDALONE_INSETS = { top: 24, bottom: 48, left: 0, right: 0 };
 
-async function open([width, height], save, { standalone = false } = {}) {
+async function open(
+  [width, height],
+  save,
+  { standalone = false, search = "" } = {},
+) {
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
   if (standalone) {
@@ -125,7 +129,7 @@ async function open([width, height], save, { standalone = false } = {}) {
           },
     ),
   );
-  await page.goto(BASE, { waitUntil: "networkidle0" });
+  await page.goto(new URL(search, BASE).href, { waitUntil: "networkidle0" });
   return { page, close: () => context.close() };
 }
 
@@ -150,21 +154,127 @@ async function coversViewport(page, selector) {
 
 /** Nothing scrolls: not the page, not the game root, not sideways. */
 async function noScroll(page) {
-  return page.evaluate(() => {
+  const result = await page.evaluate(() => {
     const app = document.querySelector("#app");
     const root = document.documentElement;
     scrollBy(0, 80);
     app?.scrollBy(0, 80);
     const still = scrollY === 0 && (app?.scrollTop ?? 0) === 0;
-    return (
+    const ok =
       still &&
       root.scrollHeight === root.clientHeight &&
       root.scrollWidth === root.clientWidth &&
       app !== null &&
       app.scrollHeight === app.clientHeight &&
-      app.scrollWidth === app.clientWidth
-    );
+      app.scrollWidth === app.clientWidth;
+    if (!ok && app !== null) {
+      // Say what grew, so a CI-only overflow can be fixed without guessing.
+      return {
+        ok,
+        detail: JSON.stringify({
+          root: [
+            root.scrollWidth,
+            root.scrollHeight,
+            root.clientWidth,
+            root.clientHeight,
+          ],
+          app: [
+            app.scrollWidth,
+            app.scrollHeight,
+            app.clientWidth,
+            app.clientHeight,
+          ],
+          rows: [...app.children].map((child) => [
+            child.className,
+            Math.round(child.getBoundingClientRect().height),
+          ]),
+        }),
+      };
+    }
+    return { ok, detail: "" };
   });
+  if (!result.ok) {
+    console.log("scroll", result.detail);
+  }
+  return result.ok;
+}
+
+/**
+ * The seeded crew has one engineer. The sheet's title and the way back both
+ * sit on screen, and the page itself does not scroll.
+ */
+async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
+  await page.tap(".engineers-button");
+  const covered = await coversViewport(page, ".engineers-dialog");
+  const detail = await page.$eval(
+    ".engineers-dialog",
+    (sheet, insets) => {
+      const buttons = [...sheet.querySelectorAll("button")].filter(
+        (button) => !button.hidden && button.getClientRects().length > 0,
+      );
+      const boxes = buttons.map((button) => {
+        const box = button.getBoundingClientRect();
+        return {
+          height: box.height,
+          left: box.left,
+          right: box.right,
+          top: box.top,
+          bottom: box.bottom,
+          clipped: button.scrollWidth > button.clientWidth + 1,
+          text: button.textContent,
+        };
+      });
+      const title =
+        sheet.querySelector("h2")?.getBoundingClientRect().top ?? -1;
+      const close =
+        sheet.querySelector(".engineers-close")?.getBoundingClientRect()
+          .bottom ?? Infinity;
+      const text = sheet.textContent ?? "";
+      return {
+        boxesOk: boxes.every(
+          (box) =>
+            box.height >= 44 &&
+            box.left >= 0 &&
+            box.right <= innerWidth &&
+            box.top >= insets.top &&
+            box.bottom <= innerHeight - insets.bottom &&
+            !box.clipped,
+        ),
+        count: boxes.length,
+        title,
+        close,
+        titleOk: title >= insets.top,
+        closeOk: close <= innerHeight - insets.bottom,
+        words:
+          text.includes("hum a little faster") &&
+          !text.includes("?") &&
+          !text.includes("%") &&
+          !/trip/i.test(text),
+      };
+    },
+    { top, bottom },
+  );
+  const pageStill = await noScroll(page);
+  await page.$eval(".engineers-close", (button) => {
+    button.click();
+  });
+  const closed = await page.$eval(
+    ".engineers-dialog",
+    (element) => element.hidden,
+  );
+  const ok =
+    covered &&
+    detail.boxesOk &&
+    detail.count >= 6 &&
+    detail.titleOk &&
+    detail.closeOk &&
+    detail.words &&
+    pageStill &&
+    closed;
+  if (!ok) {
+    console.log("engineers sheet", { covered, detail, pageStill, closed });
+  }
+  return ok;
 }
 
 /** Chrome's URL bar hides and shows by resizing the viewport about 56px. */
@@ -316,6 +426,22 @@ for (const viewport of VIEWPORTS) {
   });
   check(sheetReachable, `${size} upgrades sheet buttons are tappable`);
   await page.tap(".upgrades-close");
+  const engineersFat = await page.$eval(".engineers-button", (button) => {
+    const box = button.getBoundingClientRect();
+    return (
+      !button.hidden &&
+      button.getAttribute("aria-label") === "Engineers" &&
+      box.height >= 44 &&
+      box.width >= 44 &&
+      box.left >= 0 &&
+      box.right <= innerWidth
+    );
+  });
+  check(engineersFat, `${size} engineers button is tappable`);
+  check(
+    await engineersSheetFits(page),
+    `${size} engineers sheet fits with no scroll`,
+  );
   await close();
 }
 
@@ -470,6 +596,20 @@ for (const viewport of [
       );
     });
     check(crewLineFits, `${label} keep the crew line on one line`);
+    if (
+      viewport[0] === 360 &&
+      viewport[1] === 560 &&
+      font === "DejaVu Sans" &&
+      crew.helpers === 999 &&
+      crew.borers === 999 &&
+      crew.machines === 999 &&
+      crew.upgrades === undefined
+    ) {
+      check(
+        await engineersSheetFits(page),
+        `${label} engineers sheet fits with no scroll`,
+      );
+    }
     await close();
   }
 }
@@ -491,7 +631,7 @@ for (const viewport of VIEWPORTS) {
     (bottomInset) =>
       [
         ...document.querySelectorAll(
-          ".tier, .save-status, .menu-button, .upgrades-button",
+          ".tier, .save-status, .menu-button, .upgrades-button, .engineers-button",
         ),
       ]
         .filter((element) => !element.hidden)
@@ -502,6 +642,12 @@ for (const viewport of VIEWPORTS) {
     STANDALONE_INSETS.bottom,
   );
   check(insideSafeArea, `${size} standalone controls clear the gesture bar`);
+  if (viewport[0] === 360 && viewport[1] === 560) {
+    check(
+      await engineersSheetFits(page, STANDALONE_INSETS),
+      `${size} standalone engineers sheet fits with no scroll`,
+    );
+  }
 
   // A real vein after minutes of play: on screen, on top, and tappable.
   await page.evaluate(() => {
@@ -756,6 +902,58 @@ for (const viewport of [
     );
   });
   check(badgeFits, `${label} Legacy badge sits inside the mountain`);
+  await close();
+}
+
+// Trouble is never saved, so the dev boot previews a cave-in. The card must
+// stay on screen at the smallest phone, including the installed PWA.
+for (const standalone of [false, true]) {
+  const viewport = [360, 560];
+  const label = `360x560${standalone ? " standalone" : ""}`;
+  const { page, close } = await open(
+    viewport,
+    { version: 4, mountain: CREW, lastSeen: Date.now() },
+    { standalone, search: "?trouble=cave-in" },
+  );
+  const card = await page
+    .$eval('[data-tier="cart"]', (el) => {
+      const box = el.getBoundingClientRect();
+      return {
+        kind: el.dataset.trouble ?? "",
+        rate: el.querySelector(".tier-rate")?.textContent ?? "",
+        label: el.getAttribute("aria-label") ?? "",
+        height: box.height,
+        width: box.width,
+        top: box.top,
+        bottom: box.bottom,
+      };
+    })
+    .catch(() => undefined);
+  check(card?.kind === "cave-in", `${label} trouble card is a cave-in`);
+  check(card?.rate === "Cave-in!", `${label} trouble card says Cave-in!`);
+  check(
+    card !== undefined &&
+      !/\d|\?/.test(card.label) &&
+      card.label.includes("Cave-in"),
+    `${label} trouble card label has no numbers`,
+  );
+  check(
+    (card?.height ?? 0) >= 44 && (card?.width ?? 0) >= 44,
+    `${label} trouble card is a fat target`,
+  );
+  const fits = await page.evaluate(
+    (bottomInset) => {
+      const el = document.querySelector('[data-tier="cart"]');
+      if (el === null) {
+        return false;
+      }
+      const box = el.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= innerHeight - bottomInset;
+    },
+    standalone ? STANDALONE_INSETS.bottom : 0,
+  );
+  check(fits, `${label} trouble card sits on screen`);
+  check(await noScroll(page), `${label} trouble card has no scroll`);
   await close();
 }
 

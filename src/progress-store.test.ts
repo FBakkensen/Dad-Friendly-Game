@@ -1562,6 +1562,152 @@ describe("field log cloud copy", () => {
   });
 });
 
+describe("trouble at the machines (#149)", () => {
+  const crew = {
+    remaining: 50_000_000,
+    pocket: 0,
+    helpers: 9,
+    carts: 1,
+    drills: 0,
+    borers: 1,
+    machines: 0,
+    kids: 0,
+  };
+
+  function open(seed = 1) {
+    let clock = 10_000;
+    const storage = createMemoryStorage();
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+      hazardSeed: seed,
+    });
+    progress.applyMutation(() => crew);
+    return {
+      progress,
+      storage,
+      advance(ms: number) {
+        clock += ms;
+      },
+    };
+  }
+
+  it("slows live mining and leaves away pay alone, then clears on a break", () => {
+    const slowed = open();
+    const plain = open();
+    slowed.progress.previewTrouble("cart");
+    slowed.advance(1_000);
+    plain.advance(1_000);
+    slowed.progress.tick();
+    plain.progress.tick();
+    expect(slowed.progress.getSnapshot().mountain.pocket).toBeLessThan(
+      plain.progress.getSnapshot().mountain.pocket,
+    );
+
+    const awaySlow = open();
+    const awayPlain = open();
+    awaySlow.progress.previewTrouble("cart");
+    awaySlow.advance(60_000);
+    awayPlain.advance(60_000);
+    awaySlow.progress.tick();
+    awayPlain.progress.tick();
+    expect(awaySlow.progress.getSnapshot().mountain.pocket).toBe(
+      awayPlain.progress.getSnapshot().mountain.pocket,
+    );
+    expect(awaySlow.progress.getSnapshot().trouble).toBeUndefined();
+  });
+
+  it("is not in the save, and a reload starts clear", () => {
+    const { progress, storage } = open();
+    progress.previewTrouble("cart");
+    progress.flush();
+    expect(JSON.stringify(readSessionSave({ storage }))).not.toContain(
+      "cave-in",
+    );
+    progress.dispose();
+    const again = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 20_000,
+      hazardSeed: 2,
+    });
+    expect(again.getSnapshot().trouble).toBeUndefined();
+    again.previewTrouble("drill");
+    again.startOver();
+    expect(again.getSnapshot().trouble).toBeUndefined();
+    again.dispose();
+  });
+
+  it("starts during live play only once a borer is owned, one at a time", () => {
+    const quiet = open();
+    quiet.progress.applyMutation((mountain) => ({ ...mountain, borers: 0 }));
+    for (let second = 0; second < 400; second += 1) {
+      quiet.advance(1_000);
+      quiet.progress.tick();
+    }
+    expect(quiet.progress.getSnapshot().trouble).toBeUndefined();
+
+    const playing = open(4);
+    let seen = 0;
+    for (let second = 0; second < 400; second += 1) {
+      playing.advance(1_000);
+      playing.progress.tick();
+      if (playing.progress.getSnapshot().trouble !== undefined) {
+        seen += 1;
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+    expect(
+      playing.progress.getSnapshot().trouble === undefined || seen > 0,
+    ).toBe(true);
+  });
+
+  it("a Master tending the tier clears it on the next tick, an apprentice does not", () => {
+    const mastered = open();
+    mastered.progress.applyMutation((mountain) => ({
+      ...mountain,
+      engineers: [{ name: "Ada", rank: 2, trips: 9, post: "cart" }],
+    }));
+    mastered.progress.previewTrouble("cart");
+    mastered.advance(1_000);
+    mastered.progress.tick();
+    expect(mastered.progress.getSnapshot().trouble).toBeUndefined();
+
+    const apprentice = open();
+    apprentice.progress.applyMutation((mountain) => ({
+      ...mountain,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
+    }));
+    apprentice.progress.previewTrouble("cart");
+    apprentice.advance(1_000);
+    apprentice.progress.tick();
+    expect(apprentice.progress.getSnapshot().trouble?.kind).toBe("cave-in");
+    apprentice.progress.pressTrouble("drill");
+    expect(apprentice.progress.getSnapshot().trouble?.tier).toBe("cart");
+  });
+
+  it("ignores taps until the cloud save has loaded", () => {
+    const user = { uid: "test-dad", label: "Test Dad" };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: {
+        load: () => Promise.resolve({ kind: "missing" }),
+        write: () => Promise.resolve({ kind: "ok" }),
+        writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+        watch: () => () => undefined,
+      },
+      sessionStorage: createMemoryStorage(),
+      now: () => 0,
+    });
+    progress.previewTrouble("cart");
+    progress.pressTrouble("cart");
+    progress.fixTrouble("cart");
+    expect(progress.getSnapshot().trouble).toBeUndefined();
+    progress.dispose();
+  });
+});
+
 describe("expeditions through the save", () => {
   it("brings a party home while away, and a reload does not reroll the find", () => {
     const sent = send(

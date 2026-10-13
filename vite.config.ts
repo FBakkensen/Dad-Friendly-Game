@@ -197,11 +197,23 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/hazards.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/expeditions.ts": {
           statements: 100,
           branches: 100,
           functions: 100,
           lines: 100,
+        },
+        "src/engineers-panel.ts": {
+          statements: 97,
+          branches: 91,
+          functions: 100,
+          lines: 97,
         },
       },
     },
