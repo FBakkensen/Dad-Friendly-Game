@@ -3,6 +3,9 @@
   "entry": [
     "public/sw.js",
     "rules-test/vitest.config.ts",
-    "tools/vitest.config.ts"
+    "tools/vitest.config.ts",
+    "src/lab/measures/*.ts",
+    "src/lab/policies/*.ts",
+    "src/lab/fixtures/**/*.ts"
   ]
 }

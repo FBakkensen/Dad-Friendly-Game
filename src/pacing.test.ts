@@ -191,6 +191,25 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
   });
 });
 
+describe("pacing: a sampler may watch the table (#173)", () => {
+  it("reads each decision without moving the days", () => {
+    const milestones = [depth("lantern")];
+    const plain = simulateDad({ milestones, maxDays: 1 });
+    let seen = 0;
+    const watched = simulateDadRun({
+      milestones,
+      maxDays: 1,
+      onDecision(_world, second) {
+        if (second === 0) {
+          seen += 1;
+        }
+      },
+    });
+    expect(seen).toBeGreaterThan(0);
+    expect(watched.reached).toEqual(plain);
+  });
+});
+
 describe("pacing: a dad who never fixes trouble (#149)", () => {
   const reached = simulateDad({
     milestones: [depth("lantern"), depth("hammer"), depth("mantle")],

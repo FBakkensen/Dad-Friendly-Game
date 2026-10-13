@@ -303,7 +303,7 @@ One PR each, in order; the list with acceptance criteria is in the M7 PR descrip
 
 ### Milestone 8: Strategy lab
 
-**M8 is in progress.** The shared clock is `src/lab/world.ts` (#171). The pacing sim steps it and buys through the action catalogue. No screen, no save field, no Firestore change. The rest of this section is still planned. The lab runs offline, next to the pacing sim, so a retune can be judged before it ships. Players never see payback, shares, or these targets.
+**M8 is in progress.** The shared clock is `src/lab/world.ts` (#171). The pacing sim steps it and buys through the action catalogue. Targets and decision measures are in (#173). Player types, the tournament, and `npm run lab` are still planned. No screen, no save field, no Firestore change. The lab runs offline, next to the pacing sim, so a retune can be judged before it ships. Players never see payback, shares, or these targets.
 
 #### Why
 
@@ -315,8 +315,8 @@ The plain dad buys nothing from day 3.0 to 5.0. That gap is real. The lab measur
 
 - **Payback period (Cookie Monster).** How long until a move pays for itself. `valueOf` in `src/economy/actions.ts` returns `paybackSec` with the Cookie Monster formula `max(cost − pocket, 0) / income + cost / Δincome`: time to afford what is still missing, plus time for the extra income to earn the cost back. Income and the gain both come from `effectiveRates` before and after the move. A machine's staffing cost is part of that cost. The horizon is an argument, not a constant in the economy module.
 - **Live option.** A move whose payback is at most `LIVE_RATIO` times the best payback on the table. `LIVE_RATIO = 1.5`. Two or more live options is a real decision. One is a moment with nothing to choose.
-- **Dead stretch.** A run of samples where the dad is only waiting: one next buy, and nothing else is live. The lab scores the longest such stretch. What starts it, what ends it, and the sample interval are the dead-stretch definition in `src/lab/targets.ts`. A wait-only stretch is measured in hours. On today's casual run that stretch is about 2 days from day 3.0. Payback is the official score. Value-per-stone is reported beside it, for the earlier diagnosis.
-- **singleShare.** The share of samples with at most one live option (payback within `LIVE_RATIO` of the best). A run where every sample is in that set is `1`. On today's casual run it is about 42%, which the lab must reproduce within rounding.
+- **Dead stretch.** A sample is dead when no live option can be paid for and the best live option's wait is at least one session (`minWaitSec` in `src/lab/targets.ts`). A few minutes of saving at the end of a sitting does not turn the overnight gap into a dead stretch. The lab scores the longest such run. The length is wall-clock hours from the first dead sample to the next sample that is not dead, or to the last sample if the run ends waiting. On today's casual run that stretch is about 2 days from day 3.0, scored by value-per-stone on the crew table. Payback is the official score and is reported beside it.
+- **singleShare.** The share of samples with at most one live option (payback within `LIVE_RATIO` of the best). A run where every sample is in that set is `1`. The same share by value-per-stone, on the plain dad's crew table, is about 42% on today's casual run, which the lab must reproduce within rounding. Payback is reported beside it.
 - **dominantShare.** The share of samples where the most common move is the best one, leaving out the first hour.
 - **Regret.** `finishDay(policy) / finishDay(optimizer)`, a tournament number. The optimizer is 1. A later finish is higher.
 
