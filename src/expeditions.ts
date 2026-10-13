@@ -106,6 +106,13 @@ export type SettledFind =
     }
   | { readonly kind: "quiet"; readonly text: string };
 
+/** Who came home. Session news for the welcome card, not a save field. */
+export type Homecoming = {
+  readonly engineer: EngineerName;
+  readonly tunnel: TunnelId;
+  readonly find: SettledFind;
+};
+
 const QUIET_TEXT = "The tunnel was quiet, and they came home safe.";
 
 const GLIMMER: Readonly<Record<RelicId, string>> = {
@@ -185,12 +192,17 @@ export function recall(mountain: Mountain, engineer: number): Mountain {
 
 /**
  * Clamps a future departure, then brings home every party whose return has
- * passed. A second call does not roll again.
+ * passed. A second call does not roll again. `homecomings` names who came
+ * back so the welcome card can say it; it is not saved.
  */
 export function settle(
   mountain: Mountain,
   now: number,
-): { readonly mountain: Mountain; readonly finds: readonly SettledFind[] } {
+): {
+  readonly mountain: Mountain;
+  readonly finds: readonly SettledFind[];
+  readonly homecomings: readonly Homecoming[];
+} {
   return completeDue(clampExpeditions(mountain, now), now);
 }
 
@@ -225,14 +237,18 @@ export function clampExpeditions(mountain: Mountain, now: number): Mountain {
 export function completeDue(
   mountain: Mountain,
   now: number,
-): { readonly mountain: Mountain; readonly finds: readonly SettledFind[] } {
+): {
+  readonly mountain: Mountain;
+  readonly finds: readonly SettledFind[];
+  readonly homecomings: readonly Homecoming[];
+} {
   const trips = mountain.expeditions;
   if (trips === undefined) {
-    return { mountain, finds: [] };
+    return { mountain, finds: [], homecomings: [] };
   }
   const due = trips.filter((trip) => trip.returnsAt <= now);
   if (due.length === 0) {
-    return { mountain, finds: [] };
+    return { mountain, finds: [], homecomings: [] };
   }
   const ordered = [...due].sort(
     (left, right) =>
@@ -240,13 +256,19 @@ export function completeDue(
   );
   let next = mountain;
   const finds: SettledFind[] = [];
+  const homecomings: Homecoming[] = [];
   for (const trip of ordered) {
     const brought = bringHome(next, trip);
     next = brought.mountain;
     finds.push(brought.settled);
+    homecomings.push({
+      engineer: trip.engineer,
+      tunnel: trip.tunnel,
+      find: brought.settled,
+    });
   }
   const left = trips.filter((trip) => !ordered.includes(trip));
-  return { mountain: withoutTrips(next, left), finds };
+  return { mountain: withoutTrips(next, left), finds, homecomings };
 }
 
 /** Untrusted save data. The leader has to be in the tunnel, and the deep dark needs a Journeyman. */

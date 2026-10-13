@@ -1809,4 +1809,96 @@ describe("expeditions through the save", () => {
     expect(saved?.mountain.engineers?.[0]?.trips).toBe(0);
     progress.dispose();
   });
+
+  it("names who came home while away, and again when they return during play", () => {
+    const sent = send(
+      {
+        ...createMountain(),
+        helpers: 4,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" }],
+      },
+      0,
+      "side-seam",
+      0,
+    );
+    const awayStorage = createMemoryStorage();
+    writeSessionSave({ storage: awayStorage, mountain: sent, lastSeen: 0 });
+    const away = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: awayStorage,
+      now: () => 20 * 60_000,
+    });
+    expect(away.getSnapshot().away).toBeDefined();
+    expect(away.getSnapshot().homecomings).toHaveLength(1);
+    expect(away.getSnapshot().homecomings[0]).toMatchObject({
+      engineer: "Ada",
+      tunnel: "side-seam",
+    });
+    away.dismissAway();
+    expect(away.getSnapshot().homecomings).toEqual([]);
+    expect(away.getSnapshot().away).toBeUndefined();
+    away.dismissAway();
+    away.dispose();
+
+    const idle = send(
+      {
+        ...createMountain(),
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" }],
+      },
+      0,
+      "old-shaft",
+      0,
+    );
+    const idleStorage = createMemoryStorage();
+    writeSessionSave({ storage: idleStorage, mountain: idle, lastSeen: 0 });
+    const quiet = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: idleStorage,
+      now: () => 2 * 60 * 60_000,
+    });
+    expect(quiet.getSnapshot().away).toBeUndefined();
+    expect(quiet.getSnapshot().homecomings).toHaveLength(1);
+    expect(quiet.getSnapshot().homecomings[0]?.tunnel).toBe("old-shaft");
+    quiet.dismissAway();
+    expect(quiet.getSnapshot().homecomings).toEqual([]);
+    quiet.dispose();
+
+    const waiting = send(
+      {
+        ...createMountain(),
+        engineers: [{ name: "Nils", rank: 0, trips: 0, post: "camp" }],
+      },
+      0,
+      "side-seam",
+      0,
+    );
+    const trip = waiting.expeditions?.[0];
+    if (trip === undefined) {
+      throw new Error("expected a trip");
+    }
+    const soon = {
+      ...waiting,
+      expeditions: [{ ...trip, returnsAt: 5_000 }],
+    };
+    const liveStorage = createMemoryStorage();
+    writeSessionSave({ storage: liveStorage, mountain: soon, lastSeen: 0 });
+    let clock = 0;
+    const live = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: liveStorage,
+      now: () => clock,
+    });
+    expect(live.getSnapshot().homecomings).toEqual([]);
+    clock = 5_000;
+    let seen = 0;
+    live.subscribe(() => {
+      seen += 1;
+    });
+    live.applyMutation((mountain) => mountain);
+    expect(seen).toBeGreaterThan(1);
+    expect(live.getSnapshot().away).toBeUndefined();
+    expect(live.getSnapshot().homecomings).toHaveLength(1);
+    expect(live.getSnapshot().homecomings[0]?.engineer).toBe("Nils");
+    live.dispose();
+  });
 });

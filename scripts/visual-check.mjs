@@ -957,6 +957,210 @@ for (const standalone of [false, true]) {
   await close();
 }
 
+// An expedition still out: the chip stays in the mountain, and the sheet
+// (Recall, posts, the way back) fits a short phone, including the PWA.
+for (const standalone of [false, true]) {
+  const viewport = [360, 560];
+  const label = `360x560${standalone ? " standalone" : ""}`;
+  const now = Date.now();
+  const { page, close } = await open(
+    viewport,
+    {
+      version: 4,
+      mountain: {
+        remaining: 90_700_000,
+        pocket: 9_765,
+        helpers: 51,
+        carts: 24,
+        drills: 6,
+        borers: 2,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
+        expeditions: [
+          {
+            engineer: "Ada",
+            tunnel: "old-shaft",
+            sentAt: now,
+            returnsAt: now + 40 * 60_000,
+            home: "borer",
+            find: { kind: "quiet" },
+          },
+        ],
+      },
+      lastSeen: now,
+    },
+    { standalone },
+  );
+  const insets = standalone ? STANDALONE_INSETS : { top: 0, bottom: 0 };
+  const chip = await page.$eval(".mountain-wrap", (wrap) => {
+    const host = wrap.querySelector(".boost-chips");
+    const shown = [...wrap.querySelectorAll(".expedition-chip")].find(
+      (el) => !el.hidden,
+    );
+    if (host === null || shown === undefined) {
+      return { ok: false, text: "" };
+    }
+    const box = shown.getBoundingClientRect();
+    const mountain = wrap.getBoundingClientRect();
+    const text = shown.textContent ?? "";
+    return {
+      ok:
+        getComputedStyle(host).position === "absolute" &&
+        box.width > 0 &&
+        box.top >= mountain.top &&
+        box.bottom <= mountain.bottom &&
+        box.left >= mountain.left &&
+        box.right <= mountain.right &&
+        text.includes("will be gone") &&
+        !/\d|\?/.test(text),
+      text,
+    };
+  });
+  check(
+    chip.ok,
+    `${label} expedition chip sits in the mountain (${chip.text})`,
+  );
+  check(await noScroll(page), `${label} expedition chip has no scroll`);
+  await page.tap(".engineers-button");
+  const sheet = await page.$eval(
+    ".engineers-dialog",
+    (dialog, pad) => {
+      const buttons = [...dialog.querySelectorAll("button")].filter(
+        (button) => !button.hidden && button.getClientRects().length > 0,
+      );
+      const boxesOk = buttons.every((button) => {
+        const box = button.getBoundingClientRect();
+        return (
+          box.height >= 44 &&
+          box.left >= 0 &&
+          box.right <= innerWidth &&
+          box.top >= pad.top &&
+          box.bottom <= innerHeight - pad.bottom &&
+          button.scrollWidth <= button.clientWidth + 1
+        );
+      });
+      const close =
+        dialog.querySelector(".engineers-close")?.getBoundingClientRect()
+          .bottom ?? Infinity;
+      const title =
+        dialog.querySelector("h2")?.getBoundingClientRect().top ?? -1;
+      const text = dialog.textContent ?? "";
+      const recall = dialog.querySelector(".engineer-recall");
+      return {
+        boxesOk,
+        count: buttons.length,
+        titleOk: title >= pad.top,
+        closeOk: close <= innerHeight - pad.bottom,
+        recall: recall !== null && !recall.hidden,
+        words:
+          text.includes("Recall") &&
+          text.includes("Away in a tunnel") &&
+          !text.includes("?") &&
+          !text.includes("%"),
+      };
+    },
+    insets,
+  );
+  check(
+    sheet.boxesOk &&
+      sheet.count >= 6 &&
+      sheet.titleOk &&
+      sheet.closeOk &&
+      sheet.recall &&
+      sheet.words,
+    `${label} engineers sheet fits with an expedition out`,
+  );
+  if (!(sheet.boxesOk && sheet.closeOk && sheet.recall)) {
+    console.log("expedition sheet", sheet);
+  }
+  check(await noScroll(page), `${label} expedition sheet has no scroll`);
+  await close();
+}
+
+// Welcome card naming a find, over the game, at the short phone and the PWA.
+for (const standalone of [false, true]) {
+  const viewport = [360, 560];
+  const label = `360x560${standalone ? " standalone" : ""}`;
+  const now = Date.now();
+  const { page, close } = await open(
+    viewport,
+    {
+      version: 4,
+      mountain: {
+        remaining: 90_700_000,
+        pocket: 9_765,
+        helpers: 20,
+        carts: 1,
+        drills: 1,
+        borers: 1,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
+        expeditions: [
+          {
+            engineer: "Ada",
+            tunnel: "old-shaft",
+            sentAt: now - 90 * 60_000,
+            returnsAt: now - 30 * 60_000,
+            home: "borer",
+            find: { kind: "tool", id: "pick" },
+          },
+        ],
+      },
+      lastSeen: now - 2 * 60 * 60_000,
+    },
+    { standalone },
+  );
+  const bottom = standalone ? STANDALONE_INSETS.bottom : 0;
+  const card = await page.$eval(
+    ".welcome-back",
+    (dialog, inset) => {
+      const line = dialog.querySelector(".welcome-return")?.textContent ?? "";
+      const closeBox = dialog
+        .querySelector(".welcome-continue")
+        ?.getBoundingClientRect();
+      const title =
+        dialog.querySelector("h2")?.getBoundingClientRect().top ?? -1;
+      return {
+        hidden: dialog.hidden,
+        line,
+        title: dialog.querySelector("h2")?.textContent ?? "",
+        titleOk: title >= 0,
+        closeOk:
+          closeBox !== undefined &&
+          closeBox.height >= 44 &&
+          closeBox.top >= 0 &&
+          closeBox.bottom <= innerHeight - inset,
+      };
+    },
+    bottom,
+  );
+  check(
+    !card.hidden &&
+      card.title === "While you were away" &&
+      card.line ===
+        "Ada came back from the old shaft with Grandfather's pick." &&
+      !/\d|\?/.test(card.line) &&
+      card.titleOk &&
+      card.closeOk,
+    `${label} welcome card names the find`,
+  );
+  if (card.hidden || !card.closeOk) {
+    console.log("welcome find", card);
+  }
+  check(
+    await coversViewport(page, ".welcome-back"),
+    `${label} welcome card with a find is laid over the game`,
+  );
+  check(
+    await noScroll(page),
+    `${label} welcome card with a find has no scroll`,
+  );
+  await page.tap(".welcome-continue");
+  check(
+    await page.$eval(".welcome-back", (el) => el.hidden),
+    `${label} welcome card with a find closes`,
+  );
+  await close();
+}
+
 await browser.close();
 await server?.close();
 if (failures.length > 0) {

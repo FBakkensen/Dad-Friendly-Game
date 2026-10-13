@@ -513,6 +513,14 @@ describe("away pay", () => {
     expect(away.mountain.engineers?.[1]?.post).toBe("drill");
     expect(away.mountain.engineers?.[0]?.trips).toBe(1);
     expect(away.mountain.expeditions).toBeUndefined();
+    expect(away.homecomings.map((home) => home.engineer)).toEqual([
+      "Ada",
+      "Nils",
+    ]);
+    expect(away.homecomings.map((home) => home.tunnel)).toEqual([
+      "side-seam",
+      "old-shaft",
+    ]);
     expect(away.report).toMatchObject({
       awayMs: 2 * HOUR,
       capped: false,
@@ -526,6 +534,7 @@ describe("away pay", () => {
       now: 5 * 60_000,
     });
     expect(early.mountain.engineers?.[0]?.post).toBe("tunnel");
+    expect(early.homecomings).toEqual([]);
     expect(early.mined).toBe(
       Math.floor(300 * effectiveRates(stillOut).crewPerSecond * pay),
     );
@@ -536,6 +545,8 @@ describe("away pay", () => {
       now: 4 * HOUR,
     });
     expect(onTime.mountain.engineers?.[0]?.post).toBe("borer");
+    expect(onTime.homecomings).toHaveLength(1);
+    expect(onTime.homecomings[0]?.engineer).toBe("Ada");
     expect(onTime.mined).toBe(
       Math.floor(
         ((4 * HOUR) / 1000) * effectiveRates(stillOut).crewPerSecond * pay,

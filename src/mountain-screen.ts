@@ -328,6 +328,8 @@ export function mountMountainScreen({
     progress,
     getView: () => view,
     iconUrl: tierArt.helper,
+    chipHost: boostChips,
+    now,
     requestRender: () => {
       render();
     },
