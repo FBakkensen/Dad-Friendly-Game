@@ -1,15 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 import { createMemoryAuth } from "./auth";
+import { buyBoost } from "./boosts";
 import {
   createMemoryCloudSave,
   createUnavailableCloudSave,
   type CloudLoadResult,
   type CloudSave,
 } from "./cloud-save";
-import { createMountain, type Mountain } from "./mountain";
+import { APP_VERSION } from "./field-log";
+import { createMountain, mineByHand, type Mountain } from "./mountain";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
+import { effectiveRates } from "./rates";
 import { WELCOME_MIN_AWAY_MS, createProgressStore } from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
+import { buyTier } from "./tiers";
+import { buyUpgrade } from "./upgrades";
+import { mineVein } from "./veins";
 
 function createMemoryStorage(): Storage {
   const data = new Map<string, string>();
@@ -145,6 +151,12 @@ describe("createProgressStore", () => {
     expect(progress.getSnapshot().saveKind).toBe("error");
     expect(progress.getSnapshot().ready).toBe(false);
     expect(progress.getSnapshot().log).toContain("save.remote unavailable");
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "save.error",
+        data: { source: "unavailable" },
+      }),
+    );
   });
 
   it("ignores mutations until the cloud save has loaded", async () => {
@@ -1007,6 +1019,12 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
       expect(progress.getSnapshot().saveKind).toBe("error");
     });
     expect(progress.getSnapshot().log).toContain("save.write denied");
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "save.error",
+        data: { source: "write" },
+      }),
+    );
     progress.dispose();
   });
 
@@ -1027,6 +1045,12 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("error");
     });
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "save.error",
+        data: { source: "disabled" },
+      }),
+    );
     progress.dispose();
   });
 
@@ -1042,6 +1066,12 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     refused.applyMutation(() => minedMountain(2));
     expect(refused.getSnapshot().saveKind).toBe("unsigned");
     expect(refused.getSnapshot().mountain).toEqual(minedMountain(2));
+    expect(refused.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "save.error",
+        data: { source: "session" },
+      }),
+    );
   });
 
   it("ignores a cloud snapshot from a watch that was already replaced", async () => {
@@ -1088,5 +1118,164 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     progress.dispose();
     progress.startOver();
     expect(progress.getSnapshot().mountain).toEqual(minedMountain(3));
+  });
+});
+
+describe("field log", () => {
+  const guest = (now?: () => number) =>
+    createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: createMemoryStorage(),
+      ...(now === undefined ? {} : { now }),
+    });
+
+  it("ignores a plain tap and an unaffordable buy", () => {
+    const progress = guest();
+    progress.applyMutation((mountain) => mineByHand(mountain));
+    progress.applyMutation(
+      (mountain) => buyTier(mountain, "helper"),
+      "vein.tap",
+    );
+    expect(progress.fieldLog().events).toEqual([]);
+    expect(progress.fieldLog().snapshot.version).toBe(APP_VERSION);
+  });
+
+  it("records a tier buy, an upgrade, and a boost with its end time", () => {
+    const at = 1_000_000;
+    const progress = guest(() => at);
+    progress.applyMutation((mountain) =>
+      buyTier({ ...mountain, pocket: 20 }, "helper"),
+    );
+    progress.applyMutation((mountain) =>
+      buyUpgrade({ ...mountain, pocket: 5_000 }, "tap"),
+    );
+    progress.applyMutation((mountain) => {
+      const rich = { ...mountain, pocket: 1_000 };
+      return buyBoost({
+        mountain: rich,
+        id: "sharper",
+        now: at,
+        pricing: effectiveRates(rich),
+      });
+    });
+    progress.applyMutation((mountain) => mountain);
+
+    const codes = progress.fieldLog().events.map((event) => event.code);
+    expect(codes).toEqual(["tier.buy", "upgrade.buy", "boost.start"]);
+    expect(progress.fieldLog().events[0]?.data).toEqual({
+      id: "helper",
+      count: 1,
+    });
+    expect(progress.fieldLog().events[1]?.data).toEqual({
+      id: "tap",
+      count: 1,
+    });
+    const endsAt = progress.getSnapshot().mountain.boosts?.sharper;
+    expect(endsAt).toBeTypeOf("number");
+    expect(progress.fieldLog().events[2]?.data).toEqual({
+      id: "sharper",
+      endsAt: new Date(endsAt ?? 0).toISOString(),
+    });
+  });
+
+  it("does not record a boost whose end time did not change", () => {
+    const progress = guest(() => 5_000);
+    const endsAt = 9_000;
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      boosts: { sharper: endsAt },
+    }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      boosts: { sharper: endsAt },
+    }));
+    expect(
+      progress
+        .fieldLog()
+        .events.filter((event) => event.code === "boost.start"),
+    ).toHaveLength(1);
+  });
+
+  it("records a vein tap's stones, a relic, and an away report", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...createMountain(), helpers: 1 },
+      lastSeen: 0,
+    });
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 120_000,
+    });
+    progress.applyMutation((mountain) => mineVein(mountain), "vein.tap");
+    progress.applyMutation(() => minedMountain(1_000_000));
+
+    const events = progress.fieldLog().events;
+    expect(events.map((event) => event.code)).toEqual([
+      "away.report",
+      "vein.tap",
+      "relic.found",
+    ]);
+    expect(events[0]?.data).toEqual({ ms: 120_000, stones: 36 });
+    expect(events[1]?.data).toEqual({ stones: 60 });
+    expect(events[2]?.data).toEqual({ id: "lantern" });
+  });
+
+  it("records Start over and passing the mine", () => {
+    const progress = guest(() => 8_000);
+    progress.startOver();
+    progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
+    expect(progress.passTheMine()).toBe(true);
+    expect(progress.passTheMine()).toBe(false);
+    const codes = progress.fieldLog().events.map((event) => event.code);
+    expect(codes[0]).toBe("run.start-over");
+    expect(codes).toContain("run.pass");
+    expect(codes.filter((code) => code === "run.pass")).toEqual(["run.pass"]);
+  });
+
+  it("copies the newest 50 events", () => {
+    const progress = guest();
+    for (let count = 1; count <= 60; count += 1) {
+      const next = count;
+      progress.applyMutation((mountain) => ({ ...mountain, helpers: next }));
+    }
+    const events = progress.fieldLog().events;
+    expect(events).toHaveLength(50);
+    expect(events[0]?.data).toEqual({ id: "helper", count: 11 });
+    expect(events.at(-1)?.data).toEqual({ id: "helper", count: 60 });
+  });
+
+  it("keeps the ring in memory, not in the save", () => {
+    const storage = createMemoryStorage();
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 1,
+    });
+    progress.applyMutation((mountain) =>
+      buyTier({ ...mountain, pocket: 20 }, "helper"),
+    );
+    expect(progress.fieldLog().events).toHaveLength(1);
+    expect(JSON.stringify(readSessionSave({ storage }))).not.toContain(
+      "tier.buy",
+    );
+    progress.dispose();
+
+    const again = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 1,
+    });
+    expect(again.fieldLog().events).toEqual([]);
+    expect(again.getSnapshot().mountain.helpers).toBe(1);
+  });
+
+  it("leaves email and display name out of the log", () => {
+    const progress = guest();
+    const text = JSON.stringify(progress.fieldLog());
+    expect(text).not.toContain("@");
+    expect(text).not.toContain("displayName");
+    expect(text).not.toContain("email");
   });
 });

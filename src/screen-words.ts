@@ -101,3 +101,9 @@ export const capWords = (capMs: number): string =>
 
 export const tapWords = (stones: number): string =>
   stones === 1 ? "one stone" : `${formatCount(stones)} stones`;
+
+export const fieldLogCopy = "Copy field log";
+export const fieldLogCopied = "Copied";
+export const fieldLogTitle = "Field log";
+export const fieldLogFallback = "Select the log and copy it from here.";
+export const fieldLogClose = "Back to the mountain";

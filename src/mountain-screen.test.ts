@@ -11,11 +11,13 @@ import {
   type CloudLoadResult,
   type CloudSave,
 } from "./cloud-save";
-import { MOUNTAIN_STONES, type Mountain } from "./mountain";
+import { APP_VERSION } from "./field-log";
+import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
+import { buyTier } from "./tiers";
 
 function setReducedMotion(reduce: boolean): void {
   window.matchMedia = ((query: string) => ({
@@ -1062,6 +1064,183 @@ describe("menu", () => {
         screen.root.querySelector<HTMLElement>(".start-over")?.hidden,
       ).toBe(false);
     } finally {
+      screen.root.remove();
+    }
+  });
+
+  const clipboard = (value: unknown): (() => void) => {
+    const previous = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value,
+    });
+    return () => {
+      if (previous === undefined) {
+        Reflect.deleteProperty(navigator, "clipboard");
+        return;
+      }
+      Object.defineProperty(navigator, "clipboard", previous);
+    };
+  };
+
+  it("copies the field log for a guest and floats Copied", async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>(() =>
+      Promise.resolve(),
+    );
+    const restore = clipboard({ writeText });
+    const screen = mountScreen();
+    document.body.append(screen.root);
+    try {
+      screen.progress.applyMutation((mountain) =>
+        buyTier({ ...mountain, pocket: 20 }, "helper"),
+      );
+      screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+      const copy =
+        screen.root.querySelector<HTMLButtonElement>(".field-log-copy");
+      expect(copy?.textContent).toBe("Copy field log");
+      expect(copy?.disabled).toBe(false);
+      copy?.click();
+      await vi.waitFor(() => {
+        expect(screen.root.querySelector(".copied-float")?.textContent).toBe(
+          "Copied",
+        );
+      });
+      const text = String(writeText.mock.calls[0]?.[0]);
+      expect(text).toContain('\n  "snapshot"');
+      const parsed = JSON.parse(text) as {
+        snapshot: { version: string; crew: { helper: number } };
+        events: { code: string; data: { id?: string; count?: number } }[];
+      };
+      expect(parsed.snapshot.version).toBe(APP_VERSION);
+      expect(parsed.snapshot.crew.helper).toBe(1);
+      expect(parsed.events).toEqual([
+        expect.objectContaining({
+          code: "tier.buy",
+          data: { id: "helper", count: 1 },
+        }),
+      ]);
+      copy?.click();
+      await vi.waitFor(() => {
+        expect(writeText).toHaveBeenCalledTimes(2);
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(screen.root.querySelectorAll(".copied-float")).toHaveLength(1);
+      screen.root
+        .querySelector(".game-menu")
+        ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      expect(screen.root.querySelector(".copied-float")).toBeNull();
+
+      screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+      copy?.click();
+      await vi.waitFor(() => {
+        expect(screen.root.querySelector(".copied-float")?.textContent).toBe(
+          "Copied",
+        );
+      });
+      screen.root
+        .querySelector(".copied-float")
+        ?.dispatchEvent(new Event("animationend"));
+      expect(screen.root.querySelector(".copied-float")).toBeNull();
+    } finally {
+      restore();
+      screen.root.remove();
+    }
+  });
+
+  it("shows a selectable log when the clipboard is missing or refuses", async () => {
+    const restore = clipboard(undefined);
+    const screen = mountScreen();
+    document.body.append(screen.root);
+    try {
+      const openCopy = (): void => {
+        screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+        screen.root
+          .querySelector<HTMLButtonElement>(".field-log-copy")
+          ?.click();
+      };
+      openCopy();
+      const sheet = (): HTMLElement => {
+        const element = screen.root.querySelector(".field-log-sheet");
+        if (!(element instanceof HTMLElement)) {
+          throw new Error("field log sheet did not render");
+        }
+        return element;
+      };
+      await vi.waitFor(() => {
+        expect(sheet().hidden).toBe(false);
+      });
+      const box = sheet().querySelector("textarea");
+      expect(box?.readOnly).toBe(true);
+      expect(box?.disabled).toBe(false);
+      expect(box?.value).toContain(`"version": "${APP_VERSION}"`);
+      expect(document.activeElement).toBe(box);
+      sheet().querySelector<HTMLButtonElement>(".field-log-close")?.click();
+      expect(sheet().hidden).toBe(true);
+      expect(document.activeElement).toBe(
+        screen.root.querySelector(".menu-button"),
+      );
+
+      restore();
+      const bare = clipboard({});
+      try {
+        openCopy();
+        await vi.waitFor(() => {
+          expect(sheet().hidden).toBe(false);
+        });
+        sheet().querySelector<HTMLButtonElement>(".field-log-close")?.click();
+      } finally {
+        bare();
+      }
+
+      const refuse = clipboard({
+        writeText: () => Promise.reject(new Error("denied")),
+      });
+      try {
+        openCopy();
+        await vi.waitFor(() => {
+          expect(sheet().hidden).toBe(false);
+        });
+        sheet().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        expect(sheet().hidden).toBe(true);
+        expect(screen.root.querySelector(".copied-float")).toBeNull();
+      } finally {
+        refuse();
+      }
+    } finally {
+      restore();
+      screen.root.remove();
+    }
+  });
+
+  it("leaves the signed-in name out of the copied log", async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>(() =>
+      Promise.resolve(),
+    );
+    const restore = clipboard({ writeText });
+    const user = { uid: "dad-1", label: "dad@example.com" };
+    const screen = mountScreen({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: createMemoryCloudSave({
+        docs: new Map([[user.uid, createMountain()]]),
+      }),
+    });
+    document.body.append(screen.root);
+    try {
+      await vi.waitFor(() => {
+        expect(screen.progress.getSnapshot().ready).toBe(true);
+      });
+      expect(screen.text(".auth-status")).toContain("dad@example.com");
+      screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+      screen.root.querySelector<HTMLButtonElement>(".field-log-copy")?.click();
+      await vi.waitFor(() => {
+        expect(writeText).toHaveBeenCalled();
+      });
+      const text = String(writeText.mock.calls[0]?.[0]);
+      expect(text).not.toContain("dad@example.com");
+      expect(text).not.toContain("dad-1");
+      expect(text).not.toContain("displayName");
+    } finally {
+      restore();
       screen.root.remove();
     }
   });

@@ -11,6 +11,7 @@ const REQUIRED_SELECTORS = [
   ".shelf-dialog",
   ".start-over",
   ".game-menu",
+  ".field-log-sheet",
   ".menu-button",
   ".upgrades-dialog",
   ".upgrades-button",
@@ -38,6 +39,7 @@ describe("style.css", () => {
     ".shelf-dialog",
     ".start-over",
     ".game-menu",
+    ".field-log-sheet",
     ".upgrades-dialog",
   ])("lays %s over the game", (selector) => {
     const group = /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
