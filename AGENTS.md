@@ -150,3 +150,17 @@ git pull
 Then watch the workflows that merge commit started, including `deploy-hosting`. If the run list is empty, wait and list again. Do not invent work while they run. If deploy fails, read the log, fix the cause, re-run. Never force-push. Never edit CI just to go green. The sitting is not done until those runs succeed.
 
 Do not delete the local feature branch unless asked. Stop and ask on auth, secrets, or a real product question.
+
+## Cursor cloud agents
+
+Grok Bot is product owner and reviewer: it plans, files issues, keeps `docs/DESIGN.md` truthful, play-tests, reviews, and merges. A Cursor cloud agent implements one assigned issue as one PR. The environment is `.cursor/environment.json` + `.cursor/Dockerfile` (Node 24 like CI, Chrome for the layout check, Java 21 for the Firestore emulator; install is `npm ci`). For a cloud agent this section overrides "After you file" above:
+
+- One issue per PR. Reference the issue (`Closes #N`). No drive-by changes.
+- Run `npm run check` and get it green before opening or updating the PR. Paste the summary in the PR body.
+- Never merge, never enable auto-merge, never force-push, never edit `.github/workflows/`. The reviewer merges.
+- Keep coverage floors; add tests with every behavior change. Do not lower a floor to go green.
+- Players never see exact numbers for relic depths or boost gains. Use the vague wording already in the UI.
+- The phone layout must never scroll (the visual check guards it). Keep fat targets.
+- `docs/DESIGN.md` and `docs/ARCHITECTURE.md` are the sources of truth; update them in the same PR if behavior changes.
+- Any new or changed save field must be mirrored in `firestore.rules`, with the emulator round-trip test passing.
+- No new art without asking (PixelLab credits are limited). No secrets in commits.

@@ -1,0 +1,5 @@
+{
+  "build": { "context": "..", "dockerfile": "Dockerfile" },
+  "install": "npm ci",
+  "terminals": []
+}
