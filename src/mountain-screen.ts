@@ -235,7 +235,7 @@ export function mountMountainScreen({
     progress.applyMutation((latest) => {
       reward = veinReward(latest);
       return mineVein(latest);
-    });
+    }, "vein.tap");
     veinState = waitForVein({ now: now(), random, gapScale: veinGapScale() });
     veinNote.textContent = `Golden vein! +${formatCount(reward)} ${reward === 1 ? "stone" : "stones"}`;
     veinNoteUntil = now() + 4000;
@@ -306,7 +306,7 @@ export function mountMountainScreen({
       render();
     },
   });
-  const { menuButton, menu, confirm } = menuPanel;
+  const { menuButton, menu, confirm, fieldLogSheet } = menuPanel;
 
   const upgrades = createUpgradesPanel({
     progress,
@@ -445,6 +445,7 @@ export function mountMountainScreen({
     confirm,
     legacy.dialog,
     menu,
+    fieldLogSheet,
     upgradesSheet,
   );
 

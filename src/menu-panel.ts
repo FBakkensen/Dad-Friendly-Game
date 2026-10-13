@@ -1,5 +1,13 @@
 import type { AuthController, AuthState } from "./auth";
+import { formatFieldLog } from "./field-log";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
+import {
+  fieldLogClose,
+  fieldLogCopied,
+  fieldLogCopy,
+  fieldLogFallback,
+  fieldLogTitle,
+} from "./screen-words";
 
 /** The tucked-away menu (account, sign in/out, Start over) and the Start over confirm. */
 export function createMenuPanel({
@@ -58,6 +66,7 @@ export function createMenuPanel({
   menuClose.textContent = "Back to the mountain";
   const closeMenu = (): void => {
     menuOpen = false;
+    menuCard.querySelector(".copied-float")?.remove();
     requestRender();
     menuButton.focus();
   };
@@ -167,6 +176,89 @@ export function createMenuPanel({
     }
   };
 
+  const copyButton = document.createElement("button");
+  copyButton.type = "button";
+  copyButton.className = "field-log-copy";
+  copyButton.textContent = fieldLogCopy;
+
+  const fieldLogSheet = document.createElement("div");
+  fieldLogSheet.className = "field-log-sheet";
+  fieldLogSheet.setAttribute("role", "dialog");
+  fieldLogSheet.setAttribute("aria-modal", "true");
+  fieldLogSheet.setAttribute("aria-labelledby", "field-log-title");
+  fieldLogSheet.hidden = true;
+  const fieldLogCard = document.createElement("div");
+  fieldLogCard.className = "menu-card field-log-card";
+  const fieldLogHeading = document.createElement("h2");
+  fieldLogHeading.id = "field-log-title";
+  fieldLogHeading.textContent = fieldLogTitle;
+  const fieldLogHint = document.createElement("p");
+  fieldLogHint.className = "field-log-hint";
+  fieldLogHint.textContent = fieldLogFallback;
+  const fieldLogBox = document.createElement("textarea");
+  fieldLogBox.className = "field-log-text";
+  fieldLogBox.readOnly = true;
+  fieldLogBox.spellcheck = false;
+  fieldLogBox.setAttribute("aria-label", fieldLogTitle);
+  const fieldLogDone = document.createElement("button");
+  fieldLogDone.type = "button";
+  fieldLogDone.className = "menu-close field-log-close";
+  fieldLogDone.textContent = fieldLogClose;
+  let fieldLogOpen = false;
+  const closeFieldLog = (): void => {
+    fieldLogOpen = false;
+    requestRender();
+    menuButton.focus();
+  };
+  fieldLogDone.addEventListener("click", closeFieldLog);
+  fieldLogSheet.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeFieldLog();
+    }
+  });
+  fieldLogCard.append(fieldLogHeading, fieldLogHint, fieldLogBox, fieldLogDone);
+  fieldLogSheet.append(fieldLogCard);
+
+  const showCopied = (): void => {
+    menuCard.querySelector(".copied-float")?.remove();
+    const copied = document.createElement("span");
+    copied.className = "copied-float";
+    copied.setAttribute("role", "status");
+    copied.textContent = fieldLogCopied;
+    copied.addEventListener("animationend", () => {
+      copied.remove();
+    });
+    menuCard.append(copied);
+  };
+
+  const writeClipboard = async (text: string): Promise<boolean> => {
+    const clipboard = Reflect.get(navigator, "clipboard") as
+      { readonly writeText?: (value: string) => Promise<void> } | undefined;
+    if (clipboard === undefined || typeof clipboard.writeText !== "function") {
+      return false;
+    }
+    try {
+      await clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  copyButton.addEventListener("click", () => {
+    const text = formatFieldLog(progress.fieldLog());
+    void writeClipboard(text).then((copied) => {
+      if (copied) {
+        showCopied();
+        return;
+      }
+      fieldLogBox.value = text;
+      menuOpen = false;
+      fieldLogOpen = true;
+      requestRender();
+    });
+  });
+
   const renderMenu = (): void => {
     const wasOpen = !menu.hidden;
     menu.hidden = !menuOpen;
@@ -189,15 +281,26 @@ export function createMenuPanel({
     authStatus,
     authButton,
     ...extras,
+    copyButton,
     startOverLink,
     menuClose,
   );
 
   auth.subscribe(renderAuth);
 
+  const renderFieldLog = (): void => {
+    copyButton.disabled = !getView().ready;
+    const wasOpen = !fieldLogSheet.hidden;
+    fieldLogSheet.hidden = !fieldLogOpen;
+    if (fieldLogOpen && !wasOpen) {
+      fieldLogBox.focus();
+    }
+  };
+
   const render = (): void => {
     renderConfirm();
     renderMenu();
+    renderFieldLog();
   };
 
   /** Closes the menu without moving focus (another dialog takes over). */
@@ -205,5 +308,5 @@ export function createMenuPanel({
     menuOpen = false;
   };
 
-  return { menuButton, menu, confirm, close, render };
+  return { menuButton, menu, confirm, fieldLogSheet, close, render };
 }

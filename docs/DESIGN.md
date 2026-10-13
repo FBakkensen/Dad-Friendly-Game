@@ -281,6 +281,8 @@ Veterans return as **engineers**: a few named, experienced hands (never more tha
 - **Cloud copy for signed-in players:** one document `fieldLogs/{uid}`, overwritten at most every 5 minutes and on hide (≲ 300 writes per playing day, < 50 KB). Rules: owner-only read/write, shape and size checked, no delete. No personal data beyond the uid.
 - **Reading it:** `npm run field-log -- <uid>` (Admin SDK script in `tools/`, outside `src`), using Flemming's Google sign-in on the box (`gcloud auth application-default login`, once). Only household players are read; the doc holds only the latest ring, and Start over clears it.
 
+The copy menu and the session ring ship first (#141): the snapshot is the mountain as it exists today (stones, crew, speed, taps, idle machines, relics, upgrades, running boosts, legacy), and the ring is not a save field, so old saves load unchanged. Engineers, expeditions, the cloud document, and the reader follow in their own issues; the snapshot grows when those exist.
+
 #### Issues
 
 One PR each, in order; the list with acceptance criteria is in the M7 PR description (#138).

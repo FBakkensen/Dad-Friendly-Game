@@ -508,7 +508,8 @@ body {
 
 .float-gain,
 .tap-float,
-.crew-float {
+.crew-float,
+.copied-float {
   position: absolute;
   pointer-events: none;
   font-weight: 800;
@@ -530,6 +531,18 @@ body {
   z-index: 2;
   font-size: 1.4rem;
   transform: translate(-50%, -100%);
+}
+
+.menu-card {
+  position: relative;
+}
+
+.copied-float {
+  left: 50%;
+  top: 42%;
+  z-index: 3;
+  font-size: 1.4rem;
+  transform: translate(-50%, -50%);
 }
 
 /* The crew: small, muted, labelled, rising from the mine door. */
@@ -561,6 +574,10 @@ body {
   .crew-float {
     display: none;
   }
+
+  .copied-float {
+    animation: none;
+  }
 }
 
 .welcome-back,
@@ -568,6 +585,7 @@ body {
 .shelf-dialog,
 .start-over,
 .game-menu,
+.field-log-sheet,
 .upgrades-dialog {
   position: fixed;
   inset: 0;
@@ -589,6 +607,7 @@ body {
 .shelf-dialog[hidden],
 .start-over[hidden],
 .game-menu[hidden],
+.field-log-sheet[hidden],
 .upgrades-dialog[hidden] {
   display: none;
 }
@@ -1174,7 +1193,8 @@ body {
 }
 
 .legend-pass,
-.menu-pass {
+.menu-pass,
+.field-log-copy {
   appearance: none;
   width: 100%;
   min-height: 52px;
@@ -1196,9 +1216,38 @@ body {
 
 .legacy-confirm:focus-visible,
 .legend-pass:focus-visible,
-.menu-pass:focus-visible {
+.menu-pass:focus-visible,
+.field-log-copy:focus-visible {
   outline: 4px solid #e8d4b8;
   outline-offset: 3px;
+}
+
+.field-log-copy:disabled {
+  opacity: 0.7;
+}
+
+.field-log-hint {
+  margin: 0;
+  color: #c9b391;
+}
+
+.field-log-text {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 8rem;
+  max-height: 40dvh;
+  margin: 0;
+  padding: 12px;
+  border: 2px solid #e8a84a;
+  border-radius: 12px;
+  background: #120c0a;
+  color: #e8d4b8;
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  text-align: left;
+  resize: none;
+  user-select: text;
 }
 
 /* "Legacy ×1.5" in the mountain's top-right corner (boost chips are top-left). */
