@@ -1,4 +1,5 @@
 import { buyCrew, tierLocked } from "./crew";
+import { staffNeeded } from "./engineers";
 import { floatText, reducedMotion } from "./float-text";
 import { formatCompact, formatCount } from "./format";
 import { stonesPerSecond } from "./mountain";
@@ -145,7 +146,8 @@ export function createCrewPanel({
       current.helpers +
       current.kids -
       TIERS.reduce(
-        (used, tier) => used + rates.running[tier.id] * tier.staff,
+        (used, tier) =>
+          used + rates.running[tier.id] * staffNeeded(current, tier),
         0,
       );
     const idle = TIERS.reduce(
@@ -194,7 +196,8 @@ export function createCrewPanel({
       const idleHere = count - running;
       // The next one of this tier would sit idle. Say so on an empty card,
       // before the tap. A crew you already run keeps its speed line.
-      const needsMore = !locked && tier.staff > 0 && spare < tier.staff;
+      const staff = staffNeeded(current, tier);
+      const needsMore = !locked && staff > 0 && spare < staff;
       const showNeeds = needsMore && idleHere === 0 && count === 0;
       card.classList.toggle("tier-idle", !locked && idleHere > 0);
       card.classList.toggle("tier-needs-workers", showNeeds);
@@ -227,7 +230,7 @@ export function createCrewPanel({
         "aria-label",
         locked
           ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.`
-          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(tier.staff)} ${workerWords(tier.staff)} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.`,
+          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(staff)} ${workerWords(staff)} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.`,
       );
     }
   };

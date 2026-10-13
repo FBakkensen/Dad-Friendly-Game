@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ENGINEER_NAMES } from "./engineers";
 import { effectiveRates } from "./rates";
 import { simulateDad, simulateDadRun, type DadRun } from "./pacing";
 import { RELICS } from "./relics";
@@ -84,9 +85,17 @@ describe.each([
   });
   const bottom = run.reached.get(depth("mantle")) ?? Infinity;
 
-  it("buys something at least every simulated day from the first borer", () => {
+  it("saves about a day and a half for the Great Machine, then runs it", () => {
     expect(bottom).toBe(5);
-    expect(quietStretch(run, bottom)).toBeLessThanOrEqual(1);
+    expect(quietStretch(run, bottom)).toBeLessThanOrEqual(1.51);
+    const machine = run.buys.find((buy) => buy.id === "machine");
+    expect(machine).toMatchObject({ count: 1, price: 50_000_000 });
+    expect(machine?.day).toBeGreaterThan(3.5);
+    expect(machine?.day).toBeLessThan(bottom);
+    expect(effectiveRates(run.mountain).running.machine).toBe(1);
+    expect(run.mountain.engineers).toEqual([
+      { name: ENGINEER_NAMES[0], rank: 0, trips: 0, post: "machine" },
+    ]);
   });
 });
 
@@ -107,8 +116,14 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
     expect((borer?.shortCost ?? 0) / (borer?.price ?? 1)).toBeLessThan(0.1);
   });
 
-  it("never staffs a Great Machine before the bottom (staff 25; staff 15 reopened the dead zone)", () => {
-    expect(run.mountain.machines).toBe(0);
-    expect(effectiveRates(run.mountain).running.machine).toBe(0);
+  it("runs one Great Machine after the Hammer, and the bottom stays day 5", () => {
+    const bottom = run.reached.get(depth("mantle"));
+    const machine = run.buys.find((buy) => buy.id === "machine");
+    expect(bottom).toBe(5);
+    expect(machine).toMatchObject({ count: 1, price: 50_000_000 });
+    expect(machine?.day).toBeGreaterThanOrEqual(4.5);
+    expect(machine?.day).toBeLessThan(bottom ?? 0);
+    expect(run.mountain.machines).toBe(1);
+    expect(effectiveRates(run.mountain).running.machine).toBe(1);
   });
 });

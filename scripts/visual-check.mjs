@@ -48,6 +48,17 @@ const CREW = {
   // Both boosts running: their chips must sit in the mountain, not the flow.
   boosts: { sharper: Date.now() + 3_600_000, overtime: Date.now() + 3_600_000 },
 };
+/** A current save that owns a borer already has its first engineer. */
+function withCurrentEngineer(mountain) {
+  if ((mountain.borers ?? 0) < 1 || mountain.engineers !== undefined) {
+    return mountain;
+  }
+  return {
+    ...mountain,
+    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+  };
+}
+
 // One stone short of the Lantern of Guidance, away for ten minutes.
 const BEFORE_LANTERN = {
   remaining: 99_000_001,
@@ -108,7 +119,10 @@ async function open([width, height], save, { standalone = false } = {}) {
     JSON.stringify(
       save.legacy || save.mountain === undefined
         ? { ...save, legacy: undefined }
-        : { ...save, mountain: { staffed: 2, ...save.mountain } },
+        : {
+            ...save,
+            mountain: withCurrentEngineer({ staffed: 2, ...save.mountain }),
+          },
     ),
   );
   await page.goto(BASE, { waitUntil: "networkidle0" });
@@ -552,6 +566,14 @@ for (const standalone of [false, true]) {
   check(
     crewText?.endsWith("joined to run your machines.") === true,
     `${label} crew-grew note shows for an old save`,
+  );
+  const engineerText = await page.$eval(
+    ".welcome-engineer",
+    (el) => el.textContent,
+  );
+  check(
+    engineerText === "Your best worker steps up as engineer.",
+    `${label} engineer note shows for an old save that owns a borer`,
   );
   check(
     await coversViewport(page, ".welcome-back"),

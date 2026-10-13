@@ -1,5 +1,6 @@
 import { BOOSTS, buyBoost } from "./boosts";
 import { buyCrew, tierLocked } from "./crew";
+import { staffForBuy, staffNeeded, tendBestTier } from "./engineers";
 import { AWAY_PAY_RATE, effectiveRates, BASE_AWAY_CAP_MS } from "./rates";
 import {
   BOOTS_SPEED_PER_LEVEL,
@@ -83,7 +84,11 @@ function bestValue(
   const freeHelpers =
     mountain.helpers +
     mountain.kids -
-    TIERS.reduce((used, tier) => used + rates.running[tier.id] * tier.staff, 0);
+    TIERS.reduce(
+      (used, tier) =>
+        used + rates.running[tier.id] * staffNeeded(mountain, tier),
+      0,
+    );
   for (const tier of TIERS) {
     if (!tierShown(mountain, tier) || tierLocked(mountain, tier)) {
       continue;
@@ -103,13 +108,15 @@ function bestValue(
       continue;
     }
     // A machine is weighed with the helpers it still needs, bought next.
-    const short = Math.max(0, tier.staff - freeHelpers);
+    // A Great Machine counts the tended crew, because buying one posts the engineer.
+    const staff = staffForBuy(mountain, tier);
+    const short = Math.max(0, staff - freeHelpers);
     let crewCost = 0;
     for (let extra = 0; extra < short; extra += 1) {
       crewCost += tierCost(helper, mountain.helpers + extra);
     }
     consider({
-      buy: (current) => buyCrew(current, tier.id),
+      buy: (current) => tendBestTier(buyCrew(current, tier.id)),
       cost,
       value: (rates.tierSpeed[tier.id] * CREW_DAY_SECONDS) / (cost + crewCost),
       id: tier.id,
@@ -226,6 +233,7 @@ export function simulateDadRun({
           });
         }
       }
+      mountain = tendBestTier(mountain);
       for (let tap = 0; tap < DAD.tapsPerSecond; tap += 1) {
         mountain = mineByHand(mountain, clock);
       }
@@ -246,11 +254,15 @@ export function simulateDadRun({
           mountain.helpers +
           mountain.kids -
           TIERS.reduce(
-            (used, tier) => used + ratesNow.running[tier.id] * tier.staff,
+            (used, tier) =>
+              used + ratesNow.running[tier.id] * staffNeeded(mountain, tier),
             0,
           );
         const tier = TIERS.find((candidate) => candidate.id === pick.id);
-        const short = tier === undefined ? 0 : Math.max(0, tier.staff - spare);
+        const short =
+          tier === undefined || tier.staff === 0
+            ? 0
+            : Math.max(0, staffForBuy(mountain, tier) - spare);
         let shortCost = 0;
         for (let extra = 0; extra < short; extra += 1) {
           shortCost += tierCost(tierById("helper"), mountain.helpers + extra);

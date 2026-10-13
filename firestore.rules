@@ -13,6 +13,7 @@ service cloud.firestore {
     //       - remaining: int 0..100000000 (v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts, drills, borers, machines, kids: optional int >= 0, upgrades: optional map of known ids to int levels, boosts: optional map of known ids to int end times,
     //         startedAt: optional int >= 0 (run start; updates may not lower it)
     //         staffed: optional true or 1 (#89 grant) or 2 (M7 top-up). true stays valid for old clients.
+    //         engineers: optional list, size 0..5. Each: name from the closed list, rank 0..2 matching trips (0 until 3, 1 until 9, then 2), trips 0..1000000, post a machine tier or camp or tunnel. Names unique.
     //   - grid: map (required iff version is 1 or 2; legacy, read-migrated by the client)
     //       - width: int (required, must be 3)
     //       - height: int (required, must be 3)
@@ -74,10 +75,29 @@ service cloud.firestore {
         isValidCell(grid.cells[8]);
     }
 
+    function isEngineer(engineer) {
+      return engineer.keys().hasOnly(['name', 'rank', 'trips', 'post']) &&
+        engineer.name in ['Ada', 'Nils', 'Ruth', 'Otto', 'Mae'] &&
+        engineer.post in ['cart', 'drill', 'borer', 'machine', 'camp', 'tunnel'] &&
+        engineer.trips is int &&
+        engineer.trips >= 0 &&
+        engineer.trips <= 1000000 &&
+        engineer.rank == (engineer.trips >= 9 ? 2 : (engineer.trips >= 3 ? 1 : 0));
+    }
+
+    function isValidEngineers(engineers) {
+      return engineers is list && engineers.size() <= 5 &&
+        (engineers.size() < 1 || isEngineer(engineers[0])) &&
+        (engineers.size() < 2 || (isEngineer(engineers[1]) && engineers[1].name != engineers[0].name)) &&
+        (engineers.size() < 3 || (isEngineer(engineers[2]) && engineers[2].name != engineers[0].name && engineers[2].name != engineers[1].name)) &&
+        (engineers.size() < 4 || (isEngineer(engineers[3]) && engineers[3].name != engineers[0].name && engineers[3].name != engineers[1].name && engineers[3].name != engineers[2].name)) &&
+        (engineers.size() < 5 || (isEngineer(engineers[4]) && engineers[4].name != engineers[0].name && engineers[4].name != engineers[1].name && engineers[4].name != engineers[2].name && engineers[4].name != engineers[3].name));
+    }
+
     function isValidMountain(mountain, total) {
       return mountain is map &&
         mountain.keys().hasAll(['remaining', 'pocket', 'helpers']) &&
-        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts', 'drills', 'borers', 'machines', 'kids', 'upgrades', 'boosts', 'startedAt', 'staffed', 'legacy']) &&
+        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts', 'drills', 'borers', 'machines', 'kids', 'upgrades', 'boosts', 'startedAt', 'staffed', 'legacy', 'engineers']) &&
         mountain.remaining is int &&
         mountain.remaining >= 0 &&
         mountain.remaining <= total &&
@@ -105,7 +125,8 @@ service cloud.firestore {
           (!('overtime' in mountain.boosts) || (mountain.boosts.overtime is int && mountain.boosts.overtime >= 0)))) &&
         (!('startedAt' in mountain) || (mountain.startedAt is int && mountain.startedAt >= 0)) &&
         (!('staffed' in mountain) || mountain.staffed == true || mountain.staffed == 1 || mountain.staffed == 2) &&
-        (!('legacy' in mountain) || (mountain.legacy is int && mountain.legacy >= 0 && mountain.legacy <= 1000));
+        (!('legacy' in mountain) || (mountain.legacy is int && mountain.legacy >= 0 && mountain.legacy <= 1000)) &&
+        (!('engineers' in mountain) || isValidEngineers(mountain.engineers));
     }
 
     function runStart(data) {

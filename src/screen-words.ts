@@ -108,6 +108,9 @@ export const capWords = (capMs: number): string =>
 export const tapWords = (stones: number): string =>
   stones === 1 ? "one stone" : `${formatCount(stones)} stones`;
 
+/** Older saves that already own a borer, the one time their first engineer arrives. */
+export const ENGINEER_WELCOME = "Your best worker steps up as engineer.";
+
 export const fieldLogCopy = "Copy field log";
 export const fieldLogCopied = "Copied";
 export const fieldLogTitle = "Field log";

@@ -2,6 +2,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BOOSTS } from "./boosts";
+import {
+  ENGINEER_NAMES,
+  ENGINEER_POSTS,
+  MAX_ENGINEERS,
+  MAX_ENGINEER_TRIPS,
+} from "./engineers";
 import type { Mountain } from "./mountain";
 import { UPGRADES } from "./upgrades";
 
@@ -54,6 +60,7 @@ describe("firestore.rules match the game", () => {
       startedAt: 0,
       staffed: 2,
       legacy: 0,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     };
     const match = /mountain\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/.exec(rules);
     const allowed = (match?.[1] ?? "")
@@ -63,5 +70,17 @@ describe("firestore.rules match the game", () => {
     expect(rules).toContain("mountain.staffed == true");
     expect(rules).toContain("mountain.staffed == 1");
     expect(rules).toContain("mountain.staffed == 2");
+  });
+
+  it("allows engineers from the closed list, and nothing past the caps (#144)", () => {
+    for (const name of ENGINEER_NAMES) {
+      expect(rules).toContain(`'${name}'`);
+    }
+    for (const post of ENGINEER_POSTS) {
+      expect(rules).toContain(`'${post}'`);
+    }
+    expect(rules).toContain(`engineers.size() <= ${String(MAX_ENGINEERS)}`);
+    expect(rules).toContain(`engineer.trips <= ${String(MAX_ENGINEER_TRIPS)}`);
+    expect(rules).toContain("engineer.trips >= 9 ? 2");
   });
 });

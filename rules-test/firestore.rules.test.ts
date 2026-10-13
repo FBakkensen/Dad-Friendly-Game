@@ -13,6 +13,12 @@ import {
 } from "firebase/firestore";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BOOSTS } from "../src/boosts";
+import {
+  ENGINEER_NAMES,
+  ENGINEER_POSTS,
+  MAX_ENGINEERS,
+  type Engineer,
+} from "../src/engineers";
 import { createMountain, type Mountain } from "../src/mountain";
 import { parseSaveValue, serializeSave } from "../src/persist";
 import { UPGRADES } from "../src/upgrades";
@@ -123,6 +129,49 @@ describe("firestore.rules: every save the game writes is accepted", () => {
         }),
       ).rejects.toThrow(/permission/i);
     }
+  });
+
+  it("round-trips a crew of engineers and rejects a bad one (#144)", async () => {
+    const engineers: Engineer[] = ENGINEER_NAMES.map((name, index) => ({
+      name,
+      rank: index < 2 ? 0 : index < 4 ? 1 : 2,
+      trips: index < 2 ? 0 : index < 4 ? 3 : 9,
+      post: ENGINEER_POSTS[index] ?? "camp",
+    }));
+    const mountain = { ...createMountain(), borers: 1, engineers };
+    expect(engineers).toHaveLength(MAX_ENGINEERS);
+    expect(await roundTrip(mountain)).toEqual(mountain);
+
+    const raw = serializeSave({ mountain, lastSeen: 1 });
+    const write = (next: unknown) =>
+      setDoc(doc(db, "saves", "dad"), {
+        ...raw,
+        mountain: { ...raw.mountain, engineers: next },
+      });
+    await expect(write([])).resolves.toBeUndefined();
+    const tooMany = [...engineers, { ...engineers[0], name: "Ada" }];
+    await expect(write(tooMany)).rejects.toThrow(/permission/i);
+    await expect(write([{ ...engineers[0], name: "Bob" }])).rejects.toThrow(
+      /permission/i,
+    );
+    await expect(write([{ ...engineers[0], post: "helper" }])).rejects.toThrow(
+      /permission/i,
+    );
+    await expect(write([{ ...engineers[0], rank: 2 }])).rejects.toThrow(
+      /permission/i,
+    );
+    await expect(write([{ ...engineers[0], trips: -1 }])).rejects.toThrow(
+      /permission/i,
+    );
+    await expect(
+      write([{ ...engineers[0], trips: 1_000_001, rank: 2 }]),
+    ).rejects.toThrow(/permission/i);
+    await expect(write([engineers[0], engineers[0]])).rejects.toThrow(
+      /permission/i,
+    );
+    await expect(write([{ ...engineers[0], nickname: "Ace" }])).rejects.toThrow(
+      /permission/i,
+    );
   });
 
   it("rejects unknown upgrades and levels past the top", async () => {

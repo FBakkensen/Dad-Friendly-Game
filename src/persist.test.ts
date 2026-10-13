@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Engineer } from "./engineers";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { migrateLegacyGrid, parseSaveValue, serializeSave } from "./persist";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
@@ -30,10 +31,35 @@ describe("serializeSave and parseSaveValue", () => {
       startedAt: 3,
       staffed: 2,
       legacy: 2,
+      engineers: [
+        { name: "Ada", rank: 0, trips: 0, post: "borer" },
+      ] satisfies Engineer[],
     };
     expect(
       parseSaveValue(serializeSave({ mountain: everyField, lastSeen: 1 })),
     ).toEqual({ mountain: everyField, lastSeen: 1 });
+  });
+
+  it("round-trips engineers and leaves them out of an older save", () => {
+    const engineers = [
+      {
+        name: "Nils" as const,
+        rank: 1 as const,
+        trips: 3,
+        post: "drill" as const,
+      },
+    ];
+    const mountain = { ...minedMountain(4), engineers };
+    const saved = serializeSave({ mountain, lastSeen: 8 });
+    expect(saved.mountain.engineers).toEqual(engineers);
+    expect(parseSaveValue(JSON.parse(JSON.stringify(saved)))?.mountain).toEqual(
+      mountain,
+    );
+    const older = minedMountain(4);
+    expect(
+      parseSaveValue({ version: 4, mountain: older, lastSeen: 8 })?.mountain,
+    ).toEqual(older);
+    expect("engineers" in older).toBe(false);
   });
 
   it("round-trips a v4 mountain save", () => {

@@ -53,6 +53,9 @@ export function serializeSave({
       ...(mountain.legacy === undefined || mountain.legacy === 0
         ? {}
         : { legacy: mountain.legacy }),
+      ...(mountain.engineers === undefined || mountain.engineers.length === 0
+        ? {}
+        : { engineers: mountain.engineers }),
     },
     lastSeen,
   };
