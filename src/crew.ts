@@ -1,4 +1,4 @@
-import type { Mountain } from "./mountain";
+import { STAFF_GRANT, type Mountain } from "./mountain";
 import { hasRelic } from "./relics";
 import {
   TIERS,
@@ -20,27 +20,29 @@ export function buyCrew(mountain: Mountain, id: TierId): Mountain {
 }
 
 /**
- * One time, for saves from before machines needed helpers (#89): hire enough
- * free helpers to run every machine already owned, and mark the save so it
- * never repeats. Returns how many joined (0 when nothing changed).
+ * One time, hire enough free workers that every machine already owned can run,
+ * then mark the save so it never repeats. `#89` did this for the first staffing
+ * numbers (`staffed` true or 1). M7 (#140) does it once more for the heavier
+ * crew (`staffed` 2): a save already at 2 is returned unchanged. Kids already
+ * on the crew count, so they aren't hired again.
  */
 export function staffExisting(mountain: Mountain): {
   mountain: Mountain;
   joined: number;
 } {
-  if (mountain.staffed === true) {
+  if (mountain.staffed === STAFF_GRANT) {
     return { mountain, joined: 0 };
   }
   const needed = TIERS.reduce(
     (total, tier) => total + owned(mountain, tier) * tier.staff,
     0,
   );
-  const joined = Math.max(0, needed - mountain.helpers);
+  const joined = Math.max(0, needed - mountain.helpers - mountain.kids);
   return {
     mountain: {
       ...mountain,
       helpers: mountain.helpers + joined,
-      staffed: true,
+      staffed: STAFF_GRANT,
     },
     joined,
   };

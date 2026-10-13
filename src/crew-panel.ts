@@ -5,7 +5,12 @@ import { stonesPerSecond } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates } from "./rates";
 import { RELICS } from "./relics";
-import { formatSpeed, percent, workerWords } from "./screen-words";
+import {
+  NEEDS_MORE_WORKERS,
+  formatSpeed,
+  percent,
+  workerWords,
+} from "./screen-words";
 import { TIERS, owned, tierCost, tierShown, type TierId } from "./tiers";
 import { tierSynergy } from "./upgrades";
 
@@ -91,7 +96,7 @@ export function createCrewPanel({
           card,
           after.running[tier.id] > before
             ? `+${formatSpeed(after.tierSpeed[tier.id])}/s`
-            : "Needs workers",
+            : NEEDS_MORE_WORKERS,
           "float-gain",
         );
         countCrewRate(rateBefore, stonesPerSecond(getView().mountain, now()));
@@ -136,6 +141,13 @@ export function createCrewPanel({
     const { mountain: current } = getView();
     const rate = rateShown ?? stonesPerSecond(current, now());
     const rates = effectiveRates(current);
+    const spare =
+      current.helpers +
+      current.kids -
+      TIERS.reduce(
+        (used, tier) => used + rates.running[tier.id] * tier.staff,
+        0,
+      );
     const idle = TIERS.reduce(
       (total, tier) => total + owned(current, tier) - rates.running[tier.id],
       0,
@@ -180,35 +192,42 @@ export function createCrewPanel({
       // Only staffed machines count; the rest show as idle.
       const running = rates.running[tier.id];
       const idleHere = count - running;
+      // The next one of this tier would sit idle. Say so on an empty card,
+      // before the tap. A crew you already run keeps its speed line.
+      const needsMore = !locked && tier.staff > 0 && spare < tier.staff;
+      const showNeeds = needsMore && idleHere === 0 && count === 0;
       card.classList.toggle("tier-idle", !locked && idleHere > 0);
+      card.classList.toggle("tier-needs-workers", showNeeds);
       // A bought crew synergy shows as "↑12%" in the rate line (just "↑" on tight cards).
       const synergy = tierSynergy(current, tier.id);
       const lift = `\u2191${String(Math.round(synergy * 100))}%`;
       tierRate.textContent = locked
         ? `${needed?.name.split(" ")[0] ?? "Relic"} · ${formatCompact(needed?.depth ?? 0)}`
-        : idleHere > 0
-          ? compact
-            ? // Tight cards: the idle count is the news; the crew line has the speed.
-              `${formatCompact(idleHere)} idle`
-            : `${formatCompact(idleHere)} idle\u2009·\u2009${formatCompact(running * speed)}/s`
-          : synergy > 0
+        : showNeeds
+          ? NEEDS_MORE_WORKERS
+          : idleHere > 0
             ? compact
-              ? // Tight cards keep just the arrow; the sheet and label say how much.
-                `\u2191\u2009${formatCompact(running * speed)}/s`
-              : `+${formatSpeed(speed)} ${lift} · ${formatCompact(running * speed)}/s`
-            : compact
-              ? count === 0
-                ? `+${formatSpeed(speed)}/s`
-                : `+${formatSpeed(speed)}\u2009·\u2009${formatCompact(running * speed)}/s`
-              : count === 0
-                ? `+${formatSpeed(speed)}/s each`
-                : // "each" drops out once the total needs four digits, so the line fits.
-                  `+${formatSpeed(speed)}${running * speed < 1_000 ? " each" : ""} · ${formatCompact(running * speed)}/s`;
+              ? // Tight cards: the idle count is the news; the crew line has the speed.
+                `${formatCompact(idleHere)} idle`
+              : `${formatCompact(idleHere)} idle\u2009·\u2009${formatCompact(running * speed)}/s`
+            : synergy > 0
+              ? compact
+                ? // Tight cards keep just the arrow; the sheet and label say how much.
+                  `\u2191\u2009${formatCompact(running * speed)}/s`
+                : `+${formatSpeed(speed)} ${lift} · ${formatCompact(running * speed)}/s`
+              : compact
+                ? count === 0
+                  ? `+${formatSpeed(speed)}/s`
+                  : `+${formatSpeed(speed)}\u2009·\u2009${formatCompact(running * speed)}/s`
+                : count === 0
+                  ? `+${formatSpeed(speed)}/s each`
+                  : // "each" drops out once the total needs four digits, so the line fits.
+                    `+${formatSpeed(speed)}${running * speed < 1_000 ? " each" : ""} · ${formatCompact(running * speed)}/s`;
       card.setAttribute(
         "aria-label",
         locked
           ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.`
-          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(tier.staff)} ${workerWords(tier.staff)} to run` : ""}.`,
+          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(tier.staff)} ${workerWords(tier.staff)} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.`,
       );
     }
   };

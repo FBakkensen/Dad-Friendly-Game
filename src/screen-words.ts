@@ -35,6 +35,12 @@ export const formatClock = (ms: number): string => {
 export const workerWords = (count: number): string =>
   count === 1 ? "worker" : "workers";
 
+/**
+ * Buy UI, before and after the tap, when the next machine would sit idle.
+ * No counts: the idle line already says how many.
+ */
+export const NEEDS_MORE_WORKERS = "Needs more workers to run";
+
 /** "Your 12 workers make carts 12% faster." — or would, before it's bought. */
 const synergyNow = (upgrade: Upgrade, mountain: Mountain): string => {
   if (upgrade.synergy === undefined) {

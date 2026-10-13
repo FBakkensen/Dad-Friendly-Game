@@ -16,6 +16,7 @@ import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
+import { NEEDS_MORE_WORKERS } from "./screen-words";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { buyTier } from "./tiers";
 
@@ -348,7 +349,7 @@ describe("crew tiers on screen", () => {
       storage,
       mountain: {
         ...minedMountain(400),
-        helpers: 12,
+        helpers: 21,
         carts: 2,
         drills: 1,
         borers: 2,
@@ -476,11 +477,11 @@ describe("crew tiers on screen", () => {
       );
       expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Worker");
       expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×1");
-      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("23");
+      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("25");
       expect(hire.disabled).toBe(true);
       expect(cart.hidden).toBe(false);
       expect(hire.getAttribute("aria-label")).toBe(
-        "Buy a worker for 23 stones, mines 1 stone a second. You have 1.",
+        "Buy a worker for 25 stones, mines 1 stone a second. You have 1.",
       );
 
       await vi.advanceTimersByTimeAsync(3_000);
@@ -1661,8 +1662,8 @@ describe("crew staffing on screen", () => {
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
-    // 5 helpers: both drills (4), then one cart; 2 carts idle.
-    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe("2 idle");
+    // 5 workers: one drill (3), then two carts; one cart and one drill idle.
+    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe("1 idle");
     expect(
       screen.root
         .querySelector('[data-tier="cart"]')
@@ -1672,20 +1673,48 @@ describe("crew staffing on screen", () => {
       screen.root
         .querySelector('[data-tier="cart"]')
         ?.getAttribute("aria-label"),
-    ).toContain("2 idle: each needs 1 worker to run");
-    expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
-      "+60\u2009·\u2009120/s",
-    );
-    expect(screen.text(".crew-status")).toBe("135/s · 2 idle, need 2 workers");
+    ).toContain("1 idle: each needs 1 worker to run");
+    expect(
+      screen.root
+        .querySelector('[data-tier="cart"]')
+        ?.getAttribute("aria-label"),
+    ).toContain(NEEDS_MORE_WORKERS);
+    expect(screen.text('[data-tier="drill"] .tier-rate')).toBe("1 idle");
+    expect(screen.text(".crew-status")).toBe("85/s · 2 idle, need 4 workers");
 
-    // Hiring one helper starts one cart.
+    // Hiring one worker finishes the drills; the carts wait.
     screen.root
       .querySelector<HTMLButtonElement>('[data-tier="helper"]')
       ?.click();
-    expect(screen.text(".crew-status")).toBe("146/s · 1 idle, need 1 worker");
+    expect(screen.text(".crew-status")).toBe("126/s · 3 idle, need 3 workers");
   });
 
-  it("floats 'Needs workers' when a new machine has nobody to run it", () => {
+  it("says a machine would need more workers before you buy it, with no new numbers", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(0),
+        pocket: 20_000_000,
+        helpers: 9,
+        carts: 1,
+        drills: 1,
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const borer = screen.root.querySelector('[data-tier="borer"]');
+    expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
+      NEEDS_MORE_WORKERS,
+    );
+    expect(screen.text('[data-tier="borer"] .tier-rate')).not.toMatch(/\d/);
+    expect(borer?.getAttribute("aria-label")).toContain(NEEDS_MORE_WORKERS);
+    expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
+      "+60\u2009·\u200960/s",
+    );
+  });
+
+  it("floats the staffing line when a new machine has nobody to run it", () => {
     vi.useFakeTimers();
     setReducedMotion(false);
     try {
@@ -1700,7 +1729,7 @@ describe("crew staffing on screen", () => {
         screen.root.querySelector<HTMLButtonElement>('[data-tier="cart"]');
       cart?.click();
       expect(cart?.querySelector(".float-gain")?.textContent).toBe(
-        "Needs workers",
+        NEEDS_MORE_WORKERS,
       );
       expect(screen.text(".crew-status")).toBe("11/s · 1 idle, need 1 worker");
     } finally {
@@ -1731,12 +1760,53 @@ describe("free helpers note (#89 grant)", () => {
     ).toBe(false);
     expect(screen.text("#welcome-back-title")).toBe("Your crew grew");
     expect(screen.text(".welcome-crew")).toBe(
-      "6 workers joined to run your machines.",
+      "8 workers joined to run your machines.",
     );
     expect(
       screen.root.querySelector<HTMLElement>(".welcome-mined")?.hidden,
     ).toBe(true);
     screen.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(true);
+    expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×12");
+  });
+
+  it("tops up a first-grant save and reuses the crew-grew card", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(0),
+        helpers: 10,
+        carts: 6,
+        drills: 2,
+        staffed: true,
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    expect(screen.text("#welcome-back-title")).toBe("Your crew grew");
+    expect(screen.text(".welcome-crew")).toBe(
+      "2 workers joined to run your machines.",
+    );
+    expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×12");
+  });
+
+  it("leaves a save that already has the new grant alone", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(0),
+        helpers: 10,
+        carts: 6,
+        drills: 2,
+        staffed: 2,
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
     expect(
       screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
     ).toBe(true);
@@ -1800,7 +1870,7 @@ describe("crew line at a big crew", () => {
       mountain: {
         ...minedMountain(30_000_000),
         pocket: 0,
-        helpers: 60,
+        helpers: 98,
         borers: 6,
         machines: 2,
       },
@@ -2043,7 +2113,7 @@ describe("player-facing workers (#139)", () => {
         // welcome card, the Crown's power, and the Legend finale all render.
         ...minedMountain(69_999_999),
         pocket: 80_000_000,
-        helpers: 10,
+        helpers: 30,
         carts: 5,
         borers: 1,
         machines: 1,

@@ -31,16 +31,27 @@ export type Mountain = {
    */
   readonly startedAt?: number;
   /**
-   * Set once machines need helpers (#89): older saves get free helpers on
-   * load, one time (see staffExisting in crew.ts). New mountains start set.
+   * How far the one-time staffing grants have run (see staffExisting).
+   * `true` and `1` are the first grant (#89). `2` is the M7 top-up (#140).
+   * New mountains start at 2. Old clients still write `true`.
    */
-  readonly staffed?: true;
+  readonly staffed?: StaffedMark;
   /** Mountains passed to your kid (M6); missing means none. */
   readonly legacy?: number;
 };
 
 /** A sanity cap for saves; no dad gets near it. Mirrored in firestore.rules. */
 const MAX_LEGACY = 1000;
+
+/** `true` and `1`: the #89 grant. `2`: the M7 top-up. Mirrored in firestore.rules. */
+export type StaffedMark = true | 1 | 2;
+
+/** Saves at this mark have had every staffing top-up. New mountains start here. */
+export const STAFF_GRANT = 2 satisfies StaffedMark;
+
+function isStaffedMark(value: unknown): value is StaffedMark {
+  return value === true || value === 1 || value === 2;
+}
 
 /** 0 for a first run that was never started over. */
 export function runStartedAt(mountain: Mountain): number {
@@ -57,7 +68,7 @@ export function createMountain(): Mountain {
     borers: 0,
     machines: 0,
     kids: 0,
-    staffed: true,
+    staffed: STAFF_GRANT,
   };
 }
 
@@ -203,7 +214,7 @@ export function parseMountain(
     !isCount(machines) ||
     !isCount(kids) ||
     (startedAt !== undefined && !isCount(startedAt)) ||
-    (staffed !== undefined && staffed !== true) ||
+    (staffed !== undefined && !isStaffedMark(staffed)) ||
     (legacy !== undefined && (!isCount(legacy) || legacy > MAX_LEGACY)) ||
     (upgrades !== undefined && parseUpgrades(upgrades) === undefined) ||
     (boosts !== undefined && parseBoosts(boosts) === undefined)
@@ -232,7 +243,7 @@ export function parseMountain(
       ? {}
       : { boosts: parsedBoosts }),
     ...(startedAt === undefined ? {} : { startedAt }),
-    ...(staffed === true ? { staffed } : {}),
+    ...(isStaffedMark(staffed) ? { staffed } : {}),
     ...(typeof legacy === "number" && legacy > 0 ? { legacy } : {}),
   };
 }
