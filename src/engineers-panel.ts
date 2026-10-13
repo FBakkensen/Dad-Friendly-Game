@@ -10,6 +10,7 @@ import {
 import { KEEPSAKES, TUNNELS, recall, send, type TunnelId } from "./expeditions";
 import type { Mountain } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
+import { tendingGain } from "./rates";
 import {
   BROUGHT_HOME,
   CALL_BACK,
@@ -19,7 +20,6 @@ import {
   PROMOTE_BUTTON,
   PROMOTE_CREW_FULL,
   PROMOTE_NEEDS_WORKER,
-  PROMOTE_SHORT_POCKET,
   PROMOTE_TITLE,
   PROMOTE_WHY,
   SEND_EXPLORING,
@@ -38,6 +38,9 @@ import {
   homeCheer,
   promoteCheer,
   promoteConfirm,
+  promoteNeeds,
+  promoteOffer,
+  stonesPerSecond,
   keepsakeWords,
   keepsakesBroughtHome,
   rankHint,
@@ -349,7 +352,13 @@ export function createEngineersPanel({
           requestRender();
           return;
         }
-        cheer(stationCheer(engineer.name, post));
+        const gain =
+          post === "camp"
+            ? undefined
+            : stonesPerSecond(
+                tendingGain(view.mountain, index, post, now(), view.trouble),
+              );
+        cheer(stationCheer(engineer.name, post, gain), gain !== undefined);
         glow(index);
         // From a tunnel, the post calls the party back first (no find, no
         // trip), so no expedition is left without its engineer.
@@ -683,6 +692,8 @@ export function createEngineersPanel({
         now: now(),
         badgeUrl,
         keepsakes: keepsakesBroughtHome(current.finds),
+        mountain: current,
+        trouble: view.trouble,
       });
     }
     const trips = current.expeditions ?? [];
@@ -698,6 +709,7 @@ export function createEngineersPanel({
     }
     const next = nextEngineerName(engineers);
     const affordable = canPromote(view);
+    const cost = promoteCost(current);
     if (!affordable) {
       confirming = false;
     }
@@ -705,13 +717,15 @@ export function createEngineersPanel({
     promoteButton.hidden = confirming;
     promoteButton.disabled = !view.ready || !affordable;
     promoteButton.classList.toggle("is-pressed", pressedKey === "promote");
+    promoteButton.textContent =
+      next === undefined ? PROMOTE_BUTTON : promoteOffer(cost);
     promoteWhy.textContent =
       next === undefined
         ? PROMOTE_CREW_FULL
         : current.helpers < 1
           ? PROMOTE_NEEDS_WORKER
-          : current.pocket < promoteCost(current)
-            ? PROMOTE_SHORT_POCKET
+          : current.pocket < cost
+            ? promoteNeeds(cost)
             : PROMOTE_WHY;
     modal.hidden = !confirming && recalling === undefined;
     confirm.hidden = !confirming;
@@ -812,6 +826,8 @@ function paintEngineer(
     now: number;
     badgeUrl: Readonly<Record<Exclude<TendPost, "camp">, string>>;
     keepsakes: ReturnType<typeof keepsakesBroughtHome>;
+    mountain: Mountain;
+    trouble: ProgressSnapshot["trouble"];
   },
 ): void {
   row.item.dataset["name"] = engineer.name;
@@ -838,7 +854,17 @@ function paintEngineer(
   );
   const inTunnel = engineer.post === "tunnel";
   row.doing.hidden = inTunnel;
-  row.doing.textContent = dutySentence(engineer);
+  const gainText = (post: TendPost): string | undefined =>
+    post === "camp"
+      ? undefined
+      : stonesPerSecond(
+          tendingGain(ui.mountain, index, post, ui.now, ui.trouble),
+        );
+  const posted = machinePost(engineer.post);
+  row.doing.textContent = dutySentence(
+    engineer,
+    posted === undefined ? undefined : gainText(posted),
+  );
   const keepsakes = ui.keepsakes;
   row.brought.hidden = !ui.expanded || keepsakes.length === 0;
   if (keepsakes.length > 0) {
@@ -907,7 +933,11 @@ function paintEngineer(
   for (const station of row.stations) {
     const here = engineer.post === station.post;
     station.label.textContent = tendTitle(station.post, here);
-    station.benefit.textContent = tendBenefit(station.post, engineer.name);
+    station.benefit.textContent = tendBenefit(
+      station.post,
+      engineer.name,
+      gainText(station.post),
+    );
     station.choice.classList.toggle("is-current", here);
     station.choice.disabled = !ready;
     station.choice.setAttribute("aria-pressed", here ? "true" : "false");

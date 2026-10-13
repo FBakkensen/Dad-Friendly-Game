@@ -11,7 +11,6 @@ import {
   PROMOTE_BUTTON,
   PROMOTE_CREW_FULL,
   PROMOTE_NEEDS_WORKER,
-  PROMOTE_SHORT_POCKET,
   PROMOTE_TITLE,
   PROMOTE_WHY,
   broughtHomeNames,
@@ -29,8 +28,12 @@ import {
   exploreCheer,
   exploreTitle,
   homeCheer,
+  boostOutcome,
   promoteCheer,
   promoteConfirm,
+  promoteNeeds,
+  promoteOffer,
+  stonesPerSecond,
   rankHint,
   rankLabel,
   recallConfirm,
@@ -80,31 +83,32 @@ describe("engineer words", () => {
     expect(rankHint(ada({ rank: 2, trips: MASTER_TRIPS }))).toBeUndefined();
   });
 
-  it("says what they are doing, faster by rank, with no numbers", () => {
-    expect(dutySentence(ada({ rank: 0, post: "borer" }))).toBe(
-      "Ada is tending the borers, they dig a bit faster and she fixes trouble there herself.",
+  it("names the tending gain in stones a second", () => {
+    expect(stonesPerSecond(800)).toBe("+800 stones/sec");
+    expect(stonesPerSecond(1_200)).toBe("+1,200 stones/sec");
+    expect(stonesPerSecond(12_400)).toBe("+12.4K stones/sec");
+    expect(stonesPerSecond(3_400_000)).toBe("+3.4M stones/sec");
+    expect(stonesPerSecond(0)).toBe("+0 stones/sec");
+    expect(dutySentence(ada({ post: "borer" }), "+35 stones/sec")).toBe(
+      "Ada is tending the borers: +35 stones/sec.",
     );
-    expect(dutySentence(ada({ rank: 1, post: "borer" }))).toBe(
-      "Ada is tending the borers, they dig quite a bit faster and she fixes trouble there herself.",
-    );
-    expect(dutySentence(ada({ rank: 2, post: "drill" }))).toBe(
-      "Ada is tending the drills, they dig much faster and she fixes trouble there herself.",
-    );
+    expect(
+      dutySentence(ada({ name: "Mae", post: "machine" }), "+3.4M stones/sec"),
+    ).toBe("Mae is tending the Great Machine: +3.4M stones/sec.");
     expect(dutySentence(ada({ name: "Nils", post: "cart" }))).toBe(
-      "Nils is tending the carts, they dig a bit faster and he fixes trouble there himself.",
+      "Nils is tending the carts: +0 stones/sec.",
     );
-    expect(dutySentence(ada({ name: "Mae", rank: 1, post: "machine" }))).toBe(
-      "Mae is tending the Great Machine, it digs quite a bit faster and she fixes trouble there herself.",
-    );
+    expect(
+      dutySentence(ada({ name: "Ruth", post: "drill" }), "+6 stones/sec"),
+    ).toBe("Ruth is tending the drills: +6 stones/sec.");
     expect(dutySentence(ada({ name: "Otto", post: "camp" }))).toBe(
       "Otto is resting at camp. Give him a job below.",
     );
     expect(dutySentence(ada({ name: "Ruth", post: "tunnel" }))).toBe(
       "Ruth is out exploring.",
     );
-    for (const post of ["cart", "drill", "borer", "machine", "camp"] as const) {
-      expect(dutySentence(ada({ post }))).not.toMatch(/\d|\?|%/);
-    }
+    expect(dutySentence(ada({ post: "camp" }))).not.toMatch(/\d|\?/);
+    expect(dutySentence(ada({ post: "tunnel" }))).not.toMatch(/\d|\?/);
   });
 
   it("collapses a card to one line, and counts an expedition in words", () => {
@@ -165,19 +169,24 @@ describe("engineer words", () => {
     expect(tendBenefit("camp", "Mae")).toBe(
       "Rests by the fire, ready for the next job.",
     );
-    expect(stationCheer("Ada", "drill")).toBe("Ada heads to the drills!");
+    expect(tendBenefit("borer", "Ruth", "+35 stones/sec")).toBe(
+      "+35 stones/sec. They dig faster, and she clears any jam herself.",
+    );
+    expect(stationCheer("Ada", "drill", "+6 stones/sec")).toBe(
+      "Ada heads to the drills! +6 stones/sec",
+    );
     expect(stationCheer("Ada", "cart")).toBe("Ada heads to the carts!");
     expect(stationCheer("Ada", "borer")).toBe("Ada heads to the borers!");
-    expect(stationCheer("Ada", "machine")).toBe(
-      "Ada heads to the Great Machine!",
+    expect(stationCheer("Ada", "machine", "+3.4K stones/sec")).toBe(
+      "Ada heads to the Great Machine! +3.4K stones/sec",
     );
-    expect(stationCheer("Nils", "camp")).toBe(
+    expect(stationCheer("Nils", "camp", "+9 stones/sec")).toBe(
       "Nils puts the kettle on at camp.",
     );
-    for (const post of ["cart", "drill", "borer", "machine", "camp"] as const) {
+    for (const post of ["cart", "drill", "borer", "machine"] as const) {
       expect(tendBenefit(post, "Ada")).not.toMatch(/\d|\?/);
-      expect(stationCheer("Ada", post)).not.toMatch(/\d|\?/);
     }
+    expect(tendBenefit("camp", "Ada", "+1 stones/sec")).not.toMatch(/\d|\?/);
   });
 
   it("offers three tunnels, and keeps the deep dark for a Journeyman", () => {
@@ -241,20 +250,62 @@ describe("engineer words", () => {
     expect(tendsNote("Ada", "machine")).toBe("Ada tends it.");
   });
 
-  it("explains a promotion without a price, and confirms in a full sentence", () => {
+  it("shows the promotion price, and confirms in a full sentence", () => {
     expect(PROMOTE_TITLE).toBe("Promote a worker");
     expect(PROMOTE_WHY).toBe(
       "A new engineer can tend another machine or explore while the others work.",
     );
     expect(PROMOTE_BUTTON).toBe("Promote");
-    expect(PROMOTE_SHORT_POCKET).toBe("The pocket is too light for that.");
+    expect(promoteOffer(2_000_000)).toBe("Promote a worker: 2M stones");
+    expect(promoteNeeds(2_000_000)).toBe("Needs 2M stones");
+    expect(promoteOffer(1_000_000)).toBe("Promote a worker: 1M stones");
+    expect(promoteNeeds(16_000_000)).toBe("Needs 16M stones");
     expect(promoteConfirm("Nils")).toBe(
       "Nils steps up as engineer. One worker fewer at the machines.",
     );
     expect(promoteCheer("Ruth")).toBe("Ruth steps up. The crew cheers.");
     expect(
-      `${PROMOTE_TITLE} ${PROMOTE_WHY} ${PROMOTE_BUTTON} ${PROMOTE_SHORT_POCKET} ${PROMOTE_NEEDS_WORKER} ${PROMOTE_CREW_FULL}`,
+      `${PROMOTE_WHY} ${PROMOTE_NEEDS_WORKER} ${PROMOTE_CREW_FULL} ${promoteConfirm("Nils")}`,
     ).not.toMatch(/\d|\?/);
+  });
+
+  it("states a boost's output in stones", () => {
+    expect(
+      boostOutcome(
+        "sharper",
+        "Taps mine ×2 for 10 minutes.",
+        2,
+        { tapYield: 4, crewPerSecond: 10 },
+        false,
+      ),
+    ).toBe("Taps mine ×2 for 10 minutes. 8 a tap.");
+    expect(
+      boostOutcome(
+        "sharper",
+        "Taps mine ×2 for 10 minutes.",
+        2,
+        { tapYield: 8, crewPerSecond: 10 },
+        true,
+      ),
+    ).toBe("Taps mine ×2 for 10 minutes. 8 a tap.");
+    expect(
+      boostOutcome(
+        "overtime",
+        "Your crew mines ×2 for 30 minutes while you play.",
+        2,
+        { tapYield: 1, crewPerSecond: 400 },
+        false,
+      ),
+    ).toBe("Your crew mines ×2 for 30 minutes while you play. 800/s.");
+    expect(
+      boostOutcome(
+        "overtime",
+        "Your crew mines ×2 for 30 minutes while you play.",
+        2,
+        { tapYield: 1, crewPerSecond: 800 },
+        true,
+      ),
+    ).toBe("Your crew mines ×2 for 30 minutes while you play. 800/s.");
   });
 
   it("counts an expedition down in words, never a clock", () => {

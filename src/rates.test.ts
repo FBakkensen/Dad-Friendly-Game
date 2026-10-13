@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { station } from "./engineers";
 import type { Trouble } from "./hazards";
-import { AWAY_PAY_RATE, effectiveRates } from "./rates";
+import { AWAY_PAY_RATE, effectiveRates, tendingGain } from "./rates";
 import { minedMountain } from "./test-fixtures";
 import { TIERS } from "./tiers";
 
@@ -61,5 +62,79 @@ describe("effectiveRates", () => {
     expect(
       effectiveRates({ ...crew, finds: ["lamp", "map", "boots"] }).tapYield,
     ).toBe(plain.tapYield);
+  });
+});
+
+describe("tendingGain", () => {
+  const ada = {
+    name: "Ada" as const,
+    rank: 0 as const,
+    trips: 0,
+    post: "camp" as const,
+  };
+
+  it("is the staffed stones a second her tending adds, from effectiveRates", () => {
+    const idle = {
+      ...minedMountain(0),
+      helpers: 8,
+      borers: 1,
+      engineers: [{ ...ada, post: "borer" as const }],
+    };
+    const unstaffed = { ...idle, helpers: 0 };
+    expect(tendingGain(unstaffed, 0, "borer")).toBe(0);
+    const staffed = idle;
+    const atCamp = station(staffed, 0, "camp");
+    const onBorer = station(staffed, 0, "borer");
+    expect(tendingGain(staffed, 0, "borer")).toBe(
+      effectiveRates(onBorer).crewPerSecond -
+        effectiveRates(atCamp).crewPerSecond,
+    );
+    expect(tendingGain(staffed, 0, "borer")).toBe(35);
+    const two = { ...staffed, helpers: 16, borers: 2 };
+    expect(tendingGain(two, 0, "borer")).toBe(70);
+    expect(tendingGain(staffed, 9, "borer")).toBe(0);
+  });
+
+  it("counts a Great Machine she starts, and not a rank already covered", () => {
+    const waiting = {
+      ...minedMountain(0),
+      helpers: 10,
+      machines: 1,
+      engineers: [ada],
+    };
+    const tended = station(waiting, 0, "machine");
+    expect(tendingGain(waiting, 0, "machine")).toBe(
+      effectiveRates(tended).crewPerSecond -
+        effectiveRates(station(waiting, 0, "camp")).crewPerSecond,
+    );
+    expect(tendingGain(waiting, 0, "machine")).toBeGreaterThan(3_000);
+    const covered = {
+      ...waiting,
+      borers: 1,
+      helpers: 18,
+      engineers: [
+        { ...ada, post: "borer" as const },
+        {
+          name: "Nils" as const,
+          rank: 0 as const,
+          trips: 0,
+          post: "camp" as const,
+        },
+      ],
+    };
+    expect(tendingGain(covered, 1, "borer")).toBe(0);
+    const journeyman = {
+      ...covered,
+      engineers: [
+        { ...ada, post: "borer" as const },
+        {
+          name: "Nils" as const,
+          rank: 1 as const,
+          trips: 3,
+          post: "camp" as const,
+        },
+      ],
+    };
+    expect(tendingGain(journeyman, 1, "borer")).toBe(35);
   });
 });

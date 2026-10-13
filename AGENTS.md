@@ -159,7 +159,7 @@ Grok Bot is product owner and reviewer: it plans, files issues, keeps `docs/DESI
 - Run `npm run check` and get it green before opening or updating the PR. Paste the summary in the PR body.
 - Never merge, never enable auto-merge, never force-push, never edit `.github/workflows/`. The reviewer merges.
 - Keep coverage floors; add tests with every behavior change. Do not lower a floor to go green.
-- Players never see exact numbers for relic depths or boost gains. Use the vague wording already in the UI.
+- Decisions and purchases show real numbers (prices, output, tending gains). Discoveries stay vague: relic depths and hints, expedition finds, hazards, and what comes next. Use the wording already in the UI.
 - The phone layout must never scroll (the visual check guards it). Keep fat targets.
 - `docs/DESIGN.md` and `docs/ARCHITECTURE.md` are the sources of truth; update them in the same PR if behavior changes.
 - Any new or changed save field must be mirrored in `firestore.rules`, with the emulator round-trip test passing.

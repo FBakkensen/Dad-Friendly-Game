@@ -1,4 +1,9 @@
-import { staffNeeded, tendingTenths } from "./engineers";
+import {
+  staffNeeded,
+  station,
+  tendingTenths,
+  type EngineerPost,
+} from "./engineers";
 import { slowedSpeed, type Trouble } from "./hazards";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
@@ -148,4 +153,33 @@ export function effectiveRates(
       AWAY_PAY_RATE *
       (1 + upgradeLevel(mountain, "steady") * STEADY_AWAY_PER_LEVEL),
   };
+}
+
+/** A machine post. Camp and a tunnel tend nothing. */
+export type TendTier = Exclude<EngineerPost, "camp" | "tunnel">;
+
+/**
+ * Extra stones a second if this engineer tends `post`, from staffed machines
+ * only. Compared with them at camp, so a tier nobody can run is +0, and a
+ * higher rank already there is not counted twice. Live trouble is included
+ * when the caller passes it, so the number matches the crew line.
+ */
+export function tendingGain(
+  mountain: Mountain,
+  index: number,
+  post: TendTier,
+  now?: number,
+  trouble?: Trouble,
+): number {
+  const tended = effectiveRates(
+    station(mountain, index, post),
+    now,
+    trouble,
+  ).crewPerSecond;
+  const resting = effectiveRates(
+    station(mountain, index, "camp"),
+    now,
+    trouble,
+  ).crewPerSecond;
+  return Math.max(0, tended - resting);
 }

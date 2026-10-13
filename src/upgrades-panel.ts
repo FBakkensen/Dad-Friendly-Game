@@ -8,6 +8,7 @@ import {
   FOUND_LABEL,
   formatClock,
   lostToolWords,
+  boostOutcome,
   unlockWords,
   upgradeNow,
 } from "./screen-words";
@@ -106,7 +107,7 @@ export function createUpgradesPanel({
     });
     item.append(title, effect, buy);
     boostList.append(item);
-    return { boost, buy };
+    return { boost, effect, buy };
   });
   const lastingHeading = document.createElement("h3");
   lastingHeading.className = "upgrades-heading";
@@ -195,10 +196,20 @@ export function createUpgradesPanel({
     const view = getView();
     const current = view.mountain;
     const at = now();
+    // Price from the unboosted crew. The line shows what buying pays right now.
+    const pricing = effectiveRates(current);
+    const live = effectiveRates(current, at);
     let anyAffordable = false;
-    for (const { boost, buy } of boostRows) {
+    for (const { boost, effect, buy } of boostRows) {
       const left = boostLeft(current, boost.id, at);
-      const cost = boostCost(boost, effectiveRates(current));
+      const cost = boostCost(boost, pricing);
+      effect.textContent = boostOutcome(
+        boost.id,
+        boost.effect,
+        boost.multiplier,
+        live,
+        left > 0,
+      );
       const affordable = left === 0 && current.pocket >= cost;
       anyAffordable ||= affordable;
       buy.disabled = !view.ready || !affordable;

@@ -106,11 +106,16 @@ export type SettledFind =
     }
   | { readonly kind: "quiet"; readonly text: string };
 
-/** Who came home. Session news for the welcome card, not a save field. */
+/**
+ * Who came home. Session news for the welcome card, not a mountain field.
+ * `sentAt` is the trip that produced it, so a reload can show the same
+ * notice once and not twice.
+ */
 export type Homecoming = {
   readonly engineer: EngineerName;
   readonly tunnel: TunnelId;
   readonly find: SettledFind;
+  readonly sentAt: number;
 };
 
 const QUIET_TEXT = "The tunnel was quiet, and they came home safe.";
@@ -265,6 +270,7 @@ export function completeDue(
       engineer: trip.engineer,
       tunnel: trip.tunnel,
       find: brought.settled,
+      sentAt: trip.sentAt,
     });
   }
   const left = trips.filter((trip) => !ordered.includes(trip));
@@ -660,4 +666,80 @@ function isHomePost(value: unknown): value is HomePost {
 
 function isSafeInt(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value);
+}
+
+/** A list of homecomings, or nothing if any entry is untrusted. */
+export function parseHomecomingNews(value: unknown): readonly Homecoming[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const news: Homecoming[] = [];
+  for (const item of value) {
+    const home = parseHomecoming(item);
+    if (home === undefined) {
+      return [];
+    }
+    news.push(home);
+  }
+  return news;
+}
+
+function parseHomecoming(value: unknown): Homecoming | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  const record = value as Record<string, unknown>;
+  const engineer = record["engineer"];
+  const tunnel = record["tunnel"];
+  const sentAt = record["sentAt"];
+  const find = parseSettledFind(record["find"]);
+  if (
+    !isEngineerName(engineer) ||
+    typeof tunnel !== "string" ||
+    !TUNNELS.some((spec) => spec.id === tunnel) ||
+    !isSafeInt(sentAt) ||
+    find === undefined
+  ) {
+    return undefined;
+  }
+  return { engineer, tunnel: tunnel as TunnelId, sentAt, find };
+}
+
+function parseSettledFind(value: unknown): SettledFind | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  const record = value as Record<string, unknown>;
+  const kind = record["kind"];
+  const id = record["id"];
+  if (kind === "tool" && typeof id === "string" && isToolId(id)) {
+    return { kind, id };
+  }
+  if (kind === "keepsake" && typeof id === "string" && isKeepsakeId(id)) {
+    return { kind, id };
+  }
+  const relic = record["relic"];
+  const text = record["text"];
+  if (
+    kind === "glimmer" &&
+    typeof relic === "string" &&
+    isRelicId(relic) &&
+    typeof text === "string" &&
+    text.length > 0
+  ) {
+    return { kind, relic, text };
+  }
+  const name = record["name"];
+  const joined = record["joined"];
+  if (
+    kind === "engineer" &&
+    isEngineerName(name) &&
+    typeof joined === "boolean"
+  ) {
+    return { kind, name, joined };
+  }
+  if (kind === "quiet" && typeof text === "string" && text.length > 0) {
+    return { kind, text };
+  }
+  return undefined;
 }

@@ -437,7 +437,11 @@ export function mountMountainScreen({
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       progress.flush();
+      return;
     }
+    // A return that came due while the phone was locked settles now,
+    // not on the next throttled interval.
+    progress.tick();
   });
   window.addEventListener("pagehide", () => {
     progress.flush();

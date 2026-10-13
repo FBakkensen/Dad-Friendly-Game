@@ -8,7 +8,14 @@ import {
 } from "./cloud-save";
 import { staffExisting } from "./crew";
 import { grantFirstEngineer } from "./engineers";
-import { settle as settleExpeditions, type Homecoming } from "./expeditions";
+import {
+  parseHomecomingNews,
+  settle as settleExpeditions,
+  type Homecoming,
+} from "./expeditions";
+
+/** Undismissed return notices. Not a mountain field, so a reload can still show them. */
+const HOMECOMING_NEWS_KEY = "dad-friendly-homecomings";
 import {
   closeHazards,
   freshHazards,
@@ -263,11 +270,56 @@ export function createProgressStore({
     };
   };
 
-  const noteHomecomings = (arrived: readonly Homecoming[]): void => {
-    if (arrived.length === 0) {
+  const rememberHomecomings = (): void => {
+    if (sessionStore === undefined) {
       return;
     }
-    homecomings = [...homecomings, ...arrived];
+    try {
+      if (homecomings.length === 0) {
+        sessionStore.removeItem(HOMECOMING_NEWS_KEY);
+        return;
+      }
+      sessionStore.setItem(HOMECOMING_NEWS_KEY, JSON.stringify(homecomings));
+    } catch {
+      return;
+    }
+  };
+
+  const noteHomecomings = (arrived: readonly Homecoming[]): void => {
+    const fresh = arrived.filter(
+      (home) =>
+        !homecomings.some(
+          (have) =>
+            have.engineer === home.engineer && have.sentAt === home.sentAt,
+        ),
+    );
+    if (fresh.length === 0) {
+      return;
+    }
+    homecomings = [...homecomings, ...fresh];
+    newsPending = true;
+    rememberHomecomings();
+  };
+
+  const recallHomecomings = (): void => {
+    if (homecomings.length > 0 || sessionStore === undefined) {
+      return;
+    }
+    let parsed: unknown;
+    try {
+      const raw = sessionStore.getItem(HOMECOMING_NEWS_KEY);
+      parsed = raw === null ? undefined : JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (parsed === undefined) {
+      return;
+    }
+    const remembered = parseHomecomingNews(parsed);
+    if (remembered.length === 0) {
+      return;
+    }
+    homecomings = remembered;
     newsPending = true;
   };
 
@@ -527,6 +579,7 @@ export function createProgressStore({
     let paid = 0;
     if (remote.kind === "found") {
       revealBaseline ??= minedOut(mountain);
+      recallHomecomings();
       paid = settleSince(remote.lastSeen);
     } else {
       lastSeen ??= now();
@@ -588,6 +641,7 @@ export function createProgressStore({
     const staffed = staffLoaded();
     const steppedUp = grantEngineer();
     revealBaseline = minedOut(mountain);
+    recallHomecomings();
     const paid = settleSince(stored.lastSeen);
     welcomed = true;
     saveKind = "session";
@@ -717,6 +771,7 @@ export function createProgressStore({
     lastSeen = runStartedAt(next);
     away = undefined;
     homecomings = [];
+    rememberHomecomings();
     reveals.length = 0;
     revealBaseline = 0;
     ring.clear();
@@ -850,6 +905,7 @@ export function createProgressStore({
       crewJoined = undefined;
       engineerJoined = undefined;
       homecomings = [];
+      rememberHomecomings();
       emit();
     },
     tick: () => {
@@ -879,6 +935,9 @@ export function createProgressStore({
       persistFieldLog("hide");
       if (saveKind === "session") {
         persistSession();
+      }
+      if (newsPending) {
+        emit();
       }
     },
     dispose: () => {
