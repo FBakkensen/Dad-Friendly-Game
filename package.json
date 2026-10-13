@@ -13,6 +13,7 @@
     "coverage": "vitest run --coverage",
     "field-log": "node tools/field-log.ts",
     "lab": "node --import ./tools/lab-register.mjs tools/strategy-lab.ts",
+    "lab:sweep": "node --import ./tools/lab-register.mjs tools/sweep/cli.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tools/tsconfig.json",
     "lint": "eslint . --cache --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",

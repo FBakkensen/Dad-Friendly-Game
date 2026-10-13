@@ -1,3 +1,4 @@
+import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
 import type { RelicId } from "./relics";
 
@@ -110,14 +111,13 @@ export function owned(mountain: Mountain, tier: Tier): number {
 /** Cookie Clicker curve: machines double each time; helpers grow gently. */
 export function tierCost(tier: Tier, ownedCount: number): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
-  return Math.ceil(
-    Number(
-      (
-        tier.firstCost *
-        (tier.staff === 0 ? HELPER_COST_GROWTH : COST_GROWTH) ** ownedCount
-      ).toPrecision(12),
-    ),
-  );
+  // A sweep multiplies the sticker and the growth. Both factors are 1 in play.
+  const workerCurve = tier.staff === 0;
+  const growth =
+    (workerCurve ? HELPER_COST_GROWTH : COST_GROWTH) *
+    factor(workerCurve ? "growth.worker" : "growth.machine");
+  const first = tier.firstCost * factor(`price.${tier.id}`);
+  return Math.ceil(Number((first * growth ** ownedCount).toPrecision(12)));
 }
 
 /** Pays for one of the tier from the pocket; unaffordable returns the same mountain. */

@@ -17,7 +17,7 @@ coverage
 
 firestore-rules-analysis.md
 
-# Strategy lab output. `npm run lab` writes it.
+# Strategy lab output. `npm run lab` and `npm run lab:sweep` write it.
 reports/
 
 .cursor/mcp.json

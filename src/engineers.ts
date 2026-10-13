@@ -1,3 +1,4 @@
+import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
 import type { TierId } from "./tiers";
 
@@ -230,18 +231,19 @@ function hasEngineerOutOfTunnel(mountain: Mountain): boolean {
 
 /**
  * How many tenths faster a tier runs because an engineer is posted there.
- * 0, 1, 2 or 3. The best rank wins; they do not stack. Camp and tunnel
- * tend nothing.
+ * The best rank wins; they do not stack. Camp and tunnel tend nothing.
+ * Today's ranks are +1, +2 and +3 tenths. A sweep may scale that gain.
  */
 export function tendingTenths(mountain: Mountain, tierId: TierId): number {
   const engineers = mountain.engineers;
   if (engineers === undefined) {
     return 0;
   }
+  const scale = factor("tending.gain");
   let best = 0;
   for (const engineer of engineers) {
     if (engineer.post === tierId) {
-      best = Math.max(best, TENDING_TENTHS[engineer.rank]);
+      best = Math.max(best, TENDING_TENTHS[engineer.rank] * scale);
     }
   }
   return best;

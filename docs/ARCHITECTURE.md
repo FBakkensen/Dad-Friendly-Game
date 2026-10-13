@@ -22,7 +22,11 @@ page is the map, plus the rules that keep it that way.
    one check per entry. `tools/strategy-lab.ts` (`npm run lab`) loads the
    registries, writes the report, and warns on a miss unless `LAB_STRICT=1`.
    CI runs it with `--ci` and posts the report. The tournament does not
-   read the disk.
+   read the disk. `tools/sweep` (`npm run lab:sweep`) screens economy
+   knobs (Morris, then Sobol) and writes that report. The sweep is
+   offline and is not part of `npm run check`. A factor map scales
+   prices, growth, output, and tending for the length of one run;
+   outside a sweep every factor is 1.
    `pacing` simulates players on top of them and buys through the catalogue.
    Every number lives here.
 2. **Saves:** `persist` (versioned save format and parser), `session-save`
