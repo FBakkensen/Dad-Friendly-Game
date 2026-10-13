@@ -28,17 +28,19 @@ describe("casual run", () => {
   it("reproduces the diagnosis, with payback reported beside it", () => {
     const run = sampleCasualRun();
     const report = diagnosisOf(run.samples);
-    expect(run.finishDay).toBe(5.5);
-    expect(readFinishDay(run.samples)).toBe(5.5);
-    expect(report.value.singleShare).toBeCloseTo(0.42, 2);
+    // #177: the 595/s borer finishes the plain dad on day 5, and the
+    // payback wait drops from about a day to under half a day.
+    expect(run.finishDay).toBe(5);
+    expect(readFinishDay(run.samples)).toBe(5);
+    expect(report.value.singleShare).toBeCloseTo(0.45, 2);
     expect(report.value.deadHours / HOURS_PER_DAY).toBeCloseTo(2, 1);
-    expect(report.value.deadStartDay).toBeCloseTo(3, 1);
-    expect(report.payback.singleShare).toBeCloseTo(0.32, 2);
-    expect(report.payback.deadHours / HOURS_PER_DAY).toBeCloseTo(1, 1);
-    expect(report.payback.deadStartDay).toBeCloseTo(4, 1);
+    expect(report.value.deadStartDay).toBeCloseTo(2.5, 1);
+    expect(report.payback.singleShare).toBeCloseTo(0.075, 3);
+    expect(report.payback.deadHours / HOURS_PER_DAY).toBeCloseTo(0.5, 1);
+    expect(report.payback.deadStartDay).toBeCloseTo(2.5, 1);
   });
 
-  it("finds the plain dad's unpaid stretch from day 3 into day 5", () => {
+  it("keeps the payback wait under half a day after the first borer", () => {
     const result = runTournament({
       policies: [casual],
       measures: [longestDeadStretch, longestValueStretch],
@@ -61,7 +63,7 @@ describe("casual run", () => {
     ) {
       return;
     }
-    expect(payback.value / HOURS_PER_DAY).toBeCloseTo(1, 1);
+    expect(payback.value / HOURS_PER_DAY).toBeCloseTo(0.5, 1);
     expect(value.value / HOURS_PER_DAY).toBeCloseTo(2, 1);
     const valueNotes = result.deadStretches.filter(
       (stretch) => stretch.score === "value",
@@ -75,11 +77,9 @@ describe("casual run", () => {
     const paybackNote = paybackNotes.reduce((best, stretch) =>
       stretch.hours > best.hours ? stretch : best,
     );
-    expect(valueNote.startDay).toBeCloseTo(3, 1);
-    expect(paybackNote.startDay).toBeCloseTo(4, 1);
-    expect(
-      valueNote.startDay + valueNote.hours / HOURS_PER_DAY,
-    ).toBeGreaterThan(4.5);
+    expect(valueNote.startDay).toBeCloseTo(2.5, 1);
+    expect(paybackNote.startDay).toBeCloseTo(2.5, 1);
+    expect(paybackNote.hours / HOURS_PER_DAY).toBeLessThanOrEqual(0.5);
     expect(result.deadStretches.map((stretch) => stretch.score)).toEqual(
       expect.arrayContaining(["payback", "value"]),
     );

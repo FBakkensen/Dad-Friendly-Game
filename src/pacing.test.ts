@@ -10,16 +10,16 @@ const depth = (id: string) =>
 
 // Deterministic dads: two 10-minute sessions a day, 12 hours apart, 3 taps a
 // second, always buying the best speed per stone, paid for time away as the
-// game pays it. Paying 2,000,000 for Nils moves the plain dad's bottom to
-// day 5.5. Upgrade and boost dads stay on day 5. The first mountain takes
-// at least 5 days.
+// game pays it. #177 raises the borer to 595/s, so the plain dad and the
+// upgrade dad reach the bottom on day 5. Boosts on top of that borer empty
+// the mountain on day 4.5.
 describe.each([
-  ["a plain dad (crew only)", {}, 5.5],
+  ["a plain dad (crew only)", {}, 5],
   ["a dad who also buys lasting upgrades", { buysUpgrades: true }, 5],
   [
     "a dad who buys upgrades and starts every boost he can afford",
     { buysUpgrades: true, buysBoosts: true },
-    5,
+    4.5,
   ],
 ])("pacing: %s", (_, options, bottomDay) => {
   const reached = simulateDad({
@@ -39,10 +39,13 @@ describe.each([
     expect(hammer).toBeLessThanOrEqual(3.5);
   });
 
-  it("reaches the bottom (100M) on day 5 or later", () => {
+  it("reaches the bottom (100M) on the pinned day", () => {
     const bottom = reached.get(depth("mantle"));
     expect(bottom).toBe(bottomDay);
-    expect(bottom).toBeGreaterThanOrEqual(5);
+    // Plain and upgrade dads stay on day 5. The boost dad is the fast case.
+    if (!("buysBoosts" in options)) {
+      expect(bottom).toBeGreaterThanOrEqual(5);
+    }
   });
 });
 
@@ -61,9 +64,10 @@ function expectPaidForNils(run: DadRun): void {
   expect(paid?.helpersAfter).toBe((paid?.helpersBefore ?? 0) - 1);
   expect(paid?.pocketAfter).toBe((paid?.pocketBefore ?? 0) - NILS_PRICE);
   const borer = run.buys.find((buy) => buy.id === "borer");
-  // The pocket may need another minute after the borer before it covers 2M.
+  // #177: the 9M borer is bought before the pocket also holds Nils's 2M,
+  // so the promotion is the next sitting, half a day later.
   expect(paid?.day).toBeGreaterThanOrEqual(borer?.day ?? Infinity);
-  expect((paid?.day ?? 0) - (borer?.day ?? 0)).toBeLessThan(0.01);
+  expect((paid?.day ?? 0) - (borer?.day ?? 0)).toBeCloseTo(0.5, 1);
 }
 
 // Second run (M6): the kid's crew is ×1.5. Exact catalogue valuation lands
@@ -102,12 +106,12 @@ function quietStretch(run: DadRun, until: number): number {
 }
 
 describe.each([
-  ["a plain dad", {}, 5.5, 2],
+  ["a plain dad", {}, 5, 2],
   ["an upgrade-buying dad", { buysUpgrades: true }, 5, 1.51],
   [
     "a dad who buys upgrades and boosts",
     { buysUpgrades: true, buysBoosts: true },
-    5,
+    4.5,
     1.51,
   ],
 ])("pacing: no dead zone for %s (#140)", (_, options, bottomDay, quietCap) => {
@@ -119,7 +123,6 @@ describe.each([
 
   it("saves for the Great Machine, then runs it before the bottom", () => {
     expect(bottom).toBe(bottomDay);
-    expect(bottom).toBeGreaterThanOrEqual(5);
     expect(quietStretch(run, bottom)).toBeLessThanOrEqual(quietCap);
     const machine = run.buys.find((buy) => buy.id === "machine");
     expect(machine).toMatchObject({ count: 1, price: 50_000_000 });
@@ -172,8 +175,8 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
     const borer = run.buys.find((buy) => buy.id === "borer");
     expect(borer).toMatchObject({
       count: 1,
-      price: 10_000_000,
-      short: 5,
+      price: 9_000_000,
+      short: 7,
     });
     expect(borer?.shortCost).toBeGreaterThan(0);
     expect((borer?.shortCost ?? 0) / (borer?.price ?? 1)).toBeLessThan(0.1);

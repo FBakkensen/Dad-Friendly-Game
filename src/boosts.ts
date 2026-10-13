@@ -32,7 +32,7 @@ const BY_ID: Readonly<Record<BoostId, Boost>> = {
     durationMs: 10 * 60 * 1000,
     multiplier: 2,
     priceIn: "taps",
-    priceUnits: 60,
+    priceUnits: 120,
     minCost: 100,
   },
   overtime: {

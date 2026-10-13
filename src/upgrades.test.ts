@@ -18,19 +18,19 @@ const crew = { ...minedMountain(0), helpers: 500 }; // 500 stones a second
 describe("Strong arms (tap power)", () => {
   const arms = upgradeById("tap");
 
-  it("costs 5,000, then 5× each level, up to level 10", () => {
+  it("costs 40,000, then 5× each level, up to level 10", () => {
     expect([0, 1, 2, 3].map((level) => upgradeCost(arms, level))).toEqual([
-      5_000, 25_000, 125_000, 625_000,
+      40_000, 200_000, 1_000_000, 5_000_000,
     ]);
     expect(upgradeCost(arms, 10)).toBeUndefined();
   });
 
   it("buys one level at a time from the pocket", () => {
-    const poor = { ...crew, pocket: 4_999 };
+    const poor = { ...crew, pocket: 39_999 };
     expect(buyUpgrade(poor, "tap")).toBe(poor);
-    const one = buyUpgrade({ ...crew, pocket: 30_000 }, "tap");
+    const one = buyUpgrade({ ...crew, pocket: 240_000 }, "tap");
     expect(upgradeLevel(one, "tap")).toBe(1);
-    expect(one.pocket).toBe(25_000);
+    expect(one.pocket).toBe(200_000);
     const two = buyUpgrade(one, "tap");
     expect(upgradeLevel(two, "tap")).toBe(2);
     expect(two.pocket).toBe(0);
@@ -92,7 +92,7 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
   it("are one-time buys", () => {
     const once = buyUpgrade({ ...base, helpers: 10 }, "boots");
     expect(once.upgrades).toEqual({ boots: 1 });
-    expect(once.pocket).toBe(20_000_000 - 15_000);
+    expect(once.pocket).toBe(20_000_000 - 90_000);
     expect(buyUpgrade(once, "boots")).toBe(once);
     expect(upgradeCost(upgradeById("steady"), 1)).toBeUndefined();
   });
@@ -147,7 +147,7 @@ describe("crew synergies", () => {
     ).toBeUndefined();
     const bought = buyUpgrade({ ...rich, carts: 5 }, "cartSyn");
     expect(bought.upgrades).toEqual({ cartSyn: 1 });
-    expect(bought.pocket).toBe(90_000_000 - 500_000);
+    expect(bought.pocket).toBe(90_000_000 - 2_000_000);
     expect(buyUpgrade(bought, "cartSyn")).toBe(bought);
     expect(
       ["drillSyn", "borerSyn", "machineSyn"].map((id) => {

@@ -502,14 +502,14 @@ describe("valueOf", () => {
   it("bundles the workers a machine still needs, and ignores the first engineer's tend", () => {
     const bare: Mountain = { ...fresh, drills: 1 };
     const borer = score(bare, { kind: "buyTier", id: "borer" }, HORIZON);
-    expect(borer.gainPerSec).toBe(350);
-    expect(borer.cost).toBeGreaterThan(10_000_000);
+    expect(borer.gainPerSec).toBe(595);
+    expect(borer.cost).toBeGreaterThan(9_000_000);
     const staffed: Mountain = { ...bare, helpers: 11, pocket: 0 };
     const tended = score(staffed, { kind: "buyTier", id: "borer" }, HORIZON);
-    expect(tended.gainPerSec).toBe(350);
-    expect(tended.cost).toBe(10_000_000);
+    expect(tended.gainPerSec).toBe(595);
+    expect(tended.cost).toBe(9_000_000);
     const applied = buyCrew({ ...staffed, pocket: 10_000_000 }, "borer");
-    expect(crewDelta(staffed, applied)).toBe(385);
+    expect(crewDelta(staffed, applied)).toBe(654);
 
     const hammer: Mountain = {
       ...minedMountain(25_000_000),
@@ -735,7 +735,7 @@ describe("valueOf", () => {
       HORIZON,
     );
     expect(lockedBoots.gainPerSec).toBe(0);
-    expect(lockedBoots.cost).toBe(15_000);
+    expect(lockedBoots.cost).toBe(90_000);
     expect(lockedBoots.paybackSec).toBe(Number.POSITIVE_INFINITY);
     const machine = score(
       lockedMachine,

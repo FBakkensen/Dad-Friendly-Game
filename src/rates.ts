@@ -111,7 +111,7 @@ export function effectiveRates(
     const sped =
       tierSpeed[tier.id] * (1 + tierSynergy(mountain, tier.id)) * legacy;
     const tenths = tendingTenths(mountain, tier.id);
-    // Integer tenths so +10% of 350 is 385, not 385.00000000000006.
+    // Integer tenths so +10% of 595 is 654.5, not a float dust tail.
     const tended = tenths === 0 ? sped : (sped * (10 + tenths)) / 10;
     tierSpeed[tier.id] =
       trouble !== undefined && trouble.tier === tier.id
