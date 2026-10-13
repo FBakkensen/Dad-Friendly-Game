@@ -39,7 +39,7 @@ function isDeadSample(sample: DecisionSample, method: ScoreMethod): boolean {
 }
 
 /** Every waiting run, in order. Length is hours until the wait breaks. */
-function deadStretches(
+export function deadStretches(
   samples: readonly DecisionSample[],
   method: ScoreMethod,
 ): readonly Stretch[] {

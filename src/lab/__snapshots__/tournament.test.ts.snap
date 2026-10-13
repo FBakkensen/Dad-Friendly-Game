@@ -1,0 +1,58 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`tournament > snapshots the report structure without the numbers 1`] = `
+"# Strategy lab
+
+One row per player type, one column per measure. Pass and fail read the guardrails in \`src/lab/targets.ts\`. Shares are fractions.
+
+Seeds: #. Days played: #. Optimizer finish day (optimizer): not in this run. Casual finish day (casual-#x#): not in this run. Regret reads the optimizer finish day. Extreme win reads the casual finish day.
+
+| Policy | Kind | Count | Never the best |
+| --- | --- | --- | --- |
+| Alpha | casual | <span style="color:#b#"># fail</span> | buyUpgrade |
+
+## Measures
+
+| Measure | Unit | Question |
+| --- | --- | --- |
+| Count | count | How many moments the dad looked at the table. |
+| Never the best | kinds | A kind that never wins is a rule this dad never gets to use. |
+
+## Timelines
+
+Per hour of the first seed, for each casual player type and the optimizer. The table above is every seed.
+
+### Alpha
+
+Seed #.
+
+| Hour | Day | Live options | Best move | Crew/s | Pocket |
+| --- | --- | --- | --- | --- | --- |
+| # | # | # | buyTier:machine | # | # |
+| # | # | # | buyTier:machine | # | # |
+
+## Never the best
+
+A kind that never wins is a rule this dad never gets to use.
+
+| Policy | Kinds |
+| --- | --- |
+| Alpha | buyUpgrade |
+
+## Dead stretches
+
+Waits longer than # hours. Nothing live can be paid for, and the best buy is at least one session away.
+
+| Policy | Seed | Start day | Hours | Saving for | Next payback |
+| --- | --- | --- | --- | --- | --- |
+| Alpha | # | # | # | buyTier:machine | #× |
+
+## Suggestions
+
+The lab names what missed. It does not change a number in the game.
+
+- count-cap misses for Alpha. Count is # count; the bound is at most #. A dad with a sample still has a moment to look at. Suggestion only: nothing here is written back into the game.
+- Never the best names unused kinds for # player type. A kind that never wins is a rule this dad never gets to use. Suggestion only: nothing here is written back into the game.
+- Alpha, seed #, waits from day #, saving for buyTier:machine, for # hours. The next payback is # times the best. Suggestion only: nothing here is written back into the game.
+"
+`;

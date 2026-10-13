@@ -28,6 +28,7 @@ describe("scoreDecision", () => {
     expect(sample.byValue.affordableLive).toBe(1);
     expect(sample.waitToAffordSec).toBe(0);
     expect(sample.bestId).toBe("buyTier:helper");
+    expect(sample.nextPaybackRatio).toBe(Number.POSITIVE_INFINITY);
     expect(singleShareOf([sample])).toBe(1);
     expect(singleShareOf([sample], "value")).toBe(1);
   });
@@ -42,6 +43,8 @@ describe("scoreDecision", () => {
     });
     expect(sample.optionKinds.length).toBeGreaterThan(1);
     expect(sample.crewPerSec).toBe(0);
+    expect(sample.nextPaybackRatio).toBeGreaterThanOrEqual(1);
+    expect(Number.isFinite(sample.nextPaybackRatio)).toBe(true);
   });
 
   it("splits tending out of the borer's output", () => {
@@ -67,6 +70,7 @@ describe("scoreDecision", () => {
     );
     expect(sum).toBeCloseTo(1, 5);
     expect(sample.liveCount).toBe(0);
+    expect(sample.nextPaybackRatio).toBe(Number.POSITIVE_INFINITY);
   });
 
   it("treats a free improvement as infinitely good per stone", () => {

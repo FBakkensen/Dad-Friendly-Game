@@ -53,6 +53,7 @@ function decision(over: {
       waitToAffordSec: wait,
       perStone: 1,
     },
+    nextPaybackRatio: 1,
     ...(over.finishDay === undefined ? {} : { finishDay: over.finishDay }),
   };
 }

@@ -303,7 +303,7 @@ One PR each, in order; the list with acceptance criteria is in the M7 PR descrip
 
 ### Milestone 8: Strategy lab
 
-**M8 is in progress.** The shared clock is `src/lab/world.ts` (#171). Targets and decision measures are in (#173). Player types are one file each under `src/lab/policies/`, loaded by the same registry (#172). The tournament and `npm run lab` are still planned. No screen, no save field, no Firestore change. The lab runs offline, next to the pacing sim, so a retune can be judged before it ships. Players never see payback, shares, or these targets.
+**M8 is in progress.** The shared clock is `src/lab/world.ts` (#171). Targets and decision measures are in (#173). Player types are one file each under `src/lab/policies/`, loaded by the same registry (#172). The tournament and `npm run lab` are in (#174). No screen, no save field, no Firestore change. The lab runs offline, next to the pacing sim, so a retune can be judged before it ships. Players never see payback, shares, or these targets.
 
 #### Why
 
@@ -358,4 +358,14 @@ The first measure files are `liveMedian`, `liveP10`, `singleShare`, `longestDead
 
 `src/lab/world.ts` is the clock they share: `step(world, ms, mode: live | away)` on one seeded clock, wrapping accrue, away pay, hazards, and expedition settle. Built (#171). The pacing sim steps this clock and chooses crew and upgrades with `listActions` / `valueOf`. Policies call `decide` on that world. The world does not read the policy or measure folders.
 
-`npm run lab` (`tools/strategy-lab.ts`) loads the registries and writes `reports/strategy-lab.md` and `.json` (gitignored). One row per policy, one column per registered measure, pass or fail from `targets.ts`. Flags: `--policy`, `--seeds`, `--days`. The report also shows per-hour timelines for casual and the optimizer, move kinds that were never best, and dead stretches longer than 2 hours (when they start, what the dad is saving for, and the next-best payback ratio). It suggests. It does not auto-tune.
+`npm run lab` (`tools/strategy-lab.ts`) loads the registries and writes `reports/strategy-lab.md` and `.json` (gitignored). Built (#174).
+
+#### How to read the report
+
+One row per player type, one column per registered measure. A cell is a bare number when no guardrail covers that row. When one does, the cell is that guardrail's figure plus pass or fail, coloured green or red. Shares are fractions: 0.25 is 25%.
+
+The header names two finish days. **Optimizer finish day** is `optimizer`. **Casual finish day** is `casual-2x10`, the plain dad. Regret divides a dad's finish day by the optimizer's. Extreme win reads how much sooner an extreme finished than that casual dad. Both numbers are the mean across `MONTE_CARLO_SEEDS` (seeds 1 through that count). `--seeds` and `--days` override the count and `DEFAULT_MAX_DAYS`. `--policy` limits the rows; the columns stay every measure.
+
+Under the table: a per-hour timeline for each casual player type and the optimizer, on the first seed; a section per list measure (never the best buy is the dead-feature list); and dead stretches longer than `REPORT_DEAD_HOURS` (when they start, what the dad is saving for, and how many times slower the next payback is). The suggestions name the miss. They do not change a number.
+
+Adding a policy file adds a row. Adding a measure file adds a column. Adding a target adds a pass or fail on the cells it covers. No other edit.

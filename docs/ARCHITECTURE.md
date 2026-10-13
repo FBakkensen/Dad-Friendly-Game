@@ -17,6 +17,10 @@ page is the map, plus the rules that keep it that way.
    `lab/measures` is one file per decision measure. `lab/policies` is one
    file per player type. `lab/registry` discovers both folders; the world
    never reads the filesystem. `lab/run` plays a policy on that clock.
+   `lab/tournament` runs every policy it is given across the seeds it is
+   given and scores every measure. `tools/strategy-lab.ts` (`npm run lab`)
+   loads the registries and writes the report. The tournament does not
+   read the disk.
    `pacing` simulates players on top of them and buys through the catalogue.
    Every number lives here.
 2. **Saves:** `persist` (versioned save format and parser), `session-save`

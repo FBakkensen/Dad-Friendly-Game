@@ -45,6 +45,7 @@ describe("registry", () => {
             waitToAffordSec: 0,
             perStone: 0,
           },
+          nextPaybackRatio: 1,
         },
         {
           atMs: 1,
@@ -64,6 +65,7 @@ describe("registry", () => {
             waitToAffordSec: 1,
             perStone: 0,
           },
+          nextPaybackRatio: 1,
         },
       ],
     );
