@@ -39,7 +39,7 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
   boots: {
     id: "boots",
     name: "Better boots",
-    perLevel: "Helpers mine 10% faster.",
+    perLevel: "Workers mine 10% faster.",
     firstCost: 15_000,
     costGrowth: 1,
     maxLevel: 1,
@@ -57,7 +57,7 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
   cartSyn: {
     id: "cartSyn",
     name: "Helping hands",
-    perLevel: "Each helper makes carts 1% faster.",
+    perLevel: "Each worker makes carts 1% faster.",
     firstCost: 500_000,
     costGrowth: 1,
     maxLevel: 1,
