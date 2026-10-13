@@ -51,7 +51,7 @@ describe("crew unlocks", () => {
     expect(buyCrew(fresh, "borer")).toBe(fresh);
   });
 
-  it("moves the engineer onto a Great Machine when that is what was bought", () => {
+  it("leaves an engineer's post alone when a Great Machine is bought", () => {
     const withBorer = buyCrew(
       { ...minedMountain(25_000_000), pocket: 60_000_000, helpers: 5 },
       "borer",
@@ -59,8 +59,8 @@ describe("crew unlocks", () => {
     expect(withBorer.engineers?.[0]?.post).toBe("borer");
     const withMachine = buyCrew(withBorer, "machine");
     expect(withMachine.machines).toBe(1);
-    expect(withMachine.engineers?.[0]?.post).toBe("machine");
-    expect(effectiveRates(withMachine).running.machine).toBe(1);
+    expect(withMachine.engineers?.[0]?.post).toBe("borer");
+    expect(effectiveRates(withMachine).running.machine).toBe(0);
   });
 });
 

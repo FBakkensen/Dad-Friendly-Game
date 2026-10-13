@@ -203,6 +203,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/engineers-panel.ts": {
+          statements: 97,
+          branches: 91,
+          functions: 100,
+          lines: 97,
+        },
       },
     },
   },

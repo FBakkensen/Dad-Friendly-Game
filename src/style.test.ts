@@ -15,6 +15,8 @@ const REQUIRED_SELECTORS = [
   ".menu-button",
   ".upgrades-dialog",
   ".upgrades-button",
+  ".engineers-dialog",
+  ".engineers-button",
   ".pocket-row",
   ".welcome-card",
   ".reveal-card",
@@ -43,6 +45,7 @@ describe("style.css", () => {
     ".game-menu",
     ".field-log-sheet",
     ".upgrades-dialog",
+    ".engineers-dialog",
   ])("lays %s over the game", (selector) => {
     const group = /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
       css.slice(css.indexOf(".welcome-back,")),

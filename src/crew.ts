@@ -1,4 +1,4 @@
-import { grantFirstEngineer, tendBestTier } from "./engineers";
+import { grantFirstEngineer } from "./engineers";
 import { STAFF_GRANT, type Mountain } from "./mountain";
 import { hasRelic } from "./relics";
 import {
@@ -17,19 +17,18 @@ export function tierLocked(mountain: Mountain, tier: Tier): boolean {
 
 /**
  * Buys one of a tier if it is unlocked and affordable; otherwise the same
- * mountain. The first borer brings the first engineer. Until there is a
- * sheet to post her, she tends the borers, and moves onto a Great Machine
- * when one is bought (see tendBestTier).
+ * mountain. The first borer brings the first engineer, already tending it.
+ * Later purchases leave her post alone: the engineers sheet chooses it.
+ * The pacing sim still moves her, through tendBestTier.
  */
 export function buyCrew(mountain: Mountain, id: TierId): Mountain {
   const bought = tierLocked(mountain, tierById(id))
     ? mountain
     : buyTier(mountain, id);
-  const withEngineer =
-    mountain.borers > 0 || bought.borers === 0
-      ? bought
-      : grantFirstEngineer(bought).mountain;
-  return tendBestTier(withEngineer);
+  if (mountain.borers > 0 || bought.borers === 0) {
+    return bought;
+  }
+  return grantFirstEngineer(bought).mountain;
 }
 
 /**

@@ -2433,3 +2433,292 @@ describe("trouble on a tier card (#149)", () => {
     }
   });
 });
+
+describe("engineers sheet (#145)", () => {
+  const withAda = (patch: Partial<Mountain> = {}): Mountain => ({
+    ...minedMountain(0),
+    pocket: 5_000_000,
+    helpers: 20,
+    carts: 1,
+    drills: 1,
+    borers: 1,
+    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+    ...patch,
+  });
+
+  const openSheet = (root: HTMLElement): HTMLElement => {
+    const button = root.querySelector<HTMLButtonElement>(".engineers-button");
+    if (button === null) {
+      throw new Error("engineers button did not render");
+    }
+    button.click();
+    const sheet = root.querySelector<HTMLElement>(".engineers-dialog");
+    if (sheet === null) {
+      throw new Error("engineers sheet did not render");
+    }
+    return sheet;
+  };
+
+  it("hides the button until the first engineer arrives with a borer", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(0),
+        pocket: 10_000_000,
+        helpers: 4,
+        drills: 1,
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const button =
+      screen.root.querySelector<HTMLButtonElement>(".engineers-button");
+    expect(button?.hidden).toBe(true);
+    screen.root
+      .querySelector<HTMLButtonElement>('[data-tier="borer"]')
+      ?.click();
+    expect(button?.hidden).toBe(false);
+    expect(button?.getAttribute("aria-label")).toBe("Engineers");
+    const sheet = openSheet(screen.root);
+    expect(sheet.hidden).toBe(false);
+    expect(sheet.textContent).toContain(
+      "Your borers hum a little faster while Ada tends them.",
+    );
+  });
+
+  it("stations, calls back to camp, and keeps the post through a hire", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: withAda(),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const borer = screen.root.querySelector('[data-tier="borer"]');
+    const cart = screen.root.querySelector('[data-tier="cart"]');
+    expect(borer?.querySelector<HTMLElement>(".engineer-mark")?.hidden).toBe(
+      false,
+    );
+    expect(borer?.querySelector(".engineer-mark")?.textContent).toBe("");
+    expect(cart?.querySelector<HTMLElement>(".engineer-mark")?.hidden).toBe(
+      true,
+    );
+    expect(borer?.getAttribute("aria-label")).toContain("Ada tends them.");
+    expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
+      "+385\u2009·\u2009385/s",
+    );
+
+    const sheet = openSheet(screen.root);
+    const ada = sheet.querySelector('[data-name="Ada"]');
+    expect(ada?.querySelectorAll(".lamp:not([hidden])")).toHaveLength(1);
+    expect(
+      ada?.querySelector(".engineer-lamps")?.getAttribute("aria-label"),
+    ).toBe("Apprentice");
+    expect(sheet.textContent).not.toMatch(/trip|%|\?/);
+    ada?.querySelector<HTMLButtonElement>('[data-post="cart"]')?.click();
+
+    expect(screen.text(".engineer-tend")).toBe(
+      "Your carts hum a little faster while Ada tends them.",
+    );
+    expect(screen.text(".engineer-post")).toBe("Tending the carts");
+    expect(
+      ada?.querySelector('[data-post="cart"]')?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(cart?.querySelector<HTMLElement>(".engineer-mark")?.hidden).toBe(
+      false,
+    );
+    expect(borer?.querySelector<HTMLElement>(".engineer-mark")?.hidden).toBe(
+      true,
+    );
+    expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
+      "+350\u2009·\u2009350/s",
+    );
+    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
+      "+11\u2009·\u200911/s",
+    );
+    expect(readSessionSave({ storage })?.mountain.engineers?.[0]?.post).toBe(
+      "cart",
+    );
+
+    ada?.querySelector<HTMLButtonElement>('[data-post="camp"]')?.click();
+    expect(screen.text(".engineer-post")).toBe("At camp");
+    expect(sheet.querySelector<HTMLElement>(".engineer-tend")?.hidden).toBe(
+      true,
+    );
+    expect(cart?.querySelector<HTMLElement>(".engineer-mark")?.hidden).toBe(
+      true,
+    );
+    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
+      "+10\u2009·\u200910/s",
+    );
+
+    ada?.querySelector<HTMLButtonElement>('[data-post="cart"]')?.click();
+    (cart as HTMLButtonElement | null)?.click();
+    expect(screen.text('[data-tier="cart"] .tier-count')).toBe("×2");
+    expect(readSessionSave({ storage })?.mountain.engineers?.[0]?.post).toBe(
+      "cart",
+    );
+
+    sheet.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(sheet.hidden).toBe(true);
+  });
+
+  it("calls an engineer home from a tunnel", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: withAda({
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
+      }),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const sheet = openSheet(screen.root);
+    expect(screen.text(".engineer-post")).toBe("Away in a tunnel");
+    expect(sheet.querySelector<HTMLElement>(".engineer-tend")?.hidden).toBe(
+      true,
+    );
+    sheet.querySelector<HTMLButtonElement>('[data-post="camp"]')?.click();
+    expect(screen.text(".engineer-post")).toBe("At camp");
+    expect(readSessionSave({ storage })?.mountain.engineers?.[0]?.post).toBe(
+      "camp",
+    );
+  });
+
+  it("confirms a promotion, and Not yet spends nothing", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: withAda(),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const sheet = openSheet(screen.root);
+    expect(screen.text(".engineer-promote")).toBe(
+      "Promote a worker for 2 million stones",
+    );
+    sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
+    expect(screen.text(".engineer-confirm-line")).toBe(
+      "Nils steps up as engineer. One worker fewer at the machines.",
+    );
+    expect(sheet.querySelector<HTMLElement>(".engineer-promote")?.hidden).toBe(
+      true,
+    );
+    sheet.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(sheet.hidden).toBe(false);
+    expect(sheet.querySelector<HTMLElement>(".engineer-confirm")?.hidden).toBe(
+      true,
+    );
+    expect(screen.text(".pocket")).toBe("5 million stones");
+
+    sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
+    sheet.querySelector<HTMLButtonElement>(".engineer-confirm-no")?.click();
+    expect(sheet.querySelector<HTMLElement>(".engineer-confirm")?.hidden).toBe(
+      true,
+    );
+    expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×20");
+
+    sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
+    sheet.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
+    expect(screen.text(".pocket")).toBe("3 million stones");
+    expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×19");
+    const nils = sheet.querySelector('[data-name="Nils"]');
+    expect(nils?.querySelector(".engineer-post")?.textContent).toBe("At camp");
+    expect(nils?.querySelectorAll(".lamp:not([hidden])")).toHaveLength(1);
+    expect(readSessionSave({ storage })?.mountain.engineers).toEqual([
+      { name: "Ada", rank: 0, trips: 0, post: "borer" },
+      { name: "Nils", rank: 0, trips: 0, post: "camp" },
+    ]);
+    sheet.querySelector<HTMLButtonElement>(".engineers-close")?.click();
+    expect(sheet.hidden).toBe(true);
+  });
+
+  it("shows lamps and a near-rank hint instead of a trip count", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: withAda({
+        engineers: [
+          { name: "Ada", rank: 0, trips: 2, post: "borer" },
+          { name: "Nils", rank: 1, trips: 3, post: "drill" },
+          { name: "Ruth", rank: 1, trips: 8, post: "cart" },
+          { name: "Otto", rank: 2, trips: 9, post: "camp" },
+        ],
+      }),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const sheet = openSheet(screen.root);
+    const lamps = (name: string): number =>
+      sheet.querySelectorAll(`[data-name="${name}"] .lamp:not([hidden])`)
+        .length;
+    expect(lamps("Ada")).toBe(1);
+    expect(lamps("Nils")).toBe(2);
+    expect(lamps("Ruth")).toBe(2);
+    expect(lamps("Otto")).toBe(3);
+    expect(
+      sheet.querySelector('[data-name="Ada"] .engineer-hint')?.textContent,
+    ).toBe("nearly a Journeyman");
+    expect(
+      sheet.querySelector('[data-name="Ruth"] .engineer-hint')?.textContent,
+    ).toBe("nearly a Master");
+    expect(
+      sheet.querySelector<HTMLElement>('[data-name="Nils"] .engineer-hint')
+        ?.hidden,
+    ).toBe(true);
+    expect(
+      sheet.querySelector<HTMLElement>('[data-name="Otto"] .engineer-hint')
+        ?.hidden,
+    ).toBe(true);
+    expect(sheet.textContent).not.toMatch(/trip|\?/);
+    expect(
+      sheet
+        .querySelector('[data-name="Otto"] .engineer-lamps')
+        ?.getAttribute("aria-label"),
+    ).toBe("Master engineer");
+  });
+
+  it("refuses a promotion when no worker is free, or the crew is full", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: withAda({ helpers: 0 }),
+      lastSeen: Date.now(),
+    });
+    const broke = mountScreen({ storage });
+    openSheet(broke.root);
+    const promote =
+      broke.root.querySelector<HTMLButtonElement>(".engineer-promote");
+    expect(promote?.disabled).toBe(true);
+    expect(promote?.textContent).toBe("No worker is free to step up.");
+    promote?.click();
+    expect(
+      broke.root.querySelector<HTMLElement>(".engineer-confirm")?.hidden,
+    ).toBe(true);
+
+    const fullStorage = createMemoryStorage();
+    writeSessionSave({
+      storage: fullStorage,
+      mountain: withAda({
+        helpers: 5,
+        engineers: [
+          { name: "Ada", rank: 0, trips: 0, post: "borer" },
+          { name: "Nils", rank: 0, trips: 0, post: "camp" },
+          { name: "Ruth", rank: 0, trips: 0, post: "camp" },
+          { name: "Otto", rank: 0, trips: 0, post: "camp" },
+          { name: "Mae", rank: 0, trips: 0, post: "camp" },
+        ],
+      }),
+      lastSeen: Date.now(),
+    });
+    const full = mountScreen({ storage: fullStorage });
+    openSheet(full.root);
+    expect(full.text(".engineer-promote")).toBe(
+      "Every named hand is already an engineer.",
+    );
+    expect(
+      full.root.querySelector<HTMLButtonElement>(".engineer-promote")?.disabled,
+    ).toBe(true);
+  });
+});
