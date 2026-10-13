@@ -10,6 +10,8 @@ import {
   NEEDS_MORE_WORKERS,
   formatSpeed,
   percent,
+  tendingEngineer,
+  tendsNote,
   workerWords,
 } from "./screen-words";
 import { TIERS, owned, tierCost, tierShown, type TierId } from "./tiers";
@@ -82,7 +84,11 @@ export function createCrewPanel({
     const rate = document.createElement("span");
     rate.className = "tier-rate";
     words.append(name, cost, rate);
-    card.append(art, words, countBadge);
+    const mark = document.createElement("span");
+    mark.className = "engineer-mark";
+    mark.hidden = true;
+    mark.setAttribute("aria-hidden", "true");
+    card.append(art, words, countBadge, mark);
     card.addEventListener("click", () => {
       if (!getView().ready) {
         return;
@@ -104,7 +110,7 @@ export function createCrewPanel({
       }
     });
     tierGrid.append(card);
-    return { tier, card, name, costText, countBadge, rate, costIcon };
+    return { tier, card, name, costText, countBadge, rate, costIcon, mark };
   });
   crew.append(crewStatus, tierGrid);
 
@@ -177,6 +183,7 @@ export function createCrewPanel({
       countBadge,
       rate: tierRate,
       costIcon,
+      mark,
     } of tierCards) {
       const count = owned(current, tier);
       const price = tierCost(tier, count);
@@ -201,6 +208,9 @@ export function createCrewPanel({
       const showNeeds = needsMore && idleHere === 0 && count === 0;
       card.classList.toggle("tier-idle", !locked && idleHere > 0);
       card.classList.toggle("tier-needs-workers", showNeeds);
+      const who = tendingEngineer(current.engineers, tier.id);
+      mark.hidden = who === undefined;
+      const tends = who === undefined ? "" : ` ${tendsNote(who.name, tier.id)}`;
       // A bought crew synergy shows as "↑12%" in the rate line (just "↑" on tight cards).
       const synergy = tierSynergy(current, tier.id);
       const lift = `\u2191${String(Math.round(synergy * 100))}%`;
@@ -229,8 +239,8 @@ export function createCrewPanel({
       card.setAttribute(
         "aria-label",
         locked
-          ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.`
-          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(staff)} ${workerWords(staff)} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.`,
+          ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.${tends}`
+          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(staff)} ${workerWords(staff)} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.${tends}`,
       );
     }
   };

@@ -150,21 +150,127 @@ async function coversViewport(page, selector) {
 
 /** Nothing scrolls: not the page, not the game root, not sideways. */
 async function noScroll(page) {
-  return page.evaluate(() => {
+  const result = await page.evaluate(() => {
     const app = document.querySelector("#app");
     const root = document.documentElement;
     scrollBy(0, 80);
     app?.scrollBy(0, 80);
     const still = scrollY === 0 && (app?.scrollTop ?? 0) === 0;
-    return (
+    const ok =
       still &&
       root.scrollHeight === root.clientHeight &&
       root.scrollWidth === root.clientWidth &&
       app !== null &&
       app.scrollHeight === app.clientHeight &&
-      app.scrollWidth === app.clientWidth
-    );
+      app.scrollWidth === app.clientWidth;
+    if (!ok && app !== null) {
+      // Say what grew, so a CI-only overflow can be fixed without guessing.
+      return {
+        ok,
+        detail: JSON.stringify({
+          root: [
+            root.scrollWidth,
+            root.scrollHeight,
+            root.clientWidth,
+            root.clientHeight,
+          ],
+          app: [
+            app.scrollWidth,
+            app.scrollHeight,
+            app.clientWidth,
+            app.clientHeight,
+          ],
+          rows: [...app.children].map((child) => [
+            child.className,
+            Math.round(child.getBoundingClientRect().height),
+          ]),
+        }),
+      };
+    }
+    return { ok, detail: "" };
   });
+  if (!result.ok) {
+    console.log("scroll", result.detail);
+  }
+  return result.ok;
+}
+
+/**
+ * The seeded crew has one engineer. The sheet's title and the way back both
+ * sit on screen, and the page itself does not scroll.
+ */
+async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
+  await page.tap(".engineers-button");
+  const covered = await coversViewport(page, ".engineers-dialog");
+  const detail = await page.$eval(
+    ".engineers-dialog",
+    (sheet, insets) => {
+      const buttons = [...sheet.querySelectorAll("button")].filter(
+        (button) => !button.hidden && button.getClientRects().length > 0,
+      );
+      const boxes = buttons.map((button) => {
+        const box = button.getBoundingClientRect();
+        return {
+          height: box.height,
+          left: box.left,
+          right: box.right,
+          top: box.top,
+          bottom: box.bottom,
+          clipped: button.scrollWidth > button.clientWidth + 1,
+          text: button.textContent,
+        };
+      });
+      const title =
+        sheet.querySelector("h2")?.getBoundingClientRect().top ?? -1;
+      const close =
+        sheet.querySelector(".engineers-close")?.getBoundingClientRect()
+          .bottom ?? Infinity;
+      const text = sheet.textContent ?? "";
+      return {
+        boxesOk: boxes.every(
+          (box) =>
+            box.height >= 44 &&
+            box.left >= 0 &&
+            box.right <= innerWidth &&
+            box.top >= insets.top &&
+            box.bottom <= innerHeight - insets.bottom &&
+            !box.clipped,
+        ),
+        count: boxes.length,
+        title,
+        close,
+        titleOk: title >= insets.top,
+        closeOk: close <= innerHeight - insets.bottom,
+        words:
+          text.includes("hum a little faster") &&
+          !text.includes("?") &&
+          !text.includes("%") &&
+          !/trip/i.test(text),
+      };
+    },
+    { top, bottom },
+  );
+  const pageStill = await noScroll(page);
+  await page.$eval(".engineers-close", (button) => {
+    button.click();
+  });
+  const closed = await page.$eval(
+    ".engineers-dialog",
+    (element) => element.hidden,
+  );
+  const ok =
+    covered &&
+    detail.boxesOk &&
+    detail.count >= 6 &&
+    detail.titleOk &&
+    detail.closeOk &&
+    detail.words &&
+    pageStill &&
+    closed;
+  if (!ok) {
+    console.log("engineers sheet", { covered, detail, pageStill, closed });
+  }
+  return ok;
 }
 
 /** Chrome's URL bar hides and shows by resizing the viewport about 56px. */
@@ -316,6 +422,22 @@ for (const viewport of VIEWPORTS) {
   });
   check(sheetReachable, `${size} upgrades sheet buttons are tappable`);
   await page.tap(".upgrades-close");
+  const engineersFat = await page.$eval(".engineers-button", (button) => {
+    const box = button.getBoundingClientRect();
+    return (
+      !button.hidden &&
+      button.getAttribute("aria-label") === "Engineers" &&
+      box.height >= 44 &&
+      box.width >= 44 &&
+      box.left >= 0 &&
+      box.right <= innerWidth
+    );
+  });
+  check(engineersFat, `${size} engineers button is tappable`);
+  check(
+    await engineersSheetFits(page),
+    `${size} engineers sheet fits with no scroll`,
+  );
   await close();
 }
 
@@ -470,6 +592,20 @@ for (const viewport of [
       );
     });
     check(crewLineFits, `${label} keep the crew line on one line`);
+    if (
+      viewport[0] === 360 &&
+      viewport[1] === 560 &&
+      font === "DejaVu Sans" &&
+      crew.helpers === 999 &&
+      crew.borers === 999 &&
+      crew.machines === 999 &&
+      crew.upgrades === undefined
+    ) {
+      check(
+        await engineersSheetFits(page),
+        `${label} engineers sheet fits with no scroll`,
+      );
+    }
     await close();
   }
 }
@@ -491,7 +627,7 @@ for (const viewport of VIEWPORTS) {
     (bottomInset) =>
       [
         ...document.querySelectorAll(
-          ".tier, .save-status, .menu-button, .upgrades-button",
+          ".tier, .save-status, .menu-button, .upgrades-button, .engineers-button",
         ),
       ]
         .filter((element) => !element.hidden)
@@ -502,6 +638,12 @@ for (const viewport of VIEWPORTS) {
     STANDALONE_INSETS.bottom,
   );
   check(insideSafeArea, `${size} standalone controls clear the gesture bar`);
+  if (viewport[0] === 360 && viewport[1] === 560) {
+    check(
+      await engineersSheetFits(page, STANDALONE_INSETS),
+      `${size} standalone engineers sheet fits with no scroll`,
+    );
+  }
 
   // A real vein after minutes of play: on screen, on top, and tappable.
   await page.evaluate(() => {

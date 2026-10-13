@@ -126,8 +126,8 @@ body {
   align-items: center;
   gap: 8px;
   margin: 0;
-  /* Shrinks on narrow phones so the longest count still fits on one line. */
-  font-size: clamp(1.1rem, 5vw, 1.35rem);
+  /* Shrinks on narrow phones so the longest count and both buttons fit on one line (DejaVu on CI is wide). */
+  font-size: clamp(0.95rem, 4.4vw, 1.35rem);
   font-variant-numeric: tabular-nums;
   /* One line, so the pocket row never grows taller ("501.4 thousand stones"). */
   white-space: nowrap;
@@ -137,7 +137,62 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 8px;
+}
+
+.pocket-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  /* Same pull-in as the upgrades button had on its own, so the row stays one line tall. */
+  height: 44px;
+  margin-block: -6px;
+}
+
+.pocket-actions .upgrades-button,
+.engineers-button {
+  margin-block: 0;
+}
+
+.engineers-button {
+  appearance: none;
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 2px solid #6b4a2a;
+  border-radius: 12px;
+  background: #2a1a10;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.engineers-button img {
+  width: 28px;
+  height: 28px;
+  image-rendering: pixelated;
+}
+
+/* The lamp says this worker portrait opens the engineers, not a hire. */
+.engineers-button::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid #1e130d;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff6d0, #e8a84a 55%, #8a5a20);
+  box-shadow: 0 0 4px rgba(255, 214, 102, 0.9);
+}
+
+.engineers-button[hidden] {
+  display: none;
 }
 
 .upgrades-button {
@@ -502,6 +557,31 @@ body {
   display: none;
 }
 
+/* A tended tier wears a small lamp. It sits on the art, so the 64px card stays put. */
+.engineer-mark {
+  position: absolute;
+  top: 4px;
+  left: 22px;
+  width: 10px;
+  height: 10px;
+  border: 1px solid #1e130d;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff6d0, #e8a84a 55%, #8a5a20);
+  box-shadow: 0 0 5px rgba(255, 214, 102, 0.95);
+  pointer-events: none;
+}
+
+.tier-grid-compact .engineer-mark {
+  top: auto;
+  left: auto;
+  right: 2px;
+  bottom: 34px;
+}
+
+.engineer-mark[hidden] {
+  display: none;
+}
+
 .tier {
   position: relative;
 }
@@ -586,7 +666,8 @@ body {
 .start-over,
 .game-menu,
 .field-log-sheet,
-.upgrades-dialog {
+.upgrades-dialog,
+.engineers-dialog {
   position: fixed;
   inset: 0;
   overflow-y: auto;
@@ -608,7 +689,8 @@ body {
 .start-over[hidden],
 .game-menu[hidden],
 .field-log-sheet[hidden],
-.upgrades-dialog[hidden] {
+.upgrades-dialog[hidden],
+.engineers-dialog[hidden] {
   display: none;
 }
 
@@ -685,7 +767,8 @@ body {
 .reveal-continue,
 .shelf-close,
 .menu-close,
-.upgrades-close {
+.upgrades-close,
+.engineers-close {
   appearance: none;
   width: 100%;
   min-height: 64px;
@@ -704,8 +787,14 @@ body {
 .shelf-close:focus-visible,
 .menu-close:focus-visible,
 .upgrades-close:focus-visible,
+.engineers-close:focus-visible,
 .upgrade-buy:focus-visible,
-.upgrades-button:focus-visible {
+.upgrades-button:focus-visible,
+.engineers-button:focus-visible,
+.engineer-station:focus-visible,
+.engineer-promote:focus-visible,
+.engineer-confirm-no:focus-visible,
+.engineer-confirm-yes:focus-visible {
   outline: 4px solid #e8d4b8;
   outline-offset: 4px;
 }
@@ -1105,11 +1194,13 @@ body {
 }
 
 /* The sheet can outgrow a short phone: it scrolls, and starts at its top. */
-.upgrades-dialog {
+.upgrades-dialog,
+.engineers-dialog {
   align-items: flex-start;
 }
 
-.upgrades-card {
+.upgrades-card,
+.engineers-card {
   margin-block: auto;
 }
 
@@ -1280,4 +1371,182 @@ body {
   min-height: 56px;
   padding: 8px 10px;
   font-size: clamp(1rem, 4.4vw, 1.2rem);
+}
+
+/* Engineers sheet. Tighter than Upgrades so one hand fits a 360×560 phone. */
+.engineers-dialog {
+  padding: max(12px, env(safe-area-inset-top)) 12px
+    max(12px, env(safe-area-inset-bottom));
+}
+
+.engineers-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: min(360px, 100%);
+  padding: 16px 12px;
+  border: 2px solid #e8a84a;
+  border-radius: 20px;
+  background: #1e130d;
+  box-shadow: 0 0 48px rgba(232, 168, 74, 0.35);
+  text-align: left;
+}
+
+.engineers-card h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  text-align: center;
+  color: #e8d4b8;
+}
+
+.engineer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.engineer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.engineer[hidden] {
+  display: none;
+}
+
+.engineer-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.engineer-name,
+.engineer-post,
+.engineer-tend,
+.engineer-hint,
+.engineer-confirm-line {
+  margin: 0;
+}
+
+.engineer-name {
+  font-weight: 800;
+}
+
+.engineer-lamps {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.lamp {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff6d0, #e8a84a 50%, #8a5a20);
+  box-shadow: 0 0 4px rgba(255, 214, 102, 0.85);
+}
+
+.lamp[hidden] {
+  display: none;
+}
+
+.engineer-post {
+  margin-left: auto;
+  color: #c9b391;
+  font-size: 0.85rem;
+}
+
+.engineer-tend,
+.engineer-hint,
+.engineer-confirm-line {
+  font-size: 0.9rem;
+}
+
+.engineer-hint {
+  color: #f2c46d;
+  font-style: italic;
+}
+
+.engineer-tend[hidden],
+.engineer-hint[hidden] {
+  display: none;
+}
+
+.engineer-posts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+.engineer-station,
+.engineer-promote,
+.engineer-confirm-no,
+.engineer-confirm-yes {
+  appearance: none;
+  min-height: 44px;
+  padding: 6px 4px;
+  border: 2px solid #6b4a2a;
+  border-radius: 10px;
+  background: #2a1a10;
+  color: #f2c46d;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.engineer-station {
+  white-space: nowrap;
+}
+
+.engineer-station[data-post="camp"] {
+  grid-column: span 2;
+}
+
+.engineer-station[aria-pressed="true"] {
+  border-color: #f2c46d;
+  background: #e8a84a;
+  color: #120c0a;
+}
+
+.engineer-station:disabled,
+.engineer-promote:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.engineer-promote {
+  width: 100%;
+  padding: 8px 12px;
+}
+
+.engineer-promote[hidden],
+.engineer-confirm[hidden] {
+  display: none;
+}
+
+.engineer-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.engineer-confirm-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.engineer-confirm-actions > button {
+  flex: 1 1 0;
 }

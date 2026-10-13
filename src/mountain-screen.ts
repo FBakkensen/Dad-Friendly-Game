@@ -12,6 +12,7 @@ import { createMenuPanel } from "./menu-panel";
 import { createLegacyPanel, legacyWords } from "./legacy-panel";
 import { legacyBonus } from "./legacy";
 import { createCrewPanel } from "./crew-panel";
+import { createEngineersPanel } from "./engineers-panel";
 import { floatText } from "./float-text";
 import { createUpgradesPanel } from "./upgrades-panel";
 import { tapWords } from "./screen-words";
@@ -321,6 +322,15 @@ export function mountMountainScreen({
   const upgradesButton = upgrades.button;
   const upgradesSheet = upgrades.sheet;
 
+  const engineers = createEngineersPanel({
+    progress,
+    getView: () => view,
+    iconUrl: tierArt.helper,
+    requestRender: () => {
+      render();
+    },
+  });
+
   const saveStatus = document.createElement("p");
   saveStatus.className = "save-status";
   saveStatus.setAttribute("aria-live", "polite");
@@ -382,6 +392,7 @@ export function mountMountainScreen({
     menuPanel.render();
     legacy.render();
     upgrades.render();
+    engineers.render();
     renderSave();
   };
 
@@ -419,9 +430,12 @@ export function mountMountainScreen({
     progress.flush();
   });
 
+  const pocketActions = document.createElement("div");
+  pocketActions.className = "pocket-actions";
+  pocketActions.append(engineers.button, upgradesButton);
   const pocketRow = document.createElement("div");
   pocketRow.className = "pocket-row";
-  pocketRow.append(pocket, upgradesButton);
+  pocketRow.append(pocket, pocketActions);
 
   const header = document.createElement("header");
   header.className = "top-bar";
@@ -447,6 +461,7 @@ export function mountMountainScreen({
     menu,
     fieldLogSheet,
     upgradesSheet,
+    engineers.sheet,
   );
 
   setInterval(() => {
