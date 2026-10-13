@@ -31,15 +31,20 @@ export const OPENING_HOURS = 1;
 /** singleShare counts a sample with at most this many live options. */
 export const SINGLE_MAX_LIVE = 1;
 
+/** One sitting. A shorter save is the end of a session, not a dead stretch. */
+const SESSION_MINUTES = 10;
+
 /**
- * Dead stretch. A sample is dead when the table has a live option and none
- * of them can be paid for yet: the dad is only waiting. A second option
- * inside the ratio does not end the wait while it is unpaid too. The length
- * is wall-clock hours from the first dead sample to the next sample where
- * a live option can be paid for (or the last sample, if the run ends waiting).
+ * Dead stretch. A sample is dead when no live option can be paid for and
+ * the best live option's wait is at least `minWaitSec` (one session). A few
+ * minutes of saving at the end of a sitting does not turn the overnight gap
+ * into a dead stretch. The length is wall-clock hours from the first dead
+ * sample to the next sample that is not dead, or to the last sample if the
+ * run ends waiting.
  */
 export const DEAD_STRETCH = {
   unit: "hours",
+  minWaitSec: SESSION_MINUTES * SECONDS_PER_MINUTE,
 } as const;
 
 /** liveP10 reads this percentile. */

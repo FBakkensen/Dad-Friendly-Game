@@ -33,19 +33,18 @@ export type DecisionSample = {
   };
   /** Day the mountain emptied, when the run finished. Same on every sample. */
   readonly finishDay?: number;
-  /**
-   * The optimizer's finish day, stamped by a tournament when this row is
-   * compared. Regret is `finishDay / optimizerFinishDay`.
-   */
-  readonly optimizerFinishDay?: number;
-  /**
-   * A casual dad's finish day, stamped when this row is an extreme.
-   * The win is how much sooner `finishDay` is.
-   */
-  readonly casualFinishDay?: number;
 };
 
 export type MeasureValue = number | readonly string[];
+
+/**
+ * Other runs a tournament already finished. Regret and an extreme's win
+ * read it. A single run leaves it out.
+ */
+export type MeasureContext = {
+  readonly optimizerFinishDay?: number;
+  readonly casualFinishDay?: number;
+};
 
 export type Measure = {
   readonly id: string;
@@ -53,7 +52,10 @@ export type Measure = {
   readonly unit: string;
   readonly why: string;
   readonly sample?: (sample: DecisionSample) => number;
-  readonly aggregate: (samples: readonly DecisionSample[]) => MeasureValue;
+  readonly aggregate: (
+    samples: readonly DecisionSample[],
+    context?: MeasureContext,
+  ) => MeasureValue;
 };
 
 /** Every move kind. A new kind has to be added here or the check fails. */
@@ -76,7 +78,10 @@ type MeasureSpec = {
   readonly unit: string;
   readonly why: string;
   readonly sample?: (sample: DecisionSample) => number;
-  readonly aggregate: (samples: readonly DecisionSample[]) => MeasureValue;
+  readonly aggregate: (
+    samples: readonly DecisionSample[],
+    context?: MeasureContext,
+  ) => MeasureValue;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -142,8 +147,12 @@ export function parseMeasureExport(loaded: unknown, filename: string): Measure {
 export function resultsOf(
   measures: readonly Measure[],
   samples: readonly DecisionSample[],
+  context?: MeasureContext,
 ): ReadonlyMap<string, MeasureValue> {
   return new Map(
-    measures.map((measure) => [measure.id, measure.aggregate(samples)]),
+    measures.map((measure) => [
+      measure.id,
+      measure.aggregate(samples, context),
+    ]),
   );
 }

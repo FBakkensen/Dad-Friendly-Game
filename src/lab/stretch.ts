@@ -1,5 +1,5 @@
 import type { DecisionSample, ScoreMethod } from "./measure";
-import { HOUR_MS } from "./targets";
+import { DEAD_STRETCH, HOUR_MS } from "./targets";
 
 export type Stretch = {
   readonly startMs: number;
@@ -7,26 +7,35 @@ export type Stretch = {
   readonly hours: number;
 };
 
-function counts(
+function table(
   sample: DecisionSample,
   method: ScoreMethod,
-): { readonly live: number; readonly affordable: number } {
+): {
+  readonly live: number;
+  readonly affordable: number;
+  readonly waitSec: number;
+} {
   if (method === "value") {
     return {
       live: sample.byValue.liveCount,
       affordable: sample.byValue.affordableLive,
+      waitSec: sample.byValue.waitToAffordSec,
     };
   }
-  return { live: sample.liveCount, affordable: sample.affordableLive };
+  return {
+    live: sample.liveCount,
+    affordable: sample.affordableLive,
+    waitSec: sample.waitToAffordSec,
+  };
 }
 
 /**
- * True when the dad is only waiting: the table has a live option, and the
- * pocket cannot pay for any of them.
+ * True when nothing live can be paid for and the best live option is still
+ * at least one session away. A shorter wait is just the end of a sitting.
  */
 function isDeadSample(sample: DecisionSample, method: ScoreMethod): boolean {
-  const { live, affordable } = counts(sample, method);
-  return live > 0 && affordable === 0;
+  const { live, affordable, waitSec } = table(sample, method);
+  return live > 0 && affordable === 0 && waitSec >= DEAD_STRETCH.minWaitSec;
 }
 
 /** Every waiting run, in order. Length is hours until the wait breaks. */

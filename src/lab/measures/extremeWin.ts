@@ -20,11 +20,9 @@ export default defineMeasure({
   label: "Extreme win",
   unit: "share",
   why: "How much sooner an extreme finishes than a casual dad.",
-  aggregate: (samples) => {
+  aggregate: (samples, context) => {
     const extreme = readFinishDay(samples);
-    const casual = samples.find(
-      (sample) => sample.casualFinishDay !== undefined,
-    )?.casualFinishDay;
+    const casual = context?.casualFinishDay;
     if (casual === undefined) {
       return Number.NaN;
     }

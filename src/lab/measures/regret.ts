@@ -20,11 +20,9 @@ export default defineMeasure({
   label: "Regret",
   unit: "ratio",
   why: "How much later a dad finishes than the one who plays the payback.",
-  aggregate: (samples) => {
+  aggregate: (samples, context) => {
     const policy = readFinishDay(samples);
-    const optimizer = samples.find(
-      (sample) => sample.optimizerFinishDay !== undefined,
-    )?.optimizerFinishDay;
+    const optimizer = context?.optimizerFinishDay;
     if (optimizer === undefined) {
       return Number.NaN;
     }

@@ -29,9 +29,8 @@ describe("casual run", () => {
     expect(report.value.singleShare).toBeCloseTo(0.42, 2);
     expect(report.value.deadHours / HOURS_PER_DAY).toBeCloseTo(2, 1);
     expect(report.value.deadStartDay).toBeCloseTo(3, 1);
-    expect(report.payback.singleShare).toBeGreaterThan(0);
-    expect(report.payback.singleShare).toBeLessThan(1);
-    expect(report.payback.deadHours).toBeGreaterThan(0);
-    expect(report.payback.singleShare).not.toBe(report.value.singleShare);
+    expect(report.payback.singleShare).toBeCloseTo(0.32, 2);
+    expect(report.payback.deadHours / HOURS_PER_DAY).toBeCloseTo(1, 1);
+    expect(report.payback.deadStartDay).toBeCloseTo(4, 1);
   });
 });

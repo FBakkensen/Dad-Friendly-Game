@@ -16,7 +16,7 @@ import { singleShareOf } from "./measures/singleShare";
 import { neverBest } from "./measures/typeEverBest";
 import { discover } from "./registry";
 import { applyScope } from "./scope";
-import { BORER_SOURCE, HOUR_MS, TENDING_SOURCE } from "./targets";
+import { BORER_SOURCE, DEAD_STRETCH, HOUR_MS, TENDING_SOURCE } from "./targets";
 
 function decision(over: {
   readonly atMs?: number;
@@ -28,8 +28,6 @@ function decision(over: {
   readonly outputShare?: DecisionSample["outputShare"];
   readonly optionKinds?: DecisionSample["optionKinds"];
   readonly finishDay?: number;
-  readonly optimizerFinishDay?: number;
-  readonly casualFinishDay?: number;
   readonly valueLive?: number;
   readonly valueAffordable?: number;
 }): DecisionSample {
@@ -56,12 +54,6 @@ function decision(over: {
       perStone: 1,
     },
     ...(over.finishDay === undefined ? {} : { finishDay: over.finishDay }),
-    ...(over.optimizerFinishDay === undefined
-      ? {}
-      : { optimizerFinishDay: over.optimizerFinishDay }),
-    ...(over.casualFinishDay === undefined
-      ? {}
-      : { casualFinishDay: over.casualFinishDay }),
   };
 }
 
@@ -112,10 +104,11 @@ describe("measures", () => {
 
   it("measures a wait-only stretch in hours", () => {
     const hour = HOUR_MS;
+    const waiting = { waitToAffordSec: DEAD_STRETCH.minWaitSec };
     const samples = [
-      decision({ atMs: 0 }),
-      decision({ atMs: hour }),
-      decision({ atMs: hour + hour }),
+      decision({ atMs: 0, ...waiting }),
+      decision({ atMs: hour, ...waiting }),
+      decision({ atMs: hour + hour, ...waiting }),
       decision({
         atMs: hour + hour + hour,
         affordableLive: 1,
@@ -125,13 +118,55 @@ describe("measures", () => {
     expect(longestDeadHours(samples, "payback")).toBe(3);
     expect(longestDeadHours(samples, "value")).toBe(3);
     const paybackOnly = [
-      decision({ atMs: 0, affordableLive: 1, valueAffordable: 0 }),
-      decision({ atMs: hour, affordableLive: 1, valueAffordable: 0 }),
+      decision({
+        atMs: 0,
+        affordableLive: 1,
+        valueAffordable: 0,
+        ...waiting,
+      }),
+      decision({
+        atMs: hour,
+        affordableLive: 1,
+        valueAffordable: 0,
+        ...waiting,
+      }),
       decision({ atMs: hour + hour, affordableLive: 1, valueAffordable: 1 }),
     ];
     expect(longestDeadHours(paybackOnly, "payback")).toBe(0);
     expect(longestDeadHours(paybackOnly, "value")).toBe(2);
     expect(longestDeadHours([], "payback")).toBe(0);
+  });
+
+  it("does not turn a short end-of-session save into the overnight gap", () => {
+    const fewMinutes = 3 * 60;
+    const overnight = 12 * HOUR_MS;
+    const samples = [
+      decision({ atMs: 0, waitToAffordSec: fewMinutes }),
+      decision({
+        atMs: overnight,
+        affordableLive: 1,
+        valueAffordable: 1,
+        waitToAffordSec: 0,
+      }),
+    ];
+    expect(fewMinutes).toBeLessThan(DEAD_STRETCH.minWaitSec);
+    expect(longestDeadHours(samples, "payback")).toBe(0);
+    expect(longestDeadHours(samples, "value")).toBe(0);
+  });
+
+  it("counts a wait of one session that spans the gap", () => {
+    const overnight = 12 * HOUR_MS;
+    const samples = [
+      decision({ atMs: 0, waitToAffordSec: DEAD_STRETCH.minWaitSec }),
+      decision({
+        atMs: overnight,
+        affordableLive: 1,
+        valueAffordable: 1,
+        waitToAffordSec: 0,
+      }),
+    ];
+    expect(longestDeadHours(samples, "payback")).toBe(overnight / HOUR_MS);
+    expect(longestDeadHours(samples, "value")).toBe(overnight / HOUR_MS);
   });
 
   it("leaves the first hour out of the dominant share", () => {
@@ -179,17 +214,17 @@ describe("measures", () => {
     expect(regret(5.5, 5)).toBeCloseTo(1.1, 5);
     expect(regret(1, 0)).toBe(Number.POSITIVE_INFINITY);
     expect(
-      regretMeasure.aggregate([
-        decision({ finishDay: 5, optimizerFinishDay: 4 }),
-      ]),
+      regretMeasure.aggregate([decision({ finishDay: 5 })], {
+        optimizerFinishDay: 4,
+      }),
     ).toBe(1.25);
     expect(regretMeasure.aggregate([decision({ finishDay: 5 })])).toBeNaN();
     expect(extremeWin(4, 5)).toBeCloseTo(0.2, 5);
     expect(extremeWin(4, 0)).toBe(Number.POSITIVE_INFINITY);
     expect(
-      extremeWinMeasure.aggregate([
-        decision({ finishDay: 4, casualFinishDay: 5 }),
-      ]),
+      extremeWinMeasure.aggregate([decision({ finishDay: 4 })], {
+        casualFinishDay: 5,
+      }),
     ).toBeCloseTo(0.2, 5);
   });
 
