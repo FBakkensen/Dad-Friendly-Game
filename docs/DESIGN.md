@@ -146,6 +146,7 @@ M2 gives the player one choice: which tier to buy next. M3 adds the real idle-ga
 - **M4: Patience.** Every relic finally does what its card promises. See below.
 - **M5: Maintenance.** See below. Before any new feature.
 - **M6: Legacy.** Prestige (pass the mine to your kid), per the #83 note above.
+- **M8: Strategy lab.** Decision quality, offline. See Milestone 8 below. M8 is planned.
 
 ### M5: Maintenance
 
@@ -299,3 +300,62 @@ M7 is built. Final pacing, with the sim paying 2,000,000 stones and one worker f
 #### Issues
 
 One PR each, in order; the list with acceptance criteria is in the M7 PR description (#138).
+
+### Milestone 8: Strategy lab
+
+**M8 is planned.** Later issues update this line. Nothing in this section is in the game yet: no screen, no save field, no Firestore change. The lab runs offline, next to the pacing sim, so a retune can be judged before it ships. Players never see payback, shares, or these targets.
+
+#### Why
+
+Flemming's goal is a real decision at every moment: several options of comparable value, no dead stretch, and no dominant strategy, even for a dad who plays an extreme. Finish days come second. A casual dad still finishes in 5–7 days, and never under 5.
+
+M7 left a hole the pacing sim can already see. From the first borer, the upgrade-buying dad buys nothing until the Great Machine. The lab measures that hole, and the ones like it, on payback. The retune moves the economy. It does not move these targets to go green.
+
+#### Definitions
+
+- **Payback period (Cookie Monster).** How long until a move pays for itself. `valueOf` in `src/economy/actions.ts` returns `paybackSec` with the Cookie Monster formula `max(cost − pocket, 0) / income + cost / Δincome`: time to afford what is still missing, plus time for the extra income to earn the cost back. Income and the gain both come from `effectiveRates` before and after the move. A machine's staffing cost is part of that cost. The horizon is an argument, not a constant in the economy module.
+- **Live option.** A move whose payback is at most `LIVE_RATIO` times the best payback on the table. `LIVE_RATIO = 1.5`. Two or more live options is a real decision. One is a moment with nothing to choose.
+- **Dead stretch.** A run of samples where the dad is only waiting: one next buy, and nothing else is live. The lab scores the longest such stretch. What starts it, what ends it, and the sample interval are the dead-stretch definition in `src/lab/targets.ts`. A wait-only stretch is measured in hours. On today's casual run that stretch is about 2 days from day 3.0. Payback is the official score. Value-per-stone is reported beside it, for the earlier diagnosis.
+- **singleShare.** The share of decision samples with only one affordable option. One affordable option on every sample is `1`. On today's casual run it is about 42%, which the lab must reproduce within rounding.
+- **dominantShare.** The largest share of output any one source holds over the run (one tier, or one kind of move: taps, a machine, tending, a boost). The sample carries output share by source. A high share means one strategy did the mountain.
+- **Regret.** How far a move sits from the best move, on payback: its payback divided by the best payback. That ratio is 1 for the best move. A live option stays at or under `LIVE_RATIO` (1.5). Across a whole run, the same gap is how a player type finishes relative to the best type in the tournament. Regret is not its own file. `finishDay` and `dominantShare` carry it.
+
+#### Targets
+
+This page names them. `src/lab/targets.ts` is the source of truth, and the only place a lab number lives. No other magic numbers in `src/lab/`.
+
+Approved:
+
+- `LIVE_RATIO = 1.5`. A live option pays back within 1.5× of the best.
+- Longest dead stretch at most 0.5 day, for casual and for the optimizer.
+- `tap-only` and `five-min-a-day` finish within about 14 days.
+
+The same file holds the horizon `H` (default 6 hours, passed into `valueOf`), the sample interval (one minute of play, plus the start of each session), the dead-stretch definition, and one typed entry per guardrail: `{ id, measure, scope, op, value, why }`. Each entry has a one-line `why`. `measure` is a registered measure id. `scope` says which runs the bound covers. `op` and `value` are the comparison.
+
+Planned entries, beside the three above. M8-4 writes them into the file. A retune does not change a value to pass. That needs Flemming's OK.
+
+- `singleShare` at most 25%.
+- `liveMedian` at least 2 after the first hour.
+- `dominantShare` at most 40%.
+- Tending at least 8% of output for an Apprentice from the borer onward.
+- Casual `finishDay` from 5.0 to 7.0 days.
+- An extreme's win over casual at most 15%.
+- Optimizer versus casual at most 25%.
+
+#### How to extend
+
+Three moves. Each is one new file, or one entry in `targets.ts`. No other edit.
+
+`src/lab/registry.ts` is the Node-side loader. It discovers every non-test file in a folder, checks the shape, and fails loudly on a duplicate id or on a target that names an unknown measure. The pure engine (`src/lab/world.ts`, `src/lab/tournament.ts`, and the metrics) receives those registries as arguments and never reads the filesystem. knip lists `src/lab/policies/` and `src/lab/measures/` as entries, so a new file needs no knip edit.
+
+1. **Add a player type.** Add `src/lab/policies/<id>.ts`. It default-exports `definePolicy({ id, label, kind: "casual" | "extreme" | "optimizer", params, schedule, decide })` from `src/lab/policy.ts`. The loader picks the file up. `runTournament({ policies, measures, targets, seeds, days })` receives it in `policies`. A duplicate `id` fails the load.
+2. **Add a measure.** Add `src/lab/measures/<id>.ts`. It default-exports `defineMeasure({ id, label, unit, why, sample?, aggregate })` from `src/lab/measure.ts`. `sample`, when present, reads one `DecisionSample`: live count, best id, wait-to-afford, crew per second, pocket, and output share by source. `aggregate` turns the samples into the number the report shows. The loader picks the file up. The tournament gains a column. A target whose `measure` is not a registered id fails the load.
+3. **Add or change a target.** Add or edit one entry in `src/lab/targets.ts`: `{ id, measure, scope, op, value, why }`. The guardrail test (`src/lab/guardrails.test.ts`) makes one check per entry. It has no threshold constant of its own. The report's pass/fail cells read the same list.
+
+The first policy files are casual `casual-2x10` (today's plain dad: same finish day, same buy list), `evening-1x20`, and `checker-6x3`; extremes `never-workers`, `tap-only`, `machines-only`, `workers-only`, `hoarder`, `five-min-a-day`, `marathon`, `no-engineers`, `all-in-engineers`, `never-fix-trouble`, and `boost-junkie`; and one optimizer (greedy lowest payback, with a one-step "save for X" lookahead over the next session). The lookahead horizon comes from `targets.ts`. The optimizer finishes no later than casual.
+
+The first measure files are `liveMedian`, `liveP10`, `singleShare`, `longestDeadStretch`, `dominantShare`, `typeEverBest`, `featureShare`, and `finishDay`. `typeEverBest` is the "never best" list (a move kind that was never the right buy). `featureShare` is one named source's output share. Tending uses it.
+
+`src/lab/world.ts` is the clock they share: `step(world, ms, mode: live | away)` on one seeded clock, wrapping accrue, away pay, hazards, and expedition settle. Policies call `decide` on that world. The world does not read the policy or measure folders.
+
+`npm run lab` (`tools/strategy-lab.ts`) loads the registries and writes `reports/strategy-lab.md` and `.json` (gitignored). One row per policy, one column per registered measure, pass or fail from `targets.ts`. Flags: `--policy`, `--seeds`, `--days`. The report also shows per-hour timelines for casual and the optimizer, move kinds that were never best, and dead stretches longer than 2 hours (when they start, what the dad is saving for, and the next-best payback ratio). It suggests. It does not auto-tune.
