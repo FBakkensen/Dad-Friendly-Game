@@ -18,8 +18,10 @@ page is the map, plus the rules that keep it that way.
    file per player type. `lab/registry` discovers both folders; the world
    never reads the filesystem. `lab/run` plays a policy on that clock.
    `lab/tournament` runs every policy it is given across the seeds it is
-   given and scores every measure. `tools/strategy-lab.ts` (`npm run lab`)
-   loads the registries and writes the report. The tournament does not
+   given and scores every measure. `lab/guardrails` turns `targets.ts` into
+   one check per entry. `tools/strategy-lab.ts` (`npm run lab`) loads the
+   registries, writes the report, and warns on a miss unless `LAB_STRICT=1`.
+   CI runs it with `--ci` and posts the report. The tournament does not
    read the disk. `tools/sweep` (`npm run lab:sweep`) screens economy
    knobs (Morris, then Sobol) and writes that report. The sweep is
    offline and is not part of `npm run check`. A factor map scales

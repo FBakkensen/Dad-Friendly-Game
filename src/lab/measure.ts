@@ -38,6 +38,17 @@ export type DecisionSample = {
    * Infinity when nothing else on the table pays back.
    */
   readonly nextPaybackRatio: number;
+  /**
+   * The spends this dad weighs, scored both ways. Free posts and refused
+   * buys stay off this table: a zero price pays back at once, and a cheap
+   * upgrade the dad will not buy was hiding the unpaid gap.
+   */
+  readonly stretch: {
+    readonly payback: StretchView;
+    readonly value: StretchView;
+    /** Second-best payback over the best, on this table. */
+    readonly nextPaybackRatio: number;
+  };
 };
 
 export type MeasureValue = number | readonly string[];
@@ -76,6 +87,17 @@ export const MOVE_KINDS = [
 ] as const satisfies readonly Action["kind"][];
 
 export type ScoreMethod = "payback" | "value";
+
+/**
+ * Live options on the spends this dad weighs. Dead stretch reads this.
+ * The fields above still score every legal move.
+ */
+type StretchView = {
+  readonly liveCount: number;
+  readonly affordableLive: number;
+  readonly waitToAffordSec: number;
+  readonly bestId: string;
+};
 
 type MeasureSpec = {
   readonly id: string;

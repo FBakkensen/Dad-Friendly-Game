@@ -4,11 +4,11 @@ How the game plays is in `docs/DESIGN.md`. How it is built is in `docs/ARCHITECT
 
 ## Strategy lab
 
-`npm run lab` plays every registered player type for `MONTE_CARLO_SEEDS` seeds (see `src/lab/targets.ts`) and writes `reports/strategy-lab.md` and `reports/strategy-lab.json`. Those files are gitignored. The lab is not part of the game the player runs.
+`npm run lab` plays every registered player type and writes `reports/strategy-lab.md` and `reports/strategy-lab.json`. Those files are gitignored. Locally the seed count is `LOCAL_SEEDS`. CI passes `--ci` and uses `CI_SEEDS` (see `src/lab/targets.ts`). `--seeds` overrides either. The lab is not part of the game the player runs. A missed guardrail is a warning unless `LAB_STRICT=1`.
 
 The markdown table is one row per player type and one column per measure. A green pass or a red fail means a guardrail in `src/lab/targets.ts` covers that cell. A bare number has no guardrail. The header gives the optimizer's finish day and the plain dad's (`casual-2x10`); regret and extreme win use those two figures.
 
-Below the table: per-hour timelines for the casual player types and the optimizer, move kinds that were never the best buy, and dead stretches longer than two hours (when they start, what the dad is saving for, and the next payback). The suggestions name what missed. They do not change a number in the game.
+Below the table: per-hour timelines for the casual player types and the optimizer, move kinds that were never the best buy, and dead stretches longer than two hours, for payback and for value per stone (when they start, what the dad is saving for, and the next payback). The suggestions name what missed. They do not change a number in the game. A policy that never owns a borer shows n/a for tending share.
 
 ```bash
 npm run lab

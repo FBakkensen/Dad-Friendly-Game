@@ -315,7 +315,7 @@ The plain dad buys nothing from day 3.0 to 5.0. That gap is real. The lab measur
 
 - **Payback period (Cookie Monster).** How long until a move pays for itself. `valueOf` in `src/economy/actions.ts` returns `paybackSec` with the Cookie Monster formula `max(cost − pocket, 0) / income + cost / Δincome`: time to afford what is still missing, plus time for the extra income to earn the cost back. Income and the gain both come from `effectiveRates` before and after the move. A machine's staffing cost is part of that cost. The horizon is an argument, not a constant in the economy module.
 - **Live option.** A move whose payback is at most `LIVE_RATIO` times the best payback on the table. `LIVE_RATIO = 1.5`. Two or more live options is a real decision. One is a moment with nothing to choose.
-- **Dead stretch.** A sample is dead when no live option can be paid for and the best live option's wait is at least one session (`minWaitSec` in `src/lab/targets.ts`). A few minutes of saving at the end of a sitting does not turn the overnight gap into a dead stretch. The lab scores the longest such run. The length is wall-clock hours from the first dead sample to the next sample that is not dead, or to the last sample if the run ends waiting. On today's casual run that stretch is about 2 days from day 3.0, scored by value-per-stone on the crew table. Payback is the official score and is reported beside it.
+- **Dead stretch.** A sample is dead when the only live options on the spends this dad weighs need at least one session of saving (`minWaitSec` in `src/lab/targets.ts`): none of them can be paid for, and the best one's wait is at least that long. Free posts and refused buys are not on that table. A zero price pays back at once, and a cheap upgrade the plain dad never buys was keeping the stretch at zero. A few minutes of saving at the end of a sitting does not turn the overnight gap into a dead stretch. The lab scores the longest such run. The length is wall-clock hours from the first dead sample to the next sample that is not dead, or to the last sample if the run ends waiting. On today's casual run that stretch is about 2 days from day 3.0, scored by value-per-stone. Payback is the official score, about 1 day from day 4, and is reported beside it.
 - **singleShare.** The share of samples with at most one live option (payback within `LIVE_RATIO` of the best). A run where every sample is in that set is `1`. The same share by value-per-stone, on the plain dad's crew table, is about 42% on today's casual run, which the lab must reproduce within rounding. Payback is reported beside it.
 - **dominantShare.** The share of samples where the most common move is the best one, leaving out the first hour.
 - **Regret.** `finishDay(policy) / finishDay(optimizer)`, a tournament number. The optimizer is 1. A later finish is higher.
@@ -334,9 +334,9 @@ The same file holds the horizon `H` (default 6 hours, passed into `valueOf`), th
 
 Planned entries, beside the three above. M8-4 writes them into the file. A retune does not change a value to pass. That needs Flemming's OK.
 
-- `singleShare` at most 25%.
+- `singleShare` at most 25%, for casual player types and the optimizer.
 - `liveMedian` at least 2 after the first hour.
-- `dominantShare` at most 40%.
+- `dominantShare` at most 40%, for casual player types and the optimizer.
 - Tending at least 8% of output for an Apprentice from the borer onward.
 - Casual `finishDay` from 5.0 to 7.0 days.
 - An extreme's win over casual at most 15%.
@@ -354,7 +354,7 @@ Three moves. Each is one new file, or one entry in `targets.ts`. No other edit.
 
 The first policy files are casual `casual-2x10` (today's plain dad: same finish day, same buy list), `evening-1x20`, and `checker-6x3`; extremes `never-workers`, `tap-only`, `machines-only`, `workers-only`, `hoarder`, `five-min-a-day`, `marathon`, `no-engineers`, `all-in-engineers`, `never-fix-trouble`, and `boost-junkie`; and one optimizer (greedy lowest payback, with a one-step "save for X" lookahead over the next session). The lookahead horizon comes from `targets.ts`. The optimizer finishes no later than casual. Built (#172).
 
-The first measure files are `liveMedian`, `liveP10`, `singleShare`, `longestDeadStretch`, `dominantShare`, `typeEverBest`, `featureShare`, and `finishDay`. `typeEverBest` is the "never best" list (a move kind that was never the right buy). `featureShare` is one named source's output share. Tending uses it.
+The first measure files are `liveMedian`, `liveP10`, `singleShare`, `longestDeadStretch`, `longestValueStretch`, `dominantShare`, `typeEverBest`, `featureShare`, and `finishDay`. `typeEverBest` is the "never best" list (a move kind that was never the right buy). `featureShare` is one named source's output share. Tending uses it. A policy that never owns a borer shows n/a for that share, and the guardrail does not fail it.
 
 `src/lab/world.ts` is the clock they share: `step(world, ms, mode: live | away)` on one seeded clock, wrapping accrue, away pay, hazards, and expedition settle. Built (#171). The pacing sim steps this clock and chooses crew and upgrades with `listActions` / `valueOf`. Policies call `decide` on that world. The world does not read the policy or measure folders.
 
@@ -364,9 +364,9 @@ The first measure files are `liveMedian`, `liveP10`, `singleShare`, `longestDead
 
 One row per player type, one column per registered measure. A cell is a bare number when no guardrail covers that row. When one does, the cell is that guardrail's figure plus pass or fail, coloured green or red. Shares are fractions: 0.25 is 25%.
 
-The header names two finish days. **Optimizer finish day** is `optimizer`. **Casual finish day** is `casual-2x10`, the plain dad. Regret divides a dad's finish day by the optimizer's. Extreme win reads how much sooner an extreme finished than that casual dad. Both numbers are the mean across `MONTE_CARLO_SEEDS` (seeds 1 through that count). `--seeds` and `--days` override the count and `DEFAULT_MAX_DAYS`. `--policy` limits the rows; the columns stay every measure.
+The header names two finish days. **Optimizer finish day** is `optimizer`. **Casual finish day** is `casual-2x10`, the plain dad. Regret divides a dad's finish day by the optimizer's. Extreme win reads how much sooner an extreme finished than that casual dad. Both numbers are the mean across the seeds in the run (seeds 1 through that count). A local `npm run lab` uses `LOCAL_SEEDS`. CI passes `--ci` and uses `CI_SEEDS`. `--seeds` wins over both, and `--days` overrides `DEFAULT_MAX_DAYS`. `--policy` limits the rows; the columns stay every measure.
 
-Under the table: a per-hour timeline for each casual player type and the optimizer, on the first seed; a section per list measure (never the best buy is the dead-feature list); and dead stretches longer than `REPORT_DEAD_HOURS` (when they start, what the dad is saving for, and how many times slower the next payback is). The suggestions name the miss. They do not change a number.
+Under the table: a per-hour timeline for each casual player type and the optimizer, on the first seed; a section per list measure (never the best buy is the dead-feature list); and dead stretches longer than `REPORT_DEAD_HOURS`, once for payback and once for value per stone (when they start, what the dad is saving for, and how many times slower the next payback is). The suggestions name the miss. They do not change a number. CI posts that report and does not fail the build. `LAB_STRICT=1` is what turns a miss into a failing exit.
 
 Adding a policy file adds a row. Adding a measure file adds a column. Adding a target adds a pass or fail on the cells it covers. No other edit.
 

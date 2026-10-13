@@ -8,7 +8,8 @@ function tendingShare(sample: DecisionSample): number {
 
 /**
  * Tending's share of output. The guardrail's scope keeps the samples from
- * the borer onward; this file only reads the share.
+ * the borer onward; this file only reads the share. An empty list is n/a:
+ * the dad never reached the source the scope asked for.
  */
 export default defineMeasure({
   id: "featureShare",
@@ -16,5 +17,6 @@ export default defineMeasure({
   unit: "share",
   why: "Tending should show up in the output, or the post is not worth the walk.",
   sample: tendingShare,
-  aggregate: (samples) => mean(samples.map(tendingShare)),
+  aggregate: (samples) =>
+    samples.length === 0 ? Number.NaN : mean(samples.map(tendingShare)),
 });

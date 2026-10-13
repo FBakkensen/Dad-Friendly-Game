@@ -3,12 +3,18 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseMeasureExport } from "../src/lab/measure";
 import { parsePolicyExport } from "../src/lab/policy";
+import {
+  guardrailChecks,
+  labStatusCode,
+  type GuardrailCheck,
+} from "../src/lab/guardrails";
 import { renderReport, reportJson } from "../src/lab/report";
 import { discover } from "../src/lab/registry";
 import { runTournament } from "../src/lab/tournament";
 import {
+  CI_SEEDS,
   DEFAULT_MAX_DAYS,
-  MONTE_CARLO_SEEDS,
+  LOCAL_SEEDS,
   TARGETS,
 } from "../src/lab/targets";
 
@@ -22,11 +28,14 @@ const HELP = `Run every registered player type and write the strategy lab report
 
 Usage:
   npm run lab
+  npm run lab -- --ci
   npm run lab -- --policy <id> [--policy <id>]
   npm run lab -- --seeds <n> --days <n> --out <dir>
 
-Seeds default to ${String(MONTE_CARLO_SEEDS)} (1 through that count) and days to ${String(DEFAULT_MAX_DAYS)}.
+Seeds default to ${String(LOCAL_SEEDS)} (1 through that count). --ci uses ${String(CI_SEEDS)}.
+--seeds wins over both. Days default to ${String(DEFAULT_MAX_DAYS)}.
 --policy limits the rows. The columns are still every registered measure.
+A missed guardrail is a warning unless LAB_STRICT=1, which exits 1.
 Reports land in reports/strategy-lab.md and reports/strategy-lab.json.`;
 
 export type LabArgs =
@@ -53,7 +62,8 @@ export function parseLabArgs(
   defaults?: { readonly outDir?: string },
 ): LabArgs {
   const policyIds: string[] = [];
-  let seeds = MONTE_CARLO_SEEDS;
+  let seeds: number | undefined;
+  let ci = false;
   let days = DEFAULT_MAX_DAYS;
   let outDir = defaults?.outDir ?? "reports";
   let index = 0;
@@ -65,6 +75,11 @@ export function parseLabArgs(
     }
     if (arg === "--help" || arg === "-h") {
       return { kind: "help" };
+    }
+    if (arg === "--ci") {
+      ci = true;
+      index += 1;
+      continue;
     }
     if (arg === "--policy") {
       const value = argv[index + 1];
@@ -101,13 +116,23 @@ export function parseLabArgs(
     }
     return { kind: "error", message: `Unknown argument ${arg}.` };
   }
-  return { kind: "run", policyIds, seeds, days, outDir };
+  return {
+    kind: "run",
+    policyIds,
+    seeds: seeds ?? (ci ? CI_SEEDS : LOCAL_SEEDS),
+    days,
+    outDir,
+  };
 }
 
 export async function executeLab(
   args: Extract<LabArgs, { kind: "run" }>,
   dirs?: { readonly policies: string; readonly measures: string },
-): Promise<{ readonly markdown: string; readonly elapsedMs: number }> {
+): Promise<{
+  readonly markdown: string;
+  readonly elapsedMs: number;
+  readonly checks: readonly GuardrailCheck[];
+}> {
   const root = repoRoot();
   const policiesDir = dirs?.policies ?? path.join(root, "src/lab/policies");
   const measuresDir = dirs?.measures ?? path.join(root, "src/lab/measures");
@@ -135,6 +160,7 @@ export async function executeLab(
   });
   const elapsedMs = performance.now() - started;
   const markdown = renderReport(result);
+  const checks = guardrailChecks(TARGETS, result.rows);
   const outDir = path.resolve(args.outDir);
   mkdirSync(outDir, { recursive: true });
   writeFileSync(path.join(outDir, "strategy-lab.md"), markdown);
@@ -142,7 +168,7 @@ export async function executeLab(
     path.join(outDir, "strategy-lab.json"),
     `${JSON.stringify(reportJson(result), null, 2)}\n`,
   );
-  return { markdown, elapsedMs };
+  return { markdown, elapsedMs, checks };
 }
 
 function positiveInt(text: string): number | undefined {
@@ -185,12 +211,14 @@ async function main(): Promise<number> {
     return 1;
   }
   try {
-    const { elapsedMs } = await executeLab(parsed);
+    const { elapsedMs, checks } = await executeLab(parsed);
     const seconds = (elapsedMs / 1000).toFixed(1);
     console.log(
       `Wrote ${path.join(parsed.outDir, "strategy-lab.md")} and ${path.join(parsed.outDir, "strategy-lab.json")} in ${seconds}s.`,
     );
-    return 0;
+    return labStatusCode(checks, process.env, (line) => {
+      console.warn(line);
+    });
   } catch (error: unknown) {
     console.error(
       error instanceof Error ? error.message : "strategy lab failed",

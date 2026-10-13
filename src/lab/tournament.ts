@@ -1,10 +1,12 @@
 import { dayNumber, isSampleSecond, withFinish } from "./casual";
+import { actionsOnTable } from "./decide";
 import { readFinishDay } from "./measures/finishDay";
 import {
   type DecisionSample,
   type Measure,
   type MeasureContext,
   type MeasureValue,
+  type ScoreMethod,
 } from "./measure";
 import { valueContext, type Policy } from "./policy";
 import { runPolicy } from "./run";
@@ -93,6 +95,7 @@ export type DeadStretchNote = {
   readonly policyId: string;
   readonly label: string;
   readonly seed: number;
+  readonly score: ScoreMethod;
   readonly startDay: number;
   readonly hours: number;
   readonly savingFor: string;
@@ -131,12 +134,22 @@ function samplePolicy(
       if (isSampleSecond(live)) {
         const trouble =
           world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
+        const stretchActions =
+          trouble === undefined
+            ? actionsOnTable(world.mountain, world.clock, policy.params)
+            : actionsOnTable(
+                world.mountain,
+                world.clock,
+                policy.params,
+                trouble,
+              );
         samples.push(
           scoreDecision({
             mountain: world.mountain,
             now: world.clock,
             context,
             atMs: world.clock,
+            stretchActions,
             ...(trouble === undefined ? {} : { trouble }),
           }),
         );
@@ -251,6 +264,7 @@ function cellFor(
 ): Cell {
   const unscoped = across(measure, runs, (run) => run.samples, context);
   const judgements: Judgement[] = [];
+  let unavailable = false;
   for (const target of targets) {
     if (target.measure !== measure.id || !coversPolicy(target, policy)) {
       continue;
@@ -261,7 +275,10 @@ function cellFor(
       (run) => applyScope(target.scope, run.samples),
       context,
     );
-    if (typeof judged !== "number") {
+    if (typeof judged !== "number" || Number.isNaN(judged)) {
+      if (Number.isNaN(judged)) {
+        unavailable = true;
+      }
       continue;
     }
     const shared = {
@@ -281,7 +298,10 @@ function cellFor(
     label: measure.label,
     unit: measure.unit,
     why: measure.why,
-    value: displayValue(unscoped, judgements),
+    value:
+      judgements.length === 0 && unavailable
+        ? Number.NaN
+        : displayValue(unscoped, judgements),
     judgements,
   };
 }
@@ -321,7 +341,16 @@ function across(
   }
   const values = runs.map((run) => measure.aggregate(samplesOf(run), context));
   if (isNumbers(values)) {
-    return mean(values);
+    const defined: number[] = [];
+    for (const value of values) {
+      if (!Number.isNaN(value)) {
+        defined.push(value);
+      }
+    }
+    if (defined.length === 0) {
+      return Number.NaN;
+    }
+    return mean(defined);
   }
   return measure.aggregate(
     runs.flatMap((run) => samplesOf(run)),
@@ -392,23 +421,30 @@ function stretchesFor(
   const notes: DeadStretchNote[] = [];
   for (const policy of input.policies) {
     for (const run of grouped.get(policy.id) ?? []) {
-      for (const stretch of deadStretches(run.samples, "payback")) {
-        if (!(stretch.hours > REPORT_DEAD_HOURS)) {
-          continue;
+      for (const score of ["payback", "value"] as const) {
+        for (const stretch of deadStretches(run.samples, score)) {
+          if (!(stretch.hours > REPORT_DEAD_HOURS)) {
+            continue;
+          }
+          const opening = [...run.samples]
+            .sort((left, right) => left.atMs - right.atMs)
+            .find((sample) => sample.atMs >= stretch.startMs);
+          const saving =
+            score === "value"
+              ? opening?.stretch.value.bestId
+              : opening?.stretch.payback.bestId;
+          notes.push({
+            policyId: policy.id,
+            label: policy.label,
+            seed: run.seed,
+            score,
+            startDay: dayNumber(stretch.startMs),
+            hours: stretch.hours,
+            savingFor: saving ?? "",
+            nextPaybackRatio:
+              opening?.stretch.nextPaybackRatio ?? Number.POSITIVE_INFINITY,
+          });
         }
-        const opening = [...run.samples]
-          .sort((left, right) => left.atMs - right.atMs)
-          .find((sample) => sample.atMs >= stretch.startMs);
-        notes.push({
-          policyId: policy.id,
-          label: policy.label,
-          seed: run.seed,
-          startDay: dayNumber(stretch.startMs),
-          hours: stretch.hours,
-          savingFor: opening?.bestId ?? "",
-          nextPaybackRatio:
-            opening?.nextPaybackRatio ?? Number.POSITIVE_INFINITY,
-        });
       }
     }
   }

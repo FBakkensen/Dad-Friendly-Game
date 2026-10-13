@@ -1,9 +1,16 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import {
+  guardrailChecks,
+  guardrailExit,
+  labStatusCode,
+  type GuardrailCheck,
+} from "./guardrails";
 import { parseMeasureExport } from "./measure";
 import { discover } from "./registry";
-import { meetsTarget, TARGETS } from "./targets";
+import type { PolicyRow } from "./tournament";
+import { meetsTarget, TARGETS, type Target } from "./targets";
 
 const labDir = path.resolve("src/lab");
 
@@ -39,6 +46,90 @@ function sourceFiles(dir: string): string[] {
   }
   return found;
 }
+
+function judgementFor(
+  target: Target,
+  pass: boolean,
+): PolicyRow["cells"][number]["judgements"][number] {
+  const shared = {
+    targetId: target.id,
+    why: target.why,
+    value: 0,
+    pass,
+  };
+  if (target.op === "between") {
+    return { ...shared, op: target.op, limit: target.value };
+  }
+  return { ...shared, op: target.op, limit: target.value };
+}
+
+function rowFor(targets: readonly Target[], pass: boolean): PolicyRow {
+  return {
+    id: "alpha",
+    label: "Alpha",
+    kind: "casual",
+    finishDay: 1,
+    cells: targets.map((target) => ({
+      measureId: target.measure,
+      label: target.measure,
+      unit: "count",
+      why: target.why,
+      value: 0,
+      judgements: [judgementFor(target, pass)],
+    })),
+  };
+}
+
+describe("guardrails", () => {
+  it("adds a check when a target is added and reads no threshold of its own", () => {
+    const extra: Target = {
+      id: "fixture-extra",
+      measure: "finishDay",
+      scope: { kind: "all" },
+      op: "lte",
+      value: 1,
+      why: "A fixture bound used only to prove a new entry adds a check.",
+    };
+    const longer = [...TARGETS, extra];
+    const rows = [rowFor(longer, true)];
+    expect(
+      guardrailChecks(TARGETS, rows).map((check) => check.targetId),
+    ).toEqual(TARGETS.map((target) => target.id));
+    expect(
+      guardrailChecks(longer, rows).map((check) => check.targetId),
+    ).toEqual(longer.map((target) => target.id));
+    const missed = guardrailChecks(longer, [rowFor(longer, false)]);
+    expect(missed.every((check) => check.pass)).toBe(false);
+    expect(missed.map((check) => check.targetId)).toContain("fixture-extra");
+  });
+
+  it("warns on a miss, and fails only when LAB_STRICT is set", () => {
+    const broken: readonly GuardrailCheck[] = [
+      {
+        targetId: "fixture-extra",
+        measure: "finishDay",
+        pass: false,
+        detail: "fixture-extra misses for Alpha.",
+      },
+    ];
+    const warnings: string[] = [];
+    const warn = (line: string) => {
+      warnings.push(line);
+    };
+    expect(guardrailExit(broken, false, warn)).toBe(0);
+    expect(warnings).toEqual(["fixture-extra misses for Alpha."]);
+    expect(guardrailExit(broken, true, () => undefined)).toBe(1);
+    expect(labStatusCode(broken, {}, () => undefined)).toBe(0);
+    expect(labStatusCode(broken, { LAB_STRICT: "1" }, () => undefined)).toBe(1);
+    const held: GuardrailCheck = {
+      targetId: "fixture-extra",
+      measure: "finishDay",
+      pass: true,
+      detail: "fixture-extra holds.",
+    };
+    expect(labStatusCode([held], { LAB_STRICT: "1" }, () => undefined)).toBe(0);
+  });
+});
 
 describe("targets", () => {
   it("gives every guardrail one line of why and a known comparison", () => {
