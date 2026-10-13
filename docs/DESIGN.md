@@ -309,16 +309,16 @@ One PR each, in order; the list with acceptance criteria is in the M7 PR descrip
 
 Flemming's goal is a real decision at every moment: several options of comparable value, no dead stretch, and no dominant strategy, even for a dad who plays an extreme. Finish days come second. A casual dad still finishes in 5–7 days, and never under 5.
 
-M7 made the middle of the run busier: the sim dad buys something through those days. A thin decision can remain, one affordable option or a long wait for the next real buy. The lab measures that on payback. The retune moves the economy. It does not move these targets to go green.
+The plain dad buys nothing from day 3.0 to 5.0. That gap is real. The lab measures it. The retune moves the economy. It does not move these targets to go green.
 
 #### Definitions
 
 - **Payback period (Cookie Monster).** How long until a move pays for itself. `valueOf` in `src/economy/actions.ts` returns `paybackSec` with the Cookie Monster formula `max(cost − pocket, 0) / income + cost / Δincome`: time to afford what is still missing, plus time for the extra income to earn the cost back. Income and the gain both come from `effectiveRates` before and after the move. A machine's staffing cost is part of that cost. The horizon is an argument, not a constant in the economy module.
 - **Live option.** A move whose payback is at most `LIVE_RATIO` times the best payback on the table. `LIVE_RATIO = 1.5`. Two or more live options is a real decision. One is a moment with nothing to choose.
 - **Dead stretch.** A run of samples where the dad is only waiting: one next buy, and nothing else is live. The lab scores the longest such stretch. What starts it, what ends it, and the sample interval are the dead-stretch definition in `src/lab/targets.ts`. A wait-only stretch is measured in hours. On today's casual run that stretch is about 2 days from day 3.0. Payback is the official score. Value-per-stone is reported beside it, for the earlier diagnosis.
-- **singleShare.** The share of decision samples with only one affordable option. One affordable option on every sample is `1`. On today's casual run it is about 42%, which the lab must reproduce within rounding.
-- **dominantShare.** The largest share of output any one source holds over the run (one tier, or one kind of move: taps, a machine, tending, a boost). The sample carries output share by source. A high share means one strategy did the mountain.
-- **Regret.** How far a move sits from the best move, on payback: its payback divided by the best payback. That ratio is 1 for the best move. A live option stays at or under `LIVE_RATIO` (1.5). Across a whole run, the same gap is how a player type finishes relative to the best type in the tournament. Regret is not its own file. `finishDay` and `dominantShare` carry it.
+- **singleShare.** The share of samples with at most one live option (payback within `LIVE_RATIO` of the best). A run where every sample is in that set is `1`. On today's casual run it is about 42%, which the lab must reproduce within rounding.
+- **dominantShare.** The share of samples where the most common move is the best one, leaving out the first hour.
+- **Regret.** `finishDay(policy) / finishDay(optimizer)`, a tournament number. The optimizer is 1. A later finish is higher.
 
 #### Targets
 
