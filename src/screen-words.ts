@@ -5,8 +5,8 @@ import {
   type EngineerPost,
   type EngineerRank,
 } from "./engineers";
-import type { KeepsakeId } from "./expeditions";
 import type { LostToolId } from "./lost-tools";
+import type { KeepsakeId, SettledFind, TunnelId } from "./expeditions";
 import { formatCompact, formatCount, formatDuration } from "./format";
 import type { TroubleKind } from "./hazards";
 import type { Mountain } from "./mountain";
@@ -318,3 +318,98 @@ export const promotePriceWords = (cost: number): string =>
 /** Warm confirm. The name is whoever is about to step up. */
 export const promoteConfirm = (name: string): string =>
   `${name} steps up as engineer. One worker fewer at the machines.`;
+
+/** The three ways down. The sheet uses these sentences as the buttons. */
+const TUNNEL_OFFER: Readonly<Record<TunnelId, string>> = {
+  "side-seam": "A quick look down a side seam",
+  "old-shaft": "About an hour in the old shaft",
+  "deep-dark": "A long night in the deep dark",
+};
+
+export const tunnelOffer = (tunnel: TunnelId): string => TUNNEL_OFFER[tunnel];
+
+/** Why an Apprentice cannot lead the deep dark. Other tunnels stay open. */
+export const tunnelLock = (
+  rank: EngineerRank,
+  tunnel: TunnelId,
+): string | undefined =>
+  tunnel === "deep-dark" && rank < 1
+    ? "The deep dark waits for a Journeyman."
+    : undefined;
+
+const LONG_NIGHT_MS = 90 * 60_000;
+const ABOUT_AN_HOUR_MS = 20 * 60_000;
+const A_LITTLE_WHILE_MS = 2 * 60_000;
+
+/**
+ * A running expedition, counted down without a clock.
+ * Long night, about an hour, a little while, then back soon.
+ */
+export const expeditionChip = (name: string, leftMs: number): string => {
+  if (leftMs <= A_LITTLE_WHILE_MS) {
+    return `${name} will be back soon.`;
+  }
+  if (leftMs <= ABOUT_AN_HOUR_MS) {
+    return `${name} will be gone a little while.`;
+  }
+  if (leftMs <= LONG_NIGHT_MS) {
+    return `${name} will be gone about an hour.`;
+  }
+  return `${name} will be gone a long night.`;
+};
+
+const FROM_TUNNEL: Readonly<Record<TunnelId, string>> = {
+  "side-seam": "a side seam",
+  "old-shaft": "the old shaft",
+  "deep-dark": "the deep dark",
+};
+
+/** What a tool does, short enough for the welcome card on a small phone. */
+const TOOL_HELPS = {
+  pick: "Taps bite deeper.",
+  lamp: "Golden veins linger.",
+  map: "Trips come home sooner.",
+  boots: "Fewer troubles at the machines.",
+} as const;
+
+const TOOL_IN_SENTENCE = {
+  pick: "Grandfather's pick",
+  lamp: "an old miner's lamp",
+  map: "a worn map",
+  boots: "steel-toe boots",
+} as const;
+
+const KEEPSAKE_IN_SENTENCE = {
+  drawing: "a child's drawing",
+  watch: "a pocket watch",
+  whistle: "a carved whistle",
+  pebble: "a smooth pebble",
+  ribbon: "a faded ribbon",
+} as const;
+
+/** Who came home, and what they carried, in one or two sentences. */
+export const cameBack = (
+  name: string,
+  tunnel: TunnelId,
+  find: SettledFind,
+): string => {
+  const from = FROM_TUNNEL[tunnel];
+  switch (find.kind) {
+    case "tool":
+      return `${name} came back from ${from} with ${TOOL_IN_SENTENCE[find.id]}. ${TOOL_HELPS[find.id]}`;
+    case "keepsake":
+      return `${name} came back from ${from} with ${KEEPSAKE_IN_SENTENCE[find.id]}. It waits on the relic shelf.`;
+    case "engineer":
+      return find.joined
+        ? `${name} came back from ${from} with ${find.name}, who joined the crew.`
+        : `${name} came back from ${from}. The lost engineer had already found a place.`;
+    case "glimmer":
+      return `${name} came back from ${from}. ${find.text}`;
+    case "quiet":
+      return `${name} came back from ${from}. ${find.text}`;
+  }
+};
+
+/** Soft confirm before a recall. No question mark: the buttons decide. */
+export const recallConfirm = (name: string): string =>
+  `${name} comes home empty-handed.`;

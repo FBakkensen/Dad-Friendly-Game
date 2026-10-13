@@ -8,7 +8,7 @@ import {
 } from "./cloud-save";
 import { staffExisting } from "./crew";
 import { grantFirstEngineer } from "./engineers";
-import { settle as settleExpeditions } from "./expeditions";
+import { settle as settleExpeditions, type Homecoming } from "./expeditions";
 import {
   closeHazards,
   freshHazards,
@@ -71,6 +71,11 @@ export type ProgressSnapshot = {
   readonly crewJoined: number | undefined;
   /** Set once when an older save's first borer brings their first engineer. */
   readonly engineerJoined: true | undefined;
+  /**
+   * Parties who came home this session and have not been read yet.
+   * Not a save field: the expedition already remembered the find.
+   */
+  readonly homecomings: readonly Homecoming[];
   /** Trouble at one machine this session. Never saved, gone after a reload. */
   readonly trouble: Trouble | undefined;
 };
@@ -160,6 +165,9 @@ export function createProgressStore({
   let welcomed = false;
   let crewJoined: number | undefined;
   let engineerJoined: true | undefined;
+  let homecomings: readonly Homecoming[] = [];
+  /** Set when someone comes home, cleared when the screen is told. */
+  let newsPending = false;
   let hazards: HazardState = freshHazards(hazardSeed ?? now());
   const activeTrouble = (): Trouble | undefined =>
     hazards.phase === "trouble" ? hazards.trouble : undefined;
@@ -250,8 +258,17 @@ export function createProgressStore({
       revealed: reveals[0],
       crewJoined,
       engineerJoined,
+      homecomings,
       trouble: activeTrouble(),
     };
+  };
+
+  const noteHomecomings = (arrived: readonly Homecoming[]): void => {
+    if (arrived.length === 0) {
+      return;
+    }
+    homecomings = [...homecomings, ...arrived];
+    newsPending = true;
   };
 
   const noteReveals = (): void => {
@@ -278,6 +295,7 @@ export function createProgressStore({
   };
 
   const emit = (): void => {
+    newsPending = false;
     noteReveals();
     const next = snapshot();
     for (const listener of [...listeners]) {
@@ -457,6 +475,7 @@ export function createProgressStore({
     }
     const result = accrueAway({ mountain, lastSeen: savedLastSeen, now: at });
     mountain = result.mountain;
+    noteHomecomings(result.homecomings);
     lastSeen = result.settledAt;
     // Away is rest. Trouble ends, and the time away does not count toward the next one.
     hazards = closeHazards(hazards, mountain);
@@ -649,7 +668,9 @@ export function createProgressStore({
     if (lastSeen !== undefined && at < lastSeen) {
       lastSeen = at;
       // Same rule as lastSeen: a departure still in the future moves to now.
-      mountain = settleExpeditions(mountain, at).mountain;
+      const settled = settleExpeditions(mountain, at);
+      mountain = settled.mountain;
+      noteHomecomings(settled.homecomings);
       return 0;
     }
     // Ticks come every second while the game is on screen. A longer gap means
@@ -659,7 +680,9 @@ export function createProgressStore({
     }
     // A live gap is at most ten seconds, so coming home at the end of it
     // pays that short stretch with the bonus. Away time splits exactly.
-    mountain = settleExpeditions(mountain, at).mountain;
+    const settled = settleExpeditions(mountain, at);
+    mountain = settled.mountain;
+    noteHomecomings(settled.homecomings);
     const from = lastSeen ?? at;
     const trouble = activeTrouble();
     const result = accrue({
@@ -693,6 +716,7 @@ export function createProgressStore({
     hazards = freshHazards(now());
     lastSeen = runStartedAt(next);
     away = undefined;
+    homecomings = [];
     reveals.length = 0;
     revealBaseline = 0;
     ring.clear();
@@ -728,7 +752,7 @@ export function createProgressStore({
       const before = mountain;
       const next = update(mountain);
       if (next === before) {
-        if (mined > 0 || troubleMark() !== beforeTrouble) {
+        if (mined > 0 || troubleMark() !== beforeTrouble || newsPending) {
           emit();
         }
         return;
@@ -817,13 +841,15 @@ export function createProgressStore({
       if (
         away === undefined &&
         crewJoined === undefined &&
-        engineerJoined === undefined
+        engineerJoined === undefined &&
+        homecomings.length === 0
       ) {
         return;
       }
       away = undefined;
       crewJoined = undefined;
       engineerJoined = undefined;
+      homecomings = [];
       emit();
     },
     tick: () => {
@@ -833,7 +859,12 @@ export function createProgressStore({
       const before = mountain;
       const beforeTrouble = troubleMark();
       const mined = settle();
-      if (mined > 0 || mountain !== before || troubleMark() !== beforeTrouble) {
+      if (
+        mined > 0 ||
+        mountain !== before ||
+        troubleMark() !== beforeTrouble ||
+        newsPending
+      ) {
         emit();
       }
     },

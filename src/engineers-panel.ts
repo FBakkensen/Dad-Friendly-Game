@@ -6,35 +6,45 @@ import {
   station,
   type Engineer,
 } from "./engineers";
-import { recall } from "./expeditions";
+import { TUNNELS, recall, send } from "./expeditions";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
   ENGINEER_STATIONS,
   PROMOTE_CREW_FULL,
   PROMOTE_NEEDS_WORKER,
+  expeditionChip,
   postWords,
   promoteConfirm,
   promotePriceWords,
   rankHint,
   rankLabel,
+  recallConfirm,
   tendingWords,
+  tunnelLock,
+  tunnelOffer,
 } from "./screen-words";
 
 /**
  * Engineers button (pocket row, from the first engineer) and its sheet:
- * lamps for rank, a post, and where to send them. Side tunnels come later.
+ * lamps for rank, a post, and the three tunnels. A running expedition is a
+ * countdown chip on the mountain and a Recall confirm in the sheet.
  */
 export function createEngineersPanel({
   progress,
   getView,
   requestRender,
   iconUrl,
+  chipHost,
+  now = Date.now,
 }: {
   progress: ProgressStore;
   getView: () => ProgressSnapshot;
   requestRender: () => void;
   /** Existing worker portrait. A lamp sits on it; no new art. */
   iconUrl: string;
+  /** Mountain corner. Chips sit with the boost countdowns, out of the flow. */
+  chipHost: HTMLElement;
+  now?: () => number;
 }): { button: HTMLButtonElement; sheet: HTMLDivElement; render: () => void } {
   const button = document.createElement("button");
   button.type = "button";
@@ -51,9 +61,19 @@ export function createEngineersPanel({
   button.append(icon);
   let open = false;
   let confirming = false;
+  /** Row whose recall confirm is open. A post button recalls without this. */
+  let recalling: number | undefined;
+  const chips = Array.from({ length: MAX_ENGINEERS }, () => {
+    const chip = document.createElement("p");
+    chip.className = "expedition-chip";
+    chip.hidden = true;
+    chipHost.append(chip);
+    return chip;
+  });
   button.addEventListener("click", () => {
     open = true;
     confirming = false;
+    recalling = undefined;
     requestRender();
   });
 
@@ -116,9 +136,80 @@ export function createEngineersPanel({
       posts.append(choice);
       return choice;
     });
-    item.append(head, tend, hint, posts);
+    const tunnels = document.createElement("div");
+    tunnels.className = "engineer-tunnels";
+    const tunnelChoices = TUNNELS.map((spec) => {
+      const choice = document.createElement("button");
+      choice.type = "button";
+      choice.className = "engineer-tunnel";
+      choice.dataset["tunnel"] = spec.id;
+      choice.textContent = tunnelOffer(spec.id);
+      choice.disabled = true;
+      choice.addEventListener("click", () => {
+        progress.applyMutation((current) =>
+          send(current, index, spec.id, now()),
+        );
+      });
+      tunnels.append(choice);
+      return { button: choice, id: spec.id };
+    });
+    const lock = document.createElement("p");
+    lock.className = "engineer-lock";
+    lock.id = `engineer-lock-${String(index)}`;
+    tunnels.append(lock);
+    const recallButton = document.createElement("button");
+    recallButton.type = "button";
+    recallButton.className = "engineer-recall";
+    recallButton.textContent = "Recall";
+    recallButton.hidden = true;
+    recallButton.addEventListener("click", () => {
+      recalling = index;
+      confirming = false;
+      requestRender();
+    });
+    const recallBox = document.createElement("div");
+    recallBox.className = "recall-confirm";
+    recallBox.hidden = true;
+    const recallLine = document.createElement("p");
+    recallLine.className = "recall-line";
+    const recallActions = document.createElement("div");
+    recallActions.className = "recall-actions";
+    const recallNo = document.createElement("button");
+    recallNo.type = "button";
+    recallNo.className = "recall-no";
+    recallNo.textContent = "Not yet";
+    const recallYes = document.createElement("button");
+    recallYes.type = "button";
+    recallYes.className = "recall-yes";
+    recallYes.textContent = "Recall";
+    recallNo.addEventListener("click", () => {
+      recalling = undefined;
+      requestRender();
+    });
+    recallYes.addEventListener("click", () => {
+      recalling = undefined;
+      progress.applyMutation((current) => recall(current, index));
+    });
+    recallActions.append(recallNo, recallYes);
+    recallBox.append(recallLine, recallActions);
+    item.append(head, tend, hint, posts, tunnels, recallButton, recallBox);
     list.append(item);
-    return { item, name, lamps, lamp, post, tend, hint, stations };
+    return {
+      item,
+      name,
+      lamps,
+      lamp,
+      post,
+      tend,
+      hint,
+      stations,
+      tunnels,
+      tunnelChoices,
+      lock,
+      recallButton,
+      recallBox,
+      recallLine,
+    };
   });
 
   const promoteButton = document.createElement("button");
@@ -129,6 +220,7 @@ export function createEngineersPanel({
       return;
     }
     confirming = true;
+    recalling = undefined;
     requestRender();
   });
   const confirm = document.createElement("div");
@@ -167,6 +259,7 @@ export function createEngineersPanel({
   const closeSheet = (): void => {
     open = false;
     confirming = false;
+    recalling = undefined;
     requestRender();
     button.focus();
   };
@@ -175,8 +268,9 @@ export function createEngineersPanel({
     if (event.key !== "Escape") {
       return;
     }
-    if (confirming) {
+    if (confirming || recalling !== undefined) {
       confirming = false;
+      recalling = undefined;
       requestRender();
       return;
     }
@@ -192,6 +286,11 @@ export function createEngineersPanel({
     if (engineers.length === 0) {
       open = false;
       confirming = false;
+      recalling = undefined;
+    }
+    const recalled = recalling === undefined ? undefined : engineers[recalling];
+    if (recalled !== undefined && recalled.post !== "tunnel") {
+      recalling = undefined;
     }
     button.hidden = engineers.length === 0;
     button.setAttribute("aria-expanded", open ? "true" : "false");
@@ -201,7 +300,22 @@ export function createEngineersPanel({
       if (engineer === undefined) {
         continue;
       }
-      paintEngineer(row, engineer, view.ready);
+      paintEngineer(row, engineer, view.ready, {
+        expeditions: current.expeditions,
+        now: now(),
+        recalling: recalling === index,
+      });
+    }
+    const trips = current.expeditions ?? [];
+    for (const [index, chip] of chips.entries()) {
+      const trip = trips[index];
+      if (trip === undefined) {
+        chip.hidden = true;
+        chip.textContent = "";
+        continue;
+      }
+      chip.hidden = false;
+      chip.textContent = expeditionChip(trip.engineer, trip.returnsAt - now());
     }
     const next = nextEngineerName(engineers);
     const affordable = canPromote(view);
@@ -257,9 +371,23 @@ function paintEngineer(
     tend: HTMLParagraphElement;
     hint: HTMLParagraphElement;
     stations: readonly HTMLButtonElement[];
+    tunnels: HTMLDivElement;
+    tunnelChoices: readonly {
+      button: HTMLButtonElement;
+      id: (typeof TUNNELS)[number]["id"];
+    }[];
+    lock: HTMLParagraphElement;
+    recallButton: HTMLButtonElement;
+    recallBox: HTMLDivElement;
+    recallLine: HTMLParagraphElement;
   },
   engineer: Engineer,
   ready: boolean,
+  trip: {
+    expeditions: ProgressSnapshot["mountain"]["expeditions"];
+    now: number;
+    recalling: boolean;
+  },
 ): void {
   row.item.dataset["name"] = engineer.name;
   row.name.textContent = engineer.name;
@@ -268,12 +396,38 @@ function paintEngineer(
     lamp.hidden = index > engineer.rank;
   }
   row.post.textContent = postWords(engineer.post);
-  const bonus = tendingWords(engineer);
-  row.tend.hidden = bonus === undefined;
-  row.tend.textContent = bonus ?? "";
+  const away = (trip.expeditions ?? []).find(
+    (candidate) => candidate.engineer === engineer.name,
+  );
+  const bonus = away === undefined ? tendingWords(engineer) : undefined;
+  row.tend.hidden = bonus === undefined && away === undefined;
+  row.tend.textContent =
+    away === undefined
+      ? (bonus ?? "")
+      : expeditionChip(engineer.name, away.returnsAt - trip.now);
   const hint = rankHint(engineer);
   row.hint.hidden = hint === undefined;
   row.hint.textContent = hint ?? "";
+  const inTunnel = engineer.post === "tunnel";
+  row.tunnels.hidden = inTunnel;
+  const reason = tunnelLock(engineer.rank, "deep-dark");
+  row.lock.hidden = reason === undefined;
+  row.lock.textContent = reason ?? "";
+  for (const choice of row.tunnelChoices) {
+    const locked = tunnelLock(engineer.rank, choice.id) !== undefined;
+    choice.button.disabled = !ready || locked;
+    if (locked) {
+      choice.button.setAttribute("aria-describedby", row.lock.id);
+    } else {
+      choice.button.removeAttribute("aria-describedby");
+    }
+  }
+  row.recallButton.hidden = !inTunnel || trip.recalling;
+  row.recallButton.disabled = !ready;
+  row.recallBox.hidden = !trip.recalling;
+  if (trip.recalling) {
+    row.recallLine.textContent = recallConfirm(engineer.name);
+  }
   for (const choice of row.stations) {
     const post = choice.dataset["post"];
     choice.disabled = !ready;

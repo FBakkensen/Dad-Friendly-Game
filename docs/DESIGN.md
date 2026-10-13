@@ -253,7 +253,7 @@ Veterans return as **engineers**: a few named, experienced hands (never more tha
 
 #### 4. Expeditions ("Side tunnels")
 
-- **Unlock:** with the first engineer (first borer). A "Side tunnels" button opens a sheet like Upgrades; no main-screen layout cost.
+- **Unlock:** with the first engineer (first borer). The Engineers sheet offers three tunnels, in words ("a quick look down a side seam", "about an hour in the old shaft", "a long night in the deep dark"). The deep dark waits for a Journeyman. No main-screen layout cost. Built (#147).
 - **Three tunnels, one expedition per engineer:**
 
   | Tunnel        | Away for | Leader       | Finds                                   |
@@ -262,13 +262,13 @@ Veterans return as **engineers**: a few named, experienced hands (never more tha
   | The old shaft | 1 h      | any engineer | one find, better odds of a lost tool    |
   | The deep dark | 4 h      | Journeyman+  | a rare find; may bring home an engineer |
 
-- **Away and back:** an expedition stores an absolute return time, so it **completes while the app is closed**. The tending bonus is missing until it returns (away accrual splits at the return time). The welcome card adds "Your engineer came back from the old shaft with …". Recall anytime: back empty-handed, no penalty. What the expedition finds is fixed when it leaves (seed = `sentAt`), so reloading can't reroll it.
+- **Away and back:** an expedition stores an absolute return time, so it **completes while the app is closed**. The tending bonus is missing until it returns (away accrual splits at the return time). The welcome card says "Ada came back from the old shaft with …", naming the find in words, and the same card appears in the session if they return while you play. A running trip is a small chip in the mountain's corner ("Ada will be gone about an hour."), with no layout cost. Recall anytime, after a soft confirm: back empty-handed, no penalty. Choosing a post while they are away recalls them first. What the expedition finds is fixed when it leaves (seed = `sentAt`), so reloading can't reroll it. Built (#147).
 - **Finds (never stones):**
   - _Relic glimmers_: an evocative line about the next relic ("Down there, something beat like a heart." for the Heart). No depths, no numbers.
   - _Lost tools_: one-time lasting upgrades only found below. Each is found once. The Upgrades sheet lists it as "Found" with one warm line, and does not show the ones still below. Built (#148):
     - _Grandfather's pick_: taps are five fourths as strong, rounded up, in `effectiveRates`, before Sharper picks doubles them.
     - _Old miner's lamp_: a golden vein glints twice as long (`veins`).
-    - _Worn map_: the next expedition takes three quarters of the tunnel's time. A party already out keeps its clock.
+    - _Worn map_: every expedition sent after it is found takes three quarters of the tunnel's time. A party already out keeps its clock.
     - _Steel-toe boots_: trouble waits twice as long. Hazards reads `wearsSteelToes`.
   - _Keepsakes_: a small collection on the relic shelf's detail sheet (a child's drawing, a pocket watch, a carved whistle …), just for the heart, Needle-in-a-Haystack style. Found ones only, one story each. The gold nugget stands in for art until PixelLab is asked. Built (#148).
 - **Pacing:** the sim dad keeps Ada tending and sends Nils on the old shaft each session and the deep dark each night. Paying a promotion slips the plain dad half a day, so the sim seats Nils without paying. Days stay: Lantern 1.5, Hammer 3.5, bottom 5.0, second run 4.0.

@@ -241,7 +241,8 @@ body {
   pointer-events: none;
 }
 
-.boost-chip {
+.boost-chip,
+.expedition-chip {
   margin: 0;
   padding: 2px 8px;
   border: 1px solid #f2c46d;
@@ -254,7 +255,8 @@ body {
   white-space: nowrap;
 }
 
-.boost-chip[hidden] {
+.boost-chip[hidden],
+.expedition-chip[hidden] {
   display: none;
 }
 
@@ -843,6 +845,10 @@ body {
 .menu-close:focus-visible,
 .upgrades-close:focus-visible,
 .engineers-close:focus-visible,
+.engineer-tunnel:focus-visible,
+.engineer-recall:focus-visible,
+.recall-no:focus-visible,
+.recall-yes:focus-visible,
 .upgrade-buy:focus-visible,
 .upgrades-button:focus-visible,
 .engineers-button:focus-visible,
@@ -1276,11 +1282,38 @@ body {
 }
 
 .welcome-crew,
-.welcome-engineer {
+.welcome-engineer,
+.welcome-return {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 650;
   color: #ffe08a;
+}
+
+.welcome-returns {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.welcome-returns[hidden] {
+  display: none;
+}
+
+/* A find line joins the away report. Keep the way back above the gesture bar. */
+.welcome-back {
+  padding: max(12px, env(safe-area-inset-top)) 16px
+    max(12px, env(safe-area-inset-bottom));
+}
+
+.welcome-card {
+  gap: 10px;
+  padding: 16px;
+}
+
+.welcome-card .welcome-continue {
+  min-height: 52px;
 }
 
 .welcome-card [hidden] {
@@ -1525,19 +1558,19 @@ body {
   font-size: clamp(1rem, 4.4vw, 1.2rem);
 }
 
-/* Engineers sheet. Tighter than Upgrades so one hand fits a 360×560 phone. */
+/* Engineers sheet. Tighter than Upgrades so tunnels still fit a 360×560 phone. */
 .engineers-dialog {
-  padding: max(12px, env(safe-area-inset-top)) 12px
-    max(12px, env(safe-area-inset-bottom));
+  padding: max(8px, env(safe-area-inset-top)) 12px
+    max(8px, env(safe-area-inset-bottom));
 }
 
 .engineers-card {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
+  gap: 6px;
   width: min(360px, 100%);
-  padding: 16px 12px;
+  padding: 10px 12px;
   border: 2px solid #e8a84a;
   border-radius: 20px;
   background: #1e130d;
@@ -1547,7 +1580,7 @@ body {
 
 .engineers-card h2 {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   text-align: center;
   color: #e8d4b8;
 }
@@ -1565,7 +1598,7 @@ body {
 .engineer {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   width: 100%;
 }
 
@@ -1639,9 +1672,13 @@ body {
 }
 
 .engineer-station,
+.engineer-tunnel,
+.engineer-recall,
 .engineer-promote,
 .engineer-confirm-no,
-.engineer-confirm-yes {
+.engineer-confirm-yes,
+.recall-no,
+.recall-yes {
   appearance: none;
   min-height: 44px;
   padding: 6px 4px;
@@ -1671,14 +1708,70 @@ body {
 }
 
 .engineer-station:disabled,
+.engineer-tunnel:disabled,
+.engineer-recall:disabled,
 .engineer-promote:disabled {
   cursor: default;
   opacity: 0.55;
 }
 
+.engineer-tunnels {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.engineer-tunnels[hidden],
+.engineer-recall[hidden],
+.engineer-lock[hidden],
+.recall-confirm[hidden] {
+  display: none;
+}
+
+.engineer-tunnel,
+.engineer-recall {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.engineer-lock,
+.recall-line {
+  margin: 0;
+  color: #c9b391;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.recall-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.recall-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.recall-actions > button {
+  flex: 1 1 0;
+}
+
 .engineer-promote {
   width: 100%;
   padding: 8px 12px;
+}
+
+/* The shared close rule is 64px. This sheet needs the shorter fat target. */
+.engineers-close {
+  min-height: 48px;
+  font-size: 1.05rem;
 }
 
 .engineer-promote[hidden],

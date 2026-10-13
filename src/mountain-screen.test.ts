@@ -2853,3 +2853,241 @@ describe("engineers sheet (#145)", () => {
     ).toBe(true);
   });
 });
+
+describe("side tunnels (#147)", () => {
+  const withAda = (patch: Partial<Mountain> = {}): Mountain => ({
+    ...minedMountain(0),
+    pocket: 5_000_000,
+    helpers: 20,
+    carts: 1,
+    drills: 1,
+    borers: 1,
+    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+    ...patch,
+  });
+
+  const openSheet = (root: HTMLElement): HTMLElement => {
+    const button = root.querySelector<HTMLButtonElement>(".engineers-button");
+    button?.click();
+    const sheet = root.querySelector<HTMLElement>(".engineers-dialog");
+    if (sheet === null) {
+      throw new Error("engineers sheet did not render");
+    }
+    return sheet;
+  };
+
+  it("sends Ada down a tunnel, and an Apprentice cannot take the deep dark", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: withAda(),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const sheet = openSheet(screen.root);
+    const ada = sheet.querySelector('[data-name="Ada"]');
+    expect(ada?.textContent).toContain("A quick look down a side seam");
+    expect(ada?.textContent).toContain("About an hour in the old shaft");
+    expect(ada?.textContent).toContain("A long night in the deep dark");
+    expect(ada?.querySelector(".engineer-lock")?.textContent).toBe(
+      "The deep dark waits for a Journeyman.",
+    );
+    const deep = ada?.querySelector<HTMLButtonElement>(
+      '[data-tunnel="deep-dark"]',
+    );
+    expect(deep?.disabled).toBe(true);
+    deep?.click();
+    expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
+
+    ada?.querySelector<HTMLButtonElement>('[data-tunnel="old-shaft"]')?.click();
+    expect(screen.text(".engineer-post")).toBe("Away in a tunnel");
+    expect(screen.text(".engineer-tend")).toBe(
+      "Ada will be gone about an hour.",
+    );
+    expect(ada?.querySelector<HTMLElement>(".engineer-tunnels")?.hidden).toBe(
+      true,
+    );
+    const chip = screen.root.querySelector<HTMLElement>(".expedition-chip");
+    expect(chip?.hidden).toBe(false);
+    expect(chip?.textContent).toBe("Ada will be gone about an hour.");
+    expect(chip?.textContent).not.toMatch(/\d|\?/);
+    const saved = readSessionSave({ storage })?.mountain;
+    expect(saved?.expeditions?.[0]?.tunnel).toBe("old-shaft");
+    expect(saved?.expeditions?.[0]?.engineer).toBe("Ada");
+    expect(saved?.engineers?.[0]?.post).toBe("tunnel");
+    screen.root.remove();
+  });
+
+  it("recalls with a soft confirm, and a post calls her home first", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: withAda(),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const sheet = openSheet(screen.root);
+    sheet
+      .querySelector<HTMLButtonElement>('[data-tunnel="side-seam"]')
+      ?.click();
+    const recall = sheet.querySelector<HTMLButtonElement>(".engineer-recall");
+    expect(recall?.hidden).toBe(false);
+    recall?.click();
+    expect(screen.text(".recall-line")).toBe("Ada comes home empty-handed.");
+    expect(screen.text(".recall-line")).not.toMatch(/\d|\?/);
+    sheet.querySelector<HTMLButtonElement>(".recall-no")?.click();
+    expect(screen.text(".engineer-post")).toBe("Away in a tunnel");
+    expect(sheet.querySelector<HTMLElement>(".recall-confirm")?.hidden).toBe(
+      true,
+    );
+
+    recall?.click();
+    sheet.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(sheet.hidden).toBe(false);
+    expect(screen.text(".engineer-post")).toBe("Away in a tunnel");
+
+    recall?.click();
+    sheet.querySelector<HTMLButtonElement>(".recall-yes")?.click();
+    expect(screen.text(".engineer-post")).toBe("Tending the borers");
+    expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    expect(screen.progress.getSnapshot().mountain.engineers?.[0]).toMatchObject(
+      { trips: 0, post: "borer" },
+    );
+    expect(screen.progress.getSnapshot().mountain.finds).toBeUndefined();
+    expect(
+      screen.root.querySelector<HTMLElement>(".expedition-chip")?.hidden,
+    ).toBe(true);
+
+    sheet
+      .querySelector<HTMLButtonElement>('[data-tunnel="side-seam"]')
+      ?.click();
+    sheet.querySelector<HTMLButtonElement>(".engineer-recall")?.click();
+    sheet.querySelector<HTMLButtonElement>('[data-post="camp"]')?.click();
+    expect(screen.text(".engineer-post")).toBe("At camp");
+    expect(sheet.querySelector<HTMLElement>(".recall-confirm")?.hidden).toBe(
+      true,
+    );
+    expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    expect(screen.progress.getSnapshot().mountain.engineers?.[0]?.trips).toBe(
+      0,
+    );
+    screen.root.remove();
+  });
+
+  it("lets a Journeyman take the deep dark", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: withAda({
+        engineers: [{ name: "Ada", rank: 1, trips: 3, post: "camp" }],
+      }),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const sheet = openSheet(screen.root);
+    const ada = sheet.querySelector('[data-name="Ada"]');
+    expect(ada?.querySelector<HTMLElement>(".engineer-lock")?.hidden).toBe(
+      true,
+    );
+    const deep = ada?.querySelector<HTMLButtonElement>(
+      '[data-tunnel="deep-dark"]',
+    );
+    expect(deep?.disabled).toBe(false);
+    deep?.click();
+    expect(screen.text(".expedition-chip")).toBe(
+      "Ada will be gone a long night.",
+    );
+    expect(
+      screen.progress.getSnapshot().mountain.expeditions?.[0]?.tunnel,
+    ).toBe("deep-dark");
+    screen.root.remove();
+  });
+
+  it("says who came back, on the welcome card and while you stay", () => {
+    const sent = send(withAda(), 0, "old-shaft", 0);
+    const trip = sent.expeditions?.[0];
+    if (trip === undefined) {
+      throw new Error("expected a trip");
+    }
+    const found = {
+      ...sent,
+      expeditions: [
+        {
+          ...trip,
+          sentAt: 0,
+          returnsAt: 60 * 60_000,
+          find: { kind: "tool" as const, id: "pick" as const },
+        },
+      ],
+    };
+    const awayStorage = createMemoryStorage();
+    writeSessionSave({ storage: awayStorage, mountain: found, lastSeen: 0 });
+    const away = mountScreen({ storage: awayStorage });
+    expect(away.root.querySelector<HTMLElement>(".welcome-back")?.hidden).toBe(
+      false,
+    );
+    expect(away.text("#welcome-back-title")).toBe("While you were away");
+    expect(away.text(".welcome-return")).toBe(
+      "Ada came back from the old shaft with Grandfather's pick. Taps bite deeper.",
+    );
+    expect(away.text(".welcome-return")).not.toMatch(/\d|\?/);
+    expect(away.root.querySelector<HTMLElement>(".welcome-mined")?.hidden).toBe(
+      false,
+    );
+    away.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
+    expect(away.root.querySelector<HTMLElement>(".welcome-back")?.hidden).toBe(
+      true,
+    );
+    expect(away.progress.getSnapshot().homecomings).toEqual([]);
+    away.progress.dispose();
+    away.root.remove();
+
+    vi.useFakeTimers();
+    try {
+      const start = 1_000_000_000;
+      vi.setSystemTime(start);
+      const waiting = {
+        ...sent,
+        expeditions: [
+          {
+            ...trip,
+            sentAt: start,
+            returnsAt: start + 5_000,
+            find: { kind: "tool" as const, id: "pick" as const },
+          },
+        ],
+      };
+      const liveStorage = createMemoryStorage();
+      writeSessionSave({
+        storage: liveStorage,
+        mountain: waiting,
+        lastSeen: start,
+      });
+      const live = mountScreen({ storage: liveStorage });
+      expect(
+        live.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+      ).toBe(true);
+      expect(live.text(".expedition-chip")).toBe("Ada will be back soon.");
+      vi.setSystemTime(start + 5_000);
+      live.progress.tick();
+      expect(live.text("#welcome-back-title")).toBe("Welcome home");
+      expect(live.text(".welcome-return")).toBe(
+        "Ada came back from the old shaft with Grandfather's pick. Taps bite deeper.",
+      );
+      expect(
+        live.root.querySelector<HTMLElement>(".welcome-mined")?.hidden,
+      ).toBe(true);
+      expect(
+        live.root.querySelector<HTMLElement>(".expedition-chip")?.hidden,
+      ).toBe(true);
+      expect(live.progress.getSnapshot().mountain.finds).toEqual(["pick"]);
+      expect(live.progress.getSnapshot().mountain.engineers?.[0]?.post).toBe(
+        "borer",
+      );
+      live.progress.dispose();
+      live.root.remove();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
