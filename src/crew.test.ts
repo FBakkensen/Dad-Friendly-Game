@@ -29,7 +29,7 @@ describe("crew unlocks", () => {
     expect(buyCrew(atHammer, "machine")).toMatchObject({
       machines: 1,
       kids: 0,
-      pocket: 40_000_000,
+      pocket: 23_000_000,
     });
     expect(buyCrew(nearHammer, "borer")).toMatchObject({ borers: 2 });
   });
@@ -53,7 +53,7 @@ describe("crew unlocks", () => {
 
   it("leaves an engineer's post alone when a Great Machine is bought", () => {
     const withBorer = buyCrew(
-      { ...minedMountain(25_000_000), pocket: 60_000_000, helpers: 5 },
+      { ...minedMountain(25_000_000), pocket: 80_000_000, helpers: 5 },
       "borer",
     );
     expect(withBorer.engineers?.[0]?.post).toBe("borer");

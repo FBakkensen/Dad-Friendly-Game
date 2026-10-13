@@ -136,7 +136,7 @@ describe("mountMountainScreen", () => {
   it("shows a hundred million stones and mines one per tap", () => {
     const screen = mountScreen();
 
-    expect(screen.text(".stones-left")).toBe("100 million stones left");
+    expect(screen.text(".stones-left")).toBe("240 million stones left");
     expect(screen.text(".pocket")).toBe("0 stones");
     expect(screen.text(".goal")).toContain("Legendary Relics of Fatherhood");
     expect(screen.text(".save-status")).toBe("Sign in to save");
@@ -144,7 +144,7 @@ describe("mountMountainScreen", () => {
     screen.mountain.click();
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe("99,999,999 of 100,000,000");
+    ).toBe("239,999,999 of 240,000,000");
     expect(screen.text(".pocket")).toBe("1 stone");
     expect(screen.text(".save-status")).toBe("Saved on this device");
 
@@ -152,7 +152,7 @@ describe("mountMountainScreen", () => {
     expect(screen.text(".pocket")).toBe("2 stones");
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe("99,999,998 of 100,000,000");
+    ).toBe("239,999,998 of 240,000,000");
   });
 
   it("keeps guest progress after the page is opened again", () => {
@@ -192,7 +192,7 @@ describe("mountMountainScreen", () => {
     expect(screen.text(".pocket")).toBe("3 stones");
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe("99,999,997 of 100,000,000");
+    ).toBe("239,999,997 of 240,000,000");
   });
 
   it("disables the mountain once it is mined out", () => {
@@ -209,7 +209,7 @@ describe("mountMountainScreen", () => {
     };
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 4, mountain: done, lastSeen: 1 }),
+      JSON.stringify({ version: 5, mountain: done, lastSeen: 1 }),
     );
 
     const screen = mountScreen({ storage });
@@ -415,7 +415,7 @@ describe("crew tiers on screen", () => {
       storage,
       mountain: {
         ...minedMountain(25_000_000),
-        pocket: 51_000_000,
+        pocket: 68_000_000,
         drills: 1,
         borers: 1,
       },
@@ -425,7 +425,7 @@ describe("crew tiers on screen", () => {
     const machine = tierCard(screen.root, "machine");
     expect(machine.classList.contains("tier-locked")).toBe(false);
     expect(machine.disabled).toBe(false);
-    expect(machine.querySelector(".tier-cost")?.textContent).toBe("50M");
+    expect(machine.querySelector(".tier-cost")?.textContent).toBe("67M");
     machine.click();
     expect(machine.querySelector(".tier-count")?.textContent).toBe("×1");
     expect(screen.text(".pocket")).toBe("1 million stones");
@@ -453,7 +453,7 @@ describe("crew tiers on screen", () => {
       storage.setItem(
         SESSION_SAVE_KEY,
         JSON.stringify({
-          version: 4,
+          version: 5,
           mountain: minedMountain(19),
           lastSeen: Date.now(),
         }),
@@ -506,7 +506,7 @@ describe("crew tiers on screen", () => {
       storage.setItem(
         SESSION_SAVE_KEY,
         JSON.stringify({
-          version: 4,
+          version: 5,
           mountain: { ...minedMountain(100), helpers: 1 },
           lastSeen: Date.now(),
         }),
@@ -540,9 +540,9 @@ describe("crew tiers on screen", () => {
     storage.setItem(
       SESSION_SAVE_KEY,
       JSON.stringify({
-        version: 4,
+        version: 5,
         mountain: {
-          remaining: 100_000_000,
+          remaining: 240_000_000,
           pocket: 0,
           helpers: 4,
           carts: 0,
@@ -581,9 +581,9 @@ describe("crew tiers on screen", () => {
     storage.setItem(
       SESSION_SAVE_KEY,
       JSON.stringify({
-        version: 4,
+        version: 5,
         mountain: {
-          remaining: 100_000_000,
+          remaining: 240_000_000,
           pocket: 0,
           helpers: 1,
           carts: 0,
@@ -780,7 +780,7 @@ describe("Lantern of Guidance on screen", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 4, mountain, lastSeen }),
+      JSON.stringify({ version: 5, mountain, lastSeen }),
     );
     return storage;
   };
@@ -855,7 +855,7 @@ describe("relic shelf", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 4, mountain, lastSeen: Date.now() }),
+      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
     );
     return storage;
   };
@@ -941,7 +941,7 @@ describe("start over", () => {
     storage.setItem(
       SESSION_SAVE_KEY,
       JSON.stringify({
-        version: 4,
+        version: 5,
         mountain: {
           ...minedMountain(12_000_000),
           helpers: 4,
@@ -1012,7 +1012,7 @@ describe("start over", () => {
     expect(screen.root.querySelector<HTMLElement>(".start-over")?.hidden).toBe(
       true,
     );
-    expect(screen.text(".stones-left")).toBe("100 million stones left");
+    expect(screen.text(".stones-left")).toBe("240 million stones left");
     expect(screen.text(".pocket")).toBe("0 stones");
     expect(screen.text(".crew-status")).toBe(
       "No crew yet. Hire a worker to mine for you.",
@@ -1027,9 +1027,9 @@ describe("start over", () => {
       mountain: { startedAt?: unknown };
     };
     expect(saved).toMatchObject({
-      version: 4,
+      version: 5,
       mountain: {
-        remaining: 100_000_000,
+        remaining: 240_000_000,
         pocket: 0,
         helpers: 0,
         carts: 0,
@@ -1261,7 +1261,7 @@ describe("what the crew gives", () => {
     storage.setItem(
       SESSION_SAVE_KEY,
       JSON.stringify({
-        version: 4,
+        version: 5,
         mountain: {
           ...minedMountain(2_500),
           helpers: 4,
@@ -2045,7 +2045,7 @@ describe("Mantle of the Hero finale (#103)", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 4, mountain, lastSeen: Date.now() }),
+      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
     );
     return storage;
   };
@@ -2068,7 +2068,7 @@ describe("Mantle of the Hero finale (#103)", () => {
     expect(legend?.hidden).toBe(false);
     expect(screen.text("#legend-title")).toBe("You became a Legend");
     expect(screen.text(".legend-stats")).toBe(
-      "100 million stones moved. Six relics found. A crew of 40 beside you.",
+      "240 million stones moved. Six relics found. A crew of 40 beside you.",
     );
     expect(legend?.querySelectorAll(".legend-shelf img")).toHaveLength(6);
     expect(document.activeElement).toBe(
@@ -2094,7 +2094,7 @@ describe("relic powers on the cards (shelf detail)", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 4, mountain, lastSeen: Date.now() }),
+      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
     );
     return storage;
   };
@@ -2208,7 +2208,7 @@ describe("pass the mine to your kid (#131)", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 4, mountain, lastSeen: Date.now() }),
+      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
     );
     return storage;
   };
@@ -2245,7 +2245,7 @@ describe("pass the mine to your kid (#131)", () => {
       ?.click();
 
     expect(dialog(screen)?.hidden).toBe(true);
-    expect(screen.text(".stones-left")).toBe("100 million stones left");
+    expect(screen.text(".stones-left")).toBe("240 million stones left");
     expect(screen.text(".pocket")).toBe("0 stones");
     const badge = screen.root.querySelector<HTMLElement>(".legacy-badge");
     expect(badge?.hidden).toBe(false);
@@ -2313,8 +2313,9 @@ describe("player-facing workers (#139)", () => {
     writeSessionSave({
       storage,
       mountain: {
-        // One stone short of the Crown. Away pay reaches the bottom, so the
-        // welcome card, the Crown's power, and the Legend finale all render.
+        // One stone short of the Crown. 23.5h of Shield away pay (under the
+        // 24h cap) reaches the 240M bottom, so the welcome card, the Crown,
+        // and the Legend finale all render.
         ...minedMountain(69_999_999),
         pocket: 80_000_000,
         helpers: 30,
@@ -2324,7 +2325,7 @@ describe("player-facing workers (#139)", () => {
         kids: 1,
         upgrades: { boots: 1, steady: 1, cartSyn: 1, tap: 2 },
       },
-      lastSeen: Date.now() - 20 * 3_600_000,
+      lastSeen: Date.now() - 23.5 * 3_600_000,
     });
     const screen = mountScreen({ storage });
     document.body.append(screen.root);

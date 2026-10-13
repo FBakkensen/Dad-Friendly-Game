@@ -77,7 +77,7 @@ describe("depthHint", () => {
     expect(depthHint(minedMountain(4_000_000))).toBe("Getting closer");
     expect(depthHint(minedMountain(7_000_000))).toBe("Close now");
     expect(depthHint(minedMountain(9_500_000))).toBe("Almost there");
-    expect(depthHint(minedMountain(100_000_000))).toBeUndefined();
+    expect(depthHint(minedMountain(MOUNTAIN_STONES))).toBeUndefined();
     for (const relic of RELICS) {
       expect(relic.tease).not.toMatch(/\d|\?/);
     }

@@ -78,7 +78,7 @@ export const TIERS: readonly Tier[] = [
     field: "machines",
     name: "Great Machine",
     shortName: "Machine",
-    firstCost: 50_000_000,
+    firstCost: 67_000_000,
     perSecond: 3_500,
     staff: 25,
     needs: "hammer",

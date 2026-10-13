@@ -527,7 +527,7 @@ describe("valueOf", () => {
     for (let extra = 0; extra < 5; extra += 1) {
       bill += tierCost(tierById("helper"), hammer.helpers + extra);
     }
-    expect(machine.cost).toBe(50_000_000 + bill);
+    expect(machine.cost).toBe(67_000_000 + bill);
   });
 
   it("scores a second cart plus the one worker it needs", () => {

@@ -8,9 +8,9 @@ service cloud.firestore {
     // Collection: saves
     // Document ID: Firebase Auth uid
     // Fields:
-    //   - version: int (required, 1..4)
-    //   - mountain: map (required iff version is 3 or 4)
-    //       - remaining: int 0..100000000 (v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts, drills, borers, machines, kids: optional int >= 0, upgrades: optional map of known ids to int levels, boosts: optional map of known ids to int end times,
+    //   - version: int (required, 1..5)
+    //   - mountain: map (required iff version is 3, 4, or 5)
+    //       - remaining: int 0..240000000 (v4: 0..100000000, v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts, drills, borers, machines, kids: optional int >= 0, upgrades: optional map of known ids to int levels, boosts: optional map of known ids to int end times,
     //         startedAt: optional int >= 0 (run start; updates may not lower it)
     //         staffed: optional true or 1 (#89 grant) or 2 (M7 top-up). true stays valid for old clients.
     //         engineers: optional list, size 0..5. Each: name from the closed list, rank 0..2 matching trips (0 until 3, 1 until 9, then 2), trips 0..1000000, post a machine tier or camp or tunnel. Names unique.
@@ -184,6 +184,10 @@ service cloud.firestore {
       return uidUnchanged() &&
         data.version is int &&
         (
+          (data.version == 5 &&
+            hasOnlyAllowedFields(['version', 'mountain', 'lastSeen']) &&
+            hasValidLastSeen(data) &&
+            isValidMountain(data.mountain, 240000000)) ||
           (data.version == 4 &&
             hasOnlyAllowedFields(['version', 'mountain', 'lastSeen']) &&
             hasValidLastSeen(data) &&
@@ -302,10 +306,10 @@ service cloud.firestore {
         (!('engineers' in shot) || isFieldEngineers(shot.engineers)) &&
         (!('expeditions' in shot) || isFieldTrips(shot.expeditions)) &&
         isIdleCounts(shot.idle) &&
-        shot.left is int && shot.left >= 0 && shot.left <= 100000000 &&
+        shot.left is int && shot.left >= 0 && shot.left <= 240000000 &&
         shot.legacy is int && shot.legacy >= 0 && shot.legacy <= 1000 &&
-        shot.mined is int && shot.mined >= 0 && shot.mined <= 100000000 &&
-        shot.pocket is int && shot.pocket >= 0 && shot.pocket <= 100000000 &&
+        shot.mined is int && shot.mined >= 0 && shot.mined <= 240000000 &&
+        shot.pocket is int && shot.pocket >= 0 && shot.pocket <= 240000000 &&
         isRelicList(shot.relics) &&
         shot.tapYield is number && shot.tapYield >= 0 && shot.tapYield <= 1000000000 &&
         isFieldUpgrades(shot.upgrades) &&
@@ -323,7 +327,7 @@ service cloud.firestore {
         (!('source' in eventData) || isShortText(eventData.source)) &&
         (!('count' in eventData) || (eventData.count is int && eventData.count >= 0 && eventData.count <= 1000000)) &&
         (!('ms' in eventData) || (eventData.ms is int && eventData.ms >= 0)) &&
-        (!('stones' in eventData) || (eventData.stones is number && eventData.stones >= 0 && eventData.stones <= 100000000));
+        (!('stones' in eventData) || (eventData.stones is number && eventData.stones >= 0 && eventData.stones <= 240000000));
     }
 
     function eventOk(event) {

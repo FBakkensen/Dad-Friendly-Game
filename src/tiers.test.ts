@@ -28,7 +28,7 @@ describe("tiers", () => {
       ["cart", 100, 10],
       ["drill", 14_000, 60],
       ["borer", 9_000_000, 595],
-      ["machine", 50_000_000, 3_500],
+      ["machine", 67_000_000, 3_500],
       ["kid", 1_000_000, 1],
     ]);
     expect(tierById("machine").needs).toBe("hammer");
@@ -52,7 +52,7 @@ describe("tiers", () => {
       100, 200, 400,
     ]);
     expect([0, 1].map((n) => tierCost(tierById("machine"), n))).toEqual([
-      50_000_000, 100_000_000,
+      67_000_000, 134_000_000,
     ]);
     // #177: borers climb at ×1.5 so a second and third stay buyable.
     expect([0, 1, 2].map((n) => tierCost(tierById("borer"), n))).toEqual([

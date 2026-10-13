@@ -28,14 +28,15 @@ describe("casual run", () => {
   it("reproduces the diagnosis, with payback reported beside it", () => {
     const run = sampleCasualRun();
     const report = diagnosisOf(run.samples);
-    // #177: the 595/s borer finishes the plain dad on day 5, and the
-    // payback wait drops from about a day to under half a day.
-    expect(run.finishDay).toBe(5);
-    expect(readFinishDay(run.samples)).toBe(5);
-    expect(report.value.singleShare).toBeCloseTo(0.45, 2);
-    expect(report.value.deadHours / HOURS_PER_DAY).toBeCloseTo(2, 1);
+    // #177: 240M of stone and a 67M Great Machine. The plain dad finishes
+    // on day 5.5. The longest payback wait stays under half a day and
+    // starts just after the borer.
+    expect(run.finishDay).toBe(5.5);
+    expect(readFinishDay(run.samples)).toBe(5.5);
+    expect(report.value.singleShare).toBeCloseTo(0.056, 3);
+    expect(report.value.deadHours / HOURS_PER_DAY).toBeCloseTo(0.99, 2);
     expect(report.value.deadStartDay).toBeCloseTo(2.5, 1);
-    expect(report.payback.singleShare).toBeCloseTo(0.075, 3);
+    expect(report.payback.singleShare).toBeCloseTo(0.056, 3);
     expect(report.payback.deadHours / HOURS_PER_DAY).toBeCloseTo(0.5, 1);
     expect(report.payback.deadStartDay).toBeCloseTo(2.5, 1);
   });
@@ -64,7 +65,7 @@ describe("casual run", () => {
       return;
     }
     expect(payback.value / HOURS_PER_DAY).toBeCloseTo(0.5, 1);
-    expect(value.value / HOURS_PER_DAY).toBeCloseTo(2, 1);
+    expect(value.value / HOURS_PER_DAY).toBeCloseTo(0.99, 2);
     const valueNotes = result.deadStretches.filter(
       (stretch) => stretch.score === "value",
     );

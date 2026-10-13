@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { LEGACY_STEP, legacyBonus, passTheMine } from "./legacy";
-import { createMountain, parseMountain, type Mountain } from "./mountain";
+import {
+  MOUNTAIN_STONES,
+  createMountain,
+  parseMountain,
+  type Mountain,
+} from "./mountain";
 import { effectiveRates } from "./rates";
 import { hasRelic } from "./relics";
 import { minedMountain } from "./test-fixtures";
 
 const bottom: Mountain = {
-  ...minedMountain(100_000_000),
+  ...minedMountain(MOUNTAIN_STONES),
   pocket: 123_456,
   helpers: 400,
   carts: 50,

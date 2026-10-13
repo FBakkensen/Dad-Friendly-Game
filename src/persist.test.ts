@@ -68,7 +68,7 @@ describe("serializeSave and parseSaveValue", () => {
     );
     const older = minedMountain(4);
     expect(
-      parseSaveValue({ version: 4, mountain: older, lastSeen: 8 })?.mountain,
+      parseSaveValue({ version: 5, mountain: older, lastSeen: 8 })?.mountain,
     ).toEqual(older);
     expect("engineers" in older).toBe(false);
   });
@@ -102,7 +102,7 @@ describe("serializeSave and parseSaveValue", () => {
     );
     const older = minedMountain(4);
     expect(
-      parseSaveValue({ version: 4, mountain: older, lastSeen: 4 })?.mountain,
+      parseSaveValue({ version: 5, mountain: older, lastSeen: 4 })?.mountain,
     ).toEqual(older);
     expect("expeditions" in older).toBe(false);
     expect("finds" in older).toBe(false);
@@ -111,7 +111,7 @@ describe("serializeSave and parseSaveValue", () => {
   it("round-trips a v4 mountain save", () => {
     const mountain = { ...minedMountain(42), helpers: 3 };
     const saved = serializeSave({ mountain, lastSeen: 1234 });
-    expect(saved).toEqual({ version: 4, mountain, lastSeen: 1234 });
+    expect(saved).toEqual({ version: 5, mountain, lastSeen: 1234 });
     expect(parseSaveValue(JSON.parse(JSON.stringify(saved)))).toEqual({
       mountain,
       lastSeen: 1234,
@@ -140,14 +140,31 @@ describe("serializeSave and parseSaveValue", () => {
     );
     expect(
       parseSaveValue({
-        version: 4,
+        version: 5,
         mountain: { ...minedMountain(1), boosts: { turbo: 1 } },
         lastSeen: 1,
       }),
     ).toBeUndefined();
   });
 
-  it("scales a v3 (1M) save into the 100M mountain at the same place", () => {
+  it("keeps a v4 dad's mined stones and adds the depth under the old bottom", () => {
+    expect(
+      parseSaveValue({
+        version: 4,
+        mountain: { remaining: 40_000_000, pocket: 3, helpers: 1 },
+        lastSeen: 9,
+      })?.mountain.remaining,
+    ).toBe(180_000_000);
+    expect(
+      parseSaveValue({
+        version: 4,
+        mountain: { remaining: -1, pocket: 0, helpers: 0 },
+        lastSeen: 1,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("scales a v3 (1M) save onto the v4 place, then the deeper bottom", () => {
     expect(
       parseSaveValue({
         version: 3,
@@ -156,7 +173,7 @@ describe("serializeSave and parseSaveValue", () => {
       }),
     ).toEqual({
       mountain: {
-        remaining: 98_000_000,
+        remaining: 238_000_000,
         pocket: 77,
         helpers: 4,
         carts: 0,
@@ -173,7 +190,7 @@ describe("serializeSave and parseSaveValue", () => {
         mountain: { remaining: 0, pocket: 0, helpers: 0 },
         lastSeen: 5,
       })?.mountain.remaining,
-    ).toBe(0);
+    ).toBe(140_000_000);
     expect(
       parseSaveValue({
         version: 3,
@@ -186,7 +203,7 @@ describe("serializeSave and parseSaveValue", () => {
   it("reads a save without carts as zero carts and rejects bad carts", () => {
     const base = { remaining: 5, pocket: 1, helpers: 2 };
     expect(
-      parseSaveValue({ version: 4, mountain: base, lastSeen: 1 })?.mountain,
+      parseSaveValue({ version: 5, mountain: base, lastSeen: 1 })?.mountain,
     ).toEqual({
       ...base,
       carts: 0,
@@ -197,7 +214,7 @@ describe("serializeSave and parseSaveValue", () => {
     });
     expect(
       parseSaveValue({
-        version: 4,
+        version: 5,
         mountain: { ...base, carts: 1, drills: 2 },
         lastSeen: 1,
       })?.mountain,
@@ -211,35 +228,35 @@ describe("serializeSave and parseSaveValue", () => {
     });
     expect(
       parseSaveValue({
-        version: 4,
+        version: 5,
         mountain: { ...base, borers: 7 },
         lastSeen: 1,
       })?.mountain.borers,
     ).toBe(7);
     expect(
       parseSaveValue({
-        version: 4,
+        version: 5,
         mountain: { ...base, machines: 3 },
         lastSeen: 1,
       })?.mountain.machines,
     ).toBe(3);
     expect(
       parseSaveValue({
-        version: 4,
+        version: 5,
         mountain: { ...base, machines: -1 },
         lastSeen: 1,
       }),
     ).toBeUndefined();
     expect(
       parseSaveValue({
-        version: 4,
+        version: 5,
         mountain: { ...base, upgrades: { tap: 2 } },
         lastSeen: 1,
       })?.mountain.upgrades,
     ).toEqual({ tap: 2 });
     expect(
       parseSaveValue({
-        version: 4,
+        version: 5,
         mountain: { ...base, upgrades: { tap: 99 } },
         lastSeen: 1,
       }),
@@ -247,7 +264,7 @@ describe("serializeSave and parseSaveValue", () => {
     for (const borers of [-1, 1.5, "3", null]) {
       expect(
         parseSaveValue({
-          version: 4,
+          version: 5,
           mountain: { ...base, borers },
           lastSeen: 1,
         }),
@@ -256,7 +273,7 @@ describe("serializeSave and parseSaveValue", () => {
     for (const drills of [-1, 1.5, "3", null]) {
       expect(
         parseSaveValue({
-          version: 4,
+          version: 5,
           mountain: { ...base, drills },
           lastSeen: 1,
         }),
@@ -265,7 +282,7 @@ describe("serializeSave and parseSaveValue", () => {
     for (const carts of [-1, 1.5, "3", null]) {
       expect(
         parseSaveValue({
-          version: 4,
+          version: 5,
           mountain: { ...base, carts },
           lastSeen: 1,
         }),
@@ -315,7 +332,7 @@ describe("serializeSave and parseSaveValue", () => {
       },
       { version: 2, grid: legacyGrid([]) },
       { version: 2, grid: { width: 2, height: 2, cells: [] }, lastSeen: 1 },
-      { version: 5, mountain: createMountain(), lastSeen: 1 },
+      { version: 6, mountain: createMountain(), lastSeen: 1 },
     ]) {
       expect(parseSaveValue(bad)).toBeUndefined();
     }
@@ -358,12 +375,12 @@ describe("the staffing mark", () => {
     );
     const old = unstaffedSave(mountain);
     expect(
-      parseSaveValue({ version: 4, mountain: old, lastSeen: 1 })?.mountain,
+      parseSaveValue({ version: 5, mountain: old, lastSeen: 1 })?.mountain,
     ).toEqual(old);
     for (const staffed of [true, 1] as const) {
       expect(
         parseSaveValue({
-          version: 4,
+          version: 5,
           mountain: { ...old, staffed },
           lastSeen: 1,
         })?.mountain.staffed,
@@ -372,7 +389,7 @@ describe("the staffing mark", () => {
     for (const staffed of [false, 0, 3, "2"]) {
       expect(
         parseSaveValue({
-          version: 4,
+          version: 5,
           mountain: { ...old, staffed },
           lastSeen: 1,
         }),

@@ -16,6 +16,7 @@ import {
   type FieldLogDocument,
 } from "./field-log";
 import {
+  MOUNTAIN_STONES,
   createMountain,
   mineByHand,
   accrueAway,
@@ -483,7 +484,7 @@ describe("helpers mining live", () => {
 
 describe("away earnings", () => {
   const crew = {
-    remaining: 100_000_000,
+    remaining: MOUNTAIN_STONES,
     pocket: 5,
     helpers: 3,
     carts: 0,
@@ -512,7 +513,7 @@ describe("away earnings", () => {
     });
     expect(readSessionSave({ storage })).toEqual({
       mountain: {
-        remaining: 100_000_000 - 540,
+        remaining: MOUNTAIN_STONES - 540,
         pocket: 545,
         helpers: 3,
         carts: 0,
