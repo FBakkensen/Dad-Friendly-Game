@@ -42,8 +42,9 @@ const GAP_MS = DAY_MS / DAD.sessionsPerDay - DAD.sessionSeconds * 1000;
 /**
  * The same day the sim plays, handed to `valueOf`. Stones a day per stone
  * is this schedule's gain per second divided by the move's cost.
+ * The strategy lab samples this schedule (#173).
  */
-const DAD_SCHEDULE: ValueContext = {
+export const DAD_SCHEDULE: ValueContext = {
   tapsPerSecond: DAD.tapsPerSecond,
   liveSeconds: DAD.sessionSeconds,
   awaySeconds: GAP_MS / 1000,
@@ -227,6 +228,7 @@ export function simulateDadRun({
   buysBoosts = false,
   legacy = 0,
   fixesTrouble = true,
+  onDecision,
 }: {
   /** Mountains already passed down: a second run starts with legacy 1. */
   legacy?: number;
@@ -241,6 +243,11 @@ export function simulateDadRun({
   buysUpgrades?: boolean;
   milestones: readonly number[];
   maxDays?: number;
+  /**
+   * The table after this second's income, before the buys. The lab samples
+   * it. The callback must not change the world.
+   */
+  onDecision?: (world: World, secondInSession: number) => void;
 }): DadRun {
   const reached = new Map<number, number>();
   const buys: DadPurchase[] = [];
@@ -289,6 +296,7 @@ export function simulateDadRun({
         "live",
         fixesTrouble ? { playerFixMs: SIM_FIX_MS } : undefined,
       );
+      onDecision?.(world, second);
       for (
         let pick = bestValue(world.mountain, world.clock, buysUpgrades);
         pick !== undefined && pick.cost <= world.mountain.pocket;
