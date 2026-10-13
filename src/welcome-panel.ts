@@ -4,6 +4,7 @@ import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates } from "./rates";
 import {
   ENGINEER_WELCOME,
+  cameBack,
   capWords,
   restingPace,
   workerWords,
@@ -42,6 +43,9 @@ export function createWelcomePanel({
   const welcomeEngineer = document.createElement("p");
   welcomeEngineer.className = "welcome-engineer";
   welcomeEngineer.hidden = true;
+  const welcomeReturns = document.createElement("div");
+  welcomeReturns.className = "welcome-returns";
+  welcomeReturns.hidden = true;
   const welcomeContinue = document.createElement("button");
   welcomeContinue.type = "button";
   welcomeContinue.className = "welcome-continue";
@@ -56,16 +60,34 @@ export function createWelcomePanel({
     welcomeCheer,
     welcomeCrew,
     welcomeEngineer,
+    welcomeReturns,
     welcomeContinue,
   );
   welcome.append(welcomeCard);
 
   const renderWelcome = (): void => {
-    const report = getView().away;
-    const joined = getView().crewJoined;
-    const steppedUp = getView().engineerJoined === true;
+    const view = getView();
+    const report = view.away;
+    const joined = view.crewJoined;
+    const steppedUp = view.engineerJoined === true;
+    const lines = view.homecomings.map((home) =>
+      cameBack(home.engineer, home.tunnel, home.find),
+    );
+    welcomeReturns.replaceChildren(
+      ...lines.map((line) => {
+        const paragraph = document.createElement("p");
+        paragraph.className = "welcome-return";
+        paragraph.textContent = line;
+        return paragraph;
+      }),
+    );
+    welcomeReturns.hidden = lines.length === 0;
     const wasOpen = !welcome.hidden;
-    welcome.hidden = report === undefined && joined === undefined && !steppedUp;
+    welcome.hidden =
+      report === undefined &&
+      joined === undefined &&
+      !steppedUp &&
+      lines.length === 0;
     welcomeCrew.hidden = joined === undefined;
     welcomeCrew.textContent =
       joined === undefined
@@ -83,12 +105,14 @@ export function createWelcomePanel({
           ? "Your crew grew"
           : steppedUp
             ? ENGINEER_WELCOME
-            : "While you were away";
+            : lines.length > 0
+              ? "Welcome home"
+              : "While you were away";
     welcomeMined.hidden = report === undefined;
     welcomeDetail.hidden = report === undefined;
     welcomeCheer.hidden = report === undefined;
     if (report === undefined) {
-      if ((joined !== undefined || steppedUp) && !wasOpen) {
+      if ((joined !== undefined || steppedUp || lines.length > 0) && !wasOpen) {
         welcomeContinue.focus();
       }
       return;

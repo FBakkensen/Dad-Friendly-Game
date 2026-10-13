@@ -9,6 +9,7 @@ import {
   parseFinds,
   type Expedition,
   type FindId,
+  type Homecoming,
 } from "./expeditions";
 import { parseUpgrades, type Upgrades } from "./upgrades";
 
@@ -204,7 +205,10 @@ export function accrueAway({
   mountain: Mountain;
   lastSeen: number;
   now: number;
-}): Accrual & { readonly report: AwayReport } {
+}): Accrual & {
+  readonly report: AwayReport;
+  readonly homecomings: readonly Homecoming[];
+} {
   const awayMs = Math.max(0, now - lastSeen);
   const rates = effectiveRates(mountain);
   const capped = awayMs > rates.awayCapMs;
@@ -242,8 +246,10 @@ function accrueAcrossExpeditions({
   from: number;
   to: number;
   pay: number;
-}): Accrual {
-  let state = completeDue(clampExpeditions(mountain, to), from).mountain;
+}): Accrual & { readonly homecomings: readonly Homecoming[] } {
+  const opened = completeDue(clampExpeditions(mountain, to), from);
+  let state = opened.mountain;
+  const homecomings = [...opened.homecomings];
   const marks = [
     ...new Set(
       (state.expeditions ?? [])
@@ -256,14 +262,19 @@ function accrueAcrossExpeditions({
   for (const mark of marks) {
     const part = accrue({ mountain: state, from: cursor, to: mark, pay });
     mined += part.mined;
-    state = completeDue(part.mountain, mark).mountain;
+    const brought = completeDue(part.mountain, mark);
+    state = brought.mountain;
+    homecomings.push(...brought.homecomings);
     cursor = mark;
   }
   const tail = accrue({ mountain: state, from: cursor, to, pay });
+  const closed = completeDue(tail.mountain, to);
+  homecomings.push(...closed.homecomings);
   return {
-    mountain: completeDue(tail.mountain, to).mountain,
+    mountain: closed.mountain,
     mined: mined + tail.mined,
     settledAt: tail.settledAt,
+    homecomings,
   };
 }
 
