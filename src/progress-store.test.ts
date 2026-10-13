@@ -511,7 +511,7 @@ describe("away earnings", () => {
         borers: 0,
         machines: 0,
         kids: 0,
-        staffed: true,
+        staffed: 2,
       },
       lastSeen: 600_000,
     });
@@ -933,12 +933,12 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       sessionStorage: storage,
       now: () => 0,
     });
-    expect(first.getSnapshot().crewJoined).toBe(3);
-    expect(first.getSnapshot().mountain.helpers).toBe(5);
-    expect(first.getSnapshot().mountain.staffed).toBe(true);
+    expect(first.getSnapshot().crewJoined).toBe(4);
+    expect(first.getSnapshot().mountain.helpers).toBe(6);
+    expect(first.getSnapshot().mountain.staffed).toBe(2);
     expect(readSessionSave({ storage })?.mountain).toMatchObject({
-      helpers: 5,
-      staffed: true,
+      helpers: 6,
+      staffed: 2,
     });
     first.dismissAway();
     expect(first.getSnapshot().crewJoined).toBeUndefined();
@@ -950,7 +950,7 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       now: () => 0,
     });
     expect(again.getSnapshot().crewJoined).toBeUndefined();
-    expect(again.getSnapshot().mountain.helpers).toBe(5);
+    expect(again.getSnapshot().mountain.helpers).toBe(6);
   });
 
   it("pays away time with the newly staffed crew", () => {
@@ -982,10 +982,10 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    expect(progress.getSnapshot().crewJoined).toBe(7);
+    expect(progress.getSnapshot().crewJoined).toBe(15);
     progress.flush();
     await vi.waitFor(() => {
-      expect(docs.get("test-dad")).toMatchObject({ helpers: 8, staffed: true });
+      expect(docs.get("test-dad")).toMatchObject({ helpers: 16, staffed: 2 });
     });
   });
 
@@ -1001,7 +1001,7 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
     progress.startOver();
     expect(progress.getSnapshot().mountain).toMatchObject({
       helpers: 0,
-      staffed: true,
+      staffed: 2,
     });
   });
 });

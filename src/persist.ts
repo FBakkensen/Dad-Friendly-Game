@@ -49,7 +49,7 @@ export function serializeSave({
       ...(mountain.startedAt === undefined
         ? {}
         : { startedAt: mountain.startedAt }),
-      ...(mountain.staffed === true ? { staffed: true } : {}),
+      ...(mountain.staffed === undefined ? {} : { staffed: mountain.staffed }),
       ...(mountain.legacy === undefined || mountain.legacy === 0
         ? {}
         : { legacy: mountain.legacy }),

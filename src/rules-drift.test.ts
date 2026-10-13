@@ -61,7 +61,7 @@ describe("firestore.rules match the game", () => {
       upgrades: {},
       boosts: {},
       startedAt: 0,
-      staffed: true,
+      staffed: 2,
       legacy: 0,
     };
     const match = /mountain\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/.exec(rules);
@@ -69,6 +69,9 @@ describe("firestore.rules match the game", () => {
       .split(",")
       .map((key) => key.trim().replace(/'/g, ""));
     expect(allowed.sort()).toEqual(Object.keys(everyField).sort());
+    expect(rules).toContain("mountain.staffed == true");
+    expect(rules).toContain("mountain.staffed == 1");
+    expect(rules).toContain("mountain.staffed == 2");
   });
 
   it("allows exactly the field log document (#142)", () => {

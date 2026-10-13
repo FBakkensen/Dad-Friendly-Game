@@ -40,8 +40,8 @@ const oldSave = (fields: Partial<Mountain>): Mountain => {
   return unstaffedSave({ ...minedMountain(0), ...fields });
 };
 
-describe("staffExisting (one-time #89 grant)", () => {
-  it("hires free helpers to run every machine, keeping everything else", () => {
+describe("staffExisting (one-time grants, #89 and #140)", () => {
+  it("hires free workers to run every machine, keeping everything else", () => {
     const before = oldSave({
       pocket: 777,
       helpers: 20,
@@ -50,23 +50,58 @@ describe("staffExisting (one-time #89 grant)", () => {
       borers: 1,
     });
     const { mountain, joined } = staffExisting(before);
-    // 12 + 14 + 4 = 30 needed.
-    expect(joined).toBe(10);
-    expect(mountain).toEqual({ ...before, helpers: 30, staffed: true });
+    // 12 carts + 21 drills + 8 borer = 41.
+    expect(joined).toBe(21);
+    expect(mountain).toEqual({ ...before, helpers: 41, staffed: 2 });
     expect(effectiveRates(mountain).helpersShort).toBe(0);
   });
 
-  it("only marks a save that already has enough helpers", () => {
+  it("tops up a save that already had the first grant", () => {
+    const before = {
+      ...oldSave({
+        helpers: 30,
+        carts: 12,
+        drills: 7,
+        borers: 1,
+      }),
+      staffed: true as const,
+    };
+    const { mountain, joined } = staffExisting(before);
+    expect(joined).toBe(11);
+    expect(mountain.staffed).toBe(2);
+    expect(mountain.helpers).toBe(41);
+    expect(effectiveRates(mountain).helpersShort).toBe(0);
+    expect(staffExisting({ ...before, staffed: 1 })).toMatchObject({
+      joined: 11,
+      mountain: { staffed: 2, helpers: 41 },
+    });
+  });
+
+  it("counts kids already on the crew, so they are not hired again", () => {
+    const before = {
+      ...oldSave({ helpers: 0, kids: 4, carts: 3 }),
+      staffed: true as const,
+    };
+    expect(staffExisting(before)).toMatchObject({
+      joined: 0,
+      mountain: { helpers: 0, kids: 4, staffed: 2 },
+    });
+  });
+
+  it("only marks a save that already has enough workers", () => {
     const before = oldSave({ helpers: 50, carts: 3 });
     expect(staffExisting(before)).toEqual({
-      mountain: { ...before, staffed: true },
+      mountain: { ...before, staffed: 2 },
       joined: 0,
     });
   });
 
-  it("never runs twice", () => {
+  it("never runs twice, and a save already at 2 is the same object", () => {
     const once = staffExisting(oldSave({ helpers: 0, carts: 5 })).mountain;
     const later = { ...once, carts: 9 };
     expect(staffExisting(later)).toEqual({ mountain: later, joined: 0 });
+    const done = { ...later, helpers: 0 };
+    expect(staffExisting(done)).toEqual({ mountain: done, joined: 0 });
+    expect(staffExisting(done).mountain).toBe(done);
   });
 });
