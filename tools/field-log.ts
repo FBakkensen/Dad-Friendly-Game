@@ -39,6 +39,8 @@ const SNAPSHOT_FIELDS = [
   "relics",
   "upgrades",
   "boosts",
+  "engineers",
+  "expeditions",
 ] as const;
 
 const SNAPSHOT_FIELD_SET: ReadonlySet<string> = new Set(SNAPSHOT_FIELDS);
@@ -311,6 +313,12 @@ function snapshotBody(
   if (Object.hasOwn(snapshot, "boosts")) {
     lines.push(...boostBlock(snapshot.boosts, timeZone));
   }
+  if (Object.hasOwn(snapshot, "engineers")) {
+    lines.push(...engineerBlock(snapshot.engineers));
+  }
+  if (Object.hasOwn(snapshot, "expeditions")) {
+    lines.push(...expeditionBlock(snapshot.expeditions, timeZone));
+  }
   const extra = Object.keys(snapshot)
     .filter((key) => !SNAPSHOT_FIELD_SET.has(key))
     .sort();
@@ -349,6 +357,46 @@ function boostBlock(value: unknown, timeZone: string): string[] {
         return `  ${item.id} until ${showTime(item.endsAt, timeZone)}`;
       }
       return `  ${showScalar(item)}`;
+    }),
+  ];
+}
+
+function engineerBlock(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    return ["Engineers", "  none"];
+  }
+  return [
+    "Engineers",
+    ...value.map((item) => {
+      if (!isRecord(item)) {
+        return `  ${showScalar(item)}`;
+      }
+      const name = typeof item.name === "string" ? item.name : "engineer";
+      const bits = [name];
+      if (typeof item.rank === "number") {
+        bits.push(`rank ${String(item.rank)}`);
+      }
+      if (typeof item.post === "string") {
+        bits.push(item.post);
+      }
+      return `  ${bits.join(" ")}`;
+    }),
+  ];
+}
+
+function expeditionBlock(value: unknown, timeZone: string): string[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    return ["Expeditions", "  none"];
+  }
+  return [
+    "Expeditions",
+    ...value.map((item) => {
+      if (!isRecord(item)) {
+        return `  ${showScalar(item)}`;
+      }
+      const who = typeof item.engineer === "string" ? item.engineer : "party";
+      const tunnel = typeof item.tunnel === "string" ? item.tunnel : "tunnel";
+      return `  ${who} ${tunnel} returns ${showTime(item.returnsAt, timeZone)}`;
     }),
   ];
 }
