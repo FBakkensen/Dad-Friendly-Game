@@ -1,3 +1,4 @@
+import type { FieldLogDocument } from "./field-log";
 import type { Mountain } from "./mountain";
 
 export type CloudLoadResult =
@@ -20,6 +21,11 @@ export type CloudSave = {
     uid: string;
     mountain: Mountain;
     lastSeen?: number;
+  }) => Promise<CloudWriteResult>;
+  /** Overwrites `fieldLogs/{uid}`. The caller throttles. */
+  readonly writeFieldLog: (args: {
+    uid: string;
+    log: FieldLogDocument;
   }) => Promise<CloudWriteResult>;
   readonly watch: (args: {
     uid: string;
@@ -58,6 +64,7 @@ export function createNoopCloudSave(): CloudSave {
   return {
     load: () => Promise.resolve({ kind: "disabled" }),
     write: () => Promise.resolve({ kind: "ok" }),
+    writeFieldLog: () => Promise.resolve({ kind: "ok" }),
     watch: ({ onChange }) => {
       onChange({ kind: "disabled" });
       return () => {
@@ -69,8 +76,10 @@ export function createNoopCloudSave(): CloudSave {
 
 export function createMemoryCloudSave({
   docs = new Map<string, Mountain>(),
+  fieldLogs = new Map<string, FieldLogDocument>(),
 }: {
   docs?: Map<string, Mountain>;
+  fieldLogs?: Map<string, FieldLogDocument>;
 } = {}): CloudSave {
   const watchers = new Map<string, Set<(remote: CloudLoadResult) => void>>();
   const lastSeenByUid = new Map<string, number>();
@@ -104,6 +113,10 @@ export function createMemoryCloudSave({
       emit(uid);
       return Promise.resolve({ kind: "ok" });
     },
+    writeFieldLog: ({ uid, log }) => {
+      fieldLogs.set(uid, log);
+      return Promise.resolve({ kind: "ok" });
+    },
     watch: ({ uid, onChange }) => {
       let listeners = watchers.get(uid);
       if (listeners === undefined) {
@@ -123,6 +136,8 @@ export function createUnavailableCloudSave(): CloudSave {
   return {
     load: () => Promise.resolve({ kind: "unavailable" }),
     write: () => Promise.resolve({ kind: "failed", message: "unavailable" }),
+    writeFieldLog: () =>
+      Promise.resolve({ kind: "failed", message: "unavailable" }),
     watch: ({ onChange }) => {
       onChange({ kind: "unavailable" });
       return () => {

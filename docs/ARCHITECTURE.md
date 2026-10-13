@@ -12,7 +12,8 @@ page is the map, plus the rules that keep it that way.
    players on top of them. Every number lives here.
 2. **Saves:** `persist` (versioned save format and parser), `session-save`
    (guest storage), `cloud-save` (interface + memory fake), `firebase-save`
-   (the SDK adapter), `firestore.rules` (server-side mirror of the parser,
+   (the SDK adapter; mountain save plus `fieldLogs/{uid}`), `firestore.rules`
+   (server-side mirror of the parser and the field log,
    guarded by `rules-drift.test.ts` and the emulator tests).
 3. **State:** `progress-store` owns the live mountain: settling time, away
    pay, reveals, migrations, and when/where to save. The screen only calls
@@ -58,7 +59,7 @@ page is the map, plus the rules that keep it that way.
 - `knip` (strict): no unused files, exports or dependencies.
 - `prettier --check .` covers docs too; coverage floors per critical module.
 
-## M7 sketch (design, not built)
+## M7 sketch
 
 - **Names:** player text says "worker"; `helpers`, `TierId "helper"` and the rules keep their names (no save migration). All copy comes from `screen-words`.
 - `tiers`: worker growth 1.15 → 1.25; staff cart 1 / drill 3 / borer 8 / Great Machine 25; borer first cost 10M. `crew.staffExisting` learns a second one-time grant (`staffed: 2`).
@@ -66,6 +67,6 @@ page is the map, plus the rules that keep it that way.
 - `expeditions` (rules layer, pure): `TUNNELS`; `send(mountain, engineer, tunnel, now)`, `recall`, `settle(mountain, now) → { mountain, finds }`. Save: `expeditions?: { engineer, tunnel, sentAt, returnsAt }[]`, `finds?: FindId[]` (closed list). Rules check `returnsAt > sentAt` and caps.
 - `rates`: `effectiveRates` adds the tending bonus (per tier, skipped while that engineer is in a tunnel) and lost-tool effects; hazards arrive as an optional session-only `trouble` argument. `accrueAway` splits at each `returnsAt`, so away and live agree.
 - `hazards` (rules layer, pure): `nextTrouble(seed, now)`, `fix`, slowdown curve, auto-fix by a tending engineer. Session state in `progress-store`, never saved.
-- `field-log` (rules layer, pure): `snapshot(mountain, rates, now, version)` and `EventRing` (last 200) are built (#141). `progress-store` records tier and upgrade purchases, boosts started, relic found, vein tapped, away report, Start over, pass the mine, and save errors. The ring is session memory (no save field). The menu copies `{ snapshot, events: last 50 }` as pretty JSON, with a read-only sheet when the clipboard is missing. No email or display name. Cloud `fieldLogs/{uid}` (#142) and `tools/field-log.ts` (#143) are not built. Engineers, expeditions, and hazards join the snapshot and the ring in #150.
+- `field-log` (rules layer, pure): `snapshot(mountain, rates, now, version)` and `EventRing` (last 200) are built (#141). `progress-store` records tier and upgrade purchases, boosts started, relic found, vein tapped, away report, Start over, pass the mine, and save errors. The ring is not a mountain save field. The menu copies `{ snapshot, events: last 50 }` as pretty JSON, with a read-only sheet when the clipboard is missing. No email or display name. Signed-in games write `fieldLogs/{uid}` = `{ snapshot, events (≤200), updatedAt }` at most every 5 minutes, and immediately on hide, Start over, and passing the mine (#142). Those two resets clear the ring first. Guests write nothing. `shouldWriteFieldLog` is the throttle. Rules: owner-only read/write, snapshot shape, `events` length ≤ 200, the first event's shape, no delete. The rules engine allows 1000 expressions, which is not enough to type-check all 200 events on top of the snapshot, so the client also refuses a document over 50 KB (`fieldLogWithinBudget`). `tools/field-log.ts` (#143) is not built. Engineers, expeditions, and hazards join the snapshot and the ring in #150.
 - Panels: `engineers-panel` (side tunnels + engineer posts, one sheet); trouble shown in `crew-panel`. The layout check covers the sheet button and a trouble card at 360×560.
 - Designed twice: expeditions as a negative-speed tier in `TIERS` was rejected (it leaks into buying, cards and the sim's value function). Separate modules that feed `effectiveRates` keep it the one place multipliers meet.

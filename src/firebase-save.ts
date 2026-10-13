@@ -12,9 +12,11 @@ import type {
   CloudSave,
   CloudWriteResult,
 } from "./cloud-save";
+import { fieldLogWithinBudget } from "./field-log";
 import { parseSaveValue, serializeSave } from "./persist";
 
 const SAVES = "saves";
+const FIELD_LOGS = "fieldLogs";
 
 export function createFirebaseCloudSave({
   options,
@@ -25,6 +27,7 @@ export function createFirebaseCloudSave({
   const app = existing ?? initializeApp(options);
   const db = getFirestore(app);
   const ref = (uid: string) => doc(db, SAVES, uid);
+  const fieldLogRef = (uid: string) => doc(db, FIELD_LOGS, uid);
 
   const readSnap = (snap: {
     exists: () => boolean;
@@ -59,6 +62,17 @@ export function createFirebaseCloudSave({
     }): Promise<CloudWriteResult> => {
       try {
         await setDoc(ref(uid), serializeSave({ mountain, lastSeen }));
+        return { kind: "ok" };
+      } catch (error: unknown) {
+        return { kind: "failed", message: cloudErrorMessage(error) };
+      }
+    },
+    writeFieldLog: async ({ uid, log }): Promise<CloudWriteResult> => {
+      if (!fieldLogWithinBudget(log)) {
+        return { kind: "failed", message: "field-log.size" };
+      }
+      try {
+        await setDoc(fieldLogRef(uid), log);
         return { kind: "ok" };
       } catch (error: unknown) {
         return { kind: "failed", message: cloudErrorMessage(error) };

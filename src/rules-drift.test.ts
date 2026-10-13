@@ -2,7 +2,16 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BOOSTS } from "./boosts";
-import type { Mountain } from "./mountain";
+import {
+  EVENT_RING_LIMIT,
+  FIELD_EVENT_DATA_KEYS,
+  FIELD_LOG_DATA_KEYS_MAX,
+  FIELD_LOG_TEXT_MAX,
+  snapshot,
+  type FieldLogDocument,
+} from "./field-log";
+import { createMountain, type Mountain } from "./mountain";
+import { effectiveRates } from "./rates";
 import { UPGRADES } from "./upgrades";
 
 /**
@@ -60,5 +69,41 @@ describe("firestore.rules match the game", () => {
       .split(",")
       .map((key) => key.trim().replace(/'/g, ""));
     expect(allowed.sort()).toEqual(Object.keys(everyField).sort());
+  });
+
+  it("allows exactly the field log document (#142)", () => {
+    const keys = (pattern: RegExp): string[] => {
+      const match = pattern.exec(rules);
+      return (match?.[1] ?? "")
+        .split(",")
+        .map((key) => key.trim().replace(/'/g, ""));
+    };
+    const shot = snapshot(
+      createMountain(),
+      effectiveRates(createMountain(), 1),
+      1,
+      "0.0.0",
+    );
+    const doc: FieldLogDocument = { snapshot: shot, events: [], updatedAt: 1 };
+    expect(keys(/shot\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/).sort()).toEqual(
+      Object.keys(shot).sort(),
+    );
+    expect(keys(/data\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/).sort()).toEqual(
+      Object.keys(doc).sort(),
+    );
+    expect(keys(/eventData\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/).sort()).toEqual(
+      [...FIELD_EVENT_DATA_KEYS].sort(),
+    );
+    expect(rules).toContain(`events.size() <= ${String(EVENT_RING_LIMIT)}`);
+    expect(rules).toContain(
+      `eventData.size() <= ${String(FIELD_LOG_DATA_KEYS_MAX)}`,
+    );
+    expect(rules).toContain(`value.size() <= ${String(FIELD_LOG_TEXT_MAX)}`);
+    const block =
+      /match \/fieldLogs\/\{userId\} \{([\s\S]*?)\n {4}\}/.exec(rules)?.[1] ??
+      "";
+    expect(block).toContain("allow read: if isOwner(userId)");
+    expect(block).toContain("isFieldLog(request.resource.data)");
+    expect(block).toContain("allow delete: if false");
   });
 });

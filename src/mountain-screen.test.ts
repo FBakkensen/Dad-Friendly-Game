@@ -220,6 +220,7 @@ describe("mountMountainScreen", () => {
     const cloudSave: CloudSave = {
       load: () => Promise.resolve({ kind: "missing" }),
       write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
       watch: ({ onChange }) => {
         finishLoad = onChange;
         return () => undefined;
