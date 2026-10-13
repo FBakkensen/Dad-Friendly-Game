@@ -353,8 +353,14 @@ export const exploreTitle = (tunnel: TunnelId): string => TUNNEL_TITLE[tunnel];
 export const exploreBenefit = (tunnel: TunnelId): string =>
   TUNNEL_BENEFIT[tunnel];
 
-export function exploreAside(name: Engineer["name"]): string {
+export function exploreAside(
+  name: Engineer["name"],
+  post: Engineer["post"],
+): string {
   const { subject, possessive, object } = voice(name);
+  if (post === "camp" || post === "tunnel") {
+    return `No machine slows while ${subject} explores.`;
+  }
   return `While ${subject} explores, ${possessive} machine works without ${object}.`;
 }
 

@@ -916,7 +916,7 @@ function paintEngineer(
       ui.pressedKey === `${String(index)}:post:${station.post}`,
     );
   }
-  row.aside.textContent = exploreAside(engineer.name);
+  row.aside.textContent = exploreAside(engineer.name, engineer.post);
   for (const choice of row.tunnelChoices) {
     const reason = tunnelLock(engineer.rank, choice.id);
     const locked = reason !== undefined;

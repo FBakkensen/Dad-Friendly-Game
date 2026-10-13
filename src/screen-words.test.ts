@@ -193,11 +193,14 @@ describe("engineer words", () => {
     expect(exploreBenefit("deep-dark")).toBe(
       "All night, the best chance of a relic hint or a new engineer.",
     );
-    expect(exploreAside("Ada")).toBe(
+    expect(exploreAside("Ada", "borer")).toBe(
       "While she explores, her machine works without her.",
     );
-    expect(exploreAside("Otto")).toBe(
+    expect(exploreAside("Otto", "drill")).toBe(
       "While he explores, his machine works without him.",
+    );
+    expect(exploreAside("Nils", "camp")).toBe(
+      "No machine slows while he explores.",
     );
     expect(exploreCheer("Ada")).toBe("Ada lights a lamp and heads in!");
     expect(tunnelLock(0, "side-seam")).toBeUndefined();

@@ -1761,7 +1761,9 @@ body {
 .engineer-recall:disabled,
 .engineer-promote:disabled {
   cursor: default;
-  opacity: 0.55;
+  opacity: 0.45;
+  filter: grayscale(0.85);
+  box-shadow: none;
 }
 
 .engineer-tunnels {
