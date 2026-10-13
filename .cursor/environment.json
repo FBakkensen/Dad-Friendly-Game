@@ -1,5 +1,5 @@
 {
   "build": { "context": "..", "dockerfile": "Dockerfile" },
-  "install": "npm ci",
+  "install": "bash scripts/cloud-setup.sh",
   "terminals": []
 }

@@ -2,6 +2,9 @@
   "name": "dad-friendly-game",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -15,9 +18,10 @@
     "format:check": "prettier --check .",
     "knip": "node scripts/knip-strict.js",
     "cycles": "node scripts/check-cycles.mjs",
-    "check": "npm run typecheck && npm run lint && npm run cycles && npm run format:check && npm run knip && npm run coverage && npm run test:rules && npm run visual",
+    "check": "node scripts/env-report.mjs --strict && npm run typecheck && npm run lint && npm run cycles && npm run format:check && npm run knip && npm run coverage && npm run test:rules && npm run visual",
     "visual": "node scripts/visual-check.mjs",
-    "test:rules": "node scripts/test-rules.mjs"
+    "test:rules": "node scripts/test-rules.mjs",
+    "env:report": "node scripts/env-report.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -4,6 +4,7 @@
  *   npm run visual   (starts its own dev server; part of npm run check, so CI runs it)
  * Fails if any phone viewport scrolls, or if an overlay isn't laid over the game.
  */
+import { existsSync } from "node:fs";
 import puppeteer from "puppeteer-core";
 import { createServer } from "vite";
 
@@ -19,7 +20,12 @@ const BASE =
   process.env.VISUAL_URL ??
   server?.resolvedUrls?.local[0] ??
   "http://127.0.0.1:4174/";
-const CHROME = process.env.CHROME_PATH ?? "/usr/bin/google-chrome";
+const CHROME =
+  process.env.CHROME_PATH ??
+  ["/usr/bin/google-chrome", "/usr/local/bin/google-chrome"].find((path) =>
+    existsSync(path),
+  ) ??
+  "/usr/bin/google-chrome";
 const SAVE_KEY = "dad-friendly-session";
 const VIEWPORTS = [
   [360, 560],

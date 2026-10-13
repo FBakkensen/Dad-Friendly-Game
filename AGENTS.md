@@ -153,7 +153,7 @@ Do not delete the local feature branch unless asked. Stop and ask on auth, secre
 
 ## Cursor cloud agents
 
-Grok Bot is product owner and reviewer: it plans, files issues, keeps `docs/DESIGN.md` truthful, play-tests, reviews, and merges. A Cursor cloud agent implements one assigned issue as one PR. The environment is `.cursor/environment.json` + `.cursor/Dockerfile` (Node 24 like CI, Chrome for the layout check, Java 21 for the Firestore emulator; install is `npm ci`). For a cloud agent this section overrides "After you file" above:
+Grok Bot is product owner and reviewer: it plans, files issues, keeps `docs/DESIGN.md` truthful, play-tests, reviews, and merges. A Cursor cloud agent implements one assigned issue as one PR. The environment is `.cursor/environment.json` + `.cursor/Dockerfile`, mirroring CI's ubuntu-24.04 runner: Node from `.nvmrc`, Chrome stable for the layout check, Temurin 21 (`JAVA_HOME_21_X64`) for the Firestore emulator. The install step is `scripts/cloud-setup.sh`, which also repairs Node/Java/Chrome paths on Cursor's default image. Run `npm run env:report` first and include its output in the PR; `npm run check` fails fast if the Node major differs from `.nvmrc`. For a cloud agent this section overrides "After you file" above:
 
 - One issue per PR. Reference the issue (`Closes #N`). No drive-by changes.
 - Run `npm run check` and get it green before opening or updating the PR. Paste the summary in the PR body.
