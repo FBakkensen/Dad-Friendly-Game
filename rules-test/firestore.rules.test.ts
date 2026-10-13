@@ -5,6 +5,7 @@
 import { deleteApp, initializeApp, type FirebaseApp } from "firebase/app";
 import {
   connectFirestoreEmulator,
+  deleteDoc,
   doc,
   getDoc,
   getFirestore,
@@ -13,8 +14,10 @@ import {
 } from "firebase/firestore";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BOOSTS } from "../src/boosts";
+import { APP_VERSION, EVENT_RING_LIMIT, snapshot } from "../src/field-log";
 import { createMountain, type Mountain } from "../src/mountain";
 import { parseSaveValue, serializeSave } from "../src/persist";
+import { effectiveRates } from "../src/rates";
 import { UPGRADES } from "../src/upgrades";
 
 const [host = "127.0.0.1", port = "8080"] = (
@@ -23,6 +26,8 @@ const [host = "127.0.0.1", port = "8080"] = (
 
 let app: FirebaseApp;
 let db: Firestore;
+let momApp: FirebaseApp;
+let momDb: Firestore;
 
 beforeAll(() => {
   app = initializeApp({ projectId: "demo-dad-friendly" }, "rules-test");
@@ -30,10 +35,16 @@ beforeAll(() => {
   connectFirestoreEmulator(db, host, Number(port), {
     mockUserToken: { user_id: "dad", sub: "dad" },
   });
+  momApp = initializeApp({ projectId: "demo-dad-friendly" }, "rules-mom");
+  momDb = getFirestore(momApp);
+  connectFirestoreEmulator(momDb, host, Number(port), {
+    mockUserToken: { user_id: "mom", sub: "mom" },
+  });
 });
 
 afterAll(async () => {
   await deleteApp(app);
+  await deleteApp(momApp);
 });
 
 const save = (mountain: Mountain) =>
@@ -140,5 +151,135 @@ describe("firestore.rules: every save the game writes is accepted", () => {
         }),
       ).rejects.toThrow(/permission/i);
     }
+  });
+});
+
+const ISO = "2026-01-02T03:04:05.000Z";
+
+const gameSnapshot = () => {
+  const mountain = createMountain();
+  return snapshot(mountain, effectiveRates(mountain, 1), 1, APP_VERSION);
+};
+
+const fieldLog = (
+  events: readonly {
+    at: string;
+    code: string;
+    data: { id?: string; count?: number; endsAt?: string; source?: string };
+  }[] = [],
+) => ({
+  snapshot: gameSnapshot(),
+  events,
+  updatedAt: 1,
+});
+
+const event = {
+  at: ISO,
+  code: "tier.buy",
+  data: { id: "helper", count: 1 },
+};
+
+describe("firestore.rules: fieldLogs/{uid}", () => {
+  it("lets the owner write and read a log, including a float rate and 200 events", async () => {
+    const events = Array.from({ length: EVENT_RING_LIMIT }, () => event);
+    const written = {
+      ...fieldLog(events),
+      snapshot: { ...gameSnapshot(), crewSpeed: 1.5, tapYield: 0.25 },
+    };
+    await setDoc(doc(db, "fieldLogs", "dad"), written);
+    const snap = await getDoc(doc(db, "fieldLogs", "dad"));
+    expect(snap.data()).toEqual(written);
+
+    await setDoc(doc(db, "fieldLogs", "dad"), fieldLog());
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()?.events).toEqual(
+      [],
+    );
+  });
+
+  it("refuses another user, and still lets that user write their own", async () => {
+    await setDoc(doc(db, "fieldLogs", "dad"), fieldLog([event]));
+    await expect(getDoc(doc(momDb, "fieldLogs", "dad"))).rejects.toThrow(
+      /permission|false for/i,
+    );
+    await expect(
+      setDoc(doc(momDb, "fieldLogs", "dad"), fieldLog([event])),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      setDoc(doc(momDb, "fieldLogs", "mom"), fieldLog([event])),
+    ).resolves.toBeUndefined();
+  });
+
+  it("refuses a signed-out visitor both read and write", async () => {
+    await setDoc(doc(db, "fieldLogs", "dad"), fieldLog([event]));
+    const guestApp = initializeApp(
+      { projectId: "demo-dad-friendly" },
+      "rules-guest",
+    );
+    const guestDb = getFirestore(guestApp);
+    connectFirestoreEmulator(guestDb, host, Number(port));
+    try {
+      await expect(getDoc(doc(guestDb, "fieldLogs", "dad"))).rejects.toThrow(
+        /permission|false for/i,
+      );
+      await expect(
+        setDoc(doc(guestDb, "fieldLogs", "dad"), fieldLog([event])),
+      ).rejects.toThrow(/permission/i);
+    } finally {
+      await deleteApp(guestApp);
+    }
+  });
+
+  it("rejects an oversize event list and an oversize string", async () => {
+    await expect(
+      setDoc(
+        doc(db, "fieldLogs", "dad"),
+        fieldLog(Array.from({ length: EVENT_RING_LIMIT + 1 }, () => event)),
+      ),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      setDoc(
+        doc(db, "fieldLogs", "dad"),
+        fieldLog([{ ...event, code: "x".repeat(25) }]),
+      ),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      setDoc(
+        doc(db, "fieldLogs", "dad"),
+        fieldLog([
+          {
+            ...event,
+            data: { id: "helper", count: 1, source: "write" },
+          },
+        ]),
+      ),
+    ).rejects.toThrow(/permission/i);
+  });
+
+  it("rejects the wrong shape and a delete", async () => {
+    const good = fieldLog([event]);
+    await setDoc(doc(db, "fieldLogs", "dad"), good);
+    for (const bad of [
+      { ...good, email: "dad@example.com" },
+      { ...good, events: "tier.buy" },
+      { ...good, updatedAt: "now" },
+      { ...good, updatedAt: -1 },
+      { events: good.events, updatedAt: good.updatedAt },
+      {
+        ...good,
+        events: [{ at: "short", code: "tier.buy", data: {} }],
+      },
+      {
+        ...good,
+        snapshot: { ...good.snapshot, nickname: "dad" },
+      },
+    ]) {
+      await expect(setDoc(doc(db, "fieldLogs", "dad"), bad)).rejects.toThrow(
+        /permission/i,
+      );
+    }
+    await expect(deleteDoc(doc(db, "fieldLogs", "dad"))).rejects.toThrow(
+      /permission/i,
+    );
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).exists()).toBe(true);
   });
 });

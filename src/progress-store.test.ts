@@ -6,8 +6,14 @@ import {
   createUnavailableCloudSave,
   type CloudLoadResult,
   type CloudSave,
+  type CloudWriteResult,
 } from "./cloud-save";
-import { APP_VERSION } from "./field-log";
+import {
+  APP_VERSION,
+  FIELD_LOG_WRITE_GAP_MS,
+  fieldLogWithinBudget,
+  type FieldLogDocument,
+} from "./field-log";
 import { createMountain, mineByHand, type Mountain } from "./mountain";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { effectiveRates } from "./rates";
@@ -170,6 +176,7 @@ describe("createProgressStore", () => {
         docs.set(uid, mountain);
         return Promise.resolve({ kind: "ok" });
       },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
       watch: ({ onChange }) => {
         finishLoad = onChange;
         return () => {
@@ -303,6 +310,7 @@ describe("cloud write throttle", () => {
           writes.push(mountain);
           return Promise.resolve({ kind: "ok" });
         },
+        writeFieldLog: () => Promise.resolve({ kind: "ok" }),
         watch: ({ onChange }) => {
           push = onChange;
           onChange({ kind: "found", mountain: createMountain() });
@@ -450,6 +458,7 @@ describe("helpers mining live", () => {
       cloudSave: {
         load: () => Promise.resolve({ kind: "missing" }),
         write: () => Promise.resolve({ kind: "ok" }),
+        writeFieldLog: () => Promise.resolve({ kind: "ok" }),
         watch: () => () => undefined,
       },
       sessionStorage: createMemoryStorage(),
@@ -630,6 +639,7 @@ describe("away earnings", () => {
     const cloudSave: CloudSave = {
       load: () => Promise.resolve({ kind: "missing" }),
       write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
       watch: ({ onChange }) => {
         push = onChange;
         onChange({ kind: "found", mountain: crew, lastSeen: 50_000 });
@@ -748,6 +758,7 @@ describe("start over", () => {
         writes.push(mountain);
         return Promise.resolve({ kind: "ok" });
       },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
       watch: ({ onChange }) => {
         push = onChange;
         onChange({ kind: "found", mountain: start, lastSeen: 0 });
@@ -1032,6 +1043,7 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     const disabled: CloudSave = {
       load: () => Promise.resolve({ kind: "disabled" }),
       write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
       watch: ({ onChange }) => {
         onChange({ kind: "disabled" });
         return () => undefined;
@@ -1079,6 +1091,7 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     const cloud: CloudSave = {
       load: () => Promise.resolve({ kind: "missing" }),
       write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
       watch: ({ onChange }) => {
         callbacks.push(onChange);
         return () => undefined;
@@ -1222,16 +1235,21 @@ describe("field log", () => {
     expect(events[2]?.data).toEqual({ id: "lantern" });
   });
 
-  it("records Start over and passing the mine", () => {
+  it("records Start over and passing the mine, each on a fresh ring", () => {
     const progress = guest(() => 8_000);
+    progress.applyMutation((mountain) =>
+      buyTier({ ...mountain, pocket: 20 }, "helper"),
+    );
     progress.startOver();
+    expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
+      "run.start-over",
+    ]);
     progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
     expect(progress.passTheMine()).toBe(true);
     expect(progress.passTheMine()).toBe(false);
-    const codes = progress.fieldLog().events.map((event) => event.code);
-    expect(codes[0]).toBe("run.start-over");
-    expect(codes).toContain("run.pass");
-    expect(codes.filter((code) => code === "run.pass")).toEqual(["run.pass"]);
+    expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
+      "run.pass",
+    ]);
   });
 
   it("copies the newest 50 events", () => {
@@ -1277,5 +1295,206 @@ describe("field log", () => {
     expect(text).not.toContain("@");
     expect(text).not.toContain("displayName");
     expect(text).not.toContain("email");
+  });
+});
+
+describe("field log cloud copy", () => {
+  const user = { uid: "test-dad", label: "Test Dad" };
+
+  const signedIn = (now: () => number) => {
+    const fieldLogs = new Map<string, FieldLogDocument>();
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: createMemoryCloudSave({
+        docs: new Map([[user.uid, createMountain()]]),
+        fieldLogs,
+      }),
+      sessionStorage: createMemoryStorage(),
+      now,
+    });
+    return { fieldLogs, progress };
+  };
+
+  it("writes nothing for a guest", () => {
+    const fieldLogs = new Map<string, FieldLogDocument>();
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      cloudSave: createMemoryCloudSave({ fieldLogs }),
+      sessionStorage: createMemoryStorage(),
+      now: () => 1,
+    });
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1 }));
+    progress.startOver();
+    progress.flush();
+    expect(fieldLogs.size).toBe(0);
+    progress.dispose();
+  });
+
+  it("waits out the gap, writes on hide, and skips an unchanged copy", () => {
+    let clock = 0;
+    const { fieldLogs, progress } = signedIn(() => clock);
+    expect(fieldLogs.size).toBe(0);
+
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1 }));
+    expect(fieldLogs.get(user.uid)?.snapshot.pocket).toBe(1);
+    expect(fieldLogs.get(user.uid)?.updatedAt).toBe(0);
+
+    clock += 1_000;
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 2 }));
+    expect(fieldLogs.get(user.uid)?.snapshot.pocket).toBe(1);
+
+    progress.flush();
+    expect(fieldLogs.get(user.uid)?.snapshot.pocket).toBe(2);
+    expect(fieldLogs.get(user.uid)?.updatedAt).toBe(clock);
+
+    const writtenAt = fieldLogs.get(user.uid)?.updatedAt;
+    progress.flush();
+    expect(fieldLogs.get(user.uid)?.updatedAt).toBe(writtenAt);
+
+    clock += FIELD_LOG_WRITE_GAP_MS;
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 3 }));
+    expect(fieldLogs.get(user.uid)?.snapshot.pocket).toBe(3);
+    expect(fieldLogs.get(user.uid)?.updatedAt).toBe(clock);
+    progress.dispose();
+  });
+
+  it("resets the ring and overwrites the doc on Start over and passing the mine", () => {
+    let clock = 8_000;
+    const { fieldLogs, progress } = signedIn(() => clock);
+    progress.applyMutation((mountain) => ({ ...mountain, helpers: 4 }));
+    expect(fieldLogs.get(user.uid)?.events.map((event) => event.code)).toEqual([
+      "tier.buy",
+    ]);
+
+    clock += 10;
+    progress.startOver();
+    expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
+      "run.start-over",
+    ]);
+    expect(fieldLogs.get(user.uid)?.events.map((event) => event.code)).toEqual([
+      "run.start-over",
+    ]);
+    expect(fieldLogs.get(user.uid)?.snapshot.crew.helper).toBe(0);
+    const resetAt = fieldLogs.get(user.uid)?.updatedAt;
+    progress.startOver();
+    expect(fieldLogs.get(user.uid)?.updatedAt).toBe(resetAt);
+
+    progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
+    expect(progress.passTheMine()).toBe(true);
+    const passed = fieldLogs.get(user.uid);
+    expect(passed?.events.map((event) => event.code)).toEqual(["run.pass"]);
+    expect(passed?.snapshot.legacy).toBe(1);
+    expect(passed?.updatedAt).toBe(clock);
+    progress.dispose();
+  });
+
+  it("copies the whole ring on hide, not just the menu's 50", () => {
+    const { fieldLogs, progress } = signedIn(() => 50_000);
+    for (let count = 1; count <= 201; count += 1) {
+      progress.applyMutation((mountain) => ({ ...mountain, helpers: count }));
+    }
+    expect(fieldLogs.get(user.uid)?.events).toHaveLength(1);
+    expect(progress.fieldLog().events).toHaveLength(50);
+
+    progress.flush();
+    const log = fieldLogs.get(user.uid);
+    expect(log?.events).toHaveLength(200);
+    expect(log?.events[0]?.data).toEqual({ id: "helper", count: 2 });
+    expect(log?.events.at(-1)?.data).toEqual({ id: "helper", count: 201 });
+    expect(log).toBeDefined();
+    if (log !== undefined) {
+      expect(fieldLogWithinBudget(log)).toBe(true);
+    }
+    progress.dispose();
+  });
+
+  it("keeps the account save when the field log is refused, then retries on hide", async () => {
+    let fail = true;
+    let calls = 0;
+    const cloud: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => {
+        calls += 1;
+        return Promise.resolve(
+          fail ? { kind: "failed", message: "denied" } : { kind: "ok" },
+        );
+      },
+      watch: ({ onChange }) => {
+        onChange({ kind: "found", mountain: createMountain(), lastSeen: 1 });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+      now: () => 1,
+    });
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 4 }));
+    await Promise.resolve();
+    expect(calls).toBe(1);
+    expect(progress.getSnapshot().saveKind).toBe("account");
+    expect(progress.getSnapshot().log).toContain("field-log.write denied");
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "save.error",
+        data: { source: "field-log" },
+      }),
+    );
+
+    fail = false;
+    progress.flush();
+    await Promise.resolve();
+    expect(calls).toBe(2);
+    progress.dispose();
+  });
+
+  it("drops a field-log result that lands after dispose or sign-out", async () => {
+    let finish: (result: CloudWriteResult) => void = () => undefined;
+    const cloud: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      watch: ({ onChange }) => {
+        onChange({ kind: "found", mountain: createMountain(), lastSeen: 1 });
+        return () => undefined;
+      },
+    };
+    const auth = createMemoryAuth({
+      state: { kind: "signed-in", user },
+      user,
+    });
+    const progress = createProgressStore({
+      auth,
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+      now: () => 1,
+    });
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 2 }));
+    progress.dispose();
+    finish({ kind: "failed", message: "denied" });
+    await Promise.resolve();
+    expect(progress.fieldLog().events).toEqual([]);
+
+    const again = createProgressStore({
+      auth,
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+      now: () => 1,
+    });
+    again.applyMutation((mountain) => ({ ...mountain, pocket: 3 }));
+    await auth.signOut();
+    finish({ kind: "failed", message: "denied" });
+    await Promise.resolve();
+    expect(
+      again
+        .fieldLog()
+        .events.some((event) => event.data.source === "field-log"),
+    ).toBe(false);
+    again.dispose();
   });
 });

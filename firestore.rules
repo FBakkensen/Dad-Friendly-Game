@@ -19,6 +19,14 @@ service cloud.firestore {
     //       - cells: list (required, size 9)
     //           - kind: string (required, 'covered', 'dug', 'stone', or 'chunk')
     //   - lastSeen: int (required iff version >= 2; epoch ms)
+    //
+    // Collection: fieldLogs
+    // Document ID: Firebase Auth uid
+    // Fields:
+    //   - snapshot: map (the field-log snapshot; no email or display name)
+    //   - events: list of { at, code, data } (size <= 200)
+    //   - updatedAt: int epoch ms
+    // String caps and the 200-event cap keep the document under 50 KB.
     // Ownership is the document ID. No uid, role, or PII fields.
     //
     // ===============================================================
@@ -143,6 +151,128 @@ service cloud.firestore {
         );
     }
 
+    function isShortText(value) {
+      return value is string && value.size() >= 1 && value.size() <= 24;
+    }
+
+    function isIsoText(value) {
+      return value is string && value.size() >= 20 && value.size() <= 24;
+    }
+
+    function isFieldUpgrades(upgrades) {
+      return upgrades is map &&
+        upgrades.keys().hasOnly(['tap', 'boots', 'steady', 'cartSyn', 'drillSyn', 'borerSyn', 'machineSyn']) &&
+        (!('tap' in upgrades) || (upgrades.tap is int && upgrades.tap >= 0 && upgrades.tap <= 10)) &&
+        (!('boots' in upgrades) || (upgrades.boots is int && upgrades.boots >= 0 && upgrades.boots <= 1)) &&
+        (!('steady' in upgrades) || (upgrades.steady is int && upgrades.steady >= 0 && upgrades.steady <= 1)) &&
+        (!('cartSyn' in upgrades) || (upgrades.cartSyn is int && upgrades.cartSyn >= 0 && upgrades.cartSyn <= 1)) &&
+        (!('drillSyn' in upgrades) || (upgrades.drillSyn is int && upgrades.drillSyn >= 0 && upgrades.drillSyn <= 1)) &&
+        (!('borerSyn' in upgrades) || (upgrades.borerSyn is int && upgrades.borerSyn >= 0 && upgrades.borerSyn <= 1)) &&
+        (!('machineSyn' in upgrades) || (upgrades.machineSyn is int && upgrades.machineSyn >= 0 && upgrades.machineSyn <= 1));
+    }
+
+    function isCrewCounts(crew) {
+      return crew is map &&
+        crew.keys().hasOnly(['helper', 'cart', 'drill', 'borer', 'machine', 'kid']) &&
+        crew.keys().hasAll(['helper', 'cart', 'drill', 'borer', 'machine', 'kid']) &&
+        crew.helper is int && crew.helper >= 0 && crew.helper <= 1000000 &&
+        crew.cart is int && crew.cart >= 0 && crew.cart <= 1000000 &&
+        crew.drill is int && crew.drill >= 0 && crew.drill <= 1000000 &&
+        crew.borer is int && crew.borer >= 0 && crew.borer <= 1000000 &&
+        crew.machine is int && crew.machine >= 0 && crew.machine <= 1000000 &&
+        crew.kid is int && crew.kid >= 0 && crew.kid <= 1000000;
+    }
+
+    function isIdleCounts(idle) {
+      return idle is map &&
+        idle.keys().hasOnly(['cart', 'drill', 'borer', 'machine']) &&
+        idle.keys().hasAll(['cart', 'drill', 'borer', 'machine']) &&
+        idle.cart is int && idle.cart >= 0 && idle.cart <= 1000000 &&
+        idle.drill is int && idle.drill >= 0 && idle.drill <= 1000000 &&
+        idle.borer is int && idle.borer >= 0 && idle.borer <= 1000000 &&
+        idle.machine is int && idle.machine >= 0 && idle.machine <= 1000000;
+    }
+
+    function isRelicId(id) {
+      return id is string && id in ['lantern', 'shield', 'hammer', 'heart', 'crown', 'mantle'];
+    }
+
+    function isRelicList(relics) {
+      return relics is list && relics.size() <= 6 &&
+        (relics.size() < 1 || isRelicId(relics[0])) &&
+        (relics.size() < 2 || isRelicId(relics[1])) &&
+        (relics.size() < 3 || isRelicId(relics[2])) &&
+        (relics.size() < 4 || isRelicId(relics[3])) &&
+        (relics.size() < 5 || isRelicId(relics[4])) &&
+        (relics.size() < 6 || isRelicId(relics[5]));
+    }
+
+    function isFieldBoost(boost) {
+      return boost is map &&
+        boost.keys().hasOnly(['endsAt', 'id']) &&
+        boost.id in ['sharper', 'overtime'] &&
+        isIsoText(boost.endsAt);
+    }
+
+    function isFieldBoostList(boosts) {
+      return boosts is list && boosts.size() <= 2 &&
+        (boosts.size() < 1 || isFieldBoost(boosts[0])) &&
+        (boosts.size() < 2 || isFieldBoost(boosts[1]));
+    }
+
+    function isFieldSnapshot(shot) {
+      return shot is map &&
+        shot.keys().hasOnly(['at', 'boosts', 'crew', 'crewSpeed', 'idle', 'left', 'legacy', 'mined', 'pocket', 'relics', 'tapYield', 'upgrades', 'version']) &&
+        isIsoText(shot.at) &&
+        isFieldBoostList(shot.boosts) &&
+        isCrewCounts(shot.crew) &&
+        shot.crewSpeed is number && shot.crewSpeed >= 0 && shot.crewSpeed <= 1000000000 &&
+        isIdleCounts(shot.idle) &&
+        shot.left is int && shot.left >= 0 && shot.left <= 100000000 &&
+        shot.legacy is int && shot.legacy >= 0 && shot.legacy <= 1000 &&
+        shot.mined is int && shot.mined >= 0 && shot.mined <= 100000000 &&
+        shot.pocket is int && shot.pocket >= 0 && shot.pocket <= 100000000 &&
+        isRelicList(shot.relics) &&
+        shot.tapYield is number && shot.tapYield >= 0 && shot.tapYield <= 1000000000 &&
+        isFieldUpgrades(shot.upgrades) &&
+        isShortText(shot.version);
+    }
+
+    // A full check of every event, on top of the snapshot, exceeds the rules
+    // engine's 1000-expression budget. The list is capped at 200. The first
+    // event carries the shape check. The client refuses a document over 50 KB.
+    function dataOk(eventData) {
+      return eventData.size() <= 2 &&
+        eventData.keys().hasOnly(['count', 'endsAt', 'id', 'ms', 'source', 'stones']) &&
+        (!('id' in eventData) || isShortText(eventData.id)) &&
+        (!('endsAt' in eventData) || isIsoText(eventData.endsAt)) &&
+        (!('source' in eventData) || isShortText(eventData.source)) &&
+        (!('count' in eventData) || (eventData.count is int && eventData.count >= 0 && eventData.count <= 1000000)) &&
+        (!('ms' in eventData) || (eventData.ms is int && eventData.ms >= 0)) &&
+        (!('stones' in eventData) || (eventData.stones is number && eventData.stones >= 0 && eventData.stones <= 100000000));
+    }
+
+    function eventOk(event) {
+      return event.keys().hasOnly(['at', 'code', 'data']) &&
+        isIsoText(event.at) &&
+        isShortText(event.code) &&
+        dataOk(event.data);
+    }
+
+    function eventsOk(events) {
+      return events is list &&
+        events.size() <= 200 &&
+        (events.size() < 1 || eventOk(events[0]));
+    }
+
+    function isFieldLog(data) {
+      return data.keys().hasOnly(['events', 'snapshot', 'updatedAt']) &&
+        isFieldSnapshot(data.snapshot) &&
+        eventsOk(data.events) &&
+        data.updatedAt is int &&
+        data.updatedAt >= 0;
+    }
+
     match /saves/{userId} {
       allow read: if isOwner(userId);
       allow create: if isOwner(userId) && isValidSave(request.resource.data);
@@ -150,6 +280,12 @@ service cloud.firestore {
         isValidSave(request.resource.data) &&
         uidNotModified() &&
         notOlderRun();
+      allow delete: if false;
+    }
+
+    match /fieldLogs/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isFieldLog(request.resource.data);
       allow delete: if false;
     }
 

@@ -3,9 +3,21 @@ import {
   APP_VERSION,
   EVENT_RING_LIMIT,
   EventRing,
+  FIELD_EVENT_DATA_KEYS,
   FIELD_LOG_COPY_COUNT,
+  FIELD_LOG_DATA_KEYS_MAX,
+  FIELD_LOG_MAX_BYTES,
+  FIELD_LOG_TEXT_MAX,
+  FIELD_LOG_WRITE_GAP_MS,
+  fieldLogDocumentBytes,
+  fieldLogFingerprint,
+  fieldLogWithinBudget,
   formatFieldLog,
+  maxFieldLogDocumentBytes,
+  shouldWriteFieldLog,
   snapshot,
+  storedDocumentBytes,
+  type FieldEventData,
   type FieldSnapshot,
 } from "./field-log";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
@@ -128,17 +140,17 @@ describe("EventRing", () => {
   it("keeps the last 200 events and copies the newest slice", () => {
     const ring = new EventRing();
     for (let i = 0; i < EVENT_RING_LIMIT + 1; i += 1) {
-      ring.push({ at: "t", code: "n", data: { i } });
+      ring.push({ at: "t", code: "n", data: { count: i } });
     }
 
     const kept = ring.last(EVENT_RING_LIMIT);
     expect(kept).toHaveLength(EVENT_RING_LIMIT);
-    expect(kept[0]?.data["i"]).toBe(1);
-    expect(kept.at(-1)?.data["i"]).toBe(EVENT_RING_LIMIT);
+    expect(kept[0]?.data.count).toBe(1);
+    expect(kept.at(-1)?.data.count).toBe(EVENT_RING_LIMIT);
 
     const copied = ring.last(FIELD_LOG_COPY_COUNT);
     expect(copied).toHaveLength(FIELD_LOG_COPY_COUNT);
-    expect(copied[0]?.data["i"]).toBe(
+    expect(copied[0]?.data.count).toBe(
       EVENT_RING_LIMIT + 1 - FIELD_LOG_COPY_COUNT,
     );
     expect(ring.last(10_000)).toHaveLength(EVENT_RING_LIMIT);
@@ -153,6 +165,15 @@ describe("EventRing", () => {
     expect(ring.last(2).map((event) => event.code)).toEqual(["one", "two"]);
     ring.push({ at: "c", code: "three", data: {} });
     expect(ring.last(2).map((event) => event.code)).toEqual(["two", "three"]);
+  });
+
+  it("clears back to empty", () => {
+    const ring = new EventRing(2);
+    ring.push({ at: "a", code: "one", data: {} });
+    ring.clear();
+    expect(ring.last(10)).toEqual([]);
+    ring.push({ at: "b", code: "two", data: {} });
+    expect(ring.last(10).map((event) => event.code)).toEqual(["two"]);
   });
 });
 
@@ -189,5 +210,155 @@ describe("formatFieldLog", () => {
         data: { id: "helper", count: 1 },
       },
     ]);
+  });
+});
+
+describe("field log cloud copy", () => {
+  it("names exactly the data keys the rules allow", () => {
+    const sample: Required<FieldEventData> = {
+      id: "helper",
+      count: 1,
+      endsAt: new Date(AT).toISOString(),
+      ms: 1,
+      stones: 1,
+      source: "write",
+    };
+    expect(Object.keys(sample).sort()).toEqual(
+      [...FIELD_EVENT_DATA_KEYS].sort(),
+    );
+    expect(FIELD_LOG_DATA_KEYS_MAX).toBe(2);
+    expect(sample.endsAt.length).toBeLessThanOrEqual(FIELD_LOG_TEXT_MAX);
+  });
+
+  it("ignores the snapshot clock when deciding the log changed", () => {
+    const mountain = createMountain();
+    const shot = snapshot(
+      mountain,
+      effectiveRates(mountain, AT),
+      AT,
+      APP_VERSION,
+    );
+    const same = fieldLogFingerprint({ snapshot: shot, events: [] });
+    expect(
+      fieldLogFingerprint({
+        snapshot: { ...shot, at: "other" },
+        events: [],
+      }),
+    ).toBe(same);
+    expect(
+      fieldLogFingerprint({
+        snapshot: { ...shot, pocket: 1 },
+        events: [],
+      }),
+    ).not.toBe(same);
+    expect(
+      fieldLogFingerprint({
+        snapshot: shot,
+        events: [{ at: "t", code: "vein.tap", data: { stones: 1 } }],
+      }),
+    ).not.toBe(same);
+  });
+
+  it("writes a change at once, then only after the gap, and always on hide or reset", () => {
+    expect(
+      shouldWriteFieldLog({
+        changed: false,
+        lastWrittenAt: undefined,
+        now: 0,
+        reason: "hide",
+      }),
+    ).toBe(false);
+    expect(
+      shouldWriteFieldLog({
+        changed: false,
+        lastWrittenAt: 0,
+        now: FIELD_LOG_WRITE_GAP_MS,
+        reason: "interval",
+      }),
+    ).toBe(false);
+    expect(
+      shouldWriteFieldLog({
+        changed: true,
+        lastWrittenAt: undefined,
+        now: 0,
+        reason: "interval",
+      }),
+    ).toBe(true);
+    expect(
+      shouldWriteFieldLog({
+        changed: true,
+        lastWrittenAt: 0,
+        now: FIELD_LOG_WRITE_GAP_MS - 1,
+        reason: "interval",
+      }),
+    ).toBe(false);
+    expect(
+      shouldWriteFieldLog({
+        changed: true,
+        lastWrittenAt: 0,
+        now: FIELD_LOG_WRITE_GAP_MS,
+        reason: "interval",
+      }),
+    ).toBe(true);
+    expect(
+      shouldWriteFieldLog({
+        changed: true,
+        lastWrittenAt: 1_000,
+        now: 0,
+        reason: "interval",
+        gapMs: 500,
+      }),
+    ).toBe(false);
+    expect(
+      shouldWriteFieldLog({
+        changed: true,
+        lastWrittenAt: 1_000,
+        now: 1_000,
+        reason: "hide",
+      }),
+    ).toBe(true);
+    expect(
+      shouldWriteFieldLog({
+        changed: true,
+        lastWrittenAt: 1_000,
+        now: 1_000,
+        reason: "reset",
+      }),
+    ).toBe(true);
+  });
+
+  it("matches the Firestore size example and stays under 50 KB at the cap", () => {
+    expect(
+      storedDocumentBytes(["users", "jeff", "tasks", "my_task_id"], {
+        type: "Personal",
+        done: false,
+        priority: 1,
+        description: "Learn Cloud Firestore",
+      }),
+    ).toBe(147);
+    expect(maxFieldLogDocumentBytes()).toBeLessThan(FIELD_LOG_MAX_BYTES);
+
+    const mountain = createMountain();
+    const full = {
+      snapshot: snapshot(
+        mountain,
+        effectiveRates(mountain, AT),
+        AT,
+        APP_VERSION,
+      ),
+      events: Array.from({ length: EVENT_RING_LIMIT }, (_, index) => ({
+        at: new Date(AT).toISOString(),
+        code: "tier.buy",
+        data: { id: "helper", count: index },
+      })),
+      updatedAt: AT,
+    };
+    expect(fieldLogWithinBudget(full)).toBe(true);
+    expect(fieldLogDocumentBytes(full, 28)).toBeLessThan(
+      fieldLogDocumentBytes(full),
+    );
+    expect(() =>
+      storedDocumentBytes(["fieldLogs", "dad"], { bad: undefined }),
+    ).toThrow(/unsupported/);
   });
 });
