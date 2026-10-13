@@ -303,7 +303,7 @@ One PR each, in order; the list with acceptance criteria is in the M7 PR descrip
 
 ### Milestone 8: Strategy lab
 
-**M8 is planned.** Later issues update this line. Nothing in this section is in the game yet: no screen, no save field, no Firestore change. The lab runs offline, next to the pacing sim, so a retune can be judged before it ships. Players never see payback, shares, or these targets.
+**M8 is in progress.** The shared clock is `src/lab/world.ts` (#171). The pacing sim steps it and buys through the action catalogue. No screen, no save field, no Firestore change. The rest of this section is still planned. The lab runs offline, next to the pacing sim, so a retune can be judged before it ships. Players never see payback, shares, or these targets.
 
 #### Why
 
@@ -356,6 +356,6 @@ The first policy files are casual `casual-2x10` (today's plain dad: same finish 
 
 The first measure files are `liveMedian`, `liveP10`, `singleShare`, `longestDeadStretch`, `dominantShare`, `typeEverBest`, `featureShare`, and `finishDay`. `typeEverBest` is the "never best" list (a move kind that was never the right buy). `featureShare` is one named source's output share. Tending uses it.
 
-`src/lab/world.ts` is the clock they share: `step(world, ms, mode: live | away)` on one seeded clock, wrapping accrue, away pay, hazards, and expedition settle. Policies call `decide` on that world. The world does not read the policy or measure folders.
+`src/lab/world.ts` is the clock they share: `step(world, ms, mode: live | away)` on one seeded clock, wrapping accrue, away pay, hazards, and expedition settle. Built (#171). The pacing sim steps this clock and chooses crew and upgrades with `listActions` / `valueOf`. Policies call `decide` on that world. The world does not read the policy or measure folders.
 
 `npm run lab` (`tools/strategy-lab.ts`) loads the registries and writes `reports/strategy-lab.md` and `.json` (gitignored). One row per policy, one column per registered measure, pass or fail from `targets.ts`. Flags: `--policy`, `--seeds`, `--days`. The report also shows per-hour timelines for casual and the optimizer, move kinds that were never best, and dead stretches longer than 2 hours (when they start, what the dad is saving for, and the next-best payback ratio). It suggests. It does not auto-tune.

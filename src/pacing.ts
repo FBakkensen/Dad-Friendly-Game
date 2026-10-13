@@ -1,5 +1,4 @@
 import { BOOSTS, buyBoost } from "./boosts";
-import { buyCrew, tierLocked } from "./crew";
 import {
   promote,
   promoteCost,
@@ -12,30 +11,23 @@ import {
   settle as settleExpeditions,
   type TunnelId,
 } from "./expeditions";
-import { closeHazards, freshHazards, stepHazards } from "./hazards";
-import { AWAY_PAY_RATE, effectiveRates, BASE_AWAY_CAP_MS } from "./rates";
 import {
-  BOOTS_SPEED_PER_LEVEL,
-  STEADY_AWAY_PER_LEVEL,
-  SYNERGY_PER_UNIT,
-  UPGRADES,
-  type UpgradeId,
-  TAP_SHARE_PER_LEVEL,
-  buyUpgrade,
-  upgradeById,
-  upgradeCost,
-  upgradeLevel,
-  upgradeUnlocked,
-} from "./upgrades";
+  applyAction,
+  listActions,
+  valueOf,
+  type Action,
+  type ValueContext,
+} from "./economy/actions";
+import { createWorld, step, type World } from "./lab/world";
 import {
-  accrue,
-  accrueAway,
   createMountain,
   mineByHand,
   minedOut,
   type Mountain,
 } from "./mountain";
-import { TIERS, owned, tierById, tierCost, tierShown } from "./tiers";
+import { effectiveRates } from "./rates";
+import { TIERS, owned, tierById, tierCost } from "./tiers";
+import { upgradeById, upgradeCost, upgradeLevel } from "./upgrades";
 
 /** How a typical dad plays: see docs/DESIGN.md "Pacing". */
 const DAD = {
@@ -43,6 +35,25 @@ const DAD = {
   sessionSeconds: 10 * 60,
   tapsPerSecond: 3,
 } as const;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const GAP_MS = DAY_MS / DAD.sessionsPerDay - DAD.sessionSeconds * 1000;
+
+/**
+ * The same day the sim plays, handed to `valueOf`. Stones a day per stone
+ * is this schedule's gain per second divided by the move's cost.
+ */
+const DAD_SCHEDULE: ValueContext = {
+  tapsPerSecond: DAD.tapsPerSecond,
+  liveSeconds: DAD.sessionSeconds,
+  awaySeconds: GAP_MS / 1000,
+};
+
+/**
+ * Permanent buys. A non-positive horizon asks `valueOf` for the gain while
+ * the move lasts, which is the whole schedule for these.
+ */
+const PERMANENT_HORIZON_SEC = 0;
 
 /** The sim dad puts trouble right within three seconds. */
 const SIM_FIX_MS = 3_000;
@@ -92,13 +103,14 @@ function sendScouts(
   return next;
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+type DadBuy = Extract<Action, { kind: "buyTier" | "buyUpgrade" }>;
 
 type Pick = {
-  readonly buy: (mountain: Mountain) => Mountain;
+  readonly action: DadBuy;
+  /** What the pocket pays. A machine's workers are not in this price. */
   readonly cost: number;
+  /** Gain per second from `valueOf`, per stone of its full cost. */
   readonly value: number;
-  readonly id: string;
 };
 
 /** One thing the sim dad bought, on a 1-based fractional day. */
@@ -134,120 +146,63 @@ export type DadRun = {
   readonly promotions: readonly DadPromotion[];
 };
 
-/** Stones a day one more stone a second of crew speed earns, live plus away. */
-const CREW_DAY_SECONDS =
-  DAD.sessionsPerDay *
-  (DAD.sessionSeconds + (BASE_AWAY_CAP_MS / 1000) * AWAY_PAY_RATE);
-/** Taps only pay while playing. */
-const TAP_DAY_SECONDS = DAD.sessionsPerDay * DAD.sessionSeconds;
+/** True when `candidate` is higher by more than float noise. */
+const TIE = 1e-9;
 
-/** The buy giving the most stones a day per stone spent, among what's on offer. */
+function outranks(candidate: number, current: number): boolean {
+  const scale = Math.max(Math.abs(candidate), Math.abs(current), 1);
+  return (candidate - current) / scale > TIE;
+}
+
+function isDadBuy(action: Action, withUpgrades: boolean): action is DadBuy {
+  return (
+    action.kind === "buyTier" || (withUpgrades && action.kind === "buyUpgrade")
+  );
+}
+
+/**
+ * Sticker price. `valueOf`'s cost also counts workers a machine still needs.
+ * A listed upgrade still has a level to buy, so the price is present.
+ */
+function sticker(mountain: Mountain, action: DadBuy): number {
+  if (action.kind === "buyTier") {
+    const tier = tierById(action.id);
+    return tierCost(tier, owned(mountain, tier));
+  }
+  return upgradeCost(
+    upgradeById(action.id),
+    upgradeLevel(mountain, action.id),
+  ) as number;
+}
+
+/**
+ * The buy with the most gain per stone, from the catalogue. Crew is always
+ * on offer. Lasting upgrades are, when this dad buys them. Boosts, posts,
+ * and promotions are decided elsewhere.
+ */
 function bestValue(
   mountain: Mountain,
+  now: number,
   withUpgrades: boolean,
 ): Pick | undefined {
   let best: Pick | undefined;
-  const consider = (pick: Pick) => {
-    if (best === undefined || pick.value > best.value) {
-      best = pick;
-    }
-  };
-  const rates = effectiveRates(mountain);
-  const helper = tierById("helper");
-  const freeHelpers =
-    mountain.helpers +
-    mountain.kids -
-    TIERS.reduce(
-      (used, tier) =>
-        used + rates.running[tier.id] * staffNeeded(mountain, tier),
-      0,
-    );
-  for (const tier of TIERS) {
-    if (!tierShown(mountain, tier) || tierLocked(mountain, tier)) {
+  for (const action of listActions(mountain, now)) {
+    if (!isDadBuy(action, withUpgrades)) {
       continue;
     }
-    const cost = tierCost(tier, owned(mountain, tier));
-    if (tier.staff === 0) {
-      // A helper is worth its own stones plus any idle machine it starts.
-      const gain =
-        effectiveRates(buyCrew({ ...mountain, pocket: cost }, tier.id))
-          .crewPerSecond - rates.crewPerSecond;
-      consider({
-        buy: (current) => buyCrew(current, tier.id),
-        cost,
-        value: (gain * CREW_DAY_SECONDS) / cost,
-        id: tier.id,
-      });
-      continue;
-    }
-    // A machine is weighed with the helpers it still needs, bought next.
-    // A Great Machine counts the tended crew, because buying one posts the engineer.
-    const staff = staffForBuy(mountain, tier);
-    const short = Math.max(0, staff - freeHelpers);
-    let crewCost = 0;
-    for (let extra = 0; extra < short; extra += 1) {
-      crewCost += tierCost(helper, mountain.helpers + extra);
-    }
-    consider({
-      buy: (current) => tendBestTier(buyCrew(current, tier.id)),
-      cost,
-      value: (rates.tierSpeed[tier.id] * CREW_DAY_SECONDS) / (cost + crewCost),
-      id: tier.id,
-    });
-  }
-  if (withUpgrades) {
-    const cost = upgradeCost(upgradeById("tap"), upgradeLevel(mountain, "tap"));
-    if (cost !== undefined) {
-      const extraPerTap =
-        effectiveRates(mountain).crewPerSecond * TAP_SHARE_PER_LEVEL;
-      consider({
-        buy: (current) => buyUpgrade(current, "tap"),
-        cost,
-        value: (extraPerTap * DAD.tapsPerSecond * TAP_DAY_SECONDS) / cost,
-        id: "tap",
-      });
-    }
-    const rates = effectiveRates(mountain);
-    const oneShot = (id: UpgradeId, stonesPerDay: number): void => {
-      const upgrade = upgradeById(id);
-      const price = upgradeCost(upgrade, upgradeLevel(mountain, id));
-      if (price !== undefined && upgradeUnlocked(mountain, upgrade)) {
-        consider({
-          buy: (current) => buyUpgrade(current, id),
-          cost: price,
-          value: stonesPerDay / price,
-          id,
-        });
-      }
-    };
-    oneShot(
-      "boots",
-      owned(mountain, tierById("helper")) *
-        rates.tierSpeed.helper *
-        BOOTS_SPEED_PER_LEVEL *
-        CREW_DAY_SECONDS,
+    const cost = sticker(mountain, action);
+    const priced = valueOf(
+      mountain,
+      action,
+      PERMANENT_HORIZON_SEC,
+      DAD_SCHEDULE,
     );
-    for (const upgrade of UPGRADES) {
-      if (upgrade.synergy !== undefined) {
-        const to = tierById(upgrade.synergy.to);
-        oneShot(
-          upgrade.id,
-          owned(mountain, tierById(upgrade.synergy.from)) *
-            SYNERGY_PER_UNIT *
-            owned(mountain, to) *
-            to.perSecond *
-            CREW_DAY_SECONDS,
-        );
-      }
+    const value = priced.gainPerSec / priced.cost;
+    // Unrounded gains leave a true tie a few ulps apart. The earlier offer
+    // wins, matching the catalogue order.
+    if (best === undefined || outranks(value, best.value)) {
+      best = { action, cost, value };
     }
-    oneShot(
-      "steady",
-      rates.crewPerSecond *
-        AWAY_PAY_RATE *
-        STEADY_AWAY_PER_LEVEL *
-        DAD.sessionsPerDay *
-        (BASE_AWAY_CAP_MS / 1000),
-    );
   }
   return best;
 }
@@ -290,57 +245,56 @@ export function simulateDadRun({
   const reached = new Map<number, number>();
   const buys: DadPurchase[] = [];
   const promotions: DadPromotion[] = [];
-  let mountain: Mountain =
-    legacy > 0 ? { ...createMountain(), legacy } : createMountain();
-  let hazards = freshHazards(1);
-  let clock = 0;
+  let world: World = createWorld(
+    1,
+    legacy > 0 ? { ...createMountain(), legacy } : createMountain(),
+  );
   const note = () => {
     for (const mark of milestones) {
-      if (!reached.has(mark) && minedOut(mountain) >= mark) {
-        reached.set(mark, clock / DAY_MS + 1);
+      if (!reached.has(mark) && minedOut(world.mountain) >= mark) {
+        reached.set(mark, world.clock / DAY_MS + 1);
       }
     }
   };
-  const gapMs = DAY_MS / DAD.sessionsPerDay - DAD.sessionSeconds * 1000;
   for (let session = 0; session < maxDays * DAD.sessionsPerDay; session += 1) {
     for (let second = 0; second < DAD.sessionSeconds; second += 1) {
-      const trouble = hazards.phase === "trouble" ? hazards.trouble : undefined;
+      const trouble =
+        world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
       if (buysBoosts) {
+        let mountain = world.mountain;
         for (const boost of BOOSTS) {
           mountain = buyBoost({
             mountain,
             id: boost.id,
-            now: clock,
+            now: world.clock,
             pricing: effectiveRates(mountain),
           });
         }
+        world = { ...world, mountain };
       }
-      mountain = tendBestTier(mountain);
+      world = { ...world, mountain: tendBestTier(world.mountain) };
       if (second === 0) {
-        mountain = sendScouts(mountain, clock, "old-shaft");
+        world = {
+          ...world,
+          mountain: sendScouts(world.mountain, world.clock, "old-shaft"),
+        };
       }
+      let tapped = world.mountain;
       for (let tap = 0; tap < DAD.tapsPerSecond; tap += 1) {
-        mountain = mineByHand(mountain, clock, trouble);
+        tapped = mineByHand(tapped, world.clock, trouble);
       }
-      mountain = accrue({
-        mountain,
-        from: clock,
-        to: clock + 1000,
-        live: true,
-        ...(trouble === undefined ? {} : { trouble }),
-      }).mountain;
-      clock += 1000;
-      hazards = stepHazards(hazards, {
-        now: clock,
-        liveMs: 1000,
-        mountain,
-        ...(fixesTrouble ? { playerFixMs: SIM_FIX_MS } : {}),
-      });
+      world = step(
+        { ...world, mountain: tapped },
+        1_000,
+        "live",
+        fixesTrouble ? { playerFixMs: SIM_FIX_MS } : undefined,
+      );
       for (
-        let pick = bestValue(mountain, buysUpgrades);
-        pick !== undefined && pick.cost <= mountain.pocket;
-        pick = bestValue(mountain, buysUpgrades)
+        let pick = bestValue(world.mountain, world.clock, buysUpgrades);
+        pick !== undefined && pick.cost <= world.mountain.pocket;
+        pick = bestValue(world.mountain, world.clock, buysUpgrades)
       ) {
+        const mountain = world.mountain;
         const ratesNow = effectiveRates(mountain);
         const spare =
           mountain.helpers +
@@ -350,7 +304,8 @@ export function simulateDadRun({
               used + ratesNow.running[tier.id] * staffNeeded(mountain, tier),
             0,
           );
-        const tier = TIERS.find((candidate) => candidate.id === pick.id);
+        const tier =
+          pick.action.kind === "buyTier" ? tierById(pick.action.id) : undefined;
         const short =
           tier === undefined || tier.staff === 0
             ? 0
@@ -359,58 +314,62 @@ export function simulateDadRun({
         for (let extra = 0; extra < short; extra += 1) {
           shortCost += tierCost(tierById("helper"), mountain.helpers + extra);
         }
-        mountain = pick.buy(mountain);
+        let next = applyAction(mountain, pick.action, world.clock);
+        if (tier !== undefined && tier.staff > 0) {
+          next = tendBestTier(next);
+        }
+        world = { ...world, mountain: next };
         buys.push({
-          day: clock / DAY_MS + 1,
-          id: pick.id,
-          count: tier === undefined ? 0 : owned(mountain, tier),
+          day: world.clock / DAY_MS + 1,
+          id: pick.action.id,
+          count: tier === undefined ? 0 : owned(world.mountain, tier),
           price: pick.cost,
           spare,
           short,
           shortCost,
         });
       }
-      const beforeScout = mountain;
-      mountain = promoteScout(mountain);
-      const hired = mountain.engineers?.[beforeScout.engineers?.length ?? 0];
+      const beforeScout = world.mountain;
+      const promoted = promoteScout(beforeScout);
+      world = { ...world, mountain: promoted };
+      const hired = promoted.engineers?.[beforeScout.engineers?.length ?? 0];
       if (hired !== undefined) {
         promotions.push({
-          day: clock / DAY_MS + 1,
+          day: world.clock / DAY_MS + 1,
           name: hired.name,
           price: promoteCost(beforeScout),
           helpersBefore: beforeScout.helpers,
-          helpersAfter: mountain.helpers,
+          helpersAfter: promoted.helpers,
           pocketBefore: beforeScout.pocket,
-          pocketAfter: mountain.pocket,
+          pocketAfter: promoted.pocket,
         });
       }
       note();
     }
-    const gapEnd = clock + gapMs;
+    const gapEnd = world.clock + GAP_MS;
     // Each night the old shaft comes home, then a journeyman walks the deep dark.
     // One away payment for the whole gap, so the cap is not paid twice.
     if (session % 2 === 1) {
-      const due = (mountain.expeditions ?? [])
+      const due = (world.mountain.expeditions ?? [])
         .map((trip) => trip.returnsAt)
-        .filter((returnsAt) => returnsAt > clock && returnsAt < gapEnd);
-      const back = due.length === 0 ? clock : Math.min(...due);
-      if (back > clock) {
-        mountain = settleExpeditions(mountain, back).mountain;
+        .filter((returnsAt) => returnsAt > world.clock && returnsAt < gapEnd);
+      const back = due.length === 0 ? world.clock : Math.min(...due);
+      if (back > world.clock) {
+        world = {
+          ...world,
+          mountain: settleExpeditions(world.mountain, back).mountain,
+        };
       }
-      mountain = sendScouts(mountain, back, "deep-dark");
+      world = {
+        ...world,
+        mountain: sendScouts(world.mountain, back, "deep-dark"),
+      };
     }
-    mountain = accrueAway({
-      mountain,
-      lastSeen: clock,
-      now: gapEnd,
-    }).mountain;
-    clock = gapEnd;
-    // Closing the game clears trouble. The gap itself is away, so it never counts.
-    hazards = closeHazards(hazards, mountain);
+    world = step(world, GAP_MS, "away");
     note();
-    if (mountain.remaining === 0) {
+    if (world.mountain.remaining === 0) {
       break;
     }
   }
-  return { reached, mountain, buys, promotions };
+  return { reached, mountain: world.mountain, buys, promotions };
 }
