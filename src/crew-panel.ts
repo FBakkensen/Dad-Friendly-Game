@@ -1,15 +1,18 @@
 import { buyCrew, tierLocked } from "./crew";
 import { staffNeeded } from "./engineers";
+import { FIX_HOLD_MS } from "./hazards";
 import { floatText, reducedMotion } from "./float-text";
 import { formatCompact, formatCount } from "./format";
-import { stonesPerSecond } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates } from "./rates";
 import { RELICS } from "./relics";
 import {
   NEEDS_MORE_WORKERS,
+  TROUBLE_FIXED,
   formatSpeed,
   percent,
+  troubleAria,
+  troubleShout,
   tendingEngineer,
   tendsNote,
   workerWords,
@@ -51,6 +54,44 @@ export function createCrewPanel({
   crewStatus.setAttribute("aria-live", "polite");
   const tierGrid = document.createElement("div");
   tierGrid.className = "tier-grid";
+  const thanks = document.createElement("p");
+  thanks.className = "trouble-thanks";
+  thanks.setAttribute("aria-live", "polite");
+  let thanksTimer: ReturnType<typeof setTimeout> | undefined;
+  const thank = (target: HTMLElement): void => {
+    thanks.textContent = TROUBLE_FIXED;
+    if (thanksTimer !== undefined) {
+      clearTimeout(thanksTimer);
+    }
+    thanksTimer = setTimeout(() => {
+      thanks.textContent = "";
+      thanksTimer = undefined;
+    }, 1_600);
+    if (reducedMotion()) {
+      return;
+    }
+    for (let i = 0; i < 5; i += 1) {
+      const bit = document.createElement("span");
+      bit.className = "trouble-burst";
+      bit.setAttribute("aria-hidden", "true");
+      const angle = (i / 5) * Math.PI * 2;
+      bit.style.setProperty(
+        "--dx",
+        `${String(Math.round(Math.cos(angle) * 18))}px`,
+      );
+      bit.style.setProperty(
+        "--dy",
+        `${String(Math.round(Math.sin(angle) * 14))}px`,
+      );
+      target.append(bit);
+      setTimeout(() => {
+        bit.remove();
+      }, 700);
+    }
+  };
+  const crewSpeed = (): number =>
+    effectiveRates(getView().mountain, now(), getView().trouble).crewPerSecond;
+
   const tierCards = TIERS.map((tier) => {
     const card = document.createElement("button");
     card.type = "button";
@@ -89,15 +130,61 @@ export function createCrewPanel({
     mark.hidden = true;
     mark.setAttribute("aria-hidden", "true");
     card.append(art, words, countBadge, mark);
+    let holdTimer: ReturnType<typeof setTimeout> | undefined;
+    let suppressClick = false;
+    const clearHold = (): void => {
+      if (holdTimer !== undefined) {
+        clearTimeout(holdTimer);
+        holdTimer = undefined;
+      }
+    };
+    card.addEventListener("pointerdown", (event) => {
+      const troubled = getView().trouble;
+      if (
+        event.button !== 0 ||
+        troubled === undefined ||
+        troubled.tier !== tier.id
+      ) {
+        return;
+      }
+      clearHold();
+      holdTimer = setTimeout(() => {
+        holdTimer = undefined;
+        suppressClick = true;
+        progress.fixTrouble(troubled.tier);
+        if (getView().trouble === undefined) {
+          thank(card);
+        }
+      }, FIX_HOLD_MS);
+    });
+    card.addEventListener("pointerup", clearHold);
+    card.addEventListener("pointercancel", clearHold);
+    card.addEventListener("pointerleave", clearHold);
     card.addEventListener("click", () => {
+      if (suppressClick) {
+        suppressClick = false;
+        return;
+      }
       if (!getView().ready) {
         return;
       }
+      const troubled = getView().trouble;
+      if (troubled !== undefined && troubled.tier === tier.id) {
+        progress.pressTrouble(troubled.tier);
+        if (getView().trouble === undefined) {
+          thank(card);
+        }
+        return;
+      }
       const before = owned(getView().mountain, tier);
-      const rateBefore = stonesPerSecond(getView().mountain, now());
+      const rateBefore = crewSpeed();
       progress.applyMutation((mountain) => buyCrew(mountain, tier.id));
       if (owned(getView().mountain, tier) > before) {
-        const after = effectiveRates(getView().mountain);
+        const after = effectiveRates(
+          getView().mountain,
+          now(),
+          getView().trouble,
+        );
         // A new machine nobody can run says so, instead of promising speed.
         floatText(
           card,
@@ -106,13 +193,13 @@ export function createCrewPanel({
             : NEEDS_MORE_WORKERS,
           "float-gain",
         );
-        countCrewRate(rateBefore, stonesPerSecond(getView().mountain, now()));
+        countCrewRate(rateBefore, crewSpeed());
       }
     });
     tierGrid.append(card);
     return { tier, card, name, costText, countBadge, rate, costIcon, mark };
   });
-  crew.append(crewStatus, tierGrid);
+  crew.append(crewStatus, tierGrid, thanks);
 
   /** The crew line counts up to the new rate after a purchase. */
   let rateShown: number | undefined;
@@ -145,9 +232,9 @@ export function createCrewPanel({
   };
 
   const renderCrew = (): void => {
-    const { mountain: current } = getView();
-    const rate = rateShown ?? stonesPerSecond(current, now());
-    const rates = effectiveRates(current);
+    const { mountain: current, trouble } = getView();
+    const rates = effectiveRates(current, now(), trouble);
+    const rate = rateShown ?? rates.crewPerSecond;
     const spare =
       current.helpers +
       current.kids -
@@ -190,7 +277,19 @@ export function createCrewPanel({
       card.hidden = !tierShown(current, tier);
       const locked = tierLocked(current, tier);
       const needed = RELICS.find((relic) => relic.id === tier.needs);
-      card.disabled = !getView().ready || locked || current.pocket < price;
+      const cardTrouble =
+        trouble !== undefined && trouble.tier === tier.id ? trouble : undefined;
+      // A troubled card stays tappable even when the next one is unaffordable.
+      card.disabled =
+        !getView().ready ||
+        (locked && cardTrouble === undefined) ||
+        (current.pocket < price && cardTrouble === undefined);
+      card.classList.toggle("tier-trouble", cardTrouble !== undefined);
+      if (cardTrouble === undefined) {
+        delete card.dataset["trouble"];
+      } else {
+        card.dataset["trouble"] = cardTrouble.kind;
+      }
       card.classList.toggle("tier-locked", locked);
       costIcon.hidden = locked;
       name.textContent = compact ? tier.shortName : tier.name;
@@ -214,33 +313,38 @@ export function createCrewPanel({
       // A bought crew synergy shows as "↑12%" in the rate line (just "↑" on tight cards).
       const synergy = tierSynergy(current, tier.id);
       const lift = `\u2191${String(Math.round(synergy * 100))}%`;
-      tierRate.textContent = locked
-        ? `${needed?.name.split(" ")[0] ?? "Relic"} · ${formatCompact(needed?.depth ?? 0)}`
-        : showNeeds
-          ? NEEDS_MORE_WORKERS
-          : idleHere > 0
-            ? compact
-              ? // Tight cards: the idle count is the news; the crew line has the speed.
-                `${formatCompact(idleHere)} idle`
-              : `${formatCompact(idleHere)} idle\u2009·\u2009${formatCompact(running * speed)}/s`
-            : synergy > 0
-              ? compact
-                ? // Tight cards keep just the arrow; the sheet and label say how much.
-                  `\u2191\u2009${formatCompact(running * speed)}/s`
-                : `+${formatSpeed(speed)} ${lift} · ${formatCompact(running * speed)}/s`
-              : compact
-                ? count === 0
-                  ? `+${formatSpeed(speed)}/s`
-                  : `+${formatSpeed(speed)}\u2009·\u2009${formatCompact(running * speed)}/s`
-                : count === 0
-                  ? `+${formatSpeed(speed)}/s each`
-                  : // "each" drops out once the total needs four digits, so the line fits.
-                    `+${formatSpeed(speed)}${running * speed < 1_000 ? " each" : ""} · ${formatCompact(running * speed)}/s`;
+      tierRate.textContent =
+        cardTrouble !== undefined
+          ? troubleShout(cardTrouble.kind)
+          : locked
+            ? `${needed?.name.split(" ")[0] ?? "Relic"} · ${formatCompact(needed?.depth ?? 0)}`
+            : showNeeds
+              ? NEEDS_MORE_WORKERS
+              : idleHere > 0
+                ? compact
+                  ? // Tight cards: the idle count is the news; the crew line has the speed.
+                    `${formatCompact(idleHere)} idle`
+                  : `${formatCompact(idleHere)} idle\u2009·\u2009${formatCompact(running * speed)}/s`
+                : synergy > 0
+                  ? compact
+                    ? // Tight cards keep just the arrow; the sheet and label say how much.
+                      `\u2191\u2009${formatCompact(running * speed)}/s`
+                    : `+${formatSpeed(speed)} ${lift} · ${formatCompact(running * speed)}/s`
+                  : compact
+                    ? count === 0
+                      ? `+${formatSpeed(speed)}/s`
+                      : `+${formatSpeed(speed)}\u2009·\u2009${formatCompact(running * speed)}/s`
+                    : count === 0
+                      ? `+${formatSpeed(speed)}/s each`
+                      : // "each" drops out once the total needs four digits, so the line fits.
+                        `+${formatSpeed(speed)}${running * speed < 1_000 ? " each" : ""} · ${formatCompact(running * speed)}/s`;
       card.setAttribute(
         "aria-label",
-        locked
-          ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.${tends}`
-          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(staff)} ${workerWords(staff)} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.${tends}`,
+        cardTrouble !== undefined
+          ? troubleAria(cardTrouble.kind, tier)
+          : locked
+            ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.${tends}`
+            : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(staff)} ${workerWords(staff)} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.${tends}`,
       );
     }
   };

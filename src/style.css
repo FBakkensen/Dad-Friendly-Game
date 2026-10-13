@@ -368,12 +368,33 @@ body {
 }
 
 .crew {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   width: min(340px, 100%);
   text-align: center;
+}
+
+/* The "Fixed!" line floats above the cards, so it never grows the phone layout. */
+.trouble-thanks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  margin: 0 0 2px;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #ffe08a;
+  text-shadow: 0 1px 0 #3a2410;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.trouble-thanks:empty {
+  display: none;
 }
 
 .crew-status {
@@ -523,6 +544,39 @@ body {
   opacity: 0.85;
 }
 
+/* Trouble is a warm shout, not a number. The card stays the same height. */
+.tier-trouble {
+  box-shadow: 0 0 16px rgba(232, 120, 40, 0.5);
+}
+
+.tier.tier-trouble .tier-rate {
+  color: #6b2d12;
+  font-weight: 800;
+  opacity: 1;
+  letter-spacing: 0.01em;
+}
+
+.trouble-burst {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: #fff4c8;
+  box-shadow: 0 0 6px #e8a84a;
+  pointer-events: none;
+  animation: trouble-burst 700ms ease-out forwards;
+}
+
+@keyframes trouble-burst {
+  to {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy));
+  }
+}
+
 /* The staffing warning wraps inside the fixed card; the idle line keeps its numbers. */
 .tier-needs-workers .tier-rate {
   white-space: normal;
@@ -651,7 +705,8 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .float-gain,
   .tap-float,
-  .crew-float {
+  .crew-float,
+  .trouble-burst {
     display: none;
   }
 

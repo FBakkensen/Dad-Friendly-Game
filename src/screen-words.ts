@@ -6,6 +6,7 @@ import {
   type EngineerRank,
 } from "./engineers";
 import { formatCompact, formatCount, formatDuration } from "./format";
+import type { TroubleKind } from "./hazards";
 import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { owned, tierById, type TierId } from "./tiers";
@@ -117,6 +118,32 @@ export const tapWords = (stones: number): string =>
 
 /** Older saves that already own a borer, the one time their first engineer arrives. */
 export const ENGINEER_WELCOME = "Your best worker steps up as engineer.";
+
+/** The card's shout. No counts, no timers. */
+export function troubleShout(kind: TroubleKind): string {
+  switch (kind) {
+    case "cave-in":
+      return "Cave-in!";
+    case "flood":
+      return "Flood!";
+    case "jam":
+      return "Jam!";
+  }
+}
+
+/** What a screen reader hears on a troubled card. No numbers. */
+export function troubleAria(
+  kind: TroubleKind,
+  tier: { readonly id: string; readonly name: string },
+): string {
+  const who =
+    tier.id === "machine"
+      ? "The Great Machine needs"
+      : `The ${tier.name.toLowerCase()}s need`;
+  return `${troubleShout(kind)} ${who} a hand. Tap a few times, or hold, to help.`;
+}
+
+export const TROUBLE_FIXED = "Fixed! The crew cheers.";
 
 export const fieldLogCopy = "Copy field log";
 export const fieldLogCopied = "Copied";

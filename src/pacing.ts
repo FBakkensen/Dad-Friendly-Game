@@ -1,6 +1,7 @@
 import { BOOSTS, buyBoost } from "./boosts";
 import { buyCrew, tierLocked } from "./crew";
 import { staffForBuy, staffNeeded, tendBestTier } from "./engineers";
+import { closeHazards, freshHazards, stepHazards } from "./hazards";
 import { AWAY_PAY_RATE, effectiveRates, BASE_AWAY_CAP_MS } from "./rates";
 import {
   BOOTS_SPEED_PER_LEVEL,
@@ -31,6 +32,9 @@ const DAD = {
   sessionSeconds: 10 * 60,
   tapsPerSecond: 3,
 } as const;
+
+/** The sim dad puts trouble right within three seconds. */
+const SIM_FIX_MS = 3_000;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -198,9 +202,15 @@ export function simulateDadRun({
   buysUpgrades = false,
   buysBoosts = false,
   legacy = 0,
+  fixesTrouble = true,
 }: {
   /** Mountains already passed down: a second run starts with legacy 1. */
   legacy?: number;
+  /**
+   * Puts trouble right within three seconds. A never-fixing dad leaves it
+   * until an engineer clears it, or the session ends.
+   */
+  fixesTrouble?: boolean;
   /** Also starts Sharper picks and Overtime whenever they're affordable and idle. */
   buysBoosts?: boolean;
   /** Also weighs Strong arms, Better boots and Steady hands against crew, by stones a day per stone. */
@@ -212,6 +222,7 @@ export function simulateDadRun({
   const buys: DadPurchase[] = [];
   let mountain: Mountain =
     legacy > 0 ? { ...createMountain(), legacy } : createMountain();
+  let hazards = freshHazards(1);
   let clock = 0;
   const note = () => {
     for (const mark of milestones) {
@@ -223,6 +234,7 @@ export function simulateDadRun({
   const gapMs = DAY_MS / DAD.sessionsPerDay - DAD.sessionSeconds * 1000;
   for (let session = 0; session < maxDays * DAD.sessionsPerDay; session += 1) {
     for (let second = 0; second < DAD.sessionSeconds; second += 1) {
+      const trouble = hazards.phase === "trouble" ? hazards.trouble : undefined;
       if (buysBoosts) {
         for (const boost of BOOSTS) {
           mountain = buyBoost({
@@ -235,15 +247,22 @@ export function simulateDadRun({
       }
       mountain = tendBestTier(mountain);
       for (let tap = 0; tap < DAD.tapsPerSecond; tap += 1) {
-        mountain = mineByHand(mountain, clock);
+        mountain = mineByHand(mountain, clock, trouble);
       }
       mountain = accrue({
         mountain,
         from: clock,
         to: clock + 1000,
         live: true,
+        ...(trouble === undefined ? {} : { trouble }),
       }).mountain;
       clock += 1000;
+      hazards = stepHazards(hazards, {
+        now: clock,
+        liveMs: 1000,
+        mountain,
+        ...(fixesTrouble ? { playerFixMs: SIM_FIX_MS } : {}),
+      });
       for (
         let pick = bestValue(mountain, buysUpgrades);
         pick !== undefined && pick.cost <= mountain.pocket;
@@ -286,6 +305,8 @@ export function simulateDadRun({
       now: clock + gapMs,
     }).mountain;
     clock += gapMs;
+    // Closing the game clears trouble. The gap itself is away, so it never counts.
+    hazards = closeHazards(hazards, mountain);
     note();
     if (mountain.remaining === 0) {
       break;

@@ -127,3 +127,22 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
     expect(effectiveRates(run.mountain).running.machine).toBe(1);
   });
 });
+
+describe("pacing: a dad who never fixes trouble (#149)", () => {
+  const reached = simulateDad({
+    milestones: [depth("lantern"), depth("hammer"), depth("mantle")],
+    buysUpgrades: true,
+    fixesTrouble: false,
+  });
+
+  it("lands within a day of the usual targets", () => {
+    const lantern = reached.get(depth("lantern")) ?? Infinity;
+    const hammer = reached.get(depth("hammer")) ?? Infinity;
+    const bottom = reached.get(depth("mantle")) ?? Infinity;
+    expect(lantern).toBe(1.5);
+    expect(hammer).toBeGreaterThanOrEqual(2);
+    expect(hammer).toBeLessThanOrEqual(4.5);
+    expect(bottom).toBeGreaterThanOrEqual(4);
+    expect(bottom).toBeLessThanOrEqual(6);
+  });
+});

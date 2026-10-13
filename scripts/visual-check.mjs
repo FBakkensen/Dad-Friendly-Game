@@ -1,4 +1,4 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL */
 /**
  * Real-browser layout guard (jsdom can't see CSS). Run it with:
  *   npm run visual   (starts its own dev server; part of npm run check, so CI runs it)
@@ -81,7 +81,11 @@ const browser = await puppeteer.launch({
 /** Installed PWA on Android: edge to edge, status bar and gesture bar as safe-area insets. */
 const STANDALONE_INSETS = { top: 24, bottom: 48, left: 0, right: 0 };
 
-async function open([width, height], save, { standalone = false } = {}) {
+async function open(
+  [width, height],
+  save,
+  { standalone = false, search = "" } = {},
+) {
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
   if (standalone) {
@@ -125,7 +129,7 @@ async function open([width, height], save, { standalone = false } = {}) {
           },
     ),
   );
-  await page.goto(BASE, { waitUntil: "networkidle0" });
+  await page.goto(new URL(search, BASE).href, { waitUntil: "networkidle0" });
   return { page, close: () => context.close() };
 }
 
@@ -898,6 +902,58 @@ for (const viewport of [
     );
   });
   check(badgeFits, `${label} Legacy badge sits inside the mountain`);
+  await close();
+}
+
+// Trouble is never saved, so the dev boot previews a cave-in. The card must
+// stay on screen at the smallest phone, including the installed PWA.
+for (const standalone of [false, true]) {
+  const viewport = [360, 560];
+  const label = `360x560${standalone ? " standalone" : ""}`;
+  const { page, close } = await open(
+    viewport,
+    { version: 4, mountain: CREW, lastSeen: Date.now() },
+    { standalone, search: "?trouble=cave-in" },
+  );
+  const card = await page
+    .$eval('[data-tier="cart"]', (el) => {
+      const box = el.getBoundingClientRect();
+      return {
+        kind: el.dataset.trouble ?? "",
+        rate: el.querySelector(".tier-rate")?.textContent ?? "",
+        label: el.getAttribute("aria-label") ?? "",
+        height: box.height,
+        width: box.width,
+        top: box.top,
+        bottom: box.bottom,
+      };
+    })
+    .catch(() => undefined);
+  check(card?.kind === "cave-in", `${label} trouble card is a cave-in`);
+  check(card?.rate === "Cave-in!", `${label} trouble card says Cave-in!`);
+  check(
+    card !== undefined &&
+      !/\d|\?/.test(card.label) &&
+      card.label.includes("Cave-in"),
+    `${label} trouble card label has no numbers`,
+  );
+  check(
+    (card?.height ?? 0) >= 44 && (card?.width ?? 0) >= 44,
+    `${label} trouble card is a fat target`,
+  );
+  const fits = await page.evaluate(
+    (bottomInset) => {
+      const el = document.querySelector('[data-tier="cart"]');
+      if (el === null) {
+        return false;
+      }
+      const box = el.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= innerHeight - bottomInset;
+    },
+    standalone ? STANDALONE_INSETS.bottom : 0,
+  );
+  check(fits, `${label} trouble card sits on screen`);
+  check(await noScroll(page), `${label} trouble card has no scroll`);
   await close();
 }
 

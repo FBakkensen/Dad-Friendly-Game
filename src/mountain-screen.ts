@@ -110,7 +110,9 @@ export function mountMountainScreen({
       return;
     }
     const before = view.mountain.remaining;
-    progress.applyMutation((current) => mineByHand(current, now()));
+    progress.applyMutation((current) =>
+      mineByHand(current, now(), progress.getSnapshot().trouble),
+    );
     const mined = before - view.mountain.remaining;
     if (mined > 0) {
       // Above the finger so a thumb doesn't hide it; keyboard "clicks" have no point.
@@ -467,7 +469,7 @@ export function mountMountainScreen({
   setInterval(() => {
     progress.tick();
     stepVein();
-    const crewRate = stonesPerSecond(view.mountain, now());
+    const crewRate = stonesPerSecond(view.mountain, now(), view.trouble);
     if (
       crewRate > 0 &&
       view.mountain.remaining > 0 &&
