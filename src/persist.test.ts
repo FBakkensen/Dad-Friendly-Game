@@ -28,7 +28,7 @@ describe("serializeSave and parseSaveValue", () => {
       upgrades: { tap: 1 },
       boosts: { sharper: 9 },
       startedAt: 3,
-      staffed: true,
+      staffed: 2,
       legacy: 2,
     };
     expect(
@@ -218,7 +218,7 @@ describe("serializeSave and parseSaveValue", () => {
         borers: 0,
         machines: 0,
         kids: 0,
-        staffed: true,
+        staffed: 2,
       },
       lastSeen: 99,
     });
@@ -263,7 +263,7 @@ describe("migrateLegacyGrid", () => {
       borers: 0,
       machines: 0,
       kids: 0,
-      staffed: true,
+      staffed: 2,
     });
   });
 
@@ -277,9 +277,9 @@ describe("migrateLegacyGrid", () => {
 });
 
 describe("the staffing mark", () => {
-  it("round-trips, and only `true` is accepted", () => {
+  it("round-trips 2, and still accepts true and 1 from older clients", () => {
     const mountain = minedMountain(3);
-    expect(mountain.staffed).toBe(true);
+    expect(mountain.staffed).toBe(2);
     const saved = serializeSave({ mountain, lastSeen: 1 });
     expect(parseSaveValue(JSON.parse(JSON.stringify(saved)))?.mountain).toEqual(
       mountain,
@@ -288,13 +288,24 @@ describe("the staffing mark", () => {
     expect(
       parseSaveValue({ version: 4, mountain: old, lastSeen: 1 })?.mountain,
     ).toEqual(old);
-    expect(
-      parseSaveValue({
-        version: 4,
-        mountain: { ...old, staffed: false },
-        lastSeen: 1,
-      }),
-    ).toBeUndefined();
+    for (const staffed of [true, 1] as const) {
+      expect(
+        parseSaveValue({
+          version: 4,
+          mountain: { ...old, staffed },
+          lastSeen: 1,
+        })?.mountain.staffed,
+      ).toBe(staffed);
+    }
+    for (const staffed of [false, 0, 3, "2"]) {
+      expect(
+        parseSaveValue({
+          version: 4,
+          mountain: { ...old, staffed },
+          lastSeen: 1,
+        }),
+      ).toBeUndefined();
+    }
   });
 });
 

@@ -28,7 +28,7 @@ describe("mountain", () => {
       borers: 0,
       machines: 0,
       kids: 0,
-      staffed: true,
+      staffed: 2,
     });
     expect(minedOut(createMountain())).toBe(0);
   });
@@ -47,7 +47,7 @@ describe("mountain", () => {
       borers: 0,
       machines: 0,
       kids: 0,
-      staffed: true,
+      staffed: 2,
     });
     expect(minedOut(mountain)).toBe(3);
   });
@@ -144,6 +144,26 @@ describe("mountain", () => {
       },
     ]) {
       expect(parseMountain(bad)).toBeUndefined();
+    }
+  });
+
+  it("accepts staffing marks true, 1 and 2, and rejects anything else", () => {
+    const base = {
+      remaining: 10,
+      pocket: 0,
+      helpers: 0,
+      carts: 0,
+      drills: 0,
+      borers: 0,
+      machines: 0,
+      kids: 0,
+    };
+    expect(parseMountain({ ...base, staffed: true })?.staffed).toBe(true);
+    expect(parseMountain({ ...base, staffed: 1 })?.staffed).toBe(1);
+    expect(parseMountain({ ...base, staffed: 2 })?.staffed).toBe(2);
+    expect(parseMountain(base)?.staffed).toBeUndefined();
+    for (const staffed of [false, 0, 3, 1.5, "2"]) {
+      expect(parseMountain({ ...base, staffed })).toBeUndefined();
     }
   });
 });

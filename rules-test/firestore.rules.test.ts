@@ -74,17 +74,27 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     expect(await roundTrip(mountain)).toEqual(mountain);
   });
 
-  it("the one-time staffing mark (#89)", async () => {
+  it("the staffing marks (#89 true, and #140's 1 and 2)", async () => {
     const mountain = { ...createMountain(), helpers: 30, carts: 12 };
-    expect(mountain.staffed).toBe(true);
+    expect(mountain.staffed).toBe(2);
     expect(await roundTrip(mountain)).toEqual(mountain);
     const raw = serializeSave({ mountain, lastSeen: 1 });
-    await expect(
-      setDoc(doc(db, "saves", "dad"), {
+    for (const staffed of [true, 1, 2]) {
+      await setDoc(doc(db, "saves", "dad"), {
         ...raw,
-        mountain: { ...raw.mountain, staffed: false },
-      }),
-    ).rejects.toThrow(/permission/i);
+        mountain: { ...raw.mountain, staffed },
+      });
+      const snap = await getDoc(doc(db, "saves", "dad"));
+      expect(parseSaveValue(snap.data())?.mountain.staffed).toBe(staffed);
+    }
+    for (const staffed of [false, 0, 3, "2"]) {
+      await expect(
+        setDoc(doc(db, "saves", "dad"), {
+          ...raw,
+          mountain: { ...raw.mountain, staffed },
+        }),
+      ).rejects.toThrow(/permission/i);
+    }
   });
 
   it("the Legacy count (#130)", async () => {

@@ -468,6 +468,19 @@ body {
   opacity: 0.85;
 }
 
+/* The staffing warning wraps inside the fixed card; the idle line keeps its numbers. */
+.tier-needs-workers .tier-rate {
+  white-space: normal;
+  font-size: 0.58rem;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.tier-grid-compact .tier-needs-workers .tier-rate {
+  font-size: 0.52rem;
+  line-height: 1.02;
+}
+
 .tier-count {
   position: absolute;
   top: -9px;

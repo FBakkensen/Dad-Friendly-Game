@@ -37,6 +37,27 @@ type Pick = {
   readonly buy: (mountain: Mountain) => Mountain;
   readonly cost: number;
   readonly value: number;
+  readonly id: string;
+};
+
+/** One thing the sim dad bought, on a 1-based fractional day. */
+type DadPurchase = {
+  readonly day: number;
+  readonly id: string;
+  /** Owned after the buy; 0 for an upgrade. */
+  readonly count: number;
+  readonly price: number;
+  /** Workers free before the buy. */
+  readonly spare: number;
+  /** Workers still to hire so this machine can run, and what they cost. */
+  readonly short: number;
+  readonly shortCost: number;
+};
+
+export type DadRun = {
+  readonly reached: Map<number, number>;
+  readonly mountain: Mountain;
+  readonly buys: readonly DadPurchase[];
 };
 
 /** Stones a day one more stone a second of crew speed earns, live plus away. */
@@ -77,6 +98,7 @@ function bestValue(
         buy: (current) => buyCrew(current, tier.id),
         cost,
         value: (gain * CREW_DAY_SECONDS) / cost,
+        id: tier.id,
       });
       continue;
     }
@@ -90,6 +112,7 @@ function bestValue(
       buy: (current) => buyCrew(current, tier.id),
       cost,
       value: (rates.tierSpeed[tier.id] * CREW_DAY_SECONDS) / (cost + crewCost),
+      id: tier.id,
     });
   }
   if (withUpgrades) {
@@ -101,6 +124,7 @@ function bestValue(
         buy: (current) => buyUpgrade(current, "tap"),
         cost,
         value: (extraPerTap * DAD.tapsPerSecond * TAP_DAY_SECONDS) / cost,
+        id: "tap",
       });
     }
     const rates = effectiveRates(mountain);
@@ -112,6 +136,7 @@ function bestValue(
           buy: (current) => buyUpgrade(current, id),
           cost: price,
           value: stonesPerDay / price,
+          id,
         });
       }
     };
@@ -147,12 +172,20 @@ function bestValue(
   return best;
 }
 
+/** Milestone days only. `simulateDadRun` also returns the purchases. */
+export function simulateDad(
+  options: Parameters<typeof simulateDadRun>[0],
+): Map<number, number> {
+  return simulateDadRun(options).reached;
+}
+
 /**
  * Plays the game second by second through each session, and pays capped idle
  * time between them, until the mountain is empty or `maxDays` pass.
- * Returns the day (1-based, fractional) each stone count was first reached.
+ * Returns the day (1-based, fractional) each stone count was first reached,
+ * plus every purchase, so pacing tests can see a dead zone.
  */
-export function simulateDad({
+export function simulateDadRun({
   milestones,
   maxDays = 30,
   buysUpgrades = false,
@@ -167,8 +200,9 @@ export function simulateDad({
   buysUpgrades?: boolean;
   milestones: readonly number[];
   maxDays?: number;
-}): Map<number, number> {
+}): DadRun {
   const reached = new Map<number, number>();
+  const buys: DadPurchase[] = [];
   let mountain: Mountain =
     legacy > 0 ? { ...createMountain(), legacy } : createMountain();
   let clock = 0;
@@ -207,7 +241,30 @@ export function simulateDad({
         pick !== undefined && pick.cost <= mountain.pocket;
         pick = bestValue(mountain, buysUpgrades)
       ) {
+        const ratesNow = effectiveRates(mountain);
+        const spare =
+          mountain.helpers +
+          mountain.kids -
+          TIERS.reduce(
+            (used, tier) => used + ratesNow.running[tier.id] * tier.staff,
+            0,
+          );
+        const tier = TIERS.find((candidate) => candidate.id === pick.id);
+        const short = tier === undefined ? 0 : Math.max(0, tier.staff - spare);
+        let shortCost = 0;
+        for (let extra = 0; extra < short; extra += 1) {
+          shortCost += tierCost(tierById("helper"), mountain.helpers + extra);
+        }
         mountain = pick.buy(mountain);
+        buys.push({
+          day: clock / DAY_MS + 1,
+          id: pick.id,
+          count: tier === undefined ? 0 : owned(mountain, tier),
+          price: pick.cost,
+          spare,
+          short,
+          shortCost,
+        });
       }
       note();
     }
@@ -222,5 +279,5 @@ export function simulateDad({
       break;
     }
   }
-  return reached;
+  return { reached, mountain, buys };
 }

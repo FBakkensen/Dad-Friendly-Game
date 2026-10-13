@@ -4,11 +4,12 @@ import type { RelicId } from "./relics";
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
 const COST_GROWTH = 2;
 /**
- * Helpers staff every machine, so they need far more of them: a gentle curve
- * keeps the hundredth helper affordable. Tuned by src/pacing.test.ts.
+ * Workers staff every machine. M7 (#140) steepens the curve from ×1.15 to
+ * ×1.25 so a borer comes with a real hiring bill. Tuned by src/pacing.test.ts.
+ * Kids share it.
  */
-const HELPER_COST_GROWTH = 1.15;
-/** Kids follow the helpers' gentle curve from a late-game price. */
+const HELPER_COST_GROWTH = 1.25;
+/** Kids follow the workers' curve from a late-game price. */
 const KID_FIRST_COST = 1_000_000;
 
 export type TierId = "helper" | "cart" | "drill" | "borer" | "machine" | "kid";
@@ -60,16 +61,16 @@ export const TIERS: readonly Tier[] = [
     shortName: "Drill",
     firstCost: 20_000,
     perSecond: 60,
-    staff: 2,
+    staff: 3,
   },
   {
     id: "borer",
     field: "borers",
     name: "Tunnel borer",
     shortName: "Borer",
-    firstCost: 8_000_000,
+    firstCost: 10_000_000,
     perSecond: 350,
-    staff: 4,
+    staff: 8,
   },
   {
     id: "machine",
@@ -78,7 +79,7 @@ export const TIERS: readonly Tier[] = [
     shortName: "Machine",
     firstCost: 80_000_000,
     perSecond: 3_500,
-    staff: 10,
+    staff: 25,
     needs: "hammer",
   },
   {

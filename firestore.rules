@@ -12,7 +12,7 @@ service cloud.firestore {
     //   - mountain: map (required iff version is 3 or 4)
     //       - remaining: int 0..100000000 (v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts, drills, borers, machines, kids: optional int >= 0, upgrades: optional map of known ids to int levels, boosts: optional map of known ids to int end times,
     //         startedAt: optional int >= 0 (run start; updates may not lower it)
-    //         staffed: optional true (one-time #89 helper grant done)
+    //         staffed: optional true or 1 (#89 grant) or 2 (M7 top-up). true stays valid for old clients.
     //   - grid: map (required iff version is 1 or 2; legacy, read-migrated by the client)
     //       - width: int (required, must be 3)
     //       - height: int (required, must be 3)
@@ -104,7 +104,7 @@ service cloud.firestore {
           (!('sharper' in mountain.boosts) || (mountain.boosts.sharper is int && mountain.boosts.sharper >= 0)) &&
           (!('overtime' in mountain.boosts) || (mountain.boosts.overtime is int && mountain.boosts.overtime >= 0)))) &&
         (!('startedAt' in mountain) || (mountain.startedAt is int && mountain.startedAt >= 0)) &&
-        (!('staffed' in mountain) || mountain.staffed == true) &&
+        (!('staffed' in mountain) || mountain.staffed == true || mountain.staffed == 1 || mountain.staffed == 2) &&
         (!('legacy' in mountain) || (mountain.legacy is int && mountain.legacy >= 0 && mountain.legacy <= 1000));
     }
 

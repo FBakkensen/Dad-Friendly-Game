@@ -104,11 +104,11 @@ async function open([width, height], save, { standalone = false } = {}) {
       }
     },
     SAVE_KEY,
-    // Seeds are current saves (already staffed) unless they say `legacy`.
+    // Seeds are current saves (M7 staffing grant already done) unless they say `legacy`.
     JSON.stringify(
       save.legacy || save.mountain === undefined
         ? { ...save, legacy: undefined }
-        : { ...save, mountain: { staffed: true, ...save.mountain } },
+        : { ...save, mountain: { staffed: 2, ...save.mountain } },
     ),
   );
   await page.goto(BASE, { waitUntil: "networkidle0" });
@@ -587,7 +587,7 @@ for (const viewport of [
       borers: 0,
       machines: 0,
       kids: 0,
-      staffed: true,
+      staffed: 2,
     },
     lastSeen: Date.now(),
   });
@@ -634,7 +634,7 @@ for (const viewport of [
       borers: 999,
       machines: 999,
       kids: 999,
-      staffed: true,
+      staffed: 2,
     },
     lastSeen: Date.now(),
   });
@@ -672,7 +672,7 @@ for (const viewport of [
       pocket: 0,
       helpers: 999,
       kids: 999,
-      staffed: true,
+      staffed: 2,
       legacy: 1,
     },
     lastSeen: Date.now(),
