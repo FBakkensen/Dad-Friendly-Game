@@ -24,6 +24,8 @@ const REQUIRED_SELECTORS = [
   ".golden-vein",
   ".vein-note",
   ".tier-grid",
+  ".tier-trouble",
+  ".trouble-thanks",
   ".relic-shelf",
 ];
 

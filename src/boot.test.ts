@@ -28,11 +28,19 @@ beforeEach(() => {
 
 describe("parseBootOptions", () => {
   it("defaults to no memory save", () => {
-    expect(parseBootOptions("")).toEqual({ memorySave: false });
+    expect(parseBootOptions("")).toEqual({
+      memorySave: false,
+      previewTrouble: false,
+    });
   });
 
   it("reads memorySave=1", () => {
     expect(parseBootOptions("?memorySave=1").memorySave).toBe(true);
+  });
+
+  it("reads trouble=cave-in for the layout check", () => {
+    expect(parseBootOptions("?trouble=cave-in").previewTrouble).toBe(true);
+    expect(parseBootOptions("?trouble=flood").previewTrouble).toBe(false);
   });
 
   it("rejects memorySave values other than 1", () => {
@@ -68,6 +76,28 @@ describe("createAppServices", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
+    progress.dispose();
+  });
+
+  it("trouble=cave-in previews a cave-in while developing", async () => {
+    const { progress } = await createAppServices({
+      env: {},
+      search: "?trouble=cave-in",
+    });
+    expect(progress.getSnapshot().trouble).toMatchObject({
+      kind: "cave-in",
+      tier: "cart",
+    });
+    progress.dispose();
+  });
+
+  it("ignores the trouble preview outside dev", async () => {
+    const { progress } = await createAppServices({
+      env: {},
+      search: "?trouble=cave-in",
+      devMode: false,
+    });
+    expect(progress.getSnapshot().trouble).toBeUndefined();
     progress.dispose();
   });
 

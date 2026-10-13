@@ -16,9 +16,14 @@ import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
-import { ENGINEER_WELCOME, NEEDS_MORE_WORKERS } from "./screen-words";
+import { FIX_HOLD_MS } from "./hazards";
+import {
+  ENGINEER_WELCOME,
+  NEEDS_MORE_WORKERS,
+  troubleAria,
+} from "./screen-words";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
-import { buyTier } from "./tiers";
+import { buyTier, tierById } from "./tiers";
 
 function setReducedMotion(reduce: boolean): void {
   window.matchMedia = ((query: string) => ({
@@ -2289,6 +2294,142 @@ describe("player-facing workers (#139)", () => {
       expect(mentionsHelper(screen.root)).toEqual([]);
     } finally {
       screen.root.remove();
+    }
+  });
+});
+
+describe("trouble on a tier card (#149)", () => {
+  const crew = (): Mountain => ({
+    ...minedMountain(0),
+    remaining: 50_000_000,
+    pocket: 50_000_000,
+    helpers: 12,
+    carts: 1,
+    drills: 1,
+    borers: 1,
+    machines: 0,
+    kids: 0,
+  });
+
+  const card = (screen: ReturnType<typeof mountScreen>, id: string) => {
+    const element = screen.root.querySelector<HTMLButtonElement>(
+      `[data-tier="${id}"]`,
+    );
+    if (element === null) {
+      throw new Error(`${id} card did not render`);
+    }
+    return element;
+  };
+
+  it("shows a warm label, slows the crew, and five taps fix it without buying", () => {
+    const screen = mountScreen();
+    screen.progress.applyMutation(() => crew());
+    const cart = card(screen, "cart");
+    cart.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 2 }),
+    );
+    expect(screen.text(".crew-status")).toBe(
+      "Your crew mines 432 stones a second",
+    );
+    screen.progress.previewTrouble("cart");
+    expect(cart.dataset["trouble"]).toBe("cave-in");
+    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe("Cave-in!");
+    expect(screen.text(".crew-status")).toBe(
+      "Your crew mines 429 stones a second",
+    );
+    expect(cart.getAttribute("aria-label")).toBe(
+      troubleAria("cave-in", tierById("cart")),
+    );
+    expect(cart.getAttribute("aria-label")).not.toMatch(/\d|\?/);
+    expect(cart.disabled).toBe(false);
+    for (let tap = 0; tap < 4; tap += 1) {
+      cart.click();
+    }
+    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe("Cave-in!");
+    expect(screen.progress.getSnapshot().mountain.carts).toBe(1);
+    cart.click();
+    expect(screen.text(".trouble-thanks")).toBe("Fixed! The crew cheers.");
+    expect(screen.progress.getSnapshot().mountain.carts).toBe(1);
+    expect(screen.progress.getSnapshot().trouble).toBeUndefined();
+    expect(screen.text(".crew-status")).toBe(
+      "Your crew mines 432 stones a second",
+    );
+    expect(cart.querySelector(".trouble-burst")).toBeNull();
+  });
+
+  it("names a flood, a jam, and the Great Machine without numbers", () => {
+    const screen = mountScreen();
+    screen.progress.applyMutation(() => crew());
+    screen.progress.previewTrouble("drill");
+    const drill = card(screen, "drill");
+    expect(screen.text('[data-tier="drill"] .tier-rate')).toBe("Flood!");
+    expect(drill.getAttribute("aria-label")).not.toMatch(/\d|\?/);
+    screen.progress.previewTrouble("borer");
+    expect(screen.text('[data-tier="borer"] .tier-rate')).toBe("Jam!");
+    screen.progress.previewTrouble("machine");
+    const machine = card(screen, "machine");
+    expect(screen.text('[data-tier="machine"] .tier-rate')).toBe("Jam!");
+    expect(machine.getAttribute("aria-label")).toBe(
+      troubleAria("jam", tierById("machine")),
+    );
+    expect(machine.getAttribute("aria-label")).not.toMatch(/\d|\?/);
+    expect(machine.disabled).toBe(false);
+  });
+
+  it("fixes on a short hold, and letting go early does not", async () => {
+    vi.useFakeTimers();
+    try {
+      const screen = mountScreen();
+      screen.progress.applyMutation(() => crew());
+      screen.progress.previewTrouble("cart");
+      const cart = card(screen, "cart");
+      cart.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      cart.dispatchEvent(new PointerEvent("pointerleave", { bubbles: true }));
+      cart.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      cart.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true }));
+      cart.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      await vi.advanceTimersByTimeAsync(FIX_HOLD_MS / 2);
+      cart.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(FIX_HOLD_MS);
+      expect(screen.progress.getSnapshot().trouble?.kind).toBe("cave-in");
+      cart.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      await vi.advanceTimersByTimeAsync(FIX_HOLD_MS);
+      expect(screen.text(".trouble-thanks")).toBe("Fixed! The crew cheers.");
+      expect(screen.progress.getSnapshot().mountain.carts).toBe(1);
+      cart.click();
+      expect(screen.progress.getSnapshot().mountain.carts).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("bursts a thank-you when motion is allowed", async () => {
+    vi.useFakeTimers();
+    setReducedMotion(false);
+    try {
+      const screen = mountScreen();
+      screen.progress.applyMutation(() => crew());
+      screen.progress.previewTrouble("cart");
+      const cart = card(screen, "cart");
+      for (let tap = 0; tap < 5; tap += 1) {
+        cart.click();
+      }
+      expect(cart.querySelectorAll(".trouble-burst")).toHaveLength(5);
+      expect(screen.text(".trouble-thanks")).toBe("Fixed! The crew cheers.");
+      await vi.advanceTimersByTimeAsync(1_600);
+      expect(cart.querySelector(".trouble-burst")).toBeNull();
+      expect(screen.text(".trouble-thanks")).toBe("");
+    } finally {
+      vi.useRealTimers();
+      setReducedMotion(true);
     }
   });
 });

@@ -17,9 +17,15 @@ export type AppServices = {
   readonly progress: ProgressStore;
 };
 
-export function parseBootOptions(search: string): { memorySave: boolean } {
+export function parseBootOptions(search: string): {
+  memorySave: boolean;
+  /** Dev-only layout hook: trouble is never saved, so the check asks for it. */
+  previewTrouble: boolean;
+} {
+  const params = new URLSearchParams(search);
   return {
-    memorySave: new URLSearchParams(search).get("memorySave") === "1",
+    memorySave: params.get("memorySave") === "1",
+    previewTrouble: params.get("trouble") === "cave-in",
   };
 }
 
@@ -32,14 +38,18 @@ export async function createAppServices({
   search?: string;
   devMode?: boolean;
 }): Promise<AppServices> {
+  const options = parseBootOptions(search);
   const services =
-    devMode && parseBootOptions(search).memorySave
+    devMode && options.memorySave
       ? memoryServices()
       : await configuredServices({ env });
   const progress = createProgressStore({
     auth: services.auth,
     cloudSave: services.cloudSave,
   });
+  if (devMode && options.previewTrouble) {
+    progress.previewTrouble("cart");
+  }
   return { auth: services.auth, progress };
 }
 

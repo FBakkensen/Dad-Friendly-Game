@@ -1,3 +1,4 @@
+import type { Trouble } from "./hazards";
 import { effectiveRates, heartBonus } from "./rates";
 import { parseBoosts, type Boosts } from "./boosts";
 import { parseEngineers, type Engineer } from "./engineers";
@@ -81,13 +82,17 @@ export function createMountain(): Mountain {
 export { minedOut } from "./scale";
 
 /** One tap mines its yield (see effectiveRates); an empty mountain returns the same object. */
-export function mineByHand(mountain: Mountain, now?: number): Mountain {
+export function mineByHand(
+  mountain: Mountain,
+  now?: number,
+  trouble?: Trouble,
+): Mountain {
   if (mountain.remaining === 0) {
     return mountain;
   }
   const mined = Math.min(
     mountain.remaining,
-    effectiveRates(mountain, now).tapYield,
+    effectiveRates(mountain, now, trouble).tapYield,
   );
   return {
     ...mountain,
@@ -97,8 +102,12 @@ export function mineByHand(mountain: Mountain, now?: number): Mountain {
 }
 
 /** The crew's speed; pass `now` while playing to count running boosts. */
-export function stonesPerSecond(mountain: Mountain, now?: number): number {
-  return effectiveRates(mountain, now).crewPerSecond;
+export function stonesPerSecond(
+  mountain: Mountain,
+  now?: number,
+  trouble?: Trouble,
+): number {
+  return effectiveRates(mountain, now, trouble).crewPerSecond;
 }
 
 export type Accrual = {
@@ -119,6 +128,7 @@ export function accrue({
   to,
   pay = 1,
   live = false,
+  trouble,
 }: {
   mountain: Mountain;
   from: number;
@@ -127,8 +137,14 @@ export function accrue({
   pay?: number;
   /** Live play counts boosts running at `from`; away time never does. */
   live?: boolean;
+  /** Session trouble. Ignored unless `live`: away pay never slows for it. */
+  trouble?: Trouble;
 }): Accrual {
-  const rate = stonesPerSecond(mountain, live ? from : undefined);
+  const rate = stonesPerSecond(
+    mountain,
+    live ? from : undefined,
+    live ? trouble : undefined,
+  );
   if (to <= from) {
     return { mountain, mined: 0, settledAt: Math.max(from, to) };
   }
