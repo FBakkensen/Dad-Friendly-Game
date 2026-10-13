@@ -1,4 +1,5 @@
 import { BOOSTS, type BoostId } from "./boosts";
+import { ENGINEER_NAMES } from "./engineers";
 import type { Mountain } from "./mountain";
 import type { Rates } from "./rates";
 import { foundRelics, type RelicId } from "./relics";
@@ -81,6 +82,18 @@ export type FieldSnapshot = {
     readonly endsAt: string;
   }[];
   readonly legacy: number;
+  /** Name, rank (0 apprentice, 1 journeyman, 2 master), and post. */
+  readonly engineers: readonly {
+    readonly name: string;
+    readonly rank: number;
+    readonly post: string;
+  }[];
+  /** Parties still out, with an ISO return time. */
+  readonly expeditions: readonly {
+    readonly engineer: string;
+    readonly tunnel: string;
+    readonly returnsAt: string;
+  }[];
 };
 
 export type FieldLog = {
@@ -125,6 +138,16 @@ export function snapshot(
     }
     boosts.push({ id: boost.id, endsAt: new Date(endsAt).toISOString() });
   }
+  const engineers = (mountain.engineers ?? []).map((engineer) => ({
+    name: engineer.name,
+    rank: engineer.rank,
+    post: engineer.post,
+  }));
+  const expeditions = (mountain.expeditions ?? []).map((trip) => ({
+    engineer: trip.engineer,
+    tunnel: trip.tunnel,
+    returnsAt: new Date(trip.returnsAt).toISOString(),
+  }));
   return {
     version,
     at: new Date(now).toISOString(),
@@ -139,6 +162,8 @@ export function snapshot(
     upgrades,
     boosts,
     legacy: mountain.legacy ?? 0,
+    engineers,
+    expeditions,
   };
 }
 
@@ -324,6 +349,16 @@ export function maxFieldLogDocumentBytes(): number {
         { id: "sharper", endsAt: maxText() },
       ],
       legacy: 1000,
+      engineers: ENGINEER_NAMES.map((name) => ({
+        name,
+        rank: 2,
+        post: "machine",
+      })),
+      expeditions: ENGINEER_NAMES.map((name) => ({
+        engineer: name,
+        tunnel: "side-seam",
+        returnsAt: maxText(),
+      })),
     },
     events: Array.from({ length: EVENT_RING_LIMIT }, () => ({
       at: maxText(),
