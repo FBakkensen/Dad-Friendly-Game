@@ -13,6 +13,7 @@ import {
   type SettledFind,
   type TunnelId,
 } from "./expeditions";
+import type { BoostId } from "./boosts";
 import { formatCompact, formatCount, formatDuration } from "./format";
 import type { TroubleKind } from "./hazards";
 import type { Mountain } from "./mountain";
@@ -184,7 +185,6 @@ export const PROMOTE_TITLE = "Promote a worker";
 export const PROMOTE_WHY =
   "A new engineer can tend another machine or explore while the others work.";
 export const PROMOTE_BUTTON = "Promote";
-export const PROMOTE_SHORT_POCKET = "The pocket is too light for that.";
 
 const RANK_LABEL: Readonly<Record<EngineerRank, string>> = {
   0: "Apprentice",
@@ -231,9 +231,6 @@ function voice(name: Engineer["name"]): Voice {
   return { subject: "she", object: "her", possessive: "her", self: "herself" };
 }
 
-/** How much faster that rank makes a machine. Never a percent. */
-const PACE = ["a bit", "quite a bit", "much"] as const;
-
 const TEND_TITLE: Readonly<Record<TendPost, string>> = {
   cart: "The carts",
   drill: "The drills",
@@ -261,26 +258,37 @@ const TUNNEL_BENEFIT: Readonly<Record<TunnelId, string>> = {
 };
 
 /**
- * The open card's one sentence: what they are doing, and what it does.
- * Rank changes the pace words only. A tunnel uses the trip lines instead.
+ * Stones a second, in the game's number format.
+ * "+800 stones/sec", "+1.2K stones/sec".
  */
-export function dutySentence(engineer: Engineer): string {
-  const { name, rank, post } = engineer;
-  const { subject, object, self } = voice(name);
-  const pace = PACE[rank];
+/** A tending choice for a tier he has none of: no "+0", just the reason. */
+export const NONE_BUILT = "none built yet";
+
+export function stonesPerSecond(gain: number): string {
+  return `+${formatCompact(Math.max(0, Math.floor(gain)))} stones/sec`;
+}
+
+/**
+ * The open card's one sentence. A tended machine names the live gain.
+ * Camp and a tunnel tend nothing.
+ */
+export function dutySentence(engineer: Engineer, gain?: string): string {
+  const { name, post } = engineer;
+  const { object } = voice(name);
+  const pace = gain ?? stonesPerSecond(0);
   switch (post) {
     case "camp":
       return `${name} is resting at camp. Give ${object} a job below.`;
     case "tunnel":
       return `${name} is out exploring.`;
     case "machine":
-      return `${name} is tending the Great Machine, it digs ${pace} faster and ${subject} fixes trouble there ${self}.`;
+      return `${name} is tending the Great Machine: ${pace}.`;
     case "cart":
-      return `${name} is tending the carts, they dig ${pace} faster and ${subject} fixes trouble there ${self}.`;
+      return `${name} is tending the carts: ${pace}.`;
     case "drill":
-      return `${name} is tending the drills, they dig ${pace} faster and ${subject} fixes trouble there ${self}.`;
+      return `${name} is tending the drills: ${pace}.`;
     case "borer":
-      return `${name} is tending the borers, they dig ${pace} faster and ${subject} fixes trouble there ${self}.`;
+      return `${name} is tending the borers: ${pace}.`;
   }
 }
 
@@ -317,35 +325,81 @@ export function tendTitle(post: TendPost, here: boolean): string {
  * Cave-in on the carts, flood on the drills, jam on the borers and the
  * Great Machine. The Great Machine also runs with far fewer workers.
  */
-export function tendBenefit(post: TendPost, name: Engineer["name"]): string {
+export function tendBenefit(
+  post: TendPost,
+  name: Engineer["name"],
+  gain?: string,
+): string {
   const { subject, self } = voice(name);
-  switch (post) {
-    case "cart":
-      return `They roll faster, and ${subject} shores up cave-ins ${self}.`;
-    case "drill":
-      return `They bite deeper, and ${subject} pumps out floods ${self}.`;
-    case "borer":
-      return `They dig faster, and ${subject} clears any jam ${self}.`;
-    case "machine":
-      return `It runs with far fewer workers, and ${subject} clears any jam ${self}.`;
-    case "camp":
-      return "Rests by the fire, ready for the next job.";
+  const line = (() => {
+    switch (post) {
+      case "cart":
+        return `They roll faster, and ${subject} shores up cave-ins ${self}.`;
+      case "drill":
+        return `They bite deeper, and ${subject} pumps out floods ${self}.`;
+      case "borer":
+        return `They dig faster, and ${subject} clears any jam ${self}.`;
+      case "machine":
+        return `It runs with far fewer workers, and ${subject} clears any jam ${self}.`;
+      case "camp":
+        return "Rests by the fire, ready for the next job.";
+    }
+  })();
+  if (post === "camp" || gain === undefined) {
+    return line;
   }
+  return `${gain.charAt(0).toUpperCase()}${gain.slice(1)}. ${line}`;
 }
 
-export function stationCheer(name: string, post: TendPost): string {
-  switch (post) {
-    case "camp":
-      return `${name} puts the kettle on at camp.`;
-    case "cart":
-      return `${name} heads to the carts!`;
-    case "drill":
-      return `${name} heads to the drills!`;
-    case "borer":
-      return `${name} heads to the borers!`;
-    case "machine":
-      return `${name} heads to the Great Machine!`;
+export function stationCheer(
+  name: string,
+  post: TendPost,
+  gain?: string,
+): string {
+  const line = (() => {
+    switch (post) {
+      case "camp":
+        return `${name} puts the kettle on at camp.`;
+      case "cart":
+        return `${name} heads to the carts!`;
+      case "drill":
+        return `${name} heads to the drills!`;
+      case "borer":
+        return `${name} heads to the borers!`;
+      case "machine":
+        return `${name} heads to the Great Machine!`;
+    }
+  })();
+  return post === "camp" || gain === undefined ? line : `${line} ${gain}`;
+}
+
+/** The Promote button. The price is the decision. */
+export function promoteOffer(cost: number): string {
+  return `Promote a worker: ${formatCompact(cost)} stones`;
+}
+
+/** Greyed reason when the pocket cannot cover a promotion. */
+export function promoteNeeds(cost: number): string {
+  return `Needs ${formatCompact(cost)} stones`;
+}
+
+/**
+ * What buying a boost does right now, in stones. The × is the rule;
+ * the count is the output.
+ */
+export function boostOutcome(
+  id: BoostId,
+  effect: string,
+  multiplier: number,
+  rates: { readonly tapYield: number; readonly crewPerSecond: number },
+  running: boolean,
+): string {
+  if (id === "sharper") {
+    const taps = running ? rates.tapYield : rates.tapYield * multiplier;
+    return `${effect} ${formatCount(taps)} a tap.`;
   }
+  const crew = running ? rates.crewPerSecond : rates.crewPerSecond * multiplier;
+  return `${effect} ${formatCompact(crew)}/s.`;
 }
 
 export const exploreTitle = (tunnel: TunnelId): string => TUNNEL_TITLE[tunnel];

@@ -2272,4 +2272,120 @@ describe("expeditions through the save", () => {
     expect(live.getSnapshot().homecomings[0]?.engineer).toBe("Nils");
     live.dispose();
   });
+
+  it("keeps the notice across a reload, ignores a bad note, and does not say it twice", () => {
+    const sent = send(
+      {
+        ...createMountain(),
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" }],
+      },
+      0,
+      "side-seam",
+      0,
+    );
+    const trip = sent.expeditions?.[0];
+    if (trip === undefined) {
+      throw new Error("expected a trip");
+    }
+    const soon = {
+      ...sent,
+      expeditions: [{ ...trip, returnsAt: 5_000 }],
+    };
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: soon, lastSeen: 0 });
+    let clock = 0;
+    const first = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    clock = 5_000;
+    first.flush();
+    const sentAt = first.getSnapshot().homecomings[0]?.sentAt;
+    expect(first.getSnapshot().homecomings).toHaveLength(1);
+    first.dispose();
+
+    const second = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    expect(second.getSnapshot().homecomings).toHaveLength(1);
+    expect(second.getSnapshot().homecomings[0]?.sentAt).toBe(sentAt);
+    second.tick();
+    expect(second.getSnapshot().homecomings).toHaveLength(1);
+    second.dismissAway();
+    expect(storage.getItem("dad-friendly-homecomings")).toBeNull();
+    second.dispose();
+
+    const remembered = [
+      {
+        engineer: "Nils",
+        tunnel: "side-seam",
+        sentAt: 1,
+        find: { kind: "quiet", text: "Safe." },
+      },
+      {
+        engineer: "Ada",
+        tunnel: "side-seam",
+        sentAt: (sentAt ?? 0) + 1,
+        find: { kind: "quiet", text: "Safe." },
+      },
+      {
+        engineer: "Ada",
+        tunnel: "side-seam",
+        sentAt,
+        find: { kind: "quiet", text: "Safe." },
+      },
+    ];
+    storage.setItem("dad-friendly-homecomings", JSON.stringify(remembered));
+    writeSessionSave({ storage, mountain: soon, lastSeen: 0 });
+    const merged = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    expect(merged.getSnapshot().homecomings).toHaveLength(3);
+    merged.dispose();
+
+    storage.setItem("dad-friendly-homecomings", "not json");
+    writeSessionSave({ storage, mountain: createMountain(), lastSeen: clock });
+    const broken = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    expect(broken.getSnapshot().homecomings).toEqual([]);
+    broken.dispose();
+
+    storage.setItem(
+      "dad-friendly-homecomings",
+      JSON.stringify([{ engineer: "nope" }]),
+    );
+    const empty = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    expect(empty.getSnapshot().homecomings).toEqual([]);
+    empty.dispose();
+
+    const blocking = createMemoryStorage();
+    writeSessionSave({ storage: blocking, mountain: soon, lastSeen: 0 });
+    const setItem = blocking.setItem.bind(blocking);
+    blocking.setItem = (key, value) => {
+      if (key === "dad-friendly-homecomings") {
+        throw new Error("full");
+      }
+      setItem(key, value);
+    };
+    const blocked = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: blocking,
+      now: () => 5_000,
+    });
+    blocked.tick();
+    expect(blocked.getSnapshot().homecomings).toHaveLength(1);
+    blocked.dispose();
+  });
 });

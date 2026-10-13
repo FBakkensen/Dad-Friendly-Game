@@ -1774,9 +1774,8 @@ describe("crew staffing on screen", () => {
     const screen = mountScreen({ storage });
     const borer = screen.root.querySelector('[data-tier="borer"]');
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      NEEDS_MORE_WORKERS,
+      "+350/s · needs workers",
     );
-    expect(screen.text('[data-tier="borer"] .tier-rate')).not.toMatch(/\d/);
     expect(borer?.getAttribute("aria-label")).toContain(NEEDS_MORE_WORKERS);
     expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
       "+60\u2009·\u200960/s",
@@ -1798,7 +1797,7 @@ describe("crew staffing on screen", () => {
         screen.root.querySelector<HTMLButtonElement>('[data-tier="cart"]');
       cart?.click();
       expect(cart?.querySelector(".float-gain")?.textContent).toBe(
-        NEEDS_MORE_WORKERS,
+        "+10/s · needs workers",
       );
       expect(screen.text(".crew-status")).toBe("11/s · 1 idle, need 1 worker");
     } finally {
@@ -2592,7 +2591,7 @@ describe("engineers sheet (#145)", () => {
     const sheet = openSheet(screen.root);
     expect(sheet.hidden).toBe(false);
     expect(sheet.textContent).toContain(
-      "Ada is tending the borers, they dig a bit faster and she fixes trouble there herself.",
+      "Ada is tending the borers: +0 stones/sec.",
     );
   });
 
@@ -2657,10 +2656,15 @@ describe("engineers sheet (#145)", () => {
     expect(ada?.querySelector(".engineer-rank-word")?.textContent).toBe(
       "Apprentice",
     );
-    expect(sheet.textContent).not.toMatch(/\d|\?|%/);
+    expect(ada?.textContent).toContain(
+      "Ada is tending the borers: +35 stones/sec.",
+    );
+    expect(ada?.querySelector(".engineer-doing")?.textContent).not.toMatch(
+      /\?|%/,
+    );
     ada?.querySelector<HTMLButtonElement>(".engineer-tend")?.click();
     expect(ada?.textContent).toContain(
-      "They roll faster, and she shores up cave-ins herself.",
+      "+1 stones/sec. They roll faster, and she shores up cave-ins herself.",
     );
     expect(ada?.textContent).toContain(
       "They bite deeper, and she pumps out floods herself.",
@@ -2677,9 +2681,16 @@ describe("engineers sheet (#145)", () => {
     ada?.querySelector<HTMLButtonElement>('[data-post="cart"]')?.click();
 
     expect(screen.text(".engineer-doing")).toBe(
-      "Ada is tending the carts, they dig a bit faster and she fixes trouble there herself.",
+      "Ada is tending the carts: +1 stones/sec.",
     );
-    expect(screen.text(".engineer-toast")).toBe("Ada heads to the carts!");
+    expect(screen.text(".engineer-toast")).toBe(
+      "Ada heads to the carts! +1 stones/sec",
+    );
+    expect(
+      screen.root
+        .querySelector(".engineer-toast")
+        ?.classList.contains("is-story"),
+    ).toBe(true);
     expect(ada?.classList.contains("is-lit")).toBe(true);
     expect(
       ada?.querySelector(".engineer-face")?.getAttribute("data-badge"),
@@ -2763,7 +2774,9 @@ describe("engineers sheet (#145)", () => {
     });
     const screen = mountScreen({ storage });
     const sheet = openSheet(screen.root);
-    expect(screen.text(".engineer-promote")).toBe("Promote");
+    expect(screen.text(".engineer-promote")).toBe(
+      "Promote a worker: 2M stones",
+    );
     expect(screen.text(".engineer-promote-why")).toBe(
       "A new engineer can tend another machine or explore while the others work.",
     );
@@ -2847,7 +2860,11 @@ describe("engineers sheet (#145)", () => {
       sheet.querySelector<HTMLElement>('[data-name="Otto"] .engineer-hint')
         ?.hidden,
     ).toBe(true);
-    expect(sheet.textContent).not.toMatch(/\d|\?/);
+    for (const hint of sheet.querySelectorAll(
+      ".engineer-hint, .engineer-rank",
+    )) {
+      expect(hint.textContent).not.toMatch(/\d|\?/);
+    }
     expect(
       sheet
         .querySelector('[data-name="Otto"] .engineer-lamps')
@@ -2867,7 +2884,7 @@ describe("engineers sheet (#145)", () => {
     const promote =
       broke.root.querySelector<HTMLButtonElement>(".engineer-promote");
     expect(promote?.disabled).toBe(true);
-    expect(promote?.textContent).toBe("Promote");
+    expect(promote?.textContent).toBe("Promote a worker: 2M stones");
     expect(broke.text(".engineer-promote-why")).toBe(
       "No worker is free to step up.",
     );
@@ -2922,9 +2939,10 @@ describe("engineers sheet (#145)", () => {
     const sheet = openSheet(screen.root);
     const promote = sheet.querySelector<HTMLButtonElement>(".engineer-promote");
     expect(promote?.disabled).toBe(true);
-    expect(screen.text(".engineer-promote-why")).toBe(
-      "The pocket is too light for that.",
+    expect(screen.text(".engineer-promote")).toBe(
+      "Promote a worker: 2M stones",
     );
+    expect(screen.text(".engineer-promote-why")).toBe("Needs 2M stones");
     promote?.click();
     expect(sheet.querySelector<HTMLElement>(".engineer-confirm")?.hidden).toBe(
       true,
@@ -3015,7 +3033,12 @@ describe("engineers sheet (#145)", () => {
       );
       sheet.querySelector<HTMLButtonElement>('[data-post="drill"]')?.click();
       sheet.querySelector<HTMLButtonElement>('[data-post="cart"]')?.click();
-      expect(screen.text(".engineer-toast")).toBe("Ada heads to the carts!");
+      expect(screen.text(".engineer-toast")).toBe(
+        "Ada heads to the carts! +1 stones/sec",
+      );
+      expect(
+        sheet.querySelector(".engineer-toast")?.classList.contains("is-story"),
+      ).toBe(true);
       expect(sheet.querySelector(".engineer.is-lit")).not.toBeNull();
       sheet
         .querySelectorAll<HTMLButtonElement>('[data-post="camp"]')[4]
@@ -3154,7 +3177,7 @@ describe("side tunnels (#147)", () => {
     recall?.click();
     sheet.querySelector<HTMLButtonElement>(".recall-yes")?.click();
     expect(screen.text(".engineer-doing")).toBe(
-      "Ada is tending the borers, they dig a bit faster and she fixes trouble there herself.",
+      "Ada is tending the borers: +35 stones/sec.",
     );
     expect(screen.text(".engineer-toast")).toBe("Ada is home, empty-handed.");
     expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
@@ -3304,6 +3327,174 @@ describe("side tunnels (#147)", () => {
       live.progress.dispose();
       live.root.remove();
     } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows the tending gain on the card, and it follows a new machine", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: withAda({ helpers: 16, pocket: 30_000_000 }),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    expect(screen.text('[data-tier="borer"] .engineer-gain')).toBe(
+      "+35 stones/sec",
+    );
+    expect(
+      screen.root
+        .querySelector('[data-tier="borer"]')
+        ?.getAttribute("aria-label"),
+    ).toContain("+35 stones/sec");
+    const sheet = openSheet(screen.root);
+    sheet.querySelector<HTMLButtonElement>(".engineer-tend")?.click();
+    expect(sheet.textContent).toContain(
+      "+35 stones/sec. They dig faster, and she clears any jam herself.",
+    );
+    expect(sheet.textContent).toContain("None built yet. ");
+    expect(sheet.textContent).not.toContain("+0 stones/sec");
+    screen.root
+      .querySelector<HTMLButtonElement>('[data-tier="borer"]')
+      ?.click();
+    expect(screen.text('[data-tier="borer"] .engineer-gain')).toBe(
+      "+70 stones/sec",
+    );
+    expect(sheet.textContent).toContain("+70 stones/sec");
+    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    expect(screen.text('[data-boost="sharper"] .upgrade-effect')).toContain(
+      "a tap",
+    );
+    expect(screen.text('[data-boost="overtime"] .upgrade-effect')).toMatch(
+      /\/s\.$/,
+    );
+    screen.root.remove();
+  });
+
+  it("names every return on the away card, and again after a locked phone", () => {
+    const sent = send(
+      send(
+        withAda({
+          engineers: [
+            { name: "Ada", rank: 0, trips: 0, post: "borer" },
+            { name: "Nils", rank: 0, trips: 0, post: "drill" },
+          ],
+        }),
+        0,
+        "old-shaft",
+        0,
+      ),
+      1,
+      "side-seam",
+      0,
+    );
+    const trips = sent.expeditions ?? [];
+    const found = {
+      ...sent,
+      expeditions: trips.map((trip) => ({
+        ...trip,
+        sentAt: 0,
+        returnsAt: 60_000,
+        find:
+          trip.engineer === "Ada"
+            ? ({ kind: "tool", id: "pick" } as const)
+            : ({ kind: "quiet" } as const),
+      })),
+    };
+    const awayStorage = createMemoryStorage();
+    writeSessionSave({ storage: awayStorage, mountain: found, lastSeen: 0 });
+    const away = mountScreen({ storage: awayStorage });
+    const lines = [...away.root.querySelectorAll(".welcome-return")].map(
+      (line) => line.textContent,
+    );
+    expect(lines).toEqual([
+      "Ada came back from the old shaft with Grandfather's pick. Taps bite deeper.",
+      "Nils came back from a side seam. The tunnel was quiet, and they came home safe.",
+    ]);
+    expect(lines.join(" ")).not.toMatch(/\d|\?/);
+    away.progress.dispose();
+    away.root.remove();
+
+    vi.useFakeTimers();
+    const setVisibility = (state: DocumentVisibilityState) => {
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        get: () => state,
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    };
+    try {
+      const start = 1_000_000_000;
+      vi.setSystemTime(start);
+      const one = send(withAda(), 0, "old-shaft", start);
+      const trip = one.expeditions?.[0];
+      if (trip === undefined) {
+        throw new Error("expected a trip");
+      }
+      const waiting = {
+        ...one,
+        expeditions: [
+          {
+            ...trip,
+            returnsAt: start + 5_000,
+            find: { kind: "tool" as const, id: "pick" as const },
+          },
+        ],
+      };
+      const storage = createMemoryStorage();
+      writeSessionSave({ storage, mountain: waiting, lastSeen: start });
+      const live = mountScreen({ storage });
+      openSheet(live.root);
+      expect(
+        live.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+      ).toBe(true);
+      setVisibility("hidden");
+      vi.setSystemTime(start + 5_000);
+      setVisibility("visible");
+      const notice = live.root.querySelector<HTMLElement>(".welcome-back");
+      expect(notice?.hidden).toBe(false);
+      expect(notice?.classList.contains("is-homecoming")).toBe(true);
+      expect(live.text("#welcome-back-title")).toBe("Welcome home");
+      expect(live.text(".welcome-return")).toBe(
+        "Ada came back from the old shaft with Grandfather's pick. Taps bite deeper.",
+      );
+      expect(
+        live.root.querySelector<HTMLElement>(".engineers-dialog")?.hidden,
+      ).toBe(false);
+      live.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
+      expect(notice?.hidden).toBe(true);
+      live.progress.dispose();
+      live.root.remove();
+
+      const againStorage = createMemoryStorage();
+      writeSessionSave({
+        storage: againStorage,
+        mountain: waiting,
+        lastSeen: start,
+      });
+      vi.setSystemTime(start);
+      const first = mountScreen({ storage: againStorage });
+      vi.setSystemTime(start + 5_000);
+      setVisibility("hidden");
+      first.progress.dispose();
+      first.root.remove();
+      setVisibility("visible");
+      const again = mountScreen({ storage: againStorage });
+      expect(
+        again.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+      ).toBe(false);
+      expect(again.text(".welcome-return")).toContain("Grandfather's pick");
+      again.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
+      again.progress.dispose();
+      again.root.remove();
+      const quiet = mountScreen({ storage: againStorage });
+      expect(
+        quiet.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+      ).toBe(true);
+      quiet.progress.dispose();
+      quiet.root.remove();
+    } finally {
+      setVisibility("visible");
       vi.useRealTimers();
     }
   });

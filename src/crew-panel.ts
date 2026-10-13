@@ -4,7 +4,7 @@ import { FIX_HOLD_MS } from "./hazards";
 import { floatText, reducedMotion } from "./float-text";
 import { formatCompact, formatCount } from "./format";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
-import { effectiveRates } from "./rates";
+import { effectiveRates, tendingGain, type TendTier } from "./rates";
 import { RELICS } from "./relics";
 import {
   NEEDS_MORE_WORKERS,
@@ -13,6 +13,7 @@ import {
   percent,
   troubleAria,
   troubleShout,
+  stonesPerSecond,
   tendingEngineer,
   tendsNote,
   workerWords,
@@ -22,6 +23,19 @@ import { tierSynergy } from "./upgrades";
 
 /** From this many tiers on screen, cards go three to a row. */
 const COMPACT_TIER_COUNT = 4;
+
+function tendTierOf(id: TierId): TendTier | undefined {
+  switch (id) {
+    case "cart":
+    case "drill":
+    case "borer":
+    case "machine":
+      return id;
+    case "helper":
+    case "kid":
+      return undefined;
+  }
+}
 
 const COUNT_STEPS = 8;
 const COUNT_STEP_MS = 60;
@@ -129,7 +143,10 @@ export function createCrewPanel({
     mark.className = "engineer-mark";
     mark.hidden = true;
     mark.setAttribute("aria-hidden", "true");
-    card.append(art, words, countBadge, mark);
+    const gain = document.createElement("span");
+    gain.className = "engineer-gain";
+    gain.hidden = true;
+    card.append(art, words, countBadge, mark, gain);
     let holdTimer: ReturnType<typeof setTimeout> | undefined;
     let suppressClick = false;
     const clearHold = (): void => {
@@ -186,18 +203,27 @@ export function createCrewPanel({
           getView().trouble,
         );
         // A new machine nobody can run says so, instead of promising speed.
+        const added = `+${formatSpeed(after.tierSpeed[tier.id])}/s`;
         floatText(
           card,
-          after.running[tier.id] > before
-            ? `+${formatSpeed(after.tierSpeed[tier.id])}/s`
-            : NEEDS_MORE_WORKERS,
+          after.running[tier.id] > before ? added : `${added} · needs workers`,
           "float-gain",
         );
         countCrewRate(rateBefore, crewSpeed());
       }
     });
     tierGrid.append(card);
-    return { tier, card, name, costText, countBadge, rate, costIcon, mark };
+    return {
+      tier,
+      card,
+      name,
+      costText,
+      countBadge,
+      rate,
+      costIcon,
+      mark,
+      gain,
+    };
   });
   crew.append(crewStatus, tierGrid, thanks);
 
@@ -271,6 +297,7 @@ export function createCrewPanel({
       rate: tierRate,
       costIcon,
       mark,
+      gain,
     } of tierCards) {
       const count = owned(current, tier);
       const price = tierCost(tier, count);
@@ -309,7 +336,25 @@ export function createCrewPanel({
       card.classList.toggle("tier-needs-workers", showNeeds);
       const who = tendingEngineer(current.engineers, tier.id);
       mark.hidden = who === undefined;
-      const tends = who === undefined ? "" : ` ${tendsNote(who.name, tier.id)}`;
+      const tendTier = tendTierOf(tier.id);
+      const gainText =
+        who === undefined || tendTier === undefined
+          ? ""
+          : stonesPerSecond(
+              tendingGain(
+                current,
+                (current.engineers ?? []).findIndex(
+                  (engineer) => engineer.name === who.name,
+                ),
+                tendTier,
+                now(),
+                trouble,
+              ),
+            );
+      gain.hidden = gainText === "";
+      gain.textContent = gainText;
+      const tends =
+        who === undefined ? "" : ` ${tendsNote(who.name, tier.id)} ${gainText}`;
       // A bought crew synergy shows as "↑12%" in the rate line (just "↑" on tight cards).
       const synergy = tierSynergy(current, tier.id);
       const lift = `\u2191${String(Math.round(synergy * 100))}%`;
@@ -319,7 +364,7 @@ export function createCrewPanel({
           : locked
             ? `${needed?.name.split(" ")[0] ?? "Relic"} · ${formatCompact(needed?.depth ?? 0)}`
             : showNeeds
-              ? NEEDS_MORE_WORKERS
+              ? `+${formatSpeed(speed)}/s · needs workers`
               : idleHere > 0
                 ? compact
                   ? // Tight cards: the idle count is the news; the crew line has the speed.

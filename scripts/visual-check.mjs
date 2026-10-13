@@ -247,10 +247,10 @@ async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
         closeOk: close <= innerHeight - insets.bottom,
         words:
           text.includes("Tend a machine") &&
-          text.includes("dig a bit faster") &&
+          text.includes("stones/sec") &&
+          text.includes("Promote a worker:") &&
           !text.includes("?") &&
-          !text.includes("%") &&
-          !/\d/.test(text),
+          !text.includes("%"),
       };
     },
     { top, bottom },
@@ -1176,8 +1176,11 @@ for (const standalone of [false, true]) {
           text.includes("Call her back") &&
           text.includes("exploring the old shaft") &&
           !text.includes("?") &&
-          !text.includes("%") &&
-          !/\d/.test(text),
+          !text.includes("%"),
+        discovery: [...dialog.querySelectorAll(".engineer-trip")]
+          .filter((node) => !node.hidden && node.closest("[hidden]") === null)
+          .map((node) => node.textContent ?? "")
+          .every((line) => line.length > 0 && !/\d|\?/.test(line)),
       };
     },
     insets,
@@ -1188,7 +1191,8 @@ for (const standalone of [false, true]) {
       sheet.titleOk &&
       sheet.closeOk &&
       sheet.recall &&
-      sheet.words,
+      sheet.words &&
+      sheet.discovery,
     `${label} engineers sheet fits with an expedition out`,
   );
   if (!(sheet.boxesOk && sheet.closeOk && sheet.recall)) {
@@ -1278,7 +1282,14 @@ for (const viewport of [
           broughtSize,
           story: text.includes("A child's drawing"),
           sheetScroll: dialog.scrollHeight <= dialog.clientHeight + 1,
-          words: !text.includes("?") && !/\d/.test(text),
+          words: !text.includes("?"),
+          discovery: [
+            ...dialog.querySelectorAll(
+              ".engineer-trip, .engineer-brought-story, .keepsake-story",
+            ),
+          ]
+            .map((node) => node.textContent ?? "")
+            .every((line) => line.length === 0 || !/\d|\?/.test(line)),
         };
       },
       insets,
@@ -1293,6 +1304,7 @@ for (const viewport of [
         crew.story &&
         crew.sheetScroll &&
         crew.words &&
+        crew.discovery &&
         (await noScroll(page)),
       `${label} five engineers and a keepsake fit with no scroll`,
     );

@@ -5,6 +5,7 @@ import {
   MAX_EXPEDITION_MS,
   TUNNELS,
   glimmerText,
+  parseHomecomingNews,
   send,
   settle,
   recall,
@@ -763,5 +764,75 @@ describe("parse", () => {
     expect(stranger.finds[0]).toMatchObject({ kind: "quiet" });
     expect(stranger.mountain.expeditions).toBeUndefined();
     expect(stranger.mountain.engineers?.[0]?.name).toBe("Nils");
+  });
+});
+
+describe("parseHomecomingNews", () => {
+  const tool = {
+    engineer: "Ada",
+    tunnel: "old-shaft",
+    sentAt: 4,
+    find: { kind: "tool", id: "pick" },
+  };
+
+  it("keeps a trustworthy list and drops anything off", () => {
+    expect(parseHomecomingNews(tool)).toEqual([]);
+    expect(parseHomecomingNews([])).toEqual([]);
+    expect(parseHomecomingNews([tool])).toEqual([tool]);
+    expect(
+      parseHomecomingNews([
+        tool,
+        {
+          engineer: "Nils",
+          tunnel: "side-seam",
+          sentAt: 1,
+          find: { kind: "keepsake", id: "watch" },
+        },
+        {
+          engineer: "Ruth",
+          tunnel: "deep-dark",
+          sentAt: 2,
+          find: { kind: "glimmer", relic: "heart", text: "A heart." },
+        },
+        {
+          engineer: "Otto",
+          tunnel: "old-shaft",
+          sentAt: 3,
+          find: { kind: "engineer", name: "Mae", joined: true },
+        },
+        {
+          engineer: "Mae",
+          tunnel: "side-seam",
+          sentAt: 0,
+          find: { kind: "quiet", text: "Quiet." },
+        },
+      ]),
+    ).toHaveLength(5);
+    for (const bad of [
+      null,
+      [null],
+      [[]],
+      [{ ...tool, engineer: "Bob" }],
+      [{ ...tool, tunnel: 4 }],
+      [{ ...tool, tunnel: "mine" }],
+      [{ ...tool, sentAt: 1.5 }],
+      [{ ...tool, find: null }],
+      [{ ...tool, find: [] }],
+      [{ ...tool, find: { kind: "tool", id: 1 } }],
+      [{ ...tool, find: { kind: "tool", id: "turbo" } }],
+      [{ ...tool, find: { kind: "keepsake", id: "pick" } }],
+      [{ ...tool, find: { kind: "glimmer", relic: 1, text: "A" } }],
+      [{ ...tool, find: { kind: "glimmer", relic: "nope", text: "A" } }],
+      [{ ...tool, find: { kind: "glimmer", relic: "heart", text: "" } }],
+      [{ ...tool, find: { kind: "glimmer", relic: "heart", text: 1 } }],
+      [{ ...tool, find: { kind: "engineer", name: "Bob", joined: true } }],
+      [{ ...tool, find: { kind: "engineer", name: "Mae", joined: "yes" } }],
+      [{ ...tool, find: { kind: "quiet", text: "" } }],
+      [{ ...tool, find: { kind: "quiet", text: 1 } }],
+      [{ ...tool, find: { kind: "stones" } }],
+      [tool, { engineer: "Ada" }],
+    ]) {
+      expect(parseHomecomingNews(bad)).toEqual([]);
+    }
   });
 });

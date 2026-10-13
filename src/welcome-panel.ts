@@ -82,6 +82,7 @@ export function createWelcomePanel({
       }),
     );
     welcomeReturns.hidden = lines.length === 0;
+    welcome.classList.toggle("is-homecoming", lines.length > 0);
     const wasOpen = !welcome.hidden;
     welcome.hidden =
       report === undefined &&
