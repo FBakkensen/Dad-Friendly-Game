@@ -309,7 +309,7 @@ One PR each, in order; the list with acceptance criteria is in the M7 PR descrip
 
 Flemming's goal is a real decision at every moment: several options of comparable value, no dead stretch, and no dominant strategy, even for a dad who plays an extreme. Finish days come second. A casual dad still finishes in 5–7 days, and never under 5.
 
-M7 left a hole the pacing sim can already see. From the first borer, the upgrade-buying dad buys nothing until the Great Machine. The lab measures that hole, and the ones like it, on payback. The retune moves the economy. It does not move these targets to go green.
+M7 made the middle of the run busier: the sim dad buys something through those days. A thin decision can remain, one affordable option or a long wait for the next real buy. The lab measures that on payback. The retune moves the economy. It does not move these targets to go green.
 
 #### Definitions
 
