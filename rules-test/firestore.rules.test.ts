@@ -329,6 +329,42 @@ const event = {
 };
 
 describe("firestore.rules: fieldLogs/{uid}", () => {
+  it("still accepts a snapshot from an older app with no engineers or expeditions", async () => {
+    const older: Record<string, unknown> = { ...gameSnapshot() };
+    delete older["engineers"];
+    delete older["expeditions"];
+    const written = { ...fieldLog([event]), snapshot: older };
+    await setDoc(doc(db, "fieldLogs", "dad"), written);
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
+  });
+
+  it("accepts five engineers and five expeditions on the snapshot (#150)", async () => {
+    const posts = ["cart", "drill", "borer", "machine", "camp"] as const;
+    const tunnels = [
+      "side-seam",
+      "old-shaft",
+      "deep-dark",
+      "side-seam",
+      "old-shaft",
+    ] as const;
+    const engineers = ENGINEER_NAMES.map((name, index) => ({
+      name,
+      rank: index >= 4 ? 2 : index >= 3 ? 1 : 0,
+      post: posts[index] ?? "camp",
+    }));
+    const expeditions = ENGINEER_NAMES.map((name, index) => ({
+      engineer: name,
+      tunnel: tunnels[index] ?? "side-seam",
+      returnsAt: ISO,
+    }));
+    const written = {
+      ...fieldLog(Array.from({ length: EVENT_RING_LIMIT }, () => event)),
+      snapshot: { ...gameSnapshot(), engineers, expeditions },
+    };
+    await setDoc(doc(db, "fieldLogs", "dad"), written);
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
+  });
+
   it("lets the owner write and read a log, including a float rate and 200 events", async () => {
     const events = Array.from({ length: EVENT_RING_LIMIT }, () => event);
     const written = {
@@ -420,6 +456,38 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
       {
         ...good,
         snapshot: { ...good.snapshot, nickname: "dad" },
+      },
+      {
+        ...good,
+        snapshot: {
+          ...good.snapshot,
+          engineers: [{ name: "Ada", rank: 0, post: "camp", nickname: "Ace" }],
+        },
+      },
+      {
+        ...good,
+        snapshot: {
+          ...good.snapshot,
+          expeditions: [
+            {
+              engineer: "Ada",
+              tunnel: "side-seam",
+              returnsAt: ISO,
+              home: "camp",
+            },
+          ],
+        },
+      },
+      {
+        ...good,
+        snapshot: {
+          ...good.snapshot,
+          engineers: Array.from({ length: MAX_ENGINEERS + 1 }, () => ({
+            name: "Ada",
+            rank: 0,
+            post: "camp",
+          })),
+        },
       },
     ]) {
       await expect(setDoc(doc(db, "fieldLogs", "dad"), bad)).rejects.toThrow(

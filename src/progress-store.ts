@@ -18,6 +18,7 @@ import {
 const HOMECOMING_NEWS_KEY = "dad-friendly-homecomings";
 import {
   closeHazards,
+  engineerFixDelay,
   freshHazards,
   fix as fixHazard,
   kindForTier,
@@ -184,6 +185,14 @@ export function createProgressStore({
       ? ""
       : `${trouble.tier}:${String(trouble.startedAt)}`;
   };
+  const listeners = new Set<(snapshot: ProgressSnapshot) => void>();
+  const ring = new EventRing();
+  const record = (
+    code: string,
+    data: Readonly<Record<string, string | number>>,
+  ): void => {
+    ring.push({ at: new Date(now()).toISOString(), code, data });
+  };
   /** Hires the one-time free staff for a loaded save; true if it changed. */
   const staffLoaded = (): boolean => {
     const result = staffExisting(mountain);
@@ -193,6 +202,7 @@ export function createProgressStore({
     mountain = result.mountain;
     if (result.joined > 0) {
       crewJoined = (crewJoined ?? 0) + result.joined;
+      record("crew.staff", { count: result.joined });
       logger.record({
         level: "info",
         code: "save.staffed",
@@ -222,14 +232,6 @@ export function createProgressStore({
   let pendingCloudWrite: ReturnType<typeof setTimeout> | undefined;
   let lastFieldLogAt: number | undefined;
   let lastFieldLogFingerprint: string | undefined;
-  const listeners = new Set<(snapshot: ProgressSnapshot) => void>();
-  const ring = new EventRing();
-  const record = (
-    code: string,
-    data: Readonly<Record<string, string | number>>,
-  ): void => {
-    ring.push({ at: new Date(now()).toISOString(), code, data });
-  };
   const noteChanges = (before: Mountain, after: Mountain): void => {
     for (const tier of TIERS) {
       const count = owned(after, tier);
@@ -251,6 +253,103 @@ export function createProgressStore({
           endsAt: new Date(endsAt).toISOString(),
         });
       }
+    }
+  };
+
+  /**
+   * Promotion, a new post, and expeditions leaving or coming back empty.
+   * A return is recorded from the homecoming, which carries the find.
+   */
+  const noteCrew = (before: Mountain, after: Mountain): void => {
+    const beforeCrew = before.engineers ?? [];
+    const afterCrew = after.engineers ?? [];
+    const beforeByName = new Map(
+      beforeCrew.map((engineer) => [engineer.name, engineer]),
+    );
+    const beforeTrips = new Map(
+      (before.expeditions ?? []).map((trip) => [trip.engineer, trip]),
+    );
+    const afterTrips = new Map(
+      (after.expeditions ?? []).map((trip) => [trip.engineer, trip]),
+    );
+    if (after.helpers < before.helpers) {
+      for (const engineer of afterCrew) {
+        if (!beforeByName.has(engineer.name)) {
+          record("engineer.promote", {
+            id: engineer.name,
+            count: afterCrew.length,
+          });
+        }
+      }
+    }
+    for (const [name, trip] of afterTrips) {
+      if (!beforeTrips.has(name)) {
+        record("expedition.send", { id: name, source: trip.tunnel });
+      }
+    }
+    for (const [name, trip] of beforeTrips) {
+      if (afterTrips.has(name)) {
+        continue;
+      }
+      record("expedition.recall", { id: name, source: trip.tunnel });
+      const landed = afterCrew.find((engineer) => engineer.name === name);
+      if (
+        landed !== undefined &&
+        landed.post !== trip.home &&
+        landed.post !== "tunnel"
+      ) {
+        record("engineer.station", { id: name, source: landed.post });
+      }
+    }
+    for (const engineer of afterCrew) {
+      const previous = beforeByName.get(engineer.name);
+      if (previous === undefined || previous.post === engineer.post) {
+        continue;
+      }
+      if (beforeTrips.has(engineer.name) || afterTrips.has(engineer.name)) {
+        continue;
+      }
+      record("engineer.station", {
+        id: engineer.name,
+        source: engineer.post,
+      });
+    }
+  };
+
+  /**
+   * Trouble starting, or ending by hand or by the engineer on that tier.
+   * Leaving the game clears trouble without a fix. Dropping the last borer
+   * does too: there is nothing left to trouble.
+   */
+  const noteHazards = (
+    before: HazardState,
+    after: HazardState,
+    fixBy: "hand" | "engineer" = "engineer",
+  ): void => {
+    if (
+      before.phase === "waiting" &&
+      after.phase === "waiting" &&
+      after.seed !== before.seed &&
+      engineerFixDelay(mountain, before.tier) === 0
+    ) {
+      record("trouble.start", { id: before.tier, source: before.kind });
+      record("trouble.fix", { id: before.tier, source: "engineer" });
+      return;
+    }
+    const was = before.phase === "trouble" ? before.trouble : undefined;
+    const next = after.phase === "trouble" ? after.trouble : undefined;
+    if (
+      was !== undefined &&
+      (next === undefined || next.startedAt !== was.startedAt) &&
+      !(after.phase === "idle" && mountain.borers < 1)
+    ) {
+      record("trouble.fix", { id: was.tier, source: fixBy });
+    }
+    if (
+      next !== undefined &&
+      (was === undefined || was.startedAt !== next.startedAt)
+    ) {
+      record("trouble.start", { id: next.tier, source: next.kind });
     }
   };
 
@@ -321,6 +420,12 @@ export function createProgressStore({
     }
     homecomings = remembered;
     newsPending = true;
+    for (const arrival of arrived) {
+      record("expedition.return", {
+        id: arrival.engineer,
+        source: findToken(arrival.find),
+      });
+    }
   };
 
   const noteReveals = (): void => {
@@ -748,11 +853,13 @@ export function createProgressStore({
     });
     mountain = result.mountain;
     lastSeen = result.settledAt;
+    const beforeHazards = hazards;
     hazards = stepHazards(hazards, {
       now: at,
       liveMs: Math.max(0, at - from),
       mountain,
     });
+    noteHazards(beforeHazards, hazards);
     return result.mined;
   };
 
@@ -814,6 +921,7 @@ export function createProgressStore({
       }
       mountain = next;
       noteChanges(before, next);
+      noteCrew(before, next);
       if (note === "vein.tap") {
         record("vein.tap", { stones: next.pocket - before.pocket });
       }
@@ -862,7 +970,9 @@ export function createProgressStore({
         }
         return;
       }
+      const beforeHazards = hazards;
       hazards = pressHazard(hazards, mountain);
+      noteHazards(beforeHazards, hazards, "hand");
       emit();
     },
     fixTrouble: (tier) => {
@@ -877,19 +987,26 @@ export function createProgressStore({
         }
         return;
       }
+      const beforeHazards = hazards;
       hazards = fixHazard(hazards, mountain);
+      noteHazards(beforeHazards, hazards, "hand");
       emit();
     },
     previewTrouble: (tier) => {
       if (!canPlay()) {
         return;
       }
+      const before = activeTrouble();
+      const trouble = { kind: kindForTier(tier), tier, startedAt: now() };
       hazards = {
         phase: "trouble",
         seed: hazards.seed,
         taps: 0,
-        trouble: { kind: kindForTier(tier), tier, startedAt: now() },
+        trouble,
       };
+      if (before === undefined || before.startedAt !== trouble.startedAt) {
+        record("trouble.start", { id: trouble.tier, source: trouble.kind });
+      }
       emit();
     },
     dismissAway: () => {
@@ -954,4 +1071,19 @@ export function createProgressStore({
 
 function saveCounts(mountain: Mountain): { mined: number; pocket: number } {
   return { mined: minedOut(mountain), pocket: mountain.pocket };
+}
+
+/** The find the ring stores. A quiet tunnel has no shelf id. */
+function findToken(find: Homecoming["find"]): string {
+  switch (find.kind) {
+    case "glimmer":
+      return find.relic;
+    case "tool":
+    case "keepsake":
+      return find.id;
+    case "engineer":
+      return find.name;
+    case "quiet":
+      return "quiet";
+  }
 }

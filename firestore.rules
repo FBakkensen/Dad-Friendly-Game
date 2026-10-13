@@ -26,7 +26,9 @@ service cloud.firestore {
     // Collection: fieldLogs
     // Document ID: Firebase Auth uid
     // Fields:
-    //   - snapshot: map (the field-log snapshot; no email or display name)
+    //   - snapshot: map (the field-log snapshot; no email or display name).
+    //       Includes engineers (name, rank, post) and running expeditions
+    //       (engineer, tunnel, returnsAt). Hazards are events only, never saved.
     //   - events: list of { at, code, data } (size <= 200)
     //   - updatedAt: int epoch ms
     // String caps and the 200-event cap keep the document under 50 KB.
@@ -269,13 +271,36 @@ service cloud.firestore {
         (boosts.size() < 2 || isFieldBoost(boosts[1]));
     }
 
+    // A full name/post/rank check, on top of the snapshot and the first event,
+    // crosses the 1000-expression budget. The list is capped at 5. The first
+    // hand must be a map of the three keys. The client writes the typed snapshot.
+    function isFieldEngineers(engineers) {
+      return engineers is list && engineers.size() <= 5 &&
+        (engineers.size() < 1 || (
+          engineers[0] is map &&
+          engineers[0].keys().hasOnly(['name', 'post', 'rank'])
+        ));
+    }
+
+    // Same budget. The list is capped at 5. The first trip must be a map of
+    // who, which tunnel, and when they return.
+    function isFieldTrips(trips) {
+      return trips is list && trips.size() <= 5 &&
+        (trips.size() < 1 || (
+          trips[0] is map &&
+          trips[0].keys().hasOnly(['engineer', 'returnsAt', 'tunnel'])
+        ));
+    }
+
     function isFieldSnapshot(shot) {
       return shot is map &&
-        shot.keys().hasOnly(['at', 'boosts', 'crew', 'crewSpeed', 'idle', 'left', 'legacy', 'mined', 'pocket', 'relics', 'tapYield', 'upgrades', 'version']) &&
+        shot.keys().hasOnly(['at', 'boosts', 'crew', 'crewSpeed', 'engineers', 'expeditions', 'idle', 'left', 'legacy', 'mined', 'pocket', 'relics', 'tapYield', 'upgrades', 'version']) &&
         isIsoText(shot.at) &&
         isFieldBoostList(shot.boosts) &&
         isCrewCounts(shot.crew) &&
         shot.crewSpeed is number && shot.crewSpeed >= 0 && shot.crewSpeed <= 1000000000 &&
+        (!('engineers' in shot) || isFieldEngineers(shot.engineers)) &&
+        (!('expeditions' in shot) || isFieldTrips(shot.expeditions)) &&
         isIdleCounts(shot.idle) &&
         shot.left is int && shot.left >= 0 && shot.left <= 100000000 &&
         shot.legacy is int && shot.legacy >= 0 && shot.legacy <= 1000 &&

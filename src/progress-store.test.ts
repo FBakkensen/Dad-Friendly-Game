@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createMemoryAuth } from "./auth";
 import { buyBoost } from "./boosts";
+import { buyCrew } from "./crew";
 import {
   createMemoryCloudSave,
   createUnavailableCloudSave,
@@ -27,7 +28,9 @@ import { readSessionSave, writeSessionSave } from "./session-save";
 import { buyTier } from "./tiers";
 import { buyUpgrade } from "./upgrades";
 import { mineVein } from "./veins";
-import { send } from "./expeditions";
+import { promote, station } from "./engineers";
+import { recall, send, type Expedition } from "./expeditions";
+import { ENGINEER_FIX_MS, nextTrouble } from "./hazards";
 
 function createMemoryStorage(): Storage {
   const data = new Map<string, string>();
@@ -940,6 +943,11 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       now: () => 0,
     });
     expect(first.getSnapshot().crewJoined).toBe(4);
+    expect(first.fieldLog().events).toContainEqual({
+      at: new Date(0).toISOString(),
+      code: "crew.staff",
+      data: { count: 4 },
+    });
     expect(first.getSnapshot().mountain.helpers).toBe(6);
     expect(first.getSnapshot().mountain.staffed).toBe(2);
     expect(readSessionSave({ storage })?.mountain).toMatchObject({
@@ -957,6 +965,9 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
     });
     expect(again.getSnapshot().crewJoined).toBeUndefined();
     expect(again.getSnapshot().mountain.helpers).toBe(6);
+    expect(again.fieldLog().events.map((event) => event.code)).not.toContain(
+      "crew.staff",
+    );
   });
 
   it("pays away time with the newly staffed crew", () => {
@@ -1358,6 +1369,366 @@ describe("field log", () => {
     expect(text).not.toContain("@");
     expect(text).not.toContain("displayName");
     expect(text).not.toContain("email");
+  });
+});
+
+describe("field log events for the deep (#150)", () => {
+  const guest = () => {
+    let clock = 10_000;
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: createMemoryStorage(),
+      now: () => clock,
+      hazardSeed: 4,
+    });
+    return {
+      progress,
+      at: () => clock,
+      advance: (ms: number) => {
+        clock += ms;
+      },
+    };
+  };
+
+  const codes = (progress: ReturnType<typeof guest>["progress"]): string[] =>
+    progress.fieldLog().events.map((event) => event.code);
+
+  it("records a promotion, a station, a call back to camp, and the free first engineer as crew", () => {
+    const { progress } = guest();
+    progress.applyMutation((mountain) =>
+      buyCrew({ ...mountain, pocket: 10_000_000 }, "borer"),
+    );
+    expect(codes(progress)).toContain("tier.buy");
+    expect(codes(progress)).not.toContain("engineer.promote");
+    expect(progress.fieldLog().snapshot.engineers).toEqual([
+      { name: "Ada", rank: 0, post: "borer" },
+    ]);
+
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      pocket: 2_000_000,
+      helpers: 2,
+    }));
+    progress.applyMutation((mountain) => promote(mountain));
+    progress.applyMutation((mountain) => station(mountain, 1, "drill"));
+    progress.applyMutation((mountain) => station(mountain, 1, "camp"));
+    progress.applyMutation((mountain) => station(mountain, 1, "camp"));
+
+    const events = progress.fieldLog().events;
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        code: "engineer.promote",
+        data: { id: "Nils", count: 2 },
+      }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        code: "engineer.station",
+        data: { id: "Nils", source: "drill" },
+      }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        code: "engineer.station",
+        data: { id: "Nils", source: "camp" },
+      }),
+    );
+    expect(
+      events.filter(
+        (event) =>
+          event.code === "engineer.station" && event.data.source === "camp",
+      ),
+    ).toHaveLength(1);
+    expect(progress.fieldLog().snapshot.engineers).toEqual([
+      { name: "Ada", rank: 0, post: "borer" },
+      { name: "Nils", rank: 0, post: "camp" },
+    ]);
+    expect(progress.fieldLog().snapshot.expeditions).toEqual([]);
+  });
+
+  it("records a send, a recall, and a live return with the find id", () => {
+    const { progress, advance } = guest();
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      borers: 1,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+    }));
+    progress.applyMutation((mountain) =>
+      send(mountain, 0, "side-seam", 10_000),
+    );
+    const trip = progress.getSnapshot().mountain.expeditions?.[0];
+    if (trip === undefined) {
+      throw new Error("expected a trip");
+    }
+    expect(progress.fieldLog().snapshot.expeditions).toEqual([
+      {
+        engineer: "Ada",
+        tunnel: "side-seam",
+        returnsAt: new Date(trip.returnsAt).toISOString(),
+      },
+    ]);
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "expedition.send",
+        data: { id: "Ada", source: "side-seam" },
+      }),
+    );
+
+    progress.applyMutation((mountain) =>
+      station(recall(mountain, 0), 0, "cart"),
+    );
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "expedition.recall",
+        data: { id: "Ada", source: "side-seam" },
+      }),
+    );
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "engineer.station",
+        data: { id: "Ada", source: "cart" },
+      }),
+    );
+
+    const sentAt = progress.getSnapshot().mountain.engineers?.[0]?.post;
+    expect(sentAt).toBe("cart");
+    progress.applyMutation((mountain) => {
+      const sent = send(mountain, 0, "side-seam", 10_000);
+      const next = sent.expeditions?.[0];
+      if (next === undefined) {
+        return mountain;
+      }
+      return {
+        ...sent,
+        expeditions: [{ ...next, returnsAt: 15_000 }],
+      };
+    });
+    const find = progress.getSnapshot().mountain.expeditions?.[0]?.find;
+    if (find === undefined) {
+      throw new Error("expected a find");
+    }
+    const source = find.kind === "quiet" ? "quiet" : find.id;
+    for (let step = 0; step < 5; step += 1) {
+      advance(1_000);
+      progress.tick();
+    }
+    expect(progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "expedition.return",
+        data: { id: "Ada", source },
+      }),
+    );
+    expect(source).not.toBe("");
+  });
+
+  it("records a return while away, and a pure recall does not also station", () => {
+    const { progress, advance } = guest();
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" }],
+    }));
+    progress.applyMutation((mountain) => {
+      const sent = send(mountain, 0, "old-shaft", 10_000);
+      const next = sent.expeditions?.[0];
+      if (next === undefined) {
+        return mountain;
+      }
+      return { ...sent, expeditions: [{ ...next, returnsAt: 20_000 }] };
+    });
+    const find = progress.getSnapshot().mountain.expeditions?.[0]?.find;
+    if (find === undefined) {
+      throw new Error("expected a find");
+    }
+    advance(60_000);
+    progress.tick();
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "expedition.return",
+        data: { id: "Ada", source: find.kind === "quiet" ? "quiet" : find.id },
+      }),
+    );
+
+    progress.applyMutation((mountain) =>
+      send(mountain, 0, "side-seam", 70_000),
+    );
+    const before = codes(progress).length;
+    progress.applyMutation((mountain) => recall(mountain, 0));
+    const added = progress.fieldLog().events.slice(before);
+    expect(added.map((event) => event.code)).toEqual(["expedition.recall"]);
+    expect(added[0]?.data).toEqual({ id: "Ada", source: "side-seam" });
+  });
+
+  it("records the find id for a tool, a glimmer, a keepsake, a lost engineer, and a quiet tunnel", () => {
+    const { progress, advance, at } = guest();
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      borers: 1,
+      engineers: [{ name: "Ada", rank: 1, trips: 3, post: "camp" }],
+    }));
+    const cases: readonly {
+      find: Expedition["find"];
+      source: string;
+    }[] = [
+      { find: { kind: "tool", id: "pick" }, source: "pick" },
+      { find: { kind: "glimmer", id: "heart" }, source: "heart" },
+      { find: { kind: "keepsake", id: "drawing" }, source: "drawing" },
+      { find: { kind: "engineer", id: "Ruth" }, source: "Ruth" },
+      { find: { kind: "quiet" }, source: "quiet" },
+    ];
+    for (const item of cases) {
+      const sentAt = at();
+      progress.applyMutation((mountain) => {
+        const sent = send(mountain, 0, "side-seam", sentAt);
+        const next = sent.expeditions?.[0];
+        if (next === undefined) {
+          return mountain;
+        }
+        return {
+          ...sent,
+          expeditions: [
+            { ...next, returnsAt: sentAt + 2_000, find: item.find },
+          ],
+        };
+      });
+      advance(1_000);
+      progress.tick();
+      advance(1_000);
+      progress.tick();
+      expect(progress.fieldLog().events.at(-1)).toEqual(
+        expect.objectContaining({
+          code: "expedition.return",
+          data: { id: "Ada", source: item.source },
+        }),
+      );
+    }
+    expect(
+      progress.getSnapshot().mountain.engineers?.map((hand) => hand.name),
+    ).toEqual(["Ada", "Ruth"]);
+  });
+
+  it("records trouble started and fixed by hand, by a hold, and by an engineer", () => {
+    const { progress, advance } = guest();
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      borers: 1,
+      carts: 1,
+    }));
+    progress.previewTrouble("cart");
+    for (let tap = 0; tap < 5; tap += 1) {
+      progress.pressTrouble("cart");
+    }
+    expect(progress.getSnapshot().trouble).toBeUndefined();
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "trouble.start",
+        data: { id: "cart", source: "cave-in" },
+      }),
+    );
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "trouble.fix",
+        data: { id: "cart", source: "hand" },
+      }),
+    );
+
+    progress.previewTrouble("drill");
+    progress.fixTrouble("drill");
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "trouble.start",
+        data: { id: "drill", source: "flood" },
+      }),
+    );
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "trouble.fix",
+        data: { id: "drill", source: "hand" },
+      }),
+    );
+
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
+    }));
+    progress.previewTrouble("cart");
+    for (let step = 0; step < ENGINEER_FIX_MS / 1000; step += 1) {
+      advance(1_000);
+      progress.tick();
+    }
+    expect(progress.getSnapshot().trouble).toBeUndefined();
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "trouble.fix",
+        data: { id: "cart", source: "engineer" },
+      }),
+    );
+  });
+
+  it("records a Master clearing trouble before it sticks", () => {
+    const seed = 4;
+    const pit = {
+      ...createMountain(),
+      borers: 1,
+      carts: 1,
+      drills: 1,
+      machines: 1,
+    };
+    const first = nextTrouble(seed, 0, pit);
+    if (first === undefined) {
+      throw new Error("expected a scheduled trouble");
+    }
+    let clock = 0;
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: createMemoryStorage(),
+      now: () => clock,
+      hazardSeed: seed,
+    });
+    progress.applyMutation(() => ({
+      ...pit,
+      engineers: [{ name: "Ada", rank: 2, trips: 9, post: first.trouble.tier }],
+    }));
+    const steps = Math.ceil(first.gapMs / 1000) + 2;
+    for (let step = 0; step < steps; step += 1) {
+      clock += 1000;
+      progress.tick();
+    }
+    const trouble = progress
+      .fieldLog()
+      .events.filter((event) => event.code.startsWith("trouble."));
+    expect(trouble.map((event) => event.code)).toEqual([
+      "trouble.start",
+      "trouble.fix",
+    ]);
+    expect(trouble[0]?.data).toEqual({
+      id: first.trouble.tier,
+      source: first.trouble.kind,
+    });
+    expect(trouble[1]?.data).toEqual({
+      id: first.trouble.tier,
+      source: "engineer",
+    });
+    expect(progress.getSnapshot().trouble).toBeUndefined();
+  });
+
+  it("does not call closing the game, or losing the borer, a fix", () => {
+    const { progress, advance } = guest();
+    progress.applyMutation((mountain) => ({ ...mountain, borers: 1 }));
+    progress.previewTrouble("cart");
+    advance(60_000);
+    progress.tick();
+    expect(progress.getSnapshot().trouble).toBeUndefined();
+    expect(codes(progress)).not.toContain("trouble.fix");
+
+    progress.applyMutation((mountain) => ({ ...mountain, borers: 1 }));
+    progress.previewTrouble("borer");
+    progress.applyMutation((mountain) => ({ ...mountain, borers: 0 }));
+    advance(1_000);
+    progress.tick();
+    expect(progress.getSnapshot().trouble).toBeUndefined();
+    expect(codes(progress)).not.toContain("trouble.fix");
+    expect(codes(progress)).toContain("trouble.start");
   });
 });
 

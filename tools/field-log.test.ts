@@ -30,7 +30,14 @@ const dad: FieldLogRecord = {
       relics: ["lantern"],
       upgrades: { tap: 1 },
       boosts: [{ id: "sharper", endsAt: "2026-01-02T04:00:00.000Z" }],
-      engineers: [{ name: "Ada" }],
+      engineers: [{ name: "Ada", rank: 0, post: "borer" }],
+      expeditions: [
+        {
+          engineer: "Ada",
+          tunnel: "side-seam",
+          returnsAt: "2026-01-02T04:04:05.000Z",
+        },
+      ],
     },
     events: [
       {
@@ -175,7 +182,10 @@ describe("formatFieldLogSummary", () => {
         "  tap 1",
         "Boosts",
         "  sharper until 2026-01-01 23:00:00",
-        'engineers [{"name":"Ada"}]',
+        "Engineers",
+        "  Ada rank 0 borer",
+        "Expeditions",
+        "  Ada side-seam returns 2026-01-01 23:04:05",
         "Events",
         '  2026-01-01 22:00:00  tier.buy  count=1 id=helper note="not sure"',
         "  yesterday  save.write",
@@ -215,7 +225,14 @@ describe("formatFieldLogSummary", () => {
       uid: "dad",
       data: {
         updatedAt: Date.parse(AT),
-        snapshot: { relics: [], boosts: [], crew: {}, idle: {} },
+        snapshot: {
+          relics: [],
+          boosts: [],
+          crew: {},
+          idle: {},
+          engineers: [],
+          expeditions: [],
+        },
         events: [],
       },
     };
@@ -223,6 +240,8 @@ describe("formatFieldLogSummary", () => {
     expect(text).toContain("Crew\n  none");
     expect(text).toContain("Relics\n  none");
     expect(text).toContain("Boosts\n  none");
+    expect(text).toContain("Engineers\n  none");
+    expect(text).toContain("Expeditions\n  none");
     expect(text).toContain("Events\n  none");
   });
 });
@@ -238,7 +257,9 @@ describe("formatFieldLogJson", () => {
     expect(one.uid).toBe("dad");
     expect(one.updatedAt).toBe(Date.parse(AT));
     expect(one.snapshot.at).toBe(AT);
-    expect(one.snapshot.engineers).toEqual([{ name: "Ada" }]);
+    expect(one.snapshot.engineers).toEqual([
+      { name: "Ada", rank: 0, post: "borer" },
+    ]);
     expect(one.events[0]?.at).toBe("2026-01-02T03:00:00.000Z");
     expect(one.events[0]?.data.note).toBe("not sure");
 

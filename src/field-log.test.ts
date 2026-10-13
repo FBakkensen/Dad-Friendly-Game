@@ -75,6 +75,8 @@ describe("snapshot", () => {
       },
       boosts: [],
       legacy: 0,
+      engineers: [],
+      expeditions: [],
     });
     expect(JSON.parse(JSON.stringify(shot))).toEqual(shot);
   });
@@ -91,6 +93,17 @@ describe("snapshot", () => {
       upgrades: { tap: 2 },
       boosts: { sharper: AT + 60_000, overtime: AT - 1 },
       legacy: 3,
+      engineers: [{ name: "Ada", rank: 1, trips: 3, post: "borer" }],
+      expeditions: [
+        {
+          engineer: "Ada",
+          tunnel: "old-shaft",
+          sentAt: AT,
+          returnsAt: AT + 60_000,
+          home: "borer",
+          find: { kind: "quiet" },
+        },
+      ],
     };
     const rates = effectiveRates(mountain, AT);
     const shot = snapshot(mountain, rates, AT, "test-build");
@@ -118,6 +131,14 @@ describe("snapshot", () => {
       { id: "sharper", endsAt: new Date(AT + 60_000).toISOString() },
     ]);
     expect(shot.legacy).toBe(3);
+    expect(shot.engineers).toEqual([{ name: "Ada", rank: 1, post: "borer" }]);
+    expect(shot.expeditions).toEqual([
+      {
+        engineer: "Ada",
+        tunnel: "old-shaft",
+        returnsAt: new Date(AT + 60_000).toISOString(),
+      },
+    ]);
   });
 
   it("carries no email, display name, or uid", () => {

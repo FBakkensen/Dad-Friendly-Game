@@ -285,12 +285,16 @@ Veterans return as **engineers**: a few named, experienced hands (never more tha
 
 #### 6. The field log (telemetry for Flemming and Grok Bot)
 
-- **"Copy field log"** in the menu copies a JSON snapshot (works for guests): app version, time, stones mined/left, pocket, crew counts, engineers with rank and post, crew speed, tap yield, idle machines, relics, upgrades, boosts with end times, expeditions, legacy, and the last 50 events.
-- **Events** (pure ring, last 200, kept by the progress store, each timestamped): purchases (what and new count), promotions, relic found, vein tapped, expedition sent/returned/recalled, trouble started/fixed, away report, Start over / pass the mine, save errors.
+- **"Copy field log"** in the menu copies a JSON snapshot (works for guests): app version, time, stones mined/left, pocket, crew counts, engineers with rank and post, crew speed, tap yield, idle machines, relics, upgrades, boosts with end times, running expeditions with return times, legacy, and the last 50 events.
+- **Events** (pure ring, last 200, kept by the progress store, each timestamped): purchases (what and new count), promotions, an engineer stationed or called back to camp, relic found, vein tapped, expedition sent, returned (with the find id), or recalled, trouble started and fixed by hand or by an engineer, the one-time staffing top-up, away report, Start over / pass the mine, save errors.
 - **Cloud copy for signed-in players:** one document `fieldLogs/{uid}`, overwritten at most every 5 minutes and on hide (≲ 300 writes per playing day, < 50 KB). Rules: owner-only read/write, shape and size checked, no delete. No personal data beyond the uid.
 - **Reading it:** `npm run field-log` (Admin SDK script in `tools/`, outside `src`). `npm run field-log -- <uid>` or `--uid <uid>` reads one player; with no uid it lists every `fieldLogs` document. The default print is a short summary with local times; `--json` prints the stored documents. Sign in once with `gcloud auth application-default login`, or set `GOOGLE_APPLICATION_CREDENTIALS`. No key files in the repo. The Firestore emulator needs no credentials. Only household players are read; the doc holds only the latest ring. Start over and passing the mine clear the ring and overwrite the doc at once.
 
-The copy menu and the session ring shipped in #141, the cloud document in #142, and the reader in #143. The snapshot is the mountain as it exists today (stones, crew, speed, taps, idle machines, relics, upgrades, running boosts, legacy). The ring is not a mountain save field, so old saves load unchanged. Engineers, expeditions, and hazards follow in their own issues; the snapshot grows when those exist.
+The copy menu and the session ring shipped in #141, the cloud document in #142, and the reader in #143. The snapshot is the mountain as it exists today (stones, crew, speed, taps, idle machines, relics, upgrades, running boosts, legacy, engineers, running expeditions). The ring is not a mountain save field, so old saves load unchanged. Trouble is session-only, so it is events (`trouble.start`, `trouble.fix`) and not a snapshot field. Built (#150).
+
+#### Built (#150)
+
+M7 is built except #166 (the numbers rule). Final pacing, with the sim paying 2,000,000 stones and one worker for Nils: Lantern day 1.5, Hammer day 3.5, plain dad bottom day 5.5, upgrade and boost dads bottom day 5.0, second run day 4.5. The first mountain takes at least 5 days. The field log snapshot names each engineer (name, rank, post) and each party still out (who, which tunnel, when they return). The ring records a promotion, a station or a call back to camp, an expedition sent, returned with its find, or recalled, trouble started and fixed by hand or by an engineer, and the staffing top-up.
 
 #### Issues
 
