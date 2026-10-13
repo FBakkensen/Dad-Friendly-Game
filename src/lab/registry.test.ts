@@ -46,6 +46,21 @@ describe("registry", () => {
             perStone: 0,
           },
           nextPaybackRatio: 1,
+          stretch: {
+            payback: {
+              liveCount: 1,
+              affordableLive: 1,
+              waitToAffordSec: 0,
+              bestId: "buyTier:helper",
+            },
+            value: {
+              liveCount: 1,
+              affordableLive: 1,
+              waitToAffordSec: 0,
+              bestId: "buyTier:helper",
+            },
+            nextPaybackRatio: 1,
+          },
         },
         {
           atMs: 1,
@@ -66,6 +81,21 @@ describe("registry", () => {
             perStone: 0,
           },
           nextPaybackRatio: 1,
+          stretch: {
+            payback: {
+              liveCount: 3,
+              affordableLive: 0,
+              waitToAffordSec: 1,
+              bestId: "buyTier:cart",
+            },
+            value: {
+              liveCount: 3,
+              affordableLive: 0,
+              waitToAffordSec: 1,
+              bestId: "buyTier:cart",
+            },
+            nextPaybackRatio: 1,
+          },
         },
       ],
     );

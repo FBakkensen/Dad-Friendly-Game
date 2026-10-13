@@ -3,7 +3,12 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MAX_DAYS, MONTE_CARLO_SEEDS } from "../src/lab/targets";
+import {
+  CI_SEEDS,
+  DEFAULT_MAX_DAYS,
+  LOCAL_SEEDS,
+  TARGETS,
+} from "../src/lab/targets";
 import { executeLab, parseLabArgs, seedsFromCount } from "./strategy-lab";
 
 describe("strategy lab command", () => {
@@ -12,12 +17,22 @@ describe("strategy lab command", () => {
     expect(parsed).toEqual({
       kind: "run",
       policyIds: [],
-      seeds: MONTE_CARLO_SEEDS,
+      seeds: LOCAL_SEEDS,
       days: DEFAULT_MAX_DAYS,
       outDir: "reports",
     });
-    expect(seedsFromCount(MONTE_CARLO_SEEDS)).toHaveLength(MONTE_CARLO_SEEDS);
-    expect(seedsFromCount(3)).toEqual([1, 2, 3]);
+    expect(seedsFromCount(LOCAL_SEEDS)).toHaveLength(LOCAL_SEEDS);
+    expect(seedsFromCount(CI_SEEDS)).toHaveLength(CI_SEEDS);
+    expect(seedsFromCount(LOCAL_SEEDS)[0]).toBe(1);
+    expect(seedsFromCount(LOCAL_SEEDS).at(-1)).toBe(LOCAL_SEEDS);
+    expect(parseLabArgs(["--ci"])).toMatchObject({
+      kind: "run",
+      seeds: CI_SEEDS,
+    });
+    expect(parseLabArgs(["--ci", "--seeds", "1"])).toMatchObject({
+      kind: "run",
+      seeds: 1,
+    });
   });
 
   it("reads flags and rejects a bad one", () => {
@@ -51,7 +66,10 @@ describe("strategy lab command", () => {
     if (parsed.kind !== "run") {
       return;
     }
-    const { markdown } = await executeLab(parsed);
+    const { markdown, checks } = await executeLab(parsed);
+    expect(checks.map((check) => check.targetId)).toEqual(
+      TARGETS.map((target) => target.id),
+    );
     expect(markdown).toContain("Five minutes a day");
     expect(markdown).toContain("Finish day");
     expect(markdown).not.toContain("Casual, two 10-minute sittings");
@@ -85,6 +103,7 @@ describe("strategy lab command", () => {
     );
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("--seeds");
+    expect(result.stdout).toContain("--ci");
     expect(result.stdout).toContain("--policy");
     expect(result.stdout).toContain("strategy-lab.md");
   });

@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { createMountain, type Mountain } from "../mountain";
 import { RELICS } from "../relics";
 import { simulateDadRun } from "../pacing";
-import { canPay, lookaheadSeconds, optimizerDecide, sticker } from "./decide";
+import {
+  actionsOnTable,
+  canPay,
+  lookaheadSeconds,
+  optimizerDecide,
+  sticker,
+} from "./decide";
 import casual from "./policies/casual-2x10";
 import checker from "./policies/checker-6x3";
 import evening from "./policies/evening-1x20";
@@ -67,6 +73,27 @@ function playCasual(): PolicyRun {
   casualRun ??= runPolicy({ policy: casual, seed: 1 });
   return casualRun;
 }
+
+describe("spend table", () => {
+  it("leaves out a free post and an upgrade this dad will not buy", () => {
+    const mountain = {
+      ...createMountain(),
+      helpers: 4,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" } as const],
+    };
+    const weighed = actionsOnTable(mountain, 0, casual.params);
+    expect(weighed.some((action) => action.kind === "buyTier")).toBe(true);
+    expect(weighed.some((action) => action.kind === "station")).toBe(false);
+    expect(weighed.some((action) => action.kind === "buyUpgrade")).toBe(false);
+    const withUpgrades = actionsOnTable(mountain, 0, {
+      ...casual.params,
+      spend: { ...casual.params.spend, upgrade: 1 },
+    });
+    expect(withUpgrades.some((action) => action.kind === "buyUpgrade")).toBe(
+      true,
+    );
+  });
+});
 
 describe("casual-2x10", () => {
   it("reproduces today's plain dad: same finish day, same buy list", () => {

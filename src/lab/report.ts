@@ -1,4 +1,4 @@
-import type { MeasureValue } from "./measure";
+import type { MeasureValue, ScoreMethod } from "./measure";
 import {
   CASUAL_REFERENCE_ID,
   OPTIMIZER_REFERENCE_ID,
@@ -317,7 +317,7 @@ function stretchSection(result: TournamentResult): readonly string[] {
   const intro = [
     "## Dead stretches",
     "",
-    `Waits longer than ${hours} hours. Nothing live can be paid for, and the best buy is at least one session away.`,
+    `Waits longer than ${hours} hours on the spends this dad weighs. Every live option on that table needs at least one session of saving. Payback is the official clock. Value per stone sits beside it.`,
     "",
   ];
   if (result.deadStretches.length === 0) {
@@ -325,14 +325,15 @@ function stretchSection(result: TournamentResult): readonly string[] {
   }
   const lines = [
     ...intro,
-    "| Policy | Seed | Start day | Hours | Saving for | Next payback |",
-    "| --- | --- | --- | --- | --- | --- |",
+    "| Policy | Seed | Score | Start day | Hours | Saving for | Next payback |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
   ];
   for (const stretch of result.deadStretches) {
     lines.push(
       `| ${[
         tableCell(stretch.label),
         String(stretch.seed),
+        scoreName(stretch.score),
         formatMeasure(stretch.startDay, "days"),
         formatMeasure(stretch.hours, "hours"),
         tableCell(stretch.savingFor === "" ? "none" : stretch.savingFor),
@@ -400,13 +401,17 @@ function listText(label: string, why: string, players: number): string {
   return `${label} names unused kinds for ${String(players)} ${noun}. ${why} ${SUGGESTION}`;
 }
 
+function scoreName(score: ScoreMethod): string {
+  return score === "value" ? "value per stone" : "payback";
+}
+
 function stretchText(stretch: DeadStretchNote): string {
   const saving = stretch.savingFor === "" ? "nothing named" : stretch.savingFor;
   const ratio = Number.isFinite(stretch.nextPaybackRatio)
     ? `${formatMeasure(stretch.nextPaybackRatio, "ratio")} times the best`
     : "no second buy on the table";
   return [
-    `${stretch.label}, seed ${String(stretch.seed)}, waits from day ${formatMeasure(stretch.startDay, "days")}, saving for ${saving}, for ${formatMeasure(stretch.hours, "hours")} hours.`,
+    `${stretch.label}, seed ${String(stretch.seed)}, ${scoreName(stretch.score)} waits from day ${formatMeasure(stretch.startDay, "days")}, saving for ${saving}, for ${formatMeasure(stretch.hours, "hours")} hours.`,
     `The next payback is ${ratio}.`,
     SUGGESTION,
   ].join(" ");

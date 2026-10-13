@@ -35,12 +35,13 @@ export const SINGLE_MAX_LIVE = 1;
 const SESSION_MINUTES = 10;
 
 /**
- * Dead stretch. A sample is dead when no live option can be paid for and
- * the best live option's wait is at least `minWaitSec` (one session). A few
- * minutes of saving at the end of a sitting does not turn the overnight gap
- * into a dead stretch. The length is wall-clock hours from the first dead
- * sample to the next sample that is not dead, or to the last sample if the
- * run ends waiting.
+ * Dead stretch, on the spends this dad weighs. A sample is dead when those
+ * live options all need at least `minWaitSec` of saving (one session): none
+ * of them can be paid for, and the best one's wait is at least that long.
+ * Free posts and refused buys are not on the table. A few minutes of saving
+ * at the end of a sitting does not turn the overnight gap into a dead
+ * stretch. The length is wall-clock hours from the first dead sample to the
+ * next sample that is not dead, or to the last sample if the run ends waiting.
  */
 export const DEAD_STRETCH = {
   unit: "hours",
@@ -108,7 +109,7 @@ export const TARGETS: readonly Target[] = [
   {
     id: "single-share",
     measure: "singleShare",
-    scope: { kind: "all" },
+    scope: { kind: "policyKinds", kinds: ["casual", "optimizer"] },
     op: "lte",
     value: 0.25,
     why: "Most moments should offer more than one live option.",
@@ -124,7 +125,7 @@ export const TARGETS: readonly Target[] = [
   {
     id: "dominant-share",
     measure: "dominantShare",
-    scope: { kind: "all" },
+    scope: { kind: "policyKinds", kinds: ["casual", "optimizer"] },
     op: "lte",
     value: 0.4,
     why: "One move should not be the right buy for most of the run.",
@@ -184,10 +185,17 @@ export const TAPS_PER_SECOND = 3;
 export const DEFAULT_MAX_DAYS = 30;
 
 /**
- * Seeds `npm run lab` plays, numbered 1 through this count.
- * Two keeps a full run under a minute on CI. Raise it for a tighter read.
+ * Seeds a CI run plays, numbered 1 through this count.
+ * Three keeps the report job short. The job posts the report and does not
+ * fail the build.
  */
-export const MONTE_CARLO_SEEDS = 2;
+export const CI_SEEDS = 3;
+
+/**
+ * Seeds `npm run lab` plays on a machine, numbered 1 through this count.
+ * `--seeds` sets the count. `--ci` uses `CI_SEEDS` instead.
+ */
+export const LOCAL_SEEDS = 20;
 
 /** Dead stretches longer than this many hours are listed in the report. */
 export const REPORT_DEAD_HOURS = 2;

@@ -1,3 +1,4 @@
+import type { Trouble } from "../hazards";
 import { boostById, boostCost } from "../boosts";
 import {
   incomePerSecond,
@@ -160,6 +161,23 @@ export function sendWorthIt(
     valueContext(params),
   );
   return priced.gainPerSec > 0;
+}
+
+/**
+ * Purchases this dad will weigh. Free posts, recalls, and fixes stay off,
+ * and so does a spend whose weight is zero. Dead stretch reads this list:
+ * a zero price pays back at once, and a refused upgrade is not a decision.
+ */
+export function actionsOnTable(
+  mountain: Mountain,
+  now: number,
+  params: PolicyParams,
+  trouble?: Trouble,
+): readonly Action[] {
+  return listActions(mountain, now, trouble).filter((action) => {
+    const key = spendKey(mountain, action, params);
+    return key !== undefined && params.spend[key] > 0;
+  });
 }
 
 function spendKey(
