@@ -19,7 +19,19 @@ describe("effectiveRates", () => {
       Object.fromEntries(TIERS.map((tier) => [tier.id, tier.perSecond])),
     );
     expect(rates.crewPerSecond).toBe(26 + 10 + 3_500);
+    expect(rates.exactCrewPerSecond).toBe(rates.crewPerSecond);
     expect(rates.awayPay).toBe(AWAY_PAY_RATE);
+  });
+
+  it("keeps the fraction the crew line floors away", () => {
+    const rates = effectiveRates({
+      ...minedMountain(0),
+      helpers: 11,
+      kids: 0,
+      upgrades: { boots: 1 },
+    });
+    expect(rates.exactCrewPerSecond).toBeCloseTo(12.1, 10);
+    expect(rates.crewPerSecond).toBe(12);
   });
 
   it("slows the troubled tier from a quarter toward a half, and not the others", () => {

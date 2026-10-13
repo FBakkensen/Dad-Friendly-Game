@@ -13,7 +13,7 @@ import { recall, send } from "../expeditions";
 import type { Trouble } from "../hazards";
 import { createMountain, type Mountain } from "../mountain";
 import { minedMountain } from "../test-fixtures";
-import { effectiveRates, AWAY_PAY_RATE } from "../rates";
+import { AWAY_PAY_RATE, BASE_AWAY_CAP_MS, effectiveRates } from "../rates";
 import { TIERS, owned, tierById, tierCost, type TierId } from "../tiers";
 import {
   BOOTS_SPEED_PER_LEVEL,
@@ -25,10 +25,41 @@ import {
   upgradeCost,
   upgradeLevel,
 } from "../upgrades";
-import { applyAction, listActions, valueOf, type Action } from "./actions";
+import {
+  applyAction,
+  listActions,
+  valueOf,
+  type Action,
+  type ValueContext,
+} from "./actions";
 
 const NOW = 1_700_000_000_000;
 const HORIZON = 6 * 60 * 60;
+
+/** At the mountain the whole time, never tapping. Income is the unrounded crew. */
+const LIVE: ValueContext = {
+  tapsPerSecond: 0,
+  liveSeconds: 1,
+  awaySeconds: 0,
+};
+
+/** One session and the gap before the next, as the pacing dad plays it. */
+const SESSION_S = 10 * 60;
+const GAP_S = 12 * 60 * 60 - SESSION_S;
+const CASUAL: ValueContext = {
+  tapsPerSecond: 3,
+  liveSeconds: SESSION_S,
+  awaySeconds: GAP_S,
+};
+
+function score(
+  mountain: Mountain,
+  action: Action,
+  horizon = HORIZON,
+  context: ValueContext = LIVE,
+) {
+  return valueOf(mountain, action, horizon, context);
+}
 
 const ada: Engineer = { name: "Ada", rank: 0, trips: 0, post: "borer" };
 
@@ -118,8 +149,8 @@ function simTier(
     const bought = buyCrew({ ...mountain, pocket: price }, id);
     return {
       gain:
-        effectiveRates(bought).crewPerSecond -
-        effectiveRates(mountain).crewPerSecond,
+        effectiveRates(bought).exactCrewPerSecond -
+        effectiveRates(mountain).exactCrewPerSecond,
       cost: price,
     };
   }
@@ -441,32 +472,24 @@ describe("valueOf", () => {
           continue;
         }
         const expected = simTier(mountain, action.id);
-        const value = valueOf(mountain, action, HORIZON);
-        expect(value.gainPerSec).toBe(expected.gain);
+        const value = score(mountain, action, HORIZON);
+        expect(value.gainPerSec).toBeCloseTo(expected.gain, 8);
         expect(value.cost).toBe(expected.cost);
-        expect(valueOf(mountain, action, 60).gainPerSec).toBe(value.gainPerSec);
+        expect(score(mountain, action, 60).gainPerSec).toBe(value.gainPerSec);
       }
     }
   });
 
   it("scores a worker by the crew they add, including an idle machine they start", () => {
-    expect(valueOf(fresh, FIXTURES.buyTier, HORIZON)).toMatchObject({
+    expect(score(fresh, FIXTURES.buyTier, HORIZON)).toMatchObject({
       gainPerSec: 1,
       cost: 20,
       paybackSec: Number.POSITIVE_INFINITY,
     });
-    const covered = valueOf(
-      { ...fresh, pocket: 20 },
-      FIXTURES.buyTier,
-      HORIZON,
-    );
+    const covered = score({ ...fresh, pocket: 20 }, FIXTURES.buyTier, HORIZON);
     expect(covered.paybackSec).toBe(20);
     const idleDrill: Mountain = { ...fresh, helpers: 2, drills: 1, carts: 1 };
-    const hired = valueOf(
-      idleDrill,
-      { kind: "buyTier", id: "helper" },
-      HORIZON,
-    );
+    const hired = score(idleDrill, { kind: "buyTier", id: "helper" }, HORIZON);
     // The third worker starts the drill and the cart loses its hand.
     expect(hired.gainPerSec).toBe(51);
     expect(hired.cost).toBe(tierCost(tierById("helper"), 2));
@@ -478,11 +501,11 @@ describe("valueOf", () => {
 
   it("bundles the workers a machine still needs, and ignores the first engineer's tend", () => {
     const bare: Mountain = { ...fresh, drills: 1 };
-    const borer = valueOf(bare, { kind: "buyTier", id: "borer" }, HORIZON);
+    const borer = score(bare, { kind: "buyTier", id: "borer" }, HORIZON);
     expect(borer.gainPerSec).toBe(350);
     expect(borer.cost).toBeGreaterThan(10_000_000);
     const staffed: Mountain = { ...bare, helpers: 11, pocket: 0 };
-    const tended = valueOf(staffed, { kind: "buyTier", id: "borer" }, HORIZON);
+    const tended = score(staffed, { kind: "buyTier", id: "borer" }, HORIZON);
     expect(tended.gainPerSec).toBe(350);
     expect(tended.cost).toBe(10_000_000);
     const applied = buyCrew({ ...staffed, pocket: 10_000_000 }, "borer");
@@ -497,11 +520,7 @@ describe("valueOf", () => {
       pocket: 0,
       engineers: [ada],
     };
-    const machine = valueOf(
-      hammer,
-      { kind: "buyTier", id: "machine" },
-      HORIZON,
-    );
+    const machine = score(hammer, { kind: "buyTier", id: "machine" }, HORIZON);
     expect(staffForBuy(hammer, tierById("machine"))).toBe(5);
     expect(machine.gainPerSec).toBe(3_500);
     let bill = 0;
@@ -513,7 +532,7 @@ describe("valueOf", () => {
 
   it("scores a second cart plus the one worker it needs", () => {
     const idle: Mountain = { ...fresh, carts: 1 };
-    const value = valueOf(idle, { kind: "buyTier", id: "cart" }, HORIZON);
+    const value = score(idle, { kind: "buyTier", id: "cart" }, HORIZON);
     expect(value.gainPerSec).toBe(10);
     expect(value.cost).toBe(220);
   });
@@ -536,109 +555,127 @@ describe("valueOf", () => {
           { ...mountain, pocket: mountain.pocket + price },
           action.id,
         );
-        const value = valueOf(mountain, action, HORIZON);
-        expect(value.gainPerSec).toBe(crewDelta(mountain, bought));
+        const value = score(mountain, action, HORIZON);
+        expect(value.gainPerSec).toBeCloseTo(
+          effectiveRates(bought).exactCrewPerSecond -
+            effectiveRates(mountain).exactCrewPerSecond,
+          8,
+        );
         expect(value.cost).toBe(price);
       }
     }
   });
 
-  it("differs from the hand formulas where the crew line does not move", () => {
-    const ten: Mountain = { ...fresh, helpers: 10, carts: 5, pocket: 0 };
-    const boots = valueOf(ten, { kind: "buyUpgrade", id: "boots" }, HORIZON);
-    const bootsHand =
-      10 * effectiveRates(ten).tierSpeed.helper * BOOTS_SPEED_PER_LEVEL;
-    expect(boots.gainPerSec).toBe(1);
-    expect(bootsHand).toBe(1);
+  it("keeps a fraction of a stone and only the carts that run", () => {
+    const ten: Mountain = { ...fresh, helpers: 10, carts: 5 };
+    const boots = score(ten, { kind: "buyUpgrade", id: "boots" });
+    expect(boots.gainPerSec).toBeCloseTo(
+      10 * effectiveRates(ten).tierSpeed.helper * BOOTS_SPEED_PER_LEVEL,
+      8,
+    );
 
     const eleven: Mountain = { ...fresh, helpers: 11 };
-    const elevenBoots = valueOf(
-      eleven,
-      { kind: "buyUpgrade", id: "boots" },
-      HORIZON,
-    );
-    expect(elevenBoots.gainPerSec).toBe(1);
     expect(
-      11 * effectiveRates(eleven).tierSpeed.helper * BOOTS_SPEED_PER_LEVEL,
-    ).toBe(1.1);
+      score(eleven, { kind: "buyUpgrade", id: "boots" }).gainPerSec,
+    ).toBeCloseTo(1.1, 10);
+    const quietSchedule: ValueContext = {
+      tapsPerSecond: 0,
+      liveSeconds: 0,
+      awaySeconds: 0,
+    };
+    expect(
+      score(eleven, { kind: "buyUpgrade", id: "boots" }, HORIZON, quietSchedule)
+        .gainPerSec,
+    ).toBeCloseTo(1.1, 10);
 
     const heir: Mountain = { ...ten, legacy: 1 };
-    const heirBoots = valueOf(
-      heir,
-      { kind: "buyUpgrade", id: "boots" },
-      HORIZON,
+    expect(
+      score(heir, { kind: "buyUpgrade", id: "boots" }).gainPerSec,
+    ).toBeCloseTo(
+      10 * effectiveRates(heir).tierSpeed.helper * BOOTS_SPEED_PER_LEVEL,
+      8,
     );
-    const heirHand =
-      10 * effectiveRates(heir).tierSpeed.helper * BOOTS_SPEED_PER_LEVEL;
-    expect(heirBoots.gainPerSec).toBe(1);
-    expect(heirHand).toBe(1.5);
 
-    const hands = valueOf(ten, { kind: "buyUpgrade", id: "cartSyn" }, HORIZON);
-    const handsHand = 10 * SYNERGY_PER_UNIT * 5 * tierById("cart").perSecond;
-    expect(hands.gainPerSec).toBe(5);
-    expect(handsHand).toBe(5);
-
+    expect(
+      score(ten, { kind: "buyUpgrade", id: "cartSyn" }).gainPerSec,
+    ).toBeCloseTo(10 * SYNERGY_PER_UNIT * 5 * tierById("cart").perSecond, 8);
     const half: Mountain = { ...fresh, helpers: 5, carts: 5 };
-    const halfHands = valueOf(
-      half,
-      { kind: "buyUpgrade", id: "cartSyn" },
-      HORIZON,
-    );
-    expect(halfHands.gainPerSec).toBe(2);
-    expect(5 * SYNERGY_PER_UNIT * 5 * tierById("cart").perSecond).toBe(2.5);
-
+    expect(
+      score(half, { kind: "buyUpgrade", id: "cartSyn" }).gainPerSec,
+    ).toBeCloseTo(2.5, 8);
     const short: Mountain = { ...fresh, helpers: 4, carts: 5 };
-    const shortHands = valueOf(
-      short,
-      { kind: "buyUpgrade", id: "cartSyn" },
-      HORIZON,
+    const shortHands = score(short, { kind: "buyUpgrade", id: "cartSyn" });
+    expect(shortHands.gainPerSec).toBeCloseTo(1.6, 8);
+    expect(shortHands.gainPerSec).not.toBeCloseTo(2, 8);
+  });
+
+  it("pays Strong arms for taps, Steady hands for time away, and Sharper picks for both", () => {
+    const tapping: ValueContext = {
+      tapsPerSecond: 3,
+      liveSeconds: 1,
+      awaySeconds: 0,
+    };
+    const arms = { kind: "buyUpgrade", id: "tap" } as const;
+    const crew: Mountain = { ...fresh, helpers: 100 };
+    expect(score(crew, arms, HORIZON, tapping).gainPerSec).toBeGreaterThan(0);
+    expect(score(crew, arms, HORIZON, LIVE).gainPerSec).toBe(0);
+    const small: Mountain = { ...fresh, helpers: 10 };
+    expect(score(small, arms, HORIZON, tapping).gainPerSec).toBe(0);
+
+    const yard: Mountain = { ...fresh, helpers: 10, carts: 1 };
+    const steady = { kind: "buyUpgrade", id: "steady" } as const;
+    const aMinute: ValueContext = {
+      tapsPerSecond: 0,
+      liveSeconds: 0,
+      awaySeconds: 60,
+    };
+    expect(score(yard, steady, HORIZON, aMinute).gainPerSec).toBeGreaterThan(0);
+    expect(score(yard, steady, HORIZON, LIVE).gainPerSec).toBe(0);
+    const week: ValueContext = {
+      tapsPerSecond: 0,
+      liveSeconds: 0,
+      awaySeconds: 7 * 24 * 60 * 60,
+    };
+    const atCap: ValueContext = {
+      tapsPerSecond: 0,
+      liveSeconds: 0,
+      awaySeconds: BASE_AWAY_CAP_MS / 1000,
+    };
+    expect(score(yard, steady, HORIZON, week).gainPerSec).toBeLessThan(
+      score(yard, steady, HORIZON, atCap).gainPerSec,
     );
-    expect(shortHands.gainPerSec).toBe(1);
-    expect(4 * SYNERGY_PER_UNIT * 5 * 10).toBe(2);
 
-    const arms = valueOf(ten, { kind: "buyUpgrade", id: "tap" }, HORIZON);
-    expect(arms.gainPerSec).toBe(0);
-    expect(
-      effectiveRates(ten).crewPerSecond * TAP_SHARE_PER_LEVEL,
-    ).toBeGreaterThan(0);
-
-    const steady = valueOf(ten, { kind: "buyUpgrade", id: "steady" }, HORIZON);
-    expect(steady.gainPerSec).toBe(0);
-    expect(
-      effectiveRates(ten).crewPerSecond * AWAY_PAY_RATE * STEADY_AWAY_PER_LEVEL,
-    ).toBeGreaterThan(0);
+    const sharper = { kind: "buyBoost", id: "sharper" } as const;
+    expect(score(small, sharper, 10 * 60, tapping).gainPerSec).toBeGreaterThan(
+      0,
+    );
+    expect(score(small, sharper, 10 * 60, LIVE).gainPerSec).toBe(0);
   });
 
   it("spreads a boost across the horizon and leaves a permanent gain alone", () => {
     const crew: Mountain = { ...fresh, helpers: 10, pocket: 1e15 };
     const overtime = { kind: "buyBoost", id: "overtime" } as const;
-    const full = valueOf(crew, overtime, 30 * 60);
-    const half = valueOf(crew, overtime, 60 * 60);
+    const full = score(crew, overtime, 30 * 60);
+    const half = score(crew, overtime, 60 * 60);
     expect(full.gainPerSec).toBe(10);
     expect(half.gainPerSec).toBe(5);
     expect(full.cost).toBe(1_800);
     expect(full.paybackSec).toBe(1_800 / 10);
-    expect(valueOf(crew, overtime, Number.POSITIVE_INFINITY).gainPerSec).toBe(
-      0,
-    );
-    expect(valueOf(crew, FIXTURES.buyTier, 0).gainPerSec).toBe(1);
+    expect(score(crew, overtime, Number.POSITIVE_INFINITY).gainPerSec).toBe(0);
+    expect(score(crew, FIXTURES.buyTier, 0).gainPerSec).toBe(1);
     const queued: Mountain = {
       ...crew,
       boosts: { sharper: 5_000, overtime: 1_000 },
     };
-    expect(valueOf(queued, overtime, 30 * 60).gainPerSec).toBe(full.gainPerSec);
-    const sharper = valueOf(crew, { kind: "buyBoost", id: "sharper" }, 60 * 60);
+    expect(score(queued, overtime, 30 * 60).gainPerSec).toBe(full.gainPerSec);
+    const sharper = score(crew, { kind: "buyBoost", id: "sharper" }, 60 * 60);
     expect(sharper.gainPerSec).toBe(0);
     expect(sharper.paybackSec).toBe(Number.POSITIVE_INFINITY);
   });
 
   it("does not let a running boost change a tier's score", () => {
-    const plain = valueOf(
-      withHelper,
-      { kind: "buyTier", id: "helper" },
-      HORIZON,
-    );
-    const boosted = valueOf(
+    const plain = score(withHelper, { kind: "buyTier", id: "helper" }, HORIZON);
+    const boosted = score(
       { ...withHelper, boosts: { overtime: NOW + 60_000 } },
       { kind: "buyTier", id: "helper" },
       HORIZON,
@@ -647,17 +684,17 @@ describe("valueOf", () => {
   });
 
   it("values a fix as the crew speed trouble was holding back", () => {
-    const slowed = effectiveRates(rich, NOW, trouble).crewPerSecond;
-    const clear = effectiveRates(rich, NOW).crewPerSecond;
-    const value = valueOf(rich, FIXTURES.fixTrouble, HORIZON);
-    expect(value.gainPerSec).toBe(clear - slowed);
+    const slowed = effectiveRates(rich, NOW, trouble).exactCrewPerSecond;
+    const clear = effectiveRates(rich, NOW).exactCrewPerSecond;
+    const value = score(rich, FIXTURES.fixTrouble, HORIZON);
+    expect(value.gainPerSec).toBeCloseTo(clear - slowed, 8);
     expect(value.cost).toBe(0);
     expect(value.paybackSec).toBe(0);
     expect(applyAction(rich, FIXTURES.fixTrouble, NOW)).toBe(rich);
   });
 
   it("reports a loss as an infinite payback", () => {
-    const moved = valueOf(
+    const moved = score(
       rich,
       { kind: "station", index: 0, post: "camp" },
       HORIZON,
@@ -665,7 +702,7 @@ describe("valueOf", () => {
     expect(moved.gainPerSec).toBeLessThan(0);
     expect(moved.cost).toBe(0);
     expect(moved.paybackSec).toBe(Number.POSITIVE_INFINITY);
-    const home = valueOf(
+    const home = score(
       { ...rich, engineers: [{ ...ada, post: "camp" }] },
       { kind: "station", index: 0, post: "borer" },
       HORIZON,
@@ -675,24 +712,24 @@ describe("valueOf", () => {
   });
 
   it("scores promote, send, and recall from the crew before and after", () => {
-    const stepUp = valueOf(rich, { kind: "promote" }, HORIZON);
+    const stepUp = score(rich, { kind: "promote" }, HORIZON);
     expect(stepUp.cost).toBe(2_000_000);
     expect(stepUp.gainPerSec).toBeLessThan(0);
     expect(stepUp.paybackSec).toBe(Number.POSITIVE_INFINITY);
-    const trip = valueOf(
+    const trip = score(
       rich,
       { kind: "send", index: 0, tunnel: "old-shaft" },
       HORIZON,
     );
     expect(trip.cost).toBe(0);
     expect(trip.gainPerSec).toBeLessThan(0);
-    const back = valueOf(travelling, { kind: "recall", index: 0 }, HORIZON);
+    const back = score(travelling, { kind: "recall", index: 0 }, HORIZON);
     expect(back.gainPerSec).toBeGreaterThan(0);
     expect(back.paybackSec).toBe(0);
   });
 
   it("gives a locked or maxed buy no crew gain", () => {
-    const lockedBoots = valueOf(
+    const lockedBoots = score(
       fresh,
       { kind: "buyUpgrade", id: "boots" },
       HORIZON,
@@ -700,19 +737,100 @@ describe("valueOf", () => {
     expect(lockedBoots.gainPerSec).toBe(0);
     expect(lockedBoots.cost).toBe(15_000);
     expect(lockedBoots.paybackSec).toBe(Number.POSITIVE_INFINITY);
-    const machine = valueOf(
+    const machine = score(
       lockedMachine,
       { kind: "buyTier", id: "machine" },
       HORIZON,
     );
     expect(machine.gainPerSec).toBe(0);
     expect(machine.paybackSec).toBe(Number.POSITIVE_INFINITY);
-    const maxed = valueOf(
+    const maxed = score(
       { ...rich, upgrades: { tap: 10 } },
       { kind: "buyUpgrade", id: "tap" },
       HORIZON,
     );
     expect(maxed.gainPerSec).toBe(0);
     expect(maxed.cost).toBe(0);
+  });
+
+  it("matches the casual dad's stones a day, and shows where the upgrade dad's hand formulas differ", () => {
+    const cycle = SESSION_S + GAP_S;
+    const perDay = (gainPerSec: number) => gainPerSec * cycle * 2;
+    const crewDay = 2 * (SESSION_S + (BASE_AWAY_CAP_MS / 1000) * AWAY_PAY_RATE);
+    const tapDay = 2 * SESSION_S;
+
+    const worker = score(
+      fresh,
+      { kind: "buyTier", id: "helper" },
+      HORIZON,
+      CASUAL,
+    );
+    expect(perDay(worker.gainPerSec)).toBeCloseTo(crewDay, 4);
+
+    const eleven: Mountain = { ...fresh, helpers: 11 };
+    const boots = score(
+      eleven,
+      { kind: "buyUpgrade", id: "boots" },
+      HORIZON,
+      CASUAL,
+    );
+    expect(perDay(boots.gainPerSec)).toBeCloseTo(1.1 * crewDay, 4);
+
+    const yard: Mountain = { ...fresh, helpers: 10, carts: 1 };
+    const steady = score(
+      yard,
+      { kind: "buyUpgrade", id: "steady" },
+      HORIZON,
+      CASUAL,
+    );
+    const steadyHand =
+      effectiveRates(yard).exactCrewPerSecond *
+      AWAY_PAY_RATE *
+      STEADY_AWAY_PER_LEVEL *
+      2 *
+      (BASE_AWAY_CAP_MS / 1000);
+    expect(perDay(steady.gainPerSec)).toBeCloseTo(steadyHand, 4);
+
+    const small: Mountain = { ...fresh, helpers: 50 };
+    const arms = score(
+      small,
+      { kind: "buyUpgrade", id: "tap" },
+      HORIZON,
+      CASUAL,
+    );
+    expect(arms.gainPerSec).toBe(0);
+    expect(effectiveRates(small).exactCrewPerSecond * TAP_SHARE_PER_LEVEL).toBe(
+      0.5,
+    );
+
+    const hundred: Mountain = { ...fresh, helpers: 100 };
+    const bigArms = score(
+      hundred,
+      { kind: "buyUpgrade", id: "tap" },
+      HORIZON,
+      CASUAL,
+    );
+    expect(perDay(bigArms.gainPerSec)).toBeCloseTo(
+      CASUAL.tapsPerSecond * tapDay,
+      4,
+    );
+
+    const idle: Mountain = { ...fresh, helpers: 4, carts: 5 };
+    const hands = score(
+      idle,
+      { kind: "buyUpgrade", id: "cartSyn" },
+      HORIZON,
+      CASUAL,
+    );
+    expect(perDay(hands.gainPerSec)).toBeCloseTo(1.6 * crewDay, 3);
+    expect(perDay(hands.gainPerSec)).not.toBeCloseTo(2 * crewDay, 3);
+
+    const sharper = score(
+      fresh,
+      { kind: "buyBoost", id: "sharper" },
+      HORIZON,
+      CASUAL,
+    );
+    expect(sharper.gainPerSec).toBeGreaterThan(0);
   });
 });

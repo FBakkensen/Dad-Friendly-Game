@@ -27,8 +27,8 @@ import {
 } from "../expeditions";
 import { kindForTier, type Trouble, type TroubleTier } from "../hazards";
 import { expeditionAwayMs } from "../lost-tools";
-import type { Mountain } from "../mountain";
-import { effectiveRates } from "../rates";
+import { mineByHand, type Mountain } from "../mountain";
+import { effectiveRates, heartBonus } from "../rates";
 import {
   TIERS,
   owned,
@@ -70,9 +70,22 @@ export type Action =
       readonly startedAt: number;
     };
 
+/**
+ * How a player spends the horizon. The player type's schedule supplies it
+ * (`src/lab/policies`, #172). The catalogue does not pick a dad of its own.
+ */
+export type ValueContext = {
+  /** Taps while they are at the mountain. Zero when they never tap. */
+  readonly tapsPerSecond: number;
+  /** Seconds at the mountain in one cycle of the schedule. */
+  readonly liveSeconds: number;
+  /** Seconds away in that same cycle, before the away cap. */
+  readonly awaySeconds: number;
+};
+
 /** What `valueOf` says a move is worth. Payback is seconds. */
 export type ActionValue = {
-  /** Extra crew stones a second, spread across `horizon` for a boost. */
+  /** Extra income, stones a second, spread across `horizon` for a boost. */
   readonly gainPerSec: number;
   /** Stones to pay. A machine includes the workers it still needs. */
   readonly cost: number;
@@ -186,57 +199,78 @@ export function applyAction(
 }
 
 /**
- * Values a move from `effectiveRates` before and after, never from a second
- * copy of the upgrade maths. Tiers and workers use the same numbers as
- * `pacing.ts` `bestValue`: a worker is the crew delta of hiring one, and a
- * machine is that tier's current speed with the missing workers added to
- * the cost. `horizon` is seconds. A boost's extra speed is spread across
- * it; a permanent move is not. The caller supplies the horizon.
+ * Values a move from income before and after. Income mixes the unrounded
+ * crew, taps from `mineByHand`, and away pay from the same factor as
+ * `accrueAway`, weighted by `context`. No second copy of the upgrade maths.
+ * A machine's cost includes the workers it still needs. `horizon` is
+ * seconds: a boost's extra income is spread across it, and a permanent
+ * move is not.
  */
 export function valueOf(
   mountain: Mountain,
   action: Action,
   horizon: number,
+  context: ValueContext,
 ): ActionValue {
   switch (action.kind) {
     case "buyTier":
-      return valueTier(mountain, action.id, horizon);
+      return valueTier(mountain, action.id, horizon, context);
     case "buyUpgrade":
-      return valueUpgrade(mountain, action.id, horizon);
+      return valueUpgrade(mountain, action.id, horizon, context);
     case "buyBoost":
-      return valueBoost(mountain, action.id, horizon);
+      return valueBoost(mountain, action.id, horizon, context);
     case "promote": {
+      // TODO(#172): finds are valued at 0. Promote, station, and send only
+      // change speed until a player type scores a find.
       const cost = promoteCost(mountain);
       return rateValue(
         mountain,
-        crewGain(mountain, promote(funded(mountain, cost))),
+        incomeGain(mountain, promote(funded(mountain, cost)), context),
         cost,
         horizon,
+        context,
       );
     }
     case "station":
       return rateValue(
         mountain,
-        crewGain(mountain, station(mountain, action.index, action.post)),
+        incomeGain(
+          mountain,
+          station(mountain, action.index, action.post),
+          context,
+        ),
         0,
         horizon,
+        context,
       );
     case "send":
       return rateValue(
         mountain,
-        crewGain(mountain, send(mountain, action.index, action.tunnel, 0)),
+        incomeGain(
+          mountain,
+          send(mountain, action.index, action.tunnel, 0),
+          context,
+        ),
         0,
         horizon,
+        context,
       );
     case "recall":
       return rateValue(
         mountain,
-        crewGain(mountain, recall(mountain, action.index)),
+        incomeGain(mountain, recall(mountain, action.index), context),
         0,
         horizon,
+        context,
       );
     case "fixTrouble":
-      return rateValue(mountain, troubleGain(mountain, action), 0, horizon);
+      return rateValue(
+        mountain,
+        troubleGain(mountain, action, context),
+        0,
+        horizon,
+        context,
+      );
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -249,39 +283,60 @@ function valueTier(
   mountain: Mountain,
   id: TierId,
   horizon: number,
+  context: ValueContext,
 ): ActionValue {
   const tier = tierById(id);
   const price = tierCost(tier, owned(mountain, tier));
   const cost = price + staffBill(mountain, tier);
   if (tierLocked(mountain, tier)) {
-    return rateValue(mountain, 0, cost, horizon);
+    return rateValue(mountain, 0, cost, horizon, context);
   }
-  // Workers and kids: the crew delta, including any idle machine they start.
-  // A machine: its current per-unit speed. Folding the buy into a funded
-  // mountain would also count the first borer's engineer and any synergy
-  // the bundled workers add, which the sim does not score.
+  // Workers and kids: hiring one, including any idle machine they start.
+  // A machine: the income of that tier once the workers it needs are at
+  // work. The first borer's engineer is not part of this score.
   const gain =
     tier.staff === 0
-      ? crewGain(mountain, buyCrew(funded(mountain, price), id))
-      : effectiveRates(mountain).tierSpeed[id];
-  return rateValue(mountain, gain, cost, horizon);
+      ? incomeGain(mountain, buyCrew(funded(mountain, price), id), context)
+      : machineGain(mountain, tier, context);
+  return rateValue(mountain, gain, cost, horizon, context);
+}
+
+function machineGain(
+  mountain: Mountain,
+  tier: Tier,
+  context: ValueContext,
+): number {
+  // Enough hands that every machine already owned keeps running, and one
+  // more of this tier runs too. The same hands are on both sides, so their
+  // own mining cancels and the gain is this tier. The first borer's
+  // engineer is not posted here.
+  const pad = TIERS.reduce(
+    (total, item) =>
+      total + (owned(mountain, item) + 1) * staffNeeded(mountain, item),
+    0,
+  );
+  const rested = { ...mountain, helpers: mountain.helpers + pad };
+  const running = { ...rested, [tier.field]: owned(rested, tier) + 1 };
+  return incomeGain(rested, running, context);
 }
 
 function valueUpgrade(
   mountain: Mountain,
   id: UpgradeId,
   horizon: number,
+  context: ValueContext,
 ): ActionValue {
   const upgrade = upgradeById(id);
   const price = upgradeCost(upgrade, upgradeLevel(mountain, id));
   if (price === undefined || !upgradeUnlocked(mountain, upgrade)) {
-    return rateValue(mountain, 0, price ?? 0, horizon);
+    return rateValue(mountain, 0, price ?? 0, horizon, context);
   }
   return rateValue(
     mountain,
-    crewGain(mountain, buyUpgrade(funded(mountain, price), id)),
+    incomeGain(mountain, buyUpgrade(funded(mountain, price), id), context),
     price,
     horizon,
+    context,
   );
 }
 
@@ -289,12 +344,13 @@ function valueBoost(
   mountain: Mountain,
   id: BoostId,
   horizon: number,
+  context: ValueContext,
 ): ActionValue {
   const boost = boostById(id);
   const pricing = effectiveRates(mountain);
   const cost = boostCost(boost, pricing);
   // After every boost already on the clock, so this purchase is the only
-  // one running when its speed is read.
+  // one running when its speed is read. Away pay never counts a boost.
   const now = clockAfterBoosts(mountain);
   const bought = buyBoost({
     mountain: funded(mountain, cost),
@@ -304,10 +360,10 @@ function valueBoost(
   });
   return rateValue(
     mountain,
-    effectiveRates(bought, now).crewPerSecond -
-      effectiveRates(mountain, now).crewPerSecond,
+    incomeGain(mountain, bought, context, { now }),
     cost,
     horizon,
+    context,
     boost.durationMs / 1000,
   );
 }
@@ -315,15 +371,17 @@ function valueBoost(
 function troubleGain(
   mountain: Mountain,
   action: Extract<Action, { kind: "fixTrouble" }>,
+  context: ValueContext,
 ): number {
   const trouble: Trouble = {
     kind: kindForTier(action.tier),
     tier: action.tier,
     startedAt: action.startedAt,
   };
+  const clock = { now: action.startedAt, trouble };
   return (
-    effectiveRates(mountain, action.startedAt).crewPerSecond -
-    effectiveRates(mountain, action.startedAt, trouble).crewPerSecond
+    incomePerSecond(mountain, context, { now: action.startedAt }) -
+    incomePerSecond(mountain, context, clock)
   );
 }
 
@@ -355,10 +413,60 @@ function freeHelpers(mountain: Mountain): number {
   return mountain.helpers + mountain.kids - used;
 }
 
-function crewGain(before: Mountain, after: Mountain): number {
+function incomeGain(
+  before: Mountain,
+  after: Mountain,
+  context: ValueContext,
+  clock?: ValueClock,
+): number {
   return (
-    effectiveRates(after).crewPerSecond - effectiveRates(before).crewPerSecond
+    incomePerSecond(after, context, clock) -
+    incomePerSecond(before, context, clock)
   );
+}
+
+type ValueClock = {
+  readonly now: number;
+  readonly trouble?: Trouble;
+};
+
+/**
+ * Stones a second of the schedule. Live time pays the unrounded crew and
+ * each tap (`mineByHand`). Away time pays the same factor as `accrueAway`,
+ * and only up to the away cap. The rest of a long absence pays nothing.
+ */
+function incomePerSecond(
+  mountain: Mountain,
+  context: ValueContext,
+  clock?: ValueClock,
+): number {
+  const liveRates = effectiveRates(mountain, clock?.now, clock?.trouble);
+  const awayRates = effectiveRates(mountain);
+  const tap = oneTap(mountain, clock?.now, clock?.trouble);
+  const liveSeconds = context.liveSeconds;
+  const awaySeconds = context.awaySeconds;
+  const cycle = liveSeconds + awaySeconds;
+  const capSeconds = awayRates.awayCapMs / 1000;
+  const paidAway = awaySeconds <= 0 ? 0 : Math.min(awaySeconds, capSeconds);
+  const liveIncome = liveRates.exactCrewPerSecond + context.tapsPerSecond * tap;
+  const awayIncome =
+    awayRates.exactCrewPerSecond * awayFactor(mountain, paidAway * 1000);
+  if (!(cycle > 0)) {
+    return liveIncome;
+  }
+  return (liveSeconds * liveIncome + paidAway * awayIncome) / cycle;
+}
+
+/** What one tap adds to the pocket. Zero on an empty mountain. */
+function oneTap(mountain: Mountain, now?: number, trouble?: Trouble): number {
+  return mineByHand(mountain, now, trouble).pocket - mountain.pocket;
+}
+
+/** The pay fraction `accrueAway` applies, including the Heart of Patience. */
+function awayFactor(mountain: Mountain, paidMs: number): number {
+  const rates = effectiveRates(mountain);
+  const heart = heartBonus(mountain, paidMs);
+  return Math.round(rates.awayPay * heart * 1e9) / 1e9;
 }
 
 function funded(mountain: Mountain, price: number): Mountain {
@@ -380,6 +488,7 @@ function rateValue(
   instantGain: number,
   cost: number,
   horizon: number,
+  context: ValueContext,
   durationSec = Number.POSITIVE_INFINITY,
 ): ActionValue {
   const gainPerSec = instantGain * activeShare(horizon, durationSec);
@@ -388,7 +497,7 @@ function rateValue(
     cost,
     paybackSec: payback(
       mountain.pocket,
-      effectiveRates(mountain).crewPerSecond,
+      incomePerSecond(mountain, context),
       cost,
       gainPerSec,
     ),
