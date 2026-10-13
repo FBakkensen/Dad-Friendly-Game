@@ -1,10 +1,22 @@
 import type { AuthController } from "./auth";
+import { BOOSTS } from "./boosts";
 import {
   applySignedInSave,
   createNoopCloudSave,
   type CloudLoadResult,
   type CloudSave,
 } from "./cloud-save";
+import { staffExisting } from "./crew";
+import {
+  APP_VERSION,
+  EventRing,
+  FIELD_LOG_COPY_COUNT,
+  snapshot as fieldSnapshot,
+  type FieldEvent,
+  type FieldLog,
+} from "./field-log";
+import { passTheMine } from "./legacy";
+import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
   accrue,
   accrueAway,
@@ -14,10 +26,10 @@ import {
   type AwayReport,
   type Mountain,
 } from "./mountain";
-import { staffExisting } from "./crew";
-import { passTheMine } from "./legacy";
+import { effectiveRates } from "./rates";
 import { relicsUncovered, type Relic } from "./relics";
-import { createLogger, formatLogEvent, type Logger } from "./log";
+import { TIERS, owned } from "./tiers";
+import { UPGRADES, upgradeLevel } from "./upgrades";
 import {
   clearSessionSave,
   readSessionSave,
@@ -46,7 +58,12 @@ export type ProgressStore = {
     listener: (snapshot: ProgressSnapshot) => void,
   ) => () => void;
   /** Applies a player action to the latest mountain (helpers' work settled first) and saves it. */
-  readonly applyMutation: (update: (mountain: Mountain) => Mountain) => void;
+  readonly applyMutation: (
+    update: (mountain: Mountain) => Mountain,
+    note?: "vein.tap",
+  ) => void;
+  /** Snapshot plus the newest events. Session memory; not part of the save. */
+  readonly fieldLog: () => FieldLog;
   /** Settles helpers' work up to now for display. Does not save; saves happen on actions, hide, and pagehide. */
   readonly tick: () => void;
   /** Closes the current relic reveal; the next one (if any) follows. */
@@ -126,6 +143,36 @@ export function createProgressStore({
   let lastCloudWriteAt = Number.NEGATIVE_INFINITY;
   let pendingCloudWrite: ReturnType<typeof setTimeout> | undefined;
   const listeners = new Set<(snapshot: ProgressSnapshot) => void>();
+  const ring = new EventRing();
+  const record = (
+    code: string,
+    data: Readonly<Record<string, string | number>>,
+  ): void => {
+    ring.push({ at: new Date(now()).toISOString(), code, data });
+  };
+  const noteChanges = (before: Mountain, after: Mountain): void => {
+    for (const tier of TIERS) {
+      const count = owned(after, tier);
+      if (count > owned(before, tier)) {
+        record("tier.buy", { id: tier.id, count });
+      }
+    }
+    for (const upgrade of UPGRADES) {
+      const count = upgradeLevel(after, upgrade.id);
+      if (count > upgradeLevel(before, upgrade.id)) {
+        record("upgrade.buy", { id: upgrade.id, count });
+      }
+    }
+    for (const boost of BOOSTS) {
+      const endsAt = after.boosts?.[boost.id];
+      if (endsAt !== undefined && endsAt !== before.boosts?.[boost.id]) {
+        record("boost.start", {
+          id: boost.id,
+          endsAt: new Date(endsAt).toISOString(),
+        });
+      }
+    }
+  };
 
   const snapshot = (): ProgressSnapshot => {
     const latest = logger.latest();
@@ -157,6 +204,7 @@ export function createProgressStore({
           detail: relic.id,
           data: { mined },
         });
+        record("relic.found", { id: relic.id });
       }
     }
     revealBaseline = mined;
@@ -181,6 +229,7 @@ export function createProgressStore({
         lastSeen: lastSeen ?? now(),
       })
     ) {
+      record("save.error", { source: "session" });
       return;
     }
     saveKind = "session";
@@ -247,6 +296,7 @@ export function createProgressStore({
             break;
           case "failed":
             saveKind = "error";
+            record("save.error", { source: "write" });
             logger.record({
               level: "error",
               code: "save.write",
@@ -293,6 +343,7 @@ export function createProgressStore({
         awayMinutes: Math.round(result.report.awayMs / 60000),
       },
     });
+    record("away.report", { ms: result.report.awayMs, stones: result.mined });
     return result.mined;
   };
 
@@ -347,6 +398,7 @@ export function createProgressStore({
       case "disabled":
         hydrated = false;
         saveKind = "error";
+        record("save.error", { source: remote.kind });
         break;
       default: {
         const _exhaustive: never = remote;
@@ -476,7 +528,11 @@ export function createProgressStore({
   };
 
   /** Starts a new run (Start over, or the mine passed down), saved at once. */
-  const beginRun = (next: Mountain, detail: string): boolean => {
+  const beginRun = (
+    next: Mountain,
+    detail: string,
+    code: "run.start-over" | "run.pass",
+  ): boolean => {
     if (disposed || !canPlay()) {
       return false;
     }
@@ -486,6 +542,7 @@ export function createProgressStore({
     away = undefined;
     reveals.length = 0;
     revealBaseline = 0;
+    record(code, {});
     logger.record({
       level: "info",
       code: "save.reset",
@@ -507,19 +564,24 @@ export function createProgressStore({
         listeners.delete(listener);
       };
     },
-    applyMutation: (update) => {
+    applyMutation: (update, note) => {
       if (!canPlay()) {
         return;
       }
       const mined = settle();
+      const before = mountain;
       const next = update(mountain);
-      if (next === mountain) {
+      if (next === before) {
         if (mined > 0) {
           emit();
         }
         return;
       }
       mountain = next;
+      noteChanges(before, next);
+      if (note === "vein.tap") {
+        record("vein.tap", { stones: next.pocket - before.pocket });
+      }
       persistCloudSoon();
       persistSession();
       emit();
@@ -532,14 +594,31 @@ export function createProgressStore({
       emit();
     },
     startOver: () => {
-      beginRun({ ...createMountain(), startedAt: now() }, "start over");
+      beginRun(
+        { ...createMountain(), startedAt: now() },
+        "start over",
+        "run.start-over",
+      );
     },
     passTheMine: () => {
       const next = passTheMine(mountain, now());
       if (next === undefined) {
         return false;
       }
-      return beginRun(next, "passed to the kid");
+      return beginRun(next, "passed to the kid", "run.pass");
+    },
+    fieldLog: () => {
+      const at = now();
+      const events: readonly FieldEvent[] = ring.last(FIELD_LOG_COPY_COUNT);
+      return {
+        snapshot: fieldSnapshot(
+          mountain,
+          effectiveRates(mountain, at),
+          at,
+          APP_VERSION,
+        ),
+        events,
+      };
     },
     dismissAway: () => {
       if (away === undefined && crewJoined === undefined) {

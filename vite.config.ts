@@ -66,10 +66,10 @@ export default defineConfig({
           lines: 94,
         },
         "src/mountain-screen.ts": {
-          statements: 97,
-          branches: 86,
+          statements: 99,
+          branches: 87,
           functions: 100,
-          lines: 97,
+          lines: 99,
         },
         "src/mountain.ts": {
           statements: 100,
@@ -91,8 +91,8 @@ export default defineConfig({
         },
         "src/progress-store.ts": {
           statements: 95,
-          branches: 92,
-          functions: 96,
+          branches: 93,
+          functions: 97,
           lines: 95,
         },
         "src/rates.ts": {
@@ -139,7 +139,7 @@ export default defineConfig({
         },
         "src/menu-panel.ts": {
           statements: 99,
-          branches: 83,
+          branches: 87,
           functions: 100,
           lines: 99,
         },
@@ -184,6 +184,12 @@ export default defineConfig({
           branches: 95,
           functions: 100,
           lines: 90,
+        },
+        "src/field-log.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
         },
       },
     },

@@ -253,6 +253,23 @@ for (const viewport of VIEWPORTS) {
     await coversViewport(page, ".game-menu"),
     `${size} menu is laid over the game`,
   );
+  const fieldLogRow = await page.$eval(".game-menu", (menu) => {
+    const copy = [...menu.querySelectorAll("button")].find(
+      (button) => button.textContent === "Copy field log",
+    );
+    if (copy === undefined) {
+      return false;
+    }
+    const box = copy.getBoundingClientRect();
+    const fat = box.height >= 44 && box.left >= 0 && box.right <= innerWidth;
+    menu.scrollTop = menu.scrollHeight;
+    const closeBottom =
+      menu.querySelector(".menu-close")?.getBoundingClientRect().bottom ??
+      Infinity;
+    menu.scrollTop = 0;
+    return fat && closeBottom <= innerHeight;
+  });
+  check(fieldLogRow, `${size} field log menu row is tappable`);
   await page.tap(".start-over-link");
   check(
     await coversViewport(page, ".start-over"),
