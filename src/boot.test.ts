@@ -81,6 +81,7 @@ describe("createAppServices", () => {
     const cloudSave: CloudSave = {
       load: () => Promise.resolve({ kind: "missing" }),
       write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
       watch: () => () => undefined,
     };
     firebaseStubs.auth.mockReturnValue(auth);

@@ -10,11 +10,17 @@ import { staffExisting } from "./crew";
 import { grantFirstEngineer } from "./engineers";
 import {
   APP_VERSION,
+  EVENT_RING_LIMIT,
   EventRing,
   FIELD_LOG_COPY_COUNT,
+  FIELD_LOG_WRITE_GAP_MS,
+  fieldLogFingerprint,
+  shouldWriteFieldLog,
   snapshot as fieldSnapshot,
   type FieldEvent,
   type FieldLog,
+  type FieldLogDocument,
+  type FieldLogWriteReason,
 } from "./field-log";
 import { passTheMine } from "./legacy";
 import { createLogger, formatLogEvent, type Logger } from "./log";
@@ -65,7 +71,7 @@ export type ProgressStore = {
     update: (mountain: Mountain) => Mountain,
     note?: "vein.tap",
   ) => void;
-  /** Snapshot plus the newest events. Session memory; not part of the save. */
+  /** Snapshot plus the newest events the menu copies. Not part of the mountain save. */
   readonly fieldLog: () => FieldLog;
   /** Settles helpers' work up to now for display. Does not save; saves happen on actions, hide, and pagehide. */
   readonly tick: () => void;
@@ -98,6 +104,7 @@ export function createProgressStore({
   sessionStorage: sessionArg,
   now = Date.now,
   cloudWriteGapMs = CLOUD_WRITE_GAP_MS,
+  fieldLogWriteGapMs = FIELD_LOG_WRITE_GAP_MS,
 }: {
   auth: AuthController;
   cloudSave?: CloudSave;
@@ -105,6 +112,7 @@ export function createProgressStore({
   sessionStorage?: Storage;
   now?: () => number;
   cloudWriteGapMs?: number;
+  fieldLogWriteGapMs?: number;
 }): ProgressStore {
   const sessionStore = sessionArg ?? tryGetGuestStorage();
   let mountain: Mountain = createMountain();
@@ -162,6 +170,8 @@ export function createProgressStore({
   };
   let lastCloudWriteAt = Number.NEGATIVE_INFINITY;
   let pendingCloudWrite: ReturnType<typeof setTimeout> | undefined;
+  let lastFieldLogAt: number | undefined;
+  let lastFieldLogFingerprint: string | undefined;
   const listeners = new Set<(snapshot: ProgressSnapshot) => void>();
   const ring = new EventRing();
   const record = (
@@ -334,6 +344,70 @@ export function createProgressStore({
       });
   };
 
+  const fieldSnapshotNow = (): FieldLog["snapshot"] => {
+    const at = now();
+    return fieldSnapshot(
+      mountain,
+      effectiveRates(mountain, at),
+      at,
+      APP_VERSION,
+    );
+  };
+
+  const fieldLogDocument = (): FieldLogDocument => ({
+    snapshot: fieldSnapshotNow(),
+    events: ring.last(EVENT_RING_LIMIT),
+    updatedAt: now(),
+  });
+
+  /**
+   * Copies the ring for a signed-in dad. Interval writes wait out the gap;
+   * hide and a new run write immediately. An unchanged log does not write.
+   */
+  const persistFieldLog = (reason: FieldLogWriteReason): void => {
+    const state = auth.getState();
+    if (state.kind !== "signed-in" || !hydrated || disposed) {
+      return;
+    }
+    const log = fieldLogDocument();
+    const fingerprint = fieldLogFingerprint(log);
+    const changed =
+      lastFieldLogFingerprint === undefined ||
+      lastFieldLogFingerprint !== fingerprint;
+    if (
+      !shouldWriteFieldLog({
+        changed,
+        lastWrittenAt: lastFieldLogAt,
+        now: now(),
+        reason,
+        gapMs: fieldLogWriteGapMs,
+      })
+    ) {
+      return;
+    }
+    const generation = hydrateGeneration;
+    lastFieldLogAt = now();
+    lastFieldLogFingerprint = fingerprint;
+    const uid = state.user.uid;
+    void cloudSave.writeFieldLog({ uid, log }).then((result) => {
+      if (disposed || generation !== hydrateGeneration) {
+        return;
+      }
+      if (result.kind === "ok") {
+        return;
+      }
+      lastFieldLogFingerprint = undefined;
+      record("save.error", { source: "field-log" });
+      logger.record({
+        level: "error",
+        code: "field-log.write",
+        detail: result.message,
+        data: {},
+      });
+      emit();
+    });
+  };
+
   /**
    * Pays helpers for time the save says we were gone. The first payout of an
    * open becomes the welcome-back card; later ones (another device's save
@@ -434,6 +508,8 @@ export function createProgressStore({
     cancelPendingCloudWrite();
     hydrateGeneration += 1;
     hydrated = false;
+    lastFieldLogAt = undefined;
+    lastFieldLogFingerprint = undefined;
     unwatch?.();
     unwatch = undefined;
   };
@@ -481,6 +557,8 @@ export function createProgressStore({
     }
     const generation = (hydrateGeneration += 1);
     hydrated = false;
+    lastFieldLogAt = undefined;
+    lastFieldLogFingerprint = undefined;
     revealBaseline = undefined;
     saveKind = "loading";
     unwatch?.();
@@ -565,6 +643,7 @@ export function createProgressStore({
     away = undefined;
     reveals.length = 0;
     revealBaseline = 0;
+    ring.clear();
     record(code, {});
     logger.record({
       level: "info",
@@ -574,6 +653,7 @@ export function createProgressStore({
     });
     persistSession();
     persistCloud();
+    persistFieldLog("reset");
     emit();
     return true;
   };
@@ -606,6 +686,7 @@ export function createProgressStore({
         record("vein.tap", { stones: next.pocket - before.pocket });
       }
       persistCloudSoon();
+      persistFieldLog("interval");
       persistSession();
       emit();
     },
@@ -631,15 +712,9 @@ export function createProgressStore({
       return beginRun(next, "passed to the kid", "run.pass");
     },
     fieldLog: () => {
-      const at = now();
       const events: readonly FieldEvent[] = ring.last(FIELD_LOG_COPY_COUNT);
       return {
-        snapshot: fieldSnapshot(
-          mountain,
-          effectiveRates(mountain, at),
-          at,
-          APP_VERSION,
-        ),
+        snapshot: fieldSnapshotNow(),
         events,
       };
     },
@@ -669,6 +744,7 @@ export function createProgressStore({
         settle();
       }
       persistCloud();
+      persistFieldLog("hide");
       if (saveKind === "session") {
         persistSession();
       }
