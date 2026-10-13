@@ -9,6 +9,12 @@ import {
   MAX_ENGINEER_TRIPS,
 } from "./engineers";
 import {
+  FIND_IDS,
+  MAX_EXPEDITION_MS,
+  MAX_EXPEDITIONS,
+  TUNNELS,
+} from "./expeditions";
+import {
   EVENT_RING_LIMIT,
   FIELD_EVENT_DATA_KEYS,
   FIELD_LOG_DATA_KEYS_MAX,
@@ -69,7 +75,18 @@ describe("firestore.rules match the game", () => {
       startedAt: 0,
       staffed: 2,
       legacy: 0,
-      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+      engineers: [{ name: "Ada", rank: 1, trips: 3, post: "tunnel" }],
+      expeditions: [
+        {
+          engineer: "Ada",
+          tunnel: "side-seam",
+          sentAt: 1,
+          returnsAt: 1 + 10 * 60_000,
+          home: "borer",
+          find: { kind: "quiet" },
+        },
+      ],
+      finds: ["pick"],
     };
     const match = /mountain\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/.exec(rules);
     const allowed = (match?.[1] ?? "")
@@ -91,6 +108,19 @@ describe("firestore.rules match the game", () => {
     expect(rules).toContain(`engineers.size() <= ${String(MAX_ENGINEERS)}`);
     expect(rules).toContain(`engineer.trips <= ${String(MAX_ENGINEER_TRIPS)}`);
     expect(rules).toContain("engineer.trips >= 9 ? 2");
+  });
+
+  it("allows expeditions and finds from the closed lists (#146)", () => {
+    for (const tunnel of TUNNELS) {
+      expect(rules).toContain(`'${tunnel.id}'`);
+    }
+    for (const id of FIND_IDS) {
+      expect(rules).toContain(`'${id}'`);
+    }
+    expect(rules).toContain(`expeditions.size() <= ${String(MAX_EXPEDITIONS)}`);
+    expect(rules).toContain(`finds.size() <= ${String(FIND_IDS.length)}`);
+    expect(rules).toContain("trip.returnsAt > trip.sentAt");
+    expect(rules).toContain(String(MAX_EXPEDITION_MS));
   });
 
   it("allows exactly the field log document (#142)", () => {

@@ -32,8 +32,19 @@ describe("serializeSave and parseSaveValue", () => {
       staffed: 2,
       legacy: 2,
       engineers: [
-        { name: "Ada", rank: 0, trips: 0, post: "borer" },
+        { name: "Ada", rank: 1, trips: 3, post: "tunnel" },
       ] satisfies Engineer[],
+      expeditions: [
+        {
+          engineer: "Ada",
+          tunnel: "old-shaft",
+          sentAt: 10,
+          returnsAt: 10 + 60 * 60_000,
+          home: "borer",
+          find: { kind: "keepsake", id: "whistle" },
+        },
+      ],
+      finds: ["pick", "drawing"],
     };
     expect(
       parseSaveValue(serializeSave({ mountain: everyField, lastSeen: 1 })),
@@ -60,6 +71,41 @@ describe("serializeSave and parseSaveValue", () => {
       parseSaveValue({ version: 4, mountain: older, lastSeen: 8 })?.mountain,
     ).toEqual(older);
     expect("engineers" in older).toBe(false);
+  });
+
+  it("round-trips expeditions and finds, and an older save is unchanged", () => {
+    const mountain = {
+      ...minedMountain(4),
+      engineers: [
+        {
+          name: "Ada" as const,
+          rank: 0 as const,
+          trips: 0,
+          post: "tunnel" as const,
+        },
+      ],
+      expeditions: [
+        {
+          engineer: "Ada" as const,
+          tunnel: "side-seam" as const,
+          sentAt: 4,
+          returnsAt: 4 + 10 * 60_000,
+          home: "camp" as const,
+          find: { kind: "glimmer" as const, id: "lantern" as const },
+        },
+      ],
+      finds: ["boots" as const, "ribbon" as const],
+    };
+    const saved = serializeSave({ mountain, lastSeen: 4 });
+    expect(parseSaveValue(JSON.parse(JSON.stringify(saved)))?.mountain).toEqual(
+      mountain,
+    );
+    const older = minedMountain(4);
+    expect(
+      parseSaveValue({ version: 4, mountain: older, lastSeen: 4 })?.mountain,
+    ).toEqual(older);
+    expect("expeditions" in older).toBe(false);
+    expect("finds" in older).toBe(false);
   });
 
   it("round-trips a v4 mountain save", () => {
