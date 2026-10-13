@@ -261,6 +261,9 @@ const TUNNEL_BENEFIT: Readonly<Record<TunnelId, string>> = {
  * Stones a second, in the game's number format.
  * "+800 stones/sec", "+1.2K stones/sec".
  */
+/** A tending choice for a tier he has none of: no "+0", just the reason. */
+export const NONE_BUILT = "none built yet";
+
 export function stonesPerSecond(gain: number): string {
   return `+${formatCompact(Math.max(0, Math.floor(gain)))} stones/sec`;
 }
@@ -342,7 +345,10 @@ export function tendBenefit(
         return "Rests by the fire, ready for the next job.";
     }
   })();
-  return post === "camp" || gain === undefined ? line : `${gain}. ${line}`;
+  if (post === "camp" || gain === undefined) {
+    return line;
+  }
+  return `${gain.charAt(0).toUpperCase()}${gain.slice(1)}. ${line}`;
 }
 
 export function stationCheer(

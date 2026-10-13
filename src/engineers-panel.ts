@@ -11,7 +11,9 @@ import { KEEPSAKES, TUNNELS, recall, send, type TunnelId } from "./expeditions";
 import type { Mountain } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { tendingGain } from "./rates";
+import { owned, tierById } from "./tiers";
 import {
+  NONE_BUILT,
   BROUGHT_HOME,
   CALL_BACK,
   ENGINEER_SHEET_SUB,
@@ -857,9 +859,11 @@ function paintEngineer(
   const gainText = (post: TendPost): string | undefined =>
     post === "camp"
       ? undefined
-      : stonesPerSecond(
-          tendingGain(ui.mountain, index, post, ui.now, ui.trouble),
-        );
+      : owned(ui.mountain, tierById(post)) === 0
+        ? NONE_BUILT
+        : stonesPerSecond(
+            tendingGain(ui.mountain, index, post, ui.now, ui.trouble),
+          );
   const posted = machinePost(engineer.post);
   row.doing.textContent = dutySentence(
     engineer,

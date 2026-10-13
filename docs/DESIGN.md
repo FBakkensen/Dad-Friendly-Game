@@ -294,7 +294,7 @@ The copy menu and the session ring shipped in #141, the cloud document in #142, 
 
 #### Built (#150)
 
-M7 is built except #166 (the numbers rule). Final pacing, with the sim paying 2,000,000 stones and one worker for Nils: Lantern day 1.5, Hammer day 3.5, plain dad bottom day 5.5, upgrade and boost dads bottom day 5.0, second run day 4.5. The first mountain takes at least 5 days. The field log snapshot names each engineer (name, rank, post) and each party still out (who, which tunnel, when they return). The ring records a promotion, a station or a call back to camp, an expedition sent, returned with its find, or recalled, trouble started and fixed by hand or by an engineer, and the staffing top-up.
+M7 is built. Final pacing, with the sim paying 2,000,000 stones and one worker for Nils: Lantern day 1.5, Hammer day 3.5, plain dad bottom day 5.5, upgrade and boost dads bottom day 5.0, second run day 4.5. The first mountain takes at least 5 days. The field log snapshot names each engineer (name, rank, post) and each party still out (who, which tunnel, when they return). The ring records a promotion, a station or a call back to camp, an expedition sent, returned with its find, or recalled, trouble started and fixed by hand or by an engineer, and the staffing top-up.
 
 #### Issues
 

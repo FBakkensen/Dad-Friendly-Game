@@ -398,6 +398,12 @@ export function createProgressStore({
     homecomings = [...homecomings, ...fresh];
     newsPending = true;
     rememberHomecomings();
+    for (const arrival of fresh) {
+      record("expedition.return", {
+        id: arrival.engineer,
+        source: findToken(arrival.find),
+      });
+    }
   };
 
   const recallHomecomings = (): void => {
@@ -420,12 +426,6 @@ export function createProgressStore({
     }
     homecomings = remembered;
     newsPending = true;
-    for (const arrival of arrived) {
-      record("expedition.return", {
-        id: arrival.engineer,
-        source: findToken(arrival.find),
-      });
-    }
   };
 
   const noteReveals = (): void => {

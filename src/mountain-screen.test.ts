@@ -3352,6 +3352,8 @@ describe("side tunnels (#147)", () => {
     expect(sheet.textContent).toContain(
       "+35 stones/sec. They dig faster, and she clears any jam herself.",
     );
+    expect(sheet.textContent).toContain("None built yet. ");
+    expect(sheet.textContent).not.toContain("+0 stones/sec");
     screen.root
       .querySelector<HTMLButtonElement>('[data-tier="borer"]')
       ?.click();
