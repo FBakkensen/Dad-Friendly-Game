@@ -1,6 +1,12 @@
 import { BOOSTS, buyBoost } from "./boosts";
 import { buyCrew, tierLocked } from "./crew";
-import { staffForBuy, staffNeeded, tendBestTier } from "./engineers";
+import {
+  promote,
+  promoteCost,
+  staffForBuy,
+  staffNeeded,
+  tendBestTier,
+} from "./engineers";
 import {
   send,
   settle as settleExpeditions,
@@ -42,12 +48,10 @@ const DAD = {
 const SIM_FIX_MS = 3_000;
 
 /**
- * One scout beside Ada, at camp, the moment the first borer arrives.
- * Paying the real promotion (stones and a worker) slips the plain dad and
- * the second run half a day, so the sim does not pay it. The promote button
- * is unchanged. Ada keeps tending (#148).
+ * Nils, the moment the pocket can pay the same promotion a player would.
+ * Ada is already tending. He waits at camp. One try a second.
  */
-function grantScout(mountain: Mountain): Mountain {
+function promoteScout(mountain: Mountain): Mountain {
   const engineers = mountain.engineers;
   if (
     engineers === undefined ||
@@ -56,13 +60,7 @@ function grantScout(mountain: Mountain): Mountain {
   ) {
     return mountain;
   }
-  return {
-    ...mountain,
-    engineers: [
-      ...engineers,
-      { name: "Nils", rank: 0, trips: 0, post: "camp" },
-    ],
-  };
+  return promote(mountain);
 }
 
 /**
@@ -117,10 +115,23 @@ type DadPurchase = {
   readonly shortCost: number;
 };
 
+/** One promotion the sim dad paid, on a 1-based fractional day. */
+type DadPromotion = {
+  readonly day: number;
+  readonly name: string;
+  readonly price: number;
+  readonly helpersBefore: number;
+  readonly helpersAfter: number;
+  /** Pocket the second he paid, before the price came out, and after. */
+  readonly pocketBefore: number;
+  readonly pocketAfter: number;
+};
+
 export type DadRun = {
   readonly reached: Map<number, number>;
   readonly mountain: Mountain;
   readonly buys: readonly DadPurchase[];
+  readonly promotions: readonly DadPromotion[];
 };
 
 /** Stones a day one more stone a second of crew speed earns, live plus away. */
@@ -278,6 +289,7 @@ export function simulateDadRun({
 }): DadRun {
   const reached = new Map<number, number>();
   const buys: DadPurchase[] = [];
+  const promotions: DadPromotion[] = [];
   let mountain: Mountain =
     legacy > 0 ? { ...createMountain(), legacy } : createMountain();
   let hazards = freshHazards(1);
@@ -358,7 +370,20 @@ export function simulateDadRun({
           shortCost,
         });
       }
-      mountain = grantScout(mountain);
+      const beforeScout = mountain;
+      mountain = promoteScout(mountain);
+      const hired = mountain.engineers?.[beforeScout.engineers?.length ?? 0];
+      if (hired !== undefined) {
+        promotions.push({
+          day: clock / DAY_MS + 1,
+          name: hired.name,
+          price: promoteCost(beforeScout),
+          helpersBefore: beforeScout.helpers,
+          helpersAfter: mountain.helpers,
+          pocketBefore: beforeScout.pocket,
+          pocketAfter: mountain.pocket,
+        });
+      }
       note();
     }
     const gapEnd = clock + gapMs;
@@ -387,5 +412,5 @@ export function simulateDadRun({
       break;
     }
   }
-  return { reached, mountain, buys };
+  return { reached, mountain, buys, promotions };
 }

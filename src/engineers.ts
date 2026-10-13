@@ -46,10 +46,10 @@ export const MASTER_TRIPS = 9;
 
 /**
  * Stones for the next promotion. Doubles for each engineer already in the
- * crew, so the first paid promotion with nobody here is 1,000,000 and the
- * one after the free borer engineer (already one in the crew) is 2,000,000.
- * The pacing dad does not pay it. A scout for the tunnels is seated beside
- * Ada in the sim, so the climb keeps its days (#148).
+ * crew: 1,000,000 with none, so 2,000,000 once Ada is here (Nils), then
+ * 4,000,000, 8,000,000 and 16,000,000. The pacing sim pays this same price.
+ * The plain dad then reaches the bottom on day 5.5, and a second run on
+ * day 4.5. The first mountain still takes at least 5 days (#163).
  */
 export const PROMOTE_BASE_COST = 1_000_000;
 
