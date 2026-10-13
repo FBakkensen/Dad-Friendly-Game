@@ -846,6 +846,10 @@ body {
 .upgrades-close:focus-visible,
 .engineers-close:focus-visible,
 .engineer-tunnel:focus-visible,
+.engineer-choice:focus-visible,
+.engineer-mini:focus-visible,
+.engineer-tend:focus-visible,
+.engineer-explore:focus-visible,
 .engineer-recall:focus-visible,
 .recall-no:focus-visible,
 .recall-yes:focus-visible,
@@ -1308,8 +1312,8 @@ body {
 }
 
 .welcome-card {
-  gap: 10px;
-  padding: 16px;
+  gap: 6px;
+  padding: 12px 16px;
 }
 
 .welcome-card .welcome-continue {
@@ -1558,40 +1562,85 @@ body {
   font-size: clamp(1rem, 4.4vw, 1.2rem);
 }
 
-/* Engineers sheet. Tighter than Upgrades so tunnels still fit a 360×560 phone. */
+/* Engineers sheet. Full-bleed, and it must not scroll on a short phone. */
 .engineers-dialog {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
   padding: max(8px, env(safe-area-inset-top)) 12px
     max(8px, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(
+      ellipse 70% 40% at 50% 18%,
+      rgba(232, 168, 74, 0.16),
+      rgba(232, 168, 74, 0) 70%
+    ),
+    #120c0a;
 }
 
 .engineers-card {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
-  width: min(360px, 100%);
-  padding: 10px 12px;
-  border: 2px solid #e8a84a;
-  border-radius: 20px;
-  background: #1e130d;
-  box-shadow: 0 0 48px rgba(232, 168, 74, 0.35);
+  width: min(420px, 100%);
+  min-height: 0;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   text-align: left;
+}
+
+.engineers-head {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .engineers-card h2 {
   margin: 0;
-  font-size: 1.2rem;
-  text-align: center;
+  font-size: 1.25rem;
+  text-align: left;
+  color: #f2c46d;
+}
+
+.engineers-sub {
+  margin: 2px 0 0;
+  color: #c9b08e;
+  font-size: 0.8rem;
+}
+
+.engineers-dialog .engineers-close {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid #5a4330;
+  border-radius: 10px;
+  background: transparent;
   color: #e8d4b8;
+  font-size: 1.4rem;
+  line-height: 1;
 }
 
 .engineer-list {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   width: 100%;
+  min-height: 0;
   margin: 0;
   padding: 0;
+  overflow: hidden;
   list-style: none;
 }
 
@@ -1712,7 +1761,9 @@ body {
 .engineer-recall:disabled,
 .engineer-promote:disabled {
   cursor: default;
-  opacity: 0.55;
+  opacity: 0.45;
+  filter: grayscale(0.85);
+  box-shadow: none;
 }
 
 .engineer-tunnels {
@@ -1794,4 +1845,613 @@ body {
 
 .engineer-confirm-actions > button {
   flex: 1 1 0;
+}
+
+/* Redesign: one open card, choice lists, a toast, and a walk into the tunnel. */
+.engineer.is-open {
+  padding: 8px;
+  border: 1px solid #f2c46d;
+  border-radius: 14px;
+  background: linear-gradient(#2a1c13, #1e140e);
+}
+
+.engineer.is-mini {
+  border: 1px solid #5a4330;
+  border-radius: 14px;
+  background: linear-gradient(#2a1c13, #1e140e);
+}
+
+.engineer.is-lit {
+  box-shadow:
+    0 0 0 3px rgba(242, 196, 109, 0.7),
+    0 0 22px rgba(242, 196, 109, 0.5);
+}
+
+.engineer-open,
+.engineer-mini {
+  display: flex;
+}
+
+.engineer-open {
+  flex-direction: column;
+  gap: 0;
+}
+
+.engineer-open[hidden],
+.engineer-mini[hidden],
+.engineer-choices[hidden],
+.engineer-menu[hidden],
+.engineer-trip[hidden],
+.engineer-doing[hidden],
+.engineer-brought[hidden],
+.engineer-explore[hidden],
+.engineer-recall[hidden],
+.engineer-badge[hidden],
+.engineer-badge-lamp[hidden],
+.engineer-toast[hidden],
+.engineer-modal[hidden] {
+  display: none;
+}
+
+.engineer-top {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.engineer-face {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 46px;
+}
+
+.engineer-portrait {
+  display: block;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  background: radial-gradient(circle at 50% 35%, #f2c46d, #8a5a2b);
+}
+
+.engineer-mini .engineer-portrait {
+  width: 30px;
+  height: 30px;
+}
+
+.engineer-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #1e130d;
+  border-radius: 50%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  background: #140d09;
+}
+
+.engineer-badge-lamp {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #1e130d;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff6d0, #e8a84a 55%, #8a5a20);
+  box-shadow: 0 0 6px #f2c46d;
+}
+
+.engineer-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.engineer-mini .engineer-name {
+  flex: none;
+  font-size: 0.9rem;
+}
+
+.engineer-rank {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #c9b08e;
+  font-size: 0.75rem;
+}
+
+.engineer-rank .lamp,
+.engineer-mini .lamp {
+  background: #5a4330;
+  box-shadow: none;
+}
+
+.engineer-rank .lamp.on,
+.engineer-mini .lamp.on {
+  background: radial-gradient(circle at 35% 35%, #fff6d0, #e8a84a 50%, #8a5a20);
+  box-shadow: 0 0 4px rgba(255, 214, 102, 0.85);
+}
+
+.engineer-hint {
+  min-width: 0;
+  overflow: hidden;
+  color: #f2c46d;
+  font-style: italic;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.engineer-doing {
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: #140d09;
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+/* Keepsake stories stay at reading size. The relic card's 0.72rem line is too small. */
+.engineer-brought {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: #140d09;
+  color: #e8d4b8;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.engineer-brought-title {
+  color: #f2c46d;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.engineer-brought-stories {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.engineer-brought-names,
+.engineer-brought-story {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+/* The story already names the keepsake. The name line is the short-phone row. */
+.engineer-brought-names {
+  display: none;
+}
+
+.engineer-brought-story[hidden] {
+  display: none;
+}
+
+.engineer-trip {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #140d09, #2d1d12);
+}
+
+.engineer-trip .engineer-tunnel {
+  position: relative;
+  flex: none;
+  width: 54px;
+  height: 34px;
+  overflow: hidden;
+  border: 2px solid #5a4330;
+  border-radius: 27px 27px 0 0;
+  background: #000;
+}
+
+.engineer-walker {
+  position: absolute;
+  bottom: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  animation: engineer-walk 2.4s linear infinite;
+}
+
+@keyframes engineer-walk {
+  from {
+    left: -18px;
+  }
+
+  to {
+    left: 56px;
+  }
+}
+
+.engineer-trip-title,
+.engineer-trip-detail,
+.engineer-aside,
+.recall-line,
+.engineer-confirm-line {
+  margin: 0;
+}
+
+.engineer-trip-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.engineer-trip-detail,
+.engineer-aside {
+  color: #c9b08e;
+  font-size: 0.75rem;
+}
+
+.engineer-acts,
+.engineer-confirm-actions,
+.recall-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.engineer-acts > .engineer-act,
+.engineer-confirm-actions > .engineer-act,
+.recall-actions > .engineer-act {
+  flex: 1 1 0;
+  width: auto;
+  white-space: normal;
+}
+
+.engineer-act {
+  appearance: none;
+  min-height: 44px;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e130d;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.engineer-tend,
+.engineer-promote,
+.engineer-confirm-yes,
+.recall-yes {
+  background: linear-gradient(#ffd98a, #e0a845);
+  box-shadow: 0 3px 0 #8a5a2b;
+}
+
+.engineer-explore,
+.engineer-recall,
+.engineer-confirm-no,
+.recall-no {
+  background: linear-gradient(#cfe3d0, #86a98a);
+  box-shadow: 0 3px 0 #3d5a40;
+}
+
+.engineer-act:active,
+.engineer-act.is-pressed,
+.engineer-tend[aria-pressed="true"],
+.engineer-explore[aria-pressed="true"] {
+  transform: translateY(3px) scale(0.97);
+  box-shadow: none;
+}
+
+.engineer-act:disabled {
+  transform: none;
+  cursor: default;
+  opacity: 0.55;
+}
+
+.engineer-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.engineer-choice {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 8px;
+  border: 1px solid #5a4330;
+  border-radius: 10px;
+  background: #140d09;
+  color: #e8d4b8;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.engineer-choice.is-current {
+  border-color: #f2c46d;
+}
+
+.engineer-choice.is-locked,
+.engineer-choice:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.engineer-choice img {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.engineer-choice-lamp {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff6d0, #e8a84a 55%, #8a5a20);
+}
+
+.engineer-choice-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.engineer-choice-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.engineer-choice-benefit {
+  color: #c9b08e;
+  font-size: 0.72rem;
+  line-height: 1.15;
+}
+
+.engineer-choice.is-locked .engineer-choice-benefit {
+  color: #e8a87c;
+}
+
+.engineer-mini {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 5px 10px;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.engineer-duty {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: #c9b08e;
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.engineer-more {
+  flex: none;
+  color: #c9b08e;
+}
+
+.engineer-promote-row {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px dashed #8a6a3a;
+  border-radius: 14px;
+}
+
+.engineer-promote-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, #f2c46d, #8a5a2b);
+  color: #1e130d;
+  font-size: 1.1rem;
+}
+
+.engineer-promote-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: #c9b08e;
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.engineer-promote-title {
+  display: block;
+  color: #e8d4b8;
+  font-weight: 700;
+}
+
+.engineer-promote-row .engineer-promote {
+  flex: none;
+  width: auto;
+  padding: 8px 12px;
+}
+
+.engineer-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.engineer-confirm,
+.recall-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(320px, 100%);
+  padding: 14px;
+  border: 1px solid #f2c46d;
+  border-radius: 14px;
+  background: #2a1c13;
+}
+
+.engineer-toast {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 9;
+  max-width: calc(100% - 80px);
+  margin: 0;
+  padding: 10px 16px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #f2c46d;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+  color: #1e130d;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  transform: translate(-50%, -160%);
+  transition: transform 0.35s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.engineer-toast.is-shown {
+  transform: translate(-50%, 0);
+}
+
+.engineer-toast.is-story {
+  max-width: min(340px, calc(100% - 32px));
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+}
+
+@media (max-height: 700px) {
+  .engineers-sub {
+    display: none;
+  }
+
+  .engineers-dialog.is-choosing .engineer.is-mini,
+  .engineers-dialog.is-choosing .engineer-doing,
+  .engineers-dialog.is-choosing .engineer-brought-stories {
+    display: none;
+  }
+
+  /* A full crew, or an open choice list: one readable row. The story is in the toast. */
+  .engineers-dialog.is-packed .engineer-brought,
+  .engineers-dialog.is-choosing .engineer-brought {
+    flex-direction: row;
+    gap: 6px;
+    align-items: center;
+    min-height: 44px;
+    margin: 0;
+    padding: 4px 8px;
+    overflow: hidden;
+  }
+
+  .engineers-dialog.is-packed .engineer-brought-title {
+    flex: none;
+  }
+
+  .engineers-dialog.is-packed .engineer-brought-names,
+  .engineers-dialog.is-choosing .engineer-brought-names {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .engineers-dialog.is-packed .engineer-brought-stories {
+    display: none;
+  }
+
+  .engineer.is-open {
+    padding: 6px;
+  }
+
+  .engineer-face,
+  .engineer-open .engineer-portrait,
+  .engineer-face .engineer-portrait {
+    width: 38px;
+    height: 38px;
+  }
+
+  .engineer-doing,
+  .engineer-trip {
+    margin: 4px 0;
+    font-size: 0.78rem;
+  }
+
+  .engineer-doing {
+    padding: 4px 8px;
+  }
+
+  .engineer-choice {
+    padding: 2px 8px;
+  }
+
+  .engineer-choice-benefit {
+    font-size: 0.68rem;
+  }
+
+  .engineer-promote-mark {
+    display: none;
+  }
+
+  .engineer-promote-row {
+    padding: 4px 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .engineer-walker {
+    left: 12px;
+    animation: none;
+  }
+
+  .engineer-toast,
+  .engineer-act {
+    transition: none;
+  }
 }

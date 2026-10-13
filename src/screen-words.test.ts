@@ -6,26 +6,42 @@ import { glimmerText } from "./expeditions";
 import { RELICS } from "./relics";
 import {
   BROUGHT_HOME,
-  ENGINEER_STATIONS,
   FOUND_LABEL,
   KEEPSAKES_TITLE,
+  PROMOTE_BUTTON,
   PROMOTE_CREW_FULL,
   PROMOTE_NEEDS_WORKER,
+  PROMOTE_SHORT_POCKET,
+  PROMOTE_TITLE,
+  PROMOTE_WHY,
+  broughtHomeNames,
+  broughtHomeToast,
   keepsakeWords,
+  keepsakesBroughtHome,
   lostToolWords,
   cameBack,
+  callBackLabel,
+  dutyLine,
+  dutySentence,
   expeditionChip,
-  postWords,
+  exploreAside,
+  exploreBenefit,
+  exploreCheer,
+  exploreTitle,
+  homeCheer,
+  promoteCheer,
   promoteConfirm,
-  promotePriceWords,
   rankHint,
   rankLabel,
   recallConfirm,
+  stationCheer,
+  tendBenefit,
+  tendTitle,
   tendingEngineer,
-  tendingWords,
   tendsNote,
+  tripDetail,
+  tripTitle,
   tunnelLock,
-  tunnelOffer,
 } from "./screen-words";
 
 const ada = (patch: Partial<Engineer> = {}): Engineer => ({
@@ -64,30 +80,150 @@ describe("engineer words", () => {
     expect(rankHint(ada({ rank: 2, trips: MASTER_TRIPS }))).toBeUndefined();
   });
 
-  it("describes a post and a tending bonus without a percent", () => {
-    expect(postWords("camp")).toBe("At camp");
-    expect(postWords("tunnel")).toBe("Away in a tunnel");
-    expect(postWords("cart")).toBe("Tending the carts");
-    expect(postWords("drill")).toBe("Tending the drills");
-    expect(postWords("borer")).toBe("Tending the borers");
-    expect(postWords("machine")).toBe("Tending the Great Machine");
+  it("says what they are doing, faster by rank, with no numbers", () => {
+    expect(dutySentence(ada({ rank: 0, post: "borer" }))).toBe(
+      "Ada is tending the borers, they dig a bit faster and she fixes trouble there herself.",
+    );
+    expect(dutySentence(ada({ rank: 1, post: "borer" }))).toBe(
+      "Ada is tending the borers, they dig quite a bit faster and she fixes trouble there herself.",
+    );
+    expect(dutySentence(ada({ rank: 2, post: "drill" }))).toBe(
+      "Ada is tending the drills, they dig much faster and she fixes trouble there herself.",
+    );
+    expect(dutySentence(ada({ name: "Nils", post: "cart" }))).toBe(
+      "Nils is tending the carts, they dig a bit faster and he fixes trouble there himself.",
+    );
+    expect(dutySentence(ada({ name: "Mae", rank: 1, post: "machine" }))).toBe(
+      "Mae is tending the Great Machine, it digs quite a bit faster and she fixes trouble there herself.",
+    );
+    expect(dutySentence(ada({ name: "Otto", post: "camp" }))).toBe(
+      "Otto is resting at camp. Give him a job below.",
+    );
+    expect(dutySentence(ada({ name: "Ruth", post: "tunnel" }))).toBe(
+      "Ruth is out exploring.",
+    );
+    for (const post of ["cart", "drill", "borer", "machine", "camp"] as const) {
+      expect(dutySentence(ada({ post }))).not.toMatch(/\d|\?|%/);
+    }
+  });
 
-    expect(tendingWords(ada({ post: "camp" }))).toBeUndefined();
-    expect(tendingWords(ada({ post: "tunnel" }))).toBeUndefined();
-    expect(tendingWords(ada({ post: "borer" }))).toBe(
-      "Your borers hum a little faster while Ada tends them.",
+  it("collapses a card to one line, and counts an expedition in words", () => {
+    expect(dutyLine(ada({ post: "camp" }))).toBe("Resting at camp");
+    expect(dutyLine(ada({ post: "cart" }))).toBe("Tending the carts");
+    expect(dutyLine(ada({ post: "drill" }))).toBe("Tending the drills");
+    expect(dutyLine(ada({ post: "borer" }))).toBe("Tending the borers");
+    expect(dutyLine(ada({ post: "machine" }))).toBe(
+      "Tending the Great Machine",
     );
-    expect(tendingWords(ada({ name: "Nils", post: "cart" }))).toBe(
-      "Your carts hum a little faster while Nils tends them.",
+    expect(dutyLine(ada({ post: "tunnel" }))).toBe("Exploring a tunnel");
+    const hour = 60 * 60_000;
+    expect(
+      dutyLine(ada({ post: "tunnel" }), {
+        tunnel: "old-shaft",
+        leftMs: hour,
+      }),
+    ).toBe("Exploring the old shaft · gone about an hour");
+    expect(
+      dutyLine(ada({ post: "tunnel" }), {
+        tunnel: "side-seam",
+        leftMs: 10 * 60_000,
+      }),
+    ).toBe("Exploring a side seam · gone a little while");
+    expect(
+      dutyLine(ada({ post: "tunnel" }), {
+        tunnel: "deep-dark",
+        leftMs: 4 * hour,
+      }),
+    ).toBe("Exploring the deep dark · gone a long night");
+    expect(
+      dutyLine(ada({ post: "tunnel" }), { tunnel: "side-seam", leftMs: 0 }),
+    ).toBe("Exploring a side seam · back soon");
+    expect(
+      dutyLine(ada({ post: "tunnel" }), {
+        tunnel: "old-shaft",
+        leftMs: hour,
+      }),
+    ).not.toMatch(/\d|\?/);
+  });
+
+  it("names each tend choice and the trouble that hand fixes", () => {
+    expect(tendTitle("borer", true)).toBe("The borers · here now");
+    expect(tendTitle("borer", false)).toBe("The borers");
+    expect(tendTitle("camp", false)).toBe("Rest at camp");
+    expect(tendBenefit("cart", "Ada")).toBe(
+      "They roll faster, and she shores up cave-ins herself.",
     );
-    expect(tendingWords(ada({ name: "Ruth", post: "drill" }))).toBe(
-      "Your drills hum a little faster while Ruth tends them.",
+    expect(tendBenefit("drill", "Nils")).toBe(
+      "They bite deeper, and he pumps out floods himself.",
     );
-    expect(tendingWords(ada({ name: "Mae", post: "machine" }))).toBe(
-      "The Great Machine hums a little faster while Mae tends it.",
+    expect(tendBenefit("borer", "Ruth")).toBe(
+      "They dig faster, and she clears any jam herself.",
     );
-    for (const post of ["cart", "drill", "borer", "machine"] as const) {
-      expect(tendingWords(ada({ post }))).not.toMatch(/%|\d/);
+    expect(tendBenefit("machine", "Otto")).toBe(
+      "It runs with far fewer workers, and he clears any jam himself.",
+    );
+    expect(tendBenefit("camp", "Mae")).toBe(
+      "Rests by the fire, ready for the next job.",
+    );
+    expect(stationCheer("Ada", "drill")).toBe("Ada heads to the drills!");
+    expect(stationCheer("Ada", "cart")).toBe("Ada heads to the carts!");
+    expect(stationCheer("Ada", "borer")).toBe("Ada heads to the borers!");
+    expect(stationCheer("Ada", "machine")).toBe(
+      "Ada heads to the Great Machine!",
+    );
+    expect(stationCheer("Nils", "camp")).toBe(
+      "Nils puts the kettle on at camp.",
+    );
+    for (const post of ["cart", "drill", "borer", "machine", "camp"] as const) {
+      expect(tendBenefit(post, "Ada")).not.toMatch(/\d|\?/);
+      expect(stationCheer("Ada", post)).not.toMatch(/\d|\?/);
+    }
+  });
+
+  it("offers three tunnels, and keeps the deep dark for a Journeyman", () => {
+    expect(exploreTitle("side-seam")).toBe("Quick look");
+    expect(exploreTitle("old-shaft")).toBe("Old shaft");
+    expect(exploreTitle("deep-dark")).toBe("The deep dark");
+    expect(exploreBenefit("side-seam")).toBe(
+      "Back in a few minutes with a small find.",
+    );
+    expect(exploreBenefit("old-shaft")).toBe(
+      "About an hour, often a lost tool or keepsake.",
+    );
+    expect(exploreBenefit("deep-dark")).toBe(
+      "All night, the best chance of a relic hint or a new engineer.",
+    );
+    expect(exploreAside("Ada", "borer")).toBe(
+      "While she explores, her machine works without her.",
+    );
+    expect(exploreAside("Otto", "drill")).toBe(
+      "While he explores, his machine works without him.",
+    );
+    expect(exploreAside("Nils", "camp")).toBe(
+      "No machine slows while he explores.",
+    );
+    expect(exploreCheer("Ada")).toBe("Ada lights a lamp and heads in!");
+    expect(tunnelLock(0, "side-seam")).toBeUndefined();
+    expect(tunnelLock(0, "old-shaft")).toBeUndefined();
+    expect(tunnelLock(0, "deep-dark")).toBe(
+      "The deep dark waits for a Journeyman.",
+    );
+    expect(tunnelLock(1, "deep-dark")).toBeUndefined();
+    expect(tunnelLock(2, "deep-dark")).toBeUndefined();
+    expect(callBackLabel("Ada")).toBe("Call her back");
+    expect(callBackLabel("Nils")).toBe("Call him back");
+    expect(tripTitle("Ada", "old-shaft")).toBe(
+      "Ada is exploring the old shaft.",
+    );
+    expect(tripDetail("Ada", 60 * 60_000)).toBe(
+      "Ada will be gone about an hour. She'll bring home whatever is found.",
+    );
+    expect(tripDetail("Otto", 4 * 60 * 60_000)).toBe(
+      "Otto will be gone a long night. He'll bring home whatever is found.",
+    );
+    expect(homeCheer("Ada")).toBe("Ada is home, empty-handed.");
+    for (const id of ["side-seam", "old-shaft", "deep-dark"] as const) {
+      expect(`${exploreTitle(id)} ${exploreBenefit(id)}`).not.toMatch(/\d|\?/);
     }
   });
 
@@ -105,35 +241,20 @@ describe("engineer words", () => {
     expect(tendsNote("Ada", "machine")).toBe("Ada tends it.");
   });
 
-  it("prices a promotion and confirms in a full sentence", () => {
-    expect(promotePriceWords(2_000_000)).toBe(
-      "Promote a worker for 2 million stones",
+  it("explains a promotion without a price, and confirms in a full sentence", () => {
+    expect(PROMOTE_TITLE).toBe("Promote a worker");
+    expect(PROMOTE_WHY).toBe(
+      "A new engineer can tend another machine or explore while the others work.",
     );
+    expect(PROMOTE_BUTTON).toBe("Promote");
+    expect(PROMOTE_SHORT_POCKET).toBe("The pocket is too light for that.");
     expect(promoteConfirm("Nils")).toBe(
       "Nils steps up as engineer. One worker fewer at the machines.",
     );
-    expect(PROMOTE_NEEDS_WORKER).not.toMatch(/\d|\?/);
-    expect(PROMOTE_CREW_FULL).not.toMatch(/\d|\?/);
+    expect(promoteCheer("Ruth")).toBe("Ruth steps up. The crew cheers.");
     expect(
-      ENGINEER_STATIONS.map((station) => station.label).join(" "),
+      `${PROMOTE_TITLE} ${PROMOTE_WHY} ${PROMOTE_BUTTON} ${PROMOTE_SHORT_POCKET} ${PROMOTE_NEEDS_WORKER} ${PROMOTE_CREW_FULL}`,
     ).not.toMatch(/\d|\?/);
-  });
-
-  it("offers three tunnels in words, and keeps an Apprentice out of the deep dark", () => {
-    expect(tunnelOffer("side-seam")).toBe("A quick look down a side seam");
-    expect(tunnelOffer("old-shaft")).toBe("About an hour in the old shaft");
-    expect(tunnelOffer("deep-dark")).toBe("A long night in the deep dark");
-    expect(tunnelLock(0, "side-seam")).toBeUndefined();
-    expect(tunnelLock(0, "old-shaft")).toBeUndefined();
-    expect(tunnelLock(0, "deep-dark")).toBe(
-      "The deep dark waits for a Journeyman.",
-    );
-    expect(tunnelLock(1, "deep-dark")).toBeUndefined();
-    expect(tunnelLock(2, "deep-dark")).toBeUndefined();
-    for (const id of ["side-seam", "old-shaft", "deep-dark"] as const) {
-      expect(tunnelOffer(id)).not.toMatch(/\d|\?/);
-    }
-    expect(tunnelLock(0, "deep-dark")).not.toMatch(/\d|\?/);
   });
 
   it("counts an expedition down in words, never a clock", () => {
@@ -262,5 +383,23 @@ describe("lost tools and keepsakes (#148)", () => {
       expect(words.story.length).toBeGreaterThan(0);
       expect(`${words.name} ${words.story}`).not.toMatch(/[0-9?]/);
     }
+  });
+
+  it("reads keepsakes the engineers brought home, and skips lost tools", () => {
+    expect(keepsakesBroughtHome(undefined)).toEqual([]);
+    expect(keepsakesBroughtHome(["pick", "lamp"])).toEqual([]);
+    expect(keepsakesBroughtHome(["pick", "drawing", "boots", "watch"])).toEqual(
+      ["drawing", "watch"],
+    );
+    expect(broughtHomeNames(["drawing", "watch"])).toBe(
+      "A child's drawing, A pocket watch",
+    );
+    expect(broughtHomeToast(["drawing"])).toBe(
+      "A child's drawing. A little figure with a lamp, folded for a pocket.",
+    );
+    expect(broughtHomeToast(["pebble", "ribbon"])).toBe(
+      "A smooth pebble. Warm from a hand that held it. A faded ribbon. Tied until the ends went soft.",
+    );
+    expect(broughtHomeToast([...KEEPSAKES])).not.toMatch(/[0-9?]/);
   });
 });
