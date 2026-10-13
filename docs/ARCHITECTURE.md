@@ -56,3 +56,15 @@ page is the map, plus the rules that keep it that way.
   listed), every upgrade id with its max level, and every boost id.
 - `knip` (strict): no unused files, exports or dependencies.
 - `prettier --check .` covers docs too; coverage floors per critical module.
+
+## M7 sketch (design, not built)
+
+- **Names:** player text says "worker"; `helpers`, `TierId "helper"` and the rules keep their names (no save migration). All copy comes from `screen-words`.
+- `tiers`: worker growth 1.15 → 1.25; staff cart 1 / drill 3 / borer 8 / Great Machine 25; borer first cost 10M. `crew.staffExisting` learns a second one-time grant (`staffed: 2`).
+- `engineers` (rules layer, pure): `Engineer = { name, rank: 0 | 1 | 2, trips, post: TierId | "tunnel" | "camp" }`; `promote(mountain, now)`, `station(mountain, i, tier)`, `rankOf`. Save: `engineers?: Engineer[]` (max 5, names from a closed list). Rules + drift guard + emulator tests.
+- `expeditions` (rules layer, pure): `TUNNELS`; `send(mountain, engineer, tunnel, now)`, `recall`, `settle(mountain, now) → { mountain, finds }`. Save: `expeditions?: { engineer, tunnel, sentAt, returnsAt }[]`, `finds?: FindId[]` (closed list). Rules check `returnsAt > sentAt` and caps.
+- `rates`: `effectiveRates` adds the tending bonus (per tier, skipped while that engineer is in a tunnel) and lost-tool effects; hazards arrive as an optional session-only `trouble` argument. `accrueAway` splits at each `returnsAt`, so away and live agree.
+- `hazards` (rules layer, pure): `nextTrouble(seed, now)`, `fix`, slowdown curve, auto-fix by a tending engineer. Session state in `progress-store`, never saved.
+- `field-log` (rules layer, pure): `snapshot(...)`, `EventRing`. `progress-store` records events; `firebase-save` writes `fieldLogs/{uid}` throttled. Reader in `tools/field-log.ts` (knip entry, not bundled).
+- Panels: `engineers-panel` (side tunnels + engineer posts, one sheet); trouble shown in `crew-panel`. The layout check covers the sheet button and a trouble card at 360×560.
+- Designed twice: expeditions as a negative-speed tier in `TIERS` was rejected (it leaks into buying, cards and the sim's value function). Separate modules that feed `effectiveRates` keep it the one place multipliers meet.
