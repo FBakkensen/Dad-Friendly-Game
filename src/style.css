@@ -126,8 +126,8 @@ body {
   align-items: center;
   gap: 8px;
   margin: 0;
-  /* Shrinks on narrow phones so the longest count still fits on one line. */
-  font-size: clamp(1.1rem, 5vw, 1.35rem);
+  /* Shrinks on narrow phones so the longest count and both buttons fit on one line (DejaVu on CI is wide). */
+  font-size: clamp(0.95rem, 4.4vw, 1.35rem);
   font-variant-numeric: tabular-nums;
   /* One line, so the pocket row never grows taller ("501.4 thousand stones"). */
   white-space: nowrap;
@@ -137,7 +137,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .pocket-actions {
