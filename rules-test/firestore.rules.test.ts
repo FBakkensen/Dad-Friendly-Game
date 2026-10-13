@@ -21,6 +21,12 @@ import {
   type Engineer,
 } from "../src/engineers";
 import { APP_VERSION, EVENT_RING_LIMIT, snapshot } from "../src/field-log";
+import {
+  FIND_IDS,
+  MAX_EXPEDITION_MS,
+  MAX_EXPEDITIONS,
+  type Expedition,
+} from "../src/expeditions";
 import { createMountain, type Mountain } from "../src/mountain";
 import { parseSaveValue, serializeSave } from "../src/persist";
 import { effectiveRates } from "../src/rates";
@@ -183,6 +189,100 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     await expect(write([{ ...engineers[0], nickname: "Ace" }])).rejects.toThrow(
       /permission/i,
     );
+  });
+
+  it("round-trips expeditions and a shelf, and rejects a bad shape (#146)", async () => {
+    const engineers: Engineer[] = ENGINEER_NAMES.map((name, index) => ({
+      name,
+      rank: index === 0 ? 0 : 1,
+      trips: index === 0 ? 0 : 3,
+      post: "tunnel",
+    }));
+    const expeditions: Expedition[] = engineers.map((engineer, index) => ({
+      engineer: engineer.name,
+      tunnel:
+        index === 2 ? "deep-dark" : index % 2 === 0 ? "side-seam" : "old-shaft",
+      sentAt: 1_000 + index,
+      returnsAt: 1_000 + index + (index === 2 ? 4 * 60 * 60_000 : 60_000),
+      home: "camp",
+      find:
+        index === 0
+          ? { kind: "keepsake", id: "drawing" }
+          : index === 1
+            ? { kind: "tool", id: "pick" }
+            : index === 2
+              ? { kind: "glimmer", id: "heart" }
+              : index === 3
+                ? { kind: "quiet" }
+                : { kind: "glimmer", id: "lantern" },
+    }));
+    const mountain = {
+      ...createMountain(),
+      borers: 1,
+      engineers,
+      expeditions,
+      finds: FIND_IDS.filter((id) => id !== "drawing" && id !== "pick"),
+    };
+    expect(expeditions).toHaveLength(MAX_EXPEDITIONS);
+    expect(mountain.finds).toHaveLength(FIND_IDS.length - 2);
+    expect(await roundTrip(mountain)).toEqual(mountain);
+    const withANewHand = {
+      ...createMountain(),
+      engineers: [
+        {
+          name: "Ada" as const,
+          rank: 1 as const,
+          trips: 3,
+          post: "tunnel" as const,
+        },
+      ],
+      expeditions: [
+        {
+          engineer: "Ada" as const,
+          tunnel: "deep-dark" as const,
+          sentAt: 2,
+          returnsAt: 2 + 4 * 60 * 60_000,
+          home: "borer" as const,
+          find: { kind: "engineer" as const, id: "Nils" as const },
+        },
+      ],
+    };
+    expect(await roundTrip(withANewHand)).toEqual(withANewHand);
+
+    const raw = serializeSave({ mountain, lastSeen: 1 });
+    const writeExpeditions = (next: unknown) =>
+      setDoc(doc(db, "saves", "dad"), {
+        ...raw,
+        mountain: { ...raw.mountain, expeditions: next },
+      });
+    const writeFinds = (next: unknown) =>
+      setDoc(doc(db, "saves", "dad"), {
+        ...raw,
+        mountain: { ...raw.mountain, finds: next },
+      });
+    const tooLong = {
+      ...expeditions[0],
+      returnsAt: (expeditions[0]?.sentAt ?? 0) + MAX_EXPEDITION_MS + 1,
+    };
+    await expect(
+      writeExpeditions([...expeditions, expeditions[0]]),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      writeExpeditions([{ ...expeditions[0], tunnel: "moon" }]),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      writeExpeditions([
+        { ...expeditions[0], returnsAt: expeditions[0]?.sentAt },
+      ]),
+    ).rejects.toThrow(/permission/i);
+    await expect(writeExpeditions([tooLong])).rejects.toThrow(/permission/i);
+    // A bad home, an extra key, a nonsense find, two trips for one name, or a
+    // duplicate on the shelf are rejected by the parser. The rules expression
+    // budget cannot check them on top of a full crew.
+    await expect(writeFinds(["turbo"])).rejects.toThrow(/permission/i);
+    await expect(
+      writeFinds(new Array(FIND_IDS.length + 1).fill("lamp")),
+    ).rejects.toThrow(/permission/i);
   });
 
   it("rejects unknown upgrades and levels past the top", async () => {

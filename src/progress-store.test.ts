@@ -14,7 +14,12 @@ import {
   fieldLogWithinBudget,
   type FieldLogDocument,
 } from "./field-log";
-import { createMountain, mineByHand, type Mountain } from "./mountain";
+import {
+  createMountain,
+  mineByHand,
+  accrueAway,
+  type Mountain,
+} from "./mountain";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { effectiveRates } from "./rates";
 import { WELCOME_MIN_AWAY_MS, createProgressStore } from "./progress-store";
@@ -22,6 +27,7 @@ import { readSessionSave, writeSessionSave } from "./session-save";
 import { buyTier } from "./tiers";
 import { buyUpgrade } from "./upgrades";
 import { mineVein } from "./veins";
+import { send } from "./expeditions";
 
 function createMemoryStorage(): Storage {
   const data = new Map<string, string>();
@@ -1698,6 +1704,109 @@ describe("trouble at the machines (#149)", () => {
     progress.pressTrouble("cart");
     progress.fixTrouble("cart");
     expect(progress.getSnapshot().trouble).toBeUndefined();
+    progress.dispose();
+  });
+});
+
+describe("expeditions through the save", () => {
+  it("brings a party home while away, and a reload does not reroll the find", () => {
+    const sent = send(
+      {
+        ...createMountain(),
+        helpers: 8,
+        borers: 1,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+      },
+      0,
+      "side-seam",
+      0,
+    );
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: sent, lastSeen: 0 });
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 20 * 60_000,
+    });
+    const away = accrueAway({ mountain: sent, lastSeen: 0, now: 20 * 60_000 });
+    expect(progress.getSnapshot().mountain).toEqual(away.mountain);
+    expect(progress.getSnapshot().mountain.engineers?.[0]?.post).toBe("borer");
+    expect(progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    progress.dispose();
+  });
+
+  it("finishes a trip while the game stays open, even when the crew is idle", () => {
+    const sent = send(
+      {
+        ...createMountain(),
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" }],
+      },
+      0,
+      "side-seam",
+      0,
+    );
+    const trip = sent.expeditions?.[0];
+    if (trip === undefined) {
+      throw new Error("expected a trip");
+    }
+    const soon = { ...sent, expeditions: [{ ...trip, returnsAt: 5_000 }] };
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: soon, lastSeen: 0 });
+    let clock = 0;
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    let seen = 0;
+    progress.subscribe(() => {
+      seen += 1;
+    });
+    expect(progress.getSnapshot().mountain.engineers?.[0]?.post).toBe("tunnel");
+    clock = 5_000;
+    progress.tick();
+    expect(seen).toBeGreaterThan(1);
+    expect(progress.getSnapshot().mountain.engineers?.[0]).toMatchObject({
+      post: "camp",
+      trips: 1,
+    });
+    expect(progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    progress.dispose();
+  });
+
+  it("clamps a future sentAt when the clock is set back", () => {
+    const sent = send(
+      {
+        ...createMountain(),
+        helpers: 8,
+        borers: 1,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+      },
+      0,
+      "side-seam",
+      1_000_000,
+    );
+    const find = sent.expeditions?.[0]?.find;
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: sent, lastSeen: 1_000_000 });
+    let clock = 1_000_000;
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    expect(progress.getSnapshot().mountain.engineers?.[0]?.post).toBe("tunnel");
+    clock = -60 * 60_000;
+    progress.tick();
+    progress.flush();
+    const saved = readSessionSave({ storage });
+    expect(saved?.lastSeen).toBeLessThanOrEqual(clock);
+    expect(saved?.mountain.expeditions?.[0]?.sentAt).toBe(clock);
+    expect(saved?.mountain.expeditions?.[0]?.returnsAt).toBe(
+      clock + 10 * 60_000,
+    );
+    expect(saved?.mountain.expeditions?.[0]?.find).toEqual(find);
+    expect(saved?.mountain.engineers?.[0]?.trips).toBe(0);
     progress.dispose();
   });
 });

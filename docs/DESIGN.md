@@ -269,6 +269,7 @@ Veterans return as **engineers**: a few named, experienced hands (never more tha
   - _Keepsakes_: a small collection on the relic shelf's detail sheet (a child's drawing, a pocket watch, a carved whistle …), just for the heart, Needle-in-a-Haystack style.
 - **Pacing:** the sim dad keeps one engineer tending borers and sends the others on the old shaft each session and the deep dark each night. Tending and lost tools are retuned until every pacing test stays in its window.
 - **Copy:** no numbers and no "?" placeholders: "Your borers hum a little faster while Ada tends them.", "Ada will be gone about an hour."
+- **Built (#146), domain and save.** Sending stores the find (seeded from `sentAt`) and the post they left, then moves them into the tunnel. Coming home restores that post, adds a trip, and keeps the find: a glimmer line for the next relic, a lost tool, a keepsake, or sometimes an engineer from the deep dark (never a sixth). Away pay splits at each return, so the machine they left speeds up again from that moment. A `sentAt` still in the future shifts to now; the wait and the find stay. Recall comes back empty-handed. Lost-tool effects, the side-tunnels sheet, and the welcome-card line are later issues. The pacing dad still does not send anyone, so the day windows are unchanged.
 
 #### 5. Hazards ("Trouble at the machines")
 

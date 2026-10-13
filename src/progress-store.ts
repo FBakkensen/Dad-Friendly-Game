@@ -8,6 +8,7 @@ import {
 } from "./cloud-save";
 import { staffExisting } from "./crew";
 import { grantFirstEngineer } from "./engineers";
+import { settle as settleExpeditions } from "./expeditions";
 import {
   closeHazards,
   freshHazards,
@@ -647,6 +648,8 @@ export function createProgressStore({
     // instead of waiting for it to catch up, paying nothing for the gap.
     if (lastSeen !== undefined && at < lastSeen) {
       lastSeen = at;
+      // Same rule as lastSeen: a departure still in the future moves to now.
+      mountain = settleExpeditions(mountain, at).mountain;
       return 0;
     }
     // Ticks come every second while the game is on screen. A longer gap means
@@ -654,6 +657,9 @@ export function createProgressStore({
     if (lastSeen !== undefined && at - lastSeen > LIVE_GAP_MS) {
       return settleSince(lastSeen);
     }
+    // A live gap is at most ten seconds, so coming home at the end of it
+    // pays that short stretch with the bonus. Away time splits exactly.
+    mountain = settleExpeditions(mountain, at).mountain;
     const from = lastSeen ?? at;
     const trouble = activeTrouble();
     const result = accrue({
@@ -824,9 +830,10 @@ export function createProgressStore({
       if (!canPlay()) {
         return;
       }
-      const before = troubleMark();
+      const before = mountain;
+      const beforeTrouble = troubleMark();
       const mined = settle();
-      if (mined > 0 || troubleMark() !== before) {
+      if (mined > 0 || mountain !== before || troubleMark() !== beforeTrouble) {
         emit();
       }
     },

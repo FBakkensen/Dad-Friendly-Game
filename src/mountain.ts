@@ -2,6 +2,14 @@ import type { Trouble } from "./hazards";
 import { effectiveRates, heartBonus } from "./rates";
 import { parseBoosts, type Boosts } from "./boosts";
 import { parseEngineers, type Engineer } from "./engineers";
+import {
+  clampExpeditions,
+  completeDue,
+  parseExpeditions,
+  parseFinds,
+  type Expedition,
+  type FindId,
+} from "./expeditions";
 import { parseUpgrades, type Upgrades } from "./upgrades";
 
 /** Mountain numbers live here; tier numbers in src/tiers.ts. See docs/DESIGN.md. */
@@ -45,6 +53,16 @@ export type Mountain = {
    * See src/engineers.ts.
    */
   readonly engineers?: readonly Engineer[];
+  /**
+   * Parties still out (M7). Missing when nobody is in a tunnel.
+   * See src/expeditions.ts.
+   */
+  readonly expeditions?: readonly Expedition[];
+  /**
+   * Lost tools and keepsakes already brought home. Missing until the first.
+   * Glimmers are not stored; they are a line, not a thing on the shelf.
+   */
+  readonly finds?: readonly FindId[];
 };
 
 /** A sanity cap for saves; no dad gets near it. Mirrored in firestore.rules. */
@@ -192,14 +210,61 @@ export function accrueAway({
   const capped = awayMs > rates.awayCapMs;
   const paidMs = capped ? rates.awayCapMs : awayMs;
   const heart = heartBonus(mountain, paidMs);
-  const result = accrue({
+  // Rounded so 0.3 × 1.5 pays 0.45, not 0.44999… (one stone short).
+  const pay = Math.round(rates.awayPay * heart * 1e9) / 1e9;
+  // Pay the most recent stretch, and split it where an expedition comes
+  // home, so the machine they left speeds up again from that moment.
+  const walked = accrueAcrossExpeditions({
     mountain,
     from: now - paidMs,
     to: now,
-    // Rounded so 0.3 × 1.5 pays 0.45, not 0.44999… (one stone short).
-    pay: Math.round(rates.awayPay * heart * 1e9) / 1e9,
+    pay,
   });
-  return { ...result, report: { mined: result.mined, awayMs, capped, heart } };
+  return {
+    ...walked,
+    report: { mined: walked.mined, awayMs, capped, heart },
+  };
+}
+
+/**
+ * Someone already home before this window (they returned during the unpaid
+ * part of a long absence, or exactly as it opened) tends the whole stretch.
+ * A return inside the window splits it. A return exactly at the end is paid
+ * as time away, then they are home for whatever comes next.
+ */
+function accrueAcrossExpeditions({
+  mountain,
+  from,
+  to,
+  pay,
+}: {
+  mountain: Mountain;
+  from: number;
+  to: number;
+  pay: number;
+}): Accrual {
+  let state = completeDue(clampExpeditions(mountain, to), from).mountain;
+  const marks = [
+    ...new Set(
+      (state.expeditions ?? [])
+        .map((trip) => trip.returnsAt)
+        .filter((returnsAt) => returnsAt > from && returnsAt < to),
+    ),
+  ].sort((left, right) => left - right);
+  let mined = 0;
+  let cursor = from;
+  for (const mark of marks) {
+    const part = accrue({ mountain: state, from: cursor, to: mark, pay });
+    mined += part.mined;
+    state = completeDue(part.mountain, mark).mountain;
+    cursor = mark;
+  }
+  const tail = accrue({ mountain: state, from: cursor, to, pay });
+  return {
+    mountain: completeDue(tail.mountain, to).mountain,
+    mined: mined + tail.mined,
+    settledAt: tail.settledAt,
+  };
 }
 
 /** Builds a mountain from untrusted data; every field must be a sane whole number. */
@@ -225,6 +290,8 @@ export function parseMountain(
     staffed,
     legacy,
     engineers,
+    expeditions,
+    finds,
   } = value as Record<string, unknown>;
   if (
     !isCount(remaining) ||
@@ -241,7 +308,10 @@ export function parseMountain(
     (legacy !== undefined && (!isCount(legacy) || legacy > MAX_LEGACY)) ||
     (upgrades !== undefined && parseUpgrades(upgrades) === undefined) ||
     (boosts !== undefined && parseBoosts(boosts) === undefined) ||
-    (engineers !== undefined && parseEngineers(engineers) === undefined)
+    (engineers !== undefined && parseEngineers(engineers) === undefined) ||
+    (expeditions !== undefined &&
+      parseExpeditions(expeditions, parseEngineers(engineers)) === undefined) ||
+    (finds !== undefined && parseFinds(finds) === undefined)
   ) {
     return undefined;
   }
@@ -260,6 +330,11 @@ export function parseMountain(
     upgrades === undefined ? undefined : parseUpgrades(upgrades);
   const parsedEngineers =
     engineers === undefined ? undefined : parseEngineers(engineers);
+  const parsedExpeditions =
+    expeditions === undefined
+      ? undefined
+      : parseExpeditions(expeditions, parsedEngineers);
+  const parsedFinds = finds === undefined ? undefined : parseFinds(finds);
   return {
     ...mountain,
     ...(parsedUpgrades === undefined || Object.keys(parsedUpgrades).length === 0
@@ -274,6 +349,12 @@ export function parseMountain(
     ...(parsedEngineers === undefined || parsedEngineers.length === 0
       ? {}
       : { engineers: parsedEngineers }),
+    ...(parsedExpeditions === undefined || parsedExpeditions.length === 0
+      ? {}
+      : { expeditions: parsedExpeditions }),
+    ...(parsedFinds === undefined || parsedFinds.length === 0
+      ? {}
+      : { finds: parsedFinds }),
   };
 }
 

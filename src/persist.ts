@@ -56,6 +56,13 @@ export function serializeSave({
       ...(mountain.engineers === undefined || mountain.engineers.length === 0
         ? {}
         : { engineers: mountain.engineers }),
+      ...(mountain.expeditions === undefined ||
+      mountain.expeditions.length === 0
+        ? {}
+        : { expeditions: mountain.expeditions }),
+      ...(mountain.finds === undefined || mountain.finds.length === 0
+        ? {}
+        : { finds: mountain.finds }),
     },
     lastSeen,
   };

@@ -6,6 +6,7 @@ import {
   station,
   type Engineer,
 } from "./engineers";
+import { recall } from "./expeditions";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
   ENGINEER_STATIONS,
@@ -106,8 +107,10 @@ export function createEngineersPanel({
         if (!getView().ready) {
           return;
         }
+        // From a tunnel, a post button calls the party back first (no find,
+        // no trip), so no expedition is left without its engineer.
         progress.applyMutation((current) =>
-          station(current, index, stationPost.post),
+          station(recall(current, index), index, stationPost.post),
         );
       });
       posts.append(choice);

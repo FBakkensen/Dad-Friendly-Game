@@ -14,6 +14,8 @@ service cloud.firestore {
     //         startedAt: optional int >= 0 (run start; updates may not lower it)
     //         staffed: optional true or 1 (#89 grant) or 2 (M7 top-up). true stays valid for old clients.
     //         engineers: optional list, size 0..5. Each: name from the closed list, rank 0..2 matching trips (0 until 3, 1 until 9, then 2), trips 0..1000000, post a machine tier or camp or tunnel. Names unique.
+    //         expeditions: optional list, size 0..5. The first two trips must use a closed tunnel id, and returnsAt must be later than sentAt by at most 4 hours. The client parser checks the rest of the shape.
+    //         finds: optional list of lost-tool and keepsake ids, size 0..9. The client parser rejects duplicates.
     //   - grid: map (required iff version is 1 or 2; legacy, read-migrated by the client)
     //       - width: int (required, must be 3)
     //       - height: int (required, must be 3)
@@ -102,10 +104,34 @@ service cloud.firestore {
         (engineers.size() < 5 || (isEngineer(engineers[4]) && engineers[4].name != engineers[0].name && engineers[4].name != engineers[1].name && engineers[4].name != engineers[2].name && engineers[4].name != engineers[3].name));
     }
 
+    function tripTimesOk(trip) {
+      return (trip.tunnel == 'side-seam' || trip.tunnel == 'old-shaft' || trip.tunnel == 'deep-dark') &&
+        trip.returnsAt > trip.sentAt &&
+        trip.returnsAt - trip.sentAt <= 14400000;
+    }
+
+    // Shape-checking every trip, on top of five engineers, crosses the
+    // 1000-expression budget. The list is capped at 5. The first two trips
+    // carry the tunnel and the return time. Home, the leader, and the find
+    // are checked by the client parser, which rejects a corrupt save.
+    function isValidExpeditions(expeditions) {
+      return expeditions is list && expeditions.size() <= 5 &&
+        (expeditions.size() < 1 || tripTimesOk(expeditions[0])) &&
+        (expeditions.size() < 2 || tripTimesOk(expeditions[1]));
+    }
+
+    // Duplicate ids are rejected by the parser. Pairwise checks here, beside a
+    // full crew, cross the 1000-expression budget. hasOnly keeps the ids closed.
+    function isValidFinds(finds) {
+      return finds is list &&
+        finds.size() <= 9 &&
+        finds.hasOnly(['pick', 'lamp', 'map', 'boots', 'drawing', 'watch', 'whistle', 'pebble', 'ribbon']);
+    }
+
     function isValidMountain(mountain, total) {
       return mountain is map &&
         mountain.keys().hasAll(['remaining', 'pocket', 'helpers']) &&
-        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts', 'drills', 'borers', 'machines', 'kids', 'upgrades', 'boosts', 'startedAt', 'staffed', 'legacy', 'engineers']) &&
+        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts', 'drills', 'borers', 'machines', 'kids', 'upgrades', 'boosts', 'startedAt', 'staffed', 'legacy', 'engineers', 'expeditions', 'finds']) &&
         mountain.remaining is int &&
         mountain.remaining >= 0 &&
         mountain.remaining <= total &&
@@ -134,7 +160,9 @@ service cloud.firestore {
         (!('startedAt' in mountain) || (mountain.startedAt is int && mountain.startedAt >= 0)) &&
         (!('staffed' in mountain) || mountain.staffed == true || mountain.staffed == 1 || mountain.staffed == 2) &&
         (!('legacy' in mountain) || (mountain.legacy is int && mountain.legacy >= 0 && mountain.legacy <= 1000)) &&
-        (!('engineers' in mountain) || isValidEngineers(mountain.engineers));
+        (!('engineers' in mountain) || isValidEngineers(mountain.engineers)) &&
+        (!('expeditions' in mountain) || isValidExpeditions(mountain.expeditions)) &&
+        (!('finds' in mountain) || isValidFinds(mountain.finds));
     }
 
     function runStart(data) {

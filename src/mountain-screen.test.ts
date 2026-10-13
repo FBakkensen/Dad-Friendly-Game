@@ -1,3 +1,4 @@
+import { send } from "./expeditions";
 import { RELICS } from "./relics";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -2485,6 +2486,28 @@ describe("engineers sheet (#145)", () => {
     expect(sheet.textContent).toContain(
       "Your borers hum a little faster while Ada tends them.",
     );
+  });
+
+  it("calls a party back from the tunnel when a post is chosen", () => {
+    const storage = createMemoryStorage();
+    const away = send(withAda(), 0, "side-seam", Date.now());
+    writeSessionSave({ storage, mountain: away, lastSeen: Date.now() });
+    const screen = mountScreen({ storage });
+    const sheet = openSheet(screen.root);
+    expect(screen.text(".engineer-post")).toBe("Away in a tunnel");
+    sheet
+      .querySelector<HTMLButtonElement>('[data-name="Ada"] [data-post="camp"]')
+      ?.click();
+    expect(screen.text(".engineer-post")).toBe("At camp");
+    const saved = readSessionSave({ storage })?.mountain;
+    expect(saved?.expeditions).toBeUndefined();
+    expect(saved?.engineers?.[0]).toEqual({
+      name: "Ada",
+      rank: 0,
+      trips: 0,
+      post: "camp",
+    });
+    screen.root.remove();
   });
 
   it("stations, calls back to camp, and keeps the post through a hire", () => {
