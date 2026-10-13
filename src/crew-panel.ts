@@ -5,7 +5,7 @@ import { stonesPerSecond } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates } from "./rates";
 import { RELICS } from "./relics";
-import { formatSpeed, percent } from "./screen-words";
+import { formatSpeed, percent, workerWords } from "./screen-words";
 import { TIERS, owned, tierCost, tierShown, type TierId } from "./tiers";
 import { tierSynergy } from "./upgrades";
 
@@ -91,7 +91,7 @@ export function createCrewPanel({
           card,
           after.running[tier.id] > before
             ? `+${formatSpeed(after.tierSpeed[tier.id])}/s`
-            : "Needs helpers",
+            : "Needs workers",
           "float-gain",
         );
         countCrewRate(rateBefore, stonesPerSecond(getView().mountain, now()));
@@ -143,9 +143,9 @@ export function createCrewPanel({
     crewStatus.classList.toggle("crew-short", rates.helpersShort > 0);
     crewStatus.textContent =
       rates.helpersShort > 0
-        ? `${formatCompact(rate)}/s · ${formatCompact(idle)} idle, need ${formatCompact(rates.helpersShort)} ${rates.helpersShort === 1 ? "helper" : "helpers"}`
+        ? `${formatCompact(rate)}/s · ${formatCompact(idle)} idle, need ${formatCompact(rates.helpersShort)} ${workerWords(rates.helpersShort)}`
         : rate === 0
-          ? "No crew yet. Hire a helper to mine for you."
+          ? "No crew yet. Hire a worker to mine for you."
           : rate >= 1_000
             ? // Compact once it's big, so the line never wraps on a phone.
               `Your crew mines ${formatCompact(rate)} stones/s`
@@ -208,7 +208,7 @@ export function createCrewPanel({
         "aria-label",
         locked
           ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.`
-          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(tier.staff)} ${tier.staff === 1 ? "helper" : "helpers"} to run` : ""}.`,
+          : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(tier.staff)} ${workerWords(tier.staff)} to run` : ""}.`,
       );
     }
   };

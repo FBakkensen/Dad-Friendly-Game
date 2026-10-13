@@ -134,7 +134,7 @@ export function createProgressStore({
       logger.record({
         level: "info",
         code: "save.staffed",
-        detail: `${String(result.joined)} helpers joined`,
+        detail: `${String(result.joined)} workers joined`,
         data: saveCounts(mountain),
       });
     }

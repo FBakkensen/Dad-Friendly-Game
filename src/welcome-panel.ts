@@ -2,7 +2,7 @@ import { formatCount, formatDuration } from "./format";
 import { stonesPerSecond } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates } from "./rates";
-import { capWords, restingPace } from "./screen-words";
+import { capWords, restingPace, workerWords } from "./screen-words";
 
 /** The welcome-back card: what the crew mined while you were away, and helpers who joined. */
 export function createWelcomePanel({
@@ -61,7 +61,7 @@ export function createWelcomePanel({
       joined === undefined
         ? ""
         : // Alone, the title already says "Your crew grew".
-          `${report === undefined ? "" : "Your crew grew: "}${formatCount(joined)} ${joined === 1 ? "helper" : "helpers"} joined to run your machines.`;
+          `${report === undefined ? "" : "Your crew grew: "}${formatCount(joined)} ${workerWords(joined)} joined to run your machines.`;
     welcomeTitle.textContent =
       report === undefined ? "Your crew grew" : "While you were away";
     welcomeMined.hidden = report === undefined;
@@ -79,8 +79,8 @@ export function createWelcomePanel({
     const crewName = !onlyHelpers
       ? "Your crew"
       : helpers === 1
-        ? "Your helper"
-        : `Your ${formatCount(helpers)} helpers`;
+        ? "Your worker"
+        : `Your ${formatCount(helpers)} workers`;
     welcomeDetail.textContent = report.capped
       ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for ${capWords(effectiveRates(getView().mountain).awayCapMs)}, ${restingPace(getView().mountain)}.`
       : `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined the whole time, ${restingPace(getView().mountain)}.`;
