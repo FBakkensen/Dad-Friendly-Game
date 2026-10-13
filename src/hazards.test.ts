@@ -98,6 +98,32 @@ describe("nextTrouble", () => {
     }
   });
 
+  it("reads Steel-toe boots off the mountain, even when the flag is left off", () => {
+    const mountain = { ...pit(), finds: ["boots" as const] };
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const plain = nextTrouble(seed, 0, pit());
+      const booted = nextTrouble(seed, 0, mountain);
+      const flaggedOff = nextTrouble(seed, 0, mountain, false);
+      expect(booted?.gapMs).toBe((plain?.gapMs ?? 0) * BOOTS_GAP_SCALE);
+      expect(flaggedOff?.gapMs).toBe(booted?.gapMs);
+    }
+    const waiting = stepHazards(freshHazards(3), {
+      now: 0,
+      liveMs: 0,
+      mountain,
+    });
+    const plainWait = stepHazards(freshHazards(3), {
+      now: 0,
+      liveMs: 0,
+      mountain: pit(),
+    });
+    expect(waiting.phase).toBe("waiting");
+    expect(plainWait.phase).toBe("waiting");
+    if (waiting.phase === "waiting" && plainWait.phase === "waiting") {
+      expect(waiting.gapMs).toBe(plainWait.gapMs * BOOTS_GAP_SCALE);
+    }
+  });
+
   it("Steel-toe boots make the same roll rarer", () => {
     const mountain = pit();
     for (let seed = 1; seed <= 40; seed += 1) {

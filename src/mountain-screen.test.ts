@@ -1601,6 +1601,67 @@ describe("lasting upgrades on screen", () => {
       "You were gone 2 hours 5 minutes. Your 4 workers mined the whole time, at a resting pace (37.5% of their speed).",
     );
   });
+
+  it("lists found tools as Found and hides the ones still below (#148)", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(0), finds: ["pick", "boots"] },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    document.body.append(screen.root);
+    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    const visible = [
+      ...screen.root.querySelectorAll<HTMLElement>(".found-tool"),
+    ].filter((row) => !row.hidden);
+    expect(visible.map((row) => row.dataset["tool"])).toEqual([
+      "pick",
+      "boots",
+    ]);
+    expect(screen.text('[data-tool="pick"] .upgrade-name')).toBe(
+      "Grandfather's pick",
+    );
+    expect(screen.text('[data-tool="pick"] .upgrade-effect')).toBe(
+      "Your taps bite a little deeper.",
+    );
+    expect(screen.text('[data-tool="pick"] .upgrade-now')).toBe("Found");
+    expect(
+      screen.root.querySelector<HTMLElement>('[data-tool="lamp"]')?.hidden,
+    ).toBe(true);
+    expect(
+      screen.root.querySelector<HTMLElement>('[data-tool="map"]')?.hidden,
+    ).toBe(true);
+    expect(screen.text(".found-heading")).toBe("Brought home");
+    expect(visible.map((row) => row.textContent).join(" ")).not.toMatch(
+      /[0-9?]/,
+    );
+
+    const bare = mountScreen({
+      storage: (() => {
+        const empty = createMemoryStorage();
+        writeSessionSave({
+          storage: empty,
+          mountain: minedMountain(0),
+          lastSeen: Date.now(),
+        });
+        return empty;
+      })(),
+    });
+    bare.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    expect(bare.root.querySelector<HTMLElement>(".found-heading")?.hidden).toBe(
+      true,
+    );
+    expect(bare.root.querySelector<HTMLElement>(".found-list")?.hidden).toBe(
+      true,
+    );
+    expect(
+      [...bare.root.querySelectorAll<HTMLElement>(".found-tool")].every(
+        (row) => row.hidden,
+      ),
+    ).toBe(true);
+    screen.root.remove();
+  });
 });
 
 describe("crew synergies on screen", () => {
@@ -2061,6 +2122,7 @@ describe("relic powers on the cards (shelf detail)", () => {
     expect(screen.text(".relic-detail .relic-boost")).toBe(
       "Your power: Unlocks the Great Machine.",
     );
+    expect(detail?.querySelector<HTMLElement>(".keepsakes")?.hidden).toBe(true);
     expect(
       detail
         ?.querySelector<HTMLImageElement>(".reveal-art")
@@ -2077,6 +2139,52 @@ describe("relic powers on the cards (shelf detail)", () => {
 
     rows[0]?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
     expect(screen.text("#relic-detail-title")).toBe("Lantern of Guidance");
+    screen.root.remove();
+  });
+
+  it("shows found keepsakes on the detail, with one story each (#148)", () => {
+    const screen = mountScreen({
+      storage: seeded({
+        ...minedMountain(26_000_000),
+        finds: ["drawing", "whistle", "pick"],
+      }),
+    });
+    document.body.append(screen.root);
+    screen.root.querySelector<HTMLButtonElement>(".relic-shelf")?.click();
+    screen.root
+      .querySelectorAll(".shelf-list li")[2]
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const detail = screen.root.querySelector<HTMLElement>(".relic-detail");
+    expect(detail?.querySelector<HTMLElement>(".keepsakes")?.hidden).toBe(
+      false,
+    );
+    expect(screen.text(".keepsakes-title")).toBe("Keepsakes");
+    const shown = [
+      ...screen.root.querySelectorAll<HTMLElement>("[data-keepsake]"),
+    ].filter((row) => !row.hidden);
+    expect(shown.map((row) => row.dataset["keepsake"])).toEqual([
+      "drawing",
+      "whistle",
+    ]);
+    expect(screen.text('[data-keepsake="drawing"] .keepsake-name')).toBe(
+      "A child's drawing",
+    );
+    expect(screen.text('[data-keepsake="drawing"] .keepsake-story')).toBe(
+      "A little figure with a lamp, folded for a pocket.",
+    );
+    expect(shown[0]?.querySelector("img")?.getAttribute("src")).toBe(tileUrl);
+    expect(
+      screen.root.querySelector<HTMLElement>('[data-keepsake="watch"]')?.hidden,
+    ).toBe(true);
+    expect(
+      screen.root.querySelector<HTMLElement>('[data-keepsake="pebble"]')
+        ?.hidden,
+    ).toBe(true);
+    expect(
+      screen.root.querySelector<HTMLElement>('[data-keepsake="ribbon"]')
+        ?.hidden,
+    ).toBe(true);
+    expect(shown.map((row) => row.textContent).join(" ")).not.toMatch(/[0-9?]/);
     screen.root.remove();
   });
 

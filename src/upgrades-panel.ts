@@ -2,7 +2,15 @@ import { BOOSTS, boostCost, boostLeft, buyBoost, type BoostId } from "./boosts";
 import { formatCount } from "./format";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates } from "./rates";
-import { formatClock, unlockWords, upgradeNow } from "./screen-words";
+import { LOST_TOOLS, hasLostTool } from "./lost-tools";
+import {
+  BROUGHT_HOME,
+  FOUND_LABEL,
+  formatClock,
+  lostToolWords,
+  unlockWords,
+  upgradeNow,
+} from "./screen-words";
 import {
   UPGRADES,
   buyUpgrade,
@@ -129,6 +137,32 @@ export function createUpgradesPanel({
     upgradeList.append(item);
     return { upgrade, title, now, buy };
   });
+  const foundHeading = document.createElement("h3");
+  foundHeading.className = "upgrades-heading found-heading";
+  foundHeading.textContent = BROUGHT_HOME;
+  foundHeading.hidden = true;
+  const foundList = document.createElement("ul");
+  foundList.className = "upgrade-list found-list";
+  foundList.hidden = true;
+  const foundRows = LOST_TOOLS.map((id) => {
+    const words = lostToolWords(id);
+    const item = document.createElement("li");
+    item.className = "upgrade found-tool";
+    item.dataset["tool"] = id;
+    item.hidden = true;
+    const title = document.createElement("p");
+    title.className = "upgrade-name";
+    title.textContent = words.name;
+    const effect = document.createElement("p");
+    effect.className = "upgrade-effect";
+    effect.textContent = words.line;
+    const status = document.createElement("p");
+    status.className = "upgrade-now";
+    status.textContent = FOUND_LABEL;
+    item.append(title, effect, status);
+    foundList.append(item);
+    return { id, item };
+  });
   const upgradesClose = document.createElement("button");
   upgradesClose.type = "button";
   upgradesClose.className = "upgrades-close";
@@ -151,6 +185,8 @@ export function createUpgradesPanel({
     boostList,
     lastingHeading,
     upgradeList,
+    foundHeading,
+    foundList,
     upgradesClose,
   );
   upgradesSheet.append(upgradesCard);
@@ -197,6 +233,14 @@ export function createUpgradesPanel({
             : "All levels bought"
           : `Buy for ${formatCount(cost)} stones`;
     }
+    let anyFound = false;
+    for (const { id, item } of foundRows) {
+      const found = hasLostTool(current, id);
+      item.hidden = !found;
+      anyFound ||= found;
+    }
+    foundHeading.hidden = !anyFound;
+    foundList.hidden = !anyFound;
     upgradesPocket.textContent = `You have ${formatCount(current.pocket)} stones.`;
     upgradesButton.classList.toggle(
       "upgrades-ready",

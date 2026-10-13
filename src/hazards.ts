@@ -1,3 +1,4 @@
+import { wearsSteelToes } from "./lost-tools";
 import type { Mountain } from "./mountain";
 
 /**
@@ -23,10 +24,14 @@ export const TROUBLE_MIN_MS = 3 * 60 * 1000;
 export const TROUBLE_MAX_MS = 6 * 60 * 1000;
 
 /**
- * Steel-toe boots (a lost tool, #148) make trouble rarer by this much.
- * Pass `boots: true` once the find is on the mountain; until then it is false.
+ * Steel-toe boots make trouble rarer by this much. `wearsSteelToes` is the
+ * query (#148); `boots: true` still forces it for a caller that already knows.
  */
 export const BOOTS_GAP_SCALE = 2;
+
+function troubleIsRarer(mountain: Mountain, boots?: boolean): boolean {
+  return boots === true || wearsSteelToes(mountain);
+}
 
 /** The slowdown eases from a quarter to a half across this stretch. */
 export const SLOW_EASE_MS = 2 * 60 * 1000;
@@ -86,7 +91,7 @@ export function kindForTier(tier: TroubleTier): TroubleKind {
 /**
  * The trouble that would begin at `now`, and how much live play leads up to it.
  * Undefined until a borer is owned. The same seed always rolls the same trouble.
- * `boots` stretches the gap (Steel-toe boots, when found).
+ * Steel-toe boots (`wearsSteelToes`, or `boots`) stretch the gap.
  */
 export function nextTrouble(
   seed: number,
@@ -114,7 +119,7 @@ export function nextTrouble(
   const gapMs = Math.round(TROUBLE_MIN_MS + gapRoll.unit * span);
   return {
     seed: tierRoll.seed,
-    gapMs: boots ? gapMs * BOOTS_GAP_SCALE : gapMs,
+    gapMs: troubleIsRarer(mountain, boots) ? gapMs * BOOTS_GAP_SCALE : gapMs,
     trouble: { kind: kindForTier(tier), tier, startedAt: now },
   };
 }

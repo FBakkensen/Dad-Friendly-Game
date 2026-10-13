@@ -5,12 +5,13 @@ import {
   station,
   type Engineer,
 } from "./engineers";
+import { LOST_TOOLS, expeditionAwayMs, type LostToolId } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import { RELICS, nextRelic, type RelicId } from "./relics";
 
 /**
  * Expeditions (M7 §4). One engineer, one tunnel, a return time, and a find
- * chosen when they leave. Lost-tool effects are a later issue. See
+ * chosen when they leave. The worn map shortens the next send. See
  * docs/DESIGN.md.
  */
 
@@ -54,10 +55,9 @@ const HOME_POSTS = ["cart", "drill", "borer", "machine", "camp"] as const;
 
 type HomePost = (typeof HOME_POSTS)[number];
 
-/** Lost tools. Effects are wired in a later issue; the ids are closed now. */
-export const LOST_TOOLS = ["pick", "lamp", "map", "boots"] as const;
+export { LOST_TOOLS };
 
-type ToolId = (typeof LOST_TOOLS)[number];
+type ToolId = LostToolId;
 
 /** Keepsakes. A small shelf, just for the heart. */
 export const KEEPSAKES = [
@@ -68,7 +68,7 @@ export const KEEPSAKES = [
   "ribbon",
 ] as const;
 
-type KeepsakeId = (typeof KEEPSAKES)[number];
+export type KeepsakeId = (typeof KEEPSAKES)[number];
 
 /** What the shelf remembers. Glimmers and new engineers are not ids. */
 export const FIND_IDS = [...LOST_TOOLS, ...KEEPSAKES] as const;
@@ -144,7 +144,7 @@ export function send(
     hand.post === "tunnel" ||
     hand.rank < spec.minRank ||
     !Number.isSafeInteger(now) ||
-    !Number.isSafeInteger(now + spec.awayMs) ||
+    !Number.isSafeInteger(now + expeditionAwayMs(spec.awayMs, mountain)) ||
     (mountain.expeditions?.length ?? 0) >= MAX_EXPEDITIONS ||
     (mountain.expeditions ?? []).some((trip) => trip.engineer === hand.name)
   ) {
@@ -154,7 +154,7 @@ export function send(
     engineer: hand.name,
     tunnel,
     sentAt: now,
-    returnsAt: now + spec.awayMs,
+    returnsAt: now + expeditionAwayMs(spec.awayMs, mountain),
     home: hand.post,
     find: decideFind(mountain, engineers, tunnel, now),
   };

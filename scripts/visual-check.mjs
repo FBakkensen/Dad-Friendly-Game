@@ -754,6 +754,126 @@ for (const standalone of [false, true]) {
   await close();
 }
 
+// Found tools on the Upgrades sheet, and keepsakes on a relic's detail (#148).
+async function foundSheetsFit(page, { top = 0, bottom = 0 } = {}) {
+  await page.tap(".upgrades-button");
+  const tools = await page.$eval(
+    ".upgrades-dialog",
+    (sheet, insets) => {
+      const rows = [...sheet.querySelectorAll(".found-tool")].filter(
+        (row) => !row.hidden,
+      );
+      const text = rows.map((row) => row.textContent ?? "").join(" ");
+      sheet.scrollTop = 0;
+      const titleTop =
+        sheet.querySelector("h2")?.getBoundingClientRect().top ?? -1;
+      sheet.scrollTop = sheet.scrollHeight;
+      const close = sheet
+        .querySelector(".upgrades-close")
+        ?.getBoundingClientRect();
+      sheet.scrollTop = 0;
+      return {
+        count: rows.length,
+        found: text.includes("Found") && text.includes("Grandfather's pick"),
+        clean: !text.includes("?") && !/\d/.test(text),
+        titleOk: titleTop >= insets.top,
+        closeOk:
+          close !== undefined &&
+          close.height >= 44 &&
+          close.bottom <= innerHeight - insets.bottom,
+      };
+    },
+    { top, bottom },
+  );
+  const toolsStill = await noScroll(page);
+  await page.tap(".upgrades-close");
+  await page.tap(".relic-shelf");
+  await page.evaluate(() => {
+    document.querySelectorAll(".shelf-list li")[2]?.scrollIntoView();
+  });
+  await page.$$eval(".shelf-list li", (rows) => {
+    rows[2]?.click();
+  });
+  const detail = await page.$eval(
+    ".relic-detail .reveal-card",
+    (card, insets) => {
+      const box = card.getBoundingClientRect();
+      const back = card
+        .querySelector(".reveal-continue")
+        ?.getBoundingClientRect();
+      const stories = [...card.querySelectorAll(".keepsake-story")].filter(
+        (row) => row.closest("li")?.hidden !== true,
+      );
+      const text = stories.map((row) => row.textContent ?? "").join(" ");
+      return {
+        fits: box.top >= 0 && box.bottom <= innerHeight,
+        backOk:
+          back !== undefined &&
+          back.height >= 44 &&
+          back.top >= insets.top &&
+          back.bottom <= innerHeight - insets.bottom,
+        stories: stories.length,
+        clean: text.length > 0 && !text.includes("?") && !/\d/.test(text),
+      };
+    },
+    { top, bottom },
+  );
+  const detailStill = await noScroll(page);
+  const ok =
+    tools.count === 4 &&
+    tools.found &&
+    tools.clean &&
+    tools.titleOk &&
+    tools.closeOk &&
+    toolsStill &&
+    detail.fits &&
+    detail.backOk &&
+    detail.stories === 5 &&
+    detail.clean &&
+    detailStill;
+  return ok;
+}
+
+const FOUND_BELOW = {
+  remaining: 74_000_000,
+  pocket: 100,
+  helpers: 12,
+  carts: 2,
+  drills: 1,
+  borers: 1,
+  machines: 0,
+  kids: 0,
+  finds: [
+    "pick",
+    "lamp",
+    "map",
+    "boots",
+    "drawing",
+    "watch",
+    "whistle",
+    "pebble",
+    "ribbon",
+  ],
+};
+
+for (const standalone of [false, true]) {
+  const viewport = [360, 560];
+  const label = `360x560${standalone ? " standalone" : ""}`;
+  const { page, close } = await open(
+    viewport,
+    { version: 4, mountain: FOUND_BELOW, lastSeen: Date.now() },
+    { standalone },
+  );
+  check(
+    await foundSheetsFit(
+      page,
+      standalone ? STANDALONE_INSETS : { top: 0, bottom: 0 },
+    ),
+    `${label} found tools and keepsakes fit`,
+  );
+  await close();
+}
+
 // Every relic found: the shelf scrolls inside itself, and a tapped relic's
 // detail card (art, virtue, "Your power") sits over the game and fits.
 for (const viewport of [

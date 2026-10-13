@@ -1,5 +1,6 @@
 import { staffNeeded, tendingTenths } from "./engineers";
 import { slowedSpeed, type Trouble } from "./hazards";
+import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import { TIERS, owned, type TierId } from "./tiers";
 import { hasRelic } from "./relics";
@@ -129,12 +130,13 @@ export function effectiveRates(
   );
   // Tap power takes its share of the crew's own speed, before Overtime.
   const tapShare = upgradeLevel(mountain, "tap") * TAP_SHARE_PER_LEVEL;
+  // Legacy multiplies the whole tap; its share of the crew is taken before it.
+  // Grandfather's pick strengthens that bare tap; Sharper picks still doubles the result.
+  const bareTap = Math.floor(
+    (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
+  );
   return {
-    // Legacy multiplies the whole tap; its share of the crew is taken before it.
-    tapYield:
-      Math.floor(
-        (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
-      ) * boosted("sharper"),
+    tapYield: tapWithPick(bareTap, mountain) * boosted("sharper"),
     tierSpeed,
     running,
     helpersShort: Math.max(0, needed - mountain.helpers - mountain.kids),

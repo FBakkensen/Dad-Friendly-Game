@@ -5,6 +5,8 @@ import {
   type EngineerPost,
   type EngineerRank,
 } from "./engineers";
+import type { KeepsakeId } from "./expeditions";
+import type { LostToolId } from "./lost-tools";
 import { formatCompact, formatCount, formatDuration } from "./format";
 import type { TroubleKind } from "./hazards";
 import type { Mountain } from "./mountain";
@@ -247,6 +249,68 @@ export const tendsNote = (name: string, tierId: TierId): string =>
 
 export const PROMOTE_NEEDS_WORKER = "No worker is free to step up.";
 export const PROMOTE_CREW_FULL = "Every named hand is already an engineer.";
+
+/** Status on a lost tool. The sheet shows this and the warm line, nothing else. */
+export const FOUND_LABEL = "Found";
+
+const LOST_TOOL_WORDS: Readonly<
+  Record<LostToolId, { readonly name: string; readonly line: string }>
+> = {
+  pick: {
+    name: "Grandfather's pick",
+    line: "Your taps bite a little deeper.",
+  },
+  lamp: {
+    name: "Old miner's lamp",
+    line: "Golden veins linger longer in its light.",
+  },
+  map: {
+    name: "Worn map",
+    line: "The tunnels bring them home a little sooner.",
+  },
+  boots: {
+    name: "Steel-toe boots",
+    line: "Trouble at the machines comes less often.",
+  },
+};
+
+/** Name and one warm line. No counts, no question marks. */
+export const lostToolWords = (
+  id: LostToolId,
+): { readonly name: string; readonly line: string } => LOST_TOOL_WORDS[id];
+
+const KEEPSAKE_WORDS: Readonly<
+  Record<KeepsakeId, { readonly name: string; readonly story: string }>
+> = {
+  drawing: {
+    name: "A child's drawing",
+    story: "A little figure with a lamp, folded for a pocket.",
+  },
+  watch: {
+    name: "A pocket watch",
+    story: "Quiet in the hand. Someone loved it.",
+  },
+  whistle: {
+    name: "A carved whistle",
+    story: "Soft notes, and the house stays asleep.",
+  },
+  pebble: {
+    name: "A smooth pebble",
+    story: "Warm from a hand that held it.",
+  },
+  ribbon: {
+    name: "A faded ribbon",
+    story: "Tied until the ends went soft.",
+  },
+};
+
+/** Name and one story. Found keepsakes only; the shelf stays quiet otherwise. */
+export const keepsakeWords = (
+  id: KeepsakeId,
+): { readonly name: string; readonly story: string } => KEEPSAKE_WORDS[id];
+
+export const BROUGHT_HOME = "Brought home";
+export const KEEPSAKES_TITLE = "Keepsakes";
 
 export const promotePriceWords = (cost: number): string =>
   `Promote a worker for ${formatCount(cost)} stones`;

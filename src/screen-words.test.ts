@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
+import { KEEPSAKES } from "./expeditions";
+import { LOST_TOOLS } from "./lost-tools";
 import { JOURNEYMAN_TRIPS, MASTER_TRIPS, type Engineer } from "./engineers";
 import {
+  BROUGHT_HOME,
   ENGINEER_STATIONS,
+  FOUND_LABEL,
+  KEEPSAKES_TITLE,
   PROMOTE_CREW_FULL,
   PROMOTE_NEEDS_WORKER,
+  keepsakeWords,
+  lostToolWords,
   postWords,
   promoteConfirm,
   promotePriceWords,
@@ -103,5 +110,25 @@ describe("engineer words", () => {
     expect(
       ENGINEER_STATIONS.map((station) => station.label).join(" "),
     ).not.toMatch(/\d|\?/);
+  });
+});
+
+describe("lost tools and keepsakes (#148)", () => {
+  it("gives every tool and keepsake a warm line with no number and no question mark", () => {
+    expect(FOUND_LABEL).toBe("Found");
+    expect(BROUGHT_HOME).toBe("Brought home");
+    expect(KEEPSAKES_TITLE).toBe("Keepsakes");
+    for (const id of LOST_TOOLS) {
+      const words = lostToolWords(id);
+      expect(words.name.length).toBeGreaterThan(0);
+      expect(words.line.length).toBeGreaterThan(0);
+      expect(`${words.name} ${words.line}`).not.toMatch(/[0-9?]/);
+    }
+    for (const id of KEEPSAKES) {
+      const words = keepsakeWords(id);
+      expect(words.name.length).toBeGreaterThan(0);
+      expect(words.story.length).toBeGreaterThan(0);
+      expect(`${words.name} ${words.story}`).not.toMatch(/[0-9?]/);
+    }
   });
 });

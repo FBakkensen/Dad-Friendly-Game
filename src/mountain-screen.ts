@@ -22,6 +22,7 @@ import {
   mineVein,
   pauseVein,
   resumeVein,
+  veinGlintMs,
   veinWaitLeft,
   veinReward,
   waitForVein,
@@ -226,6 +227,7 @@ export function mountMountainScreen({
       now: now(),
       random,
       gapScale: veinGapScale(),
+      glintMs: veinGlintMs(view.mountain),
     });
     renderVein();
   };
@@ -290,6 +292,7 @@ export function mountMountainScreen({
     progress,
     getView: () => view,
     relicArt,
+    keepsakeUrl: veinUrl,
     onPassTheMine: () => {
       legacy.open(undefined);
     },

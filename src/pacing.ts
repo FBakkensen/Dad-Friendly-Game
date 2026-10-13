@@ -1,6 +1,11 @@
 import { BOOSTS, buyBoost } from "./boosts";
 import { buyCrew, tierLocked } from "./crew";
 import { staffForBuy, staffNeeded, tendBestTier } from "./engineers";
+import {
+  send,
+  settle as settleExpeditions,
+  type TunnelId,
+} from "./expeditions";
 import { closeHazards, freshHazards, stepHazards } from "./hazards";
 import { AWAY_PAY_RATE, effectiveRates, BASE_AWAY_CAP_MS } from "./rates";
 import {
@@ -35,6 +40,59 @@ const DAD = {
 
 /** The sim dad puts trouble right within three seconds. */
 const SIM_FIX_MS = 3_000;
+
+/**
+ * One scout beside Ada, at camp, the moment the first borer arrives.
+ * Paying the real promotion (stones and a worker) slips the plain dad and
+ * the second run half a day, so the sim does not pay it. The promote button
+ * is unchanged. Ada keeps tending (#148).
+ */
+function grantScout(mountain: Mountain): Mountain {
+  const engineers = mountain.engineers;
+  if (
+    engineers === undefined ||
+    engineers.length !== 1 ||
+    mountain.borers < 1
+  ) {
+    return mountain;
+  }
+  return {
+    ...mountain,
+    engineers: [
+      ...engineers,
+      { name: "Nils", rank: 0, trips: 0, post: "camp" },
+    ],
+  };
+}
+
+/**
+ * Engineers who are not tending a machine. Ada stays on the borers, then
+ * the Great Machine. The others walk the tunnels.
+ */
+function sendScouts(
+  mountain: Mountain,
+  now: number,
+  tunnel: TunnelId,
+): Mountain {
+  const engineers = mountain.engineers ?? [];
+  let next = mountain;
+  for (const [index, engineer] of engineers.entries()) {
+    if (
+      engineer.post === "tunnel" ||
+      engineer.post === "cart" ||
+      engineer.post === "drill" ||
+      engineer.post === "borer" ||
+      engineer.post === "machine"
+    ) {
+      continue;
+    }
+    if (tunnel === "deep-dark" && engineer.rank < 1) {
+      continue;
+    }
+    next = send(next, index, tunnel, now);
+  }
+  return next;
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -246,6 +304,9 @@ export function simulateDadRun({
         }
       }
       mountain = tendBestTier(mountain);
+      if (second === 0) {
+        mountain = sendScouts(mountain, clock, "old-shaft");
+      }
       for (let tap = 0; tap < DAD.tapsPerSecond; tap += 1) {
         mountain = mineByHand(mountain, clock, trouble);
       }
@@ -297,14 +358,28 @@ export function simulateDadRun({
           shortCost,
         });
       }
+      mountain = grantScout(mountain);
       note();
+    }
+    const gapEnd = clock + gapMs;
+    // Each night the old shaft comes home, then a journeyman walks the deep dark.
+    // One away payment for the whole gap, so the cap is not paid twice.
+    if (session % 2 === 1) {
+      const due = (mountain.expeditions ?? [])
+        .map((trip) => trip.returnsAt)
+        .filter((returnsAt) => returnsAt > clock && returnsAt < gapEnd);
+      const back = due.length === 0 ? clock : Math.min(...due);
+      if (back > clock) {
+        mountain = settleExpeditions(mountain, back).mountain;
+      }
+      mountain = sendScouts(mountain, back, "deep-dark");
     }
     mountain = accrueAway({
       mountain,
       lastSeen: clock,
-      now: clock + gapMs,
+      now: gapEnd,
     }).mountain;
-    clock += gapMs;
+    clock = gapEnd;
     // Closing the game clears trouble. The gap itself is away, so it never counts.
     hazards = closeHazards(hazards, mountain);
     note();

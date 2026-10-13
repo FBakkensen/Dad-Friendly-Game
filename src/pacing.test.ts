@@ -93,9 +93,35 @@ describe.each([
     expect(machine?.day).toBeGreaterThan(3.5);
     expect(machine?.day).toBeLessThan(bottom);
     expect(effectiveRates(run.mountain).running.machine).toBe(1);
-    expect(run.mountain.engineers).toEqual([
-      { name: ENGINEER_NAMES[0], rank: 0, trips: 0, post: "machine" },
-    ]);
+    expect(run.mountain.engineers?.[0]).toEqual({
+      name: ENGINEER_NAMES[0],
+      rank: 0,
+      trips: 0,
+      post: "machine",
+    });
+  });
+});
+
+describe("pacing: lost tools (#148)", () => {
+  const run = simulateDadRun({
+    milestones: [depth("mantle")],
+    buysUpgrades: true,
+  });
+
+  it("keeps Ada tending and sends the others on the old shaft and the deep dark", () => {
+    expect(run.mountain.engineers?.[0]).toEqual({
+      name: "Ada",
+      rank: 0,
+      trips: 0,
+      post: "machine",
+    });
+    const scouts = (run.mountain.engineers ?? []).slice(1);
+    expect(scouts.length).toBeGreaterThan(0);
+    expect(scouts.some((engineer) => engineer.rank >= 1)).toBe(true);
+    expect(
+      scouts.reduce((trips, engineer) => trips + engineer.trips, 0),
+    ).toBeGreaterThanOrEqual(4);
+    expect(run.mountain.finds?.length ?? 0).toBeGreaterThan(0);
   });
 });
 
