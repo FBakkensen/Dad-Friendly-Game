@@ -303,7 +303,7 @@ One PR each, in order; the list with acceptance criteria is in the M7 PR descrip
 
 ### Milestone 8: Strategy lab
 
-**M8 is in progress.** The shared clock is `src/lab/world.ts` (#171). The pacing sim steps it and buys through the action catalogue. Targets and decision measures are in (#173). Player types, the tournament, and `npm run lab` are still planned. No screen, no save field, no Firestore change. The lab runs offline, next to the pacing sim, so a retune can be judged before it ships. Players never see payback, shares, or these targets.
+**M8 is in progress.** The shared clock is `src/lab/world.ts` (#171). Targets and decision measures are in (#173). Player types are one file each under `src/lab/policies/`, loaded by the same registry (#172). The tournament and `npm run lab` are still planned. No screen, no save field, no Firestore change. The lab runs offline, next to the pacing sim, so a retune can be judged before it ships. Players never see payback, shares, or these targets.
 
 #### Why
 
@@ -352,7 +352,7 @@ Three moves. Each is one new file, or one entry in `targets.ts`. No other edit.
 2. **Add a measure.** Add `src/lab/measures/<id>.ts`. It default-exports `defineMeasure({ id, label, unit, why, sample?, aggregate })` from `src/lab/measure.ts`. `sample`, when present, reads one `DecisionSample`: live count, best id, wait-to-afford, crew per second, pocket, and output share by source. `aggregate` turns the samples into the number the report shows. The loader picks the file up. The tournament gains a column. A target whose `measure` is not a registered id fails the load.
 3. **Add or change a target.** Add or edit one entry in `src/lab/targets.ts`: `{ id, measure, scope, op, value, why }`. The guardrail test (`src/lab/guardrails.test.ts`) makes one check per entry. It has no threshold constant of its own. The report's pass/fail cells read the same list.
 
-The first policy files are casual `casual-2x10` (today's plain dad: same finish day, same buy list), `evening-1x20`, and `checker-6x3`; extremes `never-workers`, `tap-only`, `machines-only`, `workers-only`, `hoarder`, `five-min-a-day`, `marathon`, `no-engineers`, `all-in-engineers`, `never-fix-trouble`, and `boost-junkie`; and one optimizer (greedy lowest payback, with a one-step "save for X" lookahead over the next session). The lookahead horizon comes from `targets.ts`. The optimizer finishes no later than casual.
+The first policy files are casual `casual-2x10` (today's plain dad: same finish day, same buy list), `evening-1x20`, and `checker-6x3`; extremes `never-workers`, `tap-only`, `machines-only`, `workers-only`, `hoarder`, `five-min-a-day`, `marathon`, `no-engineers`, `all-in-engineers`, `never-fix-trouble`, and `boost-junkie`; and one optimizer (greedy lowest payback, with a one-step "save for X" lookahead over the next session). The lookahead horizon comes from `targets.ts`. The optimizer finishes no later than casual. Built (#172).
 
 The first measure files are `liveMedian`, `liveP10`, `singleShare`, `longestDeadStretch`, `dominantShare`, `typeEverBest`, `featureShare`, and `finishDay`. `typeEverBest` is the "never best" list (a move kind that was never the right buy). `featureShare` is one named source's output share. Tending uses it.
 

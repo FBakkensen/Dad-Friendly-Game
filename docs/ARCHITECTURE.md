@@ -14,10 +14,11 @@ page is the map, plus the rules that keep it that way.
    that speed, taps, and away pay. `lab/world` steps one seeded clock (live
    accrue, away pay, hazards, expedition settle) for the pacing sim and the
    strategy lab. `lab/targets` is the only place a lab threshold lives.
-   `lab/measures` is one file per decision measure. `lab/registry` discovers
-   those files; the world never reads the filesystem. `pacing` simulates
-   players on top of them and buys through the catalogue. Every number lives
-   here.
+   `lab/measures` is one file per decision measure. `lab/policies` is one
+   file per player type. `lab/registry` discovers both folders; the world
+   never reads the filesystem. `lab/run` plays a policy on that clock.
+   `pacing` simulates players on top of them and buys through the catalogue.
+   Every number lives here.
 2. **Saves:** `persist` (versioned save format and parser), `session-save`
    (guest storage), `cloud-save` (interface + memory fake), `firebase-save`
    (the SDK adapter; mountain save plus `fieldLogs/{uid}`), `firestore.rules`
