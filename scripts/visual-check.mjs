@@ -150,21 +150,49 @@ async function coversViewport(page, selector) {
 
 /** Nothing scrolls: not the page, not the game root, not sideways. */
 async function noScroll(page) {
-  return page.evaluate(() => {
+  const result = await page.evaluate(() => {
     const app = document.querySelector("#app");
     const root = document.documentElement;
     scrollBy(0, 80);
     app?.scrollBy(0, 80);
     const still = scrollY === 0 && (app?.scrollTop ?? 0) === 0;
-    return (
+    const ok =
       still &&
       root.scrollHeight === root.clientHeight &&
       root.scrollWidth === root.clientWidth &&
       app !== null &&
       app.scrollHeight === app.clientHeight &&
-      app.scrollWidth === app.clientWidth
-    );
+      app.scrollWidth === app.clientWidth;
+    if (!ok && app !== null) {
+      // Say what grew, so a CI-only overflow can be fixed without guessing.
+      return {
+        ok,
+        detail: JSON.stringify({
+          root: [
+            root.scrollWidth,
+            root.scrollHeight,
+            root.clientWidth,
+            root.clientHeight,
+          ],
+          app: [
+            app.scrollWidth,
+            app.scrollHeight,
+            app.clientWidth,
+            app.clientHeight,
+          ],
+          rows: [...app.children].map((child) => [
+            child.className,
+            Math.round(child.getBoundingClientRect().height),
+          ]),
+        }),
+      };
+    }
+    return { ok, detail: "" };
   });
+  if (!result.ok) {
+    console.log("scroll", result.detail);
+  }
+  return result.ok;
 }
 
 /**
