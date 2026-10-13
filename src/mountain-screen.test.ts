@@ -2727,7 +2727,7 @@ describe("engineers sheet (#145)", () => {
     const screen = mountScreen({ storage });
     const sheet = openSheet(screen.root);
     expect(screen.text(".engineer-promote")).toBe(
-      "Promote a worker for 24 thousand stones",
+      "Promote a worker for 2 million stones",
     );
     sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
     expect(screen.text(".engineer-confirm-line")).toBe(
@@ -2752,7 +2752,7 @@ describe("engineers sheet (#145)", () => {
 
     sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
     sheet.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
-    expect(screen.text(".pocket")).toBe("4.9 million stones");
+    expect(screen.text(".pocket")).toBe("3 million stones");
     expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×19");
     const nils = sheet.querySelector('[data-name="Nils"]');
     expect(nils?.querySelector(".engineer-post")?.textContent).toBe("At camp");
