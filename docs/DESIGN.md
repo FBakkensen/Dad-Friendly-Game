@@ -177,3 +177,65 @@ The relics are the spine of the game; by M4 each one changes how you play. All o
 | Mantle of the Hero (100M, the bottom) | Built (#103): closing the Mantle's reveal opens the **Legend finale** ("You became a Legend"): the full shelf of six, "100 million stones moved. Six relics found. A crew of N beside you.", a nod to passing the mine to your kid (M6). Shown once per run (it rides on the one-time Mantle reveal, so no save field). Days on the mountain were dropped: first-run saves carry no start time, and adding one would need a save field for a single line. |
 
 Issues (milestone _M4: Patience_), one PR each, in order: Shield away cap (#104) → Heart away bonus (#101) → Crown kid helpers (#102) → Mantle finale (#103). Each must update the relic's `power` text to match exactly what it does, extend the pacing sim if the power touches it (the Heart and the kids do), and add rules + emulator tests for any save change (kids add a `kids` field).
+
+### M7: Into the Deep (expeditions, hazards, the field log)
+
+**Problem (play-test, Flemming).** From the first borer on, taps are a rounding error and the only decision is "buy the next thing", and that thing is far off. The pacing sim shows the hole plainly: the upgrade-buying dad buys his first borer on day 2 and then **buys nothing until the Great Machine on day 5** (crew frozen at 60 helpers, 13 carts, 7 drills, 1 borer, 1,044/s for 2.5 days). Helpers are also no constraint: at ×1.15 the sim dad owns 60 helpers but staffs only 31 (Flemming: 63 owned, 38 needed), so anything that "costs crew" costs nothing.
+
+M7 gives the hands a new job in the middle of the game: **send crew into side tunnels** (the come-back-later rhythm) and **fix trouble at the machines** (the do-something-now moments). It also adds a **field log** so Flemming and Grok Bot can read a player's real numbers without screenshots.
+
+#### 1. Crew becomes scarce: helper growth ×1.15 → ×1.30
+
+Options weighed with the pacing sim (`buysUpgrades` dad; snapshots every half day):
+
+| Option                                           | Spare helpers at first borer  | Bottom (plain / upgrades / boosts / 2nd run)         | Verdict                                                                                                                            |
+| ------------------------------------------------ | ----------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Today (×1.15)                                    | 29 of 60 idle-spare           | 5.5 / 5.5 / 5.0 / 4.0                                | Expeditions would be free.                                                                                                         |
+| **×1.30 helper growth**                          | **0–1 (31 owned, 30 needed)** | **5.5 / 5.0 / 5.5 / 4.0** (Hammer 3.5 / 3.5 / 3 / 3) | **Chosen.** Every pacing test stays green; every helper is now staff, so sending one down a tunnel idles a machine.                |
+| ×1.45 helper growth                              | 0 (28 / 28)                   | ~5.5                                                 | Machines go idle mid-run (2 short on day 2): too tight, nags.                                                                      |
+| Named veteran miners who level up                | n/a                           | n/a                                                  | New resource, new save shape, new UI list; adds bookkeeping, not a choice. Rejected for M7 (could return as an expedition reward). |
+| Expeditions pause the machines whose crew leaves | same as today                 | same                                                 | Folded into the chosen option: it is exactly what staffing already does once there are no spares.                                  |
+| Supplies paid from output                        | same as today                 | same                                                 | A stones cost is just another price tag (same "buy the next thing" decision). Rejected.                                            |
+
+So: `HELPER_COST_GROWTH = 1.3` (kids follow it too). Helpers on an expedition **neither mine nor staff**, and `effectiveRates` already staffs the fastest machines first, so a small party idles a few carts and a big one reaches into drills. Typical cost at the first borer (1.3 dad, 1,039/s): party of 4 ≈ 4% of output, 10 ≈ 10%, 20 ≈ 22% (carts, then a drill).
+
+**Existing saves (behavior-preserving):** counts are kept; only the next price changes. A big ×1.15 crew (Flemming: 63) keeps its spares, so its next helper becomes expensive (~300M at 63) and its 25 spares become the first expedition parties, which is what they are for. The tradeoff bites once he sends a Deep party or buys his next borer. A second run (pass the mine) starts on the new curve. No save field, no rules change. The pacing doc line for helpers is updated.
+
+#### 2. Expeditions ("Side tunnels")
+
+- **Unlock:** once you own a tunnel borer. A "Side tunnels" button opens a sheet (like Upgrades); no layout cost on the main screen.
+- **Three tunnels, one expedition at a time:**
+
+  | Tunnel        | Away for | Party | Finds                                   |
+  | ------------- | -------- | ----- | --------------------------------------- |
+  | A side seam   | 10 min   | 4     | one small find                          |
+  | The old shaft | 1 h      | 10    | one find, better odds of a lost tool    |
+  | The deep dark | 4 h      | 20    | one rare find, sure to bring a keepsake |
+
+- **Away and back:** the expedition stores an absolute return time, so it **completes while the app is closed**; the party's helpers are missing from away pay until then (away accrual splits at the return time, in `accrueAway`, so live and away agree). On the next open the welcome card adds "Your party came back from the old shaft with …". Recall early anytime: the party returns empty-handed, no penalty.
+- **Finds (nothing you can mine; never a stone count):**
+  - _Relic glimmers_: an evocative line about the next relic ("Your party heard a heartbeat deep below." for the Heart). No depths, no numbers.
+  - _Lost tools_: one-time lasting upgrades only found below, e.g. _Grandfather's pick_ (taps a little stronger), _Old miner's lamp_ (golden veins a little longer), _Worn map_ (the next expedition is shorter), _Steel-toe boots_ (hazards come less often). Owned shows as "Found"; each is found once.
+  - _Keepsakes_: a small collection on the relic shelf's detail sheet (a child's drawing, a pocket watch, a carved whistle …), purely for the heart, Needle-in-a-Haystack style.
+  - What the party finds is decided at send time from a seed (`sentAt`), so reloading can't reroll it.
+- **Pacing:** the sim dad sends the old shaft every session and the deep dark before each night; lost tools are small enough that every pacing test stays in its window (target: bottom day 5–6, Hammer 2.5–3.5).
+- **UI copy:** no exact numbers and no "?" placeholders: parties read as "a small party", "a crew of ten", "a big crew"; the cost reads "Some carts will stand idle while they're gone."
+
+#### 3. Hazards ("Trouble at the machines")
+
+- **Only while you play.** Never while away, never on close: leaving the game is rest, not risk. Not saved; closing the game clears any hazard.
+- From the first borer, roughly every 3–6 minutes of live play, one machine tier gets trouble: a **cave-in** (carts), a **flood** (drills), a **jam** (borer, Great Machine). The card shows it (art + "Cave-in!"), and that tier slows, by a quarter at first, easing toward half over two minutes.
+- **Fix it with your hands:** five taps on the card or a short hold. Fixing gives a small thank-you burst (that tier's output for a little while) with a float "Fixed! The crew cheers." Ignoring it only costs the slowdown.
+- At most one hazard at a time; the Steel-toe boots lost tool makes them rarer. Shown without numbers.
+- Applied in `effectiveRates(mountain, now, live)` via a session-only `trouble` argument, so the crew line and cards agree. The pacing sim dad fixes within 3 seconds (a dad who ignores them is checked to land within a day of the target).
+
+#### 4. The field log (telemetry for Flemming and Grok Bot)
+
+- **In-game "Copy field log"** in the menu: copies a plain-text JSON snapshot to the clipboard (works for guests too): app version, time, stones mined/left, pocket, crew counts (helpers, carts, drills, borers, machines, kids), crew speed, tap yield, idle machines, relics found, upgrades and levels, running boosts with end times, expedition, legacy, and the last 50 events.
+- **Events** (pure ring buffer, last 200, in the progress store): purchases (tier/upgrade/boost and new count), relic found, vein tapped, expedition sent/returned/recalled, hazard started/fixed, away report (time away, paid), Start over / pass the mine, save errors. Each has a timestamp.
+- **Cloud copy for signed-in players:** one document `fieldLogs/{uid}` overwritten with the snapshot + event ring on each cloud save, written **at most once per 5 minutes** (and on hide), so ≲ 300 writes per playing day; doc stays < 50 KB. Rules: only the owner can read/write it, shape and size checked, no delete. No personal data beyond the uid (no email, no name).
+- **How Grok Bot reads it:** `npm run field-log -- <uid>` (a small Admin SDK script in `tools/`, outside `src`), run with Flemming's Google credentials (`gcloud auth application-default login` on the box, which he does once). Players outside the household are not read; retention: the doc holds only the latest ring, and Start over clears it.
+
+#### Issues (one PR each, in order)
+
+See the M7 PR description for the list with acceptance criteria.

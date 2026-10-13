@@ -56,3 +56,13 @@ page is the map, plus the rules that keep it that way.
   listed), every upgrade id with its max level, and every boost id.
 - `knip` (strict): no unused files, exports or dependencies.
 - `prettier --check .` covers docs too; coverage floors per critical module.
+
+## M7 sketch (design, not built)
+
+- `tiers`: `HELPER_COST_GROWTH` 1.15 → 1.3. No new module.
+- `expeditions` (rules layer, pure): `TUNNELS` table; `sendExpedition(mountain, id, now)`, `recall(mountain)`, `returnExpedition(mountain, now) → { mountain, find? }`; `helpersOut(mountain, now)`. Save: `expedition?: { tunnel, sentAt, returnsAt }`, `finds?: string[]` (lost tools + keepsakes, ids from a closed list). `firestore.rules` and `rules-drift.test.ts` list them (types, closed id set, `returnsAt > sentAt`, list size cap).
+- `rates`: `effectiveRates` subtracts `helpersOut` from the staffing pool; lost tools fold in next to upgrades; hazards come in as an optional session-only `trouble` argument (never from the save). `accrueAway` splits at `returnsAt`.
+- `hazards` (rules layer, pure): `nextTrouble(seed, now)`, `fixTrouble`, slowdown curve. State lives in `progress-store` (session only).
+- `field-log` (rules layer, pure): `snapshot(mountain, rates, now)`, `EventRing` (push, cap 200). `progress-store` records events; `firebase-save` writes `fieldLogs/{uid}` throttled. A new menu entry in `menu-panel`. The Admin reader lives in `tools/field-log.ts`, outside `src` (knip-ignored entry).
+- Panels: `expeditions-panel` (sheet) and hazard rendering in `crew-panel`. Layout check gets the Side tunnels button and a hazard card at 360×560.
+- Design twice: the alternative of modelling expeditions as a "tier" in `TIERS` (negative speed) was rejected: it leaks into buying, cards and the sim's value function; a separate module that only shrinks the staffing pool keeps `effectiveRates` the single place multipliers meet.
