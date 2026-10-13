@@ -209,6 +209,26 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("refuses a signed-out visitor both read and write", async () => {
+    await setDoc(doc(db, "fieldLogs", "dad"), fieldLog([event]));
+    const guestApp = initializeApp(
+      { projectId: "demo-dad-friendly" },
+      "rules-guest",
+    );
+    const guestDb = getFirestore(guestApp);
+    connectFirestoreEmulator(guestDb, host, Number(port));
+    try {
+      await expect(getDoc(doc(guestDb, "fieldLogs", "dad"))).rejects.toThrow(
+        /permission|false for/i,
+      );
+      await expect(
+        setDoc(doc(guestDb, "fieldLogs", "dad"), fieldLog([event])),
+      ).rejects.toThrow(/permission/i);
+    } finally {
+      await deleteApp(guestApp);
+    }
+  });
+
   it("rejects an oversize event list and an oversize string", async () => {
     await expect(
       setDoc(
