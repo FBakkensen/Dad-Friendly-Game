@@ -1,3 +1,4 @@
+import { staffNeeded, tendingTenths } from "./engineers";
 import type { Mountain } from "./mountain";
 import { TIERS, owned, type TierId } from "./tiers";
 import { hasRelic } from "./relics";
@@ -85,7 +86,11 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
   ) as Record<TierId, number>;
   const legacy = legacyBonus(mountain);
   for (const tier of TIERS) {
-    tierSpeed[tier.id] *= (1 + tierSynergy(mountain, tier.id)) * legacy;
+    const sped =
+      tierSpeed[tier.id] * (1 + tierSynergy(mountain, tier.id)) * legacy;
+    const tenths = tendingTenths(mountain, tier.id);
+    // Integer tenths so +10% of 350 is 385, not 385.00000000000006.
+    tierSpeed[tier.id] = tenths === 0 ? sped : (sped * (10 + tenths)) / 10;
   }
   // Staffing: helpers run the fastest machines first; the rest sit idle.
   // Helpers still mine by hand while they run a machine.
@@ -97,13 +102,14 @@ export function effectiveRates(mountain: Mountain, now?: number): Rates {
   let free = mountain.helpers + mountain.kids;
   let needed = 0;
   for (const tier of [...TIERS].reverse()) {
-    if (tier.staff === 0) {
+    const staff = staffNeeded(mountain, tier);
+    if (staff === 0) {
       continue;
     }
     const count = owned(mountain, tier);
-    running[tier.id] = Math.min(count, Math.floor(free / tier.staff));
-    free -= running[tier.id] * tier.staff;
-    needed += count * tier.staff;
+    running[tier.id] = Math.min(count, Math.floor(free / staff));
+    free -= running[tier.id] * staff;
+    needed += count * staff;
   }
   // Whole stones a second, so what the crew line says is what gets mined.
   const baseCrew = Math.floor(

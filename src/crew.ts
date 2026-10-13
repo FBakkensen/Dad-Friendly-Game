@@ -1,3 +1,4 @@
+import { grantFirstEngineer, tendBestTier } from "./engineers";
 import { STAFF_GRANT, type Mountain } from "./mountain";
 import { hasRelic } from "./relics";
 import {
@@ -14,9 +15,21 @@ export function tierLocked(mountain: Mountain, tier: Tier): boolean {
   return tier.needs !== undefined && !hasRelic(mountain, tier.needs);
 }
 
-/** Buys one of a tier if it is unlocked and affordable; otherwise the same mountain. */
+/**
+ * Buys one of a tier if it is unlocked and affordable; otherwise the same
+ * mountain. The first borer brings the first engineer. Until there is a
+ * sheet to post her, she tends the borers, and moves onto a Great Machine
+ * when one is bought (see tendBestTier).
+ */
 export function buyCrew(mountain: Mountain, id: TierId): Mountain {
-  return tierLocked(mountain, tierById(id)) ? mountain : buyTier(mountain, id);
+  const bought = tierLocked(mountain, tierById(id))
+    ? mountain
+    : buyTier(mountain, id);
+  const withEngineer =
+    mountain.borers > 0 || bought.borers === 0
+      ? bought
+      : grantFirstEngineer(bought).mountain;
+  return tendBestTier(withEngineer);
 }
 
 /**

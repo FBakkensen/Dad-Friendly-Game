@@ -29,9 +29,38 @@ describe("crew unlocks", () => {
     expect(buyCrew(atHammer, "machine")).toMatchObject({
       machines: 1,
       kids: 0,
-      pocket: 10_000_000,
+      pocket: 40_000_000,
     });
     expect(buyCrew(nearHammer, "borer")).toMatchObject({ borers: 2 });
+  });
+
+  it("brings the first engineer with the first borer, and not with the second", () => {
+    const bought = buyCrew(
+      { ...minedMountain(0), pocket: 10_000_000 },
+      "borer",
+    );
+    expect(bought.borers).toBe(1);
+    expect(bought.helpers).toBe(0);
+    expect(bought.engineers).toEqual([
+      { name: "Ada", rank: 0, trips: 0, post: "borer" },
+    ]);
+    const again = buyCrew({ ...bought, pocket: 20_000_000 }, "borer");
+    expect(again.borers).toBe(2);
+    expect(again.engineers).toEqual(bought.engineers);
+    const fresh = minedMountain(0);
+    expect(buyCrew(fresh, "borer")).toBe(fresh);
+  });
+
+  it("moves the engineer onto a Great Machine when that is what was bought", () => {
+    const withBorer = buyCrew(
+      { ...minedMountain(25_000_000), pocket: 60_000_000, helpers: 5 },
+      "borer",
+    );
+    expect(withBorer.engineers?.[0]?.post).toBe("borer");
+    const withMachine = buyCrew(withBorer, "machine");
+    expect(withMachine.machines).toBe(1);
+    expect(withMachine.engineers?.[0]?.post).toBe("machine");
+    expect(effectiveRates(withMachine).running.machine).toBe(1);
   });
 });
 

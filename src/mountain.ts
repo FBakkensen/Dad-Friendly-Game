@@ -1,5 +1,6 @@
 import { effectiveRates, heartBonus } from "./rates";
 import { parseBoosts, type Boosts } from "./boosts";
+import { parseEngineers, type Engineer } from "./engineers";
 import { parseUpgrades, type Upgrades } from "./upgrades";
 
 /** Mountain numbers live here; tier numbers in src/tiers.ts. See docs/DESIGN.md. */
@@ -38,6 +39,11 @@ export type Mountain = {
   readonly staffed?: StaffedMark;
   /** Mountains passed to your kid (M6); missing means none. */
   readonly legacy?: number;
+  /**
+   * Named engineers (M7). Missing until the first borer; at most five.
+   * See src/engineers.ts.
+   */
+  readonly engineers?: readonly Engineer[];
 };
 
 /** A sanity cap for saves; no dad gets near it. Mirrored in firestore.rules. */
@@ -202,6 +208,7 @@ export function parseMountain(
     startedAt,
     staffed,
     legacy,
+    engineers,
   } = value as Record<string, unknown>;
   if (
     !isCount(remaining) ||
@@ -217,7 +224,8 @@ export function parseMountain(
     (staffed !== undefined && !isStaffedMark(staffed)) ||
     (legacy !== undefined && (!isCount(legacy) || legacy > MAX_LEGACY)) ||
     (upgrades !== undefined && parseUpgrades(upgrades) === undefined) ||
-    (boosts !== undefined && parseBoosts(boosts) === undefined)
+    (boosts !== undefined && parseBoosts(boosts) === undefined) ||
+    (engineers !== undefined && parseEngineers(engineers) === undefined)
   ) {
     return undefined;
   }
@@ -234,6 +242,8 @@ export function parseMountain(
   const parsedBoosts = boosts === undefined ? undefined : parseBoosts(boosts);
   const parsedUpgrades =
     upgrades === undefined ? undefined : parseUpgrades(upgrades);
+  const parsedEngineers =
+    engineers === undefined ? undefined : parseEngineers(engineers);
   return {
     ...mountain,
     ...(parsedUpgrades === undefined || Object.keys(parsedUpgrades).length === 0
@@ -245,6 +255,9 @@ export function parseMountain(
     ...(startedAt === undefined ? {} : { startedAt }),
     ...(isStaffedMark(staffed) ? { staffed } : {}),
     ...(typeof legacy === "number" && legacy > 0 ? { legacy } : {}),
+    ...(parsedEngineers === undefined || parsedEngineers.length === 0
+      ? {}
+      : { engineers: parsedEngineers }),
   };
 }
 

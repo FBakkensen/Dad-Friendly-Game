@@ -2,7 +2,12 @@ import { formatCount, formatDuration } from "./format";
 import { stonesPerSecond } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates } from "./rates";
-import { capWords, restingPace, workerWords } from "./screen-words";
+import {
+  ENGINEER_WELCOME,
+  capWords,
+  restingPace,
+  workerWords,
+} from "./screen-words";
 
 /** The welcome-back card: what the crew mined while you were away, and helpers who joined. */
 export function createWelcomePanel({
@@ -34,6 +39,9 @@ export function createWelcomePanel({
   // One-time note for saves from before machines needed helpers (#89).
   const welcomeCrew = document.createElement("p");
   welcomeCrew.className = "welcome-crew";
+  const welcomeEngineer = document.createElement("p");
+  welcomeEngineer.className = "welcome-engineer";
+  welcomeEngineer.hidden = true;
   const welcomeContinue = document.createElement("button");
   welcomeContinue.type = "button";
   welcomeContinue.className = "welcome-continue";
@@ -47,6 +55,7 @@ export function createWelcomePanel({
     welcomeDetail,
     welcomeCheer,
     welcomeCrew,
+    welcomeEngineer,
     welcomeContinue,
   );
   welcome.append(welcomeCard);
@@ -54,21 +63,32 @@ export function createWelcomePanel({
   const renderWelcome = (): void => {
     const report = getView().away;
     const joined = getView().crewJoined;
+    const steppedUp = getView().engineerJoined === true;
     const wasOpen = !welcome.hidden;
-    welcome.hidden = report === undefined && joined === undefined;
+    welcome.hidden = report === undefined && joined === undefined && !steppedUp;
     welcomeCrew.hidden = joined === undefined;
     welcomeCrew.textContent =
       joined === undefined
         ? ""
         : // Alone, the title already says "Your crew grew".
           `${report === undefined ? "" : "Your crew grew: "}${formatCount(joined)} ${workerWords(joined)} joined to run your machines.`;
+    const showEngineerLine =
+      steppedUp && (report !== undefined || joined !== undefined);
+    welcomeEngineer.hidden = !showEngineerLine;
+    welcomeEngineer.textContent = showEngineerLine ? ENGINEER_WELCOME : "";
     welcomeTitle.textContent =
-      report === undefined ? "Your crew grew" : "While you were away";
+      report !== undefined
+        ? "While you were away"
+        : joined !== undefined
+          ? "Your crew grew"
+          : steppedUp
+            ? ENGINEER_WELCOME
+            : "While you were away";
     welcomeMined.hidden = report === undefined;
     welcomeDetail.hidden = report === undefined;
     welcomeCheer.hidden = report === undefined;
     if (report === undefined) {
-      if (joined !== undefined && !wasOpen) {
+      if ((joined !== undefined || steppedUp) && !wasOpen) {
         welcomeContinue.focus();
       }
       return;

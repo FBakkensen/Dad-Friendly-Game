@@ -983,10 +983,67 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
     expect(progress.getSnapshot().crewJoined).toBe(15);
+    expect(progress.getSnapshot().engineerJoined).toBe(true);
     progress.flush();
     await vi.waitFor(() => {
-      expect(docs.get("test-dad")).toMatchObject({ helpers: 16, staffed: 2 });
+      expect(docs.get("test-dad")).toMatchObject({
+        helpers: 16,
+        staffed: 2,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+      });
     });
+  });
+
+  it("steps the first engineer up once for a save that already owns a borer", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(0), borers: 1, helpers: 8 },
+      lastSeen: 0,
+    });
+    const first = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 0,
+    });
+    expect(first.getSnapshot().engineerJoined).toBe(true);
+    expect(first.getSnapshot().mountain.helpers).toBe(8);
+    expect(first.getSnapshot().mountain.engineers).toEqual([
+      { name: "Ada", rank: 0, trips: 0, post: "borer" },
+    ]);
+    expect(readSessionSave({ storage })?.mountain.engineers).toEqual(
+      first.getSnapshot().mountain.engineers,
+    );
+    first.dismissAway();
+    expect(first.getSnapshot().engineerJoined).toBeUndefined();
+    first.dispose();
+
+    const again = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 0,
+    });
+    expect(again.getSnapshot().engineerJoined).toBeUndefined();
+    expect(again.getSnapshot().mountain.engineers).toHaveLength(1);
+  });
+
+  it("pays time away with the new engineer tending the borers", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(0), borers: 1, helpers: 8 },
+      lastSeen: 0,
+    });
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 100_000,
+    });
+    // 8 workers + a borer at +10% (385/s) for 100s at 30%.
+    expect(progress.getSnapshot().away?.mined).toBe(
+      Math.floor(100 * (8 + 385) * 0.3),
+    );
+    expect(progress.getSnapshot().engineerJoined).toBe(true);
   });
 
   it("leaves Start over alone: a fresh mountain is already marked", () => {

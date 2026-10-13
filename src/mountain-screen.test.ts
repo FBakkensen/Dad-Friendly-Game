@@ -16,7 +16,7 @@ import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
-import { NEEDS_MORE_WORKERS } from "./screen-words";
+import { ENGINEER_WELCOME, NEEDS_MORE_WORKERS } from "./screen-words";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { buyTier } from "./tiers";
 
@@ -363,8 +363,9 @@ describe("crew tiers on screen", () => {
     expect(grid?.classList.contains("tier-grid-compact")).toBe(true);
     const borer = tierCard(screen.root, "borer");
     expect(borer.querySelector(".tier-name")?.textContent).toBe("Borer");
+    // The first borer's engineer tends them: 350 becomes 385.
     expect(borer.querySelector(".tier-rate")?.textContent).toBe(
-      "+350\u2009·\u2009700/s",
+      "+385\u2009·\u2009770/s",
     );
     expect(borer.querySelector(".tier-count")?.textContent).toBe("×2");
     expect(borer.getAttribute("aria-label")).toContain("tunnel borer");
@@ -408,7 +409,7 @@ describe("crew tiers on screen", () => {
       storage,
       mountain: {
         ...minedMountain(25_000_000),
-        pocket: 81_000_000,
+        pocket: 51_000_000,
         drills: 1,
         borers: 1,
       },
@@ -418,7 +419,7 @@ describe("crew tiers on screen", () => {
     const machine = tierCard(screen.root, "machine");
     expect(machine.classList.contains("tier-locked")).toBe(false);
     expect(machine.disabled).toBe(false);
-    expect(machine.querySelector(".tier-cost")?.textContent).toBe("80M");
+    expect(machine.querySelector(".tier-cost")?.textContent).toBe("50M");
     machine.click();
     expect(machine.querySelector(".tier-count")?.textContent).toBe("×1");
     expect(screen.text(".pocket")).toBe("1 million stones");
@@ -1813,12 +1814,92 @@ describe("free helpers note (#89 grant)", () => {
     ).toBe(true);
     expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×10");
   });
+});
 
+describe("first engineer note (#144)", () => {
+  it("greets an older save that already owns a borer, once", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(0), borers: 1, helpers: 8 },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(false);
+    expect(screen.text("#welcome-back-title")).toBe(ENGINEER_WELCOME);
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-engineer")?.hidden,
+    ).toBe(true);
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-mined")?.hidden,
+    ).toBe(true);
+    screen.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(true);
+    expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
+      "+385\u2009·\u2009385/s",
+    );
+  });
+
+  it("adds the line under the crew-grew card when both happen", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: unstaffedSave({
+        ...minedMountain(0),
+        helpers: 0,
+        borers: 1,
+      }),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    expect(screen.text("#welcome-back-title")).toBe("Your crew grew");
+    expect(screen.text(".welcome-crew")).toBe(
+      "8 workers joined to run your machines.",
+    );
+    expect(screen.text(".welcome-engineer")).toBe(ENGINEER_WELCOME);
+  });
+
+  it("steps an engineer up when the first borer is bought, with no card", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(0),
+        pocket: 10_000_000,
+        helpers: 11,
+        drills: 1,
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    screen.root
+      .querySelector<HTMLButtonElement>('[data-tier="borer"]')
+      ?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(true);
+    expect(screen.text('[data-tier="borer"] .tier-count')).toBe("×1");
+    expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
+      "+385\u2009·\u2009385/s",
+    );
+    expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×11");
+  });
+});
+
+describe("free helpers note with time away (#89 grant)", () => {
   it("adds the note under the away report when both happen", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: oldSave({ helpers: 0, carts: 1 }),
+      mountain: unstaffedSave({
+        ...minedMountain(0),
+        helpers: 0,
+        carts: 1,
+      }),
       lastSeen: Date.now() - 2 * 3_600_000,
     });
     const screen = mountScreen({ storage });

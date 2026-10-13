@@ -7,6 +7,7 @@ import {
   type CloudSave,
 } from "./cloud-save";
 import { staffExisting } from "./crew";
+import { grantFirstEngineer } from "./engineers";
 import {
   APP_VERSION,
   EVENT_RING_LIMIT,
@@ -56,6 +57,8 @@ export type ProgressSnapshot = {
   readonly revealed: Relic | undefined;
   /** Free helpers hired on load so an older save's machines run (#89), once. */
   readonly crewJoined: number | undefined;
+  /** Set once when an older save's first borer brings their first engineer. */
+  readonly engineerJoined: true | undefined;
 };
 
 export type ProgressStore = {
@@ -130,6 +133,7 @@ export function createProgressStore({
   let revealBaseline: number | undefined;
   let welcomed = false;
   let crewJoined: number | undefined;
+  let engineerJoined: true | undefined;
   /** Hires the one-time free staff for a loaded save; true if it changed. */
   const staffLoaded = (): boolean => {
     const result = staffExisting(mountain);
@@ -146,6 +150,22 @@ export function createProgressStore({
         data: saveCounts(mountain),
       });
     }
+    return true;
+  };
+  /** The first borer's engineer, once, for a save that already owns one. */
+  const grantEngineer = (): boolean => {
+    const result = grantFirstEngineer(mountain);
+    if (result.mountain === mountain) {
+      return false;
+    }
+    mountain = result.mountain;
+    engineerJoined = true;
+    logger.record({
+      level: "info",
+      code: "save.engineer",
+      detail: "first engineer",
+      data: saveCounts(mountain),
+    });
     return true;
   };
   let lastCloudWriteAt = Number.NEGATIVE_INFINITY;
@@ -194,6 +214,7 @@ export function createProgressStore({
       away,
       revealed: reveals[0],
       crewJoined,
+      engineerJoined,
     };
   };
 
@@ -445,6 +466,7 @@ export function createProgressStore({
     const next = applySignedInSave({ local: mountain, remote });
     mountain = next.mountain;
     const staffed = remote.kind === "found" && staffLoaded();
+    const steppedUp = remote.kind === "found" && grantEngineer();
     let paid = 0;
     if (remote.kind === "found") {
       revealBaseline ??= minedOut(mountain);
@@ -464,7 +486,7 @@ export function createProgressStore({
         hydrated = true;
         saveKind = "account";
         welcomed = true;
-        if (next.upload || paid > 0 || staffed) {
+        if (next.upload || paid > 0 || staffed || steppedUp) {
           persistCloudSoon();
         }
         break;
@@ -507,6 +529,7 @@ export function createProgressStore({
     }
     mountain = stored.mountain;
     const staffed = staffLoaded();
+    const steppedUp = grantEngineer();
     revealBaseline = minedOut(mountain);
     const paid = settleSince(stored.lastSeen);
     welcomed = true;
@@ -517,7 +540,7 @@ export function createProgressStore({
       detail: "resume",
       data: saveCounts(mountain),
     });
-    if (paid > 0 || staffed) {
+    if (paid > 0 || staffed || steppedUp) {
       persistSession();
     }
     emit();
@@ -696,11 +719,16 @@ export function createProgressStore({
       };
     },
     dismissAway: () => {
-      if (away === undefined && crewJoined === undefined) {
+      if (
+        away === undefined &&
+        crewJoined === undefined &&
+        engineerJoined === undefined
+      ) {
         return;
       }
       away = undefined;
       crewJoined = undefined;
+      engineerJoined = undefined;
       emit();
     },
     tick: () => {
