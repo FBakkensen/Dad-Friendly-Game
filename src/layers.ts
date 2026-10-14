@@ -7,8 +7,8 @@ import type { TierId } from "./tiers";
  * band's `from` is this one's end, so 10M is the Granite, beside the Shield.
  * The Deep Heart runs through the bottom of the mountain.
  *
- * Hardness is `layer.<index>.<tier>.hardness` in `effectiveRates`. It is 1
- * until a later sitting tunes the rock.
+ * Hardness is a speed multiplier in `effectiveRates`. Hands and kids stay
+ * at 1. The sweep's `layer.<index>.<tier>.hardness` factor multiplies this.
  */
 
 export type LayerId = "topsoil" | "granite" | "crystal" | "heart";
@@ -17,15 +17,17 @@ export type LayerId = "topsoil" | "granite" | "crystal" | "heart";
 export type MaterialId = "clay" | "iron" | "crystal" | "heartstone";
 
 /**
- * Stones mined in a band for one unit of its material. First cut: 40,000
- * clay in the Topsoil, then double the gap each band deeper. M9-7 lab-tunes
- * this. Live digs and time away both use it, so they cannot drift.
+ * Stones mined in a band for one unit of its material. Clay, crystal, and
+ * heartstone stay sparse enough that the fixed recipes can absorb a whole
+ * band. Iron is the common one: rails, props, reinforce, and axle grease
+ * spend it, and one iron has to stay cheap enough that grease beats the
+ * next machine. Live digs and time away both use it, so they cannot drift.
  */
 export const MATERIAL_EVERY: Readonly<Record<MaterialId, number>> = {
-  clay: 40_000,
-  iron: 80_000,
-  crystal: 160_000,
-  heartstone: 320_000,
+  clay: 1_000_000,
+  iron: 1_000_000,
+  crystal: 5_000_000,
+  heartstone: 10_000_000,
 };
 
 /** 1 is the Topsoil. The sweep knob is `layer.<index>.<tier>.hardness`. */
@@ -87,8 +89,29 @@ export function layerOf(mountain: { readonly remaining: number }): Layer {
 }
 
 /**
- * Sweep id for this band and tier. `factor` reads it. 1 in play, so today's
- * pace stays put.
+ * Speed multiplier for this band and tier. 1 leaves the tier alone.
+ * The Topsoil is soft. Granite is tough on carts and borers and kind to
+ * drills. The Crystal Caves are tough on drills and borers. The Deep
+ * Heart is tough on carts, drills, and borers, and spares the Great
+ * Machine. Workers and kids stay at 1 in every band, so a bare-hand tap
+ * stays one stone.
+ */
+const HARDNESS: Readonly<Record<LayerIndex, Partial<Record<TierId, number>>>> =
+  {
+    1: {},
+    2: { cart: 0.85, borer: 0.85 },
+    3: { drill: 0.85, borer: 0.85 },
+    4: { cart: 0.85, drill: 0.85, borer: 0.85 },
+  };
+
+/** This band's rock on this tier. Missing entries, workers, and kids are 1. */
+export function hardnessOf(index: LayerIndex, tierId: TierId): number {
+  return HARDNESS[index][tierId] ?? 1;
+}
+
+/**
+ * Sweep id for this band and tier. `factor` multiplies `hardnessOf`.
+ * 1 in play.
  */
 export function hardnessFactorId(index: LayerIndex, tierId: TierId): string {
   return `layer.${String(index)}.${tierId}.hardness`;

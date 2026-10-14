@@ -68,6 +68,7 @@ describe("serializeSave and parseSaveValue", () => {
       chargeUntil: 80_000,
       flareUntil: 90_000,
       emberUntil: 100_000,
+      axleUntil: 110_000,
     };
     expect(
       parseSaveValue(serializeSave({ mountain: everyField, lastSeen: 1 })),
@@ -445,7 +446,7 @@ describe("v6 materials back-grant (#195)", () => {
   });
 
   it("fills materials and recipes when a mountain has none yet", () => {
-    const bare = dug(40_000);
+    const bare = dug(1_000_000);
     const saved = serializeSave({ mountain: bare, lastSeen: 1 });
     expect(saved.version).toBe(6);
     expect(saved.workshop.materials).toEqual({
@@ -594,27 +595,29 @@ describe("v6 materials back-grant (#195)", () => {
     expect(fresh?.mountain.recipes).toEqual([...STARTING_RECIPE_IDS]);
     expect(minedOut(fresh?.mountain ?? dug(0))).toBe(0);
     expect(twelve?.mountain.materials).toEqual({
-      clay: 250,
-      iron: 25,
+      clay: 10,
+      iron: 2,
       crystal: 0,
       heartstone: 0,
     });
     expect(twelve?.mountain.recipes).toEqual([
       ...STARTING_RECIPE_IDS,
       "reinforce",
+      "axle-grease",
     ]);
     expect(twelve?.mountain.bench).toBeUndefined();
     expect(twelve?.mountain.crafted).toBeUndefined();
     expect(minedOut(twelve?.mountain ?? dug(0))).toBe(12_000_000);
     expect(sixty?.mountain.materials).toEqual({
-      clay: 250,
-      iron: 437,
-      crystal: 93,
+      clay: 10,
+      iron: 35,
+      crystal: 3,
       heartstone: 0,
     });
     expect(sixty?.mountain.recipes).toEqual([
       ...STARTING_RECIPE_IDS,
       "reinforce",
+      "axle-grease",
       "diamond-bits",
       "crystal-flare",
     ]);
@@ -667,14 +670,15 @@ describe("v6 materials back-grant (#195)", () => {
       lastSeen: 3,
     });
     expect(tampered?.mountain.materials).toEqual({
-      clay: 250,
-      iron: 25,
+      clay: 10,
+      iron: 2,
       crystal: 0,
       heartstone: 0,
     });
     expect(tampered?.mountain.recipes).toEqual([
       ...STARTING_RECIPE_IDS,
       "reinforce",
+      "axle-grease",
     ]);
     expect(tampered?.mountain.bench).toBeUndefined();
     expect(tampered?.mountain.crafted).toBeUndefined();

@@ -7,6 +7,7 @@ import {
   MAX_MATERIAL,
   addMaterials,
   hardnessFactorId,
+  hardnessOf,
   layerOf,
   materialsFromMined,
   materialsGained,
@@ -103,29 +104,35 @@ describe("layers", () => {
     expect(layerOf(minedMountain(MOUNTAIN_STONES + 1)).id).toBe("heart");
   });
 
-  it("keeps today's tier speeds in every band while hardness is 1", () => {
-    const mined = [
-      -1,
-      0,
-      1,
-      10_000_000 - 1,
-      10_000_000,
-      10_000_000 + 1,
-      45_000_000 - 1,
-      45_000_000,
-      45_000_000 + 1,
-      120_000_000 - 1,
-      120_000_000,
-      120_000_000 + 1,
-      MOUNTAIN_STONES - 1,
-      MOUNTAIN_STONES,
-      MOUNTAIN_STONES + 1,
-    ];
-    for (const stones of mined) {
+  it("keeps bare hands at 1 and shifts the machines with the rock", () => {
+    for (const stones of [-1, 0, 1, 10_000_000 - 1]) {
       expect(effectiveRates(minedMountain(stones)).tierSpeed).toEqual(
         listSpeed,
       );
     }
+    const granite = effectiveRates(minedMountain(10_000_000)).tierSpeed;
+    expect(granite.helper).toBe(1);
+    expect(granite.kid).toBe(1);
+    expect(granite.cart).toBeCloseTo(8.5);
+    expect(granite.drill).toBe(60);
+    expect(granite.borer).toBeCloseTo(595 * 0.85);
+    expect(granite.machine).toBe(3_500);
+    const crystal = effectiveRates(minedMountain(45_000_000)).tierSpeed;
+    expect(crystal.helper).toBe(1);
+    expect(crystal.cart).toBe(10);
+    expect(crystal.drill).toBeCloseTo(51);
+    expect(crystal.borer).toBeCloseTo(595 * 0.85);
+    expect(crystal.machine).toBe(3_500);
+    const heart = effectiveRates(minedMountain(120_000_000)).tierSpeed;
+    expect(heart.helper).toBe(1);
+    expect(heart.kid).toBe(1);
+    expect(heart.cart).toBeCloseTo(8.5);
+    expect(heart.drill).toBeCloseTo(51);
+    expect(heart.borer).toBeCloseTo(595 * 0.85);
+    expect(heart.machine).toBe(3_500);
+    expect(hardnessOf(2, "helper")).toBe(1);
+    expect(hardnessOf(4, "kid")).toBe(1);
+    expect(hardnessOf(4, "machine")).toBe(1);
   });
 
   it("scales one tier in the current band and leaves the other bands at 1", () => {
@@ -137,11 +144,11 @@ describe("layers", () => {
     };
     expect(layerOf(mountain).id).toBe("crystal");
     const plain = effectiveRates(mountain);
-    expect(plain.tierSpeed.drill).toBe(60);
+    expect(plain.tierSpeed.drill).toBeCloseTo(51);
     const harder = withFactors({ [hardnessFactorId(3, "drill")]: 0.85 }, () =>
       effectiveRates(mountain),
     );
-    expect(harder.tierSpeed.drill).toBeCloseTo(51, 8);
+    expect(harder.tierSpeed.drill).toBeCloseTo(51 * 0.85, 8);
     expect(harder.tierSpeed.cart).toBe(plain.tierSpeed.cart);
     expect(harder.tierSpeed.helper).toBe(plain.tierSpeed.helper);
     const otherBand = withFactors(
@@ -201,16 +208,15 @@ describe("layers", () => {
 });
 
 describe("materials", () => {
-  it("doubles the gap each band deeper, from 40,000 clay", () => {
+  it("tunes the gap so fixed recipes can absorb clay, crystal, and heartstone", () => {
     expect(MATERIAL_EVERY).toEqual({
-      clay: 40_000,
-      iron: 80_000,
-      crystal: 160_000,
-      heartstone: 320_000,
+      clay: 1_000_000,
+      iron: 1_000_000,
+      crystal: 5_000_000,
+      heartstone: 10_000_000,
     });
-    expect(MATERIAL_EVERY.iron).toBe(MATERIAL_EVERY.clay * 2);
-    expect(MATERIAL_EVERY.crystal).toBe(MATERIAL_EVERY.iron * 2);
-    expect(MATERIAL_EVERY.heartstone).toBe(MATERIAL_EVERY.crystal * 2);
+    expect(MATERIAL_EVERY.crystal).toBeGreaterThan(MATERIAL_EVERY.iron);
+    expect(MATERIAL_EVERY.heartstone).toBeGreaterThan(MATERIAL_EVERY.crystal);
     expect(MAX_MATERIAL).toEqual({
       clay: 10_000_000,
       iron: 35_000_000,
@@ -222,64 +228,64 @@ describe("materials", () => {
   it("grants one unit per gap in that band, and keeps the remainder", () => {
     expect(materialsFromMined(0)).toEqual(EMPTY_MATERIALS);
     expect(materialsFromMined(-1)).toEqual(EMPTY_MATERIALS);
-    expect(materialsFromMined(39_999)).toEqual(EMPTY_MATERIALS);
-    expect(materialsFromMined(40_000)).toEqual({
+    expect(materialsFromMined(999_999)).toEqual(EMPTY_MATERIALS);
+    expect(materialsFromMined(1_000_000)).toEqual({
       ...EMPTY_MATERIALS,
       clay: 1,
     });
     expect(materialsFromMined(10_000_000)).toEqual({
       ...EMPTY_MATERIALS,
-      clay: 250,
+      clay: 10,
     });
-    expect(materialsFromMined(10_000_000 + 79_999)).toEqual({
-      clay: 250,
+    expect(materialsFromMined(10_000_000 + 999_999)).toEqual({
+      clay: 10,
       iron: 0,
       crystal: 0,
       heartstone: 0,
     });
     expect(materialsFromMined(12_000_000)).toEqual({
-      clay: 250,
-      iron: 25,
+      clay: 10,
+      iron: 2,
       crystal: 0,
       heartstone: 0,
     });
     expect(materialsFromMined(45_000_000)).toEqual({
-      clay: 250,
-      iron: 437,
+      clay: 10,
+      iron: 35,
       crystal: 0,
       heartstone: 0,
     });
     expect(materialsFromMined(60_000_000)).toEqual({
-      clay: 250,
-      iron: 437,
-      crystal: 93,
+      clay: 10,
+      iron: 35,
+      crystal: 3,
       heartstone: 0,
     });
     expect(materialsFromMined(120_000_000)).toEqual({
-      clay: 250,
-      iron: 437,
-      crystal: 468,
+      clay: 10,
+      iron: 35,
+      crystal: 15,
       heartstone: 0,
     });
     expect(materialsFromMined(MOUNTAIN_STONES)).toEqual({
-      clay: 250,
-      iron: 437,
-      crystal: 468,
-      heartstone: 375,
+      clay: 10,
+      iron: 35,
+      crystal: 15,
+      heartstone: 12,
     });
   });
 
   it("adds only the units the new stones crossed, including across a band", () => {
-    expect(materialsGained(-5, 40_000)).toEqual({
+    expect(materialsGained(-5, 1_000_000)).toEqual({
       ...EMPTY_MATERIALS,
       clay: 1,
     });
-    expect(materialsGained(40_000, 39_000)).toEqual(EMPTY_MATERIALS);
-    expect(materialsGained(39_000, 40_100)).toEqual({
+    expect(materialsGained(1_000_000, 999_000)).toEqual(EMPTY_MATERIALS);
+    expect(materialsGained(999_000, 1_000_100)).toEqual({
       ...EMPTY_MATERIALS,
       clay: 1,
     });
-    expect(materialsGained(9_999_900, 10_080_000)).toEqual({
+    expect(materialsGained(9_999_900, 11_000_000)).toEqual({
       clay: 1,
       iron: 1,
       crystal: 0,

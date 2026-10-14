@@ -118,7 +118,7 @@ type TargetBase = {
   readonly why: string;
   /**
    * A miss is still in the report. It does not fail `LAB_STRICT`.
-   * M9-7 drops this once the retune makes the guardrail hold.
+   * No current guardrail sets this. The exit path stays for a future row.
    */
   readonly reportOnly?: boolean;
 };
@@ -187,10 +187,10 @@ export const TARGETS: readonly Target[] = [
   {
     id: "casual-finish",
     measure: "finishDay",
-    scope: { kind: "policies", ids: [CASUAL_REFERENCE_ID] },
+    scope: { kind: "policyKinds", kinds: ["casual"] },
     op: "between",
     value: [5, 7],
-    why: "A casual dad finishes inside a quiet week, and not before day five.",
+    why: "Every casual dad finishes inside a quiet week, and not before day five.",
   },
   {
     id: "thin-habit-finish",
@@ -226,8 +226,7 @@ export const TARGETS: readonly Target[] = [
     },
     op: "gte",
     value: 0.08,
-    why: "Crafted gear should be a real share of the output once the workshop is open, for a casual dad and for the optimizer. Report only until M9-7.",
-    reportOnly: true,
+    why: "Crafted gear should be a real share of the output once the workshop is open, for a casual dad and for the optimizer.",
   },
   {
     id: "material-idle",
@@ -235,8 +234,7 @@ export const TARGETS: readonly Target[] = [
     scope: { kind: "policyKinds", kinds: ["casual"] },
     op: "lte",
     value: 0.5,
-    why: "A casual dad should not sit on a material that has nothing to spend it on for more than half a day. Report only until M9-7.",
-    reportOnly: true,
+    why: "A casual dad should not sit on a material that has nothing to spend it on for more than half a day.",
   },
 ];
 

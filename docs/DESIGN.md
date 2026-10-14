@@ -308,7 +308,7 @@ One PR each, in order; the list with acceptance criteria is in the M7 PR descrip
 
 #### Pacing
 
-Decision quality comes first. A moment should offer more than one live buy, a dead stretch stays under half a day, and one move should not be the right buy for most of a casual run or the optimizer's. Finish days come second. A casual dad still finishes in 5–7 days, and never under 5. Five minutes a day finishes within about 14 days. `tap-only` stays in the report and has no finish target: one stone a tap does not empty the mountain. An extreme may finish later. It may not finish much sooner than the casual dad (at most 15%). The optimizer may finish sooner than a casual dad, and not by more than a quarter.
+Decision quality comes first. A moment should offer more than one live buy, a dead stretch stays under half a day, and one move should not be the right buy for most of a casual run or the optimizer's. Finish days come second. Every casual dad finishes in 5–7 days, and never under 5. That is `casual-2x10`, the evening dad, and the checker, the same bound. Five minutes a day finishes within about 14 days. `tap-only` stays in the report and has no finish target: one stone a tap does not empty the mountain. An extreme may finish later. It may not finish much sooner than the casual dad (at most 15%). The optimizer may finish sooner than a casual dad, and not by more than a quarter.
 
 Each tap is one stone until an upgrade says otherwise. A single absence longer than half a day, before the Shield, pays 16 hours instead of 8, so one 20-minute evening stays within a quarter of the optimizer. Two shorter gaps in a day stay on the 8-hour cap. `liveMedian` after the first hour grades casual player types and the optimizer, the same population as single share and dominant share. The payback dead stretch is strict for casual player types. The optimizer's save for the borer and the Great Machine is still about half a day and is reported, not a failing guardrail: a real purchase in that window also moves the pinned pacing days or the casual wait. Workers-only, machines-only, never-workers, and tap-only may finish late: no finish target names them, and extreme win only limits finishing sooner.
 
@@ -381,7 +381,7 @@ A knob is one entry: a factor id the price, growth, output, or tending formula a
 
 ### Milestone 9: Layers and the Workshop
 
-**M9 is in progress.** Approved by Flemming (2026-10-14). The layers rules module is in (`src/layers.ts`, #194): four bands from stones mined, and a hardness factor per layer and tier that stays at 1 until M9-7. Materials accrue, and the save is v6 (#195). The workshop rules are in (`src/workshop.ts`, #196): one bench, crafts that finish from the clock including time away, a full refund on cancel, and gear that changes the crew. The strategy lab can craft (#197). The two approved guardrails are ordinary rows in `src/lab/targets.ts`, and they stay report-only until M9-7 makes them strict. Screens are still to come. Later issues update this line. The numbers below that the plan calls first cut are first cut, and M9-7 lab-tunes them.
+**M9 is in progress.** Approved by Flemming (2026-10-14). The layers rules module is in (`src/layers.ts`, #194): four bands from stones mined, and a hardness multiplier per layer and tier. Materials accrue, and the save is v6 (#195). The workshop rules are in (`src/workshop.ts`, #196): one bench, crafts that finish from the clock including time away, a full refund on cancel, and gear that changes the crew. The strategy lab can craft (#197). M9-7 (#198) tuned the rock and the recipes and made the two approved guardrails strict. Screens are still to come. Later issues update this line.
 
 #### The idea
 
@@ -407,45 +407,46 @@ These are published methods, not new ones. Each choice below rests on one of the
 
 The layer is derived from **stones mined**, the same way relics are, so the save gets no layer field. `layerOf` in `src/layers.ts` (#194) reads that total. A band starts on its first stone, so 10M is the Granite, beside the Shield. Bands are aligned to relic depths so each relic is also a landmark.
 
-| #   | Layer (player name) | Stones mined              | Material   | Rock (hidden, lab-tuned)                          |
-| --- | ------------------- | ------------------------- | ---------- | ------------------------------------------------- |
-| 1   | The Topsoil         | 0 to 10M (to the Shield)  | Clay       | soft: no change                                   |
-| 2   | The Granite         | 10M to 45M (to the Heart) | Iron       | hard on carts, kind to drills                     |
-| 3   | The Crystal Caves   | 45M to 120M               | Crystal    | hard on drills, kind to borers                    |
-| 4   | The Deep Heart      | 120M to 240M              | Heartstone | hard on everything but the Great Machine and kids |
+| #   | Layer (player name) | Stones mined              | Material   | Rock (hidden, lab-tuned)                                       |
+| --- | ------------------- | ------------------------- | ---------- | -------------------------------------------------------------- |
+| 1   | The Topsoil         | 0 to 10M (to the Shield)  | Clay       | soft: every tier ×1                                            |
+| 2   | The Granite         | 10M to 45M (to the Heart) | Iron       | carts ×0.85, borers ×0.85, drills and the rest ×1              |
+| 3   | The Crystal Caves   | 45M to 120M               | Crystal    | drills ×0.85, borers ×0.85, the rest ×1                        |
+| 4   | The Deep Heart      | 120M to 240M              | Heartstone | carts, drills, and borers ×0.85; machine, workers, and kids ×1 |
 
-- **Rock hardness** is a per-layer, per-tier speed factor (`layer.<n>.<tier>.hardness`). The first cut is 0.85 to 1.15, and it is lab-tuned. It is applied in `effectiveRates` through the existing `factor()` hook, so the sweep can tune it. Until M9-7 the factor defaults to 1, which keeps today's pace. Wired in #194. It turns "which machine next" into a fresh question in each layer (Pecorella: shifting priorities). The player sees the card's real `+N/s`, which already includes the hardness. A purchase shows real numbers. The hardness itself is never shown as a percentage. The layer card only says, for example, "The granite is tough on carts. Drills love it."
-- **Materials** accrue deterministically inside `accrue`, `accrueAway`, and a hand tap: one unit per `MATERIAL_EVERY` stones mined in that layer. The first cut is one per 40,000 stones in the Topsoil, then double that gap each band deeper (80,000 iron, 160,000 crystal, 320,000 heartstone). M9-7 lab-tunes it. They are integers in the save. There is no randomness, so live and away earnings cannot drift. A remainder waits in the stone total, so small digs add up to the same units as one long dig.
+- **Rock hardness** is a per-layer, per-tier speed multiplier in `effectiveRates`. The sweep's `layer.<n>.<tier>.hardness` factor multiplies that tuned rock, and it is 1 in play. Workers and kids stay at 1 in every band, so a bare-hand tap stays one stone. Tuned in #198. It turns "which machine next" into a fresh question in each layer (Pecorella: shifting priorities). The player sees the card's real `+N/s`, which already includes the hardness. A purchase shows real numbers. The hardness itself is never shown as a percentage. The layer card only says, for example, "The granite is tough on carts. Drills love it."
+- **Materials** accrue deterministically inside `accrue`, `accrueAway`, and a hand tap: one unit per `MATERIAL_EVERY` stones mined in that layer. Tuned in #198: one per 1,000,000 stones in the Topsoil (10 clay), one per 1,000,000 in the Granite (35 iron), one per 5,000,000 in the Crystal Caves (15 crystal), and one per 10,000,000 in the Deep Heart (12 heartstone). Clay, crystal, and heartstone stay inside what the fixed recipes can absorb. Iron is the common one, and axle grease spends it. They are integers in the save. There is no randomness, so live and away earnings cannot drift. A remainder waits in the stone total, so small digs add up to the same units as one long dig.
 - **Discovery stays vague.** Before you reach a layer you see only a hint on the progress bar ("Below the topsoil, the rock turns hard and grey."). No depth, no name of the material, no recipe list. Once you arrive, the material and its count are real numbers, because they are spent on purchases.
 
 #### The Workshop
 
 - **Unlock:** the first time you enter the Granite (10M, alongside the Shield). Before that, a dark Workshop silhouette marked "Locked · The Granite" sits in the menu, the same pattern as the Machine card.
 - **One workbench.** Crafting takes time: 10 min / 1 h / 4 h, the same rhythm as expeditions, so a dad sets a long craft at night. You cannot stack crafts. Picking what goes on the bench is the decision. One bench for the whole run. That is decided.
-- **Cost:** stones plus materials, always shown as real numbers ("4.2M stones · 12 iron · 1 h").
+- **Cost:** stones plus materials, always shown as real numbers ("400k stones · 2 iron · 10 min").
 - **Effect:** always shown as a real number on the card ("Carts 10/s to 12/s").
 
-The first-cut recipe list is small on purpose: 10 recipes, 3 known before the workshop opens, Reinforce with those once the Granite is reached, and the rest found on a layer or an expedition. Costs, times, and effects below are first cut and lab-tuned (#196). On the card they read as the resulting rate ("Carts 10/s to 12/s").
+The recipe list is small on purpose: 11 recipes, 3 known before the workshop opens, Reinforce and Axle grease once the Granite is reached, and the rest found on a layer or an expedition. Costs, times, and effects below are the #198 tune. On the card they read as the resulting rate ("Carts 10/s to 12.5/s" for one level of rails in soft rock).
 
-| Recipe               | Needs (first cut)            | Time   | Effect (first cut; the card shows the resulting rate)             | Sink (Lostgarden)       | How you get the recipe      |
-| -------------------- | ---------------------------- | ------ | ----------------------------------------------------------------- | ----------------------- | --------------------------- |
-| Iron rails           | 4.2M stones + 12 iron        | 1 h    | carts ×1.25, max 3 levels                                         | fixed                   | known at unlock             |
-| Sturdy props         | 2M stones + 20 clay + 8 iron | 1 h    | trouble comes 30% less often                                      | fixed (1 level)         | known at unlock             |
-| Blasting charge      | 800k stones + 6 clay         | 10 min | crew ×2 for 20 min (like Overtime, but costs clay, not stones)    | repeatable (clay sink)  | known at unlock             |
-| Reinforce            | 8 iron                       | 10 min | ×1.05 per level on the next tier, max 5                           | repeatable until 5      | entering the Granite        |
-| Diamond bits         | 15M stones + 12 crystal      | 1 h    | drills ×1.25, max 3                                               | fixed                   | reaching the Crystal Caves  |
-| Crystal flare        | 1M stones + 4 crystal        | 10 min | veins 25% more often for 1 h, live only; again refreshes the hour | repeatable (crystal)    | reaching the Crystal Caves  |
-| Miner's crystal lamp | 10 crystal + 8 iron          | 1 h    | golden veins 25% more often                                       | fixed (1)               | expedition find (old shaft) |
-| Engineer's kit       | 12 iron + 8 crystal          | 4 h    | expeditions 20% shorter                                           | fixed (1)               | expedition find (deep dark) |
-| Heartstone core      | 40M stones + 8 heartstone    | 4 h    | Great Machine ×1.2, max 3                                         | fixed                   | reaching the Deep Heart     |
-| Heartstone ember     | 2M stones + 4 heartstone     | 10 min | Great Machine ×1.25 for 20 min, live only; again refreshes it     | repeatable (heartstone) | reaching the Deep Heart     |
+| Recipe               | Needs                          | Time   | Effect (the card shows the resulting rate)                          | Sink (Lostgarden)       | How you get the recipe      |
+| -------------------- | ------------------------------ | ------ | ------------------------------------------------------------------- | ----------------------- | --------------------------- |
+| Iron rails           | 500k stones + 4 iron           | 10 min | carts ×1.25 per level, max 2                                        | fixed                   | known at unlock             |
+| Sturdy props         | 250k stones + 10 clay + 4 iron | 10 min | trouble comes 30% less often                                        | fixed (1 level)         | known at unlock             |
+| Blasting charge      | 100k stones + 4 clay           | 10 min | crew ×2 for 20 min from the moment it goes on the bench; live only  | repeatable (clay)       | known at unlock             |
+| Reinforce            | 5 iron                         | 10 min | ×1.05 per level on the next tier, max 5                             | repeatable until 5      | entering the Granite        |
+| Axle grease          | 1 iron                         | 10 min | crew ×2 for 20 min from the bench; live only; refreshes; no stack   | repeatable (iron)       | entering the Granite        |
+| Diamond bits         | 2M stones + 5 crystal          | 10 min | drills ×1.25 per level, max 3                                       | fixed                   | reaching the Crystal Caves  |
+| Crystal flare        | 200k stones + 4 crystal        | 10 min | veins 25% more often for 1 h from the bench; live only; refreshes   | repeatable (crystal)    | reaching the Crystal Caves  |
+| Miner's crystal lamp | 6 crystal + 4 iron             | 1 h    | golden veins 25% more often                                         | fixed (1)               | expedition find (old shaft) |
+| Engineer's kit       | 4 iron + 4 crystal             | 4 h    | expeditions 20% shorter                                             | fixed (1)               | expedition find (deep dark) |
+| Heartstone core      | 5M stones + 4 heartstone       | 1 h    | Great Machine ×1.1 per level, max 3                                 | fixed                   | reaching the Deep Heart     |
+| Heartstone ember     | 500k stones + 2 heartstone     | 10 min | Great Machine ×1.25 for 20 min from the bench; live only; refreshes | repeatable (heartstone) | reaching the Deep Heart     |
 
 Rules that keep this healthy:
 
-- **Every material has a repeatable sink**, so materials never pile up uselessly. Clay has Blasting charge. Crystal has Crystal flare. Heartstone has the Heartstone ember. From the Granite on, Reinforce spends iron for one more level of a bonus on the next machine tier after the highest one you already run (carts point at drills, drills at borers, borers at the Great Machine), and it stops at 5. Once a Great Machine is running, those levels stay on it. Crystal flare and the Heartstone ember are live timers: crafting one again refreshes the clock and does not multiply, and neither changes away pay. `recipe.<id>.strength` scales each first-cut effect, and the length of a timed one. It is 1 until M9-7. `materialIdle` checks the sinks. Decided in M9-5 (#196).
+- **Every material has a repeatable sink**, so materials never pile up uselessly. Clay has Blasting charge. Crystal has Crystal flare. Heartstone has the Heartstone ember. Iron has axle grease: the whole crew mines ×2 for 20 minutes while you play, starting when the craft goes on the bench. Another grease refreshes that clock and does not stack, and time away never sees it. Reinforce still spends iron for one more level of a bonus on the next machine tier after the highest one you already run (carts point at drills, drills at borers, borers at the Great Machine), and it stops at 5. Once a Great Machine is running, those levels stay on it. A blasting charge, a crystal flare, and a heartstone ember start when the craft goes on the bench, so the sitting that starts them is the sitting that feels them. Crafting a flare or an ember again refreshes that clock and does not multiply it, and none of those timers change away pay. `recipe.<id>.strength` scales each effect, and the length of a timed one. `materialIdle` checks the sinks.
 - **Recipes are found, not dumped** (Crashlands). The expedition find "a worn recipe" stays vague in the find text ("Nils came back with a sketch folded in his pocket."). The recipe card it unlocks has real numbers.
 - **No randomness in what a craft gives.** A purchase is a promise.
-- **Never punishing.** Closing the app does not stop the bench, and a finished craft waits safely. A craft can be cancelled before it finishes for a full refund.
+- **Never punishing.** Closing the app does not stop the bench, and a finished craft waits safely. A craft can be cancelled before it finishes. Lasting gear comes back in full, because its effect has not started. A live timer has already started, so the refund is only the unused share of that window, and the effect stops.
 
 #### What you decide
 
@@ -459,7 +460,7 @@ These stay live for the whole run.
 
 #### The lab
 
-Every addition is a new file or a new union arm. The two approved targets live in `src/lab/targets.ts`, the only place a lab number lives. M9-6 is the only issue allowed to add the rows. They are ordinary guardrail entries, the same `{ id, measure, scope, op, value, why }` shape, so a later target is still one entry. Existing thresholds are not changed. M9-6 marks both new rows report-only: a miss is in the report and does not fail the strict job. M9-7 drops that mark once the retune makes them hold.
+Every addition is a new file or a new union arm. The two approved targets live in `src/lab/targets.ts`, the only place a lab number lives. M9-6 is the only issue allowed to add the rows. They are ordinary guardrail entries, the same `{ id, measure, scope, op, value, why }` shape, so a later target is still one entry. Existing thresholds are not changed. M9-6 marked both new rows report-only. M9-7 dropped that mark. A miss fails the strict job.
 
 Approved:
 
@@ -479,7 +480,7 @@ Every existing guardrail still holds. `skip-crafting`, `crafting-heavy`, and `ch
   - `craftShare.ts`: the share of output that comes from crafted items, the same pattern as tending's `featureShare`.
   - `materialIdle.ts`: the longest stretch where a material outgrows what the open recipes can still take (cost times levels left). A repeatable timer is unlimited only when that dad uses it. It catches a pile with nowhere to go.
   - `benchIdle.ts`: the share of time the bench is empty once the workshop is unlocked, for casual types. Report only. It is not a target.
-- **Pacing.** A casual dad still finishes in 5 to 7 days, and never under 5, on 240M. Hardness below 1 takes speed away, and crafted items give it back to a dad who crafts, so a crafting casual dad lands near today's finish day. A dad who skips crafting finishes later. That is allowed for an extreme. M9-7 tunes this with `npm run lab:sweep`. Hardness and recipe strength are factors that default to 1.
+- **Pacing.** Every casual dad finishes in 5 to 7 days, and never under 5, on 240M. That bound is one row in `src/lab/targets.ts` covering every casual player type. Hardness below 1 takes speed away, and axle grease gives it back while a dad is at the mountain, so the plain casual dad lands on day 5.5 and the checker stays past day 5. A dad who skips crafting finishes later. That is allowed for an extreme. The pacing sim does not craft, so its plain dad lands on day 6. Hardness and recipe strength are factors. In play the hardness factor is 1 and the tuned rock above is what the crew feels. Recipe strength is 1 on the numbers in the table.
 - **Sweep knobs** (`tools/sweep/knobs.ts`): `layer.<n>.<tier>.hardness`, `recipe.<id>.strength`, `recipe.<id>.cost`, `material.every`. Strength and cost default to 1 (#196).
 
 #### Numbers
@@ -534,7 +535,7 @@ One PR each, in dependency order. Every issue keeps `npm run check` green, inclu
 4. **M9-4 (#195) Materials and save v6.** Materials accrue in `accrue` and `accrueAway`. v5 migrates to v6. Firestore rules and rules tests. Old saves (v1 to v5, local and cloud) load and keep stones mined. Live and away accrual match to the unit. No UI yet. Depends on M9-3. Built.
 5. **M9-5 (#196) Workshop rules** (`src/workshop.ts`). Recipe catalogue, bench start, settle, and cancel with a full refund, item effects in `effectiveRates`, recipe and strength factors defaulting to 1. Pure and tested. A finished craft settles once across reload and away. Depends on M9-4. Built.
 6. **M9-6 (#197) Lab.** `craft` and `cancelCraft` in the catalogue and `valueOf`, a craft step for the casual types and the optimizer, the three extreme policies, `craftShare`, `materialIdle`, and `benchIdle`, and the new target rows in `targets.ts`. This is the only issue allowed to touch that file. The rows are the ones approved above. Add-one-file tests still pass. The report shows the new rows. No gameplay change. The new rows are report-only until M9-7. Depends on M9-5. Built.
-7. **M9-7 (#198) Retune.** Turns hardness and recipe numbers on with `npm run lab:sweep`, and moves the economy, not the targets. The strict lab is green: casual finish in 5 to 7 days and never under 5, dead stretch at most 0.5 day, the single, dominant, and live targets, tending at least 8%, crafted at least 8%, `materialIdle` at most 0.5 day, and no extreme wins. Margins are reported in the PR. Depends on M9-6.
+7. **M9-7 (#198) Retune.** Hardness and the recipe numbers are on. The economy moved; the targets did not. The strict lab is green. Depends on M9-6.
 8. **M9-8 (#199) Workshop screen.** Built to the M9-2 mockup, with copy in `screen-words`. The visual check does not scroll at 390×844, 360×640, or 360×560. Purchases show real numbers. Locked recipes show none. Tap feedback matches the mockup. Depends on M9-2 and M9-7.
 9. **M9-9 (#200) Layer card, material line, and craft-done notice.** The layer card shows once per layer, including across reload and away. The material line never pushes cards off screen. The craft-done notice shows once. The field-log events are recorded. Depends on M9-8.
 10. **M9-10 (#201) Recipes found on expeditions and on entering a layer.** A new vague find kind `recipe` in `expeditions.ts`. Recipes unlock on layer entry. The find text has no numbers and the recipe card does. The seeded find is deterministic. The lab stays green. Depends on M9-6 and M9-9.

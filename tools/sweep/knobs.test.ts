@@ -11,6 +11,7 @@ import {
   emberMachineMultiplier,
   expeditionCraftScale,
   gearMultiplier,
+  axleCrewMultiplier,
   recipeById,
   recipeCost,
   troubleGapScale,
@@ -101,6 +102,8 @@ function reading(factorId: string): number {
         return emberMachineMultiplier(geared, 0);
       case "reinforce":
         return gearMultiplier(geared, "machine");
+      case "axle":
+        return axleCrewMultiplier({ ...geared, axleUntil: 10_000 }, 0);
     }
   }
   if (factorId.startsWith("layer.")) {

@@ -718,6 +718,22 @@ function valueCraft(
         ),
         benchSec,
       );
+    case "axle":
+      // The clock covers a sitting and is refreshed the next time the
+      // bench is free, so the gain is the live share of every cycle.
+      // incomeGain already leaves the away hours out.
+      return withBench(
+        timedCraft(
+          mountain,
+          fitted,
+          endsAt,
+          Number.POSITIVE_INFINITY,
+          stones,
+          horizon,
+          context,
+        ),
+        benchSec,
+      );
     case "flare":
       return withBench(
         rateValue(

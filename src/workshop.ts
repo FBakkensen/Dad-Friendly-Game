@@ -34,13 +34,19 @@ export const MAX_CRAFT_MS = 4 * HOUR;
 
 const RAILS_PER_LEVEL = 0.25;
 const BITS_PER_LEVEL = 0.25;
-const CORE_PER_LEVEL = 0.2;
+const CORE_PER_LEVEL = 0.1;
 const PROPS_RARER = 0.3;
 const LAMP_OFTEN = 0.25;
 const KIT_SHORTER = 0.2;
 const CHARGE_MULTIPLIER = 2;
 const REINFORCE_PER_LEVEL = 0.05;
 const REINFORCE_CAP = 5;
+/**
+ * Whole crew ×2 while axle grease is hot. Live only, and it does not
+ * stack: another craft refreshes the clock.
+ */
+const AXLE_BONUS = 1;
+export const AXLE_MS = 20 * MINUTE;
 /** Veins this much more often while a crystal flare is hot. */
 const FLARE_OFTEN = 0.25;
 const FLARE_MS = HOUR;
@@ -57,6 +63,7 @@ export const RECIPE_IDS = [
   "sturdy-props",
   "blasting-charge",
   "reinforce",
+  "axle-grease",
   "diamond-bits",
   "crystal-flare",
   "crystal-lamp",
@@ -102,7 +109,12 @@ type RecipeEffect =
       readonly bonus: number;
       readonly durationMs: number;
     }
-  | { readonly kind: "reinforce"; readonly perLevel: number };
+  | { readonly kind: "reinforce"; readonly perLevel: number }
+  | {
+      readonly kind: "axle";
+      readonly bonus: number;
+      readonly durationMs: number;
+    };
 
 export type Recipe = {
   readonly id: RecipeId;
@@ -118,29 +130,31 @@ export type Recipe = {
 };
 
 /**
- * First cut. Costs, times, and effects are real numbers. Each effect is
- * multiplied by `recipe.<id>.strength`, which is 1 until M9-7. A timed buff's
- * length uses that same factor. Reinforce stops at 5. Crystal flare and the
- * heartstone ember refresh one live timer; they do not stack and they do not
- * change away pay.
+ * Tuned costs, times, and effects. Each effect is multiplied by
+ * `recipe.<id>.strength`. A timed buff's length uses that same factor, and
+ * the buff starts when the craft goes on the bench, so a ten-minute sitting
+ * feels it before the dad walks away. Reinforce stops at 5. Axle grease
+ * is a live crew timer: crafting it again refreshes the clock and does not
+ * stack. Crystal flare and the heartstone ember work the same way, and
+ * none of those three change away pay.
  */
 const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
   "iron-rails": {
     id: "iron-rails",
     name: "Iron rails",
-    stones: 4_200_000,
-    materials: { iron: 12 },
-    craftMs: HOUR,
-    maxLevel: 3,
+    stones: 500_000,
+    materials: { iron: 4 },
+    craftMs: 10 * MINUTE,
+    maxLevel: 2,
     unlock: "start",
     effect: { kind: "tier", tier: "cart", perLevel: RAILS_PER_LEVEL },
   },
   "sturdy-props": {
     id: "sturdy-props",
     name: "Sturdy props",
-    stones: 2_000_000,
-    materials: { clay: 20, iron: 8 },
-    craftMs: HOUR,
+    stones: 250_000,
+    materials: { clay: 10, iron: 4 },
+    craftMs: 10 * MINUTE,
     maxLevel: 1,
     unlock: "start",
     effect: { kind: "trouble", rarer: PROPS_RARER },
@@ -148,8 +162,8 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
   "blasting-charge": {
     id: "blasting-charge",
     name: "Blasting charge",
-    stones: 800_000,
-    materials: { clay: 6 },
+    stones: 100_000,
+    materials: { clay: 4 },
     craftMs: 10 * MINUTE,
     unlock: "start",
     effect: {
@@ -162,18 +176,27 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     id: "reinforce",
     name: "Reinforce",
     stones: 0,
-    materials: { iron: 8 },
+    materials: { iron: 5 },
     craftMs: 10 * MINUTE,
     unlock: "granite",
     maxLevel: REINFORCE_CAP,
     effect: { kind: "reinforce", perLevel: REINFORCE_PER_LEVEL },
   },
+  "axle-grease": {
+    id: "axle-grease",
+    name: "Axle grease",
+    stones: 0,
+    materials: { iron: 1 },
+    craftMs: 10 * MINUTE,
+    unlock: "granite",
+    effect: { kind: "axle", bonus: AXLE_BONUS, durationMs: AXLE_MS },
+  },
   "diamond-bits": {
     id: "diamond-bits",
     name: "Diamond bits",
-    stones: 15_000_000,
-    materials: { crystal: 12 },
-    craftMs: HOUR,
+    stones: 2_000_000,
+    materials: { crystal: 5 },
+    craftMs: 10 * MINUTE,
     maxLevel: 3,
     unlock: "crystal",
     effect: { kind: "tier", tier: "drill", perLevel: BITS_PER_LEVEL },
@@ -181,7 +204,7 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
   "crystal-flare": {
     id: "crystal-flare",
     name: "Crystal flare",
-    stones: 1_000_000,
+    stones: 200_000,
     materials: { crystal: 4 },
     craftMs: 10 * MINUTE,
     unlock: "crystal",
@@ -191,7 +214,7 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     id: "crystal-lamp",
     name: "Miner's crystal lamp",
     stones: 0,
-    materials: { crystal: 10, iron: 8 },
+    materials: { crystal: 6, iron: 4 },
     craftMs: HOUR,
     maxLevel: 1,
     unlock: "found",
@@ -201,7 +224,7 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     id: "engineers-kit",
     name: "Engineer's kit",
     stones: 0,
-    materials: { iron: 12, crystal: 8 },
+    materials: { iron: 4, crystal: 4 },
     craftMs: 4 * HOUR,
     maxLevel: 1,
     unlock: "found",
@@ -210,9 +233,9 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
   "heartstone-core": {
     id: "heartstone-core",
     name: "Heartstone core",
-    stones: 40_000_000,
-    materials: { heartstone: 8 },
-    craftMs: 4 * HOUR,
+    stones: 5_000_000,
+    materials: { heartstone: 4 },
+    craftMs: HOUR,
     maxLevel: 3,
     unlock: "heart",
     effect: { kind: "tier", tier: "machine", perLevel: CORE_PER_LEVEL },
@@ -220,8 +243,8 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
   "heartstone-ember": {
     id: "heartstone-ember",
     name: "Heartstone ember",
-    stones: 2_000_000,
-    materials: { heartstone: 4 },
+    stones: 500_000,
+    materials: { heartstone: 2 },
     craftMs: 10 * MINUTE,
     unlock: "heart",
     effect: { kind: "ember", bonus: EMBER_BONUS, durationMs: EMBER_MS },
@@ -424,11 +447,29 @@ function dropBench(mountain: Mountain): Mountain {
 }
 
 /**
+ * Where a timer's window is measured from. A charge still running past the
+ * new craft keeps its end and then adds another stretch. Every other timer
+ * starts when the craft goes on the bench, so the sitting that started it
+ * is the sitting that feels it.
+ */
+function timerFrom(
+  bench: Bench,
+  previous: number | undefined,
+  extend: boolean,
+): number {
+  if (extend && previous !== undefined && previous > bench.startedAt) {
+    return previous;
+  }
+  return bench.startedAt;
+}
+
+/**
  * A craft whose clock has rung is fitted once: the bench clears and the
  * level goes up. Calling it again, after a reload, does not fit it twice.
- * A charge's twenty minutes start when the craft finished, and a later
- * charge adds another twenty after that window. A flare or an ember
- * replaces its clock; crafting it again does not multiply the effect.
+ * A charge's twenty minutes are measured from when the craft started, and
+ * a later charge adds another twenty after the window still running. A
+ * flare or an ember replaces its clock from that same start; crafting it
+ * again does not multiply the effect.
  */
 export function settleBench(mountain: Mountain, now: number): Mountain {
   const bench = mountain.bench;
@@ -447,31 +488,69 @@ export function settleBench(mountain: Mountain, now: number): Mountain {
     crafted: { ...mountain.crafted, [recipe.id]: level },
   });
   if (recipe.effect.kind === "charge") {
-    const previous = mountain.chargeUntil ?? bench.endsAt;
-    const from = previous > bench.endsAt ? previous : bench.endsAt;
+    const from = timerFrom(bench, mountain.chargeUntil, true);
     return { ...fitted, chargeUntil: from + recipe.effect.durationMs };
   }
   if (recipe.effect.kind === "flare") {
     return {
       ...fitted,
       flareUntil:
-        bench.endsAt + Math.round(tuned(recipe.effect.durationMs, recipe.id)),
+        timerFrom(bench, undefined, false) +
+        Math.round(tuned(recipe.effect.durationMs, recipe.id)),
     };
   }
   if (recipe.effect.kind === "ember") {
     return {
       ...fitted,
       emberUntil:
-        bench.endsAt + Math.round(tuned(recipe.effect.durationMs, recipe.id)),
+        timerFrom(bench, undefined, false) +
+        Math.round(tuned(recipe.effect.durationMs, recipe.id)),
+    };
+  }
+  if (recipe.effect.kind === "axle") {
+    return {
+      ...fitted,
+      axleUntil:
+        timerFrom(bench, undefined, false) +
+        Math.round(tuned(recipe.effect.durationMs, recipe.id)),
     };
   }
   return fitted;
 }
 
+/** Length of a live timer, or none when the craft is lasting gear. */
+function liveTimerMs(recipe: Recipe): number | undefined {
+  const effect = recipe.effect;
+  switch (effect.kind) {
+    case "charge":
+      return effect.durationMs;
+    case "flare":
+    case "ember":
+    case "axle":
+      return Math.round(tuned(effect.durationMs, recipe.id));
+    default:
+      return undefined;
+  }
+}
+
+/** Whole units of `amount` given back for the unused share of a timer. */
+function refundUnits(
+  amount: number,
+  unusedMs: number,
+  durationMs: number,
+): number {
+  if (amount <= 0) {
+    return 0;
+  }
+  return Math.floor((amount * unusedMs) / durationMs);
+}
+
 /**
- * Takes the craft off the bench and returns every stone and material it
- * spent. A craft that has already finished is fitted instead, so a late
- * tap cannot both refund the pocket and keep the gear.
+ * Takes the craft off the bench. Lasting gear comes back in full, because
+ * its effect has not started. A live timer has already started, so the
+ * refund is only the unused share of that window, and the effect stops.
+ * A craft that has already finished is fitted instead, so a late tap cannot
+ * both refund the pocket and keep the gear.
  */
 export function cancelCraft(mountain: Mountain, now: number): Mountain {
   const bench = mountain.bench;
@@ -482,10 +561,25 @@ export function cancelCraft(mountain: Mountain, now: number): Mountain {
     return settleBench(mountain, now);
   }
   const cost = recipeCost(bench.recipe);
+  const duration = liveTimerMs(recipeById(bench.recipe));
+  const cleared = dropBench(mountain);
+  if (duration === undefined) {
+    return {
+      ...cleared,
+      pocket: mountain.pocket + cost.stones,
+      materials: addMaterials(materialsOf(mountain), cost.materials),
+    };
+  }
+  const unusedMs = Math.max(0, duration - Math.max(0, now - bench.startedAt));
   return {
-    ...dropBench(mountain),
-    pocket: mountain.pocket + cost.stones,
-    materials: addMaterials(materialsOf(mountain), cost.materials),
+    ...cleared,
+    pocket: mountain.pocket + refundUnits(cost.stones, unusedMs, duration),
+    materials: addMaterials(materialsOf(mountain), {
+      clay: refundUnits(cost.materials.clay, unusedMs, duration),
+      iron: refundUnits(cost.materials.iron, unusedMs, duration),
+      crystal: refundUnits(cost.materials.crystal, unusedMs, duration),
+      heartstone: refundUnits(cost.materials.heartstone, unusedMs, duration),
+    }),
   };
 }
 
@@ -551,12 +645,39 @@ export function troubleGapScale(mountain: {
 }
 
 /**
+ * True while this timer is on the bench and `now` is inside the window
+ * that began when the craft started. Away pay passes no `now`.
+ */
+function benchWindow(
+  mountain: { readonly bench?: Bench },
+  id: "blasting-charge" | "crystal-flare" | "heartstone-ember" | "axle-grease",
+  durationMs: number,
+  now: number | undefined,
+): boolean {
+  const bench = mountain.bench;
+  if (
+    now === undefined ||
+    bench === undefined ||
+    bench.recipe !== id ||
+    now < bench.startedAt
+  ) {
+    return false;
+  }
+  return now < bench.startedAt + durationMs;
+}
+
+/**
  * How much more often a golden vein shows. 1 until a lamp is fitted.
- * A hot crystal flare multiplies that while `now` is inside its hour.
- * Leave `now` out, as away pay does, and the flare stays dark.
+ * A hot crystal flare multiplies that while `now` is inside its hour,
+ * including the minutes the flare is still on the bench. Leave `now` out,
+ * as away pay does, and the flare stays dark.
  */
 export function veinOftenScale(
-  mountain: { readonly crafted?: Crafted; readonly flareUntil?: number },
+  mountain: {
+    readonly crafted?: Crafted;
+    readonly flareUntil?: number;
+    readonly bench?: Bench;
+  },
   now?: number,
 ): number {
   let scale = 1;
@@ -570,33 +691,71 @@ export function veinOftenScale(
     }
     scale *= leveled(recipe.effect.often, level, strengthOf(recipe.id));
   }
-  if (
-    now !== undefined &&
-    mountain.flareUntil !== undefined &&
-    mountain.flareUntil > now
-  ) {
+  const flareHot =
+    (now !== undefined &&
+      mountain.flareUntil !== undefined &&
+      mountain.flareUntil > now) ||
+    benchWindow(
+      mountain,
+      "crystal-flare",
+      Math.round(tuned(FLARE_MS, "crystal-flare")),
+      now,
+    );
+  if (flareHot) {
     scale *= 1 + tuned(FLARE_OFTEN, "crystal-flare");
   }
   return scale;
 }
 
 /**
- * Great Machine multiplier while a heartstone ember is hot. 1 with no `now`,
- * so away pay never sees it. Crafting another ember refreshes this, and the
- * crafted count does not multiply it.
+ * Great Machine multiplier while a heartstone ember is hot, including the
+ * minutes it is still on the bench. 1 with no `now`, so away pay never sees
+ * it. Crafting another ember refreshes this, and the crafted count does not
+ * multiply it.
  */
 export function emberMachineMultiplier(
-  mountain: { readonly emberUntil?: number },
+  mountain: { readonly emberUntil?: number; readonly bench?: Bench },
   now?: number,
 ): number {
-  if (
-    now === undefined ||
-    mountain.emberUntil === undefined ||
-    mountain.emberUntil <= now
-  ) {
+  const hot =
+    (now !== undefined &&
+      mountain.emberUntil !== undefined &&
+      mountain.emberUntil > now) ||
+    benchWindow(
+      mountain,
+      "heartstone-ember",
+      Math.round(tuned(EMBER_MS, "heartstone-ember")),
+      now,
+    );
+  if (!hot) {
     return 1;
   }
   return 1 + tuned(EMBER_BONUS, "heartstone-ember");
+}
+
+/**
+ * Crew multiplier while axle grease is hot, including the minutes it is
+ * still on the bench. 1 with no `now`, so away pay never sees it. Crafting
+ * another one refreshes the clock, and the crafted count does not multiply it.
+ */
+export function axleCrewMultiplier(
+  mountain: { readonly axleUntil?: number; readonly bench?: Bench },
+  now?: number,
+): number {
+  const hot =
+    (now !== undefined &&
+      mountain.axleUntil !== undefined &&
+      mountain.axleUntil > now) ||
+    benchWindow(
+      mountain,
+      "axle-grease",
+      Math.round(tuned(AXLE_MS, "axle-grease")),
+      now,
+    );
+  if (!hot) {
+    return 1;
+  }
+  return 1 + tuned(AXLE_BONUS, "axle-grease");
 }
 
 /** How much of the tunnel time is left. 1 without the engineer's kit. */
@@ -622,18 +781,20 @@ export function expeditionCraftScale(mountain: {
 }
 
 /**
- * Crew multiplier while a blasting charge is still hot. Away pay passes no
- * `now`, so a charge never doubles stones earned while the app was closed.
+ * Crew multiplier while a blasting charge is still hot, including the
+ * minutes it is still on the bench. Away pay passes no `now`, so a charge
+ * never doubles stones earned while the app was closed.
  */
 export function chargeCrewMultiplier(
   mountain: Mountain,
   now: number | undefined,
 ): number {
-  if (
-    now === undefined ||
-    mountain.chargeUntil === undefined ||
-    mountain.chargeUntil <= now
-  ) {
+  const hot =
+    (now !== undefined &&
+      mountain.chargeUntil !== undefined &&
+      mountain.chargeUntil > now) ||
+    benchWindow(mountain, "blasting-charge", CHARGE_MS, now);
+  if (!hot) {
     return 1;
   }
   return 1 + (CHARGE_MULTIPLIER - 1) * strengthOf("blasting-charge");

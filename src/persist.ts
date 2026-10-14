@@ -36,6 +36,7 @@ type WorkshopSave = {
   readonly flareUntil?: number;
   /** When a heartstone ember cools. Missing means none is hot. */
   readonly emberUntil?: number;
+  readonly axleUntil?: number;
 };
 
 export type MountainSaveV6 = {
@@ -113,6 +114,9 @@ export function serializeSave({
       ...(mountain.emberUntil === undefined
         ? {}
         : { emberUntil: mountain.emberUntil }),
+      ...(mountain.axleUntil === undefined
+        ? {}
+        : { axleUntil: mountain.axleUntil }),
     },
     lastSeen,
   };
@@ -167,6 +171,7 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
       const chargeUntil = readClock(sheet["chargeUntil"]);
       const flareUntil = readClock(sheet["flareUntil"]);
       const emberUntil = readClock(sheet["emberUntil"]);
+      const axleUntil = readClock(sheet["axleUntil"]);
       if (
         base === undefined ||
         materials === undefined ||
@@ -175,7 +180,8 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
         crafted === "bad" ||
         chargeUntil === "bad" ||
         flareUntil === "bad" ||
-        emberUntil === "bad"
+        emberUntil === "bad" ||
+        axleUntil === "bad"
       ) {
         return undefined;
       }
@@ -191,6 +197,7 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
           ...(chargeUntil === undefined ? {} : { chargeUntil }),
           ...(flareUntil === undefined ? {} : { flareUntil }),
           ...(emberUntil === undefined ? {} : { emberUntil }),
+          ...(axleUntil === undefined ? {} : { axleUntil }),
         },
         lastSeen,
       };

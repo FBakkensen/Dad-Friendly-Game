@@ -7,8 +7,9 @@ import {
   type EngineerRank,
 } from "./engineers";
 import { slowedSpeed, type Trouble } from "./hazards";
-import { hardnessFactorId, layerOf } from "./layers";
+import { hardnessFactorId, hardnessOf, layerOf } from "./layers";
 import {
+  axleCrewMultiplier,
   chargeCrewMultiplier,
   emberMachineMultiplier,
   gearMultiplier,
@@ -138,6 +139,7 @@ export function effectiveRates(
         tier.perSecond *
         factor(`output.${tier.id}`) *
         factor(hardnessFactorId(layer.index, tier.id)) *
+        hardnessOf(layer.index, tier.id) *
         gearMultiplier(mountain, tier.id) *
         ember;
       return [
@@ -183,10 +185,12 @@ export function effectiveRates(
     needed += count * staff;
   }
   applyTendingFloor(mountain, plain, tierSpeed, running);
-  const exactBase = TIERS.reduce(
-    (total, tier) => total + running[tier.id] * tierSpeed[tier.id],
-    0,
-  );
+  const axle = axleCrewMultiplier(mountain, now);
+  const exactBase =
+    TIERS.reduce(
+      (total, tier) => total + running[tier.id] * tierSpeed[tier.id],
+      0,
+    ) * axle;
   // Whole stones a second, so what the crew line says is what gets mined.
   const baseCrew = Math.floor(exactBase + 1e-9);
   // Tap power takes its share of the crew's own speed, before Overtime.
@@ -298,8 +302,10 @@ function addExtraPosts(
 function tenthsFor(mountain: Mountain, tierId: TierId): number {
   const tenths = tendingTenths(mountain, tierId);
   // A little extra on the borer, where an apprentice spends the middle
-  // of the run. Enough to clear an 8% share, and short of the jump that
-  // lets a checker empty the mountain before day 5.
+  // of the run. Crafted gear takes a slice of the same output, so the
+  // borer's tenth is larger than the other posts. Enough to clear an 8%
+  // share, and short of the jump that lets a checker empty the mountain
+  // before day 5.
   return tierId === "borer" ? (tenths * 162) / 100 : tenths;
 }
 

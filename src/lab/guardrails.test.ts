@@ -150,7 +150,7 @@ describe("guardrails", () => {
     const crafted = checks.find(
       (check) => check.targetId === "crafted-from-granite",
     );
-    expect(crafted?.reportOnly).toBe(true);
+    expect(crafted?.reportOnly).toBe(false);
     expect(crafted?.pass).toBe(false);
   });
 });
