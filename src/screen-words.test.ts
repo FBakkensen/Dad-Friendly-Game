@@ -440,6 +440,14 @@ describe("engineer words", () => {
     ).toBe(
       "Ada came back from the deep dark. The lost engineer had already found a place.",
     );
+    const sketch = cameBack("Nils", "old-shaft", {
+      kind: "recipe",
+      id: "crystal-lamp",
+    });
+    expect(sketch).toBe(
+      "Nils came back from the old shaft with a sketch folded in a pocket.",
+    );
+    expect(sketch).not.toMatch(/[0-9?]|lamp|kit|crystal|iron/i);
     expect(
       cameBack("Ada", "old-shaft", {
         kind: "quiet",
@@ -639,17 +647,20 @@ describe("layer card and craft-done copy", () => {
       arrival: LAYER_ARRIVAL,
       evocative: LAYER_EVOCATIVE,
       advice: LAYER_ADVICE,
+      sketch: "A sketch for the shed came up with the rock.",
     });
     expect(layerWelcomeWords("topsoil")).toBeUndefined();
     expect(layerWelcomeWords("granite")).toBe(
-      `${LAYER_ARRIVAL} ${LAYER_ADVICE}`,
+      `${LAYER_ARRIVAL} ${LAYER_ADVICE} A sketch for the shed came up with the rock.`,
     );
     for (const id of ["crystal", "heart"] as const) {
       const words = layerCardWords(id);
       expect(words?.arrival.startsWith("You broke into")).toBe(true);
       expect(words?.advice).not.toMatch(/\d|%|\?/);
       expect(words?.evocative).not.toMatch(/\d|\?/);
+      expect(words?.sketch).not.toMatch(/\d|\?/);
       expect(layerWelcomeWords(id)).toContain(words?.advice);
+      expect(layerWelcomeWords(id)).toContain(words?.sketch);
     }
     expect(nextLayerHint(undefined)).toBeUndefined();
     expect(nextLayerHint("topsoil")).toBeUndefined();

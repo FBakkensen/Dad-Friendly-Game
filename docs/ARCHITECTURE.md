@@ -32,7 +32,7 @@ page is the map, plus the rules that keep it that way.
    `layer.<n>.<tier>.hardness` multiplies it (#194, #198).
    `pacing` simulates players on top of them and buys through the catalogue.
    Every number lives here.
-2. **Saves:** `persist` (versioned save format and parser), `session-save`
+2. **Saves:** `persist` (versioned save format and parser; an unknown recipe, bench, or crafted level is written back instead of dropped), `session-save`
    (guest storage), `cloud-save` (interface + memory fake), `firebase-save`
    (the SDK adapter; mountain save plus `fieldLogs/{uid}`), `firestore.rules`
    (server-side mirror of the parser and the field log,

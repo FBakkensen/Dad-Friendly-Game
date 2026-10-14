@@ -686,6 +686,8 @@ export const cameBack = (
         : `${name} came back from ${from}. The lost engineer had already found a place.`;
     case "glimmer":
       return `${name} came back from ${from}. ${find.text}`;
+    case "recipe":
+      return `${name} came back from ${from} with a sketch folded in a pocket.`;
     case "quiet":
       return `${name} came back from ${from}. ${find.text}`;
   }
@@ -892,7 +894,31 @@ export type LayerCardWords = {
   readonly arrival: string;
   readonly evocative: string;
   readonly advice: string;
+  /** A recipe came up with the rock. No name, no numbers. */
+  readonly sketch: string;
 };
+
+/**
+ * The sketch a break-in leaves in a pocket. No recipe name, no numbers.
+ * The Topsoil is home, and its three recipes are already known.
+ */
+function layerSketchWords(id: LayerId): string | undefined {
+  switch (id) {
+    case "topsoil":
+      return undefined;
+    case "granite":
+      return "A sketch for the shed came up with the rock.";
+    case "crystal":
+      return "A sketch was caught in the glitter.";
+    case "heart":
+      return "A sketch was waiting in the warm stone.";
+    /* v8 ignore next 3 -- layer ids are the closed list */
+    default: {
+      const never: never = id;
+      return never;
+    }
+  }
+}
 
 /** Words for a break-in card. The Topsoil is home, not a break-in. */
 export function layerCardWords(id: LayerId): LayerCardWords | undefined {
@@ -901,8 +927,14 @@ export function layerCardWords(id: LayerId): LayerCardWords | undefined {
       return undefined;
     case "granite":
     case "crystal":
-    case "heart":
-      return LAYER_CARD[id];
+    case "heart": {
+      const sketch = layerSketchWords(id);
+      /* v8 ignore next -- every break-in has a sketch */
+      if (sketch === undefined) {
+        return undefined;
+      }
+      return { ...LAYER_CARD[id], sketch };
+    }
     /* v8 ignore next 3 -- layer ids are the closed list */
     default: {
       const never: never = id;
@@ -940,7 +972,7 @@ export function layerWelcomeWords(id: LayerId): string | undefined {
   if (words === undefined) {
     return undefined;
   }
-  return `${words.arrival} ${words.advice}`;
+  return `${words.arrival} ${words.advice} ${words.sketch}`;
 }
 
 /**

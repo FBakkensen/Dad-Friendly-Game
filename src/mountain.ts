@@ -23,6 +23,7 @@ import {
   settleBench,
   type Bench,
   type Crafted,
+  type KeptWorkshop,
   type RecipeId,
 } from "./workshop";
 
@@ -99,6 +100,11 @@ export type Mountain = {
   readonly emberUntil?: number;
   /** When axle grease stops speeding carts. Live play only. */
   readonly axleUntil?: number;
+  /**
+   * Recipe ids, a bench, and crafted levels this build does not know.
+   * Written back inside the workshop map. Not a mountain document key.
+   */
+  readonly kept?: KeptWorkshop;
 };
 
 /** A sanity cap for saves; no dad gets near it. Mirrored in firestore.rules. */

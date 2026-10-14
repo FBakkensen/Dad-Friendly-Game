@@ -23,5 +23,9 @@ export function passTheMine(
     legacy: (mountain.legacy ?? 0) + 1,
     startedAt: Math.max(now, runStartedAt(mountain) + 1),
     recipes: mountain.recipes ?? recipesForMined(0),
+    ...(mountain.kept?.recipes === undefined ||
+    mountain.kept.recipes.length === 0
+      ? {}
+      : { kept: { recipes: mountain.kept.recipes } }),
   };
 }

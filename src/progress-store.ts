@@ -42,7 +42,7 @@ import {
   type FieldLogDocument,
   type FieldLogWriteReason,
 } from "./field-log";
-import { layersEntered, type Layer } from "./layers";
+import { LAYERS, layersEntered, type Layer } from "./layers";
 import { passTheMine } from "./legacy";
 import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
@@ -62,6 +62,8 @@ import { UPGRADES, upgradeLevel } from "./upgrades";
 import {
   RECIPE_IDS,
   craftedLevel,
+  grantRecipes,
+  layerRecipeIds,
   recipeById,
   type RecipeId,
 } from "./workshop";
@@ -465,6 +467,12 @@ export function createProgressStore({
         id: arrival.engineer,
         source: findToken(arrival.find),
       });
+      if (arrival.find.kind === "recipe") {
+        record("recipe.found", {
+          id: arrival.find.id,
+          source: arrival.tunnel,
+        });
+      }
     }
   };
 
@@ -519,6 +527,21 @@ export function createProgressStore({
       return;
     }
     const mined = minedOut(mountain);
+    let granted = false;
+    for (const layer of LAYERS) {
+      if (layer.from === 0 || mined < layer.from) {
+        continue;
+      }
+      const next = grantRecipes(mountain, layerRecipeIds(layer.id));
+      if (next.found.length === 0) {
+        continue;
+      }
+      mountain = next.mountain;
+      granted = true;
+      for (const id of next.found) {
+        record("recipe.found", { id, source: layer.id });
+      }
+    }
     if (layerBaseline !== undefined) {
       for (const layer of layersEntered(layerBaseline, mined)) {
         layersArrived.push(layer);
@@ -526,6 +549,11 @@ export function createProgressStore({
       }
     }
     layerBaseline = mined;
+    if (!granted) {
+      return;
+    }
+    persistSession();
+    persistCloudSoon();
   };
 
   /** A craft whose level rose since the baseline. The line keeps the number. */
@@ -1213,6 +1241,8 @@ function findToken(find: Homecoming["find"]): string {
       return find.id;
     case "engineer":
       return find.name;
+    case "recipe":
+      return find.id;
     case "quiet":
       return "quiet";
   }

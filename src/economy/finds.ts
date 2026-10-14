@@ -67,6 +67,8 @@ function findKey(find: StoredFind): string {
       return `keepsake:${find.id}`;
     case "engineer":
       return `engineer:${find.id}`;
+    case "recipe":
+      return `recipe:${find.id}`;
   }
 }
 
@@ -86,6 +88,9 @@ function stonesOf(
       return toolStones(mountain, find.id, horizon, rateOf);
     case "engineer":
       return engineerStones(mountain, engineers, find.id, horizon, rateOf);
+    case "recipe":
+      // The sketch is not a price. The craft it unlocks is valued on its own.
+      return 0;
   }
 }
 

@@ -1892,7 +1892,11 @@ for (const viewport of NOTICE_SIZES) {
         fit.typeOk &&
         fit.texts.includes("Dig on") &&
         fit.body.includes("You broke into the Granite!") &&
-        fit.body.includes("Tough on carts. Drills love it."),
+        fit.body.includes("Tough on carts. Drills love it.") &&
+        fit.body.includes("A sketch for the shed came up with the rock.") &&
+        !/[0-9?]/.test(
+          fit.body.slice(fit.body.indexOf("A sketch for the shed")),
+        ),
       `${size} layer card fits, Dig on is on screen`,
     );
     if (!still || !fit.boxesOk || !fit.typeOk) {
@@ -1937,6 +1941,7 @@ for (const viewport of NOTICE_SIZES) {
         fit.texts.includes("Back to the mountain") &&
         fit.body.includes("You broke into the Granite!") &&
         fit.body.includes("Tough on carts. Drills love it.") &&
+        fit.body.includes("A sketch for the shed came up with the rock.") &&
         fit.body.includes("are fitted") &&
         fit.body.includes("/s"),
       `${size} welcome card folds in the layer and the fitted craft`,

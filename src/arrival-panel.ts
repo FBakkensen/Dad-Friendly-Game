@@ -53,6 +53,8 @@ export function createArrivalPanel({
   layerEvocative.className = "layer-evocative";
   const layerAdvice = document.createElement("p");
   layerAdvice.className = "layer-advice";
+  const layerSketch = document.createElement("p");
+  layerSketch.className = "layer-sketch";
   const layerGo = document.createElement("button");
   layerGo.type = "button";
   layerGo.className = "layer-dig";
@@ -60,7 +62,14 @@ export function createArrivalPanel({
   layerGo.addEventListener("click", () => {
     progress.dismissLayer();
   });
-  layerCard.append(layerArt, layerTitle, layerEvocative, layerAdvice, layerGo);
+  layerCard.append(
+    layerArt,
+    layerTitle,
+    layerEvocative,
+    layerAdvice,
+    layerSketch,
+    layerGo,
+  );
   layer.append(layerCard);
 
   const notice = document.createElement("div");
@@ -131,6 +140,7 @@ export function createArrivalPanel({
     layerTitle.textContent = words.arrival;
     layerEvocative.textContent = words.evocative;
     layerAdvice.textContent = words.advice;
+    layerSketch.textContent = words.sketch;
   };
 
   return { layer, notice, render };

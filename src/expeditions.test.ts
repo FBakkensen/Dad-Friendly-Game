@@ -12,6 +12,7 @@ import {
   type TunnelId,
 } from "./expeditions";
 import { ENGINEER_NAMES, type Engineer } from "./engineers";
+import { knownRecipeIds } from "./economy/actions";
 import { accrueAway, createMountain, parseMountain } from "./mountain";
 import { parseSaveValue, serializeSave } from "./persist";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
@@ -294,6 +295,11 @@ describe("finds", () => {
       ),
       finds: [...LOST_TOOLS, ...KEEPSAKES],
       remaining: 0,
+      recipes: [
+        ...(createMountain().recipes ?? []),
+        "crystal-lamp",
+        "engineers-kit",
+      ],
     };
     const quiet = send(full, 0, "deep-dark", 7);
     expect(quiet.expeditions?.[0]?.find).toEqual({ kind: "quiet" });
@@ -434,6 +440,83 @@ describe("finds", () => {
     expect(both.mountain.expeditions).toBeUndefined();
     const together = send(send(two, 0, "side-seam", 4), 1, "side-seam", 4);
     expect(settle(together, 4 + SEAM).finds).toHaveLength(2);
+  });
+
+  it("finds a sketch on the old shaft and in the deep dark, once, from the seed", () => {
+    const shaftSeed = Array.from(
+      { length: samples },
+      (_, sentAt) => sentAt,
+    ).find(
+      (sentAt) =>
+        send(crew(), 0, "old-shaft", sentAt).expeditions?.[0]?.find.kind ===
+        "recipe",
+    );
+    expect(shaftSeed).toBeGreaterThanOrEqual(0);
+    const seed = shaftSeed ?? 0;
+    const first = send(crew(), 0, "old-shaft", seed);
+    const again = send(crew(), 0, "old-shaft", seed);
+    expect(again.expeditions?.[0]?.find).toEqual(first.expeditions?.[0]?.find);
+    expect(first.expeditions?.[0]?.find).toEqual({
+      kind: "recipe",
+      id: "crystal-lamp",
+    });
+    const home = settle(first, seed + HOUR);
+    expect(home.finds[0]).toEqual({ kind: "recipe", id: "crystal-lamp" });
+    expect(home.mountain.recipes).toContain("crystal-lamp");
+    expect(knownRecipeIds(home.mountain)).toContain("crystal-lamp");
+    expect(settle(home.mountain, seed + HOUR).finds).toEqual([]);
+    const known = send(home.mountain, 0, "old-shaft", seed);
+    expect(known.expeditions?.[0]?.find.kind).not.toBe("recipe");
+    const { recipes: listed, ...unlisted } = crew();
+    expect(listed).toBeDefined();
+    expect(send(unlisted, 0, "old-shaft", seed).expeditions?.[0]?.find).toEqual(
+      {
+        kind: "recipe",
+        id: "crystal-lamp",
+      },
+    );
+    const pair = crew([
+      ada,
+      { name: "Nils", rank: 0, trips: 0, post: "drill" },
+    ]);
+    const held = send(pair, 0, "old-shaft", seed);
+    const other = send(held, 1, "old-shaft", seed);
+    expect(other.expeditions?.[1]?.find.kind).not.toBe("recipe");
+
+    const dark = crew([journeyman]);
+    const darkSeed = Array.from(
+      { length: samples },
+      (_, sentAt) => sentAt,
+    ).find(
+      (sentAt) =>
+        send(dark, 0, "deep-dark", sentAt).expeditions?.[0]?.find.kind ===
+        "recipe",
+    );
+    expect(darkSeed).toBeGreaterThanOrEqual(0);
+    expect(
+      send(dark, 0, "deep-dark", darkSeed ?? 0).expeditions?.[0]?.find,
+    ).toEqual({ kind: "recipe", id: "engineers-kit" });
+    for (let sentAt = 0; sentAt < samples; sentAt += 1) {
+      expect(
+        send(crew(), 0, "side-seam", sentAt).expeditions?.[0]?.find.kind,
+      ).not.toBe("recipe");
+    }
+
+    const stored = send(crew(), 0, "old-shaft", 3);
+    const trip = stored.expeditions?.[0];
+    expect(trip).toBeDefined();
+    if (trip === undefined) {
+      return;
+    }
+    const forced = {
+      ...stored,
+      expeditions: [
+        { ...trip, find: { kind: "tool" as const, id: "pick" as const } },
+      ],
+    };
+    const tool = settle(forced, 3 + HOUR);
+    expect(tool.finds[0]).toEqual({ kind: "tool", id: "pick" });
+    expect(tool.mountain.recipes).not.toContain("crystal-lamp");
   });
 });
 
@@ -680,6 +763,14 @@ describe("parse", () => {
         expeditions: [{ ...trip, find: { kind: "quiet" } }],
       })?.expeditions?.[0]?.find,
     ).toEqual({ kind: "quiet" });
+    expect(
+      parseMountain({
+        ...base,
+        expeditions: [
+          { ...trip, find: { kind: "recipe", id: "engineers-kit" } },
+        ],
+      })?.expeditions?.[0]?.find,
+    ).toEqual({ kind: "recipe", id: "engineers-kit" });
     const negative = parseMountain({
       ...base,
       expeditions: [{ ...trip, sentAt: -20, returnsAt: -10 }],
@@ -699,6 +790,8 @@ describe("parse", () => {
       [{ ...trip, find: { kind: "tool", id: "turbo" } }],
       [{ ...trip, find: { kind: "quiet", id: "nope" } }],
       [{ ...trip, find: { kind: "engineer", id: "Ada" } }],
+      [{ ...trip, find: { kind: "recipe", id: "iron-rails" } }],
+      [{ ...trip, find: { kind: "recipe", id: "future-bit" } }],
       [null],
       [{ ...trip, find: null }],
       [{ ...trip, find: { kind: "tool" } }],
@@ -806,8 +899,14 @@ describe("parseHomecomingNews", () => {
           sentAt: 0,
           find: { kind: "quiet", text: "Quiet." },
         },
+        {
+          engineer: "Ada",
+          tunnel: "old-shaft",
+          sentAt: 8,
+          find: { kind: "recipe", id: "crystal-lamp" },
+        },
       ]),
-    ).toHaveLength(5);
+    ).toHaveLength(6);
     for (const bad of [
       null,
       [null],
@@ -830,6 +929,8 @@ describe("parseHomecomingNews", () => {
       [{ ...tool, find: { kind: "quiet", text: "" } }],
       [{ ...tool, find: { kind: "quiet", text: 1 } }],
       [{ ...tool, find: { kind: "stones" } }],
+      [{ ...tool, find: { kind: "recipe", id: "iron-rails" } }],
+      [{ ...tool, find: { kind: "recipe", id: "future-bit" } }],
       [tool, { engineer: "Ada" }],
     ]) {
       expect(parseHomecomingNews(bad)).toEqual([]);

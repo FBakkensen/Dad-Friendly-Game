@@ -1577,6 +1577,7 @@ body {
 
 .layer-evocative,
 .layer-advice,
+.layer-sketch,
 #craft-notice-line {
   margin: 0;
   font-size: 0.95rem;
@@ -1586,6 +1587,10 @@ body {
 .layer-advice {
   color: #ffe08a;
   font-weight: 650;
+}
+
+.layer-sketch {
+  color: #f3e2c4;
 }
 
 .layer-dig,
@@ -1626,8 +1631,14 @@ body {
 }
 
 .welcome-back.is-homecoming .welcome-card {
+  gap: 4px;
+  padding: 8px 16px;
   border-color: #ffe08a;
   box-shadow: 0 0 64px rgba(255, 224, 138, 0.55);
+}
+
+.welcome-back.is-homecoming .welcome-mined {
+  font-size: clamp(1.7rem, min(11vw, 6dvh), 3.2rem);
 }
 
 .welcome-card {
