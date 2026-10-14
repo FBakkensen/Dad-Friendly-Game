@@ -12,9 +12,21 @@ import {
   type Homecoming,
 } from "./expeditions";
 import { parseUpgrades, type Upgrades } from "./upgrades";
+import { addMaterials, materialsGained } from "./layers";
+import type { Materials } from "./layers";
+import {
+  parseBench,
+  parseCrafted,
+  parseMaterials,
+  parseRecipes,
+  recipesForMined,
+  type Bench,
+  type Crafted,
+  type RecipeId,
+} from "./workshop";
 
 /** Mountain numbers live here; tier numbers in src/tiers.ts. See docs/DESIGN.md. */
-import { MOUNTAIN_STONES } from "./scale";
+import { MOUNTAIN_STONES, minedOut } from "./scale";
 
 export { MOUNTAIN_STONES };
 /** Base away cap; the Shield of Protection relic will lift it. */
@@ -64,6 +76,17 @@ export type Mountain = {
    * Glimmers are not stored; they are a line, not a thing on the shelf.
    */
   readonly finds?: readonly FindId[];
+  /**
+   * Clay, iron, crystal, and heartstone dug with the stones (M9). Missing
+   * on a mountain built in a test; a real save always has it.
+   */
+  readonly materials?: Materials;
+  /** The craft on the one bench. Missing means the bench is free. */
+  readonly bench?: Bench;
+  /** Levels already crafted. Missing means nothing is made. */
+  readonly crafted?: Crafted;
+  /** Recipes found. Missing on a hand-built mountain; a save always has it. */
+  readonly recipes?: readonly RecipeId[];
 };
 
 /** A sanity cap for saves; no dad gets near it. Mirrored in firestore.rules. */
@@ -95,10 +118,12 @@ export function createMountain(): Mountain {
     machines: 0,
     kids: 0,
     staffed: STAFF_GRANT,
+    materials: materialsGained(0, 0),
+    recipes: recipesForMined(0),
   };
 }
 
-export { minedOut } from "./scale";
+export { minedOut };
 
 /** One tap mines its yield (see effectiveRates); an empty mountain returns the same object. */
 export function mineByHand(
@@ -113,10 +138,20 @@ export function mineByHand(
     mountain.remaining,
     effectiveRates(mountain, now, trouble).tapYield,
   );
+  return dug(mountain, mined);
+}
+
+/** Stones leave the mountain, and the band they came from drops its material. */
+function dug(mountain: Mountain, mined: number): Mountain {
+  const before = minedOut(mountain);
   return {
     ...mountain,
     remaining: mountain.remaining - mined,
     pocket: mountain.pocket + mined,
+    materials: addMaterials(
+      mountain.materials,
+      materialsGained(before, before + mined),
+    ),
   };
 }
 
@@ -177,11 +212,7 @@ export function accrue({
     return { mountain, mined: 0, settledAt };
   }
   return {
-    mountain: {
-      ...mountain,
-      remaining: mountain.remaining - mined,
-      pocket: mountain.pocket + mined,
-    },
+    mountain: dug(mountain, mined),
     mined,
     settledAt,
   };
@@ -305,6 +336,10 @@ export function parseMountain(
     engineers,
     expeditions,
     finds,
+    materials,
+    bench,
+    crafted,
+    recipes,
   } = value as Record<string, unknown>;
   if (
     !isCount(remaining) ||
@@ -324,7 +359,13 @@ export function parseMountain(
     (engineers !== undefined && parseEngineers(engineers) === undefined) ||
     (expeditions !== undefined &&
       parseExpeditions(expeditions, parseEngineers(engineers)) === undefined) ||
-    (finds !== undefined && parseFinds(finds) === undefined)
+    (finds !== undefined && parseFinds(finds) === undefined) ||
+    (materials !== undefined && parseMaterials(materials) === undefined) ||
+    (recipes !== undefined && parseRecipes(recipes) === undefined) ||
+    (bench !== undefined &&
+      bench !== null &&
+      parseBench(bench) === undefined) ||
+    (crafted !== undefined && parseCrafted(crafted) === undefined)
   ) {
     return undefined;
   }
@@ -348,6 +389,14 @@ export function parseMountain(
       ? undefined
       : parseExpeditions(expeditions, parsedEngineers);
   const parsedFinds = finds === undefined ? undefined : parseFinds(finds);
+  const parsedMaterials =
+    materials === undefined ? undefined : parseMaterials(materials);
+  const parsedRecipes =
+    recipes === undefined ? undefined : parseRecipes(recipes);
+  const parsedBench =
+    bench === undefined || bench === null ? undefined : parseBench(bench);
+  const parsedCrafted =
+    crafted === undefined ? undefined : parseCrafted(crafted);
   return {
     ...mountain,
     ...(parsedUpgrades === undefined || Object.keys(parsedUpgrades).length === 0
@@ -368,6 +417,12 @@ export function parseMountain(
     ...(parsedFinds === undefined || parsedFinds.length === 0
       ? {}
       : { finds: parsedFinds }),
+    ...(parsedMaterials === undefined ? {} : { materials: parsedMaterials }),
+    ...(parsedRecipes === undefined ? {} : { recipes: parsedRecipes }),
+    ...(parsedBench === undefined ? {} : { bench: parsedBench }),
+    ...(parsedCrafted === undefined || Object.keys(parsedCrafted).length === 0
+      ? {}
+      : { crafted: parsedCrafted }),
   };
 }
 

@@ -1,3 +1,4 @@
+import { EMPTY_MATERIALS } from "./layers";
 import { minedMountain } from "./test-fixtures";
 import {
   BASE_AWAY_CAP_MS,
@@ -16,6 +17,7 @@ import {
   minedOut,
   parseMountain,
 } from "./mountain";
+import { STARTING_RECIPE_IDS } from "./workshop";
 
 describe("mountain", () => {
   it("starts with a million stones, an empty pocket, and no helpers", () => {
@@ -29,6 +31,8 @@ describe("mountain", () => {
       machines: 0,
       kids: 0,
       staffed: 2,
+      materials: EMPTY_MATERIALS,
+      recipes: [...STARTING_RECIPE_IDS],
     });
     expect(minedOut(createMountain())).toBe(0);
   });
@@ -39,15 +43,9 @@ describe("mountain", () => {
       mountain = mineByHand(mountain);
     }
     expect(mountain).toEqual({
+      ...createMountain(),
       remaining: MOUNTAIN_STONES - 3,
       pocket: 3,
-      helpers: 0,
-      carts: 0,
-      drills: 0,
-      borers: 0,
-      machines: 0,
-      kids: 0,
-      staffed: 2,
     });
     expect(minedOut(mountain)).toBe(3);
   });
@@ -166,6 +164,122 @@ describe("mountain", () => {
       expect(parseMountain({ ...base, staffed })).toBeUndefined();
     }
   });
+
+  it("reads materials, recipes, a bench, and crafted gear, and rejects a bad shape", () => {
+    const base = {
+      remaining: 10,
+      pocket: 0,
+      helpers: 0,
+      carts: 0,
+      drills: 0,
+      borers: 0,
+      machines: 0,
+      kids: 0,
+    };
+    const materials = { clay: 1, iron: 2, crystal: 3, heartstone: 4 };
+    const recipes = ["iron-rails", "diamond-bits"] as const;
+    const bench = {
+      recipe: "iron-rails" as const,
+      startedAt: 10,
+      endsAt: 10 + 60_000,
+    };
+    const crafted = { "sturdy-props": 1 };
+    expect(
+      parseMountain({ ...base, materials, recipes, bench, crafted }),
+    ).toEqual({
+      ...base,
+      materials,
+      recipes,
+      bench,
+      crafted,
+    });
+    expect(parseMountain({ ...base, bench: null })).toEqual(base);
+    expect(parseMountain({ ...base, crafted: {} })).toEqual(base);
+    expect(
+      parseMountain({ ...base, materials: { ...materials, clay: 1.5 } }),
+    ).toBeUndefined();
+    expect(parseMountain({ ...base, recipes: ["nope"] })).toBeUndefined();
+    expect(
+      parseMountain({
+        ...base,
+        bench: { recipe: "iron-rails", startedAt: 5, endsAt: 5 },
+      }),
+    ).toBeUndefined();
+    expect(
+      parseMountain({ ...base, crafted: { "iron-rails": -1 } }),
+    ).toBeUndefined();
+  });
+});
+
+describe("materials from digging", () => {
+  it("pays a hand tap when the stones cross a gap", () => {
+    const mountain = {
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - 39_999,
+      pocket: 39_999,
+    };
+    const tapped = mineByHand(mountain);
+    expect(minedOut(tapped)).toBe(40_000);
+    expect(tapped.materials).toEqual({ ...EMPTY_MATERIALS, clay: 1 });
+    expect(tapped.pocket).toBe(40_000);
+  });
+
+  it("pays the same units live, away, and in small slices", () => {
+    const helpers = 2_000;
+    const stones = 12_000_000;
+    const mountain = { ...createMountain(), helpers };
+    const liveMs = (stones / helpers) * 1_000;
+    const awayMs = liveMs / AWAY_PAY_RATE;
+    const live = accrue({ mountain, from: 0, to: liveMs });
+    const away = accrue({ mountain, from: 0, to: awayMs, pay: AWAY_PAY_RATE });
+    const closed = accrueAway({ mountain, lastSeen: 0, now: awayMs });
+    const expected = {
+      clay: 250,
+      iron: 25,
+      crystal: 0,
+      heartstone: 0,
+    };
+    expect(live.mined).toBe(stones);
+    expect(away.mined).toBe(stones);
+    expect(closed.mined).toBe(stones);
+    expect(live.mountain.materials).toEqual(expected);
+    expect(away.mountain.materials).toEqual(expected);
+    expect(closed.mountain.materials).toEqual(expected);
+
+    let sliced = mountain;
+    let at = 0;
+    const slice = liveMs / 1_000;
+    for (let step = 0; step < 1_000; step += 1) {
+      const part = accrue({ mountain: sliced, from: at, to: at + slice });
+      sliced = part.mountain;
+      at = part.settledAt;
+    }
+    expect(minedOut(sliced)).toBe(stones);
+    expect(sliced.materials).toEqual(expected);
+  });
+
+  it("keeps the remainder, so one-stone digs match one dig", () => {
+    const start = {
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - 39_700,
+      pocket: 39_700,
+      helpers: 10,
+    };
+    let stepped = start;
+    let at = 0;
+    for (let step = 0; step < 30; step += 1) {
+      const part = accrue({ mountain: stepped, from: at, to: at + 1_000 });
+      stepped = part.mountain;
+      at = part.settledAt;
+    }
+    const once = accrue({ mountain: start, from: 0, to: 30_000 });
+    const away = accrueAway({ mountain: start, lastSeen: 0, now: 100_000 });
+    expect(once.mined).toBe(300);
+    expect(away.mined).toBe(300);
+    expect(stepped.materials).toEqual(once.mountain.materials);
+    expect(away.mountain.materials).toEqual(once.mountain.materials);
+    expect(once.mountain.materials?.clay).toBe(1);
+  });
 });
 
 describe("accrue", () => {
@@ -191,6 +305,7 @@ describe("accrue", () => {
         borers: 0,
         machines: 0,
         kids: 0,
+        materials: EMPTY_MATERIALS,
       },
       mined: 4,
       settledAt: 2_000,
@@ -231,6 +346,7 @@ describe("accrue", () => {
         borers: 0,
         machines: 0,
         kids: 0,
+        materials: { ...EMPTY_MATERIALS, heartstone: 1 },
       },
       mined: 3,
       settledAt: 10_500,

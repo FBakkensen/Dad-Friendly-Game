@@ -27,7 +27,14 @@ import {
   MAX_EXPEDITIONS,
   type Expedition,
 } from "../src/expeditions";
-import { createMountain, type Mountain } from "../src/mountain";
+import {
+  MOUNTAIN_STONES,
+  createMountain,
+  minedOut,
+  type Mountain,
+} from "../src/mountain";
+import { MAX_MATERIAL } from "../src/layers";
+import { MAX_CRAFTED_LEVEL, MAX_CRAFT_MS, RECIPE_IDS } from "../src/workshop";
 import { parseSaveValue, serializeSave } from "../src/persist";
 import { effectiveRates } from "../src/rates";
 import { UPGRADES } from "../src/upgrades";
@@ -279,10 +286,104 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     // A bad home, an extra key, a nonsense find, two trips for one name, or a
     // duplicate on the shelf are rejected by the parser. The rules expression
     // budget cannot check them on top of a full crew.
-    await expect(writeFinds(["turbo"])).rejects.toThrow(/permission/i);
+    // Unknown shelf ids are rejected by the parser. The rules cap the length.
+    await expect(writeFinds(["turbo"])).resolves.toBeUndefined();
+    const unknownShelf = await getDoc(doc(db, "saves", "dad"));
+    expect(parseSaveValue(unknownShelf.data())).toBeUndefined();
     await expect(
       writeFinds(new Array(FIND_IDS.length + 1).fill("lamp")),
     ).rejects.toThrow(/permission/i);
+  });
+
+  it("accepts a v6 workshop and rejects a bad shape (#195)", async () => {
+    const mountain = {
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - 60_000_000,
+      pocket: 60_000_000,
+      materials: { clay: 250, iron: 437, crystal: 93, heartstone: 0 },
+      recipes: [
+        "iron-rails",
+        "sturdy-props",
+        "blasting-charge",
+        "diamond-bits",
+      ] as const,
+      bench: {
+        recipe: "diamond-bits" as const,
+        startedAt: 1_000,
+        endsAt: 1_000 + MAX_CRAFT_MS,
+      },
+      crafted: { "iron-rails": 3, "crystal-lamp": 1 },
+    };
+    expect(await roundTrip(mountain)).toEqual(mountain);
+
+    const raw = serializeSave({ mountain, lastSeen: 1 });
+    const writeWorkshop = (workshop: unknown) =>
+      setDoc(doc(db, "saves", "dad"), { ...raw, workshop });
+    await expect(
+      writeWorkshop({ ...raw.workshop, bench: null }),
+    ).resolves.toBeUndefined();
+    await expect(writeWorkshop("pocket")).rejects.toThrow(/permission/i);
+    const { workshop, ...noWorkshop } = raw;
+    await expect(setDoc(doc(db, "saves", "dad"), noWorkshop)).rejects.toThrow(
+      /permission/i,
+    );
+    expect(workshop.materials.clay).toBe(250);
+    // Closed recipe ids, bench times, and crafted levels sit past the
+    // expression budget once a crew is saved. The parser rejects them.
+    for (const patch of [
+      { materials: { ...mountain.materials, gold: 1 } },
+      { materials: { ...mountain.materials, clay: -1 } },
+      { materials: { ...mountain.materials, clay: 1.5 } },
+      { materials: { ...mountain.materials, clay: MAX_MATERIAL.clay + 1 } },
+      { recipes: ["turbo"] },
+      { recipes: new Array(RECIPE_IDS.length + 1).fill("iron-rails") },
+      { bench: { recipe: "iron-rails", startedAt: 5, endsAt: 5 } },
+      {
+        bench: {
+          recipe: "iron-rails",
+          startedAt: 1,
+          endsAt: 1 + MAX_CRAFT_MS + 1,
+        },
+      },
+      { crafted: { "iron-rails": MAX_CRAFTED_LEVEL + 1 } },
+      { crafted: { turbo: 1 } },
+    ]) {
+      await expect(
+        writeWorkshop({ ...raw.workshop, ...patch }),
+      ).resolves.toBeUndefined();
+      const snap = await getDoc(doc(db, "saves", "dad"));
+      expect(parseSaveValue(snap.data())).toBeUndefined();
+    }
+    await expect(
+      setDoc(doc(db, "saves", "dad"), { ...raw, version: 7 }),
+    ).rejects.toThrow(/permission/i);
+  });
+
+  it("reads a v5 cloud document and grants the dug materials (#195)", async () => {
+    const stones = 12_000_000;
+    await setDoc(doc(db, "saves", "dad"), {
+      version: 5,
+      mountain: {
+        remaining: MOUNTAIN_STONES - stones,
+        pocket: stones,
+        helpers: 0,
+      },
+      lastSeen: 4,
+    });
+    const snap = await getDoc(doc(db, "saves", "dad"));
+    const parsed = parseSaveValue(snap.data());
+    expect(minedOut(parsed?.mountain ?? createMountain())).toBe(stones);
+    expect(parsed?.mountain.materials).toEqual({
+      clay: 250,
+      iron: 25,
+      crystal: 0,
+      heartstone: 0,
+    });
+    expect(parsed?.mountain.recipes).toEqual([
+      "iron-rails",
+      "sturdy-props",
+      "blasting-charge",
+    ]);
   });
 
   it("rejects unknown upgrades and levels past the top", async () => {

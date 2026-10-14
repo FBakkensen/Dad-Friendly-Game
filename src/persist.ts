@@ -1,9 +1,21 @@
+import { materialsFromMined, type Materials } from "./layers";
 import {
   MOUNTAIN_STONES,
   createMountain,
+  minedOut,
   parseMountain,
   type Mountain,
 } from "./mountain";
+import {
+  parseBench,
+  parseCrafted,
+  parseMaterials,
+  parseRecipes,
+  recipesForMined,
+  type Bench,
+  type Crafted,
+  type RecipeId,
+} from "./workshop";
 
 /** v3 saves were a 1,000,000-stone mountain. v4 placed that on 100,000,000. */
 const V3_MOUNTAIN_STONES = 1_000_000;
@@ -11,9 +23,17 @@ const V4_MOUNTAIN_STONES = 100_000_000;
 /** Frozen at the v4 depth so a v3 dad is not stretched again when the bottom moves. */
 const V3_SCALE = V4_MOUNTAIN_STONES / V3_MOUNTAIN_STONES;
 
-export type MountainSaveV5 = {
-  readonly version: 5;
+type WorkshopSave = {
+  readonly materials: Materials;
+  readonly recipes: readonly RecipeId[];
+  readonly bench?: Bench;
+  readonly crafted?: Crafted;
+};
+
+export type MountainSaveV6 = {
+  readonly version: 6;
   readonly mountain: Mountain;
+  readonly workshop: WorkshopSave;
   readonly lastSeen: number;
 };
 
@@ -28,9 +48,9 @@ export function serializeSave({
 }: {
   mountain: Mountain;
   lastSeen: number;
-}): MountainSaveV5 {
+}): MountainSaveV6 {
   return {
-    version: 5,
+    version: 6,
     mountain: {
       remaining: mountain.remaining,
       pocket: mountain.pocket,
@@ -66,14 +86,27 @@ export function serializeSave({
         ? {}
         : { finds: mountain.finds }),
     },
+    // One sibling of the mountain. Four extra document keys, or four extra
+    // mountain keys, push a full crew past the Firestore expression budget.
+    workshop: {
+      materials: mountain.materials ?? materialsFromMined(minedOut(mountain)),
+      ...(mountain.bench === undefined ? {} : { bench: mountain.bench }),
+      ...(mountain.crafted === undefined ||
+      Object.keys(mountain.crafted).length === 0
+        ? {}
+        : { crafted: mountain.crafted }),
+      recipes: mountain.recipes ?? recipesForMined(minedOut(mountain)),
+    },
     lastSeen,
   };
 }
 
 /**
- * Accepts v5 (240M mountain). A v4 save keeps every stone already mined and
- * gains the extra depth below the old bottom. v3 scales onto that same place.
- * Legacy v1/v2 3x3 grids still migrate.
+ * Accepts v6 (materials, bench, crafted, recipes). A v5 save keeps every
+ * stone already mined and is granted the materials those stones would have
+ * dug. v4 keeps that place and gains the depth below the old bottom. v3
+ * scales onto that same place. Legacy v1/v2 3x3 grids still migrate. v1
+ * through v5 all arrive as v6 in memory.
  */
 export function parseSaveValue(value: unknown): ParsedSave | undefined {
   if (typeof value !== "object" || value === null || !("version" in value)) {
@@ -85,32 +118,122 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
       const mountain = migrateLegacyGrid(record["grid"]);
       return mountain === undefined
         ? undefined
-        : { mountain, lastSeen: undefined };
+        : { mountain: grantFromStones(mountain), lastSeen: undefined };
     }
     case 2:
     case 3:
     case 4:
     case 5: {
+      const loaded = loadOlderMountain(record);
+      return loaded === undefined
+        ? undefined
+        : {
+            mountain: grantFromStones(loaded.mountain),
+            lastSeen: loaded.lastSeen,
+          };
+    }
+    case 6: {
       const lastSeen = record["lastSeen"];
       if (typeof lastSeen !== "number" || !Number.isFinite(lastSeen)) {
         return undefined;
       }
-      const mountain =
-        record["version"] === 2
-          ? migrateLegacyGrid(record["grid"])
-          : record["version"] === 3
-            ? scaleV3(parseMountain(record["mountain"], V3_MOUNTAIN_STONES))
-            : record["version"] === 4
-              ? deepen(
-                  parseMountain(record["mountain"], V4_MOUNTAIN_STONES),
-                  V4_MOUNTAIN_STONES,
-                )
-              : parseMountain(record["mountain"]);
-      return mountain === undefined ? undefined : { mountain, lastSeen };
+      const base = parseMountain(record["mountain"]);
+      const workshop = record["workshop"];
+      if (typeof workshop !== "object" || workshop === null) {
+        return undefined;
+      }
+      const sheet = workshop as Record<string, unknown>;
+      const materials = parseMaterials(sheet["materials"]);
+      const recipes = parseRecipes(sheet["recipes"]);
+      const bench = readBench(sheet["bench"]);
+      const crafted = readCrafted(sheet["crafted"]);
+      if (
+        base === undefined ||
+        materials === undefined ||
+        recipes === undefined ||
+        bench === "bad" ||
+        crafted === "bad"
+      ) {
+        return undefined;
+      }
+      return {
+        mountain: {
+          ...base,
+          materials,
+          recipes,
+          ...(bench === undefined ? {} : { bench }),
+          ...(crafted === undefined || Object.keys(crafted).length === 0
+            ? {}
+            : { crafted }),
+        },
+        lastSeen,
+      };
     }
     default:
       return undefined;
   }
+}
+
+/** `null` is an empty bench. Anything else must be one craft. */
+function readBench(value: unknown): Bench | undefined | "bad" {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  const bench = parseBench(value);
+  return bench === undefined ? "bad" : bench;
+}
+
+/** Missing means nothing crafted. An empty map is the same. */
+function readCrafted(value: unknown): Crafted | undefined | "bad" {
+  if (value === undefined) {
+    return undefined;
+  }
+  const crafted = parseCrafted(value);
+  return crafted === undefined ? "bad" : crafted;
+}
+
+function loadOlderMountain(
+  record: Record<string, unknown>,
+): { mountain: Mountain; lastSeen: number } | undefined {
+  const lastSeen = record["lastSeen"];
+  if (typeof lastSeen !== "number" || !Number.isFinite(lastSeen)) {
+    return undefined;
+  }
+  const mountain =
+    record["version"] === 2
+      ? migrateLegacyGrid(record["grid"])
+      : record["version"] === 3
+        ? scaleV3(parseMountain(record["mountain"], V3_MOUNTAIN_STONES))
+        : record["version"] === 4
+          ? deepen(
+              parseMountain(record["mountain"], V4_MOUNTAIN_STONES),
+              V4_MOUNTAIN_STONES,
+            )
+          : parseMountain(record["mountain"]);
+  return mountain === undefined ? undefined : { mountain, lastSeen };
+}
+
+/**
+ * What that digging would have earned. The bench is empty and nothing is
+ * crafted. Recipes are the starting three, plus the layer recipe for each
+ * band already reached. A materials field already on the document is not
+ * trusted: v1–v5 did not have one.
+ */
+function grantFromStones(mountain: Mountain): Mountain {
+  const kept = Object.fromEntries(
+    Object.entries(mountain).filter(
+      ([key]) =>
+        key !== "bench" &&
+        key !== "crafted" &&
+        key !== "materials" &&
+        key !== "recipes",
+    ),
+  ) as Mountain;
+  return {
+    ...kept,
+    materials: materialsFromMined(minedOut(mountain)),
+    recipes: recipesForMined(minedOut(mountain)),
+  };
 }
 
 const LEGACY_CELL_STONES = { covered: 0, dug: 0, stone: 1, chunk: 2 } as const;

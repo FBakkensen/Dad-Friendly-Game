@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Engineer } from "./engineers";
-import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
+import { materialsFromMined } from "./layers";
+import {
+  minedOut,
+  MOUNTAIN_STONES,
+  createMountain,
+  type Mountain,
+} from "./mountain";
 import { migrateLegacyGrid, parseSaveValue, serializeSave } from "./persist";
+import { recipesForMined, STARTING_RECIPE_IDS } from "./workshop";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 
 const covered = { kind: "covered" };
@@ -45,6 +52,19 @@ describe("serializeSave and parseSaveValue", () => {
         },
       ],
       finds: ["pick", "drawing"],
+      materials: { clay: 1, iron: 0, crystal: 0, heartstone: 0 },
+      bench: {
+        recipe: "iron-rails",
+        startedAt: 5,
+        endsAt: 5 + 60_000,
+      },
+      crafted: { "blasting-charge": 2 },
+      recipes: [
+        "iron-rails",
+        "sturdy-props",
+        "blasting-charge",
+        "crystal-lamp",
+      ],
     };
     expect(
       parseSaveValue(serializeSave({ mountain: everyField, lastSeen: 1 })),
@@ -111,7 +131,11 @@ describe("serializeSave and parseSaveValue", () => {
   it("round-trips a v4 mountain save", () => {
     const mountain = { ...minedMountain(42), helpers: 3 };
     const saved = serializeSave({ mountain, lastSeen: 1234 });
-    expect(saved).toEqual({ version: 5, mountain, lastSeen: 1234 });
+    expect(saved.version).toBe(6);
+    expect(saved.lastSeen).toBe(1234);
+    expect(saved.workshop.materials).toEqual(mountain.materials);
+    expect(saved.workshop.recipes).toEqual(mountain.recipes);
+    expect(saved.mountain).not.toHaveProperty("materials");
     expect(parseSaveValue(JSON.parse(JSON.stringify(saved)))).toEqual({
       mountain,
       lastSeen: 1234,
@@ -181,6 +205,8 @@ describe("serializeSave and parseSaveValue", () => {
         borers: 0,
         machines: 0,
         kids: 0,
+        materials: materialsFromMined(2_000_000),
+        recipes: recipesForMined(2_000_000),
       },
       lastSeen: 5,
     });
@@ -211,6 +237,8 @@ describe("serializeSave and parseSaveValue", () => {
       borers: 0,
       machines: 0,
       kids: 0,
+      materials: materialsFromMined(MOUNTAIN_STONES - base.remaining),
+      recipes: recipesForMined(MOUNTAIN_STONES - base.remaining),
     });
     expect(
       parseSaveValue({
@@ -225,6 +253,8 @@ describe("serializeSave and parseSaveValue", () => {
       borers: 0,
       machines: 0,
       kids: 0,
+      materials: materialsFromMined(MOUNTAIN_STONES - base.remaining),
+      recipes: recipesForMined(MOUNTAIN_STONES - base.remaining),
     });
     expect(
       parseSaveValue({
@@ -308,6 +338,8 @@ describe("serializeSave and parseSaveValue", () => {
         machines: 0,
         kids: 0,
         staffed: 2,
+        materials: materialsFromMined(4),
+        recipes: recipesForMined(4),
       },
       lastSeen: 99,
     });
@@ -332,7 +364,12 @@ describe("serializeSave and parseSaveValue", () => {
       },
       { version: 2, grid: legacyGrid([]) },
       { version: 2, grid: { width: 2, height: 2, cells: [] }, lastSeen: 1 },
-      { version: 6, mountain: createMountain(), lastSeen: 1 },
+      { version: 7, mountain: createMountain(), lastSeen: 1 },
+      {
+        version: 6,
+        mountain: { remaining: MOUNTAIN_STONES, pocket: 0, helpers: 0 },
+        lastSeen: 1,
+      },
     ]) {
       expect(parseSaveValue(bad)).toBeUndefined();
     }
@@ -344,15 +381,9 @@ describe("migrateLegacyGrid", () => {
     expect(
       migrateLegacyGrid(legacyGrid(Array.from({ length: 9 }, () => "chunk"))),
     ).toEqual({
+      ...createMountain(),
       remaining: MOUNTAIN_STONES - 9,
       pocket: 18,
-      helpers: 0,
-      carts: 0,
-      drills: 0,
-      borers: 0,
-      machines: 0,
-      kids: 0,
-      staffed: 2,
     });
   });
 
@@ -395,6 +426,199 @@ describe("the staffing mark", () => {
         }),
       ).toBeUndefined();
     }
+  });
+});
+
+describe("v6 materials back-grant (#195)", () => {
+  const dug = (stones: number): Mountain => ({
+    remaining: MOUNTAIN_STONES - stones,
+    pocket: stones,
+    helpers: 1,
+    carts: 0,
+    drills: 0,
+    borers: 0,
+    machines: 0,
+    kids: 0,
+  });
+
+  it("fills materials and recipes when a mountain has none yet", () => {
+    const bare = dug(40_000);
+    const saved = serializeSave({ mountain: bare, lastSeen: 1 });
+    expect(saved.version).toBe(6);
+    expect(saved.workshop.materials).toEqual({
+      clay: 1,
+      iron: 0,
+      crystal: 0,
+      heartstone: 0,
+    });
+    expect(saved.workshop.recipes).toEqual([...STARTING_RECIPE_IDS]);
+    expect(saved.workshop.bench).toBeUndefined();
+    expect(saved.mountain).not.toHaveProperty("materials");
+  });
+
+  it("treats a null bench as empty and rejects a bad workshop", () => {
+    const saved = serializeSave({ mountain: createMountain(), lastSeen: 1 });
+    expect(
+      parseSaveValue({
+        ...saved,
+        workshop: { ...saved.workshop, bench: null },
+      })?.mountain.bench,
+    ).toBeUndefined();
+    expect(
+      parseSaveValue({
+        ...saved,
+        workshop: { ...saved.workshop, crafted: {} },
+      })?.mountain.crafted,
+    ).toBeUndefined();
+    for (const workshop of [
+      null,
+      { materials: saved.workshop.materials },
+      { ...saved.workshop, bench: { recipe: "nope" } },
+      { ...saved.workshop, crafted: { turbo: 1 } },
+    ]) {
+      expect(parseSaveValue({ ...saved, workshop })).toBeUndefined();
+    }
+  });
+
+  it("trusts a v6 pocket and does not grant again", () => {
+    const mountain = {
+      ...dug(12_000_000),
+      materials: { clay: 1, iron: 0, crystal: 0, heartstone: 0 },
+      recipes: [...STARTING_RECIPE_IDS],
+      bench: {
+        recipe: "iron-rails" as const,
+        startedAt: 10,
+        endsAt: 10 + 60_000,
+      },
+      crafted: { "iron-rails": 1 },
+    };
+    expect(
+      parseSaveValue(serializeSave({ mountain, lastSeen: 2 }))?.mountain,
+    ).toEqual(mountain);
+    const { recipes, ...noRecipes } = createMountain();
+    expect(recipes).toEqual([...STARTING_RECIPE_IDS]);
+    expect(
+      parseSaveValue({ version: 6, mountain: noRecipes, lastSeen: 1 }),
+    ).toBeUndefined();
+    const { materials, ...noMaterials } = createMountain();
+    expect(materials?.clay).toBe(0);
+    expect(
+      parseSaveValue({
+        version: 6,
+        mountain: { ...noMaterials, recipes: [...STARTING_RECIPE_IDS] },
+        lastSeen: 1,
+      }),
+    ).toBeUndefined();
+    expect(
+      parseSaveValue({
+        version: 6,
+        mountain: createMountain(),
+        lastSeen: Number.NaN,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("loads a fresh save, a 12M save, and a 60M save with the dug materials", () => {
+    const fresh = parseSaveValue({
+      version: 5,
+      mountain: dug(0),
+      lastSeen: 1,
+    });
+    const twelve = parseSaveValue({
+      version: 5,
+      mountain: dug(12_000_000),
+      lastSeen: 1,
+    });
+    const sixty = parseSaveValue({
+      version: 5,
+      mountain: dug(60_000_000),
+      lastSeen: 1,
+    });
+    expect(fresh?.mountain.materials).toEqual({
+      clay: 0,
+      iron: 0,
+      crystal: 0,
+      heartstone: 0,
+    });
+    expect(fresh?.mountain.recipes).toEqual([...STARTING_RECIPE_IDS]);
+    expect(minedOut(fresh?.mountain ?? dug(0))).toBe(0);
+    expect(twelve?.mountain.materials).toEqual({
+      clay: 250,
+      iron: 25,
+      crystal: 0,
+      heartstone: 0,
+    });
+    expect(twelve?.mountain.recipes).toEqual([...STARTING_RECIPE_IDS]);
+    expect(twelve?.mountain.bench).toBeUndefined();
+    expect(twelve?.mountain.crafted).toBeUndefined();
+    expect(minedOut(twelve?.mountain ?? dug(0))).toBe(12_000_000);
+    expect(sixty?.mountain.materials).toEqual({
+      clay: 250,
+      iron: 437,
+      crystal: 93,
+      heartstone: 0,
+    });
+    expect(sixty?.mountain.recipes).toEqual([
+      ...STARTING_RECIPE_IDS,
+      "diamond-bits",
+    ]);
+    expect(minedOut(sixty?.mountain ?? dug(0))).toBe(60_000_000);
+  });
+
+  it("keeps stones mined from v1 through v5, local or cloud, and grants from them", () => {
+    const grid = {
+      width: 3,
+      height: 3,
+      cells: Array.from({ length: 9 }, () => ({ kind: "covered" })),
+    };
+    const cases = [
+      parseSaveValue({ version: 1, grid }),
+      parseSaveValue({ version: 2, grid, lastSeen: 8 }),
+      parseSaveValue({
+        version: 3,
+        mountain: { remaining: 980_000, pocket: 4, helpers: 1 },
+        lastSeen: 8,
+      }),
+      parseSaveValue({
+        version: 4,
+        mountain: { remaining: 88_000_000, pocket: 9, helpers: 2 },
+        lastSeen: 8,
+      }),
+      parseSaveValue({ version: 5, mountain: dug(60_000_000), lastSeen: 8 }),
+    ];
+    const mined = [0, 0, 2_000_000, 12_000_000, 60_000_000];
+    for (const [index, save] of cases.entries()) {
+      const stones = mined[index] ?? -1;
+      expect(save).toBeDefined();
+      expect(minedOut(save?.mountain ?? dug(0))).toBe(stones);
+      expect(save?.mountain.materials).toEqual(materialsFromMined(stones));
+      expect(save?.mountain.recipes).toEqual(recipesForMined(stones));
+      expect(save?.mountain).not.toHaveProperty("layer");
+    }
+    const tampered = parseSaveValue({
+      version: 5,
+      mountain: {
+        ...dug(12_000_000),
+        materials: { clay: 1, iron: 0, crystal: 0, heartstone: 0 },
+        bench: {
+          recipe: "iron-rails",
+          startedAt: 1,
+          endsAt: 2,
+        },
+        crafted: { "iron-rails": 3 },
+        recipes: ["crystal-lamp"],
+      },
+      lastSeen: 3,
+    });
+    expect(tampered?.mountain.materials).toEqual({
+      clay: 250,
+      iron: 25,
+      crystal: 0,
+      heartstone: 0,
+    });
+    expect(tampered?.mountain.recipes).toEqual([...STARTING_RECIPE_IDS]);
+    expect(tampered?.mountain.bench).toBeUndefined();
+    expect(tampered?.mountain.crafted).toBeUndefined();
   });
 });
 

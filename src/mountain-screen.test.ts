@@ -1027,7 +1027,7 @@ describe("start over", () => {
       mountain: { startedAt?: unknown };
     };
     expect(saved).toMatchObject({
-      version: 5,
+      version: 6,
       mountain: {
         remaining: 240_000_000,
         pocket: 0,
