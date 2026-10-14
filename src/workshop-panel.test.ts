@@ -86,6 +86,45 @@ function granite(): Mountain {
 }
 
 describe("workshop panel (#199)", () => {
+  it("shows a craft this build cannot name and will not replace it", () => {
+    const clock = 1_700_000_000_000;
+    const screen = mount(() => clock);
+    screen.progress.applyMutation(() => ({
+      ...granite(),
+      pocket: 80_000_000,
+      materials: { clay: 40, iron: 40, crystal: 0, heartstone: 0 },
+      kept: {
+        bench: {
+          recipe: "future-bit",
+          startedAt: clock,
+          endsAt: clock + 8 * 60_000,
+        },
+      },
+    }));
+    screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+    expect(
+      screen.root.querySelector(".workshop-open")?.textContent,
+    ).toContain("Workshop · 8:00");
+    screen.root.querySelector<HTMLButtonElement>(".workshop-open")?.click();
+    const sheet = screen.root.querySelector(".workshop-dialog");
+    expect(sheet?.textContent).toContain(
+      "Something is on the bench · 8:00 left",
+    );
+    expect(sheet?.textContent).toContain("It keeps working while you rest.");
+    expect(
+      sheet?.querySelector<HTMLButtonElement>(".workshop-cancel")?.hidden,
+    ).toBe(true);
+    expect(sheet?.querySelector<HTMLElement>(".workshop-bar")?.hidden).toBe(
+      false,
+    );
+    sheet?.querySelector<HTMLButtonElement>(".workshop-craft")?.click();
+    expect(screen.progress.getSnapshot().mountain.bench).toBeUndefined();
+    expect(screen.progress.getSnapshot().mountain.kept?.bench?.recipe).toBe(
+      "future-bit",
+    );
+    screen.root.remove();
+  });
+
   it("stays a locked silhouette until the Granite, then crafts for real", () => {
     window.matchMedia = (() => ({
       matches: false,
