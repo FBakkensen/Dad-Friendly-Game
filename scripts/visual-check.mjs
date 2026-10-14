@@ -883,7 +883,7 @@ for (const viewport of [
 ]) {
   const label = `${String(viewport[0])}x${String(viewport[1])}`;
   const { page, close } = await open(viewport, {
-    version: 4,
+    version: 5,
     mountain: {
       remaining: 0,
       pocket: 0,
@@ -924,13 +924,14 @@ for (const viewport of [
 }
 
 // Mantle of the Hero: reveal, then the Legend finale over the game (#103).
+// Version 5: one stone left on the 240M mountain, so the tap finds the Mantle.
 for (const viewport of [
   [360, 560],
   [390, 844],
 ]) {
   const label = `${String(viewport[0])}x${String(viewport[1])}`;
   const { page, close } = await open(viewport, {
-    version: 4,
+    version: 5,
     mountain: {
       remaining: 1,
       pocket: 0,
@@ -972,7 +973,7 @@ for (const viewport of [
 ]) {
   const label = `${String(viewport[0])}x${String(viewport[1])}`;
   const { page, close } = await open(viewport, {
-    version: 4,
+    version: 5,
     mountain: {
       remaining: 1,
       pocket: 0,

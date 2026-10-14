@@ -136,7 +136,7 @@ describe("mountMountainScreen", () => {
   it("shows a hundred million stones and mines one per tap", () => {
     const screen = mountScreen();
 
-    expect(screen.text(".stones-left")).toBe("100 million stones left");
+    expect(screen.text(".stones-left")).toBe("240 million stones left");
     expect(screen.text(".pocket")).toBe("0 stones");
     expect(screen.text(".goal")).toContain("Legendary Relics of Fatherhood");
     expect(screen.text(".save-status")).toBe("Sign in to save");
@@ -144,7 +144,7 @@ describe("mountMountainScreen", () => {
     screen.mountain.click();
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe("99,999,999 of 100,000,000");
+    ).toBe("239,999,999 of 240,000,000");
     expect(screen.text(".pocket")).toBe("1 stone");
     expect(screen.text(".save-status")).toBe("Saved on this device");
 
@@ -152,7 +152,7 @@ describe("mountMountainScreen", () => {
     expect(screen.text(".pocket")).toBe("2 stones");
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe("99,999,998 of 100,000,000");
+    ).toBe("239,999,998 of 240,000,000");
   });
 
   it("keeps guest progress after the page is opened again", () => {
@@ -192,7 +192,7 @@ describe("mountMountainScreen", () => {
     expect(screen.text(".pocket")).toBe("3 stones");
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe("99,999,997 of 100,000,000");
+    ).toBe("239,999,997 of 240,000,000");
   });
 
   it("disables the mountain once it is mined out", () => {
@@ -209,7 +209,7 @@ describe("mountMountainScreen", () => {
     };
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 4, mountain: done, lastSeen: 1 }),
+      JSON.stringify({ version: 5, mountain: done, lastSeen: 1 }),
     );
 
     const screen = mountScreen({ storage });
@@ -369,9 +369,9 @@ describe("crew tiers on screen", () => {
     expect(grid?.classList.contains("tier-grid-compact")).toBe(true);
     const borer = tierCard(screen.root, "borer");
     expect(borer.querySelector(".tier-name")?.textContent).toBe("Borer");
-    // The first borer's engineer tends them: 350 becomes 385.
+    // The first borer's engineer tends them: 595 becomes 654.5, shown floored.
     expect(borer.querySelector(".tier-rate")?.textContent).toBe(
-      "+385\u2009·\u2009770/s",
+      "+654\u2009·\u20091,309/s",
     );
     expect(borer.querySelector(".tier-count")?.textContent).toBe("×2");
     expect(borer.getAttribute("aria-label")).toContain("tunnel borer");
@@ -415,7 +415,7 @@ describe("crew tiers on screen", () => {
       storage,
       mountain: {
         ...minedMountain(25_000_000),
-        pocket: 51_000_000,
+        pocket: 68_000_000,
         drills: 1,
         borers: 1,
       },
@@ -425,7 +425,7 @@ describe("crew tiers on screen", () => {
     const machine = tierCard(screen.root, "machine");
     expect(machine.classList.contains("tier-locked")).toBe(false);
     expect(machine.disabled).toBe(false);
-    expect(machine.querySelector(".tier-cost")?.textContent).toBe("50M");
+    expect(machine.querySelector(".tier-cost")?.textContent).toBe("67M");
     machine.click();
     expect(machine.querySelector(".tier-count")?.textContent).toBe("×1");
     expect(screen.text(".pocket")).toBe("1 million stones");
@@ -453,7 +453,7 @@ describe("crew tiers on screen", () => {
       storage.setItem(
         SESSION_SAVE_KEY,
         JSON.stringify({
-          version: 4,
+          version: 5,
           mountain: minedMountain(19),
           lastSeen: Date.now(),
         }),
@@ -506,7 +506,7 @@ describe("crew tiers on screen", () => {
       storage.setItem(
         SESSION_SAVE_KEY,
         JSON.stringify({
-          version: 4,
+          version: 5,
           mountain: { ...minedMountain(100), helpers: 1 },
           lastSeen: Date.now(),
         }),
@@ -540,9 +540,9 @@ describe("crew tiers on screen", () => {
     storage.setItem(
       SESSION_SAVE_KEY,
       JSON.stringify({
-        version: 4,
+        version: 5,
         mountain: {
-          remaining: 100_000_000,
+          remaining: 240_000_000,
           pocket: 0,
           helpers: 4,
           carts: 0,
@@ -581,9 +581,9 @@ describe("crew tiers on screen", () => {
     storage.setItem(
       SESSION_SAVE_KEY,
       JSON.stringify({
-        version: 4,
+        version: 5,
         mountain: {
-          remaining: 100_000_000,
+          remaining: 240_000_000,
           pocket: 0,
           helpers: 1,
           carts: 0,
@@ -780,7 +780,7 @@ describe("Lantern of Guidance on screen", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 4, mountain, lastSeen }),
+      JSON.stringify({ version: 5, mountain, lastSeen }),
     );
     return storage;
   };
@@ -855,7 +855,7 @@ describe("relic shelf", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 4, mountain, lastSeen: Date.now() }),
+      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
     );
     return storage;
   };
@@ -941,7 +941,7 @@ describe("start over", () => {
     storage.setItem(
       SESSION_SAVE_KEY,
       JSON.stringify({
-        version: 4,
+        version: 5,
         mountain: {
           ...minedMountain(12_000_000),
           helpers: 4,
@@ -1012,7 +1012,7 @@ describe("start over", () => {
     expect(screen.root.querySelector<HTMLElement>(".start-over")?.hidden).toBe(
       true,
     );
-    expect(screen.text(".stones-left")).toBe("100 million stones left");
+    expect(screen.text(".stones-left")).toBe("240 million stones left");
     expect(screen.text(".pocket")).toBe("0 stones");
     expect(screen.text(".crew-status")).toBe(
       "No crew yet. Hire a worker to mine for you.",
@@ -1027,9 +1027,9 @@ describe("start over", () => {
       mountain: { startedAt?: unknown };
     };
     expect(saved).toMatchObject({
-      version: 4,
+      version: 5,
       mountain: {
-        remaining: 100_000_000,
+        remaining: 240_000_000,
         pocket: 0,
         helpers: 0,
         carts: 0,
@@ -1261,7 +1261,7 @@ describe("what the crew gives", () => {
     storage.setItem(
       SESSION_SAVE_KEY,
       JSON.stringify({
-        version: 4,
+        version: 5,
         mountain: {
           ...minedMountain(2_500),
           helpers: 4,
@@ -1396,7 +1396,11 @@ describe("upgrades on screen", () => {
   it("opens the sheet from beside the pocket, buys Strong arms, and taps harder", () => {
     setReducedMotion(false);
     const screen = mountScreen({
-      storage: seededWith({ ...minedMountain(30_000), helpers: 500 }),
+      storage: seededWith({
+        ...minedMountain(30_000),
+        helpers: 500,
+        pocket: 250_000,
+      }),
     });
     document.body.append(screen.root);
     const button = screen.root.querySelector<HTMLButtonElement>(
@@ -1423,7 +1427,7 @@ describe("upgrades on screen", () => {
     const buy = screen.root.querySelector<HTMLButtonElement>(
       '[data-upgrade="tap"] .upgrade-buy',
     );
-    expect(buy?.textContent).toBe("Buy for 5,000 stones");
+    expect(buy?.textContent).toBe("Buy for 40 thousand stones");
     buy?.click();
     expect(screen.text('[data-upgrade="tap"] .upgrade-name')).toBe(
       "Strong arms · level 1 of 10",
@@ -1431,7 +1435,7 @@ describe("upgrades on screen", () => {
     expect(screen.text('[data-upgrade="tap"] .upgrade-now')).toBe(
       "Each tap now mines 6.",
     );
-    expect(buy?.textContent).toBe("Buy for 25 thousand stones");
+    expect(buy?.textContent).toBe("Buy for 200 thousand stones");
     expect(buy?.disabled).toBe(false);
 
     screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
@@ -1494,7 +1498,7 @@ describe("quick boosts on screen", () => {
         "Sharper picks",
       );
       // 60 taps of 1 stone, but never under the 100-stone floor.
-      expect(buy?.textContent).toBe("Buy for 100 stones");
+      expect(buy?.textContent).toBe("Buy for 120 stones");
       buy?.click();
       expect(buy?.disabled).toBe(true);
       expect(buy?.textContent).toBe("Running · 10:00 left");
@@ -1550,7 +1554,7 @@ describe("lasting upgrades on screen", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(30_000), helpers: 9 },
+      mountain: { ...minedMountain(30_000), pocket: 100_000, helpers: 9 },
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
@@ -1570,7 +1574,7 @@ describe("lasting upgrades on screen", () => {
     screen.root
       .querySelector<HTMLButtonElement>('[data-tier="helper"]')
       ?.click();
-    expect(boots?.textContent).toBe("Buy for 15 thousand stones");
+    expect(boots?.textContent).toBe("Buy for 90 thousand stones");
     expect(screen.text('[data-upgrade="boots"] .upgrade-now')).toBe(
       "Each worker now mines 1/s.",
     );
@@ -1669,7 +1673,12 @@ describe("crew synergies on screen", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(1_000_000), helpers: 12, carts: 5 },
+      mountain: {
+        ...minedMountain(1_000_000),
+        pocket: 2_000_000,
+        helpers: 12,
+        carts: 5,
+      },
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
@@ -1774,7 +1783,7 @@ describe("crew staffing on screen", () => {
     const screen = mountScreen({ storage });
     const borer = screen.root.querySelector('[data-tier="borer"]');
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+350/s · needs workers",
+      "+595/s · needs workers",
     );
     expect(borer?.getAttribute("aria-label")).toContain(NEEDS_MORE_WORKERS);
     expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
@@ -1906,7 +1915,7 @@ describe("first engineer note (#144)", () => {
       screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
     ).toBe(true);
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+385\u2009·\u2009385/s",
+      "+654\u2009·\u2009654/s",
     );
   });
 
@@ -1950,7 +1959,7 @@ describe("first engineer note (#144)", () => {
     ).toBe(true);
     expect(screen.text('[data-tier="borer"] .tier-count')).toBe("×1");
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+385\u2009·\u2009385/s",
+      "+654\u2009·\u2009654/s",
     );
     expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×11");
   });
@@ -2026,7 +2035,7 @@ describe("crew line at a big crew", () => {
     });
     const screen = mountScreen({ storage });
     expect(screen.text(".crew-status")).toMatch(
-      /^Your crew mines [\d,]+ stones\/s$/,
+      /^Your crew mines [\d,.]+K? stones\/s$/,
     );
   });
 });
@@ -2036,7 +2045,7 @@ describe("Mantle of the Hero finale (#103)", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 4, mountain, lastSeen: Date.now() }),
+      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
     );
     return storage;
   };
@@ -2059,7 +2068,7 @@ describe("Mantle of the Hero finale (#103)", () => {
     expect(legend?.hidden).toBe(false);
     expect(screen.text("#legend-title")).toBe("You became a Legend");
     expect(screen.text(".legend-stats")).toBe(
-      "100 million stones moved. Six relics found. A crew of 40 beside you.",
+      "240 million stones moved. Six relics found. A crew of 40 beside you.",
     );
     expect(legend?.querySelectorAll(".legend-shelf img")).toHaveLength(6);
     expect(document.activeElement).toBe(
@@ -2085,7 +2094,7 @@ describe("relic powers on the cards (shelf detail)", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 4, mountain, lastSeen: Date.now() }),
+      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
     );
     return storage;
   };
@@ -2199,7 +2208,7 @@ describe("pass the mine to your kid (#131)", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 4, mountain, lastSeen: Date.now() }),
+      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
     );
     return storage;
   };
@@ -2236,7 +2245,7 @@ describe("pass the mine to your kid (#131)", () => {
       ?.click();
 
     expect(dialog(screen)?.hidden).toBe(true);
-    expect(screen.text(".stones-left")).toBe("100 million stones left");
+    expect(screen.text(".stones-left")).toBe("240 million stones left");
     expect(screen.text(".pocket")).toBe("0 stones");
     const badge = screen.root.querySelector<HTMLElement>(".legacy-badge");
     expect(badge?.hidden).toBe(false);
@@ -2304,8 +2313,9 @@ describe("player-facing workers (#139)", () => {
     writeSessionSave({
       storage,
       mountain: {
-        // One stone short of the Crown. Away pay reaches the bottom, so the
-        // welcome card, the Crown's power, and the Legend finale all render.
+        // One stone short of the Crown. 23.5h of Shield away pay (under the
+        // 24h cap) reaches the 240M bottom, so the welcome card, the Crown,
+        // and the Legend finale all render.
         ...minedMountain(69_999_999),
         pocket: 80_000_000,
         helpers: 30,
@@ -2315,7 +2325,7 @@ describe("player-facing workers (#139)", () => {
         kids: 1,
         upgrades: { boots: 1, steady: 1, cartSyn: 1, tap: 2 },
       },
-      lastSeen: Date.now() - 20 * 3_600_000,
+      lastSeen: Date.now() - 23.5 * 3_600_000,
     });
     const screen = mountScreen({ storage });
     document.body.append(screen.root);
@@ -2437,13 +2447,13 @@ describe("trouble on a tier card (#149)", () => {
       new PointerEvent("pointerdown", { bubbles: true, button: 2 }),
     );
     expect(screen.text(".crew-status")).toBe(
-      "Your crew mines 432 stones a second",
+      "Your crew mines 677 stones a second",
     );
     screen.progress.previewTrouble("cart");
     expect(cart.dataset["trouble"]).toBe("cave-in");
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe("Cave-in!");
     expect(screen.text(".crew-status")).toBe(
-      "Your crew mines 429 stones a second",
+      "Your crew mines 674 stones a second",
     );
     expect(cart.getAttribute("aria-label")).toBe(
       troubleAria("cave-in", tierById("cart")),
@@ -2460,7 +2470,7 @@ describe("trouble on a tier card (#149)", () => {
     expect(screen.progress.getSnapshot().mountain.carts).toBe(1);
     expect(screen.progress.getSnapshot().trouble).toBeUndefined();
     expect(screen.text(".crew-status")).toBe(
-      "Your crew mines 432 stones a second",
+      "Your crew mines 677 stones a second",
     );
     expect(cart.querySelector(".trouble-burst")).toBeNull();
   });
@@ -2643,7 +2653,7 @@ describe("engineers sheet (#145)", () => {
     );
     expect(borer?.getAttribute("aria-label")).toContain("Ada tends them.");
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+385\u2009·\u2009385/s",
+      "+654\u2009·\u2009654/s",
     );
 
     const sheet = openSheet(screen.root);
@@ -2657,7 +2667,7 @@ describe("engineers sheet (#145)", () => {
       "Apprentice",
     );
     expect(ada?.textContent).toContain(
-      "Ada is tending the borers: +35 stones/sec.",
+      "Ada is tending the borers: +59 stones/sec.",
     );
     expect(ada?.querySelector(".engineer-doing")?.textContent).not.toMatch(
       /\?|%/,
@@ -2705,7 +2715,7 @@ describe("engineers sheet (#145)", () => {
       true,
     );
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+350\u2009·\u2009350/s",
+      "+595\u2009·\u2009595/s",
     );
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
       "+11\u2009·\u200911/s",
@@ -3177,7 +3187,7 @@ describe("side tunnels (#147)", () => {
     recall?.click();
     sheet.querySelector<HTMLButtonElement>(".recall-yes")?.click();
     expect(screen.text(".engineer-doing")).toBe(
-      "Ada is tending the borers: +35 stones/sec.",
+      "Ada is tending the borers: +59 stones/sec.",
     );
     expect(screen.text(".engineer-toast")).toBe("Ada is home, empty-handed.");
     expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
@@ -3340,17 +3350,17 @@ describe("side tunnels (#147)", () => {
     });
     const screen = mountScreen({ storage });
     expect(screen.text('[data-tier="borer"] .engineer-gain')).toBe(
-      "+35 stones/sec",
+      "+59 stones/sec",
     );
     expect(
       screen.root
         .querySelector('[data-tier="borer"]')
         ?.getAttribute("aria-label"),
-    ).toContain("+35 stones/sec");
+    ).toContain("+59 stones/sec");
     const sheet = openSheet(screen.root);
     sheet.querySelector<HTMLButtonElement>(".engineer-tend")?.click();
     expect(sheet.textContent).toContain(
-      "+35 stones/sec. They dig faster, and she clears any jam herself.",
+      "+59 stones/sec. They dig faster, and she clears any jam herself.",
     );
     expect(sheet.textContent).toContain("None built yet. ");
     expect(sheet.textContent).not.toContain("+0 stones/sec");
@@ -3358,9 +3368,9 @@ describe("side tunnels (#147)", () => {
       .querySelector<HTMLButtonElement>('[data-tier="borer"]')
       ?.click();
     expect(screen.text('[data-tier="borer"] .engineer-gain')).toBe(
-      "+70 stones/sec",
+      "+119 stones/sec",
     );
-    expect(sheet.textContent).toContain("+70 stones/sec");
+    expect(sheet.textContent).toContain("+119 stones/sec");
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
     expect(screen.text('[data-boost="sharper"] .upgrade-effect')).toContain(
       "a tap",

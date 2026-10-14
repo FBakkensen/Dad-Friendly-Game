@@ -26,9 +26,9 @@ describe("tiers", () => {
     ).toEqual([
       ["helper", 20, 1],
       ["cart", 100, 10],
-      ["drill", 20_000, 60],
-      ["borer", 10_000_000, 350],
-      ["machine", 50_000_000, 3_500],
+      ["drill", 14_000, 60],
+      ["borer", 9_000_000, 595],
+      ["machine", 67_000_000, 3_500],
       ["kid", 1_000_000, 1],
     ]);
     expect(tierById("machine").needs).toBe("hammer");
@@ -52,7 +52,11 @@ describe("tiers", () => {
       100, 200, 400,
     ]);
     expect([0, 1].map((n) => tierCost(tierById("machine"), n))).toEqual([
-      50_000_000, 100_000_000,
+      67_000_000, 134_000_000,
+    ]);
+    // #177: borers climb at ×1.5 so a second and third stay buyable.
+    expect([0, 1, 2].map((n) => tierCost(tierById("borer"), n))).toEqual([
+      9_000_000, 13_500_000, 20_250_000,
     ]);
   });
 
@@ -76,11 +80,11 @@ describe("tiers", () => {
       machines: 1,
       kids: 0,
     });
-    expect(stonesPerSecond(crew)).toBe(38 + 20 + 60 + 350 + 3_500);
+    expect(stonesPerSecond(crew)).toBe(38 + 20 + 60 + 595 + 3_500);
     expect(
       accrue({ mountain: { ...crew, remaining: 10_000 }, from: 0, to: 1_000 })
         .mined,
-    ).toBe(3_968);
+    ).toBe(4_213);
   });
 
   it("shows each tier once the one before it is owned", () => {
@@ -129,7 +133,7 @@ describe("crew staffing", () => {
       cart: 0,
     });
     expect(rates.helpersShort).toBe(3);
-    expect(rates.crewPerSecond).toBe(11 + 60 + 350);
+    expect(rates.crewPerSecond).toBe(11 + 60 + 595);
   });
 
   it("idles a machine rather than half-run it, and away pay agrees", () => {
@@ -169,6 +173,6 @@ describe("Crown of Wisdom: kid helpers", () => {
     expect(rates.tierSpeed.kid).toBeCloseTo(1.1);
     expect(rates.running).toMatchObject({ borer: 1, drill: 1, cart: 1 });
     expect(rates.helpersShort).toBe(0);
-    expect(rates.crewPerSecond).toBe(Math.floor(15 * 1.1 + 10 + 60 + 350));
+    expect(rates.crewPerSecond).toBe(Math.floor(15 * 1.1 + 10 + 60 + 595));
   });
 });

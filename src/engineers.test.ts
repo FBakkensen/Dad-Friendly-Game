@@ -268,7 +268,7 @@ describe("tending", () => {
       ],
     };
     expect(tendingTenths(both, "borer")).toBe(3);
-    expect(effectiveRates(both).tierSpeed.borer).toBe(350 * 1.3);
+    expect(effectiveRates(both).tierSpeed.borer).toBe(595 * 1.3);
   });
 });
 

@@ -15,15 +15,16 @@ const crew = { ...minedMountain(0), helpers: 500, pocket: 1_000_000 }; // 500/s
 
 describe("quick boosts", () => {
   it("are priced from what they boost, with a floor for new dads", () => {
-    // Sharper picks: 60 taps' worth. Overtime: 3 minutes of the crew.
+    // Sharper picks: 120 taps' worth. Overtime: 3 minutes of the crew.
     const pricing = {
       crewPerSecond: 500,
       tapYield: 1_000,
     };
-    expect(boostCost(boostById("sharper"), pricing)).toBe(60_000);
+    expect(boostCost(boostById("sharper"), pricing)).toBe(120_000);
     expect(boostCost(boostById("overtime"), pricing)).toBe(90_000);
     const fresh = { crewPerSecond: 0, tapYield: 1 };
-    expect(boostCost(boostById("sharper"), fresh)).toBe(100);
+    // 120 taps of one stone is already above the 100-stone floor.
+    expect(boostCost(boostById("sharper"), fresh)).toBe(120);
     expect(boostCost(boostById("overtime"), fresh)).toBe(500);
   });
 
@@ -83,7 +84,7 @@ describe("quick boosts", () => {
       now: 1_000,
       pricing: { crewPerSecond: 500, tapYield: 500 },
     });
-    expect(sharp.pocket).toBe(970_000); // 60 taps × 500
+    expect(sharp.pocket).toBe(940_000); // 120 taps × 500
     expect(sharp.boosts).toEqual({ sharper: 1_000 + 10 * MIN });
     expect(boostLeft(sharp, "sharper", 1_000 + 4 * MIN)).toBe(6 * MIN);
     // Already running: can't stack or restart.

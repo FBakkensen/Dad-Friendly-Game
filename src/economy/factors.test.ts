@@ -35,15 +35,15 @@ describe("economy factors", () => {
   });
 
   it("scales a sticker, then puts the old prices back", () => {
-    expect(tierCost(tierById("borer"), 0)).toBe(10_000_000);
+    expect(tierCost(tierById("borer"), 0)).toBe(9_000_000);
     withFactors({ "price.borer": 2 }, () => {
-      expect(tierCost(tierById("borer"), 0)).toBe(20_000_000);
+      expect(tierCost(tierById("borer"), 0)).toBe(18_000_000);
       withFactors({ "price.borer": 3 }, () => {
-        expect(tierCost(tierById("borer"), 0)).toBe(30_000_000);
+        expect(tierCost(tierById("borer"), 0)).toBe(27_000_000);
       });
-      expect(tierCost(tierById("borer"), 0)).toBe(20_000_000);
+      expect(tierCost(tierById("borer"), 0)).toBe(18_000_000);
     });
-    expect(tierCost(tierById("borer"), 0)).toBe(10_000_000);
+    expect(tierCost(tierById("borer"), 0)).toBe(9_000_000);
     expect(factor("price.borer")).toBe(1);
   });
 
@@ -52,9 +52,9 @@ describe("economy factors", () => {
     withFactors({ "growth.machine": 2 }, () => {
       expect(tierCost(tierById("cart"), 1)).toBe(400);
     });
-    expect(effectiveRates(posted).tierSpeed.borer).toBe((350 * 11) / 10);
+    expect(effectiveRates(posted).tierSpeed.borer).toBe((595 * 11) / 10);
     withFactors({ "output.borer": 2 }, () => {
-      expect(effectiveRates(posted).tierSpeed.borer).toBe((700 * 11) / 10);
+      expect(effectiveRates(posted).tierSpeed.borer).toBe((1_190 * 11) / 10);
     });
     expect(tendingTenths(posted, "borer")).toBe(1);
     withFactors({ "tending.gain": 2 }, () => {

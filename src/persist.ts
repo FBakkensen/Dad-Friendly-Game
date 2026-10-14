@@ -5,12 +5,14 @@ import {
   type Mountain,
 } from "./mountain";
 
-/** v3 saves were a 1,000,000-stone mountain; v4 is 100,000,000. */
+/** v3 saves were a 1,000,000-stone mountain. v4 placed that on 100,000,000. */
 const V3_MOUNTAIN_STONES = 1_000_000;
-const V3_SCALE = MOUNTAIN_STONES / V3_MOUNTAIN_STONES;
+const V4_MOUNTAIN_STONES = 100_000_000;
+/** Frozen at the v4 depth so a v3 dad is not stretched again when the bottom moves. */
+const V3_SCALE = V4_MOUNTAIN_STONES / V3_MOUNTAIN_STONES;
 
-export type MountainSaveV4 = {
-  readonly version: 4;
+export type MountainSaveV5 = {
+  readonly version: 5;
   readonly mountain: Mountain;
   readonly lastSeen: number;
 };
@@ -26,9 +28,9 @@ export function serializeSave({
 }: {
   mountain: Mountain;
   lastSeen: number;
-}): MountainSaveV4 {
+}): MountainSaveV5 {
   return {
-    version: 4,
+    version: 5,
     mountain: {
       remaining: mountain.remaining,
       pocket: mountain.pocket,
@@ -69,8 +71,9 @@ export function serializeSave({
 }
 
 /**
- * Accepts v4 (100M mountain), scales v3 (1M mountain) up, and migrates the
- * legacy v1/v2 3x3 grid saves.
+ * Accepts v5 (240M mountain). A v4 save keeps every stone already mined and
+ * gains the extra depth below the old bottom. v3 scales onto that same place.
+ * Legacy v1/v2 3x3 grids still migrate.
  */
 export function parseSaveValue(value: unknown): ParsedSave | undefined {
   if (typeof value !== "object" || value === null || !("version" in value)) {
@@ -86,7 +89,8 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
     }
     case 2:
     case 3:
-    case 4: {
+    case 4:
+    case 5: {
       const lastSeen = record["lastSeen"];
       if (typeof lastSeen !== "number" || !Number.isFinite(lastSeen)) {
         return undefined;
@@ -96,7 +100,12 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
           ? migrateLegacyGrid(record["grid"])
           : record["version"] === 3
             ? scaleV3(parseMountain(record["mountain"], V3_MOUNTAIN_STONES))
-            : parseMountain(record["mountain"]);
+            : record["version"] === 4
+              ? deepen(
+                  parseMountain(record["mountain"], V4_MOUNTAIN_STONES),
+                  V4_MOUNTAIN_STONES,
+                )
+              : parseMountain(record["mountain"]);
       return mountain === undefined ? undefined : { mountain, lastSeen };
     }
     default:
@@ -150,5 +159,17 @@ function scaleV3(mountain: Mountain | undefined): Mountain | undefined {
     return undefined;
   }
   const mined = (V3_MOUNTAIN_STONES - mountain.remaining) * V3_SCALE;
+  return { ...mountain, remaining: MOUNTAIN_STONES - mined };
+}
+
+/** Keeps stones already mined and puts the new depth under them. */
+function deepen(
+  mountain: Mountain | undefined,
+  oldTotal: number,
+): Mountain | undefined {
+  if (mountain === undefined) {
+    return undefined;
+  }
+  const mined = oldTotal - mountain.remaining;
   return { ...mountain, remaining: MOUNTAIN_STONES - mined };
 }

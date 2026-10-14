@@ -60,7 +60,7 @@ export const TIERS: readonly Tier[] = [
     field: "drills",
     name: "Steam drill",
     shortName: "Drill",
-    firstCost: 20_000,
+    firstCost: 14_000,
     perSecond: 60,
     staff: 3,
   },
@@ -69,8 +69,8 @@ export const TIERS: readonly Tier[] = [
     field: "borers",
     name: "Tunnel borer",
     shortName: "Borer",
-    firstCost: 10_000_000,
-    perSecond: 350,
+    firstCost: 9_000_000,
+    perSecond: 595,
     staff: 8,
   },
   {
@@ -78,7 +78,7 @@ export const TIERS: readonly Tier[] = [
     field: "machines",
     name: "Great Machine",
     shortName: "Machine",
-    firstCost: 50_000_000,
+    firstCost: 67_000_000,
     perSecond: 3_500,
     staff: 25,
     needs: "hammer",
@@ -108,14 +108,25 @@ export function owned(mountain: Mountain, tier: Tier): number {
   return mountain[tier.field];
 }
 
+/**
+ * Borers climb at ×1.5 so the second and third stay in reach on the way to
+ * the Great Machine (#177). Carts, drills, and the machine still double.
+ * The sweep's machine-growth knob scales every staffed curve, this one too.
+ */
+const BORER_COST_GROWTH = 1.5;
+
 /** Cookie Clicker curve: machines double each time; helpers grow gently. */
 export function tierCost(tier: Tier, ownedCount: number): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
   // A sweep multiplies the sticker and the growth. Both factors are 1 in play.
   const workerCurve = tier.staff === 0;
+  const base = workerCurve
+    ? HELPER_COST_GROWTH
+    : tier.id === "borer"
+      ? BORER_COST_GROWTH
+      : COST_GROWTH;
   const growth =
-    (workerCurve ? HELPER_COST_GROWTH : COST_GROWTH) *
-    factor(workerCurve ? "growth.worker" : "growth.machine");
+    base * factor(workerCurve ? "growth.worker" : "growth.machine");
   const first = tier.firstCost * factor(`price.${tier.id}`);
   return Math.ceil(Number((first * growth ** ownedCount).toPrecision(12)));
 }

@@ -3,8 +3,9 @@
  * `factor` is the id `tierCost`, crew speed, and `tendingTenths` already
  * read. `low` and `high` are multipliers on today's number. 1 is the game.
  * A new price, output, growth, or tending knob is one entry here.
- * Worker growth is the helper curve, which kids share. Machine growth is
- * the doubling curve on every staffed tier.
+ * Worker growth is the helper curve, which kids share. Machine growth
+ * scales every staffed curve: carts, drills, and the Great Machine double,
+ * and borers climb at ×1.5.
  */
 
 type KnobGroup = "price" | "growth" | "output" | "tending";

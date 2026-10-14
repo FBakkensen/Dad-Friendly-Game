@@ -16,6 +16,7 @@ import {
   type FieldLogDocument,
 } from "./field-log";
 import {
+  MOUNTAIN_STONES,
   createMountain,
   mineByHand,
   accrueAway,
@@ -483,7 +484,7 @@ describe("helpers mining live", () => {
 
 describe("away earnings", () => {
   const crew = {
-    remaining: 100_000_000,
+    remaining: MOUNTAIN_STONES,
     pocket: 5,
     helpers: 3,
     carts: 0,
@@ -512,7 +513,7 @@ describe("away earnings", () => {
     });
     expect(readSessionSave({ storage })).toEqual({
       mountain: {
-        remaining: 100_000_000 - 540,
+        remaining: MOUNTAIN_STONES - 540,
         pocket: 545,
         helpers: 3,
         carts: 0,
@@ -1056,9 +1057,9 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       sessionStorage: storage,
       now: () => 100_000,
     });
-    // 8 workers + a borer at +10% (385/s) for 100s at 30%.
+    // 8 workers + a borer at +10% (654/s, 595 floored after the tenth) for 100s at 30%.
     expect(progress.getSnapshot().away?.mined).toBe(
-      Math.floor(100 * (8 + 385) * 0.3),
+      Math.floor(100 * (8 + 654) * 0.3),
     );
     expect(progress.getSnapshot().engineerJoined).toBe(true);
   });
@@ -1234,7 +1235,7 @@ describe("field log", () => {
       buyTier({ ...mountain, pocket: 20 }, "helper"),
     );
     progress.applyMutation((mountain) =>
-      buyUpgrade({ ...mountain, pocket: 5_000 }, "tap"),
+      buyUpgrade({ ...mountain, pocket: 40_000 }, "tap"),
     );
     progress.applyMutation((mountain) => {
       const rich = { ...mountain, pocket: 1_000 };

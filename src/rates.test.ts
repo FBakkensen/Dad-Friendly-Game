@@ -45,11 +45,11 @@ describe("effectiveRates", () => {
     const trouble: Trouble = { kind: "cave-in", tier: "cart", startedAt: 0 };
     const plain = effectiveRates(crew, 0);
     const started = effectiveRates(crew, 0, trouble);
-    expect(plain.crewPerSecond).toBe(369);
+    expect(plain.crewPerSecond).toBe(614);
     expect(started.tierSpeed.cart).toBe(7.5);
     expect(started.tierSpeed.borer).toBe(plain.tierSpeed.borer);
     expect(started.awayPay).toBe(plain.awayPay);
-    expect(started.crewPerSecond).toBe(366);
+    expect(started.crewPerSecond).toBe(611);
     expect(effectiveRates(crew, 60_000, trouble).tierSpeed.cart).toBe(6.25);
     expect(effectiveRates(crew, 120_000, trouble).tierSpeed.cart).toBe(5);
     expect(effectiveRates(crew, 180_000, trouble).tierSpeed.cart).toBe(5);
@@ -101,9 +101,9 @@ describe("tendingGain", () => {
       effectiveRates(onBorer).crewPerSecond -
         effectiveRates(atCamp).crewPerSecond,
     );
-    expect(tendingGain(staffed, 0, "borer")).toBe(35);
+    expect(tendingGain(staffed, 0, "borer")).toBe(59);
     const two = { ...staffed, helpers: 16, borers: 2 };
-    expect(tendingGain(two, 0, "borer")).toBe(70);
+    expect(tendingGain(two, 0, "borer")).toBe(119);
     expect(tendingGain(staffed, 9, "borer")).toBe(0);
   });
 
@@ -147,6 +147,6 @@ describe("tendingGain", () => {
         },
       ],
     };
-    expect(tendingGain(journeyman, 1, "borer")).toBe(35);
+    expect(tendingGain(journeyman, 1, "borer")).toBe(60);
   });
 });
