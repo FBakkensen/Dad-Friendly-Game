@@ -693,3 +693,69 @@ export const cameBack = (
 /** Soft confirm before a recall. No question mark: the buttons decide. */
 export const recallConfirm = (name: string): string =>
   `${name} comes home empty-handed.`;
+
+/**
+ * M9-2 mock copy (#193). Craft prices and the material line are the plan's
+ * first-cut examples so the sheets can show real numbers. M9-7 tunes the
+ * economy; these lines are not that tuning.
+ */
+export const WORKSHOP_TITLE = "Workshop";
+
+export const BENCH_FREE = "The bench is free";
+export const BENCH_FREE_ASIDE = "Pick something good for the crew.";
+export const BENCH_BUSY = "On the bench: Iron rails · 38 min left";
+export const BENCH_BUSY_ASIDE = "Your crew will feel this one.";
+export const RECIPE_ON_BENCH = "On the bench";
+export const RECIPE_WAITING = "Waiting its turn";
+
+/** One line on a craft button: "Craft · 4.2M". */
+export const craftPriceWords = (stones: number): string =>
+  `Craft · ${formatCompact(stones)}`;
+
+export const LAYER_ARRIVAL = "You broke into the Granite!";
+export const LAYER_EVOCATIVE = "The grey rock rings under every pick.";
+export const LAYER_ADVICE = "Tough on carts. Drills love it.";
+export const LAYER_DIG = "Dig on";
+
+export const CRAFT_DONE = "Your Iron rails are fitted. Carts now 12/s.";
+export const CRAFT_DONE_BUTTON = "The crew feels it";
+
+/** Unfound recipe. No name, no count, no question mark. */
+export const UNFOUND_HINT = "A folded sketch, still in the dark.";
+
+export const MOCK_MATERIALS = [
+  { id: "clay", text: "Clay 42" },
+  { id: "iron", text: "Iron 7" },
+] as const;
+
+export const MOCK_MATERIAL_LINE = "Clay 42 · Iron 7";
+
+export const MOCK_RECIPES = [
+  {
+    id: "rails",
+    name: "Iron rails",
+    effect: "Carts 10/s to 12/s",
+    materials: [{ id: "iron", text: "12 iron" }],
+    time: "1 h",
+    stones: 4_200_000,
+  },
+  {
+    id: "props",
+    name: "Sturdy props",
+    effect: "Trouble comes 30% less often.",
+    materials: [
+      { id: "clay", text: "20 clay" },
+      { id: "iron", text: "6 iron" },
+    ],
+    time: "1 h",
+    stones: 1_800_000,
+  },
+  {
+    id: "charge",
+    name: "Blasting charge",
+    effect: "The crew digs at 2× for 20 min.",
+    materials: [{ id: "clay", text: "6 clay" }],
+    time: "10 min",
+    stones: 800_000,
+  },
+] as const;

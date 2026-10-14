@@ -6,6 +6,7 @@
     "tools/vitest.config.ts",
     "src/lab/measures/*.ts",
     "src/lab/policies/*.ts",
-    "src/lab/fixtures/**/*.ts"
+    "src/lab/fixtures/**/*.ts",
+    "mockups/preview.html"
   ]
 }

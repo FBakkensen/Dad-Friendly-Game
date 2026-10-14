@@ -13,8 +13,26 @@ import {
   PROMOTE_NEEDS_WORKER,
   PROMOTE_TITLE,
   PROMOTE_WHY,
+  BENCH_BUSY,
+  BENCH_BUSY_ASIDE,
+  BENCH_FREE,
+  BENCH_FREE_ASIDE,
+  CRAFT_DONE,
+  CRAFT_DONE_BUTTON,
+  LAYER_ADVICE,
+  LAYER_ARRIVAL,
+  LAYER_DIG,
+  LAYER_EVOCATIVE,
+  MOCK_MATERIALS,
+  MOCK_MATERIAL_LINE,
+  MOCK_RECIPES,
+  RECIPE_ON_BENCH,
+  RECIPE_WAITING,
+  UNFOUND_HINT,
+  WORKSHOP_TITLE,
   broughtHomeNames,
   broughtHomeToast,
+  craftPriceWords,
   keepsakeWords,
   keepsakesBroughtHome,
   lostToolWords,
@@ -455,5 +473,70 @@ describe("lost tools and keepsakes (#148)", () => {
       "A smooth pebble. Warm from a hand that held it. A faded ribbon. Tied until the ends went soft.",
     );
     expect(broughtHomeToast([...KEEPSAKES])).not.toMatch(/[0-9?]/);
+  });
+});
+
+describe("workshop mock copy (#193)", () => {
+  it("shows real craft numbers and keeps unfound recipes vague", () => {
+    expect(WORKSHOP_TITLE).toBe("Workshop");
+    expect(BENCH_FREE).toBe("The bench is free");
+    expect(BENCH_FREE_ASIDE).toBe("Pick something good for the crew.");
+    expect(BENCH_BUSY).toBe("On the bench: Iron rails · 38 min left");
+    expect(BENCH_BUSY_ASIDE).toBe("Your crew will feel this one.");
+    expect(RECIPE_ON_BENCH).toBe("On the bench");
+    expect(RECIPE_WAITING).toBe("Waiting its turn");
+    expect(craftPriceWords(4_200_000)).toBe("Craft · 4.2M");
+    expect(craftPriceWords(1_800_000)).toBe("Craft · 1.8M");
+    expect(craftPriceWords(800_000)).toBe("Craft · 800K");
+    expect(LAYER_ARRIVAL).toBe("You broke into the Granite!");
+    expect(LAYER_EVOCATIVE).toBe("The grey rock rings under every pick.");
+    expect(LAYER_ADVICE).toBe("Tough on carts. Drills love it.");
+    expect(LAYER_DIG).toBe("Dig on");
+    expect(CRAFT_DONE).toBe("Your Iron rails are fitted. Carts now 12/s.");
+    expect(CRAFT_DONE_BUTTON).toBe("The crew feels it");
+    expect(MOCK_MATERIAL_LINE).toBe("Clay 42 · Iron 7");
+    expect(MOCK_MATERIALS.map((item) => item.text).join(" · ")).toBe(
+      MOCK_MATERIAL_LINE,
+    );
+
+    expect(UNFOUND_HINT).not.toMatch(/[0-9?]/);
+    expect(UNFOUND_HINT.toLowerCase()).not.toMatch(
+      /diamond|crystal|heartstone|lamp|kit|\brails\b|\bprops\b/,
+    );
+
+    const spoken = [
+      WORKSHOP_TITLE,
+      BENCH_FREE,
+      BENCH_FREE_ASIDE,
+      BENCH_BUSY,
+      BENCH_BUSY_ASIDE,
+      RECIPE_ON_BENCH,
+      RECIPE_WAITING,
+      LAYER_ARRIVAL,
+      LAYER_EVOCATIVE,
+      LAYER_ADVICE,
+      LAYER_DIG,
+      CRAFT_DONE,
+      CRAFT_DONE_BUTTON,
+      UNFOUND_HINT,
+      MOCK_MATERIAL_LINE,
+      ...MOCK_RECIPES.flatMap((recipe) => [
+        recipe.name,
+        recipe.effect,
+        recipe.time,
+        craftPriceWords(recipe.stones),
+        ...recipe.materials.map((material) => material.text),
+      ]),
+    ].join("\n");
+    expect(spoken).not.toMatch(/\?/);
+    expect(CRAFT_DONE).toMatch(/12\/s/);
+    expect(BENCH_BUSY).toMatch(/38 min/);
+    for (const recipe of MOCK_RECIPES) {
+      expect(recipe.effect).toMatch(/\d/);
+      expect(
+        recipe.materials.map((material) => material.text).join(" "),
+      ).toMatch(/\d/);
+      expect(craftPriceWords(recipe.stones)).toMatch(/\d/);
+    }
   });
 });
