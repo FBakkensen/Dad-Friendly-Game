@@ -582,7 +582,7 @@ describe("valueOf", () => {
     const eleven: Mountain = { ...fresh, helpers: 11 };
     expect(
       score(eleven, { kind: "buyUpgrade", id: "boots" }).gainPerSec,
-    ).toBeCloseTo(1.1, 10);
+    ).toBeCloseTo(11 * BOOTS_SPEED_PER_LEVEL, 10);
     const quietSchedule: ValueContext = {
       tapsPerSecond: 0,
       liveSeconds: 0,
@@ -591,7 +591,7 @@ describe("valueOf", () => {
     expect(
       score(eleven, { kind: "buyUpgrade", id: "boots" }, HORIZON, quietSchedule)
         .gainPerSec,
-    ).toBeCloseTo(1.1, 10);
+    ).toBeCloseTo(11 * BOOTS_SPEED_PER_LEVEL, 10);
 
     const heir: Mountain = { ...ten, legacy: 1 };
     expect(
@@ -793,7 +793,7 @@ describe("valueOf", () => {
       HORIZON,
     );
     expect(lockedBoots.gainPerSec).toBe(0);
-    expect(lockedBoots.cost).toBe(90_000);
+    expect(lockedBoots.cost).toBe(650_000);
     expect(lockedBoots.paybackSec).toBe(Number.POSITIVE_INFINITY);
     const machine = score(
       lockedMachine,
@@ -832,7 +832,10 @@ describe("valueOf", () => {
       HORIZON,
       CASUAL,
     );
-    expect(perDay(boots.gainPerSec)).toBeCloseTo(1.1 * crewDay, 4);
+    expect(perDay(boots.gainPerSec)).toBeCloseTo(
+      11 * BOOTS_SPEED_PER_LEVEL * crewDay,
+      4,
+    );
 
     const yard: Mountain = { ...fresh, helpers: 10, carts: 1 };
     const steady = score(
@@ -857,9 +860,9 @@ describe("valueOf", () => {
       CASUAL,
     );
     expect(arms.gainPerSec).toBe(0);
-    expect(effectiveRates(small).exactCrewPerSecond * TAP_SHARE_PER_LEVEL).toBe(
-      0.5,
-    );
+    expect(
+      effectiveRates(small).exactCrewPerSecond * TAP_SHARE_PER_LEVEL,
+    ).toBeCloseTo(0.825, 6);
 
     const hundred: Mountain = { ...fresh, helpers: 100 };
     const bigArms = score(

@@ -18,19 +18,19 @@ const crew = { ...minedMountain(0), helpers: 500 }; // 500 stones a second
 describe("Strong arms (tap power)", () => {
   const arms = upgradeById("tap");
 
-  it("costs 40,000, then 5× each level, up to level 10", () => {
+  it("costs 46,000, then 5× each level, up to level 10", () => {
     expect([0, 1, 2, 3].map((level) => upgradeCost(arms, level))).toEqual([
-      40_000, 200_000, 1_000_000, 5_000_000,
+      46_000, 230_000, 1_150_000, 5_750_000,
     ]);
     expect(upgradeCost(arms, 10)).toBeUndefined();
   });
 
   it("buys one level at a time from the pocket", () => {
-    const poor = { ...crew, pocket: 39_999 };
+    const poor = { ...crew, pocket: 45_999 };
     expect(buyUpgrade(poor, "tap")).toBe(poor);
-    const one = buyUpgrade({ ...crew, pocket: 240_000 }, "tap");
+    const one = buyUpgrade({ ...crew, pocket: 276_000 }, "tap");
     expect(upgradeLevel(one, "tap")).toBe(1);
-    expect(one.pocket).toBe(200_000);
+    expect(one.pocket).toBe(230_000);
     const two = buyUpgrade(one, "tap");
     expect(upgradeLevel(two, "tap")).toBe(2);
     expect(two.pocket).toBe(0);
@@ -40,11 +40,11 @@ describe("Strong arms (tap power)", () => {
 
   it("adds 1% of crew speed per level to every tap, rounded down", () => {
     expect(effectiveRates(crew).tapYield).toBe(1);
-    expect(effectiveRates({ ...crew, upgrades: { tap: 1 } }).tapYield).toBe(6);
-    expect(effectiveRates({ ...crew, upgrades: { tap: 3 } }).tapYield).toBe(16);
+    expect(effectiveRates({ ...crew, upgrades: { tap: 1 } }).tapYield).toBe(9);
+    expect(effectiveRates({ ...crew, upgrades: { tap: 3 } }).tapYield).toBe(25);
     const tapped = mineByHand({ ...crew, upgrades: { tap: 3 } });
-    expect(tapped.pocket).toBe(16);
-    expect(tapped.remaining).toBe(crew.remaining - 16);
+    expect(tapped.pocket).toBe(25);
+    expect(tapped.remaining).toBe(crew.remaining - 25);
     // A tap never digs past the bottom.
     expect(
       mineByHand({ ...crew, remaining: 5, upgrades: { tap: 3 } }).remaining,
@@ -92,7 +92,7 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
   it("are one-time buys", () => {
     const once = buyUpgrade({ ...base, helpers: 10 }, "boots");
     expect(once.upgrades).toEqual({ boots: 1 });
-    expect(once.pocket).toBe(20_000_000 - 90_000);
+    expect(once.pocket).toBe(20_000_000 - 650_000);
     expect(buyUpgrade(once, "boots")).toBe(once);
     expect(upgradeCost(upgradeById("steady"), 1)).toBeUndefined();
   });
@@ -100,12 +100,12 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
   it("Better boots makes helpers 10% faster, in whole stones a second", () => {
     const crew = { ...base, helpers: 15, carts: 2, upgrades: { boots: 1 } };
     const rates = effectiveRates(crew);
-    expect(rates.tierSpeed.helper).toBeCloseTo(1.1);
+    expect(rates.tierSpeed.helper).toBeCloseTo(2.36);
     expect(rates.tierSpeed.cart).toBe(effectiveRates(base).tierSpeed.cart);
-    // 15 × 1.1 = 16.5 → 16, plus 2 carts.
-    expect(rates.crewPerSecond).toBe(16 + 2 * rates.tierSpeed.cart);
+    // 15 × 2.36 = 35.4 → 35, plus 2 carts.
+    expect(rates.crewPerSecond).toBe(35 + 2 * rates.tierSpeed.cart);
     expect(effectiveRates({ ...crew, helpers: 10 }).crewPerSecond).toBe(
-      11 + 2 * rates.tierSpeed.cart,
+      23 + 2 * rates.tierSpeed.cart,
     );
   });
 
@@ -191,10 +191,10 @@ describe("crew synergies", () => {
       upgrades: { boots: 1, cartSyn: 1, drillSyn: 1 },
     };
     const rates = effectiveRates(crew);
-    expect(rates.tierSpeed.helper).toBeCloseTo(1.1);
+    expect(rates.tierSpeed.helper).toBeCloseTo(2.36);
     expect(rates.tierSpeed.cart).toBeCloseTo(14);
     expect(rates.tierSpeed.drill).toBeCloseTo(66);
-    expect(rates.crewPerSecond).toBe(44 + 140 + 660);
+    expect(rates.crewPerSecond).toBe(94 + 140 + 660);
   });
 
   it("save and load", () => {

@@ -1235,7 +1235,7 @@ describe("field log", () => {
       buyTier({ ...mountain, pocket: 20 }, "helper"),
     );
     progress.applyMutation((mountain) =>
-      buyUpgrade({ ...mountain, pocket: 40_000 }, "tap"),
+      buyUpgrade({ ...mountain, pocket: 46_000 }, "tap"),
     );
     progress.applyMutation((mountain) => {
       const rich = { ...mountain, pocket: 1_000 };

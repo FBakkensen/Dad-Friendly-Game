@@ -33,7 +33,7 @@ const BY_ID: Readonly<Record<BoostId, Boost>> = {
   sharper: {
     id: "sharper",
     name: "Sharper picks",
-    effect: "Taps mine ×2 for 10 minutes.",
+    effect: "Taps ×2 for 10 min.",
     durationMs: 10 * 60 * 1000,
     multiplier: 2,
     priceIn: "taps",
@@ -44,7 +44,7 @@ const BY_ID: Readonly<Record<BoostId, Boost>> = {
   overtime: {
     id: "overtime",
     name: "Overtime",
-    effect: "Your crew mines ×2 for 30 minutes while you play.",
+    effect: "Crew ×2 for 30 min.",
     durationMs: 30 * 60 * 1000,
     multiplier: 2,
     priceIn: "crewSeconds",

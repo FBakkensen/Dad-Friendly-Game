@@ -256,9 +256,9 @@ describe("engineer words", () => {
       "A new engineer can tend another machine or explore while the others work.",
     );
     expect(PROMOTE_BUTTON).toBe("Promote");
-    expect(promoteOffer(2_000_000)).toBe("Promote a worker: 2M stones");
+    expect(promoteOffer(2_000_000)).toBe("Promote: 2M stones");
     expect(promoteNeeds(2_000_000)).toBe("Needs 2M stones");
-    expect(promoteOffer(1_000_000)).toBe("Promote a worker: 1M stones");
+    expect(promoteOffer(1_000_000)).toBe("Promote: 1M stones");
     expect(promoteNeeds(16_000_000)).toBe("Needs 16M stones");
     expect(promoteConfirm("Nils")).toBe(
       "Nils steps up as engineer. One worker fewer at the machines.",

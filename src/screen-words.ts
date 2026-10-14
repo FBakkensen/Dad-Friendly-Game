@@ -19,7 +19,15 @@ import type { TroubleKind } from "./hazards";
 import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { owned, tierById, type TierId } from "./tiers";
-import { synergyBonus, upgradeLevel, type Upgrade } from "./upgrades";
+import {
+  BOOTS_SPEED_PER_LEVEL,
+  STEADY_AWAY_PER_LEVEL,
+  SYNERGY_PER_UNIT,
+  TAP_SHARE_PER_LEVEL,
+  synergyBonus,
+  upgradeLevel,
+  type Upgrade,
+} from "./upgrades";
 
 // Player-facing wording shared by the screen's panels.
 
@@ -58,63 +66,79 @@ export const workerWords = (count: number): string =>
  */
 export const NEEDS_MORE_WORKERS = "Needs more workers to run";
 
-/** "Your 12 workers make carts 12% faster." — or would, before it's bought. */
-const synergyNow = (upgrade: Upgrade, mountain: Mountain): string => {
-  if (upgrade.synergy === undefined) {
-    return "";
+/** "1%", "1.65%", "133%". Keeps a second decimal only when the tenth needs it. */
+const shareWords = (share: number): string => {
+  const pct = share * 100;
+  const whole = Math.round(pct);
+  if (Math.abs(pct - whole) < 1e-6) {
+    return `${String(whole)}%`;
   }
-  const from = tierById(upgrade.synergy.from);
-  const to = tierById(upgrade.synergy.to);
-  const count = owned(mountain, from);
-  if (count === 0) {
-    return "";
+  const tenth = Math.round(pct * 10) / 10;
+  if (Math.abs(pct - tenth) < 1e-6) {
+    return `${tenth.toFixed(1)}%`;
   }
-  const plural =
-    count === 1 ? from.name.toLowerCase() : `${from.name.toLowerCase()}s`;
-  const target =
-    to.id === "machine"
-      ? "the Great Machine"
-      : `${to.shortName.toLowerCase()}s`;
-  const bonus = percent(synergyBonus(mountain, upgrade));
-  return upgradeLevel(mountain, upgrade.id) > 0
-    ? `Your ${String(count)} ${plural} make ${target} ${bonus} faster.`
-    : `Your ${String(count)} ${plural} would make ${target} ${bonus} faster.`;
+  return `${pct.toFixed(2)}%`;
 };
 
-/** What the upgrade does for this crew right now. */
-export const upgradeNow = (
+/**
+ * One sentence: the per-level rule and what this crew would get, or gets now.
+ */
+export function upgradeEffectLine(
   upgrade: Upgrade,
   mountain: Mountain,
   at: number,
-): string => {
+): string {
   const rates = effectiveRates(mountain, at);
   switch (upgrade.id) {
     case "tap":
-      return `Each tap now mines ${formatCount(rates.tapYield)}.`;
+      return `Taps +${shareWords(TAP_SHARE_PER_LEVEL)}, now ${formatCount(rates.tapYield)}.`;
     case "boots":
-      return `Each worker now mines ${formatSpeed(rates.tierSpeed.helper)}/s.`;
+      return `Workers +${shareWords(BOOTS_SPEED_PER_LEVEL)}, now ${formatSpeed(rates.tierSpeed.helper)}/s.`;
     case "steady":
-      return `Time away now pays ${percent(rates.awayPay)} of crew speed.`;
+      return `Away pay +${shareWords(STEADY_AWAY_PER_LEVEL)}, now ${shareWords(rates.awayPay)}.`;
     case "cartSyn":
     case "drillSyn":
     case "borerSyn":
     case "machineSyn":
-      return synergyNow(upgrade, mountain);
+      return synergyEffectLine(upgrade, mountain);
   }
-};
+}
 
-export const unlockWords = (upgrade: Upgrade): string => {
+function synergyEffectLine(upgrade: Upgrade, mountain: Mountain): string {
+  if (upgrade.synergy === undefined) {
+    return upgrade.perLevel;
+  }
+  const from = tierById(upgrade.synergy.from);
+  const to = tierById(upgrade.synergy.to);
+  const count = owned(mountain, from);
+  const target =
+    to.id === "machine"
+      ? "the Great Machine"
+      : `${to.shortName.toLowerCase()}s`;
+  const each = shareWords(SYNERGY_PER_UNIT);
+  const rule = `Each ${from.shortName.toLowerCase()} +${each}`;
+  if (count === 0) {
+    return `${rule} ${target}.`;
+  }
+  const verb = upgradeLevel(mountain, upgrade.id) > 0 ? "now" : "would";
+  return `+${each} each ${from.shortName.toLowerCase()}; ${target} ${verb} ${shareWords(synergyBonus(mountain, upgrade))}.`;
+}
+
+/** Locked row: the name and the gate, one compact line. */
+export function lockedUpgradeLine(upgrade: Upgrade): string {
   if (upgrade.unlock === undefined) {
-    return "Locked";
+    return upgrade.name;
   }
   const tier = tierById(upgrade.unlock.tier);
   if (tier.id === "machine") {
-    return "Unlocks with the Great Machine";
+    return `${upgrade.name} · Great Machine`;
   }
-  return upgrade.unlock.count === 1
-    ? `Unlocks with your first ${tier.name.toLowerCase()}`
-    : `Unlocks at ${String(upgrade.unlock.count)} ${tier.name.toLowerCase()}s`;
-};
+  const gate =
+    upgrade.unlock.count === 1
+      ? `first ${tier.shortName.toLowerCase()}`
+      : `${String(upgrade.unlock.count)} ${tier.shortName.toLowerCase()}s`;
+  return `${upgrade.name} · ${gate}`;
+}
 
 /** "the first 8 hours", or "a whole day" once the Shield lifts the cap. */
 export const capWords = (capMs: number): string =>
@@ -375,7 +399,7 @@ export function stationCheer(
 
 /** The Promote button. The price is the decision. */
 export function promoteOffer(cost: number): string {
-  return `Promote a worker: ${formatCompact(cost)} stones`;
+  return `Promote: ${formatCompact(cost)} stones`;
 }
 
 /** Greyed reason when the pocket cannot cover a promotion. */

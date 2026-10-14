@@ -230,6 +230,15 @@ async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
         sheet.querySelector(".engineers-close")?.getBoundingClientRect()
           .bottom ?? Infinity;
       const text = sheet.textContent ?? "";
+      const promote = sheet.querySelector(".engineer-promote");
+      const promoteLines = (() => {
+        if (promote === null || promote.hidden) {
+          return 0;
+        }
+        const range = document.createRange();
+        range.selectNodeContents(promote);
+        return range.getClientRects().length;
+      })();
       return {
         boxesOk: boxes.every(
           (box) =>
@@ -248,7 +257,10 @@ async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
         words:
           text.includes("Tend a machine") &&
           text.includes("stones/sec") &&
-          text.includes("Promote a worker:") &&
+          text.includes("Promote:") &&
+          text.includes("Promote a worker") &&
+          promoteLines >= 1 &&
+          promoteLines <= 2 &&
           !text.includes("?") &&
           !text.includes("%"),
       };
@@ -426,12 +438,86 @@ for (const viewport of VIEWPORTS) {
     );
   });
   check(sheetReachable, `${size} upgrades sheet buttons are tappable`);
-  if (viewport[1] >= 844) {
-    const fits = await page.$eval(
-      ".upgrades-dialog",
-      (sheet) => sheet.scrollHeight <= sheet.clientHeight + 1,
+  const sheetFit = await page.$eval(".upgrades-dialog", (sheet) => {
+    const card = sheet.querySelector(".upgrades-card");
+    const style = card === null ? null : getComputedStyle(card);
+    const background = style?.backgroundColor ?? "";
+    const opaque =
+      style !== null &&
+      background !== "transparent" &&
+      background !== "rgba(0, 0, 0, 0)" &&
+      style.backgroundImage === "none";
+    const border =
+      style !== null &&
+      Number.parseFloat(style.borderTopWidth) >= 1 &&
+      style.borderTopStyle !== "none";
+    const shadow = style !== null && style.boxShadow !== "none";
+    const text = [...sheet.querySelectorAll(".upgrade-name, .upgrade-effect")];
+    const typeOk = text.every(
+      (node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 14.4,
     );
-    check(fits, `${size} upgrades sheet fits with no scroll`);
+    const buys = [...sheet.querySelectorAll(".upgrade-buy")];
+    const widths = buys.map((button) =>
+      Math.round(button.getBoundingClientRect().width),
+    );
+    const sameWidth =
+      widths.length >= 4 && widths.every((width) => width === widths[0]);
+    const cardRight = card?.getBoundingClientRect().right ?? 0;
+    const rightAligned = buys.every((button) => {
+      const box = button.getBoundingClientRect();
+      return cardRight - box.right <= 16 && cardRight - box.right >= 0;
+    });
+    const lineCount = (node) => {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      return range.getClientRects().length;
+    };
+    const lockedOk = [...sheet.querySelectorAll(".upgrade.is-locked")].every(
+      (row) => {
+        const name = row.querySelector(".upgrade-name");
+        return name !== null && lineCount(name) <= 1;
+      },
+    );
+    const effectsOk = [
+      ...sheet.querySelectorAll(".upgrade:not(.is-locked) .upgrade-effect"),
+    ].every((node) => lineCount(node) <= 2);
+    return {
+      fits: sheet.scrollHeight <= sheet.clientHeight + 1,
+      opaque,
+      border,
+      shadow,
+      typeOk,
+      sameWidth,
+      rightAligned,
+      lockedOk,
+      effectsOk,
+      background,
+    };
+  });
+  check(
+    sheetFit.fits &&
+      sheetFit.opaque &&
+      sheetFit.border &&
+      sheetFit.shadow &&
+      sheetFit.typeOk &&
+      sheetFit.sameWidth &&
+      sheetFit.rightAligned &&
+      sheetFit.lockedOk &&
+      sheetFit.effectsOk,
+    `${size} upgrades sheet fits, with an opaque card`,
+  );
+  if (
+    !sheetFit.fits ||
+    !sheetFit.opaque ||
+    !sheetFit.border ||
+    !sheetFit.shadow ||
+    !sheetFit.typeOk ||
+    !sheetFit.sameWidth ||
+    !sheetFit.rightAligned ||
+    !sheetFit.lockedOk ||
+    !sheetFit.effectsOk
+  ) {
+    console.log(`upgrades detail ${size} ${JSON.stringify(sheetFit)}`);
   }
   await page.tap(".upgrades-close");
   const engineersFat = await page.$eval(".engineers-button", (button) => {

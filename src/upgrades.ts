@@ -31,16 +31,16 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
   tap: {
     id: "tap",
     name: "Strong arms",
-    perLevel: "Each tap also mines 1% of your crew's speed.",
-    firstCost: 40_000,
+    perLevel: "Each tap also mines 1.65% of your crew's speed.",
+    firstCost: 46_000,
     costGrowth: 5,
     maxLevel: 10,
   },
   boots: {
     id: "boots",
     name: "Better boots",
-    perLevel: "Workers mine 10% faster.",
-    firstCost: 90_000,
+    perLevel: "Workers mine 136% faster.",
+    firstCost: 650_000,
     costGrowth: 1,
     maxLevel: 1,
     unlock: { tier: "helper", count: 10 },
@@ -99,13 +99,13 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
 export const UPGRADES: readonly Upgrade[] = Object.values(BY_ID);
 
 /** Tap power: each level adds this share of the crew's speed to every tap. */
-export const TAP_SHARE_PER_LEVEL = 0.01;
+export const TAP_SHARE_PER_LEVEL = 0.0165;
 
 /** Crew synergies: speed each `from` unit adds to its `to` tier. */
 export const SYNERGY_PER_UNIT = 0.01;
 
 /** Better boots: helper speed gained per level. */
-export const BOOTS_SPEED_PER_LEVEL = 0.1;
+export const BOOTS_SPEED_PER_LEVEL = 1.36;
 /** Steady hands: away pay gained per level, relative to the base rate. */
 export const STEADY_AWAY_PER_LEVEL = 0.25;
 

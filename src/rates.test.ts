@@ -30,8 +30,8 @@ describe("effectiveRates", () => {
       kids: 0,
       upgrades: { boots: 1 },
     });
-    expect(rates.exactCrewPerSecond).toBeCloseTo(12.1, 10);
-    expect(rates.crewPerSecond).toBe(12);
+    expect(rates.exactCrewPerSecond).toBeCloseTo(11 * 2.36, 10);
+    expect(rates.crewPerSecond).toBe(25);
   });
 
   it("slows the troubled tier from a quarter toward a half, and not the others", () => {
