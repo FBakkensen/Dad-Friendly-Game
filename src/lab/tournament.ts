@@ -309,8 +309,12 @@ function cellFor(
 function coversPolicy(target: Target, policy: Policy): boolean {
   switch (target.scope.kind) {
     case "all":
-    case "fromSource":
       return true;
+    case "fromSource":
+      return (
+        target.scope.kinds === undefined ||
+        target.scope.kinds.includes(policy.kind)
+      );
     case "afterHour":
       return (
         target.scope.kinds === undefined ||

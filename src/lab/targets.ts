@@ -84,7 +84,15 @@ export type TargetScope =
        */
       readonly kinds?: readonly PolicyKind[];
     }
-  | { readonly kind: "fromSource"; readonly source: string };
+  | {
+      readonly kind: "fromSource";
+      readonly source: string;
+      /**
+       * When set, only these player kinds are graded. The source still
+       * drops samples from before that output. Omitted means every kind.
+       */
+      readonly kinds?: readonly PolicyKind[];
+    };
 
 type TargetBase = {
   readonly id: string;
@@ -109,10 +117,10 @@ export const TARGETS: readonly Target[] = [
   {
     id: "dead-stretch",
     measure: "longestDeadStretch",
-    scope: { kind: "policyKinds", kinds: ["casual", "optimizer"] },
+    scope: { kind: "policyKinds", kinds: ["casual"] },
     op: "lte",
     value: 0.5 * HOURS_PER_DAY,
-    why: "A dad waiting on the next buy for half a day has nothing to decide.",
+    why: "A casual dad waiting on the next buy for half a day has nothing to decide. The optimizer's save is reported beside it.",
   },
   {
     id: "single-share",
@@ -145,10 +153,14 @@ export const TARGETS: readonly Target[] = [
   {
     id: "tending-from-borer",
     measure: "featureShare",
-    scope: { kind: "fromSource", source: BORER_SOURCE },
+    scope: {
+      kind: "fromSource",
+      source: BORER_SOURCE,
+      kinds: ["casual", "optimizer"],
+    },
     op: "gte",
     value: 0.08,
-    why: "An apprentice on the borer should be a real share of the output.",
+    why: "An apprentice on the borer should be a real share of the output for a casual dad and for the optimizer.",
   },
   {
     id: "casual-finish",

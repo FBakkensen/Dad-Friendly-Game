@@ -470,6 +470,14 @@ describe("tournament", () => {
           value: 1,
           why: "Once the borer is in the output, a sample should remain.",
         },
+        {
+          id: "casual-from-borer",
+          measure: "count",
+          scope: { kind: "fromSource", source: "borer", kinds: ["casual"] },
+          op: "gte",
+          value: 1,
+          why: "A casual dad's borer samples stay in the count.",
+        },
       ],
       runs: [
         run(casual, 1, [
@@ -483,6 +491,7 @@ describe("tournament", () => {
     const extremeCell = result.rows[1]?.cells[0];
     expect(casualCell?.judgements.map((item) => item.targetId)).toEqual([
       "from-borer",
+      "casual-from-borer",
     ]);
     expect(casualCell?.judgements[0]?.value).toBe(1);
     expect(casualCell?.judgements[0]?.pass).toBe(true);
@@ -646,8 +655,9 @@ describe("tournament", () => {
     if (tending === undefined) {
       return;
     }
-    const plain = dad({ id: "alpha", label: "Alpha", kind: "extreme" });
+    const plain = dad({ id: "alpha", label: "Alpha", kind: "casual" });
     const owner = dad({ id: "beta", label: "Beta", kind: "casual" });
+    const extreme = dad({ id: "gamma", label: "Gamma", kind: "extreme" });
     const shared = {
       measures: [featureShare],
       targets: [tending],
@@ -660,7 +670,15 @@ describe("tournament", () => {
     const absentCell = absent.rows[0]?.cells[0];
     expect(absentCell?.value).toBeNaN();
     expect(absentCell?.judgements).toEqual([]);
-    expect(renderReport(absent)).toContain("| Alpha | extreme | n/a |");
+    expect(renderReport(absent)).toContain("| Alpha | casual | n/a |");
+    const skipped = judge({
+      ...shared,
+      policies: [extreme],
+      runs: [
+        run(extreme, 1, [decision({ outputShare: { [BORER_SOURCE]: 1 } })]),
+      ],
+    });
+    expect(skipped.rows[0]?.cells[0]?.judgements).toEqual([]);
     const low = judge({
       ...shared,
       policies: [owner],

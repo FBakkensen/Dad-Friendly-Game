@@ -15,10 +15,8 @@ const SMART_SPEND: SpendWeights = {
  * Greedy lowest payback, with one step of "save for X" across the next
  * session (`LOOKAHEAD_SESSIONS` in `targets.ts`). Same sittings and fast
  * fix as the plain dad. Promotions and tunnels are taken when `valueOf`
- * says they pay, not the moment the pocket can cover them. Upgrades
- * compete the same way. Boosts stay on the menu and off the purchase:
- * Overtime is a live option during a save, and buying it would clear
- * that option. #178.
+ * says they pay, not the moment the pocket can cover them. Upgrades and
+ * boosts compete the same way. #178.
  */
 const params = plainParams({
   id: "optimizer",
