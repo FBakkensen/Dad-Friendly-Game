@@ -594,7 +594,7 @@ describe("policy shape", () => {
     expect(boosted.world.mountain.boosts?.sharper).toBeGreaterThan(0);
   });
 
-  it("sends only when a tunnel raises income, which finds do not yet", () => {
+  it("sends a scout when the expected find beats the post they leave", () => {
     const curious = plainPolicy({
       id: "curious",
       label: "Sends on value",
@@ -616,7 +616,7 @@ describe("policy shape", () => {
       mountain,
       maxLiveSeconds: 1,
     });
-    expect(run.world.mountain.expeditions ?? []).toEqual([]);
+    expect(run.world.mountain.expeditions?.[0]?.engineer).toBe("Nils");
     curious.decide({ mountain, now: 0, params: curious.params });
     expect(promoteAsap(mountain, curious.params).hired).toEqual([]);
   });

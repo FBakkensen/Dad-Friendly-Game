@@ -25,6 +25,7 @@ import {
   send,
   type TunnelId,
 } from "../expeditions";
+import { expectedFindStones } from "./finds";
 import { kindForTier, type Trouble, type TroubleTier } from "../hazards";
 import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
@@ -137,14 +138,16 @@ export function listActions(
       actions.push({ kind: "recall", index });
       continue;
     }
-    for (const post of ENGINEER_POSTS) {
-      if (post !== "tunnel" && post !== hand.post) {
-        actions.push({ kind: "station", index, post });
-      }
-    }
+    // Sends before posts. A payback tie keeps the earlier offer, and a
+    // scout's find is the choice when it ties a free walk to a machine.
     for (const spec of TUNNELS) {
       if (canSend(mountain, hand, spec, now)) {
         actions.push({ kind: "send", index, tunnel: spec.id });
+      }
+    }
+    for (const post of ENGINEER_POSTS) {
+      if (post !== "tunnel" && post !== hand.post) {
+        actions.push({ kind: "station", index, post });
       }
     }
   }
@@ -211,6 +214,7 @@ export function valueOf(
   action: Action,
   horizon: number,
   context: ValueContext,
+  now = 0,
 ): ActionValue {
   switch (action.kind) {
     case "buyTier":
@@ -219,18 +223,8 @@ export function valueOf(
       return valueUpgrade(mountain, action.id, horizon, context);
     case "buyBoost":
       return valueBoost(mountain, action.id, horizon, context);
-    case "promote": {
-      // TODO(#172): finds are valued at 0. Promote, station, and send only
-      // change speed until a player type scores a find.
-      const cost = promoteCost(mountain);
-      return rateValue(
-        mountain,
-        incomeGain(mountain, promote(funded(mountain, cost)), context),
-        cost,
-        horizon,
-        context,
-      );
-    }
+    case "promote":
+      return valuePromote(mountain, horizon, context);
     case "station":
       return rateValue(
         mountain,
@@ -244,25 +238,9 @@ export function valueOf(
         context,
       );
     case "send":
-      return rateValue(
-        mountain,
-        incomeGain(
-          mountain,
-          send(mountain, action.index, action.tunnel, 0),
-          context,
-        ),
-        0,
-        horizon,
-        context,
-      );
+      return valueSend(mountain, action, horizon, context);
     case "recall":
-      return rateValue(
-        mountain,
-        incomeGain(mountain, recall(mountain, action.index), context),
-        0,
-        horizon,
-        context,
-      );
+      return valueRecall(mountain, action.index, horizon, context, now);
     case "fixTrouble":
       return rateValue(
         mountain,
@@ -358,13 +336,20 @@ function valueBoost(
     now,
     pricing,
   });
+  const durationSec = boost.durationMs / 1000;
+  // Twice the clock, not the whole horizon: enough that Overtime can be
+  // the best buy, not so much that it is the only one.
+  const spread =
+    context.awaySeconds > 0
+      ? Math.min(horizon, durationSec * 1.45)
+      : durationSec;
   return rateValue(
     mountain,
     incomeGain(mountain, bought, context, { now }),
     cost,
     horizon,
     context,
-    boost.durationMs / 1000,
+    spread,
   );
 }
 
@@ -468,6 +453,151 @@ function awayFactor(mountain: Mountain, paidMs: number): number {
   const rates = effectiveRates(mountain);
   const heart = heartBonus(mountain, paidMs);
   return Math.round(rates.awayPay * heart * 1e9) / 1e9;
+}
+
+/**
+ * A new engineer is worth the best machine they can tend, plus one old-shaft
+ * trip's expected finds, spread over the horizon. The worker they used to
+ * be is already out of the crew in that comparison.
+ */
+function valuePromote(
+  mountain: Mountain,
+  horizon: number,
+  context: ValueContext,
+): ActionValue {
+  const cost = promoteCost(mountain);
+  const before = mountain.engineers?.length ?? 0;
+  const hired = promote(funded(mountain, cost));
+  const crew = hired.engineers;
+  if (crew === undefined || crew.length === before) {
+    return rateValue(mountain, 0, cost, horizon, context);
+  }
+  const index = crew.length - 1;
+  const tend = incomeGain(mountain, bestPost(hired, index, context), context);
+  const finds = findStones(hired, "old-shaft", horizon, context);
+  const findRate = horizon > 0 ? finds / horizon : 0;
+  return rateValue(mountain, tend + findRate, cost, horizon, context);
+}
+
+/**
+ * Sending costs the tending they leave behind for the trip, and pays the
+ * expected find as stones over the horizon. A scout at camp has no tending
+ * to lose, so the find is the whole gain.
+ */
+function valueSend(
+  mountain: Mountain,
+  action: Extract<Action, { kind: "send" }>,
+  horizon: number,
+  context: ValueContext,
+): ActionValue {
+  const sent = send(mountain, action.index, action.tunnel, 0);
+  const rateDelta = incomeGain(mountain, sent, context);
+  const spec = TUNNELS.find((tunnel) => tunnel.id === action.tunnel);
+  /* v8 ignore next 3 -- tunnel ids are the closed TUNNELS list */
+  if (spec === undefined) {
+    return rateValue(mountain, 0, 0, horizon, context);
+  }
+  const tripSec = expeditionAwayMs(spec.awayMs, mountain) / 1000;
+  const window = horizon > 0 ? horizon : tripSec;
+  const away = horizon > 0 ? Math.min(tripSec, horizon) : tripSec;
+  const finds = findStones(mountain, action.tunnel, window, context);
+  // The find is stones over the horizon. The cost is the tending given
+  // up on the trip, so a short seam does not pay back in zero seconds
+  // and crowd out every other buy.
+  const lossStones = Math.max(0, -rateDelta) * away;
+  return rateValue(mountain, finds / window, lossStones, horizon, context);
+}
+
+/**
+ * Calling them back restores the post they left, or the best open machine
+ * if home was camp. The cost is the find they walk away from, scaled by how
+ * much of the trip is left, so a nearly finished shaft is cheap to cancel.
+ */
+function valueRecall(
+  mountain: Mountain,
+  index: number,
+  horizon: number,
+  context: ValueContext,
+  now: number,
+): ActionValue {
+  const back = recall(mountain, index);
+  const restored = incomeGain(
+    mountain,
+    bestPost(back, index, context),
+    context,
+  );
+  const crew = mountain.engineers;
+  const engineer = crew?.[index];
+  const trip = mountain.expeditions?.find(
+    (candidate) => candidate.engineer === engineer?.name,
+  );
+  const tunnel = trip?.tunnel ?? "old-shaft";
+  const finds = findStones(
+    mountain,
+    tunnel,
+    horizon > 0 ? horizon : 1,
+    context,
+  );
+  const fraction = trip === undefined ? 1 : remainingFraction(trip, now);
+  // The find is a lump the recall throws away. A worthless tunnel would
+  // otherwise pay back in zero seconds and be the only button. Twelve
+  // hours keeps a neighbour buy on the table.
+  const FORFEIT = 8;
+  const MIN_RECALL_SEC = 5 * 60 * 60;
+  const cost = Math.max(finds * fraction * FORFEIT, restored * MIN_RECALL_SEC);
+  return rateValue(mountain, restored, cost, horizon, context);
+}
+
+/** The mountain with this engineer on the post that pays the most. */
+function bestPost(
+  mountain: Mountain,
+  index: number,
+  context: ValueContext,
+): Mountain {
+  let best = mountain;
+  let bestRate = incomePerSecond(mountain, context);
+  for (const post of ENGINEER_POSTS) {
+    if (post === "camp" || post === "tunnel") {
+      continue;
+    }
+    const stationed = station(mountain, index, post);
+    const rate = incomePerSecond(stationed, context);
+    if (rate > bestRate) {
+      best = stationed;
+      bestRate = rate;
+    }
+  }
+  return best;
+}
+
+function findStones(
+  mountain: Mountain,
+  tunnel: TunnelId,
+  horizon: number,
+  context: ValueContext,
+): number {
+  return expectedFindStones(
+    mountain,
+    mountain.engineers ?? [],
+    tunnel,
+    horizon,
+    (next) => incomePerSecond(next, context),
+  );
+}
+
+function remainingFraction(
+  trip: { readonly sentAt: number; readonly returnsAt: number },
+  now: number,
+): number {
+  if (now <= trip.sentAt) {
+    return 1;
+  }
+  if (now >= trip.returnsAt) {
+    // Already due: settle brings them home. Pricing the find at nothing
+    // made that recall pay back in zero seconds.
+    return 1;
+  }
+  return (trip.returnsAt - now) / (trip.returnsAt - trip.sentAt);
 }
 
 function funded(mountain: Mountain, price: number): Mountain {

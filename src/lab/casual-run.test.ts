@@ -64,7 +64,10 @@ describe("casual run", () => {
     ) {
       return;
     }
-    expect(payback.value / HOURS_PER_DAY).toBeCloseTo(0.5, 1);
+    // #178: tending and a valued find make the next buy affordable inside
+    // the sitting, so the payback wait drops under an hour and is not
+    // listed. Value-per-stone still waits after the borer.
+    expect(payback.value).toBeLessThan(1);
     expect(value.value / HOURS_PER_DAY).toBeCloseTo(0.99, 2);
     const valueNotes = result.deadStretches.filter(
       (stretch) => stretch.score === "value",
@@ -75,14 +78,10 @@ describe("casual run", () => {
     const valueNote = valueNotes.reduce((best, stretch) =>
       stretch.hours > best.hours ? stretch : best,
     );
-    const paybackNote = paybackNotes.reduce((best, stretch) =>
-      stretch.hours > best.hours ? stretch : best,
-    );
+    expect(paybackNotes).toEqual([]);
     expect(valueNote.startDay).toBeCloseTo(2.5, 1);
-    expect(paybackNote.startDay).toBeCloseTo(2.5, 1);
-    expect(paybackNote.hours / HOURS_PER_DAY).toBeLessThanOrEqual(0.5);
     expect(result.deadStretches.map((stretch) => stretch.score)).toEqual(
-      expect.arrayContaining(["payback", "value"]),
+      expect.arrayContaining(["value"]),
     );
   });
 });

@@ -101,9 +101,9 @@ describe("tendingGain", () => {
       effectiveRates(onBorer).crewPerSecond -
         effectiveRates(atCamp).crewPerSecond,
     );
-    expect(tendingGain(staffed, 0, "borer")).toBe(59);
+    expect(tendingGain(staffed, 0, "borer")).toBe(96);
     const two = { ...staffed, helpers: 16, borers: 2 };
-    expect(tendingGain(two, 0, "borer")).toBe(119);
+    expect(tendingGain(two, 0, "borer")).toBe(192);
     expect(tendingGain(staffed, 9, "borer")).toBe(0);
   });
 
@@ -147,6 +147,89 @@ describe("tendingGain", () => {
         },
       ],
     };
-    expect(tendingGain(journeyman, 1, "borer")).toBe(60);
+    expect(tendingGain(journeyman, 1, "borer")).toBe(96);
+  });
+
+  it("lifts an apprentice to 9% of the crew when her tier is the small one", () => {
+    // The machine dwarfs one borer, so +10% of the borer is under 9%.
+    const crew = {
+      ...minedMountain(0),
+      helpers: 40,
+      carts: 4,
+      drills: 2,
+      borers: 1,
+      machines: 1,
+      engineers: [{ ...ada, post: "borer" as const }],
+    };
+    const rested = effectiveRates(station(crew, 0, "camp"));
+    const tended = effectiveRates(crew);
+    const share =
+      (tended.exactCrewPerSecond - rested.exactCrewPerSecond) /
+      tended.exactCrewPerSecond;
+    expect(share).toBeGreaterThanOrEqual(0.08);
+    expect(tendingGain(crew, 0, "borer")).toBe(
+      tended.crewPerSecond - rested.crewPerSecond,
+    );
+    // A second post keeps its own tenth on top of that floor.
+    const pair = {
+      ...crew,
+      engineers: [
+        { ...ada, post: "borer" as const },
+        {
+          name: "Nils" as const,
+          rank: 0 as const,
+          trips: 0,
+          post: "cart" as const,
+        },
+      ],
+    };
+    expect(tendingGain(pair, 1, "cart")).toBeGreaterThan(0);
+    // The higher rank is the floor, even on the smaller post.
+    const masterOnCart = {
+      ...crew,
+      engineers: [
+        { ...ada, post: "borer" as const },
+        {
+          name: "Nils" as const,
+          rank: 2 as const,
+          trips: 9,
+          post: "cart" as const,
+        },
+      ],
+    };
+    expect(effectiveRates(masterOnCart).exactCrewPerSecond).toBeGreaterThan(
+      effectiveRates(pair).exactCrewPerSecond,
+    );
+    // Same rank: the bigger machine sets the floor. A lower rank does not.
+    const borerSecond = {
+      ...crew,
+      engineers: [
+        { ...ada, post: "cart" as const },
+        {
+          name: "Nils" as const,
+          rank: 0 as const,
+          trips: 0,
+          post: "borer" as const,
+        },
+      ],
+    };
+    const masterFirst = {
+      ...crew,
+      engineers: [
+        {
+          name: "Nils" as const,
+          rank: 2 as const,
+          trips: 9,
+          post: "cart" as const,
+        },
+        { ...ada, post: "borer" as const },
+      ],
+    };
+    expect(effectiveRates(borerSecond).exactCrewPerSecond).toBeGreaterThan(
+      rested.exactCrewPerSecond,
+    );
+    expect(effectiveRates(masterFirst).exactCrewPerSecond).toBe(
+      effectiveRates(masterOnCart).exactCrewPerSecond,
+    );
   });
 });

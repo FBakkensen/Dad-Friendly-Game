@@ -426,6 +426,13 @@ for (const viewport of VIEWPORTS) {
     );
   });
   check(sheetReachable, `${size} upgrades sheet buttons are tappable`);
+  if (viewport[1] >= 844) {
+    const fits = await page.$eval(
+      ".upgrades-dialog",
+      (sheet) => sheet.scrollHeight <= sheet.clientHeight + 1,
+    );
+    check(fits, `${size} upgrades sheet fits with no scroll`);
+  }
   await page.tap(".upgrades-close");
   const engineersFat = await page.$eval(".engineers-button", (button) => {
     const box = button.getBoundingClientRect();

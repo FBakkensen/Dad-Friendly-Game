@@ -369,9 +369,9 @@ describe("crew tiers on screen", () => {
     expect(grid?.classList.contains("tier-grid-compact")).toBe(true);
     const borer = tierCard(screen.root, "borer");
     expect(borer.querySelector(".tier-name")?.textContent).toBe("Borer");
-    // The first borer's engineer tends them: 595 becomes 654.5, shown floored.
+    // The first borer's engineer tends them: 595 becomes 714, shown floored.
     expect(borer.querySelector(".tier-rate")?.textContent).toBe(
-      "+654\u2009·\u20091,309/s",
+      "+691\u2009·\u20091,382/s",
     );
     expect(borer.querySelector(".tier-count")?.textContent).toBe("×2");
     expect(borer.getAttribute("aria-label")).toContain("tunnel borer");
@@ -1497,8 +1497,8 @@ describe("quick boosts on screen", () => {
       expect(screen.text('[data-boost="sharper"] .upgrade-name')).toBe(
         "Sharper picks",
       );
-      // 60 taps of 1 stone, but never under the 100-stone floor.
-      expect(buy?.textContent).toBe("Buy for 120 stones");
+      // 120 taps, or a minute of this 500-worker crew, whichever is more.
+      expect(buy?.textContent).toBe("Buy for 30 thousand stones");
       buy?.click();
       expect(buy?.disabled).toBe(true);
       expect(buy?.textContent).toBe("Running · 10:00 left");
@@ -1915,7 +1915,7 @@ describe("first engineer note (#144)", () => {
       screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
     ).toBe(true);
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+654\u2009·\u2009654/s",
+      "+691\u2009·\u2009691/s",
     );
   });
 
@@ -1959,7 +1959,7 @@ describe("first engineer note (#144)", () => {
     ).toBe(true);
     expect(screen.text('[data-tier="borer"] .tier-count')).toBe("×1");
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+654\u2009·\u2009654/s",
+      "+691\u2009·\u2009691/s",
     );
     expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×11");
   });
@@ -2653,7 +2653,7 @@ describe("engineers sheet (#145)", () => {
     );
     expect(borer?.getAttribute("aria-label")).toContain("Ada tends them.");
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+654\u2009·\u2009654/s",
+      "+691\u2009·\u2009691/s",
     );
 
     const sheet = openSheet(screen.root);
@@ -2667,7 +2667,7 @@ describe("engineers sheet (#145)", () => {
       "Apprentice",
     );
     expect(ada?.textContent).toContain(
-      "Ada is tending the borers: +59 stones/sec.",
+      "Ada is tending the borers: +96 stones/sec.",
     );
     expect(ada?.querySelector(".engineer-doing")?.textContent).not.toMatch(
       /\?|%/,
@@ -3187,7 +3187,7 @@ describe("side tunnels (#147)", () => {
     recall?.click();
     sheet.querySelector<HTMLButtonElement>(".recall-yes")?.click();
     expect(screen.text(".engineer-doing")).toBe(
-      "Ada is tending the borers: +59 stones/sec.",
+      "Ada is tending the borers: +96 stones/sec.",
     );
     expect(screen.text(".engineer-toast")).toBe("Ada is home, empty-handed.");
     expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
@@ -3350,17 +3350,17 @@ describe("side tunnels (#147)", () => {
     });
     const screen = mountScreen({ storage });
     expect(screen.text('[data-tier="borer"] .engineer-gain')).toBe(
-      "+59 stones/sec",
+      "+96 stones/sec",
     );
     expect(
       screen.root
         .querySelector('[data-tier="borer"]')
         ?.getAttribute("aria-label"),
-    ).toContain("+59 stones/sec");
+    ).toContain("+96 stones/sec");
     const sheet = openSheet(screen.root);
     sheet.querySelector<HTMLButtonElement>(".engineer-tend")?.click();
     expect(sheet.textContent).toContain(
-      "+59 stones/sec. They dig faster, and she clears any jam herself.",
+      "+96 stones/sec. They dig faster, and she clears any jam herself.",
     );
     expect(sheet.textContent).toContain("None built yet. ");
     expect(sheet.textContent).not.toContain("+0 stones/sec");
@@ -3368,9 +3368,9 @@ describe("side tunnels (#147)", () => {
       .querySelector<HTMLButtonElement>('[data-tier="borer"]')
       ?.click();
     expect(screen.text('[data-tier="borer"] .engineer-gain')).toBe(
-      "+119 stones/sec",
+      "+192 stones/sec",
     );
-    expect(sheet.textContent).toContain("+119 stones/sec");
+    expect(sheet.textContent).toContain("+192 stones/sec");
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
     expect(screen.text('[data-boost="sharper"] .upgrade-effect')).toContain(
       "a tap",

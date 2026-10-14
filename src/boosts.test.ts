@@ -64,7 +64,17 @@ describe("quick boosts", () => {
         3 * boostCost(overtime, rates),
       );
     }
-    expect(sharperGain).toBeGreaterThanOrEqual(5 * boostCost(sharper, rates));
+    const tapPrice = Math.ceil(rates.tapYield * sharper.priceUnits);
+    const cost = boostCost(sharper, rates);
+    if (cost === Math.max(sharper.minCost, tapPrice)) {
+      // Priced from taps: a slow session still earns it back five times.
+      expect(sharperGain).toBeGreaterThanOrEqual(5 * cost);
+    } else {
+      // Priced from a minute of the crew, so a big mine does not sell it
+      // for pocket change. Taps alone no longer cover that price five times.
+      expect(cost).toBeGreaterThan(tapPrice);
+      expect(cost).toBeGreaterThanOrEqual(rates.crewPerSecond * 60);
+    }
   });
 
   it("never show more than a boost's full length after the clock is set back (#116)", () => {
