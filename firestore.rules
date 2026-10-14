@@ -8,14 +8,19 @@ service cloud.firestore {
     // Collection: saves
     // Document ID: Firebase Auth uid
     // Fields:
-    //   - version: int (required, 1..5)
-    //   - mountain: map (required iff version is 3, 4, or 5)
+    //   - version: int (required, 1..6)
+    //   - mountain: map (required iff version is 3, 4, 5, or 6)
     //       - remaining: int 0..240000000 (v4: 0..100000000, v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts, drills, borers, machines, kids: optional int >= 0, upgrades: optional map of known ids to int levels, boosts: optional map of known ids to int end times,
     //         startedAt: optional int >= 0 (run start; updates may not lower it)
     //         staffed: optional true or 1 (#89 grant) or 2 (M7 top-up). true stays valid for old clients.
     //         engineers: optional list, size 0..5. Each: name from the closed list, rank 0..2 matching trips (0 until 3, 1 until 9, then 2), trips 0..1000000, post a machine tier or camp or tunnel. Names unique.
     //         expeditions: optional list, size 0..5. The first two trips must use a closed tunnel id, and returnsAt must be later than sentAt by at most 4 hours. The client parser checks the rest of the shape.
     //         finds: optional list of lost-tool and keepsake ids, size 0..9. The client parser rejects duplicates.
+    //   - workshop (v6, required): one map beside the mountain. The rules only
+    //       require that it is a map. A full crew is already at the 1000-expression
+    //       budget, so the client parser checks the rest: four material ints
+    //       inside each band's width, recipes (closed ids, size 0..7, no duplicates),
+    //       bench (recipe, times, at most 4 hours), and crafted levels 0..1000.
     //   - grid: map (required iff version is 1 or 2; legacy, read-migrated by the client)
     //       - width: int (required, must be 3)
     //       - height: int (required, must be 3)
@@ -122,12 +127,12 @@ service cloud.firestore {
         (expeditions.size() < 2 || tripTimesOk(expeditions[1]));
     }
 
-    // Duplicate ids are rejected by the parser. Pairwise checks here, beside a
-    // full crew, cross the 1000-expression budget. hasOnly keeps the ids closed.
+    // Unknown ids and duplicates are dropped by the parser, so a newer shelf
+    // id cannot lock this client out. Listing every id here, beside a full
+    // crew and the workshop, crosses the 1000-expression budget. The shelf
+    // is capped at its length.
     function isValidFinds(finds) {
-      return finds is list &&
-        finds.size() <= 9 &&
-        finds.hasOnly(['pick', 'lamp', 'map', 'boots', 'drawing', 'watch', 'whistle', 'pebble', 'ribbon']);
+      return finds is list && finds.size() <= 9;
     }
 
     function isValidMountain(mountain, total) {
@@ -184,6 +189,13 @@ service cloud.firestore {
       return uidUnchanged() &&
         data.version is int &&
         (
+          // `workshop is map` is the whole rules check that still fits beside a
+          // full crew. The parser rejects a bad pocket, bench, or recipe list.
+          (data.version == 6 &&
+            hasOnlyAllowedFields(['version', 'mountain', 'lastSeen', 'workshop']) &&
+            hasValidLastSeen(data) &&
+            isValidMountain(data.mountain, 240000000) &&
+            data.workshop is map) ||
           (data.version == 5 &&
             hasOnlyAllowedFields(['version', 'mountain', 'lastSeen']) &&
             hasValidLastSeen(data) &&

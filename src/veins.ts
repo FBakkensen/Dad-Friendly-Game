@@ -1,5 +1,5 @@
 import { glintScale } from "./lost-tools";
-import { stonesPerSecond, type Mountain } from "./mountain";
+import { digStones, stonesPerSecond, type Mountain } from "./mountain";
 
 /** Golden veins appear every 3–6 minutes of active play and glint for 12 seconds. */
 const VEIN_MIN_GAP_MS = 3 * 60 * 1000;
@@ -89,11 +89,7 @@ export function mineVein(mountain: Mountain): Mountain {
   if (reward === 0) {
     return mountain;
   }
-  return {
-    ...mountain,
-    remaining: mountain.remaining - reward,
-    pocket: mountain.pocket + reward,
-  };
+  return digStones(mountain, reward);
 }
 
 /**

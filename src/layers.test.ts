@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import {
+  EMPTY_MATERIALS,
   LAYERS,
+  MATERIAL_EVERY,
+  MAX_MATERIAL,
+  addMaterials,
   hardnessFactorId,
   layerOf,
+  materialsFromMined,
+  materialsGained,
   type LayerId,
   type MaterialId,
 } from "./layers";
@@ -151,7 +157,6 @@ describe("layers", () => {
     const mountain = minedMountain(10_000_000);
     expect(layerOf(mountain).id).toBe("granite");
     expect(mountain).not.toHaveProperty("layer");
-    expect(mountain).not.toHaveProperty("materials");
 
     const grid = {
       width: 3,
@@ -192,5 +197,100 @@ describe("layers", () => {
     for (const save of [fresh, gridSave, scaled, deepened, current]) {
       expect(save.mountain).not.toHaveProperty("layer");
     }
+  });
+});
+
+describe("materials", () => {
+  it("doubles the gap each band deeper, from 40,000 clay", () => {
+    expect(MATERIAL_EVERY).toEqual({
+      clay: 40_000,
+      iron: 80_000,
+      crystal: 160_000,
+      heartstone: 320_000,
+    });
+    expect(MATERIAL_EVERY.iron).toBe(MATERIAL_EVERY.clay * 2);
+    expect(MATERIAL_EVERY.crystal).toBe(MATERIAL_EVERY.iron * 2);
+    expect(MATERIAL_EVERY.heartstone).toBe(MATERIAL_EVERY.crystal * 2);
+    expect(MAX_MATERIAL).toEqual({
+      clay: 10_000_000,
+      iron: 35_000_000,
+      crystal: 75_000_000,
+      heartstone: 120_000_000,
+    });
+  });
+
+  it("grants one unit per gap in that band, and keeps the remainder", () => {
+    expect(materialsFromMined(0)).toEqual(EMPTY_MATERIALS);
+    expect(materialsFromMined(-1)).toEqual(EMPTY_MATERIALS);
+    expect(materialsFromMined(39_999)).toEqual(EMPTY_MATERIALS);
+    expect(materialsFromMined(40_000)).toEqual({
+      ...EMPTY_MATERIALS,
+      clay: 1,
+    });
+    expect(materialsFromMined(10_000_000)).toEqual({
+      ...EMPTY_MATERIALS,
+      clay: 250,
+    });
+    expect(materialsFromMined(10_000_000 + 79_999)).toEqual({
+      clay: 250,
+      iron: 0,
+      crystal: 0,
+      heartstone: 0,
+    });
+    expect(materialsFromMined(12_000_000)).toEqual({
+      clay: 250,
+      iron: 25,
+      crystal: 0,
+      heartstone: 0,
+    });
+    expect(materialsFromMined(45_000_000)).toEqual({
+      clay: 250,
+      iron: 437,
+      crystal: 0,
+      heartstone: 0,
+    });
+    expect(materialsFromMined(60_000_000)).toEqual({
+      clay: 250,
+      iron: 437,
+      crystal: 93,
+      heartstone: 0,
+    });
+    expect(materialsFromMined(120_000_000)).toEqual({
+      clay: 250,
+      iron: 437,
+      crystal: 468,
+      heartstone: 0,
+    });
+    expect(materialsFromMined(MOUNTAIN_STONES)).toEqual({
+      clay: 250,
+      iron: 437,
+      crystal: 468,
+      heartstone: 375,
+    });
+  });
+
+  it("adds only the units the new stones crossed, including across a band", () => {
+    expect(materialsGained(-5, 40_000)).toEqual({
+      ...EMPTY_MATERIALS,
+      clay: 1,
+    });
+    expect(materialsGained(40_000, 39_000)).toEqual(EMPTY_MATERIALS);
+    expect(materialsGained(39_000, 40_100)).toEqual({
+      ...EMPTY_MATERIALS,
+      clay: 1,
+    });
+    expect(materialsGained(9_999_900, 10_080_000)).toEqual({
+      clay: 1,
+      iron: 1,
+      crystal: 0,
+      heartstone: 0,
+    });
+    expect(addMaterials(undefined, EMPTY_MATERIALS)).toEqual(EMPTY_MATERIALS);
+    expect(
+      addMaterials(
+        { clay: 2, iron: 0, crystal: 0, heartstone: 0 },
+        { clay: 1, iron: 4, crystal: 0, heartstone: 0 },
+      ),
+    ).toEqual({ clay: 3, iron: 4, crystal: 0, heartstone: 0 });
   });
 });

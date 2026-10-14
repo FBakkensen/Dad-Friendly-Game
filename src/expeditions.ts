@@ -298,15 +298,18 @@ export function parseExpeditions(
   return parsed;
 }
 
-/** Untrusted shelf: closed ids, no duplicates. */
+/**
+ * Untrusted shelf. Unknown ids and duplicates are dropped, so a newer
+ * client cannot lock this one out of the save. A non-list still fails.
+ */
 export function parseFinds(value: unknown): readonly FindId[] | undefined {
-  if (!Array.isArray(value) || value.length > FIND_IDS.length) {
+  if (!Array.isArray(value)) {
     return undefined;
   }
   const parsed: FindId[] = [];
   for (const item of value) {
     if (!isFindId(item) || parsed.includes(item)) {
-      return undefined;
+      continue;
     }
     parsed.push(item);
   }

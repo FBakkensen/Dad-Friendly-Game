@@ -427,6 +427,14 @@ describe("helpers mining live", () => {
         borers: 0,
         machines: 0,
         kids: 0,
+        materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+        recipes: [
+          "iron-rails",
+          "sturdy-props",
+          "blasting-charge",
+          "diamond-bits",
+          "heartstone-core",
+        ],
       },
       lastSeen: 3_000,
     });
@@ -523,6 +531,8 @@ describe("away earnings", () => {
         machines: 0,
         kids: 0,
         staffed: 2,
+        materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+        recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
       },
       lastSeen: 600_000,
     });

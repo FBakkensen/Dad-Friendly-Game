@@ -1,5 +1,6 @@
 import { createMountain, runStartedAt, type Mountain } from "./mountain";
 import { hasRelic } from "./relics";
+import { recipesForMined } from "./workshop";
 
 /** The bonus itself lives in rates.ts with every other multiplier. */
 export { LEGACY_STEP, legacyBonus } from "./rates";
@@ -16,9 +17,11 @@ export function passTheMine(
   if (mountain.remaining > 0 || !hasRelic(mountain, "mantle")) {
     return undefined;
   }
+  const fresh = createMountain();
   return {
-    ...createMountain(),
+    ...fresh,
     legacy: (mountain.legacy ?? 0) + 1,
     startedAt: Math.max(now, runStartedAt(mountain) + 1),
+    recipes: mountain.recipes ?? recipesForMined(0),
   };
 }
