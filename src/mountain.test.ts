@@ -281,6 +281,7 @@ describe("accrueAway", () => {
     expect(result.report).toEqual({
       mined: 54,
       awayMs: 90_500,
+      paidMs: 90_500,
       capped: false,
       heart: 1,
     });
@@ -299,14 +300,23 @@ describe("accrueAway", () => {
     );
   });
 
-  it("pays at most the cap but reports the real time away", () => {
+  it("pays 8 hours of a short gap, and 16 hours of one long absence", () => {
+    const short = accrueAway({
+      mountain: crew,
+      lastSeen: 0,
+      now: 10 * 3_600_000,
+    });
+    expect(short.report.paidMs).toBe(BASE_AWAY_CAP_MS);
+    expect(short.mined).toBe((BASE_AWAY_CAP_MS / 1000) * 2 * AWAY_PAY_RATE);
     const now = BASE_AWAY_CAP_MS * 3;
     const result = accrueAway({ mountain: crew, lastSeen: 0, now });
-    expect(result.mined).toBe((BASE_AWAY_CAP_MS / 1000) * 2 * AWAY_PAY_RATE);
+    const longCap = 16 * 3_600_000;
+    expect(result.mined).toBe((longCap / 1000) * 2 * AWAY_PAY_RATE);
     expect(result.settledAt).toBe(now);
     expect(result.report).toEqual({
-      mined: (BASE_AWAY_CAP_MS / 1000) * 2 * AWAY_PAY_RATE,
+      mined: (longCap / 1000) * 2 * AWAY_PAY_RATE,
       awayMs: now,
+      paidMs: longCap,
       capped: true,
       heart: 1,
     });
@@ -318,6 +328,7 @@ describe("accrueAway", () => {
     ).toEqual({
       mined: 0,
       awayMs: 0,
+      paidMs: 0,
       capped: false,
       heart: 1,
     });
@@ -329,10 +340,11 @@ describe("Shield of Protection: away cap", () => {
   const shielded = { ...minedMountain(10_000_000), helpers: 10 };
   const DAY = 24 * 3_600_000;
 
-  it("pays 8 hours without the Shield and a whole day with it", () => {
+  it("pays 16 hours of a long absence without the Shield, and a whole day with it", () => {
     const plain = accrueAway({ mountain: crew, lastSeen: 0, now: 2 * DAY });
     expect(plain.report.capped).toBe(true);
-    expect(plain.mined).toBe(Math.floor(8 * 3600 * 10 * AWAY_PAY_RATE));
+    expect(plain.report.paidMs).toBe(16 * 3_600_000);
+    expect(plain.mined).toBe(Math.floor(16 * 3600 * 10 * AWAY_PAY_RATE));
     const safe = accrueAway({
       mountain: shielded,
       lastSeen: 0,

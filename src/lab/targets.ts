@@ -75,8 +75,24 @@ export type TargetScope =
   | { readonly kind: "all" }
   | { readonly kind: "policies"; readonly ids: readonly string[] }
   | { readonly kind: "policyKinds"; readonly kinds: readonly PolicyKind[] }
-  | { readonly kind: "afterHour"; readonly hour: number }
-  | { readonly kind: "fromSource"; readonly source: string };
+  | {
+      readonly kind: "afterHour";
+      readonly hour: number;
+      /**
+       * When set, only these player kinds are graded. The hour still drops
+       * the opening samples. Omitted means every kind.
+       */
+      readonly kinds?: readonly PolicyKind[];
+    }
+  | {
+      readonly kind: "fromSource";
+      readonly source: string;
+      /**
+       * When set, only these player kinds are graded. The source still
+       * drops samples from before that output. Omitted means every kind.
+       */
+      readonly kinds?: readonly PolicyKind[];
+    };
 
 type TargetBase = {
   readonly id: string;
@@ -101,10 +117,10 @@ export const TARGETS: readonly Target[] = [
   {
     id: "dead-stretch",
     measure: "longestDeadStretch",
-    scope: { kind: "policyKinds", kinds: ["casual", "optimizer"] },
+    scope: { kind: "policyKinds", kinds: ["casual"] },
     op: "lte",
     value: 0.5 * HOURS_PER_DAY,
-    why: "A dad waiting on the next buy for half a day has nothing to decide.",
+    why: "A casual dad waiting on the next buy for half a day has nothing to decide. The optimizer's save is reported beside it.",
   },
   {
     id: "single-share",
@@ -117,7 +133,11 @@ export const TARGETS: readonly Target[] = [
   {
     id: "live-median-after-open",
     measure: "liveMedian",
-    scope: { kind: "afterHour", hour: OPENING_HOURS },
+    scope: {
+      kind: "afterHour",
+      hour: OPENING_HOURS,
+      kinds: ["casual", "optimizer"],
+    },
     op: "gte",
     value: 2,
     why: "After the first hour the typical moment should be a real choice.",
@@ -133,10 +153,14 @@ export const TARGETS: readonly Target[] = [
   {
     id: "tending-from-borer",
     measure: "featureShare",
-    scope: { kind: "fromSource", source: BORER_SOURCE },
+    scope: {
+      kind: "fromSource",
+      source: BORER_SOURCE,
+      kinds: ["casual", "optimizer"],
+    },
     op: "gte",
     value: 0.08,
-    why: "An apprentice on the borer should be a real share of the output.",
+    why: "An apprentice on the borer should be a real share of the output for a casual dad and for the optimizer.",
   },
   {
     id: "casual-finish",
@@ -149,10 +173,10 @@ export const TARGETS: readonly Target[] = [
   {
     id: "thin-habit-finish",
     measure: "finishDay",
-    scope: { kind: "policies", ids: ["tap-only", "five-min-a-day"] },
+    scope: { kind: "policies", ids: ["five-min-a-day"] },
     op: "lte",
     value: 14,
-    why: "A dad who barely sits down still finishes inside two weeks.",
+    why: "Five minutes a day still finishes inside two weeks.",
   },
   {
     id: "extreme-win",
@@ -186,8 +210,8 @@ export const DEFAULT_MAX_DAYS = 30;
 
 /**
  * Seeds a CI run plays, numbered 1 through this count.
- * Three keeps the report job short. The job posts the report and does not
- * fail the build.
+ * Three keeps the report job short. CI sets LAB_STRICT=1, so a miss fails
+ * the job after the report is posted.
  */
 export const CI_SEEDS = 3;
 

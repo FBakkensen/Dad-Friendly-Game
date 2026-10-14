@@ -29,7 +29,7 @@ import { expectedFindStones } from "./finds";
 import { kindForTier, type Trouble, type TroubleTier } from "../hazards";
 import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
-import { effectiveRates, heartBonus } from "../rates";
+import { effectiveRates, heartBonus, paidAwayMs } from "../rates";
 import {
   TIERS,
   owned,
@@ -429,12 +429,12 @@ export function incomePerSecond(
   const liveRates = effectiveRates(mountain, clock?.now, clock?.trouble);
   const awayRates = effectiveRates(mountain);
   const tap = oneTap(mountain, clock?.now, clock?.trouble);
+  const liveIncome = liveRates.exactCrewPerSecond + context.tapsPerSecond * tap;
   const liveSeconds = context.liveSeconds;
   const awaySeconds = context.awaySeconds;
   const cycle = liveSeconds + awaySeconds;
-  const capSeconds = awayRates.awayCapMs / 1000;
-  const paidAway = awaySeconds <= 0 ? 0 : Math.min(awaySeconds, capSeconds);
-  const liveIncome = liveRates.exactCrewPerSecond + context.tapsPerSecond * tap;
+  const paidAway =
+    awaySeconds <= 0 ? 0 : paidAwayMs(mountain, awaySeconds * 1000) / 1000;
   const awayIncome =
     awayRates.exactCrewPerSecond * awayFactor(mountain, paidAway * 1000);
   if (!(cycle > 0)) {

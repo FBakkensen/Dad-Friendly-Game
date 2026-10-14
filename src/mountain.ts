@@ -1,5 +1,5 @@
 import type { Trouble } from "./hazards";
-import { effectiveRates, heartBonus } from "./rates";
+import { effectiveRates, heartBonus, paidAwayMs } from "./rates";
 import { parseBoosts, type Boosts } from "./boosts";
 import { parseEngineers, type Engineer } from "./engineers";
 import {
@@ -191,6 +191,8 @@ export type AwayReport = {
   readonly mined: number;
   /** Real time away, before the cap. */
   readonly awayMs: number;
+  /** Time that actually paid. */
+  readonly paidMs: number;
   readonly capped: boolean;
   /** Heart of Patience multiplier on away pay (1 without the Heart). */
   readonly heart: number;
@@ -211,8 +213,8 @@ export function accrueAway({
 } {
   const awayMs = Math.max(0, now - lastSeen);
   const rates = effectiveRates(mountain);
-  const capped = awayMs > rates.awayCapMs;
-  const paidMs = capped ? rates.awayCapMs : awayMs;
+  const paidMs = paidAwayMs(mountain, awayMs);
+  const capped = awayMs > paidMs;
   const heart = heartBonus(mountain, paidMs);
   // Rounded so 0.3 × 1.5 pays 0.45, not 0.44999… (one stone short).
   const pay = Math.round(rates.awayPay * heart * 1e9) / 1e9;
@@ -226,7 +228,7 @@ export function accrueAway({
   });
   return {
     ...walked,
-    report: { mined: walked.mined, awayMs, capped, heart },
+    report: { mined: walked.mined, awayMs, paidMs, capped, heart },
   };
 }
 

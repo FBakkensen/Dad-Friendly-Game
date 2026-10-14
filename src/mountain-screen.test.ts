@@ -576,7 +576,7 @@ describe("crew tiers on screen", () => {
     expect(screen.text(".pocket")).toBe("9,000 stones");
   });
 
-  it("says when the 8-hour cap was reached", () => {
+  it("says when a long absence hits the 16-hour cap", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
@@ -596,9 +596,9 @@ describe("crew tiers on screen", () => {
       }),
     );
     const screen = mountScreen({ storage });
-    expect(screen.text(".welcome-mined")).toBe("+8,640 stones");
+    expect(screen.text(".welcome-mined")).toBe("+17.2 thousand stones");
     expect(screen.text(".welcome-detail")).toBe(
-      "You were gone 1 day 2 hours. Your worker mined for the first 8 hours, at a resting pace (30% of their speed).",
+      "You were gone 1 day 2 hours. Your worker mined for the first 16 hours, at a resting pace (30% of their speed).",
     );
   });
 
@@ -1577,13 +1577,13 @@ describe("lasting upgrades on screen", () => {
       ?.click();
     expect(boots?.textContent).toBe("Buy · 650K");
     expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
-      "Workers +136%, now 1/s.",
+      "Workers 1/s to 2.4/s.",
     );
     boots?.click();
     expect(boots?.textContent).toBe("Owned");
     expect(boots?.disabled).toBe(true);
     expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
-      "Workers +136%, now 2.4/s.",
+      "Workers 1/s to 2.4/s.",
     );
     expect(screen.text('[data-tier="helper"] .tier-rate')).toBe(
       "+2.4 each · 23/s",
@@ -2350,7 +2350,7 @@ describe("player-facing workers (#139)", () => {
         screen.root.querySelector<HTMLElement>(".upgrades-dialog")?.hidden,
       ).toBe(false);
       expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
-        "Workers +136%, now 2.4/s.",
+        "Workers 1.0/s to 2.4/s.",
       );
       expect(screen.text('[data-upgrade="cartSyn"] .upgrade-name')).toBe(
         "Helping hands",

@@ -1,7 +1,6 @@
 import { formatCount, formatDuration } from "./format";
 import { stonesPerSecond } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
-import { effectiveRates } from "./rates";
 import {
   ENGINEER_WELCOME,
   cameBack,
@@ -127,7 +126,7 @@ export function createWelcomePanel({
         ? "Your worker"
         : `Your ${formatCount(helpers)} workers`;
     welcomeDetail.textContent = report.capped
-      ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for ${capWords(effectiveRates(getView().mountain).awayCapMs)}, ${restingPace(getView().mountain)}.`
+      ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for ${capWords(report.paidMs)}, ${restingPace(getView().mountain)}.`
       : `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined the whole time, ${restingPace(getView().mountain)}.`;
     welcomeDetail.textContent +=
       report.heart > 1

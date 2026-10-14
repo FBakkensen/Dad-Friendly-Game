@@ -508,6 +508,7 @@ describe("away earnings", () => {
     expect(progress.getSnapshot().away).toEqual({
       mined: 540,
       awayMs: 600_000,
+      paidMs: 600_000,
       capped: false,
       heart: 1,
     });

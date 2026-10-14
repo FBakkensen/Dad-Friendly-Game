@@ -80,6 +80,15 @@ const shareWords = (share: number): string => {
   return `${pct.toFixed(2)}%`;
 };
 
+/** What Better boots does to this crew, in stones a second. */
+function bootsEffectLine(mountain: Mountain, perWorker: number): string {
+  const factor = 1 + BOOTS_SPEED_PER_LEVEL;
+  const owned = upgradeLevel(mountain, "boots") > 0;
+  const before = owned ? perWorker / factor : perWorker;
+  const after = owned ? perWorker : perWorker * factor;
+  return `Workers ${formatSpeed(before)}/s to ${formatSpeed(after)}/s.`;
+}
+
 /**
  * One sentence: the per-level rule and what this crew would get, or gets now.
  */
@@ -93,7 +102,7 @@ export function upgradeEffectLine(
     case "tap":
       return `Taps +${shareWords(TAP_SHARE_PER_LEVEL)}, now ${formatCount(rates.tapYield)}.`;
     case "boots":
-      return `Workers +${shareWords(BOOTS_SPEED_PER_LEVEL)}, now ${formatSpeed(rates.tierSpeed.helper)}/s.`;
+      return bootsEffectLine(mountain, rates.tierSpeed.helper);
     case "steady":
       return `Away pay +${shareWords(STEADY_AWAY_PER_LEVEL)}, now ${shareWords(rates.awayPay)}.`;
     case "cartSyn":
@@ -141,7 +150,7 @@ export function lockedUpgradeLine(upgrade: Upgrade): string {
   return `${upgrade.name} · ${gate}`;
 }
 
-/** "the first 8 hours", or "a whole day" once the Shield lifts the cap. */
+/** "the first 8 hours", "the first 16 hours", or "a whole day" with the Shield. */
 export const capWords = (capMs: number): string =>
   capMs >= 24 * 3_600_000
     ? "a whole day"

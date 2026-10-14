@@ -30,6 +30,28 @@ export const AWAY_PAY_RATE = 0.3;
 export const BASE_AWAY_CAP_MS = 8 * 60 * 60 * 1000;
 export const SHIELD_AWAY_CAP_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * One absence longer than half a day, before the Shield, pays this long.
+ * Two gaps inside a day stay on the 8-hour cap. #179.
+ */
+const LONG_DAY_MARK_MS = 12 * 60 * 60 * 1000;
+const LONG_DAY_CAP_MS = 16 * 60 * 60 * 1000;
+
+/**
+ * Paid time away. The Shield's cap wins. Otherwise a short gap pays at most
+ * 8 hours, and a single long absence pays up to 16.
+ */
+export function paidAwayMs(mountain: Mountain, awayMs: number): number {
+  const gone = Math.max(0, awayMs);
+  const cap = hasRelic(mountain, "shield")
+    ? SHIELD_AWAY_CAP_MS
+    : BASE_AWAY_CAP_MS;
+  if (cap === BASE_AWAY_CAP_MS && gone > LONG_DAY_MARK_MS) {
+    return Math.min(gone, LONG_DAY_CAP_MS);
+  }
+  return Math.min(gone, cap);
+}
+
 /** Heart of Patience: away pay climbs from ×1 to ×2 over this long away. */
 const HEART_MAX_BONUS = 0.5;
 const HEART_FULL_MS = 12 * 60 * 60 * 1000;
