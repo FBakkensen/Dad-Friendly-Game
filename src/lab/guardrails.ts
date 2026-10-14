@@ -10,6 +10,8 @@ export type GuardrailCheck = {
   readonly measure: string;
   readonly pass: boolean;
   readonly detail: string;
+  /** Printed, and left out of the strict exit. M9-7 turns these strict. */
+  readonly reportOnly?: boolean;
 };
 
 /** One line per target. A target that covers no row in this run holds. */
@@ -34,7 +36,9 @@ export function guardrailExit(
     if (check.pass) {
       continue;
     }
-    missed += 1;
+    if (check.reportOnly !== true) {
+      missed += 1;
+    }
     warn(check.detail);
   }
   if (strict && missed > 0) {
@@ -78,6 +82,7 @@ function checkOne(target: Target, rows: readonly PolicyRow[]): GuardrailCheck {
       targetId: target.id,
       measure: target.measure,
       pass: true,
+      reportOnly: target.reportOnly === true,
       detail: `${target.id} holds.`,
     };
   }
@@ -86,6 +91,7 @@ function checkOne(target: Target, rows: readonly PolicyRow[]): GuardrailCheck {
     targetId: target.id,
     measure: target.measure,
     pass: false,
+    reportOnly: target.reportOnly === true,
     detail: `${target.id} misses for ${who}.`,
   };
 }

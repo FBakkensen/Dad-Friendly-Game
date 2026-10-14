@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { send } from "../expeditions";
 import { stepHazards, type HazardState } from "../hazards";
-import { accrue, accrueAway, createMountain, type Mountain } from "../mountain";
+import {
+  MOUNTAIN_STONES,
+  accrue,
+  accrueAway,
+  createMountain,
+  type Mountain,
+} from "../mountain";
+import { startCraft } from "../workshop";
 import { createWorld, step, type World } from "./world";
 
 const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
@@ -142,5 +149,27 @@ describe("world step", () => {
     expect(away.mountain).toEqual(paid.mountain);
     expect(away.mountain.engineers?.[0]?.post).toBe("borer");
     expect(away.hazards.phase).toBe("waiting");
+  });
+
+  it("fits a finished craft on the live clock and while away", () => {
+    const shed: Mountain = {
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - 12_000_000,
+      pocket: 50_000_000,
+      materials: { clay: 40, iron: 40, crystal: 0, heartstone: 0 },
+      helpers: 4,
+      carts: 1,
+    };
+    const started = startCraft(shed, "iron-rails", 0);
+    const endsAt = started.bench?.endsAt ?? 0;
+    const early = step(createWorld(1, started), endsAt - 1, "live");
+    expect(early.mountain.bench?.recipe).toBe("iron-rails");
+    expect(early.mountain.crafted?.["iron-rails"]).toBeUndefined();
+    const done = step(createWorld(1, started), endsAt, "live");
+    expect(done.mountain.bench).toBeUndefined();
+    expect(done.mountain.crafted?.["iron-rails"]).toBe(1);
+    const away = step(createWorld(1, started), endsAt, "away");
+    expect(away.mountain.crafted?.["iron-rails"]).toBe(1);
+    expect(away.mountain.bench).toBeUndefined();
   });
 });

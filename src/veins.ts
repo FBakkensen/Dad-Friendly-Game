@@ -3,8 +3,8 @@ import { digStones, stonesPerSecond, type Mountain } from "./mountain";
 import { veinOftenScale } from "./workshop";
 
 /** Golden veins appear every 3–6 minutes of active play and glint for 12 seconds. */
-const VEIN_MIN_GAP_MS = 3 * 60 * 1000;
-const VEIN_MAX_GAP_MS = 6 * 60 * 1000;
+export const VEIN_MIN_GAP_MS = 3 * 60 * 1000;
+export const VEIN_MAX_GAP_MS = 6 * 60 * 1000;
 export const VEIN_GLINT_MS = 12 * 1000;
 const VEIN_HELPER_SECONDS = 60;
 const VEIN_MIN_REWARD = 50;

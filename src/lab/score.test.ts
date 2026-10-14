@@ -4,7 +4,7 @@ import { createMountain } from "../mountain";
 import { DAD_SCHEDULE } from "../pacing";
 import { singleShareOf } from "./measures/singleShare";
 import { scoreDecision } from "./score";
-import { BORER_SOURCE, TENDING_SOURCE } from "./targets";
+import { BORER_SOURCE, CRAFTED_SOURCE, TENDING_SOURCE } from "./targets";
 
 const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
 
@@ -71,6 +71,33 @@ describe("scoreDecision", () => {
     expect(sum).toBeCloseTo(1, 5);
     expect(sample.liveCount).toBe(0);
     expect(sample.nextPaybackRatio).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it("splits crafted gear out of the crew", () => {
+    const mountain = {
+      ...createMountain(),
+      helpers: 4,
+      carts: 2,
+      crafted: { "iron-rails": 1 as const },
+    };
+    const sample = scoreDecision({
+      mountain,
+      now: 0,
+      context: DAD_SCHEDULE,
+      actions: [],
+      atMs: 0,
+    });
+    expect(sample.outputShare[CRAFTED_SOURCE] ?? 0).toBeGreaterThan(0);
+    expect(sample.outputShare["cart"] ?? 0).toBeGreaterThan(0);
+    const sum = Object.values(sample.outputShare).reduce(
+      (total, share) => total + share,
+      0,
+    );
+    expect(sum).toBeCloseTo(1, 5);
+    expect(sample.layer).toBe("topsoil");
+    expect(sample.workshopOpen).toBe(false);
+    expect(sample.benchFree).toBe(true);
+    expect(sample.openRecipes).toContain("iron-rails");
   });
 
   it("treats a free improvement as infinitely good per stone", () => {

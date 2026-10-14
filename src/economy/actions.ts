@@ -26,9 +26,35 @@ import {
   type TunnelId,
 } from "../expeditions";
 import { expectedFindStones } from "./finds";
-import { kindForTier, type Trouble, type TroubleTier } from "../hazards";
+import {
+  ENGINEER_FIX_MS,
+  TROUBLE_MAX_MS,
+  TROUBLE_MIN_MS,
+  kindForTier,
+  slowedSpeed,
+  type Trouble,
+  type TroubleTier,
+} from "../hazards";
+import { EMPTY_MATERIALS } from "../layers";
 import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
+import { minedOut } from "../scale";
+import { VEIN_MAX_GAP_MS, VEIN_MIN_GAP_MS, veinReward } from "../veins";
+import {
+  MAX_CRAFTED_LEVEL,
+  cancelCraft,
+  craftedLevel,
+  expeditionCraftScale,
+  recipeById,
+  recipeCost,
+  recipesForMined,
+  settleBench,
+  startCraft,
+  troubleGapScale,
+  veinOftenScale,
+  workshopUnlocked,
+  type RecipeId,
+} from "../workshop";
 import { effectiveRates, heartBonus, paidAwayMs } from "../rates";
 import {
   TIERS,
@@ -69,7 +95,9 @@ export type Action =
       readonly kind: "fixTrouble";
       readonly tier: TroubleTier;
       readonly startedAt: number;
-    };
+    }
+  | { readonly kind: "craft"; readonly recipe: RecipeId }
+  | { readonly kind: "cancelCraft" };
 
 /**
  * How a player spends the horizon. The player type's schedule supplies it
@@ -151,6 +179,14 @@ export function listActions(
       }
     }
   }
+  const bench = mountain.bench;
+  if (bench !== undefined && now < bench.endsAt) {
+    actions.push({ kind: "cancelCraft" });
+  } else if (bench === undefined && workshopUnlocked(mountain)) {
+    for (const recipe of sinkRecipes(mountain)) {
+      actions.push({ kind: "craft", recipe });
+    }
+  }
   if (trouble !== undefined) {
     actions.push({
       kind: "fixTrouble",
@@ -159,6 +195,15 @@ export function listActions(
     });
   }
   return actions;
+}
+
+/**
+ * Recipes the dad could put on a free bench: known at this depth, plus any
+ * found recipe already on the mountain, and not finished. The bench being
+ * busy does not remove the sink. `materialIdle` reads this list.
+ */
+export function sinkRecipes(mountain: Mountain): readonly RecipeId[] {
+  return knownRecipeIds(mountain).filter((id) => craftHasRoom(mountain, id));
 }
 
 /**
@@ -193,6 +238,15 @@ export function applyAction(
       return recall(mountain, action.index);
     case "fixTrouble":
       return mountain;
+    case "craft": {
+      const prepared = grantDepthRecipe(mountain, action.recipe);
+      const started = startCraft(prepared, action.recipe, now);
+      // A depth recipe is written onto the mountain only when the craft
+      // actually starts. A refused craft leaves the save untouched.
+      return started === prepared ? mountain : started;
+    }
+    case "cancelCraft":
+      return cancelCraft(mountain, now);
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -249,6 +303,10 @@ export function valueOf(
         horizon,
         context,
       );
+    case "craft":
+      return valueCraft(mountain, action.recipe, horizon, context, now);
+    case "cancelCraft":
+      return valueCancel(mountain, horizon, context, now);
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -339,10 +397,7 @@ function valueBoost(
   const durationSec = boost.durationMs / 1000;
   // Twice the clock, not the whole horizon: enough that Overtime can be
   // the best buy, not so much that it is the only one.
-  const spread =
-    context.awaySeconds > 0
-      ? Math.min(horizon, durationSec * 1.45)
-      : durationSec;
+  const spread = timedSpread(context, durationSec, horizon);
   return rateValue(
     mountain,
     incomeGain(mountain, bought, context, { now }),
@@ -598,6 +653,343 @@ function remainingFraction(
     return 1;
   }
   return (trip.returnsAt - now) / (trip.returnsAt - trip.sentAt);
+}
+
+/**
+ * A craft's payback is the usual wait, plus the time the bench is busy
+ * before the gear starts paying. Timers are spread the way a boost is.
+ * Props, the lamp, and the kit are not a crew rate, so they are expected
+ * stones over the horizon, the same idea as an expedition find.
+ */
+function valueCraft(
+  mountain: Mountain,
+  id: RecipeId,
+  horizon: number,
+  context: ValueContext,
+  now: number,
+): ActionValue {
+  const recipe = recipeById(id);
+  const stones = recipeCost(id).stones;
+  const benchSec = recipe.craftMs / 1000;
+  const preview = previewCraft(mountain, id, now);
+  if (preview === undefined) {
+    return withBench(
+      rateValue(mountain, 0, stones, horizon, context),
+      benchSec,
+    );
+  }
+  const { fitted, endsAt } = preview;
+  switch (recipe.effect.kind) {
+    case "tier":
+    case "reinforce":
+      return withBench(
+        rateValue(
+          mountain,
+          incomeGain(mountain, fitted, context),
+          stones,
+          horizon,
+          context,
+        ),
+        benchSec,
+      );
+    case "charge":
+      return withBench(
+        timedCraft(
+          mountain,
+          fitted,
+          endsAt,
+          recipe.effect.durationMs / 1000,
+          stones,
+          horizon,
+          context,
+        ),
+        benchSec,
+      );
+    case "ember":
+      return withBench(
+        timedCraft(
+          mountain,
+          fitted,
+          endsAt,
+          settledSec(fitted.emberUntil, endsAt),
+          stones,
+          horizon,
+          context,
+        ),
+        benchSec,
+      );
+    case "flare":
+      return withBench(
+        rateValue(
+          mountain,
+          veinGain(mountain, fitted, endsAt, context),
+          stones,
+          horizon,
+          context,
+          timedSpread(context, settledSec(fitted.flareUntil, endsAt), horizon),
+        ),
+        benchSec,
+      );
+    case "veins":
+      return withBench(
+        rateValue(
+          mountain,
+          veinGain(mountain, fitted, undefined, context),
+          stones,
+          horizon,
+          context,
+        ),
+        benchSec,
+      );
+    case "trouble":
+      return withBench(
+        rateValue(
+          mountain,
+          propsGain(mountain, fitted, context),
+          stones,
+          horizon,
+          context,
+        ),
+        benchSec,
+      );
+    case "trip":
+      return withBench(
+        rateValue(
+          mountain,
+          kitGain(mountain, fitted, context),
+          stones,
+          horizon,
+          context,
+        ),
+        benchSec,
+      );
+    /* v8 ignore next 3 -- effect kinds are the closed recipe list */
+    default: {
+      const unexpected: never = recipe.effect;
+      return unexpected;
+    }
+  }
+}
+
+/**
+ * Calling the craft off gives the stones back and gives up the gear.
+ * The rate change is not a raise, so the payback stays infinite and a
+ * dad who is choosing keeps what is already on the bench.
+ */
+function valueCancel(
+  mountain: Mountain,
+  horizon: number,
+  context: ValueContext,
+  now: number,
+): ActionValue {
+  const bench = mountain.bench;
+  if (bench === undefined || !(now < bench.endsAt)) {
+    return rateValue(mountain, 0, 0, horizon, context);
+  }
+  const kept = settleBench(mountain, bench.endsAt);
+  const gain = incomeGain(kept, cancelCraft(mountain, now), context);
+  return rateValue(mountain, gain, 0, horizon, context);
+}
+
+function previewCraft(
+  mountain: Mountain,
+  id: RecipeId,
+  now: number,
+): { readonly fitted: Mountain; readonly endsAt: number } | undefined {
+  if (mountain.bench !== undefined || !workshopUnlocked(mountain)) {
+    return undefined;
+  }
+  const prepared = fundCraft(mountain, id);
+  const started = startCraft(prepared, id, now);
+  const bench = started.bench;
+  if (bench === undefined) {
+    return undefined;
+  }
+  return { fitted: settleBench(started, bench.endsAt), endsAt: bench.endsAt };
+}
+
+/** Stones and materials in hand, so the preview can fit the next level. */
+function fundCraft(mountain: Mountain, id: RecipeId): Mountain {
+  const cost = recipeCost(id);
+  const have = mountain.materials ?? EMPTY_MATERIALS;
+  return {
+    ...grantDepthRecipe(mountain, id),
+    pocket: mountain.pocket + cost.stones,
+    materials: {
+      clay: Math.max(have.clay, cost.materials.clay),
+      iron: Math.max(have.iron, cost.materials.iron),
+      crystal: Math.max(have.crystal, cost.materials.crystal),
+      heartstone: Math.max(have.heartstone, cost.materials.heartstone),
+    },
+  };
+}
+
+/**
+ * A layer recipe is known once that band is reached, even when the save
+ * has not written it yet. A found recipe stays found only.
+ */
+function grantDepthRecipe(mountain: Mountain, id: RecipeId): Mountain {
+  const known = mountain.recipes ?? [];
+  if (known.includes(id) || !recipesForMined(minedOut(mountain)).includes(id)) {
+    return mountain;
+  }
+  return { ...mountain, recipes: [...known, id] };
+}
+
+function knownRecipeIds(mountain: Mountain): readonly RecipeId[] {
+  const depth = recipesForMined(minedOut(mountain));
+  const found = (mountain.recipes ?? []).filter((id) => !depth.includes(id));
+  return [...depth, ...found];
+}
+
+function craftHasRoom(mountain: Mountain, id: RecipeId): boolean {
+  const recipe = recipeById(id);
+  const level = craftedLevel(mountain, id);
+  if (level >= MAX_CRAFTED_LEVEL) {
+    return false;
+  }
+  return recipe.maxLevel === undefined || level < recipe.maxLevel;
+}
+
+function timedCraft(
+  mountain: Mountain,
+  fitted: Mountain,
+  endsAt: number,
+  durationSec: number,
+  stones: number,
+  horizon: number,
+  context: ValueContext,
+): ActionValue {
+  return rateValue(
+    mountain,
+    incomeGain(mountain, fitted, context, { now: endsAt }),
+    stones,
+    horizon,
+    context,
+    timedSpread(context, durationSec, horizon),
+  );
+}
+
+/**
+ * Share of the horizon a short effect is counted across. A dad who is away
+ * part of the cycle gets a little more than the raw clock, the same stretch
+ * a boost uses, so Overtime and a blasting charge can win without being
+ * the only buy.
+ */
+function timedSpread(
+  context: ValueContext,
+  durationSec: number,
+  horizon: number,
+): number {
+  return context.awaySeconds > 0
+    ? Math.min(horizon, durationSec * 1.45)
+    : durationSec;
+}
+
+/** Seconds the settled timer runs. Settle writes the clock past `endsAt`. */
+function settledSec(until: number | undefined, endsAt: number): number {
+  /* v8 ignore next -- settleBench writes flareUntil and emberUntil */
+  if (until === undefined || until <= endsAt) {
+    return 0;
+  }
+  return (until - endsAt) / 1000;
+}
+
+function withBench(value: ActionValue, benchSec: number): ActionValue {
+  if (!Number.isFinite(value.paybackSec)) {
+    return value;
+  }
+  return { ...value, paybackSec: value.paybackSec + benchSec };
+}
+
+/** Extra vein stones a second, counted only while the dad is at the mountain. */
+function veinGain(
+  before: Mountain,
+  after: Mountain,
+  now: number | undefined,
+  context: ValueContext,
+): number {
+  return (
+    (veinStonesPerLiveSecond(after, now) -
+      veinStonesPerLiveSecond(before, now)) *
+    liveShare(context)
+  );
+}
+
+function veinStonesPerLiveSecond(
+  mountain: Mountain,
+  now: number | undefined,
+): number {
+  const meanGapSec = (VEIN_MIN_GAP_MS + VEIN_MAX_GAP_MS) / 2 / 1000;
+  const often = veinOftenScale(mountain, now);
+  return (veinReward(mountain) * often) / meanGapSec;
+}
+
+/**
+ * Stones a second that trouble is expected to eat. Props stretch the gap.
+ * Trouble starts once a borer is owned, and only while the dad is here.
+ */
+function propsGain(
+  before: Mountain,
+  after: Mountain,
+  context: ValueContext,
+): number {
+  if (before.borers < 1) {
+    return 0;
+  }
+  return troubleLossPerSec(before, context) - troubleLossPerSec(after, context);
+}
+
+function troubleLossPerSec(mountain: Mountain, context: ValueContext): number {
+  const meanGapSec = (TROUBLE_MIN_MS + TROUBLE_MAX_MS) / 2 / 1000;
+  const gapSec = meanGapSec * troubleGapScale(mountain);
+  const lost = 1 - slowedSpeed(1, 0, 0);
+  const downSec = ENGINEER_FIX_MS / 1000;
+  const income = incomePerSecond(mountain, context);
+  return (1 / gapSec) * income * lost * downSec * liveShare(context);
+}
+
+/**
+ * The kit brings an expedition home sooner. The stones are the best tend
+ * that engineer does in the time one old-shaft trip gives back, spread
+ * across a day. No crew, no tend, no stones.
+ */
+function kitGain(
+  before: Mountain,
+  after: Mountain,
+  context: ValueContext,
+): number {
+  const crew = before.engineers ?? [];
+  if (crew.length === 0) {
+    return 0;
+  }
+  const saved = 1 - expeditionCraftScale(after) / expeditionCraftScale(before);
+  const shaft = TUNNELS.find((tunnel) => tunnel.id === "old-shaft");
+  /* v8 ignore next 3 -- old-shaft is in the closed TUNNELS list */
+  if (shaft === undefined) {
+    return 0;
+  }
+  const tend = tendRate(before, 0, context);
+  const daySec = 24 * 60 * 60;
+  return (tend * (shaft.awayMs / 1000) * saved) / daySec;
+}
+
+function tendRate(
+  mountain: Mountain,
+  index: number,
+  context: ValueContext,
+): number {
+  const home = incomePerSecond(bestPost(mountain, index, context), context);
+  const camp = incomePerSecond(station(mountain, index, "camp"), context);
+  return Math.max(0, home - camp);
+}
+
+function liveShare(context: ValueContext): number {
+  const cycle = context.liveSeconds + context.awaySeconds;
+  if (!(cycle > 0)) {
+    return 1;
+  }
+  return context.liveSeconds / cycle;
 }
 
 function funded(mountain: Mountain, price: number): Mountain {

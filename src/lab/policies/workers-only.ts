@@ -11,8 +11,8 @@ const WORKERS: SpendWeights = {
 };
 
 /**
- * Buys workers and kids only. No machines, upgrades, boosts, or promotions,
- * so the first engineer never arrives.
+ * Buys workers and kids only. No machines, upgrades, boosts, promotions,
+ * or crafts, so the first engineer never arrives.
  */
 export default plainPolicy({
   id: "workers-only",
@@ -27,4 +27,5 @@ export default plainPolicy({
   tend: "never",
   workers: "any",
   boosts: "never",
+  craft: "never",
 });

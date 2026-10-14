@@ -66,7 +66,9 @@ describe("casual run", { timeout: 120_000 }, () => {
     }
     // #178: tending and a valued find make the next buy affordable inside
     // the sitting, so the payback wait drops under an hour and is not
-    // listed. Value-per-stone still waits after the borer.
+    // listed. Value-per-stone still waits after the borer. A craft only
+    // takes the bench when it sits near that buy, so it does not erase
+    // the wait.
     expect(payback.value).toBeLessThan(1);
     expect(value.value / HOURS_PER_DAY).toBeCloseTo(0.99, 2);
     const valueNotes = result.deadStretches.filter(

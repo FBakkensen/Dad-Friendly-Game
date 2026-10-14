@@ -8,10 +8,21 @@ import {
 } from "../economy/actions";
 import { promoteCost, staffNeeded } from "../engineers";
 import type { TunnelId } from "../expeditions";
+import { EMPTY_MATERIALS } from "../layers";
 import type { Mountain } from "../mountain";
+import { minedOut } from "../scale";
 import { effectiveRates } from "../rates";
 import { owned, tierById, tierCost, TIERS, type Tier } from "../tiers";
 import { upgradeById, upgradeCost, upgradeLevel } from "../upgrades";
+import {
+  MAX_CRAFTED_LEVEL,
+  craftedLevel,
+  recipeById,
+  recipeCost,
+  recipesForMined,
+  workshopUnlocked,
+  type RecipeId,
+} from "../workshop";
 import {
   valueContext,
   type DecideInput,
@@ -20,6 +31,7 @@ import {
 } from "./policy";
 import {
   HORIZON_SEC,
+  LIVE_RATIO,
   LOOKAHEAD_SESSIONS,
   SAMPLE_INTERVAL_SEC,
   VALUE_TIE,
@@ -30,6 +42,16 @@ import {
  * refused. Affordability and the hoard live with the runner.
  */
 export function parameterisedDecide(input: DecideInput): Action | undefined {
+  const purchase = bestPurchase(input);
+  const crafted = craftChoice(input);
+  if (crafted !== undefined && craftFirst(input, purchase, crafted)) {
+    return crafted;
+  }
+  return purchase;
+}
+
+/** The purchase this dad ranks highest, before the bench is considered. */
+function bestPurchase(input: DecideInput): Action | undefined {
   const { mountain, now, params } = input;
   const context = valueContext(params);
   let best: { readonly action: Action; readonly value: number } | undefined;
@@ -57,6 +79,89 @@ export function parameterisedDecide(input: DecideInput): Action | undefined {
 }
 
 /**
+ * The craft this dad will start now. `always` and `charges` take the bench
+ * before a machine. `idle` and `value` take it only when the next buy can
+ * wait. `never` leaves the workshop shut.
+ */
+function craftChoice(input: DecideInput): Action | undefined {
+  if (input.params.craft === "never") {
+    return undefined;
+  }
+  const { mountain, now, params } = input;
+  const context = valueContext(params);
+  let best: { readonly action: Action; readonly payback: number } | undefined;
+  for (const action of listActions(mountain, now)) {
+    if (action.kind !== "craft" || !wantsCraft(action, params)) {
+      continue;
+    }
+    if (!canPay(mountain, action, params.hoardK)) {
+      continue;
+    }
+    const priced = valueOf(mountain, action, HORIZON_SEC, context, now);
+    if (!Number.isFinite(priced.paybackSec)) {
+      continue;
+    }
+    if (best === undefined || outranks(best.payback, priced.paybackSec)) {
+      best = { action, payback: priced.paybackSec };
+    }
+  }
+  return best?.action;
+}
+
+function craftFirst(
+  input: DecideInput,
+  purchase: Action | undefined,
+  crafted: Action,
+): boolean {
+  const rule = input.params.craft;
+  if (rule === "always" || rule === "charges") {
+    return true;
+  }
+  if (
+    purchase !== undefined &&
+    canPay(input.mountain, purchase, input.params.hoardK)
+  ) {
+    return false;
+  }
+  if (purchase === undefined) {
+    return true;
+  }
+  // A craft that pays back far worse than the buy he is saving for would
+  // spend the stones that buy is waiting on. It has to sit inside the
+  // live band of that buy.
+  const context = valueContext(input.params);
+  const buy = valueOf(
+    input.mountain,
+    purchase,
+    HORIZON_SEC,
+    context,
+    input.now,
+  );
+  const made = valueOf(
+    input.mountain,
+    crafted,
+    HORIZON_SEC,
+    context,
+    input.now,
+  );
+  return made.paybackSec <= buy.paybackSec * LIVE_RATIO;
+}
+
+function wantsCraft(
+  action: Extract<Action, { kind: "craft" }>,
+  params: PolicyParams,
+): boolean {
+  if (params.craft === "charges") {
+    return action.recipe === "blasting-charge";
+  }
+  return (
+    params.craft === "always" ||
+    params.craft === "idle" ||
+    params.craft === "value"
+  );
+}
+
+/**
  * Greedy lowest payback. A move that is not affordable yet still competes
  * when its wait fits in the lookahead. If that move wins, the dad saves
  * and buys nothing. One step: the next purchase only, not a chain.
@@ -68,7 +173,14 @@ export function optimizerDecide(input: DecideInput): Action | undefined {
   const windowSec = lookaheadSeconds(params);
   let best: { readonly action: Action; readonly payback: number } | undefined;
   for (const action of listActions(mountain, now)) {
-    if (!isPurchase(action)) {
+    if (action.kind === "craft") {
+      if (
+        params.craft === "never" ||
+        !craftMaterialsReady(mountain, action.recipe)
+      ) {
+        continue;
+      }
+    } else if (!isPurchase(action)) {
       continue;
     }
     const priced = valueOf(mountain, action, HORIZON_SEC, context, now);
@@ -108,6 +220,12 @@ export function canPay(
   action: Action,
   hoardK: number,
 ): boolean {
+  if (
+    action.kind === "craft" &&
+    !craftMaterialsReady(mountain, action.recipe)
+  ) {
+    return false;
+  }
   const price = sticker(mountain, action);
   if (!(price <= mountain.pocket)) {
     return false;
@@ -139,10 +257,13 @@ export function sticker(mountain: Mountain, action: Action): number {
       return boostCost(boostById(action.id), effectiveRates(mountain));
     case "promote":
       return promoteCost(mountain);
+    case "craft":
+      return recipeCost(action.recipe).stones;
     case "station":
     case "send":
     case "recall":
     case "fixTrouble":
+    case "cancelCraft":
       return 0;
   }
 }
@@ -175,6 +296,9 @@ export function actionsOnTable(
   trouble?: Trouble,
 ): readonly Action[] {
   return listActions(mountain, now, trouble).filter((action) => {
+    if (action.kind === "craft") {
+      return wantsCraft(action, params);
+    }
     const key = spendKey(mountain, action, params);
     return key !== undefined && params.spend[key] > 0;
   });
@@ -198,6 +322,8 @@ function spendKey(
     case "send":
     case "recall":
     case "fixTrouble":
+    case "craft":
+    case "cancelCraft":
       return undefined;
   }
 }
@@ -254,6 +380,44 @@ function affordSeconds(pocket: number, income: number, cost: number): number {
   }
   // A quiet mountain (no income) waits forever: dividing by zero is Infinity.
   return shortfall / Math.max(income, 0);
+}
+
+/** Known, unfinished, and the materials are in hand. Stones can still be short. */
+function craftMaterialsReady(mountain: Mountain, id: RecipeId): boolean {
+  return (
+    workshopUnlocked(mountain) &&
+    mountain.bench === undefined &&
+    recipeKnown(mountain, id) &&
+    craftHasRoom(mountain, id) &&
+    materialsCover(mountain, id)
+  );
+}
+
+function recipeKnown(mountain: Mountain, id: RecipeId): boolean {
+  if (recipesForMined(minedOut(mountain)).includes(id)) {
+    return true;
+  }
+  return mountain.recipes?.includes(id) ?? false;
+}
+
+function craftHasRoom(mountain: Mountain, id: RecipeId): boolean {
+  const recipe = recipeById(id);
+  const level = craftedLevel(mountain, id);
+  if (level >= MAX_CRAFTED_LEVEL) {
+    return false;
+  }
+  return recipe.maxLevel === undefined || level < recipe.maxLevel;
+}
+
+function materialsCover(mountain: Mountain, id: RecipeId): boolean {
+  const cost = recipeCost(id).materials;
+  const have = mountain.materials ?? EMPTY_MATERIALS;
+  return (
+    have.clay >= cost.clay &&
+    have.iron >= cost.iron &&
+    have.crystal >= cost.crystal &&
+    have.heartstone >= cost.heartstone
+  );
 }
 
 function outranks(candidate: number, current: number): boolean {

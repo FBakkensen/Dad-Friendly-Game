@@ -381,7 +381,7 @@ A knob is one entry: a factor id the price, growth, output, or tending formula a
 
 ### Milestone 9: Layers and the Workshop
 
-**M9 is in progress.** Approved by Flemming (2026-10-14). The layers rules module is in (`src/layers.ts`, #194): four bands from stones mined, and a hardness factor per layer and tier that stays at 1 until M9-7. Materials accrue, and the save is v6 (#195). The workshop rules are in (`src/workshop.ts`, #196): one bench, crafts that finish from the clock including time away, a full refund on cancel, and gear that changes the crew. Screens are still to come. Later issues update this line. The numbers below that the plan calls first cut are first cut, and M9-7 lab-tunes them.
+**M9 is in progress.** Approved by Flemming (2026-10-14). The layers rules module is in (`src/layers.ts`, #194): four bands from stones mined, and a hardness factor per layer and tier that stays at 1 until M9-7. Materials accrue, and the save is v6 (#195). The workshop rules are in (`src/workshop.ts`, #196): one bench, crafts that finish from the clock including time away, a full refund on cancel, and gear that changes the crew. The strategy lab can craft (#197). The two approved guardrails are ordinary rows in `src/lab/targets.ts`, and they stay report-only until M9-7 makes them strict. Screens are still to come. Later issues update this line. The numbers below that the plan calls first cut are first cut, and M9-7 lab-tunes them.
 
 #### The idea
 
@@ -459,7 +459,7 @@ These stay live for the whole run.
 
 #### The lab
 
-Nothing in the lab core changes. Every addition is a new file or a new union arm. The two approved targets live in `src/lab/targets.ts`, the only place a lab number lives. M9-6 is the only issue allowed to add the rows. They are ordinary guardrail entries, the same `{ id, measure, scope, op, value, why }` shape, so a later target is still one entry. Existing thresholds are not changed.
+Every addition is a new file or a new union arm. The two approved targets live in `src/lab/targets.ts`, the only place a lab number lives. M9-6 is the only issue allowed to add the rows. They are ordinary guardrail entries, the same `{ id, measure, scope, op, value, why }` shape, so a later target is still one entry. Existing thresholds are not changed. M9-6 marks both new rows report-only: a miss is in the report and does not fail the strict job. M9-7 drops that mark once the retune makes them hold.
 
 Approved:
 
@@ -533,7 +533,7 @@ One PR each, in dependency order. Every issue keeps `npm run check` green, inclu
 3. **M9-3 (#194) Layers** (`src/layers.ts`). Bands derived from stones mined, `layerOf(mountain)`, and hardness factors wired through `factor()` and defaulting to 1. Behavior-preserving. Pacing pins and the lab report stay unchanged. Unit tests at the band edges. Depends on M9-1. Built.
 4. **M9-4 (#195) Materials and save v6.** Materials accrue in `accrue` and `accrueAway`. v5 migrates to v6. Firestore rules and rules tests. Old saves (v1 to v5, local and cloud) load and keep stones mined. Live and away accrual match to the unit. No UI yet. Depends on M9-3. Built.
 5. **M9-5 (#196) Workshop rules** (`src/workshop.ts`). Recipe catalogue, bench start, settle, and cancel with a full refund, item effects in `effectiveRates`, recipe and strength factors defaulting to 1. Pure and tested. A finished craft settles once across reload and away. Depends on M9-4. Built.
-6. **M9-6 (#197) Lab.** `craft` and `cancelCraft` in the catalogue and `valueOf`, a craft step for the casual types and the optimizer, the three extreme policies, `craftShare`, `materialIdle`, and `benchIdle`, and the new target rows in `targets.ts`. This is the only issue allowed to touch that file. The rows are the ones approved above. Add-one-file tests still pass. The report shows the new rows. No gameplay change. Depends on M9-5.
+6. **M9-6 (#197) Lab.** `craft` and `cancelCraft` in the catalogue and `valueOf`, a craft step for the casual types and the optimizer, the three extreme policies, `craftShare`, `materialIdle`, and `benchIdle`, and the new target rows in `targets.ts`. This is the only issue allowed to touch that file. The rows are the ones approved above. Add-one-file tests still pass. The report shows the new rows. No gameplay change. The new rows are report-only until M9-7. Depends on M9-5. Built.
 7. **M9-7 (#198) Retune.** Turns hardness and recipe numbers on with `npm run lab:sweep`, and moves the economy, not the targets. The strict lab is green: casual finish in 5 to 7 days and never under 5, dead stretch at most 0.5 day, the single, dominant, and live targets, tending at least 8%, crafted at least 8%, `materialIdle` at most 0.5 day, and no extreme wins. Margins are reported in the PR. Depends on M9-6.
 8. **M9-8 (#199) Workshop screen.** Built to the M9-2 mockup, with copy in `screen-words`. The visual check does not scroll at 390×844, 360×640, or 360×560. Purchases show real numbers. Locked recipes show none. Tap feedback matches the mockup. Depends on M9-2 and M9-7.
 9. **M9-9 (#200) Layer card, material line, and craft-done notice.** The layer card shows once per layer, including across reload and away. The material line never pushes cards off screen. The craft-done notice shows once. The field-log events are recorded. Depends on M9-8.
