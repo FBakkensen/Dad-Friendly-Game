@@ -1427,7 +1427,7 @@ describe("upgrades on screen", () => {
     const buy = screen.root.querySelector<HTMLButtonElement>(
       '[data-upgrade="tap"] .upgrade-buy',
     );
-    expect(buy?.textContent).toBe("Buy for 46 thousand stones");
+    expect(buy?.textContent).toBe("Buy · 46K");
     buy?.click();
     expect(screen.text('[data-upgrade="tap"] .upgrade-name')).toBe(
       "Strong arms · level 1 of 10",
@@ -1435,7 +1435,7 @@ describe("upgrades on screen", () => {
     expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
       "Taps +1.65%, now 9.",
     );
-    expect(buy?.textContent).toBe("Buy for 230 thousand stones");
+    expect(buy?.textContent).toBe("Buy · 230K");
     expect(buy?.disabled).toBe(false);
 
     screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
@@ -1498,10 +1498,10 @@ describe("quick boosts on screen", () => {
         "Sharper picks",
       );
       // 120 taps, or a minute of this 500-worker crew, whichever is more.
-      expect(buy?.textContent).toBe("Buy for 30 thousand stones");
+      expect(buy?.textContent).toBe("Buy · 30K");
       buy?.click();
       expect(buy?.disabled).toBe(true);
-      expect(buy?.textContent).toBe("Running · 10:00 left");
+      expect(buy?.textContent).toBe("Running · 10:00");
       expect(chip?.hidden).toBe(false);
       expect(chip?.textContent).toBe("Sharper picks ×2 · 10:00");
       screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
@@ -1575,7 +1575,7 @@ describe("lasting upgrades on screen", () => {
     screen.root
       .querySelector<HTMLButtonElement>('[data-tier="helper"]')
       ?.click();
-    expect(boots?.textContent).toBe("Buy for 650 thousand stones");
+    expect(boots?.textContent).toBe("Buy · 650K");
     expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
       "Workers +136%, now 1/s.",
     );
@@ -1714,7 +1714,7 @@ describe("crew synergies on screen", () => {
 });
 
 describe("crew synergy copy before the tier exists", () => {
-  it("skips the preview line with none of the tier below, and names the Great Machine", () => {
+  it("skips the preview line with none of the tier below, and names the machine", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -1724,7 +1724,7 @@ describe("crew synergy copy before the tier exists", () => {
     const screen = mountScreen({ storage });
     expect(screen.text('[data-upgrade="machineSyn"] .upgrade-effect')).toBe("");
     expect(screen.text('[data-upgrade="machineSyn"] .upgrade-name')).toBe(
-      "Borer tracks · Great Machine",
+      "Borer tracks · Machine",
     );
     expect(screen.text('[data-upgrade="machineSyn"] .upgrade-buy')).toBe(
       "Locked",

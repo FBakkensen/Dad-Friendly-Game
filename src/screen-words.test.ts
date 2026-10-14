@@ -32,6 +32,7 @@ import {
   promoteCheer,
   promoteConfirm,
   promoteNeeds,
+  buyPriceWords,
   promoteOffer,
   stonesPerSecond,
   rankHint,
@@ -256,6 +257,8 @@ describe("engineer words", () => {
       "A new engineer can tend another machine or explore while the others work.",
     );
     expect(PROMOTE_BUTTON).toBe("Promote");
+    expect(buyPriceWords(117_700)).toBe("Buy · 117.7K");
+    expect(buyPriceWords(46_000)).toBe("Buy · 46K");
     expect(promoteOffer(2_000_000)).toBe("Promote: 2M stones");
     expect(promoteNeeds(2_000_000)).toBe("Needs 2M stones");
     expect(promoteOffer(1_000_000)).toBe("Promote: 1M stones");

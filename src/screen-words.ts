@@ -131,7 +131,8 @@ export function lockedUpgradeLine(upgrade: Upgrade): string {
   }
   const tier = tierById(upgrade.unlock.tier);
   if (tier.id === "machine") {
-    return `${upgrade.name} · Great Machine`;
+    // "Great Machine" does not fit one line beside the buy button at 360px.
+    return `${upgrade.name} · ${tier.shortName}`;
   }
   const gate =
     upgrade.unlock.count === 1
@@ -398,6 +399,10 @@ export function stationCheer(
 }
 
 /** The Promote button. The price is the decision. */
+/** One line on a buy button: "Buy · 46K", "Buy · 117.7K". */
+export const buyPriceWords = (cost: number): string =>
+  `Buy · ${formatCompact(cost)}`;
+
 export function promoteOffer(cost: number): string {
   return `Promote: ${formatCompact(cost)} stones`;
 }

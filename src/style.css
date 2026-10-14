@@ -1288,8 +1288,9 @@ body {
   }
 }
 
-/* Engineers may scroll on a very short phone. Upgrades must not: the
-   rows sit beside their buttons so a 390×844 phone shows the whole sheet. */
+/* Engineers may scroll on a very short phone. Upgrades must not.
+   Lasting rows sit beside a one-line price. The two quick boosts share
+   one row so a 360×560 phone still shows the whole sheet. */
 .upgrades-dialog,
 .engineers-dialog {
   align-items: flex-start;
@@ -1305,7 +1306,7 @@ body {
   gap: 0;
   width: min(420px, 100%);
   margin: 0 auto;
-  padding: 4px 8px 2px;
+  padding: 2px 8px;
   border: 2px solid #e8a84a;
   border-radius: 20px;
   background: #1e130d;
@@ -1332,6 +1333,13 @@ body {
   gap: 1px;
 }
 
+/* Wide fonts wrap a stacked pair past the 360×560 budget. One row. */
+.upgrades-dialog .boost-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px;
+}
+
 .upgrades-dialog .upgrade {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 7.75rem;
@@ -1351,6 +1359,8 @@ body {
 }
 
 .upgrades-dialog .upgrade.is-locked .upgrade-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1374,9 +1384,26 @@ body {
   line-height: 1.1;
 }
 
+.upgrades-dialog .upgrade.boost {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 0;
+}
+
+.upgrades-dialog .upgrade.boost .upgrade-buy {
+  grid-column: 1;
+  grid-row: auto;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  justify-self: stretch;
+  padding: 2px 2px;
+  white-space: nowrap;
+}
+
 .upgrades-dialog .upgrades-close {
   min-height: 44px;
-  margin-top: 2px;
+  margin-top: 0;
   font-size: 1rem;
 }
 

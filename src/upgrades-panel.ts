@@ -9,6 +9,7 @@ import {
   formatClock,
   lostToolWords,
   boostOutcome,
+  buyPriceWords,
   lockedUpgradeLine,
   upgradeEffectLine,
 } from "./screen-words";
@@ -77,7 +78,7 @@ export function createUpgradesPanel({
   boostHeading.className = "upgrades-heading";
   boostHeading.textContent = "Quick boosts";
   const boostList = document.createElement("ul");
-  boostList.className = "upgrade-list";
+  boostList.className = "upgrade-list boost-list";
   const boostRows = BOOSTS.map((boost) => {
     const item = document.createElement("li");
     item.className = "upgrade boost";
@@ -212,9 +213,7 @@ export function createUpgradesPanel({
       anyAffordable ||= affordable;
       buy.disabled = !view.ready || !affordable;
       buy.textContent =
-        left > 0
-          ? `Running · ${formatClock(left)} left`
-          : `Buy for ${formatCount(cost)} stones`;
+        left > 0 ? `Running · ${formatClock(left)}` : buyPriceWords(cost);
       const chip = chipFor.get(boost.id);
       if (chip !== undefined) {
         chip.hidden = left === 0;
@@ -244,7 +243,7 @@ export function createUpgradesPanel({
           ? upgrade.maxLevel === 1
             ? "Owned"
             : "All levels bought"
-          : `Buy for ${formatCount(cost)} stones`;
+          : buyPriceWords(cost);
     }
     let anyFound = false;
     for (const { id, item } of foundRows) {
