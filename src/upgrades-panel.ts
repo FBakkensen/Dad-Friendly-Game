@@ -9,8 +9,9 @@ import {
   formatClock,
   lostToolWords,
   boostOutcome,
-  unlockWords,
-  upgradeNow,
+  buyPriceWords,
+  lockedUpgradeLine,
+  upgradeEffectLine,
 } from "./screen-words";
 import {
   UPGRADES,
@@ -77,7 +78,7 @@ export function createUpgradesPanel({
   boostHeading.className = "upgrades-heading";
   boostHeading.textContent = "Quick boosts";
   const boostList = document.createElement("ul");
-  boostList.className = "upgrade-list";
+  boostList.className = "upgrade-list boost-list";
   const boostRows = BOOSTS.map((boost) => {
     const item = document.createElement("li");
     item.className = "upgrade boost";
@@ -123,8 +124,6 @@ export function createUpgradesPanel({
     const effect = document.createElement("p");
     effect.className = "upgrade-effect";
     effect.textContent = upgrade.perLevel;
-    const now = document.createElement("p");
-    now.className = "upgrade-now";
     const buy = document.createElement("button");
     buy.type = "button";
     buy.className = "upgrade-buy";
@@ -134,9 +133,9 @@ export function createUpgradesPanel({
       }
       progress.applyMutation((current) => buyUpgrade(current, upgrade.id));
     });
-    item.append(title, effect, now, buy);
+    item.append(title, effect, buy);
     upgradeList.append(item);
-    return { upgrade, title, now, buy };
+    return { upgrade, title, effect, item, buy };
   });
   const foundHeading = document.createElement("h3");
   foundHeading.className = "upgrades-heading found-heading";
@@ -214,35 +213,37 @@ export function createUpgradesPanel({
       anyAffordable ||= affordable;
       buy.disabled = !view.ready || !affordable;
       buy.textContent =
-        left > 0
-          ? `Running · ${formatClock(left)} left`
-          : `Buy for ${formatCount(cost)} stones`;
+        left > 0 ? `Running · ${formatClock(left)}` : buyPriceWords(cost);
       const chip = chipFor.get(boost.id);
       if (chip !== undefined) {
         chip.hidden = left === 0;
         chip.textContent = `${boost.name} ×${String(boost.multiplier)} · ${formatClock(left)}`;
       }
     }
-    for (const { upgrade, title, now, buy } of upgradeRows) {
+    for (const { upgrade, title, effect, item, buy } of upgradeRows) {
       const level = upgradeLevel(current, upgrade.id);
       const cost = upgradeCost(upgrade, level);
       const unlocked = upgradeUnlocked(current, upgrade);
       const affordable =
         unlocked && cost !== undefined && current.pocket >= cost;
       anyAffordable ||= affordable;
-      title.textContent =
-        upgrade.maxLevel === 1
+      item.classList.toggle("is-locked", !unlocked);
+      title.textContent = unlocked
+        ? upgrade.maxLevel === 1
           ? upgrade.name
-          : `${upgrade.name} · level ${String(level)} of ${String(upgrade.maxLevel)}`;
-      now.textContent = upgradeNow(upgrade, current, at);
+          : `${upgrade.name} · level ${String(level)} of ${String(upgrade.maxLevel)}`
+        : lockedUpgradeLine(upgrade);
+      effect.textContent = unlocked
+        ? upgradeEffectLine(upgrade, current, at)
+        : "";
       buy.disabled = !view.ready || !affordable;
       buy.textContent = !unlocked
-        ? unlockWords(upgrade)
+        ? "Locked"
         : cost === undefined
           ? upgrade.maxLevel === 1
             ? "Owned"
             : "All levels bought"
-          : `Buy for ${formatCount(cost)} stones`;
+          : buyPriceWords(cost);
     }
     let anyFound = false;
     for (const { id, item } of foundRows) {

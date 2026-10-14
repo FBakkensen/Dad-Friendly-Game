@@ -1057,9 +1057,9 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       sessionStorage: storage,
       now: () => 100_000,
     });
-    // 8 workers + a borer at +10% (654/s, 595 floored after the tenth) for 100s at 30%.
+    // 8 workers + a borer at +16.2% (691/s floored with the workers) for 100s at 30%.
     expect(progress.getSnapshot().away?.mined).toBe(
-      Math.floor(100 * (8 + 654) * 0.3),
+      Math.floor(100 * 699 * 0.3),
     );
     expect(progress.getSnapshot().engineerJoined).toBe(true);
   });
@@ -1235,7 +1235,7 @@ describe("field log", () => {
       buyTier({ ...mountain, pocket: 20 }, "helper"),
     );
     progress.applyMutation((mountain) =>
-      buyUpgrade({ ...mountain, pocket: 40_000 }, "tap"),
+      buyUpgrade({ ...mountain, pocket: 46_000 }, "tap"),
     );
     progress.applyMutation((mountain) => {
       const rich = { ...mountain, pocket: 1_000 };

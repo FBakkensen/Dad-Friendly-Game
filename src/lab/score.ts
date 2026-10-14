@@ -10,7 +10,7 @@ import {
   type ValueContext,
 } from "../economy/actions";
 import { MOVE_KINDS, type DecisionSample } from "./measure";
-import { HORIZON_SEC, LIVE_RATIO, TENDING_SOURCE } from "./targets";
+import { HORIZON_SEC, LIVE_RATIO, TENDING_SOURCE, VALUE_TIE } from "./targets";
 
 export type ScoreInput = {
   readonly mountain: Mountain;
@@ -93,8 +93,9 @@ function price(
   mountain: Mountain,
   action: Action,
   context: ValueContext,
+  now: number,
 ): Priced {
-  const priced = valueOf(mountain, action, HORIZON_SEC, context);
+  const priced = valueOf(mountain, action, HORIZON_SEC, context, now);
   const gain = priced.gainPerSec;
   const cost = priced.cost;
   const perStone =
@@ -109,13 +110,23 @@ function price(
   };
 }
 
+/** Lower payback wins. An equal payback keeps the earlier offer. */
+function betterPayback(move: Priced, best: Priced): boolean {
+  const scale = Math.max(
+    Math.abs(move.paybackSec),
+    Math.abs(best.paybackSec),
+    1,
+  );
+  return (best.paybackSec - move.paybackSec) / scale > VALUE_TIE;
+}
+
 function byPayback(moves: readonly Priced[]): Summary {
   let best: Priced | undefined;
   for (const move of moves) {
     if (!Number.isFinite(move.paybackSec)) {
       continue;
     }
-    if (best === undefined || move.paybackSec < best.paybackSec) {
+    if (best === undefined || betterPayback(move, best)) {
       best = move;
     }
   }
@@ -276,7 +287,7 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
   const actions =
     input.actions ?? listActions(input.mountain, input.now, input.trouble);
   const priced = actions.map((action) =>
-    price(input.mountain, action, input.context),
+    price(input.mountain, action, input.context, input.now),
   );
   const payback = byPayback(priced);
   const value = byValue(priced);
@@ -284,7 +295,7 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     input.stretchActions === undefined
       ? priced
       : input.stretchActions.map((action) =>
-          price(input.mountain, action, input.context),
+          price(input.mountain, action, input.context, input.now),
         );
   const stretchPayback =
     input.stretchActions === undefined ? payback : byPayback(stretchPriced);

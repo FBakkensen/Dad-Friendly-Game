@@ -216,7 +216,10 @@ describe("tending", () => {
   it("speeds the posted tier by rank, live and away, and not a tunnel", () => {
     const plain = effectiveRates(base);
     const apprentice = effectiveRates({ ...base, engineers: [ada] });
-    expect(apprentice.tierSpeed.borer).toBe((plain.tierSpeed.borer * 11) / 10);
+    expect(apprentice.tierSpeed.borer).toBeCloseTo(
+      plain.tierSpeed.borer * 1.162,
+      8,
+    );
     expect(apprentice.tierSpeed.drill).toBe(plain.tierSpeed.drill);
     expect(apprentice.crewPerSecond).toBeGreaterThan(plain.crewPerSecond);
 
@@ -231,7 +234,10 @@ describe("tending", () => {
       ...base,
       engineers: [{ name: "Ada", rank: 2, trips: 9, post: "borer" }],
     });
-    expect(master.tierSpeed.borer).toBe((plain.tierSpeed.borer * 13) / 10);
+    expect(master.tierSpeed.borer).toBeCloseTo(
+      plain.tierSpeed.borer * 1.486,
+      8,
+    );
 
     const awayPlain = accrueAway({ mountain: base, lastSeen: 0, now: 10_000 });
     const awayTended = accrueAway({
@@ -268,7 +274,7 @@ describe("tending", () => {
       ],
     };
     expect(tendingTenths(both, "borer")).toBe(3);
-    expect(effectiveRates(both).tierSpeed.borer).toBe(595 * 1.3);
+    expect(effectiveRates(both).tierSpeed.borer).toBeCloseTo(595 * 1.486, 8);
   });
 });
 

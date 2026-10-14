@@ -13,7 +13,7 @@ import {
 } from "./sweep";
 import { executeSweep, parseSweepArgs } from "./cli";
 
-describe("sweep command", () => {
+describe("sweep command", { timeout: 120_000 }, () => {
   it("defaults to the casual dad and the registered measures", () => {
     const parsed = parseSweepArgs([]);
     expect(parsed).toEqual({

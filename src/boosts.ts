@@ -20,6 +20,11 @@ export type Boost = {
    */
   readonly priceIn: "crewSeconds" | "taps";
   readonly priceUnits: number;
+  /**
+   * Also at least this many seconds of the crew, so a big mine does not
+   * sell a tap boost for pocket change. Sharper picks uses it. #178.
+   */
+  readonly crewSeconds?: number;
   /** …but never less than this, so a new dad can try it. */
   readonly minCost: number;
 };
@@ -28,17 +33,18 @@ const BY_ID: Readonly<Record<BoostId, Boost>> = {
   sharper: {
     id: "sharper",
     name: "Sharper picks",
-    effect: "Taps mine ×2 for 10 minutes.",
+    effect: "Taps ×2 for 10 min.",
     durationMs: 10 * 60 * 1000,
     multiplier: 2,
     priceIn: "taps",
     priceUnits: 120,
+    crewSeconds: 60,
     minCost: 100,
   },
   overtime: {
     id: "overtime",
     name: "Overtime",
-    effect: "Your crew mines ×2 for 30 minutes while you play.",
+    effect: "Crew ×2 for 30 min.",
     durationMs: 30 * 60 * 1000,
     multiplier: 2,
     priceIn: "crewSeconds",
@@ -77,7 +83,12 @@ export type BoostPricing = {
 export function boostCost(boost: Boost, pricing: BoostPricing): number {
   const per =
     boost.priceIn === "taps" ? pricing.tapYield : pricing.crewPerSecond;
-  return Math.max(boost.minCost, Math.ceil(per * boost.priceUnits));
+  const priced = Math.ceil(per * boost.priceUnits);
+  const crew =
+    boost.crewSeconds === undefined
+      ? 0
+      : Math.ceil(pricing.crewPerSecond * boost.crewSeconds);
+  return Math.max(boost.minCost, priced, crew);
 }
 
 /** Starts a boost if it isn't already running and the pocket covers it. */

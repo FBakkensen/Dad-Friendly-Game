@@ -1288,10 +1288,123 @@ body {
   }
 }
 
-/* The sheet can outgrow a short phone: it scrolls, and starts at its top. */
+/* Engineers may scroll on a very short phone. Upgrades must not.
+   Lasting rows sit beside a one-line price. The two quick boosts share
+   one row so a 360×560 phone still shows the whole sheet. */
 .upgrades-dialog,
 .engineers-dialog {
   align-items: flex-start;
+}
+
+.upgrades-dialog {
+  overflow: hidden;
+  padding: max(2px, env(safe-area-inset-top)) 8px
+    max(2px, env(safe-area-inset-bottom));
+}
+
+.upgrades-dialog .upgrades-card {
+  gap: 0;
+  width: min(420px, 100%);
+  margin: 0 auto;
+  padding: 2px 8px;
+  border: 2px solid #e8a84a;
+  border-radius: 20px;
+  background: #1e130d;
+  box-shadow: 0 0 48px rgba(232, 168, 74, 0.35);
+}
+
+.upgrades-dialog .upgrades-card h2 {
+  font-size: 1.05rem;
+  line-height: 1.15;
+}
+
+.upgrades-dialog .upgrades-pocket {
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+
+.upgrades-dialog .upgrades-heading {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+
+.upgrades-dialog .upgrade-list {
+  gap: 1px;
+}
+
+/* Wide fonts wrap a stacked pair past the 360×560 budget. One row. */
+.upgrades-dialog .boost-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px;
+}
+
+.upgrades-dialog .upgrade {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7.75rem;
+  gap: 0 8px;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.upgrades-dialog .upgrade-name,
+.upgrades-dialog .upgrade-effect,
+.upgrades-dialog .upgrade-now {
+  grid-column: 1;
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+
+.upgrades-dialog .upgrade.is-locked .upgrade-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upgrades-dialog .upgrade-effect:empty,
+.upgrades-dialog .upgrade-now:empty {
+  display: none;
+}
+
+.upgrades-dialog .upgrade-buy {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-self: end;
+  align-self: center;
+  width: 7.75rem;
+  min-width: 7.75rem;
+  max-width: 7.75rem;
+  min-height: 44px;
+  margin-top: 0;
+  padding: 2px 4px;
+  font-size: 0.9rem;
+  line-height: 1.1;
+}
+
+.upgrades-dialog .upgrade.boost {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 0;
+}
+
+.upgrades-dialog .upgrade.boost .upgrade-buy {
+  grid-column: 1;
+  grid-row: auto;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  justify-self: stretch;
+  padding: 2px 2px;
+  white-space: nowrap;
+}
+
+.upgrades-dialog .upgrades-close {
+  min-height: 44px;
+  margin-top: 0;
+  font-size: 1rem;
 }
 
 .upgrades-card,
@@ -2341,10 +2454,11 @@ body {
 }
 
 .engineer-promote-row .engineer-promote {
-  flex: 1 1 8.5rem;
+  flex: 0 0 auto;
   width: auto;
-  max-width: 11rem;
-  padding: 6px 8px;
+  min-width: 10.5rem;
+  max-width: 12.5rem;
+  padding: 6px 10px;
   line-height: 1.15;
   white-space: normal;
   text-align: center;

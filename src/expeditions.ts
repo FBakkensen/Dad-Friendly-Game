@@ -79,7 +79,7 @@ export type FindId = (typeof FIND_IDS)[number];
  * Chosen at send and stored, so a reload or a clock clamp cannot reroll it.
  * `sentAt` is the seed.
  */
-type StoredFind =
+export type StoredFind =
   | { readonly kind: "glimmer"; readonly id: RelicId }
   | { readonly kind: "tool"; readonly id: ToolId }
   | { readonly kind: "keepsake"; readonly id: KeepsakeId }
@@ -313,13 +313,17 @@ export function parseFinds(value: unknown): readonly FindId[] | undefined {
   return parsed;
 }
 
-function decideFind(
+/**
+ * The find a roll would bring home, before `sentAt` hashes it.
+ * `valueOf` averages this so an expedition is worth its expected stones,
+ * not the one roll a reload could have been. #178, TODO(#172).
+ */
+export function previewFind(
   mountain: Mountain,
   engineers: readonly Engineer[],
   tunnel: TunnelId,
-  sentAt: number,
+  roll: number,
 ): StoredFind {
-  const roll = rollOf(sentAt, tunnel);
   const first = rolledKind(tunnel, roll);
   const order: readonly FindKind[] = [
     first,
@@ -334,6 +338,15 @@ function decideFind(
     }
   }
   return { kind: "quiet" };
+}
+
+function decideFind(
+  mountain: Mountain,
+  engineers: readonly Engineer[],
+  tunnel: TunnelId,
+  sentAt: number,
+): StoredFind {
+  return previewFind(mountain, engineers, tunnel, rollOf(sentAt, tunnel));
 }
 
 function findOfKind(

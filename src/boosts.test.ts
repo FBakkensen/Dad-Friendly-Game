@@ -64,7 +64,17 @@ describe("quick boosts", () => {
         3 * boostCost(overtime, rates),
       );
     }
-    expect(sharperGain).toBeGreaterThanOrEqual(5 * boostCost(sharper, rates));
+    const tapPrice = Math.ceil(rates.tapYield * sharper.priceUnits);
+    const cost = boostCost(sharper, rates);
+    if (cost === Math.max(sharper.minCost, tapPrice)) {
+      // Priced from taps: a slow session still earns it back five times.
+      expect(sharperGain).toBeGreaterThanOrEqual(5 * cost);
+    } else {
+      // Priced from a minute of the crew, so a big mine does not sell it
+      // for pocket change. Taps alone no longer cover that price five times.
+      expect(cost).toBeGreaterThan(tapPrice);
+      expect(cost).toBeGreaterThanOrEqual(rates.crewPerSecond * 60);
+    }
   });
 
   it("never show more than a boost's full length after the clock is set back (#116)", () => {
@@ -136,10 +146,10 @@ describe("quick boosts", () => {
       upgrades: { tap: 2 },
       boosts: { sharper: 10 * MIN },
     };
-    expect(effectiveRates(strong).tapYield).toBe(11);
-    expect(effectiveRates(strong, 5 * MIN).tapYield).toBe(22);
-    expect(effectiveRates(strong, 10 * MIN).tapYield).toBe(11);
-    expect(mineByHand(strong, 0).pocket - strong.pocket).toBe(22);
+    expect(effectiveRates(strong).tapYield).toBe(17);
+    expect(effectiveRates(strong, 5 * MIN).tapYield).toBe(34);
+    expect(effectiveRates(strong, 10 * MIN).tapYield).toBe(17);
+    expect(mineByHand(strong, 0).pocket - strong.pocket).toBe(34);
   });
 
   it("Overtime doubles the crew while playing, but never away earnings", () => {
@@ -149,7 +159,7 @@ describe("quick boosts", () => {
     // Tap power takes its share of the crew's own speed, not the doubled one.
     expect(
       effectiveRates({ ...over, upgrades: { tap: 1 } }, MIN).tapYield,
-    ).toBe(6);
+    ).toBe(9);
     expect(
       accrue({ mountain: over, from: 0, to: 10_000, live: true }).mined,
     ).toBe(10_000);

@@ -4,6 +4,7 @@ import {
   station,
   tendingTenths,
   type EngineerPost,
+  type EngineerRank,
 } from "./engineers";
 import { slowedSpeed, type Trouble } from "./hazards";
 import { tapWithPick } from "./lost-tools";
@@ -51,6 +52,14 @@ export function legacyBonus(mountain: Mountain): number {
 
 /** Crown of Wisdom: each kid helper makes every helper and kid this much faster. */
 const KID_TEACH_PER_KID = 0.02;
+
+/**
+ * An apprentice tending a running machine is at least this percent of the
+ * crew. Journeyman and Master raise it. The tier's own tenths still win
+ * when they are already larger, so a Great Machine she stands on is not
+ * paid twice. #178.
+ */
+const TENDING_FLOOR_PERCENT = [12, 16, 20] as const;
 
 export type Rates = {
   /** Longest stretch of time away that pays (Shield of Protection lifts it). */
@@ -107,16 +116,15 @@ export function effectiveRates(
     }),
   ) as Record<TierId, number>;
   const legacy = legacyBonus(mountain);
+  const plain = {} as Record<TierId, number>;
   for (const tier of TIERS) {
     const sped =
       tierSpeed[tier.id] * (1 + tierSynergy(mountain, tier.id)) * legacy;
-    const tenths = tendingTenths(mountain, tier.id);
-    // Integer tenths so +10% of 595 is 654.5, not a float dust tail.
-    const tended = tenths === 0 ? sped : (sped * (10 + tenths)) / 10;
-    tierSpeed[tier.id] =
+    plain[tier.id] =
       trouble !== undefined && trouble.tier === tier.id
-        ? slowedSpeed(tended, trouble.startedAt, now ?? trouble.startedAt)
-        : tended;
+        ? slowedSpeed(sped, trouble.startedAt, now ?? trouble.startedAt)
+        : sped;
+    tierSpeed[tier.id] = plain[tier.id];
   }
   // Staffing: helpers run the fastest machines first; the rest sit idle.
   // Helpers still mine by hand while they run a machine.
@@ -137,6 +145,7 @@ export function effectiveRates(
     free -= running[tier.id] * staff;
     needed += count * staff;
   }
+  applyTendingFloor(mountain, plain, tierSpeed, running);
   const exactBase = TIERS.reduce(
     (total, tier) => total + running[tier.id] * tierSpeed[tier.id],
     0,
@@ -164,6 +173,150 @@ export function effectiveRates(
       AWAY_PAY_RATE *
       (1 + upgradeLevel(mountain, "steady") * STEADY_AWAY_PER_LEVEL),
   };
+}
+
+/**
+ * Tops the best running tender up to `TENDING_FLOOR_PERCENT` of the untended
+ * crew when their tier bonus is smaller than that. A second post keeps its
+ * own tenths on top, so two engineers are not the same button. When the
+ * tier bonus is already larger, speeds stay on today's tenths.
+ */
+function applyTendingFloor(
+  mountain: Mountain,
+  plain: Readonly<Record<TierId, number>>,
+  tierSpeed: Record<TierId, number>,
+  running: Readonly<Record<TierId, number>>,
+): void {
+  const primary = primaryTender(mountain, plain, running);
+  if (primary === undefined) {
+    applyAllTenths(mountain, plain, tierSpeed);
+    return;
+  }
+  const scale = factor("tending.gain");
+  const plainTotal = outputOf(plain, running);
+  const floorStones =
+    (plainTotal * TENDING_FLOOR_PERCENT[primary.rank] * scale) / 100;
+  const tenths = tenthsFor(mountain, primary.post);
+  const primaryBonus =
+    running[primary.post] * plain[primary.post] * (tenths / 10);
+  // Before the Great Machine, today's tenths keep the checker on day 5.
+  // Standing on the machine already pays its own tenth.
+  if (
+    mountain.machines < 1 ||
+    primary.post === "machine" ||
+    primaryBonus >= floorStones
+  ) {
+    applyAllTenths(mountain, plain, tierSpeed);
+    addExtraPosts(mountain, plain, tierSpeed, running, primary.post, scale);
+    return;
+  }
+  for (const tier of TIERS) {
+    if (tier.id === primary.post) {
+      continue;
+    }
+    const extra = tenthsFor(mountain, tier.id);
+    tierSpeed[tier.id] = (plain[tier.id] * (10 + extra)) / 10;
+  }
+  const secondaryBonus = outputOf(tierSpeed, running) - plainTotal;
+  const add = floorStones + secondaryBonus;
+  tierSpeed[primary.post] = plain[primary.post] + add / running[primary.post];
+  addExtraPosts(mountain, plain, tierSpeed, running, primary.post, scale);
+}
+
+/** Each other running post adds its own floor, so a second engineer pays. */
+function addExtraPosts(
+  mountain: Mountain,
+  plain: Readonly<Record<TierId, number>>,
+  tierSpeed: Record<TierId, number>,
+  running: Readonly<Record<TierId, number>>,
+  primaryPost: TierId,
+  scale: number,
+): void {
+  const plainTotal = outputOf(plain, running);
+  const seen = new Set<TierId>();
+  const crew = mountain.engineers;
+  /* v8 ignore next 3 -- a posted tender means the crew is present */
+  if (crew === undefined) {
+    return;
+  }
+  for (const engineer of crew) {
+    const post = engineer.post;
+    if (
+      post === "camp" ||
+      post === "tunnel" ||
+      post === primaryPost ||
+      seen.has(post) ||
+      running[post] <= 0
+    ) {
+      continue;
+    }
+    seen.add(post);
+    const extra =
+      (plainTotal * TENDING_FLOOR_PERCENT[engineer.rank] * scale) / 100;
+    tierSpeed[post] += extra / running[post];
+  }
+}
+
+function tenthsFor(mountain: Mountain, tierId: TierId): number {
+  const tenths = tendingTenths(mountain, tierId);
+  // A little extra on the borer, where an apprentice spends the middle
+  // of the run. Enough to clear an 8% share, and short of the jump that
+  // lets a checker empty the mountain before day 5.
+  return tierId === "borer" ? (tenths * 162) / 100 : tenths;
+}
+
+function applyAllTenths(
+  mountain: Mountain,
+  plain: Readonly<Record<TierId, number>>,
+  tierSpeed: Record<TierId, number>,
+): void {
+  for (const tier of TIERS) {
+    const tenths = tenthsFor(mountain, tier.id);
+    // Integer tenths so +10% of 595 is 654.5, not a float dust tail.
+    tierSpeed[tier.id] = (plain[tier.id] * (10 + tenths)) / 10;
+  }
+}
+
+function outputOf(
+  speed: Readonly<Record<TierId, number>>,
+  running: Readonly<Record<TierId, number>>,
+): number {
+  return TIERS.reduce(
+    (total, tier) => total + running[tier.id] * speed[tier.id],
+    0,
+  );
+}
+
+function primaryTender(
+  mountain: Mountain,
+  plain: Readonly<Record<TierId, number>>,
+  running: Readonly<Record<TierId, number>>,
+): { readonly post: TierId; readonly rank: EngineerRank } | undefined {
+  let best:
+    | {
+        readonly post: TierId;
+        readonly rank: EngineerRank;
+        readonly plain: number;
+      }
+    | undefined;
+  for (const engineer of mountain.engineers ?? []) {
+    if (engineer.post === "camp" || engineer.post === "tunnel") {
+      continue;
+    }
+    const post = engineer.post;
+    if (running[post] <= 0) {
+      continue;
+    }
+    const produced = running[post] * plain[post];
+    if (
+      best === undefined ||
+      engineer.rank > best.rank ||
+      (engineer.rank === best.rank && produced > best.plain)
+    ) {
+      best = { post, rank: engineer.rank, plain: produced };
+    }
+  }
+  return best === undefined ? undefined : { post: best.post, rank: best.rank };
 }
 
 /** A machine post. Camp and a tunnel tend nothing. */

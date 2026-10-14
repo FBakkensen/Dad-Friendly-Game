@@ -42,7 +42,7 @@ export function parameterisedDecide(input: DecideInput): Action | undefined {
     if (!(weight > 0)) {
       continue;
     }
-    const priced = valueOf(mountain, action, HORIZON_SEC, context);
+    const priced = valueOf(mountain, action, HORIZON_SEC, context, now);
     // A listed purchase has a price. A zero cost would divide the ranking.
     /* v8 ignore next 3 -- catalogue prices stay above zero */
     if (!(priced.cost > 0)) {
@@ -71,7 +71,7 @@ export function optimizerDecide(input: DecideInput): Action | undefined {
     if (!isPurchase(action)) {
       continue;
     }
-    const priced = valueOf(mountain, action, HORIZON_SEC, context);
+    const priced = valueOf(mountain, action, HORIZON_SEC, context, now);
     if (!Number.isFinite(priced.paybackSec)) {
       continue;
     }
@@ -231,11 +231,15 @@ function staffShort(mountain: Mountain): number {
 
 function isPurchase(
   action: Action,
-): action is Extract<Action, { kind: "buyTier" | "buyUpgrade" | "buyBoost" }> {
+): action is Extract<
+  Action,
+  { kind: "buyTier" | "buyUpgrade" | "buyBoost" | "promote" }
+> {
   return (
     action.kind === "buyTier" ||
     action.kind === "buyUpgrade" ||
-    action.kind === "buyBoost"
+    action.kind === "buyBoost" ||
+    action.kind === "promote"
   );
 }
 

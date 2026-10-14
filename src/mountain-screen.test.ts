@@ -369,9 +369,9 @@ describe("crew tiers on screen", () => {
     expect(grid?.classList.contains("tier-grid-compact")).toBe(true);
     const borer = tierCard(screen.root, "borer");
     expect(borer.querySelector(".tier-name")?.textContent).toBe("Borer");
-    // The first borer's engineer tends them: 595 becomes 654.5, shown floored.
+    // The first borer's engineer tends them: 595 becomes 714, shown floored.
     expect(borer.querySelector(".tier-rate")?.textContent).toBe(
-      "+654\u2009·\u20091,309/s",
+      "+691\u2009·\u20091,382/s",
     );
     expect(borer.querySelector(".tier-count")?.textContent).toBe("×2");
     expect(borer.getAttribute("aria-label")).toContain("tunnel borer");
@@ -1399,7 +1399,7 @@ describe("upgrades on screen", () => {
       storage: seededWith({
         ...minedMountain(30_000),
         helpers: 500,
-        pocket: 250_000,
+        pocket: 280_000,
       }),
     });
     document.body.append(screen.root);
@@ -1421,21 +1421,21 @@ describe("upgrades on screen", () => {
     expect(screen.text('[data-upgrade="tap"] .upgrade-name')).toBe(
       "Strong arms · level 0 of 10",
     );
-    expect(screen.text('[data-upgrade="tap"] .upgrade-now')).toBe(
-      "Each tap now mines 1.",
+    expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
+      "Taps +1.65%, now 1.",
     );
     const buy = screen.root.querySelector<HTMLButtonElement>(
       '[data-upgrade="tap"] .upgrade-buy',
     );
-    expect(buy?.textContent).toBe("Buy for 40 thousand stones");
+    expect(buy?.textContent).toBe("Buy · 46K");
     buy?.click();
     expect(screen.text('[data-upgrade="tap"] .upgrade-name')).toBe(
       "Strong arms · level 1 of 10",
     );
-    expect(screen.text('[data-upgrade="tap"] .upgrade-now')).toBe(
-      "Each tap now mines 6.",
+    expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
+      "Taps +1.65%, now 9.",
     );
-    expect(buy?.textContent).toBe("Buy for 200 thousand stones");
+    expect(buy?.textContent).toBe("Buy · 230K");
     expect(buy?.disabled).toBe(false);
 
     screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
@@ -1445,9 +1445,9 @@ describe("upgrades on screen", () => {
     screen.mountain.dispatchEvent(
       new MouseEvent("click", { bubbles: true, detail: 1 }),
     );
-    expect(screen.root.querySelector(".tap-float")?.textContent).toBe("+6");
+    expect(screen.root.querySelector(".tap-float")?.textContent).toBe("+9");
     expect(screen.mountain.getAttribute("aria-label")).toBe(
-      "Mountain, tap to mine 6 stones",
+      "Mountain, tap to mine 9 stones",
     );
     screen.root.remove();
     setReducedMotion(true);
@@ -1497,11 +1497,11 @@ describe("quick boosts on screen", () => {
       expect(screen.text('[data-boost="sharper"] .upgrade-name')).toBe(
         "Sharper picks",
       );
-      // 60 taps of 1 stone, but never under the 100-stone floor.
-      expect(buy?.textContent).toBe("Buy for 120 stones");
+      // 120 taps, or a minute of this 500-worker crew, whichever is more.
+      expect(buy?.textContent).toBe("Buy · 30K");
       buy?.click();
       expect(buy?.disabled).toBe(true);
-      expect(buy?.textContent).toBe("Running · 10:00 left");
+      expect(buy?.textContent).toBe("Running · 10:00");
       expect(chip?.hidden).toBe(false);
       expect(chip?.textContent).toBe("Sharper picks ×2 · 10:00");
       screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
@@ -1554,7 +1554,7 @@ describe("lasting upgrades on screen", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(30_000), pocket: 100_000, helpers: 9 },
+      mountain: { ...minedMountain(30_000), pocket: 700_000, helpers: 9 },
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
@@ -1562,33 +1562,34 @@ describe("lasting upgrades on screen", () => {
     const boots = screen.root.querySelector<HTMLButtonElement>(
       '[data-upgrade="boots"] .upgrade-buy',
     );
+    expect(boots?.textContent).toBe("Locked");
     expect(screen.text('[data-upgrade="boots"] .upgrade-name')).toBe(
-      "Better boots",
+      "Better boots · 10 workers",
     );
-    expect(boots?.textContent).toBe("Unlocks at 10 workers");
     expect(boots?.disabled).toBe(true);
-    expect(screen.text('[data-upgrade="steady"] .upgrade-buy')).toBe(
-      "Unlocks with your first mine cart",
+    expect(screen.text('[data-upgrade="steady"] .upgrade-buy')).toBe("Locked");
+    expect(screen.text('[data-upgrade="steady"] .upgrade-name')).toBe(
+      "Steady hands · first cart",
     );
 
     screen.root
       .querySelector<HTMLButtonElement>('[data-tier="helper"]')
       ?.click();
-    expect(boots?.textContent).toBe("Buy for 90 thousand stones");
-    expect(screen.text('[data-upgrade="boots"] .upgrade-now')).toBe(
-      "Each worker now mines 1/s.",
+    expect(boots?.textContent).toBe("Buy · 650K");
+    expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
+      "Workers +136%, now 1/s.",
     );
     boots?.click();
     expect(boots?.textContent).toBe("Owned");
     expect(boots?.disabled).toBe(true);
-    expect(screen.text('[data-upgrade="boots"] .upgrade-now')).toBe(
-      "Each worker now mines 1.1/s.",
+    expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
+      "Workers +136%, now 2.4/s.",
     );
     expect(screen.text('[data-tier="helper"] .tier-rate')).toBe(
-      "+1.1 each · 11/s",
+      "+2.4 each · 23/s",
     );
     expect(screen.text(".crew-status")).toBe(
-      "Your crew mines 11 stones a second",
+      "Your crew mines 23 stones a second",
     );
   });
 
@@ -1686,17 +1687,20 @@ describe("crew synergies on screen", () => {
     expect(screen.text('[data-upgrade="cartSyn"] .upgrade-name')).toBe(
       "Helping hands",
     );
-    expect(screen.text('[data-upgrade="cartSyn"] .upgrade-now')).toBe(
-      "Your 12 workers would make carts 12% faster.",
+    expect(screen.text('[data-upgrade="cartSyn"] .upgrade-effect')).toBe(
+      "+1% each worker; carts would 12%.",
     );
     expect(screen.text('[data-upgrade="drillSyn"] .upgrade-buy')).toBe(
-      "Unlocks at 5 steam drills",
+      "Locked",
+    );
+    expect(screen.text('[data-upgrade="drillSyn"] .upgrade-name')).toBe(
+      "Cart roads · 5 drills",
     );
     screen.root
       .querySelector<HTMLButtonElement>('[data-upgrade="cartSyn"] .upgrade-buy')
       ?.click();
-    expect(screen.text('[data-upgrade="cartSyn"] .upgrade-now')).toBe(
-      "Your 12 workers make carts 12% faster.",
+    expect(screen.text('[data-upgrade="cartSyn"] .upgrade-effect')).toBe(
+      "+1% each worker; carts now 12%.",
     );
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
       "+11 \u219112% · 56/s",
@@ -1710,7 +1714,7 @@ describe("crew synergies on screen", () => {
 });
 
 describe("crew synergy copy before the tier exists", () => {
-  it("skips the preview line with none of the tier below, and names the Great Machine", () => {
+  it("skips the preview line with none of the tier below, and names the machine", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -1718,9 +1722,12 @@ describe("crew synergy copy before the tier exists", () => {
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
-    expect(screen.text('[data-upgrade="machineSyn"] .upgrade-now')).toBe("");
+    expect(screen.text('[data-upgrade="machineSyn"] .upgrade-effect')).toBe("");
+    expect(screen.text('[data-upgrade="machineSyn"] .upgrade-name')).toBe(
+      "Borer tracks · Machine",
+    );
     expect(screen.text('[data-upgrade="machineSyn"] .upgrade-buy')).toBe(
-      "Unlocks with the Great Machine",
+      "Locked",
     );
   });
 });
@@ -1915,7 +1922,7 @@ describe("first engineer note (#144)", () => {
       screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
     ).toBe(true);
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+654\u2009·\u2009654/s",
+      "+691\u2009·\u2009691/s",
     );
   });
 
@@ -1959,7 +1966,7 @@ describe("first engineer note (#144)", () => {
     ).toBe(true);
     expect(screen.text('[data-tier="borer"] .tier-count')).toBe("×1");
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+654\u2009·\u2009654/s",
+      "+691\u2009·\u2009691/s",
     );
     expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×11");
   });
@@ -2343,13 +2350,13 @@ describe("player-facing workers (#139)", () => {
         screen.root.querySelector<HTMLElement>(".upgrades-dialog")?.hidden,
       ).toBe(false);
       expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
-        "Workers mine 10% faster.",
+        "Workers +136%, now 2.4/s.",
       );
       expect(screen.text('[data-upgrade="cartSyn"] .upgrade-name')).toBe(
         "Helping hands",
       );
-      expect(screen.text('[data-upgrade="cartSyn"] .upgrade-now')).toMatch(
-        /workers make carts/,
+      expect(screen.text('[data-upgrade="cartSyn"] .upgrade-effect')).toMatch(
+        /carts now/,
       );
       screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
 
@@ -2653,7 +2660,7 @@ describe("engineers sheet (#145)", () => {
     );
     expect(borer?.getAttribute("aria-label")).toContain("Ada tends them.");
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+654\u2009·\u2009654/s",
+      "+691\u2009·\u2009691/s",
     );
 
     const sheet = openSheet(screen.root);
@@ -2667,7 +2674,7 @@ describe("engineers sheet (#145)", () => {
       "Apprentice",
     );
     expect(ada?.textContent).toContain(
-      "Ada is tending the borers: +59 stones/sec.",
+      "Ada is tending the borers: +96 stones/sec.",
     );
     expect(ada?.querySelector(".engineer-doing")?.textContent).not.toMatch(
       /\?|%/,
@@ -2784,9 +2791,7 @@ describe("engineers sheet (#145)", () => {
     });
     const screen = mountScreen({ storage });
     const sheet = openSheet(screen.root);
-    expect(screen.text(".engineer-promote")).toBe(
-      "Promote a worker: 2M stones",
-    );
+    expect(screen.text(".engineer-promote")).toBe("Promote: 2M stones");
     expect(screen.text(".engineer-promote-why")).toBe(
       "A new engineer can tend another machine or explore while the others work.",
     );
@@ -2894,7 +2899,7 @@ describe("engineers sheet (#145)", () => {
     const promote =
       broke.root.querySelector<HTMLButtonElement>(".engineer-promote");
     expect(promote?.disabled).toBe(true);
-    expect(promote?.textContent).toBe("Promote a worker: 2M stones");
+    expect(promote?.textContent).toBe("Promote: 2M stones");
     expect(broke.text(".engineer-promote-why")).toBe(
       "No worker is free to step up.",
     );
@@ -2949,9 +2954,7 @@ describe("engineers sheet (#145)", () => {
     const sheet = openSheet(screen.root);
     const promote = sheet.querySelector<HTMLButtonElement>(".engineer-promote");
     expect(promote?.disabled).toBe(true);
-    expect(screen.text(".engineer-promote")).toBe(
-      "Promote a worker: 2M stones",
-    );
+    expect(screen.text(".engineer-promote")).toBe("Promote: 2M stones");
     expect(screen.text(".engineer-promote-why")).toBe("Needs 2M stones");
     promote?.click();
     expect(sheet.querySelector<HTMLElement>(".engineer-confirm")?.hidden).toBe(
@@ -3187,7 +3190,7 @@ describe("side tunnels (#147)", () => {
     recall?.click();
     sheet.querySelector<HTMLButtonElement>(".recall-yes")?.click();
     expect(screen.text(".engineer-doing")).toBe(
-      "Ada is tending the borers: +59 stones/sec.",
+      "Ada is tending the borers: +96 stones/sec.",
     );
     expect(screen.text(".engineer-toast")).toBe("Ada is home, empty-handed.");
     expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
@@ -3350,17 +3353,17 @@ describe("side tunnels (#147)", () => {
     });
     const screen = mountScreen({ storage });
     expect(screen.text('[data-tier="borer"] .engineer-gain')).toBe(
-      "+59 stones/sec",
+      "+96 stones/sec",
     );
     expect(
       screen.root
         .querySelector('[data-tier="borer"]')
         ?.getAttribute("aria-label"),
-    ).toContain("+59 stones/sec");
+    ).toContain("+96 stones/sec");
     const sheet = openSheet(screen.root);
     sheet.querySelector<HTMLButtonElement>(".engineer-tend")?.click();
     expect(sheet.textContent).toContain(
-      "+59 stones/sec. They dig faster, and she clears any jam herself.",
+      "+96 stones/sec. They dig faster, and she clears any jam herself.",
     );
     expect(sheet.textContent).toContain("None built yet. ");
     expect(sheet.textContent).not.toContain("+0 stones/sec");
@@ -3368,9 +3371,9 @@ describe("side tunnels (#147)", () => {
       .querySelector<HTMLButtonElement>('[data-tier="borer"]')
       ?.click();
     expect(screen.text('[data-tier="borer"] .engineer-gain')).toBe(
-      "+119 stones/sec",
+      "+192 stones/sec",
     );
-    expect(sheet.textContent).toContain("+119 stones/sec");
+    expect(sheet.textContent).toContain("+192 stones/sec");
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
     expect(screen.text('[data-boost="sharper"] .upgrade-effect')).toContain(
       "a tap",
