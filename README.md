@@ -4,7 +4,7 @@ How the game plays is in `docs/DESIGN.md`. How it is built is in `docs/ARCHITECT
 
 ## Strategy lab
 
-`npm run lab` plays every registered player type and writes `reports/strategy-lab.md` and `reports/strategy-lab.json`. Those files are gitignored. Locally the seed count is `LOCAL_SEEDS`. CI passes `--ci` and uses `CI_SEEDS` (see `src/lab/targets.ts`). `--seeds` overrides either. The lab is not part of the game the player runs. A missed guardrail is a warning unless `LAB_STRICT=1`.
+`npm run lab` plays every registered player type and writes `reports/strategy-lab.md` and `reports/strategy-lab.json`. Those files are gitignored. Locally the seed count is `LOCAL_SEEDS`. CI passes `--ci` and uses `CI_SEEDS` (see `src/lab/targets.ts`). `--seeds` overrides either. The lab is not part of the game the player runs. CI sets `LAB_STRICT=1`, so a missed guardrail fails the build. Without that variable a miss is a warning.
 
 The markdown table is one row per player type and one column per measure. A green pass or a red fail means a guardrail in `src/lab/targets.ts` covers that cell. A bare number has no guardrail. The header gives the optimizer's finish day and the plain dad's (`casual-2x10`); regret and extreme win use those two figures.
 

@@ -75,7 +75,15 @@ export type TargetScope =
   | { readonly kind: "all" }
   | { readonly kind: "policies"; readonly ids: readonly string[] }
   | { readonly kind: "policyKinds"; readonly kinds: readonly PolicyKind[] }
-  | { readonly kind: "afterHour"; readonly hour: number }
+  | {
+      readonly kind: "afterHour";
+      readonly hour: number;
+      /**
+       * When set, only these player kinds are graded. The hour still drops
+       * the opening samples. Omitted means every kind.
+       */
+      readonly kinds?: readonly PolicyKind[];
+    }
   | { readonly kind: "fromSource"; readonly source: string };
 
 type TargetBase = {
@@ -117,7 +125,11 @@ export const TARGETS: readonly Target[] = [
   {
     id: "live-median-after-open",
     measure: "liveMedian",
-    scope: { kind: "afterHour", hour: OPENING_HOURS },
+    scope: {
+      kind: "afterHour",
+      hour: OPENING_HOURS,
+      kinds: ["casual", "optimizer"],
+    },
     op: "gte",
     value: 2,
     why: "After the first hour the typical moment should be a real choice.",
@@ -186,8 +198,8 @@ export const DEFAULT_MAX_DAYS = 30;
 
 /**
  * Seeds a CI run plays, numbered 1 through this count.
- * Three keeps the report job short. The job posts the report and does not
- * fail the build.
+ * Three keeps the report job short. CI sets LAB_STRICT=1, so a miss fails
+ * the job after the report is posted.
  */
 export const CI_SEEDS = 3;
 

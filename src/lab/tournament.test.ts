@@ -252,6 +252,31 @@ describe("tournament", () => {
     expect(cell?.judgements[0]?.pass).toBe(true);
   });
 
+  it("leaves an after-hour target off the kinds it does not name", () => {
+    const casual = dad({ id: "alpha", label: "Alpha", kind: "casual" });
+    const extreme = dad({ id: "beta", label: "Beta", kind: "extreme" });
+    const result = judge({
+      policies: [casual, extreme],
+      measures: [liveMedian],
+      targets: [
+        {
+          id: "later",
+          measure: "liveMedian",
+          scope: { kind: "afterHour", hour: 1, kinds: ["casual"] },
+          op: "gte",
+          value: 2,
+          why: "After the first hour the typical moment should be a real choice.",
+        },
+      ],
+      runs: [
+        run(casual, 1, [decision({ atMs: HOUR_MS, liveCount: 3 })]),
+        run(extreme, 1, [decision({ atMs: HOUR_MS, liveCount: 1 })]),
+      ],
+    });
+    expect(result.rows[0]?.cells[0]?.judgements).toHaveLength(1);
+    expect(result.rows[1]?.cells[0]?.judgements).toEqual([]);
+  });
+
   it("colours a new target and leaves an uncovered measure as a bare number", () => {
     const policy = dad({ id: "alpha", label: "Alpha", kind: "extreme" });
     const other = dad({ id: "beta", label: "Beta", kind: "extreme" });

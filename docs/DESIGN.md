@@ -4,7 +4,7 @@ This is the north star for the game. Open GitHub issues stay the plan; this page
 
 ## Vision
 
-Deep inside a mountain of **240,000,000 stones** lie the six Legendary Relics of Fatherhood, left by the great dads of history. You start with your bare hands: one tap, one stone. The mountain is far too big to dig by hand, and that is the point. Scale makes automation necessary, the way it does in _Needle In A Haystack_ and _Cookie Clicker_. Each relic you uncover is a power spike and a virtue of fatherhood.
+Deep inside a mountain of **240,000,000 stones** lie the six Legendary Relics of Fatherhood, left by the great dads of history. You start with your bare hands: one tap, one stone. A dad who never hires still reaches the bottom inside two weeks, because those hands learn as the stones pile up. Hiring is faster, and that is the point of the crew, the way automation is the point in _Needle In A Haystack_ and _Cookie Clicker_. Each relic you uncover is a power spike and a virtue of fatherhood.
 
 The tone lifts dads up. It honors them; it does not joke at their expense.
 
@@ -12,9 +12,9 @@ It stays a dad-friendly game (see `AGENTS.md`): two-minute sessions, gentle, nev
 
 ## Core loop
 
-1. **Tap the mountain.** Each tap mines one stone. Stones are the currency.
+1. **Tap the mountain.** The first taps mine one stone each. With an empty crew the taps grow as stones pile up, so two short sittings a day still finish inside two weeks. Hiring anyone leaves that curve. Stones are the currency.
 2. **Hire workers.** Spend stones on workers who mine for you every second. Each worker costs more than the last (escalating cost), so the next one is always just in reach.
-3. **Leave.** Workers keep mining while you are away, at a resting pace (30% of their speed, up to 8 hours). Earnings are computed from timestamps on the next open; there is no live server.
+3. **Leave.** Workers keep mining while you are away, at a resting pace (30% of their speed). A gap pays up to 8 hours. One absence longer than half a day pays up to 16 hours, until the Shield makes it a whole day. Earnings are computed from timestamps on the next open; there is no live server.
 4. **Come back.** A "While you were away" screen celebrates what your crew mined.
 5. **Hit a relic depth.** Relics sit at fixed depths (stones mined out of the mountain). Reaching one uncovers it and unlocks its power.
 6. **Golden veins.** Now and then a glinting vein appears; tap it for a short boost. Missing one costs nothing.
@@ -106,7 +106,7 @@ M2 gives the player one choice: which tier to buy next. M3 adds the real idle-ga
   - Boosts run only while the game is open; they never multiply away earnings, so they reward active play without punishing rest.
   - _Built (#79)_: priced from what they boost, unboosted — Sharper picks costs the greater of 120 taps and one minute of the crew (min 100), Overtime 3 minutes of the crew (min 500) — so they scale with progress and always pay for themselves (retuned from 60 s / 600 s of crew, which was break-even at best). `src/boosts.test.ts` proves a 10-minute session at one tap a second earns back ≥5× Sharper picks and ≥3× Overtime at four crew sizes. The sheet shows the price and the output in stones ("8 a tap", "800/s") along with the × (#166). Saved as absolute end times (`mountain.boosts`), so a reload keeps the countdown; the clock keeps running while away, but away pay always uses the unboosted rate (`effectiveRates(mountain)` without `now`). Sharper picks doubles the whole tap yield including Strong arms; Strong arms takes its share of the unboosted crew. Bought in the Upgrades sheet ("Quick boosts"); running boosts show as countdown chips in the mountain's top-left corner (no layout cost). The pacing sim has a boost-buying dad (`buysBoosts`: starts both whenever affordable and idle, every second of play): Lantern 1.5, Hammer 3, bottom 5.0 — inside 5–7, the fastest case; the plain and upgrade dads also finish on day 5.0 (M7 #140; they were on 5.5 before the staffing retune).
 - **Permanent upgrades** (one-time purchases, Cookie Clicker style, unlocked by owning enough of a tier):
-  - _Better boots_: workers +136% speed, 650,000 stones, so a lasting upgrade is the best payback on some samples.
+  - _Better boots_: each worker goes from 1/s to 2.4/s, 650,000 stones, so a lasting upgrade is the best payback on some samples.
   - _Steady hands_: away earnings +25%.
   - _Built (#80)_: one-time buys in the Upgrades sheet under "Lasting upgrades". Better boots — 650,000 stones (#178 follow-up, was 90,000), unlocks at 10 workers, workers 1 → 2.36/s. Strong arms — each level 1.65% of crew speed, first price 46,000. Steady hands — 10,000,000 stones, shown from the first cart, away pay 30% → 37.5% (relative +25%; the Heart of Patience can stack on top later). Locked rows are one line ("Better boots · 10 workers", "Borer tracks · Machine") and the button reads "Locked"; bought ones read "Owned". A price reads "Buy · 46K" on one line. The two quick boosts sit side by side. The sheet keeps the opaque card, type at least 0.9rem, and equal-width lasting buy buttons on the right, and it does not scroll on a 360×560 or 390×844 phone. Crew speed is floored to whole stones a second in `effectiveRates`, so the crew line is exactly what gets mined; tier cards and buy floats show the boosted per-unit speed (one decimal while under 10). The welcome-back card reads the live away rate.
   - Pacing: Steady hands is the strong one. Priced at 25,000 it pulled the upgrade-buying dad's bottom to day 5.0 (edge of the window); at 10M it's a mid-game buy and the sim stays Lantern day 1.5, Hammer day 3.5, bottom day 6 — for both the plain dad and the one buying Strong arms, boots and Steady hands (the sim weighs each by stones a day per stone).
@@ -146,7 +146,7 @@ M2 gives the player one choice: which tier to buy next. M3 adds the real idle-ga
 - **M4: Patience.** Every relic finally does what its card promises. See below.
 - **M5: Maintenance.** See below. Before any new feature.
 - **M6: Legacy.** Prestige (pass the mine to your kid), per the #83 note above.
-- **M8: Strategy lab.** Decision quality, offline. See Milestone 8 below. M8 is planned.
+- **M8: Strategy lab.** Decision quality, offline. See Milestone 8 below. M8 is built.
 
 ### M5: Maintenance
 
@@ -303,11 +303,13 @@ One PR each, in order; the list with acceptance criteria is in the M7 PR descrip
 
 ### Milestone 8: Strategy lab
 
-**M8 is in progress.** The shared clock is `src/lab/world.ts` (#171). Targets and decision measures are in (#173). Player types are one file each under `src/lab/policies/`, loaded by the same registry (#172). The tournament and `npm run lab` are in (#174). No screen, no save field, no Firestore change. The lab runs offline, next to the pacing sim, so a retune can be judged before it ships. Players never see payback, shares, or these targets.
+**M8 is built.** The shared clock is `src/lab/world.ts` (#171). Targets and decision measures are in (#173). Player types are one file each under `src/lab/policies/`, loaded by the same registry (#172). The tournament and `npm run lab` are in (#174). The retunes are in (#177, #178, #179). No screen, no save field, no Firestore change. The lab runs offline, next to the pacing sim, so a retune can be judged before it ships. Players never see payback, shares, or these targets. CI runs the lab with `LAB_STRICT=1`, so a missed guardrail fails the build.
 
-#### Why
+#### Pacing
 
-Flemming's goal is a real decision at every moment: several options of comparable value, no dead stretch, and no dominant strategy, even for a dad who plays an extreme. Finish days come second. A casual dad still finishes in 5–7 days, and never under 5.
+Decision quality comes first. A moment should offer more than one live buy, a dead stretch stays under half a day, and one move should not be the right buy for most of a casual run or the optimizer's. Finish days come second. A casual dad still finishes in 5–7 days, and never under 5. `tap-only` and `five-min-a-day` finish within about 14 days. An extreme may finish later. It may not finish much sooner than the casual dad (at most 15%). The optimizer may finish sooner than a casual dad, and not by more than a quarter.
+
+Bare hands (no crew hired) climb with stones already dug, so a dad who only taps still finishes inside two weeks. The first taps stay one stone, and hiring anyone leaves the curve. A single absence longer than half a day, before the Shield, pays 16 hours instead of 8, so one 20-minute evening stays within a quarter of the optimizer. Two shorter gaps in a day stay on the 8-hour cap. `liveMedian` after the first hour grades casual player types and the optimizer, the same population as the dead stretch, single share, and dominant share. Workers-only, machines-only, and never-workers may finish late: no finish target names them, and extreme win only limits finishing sooner.
 
 #177 closed the payback dead stretch (about a day from day 4) to under half a day for a casual dad and for the optimizer. The value-per-stone stretch is still reported beside it. The retune moved the economy. It did not move these targets to go green.
 
@@ -329,13 +331,13 @@ Approved:
 - `LIVE_RATIO = 1.5`. A live option pays back within 1.5× of the best.
 - Longest dead stretch at most 0.5 day, for casual and for the optimizer.
 - `tap-only` and `five-min-a-day` finish within about 14 days.
+- `liveMedian` at least 2 after the first hour, for casual player types and the optimizer.
 
 The same file holds the horizon `H` (default 6 hours, passed into `valueOf`), the sample interval (one minute of play, plus the start of each session), the dead-stretch definition, and one typed entry per guardrail: `{ id, measure, scope, op, value, why }`. Each entry has a one-line `why`. `measure` is a registered measure id. `scope` says which runs the bound covers. `op` and `value` are the comparison.
 
-Planned entries, beside the three above. M8-4 writes them into the file. A retune does not change a value to pass. That needs Flemming's OK.
+Planned entries, beside the four above. M8-4 writes them into the file. A retune does not change a value to pass. That needs Flemming's OK.
 
 - `singleShare` at most 25%, for casual player types and the optimizer.
-- `liveMedian` at least 2 after the first hour.
 - `dominantShare` at most 40%, for casual player types and the optimizer.
 - Tending at least 8% of output for an Apprentice from the borer onward.
 - Casual `finishDay` from 5.0 to 7.0 days.
@@ -366,7 +368,7 @@ One row per player type, one column per registered measure. A cell is a bare num
 
 The header names two finish days. **Optimizer finish day** is `optimizer`. **Casual finish day** is `casual-2x10`, the plain dad. Regret divides a dad's finish day by the optimizer's. Extreme win reads how much sooner an extreme finished than that casual dad. Both numbers are the mean across the seeds in the run (seeds 1 through that count). A local `npm run lab` uses `LOCAL_SEEDS`. CI passes `--ci` and uses `CI_SEEDS`. `--seeds` wins over both, and `--days` overrides `DEFAULT_MAX_DAYS`. `--policy` limits the rows; the columns stay every measure.
 
-Under the table: a per-hour timeline for each casual player type and the optimizer, on the first seed; a section per list measure (never the best buy is the dead-feature list); and dead stretches longer than `REPORT_DEAD_HOURS`, once for payback and once for value per stone (when they start, what the dad is saving for, and how many times slower the next payback is). The suggestions name the miss. They do not change a number. CI posts that report and does not fail the build. `LAB_STRICT=1` is what turns a miss into a failing exit.
+Under the table: a per-hour timeline for each casual player type and the optimizer, on the first seed; a section per list measure (never the best buy is the dead-feature list); and dead stretches longer than `REPORT_DEAD_HOURS`, once for payback and once for value per stone (when they start, what the dad is saving for, and how many times slower the next payback is). The suggestions name the miss. They do not change a number. CI posts that report with `LAB_STRICT=1`, so a miss fails the build. Without that variable a miss is a warning.
 
 Adding a policy file adds a row. Adding a measure file adds a column. Adding a target adds a pass or fail on the cells it covers. No other edit.
 

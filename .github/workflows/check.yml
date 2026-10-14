@@ -26,8 +26,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Report only. A missed target is a warning. LAB_STRICT is what fails.
+      # A missed target fails the job. The report is still posted.
       - run: npm run lab -- --ci
+        env:
+          LAB_STRICT: "1"
       - name: Post the strategy lab report
         if: always()
         run: |

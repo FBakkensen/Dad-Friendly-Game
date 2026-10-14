@@ -593,10 +593,10 @@ describe("away pay", () => {
     const long = accrueAway({ mountain: seam, lastSeen: 0, now: 20 * HOUR });
     const home = { ...seam, engineers: [{ ...ada }] };
     expect(long.mined).toBe(
-      Math.floor(8 * 3_600 * effectiveRates(home).crewPerSecond * pay),
+      Math.floor(16 * 3_600 * effectiveRates(home).crewPerSecond * pay),
     );
     expect(long.mined).not.toBe(
-      Math.floor(8 * 3_600 * effectiveRates(seam).crewPerSecond * pay),
+      Math.floor(16 * 3_600 * effectiveRates(seam).crewPerSecond * pay),
     );
     const saved = parseSaveValue(
       JSON.parse(

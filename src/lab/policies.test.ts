@@ -209,6 +209,13 @@ describe("extremes", () => {
     expect(run.world.mountain.expeditions ?? []).toEqual([]);
   });
 
+  it("finishes by tapping inside two weeks, and not before the casual week", () => {
+    const run = runPolicy({ policy: tapOnly, seed: 1, maxDays: 14 });
+    expect(run.buys).toEqual([]);
+    expect(run.finishDay).toBeGreaterThanOrEqual(5);
+    expect(run.finishDay).toBeLessThanOrEqual(14);
+  });
+
   it("buys machines, and workers only for those machines", () => {
     const rich = withPocket(1_000_000_000, { helpers: 40 });
     const action = machinesOnly.decide({

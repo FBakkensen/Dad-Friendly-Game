@@ -39,7 +39,7 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
   boots: {
     id: "boots",
     name: "Better boots",
-    perLevel: "Workers mine 136% faster.",
+    perLevel: "Workers go from 1/s to 2.4/s.",
     firstCost: 650_000,
     costGrowth: 1,
     maxLevel: 1,

@@ -9,6 +9,7 @@ import {
 import { slowedSpeed, type Trouble } from "./hazards";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
+import { minedOut } from "./scale";
 import { TIERS, owned, type TierId } from "./tiers";
 import { hasRelic } from "./relics";
 import { boostById, boostLeft } from "./boosts";
@@ -30,9 +31,61 @@ export const AWAY_PAY_RATE = 0.3;
 export const BASE_AWAY_CAP_MS = 8 * 60 * 60 * 1000;
 export const SHIELD_AWAY_CAP_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * One absence longer than half a day, before the Shield, pays this long.
+ * Two gaps inside a day stay on the 8-hour cap. #179.
+ */
+const LONG_DAY_MARK_MS = 12 * 60 * 60 * 1000;
+const LONG_DAY_CAP_MS = 16 * 60 * 60 * 1000;
+
+/**
+ * Paid time away. The Shield's cap wins. Otherwise a short gap pays at most
+ * 8 hours, and a single long absence pays up to 16.
+ */
+export function paidAwayMs(mountain: Mountain, awayMs: number): number {
+  const gone = Math.max(0, awayMs);
+  const cap = hasRelic(mountain, "shield")
+    ? SHIELD_AWAY_CAP_MS
+    : BASE_AWAY_CAP_MS;
+  if (cap === BASE_AWAY_CAP_MS && gone > LONG_DAY_MARK_MS) {
+    return Math.min(gone, LONG_DAY_CAP_MS);
+  }
+  return Math.min(gone, cap);
+}
+
 /** Heart of Patience: away pay climbs from ×1 to ×2 over this long away. */
 const HEART_MAX_BONUS = 0.5;
 const HEART_FULL_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Empty-handed digging. The first stones are one each, so the first worker
+ * is still twenty taps. After that the yield climbs with stones already dug,
+ * and two 10-minute sittings empty the mountain before day 14. Hiring anyone
+ * leaves this curve and the crew formula takes over.
+ */
+const BARE_HANDS_FLAT_STONES = 21;
+const BARE_HANDS_SCALE = 20_000;
+const BARE_HANDS_POWER = 1.5;
+
+/** Stones one tap mines while nobody has been hired. At least one. */
+function bareHandsYield(mined: number): number {
+  if (mined < BARE_HANDS_FLAT_STONES) {
+    return 1;
+  }
+  const scaled = (mined + BARE_HANDS_SCALE) / BARE_HANDS_SCALE;
+  return Math.max(1, Math.floor(scaled ** BARE_HANDS_POWER));
+}
+
+function crewOwned(mountain: Mountain): number {
+  return (
+    mountain.helpers +
+    mountain.carts +
+    mountain.drills +
+    mountain.borers +
+    mountain.machines +
+    mountain.kids
+  );
+}
 
 /** The Heart of Patience multiplier for a stretch of paid time away (×1 without the Heart). */
 export function heartBonus(mountain: Mountain, paidMs: number): number {
@@ -156,9 +209,14 @@ export function effectiveRates(
   const tapShare = upgradeLevel(mountain, "tap") * TAP_SHARE_PER_LEVEL;
   // Legacy multiplies the whole tap; its share of the crew is taken before it.
   // Grandfather's pick strengthens that bare tap; Sharper picks still doubles the result.
-  const bareTap = Math.floor(
-    (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
-  );
+  // An empty crew uses the bare-hands curve instead of one stone forever.
+  const bareTap =
+    crewOwned(mountain) === 0
+      ? Math.floor(bareHandsYield(minedOut(mountain)) * legacy + 1e-9)
+      : Math.floor(
+          (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy +
+            1e-9,
+        );
   return {
     tapYield: tapWithPick(bareTap, mountain) * boosted("sharper"),
     tierSpeed,
