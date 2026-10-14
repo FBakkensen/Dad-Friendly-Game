@@ -20,6 +20,7 @@ import { discover } from "./registry";
 import { applyScope } from "./scope";
 import materialIdle, {
   longestMaterialIdleDays,
+  materialDemand,
   materialIsIdle,
 } from "./measures/materialIdle";
 import {
@@ -52,6 +53,9 @@ function decision(
     readonly benchFree?: boolean;
     readonly materials?: DecisionSample["materials"];
     readonly openRecipes?: DecisionSample["openRecipes"];
+    readonly knownRecipes?: DecisionSample["knownRecipes"];
+    readonly crafted?: DecisionSample["crafted"];
+    readonly unlimitedSinks?: DecisionSample["unlimitedSinks"];
   } = {},
 ): DecisionSample {
   const liveCount = over.liveCount ?? 1;
@@ -77,6 +81,13 @@ function decision(
     ...(over.openRecipes === undefined
       ? {}
       : { openRecipes: over.openRecipes }),
+    ...(over.knownRecipes === undefined
+      ? {}
+      : { knownRecipes: over.knownRecipes }),
+    ...(over.crafted === undefined ? {} : { crafted: over.crafted }),
+    ...(over.unlimitedSinks === undefined
+      ? {}
+      : { unlimitedSinks: over.unlimitedSinks }),
     optionKinds: over.optionKinds ?? ["buyTier"],
     byValue: {
       liveCount: over.valueLive ?? liveCount,
@@ -351,25 +362,61 @@ describe("measures", () => {
     expect(craftShare.sample?.(share)).toBeCloseTo(0.1, 5);
 
     const open = {
-      workshopOpen: true,
+      workshopOpen: true as const,
       materials: { clay: 6, iron: 0, crystal: 0, heartstone: 0 },
-      openRecipes: [],
-    } as const;
+      knownRecipes: [] as const,
+    };
     const stuck = decision({ atMs: 0, ...open });
     const still = decision({ atMs: DAY_MS, ...open });
-    const freed = decision({
+    const held = decision({
       atMs: DAY_MS,
       workshopOpen: true,
       materials: { clay: 6, iron: 0, crystal: 0, heartstone: 0 },
-      openRecipes: ["blasting-charge"],
+      knownRecipes: ["blasting-charge"],
+    });
+    const sinking = decision({
+      ...held,
+      unlimitedSinks: ["blasting-charge"],
     });
     expect(materialIsIdle(stuck)).toBe(true);
-    expect(materialIsIdle(freed)).toBe(false);
+    expect(materialIsIdle(held)).toBe(true);
+    expect(materialIsIdle(sinking)).toBe(false);
     expect(materialIsIdle(decision({ workshopOpen: false }))).toBe(false);
     expect(materialIsIdle(decision({ workshopOpen: true }))).toBe(false);
     expect(longestMaterialIdleDays([stuck, still])).toBe(1);
-    expect(longestMaterialIdleDays([stuck, freed])).toBe(1);
+    expect(longestMaterialIdleDays([stuck, held])).toBe(1);
     expect(materialIdle.aggregate([])).toBe(0);
+
+    const ironRecipes = [
+      "iron-rails",
+      "sturdy-props",
+      "reinforce",
+      "crystal-lamp",
+      "engineers-kit",
+    ] as const;
+    const ironCap = materialDemand("iron", ironRecipes, {}, []);
+    expect(ironCap).toBe(104);
+    const pocket = { clay: 0, iron: ironCap, crystal: 0, heartstone: 0 };
+    const atCap = decision({
+      workshopOpen: true,
+      materials: pocket,
+      knownRecipes: ironRecipes,
+    });
+    const over = decision({
+      atMs: DAY_MS,
+      workshopOpen: true,
+      materials: { ...pocket, iron: ironCap + 1 },
+      knownRecipes: ironRecipes,
+    });
+    expect(materialIsIdle(atCap)).toBe(false);
+    expect(materialIsIdle(over)).toBe(true);
+    const later = decision({
+      atMs: DAY_MS + DAY_MS,
+      workshopOpen: true,
+      materials: { ...pocket, iron: ironCap + 1 },
+      knownRecipes: ironRecipes,
+    });
+    expect(longestMaterialIdleDays([over, later])).toBe(1);
 
     const busy = decision({
       atMs: 0,

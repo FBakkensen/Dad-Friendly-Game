@@ -51,6 +51,7 @@ function samplePolicy(
             now: world.clock,
             context,
             atMs: world.clock,
+            craft: policy.params.craft,
             ...(trouble === undefined ? {} : { trouble }),
           }),
         );

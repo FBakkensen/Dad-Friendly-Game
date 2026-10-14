@@ -38,7 +38,17 @@ import {
   parsePolicyExport,
   type Policy,
 } from "./policy";
-import { MAX_CRAFTED_LEVEL, startCraft, type RecipeId } from "../workshop";
+import {
+  MAX_CRAFTED_LEVEL,
+  startCraft,
+  workshopUnlocked,
+  type RecipeId,
+} from "../workshop";
+import { isSampleSecond } from "./casual";
+import type { DecisionSample } from "./measure";
+import { longestMaterialIdleDays } from "./measures/materialIdle";
+import { valueContext } from "./policy";
+import { scoreDecision } from "./score";
 import { promoteAsap, runPolicy, type PolicyRun } from "./run";
 import {
   DAY_MS,
@@ -876,7 +886,7 @@ describe("crafting", () => {
       now: 0,
       params: optimizer.params,
     });
-    expect(picked).toEqual({ kind: "craft", recipe: "reinforce" });
+    expect(picked).not.toEqual({ kind: "craft", recipe: "reinforce" });
     const buying = optimizerDecide({
       mountain: workshop({
         materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
@@ -899,4 +909,49 @@ describe("crafting", () => {
     });
     expect(during?.kind).not.toBe("cancelCraft");
   });
+
+  it("reaches the Granite and crafts", () => {
+    const run = runPolicy({
+      policy: craftingHeavy,
+      seed: 1,
+      until: (world) =>
+        workshopUnlocked(world.mountain) &&
+        (world.mountain.bench !== undefined ||
+          world.mountain.crafted !== undefined),
+    });
+    expect(workshopUnlocked(run.world.mountain)).toBe(true);
+    const made =
+      run.world.mountain.bench !== undefined ||
+      run.world.mountain.crafted !== undefined;
+    expect(made).toBe(true);
+  }, 120_000);
+
+  it("reports idle iron once a casual dad holds more than the recipes can take", () => {
+    const samples: DecisionSample[] = [];
+    let live = 0;
+    let iron = 0;
+    const context = valueContext(casual.params);
+    runPolicy({
+      policy: casual,
+      seed: 1,
+      maxDays: 8,
+      observe(world) {
+        if (isSampleSecond(live)) {
+          samples.push(
+            scoreDecision({
+              mountain: world.mountain,
+              now: world.clock,
+              context,
+              atMs: world.clock,
+              craft: casual.params.craft,
+            }),
+          );
+          iron = Math.max(iron, world.mountain.materials?.iron ?? 0);
+        }
+        live += 1;
+      },
+    });
+    expect(iron).toBeGreaterThan(104);
+    expect(longestMaterialIdleDays(samples)).toBeGreaterThan(0);
+  }, 120_000);
 });

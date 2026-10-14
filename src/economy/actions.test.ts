@@ -25,6 +25,7 @@ import {
   upgradeCost,
   upgradeLevel,
 } from "../upgrades";
+import { MATERIAL_EVERY } from "../layers";
 import { minedOut } from "../scale";
 import {
   MAX_CRAFTED_LEVEL,
@@ -976,10 +977,12 @@ describe("valueOf", () => {
     const yard = shed({ drills: 0, borers: 0, engineers: [] });
     const rails = score(yard, { kind: "craft", recipe: "iron-rails" });
     expect(rails.gainPerSec).toBeGreaterThan(0);
-    expect(rails.cost).toBe(recipeCost("iron-rails").stones);
+    const railsBill = recipeCost("iron-rails");
+    expect(rails.cost).toBe(
+      railsBill.stones + railsBill.materials.iron * MATERIAL_EVERY.iron,
+    );
     expect(rails.paybackSec).toBeCloseTo(
-      recipeCost("iron-rails").stones / rails.gainPerSec +
-        recipeById("iron-rails").craftMs / 1000,
+      rails.cost / rails.gainPerSec + recipeById("iron-rails").craftMs / 1000,
       5,
     );
     expect(
@@ -1022,7 +1025,14 @@ describe("valueOf", () => {
     });
     const reinforce = score(armed, { kind: "craft", recipe: "reinforce" });
     expect(reinforce.gainPerSec).toBeGreaterThan(0);
-    expect(reinforce.cost).toBe(0);
+    const ironBill = recipeCost("reinforce");
+    expect(ironBill.stones).toBe(0);
+    expect(reinforce.cost).toBe(ironBill.materials.iron * MATERIAL_EVERY.iron);
+    expect(reinforce.paybackSec).toBeGreaterThan(
+      recipeById("reinforce").craftMs / 1000,
+    );
+    const cart = score(armed, { kind: "buyTier", id: "cart" });
+    expect(cart.paybackSec).toBeLessThan(reinforce.paybackSec);
     expect(
       score(shed({ carts: 0, drills: 0, borers: 0 }), {
         kind: "craft",

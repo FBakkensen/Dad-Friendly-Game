@@ -1,40 +1,76 @@
 import type { MaterialId, Materials } from "../../layers";
 import { LAYERS } from "../../layers";
-import type { RecipeId } from "../../workshop";
-import { RECIPES, recipeCost } from "../../workshop";
+import type { CraftRule } from "../policy";
+import type { Crafted, RecipeId } from "../../workshop";
+import { recipeById, recipeCost } from "../../workshop";
 import { defineMeasure, type DecisionSample } from "../measure";
 import { DAY_MS } from "../targets";
 
-const FULL_WORTH = fullWorth();
-
-function fullWorth(): Readonly<Record<MaterialId, number>> {
-  const worth = { clay: 0, iron: 0, crystal: 0, heartstone: 0 };
-  for (const material of LAYERS) {
-    let least = Number.POSITIVE_INFINITY;
-    for (const recipe of RECIPES) {
-      const cost = recipeCost(recipe.id).materials[material.material];
-      if (cost > 0 && cost < least) {
-        least = cost;
-      }
+/**
+ * Repeatable timers are an unlimited sink only when this dad actually uses
+ * them: the habit commits (always, or charges for a blasting charge), or
+ * a level is already fitted. Otherwise the recipe does not eat the pile.
+ */
+export function unlimitedSinks(
+  craft: CraftRule | undefined,
+  crafted: Crafted | undefined,
+): readonly RecipeId[] {
+  const ids: RecipeId[] = [];
+  for (const id of [
+    "blasting-charge",
+    "crystal-flare",
+    "heartstone-ember",
+  ] as const) {
+    const used = (crafted?.[id] ?? 0) > 0;
+    const commits =
+      craft === "always" || (craft === "charges" && id === "blasting-charge");
+    if (used || commits) {
+      ids.push(id);
     }
-    worth[material.material] = least;
   }
-  return worth;
+  return ids;
 }
 
-function hasSink(open: readonly RecipeId[], material: MaterialId): boolean {
-  for (const id of open) {
-    if (recipeCost(id).materials[material] > 0) {
-      return true;
-    }
+function levelsLeft(
+  id: RecipeId,
+  crafted: Crafted,
+  unlimited: ReadonlySet<string>,
+): number {
+  const recipe = recipeById(id);
+  if (recipe.maxLevel === undefined) {
+    return unlimited.has(id) ? Number.POSITIVE_INFINITY : 0;
   }
-  return false;
+  const done = crafted[id] ?? 0;
+  return recipe.maxLevel > done ? recipe.maxLevel - done : 0;
+}
+
+/** Stones of this material every still-open recipe can still take. */
+export function materialDemand(
+  material: MaterialId,
+  known: readonly RecipeId[],
+  crafted: Crafted,
+  unlimited: readonly RecipeId[],
+): number {
+  const open = new Set(unlimited);
+  let total = 0;
+  for (const id of known) {
+    const cost = recipeCost(id).materials[material];
+    if (!(cost > 0)) {
+      continue;
+    }
+    const left = levelsLeft(id, crafted, open);
+    if (!Number.isFinite(left)) {
+      return Number.POSITIVE_INFINITY;
+    }
+    total += cost * left;
+  }
+  return total;
 }
 
 /**
- * True when some material is at least one full recipe and no open recipe
- * spends it. A busy bench still counts as a sink. The workshop has to be
- * open: clay in the topsoil is waiting for the shed, not stuck.
+ * True when a material in hand is more than every open recipe can still
+ * use. An unfinished recipe counts for the levels left, not as a sink
+ * that hides the whole pile. The workshop has to be open.
  */
 export function materialIsIdle(sample: DecisionSample): boolean {
   if (sample.workshopOpen !== true) {
@@ -44,21 +80,28 @@ export function materialIsIdle(sample: DecisionSample): boolean {
   if (have === undefined) {
     return false;
   }
-  const open = sample.openRecipes ?? [];
+  const known = sample.knownRecipes ?? [];
+  const crafted = sample.crafted ?? {};
+  const unlimited = sample.unlimitedSinks ?? [];
   for (const layer of LAYERS) {
-    if (sittingOn(have, layer.material) && !hasSink(open, layer.material)) {
+    if (overDemand(have, layer.material, known, crafted, unlimited)) {
       return true;
     }
   }
   return false;
 }
 
-function sittingOn(have: Materials, material: MaterialId): boolean {
-  const worth = FULL_WORTH[material];
-  return Number.isFinite(worth) && have[material] >= worth;
+function overDemand(
+  have: Materials,
+  material: MaterialId,
+  known: readonly RecipeId[],
+  crafted: Crafted,
+  unlimited: readonly RecipeId[],
+): boolean {
+  return have[material] > materialDemand(material, known, crafted, unlimited);
 }
 
-/** Longest stretch a material sits with nothing to spend it on, in days. */
+/** Longest stretch a material sits above what the open recipes can use, in days. */
 export function longestMaterialIdleDays(
   samples: readonly DecisionSample[],
 ): number {
@@ -91,14 +134,13 @@ export function longestMaterialIdleDays(
 }
 
 /**
- * Longest stretch where a material sits above a full recipe and nothing
- * open spends it. Zero means every pile still has a sink. Catches a
- * material with nowhere to go.
+ * Longest stretch where a material outgrows every recipe that can still
+ * take it. Zero means the open recipes can absorb what is in hand.
  */
 export default defineMeasure({
   id: "materialIdle",
   label: "Idle materials",
   unit: "days",
-  why: "A material with no recipe to spend it on piles up, and the bench cannot help.",
+  why: "A pile bigger than the open recipes can use has nowhere to go.",
   aggregate: (samples) => longestMaterialIdleDays(samples),
 });

@@ -35,7 +35,7 @@ import {
   type Trouble,
   type TroubleTier,
 } from "../hazards";
-import { EMPTY_MATERIALS } from "../layers";
+import { EMPTY_MATERIALS, LAYERS, MATERIAL_EVERY } from "../layers";
 import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
 import { minedOut } from "../scale";
@@ -669,7 +669,7 @@ function valueCraft(
   now: number,
 ): ActionValue {
   const recipe = recipeById(id);
-  const stones = recipeCost(id).stones;
+  const stones = craftPrice(id);
   const benchSec = recipe.craftMs / 1000;
   const preview = previewCraft(mountain, id, now);
   if (preview === undefined) {
@@ -809,6 +809,20 @@ function previewCraft(
 }
 
 /** Stones and materials in hand, so the preview can fit the next level. */
+/**
+ * Stones the craft asks for, plus the stones it took to dig each material.
+ * Reinforce spends no stones from the pocket. Pricing its iron at nothing
+ * made the payback the bench time alone, so it beat every other buy.
+ */
+function craftPrice(id: RecipeId): number {
+  const cost = recipeCost(id);
+  let stones = cost.stones;
+  for (const layer of LAYERS) {
+    stones += cost.materials[layer.material] * MATERIAL_EVERY[layer.material];
+  }
+  return stones;
+}
+
 function fundCraft(mountain: Mountain, id: RecipeId): Mountain {
   const cost = recipeCost(id);
   const have = mountain.materials ?? EMPTY_MATERIALS;
@@ -836,7 +850,7 @@ function grantDepthRecipe(mountain: Mountain, id: RecipeId): Mountain {
   return { ...mountain, recipes: [...known, id] };
 }
 
-function knownRecipeIds(mountain: Mountain): readonly RecipeId[] {
+export function knownRecipeIds(mountain: Mountain): readonly RecipeId[] {
   const depth = recipesForMined(minedOut(mountain));
   const found = (mountain.recipes ?? []).filter((id) => !depth.includes(id));
   return [...depth, ...found];

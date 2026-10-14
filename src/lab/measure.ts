@@ -1,6 +1,6 @@
 import type { Action } from "../economy/actions";
 import type { LayerId, Materials } from "../layers";
-import type { RecipeId } from "../workshop";
+import type { Crafted, RecipeId } from "../workshop";
 
 /**
  * One moment on the table. Official fields use payback. `byValue` is the
@@ -36,6 +36,15 @@ export type DecisionSample = {
    * Finished gear is left out, so a capped sink does not hide a pile.
    */
   readonly openRecipes?: readonly RecipeId[];
+  /** Every recipe known here, including ones already finished. */
+  readonly knownRecipes?: readonly RecipeId[];
+  /** Levels already fitted. Missing means nothing is made. */
+  readonly crafted?: Crafted;
+  /**
+   * Repeatable timers this dad keeps using. They are an unlimited sink.
+   * A capped recipe is not on this list.
+   */
+  readonly unlimitedSinks?: readonly RecipeId[];
   /** Kinds on the table at this moment. */
   readonly optionKinds: readonly Action["kind"][];
   readonly byValue: {

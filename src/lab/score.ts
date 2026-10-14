@@ -5,6 +5,7 @@ import { station } from "../engineers";
 import { layerOf } from "../layers";
 import { TIERS } from "../tiers";
 import {
+  knownRecipeIds,
   listActions,
   sinkRecipes,
   valueOf,
@@ -13,6 +14,8 @@ import {
 } from "../economy/actions";
 import { workshopUnlocked } from "../workshop";
 import { MOVE_KINDS, type DecisionSample } from "./measure";
+import { unlimitedSinks } from "./measures/materialIdle";
+import type { CraftRule } from "./policy";
 import {
   CRAFTED_SOURCE,
   HORIZON_SEC,
@@ -34,6 +37,8 @@ export type ScoreInput = {
    * (or the whole legal list, when that was omitted too).
    */
   readonly stretchActions?: readonly Action[];
+  /** How this dad uses the bench. Repeatable timers read it. */
+  readonly craft?: CraftRule;
 };
 
 type Priced = {
@@ -369,6 +374,11 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
       ? {}
       : { materials: input.mountain.materials }),
     openRecipes: sinkRecipes(input.mountain),
+    knownRecipes: knownRecipeIds(input.mountain),
+    ...(input.mountain.crafted === undefined
+      ? {}
+      : { crafted: input.mountain.crafted }),
+    unlimitedSinks: unlimitedSinks(input.craft, input.mountain.crafted),
     optionKinds: optionKinds(actions),
     byValue: {
       liveCount: value.liveCount,

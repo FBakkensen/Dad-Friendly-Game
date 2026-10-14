@@ -471,13 +471,13 @@ Every existing guardrail still holds. `skip-crafting`, `crafting-heavy`, and `ch
 - **Action catalogue** (`src/economy/actions.ts`). New arms `{ kind: "craft"; recipe: RecipeId }` and `{ kind: "cancelCraft" }`. The `never`-check makes typecheck fail until `listActions`, `applyAction`, and `valueOf` handle them (the M8-1 guarantee). `valueOf` for a craft is the Δincome from `effectiveRates` before and after, plus the bench time added to the wait-to-afford part of payback. Blasting charge is valued like a boost over the horizon. Props and the lamp are valued as expected stones over the horizon, the way #178 values expedition finds.
 - **World** (`src/lab/world.ts`). The bench settles inside `settle`. Materials accrue inside `accrue` and `accrueAway`. The same seeded clock, so it stays deterministic.
 - **Player types**, one file each in `src/lab/policies/`:
-  - `crafting-heavy.ts` (extreme): crafts whenever the bench is free and anything is affordable, and buys machines only otherwise.
+  - `crafting-heavy.ts` (extreme): the plain dad, except a free bench is filled before the next hire.
   - `skip-crafting.ts` (extreme): never opens the workshop.
   - `charge-junkie.ts` (extreme): spends every clay on Blasting charges.
   - The three casual types and the optimizer get a craft step in `decide`. The casual dad puts the best-payback craft on the bench when he would otherwise idle. The optimizer simply sees the new actions.
 - **Measures**, one file each in `src/lab/measures/`:
   - `craftShare.ts`: the share of output that comes from crafted items, the same pattern as tending's `featureShare`.
-  - `materialIdle.ts`: the longest stretch where any material sits above a full recipe's worth with nothing to spend it on. It catches a missing sink.
+  - `materialIdle.ts`: the longest stretch where a material outgrows what the open recipes can still take (cost times levels left). A repeatable timer is unlimited only when that dad uses it. It catches a pile with nowhere to go.
   - `benchIdle.ts`: the share of time the bench is empty once the workshop is unlocked, for casual types. Report only. It is not a target.
 - **Pacing.** A casual dad still finishes in 5 to 7 days, and never under 5, on 240M. Hardness below 1 takes speed away, and crafted items give it back to a dad who crafts, so a crafting casual dad lands near today's finish day. A dad who skips crafting finishes later. That is allowed for an extreme. M9-7 tunes this with `npm run lab:sweep`. Hardness and recipe strength are factors that default to 1.
 - **Sweep knobs** (`tools/sweep/knobs.ts`): `layer.<n>.<tier>.hardness`, `recipe.<id>.strength`, `recipe.<id>.cost`, `material.every`. Strength and cost default to 1 (#196).
