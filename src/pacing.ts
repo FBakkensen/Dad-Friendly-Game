@@ -288,7 +288,7 @@ export function simulateDadRun({
       }
       let tapped = world.mountain;
       for (let tap = 0; tap < DAD.tapsPerSecond; tap += 1) {
-        tapped = mineByHand(tapped, world.clock, trouble, tap);
+        tapped = mineByHand(tapped, world.clock, trouble);
       }
       world = step(
         { ...world, mountain: tapped },

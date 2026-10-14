@@ -66,15 +66,6 @@ describe("mountain", () => {
     expect(mineByHand(empty)).toBe(empty);
   });
 
-  it("pays the bare-hands curve for three taps a second and one stone after that", () => {
-    const deep = minedMountain(1_000_000);
-    const full = mineByHand(deep, 0, undefined, 0).pocket - deep.pocket;
-    expect(full).toBeGreaterThan(1);
-    expect(mineByHand(deep, 0, undefined, 2).pocket - deep.pocket).toBe(full);
-    expect(mineByHand(deep, 0, undefined, 3).pocket - deep.pocket).toBe(1);
-    expect(mineByHand(deep, 0, undefined, 9).pocket - deep.pocket).toBe(1);
-  });
-
   it("parses a sane mountain and rejects anything else", () => {
     expect(
       parseMountain({

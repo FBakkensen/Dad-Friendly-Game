@@ -23,7 +23,6 @@ import neverWorkers from "./policies/never-workers";
 import noEngineers from "./policies/no-engineers";
 import optimizer from "./policies/optimizer";
 import tapOnly from "./policies/tap-only";
-import tapOnlyFast from "./policies/tap-only-fast";
 import workersOnly from "./policies/workers-only";
 import { plainPolicy } from "./plain";
 import {
@@ -208,20 +207,6 @@ describe("extremes", () => {
     expect(run.buys).toEqual([]);
     expect(run.promotions).toEqual([]);
     expect(run.world.mountain.expeditions ?? []).toEqual([]);
-  });
-
-  it("finishes by tapping around day 12.5, with a day to spare under 14", () => {
-    const run = runPolicy({ policy: tapOnly, seed: 1, maxDays: 14 });
-    expect(run.buys).toEqual([]);
-    expect(run.finishDay).toBeGreaterThanOrEqual(12.4);
-    expect(run.finishDay).toBeLessThanOrEqual(13);
-  });
-
-  it("ten taps a second still finishes on day 10 or later", () => {
-    const run = runPolicy({ policy: tapOnlyFast, seed: 1, maxDays: 14 });
-    expect(run.buys).toEqual([]);
-    expect(run.finishDay).toBeGreaterThanOrEqual(10);
-    expect(run.finishDay).toBeLessThanOrEqual(13);
   });
 
   it("buys machines, and workers only for those machines", () => {

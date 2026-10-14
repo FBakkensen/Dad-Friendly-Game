@@ -161,10 +161,10 @@ export const TARGETS: readonly Target[] = [
   {
     id: "thin-habit-finish",
     measure: "finishDay",
-    scope: { kind: "policies", ids: ["tap-only", "five-min-a-day"] },
+    scope: { kind: "policies", ids: ["five-min-a-day"] },
     op: "lte",
     value: 14,
-    why: "A dad who barely sits down still finishes inside two weeks.",
+    why: "Five minutes a day still finishes inside two weeks.",
   },
   {
     id: "extreme-win",
@@ -192,13 +192,6 @@ export const LOOKAHEAD_SESSIONS = 1;
 
 /** The plain dad taps this fast while the sitting is open. */
 export const TAPS_PER_SECOND = 3;
-
-/**
- * Bare hands, mashing. `tap-only-fast` uses this. The first three taps in a
- * second earn the curve, so this dad must not finish the week ahead of a
- * casual one. extreme-win is what catches a regression.
- */
-export const FAST_TAPS_PER_SECOND = 10;
 
 /** How many days `runPolicy` plays when the caller does not name a cap. */
 export const DEFAULT_MAX_DAYS = 30;

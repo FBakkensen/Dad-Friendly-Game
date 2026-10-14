@@ -9,7 +9,6 @@ import {
 import { slowedSpeed, type Trouble } from "./hazards";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
-import { minedOut } from "./scale";
 import { TIERS, owned, type TierId } from "./tiers";
 import { hasRelic } from "./relics";
 import { boostById, boostLeft } from "./boosts";
@@ -56,39 +55,6 @@ export function paidAwayMs(mountain: Mountain, awayMs: number): number {
 /** Heart of Patience: away pay climbs from ×1 to ×2 over this long away. */
 const HEART_MAX_BONUS = 0.5;
 const HEART_FULL_MS = 12 * 60 * 60 * 1000;
-
-/**
- * Empty-handed digging. The first hundred stones are one each, so hiring a
- * worker still wins before the curve starts. After that the yield follows a
- * log of stones already dug, capped, so two 10-minute sittings at 3 taps a
- * second empty the mountain around day 12.5. Only the first three taps in a
- * second earn that yield. Faster mashing adds one stone a tap. Hiring
- * anyone leaves this curve.
- */
-const BARE_HANDS_FLAT_STONES = 100;
-const BARE_HANDS_LOG_K = 310;
-const BARE_HANDS_CAP = 6_000;
-export const BARE_HANDS_FULL_TAPS = 3;
-
-/** Stones one of the first taps in a second mines while nobody is hired. */
-function bareHandsYield(mined: number): number {
-  if (mined < BARE_HANDS_FLAT_STONES) {
-    return 1;
-  }
-  const raw = 1 + Math.floor(BARE_HANDS_LOG_K * Math.log1p(mined));
-  return Math.max(1, Math.min(BARE_HANDS_CAP, raw));
-}
-
-function crewOwned(mountain: Mountain): number {
-  return (
-    mountain.helpers +
-    mountain.carts +
-    mountain.drills +
-    mountain.borers +
-    mountain.machines +
-    mountain.kids
-  );
-}
 
 /** The Heart of Patience multiplier for a stretch of paid time away (×1 without the Heart). */
 export function heartBonus(mountain: Mountain, paidMs: number): number {
@@ -212,14 +178,9 @@ export function effectiveRates(
   const tapShare = upgradeLevel(mountain, "tap") * TAP_SHARE_PER_LEVEL;
   // Legacy multiplies the whole tap; its share of the crew is taken before it.
   // Grandfather's pick strengthens that bare tap; Sharper picks still doubles the result.
-  // An empty crew uses the bare-hands curve instead of one stone forever.
-  const bareTap =
-    crewOwned(mountain) === 0
-      ? Math.floor(bareHandsYield(minedOut(mountain)) * legacy + 1e-9)
-      : Math.floor(
-          (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy +
-            1e-9,
-        );
+  const bareTap = Math.floor(
+    (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
+  );
   return {
     tapYield: tapWithPick(bareTap, mountain) * boosted("sharper"),
     tierSpeed,

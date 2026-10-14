@@ -4,7 +4,7 @@ This is the north star for the game. Open GitHub issues stay the plan; this page
 
 ## Vision
 
-Deep inside a mountain of **240,000,000 stones** lie the six Legendary Relics of Fatherhood, left by the great dads of history. You start with your bare hands: one tap, one stone. A dad who never hires still reaches the bottom inside two weeks, because those hands learn as the stones pile up. Hiring is faster, and that is the point of the crew, the way automation is the point in _Needle In A Haystack_ and _Cookie Clicker_. Each relic you uncover is a power spike and a virtue of fatherhood.
+Deep inside a mountain of **240,000,000 stones** lie the six Legendary Relics of Fatherhood, left by the great dads of history. You start with your bare hands: one tap, one stone. The mountain is far too big to dig by hand, and that is the point. Scale makes automation necessary, the way it does in _Needle In A Haystack_ and _Cookie Clicker_. Each relic you uncover is a power spike and a virtue of fatherhood.
 
 The tone lifts dads up. It honors them; it does not joke at their expense.
 
@@ -12,7 +12,7 @@ It stays a dad-friendly game (see `AGENTS.md`): two-minute sessions, gentle, nev
 
 ## Core loop
 
-1. **Tap the mountain.** The first taps mine one stone each. With an empty crew the taps follow a log of stones already dug, and only the first three taps in a second earn that yield. Hiring anyone leaves the curve. Stones are the currency.
+1. **Tap the mountain.** Each tap mines one stone. Stones are the currency.
 2. **Hire workers.** Spend stones on workers who mine for you every second. Each worker costs more than the last (escalating cost), so the next one is always just in reach.
 3. **Leave.** Workers keep mining while you are away, at a resting pace (30% of their speed). A gap pays up to 8 hours. One absence longer than half a day pays up to 16 hours, until the Shield makes it a whole day. Earnings are computed from timestamps on the next open; there is no live server.
 4. **Come back.** A "While you were away" screen celebrates what your crew mined.
@@ -307,9 +307,9 @@ One PR each, in order; the list with acceptance criteria is in the M7 PR descrip
 
 #### Pacing
 
-Decision quality comes first. A moment should offer more than one live buy, a dead stretch stays under half a day, and one move should not be the right buy for most of a casual run or the optimizer's. Finish days come second. A casual dad still finishes in 5–7 days, and never under 5. `tap-only` and `five-min-a-day` finish within about 14 days. An extreme may finish later. It may not finish much sooner than the casual dad (at most 15%). The optimizer may finish sooner than a casual dad, and not by more than a quarter.
+Decision quality comes first. A moment should offer more than one live buy, a dead stretch stays under half a day, and one move should not be the right buy for most of a casual run or the optimizer's. Finish days come second. A casual dad still finishes in 5–7 days, and never under 5. Five minutes a day finishes within about 14 days. `tap-only` stays in the report and has no finish target: one stone a tap does not empty the mountain. An extreme may finish later. It may not finish much sooner than the casual dad (at most 15%). The optimizer may finish sooner than a casual dad, and not by more than a quarter.
 
-Bare hands (no crew hired) follow a log of stones already dug, capped at 6,000 a tap. The first three taps in a second earn that yield and further taps earn one stone, so ten taps a second (`tap-only-fast`) finishes no earlier than a plain three. Three taps a second still finishes around day 12.5. The first taps stay one stone, and hiring anyone leaves the curve. Once the crew is past 600/s, Overtime is scored for 2.2 times its clock rather than the clock itself, so it stays a live option while the optimizer saves for the tunnel borer or the Great Machine. Below that, Better boots is still the better buy. The optimizer does not spend that hoard on a boost. The save is a sitting with a button, not a half day of nothing. A single absence longer than half a day, before the Shield, pays 16 hours instead of 8, so one 20-minute evening stays within a quarter of the optimizer. Two shorter gaps in a day stay on the 8-hour cap. `liveMedian` after the first hour grades casual player types and the optimizer, the same population as the dead stretch, single share, and dominant share. Workers-only, machines-only, and never-workers may finish late: no finish target names them, and extreme win only limits finishing sooner.
+Each tap is one stone until an upgrade says otherwise. Once the crew is past 600/s, Overtime is scored for 2.2 times its clock rather than the clock itself, so it stays a live option while the optimizer saves for the tunnel borer or the Great Machine. Below that, Better boots is still the better buy. The optimizer does not spend that hoard on a boost. The save is a sitting with a button, not a half day of nothing. A single absence longer than half a day, before the Shield, pays 16 hours instead of 8, so one 20-minute evening stays within a quarter of the optimizer. Two shorter gaps in a day stay on the 8-hour cap. `liveMedian` after the first hour grades casual player types and the optimizer, the same population as the dead stretch, single share, and dominant share. Workers-only, machines-only, never-workers, and tap-only may finish late: no finish target names them, and extreme win only limits finishing sooner.
 
 #177 closed the payback dead stretch (about a day from day 4) to under half a day for a casual dad and for the optimizer. The value-per-stone stretch is still reported beside it. The retune moved the economy. It did not move these targets to go green.
 
@@ -330,7 +330,7 @@ Approved:
 
 - `LIVE_RATIO = 1.5`. A live option pays back within 1.5× of the best.
 - Longest dead stretch at most 0.5 day, for casual and for the optimizer.
-- `tap-only` and `five-min-a-day` finish within about 14 days.
+- `five-min-a-day` finishes within about 14 days. `tap-only` has no finish target.
 - `liveMedian` at least 2 after the first hour, for casual player types and the optimizer.
 
 The same file holds the horizon `H` (default 6 hours, passed into `valueOf`), the sample interval (one minute of play, plus the start of each session), the dead-stretch definition, and one typed entry per guardrail: `{ id, measure, scope, op, value, why }`. Each entry has a one-line `why`. `measure` is a registered measure id. `scope` says which runs the bound covers. `op` and `value` are the comparison.

@@ -23,18 +23,6 @@ describe("effectiveRates", () => {
     expect(rates.awayPay).toBe(AWAY_PAY_RATE);
   });
 
-  it("mines one stone a tap until the first worker, then bare hands climb", () => {
-    expect(effectiveRates(minedMountain(0)).tapYield).toBe(1);
-    expect(effectiveRates(minedMountain(20)).tapYield).toBe(1);
-    expect(effectiveRates(minedMountain(99)).tapYield).toBe(1);
-    const deep = effectiveRates(minedMountain(1_000_000));
-    expect(deep.tapYield).toBeGreaterThan(1);
-    expect(deep.tapYield).toBeLessThanOrEqual(6_000);
-    expect(
-      effectiveRates({ ...minedMountain(1_000_000), helpers: 4 }).tapYield,
-    ).toBe(1);
-  });
-
   it("keeps the fraction the crew line floors away", () => {
     const rates = effectiveRates({
       ...minedMountain(0),

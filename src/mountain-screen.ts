@@ -106,23 +106,13 @@ export function mountMountainScreen({
   peak.height = 114;
   peak.draggable = false;
   mountain.append(peak);
-  let burstSecond = -1;
-  let burstCount = 0;
   mountain.addEventListener("click", (event) => {
     if (!view.ready) {
       return;
     }
-    const at = now();
-    const second = Math.floor(at / 1000);
-    if (second !== burstSecond) {
-      burstSecond = second;
-      burstCount = 0;
-    }
-    const tapInSecond = burstCount;
-    burstCount += 1;
     const before = view.mountain.remaining;
     progress.applyMutation((current) =>
-      mineByHand(current, at, progress.getSnapshot().trouble, tapInSecond),
+      mineByHand(current, now(), progress.getSnapshot().trouble),
     );
     const mined = before - view.mountain.remaining;
     if (mined > 0) {
