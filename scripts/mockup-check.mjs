@@ -40,14 +40,12 @@ const SIZES = [
 
 const SHOTS = [
   ["workshop", "rest", ""],
-  ["workshop", "press", "rails"],
+  ["workshop", "shake", "rails"],
   ["workshop", "press", "props"],
   ["workshop", "press", "charge"],
   ["workshop", "press", "back"],
-  ["workshop", "float", "rails"],
   ["workshop", "float", "props"],
   ["workshop", "float", "charge"],
-  ["workshop", "hammer", "rails"],
   ["workshop", "hammer", "props"],
   ["workshop", "hammer", "charge"],
   ["workshop", "busy", ""],
@@ -116,11 +114,28 @@ async function fit(page, label) {
       .map((button) => {
         const box = boxOf(button);
         const style = getComputedStyle(button);
+        const tap = button.getAttribute("data-tap") ?? "";
+        const reason = button.getAttribute("data-short");
+        const short = reason !== null;
+        const tapOk = short
+          ? button.disabled &&
+            tap.includes("gentle shake") &&
+            tap.includes(reason) &&
+            (button.textContent ?? "").includes(reason) &&
+            style.backgroundColor === "rgb(58, 42, 28)"
+          : tap.includes("Presses in") &&
+            tap.includes("Silent until unmuted") &&
+            (!button.hasAttribute("data-craft") ||
+              tap.includes("hammer tap") ||
+              tap.includes("hammer stays quiet") ||
+              tap.includes("waits its turn"));
         return {
           ...box,
           height: button.getBoundingClientRect().height,
-          tap: button.getAttribute("data-tap") ?? "",
+          tap,
           craft: button.hasAttribute("data-craft"),
+          short,
+          tapOk,
           pressed: button.classList.contains("is-pressed"),
           transform: style.transform,
         };
@@ -178,12 +193,8 @@ async function fit(page, label) {
           button.font >= 14.4 &&
           inside(button) &&
           !button.clipped &&
-          button.tap.includes("Presses in") &&
-          button.tap.includes("Silent until unmuted") &&
-          (!button.craft ||
-            button.tap.includes("hammer tap") ||
-            button.tap.includes("hammer stays quiet") ||
-            button.tap.includes("waits its turn")),
+          button.tapOk &&
+          button.tap.includes("Silent until unmuted"),
       ),
       buttonMiss: buttons.filter(
         (button) =>
@@ -245,6 +256,23 @@ for (const [width, height] of SIZES) {
     );
     const name = `${String(width)}x${String(height)} ${scene} ${phase} ${control}`;
     const result = await fit(page, name);
+    if (phase === "shake") {
+      const shook = await page.$eval("button.is-shaking", (button) => {
+        const style = getComputedStyle(button);
+        const reason = button.getAttribute("data-short") ?? "";
+        const tap = button.getAttribute("data-tap") ?? "";
+        return (
+          button.disabled &&
+          reason === "Need 5 more iron" &&
+          (button.textContent ?? "").includes(reason) &&
+          tap.includes("gentle shake") &&
+          tap.includes(reason) &&
+          style.transform !== "none" &&
+          style.backgroundColor === "rgb(58, 42, 28)"
+        );
+      });
+      check(shook, `${name} short craft shakes and names the gap`);
+    }
     if (phase === "press") {
       const pressed = await page.$eval("button.is-pressed", (button) => {
         const style = getComputedStyle(button);

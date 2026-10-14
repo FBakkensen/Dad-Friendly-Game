@@ -18,6 +18,7 @@ import {
   WORKSHOP_TITLE,
   craftPriceWords,
   fieldLogClose,
+  needMoreWords,
 } from "../src/screen-words.ts";
 
 /**
@@ -26,7 +27,7 @@ import {
  */
 
 const SCENES = ["workshop", "layer", "mountain", "craft-done"] as const;
-const PHASES = ["rest", "press", "float", "hammer", "busy"] as const;
+const PHASES = ["rest", "press", "float", "hammer", "busy", "shake"] as const;
 
 type MockScene = (typeof SCENES)[number];
 type MockPhase = (typeof PHASES)[number];
@@ -46,8 +47,9 @@ const CART = "/src/assets/mine-cart.png";
 
 /** Just inside the Granite: 10M mined of the 240M mountain. */
 const STONES_LEFT = formatCount(230_000_000);
-/** Enough in the pocket to start the 4.2M rails. */
-const POCKET = formatCount(6_400_000);
+/** Stones cover every craft on the sheet. Iron does not cover the rails. */
+const POCKET_STONES = 6_400_000;
+const POCKET = formatCount(POCKET_STONES);
 
 const TIERS = [
   { name: "Worker", art: "/src/assets/helper-miner.png", rate: "1/s" },
@@ -64,6 +66,31 @@ const ON_BENCH_TAP =
   "Presses in. The rails are already underway, so the hammer stays quiet. Silent until unmuted.";
 const WAITING_TAP =
   "Presses in, but the bench is already making Iron rails, so this one waits its turn. Silent until unmuted.";
+
+type MockRecipe = (typeof MOCK_RECIPES)[number];
+
+function haveMaterial(id: "clay" | "iron"): number {
+  const found = MOCK_MATERIALS.find((item) => item.id === id);
+  return found?.count ?? 0;
+}
+
+/** The first thing the pocket is short, or nothing when the craft can start. */
+export function shortReason(recipe: MockRecipe): string | undefined {
+  for (const material of recipe.materials) {
+    const have = haveMaterial(material.id);
+    if (have < material.count) {
+      return needMoreWords(material.count - have, material.name);
+    }
+  }
+  if (POCKET_STONES < recipe.stones) {
+    return needMoreWords(recipe.stones - POCKET_STONES, "stones");
+  }
+  return undefined;
+}
+
+function shortTap(reason: string): string {
+  return `A gentle shake. ${reason}. The craft does not start. Silent until unmuted.`;
+}
 
 function isScene(value: string): value is MockScene {
   return (SCENES as readonly string[]).includes(value);
@@ -126,10 +153,11 @@ function materialLine(): string {
   return `<p class="materials">${parts.join('<span class="label dot">·</span>')}</p>`;
 }
 
-function pressClass(view: MockView, control: string): string {
-  return view.phase === "press" && view.control === control
-    ? " is-pressed"
-    : "";
+function pressClass(view: MockView, control: string, short: boolean): string {
+  if (short || view.phase !== "press" || view.control !== control) {
+    return "";
+  }
+  return " is-pressed";
 }
 
 function renderWorkshop(view: MockView): string {
@@ -141,16 +169,22 @@ function renderWorkshop(view: MockView): string {
     : "";
   const cards = MOCK_RECIPES.map((recipe) => {
     const onBench = busy && recipe.id === "rails";
+    const reason = busy ? undefined : shortReason(recipe);
+    const short = reason !== undefined;
+    const shaking =
+      short && view.phase === "shake" && view.control === recipe.id;
     const label = busy
       ? onBench
         ? RECIPE_ON_BENCH
         : RECIPE_WAITING
-      : craftPriceWords(recipe.stones);
+      : (reason ?? craftPriceWords(recipe.stones));
     const tap = busy
       ? onBench
         ? ON_BENCH_TAP
         : WAITING_TAP
-      : craftTap(recipe.materials.map((material) => material.text));
+      : reason !== undefined
+        ? shortTap(reason)
+        : craftTap(recipe.materials.map((material) => material.text));
     const cost = `${recipe.materials
       .map(
         (material) =>
@@ -159,17 +193,24 @@ function renderWorkshop(view: MockView): string {
       .join(
         '<span class="label dot">·</span>',
       )}<span class="label dot">·</span><span class="label">${escapeHtml(recipe.time)}</span>`;
-    return `<article class="recipe card">
+    const state = [
+      pressClass(view, recipe.id, short),
+      short ? " is-short" : "",
+      shaking ? " is-shaking" : "",
+    ].join("");
+    return `<article class="recipe card${short ? " is-short-recipe" : ""}">
       <h2 class="label">${escapeHtml(recipe.name)}</h2>
       <p class="label effect">${escapeHtml(recipe.effect)}</p>
       <p class="cost">${cost}</p>
-      <button type="button" class="craft${pressClass(view, recipe.id)}" data-craft="${recipe.id}" data-tap="${escapeHtml(tap)}"${busy ? " disabled" : ""}>${escapeHtml(label)}</button>
+      <button type="button" class="craft${state}" data-craft="${recipe.id}" data-tap="${escapeHtml(tap)}"${short ? ` data-short="${escapeHtml(reason)}"` : ""}${busy || short ? " disabled" : ""}>${escapeHtml(label)}</button>
     </article>`;
   }).join("");
   const chips =
     view.phase === "float"
       ? MOCK_RECIPES.filter(
-          (recipe) => view.control === "" || view.control === recipe.id,
+          (recipe) =>
+            (view.control === "" || view.control === recipe.id) &&
+            shortReason(recipe) === undefined,
         )
           .map((recipe) =>
             recipe.materials
@@ -197,7 +238,7 @@ function renderWorkshop(view: MockView): string {
         <p class="label hint">${escapeHtml(UNFOUND_HINT)}</p>
       </article>
     </div>
-    <button type="button" class="back${pressClass(view, "back")}" data-tap="${escapeHtml(BACK_TAP)}">${escapeHtml(fieldLogClose)}</button>
+    <button type="button" class="back${pressClass(view, "back", false)}" data-tap="${escapeHtml(BACK_TAP)}">${escapeHtml(fieldLogClose)}</button>
     <div class="floats">${chips}</div>
   </section>`;
 }
@@ -235,7 +276,7 @@ function renderLayer(view: MockView): string {
       <h1 class="label">${escapeHtml(LAYER_ARRIVAL)}</h1>
       <p class="label">${escapeHtml(LAYER_EVOCATIVE)}</p>
       <p class="label advice">${escapeHtml(LAYER_ADVICE)}</p>
-      <button type="button" class="go${pressClass(view, "dig")}" data-tap="${escapeHtml(DIG_TAP)}">${escapeHtml(LAYER_DIG)}</button>
+      <button type="button" class="go${pressClass(view, "dig", false)}" data-tap="${escapeHtml(DIG_TAP)}">${escapeHtml(LAYER_DIG)}</button>
     </article>
   </div>`;
 }
@@ -247,7 +288,7 @@ function renderCraftDone(view: MockView): string {
     <article class="card notice-card">
       <img class="notice-art" src="${CART}" alt="" />
       <p class="label">${escapeHtml(CRAFT_DONE)}</p>
-      <button type="button" class="go${pressClass(view, "done")}" data-tap="${escapeHtml(DONE_TAP)}">${escapeHtml(CRAFT_DONE_BUTTON)}</button>
+      <button type="button" class="go${pressClass(view, "done", false)}" data-tap="${escapeHtml(DONE_TAP)}">${escapeHtml(CRAFT_DONE_BUTTON)}</button>
     </article>
   </div>`;
 }

@@ -712,6 +712,10 @@ export const RECIPE_WAITING = "Waiting its turn";
 export const craftPriceWords = (stones: number): string =>
   `Craft · ${formatCompact(stones)}`;
 
+/** What a short craft still needs: "Need 5 more iron". */
+export const needMoreWords = (missing: number, material: string): string =>
+  `Need ${formatCompact(missing)} more ${material}`;
+
 export const LAYER_ARRIVAL = "You broke into the Granite!";
 export const LAYER_EVOCATIVE = "The grey rock rings under every pick.";
 export const LAYER_ADVICE = "Tough on carts. Drills love it.";
@@ -724,8 +728,8 @@ export const CRAFT_DONE_BUTTON = "The crew feels it";
 export const UNFOUND_HINT = "A folded sketch, still in the dark.";
 
 export const MOCK_MATERIALS = [
-  { id: "clay", text: "Clay 42" },
-  { id: "iron", text: "Iron 7" },
+  { id: "clay", name: "clay", count: 42, text: "Clay 42" },
+  { id: "iron", name: "iron", count: 7, text: "Iron 7" },
 ] as const;
 
 export const MOCK_MATERIAL_LINE = "Clay 42 · Iron 7";
@@ -735,7 +739,7 @@ export const MOCK_RECIPES = [
     id: "rails",
     name: "Iron rails",
     effect: "Carts 10/s to 12/s",
-    materials: [{ id: "iron", text: "12 iron" }],
+    materials: [{ id: "iron", name: "iron", count: 12, text: "12 iron" }],
     time: "1 h",
     stones: 4_200_000,
   },
@@ -744,8 +748,8 @@ export const MOCK_RECIPES = [
     name: "Sturdy props",
     effect: "Trouble comes 30% less often.",
     materials: [
-      { id: "clay", text: "20 clay" },
-      { id: "iron", text: "6 iron" },
+      { id: "clay", name: "clay", count: 20, text: "20 clay" },
+      { id: "iron", name: "iron", count: 6, text: "6 iron" },
     ],
     time: "1 h",
     stones: 1_800_000,
@@ -754,7 +758,7 @@ export const MOCK_RECIPES = [
     id: "charge",
     name: "Blasting charge",
     effect: "The crew digs at 2× for 20 min.",
-    materials: [{ id: "clay", text: "6 clay" }],
+    materials: [{ id: "clay", name: "clay", count: 6, text: "6 clay" }],
     time: "10 min",
     stones: 800_000,
   },

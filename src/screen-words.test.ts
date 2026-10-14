@@ -27,6 +27,7 @@ import {
   MOCK_MATERIAL_LINE,
   MOCK_RECIPES,
   RECIPE_ON_BENCH,
+  needMoreWords,
   RECIPE_WAITING,
   UNFOUND_HINT,
   WORKSHOP_TITLE,
@@ -488,6 +489,8 @@ describe("workshop mock copy (#193)", () => {
     expect(craftPriceWords(4_200_000)).toBe("Craft · 4.2M");
     expect(craftPriceWords(1_800_000)).toBe("Craft · 1.8M");
     expect(craftPriceWords(800_000)).toBe("Craft · 800K");
+    expect(needMoreWords(5, "iron")).toBe("Need 5 more iron");
+    expect(needMoreWords(12 - 7, "iron")).toBe("Need 5 more iron");
     expect(LAYER_ARRIVAL).toBe("You broke into the Granite!");
     expect(LAYER_EVOCATIVE).toBe("The grey rock rings under every pick.");
     expect(LAYER_ADVICE).toBe("Tough on carts. Drills love it.");

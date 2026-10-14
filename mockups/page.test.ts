@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { UNFOUND_HINT } from "../src/screen-words.ts";
-import { craftTap, parseMockView, renderMock, type MockView } from "./page.ts";
+import { MOCK_RECIPES, UNFOUND_HINT } from "../src/screen-words.ts";
+import {
+  craftTap,
+  parseMockView,
+  renderMock,
+  shortReason,
+  type MockView,
+} from "./page.ts";
 
 const view = (patch: Partial<MockView> = {}): MockView => ({
   scene: "workshop",
@@ -34,6 +40,22 @@ describe("workshop mock page (#193)", () => {
     });
     expect(() => parseMockView("?scene=nope")).toThrow(/scene/);
     expect(() => parseMockView("?phase=nope")).toThrow(/phase/);
+    expect(parseMockView("?phase=shake&control=rails").phase).toBe("shake");
+  });
+
+  it("names the iron the rails still need", () => {
+    const rails = MOCK_RECIPES.find((recipe) => recipe.id === "rails");
+    const props = MOCK_RECIPES.find((recipe) => recipe.id === "props");
+    const charge = MOCK_RECIPES.find((recipe) => recipe.id === "charge");
+    expect(rails).toBeDefined();
+    expect(props).toBeDefined();
+    expect(charge).toBeDefined();
+    if (rails === undefined || props === undefined || charge === undefined) {
+      return;
+    }
+    expect(shortReason(rails)).toBe("Need 5 more iron");
+    expect(shortReason(props)).toBeUndefined();
+    expect(shortReason(charge)).toBeUndefined();
   });
 
   it("spells the craft tap for one material and for two", () => {
@@ -55,7 +77,14 @@ describe("workshop mock page (#193)", () => {
     expect(hidden?.textContent).toContain(UNFOUND_HINT);
     expect(hidden?.textContent ?? "").not.toMatch(/[0-9?]/);
     expect(page.textContent).not.toMatch(/\?/);
-    expect(page.textContent).toContain("Craft · 4.2M");
+    expect(page.textContent).toContain("Need 5 more iron");
+    expect(page.textContent).toContain("Craft · 1.8M");
+    expect(page.textContent).toContain("Craft · 800K");
+    const rails = page.querySelector("[data-craft='rails']");
+    expect(rails?.textContent).toBe("Need 5 more iron");
+    expect(rails?.hasAttribute("disabled")).toBe(true);
+    expect(rails?.getAttribute("data-tap")).toContain("gentle shake");
+    expect(rails?.getAttribute("data-tap")).toContain("Need 5 more iron");
     expect(page.textContent).toContain("Carts 10/s to 12/s");
     expect(page.textContent).toContain("Trouble comes 30% less often.");
     expect(page.textContent).toContain("The crew digs at 2× for 20 min.");
@@ -69,10 +98,19 @@ describe("workshop mock page (#193)", () => {
     expect(buttons.length).toBeGreaterThanOrEqual(4);
     for (const button of buttons) {
       const tap = button.getAttribute("data-tap") ?? "";
-      expect(tap).toContain("Presses in");
       expect(tap).toContain("Silent until unmuted");
+      const reason = button.getAttribute("data-short");
+      if (reason === null) {
+        expect(tap).toContain("Presses in");
+      } else {
+        expect(tap).toContain("gentle shake");
+        expect(tap).toContain(reason);
+      }
     }
     for (const button of page.querySelectorAll("[data-craft]")) {
+      if (button.hasAttribute("data-short")) {
+        continue;
+      }
       const tap = button.getAttribute("data-tap") ?? "";
       expect(tap).toContain("float");
       expect(tap).toContain("hammer tap");
@@ -95,9 +133,18 @@ describe("workshop mock page (#193)", () => {
     );
     expect(chips).toEqual(["20 clay", "6 iron"]);
     const hammer = host(
-      renderMock(view({ phase: "hammer", control: "rails" })),
+      renderMock(view({ phase: "hammer", control: "props" })),
     );
     expect(hammer.querySelector(".hammer")).not.toBeNull();
+    const denied = host(renderMock(view({ phase: "shake", control: "rails" })));
+    const short = denied.querySelector("[data-craft='rails']");
+    expect(short?.classList.contains("is-shaking")).toBe(true);
+    expect(short?.classList.contains("is-pressed")).toBe(false);
+    expect(short?.hasAttribute("disabled")).toBe(true);
+    const noFloat = host(
+      renderMock(view({ phase: "float", control: "rails" })),
+    );
+    expect(noFloat.querySelector(".float-chip")).toBeNull();
   });
 
   it("puts rails on the bench and holds the other crafts", () => {

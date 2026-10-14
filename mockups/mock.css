@@ -241,10 +241,36 @@ h1.label {
   padding: 4px 6px;
 }
 
-.craft:disabled {
+.craft:disabled,
+.craft.is-short {
   background: #3a2a1c;
   color: #e8d4b8;
   cursor: default;
+}
+
+.craft.is-shaking {
+  animation: need-shake 480ms ease-in-out 2;
+}
+
+#mock.shot .craft.is-shaking {
+  animation: none;
+  transform: translateX(10px);
+}
+
+@keyframes need-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-8px);
+  }
+  50% {
+    transform: translateX(10px);
+  }
+  75% {
+    transform: translateX(-6px);
+  }
 }
 
 .back,
