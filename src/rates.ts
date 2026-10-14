@@ -8,7 +8,11 @@ import {
 } from "./engineers";
 import { slowedSpeed, type Trouble } from "./hazards";
 import { hardnessFactorId, layerOf } from "./layers";
-import { chargeCrewMultiplier, gearMultiplier } from "./workshop";
+import {
+  chargeCrewMultiplier,
+  emberMachineMultiplier,
+  gearMultiplier,
+} from "./workshop";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import { TIERS, owned, type TierId } from "./tiers";
@@ -128,11 +132,14 @@ export function effectiveRates(
     TIERS.map((tier) => {
       // A sweep scales the tier's own stones a second, and the rock of this
       // layer. Both factors are 1 in play.
+      const ember =
+        tier.id === "machine" ? emberMachineMultiplier(mountain, now) : 1;
       const output =
         tier.perSecond *
         factor(`output.${tier.id}`) *
         factor(hardnessFactorId(layer.index, tier.id)) *
-        gearMultiplier(mountain, tier.id);
+        gearMultiplier(mountain, tier.id) *
+        ember;
       return [
         tier.id,
         tier.id === "helper"

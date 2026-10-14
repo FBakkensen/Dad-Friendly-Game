@@ -93,6 +93,10 @@ export type Mountain = {
    * none is hot. Written in the workshop map, beside the mountain.
    */
   readonly chargeUntil?: number;
+  /** When a crystal flare stops drawing veins. Live play only. */
+  readonly flareUntil?: number;
+  /** When a heartstone ember stops lifting the Great Machine. Live play only. */
+  readonly emberUntil?: number;
 };
 
 /** A sanity cap for saves; no dad gets near it. Mirrored in firestore.rules. */

@@ -32,6 +32,10 @@ type WorkshopSave = {
   readonly crafted?: Crafted;
   /** When a blasting charge cools. Missing means none is hot. */
   readonly chargeUntil?: number;
+  /** When a crystal flare cools. Missing means none is hot. */
+  readonly flareUntil?: number;
+  /** When a heartstone ember cools. Missing means none is hot. */
+  readonly emberUntil?: number;
 };
 
 export type MountainSaveV6 = {
@@ -103,13 +107,19 @@ export function serializeSave({
       ...(mountain.chargeUntil === undefined
         ? {}
         : { chargeUntil: mountain.chargeUntil }),
+      ...(mountain.flareUntil === undefined
+        ? {}
+        : { flareUntil: mountain.flareUntil }),
+      ...(mountain.emberUntil === undefined
+        ? {}
+        : { emberUntil: mountain.emberUntil }),
     },
     lastSeen,
   };
 }
 
 /**
- * Accepts v6 (materials, bench, crafted, recipes, chargeUntil). A v5 save keeps every
+ * Accepts v6 (materials, bench, crafted, recipes, and the live buff clocks). A v5 save keeps every
  * stone already mined and is granted the materials those stones would have
  * dug. v4 keeps that place and gains the depth below the old bottom. v3
  * scales onto that same place. Legacy v1/v2 3x3 grids still migrate. v1
@@ -154,14 +164,18 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
       const recipes = parseRecipes(sheet["recipes"]);
       const bench = readBench(sheet["bench"]);
       const crafted = readCrafted(sheet["crafted"]);
-      const chargeUntil = readChargeUntil(sheet["chargeUntil"]);
+      const chargeUntil = readClock(sheet["chargeUntil"]);
+      const flareUntil = readClock(sheet["flareUntil"]);
+      const emberUntil = readClock(sheet["emberUntil"]);
       if (
         base === undefined ||
         materials === undefined ||
         recipes === undefined ||
         bench === "bad" ||
         crafted === "bad" ||
-        chargeUntil === "bad"
+        chargeUntil === "bad" ||
+        flareUntil === "bad" ||
+        emberUntil === "bad"
       ) {
         return undefined;
       }
@@ -175,6 +189,8 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
             ? {}
             : { crafted }),
           ...(chargeUntil === undefined ? {} : { chargeUntil }),
+          ...(flareUntil === undefined ? {} : { flareUntil }),
+          ...(emberUntil === undefined ? {} : { emberUntil }),
         },
         lastSeen,
       };
@@ -205,8 +221,8 @@ function unknownBenchRecipe(value: object): boolean {
   return typeof recipe === "string" && !isRecipeId(recipe);
 }
 
-/** Missing means no charge is hot. Anything else must be a whole time. */
-function readChargeUntil(value: unknown): number | undefined | "bad" {
+/** Missing means that buff is cold. Anything else must be a whole time. */
+function readClock(value: unknown): number | undefined | "bad" {
   if (value === undefined) {
     return undefined;
   }

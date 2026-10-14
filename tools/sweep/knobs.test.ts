@@ -8,6 +8,7 @@ import { MOUNTAIN_STONES } from "../../src/scale";
 import { tierById, tierCost, TIERS, type TierId } from "../../src/tiers";
 import {
   chargeCrewMultiplier,
+  emberMachineMultiplier,
   expeditionCraftScale,
   gearMultiplier,
   recipeById,
@@ -79,6 +80,8 @@ function reading(factorId: string): number {
       machines: 1,
       crafted: { [id]: 1 },
       chargeUntil: 10_000,
+      flareUntil: 10_000,
+      emberUntil: 10_000,
     };
     const effect = recipeById(id).effect;
     switch (effect.kind) {
@@ -92,6 +95,10 @@ function reading(factorId: string): number {
         return expeditionCraftScale(geared);
       case "charge":
         return chargeCrewMultiplier(geared, 0);
+      case "flare":
+        return veinOftenScale(geared, 0);
+      case "ember":
+        return emberMachineMultiplier(geared, 0);
       case "reinforce":
         return gearMultiplier(geared, "machine");
     }

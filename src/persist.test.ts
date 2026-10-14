@@ -66,6 +66,8 @@ describe("serializeSave and parseSaveValue", () => {
         "crystal-lamp",
       ],
       chargeUntil: 80_000,
+      flareUntil: 90_000,
+      emberUntil: 100_000,
     };
     expect(
       parseSaveValue(serializeSave({ mountain: everyField, lastSeen: 1 })),
@@ -477,6 +479,12 @@ describe("v6 materials back-grant (#195)", () => {
         workshop: { ...saved.workshop, chargeUntil: 40 },
       })?.mountain.chargeUntil,
     ).toBe(40);
+    expect(
+      parseSaveValue({
+        ...saved,
+        workshop: { ...saved.workshop, flareUntil: 41, emberUntil: 42 },
+      })?.mountain,
+    ).toMatchObject({ flareUntil: 41, emberUntil: 42 });
     for (const workshop of [
       null,
       { materials: saved.workshop.materials },
@@ -490,6 +498,8 @@ describe("v6 materials back-grant (#195)", () => {
       { ...saved.workshop, chargeUntil: -1 },
       { ...saved.workshop, chargeUntil: 1.5 },
       { ...saved.workshop, chargeUntil: "soon" },
+      { ...saved.workshop, flareUntil: -1 },
+      { ...saved.workshop, emberUntil: 1.2 },
     ]) {
       expect(parseSaveValue({ ...saved, workshop })).toBeUndefined();
     }

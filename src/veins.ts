@@ -31,9 +31,10 @@ export const LANTERN_VEIN_GAP_SCALE = 0.6;
 export function veinGapScale(
   mountain: Parameters<typeof veinOftenScale>[0],
   lantern: boolean,
+  now?: number,
 ): number {
   const base = lantern ? LANTERN_VEIN_GAP_SCALE : 1;
-  return base / veinOftenScale(mountain);
+  return base / veinOftenScale(mountain, now);
 }
 
 /** How long the next glint lasts. The old miner's lamp lets it linger. */

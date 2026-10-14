@@ -93,7 +93,7 @@ export function mountMountainScreen({
   guide.append(goal, guideBar);
 
   const gapForVeins = (): number =>
-    veinGapScale(view.mountain, hasRelic(view.mountain, "lantern"));
+    veinGapScale(view.mountain, hasRelic(view.mountain, "lantern"), now());
 
   const mountain = document.createElement("button");
   mountain.type = "button";

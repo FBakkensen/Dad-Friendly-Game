@@ -427,22 +427,22 @@ The layer is derived from **stones mined**, the same way relics are, so the save
 
 The first-cut recipe list is small on purpose: 10 recipes, 3 known before the workshop opens, Reinforce with those once the Granite is reached, and the rest found on a layer or an expedition. Costs, times, and effects below are first cut and lab-tuned (#196). On the card they read as the resulting rate ("Carts 10/s to 12/s").
 
-| Recipe               | Needs (first cut)            | Time   | Effect (first cut; the card shows the resulting rate)          | Sink (Lostgarden)       | How you get the recipe      |
-| -------------------- | ---------------------------- | ------ | -------------------------------------------------------------- | ----------------------- | --------------------------- |
-| Iron rails           | 4.2M stones + 12 iron        | 1 h    | carts ×1.25, max 3 levels                                      | fixed                   | known at unlock             |
-| Sturdy props         | 2M stones + 20 clay + 8 iron | 1 h    | trouble comes 30% less often                                   | fixed (1 level)         | known at unlock             |
-| Blasting charge      | 800k stones + 6 clay         | 10 min | crew ×2 for 20 min (like Overtime, but costs clay, not stones) | repeatable (clay sink)  | known at unlock             |
-| Reinforce            | 8 iron                       | 10 min | ×1.05 per level on the next tier you do not run yet            | repeatable (iron sink)  | entering the Granite        |
-| Diamond bits         | 15M stones + 12 crystal      | 1 h    | drills ×1.25, max 3                                            | fixed                   | reaching the Crystal Caves  |
-| Crystal flare        | 1M stones + 4 crystal        | 10 min | golden veins ×1.05 per level                                   | repeatable (crystal)    | reaching the Crystal Caves  |
-| Miner's crystal lamp | 10 crystal + 8 iron          | 1 h    | golden veins 25% more often                                    | fixed (1)               | expedition find (old shaft) |
-| Engineer's kit       | 12 iron + 8 crystal          | 4 h    | expeditions 20% shorter                                        | fixed (1)               | expedition find (deep dark) |
-| Heartstone core      | 40M stones + 8 heartstone    | 4 h    | Great Machine ×1.2, max 3                                      | fixed                   | reaching the Deep Heart     |
-| Heartstone ember     | 2M stones + 4 heartstone     | 10 min | Great Machine ×1.05 per level                                  | repeatable (heartstone) | reaching the Deep Heart     |
+| Recipe               | Needs (first cut)            | Time   | Effect (first cut; the card shows the resulting rate)             | Sink (Lostgarden)       | How you get the recipe      |
+| -------------------- | ---------------------------- | ------ | ----------------------------------------------------------------- | ----------------------- | --------------------------- |
+| Iron rails           | 4.2M stones + 12 iron        | 1 h    | carts ×1.25, max 3 levels                                         | fixed                   | known at unlock             |
+| Sturdy props         | 2M stones + 20 clay + 8 iron | 1 h    | trouble comes 30% less often                                      | fixed (1 level)         | known at unlock             |
+| Blasting charge      | 800k stones + 6 clay         | 10 min | crew ×2 for 20 min (like Overtime, but costs clay, not stones)    | repeatable (clay sink)  | known at unlock             |
+| Reinforce            | 8 iron                       | 10 min | ×1.05 per level on the next tier, max 5                           | repeatable until 5      | entering the Granite        |
+| Diamond bits         | 15M stones + 12 crystal      | 1 h    | drills ×1.25, max 3                                               | fixed                   | reaching the Crystal Caves  |
+| Crystal flare        | 1M stones + 4 crystal        | 10 min | veins 25% more often for 1 h, live only; again refreshes the hour | repeatable (crystal)    | reaching the Crystal Caves  |
+| Miner's crystal lamp | 10 crystal + 8 iron          | 1 h    | golden veins 25% more often                                       | fixed (1)               | expedition find (old shaft) |
+| Engineer's kit       | 12 iron + 8 crystal          | 4 h    | expeditions 20% shorter                                           | fixed (1)               | expedition find (deep dark) |
+| Heartstone core      | 40M stones + 8 heartstone    | 4 h    | Great Machine ×1.2, max 3                                         | fixed                   | reaching the Deep Heart     |
+| Heartstone ember     | 2M stones + 4 heartstone     | 10 min | Great Machine ×1.25 for 20 min, live only; again refreshes it     | repeatable (heartstone) | reaching the Deep Heart     |
 
 Rules that keep this healthy:
 
-- **Every material has a repeatable sink**, so materials never pile up uselessly. Clay has Blasting charge. Crystal has Crystal flare. Heartstone has the Heartstone ember. From the Granite on, Reinforce spends iron for one more level of a bonus on the next machine tier after the highest one you already run (carts point at drills, drills at borers, borers at the Great Machine). Once a Great Machine is running, further levels stay on it, because there is no tier after it. Levels bank until you own a cart. `materialIdle` checks this. Decided in M9-5 (#196).
+- **Every material has a repeatable sink**, so materials never pile up uselessly. Clay has Blasting charge. Crystal has Crystal flare. Heartstone has the Heartstone ember. From the Granite on, Reinforce spends iron for one more level of a bonus on the next machine tier after the highest one you already run (carts point at drills, drills at borers, borers at the Great Machine), and it stops at 5. Once a Great Machine is running, those levels stay on it. Crystal flare and the Heartstone ember are live timers: crafting one again refreshes the clock and does not multiply, and neither changes away pay. `recipe.<id>.strength` scales each first-cut effect, and the length of a timed one. It is 1 until M9-7. `materialIdle` checks the sinks. Decided in M9-5 (#196).
 - **Recipes are found, not dumped** (Crashlands). The expedition find "a worn recipe" stays vague in the find text ("Nils came back with a sketch folded in his pocket."). The recipe card it unlocks has real numbers.
 - **No randomness in what a craft gives.** A purchase is a promise.
 - **Never punishing.** Closing the app does not stop the bench, and a finished craft waits safely. A craft can be cancelled before it finishes for a full refund.
@@ -504,7 +504,7 @@ Save **v6**. In memory these sit on the mountain. In the document they are one `
 - `bench: { recipe, startedAt, endsAt } | null`.
 - `crafted: Record<RecipeId, level>`.
 - `recipes: RecipeId[]`, the ones found.
-- `chargeUntil`, optional epoch ms. A blasting charge doubles the live crew until then. Missing means none is hot. Away pay does not use it.
+- `chargeUntil`, `flareUntil`, and `emberUntil`, optional epoch ms. A blasting charge, a crystal flare, and a heartstone ember are live until then. Missing means that one is cold. Away pay does not use them.
 
 A v5 save migrates with a **back-grant**. Materials are computed from stones mined in each band (`MATERIAL_EVERY`), exactly what that save would have dug. The bench is empty. Nothing is crafted. Recipes are the starting three (Iron rails, Sturdy props, Blasting charge), plus Reinforce once the Granite is reached, plus the layer-entry recipes for layers already reached (Diamond bits and Crystal flare once the Crystal Caves are reached, Heartstone core and Heartstone ember once the Deep Heart is reached). The expedition recipes (Miner's crystal lamp, Engineer's kit) are not granted by the migration. The layer itself is derived, so nothing is stored for it. Saves from v1 through v5, local and cloud, still load, and the stones already mined stay.
 

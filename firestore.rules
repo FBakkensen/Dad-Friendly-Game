@@ -20,8 +20,9 @@ service cloud.firestore {
     //       require that it is a map. A full crew is already at the 1000-expression
     //       budget, so the client parser checks the rest: four material ints
     //       inside each band's width, recipes (closed ids, size 0..10, no duplicates),
-    //       bench (recipe, times, at most 4 hours), crafted levels 0..1000, and an
-    //       optional chargeUntil (whole epoch ms). The parser checks those.
+    //       bench (recipe, times, at most 4 hours), crafted levels 0..1000, and
+    //       optional chargeUntil, flareUntil, and emberUntil (whole epoch ms).
+    //       The parser checks those.
     //   - grid: map (required iff version is 1 or 2; legacy, read-migrated by the client)
     //       - width: int (required, must be 3)
     //       - height: int (required, must be 3)

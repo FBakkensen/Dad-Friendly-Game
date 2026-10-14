@@ -226,7 +226,15 @@ describe("workshop rules", () => {
       stones: 0,
       materials: { iron: 8 },
     });
-    expect(recipeById("reinforce").maxLevel).toBeUndefined();
+    expect(recipeById("reinforce").maxLevel).toBe(5);
+    expect(recipeById("crystal-flare").effect).toMatchObject({
+      often: 0.25,
+      durationMs: 3_600_000,
+    });
+    expect(recipeById("heartstone-ember").effect).toMatchObject({
+      bonus: 0.25,
+      durationMs: CHARGE_MS,
+    });
     expect(recipeCost("crystal-lamp").stones).toBe(0);
     expect(recipeCost("engineers-kit").materials).toMatchObject({
       iron: 12,
@@ -246,7 +254,7 @@ describe("workshop rules", () => {
     };
     for (const material of Object.keys(sinks) as MaterialId[]) {
       const sink = recipeById(sinks[material]);
-      expect(sink.maxLevel).toBeUndefined();
+      expect(sink.maxLevel === undefined || sink.maxLevel > 1).toBe(true);
       expect(sink.materials[material]).toBeGreaterThan(0);
       const once = startCraft(openShed(), sink.id, 0);
       const fitted = settleBench(once, once.bench?.endsAt ?? 0);
@@ -474,10 +482,14 @@ describe("workshop rules", () => {
       effectiveRates({ ...shed, crafted: { "heartstone-core": 1 } }).tierSpeed
         .machine,
     ).toBe(plain.tierSpeed.machine * 1.2);
-    expect(
-      effectiveRates({ ...shed, crafted: { "heartstone-ember": 1 } }).tierSpeed
-        .machine,
-    ).toBeCloseTo(plain.tierSpeed.machine * 1.05);
+    const emberHot = { ...shed, emberUntil: 500, helpers: 25, machines: 1 };
+    expect(effectiveRates(emberHot, 100).tierSpeed.machine).toBeCloseTo(
+      effectiveRates({ ...shed, helpers: 25, machines: 1 }, 100).tierSpeed
+        .machine * 1.25,
+    );
+    expect(effectiveRates(emberHot).tierSpeed.machine).toBe(
+      effectiveRates({ ...shed, helpers: 25, machines: 1 }).tierSpeed.machine,
+    );
     const pit = { ...shed, borers: 1 };
     const open = nextTrouble(1, 0, pit);
     const propped = nextTrouble(1, 0, {
@@ -490,9 +502,16 @@ describe("workshop rules", () => {
     expect(veinOftenScale({ crafted: { "crystal-lamp": 1 } })).toBeCloseTo(
       1.25,
     );
-    expect(veinOftenScale({ crafted: { "crystal-flare": 2 } })).toBeCloseTo(
-      1.05 ** 2,
-    );
+    expect(veinOftenScale({ crafted: { "crystal-flare": 40 } })).toBe(1);
+    expect(
+      veinOftenScale(
+        { crafted: { "crystal-flare": 40 }, flareUntil: 5_000 },
+        1,
+      ),
+    ).toBeCloseTo(1.25);
+    expect(
+      veinOftenScale({ crafted: { "crystal-flare": 1 }, flareUntil: 5_000 }, 1),
+    ).toBeCloseTo(1.25);
     const hour = 3_600_000;
     expect(expeditionAwayMs(hour, {})).toBe(hour);
     expect(expeditionAwayMs(hour, { crafted: { "engineers-kit": 1 } })).toBe(
@@ -541,5 +560,126 @@ describe("workshop rules", () => {
       ),
     ).toBeCloseTo(1.05 ** 2);
     expect(gearMultiplier({ ...openShed(), carts: 1 }, "drill")).toBe(1);
+    expect(
+      gearMultiplier(
+        { ...openShed(), machines: 1, crafted: { reinforce: 9 } },
+        "machine",
+      ),
+    ).toBeCloseTo(1.05 ** 5);
+  });
+
+  it("refreshes a flare and an ember instead of stacking them", () => {
+    const flare = settleBench(
+      startCraft(openShed(), "crystal-flare", 0),
+      600_000,
+    );
+    expect(flare.flareUntil).toBe(600_000 + 3_600_000);
+    const flareAgain = startCraft(flare, "crystal-flare", 600_000);
+    const flareSecond = settleBench(flareAgain, flareAgain.bench?.endsAt ?? 0);
+    expect(flareSecond.flareUntil).toBe(
+      (flareAgain.bench?.endsAt ?? 0) + 3_600_000,
+    );
+    expect(flareSecond.crafted?.["crystal-flare"]).toBe(2);
+    expect(
+      veinOftenScale(flareSecond, (flareSecond.flareUntil ?? 1) - 1),
+    ).toBeCloseTo(1.25);
+    expect(veinOftenScale({ flareUntil: 5 }, 5)).toBe(1);
+    const ember = settleBench(
+      startCraft(openShed(), "heartstone-ember", 0),
+      600_000,
+    );
+    const emberAgain = startCraft(ember, "heartstone-ember", 600_000);
+    const emberSecond = settleBench(emberAgain, emberAgain.bench?.endsAt ?? 0);
+    expect(emberSecond.emberUntil).toBe(
+      (emberAgain.bench?.endsAt ?? 0) + CHARGE_MS,
+    );
+    expect(emberSecond.emberUntil).not.toBe(
+      (ember.emberUntil ?? 0) + CHARGE_MS,
+    );
+    const stretched = withFactors(
+      { "recipe.crystal-flare.strength": 2 },
+      () => {
+        const started = startCraft(openShed(), "crystal-flare", 0);
+        const done = settleBench(started, started.bench?.endsAt ?? 0);
+        return {
+          until: done.flareUntil,
+          veins: veinOftenScale(done, (done.flareUntil ?? 1) - 1),
+        };
+      },
+    );
+    expect(stretched.until).toBe(600_000 + 2 * 3_600_000);
+    expect(stretched.veins).toBeCloseTo(1.5);
+  });
+
+  it("keeps output under a ceiling after many repeatable crafts", () => {
+    const rich = {
+      clay: 10_000,
+      iron: 10_000,
+      crystal: 10_000,
+      heartstone: 10_000,
+    };
+    const crew = openShed({
+      pocket: 400_000_000,
+      materials: rich,
+      helpers: 25,
+      machines: 1,
+    });
+    let mountain = crew;
+    let clock = 1_000_000;
+    const spam = (id: RecipeId, times: number) => {
+      for (let n = 0; n < times; n += 1) {
+        const started = startCraft(mountain, id, clock);
+        if (started.bench === undefined) {
+          return;
+        }
+        clock = started.bench.endsAt;
+        mountain = settleBench(started, clock);
+      }
+    };
+    spam("blasting-charge", 30);
+    spam("reinforce", 30);
+    spam("crystal-flare", 30);
+    spam("heartstone-ember", 30);
+    spam("crystal-flare", 1);
+    spam("heartstone-ember", 1);
+    spam("blasting-charge", 1);
+    const bare = effectiveRates(crew, clock).crewPerSecond;
+    const live = effectiveRates(mountain, clock);
+    const away = effectiveRates(mountain);
+    const capped: Mountain = {
+      ...crew,
+      crafted: { reinforce: 5 },
+      ...(mountain.chargeUntil === undefined
+        ? {}
+        : { chargeUntil: mountain.chargeUntil }),
+      ...(mountain.flareUntil === undefined
+        ? {}
+        : { flareUntil: mountain.flareUntil }),
+      ...(mountain.emberUntil === undefined
+        ? {}
+        : { emberUntil: mountain.emberUntil }),
+    };
+    expect(craftedLevel(mountain, "reinforce")).toBe(5);
+    expect(craftedLevel(mountain, "crystal-flare")).toBeGreaterThan(5);
+    expect(craftedLevel(mountain, "heartstone-ember")).toBeGreaterThan(5);
+    expect(live.crewPerSecond).toBe(
+      effectiveRates(capped, clock).crewPerSecond,
+    );
+    expect(live.crewPerSecond).toBeGreaterThan(away.crewPerSecond);
+    expect(live.crewPerSecond).toBeLessThan(bare * 4);
+    expect(away.crewPerSecond).toBeLessThan(bare * 2);
+    expect(away.crewPerSecond).toBe(effectiveRates(capped).crewPerSecond);
+    expect(veinOftenScale(mountain, clock)).toBeCloseTo(
+      veinOftenScale(capped, clock),
+    );
+    expect(
+      accrueAway({ mountain, lastSeen: clock - 5_000, now: clock }).mined,
+    ).toBe(
+      accrueAway({
+        mountain: capped,
+        lastSeen: clock - 5_000,
+        now: clock,
+      }).mined,
+    );
   });
 });

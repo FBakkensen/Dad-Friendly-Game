@@ -40,8 +40,13 @@ const LAMP_OFTEN = 0.25;
 const KIT_SHORTER = 0.2;
 const CHARGE_MULTIPLIER = 2;
 const REINFORCE_PER_LEVEL = 0.05;
-const FLARE_OFTEN = 0.05;
-const EMBER_PER_LEVEL = 0.05;
+const REINFORCE_CAP = 5;
+/** Veins this much more often while a crystal flare is hot. */
+const FLARE_OFTEN = 0.25;
+const FLARE_MS = HOUR;
+/** Added to 1 for the Great Machine while a heartstone ember is hot. ×1.25 at strength 1. */
+const EMBER_BONUS = 0.25;
+const EMBER_MS = 20 * MINUTE;
 
 /**
  * Recipe ids the save may name. Expedition finds (the lamp and the kit) are
@@ -87,6 +92,16 @@ type RecipeEffect =
       readonly multiplier: number;
       readonly durationMs: number;
     }
+  | {
+      readonly kind: "flare";
+      readonly often: number;
+      readonly durationMs: number;
+    }
+  | {
+      readonly kind: "ember";
+      readonly bonus: number;
+      readonly durationMs: number;
+    }
   | { readonly kind: "reinforce"; readonly perLevel: number };
 
 export type Recipe = {
@@ -103,11 +118,11 @@ export type Recipe = {
 };
 
 /**
- * First cut. Costs, times, and effects are real numbers. M9-7 may move them.
- * Reinforce is the iron sink: each level is ×1.05 on the next tier after the
- * highest machine you already run (the Great Machine, once you own one).
- * Crystal flare and the heartstone ember are the repeatable sinks the fixed
- * recipes do not cover.
+ * First cut. Costs, times, and effects are real numbers. Each effect is
+ * multiplied by `recipe.<id>.strength`, which is 1 until M9-7. A timed buff's
+ * length uses that same factor. Reinforce stops at 5. Crystal flare and the
+ * heartstone ember refresh one live timer; they do not stack and they do not
+ * change away pay.
  */
 const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
   "iron-rails": {
@@ -150,6 +165,7 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     materials: { iron: 8 },
     craftMs: 10 * MINUTE,
     unlock: "granite",
+    maxLevel: REINFORCE_CAP,
     effect: { kind: "reinforce", perLevel: REINFORCE_PER_LEVEL },
   },
   "diamond-bits": {
@@ -169,7 +185,7 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     materials: { crystal: 4 },
     craftMs: 10 * MINUTE,
     unlock: "crystal",
-    effect: { kind: "veins", often: FLARE_OFTEN },
+    effect: { kind: "flare", often: FLARE_OFTEN, durationMs: FLARE_MS },
   },
   "crystal-lamp": {
     id: "crystal-lamp",
@@ -208,7 +224,7 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     materials: { heartstone: 4 },
     craftMs: 10 * MINUTE,
     unlock: "heart",
-    effect: { kind: "tier", tier: "machine", perLevel: EMBER_PER_LEVEL },
+    effect: { kind: "ember", bonus: EMBER_BONUS, durationMs: EMBER_MS },
   },
 };
 
@@ -319,13 +335,16 @@ function effectLevel(
   mountain: { readonly crafted?: Crafted },
 ): number {
   const level = craftedLevel(mountain, recipe.id);
-  return recipe.maxLevel === undefined
-    ? level
-    : Math.min(level, recipe.maxLevel);
+  return Math.min(level, recipe.maxLevel ?? MAX_CRAFTED_LEVEL);
 }
 
 function strengthOf(id: RecipeId): number {
   return factor(recipeStrengthId(id));
+}
+
+/** First-cut number times this recipe's strength factor. 1 leaves it alone. */
+function tuned(base: number, id: RecipeId): number {
+  return base * strengthOf(id);
 }
 
 function materialsOf(mountain: Mountain): Materials {
@@ -408,7 +427,8 @@ function dropBench(mountain: Mountain): Mountain {
  * A craft whose clock has rung is fitted once: the bench clears and the
  * level goes up. Calling it again, after a reload, does not fit it twice.
  * A charge's twenty minutes start when the craft finished, and a later
- * charge adds another twenty after that window.
+ * charge adds another twenty after that window. A flare or an ember
+ * replaces its clock; crafting it again does not multiply the effect.
  */
 export function settleBench(mountain: Mountain, now: number): Mountain {
   const bench = mountain.bench;
@@ -416,20 +436,36 @@ export function settleBench(mountain: Mountain, now: number): Mountain {
     return mountain;
   }
   const recipe = recipeById(bench.recipe);
-  const level = Math.min(
-    MAX_CRAFTED_LEVEL,
-    craftedLevel(mountain, recipe.id) + 1,
-  );
+  const level = effectLevel(recipe, {
+    crafted: {
+      ...mountain.crafted,
+      [recipe.id]: craftedLevel(mountain, recipe.id) + 1,
+    },
+  });
   const fitted = dropBench({
     ...mountain,
     crafted: { ...mountain.crafted, [recipe.id]: level },
   });
-  if (recipe.effect.kind !== "charge") {
-    return fitted;
+  if (recipe.effect.kind === "charge") {
+    const previous = mountain.chargeUntil ?? bench.endsAt;
+    const from = previous > bench.endsAt ? previous : bench.endsAt;
+    return { ...fitted, chargeUntil: from + recipe.effect.durationMs };
   }
-  const previous = mountain.chargeUntil ?? bench.endsAt;
-  const from = previous > bench.endsAt ? previous : bench.endsAt;
-  return { ...fitted, chargeUntil: from + recipe.effect.durationMs };
+  if (recipe.effect.kind === "flare") {
+    return {
+      ...fitted,
+      flareUntil:
+        bench.endsAt + Math.round(tuned(recipe.effect.durationMs, recipe.id)),
+    };
+  }
+  if (recipe.effect.kind === "ember") {
+    return {
+      ...fitted,
+      emberUntil:
+        bench.endsAt + Math.round(tuned(recipe.effect.durationMs, recipe.id)),
+    };
+  }
+  return fitted;
 }
 
 /**
@@ -490,7 +526,7 @@ export function gearMultiplier(mountain: Mountain, tierId: TierId): number {
   const reinforce = recipeById("reinforce");
   const levels = effectLevel(reinforce, mountain);
   if (levels > 0 && reinforceTarget(mountain) === tierId) {
-    scale *= leveled(REINFORCE_PER_LEVEL, levels, strengthOf("reinforce"));
+    scale *= leveled(tuned(REINFORCE_PER_LEVEL, "reinforce"), levels, 1);
   }
   return scale;
 }
@@ -515,12 +551,14 @@ export function troubleGapScale(mountain: {
 }
 
 /**
- * How much more often a golden vein shows. 1 until a lamp or a flare is fitted.
- * The screen divides the wait by this.
+ * How much more often a golden vein shows. 1 until a lamp is fitted.
+ * A hot crystal flare multiplies that while `now` is inside its hour.
+ * Leave `now` out, as away pay does, and the flare stays dark.
  */
-export function veinOftenScale(mountain: {
-  readonly crafted?: Crafted;
-}): number {
+export function veinOftenScale(
+  mountain: { readonly crafted?: Crafted; readonly flareUntil?: number },
+  now?: number,
+): number {
   let scale = 1;
   for (const recipe of RECIPES) {
     if (recipe.effect.kind !== "veins") {
@@ -532,7 +570,33 @@ export function veinOftenScale(mountain: {
     }
     scale *= leveled(recipe.effect.often, level, strengthOf(recipe.id));
   }
+  if (
+    now !== undefined &&
+    mountain.flareUntil !== undefined &&
+    mountain.flareUntil > now
+  ) {
+    scale *= 1 + tuned(FLARE_OFTEN, "crystal-flare");
+  }
   return scale;
+}
+
+/**
+ * Great Machine multiplier while a heartstone ember is hot. 1 with no `now`,
+ * so away pay never sees it. Crafting another ember refreshes this, and the
+ * crafted count does not multiply it.
+ */
+export function emberMachineMultiplier(
+  mountain: { readonly emberUntil?: number },
+  now?: number,
+): number {
+  if (
+    now === undefined ||
+    mountain.emberUntil === undefined ||
+    mountain.emberUntil <= now
+  ) {
+    return 1;
+  }
+  return 1 + tuned(EMBER_BONUS, "heartstone-ember");
 }
 
 /** How much of the tunnel time is left. 1 without the engineer's kit. */
