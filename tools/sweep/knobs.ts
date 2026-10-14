@@ -1,17 +1,25 @@
 /**
  * Economy knobs for `npm run lab:sweep`. One entry each.
  * `factor` is the id `tierCost`, crew speed, `tendingTenths`, and layer
- * hardness already read. `low` and `high` are multipliers on today's number.
- * 1 is the game. A new price, output, growth, tending, or hardness knob is
- * one entry here. Worker growth is the helper curve, which kids share.
+ * hardness, and recipe strength and cost already read. `low` and `high` are
+ * multipliers on today's number. 1 is the game. A new price, output, growth,
+ * tending, hardness, or recipe knob is one entry here. Worker growth is the
+ * helper curve, which kids share.
  * Machine growth scales every staffed curve: carts, drills, and the Great
  * Machine double, and borers climb at ×1.5.
  */
 
 import { LAYERS, hardnessFactorId } from "../../src/layers.ts";
 import { TIERS } from "../../src/tiers.ts";
+import {
+  RECIPE_IDS,
+  recipeById,
+  recipeCostId,
+  recipeStrengthId,
+} from "../../src/workshop.ts";
 
-type KnobGroup = "price" | "growth" | "output" | "tending" | "hardness";
+type KnobGroup =
+  "price" | "growth" | "output" | "tending" | "hardness" | "recipe";
 
 export type Knob = {
   readonly id: string;
@@ -27,10 +35,33 @@ export type Knob = {
 /**
  * Prices and outputs span half to double. Growth is an exponent, so its
  * range stays close to 1 and the curve still climbs. Hardness is the first
- * cut for the rock, 0.85 to 1.15, and it is 1 in play.
+ * cut for the rock, 0.85 to 1.15, and it is 1 in play. Recipe strength and
+ * cost run from half to double, and they are 1 in play.
  */
 const HARDNESS_LOW = 0.85;
 const HARDNESS_HIGH = 1.15;
+
+const RECIPE_KNOBS: readonly Knob[] = RECIPE_IDS.flatMap((id) => {
+  const name = recipeById(id).name;
+  return [
+    {
+      id: `recipe-${id}-strength`,
+      label: `${name} strength`,
+      factor: recipeStrengthId(id),
+      group: "recipe" as const,
+      low: 0.5,
+      high: 2,
+    },
+    {
+      id: `recipe-${id}-cost`,
+      label: `${name} cost`,
+      factor: recipeCostId(id),
+      group: "recipe" as const,
+      low: 0.5,
+      high: 2,
+    },
+  ];
+});
 
 const HARDNESS_KNOBS: readonly Knob[] = LAYERS.flatMap((layer) =>
   TIERS.map((tier) => ({
@@ -125,6 +156,7 @@ export const KNOBS: readonly Knob[] = [
     high: 2,
   },
   ...HARDNESS_KNOBS,
+  ...RECIPE_KNOBS,
 ];
 
 /** Maps a unit-interval sample onto this knob's multiplier. */

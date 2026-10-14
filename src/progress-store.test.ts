@@ -28,6 +28,7 @@ import { WELCOME_MIN_AWAY_MS, createProgressStore } from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { buyTier } from "./tiers";
 import { buyUpgrade } from "./upgrades";
+import { recipesForMined } from "./workshop";
 import { mineVein } from "./veins";
 import { promote, station } from "./engineers";
 import { recall, send, type Expedition } from "./expeditions";
@@ -428,13 +429,7 @@ describe("helpers mining live", () => {
         machines: 0,
         kids: 0,
         materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-        recipes: [
-          "iron-rails",
-          "sturdy-props",
-          "blasting-charge",
-          "diamond-bits",
-          "heartstone-core",
-        ],
+        recipes: recipesForMined(MOUNTAIN_STONES - 494),
       },
       lastSeen: 3_000,
     });

@@ -17,7 +17,7 @@ import { floatText } from "./float-text";
 import { createUpgradesPanel } from "./upgrades-panel";
 import { tapWords } from "./screen-words";
 import {
-  LANTERN_VEIN_GAP_SCALE,
+  veinGapScale,
   advanceVein,
   mineVein,
   pauseVein,
@@ -92,8 +92,8 @@ export function mountMountainScreen({
   guideBar.append(guideFill);
   guide.append(goal, guideBar);
 
-  const veinGapScale = (): number =>
-    hasRelic(view.mountain, "lantern") ? LANTERN_VEIN_GAP_SCALE : 1;
+  const gapForVeins = (): number =>
+    veinGapScale(view.mountain, hasRelic(view.mountain, "lantern"));
 
   const mountain = document.createElement("button");
   mountain.type = "button";
@@ -198,7 +198,7 @@ export function mountMountainScreen({
     waitLeft: storedWait(),
     now: now(),
     random,
-    gapScale: veinGapScale(),
+    gapScale: gapForVeins(),
   });
   let hiddenAt: number | undefined;
   let veinNoteUntil = 0;
@@ -226,7 +226,7 @@ export function mountMountainScreen({
       vein: veinState,
       now: now(),
       random,
-      gapScale: veinGapScale(),
+      gapScale: gapForVeins(),
       glintMs: veinGlintMs(view.mountain),
     });
     renderVein();
@@ -241,7 +241,7 @@ export function mountMountainScreen({
       reward = veinReward(latest);
       return mineVein(latest);
     }, "vein.tap");
-    veinState = waitForVein({ now: now(), random, gapScale: veinGapScale() });
+    veinState = waitForVein({ now: now(), random, gapScale: gapForVeins() });
     veinNote.textContent = `Golden vein! +${formatCount(reward)} ${reward === 1 ? "stone" : "stones"}`;
     veinNoteUntil = now() + 4000;
     renderVein();
@@ -271,7 +271,7 @@ export function mountMountainScreen({
   const { welcome } = welcomePanel;
 
   const resetVein = (): void => {
-    veinState = waitForVein({ now: now(), random, gapScale: veinGapScale() });
+    veinState = waitForVein({ now: now(), random, gapScale: gapForVeins() });
     renderVein();
   };
 

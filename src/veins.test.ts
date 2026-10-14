@@ -11,6 +11,7 @@ import {
 import {
   LANTERN_VEIN_GAP_SCALE,
   VEIN_GLINT_MS,
+  veinGapScale,
   advanceVein,
   mineVein,
   veinGlintMs,
@@ -185,6 +186,17 @@ describe("golden veins", () => {
       kind: "glinting",
       until: 3 * MINUTE + lingered,
     });
+  });
+
+  it("shortens the wait when a lamp is fitted, and keeps the lantern's share", () => {
+    expect(veinGapScale({}, false)).toBe(1);
+    expect(veinGapScale({}, true)).toBe(LANTERN_VEIN_GAP_SCALE);
+    expect(veinGapScale({ crafted: { "crystal-lamp": 1 } }, false)).toBeCloseTo(
+      1 / 1.25,
+    );
+    expect(veinGapScale({ crafted: { "crystal-lamp": 1 } }, true)).toBeCloseTo(
+      LANTERN_VEIN_GAP_SCALE / 1.25,
+    );
   });
 
   it("waits 40% less once the Lantern of Guidance is found", () => {

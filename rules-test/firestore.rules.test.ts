@@ -317,6 +317,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
         endsAt: 1_000 + MAX_CRAFT_MS,
       },
       crafted: { "iron-rails": 3, "crystal-lamp": 1 },
+      chargeUntil: 50_000,
     };
     expect(await roundTrip(mountain)).toEqual(mountain);
 
@@ -348,6 +349,8 @@ describe("firestore.rules: every save the game writes is accepted", () => {
         },
       },
       { crafted: { "iron-rails": MAX_CRAFTED_LEVEL + 1 } },
+      { chargeUntil: -1 },
+      { chargeUntil: 1.5 },
     ]) {
       await expect(
         writeWorkshop({ ...raw.workshop, ...patch }),
@@ -398,6 +401,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
       "iron-rails",
       "sturdy-props",
       "blasting-charge",
+      "reinforce",
     ]);
   });
 

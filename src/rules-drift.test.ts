@@ -95,6 +95,7 @@ describe("firestore.rules match the game", () => {
       },
       crafted: { "iron-rails": 1 },
       recipes: ["iron-rails"],
+      chargeUntil: 1,
     };
     const match = /mountain\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/.exec(rules);
     const allowed = (match?.[1] ?? "")
@@ -102,7 +103,7 @@ describe("firestore.rules match the game", () => {
       .map((key) => key.trim().replace(/'/g, ""));
     // Materials, the bench, crafted gear, and recipes sit beside the mountain
     // in a v6 document. The mountain key list cannot grow (#195).
-    const beside = ["materials", "bench", "crafted", "recipes"];
+    const beside = ["materials", "bench", "crafted", "recipes", "chargeUntil"];
     expect(allowed.sort()).toEqual(
       Object.keys(everyField)
         .filter((key) => !beside.includes(key))
