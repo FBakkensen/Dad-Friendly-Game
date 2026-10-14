@@ -4,7 +4,7 @@
  *   npm run visual   (starts its own dev server; part of npm run check, so CI runs it)
  * Fails if any phone viewport scrolls, or if an overlay isn't laid over the game.
  */
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import puppeteer from "puppeteer-core";
 import { createServer } from "vite";
 
@@ -1518,6 +1518,270 @@ for (const standalone of [false, true]) {
     await page.$eval(".welcome-back", (el) => el.hidden),
     `${label} welcome card with a find closes`,
   );
+  await close();
+}
+
+/** Workshop sheet (#199): real numbers, no scroll, a dark sketch, a named refund. */
+const WORKSHOP_SIZES = [
+  [390, 844],
+  [360, 640],
+  [360, 560],
+];
+const SHOTS = "/opt/cursor/artifacts";
+if (existsSync("/opt/cursor")) {
+  mkdirSync(SHOTS, { recursive: true });
+}
+
+async function shot(page, name) {
+  if (!existsSync(SHOTS)) {
+    return;
+  }
+  await page.screenshot({ path: `${SHOTS}/${name}.png` });
+}
+
+function workshopSave(now, busy) {
+  return {
+    version: 6,
+    lastSeen: now,
+    mountain: {
+      remaining: 240_000_000 - 12_000_000,
+      pocket: busy ? 50_000 : 200_000,
+      helpers: 4,
+      carts: 1,
+      staffed: 2,
+      startedAt: now - 1_000,
+    },
+    workshop: {
+      materials: {
+        clay: busy ? 0 : 2,
+        iron: busy ? 0 : 1,
+        crystal: 0,
+        heartstone: 0,
+      },
+      recipes: [
+        "iron-rails",
+        "sturdy-props",
+        "blasting-charge",
+        "reinforce",
+        "axle-grease",
+      ],
+      ...(busy
+        ? {
+            bench: {
+              recipe: "sturdy-props",
+              startedAt: now - 60_000,
+              endsAt: now + 9 * 60_000,
+            },
+            axleUntil: now + 12 * 60_000,
+          }
+        : {}),
+    },
+  };
+}
+
+for (const viewport of WORKSHOP_SIZES) {
+  const size = `${String(viewport[0])}x${String(viewport[1])}`;
+  const now = Date.now();
+  const { page, close } = await open(viewport, workshopSave(now, true));
+  await page.tap(".menu-button");
+  await page.tap(".workshop-open");
+  const laid = await coversViewport(page, ".workshop-dialog");
+  const fit = await page.$eval(".workshop-dialog", (sheet) => {
+    const buttons = [...sheet.querySelectorAll("button")].filter(
+      (button) => !button.hidden && button.getClientRects().length > 0,
+    );
+    const boxes = buttons.map((button) => {
+      const box = button.getBoundingClientRect();
+      return {
+        height: box.height,
+        top: box.top,
+        bottom: box.bottom,
+        left: box.left,
+        right: box.right,
+        clipped: button.scrollWidth > button.clientWidth + 1,
+        text: button.textContent ?? "",
+      };
+    });
+    const text = sheet.textContent ?? "";
+    const sketch = sheet.querySelector(".workshop-card.is-hidden");
+    const labels = [
+      ...sheet.querySelectorAll(".label, .workshop-craft, .workshop-cancel"),
+    ];
+    const typeOk = labels.every(
+      (node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 14.4,
+    );
+    return {
+      boxesOk: boxes.every(
+        (box) =>
+          box.height >= 44 &&
+          box.top >= 0 &&
+          box.bottom <= innerHeight &&
+          box.left >= 0 &&
+          box.right <= innerWidth &&
+          !box.clipped,
+      ),
+      count: boxes.length,
+      text,
+      sketch: sketch?.textContent ?? "",
+      typeOk,
+      cancel: sheet.querySelector(".workshop-cancel")?.textContent ?? "",
+    };
+  });
+  const still = await noScroll(page);
+  check(
+    laid &&
+      still &&
+      fit.boxesOk &&
+      fit.count >= 4 &&
+      fit.typeOk &&
+      fit.text.includes("On the bench: Sturdy props") &&
+      fit.text.includes("left") &&
+      fit.text.includes("Level 1 of 2") &&
+      fit.text.includes("500K stones") &&
+      fit.text.includes("Bench busy") &&
+      fit.cancel.includes("250K") &&
+      fit.cancel.includes("clay") &&
+      fit.cancel.includes("iron") &&
+      fit.text.includes("Axle grease") &&
+      fit.sketch === "A folded sketch, still in the dark." &&
+      !/[?]/.test(fit.text) &&
+      !/\d/.test(fit.sketch),
+    `${size} workshop sheet fits with real numbers`,
+  );
+  if (!fit.boxesOk || !still) {
+    console.log("workshop fit", size, fit);
+  }
+  const timerSplit = await page.$eval(".workshop-dialog", (sheet) => {
+    const bench = sheet.querySelector(".workshop-bench");
+    const timers = sheet.querySelector(".workshop-timers");
+    return (
+      bench !== null &&
+      timers !== null &&
+      !bench.contains(timers) &&
+      !timers.hidden
+    );
+  });
+  check(timerSplit, `${size} the live timer sits apart from the bench`);
+  await shot(page, `workshop-busy-${size}`);
+  if (viewport[0] === 390) {
+    await page.tap(".workshop-cancel");
+    const armed = await page.$eval(
+      ".workshop-cancel",
+      (button) => button.textContent ?? "",
+    );
+    const stillBusy = await page.$eval(
+      ".workshop-bench",
+      (bench) => bench.textContent ?? "",
+    );
+    check(
+      armed === "Tap again to cancel" && stillBusy.includes("On the bench"),
+      `${size} cancel asks for a second tap`,
+    );
+    await shot(page, "workshop-cancel-confirm-390x844");
+    await page.tap(".workshop-cancel");
+    const freed = await page.$eval(
+      ".workshop-bench",
+      (bench) => bench.textContent ?? "",
+    );
+    check(
+      freed.includes("The bench is free"),
+      `${size} cancel clears the bench`,
+    );
+    await shot(page, "workshop-free-390x844");
+    if ((await page.$(".workshop-craft.is-short")) === null) {
+      const more = await page.$(".workshop-more:not([hidden])");
+      if (more !== null) {
+        await more.tap();
+      }
+    }
+    const short = await page.$(".workshop-craft.is-short");
+    const shortText = await page.$eval(".workshop-dialog", (sheet) =>
+      [...sheet.querySelectorAll(".workshop-craft.is-short")].map(
+        (button) => button.textContent ?? "",
+      ),
+    );
+    check(
+      shortText.some(
+        (text) => text.startsWith("Need ") && text.includes(" more "),
+      ),
+      `${size} a short craft says what is missing`,
+    );
+    if (short !== null) {
+      await short.tap();
+    }
+    const shaking = await page.$eval(
+      ".workshop-dialog",
+      (sheet) => sheet.querySelector(".is-shaking") !== null,
+    );
+    check(shaking, `${size} a short craft shakes`);
+    await shot(page, "workshop-shake-390x844");
+    if (
+      (await page.$(
+        "[data-recipe='axle-grease'] .workshop-craft:not(.is-short)",
+      )) === null
+    ) {
+      const earlier = await page.$(".workshop-earlier:not([hidden])");
+      if (earlier !== null) {
+        await earlier.tap();
+      }
+    }
+    const ready = await page.$(
+      "[data-recipe='axle-grease'] .workshop-craft:not(.is-short)",
+    );
+    if (ready !== null) {
+      await ready.tap();
+    }
+    const hammer = await page.$eval(".workshop-bench", (bench) =>
+      bench.classList.contains("is-hammer"),
+    );
+    const floated = await page.$eval(
+      ".workshop-floats",
+      (host) => host.querySelectorAll(".float-chip").length,
+    );
+    check(
+      hammer && floated > 0,
+      `${size} a craft floats materials and taps the hammer`,
+    );
+    await shot(page, "workshop-hammer-390x844");
+  }
+  await close();
+}
+
+{
+  const now = Date.now();
+  const { page, close } = await open([360, 560], {
+    version: 6,
+    lastSeen: now,
+    mountain: {
+      remaining: 239_500_000,
+      pocket: 100,
+      helpers: 1,
+      staffed: 2,
+      startedAt: now - 1_000,
+    },
+    workshop: {
+      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
+    },
+  });
+  await page.tap(".menu-button");
+  const locked = await page.$eval(".workshop-locked", (row) => ({
+    text: row.textContent ?? "",
+    hidden: row.hidden,
+  }));
+  const openHidden = await page.$eval(
+    ".workshop-open",
+    (button) => button.hidden,
+  );
+  check(
+    !locked.hidden &&
+      locked.text.includes("Locked · The Granite") &&
+      !locked.text.includes("?") &&
+      openHidden,
+    "360x560 workshop is a locked silhouette before the Granite",
+  );
+  await shot(page, "workshop-locked-360x560");
+  check(await noScroll(page), "360x560 locked menu has no page scroll");
   await close();
 }
 

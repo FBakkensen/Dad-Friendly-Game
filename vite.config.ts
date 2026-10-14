@@ -215,6 +215,18 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/workshop-sheet.ts": {
+          statements: 96,
+          branches: 86,
+          functions: 97,
+          lines: 96,
+        },
+        "src/workshop-panel.ts": {
+          statements: 95,
+          branches: 79,
+          functions: 86,
+          lines: 95,
+        },
         "src/expeditions.ts": {
           statements: 100,
           branches: 100,

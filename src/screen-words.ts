@@ -694,6 +694,150 @@ export const cameBack = (
 export const recallConfirm = (name: string): string =>
   `${name} comes home empty-handed.`;
 
+/** Menu row before the Granite. No counts, no question. */
+export const WORKSHOP_LOCKED = "Locked · The Granite";
+
+/** The bench is free, and a thin pocket is still a fine pocket. */
+export const WORKSHOP_FREE_ASIDE = "A little at a time is plenty.";
+
+/** Sound stays off until the dad asks. The house is asleep. */
+export const WORKSHOP_QUIET = "Quiet";
+export const WORKSHOP_SOUND = "Sound";
+
+export const WORKSHOP_EARLIER = "Earlier";
+export const WORKSHOP_MORE = "More to make";
+
+/** A craft that spends no stones. The materials are the price. */
+export const CRAFT_WORD = "Craft";
+
+/** Unfound, and the sketch is still out on a trip. No name, no question. */
+export const UNFOUND_DEEPER = "Deeper rock keeps a quiet gift.";
+
+/** "Workshop" or "Workshop · 8:12" while something is on the bench. */
+export function workshopMenuWords(leftMs: number | undefined): string {
+  if (leftMs === undefined) {
+    return WORKSHOP_TITLE;
+  }
+  return `${WORKSHOP_TITLE} · ${formatClock(leftMs)}`;
+}
+
+/** "On the bench: Iron rails · 8:12 left", or ready when the clock has rung. */
+export function benchBusyWords(name: string, leftMs: number): string {
+  if (leftMs <= 0) {
+    return `On the bench: ${name} · ready`;
+  }
+  return `On the bench: ${name} · ${formatClock(leftMs)} left`;
+}
+
+/** "Axle grease · 18:40 left". */
+export function timerLeftWords(name: string, leftMs: number): string {
+  return `${name} · ${formatClock(Math.max(0, leftMs))} left`;
+}
+
+/** Card time: "10 min", "1 h", "3 h 12 min". */
+export function craftTimeWords(ms: number): string {
+  const minutes = Math.max(0, Math.round(ms / 60_000));
+  if (minutes < 60) {
+    return `${String(minutes)} min`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (rest === 0) {
+    return `${String(hours)} h`;
+  }
+  return `${String(hours)} h ${String(rest)} min`;
+}
+
+/**
+ * A craft rate to one decimal, the same grain as the rest of the crew.
+ * "8.5", "10.6", "3,500". Whole numbers stay whole.
+ */
+export function formatCraftSpeed(speed: number): string {
+  const abs = Math.max(0, speed);
+  const tenths = Math.round(abs * 10) / 10;
+  if (tenths >= 10_000) {
+    return formatCompact(Math.floor(abs));
+  }
+  if (Number.isInteger(tenths)) {
+    return formatCompact(tenths);
+  }
+  return tenths.toFixed(1);
+}
+
+const MATERIAL_LABEL = {
+  clay: "Clay",
+  iron: "Iron",
+  crystal: "Crystal",
+  heartstone: "Heartstone",
+} as const;
+
+export type MaterialWord = keyof typeof MATERIAL_LABEL;
+
+/** "Clay 10" on the pocket line. */
+export function materialCountWords(
+  material: MaterialWord,
+  count: number,
+): string {
+  return `${MATERIAL_LABEL[material]} ${formatCompact(count)}`;
+}
+
+/** "4 iron" on a recipe card. */
+export function materialCostWords(
+  count: number,
+  material: MaterialWord,
+): string {
+  return `${formatCompact(count)} ${material}`;
+}
+
+/** "500K stones" on a recipe card, beside the materials and the time. */
+export function stoneCostWords(stones: number): string {
+  return `${formatCompact(stones)} stones`;
+}
+
+/**
+ * Another crew timer is already this strong. Grease, a charge, and Overtime
+ * do not multiply, so the card does not promise a bigger crew.
+ */
+export function crewAlreadyWords(mark: number): string {
+  return `Crew already at ×${formatCraftSpeed(mark)}.`;
+}
+
+/** "Level 1 of 2" for a craft that can be made more than once. */
+export function craftLevelWords(next: number, max: number): string {
+  return `Level ${String(next)} of ${String(max)}`;
+}
+
+/** A waiting card. The cost stays on the card; this is only the button. */
+export const WORKSHOP_BENCH_BUSY = "Bench busy";
+
+/** Second tap on cancel. The first tap only names the refund. */
+export const WORKSHOP_CANCEL_CONFIRM = "Tap again to cancel";
+
+function andList(parts: readonly string[]): string {
+  const last = parts[parts.length - 1];
+  if (last === undefined) {
+    return "";
+  }
+  if (parts.length === 1) {
+    return last;
+  }
+  const head = parts.slice(0, -1).join(", ");
+  const joiner = parts.length === 2 ? " and " : ", and ";
+  return `${head}${joiner}${last}`;
+}
+
+/**
+ * What cancel gives back. Empty means the live timer has already used it.
+ * "Cancel · 250K stones, 10 clay, and 4 iron back".
+ */
+export function refundBackWords(parts: readonly string[]): string {
+  const list = andList(parts);
+  if (list === "") {
+    return "Cancel · nothing comes back";
+  }
+  return `Cancel · ${list} back`;
+}
+
 /**
  * M9-2 mock copy (#193). Craft prices and the material line are the plan's
  * first-cut examples so the sheets can show real numbers. M9-7 tunes the

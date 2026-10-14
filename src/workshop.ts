@@ -13,8 +13,8 @@ import type { TierId } from "./tiers";
 
 /**
  * Workshop rules (M9). One bench, a clock that runs while the app is closed,
- * and gear the crew can feel. The screen that shows it is a later sitting.
- * Strength and cost factors default to 1. M9-7 lab-tunes the first cut.
+ * and gear the crew can feel. The sheet is `workshop-panel`. Strength and
+ * cost factors default to 1.
  */
 
 const MINUTE = 60_000;
@@ -521,6 +521,11 @@ export function settleBench(mountain: Mountain, now: number): Mountain {
 }
 
 /** Length of a live timer, or none when the craft is lasting gear. */
+export function recipeWindowMs(id: RecipeId): number | undefined {
+  return liveTimerMs(recipeById(id));
+}
+
+/** Length of a live timer, or none when the craft is lasting gear. */
 function liveTimerMs(recipe: Recipe): number | undefined {
   const effect = recipe.effect;
   switch (effect.kind) {
@@ -547,6 +552,51 @@ function refundUnits(
   return Math.floor((amount * unusedMs) / durationMs);
 }
 
+/** Stones and materials a cancel would put back. Nothing once the clock has rung. */
+export type CraftRefund = {
+  readonly stones: number;
+  readonly materials: Materials;
+};
+
+const NO_REFUND: CraftRefund = { stones: 0, materials: EMPTY_MATERIALS };
+
+/** What is still owed if this craft leaves the bench before it finishes. */
+function owed(bench: Bench, now: number): CraftRefund {
+  const cost = recipeCost(bench.recipe);
+  const duration = liveTimerMs(recipeById(bench.recipe));
+  if (duration === undefined) {
+    return { stones: cost.stones, materials: cost.materials };
+  }
+  const unusedMs = Math.max(0, duration - Math.max(0, now - bench.startedAt));
+  return {
+    stones: refundUnits(cost.stones, unusedMs, duration),
+    materials: {
+      clay: refundUnits(cost.materials.clay, unusedMs, duration),
+      iron: refundUnits(cost.materials.iron, unusedMs, duration),
+      crystal: refundUnits(cost.materials.crystal, unusedMs, duration),
+      heartstone: refundUnits(cost.materials.heartstone, unusedMs, duration),
+    },
+  };
+}
+
+/**
+ * What `cancelCraft` would return. Undefined when the bench is empty.
+ * A finished craft is fitted instead, so the refund is nothing.
+ */
+export function cancelRefund(
+  mountain: Mountain,
+  now: number,
+): CraftRefund | undefined {
+  const bench = mountain.bench;
+  if (bench === undefined) {
+    return undefined;
+  }
+  if (now >= bench.endsAt) {
+    return NO_REFUND;
+  }
+  return owed(bench, now);
+}
+
 /**
  * Takes the craft off the bench. Lasting gear comes back in full, because
  * its effect has not started. A live timer has already started, so the
@@ -562,27 +612,95 @@ export function cancelCraft(mountain: Mountain, now: number): Mountain {
   if (now >= bench.endsAt) {
     return settleBench(mountain, now);
   }
-  const cost = recipeCost(bench.recipe);
-  const duration = liveTimerMs(recipeById(bench.recipe));
+  const refund = owed(bench, now);
   const cleared = dropBench(mountain);
-  if (duration === undefined) {
-    return {
-      ...cleared,
-      pocket: mountain.pocket + cost.stones,
-      materials: addMaterials(materialsOf(mountain), cost.materials),
-    };
-  }
-  const unusedMs = Math.max(0, duration - Math.max(0, now - bench.startedAt));
   return {
     ...cleared,
-    pocket: mountain.pocket + refundUnits(cost.stones, unusedMs, duration),
-    materials: addMaterials(materialsOf(mountain), {
-      clay: refundUnits(cost.materials.clay, unusedMs, duration),
-      iron: refundUnits(cost.materials.iron, unusedMs, duration),
-      crystal: refundUnits(cost.materials.crystal, unusedMs, duration),
-      heartstone: refundUnits(cost.materials.heartstone, unusedMs, duration),
-    }),
+    pocket: mountain.pocket + refund.stones,
+    materials: addMaterials(materialsOf(mountain), refund.materials),
   };
+}
+
+/** Live buffs the sheet can count down. A charge, grease, flare, or ember. */
+const TIMER_IDS = [
+  "blasting-charge",
+  "axle-grease",
+  "crystal-flare",
+  "heartstone-ember",
+] as const;
+
+type TimerId = (typeof TIMER_IDS)[number];
+
+export type HotTimer = {
+  readonly id: TimerId;
+  readonly until: number;
+};
+
+function timerDuration(id: TimerId): number {
+  const effect = recipeById(id).effect;
+  switch (effect.kind) {
+    case "charge":
+      return effect.durationMs;
+    case "flare":
+    case "ember":
+    case "axle":
+      return Math.round(tuned(effect.durationMs, id));
+    /* v8 ignore next 3 -- these four recipes are live timers */
+    default:
+      return 0;
+  }
+}
+
+function storedUntil(mountain: Mountain, id: TimerId): number | undefined {
+  switch (id) {
+    case "blasting-charge":
+      return mountain.chargeUntil;
+    case "axle-grease":
+      return mountain.axleUntil;
+    case "crystal-flare":
+      return mountain.flareUntil;
+    case "heartstone-ember":
+      return mountain.emberUntil;
+  }
+}
+
+/**
+ * Buffs that are still hot at `now`, including the minutes a timer is on
+ * the bench. The later end wins when a stored clock and the bench overlap.
+ */
+export function hotTimers(
+  mountain: Mountain,
+  now: number,
+): readonly HotTimer[] {
+  if (!isWhole(now)) {
+    return [];
+  }
+  const hot: HotTimer[] = [];
+  for (const id of TIMER_IDS) {
+    const duration = timerDuration(id);
+    const stored = storedUntil(mountain, id);
+    const ends: number[] = [];
+    if (stored !== undefined && stored > now) {
+      ends.push(stored);
+    }
+    const bench = mountain.bench;
+    if (
+      bench !== undefined &&
+      bench.recipe === id &&
+      now >= bench.startedAt &&
+      now < bench.startedAt + duration
+    ) {
+      ends.push(bench.startedAt + duration);
+    }
+    const until = ends.reduce<number | undefined>(
+      (later, end) => (later === undefined || end > later ? end : later),
+      undefined,
+    );
+    if (until !== undefined) {
+      hot.push({ id, until });
+    }
+  }
+  return hot;
 }
 
 function leveled(perLevel: number, level: number, strength: number): number {
@@ -590,20 +708,6 @@ function leveled(perLevel: number, level: number, strength: number): number {
     return 1;
   }
   return (1 + perLevel * strength) ** level;
-}
-
-/** The next tier after the highest machine already running, or none yet. */
-function reinforceTarget(mountain: Mountain): TierId | undefined {
-  if (mountain.machines > 0 || mountain.borers > 0) {
-    return "machine";
-  }
-  if (mountain.drills > 0) {
-    return "borer";
-  }
-  if (mountain.carts > 0) {
-    return "drill";
-  }
-  return undefined;
 }
 
 /** Carts, drills, borers, or the Great Machine, from fitted gear. 1 when none. */
@@ -621,10 +725,24 @@ export function gearMultiplier(mountain: Mountain, tierId: TierId): number {
   }
   const reinforce = recipeById("reinforce");
   const levels = effectLevel(reinforce, mountain);
-  if (levels > 0 && reinforceTarget(mountain) === tierId) {
+  if (levels > 0 && reinforceTier(mountain) === tierId) {
     scale *= leveled(tuned(REINFORCE_PER_LEVEL, "reinforce"), levels, 1);
   }
   return scale;
+}
+
+/** The next tier Reinforce lifts, or none until a cart is running. */
+export function reinforceTier(mountain: Mountain): TierId | undefined {
+  if (mountain.machines > 0 || mountain.borers > 0) {
+    return "machine";
+  }
+  if (mountain.drills > 0) {
+    return "borer";
+  }
+  if (mountain.carts > 0) {
+    return "drill";
+  }
+  return undefined;
 }
 
 /** How much longer the gap between troubles is. 1 without sturdy props. */
