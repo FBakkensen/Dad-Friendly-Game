@@ -7,11 +7,12 @@ import {
   type EngineerRank,
 } from "./engineers";
 import { slowedSpeed, type Trouble } from "./hazards";
-import { hardnessFactorId, layerOf } from "./layers";
+import { hardnessFactorId, hardnessOf, layerOf } from "./layers";
 import {
   chargeCrewMultiplier,
   emberMachineMultiplier,
   gearMultiplier,
+  temperCrewMultiplier,
 } from "./workshop";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
@@ -138,6 +139,7 @@ export function effectiveRates(
         tier.perSecond *
         factor(`output.${tier.id}`) *
         factor(hardnessFactorId(layer.index, tier.id)) *
+        hardnessOf(layer.index, tier.id) *
         gearMultiplier(mountain, tier.id) *
         ember;
       return [
@@ -197,13 +199,14 @@ export function effectiveRates(
     (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
   );
   const charge = chargeCrewMultiplier(mountain, now);
+  const temper = temperCrewMultiplier(mountain);
   return {
     tapYield: tapWithPick(bareTap, mountain) * boosted("sharper"),
     tierSpeed,
     running,
     helpersShort: Math.max(0, needed - mountain.helpers - mountain.kids),
-    exactCrewPerSecond: exactBase * boosted("overtime") * charge,
-    crewPerSecond: baseCrew * boosted("overtime") * charge,
+    exactCrewPerSecond: exactBase * boosted("overtime") * charge * temper,
+    crewPerSecond: baseCrew * boosted("overtime") * charge * temper,
     awayCapMs: hasRelic(mountain, "shield")
       ? SHIELD_AWAY_CAP_MS
       : BASE_AWAY_CAP_MS,
@@ -298,8 +301,10 @@ function addExtraPosts(
 function tenthsFor(mountain: Mountain, tierId: TierId): number {
   const tenths = tendingTenths(mountain, tierId);
   // A little extra on the borer, where an apprentice spends the middle
-  // of the run. Enough to clear an 8% share, and short of the jump that
-  // lets a checker empty the mountain before day 5.
+  // of the run. Crafted gear takes a slice of the same output, so the
+  // borer's tenth is larger than the other posts. Enough to clear an 8%
+  // share, and short of the jump that lets a checker empty the mountain
+  // before day 5.
   return tierId === "borer" ? (tenths * 162) / 100 : tenths;
 }
 

@@ -54,8 +54,8 @@ describe("session save", () => {
       }),
     );
     expect(readSessionSave({ storage })?.mountain.materials).toEqual({
-      clay: 250,
-      iron: 25,
+      clay: 10,
+      iron: 8,
       crystal: 0,
       heartstone: 0,
     });

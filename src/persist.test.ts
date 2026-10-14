@@ -445,7 +445,7 @@ describe("v6 materials back-grant (#195)", () => {
   });
 
   it("fills materials and recipes when a mountain has none yet", () => {
-    const bare = dug(40_000);
+    const bare = dug(1_000_000);
     const saved = serializeSave({ mountain: bare, lastSeen: 1 });
     expect(saved.version).toBe(6);
     expect(saved.workshop.materials).toEqual({
@@ -594,27 +594,29 @@ describe("v6 materials back-grant (#195)", () => {
     expect(fresh?.mountain.recipes).toEqual([...STARTING_RECIPE_IDS]);
     expect(minedOut(fresh?.mountain ?? dug(0))).toBe(0);
     expect(twelve?.mountain.materials).toEqual({
-      clay: 250,
-      iron: 25,
+      clay: 10,
+      iron: 8,
       crystal: 0,
       heartstone: 0,
     });
     expect(twelve?.mountain.recipes).toEqual([
       ...STARTING_RECIPE_IDS,
       "reinforce",
+      "iron-temper",
     ]);
     expect(twelve?.mountain.bench).toBeUndefined();
     expect(twelve?.mountain.crafted).toBeUndefined();
     expect(minedOut(twelve?.mountain ?? dug(0))).toBe(12_000_000);
     expect(sixty?.mountain.materials).toEqual({
-      clay: 250,
-      iron: 437,
-      crystal: 93,
+      clay: 10,
+      iron: 140,
+      crystal: 3,
       heartstone: 0,
     });
     expect(sixty?.mountain.recipes).toEqual([
       ...STARTING_RECIPE_IDS,
       "reinforce",
+      "iron-temper",
       "diamond-bits",
       "crystal-flare",
     ]);
@@ -667,14 +669,15 @@ describe("v6 materials back-grant (#195)", () => {
       lastSeen: 3,
     });
     expect(tampered?.mountain.materials).toEqual({
-      clay: 250,
-      iron: 25,
+      clay: 10,
+      iron: 8,
       crystal: 0,
       heartstone: 0,
     });
     expect(tampered?.mountain.recipes).toEqual([
       ...STARTING_RECIPE_IDS,
       "reinforce",
+      "iron-temper",
     ]);
     expect(tampered?.mountain.bench).toBeUndefined();
     expect(tampered?.mountain.crafted).toBeUndefined();

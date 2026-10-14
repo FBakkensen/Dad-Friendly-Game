@@ -274,7 +274,7 @@ function outputShare(
 ): Readonly<Record<string, number>> {
   const bare = withoutGear(mountain);
   const posted = effectiveRates(mountain, now, trouble);
-  const barePosted = effectiveRates(bare, now, trouble);
+  const postedResting = effectiveRates(rested(mountain), now, trouble);
   const bareResting = effectiveRates(rested(bare), now, trouble);
   const parts = new Map<string, number>();
   let total = 0;
@@ -286,13 +286,15 @@ function outputShare(
       total += amount;
     }
   }
-  const tending =
-    barePosted.exactCrewPerSecond - bareResting.exactCrewPerSecond;
+  // The engineer delta includes gear on the post she stands on. The rest
+  // of the gear, measured with everyone back at camp, is the crafted share.
+  const tending = posted.exactCrewPerSecond - postedResting.exactCrewPerSecond;
   if (tending > 0) {
     parts.set(TENDING_SOURCE, tending);
     total += tending;
   }
-  const craftedCrew = posted.exactCrewPerSecond - barePosted.exactCrewPerSecond;
+  const craftedCrew =
+    postedResting.exactCrewPerSecond - bareResting.exactCrewPerSecond;
   if (craftedCrew > 0) {
     parts.set(CRAFTED_SOURCE, craftedCrew);
     total += craftedCrew;

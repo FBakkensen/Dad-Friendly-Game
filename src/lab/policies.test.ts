@@ -40,6 +40,7 @@ import {
 } from "./policy";
 import {
   MAX_CRAFTED_LEVEL,
+  recipeCost,
   startCraft,
   workshopUnlocked,
   type RecipeId,
@@ -744,7 +745,7 @@ describe("crafting", () => {
       now: 0,
       params: casual.params,
     });
-    expect(worthIt).toEqual({ kind: "craft", recipe: "reinforce" });
+    expect(worthIt).toEqual({ kind: "craft", recipe: "iron-temper" });
     const valued = casual.decide({
       mountain: late,
       now: 0,
@@ -845,8 +846,9 @@ describe("crafting", () => {
     expect(canPay(unlisted, lamp, 1)).toBe(false);
     const found = withRecipes(open, ["crystal-lamp"]);
     expect(canPay(found, lamp, 1)).toBe(true);
-    expect(canPay({ ...open, pocket: 800_000 }, charge, 8)).toBe(false);
-    expect(canPay({ ...open, pocket: 800_000 * 8 }, charge, 8)).toBe(true);
+    const chargeStones = recipeCost("blasting-charge").stones;
+    expect(canPay({ ...open, pocket: chargeStones }, charge, 8)).toBe(false);
+    expect(canPay({ ...open, pocket: chargeStones * 8 }, charge, 8)).toBe(true);
     const busy = startCraft(open, "iron-rails", 0);
     expect(canPay(busy, charge, 1)).toBe(false);
     expect(canPay(createMountain(), charge, 1)).toBe(false);
@@ -926,7 +928,7 @@ describe("crafting", () => {
     expect(made).toBe(true);
   }, 120_000);
 
-  it("reports idle iron once a casual dad holds more than the recipes can take", () => {
+  it("keeps a casual dad's iron inside what the open recipes can take", () => {
     const samples: DecisionSample[] = [];
     let live = 0;
     let iron = 0;
@@ -951,7 +953,7 @@ describe("crafting", () => {
         live += 1;
       },
     });
-    expect(iron).toBeGreaterThan(104);
-    expect(longestMaterialIdleDays(samples)).toBeGreaterThan(0);
+    expect(iron).toBeGreaterThan(0);
+    expect(longestMaterialIdleDays(samples)).toBe(0);
   }, 120_000);
 });

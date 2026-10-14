@@ -52,10 +52,13 @@ describe("economy factors", () => {
     withFactors({ "growth.machine": 2 }, () => {
       expect(tierCost(tierById("cart"), 1)).toBe(400);
     });
-    expect(effectiveRates(posted).tierSpeed.borer).toBeCloseTo(595 * 1.162, 8);
+    expect(effectiveRates(posted).tierSpeed.borer).toBeCloseTo(
+      595 * 0.9 * 1.162,
+      8,
+    );
     withFactors({ "output.borer": 2 }, () => {
       expect(effectiveRates(posted).tierSpeed.borer).toBeCloseTo(
-        1_190 * 1.162,
+        1_190 * 0.9 * 1.162,
         8,
       );
     });

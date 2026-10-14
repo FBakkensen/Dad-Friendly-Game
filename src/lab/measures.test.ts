@@ -395,7 +395,7 @@ describe("measures", () => {
       "engineers-kit",
     ] as const;
     const ironCap = materialDemand("iron", ironRecipes, {}, []);
-    expect(ironCap).toBe(104);
+    expect(ironCap).toBe(2 * 2 + 2 + 4 * 5 + 2 + 4);
     const pocket = { clay: 0, iron: ironCap, crystal: 0, heartstone: 0 };
     const atCap = decision({
       workshopOpen: true,

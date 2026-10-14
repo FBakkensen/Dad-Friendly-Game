@@ -215,13 +215,13 @@ describe("materials from digging", () => {
   it("pays a hand tap when the stones cross a gap", () => {
     const mountain = {
       ...createMountain(),
-      remaining: MOUNTAIN_STONES - 39_999,
-      pocket: 39_999,
+      remaining: MOUNTAIN_STONES - 999_999,
+      pocket: 999_999,
     };
     const tapped = mineByHand(mountain);
-    expect(minedOut(tapped)).toBe(40_000);
+    expect(minedOut(tapped)).toBe(1_000_000);
     expect(tapped.materials).toEqual({ ...EMPTY_MATERIALS, clay: 1 });
-    expect(tapped.pocket).toBe(40_000);
+    expect(tapped.pocket).toBe(1_000_000);
   });
 
   it("pays the same units live, away, and in small slices", () => {
@@ -234,8 +234,8 @@ describe("materials from digging", () => {
     const away = accrue({ mountain, from: 0, to: awayMs, pay: AWAY_PAY_RATE });
     const closed = accrueAway({ mountain, lastSeen: 0, now: awayMs });
     const expected = {
-      clay: 250,
-      iron: 25,
+      clay: 10,
+      iron: 8,
       crystal: 0,
       heartstone: 0,
     };
@@ -261,8 +261,8 @@ describe("materials from digging", () => {
   it("keeps the remainder, so one-stone digs match one dig", () => {
     const start = {
       ...createMountain(),
-      remaining: MOUNTAIN_STONES - 39_700,
-      pocket: 39_700,
+      remaining: MOUNTAIN_STONES - 999_700,
+      pocket: 999_700,
       helpers: 10,
     };
     let stepped = start;

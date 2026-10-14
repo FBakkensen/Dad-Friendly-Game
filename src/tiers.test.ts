@@ -8,7 +8,7 @@ import { TIERS, buyTier, tierById, tierCost, tierShown } from "./tiers";
 const at = (
   fields: Partial<Omit<Mountain, "remaining" | "startedAt">>,
 ): Mountain => ({
-  remaining: 1_000,
+  remaining: 240_000_000,
   pocket: 0,
   helpers: 0,
   carts: 0,
@@ -82,8 +82,11 @@ describe("tiers", () => {
     });
     expect(stonesPerSecond(crew)).toBe(38 + 20 + 60 + 595 + 3_500);
     expect(
-      accrue({ mountain: { ...crew, remaining: 10_000 }, from: 0, to: 1_000 })
-        .mined,
+      accrue({
+        mountain: { ...crew, remaining: 240_000_000 },
+        from: 0,
+        to: 1_000,
+      }).mined,
     ).toBe(4_213);
   });
 
@@ -145,12 +148,12 @@ describe("crew staffing", () => {
     const rates = effectiveRates(crew);
     expect(rates.running.machine).toBe(0);
     expect(rates.running.cart).toBe(4);
-    expect(rates.crewPerSecond).toBe(9 + 40);
+    expect(rates.crewPerSecond).toBe(9 + 36);
     expect(accrueAway({ mountain: crew, lastSeen: 0, now: 10_000 }).mined).toBe(
-      Math.floor(10 * 49 * AWAY_PAY_RATE),
+      Math.floor(10 * 45 * AWAY_PAY_RATE),
     );
     const staffed = effectiveRates({ ...crew, helpers: 29 });
-    expect(staffed.crewPerSecond).toBe(29 + 40 + 3_500);
+    expect(staffed.crewPerSecond).toBe(29 + 36 + 3_500);
     expect(staffed.helpersShort).toBe(0);
   });
 });

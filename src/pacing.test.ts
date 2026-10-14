@@ -66,10 +66,12 @@ function expectPaidForNils(run: DadRun): void {
   expect(paid?.helpersAfter).toBe((paid?.helpersBefore ?? 0) - 1);
   expect(paid?.pocketAfter).toBe((paid?.pocketBefore ?? 0) - NILS_PRICE);
   const borer = run.buys.find((buy) => buy.id === "borer");
-  // #177: the 9M borer is bought before the pocket also holds Nils's 2M,
-  // so the promotion is the next sitting, half a day later.
+  // The borer and Nils share a sitting when the pocket can hold both, and
+  // Nils waits until the next sitting when it cannot. Hardness moves which
+  // of those two the dad lands on.
   expect(paid?.day).toBeGreaterThanOrEqual(borer?.day ?? Infinity);
-  expect((paid?.day ?? 0) - (borer?.day ?? 0)).toBeCloseTo(0.5, 1);
+  const gap = (paid?.day ?? 0) - (borer?.day ?? 0);
+  expect(gap === 0 || Math.abs(gap - 0.5) < 0.02).toBe(true);
 }
 
 // Second run (M6): the kid's crew is ×1.5. Exact catalogue valuation lands
@@ -115,8 +117,8 @@ describe.each([
     { buysUpgrades: true, buysBoosts: true },
     5,
     1.51,
-    // #177: the second Great Machine is 134M. Boosts pay for it on day 5.
-    2,
+    // One Great Machine. The rock makes a second one wait past the bottom.
+    1,
   ],
 ])(
   "pacing: no dead zone for %s (#140)",
@@ -189,7 +191,7 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
     expect(borer).toMatchObject({
       count: 1,
       price: 9_000_000,
-      short: 7,
+      short: 6,
     });
     expect(borer?.shortCost).toBeGreaterThan(0);
     expect((borer?.shortCost ?? 0) / (borer?.price ?? 1)).toBeLessThan(0.1);

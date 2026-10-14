@@ -682,6 +682,7 @@ function valueCraft(
   switch (recipe.effect.kind) {
     case "tier":
     case "reinforce":
+    case "temper":
       return withBench(
         rateValue(
           mountain,

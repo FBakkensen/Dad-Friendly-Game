@@ -11,6 +11,7 @@ import {
   emberMachineMultiplier,
   expeditionCraftScale,
   gearMultiplier,
+  temperCrewMultiplier,
   recipeById,
   recipeCost,
   troubleGapScale,
@@ -101,6 +102,8 @@ function reading(factorId: string): number {
         return emberMachineMultiplier(geared, 0);
       case "reinforce":
         return gearMultiplier(geared, "machine");
+      case "temper":
+        return temperCrewMultiplier(geared);
     }
   }
   if (factorId.startsWith("layer.")) {

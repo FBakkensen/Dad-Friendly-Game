@@ -136,16 +136,16 @@ describe("golden veins", () => {
     expect(mineVein(empty)).toBe(empty);
   });
 
-  it("grants a clay when the vein crosses 40,000 stones", () => {
+  it("grants a clay when the vein crosses 1,000,000 stones", () => {
     const mountain = {
       ...createMountain(),
-      remaining: MOUNTAIN_STONES - 39_960,
-      pocket: 39_960,
+      remaining: MOUNTAIN_STONES - 999_960,
+      pocket: 999_960,
     };
     const tapped = mineVein(mountain);
-    expect(minedOut(tapped)).toBe(40_010);
+    expect(minedOut(tapped)).toBe(1_000_010);
     expect(tapped.materials).toEqual({ ...EMPTY_MATERIALS, clay: 1 });
-    expect(tapped.pocket).toBe(40_010);
+    expect(tapped.pocket).toBe(1_000_010);
   });
 
   it("matches materialsFromMined when a tap, the crew, time away, and a vein dig together", () => {
