@@ -7,6 +7,7 @@ import {
   type Mountain,
 } from "./mountain";
 import {
+  isRecipeId,
   parseBench,
   parseCrafted,
   parseMaterials,
@@ -174,13 +175,25 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
   }
 }
 
-/** `null` is an empty bench. Anything else must be one craft. */
+/** `null` is an empty bench. A recipe this client does not know is dropped. */
 function readBench(value: unknown): Bench | undefined | "bad" {
   if (value === undefined || value === null) {
     return undefined;
   }
+  if (typeof value === "object" && unknownBenchRecipe(value)) {
+    return undefined;
+  }
   const bench = parseBench(value);
   return bench === undefined ? "bad" : bench;
+}
+
+/** A bench whose recipe id is a string this build has never heard of. */
+function unknownBenchRecipe(value: object): boolean {
+  if (Array.isArray(value)) {
+    return false;
+  }
+  const recipe = (value as Record<string, unknown>)["recipe"];
+  return typeof recipe === "string" && !isRecipeId(recipe);
 }
 
 /** Missing means nothing crafted. An empty map is the same. */

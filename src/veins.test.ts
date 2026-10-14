@@ -1,4 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { EMPTY_MATERIALS, materialsFromMined } from "./layers";
+import {
+  MOUNTAIN_STONES,
+  accrue,
+  accrueAway,
+  createMountain,
+  mineByHand,
+  minedOut,
+} from "./mountain";
 import {
   LANTERN_VEIN_GAP_SCALE,
   VEIN_GLINT_MS,
@@ -111,6 +120,7 @@ describe("golden veins", () => {
       borers: 0,
       machines: 0,
       kids: 0,
+      materials: EMPTY_MATERIALS,
     });
     const empty = {
       remaining: 0,
@@ -123,6 +133,39 @@ describe("golden veins", () => {
       kids: 0,
     };
     expect(mineVein(empty)).toBe(empty);
+  });
+
+  it("grants a clay when the vein crosses 40,000 stones", () => {
+    const mountain = {
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - 39_960,
+      pocket: 39_960,
+    };
+    const tapped = mineVein(mountain);
+    expect(minedOut(tapped)).toBe(40_010);
+    expect(tapped.materials).toEqual({ ...EMPTY_MATERIALS, clay: 1 });
+    expect(tapped.pocket).toBe(40_010);
+  });
+
+  it("matches materialsFromMined when a tap, the crew, time away, and a vein dig together", () => {
+    let mountain = {
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - 39_900,
+      pocket: 39_900,
+      helpers: 2,
+    };
+    for (let tap = 0; tap < 10; tap += 1) {
+      mountain = mineByHand(mountain);
+    }
+    mountain = accrue({ mountain, from: 0, to: 5_000 }).mountain;
+    mountain = accrueAway({
+      mountain,
+      lastSeen: 0,
+      now: 10_000,
+    }).mountain;
+    mountain = mineVein(mountain);
+    expect(minedOut(mountain)).toBeGreaterThan(40_000);
+    expect(mountain.materials).toEqual(materialsFromMined(minedOut(mountain)));
   });
 
   it("lets a golden vein linger longer once the old miner's lamp is home", () => {

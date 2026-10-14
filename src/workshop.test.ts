@@ -99,30 +99,36 @@ describe("workshop save fields", () => {
     expect(parseCrafted({ "diamond-bits": MAX_CRAFTED_LEVEL })).toEqual({
       "diamond-bits": MAX_CRAFTED_LEVEL,
     });
+    expect(parseCrafted({ turbo: 1, "iron-rails": 2 })).toEqual({
+      "iron-rails": 2,
+    });
+    expect(parseCrafted({ turbo: 1 })).toEqual({});
     for (const bad of [
       null,
       [],
-      { turbo: 1 },
       { "iron-rails": 1.5 },
       { "blasting-charge": -1 },
       { "crystal-lamp": MAX_CRAFTED_LEVEL + 1 },
+      { turbo: 1, "iron-rails": -1 },
     ]) {
       expect(parseCrafted(bad)).toBeUndefined();
     }
   });
 
-  it("accepts a recipe list and rejects duplicates and strangers", () => {
+  it("drops an unknown or repeated recipe and keeps the ones it knows", () => {
     expect(parseRecipes([])).toEqual([]);
     expect(parseRecipes(["engineers-kit", "iron-rails"])).toEqual([
       "engineers-kit",
       "iron-rails",
     ]);
     expect(parseRecipes([...RECIPE_IDS])).toEqual([...RECIPE_IDS]);
-    expect(parseRecipes(["iron-rails", "iron-rails"])).toBeUndefined();
-    expect(parseRecipes(["nope"])).toBeUndefined();
+    expect(parseRecipes(["iron-rails", "future-bit", "iron-rails"])).toEqual([
+      "iron-rails",
+    ]);
+    expect(parseRecipes(["nope"])).toEqual([]);
     expect(
       parseRecipes(new Array(RECIPE_IDS.length + 1).fill("iron-rails")),
-    ).toBeUndefined();
+    ).toEqual(["iron-rails"]);
     expect(parseRecipes("iron-rails")).toBeUndefined();
   });
 });

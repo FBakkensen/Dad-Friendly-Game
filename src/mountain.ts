@@ -138,11 +138,11 @@ export function mineByHand(
     mountain.remaining,
     effectiveRates(mountain, now, trouble).tapYield,
   );
-  return dug(mountain, mined);
+  return digStones(mountain, mined);
 }
 
 /** Stones leave the mountain, and the band they came from drops its material. */
-function dug(mountain: Mountain, mined: number): Mountain {
+export function digStones(mountain: Mountain, mined: number): Mountain {
   const before = minedOut(mountain);
   return {
     ...mountain,
@@ -212,7 +212,7 @@ export function accrue({
     return { mountain, mined: 0, settledAt };
   }
   return {
-    mountain: dug(mountain, mined),
+    mountain: digStones(mountain, mined),
     mined,
     settledAt,
   };

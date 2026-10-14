@@ -127,9 +127,10 @@ service cloud.firestore {
         (expeditions.size() < 2 || tripTimesOk(expeditions[1]));
     }
 
-    // Unknown ids and duplicates are rejected by the parser. Listing every id
-    // here, beside a full crew and the workshop, crosses the 1000-expression
-    // budget. The shelf is capped at its length.
+    // Unknown ids and duplicates are dropped by the parser, so a newer shelf
+    // id cannot lock this client out. Listing every id here, beside a full
+    // crew and the workshop, crosses the 1000-expression budget. The shelf
+    // is capped at its length.
     function isValidFinds(finds) {
       return finds is list && finds.size() <= 9;
     }

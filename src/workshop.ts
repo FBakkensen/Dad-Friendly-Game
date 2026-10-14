@@ -120,7 +120,10 @@ export function parseCrafted(value: unknown): Crafted | undefined {
   }
   const parsed: Partial<Record<RecipeId, number>> = {};
   for (const [key, level] of Object.entries(value)) {
-    if (!isRecipeId(key) || !isWhole(level) || level > MAX_CRAFTED_LEVEL) {
+    if (!isRecipeId(key)) {
+      continue;
+    }
+    if (!isWhole(level) || level > MAX_CRAFTED_LEVEL) {
       return undefined;
     }
     parsed[key] = level;
@@ -128,15 +131,18 @@ export function parseCrafted(value: unknown): Crafted | undefined {
   return parsed;
 }
 
-/** Found recipes, in the order they were saved. No duplicates. */
+/**
+ * Found recipes, in the order they were saved. An id this client does not
+ * know, and a duplicate, are dropped so a newer recipe cannot lock the save.
+ */
 export function parseRecipes(value: unknown): readonly RecipeId[] | undefined {
-  if (!Array.isArray(value) || value.length > RECIPE_IDS.length) {
+  if (!Array.isArray(value)) {
     return undefined;
   }
   const parsed: RecipeId[] = [];
   for (const item of value) {
     if (!isRecipeId(item) || parsed.includes(item)) {
-      return undefined;
+      continue;
     }
     parsed.push(item);
   }

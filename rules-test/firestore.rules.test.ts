@@ -34,7 +34,7 @@ import {
   type Mountain,
 } from "../src/mountain";
 import { MAX_MATERIAL } from "../src/layers";
-import { MAX_CRAFTED_LEVEL, MAX_CRAFT_MS, RECIPE_IDS } from "../src/workshop";
+import { MAX_CRAFTED_LEVEL, MAX_CRAFT_MS } from "../src/workshop";
 import { parseSaveValue, serializeSave } from "../src/persist";
 import { effectiveRates } from "../src/rates";
 import { UPGRADES } from "../src/upgrades";
@@ -283,13 +283,17 @@ describe("firestore.rules: every save the game writes is accepted", () => {
       ]),
     ).rejects.toThrow(/permission/i);
     await expect(writeExpeditions([tooLong])).rejects.toThrow(/permission/i);
-    // A bad home, an extra key, a nonsense find, two trips for one name, or a
-    // duplicate on the shelf are rejected by the parser. The rules expression
-    // budget cannot check them on top of a full crew.
-    // Unknown shelf ids are rejected by the parser. The rules cap the length.
-    await expect(writeFinds(["turbo"])).resolves.toBeUndefined();
+    // A bad home, an extra key, a nonsense find, or two trips for one name are
+    // rejected by the parser. The rules expression budget cannot check them
+    // on top of a full crew. An unknown or repeated shelf id is dropped.
+    await expect(
+      writeFinds(["turbo", "pick", "pick"]),
+    ).resolves.toBeUndefined();
     const unknownShelf = await getDoc(doc(db, "saves", "dad"));
-    expect(parseSaveValue(unknownShelf.data())).toBeUndefined();
+    const loadedShelf = parseSaveValue(unknownShelf.data());
+    expect(loadedShelf?.mountain.finds).toEqual(["pick"]);
+    expect(loadedShelf?.mountain.remaining).toBe(mountain.remaining);
+    expect(loadedShelf?.mountain.pocket).toBe(mountain.pocket);
     await expect(
       writeFinds(new Array(FIND_IDS.length + 1).fill("lamp")),
     ).rejects.toThrow(/permission/i);
@@ -335,8 +339,6 @@ describe("firestore.rules: every save the game writes is accepted", () => {
       { materials: { ...mountain.materials, clay: -1 } },
       { materials: { ...mountain.materials, clay: 1.5 } },
       { materials: { ...mountain.materials, clay: MAX_MATERIAL.clay + 1 } },
-      { recipes: ["turbo"] },
-      { recipes: new Array(RECIPE_IDS.length + 1).fill("iron-rails") },
       { bench: { recipe: "iron-rails", startedAt: 5, endsAt: 5 } },
       {
         bench: {
@@ -346,7 +348,6 @@ describe("firestore.rules: every save the game writes is accepted", () => {
         },
       },
       { crafted: { "iron-rails": MAX_CRAFTED_LEVEL + 1 } },
-      { crafted: { turbo: 1 } },
     ]) {
       await expect(
         writeWorkshop({ ...raw.workshop, ...patch }),
@@ -354,6 +355,20 @@ describe("firestore.rules: every save the game writes is accepted", () => {
       const snap = await getDoc(doc(db, "saves", "dad"));
       expect(parseSaveValue(snap.data())).toBeUndefined();
     }
+    await expect(
+      writeWorkshop({
+        ...raw.workshop,
+        recipes: ["future-bit", "iron-rails", "iron-rails"],
+        bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
+        crafted: { "future-bit": 3, "iron-rails": 1 },
+      }),
+    ).resolves.toBeUndefined();
+    const newer = await getDoc(doc(db, "saves", "dad"));
+    const loadedNewer = parseSaveValue(newer.data());
+    expect(loadedNewer?.mountain.recipes).toEqual(["iron-rails"]);
+    expect(loadedNewer?.mountain.bench).toBeUndefined();
+    expect(loadedNewer?.mountain.crafted).toEqual({ "iron-rails": 1 });
+    expect(loadedNewer?.mountain.remaining).toBe(mountain.remaining);
     await expect(
       setDoc(doc(db, "saves", "dad"), { ...raw, version: 7 }),
     ).rejects.toThrow(/permission/i);

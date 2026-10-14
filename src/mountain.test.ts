@@ -198,7 +198,7 @@ describe("mountain", () => {
     expect(
       parseMountain({ ...base, materials: { ...materials, clay: 1.5 } }),
     ).toBeUndefined();
-    expect(parseMountain({ ...base, recipes: ["nope"] })).toBeUndefined();
+    expect(parseMountain({ ...base, recipes: ["nope"] })?.recipes).toEqual([]);
     expect(
       parseMountain({
         ...base,

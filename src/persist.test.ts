@@ -473,11 +473,42 @@ describe("v6 materials back-grant (#195)", () => {
     for (const workshop of [
       null,
       { materials: saved.workshop.materials },
-      { ...saved.workshop, bench: { recipe: "nope" } },
-      { ...saved.workshop, crafted: { turbo: 1 } },
+      { ...saved.workshop, bench: [] },
+      { ...saved.workshop, bench: 4 },
+      { ...saved.workshop, bench: { recipe: 1, startedAt: 1, endsAt: 2 } },
+      {
+        ...saved.workshop,
+        bench: { recipe: "iron-rails", startedAt: 5, endsAt: 4 },
+      },
     ]) {
       expect(parseSaveValue({ ...saved, workshop })).toBeUndefined();
     }
+  });
+
+  it("drops an unknown shelf id and an unknown recipe, and keeps the stones", () => {
+    const mountain = {
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - 12_000_000,
+      pocket: 12_000_000,
+      finds: ["pick" as const],
+    };
+    const saved = serializeSave({ mountain, lastSeen: 4 });
+    const loaded = parseSaveValue({
+      ...saved,
+      mountain: { ...saved.mountain, finds: ["turbo", "pick", "pick"] },
+      workshop: {
+        ...saved.workshop,
+        recipes: ["future-bit", "iron-rails", "iron-rails"],
+        bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
+        crafted: { "future-bit": 2, "sturdy-props": 1 },
+      },
+    });
+    expect(loaded?.mountain.finds).toEqual(["pick"]);
+    expect(loaded?.mountain.recipes).toEqual(["iron-rails"]);
+    expect(loaded?.mountain.bench).toBeUndefined();
+    expect(loaded?.mountain.crafted).toEqual({ "sturdy-props": 1 });
+    expect(loaded?.mountain.remaining).toBe(MOUNTAIN_STONES - 12_000_000);
+    expect(loaded?.mountain.pocket).toBe(12_000_000);
   });
 
   it("trusts a v6 pocket and does not grant again", () => {
