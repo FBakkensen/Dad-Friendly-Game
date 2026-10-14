@@ -66,6 +66,43 @@ describe("passing the mine to your kid", () => {
   it("never lets a run start before the one it replaces", () => {
     expect(passTheMine(bottom, 500)?.startedAt).toBe(1_001);
   });
+
+  it("keeps the recipes and clears materials, the bench, and crafted gear", () => {
+    const parent = {
+      ...bottom,
+      materials: { clay: 9, iron: 8, crystal: 7, heartstone: 6 },
+      bench: {
+        recipe: "heartstone-core" as const,
+        startedAt: 1,
+        endsAt: 2,
+      },
+      crafted: { "diamond-bits": 2 },
+      recipes: [
+        "iron-rails",
+        "sturdy-props",
+        "blasting-charge",
+        "diamond-bits",
+        "crystal-lamp",
+        "heartstone-core",
+      ] as const,
+    };
+    const next = passTheMine(parent, 5_000);
+    expect(next?.recipes).toEqual([...parent.recipes]);
+    expect(next?.materials).toEqual({
+      clay: 0,
+      iron: 0,
+      crystal: 0,
+      heartstone: 0,
+    });
+    expect(next?.bench).toBeUndefined();
+    expect(next?.crafted).toBeUndefined();
+    expect(next?.legacy).toBe(1);
+    const { recipes, ...bare } = bottom;
+    expect(passTheMine(bare, 5_000)?.recipes).toEqual(
+      passTheMine(bottom, 5_000)?.recipes,
+    );
+    expect(recipes).toEqual(passTheMine(bare, 5_000)?.recipes);
+  });
 });
 
 describe("legacy in the save", () => {

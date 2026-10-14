@@ -7,6 +7,7 @@ import {
   type EngineerRank,
 } from "./engineers";
 import { slowedSpeed, type Trouble } from "./hazards";
+import { hardnessFactorId, layerOf } from "./layers";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import { TIERS, owned, type TierId } from "./tiers";
@@ -121,10 +122,15 @@ export function effectiveRates(
       ? boostById(id).multiplier
       : 1;
   const taught = 1 + mountain.kids * KID_TEACH_PER_KID;
+  const layer = layerOf(mountain);
   const tierSpeed = Object.fromEntries(
     TIERS.map((tier) => {
-      // A sweep scales the tier's own stones a second. The factor is 1 in play.
-      const output = tier.perSecond * factor(`output.${tier.id}`);
+      // A sweep scales the tier's own stones a second, and the rock of this
+      // layer. Both factors are 1 in play.
+      const output =
+        tier.perSecond *
+        factor(`output.${tier.id}`) *
+        factor(hardnessFactorId(layer.index, tier.id));
       return [
         tier.id,
         tier.id === "helper"

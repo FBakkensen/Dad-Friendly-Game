@@ -87,12 +87,30 @@ describe("firestore.rules match the game", () => {
         },
       ],
       finds: ["pick"],
+      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+      bench: {
+        recipe: "iron-rails",
+        startedAt: 1,
+        endsAt: 1 + 60_000,
+      },
+      crafted: { "iron-rails": 1 },
+      recipes: ["iron-rails"],
     };
     const match = /mountain\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/.exec(rules);
     const allowed = (match?.[1] ?? "")
       .split(",")
       .map((key) => key.trim().replace(/'/g, ""));
-    expect(allowed.sort()).toEqual(Object.keys(everyField).sort());
+    // Materials, the bench, crafted gear, and recipes sit beside the mountain
+    // in a v6 document. The mountain key list cannot grow (#195).
+    const beside = ["materials", "bench", "crafted", "recipes"];
+    expect(allowed.sort()).toEqual(
+      Object.keys(everyField)
+        .filter((key) => !beside.includes(key))
+        .sort(),
+    );
+    expect(rules).toContain(
+      "hasOnlyAllowedFields(['version', 'mountain', 'lastSeen', 'workshop'])",
+    );
     expect(rules).toContain("mountain.staffed == true");
     expect(rules).toContain("mountain.staffed == 1");
     expect(rules).toContain("mountain.staffed == 2");
@@ -114,13 +132,18 @@ describe("firestore.rules match the game", () => {
     for (const tunnel of TUNNELS) {
       expect(rules).toContain(`'${tunnel.id}'`);
     }
-    for (const id of FIND_IDS) {
-      expect(rules).toContain(`'${id}'`);
-    }
     expect(rules).toContain(`expeditions.size() <= ${String(MAX_EXPEDITIONS)}`);
     expect(rules).toContain(`finds.size() <= ${String(FIND_IDS.length)}`);
     expect(rules).toContain("trip.returnsAt > trip.sentAt");
     expect(rules).toContain(String(MAX_EXPEDITION_MS));
+  });
+
+  it("accepts a v6 workshop map beside the mountain (#195)", () => {
+    expect(rules).toContain("data.version == 6");
+    expect(rules).toContain("data.workshop is map");
+    expect(rules).toContain(
+      "hasOnlyAllowedFields(['version', 'mountain', 'lastSeen', 'workshop'])",
+    );
   });
 
   it("allows exactly the field log document (#142)", () => {

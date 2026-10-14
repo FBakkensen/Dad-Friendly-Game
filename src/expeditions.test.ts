@@ -737,14 +737,14 @@ describe("parse", () => {
         expeditions: [trip],
       }),
     ).toBeUndefined();
-    for (const finds of [
-      ["pick", "pick"],
-      ["turbo"],
-      "pick",
-      new Array(10).fill("pick"),
-    ]) {
-      expect(parseMountain({ ...base, finds })).toBeUndefined();
-    }
+    expect(parseMountain({ ...base, finds: "pick" })).toBeUndefined();
+    expect(
+      parseMountain({ ...base, finds: ["turbo", "pick", "pick"] })?.finds,
+    ).toEqual(["pick"]);
+    expect(parseMountain({ ...base, finds: ["turbo"] })?.finds).toBeUndefined();
+    expect(
+      parseMountain({ ...base, finds: new Array(10).fill("pick") })?.finds,
+    ).toEqual(["pick"]);
   });
 
   it("drops a trip whose leader is gone and still comes home", () => {

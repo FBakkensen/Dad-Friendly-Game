@@ -381,7 +381,7 @@ A knob is one entry: a factor id the price, growth, output, or tending formula a
 
 ### Milestone 9: Layers and the Workshop
 
-**M9 is planned.** Approved by Flemming (2026-10-14). Later issues update this line. Nothing in this section is in the game yet. The numbers the plan calls first cut are first cut, and M9-7 lab-tunes them. This page adds no other numbers.
+**M9 is in progress.** Approved by Flemming (2026-10-14). The layers rules module is in (`src/layers.ts`, #194): four bands from stones mined, and a hardness factor per layer and tier that stays at 1 until M9-7. Materials accrue, and the save is v6 (#195). The workshop rules and the screens are still to come. Later issues update this line. The numbers the plan calls first cut are first cut, and M9-7 lab-tunes them. This page adds no other numbers.
 
 #### The idea
 
@@ -405,7 +405,7 @@ These are published methods, not new ones. Each choice below rests on one of the
 
 #### Layers
 
-The layer is derived from **stones mined**, the same way relics are, so the save gets no layer field. Bands are aligned to relic depths so each relic is also a landmark.
+The layer is derived from **stones mined**, the same way relics are, so the save gets no layer field. `layerOf` in `src/layers.ts` (#194) reads that total. A band starts on its first stone, so 10M is the Granite, beside the Shield. Bands are aligned to relic depths so each relic is also a landmark.
 
 | #   | Layer (player name) | Stones mined              | Material   | Rock (hidden, lab-tuned)                          |
 | --- | ------------------- | ------------------------- | ---------- | ------------------------------------------------- |
@@ -414,8 +414,8 @@ The layer is derived from **stones mined**, the same way relics are, so the save
 | 3   | The Crystal Caves   | 45M to 120M               | Crystal    | hard on drills, kind to borers                    |
 | 4   | The Deep Heart      | 120M to 240M              | Heartstone | hard on everything but the Great Machine and kids |
 
-- **Rock hardness** is a per-layer, per-tier speed factor. The first cut is 0.85 to 1.15, and it is lab-tuned. It is applied in `effectiveRates` through the existing `factor()` hook, so the sweep can tune it. Until M9-7 the factor defaults to 1, which keeps today's pace. It turns "which machine next" into a fresh question in each layer (Pecorella: shifting priorities). The player sees the card's real `+N/s`, which already includes the hardness. A purchase shows real numbers. The hardness itself is never shown as a percentage. The layer card only says, for example, "The granite is tough on carts. Drills love it."
-- **Materials** accrue deterministically inside `accrue` and `accrueAway`: one unit per `MATERIAL_EVERY` stones mined in that layer. The first cut is one per 40K stones in the Topsoil, scaling with depth, and that rate is lab-tuned. They are integers in the save. There is no randomness, so live and away earnings cannot drift.
+- **Rock hardness** is a per-layer, per-tier speed factor (`layer.<n>.<tier>.hardness`). The first cut is 0.85 to 1.15, and it is lab-tuned. It is applied in `effectiveRates` through the existing `factor()` hook, so the sweep can tune it. Until M9-7 the factor defaults to 1, which keeps today's pace. Wired in #194. It turns "which machine next" into a fresh question in each layer (Pecorella: shifting priorities). The player sees the card's real `+N/s`, which already includes the hardness. A purchase shows real numbers. The hardness itself is never shown as a percentage. The layer card only says, for example, "The granite is tough on carts. Drills love it."
+- **Materials** accrue deterministically inside `accrue`, `accrueAway`, and a hand tap: one unit per `MATERIAL_EVERY` stones mined in that layer. The first cut is one per 40,000 stones in the Topsoil, then double that gap each band deeper (80,000 iron, 160,000 crystal, 320,000 heartstone). M9-7 lab-tunes it. They are integers in the save. There is no randomness, so live and away earnings cannot drift. A remainder waits in the stone total, so small digs add up to the same units as one long dig.
 - **Discovery stays vague.** Before you reach a layer you see only a hint on the progress bar ("Below the topsoil, the rock turns hard and grey."). No depth, no name of the material, no recipe list. Once you arrive, the material and its count are real numbers, because they are spent on purchases.
 
 #### The Workshop
@@ -495,9 +495,9 @@ Mockups come first (M9-2), using the existing `mockups/` puppeteer flow, at 390�
 
 #### Save
 
-Save **v6**:
+Save **v6**. In memory these sit on the mountain. In the document they are one `workshop` map beside it, because a full crew is already at the Firestore expression budget:
 
-- `materials: { clay, iron, crystal, heartstone }`, integers.
+- `materials: { clay, iron, crystal, heartstone }`, integers. Each is capped at that band's width in stones.
 - `bench: { recipe, startedAt, endsAt } | null`.
 - `crafted: Record<RecipeId, level>`.
 - `recipes: RecipeId[]`, the ones found.
@@ -526,8 +526,8 @@ One PR each, in dependency order. Every issue keeps `npm run check` green, inclu
 
 1. **M9-1 (#192) DESIGN.md.** This section. Depends on nothing.
 2. **M9-2 (#193) Mockups.** Workshop, layer card, material line, and craft done, in `mockups/`, with screenshots at 390×844 and 360×640. No scroll at either size. Labels and tap feedback are described. Flemming approves. Depends on M9-1.
-3. **M9-3 (#194) Layers** (`src/layers.ts`). Bands derived from stones mined, `layerOf(mountain)`, and hardness factors wired through `factor()` and defaulting to 1. Behavior-preserving. Pacing pins and the lab report stay unchanged. Unit tests at the band edges. Depends on M9-1.
-4. **M9-4 (#195) Materials and save v6.** Materials accrue in `accrue` and `accrueAway`. v5 migrates to v6. Firestore rules and rules tests. Old saves (v1 to v5, local and cloud) load and keep stones mined. Live and away accrual match to the unit. No UI yet. Depends on M9-3.
+3. **M9-3 (#194) Layers** (`src/layers.ts`). Bands derived from stones mined, `layerOf(mountain)`, and hardness factors wired through `factor()` and defaulting to 1. Behavior-preserving. Pacing pins and the lab report stay unchanged. Unit tests at the band edges. Depends on M9-1. Built.
+4. **M9-4 (#195) Materials and save v6.** Materials accrue in `accrue` and `accrueAway`. v5 migrates to v6. Firestore rules and rules tests. Old saves (v1 to v5, local and cloud) load and keep stones mined. Live and away accrual match to the unit. No UI yet. Depends on M9-3. Built.
 5. **M9-5 (#196) Workshop rules** (`src/workshop.ts`). Recipe catalogue, bench start, settle, and cancel with a full refund, item effects in `effectiveRates`, recipe and strength factors defaulting to 1. Pure and tested. A finished craft settles once across reload and away. Depends on M9-4.
 6. **M9-6 (#197) Lab.** `craft` and `cancelCraft` in the catalogue and `valueOf`, a craft step for the casual types and the optimizer, the three extreme policies, `craftShare`, `materialIdle`, and `benchIdle`, and the new target rows in `targets.ts`. This is the only issue allowed to touch that file. The rows are the ones approved above. Add-one-file tests still pass. The report shows the new rows. No gameplay change. Depends on M9-5.
 7. **M9-7 (#198) Retune.** Turns hardness and recipe numbers on with `npm run lab:sweep`, and moves the economy, not the targets. The strict lab is green: casual finish in 5 to 7 days and never under 5, dead stretch at most 0.5 day, the single, dominant, and live targets, tending at least 8%, crafted at least 8%, `materialIdle` at most 0.5 day, and no extreme wins. Margins are reported in the PR. Depends on M9-6.

@@ -203,6 +203,18 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/layers.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/workshop.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/expeditions.ts": {
           statements: 100,
           branches: 100,
