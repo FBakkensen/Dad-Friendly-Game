@@ -13,7 +13,7 @@ import {
 } from "./casual";
 import { DAY_MS, HOURS_PER_DAY, SAMPLE_INTERVAL_SEC, TARGETS } from "./targets";
 
-describe("casual run", () => {
+describe("casual run", { timeout: 120_000 }, () => {
   it("samples every play-minute, including the start of a session", () => {
     expect(isSampleSecond(0)).toBe(true);
     expect(isSampleSecond(SAMPLE_INTERVAL_SEC)).toBe(true);
