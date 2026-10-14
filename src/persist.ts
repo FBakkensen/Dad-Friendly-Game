@@ -310,8 +310,8 @@ function readRecipes(
 }
 
 /**
- * `null` is an empty bench. A recipe this client does not know is not
- * shown, and it is not dropped: the next write puts it back.
+ * `null` is an empty bench. A recipe this client does not know stays on
+ * the bench until its clock ends, and the next write puts it back.
  */
 function readBench(
   value: unknown,

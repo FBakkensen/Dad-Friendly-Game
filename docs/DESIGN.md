@@ -147,7 +147,7 @@ M2 gives the player one choice: which tier to buy next. M3 adds the real idle-ga
 - **M5: Maintenance.** See below. Before any new feature.
 - **M6: Legacy.** Prestige (pass the mine to your kid), per the #83 note above.
 - **M8: Strategy lab.** Decision quality, offline. See Milestone 8 below. M8 is built.
-- **M9: Layers and the Workshop.** Four rock bands and a one-bench workshop. See Milestone 9 below. M9 is planned.
+- **M9: Layers and the Workshop.** Four rock bands and a one-bench workshop. See Milestone 9 below. M9 is built.
 
 ### M5: Maintenance
 
@@ -381,7 +381,7 @@ A knob is one entry: a factor id the price, growth, output, or tending formula a
 
 ### Milestone 9: Layers and the Workshop
 
-**M9 is in progress.** Approved by Flemming (2026-10-14). The layers rules module is in (`src/layers.ts`, #194): four bands from stones mined, and a hardness multiplier per layer and tier. Materials accrue, and the save is v6 (#195). The workshop rules are in (`src/workshop.ts`, #196): one bench, crafts that finish from the clock including time away, a full refund on lasting gear, and only the unused share of a live timer. The strategy lab can craft (#197). M9-7 (#198) tuned the rock and the recipes and made the two approved guardrails strict. The Workshop sheet is in (`src/workshop-panel.ts`, #199): real numbers, a short craft that shakes, a bench countdown that keeps running while the sheet is shut, and one dark sketch for what is still unfound. The layer card, the material line under the pocket, and the craft-done notice are in (#200). A band already reached when a save loads is not announced again. Recipes are found on an expedition and when a layer opens (#201): the line folds into the return and the layer card, and an unknown bench or recipe is written back so an older app does not drop that craft. Later issues update this line.
+**M9 is built.** Approved by Flemming (2026-10-14). The layers rules module is in (`src/layers.ts`, #194): four bands from stones mined, and a hardness multiplier per layer and tier. Materials accrue, and the save is v6 (#195). The workshop rules are in (`src/workshop.ts`, #196): one bench, crafts that finish from the clock including time away, a full refund on lasting gear, and only the unused share of a live timer. The strategy lab can craft (#197). M9-7 (#198) tuned the rock and the recipes and made the two approved guardrails strict. The Workshop sheet is in (`src/workshop-panel.ts`, #199): real numbers, a short craft that shakes, a bench countdown that keeps running while the sheet is shut, and one dark sketch for what is still unfound. The layer card, the material line under the pocket, and the craft-done notice are in (#200). A band already reached when a save loads is not announced again. Recipes are found on an expedition and when a layer opens (#201): the line folds into the return and the layer card, and an unknown recipe is written back so an older app does not drop it. A recipe this build cannot name still holds the bench until its clock ends (#202): the sheet says "Something is on the bench" and a new craft waits.
 
 #### The idea
 
@@ -444,7 +444,7 @@ The recipe list is small on purpose: 11 recipes, 3 known before the workshop ope
 Rules that keep this healthy:
 
 - **Every material has a repeatable sink**, so materials never pile up uselessly. Clay has Blasting charge. Crystal has Crystal flare. Heartstone has the Heartstone ember. Iron has axle grease: the whole crew mines ×2 for 20 minutes while you play, starting when the craft goes on the bench. Another grease refreshes that clock and does not stack, and time away never sees it. Axle grease, a blasting charge, and Overtime each double the live crew. When more than one is hot, the crew runs at the strongest of them, so three ×2 timers stay ×2. A stronger recipe still shows on the crew line. Reinforce still spends iron for one more level of a bonus on the next machine tier after the highest one you already run (carts point at drills, drills at borers, borers at the Great Machine), and it stops at 5. Once a Great Machine is running, those levels stay on it. A blasting charge, a crystal flare, and a heartstone ember start when the craft goes on the bench, so the sitting that starts them is the sitting that feels them. Crafting a flare or an ember again refreshes that clock and does not multiply it, and none of those timers change away pay. `recipe.<id>.strength` scales each effect, and the length of a timed one. `materialIdle` checks the sinks.
-- **Recipes are found, not dumped** (Crashlands). The expedition find "a worn recipe" stays vague in the find text ("Nils came back with a sketch folded in a pocket."). The same kind of line joins the layer card and, when the break-in happened away, the welcome card. The recipe card it unlocks has real numbers. An unfound recipe stays one dark silhouette.
+- **Recipes are found, not dumped** (Crashlands). The expedition find "a worn recipe" stays vague in the find text ("Ada came back from the old shaft with a sketch folded in a pocket."). The same kind of line joins the layer card and, when the break-in happened away, the welcome card. The recipe card it unlocks has real numbers. An unfound recipe stays one dark silhouette.
 - **No randomness in what a craft gives.** A purchase is a promise.
 - **Never punishing.** Closing the app does not stop the bench, and a finished craft waits safely. A craft can be cancelled before it finishes. Lasting gear comes back in full, because its effect has not started. A live timer has already started, so the refund is only the unused share of that window, and the effect stops.
 
@@ -502,7 +502,7 @@ Mockups come first (M9-2), using the existing `mockups/` puppeteer flow, at 390�
 Save **v6**. In memory these sit on the mountain. In the document they are one `workshop` map beside it, because a full crew is already at the Firestore expression budget:
 
 - `materials: { clay, iron, crystal, heartstone }`, integers. Each is capped at that band's width in stones.
-- `bench: { recipe, startedAt, endsAt } | null`.
+- `bench: { recipe, startedAt, endsAt } | null`. A recipe this build has not heard of still holds the bench until that clock ends. The sheet says "Something is on the bench" and counts it down. A new craft waits, and there is no refund, because this build does not know what was spent. After the clock, a known craft may take the bench. Until then the unknown craft is written back.
 - `crafted: Record<RecipeId, level>`.
 - `recipes: RecipeId[]`, the ones found.
 - `chargeUntil`, `flareUntil`, and `emberUntil`, optional epoch ms. A blasting charge, a crystal flare, and a heartstone ember are live until then. Missing means that one is cold. Away pay does not use them.
@@ -539,6 +539,6 @@ One PR each, in dependency order. Every issue keeps `npm run check` green, inclu
 8. **M9-8 (#199) Workshop screen.** Built to the M9-2 mockup, with copy in `screen-words`. The visual check does not scroll at 390×844, 360×640, or 360×560. Purchases show real numbers. Locked recipes show none. Tap feedback matches the mockup. Depends on M9-2 and M9-7. Built.
 9. **M9-9 (#200) Layer card, material line, and craft-done notice.** The layer card shows once per layer, including across reload and away. Before the next band, the guide only hints. The material line lists a material once a unit is in the pocket or the digging has earned one, and it does not push the cards off screen. The craft-done notice names what was fitted and the real effect, during play and on the welcome card after time away. The field log records `layer.enter`, `craft.start`, and `craft.done`. Depends on M9-8. Built.
 10. **M9-10 (#201) Recipes found on expeditions and on entering a layer.** A new vague find kind `recipe` in `expeditions.ts`. Recipes unlock on layer entry. The find text has no numbers and the recipe card does. The seeded find is deterministic. The lab stays green. Depends on M9-6 and M9-9. Built.
-11. **M9-11 (#202) Ship check.** Live screenshots (`/workspace/shots/m9-*.png`), a playtest on Flemming's save, and this page marked "M9 is built". Deploy is green. Old saves are verified on the live site. Depends on all of the above.
+11. **M9-11 (#202) Ship check.** A fresh save and an upgraded v5 save played across the four layers, including crafting, cancel, the craft-done notice, an expedition return, passing the mine, and the cloud save line. The phone does not scroll at 390×844, 360×640, or 360×560. This page says "M9 is built". Depends on all of the above. Built.
 
 M9-2 and M9-3 can both start as soon as M9-1 is in. Mockup sign-off (M9-2) can run alongside M9-4 through M9-7.

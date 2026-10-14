@@ -443,17 +443,24 @@ export function createWorkshopPanel({
     const lines = timerLines(mountain, at);
     timers.textContent = lines.join(" · ");
     timers.hidden = lines.length === 0;
-    if (benchState.kind === "busy") {
+    if (benchState.kind === "busy" || benchState.kind === "unknown") {
       bar.hidden = false;
       const percent = Math.round(benchState.progress * 100);
       barFill.style.width = `${String(percent)}%`;
       bar.setAttribute("aria-valuenow", String(percent));
       bar.setAttribute("aria-label", benchState.title);
-      cancel.hidden = benchState.cancel === "";
-      cancel.classList.toggle("is-confirm", cancelArmed);
-      cancel.textContent = cancelArmed
-        ? WORKSHOP_CANCEL_CONFIRM
-        : benchState.cancel;
+      if (benchState.kind === "busy") {
+        cancel.hidden = benchState.cancel === "";
+        cancel.classList.toggle("is-confirm", cancelArmed);
+        cancel.textContent = cancelArmed
+          ? WORKSHOP_CANCEL_CONFIRM
+          : benchState.cancel;
+      } else {
+        cancel.hidden = true;
+        if (cancelArmed) {
+          disarmCancel();
+        }
+      }
     } else {
       bar.hidden = true;
       cancel.hidden = true;

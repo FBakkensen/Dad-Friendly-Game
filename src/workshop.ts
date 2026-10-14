@@ -267,8 +267,8 @@ export type Bench = {
 };
 
 /**
- * A craft this build cannot run. The bench looks empty. The next save
- * writes it back, so a newer recipe is not lost.
+ * A craft this build cannot name. It holds the bench until its clock ends.
+ * The next save writes it back, so a newer recipe is not lost.
  */
 export type KeptBench = {
   readonly recipe: string;
@@ -278,7 +278,8 @@ export type KeptBench = {
 
 /**
  * Workshop fields a newer app wrote. Known recipes stay on `recipes`.
- * These ride along on the next write and are not shown.
+ * A bench here holds the one bench until its clock ends. The rest ride
+ * along on the next write and are not shown.
  */
 export type KeptWorkshop = {
   readonly recipes?: readonly string[];
@@ -365,7 +366,23 @@ export function grantRecipes(
   };
 }
 
-/** A craft the dad chose replaces a bench this build could not show. */
+/**
+ * A craft this build cannot name, still on the clock. Once `now` reaches
+ * `endsAt` the bench is free again, and the kept craft stays in the save
+ * until a new craft takes its place.
+ */
+export function unknownBench(
+  mountain: { readonly kept?: KeptWorkshop },
+  now: number,
+): KeptBench | undefined {
+  const bench = mountain.kept?.bench;
+  if (bench === undefined || !isWhole(now) || now >= bench.endsAt) {
+    return undefined;
+  }
+  return bench;
+}
+
+/** A finished unknown craft can leave. One still running stays. */
 function releaseKeptBench(mountain: Mountain): Mountain {
   const kept = mountain.kept;
   if (kept?.bench === undefined) {
@@ -492,7 +509,8 @@ export function startCraft(
   }
   if (
     !(mountain.recipes?.includes(id) ?? false) ||
-    mountain.bench !== undefined
+    mountain.bench !== undefined ||
+    unknownBench(mountain, now) !== undefined
   ) {
     return mountain;
   }

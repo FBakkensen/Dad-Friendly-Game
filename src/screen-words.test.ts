@@ -45,6 +45,9 @@ import {
   broughtHomeNames,
   broughtHomeToast,
   benchBusyWords,
+  benchUnknownWords,
+  BENCH_UNKNOWN,
+  BENCH_UNKNOWN_ASIDE,
   craftPriceWords,
   WORKSHOP_BENCH_BUSY,
   WORKSHOP_CANCEL_CONFIRM,
@@ -586,6 +589,12 @@ describe("workshop sheet copy (#199)", () => {
     expect(benchBusyWords("Iron rails", 0)).toBe(
       "On the bench: Iron rails · ready",
     );
+    expect(BENCH_UNKNOWN).toBe("Something is on the bench");
+    expect(BENCH_UNKNOWN_ASIDE).toBe("It keeps working while you rest.");
+    expect(benchUnknownWords(9 * 60_000)).toBe(
+      "Something is on the bench · 9:00 left",
+    );
+    expect(benchUnknownWords(0)).toBe("Something is on the bench · ready");
     expect(timerLeftWords("Axle grease", 18 * 60_000 + 40_000)).toBe(
       "Axle grease · 18:40 left",
     );

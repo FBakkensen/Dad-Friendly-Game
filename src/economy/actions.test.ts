@@ -967,6 +967,23 @@ describe("valueOf", () => {
         (action) => action.kind === "craft" && action.recipe === "crystal-lamp",
       ),
     ).toBe(true);
+    const held = shed({
+      kept: {
+        bench: {
+          recipe: "future-bit",
+          startedAt: NOW,
+          endsAt: NOW + 60_000,
+        },
+      },
+    });
+    expect(
+      listActions(held, NOW).some(
+        (action) => action.kind === "craft" || action.kind === "cancelCraft",
+      ),
+    ).toBe(false);
+    expect(
+      listActions(held, NOW + 60_000).some((action) => action.kind === "craft"),
+    ).toBe(true);
     expect(sinkRecipes(shed({ crafted: { "iron-rails": 3 } }))).not.toContain(
       "iron-rails",
     );

@@ -724,6 +724,20 @@ export function workshopMenuWords(leftMs: number | undefined): string {
   return `${WORKSHOP_TITLE} · ${formatClock(leftMs)}`;
 }
 
+/** A craft this build cannot name. The countdown is the only number. */
+export const BENCH_UNKNOWN = "Something is on the bench";
+
+/** It is working. This build does not pretend to know what it will be. */
+export const BENCH_UNKNOWN_ASIDE = "It keeps working while you rest.";
+
+/** "Something is on the bench · 8:12 left", or ready when the clock has rung. */
+export function benchUnknownWords(leftMs: number): string {
+  if (leftMs <= 0) {
+    return `${BENCH_UNKNOWN} · ready`;
+  }
+  return `${BENCH_UNKNOWN} · ${formatClock(leftMs)} left`;
+}
+
 /** "On the bench: Iron rails · 8:12 left", or ready when the clock has rung. */
 export function benchBusyWords(name: string, leftMs: number): string {
   if (leftMs <= 0) {
