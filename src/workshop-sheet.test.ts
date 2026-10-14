@@ -54,6 +54,26 @@ describe("workshop sheet (#199)", () => {
     expect(metMaterialChips(mountain).map((chip) => chip.id)).not.toContain(
       "crystal",
     );
+    expect(metMaterialChips(createMountain())).toEqual([]);
+    expect(
+      metMaterialChips({
+        ...createMountain(),
+        remaining: MOUNTAIN_STONES - 1,
+      }),
+    ).toEqual([]);
+    expect(
+      metMaterialChips({
+        ...createMountain(),
+        remaining: MOUNTAIN_STONES - 1_000_000,
+        materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+      }).map((chip) => chip.text),
+    ).toEqual(["Clay 0"]);
+    expect(
+      metMaterialChips({
+        ...createMountain(),
+        materials: { clay: 3, iron: 0, crystal: 0, heartstone: 0 },
+      }).map((chip) => chip.text),
+    ).toEqual(["Clay 3"]);
     const cards = workshopCards(mountain, 1_000);
     const rails = recipe(cards, "iron-rails");
     expect(rails.name).toBe("Iron rails");

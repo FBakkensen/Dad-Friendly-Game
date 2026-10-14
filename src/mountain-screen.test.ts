@@ -3566,7 +3566,7 @@ describe("layer card, material line, and craft-done notice", () => {
 
   it("shows only materials met, and a vague hint before the next band", () => {
     const screen = mountScreen();
-    expect(screen.text(".material-line")).toBe("Clay 0");
+    expect(screen.text(".material-line")).toBe("");
     expect(screen.text(".layer-hint")).toBe(
       "Below the topsoil, the rock turns hard and grey.",
     );
@@ -3580,9 +3580,13 @@ describe("layer card, material line, and craft-done notice", () => {
       screen.root.querySelector<HTMLElement>(".craft-notice")?.hidden,
     ).toBe(true);
 
-    screen.progress.applyMutation(() => minedMountain(10_000_000));
+    screen.progress.applyMutation(() => ({
+      ...minedMountain(12_000_000),
+      materials: { clay: 10, iron: 2, crystal: 0, heartstone: 0 },
+    }));
     dismissOpen(screen.root);
-    expect(screen.text(".material-line")).toContain("Iron 0");
+    expect(screen.text(".material-line")).toContain("Clay 10");
+    expect(screen.text(".material-line")).toContain("Iron 2");
     expect(screen.text(".material-line")).not.toContain("Crystal");
     expect(screen.text(".material-line")).not.toContain("Heartstone");
     expect(screen.text(".layer-hint")).toBe(

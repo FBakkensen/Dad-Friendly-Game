@@ -2,7 +2,12 @@ import { boostById, boostLeft } from "./boosts";
 import { factor } from "./economy/factors";
 import { TUNNELS } from "./expeditions";
 import { formatCompact } from "./format";
-import { LAYERS, EMPTY_MATERIALS, type MaterialId } from "./layers";
+import {
+  LAYERS,
+  EMPTY_MATERIALS,
+  materialsFromMined,
+  type MaterialId,
+} from "./layers";
 import { expeditionAwayMs } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import { minedOut } from "./scale";
@@ -120,11 +125,18 @@ const TIER_WORD: Readonly<
   machine: "Great Machine",
 };
 
-/** Layers already reached. A later material stays off the line. */
+/**
+ * Materials the pocket can name. A chip appears once a unit is in hand,
+ * or the stones already dug in that band have earned one (spent down to
+ * zero still shows). A later band, and a band with only a remainder, stay off.
+ */
 export function metMaterialChips(mountain: Mountain): readonly MaterialChip[] {
-  const mined = minedOut(mountain);
   const have = mountain.materials ?? EMPTY_MATERIALS;
-  return LAYERS.filter((layer) => mined >= layer.from).map((layer) => ({
+  const earned = materialsFromMined(minedOut(mountain));
+  return LAYERS.filter((layer) => {
+    const id = layer.material;
+    return have[id] > 0 || earned[id] > 0;
+  }).map((layer) => ({
     id: layer.material,
     text: materialCountWords(layer.material, have[layer.material]),
   }));
