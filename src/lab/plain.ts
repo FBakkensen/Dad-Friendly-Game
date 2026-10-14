@@ -10,6 +10,7 @@ import {
   type PolicyParams,
   type SpendWeights,
   type TendChoice,
+  type CraftRule,
   type TroubleFix,
   type TunnelPlan,
   type WorkerRule,
@@ -42,6 +43,8 @@ export type PlainSpec = {
   readonly trouble?: TroubleFix;
   readonly workers?: WorkerRule;
   readonly boosts?: BoostRule;
+  /** Defaults to crafting when the next buy can wait. */
+  readonly craft?: CraftRule;
   readonly decide?: Policy["decide"];
 };
 
@@ -62,6 +65,7 @@ export function plainParams(spec: PlainSpec): PolicyParams {
     trouble: spec.trouble ?? "fast",
     workers: spec.workers ?? "any",
     boosts: spec.boosts ?? "value",
+    craft: spec.craft ?? "idle",
   };
 }
 

@@ -3,7 +3,8 @@ import { MARATHON_MINUTES } from "../targets";
 
 /**
  * One 3-hour sitting a day. Same habits as the plain dad, stretched across
- * a single long open instead of two short ones.
+ * a single long open instead of two short ones. The workshop stays shut:
+ * a craft on top of a three-hour open finishes the mountain too soon.
  */
 export default plainPolicy({
   id: "marathon",
@@ -11,4 +12,5 @@ export default plainPolicy({
   kind: "extreme",
   sessionsPerDay: 1,
   minutesPerSession: MARATHON_MINUTES,
+  craft: "never",
 });

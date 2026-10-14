@@ -1,3 +1,5 @@
+import type { LayerId } from "../layers";
+
 /**
  * Every tunable lab number lives here. A measure file reads these names.
  * A guardrail is one entry in `TARGETS`: change the value, nothing else.
@@ -61,6 +63,12 @@ export const TENDING_SOURCE = "tending";
 /** Output-share key for the tunnel borer. The tending guardrail starts here. */
 export const BORER_SOURCE = "borer";
 
+/** Output-share key for stones that come from crafted gear and timers. */
+export const CRAFTED_SOURCE = "crafted";
+
+/** The workshop opens on this band. The crafted-output guardrail starts here. */
+const GRANITE_LAYER = "granite" satisfies LayerId;
+
 type PolicyKind = "casual" | "extreme" | "optimizer";
 
 /**
@@ -92,6 +100,15 @@ export type TargetScope =
        * drops samples from before that output. Omitted means every kind.
        */
       readonly kinds?: readonly PolicyKind[];
+    }
+  | {
+      readonly kind: "fromLayer";
+      readonly layer: LayerId;
+      /**
+       * When set, only these player kinds are graded. The layer still
+       * drops samples from before that band. Omitted means every kind.
+       */
+      readonly kinds?: readonly PolicyKind[];
     };
 
 type TargetBase = {
@@ -99,6 +116,11 @@ type TargetBase = {
   readonly measure: string;
   readonly scope: TargetScope;
   readonly why: string;
+  /**
+   * A miss is still in the report. It does not fail `LAB_STRICT`.
+   * M9-7 drops this once the retune makes the guardrail hold.
+   */
+  readonly reportOnly?: boolean;
 };
 
 export type Target =
@@ -193,6 +215,28 @@ export const TARGETS: readonly Target[] = [
     op: "lte",
     value: 1.25,
     why: "The smart dad may finish sooner, and not by more than a quarter.",
+  },
+  {
+    id: "crafted-from-granite",
+    measure: "craftShare",
+    scope: {
+      kind: "fromLayer",
+      layer: GRANITE_LAYER,
+      kinds: ["casual", "optimizer"],
+    },
+    op: "gte",
+    value: 0.08,
+    why: "Crafted gear should be a real share of the output once the workshop is open, for a casual dad and for the optimizer. Report only until M9-7.",
+    reportOnly: true,
+  },
+  {
+    id: "material-idle",
+    measure: "materialIdle",
+    scope: { kind: "policyKinds", kinds: ["casual"] },
+    op: "lte",
+    value: 0.5,
+    why: "A casual dad should not sit on a material that has nothing to spend it on for more than half a day. Report only until M9-7.",
+    reportOnly: true,
   },
 ];
 

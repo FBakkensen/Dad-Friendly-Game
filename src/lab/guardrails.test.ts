@@ -129,6 +129,30 @@ describe("guardrails", () => {
     };
     expect(labStatusCode([held], { LAB_STRICT: "1" }, () => undefined)).toBe(0);
   });
+
+  it("prints a report-only miss and still exits 0 when the lab is strict", () => {
+    const noted: GuardrailCheck = {
+      targetId: "crafted-from-granite",
+      measure: "craftShare",
+      pass: false,
+      reportOnly: true,
+      detail: "crafted-from-granite misses for Casual, two 10-minute sittings.",
+    };
+    const warnings: string[] = [];
+    expect(
+      labStatusCode([noted], { LAB_STRICT: "1" }, (line) => {
+        warnings.push(line);
+      }),
+    ).toBe(0);
+    expect(warnings).toEqual([noted.detail]);
+    const rows = [rowFor(TARGETS, false)];
+    const checks = guardrailChecks(TARGETS, rows);
+    const crafted = checks.find(
+      (check) => check.targetId === "crafted-from-granite",
+    );
+    expect(crafted?.reportOnly).toBe(true);
+    expect(crafted?.pass).toBe(false);
+  });
 });
 
 describe("targets", () => {

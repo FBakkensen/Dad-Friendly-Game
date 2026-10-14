@@ -25,9 +25,20 @@ import {
   upgradeCost,
   upgradeLevel,
 } from "../upgrades";
+import { MATERIAL_EVERY } from "../layers";
+import { minedOut } from "../scale";
+import {
+  MAX_CRAFTED_LEVEL,
+  cancelCraft,
+  recipeById,
+  recipeCost,
+  recipesForMined,
+  startCraft,
+} from "../workshop";
 import {
   applyAction,
   listActions,
+  sinkRecipes,
   valueOf,
   type Action,
   type ValueContext,
@@ -76,6 +87,8 @@ const FIXTURES = {
   send: { kind: "send", index: 0, tunnel: "old-shaft" },
   recall: { kind: "recall", index: 0 },
   fixTrouble: { kind: "fixTrouble", tier: "borer", startedAt: NOW },
+  craft: { kind: "craft", recipe: "iron-rails" },
+  cancelCraft: { kind: "cancelCraft" },
 } as const satisfies {
   [K in Action["kind"]]: Extract<Action, { kind: K }>;
 };
@@ -105,6 +118,18 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
       return recall(mountain, action.index);
     case "fixTrouble":
       return mountain;
+    case "craft": {
+      const known = mountain.recipes ?? [];
+      const depth = recipesForMined(minedOut(mountain));
+      const prepared =
+        known.includes(action.recipe) || !depth.includes(action.recipe)
+          ? mountain
+          : { ...mountain, recipes: [...known, action.recipe] };
+      const started = startCraft(prepared, action.recipe, now);
+      return started === prepared ? mountain : started;
+    }
+    case "cancelCraft":
+      return cancelCraft(mountain, now);
     default: {
       const unexpected: never = action;
       return unexpected;
@@ -178,6 +203,13 @@ function crewDelta(before: Mountain, after: Mountain): number {
 
 const fresh = createMountain();
 const withHelper = { ...fresh, helpers: 1, pocket: 0 };
+const STOCK = {
+  clay: 500,
+  iron: 500,
+  crystal: 500,
+  heartstone: 500,
+};
+
 const rich: Mountain = {
   ...minedMountain(25_000_000),
   helpers: 30,
@@ -185,6 +217,7 @@ const rich: Mountain = {
   drills: 2,
   borers: 1,
   pocket: 1e15,
+  materials: STOCK,
   engineers: [ada],
 };
 const broke: Mountain = { ...rich, pocket: 0 };
@@ -392,7 +425,15 @@ describe("listActions", () => {
 
   it("lists every kind across these mountains", () => {
     const seen = new Set<Action["kind"]>();
-    for (const mountain of [fresh, rich, travelling, crowned, broke]) {
+    const onBench: Mountain = {
+      ...rich,
+      bench: {
+        recipe: "iron-rails",
+        startedAt: NOW - 1000,
+        endsAt: NOW + 60_000,
+      },
+    };
+    for (const mountain of [fresh, rich, travelling, crowned, broke, onBench]) {
       for (const action of listActions(mountain, NOW, trouble)) {
         seen.add(action.kind);
       }
@@ -893,5 +934,196 @@ describe("valueOf", () => {
       CASUAL,
     );
     expect(sharper.gainPerSec).toBeGreaterThan(0);
+  });
+
+  it("values gear, timers, and reinforce, and keeps a refund off the table", () => {
+    const shed = (extra: Partial<Mountain> = {}): Mountain => ({
+      ...minedMountain(12_000_000),
+      helpers: 8,
+      carts: 2,
+      drills: 1,
+      borers: 1,
+      pocket: 1e15,
+      materials: STOCK,
+      engineers: [ada],
+      ...extra,
+    });
+    const quiet: ValueContext = {
+      tapsPerSecond: 0,
+      liveSeconds: 0,
+      awaySeconds: 0,
+    };
+
+    expect(
+      listActions(fresh, NOW).some((action) => action.kind === "craft"),
+    ).toBe(false);
+    expect(sinkRecipes(shed())).toContain("reinforce");
+    expect(sinkRecipes(shed()).includes("crystal-lamp")).toBe(false);
+    const withLamp = shed({
+      recipes: [...(shed().recipes ?? []), "crystal-lamp", "engineers-kit"],
+    });
+    expect(
+      listActions(withLamp, NOW).some(
+        (action) => action.kind === "craft" && action.recipe === "crystal-lamp",
+      ),
+    ).toBe(true);
+    expect(sinkRecipes(shed({ crafted: { "iron-rails": 3 } }))).not.toContain(
+      "iron-rails",
+    );
+    expect(
+      sinkRecipes(shed({ crafted: { "blasting-charge": MAX_CRAFTED_LEVEL } })),
+    ).not.toContain("blasting-charge");
+
+    const yard = shed({ drills: 0, borers: 0, engineers: [] });
+    const rails = score(yard, { kind: "craft", recipe: "iron-rails" });
+    expect(rails.gainPerSec).toBeGreaterThan(0);
+    const railsBill = recipeCost("iron-rails");
+    expect(rails.cost).toBe(
+      railsBill.stones + railsBill.materials.iron * MATERIAL_EVERY.iron,
+    );
+    expect(rails.paybackSec).toBeCloseTo(
+      rails.cost / rails.gainPerSec + recipeById("iron-rails").craftMs / 1000,
+      5,
+    );
+    expect(
+      score(fresh, { kind: "craft", recipe: "iron-rails" }).paybackSec,
+    ).toBe(Number.POSITIVE_INFINITY);
+    const noPocket = { ...yard };
+    Reflect.deleteProperty(noPocket, "materials");
+    expect(
+      score(noPocket, { kind: "craft", recipe: "iron-rails" }).gainPerSec,
+    ).toBeGreaterThan(0);
+    expect(
+      score(yard, {
+        kind: "craft",
+        recipe: "iron-rails",
+      }).gainPerSec,
+    ).toBeGreaterThan(0);
+    expect(
+      score(
+        { ...yard, crafted: { "iron-rails": 3 } },
+        { kind: "craft", recipe: "iron-rails" },
+      ).gainPerSec,
+    ).toBe(0);
+    const busy = startCraft(shed(), "iron-rails", NOW);
+    expect(
+      score(
+        busy,
+        { kind: "craft", recipe: "blasting-charge" },
+        HORIZON,
+        LIVE,
+        NOW,
+      ).gainPerSec,
+    ).toBe(0);
+
+    const armed = shed({
+      helpers: 30,
+      carts: 0,
+      drills: 0,
+      borers: 0,
+      machines: 1,
+    });
+    const reinforce = score(armed, { kind: "craft", recipe: "reinforce" });
+    expect(reinforce.gainPerSec).toBeGreaterThan(0);
+    const ironBill = recipeCost("reinforce");
+    expect(ironBill.stones).toBe(0);
+    expect(reinforce.cost).toBe(ironBill.materials.iron * MATERIAL_EVERY.iron);
+    expect(reinforce.paybackSec).toBeGreaterThan(
+      recipeById("reinforce").craftMs / 1000,
+    );
+    const cart = score(armed, { kind: "buyTier", id: "cart" });
+    expect(cart.paybackSec).toBeLessThan(reinforce.paybackSec);
+    expect(
+      score(shed({ carts: 0, drills: 0, borers: 0 }), {
+        kind: "craft",
+        recipe: "reinforce",
+      }).gainPerSec,
+    ).toBe(0);
+
+    const charge = { kind: "craft", recipe: "blasting-charge" } as const;
+    const liveCharge = score(shed(), charge, HORIZON, LIVE);
+    const awayCharge = score(shed(), charge, HORIZON, CASUAL);
+    expect(liveCharge.gainPerSec).toBeGreaterThan(0);
+    expect(awayCharge.gainPerSec).toBeGreaterThan(0);
+    expect(liveCharge.gainPerSec).toBeGreaterThan(awayCharge.gainPerSec);
+
+    const deep = shed({
+      machines: 1,
+      helpers: 40,
+      recipes: [
+        ...(shed().recipes ?? []),
+        "diamond-bits",
+        "crystal-flare",
+        "crystal-lamp",
+        "engineers-kit",
+        "heartstone-core",
+        "heartstone-ember",
+      ],
+    });
+    expect(
+      score(deep, { kind: "craft", recipe: "diamond-bits" }).gainPerSec,
+    ).toBeGreaterThan(0);
+    expect(
+      score(deep, { kind: "craft", recipe: "heartstone-core" }).gainPerSec,
+    ).toBeGreaterThan(0);
+    expect(
+      score(deep, { kind: "craft", recipe: "heartstone-ember" }).gainPerSec,
+    ).toBeGreaterThan(0);
+    expect(
+      score(deep, { kind: "craft", recipe: "crystal-flare" }, HORIZON, CASUAL)
+        .gainPerSec,
+    ).toBeGreaterThan(0);
+    expect(
+      score(deep, { kind: "craft", recipe: "crystal-lamp" }, HORIZON, quiet)
+        .gainPerSec,
+    ).toBeGreaterThan(0);
+    expect(
+      score(deep, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
+    ).toBeGreaterThan(0);
+    const kitOnly = shed({
+      recipes: [...(shed().recipes ?? []), "engineers-kit"],
+    });
+    const noCrew = { ...kitOnly };
+    Reflect.deleteProperty(noCrew, "engineers");
+    expect(
+      score(noCrew, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
+    ).toBe(0);
+    const unwritten = { ...armed };
+    Reflect.deleteProperty(unwritten, "recipes");
+    expect(
+      score(unwritten, { kind: "craft", recipe: "reinforce" }).gainPerSec,
+    ).toBeGreaterThan(0);
+    expect(sinkRecipes(unwritten)).toContain("reinforce");
+    expect(
+      score(shed(), { kind: "craft", recipe: "sturdy-props" }).gainPerSec,
+    ).toBeGreaterThan(0);
+    expect(
+      score(shed({ borers: 0, engineers: [] }), {
+        kind: "craft",
+        recipe: "sturdy-props",
+      }).gainPerSec,
+    ).toBe(0);
+
+    const refund = score(busy, { kind: "cancelCraft" }, HORIZON, LIVE, NOW);
+    expect(refund.paybackSec).toBe(Number.POSITIVE_INFINITY);
+    expect(refund.gainPerSec).toBe(0);
+    const finishedAt = busy.bench?.endsAt ?? NOW;
+    expect(
+      score(busy, { kind: "cancelCraft" }, HORIZON, LIVE, finishedAt)
+        .gainPerSec,
+    ).toBe(0);
+    expect(score(shed(), { kind: "cancelCraft" }).gainPerSec).toBe(0);
+
+    const granted = applyAction(
+      shed(),
+      { kind: "craft", recipe: "reinforce" },
+      NOW,
+    );
+    expect(granted.recipes).toContain("reinforce");
+    expect(granted.bench?.recipe).toBe("reinforce");
+    const plain = shed();
+    expect(
+      applyAction(plain, { kind: "craft", recipe: "crystal-lamp" }, NOW),
+    ).toBe(plain);
   });
 });

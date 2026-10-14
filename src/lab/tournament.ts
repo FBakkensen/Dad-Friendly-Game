@@ -150,6 +150,7 @@ function samplePolicy(
             context,
             atMs: world.clock,
             stretchActions,
+            craft: policy.params.craft,
             ...(trouble === undefined ? {} : { trouble }),
           }),
         );
@@ -311,6 +312,7 @@ function coversPolicy(target: Target, policy: Policy): boolean {
     case "all":
       return true;
     case "fromSource":
+    case "fromLayer":
       return (
         target.scope.kinds === undefined ||
         target.scope.kinds.includes(policy.kind)

@@ -1,3 +1,4 @@
+import { LAYERS, type LayerId } from "../layers";
 import type { DecisionSample } from "./measure";
 import { HOUR_MS, type TargetScope } from "./targets";
 
@@ -22,5 +23,23 @@ export function applyScope(
     }
     return samples.slice(start);
   }
+  if (scope.kind === "fromLayer") {
+    const floor = layerIndex(scope.layer);
+    const start = samples.findIndex(
+      (sample) => layerIndex(sample.layer) >= floor,
+    );
+    if (start < 0) {
+      return [];
+    }
+    return samples.slice(start);
+  }
   return samples;
+}
+
+function layerIndex(id: LayerId | undefined): number {
+  if (id === undefined) {
+    return 0;
+  }
+  const layer = LAYERS.find((item) => item.id === id);
+  return layer === undefined ? 0 : layer.index;
 }

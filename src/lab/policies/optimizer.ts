@@ -14,9 +14,9 @@ const SMART_SPEND: SpendWeights = {
 /**
  * Greedy lowest payback, with one step of "save for X" across the next
  * session (`LOOKAHEAD_SESSIONS` in `targets.ts`). Same sittings and fast
- * fix as the plain dad. Promotions and tunnels are taken when `valueOf`
- * says they pay, not the moment the pocket can cover them. Upgrades and
- * boosts compete the same way. #178.
+ * fix as the plain dad. Promotions, tunnels, and crafts are taken when
+ * `valueOf` says they pay, not the moment the pocket can cover them.
+ * Upgrades and boosts compete the same way. #178. #197.
  */
 const params = plainParams({
   id: "optimizer",
@@ -27,6 +27,7 @@ const params = plainParams({
   spend: SMART_SPEND,
   promote: "on-value",
   explore: "on-value",
+  craft: "value",
 });
 
 export default definePolicy({

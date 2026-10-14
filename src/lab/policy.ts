@@ -31,6 +31,13 @@ export type WorkerRule = "any" | "staff-only" | "never";
 /** Boosts compete on value, start whenever they are affordable, or never. */
 export type BoostRule = "value" | "always" | "never";
 
+/**
+ * How this dad uses the bench. `idle` crafts when the next buy can wait.
+ * `value` lets a craft win on payback. `always` fills a free bench.
+ * `charges` spends clay on blasting charges. `never` skips the workshop.
+ */
+export type CraftRule = "idle" | "value" | "always" | "charges" | "never";
+
 /** Multipliers on stones-per-second per stone. Zero leaves that spend out. */
 export type SpendWeights = {
   readonly worker: number;
@@ -65,6 +72,7 @@ export type PolicyParams = {
   readonly trouble: TroubleFix;
   readonly workers: WorkerRule;
   readonly boosts: BoostRule;
+  readonly craft: CraftRule;
 };
 
 /** When the sittings are. Built from the params so a file cannot drift. */
@@ -105,6 +113,13 @@ const TENDS: readonly TendChoice[] = ["best", "never"];
 const FIXES: readonly TroubleFix[] = ["never", "slow", "fast"];
 const WORKERS: readonly WorkerRule[] = ["any", "staff-only", "never"];
 const BOOSTS: readonly BoostRule[] = ["value", "always", "never"];
+const CRAFTS: readonly CraftRule[] = [
+  "idle",
+  "value",
+  "always",
+  "charges",
+  "never",
+];
 
 /** The gap with no jitter: the day split across the sittings, minus play. */
 function baseGapMs(params: PolicyParams): number {
@@ -222,7 +237,8 @@ function isParams(value: unknown): value is PolicyParams {
     isOneOf(value["tend"], TENDS) &&
     isOneOf(value["trouble"], FIXES) &&
     isOneOf(value["workers"], WORKERS) &&
-    isOneOf(value["boosts"], BOOSTS)
+    isOneOf(value["boosts"], BOOSTS) &&
+    isOneOf(value["craft"], CRAFTS)
   );
 }
 

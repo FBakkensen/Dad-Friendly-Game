@@ -1,4 +1,6 @@
 import type { Action } from "../economy/actions";
+import type { LayerId, Materials } from "../layers";
+import type { Crafted, RecipeId } from "../workshop";
 
 /**
  * One moment on the table. Official fields use payback. `byValue` is the
@@ -19,8 +21,30 @@ export type DecisionSample = {
   /** Crew stones a second, before the whole-stone floor. */
   readonly crewPerSec: number;
   readonly pocket: number;
-  /** Share of output by source. Includes `tending` and `tap` when they pay. */
+  /** Share of output by source. Includes `tending`, `crafted`, and `tap` when they pay. */
   readonly outputShare: Readonly<Record<string, number>>;
+  /** Rock band at this moment. Scopes such as "from the Granite on" read it. */
+  readonly layer?: LayerId;
+  /** The workshop is open, so a craft can start once the bench is free. */
+  readonly workshopOpen?: boolean;
+  /** No craft is on the bench. */
+  readonly benchFree?: boolean;
+  /** Materials in hand. `materialIdle` compares them to a full recipe. */
+  readonly materials?: Materials;
+  /**
+   * Recipes this dad could spend a material on if the bench were free.
+   * Finished gear is left out, so a capped sink does not hide a pile.
+   */
+  readonly openRecipes?: readonly RecipeId[];
+  /** Every recipe known here, including ones already finished. */
+  readonly knownRecipes?: readonly RecipeId[];
+  /** Levels already fitted. Missing means nothing is made. */
+  readonly crafted?: Crafted;
+  /**
+   * Repeatable timers this dad keeps using. They are an unlimited sink.
+   * A capped recipe is not on this list.
+   */
+  readonly unlimitedSinks?: readonly RecipeId[];
   /** Kinds on the table at this moment. */
   readonly optionKinds: readonly Action["kind"][];
   readonly byValue: {
@@ -84,6 +108,8 @@ export const MOVE_KINDS = [
   "send",
   "recall",
   "fixTrouble",
+  "craft",
+  "cancelCraft",
 ] as const satisfies readonly Action["kind"][];
 
 export type ScoreMethod = "payback" | "value";

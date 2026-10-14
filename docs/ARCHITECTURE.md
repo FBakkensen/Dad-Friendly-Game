@@ -10,8 +10,9 @@ page is the map, plus the rules that keep it that way.
    every multiplier is applied: live ticks, away pay, taps, the UI), and
    `field-log` (a JSON snapshot and an event ring). `rates.exactCrewPerSecond`
    is the crew speed before the whole-stone floor. `economy/actions` lists
-   every legal move, applies the existing functions, and values income from
-   that speed, taps, and away pay. `lab/world` steps one seeded clock (live
+   every legal move, including a craft and a cancel, applies the existing
+   functions, and values income from that speed, taps, and away pay. A craft's
+   payback adds the bench time. `lab/world` steps one seeded clock (live
    accrue, away pay, hazards, expedition settle) for the pacing sim and the
    strategy lab. `lab/targets` is the only place a lab threshold lives.
    `lab/measures` is one file per decision measure. `lab/policies` is one
@@ -22,7 +23,9 @@ page is the map, plus the rules that keep it that way.
    one check per entry. `tools/strategy-lab.ts` (`npm run lab`) loads the
    registries, writes the report, and warns on a miss unless `LAB_STRICT=1`.
    CI runs it with `--ci` and `LAB_STRICT=1`, posts the report, and fails
-   the job on a miss. The tournament does not read the disk. `tools/sweep` (`npm run lab:sweep`) screens economy
+   the job on a miss. A target marked report-only is still in that report
+   and does not fail the job. M9-7 makes the crafted-share and idle-material
+   rows strict. The tournament does not read the disk. `tools/sweep` (`npm run lab:sweep`) screens economy
    knobs (Morris, then Sobol) and writes that report. The sweep is
    offline and is not part of `npm run check`. A factor map scales
    prices, growth, output, tending, and rock hardness for the length of one run;

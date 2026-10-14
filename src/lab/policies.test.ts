@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createMountain, type Mountain } from "../mountain";
+import { MOUNTAIN_STONES, createMountain, type Mountain } from "../mountain";
 import { RELICS } from "../relics";
 import { simulateDadRun } from "../pacing";
 import {
@@ -10,7 +10,9 @@ import {
   sticker,
 } from "./decide";
 import casual from "./policies/casual-2x10";
+import chargeJunkie from "./policies/charge-junkie";
 import checker from "./policies/checker-6x3";
+import craftingHeavy from "./policies/crafting-heavy";
 import evening from "./policies/evening-1x20";
 import fiveMin from "./policies/five-min-a-day";
 import marathon from "./policies/marathon";
@@ -22,6 +24,7 @@ import neverFix from "./policies/never-fix-trouble";
 import neverWorkers from "./policies/never-workers";
 import noEngineers from "./policies/no-engineers";
 import optimizer from "./policies/optimizer";
+import skipCrafting from "./policies/skip-crafting";
 import tapOnly from "./policies/tap-only";
 import workersOnly from "./policies/workers-only";
 import { plainPolicy } from "./plain";
@@ -35,6 +38,17 @@ import {
   parsePolicyExport,
   type Policy,
 } from "./policy";
+import {
+  MAX_CRAFTED_LEVEL,
+  startCraft,
+  workshopUnlocked,
+  type RecipeId,
+} from "../workshop";
+import { isSampleSecond } from "./casual";
+import type { DecisionSample } from "./measure";
+import { longestMaterialIdleDays } from "./measures/materialIdle";
+import { valueContext } from "./policy";
+import { scoreDecision } from "./score";
 import { promoteAsap, runPolicy, type PolicyRun } from "./run";
 import {
   DAY_MS,
@@ -96,9 +110,9 @@ describe("spend table", () => {
 });
 
 describe("casual-2x10", () => {
-  it("reproduces today's plain dad: same finish day, same buy list", () => {
+  it("lets a dad who skips the workshop match today's plain dad", () => {
     const dad = simulateDadRun({ milestones: [mantle] });
-    const run = playCasual();
+    const run = runPolicy({ policy: skipCrafting, seed: 1 });
     expect(run.finishDay).toBe(dad.reached.get(mantle));
     expect(run.buys).toEqual(
       dad.buys.map(({ day, id, price }) => ({ day, id, price })),
@@ -106,6 +120,23 @@ describe("casual-2x10", () => {
     expect(run.promotions).toEqual(
       dad.promotions.map(({ day, name, price }) => ({ day, name, price })),
     );
+    expect(run.world.mountain.crafted).toBeUndefined();
+    expect(run.world.mountain.bench).toBeUndefined();
+  }, 120_000);
+
+  it("crafts once the next buy can wait", () => {
+    const run = runPolicy({
+      policy: casual,
+      seed: 1,
+      until: (world) =>
+        world.mountain.bench !== undefined ||
+        world.mountain.crafted !== undefined,
+    });
+    const made =
+      run.world.mountain.bench !== undefined ||
+      run.world.mountain.crafted !== undefined;
+    expect(made).toBe(true);
+    expect(casual.params.craft).toBe("idle");
   }, 120_000);
 
   it("keeps the plain dad's day: two 10-minute sittings, no jitter", () => {
@@ -449,6 +480,12 @@ describe("policy shape", () => {
     expect(
       isPolicy({ ...casual, params: { ...casual.params, spend: null } }),
     ).toBe(false);
+    expect(
+      isPolicy({ ...casual, params: { ...casual.params, craft: "sometimes" } }),
+    ).toBe(false);
+    const noCraft = { ...casual.params };
+    Reflect.deleteProperty(noCraft, "craft");
+    expect(isPolicy({ ...casual, params: noCraft })).toBe(false);
     expect(() => {
       definePolicy({ ...casual, id: "Bad" });
     }).toThrow('Invalid policy "Bad"');
@@ -489,6 +526,10 @@ describe("policy shape", () => {
     expect(
       sticker(mountain, { kind: "fixTrouble", tier: "borer", startedAt: 0 }),
     ).toBe(0);
+    expect(
+      sticker(mountain, { kind: "craft", recipe: "iron-rails" }),
+    ).toBeGreaterThan(0);
+    expect(sticker(mountain, { kind: "cancelCraft" })).toBe(0);
   });
 
   it("stops when the caller says the second is enough", () => {
@@ -620,4 +661,297 @@ describe("policy shape", () => {
     curious.decide({ mountain, now: 0, params: curious.params });
     expect(promoteAsap(mountain, curious.params).hired).toEqual([]);
   });
+});
+
+const POCKET = {
+  clay: 40,
+  iron: 40,
+  crystal: 40,
+  heartstone: 40,
+};
+
+function withRecipes(mountain: Mountain, extra: readonly RecipeId[]): Mountain {
+  return { ...mountain, recipes: [...(mountain.recipes ?? []), ...extra] };
+}
+
+function workshop(extra: Partial<Mountain> = {}): Mountain {
+  return {
+    ...createMountain(),
+    remaining: MOUNTAIN_STONES - 12_000_000,
+    pocket: 50_000_000,
+    materials: POCKET,
+    helpers: 4,
+    carts: 1,
+    ...extra,
+  };
+}
+
+describe("crafting", () => {
+  it("fills the bench for the heavy crafter and the charge junkie", () => {
+    const heavy = craftingHeavy.decide({
+      mountain: workshop(),
+      now: 0,
+      params: craftingHeavy.params,
+    });
+    expect(heavy?.kind).toBe("craft");
+    const charge = chargeJunkie.decide({
+      mountain: workshop(),
+      now: 0,
+      params: chargeJunkie.params,
+    });
+    expect(charge).toEqual({ kind: "craft", recipe: "blasting-charge" });
+    const table = actionsOnTable(workshop(), 0, chargeJunkie.params);
+    expect(table.some((action) => action.kind === "craft")).toBe(true);
+    expect(
+      table.some(
+        (action) =>
+          action.kind === "craft" && action.recipe !== "blasting-charge",
+      ),
+    ).toBe(false);
+  });
+
+  it("crafts when the next buy can wait, and buys when it cannot", () => {
+    const affordable = casual.decide({
+      mountain: workshop(),
+      now: 0,
+      params: casual.params,
+    });
+    expect(affordable?.kind).toBe("buyTier");
+    const saving = workshop({
+      pocket: 0,
+      helpers: 30,
+      carts: 0,
+      drills: 0,
+      borers: 0,
+      machines: 1,
+    });
+    const waiting = casual.decide({
+      mountain: saving,
+      now: 0,
+      params: casual.params,
+    });
+    expect(waiting?.kind).toBe("buyTier");
+    const late = workshop({
+      pocket: 0,
+      helpers: 50,
+      carts: 12,
+      drills: 6,
+      borers: 0,
+      machines: 1,
+    });
+    const worthIt = casual.decide({
+      mountain: late,
+      now: 0,
+      params: casual.params,
+    });
+    expect(worthIt).toEqual({ kind: "craft", recipe: "reinforce" });
+    const valued = casual.decide({
+      mountain: late,
+      now: 0,
+      params: { ...casual.params, craft: "value" },
+    });
+    expect(valued?.kind).toBe("craft");
+    const quiet = plainPolicy({
+      id: "idle-nothing",
+      label: "Idle nothing",
+      kind: "extreme",
+      sessionsPerDay: 1,
+      minutesPerSession: 1,
+      tapsPerSecond: 0,
+      spend: { worker: 0, machine: 0, upgrade: 0, boost: 0, promote: 0 },
+      promote: "never",
+      explore: "never",
+      craft: "idle",
+    });
+    expect(
+      quiet.decide({
+        mountain: late,
+        now: 0,
+        params: quiet.params,
+      })?.kind,
+    ).toBe("craft");
+    const bare = workshop({
+      helpers: 0,
+      carts: 0,
+      drills: 0,
+      borers: 0,
+      machines: 0,
+    });
+    expect(
+      craftingHeavy.decide({
+        mountain: bare,
+        now: 0,
+        params: craftingHeavy.params,
+      })?.kind,
+    ).not.toBe("craft");
+  });
+
+  it("never opens the workshop for a dad who skips it", () => {
+    const choice = skipCrafting.decide({
+      mountain: workshop(),
+      now: 0,
+      params: skipCrafting.params,
+    });
+    expect(choice?.kind).not.toBe("craft");
+    expect(
+      actionsOnTable(workshop(), 0, skipCrafting.params).some(
+        (action) => action.kind === "craft",
+      ),
+    ).toBe(false);
+    expect(
+      tapOnly.decide({
+        mountain: workshop(),
+        now: 0,
+        params: tapOnly.params,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("pays for a craft only when the materials, the room, and the hoard allow it", () => {
+    const rails = { kind: "craft", recipe: "iron-rails" } as const;
+    const charge = { kind: "craft", recipe: "blasting-charge" } as const;
+    const bits = { kind: "craft", recipe: "diamond-bits" } as const;
+    const ember = { kind: "craft", recipe: "heartstone-ember" } as const;
+    const lamp = { kind: "craft", recipe: "crystal-lamp" } as const;
+    const open = workshop();
+    expect(canPay(open, charge, 1)).toBe(true);
+    expect(canPay(open, rails, 1)).toBe(true);
+    expect(
+      canPay({ ...open, materials: { ...POCKET, clay: 0 } }, charge, 1),
+    ).toBe(false);
+    expect(
+      canPay({ ...open, materials: { ...POCKET, iron: 0 } }, rails, 1),
+    ).toBe(false);
+    const crystal = withRecipes(open, ["diamond-bits", "heartstone-ember"]);
+    expect(
+      canPay({ ...crystal, materials: { ...POCKET, crystal: 0 } }, bits, 1),
+    ).toBe(false);
+    expect(
+      canPay(
+        {
+          ...crystal,
+          materials: { ...POCKET, heartstone: 0 },
+        },
+        ember,
+        1,
+      ),
+    ).toBe(false);
+    expect(canPay(open, lamp, 1)).toBe(false);
+    const noMaterials = { ...open };
+    Reflect.deleteProperty(noMaterials, "materials");
+    expect(canPay(noMaterials, charge, 1)).toBe(false);
+    const unlisted = { ...open };
+    Reflect.deleteProperty(unlisted, "recipes");
+    expect(canPay(unlisted, lamp, 1)).toBe(false);
+    const found = withRecipes(open, ["crystal-lamp"]);
+    expect(canPay(found, lamp, 1)).toBe(true);
+    expect(canPay({ ...open, pocket: 800_000 }, charge, 8)).toBe(false);
+    expect(canPay({ ...open, pocket: 800_000 * 8 }, charge, 8)).toBe(true);
+    const busy = startCraft(open, "iron-rails", 0);
+    expect(canPay(busy, charge, 1)).toBe(false);
+    expect(canPay(createMountain(), charge, 1)).toBe(false);
+    expect(canPay({ ...open, crafted: { "iron-rails": 3 } }, rails, 1)).toBe(
+      false,
+    );
+    expect(
+      canPay(
+        { ...open, crafted: { "blasting-charge": MAX_CRAFTED_LEVEL } },
+        charge,
+        1,
+      ),
+    ).toBe(false);
+  });
+
+  it("lets the optimizer see a craft, and skip one it cannot feed", () => {
+    const late = workshop({
+      pocket: 0,
+      helpers: 50,
+      carts: 12,
+      drills: 6,
+      borers: 0,
+      machines: 1,
+      upgrades: {
+        tap: 10,
+        boots: 1,
+        steady: 1,
+        cartSyn: 1,
+        drillSyn: 1,
+        borerSyn: 1,
+        machineSyn: 1,
+      },
+      boosts: { sharper: 1, overtime: 1 },
+    });
+    const picked = optimizerDecide({
+      mountain: late,
+      now: 0,
+      params: optimizer.params,
+    });
+    expect(picked).not.toEqual({ kind: "craft", recipe: "reinforce" });
+    const buying = optimizerDecide({
+      mountain: workshop({
+        materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+      }),
+      now: 0,
+      params: optimizer.params,
+    });
+    expect(buying?.kind).not.toBe("craft");
+    const shut = optimizerDecide({
+      mountain: workshop(),
+      now: 0,
+      params: { ...optimizer.params, craft: "never" },
+    });
+    expect(shut?.kind).not.toBe("craft");
+    const working = startCraft(workshop(), "reinforce", 0);
+    const during = optimizerDecide({
+      mountain: working,
+      now: 0,
+      params: optimizer.params,
+    });
+    expect(during?.kind).not.toBe("cancelCraft");
+  });
+
+  it("reaches the Granite and crafts", () => {
+    const run = runPolicy({
+      policy: craftingHeavy,
+      seed: 1,
+      until: (world) =>
+        workshopUnlocked(world.mountain) &&
+        (world.mountain.bench !== undefined ||
+          world.mountain.crafted !== undefined),
+    });
+    expect(workshopUnlocked(run.world.mountain)).toBe(true);
+    const made =
+      run.world.mountain.bench !== undefined ||
+      run.world.mountain.crafted !== undefined;
+    expect(made).toBe(true);
+  }, 120_000);
+
+  it("reports idle iron once a casual dad holds more than the recipes can take", () => {
+    const samples: DecisionSample[] = [];
+    let live = 0;
+    let iron = 0;
+    const context = valueContext(casual.params);
+    runPolicy({
+      policy: casual,
+      seed: 1,
+      maxDays: 8,
+      observe(world) {
+        if (isSampleSecond(live)) {
+          samples.push(
+            scoreDecision({
+              mountain: world.mountain,
+              now: world.clock,
+              context,
+              atMs: world.clock,
+              craft: casual.params.craft,
+            }),
+          );
+          iron = Math.max(iron, world.mountain.materials?.iron ?? 0);
+        }
+        live += 1;
+      },
+    });
+    expect(iron).toBeGreaterThan(104);
+    expect(longestMaterialIdleDays(samples)).toBeGreaterThan(0);
+  }, 120_000);
 });

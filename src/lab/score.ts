@@ -2,15 +2,27 @@ import type { Trouble } from "../hazards";
 import { mineByHand, type Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { station } from "../engineers";
+import { layerOf } from "../layers";
 import { TIERS } from "../tiers";
 import {
+  knownRecipeIds,
   listActions,
+  sinkRecipes,
   valueOf,
   type Action,
   type ValueContext,
 } from "../economy/actions";
+import { workshopUnlocked } from "../workshop";
 import { MOVE_KINDS, type DecisionSample } from "./measure";
-import { HORIZON_SEC, LIVE_RATIO, TENDING_SOURCE, VALUE_TIE } from "./targets";
+import { unlimitedSinks } from "./measures/materialIdle";
+import type { CraftRule } from "./policy";
+import {
+  CRAFTED_SOURCE,
+  HORIZON_SEC,
+  LIVE_RATIO,
+  TENDING_SOURCE,
+  VALUE_TIE,
+} from "./targets";
 
 export type ScoreInput = {
   readonly mountain: Mountain;
@@ -25,6 +37,8 @@ export type ScoreInput = {
    * (or the whole legal list, when that was omitted too).
    */
   readonly stretchActions?: readonly Action[];
+  /** How this dad uses the bench. Repeatable timers read it. */
+  readonly craft?: CraftRule;
 };
 
 type Priced = {
@@ -70,6 +84,10 @@ function actionId(action: Action): string {
       return `recall:${String(action.index)}`;
     case "fixTrouble":
       return `fixTrouble:${action.tier}`;
+    case "craft":
+      return `craft:${action.recipe}`;
+    case "cancelCraft":
+      return "cancelCraft";
   }
 }
 
@@ -231,32 +249,64 @@ function tapStones(
   return mineByHand(mountain, now, trouble).pocket - mountain.pocket;
 }
 
+function withoutGear(mountain: Mountain): Mountain {
+  if (
+    mountain.crafted === undefined &&
+    mountain.chargeUntil === undefined &&
+    mountain.flareUntil === undefined &&
+    mountain.emberUntil === undefined
+  ) {
+    return mountain;
+  }
+  const next = { ...mountain };
+  Reflect.deleteProperty(next, "crafted");
+  Reflect.deleteProperty(next, "chargeUntil");
+  Reflect.deleteProperty(next, "flareUntil");
+  Reflect.deleteProperty(next, "emberUntil");
+  return next;
+}
+
 function outputShare(
   mountain: Mountain,
   now: number,
   context: ValueContext,
   trouble: Trouble | undefined,
 ): Readonly<Record<string, number>> {
+  const bare = withoutGear(mountain);
   const posted = effectiveRates(mountain, now, trouble);
-  const resting = effectiveRates(rested(mountain), now, trouble);
+  const barePosted = effectiveRates(bare, now, trouble);
+  const bareResting = effectiveRates(rested(bare), now, trouble);
   const parts = new Map<string, number>();
   let total = 0;
   for (const tier of TIERS) {
-    const amount = resting.running[tier.id] * resting.tierSpeed[tier.id];
+    const amount =
+      bareResting.running[tier.id] * bareResting.tierSpeed[tier.id];
     if (amount > 0) {
       parts.set(tier.id, amount);
       total += amount;
     }
   }
-  const tending = posted.exactCrewPerSecond - resting.exactCrewPerSecond;
+  const tending =
+    barePosted.exactCrewPerSecond - bareResting.exactCrewPerSecond;
   if (tending > 0) {
     parts.set(TENDING_SOURCE, tending);
     total += tending;
   }
-  const tap = context.tapsPerSecond * tapStones(mountain, now, trouble);
-  if (tap > 0) {
-    parts.set("tap", tap);
-    total += tap;
+  const craftedCrew = posted.exactCrewPerSecond - barePosted.exactCrewPerSecond;
+  if (craftedCrew > 0) {
+    parts.set(CRAFTED_SOURCE, craftedCrew);
+    total += craftedCrew;
+  }
+  const tapBare = context.tapsPerSecond * tapStones(bare, now, trouble);
+  const tapCraft =
+    context.tapsPerSecond * tapStones(mountain, now, trouble) - tapBare;
+  if (tapBare > 0) {
+    parts.set("tap", tapBare);
+    total += tapBare;
+  }
+  if (tapCraft > 0) {
+    parts.set(CRAFTED_SOURCE, (parts.get(CRAFTED_SOURCE) ?? 0) + tapCraft);
+    total += tapCraft;
   }
   if (!(total > 0)) {
     return {};
@@ -317,6 +367,18 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
       input.context,
       input.trouble,
     ),
+    layer: layerOf(input.mountain).id,
+    workshopOpen: workshopUnlocked(input.mountain),
+    benchFree: input.mountain.bench === undefined,
+    ...(input.mountain.materials === undefined
+      ? {}
+      : { materials: input.mountain.materials }),
+    openRecipes: sinkRecipes(input.mountain),
+    knownRecipes: knownRecipeIds(input.mountain),
+    ...(input.mountain.crafted === undefined
+      ? {}
+      : { crafted: input.mountain.crafted }),
+    unlimitedSinks: unlimitedSinks(input.craft, input.mountain.crafted),
     optionKinds: optionKinds(actions),
     byValue: {
       liveCount: value.liveCount,

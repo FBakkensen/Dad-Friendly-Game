@@ -2,6 +2,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { DecisionSample } from "./measure";
 import { parseMeasureExport } from "./measure";
+import benchIdle, { benchIdleShare } from "./measures/benchIdle";
+import craftShare from "./measures/craftShare";
 import dominantShare from "./measures/dominantShare";
 import extremeWinMeasure from "./measures/extremeWin";
 import { extremeWin } from "./measures/extremeWin";
@@ -16,24 +18,46 @@ import { singleShareOf } from "./measures/singleShare";
 import { neverBest } from "./measures/typeEverBest";
 import { discover } from "./registry";
 import { applyScope } from "./scope";
-import { BORER_SOURCE, DEAD_STRETCH, HOUR_MS, TENDING_SOURCE } from "./targets";
+import materialIdle, {
+  longestMaterialIdleDays,
+  materialDemand,
+  materialIsIdle,
+} from "./measures/materialIdle";
+import {
+  BORER_SOURCE,
+  CRAFTED_SOURCE,
+  DAY_MS,
+  DEAD_STRETCH,
+  HOUR_MS,
+  TENDING_SOURCE,
+} from "./targets";
 
-function decision(over: {
-  readonly atMs?: number;
-  readonly liveCount?: number;
-  readonly affordableLive?: number;
-  readonly bestId?: string;
-  readonly bestKind?: DecisionSample["bestKind"];
-  readonly waitToAffordSec?: number;
-  readonly outputShare?: DecisionSample["outputShare"];
-  readonly optionKinds?: DecisionSample["optionKinds"];
-  readonly finishDay?: number;
-  readonly valueLive?: number;
-  readonly valueAffordable?: number;
-  readonly stretchLive?: number;
-  readonly stretchAffordable?: number;
-  readonly stretchWait?: number;
-}): DecisionSample {
+function decision(
+  over: {
+    readonly atMs?: number;
+    readonly liveCount?: number;
+    readonly affordableLive?: number;
+    readonly bestId?: string;
+    readonly bestKind?: DecisionSample["bestKind"];
+    readonly waitToAffordSec?: number;
+    readonly outputShare?: DecisionSample["outputShare"];
+    readonly optionKinds?: DecisionSample["optionKinds"];
+    readonly finishDay?: number;
+    readonly valueLive?: number;
+    readonly valueAffordable?: number;
+    readonly stretchLive?: number;
+    readonly stretchAffordable?: number;
+    readonly stretchWait?: number;
+    readonly layer?: DecisionSample["layer"];
+    readonly workshopOpen?: boolean;
+    readonly benchFree?: boolean;
+    readonly materials?: DecisionSample["materials"];
+    readonly openRecipes?: DecisionSample["openRecipes"];
+    readonly knownRecipes?: DecisionSample["knownRecipes"];
+    readonly crafted?: DecisionSample["crafted"];
+    readonly unlimitedSinks?: DecisionSample["unlimitedSinks"];
+  } = {},
+): DecisionSample {
   const liveCount = over.liveCount ?? 1;
   const affordableLive = over.affordableLive ?? 0;
   const bestId = over.bestId ?? "buyTier:helper";
@@ -48,6 +72,22 @@ function decision(over: {
     crewPerSec: 1,
     pocket: 0,
     outputShare: over.outputShare ?? {},
+    ...(over.layer === undefined ? {} : { layer: over.layer }),
+    ...(over.workshopOpen === undefined
+      ? {}
+      : { workshopOpen: over.workshopOpen }),
+    ...(over.benchFree === undefined ? {} : { benchFree: over.benchFree }),
+    ...(over.materials === undefined ? {} : { materials: over.materials }),
+    ...(over.openRecipes === undefined
+      ? {}
+      : { openRecipes: over.openRecipes }),
+    ...(over.knownRecipes === undefined
+      ? {}
+      : { knownRecipes: over.knownRecipes }),
+    ...(over.crafted === undefined ? {} : { crafted: over.crafted }),
+    ...(over.unlimitedSinks === undefined
+      ? {}
+      : { unlimitedSinks: over.unlimitedSinks }),
     optionKinds: over.optionKinds ?? ["buyTier"],
     byValue: {
       liveCount: over.valueLive ?? liveCount,
@@ -82,6 +122,8 @@ describe("measures", () => {
     const dir = path.resolve("src/lab/measures");
     const measures = await discover(dir, parseMeasureExport);
     expect(measures.map((measure) => measure.id)).toEqual([
+      "benchIdle",
+      "craftShare",
       "dominantShare",
       "extremeWin",
       "featureShare",
@@ -90,6 +132,7 @@ describe("measures", () => {
       "liveP10",
       "longestDeadStretch",
       "longestValueStretch",
+      "materialIdle",
       "regret",
       "singleShare",
       "typeEverBest",
@@ -291,5 +334,113 @@ describe("measures", () => {
     expect(
       applyScope({ kind: "policies", ids: ["casual-2x10"] }, [early]),
     ).toEqual([early]);
+    const topsoil = decision({ atMs: 0, layer: "topsoil" });
+    const granite = decision({ atMs: 1, layer: "granite" });
+    const deeper = decision({ atMs: 2, layer: "heart" });
+    expect(
+      applyScope({ kind: "fromLayer", layer: "granite" }, [
+        topsoil,
+        granite,
+        deeper,
+      ]),
+    ).toEqual([granite, deeper]);
+    expect(
+      applyScope({ kind: "fromLayer", layer: "granite" }, [topsoil]),
+    ).toEqual([]);
+    expect(
+      applyScope({ kind: "fromLayer", layer: "granite" }, [decision()]),
+    ).toEqual([]);
+    expect(applyScope({ kind: "fromLayer", layer: "granite" }, [])).toEqual([]);
+  });
+
+  it("reads crafted share, idle materials, and an empty bench", () => {
+    const share = decision({
+      outputShare: { [CRAFTED_SOURCE]: 0.1, helper: 0.9 },
+    });
+    expect(craftShare.aggregate([share, decision()])).toBeCloseTo(0.05, 5);
+    expect(craftShare.aggregate([])).toBeNaN();
+    expect(craftShare.sample?.(share)).toBeCloseTo(0.1, 5);
+
+    const open = {
+      workshopOpen: true as const,
+      materials: { clay: 6, iron: 0, crystal: 0, heartstone: 0 },
+      knownRecipes: [] as const,
+    };
+    const stuck = decision({ atMs: 0, ...open });
+    const still = decision({ atMs: DAY_MS, ...open });
+    const held = decision({
+      atMs: DAY_MS,
+      workshopOpen: true,
+      materials: { clay: 6, iron: 0, crystal: 0, heartstone: 0 },
+      knownRecipes: ["blasting-charge"],
+    });
+    const sinking = decision({
+      ...held,
+      unlimitedSinks: ["blasting-charge"],
+    });
+    expect(materialIsIdle(stuck)).toBe(true);
+    expect(materialIsIdle(held)).toBe(true);
+    expect(materialIsIdle(sinking)).toBe(false);
+    expect(materialIsIdle(decision({ workshopOpen: false }))).toBe(false);
+    expect(materialIsIdle(decision({ workshopOpen: true }))).toBe(false);
+    expect(longestMaterialIdleDays([stuck, still])).toBe(1);
+    expect(longestMaterialIdleDays([stuck, held])).toBe(1);
+    expect(materialIdle.aggregate([])).toBe(0);
+
+    const ironRecipes = [
+      "iron-rails",
+      "sturdy-props",
+      "reinforce",
+      "crystal-lamp",
+      "engineers-kit",
+    ] as const;
+    const ironCap = materialDemand("iron", ironRecipes, {}, []);
+    expect(ironCap).toBe(104);
+    const pocket = { clay: 0, iron: ironCap, crystal: 0, heartstone: 0 };
+    const atCap = decision({
+      workshopOpen: true,
+      materials: pocket,
+      knownRecipes: ironRecipes,
+    });
+    const over = decision({
+      atMs: DAY_MS,
+      workshopOpen: true,
+      materials: { ...pocket, iron: ironCap + 1 },
+      knownRecipes: ironRecipes,
+    });
+    expect(materialIsIdle(atCap)).toBe(false);
+    expect(materialIsIdle(over)).toBe(true);
+    const later = decision({
+      atMs: DAY_MS + DAY_MS,
+      workshopOpen: true,
+      materials: { ...pocket, iron: ironCap + 1 },
+      knownRecipes: ironRecipes,
+    });
+    expect(longestMaterialIdleDays([over, later])).toBe(1);
+
+    const busy = decision({
+      atMs: 0,
+      workshopOpen: true,
+      benchFree: false,
+    });
+    const freeLater = decision({
+      atMs: DAY_MS,
+      workshopOpen: true,
+      benchFree: true,
+    });
+    const free = decision({
+      atMs: 0,
+      workshopOpen: true,
+      benchFree: true,
+    });
+    const busyLater = decision({
+      atMs: DAY_MS,
+      workshopOpen: true,
+      benchFree: false,
+    });
+    expect(benchIdleShare([busy, freeLater])).toBe(0);
+    expect(benchIdleShare([free, busyLater])).toBe(1);
+    expect(benchIdleShare([decision({ workshopOpen: false })])).toBeNaN();
+    expect(benchIdle.aggregate([free, free])).toBeNaN();
   });
 });
