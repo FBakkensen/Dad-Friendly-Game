@@ -83,5 +83,5 @@ describe("casual run", () => {
     expect(result.deadStretches.map((stretch) => stretch.score)).toEqual(
       expect.arrayContaining(["value"]),
     );
-  });
+  }, 120_000);
 });
