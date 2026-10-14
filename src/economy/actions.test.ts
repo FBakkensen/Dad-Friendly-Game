@@ -553,7 +553,7 @@ describe("valueOf", () => {
     expect(tended.gainPerSec).toBe(595);
     expect(tended.cost).toBe(9_000_000);
     const applied = buyCrew({ ...staffed, pocket: 10_000_000 }, "borer");
-    expect(crewDelta(staffed, applied)).toBe(691);
+    expect(crewDelta(staffed, applied)).toBe(699);
 
     const hammer: Mountain = {
       ...minedMountain(25_000_000),

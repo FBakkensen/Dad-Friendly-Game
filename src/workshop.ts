@@ -135,8 +135,10 @@ export type Recipe = {
  * the buff starts when the craft goes on the bench, so a ten-minute sitting
  * feels it before the dad walks away. Reinforce stops at 5. Axle grease
  * is a live crew timer: crafting it again refreshes the clock and does not
- * stack. Crystal flare and the heartstone ember work the same way, and
- * none of those three change away pay.
+ * stack. Crystal flare and the heartstone ember work the same way. Axle
+ * grease and a blasting charge do not multiply with each other or with
+ * Overtime; `effectiveRates` keeps the strongest crew timer. None of those
+ * timers change away pay.
  */
 const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
   "iron-rails": {
@@ -736,7 +738,9 @@ export function emberMachineMultiplier(
 /**
  * Crew multiplier while axle grease is hot, including the minutes it is
  * still on the bench. 1 with no `now`, so away pay never sees it. Crafting
- * another one refreshes the clock, and the crafted count does not multiply it.
+ * another one refreshes the clock, and the crafted count does not multiply
+ * it. Overlapping a charge or Overtime does not multiply this; the strongest
+ * crew timer wins in `effectiveRates`.
  */
 export function axleCrewMultiplier(
   mountain: { readonly axleUntil?: number; readonly bench?: Bench },
@@ -783,7 +787,8 @@ export function expeditionCraftScale(mountain: {
 /**
  * Crew multiplier while a blasting charge is still hot, including the
  * minutes it is still on the bench. Away pay passes no `now`, so a charge
- * never doubles stones earned while the app was closed.
+ * never doubles stones earned while the app was closed. It does not multiply
+ * with axle grease or Overtime.
  */
 export function chargeCrewMultiplier(
   mountain: Mountain,

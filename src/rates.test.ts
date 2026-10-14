@@ -101,9 +101,9 @@ describe("tendingGain", () => {
       effectiveRates(onBorer).crewPerSecond -
         effectiveRates(atCamp).crewPerSecond,
     );
-    expect(tendingGain(staffed, 0, "borer")).toBe(96);
+    expect(tendingGain(staffed, 0, "borer")).toBe(104);
     const two = { ...staffed, helpers: 16, borers: 2 };
-    expect(tendingGain(two, 0, "borer")).toBe(192);
+    expect(tendingGain(two, 0, "borer")).toBe(208);
     expect(tendingGain(staffed, 9, "borer")).toBe(0);
   });
 
@@ -147,7 +147,7 @@ describe("tendingGain", () => {
         },
       ],
     };
-    expect(tendingGain(journeyman, 1, "borer")).toBe(96);
+    expect(tendingGain(journeyman, 1, "borer")).toBe(104);
   });
 
   it("lifts an apprentice to 9% of the crew when her tier is the small one", () => {

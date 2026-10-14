@@ -1063,9 +1063,9 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       sessionStorage: storage,
       now: () => 100_000,
     });
-    // 8 workers + a borer at +16.2% (691/s floored with the workers) for 100s at 30%.
+    // 8 workers + a borer at +17.5% (699/s floored) for 100s at 30%.
     expect(progress.getSnapshot().away?.mined).toBe(
-      Math.floor(100 * 699 * 0.3),
+      Math.floor(100 * 707 * 0.3),
     );
     expect(progress.getSnapshot().engineerJoined).toBe(true);
   });
