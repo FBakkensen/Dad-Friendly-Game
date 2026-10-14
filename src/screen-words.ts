@@ -794,6 +794,14 @@ export function stoneCostWords(stones: number): string {
   return `${formatCompact(stones)} stones`;
 }
 
+/**
+ * Another crew timer is already this strong. Grease, a charge, and Overtime
+ * do not multiply, so the card does not promise a bigger crew.
+ */
+export function crewAlreadyWords(mark: number): string {
+  return `Crew already at ×${formatCraftSpeed(mark)}.`;
+}
+
 /** "Level 1 of 2" for a craft that can be made more than once. */
 export function craftLevelWords(next: number, max: number): string {
   return `Level ${String(next)} of ${String(max)}`;

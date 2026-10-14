@@ -44,6 +44,7 @@ import {
   craftPriceWords,
   WORKSHOP_BENCH_BUSY,
   WORKSHOP_CANCEL_CONFIRM,
+  crewAlreadyWords,
   craftLevelWords,
   craftTimeWords,
   formatCraftSpeed,
@@ -593,6 +594,8 @@ describe("workshop sheet copy (#199)", () => {
     expect(craftLevelWords(1, 2)).toBe("Level 1 of 2");
     expect(WORKSHOP_BENCH_BUSY).toBe("Bench busy");
     expect(WORKSHOP_CANCEL_CONFIRM).toBe("Tap again to cancel");
+    expect(crewAlreadyWords(2)).toBe("Crew already at ×2.");
+    expect(crewAlreadyWords(2)).not.toMatch(/×4|4×/);
     expect(refundBackWords([])).toBe("Cancel · nothing comes back");
     expect(refundBackWords(["1 iron"])).toBe("Cancel · 1 iron back");
     expect(refundBackWords(["75K stones", "3 clay"])).toBe(
@@ -611,6 +614,7 @@ describe("workshop sheet copy (#199)", () => {
       UNFOUND_DEEPER,
       WORKSHOP_BENCH_BUSY,
       WORKSHOP_CANCEL_CONFIRM,
+      crewAlreadyWords(2),
       craftLevelWords(1, 5),
       stoneCostWords(1),
       workshopMenuWords(60_000),

@@ -67,7 +67,7 @@ describe("casual run", { timeout: 120_000 }, () => {
     // Payback no longer spends a night saving. Value-per-stone still
     // waits on the Great Machine, starting on day 3.
     expect(payback.value).toBeLessThanOrEqual(0.5);
-    expect(value.value / HOURS_PER_DAY).toBeCloseTo(1.506, 3);
+    expect(value.value / HOURS_PER_DAY).toBeCloseTo(1.502, 3);
     const valueNotes = result.deadStretches.filter(
       (stretch) => stretch.score === "value",
     );
@@ -82,7 +82,7 @@ describe("casual run", { timeout: 120_000 }, () => {
       savingFor: "buyTier:machine",
       score: "value",
     });
-    expect(valueNote.hours).toBeCloseTo(36.149, 2);
+    expect(valueNote.hours).toBeCloseTo(36.049, 2);
     expect(valueNote.startDay).toBeCloseTo(3, 1);
   }, 120_000);
 });

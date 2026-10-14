@@ -180,6 +180,26 @@ describe("workshop sheet (#199)", () => {
     expect(recipe(workshopCards(cold, 1_000), "blasting-charge").effect).toBe(
       "The crew digs at 2× for 20 min.",
     );
+    const charged = shed({ chargeUntil: 30 * 60_000, helpers: 4, carts: 1 });
+    const grease = recipe(workshopCards(charged, 1_000), "axle-grease");
+    expect(grease.effect).toBe("Crew already at ×2.");
+    const overtime = shed({
+      helpers: 4,
+      carts: 1,
+      boosts: { overtime: 30 * 60_000 },
+    });
+    expect(
+      recipe(workshopCards(overtime, 1_000), "blasting-charge").effect,
+    ).toBe("Crew already at ×2.");
+    for (const card of [
+      ...workshopCards(charged, 1_000),
+      ...workshopCards(overtime, 1_000),
+      ...workshopCards(shed(), 1_000),
+    ]) {
+      if (card.kind === "recipe") {
+        expect(card.effect).not.toMatch(/×4|x4|4×/);
+      }
+    }
   });
 
   it("names the next machine and hides a finished craft", () => {

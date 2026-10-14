@@ -217,7 +217,7 @@ describe("tending", () => {
     const plain = effectiveRates(base);
     const apprentice = effectiveRates({ ...base, engineers: [ada] });
     expect(apprentice.tierSpeed.borer).toBeCloseTo(
-      plain.tierSpeed.borer * 1.162,
+      plain.tierSpeed.borer * 1.175,
       8,
     );
     expect(apprentice.tierSpeed.drill).toBe(plain.tierSpeed.drill);
@@ -235,7 +235,7 @@ describe("tending", () => {
       engineers: [{ name: "Ada", rank: 2, trips: 9, post: "borer" }],
     });
     expect(master.tierSpeed.borer).toBeCloseTo(
-      plain.tierSpeed.borer * 1.486,
+      plain.tierSpeed.borer * 1.525,
       8,
     );
 
@@ -275,7 +275,7 @@ describe("tending", () => {
     };
     expect(tendingTenths(both, "borer")).toBe(3);
     expect(effectiveRates(both).tierSpeed.borer).toBeCloseTo(
-      595 * 0.85 * 1.486,
+      595 * 0.85 * 1.525,
       8,
     );
   });

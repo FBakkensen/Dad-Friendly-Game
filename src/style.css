@@ -2756,6 +2756,10 @@ body {
   flex: none;
 }
 
+.mat-stones {
+  filter: none;
+}
+
 .mat-clay {
   filter: sepia(1) saturate(4) hue-rotate(-20deg) brightness(1.05);
 }

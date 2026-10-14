@@ -116,6 +116,12 @@ describe("workshop panel (#199)", () => {
     expect(sheet?.textContent).toContain("Carts 8.5/s to 10.6/s");
     expect(sheet?.textContent).toContain("500K stones");
     expect(sheet?.textContent).toContain("Level 1 of 2");
+    const stoneIcon = sheet?.querySelector(".mat-stones");
+    const clayIcon = sheet?.querySelector(".mat-clay");
+    expect(stoneIcon?.getAttribute("src")).toContain("stone");
+    expect(stoneIcon?.getAttribute("src")).not.toBe(
+      clayIcon?.getAttribute("src"),
+    );
     expect(sheet?.textContent).toContain("10 min");
     expect(sheet?.textContent).toContain("A little at a time is plenty.");
     expect(sheet?.textContent).not.toMatch(/\?/);

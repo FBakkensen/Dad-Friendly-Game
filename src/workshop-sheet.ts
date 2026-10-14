@@ -1,3 +1,4 @@
+import { boostById, boostLeft } from "./boosts";
 import { factor } from "./economy/factors";
 import { TUNNELS } from "./expeditions";
 import { formatCompact } from "./format";
@@ -17,6 +18,7 @@ import {
   craftPriceWords,
   craftTimeWords,
   formatCraftSpeed,
+  crewAlreadyWords,
   craftLevelWords,
   materialCostWords,
   materialCountWords,
@@ -220,6 +222,21 @@ function kitLine(mountain: Mountain): string {
   return `Long trips ${craftTimeWords(before)} to ${craftTimeWords(after)}.`;
 }
 
+/** The other crew timers, leaving this craft out so it cannot count twice. */
+function otherCrewTimer(
+  mountain: Mountain,
+  now: number,
+  kind: "charge" | "axle",
+): number {
+  const overtime =
+    boostLeft(mountain, "overtime", now) > 0
+      ? boostById("overtime").multiplier
+      : 1;
+  const axle = kind === "axle" ? 1 : axleCrewMultiplier(mountain, now);
+  const charge = kind === "charge" ? 1 : chargeCrewMultiplier(mountain, now);
+  return Math.max(overtime, axle, charge);
+}
+
 function crewBuffLine(
   mountain: Mountain,
   now: number,
@@ -233,13 +250,17 @@ function crewBuffLine(
       ? { ...mountain, chargeUntil: now + durationMs }
       : { ...mountain, axleUntil: now + durationMs };
   const after = effectiveRates(afterMountain, now).exactCrewPerSecond;
-  if (after > before + 1e-9) {
-    return `Crew ${formatCraftSpeed(before)}/s to ${formatCraftSpeed(after)}/s for ${time}.`;
-  }
   const scale =
     kind === "charge"
       ? chargeCrewMultiplier(afterMountain, now)
       : axleCrewMultiplier(afterMountain, now);
+  const others = otherCrewTimer(mountain, now, kind);
+  if (others > 1 && others + 1e-9 >= scale) {
+    return crewAlreadyWords(others);
+  }
+  if (after > before + 1e-9) {
+    return `Crew ${formatCraftSpeed(before)}/s to ${formatCraftSpeed(after)}/s for ${time}.`;
+  }
   const mark = formatCraftSpeed(scale);
   if (before <= 0) {
     return `The crew digs at ${mark}× for ${time}.`;

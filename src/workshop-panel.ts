@@ -1,3 +1,4 @@
+import stoneIconUrl from "./assets/stone.png";
 import { reducedMotion } from "./float-text";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
@@ -345,8 +346,8 @@ export function createWorkshopPanel({
       const stones = document.createElement("span");
       stones.className = "cost-bit";
       const icon = document.createElement("img");
-      icon.className = "mat";
-      icon.src = stoneUrl;
+      icon.className = "mat mat-stones";
+      icon.src = stoneIconUrl;
       icon.alt = "";
       icon.width = 16;
       icon.height = 16;
