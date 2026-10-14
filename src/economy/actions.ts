@@ -595,10 +595,10 @@ function valueRecall(
   );
   const fraction = trip === undefined ? 1 : remainingFraction(trip, now);
   // The find is a lump the recall throws away. A worthless tunnel would
-  // otherwise pay back in zero seconds and be the only button. Twelve
-  // hours keeps a neighbour buy on the table.
+  // otherwise pay back in zero seconds and be the only button. Half a
+  // day keeps a neighbour buy on the table.
   const FORFEIT = 8;
-  const MIN_RECALL_SEC = 5 * 60 * 60;
+  const MIN_RECALL_SEC = 12 * 60 * 60;
   const cost = Math.max(finds * fraction * FORFEIT, restored * MIN_RECALL_SEC);
   return rateValue(mountain, restored, cost, horizon, context);
 }

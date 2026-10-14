@@ -114,6 +114,24 @@ export type Rates = {
 };
 
 /**
+ * Axle grease, a blasting charge, and Overtime each speed the live crew.
+ * The crew runs at the strongest of them. Three timers at ×2 stay ×2.
+ * Away pay passes no `now`, and each one is then 1. A stronger recipe
+ * still shows on the crew line.
+ */
+function liveCrewTimer(mountain: Mountain, now: number | undefined): number {
+  const overtime =
+    now !== undefined && boostLeft(mountain, "overtime", now) > 0
+      ? boostById("overtime").multiplier
+      : 1;
+  return Math.max(
+    axleCrewMultiplier(mountain, now),
+    chargeCrewMultiplier(mountain, now),
+    overtime,
+  );
+}
+
+/**
  * Every multiplier in one place: live ticks, away earnings, taps and the UI
  * all read from here, so they can't disagree. Pass `now` while playing so
  * running boosts count; leave it out for away time, which boosts never touch.
@@ -123,9 +141,9 @@ export function effectiveRates(
   now?: number,
   trouble?: Trouble,
 ): Rates {
-  const boosted = (id: "sharper" | "overtime"): number =>
-    now !== undefined && boostLeft(mountain, id, now) > 0
-      ? boostById(id).multiplier
+  const sharper =
+    now !== undefined && boostLeft(mountain, "sharper", now) > 0
+      ? boostById("sharper").multiplier
       : 1;
   const taught = 1 + mountain.kids * KID_TEACH_PER_KID;
   const layer = layerOf(mountain);
@@ -185,29 +203,27 @@ export function effectiveRates(
     needed += count * staff;
   }
   applyTendingFloor(mountain, plain, tierSpeed, running);
-  const axle = axleCrewMultiplier(mountain, now);
-  const exactBase =
-    TIERS.reduce(
-      (total, tier) => total + running[tier.id] * tierSpeed[tier.id],
-      0,
-    ) * axle;
+  const exactBase = TIERS.reduce(
+    (total, tier) => total + running[tier.id] * tierSpeed[tier.id],
+    0,
+  );
   // Whole stones a second, so what the crew line says is what gets mined.
   const baseCrew = Math.floor(exactBase + 1e-9);
-  // Tap power takes its share of the crew's own speed, before Overtime.
+  // Tap power takes its share of the unboosted crew, before any crew timer.
   const tapShare = upgradeLevel(mountain, "tap") * TAP_SHARE_PER_LEVEL;
   // Legacy multiplies the whole tap; its share of the crew is taken before it.
   // Grandfather's pick strengthens that bare tap; Sharper picks still doubles the result.
   const bareTap = Math.floor(
     (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
   );
-  const charge = chargeCrewMultiplier(mountain, now);
+  const timer = liveCrewTimer(mountain, now);
   return {
-    tapYield: tapWithPick(bareTap, mountain) * boosted("sharper"),
+    tapYield: tapWithPick(bareTap, mountain) * sharper,
     tierSpeed,
     running,
     helpersShort: Math.max(0, needed - mountain.helpers - mountain.kids),
-    exactCrewPerSecond: exactBase * boosted("overtime") * charge,
-    crewPerSecond: baseCrew * boosted("overtime") * charge,
+    exactCrewPerSecond: exactBase * timer,
+    crewPerSecond: baseCrew * timer,
     awayCapMs: hasRelic(mountain, "shield")
       ? SHIELD_AWAY_CAP_MS
       : BASE_AWAY_CAP_MS,
@@ -299,14 +315,16 @@ function addExtraPosts(
   }
 }
 
+/**
+ * An apprentice on the borer is +17.5% (seven quarters of the published
+ * +10% tenth). Journeyman and master scale the same way. That keeps
+ * tending about a tenth clear of the 8% bar.
+ */
+const BORER_TENTHS_SCALE = 7 / 4;
+
 function tenthsFor(mountain: Mountain, tierId: TierId): number {
   const tenths = tendingTenths(mountain, tierId);
-  // A little extra on the borer, where an apprentice spends the middle
-  // of the run. Crafted gear takes a slice of the same output, so the
-  // borer's tenth is larger than the other posts. Enough to clear an 8%
-  // share, and short of the jump that lets a checker empty the mountain
-  // before day 5.
-  return tierId === "borer" ? (tenths * 162) / 100 : tenths;
+  return tierId === "borer" ? tenths * BORER_TENTHS_SCALE : tenths;
 }
 
 function applyAllTenths(

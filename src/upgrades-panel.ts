@@ -202,12 +202,30 @@ export function createUpgradesPanel({
     for (const { boost, effect, buy } of boostRows) {
       const left = boostLeft(current, boost.id, at);
       const cost = boostCost(boost, pricing);
+      // Overtime shares the crew with axle grease and a blasting charge.
+      // The line shows the crew you would actually have, the strongest
+      // timer, so a second ×2 does not pretend to make it ×4.
+      const shown =
+        boost.id === "overtime"
+          ? effectiveRates(
+              left > 0
+                ? current
+                : {
+                    ...current,
+                    boosts: {
+                      ...current.boosts,
+                      overtime: at + boost.durationMs,
+                    },
+                  },
+              at,
+            )
+          : live;
       effect.textContent = boostOutcome(
         boost.id,
         boost.effect,
         boost.multiplier,
-        live,
-        left > 0,
+        shown,
+        boost.id === "overtime" || left > 0,
       );
       const affordable = left === 0 && current.pocket >= cost;
       anyAffordable ||= affordable;

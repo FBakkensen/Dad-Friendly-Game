@@ -514,6 +514,45 @@ describe("workshop rules", () => {
     expect(axleCrewMultiplier(twice, 600_001)).toBeCloseTo(2);
   });
 
+  it("runs the crew at the strongest timer when grease, a charge, and Overtime overlap", () => {
+    const now = 1;
+    const cool = { ...openShed(), helpers: 500 };
+    const plain = effectiveRates(cool, now);
+    expect(plain.crewPerSecond).toBe(500);
+    const until = 30 * 60_000;
+    const hot = {
+      ...cool,
+      boosts: { overtime: until },
+      chargeUntil: until,
+      axleUntil: until,
+      upgrades: { tap: 1 },
+    };
+    const doubled = effectiveRates(hot, now);
+    expect(doubled.crewPerSecond).toBe(plain.crewPerSecond * 2);
+    expect(doubled.exactCrewPerSecond).toBe(plain.exactCrewPerSecond * 2);
+    expect(effectiveRates(hot).crewPerSecond).toBe(plain.crewPerSecond);
+    expect(
+      effectiveRates({ ...cool, axleUntil: until }, now).crewPerSecond,
+    ).toBe(plain.crewPerSecond * 2);
+    expect(
+      effectiveRates({ ...cool, chargeUntil: until }, now).crewPerSecond,
+    ).toBe(plain.crewPerSecond * 2);
+    expect(
+      effectiveRates({ ...cool, boosts: { overtime: until } }, now)
+        .crewPerSecond,
+    ).toBe(plain.crewPerSecond * 2);
+    // Strong arms reads the unboosted crew, the same rule as Overtime alone.
+    expect(doubled.tapYield).toBe(
+      effectiveRates({ ...cool, upgrades: { tap: 1 } }, now).tapYield,
+    );
+    expect(doubled.tapYield).toBe(9);
+    const stronger = withFactors(
+      { "recipe.blasting-charge.strength": 2 },
+      () => effectiveRates(hot, now).crewPerSecond,
+    );
+    expect(stronger).toBe(plain.crewPerSecond * 3);
+  });
+
   it("does not come out ahead by cancelling a live timer and starting it again", () => {
     const crew = {
       ...openShed(),
