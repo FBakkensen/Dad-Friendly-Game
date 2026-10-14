@@ -20,6 +20,7 @@ import {
   parseMaterials,
   parseRecipes,
   recipesForMined,
+  settleBench,
   type Bench,
   type Crafted,
   type RecipeId,
@@ -87,6 +88,15 @@ export type Mountain = {
   readonly crafted?: Crafted;
   /** Recipes found. Missing on a hand-built mountain; a save always has it. */
   readonly recipes?: readonly RecipeId[];
+  /**
+   * When a blasting charge stops doubling the crew (epoch ms). Missing means
+   * none is hot. Written in the workshop map, beside the mountain.
+   */
+  readonly chargeUntil?: number;
+  /** When a crystal flare stops drawing veins. Live play only. */
+  readonly flareUntil?: number;
+  /** When a heartstone ember stops lifting the Great Machine. Live play only. */
+  readonly emberUntil?: number;
 };
 
 /** A sanity cap for saves; no dad gets near it. Mirrored in firestore.rules. */
@@ -194,14 +204,44 @@ export function accrue({
   /** Session trouble. Ignored unless `live`: away pay never slows for it. */
   trouble?: Trouble;
 }): Accrual {
+  if (to <= from) {
+    return { mountain, mined: 0, settledAt: Math.max(from, to) };
+  }
+  // A craft that finished before this window is on the crew for the whole of it.
+  // One that finishes during the window is fitted at the end, once.
+  const ready = settleBench(mountain, from);
+  const worked = accrueCrew({
+    mountain: ready,
+    from,
+    to,
+    pay,
+    live,
+    ...(trouble === undefined ? {} : { trouble }),
+  });
+  const fitted = settleBench(worked.mountain, to);
+  return fitted === worked.mountain ? worked : { ...worked, mountain: fitted };
+}
+
+function accrueCrew({
+  mountain,
+  from,
+  to,
+  pay = 1,
+  live = false,
+  trouble,
+}: {
+  mountain: Mountain;
+  from: number;
+  to: number;
+  pay?: number;
+  live?: boolean;
+  trouble?: Trouble;
+}): Accrual {
   const rate = stonesPerSecond(
     mountain,
     live ? from : undefined,
     live ? trouble : undefined,
   );
-  if (to <= from) {
-    return { mountain, mined: 0, settledAt: Math.max(from, to) };
-  }
   if (rate === 0 || mountain.remaining === 0) {
     return { mountain, mined: 0, settledAt: to };
   }

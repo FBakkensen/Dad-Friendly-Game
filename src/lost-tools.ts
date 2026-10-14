@@ -1,7 +1,10 @@
+import { expeditionCraftScale, type Crafted } from "./workshop";
+
 /**
  * Lost tools (M7 §4). One of each, brought home from below and kept on
  * `mountain.finds`. The effects are applied in `effectiveRates`, `veins`,
  * `expeditions`, and (for the boots) `hazards` via `wearsSteelToes`.
+ * The engineer's kit shortens the next expedition on top of the worn map.
  * See docs/DESIGN.md.
  */
 
@@ -12,6 +15,7 @@ export type LostToolId = (typeof LOST_TOOLS)[number];
 
 type Shelf = {
   readonly finds?: readonly string[];
+  readonly crafted?: Crafted;
 };
 
 /** Grandfather's pick: five fourths of the bare tap, rounded up. */
@@ -51,8 +55,8 @@ export function glintScale(mountain: Shelf): number {
 
 /** How long the next expedition stays out. Already-walking parties keep their clock. */
 export function expeditionAwayMs(awayMs: number, mountain: Shelf): number {
-  if (!hasLostTool(mountain, "map")) {
-    return awayMs;
-  }
-  return Math.round((awayMs * MAP_RETURN_NUMERATOR) / MAP_RETURN_DENOMINATOR);
+  const mapped = hasLostTool(mountain, "map")
+    ? Math.round((awayMs * MAP_RETURN_NUMERATOR) / MAP_RETURN_DENOMINATOR)
+    : awayMs;
+  return Math.round(mapped * expeditionCraftScale(mountain));
 }

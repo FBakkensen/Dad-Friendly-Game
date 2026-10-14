@@ -8,6 +8,11 @@ import {
 } from "./engineers";
 import { slowedSpeed, type Trouble } from "./hazards";
 import { hardnessFactorId, layerOf } from "./layers";
+import {
+  chargeCrewMultiplier,
+  emberMachineMultiplier,
+  gearMultiplier,
+} from "./workshop";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import { TIERS, owned, type TierId } from "./tiers";
@@ -127,10 +132,14 @@ export function effectiveRates(
     TIERS.map((tier) => {
       // A sweep scales the tier's own stones a second, and the rock of this
       // layer. Both factors are 1 in play.
+      const ember =
+        tier.id === "machine" ? emberMachineMultiplier(mountain, now) : 1;
       const output =
         tier.perSecond *
         factor(`output.${tier.id}`) *
-        factor(hardnessFactorId(layer.index, tier.id));
+        factor(hardnessFactorId(layer.index, tier.id)) *
+        gearMultiplier(mountain, tier.id) *
+        ember;
       return [
         tier.id,
         tier.id === "helper"
@@ -187,13 +196,14 @@ export function effectiveRates(
   const bareTap = Math.floor(
     (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
   );
+  const charge = chargeCrewMultiplier(mountain, now);
   return {
     tapYield: tapWithPick(bareTap, mountain) * boosted("sharper"),
     tierSpeed,
     running,
     helpersShort: Math.max(0, needed - mountain.helpers - mountain.kids),
-    exactCrewPerSecond: exactBase * boosted("overtime"),
-    crewPerSecond: baseCrew * boosted("overtime"),
+    exactCrewPerSecond: exactBase * boosted("overtime") * charge,
+    crewPerSecond: baseCrew * boosted("overtime") * charge,
     awayCapMs: hasRelic(mountain, "shield")
       ? SHIELD_AWAY_CAP_MS
       : BASE_AWAY_CAP_MS,

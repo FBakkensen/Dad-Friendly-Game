@@ -65,6 +65,9 @@ describe("serializeSave and parseSaveValue", () => {
         "blasting-charge",
         "crystal-lamp",
       ],
+      chargeUntil: 80_000,
+      flareUntil: 90_000,
+      emberUntil: 100_000,
     };
     expect(
       parseSaveValue(serializeSave({ mountain: everyField, lastSeen: 1 })),
@@ -470,6 +473,18 @@ describe("v6 materials back-grant (#195)", () => {
         workshop: { ...saved.workshop, crafted: {} },
       })?.mountain.crafted,
     ).toBeUndefined();
+    expect(
+      parseSaveValue({
+        ...saved,
+        workshop: { ...saved.workshop, chargeUntil: 40 },
+      })?.mountain.chargeUntil,
+    ).toBe(40);
+    expect(
+      parseSaveValue({
+        ...saved,
+        workshop: { ...saved.workshop, flareUntil: 41, emberUntil: 42 },
+      })?.mountain,
+    ).toMatchObject({ flareUntil: 41, emberUntil: 42 });
     for (const workshop of [
       null,
       { materials: saved.workshop.materials },
@@ -480,6 +495,11 @@ describe("v6 materials back-grant (#195)", () => {
         ...saved.workshop,
         bench: { recipe: "iron-rails", startedAt: 5, endsAt: 4 },
       },
+      { ...saved.workshop, chargeUntil: -1 },
+      { ...saved.workshop, chargeUntil: 1.5 },
+      { ...saved.workshop, chargeUntil: "soon" },
+      { ...saved.workshop, flareUntil: -1 },
+      { ...saved.workshop, emberUntil: 1.2 },
     ]) {
       expect(parseSaveValue({ ...saved, workshop })).toBeUndefined();
     }
@@ -579,7 +599,10 @@ describe("v6 materials back-grant (#195)", () => {
       crystal: 0,
       heartstone: 0,
     });
-    expect(twelve?.mountain.recipes).toEqual([...STARTING_RECIPE_IDS]);
+    expect(twelve?.mountain.recipes).toEqual([
+      ...STARTING_RECIPE_IDS,
+      "reinforce",
+    ]);
     expect(twelve?.mountain.bench).toBeUndefined();
     expect(twelve?.mountain.crafted).toBeUndefined();
     expect(minedOut(twelve?.mountain ?? dug(0))).toBe(12_000_000);
@@ -591,7 +614,9 @@ describe("v6 materials back-grant (#195)", () => {
     });
     expect(sixty?.mountain.recipes).toEqual([
       ...STARTING_RECIPE_IDS,
+      "reinforce",
       "diamond-bits",
+      "crystal-flare",
     ]);
     expect(minedOut(sixty?.mountain ?? dug(0))).toBe(60_000_000);
   });
@@ -647,7 +672,10 @@ describe("v6 materials back-grant (#195)", () => {
       crystal: 0,
       heartstone: 0,
     });
-    expect(tampered?.mountain.recipes).toEqual([...STARTING_RECIPE_IDS]);
+    expect(tampered?.mountain.recipes).toEqual([
+      ...STARTING_RECIPE_IDS,
+      "reinforce",
+    ]);
     expect(tampered?.mountain.bench).toBeUndefined();
     expect(tampered?.mountain.crafted).toBeUndefined();
   });

@@ -1,16 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { MAX_MATERIAL } from "./layers";
+import { withFactors } from "./economy/factors";
+import { nextTrouble } from "./hazards";
+import { LAYERS, MAX_MATERIAL, type MaterialId } from "./layers";
+import { expeditionAwayMs } from "./lost-tools";
 import {
+  MOUNTAIN_STONES,
+  accrue,
+  accrueAway,
+  createMountain,
+  type Mountain,
+} from "./mountain";
+import { parseSaveValue, serializeSave } from "./persist";
+import { effectiveRates } from "./rates";
+import {
+  CHARGE_MS,
   MAX_CRAFTED_LEVEL,
   MAX_CRAFT_MS,
   RECIPE_IDS,
+  RECIPES,
   STARTING_RECIPE_IDS,
+  cancelCraft,
+  chargeCrewMultiplier,
+  craftedLevel,
+  expeditionCraftScale,
+  gearMultiplier,
   isRecipeId,
   parseBench,
+  parseChargeUntil,
   parseCrafted,
   parseMaterials,
   parseRecipes,
+  recipeById,
+  recipeCost,
   recipesForMined,
+  settleBench,
+  startCraft,
+  troubleGapScale,
+  veinOftenScale,
+  workshopUnlocked,
+  type RecipeId,
 } from "./workshop";
 
 const materials = { clay: 1, iron: 2, crystal: 3, heartstone: 4 };
@@ -19,22 +47,37 @@ describe("recipes granted from stones mined", () => {
   it("starts with three, and adds a layer recipe when that band is reached", () => {
     expect(recipesForMined(-1)).toEqual([...STARTING_RECIPE_IDS]);
     expect(recipesForMined(0)).toEqual([...STARTING_RECIPE_IDS]);
-    expect(recipesForMined(45_000_000 - 1)).toEqual([...STARTING_RECIPE_IDS]);
+    expect(recipesForMined(10_000_000 - 1)).toEqual([...STARTING_RECIPE_IDS]);
+    expect(recipesForMined(10_000_000)).toEqual([
+      ...STARTING_RECIPE_IDS,
+      "reinforce",
+    ]);
+    expect(recipesForMined(45_000_000 - 1)).toEqual([
+      ...STARTING_RECIPE_IDS,
+      "reinforce",
+    ]);
     expect(recipesForMined(45_000_000)).toEqual([
       ...STARTING_RECIPE_IDS,
+      "reinforce",
       "diamond-bits",
+      "crystal-flare",
     ]);
     expect(recipesForMined(120_000_000 - 1)).toEqual([
       ...STARTING_RECIPE_IDS,
+      "reinforce",
       "diamond-bits",
+      "crystal-flare",
     ]);
     expect(recipesForMined(120_000_000)).toEqual([
       ...STARTING_RECIPE_IDS,
+      "reinforce",
       "diamond-bits",
+      "crystal-flare",
       "heartstone-core",
+      "heartstone-ember",
     ]);
-    expect(recipesForMined(120_000_000)).not.toContain("crystal-lamp");
-    expect(recipesForMined(120_000_000)).not.toContain("engineers-kit");
+    expect(recipesForMined(MOUNTAIN_STONES)).not.toContain("crystal-lamp");
+    expect(recipesForMined(MOUNTAIN_STONES)).not.toContain("engineers-kit");
   });
 });
 
@@ -44,7 +87,7 @@ describe("workshop save fields", () => {
     expect(isRecipeId("crystal-lamp")).toBe(true);
     expect(isRecipeId("turbo")).toBe(false);
     expect(isRecipeId(1)).toBe(false);
-    expect(RECIPE_IDS).toHaveLength(7);
+    expect(RECIPE_IDS).toHaveLength(10);
   });
 
   it("accepts the four materials and rejects a bad pocket", () => {
@@ -130,5 +173,513 @@ describe("workshop save fields", () => {
       parseRecipes(new Array(RECIPE_IDS.length + 1).fill("iron-rails")),
     ).toEqual(["iron-rails"]);
     expect(parseRecipes("iron-rails")).toBeUndefined();
+  });
+
+  it("reads a whole charge time and rejects anything else", () => {
+    expect(parseChargeUntil(0)).toBe(0);
+    expect(parseChargeUntil(4)).toBe(4);
+    for (const bad of [undefined, null, -1, 1.5, "1"]) {
+      expect(parseChargeUntil(bad)).toBeUndefined();
+    }
+  });
+});
+
+const FULL: Mountain["materials"] = {
+  clay: 80,
+  iron: 80,
+  crystal: 80,
+  heartstone: 80,
+};
+
+/** Granite is open, the pocket can pay, and every recipe is known. */
+function openShed(extra: Partial<Mountain> = {}): Mountain {
+  return {
+    ...createMountain(),
+    remaining: MOUNTAIN_STONES - LAYERS[1].from,
+    pocket: 80_000_000,
+    materials: FULL,
+    recipes: [...RECIPE_IDS],
+    ...extra,
+  } as Mountain;
+}
+
+describe("workshop rules", () => {
+  it("lists a first-cut cost, time, and effect for every recipe", () => {
+    expect(RECIPES.map((recipe) => recipe.id)).toEqual([...RECIPE_IDS]);
+    expect(recipeById("iron-rails")).toMatchObject({
+      stones: 4_200_000,
+      materials: { iron: 12 },
+      craftMs: 3_600_000,
+      maxLevel: 3,
+    });
+    expect(recipeById("sturdy-props").materials).toEqual({ clay: 20, iron: 8 });
+    expect(recipeById("blasting-charge")).toMatchObject({
+      stones: 800_000,
+      materials: { clay: 6 },
+      craftMs: 600_000,
+    });
+    expect(recipeById("blasting-charge").effect).toMatchObject({
+      multiplier: 2,
+      durationMs: CHARGE_MS,
+    });
+    expect(recipeById("reinforce")).toMatchObject({
+      stones: 0,
+      materials: { iron: 8 },
+    });
+    expect(recipeById("reinforce").maxLevel).toBe(5);
+    expect(recipeById("crystal-flare").effect).toMatchObject({
+      often: 0.25,
+      durationMs: 3_600_000,
+    });
+    expect(recipeById("heartstone-ember").effect).toMatchObject({
+      bonus: 0.25,
+      durationMs: CHARGE_MS,
+    });
+    expect(recipeCost("crystal-lamp").stones).toBe(0);
+    expect(recipeCost("engineers-kit").materials).toMatchObject({
+      iron: 12,
+      crystal: 8,
+    });
+    for (const recipe of RECIPES) {
+      expect([600_000, 3_600_000, 14_400_000]).toContain(recipe.craftMs);
+    }
+  });
+
+  it("gives every material a recipe that can be crafted again", () => {
+    const sinks: Record<MaterialId, RecipeId> = {
+      clay: "blasting-charge",
+      iron: "reinforce",
+      crystal: "crystal-flare",
+      heartstone: "heartstone-ember",
+    };
+    for (const material of Object.keys(sinks) as MaterialId[]) {
+      const sink = recipeById(sinks[material]);
+      expect(sink.maxLevel === undefined || sink.maxLevel > 1).toBe(true);
+      expect(sink.materials[material]).toBeGreaterThan(0);
+      const once = startCraft(openShed(), sink.id, 0);
+      const fitted = settleBench(once, once.bench?.endsAt ?? 0);
+      const twice = startCraft(fitted, sink.id, once.bench?.endsAt ?? 0);
+      expect(twice.bench?.recipe).toBe(sink.id);
+      expect(craftedLevel(fitted, sink.id)).toBe(1);
+    }
+  });
+
+  it("stays shut until the Granite, and spends nothing it cannot pay", () => {
+    const locked = {
+      ...createMountain(),
+      pocket: 80_000_000,
+      materials: FULL,
+    };
+    expect(workshopUnlocked(locked)).toBe(false);
+    expect(workshopUnlocked(openShed())).toBe(true);
+    expect(startCraft(locked, "iron-rails", 1)).toBe(locked);
+    const shed = openShed();
+    expect(startCraft(shed, "iron-rails", -1)).toBe(shed);
+    expect(startCraft(shed, "iron-rails", 1.5)).toBe(shed);
+    const { recipes, ...unknown } = shed;
+    expect(recipes).toEqual([...RECIPE_IDS]);
+    expect(startCraft(unknown, "iron-rails", 1)).toBe(unknown);
+    const onlyProps = { ...shed, recipes: ["sturdy-props" as const] };
+    expect(startCraft(onlyProps, "iron-rails", 1)).toBe(onlyProps);
+    const started = startCraft(shed, "iron-rails", 1);
+    expect(startCraft(started, "sturdy-props", 2)).toBe(started);
+    const maxed = { ...shed, crafted: { "iron-rails": 3 } };
+    expect(startCraft(maxed, "iron-rails", 1)).toBe(maxed);
+    const capped = {
+      ...shed,
+      crafted: { "crystal-flare": MAX_CRAFTED_LEVEL },
+    };
+    expect(startCraft(capped, "crystal-flare", 1)).toBe(capped);
+    const poor = { ...shed, pocket: 10 };
+    expect(startCraft(poor, "iron-rails", 1)).toBe(poor);
+    const { materials, ...bare } = shed;
+    expect(materials).toEqual(FULL);
+    expect(startCraft(bare, "reinforce", 1)).toBe(bare);
+    const shortClay = { ...shed, materials: { ...FULL, clay: 0 } };
+    expect(startCraft(shortClay, "blasting-charge", 1)).toBe(shortClay);
+    const shortIron = { ...shed, materials: { ...FULL, iron: 0 } };
+    expect(startCraft(shortIron, "reinforce", 1)).toBe(shortIron);
+    const shortCrystal = { ...shed, materials: { ...FULL, crystal: 0 } };
+    expect(startCraft(shortCrystal, "crystal-flare", 1)).toBe(shortCrystal);
+    const shortHeart = { ...shed, materials: { ...FULL, heartstone: 0 } };
+    expect(startCraft(shortHeart, "heartstone-ember", 1)).toBe(shortHeart);
+  });
+
+  it("puts one craft on the bench and returns every stone and material on cancel", () => {
+    const shed = openShed();
+    const started = startCraft(shed, "sturdy-props", 5_000);
+    expect(started).not.toBe(shed);
+    expect(shed.pocket).toBe(80_000_000);
+    expect(started.pocket).toBe(shed.pocket - 2_000_000);
+    expect(started.materials).toEqual({ ...FULL, clay: 60, iron: 72 });
+    expect(started.bench).toEqual({
+      recipe: "sturdy-props",
+      startedAt: 5_000,
+      endsAt: 5_000 + 3_600_000,
+    });
+    const back = cancelCraft(started, 5_000);
+    expect(back.pocket).toBe(shed.pocket);
+    expect(back.materials).toEqual(FULL);
+    expect(back.bench).toBeUndefined();
+    expect(back.crafted).toBeUndefined();
+    expect(cancelCraft(shed, 1)).toBe(shed);
+    const late = cancelCraft(started, started.bench?.endsAt ?? 0);
+    expect(late.crafted?.["sturdy-props"]).toBe(1);
+    expect(late.pocket).toBe(started.pocket);
+    expect(late.materials).toEqual(started.materials);
+    expect(late.bench).toBeUndefined();
+  });
+
+  it("fits a finished craft once across time away and a reload", () => {
+    const started = startCraft(openShed(), "iron-rails", 1_000);
+    const endsAt = started.bench?.endsAt ?? 0;
+    expect(settleBench(started, endsAt - 1)).toBe(started);
+    const away = accrueAway({
+      mountain: started,
+      lastSeen: 1_000,
+      now: endsAt + 5_000,
+    });
+    expect(away.mountain.crafted?.["iron-rails"]).toBe(1);
+    expect(away.mountain.bench).toBeUndefined();
+    const saved = serializeSave({
+      mountain: away.mountain,
+      lastSeen: endsAt,
+    });
+    const loaded = parseSaveValue(saved)?.mountain ?? started;
+    const again = accrueAway({
+      mountain: loaded,
+      lastSeen: endsAt,
+      now: endsAt + 60_000,
+    });
+    expect(again.mountain.crafted?.["iron-rails"]).toBe(1);
+    expect(
+      settleBench(again.mountain, endsAt + 60_000).crafted?.["iron-rails"],
+    ).toBe(1);
+    const backwards = accrue({
+      mountain: started,
+      from: endsAt,
+      to: 1_000,
+    });
+    expect(backwards.mountain).toBe(started);
+    expect(backwards.mined).toBe(0);
+  });
+
+  it("fits gear that is already done before the window, and a charge while idle", () => {
+    const due = {
+      ...openShed(),
+      helpers: 1,
+      carts: 1,
+      bench: {
+        recipe: "iron-rails" as const,
+        startedAt: 0,
+        endsAt: 0,
+      },
+    };
+    const fitted = accrue({ mountain: due, from: 0, to: 10_000 });
+    expect(fitted.mountain.crafted?.["iron-rails"]).toBe(1);
+    expect(fitted.mined).toBe(130);
+    const working = startCraft(
+      { ...openShed(), helpers: 1, carts: 1 },
+      "iron-rails",
+      0,
+    );
+    const during = accrue({
+      mountain: working,
+      from: 0,
+      to: working.bench?.endsAt ?? 0,
+    });
+    expect(during.mined).toBe(11 * 3_600);
+    expect(during.mountain.crafted?.["iron-rails"]).toBe(1);
+    const idle = startCraft(openShed(), "blasting-charge", 0);
+    const done = accrue({
+      mountain: idle,
+      from: 0,
+      to: idle.bench?.endsAt ?? 0,
+    });
+    expect(done.mined).toBe(0);
+    expect(done.mountain.chargeUntil).toBe(
+      (idle.bench?.endsAt ?? 0) + CHARGE_MS,
+    );
+    expect(done.mountain.bench).toBeUndefined();
+  });
+
+  it("adds another twenty minutes when a second charge finishes while one is hot", () => {
+    const first = settleBench(
+      startCraft(openShed(), "blasting-charge", 0),
+      600_000,
+    );
+    expect(first.chargeUntil).toBe(600_000 + CHARGE_MS);
+    const next = startCraft(first, "blasting-charge", 600_000);
+    const second = settleBench(next, next.bench?.endsAt ?? 0);
+    expect(second.crafted?.["blasting-charge"]).toBe(2);
+    expect(second.chargeUntil).toBe((first.chargeUntil ?? 0) + CHARGE_MS);
+    const cooled = { ...first, chargeUntil: 1 };
+    const restarted = startCraft(cooled, "blasting-charge", 100);
+    const fresh = settleBench(restarted, restarted.bench?.endsAt ?? 0);
+    expect(fresh.chargeUntil).toBe((restarted.bench?.endsAt ?? 0) + CHARGE_MS);
+    const full = {
+      ...openShed(),
+      crafted: { "blasting-charge": MAX_CRAFTED_LEVEL },
+      bench: {
+        recipe: "blasting-charge" as const,
+        startedAt: 0,
+        endsAt: 1,
+      },
+    };
+    const held = settleBench(full, 1);
+    expect(held.crafted?.["blasting-charge"]).toBe(MAX_CRAFTED_LEVEL);
+    expect(held.bench).toBeUndefined();
+    expect(held.chargeUntil).toBe(1 + CHARGE_MS);
+  });
+
+  it("doubles the live crew for a hot charge and leaves time away alone", () => {
+    const crew = { ...openShed(), helpers: 10, chargeUntil: 1_000_000 };
+    const { chargeUntil: _hot, ...cool } = crew;
+    expect(_hot).toBe(1_000_000);
+    expect(accrueAway({ mountain: crew, lastSeen: 0, now: 10_000 }).mined).toBe(
+      accrueAway({ mountain: cool, lastSeen: 0, now: 10_000 }).mined,
+    );
+    expect(
+      accrue({ mountain: crew, from: 0, to: 10_000, live: true }).mined,
+    ).toBe(200);
+    expect(
+      accrue({ mountain: cool, from: 0, to: 10_000, live: true }).mined,
+    ).toBe(100);
+    expect(chargeCrewMultiplier(crew, undefined)).toBe(1);
+    expect(chargeCrewMultiplier(cool, 1)).toBe(1);
+    expect(chargeCrewMultiplier({ ...crew, chargeUntil: 5 }, 5)).toBe(1);
+    expect(chargeCrewMultiplier(crew, 1)).toBe(2);
+  });
+
+  it("changes the crew the gear names, and stays quiet when nothing is fitted", () => {
+    const shed = openShed();
+    const plain = effectiveRates(shed);
+    const stocked = effectiveRates({
+      ...shed,
+      materials: { clay: 1, iron: 1, crystal: 1, heartstone: 1 },
+      crafted: {},
+    });
+    expect(stocked).toEqual(plain);
+    const factors = Object.fromEntries(
+      RECIPE_IDS.flatMap((id) => [
+        [`recipe.${id}.strength`, 1],
+        [`recipe.${id}.cost`, 1],
+      ]),
+    );
+    expect(withFactors(factors, () => effectiveRates(shed))).toEqual(plain);
+    const rails = { ...shed, crafted: { "iron-rails": 1 } };
+    expect(effectiveRates(rails).tierSpeed.cart).toBe(
+      plain.tierSpeed.cart * 1.25,
+    );
+    expect(
+      gearMultiplier({ ...shed, crafted: { "iron-rails": 9 } }, "cart"),
+    ).toBeCloseTo(1.25 ** 3);
+    expect(
+      effectiveRates({ ...shed, crafted: { "diamond-bits": 1 } }).tierSpeed
+        .drill,
+    ).toBe(plain.tierSpeed.drill * 1.25);
+    expect(
+      effectiveRates({ ...shed, crafted: { "heartstone-core": 1 } }).tierSpeed
+        .machine,
+    ).toBe(plain.tierSpeed.machine * 1.2);
+    const emberHot = { ...shed, emberUntil: 500, helpers: 25, machines: 1 };
+    expect(effectiveRates(emberHot, 100).tierSpeed.machine).toBeCloseTo(
+      effectiveRates({ ...shed, helpers: 25, machines: 1 }, 100).tierSpeed
+        .machine * 1.25,
+    );
+    expect(effectiveRates(emberHot).tierSpeed.machine).toBe(
+      effectiveRates({ ...shed, helpers: 25, machines: 1 }).tierSpeed.machine,
+    );
+    const pit = { ...shed, borers: 1 };
+    const open = nextTrouble(1, 0, pit);
+    const propped = nextTrouble(1, 0, {
+      ...pit,
+      crafted: { "sturdy-props": 1 },
+    });
+    expect(propped?.gapMs).toBeCloseTo((open?.gapMs ?? 0) / 0.7);
+    expect(troubleGapScale(shed)).toBe(1);
+    expect(veinOftenScale(shed)).toBe(1);
+    expect(veinOftenScale({ crafted: { "crystal-lamp": 1 } })).toBeCloseTo(
+      1.25,
+    );
+    expect(veinOftenScale({ crafted: { "crystal-flare": 40 } })).toBe(1);
+    expect(
+      veinOftenScale(
+        { crafted: { "crystal-flare": 40 }, flareUntil: 5_000 },
+        1,
+      ),
+    ).toBeCloseTo(1.25);
+    expect(
+      veinOftenScale({ crafted: { "crystal-flare": 1 }, flareUntil: 5_000 }, 1),
+    ).toBeCloseTo(1.25);
+    const hour = 3_600_000;
+    expect(expeditionAwayMs(hour, {})).toBe(hour);
+    expect(expeditionAwayMs(hour, { crafted: { "engineers-kit": 1 } })).toBe(
+      hour * 0.8,
+    );
+    const doubled = withFactors({ "recipe.iron-rails.strength": 2 }, () =>
+      gearMultiplier({ ...shed, crafted: { "iron-rails": 1 } }, "cart"),
+    );
+    expect(doubled).toBeCloseTo(1.5);
+    expect(
+      withFactors({ "recipe.iron-rails.cost": 2 }, () =>
+        recipeCost("iron-rails"),
+      ),
+    ).toMatchObject({ stones: 8_400_000, materials: { iron: 24 } });
+    expect(
+      withFactors({ "recipe.sturdy-props.strength": 10 }, () =>
+        troubleGapScale({ crafted: { "sturdy-props": 1 } }),
+      ),
+    ).toBeCloseTo(20);
+    expect(
+      withFactors({ "recipe.engineers-kit.strength": 10 }, () =>
+        expeditionCraftScale({ crafted: { "engineers-kit": 1 } }),
+      ),
+    ).toBeCloseTo(0.1);
+  });
+
+  it("puts Reinforce on the tier after the highest machine you already run", () => {
+    const level = { crafted: { reinforce: 2 } };
+    expect(gearMultiplier({ ...openShed(), ...level }, "drill")).toBe(1);
+    expect(
+      gearMultiplier({ ...openShed(), carts: 1, ...level }, "drill"),
+    ).toBeCloseTo(1.05 ** 2);
+    expect(gearMultiplier({ ...openShed(), carts: 1, ...level }, "cart")).toBe(
+      1,
+    );
+    expect(
+      gearMultiplier({ ...openShed(), drills: 1, ...level }, "borer"),
+    ).toBeCloseTo(1.05 ** 2);
+    expect(
+      gearMultiplier({ ...openShed(), borers: 1, ...level }, "machine"),
+    ).toBeCloseTo(1.05 ** 2);
+    expect(
+      gearMultiplier(
+        { ...openShed(), machines: 1, borers: 0, ...level },
+        "machine",
+      ),
+    ).toBeCloseTo(1.05 ** 2);
+    expect(gearMultiplier({ ...openShed(), carts: 1 }, "drill")).toBe(1);
+    expect(
+      gearMultiplier(
+        { ...openShed(), machines: 1, crafted: { reinforce: 9 } },
+        "machine",
+      ),
+    ).toBeCloseTo(1.05 ** 5);
+  });
+
+  it("refreshes a flare and an ember instead of stacking them", () => {
+    const flare = settleBench(
+      startCraft(openShed(), "crystal-flare", 0),
+      600_000,
+    );
+    expect(flare.flareUntil).toBe(600_000 + 3_600_000);
+    const flareAgain = startCraft(flare, "crystal-flare", 600_000);
+    const flareSecond = settleBench(flareAgain, flareAgain.bench?.endsAt ?? 0);
+    expect(flareSecond.flareUntil).toBe(
+      (flareAgain.bench?.endsAt ?? 0) + 3_600_000,
+    );
+    expect(flareSecond.crafted?.["crystal-flare"]).toBe(2);
+    expect(
+      veinOftenScale(flareSecond, (flareSecond.flareUntil ?? 1) - 1),
+    ).toBeCloseTo(1.25);
+    expect(veinOftenScale({ flareUntil: 5 }, 5)).toBe(1);
+    const ember = settleBench(
+      startCraft(openShed(), "heartstone-ember", 0),
+      600_000,
+    );
+    const emberAgain = startCraft(ember, "heartstone-ember", 600_000);
+    const emberSecond = settleBench(emberAgain, emberAgain.bench?.endsAt ?? 0);
+    expect(emberSecond.emberUntil).toBe(
+      (emberAgain.bench?.endsAt ?? 0) + CHARGE_MS,
+    );
+    expect(emberSecond.emberUntil).not.toBe(
+      (ember.emberUntil ?? 0) + CHARGE_MS,
+    );
+    const stretched = withFactors(
+      { "recipe.crystal-flare.strength": 2 },
+      () => {
+        const started = startCraft(openShed(), "crystal-flare", 0);
+        const done = settleBench(started, started.bench?.endsAt ?? 0);
+        return {
+          until: done.flareUntil,
+          veins: veinOftenScale(done, (done.flareUntil ?? 1) - 1),
+        };
+      },
+    );
+    expect(stretched.until).toBe(600_000 + 2 * 3_600_000);
+    expect(stretched.veins).toBeCloseTo(1.5);
+  });
+
+  it("keeps output under a ceiling after many repeatable crafts", () => {
+    const rich = {
+      clay: 10_000,
+      iron: 10_000,
+      crystal: 10_000,
+      heartstone: 10_000,
+    };
+    const crew = openShed({
+      pocket: 400_000_000,
+      materials: rich,
+      helpers: 25,
+      machines: 1,
+    });
+    let mountain = crew;
+    let clock = 1_000_000;
+    const spam = (id: RecipeId, times: number) => {
+      for (let n = 0; n < times; n += 1) {
+        const started = startCraft(mountain, id, clock);
+        if (started.bench === undefined) {
+          return;
+        }
+        clock = started.bench.endsAt;
+        mountain = settleBench(started, clock);
+      }
+    };
+    spam("blasting-charge", 30);
+    spam("reinforce", 30);
+    spam("crystal-flare", 30);
+    spam("heartstone-ember", 30);
+    spam("crystal-flare", 1);
+    spam("heartstone-ember", 1);
+    spam("blasting-charge", 1);
+    const bare = effectiveRates(crew, clock).crewPerSecond;
+    const live = effectiveRates(mountain, clock);
+    const away = effectiveRates(mountain);
+    const capped: Mountain = {
+      ...crew,
+      crafted: { reinforce: 5 },
+      ...(mountain.chargeUntil === undefined
+        ? {}
+        : { chargeUntil: mountain.chargeUntil }),
+      ...(mountain.flareUntil === undefined
+        ? {}
+        : { flareUntil: mountain.flareUntil }),
+      ...(mountain.emberUntil === undefined
+        ? {}
+        : { emberUntil: mountain.emberUntil }),
+    };
+    expect(craftedLevel(mountain, "reinforce")).toBe(5);
+    expect(craftedLevel(mountain, "crystal-flare")).toBeGreaterThan(5);
+    expect(craftedLevel(mountain, "heartstone-ember")).toBeGreaterThan(5);
+    expect(live.crewPerSecond).toBe(
+      effectiveRates(capped, clock).crewPerSecond,
+    );
+    expect(live.crewPerSecond).toBeGreaterThan(away.crewPerSecond);
+    expect(live.crewPerSecond).toBeLessThan(bare * 4);
+    expect(away.crewPerSecond).toBeLessThan(bare * 2);
+    expect(away.crewPerSecond).toBe(effectiveRates(capped).crewPerSecond);
+    expect(veinOftenScale(mountain, clock)).toBeCloseTo(
+      veinOftenScale(capped, clock),
+    );
+    expect(
+      accrueAway({ mountain, lastSeen: clock - 5_000, now: clock }).mined,
+    ).toBe(
+      accrueAway({
+        mountain: capped,
+        lastSeen: clock - 5_000,
+        now: clock,
+      }).mined,
+    );
   });
 });

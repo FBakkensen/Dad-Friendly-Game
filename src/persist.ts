@@ -12,6 +12,7 @@ import {
   parseCrafted,
   parseMaterials,
   parseRecipes,
+  parseChargeUntil,
   recipesForMined,
   type Bench,
   type Crafted,
@@ -29,6 +30,12 @@ type WorkshopSave = {
   readonly recipes: readonly RecipeId[];
   readonly bench?: Bench;
   readonly crafted?: Crafted;
+  /** When a blasting charge cools. Missing means none is hot. */
+  readonly chargeUntil?: number;
+  /** When a crystal flare cools. Missing means none is hot. */
+  readonly flareUntil?: number;
+  /** When a heartstone ember cools. Missing means none is hot. */
+  readonly emberUntil?: number;
 };
 
 export type MountainSaveV6 = {
@@ -97,13 +104,22 @@ export function serializeSave({
         ? {}
         : { crafted: mountain.crafted }),
       recipes: mountain.recipes ?? recipesForMined(minedOut(mountain)),
+      ...(mountain.chargeUntil === undefined
+        ? {}
+        : { chargeUntil: mountain.chargeUntil }),
+      ...(mountain.flareUntil === undefined
+        ? {}
+        : { flareUntil: mountain.flareUntil }),
+      ...(mountain.emberUntil === undefined
+        ? {}
+        : { emberUntil: mountain.emberUntil }),
     },
     lastSeen,
   };
 }
 
 /**
- * Accepts v6 (materials, bench, crafted, recipes). A v5 save keeps every
+ * Accepts v6 (materials, bench, crafted, recipes, and the live buff clocks). A v5 save keeps every
  * stone already mined and is granted the materials those stones would have
  * dug. v4 keeps that place and gains the depth below the old bottom. v3
  * scales onto that same place. Legacy v1/v2 3x3 grids still migrate. v1
@@ -148,12 +164,18 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
       const recipes = parseRecipes(sheet["recipes"]);
       const bench = readBench(sheet["bench"]);
       const crafted = readCrafted(sheet["crafted"]);
+      const chargeUntil = readClock(sheet["chargeUntil"]);
+      const flareUntil = readClock(sheet["flareUntil"]);
+      const emberUntil = readClock(sheet["emberUntil"]);
       if (
         base === undefined ||
         materials === undefined ||
         recipes === undefined ||
         bench === "bad" ||
-        crafted === "bad"
+        crafted === "bad" ||
+        chargeUntil === "bad" ||
+        flareUntil === "bad" ||
+        emberUntil === "bad"
       ) {
         return undefined;
       }
@@ -166,6 +188,9 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
           ...(crafted === undefined || Object.keys(crafted).length === 0
             ? {}
             : { crafted }),
+          ...(chargeUntil === undefined ? {} : { chargeUntil }),
+          ...(flareUntil === undefined ? {} : { flareUntil }),
+          ...(emberUntil === undefined ? {} : { emberUntil }),
         },
         lastSeen,
       };
@@ -194,6 +219,15 @@ function unknownBenchRecipe(value: object): boolean {
   }
   const recipe = (value as Record<string, unknown>)["recipe"];
   return typeof recipe === "string" && !isRecipeId(recipe);
+}
+
+/** Missing means that buff is cold. Anything else must be a whole time. */
+function readClock(value: unknown): number | undefined | "bad" {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = parseChargeUntil(value);
+  return parsed === undefined ? "bad" : parsed;
 }
 
 /** Missing means nothing crafted. An empty map is the same. */
@@ -228,9 +262,10 @@ function loadOlderMountain(
 
 /**
  * What that digging would have earned. The bench is empty and nothing is
- * crafted. Recipes are the starting three, plus the layer recipe for each
- * band already reached. A materials field already on the document is not
- * trusted: v1–v5 did not have one.
+ * crafted. Recipes are the starting three, plus Reinforce once the Granite
+ * is reached, plus the layer recipe for each band already reached.
+ * A materials field already on the document is not trusted: v1–v5 did not
+ * have one.
  */
 function grantFromStones(mountain: Mountain): Mountain {
   const kept = Object.fromEntries(

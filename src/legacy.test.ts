@@ -77,6 +77,9 @@ describe("passing the mine to your kid", () => {
         endsAt: 2,
       },
       crafted: { "diamond-bits": 2 },
+      chargeUntil: 9_000,
+      flareUntil: 9_001,
+      emberUntil: 9_002,
       recipes: [
         "iron-rails",
         "sturdy-props",
@@ -96,6 +99,9 @@ describe("passing the mine to your kid", () => {
     });
     expect(next?.bench).toBeUndefined();
     expect(next?.crafted).toBeUndefined();
+    expect(next?.chargeUntil).toBeUndefined();
+    expect(next?.flareUntil).toBeUndefined();
+    expect(next?.emberUntil).toBeUndefined();
     expect(next?.legacy).toBe(1);
     const { recipes, ...bare } = bottom;
     expect(passTheMine(bare, 5_000)?.recipes).toEqual(

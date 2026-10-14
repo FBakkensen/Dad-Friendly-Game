@@ -2,9 +2,21 @@ import { describe, expect, it } from "vitest";
 import { withFactors } from "../../src/economy/factors";
 import { tendingTenths } from "../../src/engineers";
 import { LAYERS } from "../../src/layers";
+import { createMountain } from "../../src/mountain";
 import { effectiveRates } from "../../src/rates";
 import { MOUNTAIN_STONES } from "../../src/scale";
 import { tierById, tierCost, TIERS, type TierId } from "../../src/tiers";
+import {
+  chargeCrewMultiplier,
+  emberMachineMultiplier,
+  expeditionCraftScale,
+  gearMultiplier,
+  recipeById,
+  recipeCost,
+  troubleGapScale,
+  veinOftenScale,
+  type RecipeId,
+} from "../../src/workshop";
 import { KNOBS } from "./knobs";
 
 const posted = {
@@ -43,6 +55,54 @@ function reading(factorId: string): number {
   if (factorId === "tending.gain") {
     return tendingTenths(posted, "borer");
   }
+  if (factorId.startsWith("recipe.") && factorId.endsWith(".cost")) {
+    const id = factorId.slice("recipe.".length, -".cost".length) as RecipeId;
+    const cost = recipeCost(id);
+    return (
+      cost.stones +
+      cost.materials.clay +
+      cost.materials.iron +
+      cost.materials.crystal +
+      cost.materials.heartstone
+    );
+  }
+  if (factorId.startsWith("recipe.") && factorId.endsWith(".strength")) {
+    const id = factorId.slice(
+      "recipe.".length,
+      -".strength".length,
+    ) as RecipeId;
+    const geared = {
+      ...createMountain(),
+      helpers: 1,
+      carts: 1,
+      drills: 1,
+      borers: 1,
+      machines: 1,
+      crafted: { [id]: 1 },
+      chargeUntil: 10_000,
+      flareUntil: 10_000,
+      emberUntil: 10_000,
+    };
+    const effect = recipeById(id).effect;
+    switch (effect.kind) {
+      case "tier":
+        return gearMultiplier(geared, effect.tier);
+      case "trouble":
+        return troubleGapScale(geared);
+      case "veins":
+        return veinOftenScale(geared);
+      case "trip":
+        return expeditionCraftScale(geared);
+      case "charge":
+        return chargeCrewMultiplier(geared, 0);
+      case "flare":
+        return veinOftenScale(geared, 0);
+      case "ember":
+        return emberMachineMultiplier(geared, 0);
+      case "reinforce":
+        return gearMultiplier(geared, "machine");
+    }
+  }
   if (factorId.startsWith("layer.")) {
     const [, indexText, tierText] = factorId.split(".");
     const index = Number(indexText);
@@ -62,7 +122,7 @@ function reading(factorId: string): number {
 describe("sweep knobs", () => {
   it("names each economy family once", () => {
     expect(new Set(KNOBS.map((knob) => knob.group))).toEqual(
-      new Set(["price", "growth", "output", "tending", "hardness"]),
+      new Set(["price", "growth", "output", "tending", "hardness", "recipe"]),
     );
     const hardness = KNOBS.filter((knob) => knob.group === "hardness");
     expect(hardness.map((knob) => knob.factor).sort()).toEqual(
