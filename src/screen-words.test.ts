@@ -29,11 +29,26 @@ import {
   RECIPE_ON_BENCH,
   needMoreWords,
   RECIPE_WAITING,
+  UNFOUND_DEEPER,
   UNFOUND_HINT,
+  WORKSHOP_EARLIER,
+  WORKSHOP_FREE_ASIDE,
+  WORKSHOP_LOCKED,
+  WORKSHOP_MORE,
+  WORKSHOP_QUIET,
+  WORKSHOP_SOUND,
   WORKSHOP_TITLE,
   broughtHomeNames,
   broughtHomeToast,
+  benchBusyWords,
   craftPriceWords,
+  craftTimeWords,
+  formatCraftSpeed,
+  materialCostWords,
+  materialCountWords,
+  refundBackWords,
+  timerLeftWords,
+  workshopMenuWords,
   keepsakeWords,
   keepsakesBroughtHome,
   lostToolWords,
@@ -541,5 +556,57 @@ describe("workshop mock copy (#193)", () => {
       ).toMatch(/\d/);
       expect(craftPriceWords(recipe.stones)).toMatch(/\d/);
     }
+  });
+});
+
+describe("workshop sheet copy (#199)", () => {
+  it("states costs, clocks, and a calm refund", () => {
+    expect(workshopMenuWords(undefined)).toBe("Workshop");
+    expect(workshopMenuWords(9 * 60_000)).toBe("Workshop · 9:00");
+    expect(benchBusyWords("Iron rails", 8 * 60_000 + 12_000)).toBe(
+      "On the bench: Iron rails · 8:12 left",
+    );
+    expect(benchBusyWords("Iron rails", 0)).toBe(
+      "On the bench: Iron rails · ready",
+    );
+    expect(timerLeftWords("Axle grease", 18 * 60_000 + 40_000)).toBe(
+      "Axle grease · 18:40 left",
+    );
+    expect(craftTimeWords(10 * 60_000)).toBe("10 min");
+    expect(craftTimeWords(60 * 60_000)).toBe("1 h");
+    expect(craftTimeWords(4 * 60 * 60_000)).toBe("4 h");
+    expect(craftTimeWords(3 * 60 * 60_000 + 12 * 60_000)).toBe("3 h 12 min");
+    expect(formatCraftSpeed(8.5)).toBe("8.5");
+    expect(formatCraftSpeed(10.625)).toBe("10.63");
+    expect(formatCraftSpeed(3500)).toBe("3,500");
+    expect(formatCraftSpeed(12_000)).toBe("12K");
+    expect(timerLeftWords("Axle grease", -1)).toBe("Axle grease · 0:00 left");
+    expect(formatCraftSpeed(-2)).toBe("0");
+    expect(materialCountWords("iron", 2)).toBe("Iron 2");
+    expect(materialCostWords(4, "heartstone")).toBe("4 heartstone");
+    expect(refundBackWords([])).toBe("Cancel · nothing comes back");
+    expect(refundBackWords(["1 iron"])).toBe("Cancel · 1 iron back");
+    expect(refundBackWords(["75K stones", "3 clay"])).toBe(
+      "Cancel · 75K stones and 3 clay back",
+    );
+    expect(refundBackWords(["250K stones", "10 clay", "4 iron"])).toBe(
+      "Cancel · 250K stones, 10 clay, and 4 iron back",
+    );
+    const lines = [
+      WORKSHOP_LOCKED,
+      WORKSHOP_FREE_ASIDE,
+      WORKSHOP_QUIET,
+      WORKSHOP_SOUND,
+      WORKSHOP_EARLIER,
+      WORKSHOP_MORE,
+      UNFOUND_DEEPER,
+      workshopMenuWords(60_000),
+      benchBusyWords("Axle grease", 60_000),
+      refundBackWords(["1 iron"]),
+      refundBackWords([]),
+    ].join("\n");
+    expect(lines).not.toMatch(/\?/);
+    expect(UNFOUND_DEEPER).not.toMatch(/[0-9?]/);
+    expect(WORKSHOP_FREE_ASIDE.toLowerCase()).toMatch(/little/);
   });
 });

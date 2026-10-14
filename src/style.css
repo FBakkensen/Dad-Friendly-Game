@@ -2610,4 +2610,421 @@ body {
   .engineer-act {
     transition: none;
   }
+
+  .workshop-hammer,
+  .workshop-craft.is-shaking,
+  .float-chip {
+    animation: none;
+  }
+}
+
+/* Workshop sheet. Full viewport, two columns, no scroll on a short phone. */
+
+.workshop-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  overflow: hidden;
+  display: flex;
+  padding: max(4px, env(safe-area-inset-top)) 6px
+    max(4px, env(safe-area-inset-bottom));
+  background: #120c0a;
+}
+
+.workshop-dialog[hidden] {
+  display: none;
+}
+
+.workshop-sheet {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px 8px;
+  border: 2px solid #e8a84a;
+  border-radius: 12px;
+  background: #1e130d;
+  box-shadow: 0 0 48px rgba(232, 168, 74, 0.35);
+}
+
+.workshop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.workshop-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.15;
+  color: #f2c46d;
+}
+
+.workshop-sound,
+.workshop-open {
+  appearance: none;
+  border: 2px solid #f2c46d;
+  border-radius: 12px;
+  background: transparent;
+  color: #f2c46d;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.workshop-sound {
+  flex: none;
+  min-width: 72px;
+  min-height: 44px;
+  padding: 4px 8px;
+  font-size: 0.9rem;
+}
+
+.workshop-open {
+  width: 100%;
+  min-height: 52px;
+  font-size: 1.1rem;
+}
+
+.workshop-open[hidden],
+.workshop-locked[hidden],
+.workshop-pager[hidden],
+.workshop-cancel[hidden],
+.workshop-bar[hidden],
+.workshop-timers[hidden],
+.workshop-earlier[hidden],
+.workshop-more[hidden] {
+  display: none;
+}
+
+.workshop-locked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  margin: 0;
+  border: 2px solid #3a2a1c;
+  border-radius: 12px;
+  background: #0e0907;
+  color: #c9b391;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.workshop-locked img,
+.workshop-card .shade,
+.workshop-hammer,
+.workshop-materials img,
+.workshop-cost img,
+.float-chip img {
+  image-rendering: pixelated;
+}
+
+.workshop-locked img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  filter: grayscale(1) brightness(0.28);
+}
+
+.workshop-materials,
+.workshop-cost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+}
+
+.workshop-materials {
+  min-height: 1.15em;
+}
+
+.workshop-cost {
+  justify-content: flex-start;
+}
+
+.mat {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.mat-clay {
+  filter: sepia(1) saturate(4) hue-rotate(-20deg) brightness(1.05);
+}
+
+.mat-iron {
+  filter: grayscale(1) contrast(1.5) brightness(0.8);
+}
+
+.mat-crystal {
+  filter: sepia(1) saturate(6) hue-rotate(140deg) brightness(1.15);
+}
+
+.mat-heartstone {
+  filter: sepia(1) saturate(8) hue-rotate(-40deg) brightness(0.9);
+}
+
+.cost-bit,
+.material-bit,
+.float-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.workshop-bench {
+  position: relative;
+  padding: 4px 8px 6px;
+  border-radius: 12px;
+  background: #2a1a10;
+}
+
+.workshop-bench p,
+.workshop-card h3,
+.workshop-card .effect,
+.workshop-card .hint {
+  margin: 0;
+}
+
+.workshop-bench .aside,
+.workshop-card .hint,
+.workshop-timers {
+  color: #c9b391;
+}
+
+.workshop-bar {
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: #3a2a1c;
+  overflow: hidden;
+}
+
+.workshop-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8a5a20, #f2c46d);
+}
+
+.workshop-cancel,
+.workshop-close,
+.workshop-earlier,
+.workshop-more,
+.workshop-craft {
+  appearance: none;
+  border: 0;
+  border-radius: 10px;
+  background: #e8a84a;
+  color: #120c0a;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.1;
+  cursor: pointer;
+}
+
+.workshop-cancel,
+.workshop-close,
+.workshop-earlier,
+.workshop-more {
+  min-height: 44px;
+  width: 100%;
+}
+
+.workshop-hammer {
+  display: none;
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  right: 8px;
+  top: 2px;
+  pointer-events: none;
+}
+
+.workshop-bench.is-hammer .workshop-hammer {
+  display: block;
+  animation: hammer-tap 480ms ease-in-out 2;
+}
+
+@keyframes hammer-tap {
+  0% {
+    transform: rotate(-18deg);
+  }
+  35% {
+    transform: rotate(20deg) translateY(4px);
+  }
+  55% {
+    transform: rotate(-8deg);
+  }
+  100% {
+    transform: rotate(-18deg);
+  }
+}
+
+.workshop-recipes {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: minmax(0, auto);
+  gap: 4px;
+  align-content: start;
+}
+
+.workshop-card {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border: 2px solid #6b4a2a;
+  border-radius: 12px;
+  background: #2a1a10;
+}
+
+.workshop-card h3 {
+  color: #f2c46d;
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+
+.workshop-card .effect,
+.workshop-card .hint,
+.workshop-cost,
+.cost-time {
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+
+.workshop-craft {
+  margin-top: auto;
+  min-height: 44px;
+  padding: 4px 6px;
+}
+
+.workshop-craft:active:not([aria-disabled="true"]),
+.workshop-close:active,
+.workshop-cancel:active,
+.workshop-sound:active,
+.workshop-open:active,
+.workshop-earlier:active,
+.workshop-more:active {
+  transform: translateY(2px);
+  background-color: #8f5e22;
+  box-shadow: inset 0 4px 0 #3d260e;
+}
+
+.workshop-craft.is-short,
+.workshop-craft.is-waiting,
+.workshop-craft.is-on-bench {
+  background: #3a2a1c;
+  color: #e8d4b8;
+  cursor: default;
+}
+
+.workshop-craft.is-shaking {
+  animation: need-shake 480ms ease-in-out 2;
+}
+
+@keyframes need-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-8px);
+  }
+  50% {
+    transform: translateX(10px);
+  }
+  75% {
+    transform: translateX(-6px);
+  }
+}
+
+.workshop-card.is-hidden {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: #0e0907;
+  border-color: #3a2a1c;
+}
+
+.workshop-card .shade {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  filter: grayscale(1) brightness(0.28);
+}
+
+.workshop-pager {
+  display: flex;
+  gap: 4px;
+}
+
+.workshop-close {
+  margin-top: auto;
+  font-size: 1rem;
+}
+
+.workshop-floats {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.float-chip {
+  position: absolute;
+  padding: 4px 8px;
+  border: 2px solid #e8a84a;
+  border-radius: 999px;
+  background: #1e130d;
+  color: #f2c46d;
+  font-size: 0.9rem;
+  animation: float-to-bench 700ms ease-in forwards;
+}
+
+.float-chip:nth-child(1) {
+  left: 18%;
+  top: 36px;
+}
+
+.float-chip:nth-child(2) {
+  left: 52%;
+  top: 28px;
+}
+
+@keyframes float-to-bench {
+  from {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  to {
+    transform: translateY(36px);
+    opacity: 0.15;
+  }
+}
+
+.workshop-sound:focus-visible,
+.workshop-open:focus-visible,
+.workshop-craft:focus-visible,
+.workshop-cancel:focus-visible,
+.workshop-close:focus-visible,
+.workshop-earlier:focus-visible,
+.workshop-more:focus-visible {
+  outline: 4px solid #e8d4b8;
+  outline-offset: 3px;
 }

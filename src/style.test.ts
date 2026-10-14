@@ -35,6 +35,11 @@ const REQUIRED_SELECTORS = [
   ".found-tool",
   ".keepsakes",
   ".keepsake-story",
+  ".workshop-dialog",
+  ".workshop-open",
+  ".workshop-locked",
+  ".workshop-card",
+  ".workshop-cancel",
 ];
 
 describe("style.css", () => {

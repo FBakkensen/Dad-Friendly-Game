@@ -15,6 +15,7 @@ import { createCrewPanel } from "./crew-panel";
 import { createEngineersPanel } from "./engineers-panel";
 import { floatText } from "./float-text";
 import { createUpgradesPanel } from "./upgrades-panel";
+import { createWorkshopPanel } from "./workshop-panel";
 import { tapWords } from "./screen-words";
 import {
   veinGapScale,
@@ -302,12 +303,31 @@ export function mountMountainScreen({
   });
   const { shelfButton, shelf, detail, reveal, legend } = relics;
 
+  const closeMenu = (): void => {
+    menuPanel.close();
+  };
+  const focusMenu = (): void => {
+    menuButton.focus();
+  };
+  const workshop = createWorkshopPanel({
+    progress,
+    getView: () => view,
+    now,
+    stoneUrl,
+    hammerUrl: relicArt.hammer,
+    onOpen: closeMenu,
+    onClose: focusMenu,
+    requestRender: () => {
+      render();
+    },
+  });
+
   const menuPanel = createMenuPanel({
     progress,
     getView: () => view,
     auth,
     onStartOver: resetVein,
-    extras: [legacy.menuPass],
+    extras: [workshop.menuEntry, legacy.menuPass],
     requestRender: () => {
       render();
     },
@@ -406,6 +426,7 @@ export function mountMountainScreen({
     legacy.render();
     upgrades.render();
     engineers.render();
+    workshop.render();
     renderSave();
   };
 
@@ -479,10 +500,12 @@ export function mountMountainScreen({
     fieldLogSheet,
     upgradesSheet,
     engineers.sheet,
+    workshop.sheet,
   );
 
   setInterval(() => {
     progress.tick();
+    workshop.render();
     stepVein();
     const crewRate = stonesPerSecond(view.mountain, now(), view.trouble);
     if (

@@ -20,6 +20,10 @@ import {
   RECIPES,
   STARTING_RECIPE_IDS,
   cancelCraft,
+  cancelRefund,
+  hotTimers,
+  recipeWindowMs,
+  reinforceTier,
   AXLE_MS,
   axleCrewMultiplier,
   chargeCrewMultiplier,
@@ -811,6 +815,32 @@ describe("workshop rules", () => {
     expect(live.crewPerSecond).toBeLessThan(bare * 4);
     expect(away.crewPerSecond).toBeLessThan(bare * 2);
     expect(away.crewPerSecond).toBe(effectiveRates(capped).crewPerSecond);
+    expect(reinforceTier(capped)).toBe("machine");
+    expect(
+      reinforceTier({ ...capped, machines: 0, borers: 0, drills: 1 }),
+    ).toBe("borer");
+    expect(
+      reinforceTier({
+        ...capped,
+        machines: 0,
+        borers: 0,
+        drills: 0,
+        carts: 1,
+      }),
+    ).toBe("drill");
+    expect(
+      reinforceTier({
+        ...capped,
+        machines: 0,
+        borers: 0,
+        drills: 0,
+        carts: 0,
+      }),
+    ).toBeUndefined();
+    expect(recipeWindowMs("iron-rails")).toBeUndefined();
+    expect(recipeWindowMs("blasting-charge")).toBe(CHARGE_MS);
+    expect(hotTimers(capped, 1.5)).toEqual([]);
+    expect(hotTimers(capped, -1)).toEqual([]);
     expect(veinOftenScale(mountain, clock)).toBeCloseTo(
       veinOftenScale(capped, clock),
     );
@@ -823,5 +853,78 @@ describe("workshop rules", () => {
         now: clock,
       }).mined,
     );
+  });
+
+  it("names the refund and the hot timers", () => {
+    expect(cancelRefund(openShed(), 1)).toBeUndefined();
+    const props = startCraft(openShed(), "sturdy-props", 1_000);
+    expect(cancelRefund(props, 1_000)).toEqual({
+      stones: 250_000,
+      materials: { clay: 10, iron: 4, crystal: 0, heartstone: 0 },
+    });
+    expect(cancelRefund(props, props.bench?.endsAt ?? 0)?.stones).toBe(0);
+    const charge = startCraft(openShed(), "blasting-charge", 0);
+    const halfway = cancelRefund(charge, 5 * 60_000);
+    expect(halfway?.stones).toBe(75_000);
+    expect(halfway?.materials.clay).toBe(3);
+    const early = cancelRefund(charge, -5);
+    expect(early?.stones).toBe(100_000);
+    const stored = openShed({
+      chargeUntil: 50_000,
+      axleUntil: 40_000,
+      flareUntil: 30_000,
+      emberUntil: 20_000,
+      bench: {
+        recipe: "blasting-charge",
+        startedAt: 0,
+        endsAt: 600_000,
+      },
+    });
+    expect(hotTimers(stored, 1_000).map((timer) => timer.id)).toEqual([
+      "blasting-charge",
+      "axle-grease",
+      "crystal-flare",
+      "heartstone-ember",
+    ]);
+    const chargeTimer = hotTimers(stored, 1_000).find(
+      (timer) => timer.id === "blasting-charge",
+    );
+    expect(chargeTimer?.until).toBe(CHARGE_MS);
+    expect(hotTimers(openShed(), 1_000)).toEqual([]);
+    const future = openShed({
+      bench: {
+        recipe: "axle-grease",
+        startedAt: 10_000,
+        endsAt: 610_000,
+      },
+    });
+    expect(hotTimers(future, 1_000)).toEqual([]);
+    const done = openShed({ axleUntil: 500 });
+    expect(hotTimers(done, 500)).toEqual([]);
+    const longer = openShed({
+      chargeUntil: 9_999_999,
+      bench: {
+        recipe: "blasting-charge",
+        startedAt: 0,
+        endsAt: 600_000,
+      },
+    });
+    expect(
+      hotTimers(longer, 1_000).find((timer) => timer.id === "blasting-charge")
+        ?.until,
+    ).toBe(9_999_999);
+    const cooled = withFactors({ "recipe.crystal-flare.strength": 0.01 }, () =>
+      hotTimers(
+        openShed({
+          bench: {
+            recipe: "crystal-flare",
+            startedAt: 0,
+            endsAt: 600_000,
+          },
+        }),
+        60_000,
+      ),
+    );
+    expect(cooled).toEqual([]);
   });
 });
