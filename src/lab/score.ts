@@ -12,7 +12,8 @@ import {
   type Action,
   type ValueContext,
 } from "../economy/actions";
-import { workshopUnlocked } from "../workshop";
+import { recipeCost, workshopUnlocked } from "../workshop";
+import { EMPTY_MATERIALS } from "../layers";
 import { MOVE_KINDS, type DecisionSample } from "./measure";
 import { unlimitedSinks } from "./measures/materialIdle";
 import type { CraftRule } from "./policy";
@@ -107,6 +108,27 @@ function waitToAfford(
   return afford > 0 ? afford : 0;
 }
 
+/**
+ * A craft is affordable when the pocket can pay its stone price and the
+ * materials are already in hand. Payback still prices the iron, so a free
+ * bench does not beat every machine, but a dad who can start the craft is
+ * not waiting.
+ */
+function craftIsReady(mountain: Mountain, action: Action): boolean {
+  if (action.kind !== "craft") {
+    return false;
+  }
+  const cost = recipeCost(action.recipe);
+  const have = mountain.materials ?? EMPTY_MATERIALS;
+  return (
+    mountain.pocket >= cost.stones &&
+    have.clay >= cost.materials.clay &&
+    have.iron >= cost.materials.iron &&
+    have.crystal >= cost.materials.crystal &&
+    have.heartstone >= cost.materials.heartstone
+  );
+}
+
 function price(
   mountain: Mountain,
   action: Action,
@@ -118,13 +140,16 @@ function price(
   const cost = priced.cost;
   const perStone =
     cost > 0 ? gain / cost : gain > 0 ? Number.POSITIVE_INFINITY : 0;
+  const ready = action.kind === "craft" && craftIsReady(mountain, action);
   return {
     id: actionId(action),
     kind: action.kind,
     paybackSec: priced.paybackSec,
     perStone,
-    waitSec: waitToAfford(mountain.pocket, cost, gain, priced.paybackSec),
-    affordable: !(cost > mountain.pocket),
+    waitSec: ready
+      ? 0
+      : waitToAfford(mountain.pocket, cost, gain, priced.paybackSec),
+    affordable: ready || !(cost > mountain.pocket),
   };
 }
 
@@ -250,19 +275,15 @@ function tapStones(
 }
 
 function withoutGear(mountain: Mountain): Mountain {
-  if (
-    mountain.crafted === undefined &&
-    mountain.chargeUntil === undefined &&
-    mountain.flareUntil === undefined &&
-    mountain.emberUntil === undefined
-  ) {
-    return mountain;
-  }
   const next = { ...mountain };
+  // The bench is where a live timer is already paying. Leaving it on the
+  // bare copy hid that share for the whole sitting.
   Reflect.deleteProperty(next, "crafted");
   Reflect.deleteProperty(next, "chargeUntil");
   Reflect.deleteProperty(next, "flareUntil");
   Reflect.deleteProperty(next, "emberUntil");
+  Reflect.deleteProperty(next, "axleUntil");
+  Reflect.deleteProperty(next, "bench");
   return next;
 }
 

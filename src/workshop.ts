@@ -32,17 +32,21 @@ export const MAX_CRAFTED_LEVEL = 1000;
 /** Longest craft. The same length as a night expedition. Mirrored in firestore.rules. */
 export const MAX_CRAFT_MS = 4 * HOUR;
 
-const RAILS_PER_LEVEL = 0.484;
-const BITS_PER_LEVEL = 0.22;
-const CORE_PER_LEVEL = 0.132;
+const RAILS_PER_LEVEL = 0.25;
+const BITS_PER_LEVEL = 0.25;
+const CORE_PER_LEVEL = 0.1;
 const PROPS_RARER = 0.3;
 const LAMP_OFTEN = 0.25;
 const KIT_SHORTER = 0.2;
 const CHARGE_MULTIPLIER = 2;
 const REINFORCE_PER_LEVEL = 0.05;
 const REINFORCE_CAP = 5;
-/** One application. Further tempers spend iron and do not lift the crew again. */
-const TEMPER_BONUS = 0.091;
+/**
+ * Whole crew ×2 while axle grease is hot. Live only, and it does not
+ * stack: another craft refreshes the clock.
+ */
+const AXLE_BONUS = 1;
+export const AXLE_MS = 20 * MINUTE;
 /** Veins this much more often while a crystal flare is hot. */
 const FLARE_OFTEN = 0.25;
 const FLARE_MS = HOUR;
@@ -59,7 +63,7 @@ export const RECIPE_IDS = [
   "sturdy-props",
   "blasting-charge",
   "reinforce",
-  "iron-temper",
+  "axle-grease",
   "diamond-bits",
   "crystal-flare",
   "crystal-lamp",
@@ -106,7 +110,11 @@ type RecipeEffect =
       readonly durationMs: number;
     }
   | { readonly kind: "reinforce"; readonly perLevel: number }
-  | { readonly kind: "temper"; readonly bonus: number };
+  | {
+      readonly kind: "axle";
+      readonly bonus: number;
+      readonly durationMs: number;
+    };
 
 export type Recipe = {
   readonly id: RecipeId;
@@ -125,17 +133,17 @@ export type Recipe = {
  * Tuned costs, times, and effects. Each effect is multiplied by
  * `recipe.<id>.strength`. A timed buff's length uses that same factor, and
  * the buff starts when the craft goes on the bench, so a ten-minute sitting
- * feels it before the dad walks away. Reinforce stops at 5. Iron temper
- * lifts the crew once and does not stack. Crystal flare and the heartstone
- * ember refresh one live timer; they do not stack and they do not change
- * away pay.
+ * feels it before the dad walks away. Reinforce stops at 5. Axle grease
+ * is a live crew timer: crafting it again refreshes the clock and does not
+ * stack. Crystal flare and the heartstone ember work the same way, and
+ * none of those three change away pay.
  */
 const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
   "iron-rails": {
     id: "iron-rails",
     name: "Iron rails",
-    stones: 400_000,
-    materials: { iron: 2 },
+    stones: 500_000,
+    materials: { iron: 4 },
     craftMs: 10 * MINUTE,
     maxLevel: 2,
     unlock: "start",
@@ -145,7 +153,7 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     id: "sturdy-props",
     name: "Sturdy props",
     stones: 250_000,
-    materials: { clay: 10, iron: 2 },
+    materials: { clay: 10, iron: 4 },
     craftMs: 10 * MINUTE,
     maxLevel: 1,
     unlock: "start",
@@ -154,7 +162,7 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
   "blasting-charge": {
     id: "blasting-charge",
     name: "Blasting charge",
-    stones: 50_000,
+    stones: 100_000,
     materials: { clay: 4 },
     craftMs: 10 * MINUTE,
     unlock: "start",
@@ -168,26 +176,26 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     id: "reinforce",
     name: "Reinforce",
     stones: 0,
-    materials: { iron: 4 },
+    materials: { iron: 5 },
     craftMs: 10 * MINUTE,
     unlock: "granite",
     maxLevel: REINFORCE_CAP,
     effect: { kind: "reinforce", perLevel: REINFORCE_PER_LEVEL },
   },
-  "iron-temper": {
-    id: "iron-temper",
-    name: "Iron temper",
+  "axle-grease": {
+    id: "axle-grease",
+    name: "Axle grease",
     stones: 0,
     materials: { iron: 1 },
     craftMs: 10 * MINUTE,
     unlock: "granite",
-    effect: { kind: "temper", bonus: TEMPER_BONUS },
+    effect: { kind: "axle", bonus: AXLE_BONUS, durationMs: AXLE_MS },
   },
   "diamond-bits": {
     id: "diamond-bits",
     name: "Diamond bits",
-    stones: 1_000_000,
-    materials: { crystal: 6 },
+    stones: 2_000_000,
+    materials: { crystal: 5 },
     craftMs: 10 * MINUTE,
     maxLevel: 3,
     unlock: "crystal",
@@ -196,8 +204,8 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
   "crystal-flare": {
     id: "crystal-flare",
     name: "Crystal flare",
-    stones: 150_000,
-    materials: { crystal: 3 },
+    stones: 200_000,
+    materials: { crystal: 4 },
     craftMs: 10 * MINUTE,
     unlock: "crystal",
     effect: { kind: "flare", often: FLARE_OFTEN, durationMs: FLARE_MS },
@@ -206,7 +214,7 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     id: "crystal-lamp",
     name: "Miner's crystal lamp",
     stones: 0,
-    materials: { crystal: 6, iron: 2 },
+    materials: { crystal: 6, iron: 4 },
     craftMs: HOUR,
     maxLevel: 1,
     unlock: "found",
@@ -225,8 +233,8 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
   "heartstone-core": {
     id: "heartstone-core",
     name: "Heartstone core",
-    stones: 2_500_000,
-    materials: { heartstone: 5 },
+    stones: 5_000_000,
+    materials: { heartstone: 4 },
     craftMs: HOUR,
     maxLevel: 3,
     unlock: "heart",
@@ -235,7 +243,7 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
   "heartstone-ember": {
     id: "heartstone-ember",
     name: "Heartstone ember",
-    stones: 200_000,
+    stones: 500_000,
     materials: { heartstone: 2 },
     craftMs: 10 * MINUTE,
     unlock: "heart",
@@ -499,13 +507,50 @@ export function settleBench(mountain: Mountain, now: number): Mountain {
         Math.round(tuned(recipe.effect.durationMs, recipe.id)),
     };
   }
+  if (recipe.effect.kind === "axle") {
+    return {
+      ...fitted,
+      axleUntil:
+        timerFrom(bench, undefined, false) +
+        Math.round(tuned(recipe.effect.durationMs, recipe.id)),
+    };
+  }
   return fitted;
 }
 
+/** Length of a live timer, or none when the craft is lasting gear. */
+function liveTimerMs(recipe: Recipe): number | undefined {
+  const effect = recipe.effect;
+  switch (effect.kind) {
+    case "charge":
+      return effect.durationMs;
+    case "flare":
+    case "ember":
+    case "axle":
+      return Math.round(tuned(effect.durationMs, recipe.id));
+    default:
+      return undefined;
+  }
+}
+
+/** Whole units of `amount` given back for the unused share of a timer. */
+function refundUnits(
+  amount: number,
+  unusedMs: number,
+  durationMs: number,
+): number {
+  if (amount <= 0) {
+    return 0;
+  }
+  return Math.floor((amount * unusedMs) / durationMs);
+}
+
 /**
- * Takes the craft off the bench and returns every stone and material it
- * spent. A craft that has already finished is fitted instead, so a late
- * tap cannot both refund the pocket and keep the gear.
+ * Takes the craft off the bench. Lasting gear comes back in full, because
+ * its effect has not started. A live timer has already started, so the
+ * refund is only the unused share of that window, and the effect stops.
+ * A craft that has already finished is fitted instead, so a late tap cannot
+ * both refund the pocket and keep the gear.
  */
 export function cancelCraft(mountain: Mountain, now: number): Mountain {
   const bench = mountain.bench;
@@ -516,10 +561,25 @@ export function cancelCraft(mountain: Mountain, now: number): Mountain {
     return settleBench(mountain, now);
   }
   const cost = recipeCost(bench.recipe);
+  const duration = liveTimerMs(recipeById(bench.recipe));
+  const cleared = dropBench(mountain);
+  if (duration === undefined) {
+    return {
+      ...cleared,
+      pocket: mountain.pocket + cost.stones,
+      materials: addMaterials(materialsOf(mountain), cost.materials),
+    };
+  }
+  const unusedMs = Math.max(0, duration - Math.max(0, now - bench.startedAt));
   return {
-    ...dropBench(mountain),
-    pocket: mountain.pocket + cost.stones,
-    materials: addMaterials(materialsOf(mountain), cost.materials),
+    ...cleared,
+    pocket: mountain.pocket + refundUnits(cost.stones, unusedMs, duration),
+    materials: addMaterials(materialsOf(mountain), {
+      clay: refundUnits(cost.materials.clay, unusedMs, duration),
+      iron: refundUnits(cost.materials.iron, unusedMs, duration),
+      crystal: refundUnits(cost.materials.crystal, unusedMs, duration),
+      heartstone: refundUnits(cost.materials.heartstone, unusedMs, duration),
+    }),
   };
 }
 
@@ -590,7 +650,7 @@ export function troubleGapScale(mountain: {
  */
 function benchWindow(
   mountain: { readonly bench?: Bench },
-  id: "blasting-charge" | "crystal-flare" | "heartstone-ember",
+  id: "blasting-charge" | "crystal-flare" | "heartstone-ember" | "axle-grease",
   durationMs: number,
   now: number | undefined,
 ): boolean {
@@ -674,21 +734,28 @@ export function emberMachineMultiplier(
 }
 
 /**
- * Crew multiplier from an iron temper. One craft lifts the crew, and another
- * craft spends iron without lifting them again. The lift starts when the
- * temper goes on the bench, and it stays after the craft is fitted, including
- * time away.
+ * Crew multiplier while axle grease is hot, including the minutes it is
+ * still on the bench. 1 with no `now`, so away pay never sees it. Crafting
+ * another one refreshes the clock, and the crafted count does not multiply it.
  */
-export function temperCrewMultiplier(mountain: {
-  readonly crafted?: Crafted;
-  readonly bench?: Bench;
-}): number {
-  const fitted = craftedLevel(mountain, "iron-temper") > 0;
-  const crafting = mountain.bench?.recipe === "iron-temper";
-  if (!fitted && !crafting) {
+export function axleCrewMultiplier(
+  mountain: { readonly axleUntil?: number; readonly bench?: Bench },
+  now?: number,
+): number {
+  const hot =
+    (now !== undefined &&
+      mountain.axleUntil !== undefined &&
+      mountain.axleUntil > now) ||
+    benchWindow(
+      mountain,
+      "axle-grease",
+      Math.round(tuned(AXLE_MS, "axle-grease")),
+      now,
+    );
+  if (!hot) {
     return 1;
   }
-  return 1 + tuned(TEMPER_BONUS, "iron-temper");
+  return 1 + tuned(AXLE_BONUS, "axle-grease");
 }
 
 /** How much of the tunnel time is left. 1 without the engineer's kit. */

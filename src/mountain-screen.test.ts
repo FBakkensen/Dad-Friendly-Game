@@ -2454,13 +2454,13 @@ describe("trouble on a tier card (#149)", () => {
       new PointerEvent("pointerdown", { bubbles: true, button: 2 }),
     );
     expect(screen.text(".crew-status")).toBe(
-      "Your crew mines 610 stones a second",
+      "Your crew mines 577 stones a second",
     );
     screen.progress.previewTrouble("cart");
     expect(cart.dataset["trouble"]).toBe("cave-in");
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe("Cave-in!");
     expect(screen.text(".crew-status")).toBe(
-      "Your crew mines 608 stones a second",
+      "Your crew mines 575 stones a second",
     );
     expect(cart.getAttribute("aria-label")).toBe(
       troubleAria("cave-in", tierById("cart")),
@@ -2477,7 +2477,7 @@ describe("trouble on a tier card (#149)", () => {
     expect(screen.progress.getSnapshot().mountain.carts).toBe(1);
     expect(screen.progress.getSnapshot().trouble).toBeUndefined();
     expect(screen.text(".crew-status")).toBe(
-      "Your crew mines 610 stones a second",
+      "Your crew mines 577 stones a second",
     );
     expect(cart.querySelector(".trouble-burst")).toBeNull();
   });

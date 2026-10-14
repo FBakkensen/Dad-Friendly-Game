@@ -19,15 +19,15 @@ export type MaterialId = "clay" | "iron" | "crystal" | "heartstone";
 /**
  * Stones mined in a band for one unit of its material. Clay, crystal, and
  * heartstone stay sparse enough that the fixed recipes can absorb a whole
- * band. Iron is the common one: the temper spends it, and one iron has to
- * stay cheap enough that the temper beats the next machine. Live digs and
- * time away both use it, so they cannot drift.
+ * band. Iron is the common one: rails, props, reinforce, and axle grease
+ * spend it, and one iron has to stay cheap enough that grease beats the
+ * next machine. Live digs and time away both use it, so they cannot drift.
  */
 export const MATERIAL_EVERY: Readonly<Record<MaterialId, number>> = {
   clay: 1_000_000,
-  iron: 250_000,
-  crystal: 4_000_000,
-  heartstone: 8_000_000,
+  iron: 1_000_000,
+  crystal: 5_000_000,
+  heartstone: 10_000_000,
 };
 
 /** 1 is the Topsoil. The sweep knob is `layer.<index>.<tier>.hardness`. */
@@ -90,8 +90,8 @@ export function layerOf(mountain: { readonly remaining: number }): Layer {
 
 /**
  * Speed multiplier for this band and tier. 1 leaves the tier alone.
- * The Topsoil is soft. Granite is tough on carts and kind to drills.
- * The Crystal Caves are tough on drills and kind to borers. The Deep
+ * The Topsoil is soft. Granite is tough on carts and borers and kind to
+ * drills. The Crystal Caves are tough on drills and borers. The Deep
  * Heart is tough on carts, drills, and borers, and spares the Great
  * Machine. Workers and kids stay at 1 in every band, so a bare-hand tap
  * stays one stone.
@@ -99,9 +99,9 @@ export function layerOf(mountain: { readonly remaining: number }): Layer {
 const HARDNESS: Readonly<Record<LayerIndex, Partial<Record<TierId, number>>>> =
   {
     1: {},
-    2: { cart: 0.85, drill: 1.12 },
-    3: { drill: 0.88, borer: 1.1 },
-    4: { cart: 0.9, drill: 0.9, borer: 0.9 },
+    2: { cart: 0.85, borer: 0.85 },
+    3: { drill: 0.85, borer: 0.85 },
+    4: { cart: 0.85, drill: 0.85, borer: 0.85 },
   };
 
 /** This band's rock on this tier. Missing entries, workers, and kids are 1. */

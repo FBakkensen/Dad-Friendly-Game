@@ -393,7 +393,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     expect(minedOut(parsed?.mountain ?? createMountain())).toBe(stones);
     expect(parsed?.mountain.materials).toEqual({
       clay: 10,
-      iron: 8,
+      iron: 2,
       crystal: 0,
       heartstone: 0,
     });
@@ -402,7 +402,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
       "sturdy-props",
       "blasting-charge",
       "reinforce",
-      "iron-temper",
+      "axle-grease",
     ]);
   });
 

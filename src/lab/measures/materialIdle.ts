@@ -9,9 +9,9 @@ import { DAY_MS } from "../targets";
 /**
  * Repeatable sinks are unlimited only when this dad actually uses them:
  * the habit commits (always, or charges for a blasting charge), or a level
- * is already fitted. Otherwise the recipe does not eat the pile. Iron
- * temper is the repeatable iron sink: one craft opens it, and another
- * does not stack the lift.
+ * is already fitted. Otherwise the recipe does not eat the pile. Axle
+ * grease is the repeatable iron sink: a live crew timer that refreshes
+ * and does not stack.
  */
 export function unlimitedSinks(
   craft: CraftRule | undefined,
@@ -20,7 +20,7 @@ export function unlimitedSinks(
   const ids: RecipeId[] = [];
   for (const id of [
     "blasting-charge",
-    "iron-temper",
+    "axle-grease",
     "crystal-flare",
     "heartstone-ember",
   ] as const) {

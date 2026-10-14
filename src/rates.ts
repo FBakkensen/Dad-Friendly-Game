@@ -9,10 +9,10 @@ import {
 import { slowedSpeed, type Trouble } from "./hazards";
 import { hardnessFactorId, hardnessOf, layerOf } from "./layers";
 import {
+  axleCrewMultiplier,
   chargeCrewMultiplier,
   emberMachineMultiplier,
   gearMultiplier,
-  temperCrewMultiplier,
 } from "./workshop";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
@@ -185,10 +185,12 @@ export function effectiveRates(
     needed += count * staff;
   }
   applyTendingFloor(mountain, plain, tierSpeed, running);
-  const exactBase = TIERS.reduce(
-    (total, tier) => total + running[tier.id] * tierSpeed[tier.id],
-    0,
-  );
+  const axle = axleCrewMultiplier(mountain, now);
+  const exactBase =
+    TIERS.reduce(
+      (total, tier) => total + running[tier.id] * tierSpeed[tier.id],
+      0,
+    ) * axle;
   // Whole stones a second, so what the crew line says is what gets mined.
   const baseCrew = Math.floor(exactBase + 1e-9);
   // Tap power takes its share of the crew's own speed, before Overtime.
@@ -199,14 +201,13 @@ export function effectiveRates(
     (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
   );
   const charge = chargeCrewMultiplier(mountain, now);
-  const temper = temperCrewMultiplier(mountain);
   return {
     tapYield: tapWithPick(bareTap, mountain) * boosted("sharper"),
     tierSpeed,
     running,
     helpersShort: Math.max(0, needed - mountain.helpers - mountain.kids),
-    exactCrewPerSecond: exactBase * boosted("overtime") * charge * temper,
-    crewPerSecond: baseCrew * boosted("overtime") * charge * temper,
+    exactCrewPerSecond: exactBase * boosted("overtime") * charge,
+    crewPerSecond: baseCrew * boosted("overtime") * charge,
     awayCapMs: hasRelic(mountain, "shield")
       ? SHIELD_AWAY_CAP_MS
       : BASE_AWAY_CAP_MS,

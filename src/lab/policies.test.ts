@@ -745,7 +745,7 @@ describe("crafting", () => {
       now: 0,
       params: casual.params,
     });
-    expect(worthIt).toEqual({ kind: "craft", recipe: "iron-temper" });
+    expect(worthIt).toEqual({ kind: "craft", recipe: "axle-grease" });
     const valued = casual.decide({
       mountain: late,
       now: 0,

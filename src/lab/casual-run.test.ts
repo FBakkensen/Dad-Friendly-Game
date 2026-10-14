@@ -28,15 +28,15 @@ describe("casual run", { timeout: 120_000 }, () => {
   it("reproduces the diagnosis, with payback reported beside it", () => {
     const run = sampleCasualRun();
     const report = diagnosisOf(run.samples);
-    // #177: 240M of stone and a 67M Great Machine. The plain dad finishes
-    // on day 5.5. Payback has no listed dead stretch. Value-per-stone
-    // still waits about half a day, starting on day 3.
-    expect(run.finishDay).toBe(5.5);
-    expect(readFinishDay(run.samples)).toBe(5.5);
-    expect(report.value.singleShare).toBeCloseTo(0.111, 3);
-    expect(report.value.deadHours / HOURS_PER_DAY).toBeCloseTo(0.499, 3);
+    // The pacing dad does not craft. Hardened borers put that climb on
+    // day 6. Payback has no dead stretch. Value-per-stone waits about
+    // two days, starting on day 3. The lab dad who greases finishes sooner.
+    expect(run.finishDay).toBe(6);
+    expect(readFinishDay(run.samples)).toBe(6);
+    expect(report.value.singleShare).toBeCloseTo(0.48, 3);
+    expect(report.value.deadHours / HOURS_PER_DAY).toBeCloseTo(1.999, 3);
     expect(report.value.deadStartDay).toBeCloseTo(3, 1);
-    expect(report.payback.singleShare).toBeCloseTo(0.2, 3);
+    expect(report.payback.singleShare).toBeCloseTo(0.1, 3);
     expect(report.payback.deadHours).toBe(0);
     expect(report.payback.deadStartDay).toBeUndefined();
   });
@@ -64,11 +64,10 @@ describe("casual run", { timeout: 120_000 }, () => {
     ) {
       return;
     }
-    // The overnight save stays inside half a day. Value-per-stone still
-    // waits after the borer. A craft only takes the bench when it sits
-    // near that buy.
-    expect(payback.value).toBeLessThanOrEqual(12);
-    expect(value.value / HOURS_PER_DAY).toBeCloseTo(0.501, 3);
+    // Payback no longer spends a night saving. Value-per-stone still
+    // waits on the Great Machine, starting on day 3.
+    expect(payback.value).toBeLessThanOrEqual(0.5);
+    expect(value.value / HOURS_PER_DAY).toBeCloseTo(1.506, 3);
     const valueNotes = result.deadStretches.filter(
       (stretch) => stretch.score === "value",
     );
@@ -78,16 +77,12 @@ describe("casual run", { timeout: 120_000 }, () => {
     const valueNote = valueNotes.reduce((best, stretch) =>
       stretch.hours > best.hours ? stretch : best,
     );
-    expect(paybackNotes).toHaveLength(1);
-    expect(paybackNotes[0]).toMatchObject({
-      savingFor: "buyTier:borer",
-      score: "payback",
+    expect(paybackNotes).toHaveLength(0);
+    expect(valueNote).toMatchObject({
+      savingFor: "buyTier:machine",
+      score: "value",
     });
-    expect(paybackNotes[0]?.hours).toBeCloseTo(11.866, 2);
-    expect(paybackNotes[0]?.startDay).toBeCloseTo(2.5, 1);
-    expect(valueNote.startDay).toBeCloseTo(2.5, 1);
-    expect(result.deadStretches.map((stretch) => stretch.score)).toEqual(
-      expect.arrayContaining(["value"]),
-    );
+    expect(valueNote.hours).toBeCloseTo(36.149, 2);
+    expect(valueNote.startDay).toBeCloseTo(3, 1);
   }, 120_000);
 });

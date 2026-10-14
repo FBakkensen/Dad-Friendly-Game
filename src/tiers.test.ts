@@ -148,12 +148,12 @@ describe("crew staffing", () => {
     const rates = effectiveRates(crew);
     expect(rates.running.machine).toBe(0);
     expect(rates.running.cart).toBe(4);
-    expect(rates.crewPerSecond).toBe(9 + 36);
+    expect(rates.crewPerSecond).toBe(9 + 34);
     expect(accrueAway({ mountain: crew, lastSeen: 0, now: 10_000 }).mined).toBe(
-      Math.floor(10 * 45 * AWAY_PAY_RATE),
+      Math.floor(10 * 43 * AWAY_PAY_RATE),
     );
     const staffed = effectiveRates({ ...crew, helpers: 29 });
-    expect(staffed.crewPerSecond).toBe(29 + 36 + 3_500);
+    expect(staffed.crewPerSecond).toBe(29 + 34 + 3_500);
     expect(staffed.helpersShort).toBe(0);
   });
 });

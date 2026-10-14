@@ -97,6 +97,8 @@ export type Mountain = {
   readonly flareUntil?: number;
   /** When a heartstone ember stops lifting the Great Machine. Live play only. */
   readonly emberUntil?: number;
+  /** When axle grease stops speeding carts. Live play only. */
+  readonly axleUntil?: number;
 };
 
 /** A sanity cap for saves; no dad gets near it. Mirrored in firestore.rules. */

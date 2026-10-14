@@ -68,6 +68,7 @@ describe("serializeSave and parseSaveValue", () => {
       chargeUntil: 80_000,
       flareUntil: 90_000,
       emberUntil: 100_000,
+      axleUntil: 110_000,
     };
     expect(
       parseSaveValue(serializeSave({ mountain: everyField, lastSeen: 1 })),
@@ -595,28 +596,28 @@ describe("v6 materials back-grant (#195)", () => {
     expect(minedOut(fresh?.mountain ?? dug(0))).toBe(0);
     expect(twelve?.mountain.materials).toEqual({
       clay: 10,
-      iron: 8,
+      iron: 2,
       crystal: 0,
       heartstone: 0,
     });
     expect(twelve?.mountain.recipes).toEqual([
       ...STARTING_RECIPE_IDS,
       "reinforce",
-      "iron-temper",
+      "axle-grease",
     ]);
     expect(twelve?.mountain.bench).toBeUndefined();
     expect(twelve?.mountain.crafted).toBeUndefined();
     expect(minedOut(twelve?.mountain ?? dug(0))).toBe(12_000_000);
     expect(sixty?.mountain.materials).toEqual({
       clay: 10,
-      iron: 140,
+      iron: 35,
       crystal: 3,
       heartstone: 0,
     });
     expect(sixty?.mountain.recipes).toEqual([
       ...STARTING_RECIPE_IDS,
       "reinforce",
-      "iron-temper",
+      "axle-grease",
       "diamond-bits",
       "crystal-flare",
     ]);
@@ -670,14 +671,14 @@ describe("v6 materials back-grant (#195)", () => {
     });
     expect(tampered?.mountain.materials).toEqual({
       clay: 10,
-      iron: 8,
+      iron: 2,
       crystal: 0,
       heartstone: 0,
     });
     expect(tampered?.mountain.recipes).toEqual([
       ...STARTING_RECIPE_IDS,
       "reinforce",
-      "iron-temper",
+      "axle-grease",
     ]);
     expect(tampered?.mountain.bench).toBeUndefined();
     expect(tampered?.mountain.crafted).toBeUndefined();

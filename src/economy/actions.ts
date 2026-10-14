@@ -682,7 +682,6 @@ function valueCraft(
   switch (recipe.effect.kind) {
     case "tier":
     case "reinforce":
-    case "temper":
       return withBench(
         rateValue(
           mountain,
@@ -713,6 +712,22 @@ function valueCraft(
           fitted,
           endsAt,
           settledSec(fitted.emberUntil, endsAt),
+          stones,
+          horizon,
+          context,
+        ),
+        benchSec,
+      );
+    case "axle":
+      // The clock covers a sitting and is refreshed the next time the
+      // bench is free, so the gain is the live share of every cycle.
+      // incomeGain already leaves the away hours out.
+      return withBench(
+        timedCraft(
+          mountain,
+          fitted,
+          endsAt,
+          Number.POSITIVE_INFINITY,
           stones,
           horizon,
           context,

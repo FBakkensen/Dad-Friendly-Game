@@ -235,7 +235,7 @@ describe("materials from digging", () => {
     const closed = accrueAway({ mountain, lastSeen: 0, now: awayMs });
     const expected = {
       clay: 10,
-      iron: 8,
+      iron: 2,
       crystal: 0,
       heartstone: 0,
     };

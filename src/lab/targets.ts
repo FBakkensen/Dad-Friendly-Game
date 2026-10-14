@@ -187,10 +187,10 @@ export const TARGETS: readonly Target[] = [
   {
     id: "casual-finish",
     measure: "finishDay",
-    scope: { kind: "policies", ids: [CASUAL_REFERENCE_ID] },
+    scope: { kind: "policyKinds", kinds: ["casual"] },
     op: "between",
     value: [5, 7],
-    why: "A casual dad finishes inside a quiet week, and not before day five.",
+    why: "Every casual dad finishes inside a quiet week, and not before day five.",
   },
   {
     id: "thin-habit-finish",

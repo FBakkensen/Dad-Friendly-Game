@@ -114,21 +114,21 @@ describe("layers", () => {
     expect(granite.helper).toBe(1);
     expect(granite.kid).toBe(1);
     expect(granite.cart).toBeCloseTo(8.5);
-    expect(granite.drill).toBeCloseTo(67.2);
-    expect(granite.borer).toBe(595);
+    expect(granite.drill).toBe(60);
+    expect(granite.borer).toBeCloseTo(595 * 0.85);
     expect(granite.machine).toBe(3_500);
     const crystal = effectiveRates(minedMountain(45_000_000)).tierSpeed;
     expect(crystal.helper).toBe(1);
     expect(crystal.cart).toBe(10);
-    expect(crystal.drill).toBeCloseTo(52.8);
-    expect(crystal.borer).toBeCloseTo(654.5);
+    expect(crystal.drill).toBeCloseTo(51);
+    expect(crystal.borer).toBeCloseTo(595 * 0.85);
     expect(crystal.machine).toBe(3_500);
     const heart = effectiveRates(minedMountain(120_000_000)).tierSpeed;
     expect(heart.helper).toBe(1);
     expect(heart.kid).toBe(1);
-    expect(heart.cart).toBeCloseTo(9);
-    expect(heart.drill).toBeCloseTo(54);
-    expect(heart.borer).toBeCloseTo(535.5);
+    expect(heart.cart).toBeCloseTo(8.5);
+    expect(heart.drill).toBeCloseTo(51);
+    expect(heart.borer).toBeCloseTo(595 * 0.85);
     expect(heart.machine).toBe(3_500);
     expect(hardnessOf(2, "helper")).toBe(1);
     expect(hardnessOf(4, "kid")).toBe(1);
@@ -144,11 +144,11 @@ describe("layers", () => {
     };
     expect(layerOf(mountain).id).toBe("crystal");
     const plain = effectiveRates(mountain);
-    expect(plain.tierSpeed.drill).toBeCloseTo(52.8);
+    expect(plain.tierSpeed.drill).toBeCloseTo(51);
     const harder = withFactors({ [hardnessFactorId(3, "drill")]: 0.85 }, () =>
       effectiveRates(mountain),
     );
-    expect(harder.tierSpeed.drill).toBeCloseTo(52.8 * 0.85, 8);
+    expect(harder.tierSpeed.drill).toBeCloseTo(51 * 0.85, 8);
     expect(harder.tierSpeed.cart).toBe(plain.tierSpeed.cart);
     expect(harder.tierSpeed.helper).toBe(plain.tierSpeed.helper);
     const otherBand = withFactors(
@@ -211,9 +211,9 @@ describe("materials", () => {
   it("tunes the gap so fixed recipes can absorb clay, crystal, and heartstone", () => {
     expect(MATERIAL_EVERY).toEqual({
       clay: 1_000_000,
-      iron: 250_000,
-      crystal: 4_000_000,
-      heartstone: 8_000_000,
+      iron: 1_000_000,
+      crystal: 5_000_000,
+      heartstone: 10_000_000,
     });
     expect(MATERIAL_EVERY.crystal).toBeGreaterThan(MATERIAL_EVERY.iron);
     expect(MATERIAL_EVERY.heartstone).toBeGreaterThan(MATERIAL_EVERY.crystal);
@@ -237,7 +237,7 @@ describe("materials", () => {
       ...EMPTY_MATERIALS,
       clay: 10,
     });
-    expect(materialsFromMined(10_000_000 + 249_999)).toEqual({
+    expect(materialsFromMined(10_000_000 + 999_999)).toEqual({
       clay: 10,
       iron: 0,
       crystal: 0,
@@ -245,33 +245,33 @@ describe("materials", () => {
     });
     expect(materialsFromMined(12_000_000)).toEqual({
       clay: 10,
-      iron: 8,
+      iron: 2,
       crystal: 0,
       heartstone: 0,
     });
     expect(materialsFromMined(45_000_000)).toEqual({
       clay: 10,
-      iron: 140,
+      iron: 35,
       crystal: 0,
       heartstone: 0,
     });
     expect(materialsFromMined(60_000_000)).toEqual({
       clay: 10,
-      iron: 140,
+      iron: 35,
       crystal: 3,
       heartstone: 0,
     });
     expect(materialsFromMined(120_000_000)).toEqual({
       clay: 10,
-      iron: 140,
-      crystal: 18,
+      iron: 35,
+      crystal: 15,
       heartstone: 0,
     });
     expect(materialsFromMined(MOUNTAIN_STONES)).toEqual({
       clay: 10,
-      iron: 140,
-      crystal: 18,
-      heartstone: 15,
+      iron: 35,
+      crystal: 15,
+      heartstone: 12,
     });
   });
 
@@ -285,7 +285,7 @@ describe("materials", () => {
       ...EMPTY_MATERIALS,
       clay: 1,
     });
-    expect(materialsGained(9_999_900, 10_250_000)).toEqual({
+    expect(materialsGained(9_999_900, 11_000_000)).toEqual({
       clay: 1,
       iron: 1,
       crystal: 0,
