@@ -91,6 +91,31 @@ describe("passing the mine to your kid", () => {
     };
     const next = passTheMine(parent, 5_000);
     expect(next?.recipes).toEqual([...parent.recipes]);
+    const withKept = {
+      ...parent,
+      kept: {
+        recipes: ["future-bit"],
+        bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
+        crafted: { "future-bit": 4 },
+      },
+    };
+    const heir = passTheMine(withKept, 5_000);
+    expect(heir?.recipes).toEqual([...parent.recipes]);
+    expect(heir?.kept).toEqual({ recipes: ["future-bit"] });
+    expect(heir?.bench).toBeUndefined();
+    expect(heir?.crafted).toBeUndefined();
+    expect(
+      passTheMine({ ...parent, kept: { recipes: [] } }, 5_000)?.kept,
+    ).toBeUndefined();
+    expect(
+      passTheMine(
+        {
+          ...parent,
+          kept: { bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 } },
+        },
+        5_000,
+      )?.kept,
+    ).toBeUndefined();
     expect(next?.materials).toEqual({
       clay: 0,
       iron: 0,

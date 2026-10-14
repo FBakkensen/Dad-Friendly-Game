@@ -69,6 +69,7 @@ describe("serializeSave and parseSaveValue", () => {
       flareUntil: 90_000,
       emberUntil: 100_000,
       axleUntil: 110_000,
+      kept: { recipes: ["future-bit"] },
     };
     expect(
       parseSaveValue(serializeSave({ mountain: everyField, lastSeen: 1 })),
@@ -506,7 +507,7 @@ describe("v6 materials back-grant (#195)", () => {
     }
   });
 
-  it("drops an unknown shelf id and an unknown recipe, and keeps the stones", () => {
+  it("drops an unknown shelf id, keeps an unknown recipe on the next write, and keeps the stones", () => {
     const mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 12_000_000,
@@ -528,8 +529,87 @@ describe("v6 materials back-grant (#195)", () => {
     expect(loaded?.mountain.recipes).toEqual(["iron-rails"]);
     expect(loaded?.mountain.bench).toBeUndefined();
     expect(loaded?.mountain.crafted).toEqual({ "sturdy-props": 1 });
+    expect(loaded?.mountain.kept).toEqual({
+      recipes: ["future-bit"],
+      bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
+      crafted: { "future-bit": 2 },
+    });
     expect(loaded?.mountain.remaining).toBe(MOUNTAIN_STONES - 12_000_000);
     expect(loaded?.mountain.pocket).toBe(12_000_000);
+    const written = serializeSave({
+      mountain: loaded?.mountain ?? mountain,
+      lastSeen: 4,
+    });
+    expect(written.workshop.recipes).toEqual(["iron-rails", "future-bit"]);
+    expect(written.workshop.bench).toEqual({
+      recipe: "future-bit",
+      startedAt: 1,
+      endsAt: 2,
+    });
+    expect(written.workshop.crafted).toEqual({
+      "sturdy-props": 1,
+      "future-bit": 2,
+    });
+    const again = parseSaveValue(written);
+    expect(again?.mountain.kept).toEqual(loaded?.mountain.kept);
+    expect(again?.mountain.recipes).toEqual(["iron-rails"]);
+    expect(again?.mountain.bench).toBeUndefined();
+    const brokenBench = parseSaveValue({
+      ...saved,
+      workshop: {
+        ...saved.workshop,
+        bench: { recipe: "future-bit", startedAt: "soon", endsAt: 2 },
+      },
+    });
+    expect(brokenBench?.mountain.recipes).toEqual(saved.workshop.recipes);
+    expect(brokenBench?.mountain.bench).toBeUndefined();
+    expect(brokenBench?.mountain.kept?.bench).toBeUndefined();
+    const junk = parseSaveValue({
+      ...saved,
+      workshop: {
+        ...saved.workshop,
+        recipes: [
+          "iron-rails",
+          "iron-rails",
+          4,
+          "x".repeat(41),
+          "future-bit",
+          "future-bit",
+          ...Array.from({ length: 9 }, (_, index) => `extra-${String(index)}`),
+        ],
+        crafted: {
+          "sturdy-props": 1,
+          "future-bit": -1,
+          ["y".repeat(41)]: 2,
+          "kept-bit": 3,
+        },
+      },
+    });
+    expect(junk?.mountain.recipes).toEqual(["iron-rails"]);
+    expect(junk?.mountain.crafted).toEqual({ "sturdy-props": 1 });
+    expect(junk?.mountain.kept?.recipes).toHaveLength(8);
+    expect(junk?.mountain.kept?.recipes).toContain("future-bit");
+    expect(junk?.mountain.kept?.crafted).toEqual({ "kept-bit": 3 });
+    expect(
+      parseSaveValue({
+        ...saved,
+        workshop: { ...saved.workshop, crafted: [] },
+      }),
+    ).toBeUndefined();
+    expect(
+      parseSaveValue({
+        ...saved,
+        workshop: { ...saved.workshop, crafted: { "iron-rails": 1.5 } },
+      }),
+    ).toBeUndefined();
+    const echoed = {
+      ...(loaded?.mountain ?? mountain),
+      kept: { recipes: ["iron-rails", "future-bit"] },
+    };
+    expect(
+      serializeSave({ mountain: echoed, lastSeen: 4 }).workshop.recipes,
+    ).toEqual(["iron-rails", "future-bit"]);
+    expect(migrateLegacyGrid(null)).toBeUndefined();
   });
 
   it("trusts a v6 pocket and does not grant again", () => {

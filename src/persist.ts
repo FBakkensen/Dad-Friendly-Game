@@ -7,15 +7,16 @@ import {
   type Mountain,
 } from "./mountain";
 import {
+  MAX_CRAFTED_LEVEL,
   isRecipeId,
   parseBench,
-  parseCrafted,
   parseMaterials,
-  parseRecipes,
   parseChargeUntil,
   recipesForMined,
   type Bench,
   type Crafted,
+  type KeptBench,
+  type KeptWorkshop,
   type RecipeId,
 } from "./workshop";
 
@@ -27,9 +28,9 @@ const V3_SCALE = V4_MOUNTAIN_STONES / V3_MOUNTAIN_STONES;
 
 type WorkshopSave = {
   readonly materials: Materials;
-  readonly recipes: readonly RecipeId[];
-  readonly bench?: Bench;
-  readonly crafted?: Crafted;
+  readonly recipes: readonly string[];
+  readonly bench?: Bench | KeptBench;
+  readonly crafted?: Crafted | Readonly<Record<string, number>>;
   /** When a blasting charge cools. Missing means none is hot. */
   readonly chargeUntil?: number;
   /** When a crystal flare cools. Missing means none is hot. */
@@ -99,12 +100,9 @@ export function serializeSave({
     // mountain keys, push a full crew past the Firestore expression budget.
     workshop: {
       materials: mountain.materials ?? materialsFromMined(minedOut(mountain)),
-      ...(mountain.bench === undefined ? {} : { bench: mountain.bench }),
-      ...(mountain.crafted === undefined ||
-      Object.keys(mountain.crafted).length === 0
-        ? {}
-        : { crafted: mountain.crafted }),
-      recipes: mountain.recipes ?? recipesForMined(minedOut(mountain)),
+      ...workshopBench(mountain),
+      ...workshopCrafted(mountain),
+      recipes: workshopRecipes(mountain),
       ...(mountain.chargeUntil === undefined
         ? {}
         : { chargeUntil: mountain.chargeUntil }),
@@ -165,7 +163,7 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
       }
       const sheet = workshop as Record<string, unknown>;
       const materials = parseMaterials(sheet["materials"]);
-      const recipes = parseRecipes(sheet["recipes"]);
+      const recipes = readRecipes(sheet["recipes"]);
       const bench = readBench(sheet["bench"]);
       const crafted = readCrafted(sheet["crafted"]);
       const chargeUntil = readClock(sheet["chargeUntil"]);
@@ -175,7 +173,7 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
       if (
         base === undefined ||
         materials === undefined ||
-        recipes === undefined ||
+        recipes === "bad" ||
         bench === "bad" ||
         crafted === "bad" ||
         chargeUntil === "bad" ||
@@ -185,15 +183,18 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
       ) {
         return undefined;
       }
+      const kept = keptWorkshop(recipes.kept, bench.kept, crafted.kept);
       return {
         mountain: {
           ...base,
           materials,
-          recipes,
-          ...(bench === undefined ? {} : { bench }),
-          ...(crafted === undefined || Object.keys(crafted).length === 0
+          recipes: recipes.known,
+          ...(bench.bench === undefined ? {} : { bench: bench.bench }),
+          ...(crafted.crafted === undefined ||
+          Object.keys(crafted.crafted).length === 0
             ? {}
-            : { crafted }),
+            : { crafted: crafted.crafted }),
+          ...(kept === undefined ? {} : { kept }),
           ...(chargeUntil === undefined ? {} : { chargeUntil }),
           ...(flareUntil === undefined ? {} : { flareUntil }),
           ...(emberUntil === undefined ? {} : { emberUntil }),
@@ -207,25 +208,142 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
   }
 }
 
-/** `null` is an empty bench. A recipe this client does not know is dropped. */
-function readBench(value: unknown): Bench | undefined | "bad" {
-  if (value === undefined || value === null) {
-    return undefined;
-  }
-  if (typeof value === "object" && unknownBenchRecipe(value)) {
-    return undefined;
-  }
-  const bench = parseBench(value);
-  return bench === undefined ? "bad" : bench;
+/** An id this build can write back without treating it as a recipe it knows. */
+const MAX_KEPT_ID = 40;
+const MAX_KEPT_RECIPES = 8;
+/** Wider than today's longest craft, so a newer timer still comes home. */
+const MAX_KEPT_BENCH_MS = 7 * 24 * 60 * 60 * 1000;
+
+function keptId(value: string): boolean {
+  return value.length >= 1 && value.length <= MAX_KEPT_ID;
 }
 
-/** A bench whose recipe id is a string this build has never heard of. */
-function unknownBenchRecipe(value: object): boolean {
-  if (Array.isArray(value)) {
-    return false;
+function workshopRecipes(mountain: Mountain): readonly string[] {
+  const known = [...(mountain.recipes ?? recipesForMined(minedOut(mountain)))];
+  const seen = new Set<string>(known);
+  const all: string[] = [...known];
+  for (const id of mountain.kept?.recipes ?? []) {
+    if (seen.has(id)) {
+      continue;
+    }
+    seen.add(id);
+    all.push(id);
   }
-  const recipe = (value as Record<string, unknown>)["recipe"];
-  return typeof recipe === "string" && !isRecipeId(recipe);
+  return all;
+}
+
+function workshopBench(mountain: Mountain): { bench?: Bench | KeptBench } {
+  const bench = mountain.bench ?? mountain.kept?.bench;
+  return bench === undefined ? {} : { bench };
+}
+
+function workshopCrafted(mountain: Mountain): {
+  crafted?: Readonly<Record<string, number>>;
+} {
+  const crafted = {
+    ...(mountain.kept?.crafted ?? {}),
+    ...(mountain.crafted ?? {}),
+  };
+  return Object.keys(crafted).length === 0 ? {} : { crafted };
+}
+
+function keptWorkshop(
+  recipes: readonly string[],
+  bench: KeptBench | undefined,
+  crafted: Readonly<Record<string, number>> | undefined,
+): KeptWorkshop | undefined {
+  const kept: {
+    recipes?: readonly string[];
+    bench?: KeptBench;
+    crafted?: Readonly<Record<string, number>>;
+  } = {};
+  if (recipes.length > 0) {
+    kept.recipes = recipes;
+  }
+  if (bench !== undefined) {
+    kept.bench = bench;
+  }
+  if (crafted !== undefined && Object.keys(crafted).length > 0) {
+    kept.crafted = crafted;
+  }
+  return kept.recipes === undefined &&
+    kept.bench === undefined &&
+    kept.crafted === undefined
+    ? undefined
+    : kept;
+}
+
+/**
+ * Known ids stay playable. An id this build has never heard of is kept,
+ * so the next write does not forget a newer recipe.
+ */
+function readRecipes(
+  value: unknown,
+):
+  | { readonly known: readonly RecipeId[]; readonly kept: readonly string[] }
+  | "bad" {
+  if (!Array.isArray(value)) {
+    return "bad";
+  }
+  const known: RecipeId[] = [];
+  const kept: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") {
+      continue;
+    }
+    if (isRecipeId(item)) {
+      if (!known.includes(item)) {
+        known.push(item);
+      }
+      continue;
+    }
+    if (
+      !keptId(item) ||
+      kept.length >= MAX_KEPT_RECIPES ||
+      kept.includes(item)
+    ) {
+      continue;
+    }
+    kept.push(item);
+  }
+  return { known, kept };
+}
+
+/**
+ * `null` is an empty bench. A recipe this client does not know is not
+ * shown, and it is not dropped: the next write puts it back.
+ */
+function readBench(
+  value: unknown,
+): { readonly bench?: Bench; readonly kept?: KeptBench } | "bad" {
+  if (value === undefined || value === null) {
+    return {};
+  }
+  if (typeof value !== "object" || Array.isArray(value)) {
+    return "bad";
+  }
+  const record = value as Record<string, unknown>;
+  const recipe = record["recipe"];
+  if (typeof recipe === "string" && !isRecipeId(recipe)) {
+    const startedAt = record["startedAt"];
+    const endsAt = record["endsAt"];
+    if (
+      !keptId(recipe) ||
+      !isWhole(startedAt) ||
+      !isWhole(endsAt) ||
+      endsAt <= startedAt ||
+      endsAt - startedAt > MAX_KEPT_BENCH_MS
+    ) {
+      return {};
+    }
+    return { kept: { recipe, startedAt, endsAt } };
+  }
+  const bench = parseBench(value);
+  return bench === undefined ? "bad" : { bench };
+}
+
+function isWhole(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0;
 }
 
 /** Missing means that buff is cold. Anything else must be a whole time. */
@@ -237,13 +355,47 @@ function readClock(value: unknown): number | undefined | "bad" {
   return parsed === undefined ? "bad" : parsed;
 }
 
-/** Missing means nothing crafted. An empty map is the same. */
-function readCrafted(value: unknown): Crafted | undefined | "bad" {
+/**
+ * Missing means nothing crafted. A level this build knows is playable.
+ * A level it does not know is written back. A bad level on a known id
+ * rejects the save; a bad level on an unknown id is skipped.
+ */
+function readCrafted(value: unknown):
+  | {
+      readonly crafted?: Crafted;
+      readonly kept?: Readonly<Record<string, number>>;
+    }
+  | "bad" {
   if (value === undefined) {
-    return undefined;
+    return {};
   }
-  const crafted = parseCrafted(value);
-  return crafted === undefined ? "bad" : crafted;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return "bad";
+  }
+  const crafted: Partial<Record<RecipeId, number>> = {};
+  const kept: Record<string, number> = {};
+  for (const [key, level] of Object.entries(value)) {
+    const whole = isWhole(level) && level <= MAX_CRAFTED_LEVEL;
+    if (isRecipeId(key)) {
+      if (!whole) {
+        return "bad";
+      }
+      crafted[key] = level;
+      continue;
+    }
+    if (
+      !whole ||
+      !keptId(key) ||
+      Object.keys(kept).length >= MAX_KEPT_RECIPES
+    ) {
+      continue;
+    }
+    kept[key] = level;
+  }
+  return {
+    ...(Object.keys(crafted).length === 0 ? {} : { crafted }),
+    ...(Object.keys(kept).length === 0 ? {} : { kept }),
+  };
 }
 
 function loadOlderMountain(

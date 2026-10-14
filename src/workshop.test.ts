@@ -37,6 +37,8 @@ import {
   parseMaterials,
   parseRecipes,
   recipeById,
+  grantRecipes,
+  layerRecipeIds,
   recipeCost,
   recipesForMined,
   settleBench,
@@ -89,6 +91,37 @@ describe("recipes granted from stones mined", () => {
     ]);
     expect(recipesForMined(MOUNTAIN_STONES)).not.toContain("crystal-lamp");
     expect(recipesForMined(MOUNTAIN_STONES)).not.toContain("engineers-kit");
+  });
+
+  it("hands a layer's recipes over once, and leaves the expedition pair to be found", () => {
+    expect(layerRecipeIds("topsoil")).toEqual([]);
+    expect(layerRecipeIds("granite")).toEqual(["reinforce", "axle-grease"]);
+    expect(layerRecipeIds("crystal")).toEqual([
+      "diamond-bits",
+      "crystal-flare",
+    ]);
+    expect(layerRecipeIds("heart")).toEqual([
+      "heartstone-core",
+      "heartstone-ember",
+    ]);
+    const fresh = createMountain();
+    const granite = grantRecipes(fresh, layerRecipeIds("granite"));
+    expect(granite.found).toEqual(["reinforce", "axle-grease"]);
+    expect(granite.mountain.recipes).toEqual([
+      ...STARTING_RECIPE_IDS,
+      "reinforce",
+      "axle-grease",
+    ]);
+    expect(
+      grantRecipes(granite.mountain, layerRecipeIds("granite")).mountain,
+    ).toBe(granite.mountain);
+    const { recipes: known, ...unlisted } = createMountain();
+    expect(known).toEqual([...STARTING_RECIPE_IDS]);
+    const bare = grantRecipes(unlisted, ["axle-grease"]);
+    expect(bare.mountain.recipes).toEqual([
+      ...STARTING_RECIPE_IDS,
+      "axle-grease",
+    ]);
   });
 });
 
@@ -320,6 +353,42 @@ describe("workshop rules", () => {
     expect(startCraft(shortCrystal, "crystal-flare", 1)).toBe(shortCrystal);
     const shortHeart = { ...shed, materials: { ...FULL, heartstone: 0 } };
     expect(startCraft(shortHeart, "heartstone-ember", 1)).toBe(shortHeart);
+  });
+
+  it("replaces a bench this build could not show when a known craft starts", () => {
+    const shed = openShed({
+      kept: {
+        recipes: ["future-bit"],
+        bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
+        crafted: { "future-bit": 2 },
+      },
+    });
+    const started = startCraft(shed, "iron-rails", 1);
+    expect(started.bench?.recipe).toBe("iron-rails");
+    expect(started.kept).toEqual({
+      recipes: ["future-bit"],
+      crafted: { "future-bit": 2 },
+    });
+    const onlyBench = openShed({
+      kept: { bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 } },
+    });
+    expect(startCraft(onlyBench, "iron-rails", 1).kept).toBeUndefined();
+    const onlyRecipes = openShed({
+      kept: { recipes: ["future-bit"] },
+    });
+    expect(startCraft(onlyRecipes, "iron-rails", 1).kept).toEqual({
+      recipes: ["future-bit"],
+    });
+    const onlyCrafted = openShed({
+      kept: { crafted: { "future-bit": 1 } },
+    });
+    expect(startCraft(onlyCrafted, "iron-rails", 1).kept).toEqual({
+      crafted: { "future-bit": 1 },
+    });
+    const written = serializeSave({ mountain: started, lastSeen: 1 });
+    expect(written.workshop.bench?.recipe).toBe("iron-rails");
+    expect(written.workshop.recipes).toContain("future-bit");
+    expect(written.workshop.crafted).toMatchObject({ "future-bit": 2 });
   });
 
   it("puts one craft on the bench and returns every stone and material on cancel", () => {

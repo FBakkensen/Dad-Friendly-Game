@@ -4,6 +4,7 @@ import {
   LAYERS,
   MAX_MATERIAL,
   addMaterials,
+  type LayerId,
   type MaterialId,
   type Materials,
 } from "./layers";
@@ -265,6 +266,26 @@ export type Bench = {
   readonly endsAt: number;
 };
 
+/**
+ * A craft this build cannot run. The bench looks empty. The next save
+ * writes it back, so a newer recipe is not lost.
+ */
+export type KeptBench = {
+  readonly recipe: string;
+  readonly startedAt: number;
+  readonly endsAt: number;
+};
+
+/**
+ * Workshop fields a newer app wrote. Known recipes stay on `recipes`.
+ * These ride along on the next write and are not shown.
+ */
+export type KeptWorkshop = {
+  readonly recipes?: readonly string[];
+  readonly bench?: KeptBench;
+  readonly crafted?: Readonly<Record<string, number>>;
+};
+
 export type Crafted = Readonly<Partial<Record<RecipeId, number>>>;
 
 export type RecipeCost = {
@@ -304,6 +325,60 @@ export function recipesForMined(mined: number): readonly RecipeId[] {
   return RECIPES.filter((recipe) => knownWhen(recipe.unlock, reached)).map(
     (recipe) => recipe.id,
   );
+}
+
+/** Recipes a break-in hands over. The Topsoil's three are known from the start. */
+export function layerRecipeIds(id: LayerId): readonly RecipeId[] {
+  switch (id) {
+    case "topsoil":
+      return [];
+    case "granite":
+      return ["reinforce", "axle-grease"];
+    case "crystal":
+      return ["diamond-bits", "crystal-flare"];
+    case "heart":
+      return ["heartstone-core", "heartstone-ember"];
+    /* v8 ignore next 3 -- layer ids are the closed list */
+    default: {
+      const never: never = id;
+      return never;
+    }
+  }
+}
+
+/**
+ * Adds recipes the dad did not already have. The same mountain comes back
+ * when every id is already known.
+ */
+export function grantRecipes(
+  mountain: Mountain,
+  ids: readonly RecipeId[],
+): { readonly mountain: Mountain; readonly found: readonly RecipeId[] } {
+  const known = mountain.recipes ?? [...STARTING_RECIPE_IDS];
+  const found = ids.filter((id) => !known.includes(id));
+  if (found.length === 0) {
+    return { mountain, found };
+  }
+  return {
+    mountain: { ...mountain, recipes: [...known, ...found] },
+    found,
+  };
+}
+
+/** A craft the dad chose replaces a bench this build could not show. */
+function releaseKeptBench(mountain: Mountain): Mountain {
+  const kept = mountain.kept;
+  if (kept?.bench === undefined) {
+    return mountain;
+  }
+  const next = { ...mountain };
+  if (kept.recipes === undefined && kept.crafted === undefined) {
+    Reflect.deleteProperty(next, "kept");
+    return next;
+  }
+  const rest = { ...kept };
+  Reflect.deleteProperty(rest, "bench");
+  return { ...next, kept: rest };
 }
 
 export function isRecipeId(value: unknown): value is RecipeId {
@@ -430,7 +505,7 @@ export function startCraft(
   if (mountain.pocket < cost.stones || !canAfford(have, cost.materials)) {
     return mountain;
   }
-  return {
+  return releaseKeptBench({
     ...mountain,
     pocket: mountain.pocket - cost.stones,
     materials: spendMaterials(have, cost.materials),
@@ -439,7 +514,7 @@ export function startCraft(
       startedAt: now,
       endsAt: now + recipe.craftMs,
     },
-  };
+  });
 }
 
 function dropBench(mountain: Mountain): Mountain {

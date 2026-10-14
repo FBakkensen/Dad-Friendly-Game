@@ -870,7 +870,22 @@ describe("start over", () => {
 
     expect(progress.passTheMine()).toBe(true);
 
-    const fresh = { ...createMountain(), legacy: 1, startedAt: 10_010 };
+    const fresh = {
+      ...createMountain(),
+      legacy: 1,
+      startedAt: 10_010,
+      recipes: [
+        "iron-rails",
+        "sturdy-props",
+        "blasting-charge",
+        "reinforce",
+        "axle-grease",
+        "diamond-bits",
+        "crystal-flare",
+        "heartstone-core",
+        "heartstone-ember",
+      ] as const,
+    };
     expect(progress.getSnapshot().mountain).toEqual(fresh);
     expect(progress.getSnapshot().revealed).toBeUndefined();
     expect(cloud.writes.at(-1)).toEqual(fresh);
@@ -1612,6 +1627,47 @@ describe("field log events for the deep (#150)", () => {
     expect(
       progress.getSnapshot().mountain.engineers?.map((hand) => hand.name),
     ).toEqual(["Ada", "Ruth"]);
+  });
+
+  it("records a sketch brought home and teaches that recipe", () => {
+    const { progress, advance, at } = guest();
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      borers: 1,
+      engineers: [{ name: "Nils", rank: 0, trips: 0, post: "camp" }],
+    }));
+    const sentAt = at();
+    progress.applyMutation((mountain) => {
+      const sent = send(mountain, 0, "old-shaft", sentAt);
+      const next = sent.expeditions?.[0];
+      if (next === undefined) {
+        return mountain;
+      }
+      return {
+        ...sent,
+        expeditions: [
+          {
+            ...next,
+            returnsAt: sentAt + 2_000,
+            find: { kind: "recipe", id: "crystal-lamp" },
+          },
+        ],
+      };
+    });
+    advance(2_000);
+    progress.tick();
+    expect(progress.getSnapshot().mountain.recipes).toContain("crystal-lamp");
+    expect(progress.getSnapshot().homecomings[0]?.find).toEqual({
+      kind: "recipe",
+      id: "crystal-lamp",
+    });
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "recipe.found",
+        data: { id: "crystal-lamp", source: "old-shaft" },
+      }),
+    );
+    progress.dispose();
   });
 
   it("records trouble started and fixed by hand, by a hold, and by an engineer", () => {
@@ -2436,6 +2492,21 @@ describe("layer card and craft-done notice", () => {
         data: { id: "granite" },
       }),
     );
+    expect(progress.getSnapshot().mountain.recipes).toEqual(
+      expect.arrayContaining(["reinforce", "axle-grease"]),
+    );
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "recipe.found",
+        data: { id: "reinforce", source: "granite" },
+      }),
+    );
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "recipe.found",
+        data: { id: "axle-grease", source: "granite" },
+      }),
+    );
     progress.dismissLayer();
     expect(progress.getSnapshot().layersArrived).toEqual([]);
     progress.dispose();
@@ -2455,7 +2526,26 @@ describe("layer card and craft-done notice", () => {
     });
     const sitting = guest(deep, () => 0);
     expect(sitting.getSnapshot().layersArrived).toEqual([]);
+    expect(sitting.getSnapshot().mountain.recipes).toEqual(
+      expect.arrayContaining(["reinforce", "axle-grease"]),
+    );
+    expect(sitting.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "recipe.found",
+        data: { id: "reinforce", source: "granite" },
+      }),
+    );
     sitting.dispose();
+    const reopened = guest(deep, () => 0);
+    expect(
+      reopened
+        .fieldLog()
+        .events.filter((event) => event.code === "recipe.found"),
+    ).toEqual([]);
+    expect(reopened.getSnapshot().mountain.recipes).toEqual(
+      expect.arrayContaining(["reinforce", "axle-grease"]),
+    );
+    reopened.dispose();
   });
 
   it("folds a band crossed while away into the welcome, once", () => {

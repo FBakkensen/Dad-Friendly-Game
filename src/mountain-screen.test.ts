@@ -3620,6 +3620,13 @@ describe("layer card, material line, and craft-done notice", () => {
     expect(screen.text(".layer-card")).toContain(
       "Tough on carts. Drills love it.",
     );
+    expect(screen.text(".layer-sketch")).toBe(
+      "A sketch for the shed came up with the rock.",
+    );
+    expect(screen.text(".layer-sketch")).not.toMatch(/[0-9?]/);
+    expect(screen.progress.getSnapshot().mountain.recipes).toEqual(
+      expect.arrayContaining(["reinforce", "axle-grease"]),
+    );
     expect(screen.text(".layer-card")).not.toMatch(/\?/);
     expect(screen.text(".layer-dig")).toBe("Dig on");
     screen.root.querySelector<HTMLButtonElement>(".layer-dig")?.click();
@@ -3660,6 +3667,9 @@ describe("layer card, material line, and craft-done notice", () => {
     );
     expect(screen.text(".welcome-layer")).toContain(
       "Tough on carts. Drills love it.",
+    );
+    expect(screen.text(".welcome-layer")).toContain(
+      "A sketch for the shed came up with the rock.",
     );
     expect(
       screen.root.querySelector<HTMLElement>(".layer-arrival")?.hidden,
