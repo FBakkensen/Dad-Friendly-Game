@@ -102,9 +102,9 @@ describe("workshop panel (#199)", () => {
       },
     }));
     screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
-    expect(
-      screen.root.querySelector(".workshop-open")?.textContent,
-    ).toContain("Workshop · 8:00");
+    expect(screen.root.querySelector(".workshop-open")?.textContent).toContain(
+      "Workshop · 8:00",
+    );
     screen.root.querySelector<HTMLButtonElement>(".workshop-open")?.click();
     const sheet = screen.root.querySelector(".workshop-dialog");
     expect(sheet?.textContent).toContain(
