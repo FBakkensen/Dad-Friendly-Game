@@ -19,5 +19,5 @@
     "exactOptionalPropertyTypes": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "rules-test", "vite.config.ts"]
+  "include": ["src", "rules-test", "mockups", "vite.config.ts"]
 }
