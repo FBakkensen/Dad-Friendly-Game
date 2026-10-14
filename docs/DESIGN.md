@@ -147,6 +147,7 @@ M2 gives the player one choice: which tier to buy next. M3 adds the real idle-ga
 - **M5: Maintenance.** See below. Before any new feature.
 - **M6: Legacy.** Prestige (pass the mine to your kid), per the #83 note above.
 - **M8: Strategy lab.** Decision quality, offline. See Milestone 8 below. M8 is built.
+- **M9: Layers and the Workshop.** Four rock bands and a one-bench workshop. See Milestone 9 below. M9 is planned.
 
 ### M5: Maintenance
 
@@ -377,3 +378,162 @@ Adding a policy file adds a row. Adding a measure file adds a column. Adding a t
 `npm run lab:sweep` (`tools/sweep/cli.ts`) writes `reports/sweep.md` (gitignored). It is not part of `npm run check`. Morris elementary effects run first, over the knobs in `tools/sweep/knobs.ts`. A Saltelli Sobol design then runs on the top knobs: one scrambled Sobol sequence, fixed seed, S1 and ST tables. The default measures are `longestDeadStretch`, `singleShare`, `dominantShare`, and `finishDay` on `casual-2x10`. Any registered numeric measure can be named with `--measure`. Flags: `--seed`, `--morris`, `--sobol`, `--top`, `--days`, `--policy`, `--out`.
 
 A knob is one entry: a factor id the price, growth, output, or tending formula already reads, plus a low and a high multiplier. 1 is today's economy. The sweep multiplies that number for one run and puts it back. Play, the save, and the tournament are unchanged. The tool lives under `tools/` so its sample sizes and direction numbers stay out of `src/lab/targets.ts`.
+
+### Milestone 9: Layers and the Workshop
+
+**M9 is planned.** Approved by Flemming (2026-10-14). Later issues update this line. Nothing in this section is in the game yet. The numbers the plan calls first cut are first cut, and M9-7 lab-tunes them. This page adds no other numbers.
+
+#### The idea
+
+The mountain stops being one grey pile. As you dig, you pass through **four layers**, each its own kind of rock. Each layer gives a little of its own **material**, alongside the stones. At the surface there is a **Workshop** with one workbench. You spend stones plus materials to craft something for the crew: rails for the carts, bits for the drills, props that keep trouble away, a lamp that draws golden veins. A craft takes real time on the bench, so the question each session is what goes on the bench next, and whether it is worth more than another drill.
+
+The workshop is the dad's shed. Crafting is making something good for your crew with your own hands. Copy lifts the dad up ("Your crew will feel this one.").
+
+#### Where the methods come from
+
+These are published methods, not new ones. Each choice below rests on one of them.
+
+- A. Pecorella, _The Math of Idle Games_ Part I, Kongregate (2016), <https://www.kongregate.com/pages/the-math-of-idle-games-part-i>. Several generators with different cost and rate curves make priorities shift over the run, and income-to-cost ratio is how to model the optimal player. Layers change those ratios. That is the shifting-priority lever. The lab's `valueOf` already uses this ratio.
+- A. Pecorella, _The Math of Idle Games_ Part III, Kongregate (2017), <https://www.kongregate.com/pages/the-math-of-idle-games-part-iii>. Pacing comes from tuning resets and multipliers against the cost curve. Layers stay inside one run. M6's pass-the-mine stays the only prestige, so we take the pacing discipline without adding a reset.
+- Cookie Monster payback, already defined under Milestone 8. Every craft is valued with the same payback formula as every other buy, so live options and dead stretches are measured the same way.
+- D. Cook, _Value chains_, Lostgarden (2021), <https://lostgarden.com/2021/12/12/value-chains/>. The structure is source, then transform, then sink, then anchor. Materials are a trickle source, so each needs a repeatable sink or they pile up. Permanent items are fixed sinks. "Match the power of your sinks to your sources." That gives the recipe mix.
+- D. Cook, _Designing game content architectures_, Lostgarden (2021), <https://lostgarden.com/2021/01/04/designing-game-content-architectures/>. Build the value anchor first. Crafted items feed crew output, which the lab already measures, so the system can be tested before there is lots of content.
+- Butterscotch Shenanigans, _How we unbroke our crafting system_ (Crashlands), Game Developer, <https://www.gamedeveloper.com/design/how-we-unbroke-our-crafting-system>. Do not dump every recipe at once. The bench starts with a few recipes, and the rest are found, here on expeditions and when you reach a new layer. Discovery stays in the loop and the sheet stays small.
+- _Crafting the crafting in Ember_, Game Developer, <https://www.gamedeveloper.com/design/crafting-the-crafting-in-ember>. An item's power comes from how rare its ingredients are, and the rarest materials only exist in deep areas. A deeper layer means a rarer material and a stronger item.
+- Mason et al., _Crafting in Games_, Digital Humanities Quarterly, <https://dhq-static.digitalhumanities.org/pdf/000339.pdf>. From that vocabulary: well-defined recipes, low fidelity of action (one tap), a fixed outcome (no randomness in a purchase), and a result the other systems fully recognise (it shows up in rates).
+- Layered-unlock practice: reveal the next layer when the current one flattens, and give each layer a new verb, not a bigger number. One write-up is <https://teemo.dev/game-design/concepts/prestige-rebirth/systems/layered-meta-prestige/>. Each layer adds one new thing, a material plus a recipe or two, revealed only as you get close.
+
+#### Layers
+
+The layer is derived from **stones mined**, the same way relics are, so the save gets no layer field. Bands are aligned to relic depths so each relic is also a landmark.
+
+| #   | Layer (player name) | Stones mined              | Material   | Rock (hidden, lab-tuned)                          |
+| --- | ------------------- | ------------------------- | ---------- | ------------------------------------------------- |
+| 1   | The Topsoil         | 0 to 10M (to the Shield)  | Clay       | soft: no change                                   |
+| 2   | The Granite         | 10M to 45M (to the Heart) | Iron       | hard on carts, kind to drills                     |
+| 3   | The Crystal Caves   | 45M to 120M               | Crystal    | hard on drills, kind to borers                    |
+| 4   | The Deep Heart      | 120M to 240M              | Heartstone | hard on everything but the Great Machine and kids |
+
+- **Rock hardness** is a per-layer, per-tier speed factor. The first cut is 0.85 to 1.15, and it is lab-tuned. It is applied in `effectiveRates` through the existing `factor()` hook, so the sweep can tune it. Until M9-7 the factor defaults to 1, which keeps today's pace. It turns "which machine next" into a fresh question in each layer (Pecorella: shifting priorities). The player sees the card's real `+N/s`, which already includes the hardness. A purchase shows real numbers. The hardness itself is never shown as a percentage. The layer card only says, for example, "The granite is tough on carts. Drills love it."
+- **Materials** accrue deterministically inside `accrue` and `accrueAway`: one unit per `MATERIAL_EVERY` stones mined in that layer. The first cut is one per 40K stones in the Topsoil, scaling with depth, and that rate is lab-tuned. They are integers in the save. There is no randomness, so live and away earnings cannot drift.
+- **Discovery stays vague.** Before you reach a layer you see only a hint on the progress bar ("Below the topsoil, the rock turns hard and grey."). No depth, no name of the material, no recipe list. Once you arrive, the material and its count are real numbers, because they are spent on purchases.
+
+#### The Workshop
+
+- **Unlock:** the first time you enter the Granite (10M, alongside the Shield). Before that, a dark Workshop silhouette marked "Locked · The Granite" sits in the menu, the same pattern as the Machine card.
+- **One workbench.** Crafting takes time: 10 min / 1 h / 4 h, the same rhythm as expeditions, so a dad sets a long craft at night. You cannot stack crafts. Picking what goes on the bench is the decision. One bench for the whole run. That is decided.
+- **Cost:** stones plus materials, always shown as real numbers ("4.2M stones · 12 iron · 1 h").
+- **Effect:** always shown as a real number on the card ("Carts 10/s to 12/s").
+
+The first-cut recipe list is small on purpose: 7 recipes, 3 known at unlock, and the rest found. The effects below are first cut and lab-tuned. On the card they read as the resulting rate ("Carts 10/s to 12/s").
+
+| Recipe               | Needs                | Effect (first cut; the card shows the resulting rate)          | Sink (Lostgarden)      | How you get the recipe      |
+| -------------------- | -------------------- | -------------------------------------------------------------- | ---------------------- | --------------------------- |
+| Iron rails           | stones + iron        | carts ×1.25, max 3 levels                                      | fixed                  | known at unlock             |
+| Sturdy props         | stones + clay + iron | trouble comes 30% less often                                   | fixed (1 level)        | known at unlock             |
+| Blasting charge      | stones + clay        | crew ×2 for 20 min (like Overtime, but costs clay, not stones) | repeatable (clay sink) | known at unlock             |
+| Diamond bits         | stones + crystal     | drills ×1.25, max 3                                            | fixed                  | reaching the Crystal Caves  |
+| Miner's crystal lamp | crystal + iron       | golden veins 25% more often                                    | fixed (1)              | expedition find (old shaft) |
+| Engineer's kit       | iron + crystal       | expeditions 20% shorter                                        | fixed (1)              | expedition find (deep dark) |
+| Heartstone core      | stones + heartstone  | Great Machine ×1.2, max 3                                      | fixed                  | reaching the Deep Heart     |
+
+Rules that keep this healthy:
+
+- **Every material has a repeatable sink**, so materials never pile up uselessly. Clay has Blasting charge. From the Granite on, a "Reinforce" recipe turns iron into one level of an existing item's next tier. The exact shape is decided in M9-5. `materialIdle` checks this.
+- **Recipes are found, not dumped** (Crashlands). The expedition find "a worn recipe" stays vague in the find text ("Nils came back with a sketch folded in his pocket."). The recipe card it unlocks has real numbers.
+- **No randomness in what a craft gives.** A purchase is a promise.
+- **Never punishing.** Closing the app does not stop the bench, and a finished craft waits safely. A craft can be cancelled before it finishes for a full refund.
+
+#### What you decide
+
+These stay live for the whole run.
+
+1. **Bench or machine.** Stones spent on a craft are not spent on a drill. Both are valued by payback. Crafts should sit inside `LIVE_RATIO` of the best buy for a meaningful share of samples, and they should not dominate.
+2. **Which craft.** One bench, and materials are shared. Iron goes into rails, props, and the kit, so you pick a lane.
+3. **Which machine, in this layer.** Hardness shifts the best tier as you go deeper. The M8 problem that the same buy is always right (`dominantShare`) gets a structural fix, not a price tweak.
+4. **Charge now, or save the clay.** Blasting charge competes with Overtime for a play session.
+5. **A long craft at night, or a long expedition.** Both are good overnight moves. Each has its own engineer or its own bench, so the evening gets a small plan.
+
+#### The lab
+
+Nothing in the lab core changes. Every addition is a new file or a new union arm. The two approved targets live in `src/lab/targets.ts`, the only place a lab number lives. M9-6 is the only issue allowed to add the rows. They are ordinary guardrail entries, the same `{ id, measure, scope, op, value, why }` shape, so a later target is still one entry. Existing thresholds are not changed.
+
+Approved:
+
+- Crafted items are at least 8% of output from the Granite on, for the casual player types and the optimizer. That is the same bar as tending.
+- `materialIdle` is at most 0.5 day, for the casual player types.
+
+Every existing guardrail still holds. `skip-crafting`, `crafting-heavy`, and `charge-junkie` must not win (`extremeWin`: at most 15% sooner than casual).
+
+- **Action catalogue** (`src/economy/actions.ts`). New arms `{ kind: "craft"; recipe: RecipeId }` and `{ kind: "cancelCraft" }`. The `never`-check makes typecheck fail until `listActions`, `applyAction`, and `valueOf` handle them (the M8-1 guarantee). `valueOf` for a craft is the Δincome from `effectiveRates` before and after, plus the bench time added to the wait-to-afford part of payback. Blasting charge is valued like a boost over the horizon. Props and the lamp are valued as expected stones over the horizon, the way #178 values expedition finds.
+- **World** (`src/lab/world.ts`). The bench settles inside `settle`. Materials accrue inside `accrue` and `accrueAway`. The same seeded clock, so it stays deterministic.
+- **Player types**, one file each in `src/lab/policies/`:
+  - `crafting-heavy.ts` (extreme): crafts whenever the bench is free and anything is affordable, and buys machines only otherwise.
+  - `skip-crafting.ts` (extreme): never opens the workshop.
+  - `charge-junkie.ts` (extreme): spends every clay on Blasting charges.
+  - The three casual types and the optimizer get a craft step in `decide`. The casual dad puts the best-payback craft on the bench when he would otherwise idle. The optimizer simply sees the new actions.
+- **Measures**, one file each in `src/lab/measures/`:
+  - `craftShare.ts`: the share of output that comes from crafted items, the same pattern as tending's `featureShare`.
+  - `materialIdle.ts`: the longest stretch where any material sits above a full recipe's worth with nothing to spend it on. It catches a missing sink.
+  - `benchIdle.ts`: the share of time the bench is empty once the workshop is unlocked, for casual types. Report only. It is not a target.
+- **Pacing.** A casual dad still finishes in 5 to 7 days, and never under 5, on 240M. Hardness below 1 takes speed away, and crafted items give it back to a dad who crafts, so a crafting casual dad lands near today's finish day. A dad who skips crafting finishes later. That is allowed for an extreme. M9-7 tunes this with `npm run lab:sweep`. Hardness and recipe strength are factors that default to 1.
+- **Sweep knobs** (`tools/sweep/knobs.ts`): `layer.<n>.<tier>.hardness`, `recipe.<id>.strength`, `recipe.<id>.cost`, `material.every`.
+
+#### Numbers
+
+- **Real numbers:** recipe costs (stones and material counts), craft time, item effects ("Carts 10/s to 12/s"), material counts in your pocket, and the Workshop unlock label.
+- **Vague:** what the next layer holds, its name before you arrive, rock hardness, a found recipe before it is found, and the expedition text that brings a recipe. An unfound or locked recipe is a dark silhouette, with no numbers and no "?".
+
+#### Mock before building
+
+Mockups come first (M9-2), using the existing `mockups/` puppeteer flow, at 390×844 and 360×640, with no scroll. Flemming approves them before any UI code. The built screens also hold 360×560 with no scroll (M9-8). Art is PixelLab, and we ask first. No sound until the player unmutes.
+
+1. **Workshop sheet.** Title "Workshop", then a bench row ("On the bench: Iron rails · 38 min left" with a soft progress bar, or "The bench is free"), then up to 4 recipe cards in two columns. Each card has a name, an effect line, a cost line with small material icons, and a fat "Craft · 4.2M" button. Locked or unfound recipes are dark silhouettes with no numbers. One "Back to the mountain" button. Tap feedback: the button presses in, the materials float off the pocket line toward the bench, and a short hammer-tap animation plays.
+2. **Layer transition.** A one-time card when you cross a band: the new rock as art, the name ("You broke into the Granite!"), one evocative line, one line of advice ("Tough on carts. Drills love it."), and one button, "Dig on". It is never shown twice. An away return folds it into the welcome-back card.
+3. **Material line.** A single row under the pocket showing only materials you have met: "Clay 42 · Iron 7", with short-form numbers. It must not push the cards off screen at 360×640.
+4. **Craft done.** It shows on the welcome-back card or as a small toast: "Your Iron rails are fitted. Carts now 12/s." One tap.
+
+#### Save
+
+Save **v6**:
+
+- `materials: { clay, iron, crystal, heartstone }`, integers.
+- `bench: { recipe, startedAt, endsAt } | null`.
+- `crafted: Record<RecipeId, level>`.
+- `recipes: RecipeId[]`, the ones found.
+
+A v5 save migrates with a **back-grant**. Materials are computed from stones mined in each band (`MATERIAL_EVERY`), exactly what that save would have dug. The bench is empty. Nothing is crafted. Recipes are the starting three (Iron rails, Sturdy props, Blasting charge), plus the layer-entry recipes for layers already reached (Diamond bits once the Crystal Caves are reached, Heartstone core once the Deep Heart is reached). The expedition recipes (Miner's crystal lamp, Engineer's kit) are not granted by the migration. The layer itself is derived, so nothing is stored for it. Saves from v1 through v5, local and cloud, still load, and the stones already mined stay.
+
+`firestore.rules` accept v6, with shape and integer limits on the new fields. The rules tests live in the save issue (M9-4).
+
+The field log records `craft.start`, `craft.done`, `layer.enter`, and `recipe.found`.
+
+Passing the mine to your kid keeps the recipes. Crafted gear does not carry over. Materials and the bench reset too.
+
+#### Decisions
+
+Flemming, 2026-10-14:
+
+1. **Layers are rock bands** inside one mountain, not prestige layers.
+2. **Deep saves get their materials back**, computed from stones mined in each band.
+3. **One workbench.**
+4. **Passing the mine to your kid:** recipes carry over; crafted gear does not. Materials and the bench reset too.
+5. **Lab targets approved:** crafted items are at least 8% of output from the Granite on, for casual player types and the optimizer; idle materials are at most 0.5 day, for casual player types. They are added in `src/lab/targets.ts`, as ordinary entries, so a later target stays one entry.
+
+#### Issues
+
+One PR each, in dependency order. Every issue keeps `npm run check` green, including the strict `strategy-lab` job. `src/lab/targets.ts` stays untouched except in M9-6. Copy is in `screen-words`, and the tone lifts the dad up.
+
+1. **M9-1 (#192) DESIGN.md.** This section. Depends on nothing.
+2. **M9-2 (#193) Mockups.** Workshop, layer card, material line, and craft done, in `mockups/`, with screenshots at 390×844 and 360×640. No scroll at either size. Labels and tap feedback are described. Flemming approves. Depends on M9-1.
+3. **M9-3 (#194) Layers** (`src/layers.ts`). Bands derived from stones mined, `layerOf(mountain)`, and hardness factors wired through `factor()` and defaulting to 1. Behavior-preserving. Pacing pins and the lab report stay unchanged. Unit tests at the band edges. Depends on M9-1.
+4. **M9-4 (#195) Materials and save v6.** Materials accrue in `accrue` and `accrueAway`. v5 migrates to v6. Firestore rules and rules tests. Old saves (v1 to v5, local and cloud) load and keep stones mined. Live and away accrual match to the unit. No UI yet. Depends on M9-3.
+5. **M9-5 (#196) Workshop rules** (`src/workshop.ts`). Recipe catalogue, bench start, settle, and cancel with a full refund, item effects in `effectiveRates`, recipe and strength factors defaulting to 1. Pure and tested. A finished craft settles once across reload and away. Depends on M9-4.
+6. **M9-6 (#197) Lab.** `craft` and `cancelCraft` in the catalogue and `valueOf`, a craft step for the casual types and the optimizer, the three extreme policies, `craftShare`, `materialIdle`, and `benchIdle`, and the new target rows in `targets.ts`. This is the only issue allowed to touch that file. The rows are the ones approved above. Add-one-file tests still pass. The report shows the new rows. No gameplay change. Depends on M9-5.
+7. **M9-7 (#198) Retune.** Turns hardness and recipe numbers on with `npm run lab:sweep`, and moves the economy, not the targets. The strict lab is green: casual finish in 5 to 7 days and never under 5, dead stretch at most 0.5 day, the single, dominant, and live targets, tending at least 8%, crafted at least 8%, `materialIdle` at most 0.5 day, and no extreme wins. Margins are reported in the PR. Depends on M9-6.
+8. **M9-8 (#199) Workshop screen.** Built to the M9-2 mockup, with copy in `screen-words`. The visual check does not scroll at 390×844, 360×640, or 360×560. Purchases show real numbers. Locked recipes show none. Tap feedback matches the mockup. Depends on M9-2 and M9-7.
+9. **M9-9 (#200) Layer card, material line, and craft-done notice.** The layer card shows once per layer, including across reload and away. The material line never pushes cards off screen. The craft-done notice shows once. The field-log events are recorded. Depends on M9-8.
+10. **M9-10 (#201) Recipes found on expeditions and on entering a layer.** A new vague find kind `recipe` in `expeditions.ts`. Recipes unlock on layer entry. The find text has no numbers and the recipe card does. The seeded find is deterministic. The lab stays green. Depends on M9-6 and M9-9.
+11. **M9-11 (#202) Ship check.** Live screenshots (`/workspace/shots/m9-*.png`), a playtest on Flemming's save, and this page marked "M9 is built". Deploy is green. Old saves are verified on the live site. Depends on all of the above.
+
+M9-2 and M9-3 can both start as soon as M9-1 is in. Mockup sign-off (M9-2) can run alongside M9-4 through M9-7.
