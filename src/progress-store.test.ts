@@ -28,7 +28,7 @@ import { WELCOME_MIN_AWAY_MS, createProgressStore } from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { buyTier } from "./tiers";
 import { buyUpgrade } from "./upgrades";
-import { recipesForMined } from "./workshop";
+import { recipesForMined, startCraft } from "./workshop";
 import { mineVein } from "./veins";
 import { promote, station } from "./engineers";
 import { recall, send, type Expedition } from "./expeditions";
@@ -2394,5 +2394,169 @@ describe("expeditions through the save", () => {
     blocked.tick();
     expect(blocked.getSnapshot().homecomings).toHaveLength(1);
     blocked.dispose();
+  });
+});
+
+describe("layer card and craft-done notice", () => {
+  const guest = (storage: Storage, now: () => number) =>
+    createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now,
+    });
+
+  const shed = (): Mountain => ({
+    ...minedMountain(12_000_000),
+    helpers: 1,
+    carts: 1,
+    pocket: 5_000_000,
+    materials: { clay: 20, iron: 20, crystal: 0, heartstone: 0 },
+    recipes: recipesForMined(12_000_000),
+  });
+
+  it("shows a break-in once across a reload, and not for a band already reached", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: minedMountain(9_999_999),
+      lastSeen: 0,
+    });
+    const progress = guest(storage, () => 0);
+    expect(progress.getSnapshot().layersArrived).toEqual([]);
+    progress.dismissLayer();
+    progress.dismissCraft();
+
+    progress.applyMutation(() => minedMountain(10_000_000));
+    expect(
+      progress.getSnapshot().layersArrived.map((layer) => layer.id),
+    ).toEqual(["granite"]);
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "layer.enter",
+        data: { id: "granite" },
+      }),
+    );
+    progress.dismissLayer();
+    expect(progress.getSnapshot().layersArrived).toEqual([]);
+    progress.dispose();
+
+    const again = guest(storage, () => 0);
+    expect(again.getSnapshot().layersArrived).toEqual([]);
+    expect(again.fieldLog().events.map((event) => event.code)).not.toContain(
+      "layer.enter",
+    );
+    again.dispose();
+
+    const deep = createMemoryStorage();
+    writeSessionSave({
+      storage: deep,
+      mountain: minedMountain(15_000_000),
+      lastSeen: 0,
+    });
+    const sitting = guest(deep, () => 0);
+    expect(sitting.getSnapshot().layersArrived).toEqual([]);
+    sitting.dispose();
+  });
+
+  it("folds a band crossed while away into the welcome, once", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(9_990_000), helpers: 20 },
+      lastSeen: 0,
+    });
+    const progress = guest(storage, () => 1_800_000);
+    expect(progress.getSnapshot().away).toBeDefined();
+    expect(
+      progress.getSnapshot().layersArrived.map((layer) => layer.id),
+    ).toEqual(["granite"]);
+    progress.dismissAway();
+    expect(progress.getSnapshot().layersArrived).toEqual([]);
+    expect(progress.getSnapshot().away).toBeUndefined();
+    progress.dispose();
+
+    const later = guest(storage, () => 1_800_000);
+    expect(later.getSnapshot().layersArrived).toEqual([]);
+    later.dispose();
+  });
+
+  it("queues every band a single dig breaks into, shallowest first", () => {
+    const progress = guest(createMemoryStorage(), () => 0);
+    progress.applyMutation(() => minedMountain(120_000_000));
+    expect(
+      progress.getSnapshot().layersArrived.map((layer) => layer.id),
+    ).toEqual(["granite", "crystal", "heart"]);
+    const enters = progress
+      .fieldLog()
+      .events.filter((event) => event.code === "layer.enter")
+      .map((event) => event.data.id);
+    expect(enters).toEqual(["granite", "crystal", "heart"]);
+    progress.dismissLayer();
+    progress.dismissLayer();
+    progress.dismissLayer();
+    expect(progress.getSnapshot().layersArrived).toEqual([]);
+    progress.dispose();
+  });
+
+  it("names a finished craft once, during play and after time away", () => {
+    const storage = createMemoryStorage();
+    let clock = 0;
+    const progress = guest(storage, () => clock);
+    progress.applyMutation(() => startCraft(shed(), "iron-rails", clock));
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "craft.start",
+        data: { id: "iron-rails" },
+      }),
+    );
+    expect(progress.getSnapshot().craftsFitted).toEqual([]);
+    const endsAt = progress.getSnapshot().mountain.bench?.endsAt ?? 0;
+    while (clock < endsAt) {
+      clock = Math.min(endsAt, clock + 9_000);
+      progress.tick();
+    }
+    expect(progress.getSnapshot().craftsFitted).toEqual([
+      {
+        id: "iron-rails",
+        level: 1,
+        line: "Your Iron rails are fitted. Carts now 10.6/s.",
+      },
+    ]);
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "craft.done",
+        data: { id: "iron-rails", count: 1 },
+      }),
+    );
+    progress.dismissCraft();
+    expect(progress.getSnapshot().craftsFitted).toEqual([]);
+    progress.flush();
+    progress.dispose();
+
+    const reloaded = guest(storage, () => clock);
+    expect(reloaded.getSnapshot().craftsFitted).toEqual([]);
+    expect(reloaded.fieldLog().events.map((event) => event.code)).not.toContain(
+      "craft.done",
+    );
+    reloaded.dispose();
+
+    const awayStore = createMemoryStorage();
+    writeSessionSave({
+      storage: awayStore,
+      mountain: {
+        ...shed(),
+        helpers: 4,
+        bench: { recipe: "iron-rails", startedAt: 0, endsAt: 60_000 },
+      },
+      lastSeen: 0,
+    });
+    const away = guest(awayStore, () => 120_000);
+    expect(away.getSnapshot().away).toBeDefined();
+    expect(away.getSnapshot().craftsFitted[0]?.line).toBe(
+      "Your Iron rails are fitted. Carts now 10.6/s.",
+    );
+    away.dismissAway();
+    expect(away.getSnapshot().craftsFitted).toEqual([]);
+    away.dispose();
   });
 });

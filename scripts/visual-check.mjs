@@ -1785,6 +1785,258 @@ for (const viewport of WORKSHOP_SIZES) {
   await close();
 }
 
+/**
+ * Layer card, folded welcome, craft-done notice, and the four-chip line (#200).
+ * Same sizes as the workshop check.
+ */
+const NOTICE_SIZES = [
+  [390, 844],
+  [360, 640],
+  [360, 560],
+];
+
+function noticeSave({ mined, lastSeen, mountain = {}, workshop = {} }) {
+  return {
+    version: 6,
+    lastSeen,
+    mountain: {
+      remaining: 240_000_000 - mined,
+      pocket: 20,
+      helpers: 0,
+      carts: 0,
+      staffed: 2,
+      ...mountain,
+    },
+    workshop: {
+      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
+      ...workshop,
+    },
+  };
+}
+
+/** Visible buttons and reading-size labels inside one root. */
+async function fitOf(page, selector, labelSelector) {
+  return page.$eval(
+    selector,
+    (root, labelsOf) => {
+      const shown = (node) => {
+        if (node.hidden) {
+          return false;
+        }
+        const box = node.getBoundingClientRect();
+        return box.width > 0 && box.height > 0;
+      };
+      const buttons = [...root.querySelectorAll("button")].filter(shown);
+      const boxes = buttons.map((button) => {
+        const box = button.getBoundingClientRect();
+        return {
+          height: box.height,
+          top: box.top,
+          bottom: box.bottom,
+          left: box.left,
+          right: box.right,
+          text: button.textContent ?? "",
+        };
+      });
+      const labels = [...root.querySelectorAll(labelsOf)].filter(
+        (node) => shown(node) && (node.textContent ?? "").trim() !== "",
+      );
+      const typeOk =
+        labels.length > 0 &&
+        labels.every(
+          (node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 14.4,
+        );
+      return {
+        boxesOk:
+          boxes.length > 0 &&
+          boxes.every(
+            (box) =>
+              box.height >= 44 &&
+              box.top >= 0 &&
+              box.bottom <= innerHeight &&
+              box.left >= 0 &&
+              box.right <= innerWidth,
+          ),
+        typeOk,
+        texts: boxes.map((box) => box.text),
+        body: root.textContent ?? "",
+      };
+    },
+    labelSelector,
+  );
+}
+
+for (const viewport of NOTICE_SIZES) {
+  const size = `${String(viewport[0])}x${String(viewport[1])}`;
+  const now = Date.now();
+
+  {
+    const { page, close } = await open(
+      viewport,
+      noticeSave({ mined: 9_999_999, lastSeen: now }),
+    );
+    await page.tap(".mountain");
+    await page.waitForSelector(".relic-reveal:not([hidden])", {
+      timeout: 3_000,
+    });
+    await page.tap(".reveal-continue");
+    await page.waitForSelector(".layer-arrival:not([hidden])", {
+      timeout: 3_000,
+    });
+    const fit = await fitOf(page, ".layer-card", "h2, p, button");
+    const still = await noScroll(page);
+    check(
+      still &&
+        fit.boxesOk &&
+        fit.typeOk &&
+        fit.texts.includes("Dig on") &&
+        fit.body.includes("You broke into the Granite!") &&
+        fit.body.includes("Tough on carts. Drills love it."),
+      `${size} layer card fits, Dig on is on screen`,
+    );
+    if (!still || !fit.boxesOk || !fit.typeOk) {
+      console.log("layer card", size, fit);
+    }
+    await shot(page, `layer-card-check-${size}`);
+    await close();
+  }
+
+  {
+    const { page, close } = await open(
+      viewport,
+      noticeSave({
+        mined: 9_990_000,
+        lastSeen: now - 30 * 60 * 1000,
+        mountain: { helpers: 20, carts: 1, pocket: 5_000_000 },
+        workshop: {
+          materials: { clay: 9, iron: 4, crystal: 0, heartstone: 0 },
+          recipes: [
+            "iron-rails",
+            "sturdy-props",
+            "blasting-charge",
+            "reinforce",
+            "axle-grease",
+          ],
+          bench: {
+            recipe: "iron-rails",
+            startedAt: now - 20 * 60 * 1000,
+            endsAt: now - 10 * 60 * 1000,
+          },
+        },
+      }),
+    );
+    await page.waitForSelector(".welcome-layer", { timeout: 3_000 });
+    await page.waitForSelector(".welcome-craft", { timeout: 3_000 });
+    const fit = await fitOf(page, ".welcome-card", "h2, p, button");
+    const still = await noScroll(page);
+    check(
+      still &&
+        fit.boxesOk &&
+        fit.typeOk &&
+        fit.texts.includes("Back to the mountain") &&
+        fit.body.includes("You broke into the Granite!") &&
+        fit.body.includes("Tough on carts. Drills love it.") &&
+        fit.body.includes("are fitted") &&
+        fit.body.includes("/s"),
+      `${size} welcome card folds in the layer and the fitted craft`,
+    );
+    if (!still || !fit.boxesOk || !fit.typeOk) {
+      console.log("welcome fold", size, fit);
+    }
+    await shot(page, `welcome-fold-${size}`);
+    await close();
+  }
+
+  {
+    const { page, close } = await open(
+      viewport,
+      noticeSave({
+        mined: 12_000_000,
+        lastSeen: now,
+        mountain: { helpers: 1, carts: 1, pocket: 5_000_000 },
+        workshop: {
+          materials: { clay: 10, iron: 6, crystal: 0, heartstone: 0 },
+          recipes: [
+            "iron-rails",
+            "sturdy-props",
+            "blasting-charge",
+            "reinforce",
+            "axle-grease",
+          ],
+          bench: {
+            recipe: "iron-rails",
+            startedAt: now - 600_000,
+            endsAt: now + 700,
+          },
+        },
+      }),
+    );
+    await page.waitForSelector(".craft-notice:not([hidden])", {
+      timeout: 5_000,
+    });
+    const fit = await fitOf(page, ".notice-card", "p, button");
+    const still = await noScroll(page);
+    check(
+      still &&
+        fit.boxesOk &&
+        fit.typeOk &&
+        fit.texts.includes("The crew feels it") &&
+        fit.body.includes("are fitted") &&
+        fit.body.includes("/s"),
+      `${size} craft-done notice fits, the accept button is on screen`,
+    );
+    if (!still || !fit.boxesOk || !fit.typeOk) {
+      console.log("craft notice", size, fit);
+    }
+    await shot(page, `craft-notice-check-${size}`);
+    await close();
+  }
+
+  {
+    const { page, close } = await open(
+      viewport,
+      noticeSave({
+        mined: 130_000_000,
+        lastSeen: now,
+        mountain: { helpers: 1, pocket: 1_000 },
+        workshop: {
+          materials: { clay: 10, iron: 35, crystal: 15, heartstone: 1 },
+          recipes: [
+            "iron-rails",
+            "sturdy-props",
+            "blasting-charge",
+            "reinforce",
+            "axle-grease",
+            "diamond-bits",
+            "crystal-flare",
+            "heartstone-core",
+            "heartstone-ember",
+          ],
+        },
+      }),
+    );
+    const line = await page.$eval(
+      ".material-line",
+      (row) => row.textContent ?? "",
+    );
+    const fit = await fitOf(page, "#app", ".material-bit, .menu-button");
+    const still = await noScroll(page);
+    const chipsOk = ["Clay", "Iron", "Crystal", "Heartstone"].every((name) =>
+      line.includes(name),
+    );
+    check(
+      still && chipsOk && fit.boxesOk && fit.typeOk && !line.includes("?"),
+      `${size} mountain shows all four material chips`,
+    );
+    if (!still || !chipsOk || !fit.boxesOk || !fit.typeOk) {
+      console.log("four chips", size, line, fit);
+    }
+    await shot(page, `materials-four-${size}`);
+    await close();
+  }
+}
+
 await browser.close();
 await server?.close();
 if (failures.length > 0) {

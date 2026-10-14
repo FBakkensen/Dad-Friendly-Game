@@ -16,6 +16,7 @@ import {
 import type { BoostId } from "./boosts";
 import { formatCompact, formatCount, formatDuration } from "./format";
 import type { TroubleKind } from "./hazards";
+import type { LayerId } from "./layers";
 import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { owned, tierById, type TierId } from "./tiers";
@@ -867,6 +868,89 @@ export const LAYER_DIG = "Dig on";
 
 export const CRAFT_DONE = "Your Iron rails are fitted. Carts now 12/s.";
 export const CRAFT_DONE_BUTTON = "The crew feels it";
+
+/** The live layer card. Granite matches the approved mock, word for word. */
+const LAYER_CARD = {
+  granite: {
+    arrival: LAYER_ARRIVAL,
+    evocative: LAYER_EVOCATIVE,
+    advice: LAYER_ADVICE,
+  },
+  crystal: {
+    arrival: "You broke into the Crystal Caves!",
+    evocative: "Light in the walls. Your crew can handle this.",
+    advice: "Tough on drills and borers. The rest keep their pace.",
+  },
+  heart: {
+    arrival: "You broke into the Deep Heart!",
+    evocative: "Warm stone, deep down. Your crew earned this.",
+    advice: "Tough on carts, drills, and borers. The Great Machine holds.",
+  },
+} as const;
+
+export type LayerCardWords = {
+  readonly arrival: string;
+  readonly evocative: string;
+  readonly advice: string;
+};
+
+/** Words for a break-in card. The Topsoil is home, not a break-in. */
+export function layerCardWords(id: LayerId): LayerCardWords | undefined {
+  switch (id) {
+    case "topsoil":
+      return undefined;
+    case "granite":
+    case "crystal":
+    case "heart":
+      return LAYER_CARD[id];
+    /* v8 ignore next 3 -- layer ids are the closed list */
+    default: {
+      const never: never = id;
+      return never;
+    }
+  }
+}
+
+/**
+ * What the next band feels like, before you arrive. No depth, no material
+ * name. The Deep Heart has nothing below it.
+ */
+export function nextLayerHint(id: LayerId | undefined): string | undefined {
+  switch (id) {
+    case "granite":
+      return "Below the topsoil, the rock turns hard and grey.";
+    case "crystal":
+      return "Deeper on, the walls start to glitter.";
+    case "heart":
+      return "Something warm is still waiting below.";
+    case "topsoil":
+    case undefined:
+      return undefined;
+    /* v8 ignore next 3 -- layer ids are the closed list */
+    default: {
+      const never: never = id;
+      return never;
+    }
+  }
+}
+
+/** One line for the welcome card: the arrival and the advice. */
+export function layerWelcomeWords(id: LayerId): string | undefined {
+  const words = layerCardWords(id);
+  if (words === undefined) {
+    return undefined;
+  }
+  return `${words.arrival} ${words.advice}`;
+}
+
+/**
+ * "Your Iron rails are fitted. Carts now 12.5/s."
+ * A name that ends in s takes "are".
+ */
+export function craftFittedWords(name: string, effect: string): string {
+  const fitted = name.endsWith("s") ? "are" : "is";
+  return `Your ${name} ${fitted} fitted. ${effect}`;
+}
 
 /** Unfound recipe. No name, no count, no question mark. */
 export const UNFOUND_HINT = "A folded sketch, still in the dark.";

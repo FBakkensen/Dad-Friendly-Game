@@ -13,8 +13,10 @@ import {
   type CloudSave,
 } from "./cloud-save";
 import { APP_VERSION } from "./field-log";
+import { LAYERS } from "./layers";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
+import { createWelcomePanel } from "./welcome-panel";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
 import { FIX_HOLD_MS } from "./hazards";
@@ -25,6 +27,7 @@ import {
 } from "./screen-words";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { buyTier, tierById } from "./tiers";
+import { recipesForMined, startCraft } from "./workshop";
 
 function setReducedMotion(reduce: boolean): void {
   window.matchMedia = ((query: string) => ({
@@ -86,6 +89,7 @@ function mountScreen({
     sessionStorage: storage,
     cloudWriteGapMs: 0,
     ...(cloudSave === undefined ? {} : { cloudSave }),
+    ...(now === undefined ? {} : { now }),
   });
   mountMountainScreen({
     root,
@@ -3534,5 +3538,248 @@ describe("side tunnels (#147)", () => {
       setVisibility("visible");
       vi.useRealTimers();
     }
+  });
+});
+
+describe("layer card, material line, and craft-done notice", () => {
+  const dismissOpen = (root: HTMLElement): void => {
+    const visible = (selector: string): HTMLButtonElement | undefined => {
+      const button = root.querySelector<HTMLButtonElement>(selector);
+      const dialog = button?.closest<HTMLElement>("[role='dialog']");
+      if (button === null || dialog?.hidden !== false) {
+        return undefined;
+      }
+      return button;
+    };
+    for (let step = 0; step < 12; step += 1) {
+      const button =
+        visible(".welcome-continue") ??
+        visible(".reveal-continue") ??
+        visible(".layer-dig") ??
+        visible(".craft-accept");
+      if (button === undefined) {
+        return;
+      }
+      button.click();
+    }
+  };
+
+  it("shows only materials met, and a vague hint before the next band", () => {
+    const screen = mountScreen();
+    expect(screen.text(".material-line")).toBe("");
+    expect(screen.text(".layer-hint")).toBe(
+      "Below the topsoil, the rock turns hard and grey.",
+    );
+    expect(screen.text(".layer-hint")).not.toMatch(
+      /\b(clay|iron|crystal|heartstone)\b|\?/i,
+    );
+    expect(
+      screen.root.querySelector<HTMLElement>(".layer-arrival")?.hidden,
+    ).toBe(true);
+    expect(
+      screen.root.querySelector<HTMLElement>(".craft-notice")?.hidden,
+    ).toBe(true);
+
+    screen.progress.applyMutation(() => ({
+      ...minedMountain(12_000_000),
+      materials: { clay: 10, iron: 2, crystal: 0, heartstone: 0 },
+    }));
+    dismissOpen(screen.root);
+    expect(screen.text(".material-line")).toContain("Clay 10");
+    expect(screen.text(".material-line")).toContain("Iron 2");
+    expect(screen.text(".material-line")).not.toContain("Crystal");
+    expect(screen.text(".material-line")).not.toContain("Heartstone");
+    expect(screen.text(".layer-hint")).toBe(
+      "Deeper on, the walls start to glitter.",
+    );
+    expect(screen.text(".layer-hint")).not.toMatch(
+      /\b(iron|crystal|heartstone)\b|\d|\?/i,
+    );
+    screen.progress.dispose();
+  });
+
+  it("shows the Granite card after the relics, once, with a press-in button", () => {
+    const screen = mountScreen();
+    screen.progress.applyMutation(() => minedMountain(10_000_000));
+    expect(
+      screen.root.querySelector<HTMLElement>(".layer-arrival")?.hidden,
+    ).toBe(true);
+    expect(
+      screen.root.querySelector<HTMLElement>(".relic-reveal")?.hidden,
+    ).toBe(false);
+    const reveal =
+      screen.root.querySelector<HTMLButtonElement>(".reveal-continue");
+    reveal?.click();
+    reveal?.click();
+    const card = screen.root.querySelector<HTMLElement>(".layer-arrival");
+    expect(card?.hidden).toBe(false);
+    expect(screen.text(".layer-card")).toContain("You broke into the Granite!");
+    expect(screen.text(".layer-card")).toContain(
+      "The grey rock rings under every pick.",
+    );
+    expect(screen.text(".layer-card")).toContain(
+      "Tough on carts. Drills love it.",
+    );
+    expect(screen.text(".layer-card")).not.toMatch(/\?/);
+    expect(screen.text(".layer-dig")).toBe("Dig on");
+    screen.root.querySelector<HTMLButtonElement>(".layer-dig")?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".layer-arrival")?.hidden,
+    ).toBe(true);
+    screen.progress.dispose();
+  });
+
+  it("hides the hint in the Deep Heart", () => {
+    const screen = mountScreen();
+    screen.progress.applyMutation(() => minedMountain(120_000_000));
+    dismissOpen(screen.root);
+    expect(screen.root.querySelector<HTMLElement>(".layer-hint")?.hidden).toBe(
+      true,
+    );
+    expect(
+      screen.root
+        .querySelector<HTMLElement>(".guide-bar")
+        ?.getAttribute("aria-label"),
+    ).toBe("Progress to the Mantle of the Hero");
+    screen.progress.dispose();
+  });
+
+  it("folds a band crossed while away into the welcome card", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(9_990_000), helpers: 20 },
+      lastSeen: 0,
+    });
+    const screen = mountScreen({ storage, now: () => 1_800_000 });
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(false);
+    expect(screen.text(".welcome-layer")).toContain(
+      "You broke into the Granite!",
+    );
+    expect(screen.text(".welcome-layer")).toContain(
+      "Tough on carts. Drills love it.",
+    );
+    expect(
+      screen.root.querySelector<HTMLElement>(".layer-arrival")?.hidden,
+    ).toBe(true);
+    screen.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(true);
+    expect(
+      screen.root.querySelector<HTMLElement>(".layer-arrival")?.hidden,
+    ).toBe(true);
+    screen.progress.dispose();
+  });
+
+  it("names a fitted craft and its real speed, then once is enough", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(12_000_000),
+        helpers: 1,
+        carts: 1,
+        pocket: 5_000_000,
+        materials: { clay: 20, iron: 20, crystal: 0, heartstone: 0 },
+        recipes: recipesForMined(12_000_000),
+      },
+      lastSeen: 0,
+    });
+    let clock = 0;
+    const screen = mountScreen({ storage, now: () => clock });
+    screen.progress.applyMutation((mountain) =>
+      startCraft(mountain, "iron-rails", clock),
+    );
+    const endsAt = screen.progress.getSnapshot().mountain.bench?.endsAt ?? 0;
+    while (clock < endsAt) {
+      clock = Math.min(endsAt, clock + 9_000);
+      screen.progress.tick();
+    }
+    const notice = screen.root.querySelector<HTMLElement>(".craft-notice");
+    expect(notice?.hidden).toBe(false);
+    expect(screen.text("#craft-notice-line")).toBe(
+      "Your Iron rails are fitted. Carts now 10.6/s.",
+    );
+    expect(screen.text(".craft-accept")).toBe("The crew feels it");
+    screen.root.querySelector<HTMLButtonElement>(".craft-accept")?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".craft-notice")?.hidden,
+    ).toBe(true);
+    screen.progress.tick();
+    expect(
+      screen.root.querySelector<HTMLElement>(".craft-notice")?.hidden,
+    ).toBe(true);
+    screen.progress.dispose();
+  });
+
+  it("folds a craft finished while away into the welcome card", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(12_000_000),
+        helpers: 4,
+        carts: 1,
+        pocket: 5_000_000,
+        materials: { clay: 20, iron: 20, crystal: 0, heartstone: 0 },
+        recipes: recipesForMined(12_000_000),
+        bench: { recipe: "iron-rails", startedAt: 0, endsAt: 60_000 },
+      },
+      lastSeen: 0,
+    });
+    const screen = mountScreen({ storage, now: () => 120_000 });
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(false);
+    expect(screen.text(".welcome-craft")).toBe(
+      "Your Iron rails are fitted. Carts now 10.6/s.",
+    );
+    expect(
+      screen.root.querySelector<HTMLElement>(".craft-notice")?.hidden,
+    ).toBe(true);
+    screen.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(true);
+    expect(
+      screen.root.querySelector<HTMLElement>(".craft-notice")?.hidden,
+    ).toBe(true);
+    screen.progress.dispose();
+  });
+
+  it("skips a topsoil line on the welcome card", () => {
+    const root = document.createElement("div");
+    const welcome = createWelcomePanel({
+      progress: {
+        dismissAway: () => undefined,
+      } as unknown as ReturnType<typeof createProgressStore>,
+      getView: () =>
+        ({
+          away: {
+            mined: 1,
+            awayMs: 120_000,
+            paidMs: 120_000,
+            capped: false,
+            heart: 1,
+          },
+          layersArrived: [LAYERS[0]],
+          craftsFitted: [],
+          crewJoined: undefined,
+          engineerJoined: undefined,
+          homecomings: [],
+          mountain: createMountain(),
+        }) as unknown as ReturnType<
+          ReturnType<typeof createProgressStore>["getSnapshot"]
+        >,
+    });
+    root.append(welcome.welcome);
+    welcome.render();
+    expect(root.querySelector<HTMLElement>(".welcome-layer")).toBeNull();
+    expect(root.querySelector<HTMLElement>(".welcome-back")?.hidden).toBe(
+      false,
+    );
   });
 });

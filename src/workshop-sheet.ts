@@ -2,7 +2,12 @@ import { boostById, boostLeft } from "./boosts";
 import { factor } from "./economy/factors";
 import { TUNNELS } from "./expeditions";
 import { formatCompact } from "./format";
-import { LAYERS, EMPTY_MATERIALS, type MaterialId } from "./layers";
+import {
+  LAYERS,
+  EMPTY_MATERIALS,
+  materialsFromMined,
+  type MaterialId,
+} from "./layers";
 import { expeditionAwayMs } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import { minedOut } from "./scale";
@@ -120,11 +125,18 @@ const TIER_WORD: Readonly<
   machine: "Great Machine",
 };
 
-/** Layers already reached. A later material stays off the line. */
+/**
+ * Materials the pocket can name. A chip appears once a unit is in hand,
+ * or the stones already dug in that band have earned one (spent down to
+ * zero still shows). A later band, and a band with only a remainder, stay off.
+ */
 export function metMaterialChips(mountain: Mountain): readonly MaterialChip[] {
-  const mined = minedOut(mountain);
   const have = mountain.materials ?? EMPTY_MATERIALS;
-  return LAYERS.filter((layer) => mined >= layer.from).map((layer) => ({
+  const earned = materialsFromMined(minedOut(mountain));
+  return LAYERS.filter((layer) => {
+    const id = layer.material;
+    return have[id] > 0 || earned[id] > 0;
+  }).map((layer) => ({
     id: layer.material,
     text: materialCountWords(layer.material, have[layer.material]),
   }));
@@ -314,6 +326,142 @@ function reinforceLine(mountain: Mountain, now: number): string {
     now,
   ).tierSpeed[tier];
   return `${word} ${formatCraftSpeed(before)}/s to ${formatCraftSpeed(after)}/s`;
+}
+
+/** What the crew feels once this craft is already fitted. A real number. */
+export function fittedEffect(
+  mountain: Mountain,
+  id: RecipeId,
+  now: number,
+): string {
+  const recipe = recipeById(id);
+  const effect = recipe.effect;
+  switch (effect.kind) {
+    case "tier": {
+      const speed = effectiveRates(mountain, now).tierSpeed[effect.tier];
+      return `${TIER_WORD[effect.tier]} now ${formatCraftSpeed(speed)}/s.`;
+    }
+    case "trouble":
+      return troubleFitted(mountain);
+    case "veins":
+      return lampFitted(mountain, now);
+    case "trip":
+      return kitFitted(mountain);
+    case "charge":
+      return crewFitted(mountain, now, "charge", effect.durationMs);
+    case "axle":
+      return crewFitted(mountain, now, "axle", axleWindow(effect.durationMs));
+    case "flare":
+      return flareFitted(mountain, now);
+    case "ember":
+      return emberFitted(mountain, now);
+    case "reinforce":
+      return reinforceFitted(mountain, now);
+    /* v8 ignore next 3 -- effect kinds are the closed recipe list */
+    default: {
+      const never: never = effect;
+      return never;
+    }
+  }
+}
+
+function troubleFitted(mountain: Mountain): string {
+  const scale = troubleGapScale(mountain);
+  if (scale <= 1) {
+    return "Trouble stays a little further off.";
+  }
+  return `Trouble comes ${percent(1 - 1 / scale)} less often.`;
+}
+
+function lampFitted(mountain: Mountain, now: number): string {
+  const scale = veinOftenScale(mountain, now);
+  if (scale <= 1) {
+    return "Golden veins keep coming.";
+  }
+  return `Golden veins ${percent(scale - 1)} more often.`;
+}
+
+function kitFitted(mountain: Mountain): string {
+  const deep = TUNNELS.find((tunnel) => tunnel.id === "deep-dark");
+  /* v8 ignore next -- the deep dark is one of the three tunnels */
+  const away = deep === undefined ? 0 : deep.awayMs;
+  return `Long trips now ${craftTimeWords(expeditionAwayMs(away, mountain))}.`;
+}
+
+function axleWindow(fallback: number): number {
+  const window = recipeWindowMs("axle-grease");
+  /* v8 ignore next -- axle grease is a timed craft */
+  return window === undefined ? fallback : window;
+}
+
+function crewFitted(
+  mountain: Mountain,
+  now: number,
+  kind: "charge" | "axle",
+  durationMs: number,
+): string {
+  const time = craftTimeWords(durationMs);
+  const scale =
+    kind === "charge"
+      ? chargeCrewMultiplier(mountain, now)
+      : axleCrewMultiplier(mountain, now);
+  const others = otherCrewTimer(mountain, now, kind);
+  if (others > 1 && others + 1e-9 >= scale) {
+    return crewAlreadyWords(others);
+  }
+  const speed = effectiveRates(mountain, now).exactCrewPerSecond;
+  if (speed > 0) {
+    return `Crew now ${formatCraftSpeed(speed)}/s for ${time}.`;
+  }
+  return `The crew digs at ${formatCraftSpeed(scale)}× for ${time}.`;
+}
+
+function withoutClock(
+  mountain: Mountain,
+  key: "flareUntil" | "emberUntil",
+): Mountain {
+  if (mountain[key] === undefined) {
+    return mountain;
+  }
+  const rest = { ...mountain };
+  Reflect.deleteProperty(rest, key);
+  return rest;
+}
+
+function flareFitted(mountain: Mountain, now: number): string {
+  const until = mountain.flareUntil ?? now;
+  const time = craftTimeWords(Math.max(0, until - now));
+  const before = veinOftenScale(withoutClock(mountain, "flareUntil"), now);
+  const after = veinOftenScale(mountain, now);
+  if (after <= before) {
+    return `Veins stay lively for ${time}.`;
+  }
+  return `Veins ${percent(after / before - 1)} more often for ${time}.`;
+}
+
+function emberFitted(mountain: Mountain, now: number): string {
+  const until = mountain.emberUntil ?? now;
+  const time = craftTimeWords(Math.max(0, until - now));
+  const before = effectiveRates(withoutClock(mountain, "emberUntil"), now)
+    .tierSpeed.machine;
+  const after = effectiveRates(mountain, now).tierSpeed.machine;
+  if (after <= before) {
+    return `The Great Machine keeps this lift for ${time}.`;
+  }
+  return `Great Machine now ${formatCraftSpeed(after)}/s for ${time}.`;
+}
+
+function reinforceFitted(mountain: Mountain, now: number): string {
+  const tier = reinforceTier(mountain);
+  if (tier === "drill" || tier === "borer" || tier === "machine") {
+    const speed = effectiveRates(mountain, now).tierSpeed[tier];
+    return `${TIER_WORD[tier]} now ${formatCraftSpeed(speed)}/s.`;
+  }
+  const effect = recipeById("reinforce").effect;
+  /* v8 ignore next -- Reinforce is the reinforce effect */
+  const per = effect.kind === "reinforce" ? effect.perLevel : 0;
+  const lift = percent(per * factor(recipeStrengthId("reinforce")));
+  return `The next machine digs ${lift} faster.`;
 }
 
 function craftEffect(recipe: Recipe, mountain: Mountain, now: number): string {

@@ -7,6 +7,8 @@ import { hasRelic, nextRelic, RELICS, type RelicId, depthHint } from "./relics";
 import { BOOSTS } from "./boosts";
 import { effectiveRates } from "./rates";
 import { createRelicPanels } from "./relic-panels";
+import { createArrivalPanel } from "./arrival-panel";
+import { nextLayer } from "./layers";
 import { createWelcomePanel } from "./welcome-panel";
 import { createMenuPanel } from "./menu-panel";
 import { createLegacyPanel, legacyWords } from "./legacy-panel";
@@ -16,7 +18,8 @@ import { createEngineersPanel } from "./engineers-panel";
 import { floatText } from "./float-text";
 import { createUpgradesPanel } from "./upgrades-panel";
 import { createWorkshopPanel } from "./workshop-panel";
-import { tapWords } from "./screen-words";
+import { nextLayerHint, tapWords } from "./screen-words";
+import { metMaterialChips } from "./workshop-sheet";
 import {
   veinGapScale,
   advanceVein,
@@ -91,7 +94,10 @@ export function mountMountainScreen({
   guideBar.setAttribute("aria-valuemax", "100");
   const guideFill = document.createElement("span");
   guideBar.append(guideFill);
-  guide.append(goal, guideBar);
+  const layerHint = document.createElement("p");
+  layerHint.className = "layer-hint";
+  layerHint.hidden = true;
+  guide.append(goal, layerHint, guideBar);
 
   const gapForVeins = (): number =>
     veinGapScale(view.mountain, hasRelic(view.mountain, "lantern"), now());
@@ -270,6 +276,14 @@ export function mountMountainScreen({
 
   const welcomePanel = createWelcomePanel({ progress, getView: () => view });
   const { welcome } = welcomePanel;
+  const arrival = createArrivalPanel({
+    progress,
+    getView: () => view,
+    mountainUrl,
+    oreUrl: stoneUrl,
+    lanternUrl,
+    tierArt,
+  });
 
   const resetVein = (): void => {
     veinState = waitForVein({ now: now(), random, gapScale: gapForVeins() });
@@ -420,7 +434,9 @@ export function mountMountainScreen({
     crewPanel.render();
     renderVein();
     renderGuide();
+    renderMaterials();
     welcomePanel.render();
+    arrival.render();
     relics.render();
     menuPanel.render();
     legacy.render();
@@ -430,7 +446,34 @@ export function mountMountainScreen({
     renderSave();
   };
 
+  const renderMaterials = (): void => {
+    const chips = metMaterialChips(view.mountain);
+    materialLine.replaceChildren();
+    chips.forEach((chip, index) => {
+      if (index > 0) {
+        const dot = document.createElement("span");
+        dot.className = "dot";
+        dot.textContent = "·";
+        materialLine.append(dot);
+      }
+      const bit = document.createElement("span");
+      bit.className = "material-bit";
+      const icon = document.createElement("img");
+      icon.className = `mat mat-${chip.id}`;
+      icon.src = stoneUrl;
+      icon.alt = "";
+      icon.width = 16;
+      icon.height = 16;
+      icon.draggable = false;
+      bit.append(icon, document.createTextNode(chip.text));
+      materialLine.append(bit);
+    });
+  };
+
   const renderGuide = (): void => {
+    const hint = nextLayerHint(nextLayer(view.mountain)?.id);
+    layerHint.hidden = hint === undefined;
+    layerHint.textContent = hint ?? "";
     const next = nextRelic(view.mountain);
     const guided = hasRelic(view.mountain, "lantern");
     guideBar.hidden = !guided || next === undefined;
@@ -452,7 +495,12 @@ export function mountMountainScreen({
     goal.textContent = `Next: ${next.name} · ${depthHint(view.mountain) ?? ""}`;
     guideFill.style.width = `${String(percent)}%`;
     guideBar.setAttribute("aria-valuenow", String(percent));
-    guideBar.setAttribute("aria-label", `Progress to the ${next.name}`);
+    guideBar.setAttribute(
+      "aria-label",
+      hint === undefined
+        ? `Progress to the ${next.name}`
+        : `Progress to the ${next.name}. ${hint}`,
+    );
   };
 
   document.addEventListener("visibilitychange", () => {
@@ -474,6 +522,11 @@ export function mountMountainScreen({
   const pocketRow = document.createElement("div");
   pocketRow.className = "pocket-row";
   pocketRow.append(pocket, pocketActions);
+  const materialLine = document.createElement("p");
+  materialLine.className = "material-line";
+  const pocketStack = document.createElement("div");
+  pocketStack.className = "pocket-stack";
+  pocketStack.append(pocketRow, materialLine);
 
   const header = document.createElement("header");
   header.className = "top-bar";
@@ -486,10 +539,12 @@ export function mountMountainScreen({
     guide,
     shelfButton,
     mountainWrap,
-    pocketRow,
+    pocketStack,
     crew,
     saveStatus,
     welcome,
+    arrival.layer,
+    arrival.notice,
     reveal,
     legend,
     shelf,

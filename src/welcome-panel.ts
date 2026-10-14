@@ -5,6 +5,7 @@ import {
   ENGINEER_WELCOME,
   cameBack,
   capWords,
+  layerWelcomeWords,
   restingPace,
   workerWords,
 } from "./screen-words";
@@ -45,6 +46,12 @@ export function createWelcomePanel({
   const welcomeReturns = document.createElement("div");
   welcomeReturns.className = "welcome-returns";
   welcomeReturns.hidden = true;
+  const welcomeLayers = document.createElement("div");
+  welcomeLayers.className = "welcome-layers";
+  welcomeLayers.hidden = true;
+  const welcomeCrafts = document.createElement("div");
+  welcomeCrafts.className = "welcome-crafts";
+  welcomeCrafts.hidden = true;
   const welcomeContinue = document.createElement("button");
   welcomeContinue.type = "button";
   welcomeContinue.className = "welcome-continue";
@@ -60,6 +67,8 @@ export function createWelcomePanel({
     welcomeCrew,
     welcomeEngineer,
     welcomeReturns,
+    welcomeLayers,
+    welcomeCrafts,
     welcomeContinue,
   );
   welcome.append(welcomeCard);
@@ -82,6 +91,29 @@ export function createWelcomePanel({
     );
     welcomeReturns.hidden = lines.length === 0;
     welcome.classList.toggle("is-homecoming", lines.length > 0);
+    const layerLines = view.layersArrived.flatMap((layer) => {
+      const line = layerWelcomeWords(layer.id);
+      return line === undefined ? [] : [line];
+    });
+    welcomeLayers.replaceChildren(
+      ...layerLines.map((line) => {
+        const paragraph = document.createElement("p");
+        paragraph.className = "welcome-layer";
+        paragraph.textContent = line;
+        return paragraph;
+      }),
+    );
+    welcomeLayers.hidden = layerLines.length === 0;
+    const craftLines = view.craftsFitted.map((fitted) => fitted.line);
+    welcomeCrafts.replaceChildren(
+      ...craftLines.map((line) => {
+        const paragraph = document.createElement("p");
+        paragraph.className = "welcome-craft";
+        paragraph.textContent = line;
+        return paragraph;
+      }),
+    );
+    welcomeCrafts.hidden = craftLines.length === 0;
     const wasOpen = !welcome.hidden;
     welcome.hidden =
       report === undefined &&

@@ -40,6 +40,10 @@ const REQUIRED_SELECTORS = [
   ".workshop-locked",
   ".workshop-card",
   ".workshop-cancel",
+  ".layer-arrival",
+  ".craft-notice",
+  ".material-line",
+  ".layer-hint",
 ];
 
 describe("style.css", () => {
@@ -50,6 +54,8 @@ describe("style.css", () => {
 
   it.each([
     ".welcome-back",
+    ".layer-arrival",
+    ".craft-notice",
     ".relic-reveal",
     ".shelf-dialog",
     ".start-over",
