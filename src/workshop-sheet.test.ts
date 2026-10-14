@@ -174,6 +174,24 @@ describe("workshop sheet (#199)", () => {
       cancel: "",
     });
     expect(benchLeftMs(started, 600_000)).toBeUndefined();
+    const held = shed({
+      kept: {
+        bench: { recipe: "future-bit", startedAt: 0, endsAt: 600_000 },
+      },
+    });
+    const unknown = benchView(held, 60_000);
+    expect(unknown).toEqual({
+      kind: "unknown",
+      title: "Something is on the bench · 9:00 left",
+      aside: "It keeps working while you rest.",
+      progress: 0.1,
+    });
+    expect(benchLeftMs(held, 60_000)).toBe(540_000);
+    expect(recipe(workshopCards(held, 60_000), "iron-rails").action.kind).toBe(
+      "waiting",
+    );
+    expect(benchView(held, 600_000).kind).toBe("free");
+    expect(benchLeftMs(held, 600_000)).toBeUndefined();
   });
 
   it("counts a live timer and refunds only what is left", () => {

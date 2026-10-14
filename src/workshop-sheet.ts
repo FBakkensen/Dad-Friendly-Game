@@ -15,11 +15,13 @@ import { effectiveRates } from "./rates";
 import {
   BENCH_BUSY_ASIDE,
   BENCH_FREE,
+  BENCH_UNKNOWN_ASIDE,
   CRAFT_WORD,
   UNFOUND_DEEPER,
   UNFOUND_HINT,
   WORKSHOP_FREE_ASIDE,
   benchBusyWords,
+  benchUnknownWords,
   craftPriceWords,
   craftTimeWords,
   formatCraftSpeed,
@@ -48,6 +50,7 @@ import {
   recipeWindowMs,
   reinforceTier,
   troubleGapScale,
+  unknownBench,
   veinOftenScale,
   type Recipe,
   type RecipeId,
@@ -114,6 +117,12 @@ export type BenchView =
       readonly progress: number;
       readonly cancel: string;
       readonly recipe: RecipeId;
+    }
+  | {
+      readonly kind: "unknown";
+      readonly title: string;
+      readonly aside: string;
+      readonly progress: number;
     };
 
 const TIER_WORD: Readonly<
@@ -517,9 +526,23 @@ function refundParts(mountain: Mountain, now: number): readonly string[] {
   return parts;
 }
 
+function benchProgress(startedAt: number, endsAt: number, now: number): number {
+  const span = endsAt - startedAt;
+  return span <= 0 ? 1 : Math.min(1, Math.max(0, (now - startedAt) / span));
+}
+
 /** Bench line, the bar, and the cancel that names the refund. */
 export function benchView(mountain: Mountain, now: number): BenchView {
   const bench = mountain.bench;
+  const held = unknownBench(mountain, now);
+  if (bench === undefined && held !== undefined) {
+    return {
+      kind: "unknown",
+      title: benchUnknownWords(held.endsAt - now),
+      aside: BENCH_UNKNOWN_ASIDE,
+      progress: benchProgress(held.startedAt, held.endsAt, now),
+    };
+  }
   if (bench === undefined) {
     return {
       kind: "free",
@@ -528,10 +551,8 @@ export function benchView(mountain: Mountain, now: number): BenchView {
     };
   }
   const name = recipeById(bench.recipe).name;
-  const span = bench.endsAt - bench.startedAt;
   const left = bench.endsAt - now;
-  const progress =
-    span <= 0 ? 1 : Math.min(1, Math.max(0, (now - bench.startedAt) / span));
+  const progress = benchProgress(bench.startedAt, bench.endsAt, now);
   return {
     kind: "busy",
     title: benchBusyWords(name, left),
@@ -558,10 +579,14 @@ export function benchLeftMs(
   now: number,
 ): number | undefined {
   const bench = mountain.bench;
-  if (bench === undefined || now >= bench.endsAt) {
+  if (bench !== undefined && now < bench.endsAt) {
+    return bench.endsAt - now;
+  }
+  const held = unknownBench(mountain, now);
+  if (held === undefined) {
     return undefined;
   }
-  return bench.endsAt - now;
+  return held.endsAt - now;
 }
 
 function hiddenHint(mountain: Mountain): string | undefined {
@@ -579,11 +604,15 @@ function actionFor(
   mountain: Mountain,
   id: RecipeId,
   stones: number,
+  now: number,
 ): CraftAction {
   if (mountain.bench?.recipe === id) {
     return { kind: "on-bench" };
   }
-  if (mountain.bench !== undefined) {
+  if (
+    mountain.bench !== undefined ||
+    unknownBench(mountain, now) !== undefined
+  ) {
     return { kind: "waiting" };
   }
   const gap = craftShortfall(mountain, id);
@@ -618,7 +647,7 @@ function recipeCard(
     stones: cost.stones > 0 ? stoneCostWords(cost.stones) : undefined,
     costs,
     time: craftTimeWords(recipe.craftMs),
-    action: actionFor(mountain, recipe.id, cost.stones),
+    action: actionFor(mountain, recipe.id, cost.stones, now),
   };
 }
 

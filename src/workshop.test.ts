@@ -355,7 +355,7 @@ describe("workshop rules", () => {
     expect(startCraft(shortHeart, "heartstone-ember", 1)).toBe(shortHeart);
   });
 
-  it("replaces a bench this build could not show when a known craft starts", () => {
+  it("holds an unknown bench until its clock ends, then a known craft may take it", () => {
     const shed = openShed({
       kept: {
         recipes: ["future-bit"],
@@ -363,7 +363,12 @@ describe("workshop rules", () => {
         crafted: { "future-bit": 2 },
       },
     });
-    const started = startCraft(shed, "iron-rails", 1);
+    expect(startCraft(shed, "iron-rails", 1)).toBe(shed);
+    expect(cancelCraft(shed, 1)).toBe(shed);
+    expect(
+      serializeSave({ mountain: shed, lastSeen: 1 }).workshop.bench,
+    ).toEqual({ recipe: "future-bit", startedAt: 1, endsAt: 2 });
+    const started = startCraft(shed, "iron-rails", 2);
     expect(started.bench?.recipe).toBe("iron-rails");
     expect(started.kept).toEqual({
       recipes: ["future-bit"],
@@ -372,7 +377,8 @@ describe("workshop rules", () => {
     const onlyBench = openShed({
       kept: { bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 } },
     });
-    expect(startCraft(onlyBench, "iron-rails", 1).kept).toBeUndefined();
+    expect(startCraft(onlyBench, "iron-rails", 1)).toBe(onlyBench);
+    expect(startCraft(onlyBench, "iron-rails", 2).kept).toBeUndefined();
     const onlyRecipes = openShed({
       kept: { recipes: ["future-bit"] },
     });

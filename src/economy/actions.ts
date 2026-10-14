@@ -51,6 +51,7 @@ import {
   settleBench,
   startCraft,
   troubleGapScale,
+  unknownBench,
   veinOftenScale,
   workshopUnlocked,
   type RecipeId,
@@ -180,9 +181,10 @@ export function listActions(
     }
   }
   const bench = mountain.bench;
-  if (bench !== undefined && now < bench.endsAt) {
+  const held = bench === undefined && unknownBench(mountain, now) !== undefined;
+  if (!held && bench !== undefined && now < bench.endsAt) {
     actions.push({ kind: "cancelCraft" });
-  } else if (bench === undefined && workshopUnlocked(mountain)) {
+  } else if (!held && bench === undefined && workshopUnlocked(mountain)) {
     for (const recipe of sinkRecipes(mountain)) {
       actions.push({ kind: "craft", recipe });
     }
