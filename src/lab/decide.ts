@@ -60,6 +60,9 @@ export function parameterisedDecide(input: DecideInput): Action | undefined {
  * Greedy lowest payback. A move that is not affordable yet still competes
  * when its wait fits in the lookahead. If that move wins, the dad saves
  * and buys nothing. One step: the next purchase only, not a chain.
+ * Boosts stay off the purchase. Overtime is still weighed on the menu, so
+ * a save for the borer or the Great Machine is not an empty sitting.
+ * Buying it would take that button off the table.
  */
 export function optimizerDecide(input: DecideInput): Action | undefined {
   const { mountain, now, params } = input;
@@ -68,7 +71,7 @@ export function optimizerDecide(input: DecideInput): Action | undefined {
   const windowSec = lookaheadSeconds(params);
   let best: { readonly action: Action; readonly payback: number } | undefined;
   for (const action of listActions(mountain, now)) {
-    if (!isPurchase(action)) {
+    if (!isPurchase(action) || action.kind === "buyBoost") {
       continue;
     }
     const priced = valueOf(mountain, action, HORIZON_SEC, context, now);

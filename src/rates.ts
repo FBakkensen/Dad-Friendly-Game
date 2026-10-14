@@ -58,22 +58,25 @@ const HEART_MAX_BONUS = 0.5;
 const HEART_FULL_MS = 12 * 60 * 60 * 1000;
 
 /**
- * Empty-handed digging. The first stones are one each, so the first worker
- * is still twenty taps. After that the yield climbs with stones already dug,
- * and two 10-minute sittings empty the mountain before day 14. Hiring anyone
- * leaves this curve and the crew formula takes over.
+ * Empty-handed digging. The first hundred stones are one each, so hiring a
+ * worker still wins before the curve starts. After that the yield follows a
+ * log of stones already dug, capped, so two 10-minute sittings at 3 taps a
+ * second empty the mountain around day 12.5. Only the first three taps in a
+ * second earn that yield. Faster mashing adds one stone a tap. Hiring
+ * anyone leaves this curve.
  */
-const BARE_HANDS_FLAT_STONES = 21;
-const BARE_HANDS_SCALE = 20_000;
-const BARE_HANDS_POWER = 1.5;
+const BARE_HANDS_FLAT_STONES = 100;
+const BARE_HANDS_LOG_K = 310;
+const BARE_HANDS_CAP = 6_000;
+export const BARE_HANDS_FULL_TAPS = 3;
 
-/** Stones one tap mines while nobody has been hired. At least one. */
+/** Stones one of the first taps in a second mines while nobody is hired. */
 function bareHandsYield(mined: number): number {
   if (mined < BARE_HANDS_FLAT_STONES) {
     return 1;
   }
-  const scaled = (mined + BARE_HANDS_SCALE) / BARE_HANDS_SCALE;
-  return Math.max(1, Math.floor(scaled ** BARE_HANDS_POWER));
+  const raw = 1 + Math.floor(BARE_HANDS_LOG_K * Math.log1p(mined));
+  return Math.max(1, Math.min(BARE_HANDS_CAP, raw));
 }
 
 function crewOwned(mountain: Mountain): number {

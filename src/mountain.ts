@@ -1,5 +1,10 @@
 import type { Trouble } from "./hazards";
-import { effectiveRates, heartBonus, paidAwayMs } from "./rates";
+import {
+  BARE_HANDS_FULL_TAPS,
+  effectiveRates,
+  heartBonus,
+  paidAwayMs,
+} from "./rates";
 import { parseBoosts, type Boosts } from "./boosts";
 import { parseEngineers, type Engineer } from "./engineers";
 import {
@@ -100,19 +105,30 @@ export function createMountain(): Mountain {
 
 export { minedOut } from "./scale";
 
-/** One tap mines its yield (see effectiveRates); an empty mountain returns the same object. */
+/**
+ * One tap mines its yield (see effectiveRates). `tapInSecond` is how many
+ * taps already landed in this same second. Bare hands pay the curve for the
+ * first three and one stone after that. An empty mountain returns the same object.
+ */
 export function mineByHand(
   mountain: Mountain,
   now?: number,
   trouble?: Trouble,
+  tapInSecond = 0,
 ): Mountain {
   if (mountain.remaining === 0) {
     return mountain;
   }
-  const mined = Math.min(
-    mountain.remaining,
-    effectiveRates(mountain, now, trouble).tapYield,
-  );
+  const rates = effectiveRates(mountain, now, trouble);
+  const bareExtra =
+    mountain.helpers +
+      mountain.carts +
+      mountain.drills +
+      mountain.borers +
+      mountain.machines +
+      mountain.kids ===
+      0 && tapInSecond >= BARE_HANDS_FULL_TAPS;
+  const mined = Math.min(mountain.remaining, bareExtra ? 1 : rates.tapYield);
   return {
     ...mountain,
     remaining: mountain.remaining - mined,

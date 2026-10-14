@@ -29,7 +29,12 @@ import { expectedFindStones } from "./finds";
 import { kindForTier, type Trouble, type TroubleTier } from "../hazards";
 import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
-import { effectiveRates, heartBonus, paidAwayMs } from "../rates";
+import {
+  BARE_HANDS_FULL_TAPS,
+  effectiveRates,
+  heartBonus,
+  paidAwayMs,
+} from "../rates";
 import {
   TIERS,
   owned,
@@ -337,11 +342,20 @@ function valueBoost(
     pricing,
   });
   const durationSec = boost.durationMs / 1000;
-  // Twice the clock, not the whole horizon: enough that Overtime can be
-  // the best buy, not so much that it is the only one.
+  // Twice-ish the clock, not the whole horizon: enough that a boost can be
+  // the best buy, not so much that it is the only one. Once the crew is past
+  // the Better boots purchase, Overtime is scored a little longer, so it
+  // stays a live option while a dad saves for the borer or the Great Machine.
+  const BOOST_SPREAD = 1.45;
+  const OVERTIME_SAVE_SPREAD = 2.2;
+  const SPREAD_FROM_CREW = 600;
+  const factor =
+    id === "overtime" && pricing.exactCrewPerSecond >= SPREAD_FROM_CREW
+      ? OVERTIME_SAVE_SPREAD
+      : BOOST_SPREAD;
   const spread =
     context.awaySeconds > 0
-      ? Math.min(horizon, durationSec * 1.45)
+      ? Math.min(horizon, durationSec * factor)
       : durationSec;
   return rateValue(
     mountain,
@@ -429,12 +443,25 @@ export function incomePerSecond(
   const liveRates = effectiveRates(mountain, clock?.now, clock?.trouble);
   const awayRates = effectiveRates(mountain);
   const tap = oneTap(mountain, clock?.now, clock?.trouble);
+  const bare =
+    mountain.helpers +
+      mountain.carts +
+      mountain.drills +
+      mountain.borers +
+      mountain.machines +
+      mountain.kids ===
+    0;
+  const taps = context.tapsPerSecond;
+  const tapIncome = bare
+    ? Math.min(taps, BARE_HANDS_FULL_TAPS) * tap +
+      Math.max(0, taps - BARE_HANDS_FULL_TAPS)
+    : taps * tap;
+  const liveIncome = liveRates.exactCrewPerSecond + tapIncome;
   const liveSeconds = context.liveSeconds;
   const awaySeconds = context.awaySeconds;
   const cycle = liveSeconds + awaySeconds;
   const paidAway =
     awaySeconds <= 0 ? 0 : paidAwayMs(mountain, awaySeconds * 1000) / 1000;
-  const liveIncome = liveRates.exactCrewPerSecond + context.tapsPerSecond * tap;
   const awayIncome =
     awayRates.exactCrewPerSecond * awayFactor(mountain, paidAway * 1000);
   if (!(cycle > 0)) {

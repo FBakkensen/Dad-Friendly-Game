@@ -189,7 +189,7 @@ function playSecond(
   const trouble =
     world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
   for (let tap = 0; tap < params.tapsPerSecond; tap += 1) {
-    mountain = mineByHand(mountain, world.clock, trouble);
+    mountain = mineByHand(mountain, world.clock, trouble, tap);
   }
   const fix = fixDelayMs(params.trouble);
   world = step(
