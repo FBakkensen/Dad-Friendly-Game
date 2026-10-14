@@ -42,6 +42,7 @@ import {
   type FieldLogDocument,
   type FieldLogWriteReason,
 } from "./field-log";
+import { layersEntered, type Layer } from "./layers";
 import { passTheMine } from "./legacy";
 import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
@@ -55,8 +56,16 @@ import {
 } from "./mountain";
 import { effectiveRates } from "./rates";
 import { relicsUncovered, type Relic } from "./relics";
+import { craftFittedWords } from "./screen-words";
 import { TIERS, owned } from "./tiers";
 import { UPGRADES, upgradeLevel } from "./upgrades";
+import {
+  RECIPE_IDS,
+  craftedLevel,
+  recipeById,
+  type RecipeId,
+} from "./workshop";
+import { fittedEffect } from "./workshop-sheet";
 import {
   clearSessionSave,
   readSessionSave,
@@ -84,8 +93,25 @@ export type ProgressSnapshot = {
    * Not a save field: the expedition already remembered the find.
    */
   readonly homecomings: readonly Homecoming[];
+  /**
+   * Bands broken into this session and not yet read. A loaded save that
+   * already sits in a band does not announce it again. Not a save field.
+   */
+  readonly layersArrived: readonly Layer[];
+  /**
+   * Crafts fitted this session and not yet read. The line is the real
+   * effect at the moment it finished. Not a save field.
+   */
+  readonly craftsFitted: readonly CraftNotice[];
   /** Trouble at one machine this session. Never saved, gone after a reload. */
   readonly trouble: Trouble | undefined;
+};
+
+/** One fitted craft, named once, with the number the crew feels. */
+type CraftNotice = {
+  readonly id: RecipeId;
+  readonly level: number;
+  readonly line: string;
 };
 
 export type ProgressStore = {
@@ -111,8 +137,12 @@ export type ProgressStore = {
   readonly startOver: () => void;
   /** Passes the finished mine to your kid (M6); false if it isn't finished. */
   readonly passTheMine: () => boolean;
-  /** Closes the welcome-back card. */
+  /** Closes the welcome-back card, including any layer or craft folded into it. */
   readonly dismissAway: () => void;
+  /** Closes the layer card. The next unread band, if any, follows. */
+  readonly dismissLayer: () => void;
+  /** Closes the craft-done notice. The next unread fitting, if any, follows. */
+  readonly dismissCraft: () => void;
   /** One tap on a troubled card. The fifth tap fixes it. */
   readonly pressTrouble: (tier: TroubleTier) => void;
   /** A short hold on a troubled card fixes it. */
@@ -170,6 +200,15 @@ export function createProgressStore({
    * so relics already in a loaded save are never celebrated again.
    */
   let revealBaseline: number | undefined;
+  /**
+   * Stones mined when layers were last checked. Same rule as relics: a
+   * loaded save does not announce the band it already sits in.
+   */
+  let layerBaseline: number | undefined;
+  /** Crafted levels already named, or waiting to be, this open. */
+  let craftBaseline: Readonly<Partial<Record<RecipeId, number>>> | undefined;
+  const layersArrived: Layer[] = [];
+  const craftsFitted: CraftNotice[] = [];
   let welcomed = false;
   let crewJoined: number | undefined;
   let engineerJoined: true | undefined;
@@ -254,6 +293,27 @@ export function createProgressStore({
         });
       }
     }
+    const nextBench = after.bench;
+    const prevBench = before.bench;
+    if (
+      nextBench !== undefined &&
+      (prevBench === undefined ||
+        prevBench.recipe !== nextBench.recipe ||
+        prevBench.startedAt !== nextBench.startedAt)
+    ) {
+      record("craft.start", { id: nextBench.recipe });
+    }
+  };
+
+  /** The band and the crafted levels, before away pay moves them. */
+  const primeArrivals = (): void => {
+    layerBaseline = minedOut(mountain);
+    craftBaseline = { ...(mountain.crafted ?? {}) };
+  };
+
+  const clearArrivals = (): void => {
+    layersArrived.length = 0;
+    craftsFitted.length = 0;
   };
 
   /**
@@ -365,6 +425,8 @@ export function createProgressStore({
       crewJoined,
       engineerJoined,
       homecomings,
+      layersArrived: [...layersArrived],
+      craftsFitted: [...craftsFitted],
       trouble: activeTrouble(),
     };
   };
@@ -451,9 +513,53 @@ export function createProgressStore({
     revealBaseline = mined;
   };
 
+  /** A band broken into since the baseline. Once per layer this open. */
+  const noteLayers = (): void => {
+    if (auth.getState().kind === "signed-in" && !hydrated) {
+      return;
+    }
+    const mined = minedOut(mountain);
+    if (layerBaseline !== undefined) {
+      for (const layer of layersEntered(layerBaseline, mined)) {
+        layersArrived.push(layer);
+        record("layer.enter", { id: layer.id });
+      }
+    }
+    layerBaseline = mined;
+  };
+
+  /** A craft whose level rose since the baseline. The line keeps the number. */
+  const noteCrafts = (): void => {
+    if (auth.getState().kind === "signed-in" && !hydrated) {
+      return;
+    }
+    const noted = craftBaseline;
+    if (noted !== undefined) {
+      for (const id of RECIPE_IDS) {
+        const next = craftedLevel(mountain, id);
+        const prev = noted[id] ?? 0;
+        if (next <= prev) {
+          continue;
+        }
+        record("craft.done", { id, count: next });
+        craftsFitted.push({
+          id,
+          level: next,
+          line: craftFittedWords(
+            recipeById(id).name,
+            fittedEffect(mountain, id, now()),
+          ),
+        });
+      }
+    }
+    craftBaseline = { ...(mountain.crafted ?? {}) };
+  };
+
   const emit = (): void => {
     newsPending = false;
     noteReveals();
+    noteLayers();
+    noteCrafts();
     const next = snapshot();
     for (const listener of [...listeners]) {
       listener(next);
@@ -684,6 +790,9 @@ export function createProgressStore({
     let paid = 0;
     if (remote.kind === "found") {
       revealBaseline ??= minedOut(mountain);
+      if (layerBaseline === undefined) {
+        primeArrivals();
+      }
       recallHomecomings();
       paid = settleSince(remote.lastSeen);
     } else {
@@ -746,6 +855,7 @@ export function createProgressStore({
     const staffed = staffLoaded();
     const steppedUp = grantEngineer();
     revealBaseline = minedOut(mountain);
+    primeArrivals();
     recallHomecomings();
     const paid = settleSince(stored.lastSeen);
     welcomed = true;
@@ -776,6 +886,9 @@ export function createProgressStore({
     lastFieldLogAt = undefined;
     lastFieldLogFingerprint = undefined;
     revealBaseline = undefined;
+    layerBaseline = undefined;
+    craftBaseline = undefined;
+    clearArrivals();
     saveKind = "loading";
     unwatch?.();
     logger.record({
@@ -881,6 +994,8 @@ export function createProgressStore({
     rememberHomecomings();
     reveals.length = 0;
     revealBaseline = 0;
+    clearArrivals();
+    primeArrivals();
     ring.clear();
     record(code, {});
     logger.record({
@@ -1022,7 +1137,22 @@ export function createProgressStore({
       crewJoined = undefined;
       engineerJoined = undefined;
       homecomings = [];
+      clearArrivals();
       rememberHomecomings();
+      emit();
+    },
+    dismissLayer: () => {
+      if (layersArrived.length === 0) {
+        return;
+      }
+      layersArrived.shift();
+      emit();
+    },
+    dismissCraft: () => {
+      if (craftsFitted.length === 0) {
+        return;
+      }
+      craftsFitted.shift();
       emit();
     },
     tick: () => {

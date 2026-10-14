@@ -4,6 +4,7 @@ import {
   benchLeftMs,
   benchView,
   craftShortfall,
+  fittedEffect,
   metMaterialChips,
   timerLines,
   workshopCards,
@@ -280,5 +281,157 @@ describe("workshop sheet (#199)", () => {
       recipe(workshopCards(flareHot, 1_000), "heartstone-ember").effect,
     ).toMatch(/keeps this lift/);
     expect(timerLines(shed(), 0)).toEqual([]);
+  });
+});
+
+describe("fitted effect", () => {
+  const now = 0;
+  const minute = 60_000;
+
+  it("states the real tier speed, including granite on the carts", () => {
+    const soft = {
+      ...createMountain(),
+      helpers: 1,
+      carts: 1,
+      crafted: { "iron-rails": 1 },
+    };
+    expect(fittedEffect(soft, "iron-rails", now)).toBe("Carts now 12.5/s.");
+    expect(
+      fittedEffect(
+        { ...soft, remaining: MOUNTAIN_STONES - 12_000_000 },
+        "iron-rails",
+        now,
+      ),
+    ).toBe("Carts now 10.6/s.");
+    expect(
+      fittedEffect(
+        {
+          ...createMountain(),
+          drills: 1,
+          helpers: 3,
+          crafted: { "diamond-bits": 1 },
+        },
+        "diamond-bits",
+        now,
+      ),
+    ).toMatch(/^Drills now /);
+    expect(
+      fittedEffect(
+        {
+          ...createMountain(),
+          machines: 1,
+          helpers: 25,
+          crafted: { "heartstone-core": 1 },
+        },
+        "heartstone-core",
+        now,
+      ),
+    ).toMatch(/^Great Machine now /);
+  });
+
+  it("states props, the lamp, and a long trip", () => {
+    expect(fittedEffect(createMountain(), "sturdy-props", now)).toBe(
+      "Trouble stays a little further off.",
+    );
+    expect(
+      fittedEffect(
+        { ...createMountain(), crafted: { "sturdy-props": 1 } },
+        "sturdy-props",
+        now,
+      ),
+    ).toBe("Trouble comes 30% less often.");
+    expect(fittedEffect(createMountain(), "crystal-lamp", now)).toBe(
+      "Golden veins keep coming.",
+    );
+    expect(
+      fittedEffect(
+        { ...createMountain(), crafted: { "crystal-lamp": 1 } },
+        "crystal-lamp",
+        now,
+      ),
+    ).toBe("Golden veins 25% more often.");
+    expect(fittedEffect(createMountain(), "engineers-kit", now)).toMatch(
+      /^Long trips now \d/,
+    );
+  });
+
+  it("states a live crew timer, including when another is already that strong", () => {
+    expect(
+      fittedEffect(
+        { ...createMountain(), chargeUntil: 20 * minute },
+        "blasting-charge",
+        now,
+      ),
+    ).toBe("The crew digs at 2× for 20 min.");
+    expect(
+      fittedEffect(
+        { ...createMountain(), helpers: 4, chargeUntil: 20 * minute },
+        "blasting-charge",
+        now,
+      ),
+    ).toBe("Crew now 8/s for 20 min.");
+    expect(
+      fittedEffect(
+        {
+          ...createMountain(),
+          helpers: 4,
+          chargeUntil: 20 * minute,
+          boosts: { overtime: minute },
+        },
+        "blasting-charge",
+        now,
+      ),
+    ).toBe("Crew already at ×2.");
+    expect(
+      fittedEffect(
+        { ...createMountain(), helpers: 4, axleUntil: 20 * minute },
+        "axle-grease",
+        now,
+      ),
+    ).toBe("Crew now 8/s for 20 min.");
+  });
+
+  it("states a flare, an ember, and reinforce", () => {
+    expect(fittedEffect(createMountain(), "crystal-flare", now)).toBe(
+      "Veins stay lively for 0 min.",
+    );
+    expect(
+      fittedEffect(
+        { ...createMountain(), flareUntil: 60 * minute },
+        "crystal-flare",
+        now,
+      ),
+    ).toBe("Veins 25% more often for 1 h.");
+    expect(fittedEffect(createMountain(), "heartstone-ember", now)).toBe(
+      "The Great Machine keeps this lift for 0 min.",
+    );
+    expect(
+      fittedEffect(
+        {
+          ...createMountain(),
+          machines: 1,
+          helpers: 25,
+          emberUntil: 20 * minute,
+        },
+        "heartstone-ember",
+        now,
+      ),
+    ).toMatch(/^Great Machine now .+\/s for 20 min\.$/);
+    expect(fittedEffect(createMountain(), "reinforce", now)).toBe(
+      "The next machine digs 5% faster.",
+    );
+    expect(
+      fittedEffect({ ...createMountain(), carts: 1 }, "reinforce", now),
+    ).toMatch(/^Drills now /);
+    expect(
+      fittedEffect(
+        { ...createMountain(), carts: 1, drills: 1 },
+        "reinforce",
+        now,
+      ),
+    ).toMatch(/^Borers now /);
+    expect(
+      fittedEffect({ ...createMountain(), borers: 1 }, "reinforce", now),
+    ).toMatch(/^Great Machine now /);
   });
 });

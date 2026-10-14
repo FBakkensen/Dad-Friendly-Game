@@ -140,6 +140,49 @@ body {
   gap: 8px;
 }
 
+.pocket-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+
+/* Materials met so far. One or two lines, so the tier cards stay on screen. */
+.material-line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2px 6px;
+  width: 100%;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.15;
+  color: #e8d4b8;
+}
+
+.material-line:empty {
+  display: none;
+}
+
+.material-bit {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.material-line .dot {
+  color: #a88a62;
+}
+
+.material-line .mat {
+  width: 16px;
+  height: 16px;
+}
+
 .pocket-actions {
   display: flex;
   align-items: center;
@@ -367,6 +410,19 @@ body {
   text-align: center;
   font-size: clamp(0.9rem, 2.2dvh, 1.1rem);
   color: #c9b391;
+}
+
+.layer-hint {
+  margin: 0;
+  max-width: 36ch;
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  color: #c9b391;
+}
+
+.layer-hint[hidden] {
+  display: none;
 }
 
 .crew {
@@ -748,6 +804,8 @@ body {
 }
 
 .welcome-back,
+.layer-arrival,
+.craft-notice,
 .relic-reveal,
 .shelf-dialog,
 .start-over,
@@ -771,6 +829,8 @@ body {
 }
 
 .welcome-back[hidden],
+.layer-arrival[hidden],
+.craft-notice[hidden],
 .relic-reveal[hidden],
 .shelf-dialog[hidden],
 .start-over[hidden],
@@ -782,6 +842,8 @@ body {
 }
 
 .welcome-card,
+.layer-card,
+.notice-card,
 .reveal-card,
 .shelf-card,
 .start-over-card,
@@ -1267,10 +1329,30 @@ body {
   display: none;
 }
 
-/* Short screens (an installed PWA on a small phone): tighten the chrome, not the controls. */
-@media (max-height: 600px) {
+/* Short screens (an installed PWA on a small phone): tighten the chrome, not the controls.
+   The material line and the layer hint sit in the flow, so the mountain gives
+   up a little height and the gaps close up. */
+@media (max-height: 720px) {
   #app {
     gap: 4px;
+  }
+
+  .mountain-wrap {
+    min-height: 64px;
+  }
+}
+
+@media (max-height: 600px) {
+  #app {
+    gap: 2px;
+  }
+
+  .pocket-stack {
+    gap: 0;
+  }
+
+  .mountain-wrap {
+    min-height: 64px;
   }
 
   .relic-shelf {
@@ -1430,7 +1512,9 @@ body {
 
 .welcome-crew,
 .welcome-engineer,
-.welcome-return {
+.welcome-return,
+.welcome-layer,
+.welcome-craft {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 650;
@@ -1444,8 +1528,92 @@ body {
   width: 100%;
 }
 
-.welcome-returns[hidden] {
+.welcome-returns[hidden],
+.welcome-layers[hidden],
+.welcome-crafts[hidden] {
   display: none;
+}
+
+.welcome-layers,
+.welcome-crafts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.layer-card,
+.notice-card {
+  gap: 8px;
+  width: min(340px, 100%);
+  padding: 16px 14px;
+}
+
+.layer-art {
+  width: clamp(72px, 18dvh, 112px);
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 12px rgba(232, 168, 74, 0.45));
+}
+
+.notice-art {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.layer-card h2,
+.notice-card p {
+  margin: 0;
+}
+
+.layer-card h2 {
+  font-size: 1.15rem;
+  color: #f2c46d;
+}
+
+.layer-evocative,
+.layer-advice,
+#craft-notice-line {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.layer-advice {
+  color: #ffe08a;
+  font-weight: 650;
+}
+
+.layer-dig,
+.craft-accept {
+  appearance: none;
+  width: 100%;
+  min-height: 52px;
+  border: 0;
+  border-radius: 12px;
+  background: #e8a84a;
+  color: #120c0a;
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 650;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.layer-dig:active,
+.craft-accept:active,
+.welcome-continue:active {
+  transform: scale(0.97);
+}
+
+.layer-dig:focus-visible,
+.craft-accept:focus-visible {
+  outline: 4px solid #e8d4b8;
+  outline-offset: 4px;
 }
 
 /* A find line joins the away report. Keep the way back above the gesture bar.

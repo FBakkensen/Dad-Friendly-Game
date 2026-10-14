@@ -9,7 +9,9 @@ import {
   hardnessFactorId,
   hardnessOf,
   layerOf,
+  layersEntered,
   materialsFromMined,
+  nextLayer,
   materialsGained,
   type LayerId,
   type MaterialId,
@@ -298,5 +300,32 @@ describe("materials", () => {
         { clay: 1, iron: 4, crystal: 0, heartstone: 0 },
       ),
     ).toEqual({ clay: 3, iron: 4, crystal: 0, heartstone: 0 });
+  });
+});
+
+describe("breaking into a band", () => {
+  it("names the next band, and nothing below the Deep Heart", () => {
+    expect(nextLayer(minedMountain(0))?.id).toBe("granite");
+    expect(nextLayer(minedMountain(10_000_000))?.id).toBe("crystal");
+    expect(nextLayer(minedMountain(45_000_000))?.id).toBe("heart");
+    expect(nextLayer(minedMountain(120_000_000))).toBeUndefined();
+    expect(nextLayer(minedMountain(MOUNTAIN_STONES))).toBeUndefined();
+  });
+
+  it("announces each break-in once, and skips the Topsoil", () => {
+    expect(layersEntered(0, 0)).toEqual([]);
+    expect(layersEntered(5, 4)).toEqual([]);
+    expect(layersEntered(0, 9_999_999).map((layer) => layer.id)).toEqual([]);
+    expect(
+      layersEntered(9_999_999, 10_000_000).map((layer) => layer.id),
+    ).toEqual(["granite"]);
+    expect(
+      layersEntered(10_000_000, 44_999_999).map((layer) => layer.id),
+    ).toEqual([]);
+    expect(layersEntered(0, 120_000_000).map((layer) => layer.id)).toEqual([
+      "granite",
+      "crystal",
+      "heart",
+    ]);
   });
 });

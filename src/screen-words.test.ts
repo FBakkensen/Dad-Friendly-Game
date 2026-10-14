@@ -23,6 +23,10 @@ import {
   LAYER_ARRIVAL,
   LAYER_DIG,
   LAYER_EVOCATIVE,
+  craftFittedWords,
+  layerCardWords,
+  layerWelcomeWords,
+  nextLayerHint,
   MOCK_MATERIALS,
   MOCK_MATERIAL_LINE,
   MOCK_RECIPES,
@@ -625,5 +629,53 @@ describe("workshop sheet copy (#199)", () => {
     expect(lines).not.toMatch(/\?/);
     expect(UNFOUND_DEEPER).not.toMatch(/[0-9?]/);
     expect(WORKSHOP_FREE_ASIDE.toLowerCase()).toMatch(/little/);
+  });
+});
+
+describe("layer card and craft-done copy", () => {
+  it("keeps the Granite card on the approved words, and stays vague before arrival", () => {
+    expect(layerCardWords("topsoil")).toBeUndefined();
+    expect(layerCardWords("granite")).toEqual({
+      arrival: LAYER_ARRIVAL,
+      evocative: LAYER_EVOCATIVE,
+      advice: LAYER_ADVICE,
+    });
+    expect(layerWelcomeWords("topsoil")).toBeUndefined();
+    expect(layerWelcomeWords("granite")).toBe(
+      `${LAYER_ARRIVAL} ${LAYER_ADVICE}`,
+    );
+    for (const id of ["crystal", "heart"] as const) {
+      const words = layerCardWords(id);
+      expect(words?.arrival.startsWith("You broke into")).toBe(true);
+      expect(words?.advice).not.toMatch(/\d|%|\?/);
+      expect(words?.evocative).not.toMatch(/\d|\?/);
+      expect(layerWelcomeWords(id)).toContain(words?.advice);
+    }
+    expect(nextLayerHint(undefined)).toBeUndefined();
+    expect(nextLayerHint("topsoil")).toBeUndefined();
+    expect(nextLayerHint("granite")).toBe(
+      "Below the topsoil, the rock turns hard and grey.",
+    );
+    expect(nextLayerHint("crystal")).toBe(
+      "Deeper on, the walls start to glitter.",
+    );
+    expect(nextLayerHint("heart")).toBe(
+      "Something warm is still waiting below.",
+    );
+    const hints = ["granite", "crystal", "heart"] as const;
+    for (const id of hints) {
+      expect(nextLayerHint(id)).not.toMatch(
+        /\b(clay|iron|crystal|heartstone)\b|\d|\?/i,
+      );
+    }
+  });
+
+  it("names a fitted craft with are or is", () => {
+    expect(craftFittedWords("Iron rails", "Carts now 12.5/s.")).toBe(
+      "Your Iron rails are fitted. Carts now 12.5/s.",
+    );
+    expect(
+      craftFittedWords("Blasting charge", "Crew now 8/s for 20 min."),
+    ).toBe("Your Blasting charge is fitted. Crew now 8/s for 20 min.");
   });
 });

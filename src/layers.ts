@@ -88,6 +88,28 @@ export function layerOf(mountain: { readonly remaining: number }): Layer {
   return band;
 }
 
+/** The next band, or none at the Deep Heart. */
+export function nextLayer(mountain: {
+  readonly remaining: number;
+}): Layer | undefined {
+  const mined = minedOut(mountain);
+  return LAYERS.find((layer) => mined < layer.from);
+}
+
+/**
+ * Bands broken into while stones mined go from `before` to `after`.
+ * The Topsoil is where a run starts, so it is not a break-in. A clock
+ * that goes backwards breaks into nothing.
+ */
+export function layersEntered(before: number, after: number): readonly Layer[] {
+  if (after <= before) {
+    return [];
+  }
+  return LAYERS.filter(
+    (layer) => layer.from > 0 && before < layer.from && after >= layer.from,
+  );
+}
+
 /**
  * Speed multiplier for this band and tier. 1 leaves the tier alone.
  * The Topsoil is soft. Granite is tough on carts and borers and kind to
