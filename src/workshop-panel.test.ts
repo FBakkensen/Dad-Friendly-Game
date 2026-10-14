@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
@@ -113,7 +113,9 @@ describe("workshop panel (#199)", () => {
     const sheet = screen.root.querySelector<HTMLElement>(".workshop-dialog");
     expect(sheet?.hidden).toBe(false);
     expect(sheet?.textContent).toContain("Need 3 more iron");
-    expect(sheet?.textContent).toContain("Carts 8.5/s to 10.63/s");
+    expect(sheet?.textContent).toContain("Carts 8.5/s to 10.6/s");
+    expect(sheet?.textContent).toContain("500K stones");
+    expect(sheet?.textContent).toContain("Level 1 of 2");
     expect(sheet?.textContent).toContain("10 min");
     expect(sheet?.textContent).toContain("A little at a time is plenty.");
     expect(sheet?.textContent).not.toMatch(/\?/);
@@ -259,7 +261,29 @@ describe("workshop panel (#199)", () => {
     expect(cancel?.textContent).toBe(
       "Cancel · 250K stones, 10 clay, and 4 iron back",
     );
-    cancel?.click();
+    expect(
+      screen.root.querySelector(".workshop-bench .workshop-timers"),
+    ).toBeNull();
+    vi.useFakeTimers();
+    try {
+      cancel?.click();
+      expect(cancel?.textContent).toBe("Tap again to cancel");
+      expect(screen.progress.getSnapshot().mountain.bench?.recipe).toBe(
+        "sturdy-props",
+      );
+      vi.advanceTimersByTime(4_000);
+      expect(cancel?.textContent).toBe(
+        "Cancel · 250K stones, 10 clay, and 4 iron back",
+      );
+      expect(screen.progress.getSnapshot().mountain.bench?.recipe).toBe(
+        "sturdy-props",
+      );
+      cancel?.click();
+      expect(cancel?.textContent).toBe("Tap again to cancel");
+      cancel?.click();
+    } finally {
+      vi.useRealTimers();
+    }
     const mountain = screen.progress.getSnapshot().mountain;
     expect(mountain.bench).toBeUndefined();
     expect(mountain.pocket).toBe(250_000);

@@ -2,7 +2,8 @@ import { reducedMotion } from "./float-text";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
   RECIPE_ON_BENCH,
-  RECIPE_WAITING,
+  WORKSHOP_BENCH_BUSY,
+  WORKSHOP_CANCEL_CONFIRM,
   WORKSHOP_EARLIER,
   WORKSHOP_LOCKED,
   WORKSHOP_MORE,
@@ -106,6 +107,8 @@ export function createWorkshopPanel({
   let page = 0;
   let soundOn = false;
   let shaking: RecipeId | undefined;
+  let cancelArmed = false;
+  let cancelTimer: number | undefined;
   let hammerUntil = 0;
   let floatUntil = 0;
   let floatBits: readonly CostChip[] = [];
@@ -194,10 +197,28 @@ export function createWorkshopPanel({
   const cancel = document.createElement("button");
   cancel.type = "button";
   cancel.className = "workshop-cancel";
+  const disarmCancel = (): void => {
+    cancelArmed = false;
+    if (cancelTimer !== undefined) {
+      clearTimeout(cancelTimer);
+      cancelTimer = undefined;
+    }
+  };
   cancel.addEventListener("click", () => {
     if (!getView().ready) {
       return;
     }
+    if (!cancelArmed) {
+      cancelArmed = true;
+      cancelTimer = window.setTimeout(() => {
+        cancelArmed = false;
+        cancelTimer = undefined;
+        requestRender();
+      }, 4_000);
+      requestRender();
+      return;
+    }
+    disarmCancel();
     progress.applyMutation((current) => cancelCraft(current, now()));
   });
   const hammer = document.createElement("img");
@@ -207,7 +228,7 @@ export function createWorkshopPanel({
   hammer.width = 48;
   hammer.height = 48;
   hammer.draggable = false;
-  bench.append(benchLine, benchAside, bar, timers, cancel, hammer);
+  bench.append(benchLine, benchAside, bar, cancel, hammer);
 
   const recipes = document.createElement("div");
   recipes.className = "workshop-recipes";
@@ -251,7 +272,7 @@ export function createWorkshopPanel({
   const floats = document.createElement("div");
   floats.className = "workshop-floats";
 
-  card.append(head, materials, bench, recipes, pager, close, floats);
+  card.append(head, materials, bench, timers, recipes, pager, close, floats);
   sheet.append(card);
 
   const celebrate = (costs: readonly CostChip[]): void => {
@@ -311,11 +332,28 @@ export function createWorkshopPanel({
     const name = document.createElement("h3");
     name.className = "label";
     name.textContent = item.name;
+    const level = document.createElement("p");
+    level.className = "label level";
+    level.hidden = item.level === undefined;
+    level.textContent = item.level ?? "";
     const effect = document.createElement("p");
     effect.className = "label effect";
     effect.textContent = item.effect;
     const cost = document.createElement("p");
     cost.className = "workshop-cost";
+    if (item.stones !== undefined) {
+      const stones = document.createElement("span");
+      stones.className = "cost-bit";
+      const icon = document.createElement("img");
+      icon.className = "mat";
+      icon.src = stoneUrl;
+      icon.alt = "";
+      icon.width = 16;
+      icon.height = 16;
+      icon.draggable = false;
+      stones.append(icon, document.createTextNode(item.stones));
+      cost.append(stones);
+    }
     for (const chip of item.costs) {
       const bit = document.createElement("span");
       bit.className = "cost-bit";
@@ -341,7 +379,7 @@ export function createWorkshopPanel({
       button.setAttribute("aria-disabled", "true");
       button.dataset["short"] = action.label;
     } else if (action.kind === "waiting") {
-      button.textContent = RECIPE_WAITING;
+      button.textContent = WORKSHOP_BENCH_BUSY;
       button.classList.add("is-waiting");
       button.setAttribute("aria-disabled", "true");
     } else {
@@ -355,7 +393,7 @@ export function createWorkshopPanel({
     button.addEventListener("click", () => {
       onCraft(item);
     });
-    article.append(name, effect, cost, button);
+    article.append(name, level, effect, cost, button);
     return article;
   };
 
@@ -411,10 +449,16 @@ export function createWorkshopPanel({
       bar.setAttribute("aria-valuenow", String(percent));
       bar.setAttribute("aria-label", benchState.title);
       cancel.hidden = benchState.cancel === "";
-      cancel.textContent = benchState.cancel;
+      cancel.classList.toggle("is-confirm", cancelArmed);
+      cancel.textContent = cancelArmed
+        ? WORKSHOP_CANCEL_CONFIRM
+        : benchState.cancel;
     } else {
       bar.hidden = true;
       cancel.hidden = true;
+      if (cancelArmed) {
+        disarmCancel();
+      }
     }
     bench.classList.toggle("is-hammer", at < hammerUntil);
     const cards = workshopCards(mountain, at);
@@ -432,7 +476,9 @@ export function createWorkshopPanel({
           : {
               id: item.id,
               name: item.name,
+              level: item.level,
               effect: item.effect,
+              stones: item.stones,
               action: item.action,
               time: item.time,
             },

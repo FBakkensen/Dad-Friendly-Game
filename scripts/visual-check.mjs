@@ -1636,6 +1636,9 @@ for (const viewport of WORKSHOP_SIZES) {
       fit.typeOk &&
       fit.text.includes("On the bench: Sturdy props") &&
       fit.text.includes("left") &&
+      fit.text.includes("Level 1 of 2") &&
+      fit.text.includes("500K stones") &&
+      fit.text.includes("Bench busy") &&
       fit.cancel.includes("250K") &&
       fit.cancel.includes("clay") &&
       fit.cancel.includes("iron") &&
@@ -1648,8 +1651,33 @@ for (const viewport of WORKSHOP_SIZES) {
   if (!fit.boxesOk || !still) {
     console.log("workshop fit", size, fit);
   }
+  const timerSplit = await page.$eval(".workshop-dialog", (sheet) => {
+    const bench = sheet.querySelector(".workshop-bench");
+    const timers = sheet.querySelector(".workshop-timers");
+    return (
+      bench !== null &&
+      timers !== null &&
+      !bench.contains(timers) &&
+      !timers.hidden
+    );
+  });
+  check(timerSplit, `${size} the live timer sits apart from the bench`);
   await shot(page, `workshop-busy-${size}`);
   if (viewport[0] === 390) {
+    await page.tap(".workshop-cancel");
+    const armed = await page.$eval(
+      ".workshop-cancel",
+      (button) => button.textContent ?? "",
+    );
+    const stillBusy = await page.$eval(
+      ".workshop-bench",
+      (bench) => bench.textContent ?? "",
+    );
+    check(
+      armed === "Tap again to cancel" && stillBusy.includes("On the bench"),
+      `${size} cancel asks for a second tap`,
+    );
+    await shot(page, "workshop-cancel-confirm-390x844");
     await page.tap(".workshop-cancel");
     const freed = await page.$eval(
       ".workshop-bench",

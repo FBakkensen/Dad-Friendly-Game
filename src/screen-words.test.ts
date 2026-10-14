@@ -42,8 +42,12 @@ import {
   broughtHomeToast,
   benchBusyWords,
   craftPriceWords,
+  WORKSHOP_BENCH_BUSY,
+  WORKSHOP_CANCEL_CONFIRM,
+  craftLevelWords,
   craftTimeWords,
   formatCraftSpeed,
+  stoneCostWords,
   materialCostWords,
   materialCountWords,
   refundBackWords,
@@ -577,13 +581,18 @@ describe("workshop sheet copy (#199)", () => {
     expect(craftTimeWords(4 * 60 * 60_000)).toBe("4 h");
     expect(craftTimeWords(3 * 60 * 60_000 + 12 * 60_000)).toBe("3 h 12 min");
     expect(formatCraftSpeed(8.5)).toBe("8.5");
-    expect(formatCraftSpeed(10.625)).toBe("10.63");
+    expect(formatCraftSpeed(10.625)).toBe("10.6");
+    expect(formatCraftSpeed(10.66)).toBe("10.7");
     expect(formatCraftSpeed(3500)).toBe("3,500");
     expect(formatCraftSpeed(12_000)).toBe("12K");
     expect(timerLeftWords("Axle grease", -1)).toBe("Axle grease · 0:00 left");
     expect(formatCraftSpeed(-2)).toBe("0");
     expect(materialCountWords("iron", 2)).toBe("Iron 2");
     expect(materialCostWords(4, "heartstone")).toBe("4 heartstone");
+    expect(stoneCostWords(500_000)).toBe("500K stones");
+    expect(craftLevelWords(1, 2)).toBe("Level 1 of 2");
+    expect(WORKSHOP_BENCH_BUSY).toBe("Bench busy");
+    expect(WORKSHOP_CANCEL_CONFIRM).toBe("Tap again to cancel");
     expect(refundBackWords([])).toBe("Cancel · nothing comes back");
     expect(refundBackWords(["1 iron"])).toBe("Cancel · 1 iron back");
     expect(refundBackWords(["75K stones", "3 clay"])).toBe(
@@ -600,6 +609,10 @@ describe("workshop sheet copy (#199)", () => {
       WORKSHOP_EARLIER,
       WORKSHOP_MORE,
       UNFOUND_DEEPER,
+      WORKSHOP_BENCH_BUSY,
+      WORKSHOP_CANCEL_CONFIRM,
+      craftLevelWords(1, 5),
+      stoneCostWords(1),
       workshopMenuWords(60_000),
       benchBusyWords("Axle grease", 60_000),
       refundBackWords(["1 iron"]),

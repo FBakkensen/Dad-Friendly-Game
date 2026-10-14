@@ -2796,8 +2796,18 @@ body {
 
 .workshop-bench .aside,
 .workshop-card .hint,
-.workshop-timers {
+.workshop-card .level {
   color: #c9b391;
+}
+
+.workshop-timers {
+  margin: 0;
+  padding: 6px 8px;
+  border: 2px solid #e8a84a;
+  border-radius: 12px;
+  background: #120c0a;
+  color: #f2c46d;
+  font-weight: 650;
 }
 
 .workshop-bar {
@@ -2912,9 +2922,20 @@ body {
   padding: 4px 6px;
 }
 
+.workshop-cancel {
+  background: transparent;
+  color: #c9b391;
+  border: 2px solid #6b4a2a;
+  font-weight: 650;
+}
+
+.workshop-cancel.is-confirm {
+  color: #f2c46d;
+  border-color: #e8a84a;
+}
+
 .workshop-craft:active:not([aria-disabled="true"]),
 .workshop-close:active,
-.workshop-cancel:active,
 .workshop-sound:active,
 .workshop-open:active,
 .workshop-earlier:active,
@@ -2922,6 +2943,13 @@ body {
   transform: translateY(2px);
   background-color: #8f5e22;
   box-shadow: inset 0 4px 0 #3d260e;
+}
+
+.workshop-cancel:active {
+  background: #2a1a10;
+  color: #f2c46d;
+  box-shadow: none;
+  transform: translateY(1px);
 }
 
 .workshop-craft.is-short,

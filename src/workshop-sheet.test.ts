@@ -55,15 +55,19 @@ describe("workshop sheet (#199)", () => {
     );
     const cards = workshopCards(mountain, 1_000);
     const rails = recipe(cards, "iron-rails");
-    expect(rails.name).toBe("Iron rails · 1 of 2");
-    expect(rails.effect).toBe("Carts 8.5/s to 10.63/s");
+    expect(rails.name).toBe("Iron rails");
+    expect(rails.level).toBe("Level 1 of 2");
+    expect(rails.effect).toBe("Carts 8.5/s to 10.6/s");
+    expect(rails.stones).toBe("500K stones");
     expect(rails.costs.map((cost) => cost.text)).toEqual(["4 iron"]);
     expect(rails.time).toBe("10 min");
     expect(rails.action).toEqual({ kind: "craft", label: "Craft · 500K" });
     expect(recipe(cards, "sturdy-props").effect).toBe(
       "Trouble comes 30% less often.",
     );
-    expect(recipe(cards, "reinforce").name).toBe("Reinforce · 1 of 5");
+    expect(recipe(cards, "reinforce").name).toBe("Reinforce");
+    expect(recipe(cards, "reinforce").level).toBe("Level 1 of 5");
+    expect(recipe(cards, "reinforce").stones).toBeUndefined();
     expect(recipe(cards, "reinforce").effect).toBe("Drills 60/s to 63/s");
     expect(recipe(cards, "reinforce").action).toEqual({
       kind: "craft",
@@ -138,6 +142,9 @@ describe("workshop sheet (#199)", () => {
     expect(benchLeftMs(started, 60_000)).toBe(540_000);
     const waiting = recipe(workshopCards(started, 60_000), "iron-rails");
     expect(waiting.action.kind).toBe("waiting");
+    expect(waiting.stones).toBe("500K stones");
+    expect(waiting.costs.map((cost) => cost.text)).toEqual(["4 iron"]);
+    expect(waiting.time).toBe("10 min");
     const onBench = recipe(workshopCards(started, 60_000), "sturdy-props");
     expect(onBench.action.kind).toBe("on-bench");
     expect(benchView(started, 600_000)).toMatchObject({

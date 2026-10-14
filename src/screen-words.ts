@@ -749,20 +749,19 @@ export function craftTimeWords(ms: number): string {
 }
 
 /**
- * A craft rate that keeps a tenth or a hundredth. "8.5", "10.63", "3,500".
- * Compact only once the number leaves the card.
+ * A craft rate to one decimal, the same grain as the rest of the crew.
+ * "8.5", "10.6", "3,500". Whole numbers stay whole.
  */
 export function formatCraftSpeed(speed: number): string {
   const abs = Math.max(0, speed);
-  const hundredths = Math.round(abs * 100) / 100;
-  if (hundredths >= 10_000) {
+  const tenths = Math.round(abs * 10) / 10;
+  if (tenths >= 10_000) {
     return formatCompact(Math.floor(abs));
   }
-  if (Number.isInteger(hundredths)) {
-    return formatCompact(hundredths);
+  if (Number.isInteger(tenths)) {
+    return formatCompact(tenths);
   }
-  const text = hundredths.toFixed(2);
-  return text.endsWith("0") ? text.slice(0, -1) : text;
+  return tenths.toFixed(1);
 }
 
 const MATERIAL_LABEL = {
@@ -789,6 +788,22 @@ export function materialCostWords(
 ): string {
   return `${formatCompact(count)} ${material}`;
 }
+
+/** "500K stones" on a recipe card, beside the materials and the time. */
+export function stoneCostWords(stones: number): string {
+  return `${formatCompact(stones)} stones`;
+}
+
+/** "Level 1 of 2" for a craft that can be made more than once. */
+export function craftLevelWords(next: number, max: number): string {
+  return `Level ${String(next)} of ${String(max)}`;
+}
+
+/** A waiting card. The cost stays on the card; this is only the button. */
+export const WORKSHOP_BENCH_BUSY = "Bench busy";
+
+/** Second tap on cancel. The first tap only names the refund. */
+export const WORKSHOP_CANCEL_CONFIRM = "Tap again to cancel";
 
 function andList(parts: readonly string[]): string {
   const last = parts[parts.length - 1];

@@ -17,9 +17,11 @@ import {
   craftPriceWords,
   craftTimeWords,
   formatCraftSpeed,
+  craftLevelWords,
   materialCostWords,
   materialCountWords,
   needMoreWords,
+  stoneCostWords,
   percent,
   refundBackWords,
   timerLeftWords,
@@ -79,7 +81,11 @@ export type RecipeCard = {
   readonly kind: "recipe";
   readonly id: RecipeId;
   readonly name: string;
+  /** "Level 1 of 2" when the craft can be made more than once. */
+  readonly level: string | undefined;
   readonly effect: string;
+  /** Stones, when this craft spends any. Materials sit in `costs`. */
+  readonly stones: string | undefined;
   readonly costs: readonly CostChip[];
   readonly time: string;
   readonly action: CraftAction;
@@ -149,11 +155,11 @@ function finished(recipe: Recipe, mountain: Mountain): boolean {
   return recipe.maxLevel !== undefined && level >= recipe.maxLevel;
 }
 
-function nameLine(recipe: Recipe, level: number): string {
+function levelLine(recipe: Recipe, level: number): string | undefined {
   if (recipe.maxLevel === undefined || recipe.maxLevel <= 1) {
-    return recipe.name;
+    return undefined;
   }
-  return `${recipe.name} · ${String(level + 1)} of ${String(recipe.maxLevel)}`;
+  return craftLevelWords(level + 1, recipe.maxLevel);
 }
 
 function tierShift(
@@ -437,8 +443,10 @@ function recipeCard(
   return {
     kind: "recipe",
     id: recipe.id,
-    name: nameLine(recipe, level),
+    name: recipe.name,
+    level: levelLine(recipe, level),
     effect: craftEffect(recipe, mountain, now),
+    stones: cost.stones > 0 ? stoneCostWords(cost.stones) : undefined,
     costs,
     time: craftTimeWords(recipe.craftMs),
     action: actionFor(mountain, recipe.id, cost.stones),
