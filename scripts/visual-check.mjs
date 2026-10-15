@@ -2088,11 +2088,35 @@ for (const viewport of NOTICE_SIZES) {
         cart.includes("·") &&
         !cart.startsWith("\u2191") &&
         borer !== undefined &&
-        borer.includes("needs 8 workers"),
+        borer.includes("Needs 8 workers"),
       `${size} cart shows +N and the borer says how many workers`,
     );
     if (!still || !inside || cart === undefined || borer === undefined) {
       console.log("crew gains", size, rates, inside);
+    }
+    const posts = await page.$eval(".crew-posts", (button) => ({
+      text: button.textContent ?? "",
+      label: button.getAttribute("aria-label") ?? "",
+      height: button.getBoundingClientRect().height,
+    }));
+    await page.tap(".crew-posts");
+    const opened = await page.$eval(".crew-breakdown", (line) => ({
+      hidden: line.hidden,
+      text: line.textContent ?? "",
+    }));
+    const named =
+      posts.text.includes("on carts") ||
+      (!opened.hidden && opened.text.includes("on carts"));
+    check(
+      named &&
+        posts.label.includes("on carts") &&
+        posts.label.includes("free") &&
+        posts.height >= 44 &&
+        (await noScroll(page)),
+      `${size} worker line names where the crew is`,
+    );
+    if (!named || posts.height < 44) {
+      console.log("posts", size, posts, opened);
     }
     await shot(page, `crew-gains-${size}`);
     await close();

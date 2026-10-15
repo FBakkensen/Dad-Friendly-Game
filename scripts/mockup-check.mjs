@@ -52,6 +52,8 @@ const SHOTS = [
   ["layer", "rest", ""],
   ["layer", "press", "dig"],
   ["mountain", "rest", ""],
+  ["mountain", "press", "posts"],
+  ["mountain", "rest", "open"],
   ["craft-done", "rest", ""],
   ["craft-done", "press", "done"],
 ];

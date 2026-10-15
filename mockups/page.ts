@@ -17,6 +17,7 @@ import {
   UNFOUND_HINT,
   WORKSHOP_TITLE,
   craftPriceWords,
+  crewPostsWords,
   fieldLogClose,
   needMoreWords,
 } from "../src/screen-words.ts";
@@ -51,10 +52,34 @@ const STONES_LEFT = formatCount(230_000_000);
 const POCKET_STONES = 6_400_000;
 const POCKET = formatCount(POCKET_STONES);
 
+const POSTS_FULL = crewPostsWords(28, 0, [
+  { label: "carts", workers: 13 },
+  { label: "drills", workers: 15 },
+]);
+const POSTS_TAP =
+  "Presses in. Where the workers are opens under the line. Silent until unmuted.";
+
 const TIERS = [
-  { name: "Worker", art: "/src/assets/helper-miner.png", rate: "1/s" },
-  { name: "Cart", art: CART, rate: "10/s" },
-  { name: "Drill", art: "/src/assets/steam-drill.png", rate: "60/s" },
+  {
+    name: "Worker",
+    art: "/src/assets/helper-miner.png",
+    rate: "+2.4 · 66/s",
+  },
+  {
+    name: "Cart",
+    art: CART,
+    rate: "+12 · 166/s · Needs 1 worker · 0 free",
+  },
+  {
+    name: "Drill",
+    art: "/src/assets/steam-drill.png",
+    rate: "+60 · 300/s · Needs 3 workers · 0 free",
+  },
+  {
+    name: "Borer",
+    art: "/src/assets/tunnel-borer.png",
+    rate: "+595 · 0/s · Needs 8 workers · 0 free",
+  },
 ] as const;
 
 const BACK_TAP =
@@ -243,7 +268,8 @@ function renderWorkshop(view: MockView): string {
   </section>`;
 }
 
-function renderMountain(): string {
+function renderMountain(view: MockView): string {
+  const open = view.control === "open";
   const tiers = TIERS.map(
     (tier) => `<div class="tier card">
       <img src="${tier.art}" alt="" />
@@ -251,6 +277,9 @@ function renderMountain(): string {
       <span class="label">${escapeHtml(tier.rate)}</span>
     </div>`,
   ).join("");
+  const breakdown = open
+    ? `<p class="label crew-breakdown">${escapeHtml(POSTS_FULL)}</p>`
+    : "";
   return `<section class="mountain-screen">
     <header class="top">
       <img class="lantern" src="${LANTERN}" alt="" />
@@ -263,12 +292,14 @@ function renderMountain(): string {
       <img class="mini" src="/src/assets/helper-miner.png" alt="" />
     </div>
     ${materialLine()}
+    <button type="button" class="crew-posts${pressClass(view, "posts", false)}${open ? " is-open" : ""}" data-tap="${escapeHtml(POSTS_TAP)}">${escapeHtml(open ? "28 workers · 0 free" : POSTS_FULL)}</button>
+    ${breakdown}
     <div class="tiers">${tiers}</div>
   </section>`;
 }
 
 function renderLayer(view: MockView): string {
-  return `${renderMountain()}
+  return `${renderMountain(view)}
   <div class="overlay">
     <div class="scrim"></div>
     <article class="card layer-card">
@@ -282,7 +313,7 @@ function renderLayer(view: MockView): string {
 }
 
 function renderCraftDone(view: MockView): string {
-  return `${renderMountain()}
+  return `${renderMountain(view)}
   <div class="overlay">
     <div class="scrim"></div>
     <article class="card notice-card">
@@ -300,7 +331,7 @@ export function renderMock(view: MockView): string {
     case "layer":
       return renderLayer(view);
     case "mountain":
-      return renderMountain();
+      return renderMountain(view);
     case "craft-done":
       return renderCraftDone(view);
     default: {

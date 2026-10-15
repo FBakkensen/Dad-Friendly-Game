@@ -58,6 +58,10 @@ import {
   stoneCostWords,
   materialCostWords,
   materialCountWords,
+  crewPostLabel,
+  crewPostsShort,
+  crewPostsWords,
+  staffBillWords,
   tierPaceWords,
   refundBackWords,
   timerLeftWords,
@@ -710,11 +714,10 @@ describe("gain of one more on a machine card", () => {
         running: 13,
         count: 13,
         synergy: 0.28,
-        idle: 0,
         staff: 1,
         spare: 0,
       }),
-    ).toBe("+12\u2009·\u2009166/s");
+    ).toBe("+12\u2009·\u2009166/s · Needs 1 worker · 0 free");
     expect(
       tierPaceWords({
         compact: true,
@@ -722,7 +725,6 @@ describe("gain of one more on a machine card", () => {
         running: 28,
         count: 28,
         synergy: 0,
-        idle: 0,
         staff: 0,
         spare: 28,
       }),
@@ -734,11 +736,10 @@ describe("gain of one more on a machine card", () => {
         running: 5,
         count: 5,
         synergy: 0,
-        idle: 0,
         staff: 3,
         spare: 0,
       }),
-    ).toBe("+60\u2009·\u2009300/s");
+    ).toBe("+60\u2009·\u2009300/s · Needs 3 workers · 0 free");
   });
 
   it("says how many workers a machine still needs, and keeps the gain", () => {
@@ -749,11 +750,10 @@ describe("gain of one more on a machine card", () => {
         running: 0,
         count: 0,
         synergy: 0,
-        idle: 0,
         staff: 8,
         spare: 0,
       }),
-    ).toBe("+595\u2009·\u20090/s · needs 8 workers");
+    ).toBe("+595/s · Needs 8 workers · 0 free");
     expect(
       tierPaceWords({
         compact: false,
@@ -761,11 +761,10 @@ describe("gain of one more on a machine card", () => {
         running: 2,
         count: 3,
         synergy: 0,
-        idle: 1,
         staff: 1,
         spare: 0,
       }),
-    ).toBe("+10 · 20/s · needs 1 worker");
+    ).toBe("+10 each · 20/s · Needs 1 worker · 0 free");
   });
 
   it("keeps the wide card's percent, each, and empty-tier line", () => {
@@ -776,11 +775,10 @@ describe("gain of one more on a machine card", () => {
         running: 5,
         count: 5,
         synergy: 0.12,
-        idle: 0,
         staff: 1,
         spare: 12,
       }),
-    ).toBe("+11 \u219112% · 56/s");
+    ).toBe("+11 \u219112% · 56/s · 1 worker");
     expect(
       tierPaceWords({
         compact: false,
@@ -788,11 +786,10 @@ describe("gain of one more on a machine card", () => {
         running: 3,
         count: 3,
         synergy: 0,
-        idle: 0,
         staff: 1,
         spare: 4,
       }),
-    ).toBe("+10 each · 30/s");
+    ).toBe("+10 each · 30/s · 1 worker");
     expect(
       tierPaceWords({
         compact: false,
@@ -800,11 +797,10 @@ describe("gain of one more on a machine card", () => {
         running: 150,
         count: 150,
         synergy: 0,
-        idle: 0,
         staff: 1,
         spare: 200,
       }),
-    ).toBe("+10 · 1,500/s");
+    ).toBe("+10 · 1,500/s · 1 worker");
     expect(
       tierPaceWords({
         compact: false,
@@ -812,7 +808,6 @@ describe("gain of one more on a machine card", () => {
         running: 0,
         count: 0,
         synergy: 0,
-        idle: 0,
         staff: 0,
         spare: 0,
       }),
@@ -824,10 +819,30 @@ describe("gain of one more on a machine card", () => {
         running: 0,
         count: 0,
         synergy: 0,
-        idle: 0,
         staff: 0,
         spare: 0,
       }),
     ).toBe("+1/s");
+  });
+
+  it("names the real crew a machine needs, and where the workers are", () => {
+    expect(staffBillWords(0, 4)).toBeUndefined();
+    expect(staffBillWords(1, 3)).toBe("1 worker");
+    expect(staffBillWords(3, 5)).toBe("3 workers");
+    expect(staffBillWords(8, 5)).toBe("Needs 8 workers · 5 free");
+    expect(staffBillWords(25, 0)).toBe("Needs 25 workers · 0 free");
+    expect(staffBillWords(5, 5)).toBe("5 workers");
+    expect(
+      crewPostsWords(28, 0, [
+        { label: "carts", workers: 13 },
+        { label: "drills", workers: 15 },
+        { label: "borers", workers: 0 },
+      ]),
+    ).toBe("28 workers: 13 on carts, 15 on drills, 0 free");
+    expect(crewPostsShort(28, 0)).toBe("28 workers · 0 free");
+    expect(crewPostsWords(1, 1, [])).toBe("1 worker: 1 free");
+    expect(crewPostLabel("cart")).toBe("carts");
+    expect(crewPostLabel("machine")).toBe("the machine");
+    expect(crewPostLabel("helper")).toBeUndefined();
   });
 });
