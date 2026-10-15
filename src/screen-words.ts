@@ -46,6 +46,113 @@ export const formatSpeed = (speed: number): string =>
     ? speed.toFixed(1)
     : formatCompact(speed);
 
+/**
+ * What one more of this tier adds, then what the ones running mine now.
+ * A synergy percent stays on a wide card. Compact cards keep `+N · total/s`
+ * either way: an arrow alone was hiding the gain. A machine that cannot
+ * run the next one still shows that gain, and how many workers it is short.
+ */
+export function tierPaceWords({
+  compact,
+  speed,
+  running,
+  count,
+  synergy,
+  staff,
+  spare,
+}: {
+  readonly compact: boolean;
+  readonly speed: number;
+  readonly running: number;
+  readonly count: number;
+  readonly synergy: number;
+  readonly staff: number;
+  readonly spare: number;
+}): string {
+  const gain = formatSpeed(speed);
+  const total = formatCompact(running * speed);
+  const base =
+    count === 0
+      ? compact
+        ? `+${gain}/s`
+        : `+${gain}/s each`
+      : !compact && synergy > 0
+        ? `+${gain} \u2191${String(Math.round(synergy * 100))}% · ${total}/s`
+        : !compact
+          ? `+${gain}${running * speed < 1_000 ? " each" : ""} · ${total}/s`
+          : `+${gain}\u2009·\u2009${total}/s`;
+  const bill = staffBillWords(staff, spare);
+  return bill === undefined ? base : `${base} · ${bill}`;
+}
+
+/**
+ * Workers one more of this machine needs. Real staff, not a placeholder.
+ * Short-handed: "Needs 3 workers · 1 free". Enough hands: "3 workers".
+ */
+export function staffBillWords(
+  staff: number,
+  spare: number,
+): string | undefined {
+  if (staff <= 0) {
+    return undefined;
+  }
+  const hands = `${formatCompact(staff)} ${workerWords(staff)}`;
+  const free = Math.max(0, Math.floor(spare));
+  if (free >= staff) {
+    return hands;
+  }
+  return `Needs ${hands} · ${formatCompact(free)} free`;
+}
+
+export type CrewPost = {
+  readonly label: string;
+  readonly workers: number;
+};
+
+/** Where busy workers sit. Hands and kids are the pool, not a post. */
+export function crewPostLabel(
+  id: TierId,
+): "carts" | "drills" | "borers" | "the machine" | undefined {
+  switch (id) {
+    case "cart":
+      return "carts";
+    case "drill":
+      return "drills";
+    case "borer":
+      return "borers";
+    case "machine":
+      return "the machine";
+    case "helper":
+    case "kid":
+      return undefined;
+    default: {
+      const never: never = id;
+      return never;
+    }
+  }
+}
+
+/** "28 workers: 13 on carts, 15 on drills, 0 free". */
+export function crewPostsWords(
+  total: number,
+  free: number,
+  posts: readonly CrewPost[],
+): string {
+  const head = `${formatCompact(total)} ${workerWords(total)}`;
+  const places = posts
+    .filter((post) => post.workers > 0)
+    .map((post) => `${formatCompact(post.workers)} on ${post.label}`);
+  const tail = `${formatCompact(Math.max(0, Math.floor(free)))} free`;
+  return places.length === 0
+    ? `${head}: ${tail}`
+    : `${head}: ${places.join(", ")}, ${tail}`;
+}
+
+/** One line when the full breakdown does not fit. */
+export function crewPostsShort(total: number, free: number): string {
+  return `${formatCompact(total)} ${workerWords(total)} · ${formatCompact(Math.max(0, Math.floor(free)))} free`;
+}
+
 /** 9:05, or 1:02:03 past an hour. */
 export const formatClock = (ms: number): string => {
   const total = Math.ceil(ms / 1000);

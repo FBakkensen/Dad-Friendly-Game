@@ -182,4 +182,24 @@ describe("workshop mock page (#193)", () => {
     );
     expect(done.textContent).not.toMatch(/\?/);
   });
+
+  it("shows the worker bill on each machine and where the crew is", () => {
+    const page = host(renderMock(view({ scene: "mountain" })));
+    expect(page.textContent).toContain(
+      "28 workers: 13 on carts, 15 on drills, 0 free",
+    );
+    expect(page.textContent).toContain("Needs 1 worker · 0 free");
+    expect(page.textContent).toContain("Needs 3 workers · 0 free");
+    expect(page.textContent).toContain("Needs 8 workers · 0 free");
+    const posts = page.querySelector(".crew-posts");
+    expect(posts?.getAttribute("data-tap")).toContain("Presses in");
+    expect(posts?.getAttribute("data-tap")).toContain("Silent until unmuted");
+    const open = host(renderMock(view({ scene: "mountain", control: "open" })));
+    expect(open.querySelector(".crew-breakdown")?.textContent).toContain(
+      "13 on carts",
+    );
+    expect(open.querySelector(".crew-posts")?.textContent).toBe(
+      "28 workers · 0 free",
+    );
+  });
 });

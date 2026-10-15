@@ -464,6 +464,64 @@ body {
   max-width: 100%;
 }
 
+/* Free workers, and where the busy ones are. Tap opens the breakdown when the line is tight. */
+.crew-posts {
+  appearance: none;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #e8d4b8;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.crew-posts[hidden] {
+  display: none;
+}
+
+.crew-posts:active,
+.crew-posts.is-pressed,
+.crew-posts.is-open {
+  transform: scale(0.98);
+  background: rgba(232, 168, 74, 0.18);
+}
+
+.crew-posts:focus-visible {
+  outline: 4px solid #e8d4b8;
+  outline-offset: 2px;
+}
+
+.crew-breakdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  margin: 0;
+  padding: 8px 10px;
+  border: 2px solid #e8a84a;
+  border-radius: 12px;
+  background: #1e130d;
+  color: #e8d4b8;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.crew-breakdown[hidden] {
+  display: none;
+}
+
 /* Two columns for the first tiers; three (compact) once four show, so up to six fit in two rows. */
 .tier-grid {
   display: grid;
@@ -600,6 +658,8 @@ body {
   font-size: 0.7rem;
   font-weight: 650;
   opacity: 0.85;
+  /* The worker bill shares the line. Wrap inside the card instead of clipping. */
+  white-space: normal;
 }
 
 /* Trouble is a warm shout, not a number. The card stays the same height. */
@@ -636,14 +696,16 @@ body {
 }
 
 /* The staffing warning wraps inside the fixed card; the idle line keeps its numbers. */
-.tier-needs-workers .tier-rate {
+.tier-needs-workers .tier-rate,
+.tier-idle .tier-rate {
   white-space: normal;
   font-size: 0.58rem;
   line-height: 1.05;
   letter-spacing: -0.02em;
 }
 
-.tier-grid-compact .tier-needs-workers .tier-rate {
+.tier-grid-compact .tier-needs-workers .tier-rate,
+.tier-grid-compact .tier-idle .tier-rate {
   font-size: 0.52rem;
   line-height: 1.02;
 }
@@ -1348,6 +1410,16 @@ body {
   }
 
   .pocket-stack {
+    gap: 0;
+  }
+
+  /* The posts line is a fat target. On a short phone the mountain gives
+     up a little more so that line does not push the page. */
+  #app:has(.crew-posts:not([hidden])) .mountain-wrap {
+    min-height: 20px;
+  }
+
+  #app:has(.crew-posts:not([hidden])) .crew {
     gap: 0;
   }
 

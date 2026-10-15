@@ -2040,6 +2040,87 @@ for (const viewport of NOTICE_SIZES) {
     await shot(page, `materials-four-${size}`);
     await close();
   }
+
+  {
+    const { page, close } = await open(
+      viewport,
+      noticeSave({
+        mined: 4_500_000,
+        lastSeen: now,
+        mountain: {
+          pocket: 255_200,
+          helpers: 28,
+          carts: 13,
+          drills: 5,
+          upgrades: { boots: 1, cartSyn: 1 },
+        },
+        workshop: {
+          materials: { clay: 4, iron: 0, crystal: 0, heartstone: 0 },
+        },
+      }),
+    );
+    const rates = await page.$$eval(".tier-rate", (nodes) =>
+      nodes.map((node) => node.textContent ?? ""),
+    );
+    const cart = rates.find((line) => line.includes("166"));
+    const borer = rates.find((line) => line.includes("595"));
+    const inside = await page.$$eval(".tier-rate", (nodes) =>
+      nodes.every((node) => {
+        const card = node.closest(".tier");
+        if (card === null || card.hidden) {
+          return true;
+        }
+        const rate = node.getBoundingClientRect();
+        const box = card.getBoundingClientRect();
+        return (
+          rate.height > 0 &&
+          rate.bottom <= box.bottom + 1 &&
+          rate.right <= box.right + 1
+        );
+      }),
+    );
+    const still = await noScroll(page);
+    check(
+      still &&
+        inside &&
+        cart !== undefined &&
+        cart.startsWith("+") &&
+        cart.includes("·") &&
+        !cart.startsWith("\u2191") &&
+        borer !== undefined &&
+        borer.includes("Needs 8 workers"),
+      `${size} cart shows +N and the borer says how many workers`,
+    );
+    if (!still || !inside || cart === undefined || borer === undefined) {
+      console.log("crew gains", size, rates, inside);
+    }
+    const posts = await page.$eval(".crew-posts", (button) => ({
+      text: button.textContent ?? "",
+      label: button.getAttribute("aria-label") ?? "",
+      height: button.getBoundingClientRect().height,
+    }));
+    await page.tap(".crew-posts");
+    const opened = await page.$eval(".crew-breakdown", (line) => ({
+      hidden: line.hidden,
+      text: line.textContent ?? "",
+    }));
+    const named =
+      posts.text.includes("on carts") ||
+      (!opened.hidden && opened.text.includes("on carts"));
+    check(
+      named &&
+        posts.label.includes("on carts") &&
+        posts.label.includes("free") &&
+        posts.height >= 44 &&
+        (await noScroll(page)),
+      `${size} worker line names where the crew is`,
+    );
+    if (!named || posts.height < 44) {
+      console.log("posts", size, posts, opened);
+    }
+    await shot(page, `crew-gains-${size}`);
+    await close();
+  }
 }
 
 await browser.close();

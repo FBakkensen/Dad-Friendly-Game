@@ -1,5 +1,5 @@
 import { buyCrew, tierLocked } from "./crew";
-import { staffNeeded } from "./engineers";
+import { staffForBuy, staffNeeded } from "./engineers";
 import { FIX_HOLD_MS } from "./hazards";
 import { floatText, reducedMotion } from "./float-text";
 import { formatCompact, formatCount } from "./format";
@@ -9,8 +9,13 @@ import { RELICS } from "./relics";
 import {
   NEEDS_MORE_WORKERS,
   TROUBLE_FIXED,
+  crewPostLabel,
+  crewPostsShort,
+  crewPostsWords,
   formatSpeed,
   percent,
+  staffBillWords,
+  tierPaceWords,
   troubleAria,
   troubleShout,
   stonesPerSecond,
@@ -65,6 +70,23 @@ export function createCrewPanel({
   crew.setAttribute("aria-label", "Your crew");
   const crewStatus = document.createElement("p");
   crewStatus.className = "crew-status";
+  const postsButton = document.createElement("button");
+  postsButton.type = "button";
+  postsButton.className = "crew-posts";
+  postsButton.hidden = true;
+  const postsDetail = document.createElement("p");
+  postsDetail.className = "crew-breakdown";
+  postsDetail.hidden = true;
+  let postsOpen = false;
+  postsButton.addEventListener("pointerdown", () => {
+    postsButton.classList.add("is-pressed");
+  });
+  const releasePosts = (): void => {
+    postsButton.classList.remove("is-pressed");
+  };
+  postsButton.addEventListener("pointerup", releasePosts);
+  postsButton.addEventListener("pointercancel", releasePosts);
+  postsButton.addEventListener("pointerleave", releasePosts);
   crewStatus.setAttribute("aria-live", "polite");
   const tierGrid = document.createElement("div");
   tierGrid.className = "tier-grid";
@@ -204,9 +226,21 @@ export function createCrewPanel({
         );
         // A new machine nobody can run says so, instead of promising speed.
         const added = `+${formatSpeed(after.tierSpeed[tier.id])}/s`;
+        const bought = getView().mountain;
+        const spareNow =
+          bought.helpers +
+          bought.kids -
+          TIERS.reduce(
+            (used, item) =>
+              used + after.running[item.id] * staffNeeded(bought, item),
+            0,
+          );
+        const bill = staffBillWords(staffForBuy(bought, tier), spareNow);
         floatText(
           card,
-          after.running[tier.id] > before ? added : `${added} · needs workers`,
+          after.running[tier.id] > before || bill === undefined
+            ? added
+            : `${added} · ${bill}`,
           "float-gain",
         );
         countCrewRate(rateBefore, crewSpeed());
@@ -225,7 +259,7 @@ export function createCrewPanel({
       gain,
     };
   });
-  crew.append(crewStatus, tierGrid, thanks);
+  crew.append(crewStatus, postsButton, postsDetail, tierGrid, thanks);
 
   /** The crew line counts up to the new rate after a purchase. */
   let rateShown: number | undefined;
@@ -327,13 +361,12 @@ export function createCrewPanel({
       // Only staffed machines count; the rest show as idle.
       const running = rates.running[tier.id];
       const idleHere = count - running;
-      // The next one of this tier would sit idle. Say so on an empty card,
-      // before the tap. A crew you already run keeps its speed line.
-      const staff = staffNeeded(current, tier);
+      // One more of this tier. The Great Machine's bill drops when an
+      // engineer would tend it. Say so even when the ones you own still run.
+      const staff = staffForBuy(current, tier);
       const needsMore = !locked && staff > 0 && spare < staff;
-      const showNeeds = needsMore && idleHere === 0 && count === 0;
       card.classList.toggle("tier-idle", !locked && idleHere > 0);
-      card.classList.toggle("tier-needs-workers", showNeeds);
+      card.classList.toggle("tier-needs-workers", needsMore);
       const who = tendingEngineer(current.engineers, tier.id);
       mark.hidden = who === undefined;
       const tendTier = tendTierOf(tier.id);
@@ -355,44 +388,82 @@ export function createCrewPanel({
       gain.textContent = gainText;
       const tends =
         who === undefined ? "" : ` ${tendsNote(who.name, tier.id)} ${gainText}`;
-      // A bought crew synergy shows as "↑12%" in the rate line (just "↑" on tight cards).
+      // Wide cards name the synergy percent. Compact cards keep +N · total/s.
       const synergy = tierSynergy(current, tier.id);
-      const lift = `\u2191${String(Math.round(synergy * 100))}%`;
       tierRate.textContent =
         cardTrouble !== undefined
           ? troubleShout(cardTrouble.kind)
           : locked
             ? `${needed?.name.split(" ")[0] ?? "Relic"} · ${formatCompact(needed?.depth ?? 0)}`
-            : showNeeds
-              ? `+${formatSpeed(speed)}/s · needs workers`
-              : idleHere > 0
-                ? compact
-                  ? // Tight cards: the idle count is the news; the crew line has the speed.
-                    `${formatCompact(idleHere)} idle`
-                  : `${formatCompact(idleHere)} idle\u2009·\u2009${formatCompact(running * speed)}/s`
-                : synergy > 0
-                  ? compact
-                    ? // Tight cards keep just the arrow; the sheet and label say how much.
-                      `\u2191\u2009${formatCompact(running * speed)}/s`
-                    : `+${formatSpeed(speed)} ${lift} · ${formatCompact(running * speed)}/s`
-                  : compact
-                    ? count === 0
-                      ? `+${formatSpeed(speed)}/s`
-                      : `+${formatSpeed(speed)}\u2009·\u2009${formatCompact(running * speed)}/s`
-                    : count === 0
-                      ? `+${formatSpeed(speed)}/s each`
-                      : // "each" drops out once the total needs four digits, so the line fits.
-                        `+${formatSpeed(speed)}${running * speed < 1_000 ? " each" : ""} · ${formatCompact(running * speed)}/s`;
+            : tierPaceWords({
+                compact,
+                speed,
+                running,
+                count,
+                synergy,
+                staff,
+                spare,
+              });
       card.setAttribute(
         "aria-label",
         cardTrouble !== undefined
           ? troubleAria(cardTrouble.kind, tier)
           : locked
             ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.${tends}`
-            : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(staff)} ${workerWords(staff)} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.${tends}`,
+            : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(staffNeeded(current, tier))} ${workerWords(staffNeeded(current, tier))} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.${tends}`,
       );
     }
+    const pool = current.helpers + current.kids;
+    const posts = TIERS.flatMap((tier) => {
+      const label = crewPostLabel(tier.id);
+      if (label === undefined) {
+        return [];
+      }
+      return [
+        {
+          label,
+          workers: rates.running[tier.id] * staffNeeded(current, tier),
+        },
+      ];
+    });
+    const fullPosts = crewPostsWords(pool, spare, posts);
+    const shortPosts = crewPostsShort(pool, spare);
+    postsButton.hidden = pool <= 0;
+    postsDetail.hidden = !postsOpen || pool <= 0;
+    postsDetail.textContent = fullPosts;
+    postsButton.setAttribute("aria-label", fullPosts);
+    if (pool <= 0) {
+      postsButton.textContent = "";
+      delete postsButton.dataset["tight"];
+    } else if (postsOpen) {
+      postsButton.textContent = shortPosts;
+      postsButton.dataset["tight"] = "true";
+      postsButton.setAttribute("aria-expanded", "true");
+    } else {
+      postsButton.textContent = fullPosts;
+      postsButton.classList.remove("is-open");
+      const tight =
+        postsButton.isConnected &&
+        postsButton.clientWidth > 0 &&
+        postsButton.scrollWidth > postsButton.clientWidth + 1;
+      postsButton.dataset["tight"] = tight ? "true" : "false";
+      if (tight) {
+        postsButton.textContent = shortPosts;
+        postsButton.setAttribute("aria-expanded", "false");
+      } else {
+        postsButton.removeAttribute("aria-expanded");
+      }
+    }
+    postsButton.classList.toggle("is-open", postsOpen);
   };
+
+  postsButton.addEventListener("click", () => {
+    if (postsButton.dataset["tight"] !== "true") {
+      return;
+    }
+    postsOpen = !postsOpen;
+    renderCrew();
+  });
 
   const render = renderCrew;
 

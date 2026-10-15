@@ -430,6 +430,27 @@ h1.label {
 .tier .label {
   font-weight: 700;
   color: #1e130d;
+  white-space: normal;
+  text-align: center;
+}
+
+.crew-posts {
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 2px solid #6b4a2a;
+  border-radius: 12px;
+  background: #2a1a10;
+  color: #e8d4b8;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.crew-breakdown {
+  margin: 0;
+  text-align: center;
 }
 
 /* Layer card and craft-done notice sit over the mountain. */
