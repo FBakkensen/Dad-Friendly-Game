@@ -16,12 +16,7 @@ import {
 import type { BoostId } from "./boosts";
 import { formatCompact, formatCount, formatDuration } from "./format";
 import type { TroubleKind } from "./hazards";
-import {
-  LAYERS,
-  type LayerId,
-  type MaterialId,
-  type Materials,
-} from "./layers";
+import type { LayerId } from "./layers";
 import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { owned, tierById, type TierId } from "./tiers";
@@ -850,52 +845,6 @@ export function materialCountWords(
   count: number,
 ): string {
   return `${MATERIAL_LABEL[material]} ${formatCompact(count)}`;
-}
-
-/**
- * The first unit of a material. Before the workshop is open the shed stays
- * a place below the Granite. After it opens, the line names the use.
- */
-const MATERIAL_FIND_OPEN: Readonly<Record<MaterialId, string>> = {
-  clay: "Clay! Keep it. The workshop turns it into charges and props for the crew.",
-  iron: "Iron! Keep it. The workshop turns it into rails and grease for the crew.",
-  crystal:
-    "Crystal! Keep it. The workshop turns this glitter into bits and light for the crew.",
-  heartstone:
-    "Heartstone! Keep it. The workshop turns this warm stone into a heart for the machine.",
-};
-
-export function materialFindWords(
-  id: MaterialId,
-  workshopOpen: boolean,
-): string {
-  if (!workshopOpen) {
-    return `${MATERIAL_LABEL[id]}! Keep it. The workshop below the Granite will turn it into gear.`;
-  }
-  return MATERIAL_FIND_OPEN[id];
-}
-
-/** The button on the first-find card. */
-export const MATERIAL_KEEP = "Keep it";
-
-/**
- * Materials the absence added. "+4 clay", or "+4 clay · +2 iron".
- * Nothing earned is no line.
- */
-export function materialsAwayWords(
-  gained: Materials | undefined,
-): string | undefined {
-  if (gained === undefined) {
-    return undefined;
-  }
-  const parts: string[] = [];
-  for (const layer of LAYERS) {
-    const count = gained[layer.material];
-    if (count > 0) {
-      parts.push(`+${formatCompact(count)} ${layer.material}`);
-    }
-  }
-  return parts.length === 0 ? undefined : parts.join(" · ");
 }
 
 /** "4 iron" on a recipe card. */

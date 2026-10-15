@@ -2,12 +2,10 @@ import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
   CRAFT_DONE_BUTTON,
   LAYER_DIG,
-  MATERIAL_KEEP,
   layerCardWords,
-  materialFindWords,
   type LayerCardWords,
 } from "./screen-words";
-import { workshopUnlocked, type RecipeId } from "./workshop";
+import type { RecipeId } from "./workshop";
 
 /**
  * The layer card and the craft-done notice. Both sit over the mountain.
@@ -100,29 +98,8 @@ export function createArrivalPanel({
   noticeCard.append(noticeArt, noticeLine, noticeGo);
   notice.append(noticeCard);
 
-  const find = document.createElement("div");
-  find.className = "material-find";
-  find.setAttribute("role", "dialog");
-  find.setAttribute("aria-modal", "true");
-  find.setAttribute("aria-labelledby", "material-find-line");
-  find.hidden = true;
-  const findCard = document.createElement("div");
-  findCard.className = "material-card";
-  const findLine = document.createElement("p");
-  findLine.id = "material-find-line";
-  const findGo = document.createElement("button");
-  findGo.type = "button";
-  findGo.className = "material-keep";
-  findGo.textContent = MATERIAL_KEEP;
-  findGo.addEventListener("click", () => {
-    progress.dismissMaterial();
-  });
-  findCard.append(findLine, findGo);
-  find.append(findCard);
-
   let layerWasOpen = false;
   let noticeWasOpen = false;
-  let findWasOpen = false;
 
   const render = (): void => {
     const view = getView();
@@ -143,24 +120,8 @@ export function createArrivalPanel({
     }
     layerWasOpen = showLayer;
 
-    const findId = view.materialsFound[0] ?? view.materialHint;
-    const findCopy =
-      findId === undefined
-        ? undefined
-        : materialFindWords(findId, workshopUnlocked(view.mountain));
-    const showFind = !waiting && !showLayer && findCopy !== undefined;
-    if (findCopy !== undefined) {
-      findLine.textContent = findCopy;
-    }
-    find.hidden = !showFind;
-    if (showFind && !findWasOpen) {
-      findGo.focus();
-    }
-    findWasOpen = showFind;
-
     const fitted = view.craftsFitted[0];
-    const showNotice =
-      !waiting && !showLayer && !showFind && fitted !== undefined;
+    const showNotice = !waiting && !showLayer && fitted !== undefined;
     if (fitted !== undefined) {
       noticeArt.src = noticeArtFor(fitted.id, { oreUrl, lanternUrl, tierArt });
       noticeLine.textContent = fitted.line;
@@ -182,7 +143,7 @@ export function createArrivalPanel({
     layerSketch.textContent = words.sketch;
   };
 
-  return { layer, notice, find, render };
+  return { layer, notice, render };
 }
 
 function noticeArtFor(

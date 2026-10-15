@@ -22,7 +22,6 @@ import {
   accrueAway,
   type Mountain,
 } from "./mountain";
-import { EMPTY_MATERIALS } from "./layers";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { effectiveRates } from "./rates";
 import { WELCOME_MIN_AWAY_MS, createProgressStore } from "./progress-store";
@@ -515,7 +514,6 @@ describe("away earnings", () => {
       paidMs: 600_000,
       capped: false,
       heart: 1,
-      materials: EMPTY_MATERIALS,
     });
     expect(readSessionSave({ storage })).toEqual({
       mountain: {
@@ -1327,9 +1325,7 @@ describe("field log", () => {
       "away.report",
       "vein.tap",
       "relic.found",
-      "material.found",
     ]);
-    expect(events[3]?.data).toEqual({ id: "clay" });
     expect(events[0]?.data).toEqual({ ms: 120_000, stones: 36 });
     expect(events[1]?.data).toEqual({ stones: 60 });
     expect(events[2]?.data).toEqual({ id: "lantern" });
@@ -2652,80 +2648,5 @@ describe("layer card and craft-done notice", () => {
     away.dismissAway();
     expect(away.getSnapshot().craftsFitted).toEqual([]);
     away.dispose();
-  });
-});
-
-describe("first material (#216)", () => {
-  const guest = (storage: Storage, now: () => number) =>
-    createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: storage,
-      now,
-    });
-
-  it("announces the first clay once, live or after a reload that already has it", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: minedMountain(999_999),
-      lastSeen: 0,
-    });
-    const progress = guest(storage, () => 0);
-    expect(progress.getSnapshot().materialsFound).toEqual([]);
-    progress.dismissMaterial();
-    progress.applyMutation(() => minedMountain(1_000_000));
-    expect(progress.getSnapshot().materialsFound).toEqual(["clay"]);
-    expect(progress.fieldLog().events).toContainEqual(
-      expect.objectContaining({
-        code: "material.found",
-        data: { id: "clay" },
-      }),
-    );
-    progress.dismissMaterial();
-    expect(progress.getSnapshot().materialsFound).toEqual([]);
-    progress.dispose();
-
-    const again = guest(storage, () => 0);
-    expect(again.getSnapshot().materialsFound).toEqual([]);
-    expect(again.fieldLog().events.map((event) => event.code)).not.toContain(
-      "material.found",
-    );
-    again.dispose();
-  });
-
-  it("names four clay on the away report and does not repeat a material already earned", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: { ...minedMountain(0), helpers: 50, carts: 50, pocket: 0 },
-      lastSeen: 0,
-    });
-    const progress = guest(storage, () => 10 * 3_600_000);
-    expect(progress.getSnapshot().away?.materials).toEqual({
-      clay: 4,
-      iron: 0,
-      crystal: 0,
-      heartstone: 0,
-    });
-    expect(progress.getSnapshot().materialsFound).toEqual(["clay"]);
-    progress.explainMaterial("iron");
-    expect(progress.getSnapshot().materialHint).toBe("iron");
-    progress.dismissMaterial();
-    expect(progress.getSnapshot().materialsFound).toEqual([]);
-    expect(progress.getSnapshot().materialHint).toBe("iron");
-    progress.dismissMaterial();
-    expect(progress.getSnapshot().materialHint).toBeUndefined();
-    progress.dismissMaterial();
-    progress.dispose();
-
-    const held = createMemoryStorage();
-    writeSessionSave({
-      storage: held,
-      mountain: minedMountain(4_500_000),
-      lastSeen: 0,
-    });
-    const quiet = guest(held, () => 0);
-    expect(quiet.getSnapshot().materialsFound).toEqual([]);
-    quiet.dispose();
   });
 });

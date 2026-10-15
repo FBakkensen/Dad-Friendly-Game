@@ -18,8 +18,7 @@ import { createEngineersPanel } from "./engineers-panel";
 import { floatText } from "./float-text";
 import { createUpgradesPanel } from "./upgrades-panel";
 import { createWorkshopPanel } from "./workshop-panel";
-import { materialFindWords, nextLayerHint, tapWords } from "./screen-words";
-import { workshopUnlocked } from "./workshop";
+import { nextLayerHint, tapWords } from "./screen-words";
 import { metMaterialChips } from "./workshop-sheet";
 import {
   veinGapScale,
@@ -457,9 +456,8 @@ export function mountMountainScreen({
         dot.textContent = "·";
         materialLine.append(dot);
       }
-      const bit = document.createElement("button");
-      bit.type = "button";
-      bit.className = "material-bit material-chip";
+      const bit = document.createElement("span");
+      bit.className = "material-bit";
       const icon = document.createElement("img");
       icon.className = `mat mat-${chip.id}`;
       icon.src = stoneUrl;
@@ -468,22 +466,6 @@ export function mountMountainScreen({
       icon.height = 16;
       icon.draggable = false;
       bit.append(icon, document.createTextNode(chip.text));
-      bit.setAttribute(
-        "aria-label",
-        `${chip.text}. ${materialFindWords(chip.id, workshopUnlocked(view.mountain))}`,
-      );
-      bit.addEventListener("pointerdown", () => {
-        bit.classList.add("is-pressed");
-      });
-      const release = (): void => {
-        bit.classList.remove("is-pressed");
-      };
-      bit.addEventListener("pointerup", release);
-      bit.addEventListener("pointercancel", release);
-      bit.addEventListener("pointerleave", release);
-      bit.addEventListener("click", () => {
-        progress.explainMaterial(chip.id);
-      });
       materialLine.append(bit);
     });
   };
@@ -563,7 +545,6 @@ export function mountMountainScreen({
     welcome,
     arrival.layer,
     arrival.notice,
-    arrival.find,
     reveal,
     legend,
     shelf,

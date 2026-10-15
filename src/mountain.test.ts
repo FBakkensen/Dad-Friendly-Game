@@ -1,4 +1,4 @@
-import { EMPTY_MATERIALS, materialsGained } from "./layers";
+import { EMPTY_MATERIALS } from "./layers";
 import { minedMountain } from "./test-fixtures";
 import {
   BASE_AWAY_CAP_MS,
@@ -212,23 +212,6 @@ describe("mountain", () => {
 });
 
 describe("materials from digging", () => {
-  it("puts the units an absence dug on the away report", () => {
-    const away = accrueAway({
-      mountain: { ...createMountain(), helpers: 50, carts: 50 },
-      lastSeen: 0,
-      now: 10 * 3_600_000,
-    });
-    expect(away.report.materials).toEqual({
-      clay: 4,
-      iron: 0,
-      crystal: 0,
-      heartstone: 0,
-    });
-    expect(away.report.materials).toEqual(
-      materialsGained(0, minedOut(away.mountain)),
-    );
-  });
-
   it("pays a hand tap when the stones cross a gap", () => {
     const mountain = {
       ...createMountain(),
@@ -417,7 +400,6 @@ describe("accrueAway", () => {
       paidMs: 90_500,
       capped: false,
       heart: 1,
-      materials: EMPTY_MATERIALS,
     });
   });
 
@@ -453,7 +435,6 @@ describe("accrueAway", () => {
       paidMs: longCap,
       capped: true,
       heart: 1,
-      materials: EMPTY_MATERIALS,
     });
   });
 
@@ -466,7 +447,6 @@ describe("accrueAway", () => {
       paidMs: 0,
       capped: false,
       heart: 1,
-      materials: EMPTY_MATERIALS,
     });
   });
 });

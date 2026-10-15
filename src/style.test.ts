@@ -42,9 +42,7 @@ const REQUIRED_SELECTORS = [
   ".workshop-cancel",
   ".layer-arrival",
   ".craft-notice",
-  ".material-find",
   ".material-line",
-  ".material-chip",
   ".layer-hint",
 ];
 
@@ -58,7 +56,6 @@ describe("style.css", () => {
     ".welcome-back",
     ".layer-arrival",
     ".craft-notice",
-    ".material-find",
     ".relic-reveal",
     ".shelf-dialog",
     ".start-over",

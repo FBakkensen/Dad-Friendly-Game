@@ -58,8 +58,6 @@ import {
   stoneCostWords,
   materialCostWords,
   materialCountWords,
-  materialFindWords,
-  materialsAwayWords,
   tierPaceWords,
   refundBackWords,
   timerLeftWords,
@@ -831,41 +829,5 @@ describe("gain of one more on a machine card", () => {
         spare: 0,
       }),
     ).toBe("+1/s");
-  });
-});
-
-describe("material first-find and away lines", () => {
-  it("names the workshop vaguely until it is open, then says what the material is for", () => {
-    expect(materialFindWords("clay", false)).toBe(
-      "Clay! Keep it. The workshop below the Granite will turn it into gear.",
-    );
-    expect(materialFindWords("iron", false)).toBe(
-      "Iron! Keep it. The workshop below the Granite will turn it into gear.",
-    );
-    expect(materialFindWords("clay", true)).toBe(
-      "Clay! Keep it. The workshop turns it into charges and props for the crew.",
-    );
-    expect(materialFindWords("iron", true)).toContain("rails and grease");
-    expect(materialFindWords("crystal", true)).toContain("bits and light");
-    expect(materialFindWords("heartstone", true)).toContain(
-      "heart for the machine",
-    );
-    for (const id of ["clay", "iron", "crystal", "heartstone"] as const) {
-      expect(materialFindWords(id, false)).not.toMatch(/\d|\?/);
-      expect(materialFindWords(id, true)).not.toMatch(/\d|\?/);
-    }
-  });
-
-  it("lists only the materials an absence added", () => {
-    expect(materialsAwayWords(undefined)).toBeUndefined();
-    expect(
-      materialsAwayWords({ clay: 0, iron: 0, crystal: 0, heartstone: 0 }),
-    ).toBeUndefined();
-    expect(
-      materialsAwayWords({ clay: 4, iron: 0, crystal: 0, heartstone: 0 }),
-    ).toBe("+4 clay");
-    expect(
-      materialsAwayWords({ clay: 4, iron: 2, crystal: 0, heartstone: 1 }),
-    ).toBe("+4 clay · +2 iron · +1 heartstone");
   });
 });
