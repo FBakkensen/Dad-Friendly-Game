@@ -275,6 +275,8 @@ export type AwayReport = {
   readonly capped: boolean;
   /** Heart of Patience multiplier on away pay (1 without the Heart). */
   readonly heart: number;
+  /** Units this absence added. Zeros when the dig crossed no new unit. */
+  readonly materials: Materials;
 };
 
 /** The crew's work while the game was closed: away pay of their speed, up to the away cap (see effectiveRates). */
@@ -291,6 +293,7 @@ export function accrueAway({
   readonly homecomings: readonly Homecoming[];
 } {
   const awayMs = Math.max(0, now - lastSeen);
+  const beforeMined = minedOut(mountain);
   const rates = effectiveRates(mountain);
   const paidMs = paidAwayMs(mountain, awayMs);
   const capped = awayMs > paidMs;
@@ -307,7 +310,14 @@ export function accrueAway({
   });
   return {
     ...walked,
-    report: { mined: walked.mined, awayMs, paidMs, capped, heart },
+    report: {
+      mined: walked.mined,
+      awayMs,
+      paidMs,
+      capped,
+      heart,
+      materials: materialsGained(beforeMined, minedOut(walked.mountain)),
+    },
   };
 }
 

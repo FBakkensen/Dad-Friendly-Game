@@ -42,7 +42,13 @@ import {
   type FieldLogDocument,
   type FieldLogWriteReason,
 } from "./field-log";
-import { LAYERS, layersEntered, type Layer } from "./layers";
+import {
+  LAYERS,
+  layersEntered,
+  materialsFromMined,
+  type Layer,
+  type MaterialId,
+} from "./layers";
 import { passTheMine } from "./legacy";
 import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
@@ -105,6 +111,14 @@ export type ProgressSnapshot = {
    * effect at the moment it finished. Not a save field.
    */
   readonly craftsFitted: readonly CraftNotice[];
+  /**
+   * Materials whose first unit arrived this session and has not been read.
+   * A loaded save that already earned one does not announce it again.
+   * Not a save field: the stones mined are the memory.
+   */
+  readonly materialsFound: readonly MaterialId[];
+  /** A material chip the player tapped, to hear the line again. */
+  readonly materialHint: MaterialId | undefined;
   /** Trouble at one machine this session. Never saved, gone after a reload. */
   readonly trouble: Trouble | undefined;
 };
@@ -145,6 +159,10 @@ export type ProgressStore = {
   readonly dismissLayer: () => void;
   /** Closes the craft-done notice. The next unread fitting, if any, follows. */
   readonly dismissCraft: () => void;
+  /** Closes the first-find card. The next unread material, if any, follows. */
+  readonly dismissMaterial: () => void;
+  /** Opens the material line again from its chip. */
+  readonly explainMaterial: (id: MaterialId) => void;
   /** One tap on a troubled card. The fifth tap fixes it. */
   readonly pressTrouble: (tier: TroubleTier) => void;
   /** A short hold on a troubled card fixes it. */
@@ -209,8 +227,15 @@ export function createProgressStore({
   let layerBaseline: number | undefined;
   /** Crafted levels already named, or waiting to be, this open. */
   let craftBaseline: Readonly<Partial<Record<RecipeId, number>>> | undefined;
+  /**
+   * Stones mined when materials were last checked. Same rule as layers:
+   * a loaded save does not announce a material it already earned.
+   */
+  let materialBaseline: number | undefined;
   const layersArrived: Layer[] = [];
   const craftsFitted: CraftNotice[] = [];
+  const materialsFound: MaterialId[] = [];
+  let materialHint: MaterialId | undefined;
   let welcomed = false;
   let crewJoined: number | undefined;
   let engineerJoined: true | undefined;
@@ -307,15 +332,18 @@ export function createProgressStore({
     }
   };
 
-  /** The band and the crafted levels, before away pay moves them. */
+  /** The band, the crafted levels, and the materials, before away pay moves them. */
   const primeArrivals = (): void => {
     layerBaseline = minedOut(mountain);
+    materialBaseline = minedOut(mountain);
     craftBaseline = { ...(mountain.crafted ?? {}) };
   };
 
   const clearArrivals = (): void => {
     layersArrived.length = 0;
     craftsFitted.length = 0;
+    materialsFound.length = 0;
+    materialHint = undefined;
   };
 
   /**
@@ -429,6 +457,8 @@ export function createProgressStore({
       homecomings,
       layersArrived: [...layersArrived],
       craftsFitted: [...craftsFitted],
+      materialsFound: [...materialsFound],
+      materialHint,
       trouble: activeTrouble(),
     };
   };
@@ -583,11 +613,32 @@ export function createProgressStore({
     craftBaseline = { ...(mountain.crafted ?? {}) };
   };
 
+  /** A material whose first unit arrived since the baseline. Once per material. */
+  const noteMaterials = (): void => {
+    if (auth.getState().kind === "signed-in" && !hydrated) {
+      return;
+    }
+    const mined = minedOut(mountain);
+    if (materialBaseline !== undefined) {
+      const before = materialsFromMined(materialBaseline);
+      const after = materialsFromMined(mined);
+      for (const layer of LAYERS) {
+        const id = layer.material;
+        if (before[id] === 0 && after[id] > 0) {
+          materialsFound.push(id);
+          record("material.found", { id });
+        }
+      }
+    }
+    materialBaseline = mined;
+  };
+
   const emit = (): void => {
     newsPending = false;
     noteReveals();
     noteLayers();
     noteCrafts();
+    noteMaterials();
     const next = snapshot();
     for (const listener of [...listeners]) {
       listener(next);
@@ -915,6 +966,7 @@ export function createProgressStore({
     lastFieldLogFingerprint = undefined;
     revealBaseline = undefined;
     layerBaseline = undefined;
+    materialBaseline = undefined;
     craftBaseline = undefined;
     clearArrivals();
     saveKind = "loading";
@@ -1181,6 +1233,25 @@ export function createProgressStore({
         return;
       }
       craftsFitted.shift();
+      emit();
+    },
+    dismissMaterial: () => {
+      if (materialsFound.length > 0) {
+        materialsFound.shift();
+        emit();
+        return;
+      }
+      if (materialHint === undefined) {
+        return;
+      }
+      materialHint = undefined;
+      emit();
+    },
+    explainMaterial: (id) => {
+      if (!canPlay()) {
+        return;
+      }
+      materialHint = id;
       emit();
     },
     tick: () => {

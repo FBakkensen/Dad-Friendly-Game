@@ -58,6 +58,9 @@ import {
   stoneCostWords,
   materialCostWords,
   materialCountWords,
+  materialFindWords,
+  materialsAwayWords,
+  tierPaceWords,
   refundBackWords,
   timerLeftWords,
   workshopMenuWords,
@@ -697,5 +700,172 @@ describe("layer card and craft-done copy", () => {
     expect(
       craftFittedWords("Blasting charge", "Crew now 8/s for 20 min."),
     ).toBe("Your Blasting charge is fitted. Crew now 8/s for 20 min.");
+  });
+});
+
+describe("gain of one more on a machine card", () => {
+  it("keeps +N · total/s on a compact card, synergy or not", () => {
+    expect(
+      tierPaceWords({
+        compact: true,
+        speed: 12.8,
+        running: 13,
+        count: 13,
+        synergy: 0.28,
+        idle: 0,
+        staff: 1,
+        spare: 0,
+      }),
+    ).toBe("+12\u2009·\u2009166/s");
+    expect(
+      tierPaceWords({
+        compact: true,
+        speed: 2.36,
+        running: 28,
+        count: 28,
+        synergy: 0,
+        idle: 0,
+        staff: 0,
+        spare: 28,
+      }),
+    ).toBe("+2.4\u2009·\u200966/s");
+    expect(
+      tierPaceWords({
+        compact: true,
+        speed: 60,
+        running: 5,
+        count: 5,
+        synergy: 0,
+        idle: 0,
+        staff: 3,
+        spare: 0,
+      }),
+    ).toBe("+60\u2009·\u2009300/s");
+  });
+
+  it("says how many workers a machine still needs, and keeps the gain", () => {
+    expect(
+      tierPaceWords({
+        compact: true,
+        speed: 595,
+        running: 0,
+        count: 0,
+        synergy: 0,
+        idle: 0,
+        staff: 8,
+        spare: 0,
+      }),
+    ).toBe("+595\u2009·\u20090/s · needs 8 workers");
+    expect(
+      tierPaceWords({
+        compact: false,
+        speed: 10,
+        running: 2,
+        count: 3,
+        synergy: 0,
+        idle: 1,
+        staff: 1,
+        spare: 0,
+      }),
+    ).toBe("+10 · 20/s · needs 1 worker");
+  });
+
+  it("keeps the wide card's percent, each, and empty-tier line", () => {
+    expect(
+      tierPaceWords({
+        compact: false,
+        speed: 11.2,
+        running: 5,
+        count: 5,
+        synergy: 0.12,
+        idle: 0,
+        staff: 1,
+        spare: 12,
+      }),
+    ).toBe("+11 \u219112% · 56/s");
+    expect(
+      tierPaceWords({
+        compact: false,
+        speed: 10,
+        running: 3,
+        count: 3,
+        synergy: 0,
+        idle: 0,
+        staff: 1,
+        spare: 4,
+      }),
+    ).toBe("+10 each · 30/s");
+    expect(
+      tierPaceWords({
+        compact: false,
+        speed: 10,
+        running: 150,
+        count: 150,
+        synergy: 0,
+        idle: 0,
+        staff: 1,
+        spare: 200,
+      }),
+    ).toBe("+10 · 1,500/s");
+    expect(
+      tierPaceWords({
+        compact: false,
+        speed: 1,
+        running: 0,
+        count: 0,
+        synergy: 0,
+        idle: 0,
+        staff: 0,
+        spare: 0,
+      }),
+    ).toBe("+1/s each");
+    expect(
+      tierPaceWords({
+        compact: true,
+        speed: 1,
+        running: 0,
+        count: 0,
+        synergy: 0,
+        idle: 0,
+        staff: 0,
+        spare: 0,
+      }),
+    ).toBe("+1/s");
+  });
+});
+
+describe("material first-find and away lines", () => {
+  it("names the workshop vaguely until it is open, then says what the material is for", () => {
+    expect(materialFindWords("clay", false)).toBe(
+      "Clay! Keep it. The workshop below the Granite will turn it into gear.",
+    );
+    expect(materialFindWords("iron", false)).toBe(
+      "Iron! Keep it. The workshop below the Granite will turn it into gear.",
+    );
+    expect(materialFindWords("clay", true)).toBe(
+      "Clay! Keep it. The workshop turns it into charges and props for the crew.",
+    );
+    expect(materialFindWords("iron", true)).toContain("rails and grease");
+    expect(materialFindWords("crystal", true)).toContain("bits and light");
+    expect(materialFindWords("heartstone", true)).toContain(
+      "heart for the machine",
+    );
+    for (const id of ["clay", "iron", "crystal", "heartstone"] as const) {
+      expect(materialFindWords(id, false)).not.toMatch(/\d|\?/);
+      expect(materialFindWords(id, true)).not.toMatch(/\d|\?/);
+    }
+  });
+
+  it("lists only the materials an absence added", () => {
+    expect(materialsAwayWords(undefined)).toBeUndefined();
+    expect(
+      materialsAwayWords({ clay: 0, iron: 0, crystal: 0, heartstone: 0 }),
+    ).toBeUndefined();
+    expect(
+      materialsAwayWords({ clay: 4, iron: 0, crystal: 0, heartstone: 0 }),
+    ).toBe("+4 clay");
+    expect(
+      materialsAwayWords({ clay: 4, iron: 2, crystal: 0, heartstone: 1 }),
+    ).toBe("+4 clay · +2 iron · +1 heartstone");
   });
 });

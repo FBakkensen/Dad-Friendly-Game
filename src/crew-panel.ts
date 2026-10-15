@@ -11,6 +11,7 @@ import {
   TROUBLE_FIXED,
   formatSpeed,
   percent,
+  tierPaceWords,
   troubleAria,
   troubleShout,
   stonesPerSecond,
@@ -204,9 +205,24 @@ export function createCrewPanel({
         );
         // A new machine nobody can run says so, instead of promising speed.
         const added = `+${formatSpeed(after.tierSpeed[tier.id])}/s`;
+        const bought = getView().mountain;
+        const spareNow =
+          bought.helpers +
+          bought.kids -
+          TIERS.reduce(
+            (used, item) =>
+              used + after.running[item.id] * staffNeeded(bought, item),
+            0,
+          );
+        const hands = Math.max(
+          1,
+          staffNeeded(bought, tier) - Math.max(0, spareNow),
+        );
         floatText(
           card,
-          after.running[tier.id] > before ? added : `${added} · needs workers`,
+          after.running[tier.id] > before
+            ? added
+            : `${added} · needs ${formatCompact(hands)} ${workerWords(hands)}`,
           "float-gain",
         );
         countCrewRate(rateBefore, crewSpeed());
@@ -355,34 +371,23 @@ export function createCrewPanel({
       gain.textContent = gainText;
       const tends =
         who === undefined ? "" : ` ${tendsNote(who.name, tier.id)} ${gainText}`;
-      // A bought crew synergy shows as "↑12%" in the rate line (just "↑" on tight cards).
+      // Wide cards name the synergy percent. Compact cards keep +N · total/s.
       const synergy = tierSynergy(current, tier.id);
-      const lift = `\u2191${String(Math.round(synergy * 100))}%`;
       tierRate.textContent =
         cardTrouble !== undefined
           ? troubleShout(cardTrouble.kind)
           : locked
             ? `${needed?.name.split(" ")[0] ?? "Relic"} · ${formatCompact(needed?.depth ?? 0)}`
-            : showNeeds
-              ? `+${formatSpeed(speed)}/s · needs workers`
-              : idleHere > 0
-                ? compact
-                  ? // Tight cards: the idle count is the news; the crew line has the speed.
-                    `${formatCompact(idleHere)} idle`
-                  : `${formatCompact(idleHere)} idle\u2009·\u2009${formatCompact(running * speed)}/s`
-                : synergy > 0
-                  ? compact
-                    ? // Tight cards keep just the arrow; the sheet and label say how much.
-                      `\u2191\u2009${formatCompact(running * speed)}/s`
-                    : `+${formatSpeed(speed)} ${lift} · ${formatCompact(running * speed)}/s`
-                  : compact
-                    ? count === 0
-                      ? `+${formatSpeed(speed)}/s`
-                      : `+${formatSpeed(speed)}\u2009·\u2009${formatCompact(running * speed)}/s`
-                    : count === 0
-                      ? `+${formatSpeed(speed)}/s each`
-                      : // "each" drops out once the total needs four digits, so the line fits.
-                        `+${formatSpeed(speed)}${running * speed < 1_000 ? " each" : ""} · ${formatCompact(running * speed)}/s`;
+            : tierPaceWords({
+                compact,
+                speed,
+                running,
+                count,
+                synergy,
+                idle: idleHere,
+                staff,
+                spare,
+              });
       card.setAttribute(
         "aria-label",
         cardTrouble !== undefined

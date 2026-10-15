@@ -6,9 +6,12 @@ import {
   cameBack,
   capWords,
   layerWelcomeWords,
+  materialFindWords,
+  materialsAwayWords,
   restingPace,
   workerWords,
 } from "./screen-words";
+import { workshopUnlocked } from "./workshop";
 
 /** The welcome-back card: what the crew mined while you were away, and helpers who joined. */
 export function createWelcomePanel({
@@ -31,12 +34,18 @@ export function createWelcomePanel({
   welcomeTitle.textContent = "While you were away";
   const welcomeMined = document.createElement("p");
   welcomeMined.className = "welcome-mined";
+  const welcomeMaterials = document.createElement("p");
+  welcomeMaterials.className = "welcome-materials";
+  welcomeMaterials.hidden = true;
   const welcomeDetail = document.createElement("p");
   welcomeDetail.className = "welcome-detail";
   const welcomeCheer = document.createElement("p");
   welcomeCheer.className = "welcome-cheer";
   welcomeCheer.textContent =
     "Time with the people who matter is never wasted. Your crew kept the mountain moving.";
+  const welcomeFinds = document.createElement("div");
+  welcomeFinds.className = "welcome-finds";
+  welcomeFinds.hidden = true;
   // One-time note for saves from before machines needed helpers (#89).
   const welcomeCrew = document.createElement("p");
   welcomeCrew.className = "welcome-crew";
@@ -62,8 +71,10 @@ export function createWelcomePanel({
   welcomeCard.append(
     welcomeTitle,
     welcomeMined,
+    welcomeMaterials,
     welcomeDetail,
     welcomeCheer,
+    welcomeFinds,
     welcomeCrew,
     welcomeEngineer,
     welcomeReturns,
@@ -114,6 +125,23 @@ export function createWelcomePanel({
       }),
     );
     welcomeCrafts.hidden = craftLines.length === 0;
+    const gainedLine =
+      report === undefined ? undefined : materialsAwayWords(report.materials);
+    welcomeMaterials.hidden = gainedLine === undefined;
+    welcomeMaterials.textContent = gainedLine ?? "";
+    const openWorkshop = workshopUnlocked(view.mountain);
+    const findLines = view.materialsFound.map((id) =>
+      materialFindWords(id, openWorkshop),
+    );
+    welcomeFinds.replaceChildren(
+      ...findLines.map((line) => {
+        const paragraph = document.createElement("p");
+        paragraph.className = "welcome-find";
+        paragraph.textContent = line;
+        return paragraph;
+      }),
+    );
+    welcomeFinds.hidden = findLines.length === 0;
     const wasOpen = !welcome.hidden;
     welcome.hidden =
       report === undefined &&

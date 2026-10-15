@@ -183,6 +183,33 @@ body {
   height: 16px;
 }
 
+/* A fat chip. The press is the tap, and the card says what the material is for. */
+.material-chip {
+  appearance: none;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.material-chip:active,
+.material-chip.is-pressed {
+  transform: scale(0.96);
+  background: rgba(232, 168, 74, 0.24);
+}
+
+.material-chip:focus-visible {
+  outline: 4px solid #e8d4b8;
+  outline-offset: 2px;
+}
+
 .pocket-actions {
   display: flex;
   align-items: center;
@@ -636,14 +663,16 @@ body {
 }
 
 /* The staffing warning wraps inside the fixed card; the idle line keeps its numbers. */
-.tier-needs-workers .tier-rate {
+.tier-needs-workers .tier-rate,
+.tier-idle .tier-rate {
   white-space: normal;
   font-size: 0.58rem;
   line-height: 1.05;
   letter-spacing: -0.02em;
 }
 
-.tier-grid-compact .tier-needs-workers .tier-rate {
+.tier-grid-compact .tier-needs-workers .tier-rate,
+.tier-grid-compact .tier-idle .tier-rate {
   font-size: 0.52rem;
   line-height: 1.02;
 }
@@ -806,6 +835,7 @@ body {
 .welcome-back,
 .layer-arrival,
 .craft-notice,
+.material-find,
 .relic-reveal,
 .shelf-dialog,
 .start-over,
@@ -831,6 +861,7 @@ body {
 .welcome-back[hidden],
 .layer-arrival[hidden],
 .craft-notice[hidden],
+.material-find[hidden],
 .relic-reveal[hidden],
 .shelf-dialog[hidden],
 .start-over[hidden],
@@ -844,6 +875,7 @@ body {
 .welcome-card,
 .layer-card,
 .notice-card,
+.material-card,
 .reveal-card,
 .shelf-card,
 .start-over-card,
@@ -1351,6 +1383,33 @@ body {
     gap: 0;
   }
 
+  /* The chip stays a 44px target. On a short phone it gives the extra
+     height back so the installed PWA's insets still fit without scrolling. */
+  .material-chip {
+    margin-block: -12px;
+  }
+
+  /* A homecoming that also names materials has to clear the gesture bar. */
+  .welcome-back.is-homecoming:has(.welcome-materials:not([hidden]))
+    .welcome-card,
+  .welcome-back.is-homecoming:has(.welcome-find:not([hidden])) .welcome-card {
+    gap: 2px;
+    padding-block: 4px;
+  }
+
+  .welcome-back.is-homecoming:has(.welcome-materials:not([hidden]))
+    .welcome-mined,
+  .welcome-back.is-homecoming:has(.welcome-find:not([hidden])) .welcome-mined {
+    font-size: 1.45rem;
+  }
+
+  .welcome-back.is-homecoming:has(.welcome-materials:not([hidden]))
+    .welcome-continue,
+  .welcome-back.is-homecoming:has(.welcome-find:not([hidden]))
+    .welcome-continue {
+    min-height: 44px;
+  }
+
   .mountain-wrap {
     min-height: 64px;
   }
@@ -1514,7 +1573,9 @@ body {
 .welcome-engineer,
 .welcome-return,
 .welcome-layer,
-.welcome-craft {
+.welcome-craft,
+.welcome-materials,
+.welcome-find {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 650;
@@ -1530,12 +1591,14 @@ body {
 
 .welcome-returns[hidden],
 .welcome-layers[hidden],
-.welcome-crafts[hidden] {
+.welcome-crafts[hidden],
+.welcome-finds[hidden] {
   display: none;
 }
 
 .welcome-layers,
-.welcome-crafts {
+.welcome-crafts,
+.welcome-finds {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1543,7 +1606,8 @@ body {
 }
 
 .layer-card,
-.notice-card {
+.notice-card,
+.material-card {
   gap: 8px;
   width: min(340px, 100%);
   padding: 16px 14px;
@@ -1566,7 +1630,8 @@ body {
 }
 
 .layer-card h2,
-.notice-card p {
+.notice-card p,
+.material-card p {
   margin: 0;
 }
 
@@ -1578,7 +1643,8 @@ body {
 .layer-evocative,
 .layer-advice,
 .layer-sketch,
-#craft-notice-line {
+#craft-notice-line,
+#material-find-line {
   margin: 0;
   font-size: 0.95rem;
   line-height: 1.25;
@@ -1594,7 +1660,8 @@ body {
 }
 
 .layer-dig,
-.craft-accept {
+.craft-accept,
+.material-keep {
   appearance: none;
   width: 100%;
   min-height: 52px;
@@ -1611,12 +1678,14 @@ body {
 
 .layer-dig:active,
 .craft-accept:active,
+.material-keep:active,
 .welcome-continue:active {
   transform: scale(0.97);
 }
 
 .layer-dig:focus-visible,
-.craft-accept:focus-visible {
+.craft-accept:focus-visible,
+.material-keep:focus-visible {
   outline: 4px solid #e8d4b8;
   outline-offset: 4px;
 }

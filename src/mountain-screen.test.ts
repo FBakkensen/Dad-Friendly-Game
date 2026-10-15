@@ -1776,7 +1776,9 @@ describe("crew staffing on screen", () => {
     });
     const screen = mountScreen({ storage });
     // 5 workers: one drill (3), then two carts; one cart and one drill idle.
-    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe("1 idle");
+    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
+      "+10\u2009·\u200920/s · needs 1 worker",
+    );
     expect(
       screen.root
         .querySelector('[data-tier="cart"]')
@@ -1792,7 +1794,9 @@ describe("crew staffing on screen", () => {
         .querySelector('[data-tier="cart"]')
         ?.getAttribute("aria-label"),
     ).toContain(NEEDS_MORE_WORKERS);
-    expect(screen.text('[data-tier="drill"] .tier-rate')).toBe("1 idle");
+    expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
+      "+60\u2009·\u200960/s · needs 3 workers",
+    );
     expect(screen.text(".crew-status")).toBe("85/s · 2 idle, need 4 workers");
 
     // Hiring one worker finishes the drills; the carts wait.
@@ -1818,7 +1822,7 @@ describe("crew staffing on screen", () => {
     const screen = mountScreen({ storage });
     const borer = screen.root.querySelector('[data-tier="borer"]');
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+595/s · needs workers",
+      "+595\u2009·\u20090/s · needs 3 workers",
     );
     expect(borer?.getAttribute("aria-label")).toContain(NEEDS_MORE_WORKERS);
     expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
@@ -1841,13 +1845,126 @@ describe("crew staffing on screen", () => {
         screen.root.querySelector<HTMLButtonElement>('[data-tier="cart"]');
       cart?.click();
       expect(cart?.querySelector(".float-gain")?.textContent).toBe(
-        "+10/s · needs workers",
+        "+10/s · needs 1 worker",
       );
       expect(screen.text(".crew-status")).toBe("11/s · 1 idle, need 1 worker");
     } finally {
       vi.useRealTimers();
       setReducedMotion(true);
     }
+  });
+});
+
+describe("Flemming's cart and the first clay (#216)", () => {
+  it("shows what one more cart adds, and how many workers a borer needs", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(4_500_000),
+        pocket: 255_200,
+        helpers: 28,
+        carts: 13,
+        drills: 5,
+        upgrades: { boots: 1, cartSyn: 1 },
+        materials: { clay: 4, iron: 0, crystal: 0, heartstone: 0 },
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    expect(screen.text('[data-tier="helper"] .tier-rate')).toBe(
+      "+2.4\u2009·\u200966/s",
+    );
+    expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
+      "+12\u2009·\u2009166/s",
+    );
+    expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
+      "+60\u2009·\u2009300/s",
+    );
+    expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
+      "+595\u2009·\u20090/s · needs 8 workers",
+    );
+    expect(screen.text(".material-line")).toContain("Clay 4");
+  });
+
+  it("names the first clay once, live, then again from the chip", () => {
+    const screen = mountScreen();
+    screen.progress.applyMutation(() => minedMountain(999_999));
+    screen.progress.applyMutation(() => minedMountain(1_000_000));
+    expect(
+      screen.root.querySelector<HTMLElement>(".relic-reveal")?.hidden,
+    ).toBe(false);
+    expect(
+      screen.root.querySelector<HTMLElement>(".material-find")?.hidden,
+    ).toBe(true);
+    screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
+    expect(screen.text("#material-find-line")).toBe(
+      "Clay! Keep it. The workshop below the Granite will turn it into gear.",
+    );
+    screen.root.querySelector<HTMLButtonElement>(".material-keep")?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".material-find")?.hidden,
+    ).toBe(true);
+    expect(screen.progress.getSnapshot().materialsFound).toEqual([]);
+
+    const chip = screen.root.querySelector<HTMLButtonElement>(".material-chip");
+    chip?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    expect(chip?.classList.contains("is-pressed")).toBe(true);
+    chip?.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    expect(chip?.classList.contains("is-pressed")).toBe(false);
+    chip?.click();
+    expect(screen.text("#material-find-line")).toContain(
+      "workshop below the Granite",
+    );
+    screen.root.querySelector<HTMLButtonElement>(".material-keep")?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".material-find")?.hidden,
+    ).toBe(true);
+    screen.progress.dispose();
+  });
+
+  it("names the use once the workshop is open", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(12_000_000), helpers: 1 },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    expect(
+      screen.root.querySelector<HTMLElement>(".material-find")?.hidden,
+    ).toBe(true);
+    screen.root.querySelector<HTMLButtonElement>(".material-chip")?.click();
+    expect(screen.text("#material-find-line")).toBe(
+      "Clay! Keep it. The workshop turns it into charges and props for the crew.",
+    );
+    screen.progress.dispose();
+  });
+
+  it("names clay earned while away, including the first unit", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(0), helpers: 50, carts: 50, pocket: 0 },
+      lastSeen: 0,
+    });
+    const screen = mountScreen({ storage, now: () => 10 * 3_600_000 });
+    expect(screen.text(".welcome-materials")).toBe("+4 clay");
+    expect(screen.text(".welcome-find")).toBe(
+      "Clay! Keep it. The workshop below the Granite will turn it into gear.",
+    );
+    expect(
+      screen.root.querySelector<HTMLElement>(".material-find")?.hidden,
+    ).toBe(true);
+    screen.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(true);
+    expect(
+      screen.root.querySelector<HTMLElement>(".material-find")?.hidden,
+    ).toBe(true);
+    expect(screen.progress.getSnapshot().materialsFound).toEqual([]);
+    screen.progress.dispose();
   });
 });
 
@@ -3551,11 +3668,12 @@ describe("layer card, material line, and craft-done notice", () => {
       }
       return button;
     };
-    for (let step = 0; step < 12; step += 1) {
+    for (let step = 0; step < 24; step += 1) {
       const button =
         visible(".welcome-continue") ??
         visible(".reveal-continue") ??
         visible(".layer-dig") ??
+        visible(".material-keep") ??
         visible(".craft-accept");
       if (button === undefined) {
         return;
@@ -3780,6 +3898,7 @@ describe("layer card, material line, and craft-done notice", () => {
           crewJoined: undefined,
           engineerJoined: undefined,
           homecomings: [],
+          materialsFound: [],
           mountain: createMountain(),
         }) as unknown as ReturnType<
           ReturnType<typeof createProgressStore>["getSnapshot"]

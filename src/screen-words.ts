@@ -16,7 +16,12 @@ import {
 import type { BoostId } from "./boosts";
 import { formatCompact, formatCount, formatDuration } from "./format";
 import type { TroubleKind } from "./hazards";
-import type { LayerId } from "./layers";
+import {
+  LAYERS,
+  type LayerId,
+  type MaterialId,
+  type Materials,
+} from "./layers";
 import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { owned, tierById, type TierId } from "./tiers";
@@ -45,6 +50,55 @@ export const formatSpeed = (speed: number): string =>
   speed < 10 && !Number.isInteger(speed)
     ? speed.toFixed(1)
     : formatCompact(speed);
+
+/**
+ * What one more of this tier adds, then what the ones running mine now.
+ * A synergy percent stays on a wide card. Compact cards keep `+N · total/s`
+ * either way: an arrow alone was hiding the gain. A machine that cannot
+ * run the next one still shows that gain, and how many workers it is short.
+ */
+export function tierPaceWords({
+  compact,
+  speed,
+  running,
+  count,
+  synergy,
+  idle,
+  staff,
+  spare,
+}: {
+  readonly compact: boolean;
+  readonly speed: number;
+  readonly running: number;
+  readonly count: number;
+  readonly synergy: number;
+  readonly idle: number;
+  readonly staff: number;
+  readonly spare: number;
+}): string {
+  const gain = formatSpeed(speed);
+  const total = formatCompact(running * speed);
+  const short = Math.max(0, staff - Math.max(0, spare));
+  const blocked = staff > 0 && short > 0 && (count === 0 || idle > 0);
+  if (blocked) {
+    const need = `needs ${formatCompact(short)} ${workerWords(short)}`;
+    return compact
+      ? `+${gain}\u2009·\u2009${total}/s · ${need}`
+      : `+${gain} · ${total}/s · ${need}`;
+  }
+  if (count === 0) {
+    return compact ? `+${gain}/s` : `+${gain}/s each`;
+  }
+  if (!compact && synergy > 0) {
+    const lift = `\u2191${String(Math.round(synergy * 100))}%`;
+    return `+${gain} ${lift} · ${total}/s`;
+  }
+  if (!compact) {
+    const each = running * speed < 1_000 ? " each" : "";
+    return `+${gain}${each} · ${total}/s`;
+  }
+  return `+${gain}\u2009·\u2009${total}/s`;
+}
 
 /** 9:05, or 1:02:03 past an hour. */
 export const formatClock = (ms: number): string => {
@@ -796,6 +850,52 @@ export function materialCountWords(
   count: number,
 ): string {
   return `${MATERIAL_LABEL[material]} ${formatCompact(count)}`;
+}
+
+/**
+ * The first unit of a material. Before the workshop is open the shed stays
+ * a place below the Granite. After it opens, the line names the use.
+ */
+const MATERIAL_FIND_OPEN: Readonly<Record<MaterialId, string>> = {
+  clay: "Clay! Keep it. The workshop turns it into charges and props for the crew.",
+  iron: "Iron! Keep it. The workshop turns it into rails and grease for the crew.",
+  crystal:
+    "Crystal! Keep it. The workshop turns this glitter into bits and light for the crew.",
+  heartstone:
+    "Heartstone! Keep it. The workshop turns this warm stone into a heart for the machine.",
+};
+
+export function materialFindWords(
+  id: MaterialId,
+  workshopOpen: boolean,
+): string {
+  if (!workshopOpen) {
+    return `${MATERIAL_LABEL[id]}! Keep it. The workshop below the Granite will turn it into gear.`;
+  }
+  return MATERIAL_FIND_OPEN[id];
+}
+
+/** The button on the first-find card. */
+export const MATERIAL_KEEP = "Keep it";
+
+/**
+ * Materials the absence added. "+4 clay", or "+4 clay · +2 iron".
+ * Nothing earned is no line.
+ */
+export function materialsAwayWords(
+  gained: Materials | undefined,
+): string | undefined {
+  if (gained === undefined) {
+    return undefined;
+  }
+  const parts: string[] = [];
+  for (const layer of LAYERS) {
+    const count = gained[layer.material];
+    if (count > 0) {
+      parts.push(`+${formatCompact(count)} ${layer.material}`);
+    }
+  }
+  return parts.length === 0 ? undefined : parts.join(" · ");
 }
 
 /** "4 iron" on a recipe card. */

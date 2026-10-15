@@ -1,4 +1,4 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, PointerEvent */
 /**
  * Real-browser layout guard (jsdom can't see CSS). Run it with:
  *   npm run visual   (starts its own dev server; part of npm run check, so CI runs it)
@@ -2038,6 +2038,170 @@ for (const viewport of NOTICE_SIZES) {
       console.log("four chips", size, line, fit);
     }
     await shot(page, `materials-four-${size}`);
+    await close();
+  }
+
+  {
+    const { page, close } = await open(
+      viewport,
+      noticeSave({
+        mined: 4_500_000,
+        lastSeen: now,
+        mountain: {
+          pocket: 255_200,
+          helpers: 28,
+          carts: 13,
+          drills: 5,
+          upgrades: { boots: 1, cartSyn: 1 },
+        },
+        workshop: {
+          materials: { clay: 4, iron: 0, crystal: 0, heartstone: 0 },
+        },
+      }),
+    );
+    const rates = await page.$$eval(".tier-rate", (nodes) =>
+      nodes.map((node) => node.textContent ?? ""),
+    );
+    const cart = rates.find((line) => line.includes("166"));
+    const borer = rates.find((line) => line.includes("595"));
+    const inside = await page.$$eval(".tier-rate", (nodes) =>
+      nodes.every((node) => {
+        const card = node.closest(".tier");
+        if (card === null || card.hidden) {
+          return true;
+        }
+        const rate = node.getBoundingClientRect();
+        const box = card.getBoundingClientRect();
+        return (
+          rate.height > 0 &&
+          rate.bottom <= box.bottom + 1 &&
+          rate.right <= box.right + 1
+        );
+      }),
+    );
+    const still = await noScroll(page);
+    check(
+      still &&
+        inside &&
+        cart !== undefined &&
+        cart.startsWith("+") &&
+        cart.includes("·") &&
+        !cart.startsWith("\u2191") &&
+        borer !== undefined &&
+        borer.includes("needs 8 workers"),
+      `${size} cart shows +N and the borer says how many workers`,
+    );
+    if (!still || !inside || cart === undefined || borer === undefined) {
+      console.log("crew gains", size, rates, inside);
+    }
+    await shot(page, `crew-gains-${size}`);
+    await close();
+  }
+
+  {
+    const { page, close } = await open(
+      viewport,
+      noticeSave({ mined: 999_999, lastSeen: now }),
+    );
+    await page.tap(".mountain");
+    await page.waitForSelector(".relic-reveal:not([hidden])", {
+      timeout: 3_000,
+    });
+    await page.tap(".reveal-continue");
+    await page.waitForSelector(".material-find:not([hidden])", {
+      timeout: 3_000,
+    });
+    const fit = await fitOf(page, ".material-card", "p, button");
+    const still = await noScroll(page);
+    check(
+      still &&
+        fit.boxesOk &&
+        fit.typeOk &&
+        fit.texts.includes("Keep it") &&
+        fit.body.includes(
+          "Clay! Keep it. The workshop below the Granite will turn it into gear.",
+        ),
+      `${size} first clay card fits`,
+    );
+    if (!still || !fit.boxesOk || !fit.typeOk) {
+      console.log("first clay", size, fit);
+    }
+    await shot(page, `first-clay-${size}`);
+    await page.tap(".material-keep");
+    await close();
+  }
+
+  {
+    const { page, close } = await open(
+      viewport,
+      noticeSave({
+        mined: 4_500_000,
+        lastSeen: now,
+        mountain: { helpers: 1, pocket: 100 },
+        workshop: {
+          materials: { clay: 4, iron: 0, crystal: 0, heartstone: 0 },
+        },
+      }),
+    );
+    await page.waitForSelector(".material-chip", { timeout: 3_000 });
+    const pressed = await page.$eval(".material-chip", (chip) => {
+      chip.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      const down = chip.classList.contains("is-pressed");
+      const scale = getComputedStyle(chip).transform;
+      chip.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+      return { down, scale, up: chip.classList.contains("is-pressed") };
+    });
+    await page.tap(".material-chip");
+    await page.waitForSelector(".material-find:not([hidden])", {
+      timeout: 3_000,
+    });
+    const fit = await fitOf(page, ".material-card", "p, button");
+    const still = await noScroll(page);
+    check(
+      still &&
+        fit.boxesOk &&
+        fit.typeOk &&
+        pressed.down &&
+        !pressed.up &&
+        pressed.scale !== "none" &&
+        fit.body.includes("workshop below the Granite"),
+      `${size} clay chip presses and explains`,
+    );
+    if (!still || !fit.boxesOk || !pressed.down) {
+      console.log("clay chip", size, fit, pressed);
+    }
+    await shot(page, `clay-chip-${size}`);
+    await close();
+  }
+
+  {
+    const { page, close } = await open(
+      viewport,
+      noticeSave({
+        mined: 0,
+        lastSeen: now - 10 * 3_600_000,
+        mountain: { helpers: 50, carts: 50, pocket: 0 },
+        workshop: {
+          materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+        },
+      }),
+    );
+    await page.waitForSelector(".welcome-materials", { timeout: 3_000 });
+    const fit = await fitOf(page, ".welcome-card", "h2, p, button");
+    const still = await noScroll(page);
+    check(
+      still &&
+        fit.boxesOk &&
+        fit.typeOk &&
+        fit.texts.includes("Back to the mountain") &&
+        fit.body.includes("+4 clay") &&
+        fit.body.includes("Clay! Keep it."),
+      `${size} welcome card names clay earned while away`,
+    );
+    if (!still || !fit.boxesOk || !fit.typeOk) {
+      console.log("welcome clay", size, fit);
+    }
+    await shot(page, `welcome-clay-${size}`);
     await close();
   }
 }
