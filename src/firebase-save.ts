@@ -84,6 +84,8 @@ export function createFirebaseCloudSave({
         (snap) => {
           onChange(readSnap(snap));
         },
+        // The snapshot stops after an error. The progress store starts a new
+        // listener with backoff; this callback only reports the gap.
         () => {
           onChange({ kind: "unavailable" });
         },
