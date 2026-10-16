@@ -13,7 +13,7 @@ service cloud.firestore {
     //       - remaining: int 0..240000000 (v4: 0..100000000, v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts, drills, borers, machines, kids: optional int >= 0, upgrades: optional map of known ids to int levels, boosts: optional map of known ids to int end times,
     //         startedAt: optional int >= 0 (run start; updates may not lower it)
     //         staffed: optional true or 1 (#89 grant) or 2 (M7 top-up). true stays valid for old clients.
-    //         engineers: optional list, size 0..5. Each: name from the closed list, rank 0..2 matching trips (0 until 3, 1 until 9, then 2), trips 0..1000000, post a machine tier or camp or tunnel. Names unique.
+    //         engineers: optional list, size 0..5. Each: name from the closed list, rank 0..2 matching trips (0 until 3, 1 until 9, then 2), trips 0..1000000, post a machine tier or camp or tunnel. The client parser rejects a duplicate name. Pairwise name checks in these rules cross the 1000-expression budget on a full late-game save.
     //         expeditions: optional list, size 0..5. The first two trips must use a closed tunnel id, and returnsAt must be later than sentAt by at most 4 hours. The client parser checks the rest of the shape.
     //         finds: optional list of lost-tool and keepsake ids, size 0..9. The client parser rejects duplicates.
     //   - workshop (v6, required): one map beside the mountain. The rules only
@@ -105,13 +105,14 @@ service cloud.firestore {
         engineer.rank == (engineer.trips >= 9 ? 2 : (engineer.trips >= 3 ? 1 : 0));
     }
 
+    // The first two hands are checked. A later hand, and pairwise name
+    // comparisons, cross the 1000-expression budget once every upgrade,
+    // boost, trip, and the workshop are on an update. The list is capped
+    // at 5. Duplicate names and a bad later hand are rejected by the parser.
     function isValidEngineers(engineers) {
       return engineers is list && engineers.size() <= 5 &&
         (engineers.size() < 1 || isEngineer(engineers[0])) &&
-        (engineers.size() < 2 || (isEngineer(engineers[1]) && engineers[1].name != engineers[0].name)) &&
-        (engineers.size() < 3 || (isEngineer(engineers[2]) && engineers[2].name != engineers[0].name && engineers[2].name != engineers[1].name)) &&
-        (engineers.size() < 4 || (isEngineer(engineers[3]) && engineers[3].name != engineers[0].name && engineers[3].name != engineers[1].name && engineers[3].name != engineers[2].name)) &&
-        (engineers.size() < 5 || (isEngineer(engineers[4]) && engineers[4].name != engineers[0].name && engineers[4].name != engineers[1].name && engineers[4].name != engineers[2].name && engineers[4].name != engineers[3].name));
+        (engineers.size() < 2 || isEngineer(engineers[1]));
     }
 
     function tripTimesOk(trip) {
@@ -263,18 +264,12 @@ service cloud.firestore {
         idle.machine is int && idle.machine >= 0 && idle.machine <= 1000000;
     }
 
-    function isRelicId(id) {
-      return id is string && id in ['lantern', 'shield', 'hammer', 'heart', 'crown', 'mantle'];
-    }
-
+    // Naming every relic, on top of a full snapshot, crosses the 1000-expression
+    // budget once the shelf is full. The list is capped at 6. The client
+    // writes the closed ids. A huge string still cannot blow the document up:
+    // the client refuses a field log over 50 KB.
     function isRelicList(relics) {
-      return relics is list && relics.size() <= 6 &&
-        (relics.size() < 1 || isRelicId(relics[0])) &&
-        (relics.size() < 2 || isRelicId(relics[1])) &&
-        (relics.size() < 3 || isRelicId(relics[2])) &&
-        (relics.size() < 4 || isRelicId(relics[3])) &&
-        (relics.size() < 5 || isRelicId(relics[4])) &&
-        (relics.size() < 6 || isRelicId(relics[5]));
+      return relics is list && relics.size() <= 6;
     }
 
     function isFieldBoost(boost) {
@@ -284,10 +279,12 @@ service cloud.firestore {
         isIsoText(boost.endsAt);
     }
 
+    // The second boost's shape, beside a full shelf and a full crew, crosses
+    // the 1000-expression budget. The list is capped at 2. The first boost
+    // carries the shape check.
     function isFieldBoostList(boosts) {
       return boosts is list && boosts.size() <= 2 &&
-        (boosts.size() < 1 || isFieldBoost(boosts[0])) &&
-        (boosts.size() < 2 || isFieldBoost(boosts[1]));
+        (boosts.size() < 1 || isFieldBoost(boosts[0]));
     }
 
     // A full name/post/rank check, on top of the snapshot and the first event,

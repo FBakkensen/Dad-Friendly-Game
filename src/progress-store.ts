@@ -34,6 +34,7 @@ import {
   EventRing,
   FIELD_LOG_COPY_COUNT,
   FIELD_LOG_WRITE_GAP_MS,
+  fieldErrorId,
   fieldLogFingerprint,
   shouldWriteFieldLog,
   snapshot as fieldSnapshot,
@@ -191,6 +192,8 @@ export function createProgressStore({
   let hydrateGeneration = 0;
   let hydrated = false;
   let inFlightWrites = 0;
+  /** A rejected write must not be replaced by the older server snapshot. */
+  let holdLocal = false;
   let saveKind: SaveKind = "unsigned";
   let watchingCloud = false;
   let unwatch: (() => void) | undefined;
@@ -624,25 +627,31 @@ export function createProgressStore({
     }
   };
 
-  /** Taps are unbounded, so cloud writes are throttled; the last tap always lands. */
-  const persistCloudSoon = (): void => {
+  /**
+   * Taps are unbounded, so cloud writes are throttled; the last tap always lands.
+   * A retry waits out the same gap and does not schedule another retry.
+   */
+  const persistCloudSoon = (retry = false): void => {
     if (pendingCloudWrite !== undefined) {
-      return;
+      if (retry) {
+        return;
+      }
+      cancelPendingCloudWrite();
     }
     const wait = lastCloudWriteAt + cloudWriteGapMs - now();
     if (wait <= 0) {
-      persistCloud();
+      persistCloud(retry);
       return;
     }
     pendingCloudWrite = setTimeout(() => {
       pendingCloudWrite = undefined;
       if (!disposed) {
-        persistCloud();
+        persistCloud(retry);
       }
     }, wait);
   };
 
-  const persistCloud = (): void => {
+  const persistCloud = (retry = false): void => {
     cancelPendingCloudWrite();
     const state = auth.getState();
     if (state.kind !== "signed-in" || !hydrated) {
@@ -662,6 +671,7 @@ export function createProgressStore({
         }
         switch (result.kind) {
           case "ok":
+            holdLocal = false;
             saveKind = "account";
             logger.record({
               level: "info",
@@ -671,14 +681,21 @@ export function createProgressStore({
             });
             break;
           case "failed":
+            holdLocal = true;
             saveKind = "error";
-            record("save.error", { source: "write" });
+            record("save.error", {
+              source: "write",
+              id: fieldErrorId(result.message),
+            });
             logger.record({
               level: "error",
               code: "save.write",
               detail: result.message,
               data: counts,
             });
+            if (!retry) {
+              persistCloudSoon(true);
+            }
             break;
           default: {
             const _exhaustive: never = result;
@@ -742,7 +759,10 @@ export function createProgressStore({
         return;
       }
       lastFieldLogFingerprint = undefined;
-      record("save.error", { source: "field-log" });
+      record("save.error", {
+        source: "field-log",
+        id: fieldErrorId(result.message),
+      });
       logger.record({
         level: "error",
         code: "field-log.write",
@@ -792,7 +812,10 @@ export function createProgressStore({
 
   const applyRemote = (remote: CloudLoadResult): void => {
     const localAhead = inFlightWrites > 0 || pendingCloudWrite !== undefined;
-    if (localAhead && remote.kind === "found") {
+    // A rejected write leaves the server on the previous mountain. Adopting
+    // that snapshot undoes the promote after the cheer. Keep local until a
+    // write succeeds, or a new watch starts.
+    if (remote.kind === "found" && (localAhead || holdLocal)) {
       return;
     }
     if (
@@ -858,6 +881,7 @@ export function createProgressStore({
 
   const stopWatch = (): void => {
     cancelPendingCloudWrite();
+    holdLocal = false;
     hydrateGeneration += 1;
     hydrated = false;
     lastFieldLogAt = undefined;
@@ -910,6 +934,7 @@ export function createProgressStore({
       clearSessionSave({ storage: sessionStore });
     }
     const generation = (hydrateGeneration += 1);
+    holdLocal = false;
     hydrated = false;
     lastFieldLogAt = undefined;
     lastFieldLogFingerprint = undefined;

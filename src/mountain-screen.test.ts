@@ -2960,6 +2960,32 @@ describe("engineers sheet (#145)", () => {
     expect(sheet.hidden).toBe(true);
   });
 
+  it("does not cheer when Step up is no longer affordable", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: withAda(),
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const sheet = openSheet(screen.root);
+    sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
+    expect(sheet.querySelector<HTMLElement>(".engineer-confirm")?.hidden).toBe(
+      false,
+    );
+    screen.progress.applyMutation((current) => ({ ...current, pocket: 0 }));
+    sheet.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
+    expect(screen.text(".engineer-toast")).toBe("");
+    expect(sheet.querySelector<HTMLElement>(".engineer-toast")?.hidden).toBe(
+      true,
+    );
+    expect(screen.progress.getSnapshot().mountain.engineers).toEqual([
+      { name: "Ada", rank: 0, trips: 0, post: "borer" },
+    ]);
+    expect(screen.progress.getSnapshot().mountain.pocket).toBe(0);
+    expect(screen.progress.getSnapshot().mountain.helpers).toBe(20);
+  });
+
   it("shows lamps and a near-rank hint instead of a trip count", () => {
     const storage = createMemoryStorage();
     writeSessionSave({

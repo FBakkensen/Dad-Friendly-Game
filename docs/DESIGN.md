@@ -499,7 +499,7 @@ Mockups come first (M9-2), using the existing `mockups/` puppeteer flow, at 390Ã
 
 #### Save
 
-Save **v6**. In memory these sit on the mountain. In the document they are one `workshop` map beside it, because a full crew is already at the Firestore expression budget:
+Save **v6**. In memory these sit on the mountain. In the document they are one `workshop` map beside it, because a full crew is already at the Firestore expression budget. Duplicate names, and the shape of a third engineer onward, stay in the client parser so promoting that hand still writes:
 
 - `materials: { clay, iron, crystal, heartstone }`, integers. Each is capped at that band's width in stones.
 - `bench: { recipe, startedAt, endsAt } | null`. A recipe this build has not heard of still holds the bench until that clock ends. The sheet says "Something is on the bench" and counts it down. A new craft waits, and there is no refund, because this build does not know what was spent. After the clock, a known craft may take the bench. Until then the unknown craft is written back.

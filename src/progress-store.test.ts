@@ -1129,9 +1129,58 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     expect(progress.fieldLog().events).toContainEqual(
       expect.objectContaining({
         code: "save.error",
-        data: { source: "write" },
+        data: { source: "write", id: "denied" },
       }),
     );
+    progress.dispose();
+  });
+
+  it("keeps local progress when a rejected write is followed by the older server copy", async () => {
+    const server = minedMountain(5);
+    let deliver: ((remote: CloudLoadResult) => void) | undefined;
+    let writes = 0;
+    const cloud: CloudSave = {
+      load: () =>
+        Promise.resolve({ kind: "found", mountain: server, lastSeen: 1 }),
+      write: () => {
+        writes += 1;
+        return Promise.resolve({
+          kind: "failed",
+          message: "permission-denied",
+        });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({ kind: "found", mountain: server, lastSeen: 1 });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+      now: () => 1,
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("account");
+    });
+    progress.applyMutation((current) => ({ ...current, pocket: 99 }));
+    await vi.waitFor(() => {
+      expect(writes).toBe(2);
+    });
+    expect(progress.getSnapshot().saveKind).toBe("error");
+    deliver?.({ kind: "found", mountain: server, lastSeen: 1 });
+    expect(progress.getSnapshot().mountain.pocket).toBe(99);
+    expect(progress.getSnapshot().saveKind).toBe("error");
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "save.error",
+        data: { source: "write", id: "permission-denied" },
+      }),
+    );
+    expect(progress.getSnapshot().log).toContain("permission-denied");
     progress.dispose();
   });
 
@@ -1936,7 +1985,7 @@ describe("field log cloud copy", () => {
     expect(progress.fieldLog().events).toContainEqual(
       expect.objectContaining({
         code: "save.error",
-        data: { source: "field-log" },
+        data: { source: "field-log", id: "denied" },
       }),
     );
 
