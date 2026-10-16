@@ -34,6 +34,12 @@ export const FIELD_LOG_MAX_BYTES = 50 * 1024;
 /** Longest string the field-log rules allow (ISO-8601 is 24). */
 export const FIELD_LOG_TEXT_MAX = 24;
 
+/** A server error short enough for one field-log `id`. */
+export function fieldErrorId(message: string): string {
+  const compact = message.trim().slice(0, FIELD_LOG_TEXT_MAX);
+  return compact.length > 0 ? compact : "unavailable";
+}
+
 /** Keys one event's `data` map may hold. Mirrored in `firestore.rules`. */
 export const FIELD_EVENT_DATA_KEYS = [
   "count",

@@ -34,7 +34,7 @@ import {
   type Mountain,
 } from "../src/mountain";
 import { MAX_MATERIAL } from "../src/layers";
-import { MAX_CRAFTED_LEVEL, MAX_CRAFT_MS } from "../src/workshop";
+import { MAX_CRAFTED_LEVEL, MAX_CRAFT_MS, RECIPE_IDS } from "../src/workshop";
 import { parseSaveValue, serializeSave } from "../src/persist";
 import { effectiveRates } from "../src/rates";
 import { UPGRADES } from "../src/upgrades";
@@ -190,9 +190,21 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     await expect(
       write([{ ...engineers[0], trips: 1_000_001, rank: 2 }]),
     ).rejects.toThrow(/permission/i);
-    await expect(write([engineers[0], engineers[0]])).rejects.toThrow(
-      /permission/i,
-    );
+    // Duplicate names, and a bad fourth hand, are parser rejects. Checking
+    // them here crosses the expression budget on a full late save (#219).
+    await expect(write([engineers[0], engineers[0]])).resolves.toBeUndefined();
+    const duplicated = await getDoc(doc(db, "saves", "dad"));
+    expect(parseSaveValue(duplicated.data())).toBeUndefined();
+    const third = engineers[2];
+    const badFourth = [
+      engineers[0],
+      engineers[1],
+      third === undefined ? engineers[0] : third,
+      { ...(engineers[3] ?? engineers[0]), name: "Bob" },
+    ];
+    await expect(write(badFourth)).resolves.toBeUndefined();
+    const later = await getDoc(doc(db, "saves", "dad"));
+    expect(parseSaveValue(later.data())).toBeUndefined();
     await expect(write([{ ...engineers[0], nickname: "Ace" }])).rejects.toThrow(
       /permission/i,
     );
@@ -425,6 +437,17 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     ]);
   });
 
+  it("accepts a maximal v6 save (#219)", async () => {
+    const mountain = maximalMountain();
+    expect(mountain.engineers).toHaveLength(MAX_ENGINEERS);
+    expect(mountain.finds).toHaveLength(FIND_IDS.length);
+    expect(mountain.recipes).toHaveLength(RECIPE_IDS.length);
+    // An existing document makes this an update, which spends more expressions
+    // than a create. Promoting the fourth engineer is an update.
+    await save(createMountain());
+    expect(await roundTrip(mountain)).toEqual(mountain);
+  });
+
   it("rejects unknown upgrades and levels past the top", async () => {
     await expect(
       save({
@@ -442,6 +465,73 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     }
   });
 });
+
+/** A late v6 mountain with every list and map the rules still have to walk. */
+function maximalMountain(): Mountain {
+  const engineers: Engineer[] = ENGINEER_NAMES.map((name, index) => ({
+    name,
+    rank: index === 0 ? 0 : 1,
+    trips: index === 0 ? 0 : 3,
+    post: "tunnel",
+  }));
+  const expeditions: Expedition[] = engineers.map((engineer, index) => ({
+    engineer: engineer.name,
+    tunnel:
+      index === 2 ? "deep-dark" : index % 2 === 0 ? "side-seam" : "old-shaft",
+    sentAt: 1_000 + index,
+    returnsAt: 1_000 + index + (index === 2 ? MAX_EXPEDITION_MS : 60_000),
+    home: "camp",
+    find:
+      index === 0
+        ? { kind: "keepsake", id: "drawing" }
+        : index === 1
+          ? { kind: "tool", id: "pick" }
+          : index === 2
+            ? { kind: "glimmer", id: "heart" }
+            : index === 3
+              ? { kind: "quiet" }
+              : { kind: "glimmer", id: "lantern" },
+  }));
+  return {
+    ...createMountain(),
+    remaining: 0,
+    pocket: 80_000_000,
+    helpers: 40,
+    carts: 12,
+    drills: 8,
+    borers: 4,
+    machines: 2,
+    kids: 6,
+    upgrades: Object.fromEntries(
+      UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
+    ),
+    boosts: Object.fromEntries(
+      BOOSTS.map((boost) => [boost.id, 1_800_000_000_000]),
+    ),
+    startedAt: 0,
+    legacy: 1,
+    engineers,
+    expeditions,
+    finds: [...FIND_IDS],
+    materials: {
+      clay: MAX_MATERIAL.clay,
+      iron: MAX_MATERIAL.iron,
+      crystal: MAX_MATERIAL.crystal,
+      heartstone: MAX_MATERIAL.heartstone,
+    },
+    recipes: [...RECIPE_IDS],
+    bench: {
+      recipe: "iron-rails",
+      startedAt: 1_000,
+      endsAt: 1_000 + MAX_CRAFT_MS,
+    },
+    crafted: Object.fromEntries(RECIPE_IDS.map((id) => [id, 1])),
+    chargeUntil: 50_000,
+    flareUntil: 60_000,
+    emberUntil: 70_000,
+    axleUntil: 80_000,
+  };
+}
 
 const ISO = "2026-01-02T03:04:05.000Z";
 
@@ -474,6 +564,30 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     delete older["engineers"];
     delete older["expeditions"];
     const written = { ...fieldLog([event]), snapshot: older };
+    await setDoc(doc(db, "fieldLogs", "dad"), written);
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
+  });
+
+  it("accepts a maximal late-game snapshot and a full ring (#219)", async () => {
+    const mountain = maximalMountain();
+    const now = 1;
+    const written = {
+      snapshot: snapshot(
+        mountain,
+        effectiveRates(mountain, now),
+        now,
+        APP_VERSION,
+      ),
+      events: Array.from({ length: EVENT_RING_LIMIT }, () => event),
+      updatedAt: now,
+    };
+    expect(written.snapshot.engineers).toHaveLength(MAX_ENGINEERS);
+    expect(written.snapshot.expeditions).toHaveLength(MAX_EXPEDITIONS);
+    expect(written.snapshot.boosts).toHaveLength(BOOSTS.length);
+    expect(written.snapshot.relics).toHaveLength(6);
+    expect(Object.keys(written.snapshot.upgrades)).toHaveLength(
+      UPGRADES.length,
+    );
     await setDoc(doc(db, "fieldLogs", "dad"), written);
     expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
   });

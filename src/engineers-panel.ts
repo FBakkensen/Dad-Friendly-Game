@@ -564,20 +564,20 @@ export function createEngineersPanel({
   });
   confirmYes.addEventListener("click", () => {
     const view = getView();
-    if (!view.ready) {
-      return;
-    }
-    const engineers = view.mountain.engineers ?? [];
-    const next = nextEngineerName(engineers);
-    if (next === undefined) {
-      return;
-    }
     confirming = false;
-    expanded = engineers.length;
     menu = undefined;
-    cheer(promoteCheer(next));
-    glow(engineers.length);
-    progress.applyMutation((current) => promote(current));
+    const beforeCount = view.mountain.engineers?.length ?? 0;
+    // Price and a free worker can change while the confirm sits open.
+    if (canPromote(view)) {
+      progress.applyMutation((current) => promote(current));
+    }
+    const name = getView().mountain.engineers?.[beforeCount]?.name;
+    if (name !== undefined) {
+      expanded = beforeCount;
+      cheer(promoteCheer(name));
+      glow(beforeCount);
+    }
+    requestRender();
   });
   confirmActions.append(confirmNo, confirmYes);
   confirm.append(confirmLine, confirmActions);

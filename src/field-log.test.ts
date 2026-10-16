@@ -9,6 +9,7 @@ import {
   FIELD_LOG_MAX_BYTES,
   FIELD_LOG_TEXT_MAX,
   FIELD_LOG_WRITE_GAP_MS,
+  fieldErrorId,
   fieldLogDocumentBytes,
   fieldLogFingerprint,
   fieldLogWithinBudget,
@@ -39,6 +40,16 @@ function personalKeys(value: unknown, keys: Set<string>): void {
     }
   }
 }
+
+describe("fieldErrorId", () => {
+  it("keeps a short server error and caps a long one", () => {
+    expect(fieldErrorId("permission-denied")).toBe("permission-denied");
+    expect(fieldErrorId("  maximum of 1000 expressions reached  ")).toBe(
+      "maximum of 1000 expressi",
+    );
+    expect(fieldErrorId("   ")).toBe("unavailable");
+  });
+});
 
 describe("snapshot", () => {
   it("names the build, the time, and a fresh mountain in JSON-safe numbers", () => {
