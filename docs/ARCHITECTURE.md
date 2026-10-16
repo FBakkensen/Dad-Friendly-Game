@@ -33,15 +33,24 @@ page is the map, plus the rules that keep it that way.
    `pacing` simulates players on top of them and buys through the catalogue.
    Every number lives here.
 2. **Saves:** `persist` (versioned save format and parser; an unknown recipe, bench, or crafted level is written back instead of dropped), `session-save`
-   (guest storage), `cloud-save` (interface + memory fake), `firebase-save`
-   (the SDK adapter; mountain save plus `fieldLogs/{uid}`), `firestore.rules`
-   (server-side mirror of the parser and the field log,
+   (guest storage), `phone-backup` (signed-in on-phone copy, never deleted),
+   `save-progress` (which copy is ahead), `cloud-save` (interface + memory fake),
+   `firebase-save` (the SDK adapter; mountain save plus `fieldLogs/{uid}`),
+   `firestore.rules` (server-side mirror of the parser and the field log,
    guarded by `rules-drift.test.ts` and the emulator tests).
 3. **State:** `progress-store` owns the live mountain: settling time, away
    pay, reveals, migrations, and when/where to save. A rejected cloud write
    keeps that mountain, shows the save error, retries once, and records the
-   server error on `save.error`. The listener does not copy the older server
-   document over it (#219). The screen only calls its methods.
+   server error on `save.error`. A snapshot is adopted only when it is strictly
+   ahead (#219, #222). Ahead means a later run (`startedAt`, missing counts as 0),
+   else more stones mined, else a newer `lastSeen`. A tie between two real copies
+   keeps the phone and does not upload. A phone that has never saved is not a
+   copy, so the cloud document is kept. The phone backup is the full save, written when the mountain
+   changes and synchronously on hide and pagehide, and it is never deleted.
+   Launch keeps whichever of the phone and the cloud is ahead, and uploads when
+   the phone was ahead. A snapshot of our own write is ignored. A listener error
+   restarts the watch with backoff (1s, then double, cap 30s) and does not stop
+   saving. The screen only calls its methods.
 4. **Screen:** `mountain-screen` builds the page and wires panels; panels are
    their own modules with a `create…Panel` factory returning their elements
    and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `menu-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). Shared player-facing

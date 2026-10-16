@@ -14,13 +14,33 @@ describe("applySignedInSave", () => {
   const local = minedMountain(1);
   const remoteMountain = minedMountain(9);
 
-  it("uses the cloud mountain when one is found", () => {
+  it("uses the cloud mountain when it has more progress", () => {
     expect(
       applySignedInSave({
         local,
         remote: { kind: "found", mountain: remoteMountain },
       }),
     ).toEqual({ mountain: remoteMountain, upload: false });
+  });
+
+  it("keeps the phone and uploads when the phone has more progress", () => {
+    expect(
+      applySignedInSave({
+        local: remoteMountain,
+        localLastSeen: 10,
+        remote: { kind: "found", mountain: local, lastSeen: 99 },
+      }),
+    ).toEqual({ mountain: remoteMountain, upload: true });
+  });
+
+  it("keeps the phone and does not upload when progress ties", () => {
+    expect(
+      applySignedInSave({
+        local,
+        localLastSeen: 4,
+        remote: { kind: "found", mountain: { ...local }, lastSeen: 4 },
+      }),
+    ).toEqual({ mountain: local, upload: false });
   });
 
   it("keeps the session mountain and uploads when the cloud has no save", () => {
