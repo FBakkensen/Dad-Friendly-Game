@@ -1004,6 +1004,8 @@ export const SAVE_CONFLICT_CONFIRM =
 export const SAVE_CONFLICT_ERROR =
   "Couldn't store the other save yet – try again";
 export const SAVED_COPIES_TITLE = "Saved copies";
+export const SAVED_COPY_EARLIER_RUN =
+  "From an earlier run – can't be played now";
 
 /** One mountain, one tab. The other tabs wait. */
 export const OTHER_TAB_TITLE = "Playing in another tab";

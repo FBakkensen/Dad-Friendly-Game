@@ -538,6 +538,26 @@ describe("firestore.rules: rev (#223)", () => {
     expect((await getDoc(fresh)).data()?.["rev"]).toBe(1);
     await expect(setDoc(fresh, stamped(1))).rejects.toThrow(/permission/i);
   });
+
+  it("refuses a write from an older run", async () => {
+    const fresh = doc(db, "saves", "dad");
+    await legacyAdmin().doc("saves/dad").delete();
+    revCursor = 0;
+    await save({ ...createMountain(), startedAt: 100, pocket: 4 });
+    await expect(
+      save({ ...createMountain(), startedAt: 50, pocket: 9 }),
+    ).rejects.toThrow(/permission/i);
+    const kept = await getDoc(fresh);
+    expect(kept.data()?.["mountain"]).toMatchObject({
+      startedAt: 100,
+      pocket: 4,
+    });
+    await save({ ...createMountain(), startedAt: 100, pocket: 5 });
+    expect((await getDoc(fresh)).data()?.["mountain"]).toMatchObject({
+      startedAt: 100,
+      pocket: 5,
+    });
+  });
 });
 
 describe("firestore.rules: save archive (#226)", () => {

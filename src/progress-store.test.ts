@@ -5085,4 +5085,110 @@ describe("two saves found (#226)", () => {
     guest.dispose();
     progress.dispose();
   });
+
+  it("does not restore a copy from an earlier run", async () => {
+    const cloud = createMemoryCloudSave();
+    const storage = createMemoryStorage();
+    const early = { ...base(), pocket: 40, startedAt: 1 };
+    await cloud.write({
+      uid: user.uid,
+      mountain: early,
+      rev: 1,
+      deviceId: "seed-device",
+      lastSeen: clock,
+    });
+    await cloud.archiveCopy?.({
+      uid: user.uid,
+      mountain: early,
+      lastSeen: clock,
+      rev: 1,
+      deviceId: "seed-device",
+      deviceLabel: "Safari on iPhone",
+    });
+    const progress = open(cloud, storage);
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+      expect(progress.getSnapshot().mountain.startedAt).toBe(1);
+    });
+    progress.startOver();
+    await vi.waitFor(async () => {
+      const saved = await cloud.load({ uid: user.uid });
+      expect(saved.kind === "found" && saved.mountain.startedAt).toBe(clock);
+      expect(saved.kind === "found" && saved.rev).toBe(2);
+    });
+    const playing = {
+      startedAt: progress.getSnapshot().mountain.startedAt,
+      pocket: progress.getSnapshot().mountain.pocket,
+      remaining: progress.getSnapshot().mountain.remaining,
+    };
+    const phoneBefore = readPhoneBackup({ storage, uid: user.uid });
+    const cloudBefore = await cloud.load({ uid: user.uid });
+    const copiesBefore = await progress.savedCopies();
+    expect(copiesBefore).toHaveLength(1);
+    await expect(progress.restoreCopy(copiesBefore[0]?.id ?? "")).resolves.toBe(
+      "kept",
+    );
+    expect(progress.getSnapshot().mountain.startedAt).toBe(playing.startedAt);
+    expect(progress.getSnapshot().mountain.pocket).toBe(playing.pocket);
+    expect(progress.getSnapshot().mountain.remaining).toBe(playing.remaining);
+    expect(readPhoneBackup({ storage, uid: user.uid })).toEqual(phoneBefore);
+    expect(await cloud.load({ uid: user.uid })).toEqual(cloudBefore);
+    const copiesAfter = await progress.savedCopies();
+    expect(copiesAfter.map((copy) => copy.id)).toEqual(
+      copiesBefore.map((copy) => copy.id),
+    );
+    expect(copiesAfter[0]?.mountain.startedAt).toBe(1);
+    progress.dispose();
+  });
+
+  it("restores a copy from the same run", async () => {
+    const cloud = createMemoryCloudSave();
+    const storage = createMemoryStorage();
+    const playing = { ...base(), pocket: 3, startedAt: 5, carts: 1 };
+    const archived = {
+      ...base(),
+      pocket: 9,
+      startedAt: 5,
+      carts: 4,
+      drills: 2,
+    };
+    await cloud.write({
+      uid: user.uid,
+      mountain: playing,
+      rev: 1,
+      deviceId: "seed-device",
+      lastSeen: clock,
+    });
+    await cloud.archiveCopy?.({
+      uid: user.uid,
+      mountain: archived,
+      lastSeen: clock,
+      rev: 1,
+      deviceId: "other-device",
+      deviceLabel: "Safari on iPhone",
+    });
+    const progress = open(cloud, storage);
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().mountain.pocket).toBe(3);
+    });
+    const copies = await progress.savedCopies();
+    await expect(progress.restoreCopy(copies[0]?.id ?? "")).resolves.toBe(
+      "saved",
+    );
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().mountain.pocket).toBe(9);
+    });
+    expect(progress.getSnapshot().mountain.carts).toBe(4);
+    expect(progress.getSnapshot().mountain.drills).toBe(2);
+    expect(progress.getSnapshot().mountain.startedAt).toBe(5);
+    const restored = await cloud.load({ uid: user.uid });
+    expect(restored.kind === "found" && restored.mountain.pocket).toBe(9);
+    const kept = await progress.savedCopies();
+    expect(
+      kept.some(
+        (copy) => copy.mountain.pocket === 3 && copy.mountain.carts === 1,
+      ),
+    ).toBe(true);
+    progress.dispose();
+  });
 });

@@ -191,6 +191,41 @@ describe("createMemoryCloudSave", () => {
       cloud.listCopies?.({ uid: "dad", now: now + 8 * 24 * 60 * 60 * 1000 }),
     ).resolves.toEqual([]);
   });
+
+  it("refuses a write from an older run and keeps the stored one", async () => {
+    const cloud = createMemoryCloudSave();
+    const newer = { ...createMountain(), startedAt: 20, pocket: 3 };
+    await expect(
+      cloud.write({
+        uid: "dad",
+        mountain: newer,
+        rev: 1,
+        deviceId: "device-dad-1",
+        lastSeen: 1,
+      }),
+    ).resolves.toEqual({ kind: "ok" });
+    await expect(
+      cloud.write({
+        uid: "dad",
+        mountain: { ...createMountain(), startedAt: 5, pocket: 9 },
+        rev: 2,
+        deviceId: "device-dad-1",
+      }),
+    ).resolves.toEqual({ kind: "rejected", message: "permission-denied" });
+    await expect(cloud.load({ uid: "dad" })).resolves.toMatchObject({
+      kind: "found",
+      rev: 1,
+      mountain: { pocket: 3, startedAt: 20 },
+    });
+    await expect(
+      cloud.write({
+        uid: "dad",
+        mountain: { ...newer, pocket: 4 },
+        rev: 2,
+        deviceId: "device-dad-1",
+      }),
+    ).resolves.toEqual({ kind: "ok" });
+  });
 });
 
 describe("createNoopCloudSave", () => {

@@ -1,5 +1,5 @@
 import type { FieldLogDocument } from "./field-log";
-import type { Mountain } from "./mountain";
+import { runStartedAt, type Mountain } from "./mountain";
 import { compareSaveProgress } from "./save-progress";
 
 export type CloudLoadResult =
@@ -194,6 +194,16 @@ export function createMemoryCloudSave({
       const stored = revByUid.get(uid) ?? 0;
       const expected = stored + 1;
       if (!Number.isInteger(rev) || rev !== expected) {
+        return Promise.resolve({
+          kind: "rejected",
+          message: "permission-denied",
+        });
+      }
+      const storedMountain = docs.get(uid);
+      if (
+        storedMountain !== undefined &&
+        runStartedAt(mountain) < runStartedAt(storedMountain)
+      ) {
         return Promise.resolve({
           kind: "rejected",
           message: "permission-denied",

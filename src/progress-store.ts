@@ -2271,6 +2271,9 @@ export function createProgressStore({
       if (found === undefined) {
         return "missing";
       }
+      if (runStartedAt(found.mountain) < runStartedAt(mountain)) {
+        return "kept";
+      }
       const archived = await cloudSave.archiveCopy({
         uid: state.user.uid,
         mountain,

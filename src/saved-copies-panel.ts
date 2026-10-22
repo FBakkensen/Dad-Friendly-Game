@@ -1,10 +1,12 @@
 import type { ArchivedCopy } from "./cloud-save";
+import { runStartedAt } from "./mountain";
 import type { ProgressStore } from "./progress-store";
 import { keptUntilWords, saveCardLines } from "./save-sheet-copy";
 import {
   SAVE_CONFLICT_ERROR,
   SAVE_CONFLICT_PLAY,
   SAVED_COPIES_TITLE,
+  SAVED_COPY_EARLIER_RUN,
 } from "./screen-words";
 
 /** Menu list of archived copies. Play one through the same archive-then-switch path. */
@@ -78,9 +80,13 @@ export function createSavedCopiesPanel({
     error.textContent = note;
     list.replaceChildren();
     const clock = now();
+    const currentRun = runStartedAt(progress.getSnapshot().mountain);
     for (const copy of copies) {
+      const earlier = runStartedAt(copy.mountain) < currentRun;
       const row = document.createElement("article");
-      row.className = "saved-copy card";
+      row.className = earlier
+        ? "saved-copy card is-earlier-run"
+        : "saved-copy card";
       const lines = saveCardLines(copy.mountain, copy.lastSeen, clock);
       for (const text of [
         copy.deviceLabel,
@@ -95,6 +101,14 @@ export function createSavedCopiesPanel({
         line.className = "label";
         line.textContent = text;
         row.append(line);
+      }
+      if (earlier) {
+        const blocked = document.createElement("p");
+        blocked.className = "label earlier-run";
+        blocked.textContent = SAVED_COPY_EARLIER_RUN;
+        row.append(blocked);
+        list.append(row);
+        continue;
       }
       const play = document.createElement("button");
       play.type = "button";

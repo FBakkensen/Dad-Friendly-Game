@@ -3481,3 +3481,7 @@ body {
   font-size: 0.9rem;
   line-height: 1.15;
 }
+
+.saved-copy.is-earlier-run {
+  opacity: 0.55;
+}
