@@ -1,5 +1,10 @@
 import { formatCount } from "../src/format.ts";
 import {
+  renderMountainTokens,
+  renderTokenSheet,
+  renderUpgradesTokens,
+} from "./token-screens.ts";
+import {
   BENCH_BUSY,
   BENCH_BUSY_ASIDE,
   BENCH_FREE,
@@ -44,6 +49,9 @@ const SCENES = [
   "craft-done",
   "other-tab",
   "save-conflict",
+  "token-sheet",
+  "mountain-tokens",
+  "upgrades-tokens",
 ] as const;
 const PHASES = ["rest", "press", "float", "hammer", "busy", "shake"] as const;
 
@@ -432,6 +440,12 @@ export function renderMock(view: MockView): string {
       return renderOtherTab(view);
     case "save-conflict":
       return renderSaveConflict(view);
+    case "token-sheet":
+      return renderTokenSheet(view);
+    case "mountain-tokens":
+      return renderMountainTokens(view);
+    case "upgrades-tokens":
+      return renderUpgradesTokens(view);
     default: {
       const never: never = view.scene;
       return never;
@@ -443,6 +457,13 @@ function mount(root: HTMLElement, view: MockView): void {
   const classes = [`scene-${view.scene}`, `phase-${view.phase}`];
   if (view.shot) {
     classes.push("shot");
+  }
+  if (
+    view.scene === "token-sheet" ||
+    view.scene === "mountain-tokens" ||
+    view.scene === "upgrades-tokens"
+  ) {
+    classes.push("tok");
   }
   if (view.control !== "") {
     classes.push(`control-${view.control}`);

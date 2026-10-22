@@ -1,0 +1,65 @@
+/*
+ * M10-2 design tokens. Phase 1 keeps them on the mocks.
+ * Type starts at 14px. Weight is 400 or 700. Line height is 1.3.
+ * Space is a 4px grid: 4, 8, 16, 24.
+ *
+ * Night browns fold into two fills (RGB distance):
+ * page #120c0a also stood in for #140d09 (2.4).
+ * card #1e130d also stood in for #1c120c (2.4).
+ * disabled #3a2a1c also stood in for #392816 (6.4).
+ * quiet #c9b391 also stood in for #c9b08e (4.2).
+ * ink-on-gold is the page brown, so a gold button and the page share one dark.
+ *
+ * WCAG 2 relative luminance. Body text needs 4.5:1.
+ * Large text (24px, or 18.66px at weight 700) and control edges need 3:1.
+ * Cream ink on danger is 2.65:1, so a danger button uses ink-on-gold.
+ * quiet on card 8.96:1
+ * edge on card 4.71:1
+ * ink on page 13.43:1
+ * ink on card 12.60:1
+ * ink on disabled 9.52:1
+ * quiet on page 9.55:1
+ * quiet on disabled 6.77:1
+ * gold on page 11.91:1
+ * gold on card 11.17:1
+ * gold on disabled 8.44:1
+ * ink-on-gold on gold 11.91:1
+ * ink-on-gold on danger 5.08:1
+ * danger on page 5.08:1
+ * danger on card 4.76:1
+ * edge on page 5.02:1
+ * edge on disabled 3.56:1
+ */
+
+:root {
+  --type-14: 14px;
+  --type-16: 16px;
+  --type-20: 20px;
+  --type-24: 24px;
+  --type-32: 32px;
+  --weight-regular: 400;
+  --weight-bold: 700;
+  --leading: 1.3;
+
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-16: 16px;
+  --space-24: 24px;
+
+  --color-page: #120c0a;
+  --color-card: #1e130d;
+  --color-ink: #e8d4b8;
+  --color-quiet: #c9b391;
+  --color-gold: #f2c46d;
+  --color-ink-on-gold: #120c0a;
+  --color-danger: #e74c3c;
+  --color-disabled: #3a2a1c;
+  --color-edge: #a17b45;
+
+  --radius-control: 12px;
+  --radius-sheet: 20px;
+  --radius-pill: 999px;
+
+  --target-min: 48px;
+  --target-gap: 8px;
+}
