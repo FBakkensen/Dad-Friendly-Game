@@ -299,3 +299,18 @@ For `#234`. Not applied here.
 - Colour roles: page, card, ink, quiet, gold, ink-on-gold, danger. One disabled fill. The night browns within distance 15 become two colours, not six.
 - Radii: 12 on controls, 20 on sheets, a pill only for a count badge.
 - Targets: 48×48 minimum, 8px apart. The 44px header, craft and buy buttons are the list. Primary buys sit in the bottom half. Sheets fit at 360×560, so the upgrades sheet and the shelf stop scrolling.
+
+## Design direction
+
+Flemming on the first token mocks: better, and not yet a crisp night. The notes below are the rules for three later mocks (`mountain-a` with `upgrades-a`, `mountain-b` with `upgrades-b`, `mountain-c` with `upgrades-c`). Still mocks. The game styles stay put.
+
+Looked at Cookie Clicker, Egg Inc, AdVenture Capitalist, Idle Miner Tycoon, Melvor Idle, and Universal Paperclips, plus the touch research already behind the 48px bar. Eight rules:
+
+1. **One hero number, and the rate tucked under it.** Cookie Clicker's eye lands on the Big Cookie, then the bank and the cookies-per-second line beside it. The count and the rate are one thought. The next buy is the only other number at that volume. ([Big Cookie](https://cookieclicker.wiki.gg/wiki/Big_Cookie), [a walkthrough of that screen](https://steamcommunity.com/sharedfiles/filedetails/?id=2591407770))
+2. **The picture is the tap, and the tap answers.** The Big Cookie shrinks for a moment and a number floats off it. Our press is that same physical inset, and the price stays on the button. The layout does not jump, so the 8px gap survives the press. Sound stays off until he unmutes.
+3. **The buy sits where the thumb already is. The count can sit up high.** People hold the phone in one hand about half the time, and they also shift grip and prefer the centre when they can. Status can live at the top. The button he hits every night lives in the bottom third, or on the big centre picture. ([Hoober, UX Matters, 2013](https://www.uxmatters.com/mt/archives/2013/02/how-do-users-really-hold-mobile-devices.php), [Hoober, ACM Interactions, 2015](https://interactions.acm.org/archive/view/may-june-2015/fingers-thumbs-and-people), [thumb zones](https://gamedesign.gg/articles/mobile-game-ux-design/))
+4. **An icon, a name, and one number.** Cookie Clicker's shop is a picture, a count, and a price, not a paragraph. A phone table that tries to show every column becomes a squint. The name stays, because a bare sprite is not a sentence. The sentence does not.
+5. **Numbers use tabular figures.** Each digit takes the same width, so a ticking counter does not wobble. `font-variant-numeric: tabular-nums`. ([MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/font-variant-numeric))
+6. **One gold control.** The affordable next buy is the gold fill. Everything he cannot buy yet uses the one disabled fill, or it leaves the check-in entirely. Two gold buttons is two decisions.
+7. **Two sessions, two depths.** A two-minute open shows the hero number, the picture, and one buy, then he is gone. A thirty-minute sitting opens Workshop, Engineers, or Upgrades with one thumb tap, and that sheet fits. Portrait is the interruptible shape. ([sessions and portrait](https://gamedesign.gg/articles/mobile-game-ux-design/), and the target map above)
+8. **Whitespace is the hierarchy.** Six equal cards make every fact shout. One frame, one gold button, and quiet type for the rest. The 8px gap and the 16px pause around the hero are doing that work. ([Material spacing](https://m3.material.io/foundations/layout/understanding-layout/spacing), [48px targets](https://m3.material.io/foundations/designing/structure))

@@ -65,6 +65,18 @@ const SHOTS = [
   ["mountain-tokens", "press", "drill"],
   ["upgrades-tokens", "rest", ""],
   ["upgrades-tokens", "press", "arms"],
+  ["mountain-a", "rest", ""],
+  ["mountain-a", "press", "drill"],
+  ["upgrades-a", "rest", ""],
+  ["upgrades-a", "press", "arms"],
+  ["mountain-b", "rest", ""],
+  ["mountain-b", "press", "drill"],
+  ["upgrades-b", "rest", ""],
+  ["upgrades-b", "press", "arms"],
+  ["mountain-c", "rest", ""],
+  ["mountain-c", "press", "buy"],
+  ["upgrades-c", "rest", ""],
+  ["upgrades-c", "press", "arms"],
 ];
 
 const failures = [];
@@ -118,7 +130,11 @@ async function fit(page, label) {
       };
     };
     const sceneName = mock?.dataset.scene ?? "";
-    const token = sceneName === "token-sheet" || sceneName.endsWith("-tokens");
+    const token =
+      sceneName === "token-sheet" ||
+      sceneName.endsWith("-tokens") ||
+      sceneName.startsWith("mountain-") ||
+      sceneName.startsWith("upgrades-");
     const minFont = token ? 14 : 14.4;
     const minBox = token ? 48 : 44;
     const hasDirectText = (element) =>

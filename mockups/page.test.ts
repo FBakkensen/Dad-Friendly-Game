@@ -285,7 +285,7 @@ function mustCost(cost: number | undefined): number {
 }
 
 function mountTokens(
-  scene: "token-sheet" | "mountain-tokens" | "upgrades-tokens",
+  scene: MockView["scene"],
   phase: "rest" | "press",
   control: string,
 ): HTMLElement {
@@ -464,6 +464,36 @@ describe("design token mocks (#234)", () => {
     expect(upgrades.querySelector("audio, video")).toBeNull();
   });
 
+  it("keeps three different directions on the real prices", () => {
+    const drill = formatCompact(tierCost(tierById("drill"), 8));
+    const arms = buyPriceWords(mustCost(upgradeCost(upgradeById("tap"), 3)));
+    for (const which of ["a", "b", "c"] as const) {
+      const mountain = host(renderMock(view({ scene: `mountain-${which}` })));
+      expect(mountain.textContent).toContain(drill);
+      expect(mountain.textContent).toContain("80 million");
+      expect(mountain.textContent).toContain("Workshop");
+      expect(mountain.textContent).toContain("Engineers");
+      expect(mountain.textContent).toContain("Upgrades");
+      expect(mountain.textContent).toContain("+2.5 · 203/s");
+      expect(mountain.textContent).not.toMatch(/\?/);
+      const sheet = host(renderMock(view({ scene: `upgrades-${which}` })));
+      expect(sheet.textContent).toContain(arms);
+      expect(sheet.textContent).toContain("Running · 10:00");
+      expect(sheet.textContent).toContain("Running · 30:00");
+      expect(sheet.textContent).toContain("Back to the mountain");
+      expect(sheet.textContent).not.toMatch(/\?/);
+    }
+    expect(
+      host(
+        renderMock(
+          view({ scene: "mountain-a", phase: "press", control: "drill" }),
+        ),
+      )
+        .querySelector(".dir-buy")
+        ?.classList.contains("is-pressed"),
+    ).toBe(true);
+  });
+
   it("keeps token mock type at 14px and targets at 48px", () => {
     const shots = [
       ["token-sheet", "rest", ""],
@@ -472,6 +502,18 @@ describe("design token mocks (#234)", () => {
       ["mountain-tokens", "press", "drill"],
       ["upgrades-tokens", "rest", ""],
       ["upgrades-tokens", "press", "arms"],
+      ["mountain-a", "rest", ""],
+      ["mountain-a", "press", "drill"],
+      ["upgrades-a", "rest", ""],
+      ["upgrades-a", "press", "arms"],
+      ["mountain-b", "rest", ""],
+      ["mountain-b", "press", "drill"],
+      ["upgrades-b", "rest", ""],
+      ["upgrades-b", "press", "arms"],
+      ["mountain-c", "rest", ""],
+      ["mountain-c", "press", "buy"],
+      ["upgrades-c", "rest", ""],
+      ["upgrades-c", "press", "arms"],
     ] as const;
     for (const [scene, phase, control] of shots) {
       const root = mountTokens(scene, phase, control);

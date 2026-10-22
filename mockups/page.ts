@@ -1,5 +1,9 @@
 import { formatCount } from "../src/format.ts";
 import {
+  renderMountainDirection,
+  renderUpgradesDirection,
+} from "./directions.ts";
+import {
   renderMountainTokens,
   renderTokenSheet,
   renderUpgradesTokens,
@@ -52,6 +56,12 @@ const SCENES = [
   "token-sheet",
   "mountain-tokens",
   "upgrades-tokens",
+  "mountain-a",
+  "upgrades-a",
+  "mountain-b",
+  "upgrades-b",
+  "mountain-c",
+  "upgrades-c",
 ] as const;
 const PHASES = ["rest", "press", "float", "hammer", "busy", "shake"] as const;
 
@@ -446,6 +456,18 @@ export function renderMock(view: MockView): string {
       return renderMountainTokens(view);
     case "upgrades-tokens":
       return renderUpgradesTokens(view);
+    case "mountain-a":
+      return renderMountainDirection("a", view);
+    case "upgrades-a":
+      return renderUpgradesDirection("a", view);
+    case "mountain-b":
+      return renderMountainDirection("b", view);
+    case "upgrades-b":
+      return renderUpgradesDirection("b", view);
+    case "mountain-c":
+      return renderMountainDirection("c", view);
+    case "upgrades-c":
+      return renderUpgradesDirection("c", view);
     default: {
       const never: never = view.scene;
       return never;
@@ -460,8 +482,9 @@ function mount(root: HTMLElement, view: MockView): void {
   }
   if (
     view.scene === "token-sheet" ||
-    view.scene === "mountain-tokens" ||
-    view.scene === "upgrades-tokens"
+    view.scene.endsWith("-tokens") ||
+    view.scene.startsWith("mountain-") ||
+    view.scene.startsWith("upgrades-")
   ) {
     classes.push("tok");
   }
