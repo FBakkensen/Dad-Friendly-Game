@@ -88,7 +88,7 @@
 /* Token sheet */
 
 #mock.tok .tok-sheet {
-  gap: var(--space-4);
+  gap: 0;
   padding: var(--space-4);
 }
 
@@ -99,16 +99,11 @@
   text-align: center;
 }
 
-#mock.tok .tok-scale {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
+#mock.tok .tok-scale,
 #mock.tok .tok-scale-rest {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 0;
 }
 
 #mock.tok .tok-32 {
