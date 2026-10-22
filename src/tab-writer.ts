@@ -36,6 +36,11 @@ export type TabWriter = {
   readonly onYield: (flush: () => void) => void;
   /** Drops this tab if another tab's lease has replaced ours. */
   readonly confirm: () => void;
+  /**
+   * Pagehide: drop the lock and the lease so the next load can play.
+   * The page is going away, so this does not start a re-claim.
+   */
+  readonly release: () => void;
   readonly dispose: () => void;
 };
 
@@ -145,7 +150,10 @@ export function createTabWriter({
   const ended = (): boolean => disposed;
   let takeover: Promise<void> | undefined;
   let pulse: ReturnType<typeof setInterval> | undefined;
+  let reclaim: ReturnType<typeof setInterval> | undefined;
+  let reclaiming = false;
   const listeners = new Set<(next: TabSeat) => void>();
+  const pollMs = Math.max(250, Math.floor(leaseMs / 2));
 
   const readLease = (): WriterLease | undefined => {
     try {
@@ -196,6 +204,26 @@ export function createTabWriter({
     pulse = undefined;
   };
 
+  const stopReclaim = (): void => {
+    if (reclaim === undefined) {
+      return;
+    }
+    clearInterval(reclaim);
+    reclaim = undefined;
+  };
+
+  const becomeWriter = (next?: LockGrant): void => {
+    if (ended()) {
+      next?.release();
+      return;
+    }
+    grant = next;
+    writeLease();
+    stopReclaim();
+    setSeat("writer");
+    startHeartbeat();
+  };
+
   const dropWriter = (): void => {
     if (seat !== "writer") {
       return;
@@ -205,10 +233,16 @@ export function createTabWriter({
     grant = undefined;
     stopHeartbeat();
     setSeat("other");
+    startReclaim();
   };
 
   const confirm = (): void => {
     if (disposed || seat !== "writer") {
+      return;
+    }
+    // A held Web Lock is the seat. A leftover lease must not push us off.
+    if (grant !== undefined) {
+      writeLease();
       return;
     }
     if (leaseBlocks(readLease(), tabId, now())) {
@@ -216,6 +250,42 @@ export function createTabWriter({
       return;
     }
     writeLease();
+  };
+
+  const tryReclaim = (): void => {
+    if (ended() || seat === "writer") {
+      stopReclaim();
+      return;
+    }
+    if (locks !== undefined) {
+      if (reclaiming) {
+        return;
+      }
+      reclaiming = true;
+      void locks.tryHold().then((got) => {
+        reclaiming = false;
+        if (ended() || seat === "writer") {
+          got?.release();
+          return;
+        }
+        if (got !== undefined) {
+          becomeWriter(got);
+        }
+      });
+      return;
+    }
+    if (!leaseBlocks(readLease(), tabId, now())) {
+      becomeWriter();
+    }
+  };
+
+  const startReclaim = (): void => {
+    if (reclaim !== undefined || ended()) {
+      return;
+    }
+    reclaim = setInterval(() => {
+      tryReclaim();
+    }, pollMs);
   };
 
   const startHeartbeat = (): void => {
@@ -246,6 +316,7 @@ export function createTabWriter({
       }
       grant = next;
     }
+    stopReclaim();
     writeLease();
     setSeat("writer");
     startHeartbeat();
@@ -319,15 +390,20 @@ export function createTabWriter({
   }
 
   const claim = (): void => {
-    if (leaseBlocks(readLease(), tabId, now())) {
+    const blocked = leaseBlocks(readLease(), tabId, now());
+    if (!blocked) {
+      // Free lease: play now. The lock, if any, confirms on the next turn.
+      writeLease();
+      setSeat("writer");
+      startHeartbeat();
+    } else if (locks === undefined) {
       setSeat("other");
-      return;
+      startReclaim();
+    } else {
+      // A stale lease must not decide while a lock might still be free.
+      setSeat("other");
+      startReclaim();
     }
-    // The lease is free, so this tab plays immediately. A lock, when the
-    // browser has one, confirms it; losing that race steps aside.
-    writeLease();
-    setSeat("writer");
-    startHeartbeat();
     if (locks === undefined) {
       return;
     }
@@ -336,15 +412,15 @@ export function createTabWriter({
         got?.release();
         return;
       }
-      if (got === undefined || leaseBlocks(readLease(), tabId, now())) {
-        got?.release();
-        if (seat === "writer") {
-          stopHeartbeat();
-          setSeat("other");
-        }
+      if (got !== undefined) {
+        becomeWriter(got);
         return;
       }
-      grant = got;
+      if (seat === "writer") {
+        stopHeartbeat();
+        setSeat("other");
+        startReclaim();
+      }
     });
   };
 
@@ -363,15 +439,38 @@ export function createTabWriter({
       flush = next;
     },
     confirm,
+    release() {
+      if (disposed) {
+        return;
+      }
+      stopHeartbeat();
+      stopReclaim();
+      grant?.release();
+      grant = undefined;
+      clearLease();
+      setSeat("other");
+    },
     dispose() {
       disposed = true;
       stopHeartbeat();
+      stopReclaim();
       grant?.release();
       grant = undefined;
       clearLease();
       unlisten?.();
       listeners.clear();
     },
+  };
+}
+
+/** Clears the seat when the page goes away, including Update available → Reload. */
+export function bindWriterPageHide(writer: TabWriter): () => void {
+  const onHide = (): void => {
+    writer.release();
+  };
+  window.addEventListener("pagehide", onHide);
+  return () => {
+    window.removeEventListener("pagehide", onHide);
   };
 }
 

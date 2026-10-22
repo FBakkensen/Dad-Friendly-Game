@@ -3387,6 +3387,10 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
 
 describe("fresh read, one writer, and a pending offline write", () => {
   const user = { uid: "test-dad", label: "Test Dad" };
+  const phonePocket = (storage: Storage): number => {
+    const phone = readPhoneBackup({ storage, uid: user.uid });
+    return phone.kind === "present" ? phone.save.mountain.pocket : -1;
+  };
 
   it("reads the server on resume before a cloud write, and keeps a tap from the gap", async () => {
     const storage = createMemoryStorage();
@@ -4251,5 +4255,241 @@ describe("fresh read, one writer, and a pending offline write", () => {
       expect(progress.getSnapshot().mountain.pocket).toBe(6);
     });
     progress.dispose();
+  });
+
+  it("a waiting tab never writes the phone backup", async () => {
+    const storage = createMemoryStorage();
+    const bus = createMemoryBus();
+    const docs = new Map<string, Mountain>();
+    const cloud = createMemoryCloudSave({ docs });
+    const auth = () =>
+      createMemoryAuth({ state: { kind: "signed-in", user }, user });
+    const writer = createTabWriter({
+      tabId: "tab-writer",
+      storage,
+      bus,
+      handoffMs: 0,
+      leaseMs: 60_000,
+    });
+    const other = createTabWriter({
+      tabId: "tab-other1",
+      storage,
+      bus,
+      handoffMs: 0,
+      leaseMs: 60_000,
+    });
+    const first = createProgressStore({
+      auth: auth(),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      tabWriter: writer,
+      cloudWriteGapMs: 0,
+    });
+    const second = createProgressStore({
+      auth: auth(),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      tabWriter: other,
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(first.getSnapshot().playing).toBe(true);
+      expect(second.getSnapshot().elsewhere).toBe(true);
+    });
+    first.applyMutation(() => minedMountain(4));
+    await vi.waitFor(() => {
+      expect(phonePocket(storage)).toBe(4);
+    });
+    const saved = storage.getItem(`dad-friendly-phone-backup:${user.uid}`);
+    second.applyMutation(() => minedMountain(9));
+    second.tick();
+    expect(storage.getItem(`dad-friendly-phone-backup:${user.uid}`)).toBe(
+      saved,
+    );
+    expect(second.getSnapshot().mountain.pocket).not.toBe(9);
+    first.dispose();
+    second.dispose();
+  });
+
+  it("a fresh read that never returns lets the crew settle, then a server snapshot writes", async () => {
+    const storage = createMemoryStorage();
+    let clock = 20_000;
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    const written: number[] = [];
+    const cloud: CloudSave = {
+      load: ({ fresh }) => {
+        if (fresh) {
+          return new Promise(() => undefined);
+        }
+        return Promise.resolve({
+          kind: "found",
+          mountain: { ...minedMountain(1), helpers: 1 },
+          rev: 1,
+          lastSeen: clock,
+        });
+      },
+      write: (args) => {
+        written.push(args.mountain.pocket);
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({
+          kind: "found",
+          mountain: { ...minedMountain(1), helpers: 1 },
+          rev: 1,
+          lastSeen: clock,
+        });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+      now: () => clock,
+      resumeReadTimeoutMs: 40,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    const reading = progress.resume();
+    expect(reading.kind).toBe("reading");
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      pocket: mountain.pocket + 1,
+      remaining: mountain.remaining - 1,
+    }));
+    expect(phonePocket(storage)).toBe(2);
+    expect(written).toEqual([]);
+    clock = 22_000;
+    progress.tick();
+    expect(progress.getSnapshot().mountain.pocket).toBe(2);
+    if (reading.kind === "reading") {
+      await reading.done;
+    }
+    expect(progress.getSnapshot().log).toContain("save.resume timeout");
+    progress.tick();
+    expect(progress.getSnapshot().mountain.pocket).toBeGreaterThan(2);
+    expect(phonePocket(storage)).toBe(progress.getSnapshot().mountain.pocket);
+    expect(written).toEqual([]);
+    deliver({
+      kind: "found",
+      mountain: { ...minedMountain(1), helpers: 1 },
+      rev: 1,
+      lastSeen: 20_000,
+    });
+    await vi.waitFor(() => {
+      expect(written.length).toBeGreaterThan(0);
+    });
+    expect(written.at(-1)).toBe(progress.getSnapshot().mountain.pocket);
+    progress.dispose();
+  });
+
+  it("an offline fresh read rejects, then a server snapshot still saves", async () => {
+    const storage = createMemoryStorage();
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    const written: number[] = [];
+    const cloud: CloudSave = {
+      load: ({ fresh }) =>
+        fresh
+          ? Promise.reject(new Error("offline"))
+          : Promise.resolve({
+              kind: "found" as const,
+              mountain: minedMountain(2),
+              rev: 1,
+            }),
+      write: (args) => {
+        written.push(args.mountain.pocket);
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({ kind: "found", mountain: minedMountain(2), rev: 1 });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+      now: () => 5_000,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    const reading = progress.resume();
+    if (reading.kind === "reading") {
+      await reading.done;
+    }
+    expect(progress.getSnapshot().log).toContain("save.resume rejected");
+    progress.applyMutation(() => minedMountain(3));
+    expect(phonePocket(storage)).toBe(3);
+    expect(written).toEqual([]);
+    deliver({ kind: "found", mountain: minedMountain(2), rev: 1 });
+    await vi.waitFor(() => {
+      expect(written).toContain(3);
+    });
+    progress.dispose();
+  });
+
+  it("ignores a late load after the resume timeout and retries on the backoff", async () => {
+    vi.useFakeTimers();
+    const storage = createMemoryStorage();
+    let resolveLoad: ((value: CloudLoadResult) => void) | undefined;
+    let freshLoads = 0;
+    const cloud: CloudSave = {
+      load: ({ fresh }) => {
+        if (!fresh) {
+          return Promise.resolve({
+            kind: "found",
+            mountain: minedMountain(1),
+            rev: 1,
+          });
+        }
+        freshLoads += 1;
+        return new Promise((resolve) => {
+          resolveLoad = resolve;
+        });
+      },
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        onChange({ kind: "found", mountain: minedMountain(1), rev: 1 });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+      now: () => 20_000,
+      resumeReadTimeoutMs: 500,
+    });
+    expect(progress.getSnapshot().ready).toBe(true);
+    const reading = progress.resume();
+    await vi.advanceTimersByTimeAsync(500);
+    if (reading.kind === "reading") {
+      await reading.done;
+    }
+    expect(progress.getSnapshot().log).toContain("save.resume timeout");
+    const pocket = progress.getSnapshot().mountain.pocket;
+    resolveLoad?.({ kind: "found", mountain: minedMountain(50), rev: 9 });
+    await Promise.resolve();
+    expect(progress.getSnapshot().mountain.pocket).toBe(pocket);
+    const again = progress.resume();
+    await vi.advanceTimersByTimeAsync(500);
+    if (again.kind === "reading") {
+      await again.done;
+    }
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(freshLoads).toBeGreaterThan(2);
+    progress.dispose();
+    vi.useRealTimers();
   });
 });

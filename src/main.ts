@@ -18,6 +18,7 @@ import relicShield from "./assets/relics/shield.png";
 import { createAppServices } from "./boot";
 import { mountMountainScreen, showAppUpdate } from "./mountain-screen";
 import { registerServiceWorker } from "./pwa";
+import { bindWriterPageHide } from "./tab-writer";
 import "./style.css";
 
 const root = document.getElementById("app");
@@ -26,7 +27,7 @@ if (!(root instanceof HTMLElement)) {
 }
 
 try {
-  const { auth, progress } = await createAppServices({
+  const { auth, progress, tabWriter } = await createAppServices({
     env: {
       VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY,
       VITE_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -60,6 +61,8 @@ try {
     auth,
     progress,
   });
+  // Reload, including Update available, fires pagehide before the next load.
+  bindWriterPageHide(tabWriter);
   void registerServiceWorker({
     onUpdate: () => {
       showAppUpdate(root);

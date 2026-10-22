@@ -51,9 +51,15 @@ page is the map, plus the rules that keep it that way.
    the phone was ahead. A snapshot of our own write is ignored. A listener error
    restarts the watch with backoff (1s, then double, cap 30s) and does not stop
    saving. Becoming visible reads the server (`getDocFromServer`) before the
-   next cloud write. The phone backup still records during that read, and a
-   tap in the gap is dug back onto the merged mountain. One tab holds the
-   writer seat (Web Locks, or a localStorage lease and a BroadcastChannel).
+   next cloud write. The read gives up after 5s, logs `save.resume` timeout,
+   and lets the crew settle; the next server snapshot (or the same backoff
+   as a listener retry) releases the held write. The phone backup still
+   records during that read, and a tap in the gap is dug back onto the merged
+   mountain. One tab holds the writer seat (Web Locks, or a localStorage
+   lease and a BroadcastChannel). Pagehide, including Reload, clears that
+   lease and the lock. A tab that found the seat taken re-checks every half
+   lease; an expired lease, or a Web Lock it actually holds, makes it the
+   writer without Play here. A stale lease does not override a held lock.
    The others show "Playing in another tab" and do not write. Play here asks
    the writer to flush, then takes the seat. Firestore's `persistentLocalCache`
    with `persistentMultipleTabManager` is a second copy of the server doc in

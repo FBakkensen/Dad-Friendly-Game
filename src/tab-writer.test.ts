@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WRITER_LEASE_KEY } from "./tab-lease";
 import {
+  bindWriterPageHide,
   createBrowserTabWriter,
   createMemoryBus,
   createTabWriter,
@@ -211,6 +212,88 @@ describe("one writer tab", () => {
     writers.push(next);
     expect(next.seat()).toBe("writer");
     expect(storage.getItem(WRITER_LEASE_KEY)).toContain("tab-next01");
+  });
+
+  it("becomes the writer after a dead lease expires, without Play here", async () => {
+    vi.useFakeTimers();
+    const storage = memoryStorage();
+    let now = 1_000;
+    const leaseMs = 4_000;
+    const old = createTabWriter({
+      tabId: "tab-oldwriter",
+      storage,
+      now: () => now,
+      leaseMs,
+    });
+    writers.push(old);
+    expect(old.seat()).toBe("writer");
+    // The page is gone and never called dispose, so its heartbeat stops
+    // and the lease it wrote stays behind.
+    vi.clearAllTimers();
+    now = 3_000;
+    const played: string[] = [];
+    const next = createTabWriter({
+      tabId: "tab-nexttab1",
+      storage,
+      now: () => now,
+      leaseMs,
+    });
+    writers.push(next);
+    const unsub = next.subscribe((seat) => {
+      played.push(seat);
+    });
+    expect(next.seat()).toBe("other");
+    now = 1_000 + leaseMs + 1;
+    await vi.advanceTimersByTimeAsync(leaseMs / 2);
+    expect(next.seat()).toBe("writer");
+    expect(played).toEqual(["writer"]);
+    unsub();
+  });
+
+  it("does not let a stale lease block a tab that holds the lock", async () => {
+    const storage = memoryStorage();
+    storage.setItem(
+      WRITER_LEASE_KEY,
+      JSON.stringify({ tabId: "tab-stale01", until: Date.now() + 60_000 }),
+    );
+    const tab = createTabWriter({
+      tabId: "tab-locktab",
+      storage,
+      locks: createWebLockBroker(fakeLocks()),
+      leaseMs: 8_000,
+    });
+    writers.push(tab);
+    await vi.waitFor(() => {
+      expect(tab.seat()).toBe("writer");
+    });
+  });
+
+  it("clears the lease on pagehide so the reloaded page is the writer", () => {
+    const storage = memoryStorage();
+    const writer = createTabWriter({
+      tabId: "tab-writer",
+      storage,
+      leaseMs: 60_000,
+    });
+    writers.push(writer);
+    const unbind = bindWriterPageHide(writer);
+    const reload = vi
+      .spyOn(globalThis.location, "reload")
+      .mockImplementation(() => {
+        window.dispatchEvent(new Event("pagehide"));
+      });
+    globalThis.location.reload();
+    expect(reload).toHaveBeenCalled();
+    expect(writer.seat()).toBe("other");
+    const next = createTabWriter({
+      tabId: "tab-reloaded",
+      storage,
+      leaseMs: 60_000,
+    });
+    writers.push(next);
+    expect(next.seat()).toBe("writer");
+    reload.mockRestore();
+    unbind();
   });
 });
 

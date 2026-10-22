@@ -185,6 +185,8 @@ const CLOUD_WRITE_GAP_MS = 1000;
 /** First wait after a listener error, then double, capped. */
 const LISTEN_BACKOFF_START_MS = 1_000;
 const LISTEN_BACKOFF_MAX_MS = 30_000;
+/** A fresh read that never returns must not hold the mountain. */
+const RESUME_READ_TIMEOUT_MS = 5_000;
 /** Shorter absences still pay out, quietly, without the welcome-back card. */
 export const WELCOME_MIN_AWAY_MS = 60 * 1000;
 /** Longer than this between ticks and the game was not on screen. */
@@ -200,6 +202,7 @@ export function createProgressStore({
   fieldLogWriteGapMs = FIELD_LOG_WRITE_GAP_MS,
   hazardSeed,
   tabWriter,
+  resumeReadTimeoutMs = RESUME_READ_TIMEOUT_MS,
 }: {
   auth: AuthController;
   cloudSave?: CloudSave;
@@ -212,6 +215,8 @@ export function createProgressStore({
   hazardSeed?: number;
   /** One writer tab on this device. Absent in tests that are the only tab. */
   tabWriter?: TabWriter;
+  /** How long a fresh server read may hold crew pay and cloud writes. */
+  resumeReadTimeoutMs?: number;
 }): ProgressStore {
   const sessionStore = sessionArg ?? tryGetGuestStorage();
   const isWriter = (): boolean =>
@@ -224,6 +229,9 @@ export function createProgressStore({
   let serverSeen = false;
   /** Fresh read in flight. Cloud writes wait. The phone backup does not. */
   let resumeHold = false;
+  let resumeTimer: ReturnType<typeof setTimeout> | undefined;
+  let resumeRetry: ReturnType<typeof setTimeout> | undefined;
+  let resumeBackoffMs = LISTEN_BACKOFF_START_MS;
   /** One cloud write at a time. A newer mountain waits, then goes next. */
   let cloudFlight = false;
   let cloudDirty = false;
@@ -1551,78 +1559,129 @@ export function createProgressStore({
     cancelPendingCloudWrite();
     persistPhoneBackup();
     const uid = state.user.uid;
-    return cloudSave
-      .load({ uid, fresh: true })
-      .then((loaded) => {
-        if (disposed || generation !== hydrateGeneration || !isWriter()) {
-          resumeHold = false;
-          return;
-        }
-        const tapped = minedOut(mountain) - minedAtHold;
-        if (loaded.kind === "found" && loaded.pending !== true) {
-          serverSeen = true;
-          const serverRev = loaded.rev ?? 0;
-          const merged = mergeSaves(
-            { mountain, lastSeen, rev },
-            {
-              mountain: loaded.mountain,
-              lastSeen: loaded.lastSeen,
-              rev: serverRev,
-            },
-          );
-          let next = merged.mountain;
-          if (tapped > 0 && minedOut(next) === minedOut(loaded.mountain)) {
-            next = digStones(next, tapped);
+    const loadOrGiveUp = (): Promise<
+      CloudLoadResult | "timeout" | "rejected"
+    > =>
+      new Promise((resolve) => {
+        let settled = false;
+        const finish = (value: CloudLoadResult | "timeout" | "rejected") => {
+          if (settled) {
+            return;
           }
-          const keptTap = next !== merged.mountain;
-          mountain = next;
-          if (merged.lastSeen !== undefined) {
-            lastSeen = merged.lastSeen;
+          settled = true;
+          if (resumeTimer !== undefined) {
+            clearTimeout(resumeTimer);
+            resumeTimer = undefined;
           }
-          rev = Math.max(rev, merged.rev, serverRev);
-          acked = serverRev;
-          noteConflict(merged);
-          if (merged.differsFromRemote || keptTap) {
-            cloudDirty = true;
-          }
-          record("save.resume", { rev: serverRev, stones: minedOut(mountain) });
-          logger.record({
-            level: "info",
-            code: "save.resume",
-            detail: merged.conflict ? "conflict" : "fresh",
-            data: { ...saveCounts(mountain), rev: serverRev, deviceId },
-          });
-          persistPhoneBackup();
-          emit();
-        } else if (loaded.kind === "missing") {
-          serverSeen = true;
-          cloudDirty = true;
-          record("save.resume", { rev, stones: minedOut(mountain) });
-          logger.record({
-            level: "info",
-            code: "save.resume",
-            detail: "missing",
-            data: { ...saveCounts(mountain), rev, deviceId },
-          });
-        } else {
-          serverSeen = false;
-          record("save.resume", { rev, stones: minedOut(mountain) });
-          logger.record({
-            level: "error",
-            code: "save.resume",
-            detail: loaded.kind,
-            data: { ...saveCounts(mountain), rev, deviceId },
-          });
-        }
-        resumeHold = false;
-        if (serverSeen && cloudDirty && isWriter()) {
-          persistCloudSoon(false, true);
-        }
-      })
-      .catch(() => {
-        serverSeen = false;
-        resumeHold = false;
+          resolve(value);
+        };
+        resumeTimer = setTimeout(() => {
+          finish("timeout");
+        }, resumeReadTimeoutMs);
+        cloudSave.load({ uid, fresh: true }).then(
+          (loaded) => {
+            finish(loaded);
+          },
+          () => {
+            finish("rejected");
+          },
+        );
       });
+    return loadOrGiveUp().then((loaded) => {
+      if (disposed || generation !== hydrateGeneration || !isWriter()) {
+        resumeHold = false;
+        return;
+      }
+      if (loaded === "timeout" || loaded === "rejected") {
+        resumeHold = false;
+        serverSeen = false;
+        record("save.resume", { rev, stones: minedOut(mountain) });
+        logger.record({
+          level: "error",
+          code: "save.resume",
+          detail: loaded === "timeout" ? "timeout" : "rejected",
+          data: { ...saveCounts(mountain), rev, deviceId },
+        });
+        scheduleResumeRetry();
+        return;
+      }
+      const tapped = minedOut(mountain) - minedAtHold;
+      if (loaded.kind === "found" && loaded.pending !== true) {
+        serverSeen = true;
+        const serverRev = loaded.rev ?? 0;
+        const merged = mergeSaves(
+          { mountain, lastSeen, rev },
+          {
+            mountain: loaded.mountain,
+            lastSeen: loaded.lastSeen,
+            rev: serverRev,
+          },
+        );
+        let next = merged.mountain;
+        if (tapped > 0 && minedOut(next) === minedOut(loaded.mountain)) {
+          next = digStones(next, tapped);
+        }
+        const keptTap = next !== merged.mountain;
+        mountain = next;
+        if (merged.lastSeen !== undefined) {
+          lastSeen = merged.lastSeen;
+        }
+        rev = Math.max(rev, merged.rev, serverRev);
+        acked = serverRev;
+        noteConflict(merged);
+        if (merged.differsFromRemote || keptTap) {
+          cloudDirty = true;
+        }
+        record("save.resume", { rev: serverRev, stones: minedOut(mountain) });
+        logger.record({
+          level: "info",
+          code: "save.resume",
+          detail: merged.conflict ? "conflict" : "fresh",
+          data: { ...saveCounts(mountain), rev: serverRev, deviceId },
+        });
+        persistPhoneBackup();
+        emit();
+      } else if (loaded.kind === "missing") {
+        serverSeen = true;
+        cloudDirty = true;
+        record("save.resume", { rev, stones: minedOut(mountain) });
+        logger.record({
+          level: "info",
+          code: "save.resume",
+          detail: "missing",
+          data: { ...saveCounts(mountain), rev, deviceId },
+        });
+      } else {
+        serverSeen = false;
+        record("save.resume", { rev, stones: minedOut(mountain) });
+        logger.record({
+          level: "error",
+          code: "save.resume",
+          detail: loaded.kind,
+          data: { ...saveCounts(mountain), rev, deviceId },
+        });
+      }
+      resumeBackoffMs = LISTEN_BACKOFF_START_MS;
+      resumeHold = false;
+      if (serverSeen && cloudDirty && isWriter()) {
+        persistCloudSoon(false, true);
+      }
+    });
+  };
+
+  const scheduleResumeRetry = (): void => {
+    if (disposed || resumeRetry !== undefined) {
+      return;
+    }
+    const delay = resumeBackoffMs;
+    resumeBackoffMs = Math.min(delay * 2, LISTEN_BACKOFF_MAX_MS);
+    resumeRetry = setTimeout(() => {
+      resumeRetry = undefined;
+      if (disposed || !isWriter() || serverSeen) {
+        return;
+      }
+      void freshServerRead();
+    }, delay);
   };
 
   const onBecameWriter = (): Promise<void> => {
@@ -1975,6 +2034,14 @@ export function createProgressStore({
     },
     dispose: () => {
       disposed = true;
+      if (resumeTimer !== undefined) {
+        clearTimeout(resumeTimer);
+        resumeTimer = undefined;
+      }
+      if (resumeRetry !== undefined) {
+        clearTimeout(resumeRetry);
+        resumeRetry = undefined;
+      }
       unwatchSeat?.();
       tabWriter?.dispose();
       cancelPendingCloudWrite();
