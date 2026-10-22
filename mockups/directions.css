@@ -180,6 +180,108 @@
   background: transparent;
 }
 
+#mock.tok .dir-b .dir-rate {
+  font-size: var(--type-24);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+#mock.tok .dir-b .dir-posts {
+  width: 100%;
+  margin: 0;
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+  text-align: center;
+}
+
+#mock.tok .dir-b .dir-buys {
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+  width: 100%;
+}
+
+#mock.tok .dir-b .dir-buycard {
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  gap: 0;
+  padding: var(--space-4) var(--space-8);
+  text-align: left;
+}
+
+#mock.tok .dir-b .dir-buycard > span:not(.dir-buy-top) {
+  display: block;
+}
+
+#mock.tok .dir-b .dir-buy-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+}
+
+#mock.tok .dir-b .dir-buy-top img {
+  width: var(--space-24);
+  height: var(--space-24);
+  object-fit: contain;
+}
+
+#mock.tok .dir-b .dir-name {
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .dir-b .dir-price {
+  margin-left: auto;
+  font-size: var(--type-20);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+#mock.tok .dir-b .dir-buycard span {
+  font-size: var(--type-14);
+}
+
+#mock.tok .dir-b .dir-buy-top .dir-name {
+  font-size: var(--type-16);
+}
+
+#mock.tok .dir-b .dir-buycard .dir-gain {
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+#mock.tok .dir-b .dir-buy-top .dir-price,
+#mock.tok .dir-b .dir-gain {
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+#mock.tok .dir-b .dir-buy-top .dir-price {
+  font-size: var(--type-20);
+}
+
+#mock.tok .dir-b button.tok-hit:disabled {
+  opacity: 1;
+  background: var(--color-disabled);
+  color: var(--color-ink);
+  border-color: var(--color-edge);
+}
+
+#mock.tok .dir-b button.tok-hit:disabled .dir-price {
+  color: var(--color-ink);
+}
+
+#mock.tok .dir-b.dir-sheet .dir-float {
+  align-self: stretch;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 #mock.tok .dir-b .dir-tabs {
   margin-inline: calc(var(--space-8) * -1);
   margin-bottom: calc(var(--space-8) * -1);

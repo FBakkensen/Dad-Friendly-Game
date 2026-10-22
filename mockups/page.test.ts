@@ -2,16 +2,19 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { formatCompact } from "../src/format.ts";
+import { formatCompact, formatCount } from "../src/format.ts";
+import { effectiveRates } from "../src/rates.ts";
 import {
   buyPriceWords,
   crewPostsShort,
   formatClock,
+  formatSpeed,
   MOCK_RECIPES,
   UNFOUND_HINT,
 } from "../src/screen-words.ts";
-import { tierById, tierCost } from "../src/tiers.ts";
-import { upgradeById, upgradeCost } from "../src/upgrades.ts";
+import { owned, tierById, tierCost } from "../src/tiers.ts";
+import { upgradeById, upgradeCost, upgradeLevel } from "../src/upgrades.ts";
+import { boardB } from "./directions.ts";
 import {
   craftTap,
   parseMockView,
@@ -467,7 +470,7 @@ describe("design token mocks (#234)", () => {
   it("keeps three different directions on the real prices", () => {
     const drill = formatCompact(tierCost(tierById("drill"), 8));
     const arms = buyPriceWords(mustCost(upgradeCost(upgradeById("tap"), 3)));
-    for (const which of ["a", "b", "c"] as const) {
+    for (const which of ["a", "c"] as const) {
       const mountain = host(renderMock(view({ scene: `mountain-${which}` })));
       expect(mountain.textContent).toContain(drill);
       expect(mountain.textContent).toContain("80 million");
@@ -483,6 +486,49 @@ describe("design token mocks (#234)", () => {
       expect(sheet.textContent).toContain("Back to the mountain");
       expect(sheet.textContent).not.toMatch(/\?/);
     }
+    const mountainB = boardB();
+    const rates = effectiveRates(mountainB);
+    const shown = host(renderMock(view({ scene: "mountain-b" })));
+    const drillTier = tierById("drill");
+    const drillPrice = buyPriceWords(
+      tierCost(drillTier, owned(mountainB, drillTier)),
+    );
+    expect(shown.textContent).toContain(formatCount(mountainB.pocket));
+    expect(shown.textContent).toContain(
+      `${formatCompact(rates.crewPerSecond)} stones/s`,
+    );
+    expect(shown.textContent).toContain("on carts");
+    expect(shown.textContent).toContain("free");
+    expect(shown.textContent).toContain(drillPrice);
+    expect(shown.textContent).toContain(
+      `+${formatSpeed(rates.tierSpeed.drill)}/s each`,
+    );
+    expect(shown.textContent).toContain("Needs 3 workers");
+    expect(shown.textContent).toContain("Bites the wall while you rest.");
+    expect(shown.querySelector("[data-tier='borer']")).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(shown.textContent).not.toMatch(
+      /pays back|worth it|best value|\?|in \d+ min/i,
+    );
+    const sheetB = host(renderMock(view({ scene: "upgrades-b" })));
+    const before = rates.tapYield;
+    const after = effectiveRates({
+      ...mountainB,
+      upgrades: {
+        ...mountainB.upgrades,
+        tap: upgradeLevel(mountainB, "tap") + 1,
+      },
+    }).tapYield;
+    expect(sheetB.textContent).toContain(
+      `Tap ${formatCount(before)} to ${formatCount(after)}`,
+    );
+    expect(sheetB.textContent).toContain("Taps ×2 for 10 min.");
+    expect(sheetB.textContent).toContain("Crew ×2 for 30 min.");
+    expect(sheetB.textContent).not.toMatch(
+      /pays back|worth it|best value|\?|in \d+ min/i,
+    );
     expect(
       host(
         renderMock(
