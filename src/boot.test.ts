@@ -32,6 +32,8 @@ describe("parseBootOptions", () => {
       memorySave: false,
       previewTrouble: false,
       previewConflict: false,
+      previewSave: undefined,
+      previewCopies: false,
     });
   });
 
@@ -44,6 +46,11 @@ describe("parseBootOptions", () => {
     expect(parseBootOptions("?trouble=flood").previewTrouble).toBe(false);
     expect(parseBootOptions("?saves=two").previewConflict).toBe(true);
     expect(parseBootOptions("?saves=one").previewConflict).toBe(false);
+    expect(parseBootOptions("?save=loading").previewSave).toBe("loading");
+    expect(parseBootOptions("?save=error").previewSave).toBe("error");
+    expect(parseBootOptions("?save=nope").previewSave).toBeUndefined();
+    expect(parseBootOptions("?copies=shelf").previewCopies).toBe(true);
+    expect(parseBootOptions("?copies=one").previewCopies).toBe(false);
   });
 
   it("rejects memorySave values other than 1", () => {
@@ -101,6 +108,50 @@ describe("createAppServices", () => {
       devMode: false,
     });
     expect(progress.getSnapshot().trouble).toBeUndefined();
+    progress.dispose();
+  });
+
+  it("save=error previews an unreachable save while developing", async () => {
+    const { progress } = await createAppServices({
+      env: {},
+      search: "?save=error",
+    });
+    expect(progress.getSnapshot().saveKind).toBe("error");
+    progress.dispose();
+  });
+
+  it("save=loading keeps the loading line while developing", async () => {
+    const { progress } = await createAppServices({
+      env: {},
+      search: "?save=loading",
+    });
+    expect(progress.getSnapshot().saveKind).toBe("loading");
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(progress.getSnapshot().saveKind).toBe("loading");
+    progress.dispose();
+  });
+
+  it("copies=shelf seeds an earlier run and a playable copy", async () => {
+    const { progress } = await createAppServices({
+      env: {},
+      search: "?copies=shelf",
+    });
+    const copies = await progress.savedCopies();
+    expect(copies.map((copy) => copy.deviceLabel).sort()).toEqual([
+      "Kitchen tablet",
+      "Old phone",
+    ]);
+    progress.dispose();
+  });
+
+  it("ignores the save-line and copies previews outside dev", async () => {
+    const { progress } = await createAppServices({
+      env: {},
+      search: "?save=error&copies=shelf",
+      devMode: false,
+    });
+    expect(progress.getSnapshot().saveKind).toBe("unsigned");
+    expect(await progress.savedCopies()).toEqual([]);
     progress.dispose();
   });
 

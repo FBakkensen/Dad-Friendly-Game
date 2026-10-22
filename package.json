@@ -23,6 +23,7 @@
     "cycles": "node scripts/check-cycles.mjs",
     "check": "node scripts/env-report.mjs --strict && npm run typecheck && npm run lint && npm run cycles && npm run format:check && npm run knip && npm run coverage && npm run test:rules && npm run visual && npm run mockups",
     "visual": "node scripts/visual-check.mjs",
+    "audit:ui": "node scripts/ui-audit.mjs",
     "mockups": "node scripts/mockup-check.mjs",
     "test:rules": "node scripts/test-rules.mjs",
     "env:report": "node scripts/env-report.mjs"
