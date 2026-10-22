@@ -25,7 +25,12 @@ import {
 } from "./mountain";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { effectiveRates } from "./rates";
-import { writePhoneBackup } from "./phone-backup";
+import { readPhoneBackup, writePhoneBackup } from "./phone-backup";
+import {
+  bindWriterPageHide,
+  createMemoryBus,
+  createTabWriter,
+} from "./tab-writer";
 import { WELCOME_MIN_AWAY_MS, createProgressStore } from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { buyTier } from "./tiers";
@@ -3380,6 +3385,1155 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
     const stopped = serverRev;
     await Promise.resolve();
     expect(serverRev).toBe(stopped);
+    progress.dispose();
+  });
+});
+
+describe("fresh read, one writer, and a pending offline write", () => {
+  const user = { uid: "test-dad", label: "Test Dad" };
+  const phonePocket = (storage: Storage): number => {
+    const phone = readPhoneBackup({ storage, uid: user.uid });
+    return phone.kind === "present" ? phone.save.mountain.pocket : -1;
+  };
+
+  it("reads the server on resume before a cloud write, and keeps a tap from the gap", async () => {
+    const storage = createMemoryStorage();
+    let server = {
+      mountain: minedMountain(2),
+      rev: 1,
+      lastSeen: 1,
+      deviceId: "other-device",
+    };
+    let release: (() => void) | undefined;
+    let writes = 0;
+    const cloud: CloudSave = {
+      load: ({ fresh }) => {
+        const found: CloudLoadResult = {
+          kind: "found",
+          mountain: server.mountain,
+          lastSeen: server.lastSeen,
+          rev: server.rev,
+          deviceId: server.deviceId,
+        };
+        if (!fresh) {
+          return Promise.resolve(found);
+        }
+        return new Promise((resolve) => {
+          release = () => {
+            resolve(found);
+          };
+        });
+      },
+      write: (args) => {
+        writes += 1;
+        server = {
+          mountain: args.mountain,
+          rev: args.rev,
+          lastSeen: args.lastSeen ?? 0,
+          deviceId: args.deviceId,
+        };
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        onChange({
+          kind: "found",
+          mountain: minedMountain(2),
+          lastSeen: 1,
+          rev: 1,
+          deviceId: "other-device",
+        });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      now: () => 10_000,
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    expect(progress.getSnapshot().mountain.pocket).toBe(2);
+    server = {
+      mountain: minedMountain(10),
+      rev: 2,
+      lastSeen: 2,
+      deviceId: "other-device",
+    };
+    const before = writes;
+    const resume = progress.resume();
+    expect(resume.kind).toBe("reading");
+    progress.applyMutation((mountain) => minedMountain(minedOut(mountain) + 1));
+    expect(writes).toBe(before);
+    const phone = readPhoneBackup({ storage, uid: user.uid });
+    expect(phone.kind === "present" && phone.save.mountain.pocket).toBe(3);
+    if (resume.kind === "reading") {
+      release?.();
+      await resume.done;
+    }
+    expect(minedOut(progress.getSnapshot().mountain)).toBe(11);
+    await vi.waitFor(() => {
+      expect(server.mountain.pocket).toBe(11);
+      expect(server.rev).toBe(3);
+    });
+    expect(progress.fieldLog().events.map((event) => event.code)).toContain(
+      "save.resume",
+    );
+    const again = progress.resume();
+    expect(again.kind).toBe("reading");
+    if (again.kind === "reading") {
+      release?.();
+      await again.done;
+    }
+    progress.dispose();
+  });
+
+  it("uploads after a fresh read that finds no server doc, and holds the write when the read fails", async () => {
+    const storage = createMemoryStorage();
+    let mode: "missing" | "down" | "throw" = "missing";
+    const written: number[] = [];
+    const cloud: CloudSave = {
+      load: ({ fresh }) => {
+        if (fresh && mode === "throw") {
+          return Promise.reject(new Error("boom"));
+        }
+        if (fresh && mode === "down") {
+          return Promise.resolve({ kind: "unavailable" });
+        }
+        return Promise.resolve({ kind: "missing" });
+      },
+      write: (args) => {
+        written.push(args.mountain.pocket);
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        onChange({ kind: "missing" });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    progress.applyMutation(() => minedMountain(2));
+    await vi.waitFor(() => {
+      expect(written).toContain(2);
+    });
+    mode = "down";
+    const failed = progress.resume();
+    if (failed.kind === "reading") {
+      await failed.done;
+    }
+    const before = written.length;
+    progress.applyMutation(() => minedMountain(3));
+    await Promise.resolve();
+    expect(written.length).toBe(before);
+    expect(readPhoneBackup({ storage, uid: user.uid })).toMatchObject({
+      kind: "present",
+      save: { mountain: { pocket: 3 } },
+    });
+    mode = "throw";
+    const thrown = progress.resume();
+    if (thrown.kind === "reading") {
+      await thrown.done;
+    }
+    expect(progress.getSnapshot().mountain.pocket).toBe(3);
+    mode = "missing";
+    const uploaded = progress.resume();
+    if (uploaded.kind === "reading") {
+      await uploaded.done;
+    }
+    await vi.waitFor(() => {
+      expect(written.at(-1)).toBe(3);
+    });
+    await progress.playHere();
+    progress.dispose();
+  });
+
+  it("ignores a watch event that arrives during the fresh read", async () => {
+    const storage = createMemoryStorage();
+    let release: (() => void) | undefined;
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    const cloud: CloudSave = {
+      load: ({ fresh }) => {
+        if (!fresh) {
+          return Promise.resolve({
+            kind: "found" as const,
+            mountain: minedMountain(1),
+            rev: 1,
+          });
+        }
+        return new Promise((resolve) => {
+          release = () => {
+            resolve({
+              kind: "found",
+              mountain: minedMountain(4),
+              rev: 2,
+            });
+          };
+        });
+      },
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({ kind: "found", mountain: minedMountain(1), rev: 1 });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+      now: () => 5_000,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    const resume = progress.resume();
+    deliver({ kind: "found", mountain: minedMountain(40), rev: 9 });
+    progress.applyMutation((mountain) => minedMountain(minedOut(mountain) + 1));
+    if (resume.kind === "reading") {
+      release?.();
+      await resume.done;
+    }
+    expect(minedOut(progress.getSnapshot().mountain)).toBe(5);
+    progress.dispose();
+  });
+
+  it("flushes a tap that waited for the server after a cached snapshot", async () => {
+    const storage = createMemoryStorage();
+    writePhoneBackup({
+      storage,
+      uid: user.uid,
+      mountain: minedMountain(2),
+      lastSeen: 1,
+      rev: 1,
+      deviceId: "device-12345678",
+    });
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    const written: number[] = [];
+    const cloud: CloudSave = {
+      load: () => Promise.resolve({ kind: "unavailable" }),
+      write: (args) => {
+        written.push(args.rev);
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({ kind: "unavailable" });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+      now: () => 5_000,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    progress.applyMutation(() => minedMountain(3));
+    expect(written).toEqual([]);
+    deliver({ kind: "found", mountain: minedMountain(2), rev: 1, lastSeen: 1 });
+    await vi.waitFor(() => {
+      expect(written).toEqual([2]);
+    });
+    progress.dispose();
+  });
+
+  it("keeps a guest save on the waiting tab and does not let that tab write", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: minedMountain(6),
+      lastSeen: 1,
+    });
+    const bus = createMemoryBus();
+    const writer = createTabWriter({
+      tabId: "tab-writer",
+      storage,
+      bus,
+      handoffMs: 0,
+    });
+    const other = createTabWriter({
+      tabId: "tab-other1",
+      storage,
+      bus,
+      handoffMs: 0,
+    });
+    const first = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      tabWriter: writer,
+    });
+    const second = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      tabWriter: other,
+    });
+    expect(second.getSnapshot().elsewhere).toBe(true);
+    expect(second.getSnapshot().mountain.pocket).toBe(6);
+    const raw = storage.getItem("dad-friendly-session");
+    second.applyMutation(() => minedMountain(9));
+    expect(storage.getItem("dad-friendly-session")).toBe(raw);
+    expect(second.resume().kind).toBe("idle");
+    first.dispose();
+    second.dispose();
+  });
+
+  it("lets one tab write, and takeover keeps the stones", async () => {
+    const storage = createMemoryStorage();
+    const bus = createMemoryBus();
+    const docs = new Map<string, Mountain>();
+    const cloud = createMemoryCloudSave({ docs });
+    const auth = () =>
+      createMemoryAuth({ state: { kind: "signed-in", user }, user });
+    const writer = createTabWriter({
+      tabId: "tab-writer",
+      storage,
+      bus,
+      handoffMs: 0,
+      yieldWaitMs: 30,
+    });
+    const other = createTabWriter({
+      tabId: "tab-other1",
+      storage,
+      bus,
+      handoffMs: 0,
+      yieldWaitMs: 30,
+    });
+    const first = createProgressStore({
+      auth: auth(),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      tabWriter: writer,
+      cloudWriteGapMs: 0,
+    });
+    const second = createProgressStore({
+      auth: auth(),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      tabWriter: other,
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(first.getSnapshot().playing).toBe(true);
+      expect(second.getSnapshot().elsewhere).toBe(true);
+    });
+    second.applyMutation(() => minedMountain(9));
+    expect(second.getSnapshot().mountain.pocket).toBe(0);
+    first.applyMutation(() => minedMountain(4));
+    await vi.waitFor(() => {
+      expect(docs.get(user.uid)?.pocket).toBe(4);
+    });
+    await second.playHere();
+    await vi.waitFor(() => {
+      expect(second.getSnapshot().playing).toBe(true);
+      expect(second.getSnapshot().mountain.pocket).toBe(4);
+    });
+    expect(first.getSnapshot().elsewhere).toBe(true);
+    second.applyMutation(() => minedMountain(5));
+    await vi.waitFor(() => {
+      expect(docs.get(user.uid)?.pocket).toBe(5);
+    });
+    const rev = docs.get(user.uid);
+    first.applyMutation(() => minedMountain(99));
+    await Promise.resolve();
+    expect(docs.get(user.uid)).toEqual(rev);
+    first.dispose();
+    second.dispose();
+  });
+
+  it("keeps an offline write that lands on reload", async () => {
+    const storage = createMemoryStorage();
+    let online = true;
+    let server:
+      { mountain: Mountain; rev: number; lastSeen?: number } | undefined;
+    const queued: { mountain: Mountain; rev: number; lastSeen?: number }[] = [];
+    const waiting: ((result: CloudWriteResult) => void)[] = [];
+    const listeners = new Set<(remote: CloudLoadResult) => void>();
+    const view = (): CloudLoadResult =>
+      server === undefined
+        ? { kind: "missing" }
+        : {
+            kind: "found",
+            mountain: server.mountain,
+            rev: server.rev,
+            ...(server.lastSeen === undefined
+              ? {}
+              : { lastSeen: server.lastSeen }),
+          };
+    const emit = (): void => {
+      const remote = view();
+      for (const listener of listeners) {
+        listener(remote);
+      }
+    };
+    const cloud: CloudSave = {
+      load: ({ fresh }) => {
+        if (fresh && !online) {
+          return Promise.resolve({ kind: "unavailable" });
+        }
+        return Promise.resolve(view());
+      },
+      write: (args) => {
+        const doc = {
+          mountain: args.mountain,
+          rev: args.rev,
+          ...(args.lastSeen === undefined ? {} : { lastSeen: args.lastSeen }),
+        };
+        if (!online) {
+          queued.push(doc);
+          return new Promise((resolve) => {
+            waiting.push(resolve);
+          });
+        }
+        const have = server?.rev ?? 0;
+        if (args.rev !== have + 1) {
+          return Promise.resolve({
+            kind: "rejected",
+            message: "permission-denied",
+          });
+        }
+        server = doc;
+        emit();
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        listeners.add(onChange);
+        onChange(view());
+        return () => {
+          listeners.delete(onChange);
+        };
+      },
+    };
+    const open = () =>
+      createProgressStore({
+        auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+        cloudSave: cloud,
+        sessionStorage: storage,
+        cloudWriteGapMs: 0,
+      });
+    const first = open();
+    await vi.waitFor(() => {
+      expect(first.getSnapshot().ready).toBe(true);
+    });
+    first.applyMutation(() => minedMountain(3));
+    await vi.waitFor(() => {
+      expect(server?.mountain.pocket).toBe(3);
+    });
+    online = false;
+    first.applyMutation(() => minedMountain(5));
+    expect(queued.map((doc) => doc.mountain.pocket)).toContain(5);
+    const phone = readPhoneBackup({ storage, uid: user.uid });
+    expect(phone.kind === "present" && phone.save.mountain.pocket).toBe(5);
+    first.dispose();
+    online = true;
+    for (const doc of queued) {
+      const have = server?.rev ?? 0;
+      if (doc.rev === have + 1) {
+        server = doc;
+      }
+    }
+    queued.length = 0;
+    for (const resolve of waiting) {
+      resolve({ kind: "ok" });
+    }
+    waiting.length = 0;
+    emit();
+    const second = open();
+    await vi.waitFor(() => {
+      expect(second.getSnapshot().ready).toBe(true);
+    });
+    expect(second.getSnapshot().mountain.pocket).toBe(5);
+    const revBefore = server?.rev ?? 0;
+    second.applyMutation(() => minedMountain(6));
+    await vi.waitFor(() => {
+      expect(server?.mountain.pocket).toBe(6);
+    });
+    expect(server?.rev).toBe(revBefore + 1);
+    second.dispose();
+  });
+
+  it("does not treat a cached snapshot as the server rev", async () => {
+    const storage = createMemoryStorage();
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    let writtenRev = 0;
+    const cloud: CloudSave = {
+      load: () =>
+        Promise.resolve({
+          kind: "found",
+          mountain: minedMountain(8),
+          rev: 4,
+          lastSeen: 4,
+        }),
+      write: (args) => {
+        writtenRev = args.rev;
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({
+          kind: "found",
+          mountain: minedMountain(1),
+          rev: 1,
+          lastSeen: 1,
+          cached: true,
+        });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+      now: () => 5_000,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().mountain.pocket).toBe(8);
+    });
+    progress.applyMutation(() => minedMountain(9));
+    await vi.waitFor(() => {
+      expect(writtenRev).toBe(5);
+    });
+    deliver({
+      kind: "found",
+      mountain: minedMountain(1),
+      rev: 1,
+      pending: true,
+    });
+    expect(progress.getSnapshot().mountain.pocket).toBe(9);
+    progress.dispose();
+  });
+
+  it("adopts a pending write before the first open, and skips its own echo", async () => {
+    const storage = createMemoryStorage();
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    let sent:
+      | {
+          mountain: Mountain;
+          lastSeen?: number;
+          rev: number;
+          deviceId: string;
+        }
+      | undefined;
+    const cloud: CloudSave = {
+      load: () =>
+        Promise.resolve({
+          kind: "found",
+          mountain: minedMountain(4),
+          rev: 2,
+        }),
+      write: (args) => {
+        sent = {
+          mountain: args.mountain,
+          rev: args.rev,
+          deviceId: args.deviceId,
+          ...(args.lastSeen === undefined ? {} : { lastSeen: args.lastSeen }),
+        };
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({
+          kind: "found",
+          mountain: minedMountain(4),
+          rev: 2,
+          pending: true,
+        });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+      now: () => 5_000,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().mountain.pocket).toBe(4);
+    });
+    progress.applyMutation(() => minedMountain(5));
+    await vi.waitFor(() => {
+      expect(sent).toBeDefined();
+    });
+    if (sent !== undefined) {
+      deliver({
+        kind: "found",
+        mountain: sent.mountain,
+        rev: sent.rev,
+        deviceId: sent.deviceId,
+        ...(sent.lastSeen === undefined ? {} : { lastSeen: sent.lastSeen }),
+        pending: true,
+      });
+    }
+    expect(progress.getSnapshot().mountain.pocket).toBe(5);
+    progress.dispose();
+  });
+
+  it("writes a held tap when the server copy ties, and a second read joins the first", async () => {
+    const storage = createMemoryStorage();
+    writePhoneBackup({
+      storage,
+      uid: user.uid,
+      mountain: minedMountain(1),
+      lastSeen: 1,
+      rev: 1,
+      deviceId: "device-12345678",
+    });
+    let release: (() => void) | undefined;
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    const written: number[] = [];
+    const cloud: CloudSave = {
+      load: ({ fresh }) => {
+        if (!fresh) {
+          return Promise.resolve({ kind: "missing" });
+        }
+        return new Promise<CloudLoadResult>((resolve) => {
+          release = () => {
+            resolve({ kind: "unavailable" });
+          };
+        });
+      },
+      write: (args) => {
+        written.push(args.mountain.pocket);
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({ kind: "unavailable" });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+      now: () => 5_000,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    progress.applyMutation(() => minedMountain(3));
+    expect(written).toEqual([]);
+    const first = progress.resume();
+    const second = progress.resume();
+    expect(first.kind).toBe("reading");
+    expect(second.kind).toBe("reading");
+    if (first.kind === "reading" && second.kind === "reading") {
+      expect(second.done).toBe(first.done);
+      release?.();
+      await first.done;
+    }
+    deliver({
+      kind: "found",
+      mountain: minedMountain(3),
+      rev: 1,
+      lastSeen: 5_000,
+    });
+    await vi.waitFor(() => {
+      expect(written).toContain(3);
+    });
+    progress.dispose();
+  });
+
+  it("takes a phone backup that got ahead of this tab", async () => {
+    const storage = createMemoryStorage();
+    const bus = createMemoryBus();
+    const docs = new Map<string, Mountain>();
+    const cloud = createMemoryCloudSave({ docs });
+    const writer = createTabWriter({
+      tabId: "tab-writer",
+      storage,
+      bus,
+      handoffMs: 0,
+    });
+    const other = createTabWriter({
+      tabId: "tab-other1",
+      storage,
+      bus,
+      handoffMs: 0,
+    });
+    const auth = () =>
+      createMemoryAuth({ state: { kind: "signed-in", user }, user });
+    const first = createProgressStore({
+      auth: auth(),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      tabWriter: writer,
+      cloudWriteGapMs: 0,
+    });
+    const second = createProgressStore({
+      auth: auth(),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      tabWriter: other,
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(first.getSnapshot().playing).toBe(true);
+    });
+    first.applyMutation(() => minedMountain(4));
+    await vi.waitFor(() => {
+      expect(docs.get(user.uid)?.pocket).toBe(4);
+    });
+    writePhoneBackup({
+      storage,
+      uid: user.uid,
+      mountain: minedMountain(8),
+      lastSeen: 9,
+      rev: 4,
+      deviceId: "device-12345678",
+    });
+    await second.playHere();
+    await vi.waitFor(() => {
+      expect(second.getSnapshot().playing).toBe(true);
+      expect(second.getSnapshot().mountain.pocket).toBeGreaterThanOrEqual(8);
+    });
+    first.dispose();
+    second.dispose();
+  });
+
+  it("heals the cloud when our own echo is behind a newer tap, and drops a read after close", async () => {
+    const storage = createMemoryStorage();
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    let releaseWrite: (() => void) | undefined;
+    let releaseRead: (() => void) | undefined;
+    const cloud: CloudSave = {
+      load: ({ fresh }) => {
+        if (!fresh) {
+          return Promise.resolve({ kind: "missing" });
+        }
+        return new Promise((resolve) => {
+          releaseRead = () => {
+            resolve({ kind: "unavailable" });
+          };
+        });
+      },
+      write: (args) =>
+        new Promise((resolve) => {
+          releaseWrite = () => {
+            deliver({
+              kind: "found",
+              mountain: args.mountain,
+              rev: args.rev,
+              deviceId: args.deviceId,
+              ...(args.lastSeen === undefined
+                ? {}
+                : { lastSeen: args.lastSeen }),
+            });
+            resolve({ kind: "ok" });
+          };
+        }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({
+          kind: "found",
+          mountain: minedMountain(1),
+          rev: 1,
+          cached: true,
+        });
+        return () => undefined;
+      },
+    };
+    const bus = createMemoryBus();
+    const writer = createTabWriter({
+      tabId: "tab-writer",
+      storage,
+      bus,
+      handoffMs: 0,
+    });
+    const other = createTabWriter({
+      tabId: "tab-other1",
+      storage,
+      bus,
+      handoffMs: 0,
+    });
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      tabWriter: writer,
+      cloudWriteGapMs: 0,
+      now: () => 5_000,
+    });
+    const waiting = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: {
+        load: () => Promise.resolve({ kind: "unavailable" }),
+        write: () => Promise.resolve({ kind: "ok" }),
+        writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+        watch: ({ onChange }) => {
+          onChange({
+            kind: "found",
+            mountain: minedMountain(1),
+            rev: 1,
+            cached: true,
+          });
+          return () => undefined;
+        },
+      },
+      sessionStorage: storage,
+      tabWriter: other,
+      now: () => 5_000,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    progress.applyMutation(() => minedMountain(5));
+    progress.applyMutation(() => minedMountain(6));
+    releaseWrite?.();
+    const reading = progress.resume();
+    progress.dispose();
+    releaseRead?.();
+    if (reading.kind === "reading") {
+      await reading.done;
+    }
+    waiting.dispose();
+  });
+
+  it("sends the newer tap when an echo of the previous write comes back", async () => {
+    const storage = createMemoryStorage();
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    let releaseWrite: (() => void) | undefined;
+    const cloud: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: (args) =>
+        new Promise((resolve) => {
+          releaseWrite = () => {
+            deliver({
+              kind: "found",
+              mountain: args.mountain,
+              rev: args.rev,
+              deviceId: args.deviceId,
+              ...(args.lastSeen === undefined
+                ? {}
+                : { lastSeen: args.lastSeen }),
+            });
+            resolve({ kind: "ok" });
+          };
+        }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({ kind: "found", mountain: minedMountain(1), rev: 1 });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+      now: () => 5_000,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    progress.applyMutation(() => minedMountain(5));
+    progress.applyMutation(() => minedMountain(6));
+    releaseWrite?.();
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().mountain.pocket).toBe(6);
+    });
+    progress.dispose();
+  });
+
+  it("a waiting tab never writes the phone backup", async () => {
+    const storage = createMemoryStorage();
+    const bus = createMemoryBus();
+    const docs = new Map<string, Mountain>();
+    const cloud = createMemoryCloudSave({ docs });
+    const auth = () =>
+      createMemoryAuth({ state: { kind: "signed-in", user }, user });
+    const writer = createTabWriter({
+      tabId: "tab-writer",
+      storage,
+      bus,
+      handoffMs: 0,
+      leaseMs: 60_000,
+    });
+    const other = createTabWriter({
+      tabId: "tab-other1",
+      storage,
+      bus,
+      handoffMs: 0,
+      leaseMs: 60_000,
+    });
+    const first = createProgressStore({
+      auth: auth(),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      tabWriter: writer,
+      cloudWriteGapMs: 0,
+    });
+    const second = createProgressStore({
+      auth: auth(),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      tabWriter: other,
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(first.getSnapshot().playing).toBe(true);
+      expect(second.getSnapshot().elsewhere).toBe(true);
+    });
+    first.applyMutation(() => minedMountain(4));
+    await vi.waitFor(() => {
+      expect(phonePocket(storage)).toBe(4);
+    });
+    const saved = storage.getItem(`dad-friendly-phone-backup:${user.uid}`);
+    second.applyMutation(() => minedMountain(9));
+    second.tick();
+    expect(storage.getItem(`dad-friendly-phone-backup:${user.uid}`)).toBe(
+      saved,
+    );
+    expect(second.getSnapshot().mountain.pocket).not.toBe(9);
+    first.dispose();
+    second.dispose();
+  });
+
+  it("a fresh read that never returns lets the crew settle, then a server snapshot writes", async () => {
+    const storage = createMemoryStorage();
+    let clock = 20_000;
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    const written: number[] = [];
+    const cloud: CloudSave = {
+      load: ({ fresh }) => {
+        if (fresh) {
+          return new Promise(() => undefined);
+        }
+        return Promise.resolve({
+          kind: "found",
+          mountain: { ...minedMountain(1), helpers: 1 },
+          rev: 1,
+          lastSeen: clock,
+        });
+      },
+      write: (args) => {
+        written.push(args.mountain.pocket);
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({
+          kind: "found",
+          mountain: { ...minedMountain(1), helpers: 1 },
+          rev: 1,
+          lastSeen: clock,
+        });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+      now: () => clock,
+      resumeReadTimeoutMs: 40,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    const reading = progress.resume();
+    expect(reading.kind).toBe("reading");
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      pocket: mountain.pocket + 1,
+      remaining: mountain.remaining - 1,
+    }));
+    expect(phonePocket(storage)).toBe(2);
+    expect(written).toEqual([]);
+    clock = 22_000;
+    progress.tick();
+    expect(progress.getSnapshot().mountain.pocket).toBe(2);
+    if (reading.kind === "reading") {
+      await reading.done;
+    }
+    expect(progress.getSnapshot().log).toContain("save.resume timeout");
+    progress.tick();
+    expect(progress.getSnapshot().mountain.pocket).toBeGreaterThan(2);
+    expect(phonePocket(storage)).toBe(progress.getSnapshot().mountain.pocket);
+    expect(written).toEqual([]);
+    deliver({
+      kind: "found",
+      mountain: { ...minedMountain(1), helpers: 1 },
+      rev: 1,
+      lastSeen: 20_000,
+    });
+    await vi.waitFor(() => {
+      expect(written.length).toBeGreaterThan(0);
+    });
+    expect(written.at(-1)).toBe(progress.getSnapshot().mountain.pocket);
+    progress.dispose();
+  });
+
+  it("an offline fresh read rejects, then a server snapshot still saves", async () => {
+    const storage = createMemoryStorage();
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    const written: number[] = [];
+    const cloud: CloudSave = {
+      load: ({ fresh }) =>
+        fresh
+          ? Promise.reject(new Error("offline"))
+          : Promise.resolve({
+              kind: "found" as const,
+              mountain: minedMountain(2),
+              rev: 1,
+            }),
+      write: (args) => {
+        written.push(args.mountain.pocket);
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({ kind: "found", mountain: minedMountain(2), rev: 1 });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+      now: () => 5_000,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    const reading = progress.resume();
+    if (reading.kind === "reading") {
+      await reading.done;
+    }
+    expect(progress.getSnapshot().log).toContain("save.resume rejected");
+    progress.applyMutation(() => minedMountain(3));
+    expect(phonePocket(storage)).toBe(3);
+    expect(written).toEqual([]);
+    deliver({ kind: "found", mountain: minedMountain(2), rev: 1 });
+    await vi.waitFor(() => {
+      expect(written).toContain(3);
+    });
+    progress.dispose();
+  });
+
+  it("ignores a late load after the resume timeout and retries on the backoff", async () => {
+    vi.useFakeTimers();
+    const storage = createMemoryStorage();
+    let resolveLoad: ((value: CloudLoadResult) => void) | undefined;
+    let freshLoads = 0;
+    const cloud: CloudSave = {
+      load: ({ fresh }) => {
+        if (!fresh) {
+          return Promise.resolve({
+            kind: "found",
+            mountain: minedMountain(1),
+            rev: 1,
+          });
+        }
+        freshLoads += 1;
+        return new Promise((resolve) => {
+          resolveLoad = resolve;
+        });
+      },
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        onChange({ kind: "found", mountain: minedMountain(1), rev: 1 });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+      now: () => 20_000,
+      resumeReadTimeoutMs: 500,
+    });
+    expect(progress.getSnapshot().ready).toBe(true);
+    const reading = progress.resume();
+    await vi.advanceTimersByTimeAsync(500);
+    if (reading.kind === "reading") {
+      await reading.done;
+    }
+    expect(progress.getSnapshot().log).toContain("save.resume timeout");
+    const pocket = progress.getSnapshot().mountain.pocket;
+    resolveLoad?.({ kind: "found", mountain: minedMountain(50), rev: 9 });
+    await Promise.resolve();
+    expect(progress.getSnapshot().mountain.pocket).toBe(pocket);
+    const again = progress.resume();
+    await vi.advanceTimersByTimeAsync(500);
+    if (again.kind === "reading") {
+      await again.done;
+    }
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(freshLoads).toBeGreaterThan(2);
+    progress.dispose();
+    vi.useRealTimers();
+  });
+
+  it("pagehide still saves when the writer listener is registered first", async () => {
+    const storage = createMemoryStorage();
+    const docs = new Map<string, Mountain>();
+    const cloud = createMemoryCloudSave({ docs });
+    const writer = createTabWriter({
+      tabId: "tab-writer",
+      storage,
+      leaseMs: 60_000,
+    });
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      tabWriter: writer,
+      cloudWriteGapMs: 0,
+    });
+    const unbind = bindWriterPageHide(writer);
+    const onHide = (): void => {
+      progress.flush();
+    };
+    window.addEventListener("pagehide", onHide);
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    progress.applyMutation(() => minedMountain(4));
+    await vi.waitFor(() => {
+      expect(docs.get(user.uid)?.pocket).toBe(4);
+    });
+    docs.delete(user.uid);
+    storage.removeItem(`dad-friendly-phone-backup:${user.uid}`);
+    window.dispatchEvent(new Event("pagehide"));
+    expect(phonePocket(storage)).toBe(4);
+    await vi.waitFor(() => {
+      expect(docs.get(user.uid)?.pocket).toBe(4);
+    });
+    window.removeEventListener("pagehide", onHide);
+    unbind();
     progress.dispose();
   });
 });

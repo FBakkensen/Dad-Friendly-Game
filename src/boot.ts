@@ -11,10 +11,13 @@ import {
   type CloudSave,
 } from "./cloud-save";
 import { createProgressStore, type ProgressStore } from "./progress-store";
+import { createBrowserTabWriter, type TabWriter } from "./tab-writer";
 
 export type AppServices = {
   readonly auth: AuthController;
   readonly progress: ProgressStore;
+  /** The one writer seat. `main` releases it on pagehide. */
+  readonly tabWriter: TabWriter;
 };
 
 export function parseBootOptions(search: string): {
@@ -43,14 +46,16 @@ export async function createAppServices({
     devMode && options.memorySave
       ? memoryServices()
       : await configuredServices({ env });
+  const tabWriter = createBrowserTabWriter();
   const progress = createProgressStore({
     auth: services.auth,
     cloudSave: services.cloudSave,
+    tabWriter,
   });
   if (devMode && options.previewTrouble) {
     progress.previewTrouble("cart");
   }
-  return { auth: services.auth, progress };
+  return { auth: services.auth, progress, tabWriter };
 }
 
 function memoryServices(): {
@@ -78,14 +83,12 @@ async function configuredServices({ env }: { env: FirebaseEnv }): Promise<{
       };
     case "ready": {
       try {
-        const [auth, cloudSave] = await Promise.all([
-          import("./firebase-auth").then((m) =>
-            m.createFirebaseAuth({ options: config.options }),
-          ),
-          import("./firebase-save").then((m) =>
-            m.createFirebaseCloudSave({ options: config.options }),
-          ),
-        ]);
+        const auth = await import("./firebase-auth").then((m) =>
+          m.createFirebaseAuth({ options: config.options }),
+        );
+        const cloudSave = await import("./firebase-save").then((m) =>
+          m.createFirebaseCloudSave({ options: config.options }),
+        );
         return { auth, cloudSave };
       } catch (error) {
         console.error("boot.firebase", error);

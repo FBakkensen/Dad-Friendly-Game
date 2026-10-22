@@ -992,6 +992,15 @@ export const LAYER_DIG = "Dig on";
 export const CRAFT_DONE = "Your Iron rails are fitted. Carts now 12/s.";
 export const CRAFT_DONE_BUTTON = "The crew feels it";
 
+/** One mountain, one tab. The other tabs wait. */
+export const OTHER_TAB_TITLE = "Playing in another tab";
+export const OTHER_TAB_BODY =
+  "The other one has the mountain. Nothing here is lost.";
+export const OTHER_TAB_PLAY = "Play here";
+/** Spelled-out tap for the mock. The live button does the same handoff. */
+export const OTHER_TAB_TAP =
+  "Presses in. This tab takes the mountain, after the other one saves. Stones already mined stay. Silent until unmuted.";
+
 /** The live layer card. Granite matches the approved mock, word for word. */
 const LAYER_CARD = {
   granite: {

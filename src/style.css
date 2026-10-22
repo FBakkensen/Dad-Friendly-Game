@@ -404,7 +404,16 @@ body {
   outline-offset: 4px;
 }
 
-.update-reload {
+.other-tab-body {
+  margin: 0;
+  max-width: 28ch;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  color: #e8d4b8;
+}
+
+.update-reload,
+.other-tab-play {
   appearance: none;
   min-height: 64px;
   min-width: min(320px, 100%);
@@ -420,7 +429,8 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-.update-reload:focus-visible {
+.update-reload:focus-visible,
+.other-tab-play:focus-visible {
   outline: 4px solid #e8d4b8;
   outline-offset: 4px;
 }
@@ -896,7 +906,8 @@ body {
 .field-log-sheet,
 .upgrades-dialog,
 .engineers-dialog,
-.update-prompt {
+.update-prompt,
+.other-tab {
   position: fixed;
   inset: 0;
   overflow-y: auto;
@@ -922,7 +933,8 @@ body {
 .game-menu[hidden],
 .field-log-sheet[hidden],
 .upgrades-dialog[hidden],
-.engineers-dialog[hidden] {
+.engineers-dialog[hidden],
+.other-tab[hidden] {
   display: none;
 }
 
@@ -934,7 +946,8 @@ body {
 .start-over-card,
 .menu-card,
 .upgrades-card,
-.update-card {
+.update-card,
+.other-tab-card {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -954,10 +967,15 @@ body {
 .start-over-card h2,
 .menu-card h2,
 .upgrades-card h2,
-.update-card h2 {
+.update-card h2,
+.other-tab-card h2 {
   margin: 0;
   font-size: 1.5rem;
   color: #e8d4b8;
+}
+
+.other-tab-card h2 {
+  font-size: 1.25rem;
 }
 
 .legend-shelf {

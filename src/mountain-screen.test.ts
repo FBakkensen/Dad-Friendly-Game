@@ -23,9 +23,18 @@ import { FIX_HOLD_MS } from "./hazards";
 import {
   ENGINEER_WELCOME,
   NEEDS_MORE_WORKERS,
+  OTHER_TAB_BODY,
+  OTHER_TAB_PLAY,
+  OTHER_TAB_TITLE,
   troubleAria,
 } from "./screen-words";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
+import {
+  bindWriterPageHide,
+  createMemoryBus,
+  createTabWriter,
+  type TabWriter,
+} from "./tab-writer";
 import { buyTier, tierById } from "./tiers";
 import { recipesForMined, startCraft } from "./workshop";
 
@@ -75,6 +84,7 @@ function mountScreen({
   now,
   random,
   veinStorage = storage,
+  tabWriter,
 }: {
   auth?: AuthController;
   cloudSave?: CloudSave;
@@ -82,6 +92,7 @@ function mountScreen({
   veinStorage?: Pick<Storage, "getItem" | "setItem">;
   now?: () => number;
   random?: () => number;
+  tabWriter?: TabWriter;
 } = {}) {
   const root = document.createElement("div");
   const progress = createProgressStore({
@@ -90,6 +101,7 @@ function mountScreen({
     cloudWriteGapMs: 0,
     ...(cloudSave === undefined ? {} : { cloudSave }),
     ...(now === undefined ? {} : { now }),
+    ...(tabWriter === undefined ? {} : { tabWriter }),
   });
   mountMountainScreen({
     root,
@@ -177,6 +189,86 @@ describe("mountMountainScreen", () => {
     button?.click();
     expect(reload).toHaveBeenCalled();
     reload.mockRestore();
+  });
+
+  it("Reload releases the writer seat so the next open is the writer", () => {
+    const storage = createMemoryStorage();
+    const writer = createTabWriter({
+      tabId: "tab-writer",
+      storage,
+      leaseMs: 60_000,
+    });
+    const unbind = bindWriterPageHide(writer);
+    const screen = mountScreen({ storage, tabWriter: writer });
+    expect(writer.seat()).toBe("writer");
+    const reload = vi
+      .spyOn(globalThis.location, "reload")
+      .mockImplementation(() => {
+        window.dispatchEvent(new Event("pagehide"));
+      });
+    showAppUpdate(screen.root);
+    screen.root.querySelector<HTMLButtonElement>(".update-reload")?.click();
+    expect(reload).toHaveBeenCalled();
+    expect(writer.seat()).toBe("other");
+    const next = createTabWriter({
+      tabId: "tab-reloaded",
+      storage,
+      leaseMs: 60_000,
+    });
+    expect(next.seat()).toBe("writer");
+    reload.mockRestore();
+    unbind();
+    next.dispose();
+    screen.progress.dispose();
+  });
+
+  it("shows the other tab card, and Play here keeps the stones", async () => {
+    const storage = createMemoryStorage();
+    const bus = createMemoryBus();
+    const writer = createTabWriter({
+      tabId: "tab-writer",
+      storage,
+      bus,
+      handoffMs: 0,
+      yieldWaitMs: 30,
+    });
+    const other = createTabWriter({
+      tabId: "tab-other1",
+      storage,
+      bus,
+      handoffMs: 0,
+      yieldWaitMs: 30,
+    });
+    const first = mountScreen({ storage, tabWriter: writer });
+    const second = mountScreen({ storage, tabWriter: other });
+    const card = second.root.querySelector<HTMLElement>(".other-tab");
+    expect(card?.hidden).toBe(false);
+    expect(second.text("#other-tab-title")).toBe(OTHER_TAB_TITLE);
+    expect(second.text(".other-tab-body")).toBe(OTHER_TAB_BODY);
+    expect(second.text(".other-tab-play")).toBe(OTHER_TAB_PLAY);
+    expect(first.root.querySelector<HTMLElement>(".other-tab")?.hidden).toBe(
+      true,
+    );
+
+    first.mountain.click();
+    expect(first.text(".pocket")).toBe("1 stone");
+    second.mountain.click();
+    expect(second.text(".pocket")).toBe("0 stones");
+
+    second.root.querySelector<HTMLButtonElement>(".other-tab-play")?.click();
+    await vi.waitFor(() => {
+      expect(second.root.querySelector<HTMLElement>(".other-tab")?.hidden).toBe(
+        true,
+      );
+    });
+    expect(second.text(".pocket")).toBe("1 stone");
+    expect(first.root.querySelector<HTMLElement>(".other-tab")?.hidden).toBe(
+      false,
+    );
+    second.mountain.click();
+    expect(second.text(".pocket")).toBe("2 stones");
+    first.progress.dispose();
+    second.progress.dispose();
   });
 
   it("keeps guest progress after the page is opened again", () => {

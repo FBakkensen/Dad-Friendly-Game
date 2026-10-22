@@ -41,6 +41,7 @@ describe("workshop mock page (#193)", () => {
     expect(() => parseMockView("?scene=nope")).toThrow(/scene/);
     expect(() => parseMockView("?phase=nope")).toThrow(/phase/);
     expect(parseMockView("?phase=shake&control=rails").phase).toBe("shake");
+    expect(parseMockView("?scene=other-tab").scene).toBe("other-tab");
   });
 
   it("names the iron the rails still need", () => {

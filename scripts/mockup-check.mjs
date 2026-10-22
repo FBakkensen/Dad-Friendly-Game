@@ -56,6 +56,7 @@ const SHOTS = [
   ["mountain", "rest", "open"],
   ["craft-done", "rest", ""],
   ["craft-done", "press", "done"],
+  ["other-tab", "rest", ""],
 ];
 
 const failures = [];

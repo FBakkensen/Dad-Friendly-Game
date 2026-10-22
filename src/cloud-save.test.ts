@@ -166,6 +166,17 @@ describe("createNoopCloudSave", () => {
 describe("createUnavailableCloudSave", () => {
   it("refuses a field log", async () => {
     const cloud = createUnavailableCloudSave();
+    await expect(cloud.load({ uid: "dad", fresh: true })).resolves.toEqual({
+      kind: "unavailable",
+    });
+    await expect(
+      cloud.write({
+        uid: "dad",
+        mountain: createMountain(),
+        rev: 1,
+        deviceId: "device-123",
+      }),
+    ).resolves.toEqual({ kind: "failed", message: "unavailable" });
     await expect(
       cloud.writeFieldLog({
         uid: "dad",
