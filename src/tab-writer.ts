@@ -37,10 +37,12 @@ export type TabWriter = {
   /** Drops this tab if another tab's lease has replaced ours. */
   readonly confirm: () => void;
   /**
-   * Pagehide: drop the lock and the lease so the next load can play.
-   * The page is going away, so this does not start a re-claim.
+   * Pagehide: flush, then drop the lock and the lease so the next load
+   * can play. The page is going away, so this does not start a re-claim.
    */
   readonly release: () => void;
+  /** Bfcache restore. Runs the claim path again after `release`. */
+  readonly restore: () => void;
   readonly dispose: () => void;
 };
 
@@ -443,12 +445,21 @@ export function createTabWriter({
       if (disposed) {
         return;
       }
+      // Save while this tab is still the writer. A later pagehide listener
+      // must not be what the phone backup and the cloud write depend on.
+      flush?.();
       stopHeartbeat();
       stopReclaim();
       grant?.release();
       grant = undefined;
       clearLease();
       setSeat("other");
+    },
+    restore() {
+      if (disposed) {
+        return;
+      }
+      claim();
     },
     dispose() {
       disposed = true;
@@ -463,14 +474,25 @@ export function createTabWriter({
   };
 }
 
-/** Clears the seat when the page goes away, including Update available → Reload. */
+/**
+ * Pagehide drops the seat. A back/forward-cache restore (`pageshow` with
+ * `persisted`) claims it again. Update available → Reload is a pagehide too.
+ */
 export function bindWriterPageHide(writer: TabWriter): () => void {
   const onHide = (): void => {
     writer.release();
   };
+  const onShow = (event: PageTransitionEvent): void => {
+    if (!event.persisted) {
+      return;
+    }
+    writer.restore();
+  };
   window.addEventListener("pagehide", onHide);
+  window.addEventListener("pageshow", onShow);
   return () => {
     window.removeEventListener("pagehide", onHide);
+    window.removeEventListener("pageshow", onShow);
   };
 }
 

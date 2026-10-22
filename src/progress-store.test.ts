@@ -26,7 +26,11 @@ import {
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { effectiveRates } from "./rates";
 import { readPhoneBackup, writePhoneBackup } from "./phone-backup";
-import { createMemoryBus, createTabWriter } from "./tab-writer";
+import {
+  bindWriterPageHide,
+  createMemoryBus,
+  createTabWriter,
+} from "./tab-writer";
 import { WELCOME_MIN_AWAY_MS, createProgressStore } from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { buyTier } from "./tiers";
@@ -4491,5 +4495,45 @@ describe("fresh read, one writer, and a pending offline write", () => {
     expect(freshLoads).toBeGreaterThan(2);
     progress.dispose();
     vi.useRealTimers();
+  });
+
+  it("pagehide still saves when the writer listener is registered first", async () => {
+    const storage = createMemoryStorage();
+    const docs = new Map<string, Mountain>();
+    const cloud = createMemoryCloudSave({ docs });
+    const writer = createTabWriter({
+      tabId: "tab-writer",
+      storage,
+      leaseMs: 60_000,
+    });
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      tabWriter: writer,
+      cloudWriteGapMs: 0,
+    });
+    const unbind = bindWriterPageHide(writer);
+    const onHide = (): void => {
+      progress.flush();
+    };
+    window.addEventListener("pagehide", onHide);
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    progress.applyMutation(() => minedMountain(4));
+    await vi.waitFor(() => {
+      expect(docs.get(user.uid)?.pocket).toBe(4);
+    });
+    docs.delete(user.uid);
+    storage.removeItem(`dad-friendly-phone-backup:${user.uid}`);
+    window.dispatchEvent(new Event("pagehide"));
+    expect(phonePocket(storage)).toBe(4);
+    await vi.waitFor(() => {
+      expect(docs.get(user.uid)?.pocket).toBe(4);
+    });
+    window.removeEventListener("pagehide", onHide);
+    unbind();
+    progress.dispose();
   });
 });

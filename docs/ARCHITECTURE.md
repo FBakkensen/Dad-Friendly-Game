@@ -56,10 +56,12 @@ page is the map, plus the rules that keep it that way.
    as a listener retry) releases the held write. The phone backup still
    records during that read, and a tap in the gap is dug back onto the merged
    mountain. One tab holds the writer seat (Web Locks, or a localStorage
-   lease and a BroadcastChannel). Pagehide, including Reload, clears that
-   lease and the lock. A tab that found the seat taken re-checks every half
-   lease; an expired lease, or a Web Lock it actually holds, makes it the
-   writer without Play here. A stale lease does not override a held lock.
+   lease and a BroadcastChannel). Pagehide, including Reload, flushes the
+   save and then clears that lease and the lock. A back/forward-cache
+   restore (`pageshow` with `persisted`) claims the seat again. A tab that
+   found the seat taken re-checks every half lease; an expired lease, or a
+   Web Lock it actually holds, makes it the writer without Play here. A
+   stale lease does not override a held lock.
    The others show "Playing in another tab" and do not write. Play here asks
    the writer to flush, then takes the seat. Firestore's `persistentLocalCache`
    with `persistentMultipleTabManager` is a second copy of the server doc in

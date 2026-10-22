@@ -61,7 +61,7 @@ try {
     auth,
     progress,
   });
-  // Reload, including Update available, fires pagehide before the next load.
+  // Reload fires pagehide. A back/forward-cache restore fires pageshow.
   bindWriterPageHide(tabWriter);
   void registerServiceWorker({
     onUpdate: () => {

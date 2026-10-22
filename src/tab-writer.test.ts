@@ -295,6 +295,50 @@ describe("one writer tab", () => {
     reload.mockRestore();
     unbind();
   });
+
+  it("comes back as the writer when the page is restored from cache", async () => {
+    const storage = memoryStorage();
+    const restored = (persisted: boolean): Event => {
+      const event = new Event("pageshow");
+      Object.defineProperty(event, "persisted", { value: persisted });
+      return event;
+    };
+    const withoutLocks = createTabWriter({
+      tabId: "tab-writer",
+      storage,
+      leaseMs: 60_000,
+    });
+    writers.push(withoutLocks);
+    const unbind = bindWriterPageHide(withoutLocks);
+    window.dispatchEvent(new Event("pagehide"));
+    expect(withoutLocks.seat()).toBe("other");
+    window.dispatchEvent(restored(false));
+    expect(withoutLocks.seat()).toBe("other");
+    window.dispatchEvent(restored(true));
+    expect(withoutLocks.seat()).toBe("writer");
+    unbind();
+
+    const locked = memoryStorage();
+    const withLocks = createTabWriter({
+      tabId: "tab-locktab",
+      storage: locked,
+      locks: createWebLockBroker(fakeLocks()),
+      leaseMs: 60_000,
+    });
+    writers.push(withLocks);
+    await vi.waitFor(() => {
+      expect(withLocks.seat()).toBe("writer");
+    });
+    const unbindLocks = bindWriterPageHide(withLocks);
+    window.dispatchEvent(new Event("pagehide"));
+    expect(withLocks.seat()).toBe("other");
+    await Promise.resolve();
+    window.dispatchEvent(restored(true));
+    await vi.waitFor(() => {
+      expect(withLocks.seat()).toBe("writer");
+    });
+    unbindLocks();
+  });
 });
 
 describe("web lock broker", () => {
