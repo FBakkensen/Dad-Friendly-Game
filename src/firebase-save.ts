@@ -4,6 +4,7 @@ import {
   getDoc,
   getFirestore,
   onSnapshot,
+  serverTimestamp,
   setDoc,
 } from "firebase/firestore";
 import type { FirebaseWebOptions } from "./auth";
@@ -44,6 +45,8 @@ export function createFirebaseCloudSave({
       kind: "found",
       mountain: parsed.mountain,
       lastSeen: parsed.lastSeen,
+      rev: parsed.rev ?? 0,
+      ...(parsed.deviceId === undefined ? {} : { deviceId: parsed.deviceId }),
     };
   };
 
@@ -59,12 +62,17 @@ export function createFirebaseCloudSave({
       uid,
       mountain,
       lastSeen = Date.now(),
+      rev,
+      deviceId,
     }): Promise<CloudWriteResult> => {
       try {
-        await setDoc(ref(uid), serializeSave({ mountain, lastSeen }));
+        await setDoc(ref(uid), {
+          ...serializeSave({ mountain, lastSeen, rev, deviceId }),
+          savedAt: serverTimestamp(),
+        });
         return { kind: "ok" };
       } catch (error: unknown) {
-        return { kind: "failed", message: cloudErrorMessage(error) };
+        return cloudWriteResult(error);
       }
     },
     writeFieldLog: async ({ uid, log }): Promise<CloudWriteResult> => {
@@ -91,6 +99,14 @@ export function createFirebaseCloudSave({
         },
       ),
   };
+}
+
+function cloudWriteResult(error: unknown): CloudWriteResult {
+  const message = cloudErrorMessage(error);
+  if (message === "permission-denied") {
+    return { kind: "rejected", message };
+  }
+  return { kind: "failed", message };
 }
 
 function cloudErrorMessage(error: unknown): string {

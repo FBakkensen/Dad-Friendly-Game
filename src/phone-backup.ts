@@ -66,18 +66,27 @@ export function writePhoneBackup({
   uid,
   mountain,
   lastSeen,
+  rev,
+  deviceId,
 }: {
   storage: Storage;
   uid: string;
   mountain: Mountain;
   lastSeen: number;
+  rev?: number | undefined;
+  deviceId?: string | undefined;
 }): PhoneBackupWrite {
   const key = backupKey(uid);
   let raw: string;
   try {
     raw = JSON.stringify({
       uid,
-      save: serializeSave({ mountain, lastSeen }),
+      save: serializeSave({
+        mountain,
+        lastSeen,
+        ...(rev === undefined ? {} : { rev }),
+        ...(deviceId === undefined ? {} : { deviceId }),
+      }),
     });
   } catch {
     return "failed";
@@ -89,11 +98,16 @@ export function writePhoneBackup({
     }
     if (existing !== null) {
       const parsed = parseStored(existing, uid);
-      if (parsed.kind === "unreadable") {
+      if (parsed.kind !== "present") {
+        return "kept";
+      }
+      const existingRev = parsed.save.rev ?? 0;
+      const incomingRev = rev ?? 0;
+      if (existingRev > incomingRev) {
         return "kept";
       }
       if (
-        parsed.kind === "present" &&
+        existingRev === incomingRev &&
         compareSaveProgress(parsed.save, { mountain, lastSeen }) > 0
       ) {
         return "kept";
@@ -107,6 +121,17 @@ export function writePhoneBackup({
 }
 
 /** Identity of a write, so its own snapshot can be skipped. */
-export function saveEchoKey(mountain: Mountain, lastSeen: number): string {
-  return JSON.stringify(serializeSave({ mountain, lastSeen }));
+export function saveEchoKey(
+  mountain: Mountain,
+  lastSeen: number,
+  rev = 0,
+  deviceId = "",
+): string {
+  return JSON.stringify(
+    serializeSave({
+      mountain,
+      lastSeen,
+      ...(rev >= 1 && deviceId.length >= 8 ? { rev, deviceId } : {}),
+    }),
+  );
 }

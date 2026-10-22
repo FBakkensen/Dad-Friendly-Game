@@ -382,6 +382,27 @@ export function mountMountainScreen({
   saveStatus.className = "save-status";
   saveStatus.setAttribute("aria-live", "polite");
 
+  const updatePrompt = document.createElement("div");
+  updatePrompt.className = "update-prompt";
+  updatePrompt.hidden = true;
+  updatePrompt.setAttribute("role", "dialog");
+  updatePrompt.setAttribute("aria-modal", "true");
+  updatePrompt.setAttribute("aria-labelledby", "update-prompt-title");
+  const updateCard = document.createElement("div");
+  updateCard.className = "update-card";
+  const updateTitle = document.createElement("h2");
+  updateTitle.id = "update-prompt-title";
+  updateTitle.textContent = "Update available";
+  const updateReload = document.createElement("button");
+  updateReload.type = "button";
+  updateReload.className = "update-reload";
+  updateReload.textContent = "Reload";
+  updateReload.addEventListener("click", () => {
+    globalThis.location.reload();
+  });
+  updateCard.append(updateTitle, updateReload);
+  updatePrompt.append(updateCard);
+
   const renderSave = (): void => {
     switch (view.saveKind) {
       case "unsigned":
@@ -556,6 +577,7 @@ export function mountMountainScreen({
     upgradesSheet,
     engineers.sheet,
     workshop.sheet,
+    updatePrompt,
   );
 
   setInterval(() => {
@@ -594,4 +616,13 @@ export function mountMountainScreen({
     view = next;
     render();
   });
+}
+
+/** Shows the reload prompt. A newer service worker calls this. */
+export function showAppUpdate(root: ParentNode): void {
+  const prompt = root.querySelector<HTMLElement>(".update-prompt");
+  if (prompt === null) {
+    return;
+  }
+  prompt.hidden = false;
 }

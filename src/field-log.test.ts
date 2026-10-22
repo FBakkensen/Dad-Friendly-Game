@@ -60,6 +60,8 @@ describe("snapshot", () => {
     expect(shot).toEqual({
       version: APP_VERSION,
       at: new Date(AT).toISOString(),
+      deviceId: "",
+      rev: 0,
       mined: 0,
       left: MOUNTAIN_STONES,
       pocket: 0,

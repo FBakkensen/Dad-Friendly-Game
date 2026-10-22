@@ -44,6 +44,8 @@ const REQUIRED_SELECTORS = [
   ".craft-notice",
   ".material-line",
   ".layer-hint",
+  ".update-prompt",
+  ".update-reload",
 ];
 
 describe("style.css", () => {
@@ -63,6 +65,7 @@ describe("style.css", () => {
     ".field-log-sheet",
     ".upgrades-dialog",
     ".engineers-dialog",
+    ".update-prompt",
   ])("lays %s over the game", (selector) => {
     const group = /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
       css.slice(css.indexOf(".welcome-back,")),

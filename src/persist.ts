@@ -47,19 +47,38 @@ export type MountainSaveV6 = {
   readonly lastSeen: number;
 };
 
+/** v7 adds a rev that only increases, plus the device that wrote it. */
+export type MountainSaveV7 = Omit<MountainSaveV6, "version"> & {
+  readonly version: 7;
+  readonly rev: number;
+  readonly deviceId: string;
+};
+
+/** Same bounds as `firestore.rules`. */
+const SAVE_DEVICE_ID_MIN = 8;
+const SAVE_DEVICE_ID_MAX = 64;
+
 export type ParsedSave = {
   readonly mountain: Mountain;
   readonly lastSeen: number | undefined;
+  /** Missing on a v6 document. The rules treat that as rev 0. */
+  readonly rev?: number;
+  readonly deviceId?: string;
 };
 
 export function serializeSave({
   mountain,
   lastSeen,
+  rev,
+  deviceId,
 }: {
   mountain: Mountain;
   lastSeen: number;
-}): MountainSaveV6 {
-  return {
+  /** When set with a device id, the document is v7. Otherwise it stays v6. */
+  rev?: number | undefined;
+  deviceId?: string | undefined;
+}): MountainSaveV6 | MountainSaveV7 {
+  const saved: MountainSaveV6 = {
     version: 6,
     mountain: {
       remaining: mountain.remaining,
@@ -118,6 +137,17 @@ export function serializeSave({
     },
     lastSeen,
   };
+  if (
+    rev !== undefined &&
+    Number.isInteger(rev) &&
+    rev >= 1 &&
+    deviceId !== undefined &&
+    deviceId.length >= SAVE_DEVICE_ID_MIN &&
+    deviceId.length <= SAVE_DEVICE_ID_MAX
+  ) {
+    return { ...saved, version: 7, rev, deviceId };
+  }
+  return saved;
 }
 
 /**
@@ -151,9 +181,15 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
             lastSeen: loaded.lastSeen,
           };
     }
-    case 6: {
+    case 6:
+    case 7: {
       const lastSeen = record["lastSeen"];
       if (typeof lastSeen !== "number" || !Number.isFinite(lastSeen)) {
+        return undefined;
+      }
+      const identity =
+        record["version"] === 7 ? readV7Identity(record) : undefined;
+      if (record["version"] === 7 && identity === undefined) {
         return undefined;
       }
       const base = parseMountain(record["mountain"]);
@@ -201,11 +237,30 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
           ...(axleUntil === undefined ? {} : { axleUntil }),
         },
         lastSeen,
+        ...(identity === undefined ? {} : identity),
       };
     }
     default:
       return undefined;
   }
+}
+
+function readV7Identity(
+  record: Record<string, unknown>,
+): { readonly rev: number; readonly deviceId: string } | undefined {
+  const rev = record["rev"];
+  const deviceId = record["deviceId"];
+  if (
+    typeof rev !== "number" ||
+    !Number.isInteger(rev) ||
+    rev < 1 ||
+    typeof deviceId !== "string" ||
+    deviceId.length < SAVE_DEVICE_ID_MIN ||
+    deviceId.length > SAVE_DEVICE_ID_MAX
+  ) {
+    return undefined;
+  }
+  return { rev, deviceId };
 }
 
 /** An id this build can write back without treating it as a recipe it knows. */

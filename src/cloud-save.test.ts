@@ -80,12 +80,32 @@ describe("createMemoryCloudSave", () => {
     await expect(cloud.load({ uid: "dad" })).resolves.toEqual({
       kind: "missing",
     });
-    await expect(cloud.write({ uid: "dad", mountain })).resolves.toEqual({
+    await expect(
+      cloud.write({
+        uid: "dad",
+        mountain,
+        rev: 1,
+        deviceId: "device-dad-1",
+      }),
+    ).resolves.toEqual({
       kind: "ok",
+    });
+    await expect(
+      cloud.write({
+        uid: "dad",
+        mountain,
+        rev: 1,
+        deviceId: "device-dad-1",
+      }),
+    ).resolves.toEqual({
+      kind: "rejected",
+      message: "permission-denied",
     });
     await expect(cloud.load({ uid: "dad" })).resolves.toEqual({
       kind: "found",
       mountain,
+      rev: 1,
+      deviceId: "device-dad-1",
     });
     expect(docs.get("dad")).toEqual(mountain);
     expect(seen).toEqual(["missing", "found"]);
@@ -119,6 +139,8 @@ describe("createNoopCloudSave", () => {
     await cloud.write({
       uid: "dad",
       mountain: createMountain(),
+      rev: 1,
+      deviceId: "device-dad-1",
     });
     await expect(cloud.load({ uid: "dad" })).resolves.toEqual({
       kind: "disabled",

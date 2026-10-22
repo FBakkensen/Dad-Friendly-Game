@@ -404,6 +404,27 @@ body {
   outline-offset: 4px;
 }
 
+.update-reload {
+  appearance: none;
+  min-height: 64px;
+  min-width: min(320px, 100%);
+  padding: 16px 24px;
+  border: 0;
+  border-radius: 12px;
+  background: #e8a84a;
+  color: #120c0a;
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 650;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.update-reload:focus-visible {
+  outline: 4px solid #e8d4b8;
+  outline-offset: 4px;
+}
+
 .goal {
   max-width: 34ch;
   min-height: 0;
@@ -874,7 +895,8 @@ body {
 .game-menu,
 .field-log-sheet,
 .upgrades-dialog,
-.engineers-dialog {
+.engineers-dialog,
+.update-prompt {
   position: fixed;
   inset: 0;
   overflow-y: auto;
@@ -891,6 +913,7 @@ body {
 }
 
 .welcome-back[hidden],
+.update-prompt[hidden],
 .layer-arrival[hidden],
 .craft-notice[hidden],
 .relic-reveal[hidden],
@@ -910,7 +933,8 @@ body {
 .shelf-card,
 .start-over-card,
 .menu-card,
-.upgrades-card {
+.upgrades-card,
+.update-card {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -929,7 +953,8 @@ body {
 .shelf-card h2,
 .start-over-card h2,
 .menu-card h2,
-.upgrades-card h2 {
+.upgrades-card h2,
+.update-card h2 {
   margin: 0;
   font-size: 1.5rem;
   color: #e8d4b8;

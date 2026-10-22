@@ -34,6 +34,8 @@ const SNAPSHOT_FIELDS = [
   "crewSpeed",
   "tapYield",
   "legacy",
+  "deviceId",
+  "rev",
   "crew",
   "idle",
   "relics",
@@ -54,6 +56,8 @@ const SCALAR_LABELS: Readonly<Record<string, string>> = {
   crewSpeed: "Crew speed",
   tapYield: "Tap yield",
   legacy: "Legacy",
+  deviceId: "Device",
+  rev: "Rev",
 };
 
 export type FieldLogEnv = {

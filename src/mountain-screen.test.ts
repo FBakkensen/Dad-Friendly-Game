@@ -15,7 +15,7 @@ import {
 import { APP_VERSION } from "./field-log";
 import { LAYERS } from "./layers";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
-import { mountMountainScreen } from "./mountain-screen";
+import { mountMountainScreen, showAppUpdate } from "./mountain-screen";
 import { createWelcomePanel } from "./welcome-panel";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
@@ -151,12 +151,32 @@ describe("mountMountainScreen", () => {
     ).toBe("239,999,999 of 240,000,000");
     expect(screen.text(".pocket")).toBe("1 stone");
     expect(screen.text(".save-status")).toBe("Saved on this device");
+    expect(
+      screen.root.querySelector<HTMLElement>(".update-prompt")?.hidden,
+    ).toBe(true);
 
     screen.mountain.click();
     expect(screen.text(".pocket")).toBe("2 stones");
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
     ).toBe("239,999,998 of 240,000,000");
+  });
+
+  it("shows an update prompt and reloads", () => {
+    const screen = mountScreen();
+    const reload = vi
+      .spyOn(globalThis.location, "reload")
+      .mockImplementation(() => undefined);
+    showAppUpdate(screen.root);
+    const prompt = screen.root.querySelector<HTMLElement>(".update-prompt");
+    expect(prompt?.hidden).toBe(false);
+    expect(screen.text("#update-prompt-title")).toBe("Update available");
+    const button =
+      screen.root.querySelector<HTMLButtonElement>(".update-reload");
+    expect(button?.textContent).toBe("Reload");
+    button?.click();
+    expect(reload).toHaveBeenCalled();
+    reload.mockRestore();
   });
 
   it("keeps guest progress after the page is opened again", () => {
@@ -340,6 +360,7 @@ describe("mountMountainScreen", () => {
       configurable: true,
       get: () => "visible",
     });
+    await Promise.resolve();
 
     expect(docs.get("test-dad")).toEqual(minedMountain(1));
   });

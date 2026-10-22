@@ -7,6 +7,9 @@ export type CloudLoadResult =
       readonly kind: "found";
       readonly mountain: Mountain;
       readonly lastSeen?: number | undefined;
+      /** 0 when the document has no rev yet (a v6 save). */
+      readonly rev?: number;
+      readonly deviceId?: string;
     }
   | { readonly kind: "missing" }
   | { readonly kind: "unavailable" }
@@ -14,6 +17,8 @@ export type CloudLoadResult =
 
 export type CloudWriteResult =
   | { readonly kind: "ok" }
+  /** Rules rejected the rev. The caller reads and merges. */
+  | { readonly kind: "rejected"; readonly message: string }
   | { readonly kind: "failed"; readonly message: string };
 
 export type CloudSave = {
@@ -22,6 +27,8 @@ export type CloudSave = {
     uid: string;
     mountain: Mountain;
     lastSeen?: number;
+    rev: number;
+    deviceId: string;
   }) => Promise<CloudWriteResult>;
   /** Overwrites `fieldLogs/{uid}`. The caller throttles. */
   readonly writeFieldLog: (args: {
@@ -94,13 +101,23 @@ export function createMemoryCloudSave({
 } = {}): CloudSave {
   const watchers = new Map<string, Set<(remote: CloudLoadResult) => void>>();
   const lastSeenByUid = new Map<string, number>();
+  const revByUid = new Map<string, number>();
+  const deviceByUid = new Map<string, string>();
 
   const current = (uid: string): CloudLoadResult => {
     const mountain = docs.get(uid);
     if (mountain === undefined) {
       return { kind: "missing" };
     }
-    return { kind: "found", mountain, lastSeen: lastSeenByUid.get(uid) };
+    const deviceId = deviceByUid.get(uid);
+    const lastSeen = lastSeenByUid.get(uid);
+    return {
+      kind: "found",
+      mountain,
+      rev: revByUid.get(uid) ?? 0,
+      ...(lastSeen === undefined ? {} : { lastSeen }),
+      ...(deviceId === undefined ? {} : { deviceId }),
+    };
   };
 
   const emit = (uid: string): void => {
@@ -116,8 +133,18 @@ export function createMemoryCloudSave({
 
   return {
     load: ({ uid }) => Promise.resolve(current(uid)),
-    write: ({ uid, mountain, lastSeen }) => {
+    write: ({ uid, mountain, lastSeen, rev, deviceId }) => {
+      const stored = revByUid.get(uid) ?? 0;
+      const expected = stored + 1;
+      if (!Number.isInteger(rev) || rev !== expected) {
+        return Promise.resolve({
+          kind: "rejected",
+          message: "permission-denied",
+        });
+      }
       docs.set(uid, mountain);
+      revByUid.set(uid, rev);
+      deviceByUid.set(uid, deviceId);
       if (lastSeen !== undefined) {
         lastSeenByUid.set(uid, lastSeen);
       }

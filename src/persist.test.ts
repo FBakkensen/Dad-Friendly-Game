@@ -780,3 +780,27 @@ describe("kid helpers in the save (#102)", () => {
     ).toBeUndefined();
   });
 });
+
+describe("save v7 rev (#223)", () => {
+  it("round-trips rev and deviceId, and a v6 doc stays rev-less", () => {
+    const mountain = minedMountain(8);
+    const saved = serializeSave({
+      mountain,
+      lastSeen: 4,
+      rev: 3,
+      deviceId: "device-dad-1234",
+    });
+    expect(saved.version).toBe(7);
+    const parsed = parseSaveValue(JSON.parse(JSON.stringify(saved)));
+    expect(parsed?.mountain).toEqual(mountain);
+    expect(parsed?.rev).toBe(3);
+    expect(parsed?.deviceId).toBe("device-dad-1234");
+    expect(parseSaveValue(serializeSave({ mountain, lastSeen: 4 }))?.rev).toBe(
+      undefined,
+    );
+    expect(
+      parseSaveValue({ ...saved, rev: 0, deviceId: "device-dad-1234" }),
+    ).toBeUndefined();
+    expect(parseSaveValue({ ...saved, deviceId: "short" })).toBeUndefined();
+  });
+});

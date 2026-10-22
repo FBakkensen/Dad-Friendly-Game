@@ -72,6 +72,10 @@ export type FieldSnapshot = {
   readonly version: string;
   /** ISO-8601 time of the snapshot. */
   readonly at: string;
+  /** This browser. Empty on a guest snapshot built without one. */
+  readonly deviceId: string;
+  /** High-water save rev. 0 until a v7 document exists. */
+  readonly rev: number;
   readonly mined: number;
   readonly left: number;
   readonly pocket: number;
@@ -122,6 +126,7 @@ export function snapshot(
   rates: Rates,
   now: number,
   version: string,
+  stamp: { readonly deviceId?: string; readonly rev?: number } = {},
 ): FieldSnapshot {
   const crew = Object.fromEntries(
     TIERS.map((tier) => [tier.id, owned(mountain, tier)]),
@@ -157,6 +162,8 @@ export function snapshot(
   return {
     version,
     at: new Date(now).toISOString(),
+    deviceId: stamp.deviceId ?? "",
+    rev: stamp.rev ?? 0,
     mined: minedOut(mountain),
     left: mountain.remaining,
     pocket: mountain.pocket,
@@ -355,6 +362,8 @@ export function maxFieldLogDocumentBytes(): number {
         { id: "sharper", endsAt: maxText() },
       ],
       legacy: 1000,
+      deviceId: "x".repeat(FIELD_LOG_TEXT_MAX),
+      rev: 1_000_000,
       engineers: ENGINEER_NAMES.map((name) => ({
         name,
         rank: 2,
