@@ -25,6 +25,7 @@ import {
 } from "./mountain";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { effectiveRates } from "./rates";
+import { writePhoneBackup } from "./phone-backup";
 import { WELCOME_MIN_AWAY_MS, createProgressStore } from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { buyTier } from "./tiers";
@@ -572,7 +573,13 @@ describe("away earnings", () => {
   it("pays a signed-in dad from the cloud save once and writes it back", async () => {
     const docs = new Map<string, Mountain>();
     const cloud = createMemoryCloudSave({ docs });
-    await cloud.write({ uid: "test-dad", mountain: crew, lastSeen: 0 });
+    await cloud.write({
+      uid: "test-dad",
+      mountain: crew,
+      lastSeen: 0,
+      rev: 1,
+      deviceId: "device-test-dad",
+    });
     const user = { uid: "test-dad", label: "Test Dad" };
     const progress = createProgressStore({
       auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
@@ -665,7 +672,12 @@ describe("away earnings", () => {
       writeFieldLog: () => Promise.resolve({ kind: "ok" }),
       watch: ({ onChange }) => {
         push = onChange;
-        onChange({ kind: "found", mountain: crew, lastSeen: 50_000 });
+        onChange({
+          kind: "found",
+          mountain: crew,
+          lastSeen: 50_000,
+          rev: 1,
+        });
         return () => undefined;
       },
     };
@@ -679,7 +691,7 @@ describe("away earnings", () => {
     expect(progress.getSnapshot().away).toBeUndefined();
 
     await Promise.resolve();
-    push({ kind: "found", mountain: crew, lastSeen: 40_000 });
+    push({ kind: "found", mountain: crew, lastSeen: 40_000, rev: 1 });
     await Promise.resolve();
     expect(progress.getSnapshot().mountain.pocket).toBe(5);
 
@@ -687,6 +699,7 @@ describe("away earnings", () => {
       kind: "found",
       mountain: { ...crew, remaining: MOUNTAIN_STONES - 30, pocket: 35 },
       lastSeen: 40_000,
+      rev: 2,
     });
     expect(progress.getSnapshot().mountain.pocket).toBe(44);
     expect(progress.getSnapshot().away).toBeUndefined();
@@ -868,7 +881,7 @@ describe("start over", () => {
     );
   });
 
-  it("passes the mine to your kid only at the bottom, saving the Legacy at once (#131)", () => {
+  it("passes the mine to your kid only at the bottom, saving the Legacy at once (#131)", async () => {
     const cloud = signedInCloud(minedMountain(99_999_999));
     let clock = 10_000;
     const progress = createProgressStore({
@@ -883,6 +896,7 @@ describe("start over", () => {
     clock += 10;
 
     expect(progress.passTheMine()).toBe(true);
+    await Promise.resolve();
 
     const fresh = {
       ...createMountain(),
@@ -2946,6 +2960,426 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
       );
     }
     expect(minedOut(docs.get("test-dad") ?? createMountain())).toBe(150);
+    progress.dispose();
+  });
+
+  it("keeps one write in flight and sends the newest mountain next", async () => {
+    vi.useFakeTimers();
+    try {
+      let inflight = 0;
+      let maxInflight = 0;
+      let release: (result: CloudWriteResult) => void = () => undefined;
+      const writes: number[] = [];
+      const cloud: CloudSave = {
+        load: () => Promise.resolve({ kind: "missing" }),
+        write: ({ mountain }) => {
+          inflight += 1;
+          maxInflight = Math.max(maxInflight, inflight);
+          writes.push(minedOut(mountain));
+          return new Promise((resolve) => {
+            release = (result) => {
+              inflight -= 1;
+              resolve(result);
+            };
+          });
+        },
+        writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+        watch: ({ onChange }) => {
+          onChange({ kind: "found", mountain: createMountain(), rev: 0 });
+          return () => undefined;
+        },
+      };
+      const progress = createProgressStore({
+        auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+        cloudSave: cloud,
+        sessionStorage: createMemoryStorage(),
+        now: () => 30_000,
+        cloudWriteGapMs: 1000,
+      });
+      expect(progress.getSnapshot().ready).toBe(true);
+      progress.applyMutation(() => minedMountain(1));
+      progress.applyMutation(() => minedMountain(2));
+      progress.applyMutation(() => minedMountain(4));
+      expect(writes).toEqual([1]);
+      expect(maxInflight).toBe(1);
+      release({ kind: "ok" });
+      await Promise.resolve();
+      expect(writes).toEqual([1]);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(writes).toEqual([1, 4]);
+      expect(maxInflight).toBe(1);
+      release({ kind: "ok" });
+      await Promise.resolve();
+      progress.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("merges a refused rev and never adopts a lower one", async () => {
+    let server = {
+      mountain: minedMountain(10),
+      rev: 4,
+      lastSeen: 1,
+    };
+    const cloud: CloudSave = {
+      load: () =>
+        Promise.resolve({
+          kind: "found",
+          mountain: server.mountain,
+          rev: server.rev,
+          lastSeen: server.lastSeen,
+          deviceId: "other-device",
+        }),
+      write: ({ mountain, rev }) => {
+        if (rev !== server.rev + 1) {
+          return Promise.resolve({
+            kind: "rejected",
+            message: "permission-denied",
+          });
+        }
+        server = { mountain, rev, lastSeen: 2 };
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        onChange({
+          kind: "found",
+          mountain: minedMountain(10),
+          rev: 4,
+          lastSeen: 1,
+          deviceId: "other-device",
+        });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+      now: () => 40_000,
+      cloudWriteGapMs: 0,
+    });
+    expect(progress.getSnapshot().ready).toBe(true);
+    expect(minedOut(progress.getSnapshot().mountain)).toBe(10);
+
+    server = {
+      mountain: {
+        ...minedMountain(4),
+        upgrades: { boots: 1 },
+      },
+      rev: 6,
+      lastSeen: 2,
+    };
+    progress.applyMutation(() => minedMountain(30));
+    await vi.waitFor(() => {
+      expect(server.rev).toBe(7);
+    });
+    expect(minedOut(progress.getSnapshot().mountain)).toBe(30);
+    expect(progress.getSnapshot().mountain.upgrades).toEqual({ boots: 1 });
+    expect(progress.fieldLog().events.map((event) => event.code)).toContain(
+      "save.conflict",
+    );
+    expect(progress.fieldLog().snapshot.rev).toBe(7);
+    expect(progress.fieldLog().snapshot.deviceId.length).toBeGreaterThanOrEqual(
+      8,
+    );
+    expect(progress.fieldLog().events.map((event) => event.code)).toContain(
+      "save.conflict",
+    );
+    const kept = minedOut(progress.getSnapshot().mountain);
+    progress.dispose();
+
+    const again = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: {
+        ...cloud,
+        watch: ({ onChange }) => {
+          onChange({
+            kind: "found",
+            mountain: minedMountain(kept),
+            rev: 7,
+            lastSeen: 2,
+            deviceId: "device-test-dad",
+          });
+          queueMicrotask(() => {
+            onChange({
+              kind: "found",
+              mountain: minedMountain(1),
+              rev: 3,
+              lastSeen: 1,
+            });
+          });
+          return () => undefined;
+        },
+      },
+      sessionStorage: createMemoryStorage(),
+      now: () => 50_000,
+      cloudWriteGapMs: 0,
+    });
+    await Promise.resolve();
+    expect(minedOut(again.getSnapshot().mountain)).toBe(kept);
+    again.dispose();
+  });
+
+  it("never decreases across two devices and 150 taps", async () => {
+    const docs = new Map<string, Mountain>();
+    const cloud = createMemoryCloudSave({ docs });
+    let clock = 60_000;
+    const open = (storage: Storage) =>
+      createProgressStore({
+        auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+        cloudSave: cloud,
+        sessionStorage: storage,
+        now: () => clock,
+        cloudWriteGapMs: 0,
+      });
+    const first = open(createMemoryStorage());
+    const second = open(createMemoryStorage());
+    await vi.waitFor(() => {
+      expect(first.getSnapshot().ready).toBe(true);
+      expect(second.getSnapshot().ready).toBe(true);
+    });
+    let seen = 0;
+    for (let tap = 1; tap <= 150; tap += 1) {
+      clock += 5;
+      first.applyMutation((mountain) => mineByHand(mountain));
+      await Promise.resolve();
+      const there = minedOut(second.getSnapshot().mountain);
+      expect(there).toBeGreaterThanOrEqual(seen);
+      seen = there;
+      expect(minedOut(first.getSnapshot().mountain)).toBeGreaterThanOrEqual(
+        tap,
+      );
+    }
+    await vi.waitFor(() => {
+      expect(
+        minedOut(docs.get("test-dad") ?? createMountain()),
+      ).toBeGreaterThanOrEqual(150);
+      expect(minedOut(second.getSnapshot().mountain)).toBeGreaterThanOrEqual(
+        150,
+      );
+    });
+    first.dispose();
+    second.dispose();
+  });
+
+  it("a frozen tab cannot overwrite the taps from the live one", async () => {
+    let mountain = createMountain();
+    let rev = 0;
+    let lastSeen = 0;
+    let hold = false;
+    const listeners = new Set<(remote: CloudLoadResult) => void>();
+    const current = (): CloudLoadResult =>
+      rev === 0
+        ? { kind: "missing" }
+        : {
+            kind: "found",
+            mountain,
+            rev,
+            lastSeen,
+            deviceId: "live-device",
+          };
+    const emit = (): void => {
+      if (hold) {
+        return;
+      }
+      const remote = current();
+      for (const listener of listeners) {
+        listener(remote);
+      }
+    };
+    const cloud: CloudSave = {
+      load: () => Promise.resolve(current()),
+      write: ({ mountain: next, rev: nextRev, lastSeen: seen }) => {
+        const expected = rev === 0 ? 1 : rev + 1;
+        if (nextRev !== expected) {
+          return Promise.resolve({
+            kind: "rejected",
+            message: "permission-denied",
+          });
+        }
+        mountain = next;
+        rev = nextRev;
+        lastSeen = seen ?? lastSeen;
+        emit();
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        listeners.add(onChange);
+        onChange(current());
+        return () => {
+          listeners.delete(onChange);
+        };
+      },
+    };
+    let clock = 70_000;
+    const open = () =>
+      createProgressStore({
+        auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+        cloudSave: cloud,
+        sessionStorage: createMemoryStorage(),
+        now: () => clock,
+        cloudWriteGapMs: 0,
+      });
+    const live = open();
+    const frozen = open();
+    await vi.waitFor(() => {
+      expect(live.getSnapshot().ready).toBe(true);
+      expect(frozen.getSnapshot().ready).toBe(true);
+    });
+    hold = true;
+    for (let tap = 0; tap < 150; tap += 1) {
+      clock += 5;
+      live.applyMutation((currentMountain) => mineByHand(currentMountain));
+    }
+    await vi.waitFor(() => {
+      expect(minedOut(mountain)).toBeGreaterThanOrEqual(150);
+    });
+    expect(minedOut(frozen.getSnapshot().mountain)).toBe(0);
+    const trail: number[] = [];
+    frozen.applyMutation((currentMountain) => {
+      trail.push(minedOut(currentMountain));
+      return currentMountain;
+    });
+    frozen.flush();
+    await vi.waitFor(() => {
+      expect(minedOut(frozen.getSnapshot().mountain)).toBeGreaterThanOrEqual(
+        150,
+      );
+    });
+    expect(minedOut(mountain)).toBeGreaterThanOrEqual(150);
+    for (let index = 1; index < trail.length; index += 1) {
+      expect(trail[index] ?? 0).toBeGreaterThanOrEqual(trail[index - 1] ?? 0);
+    }
+    live.dispose();
+    frozen.dispose();
+  });
+
+  it("keeps a higher phone rev and does not adopt the older cloud copy", async () => {
+    const storage = createMemoryStorage();
+    writePhoneBackup({
+      storage,
+      uid: user.uid,
+      mountain: minedMountain(40),
+      lastSeen: 9,
+      rev: 5,
+      deviceId: "device-test-dad1",
+    });
+    let doc = {
+      mountain: minedMountain(3),
+      rev: 2,
+      lastSeen: 1,
+    };
+    const cloud: CloudSave = {
+      load: () =>
+        Promise.resolve({
+          kind: "found",
+          mountain: doc.mountain,
+          rev: doc.rev,
+          lastSeen: doc.lastSeen,
+        }),
+      write: ({ mountain, rev }) => {
+        if (rev !== doc.rev + 1) {
+          return Promise.resolve({
+            kind: "rejected",
+            message: "permission-denied",
+          });
+        }
+        doc = { mountain, rev, lastSeen: 9 };
+        return Promise.resolve({ kind: "ok" });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        onChange({
+          kind: "found",
+          mountain: minedMountain(3),
+          rev: 2,
+          lastSeen: 1,
+        });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      now: () => 80_000,
+      cloudWriteGapMs: 0,
+    });
+    expect(minedOut(progress.getSnapshot().mountain)).toBe(40);
+    await vi.waitFor(() => {
+      expect(doc.rev).toBeGreaterThanOrEqual(3);
+      expect(minedOut(doc.mountain)).toBe(40);
+    });
+    progress.dispose();
+  });
+
+  it("records a rev refusal when the server doc is gone", async () => {
+    const cloud: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () =>
+        Promise.resolve({ kind: "rejected", message: "permission-denied" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        onChange({ kind: "found", mountain: createMountain(), rev: 1 });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+      now: () => 90_000,
+      cloudWriteGapMs: 0,
+    });
+    expect(progress.getSnapshot().ready).toBe(true);
+    progress.applyMutation(() => minedMountain(2));
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("error");
+    });
+    expect(progress.getSnapshot().log).toContain("permission-denied");
+    progress.dispose();
+  });
+
+  it("stops retrying after a run of rev refusals", async () => {
+    let serverRev = 4;
+    const cloud: CloudSave = {
+      load: () =>
+        Promise.resolve({
+          kind: "found",
+          mountain: minedMountain(8),
+          rev: serverRev,
+        }),
+      write: () => {
+        serverRev += 1;
+        return Promise.resolve({
+          kind: "rejected",
+          message: "permission-denied",
+        });
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        onChange({ kind: "found", mountain: minedMountain(1), rev: 1 });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+      now: () => 100_000,
+      cloudWriteGapMs: 0,
+    });
+    expect(progress.getSnapshot().ready).toBe(true);
+    progress.applyMutation(() => minedMountain(12));
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().log).toContain("save.write rev");
+    });
+    const stopped = serverRev;
+    await Promise.resolve();
+    expect(serverRev).toBe(stopped);
     progress.dispose();
   });
 });

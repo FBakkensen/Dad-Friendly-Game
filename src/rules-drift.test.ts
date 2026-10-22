@@ -161,6 +161,15 @@ describe("firestore.rules match the game", () => {
     );
   });
 
+  it("requires a rev that moves by one, and a server timestamp (#223)", () => {
+    expect(rules).toContain("data.version == 7");
+    expect(rules).toContain("request.resource.data.rev == 1");
+    expect(rules).toContain(
+      "request.resource.data.rev == resource.data.get('rev', 0) + 1",
+    );
+    expect(rules).toContain("data.savedAt == request.time");
+  });
+
   it("allows exactly the field log document (#142)", () => {
     const keys = (pattern: RegExp): string[] => {
       const match = pattern.exec(rules);

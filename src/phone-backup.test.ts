@@ -152,6 +152,44 @@ describe("phone backup", () => {
     ).toBe("failed");
   });
 
+  it("keeps a higher rev and will not replace it with a lower one", () => {
+    const storage = memory();
+    writePhoneBackup({
+      storage,
+      uid: "dad",
+      mountain: minedMountain(4),
+      lastSeen: 2,
+      rev: 5,
+      deviceId: "device-dad-1234",
+    });
+    expect(
+      writePhoneBackup({
+        storage,
+        uid: "dad",
+        mountain: minedMountain(40),
+        lastSeen: 9,
+        rev: 2,
+        deviceId: "device-dad-1234",
+      }),
+    ).toBe("kept");
+    expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("present");
+    const kept = readPhoneBackup({ storage, uid: "dad" });
+    expect(kept.kind === "present" && kept.save.rev).toBe(5);
+    expect(kept.kind === "present" && kept.save.mountain.pocket).toBe(4);
+    expect(
+      writePhoneBackup({
+        storage,
+        uid: "dad",
+        mountain: minedMountain(9),
+        lastSeen: 3,
+        rev: 6,
+        deviceId: "device-dad-1234",
+      }),
+    ).toBe("wrote");
+    const next = readPhoneBackup({ storage, uid: "dad" });
+    expect(next.kind === "present" && next.save.rev).toBe(6);
+  });
+
   it("reports a storage failure without throwing", () => {
     const storage = memory();
     storage.setItem = () => {

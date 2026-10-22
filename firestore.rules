@@ -8,7 +8,14 @@ service cloud.firestore {
     // Collection: saves
     // Document ID: Firebase Auth uid
     // Fields:
-    //   - version: int (required, 1..6)
+    //   - version: int (required, 1..7)
+    //   - rev: int (v7, required). A missing rev on an older doc counts as 0.
+    //       A write is accepted only when request rev == stored rev + 1.
+    //       Create, and the first write of a doc with no rev, must be rev 1.
+    //       Checked before the mountain so a stale write stays cheap.
+    //   - deviceId: string (v7). Length is checked by the client. A size
+    //       check here, beside a full crew, crosses the expression cap.
+    //   - savedAt: timestamp, must be request.time (v7, required)
     //   - mountain: map (required iff version is 3, 4, 5, or 6)
     //       - remaining: int 0..240000000 (v4: 0..100000000, v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts, drills, borers, machines, kids: optional int >= 0, upgrades: optional map of known ids to int levels, boosts: optional map of known ids to int end times,
     //         startedAt: optional int >= 0 (run start; updates may not lower it)
@@ -195,6 +202,12 @@ service cloud.firestore {
         (
           // `workshop is map` is the whole rules check that still fits beside a
           // full crew. The parser rejects a bad pocket, bench, or recipe list.
+          (data.version == 7 &&
+            hasOnlyAllowedFields(['version', 'mountain', 'lastSeen', 'workshop', 'rev', 'deviceId', 'savedAt']) &&
+            data.savedAt == request.time &&
+            hasValidLastSeen(data) &&
+            isValidMountain(data.mountain, 240000000) &&
+            data.workshop is map) ||
           (data.version == 6 &&
             hasOnlyAllowedFields(['version', 'mountain', 'lastSeen', 'workshop']) &&
             hasValidLastSeen(data) &&
@@ -310,8 +323,10 @@ service cloud.firestore {
 
     function isFieldSnapshot(shot) {
       return shot is map &&
-        shot.keys().hasOnly(['at', 'boosts', 'crew', 'crewSpeed', 'engineers', 'expeditions', 'idle', 'left', 'legacy', 'mined', 'pocket', 'relics', 'tapYield', 'upgrades', 'version']) &&
+        shot.keys().hasOnly(['at', 'boosts', 'crew', 'crewSpeed', 'deviceId', 'engineers', 'expeditions', 'idle', 'left', 'legacy', 'mined', 'pocket', 'relics', 'rev', 'tapYield', 'upgrades', 'version']) &&
         isIsoText(shot.at) &&
+        shot.deviceId is string &&
+        shot.rev is int &&
         isFieldBoostList(shot.boosts) &&
         isCrewCounts(shot.crew) &&
         shot.crewSpeed is number && shot.crewSpeed >= 0 && shot.crewSpeed <= 1000000000 &&
@@ -365,8 +380,18 @@ service cloud.firestore {
 
     match /saves/{userId} {
       allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidSave(request.resource.data);
+      // Create, and a doc that has never had a rev, start at 1. After that
+      // the request has to be exactly one higher. A v6 body has no rev, so an
+      // old cached build cannot write once this is deployed, and cannot
+      // overwrite a rev that already exists. The rev compare is first so a
+      // stale update does not walk the mountain.
+      allow create: if isOwner(userId) &&
+        'rev' in request.resource.data &&
+        request.resource.data.rev == 1 &&
+        isValidSave(request.resource.data);
       allow update: if isOwner(userId) &&
+        'rev' in request.resource.data &&
+        request.resource.data.rev == resource.data.get('rev', 0) + 1 &&
         isValidSave(request.resource.data) &&
         uidNotModified() &&
         notOlderRun();

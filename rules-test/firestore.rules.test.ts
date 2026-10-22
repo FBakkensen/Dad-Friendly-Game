@@ -4,11 +4,17 @@
  */
 import { deleteApp, initializeApp, type FirebaseApp } from "firebase/app";
 import {
+  getApps as adminApps,
+  initializeApp as initAdmin,
+} from "firebase-admin/app";
+import { getFirestore as adminStore } from "firebase-admin/firestore";
+import {
   connectFirestoreEmulator,
   deleteDoc,
   doc,
   getDoc,
   getFirestore,
+  serverTimestamp,
   setDoc,
   type Firestore,
 } from "firebase/firestore";
@@ -66,8 +72,35 @@ afterAll(async () => {
   await deleteApp(momApp);
 });
 
+const DEVICE = "rules-device";
+let revCursor = 0;
+
+/** A v7 write. The rev advances only after the rules accept it. */
+async function put(body: object): Promise<void> {
+  const rev = revCursor + 1;
+  await setDoc(doc(db, "saves", "dad"), {
+    ...body,
+    version: 7,
+    rev,
+    deviceId: DEVICE,
+    savedAt: serverTimestamp(),
+  });
+  revCursor = rev;
+}
+
+function legacyAdmin() {
+  const app = adminApps()[0] ?? initAdmin({ projectId: "demo-dad-friendly" });
+  return adminStore(app);
+}
+
+/** Seeds a pre-rev document. The rules no longer accept that write from a client. */
+async function seedLegacy(data: object): Promise<void> {
+  await legacyAdmin().doc("saves/dad").set(data);
+  revCursor = 0;
+}
+
 const save = (mountain: Mountain) =>
-  setDoc(doc(db, "saves", "dad"), serializeSave({ mountain, lastSeen: 1 }));
+  put(serializeSave({ mountain, lastSeen: 1 }));
 
 const roundTrip = async (mountain: Mountain): Promise<Mountain | undefined> => {
   await save(mountain);
@@ -110,7 +143,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     expect(await roundTrip(mountain)).toEqual(mountain);
     const raw = serializeSave({ mountain, lastSeen: 1 });
     for (const staffed of [true, 1, 2]) {
-      await setDoc(doc(db, "saves", "dad"), {
+      await put({
         ...raw,
         mountain: { ...raw.mountain, staffed },
       });
@@ -119,7 +152,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     }
     for (const staffed of [false, 0, 3, "2"]) {
       await expect(
-        setDoc(doc(db, "saves", "dad"), {
+        put({
           ...raw,
           mountain: { ...raw.mountain, staffed },
         }),
@@ -133,7 +166,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     const raw = serializeSave({ mountain, lastSeen: 1 });
     for (const legacy of [-1, 1.5, "2", 1001]) {
       await expect(
-        setDoc(doc(db, "saves", "dad"), {
+        put({
           ...raw,
           mountain: { ...raw.mountain, legacy },
         }),
@@ -147,7 +180,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     const raw = serializeSave({ mountain, lastSeen: 1 });
     for (const kids of [-1, 1.5, "7"]) {
       await expect(
-        setDoc(doc(db, "saves", "dad"), {
+        put({
           ...raw,
           mountain: { ...raw.mountain, kids },
         }),
@@ -168,7 +201,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
 
     const raw = serializeSave({ mountain, lastSeen: 1 });
     const write = (next: unknown) =>
-      setDoc(doc(db, "saves", "dad"), {
+      put({
         ...raw,
         mountain: { ...raw.mountain, engineers: next },
       });
@@ -270,12 +303,12 @@ describe("firestore.rules: every save the game writes is accepted", () => {
 
     const raw = serializeSave({ mountain, lastSeen: 1 });
     const writeExpeditions = (next: unknown) =>
-      setDoc(doc(db, "saves", "dad"), {
+      put({
         ...raw,
         mountain: { ...raw.mountain, expeditions: next },
       });
     const writeFinds = (next: unknown) =>
-      setDoc(doc(db, "saves", "dad"), {
+      put({
         ...raw,
         mountain: { ...raw.mountain, finds: next },
       });
@@ -334,16 +367,13 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     expect(await roundTrip(mountain)).toEqual(mountain);
 
     const raw = serializeSave({ mountain, lastSeen: 1 });
-    const writeWorkshop = (workshop: unknown) =>
-      setDoc(doc(db, "saves", "dad"), { ...raw, workshop });
+    const writeWorkshop = (workshop: unknown) => put({ ...raw, workshop });
     await expect(
       writeWorkshop({ ...raw.workshop, bench: null }),
     ).resolves.toBeUndefined();
     await expect(writeWorkshop("pocket")).rejects.toThrow(/permission/i);
     const { workshop, ...noWorkshop } = raw;
-    await expect(setDoc(doc(db, "saves", "dad"), noWorkshop)).rejects.toThrow(
-      /permission/i,
-    );
+    await expect(put(noWorkshop)).rejects.toThrow(/permission/i);
     expect(workshop.materials.clay).toBe(250);
     // Closed recipe ids, bench times, and crafted levels sit past the
     // expression budget once a crew is saved. The parser rejects them.
@@ -410,7 +440,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
 
   it("reads a v5 cloud document and grants the dug materials (#195)", async () => {
     const stones = 12_000_000;
-    await setDoc(doc(db, "saves", "dad"), {
+    await seedLegacy({
       version: 5,
       mountain: {
         remaining: MOUNTAIN_STONES - stones,
@@ -463,6 +493,49 @@ describe("firestore.rules: every save the game writes is accepted", () => {
         }),
       ).rejects.toThrow(/permission/i);
     }
+  });
+});
+
+describe("firestore.rules: rev (#223)", () => {
+  const stamped = (rev: number) => ({
+    ...serializeSave({ mountain: createMountain(), lastSeen: 1 }),
+    version: 7 as const,
+    rev,
+    deviceId: DEVICE,
+    savedAt: serverTimestamp(),
+  });
+
+  it("migrates a doc without rev, then rejects a stale, skipped, or duplicate rev", async () => {
+    const legacy = serializeSave({ mountain: createMountain(), lastSeen: 1 });
+    await seedLegacy(legacy);
+    await put(legacy);
+    expect((await getDoc(doc(db, "saves", "dad"))).data()?.["rev"]).toBe(1);
+
+    await put(legacy);
+    await expect(setDoc(doc(db, "saves", "dad"), stamped(2))).rejects.toThrow(
+      /permission/i,
+    );
+    await expect(setDoc(doc(db, "saves", "dad"), stamped(1))).rejects.toThrow(
+      /permission/i,
+    );
+    await expect(setDoc(doc(db, "saves", "dad"), stamped(4))).rejects.toThrow(
+      /permission/i,
+    );
+    await setDoc(doc(db, "saves", "dad"), stamped(3));
+    expect((await getDoc(doc(db, "saves", "dad"))).data()?.["rev"]).toBe(3);
+
+    await expect(setDoc(doc(db, "saves", "dad"), legacy)).rejects.toThrow(
+      /permission/i,
+    );
+  });
+
+  it("creates a save only at rev 1", async () => {
+    const fresh = doc(db, "saves", "dad");
+    await legacyAdmin().doc("saves/dad").delete();
+    await expect(setDoc(fresh, stamped(2))).rejects.toThrow(/permission/i);
+    await setDoc(fresh, stamped(1));
+    expect((await getDoc(fresh)).data()?.["rev"]).toBe(1);
+    await expect(setDoc(fresh, stamped(1))).rejects.toThrow(/permission/i);
   });
 });
 

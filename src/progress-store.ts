@@ -6,6 +6,8 @@ import {
   type CloudLoadResult,
   type CloudSave,
 } from "./cloud-save";
+import { readDeviceId } from "./device-id";
+import { mergeSaves, type MergedSave } from "./save-merge";
 import { staffExisting } from "./crew";
 import { grantFirstEngineer } from "./engineers";
 import {
@@ -196,7 +198,15 @@ export function createProgressStore({
   let lastSeen: number | undefined;
   let hydrateGeneration = 0;
   let hydrated = false;
-  let inFlightWrites = 0;
+  /** One cloud write at a time. A newer mountain waits, then goes next. */
+  let cloudFlight = false;
+  let cloudDirty = false;
+  /** Highest rev this device will trust. Never adopt a lower one. */
+  let rev = 0;
+  /** Rev we believe the server has. The next write is this plus one. */
+  let acked = 0;
+  let consecutiveRevMerges = 0;
+  const deviceId = readDeviceId(sessionStore);
   let saveKind: SaveKind = "unsigned";
   let watchingCloud = false;
   let unwatch: (() => void) | undefined;
@@ -634,70 +644,134 @@ export function createProgressStore({
     }
   };
 
+  /** Hide and a new run send as soon as the in-flight write returns. */
+  let expediteNext = false;
+
+  const dropEcho = (echoKey: string): void => {
+    const echoIndex = pendingEchoes.indexOf(echoKey);
+    if (echoIndex >= 0) {
+      pendingEchoes.splice(echoIndex, 1);
+    }
+  };
+
+  const noteConflict = (merged: MergedSave): void => {
+    if (!merged.conflict) {
+      return;
+    }
+    record("save.conflict", {
+      source: "merge",
+      stones: minedOut(merged.mountain),
+    });
+    logger.record({
+      level: "info",
+      code: "save.conflict",
+      detail: "kept the fuller save",
+      data: {
+        rev: merged.rev,
+        deviceId,
+        mined: minedOut(merged.mountain),
+        pocket: merged.mountain.pocket,
+      },
+    });
+  };
+
+  const finishFlight = (): void => {
+    cloudFlight = false;
+    if (!cloudDirty) {
+      return;
+    }
+    persistCloudSoon(false, expediteNext);
+  };
+
   /**
-   * Taps are unbounded, so cloud writes are throttled; the last tap always lands.
-   * A retry waits out the same gap and does not schedule another retry.
+   * Taps are unbounded. One write is in flight, and the next waits out a
+   * second. The newest mountain is what that next write sends. Hide and a
+   * new run skip the wait once the in-flight write returns.
    */
-  const persistCloudSoon = (retry = false): void => {
+  const persistCloudSoon = (retry = false, expedite = false): void => {
+    const state = auth.getState();
+    if (state.kind !== "signed-in" || !hydrated || disposed) {
+      return;
+    }
+    if (!retry) {
+      consecutiveRevMerges = 0;
+    }
+    cloudDirty = true;
+    if (expedite) {
+      expediteNext = true;
+    }
+    if (cloudFlight) {
+      return;
+    }
     if (pendingCloudWrite !== undefined) {
-      if (retry) {
-        return;
-      }
       cancelPendingCloudWrite();
     }
-    const wait = lastCloudWriteAt + cloudWriteGapMs - now();
+    const rush = expedite || expediteNext;
+    const wait = rush ? 0 : lastCloudWriteAt + cloudWriteGapMs - now();
     if (wait <= 0) {
       persistCloud(retry);
       return;
     }
     pendingCloudWrite = setTimeout(() => {
       pendingCloudWrite = undefined;
-      if (!disposed) {
-        persistCloud(retry);
-      }
+      persistCloud(retry);
     }, wait);
   };
 
   const persistCloud = (retry = false): void => {
     cancelPendingCloudWrite();
     const state = auth.getState();
-    if (state.kind !== "signed-in" || !hydrated) {
+    if (state.kind !== "signed-in" || !hydrated || disposed) {
       return;
     }
     const uid = state.user.uid;
     const generation = hydrateGeneration;
     const sentMountain = mountain;
     const sentSeen = lastSeen ?? now();
-    const echoKey = saveEchoKey(sentMountain, sentSeen);
+    const sentRev = acked + 1;
+    const echoKey = saveEchoKey(sentMountain, sentSeen, sentRev, deviceId);
     pendingEchoes.push(echoKey);
     if (pendingEchoes.length > 8) {
       pendingEchoes.shift();
     }
+    cloudDirty = false;
+    expediteNext = false;
+    cloudFlight = true;
     lastCloudWriteAt = now();
     const counts = saveCounts(sentMountain);
-    inFlightWrites += 1;
     void cloudSave
-      .write({ uid, mountain: sentMountain, lastSeen: sentSeen })
+      .write({
+        uid,
+        mountain: sentMountain,
+        lastSeen: sentSeen,
+        rev: sentRev,
+        deviceId,
+      })
       .then((result) => {
-        inFlightWrites -= 1;
         if (disposed || generation !== hydrateGeneration) {
           return;
         }
         switch (result.kind) {
           case "ok":
+            acked = sentRev;
+            rev = Math.max(rev, sentRev);
+            consecutiveRevMerges = 0;
             saveKind = "account";
             logger.record({
               level: "info",
               code: "save.write",
               detail: "ok",
-              data: counts,
+              data: { ...counts, rev: sentRev, deviceId },
             });
+            persistPhoneBackup();
+            finishFlight();
             break;
-          case "failed": {
-            const echoIndex = pendingEchoes.indexOf(echoKey);
-            if (echoIndex >= 0) {
-              pendingEchoes.splice(echoIndex, 1);
-            }
+          case "rejected":
+            dropEcho(echoKey);
+            void reconcileRev(uid, generation, counts);
+            return;
+          case "failed":
+            dropEcho(echoKey);
             saveKind = "error";
             record("save.error", {
               source: "write",
@@ -707,13 +781,14 @@ export function createProgressStore({
               level: "error",
               code: "save.write",
               detail: result.message,
-              data: counts,
+              data: { ...counts, rev: sentRev, deviceId },
             });
+            cloudFlight = false;
             if (!retry) {
               persistCloudSoon(true);
             }
             break;
-          }
+          /* v8 ignore next 5 -- exhaustiveness guard, unreachable */
           default: {
             const _exhaustive: never = result;
             return _exhaustive;
@@ -723,6 +798,67 @@ export function createProgressStore({
       });
   };
 
+  /** A rev the rules refused. Read the server copy, merge, write one higher. */
+  const reconcileRev = (
+    uid: string,
+    generation: number,
+    counts: { mined: number; pocket: number },
+  ): Promise<void> =>
+    cloudSave.load({ uid }).then((loaded) => {
+      if (disposed || generation !== hydrateGeneration) {
+        return;
+      }
+      if (loaded.kind !== "found") {
+        cloudFlight = false;
+        saveKind = "error";
+        record("save.error", { source: "write", id: "permission-denied" });
+        logger.record({
+          level: "error",
+          code: "save.write",
+          detail: "permission-denied",
+          data: { ...counts, rev, deviceId },
+        });
+        emit();
+        return;
+      }
+      const serverRev = loaded.rev ?? 0;
+      if (serverRev >= rev) {
+        const merged = mergeSaves(
+          { mountain, lastSeen, rev },
+          {
+            mountain: loaded.mountain,
+            lastSeen: loaded.lastSeen,
+            rev: serverRev,
+          },
+        );
+        mountain = merged.mountain;
+        if (merged.lastSeen !== undefined) {
+          lastSeen = merged.lastSeen;
+        }
+        rev = merged.rev;
+        noteConflict(merged);
+      }
+      acked = serverRev;
+      consecutiveRevMerges += 1;
+      cloudDirty = true;
+      persistPhoneBackup();
+      cloudFlight = false;
+      if (consecutiveRevMerges > 5) {
+        saveKind = "error";
+        record("save.error", { source: "write", id: "rev" });
+        logger.record({
+          level: "error",
+          code: "save.write",
+          detail: "rev",
+          data: { ...counts, rev: serverRev, deviceId },
+        });
+        emit();
+        return;
+      }
+      persistCloudSoon(true);
+      emit();
+    });
+
   const fieldSnapshotNow = (): FieldLog["snapshot"] => {
     const at = now();
     return fieldSnapshot(
@@ -730,6 +866,10 @@ export function createProgressStore({
       effectiveRates(mountain, at),
       at,
       APP_VERSION,
+      {
+        deviceId,
+        rev,
+      },
     );
   };
 
@@ -856,6 +996,8 @@ export function createProgressStore({
       uid: state.user.uid,
       mountain,
       lastSeen: lastSeen ?? now(),
+      rev,
+      deviceId,
     });
     if (result !== "failed") {
       return;
@@ -874,7 +1016,7 @@ export function createProgressStore({
    * rescheduling it would postpone the burst the throttle test is holding.
    */
   const healCloud = (): void => {
-    if (pendingCloudWrite !== undefined || inFlightWrites > 0) {
+    if (pendingCloudWrite !== undefined || cloudFlight) {
       return;
     }
     persistCloudSoon();
@@ -883,8 +1025,15 @@ export function createProgressStore({
   const takeEcho = (remote: {
     mountain: Mountain;
     lastSeen?: number | undefined;
+    rev?: number;
+    deviceId?: string;
   }): boolean => {
-    const key = saveEchoKey(remote.mountain, remote.lastSeen ?? 0);
+    const key = saveEchoKey(
+      remote.mountain,
+      remote.lastSeen ?? 0,
+      remote.rev ?? 0,
+      remote.deviceId ?? "",
+    );
     const index = pendingEchoes.lastIndexOf(key);
     if (index < 0) {
       return false;
@@ -1023,6 +1172,60 @@ export function createProgressStore({
       }
       return;
     }
+    if (remote.kind === "found" && (remote.rev ?? 0) < rev) {
+      logger.record({
+        level: "info",
+        code: "save.remote",
+        detail: "stale rev",
+        data: {
+          ...saveCounts(remote.mountain),
+          rev: remote.rev ?? 0,
+          deviceId,
+        },
+      });
+      if (!hydrated) {
+        openFresh(lastSeen, true, "stale rev");
+      } else {
+        healCloud();
+        emit();
+      }
+      return;
+    }
+    if (remote.kind === "found" && (remote.rev ?? 0) > rev) {
+      const serverRev = remote.rev ?? 0;
+      if (!hasLocalProgress()) {
+        mountain = remote.mountain;
+        rev = serverRev;
+        acked = serverRev;
+        openFresh(remote.lastSeen, false, "found");
+        return;
+      }
+      const merged = mergeSaves(
+        { mountain, lastSeen, rev },
+        {
+          mountain: remote.mountain,
+          lastSeen: remote.lastSeen,
+          rev: serverRev,
+        },
+      );
+      mountain = merged.mountain;
+      if (merged.lastSeen !== undefined) {
+        lastSeen = merged.lastSeen;
+      }
+      rev = merged.rev;
+      acked = serverRev;
+      noteConflict(merged);
+      openFresh(
+        merged.lastSeen,
+        merged.differsFromRemote,
+        merged.conflict ? "conflict" : "found",
+      );
+      return;
+    }
+    if (remote.kind === "found") {
+      acked = Math.max(acked, remote.rev ?? 0);
+      rev = Math.max(rev, remote.rev ?? 0);
+    }
     const next = applySignedInSave({
       local: mountain,
       ...(lastSeen === undefined ? {} : { localLastSeen: lastSeen }),
@@ -1064,6 +1267,9 @@ export function createProgressStore({
   const stopWatch = (): void => {
     cancelPendingCloudWrite();
     cancelListenRetry();
+    cloudFlight = false;
+    cloudDirty = false;
+    expediteNext = false;
     hydrateGeneration += 1;
     hydrated = false;
     lastFieldLogAt = undefined;
@@ -1131,6 +1337,14 @@ export function createProgressStore({
       mountain = backup.save.mountain;
       lastSeen = backup.save.lastSeen;
     }
+    const seenRev = Math.max(
+      session?.rev ?? 0,
+      backup.kind === "present" ? (backup.save.rev ?? 0) : 0,
+    );
+    if (seenRev > rev) {
+      rev = seenRev;
+      acked = seenRev;
+    }
     if (backup.kind === "unreadable") {
       return;
     }
@@ -1143,6 +1357,8 @@ export function createProgressStore({
       uid,
       mountain,
       lastSeen: lastSeen ?? now(),
+      rev,
+      deviceId,
     });
     if (wrote !== "failed") {
       clearSessionSave({ storage: sessionStore });
@@ -1155,6 +1371,9 @@ export function createProgressStore({
       resumeFromSession();
       return;
     }
+    rev = 0;
+    acked = 0;
+    consecutiveRevMerges = 0;
     prepareLocal(state.user.uid);
     cancelListenRetry();
     listenBackoffMs = LISTEN_BACKOFF_START_MS;
@@ -1276,7 +1495,7 @@ export function createProgressStore({
     });
     persistPhoneBackup();
     persistSession();
-    persistCloud();
+    persistCloudSoon(false, true);
     persistFieldLog("reset");
     emit();
     return true;
@@ -1456,7 +1675,7 @@ export function createProgressStore({
         settle();
       }
       persistPhoneBackup();
-      persistCloud();
+      persistCloudSoon(false, true);
       persistFieldLog("hide");
       if (saveKind === "session") {
         persistSession();

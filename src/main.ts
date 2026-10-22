@@ -16,7 +16,7 @@ import relicLantern from "./assets/relics/lantern.png";
 import relicMantle from "./assets/relics/mantle.png";
 import relicShield from "./assets/relics/shield.png";
 import { createAppServices } from "./boot";
-import { mountMountainScreen } from "./mountain-screen";
+import { mountMountainScreen, showAppUpdate } from "./mountain-screen";
 import { registerServiceWorker } from "./pwa";
 import "./style.css";
 
@@ -60,7 +60,11 @@ try {
     auth,
     progress,
   });
-  void registerServiceWorker();
+  void registerServiceWorker({
+    onUpdate: () => {
+      showAppUpdate(root);
+    },
+  });
 } catch (error) {
   console.error(error);
   root.textContent = "Boot failed — reload to try again.";
