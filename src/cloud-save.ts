@@ -1,5 +1,6 @@
 import type { FieldLogDocument } from "./field-log";
 import type { Mountain } from "./mountain";
+import { compareSaveProgress } from "./save-progress";
 
 export type CloudLoadResult =
   | {
@@ -40,14 +41,24 @@ export type HydratedSave = {
 
 export function applySignedInSave({
   local,
+  localLastSeen,
   remote,
 }: {
   local: Mountain;
+  localLastSeen?: number;
   remote: CloudLoadResult;
 }): HydratedSave {
   switch (remote.kind) {
-    case "found":
-      return { mountain: remote.mountain, upload: false };
+    case "found": {
+      const verdict = compareSaveProgress(
+        { mountain: local, lastSeen: localLastSeen },
+        { mountain: remote.mountain, lastSeen: remote.lastSeen },
+      );
+      if (verdict < 0) {
+        return { mountain: remote.mountain, upload: false };
+      }
+      return { mountain: local, upload: verdict > 0 };
+    }
     case "missing":
       return { mountain: local, upload: true };
     case "unavailable":

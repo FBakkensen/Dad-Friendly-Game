@@ -57,6 +57,8 @@ import {
 } from "./mountain";
 import { effectiveRates } from "./rates";
 import { relicsUncovered, type Relic } from "./relics";
+import { readPhoneBackup, saveEchoKey, writePhoneBackup } from "./phone-backup";
+import { compareSaveProgress, type SaveMoment } from "./save-progress";
 import { craftFittedWords } from "./screen-words";
 import { TIERS, owned } from "./tiers";
 import { UPGRADES, upgradeLevel } from "./upgrades";
@@ -129,7 +131,7 @@ export type ProgressStore = {
   ) => void;
   /** Snapshot plus the newest events the menu copies. Not part of the mountain save. */
   readonly fieldLog: () => FieldLog;
-  /** Settles helpers' work up to now for display. Does not save; saves happen on actions, hide, and pagehide. */
+  /** Settles helpers' work up to now for display. A signed-in phone backup follows a change; cloud writes stay on actions, hide, and pagehide. */
   readonly tick: () => void;
   /** Closes the current relic reveal; the next one (if any) follows. */
   readonly dismissReveal: () => void;
@@ -161,6 +163,9 @@ export type ProgressStore = {
 
 /** Firestore sustains about one write per second per document. */
 const CLOUD_WRITE_GAP_MS = 1000;
+/** First wait after a listener error, then double, capped. */
+const LISTEN_BACKOFF_START_MS = 1_000;
+const LISTEN_BACKOFF_MAX_MS = 30_000;
 /** Shorter absences still pay out, quietly, without the welcome-back card. */
 export const WELCOME_MIN_AWAY_MS = 60 * 1000;
 /** Longer than this between ticks and the game was not on screen. */
@@ -192,8 +197,6 @@ export function createProgressStore({
   let hydrateGeneration = 0;
   let hydrated = false;
   let inFlightWrites = 0;
-  /** A rejected write must not be replaced by the older server snapshot. */
-  let holdLocal = false;
   let saveKind: SaveKind = "unsigned";
   let watchingCloud = false;
   let unwatch: (() => void) | undefined;
@@ -274,6 +277,10 @@ export function createProgressStore({
   };
   let lastCloudWriteAt = Number.NEGATIVE_INFINITY;
   let pendingCloudWrite: ReturnType<typeof setTimeout> | undefined;
+  let listenRetry: ReturnType<typeof setTimeout> | undefined;
+  let listenBackoffMs = LISTEN_BACKOFF_START_MS;
+  /** Echoes of writes we sent, newest last. Capped so a dead listener cannot grow it. */
+  const pendingEchoes: string[] = [];
   let lastFieldLogAt: number | undefined;
   let lastFieldLogFingerprint: string | undefined;
   const noteChanges = (before: Mountain, after: Mountain): void => {
@@ -659,11 +666,18 @@ export function createProgressStore({
     }
     const uid = state.user.uid;
     const generation = hydrateGeneration;
+    const sentMountain = mountain;
+    const sentSeen = lastSeen ?? now();
+    const echoKey = saveEchoKey(sentMountain, sentSeen);
+    pendingEchoes.push(echoKey);
+    if (pendingEchoes.length > 8) {
+      pendingEchoes.shift();
+    }
     lastCloudWriteAt = now();
-    const counts = saveCounts(mountain);
+    const counts = saveCounts(sentMountain);
     inFlightWrites += 1;
     void cloudSave
-      .write({ uid, mountain, lastSeen: lastSeen ?? now() })
+      .write({ uid, mountain: sentMountain, lastSeen: sentSeen })
       .then((result) => {
         inFlightWrites -= 1;
         if (disposed || generation !== hydrateGeneration) {
@@ -671,7 +685,6 @@ export function createProgressStore({
         }
         switch (result.kind) {
           case "ok":
-            holdLocal = false;
             saveKind = "account";
             logger.record({
               level: "info",
@@ -680,8 +693,11 @@ export function createProgressStore({
               data: counts,
             });
             break;
-          case "failed":
-            holdLocal = true;
+          case "failed": {
+            const echoIndex = pendingEchoes.indexOf(echoKey);
+            if (echoIndex >= 0) {
+              pendingEchoes.splice(echoIndex, 1);
+            }
             saveKind = "error";
             record("save.error", {
               source: "write",
@@ -697,6 +713,7 @@ export function createProgressStore({
               persistCloudSoon(true);
             }
             break;
+          }
           default: {
             const _exhaustive: never = result;
             return _exhaustive;
@@ -810,78 +827,243 @@ export function createProgressStore({
     return result.mined;
   };
 
-  const applyRemote = (remote: CloudLoadResult): void => {
-    const localAhead = inFlightWrites > 0 || pendingCloudWrite !== undefined;
-    // A rejected write leaves the server on the previous mountain. Adopting
-    // that snapshot undoes the promote after the cheer. Keep local until a
-    // write succeeds, or a new watch starts.
-    if (remote.kind === "found" && (localAhead || holdLocal)) {
+  const localMoment = (): SaveMoment => ({
+    mountain,
+    lastSeen,
+  });
+
+  const hasLocalProgress = (): boolean =>
+    lastSeen !== undefined ||
+    minedOut(mountain) > 0 ||
+    runStartedAt(mountain) > 0 ||
+    mountain.pocket > 0 ||
+    mountain.helpers > 0 ||
+    mountain.carts > 0 ||
+    mountain.drills > 0 ||
+    mountain.borers > 0 ||
+    mountain.machines > 0 ||
+    mountain.kids > 0 ||
+    (mountain.legacy ?? 0) > 0;
+
+  /** Full save on this phone. Skipped until the first reconcile, and never deletes the key. */
+  const persistPhoneBackup = (): void => {
+    const state = auth.getState();
+    if (state.kind !== "signed-in" || sessionStore === undefined || !hydrated) {
       return;
     }
-    if (
-      hydrated &&
-      remote.kind === "found" &&
-      runStartedAt(remote.mountain) < runStartedAt(mountain)
-    ) {
-      // A snapshot from before "Start over" (or a stale device): keep the new run.
+    const result = writePhoneBackup({
+      storage: sessionStore,
+      uid: state.user.uid,
+      mountain,
+      lastSeen: lastSeen ?? now(),
+    });
+    if (result !== "failed") {
+      return;
+    }
+    record("save.error", { source: "phone" });
+    logger.record({
+      level: "error",
+      code: "save.phone",
+      detail: "failed",
+      data: saveCounts(mountain),
+    });
+  };
+
+  /**
+   * The cloud is behind the phone. Skip when a write is already queued:
+   * rescheduling it would postpone the burst the throttle test is holding.
+   */
+  const healCloud = (): void => {
+    if (pendingCloudWrite !== undefined || inFlightWrites > 0) {
+      return;
+    }
+    persistCloudSoon();
+  };
+
+  const takeEcho = (remote: {
+    mountain: Mountain;
+    lastSeen?: number | undefined;
+  }): boolean => {
+    const key = saveEchoKey(remote.mountain, remote.lastSeen ?? 0);
+    const index = pendingEchoes.lastIndexOf(key);
+    if (index < 0) {
+      return false;
+    }
+    pendingEchoes.splice(index, 1);
+    return true;
+  };
+
+  /** First open, or a cloud copy that is strictly ahead. Settles once from `paidLastSeen`. */
+  const openFresh = (
+    paidLastSeen: number | undefined,
+    upload: boolean,
+    detail: string,
+  ): void => {
+    const staffed = staffLoaded();
+    const steppedUp = grantEngineer();
+    revealBaseline ??= minedOut(mountain);
+    if (layerBaseline === undefined) {
+      primeArrivals();
+    }
+    recallHomecomings();
+    const paid = settleSince(paidLastSeen);
+    hydrated = true;
+    saveKind = "account";
+    welcomed = true;
+    logger.record({
+      level: "info",
+      code: "save.remote",
+      detail,
+      data: saveCounts(mountain),
+    });
+    if (upload || paid > 0 || staffed || steppedUp) {
+      persistCloudSoon();
+    }
+    persistPhoneBackup();
+    emit();
+  };
+
+  const cancelListenRetry = (): void => {
+    if (listenRetry === undefined) {
+      return;
+    }
+    clearTimeout(listenRetry);
+    listenRetry = undefined;
+  };
+
+  const attachWatch = (): void => {
+    const state = auth.getState();
+    if (disposed || state.kind !== "signed-in") {
+      return;
+    }
+    unwatch?.();
+    const generation = hydrateGeneration;
+    unwatch = cloudSave.watch({
+      uid: state.user.uid,
+      onChange: (remote) => {
+        if (disposed || generation !== hydrateGeneration) {
+          return;
+        }
+        applyRemote(remote);
+      },
+    });
+  };
+
+  const scheduleListenRetry = (): void => {
+    if (disposed || listenRetry !== undefined) {
+      return;
+    }
+    if (auth.getState().kind !== "signed-in") {
+      return;
+    }
+    const delay = listenBackoffMs;
+    listenBackoffMs = Math.min(delay * 2, LISTEN_BACKOFF_MAX_MS);
+    listenRetry = setTimeout(() => {
+      listenRetry = undefined;
+      if (disposed || auth.getState().kind !== "signed-in") {
+        return;
+      }
       logger.record({
         level: "info",
-        code: "save.remote",
-        detail: "older run ignored",
-        data: saveCounts(remote.mountain),
+        code: "save.watch",
+        detail: "retry",
+        data: saveCounts(mountain),
       });
-      persistCloudSoon();
-      emit();
-      return;
-    }
-    const next = applySignedInSave({ local: mountain, remote });
-    mountain = next.mountain;
-    const staffed = remote.kind === "found" && staffLoaded();
-    const steppedUp = remote.kind === "found" && grantEngineer();
-    let paid = 0;
-    if (remote.kind === "found") {
+      attachWatch();
+    }, delay);
+  };
+
+  const noteRemoteFailure = (kind: "unavailable" | "disabled"): void => {
+    if (kind === "unavailable" && !hydrated && hasLocalProgress()) {
+      const staffed = staffLoaded();
+      const steppedUp = grantEngineer();
       revealBaseline ??= minedOut(mountain);
       if (layerBaseline === undefined) {
         primeArrivals();
       }
       recallHomecomings();
-      paid = settleSince(remote.lastSeen);
-    } else {
-      lastSeen ??= now();
+      const paid = settleSince(lastSeen);
+      hydrated = true;
+      welcomed = true;
+      if (paid > 0 || staffed || steppedUp) {
+        persistPhoneBackup();
+      }
     }
+    if (hydrated) {
+      persistPhoneBackup();
+    }
+    saveKind = "error";
+    record("save.error", { source: kind });
     logger.record({
-      level: remote.kind === "unavailable" ? "error" : "info",
+      level: "error",
       code: "save.remote",
-      detail: remote.kind,
+      detail: kind,
       data: saveCounts(mountain),
     });
-    switch (remote.kind) {
-      case "found":
-      case "missing":
-        hydrated = true;
-        saveKind = "account";
-        welcomed = true;
-        if (next.upload || paid > 0 || staffed || steppedUp) {
-          persistCloudSoon();
-        }
-        break;
-      case "unavailable":
-      case "disabled":
-        hydrated = false;
-        saveKind = "error";
-        record("save.error", { source: remote.kind });
-        break;
-      default: {
-        const _exhaustive: never = remote;
-        return _exhaustive;
-      }
+    if (kind === "unavailable") {
+      scheduleListenRetry();
     }
     emit();
   };
 
+  const applyRemote = (remote: CloudLoadResult): void => {
+    if (remote.kind === "unavailable" || remote.kind === "disabled") {
+      noteRemoteFailure(remote.kind);
+      return;
+    }
+    listenBackoffMs = LISTEN_BACKOFF_START_MS;
+    if (remote.kind === "found" && takeEcho(remote)) {
+      if (
+        compareSaveProgress(localMoment(), {
+          mountain: remote.mountain,
+          lastSeen: remote.lastSeen,
+        }) > 0
+      ) {
+        healCloud();
+      }
+      return;
+    }
+    const next = applySignedInSave({
+      local: mountain,
+      ...(lastSeen === undefined ? {} : { localLastSeen: lastSeen }),
+      remote,
+    });
+    if (remote.kind === "found" && next.mountain !== mountain) {
+      mountain = remote.mountain;
+      openFresh(remote.lastSeen, false, "found");
+      return;
+    }
+    // A blank phone is not a copy. A cloud document that ties it on the
+    // progress stamp (same run, no stones mined, same clock) is still the save.
+    if (!hydrated && remote.kind === "found" && !hasLocalProgress()) {
+      mountain = remote.mountain;
+      openFresh(remote.lastSeen, false, "found");
+      return;
+    }
+    if (!hydrated) {
+      openFresh(lastSeen, next.upload, remote.kind);
+      return;
+    }
+    if (next.upload) {
+      logger.record({
+        level: "info",
+        code: "save.remote",
+        detail:
+          remote.kind === "found" &&
+          runStartedAt(remote.mountain) < runStartedAt(mountain)
+            ? "older run ignored"
+            : "behind",
+        data: saveCounts(remote.kind === "found" ? remote.mountain : mountain),
+      });
+      healCloud();
+      persistPhoneBackup();
+      emit();
+    }
+  };
+
   const stopWatch = (): void => {
     cancelPendingCloudWrite();
-    holdLocal = false;
+    cancelListenRetry();
     hydrateGeneration += 1;
     hydrated = false;
     lastFieldLogAt = undefined;
@@ -924,17 +1106,59 @@ export function createProgressStore({
     emit();
   };
 
+  /**
+   * The guest scratch and the phone backup are both local. Keep the one
+   * that is ahead, copy it onto the phone, then drop the guest key.
+   * An unreadable backup is left untouched.
+   */
+  const prepareLocal = (uid: string): void => {
+    if (sessionStore === undefined) {
+      return;
+    }
+    const session = readSessionSave({ storage: sessionStore });
+    if (
+      session !== undefined &&
+      compareSaveProgress(session, localMoment()) > 0
+    ) {
+      mountain = session.mountain;
+      lastSeen = session.lastSeen;
+    }
+    const backup = readPhoneBackup({ storage: sessionStore, uid });
+    if (
+      backup.kind === "present" &&
+      compareSaveProgress(backup.save, localMoment()) > 0
+    ) {
+      mountain = backup.save.mountain;
+      lastSeen = backup.save.lastSeen;
+    }
+    if (backup.kind === "unreadable") {
+      return;
+    }
+    if (!hasLocalProgress()) {
+      clearSessionSave({ storage: sessionStore });
+      return;
+    }
+    const wrote = writePhoneBackup({
+      storage: sessionStore,
+      uid,
+      mountain,
+      lastSeen: lastSeen ?? now(),
+    });
+    if (wrote !== "failed") {
+      clearSessionSave({ storage: sessionStore });
+    }
+  };
+
   const startCloudWatch = (): void => {
     const state = auth.getState();
     if (state.kind !== "signed-in") {
       resumeFromSession();
       return;
     }
-    if (sessionStore !== undefined) {
-      clearSessionSave({ storage: sessionStore });
-    }
-    const generation = (hydrateGeneration += 1);
-    holdLocal = false;
+    prepareLocal(state.user.uid);
+    cancelListenRetry();
+    listenBackoffMs = LISTEN_BACKOFF_START_MS;
+    hydrateGeneration += 1;
     hydrated = false;
     lastFieldLogAt = undefined;
     lastFieldLogFingerprint = undefined;
@@ -944,6 +1168,7 @@ export function createProgressStore({
     clearArrivals();
     saveKind = "loading";
     unwatch?.();
+    unwatch = undefined;
     logger.record({
       level: "info",
       code: "save.watch",
@@ -951,15 +1176,7 @@ export function createProgressStore({
       data: saveCounts(mountain),
     });
     emit();
-    unwatch = cloudSave.watch({
-      uid: state.user.uid,
-      onChange: (remote) => {
-        if (disposed || generation !== hydrateGeneration) {
-          return;
-        }
-        applyRemote(remote);
-      },
-    });
+    attachWatch();
   };
 
   const unsubscribeAuth = auth.subscribe((state) => {
@@ -1057,6 +1274,7 @@ export function createProgressStore({
       detail,
       data: saveCounts(mountain),
     });
+    persistPhoneBackup();
     persistSession();
     persistCloud();
     persistFieldLog("reset");
@@ -1083,6 +1301,7 @@ export function createProgressStore({
       const next = update(mountain);
       if (next === before) {
         if (mined > 0 || troubleMark() !== beforeTrouble || newsPending) {
+          persistPhoneBackup();
           emit();
         }
         return;
@@ -1096,6 +1315,7 @@ export function createProgressStore({
       persistCloudSoon();
       persistFieldLog("interval");
       persistSession();
+      persistPhoneBackup();
       emit();
     },
     dismissReveal: () => {
@@ -1213,8 +1433,12 @@ export function createProgressStore({
         return;
       }
       const before = mountain;
+      const seen = lastSeen;
       const beforeTrouble = troubleMark();
       const mined = settle();
+      if (mountain !== before || lastSeen !== seen) {
+        persistPhoneBackup();
+      }
       if (
         mined > 0 ||
         mountain !== before ||
@@ -1231,6 +1455,7 @@ export function createProgressStore({
       if (canPlay()) {
         settle();
       }
+      persistPhoneBackup();
       persistCloud();
       persistFieldLog("hide");
       if (saveKind === "session") {
@@ -1243,6 +1468,7 @@ export function createProgressStore({
     dispose: () => {
       disposed = true;
       cancelPendingCloudWrite();
+      cancelListenRetry();
       hydrateGeneration += 1;
       unwatch?.();
       unwatch = undefined;

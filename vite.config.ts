@@ -48,10 +48,22 @@ export default defineConfig({
           lines: 100,
         },
         "src/cloud-save.ts": {
-          statements: 82,
-          branches: 93,
-          functions: 72,
-          lines: 82,
+          statements: 88,
+          branches: 94,
+          functions: 85,
+          lines: 88,
+        },
+        "src/phone-backup.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/save-progress.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
         },
         "src/crew.ts": {
           statements: 100,
@@ -90,10 +102,10 @@ export default defineConfig({
           lines: 97,
         },
         "src/progress-store.ts": {
-          statements: 95,
+          statements: 96,
           branches: 93,
-          functions: 97,
-          lines: 95,
+          functions: 98,
+          lines: 96,
         },
         "src/rates.ts": {
           statements: 100,
