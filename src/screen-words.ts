@@ -992,6 +992,19 @@ export const LAYER_DIG = "Dig on";
 export const CRAFT_DONE = "Your Iron rails are fitted. Carts now 12/s.";
 export const CRAFT_DONE_BUTTON = "The crew feels it";
 
+/** Two copies of one run, and the player picks. */
+export const SAVE_CONFLICT_TITLE = "Two saves found";
+export const SAVE_CONFLICT_BODY =
+  "Both of these kept digging. Pick the one you want to play – the other one is kept safe, nothing is lost.";
+export const SAVE_CONFLICT_PHONE = "This phone";
+export const SAVE_CONFLICT_OTHER = "Other device";
+export const SAVE_CONFLICT_PLAY = "Play this one";
+export const SAVE_CONFLICT_CONFIRM =
+  "Play this one? The other is saved for 7 days.";
+export const SAVE_CONFLICT_ERROR =
+  "Couldn't store the other save yet – try again";
+export const SAVED_COPIES_TITLE = "Saved copies";
+
 /** One mountain, one tab. The other tabs wait. */
 export const OTHER_TAB_TITLE = "Playing in another tab";
 export const OTHER_TAB_BODY =
