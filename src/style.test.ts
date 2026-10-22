@@ -46,6 +46,8 @@ const REQUIRED_SELECTORS = [
   ".layer-hint",
   ".update-prompt",
   ".update-reload",
+  ".other-tab",
+  ".other-tab-play",
 ];
 
 describe("style.css", () => {
@@ -66,6 +68,7 @@ describe("style.css", () => {
     ".upgrades-dialog",
     ".engineers-dialog",
     ".update-prompt",
+    ".other-tab",
   ])("lays %s over the game", (selector) => {
     const group = /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
       css.slice(css.indexOf(".welcome-back,")),

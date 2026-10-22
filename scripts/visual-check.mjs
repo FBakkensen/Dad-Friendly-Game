@@ -2123,6 +2123,69 @@ for (const viewport of NOTICE_SIZES) {
   }
 }
 
+// One writer tab. The other shows a card and does not scroll at 360×560.
+{
+  const context = await browser.createBrowserContext();
+  const [width, height] = [360, 560];
+  const first = await context.newPage();
+  const second = await context.newPage();
+  for (const page of [first, second]) {
+    page.on("pageerror", (error) => {
+      failures.push(`other tab: ${String(error)}`);
+    });
+    await page.setViewport({ width, height, isMobile: true, hasTouch: true });
+  }
+  await first.goto(BASE, { waitUntil: "networkidle0" });
+  await second.goto(BASE, { waitUntil: "networkidle0" });
+  await second.waitForSelector(".other-tab:not([hidden])", { timeout: 5_000 });
+  const title = await second.$eval(
+    "#other-tab-title",
+    (element) => element.textContent,
+  );
+  const body = await second.$eval(
+    ".other-tab-body",
+    (element) => element.textContent,
+  );
+  const button = await second.$eval(".other-tab-play", (element) => ({
+    text: element.textContent,
+    height: element.getBoundingClientRect().height,
+  }));
+  check(
+    title === "Playing in another tab" &&
+      body === "The other one has the mountain. Nothing here is lost." &&
+      button.text === "Play here" &&
+      button.height >= 48,
+    "360x560 other tab card is gentle and fat",
+  );
+  check(
+    await coversViewport(second, ".other-tab"),
+    "360x560 other tab card is laid over the game",
+  );
+  check(await noScroll(second), "360x560 other tab has no scroll");
+  await shot(second, "other-tab-360x560");
+  await first.bringToFront();
+  await first.tap(".mountain");
+  const kept = await first.$eval(".pocket", (element) => element.textContent);
+  await second.bringToFront();
+  await second.tap(".other-tab-play");
+  await second.waitForSelector(".other-tab[hidden]", { timeout: 5_000 });
+  await first.bringToFront();
+  await first.waitForSelector(".other-tab:not([hidden])", { timeout: 5_000 });
+  const moved = await second.$eval(".pocket", (element) => element.textContent);
+  check(
+    kept === "1 stone" && moved === "1 stone",
+    "360x560 Play here keeps the stone",
+  );
+  check(await noScroll(second), "360x560 after Play here has no scroll");
+  check(
+    await noScroll(first),
+    "360x560 the tab that stepped aside has no scroll",
+  );
+  await shot(first, "other-tab-stepped-aside-360x560");
+  await shot(second, "other-tab-playing-here-360x560");
+  await context.close();
+}
+
 await browser.close();
 await server?.close();
 if (failures.length > 0) {

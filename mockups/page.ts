@@ -20,6 +20,10 @@ import {
   crewPostsWords,
   fieldLogClose,
   needMoreWords,
+  OTHER_TAB_BODY,
+  OTHER_TAB_PLAY,
+  OTHER_TAB_TAP,
+  OTHER_TAB_TITLE,
 } from "../src/screen-words.ts";
 
 /**
@@ -27,7 +31,13 @@ import {
  * sheets once Flemming approves them.
  */
 
-const SCENES = ["workshop", "layer", "mountain", "craft-done"] as const;
+const SCENES = [
+  "workshop",
+  "layer",
+  "mountain",
+  "craft-done",
+  "other-tab",
+] as const;
 const PHASES = ["rest", "press", "float", "hammer", "busy", "shake"] as const;
 
 type MockScene = (typeof SCENES)[number];
@@ -312,6 +322,18 @@ function renderLayer(view: MockView): string {
   </div>`;
 }
 
+function renderOtherTab(view: MockView): string {
+  return `${renderMountain(view)}
+  <div class="overlay">
+    <div class="scrim"></div>
+    <article class="card other-tab-card">
+      <h1 class="label">${escapeHtml(OTHER_TAB_TITLE)}</h1>
+      <p class="label">${escapeHtml(OTHER_TAB_BODY)}</p>
+      <button type="button" class="go other-tab-play${pressClass(view, "here", false)}" data-tap="${escapeHtml(OTHER_TAB_TAP)}">${escapeHtml(OTHER_TAB_PLAY)}</button>
+    </article>
+  </div>`;
+}
+
 function renderCraftDone(view: MockView): string {
   return `${renderMountain(view)}
   <div class="overlay">
@@ -334,6 +356,8 @@ export function renderMock(view: MockView): string {
       return renderMountain(view);
     case "craft-done":
       return renderCraftDone(view);
+    case "other-tab":
+      return renderOtherTab(view);
     default: {
       const never: never = view.scene;
       return never;

@@ -18,7 +18,13 @@ import { createEngineersPanel } from "./engineers-panel";
 import { floatText } from "./float-text";
 import { createUpgradesPanel } from "./upgrades-panel";
 import { createWorkshopPanel } from "./workshop-panel";
-import { nextLayerHint, tapWords } from "./screen-words";
+import {
+  OTHER_TAB_BODY,
+  OTHER_TAB_PLAY,
+  OTHER_TAB_TITLE,
+  nextLayerHint,
+  tapWords,
+} from "./screen-words";
 import { metMaterialChips } from "./workshop-sheet";
 import {
   veinGapScale,
@@ -403,6 +409,30 @@ export function mountMountainScreen({
   updateCard.append(updateTitle, updateReload);
   updatePrompt.append(updateCard);
 
+  const otherTab = document.createElement("div");
+  otherTab.className = "other-tab";
+  otherTab.hidden = true;
+  otherTab.setAttribute("role", "dialog");
+  otherTab.setAttribute("aria-modal", "true");
+  otherTab.setAttribute("aria-labelledby", "other-tab-title");
+  const otherCard = document.createElement("div");
+  otherCard.className = "other-tab-card";
+  const otherTitle = document.createElement("h2");
+  otherTitle.id = "other-tab-title";
+  otherTitle.textContent = OTHER_TAB_TITLE;
+  const otherBody = document.createElement("p");
+  otherBody.className = "other-tab-body";
+  otherBody.textContent = OTHER_TAB_BODY;
+  const playHere = document.createElement("button");
+  playHere.type = "button";
+  playHere.className = "other-tab-play";
+  playHere.textContent = OTHER_TAB_PLAY;
+  playHere.addEventListener("click", () => {
+    void progress.playHere();
+  });
+  otherCard.append(otherTitle, otherBody, playHere);
+  otherTab.append(otherCard);
+
   const renderSave = (): void => {
     switch (view.saveKind) {
       case "unsigned":
@@ -445,7 +475,15 @@ export function mountMountainScreen({
     const held = view.mountain.pocket;
     pocketText.textContent =
       held === 1 ? "1 stone" : `${formatCount(held)} stones`;
-    mountain.disabled = !view.ready || left === 0;
+    mountain.disabled = !view.playing || left === 0;
+    const showElsewhere = view.elsewhere;
+    otherTab.hidden = !showElsewhere;
+    if (showElsewhere && otherTab.dataset["shown"] !== "1") {
+      otherTab.dataset["shown"] = "1";
+      playHere.focus();
+    } else if (!showElsewhere) {
+      delete otherTab.dataset["shown"];
+    }
     mountain.setAttribute(
       "aria-label",
       left === 0
@@ -529,8 +567,15 @@ export function mountMountainScreen({
       progress.flush();
       return;
     }
-    // A return that came due while the phone was locked settles now,
-    // not on the next throttled interval.
+    // A return settles after the server has been read, so a tap cannot
+    // land on top of another device's save. Guests settle immediately.
+    const resume = progress.resume();
+    if (resume.kind === "reading") {
+      void resume.done.then(() => {
+        progress.tick();
+      });
+      return;
+    }
     progress.tick();
   });
   window.addEventListener("pagehide", () => {
@@ -578,6 +623,7 @@ export function mountMountainScreen({
     engineers.sheet,
     workshop.sheet,
     updatePrompt,
+    otherTab,
   );
 
   setInterval(() => {

@@ -52,6 +52,7 @@ import {
   accrue,
   accrueAway,
   createMountain,
+  digStones,
   minedOut,
   runStartedAt,
   type AwayReport,
@@ -60,6 +61,7 @@ import {
 import { effectiveRates } from "./rates";
 import { relicsUncovered, type Relic } from "./relics";
 import { readPhoneBackup, saveEchoKey, writePhoneBackup } from "./phone-backup";
+import type { TabWriter } from "./tab-writer";
 import { compareSaveProgress, type SaveMoment } from "./save-progress";
 import { craftFittedWords } from "./screen-words";
 import { TIERS, owned } from "./tiers";
@@ -112,7 +114,15 @@ export type ProgressSnapshot = {
   readonly craftsFitted: readonly CraftNotice[];
   /** Trouble at one machine this session. Never saved, gone after a reload. */
   readonly trouble: Trouble | undefined;
+  /** This tab holds the one writer seat on the device. */
+  readonly playing: boolean;
+  /** Another tab has the mountain. This one shows the waiting card. */
+  readonly elsewhere: boolean;
 };
+
+type CloudResume =
+  | { readonly kind: "idle" }
+  | { readonly kind: "reading"; readonly done: Promise<void> };
 
 /** One fitted craft, named once, with the number the crew feels. */
 type CraftNotice = {
@@ -160,6 +170,13 @@ export type ProgressStore = {
    */
   readonly previewTrouble: (tier: TroubleTier) => void;
   readonly flush: () => void;
+  /**
+   * On becoming visible: read the server before another cloud write.
+   * Idle means this tab can settle immediately. Reading means wait.
+   */
+  readonly resume: () => CloudResume;
+  /** Take the writer seat from the other tab, after it has saved. */
+  readonly playHere: () => Promise<void>;
   readonly dispose: () => void;
 };
 
@@ -182,6 +199,7 @@ export function createProgressStore({
   cloudWriteGapMs = CLOUD_WRITE_GAP_MS,
   fieldLogWriteGapMs = FIELD_LOG_WRITE_GAP_MS,
   hazardSeed,
+  tabWriter,
 }: {
   auth: AuthController;
   cloudSave?: CloudSave;
@@ -192,12 +210,20 @@ export function createProgressStore({
   fieldLogWriteGapMs?: number;
   /** Rolls the trouble schedule. Defaults to the clock, so each open differs. */
   hazardSeed?: number;
+  /** One writer tab on this device. Absent in tests that are the only tab. */
+  tabWriter?: TabWriter;
 }): ProgressStore {
   const sessionStore = sessionArg ?? tryGetGuestStorage();
+  const isWriter = (): boolean =>
+    tabWriter === undefined || tabWriter.seat() === "writer";
   let mountain: Mountain = createMountain();
   let lastSeen: number | undefined;
   let hydrateGeneration = 0;
   let hydrated = false;
+  /** A server snapshot has been seen. Cache and pending writes do not count. */
+  let serverSeen = false;
+  /** Fresh read in flight. Cloud writes wait. The phone backup does not. */
+  let resumeHold = false;
   /** One cloud write at a time. A newer mountain waits, then goes next. */
   let cloudFlight = false;
   let cloudDirty = false;
@@ -450,6 +476,8 @@ export function createProgressStore({
       layersArrived: [...layersArrived],
       craftsFitted: [...craftsFitted],
       trouble: activeTrouble(),
+      playing: isWriter() && (auth.getState().kind !== "signed-in" || hydrated),
+      elsewhere: tabWriter !== undefined && tabWriter.seat() === "other",
     };
   };
 
@@ -615,7 +643,11 @@ export function createProgressStore({
   };
 
   const persistSession = (): void => {
-    if (auth.getState().kind === "signed-in" || sessionStore === undefined) {
+    if (
+      !isWriter() ||
+      auth.getState().kind === "signed-in" ||
+      sessionStore === undefined
+    ) {
       return;
     }
     if (
@@ -677,7 +709,7 @@ export function createProgressStore({
 
   const finishFlight = (): void => {
     cloudFlight = false;
-    if (!cloudDirty) {
+    if (!cloudDirty || !isWriter() || resumeHold || !serverSeen) {
       return;
     }
     persistCloudSoon(false, expediteNext);
@@ -721,7 +753,11 @@ export function createProgressStore({
   const persistCloud = (retry = false): void => {
     cancelPendingCloudWrite();
     const state = auth.getState();
-    if (state.kind !== "signed-in" || !hydrated || disposed) {
+    if (state.kind !== "signed-in" || !hydrated || disposed || !isWriter()) {
+      return;
+    }
+    if (resumeHold || !serverSeen) {
+      cloudDirty = true;
       return;
     }
     const uid = state.user.uid;
@@ -804,11 +840,11 @@ export function createProgressStore({
     generation: number,
     counts: { mined: number; pocket: number },
   ): Promise<void> =>
-    cloudSave.load({ uid }).then((loaded) => {
+    cloudSave.load({ uid, fresh: true }).then((loaded) => {
       if (disposed || generation !== hydrateGeneration) {
         return;
       }
-      if (loaded.kind !== "found") {
+      if (loaded.kind !== "found" || loaded.pending === true) {
         cloudFlight = false;
         saveKind = "error";
         record("save.error", { source: "write", id: "permission-denied" });
@@ -821,6 +857,7 @@ export function createProgressStore({
         emit();
         return;
       }
+      serverSeen = true;
       const serverRev = loaded.rev ?? 0;
       if (serverRev >= rev) {
         const merged = mergeSaves(
@@ -885,7 +922,7 @@ export function createProgressStore({
    */
   const persistFieldLog = (reason: FieldLogWriteReason): void => {
     const state = auth.getState();
-    if (state.kind !== "signed-in" || !hydrated || disposed) {
+    if (state.kind !== "signed-in" || !hydrated || disposed || !isWriter()) {
       return;
     }
     const log = fieldLogDocument();
@@ -936,6 +973,9 @@ export function createProgressStore({
    * arriving) are paid silently. Returns stones mined.
    */
   const settleSince = (savedLastSeen: number | undefined): number => {
+    if (resumeHold) {
+      return 0;
+    }
     const at = now();
     if (savedLastSeen === undefined) {
       lastSeen = at;
@@ -988,7 +1028,12 @@ export function createProgressStore({
   /** Full save on this phone. Skipped until the first reconcile, and never deletes the key. */
   const persistPhoneBackup = (): void => {
     const state = auth.getState();
-    if (state.kind !== "signed-in" || sessionStore === undefined || !hydrated) {
+    if (
+      !isWriter() ||
+      state.kind !== "signed-in" ||
+      sessionStore === undefined ||
+      !hydrated
+    ) {
       return;
     }
     const result = writePhoneBackup({
@@ -1048,14 +1093,15 @@ export function createProgressStore({
     upload: boolean,
     detail: string,
   ): void => {
-    const staffed = staffLoaded();
-    const steppedUp = grantEngineer();
+    const writing = isWriter();
+    const staffed = writing ? staffLoaded() : false;
+    const steppedUp = writing ? grantEngineer() : false;
     revealBaseline ??= minedOut(mountain);
     if (layerBaseline === undefined) {
       primeArrivals();
     }
     recallHomecomings();
-    const paid = settleSince(paidLastSeen);
+    const paid = writing ? settleSince(paidLastSeen) : 0;
     hydrated = true;
     saveKind = "account";
     welcomed = true;
@@ -1065,8 +1111,11 @@ export function createProgressStore({
       detail,
       data: saveCounts(mountain),
     });
-    if (upload || paid > 0 || staffed || steppedUp) {
+    if (serverSeen && (upload || paid > 0 || staffed || steppedUp)) {
       persistCloudSoon();
+    }
+    if (!serverSeen) {
+      void freshServerRead();
     }
     persistPhoneBackup();
     emit();
@@ -1158,6 +1207,53 @@ export function createProgressStore({
   const applyRemote = (remote: CloudLoadResult): void => {
     if (remote.kind === "unavailable" || remote.kind === "disabled") {
       noteRemoteFailure(remote.kind);
+      return;
+    }
+    if (resumeHold) {
+      return;
+    }
+    if (remote.kind === "found" && remote.pending === true) {
+      if (takeEcho(remote)) {
+        return;
+      }
+      if (!hydrated) {
+        openFresh(lastSeen, false, "pending");
+      }
+      return;
+    }
+    if (remote.cached === true) {
+      if (!hydrated) {
+        openFresh(lastSeen, false, "cache");
+      }
+      return;
+    }
+    let sawServer = false;
+    if (!serverSeen) {
+      serverSeen = true;
+      sawServer = true;
+    }
+    const releaseHeld = (): void => {
+      if (
+        sawServer &&
+        cloudDirty &&
+        !cloudFlight &&
+        pendingCloudWrite === undefined &&
+        !resumeHold &&
+        isWriter()
+      ) {
+        persistCloudSoon();
+      }
+    };
+    try {
+      applyAuthoritative(remote);
+    } finally {
+      releaseHeld();
+    }
+  };
+
+  const applyAuthoritative = (remote: CloudLoadResult): void => {
+    /* v8 ignore next 3 -- applyRemote already handled these */
+    if (remote.kind === "unavailable" || remote.kind === "disabled") {
       return;
     }
     listenBackoffMs = LISTEN_BACKOFF_START_MS;
@@ -1291,6 +1387,14 @@ export function createProgressStore({
       emit();
       return;
     }
+    if (!isWriter()) {
+      mountain = stored.mountain;
+      lastSeen = stored.lastSeen;
+      revealBaseline = minedOut(mountain);
+      saveKind = "session";
+      emit();
+      return;
+    }
     mountain = stored.mountain;
     const staffed = staffLoaded();
     const steppedUp = grantEngineer();
@@ -1398,6 +1502,178 @@ export function createProgressStore({
     attachWatch();
   };
 
+  const pullPhoneIfAhead = (uid: string): void => {
+    if (sessionStore === undefined) {
+      return;
+    }
+    const backup = readPhoneBackup({ storage: sessionStore, uid });
+    if (
+      backup.kind === "present" &&
+      compareSaveProgress(backup.save, localMoment()) > 0
+    ) {
+      mountain = backup.save.mountain;
+      lastSeen = backup.save.lastSeen;
+      const seen = backup.save.rev ?? 0;
+      if (seen > rev) {
+        rev = seen;
+        acked = seen;
+      }
+    }
+  };
+
+  /**
+   * Read the server before the next cloud write. Taps during the read stay
+   * on the phone and are dug back on if the merge would drop them.
+   */
+  let freshFlight: Promise<void> | undefined;
+  const freshServerRead = (): Promise<void> => {
+    if (freshFlight !== undefined) {
+      return freshFlight;
+    }
+    freshFlight = readServer().finally(() => {
+      freshFlight = undefined;
+    });
+    return freshFlight;
+  };
+
+  const readServer = (): Promise<void> => {
+    if (!isWriter() || disposed) {
+      return Promise.resolve();
+    }
+    const state = auth.getState();
+    /* v8 ignore next 3 -- resume and openFresh only call this once hydrated */
+    if (state.kind !== "signed-in" || !hydrated) {
+      return Promise.resolve();
+    }
+    const generation = hydrateGeneration;
+    const minedAtHold = minedOut(mountain);
+    resumeHold = true;
+    cancelPendingCloudWrite();
+    persistPhoneBackup();
+    const uid = state.user.uid;
+    return cloudSave
+      .load({ uid, fresh: true })
+      .then((loaded) => {
+        if (disposed || generation !== hydrateGeneration || !isWriter()) {
+          resumeHold = false;
+          return;
+        }
+        const tapped = minedOut(mountain) - minedAtHold;
+        if (loaded.kind === "found" && loaded.pending !== true) {
+          serverSeen = true;
+          const serverRev = loaded.rev ?? 0;
+          const merged = mergeSaves(
+            { mountain, lastSeen, rev },
+            {
+              mountain: loaded.mountain,
+              lastSeen: loaded.lastSeen,
+              rev: serverRev,
+            },
+          );
+          let next = merged.mountain;
+          if (tapped > 0 && minedOut(next) === minedOut(loaded.mountain)) {
+            next = digStones(next, tapped);
+          }
+          const keptTap = next !== merged.mountain;
+          mountain = next;
+          if (merged.lastSeen !== undefined) {
+            lastSeen = merged.lastSeen;
+          }
+          rev = Math.max(rev, merged.rev, serverRev);
+          acked = serverRev;
+          noteConflict(merged);
+          if (merged.differsFromRemote || keptTap) {
+            cloudDirty = true;
+          }
+          record("save.resume", { rev: serverRev, stones: minedOut(mountain) });
+          logger.record({
+            level: "info",
+            code: "save.resume",
+            detail: merged.conflict ? "conflict" : "fresh",
+            data: { ...saveCounts(mountain), rev: serverRev, deviceId },
+          });
+          persistPhoneBackup();
+          emit();
+        } else if (loaded.kind === "missing") {
+          serverSeen = true;
+          cloudDirty = true;
+          record("save.resume", { rev, stones: minedOut(mountain) });
+          logger.record({
+            level: "info",
+            code: "save.resume",
+            detail: "missing",
+            data: { ...saveCounts(mountain), rev, deviceId },
+          });
+        } else {
+          serverSeen = false;
+          record("save.resume", { rev, stones: minedOut(mountain) });
+          logger.record({
+            level: "error",
+            code: "save.resume",
+            detail: loaded.kind,
+            data: { ...saveCounts(mountain), rev, deviceId },
+          });
+        }
+        resumeHold = false;
+        if (serverSeen && cloudDirty && isWriter()) {
+          persistCloudSoon(false, true);
+        }
+      })
+      .catch(() => {
+        serverSeen = false;
+        resumeHold = false;
+      });
+  };
+
+  const onBecameWriter = (): Promise<void> => {
+    /* v8 ignore next 3 -- seat changes only call this once this tab is the writer */
+    if (disposed || !isWriter()) {
+      return Promise.resolve();
+    }
+    cloudDirty = false;
+    const state = auth.getState();
+    if (state.kind !== "signed-in") {
+      resumeFromSession();
+      return Promise.resolve();
+    }
+    pullPhoneIfAhead(state.user.uid);
+    if (!hydrated) {
+      emit();
+      return Promise.resolve();
+    }
+    return freshServerRead();
+  };
+
+  let writerAnnounced =
+    tabWriter === undefined || tabWriter.seat() === "writer";
+  tabWriter?.onYield(() => {
+    if (disposed || !isWriter()) {
+      return;
+    }
+    if (canPlay()) {
+      settle();
+    }
+    persistPhoneBackup();
+    persistSession();
+    if (serverSeen && hydrated) {
+      persistCloudSoon(false, true);
+    }
+  });
+  const unwatchSeat = tabWriter?.subscribe((next) => {
+    if (next === "other") {
+      writerAnnounced = false;
+      cancelPendingCloudWrite();
+      cloudDirty = false;
+      emit();
+      return;
+    }
+    if (next !== "writer" || writerAnnounced) {
+      return;
+    }
+    writerAnnounced = true;
+    void onBecameWriter();
+  });
+
   const unsubscribeAuth = auth.subscribe((state) => {
     if (disposed) {
       return;
@@ -1419,10 +1695,15 @@ export function createProgressStore({
   });
 
   const canPlay = (): boolean =>
-    !disposed && (auth.getState().kind !== "signed-in" || hydrated);
+    !disposed &&
+    isWriter() &&
+    (auth.getState().kind !== "signed-in" || hydrated);
 
   /** Folds helpers' work since lastSeen into the mountain. Returns stones mined. */
   const settle = (): number => {
+    if (resumeHold) {
+      return 0;
+    }
     const at = now();
     // The clock went back (time zone fix, manual change): restart from now
     // instead of waiting for it to catch up, paying nothing for the gap.
@@ -1667,6 +1948,14 @@ export function createProgressStore({
         emit();
       }
     },
+    resume: () => {
+      tabWriter?.confirm();
+      if (!isWriter() || auth.getState().kind !== "signed-in" || !hydrated) {
+        return { kind: "idle" };
+      }
+      return { kind: "reading", done: freshServerRead() };
+    },
+    playHere: () => tabWriter?.playHere() ?? Promise.resolve(),
     flush: () => {
       if (disposed) {
         return;
@@ -1686,6 +1975,8 @@ export function createProgressStore({
     },
     dispose: () => {
       disposed = true;
+      unwatchSeat?.();
+      tabWriter?.dispose();
       cancelPendingCloudWrite();
       cancelListenRetry();
       hydrateGeneration += 1;

@@ -10,8 +10,12 @@ export type CloudLoadResult =
       /** 0 when the document has no rev yet (a v6 save). */
       readonly rev?: number;
       readonly deviceId?: string;
+      /** The write is in the local cache and the server has not accepted it. */
+      readonly pending?: boolean;
+      /** Served from the persistent cache, not the server. */
+      readonly cached?: boolean;
     }
-  | { readonly kind: "missing" }
+  | { readonly kind: "missing"; readonly cached?: boolean }
   | { readonly kind: "unavailable" }
   | { readonly kind: "disabled" };
 
@@ -22,7 +26,11 @@ export type CloudWriteResult =
   | { readonly kind: "failed"; readonly message: string };
 
 export type CloudSave = {
-  readonly load: (args: { uid: string }) => Promise<CloudLoadResult>;
+  readonly load: (args: {
+    uid: string;
+    /** Bypass the persistent cache and read the server. */
+    fresh?: boolean;
+  }) => Promise<CloudLoadResult>;
   readonly write: (args: {
     uid: string;
     mountain: Mountain;

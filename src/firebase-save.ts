@@ -1,11 +1,17 @@
-import { getApps, initializeApp } from "firebase/app";
+import { getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import {
   doc,
   getDoc,
+  getDocFromServer,
   getFirestore,
+  initializeFirestore,
+  memoryLocalCache,
   onSnapshot,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   serverTimestamp,
   setDoc,
+  type Firestore,
 } from "firebase/firestore";
 import type { FirebaseWebOptions } from "./auth";
 import type {
@@ -26,16 +32,19 @@ export function createFirebaseCloudSave({
 }): CloudSave {
   const existing = getApps()[0];
   const app = existing ?? initializeApp(options);
-  const db = getFirestore(app);
+  const db = openFirestore(app);
   const ref = (uid: string) => doc(db, SAVES, uid);
   const fieldLogRef = (uid: string) => doc(db, FIELD_LOGS, uid);
 
   const readSnap = (snap: {
     exists: () => boolean;
     data: () => unknown;
+    metadata?: { fromCache: boolean; hasPendingWrites: boolean };
   }): CloudLoadResult => {
+    const cached = snap.metadata?.fromCache === true;
+    const pending = snap.metadata?.hasPendingWrites === true;
     if (!snap.exists()) {
-      return { kind: "missing" };
+      return cached ? { kind: "missing", cached: true } : { kind: "missing" };
     }
     const parsed = parseSaveValue(snap.data());
     if (parsed === undefined) {
@@ -47,13 +56,18 @@ export function createFirebaseCloudSave({
       lastSeen: parsed.lastSeen,
       rev: parsed.rev ?? 0,
       ...(parsed.deviceId === undefined ? {} : { deviceId: parsed.deviceId }),
+      ...(pending ? { pending: true } : {}),
+      ...(cached ? { cached: true } : {}),
     };
   };
 
   return {
-    load: async ({ uid }) => {
+    load: async ({ uid, fresh = false }) => {
       try {
-        return readSnap(await getDoc(ref(uid)));
+        const snap = fresh
+          ? await getDocFromServer(ref(uid))
+          : await getDoc(ref(uid));
+        return readSnap(snap);
       } catch {
         return { kind: "unavailable" };
       }
@@ -89,6 +103,7 @@ export function createFirebaseCloudSave({
     watch: ({ uid, onChange }) =>
       onSnapshot(
         ref(uid),
+        { includeMetadataChanges: true },
         (snap) => {
           onChange(readSnap(snap));
         },
@@ -99,6 +114,28 @@ export function createFirebaseCloudSave({
         },
       ),
   };
+}
+
+/**
+ * IndexedDB cache shared by every tab. A second copy of the server doc, not
+ * a second save: rev rules still reject a stale write, and a fresh read asks
+ * the server. The phone backup stays the on-phone copy.
+ */
+function openFirestore(app: FirebaseApp): Firestore {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
+  } catch (error) {
+    console.error("firestore.cache", error);
+    try {
+      return getFirestore(app);
+    } catch {
+      return initializeFirestore(app, { localCache: memoryLocalCache() });
+    }
+  }
 }
 
 function cloudWriteResult(error: unknown): CloudWriteResult {
