@@ -12,6 +12,7 @@ import {
   connectFirestoreEmulator,
   deleteDoc,
   doc,
+  Timestamp,
   getDoc,
   getFirestore,
   serverTimestamp,
@@ -536,6 +537,82 @@ describe("firestore.rules: rev (#223)", () => {
     await setDoc(fresh, stamped(1));
     expect((await getDoc(fresh)).data()?.["rev"]).toBe(1);
     await expect(setDoc(fresh, stamped(1))).rejects.toThrow(/permission/i);
+  });
+});
+
+describe("firestore.rules: save archive (#226)", () => {
+  const WEEK = 7 * 24 * 60 * 60 * 1000;
+  const archive = (patch: Record<string, unknown> = {}) => ({
+    ...serializeSave({
+      mountain: createMountain(),
+      lastSeen: 4,
+      rev: 2,
+      deviceId: DEVICE,
+    }),
+    deviceLabel: "Chrome on Android",
+    archivedAt: serverTimestamp(),
+    expiresAt: Timestamp.fromMillis(Date.now() + WEEK),
+    reason: "conflict",
+    ...patch,
+  });
+
+  it("lets the owner create and read, and refuses everyone else", async () => {
+    const ref = doc(db, "saveArchive", "dad", "copies", "one");
+    await setDoc(ref, archive());
+    expect((await getDoc(ref)).data()?.["reason"]).toBe("conflict");
+    await expect(
+      getDoc(doc(momDb, "saveArchive", "dad", "copies", "one")),
+    ).rejects.toThrow(/permission|false for 'get'/i);
+    await expect(
+      setDoc(doc(momDb, "saveArchive", "dad", "copies", "two"), archive()),
+    ).rejects.toThrow(/permission|false for 'create'/i);
+  });
+
+  it("refuses update and delete", async () => {
+    const ref = doc(db, "saveArchive", "dad", "copies", "locked");
+    await setDoc(ref, archive());
+    await expect(setDoc(ref, archive())).rejects.toThrow(/permission/i);
+    await expect(deleteDoc(ref)).rejects.toThrow(/permission/i);
+  });
+
+  it("requires archivedAt to be the server time", async () => {
+    const ref = doc(db, "saveArchive", "dad", "copies", "time");
+    await expect(
+      setDoc(ref, archive({ archivedAt: Date.now() })),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      setDoc(ref, archive({ expiresAt: serverTimestamp() })),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      setDoc(
+        ref,
+        archive({
+          expiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
+        }),
+      ),
+    ).rejects.toThrow(/permission/i);
+    await setDoc(ref, archive());
+    expect((await getDoc(ref)).exists()).toBe(true);
+  });
+
+  it("accepts a maximal v7 mountain under the expression budget", async () => {
+    const mountain = maximalMountain();
+    await setDoc(doc(db, "saveArchive", "dad", "copies", "max"), {
+      ...serializeSave({
+        mountain,
+        lastSeen: 4,
+        rev: 3,
+        deviceId: DEVICE,
+      }),
+      deviceLabel: "Chrome on Android",
+      archivedAt: serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + WEEK),
+      reason: "conflict",
+    });
+    const parsed = parseSaveValue(
+      (await getDoc(doc(db, "saveArchive", "dad", "copies", "max"))).data(),
+    );
+    expect(parsed?.mountain).toEqual(mountain);
   });
 });
 

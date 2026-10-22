@@ -52,6 +52,7 @@ export type MountainSaveV7 = Omit<MountainSaveV6, "version"> & {
   readonly version: 7;
   readonly rev: number;
   readonly deviceId: string;
+  readonly deviceLabel?: string;
 };
 
 /** Same bounds as `firestore.rules`. */
@@ -64,6 +65,8 @@ export type ParsedSave = {
   /** Missing on a v6 document. The rules treat that as rev 0. */
   readonly rev?: number;
   readonly deviceId?: string;
+  /** Friendly name stored with the device id. Never the raw id. */
+  readonly deviceLabel?: string;
 };
 
 export function serializeSave({
@@ -71,12 +74,14 @@ export function serializeSave({
   lastSeen,
   rev,
   deviceId,
+  deviceLabel,
 }: {
   mountain: Mountain;
   lastSeen: number;
   /** When set with a device id, the document is v7. Otherwise it stays v6. */
   rev?: number | undefined;
   deviceId?: string | undefined;
+  deviceLabel?: string | undefined;
 }): MountainSaveV6 | MountainSaveV7 {
   const saved: MountainSaveV6 = {
     version: 6,
@@ -145,7 +150,18 @@ export function serializeSave({
     deviceId.length >= SAVE_DEVICE_ID_MIN &&
     deviceId.length <= SAVE_DEVICE_ID_MAX
   ) {
-    return { ...saved, version: 7, rev, deviceId };
+    return {
+      ...saved,
+      version: 7,
+      rev,
+      deviceId,
+      ...(deviceLabel !== undefined &&
+      deviceLabel.length >= 1 &&
+      deviceLabel.length <= 40 &&
+      !deviceLabel.includes("?")
+        ? { deviceLabel }
+        : {}),
+    };
   }
   return saved;
 }
@@ -220,6 +236,14 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
         return undefined;
       }
       const kept = keptWorkshop(recipes.kept, bench.kept, crafted.kept);
+      const deviceLabel = record["deviceLabel"];
+      const label =
+        typeof deviceLabel === "string" &&
+        deviceLabel.length >= 1 &&
+        deviceLabel.length <= 40 &&
+        !deviceLabel.includes("?")
+          ? deviceLabel
+          : undefined;
       return {
         mountain: {
           ...base,
@@ -238,6 +262,7 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
         },
         lastSeen,
         ...(identity === undefined ? {} : identity),
+        ...(label === undefined ? {} : { deviceLabel: label }),
       };
     }
     default:

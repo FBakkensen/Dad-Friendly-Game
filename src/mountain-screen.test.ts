@@ -4025,4 +4025,48 @@ describe("layer card, material line, and craft-done notice", () => {
       false,
     );
   });
+
+  it("shows the conflict sheet and saved copies from the menu", async () => {
+    const cloud = createMemoryCloudSave();
+    const screen = mountScreen({ auth: signedIn(), cloudSave: cloud });
+    screen.progress.previewConflict();
+    const sheet = screen.root.querySelector<HTMLElement>(".save-conflict");
+    expect(sheet?.hidden).toBe(false);
+    expect(screen.text("#save-conflict-title")).toBe("Two saves found");
+    expect(screen.text(".save-conflict-body")).toContain("nothing is lost");
+    screen.root
+      .querySelector<HTMLButtonElement>(".save-card[data-side='other']")
+      ?.click();
+    expect(
+      screen.root
+        .querySelector(".save-card[data-side='other']")
+        ?.classList.contains("is-selected"),
+    ).toBe(true);
+    screen.root
+      .querySelector<HTMLButtonElement>(".save-conflict-play")
+      ?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".save-conflict-confirm")?.hidden,
+    ).toBe(false);
+    screen.root
+      .querySelector<HTMLButtonElement>(".save-conflict-commit")
+      ?.click();
+    await vi.waitFor(() => {
+      expect(
+        screen.root.querySelector<HTMLElement>(".save-conflict")?.hidden,
+      ).toBe(true);
+    });
+    screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".saved-copies-link")?.click();
+    await vi.waitFor(() => {
+      expect(screen.text(".saved-copies")).toContain("Chrome on Android");
+    });
+    screen.root
+      .querySelector<HTMLButtonElement>(".saved-copies .menu-close")
+      ?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".saved-copies")?.hidden,
+    ).toBe(true);
+    screen.progress.dispose();
+  });
 });

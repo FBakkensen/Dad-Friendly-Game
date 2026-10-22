@@ -3,11 +3,13 @@ import { BOOSTS } from "./boosts";
 import {
   applySignedInSave,
   createNoopCloudSave,
+  type ArchivedCopy,
   type CloudLoadResult,
   type CloudSave,
 } from "./cloud-save";
 import { readDeviceId } from "./device-id";
-import { mergeSaves, type MergedSave } from "./save-merge";
+import { readDeviceLabel } from "./device-label";
+import { conflictIsReal, mergeSaves } from "./save-merge";
 import { staffExisting } from "./crew";
 import { grantFirstEngineer } from "./engineers";
 import {
@@ -51,6 +53,7 @@ import { createLogger, formatLogEvent, type Logger } from "./log";
 import {
   accrue,
   accrueAway,
+  MOUNTAIN_STONES,
   createMountain,
   digStones,
   minedOut,
@@ -63,7 +66,7 @@ import { relicsUncovered, type Relic } from "./relics";
 import { readPhoneBackup, saveEchoKey, writePhoneBackup } from "./phone-backup";
 import type { TabWriter } from "./tab-writer";
 import { compareSaveProgress, type SaveMoment } from "./save-progress";
-import { craftFittedWords } from "./screen-words";
+import { craftFittedWords, SAVE_CONFLICT_ERROR } from "./screen-words";
 import { TIERS, owned } from "./tiers";
 import { UPGRADES, upgradeLevel } from "./upgrades";
 import {
@@ -118,6 +121,22 @@ export type ProgressSnapshot = {
   readonly playing: boolean;
   /** Another tab has the mountain. This one shows the waiting card. */
   readonly elsewhere: boolean;
+  /** Two real copies. Play waits until the player picks one. */
+  readonly saveConflict?: SaveConflictView;
+};
+
+export type SaveSide = {
+  readonly mountain: Mountain;
+  readonly lastSeen: number | undefined;
+  readonly rev: number;
+  readonly deviceId: string;
+  readonly deviceLabel: string;
+};
+
+export type SaveConflictView = {
+  readonly local: SaveSide;
+  readonly remote: SaveSide;
+  readonly error?: string;
 };
 
 type CloudResume =
@@ -169,6 +188,14 @@ export type ProgressStore = {
    * because trouble is never part of a save.
    */
   readonly previewTrouble: (tier: TroubleTier) => void;
+  /** Layout check: show the conflict sheet without a second device. */
+  readonly previewConflict: () => void;
+  /** Archive the other copy, then play the chosen one. */
+  readonly chooseSave: (side: "local" | "remote") => Promise<"saved" | "kept">;
+  /** Up to three copies still inside their seven days. */
+  readonly savedCopies: () => Promise<readonly ArchivedCopy[]>;
+  /** Archive the current mountain, then play a saved copy. */
+  readonly restoreCopy: (id: string) => Promise<"saved" | "kept" | "missing">;
   readonly flush: () => void;
   /**
    * On becoming visible: read the server before another cloud write.
@@ -238,7 +265,10 @@ export function createProgressStore({
   /** Highest rev this device will trust. Never adopt a lower one. */
   let rev = 0;
   /** Rev we believe the server has. The next write is this plus one. */
-  let acked = 0;
+  let syncedRev = 0;
+  /** Unconfirmed changes, including ones reloaded from the phone backup. */
+  let phoneDirty = false;
+  let saveConflict: SaveConflictView | undefined;
   let consecutiveRevMerges = 0;
   const deviceId = readDeviceId(sessionStore);
   let saveKind: SaveKind = "unsigned";
@@ -486,6 +516,7 @@ export function createProgressStore({
       trouble: activeTrouble(),
       playing: isWriter() && (auth.getState().kind !== "signed-in" || hydrated),
       elsewhere: tabWriter !== undefined && tabWriter.seat() === "other",
+      ...(saveConflict === undefined ? {} : { saveConflict }),
     };
   };
 
@@ -641,9 +672,11 @@ export function createProgressStore({
 
   const emit = (): void => {
     newsPending = false;
-    noteReveals();
-    noteLayers();
-    noteCrafts();
+    if (saveConflict === undefined) {
+      noteReveals();
+      noteLayers();
+      noteCrafts();
+    }
     const next = snapshot();
     for (const listener of [...listeners]) {
       listener(next);
@@ -694,26 +727,131 @@ export function createProgressStore({
     }
   };
 
-  const noteConflict = (merged: MergedSave): void => {
-    if (!merged.conflict) {
+  const conflictFacts = (
+    side: "ask" | "local" | "remote",
+    conflict: SaveConflictView,
+  ): Readonly<Record<string, string | number>> => ({
+    localRev: conflict.local.rev,
+    remoteRev: conflict.remote.rev,
+    syncedRev,
+    deviceIds: `${conflict.local.deviceId},${conflict.remote.deviceId}`,
+    minedLocal: minedOut(conflict.local.mountain),
+    minedRemote: minedOut(conflict.remote.mountain),
+    chosen: side,
+  });
+
+  const labelFor = (): string => readDeviceLabel(sessionStore);
+
+  const openConflict = (remote: SaveSide): void => {
+    if (!isWriter() || saveConflict !== undefined) {
       return;
     }
-    record("save.conflict", {
-      source: "merge",
-      stones: minedOut(merged.mountain),
-    });
+    cancelPendingCloudWrite();
+    const conflict: SaveConflictView = {
+      local: {
+        mountain,
+        lastSeen,
+        rev,
+        deviceId,
+        deviceLabel: labelFor(),
+      },
+      remote,
+    };
+    saveConflict = conflict;
+    const data = conflictFacts("ask", conflict);
+    record("save.conflict", data);
     logger.record({
       level: "info",
       code: "save.conflict",
-      detail: "kept the fuller save",
-      data: {
-        rev: merged.rev,
-        deviceId,
-        mined: minedOut(merged.mountain),
-        pocket: merged.mountain.pocket,
-      },
+      detail: "ask",
+      data,
     });
+    persistPhoneBackup();
+    emit();
   };
+
+  /**
+   * Fast-forward when one copy leads. A real split opens the sheet and
+   * leaves both copies alone. Returns "conflict" when the sheet is up.
+   */
+  const applyMerged = (
+    remote: SaveSide,
+    tapped = 0,
+  ): "conflict" | "applied" => {
+    if (saveConflict !== undefined) {
+      return "conflict";
+    }
+    const merged = mergeSaves(
+      { mountain, lastSeen, rev },
+      { mountain: remote.mountain, lastSeen: remote.lastSeen, rev: remote.rev },
+    );
+    if (merged.kind === "conflict") {
+      const real =
+        isWriter() &&
+        conflictIsReal({
+          serverRev: remote.rev,
+          syncedRev,
+          dirty: cloudDirty || phoneDirty,
+          remoteDeviceId: remote.deviceId,
+          localDeviceId: deviceId,
+        });
+      if (real) {
+        openConflict(remote);
+        return "conflict";
+      }
+      if (!cloudDirty && !phoneDirty) {
+        mountain = remote.mountain;
+        if (remote.lastSeen !== undefined) {
+          lastSeen = remote.lastSeen;
+        }
+        rev = Math.max(rev, remote.rev);
+        syncedRev = Math.max(syncedRev, remote.rev);
+        return "applied";
+      }
+      rev = Math.max(rev, remote.rev);
+      if (remote.rev > syncedRev) {
+        syncedRev = remote.rev;
+      }
+      cloudDirty = true;
+      phoneDirty = true;
+      return "applied";
+    }
+    let next = merged.mountain;
+    if (tapped > 0 && minedOut(next) === minedOut(remote.mountain)) {
+      next = digStones(next, tapped);
+    }
+    const keptTap = next !== merged.mountain;
+    mountain = next;
+    if (merged.lastSeen !== undefined) {
+      lastSeen = merged.lastSeen;
+    }
+    rev = Math.max(rev, merged.rev, remote.rev);
+    syncedRev = Math.max(syncedRev, remote.rev);
+    if (merged.differsFromRemote || keptTap) {
+      cloudDirty = true;
+      phoneDirty = true;
+    } else {
+      phoneDirty = false;
+    }
+    return "applied";
+  };
+
+  const remoteSide = (loaded: {
+    mountain: Mountain;
+    lastSeen?: number | undefined;
+    rev?: number;
+    deviceId?: string;
+    deviceLabel?: string;
+  }): SaveSide => ({
+    mountain: loaded.mountain,
+    lastSeen: loaded.lastSeen,
+    rev: loaded.rev ?? 0,
+    deviceId: loaded.deviceId ?? "",
+    deviceLabel:
+      loaded.deviceLabel !== undefined && loaded.deviceLabel.length > 0
+        ? loaded.deviceLabel
+        : "Another phone",
+  });
 
   const finishFlight = (): void => {
     cloudFlight = false;
@@ -730,7 +868,12 @@ export function createProgressStore({
    */
   const persistCloudSoon = (retry = false, expedite = false): void => {
     const state = auth.getState();
-    if (state.kind !== "signed-in" || !hydrated || disposed) {
+    if (
+      state.kind !== "signed-in" ||
+      !hydrated ||
+      disposed ||
+      saveConflict !== undefined
+    ) {
       return;
     }
     if (!retry) {
@@ -764,7 +907,7 @@ export function createProgressStore({
     if (state.kind !== "signed-in" || !hydrated || disposed || !isWriter()) {
       return;
     }
-    if (resumeHold || !serverSeen) {
+    if (resumeHold || !serverSeen || saveConflict !== undefined) {
       cloudDirty = true;
       return;
     }
@@ -772,7 +915,7 @@ export function createProgressStore({
     const generation = hydrateGeneration;
     const sentMountain = mountain;
     const sentSeen = lastSeen ?? now();
-    const sentRev = acked + 1;
+    const sentRev = syncedRev + 1;
     const echoKey = saveEchoKey(sentMountain, sentSeen, sentRev, deviceId);
     pendingEchoes.push(echoKey);
     if (pendingEchoes.length > 8) {
@@ -790,6 +933,7 @@ export function createProgressStore({
         lastSeen: sentSeen,
         rev: sentRev,
         deviceId,
+        deviceLabel: labelFor(),
       })
       .then((result) => {
         if (disposed || generation !== hydrateGeneration) {
@@ -797,8 +941,9 @@ export function createProgressStore({
         }
         switch (result.kind) {
           case "ok":
-            acked = sentRev;
+            syncedRev = sentRev;
             rev = Math.max(rev, sentRev);
+            phoneDirty = false;
             consecutiveRevMerges = 0;
             saveKind = "account";
             logger.record({
@@ -868,24 +1013,16 @@ export function createProgressStore({
       serverSeen = true;
       const serverRev = loaded.rev ?? 0;
       if (serverRev >= rev) {
-        const merged = mergeSaves(
-          { mountain, lastSeen, rev },
-          {
-            mountain: loaded.mountain,
-            lastSeen: loaded.lastSeen,
-            rev: serverRev,
-          },
-        );
-        mountain = merged.mountain;
-        if (merged.lastSeen !== undefined) {
-          lastSeen = merged.lastSeen;
+        const outcome = applyMerged(remoteSide({ ...loaded, rev: serverRev }));
+        if (outcome === "conflict") {
+          cloudFlight = false;
+          return;
         }
-        rev = merged.rev;
-        noteConflict(merged);
       }
-      acked = serverRev;
+      syncedRev = serverRev;
       consecutiveRevMerges += 1;
       cloudDirty = true;
+      phoneDirty = true;
       persistPhoneBackup();
       cloudFlight = false;
       if (consecutiveRevMerges > 5) {
@@ -981,7 +1118,7 @@ export function createProgressStore({
    * arriving) are paid silently. Returns stones mined.
    */
   const settleSince = (savedLastSeen: number | undefined): number => {
-    if (resumeHold) {
+    if (resumeHold || saveConflict !== undefined) {
       return 0;
     }
     const at = now();
@@ -1051,6 +1188,21 @@ export function createProgressStore({
       lastSeen: lastSeen ?? now(),
       rev,
       deviceId,
+      syncedRev,
+      dirty: phoneDirty || cloudDirty || saveConflict !== undefined,
+      ...(saveConflict === undefined
+        ? {}
+        : {
+            conflict: {
+              remote: {
+                mountain: saveConflict.remote.mountain,
+                lastSeen: saveConflict.remote.lastSeen,
+                rev: saveConflict.remote.rev,
+                deviceId: saveConflict.remote.deviceId,
+              },
+              deviceLabel: saveConflict.remote.deviceLabel,
+            },
+          }),
     });
     if (result !== "failed") {
       return;
@@ -1213,6 +1365,19 @@ export function createProgressStore({
   };
 
   const applyRemote = (remote: CloudLoadResult): void => {
+    if (saveConflict !== undefined) {
+      if (remote.kind === "unavailable" || remote.kind === "disabled") {
+        saveKind = "error";
+      } else if (remote.kind === "found" && remote.pending !== true) {
+        serverSeen = true;
+      }
+      if (!hydrated && remote.kind !== "unavailable") {
+        hydrated = true;
+        saveKind = saveKind === "error" ? "error" : "account";
+      }
+      emit();
+      return;
+    }
     if (remote.kind === "unavailable" || remote.kind === "disabled") {
       noteRemoteFailure(remote.kind);
       return;
@@ -1300,34 +1465,22 @@ export function createProgressStore({
       if (!hasLocalProgress()) {
         mountain = remote.mountain;
         rev = serverRev;
-        acked = serverRev;
+        syncedRev = serverRev;
+        phoneDirty = false;
         openFresh(remote.lastSeen, false, "found");
         return;
       }
-      const merged = mergeSaves(
-        { mountain, lastSeen, rev },
-        {
-          mountain: remote.mountain,
-          lastSeen: remote.lastSeen,
-          rev: serverRev,
-        },
-      );
-      mountain = merged.mountain;
-      if (merged.lastSeen !== undefined) {
-        lastSeen = merged.lastSeen;
+      const outcome = applyMerged(remoteSide({ ...remote, rev: serverRev }));
+      if (outcome === "conflict") {
+        hydrated = true;
+        saveKind = "account";
+        return;
       }
-      rev = merged.rev;
-      acked = serverRev;
-      noteConflict(merged);
-      openFresh(
-        merged.lastSeen,
-        merged.differsFromRemote,
-        merged.conflict ? "conflict" : "found",
-      );
+      openFresh(lastSeen, cloudDirty, "found");
       return;
     }
     if (remote.kind === "found") {
-      acked = Math.max(acked, remote.rev ?? 0);
+      syncedRev = Math.max(syncedRev, remote.rev ?? 0);
       rev = Math.max(rev, remote.rev ?? 0);
     }
     const next = applySignedInSave({
@@ -1455,7 +1608,34 @@ export function createProgressStore({
     );
     if (seenRev > rev) {
       rev = seenRev;
-      acked = seenRev;
+    }
+    if (backup.kind === "present" && backup.syncedRev !== undefined) {
+      syncedRev = backup.syncedRev;
+    } else if (seenRev > syncedRev) {
+      syncedRev = seenRev;
+    }
+    if (backup.kind === "present" && backup.dirty === true) {
+      phoneDirty = true;
+    }
+    if (backup.kind === "present" && backup.conflict !== undefined) {
+      const remote = backup.conflict.remote;
+      saveConflict = {
+        local: {
+          mountain,
+          lastSeen,
+          rev,
+          deviceId,
+          deviceLabel: labelFor(),
+        },
+        remote: {
+          mountain: remote.mountain,
+          lastSeen: remote.lastSeen,
+          rev: remote.rev ?? 0,
+          deviceId: remote.deviceId ?? "",
+          deviceLabel: backup.conflict.deviceLabel,
+        },
+      };
+      phoneDirty = true;
     }
     if (backup.kind === "unreadable") {
       return;
@@ -1471,6 +1651,21 @@ export function createProgressStore({
       lastSeen: lastSeen ?? now(),
       rev,
       deviceId,
+      syncedRev,
+      dirty: phoneDirty,
+      ...(saveConflict === undefined
+        ? {}
+        : {
+            conflict: {
+              remote: {
+                mountain: saveConflict.remote.mountain,
+                lastSeen: saveConflict.remote.lastSeen,
+                rev: saveConflict.remote.rev,
+                deviceId: saveConflict.remote.deviceId,
+              },
+              deviceLabel: saveConflict.remote.deviceLabel,
+            },
+          }),
     });
     if (wrote !== "failed") {
       clearSessionSave({ storage: sessionStore });
@@ -1484,7 +1679,9 @@ export function createProgressStore({
       return;
     }
     rev = 0;
-    acked = 0;
+    syncedRev = 0;
+    phoneDirty = false;
+    saveConflict = undefined;
     consecutiveRevMerges = 0;
     prepareLocal(state.user.uid);
     cancelListenRetry();
@@ -1524,7 +1721,7 @@ export function createProgressStore({
       const seen = backup.save.rev ?? 0;
       if (seen > rev) {
         rev = seen;
-        acked = seen;
+        syncedRev = seen;
       }
     }
   };
@@ -1545,7 +1742,7 @@ export function createProgressStore({
   };
 
   const readServer = (): Promise<void> => {
-    if (!isWriter() || disposed) {
+    if (!isWriter() || disposed || saveConflict !== undefined) {
       return Promise.resolve();
     }
     const state = auth.getState();
@@ -1609,36 +1806,21 @@ export function createProgressStore({
       if (loaded.kind === "found" && loaded.pending !== true) {
         serverSeen = true;
         const serverRev = loaded.rev ?? 0;
-        const merged = mergeSaves(
-          { mountain, lastSeen, rev },
-          {
-            mountain: loaded.mountain,
-            lastSeen: loaded.lastSeen,
-            rev: serverRev,
-          },
+        const outcome = applyMerged(
+          remoteSide({ ...loaded, rev: serverRev }),
+          tapped,
         );
-        let next = merged.mountain;
-        if (tapped > 0 && minedOut(next) === minedOut(loaded.mountain)) {
-          next = digStones(next, tapped);
-        }
-        const keptTap = next !== merged.mountain;
-        mountain = next;
-        if (merged.lastSeen !== undefined) {
-          lastSeen = merged.lastSeen;
-        }
-        rev = Math.max(rev, merged.rev, serverRev);
-        acked = serverRev;
-        noteConflict(merged);
-        if (merged.differsFromRemote || keptTap) {
-          cloudDirty = true;
-        }
         record("save.resume", { rev: serverRev, stones: minedOut(mountain) });
         logger.record({
           level: "info",
           code: "save.resume",
-          detail: merged.conflict ? "conflict" : "fresh",
+          detail: outcome === "conflict" ? "conflict" : "fresh",
           data: { ...saveCounts(mountain), rev: serverRev, deviceId },
         });
+        if (outcome === "conflict") {
+          resumeHold = false;
+          return;
+        }
         persistPhoneBackup();
         emit();
       } else if (loaded.kind === "missing") {
@@ -1755,12 +1937,13 @@ export function createProgressStore({
 
   const canPlay = (): boolean =>
     !disposed &&
+    saveConflict === undefined &&
     isWriter() &&
     (auth.getState().kind !== "signed-in" || hydrated);
 
   /** Folds helpers' work since lastSeen into the mountain. Returns stones mined. */
   const settle = (): number => {
-    if (resumeHold) {
+    if (resumeHold || saveConflict !== undefined) {
       return 0;
     }
     const at = now();
@@ -1866,6 +2049,7 @@ export function createProgressStore({
         return;
       }
       mountain = next;
+      phoneDirty = true;
       noteChanges(before, next);
       noteCrew(before, next);
       if (note === "vein.tap") {
@@ -1955,6 +2139,167 @@ export function createProgressStore({
         record("trouble.start", { id: trouble.tier, source: trouble.kind });
       }
       emit();
+    },
+    previewConflict: () => {
+      const localMountain: Mountain = {
+        ...createMountain(),
+        remaining: MOUNTAIN_STONES - 12_400_000,
+        pocket: 1_200_000,
+        carts: 6,
+        drills: 4,
+        borers: 1,
+        helpers: 28,
+        engineers: [
+          { name: "Ada", rank: 1, trips: 2, post: "drill" },
+          { name: "Nils", rank: 0, trips: 1, post: "cart" },
+          { name: "Ruth", rank: 0, trips: 0, post: "camp" },
+          { name: "Otto", rank: 0, trips: 0, post: "borer" },
+        ],
+      };
+      const remoteMountain: Mountain = {
+        ...createMountain(),
+        remaining: MOUNTAIN_STONES - 800_000,
+        pocket: 40_000,
+        carts: 2,
+        drills: 1,
+        helpers: 8,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
+      };
+      mountain = localMountain;
+      lastSeen = now();
+      hydrated = true;
+      saveConflict = {
+        local: {
+          mountain: localMountain,
+          lastSeen,
+          rev: 4,
+          deviceId,
+          deviceLabel: "Chrome on Android",
+        },
+        remote: {
+          mountain: remoteMountain,
+          lastSeen: now() - 86_400_000,
+          rev: 5,
+          deviceId: "other-device",
+          deviceLabel: "Safari on iPhone",
+        },
+      };
+      emit();
+    },
+    chooseSave: async (side) => {
+      const conflict = saveConflict;
+      const state = auth.getState();
+      if (
+        conflict === undefined ||
+        !isWriter() ||
+        state.kind !== "signed-in" ||
+        cloudSave.archiveCopy === undefined
+      ) {
+        return "kept";
+      }
+      const chosen = side === "local" ? conflict.local : conflict.remote;
+      const other = side === "local" ? conflict.remote : conflict.local;
+      const archived = await cloudSave.archiveCopy({
+        uid: state.user.uid,
+        mountain: other.mountain,
+        lastSeen: other.lastSeen ?? now(),
+        rev: other.rev,
+        deviceId: other.deviceId.length >= 8 ? other.deviceId : deviceId,
+        deviceLabel: other.deviceLabel,
+      });
+      if (saveConflict !== conflict) {
+        return "kept";
+      }
+      if (archived.kind !== "ok") {
+        saveConflict = { ...conflict, error: SAVE_CONFLICT_ERROR };
+        emit();
+        return "kept";
+      }
+      const confirmed = syncedRev;
+      mountain = chosen.mountain;
+      lastSeen = chosen.lastSeen;
+      rev = Math.max(rev, conflict.remote.rev);
+      syncedRev = conflict.remote.rev;
+      phoneDirty = false;
+      cloudDirty = true;
+      saveConflict = undefined;
+      const data = {
+        ...conflictFacts(side, conflict),
+        syncedRev: confirmed,
+      };
+      record("save.conflict", data);
+      logger.record({
+        level: "info",
+        code: "save.conflict",
+        detail: side,
+        data,
+      });
+      settleSince(chosen.lastSeen);
+      welcomed = true;
+      persistPhoneBackup();
+      persistCloudSoon(false, true);
+      emit();
+      return "saved";
+    },
+    savedCopies: async () => {
+      const state = auth.getState();
+      if (state.kind !== "signed-in" || cloudSave.listCopies === undefined) {
+        return [];
+      }
+      const copies = await cloudSave.listCopies({
+        uid: state.user.uid,
+        now: now(),
+      });
+      return copies.slice(0, 3);
+    },
+    restoreCopy: async (id) => {
+      const state = auth.getState();
+      if (
+        saveConflict !== undefined ||
+        !isWriter() ||
+        state.kind !== "signed-in" ||
+        cloudSave.listCopies === undefined ||
+        cloudSave.archiveCopy === undefined
+      ) {
+        return "kept";
+      }
+      const copies = await cloudSave.listCopies({
+        uid: state.user.uid,
+        now: now(),
+      });
+      const found = copies.find((copy) => copy.id === id);
+      if (found === undefined) {
+        return "missing";
+      }
+      const archived = await cloudSave.archiveCopy({
+        uid: state.user.uid,
+        mountain,
+        lastSeen: lastSeen ?? now(),
+        rev,
+        deviceId,
+        deviceLabel: labelFor(),
+      });
+      if (archived.kind !== "ok") {
+        return "kept";
+      }
+      mountain = found.mountain;
+      lastSeen = found.lastSeen;
+      phoneDirty = false;
+      cloudDirty = true;
+      const data = { rev: syncedRev + 1, mined: minedOut(found.mountain) };
+      record("save.restore", data);
+      logger.record({
+        level: "info",
+        code: "save.restore",
+        detail: id,
+        data,
+      });
+      settleSince(found.lastSeen);
+      welcomed = true;
+      persistPhoneBackup();
+      persistCloudSoon(false, true);
+      emit();
+      return "saved";
     },
     dismissAway: () => {
       if (

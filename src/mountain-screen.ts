@@ -11,6 +11,8 @@ import { createArrivalPanel } from "./arrival-panel";
 import { nextLayer } from "./layers";
 import { createWelcomePanel } from "./welcome-panel";
 import { createMenuPanel } from "./menu-panel";
+import { createSaveConflictPanel } from "./save-conflict-panel";
+import { createSavedCopiesPanel } from "./saved-copies-panel";
 import { createLegacyPanel, legacyWords } from "./legacy-panel";
 import { legacyBonus } from "./legacy";
 import { createCrewPanel } from "./crew-panel";
@@ -342,12 +344,27 @@ export function mountMountainScreen({
     },
   });
 
+  const savedCopies = createSavedCopiesPanel({
+    progress,
+    now,
+    onOpen: closeMenu,
+    requestRender: () => {
+      render();
+    },
+  });
+  const conflictSheet = createSaveConflictPanel({
+    progress,
+    now,
+    requestRender: () => {
+      render();
+    },
+  });
   const menuPanel = createMenuPanel({
     progress,
     getView: () => view,
     auth,
     onStartOver: resetVein,
-    extras: [workshop.menuEntry, legacy.menuPass],
+    extras: [workshop.menuEntry, legacy.menuPass, savedCopies.entry],
     requestRender: () => {
       render();
     },
@@ -502,6 +519,8 @@ export function mountMountainScreen({
     upgrades.render();
     engineers.render();
     workshop.render();
+    savedCopies.render();
+    conflictSheet.render(view.saveConflict, view.elsewhere);
     renderSave();
   };
 
@@ -624,6 +643,8 @@ export function mountMountainScreen({
     workshop.sheet,
     updatePrompt,
     otherTab,
+    savedCopies.root,
+    conflictSheet.root,
   );
 
   setInterval(() => {
