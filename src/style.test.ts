@@ -48,6 +48,9 @@ const REQUIRED_SELECTORS = [
   ".update-reload",
   ".other-tab",
   ".other-tab-play",
+  ".save-conflict",
+  ".save-conflict-play",
+  ".saved-copies",
 ];
 
 describe("style.css", () => {
@@ -69,6 +72,8 @@ describe("style.css", () => {
     ".engineers-dialog",
     ".update-prompt",
     ".other-tab",
+    ".save-conflict",
+    ".saved-copies",
   ])("lays %s over the game", (selector) => {
     const group = /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
       css.slice(css.indexOf(".welcome-back,")),

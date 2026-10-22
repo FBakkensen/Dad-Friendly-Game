@@ -42,6 +42,7 @@ describe("workshop mock page (#193)", () => {
     expect(() => parseMockView("?phase=nope")).toThrow(/phase/);
     expect(parseMockView("?phase=shake&control=rails").phase).toBe("shake");
     expect(parseMockView("?scene=other-tab").scene).toBe("other-tab");
+    expect(parseMockView("?scene=save-conflict").scene).toBe("save-conflict");
   });
 
   it("names the iron the rails still need", () => {
@@ -202,5 +203,30 @@ describe("workshop mock page (#193)", () => {
     expect(open.querySelector(".crew-posts")?.textContent).toBe(
       "28 workers · 0 free",
     );
+  });
+
+  it("shows two saves side by side and presses Play this one", () => {
+    const page = host(renderMock(view({ scene: "save-conflict" })));
+    expect(page.querySelector("#save-conflict-title")?.textContent).toBe(
+      "Two saves found",
+    );
+    expect(page.textContent).toContain("Granite, 12.4M deep");
+    expect(page.textContent).toContain("This phone");
+    expect(page.textContent).toContain("Other device");
+    expect(page.querySelector(".save-card.is-selected")?.textContent).toContain(
+      "12.4M",
+    );
+    expect(
+      page.querySelector(".save-conflict-confirm")?.hasAttribute("hidden"),
+    ).toBe(true);
+    const pressed = host(
+      renderMock(view({ scene: "save-conflict", phase: "press" })),
+    );
+    expect(
+      pressed
+        .querySelector(".save-conflict-play")
+        ?.classList.contains("is-pressed"),
+    ).toBe(true);
+    expect(page.querySelector("audio, video")).toBeNull();
   });
 });

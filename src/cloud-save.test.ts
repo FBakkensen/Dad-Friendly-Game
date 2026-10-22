@@ -131,6 +131,101 @@ describe("createMemoryCloudSave", () => {
     expect(fieldLogs.get("dad")).toEqual(next);
     expect(fieldLogs.size).toBe(1);
   });
+
+  it("keeps three unexpired copies and can refuse the archive", async () => {
+    const gate = { fail: false };
+    const holdEcho = { held: false };
+    const cloud = createMemoryCloudSave({ archiveGate: gate, holdEcho });
+    const mountain = minedMountain(3);
+    holdEcho.held = true;
+    await cloud.write({
+      uid: "dad",
+      mountain,
+      rev: 1,
+      deviceId: "device-dad-1",
+      deviceLabel: "Chrome on Android",
+      lastSeen: 5,
+    });
+    holdEcho.held = false;
+    await expect(cloud.load({ uid: "dad" })).resolves.toMatchObject({
+      kind: "found",
+      deviceLabel: "Chrome on Android",
+      rev: 1,
+    });
+    gate.fail = true;
+    await expect(
+      cloud.archiveCopy?.({
+        uid: "dad",
+        mountain,
+        lastSeen: 5,
+        rev: 1,
+        deviceId: "device-dad-1",
+        deviceLabel: "Chrome on Android",
+      }),
+    ).resolves.toEqual({ kind: "failed", message: "unavailable" });
+    gate.fail = false;
+    for (let index = 0; index < 4; index += 1) {
+      await cloud.archiveCopy?.({
+        uid: "dad",
+        mountain: minedMountain(index + 1),
+        lastSeen: index,
+        rev: index + 1,
+        deviceId: "device-dad-1",
+        deviceLabel: "Chrome on Android",
+      });
+    }
+    await cloud.archiveCopy?.({
+      uid: "mom",
+      mountain,
+      lastSeen: 1,
+      rev: 1,
+      deviceId: "device-mom-1",
+      deviceLabel: "Safari on iPhone",
+    });
+    const now = Date.now();
+    const listed = await cloud.listCopies?.({ uid: "dad", now });
+    expect(listed).toHaveLength(3);
+    expect(listed?.[0]?.mountain.pocket).toBe(4);
+    expect(listed?.[2]?.mountain.pocket).toBe(2);
+    await expect(
+      cloud.listCopies?.({ uid: "dad", now: now + 8 * 24 * 60 * 60 * 1000 }),
+    ).resolves.toEqual([]);
+  });
+
+  it("refuses a write from an older run and keeps the stored one", async () => {
+    const cloud = createMemoryCloudSave();
+    const newer = { ...createMountain(), startedAt: 20, pocket: 3 };
+    await expect(
+      cloud.write({
+        uid: "dad",
+        mountain: newer,
+        rev: 1,
+        deviceId: "device-dad-1",
+        lastSeen: 1,
+      }),
+    ).resolves.toEqual({ kind: "ok" });
+    await expect(
+      cloud.write({
+        uid: "dad",
+        mountain: { ...createMountain(), startedAt: 5, pocket: 9 },
+        rev: 2,
+        deviceId: "device-dad-1",
+      }),
+    ).resolves.toEqual({ kind: "rejected", message: "permission-denied" });
+    await expect(cloud.load({ uid: "dad" })).resolves.toMatchObject({
+      kind: "found",
+      rev: 1,
+      mountain: { pocket: 3, startedAt: 20 },
+    });
+    await expect(
+      cloud.write({
+        uid: "dad",
+        mountain: { ...newer, pocket: 4 },
+        rev: 2,
+        deviceId: "device-dad-1",
+      }),
+    ).resolves.toEqual({ kind: "ok" });
+  });
 });
 
 describe("createNoopCloudSave", () => {
@@ -160,6 +255,19 @@ describe("createNoopCloudSave", () => {
         },
       }),
     ).resolves.toEqual({ kind: "ok" });
+    await expect(
+      cloud.archiveCopy?.({
+        uid: "dad",
+        mountain: createMountain(),
+        lastSeen: 1,
+        rev: 1,
+        deviceId: "device-dad-1",
+        deviceLabel: "Chrome on Android",
+      }),
+    ).resolves.toEqual({ kind: "ok" });
+    await expect(cloud.listCopies?.({ uid: "dad", now: 1 })).resolves.toEqual(
+      [],
+    );
   });
 });
 
@@ -177,6 +285,19 @@ describe("createUnavailableCloudSave", () => {
         deviceId: "device-123",
       }),
     ).resolves.toEqual({ kind: "failed", message: "unavailable" });
+    await expect(
+      cloud.archiveCopy?.({
+        uid: "dad",
+        mountain: createMountain(),
+        lastSeen: 1,
+        rev: 1,
+        deviceId: "device-123",
+        deviceLabel: "Chrome on Android",
+      }),
+    ).resolves.toEqual({ kind: "failed", message: "unavailable" });
+    await expect(cloud.listCopies?.({ uid: "dad", now: 1 })).resolves.toEqual(
+      [],
+    );
     await expect(
       cloud.writeFieldLog({
         uid: "dad",

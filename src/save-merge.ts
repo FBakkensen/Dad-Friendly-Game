@@ -1,114 +1,119 @@
-import { rankOf, type Engineer } from "./engineers";
-import type { FindId } from "./expeditions";
-import { digStones, minedOut, runStartedAt, type Mountain } from "./mountain";
+import { minedOut, runStartedAt, type Mountain } from "./mountain";
 import { serializeSave } from "./persist";
 import { compareSaveProgress, type SaveMoment } from "./save-progress";
-import { upgradeLevel, UPGRADES, type UpgradeId } from "./upgrades";
-import {
-  RECIPE_IDS,
-  craftedLevel,
-  isRecipeId,
-  type Crafted,
-  type RecipeId,
-} from "./workshop";
+import { upgradeLevel, UPGRADES } from "./upgrades";
+import { RECIPE_IDS, craftedLevel } from "./workshop";
 
 /**
- * Two copies of one run, after a rules rejection.
+ * Two copies of one run.
  *
- * Monotonic progress is kept from both: stones mined (and the relics those
- * stones uncover), upgrade levels, the shelf, recipes, engineer trips, and
- * finished crafts. A later run wins whole. A copy with a lower rev is never
- * adopted. When each side has something the other lacks, the side with more
- * progress is the base and the conflict is logged. The sheet that explains
- * it is a later step.
+ * A later run wins whole. A lower rev is never adopted. When one copy is at
+ * least as far on every counted fact and further on stones, upgrades, crafts,
+ * recipes, finds, or engineer trips, that copy is a silent fast-forward.
+ * Machines and crew count too: being behind on them blocks the fast-forward.
+ * A lead that is only machines or crew, or a split where each side has
+ * something the other lacks, is a conflict. The two copies come back as they
+ * are. Nothing is blended into a third save.
  */
 export type SaveCopy = SaveMoment & {
   readonly rev: number;
 };
 
-export type MergedSave = {
+type FastForward = {
+  readonly kind: "fast-forward";
   readonly mountain: Mountain;
   readonly lastSeen: number | undefined;
   readonly rev: number;
-  readonly conflict: boolean;
   /** The server does not yet have `mountain`, so the caller writes rev + 1. */
   readonly differsFromRemote: boolean;
 };
 
-type Monotonic = {
-  readonly mined: number;
-  readonly upgrades: Readonly<Record<string, number>>;
-  readonly recipes: readonly string[];
-  readonly crafts: Readonly<Record<string, number>>;
-  readonly engineers: Readonly<Record<string, number>>;
-  readonly finds: readonly string[];
+type MergeConflict = {
+  readonly kind: "conflict";
+  readonly local: SaveCopy;
+  readonly remote: SaveCopy;
 };
 
-export function mergeSaves(local: SaveCopy, remote: SaveCopy): MergedSave {
-  const rev = Math.max(local.rev, remote.rev);
+export type MergeResult = FastForward | MergeConflict;
+
+type Facts = {
+  readonly mined: number;
+  readonly upgrades: Readonly<Record<string, number>>;
+  readonly crafts: Readonly<Record<string, number>>;
+  readonly recipes: readonly string[];
+  readonly finds: readonly string[];
+  readonly engineers: Readonly<Record<string, number>>;
+  readonly crew: number;
+  readonly carts: number;
+  readonly drills: number;
+  readonly borers: number;
+  readonly machines: number;
+};
+
+export function mergeSaves(local: SaveCopy, remote: SaveCopy): MergeResult {
   if (remote.rev < local.rev) {
-    return {
-      mountain: local.mountain,
-      lastSeen: local.lastSeen,
-      rev: local.rev,
-      conflict: false,
-      differsFromRemote: !sameMountain(local.mountain, remote.mountain),
-    };
+    return forward(local, remote, local.rev);
   }
+  const rev = Math.max(local.rev, remote.rev);
   if (runStartedAt(local.mountain) !== runStartedAt(remote.mountain)) {
     const newer =
       runStartedAt(local.mountain) > runStartedAt(remote.mountain)
         ? local
         : remote;
-    return {
-      mountain: newer.mountain,
-      lastSeen: newer.lastSeen,
-      rev,
-      conflict: false,
-      differsFromRemote: !sameMountain(newer.mountain, remote.mountain),
-    };
+    return forward(newer, remote, rev);
   }
-  const localMono = monotonic(local.mountain);
-  const remoteMono = monotonic(remote.mountain);
-  const localDominates = dominates(localMono, remoteMono);
-  const remoteDominates = dominates(remoteMono, localMono);
-  if (localDominates && !remoteDominates) {
-    return held(local, remote, rev, false);
+  const left = facts(local.mountain);
+  const right = facts(remote.mountain);
+  const localLeads = covers(left, right) && aheadOnProgress(left, right);
+  const remoteLeads = covers(right, left) && aheadOnProgress(right, left);
+  if (localLeads && !remoteLeads) {
+    return forward(local, remote, rev);
   }
-  if (remoteDominates && !localDominates) {
-    return held(remote, remote, rev, false);
+  if (remoteLeads && !localLeads) {
+    return forward(remote, remote, rev);
   }
-  if (localDominates && remoteDominates) {
+  if (covers(left, right) && covers(right, left)) {
     const verdict = compareSaveProgress(local, remote);
-    const base = verdict < 0 ? remote : local;
-    const conflict =
-      verdict === 0 && !sameMountain(local.mountain, remote.mountain);
-    return held(base, remote, rev, conflict);
+    if (verdict < 0) {
+      return forward(remote, remote, rev);
+    }
+    if (verdict > 0 || sameMountain(local.mountain, remote.mountain)) {
+      return forward(local, remote, rev);
+    }
   }
-  const verdict = compareSaveProgress(local, remote);
-  const base = verdict < 0 ? remote : local;
-  const other = base === local ? remote : local;
-  const mountain = overlay(base.mountain, other.mountain);
-  return {
-    mountain,
-    lastSeen: base.lastSeen,
-    rev,
-    conflict: true,
-    differsFromRemote: !sameMountain(mountain, remote.mountain),
-  };
+  return { kind: "conflict", local, remote };
 }
 
-function held(
-  base: SaveCopy,
-  remote: SaveCopy,
-  rev: number,
-  conflict: boolean,
-): MergedSave {
+/**
+ * A content split is a real conflict only when the server moved past the
+ * rev this device has confirmed, this device still has unconfirmed changes,
+ * and the server copy was not written by this device.
+ */
+export function conflictIsReal({
+  serverRev,
+  syncedRev,
+  dirty,
+  remoteDeviceId,
+  localDeviceId,
+}: {
+  serverRev: number;
+  syncedRev: number;
+  dirty: boolean;
+  remoteDeviceId: string;
+  localDeviceId: string;
+}): boolean {
+  if (serverRev <= syncedRev || !dirty) {
+    return false;
+  }
+  return remoteDeviceId === "" || remoteDeviceId !== localDeviceId;
+}
+
+function forward(base: SaveCopy, remote: SaveCopy, rev: number): FastForward {
   return {
+    kind: "fast-forward",
     mountain: base.mountain,
     lastSeen: base.lastSeen,
     rev,
-    conflict,
     differsFromRemote: !sameMountain(base.mountain, remote.mountain),
   };
 }
@@ -120,7 +125,7 @@ function sameMountain(left: Mountain, right: Mountain): boolean {
   );
 }
 
-function monotonic(mountain: Mountain): Monotonic {
+function facts(mountain: Mountain): Facts {
   const upgrades: Record<string, number> = {};
   for (const upgrade of UPGRADES) {
     const level = upgradeLevel(mountain, upgrade.id);
@@ -144,37 +149,89 @@ function monotonic(mountain: Mountain): Monotonic {
   for (const engineer of mountain.engineers ?? []) {
     engineers[engineer.name] = engineer.trips;
   }
-  const recipes = [
-    ...(mountain.recipes ?? []),
-    ...(mountain.kept?.recipes ?? []),
-  ];
   return {
     mined: minedOut(mountain),
     upgrades,
-    recipes,
     crafts,
-    engineers,
+    recipes: [...(mountain.recipes ?? []), ...(mountain.kept?.recipes ?? [])],
     finds: [...(mountain.finds ?? [])],
+    engineers,
+    crew: mountain.helpers,
+    carts: mountain.carts,
+    drills: mountain.drills,
+    borers: mountain.borers,
+    machines: mountain.machines,
   };
 }
 
-function dominates(left: Monotonic, right: Monotonic): boolean {
-  if (left.mined < right.mined) {
-    return false;
+/** Stones, upgrades, crafts, recipes, finds, or engineer trips. Not machines. */
+function aheadOnProgress(left: Facts, right: Facts): boolean {
+  if (left.mined > right.mined) {
+    return true;
   }
-  if (!coversNumbers(left.upgrades, right.upgrades)) {
-    return false;
+  if (someHigher(left.upgrades, right.upgrades)) {
+    return true;
   }
-  if (!coversNumbers(left.crafts, right.crafts)) {
-    return false;
+  if (someHigher(left.crafts, right.crafts)) {
+    return true;
   }
-  if (!coversNumbers(left.engineers, right.engineers)) {
-    return false;
+  if (someOnly(left.recipes, right.recipes)) {
+    return true;
   }
-  if (!coversList(left.recipes, right.recipes)) {
-    return false;
+  if (someOnly(left.finds, right.finds)) {
+    return true;
   }
-  return coversList(left.finds, right.finds);
+  if (someHigher(left.engineers, right.engineers)) {
+    return true;
+  }
+  for (const name of Object.keys(left.engineers)) {
+    if (!(name in right.engineers)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function covers(left: Facts, right: Facts): boolean {
+  return (
+    left.mined >= right.mined &&
+    coversNumbers(left.upgrades, right.upgrades) &&
+    coversNumbers(left.crafts, right.crafts) &&
+    coversNumbers(left.engineers, right.engineers) &&
+    coversNames(left.engineers, right.engineers) &&
+    coversList(left.recipes, right.recipes) &&
+    coversList(left.finds, right.finds) &&
+    left.crew >= right.crew &&
+    left.carts >= right.carts &&
+    left.drills >= right.drills &&
+    left.borers >= right.borers &&
+    left.machines >= right.machines
+  );
+}
+
+function coversNames(
+  left: Readonly<Record<string, number>>,
+  right: Readonly<Record<string, number>>,
+): boolean {
+  return Object.keys(right).every((name) => name in left);
+}
+
+function someHigher(
+  left: Readonly<Record<string, number>>,
+  right: Readonly<Record<string, number>>,
+): boolean {
+  const ids = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const id of ids) {
+    if ((left[id] ?? 0) > (right[id] ?? 0)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function someOnly(left: readonly string[], right: readonly string[]): boolean {
+  const held = new Set(right);
+  return left.some((id) => !held.has(id));
 }
 
 function coversNumbers(
@@ -195,171 +252,4 @@ function coversList(
 ): boolean {
   const held = new Set(left);
   return right.every((id) => held.has(id));
-}
-
-function overlay(base: Mountain, extra: Mountain): Mountain {
-  const minedGap = minedOut(extra) - minedOut(base);
-  const mountain = minedGap > 0 ? digStones(base, minedGap) : base;
-  const upgrades = maxUpgrades(mountain, extra);
-  const engineers = unionEngineers(base, extra);
-  const finds = unionFinds(mountain, extra);
-  const recipes = unionRecipes(mountain, extra);
-  const crafted = maxCrafts(mountain, extra);
-  const keptRecipes = unionKept(mountain, extra, recipes.known);
-  const keptCrafted = maxKeptCrafts(mountain, extra);
-  const kept =
-    keptRecipes.length === 0 && Object.keys(keptCrafted).length === 0
-      ? mountain.kept?.bench === undefined
-        ? undefined
-        : { bench: mountain.kept.bench }
-      : {
-          ...(keptRecipes.length === 0 ? {} : { recipes: keptRecipes }),
-          ...(mountain.kept?.bench === undefined
-            ? {}
-            : { bench: mountain.kept.bench }),
-          ...(Object.keys(keptCrafted).length === 0
-            ? {}
-            : { crafted: keptCrafted }),
-        };
-  return {
-    ...mountain,
-    ...(upgrades === undefined ? {} : { upgrades }),
-    ...(engineers === undefined ? {} : { engineers }),
-    ...(finds === undefined ? {} : { finds }),
-    ...(recipes.known.length === 0 ? {} : { recipes: recipes.known }),
-    ...(Object.keys(crafted).length === 0 ? {} : { crafted }),
-    ...(kept === undefined ? {} : { kept }),
-  };
-}
-
-function maxUpgrades(
-  left: Mountain,
-  right: Mountain,
-): Partial<Record<UpgradeId, number>> | undefined {
-  const next: Partial<Record<UpgradeId, number>> = {};
-  for (const upgrade of UPGRADES) {
-    const level = Math.max(
-      upgradeLevel(left, upgrade.id),
-      upgradeLevel(right, upgrade.id),
-    );
-    if (level > 0) {
-      next[upgrade.id] = level;
-    }
-  }
-  return Object.keys(next).length === 0 ? undefined : next;
-}
-
-function unionEngineers(
-  base: Mountain,
-  extra: Mountain,
-): readonly Engineer[] | undefined {
-  const byName = new Map<string, Engineer>();
-  for (const engineer of base.engineers ?? []) {
-    byName.set(engineer.name, engineer);
-  }
-  for (const engineer of extra.engineers ?? []) {
-    const existing = byName.get(engineer.name);
-    if (existing === undefined) {
-      byName.set(engineer.name, engineer);
-      continue;
-    }
-    if (engineer.trips > existing.trips) {
-      byName.set(engineer.name, {
-        ...engineer,
-        rank: rankOf(engineer.trips),
-      });
-    }
-  }
-  if (byName.size === 0) {
-    return undefined;
-  }
-  const ordered: Engineer[] = [];
-  for (const engineer of base.engineers ?? []) {
-    const next = byName.get(engineer.name);
-    if (next !== undefined) {
-      ordered.push(next);
-    }
-    byName.delete(engineer.name);
-  }
-  for (const engineer of byName.values()) {
-    ordered.push(engineer);
-  }
-  return ordered;
-}
-
-function unionFinds(
-  left: Mountain,
-  right: Mountain,
-): readonly FindId[] | undefined {
-  const seen = new Set<FindId>();
-  const all: FindId[] = [];
-  for (const id of [...(left.finds ?? []), ...(right.finds ?? [])]) {
-    if (seen.has(id)) {
-      continue;
-    }
-    seen.add(id);
-    all.push(id);
-  }
-  return all.length === 0 ? undefined : all;
-}
-
-function unionRecipes(
-  left: Mountain,
-  right: Mountain,
-): { readonly known: readonly RecipeId[] } {
-  const known: RecipeId[] = [];
-  for (const id of [...(left.recipes ?? []), ...(right.recipes ?? [])]) {
-    if (!known.includes(id)) {
-      known.push(id);
-    }
-  }
-  return { known };
-}
-
-function unionKept(
-  left: Mountain,
-  right: Mountain,
-  known: readonly RecipeId[],
-): readonly string[] {
-  const kept: string[] = [];
-  for (const id of [
-    ...(left.kept?.recipes ?? []),
-    ...(right.kept?.recipes ?? []),
-  ]) {
-    if (isRecipeId(id) || kept.includes(id)) {
-      continue;
-    }
-    if (known.includes(id as RecipeId)) {
-      continue;
-    }
-    kept.push(id);
-  }
-  return kept;
-}
-
-function maxCrafts(left: Mountain, right: Mountain): Crafted {
-  const next: Partial<Record<RecipeId, number>> = {};
-  for (const id of RECIPE_IDS) {
-    const level = Math.max(craftedLevel(left, id), craftedLevel(right, id));
-    if (level > 0) {
-      next[id] = level;
-    }
-  }
-  return next;
-}
-
-function maxKeptCrafts(
-  left: Mountain,
-  right: Mountain,
-): Readonly<Record<string, number>> {
-  const next: Record<string, number> = {};
-  for (const source of [left, right]) {
-    for (const [id, level] of Object.entries(source.kept?.crafted ?? {})) {
-      if (isRecipeId(id) || typeof level !== "number") {
-        continue;
-      }
-      next[id] = Math.max(next[id] ?? 0, level);
-    }
-  }
-  return next;
 }

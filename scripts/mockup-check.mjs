@@ -57,6 +57,8 @@ const SHOTS = [
   ["craft-done", "rest", ""],
   ["craft-done", "press", "done"],
   ["other-tab", "rest", ""],
+  ["save-conflict", "rest", ""],
+  ["save-conflict", "press", ""],
 ];
 
 const failures = [];

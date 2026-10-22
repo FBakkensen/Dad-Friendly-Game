@@ -25,6 +25,7 @@ import {
 } from "./mountain";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { effectiveRates } from "./rates";
+import { readDeviceId } from "./device-id";
 import { readPhoneBackup, writePhoneBackup } from "./phone-backup";
 import {
   bindWriterPageHide,
@@ -3078,14 +3079,20 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
     };
     progress.applyMutation(() => minedMountain(30));
     await vi.waitFor(() => {
-      expect(server.rev).toBe(7);
+      expect(progress.getSnapshot().saveConflict).toBeDefined();
     });
+    expect(server.rev).toBe(6);
     expect(minedOut(progress.getSnapshot().mountain)).toBe(30);
-    expect(progress.getSnapshot().mountain.upgrades).toEqual({ boots: 1 });
+    expect(progress.getSnapshot().mountain.upgrades).toBeUndefined();
+    expect(
+      progress.getSnapshot().saveConflict?.remote.mountain.upgrades,
+    ).toEqual({
+      boots: 1,
+    });
     expect(progress.fieldLog().events.map((event) => event.code)).toContain(
       "save.conflict",
     );
-    expect(progress.fieldLog().snapshot.rev).toBe(7);
+    expect(progress.fieldLog().snapshot.rev).toBeGreaterThan(0);
     expect(progress.fieldLog().snapshot.deviceId.length).toBeGreaterThanOrEqual(
       8,
     );
@@ -4534,6 +4541,654 @@ describe("fresh read, one writer, and a pending offline write", () => {
     });
     window.removeEventListener("pagehide", onHide);
     unbind();
+    progress.dispose();
+  });
+});
+
+describe("two saves found (#226)", () => {
+  const user = { uid: "test-dad", label: "Test Dad" };
+  const clock = 1_700_000_000_000;
+  const materials = { clay: 3, iron: 1, crystal: 0, heartstone: 0 } as const;
+  const base = (): Mountain => ({
+    ...minedMountain(1_000),
+    pocket: 500,
+    materials: { ...materials },
+  });
+
+  const open = (
+    cloud: CloudSave,
+    storage: Storage,
+    now: () => number = () => clock,
+  ) =>
+    createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      now,
+      cloudWriteGapMs: 0,
+    });
+
+  it("gives the second writer the sheet and keeps play paused", async () => {
+    const docs = new Map<string, Mountain>();
+    const holdEcho = { held: false };
+    const cloud = createMemoryCloudSave({ docs, holdEcho });
+    await cloud.write({
+      uid: user.uid,
+      mountain: base(),
+      rev: 1,
+      deviceId: "seed-device",
+      deviceLabel: "Chrome on Android",
+      lastSeen: clock,
+    });
+    const storageA = createMemoryStorage();
+    const storageB = createMemoryStorage();
+    const first = open(cloud, storageA);
+    const second = open(cloud, storageB);
+    await vi.waitFor(() => {
+      expect(first.getSnapshot().ready).toBe(true);
+      expect(second.getSnapshot().ready).toBe(true);
+    });
+    holdEcho.held = true;
+    first.applyMutation((mountain) => ({ ...mountain, upgrades: { tap: 1 } }));
+    await vi.waitFor(() => {
+      expect(docs.get(user.uid)?.upgrades).toEqual({ tap: 1 });
+    });
+    expect(first.getSnapshot().saveConflict).toBeUndefined();
+    const otherMaterials = { clay: 9, iron: 4, crystal: 0, heartstone: 0 };
+    second.applyMutation((mountain) => ({
+      ...mountain,
+      carts: 2,
+      drills: 1,
+      helpers: 4,
+      pocket: 80,
+      materials: otherMaterials,
+    }));
+    await vi.waitFor(() => {
+      expect(second.getSnapshot().saveConflict).toBeDefined();
+    });
+    const conflict = second.getSnapshot().saveConflict;
+    expect(conflict?.local.mountain.carts).toBe(2);
+    expect(conflict?.local.mountain.pocket).toBe(80);
+    expect(conflict?.local.mountain.materials).toEqual(otherMaterials);
+    expect(conflict?.remote.mountain.upgrades).toEqual({ tap: 1 });
+    expect(conflict?.remote.mountain.carts).toBe(0);
+    expect(first.getSnapshot().saveConflict).toBeUndefined();
+    const server = await cloud.load({ uid: user.uid });
+    expect(server.kind === "found" && server.rev).toBe(2);
+
+    second.applyMutation((mountain) => ({ ...mountain, pocket: 1 }));
+    second.tick();
+    expect(second.getSnapshot().mountain.pocket).toBe(80);
+    expect(second.getSnapshot().mountain.carts).toBe(2);
+    expect(second.getSnapshot().away).toBeUndefined();
+    expect((await cloud.load({ uid: user.uid })).kind === "found").toBe(true);
+    const still = await cloud.load({ uid: user.uid });
+    expect(still.kind === "found" && still.rev).toBe(2);
+
+    second.dispose();
+    const reloaded = open(cloud, storageB);
+    await vi.waitFor(() => {
+      expect(reloaded.getSnapshot().saveConflict?.local.mountain.carts).toBe(2);
+    });
+    expect(
+      reloaded.getSnapshot().saveConflict?.remote.mountain.upgrades,
+    ).toEqual({
+      tap: 1,
+    });
+    expect(reloaded.getSnapshot().away).toBeUndefined();
+    const phone = readPhoneBackup({ storage: storageB, uid: user.uid });
+    expect(phone.kind).toBe("present");
+    if (phone.kind === "present") {
+      expect(phone.syncedRev).toBe(1);
+      expect(phone.conflict?.remote.rev).toBe(2);
+    }
+
+    await expect(reloaded.chooseSave("local")).resolves.toBe("saved");
+    await vi.waitFor(async () => {
+      const saved = await cloud.load({ uid: user.uid });
+      expect(saved.kind === "found" && saved.rev).toBe(3);
+    });
+    expect(reloaded.getSnapshot().saveConflict).toBeUndefined();
+    expect(reloaded.getSnapshot().mountain.carts).toBe(2);
+    expect(reloaded.getSnapshot().mountain.drills).toBe(1);
+    expect(reloaded.getSnapshot().mountain.helpers).toBe(4);
+    expect(reloaded.getSnapshot().mountain.pocket).toBe(80);
+    expect(reloaded.getSnapshot().mountain.materials).toEqual(otherMaterials);
+    expect(reloaded.getSnapshot().mountain.upgrades).toBeUndefined();
+    const copies = await reloaded.savedCopies();
+    expect(copies).toHaveLength(1);
+    expect(copies[0]?.mountain.upgrades).toEqual({ tap: 1 });
+    expect(copies[0]?.mountain.carts).toBe(0);
+    const events = reloaded.fieldLog().events.map((event) => event.code);
+    expect(events).toContain("save.conflict");
+    const choice = reloaded
+      .fieldLog()
+      .events.find(
+        (event) =>
+          event.code === "save.conflict" &&
+          (event.data as { chosen?: string }).chosen === "local",
+      );
+    expect(choice?.data).toMatchObject({
+      minedLocal: 1_000,
+      minedRemote: 1_000,
+      chosen: "local",
+    });
+
+    const id = copies[0]?.id;
+    if (id === undefined) {
+      throw new Error("missing archive");
+    }
+    await expect(reloaded.restoreCopy(id)).resolves.toBe("saved");
+    await vi.waitFor(() => {
+      expect(reloaded.getSnapshot().mountain.upgrades).toEqual({ tap: 1 });
+    });
+    expect(reloaded.getSnapshot().mountain.carts).toBe(0);
+    expect(reloaded.getSnapshot().mountain.pocket).toBe(500);
+    expect(reloaded.fieldLog().events.map((event) => event.code)).toContain(
+      "save.restore",
+    );
+    const restored = await reloaded.savedCopies();
+    expect(
+      restored.some(
+        (copy) => copy.mountain.carts === 2 && copy.mountain.pocket === 80,
+      ),
+    ).toBe(true);
+    first.dispose();
+    reloaded.dispose();
+  });
+
+  it("adopts the other device exactly and archives this phone, machines included", async () => {
+    const holdEcho = { held: true };
+    const cloud = createMemoryCloudSave({ holdEcho });
+    await cloud.write({
+      uid: user.uid,
+      mountain: base(),
+      rev: 1,
+      deviceId: "seed-device",
+      deviceLabel: "Safari on iPhone",
+      lastSeen: clock,
+    });
+    const phone = createMemoryStorage();
+    const other = createMemoryStorage();
+    const here = open(cloud, phone);
+    const there = open(cloud, other);
+    await vi.waitFor(() => {
+      expect(here.getSnapshot().ready).toBe(true);
+      expect(there.getSnapshot().ready).toBe(true);
+    });
+    here.applyMutation((mountain) => ({
+      ...mountain,
+      carts: 3,
+      machines: 1,
+      pocket: 40,
+      materials: { clay: 1, iron: 0, crystal: 0, heartstone: 0 },
+    }));
+    await vi.waitFor(async () => {
+      const saved = await cloud.load({ uid: user.uid });
+      expect(saved.kind === "found" && saved.rev).toBe(2);
+    });
+    there.applyMutation((mountain) => ({
+      ...mountain,
+      drills: 2,
+      pocket: 70,
+      materials: { clay: 8, iron: 2, crystal: 1, heartstone: 0 },
+    }));
+    await vi.waitFor(() => {
+      expect(there.getSnapshot().saveConflict).toBeDefined();
+    });
+    expect(here.getSnapshot().saveConflict).toBeUndefined();
+    await expect(there.chooseSave("remote")).resolves.toBe("saved");
+    await vi.waitFor(() => {
+      expect(there.getSnapshot().saveConflict).toBeUndefined();
+    });
+    const chosen = there.getSnapshot().mountain;
+    expect(chosen.carts).toBe(3);
+    expect(chosen.machines).toBe(1);
+    expect(chosen.drills).toBe(0);
+    expect(chosen.pocket).toBe(40);
+    expect(chosen.materials).toEqual({
+      clay: 1,
+      iron: 0,
+      crystal: 0,
+      heartstone: 0,
+    });
+    const archived = await there.savedCopies();
+    expect(
+      archived.some(
+        (copy) =>
+          copy.mountain.drills === 2 &&
+          copy.mountain.pocket === 70 &&
+          copy.mountain.materials?.crystal === 1,
+      ),
+    ).toBe(true);
+    const choice = there
+      .fieldLog()
+      .events.find(
+        (event) =>
+          event.code === "save.conflict" &&
+          (event.data as { chosen?: string }).chosen === "remote",
+      );
+    expect(choice).toBeDefined();
+    here.dispose();
+    there.dispose();
+  });
+
+  it("keeps the sheet when the archive write fails", async () => {
+    const archiveGate = { fail: true };
+    const holdEcho = { held: true };
+    const cloud = createMemoryCloudSave({ holdEcho, archiveGate });
+    await cloud.write({
+      uid: user.uid,
+      mountain: base(),
+      rev: 1,
+      deviceId: "seed-device",
+      lastSeen: clock,
+    });
+    const storage = createMemoryStorage();
+    const progress = open(cloud, storage);
+    const other = open(cloud, createMemoryStorage());
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+      expect(other.getSnapshot().ready).toBe(true);
+    });
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      upgrades: { tap: 1 },
+    }));
+    other.applyMutation((mountain) => ({ ...mountain, carts: 1 }));
+    await vi.waitFor(() => {
+      expect(
+        progress.getSnapshot().saveConflict ?? other.getSnapshot().saveConflict,
+      ).toBeDefined();
+    });
+    const sheet = progress.getSnapshot().saveConflict ? progress : other;
+    const before = sheet.getSnapshot().mountain;
+    await expect(sheet.chooseSave("local")).resolves.toBe("kept");
+    expect(sheet.getSnapshot().saveConflict?.error).toBe(
+      "Couldn't store the other save yet – try again",
+    );
+    expect(sheet.getSnapshot().mountain).toBe(before);
+    const server = await cloud.load({ uid: user.uid });
+    expect(server.kind === "found" && server.rev).toBe(2);
+    expect(await sheet.savedCopies()).toEqual([]);
+    progress.dispose();
+    other.dispose();
+  });
+
+  it("does not open the sheet for an echo of this device", async () => {
+    const storage = createMemoryStorage();
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    const cloud: CloudSave = {
+      load: () =>
+        Promise.resolve({
+          kind: "found",
+          mountain: base(),
+          rev: 1,
+          lastSeen: clock,
+          deviceId: readDeviceId(storage),
+        }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({
+          kind: "found",
+          mountain: base(),
+          rev: 1,
+          lastSeen: clock,
+          deviceId: readDeviceId(storage),
+        });
+        return () => undefined;
+      },
+    };
+    const progress = open(cloud, storage);
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 40 }));
+    deliver({
+      kind: "found",
+      mountain: { ...base(), carts: 5 },
+      rev: 6,
+      lastSeen: clock,
+      deviceId: readDeviceId(storage),
+      deviceLabel: "Chrome on Android",
+    });
+    expect(progress.getSnapshot().saveConflict).toBeUndefined();
+    expect(progress.getSnapshot().mountain.pocket).toBe(40);
+    expect(progress.getSnapshot().mountain.carts).toBe(0);
+    progress.dispose();
+  });
+
+  it("previews the sheet and pauses play", () => {
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-out" } }),
+      sessionStorage: createMemoryStorage(),
+      now: () => clock,
+    });
+    progress.previewConflict();
+    const conflict = progress.getSnapshot().saveConflict;
+    expect(conflict?.local.deviceLabel).toBe("Chrome on Android");
+    expect(conflict?.remote.deviceLabel).toBe("Safari on iPhone");
+    expect(conflict?.local.mountain.helpers).toBe(28);
+    expect(conflict?.remote.mountain.carts).toBe(2);
+    progress.applyMutation(() => minedMountain(3));
+    progress.tick();
+    expect(progress.getSnapshot().mountain.carts).toBe(6);
+    expect(progress.getSnapshot().away).toBeUndefined();
+    progress.dispose();
+  });
+
+  it("opens from a live snapshot, adopts a clean split, and resumes into the sheet", async () => {
+    const at = 5_000;
+    let server = {
+      mountain: base(),
+      rev: 1,
+      deviceId: "other-device",
+      deviceLabel: "Safari on iPhone",
+      lastSeen: at,
+    };
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    let writes = 0;
+    const cloud: CloudSave = {
+      load: () =>
+        Promise.resolve({
+          kind: "found",
+          mountain: server.mountain,
+          rev: server.rev,
+          lastSeen: server.lastSeen,
+          deviceId: server.deviceId,
+          deviceLabel: server.deviceLabel,
+        }),
+      write: () => {
+        writes += 1;
+        return new Promise(() => undefined);
+      },
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({
+          kind: "found",
+          mountain: server.mountain,
+          rev: server.rev,
+          lastSeen: server.lastSeen,
+          deviceId: server.deviceId,
+          deviceLabel: server.deviceLabel,
+        });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+      now: () => at,
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    server = {
+      mountain: { ...base(), carts: 2 },
+      rev: 2,
+      deviceId: "other-device",
+      deviceLabel: "Safari on iPhone",
+      lastSeen: at,
+    };
+    deliver({
+      kind: "found",
+      ...server,
+    });
+    expect(progress.getSnapshot().saveConflict).toBeUndefined();
+    expect(progress.getSnapshot().mountain.carts).toBe(2);
+
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      upgrades: { tap: 1 },
+    }));
+    expect(writes).toBe(1);
+    server = {
+      mountain: { ...base(), drills: 1 },
+      rev: 3,
+      deviceId: "other-device",
+      deviceLabel: "Safari on iPhone",
+      lastSeen: at,
+    };
+    const reading = progress.resume();
+    expect(reading.kind).toBe("reading");
+    if (reading.kind === "reading") {
+      await reading.done;
+    }
+    expect(
+      progress.getSnapshot().saveConflict?.local.mountain.upgrades,
+    ).toEqual({
+      tap: 1,
+    });
+    expect(progress.getSnapshot().saveConflict?.remote.mountain.drills).toBe(1);
+    const writesAtSheet = writes;
+    progress.flush();
+    deliver({
+      kind: "found",
+      mountain: { ...base(), borers: 1 },
+      rev: 4,
+      lastSeen: at,
+      deviceId: "other-device",
+      deviceLabel: "Safari on iPhone",
+    });
+    expect(progress.getSnapshot().mountain.upgrades).toEqual({ tap: 1 });
+    expect(progress.getSnapshot().mountain.borers).toBe(0);
+    expect(writes).toBe(writesAtSheet);
+    deliver({ kind: "unavailable" });
+    expect(
+      progress.getSnapshot().saveConflict?.local.mountain.upgrades,
+    ).toEqual({
+      tap: 1,
+    });
+    progress.dispose();
+  });
+
+  it("opens the sheet when another device's snapshot arrives mid-play", async () => {
+    const at = 5_000;
+    let deliver: (remote: CloudLoadResult) => void = () => undefined;
+    const cloud: CloudSave = {
+      load: () =>
+        Promise.resolve({
+          kind: "found",
+          mountain: base(),
+          rev: 1,
+          lastSeen: at,
+          deviceId: "other-device",
+        }),
+      write: () => new Promise(() => undefined),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        deliver = onChange;
+        onChange({
+          kind: "found",
+          mountain: base(),
+          rev: 1,
+          lastSeen: at,
+          deviceId: "other-device",
+        });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+      now: () => at,
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      upgrades: { boots: 1 },
+    }));
+    deliver({
+      kind: "found",
+      mountain: { ...base(), carts: 3 },
+      rev: 2,
+      deviceId: "other-device",
+      deviceLabel: "Safari on iPhone",
+    });
+    expect(
+      progress.getSnapshot().saveConflict?.local.mountain.upgrades,
+    ).toEqual({
+      boots: 1,
+    });
+    expect(progress.getSnapshot().saveConflict?.remote.mountain.carts).toBe(3);
+    expect(progress.getSnapshot().saveKind).toBe("account");
+    progress.dispose();
+  });
+
+  it("refuses a choice or a restore when there is nothing to switch", async () => {
+    const archiveGate = { fail: true };
+    const cloud = createMemoryCloudSave({ archiveGate });
+    await cloud.write({
+      uid: user.uid,
+      mountain: base(),
+      rev: 1,
+      deviceId: "seed-device",
+      lastSeen: clock,
+    });
+    const progress = open(cloud, createMemoryStorage());
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    await expect(progress.chooseSave("local")).resolves.toBe("kept");
+    await expect(progress.restoreCopy("missing-copy")).resolves.toBe("missing");
+    archiveGate.fail = false;
+    await cloud.archiveCopy?.({
+      uid: user.uid,
+      mountain: { ...base(), carts: 1 },
+      lastSeen: clock,
+      rev: 1,
+      deviceId: "other-device",
+      deviceLabel: "Safari on iPhone",
+    });
+    archiveGate.fail = true;
+    const copies = await progress.savedCopies();
+    expect(copies).toHaveLength(1);
+    await expect(progress.restoreCopy(copies[0]?.id ?? "")).resolves.toBe(
+      "kept",
+    );
+    expect(progress.getSnapshot().mountain.carts).toBe(0);
+    const guest = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-out" } }),
+      sessionStorage: createMemoryStorage(),
+    });
+    await expect(guest.savedCopies()).resolves.toEqual([]);
+    await expect(guest.restoreCopy("x")).resolves.toBe("kept");
+    guest.dispose();
+    progress.dispose();
+  });
+
+  it("does not restore a copy from an earlier run", async () => {
+    const cloud = createMemoryCloudSave();
+    const storage = createMemoryStorage();
+    const early = { ...base(), pocket: 40, startedAt: 1 };
+    await cloud.write({
+      uid: user.uid,
+      mountain: early,
+      rev: 1,
+      deviceId: "seed-device",
+      lastSeen: clock,
+    });
+    await cloud.archiveCopy?.({
+      uid: user.uid,
+      mountain: early,
+      lastSeen: clock,
+      rev: 1,
+      deviceId: "seed-device",
+      deviceLabel: "Safari on iPhone",
+    });
+    const progress = open(cloud, storage);
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+      expect(progress.getSnapshot().mountain.startedAt).toBe(1);
+    });
+    progress.startOver();
+    await vi.waitFor(async () => {
+      const saved = await cloud.load({ uid: user.uid });
+      expect(saved.kind === "found" && saved.mountain.startedAt).toBe(clock);
+      expect(saved.kind === "found" && saved.rev).toBe(2);
+    });
+    const playing = {
+      startedAt: progress.getSnapshot().mountain.startedAt,
+      pocket: progress.getSnapshot().mountain.pocket,
+      remaining: progress.getSnapshot().mountain.remaining,
+    };
+    const phoneBefore = readPhoneBackup({ storage, uid: user.uid });
+    const cloudBefore = await cloud.load({ uid: user.uid });
+    const copiesBefore = await progress.savedCopies();
+    expect(copiesBefore).toHaveLength(1);
+    await expect(progress.restoreCopy(copiesBefore[0]?.id ?? "")).resolves.toBe(
+      "kept",
+    );
+    expect(progress.getSnapshot().mountain.startedAt).toBe(playing.startedAt);
+    expect(progress.getSnapshot().mountain.pocket).toBe(playing.pocket);
+    expect(progress.getSnapshot().mountain.remaining).toBe(playing.remaining);
+    expect(readPhoneBackup({ storage, uid: user.uid })).toEqual(phoneBefore);
+    expect(await cloud.load({ uid: user.uid })).toEqual(cloudBefore);
+    const copiesAfter = await progress.savedCopies();
+    expect(copiesAfter.map((copy) => copy.id)).toEqual(
+      copiesBefore.map((copy) => copy.id),
+    );
+    expect(copiesAfter[0]?.mountain.startedAt).toBe(1);
+    progress.dispose();
+  });
+
+  it("restores a copy from the same run", async () => {
+    const cloud = createMemoryCloudSave();
+    const storage = createMemoryStorage();
+    const playing = { ...base(), pocket: 3, startedAt: 5, carts: 1 };
+    const archived = {
+      ...base(),
+      pocket: 9,
+      startedAt: 5,
+      carts: 4,
+      drills: 2,
+    };
+    await cloud.write({
+      uid: user.uid,
+      mountain: playing,
+      rev: 1,
+      deviceId: "seed-device",
+      lastSeen: clock,
+    });
+    await cloud.archiveCopy?.({
+      uid: user.uid,
+      mountain: archived,
+      lastSeen: clock,
+      rev: 1,
+      deviceId: "other-device",
+      deviceLabel: "Safari on iPhone",
+    });
+    const progress = open(cloud, storage);
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().mountain.pocket).toBe(3);
+    });
+    const copies = await progress.savedCopies();
+    await expect(progress.restoreCopy(copies[0]?.id ?? "")).resolves.toBe(
+      "saved",
+    );
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().mountain.pocket).toBe(9);
+    });
+    expect(progress.getSnapshot().mountain.carts).toBe(4);
+    expect(progress.getSnapshot().mountain.drills).toBe(2);
+    expect(progress.getSnapshot().mountain.startedAt).toBe(5);
+    const restored = await cloud.load({ uid: user.uid });
+    expect(restored.kind === "found" && restored.mountain.pocket).toBe(9);
+    const kept = await progress.savedCopies();
+    expect(
+      kept.some(
+        (copy) => copy.mountain.pocket === 3 && copy.mountain.carts === 1,
+      ),
+    ).toBe(true);
     progress.dispose();
   });
 });

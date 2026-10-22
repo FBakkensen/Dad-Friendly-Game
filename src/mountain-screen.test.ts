@@ -4025,4 +4025,87 @@ describe("layer card, material line, and craft-done notice", () => {
       false,
     );
   });
+
+  it("shows the conflict sheet and saved copies from the menu", async () => {
+    const cloud = createMemoryCloudSave();
+    const screen = mountScreen({ auth: signedIn(), cloudSave: cloud });
+    screen.progress.previewConflict();
+    const sheet = screen.root.querySelector<HTMLElement>(".save-conflict");
+    expect(sheet?.hidden).toBe(false);
+    expect(screen.text("#save-conflict-title")).toBe("Two saves found");
+    expect(screen.text(".save-conflict-body")).toContain("nothing is lost");
+    screen.root
+      .querySelector<HTMLButtonElement>(".save-card[data-side='other']")
+      ?.click();
+    expect(
+      screen.root
+        .querySelector(".save-card[data-side='other']")
+        ?.classList.contains("is-selected"),
+    ).toBe(true);
+    screen.root
+      .querySelector<HTMLButtonElement>(".save-conflict-play")
+      ?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".save-conflict-confirm")?.hidden,
+    ).toBe(false);
+    screen.root
+      .querySelector<HTMLButtonElement>(".save-conflict-commit")
+      ?.click();
+    await vi.waitFor(() => {
+      expect(
+        screen.root.querySelector<HTMLElement>(".save-conflict")?.hidden,
+      ).toBe(true);
+    });
+    screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".saved-copies-link")?.click();
+    await vi.waitFor(() => {
+      expect(screen.text(".saved-copies")).toContain("Chrome on Android");
+    });
+    screen.root
+      .querySelector<HTMLButtonElement>(".saved-copies .menu-close")
+      ?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".saved-copies")?.hidden,
+    ).toBe(true);
+    screen.progress.dispose();
+  });
+
+  it("greys out a saved copy from an earlier run", async () => {
+    const cloud = createMemoryCloudSave();
+    const screen = mountScreen({
+      auth: signedIn(),
+      cloudSave: cloud,
+      now: () => 80_000,
+    });
+    await vi.waitFor(() => {
+      expect(screen.progress.getSnapshot().ready).toBe(true);
+    });
+    screen.progress.startOver();
+    await vi.waitFor(async () => {
+      const saved = await cloud.load({ uid: "test-dad" });
+      expect(saved.kind === "found" && saved.mountain.startedAt).toBe(80_000);
+    });
+    await cloud.archiveCopy?.({
+      uid: "test-dad",
+      mountain: { ...createMountain(), startedAt: 1, pocket: 12, carts: 2 },
+      lastSeen: 1,
+      rev: 1,
+      deviceId: "other-device",
+      deviceLabel: "Safari on iPhone",
+    });
+    screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".saved-copies-link")?.click();
+    await vi.waitFor(() => {
+      expect(screen.text(".saved-copies")).toContain(
+        "From an earlier run – can't be played now",
+      );
+    });
+    expect(screen.text(".is-earlier-run")).toContain("2 carts");
+    expect(screen.text(".is-earlier-run")).toContain("12");
+    expect(
+      screen.root.querySelector(".is-earlier-run .save-conflict-play"),
+    ).toBeNull();
+    expect(screen.text(".saved-copies")).not.toMatch(/\?/);
+    screen.progress.dispose();
+  });
 });

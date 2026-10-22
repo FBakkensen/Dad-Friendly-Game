@@ -24,11 +24,14 @@ export function parseBootOptions(search: string): {
   memorySave: boolean;
   /** Dev-only layout hook: trouble is never saved, so the check asks for it. */
   previewTrouble: boolean;
+  /** Dev-only layout hook: the conflict sheet, with two sample saves. */
+  previewConflict: boolean;
 } {
   const params = new URLSearchParams(search);
   return {
     memorySave: params.get("memorySave") === "1",
     previewTrouble: params.get("trouble") === "cave-in",
+    previewConflict: params.get("saves") === "two",
   };
 }
 
@@ -54,6 +57,9 @@ export async function createAppServices({
   });
   if (devMode && options.previewTrouble) {
     progress.previewTrouble("cart");
+  }
+  if (devMode && options.previewConflict) {
+    progress.previewConflict();
   }
   return { auth: services.auth, progress, tabWriter };
 }

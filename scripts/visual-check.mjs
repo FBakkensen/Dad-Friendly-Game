@@ -2186,6 +2186,67 @@ for (const viewport of NOTICE_SIZES) {
   await context.close();
 }
 
+// Two saves found. The real sheet, no scrollbar at 360×560.
+{
+  const { page, close } = await open([360, 560], {}, { search: "?saves=two" });
+  await page.waitForSelector(".save-conflict:not([hidden])", {
+    timeout: 5_000,
+  });
+  const title = await page.$eval(
+    "#save-conflict-title",
+    (element) => element.textContent,
+  );
+  const body = await page.$eval(
+    ".save-conflict-body",
+    (element) => element.textContent,
+  );
+  const play = await page.$eval(".save-conflict-play", (element) => ({
+    text: element.textContent,
+    height: element.getBoundingClientRect().height,
+  }));
+  const cards = await page.$$eval(".save-card", (elements) =>
+    elements.map((element) => element.textContent ?? ""),
+  );
+  const sheetFits = await page.$eval(
+    ".save-conflict",
+    (element) => element.scrollHeight <= element.clientHeight + 1,
+  );
+  check(title === "Two saves found", "360x560 conflict sheet is titled");
+  check(
+    (body ?? "").includes("nothing is lost") && !(body ?? "").includes("?"),
+    "360x560 conflict sheet has no placeholder question",
+  );
+  check(
+    cards.some((card) => card.includes("Granite, 12.4M deep")) &&
+      cards.some((card) => card.includes("This phone")) &&
+      cards.some((card) => card.includes("Other device")),
+    "360x560 conflict cards name both saves",
+  );
+  check(
+    play.text === "Play this one" && play.height >= 48,
+    "360x560 Play this one is a 48px target",
+  );
+  check(sheetFits, "360x560 conflict sheet does not scroll inside");
+  check(
+    await coversViewport(page, ".save-conflict"),
+    "360x560 conflict sheet is laid over the game",
+  );
+  check(await noScroll(page), "360x560 conflict sheet has no scroll");
+  await shot(page, "save-conflict-real-360x560");
+  await page.click(".save-conflict-play");
+  const confirm = await page.$eval(
+    ".save-conflict-confirm",
+    (element) => element.hidden !== true && (element.textContent ?? ""),
+  );
+  check(
+    confirm.includes("saved for 7 days"),
+    "360x560 Play this one asks before switching",
+  );
+  check(await noScroll(page), "360x560 conflict confirm has no scroll");
+  await shot(page, "save-conflict-real-press-360x560");
+  await close();
+}
+
 await browser.close();
 await server?.close();
 if (failures.length > 0) {

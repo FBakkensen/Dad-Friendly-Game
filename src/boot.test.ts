@@ -31,6 +31,7 @@ describe("parseBootOptions", () => {
     expect(parseBootOptions("")).toEqual({
       memorySave: false,
       previewTrouble: false,
+      previewConflict: false,
     });
   });
 
@@ -41,6 +42,8 @@ describe("parseBootOptions", () => {
   it("reads trouble=cave-in for the layout check", () => {
     expect(parseBootOptions("?trouble=cave-in").previewTrouble).toBe(true);
     expect(parseBootOptions("?trouble=flood").previewTrouble).toBe(false);
+    expect(parseBootOptions("?saves=two").previewConflict).toBe(true);
+    expect(parseBootOptions("?saves=one").previewConflict).toBe(false);
   });
 
   it("rejects memorySave values other than 1", () => {

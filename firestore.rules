@@ -203,8 +203,9 @@ service cloud.firestore {
           // `workshop is map` is the whole rules check that still fits beside a
           // full crew. The parser rejects a bad pocket, bench, or recipe list.
           (data.version == 7 &&
-            hasOnlyAllowedFields(['version', 'mountain', 'lastSeen', 'workshop', 'rev', 'deviceId', 'savedAt']) &&
+            hasOnlyAllowedFields(['version', 'mountain', 'lastSeen', 'workshop', 'rev', 'deviceId', 'deviceLabel', 'savedAt']) &&
             data.savedAt == request.time &&
+            (!('deviceLabel' in data) || (data.deviceLabel is string && data.deviceLabel.size() > 0 && data.deviceLabel.size() <= 40)) &&
             hasValidLastSeen(data) &&
             isValidMountain(data.mountain, 240000000) &&
             data.workshop is map) ||
@@ -396,6 +397,35 @@ service cloud.firestore {
         uidNotModified() &&
         notOlderRun();
       allow delete: if false;
+    }
+
+    function isArchive(data) {
+      return data.keys().hasOnly(['version', 'mountain', 'workshop', 'lastSeen', 'rev', 'deviceId', 'deviceLabel', 'archivedAt', 'expiresAt', 'reason']) &&
+        data.version == 7 &&
+        data.reason == 'conflict' &&
+        data.archivedAt == request.time &&
+        data.expiresAt is timestamp &&
+        data.expiresAt > request.time + duration.value(7, 'd') - duration.value(5, 'm') &&
+        data.expiresAt < request.time + duration.value(7, 'd') + duration.value(5, 'm') &&
+        data.rev is int &&
+        data.rev >= 0 &&
+        data.deviceId is string &&
+        data.deviceId.size() >= 8 &&
+        data.deviceId.size() <= 64 &&
+        data.deviceLabel is string &&
+        data.deviceLabel.size() > 0 &&
+        data.deviceLabel.size() <= 40 &&
+        hasValidLastSeen(data) &&
+        isValidMountain(data.mountain, 240000000) &&
+        data.workshop is map;
+    }
+
+    // The copy that was not chosen. Seven days is shown in the client.
+    // Nothing here deletes an expired copy.
+    match /saveArchive/{userId}/copies/{copyId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isArchive(request.resource.data);
+      allow update, delete: if false;
     }
 
     match /fieldLogs/{userId} {

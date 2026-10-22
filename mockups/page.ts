@@ -24,6 +24,12 @@ import {
   OTHER_TAB_PLAY,
   OTHER_TAB_TAP,
   OTHER_TAB_TITLE,
+  SAVE_CONFLICT_BODY,
+  SAVE_CONFLICT_CONFIRM,
+  SAVE_CONFLICT_OTHER,
+  SAVE_CONFLICT_PHONE,
+  SAVE_CONFLICT_PLAY,
+  SAVE_CONFLICT_TITLE,
 } from "../src/screen-words.ts";
 
 /**
@@ -37,6 +43,7 @@ const SCENES = [
   "mountain",
   "craft-done",
   "other-tab",
+  "save-conflict",
 ] as const;
 const PHASES = ["rest", "press", "float", "hammer", "busy", "shake"] as const;
 
@@ -322,6 +329,71 @@ function renderLayer(view: MockView): string {
   </div>`;
 }
 
+const PHONE_CARD_TAP =
+  "Presses in. This phone's save is the one to play. Silent until unmuted.";
+const OTHER_CARD_TAP =
+  "Presses in. The other device's save is the one to play. Silent until unmuted.";
+const PLAY_TAP =
+  "Presses in. Asks once more before this save is the one you play. Silent until unmuted.";
+const CONFIRM_TAP =
+  "Presses in. This save is the one you play, and the other is kept for 7 days. Silent until unmuted.";
+
+function saveCard(
+  view: MockView,
+  side: "phone" | "other",
+  selected: boolean,
+  lines: readonly string[],
+): string {
+  const title = side === "phone" ? SAVE_CONFLICT_PHONE : SAVE_CONFLICT_OTHER;
+  const tap = side === "phone" ? PHONE_CARD_TAP : OTHER_CARD_TAP;
+  const pressed = pressClass(view, side, false);
+  const rows = lines
+    .map((line) => `<span class="label">${escapeHtml(line)}</span>`)
+    .join("");
+  return `<button type="button" class="save-card card${selected ? " is-selected" : ""}${pressed}" data-side="${side}" data-tap="${escapeHtml(tap)}"><span class="label title">${escapeHtml(title)}</span>${rows}</button>`;
+}
+
+function renderSaveConflict(view: MockView): string {
+  const playPressed =
+    view.phase === "press" && (view.control === "" || view.control === "play")
+      ? " is-pressed"
+      : "";
+  const phone = saveCard(view, "phone", true, [
+    "Chrome on Android",
+    "Granite, 12.4M deep",
+    "1.2M stones in the pocket",
+    "6 carts · 4 drills · 1 borer",
+    "28 workers · 4 engineers",
+    "Today 14:32",
+  ]);
+  const other = saveCard(view, "other", false, [
+    "Safari on iPhone",
+    "Topsoil, 800K deep",
+    "40K stones in the pocket",
+    "2 carts · 1 drill",
+    "8 workers · 1 engineer",
+    "Yesterday 21:05",
+  ]);
+  return `${renderMountain(view)}
+  <div class="overlay save-conflict">
+    <div class="scrim"></div>
+    <section class="sheet card save-conflict-sheet" role="dialog" aria-modal="true" aria-labelledby="save-conflict-title">
+      <h1 id="save-conflict-title" class="label">${escapeHtml(SAVE_CONFLICT_TITLE)}</h1>
+      <p class="label save-conflict-body">${escapeHtml(SAVE_CONFLICT_BODY)}</p>
+      <div class="save-pair">
+        ${phone}
+        ${other}
+      </div>
+      <p class="label save-conflict-error" hidden></p>
+      <button type="button" class="go save-conflict-play${playPressed}" data-tap="${escapeHtml(PLAY_TAP)}">${escapeHtml(SAVE_CONFLICT_PLAY)}</button>
+      <div class="save-conflict-confirm" hidden>
+        <p class="label">${escapeHtml(SAVE_CONFLICT_CONFIRM)}</p>
+        <button type="button" class="go save-conflict-commit" data-tap="${escapeHtml(CONFIRM_TAP)}">${escapeHtml(SAVE_CONFLICT_PLAY)}</button>
+      </div>
+    </section>
+  </div>`;
+}
+
 function renderOtherTab(view: MockView): string {
   return `${renderMountain(view)}
   <div class="overlay">
@@ -358,6 +430,8 @@ export function renderMock(view: MockView): string {
       return renderCraftDone(view);
     case "other-tab":
       return renderOtherTab(view);
+    case "save-conflict":
+      return renderSaveConflict(view);
     default: {
       const never: never = view.scene;
       return never;

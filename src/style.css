@@ -907,7 +907,9 @@ body {
 .upgrades-dialog,
 .engineers-dialog,
 .update-prompt,
-.other-tab {
+.other-tab,
+.save-conflict,
+.saved-copies {
   position: fixed;
   inset: 0;
   overflow-y: auto;
@@ -934,7 +936,9 @@ body {
 .field-log-sheet[hidden],
 .upgrades-dialog[hidden],
 .engineers-dialog[hidden],
-.other-tab[hidden] {
+.other-tab[hidden],
+.save-conflict[hidden],
+.saved-copies[hidden] {
   display: none;
 }
 
@@ -947,7 +951,10 @@ body {
 .menu-card,
 .upgrades-card,
 .update-card,
-.other-tab-card {
+.other-tab-card,
+.save-conflict-sheet,
+.saved-copies-card,
+.saved-copy {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1337,7 +1344,8 @@ body {
 }
 
 /* Tucked away: small and quiet, but still a 44px tap target. */
-.start-over-link {
+.start-over-link,
+.saved-copies-link {
   appearance: none;
   min-height: 44px;
   padding: 8px 16px;
@@ -1350,11 +1358,13 @@ body {
   cursor: pointer;
 }
 
-.start-over-link:disabled {
+.start-over-link:disabled,
+.saved-copies-link:disabled {
   visibility: hidden;
 }
 
 .start-over-link:focus-visible,
+.saved-copies-link:focus-visible,
 .start-over-cancel:focus-visible,
 .start-over-confirm:focus-visible {
   outline: 4px solid #e8d4b8;
@@ -3353,4 +3363,125 @@ body {
 .workshop-more:focus-visible {
   outline: 4px solid #e8d4b8;
   outline-offset: 3px;
+}
+
+/* Two saves found. Bottom sheet, shrunk to the phone, no scroller. */
+.save-conflict {
+  align-items: flex-end;
+  justify-content: stretch;
+  overflow: hidden;
+  padding: 0;
+  z-index: 12;
+  background: rgba(18, 12, 10, 0.72);
+}
+
+.save-conflict-sheet {
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  max-height: 100%;
+  margin: 0;
+  padding: 8px 8px 10px;
+  border-width: 2px 2px 0;
+  border-radius: 16px 16px 0 0;
+  text-align: left;
+}
+
+.save-conflict-sheet h2,
+.save-conflict-body,
+.save-conflict-error {
+  margin: 0;
+  text-align: center;
+}
+
+.save-pair {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.save-card {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 48px;
+  align-items: stretch;
+  gap: 1px;
+  padding: 6px;
+  border: 2px solid #6b4a2a;
+  border-radius: 12px;
+  background-color: #2a1a10;
+  color: #e8d4b8;
+  text-align: left;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.save-card.is-selected {
+  border-color: #e8a84a;
+  box-shadow: inset 0 0 0 1px #e8a84a;
+}
+
+.save-card .label {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+
+.save-card .title {
+  color: #f2c46d;
+  font-weight: 700;
+}
+
+.save-conflict-play,
+.save-conflict-commit {
+  appearance: none;
+  min-height: 48px;
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  background: #e8a84a;
+  color: #120c0a;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.save-conflict-play:active,
+.save-conflict-commit:active,
+.save-card:active {
+  transform: translateY(2px);
+}
+
+.saved-copies-card {
+  width: min(420px, 100%);
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.saved-copies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.saved-copy {
+  align-items: stretch;
+  gap: 2px;
+  width: 100%;
+  padding: 8px;
+  text-align: left;
+}
+
+.saved-copy .label {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+
+.saved-copy.is-earlier-run {
+  opacity: 0.55;
 }

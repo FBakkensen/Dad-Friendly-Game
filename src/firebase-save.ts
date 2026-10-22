@@ -1,8 +1,11 @@
 import { getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import {
+  addDoc,
+  collection,
   doc,
   getDoc,
   getDocFromServer,
+  getDocs,
   getFirestore,
   initializeFirestore,
   memoryLocalCache,
@@ -11,10 +14,12 @@ import {
   persistentMultipleTabManager,
   serverTimestamp,
   setDoc,
+  Timestamp,
   type Firestore,
 } from "firebase/firestore";
 import type { FirebaseWebOptions } from "./auth";
 import type {
+  ArchivedCopy,
   CloudLoadResult,
   CloudSave,
   CloudWriteResult,
@@ -56,6 +61,9 @@ export function createFirebaseCloudSave({
       lastSeen: parsed.lastSeen,
       rev: parsed.rev ?? 0,
       ...(parsed.deviceId === undefined ? {} : { deviceId: parsed.deviceId }),
+      ...(parsed.deviceLabel === undefined
+        ? {}
+        : { deviceLabel: parsed.deviceLabel }),
       ...(pending ? { pending: true } : {}),
       ...(cached ? { cached: true } : {}),
     };
@@ -78,15 +86,88 @@ export function createFirebaseCloudSave({
       lastSeen = Date.now(),
       rev,
       deviceId,
+      deviceLabel,
     }): Promise<CloudWriteResult> => {
       try {
         await setDoc(ref(uid), {
-          ...serializeSave({ mountain, lastSeen, rev, deviceId }),
+          ...serializeSave({ mountain, lastSeen, rev, deviceId, deviceLabel }),
           savedAt: serverTimestamp(),
         });
         return { kind: "ok" };
       } catch (error: unknown) {
         return cloudWriteResult(error);
+      }
+    },
+    archiveCopy: async ({
+      uid,
+      mountain,
+      lastSeen,
+      rev,
+      deviceId,
+      deviceLabel,
+    }): Promise<CloudWriteResult> => {
+      try {
+        const saved = serializeSave({
+          mountain,
+          lastSeen,
+          rev: rev >= 1 ? rev : 1,
+          deviceId,
+        });
+        await addDoc(collection(db, "saveArchive", uid, "copies"), {
+          ...saved,
+          version: 7,
+          rev,
+          deviceId,
+          deviceLabel,
+          archivedAt: serverTimestamp(),
+          expiresAt: Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          reason: "conflict",
+        });
+        return { kind: "ok" };
+      } catch (error: unknown) {
+        return { kind: "failed", message: cloudErrorMessage(error) };
+      }
+    },
+    listCopies: async ({ uid, now }): Promise<readonly ArchivedCopy[]> => {
+      try {
+        const snap = await getDocs(
+          collection(db, "saveArchive", uid, "copies"),
+        );
+        const copies: ArchivedCopy[] = [];
+        for (const item of snap.docs) {
+          const data: unknown = item.data();
+          if (typeof data !== "object" || data === null) {
+            continue;
+          }
+          const parsed = parseSaveValue(data);
+          const record = data as Record<string, unknown>;
+          const archivedAt = timestampMillis(record["archivedAt"]);
+          const expiresAt = timestampMillis(record["expiresAt"]);
+          const deviceLabel = record["deviceLabel"];
+          if (
+            parsed === undefined ||
+            parsed.rev === undefined ||
+            parsed.deviceId === undefined ||
+            typeof deviceLabel !== "string" ||
+            expiresAt <= now
+          ) {
+            continue;
+          }
+          copies.push({
+            id: item.id,
+            mountain: parsed.mountain,
+            lastSeen: parsed.lastSeen ?? 0,
+            rev: parsed.rev,
+            deviceId: parsed.deviceId,
+            deviceLabel,
+            archivedAt,
+            expiresAt,
+          });
+        }
+        copies.sort((left, right) => right.archivedAt - left.archivedAt);
+        return copies.slice(0, 3);
+      } catch {
+        return [];
       }
     },
     writeFieldLog: async ({ uid, log }): Promise<CloudWriteResult> => {
@@ -144,6 +225,13 @@ function cloudWriteResult(error: unknown): CloudWriteResult {
     return { kind: "rejected", message };
   }
   return { kind: "failed", message };
+}
+
+function timestampMillis(value: unknown): number {
+  if (value instanceof Timestamp) {
+    return value.toMillis();
+  }
+  return typeof value === "number" ? value : 0;
 }
 
 function cloudErrorMessage(error: unknown): string {

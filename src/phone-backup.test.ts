@@ -208,4 +208,99 @@ describe("phone backup", () => {
     };
     expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
   });
+
+  it("keeps syncedRev, a dirty flag, and the other copy", () => {
+    const storage = memory();
+    const mountain = minedMountain(4);
+    const remote = minedMountain(9);
+    expect(
+      writePhoneBackup({
+        storage,
+        uid: "dad",
+        mountain,
+        lastSeen: 3,
+        syncedRev: 1,
+        conflict: {
+          remote: { mountain: remote, lastSeen: undefined },
+          deviceLabel: "Chrome on Android",
+        },
+      }),
+    ).toBe("wrote");
+    expect(readPhoneBackup({ storage, uid: "dad" })).toMatchObject({
+      kind: "present",
+      conflict: { deviceLabel: "Chrome on Android" },
+    });
+    expect(
+      writePhoneBackup({
+        storage,
+        uid: "dad",
+        mountain,
+        lastSeen: 3,
+        rev: 2,
+        deviceId: "device-phone",
+        syncedRev: 1,
+        dirty: true,
+        conflict: {
+          remote: {
+            mountain: remote,
+            lastSeen: 8,
+            rev: 4,
+            deviceId: "device-other",
+          },
+          deviceLabel: "Safari on iPhone",
+        },
+      }),
+    ).toBe("wrote");
+    expect(readPhoneBackup({ storage, uid: "dad" })).toMatchObject({
+      kind: "present",
+      syncedRev: 1,
+      dirty: true,
+      conflict: {
+        deviceLabel: "Safari on iPhone",
+        remote: { rev: 4, deviceId: "device-other", lastSeen: 8 },
+      },
+    });
+    const raw = storage.getItem("dad-friendly-phone-backup:dad");
+    if (raw === null) {
+      throw new Error("missing backup");
+    }
+    const broken = JSON.parse(raw) as { conflict: { deviceLabel: string } };
+    broken.conflict.deviceLabel = "";
+    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(broken));
+    expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
+    broken.conflict.deviceLabel = "x".repeat(41);
+    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(broken));
+    expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
+    const again = JSON.parse(raw) as {
+      syncedRev: unknown;
+      dirty: boolean;
+      conflict: unknown;
+    };
+    again.syncedRev = 1.5;
+    again.dirty = false;
+    again.conflict = { remote: { version: 1 } };
+    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(again));
+    const dropped = readPhoneBackup({ storage, uid: "dad" });
+    expect(dropped.kind).toBe("unreadable");
+    again.conflict = "nope";
+    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(again));
+    expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
+    again.conflict = { deviceLabel: "Chrome on Android" };
+    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(again));
+    expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
+    again.conflict = null;
+    again.syncedRev = "nope";
+    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(again));
+    expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
+    delete (again as { conflict?: unknown }).conflict;
+    again.syncedRev = -1;
+    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(again));
+    const kept = readPhoneBackup({ storage, uid: "dad" });
+    expect(kept.kind).toBe("present");
+    if (kept.kind === "present") {
+      expect(kept.syncedRev).toBeUndefined();
+      expect(kept.dirty).toBeUndefined();
+      expect(kept.conflict).toBeUndefined();
+    }
+  });
 });

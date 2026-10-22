@@ -795,6 +795,26 @@ describe("save v7 rev (#223)", () => {
     expect(parsed?.mountain).toEqual(mountain);
     expect(parsed?.rev).toBe(3);
     expect(parsed?.deviceId).toBe("device-dad-1234");
+    const labeled = serializeSave({
+      mountain,
+      lastSeen: 4,
+      rev: 3,
+      deviceId: "device-dad-1234",
+      deviceLabel: "Chrome on Android",
+    });
+    expect(parseSaveValue(labeled)?.deviceLabel).toBe("Chrome on Android");
+    expect(
+      serializeSave({
+        mountain,
+        lastSeen: 4,
+        rev: 3,
+        deviceId: "device-dad-1234",
+        deviceLabel: "What?",
+      }),
+    ).not.toHaveProperty("deviceLabel");
+    expect(
+      parseSaveValue({ ...labeled, deviceLabel: "x".repeat(41) })?.deviceLabel,
+    ).toBeUndefined();
     expect(parseSaveValue(serializeSave({ mountain, lastSeen: 4 }))?.rev).toBe(
       undefined,
     );
