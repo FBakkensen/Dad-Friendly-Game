@@ -107,8 +107,9 @@ page is the map, plus the rules that keep it that way.
   into even rows. An unlocked sheet card keeps its price, effect, and why
   when the pocket is short. A locked card says Locked and hides those lines.
   Tapping the card buys. A drag that scrolls the list does not. Boost,
-  expedition, craft, and bench countdowns share two rows under the crew.
-  Every active one stays visible.
+  expedition, craft, and bench countdowns share rows of three under the crew.
+  The rows match how many this mountain can run. Every active one stays
+  visible. The shelf sits above the rock.
 
 ## Guards (#118)
 

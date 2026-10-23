@@ -2341,10 +2341,21 @@ async function shelfCentre(page) {
     const rockMid = (rockBox.left + rockBox.right) / 2;
     const delta = mid - view;
     const rockDelta = mid - rockMid;
+    const art = document.querySelector(".mountain-art");
+    const artBox = art?.getBoundingClientRect();
+    const clear =
+      artBox !== undefined &&
+      artBox.top >= box.bottom - 0.5 &&
+      artBox.height > 1;
+    const fat =
+      artBox !== undefined && artBox.width >= 96 && artBox.height >= 96;
     return {
-      ok: Math.abs(delta) <= 2 && Math.abs(rockDelta) <= 2,
+      ok: Math.abs(delta) <= 2 && Math.abs(rockDelta) <= 2 && clear && fat,
       delta,
       rockDelta,
+      clear,
+      fat,
+      artHeight: artBox === undefined ? 0 : Math.round(artBox.height),
     };
   });
 }
@@ -2959,6 +2970,15 @@ for (const viewport of EFFECT_VIEWS) {
         apart &&
         inside &&
         labeled;
+      const art = document.querySelector(".mountain-art");
+      const artBox = art?.getBoundingClientRect();
+      const shelfBox = shelf?.getBoundingClientRect();
+      const peakClear =
+        artBox !== undefined &&
+        shelfBox !== undefined &&
+        artBox.top >= shelfBox.bottom - 0.5;
+      const fat =
+        artBox !== undefined && artBox.width >= 96 && artBox.height >= 96;
       const app = document.querySelector("#app");
       const still =
         app !== null &&
@@ -2970,8 +2990,10 @@ for (const viewport of EFFECT_VIEWS) {
           still &&
           welcomeShut &&
           packed &&
-          Math.round(rowBox.height) >= 116 &&
-          Math.round(rowBox.height) <= 132 &&
+          peakClear &&
+          fat &&
+          Math.round(rowBox.height) <= 120 &&
+          chips.every((chip) => chip.scrollWidth <= chip.clientWidth + 1) &&
           !hits(shelf) &&
           !hits(pocket) &&
           !hits(menu) &&
@@ -2979,6 +3001,9 @@ for (const viewport of EFFECT_VIEWS) {
           !hits(bar) &&
           !hits(rock),
         height: Math.round(rowBox.height),
+        artHeight: artBox === undefined ? 0 : Math.round(artBox.height),
+        peakClear,
+        fat,
         shown: chips.length,
         labels: chips.map((chip) => chip.textContent),
         welcomeShut,

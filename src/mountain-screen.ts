@@ -12,9 +12,9 @@ import { type TierId } from "./tiers";
 import { hasRelic, nextRelic, RELICS, type RelicId, depthHint } from "./relics";
 import { BOOSTS } from "./boosts";
 import {
-  EFFECT_COLUMNS,
-  MAX_EFFECTS,
   createEffectChip,
+  effectCapacity,
+  effectRowCount,
   shortEffectName,
   writeChip,
 } from "./effect-row";
@@ -231,8 +231,8 @@ export function mountMountainScreen({
   const effectRow = document.createElement("div");
   effectRow.className = "effect-row";
   effectRow.setAttribute("aria-label", "Active effects");
-  effectRow.style.setProperty("--effect-cols", String(EFFECT_COLUMNS));
-  effectRow.dataset["max"] = String(MAX_EFFECTS);
+  effectRow.style.setProperty("--effect-rows", "1");
+  effectRow.dataset["rows"] = "1";
   const chipFor = new Map(
     BOOSTS.map((boost) => {
       const chip = createEffectChip(
@@ -655,6 +655,9 @@ export function mountMountainScreen({
     } else {
       writeChip(benchChip, { short: "", full: "", leftMs: 0, active: false });
     }
+    const rows = effectRowCount(effectCapacity(view.mountain));
+    effectRow.style.setProperty("--effect-rows", String(rows));
+    effectRow.dataset["rows"] = String(rows);
     savedCopies.render();
     conflictSheet.render(view.saveConflict, view.elsewhere);
     renderSave();

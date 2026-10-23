@@ -1,6 +1,7 @@
 import { BOOSTS } from "./boosts";
 import { MAX_EXPEDITIONS } from "./expeditions";
-import { RECIPES } from "./workshop";
+import type { Mountain } from "./mountain";
+import { RECIPES, workshopUnlocked } from "./workshop";
 
 /** Craft clocks that keep their own end time, apart from the one bench. */
 const HOT_CRAFTS = RECIPES.filter((recipe) => {
@@ -15,10 +16,29 @@ const HOT_CRAFTS = RECIPES.filter((recipe) => {
  * the bench (when it is not already one of those clocks), and one expedition
  * per engineer.
  */
-export const MAX_EFFECTS = BOOSTS.length + HOT_CRAFTS + 1 + MAX_EXPEDITIONS;
+const MAX_EFFECTS = BOOSTS.length + HOT_CRAFTS + 1 + MAX_EXPEDITIONS;
 
-/** Columns for a grid of at most two rows. */
-export const EFFECT_COLUMNS = Math.ceil(MAX_EFFECTS / 2);
+/** Three compact chips per row, so a ×1.25 clock fits at 360. Twelve use four rows. */
+const EFFECT_PER_ROW = 3;
+
+/**
+ * How many countdowns this mountain can run right now. Boosts are always
+ * there. Craft clocks and the bench wait for the workshop. Each engineer
+ * can be out at once.
+ */
+export function effectCapacity(mountain: Mountain): number {
+  let slots = BOOSTS.length;
+  if (workshopUnlocked(mountain)) {
+    slots += HOT_CRAFTS + 1;
+  }
+  slots += Math.min(mountain.engineers?.length ?? 0, MAX_EXPEDITIONS);
+  return Math.min(slots, MAX_EFFECTS);
+}
+
+/** Rows reserved for that capacity. At least one, so the first boost does not jump. */
+export function effectRowCount(capacity: number): number {
+  return Math.max(1, Math.ceil(capacity / EFFECT_PER_ROW));
+}
 
 const SHORT_NAME: Readonly<Record<string, string>> = {
   "Sharper picks": "Picks",
@@ -89,6 +109,27 @@ export function createEffectChip(
   const time = document.createElement("span");
   time.className = "effect-time";
   chip.append(icon, name, mult, time);
+  let hideName: ReturnType<typeof setTimeout> | undefined;
+  const reveal = (): void => {
+    if (chip.hidden) {
+      return;
+    }
+    chip.classList.add("is-named");
+    if (hideName !== undefined) {
+      clearTimeout(hideName);
+    }
+    hideName = setTimeout(() => {
+      chip.classList.remove("is-named");
+      hideName = undefined;
+    }, 1_600);
+  };
+  chip.addEventListener("pointerup", reveal);
+  chip.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      reveal();
+    }
+  });
   return chip;
 }
 
@@ -119,9 +160,11 @@ export function writeChip(chip: HTMLElement, label: EffectLabel): void {
     time.textContent = label.active ? formatChipClock(label.leftMs) : "";
   }
   chip.hidden = !label.active;
+  chip.tabIndex = label.active ? 0 : -1;
   if (label.active) {
     chip.setAttribute("aria-label", `${label.full}, ${spoken(label)}`);
   } else {
     chip.removeAttribute("aria-label");
+    chip.classList.remove("is-named");
   }
 }

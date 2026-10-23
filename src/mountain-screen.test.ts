@@ -1714,6 +1714,15 @@ describe("quick boosts on screen", () => {
       ...screen.root.querySelectorAll<HTMLElement>(".effect-chip"),
     ].filter((chip) => !chip.hidden);
     expect(shown).toHaveLength(12);
+    expect(
+      screen.root.querySelector<HTMLElement>(".effect-row")?.dataset["rows"],
+    ).toBe("4");
+    const picks = screen.root.querySelector<HTMLElement>(
+      ".boost-chip[data-boost='sharper']",
+    );
+    picks?.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    expect(picks?.classList.contains("is-named")).toBe(true);
+    expect(picks?.querySelector(".effect-name")?.textContent).toBe("Picks");
     expect(screen.root.querySelector(".effect-more")).toBeNull();
     expect(screen.root.querySelector(".effect-row")?.textContent).not.toMatch(
       /\+\d/,

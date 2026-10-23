@@ -1469,16 +1469,6 @@ body {
     gap: 0;
   }
 
-  /* The posts line is a fat target. On a short phone the mountain gives
-     up a little more so that line does not push the page. */
-  #app:has(.crew-posts:not([hidden])) .mountain-wrap {
-    min-height: 20px;
-  }
-
-  #app:has(.crew-posts:not([hidden])) .crew {
-    gap: 0;
-  }
-
   .mountain-wrap {
     min-height: 64px;
   }
@@ -3512,16 +3502,36 @@ body {
   overflow-clip-margin: 0;
 }
 
-/* Centred on the rock. A right inset pinned the shelf to the wrap's edge. */
+/* The shelf sits above the rock. An overlay put the peak through the relics. */
+.mountain-wrap {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-4);
+}
+
 .mountain-wrap > .relic-shelf {
-  position: absolute;
-  top: var(--space-8);
-  left: 50%;
+  position: static;
+  top: auto;
+  left: auto;
   z-index: 2;
+  flex: none;
+  order: -1;
   width: max-content;
   max-width: calc(100% - var(--space-8) * 2);
   margin: 0;
-  transform: translateX(-50%);
+  transform: none;
+}
+
+.mountain-stage {
+  flex: 1 1 auto;
+  align-self: stretch;
+  width: 100%;
+  height: auto;
+  min-height: calc(var(--target-min) * 2);
+  max-height: none;
+  max-width: none;
+  aspect-ratio: auto;
 }
 
 .pocket-row {
@@ -3706,27 +3716,31 @@ body {
   width: auto;
 }
 
-/* Two rows for every countdown that can run at once. Empty keeps the same height. */
+/* One short row per four countdowns the player can run. Chips stay one line. */
 .effect-row {
-  --effect-chip: calc(var(--space-16) + var(--type-14) * 3);
+  --effect-rows: 1;
   display: grid;
-  grid-template-columns: repeat(var(--effect-cols, 6), minmax(0, 1fr));
-  grid-template-rows: repeat(2, var(--effect-chip));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--effect-rows), var(--space-24));
   align-items: center;
   justify-items: stretch;
   gap: var(--space-4);
   width: 100%;
-  height: calc(var(--effect-chip) * 2 + var(--space-4));
-  min-height: calc(var(--effect-chip) * 2 + var(--space-4));
+  height: calc(
+    var(--effect-rows) * var(--space-24) + (var(--effect-rows) - 1) *
+      var(--space-4)
+  );
 }
 
 .effect-row .effect-chip {
+  position: relative;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 0;
+  gap: var(--space-4);
   width: 100%;
+  height: var(--space-24);
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -3736,20 +3750,41 @@ body {
   font-size: var(--type-14);
   font-weight: var(--weight-bold);
   line-height: 1;
+  overflow: hidden;
   white-space: nowrap;
 }
 
 .effect-row .effect-chip img {
   width: var(--space-16);
   height: var(--space-16);
+  flex: none;
 }
 
-.effect-name,
-.effect-meta {
-  grid-column: 2;
+.effect-mult,
+.effect-time {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.effect-name {
+  position: absolute;
+  z-index: 4;
+  bottom: calc(100% + var(--space-4));
+  left: 50%;
+  display: none;
+  width: max-content;
+  max-width: calc(var(--target-min) * 4);
+  margin: 0;
+  padding: var(--space-4) var(--space-8);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-ink);
+  transform: translateX(-50%);
+}
+
+.effect-chip.is-named .effect-name,
+.effect-chip:focus-visible .effect-name {
+  display: block;
 }
 
 .effect-chip[hidden] {
