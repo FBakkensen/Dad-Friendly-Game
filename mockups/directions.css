@@ -318,12 +318,21 @@
   color: var(--color-ink);
 }
 
+#mock.tok .dir-b.dir-sheet {
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
 #mock.tok .dir-b.dir-sheet .dir-float {
   align-self: stretch;
   width: 100%;
   padding: 0;
   border: 0;
   background: transparent;
+}
+
+#mock.tok .dir-b.dir-sheet .dir-buy {
+  margin-top: var(--space-4);
 }
 
 #mock.tok .dir-b .dir-tabs {

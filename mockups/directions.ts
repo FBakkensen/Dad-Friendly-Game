@@ -218,7 +218,7 @@ const DOES: Record<TierId, string> = {
 };
 
 const UPGRADE_DOES: Partial<Record<UpgradeId, string>> = {
-  tap: "Each tap takes a little more of their pace.",
+  tap: "Each tap takes a little more.",
   boots: "The workers pick up their feet.",
   steady: "Time away pays a little more.",
   cartSyn: "Each worker makes carts 1% faster.",
@@ -228,8 +228,8 @@ const UPGRADE_DOES: Partial<Record<UpgradeId, string>> = {
 };
 
 const BOOST_DOES = {
-  sharper: "For a short while, every tap bites twice.",
-  overtime: "The crew digs twice as fast, then they rest.",
+  sharper: "A short push while you are here.",
+  overtime: "Twice as fast, then they rest.",
 } as const;
 
 const MOUNTAIN_BUYS: readonly TierId[] = ["cart", "drill"];
@@ -455,7 +455,6 @@ function renderUpgradesB(view: DirectionView): string {
   ].join("");
   return `<section class="card tok-screen dir dir-b dir-sheet">
     <header class="dir-float">
-      <p class="dir-kicker">Upgrades</p>
       <p class="dir-hero-num">${escapeHtml(formatCount(mountain.pocket))}</p>
       <p class="dir-rate">${escapeHtml(formatCompact(rates.crewPerSecond))} stones/s</p>
     </header>
