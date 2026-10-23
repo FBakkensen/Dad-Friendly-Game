@@ -1,4 +1,5 @@
 import { formatCompact, formatCount } from "../src/format.ts";
+import { tierLocked } from "../src/crew.ts";
 import { staffForBuy, staffNeeded } from "../src/engineers.ts";
 import { createMountain, type Mountain } from "../src/mountain.ts";
 import { effectiveRates } from "../src/rates.ts";
@@ -10,7 +11,6 @@ import {
   buyPriceWords,
   crewPostLabel,
   crewPostsShort,
-  crewPostsWords,
   formatClock,
   formatSpeed,
   layerCardWords,
@@ -21,6 +21,8 @@ import {
   upgradeById,
   upgradeCost,
   upgradeLevel,
+  upgradeUnlocked,
+  type Upgrade,
   type UpgradeId,
 } from "../src/upgrades.ts";
 
@@ -45,6 +47,7 @@ const ART = {
   cart: "/src/assets/mine-cart.png",
   drill: "/src/assets/steam-drill.png",
   borer: "/src/assets/tunnel-borer.png",
+  machine: "/src/assets/great-machine.png",
   kid: "/src/assets/kid-helper.png",
   workshop: "/src/assets/relics/hammer.png",
   engineers: "/src/assets/helper-miner.png",
@@ -180,7 +183,7 @@ export function boardB(): Mountain {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 12_000_000,
     pocket: 2_500_000,
-    helpers: 18,
+    helpers: 13,
     carts: 5,
     drills: 2,
     borers: 0,
@@ -232,8 +235,6 @@ const BOOST_DOES = {
   overtime: "Twice as fast, then they rest.",
 } as const;
 
-const MOUNTAIN_BUYS: readonly TierId[] = ["cart", "drill"];
-
 function crewArt(id: TierId): string {
   switch (id) {
     case "cart":
@@ -242,10 +243,11 @@ function crewArt(id: TierId): string {
       return ART.drill;
     case "borer":
       return ART.borer;
+    case "machine":
+      return ART.machine;
     case "kid":
       return ART.kid;
     case "helper":
-    case "machine":
       return ART.worker;
     default: {
       const never: never = id;
@@ -267,21 +269,36 @@ function spareWorkers(mountain: Mountain): number {
   return free;
 }
 
-function postsLine(mountain: Mountain): string {
+function crewBit(src: string, text: string): string {
+  return `<span class="dir-crew-bit">${icon(src)}<span>${escapeHtml(text)}</span></span>`;
+}
+
+/** One pool, with a face on each post. Free hands appear only here. */
+function crewLine(mountain: Mountain, brief: boolean): string {
   const rates = effectiveRates(mountain);
-  const posts = TIERS.flatMap((tier) => {
-    const label = crewPostLabel(tier.id);
-    const staff = staffNeeded(mountain, tier);
-    if (label === undefined || staff === 0) {
-      return [];
+  const total = mountain.helpers + mountain.kids;
+  const bits = [
+    crewBit(ART.worker, `${formatCompact(total)} ${workerWords(total)}`),
+  ];
+  if (!brief) {
+    for (const tier of TIERS) {
+      const label = crewPostLabel(tier.id);
+      const staff = staffNeeded(mountain, tier);
+      if (label === undefined || staff === 0) {
+        continue;
+      }
+      const workers = rates.running[tier.id] * staff;
+      if (workers <= 0) {
+        continue;
+      }
+      bits.push(
+        crewBit(crewArt(tier.id), `${formatCompact(workers)} on ${label}`),
+      );
     }
-    return [{ label, workers: rates.running[tier.id] * staff }];
-  });
-  return crewPostsWords(
-    mountain.helpers + mountain.kids,
-    spareWorkers(mountain),
-    posts,
-  );
+  }
+  const free = Math.max(0, Math.floor(spareWorkers(mountain)));
+  bits.push(crewBit(ART.worker, `${formatCompact(free)} free`));
+  return `<p class="dir-crew">${bits.join("")}</p>`;
 }
 
 function needsLine(mountain: Mountain, id: TierId): string | undefined {
@@ -321,114 +338,134 @@ function upgradeSpan(mountain: Mountain, id: UpgradeId): string {
   return `Away ${formatSpeed(before.awayPay)} to ${formatSpeed(after.awayPay)}`;
 }
 
+type CardState = "ready" | "short" | "dear" | "locked";
+
 function buyCard(
   view: DirectionView,
   control: string,
   name: string,
   price: string,
-  affordable: boolean,
+  state: CardState,
   lines: readonly string[],
   action: string,
   art?: string,
 ): string {
-  const body = affordable
-    ? lines
-        .filter((line) => line !== "")
-        .map((line, index) => {
-          const className = line.startsWith("Preview")
-            ? "dir-preview"
-            : index === 0
-              ? "dir-gain"
-              : "";
-          const attr = className === "" ? "" : ` class="${className}"`;
-          return `<span${attr}>${escapeHtml(line)}</span>`;
-        })
-        .join("")
-    : "";
+  const body =
+    state === "dear"
+      ? ""
+      : lines
+          .filter((line) => line !== "")
+          .map((line, index) => {
+            const className = line.startsWith("Preview")
+              ? "dir-preview"
+              : line.startsWith("Needs") && state === "short"
+                ? "dir-needs"
+                : state === "locked"
+                  ? ""
+                  : index === 0
+                    ? "dir-gain"
+                    : "";
+            const attr = className === "" ? "" : ` class="${className}"`;
+            return `<span${attr}>${escapeHtml(line)}</span>`;
+          })
+          .join("");
   const picture = art === undefined ? "" : icon(art);
-  return `<button type="button" class="tok-hit tok-secondary dir-buycard${down(view, control)}" data-tier="${control}" data-tap="${escapeHtml(tap(action))}"${affordable ? "" : " disabled"}><span class="dir-buy-top">${picture}<span class="dir-name">${escapeHtml(name)}</span><span class="dir-price">${escapeHtml(price)}</span></span>${body}</button>`;
+  const hold = state === "dear" || state === "locked" ? " disabled" : "";
+  const shownPrice = state === "locked" ? "Locked" : price;
+  return `<button type="button" class="tok-hit tok-secondary dir-buycard dir-state-${state}${down(view, control)}" data-tier="${control}" data-state="${state}" data-tap="${escapeHtml(tap(action))}"${hold}><span class="dir-buy-top">${picture}<span class="dir-name">${escapeHtml(name)}</span><span class="dir-price">${escapeHtml(shownPrice)}</span></span>${body}</button>`;
 }
 
-function mountainCards(
-  view: DirectionView,
-  mountain: Mountain,
-  withStory: boolean,
-): string {
-  return MOUNTAIN_BUYS.map((id) => {
+/** Locked before the price, then the price, then short hands, then ready. */
+function tierState(mountain: Mountain, id: TierId): CardState {
+  const tier = tierById(id);
+  if (tierLocked(mountain, tier)) {
+    return "locked";
+  }
+  const cost = tierCost(tier, owned(mountain, tier));
+  if (mountain.pocket < cost) {
+    return "dear";
+  }
+  const staff = staffForBuy(mountain, tier);
+  if (staff > 0 && spareWorkers(mountain) < staff) {
+    return "short";
+  }
+  return "ready";
+}
+
+/** Thumb reaches the ready buy last, so it sits nearest the bottom. */
+const OPEN_BUYS: readonly TierId[] = ["borer", "drill", "cart"];
+
+function mountainCards(view: DirectionView, mountain: Mountain): string {
+  return OPEN_BUYS.map((id) => {
     const tier = tierById(id);
     const cost = tierCost(tier, owned(mountain, tier));
+    const state = tierState(mountain, id);
     const price = buyPriceWords(cost);
-    const affordable = mountain.pocket >= cost;
     const needs = needsLine(mountain, id);
     const why = DOES[id];
     const preview =
-      withStory && id === "drill"
+      id === "drill"
         ? milestonePreview(owned(mountain, tier), "drills")
         : undefined;
     const gain = eachLine(mountain, id);
-    const lines = withStory
-      ? [
-          needs === undefined ? gain : `${gain} · ${needs}`,
-          why,
-          ...(preview === undefined ? [] : [preview]),
-        ]
-      : [gain, ...(needs === undefined ? [] : [needs])];
+    const lines =
+      state === "locked" || state === "dear"
+        ? []
+        : [
+            gain,
+            ...(needs === undefined ? [] : [needs]),
+            ...(state === "ready" ? [why] : []),
+            ...(preview === undefined ? [] : [preview]),
+          ];
+    const action =
+      state === "locked"
+        ? `${tier.shortName} is locked. It waits.`
+        : state === "dear"
+          ? `${formatCompact(cost)} is more than the pocket holds, so this one waits.`
+          : state === "short"
+            ? `Buys one ${tier.shortName.toLowerCase()} for ${formatCompact(cost)}. ${needs ?? why}`
+            : `Buys one ${tier.shortName.toLowerCase()} for ${formatCompact(cost)}. ${why}`;
     return buyCard(
       view,
       id,
       tier.shortName,
       price,
-      affordable,
+      state,
       lines,
-      affordable
-        ? `Buys one ${tier.shortName.toLowerCase()} for ${formatCompact(cost)}. ${why}`
-        : `${formatCompact(cost)} is more than the pocket holds, so this one waits.`,
+      action,
       crewArt(id),
     );
   }).join("");
 }
 
-/** Pocket, rate, layer, and the one crew line. Read-only, so it sits up top. */
-function readout(mountain: Mountain, extra = ""): string {
+function pocketBlock(mountain: Mountain): string {
   const rates = effectiveRates(mountain);
+  return `<div class="dir-pocket">
+    <p class="dir-hero-num">${escapeHtml(formatCount(mountain.pocket))}</p>
+    <p class="dir-rate">${escapeHtml(formatCompact(rates.crewPerSecond))} stones/s</p>
+  </div>`;
+}
+
+/** Pocket, rate, layer, and the one crew line. Read-only, so it sits up top. */
+function readout(mountain: Mountain, brief: boolean): string {
   const layer = layerOf(mountain);
   const words = layerCardWords(layer.id);
   const band =
-    words === undefined
+    brief || words === undefined
       ? ""
       : `<p class="dir-band"><span class="dir-name">${escapeHtml(layer.name)}</span> · ${escapeHtml(words.advice)}</p>`;
-  return `<header class="dir-read">
-    <p class="dir-hero-num">${escapeHtml(formatCount(mountain.pocket))}</p>
-    <p class="dir-rate">${escapeHtml(formatCompact(rates.crewPerSecond))} stones/s</p>
-    ${band}
-    <p class="dir-posts">${escapeHtml(postsLine(mountain))}</p>
-    <p class="dir-quiet">One pool of hands. Every machine draws on it.</p>
-    ${extra}
-  </header>`;
+  const pool = brief
+    ? ""
+    : `<p class="dir-quiet">One pool of hands. Every machine draws on it.</p>`;
+  return `<header class="dir-read">${pocketBlock(mountain)}${band}${crewLine(mountain, brief)}${pool}</header>`;
 }
 
 function mountainButton(view: DirectionView): string {
   return `<button type="button" class="tok-hit tok-secondary dir-picture dir-picture-b${down(view, "mountain")}" data-tap="${escapeHtml(tap("One swing at the rock. The crew keeps going if you don't."))}">${icon(ART.mountain)}</button>`;
 }
 
-/**
- * Strip: the two buys stay on screen, short, under the rock.
- * The story lines sit with the read-only header so the buttons stay one row.
- */
+/** Chosen direction. Closed sheet: the rock fills the lower middle. */
 function renderMountainB(view: DirectionView): string {
-  const mountain = boardB();
-  const drill = milestonePreview(mountain.drills, "drills") ?? "";
-  const story = `<p class="dir-quiet">${escapeHtml(DOES.cart)} ${escapeHtml(DOES.drill)}</p><p class="dir-preview">${escapeHtml(drill)}</p>`;
-  return `<section class="card tok-screen dir dir-b dir-b-strip">
-    ${readout(mountain, story)}
-    ${mountainButton(view)}
-    <div class="dir-buys">${mountainCards(view, mountain, false)}</div>
-    <nav class="dir-tabs">${tools(view)}</nav>
-  </section>`;
-}
-
-/** Sheet, closed. The rock fills the lower middle. Buys is one bottom button. */
-function renderMountainBSheet(view: DirectionView): string {
   const mountain = boardB();
   const buys = btn(
     view,
@@ -438,7 +475,7 @@ function renderMountainBSheet(view: DirectionView): string {
     "Opens the buys over the lower screen.",
   );
   return `<section class="card tok-screen dir dir-b dir-b-reach">
-    ${readout(mountain)}
+    ${readout(mountain, false)}
     ${mountainButton(view)}
     <nav class="dir-tabs dir-tabs-4">${buys}${tools(view)}</nav>
   </section>`;
@@ -448,11 +485,59 @@ function renderMountainBSheet(view: DirectionView): string {
 function renderMountainBOpen(view: DirectionView): string {
   const mountain = boardB();
   return `<section class="card tok-screen dir dir-b dir-b-open">
-    ${readout(mountain)}
+    ${readout(mountain, true)}
     <div class="dir-peek">${icon(ART.mountain)}</div>
-    <div class="dir-buys">${mountainCards(view, mountain, true)}</div>
+    <div class="dir-buys">${mountainCards(view, mountain)}</div>
     ${btn(view, "close", "tok-secondary dir-buy", "Back to the mountain", "The sheet closes and the rock is the tap again.")}
   </section>`;
+}
+
+function gateWords(upgrade: Upgrade): string {
+  if (upgrade.unlock === undefined) {
+    return "Locked";
+  }
+  const tier = tierById(upgrade.unlock.tier);
+  const count = upgrade.unlock.count;
+  const noun =
+    count === 1
+      ? tier.shortName.toLowerCase()
+      : `${tier.shortName.toLowerCase()}s`;
+  return `${String(count)} ${noun}`;
+}
+
+function upgradeCard(
+  view: DirectionView,
+  mountain: Mountain,
+  upgrade: Upgrade,
+): string {
+  if (!upgradeUnlocked(mountain, upgrade)) {
+    const gate = gateWords(upgrade);
+    return buyCard(
+      view,
+      upgrade.id,
+      upgrade.name,
+      "",
+      "locked",
+      [gate],
+      `${upgrade.name} is locked until ${gate}.`,
+      ART.upgrades,
+    );
+  }
+  const cost = upgradeCost(upgrade, upgradeLevel(mountain, upgrade.id));
+  const state =
+    cost !== undefined && mountain.pocket >= cost ? "ready" : "dear";
+  return buyCard(
+    view,
+    upgrade.id,
+    upgrade.name,
+    buyPriceWords(priced(cost, upgrade.name)),
+    state,
+    [],
+    state === "ready"
+      ? `Buys ${upgrade.name}.`
+      : `${upgrade.name} waits. The pocket is short.`,
+    ART.upgrades,
+  );
 }
 
 function renderUpgradesB(view: DirectionView): string {
@@ -471,15 +556,17 @@ function renderUpgradesB(view: DirectionView): string {
   const handsWhy = UPGRADE_DOES.cartSyn ?? hands.perLevel;
   const tease =
     nextRelic(mountain)?.tease ?? "Deeper on, the walls start to glitter.";
+  const roads = upgradeById("drillSyn");
   const cards = [
+    upgradeCard(view, mountain, roads),
     buyCard(
       view,
       "arms",
       "Strong arms",
       buyPriceWords(priced(armsCost, "Strong arms")),
-      armsCost !== undefined && mountain.pocket >= armsCost,
-      [upgradeSpan(mountain, "tap"), UPGRADE_DOES.tap ?? ""],
-      `Buys Strong arms. ${upgradeSpan(mountain, "tap")}`,
+      armsCost !== undefined && mountain.pocket >= armsCost ? "ready" : "dear",
+      [upgradeSpan(mountain, "tap")],
+      `Buys Strong arms. ${upgradeSpan(mountain, "tap")} ${UPGRADE_DOES.tap ?? ""}`,
       ART.upgrades,
     ),
     ...BOOSTS.map((boost) => {
@@ -489,9 +576,9 @@ function renderUpgradesB(view: DirectionView): string {
         boost.id,
         boost.name,
         buyPriceWords(cost),
-        mountain.pocket >= cost,
-        [boost.effect, BOOST_DOES[boost.id]],
-        `${boost.name}. ${boost.effect}`,
+        mountain.pocket >= cost ? "ready" : "dear",
+        [boost.effect],
+        `${boost.name}. ${boost.effect} ${BOOST_DOES[boost.id]}`,
         boost.id === "sharper" ? ART.stone : ART.worker,
       );
     }),
@@ -500,16 +587,17 @@ function renderUpgradesB(view: DirectionView): string {
       "hands",
       hands.name,
       buyPriceWords(priced(handsCost, hands.name)),
-      handsCost !== undefined && mountain.pocket >= handsCost,
-      [upgradeSpan(mountain, "cartSyn"), handsWhy],
+      handsCost !== undefined && mountain.pocket >= handsCost
+        ? "ready"
+        : "dear",
+      [upgradeSpan(mountain, "cartSyn")],
       `Buys ${hands.name}. ${handsWhy}`,
       ART.workshop,
     ),
   ].join("");
   return `<section class="card tok-screen dir dir-b dir-sheet">
     <header class="dir-read">
-      <p class="dir-hero-num">${escapeHtml(formatCount(mountain.pocket))}</p>
-      <p class="dir-rate">${escapeHtml(formatCompact(rates.crewPerSecond))} stones/s</p>
+      ${pocketBlock(mountain)}
       <p class="dir-quiet dir-center">${escapeHtml(tease)}</p>
     </header>
     <div class="dir-buys">${cards}</div>
@@ -577,7 +665,7 @@ function renderUpgradesC(view: DirectionView): string {
 }
 
 export function renderMountainDirection(
-  which: "a" | "b" | "b-sheet" | "b-open" | "c",
+  which: "a" | "b" | "b-open" | "c",
   view: DirectionView,
 ): string {
   switch (which) {
@@ -585,8 +673,6 @@ export function renderMountainDirection(
       return renderMountainA(view);
     case "b":
       return renderMountainB(view);
-    case "b-sheet":
-      return renderMountainBSheet(view);
     case "b-open":
       return renderMountainBOpen(view);
     case "c":

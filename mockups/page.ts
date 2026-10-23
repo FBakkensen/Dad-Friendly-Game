@@ -59,7 +59,6 @@ const SCENES = [
   "mountain-a",
   "upgrades-a",
   "mountain-b",
-  "mountain-b-sheet",
   "mountain-b-open",
   "upgrades-b",
   "mountain-c",
@@ -464,8 +463,6 @@ export function renderMock(view: MockView): string {
       return renderUpgradesDirection("a", view);
     case "mountain-b":
       return renderMountainDirection("b", view);
-    case "mountain-b-sheet":
-      return renderMountainDirection("b-sheet", view);
     case "mountain-b-open":
       return renderMountainDirection("b-open", view);
     case "upgrades-b":

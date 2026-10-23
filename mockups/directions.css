@@ -163,7 +163,7 @@
   margin-top: auto;
 }
 
-/* B. The mountain is the screen. A strip and a thumb bar float under it. */
+/* B. Sheet. Read-only on top, the rock in the lower middle, buys over the bottom. */
 
 #mock.tok .dir-b:not(.dir-sheet) {
   gap: var(--space-4);
@@ -193,20 +193,49 @@
   text-align: center;
 }
 
-#mock.tok .dir-b .dir-read .dir-preview {
-  margin: 0;
-  color: var(--color-quiet);
-  font-size: var(--type-14);
+#mock.tok .dir-b .dir-pocket {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-bottom: var(--space-8);
+  padding: var(--space-4) var(--space-16);
+  border: 2px solid var(--color-gold);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
 }
 
-#mock.tok .dir-b-strip .dir-buy-top {
+#mock.tok .dir-b-open .dir-pocket {
+  margin-bottom: var(--space-4);
+  padding: 0 var(--space-16);
+}
+
+#mock.tok .dir-b.dir-sheet .dir-pocket {
+  margin-bottom: 0;
+  padding: 0 var(--space-16);
+}
+
+#mock.tok .dir-b .dir-crew {
+  display: flex;
   flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-8);
+  width: 100%;
+  margin: 0;
 }
 
-#mock.tok .dir-b-strip .dir-price {
-  flex-basis: 100%;
-  margin-left: 0;
-  font-size: var(--type-16);
+#mock.tok .dir-b .dir-crew-bit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .dir-b .dir-crew-bit img {
+  width: var(--space-24);
+  height: var(--space-24);
+  object-fit: contain;
 }
 
 #mock.tok .dir-b-reach .dir-picture-b {
@@ -299,11 +328,6 @@
   width: 100%;
 }
 
-#mock.tok .dir-b.dir-b-strip .dir-buys {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-}
-
 #mock.tok .dir-b .dir-buycard {
   align-items: stretch;
   justify-content: center;
@@ -366,6 +390,20 @@
   font-size: var(--type-20);
 }
 
+#mock.tok .dir-b .dir-state-ready {
+  border-color: var(--color-gold);
+}
+
+#mock.tok .dir-b .dir-state-short {
+  border-color: var(--color-danger);
+}
+
+#mock.tok .dir-b .dir-state-short .dir-needs {
+  color: var(--color-danger);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
 #mock.tok .dir-b button.tok-hit:disabled {
   opacity: 1;
   background: var(--color-disabled);
@@ -377,9 +415,14 @@
   color: var(--color-ink);
 }
 
+#mock.tok .dir-b button.dir-state-locked .dir-price {
+  color: var(--color-quiet);
+  font-size: var(--type-16);
+}
+
 #mock.tok .dir-b.dir-sheet {
   gap: var(--space-4);
-  padding: var(--space-4);
+  padding: 0 var(--space-4);
 }
 
 #mock.tok .dir-b.dir-sheet .dir-float {

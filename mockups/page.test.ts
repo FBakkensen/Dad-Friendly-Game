@@ -498,51 +498,44 @@ describe("design token mocks (#234)", () => {
       `${formatCompact(rates.crewPerSecond)} stones/s`,
     );
     expect(shown.textContent).toContain("on carts");
-    expect(shown.textContent).toContain("7 free");
-    for (const card of shown.querySelectorAll(".dir-buycard")) {
-      expect(card.textContent).toMatch(/Needs \d/);
-      expect(card.textContent).not.toMatch(/free/);
-    }
-    expect(shown.textContent).toContain(drillPrice);
-    expect(shown.textContent).toContain(
-      `+${formatSpeed(rates.tierSpeed.drill)}/s each`,
+    expect(shown.textContent).toContain("free");
+    expect(shown.textContent).toContain("Buys");
+    expect(shown.querySelector(".dir-buycard")).toBeNull();
+    expect(shown.querySelectorAll(".dir-crew-bit img").length).toBeGreaterThan(
+      0,
     );
-    expect(shown.textContent).toContain("Needs 3 workers");
-    expect(shown.textContent).toContain("Bites the wall while you rest.");
     expect(shown.textContent).toContain("The Granite");
     expect(shown.textContent).toContain("Drills love it.");
     expect(shown.textContent).toContain("One pool of hands");
-    expect(shown.textContent).toContain("Preview · 2 of 10 drills");
-    expect(shown.textContent).toContain("every drill digs twice as fast");
-    const posts = shown.querySelector(".dir-posts");
+    const crew = shown.querySelector(".dir-crew");
     const picture = shown.querySelector(".dir-picture");
-    const buys = shown.querySelector(".dir-buys");
-    expect(posts).not.toBeNull();
+    expect(crew).not.toBeNull();
     expect(picture).not.toBeNull();
-    expect(buys).not.toBeNull();
-    expect(posts?.compareDocumentPosition(picture ?? posts) ?? 0).toBe(
+    expect(crew?.compareDocumentPosition(picture ?? crew) ?? 0).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
-    expect(picture?.compareDocumentPosition(buys ?? picture) ?? 0).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
-    const closed = host(renderMock(view({ scene: "mountain-b-sheet" })));
-    expect(closed.textContent).toContain("7 free");
-    expect(closed.textContent).toContain("Buys");
-    expect(closed.querySelector(".dir-buycard")).toBeNull();
-    expect(
-      closed
-        .querySelector(".dir-posts")
-        ?.compareDocumentPosition(
-          closed.querySelector(".dir-picture") ?? closed,
-        ),
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     const opened = host(renderMock(view({ scene: "mountain-b-open" })));
+    expect(opened.textContent).toContain(drillPrice);
+    expect(opened.textContent).toContain(
+      `+${formatSpeed(rates.tierSpeed.drill)}/s each`,
+    );
     expect(opened.textContent).toContain("Needs 3 workers");
-    expect(opened.textContent).toContain("Bites the wall while you rest.");
+    expect(opened.textContent).toContain("Hauls what the crew already cut.");
     expect(opened.textContent).toContain("Preview · 2 of 10 drills");
-    expect(opened.querySelector(".dir-buycard")?.textContent).not.toMatch(
-      /free/,
+    expect(opened.textContent).toContain("every drill digs twice as fast");
+    expect(opened.querySelector("[data-state='ready']")).not.toBeNull();
+    expect(opened.querySelector("[data-state='short']")).not.toBeNull();
+    expect(opened.querySelector("[data-state='dear']")?.textContent).toContain(
+      "Buy · 9M",
+    );
+    expect(
+      opened.querySelector("[data-state='dear']")?.textContent,
+    ).not.toMatch(/Needs/);
+    for (const card of opened.querySelectorAll(".dir-buycard")) {
+      expect(card.textContent).not.toMatch(/free/);
+    }
+    expect(opened.textContent).not.toMatch(
+      /pays back|worth it|best value|\?|in \d+ min/i,
     );
     expect(shown.textContent).not.toMatch(
       /pays back|worth it|best value|\?|in \d+ min/i,
@@ -572,7 +565,9 @@ describe("design token mocks (#234)", () => {
     expect(sheetB.textContent).toContain(
       `Cart ${formatSpeed(rates.tierSpeed.cart)}/s to ${formatSpeed(helped.tierSpeed.cart)}/s each`,
     );
-    expect(sheetB.textContent).toContain("Each worker makes carts 1% faster.");
+    expect(
+      sheetB.querySelector("[data-state='locked']")?.textContent,
+    ).toContain("5 drills");
     expect(sheetB.textContent).not.toMatch(
       /pays back|worth it|best value|\?|in \d+ min/i,
     );
@@ -600,9 +595,7 @@ describe("design token mocks (#234)", () => {
       ["upgrades-a", "rest", ""],
       ["upgrades-a", "press", "arms"],
       ["mountain-b", "rest", ""],
-      ["mountain-b", "press", "drill"],
-      ["mountain-b-sheet", "rest", ""],
-      ["mountain-b-sheet", "press", "buys"],
+      ["mountain-b", "press", "buys"],
       ["mountain-b-open", "rest", ""],
       ["mountain-b-open", "press", "drill"],
       ["upgrades-b", "rest", ""],
