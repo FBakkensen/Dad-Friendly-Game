@@ -514,6 +514,36 @@ describe("design token mocks (#234)", () => {
     expect(shown.textContent).toContain("One pool of hands");
     expect(shown.textContent).toContain("Preview · 2 of 10 drills");
     expect(shown.textContent).toContain("every drill digs twice as fast");
+    const posts = shown.querySelector(".dir-posts");
+    const picture = shown.querySelector(".dir-picture");
+    const buys = shown.querySelector(".dir-buys");
+    expect(posts).not.toBeNull();
+    expect(picture).not.toBeNull();
+    expect(buys).not.toBeNull();
+    expect(posts?.compareDocumentPosition(picture ?? posts) ?? 0).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(picture?.compareDocumentPosition(buys ?? picture) ?? 0).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    const closed = host(renderMock(view({ scene: "mountain-b-sheet" })));
+    expect(closed.textContent).toContain("7 free");
+    expect(closed.textContent).toContain("Buys");
+    expect(closed.querySelector(".dir-buycard")).toBeNull();
+    expect(
+      closed
+        .querySelector(".dir-posts")
+        ?.compareDocumentPosition(
+          closed.querySelector(".dir-picture") ?? closed,
+        ),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    const opened = host(renderMock(view({ scene: "mountain-b-open" })));
+    expect(opened.textContent).toContain("Needs 3 workers");
+    expect(opened.textContent).toContain("Bites the wall while you rest.");
+    expect(opened.textContent).toContain("Preview · 2 of 10 drills");
+    expect(opened.querySelector(".dir-buycard")?.textContent).not.toMatch(
+      /free/,
+    );
     expect(shown.textContent).not.toMatch(
       /pays back|worth it|best value|\?|in \d+ min/i,
     );
@@ -571,6 +601,10 @@ describe("design token mocks (#234)", () => {
       ["upgrades-a", "press", "arms"],
       ["mountain-b", "rest", ""],
       ["mountain-b", "press", "drill"],
+      ["mountain-b-sheet", "rest", ""],
+      ["mountain-b-sheet", "press", "buys"],
+      ["mountain-b-open", "rest", ""],
+      ["mountain-b-open", "press", "drill"],
       ["upgrades-b", "rest", ""],
       ["upgrades-b", "press", "arms"],
       ["mountain-c", "rest", ""],

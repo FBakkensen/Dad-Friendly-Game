@@ -184,6 +184,60 @@
   background: var(--color-card);
 }
 
+#mock.tok .dir-b .dir-read {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  text-align: center;
+}
+
+#mock.tok .dir-b .dir-read .dir-preview {
+  margin: 0;
+  color: var(--color-quiet);
+  font-size: var(--type-14);
+}
+
+#mock.tok .dir-b-strip .dir-buy-top {
+  flex-wrap: wrap;
+}
+
+#mock.tok .dir-b-strip .dir-price {
+  flex-basis: 100%;
+  margin-left: 0;
+  font-size: var(--type-16);
+}
+
+#mock.tok .dir-b-reach .dir-picture-b {
+  flex: 1 1 0;
+}
+
+#mock.tok .dir-tabs-4 {
+  grid-template-columns: repeat(4, minmax(var(--target-min), 1fr));
+}
+
+#mock.tok .dir-b-open .dir-buy {
+  margin-top: var(--space-4);
+}
+
+#mock.tok .dir-b-open .dir-peek {
+  flex: 1 1 0;
+  min-height: var(--target-min);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  overflow: hidden;
+}
+
+#mock.tok .dir-b-open .dir-peek img {
+  width: auto;
+  height: 100%;
+  max-width: 70%;
+  object-fit: contain;
+}
+
 #mock.tok .dir-b .dir-picture-b {
   margin-inline: calc(var(--space-4) * -1);
   width: calc(100% + var(--space-8));
@@ -243,6 +297,11 @@
   flex-direction: column;
   gap: var(--target-gap);
   width: 100%;
+}
+
+#mock.tok .dir-b.dir-b-strip .dir-buys {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
 }
 
 #mock.tok .dir-b .dir-buycard {
@@ -329,6 +388,10 @@
   padding: 0;
   border: 0;
   background: transparent;
+}
+
+#mock.tok .dir-b.dir-sheet .dir-buys {
+  margin-top: auto;
 }
 
 #mock.tok .dir-b.dir-sheet .dir-buy {

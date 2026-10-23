@@ -349,10 +349,12 @@ function buyCard(
   return `<button type="button" class="tok-hit tok-secondary dir-buycard${down(view, control)}" data-tier="${control}" data-tap="${escapeHtml(tap(action))}"${affordable ? "" : " disabled"}><span class="dir-buy-top">${picture}<span class="dir-name">${escapeHtml(name)}</span><span class="dir-price">${escapeHtml(price)}</span></span>${body}</button>`;
 }
 
-function renderMountainB(view: DirectionView): string {
-  const mountain = boardB();
-  const rates = effectiveRates(mountain);
-  const cards = MOUNTAIN_BUYS.map((id) => {
+function mountainCards(
+  view: DirectionView,
+  mountain: Mountain,
+  withStory: boolean,
+): string {
+  return MOUNTAIN_BUYS.map((id) => {
     const tier = tierById(id);
     const cost = tierCost(tier, owned(mountain, tier));
     const price = buyPriceWords(cost);
@@ -360,16 +362,17 @@ function renderMountainB(view: DirectionView): string {
     const needs = needsLine(mountain, id);
     const why = DOES[id];
     const preview =
-      id === "drill"
+      withStory && id === "drill"
         ? milestonePreview(owned(mountain, tier), "drills")
         : undefined;
     const gain = eachLine(mountain, id);
-    const lines = [
-      needs === undefined ? gain : `${gain} · ${needs}`,
-      why,
-      ...(preview === undefined ? [] : [preview]),
-    ];
-    const art = crewArt(id);
+    const lines = withStory
+      ? [
+          needs === undefined ? gain : `${gain} · ${needs}`,
+          why,
+          ...(preview === undefined ? [] : [preview]),
+        ]
+      : [gain, ...(needs === undefined ? [] : [needs])];
     return buyCard(
       view,
       id,
@@ -380,24 +383,75 @@ function renderMountainB(view: DirectionView): string {
       affordable
         ? `Buys one ${tier.shortName.toLowerCase()} for ${formatCompact(cost)}. ${why}`
         : `${formatCompact(cost)} is more than the pocket holds, so this one waits.`,
-      art,
+      crewArt(id),
     );
   }).join("");
+}
+
+/** Pocket, rate, layer, and the one crew line. Read-only, so it sits up top. */
+function readout(mountain: Mountain, extra = ""): string {
+  const rates = effectiveRates(mountain);
   const layer = layerOf(mountain);
   const words = layerCardWords(layer.id);
-  const layerCard =
+  const band =
     words === undefined
       ? ""
-      : `<article class="card dir-layer"><p class="dir-band"><span class="dir-name">${escapeHtml(layer.name)}</span> · ${escapeHtml(words.advice)}</p><p class="dir-posts">${escapeHtml(postsLine(mountain))}</p><p class="dir-quiet">One pool of hands. Every machine draws on it.</p></article>`;
-  return `<section class="tok-screen dir dir-b">
-    <header class="card dir-float">
-      <p class="dir-hero-num">${escapeHtml(formatCount(mountain.pocket))}</p>
-      <p class="dir-rate">${escapeHtml(formatCompact(rates.crewPerSecond))} stones/s</p>
-    </header>
-    <button type="button" class="tok-hit tok-secondary dir-picture dir-picture-b${down(view, "mountain")}" data-tap="${escapeHtml(tap("One swing at the rock. The crew keeps going if you don't."))}">${icon(ART.mountain)}</button>
-    ${layerCard}
-    <div class="dir-buys">${cards}</div>
+      : `<p class="dir-band"><span class="dir-name">${escapeHtml(layer.name)}</span> · ${escapeHtml(words.advice)}</p>`;
+  return `<header class="dir-read">
+    <p class="dir-hero-num">${escapeHtml(formatCount(mountain.pocket))}</p>
+    <p class="dir-rate">${escapeHtml(formatCompact(rates.crewPerSecond))} stones/s</p>
+    ${band}
+    <p class="dir-posts">${escapeHtml(postsLine(mountain))}</p>
+    <p class="dir-quiet">One pool of hands. Every machine draws on it.</p>
+    ${extra}
+  </header>`;
+}
+
+function mountainButton(view: DirectionView): string {
+  return `<button type="button" class="tok-hit tok-secondary dir-picture dir-picture-b${down(view, "mountain")}" data-tap="${escapeHtml(tap("One swing at the rock. The crew keeps going if you don't."))}">${icon(ART.mountain)}</button>`;
+}
+
+/**
+ * Strip: the two buys stay on screen, short, under the rock.
+ * The story lines sit with the read-only header so the buttons stay one row.
+ */
+function renderMountainB(view: DirectionView): string {
+  const mountain = boardB();
+  const drill = milestonePreview(mountain.drills, "drills") ?? "";
+  const story = `<p class="dir-quiet">${escapeHtml(DOES.cart)} ${escapeHtml(DOES.drill)}</p><p class="dir-preview">${escapeHtml(drill)}</p>`;
+  return `<section class="card tok-screen dir dir-b dir-b-strip">
+    ${readout(mountain, story)}
+    ${mountainButton(view)}
+    <div class="dir-buys">${mountainCards(view, mountain, false)}</div>
     <nav class="dir-tabs">${tools(view)}</nav>
+  </section>`;
+}
+
+/** Sheet, closed. The rock fills the lower middle. Buys is one bottom button. */
+function renderMountainBSheet(view: DirectionView): string {
+  const mountain = boardB();
+  const buys = btn(
+    view,
+    "buys",
+    "tok-secondary dir-tool",
+    `${icon(ART.cart)}<span>Buys</span>`,
+    "Opens the buys over the lower screen.",
+  );
+  return `<section class="card tok-screen dir dir-b dir-b-reach">
+    ${readout(mountain)}
+    ${mountainButton(view)}
+    <nav class="dir-tabs dir-tabs-4">${buys}${tools(view)}</nav>
+  </section>`;
+}
+
+/** Sheet, open. The cards cover the bottom. They do not push the rock's place. */
+function renderMountainBOpen(view: DirectionView): string {
+  const mountain = boardB();
+  return `<section class="card tok-screen dir dir-b dir-b-open">
+    ${readout(mountain)}
+    <div class="dir-peek">${icon(ART.mountain)}</div>
+    <div class="dir-buys">${mountainCards(view, mountain, true)}</div>
+    ${btn(view, "close", "tok-secondary dir-buy", "Back to the mountain", "The sheet closes and the rock is the tap again.")}
   </section>`;
 }
 
@@ -453,13 +507,13 @@ function renderUpgradesB(view: DirectionView): string {
     ),
   ].join("");
   return `<section class="card tok-screen dir dir-b dir-sheet">
-    <header class="dir-float">
+    <header class="dir-read">
       <p class="dir-hero-num">${escapeHtml(formatCount(mountain.pocket))}</p>
       <p class="dir-rate">${escapeHtml(formatCompact(rates.crewPerSecond))} stones/s</p>
+      <p class="dir-quiet dir-center">${escapeHtml(tease)}</p>
     </header>
     <div class="dir-buys">${cards}</div>
     ${btn(view, "close", "tok-secondary dir-buy", "Back to the mountain", "The sheet closes back to the mountain.")}
-    <p class="dir-quiet dir-center">${escapeHtml(tease)}</p>
   </section>`;
 }
 
@@ -523,7 +577,7 @@ function renderUpgradesC(view: DirectionView): string {
 }
 
 export function renderMountainDirection(
-  which: "a" | "b" | "c",
+  which: "a" | "b" | "b-sheet" | "b-open" | "c",
   view: DirectionView,
 ): string {
   switch (which) {
@@ -531,6 +585,10 @@ export function renderMountainDirection(
       return renderMountainA(view);
     case "b":
       return renderMountainB(view);
+    case "b-sheet":
+      return renderMountainBSheet(view);
+    case "b-open":
+      return renderMountainBOpen(view);
     case "c":
       return renderMountainC(view);
     default: {
