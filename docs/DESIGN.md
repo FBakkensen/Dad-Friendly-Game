@@ -64,7 +64,7 @@ Old saves are migrated, not wiped: dug cells count as stones already mined out o
 - The Buys and Upgrades lists scroll inside the sheet. At the top, the first card sits fully below the title. At the end, the last card sits fully above Back to the mountain. The sheet stays below the crew line.
 - The pocket pill stays centred and clear of the menu, and uses the same short counts as the cards. A crew line that does not fit splits into even rows.
 - An unlocked buy, upgrade, or craft always shows its price, what it does, and why, even when the pocket is short. A locked card says Locked and hides those lines. Tapping the card buys it. Dragging the list does not.
-- Countdowns (boosts, expeditions, crafts on the clock, and the bench) sit in two rows under the crew. Every one stays visible: a short name, its multiplier when it has one, and the time left. The rows keep their height when nothing is running.
+- Countdowns sit under the crew in rows of three. The row count is how many this mountain can run now, not a hole for twelve. Each chip is one line: icon, multiplier, time left. A tap shows the name. None are hidden. The relic shelf sits above the rock, and the peak does not cross it.
 - Warm heroic lantern light: deep night browns, amber and gold highlights, soft glow. No harsh flashes, no sound until unmuted.
 - The welcome-back screen is a celebration, not a chore: one big number, one button.
 - Art comes from PixelLab (ask before generating). No placeholder boxes.
