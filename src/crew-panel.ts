@@ -176,13 +176,16 @@ export function createCrewPanel({
     const needsLine = document.createElement("span");
     needsLine.className = "tier-needs";
     needsLine.hidden = true;
+    const pace = document.createElement("span");
+    pace.className = "tier-pace";
+    pace.append(gainLine, needsLine);
     const whyLine = document.createElement("span");
     whyLine.className = "tier-why";
     whyLine.hidden = true;
     const preview = document.createElement("span");
     preview.className = "tier-preview";
     preview.hidden = true;
-    words.append(name, cost, rate, gainLine, needsLine, whyLine, preview);
+    words.append(name, cost, rate, pace, whyLine, preview);
     const mark = document.createElement("span");
     mark.className = "engineer-mark";
     mark.hidden = true;
@@ -278,6 +281,7 @@ export function createCrewPanel({
       rate,
       gainLine,
       needsLine,
+      pace,
       whyLine,
       preview,
       costIcon,
@@ -361,6 +365,7 @@ export function createCrewPanel({
       rate: tierRate,
       gainLine,
       needsLine,
+      pace,
       whyLine,
       preview,
       costIcon,
@@ -425,9 +430,10 @@ export function createCrewPanel({
         const bill = staffBillWords(staff, spare);
         needsLine.hidden = bill === undefined;
         needsLine.textContent = bill ?? "";
-        whyLine.hidden = needsMore;
+        whyLine.hidden = false;
         whyLine.textContent = TIER_WHY[tier.id];
       }
+      pace.hidden = gainLine.hidden && needsLine.hidden;
       card.classList.toggle("tier-idle", !locked && idleHere > 0);
       card.classList.toggle("tier-needs-workers", needsMore);
       const who = tendingEngineer(current.engineers, tier.id);

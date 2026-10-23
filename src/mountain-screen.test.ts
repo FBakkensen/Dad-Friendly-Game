@@ -4162,11 +4162,14 @@ describe("sheet buys", () => {
     expect(screen.text('[data-tier="drill"] .tier-needs')).toBe(
       "Needs 3 workers",
     );
+    expect(screen.text('[data-tier="drill"] .tier-why')).toBe(
+      "Bites the wall while you rest.",
+    );
     expect(
       screen.root
         .querySelector('[data-tier="drill"] .tier-why')
         ?.hasAttribute("hidden"),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       screen.root
         .querySelector('[data-tier="borer"] .tier-gain')
