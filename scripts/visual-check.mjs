@@ -372,8 +372,6 @@ for (const viewport of VIEWPORTS) {
     return (
       row !== undefined &&
       chips.length === 2 &&
-      getComputedStyle(document.querySelector(".boost-chips")).position !==
-        "absolute" &&
       chips.every((chip) => {
         const box = chip.getBoundingClientRect();
         return (
@@ -1278,8 +1276,8 @@ for (const standalone of [false, true]) {
         box.top >= host.top - 1 &&
         box.bottom <= host.bottom + 1 &&
         misses &&
-        text.includes("will be gone") &&
-        !/\d|\?/.test(text),
+        text.includes("Ada") &&
+        /\d+:\d{2}|\dh\d{2}/.test(text),
       text,
     };
   });
@@ -2821,16 +2819,17 @@ for (const viewport of [
   await close();
 }
 
-// Active effects stay in their row: 0, 1, 3, and more than fit.
+// Active effects stay in two rows: 0, 1, 3, and every countdown at once.
 const EFFECT_VIEWS = [
   [360, 560],
   [412, 915],
 ];
 function effectSave(count) {
   const now = Date.now();
-  // 0, 1, and 3 are that many chips. 8 is a crowded row: both boosts and five trips.
+  // 0, 1, and 3 are that many chips. 12 is both boosts, four craft clocks, the bench, and five trips.
   const names = ["Ada", "Nils", "Ruth", "Otto", "Mae"];
-  const tripCount = count >= 8 ? 5 : count >= 3 ? 1 : 0;
+  const full = count >= 12;
+  const tripCount = full ? 5 : count >= 3 ? 1 : 0;
   const expeditions = Array.from({ length: tripCount }, (_, index) => ({
     engineer: names[index],
     tunnel: "side-seam",
@@ -2871,13 +2870,26 @@ function effectSave(count) {
     workshop: {
       materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
       recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
+      ...(full
+        ? {
+            chargeUntil: now + 8 * 60_000,
+            axleUntil: now + 12 * 60_000,
+            flareUntil: now + 50 * 60_000,
+            emberUntil: now + 15 * 60_000,
+            bench: {
+              recipe: "iron-rails",
+              startedAt: now - 1_000,
+              endsAt: now + 9 * 60_000,
+            },
+          }
+        : {}),
     },
   };
 }
 
 for (const viewport of EFFECT_VIEWS) {
   const size = `${String(viewport[0])}x${String(viewport[1])}`;
-  for (const count of [0, 1, 3, 8]) {
+  for (const count of [0, 1, 3, 12]) {
     const { page, close } = await open(viewport, effectSave(count));
     await page.waitForSelector(".effect-row");
     const placed = await page.evaluate((count) => {
@@ -2907,30 +2919,46 @@ for (const viewport of EFFECT_VIEWS) {
           rowBox.top >= box.bottom - 0.5
         );
       };
-      const chips = [...row.querySelectorAll(".effect-chip")];
-      const active = chips.filter((chip) => !chip.hidden);
-      const visible = active.filter(
-        (chip) => !chip.classList.contains("is-overflow"),
+      const chips = [...row.querySelectorAll(".effect-chip")].filter(
+        (chip) => !chip.hidden,
       );
-      const more = row.querySelector(".effect-more");
-      const moreShown = more !== null && !more.hidden;
       const welcome = document.querySelector(".welcome-back");
       const welcomeShut = welcome === null || welcome.hidden;
-      const expected = count >= 8 ? 7 : count;
+      const expected = count >= 12 ? 12 : count;
+      const boxes = chips.map((chip) => chip.getBoundingClientRect());
+      const apart = boxes.every((box, index) =>
+        boxes.every((other, otherIndex) => {
+          if (index === otherIndex) {
+            return true;
+          }
+          return (
+            box.right <= other.left + 0.5 ||
+            box.left >= other.right - 0.5 ||
+            box.bottom <= other.top + 0.5 ||
+            box.top >= other.bottom - 0.5
+          );
+        }),
+      );
+      const inside = boxes.every(
+        (box) =>
+          box.width > 8 &&
+          box.top >= rowBox.top - 1 &&
+          box.bottom <= rowBox.bottom + 1 &&
+          box.left >= rowBox.left - 1 &&
+          box.right <= rowBox.right + 1,
+      );
+      const labeled = chips.every((chip) => {
+        const name = chip.querySelector(".effect-name")?.textContent ?? "";
+        const time = chip.querySelector(".effect-time")?.textContent ?? "";
+        return name.length > 0 && /\d/.test(time);
+      });
       const packed =
-        count === 0
-          ? visible.length === 0 && !moreShown
-          : count === 1
-            ? visible.length === 1 &&
-              !moreShown &&
-              (visible[0]?.textContent ?? "").includes("×")
-            : count === 3
-              ? active.length === 3 &&
-                (visible.length === 3 || moreShown) &&
-                visible.length >= 1
-              : moreShown &&
-                active.length === expected &&
-                visible.length < active.length;
+        chips.length === expected &&
+        row.querySelector(".effect-more") === null &&
+        !/\+\d/.test(row.textContent ?? "") &&
+        apart &&
+        inside &&
+        labeled;
       const app = document.querySelector("#app");
       const still =
         app !== null &&
@@ -2942,8 +2970,8 @@ for (const viewport of EFFECT_VIEWS) {
           still &&
           welcomeShut &&
           packed &&
-          Math.round(rowBox.height) >= 20 &&
-          Math.round(rowBox.height) <= 28 &&
+          Math.round(rowBox.height) >= 116 &&
+          Math.round(rowBox.height) <= 132 &&
           !hits(shelf) &&
           !hits(pocket) &&
           !hits(menu) &&
@@ -2951,9 +2979,8 @@ for (const viewport of EFFECT_VIEWS) {
           !hits(bar) &&
           !hits(rock),
         height: Math.round(rowBox.height),
-        shown: visible.length,
-        active: active.length,
-        more: moreShown,
+        shown: chips.length,
+        labels: chips.map((chip) => chip.textContent),
         welcomeShut,
         packed,
         still,
@@ -2968,7 +2995,7 @@ for (const viewport of EFFECT_VIEWS) {
     if (!placed.ok) {
       console.log("effects", size, count, placed);
     }
-    if (count <= 3) {
+    if (count === 1 || count === 3 || count >= 12) {
       await shot(page, `effects-${String(count)}-${size}`);
     }
     await close();

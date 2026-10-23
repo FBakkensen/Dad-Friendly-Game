@@ -302,10 +302,7 @@ export function createCrewPanel({
       gain,
     };
   });
-  const crewPool = document.createElement("p");
-  crewPool.className = "crew-pool";
-  crewPool.textContent = "One pool of hands. Every machine draws on it.";
-  crew.append(crewStatus, postsButton, postsDetail, crewPool, tierGrid, thanks);
+  crew.append(crewStatus, postsButton, postsDetail, tierGrid, thanks);
 
   /** The crew line counts up to the new rate after a purchase. */
   let rateShown: number | undefined;
@@ -519,7 +516,6 @@ export function createCrewPanel({
     });
     const fullPosts = crewPostsWords(pool, spare, posts);
     postsButton.hidden = pool <= 0;
-    crewPool.hidden = pool <= 0;
     // The chips on the line are the breakdown. This sentence stays shut.
     postsDetail.hidden = true;
     postsDetail.textContent = fullPosts;

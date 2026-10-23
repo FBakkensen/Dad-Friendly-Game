@@ -3706,65 +3706,54 @@ body {
   width: auto;
 }
 
-/* Countdowns keep this height even when nothing is running, so the shelf does not jump. */
+/* Two rows for every countdown that can run at once. Empty keeps the same height. */
 .effect-row {
-  display: flex;
+  --effect-chip: calc(var(--space-16) + var(--type-14) * 3);
+  display: grid;
+  grid-template-columns: repeat(var(--effect-cols, 6), minmax(0, 1fr));
+  grid-template-rows: repeat(2, var(--effect-chip));
   align-items: center;
-  justify-content: center;
+  justify-items: stretch;
   gap: var(--space-4);
   width: 100%;
-  height: var(--space-24);
-  min-height: var(--space-24);
-  overflow: hidden;
+  height: calc(var(--effect-chip) * 2 + var(--space-4));
+  min-height: calc(var(--effect-chip) * 2 + var(--space-4));
 }
 
-.effect-row .boost-chips {
-  position: static;
-  top: auto;
-  left: auto;
+.effect-row .effect-chip {
   display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-4);
-  width: max-content;
-  max-width: none;
-  pointer-events: none;
-}
-
-.effect-chip {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: var(--space-4);
-  max-width: 100%;
-}
-
-.effect-chip img {
-  width: var(--space-16);
-  height: var(--space-16);
-  flex: none;
-}
-
-.effect-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  gap: 0;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-gold);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+  line-height: 1;
   white-space: nowrap;
 }
 
-.effect-chip[hidden],
-.effect-more[hidden],
-.effect-chip.is-overflow {
-  display: none;
+.effect-row .effect-chip img {
+  width: var(--space-16);
+  height: var(--space-16);
 }
 
-.effect-more {
-  flex: none;
-  margin: 0;
-  color: var(--color-quiet);
-  font-size: var(--type-14);
-  font-weight: var(--weight-bold);
+.effect-name,
+.effect-meta {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.effect-chip[hidden] {
+  display: none;
 }
 
 .workshop-card.is-pressed,
@@ -3827,23 +3816,6 @@ body {
 }
 
 .crew-status:not(.crew-short):not(.crew-waiting) {
-  display: none;
-}
-
-.crew-pool {
-  margin: 0;
-  color: var(--color-quiet);
-  font-size: var(--type-14);
-  line-height: var(--leading);
-  text-align: center;
-}
-
-.crew-pool[hidden] {
-  display: none;
-}
-
-#app:has(.buys-dialog:not([hidden])) .crew-pool,
-#app:has(.upgrades-dialog:not([hidden])) .crew-pool {
   display: none;
 }
 

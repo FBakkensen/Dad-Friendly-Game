@@ -2,11 +2,22 @@ import pickUrl from "./assets/pick.png";
 import { tapFloatSpot } from "./tap-float";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
 import { formatCompact, formatCount } from "./format";
-import { MOUNTAIN_STONES, mineByHand, stonesPerSecond } from "./mountain";
+import {
+  MOUNTAIN_STONES,
+  mineByHand,
+  stonesPerSecond,
+  type Mountain,
+} from "./mountain";
 import { type TierId } from "./tiers";
 import { hasRelic, nextRelic, RELICS, type RelicId, depthHint } from "./relics";
 import { BOOSTS } from "./boosts";
-import { packEffects, writeChip } from "./effect-row";
+import {
+  EFFECT_COLUMNS,
+  MAX_EFFECTS,
+  createEffectChip,
+  shortEffectName,
+  writeChip,
+} from "./effect-row";
 import { effectiveRates } from "./rates";
 import { createRelicPanels } from "./relic-panels";
 import { createArrivalPanel } from "./arrival-panel";
@@ -23,6 +34,9 @@ import { createEngineersPanel } from "./engineers-panel";
 import { floatText } from "./float-text";
 import { createUpgradesPanel } from "./upgrades-panel";
 import {
+  axleCrewMultiplier,
+  chargeCrewMultiplier,
+  emberMachineMultiplier,
   hotTimers,
   isRecipeId,
   recipeById,
@@ -34,7 +48,6 @@ import {
   OTHER_TAB_PLAY,
   OTHER_TAB_TITLE,
   layerCardWords,
-  formatClock,
   nextLayerHint,
   tapWords,
 } from "./screen-words";
@@ -56,6 +69,25 @@ import {
   type ProgressSnapshot,
   type ProgressStore,
 } from "./progress-store";
+
+function craftMultiplier(
+  mountain: Mountain,
+  id: "blasting-charge" | "axle-grease" | "crystal-flare" | "heartstone-ember",
+  now: number,
+): number {
+  switch (id) {
+    case "blasting-charge":
+      return chargeCrewMultiplier(mountain, now);
+    case "axle-grease":
+      return axleCrewMultiplier(mountain, now);
+    case "heartstone-ember":
+      return emberMachineMultiplier(mountain, now);
+    case "crystal-flare": {
+      const effect = recipeById(id).effect;
+      return effect.kind === "flare" ? 1 + effect.often : 1;
+    }
+  }
+}
 
 export function mountMountainScreen({
   root,
@@ -195,38 +227,20 @@ export function mountMountainScreen({
 
   mountainWrap.append(veinNote);
 
-  // Countdowns sit in one reserved row, never over the shelf.
+  // Two rows, wide enough for every countdown that can run at once.
   const effectRow = document.createElement("div");
   effectRow.className = "effect-row";
   effectRow.setAttribute("aria-label", "Active effects");
-  const boostChips = document.createElement("div");
-  boostChips.className = "boost-chips";
-  const chipShell = (
-    className: string,
-    iconUrl: string,
-  ): HTMLParagraphElement => {
-    const chip = document.createElement("p");
-    chip.className = `effect-chip ${className}`;
-    chip.hidden = true;
-    const icon = document.createElement("img");
-    icon.src = iconUrl;
-    icon.alt = "";
-    icon.width = 16;
-    icon.height = 16;
-    icon.draggable = false;
-    const label = document.createElement("span");
-    label.className = "effect-label";
-    chip.append(icon, label);
-    return chip;
-  };
+  effectRow.style.setProperty("--effect-cols", String(EFFECT_COLUMNS));
+  effectRow.dataset["max"] = String(MAX_EFFECTS);
   const chipFor = new Map(
     BOOSTS.map((boost) => {
-      const chip = chipShell(
+      const chip = createEffectChip(
         "boost-chip",
         boost.id === "sharper" ? pickUrl : tierArt.helper,
       );
       chip.dataset["boost"] = boost.id;
-      boostChips.append(chip);
+      effectRow.append(chip);
       return [boost.id, chip] as const;
     }),
   );
@@ -238,19 +252,15 @@ export function mountMountainScreen({
   ] as const;
   const craftChips = new Map(
     craftIds.map((id) => {
-      const chip = chipShell("craft-chip", relicArt.hammer);
+      const chip = createEffectChip("craft-chip", relicArt.hammer);
       chip.dataset["craft"] = id;
-      boostChips.append(chip);
+      effectRow.append(chip);
       return [id, chip] as const;
     }),
   );
-  const benchChip = chipShell("craft-chip", relicArt.hammer);
+  const benchChip = createEffectChip("craft-chip", relicArt.hammer);
   benchChip.dataset["craft"] = "bench";
-  boostChips.append(benchChip);
-  const effectMore = document.createElement("p");
-  effectMore.className = "effect-more";
-  effectMore.hidden = true;
-  effectRow.append(boostChips, effectMore);
+  effectRow.append(benchChip);
 
   // The wait for the next vein counts play time only, and survives the phone
   // locking or the PWA being closed, so short sessions still add up to a vein.
@@ -460,7 +470,7 @@ export function mountMountainScreen({
       borer: tierArt.borer,
       machine: tierArt.machine,
     },
-    chipHost: boostChips,
+    chipHost: effectRow,
     now,
     requestRender: () => {
       render();
@@ -556,9 +566,9 @@ export function mountMountainScreen({
     remaining.textContent = `${formatCount(left)} stones left`;
     remaining.title = `${left.toLocaleString("en-US")} of ${MOUNTAIN_STONES.toLocaleString("en-US")}`;
     const held = view.mountain.pocket;
-    const wordCount = held === 1 ? "1 stone" : `${formatCount(held)} stones`;
-    const tightCount = held === 1 ? "1 stone" : `${formatCompact(held)} stones`;
-    pocketText.textContent = wordCount;
+    const compactCount =
+      held === 1 ? "1 stone" : `${formatCompact(held)} stones`;
+    pocketText.textContent = compactCount;
     mountain.disabled = !view.playing || left === 0;
     const showElsewhere = view.elsewhere;
     otherTab.hidden = !showElsewhere;
@@ -584,9 +594,6 @@ export function mountMountainScreen({
     if (pocketRow.isConnected && pocketRow.clientWidth > 0) {
       const lineOverflows = (node: HTMLElement): boolean =>
         node.scrollWidth > node.clientWidth + 1;
-      if (lineOverflows(pocket) || lineOverflows(pocketRate)) {
-        pocketText.textContent = tightCount;
-      }
       if (lineOverflows(pocket) || lineOverflows(pocketRate)) {
         pocketRow.classList.add("is-tight");
       }
@@ -615,16 +622,18 @@ export function mountMountainScreen({
     for (const [id, chip] of craftChips) {
       const timer = hot.find((item) => item.id === id);
       if (timer === undefined) {
-        writeChip(chip, "", 0, false);
+        writeChip(chip, { short: "", full: "", leftMs: 0, active: false });
         continue;
       }
       const left = timer.until - at;
-      writeChip(
-        chip,
-        `${recipeById(id).name} · ${formatClock(left)}`,
-        left,
-        true,
-      );
+      const recipe = recipeById(id);
+      writeChip(chip, {
+        short: shortEffectName(recipe.name),
+        full: recipe.name,
+        multiplier: craftMultiplier(view.mountain, id, at),
+        leftMs: left,
+        active: true,
+      });
     }
     const bench = view.mountain.bench;
     const benchIsTimer =
@@ -636,16 +645,16 @@ export function mountMountainScreen({
       !benchIsTimer
     ) {
       const left = bench.endsAt - at;
-      writeChip(
-        benchChip,
-        `${recipeById(bench.recipe).name} · ${formatClock(left)}`,
-        left,
-        true,
-      );
+      const recipe = recipeById(bench.recipe);
+      writeChip(benchChip, {
+        short: shortEffectName(recipe.name),
+        full: recipe.name,
+        leftMs: left,
+        active: true,
+      });
     } else {
-      writeChip(benchChip, "", 0, false);
+      writeChip(benchChip, { short: "", full: "", leftMs: 0, active: false });
     }
-    packEffects(effectRow);
     savedCopies.render();
     conflictSheet.render(view.saveConflict, view.elsewhere);
     renderSave();

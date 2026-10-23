@@ -377,7 +377,7 @@ describe("mountMountainScreen", () => {
     await vi.waitFor(() => {
       expect(screen.text(".save-status")).toBe("Saved to your account");
     });
-    expect(screen.text(".pocket")).toBe("12.3 thousand stones");
+    expect(screen.text(".pocket")).toBe("12.3K stones");
     expect(screen.text(".auth-status")).toBe("Signed in as Test Dad");
     expect(
       screen.root.querySelector(".save-status")?.getAttribute("data-log"),
@@ -545,7 +545,7 @@ describe("crew tiers on screen", () => {
     expect(machine.querySelector(".tier-cost")?.textContent).toBe("67M");
     machine.click();
     expect(machine.querySelector(".tier-count")?.textContent).toBe("×1");
-    expect(screen.text(".pocket")).toBe("1 million stones");
+    expect(screen.text(".pocket")).toBe("1M stones");
   });
 
   it("keeps the roomy two-column cards while three or fewer show", () => {
@@ -1623,7 +1623,8 @@ describe("quick boosts on screen", () => {
       expect(buy?.disabled).toBe(true);
       expect(buy?.textContent).toBe("Running · 10:00");
       expect(chip?.hidden).toBe(false);
-      expect(chip?.textContent).toBe("Sharper picks ×2 · 10:00");
+      expect(chip?.textContent).toBe("Picks×2 10:00");
+      expect(chip?.getAttribute("aria-label")).toContain("Sharper picks");
       screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
 
       screen.mountain.dispatchEvent(
@@ -1633,7 +1634,7 @@ describe("quick boosts on screen", () => {
 
       clock += 4 * 60_000 + 30_000;
       await vi.advanceTimersByTimeAsync(1_000);
-      expect(chip?.textContent).toBe("Sharper picks ×2 · 5:30");
+      expect(chip?.textContent).toBe("Picks×2 5:30");
 
       clock += 6 * 60_000;
       await vi.advanceTimersByTimeAsync(1_000);
@@ -1664,8 +1665,69 @@ describe("quick boosts on screen", () => {
       "Your crew mines 6 stones a second",
     );
     expect(screen.text('.boost-chip[data-boost="overtime"]')).toBe(
-      "Overtime ×2 · 20:00",
+      "Overtime×2 20:00",
     );
+  });
+
+  it("keeps every countdown on screen", () => {
+    const now = 5_000_000;
+    const names = ["Ada", "Nils", "Ruth", "Otto", "Mae"] as const;
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(12_000_000),
+        pocket: 5_000_000,
+        helpers: 20,
+        carts: 2,
+        borers: 1,
+        staffed: 2,
+        boosts: { sharper: now + 10 * 60_000, overtime: now + 20 * 60_000 },
+        chargeUntil: now + 8 * 60_000,
+        axleUntil: now + 12 * 60_000,
+        flareUntil: now + 30 * 60_000,
+        emberUntil: now + 15 * 60_000,
+        engineers: names.map((name) => ({
+          name,
+          rank: 0 as const,
+          trips: 0,
+          post: "tunnel" as const,
+        })),
+        expeditions: names.map((name, index) => ({
+          engineer: name,
+          tunnel: "side-seam" as const,
+          sentAt: now - 60_000,
+          returnsAt: now + (40 + index) * 60_000,
+          home: "camp" as const,
+          find: { kind: "quiet" as const },
+        })),
+        bench: {
+          recipe: "iron-rails",
+          startedAt: now - 1_000,
+          endsAt: now + 9 * 60_000,
+        },
+      },
+      lastSeen: now,
+    });
+    const screen = mountScreen({ storage, now: () => now });
+    const shown = [
+      ...screen.root.querySelectorAll<HTMLElement>(".effect-chip"),
+    ].filter((chip) => !chip.hidden);
+    expect(shown).toHaveLength(12);
+    expect(screen.root.querySelector(".effect-more")).toBeNull();
+    expect(screen.root.querySelector(".effect-row")?.textContent).not.toMatch(
+      /\+\d/,
+    );
+    expect(screen.root.querySelector(".crew-pool")).toBeNull();
+    for (const chip of shown) {
+      expect(chip.querySelector(".effect-name")?.textContent).not.toBe("");
+      expect(chip.querySelector(".effect-time")?.textContent).toMatch(/\d/);
+    }
+    expect(
+      screen.root.querySelector(".boost-chip[data-boost='sharper']")
+        ?.textContent,
+    ).toMatch(/Picks×2/);
+    screen.progress.dispose();
   });
 
   it("keeps the crew at ×2 when grease, a charge, and the overtime line overlap", () => {
@@ -3092,7 +3154,7 @@ describe("engineers sheet (#145)", () => {
     expect(sheet.querySelector<HTMLElement>(".engineer-confirm")?.hidden).toBe(
       true,
     );
-    expect(screen.text(".pocket")).toBe("5 million stones");
+    expect(screen.text(".pocket")).toBe("5M stones");
 
     sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
     sheet.querySelector<HTMLButtonElement>(".engineer-confirm-no")?.click();
@@ -3103,7 +3165,7 @@ describe("engineers sheet (#145)", () => {
 
     sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
     sheet.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
-    expect(screen.text(".pocket")).toBe("3 million stones");
+    expect(screen.text(".pocket")).toBe("3M stones");
     expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×19");
     const nils = sheet.querySelector('[data-name="Nils"]');
     expect(nils?.classList.contains("is-open")).toBe(true);
@@ -3454,8 +3516,10 @@ describe("side tunnels (#147)", () => {
     );
     const chip = screen.root.querySelector<HTMLElement>(".expedition-chip");
     expect(chip?.hidden).toBe(false);
-    expect(chip?.textContent).toBe("Ada will be gone about an hour.");
-    expect(chip?.textContent).not.toMatch(/\d|\?/);
+    expect(chip?.textContent).toBe("Ada1h00");
+    expect(chip?.getAttribute("aria-label")).toContain(
+      "Ada will be gone about an hour.",
+    );
     const saved = readSessionSave({ storage })?.mountain;
     expect(saved?.expeditions?.[0]?.tunnel).toBe("old-shaft");
     expect(saved?.expeditions?.[0]?.engineer).toBe("Ada");
@@ -3557,9 +3621,10 @@ describe("side tunnels (#147)", () => {
     );
     expect(deep?.disabled).toBe(false);
     deep?.click();
-    expect(screen.text(".expedition-chip")).toBe(
-      "Ada will be gone a long night.",
-    );
+    expect(screen.text(".expedition-chip")).toBe("Ada4h00");
+    expect(
+      screen.root.querySelector(".expedition-chip")?.getAttribute("aria-label"),
+    ).toContain("Ada will be gone a long night.");
     expect(
       screen.progress.getSnapshot().mountain.expeditions?.[0]?.tunnel,
     ).toBe("deep-dark");
@@ -3630,7 +3695,10 @@ describe("side tunnels (#147)", () => {
       expect(
         live.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
       ).toBe(true);
-      expect(live.text(".expedition-chip")).toBe("Ada will be back soon.");
+      expect(live.text(".expedition-chip")).toBe("Ada0:05");
+      expect(
+        live.root.querySelector(".expedition-chip")?.getAttribute("aria-label"),
+      ).toContain("Ada will be back soon.");
       vi.setSystemTime(start + 5_000);
       live.progress.tick();
       expect(live.text("#welcome-back-title")).toBe("Welcome home");
@@ -4359,12 +4427,13 @@ describe("sheet buys", () => {
     }));
     expect(screen.text(".pocket")).toContain("T stones");
     expect(row.classList.contains("is-tight")).toBe(true);
-    expect(
-      screen.root.querySelector("[data-craft='blasting-charge']")?.textContent,
-    ).toMatch(/Blasting charge/);
-    expect(
-      screen.root.querySelector("[data-craft='bench']")?.textContent,
-    ).toMatch(/Iron rails/);
+    const charge = screen.root.querySelector("[data-craft='blasting-charge']");
+    expect(charge?.textContent).toMatch(/Charge/);
+    expect(charge?.textContent).toMatch(/×2/);
+    expect(charge?.getAttribute("aria-label")).toMatch(/Blasting charge/);
+    const rails = screen.root.querySelector("[data-craft='bench']");
+    expect(rails?.textContent).toMatch(/Rails/);
+    expect(rails?.getAttribute("aria-label")).toMatch(/Iron rails/);
     screen.root.remove();
     screen.progress.dispose();
   });

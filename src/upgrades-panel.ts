@@ -10,7 +10,7 @@ import borerUrl from "./assets/tunnel-borer.png";
 import mapUrl from "./assets/worn-map.png";
 import { BOOSTS, boostCost, boostLeft, buyBoost, type BoostId } from "./boosts";
 import { buyOnTap } from "./card-tap";
-import { writeChip } from "./effect-row";
+import { shortEffectName, writeChip } from "./effect-row";
 import { formatCount } from "./format";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates } from "./rates";
@@ -356,12 +356,13 @@ export function createUpgradesPanel({
       row?.classList.toggle(SHEET_DEAR, left === 0 && !affordable);
       const chip = chipFor.get(boost.id);
       if (chip !== undefined) {
-        writeChip(
-          chip,
-          `${boost.name} ×${String(boost.multiplier)} · ${formatClock(left)}`,
-          left,
-          left > 0,
-        );
+        writeChip(chip, {
+          short: shortEffectName(boost.name),
+          full: boost.name,
+          multiplier: boost.multiplier,
+          leftMs: left,
+          active: left > 0,
+        });
       }
     }
     for (const {
