@@ -2,6 +2,7 @@ import { formatCompact, formatCount } from "../src/format.ts";
 import { staffForBuy, staffNeeded } from "../src/engineers.ts";
 import { createMountain, type Mountain } from "../src/mountain.ts";
 import { effectiveRates } from "../src/rates.ts";
+import { layerOf } from "../src/layers.ts";
 import { nextRelic } from "../src/relics.ts";
 import { MOUNTAIN_STONES } from "../src/scale.ts";
 import { boostCost, BOOSTS } from "../src/boosts.ts";
@@ -12,6 +13,7 @@ import {
   crewPostsWords,
   formatClock,
   formatSpeed,
+  layerCardWords,
   workerWords,
 } from "../src/screen-words.ts";
 import { owned, tierById, tierCost, TIERS, type TierId } from "../src/tiers.ts";
@@ -176,8 +178,8 @@ function renderUpgradesA(view: DirectionView): string {
 export function boardB(): Mountain {
   return {
     ...createMountain(),
-    remaining: MOUNTAIN_STONES - 2_400_000,
-    pocket: 1_500_000,
+    remaining: MOUNTAIN_STONES - 12_000_000,
+    pocket: 2_500_000,
     helpers: 18,
     carts: 5,
     drills: 2,
@@ -187,6 +189,23 @@ export function boardB(): Mountain {
     staffed: 2,
     upgrades: { tap: 2, boots: 1 },
   };
+}
+
+/**
+ * Ownership milestones from docs/design-intent.md. Not in the game yet.
+ * The line is a preview of that rule, using the drills this board owns.
+ */
+const MILESTONE_MARKS = [10, 25, 50] as const;
+
+function milestonePreview(
+  ownedCount: number,
+  plural: string,
+): string | undefined {
+  const mark = MILESTONE_MARKS.find((step) => ownedCount < step);
+  if (mark === undefined) {
+    return undefined;
+  }
+  return `Preview · ${String(ownedCount)} of ${String(mark)} ${plural}: at ${String(mark)}, every ${plural.replace(/s$/, "")} digs twice as fast.`;
 }
 
 const DOES: Record<TierId, string> = {
@@ -202,7 +221,7 @@ const UPGRADE_DOES: Partial<Record<UpgradeId, string>> = {
   tap: "Each tap takes a little more of their pace.",
   boots: "The workers pick up their feet.",
   steady: "Time away pays a little more.",
-  cartSyn: "Carts make the drills a little quicker.",
+  cartSyn: "Each worker makes carts 1% faster.",
   drillSyn: "Drills make the borers a little quicker.",
   borerSyn: "Borers make the machine a little quicker.",
   machineSyn: "The machine makes the whole crew a little quicker.",
@@ -213,7 +232,7 @@ const BOOST_DOES = {
   overtime: "The crew digs twice as fast, then they rest.",
 } as const;
 
-const MOUNTAIN_BUYS: readonly TierId[] = ["cart", "drill", "borer"];
+const MOUNTAIN_BUYS: readonly TierId[] = ["cart", "drill"];
 
 function crewArt(id: TierId): string {
   switch (id) {
@@ -296,16 +315,7 @@ function upgradeSpan(mountain: Mountain, id: UpgradeId): string {
   if (id === "boots") {
     return `Workers ${formatSpeed(before.tierSpeed.helper)}/s to ${formatSpeed(after.tierSpeed.helper)}/s`;
   }
-  const target =
-    id === "cartSyn"
-      ? "drill"
-      : id === "drillSyn"
-        ? "borer"
-        : id === "borerSyn"
-          ? "machine"
-          : id === "machineSyn"
-            ? "machine"
-            : undefined;
+  const target = upgradeById(id).synergy?.to;
   if (target !== undefined) {
     return `${tierById(target).shortName} ${formatSpeed(before.tierSpeed[target])}/s to ${formatSpeed(after.tierSpeed[target])}/s each`;
   }
@@ -325,10 +335,15 @@ function buyCard(
   const body = affordable
     ? lines
         .filter((line) => line !== "")
-        .map(
-          (line, index) =>
-            `<span${index === 0 ? ' class="dir-gain"' : ""}>${escapeHtml(line)}</span>`,
-        )
+        .map((line, index) => {
+          const className = line.startsWith("Preview")
+            ? "dir-preview"
+            : index === 0
+              ? "dir-gain"
+              : "";
+          const attr = className === "" ? "" : ` class="${className}"`;
+          return `<span${attr}>${escapeHtml(line)}</span>`;
+        })
         .join("")
     : "";
   const picture = art === undefined ? "" : icon(art);
@@ -345,10 +360,15 @@ function renderMountainB(view: DirectionView): string {
     const affordable = mountain.pocket >= cost;
     const needs = needsLine(mountain, id);
     const why = DOES[id];
+    const preview =
+      id === "drill"
+        ? milestonePreview(owned(mountain, tier), "drills")
+        : undefined;
+    const gain = eachLine(mountain, id);
     const lines = [
-      eachLine(mountain, id),
-      ...(needs === undefined ? [] : [needs]),
+      needs === undefined ? gain : `${gain} · ${needs}`,
       why,
+      ...(preview === undefined ? [] : [preview]),
     ];
     const art = crewArt(id);
     return buyCard(
@@ -364,13 +384,19 @@ function renderMountainB(view: DirectionView): string {
       art,
     );
   }).join("");
+  const layer = layerOf(mountain);
+  const words = layerCardWords(layer.id);
+  const layerCard =
+    words === undefined
+      ? ""
+      : `<article class="card dir-layer"><p class="dir-band"><span class="dir-name">${escapeHtml(layer.name)}</span> · ${escapeHtml(words.advice)}</p><p class="dir-posts">${escapeHtml(postsLine(mountain))}</p><p class="dir-quiet">One pool of hands. Every machine draws on it.</p></article>`;
   return `<section class="tok-screen dir dir-b">
     <header class="card dir-float">
       <p class="dir-hero-num">${escapeHtml(formatCount(mountain.pocket))}</p>
       <p class="dir-rate">${escapeHtml(formatCompact(rates.crewPerSecond))} stones/s</p>
     </header>
-    <button type="button" class="tok-hit tok-secondary dir-picture dir-picture-b${down(view, "mountain")}" data-tap="${escapeHtml(tap("One swing at the rock."))}">${icon(ART.mountain)}</button>
-    <p class="dir-posts">${escapeHtml(postsLine(mountain))}</p>
+    <button type="button" class="tok-hit tok-secondary dir-picture dir-picture-b${down(view, "mountain")}" data-tap="${escapeHtml(tap("One swing at the rock. The crew keeps going if you don't."))}">${icon(ART.mountain)}</button>
+    ${layerCard}
     <div class="dir-buys">${cards}</div>
     <nav class="dir-tabs">${tools(view)}</nav>
   </section>`;
@@ -387,10 +413,9 @@ function renderUpgradesB(view: DirectionView): string {
     upgradeById("tap"),
     upgradeLevel(mountain, "tap"),
   );
-  const roadsCost = upgradeCost(
-    upgradeById("cartSyn"),
-    upgradeLevel(mountain, "cartSyn"),
-  );
+  const hands = upgradeById("cartSyn");
+  const handsCost = upgradeCost(hands, upgradeLevel(mountain, "cartSyn"));
+  const handsWhy = UPGRADE_DOES.cartSyn ?? hands.perLevel;
   const tease =
     nextRelic(mountain)?.tease ?? "Deeper on, the walls start to glitter.";
   const cards = [
@@ -398,7 +423,7 @@ function renderUpgradesB(view: DirectionView): string {
       view,
       "arms",
       "Strong arms",
-      buyPriceWords(armsCost ?? 0),
+      buyPriceWords(priced(armsCost, "Strong arms")),
       armsCost !== undefined && mountain.pocket >= armsCost,
       [upgradeSpan(mountain, "tap"), UPGRADE_DOES.tap ?? ""],
       `Buys Strong arms. ${upgradeSpan(mountain, "tap")}`,
@@ -419,12 +444,12 @@ function renderUpgradesB(view: DirectionView): string {
     }),
     buyCard(
       view,
-      "roads",
-      "Cart roads",
-      buyPriceWords(roadsCost ?? 0),
-      roadsCost !== undefined && mountain.pocket >= roadsCost,
-      [],
-      `${formatCompact(roadsCost ?? 0)} is more than the pocket holds, so this one waits.`,
+      "hands",
+      hands.name,
+      buyPriceWords(priced(handsCost, hands.name)),
+      handsCost !== undefined && mountain.pocket >= handsCost,
+      [upgradeSpan(mountain, "cartSyn"), handsWhy],
+      `Buys ${hands.name}. ${handsWhy}`,
       ART.workshop,
     ),
   ].join("");

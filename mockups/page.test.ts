@@ -505,10 +505,11 @@ describe("design token mocks (#234)", () => {
     );
     expect(shown.textContent).toContain("Needs 3 workers");
     expect(shown.textContent).toContain("Bites the wall while you rest.");
-    expect(shown.querySelector("[data-tier='borer']")).toHaveProperty(
-      "disabled",
-      true,
-    );
+    expect(shown.textContent).toContain("The Granite");
+    expect(shown.textContent).toContain("Drills love it.");
+    expect(shown.textContent).toContain("One pool of hands");
+    expect(shown.textContent).toContain("Preview · 2 of 10 drills");
+    expect(shown.textContent).toContain("every drill digs twice as fast");
     expect(shown.textContent).not.toMatch(
       /pays back|worth it|best value|\?|in \d+ min/i,
     );
@@ -526,6 +527,18 @@ describe("design token mocks (#234)", () => {
     );
     expect(sheetB.textContent).toContain("Taps ×2 for 10 min.");
     expect(sheetB.textContent).toContain("Crew ×2 for 30 min.");
+    const helped = effectiveRates({
+      ...mountainB,
+      upgrades: {
+        ...mountainB.upgrades,
+        cartSyn: upgradeLevel(mountainB, "cartSyn") + 1,
+      },
+    });
+    expect(sheetB.textContent).toContain("Helping hands");
+    expect(sheetB.textContent).toContain(
+      `Cart ${formatSpeed(rates.tierSpeed.cart)}/s to ${formatSpeed(helped.tierSpeed.cart)}/s each`,
+    );
+    expect(sheetB.textContent).toContain("Each worker makes carts 1% faster.");
     expect(sheetB.textContent).not.toMatch(
       /pays back|worth it|best value|\?|in \d+ min/i,
     );
