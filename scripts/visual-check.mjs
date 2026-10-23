@@ -2123,6 +2123,7 @@ for (const viewport of NOTICE_SIZES) {
     }));
     const named =
       posts.text.includes("on carts") ||
+      posts.label.includes("on carts") ||
       (!opened.hidden && opened.text.includes("on carts"));
     check(
       named &&
