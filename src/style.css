@@ -3897,6 +3897,7 @@ body {
 
 .sheet-host::before {
   top: 0;
+  height: var(--space-8);
   background: linear-gradient(var(--color-card), transparent);
 }
 
@@ -3916,8 +3917,10 @@ body {
   gap: var(--target-gap);
   min-height: 0;
   overflow: auto;
-  /* The footer sits outside this scroller. The inset keeps the last card clear of it. */
+  /* Header and footer sit outside this scroller. The insets keep both end cards clear. */
+  padding-top: var(--space-8);
   padding-bottom: var(--space-8);
+  scroll-padding-top: var(--space-8);
   scroll-padding-bottom: var(--space-8);
 }
 
@@ -4302,6 +4305,7 @@ body {
 }
 
 .sheet-kicker {
+  flex: none;
   margin: 0;
   color: var(--color-ink);
   font-size: var(--type-16);
