@@ -1,6 +1,7 @@
 import { buyCrew, tierLocked } from "./crew";
 import { staffForBuy, staffNeeded } from "./engineers";
 import { FIX_HOLD_MS } from "./hazards";
+import { buyOnTap } from "./card-tap";
 import { floatText, reducedMotion } from "./float-text";
 import { formatCompact, formatCount } from "./format";
 import { milestonePreviewLine } from "./preview";
@@ -25,7 +26,6 @@ import {
   NEEDS_MORE_WORKERS,
   TROUBLE_FIXED,
   crewPostLabel,
-  crewPostsShort,
   crewPostsWords,
   formatSpeed,
   percent,
@@ -101,7 +101,6 @@ export function createCrewPanel({
   const postsDetail = document.createElement("p");
   postsDetail.className = "crew-breakdown";
   postsDetail.hidden = true;
-  let postsOpen = false;
   postsButton.addEventListener("pointerdown", () => {
     postsButton.classList.add("is-pressed");
   });
@@ -238,7 +237,7 @@ export function createCrewPanel({
     card.addEventListener("pointerup", clearHold);
     card.addEventListener("pointercancel", clearHold);
     card.addEventListener("pointerleave", clearHold);
-    card.addEventListener("click", () => {
+    buyOnTap(card, card, () => {
       if (suppressClick) {
         suppressClick = false;
         return;
@@ -303,10 +302,7 @@ export function createCrewPanel({
       gain,
     };
   });
-  const crewPool = document.createElement("p");
-  crewPool.className = "crew-pool";
-  crewPool.textContent = "One pool of hands. Every machine draws on it.";
-  crew.append(crewStatus, postsButton, postsDetail, crewPool, tierGrid, thanks);
+  crew.append(crewStatus, postsButton, postsDetail, tierGrid, thanks);
 
   /** The crew line counts up to the new rate after a purchase. */
   let rateShown: number | undefined;
@@ -406,7 +402,6 @@ export function createCrewPanel({
       }
       card.classList.toggle("tier-locked", locked);
       costIcon.hidden = locked;
-      name.textContent = compact ? tier.shortName : tier.name;
       countBadge.textContent = `×${formatCompact(count)}`;
       countBadge.hidden = count === 0;
       costText.textContent = locked ? "Locked" : formatCompact(price);
@@ -431,6 +426,7 @@ export function createCrewPanel({
       );
       card.classList.toggle(SHEET_DEAR, dear);
       card.classList.toggle(SHEET_LOCKED, locked);
+      name.textContent = tier.name;
       const previewLine =
         locked || tier.id === "helper" || tier.id === "kid"
           ? undefined
@@ -442,7 +438,7 @@ export function createCrewPanel({
         gainLine.textContent = troubleShout(cardTrouble.kind);
         needsLine.hidden = true;
         whyLine.hidden = true;
-      } else if (locked || dear) {
+      } else if (locked) {
         gainLine.hidden = true;
         needsLine.hidden = true;
         whyLine.hidden = true;
@@ -519,10 +515,9 @@ export function createCrewPanel({
       ];
     });
     const fullPosts = crewPostsWords(pool, spare, posts);
-    const shortPosts = crewPostsShort(pool, spare);
     postsButton.hidden = pool <= 0;
-    crewPool.hidden = pool <= 0;
-    postsDetail.hidden = !postsOpen || pool <= 0;
+    // The chips on the line are the breakdown. This sentence stays shut.
+    postsDetail.hidden = true;
     postsDetail.textContent = fullPosts;
     postsButton.setAttribute("aria-label", fullPosts);
     const stationBits = posts
@@ -534,12 +529,8 @@ export function createCrewPanel({
     if (pool <= 0) {
       postsButton.textContent = "";
       delete postsButton.dataset["tight"];
-    } else if (postsOpen) {
-      paintBits([{ src: tierArt.helper, text: shortPosts }]);
-      postsButton.dataset["tight"] = "true";
-      postsButton.setAttribute("aria-expanded", "true");
     } else {
-      paintBits([
+      const bits = [
         {
           src: tierArt.helper,
           text: `${formatCompact(pool)} ${workerWords(pool)}`,
@@ -549,53 +540,59 @@ export function createCrewPanel({
           src: tierArt.helper,
           text: `${formatCompact(Math.max(0, Math.floor(spare)))} free`,
         },
-      ]);
+      ];
+      paintRows([bits]);
       postsButton.classList.remove("is-open");
-      const tight =
+      const row = postsButton.querySelector(".crew-row");
+      const contentWidth =
+        row instanceof HTMLElement ? row.scrollWidth : postsButton.scrollWidth;
+      const wraps =
         postsButton.isConnected &&
         postsButton.clientWidth > 0 &&
-        postsButton.scrollWidth > postsButton.clientWidth + 1;
-      postsButton.dataset["tight"] = tight ? "true" : "false";
-      if (tight) {
-        paintBits([{ src: tierArt.helper, text: shortPosts }]);
-        postsButton.setAttribute("aria-expanded", "false");
-      } else {
-        postsButton.removeAttribute("aria-expanded");
+        Math.max(contentWidth, postsButton.scrollWidth) >
+          postsButton.clientWidth + 1;
+      if (wraps && bits.length > 2) {
+        const mid = Math.ceil(bits.length / 2);
+        paintRows([bits.slice(0, mid), bits.slice(mid)]);
       }
+      postsButton.dataset["tight"] = "false";
+      postsButton.removeAttribute("aria-expanded");
     }
-    postsButton.classList.toggle("is-open", postsOpen);
   };
 
-  const paintBits = (
-    bits: readonly { readonly src: string; readonly text: string }[],
+  const bitElement = (bit: {
+    readonly src: string;
+    readonly text: string;
+  }): HTMLSpanElement => {
+    const item = document.createElement("span");
+    item.className = "crew-bit";
+    const face = document.createElement("img");
+    face.src = bit.src;
+    face.alt = "";
+    face.width = 24;
+    face.height = 24;
+    face.draggable = false;
+    face.setAttribute("aria-hidden", "true");
+    const words = document.createElement("span");
+    words.textContent = bit.text;
+    item.append(face, words);
+    return item;
+  };
+  const paintRows = (
+    rows: readonly (readonly {
+      readonly src: string;
+      readonly text: string;
+    }[])[],
   ): void => {
     postsButton.replaceChildren(
-      ...bits.map((bit) => {
-        const item = document.createElement("span");
-        item.className = "crew-bit";
-        const face = document.createElement("img");
-        face.src = bit.src;
-        face.alt = "";
-        face.width = 24;
-        face.height = 24;
-        face.draggable = false;
-        face.setAttribute("aria-hidden", "true");
-        const words = document.createElement("span");
-        words.textContent = bit.text;
-        item.append(face, words);
-        return item;
+      ...rows.map((bits) => {
+        const row = document.createElement("span");
+        row.className = "crew-row";
+        row.append(...bits.map(bitElement));
+        return row;
       }),
     );
   };
-
-  postsButton.addEventListener("click", () => {
-    if (postsButton.dataset["tight"] !== "true") {
-      return;
-    }
-    postsOpen = !postsOpen;
-    renderCrew();
-  });
-
   const render = renderCrew;
 
   return { crew, tierGrid, thanks, render };

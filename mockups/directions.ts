@@ -441,7 +441,7 @@ function mountainCards(view: DirectionView, mountain: Mountain): string {
 function pocketBlock(mountain: Mountain): string {
   const rates = effectiveRates(mountain);
   return `<div class="dir-pocket">
-    <p class="dir-hero-num">${escapeHtml(formatCount(mountain.pocket))}</p>
+    <p class="dir-hero-num">${escapeHtml(formatCompact(mountain.pocket))}</p>
     <p class="dir-rate">${escapeHtml(formatCompact(rates.crewPerSecond))} stones/s</p>
   </div>`;
 }
@@ -454,10 +454,7 @@ function readout(mountain: Mountain, brief: boolean): string {
     brief || words === undefined
       ? ""
       : `<p class="dir-band"><span class="dir-name">${escapeHtml(layer.name)}</span> · ${escapeHtml(words.advice)}</p>`;
-  const pool = brief
-    ? ""
-    : `<p class="dir-quiet">One pool of hands. Every machine draws on it.</p>`;
-  return `<header class="dir-read">${pocketBlock(mountain)}${band}${crewLine(mountain, brief)}${pool}</header>`;
+  return `<header class="dir-read">${pocketBlock(mountain)}${band}${crewLine(mountain, brief)}</header>`;
 }
 
 function mountainButton(view: DirectionView): string {

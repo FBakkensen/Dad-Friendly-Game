@@ -102,7 +102,13 @@ page is the map, plus the rules that keep it that way.
   and Upgrades open from the first screen. The relic shelf is centred in the
   mountain wrap. Buys and Upgrades scroll inside the sheet so the first card
   clears the header and the last card clears the footer. The sheet stays
-  below the crew line.
+  below the crew line. The pocket pill reserves the menu on both sides and
+  uses the same short counts as the cards. A crew line that does not fit splits
+  into even rows. An unlocked sheet card keeps its price, effect, and why
+  when the pocket is short. A locked card says Locked and hides those lines.
+  Tapping the card buys. A drag that scrolls the list does not. Boost,
+  expedition, craft, and bench countdowns share two rows under the crew.
+  Every active one stays visible.
 
 ## Guards (#118)
 

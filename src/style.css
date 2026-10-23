@@ -285,7 +285,8 @@ body {
 }
 
 .boost-chip,
-.expedition-chip {
+.expedition-chip,
+.craft-chip {
   margin: 0;
   padding: 2px 8px;
   border: 1px solid #f2c46d;
@@ -3705,10 +3706,89 @@ body {
   width: auto;
 }
 
+/* Two rows for every countdown that can run at once. Empty keeps the same height. */
+.effect-row {
+  --effect-chip: calc(var(--space-16) + var(--type-14) * 3);
+  display: grid;
+  grid-template-columns: repeat(var(--effect-cols, 6), minmax(0, 1fr));
+  grid-template-rows: repeat(2, var(--effect-chip));
+  align-items: center;
+  justify-items: stretch;
+  gap: var(--space-4);
+  width: 100%;
+  height: calc(var(--effect-chip) * 2 + var(--space-4));
+  min-height: calc(var(--effect-chip) * 2 + var(--space-4));
+}
+
+.effect-row .effect-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-gold);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.effect-row .effect-chip img {
+  width: var(--space-16);
+  height: var(--space-16);
+}
+
+.effect-name,
+.effect-meta {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.effect-chip[hidden] {
+  display: none;
+}
+
+.workshop-card.is-pressed,
+.upgrade.sheet-card.is-pressed,
+.engineer-promote-row.is-pressed,
+.tier.is-pressed {
+  transform: translateY(var(--space-4));
+}
+
+/* The menu is taken out of the flow. The same inset on both sides keeps the pill centred and clear of it. */
+.pocket-stack {
+  box-sizing: border-box;
+  padding-inline: calc(var(--target-min) + var(--space-8));
+}
+
 .pocket-row {
   flex-direction: column;
   align-items: center;
   gap: 0;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+  overflow: hidden;
+}
+
+.pocket-row.is-tight .pocket,
+.pocket-row.is-tight .pocket-rate {
+  font-size: var(--type-16);
+}
+
+.pocket,
+.pocket-rate {
+  max-width: 100%;
+  min-width: 0;
 }
 
 .pocket-rate {
@@ -3718,6 +3798,7 @@ body {
   font-weight: var(--weight-bold);
   line-height: 1.1;
   text-align: center;
+  white-space: nowrap;
 }
 
 .layer-line {
@@ -3738,38 +3819,37 @@ body {
   display: none;
 }
 
-.crew-pool {
-  margin: 0;
-  color: var(--color-quiet);
-  font-size: var(--type-14);
-  line-height: var(--leading);
-  text-align: center;
-}
-
-.crew-pool[hidden] {
-  display: none;
-}
-
-#app:has(.buys-dialog:not([hidden])) .crew-pool,
-#app:has(.upgrades-dialog:not([hidden])) .crew-pool {
-  display: none;
-}
-
 .crew-posts {
-  flex-wrap: wrap;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
   height: auto;
-  overflow: visible;
+  overflow: hidden;
   white-space: normal;
   text-overflow: unset;
 }
 
+.crew-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  max-width: 100%;
+  min-width: 0;
+}
+
 .crew-bit {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: var(--space-4);
   font-size: var(--type-16);
   font-weight: var(--weight-bold);
   line-height: 1.1;
+  white-space: nowrap;
 }
 
 .crew-bit img {
@@ -4156,8 +4236,12 @@ body {
   font-weight: var(--weight-regular);
 }
 
-.upgrades-dialog .upgrade.is-dear .upgrade-effect {
-  display: none;
+.buys-dialog .tier.sheet-card.sheet-dear .tier-gain,
+.buys-dialog .tier.sheet-card.tier-dear .tier-gain,
+.upgrades-dialog .upgrade.sheet-card.sheet-dear .sheet-card-line,
+.upgrades-dialog .upgrade.sheet-card.is-dear .sheet-card-line,
+.upgrades-dialog .upgrade.boost.sheet-card.is-dear .sheet-card-line {
+  color: var(--color-quiet);
 }
 
 .upgrades-dialog .upgrade-buy,
@@ -4214,6 +4298,12 @@ body {
   box-shadow: none;
   color: var(--color-ink);
   text-align: left;
+}
+
+/* The card's display beats the user-agent [hidden] rule. Keep hidden tiers out of the list. */
+.buys-dialog .tier.sheet-card[hidden],
+.upgrades-dialog .upgrade.sheet-card[hidden] {
+  display: none;
 }
 
 .buys-dialog .tier.sheet-card.sheet-ready,
