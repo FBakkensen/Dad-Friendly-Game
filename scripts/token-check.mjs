@@ -6,7 +6,13 @@
  */
 import { execSync } from "node:child_process";
 
-const diff = execSync("git diff origin/main --unified=0 -- src/*.css", {
+try {
+  execSync("git rev-parse --verify origin/main", { stdio: "ignore" });
+} catch {
+  execSync("git fetch origin main --depth=1", { stdio: "inherit" });
+}
+
+const diff = execSync('git diff origin/main --unified=0 -- "src/*.css"', {
   encoding: "utf8",
 });
 
