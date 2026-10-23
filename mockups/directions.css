@@ -1,0 +1,541 @@
+/* Three mountain directions. Tokens only. The picture flexes so the type can breathe. */
+
+#mock.tok .dir {
+  gap: var(--target-gap);
+  font-variant-numeric: tabular-nums;
+}
+
+#mock.tok .dir p {
+  margin: 0;
+}
+
+#mock.tok .dir-copy,
+#mock.tok .dir-caption,
+#mock.tok .dir-float {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  text-align: center;
+}
+
+#mock.tok .dir-quiet {
+  color: var(--color-quiet);
+  font-size: var(--type-14);
+}
+
+#mock.tok .dir-gold,
+#mock.tok .dir-kicker,
+#mock.tok .dir-next {
+  color: var(--color-gold);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .dir-kicker {
+  font-size: var(--type-20);
+}
+
+#mock.tok .dir-rate {
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .dir-hero-num,
+#mock.tok .dir-hero-b {
+  color: var(--color-gold);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading);
+  font-variant-numeric: tabular-nums;
+}
+
+#mock.tok .dir-hero-num {
+  font-size: var(--type-32);
+}
+
+#mock.tok .dir-hero-b {
+  font-size: var(--type-24);
+}
+
+#mock.tok .dir-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .dir-center {
+  text-align: center;
+}
+
+#mock.tok .dir-picture {
+  flex: 1 1 0;
+  min-height: var(--target-min);
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: var(--space-4);
+  background: var(--color-page);
+}
+
+#mock.tok .dir-picture img {
+  width: auto;
+  height: 100%;
+  max-width: 88%;
+  min-height: 0;
+  object-fit: contain;
+}
+
+#mock.tok .dir-buy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 0;
+}
+
+#mock.tok .dir-dock,
+#mock.tok .dir-tabs,
+#mock.tok .dir-strip,
+#mock.tok .dir-shelf {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(var(--target-min), 1fr));
+  gap: var(--target-gap);
+  width: 100%;
+}
+
+#mock.tok .dir-pair {
+  grid-template-columns: 1fr 1fr;
+}
+
+#mock.tok .dir-tool,
+#mock.tok .dir-chip,
+#mock.tok .dir-portrait-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 0;
+  padding: var(--space-4);
+}
+
+#mock.tok .dir-tool img,
+#mock.tok .dir-chip img,
+#mock.tok .dir-row img,
+#mock.tok .dir-frame-top img {
+  width: var(--space-24);
+  height: var(--space-24);
+  object-fit: contain;
+}
+
+#mock.tok .dir-sheet {
+  background: var(--color-card);
+}
+
+/* A. The number is the night. The buy and the tools dock to the thumb. */
+
+#mock.tok .dir-a .dir-picture-a {
+  flex: 0 1 auto;
+  max-height: calc(var(--space-24) * 5);
+  border: 0;
+  background: transparent;
+}
+
+#mock.tok .dir-a .dir-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+  width: 100%;
+}
+
+#mock.tok .dir-a:not(.dir-sheet) .dir-dock {
+  margin-inline: calc(var(--space-8) * -1);
+  margin-bottom: calc(var(--space-8) * -1);
+  padding: var(--space-8);
+  background: var(--color-card);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+}
+
+#mock.tok .dir-sheet.dir-a .dir-pair:first-of-type {
+  margin-top: auto;
+}
+
+/* B. Sheet. Read-only on top, the rock in the lower middle, buys over the bottom. */
+
+#mock.tok .dir-b:not(.dir-sheet) {
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+#mock.tok .dir-b:not(.dir-sheet) .dir-buys,
+#mock.tok .dir-b:not(.dir-sheet) .dir-tabs {
+  margin-top: var(--space-4);
+}
+
+#mock.tok .dir-b .dir-float {
+  align-self: center;
+  width: auto;
+  padding: var(--space-4) var(--space-16);
+  border: 2px solid var(--color-gold);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+}
+
+#mock.tok .dir-b .dir-read {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  text-align: center;
+}
+
+#mock.tok .dir-b .dir-pocket {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-bottom: var(--space-8);
+  padding: var(--space-4) var(--space-16);
+  border: 2px solid var(--color-gold);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+}
+
+#mock.tok .dir-b-open .dir-pocket {
+  margin-bottom: var(--space-4);
+  padding: 0 var(--space-16);
+}
+
+#mock.tok .dir-b.dir-sheet .dir-pocket {
+  margin-bottom: 0;
+  padding: 0 var(--space-16);
+}
+
+#mock.tok .dir-b .dir-crew {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-8);
+  width: 100%;
+  margin: 0;
+}
+
+#mock.tok .dir-b .dir-crew-bit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .dir-b .dir-crew-bit img {
+  width: var(--space-24);
+  height: var(--space-24);
+  object-fit: contain;
+}
+
+#mock.tok .dir-b-reach .dir-picture-b {
+  flex: 1 1 0;
+}
+
+#mock.tok .dir-tabs-4 {
+  grid-template-columns: repeat(4, minmax(var(--target-min), 1fr));
+}
+
+#mock.tok .dir-b-open .dir-buy {
+  margin-top: var(--space-4);
+}
+
+#mock.tok .dir-b-open .dir-peek {
+  flex: 1 1 0;
+  min-height: var(--target-min);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  overflow: hidden;
+}
+
+#mock.tok .dir-b-open .dir-peek img {
+  width: auto;
+  height: 100%;
+  max-width: 70%;
+  object-fit: contain;
+}
+
+#mock.tok .dir-b .dir-picture-b {
+  margin-inline: calc(var(--space-4) * -1);
+  width: calc(100% + var(--space-8));
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#mock.tok .dir-b .dir-rate {
+  font-size: var(--type-24);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+#mock.tok .dir-b .dir-posts {
+  width: 100%;
+  margin: 0;
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+  text-align: center;
+}
+
+#mock.tok .dir-b .dir-layer {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  padding: var(--space-4) var(--space-8);
+  border: 2px solid var(--color-edge);
+  border-radius: var(--radius-control);
+  text-align: center;
+}
+
+#mock.tok .dir-b .dir-band {
+  margin: 0;
+  color: var(--color-quiet);
+  font-size: var(--type-14);
+}
+
+#mock.tok .dir-b .dir-band .dir-name {
+  color: var(--color-gold);
+}
+
+#mock.tok .dir-b .dir-layer p {
+  margin: 0;
+}
+
+#mock.tok .dir-b .dir-layer p,
+#mock.tok .dir-b .dir-buycard .dir-preview {
+  font-size: var(--type-14);
+  color: var(--color-quiet);
+}
+
+#mock.tok .dir-b .dir-buys {
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+  width: 100%;
+}
+
+#mock.tok .dir-b .dir-buycard {
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  gap: 0;
+  padding: var(--space-4) var(--space-8);
+  text-align: left;
+}
+
+#mock.tok .dir-b .dir-buycard > span:not(.dir-buy-top) {
+  display: block;
+}
+
+#mock.tok .dir-b .dir-buy-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+}
+
+#mock.tok .dir-b .dir-buy-top img {
+  width: var(--space-24);
+  height: var(--space-24);
+  object-fit: contain;
+}
+
+#mock.tok .dir-b .dir-name {
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .dir-b .dir-price {
+  margin-left: auto;
+  font-size: var(--type-20);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+#mock.tok .dir-b .dir-buycard span {
+  font-size: var(--type-14);
+}
+
+#mock.tok .dir-b .dir-buy-top .dir-name {
+  font-size: var(--type-16);
+}
+
+#mock.tok .dir-b .dir-buycard .dir-gain {
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+#mock.tok .dir-b .dir-buy-top .dir-price,
+#mock.tok .dir-b .dir-gain {
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+#mock.tok .dir-b .dir-buy-top .dir-price {
+  font-size: var(--type-20);
+}
+
+#mock.tok .dir-b .dir-state-ready {
+  border-color: var(--color-gold);
+}
+
+#mock.tok .dir-b .dir-state-short {
+  border-color: var(--color-danger);
+}
+
+#mock.tok .dir-b .dir-state-short .dir-needs {
+  color: var(--color-danger);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .dir-b button.tok-hit:disabled {
+  opacity: 1;
+  background: var(--color-disabled);
+  color: var(--color-ink);
+  border-color: var(--color-edge);
+}
+
+#mock.tok .dir-b button.tok-hit:disabled .dir-price {
+  color: var(--color-ink);
+}
+
+#mock.tok .dir-b button.dir-state-locked .dir-price {
+  color: var(--color-quiet);
+  font-size: var(--type-16);
+}
+
+#mock.tok .dir-b.dir-sheet {
+  gap: var(--space-4);
+  padding: 0 var(--space-4);
+}
+
+#mock.tok .dir-b.dir-sheet .dir-float {
+  align-self: stretch;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+#mock.tok .dir-b.dir-sheet .dir-buys {
+  margin-top: auto;
+}
+
+#mock.tok .dir-b.dir-sheet .dir-buy {
+  margin-top: var(--space-4);
+}
+
+#mock.tok .dir-b .dir-tabs {
+  margin-inline: calc(var(--space-4) * -1);
+  margin-bottom: calc(var(--space-4) * -1);
+  padding: var(--space-4);
+  background: var(--color-card);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+}
+
+#mock.tok .dir-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+  width: 100%;
+}
+
+#mock.tok .dir-row {
+  display: grid;
+  grid-template-columns: var(--space-24) 1fr auto;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  text-align: left;
+  padding: var(--space-4) var(--space-8);
+}
+
+/* C. A framed diorama. Pixel art sits in a gold picture frame. */
+
+#mock.tok .dir-c {
+  padding: var(--space-16);
+  gap: var(--space-8);
+}
+
+#mock.tok .dir-frame {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-8);
+  border: 2px solid var(--color-gold);
+  border-radius: var(--radius-sheet);
+  background: var(--color-card);
+  box-shadow: inset 0 0 0 2px var(--color-edge);
+}
+
+#mock.tok .dir-frame-short {
+  flex: 0 0 auto;
+}
+
+#mock.tok .dir-frame-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+}
+
+#mock.tok .dir-frame .dir-picture {
+  border-radius: var(--radius-control);
+  background: var(--color-page);
+}
+
+#mock.tok .dir-portraits {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--target-gap);
+  width: 100%;
+}
+
+#mock.tok .dir-portrait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  padding: var(--space-8);
+  border: 2px solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  text-align: center;
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .dir-portrait img,
+#mock.tok .dir-portrait-btn img {
+  width: var(--target-min);
+  height: var(--target-min);
+  object-fit: contain;
+}
+
+#mock.tok .dir-subject {
+  border-color: var(--color-gold);
+}
+
+#mock.tok .dir-c .dir-sheet {
+  background: var(--color-page);
+}

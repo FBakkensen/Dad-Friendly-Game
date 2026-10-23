@@ -68,6 +68,7 @@ describe("style.css", () => {
     ".start-over",
     ".game-menu",
     ".field-log-sheet",
+    ".buys-dialog",
     ".upgrades-dialog",
     ".engineers-dialog",
     ".update-prompt",

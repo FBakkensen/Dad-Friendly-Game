@@ -19,6 +19,7 @@ import { createAppServices } from "./boot";
 import { mountMountainScreen, showAppUpdate } from "./mountain-screen";
 import { registerServiceWorker } from "./pwa";
 import { bindWriterPageHide } from "./tab-writer";
+import "./tokens.css";
 import "./style.css";
 
 const root = document.getElementById("app");

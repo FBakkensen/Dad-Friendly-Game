@@ -91,14 +91,16 @@ export function createEngineersPanel({
   button.className = "engineers-button";
   button.setAttribute("aria-label", "Engineers");
   button.setAttribute("aria-haspopup", "dialog");
-  button.hidden = true;
   const icon = document.createElement("img");
   icon.src = iconUrl;
   icon.alt = "";
   icon.width = 32;
   icon.height = 32;
   icon.draggable = false;
-  button.append(icon);
+  const label = document.createElement("span");
+  label.className = "thumb-label";
+  label.textContent = "Engineers";
+  button.append(icon, label);
 
   let open = false;
   let confirming = false;
@@ -675,7 +677,7 @@ export function createEngineersPanel({
     if (recalled !== undefined && recalled.post !== "tunnel") {
       recalling = undefined;
     }
-    button.hidden = engineers.length === 0;
+    button.hidden = false;
     button.setAttribute("aria-expanded", open ? "true" : "false");
     sheet.classList.toggle("is-choosing", menu !== undefined);
     sheet.classList.toggle("is-packed", engineers.length >= 3);

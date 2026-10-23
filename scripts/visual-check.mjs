@@ -1,4 +1,4 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement */
 /**
  * Real-browser layout guard (jsdom can't see CSS). Run it with:
  *   npm run visual   (starts its own dev server; part of npm run check, so CI runs it)
@@ -461,15 +461,19 @@ for (const viewport of VIEWPORTS) {
     const lastingBuys = [
       ...sheet.querySelectorAll(".upgrade:not(.boost) .upgrade-buy"),
     ];
-    const widths = lastingBuys.map((button) =>
-      Math.round(button.getBoundingClientRect().width),
-    );
-    const sameWidth =
-      widths.length >= 4 && widths.every((width) => width === widths[0]);
     const cardRight = card?.getBoundingClientRect().right ?? 0;
-    const rightAligned = lastingBuys.every((button) => {
-      const box = button.getBoundingClientRect();
-      return cardRight - box.right <= 16 && cardRight - box.right >= 0;
+    const priceRight = lastingBuys.every((button) => {
+      const name = button.closest(".upgrade")?.querySelector(".upgrade-name");
+      if (name === null || name === undefined) {
+        return false;
+      }
+      const price = button.getBoundingClientRect();
+      const label = name.getBoundingClientRect();
+      return (
+        price.left + 1 >= label.right - 1 &&
+        cardRight - price.right <= 16 &&
+        cardRight - price.right >= -1
+      );
     });
     const lineCount = (node) => {
       const range = document.createRange();
@@ -481,12 +485,10 @@ for (const viewport of VIEWPORTS) {
         !button.textContent.startsWith("Buy") || lineCount(button) <= 1,
     );
     const boosts = [...sheet.querySelectorAll(".upgrade.boost")];
-    const sideBySide =
+    const stacked =
       boosts.length === 2 &&
-      Math.abs(
-        boosts[0].getBoundingClientRect().top -
-          boosts[1].getBoundingClientRect().top,
-      ) <= 1;
+      boosts[1].getBoundingClientRect().top >=
+        boosts[0].getBoundingClientRect().bottom - 1;
     const lockedOk = [...sheet.querySelectorAll(".upgrade.is-locked")].every(
       (row) => {
         const name = row.querySelector(".upgrade-name");
@@ -508,10 +510,9 @@ for (const viewport of VIEWPORTS) {
       border,
       shadow,
       typeOk,
-      sameWidth,
-      rightAligned,
+      priceRight,
       buyLinesOk,
-      sideBySide,
+      stacked,
       lockedOk,
       effectsOk,
       background,
@@ -523,10 +524,9 @@ for (const viewport of VIEWPORTS) {
       sheetFit.border &&
       sheetFit.shadow &&
       sheetFit.typeOk &&
-      sheetFit.sameWidth &&
-      sheetFit.rightAligned &&
+      sheetFit.priceRight &&
       sheetFit.buyLinesOk &&
-      sheetFit.sideBySide &&
+      sheetFit.stacked &&
       sheetFit.lockedOk &&
       sheetFit.effectsOk,
     `${size} upgrades sheet fits, with an opaque card`,
@@ -537,10 +537,9 @@ for (const viewport of VIEWPORTS) {
     !sheetFit.border ||
     !sheetFit.shadow ||
     !sheetFit.typeOk ||
-    !sheetFit.sameWidth ||
-    !sheetFit.rightAligned ||
+    !sheetFit.priceRight ||
     !sheetFit.buyLinesOk ||
-    !sheetFit.sideBySide ||
+    !sheetFit.stacked ||
     !sheetFit.lockedOk ||
     !sheetFit.effectsOk
   ) {
@@ -666,6 +665,12 @@ for (const viewport of [
         content: `* { font-family: "${font}" !important; }`,
       });
     }
+    await page.evaluate(() => {
+      const openBuys = document.querySelector(".buys-button");
+      if (openBuys instanceof HTMLButtonElement) {
+        openBuys.click();
+      }
+    });
     const cards = await page.evaluate(() =>
       [...document.querySelectorAll(".tier")]
         .filter((card) => !card.hidden)
@@ -680,8 +685,8 @@ for (const viewport of [
     );
     const label = `${size} tier cards with ${String(crew.helpers)} helpers, ${String(crew.carts)} carts${font === undefined ? "" : ` in ${font}`}`;
     check(
-      cards.every((card) => card.height === 64),
-      `${label} are all 64px tall`,
+      cards.every((card) => card.height >= 48),
+      `${label} are at least 48px tall`,
     );
     const clipped = cards.flatMap((card) => card.clipped);
     check(
@@ -726,6 +731,12 @@ for (const viewport of [
       crew.machines === 999 &&
       crew.upgrades === undefined
     ) {
+      await page.evaluate(() => {
+        const closeBuys = document.querySelector(".buys-close");
+        if (closeBuys instanceof HTMLButtonElement) {
+          closeBuys.click();
+        }
+      });
       check(
         await engineersSheetFits(page),
         `${label} engineers sheet fits with no scroll`,
@@ -1157,6 +1168,7 @@ for (const standalone of [false, true]) {
     { version: 4, mountain: CREW, lastSeen: Date.now() },
     { standalone, search: "?trouble=cave-in" },
   );
+  await page.click(".buys-button");
   const card = await page
     .$eval('[data-tier="cart"]', (el) => {
       const box = el.getBoundingClientRect();
@@ -2064,6 +2076,7 @@ for (const viewport of NOTICE_SIZES) {
     );
     const cart = rates.find((line) => line.includes("166"));
     const borer = rates.find((line) => line.includes("595"));
+    await page.click(".buys-button");
     const inside = await page.$$eval(".tier-rate", (nodes) =>
       nodes.every((node) => {
         const card = node.closest(".tier");
@@ -2072,6 +2085,9 @@ for (const viewport of NOTICE_SIZES) {
         }
         const rate = node.getBoundingClientRect();
         const box = card.getBoundingClientRect();
+        if (getComputedStyle(node).display === "none") {
+          return true;
+        }
         return (
           rate.height > 0 &&
           rate.bottom <= box.bottom + 1 &&
@@ -2106,6 +2122,7 @@ for (const viewport of NOTICE_SIZES) {
     }));
     const named =
       posts.text.includes("on carts") ||
+      posts.label.includes("on carts") ||
       (!opened.hidden && opened.text.includes("on carts"));
     check(
       named &&

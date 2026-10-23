@@ -1,5 +1,14 @@
 import { formatCount } from "../src/format.ts";
 import {
+  renderMountainDirection,
+  renderUpgradesDirection,
+} from "./directions.ts";
+import {
+  renderMountainTokens,
+  renderTokenSheet,
+  renderUpgradesTokens,
+} from "./token-screens.ts";
+import {
   BENCH_BUSY,
   BENCH_BUSY_ASIDE,
   BENCH_FREE,
@@ -44,6 +53,16 @@ const SCENES = [
   "craft-done",
   "other-tab",
   "save-conflict",
+  "token-sheet",
+  "mountain-tokens",
+  "upgrades-tokens",
+  "mountain-a",
+  "upgrades-a",
+  "mountain-b",
+  "mountain-b-open",
+  "upgrades-b",
+  "mountain-c",
+  "upgrades-c",
 ] as const;
 const PHASES = ["rest", "press", "float", "hammer", "busy", "shake"] as const;
 
@@ -432,6 +451,26 @@ export function renderMock(view: MockView): string {
       return renderOtherTab(view);
     case "save-conflict":
       return renderSaveConflict(view);
+    case "token-sheet":
+      return renderTokenSheet(view);
+    case "mountain-tokens":
+      return renderMountainTokens(view);
+    case "upgrades-tokens":
+      return renderUpgradesTokens(view);
+    case "mountain-a":
+      return renderMountainDirection("a", view);
+    case "upgrades-a":
+      return renderUpgradesDirection("a", view);
+    case "mountain-b":
+      return renderMountainDirection("b", view);
+    case "mountain-b-open":
+      return renderMountainDirection("b-open", view);
+    case "upgrades-b":
+      return renderUpgradesDirection("b", view);
+    case "mountain-c":
+      return renderMountainDirection("c", view);
+    case "upgrades-c":
+      return renderUpgradesDirection("c", view);
     default: {
       const never: never = view.scene;
       return never;
@@ -443,6 +482,14 @@ function mount(root: HTMLElement, view: MockView): void {
   const classes = [`scene-${view.scene}`, `phase-${view.phase}`];
   if (view.shot) {
     classes.push("shot");
+  }
+  if (
+    view.scene === "token-sheet" ||
+    view.scene.endsWith("-tokens") ||
+    view.scene.startsWith("mountain-") ||
+    view.scene.startsWith("upgrades-")
+  ) {
+    classes.push("tok");
   }
   if (view.control !== "") {
     classes.push(`control-${view.control}`);

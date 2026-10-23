@@ -3,6 +3,21 @@ import { staffForBuy, staffNeeded } from "./engineers";
 import { FIX_HOLD_MS } from "./hazards";
 import { floatText, reducedMotion } from "./float-text";
 import { formatCompact, formatCount } from "./format";
+import { milestonePreviewLine } from "./preview";
+import {
+  SHEET_CARD,
+  SHEET_CARD_BODY,
+  SHEET_CARD_ICON,
+  SHEET_CARD_LINE,
+  SHEET_CARD_PRICE,
+  SHEET_CARD_QUIET,
+  SHEET_CARD_TITLE,
+  SHEET_DEAR,
+  SHEET_LOCKED,
+  SHEET_READY,
+  SHEET_SCROLL,
+  SHEET_SHORT,
+} from "./sheet-card";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates, tendingGain, type TendTier } from "./rates";
 import { RELICS } from "./relics";
@@ -41,6 +56,15 @@ function tendTierOf(id: TierId): TendTier | undefined {
       return undefined;
   }
 }
+
+const TIER_WHY: Record<TierId, string> = {
+  helper: "Another pair of hands on the rock.",
+  cart: "Hauls what the crew already cut.",
+  drill: "Bites the wall while you rest.",
+  borer: "Chews a tunnel you can walk from.",
+  machine: "The big one, with a crew of its own.",
+  kid: "Mines, and teaches the others a little.",
+};
 
 const COUNT_STEPS = 8;
 const COUNT_STEP_MS = 60;
@@ -89,7 +113,7 @@ export function createCrewPanel({
   postsButton.addEventListener("pointerleave", releasePosts);
   crewStatus.setAttribute("aria-live", "polite");
   const tierGrid = document.createElement("div");
-  tierGrid.className = "tier-grid";
+  tierGrid.className = `tier-grid ${SHEET_SCROLL}`;
   const thanks = document.createElement("p");
   thanks.className = "trouble-thanks";
   thanks.setAttribute("aria-live", "polite");
@@ -131,21 +155,21 @@ export function createCrewPanel({
   const tierCards = TIERS.map((tier) => {
     const card = document.createElement("button");
     card.type = "button";
-    card.className = "tier";
+    card.className = `tier ${SHEET_CARD}`;
     card.dataset["tier"] = tier.id;
     const art = document.createElement("img");
-    art.className = "tier-art";
+    art.className = `tier-art ${SHEET_CARD_ICON}`;
     art.src = tierArt[tier.id];
     art.alt = "";
     art.width = 32;
     art.height = 32;
     art.draggable = false;
     const words = document.createElement("span");
-    words.className = "tier-words";
+    words.className = `tier-words ${SHEET_CARD_BODY}`;
     const name = document.createElement("span");
-    name.className = "tier-name";
+    name.className = `tier-name ${SHEET_CARD_TITLE}`;
     const cost = document.createElement("span");
-    cost.className = "tier-cost";
+    cost.className = `tier-cost ${SHEET_CARD_PRICE}`;
     const costIcon = document.createElement("img");
     costIcon.className = "tier-cost-icon";
     costIcon.src = stoneUrl;
@@ -160,7 +184,22 @@ export function createCrewPanel({
     countBadge.setAttribute("aria-hidden", "true");
     const rate = document.createElement("span");
     rate.className = "tier-rate";
-    words.append(name, cost, rate);
+    const gainLine = document.createElement("span");
+    gainLine.className = "tier-gain";
+    gainLine.hidden = true;
+    const needsLine = document.createElement("span");
+    needsLine.className = "tier-needs";
+    needsLine.hidden = true;
+    const pace = document.createElement("span");
+    pace.className = `tier-pace ${SHEET_CARD_LINE}`;
+    pace.append(gainLine, needsLine);
+    const whyLine = document.createElement("span");
+    whyLine.className = `tier-why ${SHEET_CARD_LINE} ${SHEET_CARD_QUIET}`;
+    whyLine.hidden = true;
+    const preview = document.createElement("span");
+    preview.className = "tier-preview";
+    preview.hidden = true;
+    words.append(name, cost, rate, pace, whyLine, preview);
     const mark = document.createElement("span");
     mark.className = "engineer-mark";
     mark.hidden = true;
@@ -254,12 +293,20 @@ export function createCrewPanel({
       costText,
       countBadge,
       rate,
+      gainLine,
+      needsLine,
+      pace,
+      whyLine,
+      preview,
       costIcon,
       mark,
       gain,
     };
   });
-  crew.append(crewStatus, postsButton, postsDetail, tierGrid, thanks);
+  const crewPool = document.createElement("p");
+  crewPool.className = "crew-pool";
+  crewPool.textContent = "One pool of hands. Every machine draws on it.";
+  crew.append(crewStatus, postsButton, postsDetail, crewPool, tierGrid, thanks);
 
   /** The crew line counts up to the new rate after a purchase. */
   let rateShown: number | undefined;
@@ -308,6 +355,7 @@ export function createCrewPanel({
       0,
     );
     crewStatus.classList.toggle("crew-short", rates.helpersShort > 0);
+    crewStatus.classList.toggle("crew-waiting", rate === 0);
     crewStatus.textContent =
       rates.helpersShort > 0
         ? `${formatCompact(rate)}/s · ${formatCompact(idle)} idle, need ${formatCompact(rates.helpersShort)} ${workerWords(rates.helpersShort)}`
@@ -329,6 +377,11 @@ export function createCrewPanel({
       costText,
       countBadge,
       rate: tierRate,
+      gainLine,
+      needsLine,
+      pace,
+      whyLine,
+      preview,
       costIcon,
       mark,
       gain,
@@ -365,6 +418,44 @@ export function createCrewPanel({
       // engineer would tend it. Say so even when the ones you own still run.
       const staff = staffForBuy(current, tier);
       const needsMore = !locked && staff > 0 && spare < staff;
+      const dear =
+        !locked && cardTrouble === undefined && current.pocket < price;
+      const ready = !locked && !needsMore && !dear && cardTrouble === undefined;
+      card.classList.toggle("tier-ready", !locked && !needsMore && !dear);
+      card.classList.toggle("tier-short", needsMore && !dear);
+      card.classList.toggle("tier-dear", dear);
+      card.classList.toggle(SHEET_READY, ready);
+      card.classList.toggle(
+        SHEET_SHORT,
+        needsMore && !dear && cardTrouble === undefined,
+      );
+      card.classList.toggle(SHEET_DEAR, dear);
+      card.classList.toggle(SHEET_LOCKED, locked);
+      const previewLine =
+        locked || tier.id === "helper" || tier.id === "kid"
+          ? undefined
+          : milestonePreviewLine(count, `${tier.shortName.toLowerCase()}s`);
+      preview.hidden = previewLine === undefined;
+      preview.textContent = previewLine ?? "";
+      if (cardTrouble !== undefined) {
+        gainLine.hidden = false;
+        gainLine.textContent = troubleShout(cardTrouble.kind);
+        needsLine.hidden = true;
+        whyLine.hidden = true;
+      } else if (locked || dear) {
+        gainLine.hidden = true;
+        needsLine.hidden = true;
+        whyLine.hidden = true;
+      } else {
+        gainLine.hidden = false;
+        gainLine.textContent = `+${formatSpeed(speed)}/s each`;
+        const bill = staffBillWords(staff, spare);
+        needsLine.hidden = bill === undefined;
+        needsLine.textContent = bill ?? "";
+        whyLine.hidden = false;
+        whyLine.textContent = TIER_WHY[tier.id];
+      }
+      pace.hidden = gainLine.hidden && needsLine.hidden;
       card.classList.toggle("tier-idle", !locked && idleHere > 0);
       card.classList.toggle("tier-needs-workers", needsMore);
       const who = tendingEngineer(current.engineers, tier.id);
@@ -423,24 +514,42 @@ export function createCrewPanel({
         {
           label,
           workers: rates.running[tier.id] * staffNeeded(current, tier),
+          art: tierArt[tier.id],
         },
       ];
     });
     const fullPosts = crewPostsWords(pool, spare, posts);
     const shortPosts = crewPostsShort(pool, spare);
     postsButton.hidden = pool <= 0;
+    crewPool.hidden = pool <= 0;
     postsDetail.hidden = !postsOpen || pool <= 0;
     postsDetail.textContent = fullPosts;
     postsButton.setAttribute("aria-label", fullPosts);
+    const stationBits = posts
+      .filter((post) => post.workers > 0)
+      .map((post) => ({
+        src: post.art,
+        text: `${formatCompact(post.workers)} on ${post.label}`,
+      }));
     if (pool <= 0) {
       postsButton.textContent = "";
       delete postsButton.dataset["tight"];
     } else if (postsOpen) {
-      postsButton.textContent = shortPosts;
+      paintBits([{ src: tierArt.helper, text: shortPosts }]);
       postsButton.dataset["tight"] = "true";
       postsButton.setAttribute("aria-expanded", "true");
     } else {
-      postsButton.textContent = fullPosts;
+      paintBits([
+        {
+          src: tierArt.helper,
+          text: `${formatCompact(pool)} ${workerWords(pool)}`,
+        },
+        ...stationBits,
+        {
+          src: tierArt.helper,
+          text: `${formatCompact(Math.max(0, Math.floor(spare)))} free`,
+        },
+      ]);
       postsButton.classList.remove("is-open");
       const tight =
         postsButton.isConnected &&
@@ -448,13 +557,35 @@ export function createCrewPanel({
         postsButton.scrollWidth > postsButton.clientWidth + 1;
       postsButton.dataset["tight"] = tight ? "true" : "false";
       if (tight) {
-        postsButton.textContent = shortPosts;
+        paintBits([{ src: tierArt.helper, text: shortPosts }]);
         postsButton.setAttribute("aria-expanded", "false");
       } else {
         postsButton.removeAttribute("aria-expanded");
       }
     }
     postsButton.classList.toggle("is-open", postsOpen);
+  };
+
+  const paintBits = (
+    bits: readonly { readonly src: string; readonly text: string }[],
+  ): void => {
+    postsButton.replaceChildren(
+      ...bits.map((bit) => {
+        const item = document.createElement("span");
+        item.className = "crew-bit";
+        const face = document.createElement("img");
+        face.src = bit.src;
+        face.alt = "";
+        face.width = 24;
+        face.height = 24;
+        face.draggable = false;
+        face.setAttribute("aria-hidden", "true");
+        const words = document.createElement("span");
+        words.textContent = bit.text;
+        item.append(face, words);
+        return item;
+      }),
+    );
   };
 
   postsButton.addEventListener("click", () => {
@@ -467,5 +598,5 @@ export function createCrewPanel({
 
   const render = renderCrew;
 
-  return { crew, render };
+  return { crew, tierGrid, thanks, render };
 }

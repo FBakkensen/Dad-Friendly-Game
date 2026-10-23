@@ -717,7 +717,7 @@ describe("gain of one more on a machine card", () => {
         staff: 1,
         spare: 0,
       }),
-    ).toBe("+12\u2009·\u2009166/s · Needs 1 worker · 0 free");
+    ).toBe("+12\u2009·\u2009166/s · Needs 1 worker");
     expect(
       tierPaceWords({
         compact: true,
@@ -739,7 +739,7 @@ describe("gain of one more on a machine card", () => {
         staff: 3,
         spare: 0,
       }),
-    ).toBe("+60\u2009·\u2009300/s · Needs 3 workers · 0 free");
+    ).toBe("+60\u2009·\u2009300/s · Needs 3 workers");
   });
 
   it("says how many workers a machine still needs, and keeps the gain", () => {
@@ -753,7 +753,7 @@ describe("gain of one more on a machine card", () => {
         staff: 8,
         spare: 0,
       }),
-    ).toBe("+595/s · Needs 8 workers · 0 free");
+    ).toBe("+595/s · Needs 8 workers");
     expect(
       tierPaceWords({
         compact: false,
@@ -764,7 +764,7 @@ describe("gain of one more on a machine card", () => {
         staff: 1,
         spare: 0,
       }),
-    ).toBe("+10 each · 20/s · Needs 1 worker · 0 free");
+    ).toBe("+10 each · 20/s · Needs 1 worker");
   });
 
   it("keeps the wide card's percent, each, and empty-tier line", () => {
@@ -778,7 +778,7 @@ describe("gain of one more on a machine card", () => {
         staff: 1,
         spare: 12,
       }),
-    ).toBe("+11 \u219112% · 56/s · 1 worker");
+    ).toBe("+11 \u219112% · 56/s · Needs 1 worker");
     expect(
       tierPaceWords({
         compact: false,
@@ -789,7 +789,7 @@ describe("gain of one more on a machine card", () => {
         staff: 1,
         spare: 4,
       }),
-    ).toBe("+10 each · 30/s · 1 worker");
+    ).toBe("+10 each · 30/s · Needs 1 worker");
     expect(
       tierPaceWords({
         compact: false,
@@ -800,7 +800,7 @@ describe("gain of one more on a machine card", () => {
         staff: 1,
         spare: 200,
       }),
-    ).toBe("+10 · 1,500/s · 1 worker");
+    ).toBe("+10 · 1,500/s · Needs 1 worker");
     expect(
       tierPaceWords({
         compact: false,
@@ -827,11 +827,11 @@ describe("gain of one more on a machine card", () => {
 
   it("names the real crew a machine needs, and where the workers are", () => {
     expect(staffBillWords(0, 4)).toBeUndefined();
-    expect(staffBillWords(1, 3)).toBe("1 worker");
-    expect(staffBillWords(3, 5)).toBe("3 workers");
-    expect(staffBillWords(8, 5)).toBe("Needs 8 workers · 5 free");
-    expect(staffBillWords(25, 0)).toBe("Needs 25 workers · 0 free");
-    expect(staffBillWords(5, 5)).toBe("5 workers");
+    expect(staffBillWords(1, 3)).toBe("Needs 1 worker");
+    expect(staffBillWords(3, 5)).toBe("Needs 3 workers");
+    expect(staffBillWords(8, 5)).toBe("Needs 8 workers");
+    expect(staffBillWords(25, 0)).toBe("Needs 25 workers");
+    expect(staffBillWords(5, 5)).toBe("Needs 5 workers");
     expect(
       crewPostsWords(28, 0, [
         { label: "carts", workers: 13 },

@@ -1,7 +1,7 @@
 import { send } from "./expeditions";
 import { RELICS } from "./relics";
 import { readSessionSave, writeSessionSave } from "./session-save";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createMemoryAuth,
   createUnconfiguredAuth,
@@ -488,7 +488,7 @@ describe("crew tiers on screen", () => {
     expect(borer.querySelector(".tier-name")?.textContent).toBe("Borer");
     // The first borer's engineer tends them: 595 becomes 699, shown floored.
     expect(borer.querySelector(".tier-rate")?.textContent).toBe(
-      "+699\u2009·\u20091,398/s · Needs 8 workers · 0 free",
+      "+699\u2009·\u20091,398/s · Needs 8 workers",
     );
     expect(borer.querySelector(".tier-count")?.textContent).toBe("×2");
     expect(borer.getAttribute("aria-label")).toContain("tunnel borer");
@@ -1400,7 +1400,7 @@ describe("what the crew gives", () => {
       "+1 each · 4/s",
     );
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
-      "+10 each · 30/s · 1 worker",
+      "+10 each · 30/s · Needs 1 worker",
     );
     const big = mountScreen({
       storage: (() => {
@@ -1414,7 +1414,7 @@ describe("what the crew gives", () => {
       })(),
     });
     expect(big.text('[data-tier="cart"] .tier-rate')).toBe(
-      "+10 · 1,500/s · Needs 1 worker · 0 free",
+      "+10 · 1,500/s · Needs 1 worker",
     );
   });
 
@@ -1439,7 +1439,7 @@ describe("what the crew gives", () => {
         "Your crew mines 44 stones a second",
       );
       expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
-        "+10 each · 40/s · Needs 1 worker · 0 free",
+        "+10 each · 40/s · Needs 1 worker",
       );
       await vi.advanceTimersByTimeAsync(1_200);
       expect(cart?.querySelector(".float-gain")).toBeNull();
@@ -1522,9 +1522,8 @@ describe("upgrades on screen", () => {
       }),
     });
     document.body.append(screen.root);
-    const button = screen.root.querySelector<HTMLButtonElement>(
-      ".pocket-row .upgrades-button",
-    );
+    const button =
+      screen.root.querySelector<HTMLButtonElement>(".upgrades-button");
     const sheet = screen.root.querySelector<HTMLElement>(".upgrades-dialog");
     expect(button?.classList.contains("upgrades-ready")).toBe(true);
     expect(button?.getAttribute("aria-label")).toBe(
@@ -1538,8 +1537,9 @@ describe("upgrades on screen", () => {
       screen.root.querySelector(".upgrades-close"),
     );
     expect(screen.text('[data-upgrade="tap"] .upgrade-name')).toBe(
-      "Strong arms · level 0 of 10",
+      "Strong arms",
     );
+    expect(screen.text('[data-upgrade="tap"] .sheet-level')).toBe("Lv 0/10");
     expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
       "Taps +1.65%, now 1.",
     );
@@ -1549,8 +1549,9 @@ describe("upgrades on screen", () => {
     expect(buy?.textContent).toBe("Buy · 46K");
     buy?.click();
     expect(screen.text('[data-upgrade="tap"] .upgrade-name')).toBe(
-      "Strong arms · level 1 of 10",
+      "Strong arms",
     );
+    expect(screen.text('[data-upgrade="tap"] .sheet-level')).toBe("Lv 1/10");
     expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
       "Taps +1.65%, now 9.",
     );
@@ -1707,12 +1708,18 @@ describe("lasting upgrades on screen", () => {
     );
     expect(boots?.textContent).toBe("Locked");
     expect(screen.text('[data-upgrade="boots"] .upgrade-name')).toBe(
-      "Better boots · 10 workers",
+      "Better boots",
+    );
+    expect(screen.text('[data-upgrade="boots"] .upgrade-why')).toBe(
+      "10 workers",
     );
     expect(boots?.disabled).toBe(true);
     expect(screen.text('[data-upgrade="steady"] .upgrade-buy')).toBe("Locked");
     expect(screen.text('[data-upgrade="steady"] .upgrade-name')).toBe(
-      "Steady hands · first cart",
+      "Steady hands",
+    );
+    expect(screen.text('[data-upgrade="steady"] .upgrade-why')).toBe(
+      "first cart",
     );
 
     screen.root
@@ -1837,7 +1844,10 @@ describe("crew synergies on screen", () => {
       "Locked",
     );
     expect(screen.text('[data-upgrade="drillSyn"] .upgrade-name')).toBe(
-      "Cart roads · 5 drills",
+      "Cart roads",
+    );
+    expect(screen.text('[data-upgrade="drillSyn"] .upgrade-why')).toBe(
+      "5 drills",
     );
     screen.root
       .querySelector<HTMLButtonElement>('[data-upgrade="cartSyn"] .upgrade-buy')
@@ -1846,7 +1856,7 @@ describe("crew synergies on screen", () => {
       "+1% each worker; carts now 12%.",
     );
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
-      "+11 \u219112% · 56/s · 1 worker",
+      "+11 \u219112% · 56/s · Needs 1 worker",
     );
     expect(
       screen.root
@@ -1867,7 +1877,10 @@ describe("crew synergy copy before the tier exists", () => {
     const screen = mountScreen({ storage });
     expect(screen.text('[data-upgrade="machineSyn"] .upgrade-effect')).toBe("");
     expect(screen.text('[data-upgrade="machineSyn"] .upgrade-name')).toBe(
-      "Borer tracks · Machine",
+      "Borer tracks",
+    );
+    expect(screen.text('[data-upgrade="machineSyn"] .upgrade-why')).toBe(
+      "Machine",
     );
     expect(screen.text('[data-upgrade="machineSyn"] .upgrade-buy')).toBe(
       "Locked",
@@ -1892,7 +1905,7 @@ describe("crew staffing on screen", () => {
     const screen = mountScreen({ storage });
     // 5 workers: one drill (3), then two carts; one cart and one drill idle.
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
-      "+10\u2009·\u200920/s · Needs 1 worker · 0 free",
+      "+10\u2009·\u200920/s · Needs 1 worker",
     );
     expect(
       screen.root
@@ -1910,7 +1923,7 @@ describe("crew staffing on screen", () => {
         ?.getAttribute("aria-label"),
     ).toContain(NEEDS_MORE_WORKERS);
     expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
-      "+60\u2009·\u200960/s · Needs 3 workers · 0 free",
+      "+60\u2009·\u200960/s · Needs 3 workers",
     );
     expect(screen.text(".crew-status")).toBe("85/s · 2 idle, need 4 workers");
 
@@ -1937,11 +1950,11 @@ describe("crew staffing on screen", () => {
     const screen = mountScreen({ storage });
     const borer = screen.root.querySelector('[data-tier="borer"]');
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+595/s · Needs 8 workers · 5 free",
+      "+595/s · Needs 8 workers",
     );
     expect(borer?.getAttribute("aria-label")).toContain(NEEDS_MORE_WORKERS);
     expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
-      "+60\u2009·\u200960/s · 3 workers",
+      "+60\u2009·\u200960/s · Needs 3 workers",
     );
   });
 
@@ -1960,7 +1973,7 @@ describe("crew staffing on screen", () => {
         screen.root.querySelector<HTMLButtonElement>('[data-tier="cart"]');
       cart?.click();
       expect(cart?.querySelector(".float-gain")?.textContent).toBe(
-        "+10/s · Needs 1 worker · 0 free",
+        "+10/s · Needs 1 worker",
       );
       expect(screen.text(".crew-status")).toBe("11/s · 1 idle, need 1 worker");
     } finally {
@@ -1990,17 +2003,21 @@ describe("Flemming's cart (#216)", () => {
       "+2.4\u2009·\u200966/s",
     );
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
-      "+12\u2009·\u2009166/s · Needs 1 worker · 0 free",
+      "+12\u2009·\u2009166/s · Needs 1 worker",
     );
     expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
-      "+60\u2009·\u2009300/s · Needs 3 workers · 0 free",
+      "+60\u2009·\u2009300/s · Needs 3 workers",
     );
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+595/s · Needs 8 workers · 0 free",
+      "+595/s · Needs 8 workers",
     );
-    expect(screen.text(".crew-posts")).toBe(
-      "28 workers: 13 on carts, 15 on drills, 0 free",
-    );
+    expect(
+      screen.root.querySelector(".crew-posts")?.getAttribute("aria-label"),
+    ).toBe("28 workers: 13 on carts, 15 on drills, 0 free");
+    expect(screen.text(".crew-posts")).toContain("28 workers");
+    expect(screen.text(".crew-posts")).toContain("13 on carts");
+    expect(screen.text(".crew-posts")).toContain("15 on drills");
+    expect(screen.text(".crew-posts")).toContain("0 free");
     expect(
       screen.root.querySelector<HTMLElement>(".crew-breakdown")?.hidden,
     ).toBe(true);
@@ -2157,7 +2174,7 @@ describe("first engineer note (#144)", () => {
       screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
     ).toBe(true);
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+699\u2009·\u2009699/s · Needs 8 workers · 0 free",
+      "+699\u2009·\u2009699/s · Needs 8 workers",
     );
   });
 
@@ -2201,7 +2218,7 @@ describe("first engineer note (#144)", () => {
     ).toBe(true);
     expect(screen.text('[data-tier="borer"] .tier-count')).toBe("×1");
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+699\u2009·\u2009699/s · Needs 8 workers · 0 free",
+      "+699\u2009·\u2009699/s · Needs 8 workers",
     );
     expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×11");
   });
@@ -2819,7 +2836,7 @@ describe("engineers sheet (#145)", () => {
     return sheet;
   };
 
-  it("hides the button until the first engineer arrives with a borer", () => {
+  it("keeps Engineers on the bar, and opens the sheet once a borer arrives", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -2834,7 +2851,12 @@ describe("engineers sheet (#145)", () => {
     const screen = mountScreen({ storage });
     const button =
       screen.root.querySelector<HTMLButtonElement>(".engineers-button");
-    expect(button?.hidden).toBe(true);
+    expect(button?.hidden).toBe(false);
+    expect(button?.textContent).toContain("Engineers");
+    button?.click();
+    expect(
+      screen.root.querySelector(".engineers-dialog")?.hasAttribute("hidden"),
+    ).toBe(true);
     screen.root
       .querySelector<HTMLButtonElement>('[data-tier="borer"]')
       ?.click();
@@ -2895,7 +2917,7 @@ describe("engineers sheet (#145)", () => {
     );
     expect(borer?.getAttribute("aria-label")).toContain("Ada tends them.");
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+699\u2009·\u2009699/s · 8 workers",
+      "+699\u2009·\u2009699/s · Needs 8 workers",
     );
 
     const sheet = openSheet(screen.root);
@@ -2957,10 +2979,10 @@ describe("engineers sheet (#145)", () => {
       true,
     );
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+595\u2009·\u2009595/s · 8 workers",
+      "+595\u2009·\u2009595/s · Needs 8 workers",
     );
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
-      "+11\u2009·\u200911/s · 1 worker",
+      "+11\u2009·\u200911/s · Needs 1 worker",
     );
     expect(readSessionSave({ storage })?.mountain.engineers?.[0]?.post).toBe(
       "cart",
@@ -2977,7 +2999,7 @@ describe("engineers sheet (#145)", () => {
       true,
     );
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
-      "+10\u2009·\u200910/s · 1 worker",
+      "+10\u2009·\u200910/s · Needs 1 worker",
     );
 
     ada?.querySelector<HTMLButtonElement>('[data-post="cart"]')?.click();
@@ -4106,6 +4128,114 @@ describe("layer card, material line, and craft-done notice", () => {
       screen.root.querySelector(".is-earlier-run .save-conflict-play"),
     ).toBeNull();
     expect(screen.text(".saved-copies")).not.toMatch(/\?/);
+    screen.progress.dispose();
+  });
+});
+
+describe("sheet buys", () => {
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("opens the buys over the rock and previews a milestone only with the flag", () => {
+    window.history.replaceState(null, "", "/?preview=milestones");
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(12_000_000),
+        helpers: 13,
+        carts: 5,
+        drills: 2,
+        pocket: 2_500_000,
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const dialog = screen.root.querySelector<HTMLElement>(".buys-dialog");
+    expect(dialog?.hidden).toBe(true);
+    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    expect(dialog?.hidden).toBe(false);
+    expect(screen.text(".pocket-rate")).toMatch(/stones\/s$/);
+    expect(screen.text(".layer-line")).toContain("The Granite");
+    expect(screen.text(".layer-line")).toContain("Drills love it.");
+    expect(screen.text(".thumb-bar")).toContain("Buys");
+    expect(screen.text(".thumb-bar")).toContain("Workshop");
+    expect(screen.text(".thumb-bar")).toContain("Engineers");
+    expect(screen.text(".thumb-bar")).toContain("Upgrades");
+    expect(
+      screen.root.querySelector(".engineers-button")?.hasAttribute("hidden"),
+    ).toBe(false);
+    expect(screen.text('[data-tier="cart"] .tier-gain')).toBe("+8.5/s each");
+    expect(screen.text('[data-tier="cart"] .tier-needs')).toBe(
+      "Needs 1 worker",
+    );
+    expect(screen.text('[data-tier="cart"] .tier-why')).toBe(
+      "Hauls what the crew already cut.",
+    );
+    expect(screen.text('[data-tier="drill"] .tier-needs')).toBe(
+      "Needs 3 workers",
+    );
+    expect(screen.text('[data-tier="drill"] .tier-why')).toBe(
+      "Bites the wall while you rest.",
+    );
+    expect(
+      screen.root
+        .querySelector('[data-tier="drill"] .tier-why')
+        ?.hasAttribute("hidden"),
+    ).toBe(false);
+    expect(
+      screen.root
+        .querySelector('[data-tier="borer"] .tier-gain')
+        ?.hasAttribute("hidden"),
+    ).toBe(true);
+    expect(screen.text('[data-tier="drill"] .tier-preview')).toContain(
+      "Preview · 2 of 10 drills",
+    );
+    expect(screen.text('[data-tier="drill"]')).not.toMatch(/\?/);
+    screen.root.querySelector<HTMLButtonElement>(".buys-close")?.click();
+    expect(dialog?.hidden).toBe(true);
+    screen.root.querySelector<HTMLButtonElement>(".thumb-workshop")?.click();
+    expect(
+      screen.root.querySelector(".workshop-dialog")?.hasAttribute("hidden"),
+    ).toBe(false);
+    screen.root.querySelector<HTMLButtonElement>(".workshop-close")?.click();
+    screen.progress.dispose();
+  });
+
+  it("uses one sheet card on buys and upgrades", () => {
+    const screen = mountScreen();
+    const cards = [
+      ...screen.root.querySelectorAll(
+        ".buys-dialog .tier, .upgrades-dialog .upgrade",
+      ),
+    ];
+    expect(cards.length).toBeGreaterThan(1);
+    for (const card of cards) {
+      expect(card.classList.contains("sheet-card")).toBe(true);
+      expect(card.querySelector(".sheet-card-icon")).toBeInstanceOf(
+        HTMLImageElement,
+      );
+      expect(card.querySelector(".sheet-card-title")).not.toBeNull();
+      expect(card.querySelector(".sheet-card-price")).not.toBeNull();
+      expect(card.querySelector(".sheet-card-body")).not.toBeNull();
+    }
+    const buysPad = getComputedStyle(
+      screen.root.querySelector(".buys-dialog .sheet-card") as Element,
+    ).padding;
+    const upgradePad = getComputedStyle(
+      screen.root.querySelector(".upgrades-dialog .sheet-card") as Element,
+    ).padding;
+    expect(buysPad).toBe(upgradePad);
+    screen.progress.dispose();
+  });
+
+  it("leaves a locked workshop closed when the thumb bar is tapped", () => {
+    const screen = mountScreen();
+    screen.root.querySelector<HTMLButtonElement>(".thumb-workshop")?.click();
+    expect(
+      screen.root.querySelector(".workshop-dialog")?.hasAttribute("hidden"),
+    ).toBe(true);
     screen.progress.dispose();
   });
 });

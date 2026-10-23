@@ -1,6 +1,6 @@
 import { tapFloatSpot } from "./tap-float";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
-import { formatCount } from "./format";
+import { formatCompact, formatCount } from "./format";
 import { MOUNTAIN_STONES, mineByHand, stonesPerSecond } from "./mountain";
 import { type TierId } from "./tiers";
 import { hasRelic, nextRelic, RELICS, type RelicId, depthHint } from "./relics";
@@ -8,7 +8,7 @@ import { BOOSTS } from "./boosts";
 import { effectiveRates } from "./rates";
 import { createRelicPanels } from "./relic-panels";
 import { createArrivalPanel } from "./arrival-panel";
-import { nextLayer } from "./layers";
+import { layerOf, nextLayer } from "./layers";
 import { createWelcomePanel } from "./welcome-panel";
 import { createMenuPanel } from "./menu-panel";
 import { createSaveConflictPanel } from "./save-conflict-panel";
@@ -16,6 +16,7 @@ import { createSavedCopiesPanel } from "./saved-copies-panel";
 import { createLegacyPanel, legacyWords } from "./legacy-panel";
 import { legacyBonus } from "./legacy";
 import { createCrewPanel } from "./crew-panel";
+import { SHEET_HOST } from "./sheet-card";
 import { createEngineersPanel } from "./engineers-panel";
 import { floatText } from "./float-text";
 import { createUpgradesPanel } from "./upgrades-panel";
@@ -24,6 +25,7 @@ import {
   OTHER_TAB_BODY,
   OTHER_TAB_PLAY,
   OTHER_TAB_TITLE,
+  layerCardWords,
   nextLayerHint,
   tapWords,
 } from "./screen-words";
@@ -106,6 +108,17 @@ export function mountMountainScreen({
   layerHint.className = "layer-hint";
   layerHint.hidden = true;
   guide.append(goal, layerHint, guideBar);
+  const materialLine = document.createElement("p");
+  materialLine.className = "material-line";
+  const ledger = document.createElement("div");
+  ledger.className = "ledger";
+  ledger.append(lantern, remaining, materialLine, guide);
+  const layerLine = document.createElement("p");
+  layerLine.className = "layer-line";
+  const layerName = document.createElement("span");
+  layerName.className = "layer-name";
+  const layerAdvice = document.createElement("span");
+  layerLine.append(layerName, layerAdvice);
 
   const gapForVeins = (): number =>
     veinGapScale(view.mountain, hasRelic(view.mountain, "lantern"), now());
@@ -272,6 +285,8 @@ export function mountMountainScreen({
   pocketIcon.draggable = false;
   const pocketText = document.createElement("span");
   pocket.append(pocketIcon, pocketText);
+  const pocketRate = document.createElement("p");
+  pocketRate.className = "pocket-rate";
 
   const crewPanel = createCrewPanel({
     progress,
@@ -280,7 +295,7 @@ export function mountMountainScreen({
     tierArt,
     stoneUrl,
   });
-  const { crew } = crewPanel;
+  const { crew, tierGrid, thanks } = crewPanel;
 
   const welcomePanel = createWelcomePanel({ progress, getView: () => view });
   const { welcome } = welcomePanel;
@@ -364,7 +379,7 @@ export function mountMountainScreen({
     getView: () => view,
     auth,
     onStartOver: resetVein,
-    extras: [workshop.menuEntry, legacy.menuPass, savedCopies.entry],
+    extras: [ledger, workshop.menuEntry, legacy.menuPass, savedCopies.entry],
     requestRender: () => {
       render();
     },
@@ -507,6 +522,17 @@ export function mountMountainScreen({
         ? "The mountain is mined out"
         : `Mountain, tap to mine ${tapWords(effectiveRates(view.mountain, now()).tapYield)}`,
     );
+    const perSecond = effectiveRates(
+      view.mountain,
+      now(),
+      view.trouble,
+    ).crewPerSecond;
+    pocketRate.textContent = `${formatCompact(perSecond)} stones/s`;
+    const layer = layerOf(view.mountain);
+    const layerWords = layerCardWords(layer.id);
+    layerName.textContent = layer.name;
+    layerAdvice.textContent =
+      layerWords === undefined ? "" : ` · ${layerWords.advice}`;
     crewPanel.render();
     renderVein();
     renderGuide();
@@ -601,31 +627,85 @@ export function mountMountainScreen({
     progress.flush();
   });
 
-  const pocketActions = document.createElement("div");
-  pocketActions.className = "pocket-actions";
-  pocketActions.append(engineers.button, upgradesButton);
+  const buysDialog = document.createElement("div");
+  buysDialog.className = "buys-dialog";
+  buysDialog.hidden = true;
+  buysDialog.setAttribute("role", "dialog");
+  buysDialog.setAttribute("aria-label", "Buys");
+  const buysCard = document.createElement("div");
+  buysCard.className = "buys-card";
+  const buysTitle = document.createElement("h2");
+  buysTitle.className = "sheet-kicker";
+  buysTitle.textContent = "Buys";
+  const buysClose = document.createElement("button");
+  buysClose.type = "button";
+  buysClose.className = "buys-close";
+  buysClose.textContent = "Back to the mountain";
+  const buysHost = document.createElement("div");
+  buysHost.className = SHEET_HOST;
+  buysHost.append(tierGrid);
+  buysCard.append(buysTitle, buysHost, thanks, buysClose);
+  buysDialog.append(buysCard);
+  const buysButton = document.createElement("button");
+  buysButton.type = "button";
+  buysButton.className = "buys-button";
+  const thumbIcon = (src: string): HTMLImageElement => {
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = "";
+    img.width = 24;
+    img.height = 24;
+    img.draggable = false;
+    return img;
+  };
+  const thumbLabel = (text: string): HTMLSpanElement => {
+    const span = document.createElement("span");
+    span.className = "thumb-label";
+    span.textContent = text;
+    return span;
+  };
+  buysButton.append(thumbIcon(tierArt.cart), thumbLabel("Buys"));
+  buysButton.addEventListener("click", () => {
+    buysDialog.hidden = false;
+  });
+  buysClose.addEventListener("click", () => {
+    buysDialog.hidden = true;
+  });
+
   const pocketRow = document.createElement("div");
   pocketRow.className = "pocket-row";
-  pocketRow.append(pocket, pocketActions);
-  const materialLine = document.createElement("p");
-  materialLine.className = "material-line";
+  pocketRow.append(pocket, pocketRate);
+  const thumbBar = document.createElement("nav");
+  thumbBar.className = "thumb-bar";
+  const workshopThumb = document.createElement("button");
+  workshopThumb.type = "button";
+  workshopThumb.className = "thumb-workshop";
+  workshopThumb.append(thumbIcon(relicArt.hammer), thumbLabel("Workshop"));
+  const openWorkshop = workshop.menuEntry.querySelector(".workshop-open");
+  workshopThumb.addEventListener("click", () => {
+    if (openWorkshop instanceof HTMLButtonElement && !openWorkshop.hidden) {
+      openWorkshop.click();
+    }
+  });
+  thumbBar.append(buysButton, workshopThumb, engineers.button, upgradesButton);
   const pocketStack = document.createElement("div");
   pocketStack.className = "pocket-stack";
-  pocketStack.append(pocketRow, materialLine);
+  pocketStack.append(pocketRow);
 
   const header = document.createElement("header");
   header.className = "top-bar";
-  header.append(lantern, remaining, menuButton);
+  header.append(menuButton);
   // The Legacy sits in the mountain's other corner: no layout cost.
   mountainStage.append(legacy.badge);
 
+  mountainWrap.append(shelfButton);
   root.replaceChildren(
     header,
-    guide,
-    shelfButton,
-    mountainWrap,
     pocketStack,
+    layerLine,
     crew,
+    mountainWrap,
+    thumbBar,
     saveStatus,
     welcome,
     arrival.layer,
@@ -641,6 +721,7 @@ export function mountMountainScreen({
     upgradesSheet,
     engineers.sheet,
     workshop.sheet,
+    buysDialog,
     updatePrompt,
     otherTab,
     savedCopies.root,

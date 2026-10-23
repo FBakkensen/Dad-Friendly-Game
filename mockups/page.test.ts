@@ -1,5 +1,20 @@
-import { describe, expect, it } from "vitest";
-import { MOCK_RECIPES, UNFOUND_HINT } from "../src/screen-words.ts";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { formatCompact, formatCount } from "../src/format.ts";
+import { effectiveRates } from "../src/rates.ts";
+import {
+  buyPriceWords,
+  crewPostsShort,
+  formatClock,
+  formatSpeed,
+  MOCK_RECIPES,
+  UNFOUND_HINT,
+} from "../src/screen-words.ts";
+import { owned, tierById, tierCost } from "../src/tiers.ts";
+import { upgradeById, upgradeCost, upgradeLevel } from "../src/upgrades.ts";
+import { boardB } from "./directions.ts";
 import {
   craftTap,
   parseMockView,
@@ -228,5 +243,389 @@ describe("workshop mock page (#193)", () => {
         ?.classList.contains("is-pressed"),
     ).toBe(true);
     expect(page.querySelector("audio, video")).toBeNull();
+  });
+});
+
+const rootDir = dirname(fileURLToPath(import.meta.url));
+const tokensCss = readFileSync(join(rootDir, "tokens.css"), "utf8");
+const screensCss = readFileSync(join(rootDir, "token-screens.css"), "utf8");
+const mockCss = readFileSync(join(rootDir, "mock.css"), "utf8");
+
+function tokenValue(name: string): string {
+  const match = new RegExp(`--${name}:\\s*([^;]+);`).exec(tokensCss);
+  const value = match?.[1];
+  if (value === undefined) {
+    throw new Error(`missing --${name}`);
+  }
+  return value.trim();
+}
+
+function channel(hex: string, index: number): number {
+  const raw = Number.parseInt(hex.slice(1 + index * 2, 3 + index * 2), 16);
+  const unit = raw / 255;
+  return unit <= 0.04045 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4;
+}
+
+function contrast(foreground: string, background: string): number {
+  const lighter = Math.max(luminance(foreground), luminance(background));
+  const darker = Math.min(luminance(foreground), luminance(background));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function luminance(hex: string): number {
+  return (
+    0.2126 * channel(hex, 0) +
+    0.7152 * channel(hex, 1) +
+    0.0722 * channel(hex, 2)
+  );
+}
+
+function mustCost(cost: number | undefined): number {
+  if (cost === undefined) {
+    throw new Error("missing price");
+  }
+  return cost;
+}
+
+function mountTokens(
+  scene: MockView["scene"],
+  phase: "rest" | "press",
+  control: string,
+): HTMLElement {
+  const root = document.createElement("div");
+  root.id = "mock";
+  root.className = `tok scene-${scene} phase-${phase} shot`;
+  root.dataset.scene = scene;
+  root.innerHTML = renderMock(view({ scene, phase, control, shot: true }));
+  document.body.append(root);
+  return root;
+}
+
+describe("design token mocks (#234)", () => {
+  beforeAll(() => {
+    const style = document.createElement("style");
+    style.id = "token-test-style";
+    style.textContent = `${mockCss}\n${tokensCss}\n${screensCss}`;
+    document.head.append(style);
+  });
+
+  afterEach(() => {
+    document.getElementById("mock")?.remove();
+  });
+
+  afterAll(() => {
+    document.getElementById("token-test-style")?.remove();
+  });
+
+  it("keeps the scale, the folds, and AA pairs", () => {
+    expect(tokenValue("type-14")).toBe("14px");
+    expect(tokenValue("type-16")).toBe("16px");
+    expect(tokenValue("type-20")).toBe("20px");
+    expect(tokenValue("type-24")).toBe("24px");
+    expect(tokenValue("type-32")).toBe("32px");
+    expect(tokenValue("weight-regular")).toBe("400");
+    expect(tokenValue("weight-bold")).toBe("700");
+    expect(tokenValue("leading")).toBe("1.3");
+    expect(tokenValue("space-4")).toBe("4px");
+    expect(tokenValue("space-8")).toBe("8px");
+    expect(tokenValue("space-16")).toBe("16px");
+    expect(tokenValue("space-24")).toBe("24px");
+    expect(tokensCss).not.toContain("--space-32");
+    expect(tokenValue("radius-control")).toBe("12px");
+    expect(tokenValue("radius-sheet")).toBe("20px");
+    expect(tokenValue("radius-pill")).toBe("999px");
+    expect(tokenValue("target-min")).toBe("48px");
+    expect(tokenValue("target-gap")).toBe("8px");
+    expect(tokenValue("color-ink-on-gold")).toBe(tokenValue("color-page"));
+    const body: readonly [string, string, string][] = [
+      ["color-ink", "color-page", "ink on page"],
+      ["color-ink", "color-card", "ink on card"],
+      ["color-ink", "color-disabled", "ink on disabled"],
+      ["color-quiet", "color-page", "quiet on page"],
+      ["color-quiet", "color-card", "quiet on card"],
+      ["color-quiet", "color-disabled", "quiet on disabled"],
+      ["color-gold", "color-page", "gold on page"],
+      ["color-gold", "color-card", "gold on card"],
+      ["color-gold", "color-disabled", "gold on disabled"],
+      ["color-ink-on-gold", "color-gold", "ink-on-gold on gold"],
+      ["color-ink-on-gold", "color-danger", "ink-on-gold on danger"],
+    ];
+    const edges: readonly [string, string, string][] = [
+      ["color-edge", "color-page", "edge on page"],
+      ["color-edge", "color-card", "edge on card"],
+      ["color-edge", "color-disabled", "edge on disabled"],
+      ["color-danger", "color-page", "danger on page"],
+      ["color-danger", "color-card", "danger on card"],
+    ];
+    for (const [foreground, background, label] of body) {
+      const ratio = contrast(tokenValue(foreground), tokenValue(background));
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+      expect(tokensCss).toContain(`${label} ${ratio.toFixed(2)}:1`);
+    }
+    for (const [foreground, background, label] of edges) {
+      const ratio = contrast(tokenValue(foreground), tokenValue(background));
+      expect(ratio).toBeGreaterThanOrEqual(3);
+      expect(tokensCss).toContain(`${label} ${ratio.toFixed(2)}:1`);
+    }
+    const pill = screensCss
+      .split("}")
+      .filter((block) => block.includes("var(--radius-pill)"));
+    expect(pill).toHaveLength(1);
+    expect(pill[0]).toContain(".tok-badge");
+    expect(screensCss).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(screensCss).not.toMatch(/font-size:\s*\d/);
+  });
+
+  it("shows the scale, the next drill, and the boost sheet without a question mark", () => {
+    const drill = formatCompact(tierCost(tierById("drill"), 8));
+    const arms = buyPriceWords(mustCost(upgradeCost(upgradeById("tap"), 3)));
+    const roads = buyPriceWords(
+      mustCost(upgradeCost(upgradeById("drillSyn"), 0)),
+    );
+    const crews = buyPriceWords(
+      mustCost(upgradeCost(upgradeById("borerSyn"), 0)),
+    );
+    const tracks = buyPriceWords(
+      mustCost(upgradeCost(upgradeById("machineSyn"), 0)),
+    );
+    expect(parseMockView("?scene=token-sheet").scene).toBe("token-sheet");
+    expect(parseMockView("?scene=mountain-tokens").scene).toBe(
+      "mountain-tokens",
+    );
+    expect(parseMockView("?scene=upgrades-tokens").scene).toBe(
+      "upgrades-tokens",
+    );
+    const sheet = host(renderMock(view({ scene: "token-sheet" })));
+    expect(sheet.textContent).toContain("+2.5 · 203/s");
+    expect(sheet.textContent).toContain(arms);
+    expect(sheet.textContent).toContain(crewPostsShort(84, 2));
+    expect(sheet.textContent).toContain(`Running · ${formatClock(600_000)}`);
+    expect(sheet.textContent).toContain("Clay 40");
+    expect(sheet.textContent).toContain(
+      "Your Iron rails are fitted. Carts now 12/s.",
+    );
+    expect(sheet.textContent).not.toMatch(/\?/);
+    const pressedSheet = host(
+      renderMock(
+        view({ scene: "token-sheet", phase: "press", control: "buy" }),
+      ),
+    );
+    expect(
+      pressedSheet
+        .querySelector(".tok-primary")
+        ?.classList.contains("is-pressed"),
+    ).toBe(true);
+
+    const mountain = host(renderMock(view({ scene: "mountain-tokens" })));
+    expect(drill).toBe("3.5M");
+    expect(mountain.textContent).toContain(`Next: a drill · ${drill}`);
+    expect(mountain.textContent).toContain("Needs 3 workers");
+    expect(mountain.textContent).toContain("110 million stones left");
+    expect(mountain.textContent).toContain("80 million stones");
+    expect(mountain.textContent).toContain("Saved on this device");
+    expect(
+      [...mountain.querySelectorAll(".tok-icon")].map(
+        (button) => button.textContent,
+      ),
+    ).toEqual(["Workshop", "Engineers", "Upgrades"]);
+    expect(
+      mountain
+        .querySelector("[data-tier='drill']")
+        ?.classList.contains("tok-primary"),
+    ).toBe(true);
+    expect(
+      mountain.querySelector("[data-tier='machine']")?.hasAttribute("disabled"),
+    ).toBe(true);
+    expect(mountain.textContent).not.toMatch(/Legacy|Mantle|Welcome|\?/);
+    const pressedDrill = host(
+      renderMock(
+        view({ scene: "mountain-tokens", phase: "press", control: "drill" }),
+      ),
+    );
+    expect(
+      pressedDrill
+        .querySelector("[data-tier='drill']")
+        ?.classList.contains("is-pressed"),
+    ).toBe(true);
+
+    const upgrades = host(renderMock(view({ scene: "upgrades-tokens" })));
+    expect(upgrades.textContent).toContain(arms);
+    expect(upgrades.textContent).toContain(roads);
+    expect(upgrades.textContent).toContain(crews);
+    expect(upgrades.textContent).toContain(tracks);
+    expect(upgrades.textContent).toContain(`Running · ${formatClock(600_000)}`);
+    expect(upgrades.textContent).toContain(
+      `Running · ${formatClock(1_800_000)}`,
+    );
+    expect(upgrades.textContent).toContain("now 1,410");
+    expect(upgrades.textContent).toContain("22.7K/s");
+    expect(
+      upgrades.querySelector(".tok-close")?.getAttribute("aria-label"),
+    ).toBe("Back to the mountain");
+    expect(upgrades.querySelectorAll(".tok-action")).toHaveLength(6);
+    expect(upgrades.textContent).not.toMatch(/\?/);
+    expect(upgrades.querySelector("audio, video")).toBeNull();
+  });
+
+  it("keeps three different directions on the real prices", () => {
+    const drill = formatCompact(tierCost(tierById("drill"), 8));
+    const arms = buyPriceWords(mustCost(upgradeCost(upgradeById("tap"), 3)));
+    for (const which of ["a", "c"] as const) {
+      const mountain = host(renderMock(view({ scene: `mountain-${which}` })));
+      expect(mountain.textContent).toContain(drill);
+      expect(mountain.textContent).toContain("80 million");
+      expect(mountain.textContent).toContain("Workshop");
+      expect(mountain.textContent).toContain("Engineers");
+      expect(mountain.textContent).toContain("Upgrades");
+      expect(mountain.textContent).toContain("+2.5 · 203/s");
+      expect(mountain.textContent).not.toMatch(/\?/);
+      const sheet = host(renderMock(view({ scene: `upgrades-${which}` })));
+      expect(sheet.textContent).toContain(arms);
+      expect(sheet.textContent).toContain("Running · 10:00");
+      expect(sheet.textContent).toContain("Running · 30:00");
+      expect(sheet.textContent).toContain("Back to the mountain");
+      expect(sheet.textContent).not.toMatch(/\?/);
+    }
+    const mountainB = boardB();
+    const rates = effectiveRates(mountainB);
+    const shown = host(renderMock(view({ scene: "mountain-b" })));
+    const drillTier = tierById("drill");
+    const drillPrice = buyPriceWords(
+      tierCost(drillTier, owned(mountainB, drillTier)),
+    );
+    expect(shown.textContent).toContain(formatCount(mountainB.pocket));
+    expect(shown.textContent).toContain(
+      `${formatCompact(rates.crewPerSecond)} stones/s`,
+    );
+    expect(shown.textContent).toContain("on carts");
+    expect(shown.textContent).toContain("free");
+    expect(shown.textContent).toContain("Buys");
+    expect(shown.querySelector(".dir-buycard")).toBeNull();
+    expect(shown.querySelectorAll(".dir-crew-bit img").length).toBeGreaterThan(
+      0,
+    );
+    expect(shown.textContent).toContain("The Granite");
+    expect(shown.textContent).toContain("Drills love it.");
+    expect(shown.textContent).toContain("One pool of hands");
+    const crew = shown.querySelector(".dir-crew");
+    const picture = shown.querySelector(".dir-picture");
+    expect(crew).not.toBeNull();
+    expect(picture).not.toBeNull();
+    expect(crew?.compareDocumentPosition(picture ?? crew) ?? 0).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    const opened = host(renderMock(view({ scene: "mountain-b-open" })));
+    expect(opened.textContent).toContain(drillPrice);
+    expect(opened.textContent).toContain(
+      `+${formatSpeed(rates.tierSpeed.drill)}/s each`,
+    );
+    expect(opened.textContent).toContain("Needs 3 workers");
+    expect(opened.textContent).toContain("Hauls what the crew already cut.");
+    expect(opened.textContent).toContain("Preview · 2 of 10 drills");
+    expect(opened.textContent).toContain("every drill digs twice as fast");
+    expect(opened.querySelector("[data-state='ready']")).not.toBeNull();
+    expect(opened.querySelector("[data-state='short']")).not.toBeNull();
+    expect(opened.querySelector("[data-state='dear']")?.textContent).toContain(
+      "Buy · 9M",
+    );
+    expect(
+      opened.querySelector("[data-state='dear']")?.textContent,
+    ).not.toMatch(/Needs/);
+    for (const card of opened.querySelectorAll(".dir-buycard")) {
+      expect(card.textContent).not.toMatch(/free/);
+    }
+    expect(opened.textContent).not.toMatch(
+      /pays back|worth it|best value|\?|in \d+ min/i,
+    );
+    expect(shown.textContent).not.toMatch(
+      /pays back|worth it|best value|\?|in \d+ min/i,
+    );
+    const sheetB = host(renderMock(view({ scene: "upgrades-b" })));
+    const before = rates.tapYield;
+    const after = effectiveRates({
+      ...mountainB,
+      upgrades: {
+        ...mountainB.upgrades,
+        tap: upgradeLevel(mountainB, "tap") + 1,
+      },
+    }).tapYield;
+    expect(sheetB.textContent).toContain(
+      `Tap ${formatCount(before)} to ${formatCount(after)}`,
+    );
+    expect(sheetB.textContent).toContain("Taps ×2 for 10 min.");
+    expect(sheetB.textContent).toContain("Crew ×2 for 30 min.");
+    const helped = effectiveRates({
+      ...mountainB,
+      upgrades: {
+        ...mountainB.upgrades,
+        cartSyn: upgradeLevel(mountainB, "cartSyn") + 1,
+      },
+    });
+    expect(sheetB.textContent).toContain("Helping hands");
+    expect(sheetB.textContent).toContain(
+      `Cart ${formatSpeed(rates.tierSpeed.cart)}/s to ${formatSpeed(helped.tierSpeed.cart)}/s each`,
+    );
+    expect(
+      sheetB.querySelector("[data-state='locked']")?.textContent,
+    ).toContain("5 drills");
+    expect(sheetB.textContent).not.toMatch(
+      /pays back|worth it|best value|\?|in \d+ min/i,
+    );
+    expect(
+      host(
+        renderMock(
+          view({ scene: "mountain-a", phase: "press", control: "drill" }),
+        ),
+      )
+        .querySelector(".dir-buy")
+        ?.classList.contains("is-pressed"),
+    ).toBe(true);
+  });
+
+  it("keeps token mock type at 14px and targets at 48px", () => {
+    const shots = [
+      ["token-sheet", "rest", ""],
+      ["token-sheet", "press", "buy"],
+      ["mountain-tokens", "rest", ""],
+      ["mountain-tokens", "press", "drill"],
+      ["upgrades-tokens", "rest", ""],
+      ["upgrades-tokens", "press", "arms"],
+      ["mountain-a", "rest", ""],
+      ["mountain-a", "press", "drill"],
+      ["upgrades-a", "rest", ""],
+      ["upgrades-a", "press", "arms"],
+      ["mountain-b", "rest", ""],
+      ["mountain-b", "press", "buys"],
+      ["mountain-b-open", "rest", ""],
+      ["mountain-b-open", "press", "drill"],
+      ["upgrades-b", "rest", ""],
+      ["upgrades-b", "press", "arms"],
+      ["mountain-c", "rest", ""],
+      ["mountain-c", "press", "buy"],
+      ["upgrades-c", "rest", ""],
+      ["upgrades-c", "press", "arms"],
+    ] as const;
+    for (const [scene, phase, control] of shots) {
+      const root = mountTokens(scene, phase, control);
+      for (const element of root.querySelectorAll("*")) {
+        const hasText = [...element.childNodes].some(
+          (node) =>
+            node.nodeType === 3 && (node.textContent ?? "").trim() !== "",
+        );
+        if (!hasText) {
+          continue;
+        }
+        const font = Number.parseFloat(getComputedStyle(element).fontSize);
+        expect(font, element.textContent).toBeGreaterThanOrEqual(14);
+      }
+      for (const button of root.querySelectorAll("button")) {
+        const style = getComputedStyle(button);
+        expect(Number.parseFloat(style.minHeight)).toBeGreaterThanOrEqual(48);
+        expect(Number.parseFloat(style.minWidth)).toBeGreaterThanOrEqual(48);
+        const tap = button.getAttribute("data-tap") ?? "";
+        expect(tap).toContain("Presses in");
+        expect(tap).toContain("Silent until unmuted");
+      }
+    }
   });
 });

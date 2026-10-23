@@ -1,0 +1,520 @@
+/* M10-2 token mocks. Colours, type, space, radii, and targets come from tokens.css. */
+
+#mock.tok {
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-size: var(--type-16);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading);
+}
+
+#mock.tok :where(p, h1, h2, ul, li, figure) {
+  margin: 0;
+  padding: 0;
+}
+
+#mock.tok ul {
+  list-style: none;
+}
+
+#mock.tok img {
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+#mock.tok .tok-screen {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-8);
+}
+
+#mock.tok .tok-hit {
+  appearance: none;
+  box-sizing: border-box;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  padding: var(--space-4) var(--space-8);
+  border: 2px solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-ink);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading);
+  text-align: center;
+}
+
+#mock.tok .tok-primary {
+  border-color: var(--color-gold);
+  background: var(--color-gold);
+  color: var(--color-ink-on-gold);
+}
+
+#mock.tok .tok-secondary {
+  border-color: var(--color-edge);
+  background: var(--color-card);
+  color: var(--color-ink);
+}
+
+#mock.tok .tok-outline {
+  border-color: var(--color-edge);
+  background: var(--color-page);
+  color: var(--color-ink);
+}
+
+#mock.tok .tok-danger {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-ink-on-gold);
+}
+
+#mock.tok button.tok-hit.tok-crew:disabled {
+  opacity: 1;
+  border-color: var(--color-edge);
+  background: var(--color-disabled);
+  color: var(--color-ink);
+}
+
+#mock.tok button.is-pressed {
+  /* Stay put, so the 8px gap still holds. The inset is the press. */
+  transform: translate3d(0, 0, 1px);
+  box-shadow: inset 0 var(--space-4) 0 var(--color-ink-on-gold);
+}
+
+/* Token sheet */
+
+#mock.tok .tok-sheet {
+  gap: 0;
+  padding: var(--space-4);
+}
+
+#mock.tok .tok-title {
+  font-size: var(--type-20);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+  text-align: center;
+}
+
+#mock.tok .tok-scale,
+#mock.tok .tok-scale-rest {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+#mock.tok .tok-32 {
+  font-size: var(--type-32);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+  white-space: nowrap;
+}
+
+#mock.tok .tok-24 {
+  font-size: var(--type-24);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+#mock.tok .tok-20 {
+  font-size: var(--type-20);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .tok-16 {
+  font-size: var(--type-16);
+}
+
+#mock.tok .tok-14 {
+  font-size: var(--type-14);
+  color: var(--color-quiet);
+}
+
+#mock.tok .tok-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-8);
+}
+
+#mock.tok .tok-spaces,
+#mock.tok .tok-radii {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-8);
+}
+
+#mock.tok .tok-space {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--color-quiet);
+  font-size: var(--type-14);
+}
+
+#mock.tok .tok-space i {
+  display: block;
+  width: var(--space-24);
+  background: var(--color-gold);
+}
+
+#mock.tok .tok-space-4 {
+  height: var(--space-4);
+}
+
+#mock.tok .tok-space-8 {
+  height: var(--space-8);
+}
+
+#mock.tok .tok-space-16 {
+  height: var(--space-16);
+}
+
+#mock.tok .tok-space-24 {
+  height: var(--space-24);
+}
+
+#mock.tok .tok-radius {
+  display: grid;
+  place-items: center;
+  min-width: var(--space-24);
+  min-height: var(--space-24);
+  padding: var(--space-4) var(--space-8);
+  border: 2px solid var(--color-edge);
+  background: var(--color-card);
+  color: var(--color-ink);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .tok-radius-control {
+  border-radius: var(--radius-control);
+}
+
+#mock.tok .tok-radius-sheet {
+  border-radius: var(--radius-sheet);
+}
+
+#mock.tok .tok-colors {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--space-4);
+}
+
+#mock.tok .tok-swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--space-24);
+  padding: var(--space-4);
+  border: 2px solid var(--color-edge);
+  border-radius: var(--radius-control);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+  text-align: center;
+}
+
+#mock.tok .tok-swatch-page {
+  background: var(--color-page);
+  color: var(--color-ink);
+}
+
+#mock.tok .tok-swatch-card {
+  background: var(--color-card);
+  color: var(--color-ink);
+}
+
+#mock.tok .tok-swatch-ink {
+  background: var(--color-ink);
+  color: var(--color-ink-on-gold);
+}
+
+#mock.tok .tok-swatch-quiet {
+  background: var(--color-quiet);
+  color: var(--color-ink-on-gold);
+}
+
+#mock.tok .tok-swatch-gold {
+  background: var(--color-gold);
+  color: var(--color-ink-on-gold);
+}
+
+#mock.tok .tok-swatch-on-gold {
+  background: var(--color-gold);
+  color: var(--color-ink-on-gold);
+}
+
+#mock.tok .tok-swatch-danger {
+  background: var(--color-danger);
+  color: var(--color-ink-on-gold);
+}
+
+#mock.tok .tok-swatch-disabled {
+  background: var(--color-disabled);
+  color: var(--color-ink);
+}
+
+#mock.tok .tok-swatch-edge {
+  background: var(--color-edge);
+  color: var(--color-ink-on-gold);
+}
+
+#mock.tok .tok-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+}
+
+#mock.tok .tok-button-row {
+  display: grid;
+  grid-template-columns: auto repeat(4, minmax(var(--target-min), 1fr));
+  gap: var(--target-gap);
+  align-items: stretch;
+}
+
+#mock.tok .tok-row-label {
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
+  color: var(--color-quiet);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .tok-sample {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-4);
+  border: 2px solid var(--color-edge);
+  border-radius: var(--radius-sheet);
+  background: var(--color-card);
+}
+
+#mock.tok .tok-chip,
+#mock.tok .tok-timer {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-4) var(--space-8);
+  border: 2px solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .tok-timer {
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+}
+
+#mock.tok .tok-notice {
+  flex: 1 1 100%;
+  font-size: var(--type-14);
+  color: var(--color-ink);
+}
+
+#mock.tok .tok-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-pill);
+  background: var(--color-gold);
+  color: var(--color-ink-on-gold);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading);
+}
+
+/* Mountain */
+
+#mock.tok .tok-mountain-screen {
+  gap: var(--target-gap);
+}
+
+#mock.tok .tok-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+#mock.tok .tok-stones {
+  font-size: var(--type-20);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+  text-align: center;
+}
+
+#mock.tok .tok-icons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(var(--target-min), 1fr));
+  gap: var(--target-gap);
+}
+
+#mock.tok .tok-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-4);
+}
+
+#mock.tok .tok-icon img {
+  width: var(--space-24);
+  height: var(--space-24);
+  object-fit: contain;
+}
+
+#mock.tok .tok-mountain {
+  flex: 1 1 0;
+  width: 100%;
+  min-height: var(--target-min);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  overflow: hidden;
+  background: var(--color-page);
+  color: var(--color-gold);
+  font-size: var(--type-16);
+}
+
+#mock.tok .tok-mountain img {
+  flex: 1 1 auto;
+  width: auto;
+  height: 100%;
+  min-height: 0;
+  max-width: 70%;
+  object-fit: contain;
+}
+
+#mock.tok .tok-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  text-align: center;
+}
+
+#mock.tok .tok-crew-rate {
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .tok-next {
+  font-size: var(--type-14);
+  color: var(--color-quiet);
+}
+
+#mock.tok .tok-posts {
+  width: 100%;
+  font-size: var(--type-16);
+}
+
+#mock.tok .tok-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--target-gap);
+  width: 100%;
+}
+
+#mock.tok .tok-crew {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  padding: var(--space-4);
+}
+
+#mock.tok .tok-crew .tok-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+#mock.tok .tok-primary .tok-badge {
+  background: var(--color-ink-on-gold);
+  color: var(--color-gold);
+}
+
+#mock.tok .tok-save {
+  font-size: var(--type-14);
+  color: var(--color-quiet);
+  text-align: center;
+}
+
+/* Upgrades sheet */
+
+#mock.tok .tok-upgrades {
+  gap: var(--target-gap);
+  border: 2px solid var(--color-gold);
+  border-radius: var(--radius-sheet);
+  background: var(--color-card);
+}
+
+#mock.tok .tok-up-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--target-gap);
+  min-height: var(--target-min);
+}
+
+#mock.tok .tok-up-title {
+  font-size: var(--type-24);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+#mock.tok .tok-close {
+  width: var(--target-min);
+  height: var(--target-min);
+  padding: 0;
+  font-size: var(--type-24);
+}
+
+#mock.tok .tok-read {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+#mock.tok .tok-pocket {
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+#mock.tok .tok-read p {
+  font-size: var(--type-14);
+}
+
+#mock.tok .tok-quiet {
+  color: var(--color-quiet);
+}
+
+#mock.tok .tok-actions {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--target-gap);
+}
+
+#mock.tok .tok-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 0;
+}

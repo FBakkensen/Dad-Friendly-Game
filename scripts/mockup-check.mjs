@@ -59,6 +59,26 @@ const SHOTS = [
   ["other-tab", "rest", ""],
   ["save-conflict", "rest", ""],
   ["save-conflict", "press", ""],
+  ["token-sheet", "rest", ""],
+  ["token-sheet", "press", "buy"],
+  ["mountain-tokens", "rest", ""],
+  ["mountain-tokens", "press", "drill"],
+  ["upgrades-tokens", "rest", ""],
+  ["upgrades-tokens", "press", "arms"],
+  ["mountain-a", "rest", ""],
+  ["mountain-a", "press", "drill"],
+  ["upgrades-a", "rest", ""],
+  ["upgrades-a", "press", "arms"],
+  ["mountain-b", "rest", ""],
+  ["mountain-b", "press", "buys"],
+  ["mountain-b-open", "rest", ""],
+  ["mountain-b-open", "press", "drill"],
+  ["upgrades-b", "rest", ""],
+  ["upgrades-b", "press", "arms"],
+  ["mountain-c", "rest", ""],
+  ["mountain-c", "press", "buy"],
+  ["upgrades-c", "rest", ""],
+  ["upgrades-c", "press", "arms"],
 ];
 
 const failures = [];
@@ -111,8 +131,25 @@ async function fit(page, label) {
         clipped: element.scrollWidth > element.clientWidth + 1,
       };
     };
-    const labels = [...document.querySelectorAll(".label")]
+    const sceneName = mock?.dataset.scene ?? "";
+    const token =
+      sceneName === "token-sheet" ||
+      sceneName.endsWith("-tokens") ||
+      sceneName.startsWith("mountain-") ||
+      sceneName.startsWith("upgrades-");
+    const minFont = token ? 14 : 14.4;
+    const minBox = token ? 48 : 44;
+    const hasDirectText = (element) =>
+      [...element.childNodes].some(
+        (node) => node.nodeType === 3 && (node.textContent ?? "").trim() !== "",
+      );
+    const labels = [
+      ...(token
+        ? document.querySelectorAll("#mock *")
+        : document.querySelectorAll(".label")),
+    ]
       .filter(visible)
+      .filter((element) => (token ? hasDirectText(element) : true))
       .map(boxOf);
     const buttons = [...document.querySelectorAll("button")]
       .filter(visible)
@@ -162,6 +199,36 @@ async function fit(page, label) {
       box.top >= -1 &&
       box.right <= innerWidth + 1 &&
       box.bottom <= innerHeight + 1;
+    const pairGap = (a, b) => {
+      const dx = Math.max(a.left - b.right, b.left - a.right, 0);
+      const dy = Math.max(a.top - b.bottom, b.top - a.bottom, 0);
+      if (dx === 0 && dy === 0) {
+        return 0;
+      }
+      if (dx === 0) {
+        return dy;
+      }
+      if (dy === 0) {
+        return dx;
+      }
+      return Math.hypot(dx, dy);
+    };
+    const targetGapMiss = (boxes) => {
+      for (let i = 0; i < boxes.length; i += 1) {
+        for (let j = i + 1; j < boxes.length; j += 1) {
+          const gap = pairGap(boxes[i], boxes[j]);
+          if (gap < 7.9) {
+            return {
+              gap,
+              a: boxes[i].text,
+              b: boxes[j].text,
+            };
+          }
+        }
+      }
+      return null;
+    };
+    const targetGapOk = (boxes) => targetGapMiss(boxes) === null;
     const hidden = document.querySelector(".is-hidden-recipe");
     const hiddenText = hidden?.textContent ?? "";
     return {
@@ -187,15 +254,16 @@ async function fit(page, label) {
               mock.clientHeight,
             ],
       labelsOk: labels.every(
-        (label) => label.font >= 14.4 && inside(label) && !label.clipped,
+        (label) => label.font >= minFont && inside(label) && !label.clipped,
       ),
       labelMiss: labels.filter(
-        (label) => label.font < 14.4 || !inside(label) || label.clipped,
+        (label) => label.font < minFont || !inside(label) || label.clipped,
       ),
       buttonsOk: buttons.every(
         (button) =>
-          button.height >= 44 &&
-          button.font >= 14.4 &&
+          button.height >= minBox &&
+          (!token || button.right - button.left >= minBox) &&
+          button.font >= minFont &&
           inside(button) &&
           !button.clipped &&
           button.tapOk &&
@@ -203,18 +271,27 @@ async function fit(page, label) {
       ),
       buttonMiss: buttons.filter(
         (button) =>
-          button.height < 44 ||
-          button.font < 14.4 ||
+          button.height < minBox ||
+          (token && button.right - button.left < minBox) ||
+          button.font < minFont ||
           !inside(button) ||
           button.clipped,
       ),
+      gapOk: !token || targetGapOk(buttons),
+      gapMiss: token ? targetGapMiss(buttons) : null,
+      thumbOk:
+        sceneName !== "upgrades-tokens" ||
+        [...document.querySelectorAll(".tok-action")].every((button) => {
+          const box = button.getBoundingClientRect();
+          return (box.top + box.bottom) / 2 > innerHeight / 2;
+        }),
       cardsOk: cards.length > 0 && cards.every(opaque),
       cards,
       quiet: document.querySelector("audio, video") === null,
       hiddenOk:
         hidden === null ||
         (!/[0-9?]/.test(hiddenText) && hiddenText.includes("folded sketch")),
-      scene: mock?.dataset.scene ?? "",
+      scene: sceneName,
     };
   });
   check(
@@ -223,7 +300,9 @@ async function fit(page, label) {
       result.buttonsOk &&
       result.cardsOk &&
       result.quiet &&
-      result.hiddenOk,
+      result.hiddenOk &&
+      result.gapOk &&
+      result.thumbOk,
     label,
   );
   if (
@@ -231,7 +310,9 @@ async function fit(page, label) {
     !result.labelsOk ||
     !result.buttonsOk ||
     !result.cardsOk ||
-    !result.hiddenOk
+    !result.hiddenOk ||
+    !result.gapOk ||
+    !result.thumbOk
   ) {
     console.log(JSON.stringify(result));
   }
