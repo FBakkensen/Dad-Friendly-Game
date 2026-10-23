@@ -100,8 +100,9 @@ page is the map, plus the rules that keep it that way.
   owns its open/closed state. The thumb bar uses those gates: Workshop stays
   shut until `workshopUnlocked`, Engineers until a hand is on the crew. Buys
   and Upgrades open from the first screen. The relic shelf is centred in the
-  mountain wrap. Buys and Upgrades scroll inside the sheet so the last card
-  clears the footer.
+  mountain wrap. Buys and Upgrades scroll inside the sheet so the first card
+  clears the header and the last card clears the footer. The sheet stays
+  below the crew line.
 
 ## Guards (#118)
 

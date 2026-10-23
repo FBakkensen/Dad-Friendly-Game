@@ -2374,60 +2374,143 @@ async function thumbState(page) {
   });
 }
 
-async function sheetEnd(page, scroller, footer, card) {
-  return page.evaluate(
-    (scrollerSelector, footerSelector, cardSelector) => {
+/** A crewed Topsoil, so both lists are long and the crew line is on screen. */
+function crewMountain() {
+  return {
+    version: 6,
+    lastSeen: Date.now(),
+    mountain: {
+      remaining: 240_000_000 - 500_000,
+      pocket: 6_854,
+      helpers: 18,
+      carts: 6,
+      staffed: 2,
+    },
+    workshop: EMPTY_WORKSHOP,
+  };
+}
+
+async function scrollSheet(page, scroller, edge) {
+  await page.evaluate(
+    (scrollerSelector, which) => {
       const element = document.querySelector(scrollerSelector);
-      const footerEl = document.querySelector(footerSelector);
-      const target =
-        cardSelector === "last"
-          ? [...(element?.querySelectorAll(".sheet-card") ?? [])]
-              .filter(
-                (node) => !node.hidden && node.getClientRects().length > 0,
-              )
-              .at(-1)
-          : element?.querySelector(cardSelector);
-      if (
-        element === null ||
-        footerEl === null ||
-        target === null ||
-        target === undefined
-      ) {
-        return { ok: false, gap: -1, text: "" };
-      }
-      target.scrollIntoView({ block: "end", inline: "nearest" });
-      const cardBox = target.getBoundingClientRect();
-      const footBox = footerEl.getBoundingClientRect();
-      const port = element.getBoundingClientRect();
-      const gap = footBox.top - cardBox.bottom;
-      const overflows = element.scrollHeight > element.clientHeight + 1;
-      const fullyIn =
-        cardBox.top >= port.top - 1 &&
-        cardBox.bottom <= port.bottom + 1 &&
-        element.clientHeight >= cardBox.height;
-      const app = document.querySelector("#app");
-      const pageStill =
-        scrollY === 0 &&
-        (app?.scrollTop ?? 0) === 0 &&
-        document.documentElement.scrollHeight ===
-          document.documentElement.clientHeight;
-      return {
-        ok:
-          pageStill &&
-          fullyIn &&
-          gap >= 8 &&
-          cardBox.bottom <= footBox.top &&
-          (!overflows || gap <= 16.5),
-        gap: Math.round(gap * 10) / 10,
-        overflows,
-        fullyIn,
-        text: (target.textContent ?? "").replaceAll(/\s+/g, " ").slice(0, 48),
-      };
+      const cards = [
+        ...(element?.querySelectorAll(".sheet-card") ?? []),
+      ].filter((node) => !node.hidden && node.getClientRects().length > 0);
+      const card =
+        which === "start"
+          ? cards.reduce((best, item) =>
+              item.getBoundingClientRect().top <
+              best.getBoundingClientRect().top
+                ? item
+                : best,
+            )
+          : cards.reduce((best, item) =>
+              item.getBoundingClientRect().bottom >
+              best.getBoundingClientRect().bottom
+                ? item
+                : best,
+            );
+      card?.scrollIntoView({
+        block: which === "start" ? "start" : "end",
+        inline: "nearest",
+      });
     },
     scroller,
-    footer,
-    card,
+    edge,
   );
+}
+
+async function sheetEdges(page, scroller) {
+  return page.evaluate((scrollerSelector) => {
+    const element = document.querySelector(scrollerSelector);
+    const sheet = element?.closest(".buys-card, .upgrades-card");
+    const header = sheet?.querySelector("h2");
+    const footer = sheet?.querySelector(".buys-close, .upgrades-close");
+    const cards = () =>
+      [...(element?.querySelectorAll(".sheet-card") ?? [])].filter(
+        (node) => !node.hidden && node.getClientRects().length > 0,
+      );
+    if (
+      element === null ||
+      sheet === null ||
+      sheet === undefined ||
+      header === null ||
+      header === undefined ||
+      footer === null ||
+      footer === undefined ||
+      cards().length === 0
+    ) {
+      return { ok: false, topGap: -1, endGap: -1, first: "", last: "" };
+    }
+    const topmost = () =>
+      cards().reduce((best, card) =>
+        card.getBoundingClientRect().top < best.getBoundingClientRect().top
+          ? card
+          : best,
+      );
+    const bottommost = () =>
+      cards().reduce((best, card) =>
+        card.getBoundingClientRect().bottom >
+        best.getBoundingClientRect().bottom
+          ? card
+          : best,
+      );
+    const firstEl = topmost();
+    firstEl.scrollIntoView({ block: "start", inline: "nearest" });
+    const firstBox = firstEl.getBoundingClientRect();
+    const head = header.getBoundingClientRect();
+    const portTop = element.getBoundingClientRect();
+    const topGap = firstBox.top - head.bottom;
+    const lastEl = bottommost();
+    lastEl.scrollIntoView({ block: "end", inline: "nearest" });
+    const lastBox = lastEl.getBoundingClientRect();
+    const foot = footer.getBoundingClientRect();
+    const portEnd = element.getBoundingClientRect();
+    const endGap = foot.top - lastBox.bottom;
+    const overflows = element.scrollHeight > element.clientHeight + 1;
+    const crew = document.querySelector(".crew-posts");
+    const crewBox = crew?.getBoundingClientRect();
+    const sheetBox = sheet.getBoundingClientRect();
+    const crewClear =
+      crew === null ||
+      crew.hidden ||
+      (crewBox?.height ?? 0) < 1 ||
+      sheetBox.top >= crewBox.bottom - 1;
+    const app = document.querySelector("#app");
+    const pageStill =
+      scrollY === 0 &&
+      (app?.scrollTop ?? 0) === 0 &&
+      document.documentElement.scrollHeight ===
+        document.documentElement.clientHeight;
+    const gapOk = (gap) => {
+      const rounded = Math.round(gap);
+      return rounded >= 8 && (!overflows || rounded <= 16);
+    };
+    const firstIn =
+      firstBox.top >= portTop.top + 7 && firstBox.bottom <= portTop.bottom + 1;
+    const lastIn =
+      lastBox.top >= portEnd.top - 1 && lastBox.bottom <= portEnd.bottom - 7;
+    const clip = (node) =>
+      (node.textContent ?? "").replaceAll(/\s+/g, " ").slice(0, 42);
+    return {
+      ok:
+        pageStill &&
+        crewClear &&
+        firstIn &&
+        lastIn &&
+        firstBox.top >= head.bottom &&
+        lastBox.bottom <= foot.top &&
+        gapOk(topGap) &&
+        gapOk(endGap),
+      topGap: Math.round(topGap * 10) / 10,
+      endGap: Math.round(endGap * 10) / 10,
+      overflows,
+      crewClear,
+      first: clip(firstEl),
+      last: clip(lastEl),
+    };
+  }, scroller);
 }
 
 for (const viewport of SHELF_VIEWS) {
@@ -2463,40 +2546,6 @@ for (const viewport of SHELF_VIEWS) {
     }
     if (shotThis) {
       await shot(page, `mountain-fresh-${size}`);
-    }
-    await page.tap(".buys-button");
-    await page.waitForSelector(".buys-dialog:not([hidden])");
-    const buysEnd = await sheetEnd(
-      page,
-      ".buys-dialog .tier-grid",
-      ".buys-close",
-      '[data-tier="helper"]',
-    );
-    check(buysEnd.ok, `${size} Buys last card clears Back to the mountain`);
-    if (!buysEnd.ok) {
-      console.log("buys end", size, buysEnd);
-    }
-    if (shotThis) {
-      await shot(page, `buys-end-${size}`);
-    }
-    await page.click(".buys-close");
-    await page.tap(".upgrades-button");
-    await page.waitForSelector(".upgrades-dialog:not([hidden])");
-    const upgradesEnd = await sheetEnd(
-      page,
-      ".upgrades-scroll",
-      ".upgrades-close",
-      "last",
-    );
-    check(
-      upgradesEnd.ok,
-      `${size} Upgrades last card clears Back to the mountain`,
-    );
-    if (!upgradesEnd.ok) {
-      console.log("upgrades end", size, upgradesEnd);
-    }
-    if (shotThis) {
-      await shot(page, `upgrades-end-${size}`);
     }
     await close();
   }
@@ -2534,6 +2583,51 @@ for (const viewport of SHELF_VIEWS) {
     }
     await close();
   }
+}
+
+// Long Buys and Upgrades lists. The first card clears the header, the last
+// card clears the footer, and the sheet stays below the crew line.
+const SHEET_SHOTS = new Set(["360x560", "412x915"]);
+for (const viewport of [
+  [360, 560],
+  [390, 844],
+  [412, 915],
+]) {
+  const size = `${String(viewport[0])}x${String(viewport[1])}`;
+  const shotThis = SHEET_SHOTS.has(size);
+  const { page, close } = await open(viewport, crewMountain());
+  await page.waitForSelector(".relic-shelf");
+  for (const [name, scroller, openSelector] of [
+    ["buys", ".buys-dialog .tier-grid", ".buys-button"],
+    ["upgrades", ".upgrades-scroll", ".upgrades-button"],
+  ]) {
+    await page.tap(openSelector);
+    const dialog = name === "buys" ? ".buys-dialog" : ".upgrades-dialog";
+    await page.waitForSelector(`${dialog}:not([hidden])`);
+    await scrollSheet(page, scroller, "start");
+    if (shotThis) {
+      await shot(page, `${name}-top-${size}`);
+    }
+    await scrollSheet(page, scroller, "end");
+    if (shotThis) {
+      await shot(page, `${name}-end-${size}`);
+    }
+    const edges = await sheetEdges(page, scroller);
+    check(
+      edges.ok,
+      `${size} ${name} first card clears the header and last card clears the footer`,
+    );
+    if (!edges.ok) {
+      console.log(name, size, edges);
+    }
+    const closeSelector = name === "buys" ? ".buys-close" : ".upgrades-close";
+    await page.click(closeSelector);
+  }
+  check(
+    await noScroll(page),
+    `${size} main screen has no scroll after the sheets`,
+  );
+  await close();
 }
 
 await browser.close();
