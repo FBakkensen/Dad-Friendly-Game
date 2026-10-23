@@ -356,27 +356,35 @@ for (const viewport of VIEWPORTS) {
   check(veinInside, `${size} golden vein sits inside the mountain`);
 
   const chipsInside = await page.evaluate(() => {
-    const wrap = document
-      .querySelector(".mountain-wrap")
+    const row = document.querySelector(".effect-row")?.getBoundingClientRect();
+    const shelf = document
+      .querySelector(".relic-shelf")
       ?.getBoundingClientRect();
     const chips = [...document.querySelectorAll(".boost-chip")].filter(
-      (chip) => !chip.hidden,
+      (chip) => !chip.hidden && !chip.classList.contains("is-overflow"),
     );
+    const misses = (box, other) =>
+      other === undefined ||
+      box.right <= other.left + 0.5 ||
+      box.left >= other.right - 0.5 ||
+      box.bottom <= other.top + 0.5 ||
+      box.top >= other.bottom - 0.5;
     return (
-      wrap !== undefined &&
+      row !== undefined &&
       chips.length === 2 &&
+      getComputedStyle(document.querySelector(".boost-chips")).position !==
+        "absolute" &&
       chips.every((chip) => {
         const box = chip.getBoundingClientRect();
         return (
-          box.top >= wrap.top &&
-          box.bottom <= wrap.bottom &&
-          box.left >= wrap.left &&
-          box.right <= wrap.right
+          box.top >= row.top - 1 &&
+          box.bottom <= row.bottom + 1 &&
+          misses(box, shelf)
         );
       })
     );
   });
-  check(chipsInside, `${size} boost countdowns sit inside the mountain`);
+  check(chipsInside, `${size} boost countdowns sit in the effects row`);
 
   await page.waitForSelector(".relic-shelf", { visible: true });
   await page.tap(".relic-shelf");
@@ -1245,25 +1253,31 @@ for (const standalone of [false, true]) {
     { standalone },
   );
   const insets = standalone ? STANDALONE_INSETS : { top: 0, bottom: 0 };
-  const chip = await page.$eval(".mountain-wrap", (wrap) => {
-    const host = wrap.querySelector(".boost-chips");
-    const shown = [...wrap.querySelectorAll(".expedition-chip")].find(
+  const chip = await page.$eval(".effect-row", (row) => {
+    const shown = [...row.querySelectorAll(".expedition-chip")].find(
       (el) => !el.hidden,
     );
-    if (host === null || shown === undefined) {
+    const shelf = document
+      .querySelector(".relic-shelf")
+      ?.getBoundingClientRect();
+    if (shown === undefined) {
       return { ok: false, text: "" };
     }
     const box = shown.getBoundingClientRect();
-    const mountain = wrap.getBoundingClientRect();
+    const host = row.getBoundingClientRect();
     const text = shown.textContent ?? "";
+    const misses =
+      shelf === undefined ||
+      box.right <= shelf.left + 0.5 ||
+      box.left >= shelf.right - 0.5 ||
+      box.bottom <= shelf.top + 0.5 ||
+      box.top >= shelf.bottom - 0.5;
     return {
       ok:
-        getComputedStyle(host).position === "absolute" &&
         box.width > 0 &&
-        box.top >= mountain.top &&
-        box.bottom <= mountain.bottom &&
-        box.left >= mountain.left &&
-        box.right <= mountain.right &&
+        box.top >= host.top - 1 &&
+        box.bottom <= host.bottom + 1 &&
+        misses &&
         text.includes("will be gone") &&
         !/\d|\?/.test(text),
       text,
@@ -1271,7 +1285,7 @@ for (const standalone of [false, true]) {
   });
   check(
     chip.ok,
-    `${label} expedition chip sits in the mountain (${chip.text})`,
+    `${label} expedition chip sits in the effects row (${chip.text})`,
   );
   check(await noScroll(page), `${label} expedition chip has no scroll`);
   await page.tap(".engineers-button");
@@ -2628,6 +2642,337 @@ for (const viewport of [
     `${size} main screen has no scroll after the sheets`,
   );
   await close();
+}
+
+// The pocket must stay clear of the menu at every realistic length, and a
+// four-part crew line must not leave one chip alone on the next row.
+const PILL_VIEWS = [
+  [360, 560],
+  [390, 844],
+  [412, 915],
+  [430, 932],
+];
+function crewSave(pocket) {
+  return {
+    version: 6,
+    lastSeen: Date.now(),
+    mountain: {
+      remaining: 240_000_000 - 12_000_000,
+      pocket,
+      helpers: 18,
+      carts: 7,
+      drills: 2,
+      staffed: 2,
+    },
+    workshop: {
+      materials: { clay: 10, iron: 0, crystal: 0, heartstone: 0 },
+      recipes: ["iron-rails", "sturdy-props", "blasting-charge", "reinforce"],
+    },
+  };
+}
+
+async function pillClear(page) {
+  return page.evaluate(() => {
+    const pill = document.querySelector(".pocket-row");
+    const menu = document.querySelector(".menu-button");
+    const app = document.querySelector("#app");
+    if (pill === null || menu === null || app === null) {
+      return { ok: false };
+    }
+    const a = pill.getBoundingClientRect();
+    const b = menu.getBoundingClientRect();
+    const apart =
+      a.right <= b.left + 0.5 ||
+      a.left >= b.right - 0.5 ||
+      a.bottom <= b.top + 0.5 ||
+      a.top >= b.bottom - 0.5;
+    const mid = (a.left + a.right) / 2;
+    const centred = Math.abs(mid - innerWidth / 2) <= 2;
+    const rows = [...document.querySelectorAll(".crew-row")];
+    const counts = rows.map((row) => row.querySelectorAll(".crew-bit").length);
+    const balanced = counts.length === 1 || counts.every((count) => count >= 2);
+    const pageStill =
+      scrollY === 0 &&
+      app.scrollTop === 0 &&
+      document.documentElement.scrollHeight ===
+        document.documentElement.clientHeight &&
+      app.scrollHeight === app.clientHeight;
+    return {
+      ok: apart && centred && balanced && pageStill,
+      apart,
+      centred,
+      balanced,
+      pageStill,
+      counts,
+      pocket: pill.textContent?.replace(/\s+/g, " ").slice(0, 80),
+    };
+  });
+}
+
+for (const viewport of PILL_VIEWS) {
+  const size = `${String(viewport[0])}x${String(viewport[1])}`;
+  for (const pocket of [32_500, 999_900_000_000_000, 1_000_000_000_000_000]) {
+    const { page, close } = await open(viewport, crewSave(pocket));
+    await page.waitForSelector(".pocket-row");
+    const clear = await pillClear(page);
+    check(clear.ok, `${size} pocket ${String(pocket)} stays clear of the menu`);
+    if (!clear.ok) {
+      console.log("pill", size, pocket, clear);
+    }
+    if (pocket === 32_500 && (size === "360x560" || size === "412x915")) {
+      await shot(page, `pocket-crew-${size}`);
+    }
+    await close();
+  }
+}
+
+// Buys, Workshop, and Upgrades: affordable, too expensive, and locked.
+for (const viewport of [
+  [360, 560],
+  [412, 915],
+]) {
+  const size = `${String(viewport[0])}x${String(viewport[1])}`;
+  const { page, close } = await open(viewport, crewSave(32_500));
+  await page.waitForSelector(".buys-button");
+  await page.tap(".buys-button");
+  await page.waitForSelector(".buys-dialog:not([hidden])");
+  const buys = await page.evaluate(() => {
+    const card = (tier) => document.querySelector(`[data-tier="${tier}"]`);
+    const shown = (tier, selector) => {
+      const node = card(tier)?.querySelector(selector);
+      return (
+        node !== null &&
+        node !== undefined &&
+        !node.hidden &&
+        node.textContent !== ""
+      );
+    };
+    const drill = card("drill");
+    const machine = card("machine");
+    return {
+      drillName: drill?.querySelector(".tier-name")?.textContent,
+      drillGain: shown("drill", ".tier-gain"),
+      drillWhy: shown("drill", ".tier-why"),
+      machineLocked:
+        machine?.querySelector(".tier-cost")?.textContent === "Locked",
+      machineGain: shown("machine", ".tier-gain"),
+      machineWhy: shown("machine", ".tier-why"),
+    };
+  });
+  check(
+    buys.drillName === "Steam drill" &&
+      buys.drillGain &&
+      buys.drillWhy &&
+      buys.machineLocked &&
+      !buys.machineGain &&
+      !buys.machineWhy,
+    `${size} unaffordable drill keeps its lines and the machine stays locked`,
+  );
+  if (buys.drillName !== "Steam drill" || !buys.drillGain) {
+    console.log("buys mix", size, buys);
+  }
+  await page.$eval('[data-tier="drill"]', (card) => {
+    card.scrollIntoView({ block: "center" });
+  });
+  await shot(page, `buys-mix-${size}`);
+  await page.click(".buys-close");
+  await page.tap(".thumb-workshop");
+  await page.waitForSelector(".workshop-dialog:not([hidden])");
+  await shot(page, `workshop-mix-${size}`);
+  await page.click(".workshop-close");
+  await page.tap(".upgrades-button");
+  await page.waitForSelector(".upgrades-dialog:not([hidden])");
+  const upgrades = await page.evaluate(() => {
+    const card = (id) => document.querySelector(`[data-upgrade="${id}"]`);
+    const shown = (id, selector) => {
+      const node = card(id)?.querySelector(selector);
+      return (
+        node !== null &&
+        node !== undefined &&
+        !node.hidden &&
+        node.textContent !== ""
+      );
+    };
+    return {
+      armsDear: card("tap")?.classList.contains("is-dear") === true,
+      armsEffect: shown("tap", ".upgrade-effect"),
+      armsWhy: shown("tap", ".upgrade-why"),
+      roadsLocked:
+        card("drillSyn")?.querySelector(".upgrade-buy")?.textContent ===
+        "Locked",
+      roadsEffect: shown("drillSyn", ".upgrade-effect"),
+    };
+  });
+  check(
+    upgrades.armsDear &&
+      upgrades.armsEffect &&
+      upgrades.armsWhy &&
+      upgrades.roadsLocked &&
+      !upgrades.roadsEffect,
+    `${size} unaffordable upgrade keeps its lines and a locked one does not`,
+  );
+  if (!upgrades.armsEffect) {
+    console.log("upgrades mix", size, upgrades);
+  }
+  await page.$eval('[data-upgrade="tap"]', (card) => {
+    card.scrollIntoView({ block: "center" });
+  });
+  await shot(page, `upgrades-mix-${size}`);
+  await close();
+}
+
+// Active effects stay in their row: 0, 1, 3, and more than fit.
+const EFFECT_VIEWS = [
+  [360, 560],
+  [412, 915],
+];
+function effectSave(count) {
+  const now = Date.now();
+  // 0, 1, and 3 are that many chips. 8 is a crowded row: both boosts and five trips.
+  const names = ["Ada", "Nils", "Ruth", "Otto", "Mae"];
+  const tripCount = count >= 8 ? 5 : count >= 3 ? 1 : 0;
+  const expeditions = Array.from({ length: tripCount }, (_, index) => ({
+    engineer: names[index],
+    tunnel: "side-seam",
+    sentAt: now - 60_000,
+    // Longer than the boosts, so a clock stays on screen when the row is full.
+    returnsAt: now + (40 + index) * 60_000,
+    home: "camp",
+    find: { kind: "quiet" },
+  }));
+  const boosts =
+    count >= 2
+      ? { sharper: now + 10 * 60_000, overtime: now + 20 * 60_000 }
+      : count >= 1
+        ? { sharper: now + 10 * 60_000 }
+        : {};
+  const engineers = names
+    .slice(0, Math.max(1, tripCount))
+    .map((name, index) => ({
+      name,
+      rank: 0,
+      trips: 0,
+      post: index < tripCount ? "tunnel" : "camp",
+    }));
+  return {
+    version: 6,
+    lastSeen: now,
+    mountain: {
+      remaining: 240_000_000 - 12_000_000,
+      pocket: 5_000_000,
+      helpers: 20,
+      carts: 2,
+      borers: 1,
+      staffed: 2,
+      engineers,
+      expeditions,
+      boosts,
+    },
+    workshop: {
+      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
+    },
+  };
+}
+
+for (const viewport of EFFECT_VIEWS) {
+  const size = `${String(viewport[0])}x${String(viewport[1])}`;
+  for (const count of [0, 1, 3, 8]) {
+    const { page, close } = await open(viewport, effectSave(count));
+    await page.waitForSelector(".effect-row");
+    const placed = await page.evaluate((count) => {
+      const row = document.querySelector(".effect-row");
+      const shelf = document.querySelector(".relic-shelf");
+      const pocket = document.querySelector(".pocket-row");
+      const menu = document.querySelector(".menu-button");
+      const crew = document.querySelector(".crew");
+      const bar = document.querySelector(".thumb-bar");
+      const rock = document.querySelector(".mountain-stage");
+      if (row === null) {
+        return { ok: false };
+      }
+      const rowBox = row.getBoundingClientRect();
+      const hits = (other) => {
+        if (other === null) {
+          return false;
+        }
+        const box = other.getBoundingClientRect();
+        if (box.height < 1 || box.width < 1) {
+          return false;
+        }
+        return !(
+          rowBox.right <= box.left + 0.5 ||
+          rowBox.left >= box.right - 0.5 ||
+          rowBox.bottom <= box.top + 0.5 ||
+          rowBox.top >= box.bottom - 0.5
+        );
+      };
+      const chips = [...row.querySelectorAll(".effect-chip")];
+      const active = chips.filter((chip) => !chip.hidden);
+      const visible = active.filter(
+        (chip) => !chip.classList.contains("is-overflow"),
+      );
+      const more = row.querySelector(".effect-more");
+      const moreShown = more !== null && !more.hidden;
+      const welcome = document.querySelector(".welcome-back");
+      const welcomeShut = welcome === null || welcome.hidden;
+      const expected = count >= 8 ? 7 : count;
+      const packed =
+        count === 0
+          ? visible.length === 0 && !moreShown
+          : count === 1
+            ? visible.length === 1 &&
+              !moreShown &&
+              (visible[0]?.textContent ?? "").includes("×")
+            : count === 3
+              ? active.length === 3 &&
+                (visible.length === 3 || moreShown) &&
+                visible.length >= 1
+              : moreShown &&
+                active.length === expected &&
+                visible.length < active.length;
+      const app = document.querySelector("#app");
+      const still =
+        app !== null &&
+        app.scrollHeight === app.clientHeight &&
+        document.documentElement.scrollHeight ===
+          document.documentElement.clientHeight;
+      return {
+        ok:
+          still &&
+          welcomeShut &&
+          packed &&
+          Math.round(rowBox.height) >= 20 &&
+          Math.round(rowBox.height) <= 28 &&
+          !hits(shelf) &&
+          !hits(pocket) &&
+          !hits(menu) &&
+          !hits(crew) &&
+          !hits(bar) &&
+          !hits(rock),
+        height: Math.round(rowBox.height),
+        shown: visible.length,
+        active: active.length,
+        more: moreShown,
+        welcomeShut,
+        packed,
+        still,
+        shelf: hits(shelf),
+        rock: hits(rock),
+      };
+    }, count);
+    check(
+      placed.ok,
+      `${size} ${String(count)} active effects stay in their row`,
+    );
+    if (!placed.ok) {
+      console.log("effects", size, count, placed);
+    }
+    if (count <= 3) {
+      await shot(page, `effects-${String(count)}-${size}`);
+    }
+    await close();
+  }
 }
 
 await browser.close();

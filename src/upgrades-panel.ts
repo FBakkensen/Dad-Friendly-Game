@@ -9,6 +9,8 @@ import drillUrl from "./assets/steam-drill.png";
 import borerUrl from "./assets/tunnel-borer.png";
 import mapUrl from "./assets/worn-map.png";
 import { BOOSTS, boostCost, boostLeft, buyBoost, type BoostId } from "./boosts";
+import { buyOnTap } from "./card-tap";
+import { writeChip } from "./effect-row";
 import { formatCount } from "./format";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates } from "./rates";
@@ -20,7 +22,6 @@ import {
   lostToolWords,
   boostOutcome,
   buyPriceWords,
-  lockedUpgradeLine,
   upgradeEffectLine,
 } from "./screen-words";
 import {
@@ -190,7 +191,7 @@ export function createUpgradesPanel({
     const body = document.createElement("div");
     body.className = SHEET_CARD_BODY;
     body.append(sheetHeading(title), buy, effect, why);
-    buy.addEventListener("click", () => {
+    buyOnTap(item, buy, () => {
       if (!getView().ready) {
         return;
       }
@@ -232,7 +233,7 @@ export function createUpgradesPanel({
     const body = document.createElement("div");
     body.className = SHEET_CARD_BODY;
     body.append(sheetHeading(title, levelChip), buy, effect, why);
-    buy.addEventListener("click", () => {
+    buyOnTap(item, buy, () => {
       if (!getView().ready) {
         return;
       }
@@ -355,8 +356,12 @@ export function createUpgradesPanel({
       row?.classList.toggle(SHEET_DEAR, left === 0 && !affordable);
       const chip = chipFor.get(boost.id);
       if (chip !== undefined) {
-        chip.hidden = left === 0;
-        chip.textContent = `${boost.name} ×${String(boost.multiplier)} · ${formatClock(left)}`;
+        writeChip(
+          chip,
+          `${boost.name} ×${String(boost.multiplier)} · ${formatClock(left)}`,
+          left,
+          left > 0,
+        );
       }
     }
     for (const {
@@ -386,15 +391,12 @@ export function createUpgradesPanel({
         levelChip.hidden = false;
         levelChip.textContent = `Lv ${String(level)}/${String(upgrade.maxLevel)}`;
       }
-      const lockedLine = lockedUpgradeLine(upgrade);
-      const gate = lockedLine.startsWith(`${upgrade.name} · `)
-        ? lockedLine.slice(upgrade.name.length + 3)
-        : "";
       effect.textContent = unlocked
         ? upgradeEffectLine(upgrade, current, at)
         : "";
-      why.textContent = unlocked ? UPGRADE_WHY[upgrade.id] : gate;
-      why.hidden = why.textContent === "";
+      effect.hidden = !unlocked;
+      why.textContent = unlocked ? UPGRADE_WHY[upgrade.id] : "";
+      why.hidden = !unlocked;
       buy.disabled = !view.ready || !affordable;
       buy.textContent = !unlocked
         ? "Locked"

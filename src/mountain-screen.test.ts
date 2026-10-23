@@ -485,7 +485,7 @@ describe("crew tiers on screen", () => {
     expect(grid?.getAttribute("data-shown")).toBe("5");
     expect(grid?.classList.contains("tier-grid-compact")).toBe(true);
     const borer = tierCard(screen.root, "borer");
-    expect(borer.querySelector(".tier-name")?.textContent).toBe("Borer");
+    expect(borer.querySelector(".tier-name")?.textContent).toBe("Tunnel borer");
     // The first borer's engineer tends them: 595 becomes 699, shown floored.
     expect(borer.querySelector(".tier-rate")?.textContent).toBe(
       "+699\u2009·\u20091,398/s · Needs 8 workers",
@@ -1607,7 +1607,7 @@ describe("quick boosts on screen", () => {
       });
       const screen = mountScreen({ storage, now: () => clock });
       const chip = screen.root.querySelector<HTMLElement>(
-        '.mountain-wrap .boost-chip[data-boost="sharper"]',
+        '.effect-row .boost-chip[data-boost="sharper"]',
       );
       expect(chip?.hidden).toBe(true);
       screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
@@ -1710,17 +1710,23 @@ describe("lasting upgrades on screen", () => {
     expect(screen.text('[data-upgrade="boots"] .upgrade-name')).toBe(
       "Better boots",
     );
-    expect(screen.text('[data-upgrade="boots"] .upgrade-why')).toBe(
-      "10 workers",
-    );
+    expect(
+      screen.root
+        .querySelector('[data-upgrade="boots"] .upgrade-why')
+        ?.hasAttribute("hidden"),
+    ).toBe(true);
+    expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe("");
     expect(boots?.disabled).toBe(true);
     expect(screen.text('[data-upgrade="steady"] .upgrade-buy')).toBe("Locked");
     expect(screen.text('[data-upgrade="steady"] .upgrade-name')).toBe(
       "Steady hands",
     );
-    expect(screen.text('[data-upgrade="steady"] .upgrade-why')).toBe(
-      "first cart",
-    );
+    expect(
+      screen.root
+        .querySelector('[data-upgrade="steady"] .upgrade-why')
+        ?.hasAttribute("hidden"),
+    ).toBe(true);
+    expect(screen.text('[data-upgrade="steady"] .upgrade-effect')).toBe("");
 
     screen.root
       .querySelector<HTMLButtonElement>('[data-tier="helper"]')
@@ -1846,9 +1852,12 @@ describe("crew synergies on screen", () => {
     expect(screen.text('[data-upgrade="drillSyn"] .upgrade-name')).toBe(
       "Cart roads",
     );
-    expect(screen.text('[data-upgrade="drillSyn"] .upgrade-why')).toBe(
-      "5 drills",
-    );
+    expect(
+      screen.root
+        .querySelector('[data-upgrade="drillSyn"] .upgrade-why')
+        ?.hasAttribute("hidden"),
+    ).toBe(true);
+    expect(screen.text('[data-upgrade="drillSyn"] .upgrade-effect')).toBe("");
     screen.root
       .querySelector<HTMLButtonElement>('[data-upgrade="cartSyn"] .upgrade-buy')
       ?.click();
@@ -1879,9 +1888,12 @@ describe("crew synergy copy before the tier exists", () => {
     expect(screen.text('[data-upgrade="machineSyn"] .upgrade-name')).toBe(
       "Borer tracks",
     );
-    expect(screen.text('[data-upgrade="machineSyn"] .upgrade-why')).toBe(
-      "Machine",
-    );
+    expect(
+      screen.root
+        .querySelector('[data-upgrade="machineSyn"] .upgrade-why')
+        ?.hasAttribute("hidden"),
+    ).toBe(true);
+    expect(screen.text('[data-upgrade="machineSyn"] .upgrade-effect')).toBe("");
     expect(screen.text('[data-upgrade="machineSyn"] .upgrade-buy')).toBe(
       "Locked",
     );
@@ -2051,15 +2063,14 @@ describe("Flemming's cart (#216)", () => {
       get: () => 280,
     });
     screen.progress.applyMutation((mountain) => ({ ...mountain }));
-    expect(posts.dataset["tight"]).toBe("true");
-    expect(posts.textContent).toBe("28 workers · 0 free");
-    posts.click();
+    expect(posts.dataset["tight"]).toBe("false");
+    expect(posts.textContent).toContain("13 on carts");
+    expect(posts.textContent).toContain("15 on drills");
+    const rows = [...posts.querySelectorAll(".crew-row")];
+    expect(rows.length).toBe(2);
     expect(
-      screen.root.querySelector<HTMLElement>(".crew-breakdown")?.hidden,
-    ).toBe(false);
-    expect(screen.text(".crew-breakdown")).toBe(
-      "28 workers: 13 on carts, 15 on drills, 0 free",
-    );
+      rows.every((row) => row.querySelectorAll(".crew-bit").length >= 2),
+    ).toBe(true);
     posts.click();
     expect(
       screen.root.querySelector<HTMLElement>(".crew-breakdown")?.hidden,
@@ -2595,7 +2606,7 @@ describe("player-facing workers (#139)", () => {
       expect(screen.text(".welcome-detail")).toMatch(/mined the whole time/);
       expect(screen.text(".crew-status")).toMatch(/need \d+ workers/);
       expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Worker");
-      expect(screen.text('[data-tier="kid"] .tier-name')).toBe("Kid");
+      expect(screen.text('[data-tier="kid"] .tier-name')).toBe("Kid worker");
 
       screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
       expect(
@@ -3053,7 +3064,23 @@ describe("engineers sheet (#145)", () => {
       "A new engineer can tend another machine or explore while the others work.",
     );
     expect(screen.text(".engineer-promote-why")).not.toMatch(/\d|\?/);
-    sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
+    const promoteWhy = sheet.querySelector(".engineer-promote-why");
+    promoteWhy?.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        clientX: 2,
+        clientY: 2,
+        button: 0,
+      }),
+    );
+    promoteWhy?.dispatchEvent(
+      new PointerEvent("pointerup", {
+        bubbles: true,
+        clientX: 2,
+        clientY: 2,
+        button: 0,
+      }),
+    );
     expect(screen.text(".engineer-confirm-line")).toBe(
       "Nils steps up as engineer. One worker fewer at the machines.",
     );
@@ -4188,7 +4215,11 @@ describe("sheet buys", () => {
       screen.root
         .querySelector('[data-tier="borer"] .tier-gain')
         ?.hasAttribute("hidden"),
-    ).toBe(true);
+    ).toBe(false);
+    expect(screen.text('[data-tier="borer"] .tier-why')).toBe(
+      "Chews a tunnel you can walk from.",
+    );
+    expect(screen.text('[data-tier="borer"] .tier-name')).toBe("Tunnel borer");
     expect(screen.text('[data-tier="drill"] .tier-preview')).toContain(
       "Preview · 2 of 10 drills",
     );
@@ -4227,6 +4258,211 @@ describe("sheet buys", () => {
       screen.root.querySelector(".upgrades-dialog .sheet-card") as Element,
     ).padding;
     expect(buysPad).toBe(upgradePad);
+    screen.progress.dispose();
+  });
+
+  it("keeps the effect and the why on an unaffordable buy, and hides them when locked", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(1_000_000),
+        helpers: 18,
+        carts: 7,
+        drills: 2,
+        pocket: 32_500,
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const line = (tier: string, selector: string): HTMLElement | null =>
+      screen.root.querySelector<HTMLElement>(
+        `[data-tier="${tier}"] ${selector}`,
+      );
+    expect(line("cart", ".tier-name")?.textContent).toBe("Mine cart");
+    expect(line("drill", ".tier-name")?.textContent).toBe("Steam drill");
+    expect(line("drill", ".tier-gain")?.hidden).toBe(false);
+    expect(line("drill", ".tier-needs")?.hidden).toBe(false);
+    expect(line("drill", ".tier-why")?.hidden).toBe(false);
+    expect(line("drill", ".tier-why")?.textContent).toBe(
+      "Bites the wall while you rest.",
+    );
+    expect(line("machine", ".tier-name")?.textContent).toBe("Great Machine");
+    expect(line("machine", ".tier-cost")?.textContent).toBe("Locked");
+    expect(line("machine", ".tier-gain")?.hidden).toBe(true);
+    expect(line("machine", ".tier-why")?.hidden).toBe(true);
+    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    const arms = screen.root.querySelector('[data-upgrade="tap"]');
+    expect(arms?.classList.contains("is-dear")).toBe(true);
+    expect(arms?.querySelector<HTMLElement>(".upgrade-effect")?.hidden).toBe(
+      false,
+    );
+    expect(arms?.querySelector<HTMLElement>(".upgrade-why")?.hidden).toBe(
+      false,
+    );
+    expect(arms?.querySelector(".upgrade-effect")?.textContent).not.toBe("");
+    const roads = screen.root.querySelector('[data-upgrade="drillSyn"]');
+    expect(roads?.querySelector(".upgrade-buy")?.textContent).toBe("Locked");
+    expect(roads?.querySelector<HTMLElement>(".upgrade-effect")?.hidden).toBe(
+      true,
+    );
+    expect(roads?.querySelector<HTMLElement>(".upgrade-why")?.hidden).toBe(
+      true,
+    );
+    screen.progress.dispose();
+  });
+
+  it("shortens a pocket that does not fit beside the menu", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(1_000), pocket: 32_500, helpers: 4 },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    document.body.append(screen.root);
+    const row = screen.root.querySelector<HTMLElement>(".pocket-row");
+    const pocket = screen.root.querySelector<HTMLElement>(".pocket");
+    const rate = screen.root.querySelector<HTMLElement>(".pocket-rate");
+    if (row === null || pocket === null || rate === null) {
+      throw new Error("pocket did not render");
+    }
+    Object.defineProperty(row, "clientWidth", {
+      configurable: true,
+      get: () => 120,
+    });
+    Object.defineProperty(pocket, "clientWidth", {
+      configurable: true,
+      get: () => 120,
+    });
+    Object.defineProperty(pocket, "scrollWidth", {
+      configurable: true,
+      get: () => 400,
+    });
+    Object.defineProperty(rate, "clientWidth", {
+      configurable: true,
+      get: () => 120,
+    });
+    Object.defineProperty(rate, "scrollWidth", {
+      configurable: true,
+      get: () => 400,
+    });
+    screen.progress.applyMutation((mountain) => ({
+      ...mountain,
+      pocket: 999_900_000_000_000,
+      chargeUntil: Date.now() + 60_000,
+      bench: {
+        recipe: "iron-rails",
+        startedAt: Date.now() - 1_000,
+        endsAt: Date.now() + 120_000,
+      },
+    }));
+    expect(screen.text(".pocket")).toContain("T stones");
+    expect(row.classList.contains("is-tight")).toBe(true);
+    expect(
+      screen.root.querySelector("[data-craft='blasting-charge']")?.textContent,
+    ).toMatch(/Blasting charge/);
+    expect(
+      screen.root.querySelector("[data-craft='bench']")?.textContent,
+    ).toMatch(/Iron rails/);
+    screen.root.remove();
+    screen.progress.dispose();
+  });
+
+  it("buys from the title or the why line, and ignores a drag", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(12_000_000),
+        helpers: 18,
+        carts: 7,
+        drills: 2,
+        pocket: 2_500_000,
+        materials: { clay: 10, iron: 4, crystal: 0, heartstone: 0 },
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    const tap = (node: Element): void => {
+      node.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          clientX: 4,
+          clientY: 4,
+          button: 0,
+        }),
+      );
+      node.dispatchEvent(
+        new PointerEvent("pointerup", {
+          bubbles: true,
+          clientX: 4,
+          clientY: 4,
+          button: 0,
+        }),
+      );
+      node.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, clientX: 4, clientY: 4 }),
+      );
+    };
+    const carts = (): number => screen.progress.getSnapshot().mountain.carts;
+    const before = carts();
+    const cartWhy = screen.root.querySelector('[data-tier="cart"] .tier-why');
+    if (cartWhy === null) {
+      throw new Error("cart why did not render");
+    }
+    tap(cartWhy);
+    expect(carts()).toBe(before + 1);
+    const drag = screen.root.querySelector('[data-tier="helper"] .tier-name');
+    if (drag === null) {
+      throw new Error("worker name did not render");
+    }
+    const helpers = screen.progress.getSnapshot().mountain.helpers;
+    drag.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        clientX: 0,
+        clientY: 0,
+        button: 0,
+      }),
+    );
+    drag.dispatchEvent(
+      new PointerEvent("pointermove", {
+        bubbles: true,
+        clientX: 40,
+        clientY: 0,
+        button: 0,
+      }),
+    );
+    drag.dispatchEvent(
+      new PointerEvent("pointerup", {
+        bubbles: true,
+        clientX: 40,
+        clientY: 0,
+        button: 0,
+      }),
+    );
+    drag.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, clientX: 40, clientY: 0 }),
+    );
+    expect(screen.progress.getSnapshot().mountain.helpers).toBe(helpers);
+    tap(drag);
+    expect(screen.progress.getSnapshot().mountain.helpers).toBe(helpers + 1);
+    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    const why = screen.root.querySelector('[data-upgrade="tap"] .upgrade-why');
+    if (why === null) {
+      throw new Error("upgrade why did not render");
+    }
+    tap(why);
+    expect(screen.progress.getSnapshot().mountain.upgrades?.tap).toBe(1);
+    screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".thumb-workshop")?.click();
+    const craftName = screen.root.querySelector(".workshop-card h3");
+    if (craftName === null) {
+      throw new Error("craft name did not render");
+    }
+    tap(craftName);
+    expect(screen.progress.getSnapshot().mountain.bench).toBeDefined();
     screen.progress.dispose();
   });
 

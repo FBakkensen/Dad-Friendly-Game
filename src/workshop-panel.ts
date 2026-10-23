@@ -1,4 +1,5 @@
 import stoneIconUrl from "./assets/stone.png";
+import { buyOnTap } from "./card-tap";
 import { reducedMotion } from "./float-text";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
@@ -391,7 +392,7 @@ export function createWorkshopPanel({
     if (shaking === item.id) {
       button.classList.add("is-shaking");
     }
-    button.addEventListener("click", () => {
+    buyOnTap(article, button, () => {
       onCraft(item);
     });
     article.append(name, level, effect, cost, button);

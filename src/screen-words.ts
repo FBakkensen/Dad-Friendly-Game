@@ -237,23 +237,6 @@ function synergyEffectLine(upgrade: Upgrade, mountain: Mountain): string {
   return `+${each} each ${from.shortName.toLowerCase()}; ${target} ${verb} ${shareWords(synergyBonus(mountain, upgrade))}.`;
 }
 
-/** Locked row: the name and the gate, one compact line. */
-export function lockedUpgradeLine(upgrade: Upgrade): string {
-  if (upgrade.unlock === undefined) {
-    return upgrade.name;
-  }
-  const tier = tierById(upgrade.unlock.tier);
-  if (tier.id === "machine") {
-    // "Great Machine" does not fit one line beside the buy button at 360px.
-    return `${upgrade.name} · ${tier.shortName}`;
-  }
-  const gate =
-    upgrade.unlock.count === 1
-      ? `first ${tier.shortName.toLowerCase()}`
-      : `${String(upgrade.unlock.count)} ${tier.shortName.toLowerCase()}s`;
-  return `${upgrade.name} · ${gate}`;
-}
-
 /** "the first 8 hours", "the first 16 hours", or "a whole day" with the Shield. */
 export const capWords = (capMs: number): string =>
   capMs >= 24 * 3_600_000

@@ -1,3 +1,4 @@
+import pickUrl from "./assets/pick.png";
 import { tapFloatSpot } from "./tap-float";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
 import { formatCompact, formatCount } from "./format";
@@ -5,6 +6,7 @@ import { MOUNTAIN_STONES, mineByHand, stonesPerSecond } from "./mountain";
 import { type TierId } from "./tiers";
 import { hasRelic, nextRelic, RELICS, type RelicId, depthHint } from "./relics";
 import { BOOSTS } from "./boosts";
+import { packEffects, writeChip } from "./effect-row";
 import { effectiveRates } from "./rates";
 import { createRelicPanels } from "./relic-panels";
 import { createArrivalPanel } from "./arrival-panel";
@@ -20,13 +22,19 @@ import { SHEET_HOST } from "./sheet-card";
 import { createEngineersPanel } from "./engineers-panel";
 import { floatText } from "./float-text";
 import { createUpgradesPanel } from "./upgrades-panel";
-import { workshopUnlocked } from "./workshop";
+import {
+  hotTimers,
+  isRecipeId,
+  recipeById,
+  workshopUnlocked,
+} from "./workshop";
 import { createWorkshopPanel } from "./workshop-panel";
 import {
   OTHER_TAB_BODY,
   OTHER_TAB_PLAY,
   OTHER_TAB_TITLE,
   layerCardWords,
+  formatClock,
   nextLayerHint,
   tapWords,
 } from "./screen-words";
@@ -187,20 +195,62 @@ export function mountMountainScreen({
 
   mountainWrap.append(veinNote);
 
-  // Running boosts, counting down in the mountain's corner (no layout cost).
+  // Countdowns sit in one reserved row, never over the shelf.
+  const effectRow = document.createElement("div");
+  effectRow.className = "effect-row";
+  effectRow.setAttribute("aria-label", "Active effects");
   const boostChips = document.createElement("div");
   boostChips.className = "boost-chips";
+  const chipShell = (
+    className: string,
+    iconUrl: string,
+  ): HTMLParagraphElement => {
+    const chip = document.createElement("p");
+    chip.className = `effect-chip ${className}`;
+    chip.hidden = true;
+    const icon = document.createElement("img");
+    icon.src = iconUrl;
+    icon.alt = "";
+    icon.width = 16;
+    icon.height = 16;
+    icon.draggable = false;
+    const label = document.createElement("span");
+    label.className = "effect-label";
+    chip.append(icon, label);
+    return chip;
+  };
   const chipFor = new Map(
     BOOSTS.map((boost) => {
-      const chip = document.createElement("p");
-      chip.className = "boost-chip";
+      const chip = chipShell(
+        "boost-chip",
+        boost.id === "sharper" ? pickUrl : tierArt.helper,
+      );
       chip.dataset["boost"] = boost.id;
-      chip.hidden = true;
       boostChips.append(chip);
       return [boost.id, chip] as const;
     }),
   );
-  mountainWrap.append(boostChips);
+  const craftIds = [
+    "blasting-charge",
+    "axle-grease",
+    "crystal-flare",
+    "heartstone-ember",
+  ] as const;
+  const craftChips = new Map(
+    craftIds.map((id) => {
+      const chip = chipShell("craft-chip", relicArt.hammer);
+      chip.dataset["craft"] = id;
+      boostChips.append(chip);
+      return [id, chip] as const;
+    }),
+  );
+  const benchChip = chipShell("craft-chip", relicArt.hammer);
+  benchChip.dataset["craft"] = "bench";
+  boostChips.append(benchChip);
+  const effectMore = document.createElement("p");
+  effectMore.className = "effect-more";
+  effectMore.hidden = true;
+  effectRow.append(boostChips, effectMore);
 
   // The wait for the next vein counts play time only, and survives the phone
   // locking or the PWA being closed, so short sessions still add up to a vein.
@@ -506,8 +556,9 @@ export function mountMountainScreen({
     remaining.textContent = `${formatCount(left)} stones left`;
     remaining.title = `${left.toLocaleString("en-US")} of ${MOUNTAIN_STONES.toLocaleString("en-US")}`;
     const held = view.mountain.pocket;
-    pocketText.textContent =
-      held === 1 ? "1 stone" : `${formatCount(held)} stones`;
+    const wordCount = held === 1 ? "1 stone" : `${formatCount(held)} stones`;
+    const tightCount = held === 1 ? "1 stone" : `${formatCompact(held)} stones`;
+    pocketText.textContent = wordCount;
     mountain.disabled = !view.playing || left === 0;
     const showElsewhere = view.elsewhere;
     otherTab.hidden = !showElsewhere;
@@ -529,6 +580,17 @@ export function mountMountainScreen({
       view.trouble,
     ).crewPerSecond;
     pocketRate.textContent = `${formatCompact(perSecond)} stones/s`;
+    pocketRow.classList.remove("is-tight");
+    if (pocketRow.isConnected && pocketRow.clientWidth > 0) {
+      const lineOverflows = (node: HTMLElement): boolean =>
+        node.scrollWidth > node.clientWidth + 1;
+      if (lineOverflows(pocket) || lineOverflows(pocketRate)) {
+        pocketText.textContent = tightCount;
+      }
+      if (lineOverflows(pocket) || lineOverflows(pocketRate)) {
+        pocketRow.classList.add("is-tight");
+      }
+    }
     const layer = layerOf(view.mountain);
     const layerWords = layerCardWords(layer.id);
     layerName.textContent = layer.name;
@@ -548,6 +610,42 @@ export function mountMountainScreen({
     workshop.render();
     // The menu row hides Workshop until the Granite. The thumb uses that same gate.
     workshopThumb.disabled = !workshopUnlocked(view.mountain);
+    const at = now();
+    const hot = hotTimers(view.mountain, at);
+    for (const [id, chip] of craftChips) {
+      const timer = hot.find((item) => item.id === id);
+      if (timer === undefined) {
+        writeChip(chip, "", 0, false);
+        continue;
+      }
+      const left = timer.until - at;
+      writeChip(
+        chip,
+        `${recipeById(id).name} · ${formatClock(left)}`,
+        left,
+        true,
+      );
+    }
+    const bench = view.mountain.bench;
+    const benchIsTimer =
+      bench !== undefined && hot.some((item) => item.id === bench.recipe);
+    if (
+      bench !== undefined &&
+      isRecipeId(bench.recipe) &&
+      at < bench.endsAt &&
+      !benchIsTimer
+    ) {
+      const left = bench.endsAt - at;
+      writeChip(
+        benchChip,
+        `${recipeById(bench.recipe).name} · ${formatClock(left)}`,
+        left,
+        true,
+      );
+    } else {
+      writeChip(benchChip, "", 0, false);
+    }
+    packEffects(effectRow);
     savedCopies.render();
     conflictSheet.render(view.saveConflict, view.elsewhere);
     renderSave();
@@ -707,6 +805,7 @@ export function mountMountainScreen({
     pocketStack,
     layerLine,
     crew,
+    effectRow,
     mountainWrap,
     thumbBar,
     saveStatus,
