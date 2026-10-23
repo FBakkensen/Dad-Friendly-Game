@@ -2264,6 +2264,278 @@ for (const viewport of NOTICE_SIZES) {
   await close();
 }
 
+// The shelf is centred on the screen and the rock. Locked thumb buttons
+// stay quiet. The last Buys and Upgrades card clears the footer.
+const SHELF_VIEWS = [
+  [360, 560],
+  [390, 844],
+  [412, 915],
+  [430, 932],
+  [1280, 800],
+];
+const PHONE_SHOTS = new Set(["360x560", "390x844", "412x915"]);
+const EMPTY_WORKSHOP = {
+  materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+  recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
+};
+/** A v6 save. lastSeen is now so the welcome card stays shut. */
+function freshMountain() {
+  return {
+    version: 6,
+    lastSeen: Date.now(),
+    mountain: { remaining: 240_000_000, pocket: 0, helpers: 0 },
+    workshop: EMPTY_WORKSHOP,
+  };
+}
+// Hammer depth, so three relics glow. Granite is open and a borer is owned,
+// so Workshop and Engineers open too.
+function openMountain() {
+  return {
+    version: 6,
+    lastSeen: Date.now(),
+    mountain: {
+      remaining: 240_000_000 - 25_000_000,
+      pocket: 5_000_000,
+      helpers: 20,
+      carts: 5,
+      drills: 2,
+      borers: 1,
+      staffed: 2,
+    },
+    workshop: {
+      ...EMPTY_WORKSHOP,
+      recipes: [
+        "iron-rails",
+        "sturdy-props",
+        "blasting-charge",
+        "reinforce",
+        "axle-grease",
+      ],
+    },
+  };
+}
+
+async function shelfCentre(page) {
+  return page.evaluate(() => {
+    const shelf = document.querySelector(".relic-shelf");
+    const rock = document.querySelector(".mountain-stage");
+    if (shelf === null || rock === null) {
+      return { ok: false, delta: 999, rockDelta: 999 };
+    }
+    const box = shelf.getBoundingClientRect();
+    const rockBox = rock.getBoundingClientRect();
+    const mid = (box.left + box.right) / 2;
+    const view = innerWidth / 2;
+    const rockMid = (rockBox.left + rockBox.right) / 2;
+    const delta = mid - view;
+    const rockDelta = mid - rockMid;
+    return {
+      ok: Math.abs(delta) <= 2 && Math.abs(rockDelta) <= 2,
+      delta,
+      rockDelta,
+    };
+  });
+}
+
+async function thumbState(page) {
+  return page.evaluate(() => {
+    const read = (selector) => {
+      const button = document.querySelector(selector);
+      if (!(button instanceof HTMLButtonElement)) {
+        return null;
+      }
+      const style = getComputedStyle(button);
+      const box = button.getBoundingClientRect();
+      return {
+        disabled: button.disabled,
+        border: style.borderTopColor,
+        color: style.color,
+        background: style.backgroundColor,
+        width: box.width,
+        height: box.height,
+      };
+    };
+    const buys = read(".buys-button");
+    const workshop = read(".thumb-workshop");
+    const engineers = read(".engineers-button");
+    const upgrades = read(".upgrades-button");
+    const buttons = [buys, workshop, engineers, upgrades];
+    if (buttons.some((button) => button === null)) {
+      return { ok: false, buys, workshop, engineers, upgrades };
+    }
+    const laidOut =
+      buttons.every((button) => button.height >= 48 && button.width >= 48) &&
+      buttons.every(
+        (button) =>
+          Math.abs(button.width - buys.width) <= 1 &&
+          Math.abs(button.height - buys.height) <= 1,
+      );
+    return { ok: laidOut, buys, workshop, engineers, upgrades };
+  });
+}
+
+async function sheetEnd(page, scroller, footer, card) {
+  return page.evaluate(
+    (scrollerSelector, footerSelector, cardSelector) => {
+      const element = document.querySelector(scrollerSelector);
+      const footerEl = document.querySelector(footerSelector);
+      const target =
+        cardSelector === "last"
+          ? [...(element?.querySelectorAll(".sheet-card") ?? [])]
+              .filter(
+                (node) => !node.hidden && node.getClientRects().length > 0,
+              )
+              .at(-1)
+          : element?.querySelector(cardSelector);
+      if (
+        element === null ||
+        footerEl === null ||
+        target === null ||
+        target === undefined
+      ) {
+        return { ok: false, gap: -1, text: "" };
+      }
+      target.scrollIntoView({ block: "end", inline: "nearest" });
+      const cardBox = target.getBoundingClientRect();
+      const footBox = footerEl.getBoundingClientRect();
+      const port = element.getBoundingClientRect();
+      const gap = footBox.top - cardBox.bottom;
+      const overflows = element.scrollHeight > element.clientHeight + 1;
+      const fullyIn =
+        cardBox.top >= port.top - 1 &&
+        cardBox.bottom <= port.bottom + 1 &&
+        element.clientHeight >= cardBox.height;
+      const app = document.querySelector("#app");
+      const pageStill =
+        scrollY === 0 &&
+        (app?.scrollTop ?? 0) === 0 &&
+        document.documentElement.scrollHeight ===
+          document.documentElement.clientHeight;
+      return {
+        ok:
+          pageStill &&
+          fullyIn &&
+          gap >= 8 &&
+          cardBox.bottom <= footBox.top &&
+          (!overflows || gap <= 16.5),
+        gap: Math.round(gap * 10) / 10,
+        overflows,
+        fullyIn,
+        text: (target.textContent ?? "").replaceAll(/\s+/g, " ").slice(0, 48),
+      };
+    },
+    scroller,
+    footer,
+    card,
+  );
+}
+
+for (const viewport of SHELF_VIEWS) {
+  const size = `${String(viewport[0])}x${String(viewport[1])}`;
+  const shotThis = PHONE_SHOTS.has(size);
+  {
+    const { page, close } = await open(viewport, freshMountain());
+    await page.waitForSelector(".relic-shelf");
+    const centre = await shelfCentre(page);
+    check(
+      centre.ok && (await noScroll(page)),
+      `${size} relic shelf is centred and the screen does not scroll`,
+    );
+    if (!centre.ok) {
+      console.log("shelf", size, centre);
+    }
+    const thumbs = await thumbState(page);
+    const freshPaint =
+      thumbs.ok &&
+      !thumbs.buys.disabled &&
+      thumbs.buys.border === "rgb(242, 196, 109)" &&
+      thumbs.workshop.disabled &&
+      thumbs.workshop.background === "rgb(58, 42, 28)" &&
+      thumbs.engineers.disabled &&
+      thumbs.upgrades.disabled === false &&
+      thumbs.upgrades.color === "rgb(242, 196, 109)";
+    check(
+      freshPaint,
+      `${size} fresh thumb bar: Buys and Upgrades gold, Workshop and Engineers quiet`,
+    );
+    if (!freshPaint) {
+      console.log("thumbs fresh", size, thumbs);
+    }
+    if (shotThis) {
+      await shot(page, `mountain-fresh-${size}`);
+    }
+    await page.tap(".buys-button");
+    await page.waitForSelector(".buys-dialog:not([hidden])");
+    const buysEnd = await sheetEnd(
+      page,
+      ".buys-dialog .tier-grid",
+      ".buys-close",
+      '[data-tier="helper"]',
+    );
+    check(buysEnd.ok, `${size} Buys last card clears Back to the mountain`);
+    if (!buysEnd.ok) {
+      console.log("buys end", size, buysEnd);
+    }
+    if (shotThis) {
+      await shot(page, `buys-end-${size}`);
+    }
+    await page.click(".buys-close");
+    await page.tap(".upgrades-button");
+    await page.waitForSelector(".upgrades-dialog:not([hidden])");
+    const upgradesEnd = await sheetEnd(
+      page,
+      ".upgrades-scroll",
+      ".upgrades-close",
+      "last",
+    );
+    check(
+      upgradesEnd.ok,
+      `${size} Upgrades last card clears Back to the mountain`,
+    );
+    if (!upgradesEnd.ok) {
+      console.log("upgrades end", size, upgradesEnd);
+    }
+    if (shotThis) {
+      await shot(page, `upgrades-end-${size}`);
+    }
+    await close();
+  }
+  {
+    const { page, close } = await open(viewport, openMountain());
+    await page.waitForSelector(".relic-shelf");
+    const centre = await shelfCentre(page);
+    check(
+      centre.ok && (await noScroll(page)),
+      `${size} relic shelf with finds is centred and the screen does not scroll`,
+    );
+    if (!centre.ok) {
+      console.log("shelf relics", size, centre);
+    }
+    const thumbs = await thumbState(page);
+    const openPaint =
+      thumbs.ok &&
+      [thumbs.buys, thumbs.workshop, thumbs.engineers, thumbs.upgrades].every(
+        (button) =>
+          button.disabled === false && button.color === "rgb(242, 196, 109)",
+      );
+    check(openPaint, `${size} unlocked thumb bar is all gold`);
+    if (!openPaint) {
+      console.log("thumbs open", size, thumbs);
+    }
+    const found = await page.$$eval(".shelf-slot", (slots) =>
+      slots.map((slot) => slot.getAttribute("data-found")),
+    );
+    check(
+      found.filter((flag) => flag === "true").length >= 3,
+      `${size} save with relics shows found slots`,
+    );
+    if (shotThis) {
+      await shot(page, `mountain-relics-${size}`);
+    }
+    await close();
+  }
+}
+
 await browser.close();
 await server?.close();
 if (failures.length > 0) {

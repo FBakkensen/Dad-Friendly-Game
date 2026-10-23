@@ -97,7 +97,11 @@ page is the map, plus the rules that keep it that way.
 
 - **Panel contract:** a panel gets `progress`, `getView`, `now` and a
   `requestRender` callback; it never reads another panel's elements, and it
-  owns its open/closed state.
+  owns its open/closed state. The thumb bar uses those gates: Workshop stays
+  shut until `workshopUnlocked`, Engineers until a hand is on the crew. Buys
+  and Upgrades open from the first screen. The relic shelf is centred in the
+  mountain wrap. Buys and Upgrades scroll inside the sheet so the last card
+  clears the footer.
 
 ## Guards (#118)
 

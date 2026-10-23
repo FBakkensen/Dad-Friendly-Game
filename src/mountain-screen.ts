@@ -20,6 +20,7 @@ import { SHEET_HOST } from "./sheet-card";
 import { createEngineersPanel } from "./engineers-panel";
 import { floatText } from "./float-text";
 import { createUpgradesPanel } from "./upgrades-panel";
+import { workshopUnlocked } from "./workshop";
 import { createWorkshopPanel } from "./workshop-panel";
 import {
   OTHER_TAB_BODY,
@@ -545,6 +546,8 @@ export function mountMountainScreen({
     upgrades.render();
     engineers.render();
     workshop.render();
+    // The menu row hides Workshop until the Granite. The thumb uses that same gate.
+    workshopThumb.disabled = !workshopUnlocked(view.mountain);
     savedCopies.render();
     conflictSheet.render(view.saveConflict, view.elsewhere);
     renderSave();
