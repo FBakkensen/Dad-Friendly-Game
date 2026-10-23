@@ -289,8 +289,7 @@ function needsLine(mountain: Mountain, id: TierId): string | undefined {
   if (staff <= 0) {
     return undefined;
   }
-  const free = Math.max(0, spareWorkers(mountain));
-  return `Needs ${formatCompact(staff)} ${workerWords(staff)} · ${formatCompact(free)} free`;
+  return `Needs ${formatCompact(staff)} ${workerWords(staff)}`;
 }
 
 function eachLine(mountain: Mountain, id: TierId): string {

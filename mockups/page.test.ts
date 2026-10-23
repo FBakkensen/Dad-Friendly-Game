@@ -498,7 +498,11 @@ describe("design token mocks (#234)", () => {
       `${formatCompact(rates.crewPerSecond)} stones/s`,
     );
     expect(shown.textContent).toContain("on carts");
-    expect(shown.textContent).toContain("free");
+    expect(shown.textContent).toContain("7 free");
+    for (const card of shown.querySelectorAll(".dir-buycard")) {
+      expect(card.textContent).toMatch(/Needs \d/);
+      expect(card.textContent).not.toMatch(/free/);
+    }
     expect(shown.textContent).toContain(drillPrice);
     expect(shown.textContent).toContain(
       `+${formatSpeed(rates.tierSpeed.drill)}/s each`,
