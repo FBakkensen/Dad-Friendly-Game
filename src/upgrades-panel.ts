@@ -55,7 +55,10 @@ export function createUpgradesPanel({
   upgradesIcon.width = 32;
   upgradesIcon.height = 32;
   upgradesIcon.draggable = false;
-  upgradesButton.append(upgradesIcon);
+  const upgradesLabel = document.createElement("span");
+  upgradesLabel.className = "thumb-label";
+  upgradesLabel.textContent = "Upgrades";
+  upgradesButton.append(upgradesIcon, upgradesLabel);
   let upgradesOpen = false;
   upgradesButton.addEventListener("click", () => {
     upgradesOpen = true;
@@ -178,15 +181,20 @@ export function createUpgradesPanel({
       closeUpgrades();
     }
   });
-  upgradesCard.append(
-    upgradesTitle,
-    upgradesPocket,
+  const upgradesScroll = document.createElement("div");
+  upgradesScroll.className = "upgrades-scroll";
+  upgradesScroll.append(
     boostHeading,
     boostList,
     lastingHeading,
     upgradeList,
     foundHeading,
     foundList,
+  );
+  upgradesCard.append(
+    upgradesTitle,
+    upgradesPocket,
+    upgradesScroll,
     upgradesClose,
   );
   upgradesSheet.append(upgradesCard);

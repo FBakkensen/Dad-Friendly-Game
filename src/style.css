@@ -3667,6 +3667,7 @@ body {
 
 .buys-close {
   appearance: none;
+  flex: none;
   min-height: var(--target-min);
   border: var(--line) solid var(--color-edge);
   border-radius: var(--radius-control);
@@ -3684,4 +3685,420 @@ body {
 .upgrade.is-locked {
   background: var(--color-state-dear);
   border-color: var(--color-edge);
+}
+
+/* Closed mountain: the pill, one layer line, the crew, the rock, four labels. */
+#app {
+  position: relative;
+}
+
+.top-bar {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  z-index: 3;
+  width: auto;
+}
+
+.pocket-row {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.pocket-rate {
+  margin: 0;
+  color: var(--color-gold);
+  font-size: var(--type-24);
+  font-weight: var(--weight-bold);
+  line-height: 1.1;
+  text-align: center;
+}
+
+.layer-line {
+  margin: 0;
+  max-width: 100%;
+  color: var(--color-quiet);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading);
+  text-align: center;
+}
+
+.layer-name {
+  color: var(--color-gold);
+}
+
+.crew-status:not(.crew-short):not(.crew-waiting) {
+  display: none;
+}
+
+.crew-pool {
+  margin: 0;
+  color: var(--color-quiet);
+  font-size: var(--type-14);
+  line-height: var(--leading);
+  text-align: center;
+}
+
+.crew-pool[hidden] {
+  display: none;
+}
+
+.crew-posts {
+  flex-wrap: wrap;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: unset;
+}
+
+.crew-bit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+  line-height: 1.1;
+}
+
+.crew-bit img {
+  width: var(--space-24);
+  height: var(--space-24);
+  object-fit: contain;
+}
+
+.thumb-bar {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.thumb-bar .buys-button,
+.thumb-bar .thumb-workshop,
+.thumb-bar .engineers-button,
+.thumb-bar .upgrades-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  padding: var(--space-4) 0;
+  line-height: 1.1;
+}
+
+.thumb-bar .engineers-button::after {
+  content: none;
+}
+
+.thumb-label {
+  max-width: 100%;
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+  line-height: 1.1;
+}
+
+.thumb-bar img {
+  width: var(--space-24);
+  height: var(--space-24);
+  object-fit: contain;
+}
+
+.ledger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+}
+
+.ledger .stones-left,
+.ledger .goal,
+.ledger .layer-hint,
+.ledger .material-line {
+  font-size: var(--type-16);
+  text-shadow: none;
+}
+
+/* Sheets leave the pocket pill in view. Cards use the token type scale. */
+.buys-dialog,
+.upgrades-dialog {
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: max(var(--space-4), env(safe-area-inset-top)) var(--space-4)
+    max(var(--space-4), env(safe-area-inset-bottom));
+  background: transparent;
+}
+
+.buys-card,
+.upgrades-dialog .upgrades-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-height: 68%;
+  margin: 0;
+  margin-top: auto;
+  overflow: hidden;
+}
+
+.upgrades-scroll {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--target-gap);
+  min-height: 0;
+  overflow: auto;
+}
+
+.buys-dialog .tier-grid,
+.buys-dialog .tier-grid-compact {
+  flex: 1 1 auto;
+  flex-direction: column-reverse;
+  min-height: 0;
+  overflow: auto;
+}
+
+.buys-dialog .tier {
+  display: grid;
+  flex: none;
+  grid-template-columns: var(--space-24) minmax(0, 1fr);
+  grid-template-rows: auto;
+  column-gap: var(--space-8);
+  row-gap: 0;
+  align-items: start;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  color: var(--color-ink);
+  text-align: left;
+}
+
+.buys-dialog .tier:disabled {
+  color: var(--color-ink);
+  opacity: 1;
+}
+
+.buys-dialog .tier-art {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+}
+
+.buys-dialog .tier-words {
+  display: grid;
+  grid-column: 2 / -1;
+  grid-row: 1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-8);
+  row-gap: 0;
+  min-width: 0;
+}
+
+.buys-dialog .tier-name {
+  grid-column: 1;
+  grid-row: 1;
+  overflow: visible;
+  color: var(--color-ink);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+  white-space: normal;
+}
+
+.buys-dialog .tier-cost {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  overflow: visible;
+  font-size: var(--type-20);
+  font-weight: var(--weight-bold);
+  white-space: nowrap;
+}
+
+.buys-dialog .tier:not(.tier-locked) .tier-cost::before {
+  content: "Buy · ";
+}
+
+.buys-dialog .tier-cost-icon,
+.buys-dialog .tier-count,
+.buys-dialog .tier-rate,
+.buys-dialog .engineer-mark,
+.buys-dialog .engineer-gain {
+  display: none;
+}
+
+.buys-dialog .tier-ready .tier-cost,
+.buys-dialog .tier-short .tier-cost {
+  color: var(--color-gold);
+  font-size: var(--type-20);
+}
+
+.buys-dialog .tier-dear .tier-cost,
+.buys-dialog .tier-locked .tier-cost {
+  color: var(--color-quiet);
+  font-size: var(--type-16);
+}
+
+.buys-dialog .tier-gain,
+.buys-dialog .tier-needs,
+.buys-dialog .tier-why,
+.buys-dialog .tier-preview {
+  grid-column: 1 / -1;
+  overflow: visible;
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading);
+  white-space: normal;
+}
+
+.buys-dialog .tier-gain {
+  grid-row: 2;
+  color: var(--color-gold);
+}
+
+.buys-dialog .tier-needs {
+  grid-row: 3;
+}
+
+.buys-dialog .tier-why {
+  grid-row: 4;
+}
+
+.buys-dialog .tier-preview {
+  grid-row: 5;
+}
+
+.buys-dialog .tier-trouble .tier-gain {
+  color: var(--color-danger);
+}
+
+.buys-dialog .tier-needs {
+  color: var(--color-ink);
+}
+
+.buys-dialog .tier-short .tier-needs {
+  color: var(--color-state-short);
+}
+
+.buys-dialog .tier-why,
+.buys-dialog .tier-preview {
+  color: var(--color-quiet);
+  font-weight: var(--weight-regular);
+}
+
+.buys-dialog .tier-gain[hidden],
+.buys-dialog .tier-needs[hidden],
+.buys-dialog .tier-why[hidden],
+.buys-dialog .tier-preview[hidden] {
+  display: none;
+}
+
+.upgrades-dialog .upgrades-card > h2 {
+  margin: 0;
+  font-size: var(--type-16);
+  line-height: var(--leading);
+}
+
+.upgrades-dialog .upgrades-pocket,
+.upgrades-dialog .upgrades-heading {
+  display: none;
+}
+
+.upgrades-dialog .upgrade-list,
+.upgrades-dialog .boost-list {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--target-gap);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.upgrades-dialog .upgrades-close {
+  flex: none;
+  appearance: none;
+  min-height: var(--target-min);
+  margin-top: var(--space-8);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-ink);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+.upgrades-dialog .upgrade,
+.upgrades-dialog .upgrade.boost {
+  display: grid;
+  flex: none;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 var(--space-8);
+  min-height: var(--target-min);
+  padding: var(--space-4) 0;
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  text-align: left;
+}
+
+.upgrades-dialog .upgrade-name,
+.upgrades-dialog .upgrade-effect,
+.upgrades-dialog .upgrade-now {
+  grid-column: 1;
+  overflow: visible;
+  color: var(--color-ink);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading);
+  white-space: normal;
+  text-overflow: unset;
+}
+
+.upgrades-dialog .upgrade-effect {
+  color: var(--color-quiet);
+  font-weight: var(--weight-regular);
+}
+
+.upgrades-dialog .upgrade.is-dear .upgrade-effect {
+  display: none;
+}
+
+.upgrades-dialog .upgrade-buy,
+.upgrades-dialog .upgrade.boost .upgrade-buy,
+.upgrades-dialog .upgrade-buy:disabled {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-self: end;
+  align-self: center;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  min-height: var(--target-min);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-gold);
+  font-size: var(--type-20);
+  font-weight: var(--weight-bold);
+  line-height: 1.1;
+  white-space: nowrap;
+  opacity: 1;
+}
+
+.upgrades-dialog .upgrade.is-dear .upgrade-buy,
+.upgrades-dialog .upgrade.is-locked .upgrade-buy,
+.upgrades-dialog .upgrade.is-dear .upgrade-buy:disabled,
+.upgrades-dialog .upgrade.is-locked .upgrade-buy:disabled {
+  color: var(--color-quiet);
+  font-size: var(--type-16);
+}
+
+.upgrades-dialog .upgrade.is-locked .upgrade-name {
+  overflow: visible;
+  white-space: nowrap;
+  text-overflow: unset;
 }

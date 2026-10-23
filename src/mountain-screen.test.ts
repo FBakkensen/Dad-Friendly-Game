@@ -1997,9 +1997,13 @@ describe("Flemming's cart (#216)", () => {
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
       "+595/s · Needs 8 workers",
     );
-    expect(screen.text(".crew-posts")).toBe(
-      "28 workers: 13 on carts, 15 on drills, 0 free",
-    );
+    expect(
+      screen.root.querySelector(".crew-posts")?.getAttribute("aria-label"),
+    ).toBe("28 workers: 13 on carts, 15 on drills, 0 free");
+    expect(screen.text(".crew-posts")).toContain("28 workers");
+    expect(screen.text(".crew-posts")).toContain("13 on carts");
+    expect(screen.text(".crew-posts")).toContain("15 on drills");
+    expect(screen.text(".crew-posts")).toContain("0 free");
     expect(
       screen.root.querySelector<HTMLElement>(".crew-breakdown")?.hidden,
     ).toBe(true);
@@ -2818,7 +2822,7 @@ describe("engineers sheet (#145)", () => {
     return sheet;
   };
 
-  it("hides the button until the first engineer arrives with a borer", () => {
+  it("keeps Engineers on the bar, and opens the sheet once a borer arrives", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -2833,7 +2837,12 @@ describe("engineers sheet (#145)", () => {
     const screen = mountScreen({ storage });
     const button =
       screen.root.querySelector<HTMLButtonElement>(".engineers-button");
-    expect(button?.hidden).toBe(true);
+    expect(button?.hidden).toBe(false);
+    expect(button?.textContent).toContain("Engineers");
+    button?.click();
+    expect(
+      screen.root.querySelector(".engineers-dialog")?.hasAttribute("hidden"),
+    ).toBe(true);
     screen.root
       .querySelector<HTMLButtonElement>('[data-tier="borer"]')
       ?.click();
@@ -4133,6 +4142,36 @@ describe("sheet buys", () => {
     expect(dialog?.hidden).toBe(true);
     screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
     expect(dialog?.hidden).toBe(false);
+    expect(screen.text(".pocket-rate")).toMatch(/stones\/s$/);
+    expect(screen.text(".layer-line")).toContain("The Granite");
+    expect(screen.text(".layer-line")).toContain("Drills love it.");
+    expect(screen.text(".thumb-bar")).toContain("Buys");
+    expect(screen.text(".thumb-bar")).toContain("Workshop");
+    expect(screen.text(".thumb-bar")).toContain("Engineers");
+    expect(screen.text(".thumb-bar")).toContain("Upgrades");
+    expect(
+      screen.root.querySelector(".engineers-button")?.hasAttribute("hidden"),
+    ).toBe(false);
+    expect(screen.text('[data-tier="cart"] .tier-gain')).toBe("+8.5/s each");
+    expect(screen.text('[data-tier="cart"] .tier-needs')).toBe(
+      "Needs 1 worker",
+    );
+    expect(screen.text('[data-tier="cart"] .tier-why')).toBe(
+      "Hauls what the crew already cut.",
+    );
+    expect(screen.text('[data-tier="drill"] .tier-needs')).toBe(
+      "Needs 3 workers",
+    );
+    expect(
+      screen.root
+        .querySelector('[data-tier="drill"] .tier-why')
+        ?.hasAttribute("hidden"),
+    ).toBe(true);
+    expect(
+      screen.root
+        .querySelector('[data-tier="borer"] .tier-gain')
+        ?.hasAttribute("hidden"),
+    ).toBe(true);
     expect(screen.text('[data-tier="drill"] .tier-preview')).toContain(
       "Preview · 2 of 10 drills",
     );

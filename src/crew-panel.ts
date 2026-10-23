@@ -43,6 +43,15 @@ function tendTierOf(id: TierId): TendTier | undefined {
   }
 }
 
+const TIER_WHY: Record<TierId, string> = {
+  helper: "Another pair of hands on the rock.",
+  cart: "Hauls what the crew already cut.",
+  drill: "Bites the wall while you rest.",
+  borer: "Chews a tunnel you can walk from.",
+  machine: "The big one, with a crew of its own.",
+  kid: "Mines, and teaches the others a little.",
+};
+
 const COUNT_STEPS = 8;
 const COUNT_STEP_MS = 60;
 
@@ -161,10 +170,19 @@ export function createCrewPanel({
     countBadge.setAttribute("aria-hidden", "true");
     const rate = document.createElement("span");
     rate.className = "tier-rate";
+    const gainLine = document.createElement("span");
+    gainLine.className = "tier-gain";
+    gainLine.hidden = true;
+    const needsLine = document.createElement("span");
+    needsLine.className = "tier-needs";
+    needsLine.hidden = true;
+    const whyLine = document.createElement("span");
+    whyLine.className = "tier-why";
+    whyLine.hidden = true;
     const preview = document.createElement("span");
     preview.className = "tier-preview";
     preview.hidden = true;
-    words.append(name, cost, rate, preview);
+    words.append(name, cost, rate, gainLine, needsLine, whyLine, preview);
     const mark = document.createElement("span");
     mark.className = "engineer-mark";
     mark.hidden = true;
@@ -258,13 +276,19 @@ export function createCrewPanel({
       costText,
       countBadge,
       rate,
+      gainLine,
+      needsLine,
+      whyLine,
       preview,
       costIcon,
       mark,
       gain,
     };
   });
-  crew.append(crewStatus, postsButton, postsDetail, tierGrid, thanks);
+  const crewPool = document.createElement("p");
+  crewPool.className = "crew-pool";
+  crewPool.textContent = "One pool of hands. Every machine draws on it.";
+  crew.append(crewStatus, postsButton, postsDetail, crewPool, tierGrid, thanks);
 
   /** The crew line counts up to the new rate after a purchase. */
   let rateShown: number | undefined;
@@ -313,6 +337,7 @@ export function createCrewPanel({
       0,
     );
     crewStatus.classList.toggle("crew-short", rates.helpersShort > 0);
+    crewStatus.classList.toggle("crew-waiting", rate === 0);
     crewStatus.textContent =
       rates.helpersShort > 0
         ? `${formatCompact(rate)}/s · ${formatCompact(idle)} idle, need ${formatCompact(rates.helpersShort)} ${workerWords(rates.helpersShort)}`
@@ -334,6 +359,9 @@ export function createCrewPanel({
       costText,
       countBadge,
       rate: tierRate,
+      gainLine,
+      needsLine,
+      whyLine,
       preview,
       costIcon,
       mark,
@@ -382,6 +410,24 @@ export function createCrewPanel({
           : milestonePreviewLine(count, `${tier.shortName.toLowerCase()}s`);
       preview.hidden = previewLine === undefined;
       preview.textContent = previewLine ?? "";
+      if (cardTrouble !== undefined) {
+        gainLine.hidden = false;
+        gainLine.textContent = troubleShout(cardTrouble.kind);
+        needsLine.hidden = true;
+        whyLine.hidden = true;
+      } else if (locked || dear) {
+        gainLine.hidden = true;
+        needsLine.hidden = true;
+        whyLine.hidden = true;
+      } else {
+        gainLine.hidden = false;
+        gainLine.textContent = `+${formatSpeed(speed)}/s each`;
+        const bill = staffBillWords(staff, spare);
+        needsLine.hidden = bill === undefined;
+        needsLine.textContent = bill ?? "";
+        whyLine.hidden = needsMore;
+        whyLine.textContent = TIER_WHY[tier.id];
+      }
       card.classList.toggle("tier-idle", !locked && idleHere > 0);
       card.classList.toggle("tier-needs-workers", needsMore);
       const who = tendingEngineer(current.engineers, tier.id);
@@ -440,24 +486,42 @@ export function createCrewPanel({
         {
           label,
           workers: rates.running[tier.id] * staffNeeded(current, tier),
+          art: tierArt[tier.id],
         },
       ];
     });
     const fullPosts = crewPostsWords(pool, spare, posts);
     const shortPosts = crewPostsShort(pool, spare);
     postsButton.hidden = pool <= 0;
+    crewPool.hidden = pool <= 0;
     postsDetail.hidden = !postsOpen || pool <= 0;
     postsDetail.textContent = fullPosts;
     postsButton.setAttribute("aria-label", fullPosts);
+    const stationBits = posts
+      .filter((post) => post.workers > 0)
+      .map((post) => ({
+        src: post.art,
+        text: `${formatCompact(post.workers)} on ${post.label}`,
+      }));
     if (pool <= 0) {
       postsButton.textContent = "";
       delete postsButton.dataset["tight"];
     } else if (postsOpen) {
-      paintPosts(shortPosts);
+      paintBits([{ src: tierArt.helper, text: shortPosts }]);
       postsButton.dataset["tight"] = "true";
       postsButton.setAttribute("aria-expanded", "true");
     } else {
-      paintPosts(fullPosts);
+      paintBits([
+        {
+          src: tierArt.helper,
+          text: `${formatCompact(pool)} ${workerWords(pool)}`,
+        },
+        ...stationBits,
+        {
+          src: tierArt.helper,
+          text: `${formatCompact(Math.max(0, Math.floor(spare)))} free`,
+        },
+      ]);
       postsButton.classList.remove("is-open");
       const tight =
         postsButton.isConnected &&
@@ -465,7 +529,7 @@ export function createCrewPanel({
         postsButton.scrollWidth > postsButton.clientWidth + 1;
       postsButton.dataset["tight"] = tight ? "true" : "false";
       if (tight) {
-        paintPosts(shortPosts);
+        paintBits([{ src: tierArt.helper, text: shortPosts }]);
         postsButton.setAttribute("aria-expanded", "false");
       } else {
         postsButton.removeAttribute("aria-expanded");
@@ -474,19 +538,26 @@ export function createCrewPanel({
     postsButton.classList.toggle("is-open", postsOpen);
   };
 
-  const paintPosts = (label: string): void => {
-    postsButton.replaceChildren();
-    const face = document.createElement("img");
-    face.src = tierArt.helper;
-    face.alt = "";
-    face.width = 24;
-    face.height = 24;
-    face.draggable = false;
-    face.setAttribute("aria-hidden", "true");
-    const words = document.createElement("span");
-    words.className = "crew-posts-words";
-    words.textContent = label;
-    postsButton.append(face, words);
+  const paintBits = (
+    bits: readonly { readonly src: string; readonly text: string }[],
+  ): void => {
+    postsButton.replaceChildren(
+      ...bits.map((bit) => {
+        const item = document.createElement("span");
+        item.className = "crew-bit";
+        const face = document.createElement("img");
+        face.src = bit.src;
+        face.alt = "";
+        face.width = 24;
+        face.height = 24;
+        face.draggable = false;
+        face.setAttribute("aria-hidden", "true");
+        const words = document.createElement("span");
+        words.textContent = bit.text;
+        item.append(face, words);
+        return item;
+      }),
+    );
   };
 
   postsButton.addEventListener("click", () => {

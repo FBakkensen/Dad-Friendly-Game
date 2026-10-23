@@ -461,15 +461,19 @@ for (const viewport of VIEWPORTS) {
     const lastingBuys = [
       ...sheet.querySelectorAll(".upgrade:not(.boost) .upgrade-buy"),
     ];
-    const widths = lastingBuys.map((button) =>
-      Math.round(button.getBoundingClientRect().width),
-    );
-    const sameWidth =
-      widths.length >= 4 && widths.every((width) => width === widths[0]);
     const cardRight = card?.getBoundingClientRect().right ?? 0;
-    const rightAligned = lastingBuys.every((button) => {
-      const box = button.getBoundingClientRect();
-      return cardRight - box.right <= 16 && cardRight - box.right >= 0;
+    const priceRight = lastingBuys.every((button) => {
+      const name = button.closest(".upgrade")?.querySelector(".upgrade-name");
+      if (name === null || name === undefined) {
+        return false;
+      }
+      const price = button.getBoundingClientRect();
+      const label = name.getBoundingClientRect();
+      return (
+        price.left + 1 >= label.right - 1 &&
+        cardRight - price.right <= 16 &&
+        cardRight - price.right >= -1
+      );
     });
     const lineCount = (node) => {
       const range = document.createRange();
@@ -481,12 +485,10 @@ for (const viewport of VIEWPORTS) {
         !button.textContent.startsWith("Buy") || lineCount(button) <= 1,
     );
     const boosts = [...sheet.querySelectorAll(".upgrade.boost")];
-    const sideBySide =
+    const stacked =
       boosts.length === 2 &&
-      Math.abs(
-        boosts[0].getBoundingClientRect().top -
-          boosts[1].getBoundingClientRect().top,
-      ) <= 1;
+      boosts[1].getBoundingClientRect().top >=
+        boosts[0].getBoundingClientRect().bottom - 1;
     const lockedOk = [...sheet.querySelectorAll(".upgrade.is-locked")].every(
       (row) => {
         const name = row.querySelector(".upgrade-name");
@@ -508,10 +510,9 @@ for (const viewport of VIEWPORTS) {
       border,
       shadow,
       typeOk,
-      sameWidth,
-      rightAligned,
+      priceRight,
       buyLinesOk,
-      sideBySide,
+      stacked,
       lockedOk,
       effectsOk,
       background,
@@ -523,10 +524,9 @@ for (const viewport of VIEWPORTS) {
       sheetFit.border &&
       sheetFit.shadow &&
       sheetFit.typeOk &&
-      sheetFit.sameWidth &&
-      sheetFit.rightAligned &&
+      sheetFit.priceRight &&
       sheetFit.buyLinesOk &&
-      sheetFit.sideBySide &&
+      sheetFit.stacked &&
       sheetFit.lockedOk &&
       sheetFit.effectsOk,
     `${size} upgrades sheet fits, with an opaque card`,
@@ -537,10 +537,9 @@ for (const viewport of VIEWPORTS) {
     !sheetFit.border ||
     !sheetFit.shadow ||
     !sheetFit.typeOk ||
-    !sheetFit.sameWidth ||
-    !sheetFit.rightAligned ||
+    !sheetFit.priceRight ||
     !sheetFit.buyLinesOk ||
-    !sheetFit.sideBySide ||
+    !sheetFit.stacked ||
     !sheetFit.lockedOk ||
     !sheetFit.effectsOk
   ) {
