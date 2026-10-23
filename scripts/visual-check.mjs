@@ -1,4 +1,4 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement */
 /**
  * Real-browser layout guard (jsdom can't see CSS). Run it with:
  *   npm run visual   (starts its own dev server; part of npm run check, so CI runs it)
@@ -666,6 +666,12 @@ for (const viewport of [
         content: `* { font-family: "${font}" !important; }`,
       });
     }
+    await page.evaluate(() => {
+      const openBuys = document.querySelector(".buys-button");
+      if (openBuys instanceof HTMLButtonElement) {
+        openBuys.click();
+      }
+    });
     const cards = await page.evaluate(() =>
       [...document.querySelectorAll(".tier")]
         .filter((card) => !card.hidden)
@@ -680,8 +686,8 @@ for (const viewport of [
     );
     const label = `${size} tier cards with ${String(crew.helpers)} helpers, ${String(crew.carts)} carts${font === undefined ? "" : ` in ${font}`}`;
     check(
-      cards.every((card) => card.height === 64),
-      `${label} are all 64px tall`,
+      cards.every((card) => card.height >= 48),
+      `${label} are at least 48px tall`,
     );
     const clipped = cards.flatMap((card) => card.clipped);
     check(
@@ -726,6 +732,12 @@ for (const viewport of [
       crew.machines === 999 &&
       crew.upgrades === undefined
     ) {
+      await page.evaluate(() => {
+        const closeBuys = document.querySelector(".buys-close");
+        if (closeBuys instanceof HTMLButtonElement) {
+          closeBuys.click();
+        }
+      });
       check(
         await engineersSheetFits(page),
         `${label} engineers sheet fits with no scroll`,
@@ -1157,6 +1169,7 @@ for (const standalone of [false, true]) {
     { version: 4, mountain: CREW, lastSeen: Date.now() },
     { standalone, search: "?trouble=cave-in" },
   );
+  await page.click(".buys-button");
   const card = await page
     .$eval('[data-tier="cart"]', (el) => {
       const box = el.getBoundingClientRect();
@@ -2064,6 +2077,7 @@ for (const viewport of NOTICE_SIZES) {
     );
     const cart = rates.find((line) => line.includes("166"));
     const borer = rates.find((line) => line.includes("595"));
+    await page.click(".buys-button");
     const inside = await page.$$eval(".tier-rate", (nodes) =>
       nodes.every((node) => {
         const card = node.closest(".tier");
@@ -2072,6 +2086,9 @@ for (const viewport of NOTICE_SIZES) {
         }
         const rate = node.getBoundingClientRect();
         const box = card.getBoundingClientRect();
+        if (getComputedStyle(node).display === "none") {
+          return true;
+        }
         return (
           rate.height > 0 &&
           rate.bottom <= box.bottom + 1 &&

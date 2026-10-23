@@ -904,6 +904,7 @@ body {
 .start-over,
 .game-menu,
 .field-log-sheet,
+.buys-dialog,
 .upgrades-dialog,
 .engineers-dialog,
 .update-prompt,
@@ -934,6 +935,7 @@ body {
 .start-over[hidden],
 .game-menu[hidden],
 .field-log-sheet[hidden],
+.buys-dialog[hidden],
 .upgrades-dialog[hidden],
 .engineers-dialog[hidden],
 .other-tab[hidden],
@@ -3484,4 +3486,202 @@ body {
 
 .saved-copy.is-earlier-run {
   opacity: 0.55;
+}
+
+/* Sheet layout. Spacing and colour come from tokens.css. */
+#app {
+  width: 100%;
+  max-width: 100%;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  padding-bottom: max(var(--space-16), env(safe-area-inset-bottom));
+  background: var(--color-page);
+  color: var(--color-ink);
+  overflow-x: clip;
+  overflow-y: hidden;
+}
+
+#app > * {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.mountain-wrap {
+  overflow-clip-margin: 0;
+}
+
+.mountain-wrap > .relic-shelf {
+  position: absolute;
+  top: var(--space-8);
+  right: var(--space-8);
+  z-index: 2;
+  width: auto;
+}
+
+.pocket-row {
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-pill);
+  padding: var(--space-4) var(--space-16);
+  background: var(--color-card);
+}
+
+.pocket {
+  justify-content: center;
+  font-size: clamp(var(--type-16), 6vw, var(--type-32));
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+.crew-status {
+  margin: 0;
+  color: var(--color-gold);
+  font-weight: var(--weight-bold);
+  text-align: center;
+}
+
+.crew {
+  width: 100%;
+  overflow: hidden;
+}
+
+.crew-posts {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  min-height: var(--target-min);
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+
+.crew-posts img {
+  width: var(--space-24);
+  height: var(--space-24);
+  object-fit: contain;
+}
+
+.thumb-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--target-min), 1fr));
+  gap: var(--target-gap);
+  width: 100%;
+}
+
+.thumb-bar > * {
+  width: 100%;
+}
+
+.thumb-bar .engineers-button,
+.thumb-bar .upgrades-button {
+  width: 100%;
+  height: auto;
+  margin: 0;
+}
+
+.buys-button,
+.thumb-workshop,
+.thumb-bar .engineers-button,
+.thumb-bar .upgrades-button {
+  appearance: none;
+  min-height: var(--target-min);
+  min-width: var(--target-min);
+  padding: var(--space-4);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-ink);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+}
+
+.buys-dialog {
+  align-items: flex-end;
+  background: var(--color-page);
+}
+
+.buys-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+  width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: var(--space-8);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  background: var(--color-card);
+}
+
+.buys-dialog .tier-grid,
+.buys-dialog .tier-grid-compact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+}
+
+.buys-dialog .tier {
+  position: relative;
+  height: auto;
+  min-height: var(--target-min);
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-4) var(--space-8);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-ink);
+  box-shadow: none;
+}
+
+.buys-dialog .tier-ready {
+  border-color: var(--color-state-ready);
+}
+
+.buys-dialog .tier-short {
+  border-color: var(--color-state-short);
+}
+
+.buys-dialog .tier-short .tier-rate {
+  color: var(--color-state-short);
+  font-weight: var(--weight-bold);
+}
+
+.buys-dialog .tier-dear,
+.buys-dialog .tier-locked {
+  background: var(--color-state-dear);
+  border-color: var(--color-edge);
+}
+
+.buys-dialog .tier-dear .tier-rate,
+.buys-dialog .tier-locked .tier-rate {
+  display: none;
+}
+
+.buys-dialog .tier-art {
+  position: static;
+  width: var(--space-24);
+  height: var(--space-24);
+}
+
+.buys-close {
+  appearance: none;
+  min-height: var(--target-min);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-ink);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+.upgrade.is-ready {
+  border-color: var(--color-state-ready);
+}
+
+.upgrade.is-dear,
+.upgrade.is-locked {
+  background: var(--color-state-dear);
+  border-color: var(--color-edge);
 }

@@ -3,6 +3,7 @@ import { staffForBuy, staffNeeded } from "./engineers";
 import { FIX_HOLD_MS } from "./hazards";
 import { floatText, reducedMotion } from "./float-text";
 import { formatCompact, formatCount } from "./format";
+import { milestonePreviewLine } from "./preview";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates, tendingGain, type TendTier } from "./rates";
 import { RELICS } from "./relics";
@@ -160,7 +161,10 @@ export function createCrewPanel({
     countBadge.setAttribute("aria-hidden", "true");
     const rate = document.createElement("span");
     rate.className = "tier-rate";
-    words.append(name, cost, rate);
+    const preview = document.createElement("span");
+    preview.className = "tier-preview";
+    preview.hidden = true;
+    words.append(name, cost, rate, preview);
     const mark = document.createElement("span");
     mark.className = "engineer-mark";
     mark.hidden = true;
@@ -254,6 +258,7 @@ export function createCrewPanel({
       costText,
       countBadge,
       rate,
+      preview,
       costIcon,
       mark,
       gain,
@@ -329,6 +334,7 @@ export function createCrewPanel({
       costText,
       countBadge,
       rate: tierRate,
+      preview,
       costIcon,
       mark,
       gain,
@@ -365,6 +371,17 @@ export function createCrewPanel({
       // engineer would tend it. Say so even when the ones you own still run.
       const staff = staffForBuy(current, tier);
       const needsMore = !locked && staff > 0 && spare < staff;
+      const dear =
+        !locked && cardTrouble === undefined && current.pocket < price;
+      card.classList.toggle("tier-ready", !locked && !needsMore && !dear);
+      card.classList.toggle("tier-short", needsMore && !dear);
+      card.classList.toggle("tier-dear", dear);
+      const previewLine =
+        locked || tier.id === "helper" || tier.id === "kid"
+          ? undefined
+          : milestonePreviewLine(count, `${tier.shortName.toLowerCase()}s`);
+      preview.hidden = previewLine === undefined;
+      preview.textContent = previewLine ?? "";
       card.classList.toggle("tier-idle", !locked && idleHere > 0);
       card.classList.toggle("tier-needs-workers", needsMore);
       const who = tendingEngineer(current.engineers, tier.id);
@@ -436,11 +453,11 @@ export function createCrewPanel({
       postsButton.textContent = "";
       delete postsButton.dataset["tight"];
     } else if (postsOpen) {
-      postsButton.textContent = shortPosts;
+      paintPosts(shortPosts);
       postsButton.dataset["tight"] = "true";
       postsButton.setAttribute("aria-expanded", "true");
     } else {
-      postsButton.textContent = fullPosts;
+      paintPosts(fullPosts);
       postsButton.classList.remove("is-open");
       const tight =
         postsButton.isConnected &&
@@ -448,13 +465,28 @@ export function createCrewPanel({
         postsButton.scrollWidth > postsButton.clientWidth + 1;
       postsButton.dataset["tight"] = tight ? "true" : "false";
       if (tight) {
-        postsButton.textContent = shortPosts;
+        paintPosts(shortPosts);
         postsButton.setAttribute("aria-expanded", "false");
       } else {
         postsButton.removeAttribute("aria-expanded");
       }
     }
     postsButton.classList.toggle("is-open", postsOpen);
+  };
+
+  const paintPosts = (label: string): void => {
+    postsButton.replaceChildren();
+    const face = document.createElement("img");
+    face.src = tierArt.helper;
+    face.alt = "";
+    face.width = 24;
+    face.height = 24;
+    face.draggable = false;
+    face.setAttribute("aria-hidden", "true");
+    const words = document.createElement("span");
+    words.className = "crew-posts-words";
+    words.textContent = label;
+    postsButton.append(face, words);
   };
 
   postsButton.addEventListener("click", () => {
@@ -467,5 +499,5 @@ export function createCrewPanel({
 
   const render = renderCrew;
 
-  return { crew, render };
+  return { crew, tierGrid, thanks, render };
 }

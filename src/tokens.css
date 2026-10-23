@@ -1,0 +1,53 @@
+/*
+ * Design tokens for the sheet layout. Colours, space, type, radii, and the
+ * four buy-card states. New CSS should use these variables.
+ *
+ * WCAG 2 relative luminance. Body text needs 4.5:1.
+ * Large text (24px, or 18.66px at weight 700) and control edges need 3:1.
+ * quiet on card 8.96:1
+ * edge on card 4.71:1
+ * ink on page 13.43:1
+ * ink on card 12.60:1
+ * gold on card 11.17:1
+ * danger on card 4.76:1
+ * ink-on-gold on danger 5.08:1
+ */
+
+:root {
+  --type-14: 14px;
+  --type-16: 16px;
+  --type-20: 20px;
+  --type-24: 24px;
+  --type-32: 32px;
+  --weight-regular: 400;
+  --weight-bold: 700;
+  --leading: 1.3;
+
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --line: 2px;
+
+  --color-page: #120c0a;
+  --color-card: #1e130d;
+  --color-ink: #e8d4b8;
+  --color-quiet: #c9b391;
+  --color-gold: #f2c46d;
+  --color-ink-on-gold: #120c0a;
+  --color-danger: #e74c3c;
+  --color-disabled: #3a2a1c;
+  --color-edge: #a17b45;
+
+  --color-state-ready: var(--color-gold);
+  --color-state-short: var(--color-danger);
+  --color-state-dear: var(--color-disabled);
+  --color-state-locked: var(--color-disabled);
+
+  --radius-control: 12px;
+  --radius-sheet: 20px;
+  --radius-pill: 999px;
+
+  --target-min: 48px;
+  --target-gap: 8px;
+}

@@ -86,22 +86,18 @@ export function tierPaceWords({
 }
 
 /**
- * Workers one more of this machine needs. Real staff, not a placeholder.
- * Short-handed: "Needs 3 workers · 1 free". Enough hands: "3 workers".
+ * Workers one more of this machine needs. The free count lives on the crew
+ * line, so a card never repeats it.
  */
 export function staffBillWords(
   staff: number,
   spare: number,
 ): string | undefined {
+  void spare;
   if (staff <= 0) {
     return undefined;
   }
-  const hands = `${formatCompact(staff)} ${workerWords(staff)}`;
-  const free = Math.max(0, Math.floor(spare));
-  if (free >= staff) {
-    return hands;
-  }
-  return `Needs ${hands} · ${formatCompact(free)} free`;
+  return `Needs ${formatCompact(staff)} ${workerWords(staff)}`;
 }
 
 export type CrewPost = {

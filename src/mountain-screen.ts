@@ -280,7 +280,7 @@ export function mountMountainScreen({
     tierArt,
     stoneUrl,
   });
-  const { crew } = crewPanel;
+  const { crew, tierGrid, thanks } = crewPanel;
 
   const welcomePanel = createWelcomePanel({ progress, getView: () => view });
   const { welcome } = welcomePanel;
@@ -601,12 +601,46 @@ export function mountMountainScreen({
     progress.flush();
   });
 
-  const pocketActions = document.createElement("div");
-  pocketActions.className = "pocket-actions";
-  pocketActions.append(engineers.button, upgradesButton);
+  const buysDialog = document.createElement("div");
+  buysDialog.className = "buys-dialog";
+  buysDialog.hidden = true;
+  buysDialog.setAttribute("role", "dialog");
+  buysDialog.setAttribute("aria-label", "Buys");
+  const buysCard = document.createElement("div");
+  buysCard.className = "buys-card";
+  const buysClose = document.createElement("button");
+  buysClose.type = "button";
+  buysClose.className = "buys-close";
+  buysClose.textContent = "Back to the mountain";
+  buysCard.append(tierGrid, thanks, buysClose);
+  buysDialog.append(buysCard);
+  const buysButton = document.createElement("button");
+  buysButton.type = "button";
+  buysButton.className = "buys-button";
+  buysButton.textContent = "Buys";
+  buysButton.addEventListener("click", () => {
+    buysDialog.hidden = false;
+  });
+  buysClose.addEventListener("click", () => {
+    buysDialog.hidden = true;
+  });
+
   const pocketRow = document.createElement("div");
   pocketRow.className = "pocket-row";
-  pocketRow.append(pocket, pocketActions);
+  pocketRow.append(pocket);
+  const thumbBar = document.createElement("nav");
+  thumbBar.className = "thumb-bar";
+  const workshopThumb = document.createElement("button");
+  workshopThumb.type = "button";
+  workshopThumb.className = "thumb-workshop";
+  workshopThumb.textContent = "Workshop";
+  const openWorkshop = workshop.menuEntry.querySelector(".workshop-open");
+  workshopThumb.addEventListener("click", () => {
+    if (openWorkshop instanceof HTMLButtonElement && !openWorkshop.hidden) {
+      openWorkshop.click();
+    }
+  });
+  thumbBar.append(buysButton, workshopThumb, engineers.button, upgradesButton);
   const materialLine = document.createElement("p");
   materialLine.className = "material-line";
   const pocketStack = document.createElement("div");
@@ -619,13 +653,14 @@ export function mountMountainScreen({
   // The Legacy sits in the mountain's other corner: no layout cost.
   mountainStage.append(legacy.badge);
 
+  mountainWrap.append(shelfButton);
   root.replaceChildren(
     header,
-    guide,
-    shelfButton,
-    mountainWrap,
     pocketStack,
+    guide,
     crew,
+    mountainWrap,
+    thumbBar,
     saveStatus,
     welcome,
     arrival.layer,
@@ -641,6 +676,7 @@ export function mountMountainScreen({
     upgradesSheet,
     engineers.sheet,
     workshop.sheet,
+    buysDialog,
     updatePrompt,
     otherTab,
     savedCopies.root,

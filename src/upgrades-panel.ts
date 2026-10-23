@@ -232,6 +232,9 @@ export function createUpgradesPanel({
       buy.disabled = !view.ready || !affordable;
       buy.textContent =
         left > 0 ? `Running · ${formatClock(left)}` : buyPriceWords(cost);
+      const row = buy.closest(".upgrade");
+      row?.classList.toggle("is-ready", affordable);
+      row?.classList.toggle("is-dear", left === 0 && !affordable);
       const chip = chipFor.get(boost.id);
       if (chip !== undefined) {
         chip.hidden = left === 0;
@@ -246,6 +249,11 @@ export function createUpgradesPanel({
         unlocked && cost !== undefined && current.pocket >= cost;
       anyAffordable ||= affordable;
       item.classList.toggle("is-locked", !unlocked);
+      item.classList.toggle("is-ready", affordable);
+      item.classList.toggle(
+        "is-dear",
+        unlocked && cost !== undefined && !affordable,
+      );
       title.textContent = unlocked
         ? upgrade.maxLevel === 1
           ? upgrade.name
