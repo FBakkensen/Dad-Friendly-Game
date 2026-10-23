@@ -634,6 +634,9 @@ export function mountMountainScreen({
   buysDialog.setAttribute("aria-label", "Buys");
   const buysCard = document.createElement("div");
   buysCard.className = "buys-card";
+  const buysTitle = document.createElement("h2");
+  buysTitle.className = "sheet-kicker";
+  buysTitle.textContent = "Buys";
   const buysClose = document.createElement("button");
   buysClose.type = "button";
   buysClose.className = "buys-close";
@@ -641,7 +644,7 @@ export function mountMountainScreen({
   const buysHost = document.createElement("div");
   buysHost.className = SHEET_HOST;
   buysHost.append(tierGrid);
-  buysCard.append(buysHost, thanks, buysClose);
+  buysCard.append(buysTitle, buysHost, thanks, buysClose);
   buysDialog.append(buysCard);
   const buysButton = document.createElement("button");
   buysButton.type = "button";

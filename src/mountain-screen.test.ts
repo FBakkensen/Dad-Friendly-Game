@@ -1537,8 +1537,9 @@ describe("upgrades on screen", () => {
       screen.root.querySelector(".upgrades-close"),
     );
     expect(screen.text('[data-upgrade="tap"] .upgrade-name')).toBe(
-      "Strong arms · level 0 of 10",
+      "Strong arms",
     );
+    expect(screen.text('[data-upgrade="tap"] .sheet-level')).toBe("Lv 0/10");
     expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
       "Taps +1.65%, now 1.",
     );
@@ -1548,8 +1549,9 @@ describe("upgrades on screen", () => {
     expect(buy?.textContent).toBe("Buy · 46K");
     buy?.click();
     expect(screen.text('[data-upgrade="tap"] .upgrade-name')).toBe(
-      "Strong arms · level 1 of 10",
+      "Strong arms",
     );
+    expect(screen.text('[data-upgrade="tap"] .sheet-level')).toBe("Lv 1/10");
     expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
       "Taps +1.65%, now 9.",
     );
@@ -1706,12 +1708,18 @@ describe("lasting upgrades on screen", () => {
     );
     expect(boots?.textContent).toBe("Locked");
     expect(screen.text('[data-upgrade="boots"] .upgrade-name')).toBe(
-      "Better boots · 10 workers",
+      "Better boots",
+    );
+    expect(screen.text('[data-upgrade="boots"] .upgrade-why')).toBe(
+      "10 workers",
     );
     expect(boots?.disabled).toBe(true);
     expect(screen.text('[data-upgrade="steady"] .upgrade-buy')).toBe("Locked");
     expect(screen.text('[data-upgrade="steady"] .upgrade-name')).toBe(
-      "Steady hands · first cart",
+      "Steady hands",
+    );
+    expect(screen.text('[data-upgrade="steady"] .upgrade-why')).toBe(
+      "first cart",
     );
 
     screen.root
@@ -1836,7 +1844,10 @@ describe("crew synergies on screen", () => {
       "Locked",
     );
     expect(screen.text('[data-upgrade="drillSyn"] .upgrade-name')).toBe(
-      "Cart roads · 5 drills",
+      "Cart roads",
+    );
+    expect(screen.text('[data-upgrade="drillSyn"] .upgrade-why')).toBe(
+      "5 drills",
     );
     screen.root
       .querySelector<HTMLButtonElement>('[data-upgrade="cartSyn"] .upgrade-buy')
@@ -1866,7 +1877,10 @@ describe("crew synergy copy before the tier exists", () => {
     const screen = mountScreen({ storage });
     expect(screen.text('[data-upgrade="machineSyn"] .upgrade-effect')).toBe("");
     expect(screen.text('[data-upgrade="machineSyn"] .upgrade-name')).toBe(
-      "Borer tracks · Machine",
+      "Borer tracks",
+    );
+    expect(screen.text('[data-upgrade="machineSyn"] .upgrade-why')).toBe(
+      "Machine",
     );
     expect(screen.text('[data-upgrade="machineSyn"] .upgrade-buy')).toBe(
       "Locked",
