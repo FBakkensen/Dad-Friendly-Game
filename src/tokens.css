@@ -50,4 +50,12 @@
 
   --target-min: 48px;
   --target-gap: 8px;
+
+  /* One card for Buys and Upgrades. */
+  --sheet-pad-y: var(--space-8);
+  --sheet-pad-x: var(--space-8);
+  --sheet-icon: var(--space-24);
+  --sheet-title: var(--type-16);
+  --sheet-price: var(--type-20);
+  --sheet-line: var(--type-16);
 }

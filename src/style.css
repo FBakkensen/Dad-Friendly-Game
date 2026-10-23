@@ -3831,6 +3831,7 @@ body {
 .upgrades-dialog {
   align-items: flex-end;
   justify-content: flex-end;
+  overflow: hidden;
   padding: env(safe-area-inset-top) var(--space-4) env(safe-area-inset-bottom);
   background: transparent;
 }
@@ -3840,31 +3841,58 @@ body {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: var(--space-4);
+  gap: var(--target-gap);
   width: 100%;
-  max-height: none;
+  max-height: calc(100% - var(--space-24) * 7);
   margin: 0;
   margin-top: auto;
   padding: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
-.upgrades-scroll {
+.sheet-host {
+  position: relative;
   display: flex;
-  flex: none;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--space-4);
-  min-height: auto;
-  overflow: visible;
+  min-height: 0;
+}
+
+.sheet-host::before,
+.sheet-host::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: var(--space-16);
+  pointer-events: none;
+}
+
+.sheet-host::before {
+  top: 0;
+  background: linear-gradient(var(--color-card), transparent);
+}
+
+.sheet-host::after {
+  bottom: 0;
+  background: linear-gradient(transparent, var(--color-card));
+}
+
+.sheet-scroll,
+.upgrades-scroll,
+.buys-dialog .tier-grid,
+.buys-dialog .tier-grid-compact {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--target-gap);
+  min-height: 0;
+  overflow: auto;
 }
 
 .buys-dialog .tier-grid,
 .buys-dialog .tier-grid-compact {
-  flex: none;
   flex-direction: column-reverse;
-  gap: var(--space-4);
-  min-height: auto;
-  overflow: visible;
 }
 
 .buys-dialog .tier {
@@ -4132,4 +4160,145 @@ body {
   overflow: visible;
   white-space: nowrap;
   text-overflow: unset;
+}
+
+/* Buys and Upgrades share one card. Lists may scroll. The page does not. */
+.buys-dialog .tier.sheet-card,
+.upgrades-dialog .upgrade.sheet-card {
+  display: grid;
+  grid-template-columns: var(--sheet-icon) minmax(0, 1fr);
+  column-gap: var(--space-8);
+  row-gap: 0;
+  align-items: center;
+  height: auto;
+  min-height: var(--target-min);
+  padding: var(--sheet-pad-y) var(--sheet-pad-x);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  box-shadow: none;
+  color: var(--color-ink);
+  text-align: left;
+}
+
+.buys-dialog .tier.sheet-card.sheet-ready,
+.buys-dialog .tier.sheet-card.tier-ready,
+.upgrades-dialog .upgrade.sheet-card.sheet-ready,
+.upgrades-dialog .upgrade.sheet-card.is-ready {
+  border-color: var(--color-state-ready);
+}
+
+.buys-dialog .tier.sheet-card.sheet-short,
+.buys-dialog .tier.sheet-card.tier-short {
+  border-color: var(--color-state-short);
+}
+
+.buys-dialog .tier.sheet-card.sheet-dear,
+.buys-dialog .tier.sheet-card.sheet-locked,
+.buys-dialog .tier.sheet-card.tier-dear,
+.buys-dialog .tier.sheet-card.tier-locked,
+.upgrades-dialog .upgrade.sheet-card.sheet-dear,
+.upgrades-dialog .upgrade.sheet-card.sheet-locked,
+.upgrades-dialog .upgrade.sheet-card.is-dear,
+.upgrades-dialog .upgrade.sheet-card.is-locked {
+  background: var(--color-state-dear);
+  border-color: var(--color-edge);
+}
+
+.buys-dialog .tier.sheet-card .sheet-card-icon,
+.upgrades-dialog .upgrade.sheet-card .sheet-card-icon {
+  grid-column: 1;
+  grid-row: 1;
+  width: var(--sheet-icon);
+  height: var(--sheet-icon);
+  align-self: start;
+  margin-top: var(--space-4);
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.buys-dialog .tier.sheet-card .sheet-card-body,
+.upgrades-dialog .upgrade.sheet-card .sheet-card-body {
+  display: grid;
+  grid-column: 2;
+  grid-row: 1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-8);
+  row-gap: 0;
+  align-items: start;
+  min-width: 0;
+}
+
+.buys-dialog .tier.sheet-card .sheet-card-title,
+.upgrades-dialog .upgrade.sheet-card .sheet-card-title {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: visible;
+  color: var(--color-ink);
+  font-size: var(--sheet-title);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading);
+  white-space: normal;
+}
+
+.buys-dialog .tier.sheet-card .sheet-card-price,
+.upgrades-dialog .upgrade.sheet-card .sheet-card-price,
+.upgrades-dialog .upgrade.boost.sheet-card .sheet-card-price,
+.upgrades-dialog .upgrade.sheet-card .upgrade-buy:disabled {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  align-self: center;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  min-height: var(--target-min);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-gold);
+  font-size: var(--sheet-price);
+  font-weight: var(--weight-bold);
+  line-height: 1.1;
+  white-space: nowrap;
+  opacity: 1;
+}
+
+.buys-dialog .tier.sheet-card.sheet-dear .sheet-card-price,
+.buys-dialog .tier.sheet-card.sheet-locked .sheet-card-price,
+.buys-dialog .tier.sheet-card.tier-dear .sheet-card-price,
+.buys-dialog .tier.sheet-card.tier-locked .sheet-card-price,
+.upgrades-dialog .upgrade.sheet-card.sheet-dear .sheet-card-price,
+.upgrades-dialog .upgrade.sheet-card.sheet-locked .sheet-card-price,
+.upgrades-dialog .upgrade.sheet-card.is-dear .sheet-card-price,
+.upgrades-dialog .upgrade.sheet-card.is-locked .sheet-card-price,
+.upgrades-dialog .upgrade.boost.sheet-card.is-dear .sheet-card-price {
+  color: var(--color-quiet);
+  font-size: var(--sheet-title);
+}
+
+.buys-dialog .tier.sheet-card .sheet-card-line,
+.upgrades-dialog .upgrade.sheet-card .sheet-card-line {
+  grid-column: 1 / -1;
+  margin: 0;
+  overflow: visible;
+  color: var(--color-gold);
+  font-size: var(--sheet-line);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading);
+  white-space: normal;
+}
+
+.buys-dialog .tier.sheet-card .sheet-card-quiet,
+.upgrades-dialog .upgrade.sheet-card .sheet-card-quiet {
+  color: var(--color-quiet);
+  font-weight: var(--weight-regular);
+}
+
+.buys-close,
+.upgrades-dialog .upgrades-close {
+  flex: none;
 }

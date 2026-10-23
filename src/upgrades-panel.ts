@@ -1,8 +1,18 @@
+import bootUrl from "./assets/boot-tile.png";
+import workerUrl from "./assets/helper-miner.png";
+import cartUrl from "./assets/mine-cart.png";
+import stoneUrl from "./assets/ore-lump.png";
+import hammerUrl from "./assets/relics/hammer.png";
+import lanternUrl from "./assets/relics/lantern.png";
+import shieldUrl from "./assets/relics/shield.png";
+import drillUrl from "./assets/steam-drill.png";
+import borerUrl from "./assets/tunnel-borer.png";
+import mapUrl from "./assets/worn-map.png";
 import { BOOSTS, boostCost, boostLeft, buyBoost, type BoostId } from "./boosts";
 import { formatCount } from "./format";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates } from "./rates";
-import { LOST_TOOLS, hasLostTool } from "./lost-tools";
+import { LOST_TOOLS, hasLostTool, type LostToolId } from "./lost-tools";
 import {
   BROUGHT_HOME,
   FOUND_LABEL,
@@ -14,12 +24,60 @@ import {
   upgradeEffectLine,
 } from "./screen-words";
 import {
+  SHEET_CARD,
+  SHEET_CARD_BODY,
+  SHEET_CARD_ICON,
+  SHEET_CARD_LINE,
+  SHEET_CARD_PRICE,
+  SHEET_CARD_QUIET,
+  SHEET_CARD_TITLE,
+  SHEET_DEAR,
+  SHEET_HOST,
+  SHEET_LOCKED,
+  SHEET_READY,
+  SHEET_SCROLL,
+} from "./sheet-card";
+import {
   UPGRADES,
   buyUpgrade,
   upgradeCost,
   upgradeLevel,
   upgradeUnlocked,
+  type UpgradeId,
 } from "./upgrades";
+
+const UPGRADE_ICON: Record<UpgradeId, string> = {
+  tap: hammerUrl,
+  boots: bootUrl,
+  steady: shieldUrl,
+  cartSyn: workerUrl,
+  drillSyn: cartUrl,
+  borerSyn: drillUrl,
+  machineSyn: borerUrl,
+};
+
+const BOOST_ICON: Record<BoostId, string> = {
+  sharper: stoneUrl,
+  overtime: workerUrl,
+};
+
+const TOOL_ICON: Record<LostToolId, string> = {
+  pick: hammerUrl,
+  lamp: lanternUrl,
+  map: mapUrl,
+  boots: bootUrl,
+};
+
+function sheetIcon(src: string): HTMLImageElement {
+  const icon = document.createElement("img");
+  icon.className = SHEET_CARD_ICON;
+  icon.src = src;
+  icon.alt = "";
+  icon.width = 32;
+  icon.height = 32;
+  icon.draggable = false;
+  return icon;
+}
 
 /**
  * The Upgrades button (beside the pocket) and its sheet: quick boosts and
@@ -84,17 +142,20 @@ export function createUpgradesPanel({
   boostList.className = "upgrade-list boost-list";
   const boostRows = BOOSTS.map((boost) => {
     const item = document.createElement("li");
-    item.className = "upgrade boost";
+    item.className = `upgrade boost ${SHEET_CARD}`;
     item.dataset["boost"] = boost.id;
     const title = document.createElement("p");
-    title.className = "upgrade-name";
+    title.className = `upgrade-name ${SHEET_CARD_TITLE}`;
     title.textContent = boost.name;
     const effect = document.createElement("p");
-    effect.className = "upgrade-effect";
+    effect.className = `upgrade-effect ${SHEET_CARD_LINE}`;
     effect.textContent = boost.effect;
     const buy = document.createElement("button");
     buy.type = "button";
-    buy.className = "upgrade-buy";
+    buy.className = `upgrade-buy ${SHEET_CARD_PRICE}`;
+    const body = document.createElement("div");
+    body.className = SHEET_CARD_BODY;
+    body.append(title, buy, effect);
     buy.addEventListener("click", () => {
       if (!getView().ready) {
         return;
@@ -109,7 +170,7 @@ export function createUpgradesPanel({
         }),
       );
     });
-    item.append(title, effect, buy);
+    item.append(sheetIcon(BOOST_ICON[boost.id]), body);
     boostList.append(item);
     return { boost, effect, buy };
   });
@@ -120,23 +181,26 @@ export function createUpgradesPanel({
   upgradeList.className = "upgrade-list";
   const upgradeRows = UPGRADES.map((upgrade) => {
     const item = document.createElement("li");
-    item.className = "upgrade";
+    item.className = `upgrade ${SHEET_CARD}`;
     item.dataset["upgrade"] = upgrade.id;
     const title = document.createElement("p");
-    title.className = "upgrade-name";
+    title.className = `upgrade-name ${SHEET_CARD_TITLE}`;
     const effect = document.createElement("p");
-    effect.className = "upgrade-effect";
+    effect.className = `upgrade-effect ${SHEET_CARD_LINE}`;
     effect.textContent = upgrade.perLevel;
     const buy = document.createElement("button");
     buy.type = "button";
-    buy.className = "upgrade-buy";
+    buy.className = `upgrade-buy ${SHEET_CARD_PRICE}`;
+    const body = document.createElement("div");
+    body.className = SHEET_CARD_BODY;
+    body.append(title, buy, effect);
     buy.addEventListener("click", () => {
       if (!getView().ready) {
         return;
       }
       progress.applyMutation((current) => buyUpgrade(current, upgrade.id));
     });
-    item.append(title, effect, buy);
+    item.append(sheetIcon(UPGRADE_ICON[upgrade.id]), body);
     upgradeList.append(item);
     return { upgrade, title, effect, item, buy };
   });
@@ -150,19 +214,22 @@ export function createUpgradesPanel({
   const foundRows = LOST_TOOLS.map((id) => {
     const words = lostToolWords(id);
     const item = document.createElement("li");
-    item.className = "upgrade found-tool";
+    item.className = `upgrade found-tool ${SHEET_CARD}`;
     item.dataset["tool"] = id;
     item.hidden = true;
     const title = document.createElement("p");
-    title.className = "upgrade-name";
+    title.className = `upgrade-name ${SHEET_CARD_TITLE}`;
     title.textContent = words.name;
     const effect = document.createElement("p");
-    effect.className = "upgrade-effect";
+    effect.className = `upgrade-effect ${SHEET_CARD_LINE} ${SHEET_CARD_QUIET}`;
     effect.textContent = words.line;
     const status = document.createElement("p");
-    status.className = "upgrade-now";
+    status.className = `upgrade-now ${SHEET_CARD_PRICE}`;
     status.textContent = FOUND_LABEL;
-    item.append(title, effect, status);
+    const body = document.createElement("div");
+    body.className = SHEET_CARD_BODY;
+    body.append(title, status, effect);
+    item.append(sheetIcon(TOOL_ICON[id]), body);
     foundList.append(item);
     return { id, item };
   });
@@ -181,8 +248,10 @@ export function createUpgradesPanel({
       closeUpgrades();
     }
   });
+  const upgradesHost = document.createElement("div");
+  upgradesHost.className = SHEET_HOST;
   const upgradesScroll = document.createElement("div");
-  upgradesScroll.className = "upgrades-scroll";
+  upgradesScroll.className = `upgrades-scroll ${SHEET_SCROLL}`;
   upgradesScroll.append(
     boostHeading,
     boostList,
@@ -191,10 +260,11 @@ export function createUpgradesPanel({
     foundHeading,
     foundList,
   );
+  upgradesHost.append(upgradesScroll);
   upgradesCard.append(
     upgradesTitle,
     upgradesPocket,
-    upgradesScroll,
+    upgradesHost,
     upgradesClose,
   );
   upgradesSheet.append(upgradesCard);
@@ -243,6 +313,8 @@ export function createUpgradesPanel({
       const row = buy.closest(".upgrade");
       row?.classList.toggle("is-ready", affordable);
       row?.classList.toggle("is-dear", left === 0 && !affordable);
+      row?.classList.toggle(SHEET_READY, affordable);
+      row?.classList.toggle(SHEET_DEAR, left === 0 && !affordable);
       const chip = chipFor.get(boost.id);
       if (chip !== undefined) {
         chip.hidden = left === 0;
@@ -256,12 +328,13 @@ export function createUpgradesPanel({
       const affordable =
         unlocked && cost !== undefined && current.pocket >= cost;
       anyAffordable ||= affordable;
+      const dear = unlocked && cost !== undefined && !affordable;
       item.classList.toggle("is-locked", !unlocked);
       item.classList.toggle("is-ready", affordable);
-      item.classList.toggle(
-        "is-dear",
-        unlocked && cost !== undefined && !affordable,
-      );
+      item.classList.toggle("is-dear", dear);
+      item.classList.toggle(SHEET_LOCKED, !unlocked);
+      item.classList.toggle(SHEET_READY, affordable);
+      item.classList.toggle(SHEET_DEAR, dear);
       title.textContent = unlocked
         ? upgrade.maxLevel === 1
           ? upgrade.name

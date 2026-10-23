@@ -4189,6 +4189,33 @@ describe("sheet buys", () => {
     screen.progress.dispose();
   });
 
+  it("uses one sheet card on buys and upgrades", () => {
+    const screen = mountScreen();
+    const cards = [
+      ...screen.root.querySelectorAll(
+        ".buys-dialog .tier, .upgrades-dialog .upgrade",
+      ),
+    ];
+    expect(cards.length).toBeGreaterThan(1);
+    for (const card of cards) {
+      expect(card.classList.contains("sheet-card")).toBe(true);
+      expect(card.querySelector(".sheet-card-icon")).toBeInstanceOf(
+        HTMLImageElement,
+      );
+      expect(card.querySelector(".sheet-card-title")).not.toBeNull();
+      expect(card.querySelector(".sheet-card-price")).not.toBeNull();
+      expect(card.querySelector(".sheet-card-body")).not.toBeNull();
+    }
+    const buysPad = getComputedStyle(
+      screen.root.querySelector(".buys-dialog .sheet-card") as Element,
+    ).padding;
+    const upgradePad = getComputedStyle(
+      screen.root.querySelector(".upgrades-dialog .sheet-card") as Element,
+    ).padding;
+    expect(buysPad).toBe(upgradePad);
+    screen.progress.dispose();
+  });
+
   it("leaves a locked workshop closed when the thumb bar is tapped", () => {
     const screen = mountScreen();
     screen.root.querySelector<HTMLButtonElement>(".thumb-workshop")?.click();

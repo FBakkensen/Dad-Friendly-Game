@@ -4,6 +4,20 @@ import { FIX_HOLD_MS } from "./hazards";
 import { floatText, reducedMotion } from "./float-text";
 import { formatCompact, formatCount } from "./format";
 import { milestonePreviewLine } from "./preview";
+import {
+  SHEET_CARD,
+  SHEET_CARD_BODY,
+  SHEET_CARD_ICON,
+  SHEET_CARD_LINE,
+  SHEET_CARD_PRICE,
+  SHEET_CARD_QUIET,
+  SHEET_CARD_TITLE,
+  SHEET_DEAR,
+  SHEET_LOCKED,
+  SHEET_READY,
+  SHEET_SCROLL,
+  SHEET_SHORT,
+} from "./sheet-card";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates, tendingGain, type TendTier } from "./rates";
 import { RELICS } from "./relics";
@@ -99,7 +113,7 @@ export function createCrewPanel({
   postsButton.addEventListener("pointerleave", releasePosts);
   crewStatus.setAttribute("aria-live", "polite");
   const tierGrid = document.createElement("div");
-  tierGrid.className = "tier-grid";
+  tierGrid.className = `tier-grid ${SHEET_SCROLL}`;
   const thanks = document.createElement("p");
   thanks.className = "trouble-thanks";
   thanks.setAttribute("aria-live", "polite");
@@ -141,21 +155,21 @@ export function createCrewPanel({
   const tierCards = TIERS.map((tier) => {
     const card = document.createElement("button");
     card.type = "button";
-    card.className = "tier";
+    card.className = `tier ${SHEET_CARD}`;
     card.dataset["tier"] = tier.id;
     const art = document.createElement("img");
-    art.className = "tier-art";
+    art.className = `tier-art ${SHEET_CARD_ICON}`;
     art.src = tierArt[tier.id];
     art.alt = "";
     art.width = 32;
     art.height = 32;
     art.draggable = false;
     const words = document.createElement("span");
-    words.className = "tier-words";
+    words.className = `tier-words ${SHEET_CARD_BODY}`;
     const name = document.createElement("span");
-    name.className = "tier-name";
+    name.className = `tier-name ${SHEET_CARD_TITLE}`;
     const cost = document.createElement("span");
-    cost.className = "tier-cost";
+    cost.className = `tier-cost ${SHEET_CARD_PRICE}`;
     const costIcon = document.createElement("img");
     costIcon.className = "tier-cost-icon";
     costIcon.src = stoneUrl;
@@ -177,10 +191,10 @@ export function createCrewPanel({
     needsLine.className = "tier-needs";
     needsLine.hidden = true;
     const pace = document.createElement("span");
-    pace.className = "tier-pace";
+    pace.className = `tier-pace ${SHEET_CARD_LINE}`;
     pace.append(gainLine, needsLine);
     const whyLine = document.createElement("span");
-    whyLine.className = "tier-why";
+    whyLine.className = `tier-why ${SHEET_CARD_LINE} ${SHEET_CARD_QUIET}`;
     whyLine.hidden = true;
     const preview = document.createElement("span");
     preview.className = "tier-preview";
@@ -406,9 +420,17 @@ export function createCrewPanel({
       const needsMore = !locked && staff > 0 && spare < staff;
       const dear =
         !locked && cardTrouble === undefined && current.pocket < price;
+      const ready = !locked && !needsMore && !dear && cardTrouble === undefined;
       card.classList.toggle("tier-ready", !locked && !needsMore && !dear);
       card.classList.toggle("tier-short", needsMore && !dear);
       card.classList.toggle("tier-dear", dear);
+      card.classList.toggle(SHEET_READY, ready);
+      card.classList.toggle(
+        SHEET_SHORT,
+        needsMore && !dear && cardTrouble === undefined,
+      );
+      card.classList.toggle(SHEET_DEAR, dear);
+      card.classList.toggle(SHEET_LOCKED, locked);
       const previewLine =
         locked || tier.id === "helper" || tier.id === "kid"
           ? undefined
