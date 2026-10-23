@@ -59,7 +59,9 @@ Old saves are migrated, not wiped: dug cells count as stones already mined out o
 
 - A towering mountain fills the screen and is the tap target. Fat finger, touch first.
 - The stones-left counter is always visible at the top. Your pocket of stones sits under it.
-- A relic shelf shows six slots: found relics glow, missing ones are dark silhouettes.
+- A relic shelf shows six slots, centred on the mountain: found relics glow, missing ones are dark silhouettes.
+- Buys, Workshop, Engineers, and Upgrades sit on the bottom bar. A button whose sheet will not open is quiet: dim icon, quiet label, muted border. One that will open is gold. Workshop waits for the Granite. Engineers wait for the first hand. Buys and Upgrades open from the start.
+- The Buys and Upgrades lists scroll inside the sheet. Scrolled to the end, the last card sits fully above Back to the mountain.
 - Warm heroic lantern light: deep night browns, amber and gold highlights, soft glow. No harsh flashes, no sound until unmuted.
 - The welcome-back screen is a celebration, not a chore: one big number, one button.
 - Art comes from PixelLab (ask before generating). No placeholder boxes.

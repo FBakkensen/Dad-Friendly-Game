@@ -678,6 +678,8 @@ export function createEngineersPanel({
       recalling = undefined;
     }
     button.hidden = false;
+    // No hand on the crew: the click would open and this render would shut it.
+    button.disabled = engineers.length === 0;
     button.setAttribute("aria-expanded", open ? "true" : "false");
     sheet.classList.toggle("is-choosing", menu !== undefined);
     sheet.classList.toggle("is-packed", engineers.length >= 3);

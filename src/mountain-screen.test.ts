@@ -4238,4 +4238,50 @@ describe("sheet buys", () => {
     ).toBe(true);
     screen.progress.dispose();
   });
+
+  it("enables a thumb button only when its sheet will open", () => {
+    const fresh = mountScreen();
+    const thumb = (
+      root: HTMLElement,
+      selector: string,
+    ): HTMLButtonElement | null =>
+      root.querySelector<HTMLButtonElement>(selector);
+    expect(thumb(fresh.root, ".buys-button")?.disabled).toBe(false);
+    expect(thumb(fresh.root, ".upgrades-button")?.disabled).toBe(false);
+    expect(thumb(fresh.root, ".thumb-workshop")?.disabled).toBe(true);
+    expect(thumb(fresh.root, ".engineers-button")?.disabled).toBe(true);
+    thumb(fresh.root, ".upgrades-button")?.click();
+    expect(
+      fresh.root.querySelector(".upgrades-dialog")?.hasAttribute("hidden"),
+    ).toBe(false);
+    fresh.progress.dispose();
+
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(12_000_000),
+        helpers: 13,
+        carts: 5,
+        drills: 2,
+        borers: 1,
+        pocket: 2_500_000,
+      },
+      lastSeen: Date.now(),
+    });
+    const later = mountScreen({ storage });
+    expect(thumb(later.root, ".buys-button")?.disabled).toBe(false);
+    expect(thumb(later.root, ".upgrades-button")?.disabled).toBe(false);
+    expect(thumb(later.root, ".thumb-workshop")?.disabled).toBe(false);
+    expect(thumb(later.root, ".engineers-button")?.disabled).toBe(false);
+    thumb(later.root, ".thumb-workshop")?.click();
+    expect(
+      later.root.querySelector(".workshop-dialog")?.hasAttribute("hidden"),
+    ).toBe(false);
+    thumb(later.root, ".engineers-button")?.click();
+    expect(
+      later.root.querySelector(".engineers-dialog")?.hasAttribute("hidden"),
+    ).toBe(false);
+    later.progress.dispose();
+  });
 });

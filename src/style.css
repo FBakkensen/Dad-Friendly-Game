@@ -3511,12 +3511,16 @@ body {
   overflow-clip-margin: 0;
 }
 
+/* Centred on the rock. A right inset pinned the shelf to the wrap's edge. */
 .mountain-wrap > .relic-shelf {
   position: absolute;
   top: var(--space-8);
-  right: var(--space-8);
+  left: 50%;
   z-index: 2;
-  width: auto;
+  width: max-content;
+  max-width: calc(100% - var(--space-8) * 2);
+  margin: 0;
+  transform: translateX(-50%);
 }
 
 .pocket-row {
@@ -3798,6 +3802,25 @@ body {
   content: none;
 }
 
+/* Same chrome for every thumb. Disabled follows the gate that keeps the sheet shut. */
+.thumb-bar button:not(:disabled) {
+  border-color: var(--color-gold);
+  background: var(--color-card);
+  color: var(--color-gold);
+  opacity: 1;
+}
+
+.thumb-bar button:disabled {
+  border-color: var(--color-edge);
+  background: var(--color-disabled);
+  color: var(--color-quiet);
+  opacity: 1;
+}
+
+.thumb-bar button:disabled img {
+  opacity: 0.45;
+}
+
 .thumb-label {
   max-width: 100%;
   font-size: var(--type-14);
@@ -3830,7 +3853,8 @@ body {
 /* Sheets leave the pocket pill in view. Cards use the token type scale. */
 .buys-dialog,
 .upgrades-dialog {
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: flex-end;
   overflow: hidden;
   padding: env(safe-area-inset-top) var(--space-4) env(safe-area-inset-bottom);
@@ -3844,6 +3868,7 @@ body {
   align-items: stretch;
   gap: var(--target-gap);
   width: 100%;
+  min-height: 0;
   max-height: calc(100% - var(--space-24) * 7);
   margin: 0;
   margin-top: auto;
@@ -3857,6 +3882,7 @@ body {
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 
 .sheet-host::before,
@@ -3876,6 +3902,7 @@ body {
 
 .sheet-host::after {
   bottom: 0;
+  height: var(--space-8);
   background: linear-gradient(transparent, var(--color-card));
 }
 
@@ -3889,6 +3916,9 @@ body {
   gap: var(--target-gap);
   min-height: 0;
   overflow: auto;
+  /* The footer sits outside this scroller. The inset keeps the last card clear of it. */
+  padding-bottom: var(--space-8);
+  scroll-padding-bottom: var(--space-8);
 }
 
 .buys-dialog .tier-grid,
@@ -4341,4 +4371,5 @@ body {
 .buys-close,
 .upgrades-dialog .upgrades-close {
   flex: none;
+  margin-top: 0;
 }
