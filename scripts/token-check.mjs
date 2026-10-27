@@ -1,10 +1,14 @@
-/* global console, process */
+/* global console, process, URL */
 /**
- * Flags hard-coded colours and spacing on CSS lines added since origin/main.
- * src/tokens.css is the place those values live. Mockups are the approved
- * pictures and are not part of this check.
+ * Fails when CSS added since origin/main hard-codes a colour or a px size,
+ * or sets a tap target under --target-min (48px).
+ * CSS already on origin/main is the allow-list: those lines are not additions.
+ * src/tokens.css is where the raw values live. Mockups are approved pictures
+ * and are not part of this check.
  */
 import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { findingsInDiff } from "../src/token-check.ts";
 
 try {
   execSync("git rev-parse --verify origin/main", { stdio: "ignore" });
@@ -12,53 +16,19 @@ try {
   execSync("git fetch origin main --depth=1", { stdio: "inherit" });
 }
 
-const diff = execSync('git diff origin/main --unified=0 -- "src/*.css"', {
-  encoding: "utf8",
-});
+const diff = execSync("git diff origin/main -U20 -- src", { encoding: "utf8" });
+const tokensCss = readFileSync(
+  new URL("../src/tokens.css", import.meta.url),
+  "utf8",
+);
+const findings = findingsInDiff(diff, tokensCss);
 
-const colour = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/;
-const spacing = /(?<![.\w-])\d+px\b/;
-
-let file = "";
-const problems = [];
-for (const line of diff.split("\n")) {
-  if (line.startsWith("+++ b/")) {
-    file = line.slice(6);
-    continue;
-  }
-  if (
-    line.startsWith("--- ") ||
-    line.startsWith("@@") ||
-    line.startsWith("diff ")
-  ) {
-    continue;
-  }
-  if (!line.startsWith("+") || line.startsWith("+++")) {
-    continue;
-  }
-  if (file.endsWith("/tokens.css") || file === "src/tokens.css") {
-    continue;
-  }
-  const text = line.slice(1);
-  const trimmed = text.trim();
-  if (
-    trimmed.startsWith("/*") ||
-    trimmed.startsWith("*") ||
-    trimmed.startsWith("//")
-  ) {
-    continue;
-  }
-  if (colour.test(text) || spacing.test(text)) {
-    problems.push(`${file}: ${trimmed}`);
-  }
-}
-
-if (problems.length > 0) {
+if (findings.length > 0) {
   console.error(
-    "Hard-coded colour or spacing in new CSS. Use the variables in src/tokens.css.",
+    "New CSS uses a raw colour, a raw px size, or a tap target under 48px. Use src/tokens.css. CSS already on main is allow-listed.",
   );
-  for (const problem of problems) {
-    console.error(`- ${problem}`);
+  for (const finding of findings) {
+    console.error(`- ${finding.file}: ${finding.text} (${finding.kind})`);
   }
   process.exit(1);
 }

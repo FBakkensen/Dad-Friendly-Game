@@ -66,6 +66,7 @@ Old saves are migrated, not wiped: dug cells count as stones already mined out o
 - An unlocked buy, upgrade, or craft always shows its price, what it does, and why, even when the pocket is short. A locked card says Locked and hides those lines. Tapping the card buys it. Dragging the list does not.
 - Countdowns sit under the crew in rows of three. The row count is how many this mountain can run now, not a hole for twelve. Each chip is one line: icon, multiplier, time left. A tap shows the name. None are hidden. The relic shelf sits above the rock, and the peak does not cross it.
 - Warm heroic lantern light: deep night browns, amber and gold highlights, soft glow. No harsh flashes, no sound until unmuted.
+- Design tokens live in `src/tokens.css`, the same scale as the approved mocks: type 14/16/20/24/32, space 4/8/16/24, the night colours, radii 12 and 20 plus a pill, and a 48px target with 8px between targets. New CSS uses them. Screens already on the mountain keep their look until a later sitting migrates them.
 - The welcome-back screen is a celebration, not a chore: one big number, one button.
 - Art comes from PixelLab (ask before generating). No placeholder boxes.
 

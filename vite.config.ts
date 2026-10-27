@@ -311,6 +311,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/token-check.ts": {
+          statements: 97,
+          branches: 95,
+          functions: 100,
+          lines: 97,
+        },
       },
     },
   },
