@@ -193,7 +193,9 @@
   font-size: var(--type-14);
 }
 
+/* The timer row takes the screen padding back, so 1h 2m fits three across. */
 #mock.tok .kit-timers {
+  margin: 0 calc(var(--space-8) * -1);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--target-gap);
