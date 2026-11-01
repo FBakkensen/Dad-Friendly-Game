@@ -76,3 +76,18 @@ export function formatCompact(count: number): string {
   }
   return whole.toLocaleString("en-US");
 }
+
+/** Timer chip time. m:ss under an hour, then 1h 2m, then 1d 3h. */
+export function chipTime(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const days = Math.floor(total / 86_400);
+  const hours = Math.floor((total % 86_400) / 3_600);
+  const minutes = Math.floor((total % 3_600) / 60);
+  if (days > 0) {
+    return `${String(days)}d ${String(hours)}h`;
+  }
+  if (hours > 0) {
+    return `${String(hours)}h ${String(minutes)}m`;
+  }
+  return `${String(minutes)}:${String(total % 60).padStart(2, "0")}`;
+}

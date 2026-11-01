@@ -1,4 +1,4 @@
-import { chipTime } from "./components.ts";
+import { chipTime } from "../src/format.ts";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

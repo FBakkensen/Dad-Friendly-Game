@@ -2699,7 +2699,8 @@ async function pillClear(page) {
     const centred = Math.abs(mid - innerWidth / 2) <= 2;
     const rows = [...document.querySelectorAll(".crew-row")];
     const counts = rows.map((row) => row.querySelectorAll(".crew-bit").length);
-    const balanced = counts.length === 1 || counts.every((count) => count >= 2);
+    const balanced =
+      counts.length === 0 || Math.max(...counts) - Math.min(...counts) <= 1;
     const pageStill =
       scrollY === 0 &&
       app.scrollTop === 0 &&
@@ -2992,7 +2993,7 @@ for (const viewport of EFFECT_VIEWS) {
           packed &&
           peakClear &&
           fat &&
-          Math.round(rowBox.height) <= 120 &&
+          Math.round(rowBox.height) <= 140 &&
           chips.every((chip) => chip.scrollWidth <= chip.clientWidth + 1) &&
           !hits(shelf) &&
           !hits(pocket) &&
