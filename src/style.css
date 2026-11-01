@@ -3768,6 +3768,7 @@ body {
 }
 
 .effect-mult {
+  margin-inline-end: var(--space-4);
   color: var(--color-gold);
   font-weight: var(--weight-bold);
 }
