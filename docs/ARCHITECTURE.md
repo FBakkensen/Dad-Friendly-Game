@@ -119,6 +119,7 @@ page is the map, plus the rules that keep it that way.
   listed), every upgrade id with its max level, and every boost id.
 - `knip` (strict): no unused files, exports or dependencies.
 - `prettier --check .` covers docs too; coverage floors per critical module.
+- `scripts/token-check.mjs` (part of `npm run check`): CSS added since `origin/main` uses `src/tokens.css`. A raw colour, a raw px size, or a tap target under 48px fails. CSS already on main is the allow-list. Mockups are not part of the check.
 
 ## M7 sketch
 
