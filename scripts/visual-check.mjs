@@ -2993,7 +2993,7 @@ for (const viewport of EFFECT_VIEWS) {
           packed &&
           peakClear &&
           fat &&
-          Math.round(rowBox.height) <= 140 &&
+          Math.round(rowBox.height) <= 124 &&
           chips.every((chip) => chip.scrollWidth <= chip.clientWidth + 1) &&
           !hits(shelf) &&
           !hits(pocket) &&
