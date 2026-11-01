@@ -9,6 +9,11 @@ import {
   renderUpgradesTokens,
 } from "./token-screens.ts";
 import {
+  renderPartsCards,
+  renderPartsControls,
+  renderPartsHow,
+} from "./components.ts";
+import {
   BENCH_BUSY,
   BENCH_BUSY_ASIDE,
   BENCH_FREE,
@@ -63,6 +68,9 @@ const SCENES = [
   "upgrades-b",
   "mountain-c",
   "upgrades-c",
+  "parts-cards",
+  "parts-controls",
+  "parts-how",
 ] as const;
 const PHASES = ["rest", "press", "float", "hammer", "busy", "shake"] as const;
 
@@ -471,6 +479,12 @@ export function renderMock(view: MockView): string {
       return renderMountainDirection("c", view);
     case "upgrades-c":
       return renderUpgradesDirection("c", view);
+    case "parts-cards":
+      return renderPartsCards(view);
+    case "parts-controls":
+      return renderPartsControls(view);
+    case "parts-how":
+      return renderPartsHow(view);
     default: {
       const never: never = view.scene;
       return never;
@@ -487,7 +501,8 @@ function mount(root: HTMLElement, view: MockView): void {
     view.scene === "token-sheet" ||
     view.scene.endsWith("-tokens") ||
     view.scene.startsWith("mountain-") ||
-    view.scene.startsWith("upgrades-")
+    view.scene.startsWith("upgrades-") ||
+    view.scene.startsWith("parts-")
   ) {
     classes.push("tok");
   }
