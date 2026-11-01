@@ -79,6 +79,13 @@ const SHOTS = [
   ["mountain-c", "press", "buy"],
   ["upgrades-c", "rest", ""],
   ["upgrades-c", "press", "arms"],
+  ["parts-cards", "rest", ""],
+  ["parts-cards", "press", "cart"],
+  ["parts-controls", "rest", ""],
+  ["parts-controls", "press", "primary"],
+  ["parts-controls", "press", "picks"],
+  ["parts-how", "rest", ""],
+  ["parts-how", "press", "got"],
 ];
 
 const failures = [];
@@ -136,7 +143,8 @@ async function fit(page, label) {
       sceneName === "token-sheet" ||
       sceneName.endsWith("-tokens") ||
       sceneName.startsWith("mountain-") ||
-      sceneName.startsWith("upgrades-");
+      sceneName.startsWith("upgrades-") ||
+      sceneName.startsWith("parts-");
     const minFont = token ? 14 : 14.4;
     const minBox = token ? 48 : 44;
     const hasDirectText = (element) =>

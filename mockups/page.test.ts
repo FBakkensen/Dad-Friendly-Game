@@ -629,3 +629,44 @@ describe("design token mocks (#234)", () => {
     }
   });
 });
+
+describe("component mocks (#235)", () => {
+  it("shows full numbers on unlocked cards and hides them on locked ones", () => {
+    const root = mountTokens("parts-cards", "rest", "");
+    const cards = [...root.querySelectorAll(".kit-card")];
+    expect(cards).toHaveLength(3);
+    for (const card of cards) {
+      expect(card.querySelector("img.kit-icon")).not.toBeNull();
+    }
+    const [cart, drill, borer] = cards;
+    expect(cart?.textContent).toContain("409.6K");
+    expect(cart?.textContent).toContain("Needs 1 worker");
+    expect(drill?.textContent).toContain("3.5M");
+    expect(drill?.textContent).toContain("Needs 3 workers");
+    expect((drill as HTMLButtonElement).disabled).toBe(true);
+    expect(borer?.textContent).not.toMatch(/[0-9]/);
+    expect(root.textContent).not.toMatch(
+      /\?|pays back|payback|worth it|best value|free|in \d+ min/i,
+    );
+  });
+
+  it("keeps every timer on one line, three across, with no overflow chip", () => {
+    const root = mountTokens("parts-controls", "rest", "");
+    const timers = [...root.querySelectorAll(".kit-timer")];
+    expect(timers).toHaveLength(6);
+    for (const timer of timers) {
+      expect(timer.querySelector("img.kit-icon")).not.toBeNull();
+      expect(timer.textContent).toMatch(/^×\d+\d?:?\d*:\d\d$/);
+    }
+    expect(root.textContent).not.toMatch(/\+\d+ more|\?/);
+    expect(root.querySelector(".kit-dot")).not.toBeNull();
+    expect(root.querySelector(".kit-info")).not.toBeNull();
+  });
+
+  it("fits How it works on one card with no question marks", () => {
+    const root = mountTokens("parts-how", "rest", "");
+    expect(root.querySelectorAll(".kit-how")).toHaveLength(1);
+    expect(root.querySelectorAll(".kit-step img.kit-icon")).toHaveLength(5);
+    expect(root.textContent).not.toMatch(/\?/);
+  });
+});

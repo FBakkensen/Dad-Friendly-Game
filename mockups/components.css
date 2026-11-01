@@ -1,0 +1,309 @@
+/* M10-3 component mocks. Every value is a token from src/tokens.css. */
+
+#mock.tok .kit-screen {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+  padding: var(--space-16);
+  overflow: hidden;
+}
+
+#mock.tok .kit-title {
+  font-size: var(--type-20);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+#mock.tok .kit-caption,
+#mock.tok .kit-quiet {
+  font-size: var(--type-14);
+  color: var(--color-quiet);
+}
+
+#mock.tok .kit-icon {
+  flex: none;
+  width: var(--sheet-icon);
+  height: var(--sheet-icon);
+  object-fit: contain;
+}
+
+#mock.tok .kit-icon.is-big {
+  width: var(--target-min);
+  height: var(--target-min);
+}
+
+#mock.tok .kit-icon.is-shade {
+  filter: brightness(0);
+  opacity: 0.6;
+}
+
+/* The one card. */
+#mock.tok .kit-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+}
+
+#mock.tok .kit-card {
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding: var(--sheet-pad-y) var(--sheet-pad-x);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-ink);
+  font: inherit;
+  text-align: left;
+}
+
+#mock.tok .kit-card .kit-icon,
+#mock.tok .kit-notice .kit-icon,
+#mock.tok .kit-step .kit-icon {
+  width: var(--target-min);
+  height: var(--target-min);
+}
+
+#mock.tok .kit-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#mock.tok .kit-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+#mock.tok .kit-card-title {
+  font-size: var(--sheet-title);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .kit-count {
+  font-weight: var(--weight-regular);
+  color: var(--color-quiet);
+}
+
+#mock.tok .kit-card-price {
+  font-size: var(--sheet-price);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+#mock.tok .kit-card-line {
+  font-size: var(--type-14);
+}
+
+#mock.tok .kit-card:not(:disabled) {
+  border-color: var(--color-gold);
+}
+
+#mock.tok .kit-card.is-dear {
+  border-color: var(--color-disabled);
+  background: var(--color-disabled);
+}
+
+#mock.tok .kit-card.is-dear .kit-card-price {
+  color: var(--color-ink);
+}
+
+#mock.tok .kit-card.is-locked {
+  border-style: dashed;
+  border-color: var(--color-disabled);
+  background: var(--color-page);
+  color: var(--color-quiet);
+}
+
+/* Buttons. */
+#mock.tok .kit-btn {
+  appearance: none;
+  box-sizing: border-box;
+  position: relative;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  padding: var(--space-4) var(--space-8);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading);
+}
+
+#mock.tok .kit-primary {
+  border-color: var(--color-gold);
+  background: var(--color-gold);
+  color: var(--color-ink-on-gold);
+}
+
+#mock.tok .kit-secondary {
+  background: var(--color-card);
+  color: var(--color-ink);
+}
+
+#mock.tok .kit-outline {
+  background: var(--color-page);
+  color: var(--color-ink);
+}
+
+#mock.tok .kit-btn:disabled,
+#mock.tok .kit-btn.is-off {
+  border-color: var(--color-disabled);
+  background: var(--color-disabled);
+  color: var(--color-quiet);
+}
+
+#mock.tok .kit-btn:disabled .kit-icon {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+
+#mock.tok .kit-row3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--target-gap);
+}
+
+/* Chips and timers. */
+#mock.tok .kit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+#mock.tok .kit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-8);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  font-size: var(--type-14);
+}
+
+#mock.tok .kit-timers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--target-gap);
+}
+
+#mock.tok .kit-timer {
+  appearance: none;
+  box-sizing: border-box;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: 0;
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  color: var(--color-ink);
+  font-size: var(--type-14);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+#mock.tok .kit-timer .kit-icon {
+  width: var(--space-16);
+  height: var(--space-16);
+}
+
+#mock.tok .kit-timer-times {
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+/* Notice. */
+#mock.tok .kit-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--sheet-pad-y) var(--sheet-pad-x);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  font-size: var(--type-14);
+}
+
+/* Bottom bar with a dot badge, and the info button. */
+#mock.tok .kit-bar-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr var(--target-min);
+  gap: var(--target-gap);
+}
+
+#mock.tok .kit-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-4);
+  font-size: var(--type-14);
+}
+
+#mock.tok .kit-dot {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-pill);
+  background: var(--color-gold);
+}
+
+#mock.tok .kit-info {
+  border-radius: var(--radius-pill);
+  font-size: var(--type-20);
+}
+
+/* How it works, one screen. */
+#mock.tok .kit-how-host {
+  justify-content: center;
+}
+
+#mock.tok .kit-how {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-16);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-sheet);
+  background: var(--color-card);
+}
+
+#mock.tok .kit-how-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+#mock.tok .kit-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+#mock.tok .kit-step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--type-16);
+}
+
+#mock.tok .kit-wide {
+  width: 100%;
+}
