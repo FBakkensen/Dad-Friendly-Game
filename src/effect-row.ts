@@ -1,3 +1,4 @@
+import { chipTime } from "./format";
 import { BOOSTS } from "./boosts";
 import { MAX_EXPEDITIONS } from "./expeditions";
 import type { Mountain } from "./mountain";
@@ -61,18 +62,6 @@ export function shortEffectName(full: string): string {
   return SHORT_NAME[full] ?? full.split(" ")[0] ?? full;
 }
 
-/** m:ss under an hour, otherwise HhMM, so a chip never needs 1:02:03. */
-function formatChipClock(ms: number): string {
-  const total = Math.max(0, Math.ceil(ms / 1000));
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const seconds = String(total % 60).padStart(2, "0");
-  if (hours > 0) {
-    return `${String(hours)}h${String(minutes).padStart(2, "0")}`;
-  }
-  return `${String(minutes)}:${seconds}`;
-}
-
 function multiplierMark(value: number): string {
   const shown = Number.isInteger(value)
     ? String(value)
@@ -99,8 +88,8 @@ export function createEffectChip(
   const icon = document.createElement("img");
   icon.src = iconUrl;
   icon.alt = "";
-  icon.width = 16;
-  icon.height = 16;
+  icon.width = 24;
+  icon.height = 24;
   icon.draggable = false;
   const name = document.createElement("span");
   name.className = "effect-name";
@@ -134,7 +123,7 @@ export function createEffectChip(
 }
 
 function spoken(label: EffectLabel): string {
-  const clock = formatChipClock(label.leftMs);
+  const clock = chipTime(label.leftMs);
   if (label.multiplier === undefined) {
     return clock;
   }
@@ -157,7 +146,7 @@ export function writeChip(chip: HTMLElement, label: EffectLabel): void {
     mult.hidden = mark === "";
   }
   if (time instanceof HTMLElement) {
-    time.textContent = label.active ? formatChipClock(label.leftMs) : "";
+    time.textContent = label.active ? chipTime(label.leftMs) : "";
   }
   chip.hidden = !label.active;
   chip.tabIndex = label.active ? 0 : -1;

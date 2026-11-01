@@ -3716,48 +3716,62 @@ body {
   width: auto;
 }
 
-/* One short row per four countdowns the player can run. Chips stay one line. */
+/*
+ * The shared timer chip: a pill per countdown, three to a row, one row per
+ * three it can run. A chip is 28px, not 48: a tap only names the timer, and
+ * twelve 48px chips would squeeze the rock under 96px on a 360x560 phone.
+ */
 .effect-row {
   --effect-rows: 1;
+  --effect-chip: calc(var(--space-24) + var(--space-4));
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(var(--effect-rows), var(--space-24));
+  grid-template-rows: repeat(var(--effect-rows), var(--effect-chip));
   align-items: center;
   justify-items: stretch;
   gap: var(--space-4);
   width: 100%;
   height: calc(
-    var(--effect-rows) * var(--space-24) + (var(--effect-rows) - 1) *
+    var(--effect-rows) * var(--effect-chip) + (var(--effect-rows) - 1) *
       var(--space-4)
   );
 }
 
 .effect-row .effect-chip {
   position: relative;
+  box-sizing: border-box;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: var(--space-4);
+  gap: 0;
   width: 100%;
-  height: var(--space-24);
+  height: var(--effect-chip);
   min-width: 0;
   margin: 0;
   padding: 0;
+  /* An inset ring, not a border, so ×1.25 49:56 fits a 360-wide row. */
   border: 0;
-  background: none;
-  color: var(--color-gold);
+  box-shadow: inset 0 0 0 var(--line) var(--color-gold);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  color: var(--color-ink);
   font-size: var(--type-14);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-regular);
   line-height: 1;
-  overflow: hidden;
   white-space: nowrap;
 }
 
 .effect-row .effect-chip img {
-  width: var(--space-16);
-  height: var(--space-16);
+  width: var(--space-24);
+  height: var(--space-24);
   flex: none;
+}
+
+.effect-mult {
+  margin-inline-end: var(--space-4);
+  color: var(--color-gold);
+  font-weight: var(--weight-bold);
 }
 
 .effect-mult,
@@ -3858,6 +3872,7 @@ body {
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
+  gap: var(--space-4);
   align-items: center;
   justify-content: center;
   height: auto;
@@ -3871,7 +3886,7 @@ body {
   flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: var(--space-8);
+  gap: var(--space-4);
   max-width: 100%;
   min-width: 0;
 }
@@ -3881,9 +3896,14 @@ body {
   flex: none;
   align-items: center;
   gap: var(--space-4);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-  line-height: 1.1;
+  padding: 0 var(--space-8);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  color: var(--color-ink);
+  font-size: var(--type-14);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading);
   white-space: nowrap;
 }
 
@@ -3926,14 +3946,15 @@ body {
 }
 
 .thumb-bar button:disabled {
-  border-color: var(--color-edge);
+  border-color: var(--color-disabled);
   background: var(--color-disabled);
   color: var(--color-quiet);
   opacity: 1;
 }
 
 .thumb-bar button:disabled img {
-  opacity: 0.45;
+  opacity: 0.5;
+  filter: grayscale(1);
 }
 
 .thumb-label {
