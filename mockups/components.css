@@ -219,8 +219,8 @@
 }
 
 #mock.tok .kit-timer .kit-icon {
-  width: var(--space-16);
-  height: var(--space-16);
+  width: calc(var(--space-16) * 2);
+  height: calc(var(--space-16) * 2);
 }
 
 #mock.tok .kit-timer-times {

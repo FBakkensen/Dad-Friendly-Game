@@ -1,5 +1,4 @@
 import { formatCompact } from "../src/format.ts";
-import { formatClock } from "../src/screen-words.ts";
 import { tierById, tierCost, type TierId } from "../src/tiers.ts";
 
 /**
@@ -159,7 +158,13 @@ const TIMERS: readonly TimerSpec[] = [
     times: "×2",
     ms: 1_800_000,
   },
-  { id: "crew", name: "Overtime", art: ART.helper, times: "×2", ms: 540_000 },
+  {
+    id: "crew",
+    name: "Overtime",
+    art: ART.helper,
+    times: "×2",
+    ms: 97_200_000,
+  },
   {
     id: "drill",
     name: "Drill rush",
@@ -169,8 +174,23 @@ const TIMERS: readonly TimerSpec[] = [
   },
 ];
 
+/** Timer chip time. m:ss under an hour, then 1h 2m, then 1d 3h. */
+export function chipTime(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const days = Math.floor(total / 86_400);
+  const hours = Math.floor((total % 86_400) / 3_600);
+  const minutes = Math.floor((total % 3_600) / 60);
+  if (days > 0) {
+    return `${String(days)}d ${String(hours)}h`;
+  }
+  if (hours > 0) {
+    return `${String(hours)}h ${String(minutes)}m`;
+  }
+  return `${String(minutes)}:${String(total % 60).padStart(2, "0")}`;
+}
+
 function timerChip(view: PartsView, timer: TimerSpec): string {
-  const left = formatClock(timer.ms);
+  const left = chipTime(timer.ms);
   return `<button type="button" class="kit-timer${pressed(view, timer.id)}" data-timer="${timer.id}" data-tap="${escapeHtml(tap(`Shows the name, ${timer.name}, ${timer.times} for ${left}.`))}" aria-label="${escapeHtml(`${timer.name} ${timer.times} ${left}`)}">${icon(timer.art)}<span class="kit-timer-times">${escapeHtml(timer.times)}</span><span class="kit-timer-left">${escapeHtml(left)}</span></button>`;
 }
 

@@ -1,3 +1,4 @@
+import { chipTime } from "./components.ts";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -656,7 +657,7 @@ describe("component mocks (#235)", () => {
     expect(timers).toHaveLength(6);
     for (const timer of timers) {
       expect(timer.querySelector("img.kit-icon")).not.toBeNull();
-      expect(timer.textContent).toMatch(/^×\d+\d?:?\d*:\d\d$/);
+      expect(timer.textContent).toMatch(/^×\d+(\d+:\d\d|\d+h \d+m|\d+d \d+h)$/);
     }
     expect(root.textContent).not.toMatch(/\+\d+ more|\?/);
     expect(root.querySelector(".kit-dot")).not.toBeNull();
@@ -668,5 +669,18 @@ describe("component mocks (#235)", () => {
     expect(root.querySelectorAll(".kit-how")).toHaveLength(1);
     expect(root.querySelectorAll(".kit-step img.kit-icon")).toHaveLength(5);
     expect(root.textContent).not.toMatch(/\?/);
+  });
+});
+
+describe("chipTime (#235)", () => {
+  it("shows m:ss, then hours and minutes, then days and hours", () => {
+    expect(chipTime(299_000)).toBe("4:59");
+    expect(chipTime(1_800_000)).toBe("30:00");
+    expect(chipTime(3_599_000)).toBe("59:59");
+    expect(chipTime(3_600_000)).toBe("1h 0m");
+    expect(chipTime(3_725_000)).toBe("1h 2m");
+    expect(chipTime(86_400_000)).toBe("1d 0h");
+    expect(chipTime(97_200_000)).toBe("1d 3h");
+    expect(chipTime(0)).toBe("0:00");
   });
 });
