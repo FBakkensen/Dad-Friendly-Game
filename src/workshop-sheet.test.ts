@@ -212,9 +212,11 @@ describe("workshop sheet (#199)", () => {
         : undefined,
     ).toMatchObject({ cancel: "Cancel · nothing comes back" });
     const hot = shed({ chargeUntil: 30 * 60_000, helpers: 4, carts: 1 });
-    expect(recipe(workshopCards(hot, 1_000), "blasting-charge").effect).toMatch(
-      /keeps digging at 2×/,
+    // The card and the timer chip read the same clock while it runs.
+    expect(recipe(workshopCards(hot, 1_000), "blasting-charge").effect).toBe(
+      "Crew 2× now · 29:59 left",
     );
+    expect(timerLines(hot, 1_000)[0]).toBe("Blasting charge · 29:59 left");
     const cold = shed({ helpers: 0, carts: 0 });
     expect(recipe(workshopCards(cold, 1_000), "blasting-charge").effect).toBe(
       "The crew digs at 2× for 20 min.",

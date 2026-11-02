@@ -4483,7 +4483,8 @@ body {
 }
 
 .workshop-dialog .workshop-more,
-.workshop-dialog .workshop-earlier {
+.workshop-dialog .workshop-earlier,
+.workshop-dialog .teach-how-back {
   min-height: var(--target-min);
   border: var(--line) solid var(--color-gold);
   border-radius: var(--radius-control);
@@ -4781,4 +4782,53 @@ body {
   .teach-note {
     animation: none;
   }
+}
+
+/* Workshop first visit (M11 #243): the New tag sits on the card's top edge. */
+.workshop-dialog .workshop-card.teach-new {
+  position: relative;
+  border-color: var(--color-gold);
+}
+
+/* Top-right inside the card, where the price sits on the other cards. */
+.workshop-dialog .workshop-card > .teach-tag {
+  position: absolute;
+  top: var(--space-8);
+  right: var(--space-8);
+}
+
+/* The one big button runs the full width under the card's lines. */
+.workshop-dialog .workshop-card.sheet-card .sheet-card-price.teach-action {
+  grid-column: 1 / -1;
+  grid-row: auto;
+  justify-self: stretch;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--target-min);
+  margin-top: var(--space-8);
+  border-radius: var(--radius-control);
+  background: var(--color-gold);
+  color: var(--color-ink-on-gold);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+.workshop-dialog .workshop-card .teach-payoff {
+  grid-column: 1 / -1;
+}
+
+.workshop-head-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--target-gap);
+}
+
+.teach-intro {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: var(--type-16);
+}
+
+.workshop-dialog [hidden] {
+  display: none;
 }

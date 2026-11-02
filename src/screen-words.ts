@@ -833,6 +833,11 @@ export function benchBusyWords(name: string, leftMs: number): string {
 }
 
 /** "Axle grease · 18:40 left". */
+/** A crew timer already running, on its own card: the same clock as the chip. */
+export function crewRunningWords(mark: string, leftMs: number): string {
+  return `Crew ${mark}× now · ${formatClock(Math.max(0, leftMs))} left`;
+}
+
 export function timerLeftWords(name: string, leftMs: number): string {
   return `${name} · ${formatClock(Math.max(0, leftMs))} left`;
 }
