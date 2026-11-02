@@ -947,6 +947,8 @@ export function refundBackWords(parts: readonly string[]): string {
  * economy; these lines are not that tuning.
  */
 export const WORKSHOP_TITLE = "Workshop";
+/** The one-time note above the bar (M11 #241, mocked on #240). */
+export const WORKSHOP_NOTE = "New · The Workshop is open";
 
 export const BENCH_FREE = "The bench is free";
 export const BENCH_FREE_ASIDE = "Pick something good for the crew.";

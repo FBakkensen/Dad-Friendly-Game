@@ -99,6 +99,8 @@ describe("firestore.rules match the game", () => {
       flareUntil: 2,
       emberUntil: 3,
       axleUntil: 4,
+      seen: ["workshop"],
+      taught: ["workshop"],
       kept: { recipes: ["future-bit"] },
     };
     const match = /mountain\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/.exec(rules);
@@ -116,6 +118,8 @@ describe("firestore.rules match the game", () => {
       "flareUntil",
       "emberUntil",
       "axleUntil",
+      "seen",
+      "taught",
       "kept",
     ];
     expect(allowed.sort()).toEqual(

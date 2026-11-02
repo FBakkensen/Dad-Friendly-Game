@@ -4641,3 +4641,144 @@ body {
   /* index.html's boot style sets min-height: 100dvh, which zoom would enlarge past the screen. */
   min-height: 0;
 }
+
+/* ---- Teach parts (M11 #241, the hybrid pattern mocked on #240) ---- */
+
+/* The red dot stays until the first use. */
+.has-teach-dot {
+  position: relative;
+}
+
+.teach-dot {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: var(--space-16);
+  height: var(--space-16);
+  border: var(--line) solid var(--color-page);
+  border-radius: var(--radius-pill);
+  background: var(--color-danger);
+  pointer-events: none;
+}
+
+/* One note above the bar, the bar's face with a gold edge and one soft pulse. */
+.teach-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  min-height: var(--target-min);
+  margin: 0;
+  padding: var(--space-8) var(--space-16);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-gold);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+  text-align: left;
+  animation: teach-pulse 1.2s ease-in-out 1;
+}
+
+.teach-note[hidden] {
+  display: none;
+}
+
+.teach-note img {
+  width: var(--space-24);
+  height: var(--space-24);
+  object-fit: contain;
+}
+
+@keyframes teach-pulse {
+  50% {
+    box-shadow: 0 0 var(--space-8) var(--color-gold);
+  }
+}
+
+/* The New card: lit, tagged, one big first action. */
+.teach-new {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 var(--space-16) var(--color-gold);
+}
+
+.teach-tag {
+  align-self: flex-start;
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-pill);
+  background: var(--color-gold);
+  color: var(--color-ink-on-gold);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+}
+
+.teach-action {
+  width: 100%;
+  min-height: var(--target-min);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+  background: var(--color-gold);
+  color: var(--color-ink-on-gold);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+.teach-payoff {
+  color: var(--color-gold);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+/* The "i" opens How it works: one screen, one way back. */
+.teach-info {
+  width: var(--target-min);
+  height: var(--target-min);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  color: var(--color-gold);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+.teach-how {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.teach-how-title {
+  margin: 0;
+  font-size: var(--type-20);
+}
+
+.teach-how-steps {
+  display: grid;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teach-how-steps li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--type-16);
+}
+
+.teach-how-steps img {
+  width: var(--space-24);
+  height: var(--space-24);
+  object-fit: contain;
+}
+
+.teach-how-back {
+  min-height: var(--target-min);
+  font-size: var(--type-16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teach-note {
+    animation: none;
+  }
+}

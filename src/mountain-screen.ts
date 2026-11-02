@@ -1,4 +1,6 @@
 import pickUrl from "./assets/pick.png";
+import { markSeen, noteFor, showsDot } from "./teach";
+import { createTeachNote, setTeachDot } from "./teach-ui";
 import { tapFloatSpot } from "./tap-float";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
 import { formatCompact, formatCount } from "./format";
@@ -50,6 +52,7 @@ import {
   layerCardWords,
   nextLayerHint,
   tapWords,
+  WORKSHOP_NOTE,
 } from "./screen-words";
 import { metMaterialChips } from "./workshop-sheet";
 import {
@@ -609,6 +612,12 @@ export function mountMountainScreen({
     workshop.render();
     // The menu row hides Workshop until the Granite. The thumb uses that same gate.
     workshopThumb.disabled = !workshopUnlocked(view.mountain);
+    setTeachDot(workshopThumb, showsDot(view.mountain, "workshop"));
+    if (noteFor(view.mountain) === "workshop") {
+      teachNote.show(relicArt.hammer, WORKSHOP_NOTE, openWorkshopSheet);
+    } else {
+      teachNote.hide();
+    }
     const at = now();
     const hot = hotTimers(view.mountain, at);
     for (const [id, chip] of craftChips) {
@@ -787,11 +796,15 @@ export function mountMountainScreen({
   workshopThumb.className = "thumb-workshop";
   workshopThumb.append(thumbIcon(relicArt.hammer), thumbLabel("Workshop"));
   const openWorkshop = workshop.menuEntry.querySelector(".workshop-open");
-  workshopThumb.addEventListener("click", () => {
+  // Opening the sheet by any door counts as seen: the note goes, the dot stays.
+  const openWorkshopSheet = (): void => {
     if (openWorkshop instanceof HTMLButtonElement && !openWorkshop.hidden) {
+      progress.applyMutation((current) => markSeen(current, "workshop"));
       openWorkshop.click();
     }
-  });
+  };
+  workshopThumb.addEventListener("click", openWorkshopSheet);
+  const teachNote = createTeachNote();
   thumbBar.append(buysButton, workshopThumb, engineers.button, upgradesButton);
   const pocketStack = document.createElement("div");
   pocketStack.className = "pocket-stack";
@@ -811,6 +824,7 @@ export function mountMountainScreen({
     crew,
     effectRow,
     mountainWrap,
+    teachNote.note,
     thumbBar,
     saveStatus,
     welcome,

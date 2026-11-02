@@ -27,5 +27,7 @@ export function passTheMine(
     mountain.kept.recipes.length === 0
       ? {}
       : { kept: { recipes: mountain.kept.recipes } }),
+    ...(mountain.seen === undefined ? {} : { seen: mountain.seen }),
+    ...(mountain.taught === undefined ? {} : { taught: mountain.taught }),
   };
 }

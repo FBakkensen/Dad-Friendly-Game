@@ -63,6 +63,15 @@ describe("passing the mine to your kid", () => {
     expect(again?.legacy).toBe(2);
   });
 
+  it("carries what the dad was already shown and taught", () => {
+    const next = passTheMine(
+      { ...bottom, seen: ["workshop"], taught: ["workshop"] },
+      5_000,
+    );
+    expect(next?.seen).toEqual(["workshop"]);
+    expect(next?.taught).toEqual(["workshop"]);
+  });
+
   it("never lets a run start before the one it replaces", () => {
     expect(passTheMine(bottom, 500)?.startedAt).toBe(1_001);
   });
