@@ -31,6 +31,7 @@ import { createSaveConflictPanel } from "./save-conflict-panel";
 import { createSavedCopiesPanel } from "./saved-copies-panel";
 import { createLegacyPanel, legacyWords } from "./legacy-panel";
 import { legacyBonus } from "./legacy";
+import { createBuysHead } from "./buys-head";
 import { createCrewPanel } from "./crew-panel";
 import { SHEET_HOST } from "./sheet-card";
 import { createEngineersPanel } from "./engineers-panel";
@@ -623,6 +624,10 @@ export function mountMountainScreen({
         canCraftNow(view.mountain, now()),
     );
     setTeachDot(workshopThumb, showsDot(view.mountain, "workshop"));
+    // Staffing is small (#246): a dot on Buys, no note.
+    const staffing = showsDot(view.mountain, "staffing");
+    setTeachDot(buysButton, staffing);
+    buysHead.render(staffing);
     // Tending is small (#246): its dot shares the button, with no note.
     setTeachDot(
       engineers.button,
@@ -771,10 +776,7 @@ export function mountMountainScreen({
   buysDialog.setAttribute("role", "dialog");
   buysDialog.setAttribute("aria-label", "Buys");
   const buysCard = document.createElement("div");
-  buysCard.className = "buys-card";
-  const buysTitle = document.createElement("h2");
-  buysTitle.className = "sheet-kicker";
-  buysTitle.textContent = "Buys";
+  buysCard.className = "buys-card sheet-frame";
   const buysClose = document.createElement("button");
   buysClose.type = "button";
   buysClose.className = "buys-close";
@@ -782,7 +784,16 @@ export function mountMountainScreen({
   const buysHost = document.createElement("div");
   buysHost.className = SHEET_HOST;
   buysHost.append(tierGrid);
-  buysCard.append(buysTitle, buysHost, thanks, buysClose);
+  const buysHead = createBuysHead({ tierArt, stoneUrl, body: [buysHost] });
+  buysDialog.setAttribute("aria-labelledby", "buys-title");
+  buysCard.append(
+    buysHead.head,
+    buysHead.intro,
+    buysHead.howHost,
+    buysHost,
+    thanks,
+    buysClose,
+  );
   buysDialog.append(buysCard);
   const buysButton = document.createElement("button");
   buysButton.type = "button";
@@ -805,9 +816,15 @@ export function mountMountainScreen({
   buysButton.append(thumbIcon(tierArt.cart), thumbLabel("Buys"));
   buysButton.addEventListener("click", () => {
     buysDialog.hidden = false;
+    // The staffing New card sits on top of the list: bring it into view.
+    // Some test DOMs have no scrollIntoView.
+    const fresh: Partial<Element> | null =
+      buysDialog.querySelector(".tier.teach-new");
+    fresh?.scrollIntoView?.({ block: "nearest" });
   });
   buysClose.addEventListener("click", () => {
     buysDialog.hidden = true;
+    buysHead.close();
   });
 
   const pocketRow = document.createElement("div");

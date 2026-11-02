@@ -683,6 +683,7 @@ describe("teaching mock, hybrid pattern (#240)", () => {
     "reveal",
     "engineers",
     "tending",
+    "staffing",
   ] as const;
 
   it("keeps every step to the house rules", () => {

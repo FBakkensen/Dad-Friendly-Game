@@ -31,6 +31,7 @@ const TEACH_STEPS = [
   "reveal",
   "engineers",
   "tending",
+  "staffing",
 ] as const;
 type TeachStep = (typeof TEACH_STEPS)[number];
 
@@ -148,7 +149,9 @@ function bar(step: TeachStep): string {
         ? "upgrades"
         : step === "engineers" || step === "tending"
           ? "engineers"
-          : "";
+          : step === "staffing"
+            ? "buys"
+            : "";
   const items = [
     ["buys", ART.cart, "Buys"],
     ["workshop", ART.hammer, "Workshop"],
@@ -293,6 +296,30 @@ function tendingSheet(): string {
 }
 
 /**
+ * M11-8c (#246): staffing. A small system, so the dot on Buys, no note.
+ * The idle machine is the New card: its bill, how many stand idle, and one
+ * big hire button. The free count stays on the crew chip, lit above.
+ */
+function staffingSheet(): string {
+  const action =
+    "Hires a worker for 150.4K, and an idle cart starts. The tag and the dot go away.";
+  return `<section class="card teach-sheet" role="dialog" aria-label="Buys">
+    <div class="kit-chips"><span class="kit-chip is-new" data-chip="free">${icon(ART.helper)}<span>40 workers · 0 free</span></span></div>
+    <header class="teach-sheet-head"><h2 class="kit-title">Buys</h2><button type="button" class="kit-btn kit-outline kit-info" data-tap="${esc(tap("Opens How it works for machines and staffing."))}" aria-label="How it works">i</button></header>
+    <p class="teach-intro">Idle machines start when you hire workers.</p>
+    <div class="kit-stack"><div class="card kit-card is-new" data-card="cart" data-tap="${esc(tap(action))}">
+      <div class="teach-new-top">
+        ${icon(ART.cart)}
+        <span class="kit-card-body"><span class="kit-card-head"><span class="kit-card-title">Mine cart</span><span class="teach-tag">New</span></span>
+          <span class="kit-card-line">+8.5/s each · Needs 1 worker each · 9 idle</span>
+        </span>
+      </div>
+      <button type="button" class="kit-btn kit-primary kit-wide" data-tap="${esc(tap(action))}">Hire a worker · 150.4K</button>
+    </div></div>
+  </section>`;
+}
+
+/**
  * How it works for one system: the real shared card from src/teach-ui.ts
  * with the real copy from src/how-it-works.ts (#242), in the mock's sheet.
  */
@@ -366,6 +393,8 @@ export function renderTeach(control: string): string {
       return frame(step, engineersSheet());
     case "tending":
       return frame(step, tendingSheet());
+    case "staffing":
+      return frame(step, staffingSheet());
     case undefined:
       throw new Error(`Unknown teach step ${control}`);
   }

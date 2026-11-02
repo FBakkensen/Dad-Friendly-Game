@@ -70,6 +70,7 @@ export const HOW_SYSTEMS = [
   "tapping",
   "workers",
   "machines",
+  "staffing",
   "upgrades",
   "boosts",
   "veins",
@@ -94,6 +95,7 @@ const stones = (count: number): string => `${formatCompact(count)} stones`;
 const worker = tierById("helper");
 const cart = tierById("cart");
 const drill = tierById("drill");
+const borer = tierById("borer");
 const machine = tierById("machine");
 const boost = (id: Boost["id"]): Boost => {
   const found = BOOSTS.find((item) => item.id === id);
@@ -167,6 +169,28 @@ export const HOW_IT_WORKS: Readonly<Record<HowSystem, HowItWorks>> = {
       [
         "boot-tile",
         `When one breaks, tap it ${String(FIX_TAPS)} times and it runs again.`,
+      ],
+    ],
+  },
+  staffing: {
+    title: "Staffing",
+    reveal: "Every machine needs its own crew to run.",
+    steps: [
+      [
+        "mine-cart",
+        `A cart needs ${String(cart.staff)} worker, a drill ${String(drill.staff)}, a borer ${String(borer.staff)}.`,
+      ],
+      [
+        "great-machine",
+        `The Great Machine needs ${String(machine.staff)}, or ${String(TENDED_MACHINE_STAFF)} while an engineer tends it.`,
+      ],
+      [
+        "tunnel-borer",
+        "Without its crew a machine stands idle and digs nothing.",
+      ],
+      [
+        "helper-miner",
+        "Free workers show on the crew line. Hire more and idle machines start.",
       ],
     ],
   },

@@ -2,6 +2,8 @@ import { buyCrew, tierLocked } from "./crew";
 import { staffForBuy, staffNeeded } from "./engineers";
 import { FIX_HOLD_MS } from "./hazards";
 import { buyOnTap } from "./card-tap";
+import { markTaught, showsDot } from "./teach";
+import { clearNewCard, markNewCard } from "./teach-ui";
 import { floatText, reducedMotion } from "./float-text";
 import { formatCompact, formatCount } from "./format";
 import { milestonePreviewLine } from "./preview";
@@ -20,7 +22,12 @@ import {
   SHEET_SHORT,
 } from "./sheet-card";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
-import { effectiveRates, tendingGain, type TendTier } from "./rates";
+import {
+  effectiveRates,
+  firstIdleTier,
+  tendingGain,
+  type TendTier,
+} from "./rates";
 import { RELICS } from "./relics";
 import {
   NEEDS_MORE_WORKERS,
@@ -30,6 +37,8 @@ import {
   formatSpeed,
   percent,
   staffBillWords,
+  staffingAction,
+  staffingLine,
   tierPaceWords,
   troubleAria,
   troubleShout,
@@ -38,7 +47,14 @@ import {
   tendsNote,
   workerWords,
 } from "./screen-words";
-import { TIERS, owned, tierCost, tierShown, type TierId } from "./tiers";
+import {
+  TIERS,
+  owned,
+  tierById,
+  tierCost,
+  tierShown,
+  type TierId,
+} from "./tiers";
 import { tierSynergy } from "./upgrades";
 
 /** From this many tiers on screen, cards go three to a row. */
@@ -151,6 +167,25 @@ export function createCrewPanel({
   const crewSpeed = (): number =>
     effectiveRates(getView().mountain, now(), getView().trouble).crewPerSecond;
 
+  /** The idle machine shown as the New card (#246), while it is. */
+  let guidedTier: TierId | undefined;
+  /** A hire while a machine stands idle is the first use of staffing. */
+  const hire = (card: HTMLElement): void => {
+    const rateBefore = crewSpeed();
+    const before = getView().mountain.helpers;
+    progress.applyMutation((mountain) => {
+      const next = buyCrew(mountain, "helper");
+      return next.helpers > mountain.helpers && showsDot(mountain, "staffing")
+        ? markTaught(next, "staffing")
+        : next;
+    });
+    if (getView().mountain.helpers > before) {
+      const gained = crewSpeed() - rateBefore;
+      floatText(card, `+${formatSpeed(Math.max(0, gained))}/s`, "float-gain");
+      countCrewRate(rateBefore, crewSpeed());
+    }
+  };
+
   const tierCards = TIERS.map((tier) => {
     const card = document.createElement("button");
     card.type = "button";
@@ -246,6 +281,15 @@ export function createCrewPanel({
         return;
       }
       const troubled = getView().trouble;
+      // The guided idle machine hires its crew. Another one would stand
+      // idle too, so the New card never buys more of it.
+      if (
+        guidedTier === tier.id &&
+        (troubled === undefined || troubled.tier !== tier.id)
+      ) {
+        hire(card);
+        return;
+      }
       if (troubled !== undefined && troubled.tier === tier.id) {
         progress.pressTrouble(troubled.tier);
         if (getView().trouble === undefined) {
@@ -255,7 +299,15 @@ export function createCrewPanel({
       }
       const before = owned(getView().mountain, tier);
       const rateBefore = crewSpeed();
-      progress.applyMutation((mountain) => buyCrew(mountain, tier.id));
+      progress.applyMutation((mountain) => {
+        const next = buyCrew(mountain, tier.id);
+        // Any worker hired while a machine stands idle counts (#246).
+        return tier.id === "helper" &&
+          next.helpers > mountain.helpers &&
+          showsDot(mountain, "staffing")
+          ? markTaught(next, "staffing")
+          : next;
+      });
       if (owned(getView().mountain, tier) > before) {
         const after = effectiveRates(
           getView().mountain,
@@ -289,6 +341,7 @@ export function createCrewPanel({
       tier,
       card,
       name,
+      cost,
       costText,
       countBadge,
       rate,
@@ -366,10 +419,18 @@ export function createCrewPanel({
     // Three to a row once there are four or more, so every tier fits in two rows.
     const compact = shownCount >= COMPACT_TIER_COUNT;
     tierGrid.classList.toggle("tier-grid-compact", compact);
+    // The first idle machine is the New card (#246): the dot only, its
+    // crew bill on the card, the free count on the crew chip above.
+    guidedTier = showsDot(current, "staffing")
+      ? firstIdleTier(current, now(), trouble)
+      : undefined;
+    const worker = tierById("helper");
+    const workerPrice = tierCost(worker, owned(current, worker));
     for (const {
       tier,
       card,
       name,
+      cost,
       costText,
       countBadge,
       rate: tierRate,
@@ -491,13 +552,36 @@ export function createCrewPanel({
                 staff,
                 spare,
               });
+      const guided = guidedTier === tier.id && cardTrouble === undefined;
+      if (guided) {
+        const short = current.pocket < workerPrice;
+        card.disabled = !getView().ready;
+        card.classList.toggle("tier-ready", !short);
+        card.classList.toggle("tier-short", false);
+        card.classList.toggle("tier-dear", short);
+        card.classList.toggle(SHEET_READY, !short);
+        card.classList.toggle(SHEET_SHORT, false);
+        card.classList.toggle(SHEET_DEAR, short);
+        markNewCard(card, cost, staffingAction(workerPrice));
+        cost.prepend(costIcon);
+        needsLine.hidden = false;
+        needsLine.textContent = staffingLine(
+          staffNeeded(current, tier),
+          idleHere,
+        );
+      } else if (card.classList.contains("teach-new")) {
+        clearNewCard(card);
+        cost.replaceChildren(costIcon, costText);
+      }
       card.setAttribute(
         "aria-label",
-        cardTrouble !== undefined
-          ? troubleAria(cardTrouble.kind, tier)
-          : locked
-            ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.${tends}`
-            : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(staffNeeded(current, tier))} ${workerWords(staffNeeded(current, tier))} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.${tends}`,
+        guided
+          ? `${tier.name}: ${formatCount(idleHere)} idle: each needs ${String(staffNeeded(current, tier))} ${workerWords(staffNeeded(current, tier))} to run. Tap to hire a worker for ${formatCount(workerPrice)} stones.`
+          : cardTrouble !== undefined
+            ? troubleAria(cardTrouble.kind, tier)
+            : locked
+              ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.${tends}`
+              : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(staffNeeded(current, tier))} ${workerWords(staffNeeded(current, tier))} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.${tends}`,
       );
     }
     const pool = current.helpers + current.kids;
@@ -553,6 +637,11 @@ export function createCrewPanel({
       postsButton.dataset["tight"] = "false";
       postsButton.removeAttribute("aria-expanded");
     }
+    // The free count lives only on the crew chip. While the idle machine is
+    // the New card, that chip is lit so the card's bill reads against it.
+    postsButton
+      .querySelector(".crew-bit")
+      ?.classList.toggle("teach-point", guidedTier !== undefined);
   };
 
   const bitElement = (bit: {
