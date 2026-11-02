@@ -3023,6 +3023,7 @@ const GUARD_SIZES = [
   [424, 924],
   [424, 830],
   [1440, 900],
+  [1366, 768],
 ];
 function guardSave(lastSeen, remaining = 200_000_000) {
   return {
