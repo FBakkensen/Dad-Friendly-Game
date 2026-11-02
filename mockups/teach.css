@@ -1,0 +1,151 @@
+/* M11-2 teaching mocks. Every value is a token from src/tokens.css. */
+
+#mock.tok .teach-screen {
+  gap: var(--target-gap);
+}
+
+#mock.tok .teach-pocket {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-4) var(--space-16);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  color: var(--color-gold);
+  font-size: var(--type-20);
+  font-weight: var(--weight-bold);
+}
+
+/* The rock, the sheet or the card: everything between the timers and the note. */
+#mock.tok .teach-middle {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+#mock.tok .teach-rock {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom;
+  image-rendering: pixelated;
+}
+
+#mock.tok .teach-sheet {
+  position: relative;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+  padding: var(--space-16);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-sheet);
+  background: var(--color-card);
+}
+
+#mock.tok .teach-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+#mock.tok .teach-intro {
+  margin: 0;
+  font-size: var(--type-16);
+  line-height: var(--leading);
+  color: var(--color-quiet);
+}
+
+#mock.tok .teach-price {
+  font-size: var(--type-16);
+}
+
+#mock.tok .kit-card.is-done {
+  border-color: var(--color-gold);
+}
+
+#mock.tok .teach-tag {
+  flex: none;
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-pill);
+  background: var(--color-gold);
+  color: var(--color-ink-on-gold);
+  font-size: var(--type-14);
+  font-weight: var(--weight-bold);
+}
+
+#mock.tok .kit-timer.is-fresh {
+  box-shadow: 0 0 var(--space-16) var(--color-gold);
+}
+
+#mock.tok .teach-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--target-gap);
+}
+
+/* The new card: first in the sheet, lit gold, tagged New, one big first action. */
+#mock.tok .kit-card.is-new {
+  flex-direction: column;
+  align-items: stretch;
+  border-width: var(--space-4);
+  border-color: var(--color-gold);
+  box-shadow: 0 0 var(--space-16) var(--color-gold);
+}
+
+#mock.tok .teach-new-top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+}
+
+#mock.tok .teach-payoff-line {
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+/* The red dot stays until the first use. */
+#mock.tok .teach-dot {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: var(--space-16);
+  height: var(--space-16);
+  border: var(--line) solid var(--color-page);
+  border-radius: var(--radius-pill);
+  background: var(--color-danger);
+}
+
+/* The New note looks like the bar: same face and colours, a gold edge, one soft pulse. */
+#mock.tok .teach-note {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  border-color: var(--color-gold);
+  font-size: var(--type-14);
+  text-align: left;
+  animation: teach-pulse 1.2s ease-in-out 1;
+}
+
+@keyframes teach-pulse {
+  50% {
+    box-shadow: 0 0 var(--space-8) var(--color-gold);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #mock.tok .teach-note {
+    animation: none;
+  }
+}

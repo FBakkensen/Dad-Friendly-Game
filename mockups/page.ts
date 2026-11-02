@@ -1,3 +1,4 @@
+import { renderTeach } from "./teach.ts";
 import { formatCount } from "../src/format.ts";
 import {
   renderMountainDirection,
@@ -71,6 +72,7 @@ const SCENES = [
   "parts-cards",
   "parts-controls",
   "parts-how",
+  "teach",
 ] as const;
 const PHASES = ["rest", "press", "float", "hammer", "busy", "shake"] as const;
 
@@ -485,6 +487,8 @@ export function renderMock(view: MockView): string {
       return renderPartsControls(view);
     case "parts-how":
       return renderPartsHow(view);
+    case "teach":
+      return renderTeach(view.control);
     default: {
       const never: never = view.scene;
       return never;
@@ -502,7 +506,8 @@ function mount(root: HTMLElement, view: MockView): void {
     view.scene.endsWith("-tokens") ||
     view.scene.startsWith("mountain-") ||
     view.scene.startsWith("upgrades-") ||
-    view.scene.startsWith("parts-")
+    view.scene.startsWith("parts-") ||
+    view.scene === "teach"
   ) {
     classes.push("tok");
   }

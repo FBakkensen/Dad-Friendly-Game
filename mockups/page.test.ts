@@ -672,6 +672,89 @@ describe("component mocks (#235)", () => {
   });
 });
 
+describe("teaching mock, hybrid pattern (#240)", () => {
+  const steps = ["note", "sheet", "payoff", "how", "dot"] as const;
+
+  it("keeps every step to the house rules", () => {
+    for (const step of steps) {
+      const root = mountTokens("teach", "rest", step);
+      expect(root.textContent).not.toMatch(
+        /\?|pays back|payback|worth it|best value|\+\d+ more|to afford|later/i,
+      );
+      for (const card of root.querySelectorAll(".kit-card")) {
+        expect(card.querySelector("img.kit-icon")).not.toBeNull();
+      }
+      for (const element of root.querySelectorAll("[data-tap]")) {
+        const tap = element.getAttribute("data-tap") ?? "";
+        expect(tap).toContain("Presses in");
+        expect(tap).toContain("Silent until unmuted");
+      }
+      expect(root.querySelectorAll(".teach-bar button")).toHaveLength(4);
+      expect(root.querySelectorAll(".teach-note").length).toBeLessThanOrEqual(
+        1,
+      );
+      root.remove();
+    }
+  });
+
+  it("shows a big system as a dot and one note, with no pop-up", () => {
+    const root = mountTokens("teach", "rest", "note");
+    expect(
+      root.querySelector("[data-bar='workshop'] .teach-dot"),
+    ).not.toBeNull();
+    expect(root.querySelector(".teach-note")?.textContent).toBe(
+      "New · The Workshop is open",
+    );
+    expect(root.querySelector("[role='dialog']")).toBeNull();
+    root.remove();
+  });
+
+  it("opens the sheet with the new card first and one first action", () => {
+    const root = mountTokens("teach", "rest", "sheet");
+    const first = root.querySelector(".teach-sheet .kit-card");
+    expect(first?.classList.contains("is-new")).toBe(true);
+    expect(first?.querySelector(".teach-tag")?.textContent).toBe("New");
+    expect(first?.getAttribute("data-tap")).toContain("Blasting charge");
+    expect(first?.querySelectorAll("button")).toHaveLength(1);
+    expect(first?.querySelector("button")?.textContent).toBe(
+      "Craft Blasting charge · 4 clay · 100K",
+    );
+    expect(root.querySelector(".teach-intro")).not.toBeNull();
+    expect(
+      root.querySelector("[data-bar='workshop'] .teach-dot"),
+    ).not.toBeNull();
+    root.remove();
+  });
+
+  it("shows the payoff in the same card and drops the tag and the dot", () => {
+    const root = mountTokens("teach", "rest", "payoff");
+    const first = root.querySelector(".teach-sheet .kit-card");
+    expect(first?.textContent).toContain("+1,762/s now");
+    expect(first?.querySelector(".teach-tag")).toBeNull();
+    expect(root.querySelector(".teach-dot")).toBeNull();
+    expect(root.querySelector(".kit-timer.is-fresh")?.textContent).toBe(
+      "×220:00",
+    );
+    root.remove();
+  });
+
+  it("keeps How it works on one card and the small system to a dot", () => {
+    const how = mountTokens("teach", "rest", "how");
+    expect(how.querySelectorAll(".kit-step img.kit-icon")).toHaveLength(4);
+    how.remove();
+    const dot = mountTokens("teach", "rest", "dot");
+    expect(
+      dot.querySelector("[data-bar='upgrades'] .teach-dot"),
+    ).not.toBeNull();
+    expect(dot.querySelector(".teach-note")).toBeNull();
+    dot.remove();
+  });
+
+  it("refuses an unknown step", () => {
+    expect(() => mountTokens("teach", "rest", "nope")).toThrow();
+  });
+});
+
 describe("chipTime (#235)", () => {
   it("shows m:ss, then hours and minutes, then days and hours", () => {
     expect(chipTime(299_000)).toBe("4:59");

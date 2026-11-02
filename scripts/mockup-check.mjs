@@ -85,6 +85,11 @@ const SHOTS = [
   ["parts-controls", "press", "picks"],
   ["parts-how", "rest", ""],
   ["parts-how", "press", "got"],
+  ...["note", "sheet", "payoff", "how", "dot"].map((step) => [
+    "teach",
+    "rest",
+    step,
+  ]),
 ];
 
 const failures = [];
@@ -143,7 +148,8 @@ async function fit(page, label) {
       sceneName.endsWith("-tokens") ||
       sceneName.startsWith("mountain-") ||
       sceneName.startsWith("upgrades-") ||
-      sceneName.startsWith("parts-");
+      sceneName.startsWith("parts-") ||
+      sceneName === "teach";
     const minFont = token ? 14 : 14.4;
     const minBox = token ? 48 : 44;
     const hasDirectText = (element) =>
