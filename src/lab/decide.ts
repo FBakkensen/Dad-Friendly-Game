@@ -20,7 +20,7 @@ import {
   recipeById,
   recipeCost,
   recipesForMined,
-  workshopUnlocked,
+  recipeOpen,
   type RecipeId,
 } from "../workshop";
 import {
@@ -385,7 +385,7 @@ function affordSeconds(pocket: number, income: number, cost: number): number {
 /** Known, unfinished, and the materials are in hand. Stones can still be short. */
 function craftMaterialsReady(mountain: Mountain, id: RecipeId): boolean {
   return (
-    workshopUnlocked(mountain) &&
+    recipeOpen(mountain, id) &&
     mountain.bench === undefined &&
     recipeKnown(mountain, id) &&
     craftHasRoom(mountain, id) &&

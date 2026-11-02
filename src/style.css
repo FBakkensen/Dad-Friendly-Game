@@ -4832,3 +4832,19 @@ body {
 .workshop-dialog [hidden] {
   display: none;
 }
+
+/* The material chips are a quiet button: tap for How it works (#244). */
+.workshop-dialog button.workshop-materials {
+  appearance: none;
+  align-self: center;
+  justify-content: center;
+  min-height: var(--target-min);
+  margin: 0;
+  padding: 0 var(--space-16);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  cursor: pointer;
+}

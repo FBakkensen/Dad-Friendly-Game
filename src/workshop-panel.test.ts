@@ -135,7 +135,7 @@ describe("workshop panel (#199)", () => {
       screen.root.querySelector<HTMLButtonElement>(".menu-button");
     menu()?.click();
     const locked = screen.root.querySelector(".workshop-locked");
-    expect(locked?.textContent).toBe("Workshop · opens in The Granite");
+    expect(locked?.textContent).toBe("Workshop · opens as the clay comes in");
     expect(locked?.querySelector("img")?.getAttribute("src")).toBe(
       screen.root
         .querySelector<HTMLImageElement>(".thumb-workshop img")
@@ -335,7 +335,7 @@ describe("workshop panel (#199)", () => {
     );
 
     sheet?.querySelector<HTMLButtonElement>(".teach-info")?.click();
-    const how = sheet?.querySelector<HTMLElement>(".teach-how");
+    const how = sheet?.querySelector<HTMLElement>("[data-how='workshop']");
     expect(how?.hidden).toBe(false);
     expect(sheet?.querySelector<HTMLElement>(".workshop-recipes")?.hidden).toBe(
       true,
@@ -343,6 +343,15 @@ describe("workshop panel (#199)", () => {
     expect(how?.querySelectorAll("li")).toHaveLength(4);
     how?.querySelector<HTMLButtonElement>(".teach-how-back")?.click();
     expect(how?.hidden).toBe(true);
+
+    sheet?.querySelector<HTMLButtonElement>(".workshop-materials")?.click();
+    const ore = sheet?.querySelector<HTMLElement>("[data-how='materials']");
+    expect(ore?.hidden).toBe(false);
+    expect(ore?.querySelector(".teach-how-title")?.textContent).toBe(
+      "How it works · Materials",
+    );
+    ore?.querySelector<HTMLButtonElement>(".teach-how-back")?.click();
+    expect(ore?.hidden).toBe(true);
 
     sheet?.querySelector<HTMLButtonElement>(".teach-action")?.click();
     clock += 1_000;

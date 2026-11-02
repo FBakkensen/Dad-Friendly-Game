@@ -55,6 +55,7 @@ import {
   veinOftenScale,
   type Recipe,
   type RecipeId,
+  recipeOpen,
 } from "./workshop";
 
 /**
@@ -603,7 +604,10 @@ export function benchLeftMs(
 
 function hiddenHint(mountain: Mountain): string | undefined {
   const known = new Set(mountain.recipes ?? []);
-  const unknown = RECIPES.filter((recipe) => !known.has(recipe.id));
+  // In the Topsoil the deeper recipes stay a sketch, known or not.
+  const unknown = RECIPES.filter(
+    (recipe) => !known.has(recipe.id) || !recipeOpen(mountain, recipe.id),
+  );
   if (unknown.length === 0) {
     return undefined;
   }
@@ -675,7 +679,10 @@ export function workshopCards(
 ): readonly WorkshopCard[] {
   const known = new Set(mountain.recipes ?? []);
   const open = RECIPES.filter(
-    (recipe) => known.has(recipe.id) && !finished(recipe, mountain),
+    (recipe) =>
+      known.has(recipe.id) &&
+      !finished(recipe, mountain) &&
+      recipeOpen(mountain, recipe.id),
   );
   const bench = mountain.bench?.recipe;
   open.sort((left, right) => {

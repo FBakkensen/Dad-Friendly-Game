@@ -1792,10 +1792,10 @@ for (const viewport of WORKSHOP_SIZES) {
   );
   check(
     !locked.hidden &&
-      locked.text.includes("Workshop · opens in The Granite") &&
+      locked.text.includes("Workshop · opens as the clay comes in") &&
       !locked.text.includes("?") &&
       openHidden,
-    "424x830 workshop is a locked silhouette before the Granite",
+    "424x830 workshop is a locked silhouette before the first clay",
   );
   await shot(page, "workshop-locked-424x830");
   check(await noScroll(page), "424x830 locked menu has no page scroll");

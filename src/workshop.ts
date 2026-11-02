@@ -2,6 +2,7 @@ import { factor } from "./economy/factors";
 import {
   EMPTY_MATERIALS,
   LAYERS,
+  MATERIAL_EVERY,
   MAX_MATERIAL,
   addMaterials,
   type LayerId,
@@ -40,6 +41,8 @@ const PROPS_RARER = 0.3;
 const LAMP_OFTEN = 0.25;
 const KIT_SHORTER = 0.2;
 const CHARGE_MULTIPLIER = 2;
+/** Clay in one Blasting charge, and so the clay that opens the Topsoil bench. */
+const CHARGE_CLAY = 4;
 const REINFORCE_PER_LEVEL = 0.05;
 const REINFORCE_CAP = 5;
 /**
@@ -166,7 +169,7 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     id: "blasting-charge",
     name: "Blasting charge",
     stones: 100_000,
-    materials: { clay: 4 },
+    materials: { clay: CHARGE_CLAY },
     craftMs: 10 * MINUTE,
     unlock: "start",
     effect: {
@@ -294,11 +297,43 @@ export type RecipeCost = {
   readonly materials: Materials;
 };
 
-/** The workshop opens on the first Granite stone, beside the Shield. */
+/**
+ * Clay-only recipes work in the Topsoil (D1, #244): the bench opens once the
+ * Topsoil has dug the clay for one Blasting charge. Everything that needs a
+ * deeper material waits for the full workshop in the Granite.
+ */
+function clayOnly(id: RecipeId): boolean {
+  const materials = recipeCost(id).materials;
+  return (
+    materials.iron === 0 &&
+    materials.crystal === 0 &&
+    materials.heartstone === 0
+  );
+}
+
+/** Stones dug when the first charge's clay is in hand: 4 clay is 4M. */
+export const TOPSOIL_BENCH_FROM = CHARGE_CLAY * MATERIAL_EVERY.clay;
+
+/** The bench is open: from the first charge's clay in the Topsoil. */
 export function workshopUnlocked(mountain: {
   readonly remaining: number;
 }): boolean {
+  return minedOut(mountain) >= TOPSOIL_BENCH_FROM;
+}
+
+/** Every recipe is open from the first Granite stone, beside the Shield. */
+export function fullWorkshop(mountain: {
+  readonly remaining: number;
+}): boolean {
   return minedOut(mountain) >= GRANITE_FROM;
+}
+
+/** This recipe can go on the bench at this depth. */
+export function recipeOpen(
+  mountain: { readonly remaining: number },
+  id: RecipeId,
+): boolean {
+  return workshopUnlocked(mountain) && (fullWorkshop(mountain) || clayOnly(id));
 }
 
 function knownWhen(unlock: Unlock, mined: number): boolean {
@@ -504,7 +539,7 @@ export function startCraft(
   id: RecipeId,
   now: number,
 ): Mountain {
-  if (!workshopUnlocked(mountain) || !isWhole(now)) {
+  if (!recipeOpen(mountain, id) || !isWhole(now)) {
     return mountain;
   }
   if (
