@@ -52,6 +52,8 @@ describe("How it works copy", () => {
     );
     expect(words("engineers")).toContain(formatCompact(PROMOTE_BASE_COST));
     expect(words("tending")).toContain(String(TENDED_MACHINE_STAFF));
+    expect(words("staffing")).toContain(String(tierById("machine").staff));
+    expect(words("staffing")).toContain(String(TENDED_MACHINE_STAFF));
     for (const boost of BOOSTS) {
       expect(words("boosts")).toContain(boost.effect);
     }

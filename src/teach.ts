@@ -1,6 +1,6 @@
 import type { Mountain } from "./mountain";
 import { BOOSTS } from "./boosts";
-import { firstTend } from "./rates";
+import { firstIdleTier, firstTend } from "./rates";
 import {
   boostRowId,
   boostShown,
@@ -70,6 +70,14 @@ const TEACH_SPECS: readonly TeachSpec[] = [
           engineer.post === "drill" ||
           engineer.post === "machine",
       ),
+  },
+  // Small system (#246): the first machine standing idle for want of crew.
+  // The dot only. The first worker hired while one stands idle is the use.
+  {
+    id: "staffing",
+    size: "small",
+    unlocked: (mountain) => firstIdleTier(mountain) !== undefined,
+    used: () => false,
   },
   // Small systems (#245): each boost and upgrade row, once it shows.
   ...BOOSTS.map((boost): TeachSpec => ({

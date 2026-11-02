@@ -67,7 +67,7 @@ export function createTeachNote(): {
  */
 export function markNewCard(
   card: HTMLElement,
-  button: HTMLButtonElement,
+  button: HTMLElement,
   action: string,
 ): void {
   clearNewCard(card);

@@ -5053,3 +5053,86 @@ body {
   margin-top: var(--space-8);
   text-align: start;
 }
+
+/* Buys head (#246): the same as Upgrades and Engineers. */
+.buys-card h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: var(--weight-bold);
+  line-height: 1.15;
+  color: var(--color-gold);
+  text-align: start;
+}
+
+.buys-card .buys-intro {
+  text-align: start;
+}
+
+.buys-card .buys-how {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--target-gap);
+  overflow-y: auto;
+  text-align: start;
+}
+
+.buys-card .buys-how .teach-how-back {
+  min-height: var(--target-min);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-gold);
+}
+
+.buys-card [hidden] {
+  display: none;
+}
+
+/* Staffing New card (#246): on top of the list, tag top-right, one big
+   hire button under the lines, dimmed while the pocket is short. */
+.buys-dialog .tier.sheet-card.teach-new {
+  order: 1;
+  border-color: var(--color-gold);
+}
+
+.buys-dialog .tier.sheet-card > .teach-tag {
+  position: absolute;
+  top: var(--space-8);
+  right: var(--space-8);
+}
+
+.buys-dialog .tier.sheet-card .sheet-card-price.teach-action {
+  grid-column: 1 / -1;
+  grid-row: auto;
+  justify-self: stretch;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--target-min);
+  margin-top: var(--space-8);
+  border-radius: var(--radius-control);
+  background: var(--color-gold);
+  color: var(--color-ink-on-gold);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+.buys-dialog .tier.sheet-card.sheet-dear .sheet-card-price.teach-action {
+  opacity: 0.5;
+}
+
+/* The free count lives on the crew chip. Lit while the New card reads it. */
+:has(.buys-dialog:not([hidden])) .crew-bit.teach-point {
+  border-radius: var(--radius-pill);
+  box-shadow: 0 0 0 var(--line) var(--color-gold);
+}
+
+.buys-dialog .tier .tier-cost.teach-action::before {
+  content: none;
+}
+
+/* The same inset as Upgrades, so the head lines up across sheets. */
+.buys-dialog .buys-card {
+  padding: var(--space-8);
+}

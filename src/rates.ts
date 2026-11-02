@@ -16,7 +16,7 @@ import {
 } from "./workshop";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
-import { TIERS, owned, type TierId } from "./tiers";
+import { TIERS, owned, tierById, type TierId } from "./tiers";
 import { hasRelic } from "./relics";
 import { boostById, boostLeft } from "./boosts";
 import {
@@ -452,4 +452,31 @@ export function firstTend(
     }
   }
   return undefined;
+}
+
+const STAFFED_TIERS = ["machine", "borer", "drill", "cart"] as const;
+
+/**
+ * The first idle machine (#246): the one the next hired worker really
+ * starts, read from the rates with one more worker. When one worker starts
+ * nothing yet, the biggest idle kind. Undefined when nothing stands idle.
+ */
+export function firstIdleTier(
+  mountain: Mountain,
+  now?: number,
+  trouble?: Trouble,
+): TendTier | undefined {
+  const rates = effectiveRates(mountain, now, trouble);
+  const idle = STAFFED_TIERS.filter(
+    (id) => owned(mountain, tierById(id)) > rates.running[id],
+  );
+  if (idle.length === 0) {
+    return undefined;
+  }
+  const hired = effectiveRates(
+    { ...mountain, helpers: mountain.helpers + 1 },
+    now,
+    trouble,
+  );
+  return idle.find((id) => hired.running[id] > rates.running[id]) ?? idle[0];
 }

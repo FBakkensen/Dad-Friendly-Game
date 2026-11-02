@@ -312,6 +312,20 @@ export function engineersIntro(name: string): string {
   return `${name} can explore a side tunnel and bring home a find.`;
 }
 
+/** The staffing New card's bill. The free count stays on the crew chip. */
+export function staffingLine(staff: number, idle: number): string {
+  return `Needs ${formatCompact(staff)} ${workerWords(staff)} each · ${formatCompact(idle)} idle`;
+}
+
+/** The staffing New card's one big action: hire, never another machine. */
+export function staffingAction(workerPrice: number): string {
+  return `Hire a worker · ${formatCompact(workerPrice)}`;
+}
+
+/** The Buys intro while an idle machine is the New card. */
+export const STAFFING_INTRO =
+  "Machines need their crew. Hire workers and idle ones start.";
+
 /** The intro line on the guided first tend. */
 export function tendingIntro(name: string): string {
   return `${name} can tend one kind of machine, and that kind digs faster.`;
