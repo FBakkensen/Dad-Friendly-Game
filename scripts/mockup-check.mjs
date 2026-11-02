@@ -85,7 +85,7 @@ const SHOTS = [
   ["parts-controls", "press", "picks"],
   ["parts-how", "rest", ""],
   ["parts-how", "press", "got"],
-  ...["note", "sheet", "payoff", "how", "dot"].map((step) => [
+  ...["note", "sheet", "payoff", "how", "dot", "reveal"].map((step) => [
     "teach",
     "rest",
     step,

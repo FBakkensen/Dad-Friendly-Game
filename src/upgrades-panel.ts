@@ -22,6 +22,8 @@ import {
   lostToolWords,
   boostOutcome,
   buyPriceWords,
+  UPGRADES_INTRO,
+  UPGRADES_MORE,
   upgradeEffectLine,
 } from "./screen-words";
 import {
@@ -34,16 +36,25 @@ import {
   SHEET_CARD_TITLE,
   SHEET_DEAR,
   SHEET_HOST,
-  SHEET_LOCKED,
   SHEET_READY,
   SHEET_SCROLL,
 } from "./sheet-card";
+import { markAllSeen, showsDot } from "./teach";
+import { clearNewCard, markNewCard, setTeachDot } from "./teach-ui";
+import {
+  anyHiddenRow,
+  boostRowId,
+  boostShown,
+  shownRows,
+  upgradeRowId,
+  upgradeShown,
+  type RevealRowId,
+} from "./upgrade-reveal";
 import {
   UPGRADES,
   buyUpgrade,
   upgradeCost,
   upgradeLevel,
-  upgradeUnlocked,
   type UpgradeId,
 } from "./upgrades";
 
@@ -152,6 +163,10 @@ export function createUpgradesPanel({
   let upgradesOpen = false;
   upgradesButton.addEventListener("click", () => {
     upgradesOpen = true;
+    // Rows he has had in front of him stay, even after the pocket dips.
+    progress.applyMutation((current) =>
+      markAllSeen(current, shownRows(current)),
+    );
     requestRender();
   });
   const upgradesSheet = document.createElement("div");
@@ -197,17 +212,20 @@ export function createUpgradesPanel({
       }
       const at = now();
       progress.applyMutation((current) =>
-        buyBoost({
-          mountain: current,
-          id: boost.id,
-          now: at,
-          pricing: effectiveRates(current),
-        }),
+        markAllSeen(
+          buyBoost({
+            mountain: current,
+            id: boost.id,
+            now: at,
+            pricing: effectiveRates(current),
+          }),
+          shownRows(current),
+        ),
       );
     });
     item.append(sheetIcon(BOOST_ICON[boost.id]), body);
     boostList.append(item);
-    return { boost, effect, buy };
+    return { boost, effect, buy, item, id: boostRowId(boost) };
   });
   const lastingHeading = document.createElement("h3");
   lastingHeading.className = "upgrades-heading";
@@ -237,11 +255,22 @@ export function createUpgradesPanel({
       if (!getView().ready) {
         return;
       }
-      progress.applyMutation((current) => buyUpgrade(current, upgrade.id));
+      progress.applyMutation((current) =>
+        markAllSeen(buyUpgrade(current, upgrade.id), shownRows(current)),
+      );
     });
     item.append(sheetIcon(UPGRADE_ICON[upgrade.id]), body);
     upgradeList.append(item);
-    return { upgrade, title, effect, why, levelChip, item, buy };
+    return {
+      upgrade,
+      title,
+      effect,
+      why,
+      levelChip,
+      item,
+      buy,
+      id: upgradeRowId(upgrade),
+    };
   });
   const foundHeading = document.createElement("h3");
   foundHeading.className = "upgrades-heading found-heading";
@@ -291,13 +320,24 @@ export function createUpgradesPanel({
   upgradesHost.className = SHEET_HOST;
   const upgradesScroll = document.createElement("div");
   upgradesScroll.className = `upgrades-scroll ${SHEET_SCROLL}`;
+  const intro = document.createElement("p");
+  intro.className = "teach-intro upgrades-intro";
+  intro.textContent = UPGRADES_INTRO;
+  intro.hidden = true;
+  const more = document.createElement("p");
+  more.className = `upgrades-more ${SHEET_CARD_QUIET}`;
+  more.textContent = UPGRADES_MORE;
+  more.hidden = true;
+  let newShown: RevealRowId | undefined;
   upgradesScroll.append(
+    intro,
     boostHeading,
     boostList,
     lastingHeading,
     upgradeList,
     foundHeading,
     foundList,
+    more,
   );
   upgradesHost.append(upgradesScroll);
   upgradesCard.append(
@@ -316,7 +356,27 @@ export function createUpgradesPanel({
     const pricing = effectiveRates(current);
     const live = effectiveRates(current, at);
     let anyAffordable = false;
-    for (const { boost, effect, buy } of boostRows) {
+    // The New card: the first row he has not bought yet, one he can
+    // afford now if there is one. It goes to the top of the sheet.
+    const fresh = [
+      ...boostRows.map((row) => ({
+        id: row.id,
+        cost: boostCost(row.boost, pricing),
+      })),
+      ...upgradeRows.map((row) => ({
+        id: row.id,
+        cost: upgradeCost(row.upgrade, upgradeLevel(current, row.upgrade.id)),
+      })),
+    ].filter((row) => showsDot(current, row.id));
+    const newId = (
+      fresh.find(
+        (row) => row.cost !== undefined && current.pocket >= row.cost,
+      ) ?? fresh[0]
+    )?.id;
+    let boostsShowing = false;
+    for (const { boost, effect, buy, item } of boostRows) {
+      item.hidden = !boostShown(current, boost);
+      boostsShowing ||= !item.hidden;
       const left = boostLeft(current, boost.id, at);
       const cost = boostCost(boost, pricing);
       // Overtime shares the crew with axle grease and a blasting charge.
@@ -365,6 +425,7 @@ export function createUpgradesPanel({
         });
       }
     }
+    let upgradesShowing = false;
     for (const {
       upgrade,
       title,
@@ -374,17 +435,17 @@ export function createUpgradesPanel({
       item,
       buy,
     } of upgradeRows) {
+      // Locked and far-off rows stay hidden until nearly affordable (#245).
+      item.hidden = !upgradeShown(current, upgrade);
+      upgradesShowing ||= !item.hidden;
       const level = upgradeLevel(current, upgrade.id);
       const cost = upgradeCost(upgrade, level);
-      const unlocked = upgradeUnlocked(current, upgrade);
       const affordable =
-        unlocked && cost !== undefined && current.pocket >= cost;
+        !item.hidden && cost !== undefined && current.pocket >= cost;
       anyAffordable ||= affordable;
-      const dear = unlocked && cost !== undefined && !affordable;
-      item.classList.toggle("is-locked", !unlocked);
+      const dear = cost !== undefined && !affordable;
       item.classList.toggle("is-ready", affordable);
       item.classList.toggle("is-dear", dear);
-      item.classList.toggle(SHEET_LOCKED, !unlocked);
       item.classList.toggle(SHEET_READY, affordable);
       item.classList.toggle(SHEET_DEAR, dear);
       title.textContent = upgrade.name;
@@ -392,21 +453,67 @@ export function createUpgradesPanel({
         levelChip.hidden = false;
         levelChip.textContent = `Lv ${String(level)}/${String(upgrade.maxLevel)}`;
       }
-      effect.textContent = unlocked
-        ? upgradeEffectLine(upgrade, current, at)
-        : "";
-      effect.hidden = !unlocked;
-      why.textContent = unlocked ? UPGRADE_WHY[upgrade.id] : "";
-      why.hidden = !unlocked;
+      effect.textContent = upgradeEffectLine(upgrade, current, at);
+      why.textContent = UPGRADE_WHY[upgrade.id];
       buy.disabled = !view.ready || !affordable;
-      buy.textContent = !unlocked
-        ? "Locked"
-        : cost === undefined
+      buy.textContent =
+        cost === undefined
           ? upgrade.maxLevel === 1
             ? "Owned"
             : "All levels bought"
           : buyPriceWords(cost);
     }
+    boostHeading.hidden = !boostsShowing;
+    boostList.hidden = !boostsShowing;
+    lastingHeading.hidden = !upgradesShowing;
+    upgradeList.hidden = !upgradesShowing;
+    more.hidden = !anyHiddenRow(current);
+    for (const row of [...boostRows, ...upgradeRows]) {
+      if (row.id === newId) {
+        markNewCard(row.item, row.buy, row.buy.textContent);
+      } else {
+        clearNewCard(row.item);
+      }
+    }
+    intro.hidden = newId === undefined;
+    if (newId !== newShown) {
+      newShown = newId;
+      const newUpgrade = upgradeRows.find((row) => row.id === newId);
+      const newBoost = boostRows.find((row) => row.id === newId);
+      upgradeList.append(...upgradeRows.map((row) => row.item));
+      boostList.append(...boostRows.map((row) => row.item));
+      if (newUpgrade !== undefined) {
+        upgradeList.prepend(newUpgrade.item);
+        upgradesScroll.append(
+          intro,
+          lastingHeading,
+          upgradeList,
+          boostHeading,
+          boostList,
+          foundHeading,
+          foundList,
+          more,
+        );
+      } else {
+        if (newBoost !== undefined) {
+          boostList.prepend(newBoost.item);
+        }
+        upgradesScroll.append(
+          intro,
+          boostHeading,
+          boostList,
+          lastingHeading,
+          upgradeList,
+          foundHeading,
+          foundList,
+          more,
+        );
+      }
+    }
+    setTeachDot(
+      upgradesButton,
+      [...boostRows, ...upgradeRows].some((row) => showsDot(current, row.id)),
+    );
     let anyFound = false;
     for (const { id, item } of foundRows) {
       const found = hasLostTool(current, id);

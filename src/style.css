@@ -4848,3 +4848,43 @@ body {
   font: inherit;
   cursor: pointer;
 }
+
+/* Upgrades sheet (#245): the quiet line for rows still out of reach. */
+.upgrades-dialog .upgrades-more {
+  margin: 0;
+  font-size: var(--type-14);
+  text-align: center;
+}
+
+/* Upgrades New card (#245), the same as the Workshop's: tag top-right,
+   one big button under the lines, dimmed while the pocket is short. */
+.upgrades-dialog .upgrade.sheet-card.teach-new {
+  position: relative;
+  border-color: var(--color-gold);
+}
+
+.upgrades-dialog .upgrade.sheet-card > .teach-tag {
+  position: absolute;
+  top: var(--space-8);
+  right: var(--space-8);
+}
+
+.upgrades-dialog .upgrade.sheet-card .sheet-card-price.teach-action {
+  order: 1;
+  grid-column: 1 / -1;
+  grid-row: auto;
+  justify-self: stretch;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--target-min);
+  margin-top: var(--space-8);
+  border-radius: var(--radius-control);
+  background: var(--color-gold);
+  color: var(--color-ink-on-gold);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+.upgrades-dialog .upgrade.sheet-card .sheet-card-price.teach-action:disabled {
+  opacity: 0.5;
+}

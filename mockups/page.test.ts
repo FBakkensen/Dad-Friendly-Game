@@ -674,7 +674,7 @@ describe("component mocks (#235)", () => {
 });
 
 describe("teaching mock, hybrid pattern (#240)", () => {
-  const steps = ["note", "sheet", "payoff", "how", "dot"] as const;
+  const steps = ["note", "sheet", "payoff", "how", "dot", "reveal"] as const;
 
   it("keeps every step to the house rules", () => {
     for (const step of steps) {
@@ -696,6 +696,21 @@ describe("teaching mock, hybrid pattern (#240)", () => {
       );
       root.remove();
     }
+  });
+
+  it("reveals a nearly affordable upgrade with the dot, a New card and no wait time (#245)", () => {
+    const root = mountTokens("teach", "rest", "reveal");
+    expect(
+      root.querySelector("[data-bar='upgrades'] .teach-dot"),
+    ).not.toBeNull();
+    expect(root.querySelector(".teach-note")).toBeNull();
+    const first = root.querySelector(".teach-sheet .kit-card");
+    expect(first?.querySelector(".teach-tag")?.textContent).toBe("New");
+    expect(first?.querySelector("button")?.textContent).toBe("Buy · 46K");
+    expect(root.querySelector(".teach-sheet")?.textContent).not.toMatch(
+      /\d+:\d\d|min left|until/,
+    );
+    root.remove();
   });
 
   it("shows a big system as a dot and one note, with no pop-up", () => {

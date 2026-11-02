@@ -36,6 +36,7 @@ import {
   type TroubleTier,
 } from "../hazards";
 import { EMPTY_MATERIALS, LAYERS } from "../layers";
+import { boostShown, upgradeShown } from "../upgrade-reveal";
 import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
 import { minedOut } from "../scale";
@@ -145,15 +146,19 @@ export function listActions(
     }
   }
   for (const upgrade of UPGRADES) {
+    // Only rows the sheet shows (#245): nearly affordable, seen, or bought.
     if (
-      upgradeUnlocked(mountain, upgrade) &&
+      upgradeShown(mountain, upgrade) &&
       upgradeCost(upgrade, upgradeLevel(mountain, upgrade.id)) !== undefined
     ) {
       actions.push({ kind: "buyUpgrade", id: upgrade.id });
     }
   }
   for (const boost of BOOSTS) {
-    if (boostLeft(mountain, boost.id, now) === 0) {
+    if (
+      boostLeft(mountain, boost.id, now) === 0 &&
+      boostShown(mountain, boost)
+    ) {
       actions.push({ kind: "buyBoost", id: boost.id });
     }
   }

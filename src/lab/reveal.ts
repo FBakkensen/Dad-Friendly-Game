@@ -2,7 +2,8 @@ import { BOOSTS } from "../boosts";
 import { LAYERS, type MaterialId } from "../layers";
 import type { Mountain } from "../mountain";
 import { owned, tierShown, TIERS } from "../tiers";
-import { UPGRADES, upgradeLevel, upgradeUnlocked } from "../upgrades";
+import { UPGRADES, upgradeLevel } from "../upgrades";
+import { boostShown, upgradeShown } from "../upgrade-reveal";
 import {
   craftedLevel,
   recipeCost,
@@ -93,13 +94,13 @@ const WATCHES: readonly Watch[] = [
   })),
   ...UPGRADES.map((upgrade) => ({
     id: `upgrade:${upgrade.id}`,
-    shown: (mountain: Mountain) => upgradeUnlocked(mountain, upgrade),
+    // The row shows once nearly affordable (#245).
+    shown: (mountain: Mountain) => upgradeShown(mountain, upgrade),
     used: (mountain: Mountain) => upgradeLevel(mountain, upgrade.id) > 0,
   })),
   ...BOOSTS.map((boost) => ({
     id: `boost:${boost.id}`,
-    // The Upgrades sheet lists every boost from the first second.
-    shown: () => true,
+    shown: (mountain: Mountain) => boostShown(mountain, boost),
     used: (mountain: Mountain) => mountain.boosts?.[boost.id] !== undefined,
   })),
   ...LAYERS.map((layer) => ({
