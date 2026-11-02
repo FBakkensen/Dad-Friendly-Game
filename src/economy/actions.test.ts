@@ -995,7 +995,9 @@ describe("valueOf", () => {
     const rails = score(yard, { kind: "craft", recipe: "iron-rails" });
     expect(rails.gainPerSec).toBeGreaterThan(0);
     const railsBill = recipeCost("iron-rails");
-    expect(rails.cost).toBe(
+    // Iron is priced by its best other use, never by the stones it took to dig.
+    expect(rails.cost).toBeGreaterThanOrEqual(railsBill.stones);
+    expect(rails.cost).toBeLessThan(
       railsBill.stones + railsBill.materials.iron * MATERIAL_EVERY.iron,
     );
     expect(rails.paybackSec).toBeCloseTo(
@@ -1044,7 +1046,12 @@ describe("valueOf", () => {
     expect(reinforce.gainPerSec).toBeGreaterThan(0);
     const ironBill = recipeCost("reinforce");
     expect(ironBill.stones).toBe(0);
-    expect(reinforce.cost).toBe(ironBill.materials.iron * MATERIAL_EVERY.iron);
+    // The iron could have gone into rails, so that is what it costs here.
+    expect(reinforce.cost).toBeGreaterThan(0);
+    // With no horizon to spend it in, the iron has no other use to price.
+    expect(score(armed, { kind: "craft", recipe: "reinforce" }, 0).cost).toBe(
+      0,
+    );
     expect(reinforce.paybackSec).toBeGreaterThan(
       recipeById("reinforce").craftMs / 1000,
     );

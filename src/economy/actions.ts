@@ -35,7 +35,7 @@ import {
   type Trouble,
   type TroubleTier,
 } from "../hazards";
-import { EMPTY_MATERIALS, LAYERS, MATERIAL_EVERY } from "../layers";
+import { EMPTY_MATERIALS, LAYERS } from "../layers";
 import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
 import { minedOut } from "../scale";
@@ -672,9 +672,14 @@ function valueCraft(
   horizon: number,
   context: ValueContext,
   now: number,
+  pricing: "best-use" | "stones-only" = "best-use",
 ): ActionValue {
   const recipe = recipeById(id);
-  const stones = craftPrice(id);
+  const stones =
+    recipeCost(id).stones +
+    (pricing === "best-use"
+      ? materialsPrice(mountain, id, horizon, context, now)
+      : 0);
   const benchSec = recipe.craftMs / 1000;
   const preview = previewCraft(mountain, id, now);
   if (preview === undefined) {
@@ -829,19 +834,54 @@ function previewCraft(
   return { fitted: settleBench(started, bench.endsAt), endsAt: bench.endsAt };
 }
 
-/** Stones and materials in hand, so the preview can fit the next level. */
 /**
- * Stones the craft asks for, plus the stones it took to dig each material.
- * Reinforce spends no stones from the pocket. Pricing its iron at nothing
- * made the payback the bench time alone, so it beat every other buy.
+ * What the materials in a craft are worth: their best other use, not the
+ * stones it took to dig them (#244, Flemming picked this on #281). Dug ore
+ * is sunk; spending it only costs what the next-best open recipe would have
+ * made from it over the horizon, per unit, net of that recipe's stones.
+ * With no other open recipe for a material it costs nothing. Iron keeps a
+ * price while rails and grease also want it, so Reinforce cannot look free.
  */
-function craftPrice(id: RecipeId): number {
-  const cost = recipeCost(id);
-  let stones = cost.stones;
-  for (const layer of LAYERS) {
-    stones += cost.materials[layer.material] * MATERIAL_EVERY[layer.material];
+function materialsPrice(
+  mountain: Mountain,
+  id: RecipeId,
+  horizon: number,
+  context: ValueContext,
+  now: number,
+): number {
+  // A horizon with no end (or none) has no next-best use to weigh.
+  if (!Number.isFinite(horizon) || horizon <= 0) {
+    return 0;
   }
-  return stones;
+  const cost = recipeCost(id);
+  const others = sinkRecipes(mountain).filter((other) => other !== id);
+  let price = 0;
+  for (const layer of LAYERS) {
+    const units = cost.materials[layer.material];
+    if (units <= 0) {
+      continue;
+    }
+    let best = 0;
+    for (const other of others) {
+      const otherCost = recipeCost(other);
+      const otherUnits = otherCost.materials[layer.material];
+      if (otherUnits <= 0) {
+        continue;
+      }
+      const made = valueCraft(
+        mountain,
+        other,
+        horizon,
+        context,
+        now,
+        "stones-only",
+      );
+      const net = made.gainPerSec * horizon - otherCost.stones;
+      best = Math.max(best, net / otherUnits);
+    }
+    price += units * best;
+  }
+  return price;
 }
 
 function fundCraft(mountain: Mountain, id: RecipeId): Mountain {
