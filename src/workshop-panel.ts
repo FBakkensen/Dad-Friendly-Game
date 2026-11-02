@@ -179,7 +179,7 @@ export function createWorkshopPanel({
   let floatUntil = 0;
   let floatBits: readonly CostChip[] = [];
   let painted = "";
-  let howOpen = false;
+  let howShown: "workshop" | "materials" | undefined;
 
   const menuEntry = document.createElement("div");
   menuEntry.className = "workshop-menu";
@@ -195,7 +195,7 @@ export function createWorkshopPanel({
     }
     open = true;
     page = 0;
-    howOpen = false;
+    howShown = undefined;
     progress.applyMutation((current) => markSeen(current, "workshop"));
     onOpen();
     requestRender();
@@ -244,7 +244,7 @@ export function createWorkshopPanel({
     requestRender();
   });
   const info = createInfoButton(WORKSHOP_TITLE, () => {
-    howOpen = true;
+    howShown = "workshop";
     requestRender();
   });
   const headTools = document.createElement("div");
@@ -255,22 +255,37 @@ export function createWorkshopPanel({
   const intro = document.createElement("p");
   intro.className = "teach-intro";
 
-  const workshopHow = HOW_IT_WORKS.workshop;
-  const how = createHowCard(
-    `How it works · ${workshopHow.title}`,
-    workshopHow.steps.map(
-      ([art, text]) => [ASSET_URLS[art] ?? stoneUrl, text] as const,
-    ),
-    "Back to the Workshop",
-    () => {
-      howOpen = false;
-      requestRender();
-      info.focus();
-    },
-  );
+  const howCard = (system: "workshop" | "materials"): HTMLElement => {
+    const copy = HOW_IT_WORKS[system];
+    const made = createHowCard(
+      `How it works · ${copy.title}`,
+      copy.steps.map(
+        ([art, text]) => [ASSET_URLS[art] ?? stoneUrl, text] as const,
+      ),
+      "Back to the Workshop",
+      () => {
+        howShown = undefined;
+        requestRender();
+        (system === "workshop" ? info : materials).focus();
+      },
+    );
+    made.dataset["how"] = system;
+    return made;
+  };
+  const hows = {
+    workshop: howCard("workshop"),
+    materials: howCard("materials"),
+  };
 
-  const materials = document.createElement("p");
+  // The material chips open How it works for materials (#244).
+  const materials = document.createElement("button");
+  materials.type = "button";
   materials.className = "workshop-materials label";
+  materials.setAttribute("aria-label", "Materials: how they work");
+  materials.addEventListener("click", () => {
+    howShown = "materials";
+    requestRender();
+  });
 
   const bench = document.createElement("div");
   bench.className = "workshop-bench";
@@ -373,7 +388,8 @@ export function createWorkshopPanel({
     timers,
     recipes,
     pager,
-    how,
+    hows.workshop,
+    hows.materials,
     close,
     floats,
   );
@@ -550,8 +566,10 @@ export function createWorkshopPanel({
     const at = now();
     teach = workshopTeach(mountain, at);
     intro.textContent = teach.intro ?? "";
+    const howOpen = howShown !== undefined;
     intro.hidden = howOpen || teach.intro === undefined;
-    how.hidden = !howOpen;
+    hows.workshop.hidden = howShown !== "workshop";
+    hows.materials.hidden = howShown !== "materials";
     for (const part of [materials, bench, recipes]) {
       part.hidden = howOpen;
     }

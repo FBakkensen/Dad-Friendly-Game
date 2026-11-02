@@ -784,7 +784,7 @@ export const recallConfirm = (name: string): string =>
   `${name} comes home empty-handed.`;
 
 /** Menu row before the Granite. No counts, no question. */
-export const WORKSHOP_LOCKED = "Workshop · opens in The Granite";
+export const WORKSHOP_LOCKED = "Workshop · opens as the clay comes in";
 
 /** The bench is free, and a thin pocket is still a fine pocket. */
 export const WORKSHOP_FREE_ASIDE = "A little at a time is plenty.";

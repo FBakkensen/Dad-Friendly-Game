@@ -6,6 +6,7 @@ import { UPGRADES, upgradeLevel, upgradeUnlocked } from "../upgrades";
 import {
   craftedLevel,
   recipeCost,
+  recipeOpen,
   workshopUnlocked,
   type RecipeId,
 } from "../workshop";
@@ -31,7 +32,7 @@ export type RevealGap = {
 const SECONDS_PER_HOUR = HOUR_MS / MS_PER_SECOND;
 
 function knownRecipes(mountain: Mountain): readonly RecipeId[] {
-  return workshopUnlocked(mountain) ? (mountain.recipes ?? []) : [];
+  return (mountain.recipes ?? []).filter((id) => recipeOpen(mountain, id));
 }
 
 /** The pocket and the materials cover one craft of this recipe. */

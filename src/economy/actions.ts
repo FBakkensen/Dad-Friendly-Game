@@ -53,6 +53,7 @@ import {
   troubleGapScale,
   unknownBench,
   veinOftenScale,
+  recipeOpen,
   workshopUnlocked,
   type RecipeId,
 } from "../workshop";
@@ -205,7 +206,9 @@ export function listActions(
  * busy does not remove the sink. `materialIdle` reads this list.
  */
 export function sinkRecipes(mountain: Mountain): readonly RecipeId[] {
-  return knownRecipeIds(mountain).filter((id) => craftHasRoom(mountain, id));
+  return knownRecipeIds(mountain).filter(
+    (id) => recipeOpen(mountain, id) && craftHasRoom(mountain, id),
+  );
 }
 
 /**
@@ -814,7 +817,7 @@ function previewCraft(
   id: RecipeId,
   now: number,
 ): { readonly fitted: Mountain; readonly endsAt: number } | undefined {
-  if (mountain.bench !== undefined || !workshopUnlocked(mountain)) {
+  if (mountain.bench !== undefined || !recipeOpen(mountain, id)) {
     return undefined;
   }
   const prepared = fundCraft(mountain, id);
