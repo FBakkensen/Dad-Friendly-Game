@@ -39,32 +39,6 @@
   image-rendering: pixelated;
 }
 
-#mock.tok .teach-scrim {
-  position: absolute;
-  inset: 0;
-  background: var(--color-page);
-  opacity: 0.7;
-}
-
-#mock.tok .teach-reveal,
-#mock.tok .teach-how {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--target-gap);
-  padding: var(--space-16);
-  border: var(--line) solid var(--color-gold);
-  border-radius: var(--radius-sheet);
-  background: var(--color-card);
-}
-
-#mock.tok .teach-line,
-#mock.tok .teach-intro {
-  margin: 0;
-  font-size: var(--type-16);
-  line-height: var(--leading);
-}
-
 #mock.tok .teach-sheet {
   position: relative;
   max-height: 100%;
@@ -85,20 +59,14 @@
 }
 
 #mock.tok .teach-intro {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
+  margin: 0;
+  font-size: var(--type-16);
+  line-height: var(--leading);
   color: var(--color-quiet);
 }
 
 #mock.tok .teach-price {
   font-size: var(--type-16);
-}
-
-/* The guided first use: the card the dad should tap glows gold. */
-#mock.tok .kit-card.is-guide {
-  border-width: var(--space-4);
-  box-shadow: 0 0 var(--space-16) var(--color-gold);
 }
 
 #mock.tok .kit-card.is-done {
@@ -115,47 +83,8 @@
   font-weight: var(--weight-bold);
 }
 
-#mock.tok .teach-tag.is-done {
-  background: var(--color-card);
-  color: var(--color-gold);
-  border: var(--line) solid var(--color-gold);
-}
-
 #mock.tok .kit-timer.is-fresh {
   box-shadow: 0 0 var(--space-16) var(--color-gold);
-}
-
-#mock.tok .teach-note,
-#mock.tok .teach-payoff {
-  appearance: none;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: var(--target-min);
-  margin: 0;
-  color: var(--color-ink);
-  font: inherit;
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-  text-align: left;
-}
-
-/* The foreman's speech: his face, one line, at most one button. */
-#mock.tok .teach-bubble {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-8);
-  padding: var(--space-8);
-  border: var(--line) solid var(--color-gold);
-  border-radius: var(--radius-sheet);
-  background: var(--color-card);
-}
-
-#mock.tok .teach-bubble-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--target-gap);
 }
 
 #mock.tok .teach-bar {
@@ -164,6 +93,59 @@
   gap: var(--target-gap);
 }
 
-#mock.tok .teach-bar .kit-bar.is-new {
+/* The new card: first in the sheet, lit gold, tagged New, one big first action. */
+#mock.tok .kit-card.is-new {
+  flex-direction: column;
+  align-items: stretch;
+  border-width: var(--space-4);
   border-color: var(--color-gold);
+  box-shadow: 0 0 var(--space-16) var(--color-gold);
+}
+
+#mock.tok .teach-new-top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+}
+
+#mock.tok .teach-payoff-line {
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+}
+
+/* The red dot stays until the first use. */
+#mock.tok .teach-dot {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: var(--space-16);
+  height: var(--space-16);
+  border: var(--line) solid var(--color-page);
+  border-radius: var(--radius-pill);
+  background: var(--color-danger);
+}
+
+/* The New note looks like the bar: same face and colours, a gold edge, one soft pulse. */
+#mock.tok .teach-note {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  border-color: var(--color-gold);
+  font-size: var(--type-14);
+  text-align: left;
+  animation: teach-pulse 1.2s ease-in-out 1;
+}
+
+@keyframes teach-pulse {
+  50% {
+    box-shadow: 0 0 var(--space-8) var(--color-gold);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #mock.tok .teach-note {
+    animation: none;
+  }
 }

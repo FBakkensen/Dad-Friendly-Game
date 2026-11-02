@@ -672,70 +672,86 @@ describe("component mocks (#235)", () => {
   });
 });
 
-describe("teaching mocks (#240)", () => {
-  const options = ["teach-a", "teach-b", "teach-c"] as const;
-  const systems = ["workshop", "materials", "upgrades"] as const;
-  const steps = ["note", "reveal", "guide", "payoff", "how"] as const;
+describe("teaching mock, hybrid pattern (#240)", () => {
+  const steps = ["note", "sheet", "payoff", "how", "dot"] as const;
 
   it("keeps every step to the house rules", () => {
-    for (const scene of options) {
-      for (const system of systems) {
-        for (const step of steps) {
-          const root = mountTokens(scene, "rest", `${system}-${step}`);
-          expect(root.textContent).not.toMatch(
-            /\?|pays back|payback|worth it|best value|\+\d+ more|to afford/i,
-          );
-          for (const card of root.querySelectorAll(".kit-card")) {
-            expect(card.querySelector("img.kit-icon")).not.toBeNull();
-          }
-          for (const button of root.querySelectorAll("button")) {
-            const tap = button.getAttribute("data-tap") ?? "";
-            expect(tap).toContain("Presses in");
-            expect(tap).toContain("Silent until unmuted");
-          }
-          expect(root.querySelectorAll(".teach-bar button")).toHaveLength(4);
-          root.remove();
-        }
+    for (const step of steps) {
+      const root = mountTokens("teach", "rest", step);
+      expect(root.textContent).not.toMatch(
+        /\?|pays back|payback|worth it|best value|\+\d+ more|to afford|later/i,
+      );
+      for (const card of root.querySelectorAll(".kit-card")) {
+        expect(card.querySelector("img.kit-icon")).not.toBeNull();
       }
+      for (const element of root.querySelectorAll("[data-tap]")) {
+        const tap = element.getAttribute("data-tap") ?? "";
+        expect(tap).toContain("Presses in");
+        expect(tap).toContain("Silent until unmuted");
+      }
+      expect(root.querySelectorAll(".teach-bar button")).toHaveLength(4);
+      expect(root.querySelectorAll(".teach-note").length).toBeLessThanOrEqual(
+        1,
+      );
+      root.remove();
     }
   });
 
-  it("walks badge, reveal, lit card, payoff and How it works", () => {
-    const note = mountTokens("teach-a", "rest", "workshop-note");
-    expect(note.querySelector(".kit-bar.is-new .kit-dot")).not.toBeNull();
-    expect(note.querySelector(".teach-note")?.textContent).toContain("New");
-    const reveal = mountTokens("teach-a", "rest", "workshop-reveal");
+  it("shows a big system as a dot and one note, with no pop-up", () => {
+    const root = mountTokens("teach", "rest", "note");
     expect(
-      reveal.querySelector(".teach-reveal .kit-primary")?.textContent,
-    ).toBe("Craft Axle grease · 1 iron");
-    const guide = mountTokens("teach-a", "rest", "upgrades-guide");
-    const lit = guide.querySelectorAll(".kit-card.is-guide");
-    expect(lit).toHaveLength(1);
-    expect(lit[0]?.textContent).toContain("650K");
-    const payoff = mountTokens("teach-a", "rest", "materials-payoff");
-    expect(payoff.querySelector(".teach-payoff")?.textContent).toContain(
-      "Crew ×2 for 20 min",
+      root.querySelector("[data-bar='workshop'] .teach-dot"),
+    ).not.toBeNull();
+    expect(root.querySelector(".teach-note")?.textContent).toBe(
+      "New · The Workshop is open",
     );
-    expect(payoff.querySelector(".kit-timer.is-fresh")?.textContent).toBe(
-      "×220:00",
-    );
-    const how = mountTokens("teach-c", "rest", "materials-how");
-    expect(how.querySelectorAll(".kit-step img.kit-icon")).toHaveLength(4);
-    expect(how.textContent).not.toMatch(/crystal|heartstone/i);
+    expect(root.querySelector("[role='dialog']")).toBeNull();
+    root.remove();
   });
 
-  it("puts the B reveal inside the sheet with the new card first", () => {
-    const root = mountTokens("teach-b", "rest", "materials-reveal");
-    expect(root.querySelector(".teach-reveal")).toBeNull();
+  it("opens the sheet with the new card first and one first action", () => {
+    const root = mountTokens("teach", "rest", "sheet");
+    const first = root.querySelector(".teach-sheet .kit-card");
+    expect(first?.classList.contains("is-new")).toBe(true);
+    expect(first?.querySelector(".teach-tag")?.textContent).toBe("New");
+    expect(first?.getAttribute("data-tap")).toContain("Blasting charge");
+    expect(first?.querySelectorAll("button")).toHaveLength(1);
+    expect(first?.querySelector("button")?.textContent).toBe(
+      "Craft Blasting charge · 4 clay",
+    );
+    expect(root.querySelector(".teach-intro")).not.toBeNull();
     expect(
-      root
-        .querySelector(".teach-sheet .kit-card")
-        ?.classList.contains("is-guide"),
-    ).toBe(true);
+      root.querySelector("[data-bar='workshop'] .teach-dot"),
+    ).not.toBeNull();
+    root.remove();
+  });
+
+  it("shows the payoff in the same card and drops the tag and the dot", () => {
+    const root = mountTokens("teach", "rest", "payoff");
+    const first = root.querySelector(".teach-sheet .kit-card");
+    expect(first?.textContent).toContain("+1,762/s now");
+    expect(first?.querySelector(".teach-tag")).toBeNull();
+    expect(root.querySelector(".teach-dot")).toBeNull();
+    expect(root.querySelector(".kit-timer.is-fresh")?.textContent).toBe(
+      "×220:00",
+    );
+    root.remove();
+  });
+
+  it("keeps How it works on one card and the small system to a dot", () => {
+    const how = mountTokens("teach", "rest", "how");
+    expect(how.querySelectorAll(".kit-step img.kit-icon")).toHaveLength(4);
+    how.remove();
+    const dot = mountTokens("teach", "rest", "dot");
+    expect(
+      dot.querySelector("[data-bar='upgrades'] .teach-dot"),
+    ).not.toBeNull();
+    expect(dot.querySelector(".teach-note")).toBeNull();
+    dot.remove();
   });
 
   it("refuses an unknown step", () => {
-    expect(() => mountTokens("teach-a", "rest", "workshop-nope")).toThrow();
+    expect(() => mountTokens("teach", "rest", "nope")).toThrow();
   });
 });
 
