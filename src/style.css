@@ -4337,8 +4337,9 @@ body {
   text-overflow: unset;
 }
 
-/* Buys and Upgrades share one card. Lists may scroll. The page does not. */
+/* Buys, Upgrades and Workshop share one card. Lists may scroll. The page does not. */
 .buys-dialog .tier.sheet-card,
+.workshop-dialog .workshop-card.sheet-card,
 .upgrades-dialog .upgrade.sheet-card {
   display: grid;
   grid-template-columns: var(--sheet-icon) minmax(0, 1fr);
@@ -4358,12 +4359,14 @@ body {
 
 /* The card's display beats the user-agent [hidden] rule. Keep hidden tiers out of the list. */
 .buys-dialog .tier.sheet-card[hidden],
+.workshop-dialog .workshop-card.sheet-card[hidden],
 .upgrades-dialog .upgrade.sheet-card[hidden] {
   display: none;
 }
 
 .buys-dialog .tier.sheet-card.sheet-ready,
 .buys-dialog .tier.sheet-card.tier-ready,
+.workshop-dialog .workshop-card.sheet-card.sheet-ready,
 .upgrades-dialog .upgrade.sheet-card.sheet-ready,
 .upgrades-dialog .upgrade.sheet-card.is-ready {
   border-color: var(--color-state-ready);
@@ -4378,7 +4381,9 @@ body {
 .buys-dialog .tier.sheet-card.sheet-locked,
 .buys-dialog .tier.sheet-card.tier-dear,
 .buys-dialog .tier.sheet-card.tier-locked,
+.workshop-dialog .workshop-card.sheet-card.sheet-dear,
 .upgrades-dialog .upgrade.sheet-card.sheet-dear,
+.workshop-dialog .workshop-card.sheet-card.sheet-locked,
 .upgrades-dialog .upgrade.sheet-card.sheet-locked,
 .upgrades-dialog .upgrade.sheet-card.is-dear,
 .upgrades-dialog .upgrade.sheet-card.is-locked {
@@ -4387,6 +4392,7 @@ body {
 }
 
 .buys-dialog .tier.sheet-card .sheet-card-icon,
+.workshop-dialog .workshop-card.sheet-card .sheet-card-icon,
 .upgrades-dialog .upgrade.sheet-card .sheet-card-icon {
   grid-column: 1;
   grid-row: 1;
@@ -4399,6 +4405,7 @@ body {
 }
 
 .buys-dialog .tier.sheet-card .sheet-card-body,
+.workshop-dialog .workshop-card.sheet-card .sheet-card-body,
 .upgrades-dialog .upgrade.sheet-card .sheet-card-body {
   display: grid;
   grid-column: 2;
@@ -4411,6 +4418,7 @@ body {
 }
 
 .buys-dialog .tier.sheet-card .sheet-card-title,
+.workshop-dialog .workshop-card.sheet-card .sheet-card-heading,
 .upgrades-dialog .upgrade.sheet-card .sheet-card-heading,
 .upgrades-dialog .upgrade.sheet-card .sheet-card-body > .sheet-card-title {
   grid-column: 1;
@@ -4461,6 +4469,7 @@ body {
 }
 
 .buys-dialog .tier.sheet-card .sheet-card-price,
+.workshop-dialog .workshop-card.sheet-card .sheet-card-price,
 .upgrades-dialog .upgrade.sheet-card .sheet-card-price,
 .upgrades-dialog .upgrade.boost.sheet-card .sheet-card-price,
 .upgrades-dialog .upgrade.sheet-card .upgrade-buy:disabled {
@@ -4491,7 +4500,9 @@ body {
 .buys-dialog .tier.sheet-card.sheet-locked .sheet-card-price,
 .buys-dialog .tier.sheet-card.tier-dear .sheet-card-price,
 .buys-dialog .tier.sheet-card.tier-locked .sheet-card-price,
+.workshop-dialog .workshop-card.sheet-card.sheet-dear .sheet-card-price,
 .upgrades-dialog .upgrade.sheet-card.sheet-dear .sheet-card-price,
+.workshop-dialog .workshop-card.sheet-card.sheet-locked .sheet-card-price,
 .upgrades-dialog .upgrade.sheet-card.sheet-locked .sheet-card-price,
 .upgrades-dialog .upgrade.sheet-card.is-dear .sheet-card-price,
 .upgrades-dialog .upgrade.sheet-card.is-locked .sheet-card-price,
@@ -4501,6 +4512,7 @@ body {
 }
 
 .buys-dialog .tier.sheet-card .sheet-card-line,
+.workshop-dialog .workshop-card.sheet-card .sheet-card-line,
 .upgrades-dialog .upgrade.sheet-card .sheet-card-line {
   grid-column: 1 / -1;
   margin: 0;
@@ -4513,6 +4525,7 @@ body {
 }
 
 .buys-dialog .tier.sheet-card .sheet-card-quiet,
+.workshop-dialog .workshop-card.sheet-card .sheet-card-quiet,
 .upgrades-dialog .upgrade.sheet-card .sheet-card-quiet {
   color: var(--color-quiet);
   font-weight: var(--weight-regular);
@@ -4522,4 +4535,93 @@ body {
 .upgrades-dialog .upgrades-close {
   flex: none;
   margin-top: 0;
+}
+
+/* Workshop crafts sit in the same one-column list as Buys and Upgrades. */
+.workshop-dialog .workshop-recipes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.workshop-dialog .workshop-card.sheet-card .sheet-card-heading {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: var(--target-min);
+}
+
+.workshop-dialog .workshop-card.sheet-card .sheet-card-title {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: var(--sheet-title);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+}
+
+.workshop-dialog .workshop-cost {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-8);
+}
+
+.workshop-dialog .workshop-card.sheet-locked .sheet-card-icon {
+  filter: brightness(0);
+  opacity: 0.6;
+}
+
+/* Every sheet ends in the same quiet Back button, and moves on with a secondary one. */
+.workshop-dialog .workshop-close,
+.engineers-dialog .engineers-close {
+  appearance: none;
+  flex: none;
+  width: 100%;
+  min-height: var(--target-min);
+  margin: 0;
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  box-shadow: none;
+  color: var(--color-ink);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+.workshop-dialog .workshop-more,
+.workshop-dialog .workshop-earlier {
+  min-height: var(--target-min);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  box-shadow: none;
+  color: var(--color-gold);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+/* Engineers use the same card chrome as the other sheets. */
+.engineers-dialog .engineer,
+.engineers-dialog .engineer-promote-row {
+  padding: var(--sheet-pad-y) var(--sheet-pad-x);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  box-shadow: none;
+}
+
+.engineers-dialog h2 {
+  font-size: var(--type-20);
+}
+
+.workshop-dialog .workshop-card.sheet-card .workshop-need {
+  color: var(--color-ink);
+}
+
+.workshop-dialog .workshop-card.sheet-card {
+  flex: none;
 }

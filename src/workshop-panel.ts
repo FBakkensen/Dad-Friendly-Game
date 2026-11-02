@@ -1,6 +1,25 @@
 import stoneIconUrl from "./assets/stone.png";
 import { buyOnTap } from "./card-tap";
 import { reducedMotion } from "./float-text";
+import cartUrl from "./assets/mine-cart.png";
+import drillUrl from "./assets/steam-drill.png";
+import mapUrl from "./assets/worn-map.png";
+import pickUrl from "./assets/pick.png";
+import heartUrl from "./assets/relics/heart.png";
+import lanternUrl from "./assets/relics/lantern.png";
+import shieldUrl from "./assets/relics/shield.png";
+import {
+  SHEET_CARD,
+  SHEET_CARD_BODY,
+  SHEET_CARD_ICON,
+  SHEET_CARD_LINE,
+  SHEET_CARD_PRICE,
+  SHEET_CARD_QUIET,
+  SHEET_CARD_TITLE,
+  SHEET_DEAR,
+  SHEET_LOCKED,
+  SHEET_READY,
+} from "./sheet-card";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
   RECIPE_ON_BENCH,
@@ -38,6 +57,31 @@ import {
  * The Workshop sheet (M9-8). One bench, real numbers, a dark sketch for
  * what is still unfound. The hammer is quiet until the dad taps Sound.
  */
+
+const RECIPE_ICON: Record<RecipeId, string> = {
+  "iron-rails": cartUrl,
+  "sturdy-props": shieldUrl,
+  "blasting-charge": pickUrl,
+  reinforce: shieldUrl,
+  "axle-grease": cartUrl,
+  "diamond-bits": drillUrl,
+  "crystal-flare": lanternUrl,
+  "crystal-lamp": lanternUrl,
+  "engineers-kit": mapUrl,
+  "heartstone-core": heartUrl,
+  "heartstone-ember": heartUrl,
+};
+
+function cardIcon(src: string): HTMLImageElement {
+  const icon = document.createElement("img");
+  icon.className = SHEET_CARD_ICON;
+  icon.src = src;
+  icon.alt = "";
+  icon.width = 32;
+  icon.height = 32;
+  icon.draggable = false;
+  return icon;
+}
 
 const HAMMER_MS = 960;
 const FLOAT_MS = 700;
@@ -314,35 +358,36 @@ export function createWorkshopPanel({
 
   const paintCard = (item: WorkshopCard): HTMLElement => {
     const article = document.createElement("article");
-    article.className = "workshop-card";
+    article.className = `workshop-card ${SHEET_CARD}`;
+    const body = document.createElement("div");
+    body.className = SHEET_CARD_BODY;
     if (item.kind === "hidden") {
-      article.classList.add("is-hidden");
-      const shade = document.createElement("img");
-      shade.className = "shade";
-      shade.src = stoneUrl;
-      shade.alt = "";
-      shade.width = 64;
-      shade.height = 64;
-      shade.draggable = false;
+      article.classList.add("is-hidden", SHEET_LOCKED);
+      const shade = cardIcon(stoneUrl);
+      shade.classList.add("shade");
       const hint = document.createElement("p");
-      hint.className = "label hint";
+      hint.className = `label hint ${SHEET_CARD_LINE} ${SHEET_CARD_QUIET}`;
       hint.textContent = item.hint;
-      article.append(shade, hint);
+      body.append(hint);
+      article.append(shade, body);
       return article;
     }
     article.dataset["recipe"] = item.id;
+    const heading = document.createElement("div");
+    heading.className = "sheet-card-heading";
     const name = document.createElement("h3");
-    name.className = "label";
+    name.className = `label ${SHEET_CARD_TITLE}`;
     name.textContent = item.name;
-    const level = document.createElement("p");
-    level.className = "label level";
+    const level = document.createElement("span");
+    level.className = "level sheet-level";
     level.hidden = item.level === undefined;
     level.textContent = item.level ?? "";
+    heading.append(name, level);
     const effect = document.createElement("p");
-    effect.className = "label effect";
+    effect.className = `label effect ${SHEET_CARD_LINE}`;
     effect.textContent = item.effect;
     const cost = document.createElement("p");
-    cost.className = "workshop-cost";
+    cost.className = `workshop-cost ${SHEET_CARD_LINE} ${SHEET_CARD_QUIET}`;
     if (item.stones !== undefined) {
       const stones = document.createElement("span");
       stones.className = "cost-bit";
@@ -371,23 +416,32 @@ export function createWorkshopPanel({
     cost.append(time);
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "workshop-craft";
+    button.className = `workshop-craft ${SHEET_CARD_PRICE}`;
     const action = item.action;
+    const lines: HTMLElement[] = [effect, cost];
     if (action.kind === "craft") {
       button.textContent = action.label;
+      article.classList.add(SHEET_READY);
     } else if (action.kind === "short") {
-      button.textContent = action.label;
+      button.textContent = item.price;
+      const need = document.createElement("p");
+      need.className = `workshop-need ${SHEET_CARD_LINE}`;
+      need.textContent = action.label;
+      lines.push(need);
       button.classList.add("is-short");
       button.setAttribute("aria-disabled", "true");
       button.dataset["short"] = action.label;
+      article.classList.add(SHEET_DEAR);
     } else if (action.kind === "waiting") {
       button.textContent = WORKSHOP_BENCH_BUSY;
       button.classList.add("is-waiting");
       button.setAttribute("aria-disabled", "true");
+      article.classList.add(SHEET_DEAR);
     } else {
       button.textContent = RECIPE_ON_BENCH;
       button.classList.add("is-on-bench");
       button.setAttribute("aria-disabled", "true");
+      article.classList.add(SHEET_READY);
     }
     if (shaking === item.id) {
       button.classList.add("is-shaking");
@@ -395,7 +449,8 @@ export function createWorkshopPanel({
     buyOnTap(article, button, () => {
       onCraft(item);
     });
-    article.append(name, level, effect, cost, button);
+    body.append(heading, button, ...lines);
+    article.append(cardIcon(RECIPE_ICON[item.id]), body);
     return article;
   };
 

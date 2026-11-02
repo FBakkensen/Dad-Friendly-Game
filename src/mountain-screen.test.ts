@@ -3191,7 +3191,10 @@ describe("engineers sheet (#145)", () => {
       { name: "Ada", rank: 0, trips: 0, post: "borer" },
       { name: "Nils", rank: 0, trips: 0, post: "camp" },
     ]);
-    sheet.querySelector<HTMLButtonElement>(".engineers-close")?.click();
+    const back = sheet.querySelector<HTMLButtonElement>(".engineers-close");
+    expect(back?.textContent).toBe("Back to the mountain");
+    expect(back?.parentElement?.lastElementChild).toBe(back);
+    back?.click();
     expect(sheet.hidden).toBe(true);
   });
 

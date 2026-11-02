@@ -617,7 +617,7 @@ describe("workshop sheet copy (#199)", () => {
     expect(materialCountWords("iron", 2)).toBe("Iron 2");
     expect(materialCostWords(4, "heartstone")).toBe("4 heartstone");
     expect(stoneCostWords(500_000)).toBe("500K stones");
-    expect(craftLevelWords(1, 2)).toBe("Level 1 of 2");
+    expect(craftLevelWords(0, 2)).toBe("Lv 0/2");
     expect(WORKSHOP_BENCH_BUSY).toBe("Bench busy");
     expect(WORKSHOP_CANCEL_CONFIRM).toBe("Tap again to cancel");
     expect(crewAlreadyWords(2)).toBe("Crew already at ×2.");
