@@ -5031,3 +5031,25 @@ body {
   line-height: 1.15;
   color: var(--color-gold);
 }
+
+/* Engineers head (#283): the exact Workshop and Upgrades title row, and
+   the Upgrades gap between head, intro and first card. */
+.engineers-dialog .engineers-card {
+  gap: var(--target-gap);
+}
+
+.engineers-dialog .engineers-head {
+  gap: var(--space-8);
+}
+
+.engineers-dialog .engineers-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: var(--weight-bold);
+  line-height: 1.15;
+}
+
+.engineers-dialog .engineers-intro {
+  margin-top: var(--space-8);
+  text-align: start;
+}

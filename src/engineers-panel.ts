@@ -178,10 +178,7 @@ export function createEngineersPanel({
   const title = document.createElement("h2");
   title.id = "engineers-title";
   title.textContent = ENGINEER_SHEET_TITLE;
-  const sub = document.createElement("p");
-  sub.className = "engineers-sub";
-  sub.textContent = ENGINEER_SHEET_SUB;
-  titles.append(title, sub);
+  titles.append(title);
   const close = document.createElement("button");
   close.type = "button";
   close.className = "engineers-close";
@@ -815,8 +812,11 @@ export function createEngineersPanel({
         clearNewCard(row.openCard);
       }
     }
-    intro.hidden = !teaching || howOpen;
-    intro.textContent = first === undefined ? "" : engineersIntro(first.name);
+    // One intro line, Upgrades style: the first trip, then what they do.
+    intro.hidden = howOpen;
+    intro.textContent = teaching
+      ? engineersIntro(first.name)
+      : ENGINEER_SHEET_SUB;
     howHost.hidden = !howOpen;
     list.hidden = howOpen;
     promoteRow.hidden = howOpen;
