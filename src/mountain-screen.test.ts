@@ -4402,7 +4402,7 @@ describe("sheet buys", () => {
     screen.progress.dispose();
   });
 
-  it("shortens a pocket that does not fit beside the menu", () => {
+  it("shows a huge pocket in short form beside the craft chips", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -4411,32 +4411,6 @@ describe("sheet buys", () => {
     });
     const screen = mountScreen({ storage });
     document.body.append(screen.root);
-    const row = screen.root.querySelector<HTMLElement>(".pocket-row");
-    const pocket = screen.root.querySelector<HTMLElement>(".pocket");
-    const rate = screen.root.querySelector<HTMLElement>(".pocket-rate");
-    if (row === null || pocket === null || rate === null) {
-      throw new Error("pocket did not render");
-    }
-    Object.defineProperty(row, "clientWidth", {
-      configurable: true,
-      get: () => 120,
-    });
-    Object.defineProperty(pocket, "clientWidth", {
-      configurable: true,
-      get: () => 120,
-    });
-    Object.defineProperty(pocket, "scrollWidth", {
-      configurable: true,
-      get: () => 400,
-    });
-    Object.defineProperty(rate, "clientWidth", {
-      configurable: true,
-      get: () => 120,
-    });
-    Object.defineProperty(rate, "scrollWidth", {
-      configurable: true,
-      get: () => 400,
-    });
     screen.progress.applyMutation((mountain) => ({
       ...mountain,
       pocket: 999_900_000_000_000,
@@ -4448,7 +4422,6 @@ describe("sheet buys", () => {
       },
     }));
     expect(screen.text(".pocket")).toContain("T stones");
-    expect(row.classList.contains("is-tight")).toBe(true);
     const charge = screen.root.querySelector("[data-craft='blasting-charge']");
     expect(charge?.textContent).toMatch(/Charge/);
     expect(charge?.textContent).toMatch(/×2/);

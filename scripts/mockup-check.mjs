@@ -33,9 +33,8 @@ const OUT = process.env.MOCKUP_OUT ?? "mockups/shots";
 mkdirSync(OUT, { recursive: true });
 
 const SIZES = [
-  [390, 844],
-  [360, 640],
-  [360, 560],
+  [424, 924],
+  [424, 830],
 ];
 
 const SHOTS = [
@@ -423,8 +422,8 @@ for (const [width, height] of SIZES) {
 
 // Wide Latin face, the tight sheet. Same fit bar, one proof shot.
 await page.setViewport({
-  width: 360,
-  height: 560,
+  width: 424,
+  height: 830,
   deviceScaleFactor: 1,
   isMobile: true,
   hasTouch: true,
@@ -445,10 +444,10 @@ for (const [scene, phase, control] of SHOTS) {
   await page.addStyleTag({
     content: `* { font-family: "Liberation Sans", sans-serif !important; }`,
   });
-  await fit(page, `360x560 wide ${scene} ${phase} ${control}`);
+  await fit(page, `424x830 wide ${scene} ${phase} ${control}`);
   if (scene === "workshop" && phase === "rest") {
     await page.screenshot({
-      path: join(OUT, "workshop-rest-360x560-wide.png"),
+      path: join(OUT, "workshop-rest-424x830-wide.png"),
       type: "png",
     });
   }

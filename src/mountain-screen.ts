@@ -590,14 +590,6 @@ export function mountMountainScreen({
       view.trouble,
     ).crewPerSecond;
     pocketRate.textContent = `${formatCompact(perSecond)} stones/s`;
-    pocketRow.classList.remove("is-tight");
-    if (pocketRow.isConnected && pocketRow.clientWidth > 0) {
-      const lineOverflows = (node: HTMLElement): boolean =>
-        node.scrollWidth > node.clientWidth + 1;
-      if (lineOverflows(pocket) || lineOverflows(pocketRate)) {
-        pocketRow.classList.add("is-tight");
-      }
-    }
     const layer = layerOf(view.mountain);
     const layerWords = layerCardWords(layer.id);
     layerName.textContent = layer.name;
