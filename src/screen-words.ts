@@ -1070,19 +1070,19 @@ const LAYER_CARD = {
     arrival: LAYER_ARRIVAL,
     evocative: LAYER_EVOCATIVE,
     advice: LAYER_ADVICE,
-    line: "Suits borers. Tough on drills.",
+    line: "Suits borers.",
   },
   crystal: {
     arrival: "You broke into the Crystal Caves!",
     evocative: "Light in the walls. Your crew can handle this.",
     advice: "The Crystal Caves suit drills. Tough on borers.",
-    line: "Suits drills. Tough on borers.",
+    line: "Suits drills.",
   },
   heart: {
     arrival: "You broke into the Deep Heart!",
     evocative: "Warm stone, deep down. Your crew earned this.",
     advice: "The Deep Heart suits the Great Machine. Tough on borers.",
-    line: "Suits the Great Machine. Tough on borers.",
+    line: "Suits the Great Machine.",
   },
 } as const;
 

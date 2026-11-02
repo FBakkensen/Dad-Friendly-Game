@@ -4244,9 +4244,7 @@ describe("sheet buys", () => {
     expect(dialog?.hidden).toBe(false);
     expect(screen.text(".pocket-rate")).toMatch(/stones\/s$/);
     expect(screen.text(".layer-line")).toContain("The Granite");
-    expect(screen.text(".layer-line")).toContain(
-      "Suits borers. Tough on drills.",
-    );
+    expect(screen.text(".layer-line")).toContain("Suits borers.");
     expect(screen.text(".thumb-bar")).toContain("Buys");
     expect(screen.text(".thumb-bar")).toContain("Workshop");
     expect(screen.text(".thumb-bar")).toContain("Engineers");

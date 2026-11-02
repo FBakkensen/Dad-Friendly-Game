@@ -661,7 +661,7 @@ describe("layer card and craft-done copy", () => {
       arrival: LAYER_ARRIVAL,
       evocative: LAYER_EVOCATIVE,
       advice: LAYER_ADVICE,
-      line: "Suits borers. Tough on drills.",
+      line: "Suits borers.",
       sketch: "A sketch for the shed came up with the rock.",
     });
     expect(layerCardWords("crystal")?.advice).toBe(
