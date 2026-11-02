@@ -312,6 +312,19 @@ export function engineersIntro(name: string): string {
   return `${name} can explore a side tunnel and bring home a find.`;
 }
 
+/** The intro line on the guided first tend. */
+export function tendingIntro(name: string): string {
+  return `${name} can tend one kind of machine, and that kind digs faster.`;
+}
+
+/** The one big button on the guided first tend, with its real payoff. */
+export function firstTendWords(
+  post: Exclude<TendPost, "camp">,
+  gain: string,
+): string {
+  return `Tend ${TEND_TITLE[post].replace(/^The/, "the")} · ${gain}`;
+}
+
 /** The one big button on the guided first trip. */
 export function firstTripWords(name: string, awayMs: number): string {
   return `Send ${name} exploring · ${String(Math.round(awayMs / 60_000))} min`;

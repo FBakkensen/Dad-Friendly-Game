@@ -1,6 +1,6 @@
 import { setAffordGlow } from "./afford-glow";
 import { HOW_IT_WORKS } from "./how-it-works";
-import { markSeen, showsDot } from "./teach";
+import { markSeen, markTaught, showsDot } from "./teach";
 import {
   clearNewCard,
   createHowCard,
@@ -21,7 +21,7 @@ import {
 import { KEEPSAKES, TUNNELS, recall, send, type TunnelId } from "./expeditions";
 import type { Mountain } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
-import { tendingGain } from "./rates";
+import { firstTend, moveGain, tendingGain } from "./rates";
 import { owned, tierById } from "./tiers";
 import {
   NONE_BUILT,
@@ -60,6 +60,8 @@ import {
   rankLabel,
   recallConfirm,
   stationCheer,
+  firstTendWords,
+  tendingIntro,
   tendBenefit,
   tendTitle,
   tripDetail,
@@ -401,6 +403,27 @@ export function createEngineersPanel({
         send(current, index, FIRST_TUNNEL.id, now()),
       );
     });
+    // The guided first tend (#246): one big button, one step up.
+    const firstTendButton = document.createElement("button");
+    firstTendButton.type = "button";
+    firstTendButton.className = "engineer-first-trip engineer-first-tend";
+    firstTendButton.hidden = true;
+    firstTendButton.addEventListener("click", () => {
+      const view = getView();
+      const engineer = view.mountain.engineers?.[index];
+      const step = firstTend(view.mountain, now(), view.trouble);
+      if (!view.ready || engineer === undefined || step?.index !== index) {
+        return;
+      }
+      const gain = stonesPerSecond(
+        moveGain(view.mountain, index, step.post, now(), view.trouble),
+      );
+      cheer(stationCheer(engineer.name, step.post, gain), true);
+      glow(index);
+      progress.applyMutation((current) =>
+        markTaught(station(current, index, step.post), "tending"),
+      );
+    });
     arm(`${String(index)}:tend`, tend);
     arm(`${String(index)}:explore`, explore);
     arm(`${String(index)}:recall`, recallButton);
@@ -450,7 +473,7 @@ export function createEngineersPanel({
         // From a tunnel, the post calls the party back first (no find, no
         // trip), so no expedition is left without its engineer.
         progress.applyMutation((current) =>
-          station(recall(current, index), index, post),
+          markTaught(station(recall(current, index), index, post), "tending"),
         );
       });
       tendList.append(choice);
@@ -524,7 +547,16 @@ export function createEngineersPanel({
       requestRender();
     });
 
-    openCard.append(top, doing, brought, trip, acts, firstTrip, choices);
+    openCard.append(
+      top,
+      doing,
+      brought,
+      trip,
+      acts,
+      firstTrip,
+      firstTendButton,
+      choices,
+    );
 
     const mini = document.createElement("button");
     mini.type = "button";
@@ -565,6 +597,7 @@ export function createEngineersPanel({
       openCard,
       acts,
       firstTrip,
+      firstTend: firstTendButton,
       face,
       name,
       lamps,
@@ -797,17 +830,40 @@ export function createEngineersPanel({
       expanded === 0 &&
       menu === undefined &&
       showsDot(current, "engineers");
+    // Then the first tend (#246): the dot only, the New card, one step up
+    // with its real payoff, until any tend.
+    const step = teaching ? undefined : firstTend(current, now(), view.trouble);
+    const tending =
+      step !== undefined &&
+      expanded === step.index &&
+      menu === undefined &&
+      showsDot(current, "tending");
+    const tender = step === undefined ? undefined : engineers[step.index];
     for (const [index, row] of rows.entries()) {
-      const on = teaching && index === 0;
-      row.firstTrip.hidden = !on;
-      row.acts.hidden = on;
-      if (on) {
+      const onTrip = teaching && index === 0;
+      const onTend = tending && index === step.index;
+      row.firstTrip.hidden = !onTrip;
+      row.firstTend.hidden = !onTend;
+      row.acts.hidden = onTrip || onTend;
+      if (onTrip) {
         markNewCard(
           row.openCard,
           row.firstTrip,
           firstTripWords(first.name, FIRST_TUNNEL.awayMs),
         );
         row.firstTrip.disabled = !view.ready;
+      } else if (onTend) {
+        markNewCard(
+          row.openCard,
+          row.firstTend,
+          firstTendWords(
+            step.post,
+            stonesPerSecond(
+              moveGain(current, index, step.post, now(), view.trouble),
+            ),
+          ),
+        );
+        row.firstTend.disabled = !view.ready;
       } else {
         clearNewCard(row.openCard);
       }
@@ -816,7 +872,9 @@ export function createEngineersPanel({
     intro.hidden = howOpen;
     intro.textContent = teaching
       ? engineersIntro(first.name)
-      : ENGINEER_SHEET_SUB;
+      : tending && tender !== undefined
+        ? tendingIntro(tender.name)
+        : ENGINEER_SHEET_SUB;
     howHost.hidden = !howOpen;
     list.hidden = howOpen;
     promoteRow.hidden = howOpen;

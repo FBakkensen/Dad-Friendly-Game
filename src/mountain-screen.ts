@@ -623,7 +623,12 @@ export function mountMountainScreen({
         canCraftNow(view.mountain, now()),
     );
     setTeachDot(workshopThumb, showsDot(view.mountain, "workshop"));
-    setTeachDot(engineers.button, showsDot(view.mountain, "engineers"));
+    // Tending is small (#246): its dot shares the button, with no note.
+    setTeachDot(
+      engineers.button,
+      showsDot(view.mountain, "engineers") ||
+        showsDot(view.mountain, "tending"),
+    );
     // One note at a time, in the order teach.ts lists them.
     const noteId = noteFor(view.mountain);
     const firstEngineer = view.mountain.engineers?.[0]?.name;
