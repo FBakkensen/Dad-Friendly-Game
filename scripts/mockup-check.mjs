@@ -85,11 +85,9 @@ const SHOTS = [
   ["parts-controls", "press", "picks"],
   ["parts-how", "rest", ""],
   ["parts-how", "press", "got"],
-  ...["note", "sheet", "payoff", "how", "dot", "reveal"].map((step) => [
-    "teach",
-    "rest",
-    step,
-  ]),
+  ...["note", "sheet", "payoff", "how", "dot", "reveal", "engineers"].map(
+    (step) => ["teach", "rest", step],
+  ),
   // Every How it works card (#242), so each one is checked for scroll.
   ...[
     "tapping",

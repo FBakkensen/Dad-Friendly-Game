@@ -225,7 +225,11 @@ async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
       const close =
         sheet.querySelector(".engineers-close")?.getBoundingClientRect()
           .bottom ?? Infinity;
-      const text = sheet.textContent ?? "";
+      // Only what shows: How it works cards stay hidden until "i" (#246).
+      const text = sheet.innerText;
+      // The first visit swaps the act buttons for one first-trip button.
+      const firstTrip = sheet.querySelector(".engineer-first-trip");
+      const guided = firstTrip !== null && !firstTrip.hidden;
       const promote = sheet.querySelector(".engineer-promote");
       const promoteLines = (() => {
         if (promote === null || promote.hidden) {
@@ -251,7 +255,8 @@ async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
         titleOk: title >= insets.top,
         closeOk: close <= innerHeight - insets.bottom,
         words:
-          text.includes("Tend a machine") &&
+          (text.includes("Tend a machine") ||
+            (guided && text.includes("exploring"))) &&
           text.includes("stones/sec") &&
           text.includes("Promote:") &&
           text.includes("Promote a worker") &&
@@ -1298,7 +1303,8 @@ for (const standalone of [false, true]) {
           .bottom ?? Infinity;
       const title =
         dialog.querySelector("h2")?.getBoundingClientRect().top ?? -1;
-      const text = dialog.textContent ?? "";
+      // Only what shows: How it works cards stay hidden until "i" (#246).
+      const text = dialog.innerText;
       const recall = dialog.querySelector(".engineer-recall");
       return {
         boxesOk,

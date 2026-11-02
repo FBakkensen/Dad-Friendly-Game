@@ -307,6 +307,16 @@ export const PROMOTE_WHY =
   "A new engineer can tend another machine or explore while the others work.";
 export const PROMOTE_BUTTON = "Promote";
 
+/** Engineers first visit (#246): the line above the New card. */
+export function engineersIntro(name: string): string {
+  return `${name} can explore a side tunnel and bring home a find.`;
+}
+
+/** The one big button on the guided first trip. */
+export function firstTripWords(name: string, awayMs: number): string {
+  return `Send ${name} exploring · ${String(Math.round(awayMs / 60_000))} min`;
+}
+
 const RANK_LABEL: Readonly<Record<EngineerRank, string>> = {
   0: "Apprentice",
   1: "Journeyman",
@@ -958,6 +968,11 @@ export function refundBackWords(parts: readonly string[]): string {
 export const WORKSHOP_TITLE = "Workshop";
 /** The one-time note above the bar (M11 #241, mocked on #240). */
 export const WORKSHOP_NOTE = "New · The Workshop is open";
+
+/** The Engineers note (#246), the same bar style as the Workshop's. */
+export function engineersNote(name: string): string {
+  return `New · ${name} is your first engineer`;
+}
 
 export const BENCH_FREE = "The bench is free";
 export const BENCH_FREE_ASIDE = "Pick something good for the crew.";

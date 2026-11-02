@@ -674,7 +674,15 @@ describe("component mocks (#235)", () => {
 });
 
 describe("teaching mock, hybrid pattern (#240)", () => {
-  const steps = ["note", "sheet", "payoff", "how", "dot", "reveal"] as const;
+  const steps = [
+    "note",
+    "sheet",
+    "payoff",
+    "how",
+    "dot",
+    "reveal",
+    "engineers",
+  ] as const;
 
   it("keeps every step to the house rules", () => {
     for (const step of steps) {

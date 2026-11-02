@@ -1,4 +1,12 @@
 import { setAffordGlow } from "./afford-glow";
+import { HOW_IT_WORKS } from "./how-it-works";
+import { markSeen, showsDot } from "./teach";
+import {
+  clearNewCard,
+  createHowCard,
+  createInfoButton,
+  markNewCard,
+} from "./teach-ui";
 import { buyOnTap } from "./card-tap";
 import { createEffectChip, writeChip } from "./effect-row";
 import {
@@ -58,9 +66,25 @@ import {
   tripTitle,
   tunnelLock,
   type TendPost,
+  engineersIntro,
+  firstTripWords,
 } from "./screen-words";
 
 const PRESS_MS = 160;
+
+/** The guided first trip takes the shortest tunnel. */
+const FIRST_TUNNEL = TUNNELS[0];
+
+/** Every picture under src/assets, by path without ".png", for How it works. */
+const HOW_ART: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(
+    import.meta.glob<string>("./assets/**/*.png", {
+      eager: true,
+      query: "?url",
+      import: "default",
+    }),
+  ).map(([path, url]) => [path.slice("./assets/".length, -".png".length), url]),
+);
 const GLOW_MS = 900;
 const TOAST_MS = 2200;
 
@@ -130,6 +154,8 @@ export function createEngineersPanel({
 
   button.addEventListener("click", () => {
     open = true;
+    // Opening the sheet counts as seen: the note goes, the dot stays.
+    progress.applyMutation((current) => markSeen(current, "engineers"));
     confirming = false;
     recalling = undefined;
     menu = undefined;
@@ -160,7 +186,50 @@ export function createEngineersPanel({
   close.type = "button";
   close.className = "engineers-close";
   close.textContent = "Back to the mountain";
-  head.append(titles);
+  // The same head as the Workshop and Upgrades: title left, "i" right.
+  let howOpen = false;
+  const info = createInfoButton("Engineers", () => {
+    howOpen = true;
+    requestRender();
+  });
+  const headTools = document.createElement("div");
+  headTools.className = "workshop-head-tools";
+  headTools.append(info);
+  head.append(titles, headTools);
+  const howCards = (["engineers", "expeditions", "tending"] as const).map(
+    (system) => {
+      const copy = HOW_IT_WORKS[system];
+      const made = createHowCard(
+        `How it works · ${copy.title}`,
+        copy.steps.map(
+          ([art, text]) => [HOW_ART[art] ?? iconUrl, text] as const,
+        ),
+        "Back to your engineers",
+        () => {
+          howOpen = false;
+          requestRender();
+          info.focus();
+        },
+      );
+      made.dataset["how"] = system;
+      return made;
+    },
+  );
+  // One way back, under the last card.
+  for (const made of howCards.slice(0, -1)) {
+    const back = made.querySelector("button");
+    if (back !== null) {
+      back.hidden = true;
+    }
+  }
+  const howHost = document.createElement("div");
+  howHost.className = "engineers-how";
+  howHost.hidden = true;
+  howHost.append(...howCards);
+  // The first visit (#246): one line, then the first trip on the New card.
+  const intro = document.createElement("p");
+  intro.className = "teach-intro engineers-intro";
+  intro.hidden = true;
 
   const list = document.createElement("ul");
   list.className = "engineer-list";
@@ -318,6 +387,23 @@ export function createEngineersPanel({
     recallButton.className = "engineer-act engineer-recall";
     recallButton.textContent = CALL_BACK;
     acts.append(tend, explore, recallButton);
+    // The guided first trip (#246): one big button, the shortest tunnel.
+    const firstTrip = document.createElement("button");
+    firstTrip.type = "button";
+    firstTrip.className = "engineer-first-trip";
+    firstTrip.hidden = true;
+    firstTrip.addEventListener("click", () => {
+      const view = getView();
+      const engineer = view.mountain.engineers?.[index];
+      if (!view.ready || engineer === undefined) {
+        return;
+      }
+      cheer(exploreCheer(engineer.name));
+      glow(index);
+      progress.applyMutation((current) =>
+        send(current, index, FIRST_TUNNEL.id, now()),
+      );
+    });
     arm(`${String(index)}:tend`, tend);
     arm(`${String(index)}:explore`, explore);
     arm(`${String(index)}:recall`, recallButton);
@@ -441,7 +527,7 @@ export function createEngineersPanel({
       requestRender();
     });
 
-    openCard.append(top, doing, brought, trip, acts, choices);
+    openCard.append(top, doing, brought, trip, acts, firstTrip, choices);
 
     const mini = document.createElement("button");
     mini.type = "button";
@@ -480,6 +566,8 @@ export function createEngineersPanel({
     return {
       item,
       openCard,
+      acts,
+      firstTrip,
       face,
       name,
       lamps,
@@ -637,6 +725,7 @@ export function createEngineersPanel({
 
   const closeSheet = (): void => {
     open = false;
+    howOpen = false;
     confirming = false;
     recalling = undefined;
     menu = undefined;
@@ -657,7 +746,7 @@ export function createEngineersPanel({
     closeSheet();
   });
 
-  card.append(head, list, promoteRow, close);
+  card.append(head, intro, howHost, list, promoteRow, close);
   sheet.append(card, modal, toast);
 
   const render = (): void => {
@@ -702,6 +791,35 @@ export function createEngineersPanel({
         trouble: view.trouble,
       });
     }
+    // First visit (#246): the first engineer's card is the New card, with
+    // one big button for a first trip, until any trip has happened.
+    const first = engineers[0];
+    const teaching =
+      first !== undefined &&
+      first.post !== "tunnel" &&
+      expanded === 0 &&
+      menu === undefined &&
+      showsDot(current, "engineers");
+    for (const [index, row] of rows.entries()) {
+      const on = teaching && index === 0;
+      row.firstTrip.hidden = !on;
+      row.acts.hidden = on;
+      if (on) {
+        markNewCard(
+          row.openCard,
+          row.firstTrip,
+          firstTripWords(first.name, FIRST_TUNNEL.awayMs),
+        );
+        row.firstTrip.disabled = !view.ready;
+      } else {
+        clearNewCard(row.openCard);
+      }
+    }
+    intro.hidden = !teaching || howOpen;
+    intro.textContent = first === undefined ? "" : engineersIntro(first.name);
+    howHost.hidden = !howOpen;
+    list.hidden = howOpen;
+    promoteRow.hidden = howOpen;
     const trips = current.expeditions ?? [];
     for (const [index, chip] of chips.entries()) {
       const trip = trips[index];
