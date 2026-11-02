@@ -39,7 +39,7 @@ const TWENTY_MIN = 20 * 60 * 1000;
 
 const NOTE = "New · The Workshop is open";
 const INTRO = "Turn your clay into gear for the crew.";
-const ACTION = "Craft Blasting charge · 4 clay";
+const ACTION = `Craft Blasting charge · 4 clay · ${formatCompact(100_000)}`;
 const PAYOFF = `+${formatCompact(CREW_PER_SEC)}/s now · Crew ×2 for 20 min`;
 
 type SheetCard = {

@@ -717,7 +717,7 @@ describe("teaching mock, hybrid pattern (#240)", () => {
     expect(first?.getAttribute("data-tap")).toContain("Blasting charge");
     expect(first?.querySelectorAll("button")).toHaveLength(1);
     expect(first?.querySelector("button")?.textContent).toBe(
-      "Craft Blasting charge · 4 clay",
+      "Craft Blasting charge · 4 clay · 100K",
     );
     expect(root.querySelector(".teach-intro")).not.toBeNull();
     expect(
