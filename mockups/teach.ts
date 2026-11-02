@@ -1,4 +1,10 @@
 import { chipTime, formatCompact } from "../src/format.ts";
+import {
+  HOW_IT_WORKS,
+  HOW_SYSTEMS,
+  type HowSystem,
+} from "../src/how-it-works.ts";
+import { createHowCard } from "../src/teach-ui.ts";
 
 /**
  * M11-2 teaching mock (#240), the hybrid pattern Flemming picked. Not the game.
@@ -76,13 +82,6 @@ const OTHERS: readonly SheetCard[] = [
     line: "Carts haul 25% more",
     dear: true,
   },
-];
-
-const HOW: readonly (readonly [string, string])[] = [
-  [ART.hammer, "Pick a recipe. The bench makes one at a time."],
-  [ART.ore, "Each costs ore you dig, and some take stones."],
-  [ART.lantern, "Timers like the charge show on top while they run."],
-  [ART.cart, "Cancel any time. Gear not started comes back in full."],
 ];
 
 const RUNNING = [
@@ -205,12 +204,35 @@ function sheet(done: boolean): string {
   </section>`;
 }
 
-function how(): string {
-  return `<section class="card teach-sheet" role="dialog" aria-label="How it works">
-    <header class="teach-sheet-head"><h2 class="kit-title">How it works · Workshop</h2></header>
-    <ul class="kit-steps">${HOW.map(([art, text]) => `<li class="kit-step">${icon(art)}<span>${esc(text)}</span></li>`).join("")}</ul>
-    <button type="button" class="kit-btn kit-outline kit-wide" data-tap="${esc(tap("Back to the Workshop list."))}">Back to the Workshop</button>
-  </section>`;
+/**
+ * How it works for one system: the real shared card from src/teach-ui.ts
+ * with the real copy from src/how-it-works.ts (#242), in the mock's sheet.
+ */
+function how(system: HowSystem): string {
+  const info = HOW_IT_WORKS[system];
+  const card = createHowCard(
+    `How it works · ${info.title}`,
+    info.steps.map(([art, text]) => [`/src/assets/${art}.png`, text] as const),
+    "Got it",
+    () => undefined,
+  );
+  card.classList.add("card", "teach-sheet");
+  card.setAttribute("role", "dialog");
+  card.dataset.how = system;
+  card.querySelector("h2")?.classList.add("kit-title");
+  card.querySelector("ul")?.classList.add("kit-steps");
+  for (const item of card.querySelectorAll("li")) {
+    item.classList.add("kit-step");
+  }
+  for (const art of card.querySelectorAll("img")) {
+    art.className = "kit-icon";
+    art.removeAttribute("width");
+    art.removeAttribute("height");
+  }
+  const back = card.querySelector("button");
+  back?.classList.add("kit-btn", "kit-outline", "kit-wide");
+  back?.setAttribute("data-tap", tap("Closes How it works."));
+  return card.outerHTML;
 }
 
 /** One line, styled like the bar: same face and colours, a gold edge, one soft pulse. */
@@ -232,8 +254,12 @@ function frame(step: TeachStep, middle: string, below = ""): string {
   </section>`;
 }
 
-/** `control` names the step: note, sheet, payoff, how, or dot. */
+/** `control` names the step: note, sheet, payoff, how, or dot, or how-<system>. */
 export function renderTeach(control: string): string {
+  const system = HOW_SYSTEMS.find((id) => control === `how-${id}`);
+  if (system !== undefined) {
+    return frame("how", how(system));
+  }
   const step = TEACH_STEPS.find((id) => id === control);
   switch (step) {
     case "note":
@@ -243,7 +269,7 @@ export function renderTeach(control: string): string {
     case "payoff":
       return frame(step, sheet(true));
     case "how":
-      return frame(step, how());
+      return frame(step, how("workshop"));
     case "dot":
       return frame(step, rock());
     case undefined:

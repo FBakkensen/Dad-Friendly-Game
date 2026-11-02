@@ -78,6 +78,8 @@ Choices step 4 (after step 3): tier synergies (e.g. "+1% to every drill for each
 
 PRs: 12.1 lab measure favouredAffordShare per band, report-only · 12.2 decide the favoured machines (D3) and the layer card names them · 12.3 retune costs/hardness, 20 seeds green · 12.4 guardrail (needs OK).
 
+12.5 (later) away production tapers the longer the player is away (#278).
+
 Choices step 2 (replaces 12.2–12.3 detail): layer-favoured machines. Each band boosts one tool and dulls another instead of a flat 0.85 (proposal: Granite drills up and carts down, Crystal borers up and drills down, Deep Heart the Great Machine up and carts down; final picks are D3 and need Flemming's OK). The layer card names the favoured tool and each card shows its real output in this band. Ownership milestones: at 10/25/50 of a machine that tier digs twice as fast, shown as "12 of 25 drills: at 25, every drill digs twice as fast". Depends on: step 1 baseline, 12.1 favouredAffordShare, M11 layer explainer. Done when: each band's favoured machine is affordable early in that band (value set with Flemming), greedy regret is clearly above zero in at least one band, decision entropy rises against the baseline, finish days stay in the week, and no threshold changed without his OK.
 
 ### M13 Generations (later). Goal: each kid run is longer AND bigger.

@@ -1,3 +1,4 @@
+import { HOW_IT_WORKS, HOW_SYSTEMS } from "../src/how-it-works.ts";
 import { chipTime } from "../src/format.ts";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -748,6 +749,23 @@ describe("teaching mock, hybrid pattern (#240)", () => {
     ).not.toBeNull();
     expect(dot.querySelector(".teach-note")).toBeNull();
     dot.remove();
+  });
+
+  it("shows every system's How it works on the shared card (#242)", () => {
+    for (const system of HOW_SYSTEMS) {
+      const root = mountTokens("teach", "rest", `how-${system}`);
+      const card = root.querySelector(`.teach-how[data-how='${system}']`);
+      expect(card?.querySelector(".teach-how-title")?.textContent).toBe(
+        `How it works · ${HOW_IT_WORKS[system].title}`,
+      );
+      expect(card?.querySelectorAll(".kit-step img.kit-icon")).toHaveLength(
+        HOW_IT_WORKS[system].steps.length,
+      );
+      expect(card?.querySelector(".teach-how-back")?.textContent).toBe(
+        "Got it",
+      );
+      root.remove();
+    }
   });
 
   it("refuses an unknown step", () => {
