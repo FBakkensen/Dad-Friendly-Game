@@ -98,6 +98,12 @@ function crew(): Mountain {
   };
 }
 
+function withoutEngineers(): Mountain {
+  const { engineers: _gone, ...rest } = crew();
+  void _gone;
+  return rest;
+}
+
 describe("promotion teach (#246)", () => {
   it("is small: a dot with no note, only when he can pay and it pays", () => {
     expect(showsDot(crew(), "promotion")).toBe(true);
@@ -132,6 +138,9 @@ describe("promotion teach (#246)", () => {
     expect(payoff?.gain).toBeCloseTo(
       after - effectiveRates(crew(), 0).crewPerSecond,
     );
+    // With no engineer yet, the first hand is Ada, and any post is free.
+    expect(promotePayoff(withoutEngineers(), 0)?.name).toBe("Ada");
+    expect(promotePayoff({ ...crew(), pocket: 0 }, 0)).toBe(undefined);
     expect(promotionAction("Nils", 2_000_000)).toBe("Promote Nils · 2M");
     expect(promotionPayoff("Nils", "drill", "+217 stones/sec")).toBe(
       "Nils could tend the drills: +217 stones/sec",

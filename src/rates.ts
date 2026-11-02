@@ -501,14 +501,16 @@ export function promotePayoff(
     }
   | undefined {
   const promoted = promote(mountain);
-  const index = (promoted.engineers?.length ?? 0) - 1;
-  const hand = promoted.engineers?.[index];
-  if (promoted === mountain || hand === undefined) {
+  const engineers = promoted === mountain ? undefined : promoted.engineers;
+  const index = (engineers?.length ?? 0) - 1;
+  const hand = engineers?.[index];
+  if (hand === undefined) {
     return undefined;
   }
   const before = effectiveRates(mountain, now, trouble).crewPerSecond;
+  // The new hand waits at camp, so the posts taken are the old crew's.
   for (const post of GUIDED_POSTS) {
-    if ((promoted.engineers ?? []).some((other) => other.post === post)) {
+    if ((mountain.engineers ?? []).some((other) => other.post === post)) {
       continue;
     }
     const gain =
