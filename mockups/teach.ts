@@ -306,7 +306,7 @@ function staffingSheet(): string {
     "Hires a worker for 150.4K, and an idle cart starts. The tag and the dot go away.";
   return `<section class="card teach-sheet" role="dialog" aria-label="Buys">
     <div class="kit-chips"><span class="kit-chip is-new" data-chip="free">${icon(ART.helper)}<span>40 workers · 0 free</span></span></div>
-    <header class="teach-sheet-head"><h2 class="kit-title">Buys</h2><button type="button" class="kit-btn kit-outline kit-info" data-tap="${esc(tap("Opens How it works for machines and staffing."))}" aria-label="How it works">i</button></header>
+    <header class="teach-sheet-head"><h2 class="kit-title">Buys</h2><button type="button" class="kit-btn kit-outline kit-info" data-tap="${esc(tap("Opens How it works for staffing and layers."))}" aria-label="How it works">i</button></header>
     <p class="teach-intro">Idle machines start when you hire workers.</p>
     <div class="kit-stack"><div class="card kit-card is-new" data-card="cart" data-tap="${esc(tap(action))}">
       <div class="teach-new-top">

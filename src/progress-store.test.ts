@@ -2692,7 +2692,7 @@ describe("layer card and craft-done notice", () => {
       {
         id: "iron-rails",
         level: 1,
-        line: "Your Iron rails are fitted. Carts now 10.6/s.",
+        line: "Your Iron rails are fitted. Carts now 12.5/s.",
       },
     ]);
     expect(progress.fieldLog().events).toContainEqual(
@@ -2726,7 +2726,7 @@ describe("layer card and craft-done notice", () => {
     const away = guest(awayStore, () => 120_000);
     expect(away.getSnapshot().away).toBeDefined();
     expect(away.getSnapshot().craftsFitted[0]?.line).toBe(
-      "Your Iron rails are fitted. Carts now 10.6/s.",
+      "Your Iron rails are fitted. Carts now 12.5/s.",
     );
     away.dismissAway();
     expect(away.getSnapshot().craftsFitted).toEqual([]);

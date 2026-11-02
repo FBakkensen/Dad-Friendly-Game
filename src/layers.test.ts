@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import {
   EMPTY_MATERIALS,
+  FAVOURED_SPEED,
   LAYERS,
+  LAYER_FAVOURS,
+  SLOWED_SPEED,
   MATERIAL_EVERY,
   MAX_MATERIAL,
   addMaterials,
@@ -16,11 +19,12 @@ import {
   type LayerId,
   type MaterialId,
 } from "./layers";
+import { RELICS } from "./relics";
 import { MOUNTAIN_STONES } from "./scale";
+import { TIERS, tierById } from "./tiers";
 import { parseSaveValue } from "./persist";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
-import { TIERS } from "./tiers";
 
 /** The design table, written out here so the module cannot drift from it. */
 const BANDS = [
@@ -115,26 +119,27 @@ describe("layers", () => {
     const granite = effectiveRates(minedMountain(10_000_000)).tierSpeed;
     expect(granite.helper).toBe(1);
     expect(granite.kid).toBe(1);
-    expect(granite.cart).toBeCloseTo(8.5);
-    expect(granite.drill).toBe(60);
-    expect(granite.borer).toBeCloseTo(595 * 0.85);
+    expect(granite.cart).toBe(10);
+    expect(granite.drill).toBeCloseTo(60 * SLOWED_SPEED);
+    expect(granite.borer).toBeCloseTo(595 * 1.1);
     expect(granite.machine).toBe(3_500);
     const crystal = effectiveRates(minedMountain(45_000_000)).tierSpeed;
     expect(crystal.helper).toBe(1);
     expect(crystal.cart).toBe(10);
-    expect(crystal.drill).toBeCloseTo(51);
-    expect(crystal.borer).toBeCloseTo(595 * 0.85);
+    expect(crystal.drill).toBeCloseTo(66);
+    expect(crystal.borer).toBeCloseTo(595 * SLOWED_SPEED);
     expect(crystal.machine).toBe(3_500);
     const heart = effectiveRates(minedMountain(120_000_000)).tierSpeed;
     expect(heart.helper).toBe(1);
     expect(heart.kid).toBe(1);
-    expect(heart.cart).toBeCloseTo(8.5);
-    expect(heart.drill).toBeCloseTo(51);
-    expect(heart.borer).toBeCloseTo(595 * 0.85);
-    expect(heart.machine).toBe(3_500);
+    expect(heart.cart).toBe(10);
+    expect(heart.drill).toBe(60);
+    expect(heart.borer).toBeCloseTo(595 * SLOWED_SPEED);
+    expect(heart.machine).toBeCloseTo(3_500 * 1.1);
     expect(hardnessOf(2, "helper")).toBe(1);
     expect(hardnessOf(4, "kid")).toBe(1);
-    expect(hardnessOf(4, "machine")).toBe(1);
+    expect(hardnessOf(4, "machine")).toBe(1.1);
+    expect(hardnessOf(1, "borer")).toBe(1);
   });
 
   it("scales one tier in the current band and leaves the other bands at 1", () => {
@@ -146,11 +151,11 @@ describe("layers", () => {
     };
     expect(layerOf(mountain).id).toBe("crystal");
     const plain = effectiveRates(mountain);
-    expect(plain.tierSpeed.drill).toBeCloseTo(51);
+    expect(plain.tierSpeed.drill).toBeCloseTo(66);
     const harder = withFactors({ [hardnessFactorId(3, "drill")]: 0.85 }, () =>
       effectiveRates(mountain),
     );
-    expect(harder.tierSpeed.drill).toBeCloseTo(51 * 0.85, 8);
+    expect(harder.tierSpeed.drill).toBeCloseTo(66 * 0.85, 8);
     expect(harder.tierSpeed.cart).toBe(plain.tierSpeed.cart);
     expect(harder.tierSpeed.helper).toBe(plain.tierSpeed.helper);
     const otherBand = withFactors(
@@ -327,5 +332,27 @@ describe("breaking into a band", () => {
       "crystal",
       "heart",
     ]);
+  });
+
+  it("favours only a machine you can already build, and keeps the next one strongest (D3)", () => {
+    for (const index of [2, 3, 4] as const) {
+      const favours = LAYER_FAVOURS[index];
+      expect(favours).toBeDefined();
+      if (favours === undefined) {
+        continue;
+      }
+      const suits = tierById(favours.suits);
+      const unlockDepth =
+        RELICS.find((relic) => relic.id === suits.needs)?.depth ?? 0;
+      const nextFrom: number =
+        index < LAYERS.length ? LAYERS[index as 2 | 3].from : Infinity;
+      expect(unlockDepth).toBeLessThan(nextFrom);
+      const next = TIERS[TIERS.indexOf(suits) + 1];
+      if (next !== undefined && next.id !== "kid") {
+        expect(suits.perSecond * FAVOURED_SPEED).toBeLessThan(
+          next.perSecond / 2,
+        );
+      }
+    }
   });
 });

@@ -184,7 +184,9 @@ describe("workshop mock page (#193)", () => {
   it("keeps the layer card and the craft-done notice free of question marks", () => {
     const layer = host(renderMock(view({ scene: "layer", control: "dig" })));
     expect(layer.textContent).toContain("You broke into the Granite!");
-    expect(layer.textContent).toContain("Tough on carts. Drills love it.");
+    expect(layer.textContent).toContain(
+      "The Granite suits borers. Tough on drills.",
+    );
     expect(layer.textContent).toContain("Dig on");
     expect(layer.textContent).toContain("Clay 42");
     expect(layer.textContent).not.toMatch(/\?/);
@@ -507,7 +509,7 @@ describe("design token mocks (#234)", () => {
       0,
     );
     expect(shown.textContent).toContain("The Granite");
-    expect(shown.textContent).toContain("Drills love it.");
+    expect(shown.textContent).toContain("Tough on drills.");
     expect(shown.textContent).not.toContain("One pool of hands");
     const crew = shown.querySelector(".dir-crew");
     const picture = shown.querySelector(".dir-picture");

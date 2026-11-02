@@ -1034,7 +1034,7 @@ export const needMoreWords = (missing: number, material: string): string =>
 
 export const LAYER_ARRIVAL = "You broke into the Granite!";
 export const LAYER_EVOCATIVE = "The grey rock rings under every pick.";
-export const LAYER_ADVICE = "Tough on carts. Drills love it.";
+export const LAYER_ADVICE = "The Granite suits borers. Tough on drills.";
 export const LAYER_DIG = "Dig on";
 
 export const CRAFT_DONE = "Your Iron rails are fitted. Carts now 12/s.";
@@ -1070,16 +1070,19 @@ const LAYER_CARD = {
     arrival: LAYER_ARRIVAL,
     evocative: LAYER_EVOCATIVE,
     advice: LAYER_ADVICE,
+    line: "Suits borers. Tough on drills.",
   },
   crystal: {
     arrival: "You broke into the Crystal Caves!",
     evocative: "Light in the walls. Your crew can handle this.",
-    advice: "Tough on drills and borers. The rest keep their pace.",
+    advice: "The Crystal Caves suit drills. Tough on borers.",
+    line: "Suits drills. Tough on borers.",
   },
   heart: {
     arrival: "You broke into the Deep Heart!",
     evocative: "Warm stone, deep down. Your crew earned this.",
-    advice: "Tough on carts, drills, and borers. The Great Machine holds.",
+    advice: "The Deep Heart suits the Great Machine. Tough on borers.",
+    line: "Suits the Great Machine. Tough on borers.",
   },
 } as const;
 
@@ -1087,6 +1090,8 @@ export type LayerCardWords = {
   readonly arrival: string;
   readonly evocative: string;
   readonly advice: string;
+  /** The same advice, short, for the line under the stones. */
+  readonly line: string;
   /** A recipe came up with the rock. No name, no numbers. */
   readonly sketch: string;
 };

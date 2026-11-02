@@ -533,7 +533,7 @@ describe("workshop mock copy (#193)", () => {
     expect(needMoreWords(12 - 7, "iron")).toBe("Need 5 more iron");
     expect(LAYER_ARRIVAL).toBe("You broke into the Granite!");
     expect(LAYER_EVOCATIVE).toBe("The grey rock rings under every pick.");
-    expect(LAYER_ADVICE).toBe("Tough on carts. Drills love it.");
+    expect(LAYER_ADVICE).toBe("The Granite suits borers. Tough on drills.");
     expect(LAYER_DIG).toBe("Dig on");
     expect(CRAFT_DONE).toBe("Your Iron rails are fitted. Carts now 12/s.");
     expect(CRAFT_DONE_BUTTON).toBe("The crew feels it");
@@ -661,8 +661,15 @@ describe("layer card and craft-done copy", () => {
       arrival: LAYER_ARRIVAL,
       evocative: LAYER_EVOCATIVE,
       advice: LAYER_ADVICE,
+      line: "Suits borers. Tough on drills.",
       sketch: "A sketch for the shed came up with the rock.",
     });
+    expect(layerCardWords("crystal")?.advice).toBe(
+      "The Crystal Caves suit drills. Tough on borers.",
+    );
+    expect(layerCardWords("heart")?.advice).toBe(
+      "The Deep Heart suits the Great Machine. Tough on borers.",
+    );
     expect(layerWelcomeWords("topsoil")).toBeUndefined();
     expect(layerWelcomeWords("granite")).toBe(
       `${LAYER_ARRIVAL} ${LAYER_ADVICE} A sketch for the shed came up with the rock.`,

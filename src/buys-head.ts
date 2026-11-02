@@ -6,7 +6,7 @@ import type { TierId } from "./tiers";
 /**
  * The Buys sheet's head (#246), the same as the Workshop, Upgrades and
  * Engineers: title left, "i" right, then one intro line while an idle
- * machine is the New card. The "i" opens machines and staffing: one screen.
+ * machine is the New card. The "i" opens staffing and layers: one screen.
  */
 export function createBuysHead({
   tierArt,
@@ -48,7 +48,7 @@ export function createBuysHead({
     "tunnel-borer": tierArt.borer,
     "great-machine": tierArt.machine,
   };
-  const cards = (["machines", "staffing"] as const).map((system) => {
+  const cards = (["staffing", "layers"] as const).map((system) => {
     const copy = HOW_IT_WORKS[system];
     const made = createHowCard(
       `How it works · ${copy.title}`,

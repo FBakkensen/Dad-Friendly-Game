@@ -312,12 +312,16 @@ export const HOW_IT_WORKS: Readonly<Record<HowSystem, HowItWorks>> = {
         `The mountain has ${String(LAYERS.length)} layers, each with its own rock.`,
       ],
       [
-        "steam-drill",
-        "Each layer is kinder to some machines and tougher on others.",
+        "tunnel-borer",
+        "Each deeper layer suits one machine. It digs a little faster there.",
       ],
       [
-        "mine-cart",
-        "The layer card under the stones says which, in plain words.",
+        "steam-drill",
+        "One other machine finds that rock tough and slows a little.",
+      ],
+      [
+        "stone",
+        "The line under your stones names the layer and what it suits.",
       ],
     ],
   },

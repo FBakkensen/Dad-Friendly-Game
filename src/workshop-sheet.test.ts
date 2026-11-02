@@ -78,7 +78,7 @@ describe("workshop sheet (#199)", () => {
     const rails = recipe(cards, "iron-rails");
     expect(rails.name).toBe("Iron rails");
     expect(rails.level).toBe("Lv 0/2");
-    expect(rails.effect).toBe("Carts 8.5/s to 10.6/s");
+    expect(rails.effect).toBe("Carts 10/s to 12.5/s");
     expect(rails.stones).toBe("500K stones");
     expect(rails.costs.map((cost) => cost.text)).toEqual(["4 iron"]);
     expect(rails.time).toBe("10 min");
@@ -89,7 +89,7 @@ describe("workshop sheet (#199)", () => {
     expect(recipe(cards, "reinforce").name).toBe("Reinforce");
     expect(recipe(cards, "reinforce").level).toBe("Lv 0/5");
     expect(recipe(cards, "reinforce").stones).toBeUndefined();
-    expect(recipe(cards, "reinforce").effect).toBe("Drills 60/s to 63/s");
+    expect(recipe(cards, "reinforce").effect).toBe("Drills 48/s to 50.4/s");
     expect(recipe(cards, "reinforce").action).toEqual({
       kind: "craft",
       label: "Craft",
@@ -342,7 +342,7 @@ describe("fitted effect", () => {
         "iron-rails",
         now,
       ),
-    ).toBe("Carts now 10.6/s.");
+    ).toBe("Carts now 12.5/s.");
     expect(
       fittedEffect(
         {
