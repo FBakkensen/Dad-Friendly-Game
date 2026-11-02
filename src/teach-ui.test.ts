@@ -33,20 +33,20 @@ describe("teach parts", () => {
     expect(open).toHaveBeenCalledOnce();
   });
 
-  it("tags the New card with one action and swaps it for the payoff", () => {
+  it("tags the New card and turns its own button into the big action", () => {
     const card = document.createElement("div");
-    const cardTap = vi.fn();
-    card.addEventListener("click", cardTap);
-    const act = vi.fn();
-    markNewCard(card, "Craft Blasting charge", act);
-    markNewCard(card, "Craft Blasting charge", act);
+    const button = document.createElement("button");
+    card.append(button);
+    markNewCard(card, button, "Craft Blasting charge");
+    markNewCard(card, button, "Craft Blasting charge");
     expect(card.querySelectorAll(".teach-tag")).toHaveLength(1);
-    const button = card.querySelector<HTMLButtonElement>(".teach-action");
-    button?.click();
-    expect(act).toHaveBeenCalledOnce();
-    expect(cardTap).not.toHaveBeenCalled();
+    expect(card.querySelectorAll("button")).toHaveLength(1);
+    expect(button.textContent).toBe("Craft Blasting charge");
+    expect(button.classList.contains("teach-action")).toBe(true);
     clearNewCard(card);
     expect(card.classList.contains("teach-new")).toBe(false);
+    expect(card.querySelector(".teach-tag")).toBeNull();
+    button.remove();
     setPayoff(card, "+1,762/s now");
     setPayoff(card, "+1,800/s now");
     expect(card.querySelectorAll(".teach-payoff")).toHaveLength(1);

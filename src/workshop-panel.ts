@@ -1,5 +1,14 @@
 import stoneIconUrl from "./assets/stone.png";
 import { buyOnTap } from "./card-tap";
+import { HOW_IT_WORKS } from "./how-it-works";
+import { markSeen } from "./teach";
+import {
+  createHowCard,
+  createInfoButton,
+  markNewCard,
+  setPayoff,
+} from "./teach-ui";
+import { teachFirst, workshopTeach } from "./workshop-teach";
 import { reducedMotion } from "./float-text";
 import cartUrl from "./assets/mine-cart.png";
 import drillUrl from "./assets/steam-drill.png";
@@ -71,6 +80,17 @@ const RECIPE_ICON: Record<RecipeId, string> = {
   "heartstone-core": heartUrl,
   "heartstone-ember": heartUrl,
 };
+
+/** Every picture under src/assets, by path without ".png", for How it works. */
+const ASSET_URLS: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(
+    import.meta.glob<string>("./assets/**/*.png", {
+      eager: true,
+      query: "?url",
+      import: "default",
+    }),
+  ).map(([path, url]) => [path.slice("./assets/".length, -".png".length), url]),
+);
 
 function cardIcon(src: string): HTMLImageElement {
   const icon = document.createElement("img");
@@ -159,6 +179,7 @@ export function createWorkshopPanel({
   let floatUntil = 0;
   let floatBits: readonly CostChip[] = [];
   let painted = "";
+  let howOpen = false;
 
   const menuEntry = document.createElement("div");
   menuEntry.className = "workshop-menu";
@@ -174,6 +195,8 @@ export function createWorkshopPanel({
     }
     open = true;
     page = 0;
+    howOpen = false;
+    progress.applyMutation((current) => markSeen(current, "workshop"));
     onOpen();
     requestRender();
   });
@@ -220,7 +243,31 @@ export function createWorkshopPanel({
     }
     requestRender();
   });
-  head.append(title, soundButton);
+  const info = createInfoButton(WORKSHOP_TITLE, () => {
+    howOpen = true;
+    requestRender();
+  });
+  const headTools = document.createElement("div");
+  headTools.className = "workshop-head-tools";
+  headTools.append(info, soundButton);
+  head.append(title, headTools);
+
+  const intro = document.createElement("p");
+  intro.className = "teach-intro";
+
+  const workshopHow = HOW_IT_WORKS.workshop;
+  const how = createHowCard(
+    `How it works · ${workshopHow.title}`,
+    workshopHow.steps.map(
+      ([art, text]) => [ASSET_URLS[art] ?? stoneUrl, text] as const,
+    ),
+    "Back to the Workshop",
+    () => {
+      howOpen = false;
+      requestRender();
+      info.focus();
+    },
+  );
 
   const materials = document.createElement("p");
   materials.className = "workshop-materials label";
@@ -318,7 +365,18 @@ export function createWorkshopPanel({
   const floats = document.createElement("div");
   floats.className = "workshop-floats";
 
-  card.append(head, materials, bench, timers, recipes, pager, close, floats);
+  card.append(
+    head,
+    intro,
+    materials,
+    bench,
+    timers,
+    recipes,
+    pager,
+    how,
+    close,
+    floats,
+  );
   sheet.append(card);
 
   const celebrate = (costs: readonly CostChip[]): void => {
@@ -355,6 +413,8 @@ export function createWorkshopPanel({
     celebrate(recipe.costs);
     progress.applyMutation((current) => startCraft(current, recipe.id, now()));
   };
+
+  let teach = workshopTeach(getView().mountain, now());
 
   const paintCard = (item: WorkshopCard): HTMLElement => {
     const article = document.createElement("article");
@@ -451,6 +511,18 @@ export function createWorkshopPanel({
     });
     body.append(heading, button, ...lines);
     article.append(cardIcon(RECIPE_ICON[item.id]), body);
+    if (
+      teach.newCard === item.id &&
+      teach.action !== undefined &&
+      action.kind === "craft"
+    ) {
+      // The price button becomes the one big button; the whole card still taps.
+      markNewCard(article, button, teach.action);
+      body.append(button);
+    }
+    if (teach.payoff?.id === item.id) {
+      setPayoff(body, teach.payoff.text);
+    }
     return article;
   };
 
@@ -476,6 +548,13 @@ export function createWorkshopPanel({
       return;
     }
     const at = now();
+    teach = workshopTeach(mountain, at);
+    intro.textContent = teach.intro ?? "";
+    intro.hidden = howOpen || teach.intro === undefined;
+    how.hidden = !howOpen;
+    for (const part of [materials, bench, recipes]) {
+      part.hidden = howOpen;
+    }
     materials.replaceChildren();
     const chips = metMaterialChips(mountain);
     chips.forEach((chip, index) => {
@@ -498,7 +577,7 @@ export function createWorkshopPanel({
     benchAside.textContent = benchState.aside;
     const lines = timerLines(mountain, at);
     timers.textContent = lines.join(" · ");
-    timers.hidden = lines.length === 0;
+    timers.hidden = howOpen || lines.length === 0;
     if (benchState.kind === "busy" || benchState.kind === "unknown") {
       bar.hidden = false;
       const percent = Math.round(benchState.progress * 100);
@@ -525,7 +604,7 @@ export function createWorkshopPanel({
       }
     }
     bench.classList.toggle("is-hammer", at < hammerUntil);
-    const cards = workshopCards(mountain, at);
+    const cards = teachFirst(workshopCards(mountain, at), teach);
     const pages = workshopPages(cards);
     if (page > pages.length - 1) {
       page = Math.max(0, pages.length - 1);
@@ -534,6 +613,7 @@ export function createWorkshopPanel({
     const signature = JSON.stringify({
       page,
       shaking,
+      teach,
       cards: shown.map((item) =>
         item.kind === "hidden"
           ? item.hint
@@ -553,7 +633,7 @@ export function createWorkshopPanel({
       painted = signature;
     }
     const several = pages.length > 1;
-    pager.hidden = !several;
+    pager.hidden = howOpen || !several;
     earlier.hidden = !several || page === 0;
     more.hidden = !several || page >= pages.length - 1;
     if (at >= floatUntil) {

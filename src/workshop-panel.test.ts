@@ -304,6 +304,65 @@ describe("workshop panel (#199)", () => {
     }
   });
 
+  it("guides the first craft: New card, How it works, then the payoff (#243)", () => {
+    let clock = 1_700_000_000_000;
+    const screen = mount(() => clock);
+    screen.progress.applyMutation(() => ({
+      ...granite(),
+      pocket: 400_000,
+      helpers: 40,
+      materials: { clay: 10, iron: 0, crystal: 0, heartstone: 0 },
+    }));
+    const thumb =
+      screen.root.querySelector<HTMLButtonElement>(".thumb-workshop");
+    expect(thumb?.querySelector(".teach-dot")).not.toBeNull();
+    screen.root.querySelector<HTMLButtonElement>(".teach-note")?.click();
+    const sheet = screen.root.querySelector<HTMLElement>(".workshop-dialog");
+    expect(sheet?.hidden).toBe(false);
+    expect(screen.root.querySelector<HTMLElement>(".teach-note")?.hidden).toBe(
+      true,
+    );
+    expect(sheet?.querySelector(".teach-intro")?.textContent).toBe(
+      "Turn your clay into gear for the crew.",
+    );
+    const first = sheet?.querySelector<HTMLElement>(".workshop-card");
+    expect(first?.dataset["recipe"]).toBe("blasting-charge");
+    expect(first?.classList.contains("teach-new")).toBe(true);
+    expect(first?.querySelector(".teach-tag")?.textContent).toBe("New");
+    expect(first?.querySelectorAll("button")).toHaveLength(1);
+    expect(first?.querySelector(".teach-action")?.textContent).toBe(
+      "Craft Blasting charge · 4 clay · 100K",
+    );
+
+    sheet?.querySelector<HTMLButtonElement>(".teach-info")?.click();
+    const how = sheet?.querySelector<HTMLElement>(".teach-how");
+    expect(how?.hidden).toBe(false);
+    expect(sheet?.querySelector<HTMLElement>(".workshop-recipes")?.hidden).toBe(
+      true,
+    );
+    expect(how?.querySelectorAll("li")).toHaveLength(4);
+    how?.querySelector<HTMLButtonElement>(".teach-how-back")?.click();
+    expect(how?.hidden).toBe(true);
+
+    sheet?.querySelector<HTMLButtonElement>(".teach-action")?.click();
+    clock += 1_000;
+    screen.progress.applyMutation((current) => current);
+    expect(screen.progress.getSnapshot().mountain.bench?.recipe).toBe(
+      "blasting-charge",
+    );
+    expect(screen.progress.getSnapshot().mountain.taught).toEqual(["workshop"]);
+    expect(thumb?.querySelector(".teach-dot")).toBeNull();
+    const after = sheet?.querySelector<HTMLElement>(".workshop-card");
+    expect(after?.dataset["recipe"]).toBe("blasting-charge");
+    expect(after?.querySelector(".teach-tag")).toBeNull();
+    expect(sheet?.querySelector<HTMLElement>(".teach-intro")?.hidden).toBe(
+      true,
+    );
+    expect(after?.querySelector(".teach-payoff")?.textContent).toMatch(
+      /^\+[\d,]+\/s now$/,
+    );
+  });
+
   it("cancels a running craft for the refund on the button", () => {
     const clock = 1_700_000_000_000;
     const screen = mount(() => clock);

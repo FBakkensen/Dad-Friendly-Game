@@ -60,14 +60,15 @@ export function createTeachNote(): {
 }
 
 /**
- * Marks a shared sheet card as the new one: lit, tagged New, with one big
- * first-action button. The whole card stays the tap target; the button does
- * the same thing. `clearNewCard` takes it all off again.
+ * Marks a shared sheet card as the new one: lit, tagged New, and its own
+ * action button turned into the one big first-action button. The caller
+ * keeps the button's click, so the whole card still taps the same way.
+ * `clearNewCard` takes the tag and the light off again.
  */
 export function markNewCard(
   card: HTMLElement,
+  button: HTMLButtonElement,
   action: string,
-  onAction: () => void,
 ): void {
   clearNewCard(card);
   card.classList.add("teach-new");
@@ -75,21 +76,14 @@ export function markNewCard(
   tag.className = "teach-tag";
   tag.textContent = "New";
   card.prepend(tag);
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "teach-action";
+  button.classList.add("teach-action");
   button.textContent = action;
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    onAction();
-  });
-  card.append(button);
 }
 
 export function clearNewCard(card: HTMLElement): void {
   card.classList.remove("teach-new");
-  card.querySelector(":scope > .teach-tag")?.remove();
-  card.querySelector(":scope > .teach-action")?.remove();
+  card.querySelector(":scope .teach-tag")?.remove();
+  card.querySelector(":scope .teach-action")?.classList.remove("teach-action");
 }
 
 /** After the first use, the same card says what it earned. */
