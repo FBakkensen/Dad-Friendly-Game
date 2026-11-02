@@ -32,6 +32,7 @@ const TEACH_STEPS = [
   "engineers",
   "tending",
   "staffing",
+  "promotion",
 ] as const;
 type TeachStep = (typeof TEACH_STEPS)[number];
 
@@ -147,7 +148,7 @@ function bar(step: TeachStep): string {
       ? "workshop"
       : step === "dot" || step === "reveal"
         ? "upgrades"
-        : step === "engineers" || step === "tending"
+        : step === "engineers" || step === "tending" || step === "promotion"
           ? "engineers"
           : step === "staffing"
             ? "buys"
@@ -282,7 +283,7 @@ function tendingSheet(): string {
     "Puts Ada on the Great Machine: +350 stones/sec. The tag and the dot go away.";
   return `<section class="card teach-sheet" role="dialog" aria-label="Your engineers">
     <header class="teach-sheet-head"><h2 class="kit-title">Your engineers</h2><button type="button" class="kit-btn kit-outline kit-info" data-tap="${esc(tap("Opens How it works for engineers, expeditions and tending."))}" aria-label="How it works">i</button></header>
-    <p class="teach-intro">Ada can tend one kind of machine, and that kind digs faster.</p>
+    <p class="teach-intro">Ada can tend a machine so it digs faster.</p>
     <div class="kit-stack"><div class="card kit-card is-new" data-card="ada" data-tap="${esc(tap(action))}">
       <div class="teach-new-top">
         ${icon(ART.helper)}
@@ -315,6 +316,29 @@ function staffingSheet(): string {
         </span>
       </div>
       <button type="button" class="kit-btn kit-primary kit-wide" data-tap="${esc(tap(action))}">Hire a worker · 150.4K</button>
+    </div></div>
+  </section>`;
+}
+
+/**
+ * M11-8e (#246): the second engineer. A small system, so the dot only.
+ * The Promote row is the New card: the real payoff, the worker who steps
+ * up counted, and one big button. It still confirms.
+ */
+function promotionSheet(): string {
+  const action =
+    "Opens the confirm: Nils steps up, one worker fewer at the machines. The tag and the dot go away.";
+  return `<section class="card teach-sheet" role="dialog" aria-label="Your engineers">
+    <header class="teach-sheet-head"><h2 class="kit-title">Your engineers</h2><button type="button" class="kit-btn kit-outline kit-info" data-tap="${esc(tap("Opens How it works for engineers, expeditions and tending."))}" aria-label="How it works">i</button></header>
+    <p class="teach-intro">A second engineer can tend another machine.</p>
+    <div class="kit-stack"><div class="card kit-card is-new" data-card="promote" data-tap="${esc(tap(action))}">
+      <div class="teach-new-top">
+        ${icon(ART.helper)}
+        <span class="kit-card-body"><span class="kit-card-head"><span class="kit-card-title">Promote a worker</span><span class="teach-tag">New</span></span>
+          <span class="kit-card-line">Nils could tend the drills: +217 stones/sec</span>
+        </span>
+      </div>
+      <button type="button" class="kit-btn kit-primary kit-wide" data-tap="${esc(tap(action))}">Promote Nils · 2M</button>
     </div></div>
   </section>`;
 }
@@ -395,6 +419,8 @@ export function renderTeach(control: string): string {
       return frame(step, tendingSheet());
     case "staffing":
       return frame(step, staffingSheet());
+    case "promotion":
+      return frame(step, promotionSheet());
     case undefined:
       throw new Error(`Unknown teach step ${control}`);
   }

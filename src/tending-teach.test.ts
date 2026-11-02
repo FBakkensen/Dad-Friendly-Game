@@ -161,7 +161,10 @@ describe("tending teach (#246)", () => {
     const mountain = screen.progress.getSnapshot().mountain;
     expect(mountain.engineers?.[0]?.post).toBe("machine");
     expect(mountain.taught).toContain("tending");
-    expect(button?.querySelector(".teach-dot")).toBeNull();
+    // Its own dot goes. The next step (the second engineer) may light it.
+    expect(showsDot(screen.progress.getSnapshot().mountain, "tending")).toBe(
+      false,
+    );
     expect(tend?.hidden).toBe(true);
     expect(card?.classList.contains("teach-new")).toBe(false);
   });

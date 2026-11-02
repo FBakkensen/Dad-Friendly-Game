@@ -325,9 +325,26 @@ export function staffingAction(workerPrice: number): string {
 /** The Buys intro while an idle machine is the New card. */
 export const STAFFING_INTRO = "Idle machines start when you hire workers.";
 
+/** The intro line on the guided second engineer. */
+export const PROMOTION_INTRO = "A second engineer can tend another machine.";
+
+/** The guided Promote's payoff line: the real gain, worker counted. */
+export function promotionPayoff(
+  name: string,
+  post: Exclude<TendPost, "camp">,
+  gain: string,
+): string {
+  return `${name} could tend ${TEND_TITLE[post].replace(/^The/, "the")}: ${gain}`;
+}
+
+/** The one big button on the guided second engineer. */
+export function promotionAction(name: string, cost: number): string {
+  return `Promote ${name} · ${formatCompact(cost)}`;
+}
+
 /** The intro line on the guided first tend. */
 export function tendingIntro(name: string): string {
-  return `${name} can tend one kind of machine, and that kind digs faster.`;
+  return `${name} can tend a machine so it digs faster.`;
 }
 
 /** The one big button on the guided first tend, with its real payoff. */
