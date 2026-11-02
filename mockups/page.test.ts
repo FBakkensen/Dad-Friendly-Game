@@ -672,6 +672,73 @@ describe("component mocks (#235)", () => {
   });
 });
 
+describe("teaching mocks (#240)", () => {
+  const options = ["teach-a", "teach-b", "teach-c"] as const;
+  const systems = ["workshop", "materials", "upgrades"] as const;
+  const steps = ["note", "reveal", "guide", "payoff", "how"] as const;
+
+  it("keeps every step to the house rules", () => {
+    for (const scene of options) {
+      for (const system of systems) {
+        for (const step of steps) {
+          const root = mountTokens(scene, "rest", `${system}-${step}`);
+          expect(root.textContent).not.toMatch(
+            /\?|pays back|payback|worth it|best value|\+\d+ more|to afford/i,
+          );
+          for (const card of root.querySelectorAll(".kit-card")) {
+            expect(card.querySelector("img.kit-icon")).not.toBeNull();
+          }
+          for (const button of root.querySelectorAll("button")) {
+            const tap = button.getAttribute("data-tap") ?? "";
+            expect(tap).toContain("Presses in");
+            expect(tap).toContain("Silent until unmuted");
+          }
+          expect(root.querySelectorAll(".teach-bar button")).toHaveLength(4);
+          root.remove();
+        }
+      }
+    }
+  });
+
+  it("walks badge, reveal, lit card, payoff and How it works", () => {
+    const note = mountTokens("teach-a", "rest", "workshop-note");
+    expect(note.querySelector(".kit-bar.is-new .kit-dot")).not.toBeNull();
+    expect(note.querySelector(".teach-note")?.textContent).toContain("New");
+    const reveal = mountTokens("teach-a", "rest", "workshop-reveal");
+    expect(
+      reveal.querySelector(".teach-reveal .kit-primary")?.textContent,
+    ).toBe("Craft Axle grease · 1 iron");
+    const guide = mountTokens("teach-a", "rest", "upgrades-guide");
+    const lit = guide.querySelectorAll(".kit-card.is-guide");
+    expect(lit).toHaveLength(1);
+    expect(lit[0]?.textContent).toContain("650K");
+    const payoff = mountTokens("teach-a", "rest", "materials-payoff");
+    expect(payoff.querySelector(".teach-payoff")?.textContent).toContain(
+      "Crew ×2 for 20 min",
+    );
+    expect(payoff.querySelector(".kit-timer.is-fresh")?.textContent).toBe(
+      "×220:00",
+    );
+    const how = mountTokens("teach-c", "rest", "materials-how");
+    expect(how.querySelectorAll(".kit-step img.kit-icon")).toHaveLength(4);
+    expect(how.textContent).not.toMatch(/crystal|heartstone/i);
+  });
+
+  it("puts the B reveal inside the sheet with the new card first", () => {
+    const root = mountTokens("teach-b", "rest", "materials-reveal");
+    expect(root.querySelector(".teach-reveal")).toBeNull();
+    expect(
+      root
+        .querySelector(".teach-sheet .kit-card")
+        ?.classList.contains("is-guide"),
+    ).toBe(true);
+  });
+
+  it("refuses an unknown step", () => {
+    expect(() => mountTokens("teach-a", "rest", "workshop-nope")).toThrow();
+  });
+});
+
 describe("chipTime (#235)", () => {
   it("shows m:ss, then hours and minutes, then days and hours", () => {
     expect(chipTime(299_000)).toBe("4:59");

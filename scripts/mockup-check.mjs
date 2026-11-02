@@ -85,6 +85,15 @@ const SHOTS = [
   ["parts-controls", "press", "picks"],
   ["parts-how", "rest", ""],
   ["parts-how", "press", "got"],
+  ...["a", "b", "c"].flatMap((option) =>
+    ["workshop", "materials", "upgrades"].flatMap((system) =>
+      ["note", "reveal", "guide", "payoff", "how"].map((step) => [
+        `teach-${option}`,
+        "rest",
+        `${system}-${step}`,
+      ]),
+    ),
+  ),
 ];
 
 const failures = [];
@@ -143,7 +152,8 @@ async function fit(page, label) {
       sceneName.endsWith("-tokens") ||
       sceneName.startsWith("mountain-") ||
       sceneName.startsWith("upgrades-") ||
-      sceneName.startsWith("parts-");
+      sceneName.startsWith("parts-") ||
+      sceneName.startsWith("teach-");
     const minFont = token ? 14 : 14.4;
     const minBox = token ? 48 : 44;
     const hasDirectText = (element) =>
