@@ -409,3 +409,47 @@ export function tendingGain(
   ).crewPerSecond;
   return Math.max(0, tended - resting);
 }
+
+/** Stones a second gained by moving one engineer to that post. */
+export function moveGain(
+  mountain: Mountain,
+  index: number,
+  post: EngineerPost,
+  now?: number,
+  trouble?: Trouble,
+): number {
+  return (
+    effectiveRates(station(mountain, index, post), now, trouble).crewPerSecond -
+    effectiveRates(mountain, now, trouble).crewPerSecond
+  );
+}
+
+const GUIDED_POSTS = ["machine", "borer", "drill", "cart"] as const;
+
+/**
+ * The guided first tend (#246): the first engineer at home with a move that
+ * really pays right now, to the highest kind of machine nobody tends yet.
+ * Undefined when no move gains stones, so the guided button never asks for
+ * a step down. In practice: a hand waiting at camp.
+ */
+export function firstTend(
+  mountain: Mountain,
+  now?: number,
+  trouble?: Trouble,
+): { readonly index: number; readonly post: TendTier } | undefined {
+  const engineers = mountain.engineers ?? [];
+  for (const [index, engineer] of engineers.entries()) {
+    if (engineer.post === "tunnel") {
+      continue;
+    }
+    const post = GUIDED_POSTS.find(
+      (tier) =>
+        engineers.every((other) => other.post !== tier) &&
+        moveGain(mountain, index, tier, now, trouble) >= 1,
+    );
+    if (post !== undefined) {
+      return { index, post };
+    }
+  }
+  return undefined;
+}

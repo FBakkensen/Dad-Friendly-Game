@@ -1,5 +1,6 @@
 import type { Mountain } from "./mountain";
 import { BOOSTS } from "./boosts";
+import { firstTend } from "./rates";
 import {
   boostRowId,
   boostShown,
@@ -54,6 +55,21 @@ const TEACH_SPECS: readonly TeachSpec[] = [
     used: (mountain) =>
       (mountain.expeditions?.length ?? 0) > 0 ||
       (mountain.engineers ?? []).some((engineer) => engineer.trips > 0),
+  },
+  // Small system (#246): after the first trip, once there is a machine to
+  // step up to. The dot only. A move off the starting borers is a use.
+  {
+    id: "tending",
+    size: "small",
+    unlocked: (mountain) =>
+      isTaught(mountain, "engineers") && firstTend(mountain) !== undefined,
+    used: (mountain) =>
+      (mountain.engineers ?? []).some(
+        (engineer) =>
+          engineer.post === "cart" ||
+          engineer.post === "drill" ||
+          engineer.post === "machine",
+      ),
   },
   // Small systems (#245): each boost and upgrade row, once it shows.
   ...BOOSTS.map((boost): TeachSpec => ({
@@ -128,6 +144,20 @@ export function markAllSeen(
   ids: readonly string[],
 ): Mountain {
   return ids.reduce(markSeen, mountain);
+}
+
+/** A first use the mountain cannot show by itself, such as a first tend. */
+export function markTaught(mountain: Mountain, id: string): Mountain {
+  if (has(mountain.taught, id) || specOf(id) === undefined) {
+    return mountain;
+  }
+  return {
+    ...mountain,
+    taught: added(mountain.taught, id),
+    seen: has(mountain.seen, id)
+      ? (mountain.seen ?? [])
+      : added(mountain.seen, id),
+  };
 }
 
 /**

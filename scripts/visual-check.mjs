@@ -227,9 +227,10 @@ async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
           .bottom ?? Infinity;
       // Only what shows: How it works cards stay hidden until "i" (#246).
       const text = sheet.innerText;
-      // The first visit swaps the act buttons for one first-trip button.
-      const firstTrip = sheet.querySelector(".engineer-first-trip");
-      const guided = firstTrip !== null && !firstTrip.hidden;
+      // A first visit swaps the act buttons for one guided button: the
+      // first trip, or later the first tend.
+      const guided =
+        sheet.querySelector(".engineer-first-trip:not([hidden])") !== null;
       const promote = sheet.querySelector(".engineer-promote");
       const promoteLines = (() => {
         if (promote === null || promote.hidden) {
@@ -256,7 +257,8 @@ async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
         closeOk: close <= innerHeight - insets.bottom,
         words:
           (text.includes("Tend a machine") ||
-            (guided && text.includes("exploring"))) &&
+            (guided &&
+              (text.includes("exploring") || text.includes("Tend the")))) &&
           text.includes("stones/sec") &&
           text.includes("Promote:") &&
           text.includes("Promote a worker") &&
