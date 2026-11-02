@@ -54,6 +54,13 @@ export const DEAD_STRETCH = {
 export const LIVE_P10 = 10;
 export const PERCENT = 100;
 
+/** revealToUseP90 reads this percentile. */
+export const P90 = 90;
+/** revealSlowest lists waits at least this long, in live hours. Report only. */
+export const REVEAL_LIST_HOURS = 1;
+/** revealSlowest shows at most this many ids. */
+export const REVEAL_LIST_SIZE = 8;
+
 /** Two sides of a sorted list, for the median. */
 export const MIDPOINT_DIVISOR = 2;
 

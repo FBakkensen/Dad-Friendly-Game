@@ -134,6 +134,10 @@ describe("measures", () => {
       "longestValueStretch",
       "materialIdle",
       "regret",
+      "revealNeverUsed",
+      "revealSlowest",
+      "revealToUse",
+      "revealToUseP90",
       "singleShare",
       "typeEverBest",
     ]);
