@@ -54,6 +54,7 @@ import {
   nextLayerHint,
   tapWords,
   WORKSHOP_NOTE,
+  engineersNote,
 } from "./screen-words";
 import { metMaterialChips } from "./workshop-sheet";
 import {
@@ -622,8 +623,17 @@ export function mountMountainScreen({
         canCraftNow(view.mountain, now()),
     );
     setTeachDot(workshopThumb, showsDot(view.mountain, "workshop"));
-    if (noteFor(view.mountain) === "workshop") {
+    setTeachDot(engineers.button, showsDot(view.mountain, "engineers"));
+    // One note at a time, in the order teach.ts lists them.
+    const noteId = noteFor(view.mountain);
+    const firstEngineer = view.mountain.engineers?.[0]?.name;
+    if (noteId === "workshop") {
       teachNote.show(relicArt.hammer, WORKSHOP_NOTE, openWorkshopSheet);
+    } else if (noteId === "engineers" && firstEngineer !== undefined) {
+      teachNote.show(tierArt.helper, engineersNote(firstEngineer), () => {
+        progress.applyMutation((current) => markSeen(current, "engineers"));
+        engineers.button.click();
+      });
     } else {
       teachNote.hide();
     }

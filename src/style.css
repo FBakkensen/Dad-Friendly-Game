@@ -4969,3 +4969,87 @@ body {
     animation: none;
   }
 }
+
+/* Engineers first visit (#246): the same New card as the Workshop's,
+   tag top-right, one big button under the lines. */
+.engineers-dialog .engineer-open.teach-new {
+  position: relative;
+  border-color: var(--color-gold);
+}
+
+.engineers-dialog .engineer-open > .teach-tag {
+  position: absolute;
+  top: var(--space-8);
+  right: var(--space-8);
+}
+
+.engineers-dialog .engineer-first-trip.teach-action {
+  margin-top: var(--space-8);
+}
+
+.engineers-dialog .engineer-first-trip.teach-action:disabled {
+  opacity: 0.5;
+}
+
+.engineers-dialog .engineers-how {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--target-gap);
+  overflow-y: auto;
+  text-align: start;
+}
+
+.engineers-dialog .engineers-how .teach-how-back {
+  min-height: var(--target-min);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-gold);
+}
+
+.engineers-dialog [hidden] {
+  display: none;
+}
+
+/* The same frame and head as the Workshop and Upgrades sheets (#246). */
+.engineers-dialog .engineers-card {
+  padding: var(--space-8);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  box-shadow: 0 0 var(--space-24) var(--color-edge);
+}
+
+.engineers-dialog .engineers-head {
+  align-items: center;
+}
+
+.engineers-dialog .engineers-card h2 {
+  font-size: 1.05rem;
+  line-height: 1.15;
+  color: var(--color-gold);
+}
+
+/* Engineers head (#283): the exact Workshop and Upgrades title row, and
+   the Upgrades gap between head, intro and first card. */
+.engineers-dialog .engineers-card {
+  gap: var(--target-gap);
+}
+
+.engineers-dialog .engineers-head {
+  gap: var(--space-8);
+}
+
+.engineers-dialog .engineers-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: var(--weight-bold);
+  line-height: 1.15;
+}
+
+.engineers-dialog .engineers-intro {
+  margin-top: var(--space-8);
+  text-align: start;
+}

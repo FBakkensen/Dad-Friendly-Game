@@ -29,6 +29,7 @@ const TEACH_STEPS = [
   "how",
   "dot",
   "reveal",
+  "engineers",
 ] as const;
 type TeachStep = (typeof TEACH_STEPS)[number];
 
@@ -144,7 +145,9 @@ function bar(step: TeachStep): string {
       ? "workshop"
       : step === "dot" || step === "reveal"
         ? "upgrades"
-        : "";
+        : step === "engineers"
+          ? "engineers"
+          : "";
   const items = [
     ["buys", ART.cart, "Buys"],
     ["workshop", ART.hammer, "Workshop"],
@@ -243,6 +246,29 @@ function revealSheet(): string {
 }
 
 /**
+ * M11-8 (#246): the first engineer. Note above the bar, then the sheet with
+ * one line and Ada's card as the New card: one big button, the shortest
+ * trip, with its real time. Afterwards the walk home shows its timer.
+ */
+function engineersSheet(): string {
+  const action =
+    "Sends Ada down a side seam for 10 min. The tag and the dot go away.";
+  return `<section class="card teach-sheet" role="dialog" aria-label="Your engineers">
+    <header class="teach-sheet-head"><h2 class="kit-title">Your engineers</h2><button type="button" class="kit-btn kit-outline kit-info" data-tap="${esc(tap("Opens How it works for engineers, expeditions and tending."))}" aria-label="How it works">i</button></header>
+    <p class="teach-intro">Ada can explore a side tunnel and bring home a find.</p>
+    <div class="kit-stack"><div class="card kit-card is-new" data-card="ada" data-tap="${esc(tap(action))}">
+      <div class="teach-new-top">
+        ${icon(ART.helper)}
+        <span class="kit-card-body"><span class="kit-card-head"><span class="kit-card-title">Ada</span><span class="teach-tag">New</span></span>
+          <span class="kit-card-line">Ada is tending the borers: +89 stones/sec.</span>
+        </span>
+      </div>
+      <button type="button" class="kit-btn kit-primary kit-wide" data-tap="${esc(tap(action))}">Send Ada exploring · 10 min</button>
+    </div></div>
+  </section>`;
+}
+
+/**
  * How it works for one system: the real shared card from src/teach-ui.ts
  * with the real copy from src/how-it-works.ts (#242), in the mock's sheet.
  */
@@ -312,6 +338,8 @@ export function renderTeach(control: string): string {
       return frame(step, rock());
     case "reveal":
       return frame(step, revealSheet());
+    case "engineers":
+      return frame(step, engineersSheet());
     case undefined:
       throw new Error(`Unknown teach step ${control}`);
   }

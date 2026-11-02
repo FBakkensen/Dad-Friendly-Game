@@ -45,6 +45,16 @@ const TEACH_SPECS: readonly TeachSpec[] = [
       mountain.bench !== undefined ||
       Object.values(mountain.crafted ?? {}).some((level) => level > 0),
   },
+  // Big system (#246): the first engineer arrives with the first borer.
+  // The first trip is the first use.
+  {
+    id: "engineers",
+    size: "big",
+    unlocked: (mountain) => (mountain.engineers?.length ?? 0) > 0,
+    used: (mountain) =>
+      (mountain.expeditions?.length ?? 0) > 0 ||
+      (mountain.engineers ?? []).some((engineer) => engineer.trips > 0),
+  },
   // Small systems (#245): each boost and upgrade row, once it shows.
   ...BOOSTS.map((boost): TeachSpec => ({
     id: boostRowId(boost),
