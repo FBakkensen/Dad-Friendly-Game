@@ -13,7 +13,7 @@ import { reducedMotion } from "./float-text";
 import cartUrl from "./assets/mine-cart.png";
 import drillUrl from "./assets/steam-drill.png";
 import mapUrl from "./assets/worn-map.png";
-import pickUrl from "./assets/pick.png";
+import oreUrl from "./assets/ore-lump.png";
 import heartUrl from "./assets/relics/heart.png";
 import lanternUrl from "./assets/relics/lantern.png";
 import shieldUrl from "./assets/relics/shield.png";
@@ -70,7 +70,7 @@ import {
 const RECIPE_ICON: Record<RecipeId, string> = {
   "iron-rails": cartUrl,
   "sturdy-props": shieldUrl,
-  "blasting-charge": pickUrl,
+  "blasting-charge": oreUrl,
   reinforce: shieldUrl,
   "axle-grease": cartUrl,
   "diamond-bits": drillUrl,

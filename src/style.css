@@ -4790,10 +4790,11 @@ body {
   border-color: var(--color-gold);
 }
 
+/* Top-right inside the card, where the price sits on the other cards. */
 .workshop-dialog .workshop-card > .teach-tag {
   position: absolute;
-  top: calc(-1 * var(--space-8));
-  left: var(--space-16);
+  top: var(--space-8);
+  right: var(--space-8);
 }
 
 /* The one big button runs the full width under the card's lines. */

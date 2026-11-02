@@ -34,6 +34,7 @@ import {
   percent,
   refundBackWords,
   timerLeftWords,
+  crewRunningWords,
 } from "./screen-words";
 import {
   MAX_CRAFTED_LEVEL,
@@ -266,6 +267,15 @@ function crewBuffLine(
   kind: "charge" | "axle",
   durationMs: number,
 ): string {
+  const ownId = kind === "charge" ? "blasting-charge" : "axle-grease";
+  const own = hotTimers(mountain, now).find((timer) => timer.id === ownId);
+  if (own !== undefined) {
+    const running =
+      kind === "charge"
+        ? chargeCrewMultiplier(mountain, now)
+        : axleCrewMultiplier(mountain, now);
+    return crewRunningWords(formatCraftSpeed(running), own.until - now);
+  }
   const time = craftTimeWords(durationMs);
   const before = effectiveRates(mountain, now).exactCrewPerSecond;
   const afterMountain =
