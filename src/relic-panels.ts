@@ -1,4 +1,13 @@
 import { KEEPSAKES } from "./expeditions";
+import {
+  SHEET_CARD,
+  SHEET_CARD_BODY,
+  SHEET_CARD_ICON,
+  SHEET_CARD_LINE,
+  SHEET_CARD_TITLE,
+  SHEET_LOCKED,
+  SHEET_READY,
+} from "./sheet-card";
 import { formatCount } from "./format";
 import { MOUNTAIN_STONES } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
@@ -66,18 +75,21 @@ export function createRelicPanels({
   shelfList.className = "shelf-list";
   const shelfRows = RELICS.map(() => {
     const row = document.createElement("li");
+    row.className = `shelf-row ${SHEET_CARD}`;
     const art = document.createElement("img");
+    art.className = SHEET_CARD_ICON;
     art.alt = "";
     art.width = 48;
     art.height = 48;
     art.draggable = false;
     const words = document.createElement("div");
+    words.className = SHEET_CARD_BODY;
     const name = document.createElement("p");
-    name.className = "shelf-name";
+    name.className = `shelf-name ${SHEET_CARD_TITLE}`;
     const detail = document.createElement("p");
-    detail.className = "shelf-detail";
+    detail.className = `shelf-detail ${SHEET_CARD_LINE}`;
     const hint = document.createElement("p");
-    hint.className = "shelf-hint";
+    hint.className = `shelf-hint ${SHEET_CARD_LINE}`;
     words.append(name, detail, hint);
     row.append(art, words);
     shelfList.append(row);
@@ -311,6 +323,8 @@ export function createRelicPanels({
       }
       slot.dataset["found"] = String(has);
       row.row.dataset["found"] = String(has);
+      row.row.classList.toggle(SHEET_READY, has);
+      row.row.classList.toggle(SHEET_LOCKED, !has);
       row.art.src = relicArt[relic.id];
       row.name.textContent = relic.name;
       row.detail.textContent = has

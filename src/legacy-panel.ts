@@ -53,7 +53,7 @@ export function createLegacyPanel({
   card.className = "start-over-card legacy-card";
   const title = document.createElement("h2");
   title.id = "legacy-title";
-  title.textContent = "Pass the mine to your kid?";
+  title.textContent = "Pass the mine to your kid.";
   const detail = document.createElement("p");
   detail.id = "legacy-detail";
   detail.className = "legacy-detail";

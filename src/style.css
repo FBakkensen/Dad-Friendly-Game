@@ -4337,9 +4337,10 @@ body {
   text-overflow: unset;
 }
 
-/* Buys, Upgrades and Workshop share one card. Lists may scroll. The page does not. */
+/* Buys, Upgrades, Workshop and the relic shelf share one card. Lists may scroll. The page does not. */
 .buys-dialog .tier.sheet-card,
 .workshop-dialog .workshop-card.sheet-card,
+.shelf-dialog .shelf-row.sheet-card,
 .upgrades-dialog .upgrade.sheet-card {
   display: grid;
   grid-template-columns: var(--sheet-icon) minmax(0, 1fr);
@@ -4360,6 +4361,7 @@ body {
 /* The card's display beats the user-agent [hidden] rule. Keep hidden tiers out of the list. */
 .buys-dialog .tier.sheet-card[hidden],
 .workshop-dialog .workshop-card.sheet-card[hidden],
+.shelf-dialog .shelf-row.sheet-card[hidden],
 .upgrades-dialog .upgrade.sheet-card[hidden] {
   display: none;
 }
@@ -4367,6 +4369,7 @@ body {
 .buys-dialog .tier.sheet-card.sheet-ready,
 .buys-dialog .tier.sheet-card.tier-ready,
 .workshop-dialog .workshop-card.sheet-card.sheet-ready,
+.shelf-dialog .shelf-row.sheet-card.sheet-ready,
 .upgrades-dialog .upgrade.sheet-card.sheet-ready,
 .upgrades-dialog .upgrade.sheet-card.is-ready {
   border-color: var(--color-state-ready);
@@ -4382,8 +4385,10 @@ body {
 .buys-dialog .tier.sheet-card.tier-dear,
 .buys-dialog .tier.sheet-card.tier-locked,
 .workshop-dialog .workshop-card.sheet-card.sheet-dear,
+.shelf-dialog .shelf-row.sheet-card.sheet-dear,
 .upgrades-dialog .upgrade.sheet-card.sheet-dear,
 .workshop-dialog .workshop-card.sheet-card.sheet-locked,
+.shelf-dialog .shelf-row.sheet-card.sheet-locked,
 .upgrades-dialog .upgrade.sheet-card.sheet-locked,
 .upgrades-dialog .upgrade.sheet-card.is-dear,
 .upgrades-dialog .upgrade.sheet-card.is-locked {
@@ -4393,6 +4398,7 @@ body {
 
 .buys-dialog .tier.sheet-card .sheet-card-icon,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-icon,
+.shelf-dialog .shelf-row.sheet-card .sheet-card-icon,
 .upgrades-dialog .upgrade.sheet-card .sheet-card-icon {
   grid-column: 1;
   grid-row: 1;
@@ -4406,6 +4412,7 @@ body {
 
 .buys-dialog .tier.sheet-card .sheet-card-body,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-body,
+.shelf-dialog .shelf-row.sheet-card .sheet-card-body,
 .upgrades-dialog .upgrade.sheet-card .sheet-card-body {
   display: grid;
   grid-column: 2;
@@ -4419,6 +4426,7 @@ body {
 
 .buys-dialog .tier.sheet-card .sheet-card-title,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-heading,
+.shelf-dialog .shelf-row.sheet-card .sheet-card-heading,
 .upgrades-dialog .upgrade.sheet-card .sheet-card-heading,
 .upgrades-dialog .upgrade.sheet-card .sheet-card-body > .sheet-card-title {
   grid-column: 1;
@@ -4513,6 +4521,7 @@ body {
 
 .buys-dialog .tier.sheet-card .sheet-card-line,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-line,
+.shelf-dialog .shelf-row.sheet-card .sheet-card-line,
 .upgrades-dialog .upgrade.sheet-card .sheet-card-line {
   grid-column: 1 / -1;
   margin: 0;
@@ -4526,6 +4535,7 @@ body {
 
 .buys-dialog .tier.sheet-card .sheet-card-quiet,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-quiet,
+.shelf-dialog .shelf-row.sheet-card .sheet-card-quiet,
 .upgrades-dialog .upgrade.sheet-card .sheet-card-quiet {
   color: var(--color-quiet);
   font-weight: var(--weight-regular);
@@ -4624,4 +4634,116 @@ body {
 
 .workshop-dialog .workshop-card.sheet-card {
   flex: none;
+}
+
+/* M10-6: relics, legacy, welcome and the menu on the shared parts. */
+.shelf-card,
+.menu-card,
+.start-over-card,
+.reveal-card,
+.welcome-card {
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-sheet);
+  background: var(--color-card);
+  box-shadow: none;
+  color: var(--color-ink);
+}
+
+.shelf-card h2,
+.menu-card h2 {
+  color: var(--color-ink);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+.shelf-dialog .shelf-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+}
+
+.shelf-dialog .shelf-row.sheet-card {
+  flex: none;
+  margin: 0;
+}
+
+.shelf-dialog .shelf-row.sheet-card .sheet-card-title {
+  color: var(--color-ink);
+}
+
+.shelf-dialog .shelf-row.sheet-card .shelf-detail {
+  color: var(--color-ink);
+  font-size: var(--type-14);
+  font-weight: var(--weight-regular);
+}
+
+.shelf-dialog .shelf-row.sheet-card .shelf-hint {
+  color: var(--color-gold);
+  font-size: var(--type-14);
+}
+
+.shelf-dialog .shelf-row.sheet-locked {
+  border-style: dashed;
+}
+
+.shelf-dialog .shelf-row.sheet-locked .shelf-detail {
+  color: var(--color-quiet);
+  font-style: italic;
+}
+
+/* The one main move on a card: primary. */
+.welcome-continue,
+.reveal-continue,
+.legacy-confirm,
+.start-over-confirm,
+.auth-action {
+  min-height: var(--target-min);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+  background: var(--color-gold);
+  box-shadow: none;
+  color: var(--color-ink-on-gold);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+/* Second moves: secondary. */
+.workshop-open,
+.field-log-copy,
+.menu-pass {
+  min-height: var(--target-min);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  box-shadow: none;
+  color: var(--color-gold);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+/* Going back, quietly: the same Back as Buys and Upgrades. */
+.shelf-close,
+.menu-close,
+.legacy-cancel,
+.start-over-cancel {
+  min-height: var(--target-min);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  box-shadow: none;
+  color: var(--color-ink);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+/* Relics keep their big glowing art: the mock's 48px card icon. */
+.shelf-dialog .shelf-row.sheet-card {
+  grid-template-columns: var(--target-min) minmax(0, 1fr);
+}
+
+.shelf-dialog .shelf-row.sheet-card .sheet-card-icon {
+  width: var(--target-min);
+  height: var(--target-min);
+  margin-top: 0;
+  align-self: center;
 }
