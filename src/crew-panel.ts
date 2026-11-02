@@ -533,27 +533,22 @@ export function createCrewPanel({
       const bits = [
         {
           src: tierArt.helper,
-          text: `${formatCompact(pool)} ${workerWords(pool)}`,
+          text: `${formatCompact(pool)} ${workerWords(pool)} · ${formatCompact(Math.max(0, Math.floor(spare)))} free`,
         },
         ...stationBits,
-        {
-          src: tierArt.helper,
-          text: `${formatCompact(Math.max(0, Math.floor(spare)))} free`,
-        },
       ];
-      paintRows([bits]);
       postsButton.classList.remove("is-open");
-      const row = postsButton.querySelector(".crew-row");
-      const contentWidth =
-        row instanceof HTMLElement ? row.scrollWidth : postsButton.scrollWidth;
-      const wraps =
-        postsButton.isConnected &&
-        postsButton.clientWidth > 0 &&
-        Math.max(contentWidth, postsButton.scrollWidth) >
-          postsButton.clientWidth + 1;
-      if (wraps && bits.length > 2) {
-        const mid = Math.ceil(bits.length / 2);
-        paintRows([bits.slice(0, mid), bits.slice(mid)]);
+      // Fewest even rows whose widest row fits the line.
+      for (let rows = 1; rows <= bits.length; rows += 1) {
+        const size = Math.ceil(bits.length / rows);
+        paintRows(
+          Array.from({ length: Math.ceil(bits.length / size) }, (_, index) =>
+            bits.slice(index * size, (index + 1) * size),
+          ),
+        );
+        if (!crewRowsOverflow(postsButton)) {
+          break;
+        }
       }
       postsButton.dataset["tight"] = "false";
       postsButton.removeAttribute("aria-expanded");
@@ -596,4 +591,15 @@ export function createCrewPanel({
   const render = renderCrew;
 
   return { crew, tierGrid, thanks, render };
+}
+
+function crewRowsOverflow(line: HTMLElement): boolean {
+  if (!line.isConnected || line.clientWidth <= 0) {
+    return false;
+  }
+  const rows = [...line.querySelectorAll<HTMLElement>(".crew-row")];
+  if (rows.some((row) => row.scrollWidth > row.clientWidth + 1)) {
+    return true;
+  }
+  return rows.length === 1 && line.scrollWidth > line.clientWidth + 1;
 }

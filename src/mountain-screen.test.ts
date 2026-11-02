@@ -2139,9 +2139,11 @@ describe("Flemming's cart (#216)", () => {
     expect(posts.textContent).toContain("15 on drills");
     const rows = [...posts.querySelectorAll(".crew-row")];
     expect(rows.length).toBe(2);
-    expect(
-      rows.every((row) => row.querySelectorAll(".crew-bit").length >= 2),
-    ).toBe(true);
+    const sizes = rows.map((row) => row.querySelectorAll(".crew-bit").length);
+    expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
+    expect(posts.querySelector(".crew-bit")?.textContent).toMatch(
+      /workers · \d+ free$/,
+    );
     posts.click();
     expect(
       screen.root.querySelector<HTMLElement>(".crew-breakdown")?.hidden,
@@ -3525,7 +3527,7 @@ describe("side tunnels (#147)", () => {
     );
     const chip = screen.root.querySelector<HTMLElement>(".expedition-chip");
     expect(chip?.hidden).toBe(false);
-    expect(chip?.textContent).toBe("Ada1h00");
+    expect(chip?.textContent).toBe("Ada1h 0m");
     expect(chip?.getAttribute("aria-label")).toContain(
       "Ada will be gone about an hour.",
     );
@@ -3630,7 +3632,7 @@ describe("side tunnels (#147)", () => {
     );
     expect(deep?.disabled).toBe(false);
     deep?.click();
-    expect(screen.text(".expedition-chip")).toBe("Ada4h00");
+    expect(screen.text(".expedition-chip")).toBe("Ada4h 0m");
     expect(
       screen.root.querySelector(".expedition-chip")?.getAttribute("aria-label"),
     ).toContain("Ada will be gone a long night.");
