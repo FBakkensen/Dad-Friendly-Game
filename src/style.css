@@ -2872,20 +2872,29 @@ body {
   display: none;
 }
 
+/* The menu's Workshop row spans the card like Copy field log. Locked, it wears
+   the bottom bar's dimmed look: disabled fill, quiet text, grey hammer. */
+.workshop-menu {
+  align-self: stretch;
+  width: 100%;
+}
+
 .workshop-locked {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-8);
   width: 100%;
-  min-height: 52px;
+  min-height: var(--target-min);
   margin: 0;
-  border: 2px solid #3a2a1c;
+  padding: var(--space-4) var(--space-8);
+  border: var(--line) solid var(--color-disabled);
   border-radius: 12px;
-  background: #0e0907;
-  color: #c9b391;
+  background: var(--color-disabled);
+  color: var(--color-quiet);
   font-size: 1rem;
   font-weight: 650;
+  text-align: center;
 }
 
 .workshop-locked img,
@@ -2898,10 +2907,12 @@ body {
 }
 
 .workshop-locked img {
-  width: 36px;
-  height: 36px;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
   object-fit: contain;
-  filter: grayscale(1) brightness(0.28);
+  opacity: 0.5;
+  filter: grayscale(1);
 }
 
 .workshop-materials,

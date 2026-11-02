@@ -1792,7 +1792,7 @@ for (const viewport of WORKSHOP_SIZES) {
   );
   check(
     !locked.hidden &&
-      locked.text.includes("Locked · The Granite") &&
+      locked.text.includes("Workshop · opens in The Granite") &&
       !locked.text.includes("?") &&
       openHidden,
     "424x830 workshop is a locked silhouette before the Granite",
