@@ -154,7 +154,7 @@ describe("workshop panel (#199)", () => {
     expect(sheet?.textContent).toContain("Need 3 more iron");
     expect(sheet?.textContent).toContain("Carts 8.5/s to 10.6/s");
     expect(sheet?.textContent).toContain("500K stones");
-    expect(sheet?.textContent).toContain("Level 1 of 2");
+    expect(sheet?.textContent).toContain("Lv 0/2");
     const stoneIcon = sheet?.querySelector(".mat-stones");
     const clayIcon = sheet?.querySelector(".mat-clay");
     expect(stoneIcon?.getAttribute("src")).toContain("stone");
@@ -170,6 +170,19 @@ describe("workshop panel (#199)", () => {
 
     const short = sheet?.querySelector<HTMLButtonElement>(
       "[data-short='Need 3 more iron']",
+    );
+    const cards = [...(sheet?.querySelectorAll(".workshop-card") ?? [])];
+    expect(cards.every((card) => card.classList.contains("sheet-card"))).toBe(
+      true,
+    );
+    expect(
+      cards.every((card) => card.querySelector(".sheet-card-icon") !== null),
+    ).toBe(true);
+    const shortCard = short?.closest(".workshop-card");
+    expect(shortCard?.classList.contains("sheet-dear")).toBe(true);
+    expect(short?.textContent).toMatch(/^Craft/);
+    expect(shortCard?.querySelector(".workshop-need")?.textContent).toBe(
+      "Need 3 more iron",
     );
     const pocketBefore = screen.progress.getSnapshot().mountain.pocket;
     short?.click();

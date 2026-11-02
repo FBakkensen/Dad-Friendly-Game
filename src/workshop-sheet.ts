@@ -90,8 +90,10 @@ type CraftAction =
 export type RecipeCard = {
   readonly kind: "recipe";
   readonly id: RecipeId;
+  /** "Craft · 500K", shown even when the shed is short. */
+  readonly price: string;
   readonly name: string;
-  /** "Level 1 of 2" when the craft can be made more than once. */
+  /** "Lv 0/2" when the craft can be made more than once. */
   readonly level: string | undefined;
   readonly effect: string;
   /** Stones, when this craft spends any. Materials sit in `costs`. */
@@ -182,7 +184,7 @@ function levelLine(recipe: Recipe, level: number): string | undefined {
   if (recipe.maxLevel === undefined || recipe.maxLevel <= 1) {
     return undefined;
   }
-  return craftLevelWords(level + 1, recipe.maxLevel);
+  return craftLevelWords(level, recipe.maxLevel);
 }
 
 function tierShift(
@@ -642,6 +644,7 @@ function recipeCard(
     kind: "recipe",
     id: recipe.id,
     name: recipe.name,
+    price: cost.stones > 0 ? craftPriceWords(cost.stones) : CRAFT_WORD,
     level: levelLine(recipe, level),
     effect: craftEffect(recipe, mountain, now),
     stones: cost.stones > 0 ? stoneCostWords(cost.stones) : undefined,

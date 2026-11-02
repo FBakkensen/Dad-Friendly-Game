@@ -77,7 +77,7 @@ describe("workshop sheet (#199)", () => {
     const cards = workshopCards(mountain, 1_000);
     const rails = recipe(cards, "iron-rails");
     expect(rails.name).toBe("Iron rails");
-    expect(rails.level).toBe("Level 1 of 2");
+    expect(rails.level).toBe("Lv 0/2");
     expect(rails.effect).toBe("Carts 8.5/s to 10.6/s");
     expect(rails.stones).toBe("500K stones");
     expect(rails.costs.map((cost) => cost.text)).toEqual(["4 iron"]);
@@ -87,7 +87,7 @@ describe("workshop sheet (#199)", () => {
       "Trouble comes 30% less often.",
     );
     expect(recipe(cards, "reinforce").name).toBe("Reinforce");
-    expect(recipe(cards, "reinforce").level).toBe("Level 1 of 5");
+    expect(recipe(cards, "reinforce").level).toBe("Lv 0/5");
     expect(recipe(cards, "reinforce").stones).toBeUndefined();
     expect(recipe(cards, "reinforce").effect).toBe("Drills 60/s to 63/s");
     expect(recipe(cards, "reinforce").action).toEqual({

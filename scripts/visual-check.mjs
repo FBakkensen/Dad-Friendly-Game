@@ -1611,8 +1611,12 @@ for (const viewport of WORKSHOP_SIZES) {
   await page.tap(".workshop-open");
   const laid = await coversViewport(page, ".workshop-dialog");
   const fit = await page.$eval(".workshop-dialog", (sheet) => {
+    // Crafts sit in a list that may scroll. Every other button stays on screen.
     const buttons = [...sheet.querySelectorAll("button")].filter(
-      (button) => !button.hidden && button.getClientRects().length > 0,
+      (button) =>
+        !button.hidden &&
+        button.getClientRects().length > 0 &&
+        button.closest(".workshop-recipes") === null,
     );
     const boxes = buttons.map((button) => {
       const box = button.getBoundingClientRect();
@@ -1656,11 +1660,11 @@ for (const viewport of WORKSHOP_SIZES) {
     laid &&
       still &&
       fit.boxesOk &&
-      fit.count >= 4 &&
+      fit.count >= 3 &&
       fit.typeOk &&
       fit.text.includes("On the bench: Sturdy props") &&
       fit.text.includes("left") &&
-      fit.text.includes("Level 1 of 2") &&
+      fit.text.includes("Lv 0/2") &&
       fit.text.includes("500K stones") &&
       fit.text.includes("Bench busy") &&
       fit.cancel.includes("250K") &&
@@ -1672,7 +1676,7 @@ for (const viewport of WORKSHOP_SIZES) {
       !/\d/.test(fit.sketch),
     `${size} workshop sheet fits with real numbers`,
   );
-  if (!fit.boxesOk || !still) {
+  if (!fit.boxesOk || !still || !fit.typeOk) {
     console.log("workshop fit", size, fit);
   }
   const timerSplit = await page.$eval(".workshop-dialog", (sheet) => {
@@ -1720,8 +1724,8 @@ for (const viewport of WORKSHOP_SIZES) {
     }
     const short = await page.$(".workshop-craft.is-short");
     const shortText = await page.$eval(".workshop-dialog", (sheet) =>
-      [...sheet.querySelectorAll(".workshop-craft.is-short")].map(
-        (button) => button.textContent ?? "",
+      [...sheet.querySelectorAll(".workshop-need")].map(
+        (line) => line.textContent ?? "",
       ),
     );
     check(

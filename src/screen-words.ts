@@ -905,9 +905,9 @@ export function crewAlreadyWords(mark: number): string {
   return `Crew already at ×${formatCraftSpeed(mark)}.`;
 }
 
-/** "Level 1 of 2" for a craft that can be made more than once. */
-export function craftLevelWords(next: number, max: number): string {
-  return `Level ${String(next)} of ${String(max)}`;
+/** "Lv 0/2", the same level chip as Upgrades, for a craft made more than once. */
+export function craftLevelWords(level: number, max: number): string {
+  return `Lv ${String(level)}/${String(max)}`;
 }
 
 /** A waiting card. The cost stays on the card; this is only the button. */

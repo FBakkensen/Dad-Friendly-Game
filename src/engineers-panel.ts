@@ -158,9 +158,8 @@ export function createEngineersPanel({
   const close = document.createElement("button");
   close.type = "button";
   close.className = "engineers-close";
-  close.textContent = "×";
-  close.setAttribute("aria-label", "Back to the mountain");
-  head.append(titles, close);
+  close.textContent = "Back to the mountain";
+  head.append(titles);
 
   const list = document.createElement("ul");
   list.className = "engineer-list";
@@ -657,7 +656,7 @@ export function createEngineersPanel({
     closeSheet();
   });
 
-  card.append(head, list, promoteRow);
+  card.append(head, list, promoteRow, close);
   sheet.append(card, modal, toast);
 
   const render = (): void => {
