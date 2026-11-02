@@ -1454,9 +1454,14 @@ body {
   width: min(420px, 100%);
   margin: 0 auto;
   padding: 2px 8px;
+  background: var(--color-card);
+}
+
+/* The bottom sheets' gold frame (#285): Upgrades and Buys share it. */
+.upgrades-dialog .sheet-frame,
+.buys-dialog .sheet-frame {
   border: 2px solid #e8a84a;
   border-radius: 20px;
-  background: #1e130d;
   box-shadow: 0 0 48px rgba(232, 168, 74, 0.35);
 }
 

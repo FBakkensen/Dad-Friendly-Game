@@ -187,7 +187,7 @@ export function createUpgradesPanel({
   upgradesSheet.setAttribute("aria-labelledby", "upgrades-title");
   upgradesSheet.hidden = true;
   const upgradesCard = document.createElement("div");
-  upgradesCard.className = "upgrades-card";
+  upgradesCard.className = "upgrades-card sheet-frame";
   const upgradesTitle = document.createElement("h2");
   upgradesTitle.id = "upgrades-title";
   upgradesTitle.className = "label";

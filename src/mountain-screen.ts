@@ -776,7 +776,7 @@ export function mountMountainScreen({
   buysDialog.setAttribute("role", "dialog");
   buysDialog.setAttribute("aria-label", "Buys");
   const buysCard = document.createElement("div");
-  buysCard.className = "buys-card";
+  buysCard.className = "buys-card sheet-frame";
   const buysClose = document.createElement("button");
   buysClose.type = "button";
   buysClose.className = "buys-close";

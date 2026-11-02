@@ -323,8 +323,7 @@ export function staffingAction(workerPrice: number): string {
 }
 
 /** The Buys intro while an idle machine is the New card. */
-export const STAFFING_INTRO =
-  "Machines need their crew. Hire workers and idle ones start.";
+export const STAFFING_INTRO = "Idle machines start when you hire workers.";
 
 /** The intro line on the guided first tend. */
 export function tendingIntro(name: string): string {
