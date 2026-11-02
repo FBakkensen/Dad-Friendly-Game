@@ -1030,6 +1030,14 @@ describe("relic shelf", () => {
     expect(rows[0]?.querySelector(".shelf-name")?.textContent).toBe(
       "Lantern of Guidance",
     );
+    expect(rows.every((row) => row.classList.contains("sheet-card"))).toBe(
+      true,
+    );
+    expect(rows.every((row) => row.querySelector(".sheet-card-icon"))).toBe(
+      true,
+    );
+    expect(rows[0]?.classList.contains("sheet-ready")).toBe(true);
+    expect(rows[2]?.classList.contains("sheet-locked")).toBe(true);
     expect(rows[1]?.querySelector(".shelf-detail")?.textContent).toContain(
       "The virtue of Protection.",
     );
@@ -2577,7 +2585,7 @@ describe("pass the mine to your kid (#131)", () => {
 
     expect(legend?.hidden).toBe(true);
     expect(dialog(screen)?.hidden).toBe(false);
-    expect(screen.text("#legacy-title")).toBe("Pass the mine to your kid?");
+    expect(screen.text("#legacy-title")).toBe("Pass the mine to your kid.");
     expect(screen.text(".legacy-detail")).toContain("×1.5");
     expect(document.activeElement).toBe(
       dialog(screen)?.querySelector(".legacy-cancel"),

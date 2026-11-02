@@ -3032,6 +3032,90 @@ for (const viewport of EFFECT_VIEWS) {
   }
 }
 
+// #238: no screen moves the page. Lists inside a sheet may scroll; the page never does.
+const GUARD_SIZES = [
+  [390, 844],
+  [360, 640],
+  [360, 560],
+];
+function guardSave(lastSeen, remaining = 200_000_000) {
+  return {
+    version: 6,
+    lastSeen,
+    mountain: {
+      remaining,
+      pocket: 3_250_000,
+      helpers: 34,
+      carts: 12,
+      drills: 4,
+      borers: 1,
+      staffed: 2,
+      engineers: [{ name: "Ada", rank: 1, trips: 3, post: "camp" }],
+      boosts: { sharper: lastSeen + 3_600_000 },
+    },
+    workshop: {
+      materials: { clay: 12, iron: 6, crystal: 2, heartstone: 0 },
+      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
+    },
+  };
+}
+const GUARD_SCREENS = [
+  ["main, fresh", () => freshMountain(), []],
+  ["main, mid-game", () => guardSave(Date.now()), []],
+  ["buys", () => guardSave(Date.now()), [".buys-button"]],
+  ["upgrades", () => guardSave(Date.now()), [".upgrades-button"]],
+  ["workshop", () => guardSave(Date.now()), [".thumb-workshop"]],
+  ["engineers", () => guardSave(Date.now()), [".engineers-button"]],
+  ["relic shelf", () => guardSave(Date.now()), [".relic-shelf"]],
+  ["menu", () => guardSave(Date.now()), [".menu-button"]],
+  ["welcome", () => guardSave(Date.now() - 3 * 3_600_000), []],
+  [
+    "legacy",
+    () => ({
+      version: 5,
+      mountain: {
+        remaining: 1,
+        pocket: 0,
+        helpers: 999,
+        kids: 999,
+        staffed: 2,
+        legacy: 1,
+      },
+      lastSeen: Date.now(),
+    }),
+    [
+      ".mountain",
+      ".relic-reveal:not(.legend) .reveal-continue",
+      ".legend .legend-pass",
+    ],
+  ],
+];
+for (const viewport of GUARD_SIZES) {
+  const size = `${String(viewport[0])}x${String(viewport[1])}`;
+  for (const [name, save, taps] of GUARD_SCREENS) {
+    const { page, close } = await open(viewport, save());
+    let opened = true;
+    for (const selector of taps) {
+      opened = await page
+        .waitForSelector(selector, { visible: true, timeout: 2_000 })
+        .then(() => page.tap(selector))
+        .then(
+          () => true,
+          () => false,
+        );
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      if (!opened) {
+        break;
+      }
+    }
+    check(
+      opened && (await noScroll(page)),
+      `${size} ${name} opens without scrolling the page`,
+    );
+    await close();
+  }
+}
+
 await browser.close();
 await server?.close();
 if (failures.length > 0) {
