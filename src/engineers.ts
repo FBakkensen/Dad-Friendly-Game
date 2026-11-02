@@ -55,7 +55,7 @@ export const MASTER_TRIPS = 9;
 export const PROMOTE_BASE_COST = 1_000_000;
 
 /** +10 / +20 / +30 percent, as tenths, for ranks 0, 1 and 2. */
-const TENDING_TENTHS = [1, 2, 3] as const;
+export const TENDING_TENTHS = [1, 2, 3] as const;
 
 export function rankOf(trips: number): EngineerRank {
   if (trips >= MASTER_TRIPS) {

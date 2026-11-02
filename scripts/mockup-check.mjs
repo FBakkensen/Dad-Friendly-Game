@@ -90,6 +90,25 @@ const SHOTS = [
     "rest",
     step,
   ]),
+  // Every How it works card (#242), so each one is checked for scroll.
+  ...[
+    "tapping",
+    "workers",
+    "machines",
+    "upgrades",
+    "boosts",
+    "veins",
+    "relics",
+    "engineers",
+    "tending",
+    "expeditions",
+    "layers",
+    "materials",
+    "workshop",
+    "recipes",
+    "away",
+    "legacy",
+  ].map((system) => ["teach", "rest", `how-${system}`]),
 ];
 
 const failures = [];
