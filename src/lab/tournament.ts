@@ -9,6 +9,7 @@ import {
   type ScoreMethod,
 } from "./measure";
 import { valueContext, type Policy } from "./policy";
+import { createRevealLog, type RevealEvent } from "./reveal";
 import { runPolicy } from "./run";
 import { scoreDecision } from "./score";
 import { mean, median } from "./stats";
@@ -17,6 +18,7 @@ import { applyScope } from "./scope";
 import {
   CASUAL_REFERENCE_ID,
   HOUR_MS,
+  MS_PER_SECOND,
   OPTIMIZER_REFERENCE_ID,
   REPORT_DEAD_HOURS,
   meetsTarget,
@@ -125,12 +127,21 @@ function samplePolicy(
 ): readonly DecisionSample[] {
   const samples: DecisionSample[] = [];
   let live = 0;
+  let liveSec = 0;
+  let lastClock = 0;
+  let pending: RevealEvent[] = [];
+  const reveal = createRevealLog();
   const context = valueContext(policy.params);
   const run = runPolicy({
     policy,
     seed,
     maxDays: days,
     observe(world) {
+      if (world.clock - lastClock === MS_PER_SECOND) {
+        liveSec += 1;
+      }
+      lastClock = world.clock;
+      pending.push(...reveal(world.mountain, liveSec));
       if (isSampleSecond(live)) {
         const trouble =
           world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
@@ -154,11 +165,30 @@ function samplePolicy(
             ...(trouble === undefined ? {} : { trouble }),
           }),
         );
+        attach(samples, pending);
+        pending = [];
       }
       live += 1;
     },
   });
+  attach(samples, pending);
   return withFinish(samples, run.finishDay);
+}
+
+/** Hangs the events on the newest sample. */
+function attach(
+  samples: DecisionSample[],
+  events: readonly RevealEvent[],
+): void {
+  const index = samples.length - 1;
+  const last = samples[index];
+  if (last === undefined || events.length === 0) {
+    return;
+  }
+  samples[index] = {
+    ...last,
+    reveals: [...(last.reveals ?? []), ...events],
+  };
 }
 
 /** Every policy, every seed. The measures and targets decide the columns and the pass/fail. */

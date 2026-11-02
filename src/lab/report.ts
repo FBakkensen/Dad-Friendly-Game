@@ -76,7 +76,7 @@ export function labSuggestions(result: TournamentResult): readonly string[] {
     if (sample === undefined) {
       continue;
     }
-    notes.push(listText(column.label, sample.why, named.length));
+    notes.push(listText(column.label, sample.unit, sample.why, named.length));
   }
   for (const stretch of result.deadStretches) {
     notes.push(stretchText(stretch));
@@ -300,7 +300,7 @@ function listSection(result: TournamentResult): readonly string[] {
   const lines: string[] = [];
   for (const column of columns) {
     lines.push(`## ${column.label}`, "", column.why, "");
-    lines.push("| Policy | Kinds |", "| --- | --- |");
+    lines.push(`| Policy | ${capitalize(column.unit)} |`, "| --- | --- |");
     for (const row of result.rows) {
       const cell = row.cells.find((item) => item.measureId === column.id);
       const shown =
@@ -396,9 +396,14 @@ function boundText(judgement: Judgement, unit: string): string {
   return `${word} ${formatMeasure(judgement.limit, unit)}`;
 }
 
-function listText(label: string, why: string, players: number): string {
+function listText(
+  label: string,
+  unit: string,
+  why: string,
+  players: number,
+): string {
   const noun = players === 1 ? "player type" : "player types";
-  return `${label} names unused kinds for ${String(players)} ${noun}. ${why} ${SUGGESTION}`;
+  return `${label} names ${unit} for ${String(players)} ${noun}. ${why} ${SUGGESTION}`;
 }
 
 function scoreName(score: ScoreMethod): string {
@@ -443,4 +448,8 @@ function jsonMeasure(
     return value;
   }
   return jsonNumber(value);
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }

@@ -1,6 +1,7 @@
 import type { Action } from "../economy/actions";
 import type { LayerId, Materials } from "../layers";
 import type { Crafted, RecipeId } from "../workshop";
+import type { RevealEvent } from "./reveal";
 
 /**
  * One moment on the table. Official fields use payback. `byValue` is the
@@ -55,6 +56,11 @@ export type DecisionSample = {
     /** Best move's income per second, per stone of cost. */
     readonly perStone: number;
   };
+  /**
+   * Appear and first-use events since the previous sample. The last sample
+   * of a run also carries any events after it.
+   */
+  readonly reveals?: readonly RevealEvent[];
   /** Day the mountain emptied, when the run finished. Same on every sample. */
   readonly finishDay?: number;
   /**
