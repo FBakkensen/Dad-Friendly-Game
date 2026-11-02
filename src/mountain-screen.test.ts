@@ -1533,7 +1533,7 @@ describe("upgrades on screen", () => {
     const button =
       screen.root.querySelector<HTMLButtonElement>(".upgrades-button");
     const sheet = screen.root.querySelector<HTMLElement>(".upgrades-dialog");
-    expect(button?.classList.contains("upgrades-ready")).toBe(true);
+    expect(button?.classList.contains("afford-glow")).toBe(true);
     expect(button?.getAttribute("aria-label")).toBe(
       "Upgrades, one is affordable",
     );
@@ -1586,7 +1586,7 @@ describe("upgrades on screen", () => {
     expect(
       screen.root
         .querySelector(".upgrades-button")
-        ?.classList.contains("upgrades-ready"),
+        ?.classList.contains("afford-glow"),
     ).toBe(false);
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
     expect(

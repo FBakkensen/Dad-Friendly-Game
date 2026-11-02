@@ -10,6 +10,7 @@ import borerUrl from "./assets/tunnel-borer.png";
 import mapUrl from "./assets/worn-map.png";
 import stoneUrl from "./assets/stone.png";
 import upgradesIconUrl from "./assets/upgrades-icon.png";
+import { setAffordGlow } from "./afford-glow";
 import { HOW_IT_WORKS } from "./how-it-works";
 import { BOOSTS, boostCost, boostLeft, buyBoost, type BoostId } from "./boosts";
 import { buyOnTap } from "./card-tap";
@@ -588,10 +589,7 @@ export function createUpgradesPanel({
     foundHeading.hidden = !anyFound;
     foundList.hidden = !anyFound;
     upgradesPocket.textContent = `You have ${formatCount(current.pocket)} stones.`;
-    upgradesButton.classList.toggle(
-      "upgrades-ready",
-      anyAffordable && view.ready,
-    );
+    setAffordGlow(upgradesButton, anyAffordable && view.ready);
     upgradesButton.setAttribute(
       "aria-label",
       anyAffordable ? "Upgrades, one is affordable" : "Upgrades",

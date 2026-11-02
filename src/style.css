@@ -258,12 +258,6 @@ body {
   image-rendering: pixelated;
 }
 
-/* Something is affordable: the button glows like a buyable tier card. */
-.upgrades-button.upgrades-ready {
-  border-color: #f2c46d;
-  box-shadow: 0 0 14px rgba(232, 168, 74, 0.55);
-}
-
 .upgrades-heading {
   align-self: flex-start;
   margin: 4px 0 -6px;
@@ -4943,4 +4937,35 @@ body {
 .upgrades-dialog .upgrades-how,
 .upgrades-dialog .upgrades-intro {
   text-align: start;
+}
+
+/* Bottom bar (#282): gold glow when the sheet holds something he can buy
+   now. Shadow only, so the bar never shifts. One soft pulse as it turns
+   on, never a loop. The red dot sits on top and can show with it. */
+.thumb-bar button.afford-glow:not(:disabled) {
+  border-color: var(--color-gold);
+  background: var(--color-card);
+  box-shadow:
+    inset 0 0 0 var(--line) var(--color-gold),
+    0 0 var(--space-16) var(--color-gold);
+  animation: afford-glow-on 0.9s ease-out 1;
+}
+
+@keyframes afford-glow-on {
+  0% {
+    box-shadow:
+      inset 0 0 0 var(--line) var(--color-gold),
+      0 0 0 var(--color-gold);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 var(--line) var(--color-gold),
+      0 0 var(--space-24) var(--color-gold);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb-bar button.afford-glow {
+    animation: none;
+  }
 }

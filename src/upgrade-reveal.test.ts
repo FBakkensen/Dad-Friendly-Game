@@ -284,4 +284,31 @@ describe("upgrades sheet reveal (#245)", () => {
     expect(how?.hidden).toBe(true);
     screen.root.remove();
   });
+
+  it("glows bar buttons live with the pocket, beside the dot, never on a locked one", () => {
+    let clock = 1_700_000_000_000;
+    const screen = mount(() => clock);
+    const bar = (cls: string) =>
+      screen.root.querySelector<HTMLButtonElement>(`.thumb-bar .${cls}`);
+    screen.progress.applyMutation(() => ({ ...createMountain(), pocket: 0 }));
+    expect(bar("buys-button")?.classList.contains("afford-glow")).toBe(false);
+    expect(bar("upgrades-button")?.classList.contains("afford-glow")).toBe(
+      false,
+    );
+    screen.progress.applyMutation((current) => ({
+      ...current,
+      pocket: 60_000,
+    }));
+    clock += 1000;
+    expect(bar("buys-button")?.classList.contains("afford-glow")).toBe(true);
+    const upgrades = bar("upgrades-button");
+    expect(upgrades?.classList.contains("afford-glow")).toBe(true);
+    expect(upgrades?.querySelector(".teach-dot")).not.toBeNull();
+    const workshop = bar("thumb-workshop");
+    expect(workshop?.disabled).toBe(true);
+    expect(workshop?.classList.contains("afford-glow")).toBe(false);
+    screen.progress.applyMutation((current) => ({ ...current, pocket: 0 }));
+    expect(bar("buys-button")?.classList.contains("afford-glow")).toBe(false);
+    screen.root.remove();
+  });
 });

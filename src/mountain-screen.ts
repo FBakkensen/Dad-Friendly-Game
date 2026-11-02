@@ -1,3 +1,4 @@
+import { canBuyAnyTier, canCraftNow, setAffordGlow } from "./afford-glow";
 import pickUrl from "./assets/pick.png";
 import { markSeen, noteFor, showsDot } from "./teach";
 import { createTeachNote, setTeachDot } from "./teach-ui";
@@ -612,6 +613,14 @@ export function mountMountainScreen({
     workshop.render();
     // The menu row hides Workshop until the Granite. The thumb uses that same gate.
     workshopThumb.disabled = !workshopUnlocked(view.mountain);
+    // Gold glow: something in the sheet he can buy right now (#282).
+    setAffordGlow(buysButton, view.ready && canBuyAnyTier(view.mountain));
+    setAffordGlow(
+      workshopThumb,
+      view.ready &&
+        !workshopThumb.disabled &&
+        canCraftNow(view.mountain, now()),
+    );
     setTeachDot(workshopThumb, showsDot(view.mountain, "workshop"));
     if (noteFor(view.mountain) === "workshop") {
       teachNote.show(relicArt.hammer, WORKSHOP_NOTE, openWorkshopSheet);
