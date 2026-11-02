@@ -796,6 +796,10 @@ export const WORKSHOP_SOUND = "Sound";
 export const WORKSHOP_EARLIER = "Earlier";
 export const WORKSHOP_MORE = "More to make";
 
+/** Upgrades sheet (#245): the line above a New card, and the quiet hint. */
+export const UPGRADES_INTRO = "Something new for the crew, right on top.";
+export const UPGRADES_MORE = "More turn up as your pocket grows.";
+
 /** A craft that spends no stones. The materials are the price. */
 export const CRAFT_WORD = "Craft";
 

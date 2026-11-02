@@ -1,4 +1,14 @@
 import type { Mountain } from "./mountain";
+import { BOOSTS } from "./boosts";
+import {
+  boostRowId,
+  boostShown,
+  boostUsed,
+  upgradeRowId,
+  upgradeShown,
+  upgradeUsed,
+} from "./upgrade-reveal";
+import { UPGRADES } from "./upgrades";
 import { workshopUnlocked } from "./workshop";
 
 /**
@@ -35,6 +45,19 @@ const TEACH_SPECS: readonly TeachSpec[] = [
       mountain.bench !== undefined ||
       Object.values(mountain.crafted ?? {}).some((level) => level > 0),
   },
+  // Small systems (#245): each boost and upgrade row, once it shows.
+  ...BOOSTS.map((boost): TeachSpec => ({
+    id: boostRowId(boost),
+    size: "small",
+    unlocked: (mountain) => boostShown(mountain, boost),
+    used: (mountain) => boostUsed(mountain, boost),
+  })),
+  ...UPGRADES.map((upgrade): TeachSpec => ({
+    id: upgradeRowId(upgrade),
+    size: "small",
+    unlocked: (mountain) => upgradeShown(mountain, upgrade),
+    used: (mountain) => upgradeUsed(mountain, upgrade),
+  })),
 ];
 
 /** Longest id and most ids a save keeps, known or from a newer build. */
@@ -87,6 +110,14 @@ export function markSeen(mountain: Mountain, id: string): Mountain {
     return mountain;
   }
   return { ...mountain, seen: added(mountain.seen, id) };
+}
+
+/** Marks each id seen. The same mountain comes back when none is new. */
+export function markAllSeen(
+  mountain: Mountain,
+  ids: readonly string[],
+): Mountain {
+  return ids.reduce(markSeen, mountain);
 }
 
 /**

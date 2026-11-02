@@ -22,7 +22,14 @@ import { createHowCard } from "../src/teach-ui.ts";
  * Every size and colour is a token from src/tokens.css.
  */
 
-const TEACH_STEPS = ["note", "sheet", "payoff", "how", "dot"] as const;
+const TEACH_STEPS = [
+  "note",
+  "sheet",
+  "payoff",
+  "how",
+  "dot",
+  "reveal",
+] as const;
 type TeachStep = (typeof TEACH_STEPS)[number];
 
 const ART = {
@@ -135,7 +142,7 @@ function bar(step: TeachStep): string {
   const dotOn =
     step === "note" || step === "sheet" || step === "how"
       ? "workshop"
-      : step === "dot"
+      : step === "dot" || step === "reveal"
         ? "upgrades"
         : "";
   const items = [
@@ -201,6 +208,37 @@ function sheet(done: boolean): string {
     <header class="teach-sheet-head"><h2 class="kit-title">Workshop</h2><button type="button" class="kit-btn kit-outline kit-info" data-info="1" data-tap="${esc(tap("Opens How it works for the Workshop."))}" aria-label="How it works">i</button></header>
     ${done ? "" : `<p class="teach-intro">${esc(INTRO)}</p>`}
     <div class="kit-stack">${newCard(done)}${OTHERS.map(plainCard).join("")}</div>
+  </section>`;
+}
+
+/**
+ * M11-7 (#245): the Upgrades sheet once Strong arms is nearly affordable.
+ * Rows far off stay hidden behind one quiet line; the new row comes first,
+ * lit and tagged New, with its real price on the one big button. No wait
+ * time and no countdown: only whether the row is there.
+ */
+function revealSheet(): string {
+  const arms = `<div class="card kit-card is-new" data-card="arms" data-tap="${esc(tap("Buys Strong arms for 46K. The tag and the dot go away."))}">
+    <div class="teach-new-top">
+      ${icon(ART.hammer)}
+      <span class="kit-card-body"><span class="kit-card-head"><span class="kit-card-title">Strong arms</span><span class="teach-tag">New</span></span>
+        <span class="kit-card-line">Each tap also mines 1.65% of your crew's speed.</span>
+      </span>
+    </div>
+    <button type="button" class="kit-btn kit-primary kit-wide" data-tap="${esc(tap("Buys Strong arms for 46K."))}">${esc(`Buy · ${formatCompact(46_000)}`)}</button>
+  </div>`;
+  const picks = plainCard({
+    id: "picks",
+    art: ART.pick,
+    name: "Sharper picks",
+    price: `Buy · ${formatCompact(120)}`,
+    line: "Taps ×2 for 10 min.",
+  });
+  return `<section class="card teach-sheet" role="dialog" aria-label="Upgrades">
+    <header class="teach-sheet-head"><h2 class="kit-title">Upgrades</h2></header>
+    <p class="teach-intro">Something new for the crew, right on top.</p>
+    <div class="kit-stack">${arms}${picks}</div>
+    <p class="teach-intro">More turn up as your pocket grows.</p>
   </section>`;
 }
 
@@ -272,6 +310,8 @@ export function renderTeach(control: string): string {
       return frame(step, how("workshop"));
     case "dot":
       return frame(step, rock());
+    case "reveal":
+      return frame(step, revealSheet());
     case undefined:
       throw new Error(`Unknown teach step ${control}`);
   }

@@ -28,7 +28,8 @@ describe("createRevealLog", () => {
     const start = createMountain();
     const first = log(start, 0);
     expect(ids(first, "appeared")).toContain("tier:helper");
-    expect(ids(first, "appeared")).toContain("boost:sharper");
+    // Boosts wait until nearly affordable (#245).
+    expect(ids(first, "appeared")).not.toContain("boost:sharper");
     expect(ids(first, "appeared")).not.toContain("tier:drill");
     expect(ids(first, "appeared")).not.toContain("system:workshop");
     expect(log(start, 1)).toEqual([]);

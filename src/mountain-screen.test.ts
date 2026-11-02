@@ -1533,7 +1533,7 @@ describe("upgrades on screen", () => {
     const button =
       screen.root.querySelector<HTMLButtonElement>(".upgrades-button");
     const sheet = screen.root.querySelector<HTMLElement>(".upgrades-dialog");
-    expect(button?.classList.contains("upgrades-ready")).toBe(true);
+    expect(button?.classList.contains("afford-glow")).toBe(true);
     expect(button?.getAttribute("aria-label")).toBe(
       "Upgrades, one is affordable",
     );
@@ -1586,7 +1586,7 @@ describe("upgrades on screen", () => {
     expect(
       screen.root
         .querySelector(".upgrades-button")
-        ?.classList.contains("upgrades-ready"),
+        ?.classList.contains("afford-glow"),
     ).toBe(false);
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
     expect(
@@ -1773,7 +1773,7 @@ describe("quick boosts on screen", () => {
 });
 
 describe("lasting upgrades on screen", () => {
-  it("shows locked upgrades with their unlock, and boosted helper cards once bought", () => {
+  it("hides locked upgrades until open, and boosts helper cards once bought", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -1785,27 +1785,13 @@ describe("lasting upgrades on screen", () => {
     const boots = screen.root.querySelector<HTMLButtonElement>(
       '[data-upgrade="boots"] .upgrade-buy',
     );
-    expect(boots?.textContent).toBe("Locked");
-    expect(screen.text('[data-upgrade="boots"] .upgrade-name')).toBe(
-      "Better boots",
-    );
+    // Locked rows stay hidden until open and nearly affordable (#245).
     expect(
-      screen.root
-        .querySelector('[data-upgrade="boots"] .upgrade-why')
-        ?.hasAttribute("hidden"),
+      screen.root.querySelector<HTMLElement>('[data-upgrade="boots"]')?.hidden,
     ).toBe(true);
-    expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe("");
-    expect(boots?.disabled).toBe(true);
-    expect(screen.text('[data-upgrade="steady"] .upgrade-buy')).toBe("Locked");
-    expect(screen.text('[data-upgrade="steady"] .upgrade-name')).toBe(
-      "Steady hands",
-    );
     expect(
-      screen.root
-        .querySelector('[data-upgrade="steady"] .upgrade-why')
-        ?.hasAttribute("hidden"),
+      screen.root.querySelector<HTMLElement>('[data-upgrade="steady"]')?.hidden,
     ).toBe(true);
-    expect(screen.text('[data-upgrade="steady"] .upgrade-effect')).toBe("");
 
     screen.root
       .querySelector<HTMLButtonElement>('[data-tier="helper"]')
@@ -1925,18 +1911,10 @@ describe("crew synergies on screen", () => {
     expect(screen.text('[data-upgrade="cartSyn"] .upgrade-effect')).toBe(
       "+1% each worker; carts would 12%.",
     );
-    expect(screen.text('[data-upgrade="drillSyn"] .upgrade-buy')).toBe(
-      "Locked",
-    );
-    expect(screen.text('[data-upgrade="drillSyn"] .upgrade-name')).toBe(
-      "Cart roads",
-    );
     expect(
-      screen.root
-        .querySelector('[data-upgrade="drillSyn"] .upgrade-why')
-        ?.hasAttribute("hidden"),
+      screen.root.querySelector<HTMLElement>('[data-upgrade="drillSyn"]')
+        ?.hidden,
     ).toBe(true);
-    expect(screen.text('[data-upgrade="drillSyn"] .upgrade-effect')).toBe("");
     screen.root
       .querySelector<HTMLButtonElement>('[data-upgrade="cartSyn"] .upgrade-buy')
       ?.click();
@@ -1954,8 +1932,8 @@ describe("crew synergies on screen", () => {
   });
 });
 
-describe("crew synergy copy before the tier exists", () => {
-  it("skips the preview line with none of the tier below, and names the machine", () => {
+describe("a synergy row before the tier exists", () => {
+  it("stays hidden while the crew has none of its tier", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -1963,19 +1941,10 @@ describe("crew synergy copy before the tier exists", () => {
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
-    expect(screen.text('[data-upgrade="machineSyn"] .upgrade-effect')).toBe("");
-    expect(screen.text('[data-upgrade="machineSyn"] .upgrade-name')).toBe(
-      "Borer tracks",
-    );
     expect(
-      screen.root
-        .querySelector('[data-upgrade="machineSyn"] .upgrade-why')
-        ?.hasAttribute("hidden"),
+      screen.root.querySelector<HTMLElement>('[data-upgrade="machineSyn"]')
+        ?.hidden,
     ).toBe(true);
-    expect(screen.text('[data-upgrade="machineSyn"] .upgrade-effect')).toBe("");
-    expect(screen.text('[data-upgrade="machineSyn"] .upgrade-buy')).toBe(
-      "Locked",
-    );
   });
 });
 
@@ -4351,7 +4320,7 @@ describe("sheet buys", () => {
     screen.progress.dispose();
   });
 
-  it("keeps the effect and the why on an unaffordable buy, and hides them when locked", () => {
+  it("keeps the effect and the why on an unaffordable buy, and hides a locked row", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -4392,13 +4361,7 @@ describe("sheet buys", () => {
     );
     expect(arms?.querySelector(".upgrade-effect")?.textContent).not.toBe("");
     const roads = screen.root.querySelector('[data-upgrade="drillSyn"]');
-    expect(roads?.querySelector(".upgrade-buy")?.textContent).toBe("Locked");
-    expect(roads?.querySelector<HTMLElement>(".upgrade-effect")?.hidden).toBe(
-      true,
-    );
-    expect(roads?.querySelector<HTMLElement>(".upgrade-why")?.hidden).toBe(
-      true,
-    );
+    expect(roads?.hasAttribute("hidden")).toBe(true);
     screen.progress.dispose();
   });
 

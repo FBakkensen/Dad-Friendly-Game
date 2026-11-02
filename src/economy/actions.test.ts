@@ -278,12 +278,13 @@ describe("action fixtures", () => {
 });
 
 describe("listActions", () => {
-  it("offers the first worker, strong arms, and both boosts on a new mountain", () => {
-    expect(
-      listActions(fresh, NOW).map((action) =>
+  it("offers only the first worker on a new mountain, and the rest once nearly affordable", () => {
+    const names = (mountain: Mountain) =>
+      listActions(mountain, NOW).map((action) =>
         "id" in action ? `${action.kind}:${action.id}` : action.kind,
-      ),
-    ).toEqual([
+      );
+    expect(names(fresh)).toEqual(["buyTier:helper"]);
+    expect(names({ ...fresh, pocket: 23_000 })).toEqual([
       "buyTier:helper",
       "buyUpgrade:tap",
       "buyBoost:sharper",

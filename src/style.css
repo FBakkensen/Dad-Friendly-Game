@@ -258,12 +258,6 @@ body {
   image-rendering: pixelated;
 }
 
-/* Something is affordable: the button glows like a buyable tier card. */
-.upgrades-button.upgrades-ready {
-  border-color: #f2c46d;
-  box-shadow: 0 0 14px rgba(232, 168, 74, 0.55);
-}
-
 .upgrades-heading {
   align-self: flex-start;
   margin: 4px 0 -6px;
@@ -4221,7 +4215,8 @@ body {
 .buys-dialog .tier.sheet-card,
 .workshop-dialog .workshop-card.sheet-card,
 .shelf-dialog .shelf-row.sheet-card,
-.upgrades-dialog .upgrade.sheet-card {
+.upgrades-dialog .upgrade.sheet-card,
+.upgrades-dialog .upgrades-more.sheet-card {
   display: grid;
   grid-template-columns: var(--sheet-icon) minmax(0, 1fr);
   column-gap: var(--space-8);
@@ -4279,7 +4274,8 @@ body {
 .buys-dialog .tier.sheet-card .sheet-card-icon,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-icon,
 .shelf-dialog .shelf-row.sheet-card .sheet-card-icon,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-icon {
+.upgrades-dialog .upgrade.sheet-card .sheet-card-icon,
+.upgrades-dialog .upgrades-more.sheet-card .sheet-card-icon {
   grid-column: 1;
   grid-row: 1;
   width: var(--sheet-icon);
@@ -4293,7 +4289,8 @@ body {
 .buys-dialog .tier.sheet-card .sheet-card-body,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-body,
 .shelf-dialog .shelf-row.sheet-card .sheet-card-body,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-body {
+.upgrades-dialog .upgrade.sheet-card .sheet-card-body,
+.upgrades-dialog .upgrades-more.sheet-card .sheet-card-body {
   display: grid;
   grid-column: 2;
   grid-row: 1;
@@ -4847,4 +4844,128 @@ body {
   color: var(--color-ink);
   font: inherit;
   cursor: pointer;
+}
+
+/* Upgrades New card (#245), the same as the Workshop's: tag top-right,
+   one big button under the lines, dimmed while the pocket is short. */
+.upgrades-dialog .upgrade.sheet-card.teach-new {
+  position: relative;
+  border-color: var(--color-gold);
+}
+
+.upgrades-dialog .upgrade.sheet-card > .teach-tag {
+  position: absolute;
+  top: var(--space-8);
+  right: var(--space-8);
+}
+
+.upgrades-dialog .upgrade.sheet-card .sheet-card-price.teach-action {
+  order: 1;
+  grid-column: 1 / -1;
+  grid-row: auto;
+  justify-self: stretch;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--target-min);
+  margin-top: var(--space-8);
+  border-radius: var(--radius-control);
+  background: var(--color-gold);
+  color: var(--color-ink-on-gold);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+.upgrades-dialog .upgrade.sheet-card .sheet-card-price.teach-action:disabled {
+  opacity: 0.5;
+}
+
+/* Upgrades sheet, same frame as the Workshop (#282): head with the
+   title left and "i" right, the same inset and card gap, and the same
+   dark hint card. */
+.upgrades-dialog .upgrades-card {
+  padding: var(--space-8);
+}
+
+.upgrades-dialog .upgrades-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.15;
+  color: var(--color-gold);
+  text-align: start;
+}
+
+.upgrades-dialog .upgrade-list,
+.upgrades-dialog .boost-list,
+.upgrades-dialog .upgrades-scroll {
+  gap: var(--target-gap);
+}
+
+.upgrades-dialog .upgrades-more.sheet-locked .sheet-card-icon {
+  filter: brightness(0);
+  opacity: 0.6;
+}
+
+.upgrades-dialog .upgrades-more .hint {
+  margin: 0;
+  color: var(--color-quiet);
+  font-size: 0.9rem;
+  line-height: 1.15;
+  text-align: start;
+}
+
+.upgrades-dialog .upgrades-how {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--target-gap);
+  overflow-y: auto;
+}
+
+.upgrades-dialog .upgrades-how .teach-how-back {
+  min-height: var(--target-min);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-gold);
+}
+
+.upgrades-dialog [hidden] {
+  display: none;
+}
+
+.upgrades-dialog .upgrades-how,
+.upgrades-dialog .upgrades-intro {
+  text-align: start;
+}
+
+/* Bottom bar (#282): gold glow when the sheet holds something he can buy
+   now. Shadow only, so the bar never shifts. One soft pulse as it turns
+   on, never a loop. The red dot sits on top and can show with it. */
+.thumb-bar button.afford-glow:not(:disabled) {
+  border-color: var(--color-gold);
+  background: var(--color-card);
+  box-shadow:
+    inset 0 0 0 var(--line) var(--color-gold),
+    0 0 var(--space-16) var(--color-gold);
+  animation: afford-glow-on 0.9s ease-out 1;
+}
+
+@keyframes afford-glow-on {
+  0% {
+    box-shadow:
+      inset 0 0 0 var(--line) var(--color-gold),
+      0 0 0 var(--color-gold);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 var(--line) var(--color-gold),
+      0 0 var(--space-24) var(--color-gold);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb-bar button.afford-glow {
+    animation: none;
+  }
 }

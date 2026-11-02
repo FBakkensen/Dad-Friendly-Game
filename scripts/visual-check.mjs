@@ -422,7 +422,10 @@ for (const viewport of VIEWPORTS) {
   );
   // Every buy button and the way back can be reached, scrolling if it must.
   const sheetReachable = await page.$eval(".upgrades-dialog", (sheet) => {
-    const buttons = [...sheet.querySelectorAll("button")];
+    // Rows not yet nearly affordable are hidden (#245); check what shows.
+    const buttons = [...sheet.querySelectorAll("button")].filter(
+      (button) => button.getClientRects().length > 0,
+    );
     const wide = buttons.every((button) => {
       const box = button.getBoundingClientRect();
       return box.height >= 44 && box.left >= 0 && box.right <= innerWidth;
@@ -436,7 +439,7 @@ for (const viewport of VIEWPORTS) {
       Infinity;
     sheet.scrollTop = 0;
     return (
-      buttons.length >= 4 && wide && titleTop >= 0 && closeBottom <= innerHeight
+      buttons.length >= 2 && wide && titleTop >= 0 && closeBottom <= innerHeight
     );
   });
   check(sheetReachable, `${size} upgrades sheet buttons are tappable`);
@@ -461,7 +464,10 @@ for (const viewport of VIEWPORTS) {
       (node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 14.4,
     );
     const lastingBuys = [
-      ...sheet.querySelectorAll(".upgrade:not(.boost) .upgrade-buy"),
+      // The New card's one big button runs full width under its lines.
+      ...sheet.querySelectorAll(
+        ".upgrade:not(.boost):not([hidden]) .upgrade-buy:not(.teach-action)",
+      ),
     ];
     const cardRight = card?.getBoundingClientRect().right ?? 0;
     const priceRight = lastingBuys.every((button) => {
@@ -486,23 +492,15 @@ for (const viewport of VIEWPORTS) {
       (button) =>
         !button.textContent.startsWith("Buy") || lineCount(button) <= 1,
     );
-    const boosts = [...sheet.querySelectorAll(".upgrade.boost")];
+    const boosts = [...sheet.querySelectorAll(".upgrade.boost")].filter(
+      (row) => !row.hidden,
+    );
     const stacked =
-      boosts.length === 2 &&
+      boosts.length < 2 ||
       boosts[1].getBoundingClientRect().top >=
         boosts[0].getBoundingClientRect().bottom - 1;
-    const lockedOk = [...sheet.querySelectorAll(".upgrade.is-locked")].every(
-      (row) => {
-        const name = row.querySelector(".upgrade-name");
-        return (
-          name !== null &&
-          lineCount(name) <= 1 &&
-          name.scrollWidth <= name.clientWidth + 1
-        );
-      },
-    );
     const effectsOk = [
-      ...sheet.querySelectorAll(".upgrade:not(.is-locked) .upgrade-effect"),
+      ...sheet.querySelectorAll(".upgrade:not([hidden]) .upgrade-effect"),
     ].every((node) => lineCount(node) <= 2);
     return {
       fits: sheet.scrollHeight <= sheet.clientHeight + 1,
@@ -515,7 +513,6 @@ for (const viewport of VIEWPORTS) {
       priceRight,
       buyLinesOk,
       stacked,
-      lockedOk,
       effectsOk,
       background,
     };
@@ -529,7 +526,6 @@ for (const viewport of VIEWPORTS) {
       sheetFit.priceRight &&
       sheetFit.buyLinesOk &&
       sheetFit.stacked &&
-      sheetFit.lockedOk &&
       sheetFit.effectsOk,
     `${size} upgrades sheet fits, with an opaque card`,
   );
@@ -542,7 +538,6 @@ for (const viewport of VIEWPORTS) {
     !sheetFit.priceRight ||
     !sheetFit.buyLinesOk ||
     !sheetFit.stacked ||
-    !sheetFit.lockedOk ||
     !sheetFit.effectsOk
   ) {
     console.log(`upgrades detail ${size} ${JSON.stringify(sheetFit)}`);
@@ -2797,18 +2792,15 @@ for (const viewport of [
       armsDear: card("tap")?.classList.contains("is-dear") === true,
       armsEffect: shown("tap", ".upgrade-effect"),
       armsWhy: shown("tap", ".upgrade-why"),
-      roadsLocked:
-        card("drillSyn")?.querySelector(".upgrade-buy")?.textContent ===
-        "Locked",
-      roadsEffect: shown("drillSyn", ".upgrade-effect"),
+      // A locked row is hidden until open and nearly affordable (#245).
+      roadsLocked: card("drillSyn")?.hidden === true,
     };
   });
   check(
     upgrades.armsDear &&
       upgrades.armsEffect &&
       upgrades.armsWhy &&
-      upgrades.roadsLocked &&
-      !upgrades.roadsEffect,
+      upgrades.roadsLocked,
     `${size} unaffordable upgrade keeps its lines and a locked one does not`,
   );
   if (!upgrades.armsEffect) {

@@ -1,3 +1,4 @@
+import { setAffordGlow } from "./afford-glow";
 import { buyOnTap } from "./card-tap";
 import { createEffectChip, writeChip } from "./effect-row";
 import {
@@ -723,6 +724,8 @@ export function createEngineersPanel({
       confirming = false;
     }
     promoteRow.classList.toggle("is-blocked", !affordable);
+    // Hiring an engineer is the buy in this sheet.
+    setAffordGlow(button, affordable);
     promoteButton.hidden = confirming;
     promoteButton.disabled = !view.ready || !affordable;
     promoteButton.classList.toggle("is-pressed", pressedKey === "promote");

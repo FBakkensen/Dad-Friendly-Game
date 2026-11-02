@@ -94,6 +94,8 @@ describe("spend table", () => {
     const mountain = {
       ...createMountain(),
       helpers: 4,
+      // Enough that Strong arms shows (#245).
+      pocket: 23_000,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" } as const],
     };
     const weighed = actionsOnTable(mountain, 0, casual.params);
@@ -169,7 +171,8 @@ describe("other schedules", () => {
     expect(again.world.mountain.pocket).not.toBe(
       runPolicy({ policy: checker, seed: 9, maxDays: 1 }).world.mountain.pocket,
     );
-  });
+    // Three one-day runs: about 1s alone, over 5s on a busy CI runner.
+  }, 30_000);
 
   it("gives five minutes, or one long sitting, and nothing else changes", () => {
     expect(fiveMin.params).toMatchObject({
