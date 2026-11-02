@@ -8,6 +8,9 @@ import shieldUrl from "./assets/relics/shield.png";
 import drillUrl from "./assets/steam-drill.png";
 import borerUrl from "./assets/tunnel-borer.png";
 import mapUrl from "./assets/worn-map.png";
+import stoneUrl from "./assets/stone.png";
+import upgradesIconUrl from "./assets/upgrades-icon.png";
+import { HOW_IT_WORKS } from "./how-it-works";
 import { BOOSTS, boostCost, boostLeft, buyBoost, type BoostId } from "./boosts";
 import { buyOnTap } from "./card-tap";
 import { shortEffectName, writeChip } from "./effect-row";
@@ -36,11 +39,18 @@ import {
   SHEET_CARD_TITLE,
   SHEET_DEAR,
   SHEET_HOST,
+  SHEET_LOCKED,
   SHEET_READY,
   SHEET_SCROLL,
 } from "./sheet-card";
 import { markAllSeen, showsDot } from "./teach";
-import { clearNewCard, markNewCard, setTeachDot } from "./teach-ui";
+import {
+  clearNewCard,
+  createHowCard,
+  createInfoButton,
+  markNewCard,
+  setTeachDot,
+} from "./teach-ui";
 import {
   anyHiddenRow,
   boostRowId,
@@ -179,8 +189,52 @@ export function createUpgradesPanel({
   upgradesCard.className = "upgrades-card";
   const upgradesTitle = document.createElement("h2");
   upgradesTitle.id = "upgrades-title";
-  upgradesTitle.className = "sheet-kicker";
+  upgradesTitle.className = "label";
   upgradesTitle.textContent = "Upgrades";
+  // The same head as the Workshop: title left, "i" right (#282).
+  let howOpen = false;
+  const info = createInfoButton("Upgrades and boosts", () => {
+    howOpen = true;
+    requestRender();
+  });
+  const upgradesHead = document.createElement("div");
+  upgradesHead.className = "workshop-head upgrades-head";
+  const headTools = document.createElement("div");
+  headTools.className = "workshop-head-tools";
+  headTools.append(info);
+  upgradesHead.append(upgradesTitle, headTools);
+  const HOW_ART: Readonly<Record<string, string>> = {
+    "upgrades-icon": upgradesIconUrl,
+    "helper-miner": workerUrl,
+    pick: pickUrl,
+    stone: stoneUrl,
+  };
+  const howCards = (["upgrades", "boosts"] as const).map((system) => {
+    const copy = HOW_IT_WORKS[system];
+    const made = createHowCard(
+      `How it works · ${copy.title}`,
+      copy.steps.map(
+        ([art, text]) => [HOW_ART[art] ?? stoneUrl, text] as const,
+      ),
+      "Back to Upgrades",
+      () => {
+        howOpen = false;
+        requestRender();
+        info.focus();
+      },
+    );
+    made.dataset["how"] = system;
+    return made;
+  });
+  // One way back, under the boosts card.
+  const firstBack = howCards[0]?.querySelector("button");
+  if (firstBack) {
+    firstBack.hidden = true;
+  }
+  const howHost = document.createElement("div");
+  howHost.className = "upgrades-how";
+  howHost.hidden = true;
+  howHost.append(...howCards);
   const upgradesPocket = document.createElement("p");
   upgradesPocket.className = "upgrades-pocket";
   const boostHeading = document.createElement("h3");
@@ -307,6 +361,7 @@ export function createUpgradesPanel({
   upgradesClose.textContent = "Back to the mountain";
   const closeUpgrades = (): void => {
     upgradesOpen = false;
+    howOpen = false;
     requestRender();
     upgradesButton.focus();
   };
@@ -324,9 +379,18 @@ export function createUpgradesPanel({
   intro.className = "teach-intro upgrades-intro";
   intro.textContent = UPGRADES_INTRO;
   intro.hidden = true;
-  const more = document.createElement("p");
-  more.className = `upgrades-more ${SHEET_CARD_QUIET}`;
-  more.textContent = UPGRADES_MORE;
+  // The same hint card as the Workshop's dark sketch.
+  const more = document.createElement("div");
+  more.className = `upgrades-more ${SHEET_CARD} ${SHEET_LOCKED}`;
+  const moreArt = sheetIcon(stoneUrl);
+  moreArt.classList.add("shade");
+  const moreBody = document.createElement("div");
+  moreBody.className = SHEET_CARD_BODY;
+  const moreLine = document.createElement("p");
+  moreLine.className = `label hint ${SHEET_CARD_LINE} ${SHEET_CARD_QUIET}`;
+  moreLine.textContent = UPGRADES_MORE;
+  moreBody.append(moreLine);
+  more.append(moreArt, moreBody);
   more.hidden = true;
   let newShown: RevealRowId | undefined;
   upgradesScroll.append(
@@ -341,8 +405,9 @@ export function createUpgradesPanel({
   );
   upgradesHost.append(upgradesScroll);
   upgradesCard.append(
-    upgradesTitle,
+    upgradesHead,
     upgradesPocket,
+    howHost,
     upgradesHost,
     upgradesClose,
   );
@@ -531,6 +596,9 @@ export function createUpgradesPanel({
       "aria-label",
       anyAffordable ? "Upgrades, one is affordable" : "Upgrades",
     );
+    howHost.hidden = !howOpen;
+    upgradesHost.hidden = howOpen;
+    upgradesPocket.hidden = howOpen;
     const wasOpen = !upgradesSheet.hidden;
     upgradesSheet.hidden = !upgradesOpen;
     if (upgradesOpen && !wasOpen) {

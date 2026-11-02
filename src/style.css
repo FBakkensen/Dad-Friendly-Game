@@ -4221,7 +4221,8 @@ body {
 .buys-dialog .tier.sheet-card,
 .workshop-dialog .workshop-card.sheet-card,
 .shelf-dialog .shelf-row.sheet-card,
-.upgrades-dialog .upgrade.sheet-card {
+.upgrades-dialog .upgrade.sheet-card,
+.upgrades-dialog .upgrades-more.sheet-card {
   display: grid;
   grid-template-columns: var(--sheet-icon) minmax(0, 1fr);
   column-gap: var(--space-8);
@@ -4279,7 +4280,8 @@ body {
 .buys-dialog .tier.sheet-card .sheet-card-icon,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-icon,
 .shelf-dialog .shelf-row.sheet-card .sheet-card-icon,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-icon {
+.upgrades-dialog .upgrade.sheet-card .sheet-card-icon,
+.upgrades-dialog .upgrades-more.sheet-card .sheet-card-icon {
   grid-column: 1;
   grid-row: 1;
   width: var(--sheet-icon);
@@ -4293,7 +4295,8 @@ body {
 .buys-dialog .tier.sheet-card .sheet-card-body,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-body,
 .shelf-dialog .shelf-row.sheet-card .sheet-card-body,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-body {
+.upgrades-dialog .upgrade.sheet-card .sheet-card-body,
+.upgrades-dialog .upgrades-more.sheet-card .sheet-card-body {
   display: grid;
   grid-column: 2;
   grid-row: 1;
@@ -4849,13 +4852,6 @@ body {
   cursor: pointer;
 }
 
-/* Upgrades sheet (#245): the quiet line for rows still out of reach. */
-.upgrades-dialog .upgrades-more {
-  margin: 0;
-  font-size: var(--type-14);
-  text-align: center;
-}
-
 /* Upgrades New card (#245), the same as the Workshop's: tag top-right,
    one big button under the lines, dimmed while the pocket is short. */
 .upgrades-dialog .upgrade.sheet-card.teach-new {
@@ -4887,4 +4883,64 @@ body {
 
 .upgrades-dialog .upgrade.sheet-card .sheet-card-price.teach-action:disabled {
   opacity: 0.5;
+}
+
+/* Upgrades sheet, same frame as the Workshop (#282): head with the
+   title left and "i" right, the same inset and card gap, and the same
+   dark hint card. */
+.upgrades-dialog .upgrades-card {
+  padding: var(--space-8);
+}
+
+.upgrades-dialog .upgrades-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.15;
+  color: var(--color-gold);
+  text-align: start;
+}
+
+.upgrades-dialog .upgrade-list,
+.upgrades-dialog .boost-list,
+.upgrades-dialog .upgrades-scroll {
+  gap: var(--target-gap);
+}
+
+.upgrades-dialog .upgrades-more.sheet-locked .sheet-card-icon {
+  filter: brightness(0);
+  opacity: 0.6;
+}
+
+.upgrades-dialog .upgrades-more .hint {
+  margin: 0;
+  color: var(--color-quiet);
+  font-size: 0.9rem;
+  line-height: 1.15;
+  text-align: start;
+}
+
+.upgrades-dialog .upgrades-how {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--target-gap);
+  overflow-y: auto;
+}
+
+.upgrades-dialog .upgrades-how .teach-how-back {
+  min-height: var(--target-min);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-gold);
+}
+
+.upgrades-dialog [hidden] {
+  display: none;
+}
+
+.upgrades-dialog .upgrades-how,
+.upgrades-dialog .upgrades-intro {
+  text-align: start;
 }

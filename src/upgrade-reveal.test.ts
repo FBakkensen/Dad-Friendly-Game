@@ -249,4 +249,39 @@ describe("upgrades sheet reveal (#245)", () => {
     expect(intro?.nextElementSibling?.textContent).toBe("Quick boosts");
     screen.root.remove();
   });
+
+  it("opens How it works for upgrades and boosts from the i, with one way back", () => {
+    const screen = mount(() => clock);
+    screen.progress.applyMutation(() => ({
+      ...createMountain(),
+      pocket: 30_000,
+    }));
+    screen.root.querySelector<HTMLElement>(".upgrades-button")?.click();
+    const sheet = screen.root.querySelector<HTMLElement>(".upgrades-dialog");
+    const head = sheet?.querySelector(".upgrades-head");
+    expect(head?.querySelector("h2")?.textContent).toBe("Upgrades");
+    head?.querySelector<HTMLButtonElement>(".teach-info")?.click();
+    const how = sheet?.querySelector<HTMLElement>(".upgrades-how");
+    expect(how?.hidden).toBe(false);
+    expect(
+      [...(how?.querySelectorAll<HTMLElement>(".teach-how") ?? [])].map(
+        (card) => card.dataset["how"],
+      ),
+    ).toEqual(["upgrades", "boosts"]);
+    const backs = [
+      ...(how?.querySelectorAll<HTMLButtonElement>(".teach-how-back") ?? []),
+    ].filter((button) => !button.hidden);
+    expect(backs).toHaveLength(1);
+    expect(
+      sheet?.querySelector<HTMLElement>(".upgrades-scroll")?.parentElement
+        ?.hidden,
+    ).toBe(true);
+    backs[0]?.click();
+    expect(how?.hidden).toBe(true);
+    screen.root.querySelector<HTMLButtonElement>(".teach-info")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
+    screen.root.querySelector<HTMLElement>(".upgrades-button")?.click();
+    expect(how?.hidden).toBe(true);
+    screen.root.remove();
+  });
 });
