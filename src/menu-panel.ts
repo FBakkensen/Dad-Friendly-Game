@@ -263,7 +263,7 @@ export function createMenuPanel({
     const wasOpen = !menu.hidden;
     menu.hidden = !menuOpen;
     if (menuOpen && !wasOpen) {
-      menuClose.focus();
+      menuClose.focus({ preventScroll: true });
     }
   };
 

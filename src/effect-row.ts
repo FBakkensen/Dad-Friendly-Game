@@ -19,7 +19,7 @@ const HOT_CRAFTS = RECIPES.filter((recipe) => {
  */
 const MAX_EFFECTS = BOOSTS.length + HOT_CRAFTS + 1 + MAX_EXPEDITIONS;
 
-/** Three compact chips per row, so a ×1.25 clock fits at 360. Twelve use four rows. */
+/** Three chips per row. Twelve use four rows. */
 const EFFECT_PER_ROW = 3;
 
 /**

@@ -43,7 +43,6 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: clamp(6px, 1.6dvh, 18px);
   padding: max(10px, env(safe-area-inset-top)) 16px
     max(16px, env(safe-area-inset-bottom));
 }
@@ -59,7 +58,7 @@ body {
 .lantern {
   display: block;
   flex: none;
-  width: clamp(28px, 5dvh, 44px);
+  width: 2.75rem;
   height: auto;
   aspect-ratio: 1;
   object-fit: contain;
@@ -70,7 +69,7 @@ body {
 .stones-left {
   text-align: center;
   margin: 0;
-  font-size: clamp(1.1rem, min(5vw, 3.4dvh), 2rem);
+  font-size: var(--type-20);
   white-space: nowrap;
   font-weight: 700;
   color: #f2c46d;
@@ -127,7 +126,7 @@ body {
   gap: 8px;
   margin: 0;
   /* Shrinks on narrow phones so the longest count and both buttons fit on one line (DejaVu on CI is wide). */
-  font-size: clamp(0.95rem, 4.4vw, 1.35rem);
+  font-size: 1.15rem;
   font-variant-numeric: tabular-nums;
   /* One line, so the pocket row never grows taller ("501.4 thousand stones"). */
   white-space: nowrap;
@@ -440,7 +439,7 @@ body {
   max-width: 34ch;
   min-height: 0;
   text-align: center;
-  font-size: clamp(0.9rem, 2.2dvh, 1.1rem);
+  font-size: 1.1rem;
   color: #c9b391;
 }
 
@@ -491,7 +490,7 @@ body {
   margin: 0;
   min-height: 1.4em;
   /* One line always: shrinks a little on narrow phones rather than wrapping. */
-  font-size: clamp(0.75rem, 3.9vw, 0.95rem);
+  font-size: 0.95rem;
   white-space: nowrap;
   max-width: 100%;
 }
@@ -995,8 +994,8 @@ body {
 }
 
 .legend-shelf img {
-  width: clamp(32px, 10vw, 40px);
-  height: clamp(32px, 10vw, 40px);
+  width: 2.5rem;
+  height: 2.5rem;
   image-rendering: pixelated;
   filter: drop-shadow(0 0 6px rgba(255, 214, 102, 0.8));
 }
@@ -1009,7 +1008,7 @@ body {
 
 .welcome-mined {
   margin: 0;
-  font-size: clamp(2rem, min(12vw, 7dvh), 3.5rem);
+  font-size: 3.2rem;
   font-weight: 800;
   color: #f2c46d;
   text-shadow: 0 0 24px rgba(232, 168, 74, 0.6);
@@ -1208,7 +1207,7 @@ body {
 }
 
 .reveal-art {
-  width: clamp(96px, 22dvh, 160px);
+  width: 10rem;
   height: auto;
   aspect-ratio: 1;
   image-rendering: pixelated;
@@ -1334,12 +1333,7 @@ body {
 }
 
 .shelf-list {
-  gap: clamp(4px, 1.2dvh, 10px);
-}
-
-.shelf-list img {
-  width: clamp(32px, 6dvh, 44px);
-  height: clamp(32px, 6dvh, 44px);
+  gap: var(--space-8);
 }
 
 .shelf-card h2 {
@@ -1445,47 +1439,6 @@ body {
 
 .menu-card .auth-status:empty {
   display: none;
-}
-
-/* Short screens (an installed PWA on a small phone): tighten the chrome, not the controls.
-   The material line and the layer hint sit in the flow, so the mountain gives
-   up a little height and the gaps close up. */
-@media (max-height: 720px) {
-  #app {
-    gap: 4px;
-  }
-
-  .mountain-wrap {
-    min-height: 64px;
-  }
-}
-
-@media (max-height: 600px) {
-  #app {
-    gap: 2px;
-  }
-
-  .pocket-stack {
-    gap: 0;
-  }
-
-  .mountain-wrap {
-    min-height: 64px;
-  }
-
-  .relic-shelf {
-    min-height: 44px;
-    padding: 4px 10px;
-  }
-
-  .shelf-slot {
-    width: 28px;
-    height: 28px;
-  }
-
-  .goal {
-    font-size: 0.85rem;
-  }
 }
 
 /* Engineers may scroll on a very short phone. Upgrades must not.
@@ -1669,7 +1622,7 @@ body {
 }
 
 .layer-art {
-  width: clamp(72px, 18dvh, 112px);
+  width: 7rem;
   height: auto;
   aspect-ratio: 1;
   object-fit: contain;
@@ -1757,7 +1710,7 @@ body {
 }
 
 .welcome-back.is-homecoming .welcome-mined {
-  font-size: clamp(1.7rem, min(11vw, 6dvh), 3.2rem);
+  font-size: 2.9rem;
 }
 
 .welcome-card {
@@ -2008,7 +1961,7 @@ body {
   width: auto;
   min-height: 56px;
   padding: 8px 10px;
-  font-size: clamp(1rem, 4.4vw, 1.2rem);
+  font-size: 1.15rem;
 }
 
 /* Engineers sheet. Full-bleed, and it must not scroll on a short phone. */
@@ -2819,85 +2772,6 @@ body {
   white-space: normal;
 }
 
-@media (max-height: 700px) {
-  .engineers-sub {
-    display: none;
-  }
-
-  .engineers-dialog.is-choosing .engineer.is-mini,
-  .engineers-dialog.is-choosing .engineer-doing,
-  .engineers-dialog.is-choosing .engineer-brought-stories {
-    display: none;
-  }
-
-  /* A full crew, or an open choice list: one readable row. The story is in the toast. */
-  .engineers-dialog.is-packed .engineer-brought,
-  .engineers-dialog.is-choosing .engineer-brought {
-    flex-direction: row;
-    gap: 6px;
-    align-items: center;
-    min-height: 44px;
-    margin: 0;
-    padding: 4px 8px;
-    overflow: hidden;
-  }
-
-  .engineers-dialog.is-packed .engineer-brought-title {
-    flex: none;
-  }
-
-  .engineers-dialog.is-packed .engineer-brought-names,
-  .engineers-dialog.is-choosing .engineer-brought-names {
-    display: block;
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .engineers-dialog.is-packed .engineer-brought-stories {
-    display: none;
-  }
-
-  .engineer.is-open {
-    padding: 6px;
-  }
-
-  .engineer-face,
-  .engineer-open .engineer-portrait,
-  .engineer-face .engineer-portrait {
-    width: 38px;
-    height: 38px;
-  }
-
-  .engineer-doing,
-  .engineer-trip {
-    margin: 4px 0;
-    font-size: 0.78rem;
-  }
-
-  .engineer-doing {
-    padding: 4px 8px;
-  }
-
-  .engineer-choice {
-    padding: 2px 8px;
-  }
-
-  .engineer-choice-benefit {
-    font-size: 0.68rem;
-  }
-
-  .engineer-promote-mark {
-    display: none;
-  }
-
-  .engineer-promote-row {
-    padding: 4px 8px;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .engineer-walker {
     left: 12px;
@@ -3543,7 +3417,7 @@ body {
 
 .pocket {
   justify-content: center;
-  font-size: clamp(var(--type-16), 6vw, var(--type-32));
+  font-size: var(--type-24);
   font-weight: var(--weight-bold);
   color: var(--color-gold);
 }
@@ -3716,14 +3590,10 @@ body {
   width: auto;
 }
 
-/*
- * The shared timer chip: a pill per countdown, three to a row, one row per
- * three it can run. A chip is 28px, not 48: a tap only names the timer, and
- * twelve 48px chips would squeeze the rock under 96px on a 360x560 phone.
- */
+/* The shared timer chip: a 48px pill per countdown, three to a row, one row per three it can run. */
 .effect-row {
   --effect-rows: 1;
-  --effect-chip: calc(var(--space-24) + var(--space-4));
+  --effect-chip: var(--target-min);
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-template-rows: repeat(var(--effect-rows), var(--effect-chip));
@@ -3827,11 +3697,6 @@ body {
   min-width: 0;
   margin-inline: auto;
   overflow: hidden;
-}
-
-.pocket-row.is-tight .pocket,
-.pocket-row.is-tight .pocket-rate {
-  font-size: var(--type-16);
 }
 
 .pocket,
@@ -4746,4 +4611,12 @@ body {
   height: var(--target-min);
   margin-top: 0;
   align-self: center;
+}
+
+/* One phone layout everywhere. On a PC it is a centred column; the page background frames it.
+   contain: layout keeps the fixed sheets inside the column too. */
+#app {
+  max-width: 27.5rem;
+  margin-inline: auto;
+  contain: layout;
 }

@@ -365,7 +365,7 @@ export function createRelicPanels({
     const wasOpen = !shelf.hidden;
     shelf.hidden = !shelfOpen;
     if (shelfOpen && !wasOpen) {
-      shelfClose.focus();
+      shelfClose.focus({ preventScroll: true });
     }
   };
 

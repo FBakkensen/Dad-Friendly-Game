@@ -3,8 +3,8 @@
  * Screen audit capture. Not part of `npm run check`.
  *
  * Same browser setup as scripts/visual-check.mjs: Vite, puppeteer-core, and
- * a localStorage save planted before boot. Shots are 390×844, 360×640 and
- * 360×560 at device scale 2. Dev-only preview params (`?saves=two`,
+ * a localStorage save planted before boot. Shots are 424×924 (the installed app) and
+ * 424×830 (Chrome with the address bar) at device scale 2. Dev-only preview params (`?saves=two`,
  * `?save=loading`, `?save=error`, `?copies=shelf`, `?trouble=cave-in`) seed
  * the save screens.
  */
@@ -26,9 +26,8 @@ import {
 const OUT = "docs/ui-audit";
 const SAVE_KEY = "dad-friendly-session";
 const VIEWPORTS = [
-  [390, 844],
-  [360, 640],
-  [360, 560],
+  [424, 924],
+  [424, 830],
 ];
 const RECIPES = [
   "iron-rails",
@@ -621,9 +620,9 @@ async function collect(page) {
  * @param {string} size
  */
 function analyse(sample, id, size) {
-  const census = size === "360x560" || size === "390x844";
-  const phone = size === "360x560";
-  const thumb = size === "360x640";
+  const census = size === "424x830" || size === "424x924";
+  const phone = size === "424x830";
+  const thumb = size === "424x924";
   const undersized = phone ? undersizedTargets(sample.targets) : [];
   const close = phone
     ? targetsCloserThan(sample.targets).map((pair) => ({
@@ -666,7 +665,7 @@ function analyse(sample, id, size) {
     id,
     size,
     file: `${OUT}/${id}-${size}.png`,
-    text: size === "360x560" ? sample.text : "",
+    text: size === "424x830" ? sample.text : "",
     under14,
     contrastFails,
     undersized: undersized.map((target) => ({
@@ -1223,7 +1222,7 @@ function summarise(rows) {
       .join("")}`;
 
   for (const row of rows) {
-    const takeType = row.size === "360x560" || row.size === "390x844";
+    const takeType = row.size === "424x830" || row.size === "424x924";
     if (takeType) {
       for (const item of row.type) {
         const key = `${item.size}|${item.weight}|${item.lineHeight}|${item.selector}`;
@@ -1305,7 +1304,7 @@ function summarise(rows) {
     for (const item of row.questions) {
       questions.push({ screen: row.id, size: row.size, ...item });
     }
-    if (row.size === "360x560") {
+    if (row.size === "424x830") {
       for (const [group, counts] of Object.entries(row.components)) {
         for (const [selector, count] of Object.entries(counts)) {
           components[group][selector] =
@@ -1323,7 +1322,7 @@ function summarise(rows) {
         ...row.sheets.map((item) => ({ screen: row.id, ...item })),
       );
     }
-    if (row.size === "360x640") {
+    if (row.size === "424x924") {
       topThird.push(
         ...row.topThird.map((item) => ({ screen: row.id, ...item })),
       );
@@ -1355,7 +1354,7 @@ function summarise(rows) {
   near.sort((a, b) => a.distance - b.distance);
 
   const worst = rows
-    .filter((row) => row.size === "360x560")
+    .filter((row) => row.size === "424x830")
     .sort((a, b) => b.score - a.score)
     .slice(0, 8)
     .map((row) => ({

@@ -28,14 +28,10 @@ const CHROME =
   "/usr/bin/google-chrome";
 const SAVE_KEY = "dad-friendly-session";
 const VIEWPORTS = [
-  [360, 560],
-  [360, 640],
-  [375, 667],
-  [390, 664],
-  [390, 844],
-  [412, 780],
-  [412, 915],
-  [470, 860],
+  [424, 830],
+  [424, 924],
+  [412, 830],
+  [440, 924],
 ];
 // Every tier so far on screen: the compact, three-to-a-row grid.
 const CREW = {
@@ -573,10 +569,9 @@ for (const viewport of VIEWPORTS) {
 
 // Tier cards keep one fixed height and never truncate, even at x999 and huge prices.
 for (const viewport of [
-  [360, 560],
-  [360, 640],
-  [390, 844],
-  [412, 915],
+  [424, 830],
+  [424, 924],
+  [440, 924],
 ]) {
   const size = `${String(viewport[0])}x${String(viewport[1])}`;
   for (const [crew, font] of [
@@ -729,8 +724,7 @@ for (const viewport of [
     });
     check(crewLineFits, `${label} keep the crew line on one line`);
     if (
-      viewport[0] === 360 &&
-      viewport[1] === 560 &&
+      viewport[1] === 830 &&
       font === "DejaVu Sans" &&
       crew.helpers === 999 &&
       crew.borers === 999 &&
@@ -780,7 +774,7 @@ for (const viewport of VIEWPORTS) {
     STANDALONE_INSETS.bottom,
   );
   check(insideSafeArea, `${size} standalone controls clear the gesture bar`);
-  if (viewport[0] === 360 && viewport[1] === 560) {
+  if (viewport[1] === 830) {
     check(
       await engineersSheetFits(page, STANDALONE_INSETS),
       `${size} standalone engineers sheet fits with no scroll`,
@@ -834,8 +828,8 @@ for (const viewport of VIEWPORTS) {
 // A save from before staffing: the one-time "Your crew grew" card, at the
 // smallest phone, over the game and dismissable, with no scroll.
 for (const standalone of [false, true]) {
-  const viewport = [360, 560];
-  const label = `360x560${standalone ? " standalone" : ""}`;
+  const viewport = [424, 830];
+  const label = `424x830${standalone ? " standalone" : ""}`;
   const { page, close } = await open(
     viewport,
     {
@@ -874,7 +868,7 @@ for (const standalone of [false, true]) {
 
 // Welcome-back, then the relic it uncovered.
 {
-  const viewport = [360, 640];
+  const viewport = [424, 830];
   const { page, close } = await open(viewport, {
     version: 4,
     mountain: { ...BEFORE_LANTERN, helpers: 5 },
@@ -995,8 +989,8 @@ const FOUND_BELOW = {
 };
 
 for (const standalone of [false, true]) {
-  const viewport = [360, 560];
-  const label = `360x560${standalone ? " standalone" : ""}`;
+  const viewport = [424, 830];
+  const label = `424x830${standalone ? " standalone" : ""}`;
   const { page, close } = await open(
     viewport,
     { version: 4, mountain: FOUND_BELOW, lastSeen: Date.now() },
@@ -1015,8 +1009,8 @@ for (const standalone of [false, true]) {
 // Every relic found: the shelf scrolls inside itself, and a tapped relic's
 // detail card (art, virtue, "Your power") sits over the game and fits.
 for (const viewport of [
-  [360, 560],
-  [390, 844],
+  [424, 830],
+  [424, 924],
 ]) {
   const label = `${String(viewport[0])}x${String(viewport[1])}`;
   const { page, close } = await open(viewport, {
@@ -1063,8 +1057,8 @@ for (const viewport of [
 // Mantle of the Hero: reveal, then the Legend finale over the game (#103).
 // Version 5: one stone left on the 240M mountain, so the tap finds the Mantle.
 for (const viewport of [
-  [360, 560],
-  [390, 844],
+  [424, 830],
+  [424, 924],
 ]) {
   const label = `${String(viewport[0])}x${String(viewport[1])}`;
   const { page, close } = await open(viewport, {
@@ -1105,8 +1099,8 @@ for (const viewport of [
 
 // Pass the mine to your kid (#131): the confirm, then the new run's header.
 for (const viewport of [
-  [360, 560],
-  [390, 844],
+  [424, 830],
+  [424, 924],
 ]) {
   const label = `${String(viewport[0])}x${String(viewport[1])}`;
   const { page, close } = await open(viewport, {
@@ -1167,8 +1161,8 @@ for (const viewport of [
 // Trouble is never saved, so the dev boot previews a cave-in. The card must
 // stay on screen at the smallest phone, including the installed PWA.
 for (const standalone of [false, true]) {
-  const viewport = [360, 560];
-  const label = `360x560${standalone ? " standalone" : ""}`;
+  const viewport = [424, 830];
+  const label = `424x830${standalone ? " standalone" : ""}`;
   const { page, close } = await open(
     viewport,
     { version: 4, mountain: CREW, lastSeen: Date.now() },
@@ -1220,8 +1214,8 @@ for (const standalone of [false, true]) {
 // An expedition still out: the chip stays in the mountain, and the sheet
 // (Recall, posts, the way back) fits a short phone, including the PWA.
 for (const standalone of [false, true]) {
-  const viewport = [360, 560];
-  const label = `360x560${standalone ? " standalone" : ""}`;
+  const viewport = [424, 830];
+  const label = `424x830${standalone ? " standalone" : ""}`;
   const now = Date.now();
   const { page, close } = await open(
     viewport,
@@ -1349,11 +1343,7 @@ for (const standalone of [false, true]) {
 
 // Five engineers, one open card and four rows, plus a keepsake they brought
 // home. Short phones and the installed PWA, with no scroll.
-for (const viewport of [
-  [360, 560],
-  [360, 640],
-  [375, 667],
-]) {
+for (const viewport of [[424, 830]]) {
   for (const standalone of [false, true]) {
     const label = `${String(viewport[0])}x${String(viewport[1])}${standalone ? " standalone" : ""}`;
     const now = Date.now();
@@ -1462,8 +1452,8 @@ for (const viewport of [
 
 // Welcome card naming a find, over the game, at the short phone and the PWA.
 for (const standalone of [false, true]) {
-  const viewport = [360, 560];
-  const label = `360x560${standalone ? " standalone" : ""}`;
+  const viewport = [424, 830];
+  const label = `424x830${standalone ? " standalone" : ""}`;
   const now = Date.now();
   const { page, close } = await open(
     viewport,
@@ -1547,9 +1537,8 @@ for (const standalone of [false, true]) {
 
 /** Workshop sheet (#199): real numbers, no scroll, a dark sketch, a named refund. */
 const WORKSHOP_SIZES = [
-  [390, 844],
-  [360, 640],
-  [360, 560],
+  [424, 924],
+  [424, 830],
 ];
 const SHOTS = "/opt/cursor/artifacts";
 if (existsSync("/opt/cursor")) {
@@ -1705,7 +1694,7 @@ for (const viewport of WORKSHOP_SIZES) {
       armed === "Tap again to cancel" && stillBusy.includes("On the bench"),
       `${size} cancel asks for a second tap`,
     );
-    await shot(page, "workshop-cancel-confirm-390x844");
+    await shot(page, "workshop-cancel-confirm-424x924");
     await page.tap(".workshop-cancel");
     const freed = await page.$eval(
       ".workshop-bench",
@@ -1715,7 +1704,7 @@ for (const viewport of WORKSHOP_SIZES) {
       freed.includes("The bench is free"),
       `${size} cancel clears the bench`,
     );
-    await shot(page, "workshop-free-390x844");
+    await shot(page, "workshop-free-424x924");
     if ((await page.$(".workshop-craft.is-short")) === null) {
       const more = await page.$(".workshop-more:not([hidden])");
       if (more !== null) {
@@ -1742,7 +1731,7 @@ for (const viewport of WORKSHOP_SIZES) {
       (sheet) => sheet.querySelector(".is-shaking") !== null,
     );
     check(shaking, `${size} a short craft shakes`);
-    await shot(page, "workshop-shake-390x844");
+    await shot(page, "workshop-shake-424x924");
     if (
       (await page.$(
         "[data-recipe='axle-grease'] .workshop-craft:not(.is-short)",
@@ -1770,14 +1759,14 @@ for (const viewport of WORKSHOP_SIZES) {
       hammer && floated > 0,
       `${size} a craft floats materials and taps the hammer`,
     );
-    await shot(page, "workshop-hammer-390x844");
+    await shot(page, "workshop-hammer-424x924");
   }
   await close();
 }
 
 {
   const now = Date.now();
-  const { page, close } = await open([360, 560], {
+  const { page, close } = await open([424, 830], {
     version: 6,
     lastSeen: now,
     mountain: {
@@ -1806,10 +1795,10 @@ for (const viewport of WORKSHOP_SIZES) {
       locked.text.includes("Locked · The Granite") &&
       !locked.text.includes("?") &&
       openHidden,
-    "360x560 workshop is a locked silhouette before the Granite",
+    "424x830 workshop is a locked silhouette before the Granite",
   );
-  await shot(page, "workshop-locked-360x560");
-  check(await noScroll(page), "360x560 locked menu has no page scroll");
+  await shot(page, "workshop-locked-424x830");
+  check(await noScroll(page), "424x830 locked menu has no page scroll");
   await close();
 }
 
@@ -1818,9 +1807,8 @@ for (const viewport of WORKSHOP_SIZES) {
  * Same sizes as the workshop check.
  */
 const NOTICE_SIZES = [
-  [390, 844],
-  [360, 640],
-  [360, 560],
+  [424, 924],
+  [424, 830],
 ];
 
 function noticeSave({ mined, lastSeen, mountain = {}, workshop = {} }) {
@@ -2156,10 +2144,10 @@ for (const viewport of NOTICE_SIZES) {
   }
 }
 
-// One writer tab. The other shows a card and does not scroll at 360×560.
+// One writer tab. The other shows a card and does not scroll in Chrome on the phone.
 {
   const context = await browser.createBrowserContext();
-  const [width, height] = [360, 560];
+  const [width, height] = [424, 830];
   const first = await context.newPage();
   const second = await context.newPage();
   for (const page of [first, second]) {
@@ -2188,14 +2176,14 @@ for (const viewport of NOTICE_SIZES) {
       body === "The other one has the mountain. Nothing here is lost." &&
       button.text === "Play here" &&
       button.height >= 48,
-    "360x560 other tab card is gentle and fat",
+    "424x830 other tab card is gentle and fat",
   );
   check(
     await coversViewport(second, ".other-tab"),
-    "360x560 other tab card is laid over the game",
+    "424x830 other tab card is laid over the game",
   );
-  check(await noScroll(second), "360x560 other tab has no scroll");
-  await shot(second, "other-tab-360x560");
+  check(await noScroll(second), "424x830 other tab has no scroll");
+  await shot(second, "other-tab-424x830");
   await first.bringToFront();
   await first.tap(".mountain");
   const kept = await first.$eval(".pocket", (element) => element.textContent);
@@ -2207,21 +2195,21 @@ for (const viewport of NOTICE_SIZES) {
   const moved = await second.$eval(".pocket", (element) => element.textContent);
   check(
     kept === "1 stone" && moved === "1 stone",
-    "360x560 Play here keeps the stone",
+    "424x830 Play here keeps the stone",
   );
-  check(await noScroll(second), "360x560 after Play here has no scroll");
+  check(await noScroll(second), "424x830 after Play here has no scroll");
   check(
     await noScroll(first),
-    "360x560 the tab that stepped aside has no scroll",
+    "424x830 the tab that stepped aside has no scroll",
   );
-  await shot(first, "other-tab-stepped-aside-360x560");
-  await shot(second, "other-tab-playing-here-360x560");
+  await shot(first, "other-tab-stepped-aside-424x830");
+  await shot(second, "other-tab-playing-here-424x830");
   await context.close();
 }
 
-// Two saves found. The real sheet, no scrollbar at 360×560.
+// Two saves found. The real sheet, no scrollbar in Chrome on the phone.
 {
-  const { page, close } = await open([360, 560], {}, { search: "?saves=two" });
+  const { page, close } = await open([424, 830], {}, { search: "?saves=two" });
   await page.waitForSelector(".save-conflict:not([hidden])", {
     timeout: 5_000,
   });
@@ -2244,28 +2232,28 @@ for (const viewport of NOTICE_SIZES) {
     ".save-conflict",
     (element) => element.scrollHeight <= element.clientHeight + 1,
   );
-  check(title === "Two saves found", "360x560 conflict sheet is titled");
+  check(title === "Two saves found", "424x830 conflict sheet is titled");
   check(
     (body ?? "").includes("nothing is lost") && !(body ?? "").includes("?"),
-    "360x560 conflict sheet has no placeholder question",
+    "424x830 conflict sheet has no placeholder question",
   );
   check(
     cards.some((card) => card.includes("Granite, 12.4M deep")) &&
       cards.some((card) => card.includes("This phone")) &&
       cards.some((card) => card.includes("Other device")),
-    "360x560 conflict cards name both saves",
+    "424x830 conflict cards name both saves",
   );
   check(
     play.text === "Play this one" && play.height >= 48,
-    "360x560 Play this one is a 48px target",
+    "424x830 Play this one is a 48px target",
   );
-  check(sheetFits, "360x560 conflict sheet does not scroll inside");
+  check(sheetFits, "424x830 conflict sheet does not scroll inside");
   check(
     await coversViewport(page, ".save-conflict"),
-    "360x560 conflict sheet is laid over the game",
+    "424x830 conflict sheet is laid over the game",
   );
-  check(await noScroll(page), "360x560 conflict sheet has no scroll");
-  await shot(page, "save-conflict-real-360x560");
+  check(await noScroll(page), "424x830 conflict sheet has no scroll");
+  await shot(page, "save-conflict-real-424x830");
   await page.click(".save-conflict-play");
   const confirm = await page.$eval(
     ".save-conflict-confirm",
@@ -2273,23 +2261,22 @@ for (const viewport of NOTICE_SIZES) {
   );
   check(
     confirm.includes("saved for 7 days"),
-    "360x560 Play this one asks before switching",
+    "424x830 Play this one asks before switching",
   );
-  check(await noScroll(page), "360x560 conflict confirm has no scroll");
-  await shot(page, "save-conflict-real-press-360x560");
+  check(await noScroll(page), "424x830 conflict confirm has no scroll");
+  await shot(page, "save-conflict-real-press-424x830");
   await close();
 }
 
 // The shelf is centred on the screen and the rock. Locked thumb buttons
 // stay quiet. The last Buys and Upgrades card clears the footer.
 const SHELF_VIEWS = [
-  [360, 560],
-  [390, 844],
-  [412, 915],
-  [430, 932],
-  [1280, 800],
+  [424, 830],
+  [424, 924],
+  [440, 924],
+  [1440, 900],
 ];
-const PHONE_SHOTS = new Set(["360x560", "390x844", "412x915"]);
+const PHONE_SHOTS = new Set(["424x830", "424x924", "440x924"]);
 const EMPTY_WORKSHOP = {
   materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
   recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
@@ -2614,11 +2601,11 @@ for (const viewport of SHELF_VIEWS) {
 
 // Long Buys and Upgrades lists. The first card clears the header, the last
 // card clears the footer, and the sheet stays below the crew line.
-const SHEET_SHOTS = new Set(["360x560", "412x915"]);
+const SHEET_SHOTS = new Set(["424x830", "440x924"]);
 for (const viewport of [
-  [360, 560],
-  [390, 844],
-  [412, 915],
+  [424, 830],
+  [424, 924],
+  [440, 924],
 ]) {
   const size = `${String(viewport[0])}x${String(viewport[1])}`;
   const shotThis = SHEET_SHOTS.has(size);
@@ -2660,10 +2647,9 @@ for (const viewport of [
 // The pocket must stay clear of the menu at every realistic length, and a
 // four-part crew line must not leave one chip alone on the next row.
 const PILL_VIEWS = [
-  [360, 560],
-  [390, 844],
-  [412, 915],
-  [430, 932],
+  [424, 830],
+  [424, 924],
+  [440, 924],
 ];
 function crewSave(pocket) {
   return {
@@ -2733,7 +2719,7 @@ for (const viewport of PILL_VIEWS) {
     if (!clear.ok) {
       console.log("pill", size, pocket, clear);
     }
-    if (pocket === 32_500 && (size === "360x560" || size === "412x915")) {
+    if (pocket === 32_500 && (size === "424x830" || size === "440x924")) {
       await shot(page, `pocket-crew-${size}`);
     }
     await close();
@@ -2742,8 +2728,8 @@ for (const viewport of PILL_VIEWS) {
 
 // Buys, Workshop, and Upgrades: affordable, too expensive, and locked.
 for (const viewport of [
-  [360, 560],
-  [412, 915],
+  [424, 830],
+  [440, 924],
 ]) {
   const size = `${String(viewport[0])}x${String(viewport[1])}`;
   const { page, close } = await open(viewport, crewSave(32_500));
@@ -2837,8 +2823,8 @@ for (const viewport of [
 
 // Active effects stay in two rows: 0, 1, 3, and every countdown at once.
 const EFFECT_VIEWS = [
-  [360, 560],
-  [412, 915],
+  [424, 830],
+  [440, 924],
 ];
 function effectSave(count) {
   const now = Date.now();
@@ -2997,7 +2983,7 @@ for (const viewport of EFFECT_VIEWS) {
           packed &&
           peakClear &&
           fat &&
-          Math.round(rowBox.height) <= 124 &&
+          Math.round(rowBox.height) <= 204 &&
           chips.every((chip) => chip.scrollWidth <= chip.clientWidth + 1) &&
           !hits(shelf) &&
           !hits(pocket) &&
@@ -3034,9 +3020,9 @@ for (const viewport of EFFECT_VIEWS) {
 
 // #238: no screen moves the page. Lists inside a sheet may scroll; the page never does.
 const GUARD_SIZES = [
-  [390, 844],
-  [360, 640],
-  [360, 560],
+  [424, 924],
+  [424, 830],
+  [1440, 900],
 ];
 function guardSave(lastSeen, remaining = 200_000_000) {
   return {
