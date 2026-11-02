@@ -1,5 +1,6 @@
 import { factor } from "./economy/factors";
 import {
+  promote,
   staffNeeded,
   station,
   tendingTenths,
@@ -479,4 +480,43 @@ export function firstIdleTier(
     trouble,
   );
   return idle.find((id) => hired.running[id] > rates.running[id]) ?? idle[0];
+}
+
+/**
+ * What the second engineer would add (#246): promote, then the post the
+ * guided first tend would give the new hand, against the crew as it is
+ * now. The worker who steps up is counted. Undefined when the promotion
+ * is out of reach or would not leave the crew faster, so the guided
+ * Promote never asks for a worse move.
+ */
+export function promotePayoff(
+  mountain: Mountain,
+  now?: number,
+  trouble?: Trouble,
+):
+  | {
+      readonly name: string;
+      readonly post: TendTier;
+      readonly gain: number;
+    }
+  | undefined {
+  const promoted = promote(mountain);
+  const index = (promoted.engineers?.length ?? 0) - 1;
+  const hand = promoted.engineers?.[index];
+  if (promoted === mountain || hand === undefined) {
+    return undefined;
+  }
+  const before = effectiveRates(mountain, now, trouble).crewPerSecond;
+  for (const post of GUIDED_POSTS) {
+    if ((promoted.engineers ?? []).some((other) => other.post === post)) {
+      continue;
+    }
+    const gain =
+      effectiveRates(station(promoted, index, post), now, trouble)
+        .crewPerSecond - before;
+    if (gain >= 1) {
+      return { name: hand.name, post, gain };
+    }
+  }
+  return undefined;
 }

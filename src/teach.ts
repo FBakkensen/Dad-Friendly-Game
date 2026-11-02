@@ -1,6 +1,6 @@
 import type { Mountain } from "./mountain";
 import { BOOSTS } from "./boosts";
-import { firstIdleTier, firstTend } from "./rates";
+import { firstIdleTier, firstTend, promotePayoff } from "./rates";
 import {
   boostRowId,
   boostShown,
@@ -70,6 +70,17 @@ const TEACH_SPECS: readonly TeachSpec[] = [
           engineer.post === "drill" ||
           engineer.post === "machine",
       ),
+  },
+  // Small system (#246): the second engineer, once he can pay for one and
+  // the new hand would really leave the crew faster. Dot only.
+  {
+    id: "promotion",
+    size: "small",
+    unlocked: (mountain) =>
+      isTaught(mountain, "engineers") &&
+      (mountain.engineers?.length ?? 0) === 1 &&
+      promotePayoff(mountain) !== undefined,
+    used: (mountain) => (mountain.engineers?.length ?? 0) >= 2,
   },
   // Small system (#246): the first machine standing idle for want of crew.
   // The dot only. The first worker hired while one stands idle is the use.

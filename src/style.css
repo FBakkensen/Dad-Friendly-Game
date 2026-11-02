@@ -5141,3 +5141,41 @@ body {
 .buys-dialog .buys-card {
   padding: var(--space-8);
 }
+
+/* Second engineer (#246): the Promote row as the New card. Tag top-right,
+   the payoff in the gold line, one big button across the row. */
+.engineers-dialog .engineer-promote-row.teach-new {
+  position: relative;
+  flex-wrap: wrap;
+  padding: var(--space-8);
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+}
+
+.engineers-dialog .engineer-promote-row > .teach-tag {
+  position: absolute;
+  top: var(--space-8);
+  right: var(--space-8);
+}
+
+.engineers-dialog .engineer-promote-row.teach-new .engineer-promote-copy {
+  font-size: var(--type-14);
+}
+
+.engineers-dialog .engineer-promote-row.teach-new .engineer-promote-why {
+  display: block;
+  color: var(--color-gold);
+  font-weight: var(--weight-bold);
+}
+
+.engineers-dialog .engineer-promote-row .engineer-promote.teach-action {
+  flex: 1 1 100%;
+  max-width: none;
+  min-height: var(--target-min);
+}
+
+.engineers-dialog
+  .engineer-promote-row
+  .engineer-promote.teach-action:disabled {
+  opacity: 0.5;
+}

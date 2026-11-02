@@ -146,8 +146,11 @@ describe("engineers teach (#246)", () => {
     const after = screen.progress.getSnapshot().mountain;
     expect(after.expeditions?.[0]?.tunnel).toBe("side-seam");
     expect(after.taught).toContain("engineers");
-    expect(button?.querySelector(".teach-dot")).toBeNull();
-    expect(sheet?.querySelector(".teach-new")).toBeNull();
+    // Its own dot goes. The next step (the second engineer) may light it.
+    expect(showsDot(screen.progress.getSnapshot().mountain, "engineers")).toBe(
+      false,
+    );
+    expect(sheet?.querySelector(".engineer-open.teach-new")).toBeNull();
     expect(trip?.hidden).toBe(true);
     screen.root.remove();
   });

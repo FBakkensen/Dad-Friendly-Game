@@ -21,7 +21,7 @@ import {
 import { KEEPSAKES, TUNNELS, recall, send, type TunnelId } from "./expeditions";
 import type { Mountain } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
-import { firstTend, moveGain, tendingGain } from "./rates";
+import { firstTend, moveGain, promotePayoff, tendingGain } from "./rates";
 import { owned, tierById } from "./tiers";
 import {
   NONE_BUILT,
@@ -60,6 +60,9 @@ import {
   rankLabel,
   recallConfirm,
   stationCheer,
+  promotionAction,
+  PROMOTION_INTRO,
+  promotionPayoff,
   firstTendWords,
   tendingIntro,
   tendBenefit,
@@ -868,13 +871,22 @@ export function createEngineersPanel({
         clearNewCard(row.openCard);
       }
     }
+    // Then the second engineer (#246): the Promote row is the New card,
+    // with the real payoff, while it pays and he can afford it.
+    const payoff =
+      teaching || tending || !showsDot(current, "promotion")
+        ? undefined
+        : promotePayoff(current, now(), view.trouble);
+    const promoting = payoff !== undefined && !confirming;
     // One intro line, Upgrades style: the first trip, then what they do.
     intro.hidden = howOpen;
     intro.textContent = teaching
       ? engineersIntro(first.name)
       : tending && tender !== undefined
         ? tendingIntro(tender.name)
-        : ENGINEER_SHEET_SUB;
+        : promoting
+          ? PROMOTION_INTRO
+          : ENGINEER_SHEET_SUB;
     howHost.hidden = !howOpen;
     list.hidden = howOpen;
     promoteRow.hidden = howOpen;
@@ -907,8 +919,18 @@ export function createEngineersPanel({
     promoteButton.classList.toggle("is-pressed", pressedKey === "promote");
     promoteButton.textContent =
       next === undefined ? PROMOTE_BUTTON : promoteOffer(cost);
-    promoteWhy.textContent =
-      next === undefined
+    if (promoting) {
+      markNewCard(
+        promoteRow,
+        promoteButton,
+        promotionAction(payoff.name, cost),
+      );
+    } else {
+      clearNewCard(promoteRow);
+    }
+    promoteWhy.textContent = promoting
+      ? promotionPayoff(payoff.name, payoff.post, stonesPerSecond(payoff.gain))
+      : next === undefined
         ? PROMOTE_CREW_FULL
         : current.helpers < 1
           ? PROMOTE_NEEDS_WORKER

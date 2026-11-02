@@ -632,7 +632,8 @@ export function mountMountainScreen({
     setTeachDot(
       engineers.button,
       showsDot(view.mountain, "engineers") ||
-        showsDot(view.mountain, "tending"),
+        showsDot(view.mountain, "tending") ||
+        showsDot(view.mountain, "promotion"),
     );
     // One note at a time, in the order teach.ts lists them.
     const noteId = noteFor(view.mountain);
