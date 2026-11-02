@@ -181,7 +181,7 @@ export function createWorkshopPanel({
   const locked = document.createElement("p");
   locked.className = "workshop-locked";
   const lockedArt = document.createElement("img");
-  lockedArt.src = stoneUrl;
+  lockedArt.src = hammerUrl;
   lockedArt.alt = "";
   lockedArt.width = 36;
   lockedArt.height = 36;

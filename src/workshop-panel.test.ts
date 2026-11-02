@@ -135,7 +135,12 @@ describe("workshop panel (#199)", () => {
       screen.root.querySelector<HTMLButtonElement>(".menu-button");
     menu()?.click();
     const locked = screen.root.querySelector(".workshop-locked");
-    expect(locked?.textContent).toContain("Locked · The Granite");
+    expect(locked?.textContent).toBe("Workshop · opens in The Granite");
+    expect(locked?.querySelector("img")?.getAttribute("src")).toBe(
+      screen.root
+        .querySelector<HTMLImageElement>(".thumb-workshop img")
+        ?.getAttribute("src"),
+    );
     expect(locked?.textContent).not.toMatch(/\?/);
     expect(
       screen.root.querySelector<HTMLButtonElement>(".workshop-open")?.hidden,
