@@ -100,6 +100,10 @@ export type Mountain = {
   readonly emberUntil?: number;
   /** When axle grease stops speeding carts. Live play only. */
   readonly axleUntil?: number;
+  /** Systems whose "New" note has been opened (M11, src/teach.ts). */
+  readonly seen?: readonly string[];
+  /** Systems used at least once; their dot is gone (M11, src/teach.ts). */
+  readonly taught?: readonly string[];
   /**
    * Recipe ids, a bench, and crafted levels this build does not know.
    * Written back inside the workshop map. Not a mountain document key.

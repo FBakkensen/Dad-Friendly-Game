@@ -69,11 +69,28 @@ describe("serializeSave and parseSaveValue", () => {
       flareUntil: 90_000,
       emberUntil: 100_000,
       axleUntil: 110_000,
+      seen: ["workshop", "future-bit"],
+      taught: ["workshop"],
       kept: { recipes: ["future-bit"] },
     };
     expect(
       parseSaveValue(serializeSave({ mountain: everyField, lastSeen: 1 })),
     ).toEqual({ mountain: everyField, lastSeen: 1 });
+  });
+
+  it("keeps a v6 save without seen or taught, and drops a bad list", () => {
+    const mountain = { ...minedMountain(4), crafted: { "blasting-charge": 1 } };
+    const saved = JSON.parse(
+      JSON.stringify(serializeSave({ mountain, lastSeen: 2 })),
+    ) as { workshop: Record<string, unknown> };
+    expect("seen" in saved.workshop).toBe(false);
+    expect("taught" in saved.workshop).toBe(false);
+    const parsed = parseSaveValue(saved)?.mountain;
+    expect(parsed?.seen).toBeUndefined();
+    expect(parsed?.taught).toBeUndefined();
+    expect(
+      parseSaveValue({ ...saved, workshop: { ...saved.workshop, seen: "x" } }),
+    ).toBeUndefined();
   });
 
   it("round-trips engineers and leaves them out of an older save", () => {

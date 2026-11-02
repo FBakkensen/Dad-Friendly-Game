@@ -1,4 +1,5 @@
 import type { AuthController } from "./auth";
+import { recordFirstUse } from "./teach";
 import { BOOSTS } from "./boosts";
 import {
   applySignedInSave,
@@ -2040,7 +2041,7 @@ export function createProgressStore({
       const beforeTrouble = troubleMark();
       const mined = settle();
       const before = mountain;
-      const next = update(mountain);
+      const next = recordFirstUse(update(mountain));
       if (next === before) {
         if (mined > 0 || troubleMark() !== beforeTrouble || newsPending) {
           persistPhoneBackup();

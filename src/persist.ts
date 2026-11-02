@@ -1,4 +1,5 @@
 import { materialsFromMined, type Materials } from "./layers";
+import { parseTeachIds } from "./teach";
 import {
   MOUNTAIN_STONES,
   createMountain,
@@ -38,6 +39,10 @@ type WorkshopSave = {
   /** When a heartstone ember cools. Missing means none is hot. */
   readonly emberUntil?: number;
   readonly axleUntil?: number;
+  /** Notes opened (src/teach.ts). Missing means none. */
+  readonly seen?: readonly string[];
+  /** Systems used once (src/teach.ts). Missing means none written down. */
+  readonly taught?: readonly string[];
 };
 
 export type MountainSaveV6 = {
@@ -139,6 +144,12 @@ export function serializeSave({
       ...(mountain.axleUntil === undefined
         ? {}
         : { axleUntil: mountain.axleUntil }),
+      ...(mountain.seen === undefined || mountain.seen.length === 0
+        ? {}
+        : { seen: mountain.seen }),
+      ...(mountain.taught === undefined || mountain.taught.length === 0
+        ? {}
+        : { taught: mountain.taught }),
     },
     lastSeen,
   };
@@ -222,6 +233,8 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
       const flareUntil = readClock(sheet["flareUntil"]);
       const emberUntil = readClock(sheet["emberUntil"]);
       const axleUntil = readClock(sheet["axleUntil"]);
+      const seen = parseTeachIds(sheet["seen"]);
+      const taught = parseTeachIds(sheet["taught"]);
       if (
         base === undefined ||
         materials === undefined ||
@@ -231,7 +244,9 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
         chargeUntil === "bad" ||
         flareUntil === "bad" ||
         emberUntil === "bad" ||
-        axleUntil === "bad"
+        axleUntil === "bad" ||
+        seen === "bad" ||
+        taught === "bad"
       ) {
         return undefined;
       }
@@ -259,6 +274,8 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
           ...(flareUntil === undefined ? {} : { flareUntil }),
           ...(emberUntil === undefined ? {} : { emberUntil }),
           ...(axleUntil === undefined ? {} : { axleUntil }),
+          ...(seen.length === 0 ? {} : { seen }),
+          ...(taught.length === 0 ? {} : { taught }),
         },
         lastSeen,
         ...(identity === undefined ? {} : identity),
