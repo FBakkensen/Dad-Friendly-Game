@@ -86,7 +86,8 @@ const CARDS: readonly CardSpec[] = [
     adds: "",
     why: "",
     state: "locked",
-    unlock: "Opens deeper in the mountain.",
+    unlock:
+      "The Tunnel borer joins your crew at 10M stones. Keep digging, Dad!",
   },
 ];
 
@@ -96,11 +97,14 @@ function kitCard(view: PartsView, spec: CardSpec): string {
   const name = tier.shortName;
   const art = ART[spec.id];
   if (spec.state === "locked") {
+    // M12-2 (#250): the next machine shows early as a locked card that
+    // names the depth it opens at. No price, no wait, just the depth.
     return `<button type="button" class="card kit-card is-locked" data-card="${spec.id}" data-tap="${escapeHtml(tap(`Nothing to buy yet. ${spec.unlock ?? ""}`))}" disabled>
       ${icon(art, " is-shade")}
       <span class="kit-card-body">
-        <span class="kit-card-head"><span class="kit-card-title">Not found yet</span></span>
-        <span class="kit-card-line">${escapeHtml(spec.unlock ?? "")}</span>
+        <span class="kit-card-head"><span class="kit-card-title">${escapeHtml(name)}</span><span class="kit-card-price">Locked</span></span>
+        <span class="kit-card-line">${escapeHtml(`${name} · 10M`)}</span>
+        <span class="kit-card-line kit-quiet">${escapeHtml(spec.unlock ?? "")}</span>
       </span>
     </button>`;
   }

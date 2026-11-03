@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buyCrew, staffExisting, tierLocked } from "./crew";
+import { buyCrew, staffExisting, tierLock, tierLocked } from "./crew";
 import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
@@ -36,7 +36,7 @@ describe("crew unlocks", () => {
 
   it("brings the first engineer with the first borer, and not with the second", () => {
     const bought = buyCrew(
-      { ...minedMountain(0), pocket: 10_000_000 },
+      { ...minedMountain(10_000_000), pocket: 10_000_000 },
       "borer",
     );
     expect(bought.borers).toBe(1);
@@ -49,6 +49,32 @@ describe("crew unlocks", () => {
     expect(again.engineers).toEqual(bought.engineers);
     const fresh = minedMountain(0);
     expect(buyCrew(fresh, "borer")).toBe(fresh);
+  });
+
+  it("keeps the borer locked until 10M stones are mined, then sells it (#250)", () => {
+    const shallow = { ...minedMountain(9_999_999), pocket: 50_000_000 };
+    expect(tierLock(shallow, tierById("borer"))).toEqual({
+      kind: "depth",
+      depth: 10_000_000,
+    });
+    expect(tierLocked(shallow, tierById("borer"))).toBe(true);
+    expect(buyCrew(shallow, "borer")).toBe(shallow);
+    const deep = {
+      ...shallow,
+      ...minedMountain(10_000_000),
+      pocket: 50_000_000,
+    };
+    expect(tierLock(deep, tierById("borer"))).toBeUndefined();
+    expect(buyCrew(deep, "borer").borers).toBe(1);
+    expect(tierLock(deep, tierById("machine"))).toMatchObject({
+      kind: "relic",
+      relic: { id: "hammer", depth: 25_000_000 },
+    });
+    expect(tierLock(deep, tierById("helper"))).toBeUndefined();
+    // An older save that already owns a borer keeps buying them.
+    const older = { ...shallow, borers: 1 };
+    expect(tierLock(older, tierById("borer"))).toBeUndefined();
+    expect(buyCrew(older, "borer").borers).toBe(2);
   });
 
   it("leaves an engineer's post alone when a Great Machine is bought", () => {

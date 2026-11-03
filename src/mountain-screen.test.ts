@@ -1526,7 +1526,9 @@ describe("upgrades on screen", () => {
       storage: seededWith({
         ...minedMountain(30_000),
         helpers: 500,
-        pocket: 280_000,
+        // Three carts open Strong arms (#250).
+        carts: 3,
+        pocket: 500_000,
       }),
     });
     document.body.append(screen.root);
@@ -1563,7 +1565,7 @@ describe("upgrades on screen", () => {
     expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
       "Taps +1.65%, now 9.",
     );
-    expect(buy?.textContent).toBe("Buy · 230K");
+    expect(buy?.textContent).toBe("Buy · 368K");
     expect(buy?.disabled).toBe(false);
 
     screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
@@ -1777,7 +1779,7 @@ describe("lasting upgrades on screen", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(30_000), pocket: 700_000, helpers: 9 },
+      mountain: { ...minedMountain(30_000), pocket: 1_700_000, helpers: 9 },
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
@@ -1785,7 +1787,7 @@ describe("lasting upgrades on screen", () => {
     const boots = screen.root.querySelector<HTMLButtonElement>(
       '[data-upgrade="boots"] .upgrade-buy',
     );
-    // Locked rows stay hidden until open and nearly affordable (#245).
+    // Locked rows stay hidden until their owned count opens them (#250).
     expect(
       screen.root.querySelector<HTMLElement>('[data-upgrade="boots"]')?.hidden,
     ).toBe(true);
@@ -1796,7 +1798,7 @@ describe("lasting upgrades on screen", () => {
     screen.root
       .querySelector<HTMLButtonElement>('[data-tier="helper"]')
       ?.click();
-    expect(boots?.textContent).toBe("Buy · 650K");
+    expect(boots?.textContent).toBe("Buy · 1.6M");
     expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
       "Workers 1/s to 2.4/s.",
     );
@@ -1999,7 +2001,8 @@ describe("crew staffing on screen", () => {
     writeSessionSave({
       storage,
       mountain: {
-        ...minedMountain(0),
+        // The borer opens at 10M stones (#250).
+        ...minedMountain(10_000_000),
         pocket: 20_000_000,
         helpers: 9,
         carts: 1,
@@ -2009,12 +2012,14 @@ describe("crew staffing on screen", () => {
     });
     const screen = mountScreen({ storage });
     const borer = screen.root.querySelector('[data-tier="borer"]');
+    // The Granite suits borers (×1.1, D3).
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+595/s · Needs 8 workers",
+      "+654/s · Needs 8 workers",
     );
     expect(borer?.getAttribute("aria-label")).toContain(NEEDS_MORE_WORKERS);
+    // The Granite is tough on drills (×0.8, D3).
     expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
-      "+60\u2009·\u200960/s · Needs 3 workers",
+      "+48\u2009·\u200948/s · Needs 3 workers",
     );
   });
 
@@ -2044,7 +2049,7 @@ describe("crew staffing on screen", () => {
 });
 
 describe("Flemming's cart (#216)", () => {
-  it("shows what one more cart adds, and how many workers a borer needs", () => {
+  it("shows what one more cart adds, and where the borer opens", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -2068,9 +2073,8 @@ describe("Flemming's cart (#216)", () => {
     expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
       "+60\u2009·\u2009300/s · Needs 3 workers",
     );
-    expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+595/s · Needs 8 workers",
-    );
+    // Above 10M the borer is a locked preview that says where it opens (#250).
+    expect(screen.text('[data-tier="borer"] .tier-rate')).toBe("Borer · 10M");
     expect(
       screen.root.querySelector(".crew-posts")?.getAttribute("aria-label"),
     ).toBe("28 workers: 13 on carts, 15 on drills, 0 free");
@@ -2263,7 +2267,7 @@ describe("first engineer note (#144)", () => {
     writeSessionSave({
       storage,
       mountain: {
-        ...minedMountain(0),
+        ...minedMountain(10_000_000),
         pocket: 10_000_000,
         helpers: 11,
         drills: 1,
@@ -2278,8 +2282,9 @@ describe("first engineer note (#144)", () => {
       screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
     ).toBe(true);
     expect(screen.text('[data-tier="borer"] .tier-count')).toBe("×1");
+    // Bought in the Granite, which suits borers (×1.1, D3).
     expect(screen.text('[data-tier="borer"] .tier-rate')).toBe(
-      "+699\u2009·\u2009699/s · Needs 8 workers",
+      "+769\u2009·\u2009769/s · Needs 8 workers",
     );
     expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×11");
   });
@@ -2911,7 +2916,7 @@ describe("engineers sheet (#145)", () => {
     writeSessionSave({
       storage,
       mountain: {
-        ...minedMountain(0),
+        ...minedMountain(10_000_000),
         pocket: 10_000_000,
         helpers: 4,
         drills: 1,
@@ -4359,7 +4364,12 @@ describe("sheet buys", () => {
     expect(line("machine", ".tier-name")?.textContent).toBe("Great Machine");
     expect(line("machine", ".tier-cost")?.textContent).toBe("Locked");
     expect(line("machine", ".tier-gain")?.hidden).toBe(true);
-    expect(line("machine", ".tier-why")?.hidden).toBe(true);
+    // A locked card says where it opens, in words (#250).
+    expect(line("machine", ".tier-why")?.hidden).toBe(false);
+    expect(line("machine", ".tier-why")?.textContent).toBe(
+      "The Great Machine wakes up with the Hammer at 25M stones. You've got this!",
+    );
+    expect(line("machine", ".tier-rate")?.textContent).toBe("Hammer · 25M");
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
     const arms = screen.root.querySelector('[data-upgrade="tap"]');
     expect(arms?.classList.contains("is-dear")).toBe(true);

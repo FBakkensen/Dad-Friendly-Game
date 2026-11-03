@@ -484,10 +484,14 @@ for (const viewport of VIEWPORTS) {
       }
       const price = button.getBoundingClientRect();
       const label = name.getBoundingClientRect();
+      // The price sits at the right of its own row card (#250 shows lasting
+      // rows here; before, the sheet held only the New card and boosts).
+      const rowRight =
+        button.closest(".upgrade")?.getBoundingClientRect().right ?? cardRight;
       return (
         price.left + 1 >= label.right - 1 &&
-        cardRight - price.right <= 16 &&
-        cardRight - price.right >= -1
+        rowRight - price.right <= 16 &&
+        rowRight - price.right >= -1
       );
     });
     const lineCount = (node) => {
@@ -2082,7 +2086,8 @@ for (const viewport of NOTICE_SIZES) {
       nodes.map((node) => node.textContent ?? ""),
     );
     const cart = rates.find((line) => line.includes("166"));
-    const borer = rates.find((line) => line.includes("595"));
+    // Before 10M the borer is a locked preview that names its depth (#250).
+    const borer = rates.find((line) => line.startsWith("Borer"));
     await page.click(".buys-button");
     const inside = await page.$$eval(".tier-rate", (nodes) =>
       nodes.every((node) => {
@@ -2111,8 +2116,8 @@ for (const viewport of NOTICE_SIZES) {
         cart.includes("·") &&
         !cart.startsWith("\u2191") &&
         borer !== undefined &&
-        borer.includes("Needs 8 workers"),
-      `${size} cart shows +N and the borer says how many workers`,
+        borer === "Borer · 10M",
+      `${size} cart shows +N and the locked borer says where it opens`,
     );
     if (!still || !inside || cart === undefined || borer === undefined) {
       console.log("crew gains", size, rates, inside);
@@ -2442,7 +2447,9 @@ async function sheetEdges(page, scroller) {
   return page.evaluate((scrollerSelector) => {
     const element = document.querySelector(scrollerSelector);
     const sheet = element?.closest(".buys-card, .upgrades-card");
-    const header = sheet?.querySelector("h2");
+    // The Upgrades header row holds the title and the 48px i, so the cards
+    // clear that row, not just the title text.
+    const header = sheet?.querySelector(".upgrades-head, h2");
     const footer = sheet?.querySelector(".buys-close, .upgrades-close");
     const cards = () =>
       [...(element?.querySelectorAll(".sheet-card") ?? [])].filter(
@@ -2759,7 +2766,9 @@ for (const viewport of [
       machineLocked:
         machine?.querySelector(".tier-cost")?.textContent === "Locked",
       machineGain: shown("machine", ".tier-gain"),
-      machineWhy: shown("machine", ".tier-why"),
+      machineWhy:
+        card("machine")?.querySelector(".tier-why")?.textContent ===
+        "The Great Machine wakes up with the Hammer at 25M stones. You've got this!",
     };
   });
   check(
@@ -2768,8 +2777,8 @@ for (const viewport of [
       buys.drillWhy &&
       buys.machineLocked &&
       !buys.machineGain &&
-      !buys.machineWhy,
-    `${size} unaffordable drill keeps its lines and the machine stays locked`,
+      buys.machineWhy,
+    `${size} unaffordable drill keeps its lines and the locked machine says where it opens`,
   );
   if (buys.drillName !== "Steam drill" || !buys.drillGain) {
     console.log("buys mix", size, buys);

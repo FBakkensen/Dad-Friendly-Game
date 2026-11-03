@@ -29,17 +29,18 @@ describe("casual run", { timeout: 120_000 }, () => {
     const run = sampleCasualRun();
     const report = diagnosisOf(run.samples);
     // The pacing dad does not craft. With D3 rock (#246) the Granite suits
-    // borers, so that climb ends on day 5.5 and value-per-stone no longer
-    // waits two days for a borer. The only quiet spell left is half a day,
-    // the last stretch before the bottom.
+    // borers, so that climb ends on day 5.5. M12-2 (#250) opens rows at
+    // fixed points, so the table holds more choices and the one quiet
+    // spell left is four minutes on day 2.5.
     expect(run.finishDay).toBe(5.5);
     expect(readFinishDay(run.samples)).toBe(5.5);
-    expect(report.value.singleShare).toBeCloseTo(0.011, 3);
-    expect(report.value.deadHours / HOURS_PER_DAY).toBeCloseTo(0.498, 3);
-    expect(report.value.deadStartDay).toBeCloseTo(4.5, 1);
-    expect(report.payback.singleShare).toBeCloseTo(0.022, 3);
-    expect(report.payback.deadHours).toBeCloseTo(0.05, 2);
-    expect(report.payback.deadStartDay).toBeCloseTo(4.5, 1);
+    expect(report.value.singleShare).toBeCloseTo(0.111, 3);
+    expect(report.value.deadHours).toBeCloseTo(0.067, 3);
+    expect(report.value.deadHours / HOURS_PER_DAY).toBeLessThan(0.01);
+    expect(report.value.deadStartDay).toBeCloseTo(2.5, 1);
+    expect(report.payback.singleShare).toBeCloseTo(0.133, 3);
+    expect(report.payback.deadHours).toBeCloseTo(0.067, 3);
+    expect(report.payback.deadStartDay).toBeCloseTo(2.5, 1);
   });
 
   it("keeps the payback wait under half a day after the first borer", () => {
@@ -67,7 +68,7 @@ describe("casual run", { timeout: 120_000 }, () => {
     }
     // Neither score waits on a borer any more: the Granite suits it.
     expect(payback.value).toBeLessThanOrEqual(0.5);
-    expect(value.value).toBe(0);
+    expect(value.value).toBeLessThanOrEqual(0.05);
     expect(result.deadStretches).toHaveLength(0);
   }, 120_000);
 });

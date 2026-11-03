@@ -35,15 +35,15 @@ describe("economy factors", () => {
   });
 
   it("scales a sticker, then puts the old prices back", () => {
-    expect(tierCost(tierById("borer"), 0)).toBe(9_000_000);
+    expect(tierCost(tierById("borer"), 0)).toBe(8_100_000);
     withFactors({ "price.borer": 2 }, () => {
-      expect(tierCost(tierById("borer"), 0)).toBe(18_000_000);
+      expect(tierCost(tierById("borer"), 0)).toBe(16_200_000);
       withFactors({ "price.borer": 3 }, () => {
-        expect(tierCost(tierById("borer"), 0)).toBe(27_000_000);
+        expect(tierCost(tierById("borer"), 0)).toBe(24_300_000);
       });
-      expect(tierCost(tierById("borer"), 0)).toBe(18_000_000);
+      expect(tierCost(tierById("borer"), 0)).toBe(16_200_000);
     });
-    expect(tierCost(tierById("borer"), 0)).toBe(9_000_000);
+    expect(tierCost(tierById("borer"), 0)).toBe(8_100_000);
     expect(factor("price.borer")).toBe(1);
   });
 

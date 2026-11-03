@@ -33,14 +33,16 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
     name: "Strong arms",
     perLevel: "Each tap also mines 1.65% of your crew's speed.",
     firstCost: 46_000,
-    costGrowth: 5,
+    costGrowth: 8,
     maxLevel: 10,
+    // A fixed point in the climb (M12-2, #250), not a share of the pocket.
+    unlock: { tier: "cart", count: 3 },
   },
   boots: {
     id: "boots",
     name: "Better boots",
     perLevel: "Workers go from 1/s to 2.4/s.",
-    firstCost: 650_000,
+    firstCost: 1_625_000,
     costGrowth: 1,
     maxLevel: 1,
     unlock: { tier: "helper", count: 10 },

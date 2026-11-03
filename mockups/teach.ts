@@ -228,7 +228,7 @@ function sheet(done: boolean): string {
 }
 
 /**
- * M11-7 (#245): the Upgrades sheet once Strong arms is nearly affordable.
+ * M11-7 (#245): the Upgrades sheet once Strong arms opens (the third cart since #250).
  * Rows far off stay hidden behind one quiet line; the new row comes first,
  * lit and tagged New, with its real price on the one big button. No wait
  * time and no countdown: only whether the row is there.
@@ -254,7 +254,7 @@ function revealSheet(): string {
     <header class="teach-sheet-head"><h2 class="kit-title">Upgrades</h2></header>
     <p class="teach-intro">Something new for the crew, right on top.</p>
     <div class="kit-stack">${arms}${picks}</div>
-    <p class="teach-intro">More turn up as your pocket grows.</p>
+    <p class="teach-intro">More open up as your crew grows.</p>
   </section>`;
 }
 

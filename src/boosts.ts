@@ -1,4 +1,5 @@
 import type { Mountain } from "./mountain";
+import type { TierId } from "./tiers";
 
 /** Quick, timed boosts. See docs/DESIGN.md "M3: Strategy". */
 export type BoostId = "sharper" | "overtime";
@@ -27,6 +28,11 @@ export type Boost = {
   readonly crewSeconds?: number;
   /** …but never less than this, so a new dad can try it. */
   readonly minCost: number;
+  /**
+   * The row shows once the crew owns this many of this tier (M12-2, #250):
+   * a fixed point in the climb, not a share of the pocket.
+   */
+  readonly unlock: { readonly tier: TierId; readonly count: number };
 };
 
 const BY_ID: Readonly<Record<BoostId, Boost>> = {
@@ -40,6 +46,7 @@ const BY_ID: Readonly<Record<BoostId, Boost>> = {
     priceUnits: 120,
     crewSeconds: 60,
     minCost: 100,
+    unlock: { tier: "cart", count: 1 },
   },
   overtime: {
     id: "overtime",
@@ -50,6 +57,7 @@ const BY_ID: Readonly<Record<BoostId, Boost>> = {
     priceIn: "crewSeconds",
     priceUnits: 180,
     minCost: 500,
+    unlock: { tier: "drill", count: 1 },
   },
 };
 

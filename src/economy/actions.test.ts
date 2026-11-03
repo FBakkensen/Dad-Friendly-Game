@@ -278,18 +278,24 @@ describe("action fixtures", () => {
 });
 
 describe("listActions", () => {
-  it("offers only the first worker on a new mountain, and the rest once nearly affordable", () => {
+  it("offers only the first worker on a new mountain, and the rest as the crew grows", () => {
     const names = (mountain: Mountain) =>
       listActions(mountain, NOW).map((action) =>
         "id" in action ? `${action.kind}:${action.id}` : action.kind,
       );
     expect(names(fresh)).toEqual(["buyTier:helper"]);
-    expect(names({ ...fresh, pocket: 23_000 })).toEqual([
-      "buyTier:helper",
-      "buyUpgrade:tap",
-      "buyBoost:sharper",
+    // A full pocket opens nothing (#250); the crew it owns does.
+    expect(names({ ...fresh, pocket: 1e12 })).toEqual(["buyTier:helper"]);
+    expect(names({ ...fresh, helpers: 1, carts: 3 })).toEqual(
+      expect.arrayContaining([
+        "buyUpgrade:tap",
+        "buyUpgrade:steady",
+        "buyBoost:sharper",
+      ]),
+    );
+    expect(names({ ...fresh, helpers: 1, carts: 3 })).not.toContain(
       "buyBoost:overtime",
-    ]);
+    );
   });
 
   it("shows the next tier once the previous one is owned, and hides a locked one", () => {
@@ -494,6 +500,7 @@ describe("applyAction", () => {
   it("brings Ada with the first borer, the same as buyCrew", () => {
     const funded: Mountain = {
       ...fresh,
+      ...minedMountain(10_000_000),
       drills: 1,
       helpers: 8,
       pocket: 10_000_000,
@@ -545,16 +552,21 @@ describe("valueOf", () => {
   });
 
   it("bundles the workers a machine still needs, and ignores the first engineer's tend", () => {
-    const bare: Mountain = { ...fresh, drills: 1 };
+    // The borer opens at 10M (#250), in the Granite, which suits it (×1.1).
+    const bare: Mountain = {
+      ...fresh,
+      ...minedMountain(10_000_000),
+      drills: 1,
+    };
     const borer = score(bare, { kind: "buyTier", id: "borer" }, HORIZON);
-    expect(borer.gainPerSec).toBe(595);
-    expect(borer.cost).toBeGreaterThan(9_000_000);
+    expect(borer.gainPerSec).toBe(654.5);
+    expect(borer.cost).toBeGreaterThan(8_100_000);
     const staffed: Mountain = { ...bare, helpers: 11, pocket: 0 };
     const tended = score(staffed, { kind: "buyTier", id: "borer" }, HORIZON);
-    expect(tended.gainPerSec).toBe(595);
-    expect(tended.cost).toBe(9_000_000);
+    expect(tended.gainPerSec).toBe(654.5);
+    expect(tended.cost).toBe(8_100_000);
     const applied = buyCrew({ ...staffed, pocket: 10_000_000 }, "borer");
-    expect(crewDelta(staffed, applied)).toBe(699);
+    expect(crewDelta(staffed, applied)).toBe(769);
 
     const hammer: Mountain = {
       ...minedMountain(25_000_000),
@@ -663,10 +675,10 @@ describe("valueOf", () => {
       awaySeconds: 0,
     };
     const arms = { kind: "buyUpgrade", id: "tap" } as const;
-    const crew: Mountain = { ...fresh, helpers: 100 };
+    const crew: Mountain = { ...fresh, helpers: 100, carts: 3 };
     expect(score(crew, arms, HORIZON, tapping).gainPerSec).toBeGreaterThan(0);
     expect(score(crew, arms, HORIZON, LIVE).gainPerSec).toBe(0);
-    const small: Mountain = { ...fresh, helpers: 10 };
+    const small: Mountain = { ...fresh, helpers: 10, carts: 3 };
     expect(score(small, arms, HORIZON, tapping).gainPerSec).toBe(0);
 
     const yard: Mountain = { ...fresh, helpers: 10, carts: 1 };
@@ -835,7 +847,7 @@ describe("valueOf", () => {
       HORIZON,
     );
     expect(lockedBoots.gainPerSec).toBe(0);
-    expect(lockedBoots.cost).toBe(650_000);
+    expect(lockedBoots.cost).toBe(1_625_000);
     expect(lockedBoots.paybackSec).toBe(Number.POSITIVE_INFINITY);
     const machine = score(
       lockedMachine,
@@ -906,7 +918,7 @@ describe("valueOf", () => {
       effectiveRates(small).exactCrewPerSecond * TAP_SHARE_PER_LEVEL,
     ).toBeCloseTo(0.825, 6);
 
-    const hundred: Mountain = { ...fresh, helpers: 100 };
+    const hundred: Mountain = { ...fresh, helpers: 70, carts: 3 };
     const bigArms = score(
       hundred,
       { kind: "buyUpgrade", id: "tap" },
