@@ -54,6 +54,13 @@ export const DEAD_STRETCH = {
 export const LIVE_P10 = 10;
 export const PERCENT = 100;
 
+/**
+ * The reveal-to-use guardrail (#248), in live hours: play time only, so a
+ * night away adds nothing. The casual baseline is 40 minutes (the Great
+ * Machine, saved for across sittings); one hour leaves 20 minutes of room.
+ */
+export const REVEAL_TO_USE_HOURS = 1;
+
 /** revealToUseP90 reads this percentile. */
 export const P90 = 90;
 /** revealSlowest lists waits at least this long, in live hours. Report only. */
@@ -242,6 +249,14 @@ export const TARGETS: readonly Target[] = [
     op: "lte",
     value: 0.5,
     why: "A casual dad should not sit on a material that has nothing to spend it on for more than half a day.",
+  },
+  {
+    id: "reveal-to-use",
+    measure: "revealToUse",
+    scope: { kind: "policyKinds", kinds: ["casual"] },
+    op: "lte",
+    value: REVEAL_TO_USE_HOURS,
+    why: "Nothing should sit on a casual dad's screen for more than an hour of play before he can use it.",
   },
 ];
 

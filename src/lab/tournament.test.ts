@@ -23,6 +23,7 @@ import dominantShare from "./measures/dominantShare";
 import extremeWinMeasure from "./measures/extremeWin";
 import featureShare from "./measures/featureShare";
 import singleShare from "./measures/singleShare";
+import revealToUse from "./measures/revealToUse";
 import {
   judgeTournament,
   runTournament,
@@ -35,6 +36,7 @@ import {
   DEAD_STRETCH,
   HOUR_MS,
   OPTIMIZER_REFERENCE_ID,
+  REVEAL_TO_USE_HOURS,
   TARGETS,
   TENDING_SOURCE,
   meetsTarget,
@@ -776,4 +778,46 @@ describe("tournament", () => {
     expect(markdown).toContain("Optimizer finish day");
     expect(markdown).toContain("Casual finish day");
   }, 30_000);
+});
+
+describe("reveal-to-use guardrail (#248)", () => {
+  const target = TARGETS.find((entry) => entry.id === "reveal-to-use");
+  const hourSec = HOUR_MS / 1000;
+  /** One thing shows at live second 0 and is first used `waitSec` later. */
+  const waited = (waitSec: number): DecisionSample => ({
+    ...decision({}),
+    reveals: [
+      { kind: "appeared", id: "tier:machine", liveSec: 0 },
+      { kind: "firstUse", id: "tier:machine", liveSec: waitSec },
+    ],
+  });
+  const verdict = (kind: Policy["kind"], waitSec: number) => {
+    const policy = dad({ id: `${kind}-dad`, label: "Dad", kind });
+    const result = judge({
+      policies: [policy],
+      measures: [revealToUse],
+      targets: target === undefined ? [] : [target],
+      runs: [run(policy, 1, [waited(waitSec)])],
+    });
+    return result.rows[0]?.cells[0]?.judgements[0]?.pass;
+  };
+
+  it("grades the casual dads at an hour of live play", () => {
+    expect(target).toMatchObject({
+      measure: "revealToUse",
+      scope: { kind: "policyKinds", kinds: ["casual"] },
+      op: "lte",
+      value: REVEAL_TO_USE_HOURS,
+    });
+    expect(verdict("casual", (40 / 60) * hourSec)).toBe(true);
+    expect(verdict("casual", REVEAL_TO_USE_HOURS * hourSec)).toBe(true);
+    expect(verdict("casual", (REVEAL_TO_USE_HOURS + 0.1) * hourSec)).toBe(
+      false,
+    );
+  });
+
+  it("leaves the extremes and the optimizer to the report", () => {
+    expect(verdict("extreme", 6 * hourSec)).toBeUndefined();
+    expect(verdict("optimizer", 6 * hourSec)).toBeUndefined();
+  });
 });

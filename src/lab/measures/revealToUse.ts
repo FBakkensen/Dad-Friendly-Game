@@ -9,8 +9,8 @@ export function gapsOf(
 }
 
 /**
- * Longest live wait from a thing showing up to its first use. Report only:
- * no target reads it until the guardrail is agreed.
+ * Longest live wait from a thing showing up to its first use. The
+ * reveal-to-use target in targets.ts grades it for the casual dads (#248).
  */
 export default defineMeasure({
   id: "revealToUse",
