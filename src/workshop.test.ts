@@ -469,7 +469,7 @@ describe("workshop rules", () => {
     };
     const fitted = accrue({ mountain: due, from: 0, to: 10_000 });
     expect(fitted.mountain.crafted?.["iron-rails"]).toBe(1);
-    expect(fitted.mined).toBe(110);
+    expect(fitted.mined).toBe(130);
     const working = startCraft(
       { ...openShed(), helpers: 1, carts: 1 },
       "iron-rails",
@@ -480,7 +480,7 @@ describe("workshop rules", () => {
       from: 0,
       to: working.bench?.endsAt ?? 0,
     });
-    expect(during.mined).toBe(9 * 600);
+    expect(during.mined).toBe(11 * 600);
     expect(during.mountain.crafted?.["iron-rails"]).toBe(1);
     const idle = startCraft(openShed(), "blasting-charge", 0);
     const done = accrue({

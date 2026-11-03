@@ -2767,13 +2767,13 @@ describe("trouble on a tier card (#149)", () => {
       new PointerEvent("pointerdown", { bubbles: true, button: 2 }),
     );
     expect(screen.text(".crew-status")).toBe(
-      "Your crew mines 577 stones a second",
+      "Your crew mines 558 stones a second",
     );
     screen.progress.previewTrouble("cart");
     expect(cart.dataset["trouble"]).toBe("cave-in");
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe("Cave-in!");
     expect(screen.text(".crew-status")).toBe(
-      "Your crew mines 575 stones a second",
+      "Your crew mines 555 stones a second",
     );
     expect(cart.getAttribute("aria-label")).toBe(
       troubleAria("cave-in", tierById("cart")),
@@ -2790,7 +2790,7 @@ describe("trouble on a tier card (#149)", () => {
     expect(screen.progress.getSnapshot().mountain.carts).toBe(1);
     expect(screen.progress.getSnapshot().trouble).toBeUndefined();
     expect(screen.text(".crew-status")).toBe(
-      "Your crew mines 577 stones a second",
+      "Your crew mines 558 stones a second",
     );
     expect(cart.querySelector(".trouble-burst")).toBeNull();
   });
@@ -3959,7 +3959,7 @@ describe("layer card, material line, and craft-done notice", () => {
       "The grey rock rings under every pick.",
     );
     expect(screen.text(".layer-card")).toContain(
-      "Tough on carts. Drills love it.",
+      "The Granite suits borers. Tough on drills.",
     );
     expect(screen.text(".layer-sketch")).toBe(
       "A sketch for the shed came up with the rock.",
@@ -4007,7 +4007,7 @@ describe("layer card, material line, and craft-done notice", () => {
       "You broke into the Granite!",
     );
     expect(screen.text(".welcome-layer")).toContain(
-      "Tough on carts. Drills love it.",
+      "The Granite suits borers. Tough on drills.",
     );
     expect(screen.text(".welcome-layer")).toContain(
       "A sketch for the shed came up with the rock.",
@@ -4052,7 +4052,7 @@ describe("layer card, material line, and craft-done notice", () => {
     const notice = screen.root.querySelector<HTMLElement>(".craft-notice");
     expect(notice?.hidden).toBe(false);
     expect(screen.text("#craft-notice-line")).toBe(
-      "Your Iron rails are fitted. Carts now 10.6/s.",
+      "Your Iron rails are fitted. Carts now 12.5/s.",
     );
     expect(screen.text(".craft-accept")).toBe("The crew feels it");
     screen.root.querySelector<HTMLButtonElement>(".craft-accept")?.click();
@@ -4086,7 +4086,7 @@ describe("layer card, material line, and craft-done notice", () => {
       screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
     ).toBe(false);
     expect(screen.text(".welcome-craft")).toBe(
-      "Your Iron rails are fitted. Carts now 10.6/s.",
+      "Your Iron rails are fitted. Carts now 12.5/s.",
     );
     expect(
       screen.root.querySelector<HTMLElement>(".craft-notice")?.hidden,
@@ -4244,7 +4244,7 @@ describe("sheet buys", () => {
     expect(dialog?.hidden).toBe(false);
     expect(screen.text(".pocket-rate")).toMatch(/stones\/s$/);
     expect(screen.text(".layer-line")).toContain("The Granite");
-    expect(screen.text(".layer-line")).toContain("Drills love it.");
+    expect(screen.text(".layer-line")).toContain("Suits borers.");
     expect(screen.text(".thumb-bar")).toContain("Buys");
     expect(screen.text(".thumb-bar")).toContain("Workshop");
     expect(screen.text(".thumb-bar")).toContain("Engineers");
@@ -4252,7 +4252,7 @@ describe("sheet buys", () => {
     expect(
       screen.root.querySelector(".engineers-button")?.hasAttribute("hidden"),
     ).toBe(false);
-    expect(screen.text('[data-tier="cart"] .tier-gain')).toBe("+8.5/s each");
+    expect(screen.text('[data-tier="cart"] .tier-gain')).toBe("+10/s each");
     expect(screen.text('[data-tier="cart"] .tier-needs')).toBe(
       "Needs 1 worker",
     );

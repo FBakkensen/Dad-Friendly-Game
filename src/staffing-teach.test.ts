@@ -164,7 +164,7 @@ describe("staffing teach (#246)", () => {
     expect(screen.progress.getSnapshot().mountain.taught).toContain("staffing");
   });
 
-  it("opens How it works for machines and staffing", () => {
+  it("opens How it works for staffing and layers", () => {
     const screen = mount(() => 1_700_000_000_000);
     screen.progress.applyMutation(() => crew());
     screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
@@ -177,6 +177,6 @@ describe("staffing teach (#246)", () => {
       [...(how?.querySelectorAll<HTMLElement>("[data-how]") ?? [])].map(
         (item) => item.dataset["how"],
       ),
-    ).toEqual(["machines", "staffing"]);
+    ).toEqual(["staffing", "layers"]);
   });
 });

@@ -600,7 +600,7 @@ export function mountMountainScreen({
     const layerWords = layerCardWords(layer.id);
     layerName.textContent = layer.name;
     layerAdvice.textContent =
-      layerWords === undefined ? "" : ` · ${layerWords.advice}`;
+      layerWords === undefined ? "" : ` · ${layerWords.line}`;
     crewPanel.render();
     renderVein();
     renderGuide();

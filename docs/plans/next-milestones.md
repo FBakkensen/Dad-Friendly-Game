@@ -76,11 +76,11 @@ Choices step 4 (after step 3): tier synergies (e.g. "+1% to every drill for each
 
 ### M12 Band balance. Goal: each band's favoured machine is clear on screen and affordable early in that band.
 
-PRs: 12.1 lab measure favouredAffordShare per band, report-only · 12.2 decide the favoured machines (D3) and the layer card names them · 12.3 retune costs/hardness, 20 seeds green · 12.4 guardrail (needs OK).
+PRs: 12.1 lab measure favouredAffordShare per band, report-only, plus the D3 rule 3 check "no machine unbought in any band" (report-only until 12.3) · 12.2 decide the favoured machines (D3) and the layer card names them · 12.3 retune costs/hardness, 20 seeds green · 12.4 guardrail (needs OK).
 
 12.5 (later) away production tapers the longer the player is away (#278).
 
-Choices step 2 (replaces 12.2–12.3 detail): layer-favoured machines. Each band boosts one tool and dulls another instead of a flat 0.85 (proposal: Granite drills up and carts down, Crystal borers up and drills down, Deep Heart the Great Machine up and carts down; final picks are D3 and need Flemming's OK). The layer card names the favoured tool and each card shows its real output in this band. Ownership milestones: at 10/25/50 of a machine that tier digs twice as fast, shown as "12 of 25 drills: at 25, every drill digs twice as fast". Depends on: step 1 baseline, 12.1 favouredAffordShare, M11 layer explainer. Done when: each band's favoured machine is affordable early in that band (value set with Flemming), greedy regret is clearly above zero in at least one band, decision entropy rises against the baseline, finish days stay in the week, and no threshold changed without his OK.
+Choices step 2 (replaces 12.2–12.3 detail): layer-favoured machines. Each band boosts one tool and dulls another instead of a flat 0.85 (D3 decided and shipped in M11 8d: Granite borers up and drills down, Crystal drills up and borers down, Deep Heart the Great Machine up and borers down, at ×1.1 / ×0.8). The layer card names the favoured tool and each card shows its real output in this band. Ownership milestones: at 10/25/50 of a machine that tier digs twice as fast, shown as "12 of 25 drills: at 25, every drill digs twice as fast". Depends on: step 1 baseline, 12.1 favouredAffordShare, M11 layer explainer. Done when: each band's favoured machine is affordable early in that band (value set with Flemming), greedy regret is clearly above zero in at least one band, decision entropy rises against the baseline, finish days stay in the week, and no threshold changed without his OK.
 
 ### M13 Generations (later). Goal: each kid run is longer AND bigger.
 
@@ -92,7 +92,7 @@ Choices step 5: kid-run twists. Each generation: mountain ×k, costs ×k, Legacy
 
 D1 Clay: craftable blasting charge in the Topsoil (rec.) / clay only from Granite / open the workshop at 1M.
 D2 Upgrade reveal: when near affordable (rec.) / keep count gates and add a toast.
-D3 Granite: make borers the favoured machine and cheaper early (rec., matches your play feel) / keep drills favoured and say so.
+D3 (decided by Flemming on #246, built in M11 8d): each band favours one machine. Granite suits borers (drills slowed), the Crystal Caves suit drills (borers slowed), the Deep Heart suits the Great Machine (borers slowed). Topsoil is plain. Rules: a band only favours a machine that unlocks in it or earlier; the bonus stays small so a newly unlocked machine is still clearly the strongest (pinned in `src/layers.test.ts`); and a lab check fails when any machine goes unbought in any band for any player policy. Shipped values are ×1.1 favoured and ×0.8 slowed, inside the asked "about 1.15 / 0.85": 1.15/0.85 pulled the checker dad to day 4.98 and put casual dominant share at 0.45, both lab misses, and 1.1/0.8 is the nearest pair that passes with no threshold change. The rule 3 check is deferred to 12.1/12.3: today it would fail at once, because tap-only buys no machine and the casual dad buys no carts in the Granite, so it needs a policy scope (which policies count) and a retune before it can be strict.
 D4 Order: design system first (rec.) / unlock flow first.
 D6 Teaching for existing players: show each reveal once, the first time they open that system (rec.) / only the info button.
 D5 Guardrail values: set after the baselines, with your OK.

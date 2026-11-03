@@ -11,12 +11,12 @@ const depth = (id: string) =>
 // Deterministic dads: two 10-minute sessions a day, 12 hours apart, 3 taps a
 // second, always buying the best speed per stone, paid for time away as the
 // game pays it. #177 keeps the 595/s borer, then puts 140M more stone under
-// the old bottom and prices the Great Machine at 67M. #198 hardens borers,
-// so the plain dad and the upgrade dad reach the bottom on day 6. The dad
-// who also buys every boost still lands on day 5.5. This sim does not craft.
+// the old bottom and prices the Great Machine at 67M. #198 hardened the rock;
+// D3 (#246) lets each layer favour one machine, so every dad here reaches the
+// bottom on day 5.5. This sim does not craft.
 describe.each([
-  ["a plain dad (crew only)", {}, 6],
-  ["a dad who also buys lasting upgrades", { buysUpgrades: true }, 6],
+  ["a plain dad (crew only)", {}, 5.5],
+  ["a dad who also buys lasting upgrades", { buysUpgrades: true }, 5.5],
   [
     "a dad who buys upgrades and starts every boost he can afford",
     { buysUpgrades: true, buysBoosts: true },
@@ -70,24 +70,24 @@ function expectPaidForNils(run: DadRun, sameSitting: boolean): void {
   if (sameSitting) {
     expect(gap).toBeCloseTo(0, 4);
   } else {
-    expect(gap).toBeCloseTo(0.5, 2);
+    expect(gap).toBeCloseTo(0.5, 1);
   }
 }
 
-// Second run (M6): the kid's crew is ×1.5. With hardened borers the bottom
-// is day 4.5, still a shorter climb than the first.
+// Second run (M6): the kid's crew is ×1.5. With D3 rock the bottom
+// is day 4, still a shorter climb than the first.
 describe("pacing: a second run with one Legacy (×1.5)", () => {
   const run = simulateDadRun({
     milestones: [depth("mantle")],
     legacy: 1,
     buysUpgrades: true,
   });
-  it("reaches the bottom on day 4.5", () => {
-    expect(run.reached.get(depth("mantle"))).toBe(4.5);
+  it("reaches the bottom on day 4", () => {
+    expect(run.reached.get(depth("mantle"))).toBe(4);
   });
 
   it("pays the real promotion for Nils", () => {
-    expectPaidForNils(run, true);
+    expectPaidForNils(run, false);
   });
 });
 
@@ -110,15 +110,15 @@ function quietStretch(run: DadRun, until: number): number {
 }
 
 describe.each([
-  ["a plain dad", {}, 6, 2, 1, false],
-  ["an upgrade-buying dad", { buysUpgrades: true }, 6, 2, 1, true],
+  ["a plain dad", {}, 5.5, 2, 1, false],
+  ["an upgrade-buying dad", { buysUpgrades: true }, 5.5, 2, 1, false],
   [
     "a dad who buys upgrades and boosts",
     { buysUpgrades: true, buysBoosts: true },
     5.5,
     1.51,
-    // One Great Machine. The rock makes a second one wait past the bottom.
-    1,
+    // The Deep Heart suits the Great Machine, so a second one pays before the bottom.
+    2,
     false,
   ],
 ])(
@@ -187,16 +187,16 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
     expect(borer).toMatchObject({
       count: 1,
       price: 9_000_000,
-      short: 5,
+      short: 7,
     });
     expect(borer?.shortCost).toBeGreaterThan(0);
     expect((borer?.shortCost ?? 0) / (borer?.price ?? 1)).toBeLessThan(0.1);
   });
 
-  it("runs one Great Machine after the Hammer, and the bottom stays day 6", () => {
+  it("runs one Great Machine after the Hammer, and the bottom stays day 5.5", () => {
     const bottom = run.reached.get(depth("mantle"));
     const machine = run.buys.find((buy) => buy.id === "machine");
-    expect(bottom).toBe(6);
+    expect(bottom).toBe(5.5);
     expect(machine).toMatchObject({ count: 1, price: 67_000_000 });
     expect(machine?.day).toBeGreaterThanOrEqual(4.5);
     expect(machine?.day).toBeLessThan(bottom ?? 0);

@@ -1680,6 +1680,11 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Clear of the focus ring (4px outline at 4px offset), so the last line never touches it. */
+.layer-dig {
+  margin-top: var(--space-8);
+}
+
 .layer-dig:active,
 .craft-accept:active,
 .welcome-continue:active {

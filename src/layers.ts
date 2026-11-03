@@ -111,24 +111,33 @@ export function layersEntered(before: number, after: number): readonly Layer[] {
 }
 
 /**
- * Speed multiplier for this band and tier. 1 leaves the tier alone.
- * The Topsoil is soft. Granite is tough on carts and borers and kind to
- * drills. The Crystal Caves are tough on drills and borers. The Deep
- * Heart is tough on carts, drills, and borers, and spares the Great
- * Machine. Workers and kids stay at 1 in every band, so a bare-hand tap
- * stays one stone.
+ * Decision D3 (#246): each deeper band suits one machine and is tough on
+ * one other. A band only favours a machine that unlocks in it or earlier,
+ * and the bonus stays small, so a newly unlocked machine is still clearly
+ * the strongest. The Topsoil is plain rock.
  */
-const HARDNESS: Readonly<Record<LayerIndex, Partial<Record<TierId, number>>>> =
-  {
-    1: {},
-    2: { cart: 0.85, borer: 0.85 },
-    3: { drill: 0.85, borer: 0.85 },
-    4: { cart: 0.85, drill: 0.85, borer: 0.85 },
-  };
+export const FAVOURED_SPEED = 1.1;
+export const SLOWED_SPEED = 0.8;
+
+export const LAYER_FAVOURS: Readonly<
+  Record<
+    LayerIndex,
+    { readonly suits: TierId; readonly tough: TierId } | undefined
+  >
+> = {
+  1: undefined,
+  2: { suits: "borer", tough: "drill" },
+  3: { suits: "drill", tough: "borer" },
+  4: { suits: "machine", tough: "borer" },
+};
 
 /** This band's rock on this tier. Missing entries, workers, and kids are 1. */
 export function hardnessOf(index: LayerIndex, tierId: TierId): number {
-  return HARDNESS[index][tierId] ?? 1;
+  const favours = LAYER_FAVOURS[index];
+  if (favours?.suits === tierId) {
+    return FAVOURED_SPEED;
+  }
+  return favours?.tough === tierId ? SLOWED_SPEED : 1;
 }
 
 /**
