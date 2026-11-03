@@ -1,8 +1,11 @@
+import oreArt from "./assets/ore-lump.png";
 import { formatCount, formatDuration } from "./format";
 import { stonesPerSecond } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
+  AWAY_MATERIALS_USE,
   ENGINEER_WELCOME,
+  awayMaterialsWords,
   cameBack,
   capWords,
   layerWelcomeWords,
@@ -33,6 +36,23 @@ export function createWelcomePanel({
   welcomeMined.className = "welcome-mined";
   const welcomeDetail = document.createElement("p");
   welcomeDetail.className = "welcome-detail";
+  // Ore that came up while away (#247), and what it is for.
+  const welcomeOre = document.createElement("div");
+  welcomeOre.className = "welcome-ore";
+  welcomeOre.hidden = true;
+  const welcomeOreArt = document.createElement("img");
+  welcomeOreArt.className = "welcome-ore-art";
+  welcomeOreArt.src = oreArt;
+  welcomeOreArt.alt = "";
+  const welcomeOreText = document.createElement("span");
+  welcomeOreText.className = "welcome-ore-text";
+  const welcomeOreLine = document.createElement("span");
+  welcomeOreLine.className = "welcome-ore-line";
+  const welcomeOreUse = document.createElement("span");
+  welcomeOreUse.className = "welcome-ore-use";
+  welcomeOreUse.textContent = AWAY_MATERIALS_USE;
+  welcomeOreText.append(welcomeOreLine, welcomeOreUse);
+  welcomeOre.append(welcomeOreArt, welcomeOreText);
   const welcomeCheer = document.createElement("p");
   welcomeCheer.className = "welcome-cheer";
   welcomeCheer.textContent =
@@ -63,6 +83,7 @@ export function createWelcomePanel({
     welcomeTitle,
     welcomeMined,
     welcomeDetail,
+    welcomeOre,
     welcomeCheer,
     welcomeCrew,
     welcomeEngineer,
@@ -143,6 +164,10 @@ export function createWelcomePanel({
     welcomeMined.hidden = report === undefined;
     welcomeDetail.hidden = report === undefined;
     welcomeCheer.hidden = report === undefined;
+    const oreLine =
+      report === undefined ? undefined : awayMaterialsWords(report.materials);
+    welcomeOre.hidden = oreLine === undefined;
+    welcomeOreLine.textContent = oreLine ?? "";
     if (report === undefined) {
       if ((joined !== undefined || steppedUp || lines.length > 0) && !wasOpen) {
         welcomeContinue.focus();

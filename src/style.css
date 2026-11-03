@@ -5184,3 +5184,97 @@ body {
   .engineer-promote.teach-action:disabled {
   opacity: 0.5;
 }
+
+/* #247: the ore that came up while you were away, and what it is for. */
+.welcome-ore {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  padding: var(--space-8);
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  text-align: left;
+}
+
+.welcome-ore[hidden] {
+  display: none;
+}
+
+.welcome-ore-art {
+  flex: none;
+  width: calc(var(--space-24) + var(--space-8));
+  height: calc(var(--space-24) + var(--space-8));
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.welcome-ore-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.welcome-ore-line {
+  color: var(--color-gold);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading);
+}
+
+.welcome-ore-use {
+  color: var(--color-ink);
+  font-size: var(--type-14);
+  line-height: var(--leading);
+}
+
+/* #247: the pass-to-kid card reads as the Legacy, its real numbers, then what stays. */
+.legacy-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  width: 100%;
+}
+
+.legacy-detail p {
+  margin: 0;
+  line-height: var(--leading);
+}
+
+.legacy-lead {
+  color: var(--color-gold);
+  font-size: var(--type-20);
+  font-weight: var(--weight-bold);
+}
+
+.legacy-rates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: var(--space-8);
+  list-style: none;
+  border: var(--line) solid var(--color-edge);
+  border-radius: var(--radius-control);
+  color: var(--color-ink);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+}
+
+.legacy-keeps,
+.legacy-fresh {
+  color: var(--color-ink);
+  font-size: var(--type-16);
+}
+
+.legacy-legend {
+  color: var(--color-quiet);
+  font-size: var(--type-16);
+  font-style: italic;
+}
+
+/* Clear of the focus ring, so the last line never touches the first button. */
+.welcome-card .welcome-continue,
+.legacy-card .start-over-actions {
+  margin-top: var(--space-8);
+}

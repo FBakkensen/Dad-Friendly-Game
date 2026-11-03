@@ -13,7 +13,7 @@ import {
   type CloudSave,
 } from "./cloud-save";
 import { APP_VERSION } from "./field-log";
-import { LAYERS } from "./layers";
+import { EMPTY_MATERIALS, LAYERS } from "./layers";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen, showAppUpdate } from "./mountain-screen";
 import { createWelcomePanel } from "./welcome-panel";
@@ -2555,7 +2555,16 @@ describe("pass the mine to your kid (#131)", () => {
     expect(legend?.hidden).toBe(true);
     expect(dialog(screen)?.hidden).toBe(false);
     expect(screen.text("#legacy-title")).toBe("Pass the mine to your kid.");
-    expect(screen.text(".legacy-detail")).toContain("×1.5");
+    expect(screen.text(".legacy-lead")).toBe("Legacy ×1.5, for good");
+    expect(
+      [...(dialog(screen)?.querySelectorAll(".legacy-rates li") ?? [])].map(
+        (item) => item.textContent,
+      ),
+    ).toEqual(["Workers 1/s to 1.5/s", "Carts 10/s to 15/s"]);
+    expect(screen.text(".legacy-keeps")).toMatch(
+      /^Your kid keeps the Legacy and \d+ recipes\.$/,
+    );
+    expect(screen.text(".legacy-detail")).not.toMatch(/\?/);
     expect(document.activeElement).toBe(
       dialog(screen)?.querySelector(".legacy-cancel"),
     );
@@ -4115,6 +4124,7 @@ describe("layer card, material line, and craft-done notice", () => {
             paidMs: 120_000,
             capped: false,
             heart: 1,
+            materials: EMPTY_MATERIALS,
           },
           layersArrived: [LAYERS[0]],
           craftsFitted: [],

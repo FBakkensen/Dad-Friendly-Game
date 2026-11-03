@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { EMPTY_MATERIALS } from "./layers";
 import { createMemoryAuth } from "./auth";
 import { buyBoost } from "./boosts";
 import { buyCrew } from "./crew";
@@ -528,6 +529,7 @@ describe("away earnings", () => {
       paidMs: 600_000,
       capped: false,
       heart: 1,
+      materials: EMPTY_MATERIALS,
     });
     expect(readSessionSave({ storage })).toEqual({
       mountain: {

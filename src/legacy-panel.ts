@@ -1,11 +1,54 @@
 import { formatCount } from "./format";
 import { legacyBonus, passTheMine } from "./legacy";
-import type { Mountain } from "./mountain";
+import { createMountain, type Mountain } from "./mountain";
+import { effectiveRates } from "./rates";
+import { formatCraftSpeed as speed } from "./screen-words";
+import { recipesForMined } from "./workshop";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 
 /** "×1.5", "×2": the Legacy bonus as people read it. */
 export const legacyWords = (bonus: number): string =>
   `×${String(Number(bonus.toFixed(2)))}`;
+
+export type LegacyCardWords = {
+  readonly lead: string;
+  readonly rates: readonly string[];
+  readonly keeps: string;
+  readonly fresh: string;
+  readonly legend: string;
+};
+
+/**
+ * The pass-to-kid card (#247): the Legacy step, what it does to a fresh
+ * crew in real numbers from effectiveRates, and what carries over
+ * (exactly what passTheMine keeps).
+ */
+export function legacyCardWords(mountain: Mountain): LegacyCardWords {
+  const legacy = mountain.legacy ?? 0;
+  const now = effectiveRates({ ...createMountain(), legacy });
+  const kid = effectiveRates({ ...createMountain(), legacy: legacy + 1 });
+  const before = legacyWords(legacyBonus(mountain));
+  const after = legacyWords(legacyBonus({ ...mountain, legacy: legacy + 1 }));
+  const recipes = (mountain.recipes ?? recipesForMined(0)).length;
+  return {
+    lead:
+      legacy === 0
+        ? `Legacy ${after}, for good`
+        : `Legacy ${before} to ${after}, for good`,
+    rates: [
+      `Workers ${speed(now.tierSpeed.helper)}/s to ${speed(kid.tierSpeed.helper)}/s`,
+      `Carts ${speed(now.tierSpeed.cart)}/s to ${speed(kid.tierSpeed.cart)}/s`,
+      // A tap counts whole stones, so a step that rounds away is not promised.
+      ...(kid.tapYield > now.tapYield
+        ? [`Taps ${speed(now.tapYield)} to ${speed(kid.tapYield)} stones`]
+        : []),
+    ],
+    keeps: `Your kid keeps the Legacy and ${formatCount(recipes)} recipes.`,
+    fresh:
+      "Stones, crew, engineers, upgrades and ore start fresh. The relics wait to be found again.",
+    legend: "You'll always be the Legend who began it.",
+  };
+}
 
 const canPass = (mountain: Mountain): boolean =>
   passTheMine(mountain, 0) !== undefined;
@@ -54,9 +97,21 @@ export function createLegacyPanel({
   const title = document.createElement("h2");
   title.id = "legacy-title";
   title.textContent = "Pass the mine to your kid.";
-  const detail = document.createElement("p");
+  const detail = document.createElement("div");
   detail.id = "legacy-detail";
   detail.className = "legacy-detail";
+  const line = (className: string): HTMLParagraphElement => {
+    const paragraph = document.createElement("p");
+    paragraph.className = className;
+    return paragraph;
+  };
+  const lead = line("legacy-lead");
+  const rates = document.createElement("ul");
+  rates.className = "legacy-rates";
+  const keeps = line("legacy-keeps");
+  const fresh = line("legacy-fresh");
+  const legend = line("legacy-legend");
+  detail.append(lead, rates, keeps, fresh, legend);
   const cancel = document.createElement("button");
   cancel.type = "button";
   cancel.className = "start-over-cancel legacy-cancel";
@@ -111,8 +166,18 @@ export function createLegacyPanel({
     );
     const offered = ready && canPass(mountain);
     menuPass.hidden = !offered;
-    const next = legacyWords(legacyBonus({ ...mountain, legacy: legacy + 1 }));
-    detail.textContent = `Your kid starts a fresh mountain with your Legacy: the whole crew and every tap ${next}, for good. The relics wait to be found again; the crew, upgrades and stones start fresh. You'll always be the Legend who began it.`;
+    const words = legacyCardWords(mountain);
+    lead.textContent = words.lead;
+    rates.replaceChildren(
+      ...words.rates.map((rate) => {
+        const item = document.createElement("li");
+        item.textContent = rate;
+        return item;
+      }),
+    );
+    keeps.textContent = words.keeps;
+    fresh.textContent = words.fresh;
+    legend.textContent = words.legend;
     const wasOpen = !dialog.hidden;
     dialog.hidden = !open || !offered;
     if (!dialog.hidden && !wasOpen) {
