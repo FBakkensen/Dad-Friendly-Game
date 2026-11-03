@@ -149,3 +149,35 @@
     animation: none;
   }
 }
+
+/* M11-9 (#247): welcome-back ore and the pass-to-kid card. */
+#mock.tok .teach-welcome-mined,
+#mock.tok .teach-legacy-lead {
+  margin: 0;
+  color: var(--color-gold);
+  font-size: var(--type-24);
+  font-weight: var(--weight-bold);
+  text-align: center;
+}
+
+#mock.tok .teach-welcome-mined {
+  font-size: var(--type-32);
+}
+
+#mock.tok .teach-cheer {
+  color: var(--color-quiet);
+  font-style: italic;
+}
+
+#mock.tok .teach-legacy-rates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: var(--space-8);
+  list-style: none;
+  color: var(--color-ink);
+  font-size: var(--type-16);
+  font-weight: var(--weight-bold);
+  text-align: center;
+}

@@ -279,6 +279,8 @@ export type AwayReport = {
   readonly capped: boolean;
   /** Heart of Patience multiplier on away pay (1 without the Heart). */
   readonly heart: number;
+  /** Ore the crew brought up while you were away. */
+  readonly materials: Materials;
 };
 
 /** The crew's work while the game was closed: away pay of their speed, up to the away cap (see effectiveRates). */
@@ -311,7 +313,17 @@ export function accrueAway({
   });
   return {
     ...walked,
-    report: { mined: walked.mined, awayMs, paidMs, capped, heart },
+    report: {
+      mined: walked.mined,
+      awayMs,
+      paidMs,
+      capped,
+      heart,
+      materials: materialsGained(
+        minedOut(mountain),
+        minedOut(mountain) + walked.mined,
+      ),
+    },
   };
 }
 

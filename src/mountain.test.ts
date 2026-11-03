@@ -400,6 +400,7 @@ describe("accrueAway", () => {
       paidMs: 90_500,
       capped: false,
       heart: 1,
+      materials: EMPTY_MATERIALS,
     });
   });
 
@@ -435,6 +436,7 @@ describe("accrueAway", () => {
       paidMs: longCap,
       capped: true,
       heart: 1,
+      materials: EMPTY_MATERIALS,
     });
   });
 
@@ -447,6 +449,7 @@ describe("accrueAway", () => {
       paidMs: 0,
       capped: false,
       heart: 1,
+      materials: EMPTY_MATERIALS,
     });
   });
 });

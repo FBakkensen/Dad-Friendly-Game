@@ -5,6 +5,12 @@ import {
   type HowSystem,
 } from "../src/how-it-works.ts";
 import { createHowCard } from "../src/teach-ui.ts";
+import { legacyCardWords } from "../src/legacy-panel.ts";
+import { materialsGained } from "../src/layers.ts";
+import { minedMountain } from "../src/test-fixtures.ts";
+import { MOUNTAIN_STONES } from "../src/scale.ts";
+import { recipesForMined } from "../src/workshop.ts";
+import { AWAY_MATERIALS_USE, awayMaterialsWords } from "../src/screen-words.ts";
 
 /**
  * M11-2 teaching mock (#240), the hybrid pattern Flemming picked. Not the game.
@@ -33,6 +39,8 @@ const TEACH_STEPS = [
   "tending",
   "staffing",
   "promotion",
+  "welcome",
+  "legacy",
 ] as const;
 type TeachStep = (typeof TEACH_STEPS)[number];
 
@@ -344,6 +352,44 @@ function promotionSheet(): string {
 }
 
 /**
+ * M11-9 (#247): the welcome-back card names the ore that came up while
+ * away, from materialsGained over the real dig (12M to 18.4M, the Granite),
+ * and where it goes.
+ */
+function welcomeCard(): string {
+  const ore = awayMaterialsWords(materialsGained(12_000_000, 18_400_000)) ?? "";
+  return `<section class="card teach-sheet teach-welcome" role="dialog" aria-label="While you were away">
+    <h2 class="kit-title">While you were away</h2>
+    <p class="teach-welcome-mined">+6.4M stones</p>
+    <p class="teach-intro">You were gone 3 hours. Your crew mined the whole time, at a resting pace (30% of their speed).</p>
+    <div class="card kit-card teach-ore">${icon(ART.ore)}<span class="kit-card-body"><span class="kit-card-title">${esc(ore)}</span><span class="kit-card-line">${esc(AWAY_MATERIALS_USE)}</span></span></div>
+    <p class="teach-intro teach-cheer">Time with the people who matter is never wasted.</p>
+    <button type="button" class="kit-btn kit-primary kit-wide" data-tap="${esc(tap("Back to the mountain."))}">Back to the mountain</button>
+  </section>`;
+}
+
+/**
+ * M11-9 (#247): the pass-to-kid card. The Legacy step, what it does to a
+ * fresh crew (effectiveRates), and what passTheMine keeps.
+ */
+function legacyCard(): string {
+  const words = legacyCardWords({
+    ...minedMountain(MOUNTAIN_STONES),
+    recipes: recipesForMined(MOUNTAIN_STONES),
+  });
+  return `<section class="card teach-sheet teach-legacy" role="alertdialog" aria-label="Pass the mine to your kid">
+    <h2 class="kit-title">Pass the mine to your kid.</h2>
+    <p class="teach-legacy-lead">${esc(words.lead)}</p>
+    <ul class="card teach-legacy-rates">${words.rates.map((rate) => `<li>${esc(rate)}</li>`).join("")}</ul>
+    <p class="teach-intro">${esc(words.keeps)}</p>
+    <p class="teach-intro">${esc(words.fresh)}</p>
+    <p class="teach-intro teach-cheer">${esc(words.legend)}</p>
+    <button type="button" class="kit-btn kit-outline kit-wide" data-tap="${esc(tap("Closes the card. Nothing changes."))}">Not yet</button>
+    <button type="button" class="kit-btn kit-primary kit-wide" data-tap="${esc(tap("Starts your kid's mountain with the Legacy."))}">Pass it on</button>
+  </section>`;
+}
+
+/**
  * How it works for one system: the real shared card from src/teach-ui.ts
  * with the real copy from src/how-it-works.ts (#242), in the mock's sheet.
  */
@@ -421,6 +467,10 @@ export function renderTeach(control: string): string {
       return frame(step, staffingSheet());
     case "promotion":
       return frame(step, promotionSheet());
+    case "welcome":
+      return frame(step, welcomeCard());
+    case "legacy":
+      return frame(step, legacyCard());
     case undefined:
       throw new Error(`Unknown teach step ${control}`);
   }

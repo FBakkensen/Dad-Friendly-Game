@@ -96,6 +96,8 @@ const SHOTS = [
     "tending",
     "staffing",
     "promotion",
+    "welcome",
+    "legacy",
   ].map((step) => ["teach", "rest", step]),
   // Every How it works card (#242), so each one is checked for scroll.
   ...[

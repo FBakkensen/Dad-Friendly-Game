@@ -16,7 +16,7 @@ import {
 import type { BoostId } from "./boosts";
 import { formatCompact, formatCount, formatDuration } from "./format";
 import type { TroubleKind } from "./hazards";
-import type { LayerId } from "./layers";
+import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { owned, tierById, type TierId } from "./tiers";
@@ -1221,3 +1221,27 @@ export const MOCK_RECIPES = [
     stones: 800_000,
   },
 ] as const;
+
+/** Pocket order: the shallow ore first. */
+const AWAY_ORE: readonly MaterialId[] = [
+  "clay",
+  "iron",
+  "crystal",
+  "heartstone",
+];
+
+/**
+ * The welcome-back ore line (#247): what came up while you were away, and
+ * where it goes. Nothing when no ore came up.
+ */
+export function awayMaterialsWords(gained: Materials): string | undefined {
+  const parts = AWAY_ORE.filter((id) => gained[id] > 0).map(
+    (id) => `+${formatCompact(gained[id])} ${id}`,
+  );
+  return parts.length === 0
+    ? undefined
+    : `Ore for the Workshop: ${parts.join(" · ")}`;
+}
+
+/** Under the ore line: what the Workshop turns it into. */
+export const AWAY_MATERIALS_USE = "Craft it into gear for the crew.";
