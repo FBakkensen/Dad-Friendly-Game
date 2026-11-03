@@ -1,6 +1,7 @@
 import type { Action } from "../economy/actions";
 import type { LayerId, Materials } from "../layers";
 import type { Crafted, RecipeId } from "../workshop";
+import type { BandEvent } from "./bands";
 import type { RevealEvent } from "./reveal";
 
 /**
@@ -61,6 +62,8 @@ export type DecisionSample = {
    * of a run also carries any events after it.
    */
   readonly reveals?: readonly RevealEvent[];
+  /** Machine sales and purchases per band since the previous sample (#249). */
+  readonly bands?: readonly BandEvent[];
   /** Day the mountain emptied, when the run finished. Same on every sample. */
   readonly finishDay?: number;
   /**

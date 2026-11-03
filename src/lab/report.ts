@@ -1,8 +1,13 @@
+import { LAYERS, type LayerId } from "../layers";
+import { tierById } from "../tiers";
+import { MACHINE_IDS, type BandSummary, type Spread } from "./bands";
 import type { MeasureValue, ScoreMethod } from "./measure";
 import {
   CASUAL_REFERENCE_ID,
   OPTIMIZER_REFERENCE_ID,
+  PERCENT,
   REPORT_DEAD_HOURS,
+  REPORT_MACHINE_SITTINGS,
   REPORT_FRACTION_DIGITS,
 } from "./targets";
 import type {
@@ -102,6 +107,7 @@ export function renderReport(result: TournamentResult): string {
     "",
     ...timelineSection(result),
     ...listSection(result),
+    ...bandSection(result),
     ...stretchSection(result),
     ...suggestionSection(result),
   ];
@@ -139,6 +145,7 @@ export function reportJson(result: TournamentResult): unknown {
       ...stretch,
       nextPaybackRatio: jsonNumber(stretch.nextPaybackRatio),
     })),
+    bands: result.bands,
     suggestions: labSuggestions(result),
   };
 }
@@ -452,4 +459,138 @@ function jsonMeasure(
 
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+const PERCENT_DIGITS = 0;
+const WARN = "⚠";
+
+const LAYER_NAMES = Object.fromEntries(
+  LAYERS.map((layer) => [layer.id, layer.name]),
+) as Record<LayerId, string>;
+
+function layerName(id: LayerId): string {
+  return LAYER_NAMES[id];
+}
+
+function machineName(id: string): string {
+  return id === "machine" ? "Great Machine" : capitalize(id);
+}
+
+function percent(share: number): string {
+  return `${(share * PERCENT).toFixed(PERCENT_DIGITS)}%`;
+}
+
+function seen(spread: Spread, runs: number): string {
+  return spread.runs === runs
+    ? ""
+    : ` (${String(spread.runs)} of ${String(runs)} runs)`;
+}
+
+/** First affordable and first bought, as a share of the band passed. */
+function favouredText(
+  entry: BandSummary["favoured"][number],
+  runs: number,
+): string {
+  const afford =
+    entry.afford.runs === 0
+      ? "never affordable"
+      : `affordable at ${percent(entry.afford.mean)}${seen(entry.afford, runs)}`;
+  const buy =
+    entry.buy.runs === 0
+      ? "never bought"
+      : `bought at ${percent(entry.buy.mean)}${seen(entry.buy, runs)}`;
+  return `${afford}, ${buy}`;
+}
+
+function buysText(summary: BandSummary, layer: LayerId): string {
+  const parts = summary.buys
+    .filter((entry) => entry.layer === layer)
+    .map((entry) => {
+      const flag = summary.unbought.some(
+        (miss) => miss.layer === layer && miss.machine === entry.machine,
+      );
+      return `${machineName(entry.machine)} ${entry.mean.toFixed(1)}${flag ? ` ${WARN}` : ""}`;
+    });
+  return parts.length === 0 ? "none on sale" : parts.join(", ");
+}
+
+function revealText(
+  entry: BandSummary["machines"][number] | undefined,
+): string {
+  if (entry === undefined) {
+    return "never shown";
+  }
+  const where = `${layerName(entry.layer)} ${percent(entry.share)}`;
+  if (entry.minutes.runs === 0) {
+    return `${where}, never bought`;
+  }
+  const flag = entry.flagged ? ` ${WARN}` : "";
+  return `${where}, ${entry.minutes.mean.toFixed(0)} min, ${entry.sittings.mean.toFixed(1)} sittings (worst ${String(entry.sittings.max)})${flag}`;
+}
+
+/** Per-band report for M12 (#249). Report only: nothing here passes or fails. */
+function bandSection(result: TournamentResult): readonly string[] {
+  const [first] = result.bands;
+  if (first === undefined) {
+    return [];
+  }
+  const favouredLayers = first.summary.favoured;
+  const lines = [
+    "## Bands (report only)",
+    "",
+    "M12 groundwork (#249). Shares are how far through the band the dad was, 0% at its top. Means are over the runs where it happened. Nothing here passes or fails yet.",
+    "",
+    "### Favoured machine",
+    "",
+    `| Player | ${favouredLayers.map((entry) => `${layerName(entry.layer)}: ${machineName(entry.machine)}`).join(" | ")} |`,
+    `|---|${favouredLayers.map(() => "---").join("|")}|`,
+    ...result.bands.map(
+      (row) =>
+        `| ${row.label} | ${row.summary.favoured.map((entry) => favouredText(entry, row.summary.runs)).join(" | ")} |`,
+    ),
+    "",
+    `### Machines bought per band (D3, rule three)`,
+    "",
+    `Mean purchases per run, for each machine on sale in the band. ${WARN} marks a machine on sale there and never bought in some run.`,
+    "",
+    `| Player | ${LAYERS.map((layer) => layer.name).join(" | ")} |`,
+    `|---|${LAYERS.map(() => "---").join("|")}|`,
+    ...result.bands.map(
+      (row) =>
+        `| ${row.label} | ${LAYERS.map((layer) => buysText(row.summary, layer.id)).join(" | ")} |`,
+    ),
+    "",
+    "Rule 3 misses:",
+    "",
+  ];
+  const misses = result.bands.flatMap((row) =>
+    row.summary.unbought.map(
+      (miss) =>
+        `- ${row.label}: ${machineName(miss.machine)} in ${layerName(miss.layer)}, unbought in ${String(miss.runs)} of ${String(miss.of)} runs`,
+    ),
+  );
+  lines.push(...(misses.length === 0 ? ["- none"] : misses), "");
+  lines.push(
+    "### When machines show up",
+    "",
+    `Where each machine first shows, and the wait to its first buy in live minutes and in sittings started since. ${WARN} marks a worst wait over ${String(REPORT_MACHINE_SITTINGS)} sittings.`,
+    "",
+    `| Player | ${MACHINE_IDS.map((id) => tierById(id).name).join(" | ")} |`,
+    `|---|${MACHINE_IDS.map(() => "---").join("|")}|`,
+    ...result.bands.map(
+      (row) =>
+        `| ${row.label} | ${MACHINE_IDS.map((id) => revealText(row.summary.machines.find((entry) => entry.machine === id))).join(" | ")} |`,
+    ),
+    "",
+    "### Small things waiting more than one sitting",
+    "",
+  );
+  const small = result.bands.flatMap((row) =>
+    row.summary.small.map(
+      (wait) =>
+        `- ${row.label}: ${wait.id}, worst ${String(wait.sittings)} sittings (${wait.minutes.toFixed(0)} live min)`,
+    ),
+  );
+  lines.push(...(small.length === 0 ? ["- none"] : small), "");
+  return lines;
 }
