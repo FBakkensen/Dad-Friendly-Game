@@ -34,7 +34,8 @@ describe("scoreDecision", () => {
   });
 
   it("scores the whole table when the caller does not pass one", () => {
-    const mountain = { ...createMountain(), pocket: 100 };
+    // An unstaffed cart opens Sharper picks and Steady hands (#250).
+    const mountain = { ...createMountain(), carts: 1, pocket: 100 };
     const sample = scoreDecision({
       mountain,
       now: 0,

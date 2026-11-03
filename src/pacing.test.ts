@@ -12,15 +12,15 @@ const depth = (id: string) =>
 // second, always buying the best speed per stone, paid for time away as the
 // game pays it. #177 keeps the 595/s borer, then puts 140M more stone under
 // the old bottom and prices the Great Machine at 67M. #198 hardened the rock;
-// D3 (#246) lets each layer favour one machine, so every dad here reaches the
-// bottom on day 5.5. This sim does not craft.
+// D3 (#246) lets each layer favour one machine, so the dads reach the bottom
+// on day 5.5, or day 5 with boosts (M12-2, #250 retune). This sim does not craft.
 describe.each([
   ["a plain dad (crew only)", {}, 5.5],
   ["a dad who also buys lasting upgrades", { buysUpgrades: true }, 5.5],
   [
     "a dad who buys upgrades and starts every boost he can afford",
     { buysUpgrades: true, buysBoosts: true },
-    5.5,
+    5,
   ],
 ])("pacing: %s", (_, options, bottomDay) => {
   const reached = simulateDad({
@@ -42,7 +42,8 @@ describe.each([
 
   it("reaches the bottom on the pinned day", () => {
     const bottom = reached.get(depth("mantle")) ?? Infinity;
-    expect(bottom).toBe(bottomDay);
+    // The sim checks the depth once a tick, so the day can read a hair over.
+    expect(bottom).toBeCloseTo(bottomDay, 2);
   });
 });
 
@@ -111,11 +112,12 @@ function quietStretch(run: DadRun, until: number): number {
 
 describe.each([
   ["a plain dad", {}, 5.5, 2, 1, false],
-  ["an upgrade-buying dad", { buysUpgrades: true }, 5.5, 2, 1, false],
+  // The borer opens at 10M (#250), so Nils comes in the borer's sitting.
+  ["an upgrade-buying dad", { buysUpgrades: true }, 5.5, 2, 2, true],
   [
     "a dad who buys upgrades and boosts",
     { buysUpgrades: true, buysBoosts: true },
-    5.5,
+    5,
     1.51,
     // The Deep Heart suits the Great Machine, so a second one pays before the bottom.
     2,
@@ -131,7 +133,7 @@ describe.each([
     const bottom = run.reached.get(depth("mantle")) ?? Infinity;
 
     it("saves for the Great Machine, then runs it before the bottom", () => {
-      expect(bottom).toBe(bottomDay);
+      expect(bottom).toBeCloseTo(bottomDay, 2);
       expect(quietStretch(run, bottom)).toBeLessThanOrEqual(quietCap);
       const machine = run.buys.find((buy) => buy.id === "machine");
       expect(machine).toMatchObject({ count: 1, price: 67_000_000 });
@@ -186,22 +188,25 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
     const borer = run.buys.find((buy) => buy.id === "borer");
     expect(borer).toMatchObject({
       count: 1,
-      price: 9_000_000,
-      short: 7,
+      price: 8_100_000,
+      short: 6,
     });
     expect(borer?.shortCost).toBeGreaterThan(0);
-    expect((borer?.shortCost ?? 0) / (borer?.price ?? 1)).toBeLessThan(0.1);
+    // The borer waits for 10M (#250), so the dad owns more workers by then
+    // and the next ones cost more: about a sixth of the borer, not a tenth.
+    expect((borer?.shortCost ?? 0) / (borer?.price ?? 1)).toBeLessThan(0.2);
   });
 
-  it("runs one Great Machine after the Hammer, and the bottom stays day 5.5", () => {
+  it("runs a Great Machine after the Hammer, and the bottom stays day 5.5", () => {
     const bottom = run.reached.get(depth("mantle"));
     const machine = run.buys.find((buy) => buy.id === "machine");
-    expect(bottom).toBe(5.5);
+    expect(bottom).toBeCloseTo(5.5, 2);
     expect(machine).toMatchObject({ count: 1, price: 67_000_000 });
     expect(machine?.day).toBeGreaterThanOrEqual(4.5);
     expect(machine?.day).toBeLessThan(bottom ?? 0);
-    expect(run.mountain.machines).toBe(1);
-    expect(effectiveRates(run.mountain).running.machine).toBe(1);
+    // A second one lands in the bottom sitting (M12-2, #250 retune).
+    expect(run.mountain.machines).toBe(2);
+    expect(effectiveRates(run.mountain).running.machine).toBe(2);
   });
 });
 

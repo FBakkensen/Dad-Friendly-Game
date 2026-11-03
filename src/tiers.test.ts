@@ -27,12 +27,14 @@ describe("tiers", () => {
       ["helper", 20, 1],
       ["cart", 100, 10],
       ["drill", 14_000, 60],
-      ["borer", 9_000_000, 595],
+      ["borer", 8_100_000, 595],
       ["machine", 67_000_000, 3_500],
       ["kid", 1_000_000, 1],
     ]);
     expect(tierById("machine").needs).toBe("hammer");
     expect(tierById("kid").needs).toBe("crown");
+    // M12-2 (#250): the borer opens at the Granite entrance.
+    expect(tierById("borer").opensAt).toBe(10_000_000);
     // Machines climb; kids are a late helper tier, not a machine.
     const machines = TIERS.filter((tier) => tier.id !== "kid");
     for (const [index, tier] of machines.entries()) {
@@ -56,7 +58,7 @@ describe("tiers", () => {
     ]);
     // #177: borers climb at ×1.5 so a second and third stay buyable.
     expect([0, 1, 2].map((n) => tierCost(tierById("borer"), n))).toEqual([
-      9_000_000, 13_500_000, 20_250_000,
+      8_100_000, 12_150_000, 18_225_000,
     ]);
   });
 

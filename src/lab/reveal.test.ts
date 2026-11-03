@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createMountain, type Mountain } from "../mountain";
+import { minedMountain } from "../test-fixtures";
 import revealNeverUsed from "./measures/revealNeverUsed";
 import revealSlowest, { slowestReveals } from "./measures/revealSlowest";
 import revealToUse from "./measures/revealToUse";
@@ -28,7 +29,7 @@ describe("createRevealLog", () => {
     const start = createMountain();
     const first = log(start, 0);
     expect(ids(first, "appeared")).toContain("tier:helper");
-    // Boosts wait until nearly affordable (#245).
+    // Boosts wait for the first machine of their tier (#250).
     expect(ids(first, "appeared")).not.toContain("boost:sharper");
     expect(ids(first, "appeared")).not.toContain("tier:drill");
     expect(ids(first, "appeared")).not.toContain("system:workshop");
@@ -47,6 +48,37 @@ describe("createRevealLog", () => {
       liveSec: 2,
     });
     expect(log(hired, 3)).toEqual([]);
+  });
+
+  it("starts the borer's wait when its card opens at 10M, not at the locked preview (#250)", () => {
+    const log = createRevealLog();
+    const drilling: Mountain = {
+      ...createMountain(),
+      helpers: 1,
+      carts: 1,
+      drills: 1,
+    };
+    expect(ids(log(drilling, 0), "appeared")).not.toContain("tier:borer");
+    const near = {
+      ...drilling,
+      ...minedMountain(9_999_999),
+      helpers: 1,
+      carts: 1,
+      drills: 1,
+    };
+    expect(ids(log(near, 10), "appeared")).not.toContain("tier:borer");
+    const open = {
+      ...drilling,
+      ...minedMountain(10_000_000),
+      helpers: 1,
+      carts: 1,
+      drills: 1,
+    };
+    expect(log(open, 20)).toContainEqual({
+      kind: "appeared",
+      id: "tier:borer",
+      liveSec: 20,
+    });
   });
 
   it("logs an appearance with a use that had none before it", () => {

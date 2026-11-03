@@ -1340,6 +1340,8 @@ describe("field log", () => {
     progress.applyMutation((mountain) =>
       buyTier({ ...mountain, pocket: 20 }, "helper"),
     );
+    // Three carts open Strong arms (#250).
+    progress.applyMutation((mountain) => ({ ...mountain, carts: 3 }));
     progress.applyMutation((mountain) =>
       buyUpgrade({ ...mountain, pocket: 46_000 }, "tap"),
     );
@@ -1355,18 +1357,23 @@ describe("field log", () => {
     progress.applyMutation((mountain) => mountain);
 
     const codes = progress.fieldLog().events.map((event) => event.code);
-    expect(codes).toEqual(["tier.buy", "upgrade.buy", "boost.start"]);
+    expect(codes).toEqual([
+      "tier.buy",
+      "tier.buy",
+      "upgrade.buy",
+      "boost.start",
+    ]);
     expect(progress.fieldLog().events[0]?.data).toEqual({
       id: "helper",
       count: 1,
     });
-    expect(progress.fieldLog().events[1]?.data).toEqual({
+    expect(progress.fieldLog().events[2]?.data).toEqual({
       id: "tap",
       count: 1,
     });
     const endsAt = progress.getSnapshot().mountain.boosts?.sharper;
     expect(endsAt).toBeTypeOf("number");
-    expect(progress.fieldLog().events[2]?.data).toEqual({
+    expect(progress.fieldLog().events[3]?.data).toEqual({
       id: "sharper",
       endsAt: new Date(endsAt ?? 0).toISOString(),
     });
@@ -1503,7 +1510,15 @@ describe("field log events for the deep (#150)", () => {
   it("records a promotion, a station, a call back to camp, and the free first engineer as crew", () => {
     const { progress } = guest();
     progress.applyMutation((mountain) =>
-      buyCrew({ ...mountain, pocket: 10_000_000 }, "borer"),
+      // The borer opens at 10M stones (#250).
+      buyCrew(
+        {
+          ...mountain,
+          remaining: mountain.remaining - 10_000_000,
+          pocket: 10_000_000,
+        },
+        "borer",
+      ),
     );
     expect(codes(progress)).toContain("tier.buy");
     expect(codes(progress)).not.toContain("engineer.promote");

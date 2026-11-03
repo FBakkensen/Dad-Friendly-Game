@@ -73,11 +73,8 @@ function mount(now: () => number) {
 }
 
 import {
-  NEAR_CREW_SEC,
-  NEAR_SHARE,
   anyHiddenRow,
   boostShown,
-  nearlyAffordable,
   shownRows,
   upgradeShown,
 } from "./upgrade-reveal";
@@ -87,29 +84,34 @@ import { showsDot } from "./teach";
 
 const arms = upgradeById("tap");
 
-describe("nearly affordable (#245)", () => {
-  it("counts half the price in the pocket, or the pocket plus five minutes of crew", () => {
+describe("rows open at a fixed point in the climb (#250)", () => {
+  it("shows an upgrade at its owned count, never for a full pocket", () => {
     const start = createMountain();
-    expect(nearlyAffordable({ ...start, pocket: 22_999 }, 46_000)).toBe(false);
-    expect(nearlyAffordable({ ...start, pocket: 23_000 }, 46_000)).toBe(true);
-    expect(NEAR_SHARE).toBe(0.5);
-    // Ten workers at 1/s: 3,000 stones in five minutes.
-    const crew = { ...start, helpers: 10, pocket: 1_000 };
-    expect(NEAR_CREW_SEC).toBe(300);
-    expect(nearlyAffordable(crew, 4_000)).toBe(true);
-    expect(nearlyAffordable(crew, 4_100)).toBe(false);
+    expect(upgradeShown({ ...start, pocket: 1e12 }, arms)).toBe(false);
+    expect(upgradeShown({ ...start, carts: 2 }, arms)).toBe(false);
+    expect(upgradeShown({ ...start, carts: 3 }, arms)).toBe(true);
+    const boots = upgradeById("boots");
+    expect(upgradeShown({ ...start, pocket: 1e12, helpers: 9 }, boots)).toBe(
+      false,
+    );
+    expect(upgradeShown({ ...start, helpers: 10 }, boots)).toBe(true);
   });
 
-  it("keeps a row once bought or seen, and never shows a locked one", () => {
+  it("shows a boost with the first machine of its tier, never for a full pocket", () => {
+    const start = createMountain();
+    const sharper = boostById("sharper");
+    const overtime = boostById("overtime");
+    expect(boostShown({ ...start, pocket: 1e12 }, sharper)).toBe(false);
+    expect(boostShown({ ...start, carts: 1 }, sharper)).toBe(true);
+    expect(boostShown({ ...start, carts: 1 }, overtime)).toBe(false);
+    expect(boostShown({ ...start, drills: 1 }, overtime)).toBe(true);
+  });
+
+  it("keeps a row once bought or seen", () => {
     const start = createMountain();
     expect(upgradeShown(start, arms)).toBe(false);
     expect(upgradeShown({ ...start, seen: ["upgrade:tap"] }, arms)).toBe(true);
     expect(upgradeShown({ ...start, upgrades: { tap: 1 } }, arms)).toBe(true);
-    const boots = upgradeById("boots");
-    expect(upgradeShown({ ...start, pocket: 10_000_000 }, boots)).toBe(false);
-    expect(
-      upgradeShown({ ...start, pocket: 10_000_000, helpers: 10 }, boots),
-    ).toBe(true);
     const sharper = boostById("sharper");
     expect(boostShown(start, sharper)).toBe(false);
     expect(boostShown({ ...start, boosts: { sharper: 0 } }, sharper)).toBe(
@@ -121,13 +123,14 @@ describe("nearly affordable (#245)", () => {
   });
 
   it("lists the rows showing, and says when some still hide", () => {
-    const rich = { ...createMountain(), pocket: 23_000 };
-    expect(shownRows(rich)).toEqual([
+    const climbing = { ...createMountain(), carts: 3, drills: 1 };
+    expect(shownRows(climbing)).toEqual([
       "boost:sharper",
       "boost:overtime",
       "upgrade:tap",
+      "upgrade:steady",
     ]);
-    expect(anyHiddenRow(rich)).toBe(true);
+    expect(anyHiddenRow(climbing)).toBe(true);
     expect(anyHiddenRow(createMountain())).toBe(true);
     const maxed: Mountain = {
       ...createMountain(),
@@ -151,10 +154,10 @@ describe("nearly affordable (#245)", () => {
   });
 
   it("puts a dot on each row that shows and is not bought yet", () => {
-    const rich = { ...createMountain(), pocket: 23_000 };
-    expect(showsDot(rich, "upgrade:tap")).toBe(true);
+    const open = { ...createMountain(), carts: 3 };
+    expect(showsDot(open, "upgrade:tap")).toBe(true);
     expect(showsDot(createMountain(), "upgrade:tap")).toBe(false);
-    expect(showsDot({ ...rich, upgrades: { tap: 1 } }, "upgrade:tap")).toBe(
+    expect(showsDot({ ...open, upgrades: { tap: 1 } }, "upgrade:tap")).toBe(
       false,
     );
   });
@@ -186,11 +189,13 @@ describe("upgrades sheet reveal (#245)", () => {
     screen.root.remove();
   });
 
-  it("shows a nearly affordable row with a dot, a New card on top, and keeps it after a dip", () => {
+  it("shows an opened row with a dot, a New card on top, and keeps it after a dip", () => {
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => ({
       ...createMountain(),
+      carts: 3,
       pocket: 30_000,
+      upgrades: { steady: 1 },
       boosts: { sharper: 0, overtime: 0 },
     }));
     const button = screen.root.querySelector<HTMLElement>(".upgrades-button");
@@ -236,6 +241,7 @@ describe("upgrades sheet reveal (#245)", () => {
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => ({
       ...createMountain(),
+      carts: 1,
       pocket: 400,
       upgrades: { tap: 1 },
     }));
@@ -290,7 +296,13 @@ describe("upgrades sheet reveal (#245)", () => {
     const screen = mount(() => clock);
     const bar = (cls: string) =>
       screen.root.querySelector<HTMLButtonElement>(`.thumb-bar .${cls}`);
-    screen.progress.applyMutation(() => ({ ...createMountain(), pocket: 0 }));
+    screen.progress.applyMutation(() => ({
+      ...createMountain(),
+      carts: 3,
+      upgrades: { steady: 1 },
+      boosts: { sharper: 0 },
+      pocket: 0,
+    }));
     expect(bar("buys-button")?.classList.contains("afford-glow")).toBe(false);
     expect(bar("upgrades-button")?.classList.contains("afford-glow")).toBe(
       false,

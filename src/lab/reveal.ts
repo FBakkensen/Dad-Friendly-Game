@@ -1,4 +1,5 @@
 import { BOOSTS } from "../boosts";
+import { tierLocked } from "../crew";
 import { LAYERS, type MaterialId } from "../layers";
 import type { Mountain } from "../mountain";
 import { owned, tierShown, TIERS } from "../tiers";
@@ -93,12 +94,15 @@ type Watch = {
 const WATCHES: readonly Watch[] = [
   ...TIERS.map((tier) => ({
     id: `tier:${tier.id}`,
-    shown: (mountain: Mountain) => tierShown(mountain, tier),
+    // A locked preview card (a depth or a relic still ahead, #250) is not
+    // a reveal: the wait starts when the card opens for sale.
+    shown: (mountain: Mountain) =>
+      tierShown(mountain, tier) && !tierLocked(mountain, tier),
     used: (mountain: Mountain) => owned(mountain, tier) > 0,
   })),
   ...UPGRADES.map((upgrade) => ({
     id: `upgrade:${upgrade.id}`,
-    // The row shows once nearly affordable (#245).
+    // The row shows once its owned count opens it (#250).
     shown: (mountain: Mountain) => upgradeShown(mountain, upgrade),
     used: (mountain: Mountain) => upgradeLevel(mountain, upgrade.id) > 0,
   })),

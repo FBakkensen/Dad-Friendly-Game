@@ -1,4 +1,5 @@
-import { buyCrew, tierLocked } from "./crew";
+import { buyCrew, tierLock } from "./crew";
+import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
 import { staffForBuy, staffNeeded } from "./engineers";
 import { FIX_HOLD_MS } from "./hazards";
 import { buyOnTap } from "./card-tap";
@@ -28,7 +29,6 @@ import {
   tendingGain,
   type TendTier,
 } from "./rates";
-import { RELICS } from "./relics";
 import {
   NEEDS_MORE_WORKERS,
   TROUBLE_FIXED,
@@ -446,8 +446,8 @@ export function createCrewPanel({
       const count = owned(current, tier);
       const price = tierCost(tier, count);
       card.hidden = !tierShown(current, tier);
-      const locked = tierLocked(current, tier);
-      const needed = RELICS.find((relic) => relic.id === tier.needs);
+      const lock = tierLock(current, tier);
+      const locked = lock !== undefined;
       const cardTrouble =
         trouble !== undefined && trouble.tier === tier.id ? trouble : undefined;
       // A troubled card stays tappable even when the next one is unaffordable.
@@ -499,10 +499,11 @@ export function createCrewPanel({
         gainLine.textContent = troubleShout(cardTrouble.kind);
         needsLine.hidden = true;
         whyLine.hidden = true;
-      } else if (locked) {
+      } else if (lock !== undefined) {
         gainLine.hidden = true;
         needsLine.hidden = true;
-        whyLine.hidden = true;
+        whyLine.hidden = false;
+        whyLine.textContent = lockBodyLine(tier, lock);
       } else {
         gainLine.hidden = false;
         gainLine.textContent = `+${formatSpeed(speed)}/s each`;
@@ -541,8 +542,8 @@ export function createCrewPanel({
       tierRate.textContent =
         cardTrouble !== undefined
           ? troubleShout(cardTrouble.kind)
-          : locked
-            ? `${needed?.name.split(" ")[0] ?? "Relic"} · ${formatCompact(needed?.depth ?? 0)}`
+          : lock !== undefined
+            ? lockRateLine(tier, lock)
             : tierPaceWords({
                 compact,
                 speed,
@@ -579,8 +580,8 @@ export function createCrewPanel({
           ? `${tier.name}: ${formatCount(idleHere)} idle: each needs ${String(staffNeeded(current, tier))} ${workerWords(staffNeeded(current, tier))} to run. Tap to hire a worker for ${formatCount(workerPrice)} stones.`
           : cardTrouble !== undefined
             ? troubleAria(cardTrouble.kind, tier)
-            : locked
-              ? `${tier.name}, locked. Needs the ${needed?.name ?? "next relic"}, found ${formatCount(needed?.depth ?? 0)} stones down. Mines ${perSecond(speed)} each.${tends}`
+            : lock !== undefined
+              ? `${lockAria(tier, lock)} Mines ${perSecond(speed)} each.${tends}`
               : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(staffNeeded(current, tier))} ${workerWords(staffNeeded(current, tier))} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.${tends}`,
       );
     }

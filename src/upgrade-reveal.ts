@@ -1,6 +1,6 @@
-import { BOOSTS, boostCost, type Boost } from "./boosts";
+import { BOOSTS, type Boost } from "./boosts";
 import type { Mountain } from "./mountain";
-import { effectiveRates } from "./rates";
+import { owned, tierById } from "./tiers";
 import {
   UPGRADES,
   upgradeCost,
@@ -10,35 +10,23 @@ import {
 } from "./upgrades";
 
 /**
- * When an upgrade or boost row shows in the Upgrades sheet (M11-7, #245,
- * plan decision D2). A row the dad cannot nearly afford stays hidden, so
- * the sheet never lists a wall of "Locked" or out-of-reach prices.
+ * When an upgrade or boost row shows in the Upgrades sheet. M12-2 (#250)
+ * drops the old "nearly affordable" share of the pocket (D2, #245): a row
+ * shows at a fixed, predictable point in the climb, never because of what
+ * the pocket holds at that moment.
  *
- * Nearly affordable, from the pocket and the crew:
- * - the pocket already holds at least half the price, or
- * - the pocket plus five minutes of the crew (unboosted) covers it.
+ * - An upgrade shows once its owned-count unlock is met (`upgradeUnlocked`).
+ * - A boost shows once the crew owns its first machine of the boost's tier.
  *
  * Once shown, a row stays: it is bought before (taught), or the dad has
  * had it in front of him (its id is in `seen`). The sheet never shows how
  * long the wait is; this is only whether the row is there.
  */
-export const NEAR_SHARE = 0.5;
-export const NEAR_CREW_SEC = 5 * 60;
-
 export type RevealRowId = `upgrade:${string}` | `boost:${string}`;
 
 export const upgradeRowId = (upgrade: Upgrade): RevealRowId =>
   `upgrade:${upgrade.id}`;
 export const boostRowId = (boost: Boost): RevealRowId => `boost:${boost.id}`;
-
-/** Pocket and crew bring this price within reach soon. */
-export function nearlyAffordable(mountain: Mountain, cost: number): boolean {
-  if (mountain.pocket >= cost * NEAR_SHARE) {
-    return true;
-  }
-  const crew = effectiveRates(mountain).exactCrewPerSecond;
-  return mountain.pocket + crew * NEAR_CREW_SEC >= cost;
-}
 
 function seen(mountain: Mountain, id: RevealRowId): boolean {
   return mountain.seen?.includes(id) ?? false;
@@ -52,23 +40,21 @@ export function boostUsed(mountain: Mountain, boost: Boost): boolean {
   return mountain.boosts?.[boost.id] !== undefined;
 }
 
-/** The row shows: open to this crew, and bought, seen, or nearly affordable. */
+/** The row shows: open to this crew, or already bought or seen. */
 export function upgradeShown(mountain: Mountain, upgrade: Upgrade): boolean {
-  if (!upgradeUnlocked(mountain, upgrade)) {
-    return false;
-  }
-  if (upgradeUsed(mountain, upgrade) || seen(mountain, upgradeRowId(upgrade))) {
-    return true;
-  }
-  const cost = upgradeCost(upgrade, upgradeLevel(mountain, upgrade.id));
-  return cost !== undefined && nearlyAffordable(mountain, cost);
+  return (
+    upgradeUnlocked(mountain, upgrade) ||
+    upgradeUsed(mountain, upgrade) ||
+    seen(mountain, upgradeRowId(upgrade))
+  );
 }
 
+/** The row shows once the crew owns the boost's first machine. */
 export function boostShown(mountain: Mountain, boost: Boost): boolean {
   return (
     boostUsed(mountain, boost) ||
     seen(mountain, boostRowId(boost)) ||
-    nearlyAffordable(mountain, boostCost(boost, effectiveRates(mountain)))
+    owned(mountain, tierById(boost.unlock.tier)) >= boost.unlock.count
   );
 }
 

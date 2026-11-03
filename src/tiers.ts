@@ -33,6 +33,12 @@ export type Tier = {
   readonly staff: number;
   /** A relic that must be found before it can be built (see crew.ts). */
   readonly needs?: RelicId;
+  /**
+   * Stones mined before it opens for sale (M12-2, #250). Until then the
+   * card shows locked with this depth, so the next machine is a fixed,
+   * predictable point on the way down, never a share of the pocket.
+   */
+  readonly opensAt?: number;
 };
 
 /** Cheapest first. Each tier is 6–10× the speed of the last; tuned by src/pacing.test.ts. */
@@ -69,9 +75,11 @@ export const TIERS: readonly Tier[] = [
     field: "borers",
     name: "Tunnel borer",
     shortName: "Borer",
-    firstCost: 9_000_000,
+    firstCost: 8_100_000,
     perSecond: 595,
     staff: 8,
+    // The Granite entrance: the band that suits borers (D3).
+    opensAt: 10_000_000,
   },
   {
     id: "machine",

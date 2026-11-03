@@ -146,7 +146,7 @@ export function listActions(
     }
   }
   for (const upgrade of UPGRADES) {
-    // Only rows the sheet shows (#245): nearly affordable, seen, or bought.
+    // Only rows the sheet shows (#245): opened by owned count, seen, or bought (#250).
     if (
       upgradeShown(mountain, upgrade) &&
       upgradeCost(upgrade, upgradeLevel(mountain, upgrade.id)) !== undefined

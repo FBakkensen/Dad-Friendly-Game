@@ -530,7 +530,7 @@ describe("design token mocks (#234)", () => {
     expect(opened.querySelector("[data-state='ready']")).not.toBeNull();
     expect(opened.querySelector("[data-state='short']")).not.toBeNull();
     expect(opened.querySelector("[data-state='dear']")?.textContent).toContain(
-      "Buy · 9M",
+      "Buy · 8.1M",
     );
     expect(
       opened.querySelector("[data-state='dear']")?.textContent,
@@ -553,7 +553,9 @@ describe("design token mocks (#234)", () => {
         tap: upgradeLevel(mountainB, "tap") + 1,
       },
     }).tapYield;
-    expect(sheetB.textContent).toContain(
+    // Strong arms is dear at 2.9M (#250), so its card keeps the reading
+    // in the spoken label rather than on the face.
+    expect(sheetB.innerHTML).toContain(
       `Tap ${formatCount(before)} to ${formatCount(after)}`,
     );
     expect(sheetB.textContent).toContain("Taps ×2 for 10 min.");
@@ -635,7 +637,7 @@ describe("design token mocks (#234)", () => {
 });
 
 describe("component mocks (#235)", () => {
-  it("shows full numbers on unlocked cards and hides them on locked ones", () => {
+  it("shows full numbers on unlocked cards and only the opening depth on locked ones", () => {
     const root = mountTokens("parts-cards", "rest", "");
     const cards = [...root.querySelectorAll(".kit-card")];
     expect(cards).toHaveLength(3);
@@ -648,7 +650,10 @@ describe("component mocks (#235)", () => {
     expect(drill?.textContent).toContain("3.5M");
     expect(drill?.textContent).toContain("Needs 3 workers");
     expect((drill as HTMLButtonElement).disabled).toBe(true);
-    expect(borer?.textContent).not.toMatch(/[0-9]/);
+    // M12-2 (#250): the locked card names its depth, never a price.
+    expect(borer?.textContent).toContain("Borer · 10M");
+    expect(borer?.textContent).toContain("Locked");
+    expect((borer?.textContent ?? "").replace(/10M/g, "")).not.toMatch(/[0-9]/);
     expect(root.textContent).not.toMatch(
       /\?|pays back|payback|worth it|best value|free|in \d+ min/i,
     );
@@ -713,7 +718,7 @@ describe("teaching mock, hybrid pattern (#240)", () => {
     }
   });
 
-  it("reveals a nearly affordable upgrade with the dot, a New card and no wait time (#245)", () => {
+  it("reveals an opened upgrade with the dot, a New card and no wait time (#245)", () => {
     const root = mountTokens("teach", "rest", "reveal");
     expect(
       root.querySelector("[data-bar='upgrades'] .teach-dot"),

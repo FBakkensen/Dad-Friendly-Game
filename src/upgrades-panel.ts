@@ -501,7 +501,7 @@ export function createUpgradesPanel({
       item,
       buy,
     } of upgradeRows) {
-      // Locked and far-off rows stay hidden until nearly affordable (#245).
+      // Locked and far-off rows stay hidden until their owned count opens them (#250).
       item.hidden = !upgradeShown(current, upgrade);
       upgradesShowing ||= !item.hidden;
       const level = upgradeLevel(current, upgrade.id);

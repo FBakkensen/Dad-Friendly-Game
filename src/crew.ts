@@ -1,6 +1,7 @@
 import { grantFirstEngineer } from "./engineers";
 import { STAFF_GRANT, type Mountain } from "./mountain";
-import { hasRelic } from "./relics";
+import { hasRelic, RELICS, type Relic } from "./relics";
+import { minedOut } from "./scale";
 import {
   TIERS,
   buyTier,
@@ -10,9 +11,32 @@ import {
   type TierId,
 } from "./tiers";
 
-/** A tier waiting on a relic not yet found: shown, but not for sale. */
+/** What a locked tier waits for: a depth (M12-2, #250) or a relic. */
+export type TierLock =
+  | { readonly kind: "depth"; readonly depth: number }
+  | { readonly kind: "relic"; readonly relic: Relic };
+
+/** Why this tier is not for sale yet, or undefined when it is. */
+export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
+  // An older save that already runs one keeps buying: the depth only
+  // gates the first, so nothing it owns ever shows as locked.
+  if (
+    tier.opensAt !== undefined &&
+    owned(mountain, tier) === 0 &&
+    minedOut(mountain) < tier.opensAt
+  ) {
+    return { kind: "depth", depth: tier.opensAt };
+  }
+  const relic = RELICS.find((candidate) => candidate.id === tier.needs);
+  if (relic !== undefined && !hasRelic(mountain, relic.id)) {
+    return { kind: "relic", relic };
+  }
+  return undefined;
+}
+
+/** A tier waiting on a depth or a relic: shown, but not for sale. */
 export function tierLocked(mountain: Mountain, tier: Tier): boolean {
-  return tier.needs !== undefined && !hasRelic(mountain, tier.needs);
+  return tierLock(mountain, tier) !== undefined;
 }
 
 /**

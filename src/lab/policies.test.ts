@@ -76,7 +76,7 @@ function pricedOut(pocket: number): Mountain {
   return withPocket(pocket, {
     helpers: 80,
     carts: 15,
-    drills: 7,
+    drills: 8,
     borers: 1,
     engineers: [ada],
   });
@@ -94,7 +94,8 @@ describe("spend table", () => {
     const mountain = {
       ...createMountain(),
       helpers: 4,
-      // Enough that Strong arms shows (#245).
+      // Three carts open Strong arms (#250).
+      carts: 3,
       pocket: 23_000,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" } as const],
     };
@@ -192,7 +193,8 @@ describe("other schedules", () => {
 
 describe("extremes", () => {
   it("never hires a worker except to staff a machine already owned", () => {
-    const rich = withPocket(1_000_000_000);
+    // The third cart opens Strong arms (#250).
+    const rich = withPocket(1_000_000_000, { carts: 3, helpers: 10 });
     const first = neverWorkers.decide({
       mountain: rich,
       now: 0,
