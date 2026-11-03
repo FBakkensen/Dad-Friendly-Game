@@ -348,3 +348,11 @@ export function meetsTarget(target: Target, actual: number): boolean {
   const [low, high] = target.value;
   return actual >= low && actual <= high;
 }
+
+/**
+ * Band report flags (M12-1, report only, no guardrail reads them). From the
+ * reveal research: a small thing should not sit on screen for more than one
+ * sitting before its first use, and a machine for no more than two.
+ */
+export const REPORT_SMALL_SITTINGS = 1;
+export const REPORT_MACHINE_SITTINGS = 2;

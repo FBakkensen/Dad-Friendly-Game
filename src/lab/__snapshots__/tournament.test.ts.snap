@@ -39,6 +39,40 @@ A kind that never wins is a rule this dad never gets to use.
 | --- | --- |
 | Alpha | buyUpgrade |
 
+## Bands (report only)
+
+M# groundwork (##). Shares are how far through the band the dad was, #% at its top. Means are over the runs where it happened. Nothing here passes or fails yet.
+
+### Favoured machine
+
+| Player | The Granite: Borer | The Crystal Caves: Drill | The Deep Heart: Great Machine |
+|---|---|---|---|
+| Alpha | never affordable, never bought | never affordable, never bought | never affordable, never bought |
+
+### Machines bought per band (D#, rule three)
+
+Mean purchases per run, for each machine on sale in the band. ⚠ marks a machine on sale there and never bought in some run.
+
+| Player | The Topsoil | The Granite | The Crystal Caves | The Deep Heart |
+|---|---|---|---|---|
+| Alpha | none on sale | none on sale | none on sale | none on sale |
+
+Rule # misses:
+
+- none
+
+### When machines show up
+
+Where each machine first shows, and the wait to its first buy in live minutes and in sittings started since. ⚠ marks a worst wait over # sittings.
+
+| Player | Mine cart | Steam drill | Tunnel borer | Great Machine |
+|---|---|---|---|---|
+| Alpha | never shown | never shown | never shown | never shown |
+
+### Small things waiting more than one sitting
+
+- none
+
 ## Dead stretches
 
 Waits longer than # hours on the spends this dad weighs. Every live option on that table needs at least one session of saving. Payback is the official clock. Value per stone sits beside it.

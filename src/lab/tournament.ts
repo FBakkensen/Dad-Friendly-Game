@@ -9,7 +9,16 @@ import {
   type ScoreMethod,
 } from "./measure";
 import { valueContext, type Policy } from "./policy";
+import {
+  createBandLog,
+  createSittingClock,
+  runBands,
+  summarizeBands,
+  type BandEvent,
+  type BandSummary,
+} from "./bands";
 import { createRevealLog, type RevealEvent } from "./reveal";
+import { minedOut } from "../scale";
 import { runPolicy } from "./run";
 import { scoreDecision } from "./score";
 import { mean, median } from "./stats";
@@ -113,6 +122,14 @@ export type TournamentResult = {
   readonly rows: readonly PolicyRow[];
   readonly timelines: readonly TimelineRow[];
   readonly deadStretches: readonly DeadStretchNote[];
+  /** Per-band report (#249), one entry per policy. Report only. */
+  readonly bands: readonly BandRow[];
+};
+
+type BandRow = {
+  readonly policyId: string;
+  readonly label: string;
+  readonly summary: BandSummary;
 };
 
 export type JudgedInput = TournamentInput & {
@@ -130,7 +147,10 @@ function samplePolicy(
   let liveSec = 0;
   let lastClock = 0;
   let pending: RevealEvent[] = [];
+  let pendingBands: BandEvent[] = [];
   const reveal = createRevealLog();
+  const bands = createBandLog();
+  const sittingAt = createSittingClock();
   const context = valueContext(policy.params);
   const run = runPolicy({
     policy,
@@ -141,7 +161,16 @@ function samplePolicy(
         liveSec += 1;
       }
       lastClock = world.clock;
-      pending.push(...reveal(world.mountain, liveSec));
+      const sitting = sittingAt(world.clock);
+      const mined = minedOut(world.mountain);
+      pending.push(
+        ...reveal(world.mountain, liveSec).map((event) => ({
+          ...event,
+          sitting,
+          mined,
+        })),
+      );
+      pendingBands.push(...bands(world.mountain));
       if (isSampleSecond(live)) {
         const trouble =
           world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
@@ -165,13 +194,14 @@ function samplePolicy(
             ...(trouble === undefined ? {} : { trouble }),
           }),
         );
-        attach(samples, pending);
+        attach(samples, pending, pendingBands);
         pending = [];
+        pendingBands = [];
       }
       live += 1;
     },
   });
-  attach(samples, pending);
+  attach(samples, pending, pendingBands);
   return withFinish(samples, run.finishDay);
 }
 
@@ -179,15 +209,17 @@ function samplePolicy(
 function attach(
   samples: DecisionSample[],
   events: readonly RevealEvent[],
+  bandEvents: readonly BandEvent[],
 ): void {
   const index = samples.length - 1;
   const last = samples[index];
-  if (last === undefined || events.length === 0) {
+  if (last === undefined || events.length + bandEvents.length === 0) {
     return;
   }
   samples[index] = {
     ...last,
     reveals: [...(last.reveals ?? []), ...events],
+    bands: [...(last.bands ?? []), ...bandEvents],
   };
 }
 
@@ -236,6 +268,13 @@ export function judgeTournament(input: JudgedInput): TournamentResult {
     rows,
     timelines: timelinesFor(input, grouped),
     deadStretches: stretchesFor(input, grouped),
+    bands: input.policies.map((policy) => ({
+      policyId: policy.id,
+      label: policy.label,
+      summary: summarizeBands(
+        (grouped.get(policy.id) ?? []).map((run) => runBands(run.samples)),
+      ),
+    })),
   };
 }
 
