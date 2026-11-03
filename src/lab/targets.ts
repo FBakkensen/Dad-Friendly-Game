@@ -125,7 +125,8 @@ type TargetBase = {
   readonly why: string;
   /**
    * A miss is still in the report. It does not fail `LAB_STRICT`.
-   * No current guardrail sets this. The exit path stays for a future row.
+   * M12-4 (#252) uses it for the band guardrails whose values wait on the
+   * favourite-machine rebalance. Their `value` is the proposed bound.
    */
   readonly reportOnly?: boolean;
 };
@@ -242,6 +243,41 @@ export const TARGETS: readonly Target[] = [
     op: "lte",
     value: 0.5,
     why: "A casual dad should not sit on a material that has nothing to spend it on for more than half a day.",
+  },
+  {
+    id: "small-reveal-wait",
+    measure: "smallRevealSittings",
+    scope: { kind: "policyKinds", kinds: ["casual"] },
+    op: "lte",
+    value: 2,
+    why: "An upgrade, boost or new system should be tried within two sittings of showing up.",
+  },
+  {
+    id: "favoured-in-band",
+    measure: "favouredBuyShare",
+    scope: { kind: "policyKinds", kinds: ["casual"] },
+    op: "lte",
+    value: 0.5,
+    reportOnly: true,
+    why: "Pending (#252): each band's favoured machine should be bought in the first half of the band where it shines.",
+  },
+  {
+    id: "scoped-rule-3",
+    measure: "scopedRule3Misses",
+    scope: { kind: "policyKinds", kinds: ["casual"] },
+    op: "lte",
+    value: 0,
+    reportOnly: true,
+    why: "Pending (#252): no machine sits unbought where it opens or where the rock suits it, once the pocket reaches it.",
+  },
+  {
+    id: "machine-reveal-wait",
+    measure: "machineRevealSittings",
+    scope: { kind: "policyKinds", kinds: ["casual"] },
+    op: "lte",
+    value: 2,
+    reportOnly: true,
+    why: "Pending (#252): a new machine should be bought within two sittings of showing up.",
   },
 ];
 

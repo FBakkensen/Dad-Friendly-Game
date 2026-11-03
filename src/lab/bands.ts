@@ -339,3 +339,92 @@ export function createSittingClock(): (clock: number) => number {
     return sitting;
   };
 }
+
+/**
+ * M12-4 (#252) guardrail reads. Each takes one run's samples.
+ */
+
+/** Bands from the Granite down, where a machine is favoured. */
+const FAVOURED_LAYERS: readonly LayerId[] = LAYERS.flatMap((layer) =>
+  favouredOf(layer.id) === undefined ? [] : [layer.id],
+);
+
+/**
+ * The latest share of its band at which a favoured machine was first
+ * bought, over the bands where the pocket reached its price. A band where
+ * it was affordable and never bought counts as 1. NaN when no favoured
+ * machine was affordable in any band (the run never got there).
+ */
+export function favouredBuyShare(samples: readonly DecisionSample[]): number {
+  const { favoured } = runBands(samples);
+  const shares = FAVOURED_LAYERS.flatMap((layer) => {
+    const entry = favoured.get(layer);
+    return entry?.afford === undefined ? [] : [entry.buy ?? 1];
+  });
+  return shares.length === 0 ? Number.NaN : Math.max(...shares);
+}
+
+/**
+ * Rule 3, scoped (#252): a machine misses a band when it was buyable there
+ * (shown, not locked, and the pocket reached its price) and none was bought,
+ * counted only in the band where it opens and in the band that suits it.
+ * Older machines may rest in other bands; they are not useless on arrival
+ * and the band that suits them brings them back.
+ */
+export function scopedRule3Misses(samples: readonly DecisionSample[]): number {
+  const opened = new Map<MachineId, LayerId>();
+  const affordable = new Set<string>();
+  const bought = new Set<string>();
+  for (const event of samples.flatMap((sample) => sample.bands ?? [])) {
+    if (event.kind === "available") {
+      if (!opened.has(event.tier)) {
+        opened.set(event.tier, event.layer);
+      }
+      continue;
+    }
+    const key = `${event.layer}:${event.tier}`;
+    if (event.kind === "affordable") {
+      affordable.add(key);
+    } else if (event.count > 0) {
+      bought.add(key);
+    }
+  }
+  let misses = 0;
+  for (const id of MACHINE_IDS) {
+    const bands = new Set<LayerId>();
+    const open = opened.get(id);
+    if (open !== undefined) {
+      bands.add(open);
+    }
+    for (const layer of FAVOURED_LAYERS) {
+      if (favouredOf(layer) === id) {
+        bands.add(layer);
+      }
+    }
+    for (const layer of bands) {
+      const key = `${layer}:${id}`;
+      if (affordable.has(key) && !bought.has(key)) {
+        misses += 1;
+      }
+    }
+  }
+  return misses;
+}
+
+/** Worst sittings from a machine showing to its first buy. NaN with none. */
+export function machineRevealSittings(
+  samples: readonly DecisionSample[],
+): number {
+  const waits = [...runBands(samples).machines.values()].flatMap((reveal) =>
+    reveal.sittings === undefined ? [] : [reveal.sittings],
+  );
+  return waits.length === 0 ? Number.NaN : Math.max(...waits);
+}
+
+/** Worst sittings from a small thing showing to its first use. NaN with none. */
+export function smallRevealSittings(
+  samples: readonly DecisionSample[],
+): number {
+  const waits = runBands(samples).small.map((item) => item.sittings);
+  return waits.length === 0 ? Number.NaN : Math.max(...waits);
+}
