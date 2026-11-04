@@ -9,6 +9,13 @@ import {
   TWICE_A_DAY_SESSIONS,
 } from "./targets";
 
+/**
+ * Kid runs (run 2 on) open the Great Machine at this share of its run-1
+ * depth, so once-a-day players get a full sitting with it on sale. Run 1
+ * keeps the game's 120M. Lab-only, beside the stretch k.
+ */
+export const KID_MACHINE_OPENS = 0.9;
+
 /** The machines every run should still buy (D3: each one worth buying). */
 export const MACHINE_IDS = ["cart", "drill", "borer", "machine"] as const;
 
@@ -44,13 +51,19 @@ export function runGenerations({
   const runs: GenerationRun[] = [];
   let mountain: Mountain = createMountain();
   for (const [index, k] of ks.entries()) {
-    const played = withFactors({ ...factors, "generation.k": k }, () =>
-      runPolicy({
-        policy,
-        seed,
-        mountain,
-        ...(maxDays === undefined ? {} : { maxDays }),
-      }),
+    const played = withFactors(
+      {
+        ...(index === 0 ? {} : { "opens.machine": KID_MACHINE_OPENS }),
+        ...factors,
+        "generation.k": k,
+      },
+      () =>
+        runPolicy({
+          policy,
+          seed,
+          mountain,
+          ...(maxDays === undefined ? {} : { maxDays }),
+        }),
     );
     const bought = new Set(played.buys.map((buy) => buy.id));
     runs.push({
