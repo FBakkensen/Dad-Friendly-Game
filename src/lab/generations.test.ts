@@ -8,6 +8,8 @@ import {
   eachRunLonger,
   linearModelDays,
   noRunPastCap,
+  onceADayRunsOk,
+  runLengthOk,
   rootModelDays,
   runGenerations,
 } from "./generations";
@@ -59,6 +61,18 @@ describe("generations lab (M13, #253)", () => {
     expect(noRunPastCap([5.5, 7.5])).toBe(true);
     expect(noRunPastCap([5.5, 8])).toBe(false);
     expect(noRunPastCap([undefined])).toBe(false);
+  });
+
+  it("judges once-a-day players by their own run 1", () => {
+    expect(onceADayRunsOk([7, 8, 8, 9])).toBe(true);
+    expect(onceADayRunsOk([7, 6])).toBe(false);
+    expect(onceADayRunsOk([7, 9.5])).toBe(false);
+    expect(onceADayRunsOk([7, undefined])).toBe(false);
+    expect(onceADayRunsOk([undefined])).toBe(false);
+    expect(runLengthOk([7, 8, 9], 1)).toBe(true);
+    expect(runLengthOk([6, 6.5, 7.5], 2)).toBe(true);
+    expect(runLengthOk([6, 6.5, 8], 2)).toBe(false);
+    expect(runLengthOk([6, 6], 2)).toBe(false);
   });
 
   it("models a run stretched by k over the bonus", () => {

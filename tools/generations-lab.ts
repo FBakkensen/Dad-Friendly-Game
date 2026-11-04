@@ -11,8 +11,7 @@ import evening from "../src/lab/policies/evening-1x20";
 import marathon from "../src/lab/policies/marathon";
 import optimizer from "../src/lab/policies/optimizer";
 import {
-  eachRunLonger,
-  noRunPastCap,
+  runLengthOk,
   rootModelDays,
   linearModelDays,
   runGenerations,
@@ -47,8 +46,8 @@ const lines = [
   "",
   "| Policy | " +
     ks.map((_, i) => `Run ${String(i + 1)}`).join(" | ") +
-    " | Longer each run | No run past 7.5 | Never bought |",
-  "|---|" + ks.map(() => "---|").join("") + "---|---|---|",
+    " | Run-length rule (report-only) | Never bought |",
+  "|---|" + ks.map(() => "---|").join("") + "---|---|",
 ];
 const firstDays: number[] = [];
 for (const policy of POLICIES.filter(
@@ -70,7 +69,7 @@ for (const policy of POLICIES.filter(
     ),
   );
   lines.push(
-    `| ${policy.label} | ${days.map((day) => (day === undefined ? "unfinished" : day.toFixed(2))).join(" | ")} | ${eachRunLonger(days) ? "yes" : "no"} | ${noRunPastCap(days) ? "yes" : "no"} | ${[...new Set(unbought)].join(", ") || "none"} |`,
+    `| ${policy.label} | ${days.map((day) => (day === undefined ? "unfinished" : day.toFixed(2))).join(" | ")} | ${runLengthOk(days, policy.params.sessionsPerDay) ? "pass" : "miss"} | ${[...new Set(unbought)].join(", ") || "none"} |`,
   );
 }
 const first = firstDays.length === 0 ? 0 : mean(firstDays);

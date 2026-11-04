@@ -3,7 +3,7 @@ import { passTheMine } from "../legacy";
 import { createMountain, type Mountain } from "../mountain";
 import type { Policy } from "./policy";
 import { runPolicy } from "./run";
-import { RUN_CAP_DAYS } from "./targets";
+import { ONCE_A_DAY_SPREAD_DAYS, RUN_CAP_DAYS } from "./targets";
 
 /** The machines every run should still buy (D3: each one worth buying). */
 export const MACHINE_IDS = ["cart", "drill", "borer", "machine"] as const;
@@ -98,4 +98,36 @@ export function rootModelDays(
   bonus: number,
 ): number {
   return firstRunDays * Math.sqrt(k / bonus);
+}
+
+/** Each run at least as long as the last, and within the spread of run 1. */
+export function onceADayRunsOk(days: readonly (number | undefined)[]): boolean {
+  const first = days[0];
+  let before = Number.NEGATIVE_INFINITY;
+  for (const day of days) {
+    if (
+      first === undefined ||
+      day === undefined ||
+      day < before ||
+      day > first + ONCE_A_DAY_SPREAD_DAYS
+    ) {
+      return false;
+    }
+    before = day;
+  }
+  return true;
+}
+
+/**
+ * The approved run-length rule for a player type (report-only until
+ * Flemming OKs strict). Twice a day or more: each run longer, none past the
+ * cap. Once a day: `onceADayRunsOk`.
+ */
+export function runLengthOk(
+  days: readonly (number | undefined)[],
+  sessionsPerDay: number,
+): boolean {
+  return sessionsPerDay >= 2
+    ? eachRunLonger(days) && noRunPastCap(days)
+    : onceADayRunsOk(days);
 }

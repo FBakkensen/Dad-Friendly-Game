@@ -396,3 +396,9 @@ export const REPORT_MACHINE_SITTINGS = 2;
  * many days. `npm run lab:generations` reports it and never fails on it.
  */
 export const RUN_CAP_DAYS = 7.5;
+
+/**
+ * Kid runs for once-a-day players (Evening, Marathon), report-only: each run
+ * at least as long as the last, and at most this many days past their run 1.
+ */
+export const ONCE_A_DAY_SPREAD_DAYS = 2;
