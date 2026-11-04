@@ -909,6 +909,7 @@ describe("start over", () => {
     const fresh = {
       ...createMountain(),
       legacy: 1,
+      stretch: 1.75,
       startedAt: 10_010,
       recipes: [
         "iron-rails",

@@ -2593,7 +2593,7 @@ describe("pass the mine to your kid (#131)", () => {
       ?.click();
 
     expect(dialog(screen)?.hidden).toBe(true);
-    expect(screen.text(".stones-left")).toBe("240 million stones left");
+    expect(screen.text(".stones-left")).toBe("420 million stones left");
     expect(screen.text(".pocket")).toBe("0 stones");
     const badge = screen.root.querySelector<HTMLElement>(".legacy-badge");
     expect(badge?.hidden).toBe(false);
