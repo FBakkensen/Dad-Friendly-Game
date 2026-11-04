@@ -405,5 +405,3 @@ export const ONCE_A_DAY_SPREAD_DAYS = 2;
 
 /** Kid runs: two or more sittings a day uses the cap rule, fewer the spread rule. */
 export const TWICE_A_DAY_SESSIONS = 2;
-
-

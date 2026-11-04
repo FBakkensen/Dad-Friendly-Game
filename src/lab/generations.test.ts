@@ -9,6 +9,7 @@ import {
   runLengthOk,
   rootModelDays,
   runGenerations,
+  underCeiling,
 } from "./generations";
 import { RUN_CAP_DAYS } from "./targets";
 
@@ -40,6 +41,14 @@ describe("generations lab (M13, #253)", () => {
     expect(eachRunLonger([5.5, 4.5])).toBe(false);
     expect(eachRunLonger([5.5, undefined])).toBe(false);
     expect(eachRunLonger([undefined])).toBe(false);
+  });
+
+  it("keeps later runs under each type's ceiling", () => {
+    expect(underCeiling([6, 7.5, 6.5], 2)).toBe(true);
+    expect(underCeiling([6, 8], 2)).toBe(false);
+    expect(underCeiling([7, 9, 8], 1)).toBe(true);
+    expect(underCeiling([7, 9.5], 1)).toBe(false);
+    expect(underCeiling([undefined], 1)).toBe(false);
   });
 
   it("checks no run passes the cap", () => {

@@ -13,7 +13,7 @@ import evening from "../src/lab/policies/evening-1x20";
 import marathon from "../src/lab/policies/marathon";
 import optimizer from "../src/lab/policies/optimizer";
 import {
-  noRunPastCap,
+  underCeiling,
   runLengthOk,
   rootModelDays,
   linearModelDays,
@@ -81,7 +81,7 @@ for (const policy of POLICIES.filter(
     runLengthOk(
       days.slice(0, GENERATION_STRETCH.length),
       policy.params.sessionsPerDay,
-    ) && noRunPastCap(days);
+    ) && underCeiling(days, policy.params.sessionsPerDay);
   if (!lengthOk) misses.push(`${policy.label}: run-length rule`);
   if (unbought.length > 0)
     misses.push(

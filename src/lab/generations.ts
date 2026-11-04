@@ -69,7 +69,7 @@ export function runGenerations({
   return runs;
 }
 
-/** Run N+1 finishes later than run N, for every pair. Report-only. */
+/** Run N+1 finishes later than run N, for every pair. */
 export function eachRunLonger(days: readonly (number | undefined)[]): boolean {
   let before = Number.NEGATIVE_INFINITY;
   for (const day of days) {
@@ -81,7 +81,7 @@ export function eachRunLonger(days: readonly (number | undefined)[]): boolean {
   return true;
 }
 
-/** No run past `RUN_CAP_DAYS`, and every run finished. Report-only. */
+/** No run past `RUN_CAP_DAYS`, and every run finished. */
 export function noRunPastCap(days: readonly (number | undefined)[]): boolean {
   return days.every((day) => day !== undefined && day <= RUN_CAP_DAYS);
 }
@@ -123,8 +123,7 @@ export function onceADayRunsOk(days: readonly (number | undefined)[]): boolean {
 }
 
 /**
- * The approved run-length rule for a player type (report-only until
- * Flemming OKs strict). Twice a day or more: each run longer, none past the
+ * The approved run-length rule for a player type (strict since 4 Nov 2026). Twice a day or more: each run longer, none past the
  * cap. Once a day: `onceADayRunsOk`.
  */
 export function runLengthOk(
@@ -134,4 +133,20 @@ export function runLengthOk(
   return sessionsPerDay >= TWICE_A_DAY_SESSIONS
     ? eachRunLonger(days) && noRunPastCap(days)
     : onceADayRunsOk(days);
+}
+
+/**
+ * Runs past the approved four (the stretch holds): every run finished and
+ * under the type's ceiling, the cap twice a day, run 1 plus the spread once.
+ */
+export function underCeiling(
+  days: readonly (number | undefined)[],
+  sessionsPerDay: number,
+): boolean {
+  const first = days[0];
+  const ceiling =
+    sessionsPerDay >= TWICE_A_DAY_SESSIONS
+      ? RUN_CAP_DAYS
+      : (first ?? 0) + ONCE_A_DAY_SPREAD_DAYS;
+  return days.every((day) => day !== undefined && day <= ceiling);
 }
