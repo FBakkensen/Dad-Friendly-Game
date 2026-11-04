@@ -50,7 +50,7 @@ for (const policy of POLICIES.filter(
   const days = ks.map((_, run) => {
     const finished = perSeed.map((runs) => runs[run]?.finishDay);
     return finished.every((day) => day !== undefined)
-      ? mean(finished as number[])
+      ? mean(finished)
       : undefined;
   });
   if (days[0] !== undefined) firstDays.push(days[0]);
