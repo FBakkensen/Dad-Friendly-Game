@@ -8,6 +8,7 @@ import { parseSaveValue, serializeSave } from "./persist";
 import {
   KID_MACHINE_OPENS,
   KID_RUN_GROWTH,
+  MAX_STRETCH,
   kidStretch,
   shownStones,
   stonesLeft,
@@ -27,6 +28,8 @@ describe("kid-run stretch (M13, #253)", () => {
     ks.slice(1).forEach((k, i) => {
       expect(k).toBeGreaterThan(ks[i] as number);
     });
+    // A save holds at most MAX_STRETCH, so a far generation stops there.
+    expect(kidStretch(1_000)).toBe(MAX_STRETCH);
   });
 
   it("leaves a save without a stretch as it is", () => {

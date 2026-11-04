@@ -1,3 +1,4 @@
+import { MAX_STRETCH } from "./scale";
 import { materialsFromMined, type Materials } from "./layers";
 import { parseTeachIds } from "./teach";
 import {
@@ -295,8 +296,6 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
   }
 }
 
-/** The biggest stretch a save may carry: past it, the save is bad. */
-const MAX_STRETCH = 100;
 
 function readStretch(value: unknown): number | undefined | "bad" {
   if (value === undefined) {

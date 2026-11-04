@@ -11,6 +11,9 @@ export const MOUNTAIN_STONES = 240_000_000;
  */
 export const KID_RUN_GROWTH = 1 / 8;
 
+/** The biggest stretch a save may carry (mirrored in firestore.rules, 1..100). */
+export const MAX_STRETCH = 100;
+
 /** The kid bonus per Legacy (mirrors LEGACY_STEP in rates.ts, a leaf here). */
 const BONUS_STEP = 0.5;
 
@@ -23,7 +26,7 @@ const BONUS_STEP = 0.5;
 export function kidStretch(legacy: number): number {
   const g = KID_RUN_GROWTH * factor("stretch.growth");
   const bonus = 1 + BONUS_STEP * legacy;
-  return bonus * (1 + g * legacy) ** 2;
+  return Math.min(MAX_STRETCH, bonus * (1 + g * legacy) ** 2);
 }
 
 /** From run 2 on, the Great Machine opens at this share of its depth. */
