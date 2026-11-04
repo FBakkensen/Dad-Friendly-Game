@@ -19,6 +19,7 @@ import { tierById, tierCost } from "./tiers";
 import { lockBodyLine } from "./tier-lock-words";
 import { upgradeById, upgradeCost } from "./upgrades";
 import { veinReward } from "./veins";
+import { formatCompact } from "./format";
 
 describe("kid-run stretch (M13, #253)", () => {
   it("grows the stretch every generation, with no cap", () => {
@@ -103,6 +104,19 @@ describe("kid-run stretch (M13, #253)", () => {
           workshop: { ...saved.workshop, stretch: bad },
         }),
       ).toBeUndefined();
+    }
+  });
+
+  it("keeps run 10-12 numbers sane: short text, safe whole numbers, a good save", () => {
+    for (const legacy of [9, 10, 11]) {
+      const k = kidStretch(legacy);
+      const kid = { ...createMountain(), legacy, stretch: k };
+      expect(formatCompact(stonesLeft(kid))).toMatch(/^\d+(\.\d)?B$/);
+      const priciest = tierCost(tierById("machine"), 3, k);
+      expect(Number.isSafeInteger(Math.round(priciest))).toBe(true);
+      expect(formatCompact(priciest).length).toBeLessThanOrEqual(6);
+      const saved = serializeSave({ mountain: digStones(kid, 1e9), lastSeen: 1 });
+      expect(parseSaveValue(saved)?.mountain.stretch).toBe(k);
     }
   });
 });
