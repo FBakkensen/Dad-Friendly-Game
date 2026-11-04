@@ -54,7 +54,9 @@ export function runGenerations({
       finishDay: played.finishDay,
       unbought: MACHINE_IDS.filter((id) => !bought.has(id)),
     });
-    const next = passTheMine(played.world.mountain, played.world.clock);
+    const next = withFactors(factors, () =>
+      passTheMine(played.world.mountain, played.world.clock),
+    );
     if (next === undefined) {
       break;
     }
