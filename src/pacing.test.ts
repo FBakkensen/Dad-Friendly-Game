@@ -113,7 +113,7 @@ function quietStretch(run: DadRun, until: number): number {
 
 describe.each([
   // The borer opens at 7M (#252), so Nils comes in the borer's sitting.
-  ["a plain dad", {}, 6, 2, 1, true],
+  ["a plain dad", {}, 6, 2, 2, true],
   ["an upgrade-buying dad", { buysUpgrades: true }, 5.5, 2, 2, true],
   [
     "a dad who buys upgrades and boosts",

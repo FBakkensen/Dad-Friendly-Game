@@ -36,30 +36,29 @@ import {
  */
 export const AWAY_PAY_RATE = 0.3;
 
-/** Longest time away that pays: 8 hours, a whole day with the Shield. */
-export const BASE_AWAY_CAP_MS = 8 * 60 * 60 * 1000;
+/**
+ * Away pay slopes off the longer you are gone (#278). The first 6 hours pay
+ * the full away rate, 6 to 24 hours pay 40% of it, and after a day nothing
+ * more: 4 / 8 / 12 / 16 / 24 hours away pay 4 / 6.8 / 8.4 / 10 / 13.2 hours.
+ */
+export const AWAY_FULL_MS = 6 * 60 * 60 * 1000;
+const AWAY_SLOPE_SHARE = 0.4;
+export const AWAY_END_MS = 24 * 60 * 60 * 1000;
+/** With the Shield, a whole day pays in full. */
 export const SHIELD_AWAY_CAP_MS = 24 * 60 * 60 * 1000;
 
 /**
- * One absence longer than half a day, before the Shield, pays this long.
- * Two gaps inside a day stay on the 8-hour cap. #179.
- */
-const LONG_DAY_MARK_MS = 12 * 60 * 60 * 1000;
-const LONG_DAY_CAP_MS = 16 * 60 * 60 * 1000;
-
-/**
- * Paid time away. The Shield's cap wins. Otherwise a short gap pays at most
- * 8 hours, and a single long absence pays up to 16.
+ * Paid time away, as hours at the full away rate. The Shield pays a whole
+ * day in full; otherwise the slope above.
  */
 export function paidAwayMs(mountain: Mountain, awayMs: number): number {
   const gone = Math.max(0, awayMs);
-  const cap = hasRelic(mountain, "shield")
-    ? SHIELD_AWAY_CAP_MS
-    : BASE_AWAY_CAP_MS;
-  if (cap === BASE_AWAY_CAP_MS && gone > LONG_DAY_MARK_MS) {
-    return Math.min(gone, LONG_DAY_CAP_MS);
+  if (hasRelic(mountain, "shield")) {
+    return Math.min(gone, SHIELD_AWAY_CAP_MS);
   }
-  return Math.min(gone, cap);
+  const full = Math.min(gone, AWAY_FULL_MS);
+  const slope = Math.max(0, Math.min(gone, AWAY_END_MS) - AWAY_FULL_MS);
+  return full + AWAY_SLOPE_SHARE * slope;
 }
 
 /** Heart of Patience: away pay climbs from ×1 to ×2 over this long away. */
@@ -94,8 +93,6 @@ const KID_TEACH_PER_KID = 0.02;
 const TENDING_FLOOR_PERCENT = [12, 16, 20] as const;
 
 export type Rates = {
-  /** Longest stretch of time away that pays (Shield of Protection lifts it). */
-  readonly awayCapMs: number;
   /** Stones one tap mines. */
   readonly tapYield: number;
   /** Stones a second one of each tier mines. */
@@ -228,9 +225,6 @@ export function effectiveRates(
     helpersShort: Math.max(0, needed - mountain.helpers - mountain.kids),
     exactCrewPerSecond: exactBase * timer,
     crewPerSecond: baseCrew * timer,
-    awayCapMs: hasRelic(mountain, "shield")
-      ? SHIELD_AWAY_CAP_MS
-      : BASE_AWAY_CAP_MS,
     awayPay:
       AWAY_PAY_RATE *
       (1 + upgradeLevel(mountain, "steady") * STEADY_AWAY_PER_LEVEL),

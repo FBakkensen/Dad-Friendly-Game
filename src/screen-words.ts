@@ -14,11 +14,11 @@ import {
   type TunnelId,
 } from "./expeditions";
 import type { BoostId } from "./boosts";
-import { formatCompact, formatCount, formatDuration } from "./format";
+import { formatCompact, formatCount } from "./format";
 import type { TroubleKind } from "./hazards";
 import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
-import { effectiveRates } from "./rates";
+import { AWAY_END_MS, effectiveRates } from "./rates";
 import { owned, tierById, type TierId } from "./tiers";
 import {
   BOOTS_SPEED_PER_LEVEL,
@@ -35,10 +35,6 @@ import {
 /** Away pay as a percentage people read, e.g. "30%" or "37.5%". */
 export const percent = (share: number): string =>
   `${String(Number((share * 100).toFixed(1)))}%`;
-
-/** Away pay can grow (Steady hands), so the copy reads the live rate. */
-export const restingPace = (mountain: Mountain): string =>
-  `at a resting pace (${percent(effectiveRates(mountain).awayPay)} of their speed)`;
 
 /** Per-unit speed: one decimal while small and fractional (Better boots). */
 export const formatSpeed = (speed: number): string =>
@@ -237,11 +233,21 @@ function synergyEffectLine(upgrade: Upgrade, mountain: Mountain): string {
   return `+${each} each ${from.shortName.toLowerCase()}; ${target} ${verb} ${shareWords(synergyBonus(mountain, upgrade))}.`;
 }
 
-/** "the first 8 hours", "the first 16 hours", or "a whole day" with the Shield. */
-export const capWords = (capMs: number): string =>
-  capMs >= 24 * 3_600_000
-    ? "a whole day"
-    : `the first ${formatDuration(capMs)}`;
+/**
+ * The welcome-back line for how long the crew dug (#278): the whole time,
+ * then easing off on the slope, then a full day's haul once a day has passed.
+ */
+export function awayStretchWords(report: {
+  readonly awayMs: number;
+  readonly paidMs: number;
+}): string {
+  if (report.paidMs >= report.awayMs) {
+    return "Your crew kept digging the whole time.";
+  }
+  return report.awayMs <= AWAY_END_MS
+    ? "Your crew dug hard, then took it easy. Rested and ready for you."
+    : "Your crew saved a full day's haul for you. Good to have you back.";
+}
 
 export const tapWords = (stones: number): string =>
   stones === 1 ? "one stone" : `${formatCount(stones)} stones`;

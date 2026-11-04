@@ -668,7 +668,7 @@ describe("away pay", () => {
     };
     expect(capped.report.capped).toBe(true);
     expect(capped.mined).toBe(
-      Math.floor(2 * 3_600 * effectiveRates(stillOut).crewPerSecond * pay) +
+      Math.floor(1.6 * 3_600 * effectiveRates(stillOut).crewPerSecond * pay) +
         Math.floor(6 * 3_600 * effectiveRates(tended).crewPerSecond * pay),
     );
 
@@ -676,10 +676,10 @@ describe("away pay", () => {
     const long = accrueAway({ mountain: seam, lastSeen: 0, now: 20 * HOUR });
     const home = { ...seam, engineers: [{ ...ada }] };
     expect(long.mined).toBe(
-      Math.floor(16 * 3_600 * effectiveRates(home).crewPerSecond * pay),
+      Math.floor(11.6 * 3_600 * effectiveRates(home).crewPerSecond * pay),
     );
     expect(long.mined).not.toBe(
-      Math.floor(16 * 3_600 * effectiveRates(seam).crewPerSecond * pay),
+      Math.floor(11.6 * 3_600 * effectiveRates(seam).crewPerSecond * pay),
     );
     const saved = parseSaveValue(
       JSON.parse(
