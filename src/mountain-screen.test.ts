@@ -2581,7 +2581,7 @@ describe("pass the mine to your kid (#131)", () => {
       ),
     ).toEqual(["Workers 1/s to 1.5/s", "Carts 6/s to 9/s"]);
     expect(screen.text(".legacy-keeps")).toMatch(
-      /^Your kid keeps the Legacy and \d+ recipes\.$/,
+      /^A bigger mountain for your kid, with the Legacy and \d+ recipes\.$/,
     );
     expect(screen.text(".legacy-detail")).not.toMatch(/\?/);
     expect(document.activeElement).toBe(

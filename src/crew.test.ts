@@ -25,6 +25,7 @@ describe("crew unlocks", () => {
     expect(tierLock(minedMountain(25_000_000), machine)).toEqual({
       kind: "depth",
       depth: 120_000_000,
+      at: 120_000_000,
     });
     expect(tierLocked(nearHammer, tierById("borer"))).toBe(false);
   });
@@ -61,6 +62,7 @@ describe("crew unlocks", () => {
     expect(tierLock(shallow, tierById("borer"))).toEqual({
       kind: "depth",
       depth: 7_000_000,
+      at: 7_000_000,
     });
     expect(tierLocked(shallow, tierById("borer"))).toBe(true);
     expect(buyCrew(shallow, "borer")).toBe(shallow);
@@ -74,6 +76,7 @@ describe("crew unlocks", () => {
     expect(tierLock(deep, tierById("machine"))).toEqual({
       kind: "depth",
       depth: 120_000_000,
+      at: 120_000_000,
     });
     expect(tierLock(deep, tierById("helper"))).toBeUndefined();
     // An older save that already owns a borer keeps buying them.
