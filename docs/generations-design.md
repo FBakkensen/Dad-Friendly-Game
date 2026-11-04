@@ -137,3 +137,19 @@ Today, with k = 1 every run, runs get shorter: casual 6 / 4.5 / 4 / 3.5, and the
 The claim that a run stretches by k/bonus only holds exactly at k = bonus, where every run equals run 1. For k above the bonus the run grows more slowly than k/bonus. Casual measured about (k/bonus)^0.66, and the square-root fit predicts 6.5 / 6.8 / 7.1, so the doc's k values were too small.
 
 The run-grows and run-cap targets are report-only (`RUN_CAP_DAYS` in `src/lab/targets.ts`). The strict run-1 lab stays green at 20 seeds.
+
+### Great Machine gap (M13-3)
+
+The Great Machine opened at the Deep Heart entrance (120M). A once-a-day dad often reached that depth in the middle of a sitting, right after spending on borers, and the next night's away pay dug out the rest. He reached the bottom without buying it. Lowering its price did not help. Opening it 12M sooner (108M, the last stretch of the Crystal Caves) gives him a sitting with it in every kid run.
+
+With k = 1 / 1.75 / 2.55 / 3.5 over 20 seeds:
+
+| Player    | Run 1 | Run 2 | Run 3 | Run 4 | Run-length rule | Machine never bought |
+| --------- | ----- | ----- | ----- | ----- | --------------- | -------------------- |
+| Casual    | 6     | 6.5   | 7     | 7.5   | pass            | none                 |
+| Checker   | 5.04  | 5.81  | 6.15  | 6.75  | pass            | none                 |
+| Evening   | 7     | 8     | 8     | 9     | pass            | none                 |
+| Marathon  | 5     | 5     | 6     | 6.12  | pass            | none                 |
+| Optimizer | 6     | 6.5   | 6.51  | 7     | pass            | none                 |
+
+The run-length rules are report-only. Twice-a-day types: each run longer than the last, none past 7.5 days. Once-a-day types: each run at least as long as the last, and at most 2 days past their own run 1. Run 1's strict lab is green at 20 seeds: Checker finishes on day 5.04 with an extreme win of 0.160.
