@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { kidStretch } from "./scale";
 import { EMPTY_MATERIALS } from "./layers";
 import { createMemoryAuth } from "./auth";
 import { buyBoost } from "./boosts";
@@ -909,7 +910,7 @@ describe("start over", () => {
     const fresh = {
       ...createMountain(),
       legacy: 1,
-      stretch: 1.75,
+      stretch: kidStretch(1),
       startedAt: 10_010,
       recipes: [
         "iron-rails",
