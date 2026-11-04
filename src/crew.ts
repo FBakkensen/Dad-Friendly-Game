@@ -1,3 +1,4 @@
+import { factor } from "./economy/factors";
 import { grantFirstEngineer } from "./engineers";
 import { STAFF_GRANT, type Mountain } from "./mountain";
 import { hasRelic, RELICS, type Relic } from "./relics";
@@ -20,12 +21,16 @@ export type TierLock =
 export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
   // An older save that already runs one keeps buying: the depth only
   // gates the first, so nothing it owns ever shows as locked.
+  const opensAt =
+    tier.opensAt === undefined
+      ? undefined
+      : tier.opensAt * factor(`opens.${tier.id}`);
   if (
-    tier.opensAt !== undefined &&
+    opensAt !== undefined &&
     owned(mountain, tier) === 0 &&
-    minedOut(mountain) < tier.opensAt
+    minedOut(mountain) < opensAt
   ) {
-    return { kind: "depth", depth: tier.opensAt };
+    return { kind: "depth", depth: opensAt };
   }
   const relic = RELICS.find((candidate) => candidate.id === tier.needs);
   if (relic !== undefined && !hasRelic(mountain, relic.id)) {
