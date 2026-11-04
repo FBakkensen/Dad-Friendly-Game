@@ -1,3 +1,4 @@
+import { stretch } from "../scale";
 import {
   BOOSTS,
   boostById,
@@ -332,7 +333,7 @@ function valueTier(
   context: ValueContext,
 ): ActionValue {
   const tier = tierById(id);
-  const price = tierCost(tier, owned(mountain, tier));
+  const price = tierCost(tier, owned(mountain, tier), stretch(mountain));
   const cost = price + staffBill(mountain, tier);
   if (tierLocked(mountain, tier)) {
     return rateValue(mountain, 0, cost, horizon, context);
@@ -373,7 +374,11 @@ function valueUpgrade(
   context: ValueContext,
 ): ActionValue {
   const upgrade = upgradeById(id);
-  const price = upgradeCost(upgrade, upgradeLevel(mountain, id));
+  const price = upgradeCost(
+    upgrade,
+    upgradeLevel(mountain, id),
+    stretch(mountain),
+  );
   if (price === undefined || !upgradeUnlocked(mountain, upgrade)) {
     return rateValue(mountain, 0, price ?? 0, horizon, context);
   }
@@ -394,7 +399,7 @@ function valueBoost(
 ): ActionValue {
   const boost = boostById(id);
   const pricing = effectiveRates(mountain);
-  const cost = boostCost(boost, pricing);
+  const cost = boostCost(boost, pricing, stretch(mountain));
   // After every boost already on the clock, so this purchase is the only
   // one running when its speed is read. Away pay never counts a boost.
   const now = clockAfterBoosts(mountain);
@@ -447,7 +452,7 @@ function staffBill(mountain: Mountain, tier: Tier): number {
   );
   let cost = 0;
   for (let extra = 0; extra < short; extra += 1) {
-    cost += tierCost(helper, mountain.helpers + extra);
+    cost += tierCost(helper, mountain.helpers + extra, stretch(mountain));
   }
   return cost;
 }

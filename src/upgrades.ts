@@ -149,6 +149,7 @@ export function upgradeLevel(mountain: Mountain, id: UpgradeId): number {
 export function upgradeCost(
   upgrade: Upgrade,
   level: number,
+  k = 1,
 ): number | undefined {
   return level >= upgrade.maxLevel
     ? undefined
@@ -156,7 +157,7 @@ export function upgradeCost(
         Number(
           (
             upgrade.firstCost *
-            stretch() *
+            k *
             upgrade.costGrowth ** level
           ).toPrecision(12),
         ),
@@ -166,7 +167,7 @@ export function upgradeCost(
 /** Buys the next level if affordable; otherwise the same mountain. */
 export function buyUpgrade(mountain: Mountain, id: UpgradeId): Mountain {
   const level = upgradeLevel(mountain, id);
-  const cost = upgradeCost(upgradeById(id), level);
+  const cost = upgradeCost(upgradeById(id), level, stretch(mountain));
   if (
     cost === undefined ||
     mountain.pocket < cost ||

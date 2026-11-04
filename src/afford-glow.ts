@@ -1,3 +1,4 @@
+import { stretch } from "./scale";
 import { tierLocked } from "./crew";
 import type { Mountain } from "./mountain";
 import { TIERS, owned, tierCost, tierShown } from "./tiers";
@@ -19,7 +20,7 @@ export function canBuyAnyTier(mountain: Mountain): boolean {
     (tier) =>
       tierShown(mountain, tier) &&
       !tierLocked(mountain, tier) &&
-      mountain.pocket >= tierCost(tier, owned(mountain, tier)),
+      mountain.pocket >= tierCost(tier, owned(mountain, tier), stretch(mountain)),
   );
 }
 

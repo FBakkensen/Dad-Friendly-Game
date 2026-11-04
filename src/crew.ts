@@ -2,7 +2,7 @@ import { factor } from "./economy/factors";
 import { grantFirstEngineer } from "./engineers";
 import { STAFF_GRANT, type Mountain } from "./mountain";
 import { hasRelic, RELICS, type Relic } from "./relics";
-import { minedOut } from "./scale";
+import { KID_MACHINE_OPENS, minedOut } from "./scale";
 import {
   TIERS,
   buyTier,
@@ -17,6 +17,16 @@ export type TierLock =
   | { readonly kind: "depth"; readonly depth: number }
   | { readonly kind: "relic"; readonly relic: Relic };
 
+/**
+ * From run 2 on (a stretched run), the Great Machine opens a little sooner,
+ * so a once-a-day dad gets a full sitting with it on sale (M13, #253).
+ */
+function kidOpens(mountain: Mountain, tier: Tier): number {
+  return tier.id === "machine" && mountain.stretch !== undefined
+    ? KID_MACHINE_OPENS
+    : 1;
+}
+
 /** Why this tier is not for sale yet, or undefined when it is. */
 export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
   // An older save that already runs one keeps buying: the depth only
@@ -24,7 +34,7 @@ export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
   const opensAt =
     tier.opensAt === undefined
       ? undefined
-      : tier.opensAt * factor(`opens.${tier.id}`);
+      : tier.opensAt * kidOpens(mountain, tier) * factor(`opens.${tier.id}`);
   if (
     opensAt !== undefined &&
     owned(mountain, tier) === 0 &&

@@ -29,7 +29,8 @@ service cloud.firestore {
     //       inside each band's width, recipes (known ids, plus a few unknown
     //       ids the client writes back), bench (recipe, times; an unknown
     //       recipe is kept and written back), crafted levels 0..1000, and
-    //       optional chargeUntil, flareUntil, emberUntil, and axleUntil (whole epoch ms).
+    //       optional chargeUntil, flareUntil, emberUntil, and axleUntil (whole epoch ms),
+    //       and stretch (M13: the run's size, 1..100).
     //       The parser checks those.
     //   - grid: map (required iff version is 1 or 2; legacy, read-migrated by the client)
     //       - width: int (required, must be 3)

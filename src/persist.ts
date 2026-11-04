@@ -39,6 +39,8 @@ type WorkshopSave = {
   /** When a heartstone ember cools. Missing means none is hot. */
   readonly emberUntil?: number;
   readonly axleUntil?: number;
+  /** The run's stretch (M13). Missing means 1. */
+  readonly stretch?: number;
   /** Notes opened (src/teach.ts). Missing means none. */
   readonly seen?: readonly string[];
   /** Systems used once (src/teach.ts). Missing means none written down. */
@@ -91,7 +93,9 @@ export function serializeSave({
   const saved: MountainSaveV6 = {
     version: 6,
     mountain: {
-      remaining: mountain.remaining,
+      // A stretched run digs in fractions of a depth stone. The cloud keeps
+      // whole numbers, so round up: at most one stone of depth comes back.
+      remaining: Math.ceil(mountain.remaining),
       pocket: mountain.pocket,
       helpers: mountain.helpers,
       carts: mountain.carts,
@@ -144,6 +148,7 @@ export function serializeSave({
       ...(mountain.axleUntil === undefined
         ? {}
         : { axleUntil: mountain.axleUntil }),
+      ...(mountain.stretch === undefined ? {} : { stretch: mountain.stretch }),
       ...(mountain.seen === undefined || mountain.seen.length === 0
         ? {}
         : { seen: mountain.seen }),
@@ -233,6 +238,7 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
       const flareUntil = readClock(sheet["flareUntil"]);
       const emberUntil = readClock(sheet["emberUntil"]);
       const axleUntil = readClock(sheet["axleUntil"]);
+      const stretch = readStretch(sheet["stretch"]);
       const seen = parseTeachIds(sheet["seen"]);
       const taught = parseTeachIds(sheet["taught"]);
       if (
@@ -245,6 +251,7 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
         flareUntil === "bad" ||
         emberUntil === "bad" ||
         axleUntil === "bad" ||
+        stretch === "bad" ||
         seen === "bad" ||
         taught === "bad"
       ) {
@@ -274,6 +281,7 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
           ...(flareUntil === undefined ? {} : { flareUntil }),
           ...(emberUntil === undefined ? {} : { emberUntil }),
           ...(axleUntil === undefined ? {} : { axleUntil }),
+          ...(stretch === undefined ? {} : { stretch }),
           ...(seen.length === 0 ? {} : { seen }),
           ...(taught.length === 0 ? {} : { taught }),
         },
@@ -285,6 +293,18 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
     default:
       return undefined;
   }
+}
+
+/** The biggest stretch a save may carry: past it, the save is bad. */
+const MAX_STRETCH = 100;
+
+function readStretch(value: unknown): number | undefined | "bad" {
+  if (value === undefined) {
+    return undefined;
+  }
+  return typeof value === "number" && value >= 1 && value <= MAX_STRETCH
+    ? value
+    : "bad";
 }
 
 function readV7Identity(

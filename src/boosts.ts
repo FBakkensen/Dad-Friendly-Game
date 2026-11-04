@@ -89,7 +89,11 @@ export type BoostPricing = {
 };
 
 /** Priced from the crew or the tap it boosts, so it scales with progress. */
-export function boostCost(boost: Boost, pricing: BoostPricing): number {
+export function boostCost(
+  boost: Boost,
+  pricing: BoostPricing,
+  k = 1,
+): number {
   const per =
     boost.priceIn === "taps" ? pricing.tapYield : pricing.crewPerSecond;
   const priced = Math.ceil(per * boost.priceUnits);
@@ -97,7 +101,7 @@ export function boostCost(boost: Boost, pricing: BoostPricing): number {
     boost.crewSeconds === undefined
       ? 0
       : Math.ceil(pricing.crewPerSecond * boost.crewSeconds);
-  return Math.max(Math.ceil(boost.minCost * stretch()), priced, crew);
+  return Math.max(Math.ceil(boost.minCost * k), priced, crew);
 }
 
 /** Starts a boost if it isn't already running and the pocket covers it. */
@@ -113,7 +117,7 @@ export function buyBoost({
   pricing: BoostPricing;
 }): Mountain {
   const boost = boostById(id);
-  const cost = boostCost(boost, pricing);
+  const cost = boostCost(boost, pricing, stretch(mountain));
   if (boostLeft(mountain, id, now) > 0 || mountain.pocket < cost) {
     return mountain;
   }

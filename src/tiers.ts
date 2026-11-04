@@ -139,7 +139,7 @@ const TIER_COST_GROWTH: Partial<Record<TierId, number>> = {
 };
 
 /** Cookie Clicker curve: machines double each time; helpers grow gently. */
-export function tierCost(tier: Tier, ownedCount: number): number {
+export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
   // A sweep multiplies the sticker and the growth. Both factors are 1 in play.
   const workerCurve = tier.staff === 0;
@@ -148,7 +148,7 @@ export function tierCost(tier: Tier, ownedCount: number): number {
     : (TIER_COST_GROWTH[tier.id] ?? COST_GROWTH);
   const growth =
     base * factor(workerCurve ? "growth.worker" : "growth.machine");
-  const first = tier.firstCost * factor(`price.${tier.id}`) * stretch();
+  const first = tier.firstCost * factor(`price.${tier.id}`) * k;
   return Math.ceil(Number((first * growth ** ownedCount).toPrecision(12)));
 }
 
@@ -156,7 +156,7 @@ export function tierCost(tier: Tier, ownedCount: number): number {
 export function buyTier(mountain: Mountain, id: TierId): Mountain {
   const tier = tierById(id);
   const count = owned(mountain, tier);
-  const cost = tierCost(tier, count);
+  const cost = tierCost(tier, count, stretch(mountain));
   if (mountain.pocket < cost) {
     return mountain;
   }

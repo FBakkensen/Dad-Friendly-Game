@@ -1,3 +1,4 @@
+import { stretch } from "./scale";
 import bootUrl from "./assets/boot-tile.png";
 import workerUrl from "./assets/helper-miner.png";
 import cartUrl from "./assets/mine-cart.png";
@@ -427,11 +428,15 @@ export function createUpgradesPanel({
     const fresh = [
       ...boostRows.map((row) => ({
         id: row.id,
-        cost: boostCost(row.boost, pricing),
+        cost: boostCost(row.boost, pricing, stretch(current)),
       })),
       ...upgradeRows.map((row) => ({
         id: row.id,
-        cost: upgradeCost(row.upgrade, upgradeLevel(current, row.upgrade.id)),
+        cost: upgradeCost(
+          row.upgrade,
+          upgradeLevel(current, row.upgrade.id),
+          stretch(current),
+        ),
       })),
     ].filter((row) => showsDot(current, row.id));
     const newId = (
@@ -444,7 +449,7 @@ export function createUpgradesPanel({
       item.hidden = !boostShown(current, boost);
       boostsShowing ||= !item.hidden;
       const left = boostLeft(current, boost.id, at);
-      const cost = boostCost(boost, pricing);
+      const cost = boostCost(boost, pricing, stretch(current));
       // Overtime shares the crew with axle grease and a blasting charge.
       // The line shows the crew you would actually have, the strongest
       // timer, so a second ×2 does not pretend to make it ×4.
@@ -505,7 +510,7 @@ export function createUpgradesPanel({
       item.hidden = !upgradeShown(current, upgrade);
       upgradesShowing ||= !item.hidden;
       const level = upgradeLevel(current, upgrade.id);
-      const cost = upgradeCost(upgrade, level);
+      const cost = upgradeCost(upgrade, level, stretch(current));
       const affordable =
         !item.hidden && cost !== undefined && current.pocket >= cost;
       anyAffordable ||= affordable;

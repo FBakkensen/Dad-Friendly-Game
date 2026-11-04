@@ -97,7 +97,7 @@ export function veinReward(mountain: Mountain): number {
   return Math.min(
     stonesLeft(mountain),
     Math.max(
-      VEIN_MIN_REWARD * stretch(),
+      VEIN_MIN_REWARD * stretch(mountain),
       stonesPerSecond(mountain) * VEIN_HELPER_SECONDS,
     ),
   );
