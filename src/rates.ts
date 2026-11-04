@@ -78,7 +78,10 @@ export const LEGACY_STEP = 0.5;
 
 /** ×1, ×1.5, ×2, …: the kid's crew and taps. Never away pay's share. */
 export function legacyBonus(mountain: Mountain): number {
-  return 1 + LEGACY_STEP * (mountain.legacy ?? 0);
+  // `generation.k` is a lab-only stretch (M13, #253). Dividing every output
+  // by k is the same game, in other units, as multiplying the mountain, the
+  // layer starts and every stone price by k. Unset, it is 1.
+  return (1 + LEGACY_STEP * (mountain.legacy ?? 0)) / factor("generation.k");
 }
 
 /** Crown of Wisdom: each kid helper makes every helper and kid this much faster. */
