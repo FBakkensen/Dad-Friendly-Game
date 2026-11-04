@@ -44,7 +44,6 @@ export function stretch(mountain: { readonly stretch?: number }): number {
   return mountain.stretch ?? 1;
 }
 
-
 /** A depth (in run-1 stones) as the stones this run shows for it. */
 export function shownStones(
   mountain: { readonly stretch?: number },

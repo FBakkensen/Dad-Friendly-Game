@@ -115,7 +115,10 @@ describe("kid-run stretch (M13, #253)", () => {
       const priciest = tierCost(tierById("machine"), 3, k);
       expect(Number.isSafeInteger(Math.round(priciest))).toBe(true);
       expect(formatCompact(priciest).length).toBeLessThanOrEqual(6);
-      const saved = serializeSave({ mountain: digStones(kid, 1e9), lastSeen: 1 });
+      const saved = serializeSave({
+        mountain: digStones(kid, 1e9),
+        lastSeen: 1,
+      });
       expect(parseSaveValue(saved)?.mountain.stretch).toBe(k);
     }
   });

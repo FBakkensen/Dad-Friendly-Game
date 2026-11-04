@@ -296,7 +296,6 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
   }
 }
 
-
 function readStretch(value: unknown): number | undefined | "bad" {
   if (value === undefined) {
     return undefined;
