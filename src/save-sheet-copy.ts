@@ -1,3 +1,4 @@
+import { shownStones } from "./scale";
 import { formatCompact } from "./format";
 import { layerOf } from "./layers";
 import { minedOut, type Mountain } from "./mountain";
@@ -33,7 +34,7 @@ export function saveCardLines(
 ): SaveCardLines {
   const band = layerOf(mountain).name.replace(/^The /, "");
   return {
-    depth: `${band}, ${formatCompact(minedOut(mountain))} deep`,
+    depth: `${band}, ${formatCompact(shownStones(mountain, minedOut(mountain)))} deep`,
     pocket: `${formatCompact(mountain.pocket)} stones in the pocket`,
     machines: machineLine(mountain),
     crew: crewLine(mountain),

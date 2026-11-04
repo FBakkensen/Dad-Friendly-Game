@@ -1,3 +1,4 @@
+import { MOUNTAIN_STONES } from "./scale";
 import { BOOSTS, type BoostId } from "./boosts";
 import { ENGINEER_NAMES } from "./engineers";
 import type { Mountain } from "./mountain";
@@ -164,9 +165,10 @@ export function snapshot(
     at: new Date(now).toISOString(),
     deviceId: stamp.deviceId ?? "",
     rev: stamp.rev ?? 0,
-    mined: minedOut(mountain),
-    left: mountain.remaining,
-    pocket: mountain.pocket,
+    // Depth in run-1 stones, whole, as the rules want (a kid run digs fractions).
+    mined: Math.floor(minedOut(mountain)),
+    left: Math.ceil(mountain.remaining),
+    pocket: Math.min(mountain.pocket, MOUNTAIN_STONES),
     crew,
     crewSpeed: rates.crewPerSecond,
     tapYield: rates.tapYield,
