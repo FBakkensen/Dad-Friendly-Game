@@ -14,7 +14,12 @@ import { recall, send } from "../expeditions";
 import type { Trouble } from "../hazards";
 import { createMountain, type Mountain } from "../mountain";
 import { minedMountain } from "../test-fixtures";
-import { AWAY_PAY_RATE, BASE_AWAY_CAP_MS, effectiveRates } from "../rates";
+import {
+  AWAY_FULL_MS,
+  AWAY_PAY_RATE,
+  effectiveRates,
+  paidAwayMs,
+} from "../rates";
 import { TIERS, owned, tierById, tierCost, type TierId } from "../tiers";
 import {
   BOOTS_SPEED_PER_LEVEL,
@@ -706,7 +711,7 @@ describe("valueOf", () => {
     const atCap: ValueContext = {
       tapsPerSecond: 0,
       liveSeconds: 0,
-      awaySeconds: BASE_AWAY_CAP_MS / 1000,
+      awaySeconds: AWAY_FULL_MS / 1000,
     };
     expect(score(yard, steady, HORIZON, week).gainPerSec).toBeLessThan(
       score(yard, steady, HORIZON, atCap).gainPerSec,
@@ -876,7 +881,8 @@ describe("valueOf", () => {
   it("matches the casual dad's stones a day, and shows where the upgrade dad's hand formulas differ", () => {
     const cycle = SESSION_S + GAP_S;
     const perDay = (gainPerSec: number) => gainPerSec * cycle * 2;
-    const crewDay = 2 * (SESSION_S + (BASE_AWAY_CAP_MS / 1000) * AWAY_PAY_RATE);
+    const paidGapS = paidAwayMs(fresh, GAP_S * 1000) / 1000;
+    const crewDay = 2 * (SESSION_S + paidGapS * AWAY_PAY_RATE);
     const tapDay = 2 * SESSION_S;
 
     const worker = score(
@@ -911,7 +917,7 @@ describe("valueOf", () => {
       AWAY_PAY_RATE *
       STEADY_AWAY_PER_LEVEL *
       2 *
-      (BASE_AWAY_CAP_MS / 1000);
+      paidGapS;
     expect(perDay(steady.gainPerSec)).toBeCloseTo(steadyHand, 4);
 
     const small: Mountain = { ...fresh, helpers: 50 };

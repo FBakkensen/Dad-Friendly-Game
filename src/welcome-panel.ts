@@ -1,15 +1,13 @@
 import oreArt from "./assets/ore-lump.png";
 import { formatCount, formatDuration } from "./format";
-import { stonesPerSecond } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
   AWAY_MATERIALS_USE,
   ENGINEER_WELCOME,
   awayMaterialsWords,
+  awayStretchWords,
   cameBack,
-  capWords,
   layerWelcomeWords,
-  restingPace,
   workerWords,
 } from "./screen-words";
 
@@ -175,16 +173,7 @@ export function createWelcomePanel({
       return;
     }
     welcomeMined.textContent = `+${formatCount(report.mined)} ${report.mined === 1 ? "stone" : "stones"}`;
-    const { helpers } = getView().mountain;
-    const onlyHelpers = stonesPerSecond(getView().mountain) === helpers;
-    const crewName = !onlyHelpers
-      ? "Your crew"
-      : helpers === 1
-        ? "Your worker"
-        : `Your ${formatCount(helpers)} workers`;
-    welcomeDetail.textContent = report.capped
-      ? `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined for ${capWords(report.paidMs)}, ${restingPace(getView().mountain)}.`
-      : `You were gone ${formatDuration(report.awayMs)}. ${crewName} mined the whole time, ${restingPace(getView().mountain)}.`;
+    welcomeDetail.textContent = `You were gone ${formatDuration(report.awayMs)}. ${awayStretchWords(report)}`;
     welcomeDetail.textContent +=
       report.heart > 1
         ? ` The Heart of Patience made it ×${report.heart.toFixed(2).replace(/0$/, "")}.`

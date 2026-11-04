@@ -11,12 +11,7 @@ import { TUNNELS } from "./expeditions";
 import { formatCompact, formatDuration } from "./format";
 import { ENGINEER_FIX_MS, FIX_TAPS } from "./hazards";
 import { LAYERS } from "./layers";
-import {
-  AWAY_PAY_RATE,
-  BASE_AWAY_CAP_MS,
-  LEGACY_STEP,
-  SHIELD_AWAY_CAP_MS,
-} from "./rates";
+import { AWAY_PAY_RATE, AWAY_END_MS, LEGACY_STEP } from "./rates";
 import { tierById } from "./tiers";
 import { STEADY_AWAY_PER_LEVEL, UPGRADES } from "./upgrades";
 import { VEIN_GLINT_MS } from "./veins";
@@ -369,7 +364,7 @@ export const HOW_IT_WORKS: Readonly<Record<HowSystem, HowItWorks>> = {
       ],
       [
         "stone",
-        `They keep at it for ${formatDuration(BASE_AWAY_CAP_MS)}, or ${formatDuration(SHIELD_AWAY_CAP_MS)} with the right relic.`,
+        `They dig hard, then ease off, and rest after ${formatDuration(AWAY_END_MS)}. A relic keeps them going.`,
       ],
       [
         "upgrades-icon",

@@ -685,7 +685,7 @@ describe("crew tiers on screen", () => {
     expect(card.getAttribute("role")).toBe("dialog");
     expect(screen.text(".welcome-mined")).toBe("+9,000 stones");
     expect(screen.text(".welcome-detail")).toBe(
-      "You were gone 2 hours 5 minutes. Your 4 workers mined the whole time, at a resting pace (30% of their speed).",
+      "You were gone 2 hours 5 minutes. Your crew kept digging the whole time.",
     );
 
     close.click();
@@ -693,7 +693,20 @@ describe("crew tiers on screen", () => {
     expect(screen.text(".pocket")).toBe("9,000 stones");
   });
 
-  it("says when a long absence hits the 16-hour cap", () => {
+  it("says the crew eased off on a long day away (#278)", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(0), pocket: 0, helpers: 1 },
+      lastSeen: Date.now() - 10 * 3_600_000,
+    });
+    const screen = mountScreen({ storage });
+    expect(screen.text(".welcome-detail")).toBe(
+      "You were gone 10 hours. Your crew dug hard, then took it easy. Rested and ready for you.",
+    );
+  });
+
+  it("says a full day's haul after more than a day away (#278)", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
@@ -713,9 +726,9 @@ describe("crew tiers on screen", () => {
       }),
     );
     const screen = mountScreen({ storage });
-    expect(screen.text(".welcome-mined")).toBe("+17.2 thousand stones");
+    expect(screen.text(".welcome-mined")).toBe("+14.2 thousand stones");
     expect(screen.text(".welcome-detail")).toBe(
-      "You were gone 1 day 2 hours. Your worker mined for the first 16 hours, at a resting pace (30% of their speed).",
+      "You were gone 1 day 2 hours. Your crew saved a full day's haul for you. Good to have you back.",
     );
   });
 
@@ -1816,7 +1829,7 @@ describe("lasting upgrades on screen", () => {
     );
   });
 
-  it("says the higher resting pace on the welcome-back card with Steady hands", () => {
+  it("pays more on the welcome-back card with Steady hands", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -1826,7 +1839,7 @@ describe("lasting upgrades on screen", () => {
     const screen = mountScreen({ storage });
     expect(screen.text(".welcome-mined")).toBe("+11.2 thousand stones");
     expect(screen.text(".welcome-detail")).toBe(
-      "You were gone 2 hours 5 minutes. Your 4 workers mined the whole time, at a resting pace (37.5% of their speed).",
+      "You were gone 2 hours 5 minutes. Your crew kept digging the whole time.",
     );
   });
 
@@ -2325,7 +2338,7 @@ describe("Shield of Protection on the welcome card", () => {
     const screen = mountScreen({ storage });
     expect(screen.text(".welcome-mined")).toBe("+25.9 thousand stones");
     expect(screen.text(".welcome-detail")).toBe(
-      "You were gone 1 day 6 hours. Your worker mined for a whole day, at a resting pace (30% of their speed).",
+      "You were gone 1 day 6 hours. Your crew saved a full day's haul for you. Good to have you back.",
     );
   });
 });
@@ -2668,7 +2681,9 @@ describe("player-facing workers (#139)", () => {
       expect(
         screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
       ).toBe(false);
-      expect(screen.text(".welcome-detail")).toMatch(/mined the whole time/);
+      expect(screen.text(".welcome-detail")).toMatch(
+        /kept digging the whole time/,
+      );
       expect(screen.text(".crew-status")).toMatch(/need \d+ workers/);
       expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Worker");
       expect(screen.text('[data-tier="kid"] .tier-name')).toBe("Kid worker");

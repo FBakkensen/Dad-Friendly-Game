@@ -1,11 +1,6 @@
 import { EMPTY_MATERIALS } from "./layers";
 import { minedMountain } from "./test-fixtures";
-import {
-  BASE_AWAY_CAP_MS,
-  SHIELD_AWAY_CAP_MS,
-  effectiveRates,
-  heartBonus,
-} from "./rates";
+import { SHIELD_AWAY_CAP_MS, heartBonus } from "./rates";
 import { describe, expect, it } from "vitest";
 import { AWAY_PAY_RATE } from "./rates";
 import {
@@ -417,27 +412,21 @@ describe("accrueAway", () => {
     );
   });
 
-  it("pays 8 hours of a short gap, and 16 hours of one long absence", () => {
-    const short = accrueAway({
-      mountain: crew,
-      lastSeen: 0,
-      now: 10 * 3_600_000,
-    });
-    expect(short.report.paidMs).toBe(BASE_AWAY_CAP_MS);
-    expect(short.mined).toBe((BASE_AWAY_CAP_MS / 1000) * 2 * AWAY_PAY_RATE);
-    const now = BASE_AWAY_CAP_MS * 3;
+  it.each([
+    [4, 4],
+    [6, 6],
+    [8, 6.8],
+    [12, 8.4],
+    [16, 10],
+    [24, 13.2],
+    [48, 13.2],
+  ])("slopes away pay: %i hours away pays %f hours (#278)", (away, paid) => {
+    const now = away * 3_600_000;
     const result = accrueAway({ mountain: crew, lastSeen: 0, now });
-    const longCap = 16 * 3_600_000;
-    expect(result.mined).toBe((longCap / 1000) * 2 * AWAY_PAY_RATE);
+    expect(result.report.paidMs).toBeCloseTo(paid * 3_600_000, 3);
+    expect(result.report.capped).toBe(away > 6);
+    expect(result.mined).toBe(Math.floor(paid * 3600 * 2 * AWAY_PAY_RATE));
     expect(result.settledAt).toBe(now);
-    expect(result.report).toEqual({
-      mined: (longCap / 1000) * 2 * AWAY_PAY_RATE,
-      awayMs: now,
-      paidMs: longCap,
-      capped: true,
-      heart: 1,
-      materials: EMPTY_MATERIALS,
-    });
   });
 
   it("pays nothing for a clock that went backwards", () => {
@@ -459,11 +448,11 @@ describe("Shield of Protection: away cap", () => {
   const shielded = { ...minedMountain(10_000_000), helpers: 10 };
   const DAY = 24 * 3_600_000;
 
-  it("pays 16 hours of a long absence without the Shield, and a whole day with it", () => {
+  it("pays 13.2 hours of a long absence without the Shield, and a whole day with it", () => {
     const plain = accrueAway({ mountain: crew, lastSeen: 0, now: 2 * DAY });
     expect(plain.report.capped).toBe(true);
-    expect(plain.report.paidMs).toBe(16 * 3_600_000);
-    expect(plain.mined).toBe(Math.floor(16 * 3600 * 10 * AWAY_PAY_RATE));
+    expect(plain.report.paidMs).toBeCloseTo(13.2 * 3_600_000, 3);
+    expect(plain.mined).toBe(Math.floor(13.2 * 3600 * 10 * AWAY_PAY_RATE));
     const safe = accrueAway({
       mountain: shielded,
       lastSeen: 0,
@@ -474,8 +463,7 @@ describe("Shield of Protection: away cap", () => {
     const long = accrueAway({ mountain: shielded, lastSeen: 0, now: 3 * DAY });
     expect(long.report.capped).toBe(true);
     expect(long.mined).toBe(Math.floor(24 * 3600 * 10 * AWAY_PAY_RATE));
-    expect(effectiveRates(shielded).awayCapMs).toBe(SHIELD_AWAY_CAP_MS);
-    expect(effectiveRates(crew).awayCapMs).toBe(BASE_AWAY_CAP_MS);
+    expect(long.report.paidMs).toBe(SHIELD_AWAY_CAP_MS);
   });
 });
 
