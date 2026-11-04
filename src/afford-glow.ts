@@ -20,7 +20,8 @@ export function canBuyAnyTier(mountain: Mountain): boolean {
     (tier) =>
       tierShown(mountain, tier) &&
       !tierLocked(mountain, tier) &&
-      mountain.pocket >= tierCost(tier, owned(mountain, tier), stretch(mountain)),
+      mountain.pocket >=
+        tierCost(tier, owned(mountain, tier), stretch(mountain)),
   );
 }
 

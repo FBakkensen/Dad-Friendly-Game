@@ -830,6 +830,8 @@ describe("welcome-back and pass-to-kid mock (#247)", () => {
     const legacy = mountTokens("teach", "rest", "legacy");
     expect(legacy.textContent).toContain("Legacy ×1.5, for good");
     expect(legacy.textContent).toContain("Workers 1/s to 1.5/s");
-    expect(legacy.textContent).toContain("A bigger mountain for your kid, with the Legacy and");
+    expect(legacy.textContent).toContain(
+      "A bigger mountain for your kid, with the Legacy and",
+    );
   });
 });

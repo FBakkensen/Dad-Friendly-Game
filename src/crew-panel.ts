@@ -426,7 +426,11 @@ export function createCrewPanel({
       ? firstIdleTier(current, now(), trouble)
       : undefined;
     const worker = tierById("helper");
-    const workerPrice = tierCost(worker, owned(current, worker), stretch(current));
+    const workerPrice = tierCost(
+      worker,
+      owned(current, worker),
+      stretch(current),
+    );
     for (const {
       tier,
       card,

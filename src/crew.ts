@@ -45,7 +45,11 @@ export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
     owned(mountain, tier) === 0 &&
     minedOut(mountain) < opensAt
   ) {
-    return { kind: "depth", depth: opensAt, at: shownStones(mountain, opensAt) };
+    return {
+      kind: "depth",
+      depth: opensAt,
+      at: shownStones(mountain, opensAt),
+    };
   }
   const relic = RELICS.find((candidate) => candidate.id === tier.needs);
   if (relic !== undefined && !hasRelic(mountain, relic.id)) {

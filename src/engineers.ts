@@ -69,7 +69,11 @@ export function rankOf(trips: number): EngineerRank {
 }
 
 export function promoteCost(mountain: Mountain): number {
-  return PROMOTE_BASE_COST * stretch(mountain) * 2 ** (mountain.engineers?.length ?? 0);
+  return (
+    PROMOTE_BASE_COST *
+    stretch(mountain) *
+    2 ** (mountain.engineers?.length ?? 0)
+  );
 }
 
 /**

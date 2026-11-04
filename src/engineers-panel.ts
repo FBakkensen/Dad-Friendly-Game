@@ -1,10 +1,6 @@
 import { stretch } from "./scale";
 import { setAffordGlow } from "./afford-glow";
-import {
-  HOW_IT_WORKS,
-  howItWorks,
-  type HowSystem,
-} from "./how-it-works";
+import { HOW_IT_WORKS, howItWorks, type HowSystem } from "./how-it-works";
 import { markSeen, markTaught, showsDot } from "./teach";
 import {
   clearNewCard,

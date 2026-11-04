@@ -12,11 +12,7 @@ import mapUrl from "./assets/worn-map.png";
 import stoneUrl from "./assets/stone.png";
 import upgradesIconUrl from "./assets/upgrades-icon.png";
 import { setAffordGlow } from "./afford-glow";
-import {
-  HOW_IT_WORKS,
-  howItWorks,
-  type HowSystem,
-} from "./how-it-works";
+import { HOW_IT_WORKS, howItWorks, type HowSystem } from "./how-it-works";
 import { BOOSTS, boostCost, boostLeft, buyBoost, type BoostId } from "./boosts";
 import { buyOnTap } from "./card-tap";
 import { shortEffectName, writeChip } from "./effect-row";

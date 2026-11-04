@@ -155,11 +155,7 @@ export function upgradeCost(
     ? undefined
     : Math.ceil(
         Number(
-          (
-            upgrade.firstCost *
-            k *
-            upgrade.costGrowth ** level
-          ).toPrecision(12),
+          (upgrade.firstCost * k * upgrade.costGrowth ** level).toPrecision(12),
         ),
       );
 }

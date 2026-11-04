@@ -30,7 +30,10 @@ export function kidStretch(legacy: number): number {
 }
 
 /** A depth (in run-1 stones) as the stones this run shows for it. */
-export function shownStones(mountain: { readonly stretch?: number }, depth: number): number {
+export function shownStones(
+  mountain: { readonly stretch?: number },
+  depth: number,
+): number {
   return depth * stretch(mountain);
 }
 

@@ -123,278 +123,285 @@ const boostLine =
  * The how-it-works copy for a run stretched by k (M13): every stone price
  * shows this run's number.
  */
-export function howItWorks(
-  k: number,
-): Readonly<Record<HowSystem, HowItWorks>> {
+export function howItWorks(k: number): Readonly<Record<HowSystem, HowItWorks>> {
   const stones = (count: number): string =>
     `${formatCompact(count * k)} stones`;
   return {
-  tapping: {
-    title: "Tapping",
-    reveal: "Tap the mountain. Every tap is a stone.",
-    steps: [
-      [
-        "mountain",
-        "Tap the mountain to dig. Each tap is a stone in your pocket.",
+    tapping: {
+      title: "Tapping",
+      reveal: "Tap the mountain. Every tap is a stone.",
+      steps: [
+        [
+          "mountain",
+          "Tap the mountain to dig. Each tap is a stone in your pocket.",
+        ],
+        ["stone", "Stones buy workers, machines and upgrades."],
+        ["pick", "Tapping is a bonus. Your crew does the heavy lifting."],
       ],
-      ["stone", "Stones buy workers, machines and upgrades."],
-      ["pick", "Tapping is a bonus. Your crew does the heavy lifting."],
-    ],
-  },
-  workers: {
-    title: "Workers",
-    reveal: "Hire a worker and the mountain digs itself.",
-    steps: [
-      [
-        "helper-miner",
-        `A worker costs ${stones(worker.firstCost)} and digs ${String(worker.perSecond)}/s, all day long.`,
+    },
+    workers: {
+      title: "Workers",
+      reveal: "Hire a worker and the mountain digs itself.",
+      steps: [
+        [
+          "helper-miner",
+          `A worker costs ${stones(worker.firstCost)} and digs ${String(worker.perSecond)}/s, all day long.`,
+        ],
+        ["stone", "Each worker costs a little more than the last."],
+        ["mine-cart", "Machines need workers to run them, so keep hiring."],
       ],
-      ["stone", "Each worker costs a little more than the last."],
-      ["mine-cart", "Machines need workers to run them, so keep hiring."],
-    ],
-  },
-  machines: {
-    title: "Machines",
-    reveal: "Machines dig far more than hands can.",
-    steps: [
-      [
-        "mine-cart",
-        `A mine cart costs ${stones(cart.firstCost)}, digs ${String(cart.perSecond)}/s and needs ${String(cart.staff)} worker.`,
+    },
+    machines: {
+      title: "Machines",
+      reveal: "Machines dig far more than hands can.",
+      steps: [
+        [
+          "mine-cart",
+          `A mine cart costs ${stones(cart.firstCost)}, digs ${String(cart.perSecond)}/s and needs ${String(cart.staff)} worker.`,
+        ],
+        [
+          "steam-drill",
+          `A steam drill digs ${String(drill.perSecond)}/s with ${String(drill.staff)} workers on it.`,
+        ],
+        [
+          "helper-miner",
+          "A machine without its crew stands still. Hire first, then build.",
+        ],
+        [
+          "boot-tile",
+          `When one breaks, tap it ${String(FIX_TAPS)} times and it runs again.`,
+        ],
       ],
-      [
-        "steam-drill",
-        `A steam drill digs ${String(drill.perSecond)}/s with ${String(drill.staff)} workers on it.`,
+    },
+    staffing: {
+      title: "Staffing",
+      reveal: "Every machine needs its own crew to run.",
+      steps: [
+        [
+          "mine-cart",
+          `A cart needs ${String(cart.staff)} worker, a drill ${String(drill.staff)}, a borer ${String(borer.staff)}.`,
+        ],
+        [
+          "great-machine",
+          `The Great Machine needs ${String(machine.staff)}, or ${String(TENDED_MACHINE_STAFF)} while an engineer tends it.`,
+        ],
+        [
+          "tunnel-borer",
+          "Without its crew a machine stands idle and digs nothing.",
+        ],
+        [
+          "helper-miner",
+          "Free workers show on the crew line. Hire more and idle machines start.",
+        ],
       ],
-      [
-        "helper-miner",
-        "A machine without its crew stands still. Hire first, then build.",
+    },
+    upgrades: {
+      title: "Upgrades",
+      reveal: "Upgrades make the whole crew better, for good.",
+      steps: [
+        [
+          "upgrades-icon",
+          `Upgrades start at ${stones(firstUpgrade)} and last the whole mountain.`,
+        ],
+        [
+          "helper-miner",
+          "Some wait until your crew grows. They show up when ready.",
+        ],
+        ["pick", "Each card says exactly what it does before you buy."],
       ],
-      [
-        "boot-tile",
-        `When one breaks, tap it ${String(FIX_TAPS)} times and it runs again.`,
+    },
+    boosts: {
+      title: "Boosts",
+      reveal: "A boost gives the crew a short, big push.",
+      steps: [
+        ["pick", `${sharper.name}: ${sharper.effect}`],
+        ["helper-miner", `${overtime.name}: ${overtime.effect}`],
+        [
+          "stone",
+          "Its timer shows on top while it runs. Buy it again once it ends.",
+        ],
       ],
-    ],
-  },
-  staffing: {
-    title: "Staffing",
-    reveal: "Every machine needs its own crew to run.",
-    steps: [
-      [
-        "mine-cart",
-        `A cart needs ${String(cart.staff)} worker, a drill ${String(drill.staff)}, a borer ${String(borer.staff)}.`,
+    },
+    veins: {
+      title: "Golden veins",
+      reveal: "A golden vein glints now and then. Tap it quick.",
+      steps: [
+        ["gold-nugget", "Now and then a golden vein glints on the mountain."],
+        [
+          "pick",
+          `Tap it within ${formatDuration(VEIN_GLINT_MS)} for a big handful of stones.`,
+        ],
+        ["relics/lantern", "Miss one and another comes along soon."],
       ],
-      [
-        "great-machine",
-        `The Great Machine needs ${String(machine.staff)}, or ${String(TENDED_MACHINE_STAFF)} while an engineer tends it.`,
+    },
+    relics: {
+      title: "Relics and the shelf",
+      reveal: "Something old is buried deep. Keep digging.",
+      steps: [
+        ["relics/lantern", "Old relics rest deep in the mountain."],
+        [
+          "relics/shield",
+          "Dig deep enough and one turns up. Each helps for good.",
+        ],
+        [
+          "relics/crown",
+          "Found relics sit on the shelf. Tap one to see its gift.",
+        ],
       ],
-      [
-        "tunnel-borer",
-        "Without its crew a machine stands idle and digs nothing.",
+    },
+    engineers: {
+      title: "Engineers",
+      reveal: "Your best worker can step up as engineer.",
+      steps: [
+        [
+          "helper-miner",
+          `Promote a worker for ${stones(PROMOTE_BASE_COST)}. Each next one costs double.`,
+        ],
+        [
+          "relics/crown",
+          `Up to ${String(MAX_ENGINEERS)} engineers, each with a name.`,
+        ],
+        [
+          "worn-map",
+          `They grow with every trip: a rank up at ${String(JOURNEYMAN_TRIPS)} and ${String(MASTER_TRIPS)} trips.`,
+        ],
+        [
+          "boot-tile",
+          `Engineers fix trouble on their own within ${formatDuration(ENGINEER_FIX_MS)}.`,
+        ],
       ],
-      [
-        "helper-miner",
-        "Free workers show on the crew line. Hire more and idle machines start.",
+    },
+    tending: {
+      title: "Tending",
+      reveal: "An engineer can tend one kind of machine.",
+      steps: [
+        [
+          "steam-drill",
+          "Put an engineer on a machine and that kind digs faster.",
+        ],
+        [
+          "helper-miner",
+          `+${tend(0)}% at first, then +${tend(1)}% and +${tend(2)}% as they grow.`,
+        ],
+        [
+          "great-machine",
+          `A tended Great Machine needs ${String(TENDED_MACHINE_STAFF)} workers, not ${String(machine.staff)}.`,
+        ],
       ],
-    ],
-  },
-  upgrades: {
-    title: "Upgrades",
-    reveal: "Upgrades make the whole crew better, for good.",
-    steps: [
-      [
-        "upgrades-icon",
-        `Upgrades start at ${stones(firstUpgrade)} and last the whole mountain.`,
+    },
+    expeditions: {
+      title: "Expeditions",
+      reveal: "Engineers can go exploring side tunnels.",
+      steps: [
+        [
+          "worn-map",
+          `Send an engineer from ${formatDuration(shortTunnel.awayMs)} up to ${formatDuration(longTunnel.awayMs)}.`,
+        ],
+        [
+          "gold-nugget",
+          "They come home with a find. Some are lost tools, some keepsakes.",
+        ],
+        [
+          "helper-miner",
+          "Call them back any time. Each trip makes them wiser.",
+        ],
       ],
-      [
-        "helper-miner",
-        "Some wait until your crew grows. They show up when ready.",
+    },
+    layers: {
+      title: "Layers and hardness",
+      reveal: "Deeper rock is new rock. Each layer digs differently.",
+      steps: [
+        [
+          "mountain",
+          `The mountain has ${String(LAYERS.length)} layers, each with its own rock.`,
+        ],
+        [
+          "tunnel-borer",
+          "Each deeper layer suits one machine. It digs a little faster there.",
+        ],
+        [
+          "steam-drill",
+          "One other machine finds that rock tough and slows a little.",
+        ],
+        [
+          "stone",
+          "The line under your stones names the layer and what it suits.",
+        ],
       ],
-      ["pick", "Each card says exactly what it does before you buy."],
-    ],
-  },
-  boosts: {
-    title: "Boosts",
-    reveal: "A boost gives the crew a short, big push.",
-    steps: [
-      ["pick", `${sharper.name}: ${sharper.effect}`],
-      ["helper-miner", `${overtime.name}: ${overtime.effect}`],
-      [
-        "stone",
-        "Its timer shows on top while it runs. Buy it again once it ends.",
+    },
+    materials: {
+      title: "Materials",
+      reveal: "Each layer gives up its own ore as you dig.",
+      steps: [
+        [
+          "ore-lump",
+          `Digging brings up ore: clay first, iron from ${granite.name}.`,
+        ],
+        ["stone", "Ore comes on its own as the crew digs. Nothing to buy."],
+        ["relics/hammer", "Ore goes into gear at the Workshop."],
       ],
-    ],
-  },
-  veins: {
-    title: "Golden veins",
-    reveal: "A golden vein glints now and then. Tap it quick.",
-    steps: [
-      ["gold-nugget", "Now and then a golden vein glints on the mountain."],
-      [
-        "pick",
-        `Tap it within ${formatDuration(VEIN_GLINT_MS)} for a big handful of stones.`,
+    },
+    workshop: {
+      title: "Workshop",
+      reveal: "Turn your clay into gear for the crew.",
+      steps: [
+        ["relics/hammer", "Pick a recipe. The bench makes one at a time."],
+        ["ore-lump", boostLine],
+        [
+          "upgrades-icon",
+          `Reinforce makes a machine ${percent(reinforcePerLevel)} faster a level, up to ${String(reinforce.maxLevel ?? 1)} levels.`,
+        ],
+        [
+          "mine-cart",
+          "Cancel any time and get back the share you did not use.",
+        ],
       ],
-      ["relics/lantern", "Miss one and another comes along soon."],
-    ],
-  },
-  relics: {
-    title: "Relics and the shelf",
-    reveal: "Something old is buried deep. Keep digging.",
-    steps: [
-      ["relics/lantern", "Old relics rest deep in the mountain."],
-      [
-        "relics/shield",
-        "Dig deep enough and one turns up. Each helps for good.",
+    },
+    recipes: {
+      title: "Recipes",
+      reveal: "New recipes turn up as you dig deeper.",
+      steps: [
+        [
+          "worn-map",
+          "Deeper rock keeps new recipes, folded like old sketches.",
+        ],
+        ["relics/hammer", "Each one shows up at the Workshop when found."],
+        ["ore-lump", "Some keep for good, even past the bottom."],
       ],
-      [
-        "relics/crown",
-        "Found relics sit on the shelf. Tap one to see its gift.",
+    },
+    away: {
+      title: "Time away",
+      reveal: "Your crew keeps digging while you're gone.",
+      steps: [
+        [
+          "helper-miner",
+          `While you're away the crew digs at ${percent(AWAY_PAY_RATE)} of their speed.`,
+        ],
+        [
+          "stone",
+          `They dig hard, then ease off, and rest after ${formatDuration(AWAY_END_MS)}. A relic keeps them going.`,
+        ],
+        [
+          "upgrades-icon",
+          `Steady hands makes time away pay ${percent(STEADY_AWAY_PER_LEVEL)} more.`,
+        ],
       ],
-    ],
-  },
-  engineers: {
-    title: "Engineers",
-    reveal: "Your best worker can step up as engineer.",
-    steps: [
-      [
-        "helper-miner",
-        `Promote a worker for ${stones(PROMOTE_BASE_COST)}. Each next one costs double.`,
+    },
+    legacy: {
+      title: "Passing to your kid",
+      reveal: "Reach the bottom and pass the mine to your kid.",
+      steps: [
+        [
+          "relics/mantle",
+          "Reach the bottom with the last relic and you can pass the mine on.",
+        ],
+        ["kid-helper", "Your kid starts a bigger mountain, with your recipes."],
+        [
+          "helper-miner",
+          `Each pass makes crew and taps ${percent(LEGACY_STEP)} stronger, for good.`,
+        ],
       ],
-      [
-        "relics/crown",
-        `Up to ${String(MAX_ENGINEERS)} engineers, each with a name.`,
-      ],
-      [
-        "worn-map",
-        `They grow with every trip: a rank up at ${String(JOURNEYMAN_TRIPS)} and ${String(MASTER_TRIPS)} trips.`,
-      ],
-      [
-        "boot-tile",
-        `Engineers fix trouble on their own within ${formatDuration(ENGINEER_FIX_MS)}.`,
-      ],
-    ],
-  },
-  tending: {
-    title: "Tending",
-    reveal: "An engineer can tend one kind of machine.",
-    steps: [
-      [
-        "steam-drill",
-        "Put an engineer on a machine and that kind digs faster.",
-      ],
-      [
-        "helper-miner",
-        `+${tend(0)}% at first, then +${tend(1)}% and +${tend(2)}% as they grow.`,
-      ],
-      [
-        "great-machine",
-        `A tended Great Machine needs ${String(TENDED_MACHINE_STAFF)} workers, not ${String(machine.staff)}.`,
-      ],
-    ],
-  },
-  expeditions: {
-    title: "Expeditions",
-    reveal: "Engineers can go exploring side tunnels.",
-    steps: [
-      [
-        "worn-map",
-        `Send an engineer from ${formatDuration(shortTunnel.awayMs)} up to ${formatDuration(longTunnel.awayMs)}.`,
-      ],
-      [
-        "gold-nugget",
-        "They come home with a find. Some are lost tools, some keepsakes.",
-      ],
-      ["helper-miner", "Call them back any time. Each trip makes them wiser."],
-    ],
-  },
-  layers: {
-    title: "Layers and hardness",
-    reveal: "Deeper rock is new rock. Each layer digs differently.",
-    steps: [
-      [
-        "mountain",
-        `The mountain has ${String(LAYERS.length)} layers, each with its own rock.`,
-      ],
-      [
-        "tunnel-borer",
-        "Each deeper layer suits one machine. It digs a little faster there.",
-      ],
-      [
-        "steam-drill",
-        "One other machine finds that rock tough and slows a little.",
-      ],
-      [
-        "stone",
-        "The line under your stones names the layer and what it suits.",
-      ],
-    ],
-  },
-  materials: {
-    title: "Materials",
-    reveal: "Each layer gives up its own ore as you dig.",
-    steps: [
-      [
-        "ore-lump",
-        `Digging brings up ore: clay first, iron from ${granite.name}.`,
-      ],
-      ["stone", "Ore comes on its own as the crew digs. Nothing to buy."],
-      ["relics/hammer", "Ore goes into gear at the Workshop."],
-    ],
-  },
-  workshop: {
-    title: "Workshop",
-    reveal: "Turn your clay into gear for the crew.",
-    steps: [
-      ["relics/hammer", "Pick a recipe. The bench makes one at a time."],
-      ["ore-lump", boostLine],
-      [
-        "upgrades-icon",
-        `Reinforce makes a machine ${percent(reinforcePerLevel)} faster a level, up to ${String(reinforce.maxLevel ?? 1)} levels.`,
-      ],
-      ["mine-cart", "Cancel any time and get back the share you did not use."],
-    ],
-  },
-  recipes: {
-    title: "Recipes",
-    reveal: "New recipes turn up as you dig deeper.",
-    steps: [
-      ["worn-map", "Deeper rock keeps new recipes, folded like old sketches."],
-      ["relics/hammer", "Each one shows up at the Workshop when found."],
-      ["ore-lump", "Some keep for good, even past the bottom."],
-    ],
-  },
-  away: {
-    title: "Time away",
-    reveal: "Your crew keeps digging while you're gone.",
-    steps: [
-      [
-        "helper-miner",
-        `While you're away the crew digs at ${percent(AWAY_PAY_RATE)} of their speed.`,
-      ],
-      [
-        "stone",
-        `They dig hard, then ease off, and rest after ${formatDuration(AWAY_END_MS)}. A relic keeps them going.`,
-      ],
-      [
-        "upgrades-icon",
-        `Steady hands makes time away pay ${percent(STEADY_AWAY_PER_LEVEL)} more.`,
-      ],
-    ],
-  },
-  legacy: {
-    title: "Passing to your kid",
-    reveal: "Reach the bottom and pass the mine to your kid.",
-    steps: [
-      [
-        "relics/mantle",
-        "Reach the bottom with the last relic and you can pass the mine on.",
-      ],
-      ["kid-helper", "Your kid starts a bigger mountain, with your recipes."],
-      [
-        "helper-miner",
-        `Each pass makes crew and taps ${percent(LEGACY_STEP)} stronger, for good.`,
-      ],
-    ],
-  },
+    },
   };
 }
 

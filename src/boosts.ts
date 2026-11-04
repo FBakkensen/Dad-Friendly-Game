@@ -89,11 +89,7 @@ export type BoostPricing = {
 };
 
 /** Priced from the crew or the tap it boosts, so it scales with progress. */
-export function boostCost(
-  boost: Boost,
-  pricing: BoostPricing,
-  k = 1,
-): number {
+export function boostCost(boost: Boost, pricing: BoostPricing, k = 1): number {
   const per =
     boost.priceIn === "taps" ? pricing.tapYield : pricing.crewPerSecond;
   const priced = Math.ceil(per * boost.priceUnits);
