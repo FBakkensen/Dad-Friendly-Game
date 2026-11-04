@@ -1,9 +1,9 @@
 /**
  * Kid runs 1-4 for the main player types (M13, #253). Lab-only.
  *   npm run lab:generations -- --ks 1,1.78,2.79,4.05 --seeds 20 [--policy casual-2x10]
- * Prints finish days per run (seed mean), the two report-only targets, and
- * any machine a run never bought. Never fails on a target: they need
- * Flemming's OK before they become strict.
+ * Prints finish days per run (seed mean), the per-type run-length rule, and
+ * any machine a run never bought. With LAB_STRICT=1, a miss on either fails.
+ * --ci plays the CI seed count. Without --ks it plays the approved stretch.
  */
 import casual from "../src/lab/policies/casual-2x10";
 import checker from "../src/lab/policies/checker-6x3";
@@ -17,6 +17,7 @@ import {
   runGenerations,
 } from "../src/lab/generations";
 import { LEGACY_STEP } from "../src/rates";
+import { CI_SEEDS, GENERATION_KS, LOCAL_SEEDS } from "../src/lab/targets";
 
 const POLICIES = [casual, checker, evening, marathon, optimizer];
 
@@ -25,8 +26,12 @@ function arg(name: string): string | undefined {
   return at === -1 ? undefined : process.argv[at + 1];
 }
 
-const ks = (arg("ks") ?? "1,1,1,1").split(",").map(Number);
-const seeds = Number(arg("seeds") ?? "3");
+const ksArg = arg("ks");
+const ks = ksArg === undefined ? GENERATION_KS : ksArg.split(",").map(Number);
+const seeds = Number(
+  arg("seeds") ?? (process.argv.includes("--ci") ? CI_SEEDS : LOCAL_SEEDS),
+);
+const misses: string[] = [];
 const only = arg("policy");
 // --factors price.machine=0.8,growth.machine=1.1 holds sweep factors for every run.
 const factors = Object.fromEntries(
@@ -68,8 +73,14 @@ for (const policy of POLICIES.filter(
       run.unbought.map((id) => `run ${String(run.run)}: ${id}`),
     ),
   );
+  const lengthOk = runLengthOk(days, policy.params.sessionsPerDay);
+  if (!lengthOk) misses.push(`${policy.label}: run-length rule`);
+  if (unbought.length > 0)
+    misses.push(
+      `${policy.label}: never bought ${[...new Set(unbought)].join(", ")}`,
+    );
   lines.push(
-    `| ${policy.label} | ${days.map((day) => (day === undefined ? "unfinished" : day.toFixed(2))).join(" | ")} | ${runLengthOk(days, policy.params.sessionsPerDay) ? "pass" : "miss"} | ${[...new Set(unbought)].join(", ") || "none"} |`,
+    `| ${policy.label} | ${days.map((day) => (day === undefined ? "unfinished" : day.toFixed(2))).join(" | ")} | ${lengthOk ? "pass" : "miss"} | ${[...new Set(unbought)].join(", ") || "none"} |`,
   );
 }
 const first = firstDays.length === 0 ? 0 : mean(firstDays);
@@ -84,3 +95,5 @@ lines.push(
       .join("; "),
 );
 console.log(lines.join("\n"));
+for (const miss of misses) console.log(`miss: ${miss}`);
+if (misses.length > 0 && process.env.LAB_STRICT === "1") process.exitCode = 1;
