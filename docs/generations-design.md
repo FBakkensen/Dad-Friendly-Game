@@ -156,10 +156,32 @@ The run-length rules are strict (approved 4 Nov 2026). Twice-a-day types: each r
 
 ## In the game (M13-4)
 
-The stretch now lives in the game, in `src/scale.ts`: `GENERATION_STRETCH` (1 / 1.75 / 2.55 / 3.5) and `KID_MACHINE_OPENS` (0.9). The lab reads the same values, so the strict kid-run lab plays the real game.
+The stretch now lives in the game, in `src/scale.ts`: `kidStretch(legacy)` (see below) and `KID_MACHINE_OPENS` (0.9). The lab reads the same values, so the strict kid-run lab plays the real game.
 
 - **When it applies.** Passing the mine to the kid sets the new run's `stretch` from the Legacy. A run already under way keeps its numbers. A save without a stretch plays exactly as before (k = 1), so run 1 and every old save are unchanged.
 - **Saves.** The stretch is saved in the workshop map beside the mountain, not in the mountain itself. The cloud rules only check that this map is a map, and the mountain's key list cannot grow (#195), so no rules change is needed. A kid run digs fractions of a depth stone; the save rounds `remaining` up to a whole number (at most one stone of depth comes back). The field log rounds the same way and caps its pocket at the rules' limit.
-- **Runs 5 and on.** The stretch holds at 3.5. The kid bonus keeps growing, so these runs get a little shorter again, but stay under each type's ceiling: 7.5 days twice a day, run 1 plus 2 days once a day. CI plays six runs to check it.
+- **Runs 5 and on.** The stretch keeps growing with every generation; there is no last run and no ceiling (see below).
 - **Player text.** Prices, lock cards (`joins your crew at 12.2M stones`), stones left, the Legend's stones moved, save cards and how-it-works show this run's stones. The pass-to-kid card says "A bigger mountain for your kid" while the stretch still grows.
 - **Not stretched.** Workshop recipes keep their stone price, as in the lab runs that set k.
+
+## Longer every run, forever (M13-4 rework, 4 Nov 2026)
+
+Flemming rejected the 7.5-day ceiling: "the whole idea is they take longer and longer". The rule is now one strict rule for every player type: run N+1 finishes later than run N, every run, with every machine bought. The ceiling and the once-a-day spread are gone.
+
+**Formula** (`src/scale.ts`, the lab reads it): k = bonus × (1 + g·L)², with bonus = 1 + 0.5·L, L = the Legacy of the new run and g = `KID_RUN_GROWTH` = 1/8. The square root fit says a run lasts about run 1 × (1 + g·L); measured runs grow a bit faster than that, about 15% per run early and 11% by run 8. There is no table that ends, so runs never stop growing. `MAX_STRETCH` (10M) sits above k at the rules' Legacy cap of 1000, so the save cap never stops growth.
+
+**Why this shape.** Prestige games make each reset a longer climb: Realm Grinder makes each reincarnation cost 1,000× more gems than the last, and players report later reincarnations take longer (a week each by R140) [Realm Grinder wiki, Reincarnation; r/realmgrinder "Does the time between reincarnations get shorter"]. Kittens Game and Pecorella's idle-game talks (GDC 2016) frame the reset as a bigger copy of the last run. A steady percentage step feels like "a bit longer each time" without the runaway of a 1,000× wall.
+
+**Candidates** (g = 1/16, 1/12, 1/8; 3 seeds, runs 1-8, days):
+
+| g       | Casual                                    | Checker     | Evening                             | Marathon                            | Optimizer               | Rule                     |
+| ------- | ----------------------------------------- | ----------- | ----------------------------------- | ----------------------------------- | ----------------------- | ------------------------ |
+| 1/16    | 6 / 6.5 / 7 / 7.5 / 8 / 8.5 / 9.5 / 10    | 5.15 … 9.13 | 7 / 8 / 8 / 9 / 9.01 / 10 / 11 / 12 | 5 / 5 / 6 / 7 / 7 / 7.05 / 8 / 9.01 | 6 / 6.5 / 6.5 / … / 9.5 | miss (ties)              |
+| 1/12    | 6 / 6.5 / 7.5 / 8 / 9 / 9.5 / 10.5 / 11.5 | 5.15 … 10.8 | 7 / 8 / 8 / 9.01 / … / 13           | 5 / 5 / 6 / … / 9.06 / 9.12         | 6 … 11.5                | pass, by hair-thin steps |
+| **1/8** | 6 / 7 / 8 / 9.5 / 10.5 / 12 / 13.5 / 15   | 5.15 … 14.5 | 7 … 18                              | 5 / 6 / 7 / 8 / 9.06 / 10 / 12 / 13 | 6 … 16.5                | pass, clear steps        |
+
+1/8 is the smallest that gives every type, including the once-a-day dads, a clear step every run.
+
+**20 seeds, g = 1/8 (days):** see the PR table. CI plays 8 runs at 3 seeds (`KID_RUNS_CI`).
+
+**High generations.** Run 8-12 (k 21-37): stones left read "14.6B", prices stay short (">999T" only for absurd cart counts, as in run 1), whole numbers stay safe, saves round-trip. The field log caps any event's stones at the rules' 240M per event (an away haul in a big kid run can pass it), as it already did the pocket.
