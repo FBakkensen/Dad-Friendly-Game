@@ -4,7 +4,6 @@ import {
   MACHINE_IDS,
   eachRunLonger,
   linearModelDays,
-  runLengthOk,
   rootModelDays,
   runGenerations,
 } from "./generations";
@@ -41,8 +40,8 @@ describe("generations lab (M13, #253)", () => {
   });
 
   it("judges every type by the same rule: each run longer", () => {
-    expect(runLengthOk([7, 8, 9])).toBe(true);
-    expect(runLengthOk([7, 8, 8])).toBe(false);
+    expect(eachRunLonger([7, 8, 9])).toBe(true);
+    expect(eachRunLonger([7, 8, 8])).toBe(false);
   });
 
   it("models a run stretched by k over the bonus", () => {

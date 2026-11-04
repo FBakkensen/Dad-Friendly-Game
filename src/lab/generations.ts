@@ -66,7 +66,7 @@ export function runGenerations({
   return runs;
 }
 
-/** Run N+1 finishes later than run N, for every pair. */
+/** The run-length rule (strict, every type): run N+1 finishes later than run N, forever. */
 export function eachRunLonger(days: readonly (number | undefined)[]): boolean {
   let before = Number.NEGATIVE_INFINITY;
   for (const day of days) {
@@ -95,6 +95,3 @@ export function rootModelDays(
 ): number {
   return firstRunDays * Math.sqrt(k / bonus);
 }
-
-/** The approved run-length rule (strict): each run longer than the last, forever. */
-export const runLengthOk = eachRunLonger;

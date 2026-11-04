@@ -13,7 +13,7 @@ import evening from "../src/lab/policies/evening-1x20";
 import marathon from "../src/lab/policies/marathon";
 import optimizer from "../src/lab/policies/optimizer";
 import {
-  runLengthOk,
+  eachRunLonger,
   rootModelDays,
   linearModelDays,
   runGenerations,
@@ -80,7 +80,7 @@ for (const policy of POLICIES.filter(
       run.unbought.map((id) => `run ${String(run.run)}: ${id}`),
     ),
   );
-  const lengthOk = runLengthOk(days);
+  const lengthOk = eachRunLonger(days);
   if (!lengthOk) misses.push(`${policy.label}: run-length rule`);
   if (unbought.length > 0)
     misses.push(
