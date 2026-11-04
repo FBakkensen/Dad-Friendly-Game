@@ -153,3 +153,13 @@ With k = 1 / 1.75 / 2.55 / 3.5 over 20 seeds:
 | Optimizer | 6     | 6.5   | 6.51  | 7     | pass            | none                 |
 
 The run-length rules are strict (approved 4 Nov 2026). Twice-a-day types: each run longer than the last, none past 7.5 days. Once-a-day types: each run at least as long as the last, and at most 2 days past their own run 1. Run 1's strict lab is green at 20 seeds: Checker finishes on day 5.04 with an extreme win of 0.160.
+
+## In the game (M13-4)
+
+The stretch now lives in the game, in `src/scale.ts`: `GENERATION_STRETCH` (1 / 1.75 / 2.55 / 3.5) and `KID_MACHINE_OPENS` (0.9). The lab reads the same values, so the strict kid-run lab plays the real game.
+
+- **When it applies.** Passing the mine to the kid sets the new run's `stretch` from the Legacy. A run already under way keeps its numbers. A save without a stretch plays exactly as before (k = 1), so run 1 and every old save are unchanged.
+- **Saves.** The stretch is saved in the workshop map beside the mountain, not in the mountain itself. The cloud rules only check that this map is a map, and the mountain's key list cannot grow (#195), so no rules change is needed. A kid run digs fractions of a depth stone; the save rounds `remaining` up to a whole number (at most one stone of depth comes back). The field log rounds the same way and caps its pocket at the rules' limit.
+- **Runs 5 and on.** The stretch holds at 3.5. The kid bonus keeps growing, so these runs get a little shorter again, but stay under each type's ceiling: 7.5 days twice a day, run 1 plus 2 days once a day. CI plays six runs to check it.
+- **Player text.** Prices, lock cards (`joins your crew at 12.2M stones`), stones left, the Legend's stones moved, save cards and how-it-works show this run's stones. The pass-to-kid card says "A bigger mountain for your kid" while the stretch still grows.
+- **Not stretched.** Workshop recipes keep their stone price, as in the lab runs that set k.
