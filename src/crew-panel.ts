@@ -7,7 +7,7 @@ import { markTaught, showsDot } from "./teach";
 import { clearNewCard, markNewCard } from "./teach-ui";
 import { floatText, reducedMotion } from "./float-text";
 import { formatCompact, formatCount } from "./format";
-import { milestonePreviewLine } from "./preview";
+import { milestoneLine } from "./milestones";
 import {
   SHEET_CARD,
   SHEET_CARD_BODY,
@@ -489,9 +489,9 @@ export function createCrewPanel({
       card.classList.toggle(SHEET_LOCKED, locked);
       name.textContent = tier.name;
       const previewLine =
-        locked || tier.id === "helper" || tier.id === "kid"
+        locked || cardTrouble !== undefined
           ? undefined
-          : milestonePreviewLine(count, `${tier.shortName.toLowerCase()}s`);
+          : milestoneLine(tier.id, count, formatCompact);
       preview.hidden = previewLine === undefined;
       preview.textContent = previewLine ?? "";
       if (cardTrouble !== undefined) {

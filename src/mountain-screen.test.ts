@@ -4238,8 +4238,7 @@ describe("sheet buys", () => {
     window.history.replaceState(null, "", "/");
   });
 
-  it("opens the buys over the rock and previews a milestone only with the flag", () => {
-    window.history.replaceState(null, "", "/?preview=milestones");
+  it("opens the buys over the rock and hides the goal line with no marks", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -4294,9 +4293,12 @@ describe("sheet buys", () => {
       "Chews a tunnel you can walk from.",
     );
     expect(screen.text('[data-tier="borer"] .tier-name')).toBe("Tunnel borer");
-    expect(screen.text('[data-tier="drill"] .tier-preview')).toContain(
-      "Preview · 2 of 10 drills",
-    );
+    // No owned-count marks ship yet, so the goal line stays hidden.
+    expect(
+      screen.root
+        .querySelector('[data-tier="drill"] .tier-preview')
+        ?.hasAttribute("hidden"),
+    ).toBe(true);
     expect(screen.text('[data-tier="drill"]')).not.toMatch(/\?/);
     screen.root.querySelector<HTMLButtonElement>(".buys-close")?.click();
     expect(dialog?.hidden).toBe(true);

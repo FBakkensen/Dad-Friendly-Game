@@ -1,3 +1,4 @@
+import { milestoneMultiplier } from "../milestones";
 import { describe, expect, it } from "vitest";
 import { buyBoost, boostLeft } from "../boosts";
 import { buyCrew } from "../crew";
@@ -189,8 +190,15 @@ function simTier(
   for (let extra = 0; extra < short; extra += 1) {
     crewCost += tierCost(helper, mountain.helpers + extra);
   }
+  // Crossing an owned-count mark speeds up every one already owned too.
+  const count = owned(mountain, tier);
+  const before = milestoneMultiplier(id, count);
+  const after = milestoneMultiplier(id, count + 1);
   return {
-    gain: effectiveRates(mountain).tierSpeed[id],
+    gain:
+      (effectiveRates(mountain).tierSpeed[id] *
+        (after * (count + 1) - before * count)) /
+      before,
     cost: price + crewCost,
   };
 }

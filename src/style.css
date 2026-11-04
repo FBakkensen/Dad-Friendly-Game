@@ -4075,6 +4075,8 @@ body {
 .buys-dialog .tier-preview {
   grid-column: 1 / -1;
   grid-row: 4;
+  /* The owned-count goal is a sentence; let it wrap inside the card. */
+  white-space: normal;
 }
 
 .buys-dialog .tier-trouble .tier-gain {
