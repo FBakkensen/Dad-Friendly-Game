@@ -4,17 +4,11 @@ import { createMountain, type Mountain } from "../mountain";
 import type { Policy } from "./policy";
 import { runPolicy } from "./run";
 import {
+  KID_MACHINE_OPENS,
   ONCE_A_DAY_SPREAD_DAYS,
   RUN_CAP_DAYS,
   TWICE_A_DAY_SESSIONS,
 } from "./targets";
-
-/**
- * Kid runs (run 2 on) open the Great Machine at this share of its run-1
- * depth, so once-a-day players get a full sitting with it on sale. Run 1
- * keeps the game's 120M. Lab-only, beside the stretch k.
- */
-export const KID_MACHINE_OPENS = 0.9;
 
 /** The machines every run should still buy (D3: each one worth buying). */
 export const MACHINE_IDS = ["cart", "drill", "borer", "machine"] as const;

@@ -140,7 +140,7 @@ The run-grows and run-cap targets are strict (approved 4 Nov 2026) (`RUN_CAP_DAY
 
 ### Great Machine gap (M13-3)
 
-The Great Machine opened at the Deep Heart entrance (120M). A once-a-day dad often reached that depth in the middle of a sitting, right after spending on borers, and the next night's away pay dug out the rest. He reached the bottom without buying it. Lowering its price did not help. Opening it 12M sooner (108M, the last stretch of the Crystal Caves) gives him a sitting with it in every kid run.
+The Great Machine opened at the Deep Heart entrance (120M). A once-a-day dad often reached that depth in the middle of a sitting, right after spending on borers, and the next night's away pay dug out the rest. He reached the bottom without buying it. Lowering its price did not help. In kid runs (run 2 on) it opens at 0.9 of its depth (108M in run-1 terms, times k), which gives him a sitting with it in every kid run. Run 1 keeps 120M: opening it at 108M there pushed Checker under day 5 in the strict run-1 lab.
 
 With k = 1 / 1.75 / 2.55 / 3.5 over 20 seeds:
 
