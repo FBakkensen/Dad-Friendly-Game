@@ -26,7 +26,8 @@
     "audit:ui": "node scripts/ui-audit.mjs",
     "mockups": "node scripts/mockup-check.mjs",
     "test:rules": "node scripts/test-rules.mjs",
-    "env:report": "node scripts/env-report.mjs"
+    "env:report": "node scripts/env-report.mjs",
+    "lab:generations": "node --import ./tools/lab-register.mjs tools/generations-lab.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,3 +1,4 @@
+import { stretch } from "./scale";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
 import type { RelicId } from "./relics";
@@ -147,7 +148,7 @@ export function tierCost(tier: Tier, ownedCount: number): number {
     : (TIER_COST_GROWTH[tier.id] ?? COST_GROWTH);
   const growth =
     base * factor(workerCurve ? "growth.worker" : "growth.machine");
-  const first = tier.firstCost * factor(`price.${tier.id}`);
+  const first = tier.firstCost * factor(`price.${tier.id}`) * stretch();
   return Math.ceil(Number((first * growth ** ownedCount).toPrecision(12)));
 }
 

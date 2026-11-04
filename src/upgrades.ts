@@ -1,3 +1,4 @@
+import { stretch } from "./scale";
 import type { Mountain } from "./mountain";
 import { owned, tierById, type TierId } from "./tiers";
 
@@ -153,7 +154,11 @@ export function upgradeCost(
     ? undefined
     : Math.ceil(
         Number(
-          (upgrade.firstCost * upgrade.costGrowth ** level).toPrecision(12),
+          (
+            upgrade.firstCost *
+            stretch() *
+            upgrade.costGrowth ** level
+          ).toPrecision(12),
         ),
       );
 }

@@ -28,7 +28,7 @@ import {
 } from "./workshop";
 
 /** Mountain numbers live here; tier numbers in src/tiers.ts. See docs/DESIGN.md. */
-import { MOUNTAIN_STONES, minedOut } from "./scale";
+import { MOUNTAIN_STONES, minedOut, stonesLeft, stretch } from "./scale";
 
 export { MOUNTAIN_STONES };
 /** Base away cap; the Shield of Protection relic will lift it. */
@@ -157,7 +157,7 @@ export function mineByHand(
     return mountain;
   }
   const mined = Math.min(
-    mountain.remaining,
+    stonesLeft(mountain),
     effectiveRates(mountain, now, trouble).tapYield,
   );
   return digStones(mountain, mined);
@@ -166,13 +166,16 @@ export function mineByHand(
 /** Stones leave the mountain, and the band they came from drops its material. */
 export function digStones(mountain: Mountain, mined: number): Mountain {
   const before = minedOut(mountain);
+  const depth = mined / stretch();
+  const remaining =
+    mined >= stonesLeft(mountain) ? 0 : mountain.remaining - depth;
   return {
     ...mountain,
-    remaining: mountain.remaining - mined,
+    remaining,
     pocket: mountain.pocket + mined,
     materials: addMaterials(
       mountain.materials,
-      materialsGained(before, before + mined),
+      materialsGained(before, MOUNTAIN_STONES - remaining),
     ),
   };
 }
@@ -258,8 +261,9 @@ function accrueCrew({
     return { mountain, mined: 0, settledAt: to };
   }
   const seconds = Math.floor((to - from) / 1000);
-  const mined = Math.min(mountain.remaining, Math.floor(seconds * rate * pay));
-  const settledAt = mined === mountain.remaining ? to : from + seconds * 1000;
+  const left = stonesLeft(mountain);
+  const mined = Math.min(left, Math.floor(seconds * rate * pay));
+  const settledAt = mined === left ? to : from + seconds * 1000;
   if (mined === 0) {
     return { mountain, mined: 0, settledAt };
   }

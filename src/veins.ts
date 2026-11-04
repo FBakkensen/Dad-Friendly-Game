@@ -1,3 +1,4 @@
+import { stonesLeft, stretch } from "./scale";
 import { glintScale } from "./lost-tools";
 import { digStones, stonesPerSecond, type Mountain } from "./mountain";
 import { veinOftenScale } from "./workshop";
@@ -94,8 +95,11 @@ export function advanceVein({
 /** A minute of the crew's output, at least 50, never more than the mountain holds. */
 export function veinReward(mountain: Mountain): number {
   return Math.min(
-    mountain.remaining,
-    Math.max(VEIN_MIN_REWARD, stonesPerSecond(mountain) * VEIN_HELPER_SECONDS),
+    stonesLeft(mountain),
+    Math.max(
+      VEIN_MIN_REWARD * stretch(),
+      stonesPerSecond(mountain) * VEIN_HELPER_SECONDS,
+    ),
   );
 }
 
