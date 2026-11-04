@@ -29,6 +29,16 @@ function arg(name: string): string | undefined {
 const ks = (arg("ks") ?? "1,1,1,1").split(",").map(Number);
 const seeds = Number(arg("seeds") ?? "3");
 const only = arg("policy");
+// --factors price.machine=0.8,growth.machine=1.1 holds sweep factors for every run.
+const factors = Object.fromEntries(
+  (arg("factors") ?? "")
+    .split(",")
+    .filter((pair) => pair.includes("="))
+    .map((pair) => {
+      const [id = "", value = "1"] = pair.split("=");
+      return [id, Number(value)];
+    }),
+);
 const mean = (values: readonly number[]) =>
   values.reduce((sum, value) => sum + value, 0) / values.length;
 
@@ -45,7 +55,7 @@ for (const policy of POLICIES.filter(
   (p) => only === undefined || p.id === only,
 )) {
   const perSeed = Array.from({ length: seeds }, (_, i) =>
-    runGenerations({ policy, seed: i + 1, ks }),
+    runGenerations({ policy, seed: i + 1, ks, factors }),
   );
   const days = ks.map((_, run) => {
     const finished = perSeed.map((runs) => runs[run]?.finishDay);

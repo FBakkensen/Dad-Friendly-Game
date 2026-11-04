@@ -28,7 +28,10 @@ export function runGenerations({
   seed,
   ks,
   maxDays,
+  factors = {},
 }: {
+  /** Other lab factors held for every run (a sweep), beside the stretch. */
+  readonly factors?: Readonly<Record<string, number>>;
   readonly policy: Policy;
   readonly seed: number;
   readonly ks: readonly number[];
@@ -37,7 +40,7 @@ export function runGenerations({
   const runs: GenerationRun[] = [];
   let mountain: Mountain = createMountain();
   for (const [index, k] of ks.entries()) {
-    const played = withFactors({ "generation.k": k }, () =>
+    const played = withFactors({ ...factors, "generation.k": k }, () =>
       runPolicy({
         policy,
         seed,
