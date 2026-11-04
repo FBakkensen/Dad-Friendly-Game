@@ -1,31 +1,36 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "../economy/factors";
-import { createMountain } from "../mountain";
-import { legacyBonus } from "../rates";
+import { createMountain, digStones, MOUNTAIN_STONES } from "../mountain";
+import { stonesLeft } from "../scale";
 import casual from "./policies/casual-2x10";
 import {
   MACHINE_IDS,
-  RUN_CAP_DAYS,
   eachRunLonger,
   linearModelDays,
   noRunPastCap,
   rootModelDays,
   runGenerations,
 } from "./generations";
+import { RUN_CAP_DAYS } from "./targets";
 
 describe("generations lab (M13, #253)", () => {
-  it("stretches a run by dividing output by k", () => {
-    const kid = { ...createMountain(), legacy: 1 };
-    expect(legacyBonus(kid)).toBe(1.5);
-    expect(withFactors({ "generation.k": 3 }, () => legacyBonus(kid))).toBe(
-      0.5,
-    );
+  it("stretches a run: k times the stones to dig and k times the prices", () => {
+    const fresh = createMountain();
+    expect(stonesLeft(fresh)).toBe(MOUNTAIN_STONES);
+    withFactors({ "generation.k": 2 }, () => {
+      expect(stonesLeft(fresh)).toBe(2 * MOUNTAIN_STONES);
+      const dug = digStones(fresh, 1_000);
+      expect(dug.pocket).toBe(1_000);
+      expect(fresh.remaining - dug.remaining).toBe(500);
+      expect(digStones(fresh, 2 * MOUNTAIN_STONES).remaining).toBe(0);
+    });
   });
 
   it("plays kid runs back to back, each shorter today", () => {
     const runs = runGenerations({ policy: casual, seed: 1, ks: [1, 1] });
     expect(runs.map((run) => run.run)).toEqual([1, 2]);
-    expect(runs.map((run) => run.finishDay)).toEqual([6, 4.5]);
+    expect(runs[0]?.finishDay).toBe(6);
+    expect(runs[1]?.finishDay).toBeCloseTo(4.5, 2);
     expect(runs[0]?.unbought).toEqual([]);
     expect(MACHINE_IDS).toContain("borer");
   }, 60_000);

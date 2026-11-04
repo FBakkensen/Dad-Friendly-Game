@@ -1,3 +1,4 @@
+import { stretch } from "./scale";
 import type { Mountain } from "./mountain";
 import type { TierId } from "./tiers";
 
@@ -96,7 +97,7 @@ export function boostCost(boost: Boost, pricing: BoostPricing): number {
     boost.crewSeconds === undefined
       ? 0
       : Math.ceil(pricing.crewPerSecond * boost.crewSeconds);
-  return Math.max(boost.minCost, priced, crew);
+  return Math.max(Math.ceil(boost.minCost * stretch()), priced, crew);
 }
 
 /** Starts a boost if it isn't already running and the pocket covers it. */

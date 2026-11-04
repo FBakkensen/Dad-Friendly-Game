@@ -3,12 +3,10 @@ import { passTheMine } from "../legacy";
 import { createMountain, type Mountain } from "../mountain";
 import type { Policy } from "./policy";
 import { runPolicy } from "./run";
+import { RUN_CAP_DAYS } from "./targets";
 
 /** The machines every run should still buy (D3: each one worth buying). */
 export const MACHINE_IDS = ["cart", "drill", "borer", "machine"] as const;
-
-/** Proposed, report-only (needs Flemming's OK): no run past this many days. */
-export const RUN_CAP_DAYS = 7.5;
 
 export type GenerationRun = {
   /** 1-based run number. Run N plays with Legacy N-1. */

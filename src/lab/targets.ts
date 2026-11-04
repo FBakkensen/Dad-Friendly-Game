@@ -390,3 +390,9 @@ export function meetsTarget(target: Target, actual: number): boolean {
  */
 export const REPORT_SMALL_SITTINGS = 1;
 export const REPORT_MACHINE_SITTINGS = 2;
+
+/**
+ * Kid runs (M13, #253), report-only until Flemming OKs it: no run past this
+ * many days. `npm run lab:generations` reports it and never fails on it.
+ */
+export const RUN_CAP_DAYS = 7.5;
