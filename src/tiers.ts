@@ -9,7 +9,7 @@ const COST_GROWTH = 2;
  * ×1.25 so a borer comes with a real hiring bill. Tuned by src/pacing.test.ts.
  * Kids share it.
  */
-const HELPER_COST_GROWTH = 1.25;
+const HELPER_COST_GROWTH = 1.1875;
 /** Kids follow the workers' curve from a late-game price. */
 const KID_FIRST_COST = 1_000_000;
 
@@ -58,7 +58,7 @@ export const TIERS: readonly Tier[] = [
     name: "Mine cart",
     shortName: "Cart",
     firstCost: 100,
-    perSecond: 10,
+    perSecond: 6,
     staff: 1,
   },
   {
@@ -67,29 +67,33 @@ export const TIERS: readonly Tier[] = [
     name: "Steam drill",
     shortName: "Drill",
     firstCost: 14_000,
-    perSecond: 60,
-    staff: 3,
+    perSecond: 36,
+    staff: 1,
   },
   {
     id: "borer",
     field: "borers",
     name: "Tunnel borer",
     shortName: "Borer",
-    firstCost: 8_100_000,
-    perSecond: 595,
+    // M12 retune (#252): priced so the checker buys one within two sittings,
+    // and no dearer, so the evening dad still buys it early in the Granite.
+    firstCost: 7_600_000,
+    perSecond: 357,
     staff: 8,
-    // The Granite entrance: the band that suits borers (D3).
-    opensAt: 10_000_000,
+    // Opens just above the Granite, the band that suits borers (D3).
+    opensAt: 7_000_000,
   },
   {
     id: "machine",
     field: "machines",
     name: "Great Machine",
     shortName: "Machine",
-    firstCost: 67_000_000,
-    perSecond: 3_500,
-    staff: 25,
+    firstCost: 40_200_000,
+    perSecond: 2_100,
+    staff: 10,
     needs: "hammer",
+    // M12 retune (#252): the Deep Heart entrance, the band that suits it.
+    opensAt: 120_000_000,
   },
   {
     // Crown of Wisdom: kids mine, staff machines, and teach the crew (rates.ts).
@@ -123,6 +127,16 @@ export function owned(mountain: Mountain, tier: Tier): number {
  */
 const BORER_COST_GROWTH = 1.5;
 
+/**
+ * M12 retune (#252): drills and the Great Machine climb more gently so an
+ * older machine is still worth another one in its own band.
+ */
+const TIER_COST_GROWTH: Partial<Record<TierId, number>> = {
+  drill: 1.5,
+  borer: BORER_COST_GROWTH,
+  machine: 1.4,
+};
+
 /** Cookie Clicker curve: machines double each time; helpers grow gently. */
 export function tierCost(tier: Tier, ownedCount: number): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
@@ -130,9 +144,7 @@ export function tierCost(tier: Tier, ownedCount: number): number {
   const workerCurve = tier.staff === 0;
   const base = workerCurve
     ? HELPER_COST_GROWTH
-    : tier.id === "borer"
-      ? BORER_COST_GROWTH
-      : COST_GROWTH;
+    : (TIER_COST_GROWTH[tier.id] ?? COST_GROWTH);
   const growth =
     base * factor(workerCurve ? "growth.worker" : "growth.machine");
   const first = tier.firstCost * factor(`price.${tier.id}`);

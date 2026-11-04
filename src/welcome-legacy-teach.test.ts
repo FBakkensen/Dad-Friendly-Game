@@ -84,7 +84,7 @@ describe("pass-to-kid card (#247)", () => {
   it("states the first Legacy with real crew numbers, and no tap that rounds away", () => {
     const words = legacyCardWords(bottom(0));
     expect(words.lead).toBe("Legacy ×1.5, for good");
-    expect(words.rates).toEqual(["Workers 1/s to 1.5/s", "Carts 10/s to 15/s"]);
+    expect(words.rates).toEqual(["Workers 1/s to 1.5/s", "Carts 6/s to 9/s"]);
     expect(words.keeps).toBe(
       `Your kid keeps the Legacy and ${String(recipesForMined(MOUNTAIN_STONES).length)} recipes.`,
     );
@@ -95,7 +95,7 @@ describe("pass-to-kid card (#247)", () => {
     expect(words.lead).toBe("Legacy ×1.5 to ×2, for good");
     expect(words.rates).toEqual([
       "Workers 1.5/s to 2/s",
-      "Carts 15/s to 20/s",
+      "Carts 9/s to 12/s",
       "Taps 1 to 2 stones",
     ]);
   });

@@ -125,8 +125,7 @@ type TargetBase = {
   readonly why: string;
   /**
    * A miss is still in the report. It does not fail `LAB_STRICT`.
-   * M12-4 (#252) uses it for the band guardrails whose values wait on the
-   * favourite-machine rebalance. Their `value` is the proposed bound.
+   * No current guardrail sets this. The exit path stays for a future row.
    */
   readonly reportOnly?: boolean;
 };
@@ -213,7 +212,9 @@ export const TARGETS: readonly Target[] = [
     measure: "extremeWin",
     scope: { kind: "policyKinds", kinds: ["extreme"] },
     op: "lte",
-    value: 0.15,
+    // Flemming's decision (M12 retune, #252): the Marathon's one 3-hour
+    // sitting finishes on day 5 against the casual dad's day 6 (0.167).
+    value: 0.17,
     why: "An extreme should not finish much sooner than a casual dad.",
   },
   {
@@ -258,8 +259,7 @@ export const TARGETS: readonly Target[] = [
     scope: { kind: "policyKinds", kinds: ["casual"] },
     op: "lte",
     value: 0.5,
-    reportOnly: true,
-    why: "Pending (#252): each band's favoured machine should be bought in the first half of the band where it shines.",
+    why: "each band's favoured machine should be bought in the first half of the band where it shines.",
   },
   {
     id: "scoped-rule-3",
@@ -267,8 +267,7 @@ export const TARGETS: readonly Target[] = [
     scope: { kind: "policyKinds", kinds: ["casual"] },
     op: "lte",
     value: 0,
-    reportOnly: true,
-    why: "Pending (#252): no machine sits unbought where it opens or where the rock suits it, once the pocket reaches it.",
+    why: "no machine sits unbought where it opens or where the rock suits it, once the pocket reaches it.",
   },
   {
     id: "machine-reveal-wait",
@@ -276,8 +275,7 @@ export const TARGETS: readonly Target[] = [
     scope: { kind: "policyKinds", kinds: ["casual"] },
     op: "lte",
     value: 2,
-    reportOnly: true,
-    why: "Pending (#252): a new machine should be bought within two sittings of showing up.",
+    why: "a new machine should be bought within two sittings of showing up.",
   },
 ];
 

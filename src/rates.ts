@@ -3,6 +3,7 @@ import {
   promote,
   staffNeeded,
   station,
+  TENDING_GAIN,
   tendingTenths,
   type EngineerPost,
   type EngineerRank,
@@ -253,7 +254,7 @@ function applyTendingFloor(
     applyAllTenths(mountain, plain, tierSpeed);
     return;
   }
-  const scale = factor("tending.gain");
+  const scale = factor("tending.gain") * TENDING_GAIN;
   const plainTotal = outputOf(plain, running);
   const floorStones =
     (plainTotal * TENDING_FLOOR_PERCENT[primary.rank] * scale) / 100;

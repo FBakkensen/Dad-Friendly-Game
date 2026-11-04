@@ -9,7 +9,7 @@ describe("effectiveRates", () => {
   it("is the plain table with no upgrades: taps 1, tiers at list speed", () => {
     const rates = effectiveRates({
       ...minedMountain(0),
-      helpers: 26, // staffs the cart (1) and the Great Machine (25)
+      helpers: 11, // staffs the cart (1) and the Great Machine (10)
       carts: 1,
       machines: 1,
       kids: 0,
@@ -18,7 +18,7 @@ describe("effectiveRates", () => {
     expect(rates.tierSpeed).toEqual(
       Object.fromEntries(TIERS.map((tier) => [tier.id, tier.perSecond])),
     );
-    expect(rates.crewPerSecond).toBe(26 + 10 + 3_500);
+    expect(rates.crewPerSecond).toBe(11 + 6 + 2_100);
     expect(rates.exactCrewPerSecond).toBe(rates.crewPerSecond);
     expect(rates.awayPay).toBe(AWAY_PAY_RATE);
   });
@@ -45,15 +45,15 @@ describe("effectiveRates", () => {
     const trouble: Trouble = { kind: "cave-in", tier: "cart", startedAt: 0 };
     const plain = effectiveRates(crew, 0);
     const started = effectiveRates(crew, 0, trouble);
-    expect(plain.crewPerSecond).toBe(614);
-    expect(started.tierSpeed.cart).toBe(7.5);
+    expect(plain.crewPerSecond).toBe(372);
+    expect(started.tierSpeed.cart).toBe(4.5);
     expect(started.tierSpeed.borer).toBe(plain.tierSpeed.borer);
     expect(started.awayPay).toBe(plain.awayPay);
-    expect(started.crewPerSecond).toBe(611);
-    expect(effectiveRates(crew, 60_000, trouble).tierSpeed.cart).toBe(6.25);
-    expect(effectiveRates(crew, 120_000, trouble).tierSpeed.cart).toBe(5);
-    expect(effectiveRates(crew, 180_000, trouble).tierSpeed.cart).toBe(5);
-    expect(effectiveRates(crew, undefined, trouble).tierSpeed.cart).toBe(7.5);
+    expect(started.crewPerSecond).toBe(370);
+    expect(effectiveRates(crew, 60_000, trouble).tierSpeed.cart).toBe(3.75);
+    expect(effectiveRates(crew, 120_000, trouble).tierSpeed.cart).toBe(3);
+    expect(effectiveRates(crew, 180_000, trouble).tierSpeed.cart).toBe(3);
+    expect(effectiveRates(crew, undefined, trouble).tierSpeed.cart).toBe(4.5);
   });
 
   it("Grandfather's pick makes taps a little stronger and leaves the crew alone", () => {
@@ -101,16 +101,16 @@ describe("tendingGain", () => {
       effectiveRates(onBorer).crewPerSecond -
         effectiveRates(atCamp).crewPerSecond,
     );
-    expect(tendingGain(staffed, 0, "borer")).toBe(104);
+    expect(tendingGain(staffed, 0, "borer")).toBe(78);
     const two = { ...staffed, helpers: 16, borers: 2 };
-    expect(tendingGain(two, 0, "borer")).toBe(208);
+    expect(tendingGain(two, 0, "borer")).toBe(156);
     expect(tendingGain(staffed, 9, "borer")).toBe(0);
   });
 
   it("counts a Great Machine she starts, and not a rank already covered", () => {
     const waiting = {
       ...minedMountain(0),
-      helpers: 10,
+      helpers: 5,
       machines: 1,
       engineers: [ada],
     };
@@ -119,7 +119,7 @@ describe("tendingGain", () => {
       effectiveRates(tended).crewPerSecond -
         effectiveRates(station(waiting, 0, "camp")).crewPerSecond,
     );
-    expect(tendingGain(waiting, 0, "machine")).toBeGreaterThan(3_000);
+    expect(tendingGain(waiting, 0, "machine")).toBeGreaterThan(2_000);
     const covered = {
       ...waiting,
       borers: 1,
@@ -147,7 +147,7 @@ describe("tendingGain", () => {
         },
       ],
     };
-    expect(tendingGain(journeyman, 1, "borer")).toBe(104);
+    expect(tendingGain(journeyman, 1, "borer")).toBe(124);
   });
 
   it("lifts an apprentice to 9% of the crew when her tier is the small one", () => {

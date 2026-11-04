@@ -156,7 +156,7 @@ describe("station", () => {
 describe("Great Machine crew", () => {
   const machine = tierById("machine");
 
-  it("needs 5 workers while tended, and the full 25 otherwise", () => {
+  it("needs 5 workers while tended, and the full 10 otherwise", () => {
     const tended = {
       ...createMountain(),
       helpers: TENDED_MACHINE_STAFF,
@@ -166,10 +166,10 @@ describe("Great Machine crew", () => {
     const posted = station(tended, 0, "machine");
     expect(staffNeeded(posted, machine)).toBe(5);
     expect(effectiveRates(posted).running.machine).toBe(1);
-    expect(staffNeeded(tended, machine)).toBe(25);
+    expect(staffNeeded(tended, machine)).toBe(10);
     expect(effectiveRates(tended).running.machine).toBe(0);
     expect(staffForBuy(tended, machine)).toBe(5);
-    expect(staffForBuy(createMountain(), machine)).toBe(25);
+    expect(staffForBuy(createMountain(), machine)).toBe(10);
     expect(
       staffForBuy(
         {
@@ -178,7 +178,7 @@ describe("Great Machine crew", () => {
         },
         machine,
       ),
-    ).toBe(25);
+    ).toBe(10);
     expect(staffForBuy(posted, tierById("cart"))).toBe(1);
   });
 
@@ -217,7 +217,7 @@ describe("tending", () => {
     const plain = effectiveRates(base);
     const apprentice = effectiveRates({ ...base, engineers: [ada] });
     expect(apprentice.tierSpeed.borer).toBeCloseTo(
-      plain.tierSpeed.borer * 1.175,
+      plain.tierSpeed.borer * 1.21875,
       8,
     );
     expect(apprentice.tierSpeed.drill).toBe(plain.tierSpeed.drill);
@@ -227,7 +227,9 @@ describe("tending", () => {
       ...base,
       engineers: [{ name: "Ada", rank: 1, trips: 3, post: "drill" }],
     });
-    expect(journeyman.tierSpeed.drill).toBe((plain.tierSpeed.drill * 12) / 10);
+    expect(journeyman.tierSpeed.drill).toBe(
+      (plain.tierSpeed.drill * 12.5) / 10,
+    );
     expect(journeyman.tierSpeed.borer).toBe(plain.tierSpeed.borer);
 
     const master = effectiveRates({
@@ -235,7 +237,7 @@ describe("tending", () => {
       engineers: [{ name: "Ada", rank: 2, trips: 9, post: "borer" }],
     });
     expect(master.tierSpeed.borer).toBeCloseTo(
-      plain.tierSpeed.borer * 1.525,
+      plain.tierSpeed.borer * 1.65625,
       8,
     );
 
@@ -273,9 +275,9 @@ describe("tending", () => {
         },
       ],
     };
-    expect(tendingTenths(both, "borer")).toBe(3);
+    expect(tendingTenths(both, "borer")).toBe(3.75);
     expect(effectiveRates(both).tierSpeed.borer).toBeCloseTo(
-      595 * 0.8 * 1.525,
+      357 * 0.8 * 1.65625,
       8,
     );
   });

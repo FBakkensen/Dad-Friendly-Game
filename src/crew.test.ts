@@ -6,21 +6,26 @@ import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { tierById } from "./tiers";
 
 describe("crew unlocks", () => {
+  // M12 retune (#252): the Hammer is found at 25M, the card opens at 120M.
   const nearHammer = {
-    ...minedMountain(24_999_999),
+    ...minedMountain(119_999_999),
     pocket: 90_000_000,
     borers: 1,
   };
   const atHammer = {
-    ...minedMountain(25_000_000),
+    ...minedMountain(120_000_000),
     pocket: 90_000_000,
     borers: 1,
   };
 
-  it("locks the Great Machine until the Hammer of the Builder is found", () => {
+  it("locks the Great Machine until the Hammer is found and the Deep Heart is reached", () => {
     const machine = tierById("machine");
     expect(tierLocked(nearHammer, machine)).toBe(true);
     expect(tierLocked(atHammer, machine)).toBe(false);
+    expect(tierLock(minedMountain(25_000_000), machine)).toEqual({
+      kind: "depth",
+      depth: 120_000_000,
+    });
     expect(tierLocked(nearHammer, tierById("borer"))).toBe(false);
   });
 
@@ -29,7 +34,7 @@ describe("crew unlocks", () => {
     expect(buyCrew(atHammer, "machine")).toMatchObject({
       machines: 1,
       kids: 0,
-      pocket: 23_000_000,
+      pocket: 49_800_000,
     });
     expect(buyCrew(nearHammer, "borer")).toMatchObject({ borers: 2 });
   });
@@ -51,24 +56,24 @@ describe("crew unlocks", () => {
     expect(buyCrew(fresh, "borer")).toBe(fresh);
   });
 
-  it("keeps the borer locked until 10M stones are mined, then sells it (#250)", () => {
-    const shallow = { ...minedMountain(9_999_999), pocket: 50_000_000 };
+  it("keeps the borer locked until 7M stones are mined, then sells it (#250)", () => {
+    const shallow = { ...minedMountain(6_999_999), pocket: 50_000_000 };
     expect(tierLock(shallow, tierById("borer"))).toEqual({
       kind: "depth",
-      depth: 10_000_000,
+      depth: 7_000_000,
     });
     expect(tierLocked(shallow, tierById("borer"))).toBe(true);
     expect(buyCrew(shallow, "borer")).toBe(shallow);
     const deep = {
       ...shallow,
-      ...minedMountain(10_000_000),
+      ...minedMountain(7_000_000),
       pocket: 50_000_000,
     };
     expect(tierLock(deep, tierById("borer"))).toBeUndefined();
     expect(buyCrew(deep, "borer").borers).toBe(1);
-    expect(tierLock(deep, tierById("machine"))).toMatchObject({
-      kind: "relic",
-      relic: { id: "hammer", depth: 25_000_000 },
+    expect(tierLock(deep, tierById("machine"))).toEqual({
+      kind: "depth",
+      depth: 120_000_000,
     });
     expect(tierLock(deep, tierById("helper"))).toBeUndefined();
     // An older save that already owns a borer keeps buying them.
@@ -79,7 +84,7 @@ describe("crew unlocks", () => {
 
   it("leaves an engineer's post alone when a Great Machine is bought", () => {
     const withBorer = buyCrew(
-      { ...minedMountain(25_000_000), pocket: 80_000_000, helpers: 5 },
+      { ...minedMountain(120_000_000), pocket: 80_000_000, helpers: 5 },
       "borer",
     );
     expect(withBorer.engineers?.[0]?.post).toBe("borer");
@@ -105,16 +110,16 @@ describe("staffExisting (one-time grants, #89 and #140)", () => {
       borers: 1,
     });
     const { mountain, joined } = staffExisting(before);
-    // 12 carts + 21 drills + 8 borer = 41.
-    expect(joined).toBe(21);
-    expect(mountain).toEqual({ ...before, helpers: 41, staffed: 2 });
+    // 12 carts + 7 drills + 8 borer = 27.
+    expect(joined).toBe(7);
+    expect(mountain).toEqual({ ...before, helpers: 27, staffed: 2 });
     expect(effectiveRates(mountain).helpersShort).toBe(0);
   });
 
   it("tops up a save that already had the first grant", () => {
     const before = {
       ...oldSave({
-        helpers: 30,
+        helpers: 22,
         carts: 12,
         drills: 7,
         borers: 1,
@@ -122,13 +127,13 @@ describe("staffExisting (one-time grants, #89 and #140)", () => {
       staffed: true as const,
     };
     const { mountain, joined } = staffExisting(before);
-    expect(joined).toBe(11);
+    expect(joined).toBe(5);
     expect(mountain.staffed).toBe(2);
-    expect(mountain.helpers).toBe(41);
+    expect(mountain.helpers).toBe(27);
     expect(effectiveRates(mountain).helpersShort).toBe(0);
     expect(staffExisting({ ...before, staffed: 1 })).toMatchObject({
-      joined: 11,
-      mountain: { staffed: 2, helpers: 41 },
+      joined: 5,
+      mountain: { staffed: 2, helpers: 27 },
     });
   });
 

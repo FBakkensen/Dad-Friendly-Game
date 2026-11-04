@@ -119,23 +119,23 @@ describe("layers", () => {
     const granite = effectiveRates(minedMountain(10_000_000)).tierSpeed;
     expect(granite.helper).toBe(1);
     expect(granite.kid).toBe(1);
-    expect(granite.cart).toBe(10);
-    expect(granite.drill).toBeCloseTo(60 * SLOWED_SPEED);
-    expect(granite.borer).toBeCloseTo(595 * 1.1);
-    expect(granite.machine).toBe(3_500);
+    expect(granite.cart).toBe(6);
+    expect(granite.drill).toBeCloseTo(36 * SLOWED_SPEED);
+    expect(granite.borer).toBeCloseTo(357 * 1.1);
+    expect(granite.machine).toBe(2_100);
     const crystal = effectiveRates(minedMountain(45_000_000)).tierSpeed;
     expect(crystal.helper).toBe(1);
-    expect(crystal.cart).toBe(10);
-    expect(crystal.drill).toBeCloseTo(66);
-    expect(crystal.borer).toBeCloseTo(595 * SLOWED_SPEED);
-    expect(crystal.machine).toBe(3_500);
+    expect(crystal.cart).toBe(6);
+    expect(crystal.drill).toBeCloseTo(39.6);
+    expect(crystal.borer).toBeCloseTo(357 * SLOWED_SPEED);
+    expect(crystal.machine).toBe(2_100);
     const heart = effectiveRates(minedMountain(120_000_000)).tierSpeed;
     expect(heart.helper).toBe(1);
     expect(heart.kid).toBe(1);
-    expect(heart.cart).toBe(10);
-    expect(heart.drill).toBe(60);
-    expect(heart.borer).toBeCloseTo(595 * SLOWED_SPEED);
-    expect(heart.machine).toBeCloseTo(3_500 * 1.1);
+    expect(heart.cart).toBe(6);
+    expect(heart.drill).toBe(36);
+    expect(heart.borer).toBeCloseTo(357 * SLOWED_SPEED);
+    expect(heart.machine).toBeCloseTo(2_100 * 1.1);
     expect(hardnessOf(2, "helper")).toBe(1);
     expect(hardnessOf(4, "kid")).toBe(1);
     expect(hardnessOf(4, "machine")).toBe(1.1);
@@ -151,11 +151,11 @@ describe("layers", () => {
     };
     expect(layerOf(mountain).id).toBe("crystal");
     const plain = effectiveRates(mountain);
-    expect(plain.tierSpeed.drill).toBeCloseTo(66);
+    expect(plain.tierSpeed.drill).toBeCloseTo(39.6);
     const harder = withFactors({ [hardnessFactorId(3, "drill")]: 0.85 }, () =>
       effectiveRates(mountain),
     );
-    expect(harder.tierSpeed.drill).toBeCloseTo(66 * 0.85, 8);
+    expect(harder.tierSpeed.drill).toBeCloseTo(39.6 * 0.85, 8);
     expect(harder.tierSpeed.cart).toBe(plain.tierSpeed.cart);
     expect(harder.tierSpeed.helper).toBe(plain.tierSpeed.helper);
     const otherBand = withFactors(

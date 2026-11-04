@@ -44,9 +44,10 @@ describe("owned-count milestones", () => {
     expect(milestoneMultiplier("machine", 3, TABLE)).toBe(4);
   });
 
-  it("ships empty until the retune turns the marks on", () => {
-    expect(milestoneMultiplier("drill", 500)).toBe(1);
-    expect(milestoneLine("drill", 500, plain)).toBeUndefined();
+  it("ships the retune's marks (#252)", () => {
+    expect(MILESTONES).toEqual(TABLE);
+    expect(milestoneMultiplier("drill", 30)).toBe(4);
+    expect(milestoneLine("cart", 500, plain)).toBeUndefined();
   });
 
   it("leaves tiers without marks alone", () => {

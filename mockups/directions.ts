@@ -627,7 +627,7 @@ function renderMountainC(view: DirectionView): string {
         <p class="dir-quiet">+2.5 · 203/s</p>
       </article>
     </div>
-    <p class="dir-next">Next: a drill · ${escapeHtml(DRILL)} · Needs 3 workers</p>
+    <p class="dir-next">Next: a drill · ${escapeHtml(DRILL)} · Needs 1 worker</p>
     ${btn(view, "buy", "tok-primary dir-buy", escapeHtml(DRILL_BUY), `Buys the next drill for ${DRILL}.`)}
     <p class="dir-quiet dir-center">The machine waits at ${escapeHtml(MACHINE)}.</p>
     <nav class="dir-tabs">${tools(view)}</nav>

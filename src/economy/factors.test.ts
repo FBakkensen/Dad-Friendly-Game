@@ -26,24 +26,24 @@ const posted = {
 describe("economy factors", () => {
   it("stays at 1 outside a sweep, and a sweep of 1 matches today's prices", () => {
     expect(factor("price.cart")).toBe(1);
-    expect(tierCost(tierById("helper"), 1)).toBe(25);
+    expect(tierCost(tierById("helper"), 1)).toBe(24);
     expect(tierCost(tierById("cart"), 2)).toBe(400);
     withFactors({ "price.helper": 1, "growth.worker": 1 }, () => {
-      expect(tierCost(tierById("helper"), 1)).toBe(25);
+      expect(tierCost(tierById("helper"), 1)).toBe(24);
     });
-    expect(tierCost(tierById("helper"), 1)).toBe(25);
+    expect(tierCost(tierById("helper"), 1)).toBe(24);
   });
 
   it("scales a sticker, then puts the old prices back", () => {
-    expect(tierCost(tierById("borer"), 0)).toBe(8_100_000);
+    expect(tierCost(tierById("borer"), 0)).toBe(7_600_000);
     withFactors({ "price.borer": 2 }, () => {
-      expect(tierCost(tierById("borer"), 0)).toBe(16_200_000);
+      expect(tierCost(tierById("borer"), 0)).toBe(15_200_000);
       withFactors({ "price.borer": 3 }, () => {
-        expect(tierCost(tierById("borer"), 0)).toBe(24_300_000);
+        expect(tierCost(tierById("borer"), 0)).toBe(22_800_000);
       });
-      expect(tierCost(tierById("borer"), 0)).toBe(16_200_000);
+      expect(tierCost(tierById("borer"), 0)).toBe(15_200_000);
     });
-    expect(tierCost(tierById("borer"), 0)).toBe(8_100_000);
+    expect(tierCost(tierById("borer"), 0)).toBe(7_600_000);
     expect(factor("price.borer")).toBe(1);
   });
 
@@ -53,18 +53,18 @@ describe("economy factors", () => {
       expect(tierCost(tierById("cart"), 1)).toBe(400);
     });
     expect(effectiveRates(posted).tierSpeed.borer).toBeCloseTo(
-      595 * 0.8 * 1.175,
+      357 * 0.8 * 1.21875,
       8,
     );
     withFactors({ "output.borer": 2 }, () => {
       expect(effectiveRates(posted).tierSpeed.borer).toBeCloseTo(
-        1_190 * 0.8 * 1.175,
+        714 * 0.8 * 1.21875,
         8,
       );
     });
-    expect(tendingTenths(posted, "borer")).toBe(1);
+    expect(tendingTenths(posted, "borer")).toBe(1.25);
     withFactors({ "tending.gain": 2 }, () => {
-      expect(tendingTenths(posted, "borer")).toBe(2);
+      expect(tendingTenths(posted, "borer")).toBe(2.5);
     });
     expect(() =>
       withFactors({ "price.cart": 4 }, () => {

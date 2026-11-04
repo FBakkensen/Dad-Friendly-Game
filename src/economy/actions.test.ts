@@ -548,11 +548,11 @@ describe("valueOf", () => {
     });
     const covered = score({ ...fresh, pocket: 20 }, FIXTURES.buyTier, HORIZON);
     expect(covered.paybackSec).toBe(20);
-    const idleDrill: Mountain = { ...fresh, helpers: 2, drills: 1, carts: 1 };
+    const idleDrill: Mountain = { ...fresh, helpers: 9, machines: 1, carts: 1 };
     const hired = score(idleDrill, { kind: "buyTier", id: "helper" }, HORIZON);
-    // The third worker starts the drill and the cart loses its hand.
-    expect(hired.gainPerSec).toBe(51);
-    expect(hired.cost).toBe(tierCost(tierById("helper"), 2));
+    // The tenth worker starts the Great Machine and the cart loses its hand.
+    expect(hired.gainPerSec).toBe(1 + 2_100 - 6);
+    expect(hired.cost).toBe(tierCost(tierById("helper"), 9));
     expect(hired.paybackSec).toBe(
       hired.cost / effectiveRates(idleDrill).crewPerSecond +
         hired.cost / hired.gainPerSec,
@@ -560,24 +560,24 @@ describe("valueOf", () => {
   });
 
   it("bundles the workers a machine still needs, and ignores the first engineer's tend", () => {
-    // The borer opens at 10M (#250), in the Granite, which suits it (×1.1).
+    // At 10M the borer is in the Granite, which suits it (×1.1).
     const bare: Mountain = {
       ...fresh,
       ...minedMountain(10_000_000),
       drills: 1,
     };
     const borer = score(bare, { kind: "buyTier", id: "borer" }, HORIZON);
-    expect(borer.gainPerSec).toBe(654.5);
-    expect(borer.cost).toBeGreaterThan(8_100_000);
+    expect(borer.gainPerSec).toBeCloseTo(392.7, 8);
+    expect(borer.cost).toBeGreaterThan(7_600_000);
     const staffed: Mountain = { ...bare, helpers: 11, pocket: 0 };
     const tended = score(staffed, { kind: "buyTier", id: "borer" }, HORIZON);
-    expect(tended.gainPerSec).toBe(654.5);
-    expect(tended.cost).toBe(8_100_000);
+    expect(tended.gainPerSec).toBeCloseTo(392.7, 8);
+    expect(tended.cost).toBe(7_600_000);
     const applied = buyCrew({ ...staffed, pocket: 10_000_000 }, "borer");
-    expect(crewDelta(staffed, applied)).toBe(769);
+    expect(crewDelta(staffed, applied)).toBe(479);
 
     const hammer: Mountain = {
-      ...minedMountain(25_000_000),
+      ...minedMountain(120_000_000),
       helpers: 8,
       carts: 1,
       drills: 1,
@@ -587,20 +587,20 @@ describe("valueOf", () => {
     };
     const machine = score(hammer, { kind: "buyTier", id: "machine" }, HORIZON);
     expect(staffForBuy(hammer, tierById("machine"))).toBe(5);
-    // 3,500 plus the 9% floor the bigger crew gives Ada's borer.
-    expect(machine.gainPerSec).toBeGreaterThan(3_500);
-    expect(machine.gainPerSec).toBeLessThan(3_500 * 1.15);
+    // 2,310 in the Deep Heart, plus the floor the bigger crew gives Ada's borer.
+    expect(machine.gainPerSec).toBeGreaterThan(2_310);
+    expect(machine.gainPerSec).toBeLessThan(2_310 * 1.15);
     let bill = 0;
     for (let extra = 0; extra < 5; extra += 1) {
       bill += tierCost(tierById("helper"), hammer.helpers + extra);
     }
-    expect(machine.cost).toBe(67_000_000 + bill);
+    expect(machine.cost).toBe(tierById("machine").firstCost + bill);
   });
 
   it("scores a second cart plus the one worker it needs", () => {
     const idle: Mountain = { ...fresh, carts: 1 };
     const value = score(idle, { kind: "buyTier", id: "cart" }, HORIZON);
-    expect(value.gainPerSec).toBe(10);
+    expect(value.gainPerSec).toBe(6);
     expect(value.cost).toBe(220);
   });
 
@@ -669,11 +669,11 @@ describe("valueOf", () => {
     const half: Mountain = { ...fresh, helpers: 5, carts: 5 };
     expect(
       score(half, { kind: "buyUpgrade", id: "cartSyn" }).gainPerSec,
-    ).toBeCloseTo(2.5, 8);
+    ).toBeCloseTo(1.5, 8);
     const short: Mountain = { ...fresh, helpers: 4, carts: 5 };
     const shortHands = score(short, { kind: "buyUpgrade", id: "cartSyn" });
-    expect(shortHands.gainPerSec).toBeCloseTo(1.6, 8);
-    expect(shortHands.gainPerSec).not.toBeCloseTo(2, 8);
+    expect(shortHands.gainPerSec).toBeCloseTo(0.96, 8);
+    expect(shortHands.gainPerSec).not.toBeCloseTo(1.2, 8);
   });
 
   it("pays Strong arms for taps, Steady hands for time away, and Sharper picks for both", () => {
@@ -945,8 +945,8 @@ describe("valueOf", () => {
       HORIZON,
       CASUAL,
     );
-    expect(perDay(hands.gainPerSec)).toBeCloseTo(1.6 * crewDay, 3);
-    expect(perDay(hands.gainPerSec)).not.toBeCloseTo(2 * crewDay, 3);
+    expect(perDay(hands.gainPerSec)).toBeCloseTo(0.96 * crewDay, 3);
+    expect(perDay(hands.gainPerSec)).not.toBeCloseTo(1.2 * crewDay, 3);
 
     const sharper = score(
       fresh,

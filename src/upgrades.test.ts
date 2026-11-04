@@ -176,29 +176,29 @@ describe("crew synergies", () => {
     const boosted = { ...crew, upgrades: { cartSyn: 1 } };
     expect(tierSynergy(boosted, "cart")).toBeCloseTo(0.2);
     const rates = effectiveRates(boosted);
-    expect(rates.tierSpeed.cart).toBeCloseTo(12);
-    expect(rates.tierSpeed.drill).toBe(60);
-    // 4 drills take 12 workers, so 8 of 10 carts run: 20 + 8×12 + 4×60.
-    expect(rates.crewPerSecond).toBe(20 + 96 + 240);
+    expect(rates.tierSpeed.cart).toBeCloseTo(7.2);
+    expect(rates.tierSpeed.drill).toBe(36);
+    // 4 drills take 4 workers, so all 10 carts run: 20 + 10×7.2 + 4×36.
+    expect(rates.crewPerSecond).toBe(20 + 72 + 144);
     // Away pay uses the same rates.
     expect(
       accrueAway({ mountain: boosted, lastSeen: 0, now: 10_000 }).mined,
-    ).toBe(1_068);
+    ).toBe(708);
   });
 
   it("stacks with Better boots and other synergies", () => {
     const crew = {
       ...rich,
-      helpers: 40, // staffs 10 carts (10) and 10 drills (30)
+      helpers: 40, // staffs 10 carts (10) and 10 drills (10), 20 spare
       carts: 10,
       drills: 10,
       upgrades: { boots: 1, cartSyn: 1, drillSyn: 1 },
     };
     const rates = effectiveRates(crew);
     expect(rates.tierSpeed.helper).toBeCloseTo(2.36);
-    expect(rates.tierSpeed.cart).toBeCloseTo(14);
-    expect(rates.tierSpeed.drill).toBeCloseTo(66);
-    expect(rates.crewPerSecond).toBe(94 + 140 + 660);
+    expect(rates.tierSpeed.cart).toBeCloseTo(8.4);
+    expect(rates.tierSpeed.drill).toBeCloseTo(39.6);
+    expect(rates.crewPerSecond).toBe(94 + 84 + 396);
   });
 
   it("save and load", () => {

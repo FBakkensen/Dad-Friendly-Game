@@ -28,22 +28,21 @@ describe("casual run", { timeout: 120_000 }, () => {
   it("reproduces the diagnosis, with payback reported beside it", () => {
     const run = sampleCasualRun();
     const report = diagnosisOf(run.samples);
-    // The pacing dad does not craft. With D3 rock (#246) the Granite suits
-    // borers, so that climb ends on day 5.5. M12-2 (#250) opens rows at
-    // fixed points, so the table holds more choices and the one quiet
-    // spell left is four minutes on day 2.5.
-    expect(run.finishDay).toBe(5.5);
-    expect(readFinishDay(run.samples)).toBe(5.5);
-    expect(report.value.singleShare).toBeCloseTo(0.111, 3);
-    expect(report.value.deadHours).toBeCloseTo(0.067, 3);
-    expect(report.value.deadHours / HOURS_PER_DAY).toBeLessThan(0.01);
+    // The pacing dad does not craft. The M12 retune (#252) ends his climb on
+    // day 6. On day 2.5 he waits one sitting for the borer at 7M: one quiet
+    // half day, at the lab's strict limit for a casual dad.
+    expect(run.finishDay).toBe(6);
+    expect(readFinishDay(run.samples)).toBe(6);
+    expect(report.value.singleShare).toBeCloseTo(0.38, 3);
+    expect(report.value.deadHours).toBeCloseTo(12, 2);
+    expect(report.value.deadHours / HOURS_PER_DAY).toBeLessThanOrEqual(0.5);
     expect(report.value.deadStartDay).toBeCloseTo(2.5, 1);
-    expect(report.payback.singleShare).toBeCloseTo(0.133, 3);
-    expect(report.payback.deadHours).toBeCloseTo(0.067, 3);
+    expect(report.payback.singleShare).toBeCloseTo(0.4, 3);
+    expect(report.payback.deadHours).toBeCloseTo(12, 2);
     expect(report.payback.deadStartDay).toBeCloseTo(2.5, 1);
   });
 
-  it("keeps the payback wait under half a day after the first borer", () => {
+  it("keeps the payback wait to half a day at most after the first borer", () => {
     const result = runTournament({
       policies: [casual],
       measures: [longestDeadStretch, longestValueStretch],
@@ -66,9 +65,11 @@ describe("casual run", { timeout: 120_000 }, () => {
     ) {
       return;
     }
-    // Neither score waits on a borer any more: the Granite suits it.
-    expect(payback.value).toBeLessThanOrEqual(0.5);
-    expect(value.value).toBeLessThanOrEqual(0.05);
-    expect(result.deadStretches).toHaveLength(0);
+    // The lab's strict limit (#252): half a day of waiting at most.
+    expect(payback.value).toBeLessThanOrEqual(0.5 * HOURS_PER_DAY);
+    // Report-only (#252 follow-up): the value-per-stone dad saves a full day
+    // for the borer, and three stretches are logged. Pinned so a change shows.
+    expect(value.value).toBeLessThanOrEqual(HOURS_PER_DAY);
+    expect(result.deadStretches).toHaveLength(3);
   }, 120_000);
 });

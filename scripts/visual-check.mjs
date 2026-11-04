@@ -2085,8 +2085,8 @@ for (const viewport of NOTICE_SIZES) {
     const rates = await page.$$eval(".tier-rate", (nodes) =>
       nodes.map((node) => node.textContent ?? ""),
     );
-    const cart = rates.find((line) => line.includes("166"));
-    // Before 10M the borer is a locked preview that names its depth (#250).
+    const cart = rates.find((line) => line.includes("99/s"));
+    // Before 7M the borer is a locked preview that names its depth (#250).
     const borer = rates.find((line) => line.startsWith("Borer"));
     await page.click(".buys-button");
     const inside = await page.$$eval(".tier-rate", (nodes) =>
@@ -2116,7 +2116,7 @@ for (const viewport of NOTICE_SIZES) {
         cart.includes("·") &&
         !cart.startsWith("\u2191") &&
         borer !== undefined &&
-        borer === "Borer · 10M",
+        borer === "Borer · 7M",
       `${size} cart shows +N and the locked borer says where it opens`,
     );
     if (!still || !inside || cart === undefined || borer === undefined) {
@@ -2768,7 +2768,7 @@ for (const viewport of [
       machineGain: shown("machine", ".tier-gain"),
       machineWhy:
         card("machine")?.querySelector(".tier-why")?.textContent ===
-        "The Great Machine wakes up with the Hammer at 25M stones. You've got this!",
+        "The Great Machine joins your crew at 120M stones. Keep digging, Dad!",
     };
   });
   check(

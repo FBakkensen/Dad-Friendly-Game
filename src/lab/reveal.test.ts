@@ -50,7 +50,7 @@ describe("createRevealLog", () => {
     expect(log(hired, 3)).toEqual([]);
   });
 
-  it("starts the borer's wait when its card opens at 10M, not at the locked preview (#250)", () => {
+  it("starts the borer's wait when its card opens at 7M, not at the locked preview (#250)", () => {
     const log = createRevealLog();
     const drilling: Mountain = {
       ...createMountain(),
@@ -61,7 +61,7 @@ describe("createRevealLog", () => {
     expect(ids(log(drilling, 0), "appeared")).not.toContain("tier:borer");
     const near = {
       ...drilling,
-      ...minedMountain(9_999_999),
+      ...minedMountain(6_999_999),
       helpers: 1,
       carts: 1,
       drills: 1,
@@ -69,7 +69,7 @@ describe("createRevealLog", () => {
     expect(ids(log(near, 10), "appeared")).not.toContain("tier:borer");
     const open = {
       ...drilling,
-      ...minedMountain(10_000_000),
+      ...minedMountain(7_000_000),
       helpers: 1,
       carts: 1,
       drills: 1,

@@ -86,8 +86,7 @@ const CARDS: readonly CardSpec[] = [
     adds: "",
     why: "",
     state: "locked",
-    unlock:
-      "The Tunnel borer joins your crew at 10M stones. Keep digging, Dad!",
+    unlock: "The Tunnel borer joins your crew at 7M stones. Keep digging, Dad!",
   },
 ];
 
@@ -103,7 +102,7 @@ function kitCard(view: PartsView, spec: CardSpec): string {
       ${icon(art, " is-shade")}
       <span class="kit-card-body">
         <span class="kit-card-head"><span class="kit-card-title">${escapeHtml(name)}</span><span class="kit-card-price">Locked</span></span>
-        <span class="kit-card-line">${escapeHtml(`${name} · 10M`)}</span>
+        <span class="kit-card-line">${escapeHtml(`${name} · 7M`)}</span>
         <span class="kit-card-line kit-quiet">${escapeHtml(spec.unlock ?? "")}</span>
       </span>
     </button>`;

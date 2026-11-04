@@ -76,7 +76,7 @@ function pricedOut(pocket: number): Mountain {
   return withPocket(pocket, {
     helpers: 80,
     carts: 15,
-    drills: 8,
+    drills: 15,
     borers: 1,
     engineers: [ada],
   });

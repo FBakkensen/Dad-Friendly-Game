@@ -1000,16 +1000,16 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       sessionStorage: storage,
       now: () => 0,
     });
-    expect(first.getSnapshot().crewJoined).toBe(4);
+    expect(first.getSnapshot().crewJoined).toBe(2);
     expect(first.fieldLog().events).toContainEqual({
       at: new Date(0).toISOString(),
       code: "crew.staff",
-      data: { count: 4 },
+      data: { count: 2 },
     });
-    expect(first.getSnapshot().mountain.helpers).toBe(6);
+    expect(first.getSnapshot().mountain.helpers).toBe(4);
     expect(first.getSnapshot().mountain.staffed).toBe(2);
     expect(readSessionSave({ storage })?.mountain).toMatchObject({
-      helpers: 6,
+      helpers: 4,
       staffed: 2,
     });
     first.dismissAway();
@@ -1022,7 +1022,7 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       now: () => 0,
     });
     expect(again.getSnapshot().crewJoined).toBeUndefined();
-    expect(again.getSnapshot().mountain.helpers).toBe(6);
+    expect(again.getSnapshot().mountain.helpers).toBe(4);
     expect(again.fieldLog().events.map((event) => event.code)).not.toContain(
       "crew.staff",
     );
@@ -1040,8 +1040,8 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       sessionStorage: storage,
       now: () => 100_000,
     });
-    // 10 helpers + 10 carts = 110/s, 100 s away at 30%.
-    expect(progress.getSnapshot().away?.mined).toBe(3_300);
+    // 10 helpers + 10 carts = 70/s, 100 s away at 30%.
+    expect(progress.getSnapshot().away?.mined).toBe(2_100);
     expect(progress.getSnapshot().crewJoined).toBe(10);
   });
 
@@ -1114,9 +1114,9 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       sessionStorage: storage,
       now: () => 100_000,
     });
-    // 8 workers + a borer at +17.5% (699/s floored) for 100s at 30%.
+    // 8 workers + a borer at +21.875% (435/s floored) for 100s at 30%.
     expect(progress.getSnapshot().away?.mined).toBe(
-      Math.floor(100 * 707 * 0.3),
+      Math.floor(100 * 443 * 0.3),
     );
     expect(progress.getSnapshot().engineerJoined).toBe(true);
   });
@@ -2709,7 +2709,7 @@ describe("layer card and craft-done notice", () => {
       {
         id: "iron-rails",
         level: 1,
-        line: "Your Iron rails are fitted. Carts now 12.5/s.",
+        line: "Your Iron rails are fitted. Carts now 7.5/s.",
       },
     ]);
     expect(progress.fieldLog().events).toContainEqual(
@@ -2743,7 +2743,7 @@ describe("layer card and craft-done notice", () => {
     const away = guest(awayStore, () => 120_000);
     expect(away.getSnapshot().away).toBeDefined();
     expect(away.getSnapshot().craftsFitted[0]?.line).toBe(
-      "Your Iron rails are fitted. Carts now 12.5/s.",
+      "Your Iron rails are fitted. Carts now 7.5/s.",
     );
     away.dismissAway();
     expect(away.getSnapshot().craftsFitted).toEqual([]);

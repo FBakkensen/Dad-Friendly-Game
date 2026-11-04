@@ -17,23 +17,23 @@ const lockOf = (id: Parameters<typeof tierById>[0]) => {
 describe("locked tier card words (#250)", () => {
   it("names the borer's depth, short and in the dad's voice", () => {
     const { tier, lock } = lockOf("borer");
-    expect(lockRateLine(tier, lock)).toBe("Borer · 10M");
+    expect(lockRateLine(tier, lock)).toBe("Borer · 7M");
     expect(lockBodyLine(tier, lock)).toBe(
-      "The Tunnel borer joins your crew at 10M stones. Keep digging, Dad!",
+      "The Tunnel borer joins your crew at 7M stones. Keep digging, Dad!",
     );
     expect(lockAria(tier, lock)).toBe(
-      "Tunnel borer, locked. Joins your crew at 10 million stones down.",
+      "Tunnel borer, locked. Joins your crew at 7 million stones down.",
     );
   });
 
-  it("names the Hammer and its depth for the Great Machine", () => {
+  it("names the Deep Heart depth for the Great Machine (#252)", () => {
     const { tier, lock } = lockOf("machine");
-    expect(lockRateLine(tier, lock)).toBe("Hammer · 25M");
+    expect(lockRateLine(tier, lock)).toBe("Machine · 120M");
     expect(lockBodyLine(tier, lock)).toBe(
-      "The Great Machine wakes up with the Hammer at 25M stones. You've got this!",
+      "The Great Machine joins your crew at 120M stones. Keep digging, Dad!",
     );
     expect(lockAria(tier, lock)).toBe(
-      "Great Machine, locked. Needs the Hammer of the Builder, found 25 million stones down.",
+      "Great Machine, locked. Joins your crew at 120 million stones down.",
     );
   });
 
@@ -54,7 +54,7 @@ describe("locked tier card words (#250)", () => {
 
   it("has no lock once the depth is reached", () => {
     expect(
-      tierLock(minedMountain(10_000_000), tierById("borer")),
+      tierLock(minedMountain(7_000_000), tierById("borer")),
     ).toBeUndefined();
   });
 });
