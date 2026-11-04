@@ -2768,7 +2768,7 @@ for (const viewport of [
       machineGain: shown("machine", ".tier-gain"),
       machineWhy:
         card("machine")?.querySelector(".tier-why")?.textContent ===
-        "The Great Machine joins your crew at 108M stones. Keep digging, Dad!",
+        "The Great Machine joins your crew at 120M stones. Keep digging, Dad!",
     };
   });
   check(
