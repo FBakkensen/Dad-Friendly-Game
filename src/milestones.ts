@@ -22,11 +22,30 @@ export type MilestoneTable = Readonly<
   Partial<Record<TierId, readonly Milestone[]>>
 >;
 
-/**
- * Ordered by `at`. A tier missing here has no milestones. Empty until the
- * M12 retune ships the values with the balance they were tuned for.
- */
-export const MILESTONES: MilestoneTable = {};
+/** Ordered by `at`. A tier missing here has no milestones. M12 retune (#252). */
+export const MILESTONES: MilestoneTable = {
+  drill: [
+    {
+      at: 20,
+      goal: "Twenty drills and the crew finds its rhythm. Every drill mines twice as fast.",
+    },
+    { at: 30, goal: "Thirty drills humming together. Twice as fast again." },
+  ],
+  borer: [
+    {
+      at: 5,
+      goal: "Five borers side by side. They clear the tunnels twice as fast.",
+    },
+    { at: 10, goal: "Ten borers in step. Twice as fast again." },
+  ],
+  machine: [
+    {
+      at: 2,
+      goal: "Two Great Machines working as one. Both run twice as fast.",
+    },
+    { at: 3, goal: "Three Great Machines in step. Twice as fast again." },
+  ],
+};
 
 /** Marks reached with `count` owned. */
 export function milestonesReached(

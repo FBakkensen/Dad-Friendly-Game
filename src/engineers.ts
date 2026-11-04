@@ -229,17 +229,20 @@ function hasEngineerOutOfTunnel(mountain: Mountain): boolean {
   );
 }
 
+/** M12 retune (#252): tending counts a quarter more, at every rank. */
+export const TENDING_GAIN = 1.25;
+
 /**
  * How many tenths faster a tier runs because an engineer is posted there.
  * The best rank wins; they do not stack. Camp and tunnel tend nothing.
- * Today's ranks are +1, +2 and +3 tenths. A sweep may scale that gain.
+ * Ranks are +1, +2 and +3 tenths, times TENDING_GAIN. A sweep may scale it.
  */
 export function tendingTenths(mountain: Mountain, tierId: TierId): number {
   const engineers = mountain.engineers;
   if (engineers === undefined) {
     return 0;
   }
-  const scale = factor("tending.gain");
+  const scale = factor("tending.gain") * TENDING_GAIN;
   let best = 0;
   for (const engineer of engineers) {
     if (engineer.post === tierId) {

@@ -135,8 +135,8 @@ describe("snapshot", () => {
     });
     expect(shot.crewSpeed).toBe(rates.crewPerSecond);
     expect(shot.tapYield).toBe(rates.tapYield);
-    // Two kids run the cart (1 each); a drill needs 3 (#140), so both drills idle.
-    expect(shot.idle).toEqual({ cart: 0, drill: 2, borer: 0, machine: 0 });
+    // Two kids run both drills (1 each since #252), so the cart idles.
+    expect(shot.idle).toEqual({ cart: 1, drill: 0, borer: 0, machine: 0 });
     expect(shot.relics).toEqual(["lantern"]);
     expect(shot.upgrades.tap).toBe(2);
     expect(shot.upgrades.boots).toBe(0);

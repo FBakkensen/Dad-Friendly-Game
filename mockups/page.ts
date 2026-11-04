@@ -119,7 +119,7 @@ const TIERS = [
   {
     name: "Drill",
     art: "/src/assets/steam-drill.png",
-    rate: "+60 · 300/s · Needs 3 workers · 0 free",
+    rate: "+36 · 180/s · Needs 1 worker · 0 free",
   },
   {
     name: "Borer",

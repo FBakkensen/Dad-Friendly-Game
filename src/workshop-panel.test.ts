@@ -157,7 +157,7 @@ describe("workshop panel (#199)", () => {
     const sheet = screen.root.querySelector<HTMLElement>(".workshop-dialog");
     expect(sheet?.hidden).toBe(false);
     expect(sheet?.textContent).toContain("Need 3 more iron");
-    expect(sheet?.textContent).toContain("Carts 10/s to 12.5/s");
+    expect(sheet?.textContent).toContain("Carts 6/s to 7.5/s");
     expect(sheet?.textContent).toContain("500K stones");
     expect(sheet?.textContent).toContain("Lv 0/2");
     const stoneIcon = sheet?.querySelector(".mat-stones");

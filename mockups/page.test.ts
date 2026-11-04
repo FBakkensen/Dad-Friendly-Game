@@ -210,7 +210,7 @@ describe("workshop mock page (#193)", () => {
       "28 workers: 13 on carts, 15 on drills, 0 free",
     );
     expect(page.textContent).toContain("Needs 1 worker · 0 free");
-    expect(page.textContent).toContain("Needs 3 workers · 0 free");
+    expect(page.textContent).toContain("Needs 1 worker · 0 free");
     expect(page.textContent).toContain("Needs 8 workers · 0 free");
     const posts = page.querySelector(".crew-posts");
     expect(posts?.getAttribute("data-tap")).toContain("Presses in");
@@ -421,9 +421,9 @@ describe("design token mocks (#234)", () => {
     ).toBe(true);
 
     const mountain = host(renderMock(view({ scene: "mountain-tokens" })));
-    expect(drill).toBe("3.5M");
+    expect(drill).toBe("358.8K");
     expect(mountain.textContent).toContain(`Next: a drill · ${drill}`);
-    expect(mountain.textContent).toContain("Needs 3 workers");
+    expect(mountain.textContent).toContain("Needs 1 worker");
     expect(mountain.textContent).toContain("110 million stones left");
     expect(mountain.textContent).toContain("80 million stones");
     expect(mountain.textContent).toContain("Saved on this device");
@@ -523,14 +523,15 @@ describe("design token mocks (#234)", () => {
     expect(opened.textContent).toContain(
       `+${formatSpeed(rates.tierSpeed.drill)}/s each`,
     );
-    expect(opened.textContent).toContain("Needs 3 workers");
+    expect(opened.textContent).toContain("Needs 1 worker");
     expect(opened.textContent).toContain("Hauls what the crew already cut.");
     expect(opened.textContent).toContain("Preview · 2 of 10 drills");
     expect(opened.textContent).toContain("every drill digs twice as fast");
     expect(opened.querySelector("[data-state='ready']")).not.toBeNull();
-    expect(opened.querySelector("[data-state='short']")).not.toBeNull();
+    // Carts and drills take one worker each now (#252); the spare crew covers both.
+    expect(opened.querySelector("[data-state='short']")).toBeNull();
     expect(opened.querySelector("[data-state='dear']")?.textContent).toContain(
-      "Buy · 8.1M",
+      "Buy · 7.6M",
     );
     expect(
       opened.querySelector("[data-state='dear']")?.textContent,
@@ -647,13 +648,13 @@ describe("component mocks (#235)", () => {
     const [cart, drill, borer] = cards;
     expect(cart?.textContent).toContain("409.6K");
     expect(cart?.textContent).toContain("Needs 1 worker");
-    expect(drill?.textContent).toContain("3.5M");
-    expect(drill?.textContent).toContain("Needs 3 workers");
+    expect(drill?.textContent).toContain("358.8K");
+    expect(drill?.textContent).toContain("Needs 1 worker");
     expect((drill as HTMLButtonElement).disabled).toBe(true);
     // M12-2 (#250): the locked card names its depth, never a price.
-    expect(borer?.textContent).toContain("Borer · 10M");
+    expect(borer?.textContent).toContain("Borer · 7M");
     expect(borer?.textContent).toContain("Locked");
-    expect((borer?.textContent ?? "").replace(/10M/g, "")).not.toMatch(/[0-9]/);
+    expect((borer?.textContent ?? "").replace(/7M/g, "")).not.toMatch(/[0-9]/);
     expect(root.textContent).not.toMatch(
       /\?|pays back|payback|worth it|best value|free|in \d+ min/i,
     );
