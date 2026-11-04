@@ -406,12 +406,4 @@ export const ONCE_A_DAY_SPREAD_DAYS = 2;
 /** Kid runs: two or more sittings a day uses the cap rule, fewer the spread rule. */
 export const TWICE_A_DAY_SESSIONS = 2;
 
-/** The approved stretch per kid run (Flemming, 4 Nov 2026): runs 1-4. */
-export const GENERATION_KS: readonly number[] = [1, 1.75, 2.55, 3.5];
 
-/**
- * Kid runs (run 2 on) open the Great Machine at this share of its run-1
- * depth, so once-a-day players get a full sitting with it on sale. Run 1
- * keeps the game's 120M. Lab-only, beside the stretch k.
- */
-export const KID_MACHINE_OPENS = 0.9;

@@ -3,8 +3,8 @@ import { passTheMine } from "../legacy";
 import { createMountain, type Mountain } from "../mountain";
 import type { Policy } from "./policy";
 import { runPolicy } from "./run";
+import { stretch } from "../scale";
 import {
-  KID_MACHINE_OPENS,
   ONCE_A_DAY_SPREAD_DAYS,
   RUN_CAP_DAYS,
   TWICE_A_DAY_SESSIONS,
@@ -23,46 +23,39 @@ export type GenerationRun = {
 };
 
 /**
- * Plays one policy through consecutive kid runs. Each run starts from
- * `passTheMine` of the last, so the Legacy grows by one. Run N plays with
- * `generation.k` = `ks[N-1]`: the run is a copy stretched by k (bigger
- * mountain, layer starts and prices). Stops early if a run never finishes.
+ * Plays one policy through `runs` consecutive kid runs. Each run starts from
+ * `passTheMine` of the last, so the Legacy grows by one and the game stretches
+ * the kid's mountain (src/scale.ts). Stops early if a run never finishes.
  */
 export function runGenerations({
   policy,
   seed,
-  ks,
+  runs: count,
   maxDays,
   factors = {},
 }: {
-  /** Other lab factors held for every run (a sweep), beside the stretch. */
+  /** Lab factors held for every run (a sweep). */
   readonly factors?: Readonly<Record<string, number>>;
   readonly policy: Policy;
   readonly seed: number;
-  readonly ks: readonly number[];
+  readonly runs: number;
   readonly maxDays?: number;
 }): readonly GenerationRun[] {
   const runs: GenerationRun[] = [];
   let mountain: Mountain = createMountain();
-  for (const [index, k] of ks.entries()) {
-    const played = withFactors(
-      {
-        ...(index === 0 ? {} : { "opens.machine": KID_MACHINE_OPENS }),
-        ...factors,
-        "generation.k": k,
-      },
-      () =>
-        runPolicy({
-          policy,
-          seed,
-          mountain,
-          ...(maxDays === undefined ? {} : { maxDays }),
-        }),
+  for (let index = 0; index < count; index += 1) {
+    const played = withFactors(factors, () =>
+      runPolicy({
+        policy,
+        seed,
+        mountain,
+        ...(maxDays === undefined ? {} : { maxDays }),
+      }),
     );
     const bought = new Set(played.buys.map((buy) => buy.id));
     runs.push({
       run: index + 1,
-      k,
+      k: stretch(mountain),
       finishDay: played.finishDay,
       unbought: MACHINE_IDS.filter((id) => !bought.has(id)),
     });
