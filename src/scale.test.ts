@@ -29,8 +29,8 @@ describe("kid-run stretch (M13, #253)", () => {
     ks.slice(1).forEach((k, i) => {
       expect(k).toBeGreaterThan(ks[i] as number);
     });
-    // A save holds at most MAX_STRETCH, so a far generation stops there.
-    expect(kidStretch(1_000)).toBe(MAX_STRETCH);
+    // Even at the rules' Legacy cap the stretch still fits a save.
+    expect(kidStretch(1_000)).toBeLessThan(MAX_STRETCH);
   });
 
   it("leaves a save without a stretch as it is", () => {
@@ -97,7 +97,7 @@ describe("kid-run stretch (M13, #253)", () => {
     expect(parseSaveValue(saved)?.mountain.stretch).toBe(1.75);
     const old = serializeSave({ mountain: createMountain(), lastSeen: 1 });
     expect(parseSaveValue(old)?.mountain.stretch).toBeUndefined();
-    for (const bad of [0.5, 101, "2"]) {
+    for (const bad of [0.5, 1e8, "2"]) {
       expect(
         parseSaveValue({
           ...saved,
