@@ -30,6 +30,10 @@ jobs:
       - run: npm run lab -- --ci
         env:
           LAB_STRICT: "1"
+      # Kid runs 1-4 (#253): per-type run length and every machine bought.
+      - run: npm run lab:generations -- --ci
+        env:
+          LAB_STRICT: "1"
       - name: Post the strategy lab report
         if: always()
         run: |
