@@ -10,11 +10,11 @@ Today each kid run is shorter than the last, so passing the mine on feels like r
 
 Measured on main at `7f23ccd` with the lab's day-by-day dad sim (`simulateDadRun`, legacy 0-3, to the Mantle):
 
-| Dad | Run 1 | Run 2 | Run 3 | Run 4 |
-|---|---|---|---|---|
-| Plain (crew only) | 6 | 4.5 | 4 | 3.5 |
-| Buys upgrades | 5.5 | 4.5 | 4 | 3.5 |
-| Upgrades and boosts | 5.5 | 4.5 | 4 | 3.5 |
+| Dad                 | Run 1 | Run 2 | Run 3 | Run 4 |
+| ------------------- | ----- | ----- | ----- | ----- |
+| Plain (crew only)   | 6     | 4.5   | 4     | 3.5   |
+| Buys upgrades       | 5.5   | 4.5   | 4     | 3.5   |
+| Upgrades and boosts | 5.5   | 4.5   | 4     | 3.5   |
 
 The sim plays two sittings a day, so finish days come in half-day steps. These numbers fit a simple curve closely:
 
@@ -25,6 +25,7 @@ It predicts 5.5 / 4.5 / 3.9 / 3.5. In other words, stones mined grow roughly wit
 ## What other games do
 
 **Pecorella, Math of Idle Games I-III.**
+
 - Part I: within a run, costs grow exponentially while production grows polynomially. A prestige moves the player further along the cost curve before they stall. https://www.gamedeveloper.com/design/the-math-of-idle-games-part-i
 - Part II: generators that produce generators give polynomial growth of t^n/n!. That still loses to exponential costs, which is the behaviour we want. https://www.gamedeveloper.com/game-platforms/the-math-of-idle-games-part-ii
 - Part III: prestige gains are usually a fractional power of earnings, and he lists the formulas below. https://www.gamedeveloper.com/design/the-math-of-idle-games-part-iii
@@ -61,23 +62,23 @@ Pick the run length T_N, then set k_N = B_N × T_N / T_1.
 ### Example numbers (target: +0.5 day per run, T_1 = 5.5)
 
 | Run | Legacy bonus | Today: days | Proposed: days | k (size and prices) | Mountain |
-|---|---|---|---|---|---|
-| 1 | ×1 | 5.5 | 5.5 | 1 | 240M |
-| 2 | ×1.5 | 4.5 | 6 | 1.64 | 393M |
-| 3 | ×2 | 4 | 6.5 | 2.36 | 567M |
-| 4 | ×2.5 | 3.5 | 7 | 3.18 | 764M |
+| --- | ------------ | ----------- | -------------- | ------------------- | -------- |
+| 1   | ×1           | 5.5         | 5.5            | 1                   | 240M     |
+| 2   | ×1.5         | 4.5         | 6              | 1.64                | 393M     |
+| 3   | ×2           | 4           | 6.5            | 2.36                | 567M     |
+| 4   | ×2.5         | 3.5         | 7              | 3.18                | 764M     |
 
 k grows faster than B, as in Realm Grinder and Kittens Game, but gently: about ×1.3-1.6 per run, not ×1,000. The kid still feels stronger, because the opening layers go by much faster at ×1.5 and above. The bigger numbers are real numbers on the buy rows, so the numbers rule holds.
 
 ### Alternatives
 
-| Shape | What grows | Run 2-4 days | Machines worth buying | Notes |
-|---|---|---|---|---|
-| Today | bonus only | 4.5 / 4 / 3.5 | yes | shorter each run |
-| Bigger mountain only, prices fixed | mountain | unknown, longer | no: late machines become trivially cheap | breaks M12 bands |
-| Scaled copy (recommended) | mountain and prices × k | 6 / 6.5 / 7 | yes, same ratios as run 1 | predictable, testable |
-| Scaled copy + 10% per run | k from T_N = 5.5 × 1.1^(N−1) | 6.05 / 6.66 / 7.32 | yes | longer runs sooner |
-| Smaller bonus (+0.25) + light scaling | both | depends | yes | a weaker kid feels less rewarding |
+| Shape                                 | What grows                   | Run 2-4 days       | Machines worth buying                    | Notes                             |
+| ------------------------------------- | ---------------------------- | ------------------ | ---------------------------------------- | --------------------------------- |
+| Today                                 | bonus only                   | 4.5 / 4 / 3.5      | yes                                      | shorter each run                  |
+| Bigger mountain only, prices fixed    | mountain                     | unknown, longer    | no: late machines become trivially cheap | breaks M12 bands                  |
+| Scaled copy (recommended)             | mountain and prices × k      | 6 / 6.5 / 7        | yes, same ratios as run 1                | predictable, testable             |
+| Scaled copy + 10% per run             | k from T_N = 5.5 × 1.1^(N−1) | 6.05 / 6.66 / 7.32 | yes                                      | longer runs sooner                |
+| Smaller bonus (+0.25) + light scaling | both                         | depends            | yes                                      | a weaker kid feels less rewarding |
 
 Cap the run length: from the run where T_N would pass 7.5 days, keep T at 7.5 days. A week-plus run is about as much as a dad will commit to.
 
