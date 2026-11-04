@@ -171,6 +171,13 @@ describe("snapshot", () => {
 });
 
 describe("EventRing", () => {
+  it("clamps a kid run's big haul to the rules' 240M", () => {
+    const ring = new EventRing();
+    ring.push({ at: "x", code: "away.report", data: { stones: 5e8 } });
+    ring.push({ at: "x", code: "vein.tap", data: { stones: 5 } });
+    expect(ring.last(2).map((e) => e.data.stones)).toEqual([240_000_000, 5]);
+  });
+
   it("keeps the last 200 events and copies the newest slice", () => {
     const ring = new EventRing();
     for (let i = 0; i < EVENT_RING_LIMIT + 1; i += 1) {

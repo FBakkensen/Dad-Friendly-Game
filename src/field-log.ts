@@ -197,7 +197,13 @@ export class EventRing {
   }
 
   push(event: FieldEvent): void {
-    this.#events.push(event);
+    // A big kid run can haul more than the rules' 240M per event.
+    const stones = event.data.stones;
+    this.#events.push(
+      stones === undefined || stones <= MOUNTAIN_STONES
+        ? event
+        : { ...event, data: { ...event.data, stones: MOUNTAIN_STONES } },
+    );
     const extra = this.#events.length - this.#limit;
     if (extra > 0) {
       this.#events.splice(0, extra);

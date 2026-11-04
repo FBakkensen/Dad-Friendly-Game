@@ -6,8 +6,8 @@ import { howItWorks } from "./how-it-works";
 import { createMountain, digStones, MOUNTAIN_STONES } from "./mountain";
 import { parseSaveValue, serializeSave } from "./persist";
 import {
-  GENERATION_STRETCH,
   KID_MACHINE_OPENS,
+  KID_RUN_GROWTH,
   kidStretch,
   shownStones,
   stonesLeft,
@@ -20,11 +20,13 @@ import { upgradeById, upgradeCost } from "./upgrades";
 import { veinReward } from "./veins";
 
 describe("kid-run stretch (M13, #253)", () => {
-  it("holds the approved stretch, and run 5 on keeps the last", () => {
-    expect(GENERATION_STRETCH).toEqual([1, 1.75, 2.55, 3.5]);
-    expect([0, 1, 2, 3, 4, 9].map(kidStretch)).toEqual([
-      1, 1.75, 2.55, 3.5, 3.5, 3.5,
-    ]);
+  it("grows the stretch every generation, with no cap", () => {
+    expect(kidStretch(0)).toBe(1);
+    expect(kidStretch(1)).toBeCloseTo(1.5 * (1 + KID_RUN_GROWTH) ** 2);
+    const ks = Array.from({ length: 12 }, (_, i) => kidStretch(i));
+    ks.slice(1).forEach((k, i) => {
+      expect(k).toBeGreaterThan(ks[i] as number);
+    });
   });
 
   it("leaves a save without a stretch as it is", () => {

@@ -31,9 +31,6 @@ function arg(name: string): string | undefined {
 }
 
 const runCount = Number(arg("runs") ?? String(KID_RUNS_CI));
-const ks = Array.from({ length: runCount }, (_, i) =>
-  withFactors(factors, () => kidStretch(i)),
-);
 const seeds = Number(
   arg("seeds") ?? (process.argv.includes("--ci") ? CI_SEEDS : LOCAL_SEEDS),
 );
@@ -48,6 +45,10 @@ const factors = Object.fromEntries(
       const [id = "", value = "1"] = pair.split("=");
       return [id, Number(value)];
     }),
+);
+
+const ks = Array.from({ length: runCount }, (_, i) =>
+  withFactors(factors, () => kidStretch(i)),
 );
 const mean = (values: readonly number[]) =>
   values.reduce((sum, value) => sum + value, 0) / values.length;

@@ -4,20 +4,17 @@ import {
   MACHINE_IDS,
   eachRunLonger,
   linearModelDays,
-  noRunPastCap,
-  onceADayRunsOk,
   runLengthOk,
   rootModelDays,
   runGenerations,
-  underCeiling,
 } from "./generations";
-import { RUN_CAP_DAYS } from "./targets";
+import { kidStretch } from "../scale";
 
 describe("generations lab (M13, #253)", () => {
   it("plays kid runs back to back on the game's stretch", () => {
     const runs = runGenerations({ policy: casual, seed: 1, runs: 2 });
     expect(runs.map((run) => run.run)).toEqual([1, 2]);
-    expect(runs.map((run) => run.k)).toEqual([1, 1.75]);
+    expect(runs.map((run) => run.k)).toEqual([1, kidStretch(1)]);
     expect(runs[0]?.finishDay).toBe(6);
     expect(runs[1]?.finishDay).toBeGreaterThan(6);
     expect(runs[0]?.unbought).toEqual([]);
@@ -43,31 +40,9 @@ describe("generations lab (M13, #253)", () => {
     expect(eachRunLonger([undefined])).toBe(false);
   });
 
-  it("keeps later runs under each type's ceiling", () => {
-    expect(underCeiling([6, 7.5, 6.5], 2)).toBe(true);
-    expect(underCeiling([6, 8], 2)).toBe(false);
-    expect(underCeiling([7, 9, 8], 1)).toBe(true);
-    expect(underCeiling([7, 9.5], 1)).toBe(false);
-    expect(underCeiling([undefined], 1)).toBe(false);
-  });
-
-  it("checks no run passes the cap", () => {
-    expect(RUN_CAP_DAYS).toBe(7.5);
-    expect(noRunPastCap([5.5, 7.5])).toBe(true);
-    expect(noRunPastCap([5.5, 8])).toBe(false);
-    expect(noRunPastCap([undefined])).toBe(false);
-  });
-
-  it("judges once-a-day players by their own run 1", () => {
-    expect(onceADayRunsOk([7, 8, 8, 9])).toBe(true);
-    expect(onceADayRunsOk([7, 6])).toBe(false);
-    expect(onceADayRunsOk([7, 9.5])).toBe(false);
-    expect(onceADayRunsOk([7, undefined])).toBe(false);
-    expect(onceADayRunsOk([undefined])).toBe(false);
-    expect(runLengthOk([7, 8, 9], 1)).toBe(true);
-    expect(runLengthOk([6, 6.5, 7.5], 2)).toBe(true);
-    expect(runLengthOk([6, 6.5, 8], 2)).toBe(false);
-    expect(runLengthOk([6, 6], 2)).toBe(false);
+  it("judges every type by the same rule: each run longer", () => {
+    expect(runLengthOk([7, 8, 9])).toBe(true);
+    expect(runLengthOk([7, 8, 8])).toBe(false);
   });
 
   it("models a run stretched by k over the bonus", () => {
