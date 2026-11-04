@@ -85,7 +85,6 @@ export type HowSystem = (typeof HOW_SYSTEMS)[number];
 
 const percent = (share: number): string =>
   `${String(Math.round(share * 100))}%`;
-const stones = (count: number): string => `${formatCompact(count)} stones`;
 
 const worker = tierById("helper");
 const cart = tierById("cart");
@@ -120,7 +119,16 @@ const boostLine =
     ? `A blasting charge or axle grease doubles the crew for ${formatDuration(chargeMs)}.`
     : `A blasting charge doubles the crew for ${formatDuration(chargeMs)}, axle grease for ${formatDuration(greaseMs)}.`;
 
-export const HOW_IT_WORKS: Readonly<Record<HowSystem, HowItWorks>> = {
+/**
+ * The how-it-works copy for a run stretched by k (M13): every stone price
+ * shows this run's number.
+ */
+export function howItWorks(
+  k: number,
+): Readonly<Record<HowSystem, HowItWorks>> {
+  const stones = (count: number): string =>
+    `${formatCompact(count * k)} stones`;
+  return {
   tapping: {
     title: "Tapping",
     reveal: "Tap the mountain. Every tap is a stone.",
@@ -380,11 +388,15 @@ export const HOW_IT_WORKS: Readonly<Record<HowSystem, HowItWorks>> = {
         "relics/mantle",
         "Reach the bottom with the last relic and you can pass the mine on.",
       ],
-      ["kid-helper", "Your kid starts a fresh mountain with your recipes."],
+      ["kid-helper", "Your kid starts a bigger mountain, with your recipes."],
       [
         "helper-miner",
         `Each pass makes crew and taps ${percent(LEGACY_STEP)} stronger, for good.`,
       ],
     ],
   },
-};
+  };
+}
+
+/** Run-1 copy, for cards with no stone price on them. */
+export const HOW_IT_WORKS = howItWorks(1);

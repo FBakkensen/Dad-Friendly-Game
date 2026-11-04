@@ -116,6 +116,20 @@ export function createInfoButton(
 }
 
 /** One screen, 3–4 lines with an icon each, and one way back. */
+/** Rewrites a how card's step words in place (M13: a new run's prices). */
+export function setHowSteps(
+  card: HTMLElement,
+  steps: readonly (readonly [string, string])[],
+): void {
+  const texts = card.querySelectorAll(".teach-how-steps li span");
+  steps.forEach(([, words], index) => {
+    const text = texts[index];
+    if (text !== undefined) {
+      text.textContent = words;
+    }
+  });
+}
+
 export function createHowCard(
   title: string,
   steps: readonly (readonly [string, string])[],

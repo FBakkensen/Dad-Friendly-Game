@@ -12,7 +12,11 @@ import mapUrl from "./assets/worn-map.png";
 import stoneUrl from "./assets/stone.png";
 import upgradesIconUrl from "./assets/upgrades-icon.png";
 import { setAffordGlow } from "./afford-glow";
-import { HOW_IT_WORKS } from "./how-it-works";
+import {
+  HOW_IT_WORKS,
+  howItWorks,
+  type HowSystem,
+} from "./how-it-works";
 import { BOOSTS, boostCost, boostLeft, buyBoost, type BoostId } from "./boosts";
 import { buyOnTap } from "./card-tap";
 import { shortEffectName, writeChip } from "./effect-row";
@@ -49,6 +53,7 @@ import { markAllSeen, showsDot } from "./teach";
 import {
   clearNewCard,
   createHowCard,
+  setHowSteps,
   createInfoButton,
   markNewCard,
   setTeachDot,
@@ -211,6 +216,7 @@ export function createUpgradesPanel({
     pick: pickUrl,
     stone: stoneUrl,
   };
+  let howStretch = 1;
   const howCards = (["upgrades", "boosts"] as const).map((system) => {
     const copy = HOW_IT_WORKS[system];
     const made = createHowCard(
@@ -418,6 +424,13 @@ export function createUpgradesPanel({
   const render = (): void => {
     const view = getView();
     const current = view.mountain;
+    if (stretch(current) !== howStretch) {
+      howStretch = stretch(current);
+      const copy = howItWorks(howStretch);
+      for (const made of howCards) {
+        setHowSteps(made, copy[made.dataset["how"] as HowSystem].steps);
+      }
+    }
     const at = now();
     // Price from the unboosted crew. The line shows what buying pays right now.
     const pricing = effectiveRates(current);

@@ -2,7 +2,7 @@ import { factor } from "./economy/factors";
 import { grantFirstEngineer } from "./engineers";
 import { STAFF_GRANT, type Mountain } from "./mountain";
 import { hasRelic, RELICS, type Relic } from "./relics";
-import { KID_MACHINE_OPENS, minedOut } from "./scale";
+import { KID_MACHINE_OPENS, minedOut, shownStones } from "./scale";
 import {
   TIERS,
   buyTier,
@@ -14,8 +14,13 @@ import {
 
 /** What a locked tier waits for: a depth (M12-2, #250) or a relic. */
 export type TierLock =
-  | { readonly kind: "depth"; readonly depth: number }
-  | { readonly kind: "relic"; readonly relic: Relic };
+  | {
+      readonly kind: "depth";
+      readonly depth: number;
+      /** The depth in this run's stones, for the card (M13). */
+      readonly at: number;
+    }
+  | { readonly kind: "relic"; readonly relic: Relic; readonly at: number };
 
 /**
  * From run 2 on (a stretched run), the Great Machine opens a little sooner,
@@ -40,11 +45,11 @@ export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
     owned(mountain, tier) === 0 &&
     minedOut(mountain) < opensAt
   ) {
-    return { kind: "depth", depth: opensAt };
+    return { kind: "depth", depth: opensAt, at: shownStones(mountain, opensAt) };
   }
   const relic = RELICS.find((candidate) => candidate.id === tier.needs);
   if (relic !== undefined && !hasRelic(mountain, relic.id)) {
-    return { kind: "relic", relic };
+    return { kind: "relic", relic, at: shownStones(mountain, relic.depth) };
   }
   return undefined;
 }

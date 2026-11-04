@@ -12,7 +12,7 @@ function relicShort(lock: Extract<TierLock, { kind: "relic" }>): string {
 }
 
 function depthOf(lock: TierLock): number {
-  return lock.kind === "depth" ? lock.depth : lock.relic.depth;
+  return lock.at;
 }
 
 /** The short line under the name: `Borer · 7M` or `Machine · 120M`. */
