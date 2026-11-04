@@ -35,8 +35,9 @@ describe("tiers", () => {
     expect(tierById("kid").needs).toBe("crown");
     // M12-2 (#250): the borer opens at the Granite entrance.
     expect(tierById("borer").opensAt).toBe(7_000_000);
-    // M12 retune (#252): the Great Machine opens at the Deep Heart.
-    expect(tierById("machine").opensAt).toBe(120_000_000);
+    // #253 follow-up: the Great Machine opens 12M before the Deep Heart, so a
+    // once-a-day dad gets a sitting with it in every kid run.
+    expect(tierById("machine").opensAt).toBe(108_000_000);
     // Machines climb; kids are a late helper tier, not a machine.
     const machines = TIERS.filter((tier) => tier.id !== "kid");
     for (const [index, tier] of machines.entries()) {

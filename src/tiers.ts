@@ -93,8 +93,9 @@ export const TIERS: readonly Tier[] = [
     perSecond: 2_100,
     staff: 10,
     needs: "hammer",
-    // M12 retune (#252): the Deep Heart entrance, the band that suits it.
-    opensAt: 120_000_000,
+    // M12 retune (#252) put it at the Deep Heart (120M). #253: 12M sooner, so
+    // a once-a-day dad has a sitting with it in every kid run.
+    opensAt: 108_000_000,
   },
   {
     // Crown of Wisdom: kids mine, staff machines, and teach the crew (rates.ts).

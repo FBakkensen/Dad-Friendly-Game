@@ -26,14 +26,14 @@ describe("locked tier card words (#250)", () => {
     );
   });
 
-  it("names the Deep Heart depth for the Great Machine (#252)", () => {
+  it("names the Great Machine's opening depth (#252, #253)", () => {
     const { tier, lock } = lockOf("machine");
-    expect(lockRateLine(tier, lock)).toBe("Machine · 120M");
+    expect(lockRateLine(tier, lock)).toBe("Machine · 108M");
     expect(lockBodyLine(tier, lock)).toBe(
-      "The Great Machine joins your crew at 120M stones. Keep digging, Dad!",
+      "The Great Machine joins your crew at 108M stones. Keep digging, Dad!",
     );
     expect(lockAria(tier, lock)).toBe(
-      "Great Machine, locked. Joins your crew at 120 million stones down.",
+      "Great Machine, locked. Joins your crew at 108 million stones down.",
     );
   });
 

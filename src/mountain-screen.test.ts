@@ -513,10 +513,10 @@ describe("crew tiers on screen", () => {
     expect(machine.classList.contains("tier-locked")).toBe(true);
     expect(machine.querySelector(".tier-cost")?.textContent).toBe("Locked");
     expect(machine.querySelector(".tier-rate")?.textContent).toBe(
-      "Machine · 120M",
+      "Machine · 108M",
     );
     expect(machine.getAttribute("aria-label")).toContain(
-      "Joins your crew at 120 million stones down",
+      "Joins your crew at 108 million stones down",
     );
     machine.click();
     expect(
@@ -4388,9 +4388,9 @@ describe("sheet buys", () => {
     // A locked card says where it opens, in words (#250).
     expect(line("machine", ".tier-why")?.hidden).toBe(false);
     expect(line("machine", ".tier-why")?.textContent).toBe(
-      "The Great Machine joins your crew at 120M stones. Keep digging, Dad!",
+      "The Great Machine joins your crew at 108M stones. Keep digging, Dad!",
     );
-    expect(line("machine", ".tier-rate")?.textContent).toBe("Machine · 120M");
+    expect(line("machine", ".tier-rate")?.textContent).toBe("Machine · 108M");
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
     const arms = screen.root.querySelector('[data-upgrade="tap"]');
     expect(arms?.classList.contains("is-dear")).toBe(true);

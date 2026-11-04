@@ -3,7 +3,11 @@ import { passTheMine } from "../legacy";
 import { createMountain, type Mountain } from "../mountain";
 import type { Policy } from "./policy";
 import { runPolicy } from "./run";
-import { ONCE_A_DAY_SPREAD_DAYS, RUN_CAP_DAYS } from "./targets";
+import {
+  ONCE_A_DAY_SPREAD_DAYS,
+  RUN_CAP_DAYS,
+  TWICE_A_DAY_SESSIONS,
+} from "./targets";
 
 /** The machines every run should still buy (D3: each one worth buying). */
 export const MACHINE_IDS = ["cart", "drill", "borer", "machine"] as const;
@@ -127,7 +131,7 @@ export function runLengthOk(
   days: readonly (number | undefined)[],
   sessionsPerDay: number,
 ): boolean {
-  return sessionsPerDay >= 2
+  return sessionsPerDay >= TWICE_A_DAY_SESSIONS
     ? eachRunLonger(days) && noRunPastCap(days)
     : onceADayRunsOk(days);
 }

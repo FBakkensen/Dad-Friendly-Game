@@ -8,23 +8,23 @@ import { tierById } from "./tiers";
 describe("crew unlocks", () => {
   // M12 retune (#252): the Hammer is found at 25M, the card opens at 120M.
   const nearHammer = {
-    ...minedMountain(119_999_999),
+    ...minedMountain(107_999_999),
     pocket: 90_000_000,
     borers: 1,
   };
   const atHammer = {
-    ...minedMountain(120_000_000),
+    ...minedMountain(108_000_000),
     pocket: 90_000_000,
     borers: 1,
   };
 
-  it("locks the Great Machine until the Hammer is found and the Deep Heart is reached", () => {
+  it("locks the Great Machine until the Hammer is found and the end of the Crystal Caves is reached", () => {
     const machine = tierById("machine");
     expect(tierLocked(nearHammer, machine)).toBe(true);
     expect(tierLocked(atHammer, machine)).toBe(false);
     expect(tierLock(minedMountain(25_000_000), machine)).toEqual({
       kind: "depth",
-      depth: 120_000_000,
+      depth: 108_000_000,
     });
     expect(tierLocked(nearHammer, tierById("borer"))).toBe(false);
   });
@@ -73,7 +73,7 @@ describe("crew unlocks", () => {
     expect(buyCrew(deep, "borer").borers).toBe(1);
     expect(tierLock(deep, tierById("machine"))).toEqual({
       kind: "depth",
-      depth: 120_000_000,
+      depth: 108_000_000,
     });
     expect(tierLock(deep, tierById("helper"))).toBeUndefined();
     // An older save that already owns a borer keeps buying them.
@@ -84,7 +84,7 @@ describe("crew unlocks", () => {
 
   it("leaves an engineer's post alone when a Great Machine is bought", () => {
     const withBorer = buyCrew(
-      { ...minedMountain(120_000_000), pocket: 80_000_000, helpers: 5 },
+      { ...minedMountain(108_000_000), pocket: 80_000_000, helpers: 5 },
       "borer",
     );
     expect(withBorer.engineers?.[0]?.post).toBe("borer");
