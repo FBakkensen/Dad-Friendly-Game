@@ -64,11 +64,14 @@ export function runGenerations({
 
 /** Run N+1 finishes later than run N, for every pair. Report-only. */
 export function eachRunLonger(days: readonly (number | undefined)[]): boolean {
-  return days.every(
-    (day, index) =>
-      day !== undefined &&
-      (index === 0 || day > (days[index - 1] ?? Number.POSITIVE_INFINITY)),
-  );
+  let before = Number.NEGATIVE_INFINITY;
+  for (const day of days) {
+    if (day === undefined || day <= before) {
+      return false;
+    }
+    before = day;
+  }
+  return true;
 }
 
 /** No run past `RUN_CAP_DAYS`, and every run finished. Report-only. */
