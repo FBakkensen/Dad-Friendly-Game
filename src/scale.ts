@@ -1,11 +1,30 @@
+import { factor } from "./economy/factors";
+
 /** Stones in the whole mountain. A leaf module, so relics and rates can share it without an import cycle. */
 export const MOUNTAIN_STONES = 240_000_000;
 
 /**
- * How much bigger each kid's run is (M13, #253): runs 1-4, approved by
- * Flemming on 4 Nov 2026. Run 5 on holds the last one.
+ * How much longer each kid's run should feel (M13, #253): about this share
+ * of run 1 added per generation, forever (Flemming, 4 Nov 2026: "the whole
+ * idea is they take longer and longer"). The lab sweeps it as
+ * `stretch.growth`; the game reads 1.
  */
-export const GENERATION_STRETCH: readonly number[] = [1, 1.75, 2.55, 3.5];
+export const KID_RUN_GROWTH = 1 / 8;
+
+/** The kid bonus per Legacy (mirrors LEGACY_STEP in rates.ts, a leaf here). */
+const BONUS_STEP = 0.5;
+
+/**
+ * The stretch for the run after `legacy` passes to the kid:
+ * k = bonus × (1 + g·legacy)². A run lasts about run 1 × √(k / bonus)
+ * (the lab fit), so run N lasts about run 1 × (1 + g·(N-1)): a steady step
+ * longer every run, with no cap.
+ */
+export function kidStretch(legacy: number): number {
+  const g = KID_RUN_GROWTH * factor("stretch.growth");
+  const bonus = 1 + BONUS_STEP * legacy;
+  return bonus * (1 + g * legacy) ** 2;
+}
 
 /** From run 2 on, the Great Machine opens at this share of its depth. */
 export const KID_MACHINE_OPENS = 0.9;
@@ -22,12 +41,6 @@ export function stretch(mountain: { readonly stretch?: number }): number {
   return mountain.stretch ?? 1;
 }
 
-/** The stretch for the run after `legacy` passes to the kid. */
-export function kidStretch(legacy: number): number {
-  return GENERATION_STRETCH[
-    Math.min(legacy, GENERATION_STRETCH.length - 1)
-  ] as number;
-}
 
 /** A depth (in run-1 stones) as the stones this run shows for it. */
 export function shownStones(

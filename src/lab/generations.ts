@@ -4,11 +4,6 @@ import { createMountain, type Mountain } from "../mountain";
 import type { Policy } from "./policy";
 import { runPolicy } from "./run";
 import { stretch } from "../scale";
-import {
-  ONCE_A_DAY_SPREAD_DAYS,
-  RUN_CAP_DAYS,
-  TWICE_A_DAY_SESSIONS,
-} from "./targets";
 
 /** The machines every run should still buy (D3: each one worth buying). */
 export const MACHINE_IDS = ["cart", "drill", "borer", "machine"] as const;
@@ -81,11 +76,6 @@ export function eachRunLonger(days: readonly (number | undefined)[]): boolean {
   return true;
 }
 
-/** No run past `RUN_CAP_DAYS`, and every run finished. */
-export function noRunPastCap(days: readonly (number | undefined)[]): boolean {
-  return days.every((day) => day !== undefined && day <= RUN_CAP_DAYS);
-}
-
 /** The model the design doc proposed: a run stretches by k / bonus. */
 export function linearModelDays(
   firstRunDays: number,
@@ -104,49 +94,5 @@ export function rootModelDays(
   return firstRunDays * Math.sqrt(k / bonus);
 }
 
-/** Each run at least as long as the last, and within the spread of run 1. */
-export function onceADayRunsOk(days: readonly (number | undefined)[]): boolean {
-  const first = days[0];
-  let before = Number.NEGATIVE_INFINITY;
-  for (const day of days) {
-    if (
-      first === undefined ||
-      day === undefined ||
-      day < before ||
-      day > first + ONCE_A_DAY_SPREAD_DAYS
-    ) {
-      return false;
-    }
-    before = day;
-  }
-  return true;
-}
-
-/**
- * The approved run-length rule for a player type (strict since 4 Nov 2026). Twice a day or more: each run longer, none past the
- * cap. Once a day: `onceADayRunsOk`.
- */
-export function runLengthOk(
-  days: readonly (number | undefined)[],
-  sessionsPerDay: number,
-): boolean {
-  return sessionsPerDay >= TWICE_A_DAY_SESSIONS
-    ? eachRunLonger(days) && noRunPastCap(days)
-    : onceADayRunsOk(days);
-}
-
-/**
- * Runs past the approved four (the stretch holds): every run finished and
- * under the type's ceiling, the cap twice a day, run 1 plus the spread once.
- */
-export function underCeiling(
-  days: readonly (number | undefined)[],
-  sessionsPerDay: number,
-): boolean {
-  const first = days[0];
-  const ceiling =
-    sessionsPerDay >= TWICE_A_DAY_SESSIONS
-      ? RUN_CAP_DAYS
-      : (first ?? 0) + ONCE_A_DAY_SPREAD_DAYS;
-  return days.every((day) => day !== undefined && day <= ceiling);
-}
+/** The approved run-length rule (strict): each run longer than the last, forever. */
+export const runLengthOk = eachRunLonger;
