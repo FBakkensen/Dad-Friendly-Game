@@ -171,9 +171,7 @@ describe("targets", () => {
         );
       } else if (target.op === "lte") {
         expect(meetsTarget(target, target.value)).toBe(true);
-        expect(
-          meetsTarget(target, target.value + target.value + target.value),
-        ).toBe(false);
+        expect(meetsTarget(target, target.value * 3 + 1)).toBe(false);
       } else {
         expect(meetsTarget(target, target.value)).toBe(true);
         expect(meetsTarget(target, target.value - target.value)).toBe(false);
