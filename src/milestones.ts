@@ -1,0 +1,68 @@
+import type { TierId } from "./tiers";
+
+/**
+ * M12 owned-count bonuses (#252 follow-up). Owning `at` of a machine makes
+ * every one of them mine twice as fast; marks stack. AdVenture
+ * Capitalist-style goals that keep older machines worth buying. The card
+ * shows the next goal in plain words, never a payback number. Counts come
+ * from the save, so save, load and cloud save carry them for free.
+ */
+type Milestone = {
+  readonly at: number;
+  /** The card's goal line before the mark is reached. */
+  readonly goal: string;
+};
+
+const MILESTONE_MULTIPLIER = 2;
+
+/** Shown once a mark is reached. */
+const REACHED_LINE = "Twice as fast now.";
+
+export type MilestoneTable = Readonly<
+  Partial<Record<TierId, readonly Milestone[]>>
+>;
+
+/**
+ * Ordered by `at`. A tier missing here has no milestones. Empty until the
+ * M12 retune ships the values with the balance they were tuned for.
+ */
+export const MILESTONES: MilestoneTable = {};
+
+/** Marks reached with `count` owned. */
+export function milestonesReached(
+  id: TierId,
+  count: number,
+  table: MilestoneTable = MILESTONES,
+): number {
+  return (table[id] ?? []).filter((mark) => count >= mark.at).length;
+}
+
+/** Output multiplier from reached marks. 1 with none. */
+export function milestoneMultiplier(
+  id: TierId,
+  count: number,
+  table: MilestoneTable = MILESTONES,
+): number {
+  return MILESTONE_MULTIPLIER ** milestonesReached(id, count, table);
+}
+
+/**
+ * The card line: the next goal with progress, or once every mark is
+ * reached, the "twice as fast now" line. Undefined for a tier without marks.
+ */
+export function milestoneLine(
+  id: TierId,
+  count: number,
+  format: (value: number) => string,
+  table: MilestoneTable = MILESTONES,
+): string | undefined {
+  const marks = table[id] ?? [];
+  const reached = milestonesReached(id, count, table);
+  const now = reached === 0 ? undefined : REACHED_LINE;
+  const next = marks.find((mark) => count < mark.at);
+  if (next === undefined) {
+    return now;
+  }
+  const goal = `${format(count)} of ${format(next.at)} · ${next.goal}`;
+  return now === undefined ? goal : `${now} ${goal}`;
+}

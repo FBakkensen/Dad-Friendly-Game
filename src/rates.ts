@@ -8,6 +8,7 @@ import {
   type EngineerRank,
 } from "./engineers";
 import { slowedSpeed, type Trouble } from "./hazards";
+import { milestoneMultiplier } from "./milestones";
 import { hardnessFactorId, hardnessOf, layerOf } from "./layers";
 import {
   axleCrewMultiplier,
@@ -160,6 +161,7 @@ export function effectiveRates(
         factor(hardnessFactorId(layer.index, tier.id)) *
         hardnessOf(layer.index, tier.id) *
         gearMultiplier(mountain, tier.id) *
+        milestoneMultiplier(tier.id, owned(mountain, tier)) *
         ember;
       return [
         tier.id,
