@@ -51,7 +51,7 @@ const lines = [
   "",
   "| Policy | " +
     ks.map((_, i) => `Run ${String(i + 1)}`).join(" | ") +
-    " | Run-length rule (report-only) | Never bought |",
+    " | Run-length rule | Never bought |",
   "|---|" + ks.map(() => "---|").join("") + "---|---|",
 ];
 const firstDays: number[] = [];
