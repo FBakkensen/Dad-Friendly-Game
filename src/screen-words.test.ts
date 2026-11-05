@@ -4,6 +4,9 @@ import { LOST_TOOLS } from "./lost-tools";
 import { JOURNEYMAN_TRIPS, MASTER_TRIPS, type Engineer } from "./engineers";
 import { glimmerText } from "./expeditions";
 import { RELICS } from "./relics";
+import type { Mountain } from "./mountain";
+import { minedMountain } from "./test-fixtures";
+import { upgradeById, type UpgradeId } from "./upgrades";
 import {
   BROUGHT_HOME,
   FOUND_LABEL,
@@ -97,6 +100,7 @@ import {
   tripDetail,
   tripTitle,
   tunnelLock,
+  upgradeEffectLine,
 } from "./screen-words";
 
 const ada = (patch: Partial<Engineer> = {}): Engineer => ({
@@ -851,5 +855,54 @@ describe("gain of one more on a machine card", () => {
     expect(crewPostLabel("cart")).toBe("carts");
     expect(crewPostLabel("machine")).toBe("the machine");
     expect(crewPostLabel("helper")).toBeUndefined();
+  });
+});
+
+describe("upgrade card before and after (#324)", () => {
+  const at = Date.now();
+  const crew = { ...minedMountain(1_000_000), helpers: 12, carts: 5 };
+  const line = (id: UpgradeId, mountain: Mountain): string =>
+    upgradeEffectLine(upgradeById(id), mountain, at);
+
+  it("Strong arms says taps now, then with one more level", () => {
+    expect(line("tap", crew)).toBe("Taps 1 to 1.");
+    const big = line("tap", { ...crew, helpers: 500 });
+    const match = /^Taps 1 to (\d+)\.$/.exec(big);
+    expect(Number(match?.[1])).toBeGreaterThan(1);
+  });
+
+  it("Strong arms with every level bought says only what taps are now", () => {
+    expect(line("tap", { ...crew, helpers: 500, upgrades: { tap: 10 } })).toMatch(
+      /^Taps now \d+\.$/,
+    );
+  });
+
+  it("Steady hands says away pay before and after, bought or not", () => {
+    expect(line("steady", crew)).toBe("Away pay 30% to 37.5%.");
+    expect(line("steady", { ...crew, upgrades: { steady: 1 } })).toBe(
+      "Away pay 30% to 37.5%.",
+    );
+  });
+
+  it("a synergy says one boosted machine's speed before and after, bought or not", () => {
+    expect(line("cartSyn", crew)).toBe("Carts 6/s to 6.7/s.");
+    expect(line("cartSyn", { ...crew, upgrades: { cartSyn: 1 } })).toBe(
+      "Carts 6/s to 6.7/s.",
+    );
+  });
+
+  it("a synergy with none of its source tier says the rule", () => {
+    expect(line("cartSyn", { ...crew, helpers: 0 })).toBe(
+      "Each worker makes carts 1% faster.",
+    );
+  });
+
+  it("the Great Machine synergy names the Great Machine", () => {
+    const deep = { ...crew, helpers: 200, borers: 3, machines: 1 };
+    expect(line("machineSyn", deep)).toMatch(/^Great Machine \S+\/s to \S+\/s\.$/);
+  });
+
+  it("Better boots keeps its line", () => {
+    expect(line("boots", crew)).toBe("Workers 1/s to 2.4/s.");
   });
 });
