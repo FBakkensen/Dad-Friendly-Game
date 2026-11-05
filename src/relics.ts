@@ -131,3 +131,38 @@ export function depthHint(mountain: Mountain): string | undefined {
   }
   return "Far below";
 }
+
+/**
+ * Where the dig is headed, once the Lantern lights the way: the next relic,
+ * a vague hint, and how full the bar is. No depths or counts (discoveries
+ * stay vague). The menu ledger and the mountain's goal line share it (#336).
+ */
+export type RelicGoal =
+  | { readonly kind: "unguided" }
+  | { readonly kind: "done" }
+  | {
+      readonly kind: "next";
+      readonly name: string;
+      readonly hint: string;
+      readonly percent: number;
+    };
+
+export function relicGoal(mountain: Mountain): RelicGoal {
+  if (!hasRelic(mountain, "lantern")) {
+    return { kind: "unguided" };
+  }
+  const next = nextRelic(mountain);
+  if (next === undefined) {
+    return { kind: "done" };
+  }
+  const mined = minedOut(mountain);
+  const from =
+    RELICS.filter((relic) => relic.depth <= mined).at(-1)?.depth ?? 0;
+  const percent = Math.floor(((mined - from) / (next.depth - from)) * 100);
+  return {
+    kind: "next",
+    name: next.name,
+    hint: depthHint(mountain) ?? "",
+    percent,
+  };
+}

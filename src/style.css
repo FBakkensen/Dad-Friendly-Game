@@ -5290,3 +5290,31 @@ body {
 .legacy-card .start-over-actions {
   margin-top: var(--space-8);
 }
+
+/* The next relic on the mountain, above the shelf (#336). Vague words, thin bar. */
+.mountain-wrap > .relic-goal {
+  flex: none;
+  order: -2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  width: min(calc(var(--target-min) * 6), calc(100% - var(--space-16) * 2));
+  margin: 0;
+}
+
+.mountain-wrap > .relic-goal[hidden] {
+  display: none;
+}
+
+.relic-goal-text {
+  margin: 0;
+  font-size: var(--type-14);
+  line-height: var(--leading);
+  color: var(--color-quiet);
+  text-align: center;
+}
+
+.relic-goal-bar {
+  height: var(--space-4);
+}

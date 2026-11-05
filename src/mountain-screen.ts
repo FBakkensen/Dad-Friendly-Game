@@ -13,7 +13,7 @@ import {
   type Mountain,
 } from "./mountain";
 import { type TierId } from "./tiers";
-import { hasRelic, nextRelic, RELICS, type RelicId, depthHint } from "./relics";
+import { hasRelic, relicGoal, type RelicId } from "./relics";
 import { BOOSTS } from "./boosts";
 import {
   createEffectChip,
@@ -163,6 +163,20 @@ export function mountMountainScreen({
   guide.append(goal, layerHint, guideBar);
   const materialLine = document.createElement("p");
   materialLine.className = "material-line";
+  // The same goal on the mountain, between the crew and the relic shelf (#336).
+  const relicLine = document.createElement("div");
+  relicLine.className = "relic-goal";
+  relicLine.hidden = true;
+  const relicLineText = document.createElement("p");
+  relicLineText.className = "relic-goal-text";
+  const relicLineBar = document.createElement("div");
+  relicLineBar.className = "guide-bar relic-goal-bar";
+  relicLineBar.setAttribute("role", "progressbar");
+  relicLineBar.setAttribute("aria-valuemin", "0");
+  relicLineBar.setAttribute("aria-valuemax", "100");
+  const relicLineFill = document.createElement("span");
+  relicLineBar.append(relicLineFill);
+  relicLine.append(relicLineText, relicLineBar);
   const ledger = document.createElement("div");
   ledger.className = "ledger";
   ledger.append(lantern, remaining, materialLine, guide);
@@ -737,33 +751,37 @@ export function mountMountainScreen({
     const hint = nextLayerHint(nextLayer(view.mountain)?.id);
     layerHint.hidden = hint === undefined;
     layerHint.textContent = hint ?? "";
-    const next = nextRelic(view.mountain);
-    const guided = hasRelic(view.mountain, "lantern");
-    guideBar.hidden = !guided || next === undefined;
-    if (!guided) {
+    const goalNow = relicGoal(view.mountain);
+    guideBar.hidden = goalNow.kind !== "next";
+    // The mountain's own goal line: only while a relic is still ahead (#336).
+    relicLine.hidden = goalNow.kind !== "next";
+    if (goalNow.kind === "unguided") {
       goal.textContent =
         (view.mountain.legacy ?? 0) > 0
           ? `Your kid's mine: six relics wait inside. Legacy ${legacyWords(legacyBonus(view.mountain))}.`
           : "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.";
       return;
     }
-    if (next === undefined) {
+    if (goalNow.kind === "done") {
       goal.textContent = "Every relic is yours. You are a legend.";
       return;
     }
-    const mined = MOUNTAIN_STONES - view.mountain.remaining;
-    const previous = RELICS.filter((relic) => relic.depth <= mined).at(-1);
-    const from = previous?.depth ?? 0;
-    const percent = Math.floor(((mined - from) / (next.depth - from)) * 100);
-    goal.textContent = `Next: ${next.name} · ${depthHint(view.mountain) ?? ""}`;
-    guideFill.style.width = `${String(percent)}%`;
-    guideBar.setAttribute("aria-valuenow", String(percent));
-    guideBar.setAttribute(
-      "aria-label",
+    const { name, percent } = goalNow;
+    const words = `Next: ${name} · ${goalNow.hint}`;
+    const label =
       hint === undefined
-        ? `Progress to the ${next.name}`
-        : `Progress to the ${next.name}. ${hint}`,
-    );
+        ? `Progress to the ${name}`
+        : `Progress to the ${name}. ${hint}`;
+    goal.textContent = words;
+    relicLineText.textContent = words;
+    for (const [bar, fill] of [
+      [guideBar, guideFill],
+      [relicLineBar, relicLineFill],
+    ] as const) {
+      fill.style.width = `${String(percent)}%`;
+      bar.setAttribute("aria-valuenow", String(percent));
+      bar.setAttribute("aria-label", label);
+    }
   };
 
   document.addEventListener("visibilitychange", () => {
@@ -873,7 +891,7 @@ export function mountMountainScreen({
   // The Legacy sits in the mountain's other corner: no layout cost.
   mountainStage.append(legacy.badge);
 
-  mountainWrap.append(shelfButton);
+  mountainWrap.append(relicLine, shelfButton);
   root.replaceChildren(
     header,
     pocketStack,
