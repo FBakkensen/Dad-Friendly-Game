@@ -1,58 +1,52 @@
 ---
 name: ship-sitting
-description: Commits the current sitting, runs a code-review pass, fixes non-nits, opens one PR through the gated git push, babysits reviews through squash-merge, then watches the hosting deploy on main. Use when the user asks to ship, commit and PR, file the PR, finish the sitting, or babysit the PR.
+description: Use when the user asks to ship, commit and PR, file the PR, finish the sitting, or babysit the PR, and when a superpowers plan completes (instead of calling superpowers:finishing-a-development-branch directly).
 ---
 
 # Ship sitting
 
-Commit, code-review, fix, open the PR, babysit until squash-merge, then watch the deploy workflow on `main`. Stay in this conversation. Do not hand the PR to autopilot, a background babysitter, or another agent.
+Superpowers reviews the branch and opens the PR. This skill adds what superpowers leaves out: the gate on every push, babysitting the PR in this conversation, the squash-merge, and the deploy on `main`. The agent files, babysits, and merges its own PR.
 
-The contract is `.claude/rules/shipping.md`. Where this skill says `gh`, a Claude Code cloud session uses the matching GitHub MCP tool, and babysits with `subscribe_pr_activity` instead of polling.
+Stay in this conversation. Do not hand the PR to autopilot, a background babysitter, or another agent. In a Claude Code cloud session, `gh` works for search only: where this skill, or a superpowers skill it runs, says `gh`, use the matching GitHub MCP tool.
 
-One issue, one branch, one PR. `Fixes #N`. Use the github-issues skill for the graph.
+Stop and ask the human on auth, secrets, security, or a real product question, anywhere in this skill.
+
+One issue, one branch, one PR, `Fixes #N`. Use the github-issues skill for the graph.
 
 ## Already in flight
 
 - Uncommitted work, no PR: start at Commit.
-- Committed, no PR: start at Code-review.
+- Committed, no PR: start at Review.
 - PR already open: start at Babysit.
 - Merged, deploy still running or failed: start at After merge.
 - Nothing to ship: stop.
 
-## Gate
+## The gate
 
-Before the first commit:
+There are no CI check runs on a PR. The proof is the gate, run by the Claude Code hooks in `.claude/settings.json` (`scripts/gate-hook.mjs`):
 
-- On the sitting's branch, not `main`.
-- Stage only this issue's files. No secrets (`.env`, Firebase, PixelLab tokens).
-- `npm run check` green (the full tier). The `git push` hook runs it again and blocks a red push.
-- If a second sliver snuck in, stop. That work gets its own issue, not this PR.
+- **Stop:** when code changed since `origin/main`, the fast tier runs before the turn ends. Red keeps the turn going, with the FAIL lines as feedback.
+- **`git push`:** the full tier runs first (with the strict strategy lab when economy code changed). Red blocks the push.
+
+Push with `git push` from the shell, never with the GitHub MCP `push_files` or `create_or_update_file` tools, which skip the hook. Commit in one command and push in the next: the hook blocks the whole command, so a commit chained before a blocked push never happens. Every hook run adds a line to `.gate/hook.log`. Never bypass the hook, and never edit `.claude/settings.json` to get a push through.
 
 ## Commit
 
-Follow the git commit protocol. In parallel: `git status`, `git diff`, `git log` for message style.
+- The work is proven: gate green, and `npm run play` seen for anything the player sees.
+- On the sitting's branch, not `main`.
+- Stage only this issue's files. No secrets (`.env`, Firebase, PixelLab tokens).
+- If a second sliver snuck in, stop. That work gets its own issue, not this PR.
+- Commit message: why, in 1-2 sentences, in the repo's style. Do not amend. If a hook rewrites files, make a new commit.
 
-Then stage the sitting's files and commit with a HEREDOC. Message is why, 1-2 sentences. Do not amend unless the commit protocol allows it. Do not push yet.
+## Review
 
-If hooks rewrite files, make a new commit. Do not amend a failed hook.
+Use `superpowers:requesting-code-review` on the branch diff that would merge (`origin/main...HEAD`). If a superpowers plan just ended with a final whole-branch review by a fresh reviewer (and its scoped re-review, if any) and nothing has been committed since, that review counts. A self-review never counts.
 
-## Code-review
+Do not open the PR until the review returns only Minor findings, or none. Every Critical or Important finding still open is a non-nit, including one a plan parked with a ruling. Fix it, commit, and review again. If you judge a finding wrong, ask the human as one question with three options and one recommended. The ask to ship includes those fix commits. Minor findings are nits and may ship. If a non-nit is still there after two fix rounds, stop and ask.
 
-Load the code-review skill and follow it. Do not skip it. Do not substitute a paraphrase of the review contract in `.claude/rules/shipping.md` for that skill.
+## Open the PR
 
-The relevant code is the branch diff that would merge (`git diff main...HEAD`).
-
-Do not run `gh pr create` until this pass returns only nits, or no findings.
-
-## Fix
-
-Fix every non-nit. Commit the fixes. The ask to ship includes those commits. Run the code-review pass again.
-
-Nits can ship. If a non-nit remains after two fix rounds, stop and ask.
-
-## Create the PR
-
-Push with `-u` if needed. Then `gh pr create`. Title matches the sliver. Body:
+Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Request" already chosen, against `main`. Its full test suite is `npm run gate -- full`. The push goes through the gate. The title matches the sliver. The PR body:
 
 ```markdown
 ## Summary
@@ -63,18 +57,21 @@ Push with `-u` if needed. Then `gh pr create`. Title matches the sliver. Body:
 
 - ...
 
+## Rulings
+
+- ... (rulings and deferred Minor findings from the plan and the review; omit if none)
+
 Fixes #N
 ```
 
-One PR closes one issue. Never a second branch or stacked PR.
-
 ## Babysit
 
-Refresh live PR state each pass (`gh pr view`). Do not act on stale state. There are no PR check runs: the `git push` hook ran the full tier, and that is the proof.
+In a cloud session, subscribe to the PR (`subscribe_pr_activity`) and let events wake the session. Do not poll.
 
-1. Conflicts first, then unresolved review comments.
-2. Push every fix with `git push`, so the hook gates it. Never `push_files`, never force-push, never edit `.claude/settings.json` to get a push through.
-3. Handle review comments here. Fix real in-scope issues. Dismiss invalid ones with a reason. Ask the human on auth, secrets, or a real product question. Nits do not block merge.
+1. Refresh live PR state each pass. Do not act on stale state.
+2. Conflicts first, then unresolved review comments.
+3. Handle review comments with `superpowers:receiving-code-review`. Fix real in-scope issues. Dismiss invalid ones with a reason. Ask the human on auth, secrets, security, or a real product question. Nits do not block merge.
+4. Every fix goes through the gate: the fast tier while editing, `git push` for the full tier. Never force-push.
 
 When the PR is mergeable, its last push went through the gate, and every non-nit comment is fixed or dismissed, squash-merge without waiting:
 
@@ -84,29 +81,20 @@ git checkout main
 git pull
 ```
 
-Do not delete the local feature branch unless asked. Then go to After merge. Do not return the PR URL yet.
+Do not delete the local feature branch unless asked. Do not return the PR URL yet.
 
 ## After merge
 
 The sitting is not done at squash-merge. `deploy-hosting` runs on `main` and can fail after the PR is green.
 
-Refresh the merge commit, then list the workflow runs that commit started (only `deploy-hosting`):
+List the workflow runs the merge commit started:
 
 ```bash
-git rev-parse HEAD
 gh run list --commit "$(git rev-parse HEAD)" --json databaseId,name,status,conclusion,url
 ```
 
-If the list is empty, wait and list again. Do not treat an empty list as success.
+If the list is empty, wait and list again. An empty list is not success. Watch `deploy-hosting` to completion (`gh run watch <id> --exit-status`). Do not invent work while it runs.
 
-Watch `deploy-hosting` to completion:
-
-```bash
-gh run watch <id> --exit-status
-```
-
-Do not invent work while they run.
-
-If deploy fails, read the log (`gh run view <id> --log-failed`). Fix the cause. Push if it is code. Re-run the workflow (`gh run rerun <id>`). Never force-push. Never edit CI just to go green.
+If deploy fails, read the log (`gh run view <id> --log-failed`), fix the cause, push if it is code, and re-run (`gh run rerun <id>`). Never force-push. Never edit CI just to go green.
 
 Return the PR URL only after that run succeeds.
