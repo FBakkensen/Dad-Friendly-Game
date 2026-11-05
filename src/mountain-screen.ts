@@ -28,6 +28,7 @@ import { createArrivalPanel } from "./arrival-panel";
 import { layerOf, nextLayer } from "./layers";
 import { createWelcomePanel } from "./welcome-panel";
 import { createMenuPanel } from "./menu-panel";
+import { mountainTint } from "./mountain-tint";
 import { createSaveConflictPanel } from "./save-conflict-panel";
 import { createSavedCopiesPanel } from "./saved-copies-panel";
 import { createLegacyPanel, legacyWords } from "./legacy-panel";
@@ -185,7 +186,11 @@ export function mountMountainScreen({
   peak.width = 114;
   peak.height = 114;
   peak.draggable = false;
-  mountain.append(peak);
+  // The band's tint sits on a wrapper, so the art keeps its own glow (#325).
+  const band = document.createElement("span");
+  band.className = "mountain-band";
+  band.append(peak);
+  mountain.append(band);
   mountain.addEventListener("click", (event) => {
     if (!view.ready) {
       return;
@@ -603,6 +608,10 @@ export function mountMountainScreen({
     ).crewPerSecond;
     pocketRate.textContent = `${formatCrewSpeed(perSecond)} stones/s`;
     const layer = layerOf(view.mountain);
+    if (band.dataset["layer"] !== layer.id) {
+      band.dataset["layer"] = layer.id;
+      band.style.setProperty("--band-tint", mountainTint(layer.id));
+    }
     const layerWords = layerCardWords(layer.id);
     layerName.textContent = layer.name;
     layerAdvice.textContent =
