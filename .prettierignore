@@ -2,3 +2,6 @@ dist
 coverage
 node_modules
 package-lock.json
+
+# Superpowers scratch: plan ledgers, briefs, and brainstorm sessions
+.superpowers
