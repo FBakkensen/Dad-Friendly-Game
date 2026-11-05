@@ -763,6 +763,11 @@ async function main() {
   });
   await capture("mountain-hazard", async (viewport) => {
     const opened = await open(viewport, rest(), { search: "?trouble=cave-in" });
+    // The shout lives on the troubled machine's card, in Buys.
+    await opened.page.click(".buys-button");
+    await opened.page.waitForSelector('[data-trouble="cave-in"]', {
+      visible: true,
+    });
     await expectText(opened.page, /Cave-in!/, "mountain-hazard");
     return opened;
   });
@@ -771,6 +776,8 @@ async function main() {
       viewport,
       late(Date.now(), 30_000_000, { machines: 0, kids: 0 }),
     );
+    // The guide (goal, layer hint, bar) moved into the ☰ menu's ledger.
+    await openMenu(opened.page);
     await expectText(
       opened.page,
       /Deeper on, the walls start to glitter/,
@@ -780,8 +787,12 @@ async function main() {
   });
   await capture("crew-needs-workers", async (viewport) => {
     const opened = await open(viewport, rest());
-    await press(opened.page, ".crew-posts");
-    await expectText(opened.page, /Needs \d+ workers · \d+ free/, "crew");
+    // The free count stays on the crew chip; the machine cards (and their
+    // "Needs N workers" bill) moved into the Buys sheet.
+    await expectText(opened.page, /\d+ workers · \d+ free/, "crew chip");
+    await press(opened.page, ".buys-button");
+    await opened.page.waitForSelector(".buys-dialog:not([hidden])");
+    await expectText(opened.page, /Needs \d+ workers?/, "crew");
     const disabled = await opened.page.$(".tier:disabled");
     if (disabled === null) {
       throw new Error("expected a greyed-out machine card");
@@ -790,6 +801,8 @@ async function main() {
   });
   await capture("material-chips", async (viewport) => {
     const opened = await open(viewport, rest());
+    // The material line lives in the ☰ menu's ledger now.
+    await openMenu(opened.page);
     await expectText(opened.page, /Clay/, "chips");
     await expectText(opened.page, /Iron/, "chips");
     await expectText(opened.page, /Crystal/, "chips");
@@ -946,6 +959,8 @@ async function main() {
   });
   await capture("relic-tease", async (viewport) => {
     const opened = await open(viewport, late(Date.now(), 223_000_000));
+    // The relic goal line lives in the ☰ menu's ledger now.
+    await openMenu(opened.page);
     await expectText(opened.page, /Next: .+Almost there/, "relic tease");
     return opened;
   });
