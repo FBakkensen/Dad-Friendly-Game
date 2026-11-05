@@ -10,7 +10,7 @@ import {
   type Materials,
 } from "./layers";
 import type { Mountain } from "./mountain";
-import { minedOut } from "./scale";
+import { minedOut, stretch } from "./scale";
 import type { TierId } from "./tiers";
 
 /**
@@ -460,12 +460,16 @@ function scaledCount(base: number, scale: number): number {
   return Math.ceil(Number((base * scale).toPrecision(12)));
 }
 
-/** Stones and materials a craft spends right now. The cost factor defaults to 1. */
-export function recipeCost(id: RecipeId): RecipeCost {
+/**
+ * Stones and materials a craft spends right now. The cost factor defaults to 1.
+ * `k` is the run's stretch (M13): only the stone price grows with the mountain;
+ * materials stay the same count.
+ */
+export function recipeCost(id: RecipeId, k = 1): RecipeCost {
   const recipe = recipeById(id);
   const scale = factor(recipeCostId(id));
   return {
-    stones: scaledCount(recipe.stones, scale),
+    stones: scaledCount(recipe.stones, scale * k),
     materials: {
       clay: scaledCount(recipe.materials.clay ?? 0, scale),
       iron: scaledCount(recipe.materials.iron ?? 0, scale),
@@ -553,7 +557,7 @@ export function startCraft(
   if (atCap(recipe, mountain)) {
     return mountain;
   }
-  const cost = recipeCost(id);
+  const cost = recipeCost(id, stretch(mountain));
   const have = materialsOf(mountain);
   if (mountain.pocket < cost.stones || !canAfford(have, cost.materials)) {
     return mountain;
@@ -689,8 +693,8 @@ export type CraftRefund = {
 const NO_REFUND: CraftRefund = { stones: 0, materials: EMPTY_MATERIALS };
 
 /** What is still owed if this craft leaves the bench before it finishes. */
-function owed(bench: Bench, now: number): CraftRefund {
-  const cost = recipeCost(bench.recipe);
+function owed(mountain: Mountain, bench: Bench, now: number): CraftRefund {
+  const cost = recipeCost(bench.recipe, stretch(mountain));
   const duration = liveTimerMs(recipeById(bench.recipe));
   if (duration === undefined) {
     return { stones: cost.stones, materials: cost.materials };
@@ -722,7 +726,7 @@ export function cancelRefund(
   if (now >= bench.endsAt) {
     return NO_REFUND;
   }
-  return owed(bench, now);
+  return owed(mountain, bench, now);
 }
 
 /**
@@ -740,7 +744,7 @@ export function cancelCraft(mountain: Mountain, now: number): Mountain {
   if (now >= bench.endsAt) {
     return settleBench(mountain, now);
   }
-  const refund = owed(bench, now);
+  const refund = owed(mountain, bench, now);
   const cleared = dropBench(mountain);
   return {
     ...cleared,

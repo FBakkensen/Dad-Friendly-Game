@@ -264,7 +264,7 @@ export function sticker(mountain: Mountain, action: Action): number {
     case "promote":
       return promoteCost(mountain);
     case "craft":
-      return recipeCost(action.recipe).stones;
+      return recipeCost(action.recipe, stretch(mountain)).stones;
     case "station":
     case "send":
     case "recall":
@@ -416,7 +416,7 @@ function craftHasRoom(mountain: Mountain, id: RecipeId): boolean {
 }
 
 function materialsCover(mountain: Mountain, id: RecipeId): boolean {
-  const cost = recipeCost(id).materials;
+  const cost = recipeCost(id, stretch(mountain)).materials;
   const have = mountain.materials ?? EMPTY_MATERIALS;
   return (
     have.clay >= cost.clay &&
