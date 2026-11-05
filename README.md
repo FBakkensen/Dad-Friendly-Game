@@ -21,11 +21,17 @@ npm run gate -- fast
 npm run gate -- full
 ```
 
-`fast` is the edit-and-test loop. It runs the typecheck (incremental, so a warm run is quick), plus ESLint and `vitest related` on the code files changed since `origin/main`, including staged, unstaged, and untracked ones. No browser, no emulator. `npm run check:fast` is the same.
+`fast` is the edit-and-test loop. It runs the typecheck (incremental, so a warm run is quick), plus ESLint and `vitest related --project unit` on the code files changed since `origin/main`, including staged, unstaged, and untracked ones. No browser, no emulator, no economy sims. `npm run check:fast` is the same.
 
 `full` runs every check before every push to a PR branch: the toolchain report, typecheck, lint, import cycles, formatting, knip, CSS tokens, unit tests with coverage, then the Firestore rules in the emulator and the two browser checks once the static checks pass. Independent steps run in parallel. `npm run check` is the same, so CI runs it too.
 
 Each step prints one line, such as `ok    typecheck  4.1s` or `FAIL  lint  2.3s  exit 1`. Every full log goes to `.gate/logs/<step>.log` (gitignored). A failed step also prints the last 40 lines of its log. A step behind a failed one is skipped. The steps, their tiers, and their order are a table in `src/gate.ts`.
+
+## Tests
+
+Vitest has two projects (`vite.config.ts`). `unit` is every test file except `*.sim.test.ts`, and runs in about 20 s. `sim` is the `*.sim.test.ts` files: long economy runs, anything that plays the economy for over a second, whether in a test or at collect time in a `describe` body. `npx vitest run --project unit` runs one project; the full tier's coverage run takes both, and the coverage floors are measured over both together.
+
+Tests run in plain `node`. A test file that needs the DOM opens with `// @vitest-environment happy-dom`. A test that mounts the mountain screen stops it afterwards (`stopScreens` in `src/mountain-screen.harness.ts`), so its one-second tick does not run on into later tests.
 
 ## Strategy lab
 
