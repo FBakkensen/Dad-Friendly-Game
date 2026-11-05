@@ -4,15 +4,6 @@
       "url": "https://api.pixellab.ai/mcp",
       "auth": "bearer",
       "bearerTokenEnv": "PIXELLAB_TOKEN"
-    },
-    "chrome-devtools": {
-      "command": "chrome-devtools-mcp",
-      "args": [
-        "--executablePath=/usr/bin/chromium",
-        "--headless",
-        "--isolated",
-        "--no-usage-statistics"
-      ]
     }
   }
 }

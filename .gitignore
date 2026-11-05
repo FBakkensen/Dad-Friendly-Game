@@ -41,3 +41,6 @@ mockups/shots/
 
 # MCP adapter project overrides (never tokens)
 .pi/mcp.json
+
+# npm run play shots and log
+play-shots/

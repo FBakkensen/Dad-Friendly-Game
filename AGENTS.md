@@ -66,7 +66,7 @@ How we build is dad-friendly too. The interview format (one question, three opti
 
 - Strongly typed TypeScript. Illegal save states should be hard to represent (discriminated unions, not optional-field bags).
 - `tsc` clean. Unit tests green for the sliver (Vitest).
-- Verify in a real browser through the `chrome-devtools` MCP tools (configured in `.mcp.json`, driven via the `mcp` proxy tool): serve the app (`npm run dev` or a build + preview), `navigate_page` to it, `take_screenshot`, tap the fat target with `click`/`click_at`, and check `list_console_messages`. Use `list_network_requests` to prove cloud-save writes, and `resize_page` for the phone-shaped check.
+- Verify in a real browser with `npm run play` (`scripts/play.mjs`, Chrome through puppeteer-core): start from a named save, tap the fat target by selector or aria-label, and look at the phone and desktop shots. Read `log.txt` for the console, failed requests, and the save line. Any page error fails the run. `npm run play -- --help` lists the saves and actions.
 - Do not add Playwright unless asked. Do not claim a sliver is done from code inspection alone.
 
 ### Finish the sitting, not the idea pile

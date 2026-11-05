@@ -2,6 +2,22 @@
 
 How the game plays is in `docs/DESIGN.md`. How it is built is in `docs/ARCHITECTURE.md`.
 
+## Play-test in a browser
+
+`npm run play` opens the game in Chrome (puppeteer-core, on its own Vite dev server) on a phone screen and a desktop screen. It starts from a named save, runs a short list of taps, and keeps a shot after each step. It is how an agent proves a sliver in a real browser.
+
+```bash
+npm run play -- tap:.mountain*5 label:Buys
+npm run play -- --save mid --screen phone label:Engineers
+npm run play -- --help
+```
+
+The saves are `fresh` (nothing saved), `early`, `mid`, `workshop`, `crew`, and `late` (one stone left, so a tap finds the legend). They come from the visual check's fixtures in `scripts/fixtures.mjs`. The actions are `tap:<css>`, `label:<accessible name>`, `wait:<ms>`, and `wait:<css>`. A tap takes `*N` to repeat. Shots and `log.txt` (console, page errors, failed requests, and the save line) go to `play-shots/`, which is gitignored and cleared on each run. `--out` picks another folder and `--url` drives an app that is already running. Any page error, or an action that cannot run, exits non-zero.
+
+## Fast checks
+
+`npm run check:fast` is the edit-and-test loop. It runs the typecheck, then ESLint and `vitest related` on the code files changed since `origin/main`, including staged, unstaged, and untracked ones. `npm run check` is still the gate before every PR.
+
 ## Strategy lab
 
 `npm run lab` plays every registered player type and writes `reports/strategy-lab.md` and `reports/strategy-lab.json`. Those files are gitignored. Locally the seed count is `LOCAL_SEEDS`. CI passes `--ci` and uses `CI_SEEDS` (see `src/lab/targets.ts`). `--seeds` overrides either. The lab is not part of the game the player runs. CI sets `LAB_STRICT=1`, so a missed guardrail fails the build. Without that variable a miss is a warning.

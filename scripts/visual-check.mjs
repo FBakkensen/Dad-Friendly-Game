@@ -7,6 +7,16 @@
 import { existsSync, mkdirSync } from "node:fs";
 import puppeteer from "puppeteer-core";
 import { createServer } from "vite";
+import {
+  CREW,
+  SAVE_KEY,
+  crewMountain,
+  freshMountain,
+  lastStoneSave,
+  openMountain,
+  seedJson,
+  workshopSave,
+} from "./fixtures.mjs";
 
 // Serves the app itself unless VISUAL_URL points at a running one.
 const server =
@@ -26,34 +36,12 @@ const CHROME =
     existsSync(path),
   ) ??
   "/usr/bin/google-chrome";
-const SAVE_KEY = "dad-friendly-session";
 const VIEWPORTS = [
   [424, 830],
   [424, 924],
   [412, 830],
   [440, 924],
 ];
-// Every tier so far on screen: the compact, three-to-a-row grid.
-const CREW = {
-  remaining: 90_700_000,
-  pocket: 9_765,
-  helpers: 51,
-  carts: 24,
-  drills: 6,
-  borers: 2,
-  // Both boosts running: their chips must sit in the mountain, not the flow.
-  boosts: { sharper: Date.now() + 3_600_000, overtime: Date.now() + 3_600_000 },
-};
-/** A current save that owns a borer already has its first engineer. */
-function withCurrentEngineer(mountain) {
-  if ((mountain.borers ?? 0) < 1 || mountain.engineers !== undefined) {
-    return mountain;
-  }
-  return {
-    ...mountain,
-    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
-  };
-}
 
 // One stone short of the Lantern of Guidance, away for ten minutes.
 const BEFORE_LANTERN = {
@@ -115,15 +103,7 @@ async function open(
       }
     },
     SAVE_KEY,
-    // Seeds are current saves (M7 staffing grant already done) unless they say `legacy`.
-    JSON.stringify(
-      save.legacy || save.mountain === undefined
-        ? { ...save, legacy: undefined }
-        : {
-            ...save,
-            mountain: withCurrentEngineer({ staffed: 2, ...save.mountain }),
-          },
-    ),
+    seedJson(save),
   );
   await page.goto(new URL(search, BASE).href, { waitUntil: "networkidle0" });
   return { page, close: () => context.close() };
@@ -1109,18 +1089,7 @@ for (const viewport of [
   [424, 924],
 ]) {
   const label = `${String(viewport[0])}x${String(viewport[1])}`;
-  const { page, close } = await open(viewport, {
-    version: 5,
-    mountain: {
-      remaining: 1,
-      pocket: 0,
-      helpers: 999,
-      kids: 999,
-      staffed: 2,
-      legacy: 1,
-    },
-    lastSeen: Date.now(),
-  });
+  const { page, close } = await open(viewport, lastStoneSave());
   await page.tap(".mountain");
   await page.waitForSelector(".relic-reveal:not([hidden])");
   await page.tap(".relic-reveal:not(.legend) .reveal-continue");
@@ -1557,46 +1526,6 @@ async function shot(page, name) {
     return;
   }
   await page.screenshot({ path: `${SHOTS}/${name}.png` });
-}
-
-function workshopSave(now, busy) {
-  return {
-    version: 6,
-    lastSeen: now,
-    mountain: {
-      remaining: 240_000_000 - 12_000_000,
-      pocket: busy ? 50_000 : 200_000,
-      helpers: 4,
-      carts: 1,
-      staffed: 2,
-      startedAt: now - 1_000,
-    },
-    workshop: {
-      materials: {
-        clay: busy ? 0 : 2,
-        iron: busy ? 0 : 1,
-        crystal: 0,
-        heartstone: 0,
-      },
-      recipes: [
-        "iron-rails",
-        "sturdy-props",
-        "blasting-charge",
-        "reinforce",
-        "axle-grease",
-      ],
-      ...(busy
-        ? {
-            bench: {
-              recipe: "sturdy-props",
-              startedAt: now - 60_000,
-              endsAt: now + 9 * 60_000,
-            },
-            axleUntil: now + 12 * 60_000,
-          }
-        : {}),
-    },
-  };
 }
 
 for (const viewport of WORKSHOP_SIZES) {
@@ -2285,46 +2214,6 @@ const SHELF_VIEWS = [
   [1440, 900],
 ];
 const PHONE_SHOTS = new Set(["424x830", "424x924", "440x924"]);
-const EMPTY_WORKSHOP = {
-  materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-  recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
-};
-/** A v6 save. lastSeen is now so the welcome card stays shut. */
-function freshMountain() {
-  return {
-    version: 6,
-    lastSeen: Date.now(),
-    mountain: { remaining: 240_000_000, pocket: 0, helpers: 0 },
-    workshop: EMPTY_WORKSHOP,
-  };
-}
-// Hammer depth, so three relics glow. Granite is open and a borer is owned,
-// so Workshop and Engineers open too.
-function openMountain() {
-  return {
-    version: 6,
-    lastSeen: Date.now(),
-    mountain: {
-      remaining: 240_000_000 - 25_000_000,
-      pocket: 5_000_000,
-      helpers: 20,
-      carts: 5,
-      drills: 2,
-      borers: 1,
-      staffed: 2,
-    },
-    workshop: {
-      ...EMPTY_WORKSHOP,
-      recipes: [
-        "iron-rails",
-        "sturdy-props",
-        "blasting-charge",
-        "reinforce",
-        "axle-grease",
-      ],
-    },
-  };
-}
 
 async function shelfCentre(page) {
   return page.evaluate(() => {
@@ -2394,22 +2283,6 @@ async function thumbState(page) {
       );
     return { ok: laidOut, buys, workshop, engineers, upgrades };
   });
-}
-
-/** A crewed Topsoil, so both lists are long and the crew line is on screen. */
-function crewMountain() {
-  return {
-    version: 6,
-    lastSeen: Date.now(),
-    mountain: {
-      remaining: 240_000_000 - 500_000,
-      pocket: 6_854,
-      helpers: 18,
-      carts: 6,
-      staffed: 2,
-    },
-    workshop: EMPTY_WORKSHOP,
-  };
 }
 
 async function scrollSheet(page, scroller, edge) {
