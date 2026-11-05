@@ -8,6 +8,7 @@
  *   npm run mockups
  */
 import { existsSync, mkdirSync } from "node:fs";
+import { availableParallelism } from "node:os";
 import { join } from "node:path";
 import puppeteer from "puppeteer-core";
 import { createServer } from "vite";
@@ -130,10 +131,6 @@ const check = (ok, label) => {
 const browser = await puppeteer.launch({
   executablePath: CHROME,
   args: ["--no-sandbox"],
-});
-const page = await browser.newPage();
-page.on("pageerror", (error) => {
-  failures.push(`page error: ${String(error)}`);
 });
 
 function shotName(scene, phase, control, width, height) {
@@ -361,7 +358,8 @@ async function fit(page, label) {
   return result;
 }
 
-for (const [width, height] of SIZES) {
+/** One sheet at one phone size: the fit bar, the phase's own check, a shot. */
+async function checkShot(page, [width, height], [scene, phase, control]) {
   await page.setViewport({
     width,
     height,
@@ -369,101 +367,99 @@ for (const [width, height] of SIZES) {
     isMobile: true,
     hasTouch: true,
   });
-  for (const [scene, phase, control] of SHOTS) {
-    const url = new URL("mockups/preview.html", BASE);
-    url.searchParams.set("scene", scene);
-    url.searchParams.set("phase", phase);
-    url.searchParams.set("shot", "1");
-    if (control !== "") {
-      url.searchParams.set("control", control);
-    }
-    await page.goto(url.href, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector("#mock[data-ready='1']");
-    await page.waitForFunction(() =>
-      [...document.images].every((img) => img.complete && img.naturalWidth > 0),
-    );
-    const name = `${String(width)}x${String(height)} ${scene} ${phase} ${control}`;
-    const result = await fit(page, name);
-    if (phase === "shake") {
-      const shook = await page.$eval("button.is-shaking", (button) => {
-        const style = getComputedStyle(button);
-        const reason = button.getAttribute("data-short") ?? "";
-        const tap = button.getAttribute("data-tap") ?? "";
-        return (
-          button.disabled &&
-          reason === "Need 5 more iron" &&
-          (button.textContent ?? "").includes(reason) &&
-          tap.includes("gentle shake") &&
-          tap.includes(reason) &&
-          style.transform !== "none" &&
-          style.backgroundColor === "rgb(58, 42, 28)"
-        );
-      });
-      check(shook, `${name} short craft shakes and names the gap`);
-    }
-    if (phase === "press") {
-      const pressed = await page.$eval("button.is-pressed", (button) => {
-        const style = getComputedStyle(button);
-        return style.transform !== "none";
-      });
-      check(pressed, `${name} presses in`);
-    }
-    if (phase === "float") {
-      const floating = await page.$$eval(".float-chip", (chips) => {
-        return (
-          chips.length > 0 &&
-          chips.every((chip) => {
-            const box = chip.getBoundingClientRect();
-            return (
-              getComputedStyle(chip).display !== "none" &&
-              box.left >= 0 &&
-              box.right <= innerWidth &&
-              box.top >= 0 &&
-              box.bottom <= innerHeight
-            );
-          })
-        );
-      });
-      check(floating, `${name} materials float inside the screen`);
-    }
-    if (phase === "hammer") {
-      const hammer = await page.$eval(".hammer", (img) => {
-        const style = getComputedStyle(img);
-        const box = img.getBoundingClientRect();
-        return (
-          style.display !== "none" &&
-          img.naturalWidth > 0 &&
-          box.right <= innerWidth &&
-          box.bottom <= innerHeight
-        );
-      });
-      check(hammer, `${name} hammer tap is on screen`);
-    }
-    if (phase === "busy") {
-      const bar = await page.$eval(".bar span", (span) => {
-        const box = span.getBoundingClientRect();
-        return box.width > 8 && box.width < span.parentElement.clientWidth;
-      });
-      check(bar, `${name} bench progress is a partial bar`);
-    }
-    if (result.scroll && result.labelsOk && result.buttonsOk) {
-      await page.screenshot({
-        path: join(OUT, shotName(scene, phase, control, width, height)),
-        type: "png",
-      });
-    }
+  const url = new URL("mockups/preview.html", BASE);
+  url.searchParams.set("scene", scene);
+  url.searchParams.set("phase", phase);
+  url.searchParams.set("shot", "1");
+  if (control !== "") {
+    url.searchParams.set("control", control);
+  }
+  await page.goto(url.href, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#mock[data-ready='1']");
+  await page.waitForFunction(() =>
+    [...document.images].every((img) => img.complete && img.naturalWidth > 0),
+  );
+  const name = `${String(width)}x${String(height)} ${scene} ${phase} ${control}`;
+  const result = await fit(page, name);
+  if (phase === "shake") {
+    const shook = await page.$eval("button.is-shaking", (button) => {
+      const style = getComputedStyle(button);
+      const reason = button.getAttribute("data-short") ?? "";
+      const tap = button.getAttribute("data-tap") ?? "";
+      return (
+        button.disabled &&
+        reason === "Need 5 more iron" &&
+        (button.textContent ?? "").includes(reason) &&
+        tap.includes("gentle shake") &&
+        tap.includes(reason) &&
+        style.transform !== "none" &&
+        style.backgroundColor === "rgb(58, 42, 28)"
+      );
+    });
+    check(shook, `${name} short craft shakes and names the gap`);
+  }
+  if (phase === "press") {
+    const pressed = await page.$eval("button.is-pressed", (button) => {
+      const style = getComputedStyle(button);
+      return style.transform !== "none";
+    });
+    check(pressed, `${name} presses in`);
+  }
+  if (phase === "float") {
+    const floating = await page.$$eval(".float-chip", (chips) => {
+      return (
+        chips.length > 0 &&
+        chips.every((chip) => {
+          const box = chip.getBoundingClientRect();
+          return (
+            getComputedStyle(chip).display !== "none" &&
+            box.left >= 0 &&
+            box.right <= innerWidth &&
+            box.top >= 0 &&
+            box.bottom <= innerHeight
+          );
+        })
+      );
+    });
+    check(floating, `${name} materials float inside the screen`);
+  }
+  if (phase === "hammer") {
+    const hammer = await page.$eval(".hammer", (img) => {
+      const style = getComputedStyle(img);
+      const box = img.getBoundingClientRect();
+      return (
+        style.display !== "none" &&
+        img.naturalWidth > 0 &&
+        box.right <= innerWidth &&
+        box.bottom <= innerHeight
+      );
+    });
+    check(hammer, `${name} hammer tap is on screen`);
+  }
+  if (phase === "busy") {
+    const bar = await page.$eval(".bar span", (span) => {
+      const box = span.getBoundingClientRect();
+      return box.width > 8 && box.width < span.parentElement.clientWidth;
+    });
+    check(bar, `${name} bench progress is a partial bar`);
+  }
+  if (result.scroll && result.labelsOk && result.buttonsOk) {
+    await page.screenshot({
+      path: join(OUT, shotName(scene, phase, control, width, height)),
+      type: "png",
+    });
   }
 }
 
-// Wide Latin face, the tight sheet. Same fit bar, one proof shot.
-await page.setViewport({
-  width: 424,
-  height: 830,
-  deviceScaleFactor: 1,
-  isMobile: true,
-  hasTouch: true,
-});
-for (const [scene, phase, control] of SHOTS) {
+/** Wide Latin face, the tight sheet. Same fit bar, one proof shot. */
+async function checkWide(page, [scene, phase, control]) {
+  await page.setViewport({
+    width: 424,
+    height: 830,
+    deviceScaleFactor: 1,
+    isMobile: true,
+    hasTouch: true,
+  });
   const url = new URL("mockups/preview.html", BASE);
   url.searchParams.set("scene", scene);
   url.searchParams.set("phase", phase);
@@ -487,6 +483,43 @@ for (const [scene, phase, control] of SHOTS) {
     });
   }
 }
+
+// Every shot loads its own URL, so shots are independent. MOCKUP_JOBS pages
+// (default: one per core) pull them from one queue, on one Chrome.
+const queue = [
+  ...SIZES.flatMap((size) =>
+    SHOTS.map((shot) => () => [checkShot, size, shot]),
+  ),
+  ...SHOTS.map((shot) => () => [checkWide, shot]),
+];
+const jobs = Math.max(
+  1,
+  Number(process.env.MOCKUP_JOBS ?? availableParallelism()),
+);
+let next = 0;
+await Promise.all(
+  Array.from({ length: Math.min(jobs, queue.length) }, async () => {
+    // Its own context, so its own window: a background tab in a shared
+    // window gets no animation frames, and the frame-polled waits stall.
+    const context = await browser.createBrowserContext();
+    const page = await context.newPage();
+    page.on("pageerror", (error) => {
+      failures.push(`page error: ${String(error)}`);
+    });
+    while (next < queue.length) {
+      const [run, ...args] = queue[next]();
+      next += 1;
+      try {
+        await run(page, ...args);
+      } catch (error) {
+        failures.push(
+          `${run === checkWide ? "wide " : ""}${JSON.stringify(args)} threw: ${String(error)}`,
+        );
+      }
+    }
+    await context.close();
+  }),
+);
 
 await browser.close();
 await server?.close();
