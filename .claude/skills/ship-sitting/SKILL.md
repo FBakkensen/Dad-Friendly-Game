@@ -32,6 +32,7 @@ Push with `git push` from the shell, never with the GitHub MCP `push_files` or `
 
 ## Commit
 
+- The work is proven: gate green, and `npm run play` seen for anything the player sees.
 - On the sitting's branch, not `main`.
 - Stage only this issue's files. No secrets (`.env`, Firebase, PixelLab tokens).
 - If a second sliver snuck in, stop. That work gets its own issue, not this PR.
@@ -39,9 +40,9 @@ Push with `git push` from the shell, never with the GitHub MCP `push_files` or `
 
 ## Review
 
-Use `superpowers:requesting-code-review` on the branch diff that would merge (`origin/main...HEAD`). If a superpowers plan just ended with its final whole-branch review (and its scoped re-review) and nothing has been committed since, that review counts.
+Use `superpowers:requesting-code-review` on the branch diff that would merge (`origin/main...HEAD`). If a superpowers plan just ended with a final whole-branch review by a fresh reviewer (and its scoped re-review, if any) and nothing has been committed since, that review counts. A self-review never counts.
 
-Do not open the PR until the review returns only Minor findings, or none. Every Critical or Important finding still open is a non-nit, including one a plan parked with a ruling. Fix it, commit, and review again. The ask to ship includes those fix commits. Minor findings are nits and may ship. If a non-nit is still there after two fix rounds, stop and ask.
+Do not open the PR until the review returns only Minor findings, or none. Every Critical or Important finding still open is a non-nit, including one a plan parked with a ruling. Fix it, commit, and review again. If you judge a finding wrong, ask the human as one question with three options and one recommended. The ask to ship includes those fix commits. Minor findings are nits and may ship. If a non-nit is still there after two fix rounds, stop and ask.
 
 ## Open the PR
 
@@ -58,7 +59,7 @@ Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Re
 
 ## Rulings
 
-- ... (rulings and deferred Minor findings from the plan; omit if none)
+- ... (rulings and deferred Minor findings from the plan and the review; omit if none)
 
 Fixes #N
 ```
