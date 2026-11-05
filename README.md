@@ -12,7 +12,7 @@ npm run play -- --save mid --screen phone label:Engineers
 npm run play -- --help
 ```
 
-The saves are `fresh` (nothing saved), `early`, `mid`, `workshop`, and `late`. They come from the visual check's fixtures in `scripts/fixtures.mjs`. The actions are `tap:<css>`, `label:<accessible name>`, `wait:<ms>`, and `wait:<css>`. A tap takes `*N` to repeat. Shots and `log.txt` (console, page errors, and the save line) go to `play-shots/`, which is gitignored and cleared on each run. `--out` picks another folder and `--url` drives an app that is already running. Any page error, or an action that cannot run, exits non-zero.
+The saves are `fresh` (nothing saved), `early`, `mid`, `workshop`, `crew`, and `late` (one stone left, so a tap finds the legend). They come from the visual check's fixtures in `scripts/fixtures.mjs`. The actions are `tap:<css>`, `label:<accessible name>`, `wait:<ms>`, and `wait:<css>`. A tap takes `*N` to repeat. Shots and `log.txt` (console, page errors, failed requests, and the save line) go to `play-shots/`, which is gitignored and cleared on each run. `--out` picks another folder and `--url` drives an app that is already running. Any page error, or an action that cannot run, exits non-zero.
 
 ## Fast checks
 

@@ -90,6 +90,12 @@ export function parseAction(
             message: `"${word}" waits longer than ${String(MAX_WAIT_MS)} ms.`,
           };
     }
+    if (/^\d/.test(body)) {
+      return {
+        kind: "error",
+        message: `"${word}" is not whole milliseconds or a selector.`,
+      };
+    }
     return { kind: "waitFor", target: { by: "selector", selector: body } };
   }
   const repeat = /^(.*\S)\s*\*(\d+)$/.exec(body);
@@ -100,11 +106,17 @@ export function parseAction(
       message: `"${word}" repeats ${String(times)} times; use 1 to ${String(MAX_TAPS)}.`,
     };
   }
-  return {
-    kind: "tap",
-    target: parseTarget(kind, repeat === null ? body : (repeat[1] ?? body)),
-    times,
-  };
+  const target = parseTarget(
+    kind,
+    repeat === null ? body : (repeat[1] ?? body),
+  );
+  if (target.by === "label" && /[()]/.test(target.label)) {
+    return {
+      kind: "error",
+      message: `"${word}": a label cannot hold ( or ). Use tap:<css> instead.`,
+    };
+  }
+  return { kind: "tap", target, times };
 }
 
 function parseScreens(value: string): readonly PlayScreen[] | undefined {

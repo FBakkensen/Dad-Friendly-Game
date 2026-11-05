@@ -60,6 +60,9 @@ describe("parseAction", () => {
     expect(parseAction("wait:60001").kind).toBe("error");
     expect(parseAction("tap:.mountain*0").kind).toBe("error");
     expect(parseAction("tap:.mountain*501").kind).toBe("error");
+    expect(parseAction("wait:500ms").kind).toBe("error");
+    expect(parseAction("wait:1.5").kind).toBe("error");
+    expect(parseAction("label:Promote (2M)").kind).toBe("error");
   });
 });
 

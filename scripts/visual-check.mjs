@@ -12,6 +12,7 @@ import {
   SAVE_KEY,
   crewMountain,
   freshMountain,
+  lastStoneSave,
   openMountain,
   seedJson,
   workshopSave,
@@ -1088,18 +1089,7 @@ for (const viewport of [
   [424, 924],
 ]) {
   const label = `${String(viewport[0])}x${String(viewport[1])}`;
-  const { page, close } = await open(viewport, {
-    version: 5,
-    mountain: {
-      remaining: 1,
-      pocket: 0,
-      helpers: 999,
-      kids: 999,
-      staffed: 2,
-      legacy: 1,
-    },
-    lastSeen: Date.now(),
-  });
+  const { page, close } = await open(viewport, lastStoneSave());
   await page.tap(".mountain");
   await page.waitForSelector(".relic-reveal:not([hidden])");
   await page.tap(".relic-reveal:not(.legend) .reveal-continue");

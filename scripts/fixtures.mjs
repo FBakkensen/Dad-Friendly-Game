@@ -140,3 +140,19 @@ export function crewMountain() {
     workshop: EMPTY_WORKSHOP,
   };
 }
+
+/** The last stone of a run: one tap finds the legend and offers to pass the mine. */
+export function lastStoneSave() {
+  return {
+    version: 5,
+    mountain: {
+      remaining: 1,
+      pocket: 0,
+      helpers: 999,
+      kids: 999,
+      staffed: 2,
+      legacy: 1,
+    },
+    lastSeen: Date.now(),
+  };
+}

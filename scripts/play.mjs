@@ -28,6 +28,7 @@ import {
   CREW,
   SAVE_KEY,
   crewMountain,
+  lastStoneSave,
   openMountain,
   seedJson,
   workshopSave,
@@ -35,18 +36,24 @@ import {
 
 /** Starting saves, from the visual check's fixtures. `fresh` seeds nothing. */
 const SAVES = {
-  fresh: () => undefined,
-  early: () => crewMountain(),
-  mid: () => openMountain(),
-  workshop: () => workshopSave(Date.now(), true),
-  late: () => ({ version: 4, mountain: CREW, lastSeen: Date.now() }),
-};
-const SAVE_NOTES = {
-  fresh: "first open, nothing saved",
-  early: "a crewed Topsoil: workers and carts",
-  mid: "Granite with a borer: Workshop and Engineers open",
-  workshop: "a craft on the bench and axle grease running",
-  late: "every tier so far, both boosts running",
+  fresh: { note: "first open, nothing saved", save: () => undefined },
+  early: { note: "a crewed Topsoil: workers and carts", save: crewMountain },
+  mid: {
+    note: "Granite with a borer: Workshop and Engineers open",
+    save: openMountain,
+  },
+  workshop: {
+    note: "a craft on the bench and axle grease running",
+    save: () => workshopSave(Date.now(), true),
+  },
+  crew: {
+    note: "every tier so far and both boosts, still in the Topsoil",
+    save: () => ({ version: 4, mountain: CREW, lastSeen: Date.now() }),
+  },
+  late: {
+    note: "one stone left: a tap finds the legend and offers passing the mine",
+    save: lastStoneSave,
+  },
 };
 
 const SCREENS = {
@@ -64,7 +71,7 @@ const plan = parsePlayArgs(process.argv.slice(2), Object.keys(SAVES));
 if (plan.kind === "help") {
   console.log(PLAY_USAGE);
   console.log("\nSaves:");
-  for (const [name, note] of Object.entries(SAVE_NOTES)) {
+  for (const [name, { note }] of Object.entries(SAVES)) {
     console.log(`  ${name.padEnd(9)} ${note}`);
   }
   process.exit(0);
@@ -102,6 +109,7 @@ const BASE =
 const log = [];
 let pageErrors = 0;
 let failedSteps = 0;
+let stoppedEarly = false;
 const note = (line) => {
   log.push(line);
   console.log(line);
@@ -136,7 +144,7 @@ async function step(page, screen, action) {
   }
 }
 
-const save = SAVES[plan.save]();
+const save = SAVES[plan.save].save();
 note(`play: save ${plan.save}, ${BASE}`);
 try {
   for (const screen of plan.screens) {
@@ -144,6 +152,19 @@ try {
     const page = await context.newPage();
     page.on("console", (message) => {
       note(`[${screen}] console.${message.type()}: ${message.text()}`);
+    });
+    // Failed loads throw no page error, so list them (offline Firebase is expected).
+    page.on("requestfailed", (request) => {
+      note(
+        `[${screen}] request failed: ${request.method()} ${request.url()} (${request.failure()?.errorText ?? "unknown"})`,
+      );
+    });
+    page.on("response", (response) => {
+      if (response.status() >= 400) {
+        note(
+          `[${screen}] HTTP ${String(response.status())}: ${response.request().method()} ${response.url()}`,
+        );
+      }
     });
     page.on("pageerror", (error) => {
       pageErrors += 1;
@@ -192,7 +213,7 @@ try {
   }
 } catch (error) {
   // A launch or navigation failure still leaves a log behind.
-  failedSteps += 1;
+  stoppedEarly = true;
   note(`play: stopped early: ${String(error)}`);
 } finally {
   await browser.close();
@@ -200,9 +221,11 @@ try {
   writeFileSync(join(plan.out, "log.txt"), `${log.join("\n")}\n`);
 }
 
-const verdict =
-  pageErrors === 0 && failedSteps === 0
-    ? "play: ok"
+const ok = pageErrors === 0 && failedSteps === 0 && !stoppedEarly;
+const verdict = ok
+  ? "play: ok"
+  : stoppedEarly
+    ? "play: stopped early"
     : `play: ${String(pageErrors)} page error(s), ${String(failedSteps)} failed step(s)`;
 console.log(`${verdict}. Shots and log.txt in ${plan.out}/`);
-process.exit(pageErrors === 0 && failedSteps === 0 ? 0 : 1);
+process.exit(ok ? 0 : 1);
