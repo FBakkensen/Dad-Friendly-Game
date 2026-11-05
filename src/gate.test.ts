@@ -133,10 +133,13 @@ describe("gateSteps", () => {
     const statics = plan.steps.filter((each) => each.after.length === 0);
     const late = plan.steps.filter((each) => each.after.length > 0);
     expect(names(late)).toEqual(["rules", "visual", "mockups"]);
-    for (const each of late) {
-      expect(each.after).toEqual(
-        names(statics).filter((name) => name !== "coverage"),
-      );
+    const staticNames = names(statics).filter((name) => name !== "coverage");
+    // The emulator is light: it runs beside the tests.
+    expect(late[0]?.after).toEqual(staticNames);
+    // The browsers wait for the tests, so the long sims never share the
+    // cores with ten Chrome pages and run past their timeouts.
+    for (const each of late.slice(1)) {
+      expect(each.after).toEqual([...staticNames, "coverage"]);
     }
   });
 });
@@ -159,6 +162,7 @@ describe("the strategy lab in the full tier", () => {
     for (const each of lab) {
       expect(each.env).toEqual({ LAB_STRICT: "1" });
       expect(each.args).toContain("--ci");
+      // Beside the browser checks, after the tests.
       expect(each.after).toEqual(
         steps(true).find((other) => other.name === "visual")?.after,
       );

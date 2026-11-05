@@ -62,6 +62,12 @@ const STATIC = [
   "tokens",
 ];
 
+/**
+ * The browser checks and the lab start once the tests are done: ten Chrome
+ * pages beside the coverage run starve the long sims past their timeouts.
+ */
+const AFTER_TESTS = [...STATIC, "coverage"];
+
 function tsc(project: string, name: string): readonly string[] {
   return [
     "--noEmit",
@@ -188,7 +194,7 @@ export function gateSteps(
           "node",
           [...LAB, "tools/strategy-lab.ts", "--ci"],
           full,
-          STATIC,
+          AFTER_TESTS,
           { LAB_STRICT: "1" },
         ),
         step(
@@ -196,7 +202,7 @@ export function gateSteps(
           "node",
           [...LAB, "tools/generations-lab.ts", "--ci"],
           full,
-          STATIC,
+          AFTER_TESTS,
           { LAB_STRICT: "1" },
         ),
       ]
@@ -248,8 +254,8 @@ export function gateSteps(
     step("tokens", "node", ["scripts/token-check.mjs"], full),
     step("coverage", `${BIN}/vitest`, ["run", "--coverage"], full),
     step("rules", "node", ["scripts/test-rules.mjs"], full, STATIC),
-    step("visual", "node", ["scripts/visual-check.mjs"], full, STATIC),
-    step("mockups", "node", ["scripts/mockup-check.mjs"], full, STATIC),
+    step("visual", "node", ["scripts/visual-check.mjs"], full, AFTER_TESTS),
+    step("mockups", "node", ["scripts/mockup-check.mjs"], full, AFTER_TESTS),
     ...lab,
   ];
 }
