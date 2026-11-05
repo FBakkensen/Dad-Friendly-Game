@@ -2827,7 +2827,8 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  /* Targets stand 8px apart: Quiet and the ore pill, More and Back (#328). */
+  gap: var(--target-gap);
   padding: 6px 8px 8px;
   border: 2px solid #e8a84a;
   border-radius: 12px;
@@ -3198,7 +3199,7 @@ body {
 
 .workshop-pager {
   display: flex;
-  gap: 4px;
+  gap: var(--target-gap);
 }
 
 .workshop-close {
@@ -4388,7 +4389,8 @@ body {
   align-items: center;
   justify-content: flex-end;
   width: auto;
-  min-width: 0;
+  /* A short price like "Craft" is still a full-width target (#328). */
+  min-width: var(--target-min);
   max-width: none;
   min-height: var(--target-min);
   margin: 0;
