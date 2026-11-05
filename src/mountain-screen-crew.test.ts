@@ -200,7 +200,7 @@ describe("upgrades on screen", () => {
     );
     expect(screen.text('[data-upgrade="tap"] .sheet-level')).toBe("Lv 0/10");
     expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
-      "Taps +1.65%, now 1.",
+      "Taps 1 to 9.",
     );
     const buy = screen.root.querySelector<HTMLButtonElement>(
       '[data-upgrade="tap"] .upgrade-buy',
@@ -212,7 +212,7 @@ describe("upgrades on screen", () => {
     );
     expect(screen.text('[data-upgrade="tap"] .sheet-level')).toBe("Lv 1/10");
     expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
-      "Taps +1.65%, now 9.",
+      "Taps 9 to 18.",
     );
     expect(buy?.textContent).toBe("Buy · 368K");
     expect(buy?.disabled).toBe(false);
@@ -560,7 +560,7 @@ describe("crew synergies on screen", () => {
       "Helping hands",
     );
     expect(screen.text('[data-upgrade="cartSyn"] .upgrade-effect')).toBe(
-      "+1% each worker; carts would 12%.",
+      "Carts 6/s to 6.7/s.",
     );
     expect(
       screen.root.querySelector<HTMLElement>('[data-upgrade="drillSyn"]')
@@ -570,7 +570,7 @@ describe("crew synergies on screen", () => {
       .querySelector<HTMLButtonElement>('[data-upgrade="cartSyn"] .upgrade-buy')
       ?.click();
     expect(screen.text('[data-upgrade="cartSyn"] .upgrade-effect')).toBe(
-      "+1% each worker; carts now 12%.",
+      "Carts 6/s to 6.7/s.",
     );
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
       "+6.7 \u219112% · 33/s · Needs 1 worker",
@@ -1337,7 +1337,7 @@ describe("player-facing workers (#139)", () => {
         "Helping hands",
       );
       expect(screen.text('[data-upgrade="cartSyn"] .upgrade-effect')).toMatch(
-        /carts now/,
+        /^Carts \S+\/s to \S+\/s\.$/,
       );
       screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
 

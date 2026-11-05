@@ -18,17 +18,9 @@ import { formatCompact, formatCount } from "./format";
 import type { TroubleKind } from "./hazards";
 import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
-import { AWAY_END_MS, effectiveRates } from "./rates";
+import { AWAY_END_MS, effectiveRates, type Rates } from "./rates";
 import { owned, tierById, type TierId } from "./tiers";
-import {
-  BOOTS_SPEED_PER_LEVEL,
-  STEADY_AWAY_PER_LEVEL,
-  SYNERGY_PER_UNIT,
-  TAP_SHARE_PER_LEVEL,
-  synergyBonus,
-  upgradeLevel,
-  type Upgrade,
-} from "./upgrades";
+import { upgradeLevel, type Upgrade, type UpgradeId } from "./upgrades";
 
 // Player-facing wording shared by the screen's panels.
 
@@ -180,57 +172,84 @@ const shareWords = (share: number): string => {
   return `${pct.toFixed(2)}%`;
 };
 
-/** What Better boots does to this crew, in stones a second. */
-function bootsEffectLine(mountain: Mountain, perWorker: number): string {
-  const factor = 1 + BOOTS_SPEED_PER_LEVEL;
-  const owned = upgradeLevel(mountain, "boots") > 0;
-  const before = owned ? perWorker / factor : perWorker;
-  const after = owned ? perWorker : perWorker * factor;
-  return `Workers ${formatSpeed(before)}/s to ${formatSpeed(after)}/s.`;
+/** The same mountain with one upgrade at another level. */
+const withLevel = (
+  mountain: Mountain,
+  id: UpgradeId,
+  level: number,
+): Mountain => ({
+  ...mountain,
+  upgrades: { ...mountain.upgrades, [id]: level },
+});
+
+/**
+ * What the card's number is before and after. One more level while one is
+ * left; a one-level upgrade keeps showing what it did once it is owned.
+ */
+function beforeAndAfter(
+  upgrade: Upgrade,
+  mountain: Mountain,
+  at: number,
+): { readonly before: Rates; readonly after: Rates } | undefined {
+  const level = upgradeLevel(mountain, upgrade.id);
+  if (upgrade.maxLevel === 1) {
+    return {
+      before: effectiveRates(withLevel(mountain, upgrade.id, 0), at),
+      after: effectiveRates(withLevel(mountain, upgrade.id, 1), at),
+    };
+  }
+  return level >= upgrade.maxLevel
+    ? undefined
+    : {
+        before: effectiveRates(mountain, at),
+        after: effectiveRates(withLevel(mountain, upgrade.id, level + 1), at),
+      };
 }
 
 /**
- * One sentence: the per-level rule and what this crew would get, or gets now.
+ * One sentence: what this card's number is now, and what buying makes it,
+ * from the same rates the game runs on (#324).
  */
 export function upgradeEffectLine(
   upgrade: Upgrade,
   mountain: Mountain,
   at: number,
 ): string {
-  const rates = effectiveRates(mountain, at);
+  const change = beforeAndAfter(upgrade, mountain, at);
+  if (change === undefined) {
+    return `Taps now ${formatCount(effectiveRates(mountain, at).tapYield)}.`;
+  }
+  const { before, after } = change;
   switch (upgrade.id) {
     case "tap":
-      return `Taps +${shareWords(TAP_SHARE_PER_LEVEL)}, now ${formatCount(rates.tapYield)}.`;
+      return `Taps ${formatCount(before.tapYield)} to ${formatCount(after.tapYield)}.`;
     case "boots":
-      return bootsEffectLine(mountain, rates.tierSpeed.helper);
+      return `Workers ${formatSpeed(before.tierSpeed.helper)}/s to ${formatSpeed(after.tierSpeed.helper)}/s.`;
     case "steady":
-      return `Away pay +${shareWords(STEADY_AWAY_PER_LEVEL)}, now ${shareWords(rates.awayPay)}.`;
+      return `Away pay ${shareWords(before.awayPay)} to ${shareWords(after.awayPay)}.`;
     case "cartSyn":
     case "drillSyn":
     case "borerSyn":
     case "machineSyn":
-      return synergyEffectLine(upgrade, mountain);
+      return synergyEffectLine(upgrade, mountain, before, after);
   }
 }
 
-function synergyEffectLine(upgrade: Upgrade, mountain: Mountain): string {
-  if (upgrade.synergy === undefined) {
+function synergyEffectLine(
+  upgrade: Upgrade,
+  mountain: Mountain,
+  before: Rates,
+  after: Rates,
+): string {
+  if (
+    upgrade.synergy === undefined ||
+    owned(mountain, tierById(upgrade.synergy.from)) === 0
+  ) {
     return upgrade.perLevel;
   }
-  const from = tierById(upgrade.synergy.from);
   const to = tierById(upgrade.synergy.to);
-  const count = owned(mountain, from);
-  const target =
-    to.id === "machine"
-      ? "the Great Machine"
-      : `${to.shortName.toLowerCase()}s`;
-  const each = shareWords(SYNERGY_PER_UNIT);
-  const rule = `Each ${from.shortName.toLowerCase()} +${each}`;
-  if (count === 0) {
-    return `${rule} ${target}.`;
-  }
-  const verb = upgradeLevel(mountain, upgrade.id) > 0 ? "now" : "would";
-  return `+${each} each ${from.shortName.toLowerCase()}; ${target} ${verb} ${shareWords(synergyBonus(mountain, upgrade))}.`;
+  const name = to.id === "machine" ? "Great Machine" : `${to.shortName}s`;
+  return `${name} ${formatSpeed(before.tierSpeed[to.id])}/s to ${formatSpeed(after.tierSpeed[to.id])}/s.`;
 }
 
 /**
