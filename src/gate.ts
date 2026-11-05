@@ -8,7 +8,7 @@
 
 export type Tier = "fast" | "full";
 
-export const TIERS: readonly Tier[] = ["fast", "full"];
+const TIERS: readonly Tier[] = ["fast", "full"];
 
 export interface Step {
   readonly name: string;
@@ -180,26 +180,19 @@ export function planTier(tier: Tier, all: readonly Step[]): Plan {
       };
     }
   }
-  const byName = new Map(steps.map((step) => [step.name, step]));
-  const done = new Set<string>();
-  const visiting = new Set<string>();
-  const visit = (name: string): string | undefined => {
-    if (done.has(name)) return undefined;
-    if (visiting.has(name)) return name;
-    visiting.add(name);
-    for (const dep of byName.get(name)?.after ?? []) {
-      const loop = visit(dep);
-      if (loop !== undefined) return loop;
+  // Peel off steps whose dependencies are all peeled; what is left is a cycle.
+  const peeled = new Set<string>();
+  let left = steps;
+  while (left.length > 0) {
+    const ready = left.filter((step) =>
+      step.after.every((name) => peeled.has(name)),
+    );
+    if (ready.length === 0) {
+      const loop = left.map((step) => step.name).join(", ");
+      return { kind: "invalid", message: `${loop} wait on each other.` };
     }
-    visiting.delete(name);
-    done.add(name);
-    return undefined;
-  };
-  for (const step of steps) {
-    const loop = visit(step.name);
-    if (loop !== undefined) {
-      return { kind: "invalid", message: `${loop} waits on itself.` };
-    }
+    for (const step of ready) peeled.add(step.name);
+    left = left.filter((step) => !peeled.has(step.name));
   }
   return { kind: "ok", steps };
 }

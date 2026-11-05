@@ -179,7 +179,7 @@ describe("planTier", () => {
   it("rejects a cycle", () => {
     expect(
       planTier("full", [step("a", ["c"]), step("b", ["a"]), step("c", ["b"])]),
-    ).toEqual({ kind: "invalid", message: "a waits on itself." });
+    ).toEqual({ kind: "invalid", message: "a, b, c wait on each other." });
   });
 
   it("accepts a diamond", () => {
