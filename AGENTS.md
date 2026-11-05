@@ -66,6 +66,7 @@ How we build is dad-friendly too. The interview format (one question, three opti
 
 - Strongly typed TypeScript. Illegal save states should be hard to represent (discriminated unions, not optional-field bags).
 - `tsc` clean. Unit tests green for the sliver (Vitest).
+- The gate has two tiers (`scripts/gate.mjs`, steps in `src/gate.ts`). While editing, run `npm run gate -- fast`: incremental typecheck, plus lint and `vitest related` on the code changed since `origin/main`. Before every push to a PR branch, run `npm run gate -- full` (`npm run check` is the same thing): every check, independent steps in parallel. Each prints one line per step. A failed step prints its log tail, and every full log is in `.gate/logs/`.
 - Verify in a real browser with `npm run play` (`scripts/play.mjs`, Chrome through puppeteer-core): start from a named save, tap the fat target by selector or aria-label, and look at the phone and desktop shots. Read `log.txt` for the console, failed requests, and the save line. Any page error fails the run. `npm run play -- --help` lists the saves and actions.
 - Do not add Playwright unless asked. Do not claim a sliver is done from code inspection alone.
 
