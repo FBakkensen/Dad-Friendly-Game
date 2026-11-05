@@ -23,7 +23,6 @@ reports/
 # M9-2 mockup PNGs. `npm run mockups` writes them; the PR attaches the artifacts.
 mockups/shots/
 
-.cursor/mcp.json
 .env
 .env.*
 !.env.example
@@ -39,8 +38,9 @@ mockups/shots/
 *.sln
 *.sw?
 
-# MCP adapter project overrides (never tokens)
-.pi/mcp.json
+# Old Cursor and Pi config on local machines. It may hold MCP tokens.
+.cursor/
+.pi/
 
 # npm run play shots and log
 play-shots/

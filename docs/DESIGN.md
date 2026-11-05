@@ -8,7 +8,7 @@ Deep inside a mountain of **240,000,000 stones** lie the six Legendary Relics of
 
 The tone lifts dads up. It honors them; it does not joke at their expense.
 
-It stays a dad-friendly game (see `AGENTS.md`): two-minute sessions, gentle, never punishing, close is pause, silent until unmuted, phone and PC, one save.
+It stays a dad-friendly game (see `.claude/rules/dad-friendly-game.md`): two-minute sessions, gentle, never punishing, close is pause, silent until unmuted, phone and PC, one save.
 
 ## Core loop
 

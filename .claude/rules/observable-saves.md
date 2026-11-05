@@ -1,15 +1,13 @@
----
-description: Cloud save is the cross-device copy. The phone keeps a backup. Failures must be visible and logged.
-alwaysApply: true
----
-
 # Observable saves
+
+Cloud save is the cross-device copy. The phone keeps a backup. Failures must be visible and logged.
 
 Signed-in progress lives in one Firestore document per Google uid. The phone also keeps one localStorage backup of the full save for that uid. It is written when the mountain changes, and synchronously on hide and pagehide. It is never deleted. Launch keeps the copy that is ahead: a later run, else more stones mined, else a newer `lastSeen`. A tie between two real copies keeps the phone. A phone that has never saved keeps the cloud document. The phone is uploaded only when it is strictly ahead.
 
 ## Do
 
 - Treat the cloud document as the cross-device copy while signed in. Watch it. Write it on a dig, hide, and pagehide. Keep the phone backup current, and never remove it.
+- Mirror every new or changed save field in `firestore.rules`, with the emulator round-trip test passing.
 - Show a save line: account, loading, or unreachable.
 - Record structured log events (`code`, `detail`, counts). Put the latest on the save line as `data-log`.
 - Keep boot HTML `no-cache, no-store`. Hashed `/assets/**` may be immutable.

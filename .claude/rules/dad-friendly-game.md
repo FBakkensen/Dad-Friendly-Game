@@ -1,16 +1,13 @@
----
-description: What a dad-friendly game is. Apply to design, UX, persistence, art, audio, and runtime AI.
-alwaysApply: true
----
-
 # Dad-friendly game
+
+What a dad-friendly game is. Apply to design, UX, persistence, art, audio, and runtime AI.
 
 The player is an adult after lights-out. Kids are asleep in the house. Content may be sharp. Audio must not be.
 
 A dad-friendly game has at least these characteristics:
 
 - can be played in short interrupted sessions
-- is relaxing for the brain after a long day when the kids is finally asleep
+- is relaxing for the brain after a long day when the kids are finally asleep
 - can be played everywhere both PC and mobile
 - can survive instant quit and picked up later
 
@@ -31,7 +28,13 @@ Turn-based or idle are both in bounds. Real-time twitch play is not.
 ## Devices
 
 - One web app on phone and PC. Touch-first. Fat targets. Mouse uses the same UI.
+- The phone layout never scrolls (the visual check guards it).
 - Same save on every device from day one. Identity is one-tap Google. Backend is a save blob, not a live world. No SpaceTimeDB.
+
+## Numbers and discoveries
+
+- Decisions and purchases show real numbers: prices, output, tending gains.
+- Discoveries stay vague: relic depths and hints, expedition finds, hazards, and what comes next. Use the wording already in the UI.
 
 ## Senses and art
 

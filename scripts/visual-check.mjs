@@ -1563,13 +1563,14 @@ const WORKSHOP_SIZES = [
   [424, 924],
   [424, 830],
 ];
-const SHOTS = "/opt/cursor/artifacts";
-if (existsSync("/opt/cursor")) {
+// Set VISUAL_SHOTS to a folder to keep a PNG of each checked screen.
+const SHOTS = process.env.VISUAL_SHOTS;
+if (SHOTS) {
   mkdirSync(SHOTS, { recursive: true });
 }
 
 async function shot(page, name) {
-  if (!existsSync(SHOTS)) {
+  if (!SHOTS) {
     return;
   }
   await page.screenshot({ path: `${SHOTS}/${name}.png` });

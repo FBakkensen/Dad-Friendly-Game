@@ -1,5 +1,0 @@
-{
-  "build": { "context": "..", "dockerfile": "Dockerfile" },
-  "install": "bash scripts/cloud-setup.sh",
-  "terminals": []
-}
