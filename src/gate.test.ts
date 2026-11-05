@@ -4,8 +4,13 @@ import {
   type Step,
   changedCode,
   exitCode,
+  economyChanged,
   gateSteps,
+  importClosure,
+  isGitPush,
+  LAB_ENTRIES,
   logTail,
+  relativeImports,
   nextMoves,
   parseArgs,
   planTier,
@@ -20,6 +25,7 @@ const step = (name: string, after: readonly string[] = []): Step => ({
   args: [],
   tiers: ["full"],
   after,
+  env: {},
 });
 
 const names = (steps: readonly Step[]) => steps.map((each) => each.name);
@@ -60,7 +66,7 @@ describe("splitGitPaths", () => {
 
 describe("gateSteps", () => {
   const fast = (changed: readonly string[]) => {
-    const plan = planTier("fast", gateSteps(changed));
+    const plan = planTier("fast", gateSteps(changed, { economy: false }));
     if (plan.kind !== "ok") throw new Error(plan.message);
     return plan.steps;
   };
@@ -103,7 +109,7 @@ describe("gateSteps", () => {
   });
 
   it("full tier runs every check, browser and emulator after the static ones", () => {
-    const plan = planTier("full", gateSteps(["src/a.ts"]));
+    const plan = planTier("full", gateSteps(["src/a.ts"], { economy: false }));
     if (plan.kind !== "ok") throw new Error(plan.message);
     expect(names(plan.steps)).toEqual([
       "env",
@@ -127,10 +133,139 @@ describe("gateSteps", () => {
     const statics = plan.steps.filter((each) => each.after.length === 0);
     const late = plan.steps.filter((each) => each.after.length > 0);
     expect(names(late)).toEqual(["rules", "visual", "mockups"]);
-    for (const each of late) {
+    const staticNames = names(statics).filter((name) => name !== "coverage");
+    // The emulator is light: it runs beside the tests.
+    expect(late[0]?.after).toEqual(staticNames);
+    // The browsers wait for the tests, so the long sims never share the
+    // cores with ten Chrome pages and run past their timeouts.
+    for (const each of late.slice(1)) {
+      expect(each.after).toEqual([...staticNames, "coverage"]);
+    }
+  });
+});
+
+describe("the strategy lab in the full tier", () => {
+  const steps = (economy: boolean) => {
+    const plan = planTier("full", gateSteps([], { economy }));
+    if (plan.kind !== "ok") throw new Error(plan.message);
+    return plan.steps;
+  };
+
+  it("is left out when no economy code changed", () => {
+    expect(names(steps(false))).not.toContain("lab");
+    expect(names(steps(false))).not.toContain("lab:generations");
+  });
+
+  it("runs both strict lab commands beside the browser checks", () => {
+    const lab = steps(true).filter((each) => each.name.startsWith("lab"));
+    expect(names(lab)).toEqual(["lab", "lab:generations"]);
+    for (const each of lab) {
+      expect(each.env).toEqual({ LAB_STRICT: "1" });
+      expect(each.args).toContain("--ci");
+      // Beside the browser checks, after the tests.
       expect(each.after).toEqual(
-        names(statics).filter((name) => name !== "coverage"),
+        steps(true).find((other) => other.name === "visual")?.after,
       );
+    }
+    expect(lab.map((each) => each.args.at(-2))).toEqual([
+      "tools/strategy-lab.ts",
+      "tools/generations-lab.ts",
+    ]);
+  });
+
+  it("is never in the fast tier", () => {
+    const plan = planTier("fast", gateSteps(["src/a.ts"], { economy: true }));
+    expect(plan.kind === "ok" && names(plan.steps)).not.toContain("lab");
+  });
+});
+
+describe("relativeImports", () => {
+  it("finds static, re-exported, side-effect, and dynamic relative imports", () => {
+    expect(
+      relativeImports(`import a from "./a";
+import type { B } from "../b.ts";
+export { c } from './c';
+import "./side";
+const d = await import("./d");
+import x from "vitest";
+import {
+  e,
+} from "./e";`),
+    ).toEqual(["./a", "../b.ts", "./c", "./side", "./d", "./e"]);
+  });
+});
+
+describe("importClosure and economyChanged", () => {
+  const files = new Map<string, string>([
+    ["tools/lab.ts", 'import { run } from "../src/lab/run";'],
+    ["src/lab/run.ts", 'import { tiers } from "../tiers";\nimport "./gone";'],
+    ["src/tiers.ts", 'import { rate } from "./economy/index.ts";'],
+    ["src/economy/index.ts", 'export * from "./rates";'],
+    // A cycle back to tiers: seen once, not again.
+    ["src/economy/rates.ts", 'import "../tiers";\nexport const rate = 1;'],
+    ["src/menu-panel.ts", 'import { tiers } from "./tiers";'],
+  ]);
+  const read = (path: string) => files.get(path);
+
+  it("follows relative imports from the entries, with or without .ts", () => {
+    expect([...importClosure(["tools/lab.ts"], read)].sort()).toEqual([
+      "src/economy/index.ts",
+      "src/economy/rates.ts",
+      "src/lab/run.ts",
+      "src/tiers.ts",
+      "tools/lab.ts",
+    ]);
+  });
+
+  it("skips an entry or an import that is not there", () => {
+    expect([...importClosure(["tools/missing.ts"], read)]).toEqual([]);
+  });
+
+  it("says the economy changed only for a file the lab reaches", () => {
+    const closure = importClosure(["tools/lab.ts"], read);
+    expect(economyChanged(["src/economy/rates.ts"], closure)).toBe(true);
+    expect(economyChanged(["src/menu-panel.ts", "README.md"], closure)).toBe(
+      false,
+    );
+    expect(economyChanged([], closure)).toBe(false);
+  });
+
+  it("starts from both lab commands and their loader", () => {
+    expect(LAB_ENTRIES).toEqual(
+      expect.arrayContaining([
+        "tools/strategy-lab.ts",
+        "tools/generations-lab.ts",
+        "tools/lab-register.mjs",
+      ]),
+    );
+  });
+});
+
+describe("isGitPush", () => {
+  it("finds a push anywhere in the command", () => {
+    for (const command of [
+      "git push",
+      "git push -u origin claude/branch",
+      "cd /repo && git push origin main",
+      "git -C /repo push",
+      "git -c color.ui=never --no-pager push",
+      "npm run gate -- full; git push --force-with-lease",
+    ]) {
+      expect(isGitPush(command), command).toBe(true);
+    }
+  });
+
+  it("leaves other git commands and mere mentions alone", () => {
+    for (const command of [
+      "git",
+      "git status",
+      "git log --oneline origin/main..HEAD",
+      "git pull origin main",
+      'git commit -m "push the gate"',
+      "echo git push",
+      "grep -n push scripts/gate.mjs",
+    ]) {
+      expect(isGitPush(command), command).toBe(false);
     }
   });
 });

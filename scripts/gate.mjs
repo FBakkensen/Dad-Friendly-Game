@@ -6,31 +6,35 @@
  *   npm run gate -- full   before every push to a PR branch (npm run check)
  * The step table and its rules are in src/gate.ts.
  */
-import { execFileSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import {
   closeSync,
   existsSync,
   mkdirSync,
   openSync,
   readFileSync,
+  readdirSync,
 } from "node:fs";
 import { performance } from "node:perf_hooks";
 import { constants } from "node:os";
 import { fileURLToPath } from "node:url";
 import {
   GATE_DIR,
+  LAB_DIRS,
+  LAB_ENTRIES,
   USAGE,
-  changedCode,
+  economyChanged,
   exitCode,
   gateSteps,
+  importClosure,
   logTail,
   nextMoves,
   parseArgs,
   planTier,
-  splitGitPaths,
   summaryLine,
   totalLine,
 } from "../src/gate.ts";
+import { changedSinceMain } from "./changed.mjs";
 
 // Every path below is repo-relative, wherever the gate was started from.
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
@@ -46,29 +50,25 @@ if (parsed.kind === "invalid") {
 }
 const { tier } = parsed;
 
-const git = (...args) => execFileSync("git", args, { encoding: "utf8" });
+const changed = changedSinceMain();
 
-function base() {
-  try {
-    return git("merge-base", "origin/main", "HEAD").trim();
-  } catch {
-    // No origin/main here (and no network wanted in the fast loop): HEAD.
-    console.log("gate: no origin/main; comparing against HEAD.");
-    return "HEAD";
-  }
+/** Does this branch touch code the strategy lab runs? Only the full tier asks. */
+function touchesEconomy() {
+  const read = (path) =>
+    existsSync(path) ? readFileSync(path, "utf8") : undefined;
+  const discovered = LAB_DIRS.flatMap((dir) =>
+    readdirSync(dir)
+      .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
+      .map((name) => `${dir}/${name}`),
+  );
+  return economyChanged(
+    changed,
+    importClosure([...LAB_ENTRIES, ...discovered], read),
+  );
 }
+const economy = tier === "full" && touchesEconomy();
 
-const changed =
-  tier === "fast"
-    ? changedCode([
-        ...splitGitPaths(git("diff", "--name-only", "-z", base())),
-        ...splitGitPaths(
-          git("ls-files", "--others", "--exclude-standard", "-z"),
-        ),
-      ]).filter((path) => existsSync(path))
-    : [];
-
-const plan = planTier(tier, gateSteps(changed));
+const plan = planTier(tier, gateSteps(changed, { economy }));
 if (plan.kind === "invalid") {
   console.error(`gate: ${plan.message}`);
   process.exit(2);
@@ -79,6 +79,12 @@ if (tier === "fast") {
     changed.length === 0
       ? "gate fast: no changed code files; typecheck only."
       : `gate fast: ${String(changed.length)} changed code file(s).`,
+  );
+} else {
+  console.log(
+    economy
+      ? "gate full: economy code changed; the strict strategy lab runs too."
+      : "gate full: no economy code changed; strategy lab skipped.",
   );
 }
 
@@ -139,7 +145,7 @@ function run(step) {
       stdio: ["ignore", log, log],
       shell: process.platform === "win32",
       detached: process.platform !== "win32",
-      env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
+      env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1", ...step.env },
     });
     children.add(child);
     child.on("error", (error) => {

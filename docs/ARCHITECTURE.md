@@ -22,8 +22,9 @@ page is the map, plus the rules that keep it that way.
    given and scores every measure. `lab/guardrails` turns `targets.ts` into
    one check per entry. `tools/strategy-lab.ts` (`npm run lab`) loads the
    registries, writes the report, and warns on a miss unless `LAB_STRICT=1`.
-   CI runs it with `--ci` and `LAB_STRICT=1`, posts the report, and fails
-   the job on a miss. The crafted-share and idle-material rows are strict
+   The full gate (`npm run check`, run by the `git push` hook) runs it and
+   `lab:generations` with `--ci` and `LAB_STRICT=1` when the branch changes
+   a file the lab imports, and a miss blocks the push. The crafted-share and idle-material rows are strict
    (#198). The tournament does not read the disk. `tools/sweep` (`npm run lab:sweep`) screens economy
    knobs (Morris, then Sobol) and writes that report. The sweep is
    offline and is not part of `npm run check`. A factor map scales
@@ -78,7 +79,7 @@ page is the map, plus the rules that keep it that way.
   through `effectiveRates`; the screen never multiplies on its own.
 - **Import cycle (fixed in #104):** `relics` ↔ `mountain` ↔ `rates` broke at
   module init; `MOUNTAIN_STONES` now lives in the leaf module `scale`. `npm run cycles`
-  (part of `npm run check`, so CI) now fails on any runtime import cycle; it
+  (part of `npm run check`, the gate) now fails on any runtime import cycle; it
   found one more (`relics` → `mountain` for `minedOut`), fixed by moving
   `minedOut` to `scale` (#118).
 - **`mountain-screen.ts` was ~1,500 lines** doing layout, ten dialogs and
