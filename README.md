@@ -14,9 +14,18 @@ npm run play -- --help
 
 The saves are `fresh` (nothing saved), `early`, `mid`, `workshop`, `crew`, and `late` (one stone left, so a tap finds the legend). They come from the visual check's fixtures in `scripts/fixtures.mjs`. The actions are `tap:<css>`, `label:<accessible name>`, `wait:<ms>`, and `wait:<css>`. A tap takes `*N` to repeat. Shots and `log.txt` (console, page errors, failed requests, and the save line) go to `play-shots/`, which is gitignored and cleared on each run. `--out` picks another folder and `--url` drives an app that is already running. Any page error, or an action that cannot run, exits non-zero.
 
-## Fast checks
+## The gate
 
-`npm run check:fast` is the edit-and-test loop. It runs the typecheck, then ESLint and `vitest related` on the code files changed since `origin/main`, including staged, unstaged, and untracked ones. `npm run check` is still the gate before every PR.
+```bash
+npm run gate -- fast
+npm run gate -- full
+```
+
+`fast` is the edit-and-test loop. It runs the typecheck (incremental, so a warm run is quick), plus ESLint and `vitest related` on the code files changed since `origin/main`, including staged, unstaged, and untracked ones. No browser, no emulator. `npm run check:fast` is the same.
+
+`full` runs every check before every push to a PR branch: the toolchain report, typecheck, lint, import cycles, formatting, knip, CSS tokens, unit tests with coverage, then the Firestore rules in the emulator and the two browser checks once the static checks pass. Independent steps run in parallel. `npm run check` is the same, so CI runs it too.
+
+Each step prints one line, such as `ok    typecheck  4.1s` or `FAIL  lint  2.3s  exit 1`. Every full log goes to `.gate/logs/<step>.log` (gitignored). A failed step also prints the last 40 lines of its log. A step behind a failed one is skipped. The steps, their tiers, and their order are a table in `src/gate.ts`.
 
 ## Strategy lab
 

@@ -8,5 +8,6 @@ Only what differs from `AGENTS.md` when this repo runs in a Claude Code cloud se
 - Babysit a PR with `subscribe_pr_activity`, not `gh pr checks --watch`. CI and review events wake the session. Do not poll.
 - Check gameplay in a real browser with `npm run play`. Chrome is `/usr/bin/google-chrome`. There is no browser MCP server.
 - The production build needs `VITE_FIREBASE_*`, which this environment does not have. For a local bundle check, run `npx vite build --mode development`.
+- The edit loop is `npm run gate -- fast`. Run `npm run gate -- full` before every `git push` to a PR branch, and fix any FAIL line first. Read `.gate/logs/<step>.log` for more than the printed tail.
 - `npm run lab:generations -- --ci` takes over 10 minutes. Run it in the background.
 - The project skills load from `.claude/skills`, a link to `.pi/skills`. Edit them there.
