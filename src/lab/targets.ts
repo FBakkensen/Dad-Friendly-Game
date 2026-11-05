@@ -392,26 +392,7 @@ export const REPORT_SMALL_SITTINGS = 1;
 export const REPORT_MACHINE_SITTINGS = 2;
 
 /**
- * Kid runs (M13, #253): no run past this many days for twice-a-day players.
- * Strict (Flemming, 4 Nov 2026): `LAB_STRICT=1 npm run lab:generations` fails on a miss.
+ * Kid runs (M13, #253), strict: every player type's run N+1 finishes later
+ * than run N, with no ceiling (Flemming, 4 Nov 2026). CI plays this many.
  */
-export const RUN_CAP_DAYS = 7.5;
-
-/**
- * Kid runs for once-a-day players (Evening, Marathon), strict: each run
- * at least as long as the last, and at most this many days past their run 1.
- */
-export const ONCE_A_DAY_SPREAD_DAYS = 2;
-
-/** Kid runs: two or more sittings a day uses the cap rule, fewer the spread rule. */
-export const TWICE_A_DAY_SESSIONS = 2;
-
-/** The approved stretch per kid run (Flemming, 4 Nov 2026): runs 1-4. */
-export const GENERATION_KS: readonly number[] = [1, 1.75, 2.55, 3.5];
-
-/**
- * Kid runs (run 2 on) open the Great Machine at this share of its run-1
- * depth, so once-a-day players get a full sitting with it on sale. Run 1
- * keeps the game's 120M. Lab-only, beside the stretch k.
- */
-export const KID_MACHINE_OPENS = 0.9;
+export const KID_RUNS_CI = 8;

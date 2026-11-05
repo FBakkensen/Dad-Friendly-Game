@@ -3,12 +3,7 @@ import { passTheMine } from "../legacy";
 import { createMountain, type Mountain } from "../mountain";
 import type { Policy } from "./policy";
 import { runPolicy } from "./run";
-import {
-  KID_MACHINE_OPENS,
-  ONCE_A_DAY_SPREAD_DAYS,
-  RUN_CAP_DAYS,
-  TWICE_A_DAY_SESSIONS,
-} from "./targets";
+import { stretch } from "../scale";
 
 /** The machines every run should still buy (D3: each one worth buying). */
 export const MACHINE_IDS = ["cart", "drill", "borer", "machine"] as const;
@@ -23,50 +18,45 @@ export type GenerationRun = {
 };
 
 /**
- * Plays one policy through consecutive kid runs. Each run starts from
- * `passTheMine` of the last, so the Legacy grows by one. Run N plays with
- * `generation.k` = `ks[N-1]`: the run is a copy stretched by k (bigger
- * mountain, layer starts and prices). Stops early if a run never finishes.
+ * Plays one policy through `runs` consecutive kid runs. Each run starts from
+ * `passTheMine` of the last, so the Legacy grows by one and the game stretches
+ * the kid's mountain (src/scale.ts). Stops early if a run never finishes.
  */
 export function runGenerations({
   policy,
   seed,
-  ks,
+  runs: count,
   maxDays,
   factors = {},
 }: {
-  /** Other lab factors held for every run (a sweep), beside the stretch. */
+  /** Lab factors held for every run (a sweep). */
   readonly factors?: Readonly<Record<string, number>>;
   readonly policy: Policy;
   readonly seed: number;
-  readonly ks: readonly number[];
+  readonly runs: number;
   readonly maxDays?: number;
 }): readonly GenerationRun[] {
   const runs: GenerationRun[] = [];
   let mountain: Mountain = createMountain();
-  for (const [index, k] of ks.entries()) {
-    const played = withFactors(
-      {
-        ...(index === 0 ? {} : { "opens.machine": KID_MACHINE_OPENS }),
-        ...factors,
-        "generation.k": k,
-      },
-      () =>
-        runPolicy({
-          policy,
-          seed,
-          mountain,
-          ...(maxDays === undefined ? {} : { maxDays }),
-        }),
+  for (let index = 0; index < count; index += 1) {
+    const played = withFactors(factors, () =>
+      runPolicy({
+        policy,
+        seed,
+        mountain,
+        ...(maxDays === undefined ? {} : { maxDays }),
+      }),
     );
     const bought = new Set(played.buys.map((buy) => buy.id));
     runs.push({
       run: index + 1,
-      k,
+      k: stretch(mountain),
       finishDay: played.finishDay,
       unbought: MACHINE_IDS.filter((id) => !bought.has(id)),
     });
-    const next = passTheMine(played.world.mountain, played.world.clock);
+    const next = withFactors(factors, () =>
+      passTheMine(played.world.mountain, played.world.clock),
+    );
     if (next === undefined) {
       break;
     }
@@ -76,7 +66,7 @@ export function runGenerations({
   return runs;
 }
 
-/** Run N+1 finishes later than run N, for every pair. Report-only. */
+/** The run-length rule (strict, every type): run N+1 finishes later than run N, forever. */
 export function eachRunLonger(days: readonly (number | undefined)[]): boolean {
   let before = Number.NEGATIVE_INFINITY;
   for (const day of days) {
@@ -86,11 +76,6 @@ export function eachRunLonger(days: readonly (number | undefined)[]): boolean {
     before = day;
   }
   return true;
-}
-
-/** No run past `RUN_CAP_DAYS`, and every run finished. Report-only. */
-export function noRunPastCap(days: readonly (number | undefined)[]): boolean {
-  return days.every((day) => day !== undefined && day <= RUN_CAP_DAYS);
 }
 
 /** The model the design doc proposed: a run stretches by k / bonus. */
@@ -109,36 +94,4 @@ export function rootModelDays(
   bonus: number,
 ): number {
   return firstRunDays * Math.sqrt(k / bonus);
-}
-
-/** Each run at least as long as the last, and within the spread of run 1. */
-export function onceADayRunsOk(days: readonly (number | undefined)[]): boolean {
-  const first = days[0];
-  let before = Number.NEGATIVE_INFINITY;
-  for (const day of days) {
-    if (
-      first === undefined ||
-      day === undefined ||
-      day < before ||
-      day > first + ONCE_A_DAY_SPREAD_DAYS
-    ) {
-      return false;
-    }
-    before = day;
-  }
-  return true;
-}
-
-/**
- * The approved run-length rule for a player type (report-only until
- * Flemming OKs strict). Twice a day or more: each run longer, none past the
- * cap. Once a day: `onceADayRunsOk`.
- */
-export function runLengthOk(
-  days: readonly (number | undefined)[],
-  sessionsPerDay: number,
-): boolean {
-  return sessionsPerDay >= TWICE_A_DAY_SESSIONS
-    ? eachRunLonger(days) && noRunPastCap(days)
-    : onceADayRunsOk(days);
 }

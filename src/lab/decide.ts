@@ -1,3 +1,4 @@
+import { stretch } from "../scale";
 import type { Trouble } from "../hazards";
 import { boostById, boostCost } from "../boosts";
 import {
@@ -244,17 +245,22 @@ export function sticker(mountain: Mountain, action: Action): number {
   switch (action.kind) {
     case "buyTier": {
       const tier = tierById(action.id);
-      return tierCost(tier, owned(mountain, tier));
+      return tierCost(tier, owned(mountain, tier), stretch(mountain));
     }
     case "buyUpgrade": {
       const price = upgradeCost(
         upgradeById(action.id),
         upgradeLevel(mountain, action.id),
+        stretch(mountain),
       );
       return price ?? Number.POSITIVE_INFINITY;
     }
     case "buyBoost":
-      return boostCost(boostById(action.id), effectiveRates(mountain));
+      return boostCost(
+        boostById(action.id),
+        effectiveRates(mountain),
+        stretch(mountain),
+      );
     case "promote":
       return promoteCost(mountain);
     case "craft":

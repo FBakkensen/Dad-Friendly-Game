@@ -1,3 +1,4 @@
+import { shownStones } from "./scale";
 import { KEEPSAKES } from "./expeditions";
 import {
   SHEET_CARD,
@@ -396,7 +397,7 @@ export function createRelicPanels({
       (total, tier) => total + owned(getView().mountain, tier),
       0,
     );
-    legendStats.textContent = `${formatCount(MOUNTAIN_STONES)} stones moved. Six relics found. A crew of ${formatCount(crewSize)} beside you.`;
+    legendStats.textContent = `${formatCount(shownStones(getView().mountain, MOUNTAIN_STONES))} stones moved. Six relics found. A crew of ${formatCount(crewSize)} beside you.`;
     if (!wasOpen) {
       legendContinue.focus();
     }

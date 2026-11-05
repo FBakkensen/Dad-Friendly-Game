@@ -1,3 +1,4 @@
+import { stretch } from "./scale";
 import { BOOSTS, buyBoost } from "./boosts";
 import {
   promote,
@@ -168,11 +169,12 @@ function isDadBuy(action: Action, withUpgrades: boolean): action is DadBuy {
 function sticker(mountain: Mountain, action: DadBuy): number {
   if (action.kind === "buyTier") {
     const tier = tierById(action.id);
-    return tierCost(tier, owned(mountain, tier));
+    return tierCost(tier, owned(mountain, tier), stretch(mountain));
   }
   return upgradeCost(
     upgradeById(action.id),
     upgradeLevel(mountain, action.id),
+    stretch(mountain),
   ) as number;
 }
 
@@ -320,7 +322,11 @@ export function simulateDadRun({
             : Math.max(0, staffForBuy(mountain, tier) - spare);
         let shortCost = 0;
         for (let extra = 0; extra < short; extra += 1) {
-          shortCost += tierCost(tierById("helper"), mountain.helpers + extra);
+          shortCost += tierCost(
+            tierById("helper"),
+            mountain.helpers + extra,
+            stretch(mountain),
+          );
         }
         let next = applyAction(mountain, pick.action, world.clock);
         if (tier !== undefined && tier.staff > 0) {

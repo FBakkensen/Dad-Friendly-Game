@@ -69,6 +69,7 @@ describe("serializeSave and parseSaveValue", () => {
       flareUntil: 90_000,
       emberUntil: 100_000,
       axleUntil: 110_000,
+      stretch: 1.75,
       seen: ["workshop", "future-bit"],
       taught: ["workshop"],
       kept: { recipes: ["future-bit"] },

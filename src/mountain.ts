@@ -64,6 +64,12 @@ export type Mountain = {
   /** Mountains passed to your kid (M6); missing means none. */
   readonly legacy?: number;
   /**
+   * How much bigger this run is (M13, src/scale.ts). Set when the mine passes
+   * to the kid; missing means 1, so a run already under way keeps its numbers.
+   * Written in the workshop map, beside the mountain.
+   */
+  readonly stretch?: number;
+  /**
    * Named engineers (M7). Missing until the first borer; at most five.
    * See src/engineers.ts.
    */
@@ -166,7 +172,7 @@ export function mineByHand(
 /** Stones leave the mountain, and the band they came from drops its material. */
 export function digStones(mountain: Mountain, mined: number): Mountain {
   const before = minedOut(mountain);
-  const depth = mined / stretch();
+  const depth = mined / stretch(mountain);
   const remaining =
     mined >= stonesLeft(mountain) ? 0 : mountain.remaining - depth;
   return {

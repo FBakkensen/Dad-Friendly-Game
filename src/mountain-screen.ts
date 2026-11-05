@@ -1,3 +1,4 @@
+import { shownStones, stonesLeft, stretch } from "./scale";
 import { canBuyAnyTier, canCraftNow, setAffordGlow } from "./afford-glow";
 import pickUrl from "./assets/pick.png";
 import { markSeen, noteFor, showsDot } from "./teach";
@@ -189,7 +190,7 @@ export function mountMountainScreen({
     progress.applyMutation((current) =>
       mineByHand(current, now(), progress.getSnapshot().trouble),
     );
-    const mined = before - view.mountain.remaining;
+    const mined = (before - view.mountain.remaining) * stretch(view.mountain);
     if (mined > 0) {
       // Above the finger so a thumb doesn't hide it; keyboard "clicks" have no point.
       const spot = tapFloatSpot(
@@ -568,9 +569,10 @@ export function mountMountainScreen({
   };
 
   const render = (): void => {
-    const left = view.mountain.remaining;
+    const left = Math.ceil(stonesLeft(view.mountain));
+    const total = shownStones(view.mountain, MOUNTAIN_STONES);
     remaining.textContent = `${formatCount(left)} stones left`;
-    remaining.title = `${left.toLocaleString("en-US")} of ${MOUNTAIN_STONES.toLocaleString("en-US")}`;
+    remaining.title = `${left.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`;
     const held = view.mountain.pocket;
     const compactCount =
       held === 1 ? "1 stone" : `${formatCompact(held)} stones`;

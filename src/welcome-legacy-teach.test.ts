@@ -86,7 +86,7 @@ describe("pass-to-kid card (#247)", () => {
     expect(words.lead).toBe("Legacy ×1.5, for good");
     expect(words.rates).toEqual(["Workers 1/s to 1.5/s", "Carts 6/s to 9/s"]);
     expect(words.keeps).toBe(
-      `Your kid keeps the Legacy and ${String(recipesForMined(MOUNTAIN_STONES).length)} recipes.`,
+      `A bigger mountain for your kid, with the Legacy and ${String(recipesForMined(MOUNTAIN_STONES).length)} recipes.`,
     );
   });
 
@@ -105,7 +105,7 @@ describe("pass-to-kid card (#247)", () => {
     delete (bare as { recipes?: unknown }).recipes;
     const words = legacyCardWords(bare);
     expect(words.keeps).toBe(
-      `Your kid keeps the Legacy and ${String(recipesForMined(0).length)} recipes.`,
+      `A bigger mountain for your kid, with the Legacy and ${String(recipesForMined(0).length)} recipes.`,
     );
     const all = [
       words.lead,

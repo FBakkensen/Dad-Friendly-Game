@@ -30,7 +30,7 @@ jobs:
       - run: npm run lab -- --ci
         env:
           LAB_STRICT: "1"
-      # Kid runs 1-4 (#253): per-type run length and every machine bought.
+      # Kid runs (#253): runs 1-4 by the per-type rule, 5-6 under the ceiling, every machine bought.
       - run: npm run lab:generations -- --ci
         env:
           LAB_STRICT: "1"

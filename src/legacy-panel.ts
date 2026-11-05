@@ -1,3 +1,4 @@
+import { kidStretch, stretch } from "./scale";
 import { formatCount } from "./format";
 import { legacyBonus, passTheMine } from "./legacy";
 import { createMountain, type Mountain } from "./mountain";
@@ -43,7 +44,10 @@ export function legacyCardWords(mountain: Mountain): LegacyCardWords {
         ? [`Taps ${speed(now.tapYield)} to ${speed(kid.tapYield)} stones`]
         : []),
     ],
-    keeps: `Your kid keeps the Legacy and ${formatCount(recipes)} recipes.`,
+    keeps:
+      kidStretch(legacy + 1) > stretch(mountain)
+        ? `A bigger mountain for your kid, with the Legacy and ${formatCount(recipes)} recipes.`
+        : `Your kid keeps the Legacy and ${formatCount(recipes)} recipes.`,
     fresh:
       "Stones, crew, engineers, upgrades and ore start fresh. The relics wait to be found again.",
     legend: "You'll always be the Legend who began it.",

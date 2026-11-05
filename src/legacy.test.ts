@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { kidStretch } from "./scale";
 import { LEGACY_STEP, legacyBonus, passTheMine } from "./legacy";
 import {
   MOUNTAIN_STONES,
@@ -58,9 +59,15 @@ describe("passing the mine to your kid", () => {
 
   it("starts a fresh mountain, keeps the Legacy (+1) and starts a newer run", () => {
     const next = passTheMine(bottom, 5_000);
-    expect(next).toEqual({ ...createMountain(), legacy: 1, startedAt: 5_000 });
+    expect(next).toEqual({
+      ...createMountain(),
+      legacy: 1,
+      stretch: kidStretch(1),
+      startedAt: 5_000,
+    });
     const again = passTheMine({ ...bottom, legacy: 1 }, 6_000);
     expect(again?.legacy).toBe(2);
+    expect(again?.stretch).toBe(kidStretch(2));
   });
 
   it("carries what the dad was already shown and taught", () => {

@@ -1,4 +1,6 @@
 import { send } from "./expeditions";
+import { kidStretch } from "./scale";
+import { formatCount } from "./format";
 import { RELICS } from "./relics";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -2581,7 +2583,7 @@ describe("pass the mine to your kid (#131)", () => {
       ),
     ).toEqual(["Workers 1/s to 1.5/s", "Carts 6/s to 9/s"]);
     expect(screen.text(".legacy-keeps")).toMatch(
-      /^Your kid keeps the Legacy and \d+ recipes\.$/,
+      /^A bigger mountain for your kid, with the Legacy and \d+ recipes\.$/,
     );
     expect(screen.text(".legacy-detail")).not.toMatch(/\?/);
     expect(document.activeElement).toBe(
@@ -2593,7 +2595,9 @@ describe("pass the mine to your kid (#131)", () => {
       ?.click();
 
     expect(dialog(screen)?.hidden).toBe(true);
-    expect(screen.text(".stones-left")).toBe("240 million stones left");
+    expect(screen.text(".stones-left")).toBe(
+      `${formatCount(240_000_000 * kidStretch(1))} stones left`,
+    );
     expect(screen.text(".pocket")).toBe("0 stones");
     const badge = screen.root.querySelector<HTMLElement>(".legacy-badge");
     expect(badge?.hidden).toBe(false);

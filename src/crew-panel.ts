@@ -1,3 +1,4 @@
+import { stretch } from "./scale";
 import { buyCrew, tierLock } from "./crew";
 import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
 import { staffForBuy, staffNeeded } from "./engineers";
@@ -425,7 +426,11 @@ export function createCrewPanel({
       ? firstIdleTier(current, now(), trouble)
       : undefined;
     const worker = tierById("helper");
-    const workerPrice = tierCost(worker, owned(current, worker));
+    const workerPrice = tierCost(
+      worker,
+      owned(current, worker),
+      stretch(current),
+    );
     for (const {
       tier,
       card,
@@ -444,7 +449,7 @@ export function createCrewPanel({
       gain,
     } of tierCards) {
       const count = owned(current, tier);
-      const price = tierCost(tier, count);
+      const price = tierCost(tier, count, stretch(current));
       card.hidden = !tierShown(current, tier);
       const lock = tierLock(current, tier);
       const locked = lock !== undefined;
