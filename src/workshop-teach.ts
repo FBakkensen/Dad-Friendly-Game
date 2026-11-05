@@ -1,3 +1,4 @@
+import { stretch } from "./scale";
 import { formatCompact, formatCount } from "./format";
 import { HOW_IT_WORKS } from "./how-it-works";
 import type { Mountain } from "./mountain";
@@ -36,8 +37,8 @@ export type WorkshopTeach = {
 };
 
 /** "Craft Blasting charge · 4 clay · 100K", from the live price. */
-export function firstCraftLabel(id: RecipeId): string {
-  const cost = recipeCost(id);
+export function firstCraftLabel(id: RecipeId, mountain: Mountain): string {
+  const cost = recipeCost(id, stretch(mountain));
   const parts = Object.entries(cost.materials)
     .filter(([, count]) => count > 0)
     .map(([material, count]) => `${formatCount(count)} ${material}`);
@@ -68,7 +69,7 @@ export function workshopTeach(mountain: Mountain, now: number): WorkshopTeach {
     return {
       intro: HOW_IT_WORKS.workshop.reveal,
       newCard: FIRST_CRAFT,
-      action: firstCraftLabel(FIRST_CRAFT),
+      action: firstCraftLabel(FIRST_CRAFT, mountain),
     };
   }
   const multiplier = chargeCrewMultiplier(mountain, now);

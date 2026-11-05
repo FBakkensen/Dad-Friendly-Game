@@ -1,4 +1,3 @@
-import { stretch } from "../scale";
 import {
   BOOSTS,
   boostById,
@@ -40,7 +39,7 @@ import { EMPTY_MATERIALS, LAYERS } from "../layers";
 import { boostShown, upgradeShown } from "../upgrade-reveal";
 import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
-import { minedOut } from "../scale";
+import { minedOut, stretch } from "../scale";
 import { VEIN_MAX_GAP_MS, VEIN_MIN_GAP_MS, veinReward } from "../veins";
 import {
   MAX_CRAFTED_LEVEL,
@@ -686,7 +685,7 @@ function valueCraft(
 ): ActionValue {
   const recipe = recipeById(id);
   const stones =
-    recipeCost(id).stones +
+    recipeCost(id, stretch(mountain)).stones +
     (pricing === "best-use"
       ? materialsPrice(mountain, id, horizon, context, now)
       : 0);
@@ -863,7 +862,7 @@ function materialsPrice(
   if (!Number.isFinite(horizon) || horizon <= 0) {
     return 0;
   }
-  const cost = recipeCost(id);
+  const cost = recipeCost(id, stretch(mountain));
   const others = sinkRecipes(mountain).filter((other) => other !== id);
   let price = 0;
   for (const layer of LAYERS) {
@@ -873,7 +872,7 @@ function materialsPrice(
     }
     let best = 0;
     for (const other of others) {
-      const otherCost = recipeCost(other);
+      const otherCost = recipeCost(other, stretch(mountain));
       const otherUnits = otherCost.materials[layer.material];
       if (otherUnits <= 0) {
         continue;
@@ -895,7 +894,7 @@ function materialsPrice(
 }
 
 function fundCraft(mountain: Mountain, id: RecipeId): Mountain {
-  const cost = recipeCost(id);
+  const cost = recipeCost(id, stretch(mountain));
   const have = mountain.materials ?? EMPTY_MATERIALS;
   return {
     ...grantDepthRecipe(mountain, id),

@@ -26,7 +26,7 @@ function opening(): Mountain {
 
 describe("Workshop first visit (#243)", () => {
   it("names the real price on the big button", () => {
-    expect(firstCraftLabel(FIRST_CRAFT)).toBe(
+    expect(firstCraftLabel(FIRST_CRAFT, opening())).toBe(
       "Craft Blasting charge · 4 clay · 100K",
     );
   });

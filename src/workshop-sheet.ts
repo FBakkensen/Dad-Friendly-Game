@@ -10,7 +10,7 @@ import {
 } from "./layers";
 import { expeditionAwayMs } from "./lost-tools";
 import type { Mountain } from "./mountain";
-import { minedOut } from "./scale";
+import { minedOut, stretch } from "./scale";
 import { effectiveRates } from "./rates";
 import {
   BENCH_BUSY_ASIDE,
@@ -160,7 +160,7 @@ export function craftShortfall(
   mountain: Mountain,
   id: RecipeId,
 ): { readonly missing: number; readonly material: string } | undefined {
-  const cost = recipeCost(id);
+  const cost = recipeCost(id, stretch(mountain));
   const have = mountain.materials ?? EMPTY_MATERIALS;
   for (const material of MATERIAL_ORDER) {
     const need = cost.materials[material];
@@ -646,7 +646,7 @@ function recipeCard(
   mountain: Mountain,
   now: number,
 ): RecipeCard {
-  const cost = recipeCost(recipe.id);
+  const cost = recipeCost(recipe.id, stretch(mountain));
   const level = craftedLevel(mountain, recipe.id);
   const costs = MATERIAL_ORDER.filter(
     (material) => cost.materials[material] > 0,

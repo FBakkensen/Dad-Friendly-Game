@@ -1,3 +1,4 @@
+import { stretch } from "../scale";
 import type { Trouble } from "../hazards";
 import { mineByHand, type Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
@@ -118,7 +119,7 @@ function craftIsReady(mountain: Mountain, action: Action): boolean {
   if (action.kind !== "craft") {
     return false;
   }
-  const cost = recipeCost(action.recipe);
+  const cost = recipeCost(action.recipe, stretch(mountain));
   const have = mountain.materials ?? EMPTY_MATERIALS;
   return (
     mountain.pocket >= cost.stones &&

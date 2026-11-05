@@ -1,3 +1,4 @@
+import { stretch } from "../scale";
 import { BOOSTS } from "../boosts";
 import { tierLocked } from "../crew";
 import { LAYERS, type MaterialId } from "../layers";
@@ -43,7 +44,7 @@ function knownRecipes(mountain: Mountain): readonly RecipeId[] {
 
 /** The pocket and the materials cover one craft of this recipe. */
 function recipeAffordable(mountain: Mountain, id: RecipeId): boolean {
-  const cost = recipeCost(id);
+  const cost = recipeCost(id, stretch(mountain));
   const have = mountain.materials;
   return (
     mountain.pocket >= cost.stones &&

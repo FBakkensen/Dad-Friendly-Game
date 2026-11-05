@@ -19,6 +19,7 @@ import { tierById, tierCost } from "./tiers";
 import { lockBodyLine } from "./tier-lock-words";
 import { upgradeById, upgradeCost } from "./upgrades";
 import { veinReward } from "./veins";
+import { recipeCost, startCraft, TOPSOIL_BENCH_FROM } from "./workshop";
 import { formatCompact } from "./format";
 
 describe("kid-run stretch (M13, #253)", () => {
@@ -105,6 +106,23 @@ describe("kid-run stretch (M13, #253)", () => {
         }),
       ).toBeUndefined();
     }
+  });
+
+  it("stretches workshop recipe stones with the mountain, not materials", () => {
+    expect(recipeCost("blasting-charge").stones).toBe(100_000);
+    expect(recipeCost("blasting-charge", 2).stones).toBe(200_000);
+    expect(recipeCost("blasting-charge", 2).materials.clay).toBe(
+      recipeCost("blasting-charge").materials.clay,
+    );
+    const kid = {
+      ...minedMountain(TOPSOIL_BENCH_FROM),
+      stretch: 2,
+      pocket: 250_000,
+      materials: { clay: 10, iron: 0, crystal: 0, heartstone: 0 },
+    };
+    const spent = startCraft(kid, "blasting-charge", 1);
+    expect(spent).not.toBe(kid);
+    expect(spent.pocket).toBe(50_000);
   });
 
   it("keeps run 10-12 numbers sane: short text, safe whole numbers, a good save", () => {
