@@ -3,5 +3,5 @@ coverage
 node_modules
 package-lock.json
 
-# Superpowers plan ledgers and briefs (git-ignored scratch)
+# Superpowers scratch: plan ledgers, briefs, and brainstorm sessions
 .superpowers
