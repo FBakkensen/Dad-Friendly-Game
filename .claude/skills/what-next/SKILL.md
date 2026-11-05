@@ -11,7 +11,7 @@ This is how dad-friendly decisions get made. Same shape as the project interview
 
 ## Before you ask
 
-Read the project rules in `AGENTS.md` (dad-friendly game, dad-friendly work) and the current repo. Load open GitHub issues with the github-issues skill. The three options should be unblocked issues when those exist.
+Read the project rules in `.claude/rules/` (dad-friendly game, dad-friendly work) and the current repo. Load open GitHub issues with the github-issues skill. The three options should be unblocked issues when those exist.
 
 Score every option against:
 
@@ -19,18 +19,14 @@ Score every option against:
 - Close is pause, touch-first, silent until unmute
 - Types + Vitest + proof in a real browser
 - No placeholders. If the sliver needs art, the sitting includes asking first then PixelLab MCP, not boxes
-- No game pick until the human asks. If they ask, only turn-based or idle
+- Turn-based or idle only, never real-time twitch play
 - No SpaceTimeDB, no live world, no Playwright unless asked
 - Runtime AI only as optional spice
 - Fits in one GitHub issue. If it does not, split first, then offer the small piece
 
 If two options fail those tests, do not offer them. Invent better ones, then file them as issues only after the human picks (or says yes).
 
-## Empty repo or chassis only
-
-Do not invent a game. Offer chassis slivers such as: Vite+TS boot screen, PWA install, Google sign-in, save blob round-trip, mute control, first PixelLab asset after asking.
-
-## After a game exists
+## What to prefer
 
 Prefer improvements that deepen the gentle loop, shorten time-to-pause, or make instant quit safer. Skip chores dressed up as features. Turn-based and idle only.
 

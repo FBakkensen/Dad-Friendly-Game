@@ -1,6 +1,6 @@
 /* global console, process, URL */
-// Prints the toolchain `npm run check` depends on, so CI and Cursor cloud
-// agents can be compared line by line. With --strict, fails fast when the
+// Prints the toolchain `npm run check` depends on, so a cloud session and a
+// local machine can be compared line by line. With --strict, fails fast when the
 // Node major differs from .nvmrc (the single source of truth for Node).
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -52,7 +52,7 @@ if (process.argv.includes("--strict")) {
   const major = (version) => version.replace(/^v/, "").split(".")[0];
   if (major(process.version) !== major(wanted)) {
     console.error(
-      `Node ${process.version} does not match .nvmrc ${wanted}. Run scripts/cloud-setup.sh or nvm use.`,
+      `Node ${process.version} does not match .nvmrc ${wanted}. Run nvm use.`,
     );
     process.exit(1);
   }

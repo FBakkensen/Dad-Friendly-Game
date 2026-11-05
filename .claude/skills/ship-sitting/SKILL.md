@@ -5,7 +5,9 @@ description: Commits the current sitting, runs a code-review pass, fixes non-nit
 
 # Ship sitting
 
-Commit, code-review, fix, open the PR, babysit until squash-merge, then watch the deploy workflow on `main`. Stay in this conversation. Do not use autopilot, background babysitters, or a cloud agent.
+Commit, code-review, fix, open the PR, babysit until squash-merge, then watch the deploy workflow on `main`. Stay in this conversation. Do not hand the PR to autopilot, a background babysitter, or another agent.
+
+The contract is `.claude/rules/shipping.md`. Where this skill says `gh`, a Claude Code cloud session uses the matching GitHub MCP tool, and babysits with `subscribe_pr_activity` instead of polling.
 
 One issue, one branch, one PR. `Fixes #N`. Use the github-issues skill for the graph.
 
@@ -22,7 +24,7 @@ One issue, one branch, one PR. `Fixes #N`. Use the github-issues skill for the g
 Before the first commit:
 
 - On the sitting's branch, not `main`.
-- Stage only this issue's files. No secrets (`.env`, `.cursor/mcp.json`, Firebase, PixelLab tokens).
+- Stage only this issue's files. No secrets (`.env`, Firebase, PixelLab tokens).
 - `npm run check` green (the full tier). The `git push` hook runs it again and blocks a red push.
 - If a second sliver snuck in, stop. That work gets its own issue, not this PR.
 
@@ -36,7 +38,7 @@ If hooks rewrite files, make a new commit. Do not amend a failed hook.
 
 ## Code-review
 
-Load the code-review skill (`/skill:code-review`) and follow it. Do not skip it. Do not substitute a paraphrase of the review contract in `AGENTS.md` for that skill.
+Load the code-review skill and follow it. Do not skip it. Do not substitute a paraphrase of the review contract in `.claude/rules/shipping.md` for that skill.
 
 The relevant code is the branch diff that would merge (`git diff main...HEAD`).
 

@@ -63,21 +63,18 @@ Then call `create_image_pixflux` with the text prompt, `init_image_strength: 150
 
 If decode still fails, the init was probably truncated again. Re-encode smaller or quantize further before retrying once.
 
-## MCP bridge in Pi
+## PixelLab MCP in Claude Code
 
-Pi has no built-in MCP client. This project uses the **pi-mcp-adapter** package (one lazy `mcp` proxy tool instead of every tool definition). The PixelLab server is configured in `.mcp.json` at the repo root:
+The PixelLab server is `pixellab` in `.mcp.json` at the repo root (URL `https://api.pixellab.ai/mcp`, token from the `PIXELLAB_TOKEN` env var). The human gets a token at https://www.pixellab.ai/mcp. Never put the bearer token in git. Never read it aloud or echo it.
 
-- URL: `https://api.pixellab.ai/mcp`, auth `bearer`, token read from the `PIXELLAB_TOKEN` env var.
-- The human gets a token at https://www.pixellab.ai/mcp and exports `PIXELLAB_TOKEN=<token>` before starting pi. Never put the bearer token in git. Never read it aloud or echo it.
+Before promising art, check that PixelLab tools are in your tool list (Claude Code names them `mcp__pixellab__<tool>`; they may be deferred, so search for them). Use the names the list gives you. Do not guess.
 
-Before promising art, check whether the `mcp` tool exists in your available tools. If it does, discover the server with `mcp({ search: "pixflux" })` (or similar) and call tools through `mcp({ tool: "<name>", args: {...} })`. Tool names are prefixed (for example `pixellab_create_image_pixflux`) — use whatever search returns, do not guess.
-
-If there is no `mcp` tool, or search finds no PixelLab server:
+If there are no PixelLab tools:
 
 - Do not curl the REST API.
 - Do not invent PNGs.
 - Do not draw rectangles.
-- Say plainly that PixelLab is unavailable in this session and ask the human to install the bridge (`pi install npm:pi-mcp-adapter`, then restart pi) or set `PIXELLAB_TOKEN`.
+- Say plainly that PixelLab is unavailable in this session and ask the human to set `PIXELLAB_TOKEN` (issue #303 tracks loading the server in Claude Code).
 
 ## Ceiling
 

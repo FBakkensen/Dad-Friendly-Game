@@ -7,7 +7,7 @@ description: Keeps GitHub issues, PRs, and the blocked-by graph as the backbone 
 
 GitHub is the backbone. Issues, PRs, dependencies. Also for simple ideas. The point is to finish the current sliver, not to grow it.
 
-Use `gh` for all of this. Do not keep the plan only in chat.
+Use `gh` for all of this. In a Claude Code cloud session, use the matching GitHub MCP tools instead (`gh` works there for search only). Do not keep the plan only in chat.
 
 ## Graph
 
@@ -21,7 +21,7 @@ gh issue list --state open --limit 50 --json number,title,blockedBy,blocking,par
 - **blocked-by:** this issue cannot start until those issues close.
 - **blocking:** other issues wait on this one.
 
-After every create or split, set the links so the graph is still true. If `gh` rejects dependency flags, say so. Do not fake links in markdown instead.
+After every create or split, set the links so the graph is still true. If the tool you have rejects dependency flags or cannot set them (the GitHub MCP tools set parents but not `blocked-by`), say so and ask the human to add them in the issue sidebar. Do not fake links in markdown instead.
 
 ## One issue is one sliver
 
