@@ -13,6 +13,8 @@ import {
   type WorkshopCard,
 } from "./workshop-sheet";
 import { RECIPE_IDS, recipesForMined, type RecipeId } from "./workshop";
+import { effectiveRates } from "./rates";
+import { formatCrewSpeed } from "./screen-words";
 
 const FULL = {
   clay: 40,
@@ -33,6 +35,33 @@ function shed(extra: Partial<Mountain> = {}): Mountain {
     ...extra,
   };
 }
+
+describe("Blasting charge line rounds crew speed like the header (#332)", () => {
+  it("shows whole stones a second, the header's number, before and after", () => {
+    // The mid save's crew: 586.2 stones a second exactly, 586 on the header.
+    const mid = shed({
+      remaining: MOUNTAIN_STONES - 25_000_000,
+      helpers: 20,
+      carts: 5,
+      drills: 2,
+      borers: 1,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+      recipes: recipesForMined(25_000_000),
+    });
+    const header = formatCrewSpeed(effectiveRates(mid, 0).crewPerSecond);
+    const charge = recipe(workshopCards(mid, 0), "blasting-charge");
+    expect(charge.effect).toMatch(
+      new RegExp(`^Crew ${header}/s to [\\d,.KM]+/s for 20 min\\.$`),
+    );
+    expect(charge.effect).not.toMatch(/\d\.\d\/s/);
+  });
+
+  it("formats crew speed as whole stones, compact past ten thousand", () => {
+    expect(formatCrewSpeed(586)).toBe("586");
+    expect(formatCrewSpeed(1172)).toBe("1,172");
+    expect(formatCrewSpeed(25_400)).toBe("25.4K");
+  });
+});
 
 function recipe(cards: readonly WorkshopCard[], id: RecipeId): RecipeCard {
   const card = cards.find(

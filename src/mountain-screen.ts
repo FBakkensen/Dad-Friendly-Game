@@ -57,6 +57,7 @@ import {
   tapWords,
   WORKSHOP_NOTE,
   engineersNote,
+  formatCrewSpeed,
 } from "./screen-words";
 import { metMaterialChips } from "./workshop-sheet";
 import {
@@ -600,7 +601,7 @@ export function mountMountainScreen({
       now(),
       view.trouble,
     ).crewPerSecond;
-    pocketRate.textContent = `${formatCompact(perSecond)} stones/s`;
+    pocketRate.textContent = `${formatCrewSpeed(perSecond)} stones/s`;
     const layer = layerOf(view.mountain);
     const layerWords = layerCardWords(layer.id);
     layerName.textContent = layer.name;
