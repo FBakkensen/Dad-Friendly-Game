@@ -108,7 +108,6 @@ describe("kid-run stretch (M13, #253)", () => {
     }
   });
 
-
   it("stretches workshop recipe stones with the mountain, not materials", () => {
     expect(recipeCost("blasting-charge").stones).toBe(100_000);
     expect(recipeCost("blasting-charge", 2).stones).toBe(200_000);

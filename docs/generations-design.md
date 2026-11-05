@@ -162,7 +162,7 @@ The stretch now lives in the game, in `src/scale.ts`: `kidStretch(legacy)` (see 
 - **Saves.** The stretch is saved in the workshop map beside the mountain, not in the mountain itself. The cloud rules only check that this map is a map, and the mountain's key list cannot grow (#195), so no rules change is needed. A kid run digs fractions of a depth stone; the save rounds `remaining` up to a whole number (at most one stone of depth comes back). The field log rounds the same way and caps its pocket at the rules' limit.
 - **Runs 5 and on.** The stretch keeps growing with every generation; there is no last run and no ceiling (see below).
 - **Player text.** Prices, lock cards (`joins your crew at 12.2M stones`), stones left, the Legend's stones moved, save cards and how-it-works show this run's stones. The pass-to-kid card says "A bigger mountain for your kid" while the stretch still grows.
-- **Not stretched.** Workshop recipes keep their stone price, as in the lab runs that set k.
+- **Workshop recipes.** Stone prices stretch with k (M13-5). Materials stay the same count. Example at Legacy 3 (k ≈ 4.73): Blasting charge 100K → 472.6K stones, still 4 clay; Iron rails 500K → 2.3M stones, still 4 iron.
 
 ## Longer every run, forever (M13-4 rework, 4 Nov 2026)
 
@@ -185,3 +185,7 @@ Flemming rejected the 7.5-day ceiling: "the whole idea is they take longer and l
 **20 seeds, g = 1/8 (days):** see the PR table. CI plays 8 runs at 3 seeds (`KID_RUNS_CI`).
 
 **High generations.** Run 8-12 (k 21-37): stones left read "14.6B", prices stay short (">999T" only for absurd cart counts, as in run 1), whole numbers stay safe, saves round-trip. The field log caps any event's stones at the rules' 240M per event (an away haul in a big kid run can pass it), as it already did the pocket.
+
+## Workshop recipes stretch (M13-5)
+
+Workshop stone costs use the same `k` as machines and upgrades (`recipeCost(id, stretch(mountain))`). Materials do not. Run 1 is unchanged. The generations lab still requires each run longer than the last with every machine bought.
