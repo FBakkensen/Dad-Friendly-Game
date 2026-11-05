@@ -8,7 +8,7 @@ The always-on rules are in `.claude/rules/`: `dad-friendly-game.md`, `dad-friend
 
 - `npm run gate -- fast` is the edit loop. The hooks in `.claude/settings.json` run it at the end of a turn, and run `npm run gate -- full` before every `git push`. Fix any FAIL line first. Read `.gate/logs/<step>.log` for more than the printed tail.
 - `npm run play` checks gameplay in a real browser. `npm run play -- --help` lists the saves and actions.
-- `npm run lab:generations -- --ci` takes over 10 minutes. Run it in the background.
+- `npm run lab:generations -- --ci` takes about 3 minutes on 4 cores, one process per policy and seed (`LAB_JOBS` sets the count). Run it in the background.
 
 ## Claude Code cloud sessions
 
