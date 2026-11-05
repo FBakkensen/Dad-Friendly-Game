@@ -8,9 +8,13 @@
  * Exit 2 blocks, and stderr (the gate's one line per step, plus the tail of a
  * failed step's log) is Claude's feedback. Claude Code stops re-blocking a
  * turn after 8 Stop continuations in a row with no tool call between them.
+ *
+ * Every run adds one line to .gate/hook.log, so a gate that did not run is
+ * visible. Any error inside the hook blocks (exit 2): a broken gate must not
+ * wave a push through.
  */
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
@@ -21,6 +25,18 @@ try {
   input = JSON.parse(readFileSync(0, "utf8"));
 } catch {
   // No hook input (run by hand): treat as empty.
+}
+
+function record(outcome, command = "") {
+  try {
+    mkdirSync(".gate", { recursive: true });
+    appendFileSync(
+      ".gate/hook.log",
+      `${new Date().toISOString()} ${String(mode)} ${outcome} ${command.replace(/\s+/g, " ").slice(0, 120)}\n`,
+    );
+  } catch {
+    // The record is a convenience; the gate itself decides.
+  }
 }
 
 function gate(tier) {
@@ -34,40 +50,56 @@ function gate(tier) {
   };
 }
 
-if (mode === "stop") {
+async function stop() {
   const { changedSinceMain } = await import("./changed.mjs");
   if (changedSinceMain().length === 0) {
-    process.exit(0);
+    record("skip no-changes");
+    return 0;
   }
   const { ok, output } = gate("fast");
+  record(ok ? "pass" : "block");
   if (!ok) {
     console.error(
       `${output}\n\nThe fast gate is red. Fix each FAIL line before you end the turn.`,
     );
-    process.exit(2);
+    return 2;
   }
-  process.exit(0);
+  return 0;
 }
 
-if (mode === "push") {
+async function push() {
   const command = String(input?.tool_input?.command ?? "");
   // Every Bash call comes here: leave quickly unless it could be a push.
   if (!command.includes("push")) {
-    process.exit(0);
+    return 0;
   }
   const { isGitPush } = await import("../src/gate.ts");
   if (!isGitPush(command)) {
-    process.exit(0);
+    record("skip not-a-push", command);
+    return 0;
   }
   const { ok, output } = gate("full");
+  record(ok ? "pass" : "block", command);
   if (!ok) {
     console.error(
       `${output}\n\nThe full gate is red, so this push is blocked. Fix each FAIL line, then push again.`,
     );
-    process.exit(2);
+    return 2;
   }
-  process.exit(0);
+  return 0;
 }
 
-console.error(`gate-hook: unknown mode ${String(mode)} (stop or push)`);
-process.exit(1);
+const run = { stop, push }[mode];
+if (run === undefined) {
+  console.error(`gate-hook: unknown mode ${String(mode)} (stop or push)`);
+  process.exit(2);
+}
+try {
+  process.exit(await run());
+} catch (error) {
+  record(`error ${String(error)}`);
+  console.error(
+    `gate-hook ${mode} failed, so it blocks: ${String(error?.stack ?? error)}`,
+  );
+  process.exit(2);
+}
