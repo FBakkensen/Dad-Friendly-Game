@@ -65,16 +65,21 @@ If decode still fails, the init was probably truncated again. Re-encode smaller 
 
 ## PixelLab MCP in Claude Code
 
-The PixelLab server is `pixellab` in `.mcp.json` at the repo root (URL `https://api.pixellab.ai/mcp`, token from the `PIXELLAB_TOKEN` env var). The human gets a token at https://www.pixellab.ai/mcp. Never put the bearer token in git. Never read it aloud or echo it.
+The PixelLab server is `pixellab` in `.mcp.json` at the repo root: `"type": "http"`, URL `https://api.pixellab.ai/mcp`, header `Authorization: Bearer ${PIXELLAB_TOKEN:-proxy-injected}`. The human gets a token at https://www.pixellab.ai/mcp. Never put the bearer token in git. Never read it aloud or echo it.
 
-Before promising art, check that PixelLab tools are in your tool list (Claude Code names them `mcp__pixellab__<tool>`; they may be deferred, so search for them). Use the names the list gives you. Do not guess.
+Where the token comes from:
+
+- **Cloud session.** A network secret for `api.pixellab.ai` on the `dad-friendly-game` environment. The proxy overwrites the `proxy-injected` placeholder with the real token and also lets the host through. No env var is set, and none is needed.
+- **Local Claude Code.** Export `PIXELLAB_TOKEN` in the shell that starts `claude`. Approve the `pixellab` project server the first time `claude` asks.
+
+Before promising art, check that PixelLab tools are in your tool list (Claude Code names them `mcp__pixellab__<tool>`; they are deferred and connect a few seconds after start, so search for them). Use the names the list gives you. Do not guess.
 
 If there are no PixelLab tools:
 
 - Do not curl the REST API.
 - Do not invent PNGs.
 - Do not draw rectangles.
-- Say plainly that PixelLab is unavailable in this session and ask the human to set `PIXELLAB_TOKEN` (issue #303 tracks loading the server in Claude Code).
+- Say plainly that PixelLab is unavailable in this session. In a cloud session, ask the human to save the token as a network secret for `api.pixellab.ai` (`request_credential`, never pasted in chat); a fresh session then loads it. Locally, ask them to export `PIXELLAB_TOKEN` and restart `claude`.
 
 ## Ceiling
 
