@@ -2,7 +2,7 @@
 
 An idle mining game for a dad after the kids are asleep: a TypeScript PWA on Vite, with one Firestore save per Google account. How it plays is in `docs/DESIGN.md`. How it is built is in `docs/ARCHITECTURE.md`.
 
-The always-on rules are in `.claude/rules/`: `dad-friendly-game.md`, `dad-friendly-work.md`, `observable-saves.md`, `shipping.md`, and `superpowers.md`. The project skills are in `.claude/skills/`: code-review, github-issues, pixellab, ship-sitting, and what-next. The superpowers plugin is the dev workflow; `superpowers.md` says how it fits these rules.
+The always-on rules are in `.claude/rules/`: `dad-friendly-game.md`, `dad-friendly-work.md`, `observable-saves.md`, and `superpowers.md`. The superpowers plugin is the dev workflow; `superpowers.md` maps a sitting onto its skills and lists where the project differs. The project skills in `.claude/skills/` only add what superpowers lacks: what-next (picking work), github-issues (the issue graph), pixellab (art), and ship-sitting (gated push, PR babysitting, merge, and deploy).
 
 ## Commands
 
