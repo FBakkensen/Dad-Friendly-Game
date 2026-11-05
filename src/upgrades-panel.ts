@@ -30,6 +30,7 @@ import {
   UPGRADES_INTRO,
   UPGRADES_MORE,
   upgradeEffectLine,
+  upgradeWhyLine,
 } from "./screen-words";
 import {
   SHEET_CARD,
@@ -89,16 +90,6 @@ const BOOST_ICON: Record<BoostId, string> = {
 const BOOST_WHY: Record<BoostId, string> = {
   sharper: "A short push while you are here.",
   overtime: "Twice as fast, then they rest.",
-};
-
-const UPGRADE_WHY: Record<UpgradeId, string> = {
-  tap: "Each tap takes a little more.",
-  boots: "The workers pick up their feet.",
-  steady: "Time away pays a little more.",
-  cartSyn: "Each worker makes carts 1% faster.",
-  drillSyn: "Each cart makes the drills a little quicker.",
-  borerSyn: "Each drill makes the borers a little quicker.",
-  machineSyn: "Each borer makes the machine a little quicker.",
 };
 
 function sheetWhy(): HTMLParagraphElement {
@@ -534,7 +525,7 @@ export function createUpgradesPanel({
         levelChip.textContent = `Lv ${String(level)}/${String(upgrade.maxLevel)}`;
       }
       effect.textContent = upgradeEffectLine(upgrade, current, at);
-      why.textContent = UPGRADE_WHY[upgrade.id];
+      why.textContent = upgradeWhyLine(upgrade, current, at);
       buy.disabled = !view.ready || !affordable;
       buy.textContent =
         cost === undefined
