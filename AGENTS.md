@@ -135,7 +135,7 @@ There are no CI check runs on a PR. The proof is the gate, run by the Claude Cod
 - **Stop:** when code changed since `origin/main`, the fast tier runs before the turn ends. Red keeps the turn going, with the FAIL lines as feedback.
 - **`git push`:** the full tier runs first (with the strict strategy lab when economy code changed). Red blocks the push.
 
-Push with `git push` from the shell, never with the GitHub MCP `push_files` or `create_or_update_file` tools, which skip the hook. Never bypass the hook (`--no-verify` does not apply; do not edit `.claude/settings.json` to get a push through).
+Push with `git push` from the shell, never with the GitHub MCP `push_files` or `create_or_update_file` tools, which skip the hook. Commit in one command and push in the next: the hook blocks the whole command, so a commit chained before a blocked push never happens. Every hook run adds a line to `.gate/hook.log`. Never bypass the hook (`--no-verify` does not apply; do not edit `.claude/settings.json` to get a push through).
 
 ### After you file
 
