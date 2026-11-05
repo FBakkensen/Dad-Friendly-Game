@@ -47,4 +47,25 @@ describe("lab pool", () => {
       inOrder([one, () => Promise.reject(new Error("seed 2"))], 2),
     ).rejects.toThrow("seed 2");
   });
+
+  it("starts no new task once one has failed", async () => {
+    const started: number[] = [];
+    const tasks = [0, 1, 2, 3].map((index) => async () => {
+      started.push(index);
+      if (index === 0) {
+        throw new Error("seed 1");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return index;
+    });
+    await expect(inOrder(tasks, 2)).rejects.toThrow("seed 1");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(started).toEqual([0, 1]);
+  });
+
+  it("runs one lane when the limit is not a number", async () => {
+    await expect(
+      inOrder([() => Promise.resolve(1), () => Promise.resolve(2)], Number.NaN),
+    ).resolves.toEqual([1, 2]);
+  });
 });

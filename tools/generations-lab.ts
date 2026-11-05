@@ -9,7 +9,7 @@
  * Each policy and seed plays in its own process, one per core (LAB_JOBS sets
  * the count). The runs of one seed stay in order: each starts from the last.
  */
-import { fork } from "node:child_process";
+import { fork, type ChildProcess } from "node:child_process";
 import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
 import casual from "../src/lab/policies/casual-2x10";
@@ -54,6 +54,9 @@ const factors = Object.fromEntries(
     }),
 );
 
+/** Children still playing, so a failed job can stop the rest. */
+const children = new Set<ChildProcess>();
+
 /** One seed of one policy, played in a child process. */
 function playInChild(
   policyId: string,
@@ -66,16 +69,21 @@ function playInChild(
       [...process.argv.slice(2), "--job", `${policyId}:${String(seed)}`],
       { serialization: "advanced" },
     );
+    children.add(child);
     child.on("message", (message) => {
       runs = message as readonly GenerationRun[];
     });
     child.on("error", reject);
-    child.on("exit", (code) => {
+    // "close" comes after the last message is read; "exit" may come first.
+    child.on("close", (code, signal) => {
+      children.delete(child);
       if (code === 0 && runs !== undefined) {
         resolve(runs);
       } else {
         reject(
-          new Error(`${policyId} seed ${String(seed)} exited ${String(code)}`),
+          new Error(
+            `${policyId} seed ${String(seed)} exited ${String(code ?? signal)}`,
+          ),
         );
       }
     });
@@ -98,8 +106,12 @@ if (job === undefined) {
     factors,
   });
   // Disconnect once the runs are sent, so the parent has them before the exit.
-  process.send?.(runs, () => {
-    process.disconnect?.();
+  process.send?.(runs, (error: Error | null) => {
+    if (error === null) {
+      process.disconnect?.();
+    } else {
+      process.exitCode = 1;
+    }
   });
 }
 
@@ -128,7 +140,11 @@ async function report(): Promise<void> {
       ),
     ),
     Number(process.env.LAB_JOBS ?? availableParallelism()),
-  );
+  ).catch((error: unknown) => {
+    // One failed job fails the lab. Stop the others rather than leave them running.
+    for (const child of children) child.kill();
+    throw error;
+  });
   for (const [at, policy] of chosen.entries()) {
     const perSeed = played.slice(at * seeds, (at + 1) * seeds);
     const days = ks.map((_, run) => {
