@@ -310,7 +310,7 @@ One PR each, in order; the list with acceptance criteria is in the M7 PR descrip
 
 ### Milestone 8: Strategy lab
 
-**M8 is built.** The shared clock is `src/lab/world.ts` (#171). Targets and decision measures are in (#173). Player types are one file each under `src/lab/policies/`, loaded by the same registry (#172). The tournament and `npm run lab` are in (#174). The retunes are in (#177, #178, #179). No screen, no save field, no Firestore change. The lab runs offline, next to the pacing sim, so a retune can be judged before it ships. Players never see payback, shares, or these targets. CI runs the lab with `LAB_STRICT=1`, so a missed guardrail fails the build.
+**M8 is built.** The shared clock is `src/lab/world.ts` (#171). Targets and decision measures are in (#173). Player types are one file each under `src/lab/policies/`, loaded by the same registry (#172). The tournament and `npm run lab` are in (#174). The retunes are in (#177, #178, #179). No screen, no save field, no Firestore change. The lab runs offline, next to the pacing sim, so a retune can be judged before it ships. Players never see payback, shares, or these targets. The full gate runs the lab with `LAB_STRICT=1` when economy code changed, so a missed guardrail blocks the push.
 
 #### Pacing
 
@@ -375,7 +375,7 @@ One row per player type, one column per registered measure. A cell is a bare num
 
 The header names two finish days. **Optimizer finish day** is `optimizer`. **Casual finish day** is `casual-2x10`, the plain dad. Regret divides a dad's finish day by the optimizer's. Extreme win reads how much sooner an extreme finished than that casual dad. Both numbers are the mean across the seeds in the run (seeds 1 through that count). A local `npm run lab` uses `LOCAL_SEEDS`. CI passes `--ci` and uses `CI_SEEDS`. `--seeds` wins over both, and `--days` overrides `DEFAULT_MAX_DAYS`. `--policy` limits the rows; the columns stay every measure.
 
-Under the table: a per-hour timeline for each casual player type and the optimizer, on the first seed; a section per list measure (never the best buy is the dead-feature list); and dead stretches longer than `REPORT_DEAD_HOURS`, once for payback and once for value per stone (when they start, what the dad is saving for, and how many times slower the next payback is). The suggestions name the miss. They do not change a number. CI posts that report with `LAB_STRICT=1`, so a miss fails the build. Without that variable a miss is a warning.
+Under the table: a per-hour timeline for each casual player type and the optimizer, on the first seed; a section per list measure (never the best buy is the dead-feature list); and dead stretches longer than `REPORT_DEAD_HOURS`, once for payback and once for value per stone (when they start, what the dad is saving for, and how many times slower the next payback is). The suggestions name the miss. They do not change a number. The full gate runs it with `LAB_STRICT=1` when economy code changed, so a miss blocks the push. Without that variable a miss is a warning.
 
 Adding a policy file adds a row. Adding a measure file adds a column. Adding a target adds a pass or fail on the cells it covers. No other edit.
 
@@ -533,7 +533,7 @@ Flemming, 2026-10-14:
 
 #### Issues
 
-One PR each, in dependency order. Every issue keeps `npm run check` green, including the strict `strategy-lab` job. `src/lab/targets.ts` stays untouched except in M9-6. Copy is in `screen-words`, and the tone lifts the dad up.
+One PR each, in dependency order. Every issue keeps `npm run check` green, including the strict strategy lab. `src/lab/targets.ts` stays untouched except in M9-6. Copy is in `screen-words`, and the tone lifts the dad up.
 
 1. **M9-1 (#192) DESIGN.md.** This section. Depends on nothing.
 2. **M9-2 (#193) Mockups.** Workshop, layer card, material line, and craft done, in `mockups/`, with screenshots at 390×844 and 360×640. No scroll at either size. Labels and tap feedback are described. Flemming approves. Depends on M9-1.

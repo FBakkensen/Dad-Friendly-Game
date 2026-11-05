@@ -1,6 +1,6 @@
 ---
 name: ship-sitting
-description: Commits the current sitting, runs a code-review pass, fixes non-nits, opens one PR, babysits CI and reviews through squash-merge, then watches the hosting deploy on main. Use when the user asks to ship, commit and PR, file the PR, finish the sitting, or babysit the PR.
+description: Commits the current sitting, runs a code-review pass, fixes non-nits, opens one PR through the gated git push, babysits reviews through squash-merge, then watches the hosting deploy on main. Use when the user asks to ship, commit and PR, file the PR, finish the sitting, or babysit the PR.
 ---
 
 # Ship sitting
@@ -23,7 +23,7 @@ Before the first commit:
 
 - On the sitting's branch, not `main`.
 - Stage only this issue's files. No secrets (`.env`, `.cursor/mcp.json`, Firebase, PixelLab tokens).
-- `npm run check` green.
+- `npm run check` green (the full tier). The `git push` hook runs it again and blocks a red push.
 - If a second sliver snuck in, stop. That work gets its own issue, not this PR.
 
 ## Commit
@@ -68,14 +68,13 @@ One PR closes one issue. Never a second branch or stacked PR.
 
 ## Babysit
 
-Refresh live PR state each pass (`gh pr view`, `gh pr checks`). Do not act on stale state.
+Refresh live PR state each pass (`gh pr view`). Do not act on stale state. There are no PR check runs: the `git push` hook ran the full tier, and that is the proof.
 
-1. Conflicts first, then unresolved review comments, then failing CI.
-2. Watch CI to completion (`gh pr checks --watch`). Do not invent work while checks run.
-3. Fix CI caused by this PR. Read the failing log. Push the fix. Never force-push. Never edit CI config just to go green.
-4. Handle review comments here. Fix real in-scope issues. Dismiss invalid ones with a reason. Ask the human on auth, secrets, or a real product question. Nits do not block merge.
+1. Conflicts first, then unresolved review comments.
+2. Push every fix with `git push`, so the hook gates it. Never `push_files`, never force-push, never edit `.claude/settings.json` to get a push through.
+3. Handle review comments here. Fix real in-scope issues. Dismiss invalid ones with a reason. Ask the human on auth, secrets, or a real product question. Nits do not block merge.
 
-When the PR is mergeable, required CI is green, and every non-nit comment is fixed or dismissed, squash-merge without waiting:
+When the PR is mergeable, its last push went through the gate, and every non-nit comment is fixed or dismissed, squash-merge without waiting:
 
 ```bash
 gh pr merge --squash
@@ -89,7 +88,7 @@ Do not delete the local feature branch unless asked. Then go to After merge. Do 
 
 The sitting is not done at squash-merge. `deploy-hosting` runs on `main` and can fail after the PR is green.
 
-Refresh the merge commit, then list the workflows that commit started:
+Refresh the merge commit, then list the workflow runs that commit started (only `deploy-hosting`):
 
 ```bash
 git rev-parse HEAD
@@ -98,7 +97,7 @@ gh run list --commit "$(git rev-parse HEAD)" --json databaseId,name,status,concl
 
 If the list is empty, wait and list again. Do not treat an empty list as success.
 
-Watch each run to completion, including `check` if it ran again, and `deploy-hosting`:
+Watch `deploy-hosting` to completion:
 
 ```bash
 gh run watch <id> --exit-status
@@ -108,4 +107,4 @@ Do not invent work while they run.
 
 If deploy fails, read the log (`gh run view <id> --log-failed`). Fix the cause. Push if it is code. Re-run the workflow (`gh run rerun <id>`). Never force-push. Never edit CI just to go green.
 
-Return the PR URL only after those runs succeed.
+Return the PR URL only after that run succeeds.

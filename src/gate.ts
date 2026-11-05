@@ -17,6 +17,8 @@ export interface Step {
   readonly tiers: readonly Tier[];
   /** Names of steps that must pass before this one starts. */
   readonly after: readonly string[];
+  /** Added to the gate's own environment for this step. */
+  readonly env: Readonly<Record<string, string>>;
 }
 
 export type Outcome =
@@ -72,10 +74,102 @@ function tsc(project: string, name: string): readonly string[] {
 }
 
 /**
- * Every step either tier can run. `changed` is the fast tier's code files:
- * with none, the fast tier only typechecks.
+ * Where the strategy lab starts: both commands, their loader, and the policy
+ * and measure folders it discovers at run time.
  */
-export function gateSteps(changed: readonly string[]): readonly Step[] {
+export const LAB_ENTRIES: readonly string[] = [
+  "tools/strategy-lab.ts",
+  "tools/generations-lab.ts",
+  "tools/lab-register.mjs",
+  "tools/lab-hooks.mjs",
+];
+export const LAB_DIRS: readonly string[] = [
+  "src/lab/policies",
+  "src/lab/measures",
+];
+
+/** Relative specifiers a source file imports, re-exports, or loads lazily. */
+export function relativeImports(source: string): readonly string[] {
+  return [
+    ...source.matchAll(
+      /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)["'](\.{1,2}\/[^"']+)["']/g,
+    ),
+  ].map((match) => String(match[1]));
+}
+
+/** `/`-separated join that resolves `.` and `..`; repo paths only. */
+function joinPath(file: string, spec: string): string {
+  const parts = file.split("/").slice(0, -1);
+  for (const part of spec.split("/")) {
+    if (part === "..") parts.pop();
+    else if (part !== ".") parts.push(part);
+  }
+  return parts.join("/");
+}
+
+/**
+ * Every file reachable from `entries` through relative imports. `read` gives
+ * a file's source, or undefined when there is no such file.
+ */
+export function importClosure(
+  entries: readonly string[],
+  read: (path: string) => string | undefined,
+): ReadonlySet<string> {
+  const seen = new Set<string>();
+  const queue = [...entries];
+  for (let file = queue.shift(); file !== undefined; file = queue.shift()) {
+    const source = read(file);
+    if (source === undefined || seen.has(file)) continue;
+    seen.add(file);
+    for (const spec of relativeImports(source)) {
+      const base = joinPath(file, spec);
+      const found = [
+        base,
+        `${base}.ts`,
+        `${base}.mjs`,
+        `${base}/index.ts`,
+      ].find((path) => read(path) !== undefined);
+      if (found !== undefined) queue.push(found);
+    }
+  }
+  return seen;
+}
+
+/** True when a changed file is one the strategy lab runs. */
+export function economyChanged(
+  changed: readonly string[],
+  closure: ReadonlySet<string>,
+): boolean {
+  return changed.some((path) => closure.has(path));
+}
+
+/**
+ * True when one of the shell command's parts runs `git push`, past git's own
+ * options (`git -C repo push`). The pre-push hook gates on this.
+ */
+export function isGitPush(command: string): boolean {
+  return command.split(/&&|\|\||[;|&\n]/).some((part) => {
+    const words = part.trim().split(/\s+/);
+    if (words[0] !== "git") return false;
+    let at = 1;
+    while (words[at]?.startsWith("-")) {
+      at += words[at] === "-C" || words[at] === "-c" ? 2 : 1;
+    }
+    return words[at] === "push";
+  });
+}
+
+const LAB = ["--import", "./tools/lab-register.mjs"];
+
+/**
+ * Every step either tier can run. `changed` is the code changed since
+ * origin/main: the fast tier lints and tests it, and with none only
+ * typechecks. `economy` adds the strict strategy lab to the full tier.
+ */
+export function gateSteps(
+  changed: readonly string[],
+  { economy }: { readonly economy: boolean },
+): readonly Step[] {
   const both: readonly Tier[] = ["fast", "full"];
   const full: readonly Tier[] = ["full"];
   const step = (
@@ -84,7 +178,29 @@ export function gateSteps(changed: readonly string[]): readonly Step[] {
     args: readonly string[],
     tiers: readonly Tier[],
     after: readonly string[] = [],
-  ): Step => ({ name, command, args, tiers, after });
+    env: Readonly<Record<string, string>> = {},
+  ): Step => ({ name, command, args, tiers, after, env });
+  // CI ran these on every PR (~18 min). Now only when the lab's code changed.
+  const lab: readonly Step[] = economy
+    ? [
+        step(
+          "lab",
+          "node",
+          [...LAB, "tools/strategy-lab.ts", "--ci"],
+          full,
+          STATIC,
+          { LAB_STRICT: "1" },
+        ),
+        step(
+          "lab:generations",
+          "node",
+          [...LAB, "tools/generations-lab.ts", "--ci"],
+          full,
+          STATIC,
+          { LAB_STRICT: "1" },
+        ),
+      ]
+    : [];
   const onChanges: readonly Step[] =
     changed.length === 0
       ? []
@@ -134,6 +250,7 @@ export function gateSteps(changed: readonly string[]): readonly Step[] {
     step("rules", "node", ["scripts/test-rules.mjs"], full, STATIC),
     step("visual", "node", ["scripts/visual-check.mjs"], full, STATIC),
     step("mockups", "node", ["scripts/mockup-check.mjs"], full, STATIC),
+    ...lab,
   ];
 }
 
