@@ -2,3 +2,6 @@ dist
 coverage
 node_modules
 package-lock.json
+
+# Superpowers plan ledgers and briefs (git-ignored scratch)
+.superpowers

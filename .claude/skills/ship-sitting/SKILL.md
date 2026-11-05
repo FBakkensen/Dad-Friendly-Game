@@ -5,7 +5,7 @@ description: Use when the user asks to ship, commit and PR, file the PR, finish 
 
 # Ship sitting
 
-Superpowers reviews the branch and opens the PR. This skill adds what superpowers leaves out: the gate on every push, babysitting the PR in this conversation, the squash-merge, and the deploy on `main`. The agent files, babysits, and merges its own PR.
+Superpowers reviews the branch and opens the PR. This skill adds what superpowers leaves out: one gated push when shipping, babysitting the PR in this conversation, and the squash-merge. The sitting ends at the merge. The agent files, babysits, and merges its own PR.
 
 Stay in this conversation. Do not hand the PR to autopilot, a background babysitter, or another agent. In a Claude Code cloud session, `gh` works for search only: where this skill, or a superpowers skill it runs, says `gh`, use the matching GitHub MCP tool.
 
@@ -18,8 +18,12 @@ One issue, one branch, one PR, `Fixes #N`. Use the github-issues skill for the g
 - Uncommitted work, no PR: start at Commit.
 - Committed, no PR: start at Review.
 - PR already open: start at Babysit.
-- Merged, deploy still running or failed: start at After merge.
+- PR merged: report the PR URL and stop.
 - Nothing to ship: stop.
+
+## Push once
+
+Work stays local, committed or not, until this skill ships it. The first `git push` of the sitting is the one at Open the PR. After that, only babysitting fixes push. In a Claude Code cloud session, the environment's Stop hook asks to commit and push at the end of every turn with local work. Ignore it until then (`CLAUDE.md`, "Claude Code cloud sessions"): each push pays for the full gate.
 
 ## The gate
 
@@ -81,20 +85,4 @@ git checkout main
 git pull
 ```
 
-Do not delete the local feature branch unless asked. Do not return the PR URL yet.
-
-## After merge
-
-The sitting is not done at squash-merge. `deploy-hosting` runs on `main` and can fail after the PR is green.
-
-List the workflow runs the merge commit started:
-
-```bash
-gh run list --commit "$(git rev-parse HEAD)" --json databaseId,name,status,conclusion,url
-```
-
-If the list is empty, wait and list again. An empty list is not success. Watch `deploy-hosting` to completion (`gh run watch <id> --exit-status`). Do not invent work while it runs.
-
-If deploy fails, read the log (`gh run view <id> --log-failed`), fix the cause, push if it is code, and re-run (`gh run rerun <id>`). Never force-push. Never edit CI just to go green.
-
-Return the PR URL only after that run succeeds.
+Do not delete the local feature branch unless asked. The sitting ends here: return the PR URL.
