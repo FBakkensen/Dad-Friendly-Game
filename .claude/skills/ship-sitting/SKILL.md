@@ -1,13 +1,15 @@
 ---
 name: ship-sitting
-description: Ships the current sitting through superpowers code review and finishing, the gated git push, PR babysitting, squash-merge, and the hosting deploy on main. Use when the user asks to ship, commit and PR, file the PR, finish the sitting, or babysit the PR, and in place of superpowers:finishing-a-development-branch when a plan completes.
+description: Use when the user asks to ship, commit and PR, file the PR, finish the sitting, or babysit the PR, and when a superpowers plan completes (instead of calling superpowers:finishing-a-development-branch directly).
 ---
 
 # Ship sitting
 
 Superpowers reviews the branch and opens the PR. This skill adds what superpowers leaves out: the gate on every push, babysitting the PR in this conversation, the squash-merge, and the deploy on `main`. The agent files, babysits, and merges its own PR.
 
-Stay in this conversation. Do not hand the PR to autopilot, a background babysitter, or another agent. In a Claude Code cloud session, `gh` works for search only: where this skill says `gh`, use the matching GitHub MCP tool.
+Stay in this conversation. Do not hand the PR to autopilot, a background babysitter, or another agent. In a Claude Code cloud session, `gh` works for search only: where this skill, or a superpowers skill it runs, says `gh`, use the matching GitHub MCP tool.
+
+Stop and ask the human on auth, secrets, security, or a real product question, anywhere in this skill.
 
 One issue, one branch, one PR, `Fixes #N`. Use the github-issues skill for the graph.
 
@@ -37,13 +39,13 @@ Push with `git push` from the shell, never with the GitHub MCP `push_files` or `
 
 ## Review
 
-Use `superpowers:requesting-code-review` on the branch diff that would merge (`origin/main...HEAD`). If a superpowers plan just ended with its final whole-branch review and nothing has been committed since, that review counts.
+Use `superpowers:requesting-code-review` on the branch diff that would merge (`origin/main...HEAD`). If a superpowers plan just ended with its final whole-branch review (and its scoped re-review) and nothing has been committed since, that review counts.
 
-Fix every Critical and Important finding, commit, and review again. Minor findings are nits and may ship. If a non-nit is still there after two fix rounds, stop and ask.
+Do not open the PR until the review returns only Minor findings, or none. Every Critical or Important finding still open is a non-nit, including one a plan parked with a ruling. Fix it, commit, and review again. The ask to ship includes those fix commits. Minor findings are nits and may ship. If a non-nit is still there after two fix rounds, stop and ask.
 
 ## Open the PR
 
-Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Request" already chosen. Its full test suite is `npm run gate -- full`. The push goes through the gate. The PR body:
+Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Request" already chosen, against `main`. Its full test suite is `npm run gate -- full`. The push goes through the gate. The title matches the sliver. The PR body:
 
 ```markdown
 ## Summary
@@ -53,6 +55,10 @@ Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Re
 ## Test plan
 
 - ...
+
+## Rulings
+
+- ... (rulings and deferred Minor findings from the plan; omit if none)
 
 Fixes #N
 ```
