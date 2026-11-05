@@ -42,4 +42,4 @@ How we build is dad-friendly too. The superpowers plugin is the workflow (`super
 ## Art and next work
 
 - PixelLab MCP generates assets. Ask first (credits are limited). Never placeholders. Use the pixellab skill.
-- When the human asks what next, what to build, or for improvement suggestions, use the what-next skill. Prefer unblocked GitHub issues as the options.
+- When the human asks what next, what to build, or for improvement suggestions, use the what-next skill. Prefer unblocked GitHub issues as the options. When the backlog is thin, or the human wants new ideas checked, run a round with the hill-climb skill first.
