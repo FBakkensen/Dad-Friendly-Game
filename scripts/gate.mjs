@@ -1,4 +1,4 @@
-/* global console, process */
+/* global console, process, URL */
 /**
  * One quiet gate, two tiers. One line per step; each full log goes to
  * .gate/logs/<step>.log, and a failed step prints its tail.
@@ -15,6 +15,8 @@ import {
   readFileSync,
 } from "node:fs";
 import { performance } from "node:perf_hooks";
+import { constants } from "node:os";
+import { fileURLToPath } from "node:url";
 import {
   GATE_DIR,
   USAGE,
@@ -29,6 +31,9 @@ import {
   summaryLine,
   totalLine,
 } from "../src/gate.ts";
+
+// Every path below is repo-relative, wherever the gate was started from.
+process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 
 const parsed = parseArgs(process.argv.slice(2));
 if (parsed.kind === "help") {
@@ -83,7 +88,25 @@ const logPath = (step) => `${LOGS}/${step.name.replace(/[^\w.-]/g, "_")}.log`;
 const width = Math.max(...steps.map((step) => step.name.length));
 const outcomes = new Map();
 const running = new Set();
+const children = new Set();
 const began = performance.now();
+
+// A Ctrl-C or a hook timeout stops the whole gate: dev servers, Chrome, and
+// the emulator must not outlive it. Each step leads its own process group.
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  process.on(signal, () => {
+    for (const child of children) {
+      try {
+        if (process.platform === "win32") child.kill(signal);
+        else process.kill(-child.pid, signal);
+      } catch {
+        // Already gone.
+      }
+    }
+    console.log(`\ngate ${tier}: stopped by ${signal}`);
+    process.exit(128 + constants.signals[signal]);
+  });
+}
 
 function settle(step, outcome) {
   outcomes.set(step.name, outcome);
@@ -100,6 +123,7 @@ function run(step) {
       // A spawn error may be followed by close; count the step once.
       if (finished) return;
       finished = true;
+      children.delete(child);
       closeSync(log);
       running.delete(step.name);
       const seconds = (performance.now() - started) / 1000;
@@ -114,8 +138,10 @@ function run(step) {
     const child = spawn(step.command, step.args, {
       stdio: ["ignore", log, log],
       shell: process.platform === "win32",
+      detached: process.platform !== "win32",
       env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
     });
+    children.add(child);
     child.on("error", (error) => {
       console.error(`gate: ${step.name} did not start: ${error.message}`);
       finish(127);
@@ -142,8 +168,15 @@ for (;;) {
 for (const step of steps) {
   if (outcomes.get(step.name)?.kind !== "failed") continue;
   const path = logPath(step);
-  console.log(`\n--- ${step.name}: last lines of ${path}`);
-  console.log(logTail(readFileSync(path, "utf8")));
+  const text = readFileSync(path, "utf8");
+  // CI throws the log folder away, so it gets the whole log.
+  if (process.env.CI) {
+    console.log(`\n--- ${step.name}: ${path}`);
+    console.log(text.trimEnd());
+  } else {
+    console.log(`\n--- ${step.name}: last lines of ${path}`);
+    console.log(logTail(text));
+  }
 }
 const outcomeList = [...outcomes.values()];
 console.log(
