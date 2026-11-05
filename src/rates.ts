@@ -1,4 +1,4 @@
-import { factor } from "./economy/factors";
+import { activeFactors, factor } from "./economy/factors";
 import {
   promote,
   staffNeeded,
@@ -141,6 +141,34 @@ export function effectiveRates(
   now?: number,
   trouble?: Trouble,
 ): Rates {
+  if (now !== undefined || trouble !== undefined) {
+    return readRates(mountain, now, trouble);
+  }
+  const factors = activeFactors();
+  const kept = clocklessRates.get(mountain);
+  if (kept !== undefined && kept.factors === factors) {
+    return kept.rates;
+  }
+  const rates = readRates(mountain);
+  clocklessRates.set(mountain, { factors, rates });
+  return rates;
+}
+
+/**
+ * Rates with no clock, kept per mountain. A mountain is never changed in
+ * place, so the same object always reads the same; the scoring of one
+ * decision asks about the same mountain many times (#314). A sweep's
+ * factors are part of the answer, so a different map reads again.
+ */
+const clocklessRates = new WeakMap<
+  Mountain,
+  {
+    readonly factors: Readonly<Record<string, number>> | undefined;
+    readonly rates: Rates;
+  }
+>();
+
+function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   const sharper =
     now !== undefined && boostLeft(mountain, "sharper", now) > 0
       ? boostById("sharper").multiplier

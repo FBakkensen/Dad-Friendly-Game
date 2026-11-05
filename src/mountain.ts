@@ -33,6 +33,11 @@ import { MOUNTAIN_STONES, minedOut, stonesLeft, stretch } from "./scale";
 export { MOUNTAIN_STONES };
 /** Base away cap; the Shield of Protection relic will lift it. */
 
+/**
+ * One run's state. Never changed in place: every move returns a new object.
+ * `effectiveRates` keeps its clockless answer per mountain object and relies
+ * on that (#314).
+ */
 export type Mountain = {
   /** Stones still in the mountain. 0..MOUNTAIN_STONES. */
   readonly remaining: number;
