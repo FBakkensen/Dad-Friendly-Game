@@ -98,7 +98,15 @@ export function gateSteps(changed: readonly string[]): readonly Step[] {
           step(
             "test:related",
             `${BIN}/vitest`,
-            ["related", "--run", "--passWithNoTests", ...changed],
+            // unit only: the sim project's long economy runs are the full tier's.
+            [
+              "related",
+              "--run",
+              "--passWithNoTests",
+              "--project",
+              "unit",
+              ...changed,
+            ],
             ["fast"],
           ),
         ];

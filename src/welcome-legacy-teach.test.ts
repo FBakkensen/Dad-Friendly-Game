@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
 import { legacyCardWords } from "./legacy-panel";
 import { EMPTY_MATERIALS, materialsGained } from "./layers";

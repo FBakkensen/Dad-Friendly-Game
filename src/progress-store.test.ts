@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
 import { kidStretch } from "./scale";
 import { EMPTY_MATERIALS } from "./layers";

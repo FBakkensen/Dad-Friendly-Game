@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { HOW_IT_WORKS, HOW_SYSTEMS } from "../src/how-it-works.ts";
 import { chipTime } from "../src/format.ts";
 import { readFileSync } from "node:fs";
