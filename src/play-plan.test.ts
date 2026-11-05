@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   actionSlug,
   isPlayOutput,
+  labelMatch,
   parseAction,
   parsePlayArgs,
   shotName,
@@ -37,6 +38,14 @@ describe("parseAction", () => {
     });
   });
 
+  it("keeps brackets in a label, since it is matched as text", () => {
+    expect(parseAction("label:Promote (2M)")).toEqual({
+      kind: "tap",
+      target: { by: "label", label: "Promote (2M)" },
+      times: 1,
+    });
+  });
+
   it("keeps a selector that only contains a star", () => {
     expect(parseAction("tap:.list > *")).toEqual({
       kind: "tap",
@@ -62,7 +71,6 @@ describe("parseAction", () => {
     expect(parseAction("tap:.mountain*501").kind).toBe("error");
     expect(parseAction("wait:500ms").kind).toBe("error");
     expect(parseAction("wait:1.5").kind).toBe("error");
-    expect(parseAction("label:Promote (2M)").kind).toBe("error");
   });
 });
 
@@ -75,7 +83,22 @@ describe("parsePlayArgs", () => {
       actions: [],
       out: "play-shots",
       url: undefined,
+      phone: { width: 424, height: 924 },
     });
+  });
+
+  it("shoots the phone at a chosen size", () => {
+    const phone = (value: string) => {
+      const plan = parsePlayArgs(["--viewport", value], SAVES);
+      return plan.kind === "plan" ? plan.phone : plan.kind;
+    };
+    expect(phone("424x830")).toEqual({ width: 424, height: 830 });
+    expect(phone("424X924")).toEqual({ width: 424, height: 924 });
+    expect(phone("412x915")).toEqual({ width: 412, height: 915 });
+    expect(phone("424")).toBe("error");
+    expect(phone("0x830")).toBe("error");
+    expect(phone("424x830x2")).toBe("error");
+    expect(phone("9000x830")).toBe("error");
   });
 
   it("reads options in either form, with actions in order", () => {
@@ -106,6 +129,7 @@ describe("parsePlayArgs", () => {
       ],
       out: "shots",
       url: "http://127.0.0.1:5173/",
+      phone: { width: 424, height: 924 },
     });
   });
 
@@ -146,11 +170,33 @@ describe("parsePlayArgs", () => {
 });
 
 describe("targetQuery", () => {
-  it("passes selectors through and turns labels into an aria query", () => {
+  it("passes selectors through", () => {
     expect(targetQuery({ by: "selector", selector: ".buys-button" })).toBe(
       ".buys-button",
     );
-    expect(targetQuery({ by: "label", label: "Buys" })).toBe("::-p-aria(Buys)");
+  });
+});
+
+describe("labelMatch", () => {
+  it("prefers an exact name, then the first name that starts with the label", () => {
+    expect(labelMatch(["Menu", "Buys", "Buys more"], "Buys")).toBe(1);
+    expect(
+      labelMatch(
+        ["Menu", "Upgrades, one is affordable", "Upgrades"],
+        "Upgrades",
+      ),
+    ).toBe(2);
+    expect(
+      labelMatch(["Menu", "Upgrades, one is affordable"], "Upgrades"),
+    ).toBe(1);
+  });
+
+  it("ignores case and extra spaces, and answers -1 for no match", () => {
+    expect(
+      labelMatch(["  Back to the   mountain "], "back to the mountain"),
+    ).toBe(0);
+    expect(labelMatch(["Menu"], "Upgrades")).toBe(-1);
+    expect(labelMatch([], "Menu")).toBe(-1);
   });
 });
 
