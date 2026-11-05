@@ -872,9 +872,9 @@ describe("upgrade card before and after (#324)", () => {
   });
 
   it("Strong arms with every level bought says only what taps are now", () => {
-    expect(line("tap", { ...crew, helpers: 500, upgrades: { tap: 10 } })).toMatch(
-      /^Taps now \d+\.$/,
-    );
+    expect(
+      line("tap", { ...crew, helpers: 500, upgrades: { tap: 10 } }),
+    ).toMatch(/^Taps now \d+\.$/);
   });
 
   it("Steady hands says away pay before and after, bought or not", () => {
@@ -899,7 +899,9 @@ describe("upgrade card before and after (#324)", () => {
 
   it("the Great Machine synergy names the Great Machine", () => {
     const deep = { ...crew, helpers: 200, borers: 3, machines: 1 };
-    expect(line("machineSyn", deep)).toMatch(/^Great Machine \S+\/s to \S+\/s\.$/);
+    expect(line("machineSyn", deep)).toMatch(
+      /^Great Machine \S+\/s to \S+\/s\.$/,
+    );
   });
 
   it("Better boots keeps its line", () => {
