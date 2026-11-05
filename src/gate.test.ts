@@ -205,7 +205,11 @@ describe("nextMoves", () => {
   });
 
   it("does not restart a running or finished step", () => {
-    const moves = nextMoves(steps, new Map([["a", passed]]), new Set(["b"]));
+    const moves = nextMoves(
+      steps,
+      new Map<string, Outcome>([["a", passed]]),
+      new Set(["b"]),
+    );
     expect(moves.start).toEqual([]);
     expect(moves.skip).toEqual([]);
   });
@@ -213,7 +217,7 @@ describe("nextMoves", () => {
   it("starts a step once all its dependencies passed", () => {
     const moves = nextMoves(
       steps,
-      new Map([
+      new Map<string, Outcome>([
         ["a", passed],
         ["b", passed],
       ]),
@@ -225,7 +229,7 @@ describe("nextMoves", () => {
   it("skips a step behind a failed one, and the skip spreads", () => {
     const first = nextMoves(
       steps,
-      new Map([
+      new Map<string, Outcome>([
         ["a", failed],
         ["b", passed],
       ]),
@@ -250,7 +254,11 @@ describe("nextMoves", () => {
   });
 
   it("skips as soon as one dependency fails, even while another runs", () => {
-    const moves = nextMoves(steps, new Map([["a", failed]]), new Set(["b"]));
+    const moves = nextMoves(
+      steps,
+      new Map<string, Outcome>([["a", failed]]),
+      new Set(["b"]),
+    );
     expect(moves.skip.map((each) => each.step.name)).toEqual(["c"]);
   });
 });

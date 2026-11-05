@@ -317,7 +317,7 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
-        "src/fast-check.ts": {
+        "src/gate.ts": {
           statements: 100,
           branches: 100,
           functions: 100,

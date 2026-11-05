@@ -44,3 +44,6 @@ mockups/shots/
 
 # npm run play shots and log
 play-shots/
+
+# npm run gate: step logs and incremental typecheck state
+.gate/
