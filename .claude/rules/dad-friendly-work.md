@@ -10,7 +10,7 @@ How we build is dad-friendly too. The interview format (one question, three opti
 
 ## Docs
 
-- Open GitHub issues are the plan.
+- Open GitHub issues are the plan. Specs and plans for a sliver follow `.claude/rules/superpowers.md`.
 - `docs/DESIGN.md` (the numbers and milestone history), `docs/design-intent.md` (why each part exists), `docs/ARCHITECTURE.md`, `docs/ART.md`, and `docs/ui-audit.md` describe how the game works now. A PR that changes behavior updates them in the same PR.
 
 ## Stack
