@@ -25,6 +25,14 @@ describe("relics", () => {
     expect(depths.at(-1)).toBe(MOUNTAIN_STONES);
   });
 
+  it("the Mantle's power points to passing the mine now, not later (#326)", () => {
+    const mantle = RELICS.find((relic) => relic.id === "mantle");
+    expect(mantle?.boost).toBe(
+      "Ends the run as a Legend. Pass the mine to your kid when you are ready.",
+    );
+    expect(mantle?.boost).not.toMatch(/later/i);
+  });
+
   it("finds the Lantern at exactly 1,000,000 stones mined", () => {
     expect(hasRelic(minedMountain(999_999), "lantern")).toBe(false);
     expect(hasRelic(minedMountain(1_000_000), "lantern")).toBe(true);

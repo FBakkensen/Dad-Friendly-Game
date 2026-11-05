@@ -74,7 +74,7 @@ export const RELICS: readonly Relic[] = [
   {
     id: "mantle",
     boost:
-      "Ends the run as a Legend. Later, it lets you pass the mine to your kid.",
+      "Ends the run as a Legend. Pass the mine to your kid when you are ready.",
     tease: "At the very bottom, a hero's mantle waits.",
     name: "Mantle of the Hero",
     virtue: "Heroism",
