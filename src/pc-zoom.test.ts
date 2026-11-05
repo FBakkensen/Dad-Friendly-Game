@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
 import { pcZoom, trackPcZoom } from "./pc-zoom";
 

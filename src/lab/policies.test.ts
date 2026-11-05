@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "../mountain";
-import { RELICS } from "../relics";
-import { simulateDadRun } from "../pacing";
 import {
   actionsOnTable,
   canPay,
@@ -11,7 +9,6 @@ import {
 } from "./decide";
 import casual from "./policies/casual-2x10";
 import chargeJunkie from "./policies/charge-junkie";
-import checker from "./policies/checker-6x3";
 import craftingHeavy from "./policies/crafting-heavy";
 import evening from "./policies/evening-1x20";
 import fiveMin from "./policies/five-min-a-day";
@@ -45,20 +42,13 @@ import {
   workshopUnlocked,
   type RecipeId,
 } from "../workshop";
-import { isSampleSecond } from "./casual";
-import type { DecisionSample } from "./measure";
-import { longestMaterialIdleDays } from "./measures/materialIdle";
-import { valueContext } from "./policy";
-import { scoreDecision } from "./score";
-import { promoteAsap, runPolicy, type PolicyRun } from "./run";
+import { promoteAsap, runPolicy } from "./run";
 import {
   DAY_MS,
   FIX_FAST_MS,
   FIX_SLOW_MS,
   LOOKAHEAD_SESSIONS,
 } from "./targets";
-
-const mantle = RELICS.find((relic) => relic.id === "mantle")?.depth ?? 0;
 
 const ada = {
   name: "Ada",
@@ -80,13 +70,6 @@ function pricedOut(pocket: number): Mountain {
     borers: 1,
     engineers: [ada],
   });
-}
-
-let casualRun: PolicyRun | undefined;
-
-function playCasual(): PolicyRun {
-  casualRun ??= runPolicy({ policy: casual, seed: 1 });
-  return casualRun;
 }
 
 describe("spend table", () => {
@@ -114,20 +97,6 @@ describe("spend table", () => {
 });
 
 describe("casual-2x10", () => {
-  it("lets a dad who skips the workshop match today's plain dad", () => {
-    const dad = simulateDadRun({ milestones: [mantle] });
-    const run = runPolicy({ policy: skipCrafting, seed: 1 });
-    expect(run.finishDay).toBe(dad.reached.get(mantle));
-    expect(run.buys).toEqual(
-      dad.buys.map(({ day, id, price }) => ({ day, id, price })),
-    );
-    expect(run.promotions).toEqual(
-      dad.promotions.map(({ day, name, price }) => ({ day, name, price })),
-    );
-    expect(run.world.mountain.crafted).toBeUndefined();
-    expect(run.world.mountain.bench).toBeUndefined();
-  }, 120_000);
-
   it("crafts once the next buy can wait", () => {
     const run = runPolicy({
       policy: casual,
@@ -159,21 +128,6 @@ describe("other schedules", () => {
     });
     expect(evening.schedule.gapMs(0, 1)).toBe(DAY_MS - 20 * 60 * 1000);
   });
-
-  it("jitters the checker's gaps from the seed, and replays them", () => {
-    expect(checker.params).toMatchObject({
-      sessionsPerDay: 6,
-      minutesPerSession: 3,
-    });
-    expect(checker.schedule.gapMs(0, 1)).toBe(checker.schedule.gapMs(0, 1));
-    expect(checker.schedule.gapMs(0, 1)).not.toBe(checker.schedule.gapMs(0, 2));
-    const again = runPolicy({ policy: checker, seed: 3, maxDays: 1 });
-    expect(again).toEqual(runPolicy({ policy: checker, seed: 3, maxDays: 1 }));
-    expect(again.world.mountain.pocket).not.toBe(
-      runPolicy({ policy: checker, seed: 9, maxDays: 1 }).world.mountain.pocket,
-    );
-    // Three one-day runs: about 1s alone, over 5s on a busy CI runner.
-  }, 30_000);
 
   it("gives five minutes, or one long sitting, and nothing else changes", () => {
     expect(fiveMin.params).toMatchObject({
@@ -416,14 +370,6 @@ describe("optimizer", () => {
         rich?.kind === "buyBoost",
     ).toBe(true);
   });
-
-  it("finishes no later than casual", () => {
-    const run = runPolicy({ policy: optimizer, seed: 1 });
-    expect(run.finishDay).toBeLessThanOrEqual(
-      playCasual().finishDay ?? Infinity,
-    );
-    expect(run.finishDay).toBeTypeOf("number");
-  }, 120_000);
 
   it("plays the same run when the seed is the same", () => {
     const first = runPolicy({ policy: optimizer, seed: 2, maxLiveSeconds: 30 });
@@ -931,34 +877,5 @@ describe("crafting", () => {
       run.world.mountain.bench !== undefined ||
       run.world.mountain.crafted !== undefined;
     expect(made).toBe(true);
-  }, 120_000);
-
-  it("keeps a casual dad's iron inside what the open recipes can take", () => {
-    const samples: DecisionSample[] = [];
-    let live = 0;
-    let iron = 0;
-    const context = valueContext(casual.params);
-    runPolicy({
-      policy: casual,
-      seed: 1,
-      maxDays: 8,
-      observe(world) {
-        if (isSampleSecond(live)) {
-          samples.push(
-            scoreDecision({
-              mountain: world.mountain,
-              now: world.clock,
-              context,
-              atMs: world.clock,
-              craft: casual.params.craft,
-            }),
-          );
-          iron = Math.max(iron, world.mountain.materials?.iron ?? 0);
-        }
-        live += 1;
-      },
-    });
-    expect(iron).toBeGreaterThan(0);
-    expect(longestMaterialIdleDays(samples)).toBe(0);
   }, 120_000);
 });

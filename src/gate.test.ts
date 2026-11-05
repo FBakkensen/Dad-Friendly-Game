@@ -77,10 +77,13 @@ describe("gateSteps", () => {
     expect(byName.get("lint:changed")?.args).toEqual(
       expect.arrayContaining(["--cache", "src/a.ts", "src/b.ts"]),
     );
+    // The fast tier leaves the long economy sims to the full tier.
     expect(byName.get("test:related")?.args).toEqual([
       "related",
       "--run",
       "--passWithNoTests",
+      "--project",
+      "unit",
       "src/a.ts",
       "src/b.ts",
     ]);
@@ -115,6 +118,11 @@ describe("gateSteps", () => {
       "rules",
       "visual",
       "mockups",
+    ]);
+    // Coverage names no project, so it measures unit and sim together.
+    expect(plan.steps.find((each) => each.name === "coverage")?.args).toEqual([
+      "run",
+      "--coverage",
     ]);
     const statics = plan.steps.filter((each) => each.after.length === 0);
     const late = plan.steps.filter((each) => each.after.length > 0);

@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";

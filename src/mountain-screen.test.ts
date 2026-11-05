@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { send } from "./expeditions";
 import { kidStretch } from "./scale";
 import { formatCount } from "./format";
@@ -51,6 +52,14 @@ beforeEach(() => {
   setReducedMotion(true);
 });
 
+// Each mounted screen ticks every second. Stop it when its test ends, or the
+// leaked ticks pile up and slow every later test in this file.
+let unmount = new AbortController();
+afterEach(() => {
+  unmount.abort();
+  unmount = new AbortController();
+});
+
 const tileUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
@@ -87,6 +96,7 @@ function mountScreen({
   random,
   veinStorage = storage,
   tabWriter,
+  signal = unmount.signal,
 }: {
   auth?: AuthController;
   cloudSave?: CloudSave;
@@ -95,6 +105,7 @@ function mountScreen({
   now?: () => number;
   random?: () => number;
   tabWriter?: TabWriter;
+  signal?: AbortSignal;
 } = {}) {
   const root = document.createElement("div");
   const progress = createProgressStore({
@@ -133,6 +144,7 @@ function mountScreen({
     progress,
     ...(now === undefined ? {} : { now }),
     ...(random === undefined ? {} : { random }),
+    signal,
   });
   const find = <T extends Element>(selector: string, type: new () => T): T => {
     const el = root.querySelector(selector);
@@ -151,6 +163,34 @@ function mountScreen({
 }
 
 describe("mountMountainScreen", () => {
+  it("stops its tick and its page listeners once its signal aborts", () => {
+    vi.useFakeTimers();
+    try {
+      const stop = new AbortController();
+      const writes: string[] = [];
+      const screen = mountScreen({
+        signal: stop.signal,
+        veinStorage: {
+          getItem: () => null,
+          setItem: (key) => writes.push(key),
+        },
+      });
+      const tick = vi.spyOn(screen.progress, "tick");
+      vi.advanceTimersByTime(3_000);
+      expect(tick).toHaveBeenCalledTimes(3);
+      window.dispatchEvent(new Event("pagehide"));
+      expect(writes).toHaveLength(1);
+
+      stop.abort();
+      vi.advanceTimersByTime(3_000);
+      window.dispatchEvent(new Event("pagehide"));
+      expect(tick).toHaveBeenCalledTimes(3);
+      expect(writes).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("shows a hundred million stones and mines one per tap", () => {
     const screen = mountScreen();
 

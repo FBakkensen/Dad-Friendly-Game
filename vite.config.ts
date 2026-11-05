@@ -22,9 +22,24 @@ export default defineConfig({
     },
   ],
   test: {
-    environment: "happy-dom",
+    // Plain node. A test file that needs the DOM opts in on its first line:
+    // `// @vitest-environment happy-dom`.
+    environment: "node",
     // Rules tests need the Firestore emulator: npm run test:rules.
     exclude: ["**/node_modules/**", "rules-test/**", "**/*.emulator.test.ts"],
+    // unit: the fast tier's tests. sim: long economy runs (`*.sim.test.ts`),
+    // anything that plays the economy for over a second. The full tier runs
+    // both, and coverage below is measured over both together.
+    projects: [
+      {
+        extends: true,
+        test: { name: "unit", exclude: ["**/*.sim.test.ts"] },
+      },
+      {
+        extends: true,
+        test: { name: "sim", include: ["**/*.sim.test.ts"] },
+      },
+    ],
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],

@@ -110,6 +110,7 @@ export function mountMountainScreen({
   now = Date.now,
   random = Math.random,
   veinStorage,
+  signal,
 }: {
   root: HTMLElement;
   lanternUrl: string;
@@ -125,6 +126,8 @@ export function mountMountainScreen({
   random?: () => number;
   /** Where the vein wait is carried between sessions; localStorage by default. */
   veinStorage?: Pick<Storage, "getItem" | "setItem">;
+  /** Stops the screen's tick and page listeners. The app never unmounts; tests do. */
+  signal?: AbortSignal;
 }): void {
   const progress = progressArg ?? createProgressStore({ auth });
   let view: ProgressSnapshot = progress.getSnapshot();
@@ -892,7 +895,7 @@ export function mountMountainScreen({
     conflictSheet.root,
   );
 
-  setInterval(() => {
+  const ticking = setInterval(() => {
     progress.tick();
     workshop.render();
     stepVein();
@@ -911,23 +914,32 @@ export function mountMountainScreen({
       );
     }
   }, 1000);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") {
-      hiddenAt ??= now();
-      storeWait();
-    } else if (hiddenAt !== undefined) {
-      // Veins are for active play: time away is skipped, time played is kept.
-      veinState = pauseVein(veinState, now() - hiddenAt);
-      hiddenAt = undefined;
-      renderVein();
-    }
+  signal?.addEventListener("abort", () => {
+    clearInterval(ticking);
   });
-  window.addEventListener("pagehide", storeWait);
+  const listening = signal === undefined ? {} : { signal };
+  document.addEventListener(
+    "visibilitychange",
+    () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAt ??= now();
+        storeWait();
+      } else if (hiddenAt !== undefined) {
+        // Veins are for active play: time away is skipped, time played is kept.
+        veinState = pauseVein(veinState, now() - hiddenAt);
+        hiddenAt = undefined;
+        renderVein();
+      }
+    },
+    listening,
+  );
+  window.addEventListener("pagehide", storeWait, listening);
 
-  progress.subscribe((next) => {
+  const unsubscribe = progress.subscribe((next) => {
     view = next;
     render();
   });
+  signal?.addEventListener("abort", unsubscribe);
 }
 
 /** Shows the reload prompt. A newer service worker calls this. */

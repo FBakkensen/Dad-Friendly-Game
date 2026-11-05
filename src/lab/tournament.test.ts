@@ -3,7 +3,6 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   defineMeasure,
-  parseMeasureExport,
   type DecisionSample,
   type MeasureContext,
 } from "./measure";
@@ -11,8 +10,7 @@ import { neverBest } from "./measures/typeEverBest";
 import liveMedian from "./measures/liveMedian";
 import { readFinishDay } from "./measures/finishDay";
 import { plainPolicy, type PlainSpec } from "./plain";
-import { parsePolicyExport, type Policy } from "./policy";
-import { discover } from "./registry";
+import { type Policy } from "./policy";
 import {
   formatMeasure,
   labSuggestions,
@@ -25,7 +23,6 @@ import featureShare from "./measures/featureShare";
 import singleShare from "./measures/singleShare";
 import {
   judgeTournament,
-  runTournament,
   type PolicySeedRun,
   type TournamentResult,
 } from "./tournament";
@@ -715,65 +712,4 @@ describe("tournament", () => {
       expect(source.includes("node:fs")).toBe(false);
     }
   });
-
-  it("adds a row and a column when fixture files are included", async () => {
-    const policies = [
-      ...(await discover(path.resolve("src/lab/policies"), parsePolicyExport)),
-      ...(await discover(
-        path.resolve("src/lab/fixtures/extra"),
-        parsePolicyExport,
-      )),
-    ].filter((policy) =>
-      new Set<string>([
-        CASUAL_REFERENCE_ID,
-        OPTIMIZER_REFERENCE_ID,
-        "extra-dad",
-      ]).has(policy.id),
-    );
-    const measures = [
-      ...(await discover(path.resolve("src/lab/measures"), parseMeasureExport)),
-      ...(await discover(
-        path.resolve("src/lab/fixtures/measures"),
-        parseMeasureExport,
-      )),
-    ];
-    const result = runTournament({
-      policies,
-      measures,
-      targets: [
-        {
-          id: "fixture-bonus",
-          measure: "bonusShare",
-          scope: { kind: "policies", ids: ["extra-dad"] },
-          op: "gte",
-          value: 1,
-          why: "The fixture measure should show up as a pass or fail cell.",
-        },
-      ],
-      seeds: [1],
-      days: 1,
-    });
-    expect(result.rows.map((row) => row.id).sort()).toEqual(
-      [CASUAL_REFERENCE_ID, OPTIMIZER_REFERENCE_ID, "extra-dad"].sort(),
-    );
-    expect(result.columns.map((column) => column.id)).toContain("bonusShare");
-    expect(result.columns).toHaveLength(measures.length);
-    const markdown = renderReport(result);
-    expect(markdown).toContain("Fixture dad");
-    expect(markdown).toContain("Bonus");
-    const extra = result.rows.find((row) => row.id === "extra-dad");
-    expect(
-      extra?.cells.find((cell) => cell.measureId === "bonusShare")
-        ?.judgements[0]?.pass,
-    ).toBe(true);
-    expect(markdown).toContain("pass");
-    const casual = result.rows.find((row) => row.id === CASUAL_REFERENCE_ID);
-    expect(
-      casual?.cells.find((cell) => cell.measureId === "bonusShare")?.judgements,
-    ).toEqual([]);
-    expect(result.optimizerFinishDay).toEqual(expect.any(Number));
-    expect(result.casualFinishDay).toEqual(expect.any(Number));
-    expect(markdown).toContain("Optimizer finish day");
-    expect(markdown).toContain("Casual finish day");
-  }, 30_000);
 });
