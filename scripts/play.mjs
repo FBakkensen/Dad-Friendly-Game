@@ -58,8 +58,8 @@ const SAVES = {
     save: lastStoneSave,
   },
   away: {
-    note: "the mid save, last seen 3 hours ago: the welcome-back card",
-    save: () => ({ ...openMountain(), lastSeen: Date.now() - 3 * HOUR }),
+    note: "the mid save, last seen 9 hours ago: the welcome-back card",
+    save: () => ({ ...openMountain(), lastSeen: Date.now() - 9 * HOUR }),
   },
 };
 

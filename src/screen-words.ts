@@ -326,6 +326,33 @@ export function awayStretchWords(report: {
     : "Your crew saved a full day's haul for you. Good to have you back.";
 }
 
+/** The welcome card's quote line, under the haul. */
+export const AWAY_CHEER =
+  "Time with the people who matter is never wasted. Your crew kept the mountain moving.";
+
+/** Away this long (a night) and the quote gives way to a dream (#337). */
+export const DREAM_AWAY_MS = 8 * 60 * 60 * 1000;
+
+/**
+ * The quote line, or after a long absence one vague, dreamy line about what
+ * lies deeper than the band you are in (#337). No numbers, no depths.
+ */
+export function awayCheerWords(awayMs: number, band: LayerId): string {
+  if (awayMs < DREAM_AWAY_MS) {
+    return AWAY_CHEER;
+  }
+  switch (band) {
+    case "topsoil":
+      return "While you were gone, the crew dreamt of cold grey stone.";
+    case "granite":
+      return "While you were gone, something hummed below the Granite.";
+    case "crystal":
+      return "While you were gone, something warm stirred under the caves.";
+    case "heart":
+      return "While you were gone, the Deep Heart beat slow and steady.";
+  }
+}
+
 export const tapWords = (stones: number): string =>
   stones === 1 ? "one stone" : `${formatCount(stones)} stones`;
 

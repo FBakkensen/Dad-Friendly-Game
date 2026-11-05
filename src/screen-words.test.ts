@@ -102,6 +102,9 @@ import {
   tunnelLock,
   upgradeEffectLine,
   upgradeWhyLine,
+  awayCheerWords,
+  AWAY_CHEER,
+  DREAM_AWAY_MS,
 } from "./screen-words";
 
 const ada = (patch: Partial<Engineer> = {}): Engineer => ({
@@ -992,5 +995,34 @@ describe("upgrade card why line (#342)", () => {
     expect(
       upgradeWhyLine(upgradeById("tap"), { ...crew, helpers: 500 }, at),
     ).toBe("Each tap takes a little more.");
+  });
+});
+
+describe("awayCheerWords: mountain dreams (#337)", () => {
+  const HOUR = 60 * 60 * 1000;
+
+  it("keeps the quote for a short absence", () => {
+    expect(awayCheerWords(DREAM_AWAY_MS - 1, "granite")).toBe(AWAY_CHEER);
+    expect(awayCheerWords(2 * HOUR, "topsoil")).toBe(AWAY_CHEER);
+  });
+
+  it("dreams of the band below after a long night away", () => {
+    expect(DREAM_AWAY_MS).toBe(8 * HOUR);
+    expect(awayCheerWords(DREAM_AWAY_MS, "granite")).toBe(
+      "While you were gone, something hummed below the Granite.",
+    );
+  });
+
+  it("gives every band its own dream, with no numbers and no depths", () => {
+    const dreams = (["topsoil", "granite", "crystal", "heart"] as const).map(
+      (id) => awayCheerWords(3 * 24 * HOUR, id),
+    );
+    expect(new Set(dreams).size).toBe(4);
+    for (const dream of dreams) {
+      expect(dream).not.toBe(AWAY_CHEER);
+      expect(dream).not.toMatch(/\d/);
+      // One line: shorter than the quote it replaces, so the card still fits.
+      expect(dream.length).toBeLessThan(AWAY_CHEER.length);
+    }
   });
 });
