@@ -51,6 +51,7 @@ export default defineConfig({
         "src/firebase-auth.ts",
         "src/firebase-save.ts",
         "src/test-fixtures.ts",
+        "src/mountain-screen.harness.ts",
       ],
       reporter: ["text-summary", "json-summary"],
       // Floors per module (#114): coverage may rise, never drop. Raise these
