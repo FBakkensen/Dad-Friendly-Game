@@ -24,7 +24,7 @@ Score every option against:
 - Runtime AI only as optional spice
 - Fits in one GitHub issue. If it does not, split first, then offer the small piece
 
-If two options fail those tests, do not offer them. Invent better ones, then file them as issues only after the human picks (or says yes).
+If two options fail those tests, do not offer them. Invent better ones (or run a round with the hill-climb skill when the backlog is thin), then file them as issues only after the human picks (or says yes).
 
 ## What to prefer
 
