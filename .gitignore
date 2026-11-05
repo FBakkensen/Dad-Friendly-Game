@@ -38,6 +38,10 @@ mockups/shots/
 *.sln
 *.sw?
 
+# Old Cursor and Pi config on local machines. It may hold MCP tokens.
+.cursor/
+.pi/
+
 # npm run play shots and log
 play-shots/
 
