@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { withFactors } from "./economy/factors";
 import { station } from "./engineers";
 import type { Trouble } from "./hazards";
 import { AWAY_PAY_RATE, effectiveRates, tendingGain } from "./rates";
@@ -6,6 +7,25 @@ import { minedMountain } from "./test-fixtures";
 import { TIERS } from "./tiers";
 
 describe("effectiveRates", () => {
+  it("reads one mountain once when no clock is passed", () => {
+    const mountain = { ...minedMountain(0), helpers: 3, carts: 1, kids: 0 };
+    const first = effectiveRates(mountain);
+    expect(effectiveRates(mountain)).toBe(first);
+    expect(effectiveRates({ ...mountain })).not.toBe(first);
+    expect(effectiveRates({ ...mountain })).toEqual(first);
+  });
+
+  it("reads the same mountain again under a sweep, then puts it back", () => {
+    const mountain = { ...minedMountain(0), helpers: 3, carts: 1, kids: 0 };
+    const plain = effectiveRates(mountain);
+    withFactors({ "output.cart": 2 }, () => {
+      expect(effectiveRates(mountain).tierSpeed.cart).toBe(
+        plain.tierSpeed.cart * 2,
+      );
+    });
+    expect(effectiveRates(mountain).tierSpeed.cart).toBe(plain.tierSpeed.cart);
+  });
+
   it("is the plain table with no upgrades: taps 1, tiers at list speed", () => {
     const rates = effectiveRates({
       ...minedMountain(0),

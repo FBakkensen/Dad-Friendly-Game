@@ -12,13 +12,23 @@ export function factor(id: string): number {
   return value === undefined ? 1 : value;
 }
 
+/**
+ * The multipliers in force right now, or undefined outside a sweep. Only its
+ * identity matters: a cache keeps a result for the map it was read under.
+ */
+export function activeFactors(): Readonly<Record<string, number>> | undefined {
+  return active;
+}
+
 /** Runs `body` with these multipliers, then restores whatever was outside. */
 export function withFactors<T>(
   factors: Readonly<Record<string, number>>,
   body: () => T,
 ): T {
   const previous = active;
-  active = factors;
+  // An empty map sets every factor to 1, the same as no sweep. Holding it as
+  // no sweep skips a missed lookup on every read (#314).
+  active = Object.keys(factors).length === 0 ? undefined : factors;
   try {
     return body();
   } finally {

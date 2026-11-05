@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { factor, withFactors } from "./factors";
+import { activeFactors, factor, withFactors } from "./factors";
 import { tendingTenths } from "../engineers";
 import { effectiveRates } from "../rates";
 import { tierById, tierCost } from "../tiers";
@@ -32,6 +32,20 @@ describe("economy factors", () => {
       expect(tierCost(tierById("helper"), 1)).toBe(24);
     });
     expect(tierCost(tierById("helper"), 1)).toBe(24);
+  });
+
+  it("treats an empty sweep as no sweep, even inside another", () => {
+    expect(activeFactors()).toBeUndefined();
+    withFactors({}, () => {
+      expect(activeFactors()).toBeUndefined();
+    });
+    withFactors({ "price.borer": 2 }, () => {
+      withFactors({}, () => {
+        expect(activeFactors()).toBeUndefined();
+        expect(factor("price.borer")).toBe(1);
+      });
+      expect(factor("price.borer")).toBe(2);
+    });
   });
 
   it("scales a sticker, then puts the old prices back", () => {
