@@ -51,6 +51,7 @@ import {
   timerLines,
   workshopCards,
   workshopPages,
+  SHORT_WORKSHOP_PAGE,
   type CostChip,
   type RecipeCard,
   type WorkshopCard,
@@ -171,6 +172,8 @@ export function createWorkshopPanel({
 }): { menuEntry: HTMLElement; sheet: HTMLDivElement; render: () => void } {
   let open = false;
   let page = 0;
+  /** Cards a page: four, or three once four overflow this screen (#347). */
+  let pageSize: number | undefined;
   let soundOn = false;
   let shaking: RecipeId | undefined;
   let cancelArmed = false;
@@ -195,6 +198,7 @@ export function createWorkshopPanel({
     }
     open = true;
     page = 0;
+    pageSize = undefined;
     howShown = undefined;
     progress.applyMutation((current) => markSeen(current, "workshop"));
     onOpen();
@@ -623,7 +627,7 @@ export function createWorkshopPanel({
     }
     bench.classList.toggle("is-hammer", at < hammerUntil);
     const cards = teachFirst(workshopCards(mountain, at), teach);
-    const pages = workshopPages(cards);
+    const pages = workshopPages(cards, pageSize);
     if (page > pages.length - 1) {
       page = Math.max(0, pages.length - 1);
     }
@@ -649,6 +653,19 @@ export function createWorkshopPanel({
     if (signature !== painted) {
       recipes.replaceChildren(...shown.map(paintCard));
       painted = signature;
+      // Four cards that overflow this phone become pages of three, so no
+      // card is cut off at the bottom (#347). Measured once per opening.
+      if (
+        pageSize === undefined &&
+        shown.length > SHORT_WORKSHOP_PAGE &&
+        recipes.clientHeight > 0 &&
+        recipes.scrollHeight > recipes.clientHeight + 1
+      ) {
+        pageSize = SHORT_WORKSHOP_PAGE;
+        page = Math.floor((page * shown.length) / SHORT_WORKSHOP_PAGE);
+        painted = "";
+        requestRender();
+      }
     }
     const several = pages.length > 1;
     pager.hidden = howOpen || !several;

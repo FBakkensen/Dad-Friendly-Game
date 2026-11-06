@@ -717,16 +717,20 @@ export function workshopCards(
   return cards;
 }
 
-/** Pages of four. One page when the shed is still small. */
+/** A short phone whose four cards would overflow takes three a page (#347). */
+export const SHORT_WORKSHOP_PAGE = 3;
+
+/** Pages of four (or `size`). One page when the shed is still small. */
 export function workshopPages(
   cards: readonly WorkshopCard[],
+  size: number = WORKSHOP_PAGE,
 ): readonly (readonly WorkshopCard[])[] {
   if (cards.length === 0) {
     return [[]];
   }
   const pages: WorkshopCard[][] = [];
-  for (let index = 0; index < cards.length; index += WORKSHOP_PAGE) {
-    pages.push(cards.slice(index, index + WORKSHOP_PAGE));
+  for (let index = 0; index < cards.length; index += size) {
+    pages.push(cards.slice(index, index + size));
   }
   return pages;
 }

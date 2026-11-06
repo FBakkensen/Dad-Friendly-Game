@@ -9,12 +9,13 @@ import {
   timerLines,
   workshopCards,
   workshopPages,
+  SHORT_WORKSHOP_PAGE,
   type RecipeCard,
   type WorkshopCard,
 } from "./workshop-sheet";
 import { RECIPE_IDS, recipesForMined, type RecipeId } from "./workshop";
 import { effectiveRates } from "./rates";
-import { formatCrewSpeed } from "./screen-words";
+import { formatCraftSpeed, formatCrewSpeed } from "./screen-words";
 
 const FULL = {
   clay: 40,
@@ -133,6 +134,16 @@ describe("workshop sheet (#199)", () => {
     expect(hidden?.kind === "hidden" ? hidden.hint : "x").not.toMatch(/[0-9?]/);
     expect(workshopPages(cards)).toHaveLength(2);
     expect(workshopPages(cards)[0]).toHaveLength(4);
+    // A short phone whose four cards overflow takes three a page (#347).
+    expect(workshopPages(cards, SHORT_WORKSHOP_PAGE)[0]).toHaveLength(3);
+    expect(workshopPages(cards, SHORT_WORKSHOP_PAGE).flat()).toEqual(cards);
+  });
+
+  it("names a big machine's speed in whole stones, a small one to a tenth (#347)", () => {
+    expect(formatCraftSpeed(5197.5)).toBe("5,197");
+    expect(formatCraftSpeed(5457.4)).toBe("5,457");
+    expect(formatCraftSpeed(999.94)).toBe("999.9");
+    expect(formatCraftSpeed(28.8)).toBe("28.8");
   });
 
   it("greys a short craft with the first missing material", () => {

@@ -1042,7 +1042,9 @@ export function craftTimeWords(ms: number): string {
 export function formatCraftSpeed(speed: number): string {
   const abs = Math.max(0, speed);
   const tenths = Math.round(abs * 10) / 10;
-  if (tenths >= 10_000) {
+  // From a thousand on, whole stones like the header (#347): a tenth there
+  // is noise ("5197.5/s").
+  if (tenths >= 1_000) {
     return formatCompact(Math.floor(abs));
   }
   if (Number.isInteger(tenths)) {
