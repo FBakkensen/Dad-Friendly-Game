@@ -3200,6 +3200,8 @@ body {
 }
 
 .workshop-pager {
+  /* Never squeezed by a full sheet: the recipe list gives instead (#346). */
+  flex: none;
   display: flex;
   gap: var(--target-gap);
   /* With the sheet's 4px gap, 8px above Back to the mountain (#328). */
@@ -3275,7 +3277,7 @@ body {
 
 .save-conflict-sheet {
   align-items: stretch;
-  gap: 4px;
+  gap: var(--target-gap);
   width: 100%;
   max-height: 100%;
   margin: 0;
@@ -3294,7 +3296,7 @@ body {
 
 .save-pair {
   display: flex;
-  gap: 6px;
+  gap: var(--target-gap);
   min-width: 0;
 }
 
@@ -3411,7 +3413,15 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: var(--space-4);
+  /* The shelf and the rock are both targets: 8px apart (#346). */
+  gap: var(--target-gap);
+}
+
+/* With #app's 4px gap, the teach note and the bottom bar stand 8px from the
+   rock and from each other (#346). */
+#app > .teach-note,
+#app > .thumb-bar {
+  margin-top: var(--space-4);
 }
 
 .mountain-wrap > .relic-shelf {

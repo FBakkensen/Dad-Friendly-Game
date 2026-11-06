@@ -442,15 +442,40 @@ async function collect(page) {
         el.matches("button, a, input, textarea, select, [role='button']") &&
         el.getClientRects().length > 0;
       if (interactive) {
-        const box = el.getBoundingClientRect();
-        targets.push({
-          selector,
-          top: box.top,
-          left: box.left,
-          width: box.width,
-          height: box.height,
-          text: (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60),
-        });
+        // Only the part a finger can reach: a scrolling list clips the card
+        // half under its edge, so that part is not near the next button.
+        const raw = el.getBoundingClientRect();
+        let top = raw.top;
+        let bottom = raw.bottom;
+        let left = raw.left;
+        let right = raw.right;
+        for (let up = el.parentElement; up !== null; up = up.parentElement) {
+          const clip = getComputedStyle(up);
+          if (clip.overflowX === "visible" && clip.overflowY === "visible") {
+            continue;
+          }
+          const edge = up.getBoundingClientRect();
+          top = Math.max(top, edge.top);
+          bottom = Math.min(bottom, edge.bottom);
+          left = Math.max(left, edge.left);
+          right = Math.min(right, edge.right);
+        }
+        if (bottom - top > 0 && right - left > 0) {
+          targets.push({
+            selector,
+            top,
+            left,
+            width: right - left,
+            height: bottom - top,
+            // The size check reads the whole button, not the part in view.
+            fullWidth: raw.width,
+            fullHeight: raw.height,
+            text: (el.textContent ?? "")
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(0, 60),
+          });
+        }
       }
     }
 
@@ -623,7 +648,15 @@ function analyse(sample, id, size) {
   const census = size === "424x830" || size === "424x924";
   const phone = size === "424x830";
   const thumb = size === "424x924";
-  const undersized = phone ? undersizedTargets(sample.targets) : [];
+  const undersized = phone
+    ? undersizedTargets(
+        sample.targets.map((target) => ({
+          ...target,
+          width: target.fullWidth,
+          height: target.fullHeight,
+        })),
+      )
+    : [];
   const close = phone
     ? targetsCloserThan(sample.targets).map((pair) => ({
         ...pair,
@@ -707,6 +740,11 @@ async function capture(id, prepare) {
       if (opened.errors.length > 0) {
         throw new Error(opened.errors.join("\n"));
       }
+      // A tap in touch emulation can leave a button :active, nudged 2px by
+      // its press style. Measure and shoot the layout at rest.
+      await opened.page.addStyleTag({
+        content: ":active { transform: none !important; }",
+      });
       const sample = await collect(opened.page);
       const file = `${OUT}/${id}-${size}.png`;
       await opened.page.screenshot({ path: file });
