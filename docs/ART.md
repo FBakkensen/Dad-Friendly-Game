@@ -19,4 +19,6 @@ All game art is PixelLab pixel art (`POST /v2/create-image-pixflux`, transparent
 | `src/assets/relics/crown.png`   | 64   | 15   | legendary golden crown with small gemstones, ancient heroic relic of wisdom, warm glow                                                                                                  |
 | `src/assets/relics/mantle.png`  | 64   | 16   | legendary flowing red hero cape with golden clasp and trim, ancient heroic relic, warm glow                                                                                             |
 
+The mountain picture takes a tint per band, a CSS filter in `src/mountain-tint.ts` (#325): the Topsoil as painted, the Granite grey, the Crystal Caves blue, the Deep Heart ember. No extra art.
+
 The relic sprites are used by the relic issues (#52, #53). App icons and the favicon are built from `mountain.png` by `scripts/make-icons.py`.

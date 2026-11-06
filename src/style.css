@@ -2830,8 +2830,7 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* Targets stand 8px apart: Quiet and the ore pill, More and Back (#328). */
-  gap: var(--target-gap);
+  gap: 4px;
   padding: 6px 8px 8px;
   border: 2px solid #e8a84a;
   border-radius: 12px;
@@ -3203,6 +3202,8 @@ body {
 .workshop-pager {
   display: flex;
   gap: var(--target-gap);
+  /* With the sheet's 4px gap, 8px above Back to the mountain (#328). */
+  margin-bottom: var(--space-4);
 }
 
 .workshop-close {
@@ -4863,7 +4864,8 @@ body {
   align-self: center;
   justify-content: center;
   min-height: var(--target-min);
-  margin: 0;
+  /* With the sheet's 4px gap, 8px below Quiet and the info button (#328). */
+  margin: var(--space-4) 0 0;
   padding: 0 var(--space-16);
   border: var(--line) solid var(--color-edge);
   border-radius: var(--radius-pill);

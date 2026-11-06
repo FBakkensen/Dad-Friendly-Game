@@ -1010,7 +1010,8 @@ async function main() {
     return opened;
   });
   await capture("welcome-back", async (viewport) => {
-    const away = Date.now() - 3 * 60_000;
+    // Past the five-minute quiet note (#334), so the card opens.
+    const away = Date.now() - 30 * 60_000;
     const opened = await open(
       viewport,
       late(away, 20_000_000, quietCrew({ pocket: 40_000 })),
