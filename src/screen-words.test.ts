@@ -998,6 +998,13 @@ describe("upgrade card why line (#342)", () => {
     expect(
       upgradeWhyLine(upgradeById("tap"), { ...crew, helpers: 500 }, at),
     ).toBe("Each tap takes a little more.");
+    const maxed = { ...crew, helpers: 500, upgrades: { tap: 10 } };
+    expect(upgradeEffectLine(upgradeById("tap"), maxed, at)).toMatch(
+      /^Taps now \d+\.$/,
+    );
+    expect(upgradeWhyLine(upgradeById("tap"), maxed, at)).toBe(
+      "Each tap takes a little more.",
+    );
   });
 });
 

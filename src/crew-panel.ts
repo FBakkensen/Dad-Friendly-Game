@@ -1,9 +1,8 @@
 import { stretch } from "./scale";
 import grandpaUrl from "./assets/grandpa-miner.png";
-import { grandpaPost } from "./grandpa";
 import { buyCrew, tierLock } from "./crew";
 import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
-import { staffForBuy, staffNeeded } from "./engineers";
+import { grandpaPost, staffForBuy, staffNeeded } from "./engineers";
 import { FIX_HOLD_MS } from "./hazards";
 import { buyOnTap } from "./card-tap";
 import { markTaught, showsDot } from "./teach";

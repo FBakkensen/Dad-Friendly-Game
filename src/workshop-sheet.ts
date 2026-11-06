@@ -293,11 +293,16 @@ function crewBuffLine(
   if (others > 1 && others + 1e-9 >= scale) {
     return crewAlreadyWords(others);
   }
-  if (after > before + 1e-9) {
-    // Whole stones a second, the same number as the header.
-    const shown = (crew: Mountain) =>
-      formatCrewSpeed(effectiveRates(crew, now).crewPerSecond);
-    return `Crew ${shown(mountain)}/s to ${shown(afterMountain)}/s for ${time}.`;
+  // Whole stones a second, the same number as the header (#332). Decided on
+  // the shown numbers, so it never reads "Crew 3/s to 3/s".
+  const shownBefore = formatCrewSpeed(
+    effectiveRates(mountain, now).crewPerSecond,
+  );
+  const shownAfter = formatCrewSpeed(
+    effectiveRates(afterMountain, now).crewPerSecond,
+  );
+  if (after > before + 1e-9 && shownAfter !== shownBefore) {
+    return `Crew ${shownBefore}/s to ${shownAfter}/s for ${time}.`;
   }
   const mark = formatCraftSpeed(scale);
   if (before <= 0) {

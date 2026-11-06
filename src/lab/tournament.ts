@@ -138,18 +138,23 @@ export type JudgedInput = TournamentInput & {
   readonly runs: readonly PolicySeedRun[];
 };
 
-/** Crew, kids, engineers, and upgrade levels: what a buy adds to (#335). */
+/**
+ * Crew, kids, engineers, and upgrade levels: what a buy adds to (#335). An
+ * engineer counts twice, because a promotion turns a worker into one: the
+ * crew drops by one and this still rises. Boosts and crafts are timers and
+ * are not counted.
+ */
 function ownedCount(mountain: Mountain): number {
   const crew = TIERS.reduce((total, tier) => total + owned(mountain, tier), 0);
   const levels = Object.values(mountain.upgrades ?? {}).reduce(
     (total: number, level) => total + level,
     0,
   );
-  return crew + (mountain.engineers?.length ?? 0) + levels;
+  const engineers = mountain.engineers?.length ?? 0;
+  return crew + engineers + engineers + levels;
 }
 
 /** One policy on one seed, sampled every play-minute, with the finish day stamped on. */
-
 function samplePolicy(
   policy: Policy,
   seed: number,

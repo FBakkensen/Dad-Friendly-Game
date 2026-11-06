@@ -28,7 +28,6 @@ import { upgradeLevel, type Upgrade, type UpgradeId } from "./upgrades";
 export const percent = (share: number): string =>
   `${String(Number((share * 100).toFixed(1)))}%`;
 
-/** Per-unit speed: one decimal while small and fractional (Better boots). */
 /**
  * The crew's stones a second, as the header shows it: whole stones, compact
  * past ten thousand. Pass `crewPerSecond`, not the exact rate (#332).
@@ -36,6 +35,7 @@ export const percent = (share: number): string =>
 export const formatCrewSpeed = (perSecond: number): string =>
   formatCompact(perSecond);
 
+/** Per-unit speed: one decimal while small and fractional (Better boots). */
 export const formatSpeed = (speed: number): string =>
   speed < 10 && !Number.isInteger(speed)
     ? speed.toFixed(1)

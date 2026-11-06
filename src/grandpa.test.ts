@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { TENDING_GAIN, TENDING_TENTHS, tendingTenths } from "./engineers";
-import { GRANDPA_RANK, grandpaPost } from "./grandpa";
+import {
+  GRANDPA_RANK,
+  TENDING_GAIN,
+  TENDING_TENTHS,
+  grandpaPost,
+  tendingTenths,
+} from "./engineers";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 
@@ -13,15 +18,26 @@ describe("grandpa (#338)", () => {
     expect(grandpaPost(kidRun)).toBe("cart");
   });
 
-  it("tends the biggest machine no engineer is tending", () => {
-    const deep = { ...kidRun, drills: 1, borers: 1 };
+  it("never moves to a machine short of workers, so a buy never slows the crew", () => {
+    // Two workers run the carts; a borer (8) and a Great Machine (25) idle.
+    const small = { ...kidRun, helpers: 2, carts: 2 };
+    expect(grandpaPost(small)).toBe("cart");
+    const idle = { ...small, borers: 1, machines: 1 };
+    expect(grandpaPost(idle)).toBe("cart");
+    expect(effectiveRates(idle).crewPerSecond).toBeGreaterThanOrEqual(
+      effectiveRates(small).crewPerSecond,
+    );
+  });
+
+  it("tends the biggest running machine no engineer is tending", () => {
+    const deep = { ...kidRun, helpers: 40, drills: 1, borers: 1 };
     expect(grandpaPost(deep)).toBe("borer");
     const borerTended = {
       ...deep,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }] as const,
     };
     expect(grandpaPost(borerTended)).toBe("drill");
-    expect(grandpaPost({ ...deep, machines: 1 })).toBe("machine");
+    expect(grandpaPost({ ...deep, helpers: 80, machines: 1 })).toBe("machine");
   });
 
   it("tends at his rank on his post, and adds nothing elsewhere", () => {
