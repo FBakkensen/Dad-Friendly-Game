@@ -5,7 +5,7 @@
  */
 
 /** Something on the page to tap or wait for. */
-export type PlayTarget =
+type PlayTarget =
   | { readonly by: "selector"; readonly selector: string }
   | { readonly by: "label"; readonly label: string };
 
@@ -21,7 +21,7 @@ export type PlayAction =
 export type PlayScreen = "phone" | "desktop";
 
 /** The phone viewport in CSS pixels. */
-export type PhoneSize = { readonly width: number; readonly height: number };
+type PhoneSize = { readonly width: number; readonly height: number };
 
 /** The tallest supported phone (#273). 424x830 is the shorter one. */
 const DEFAULT_PHONE: PhoneSize = { width: 424, height: 924 };

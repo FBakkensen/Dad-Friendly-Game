@@ -138,16 +138,17 @@ export type JudgedInput = TournamentInput & {
   readonly runs: readonly PolicySeedRun[];
 };
 
-/** One policy on one seed, sampled every play-minute, with the finish day stamped on. */
 /** Crew, kids, engineers, and upgrade levels: what a buy adds to (#335). */
 function ownedCount(mountain: Mountain): number {
   const crew = TIERS.reduce((total, tier) => total + owned(mountain, tier), 0);
   const levels = Object.values(mountain.upgrades ?? {}).reduce(
-    (total: number, level) => total + (level ?? 0),
+    (total: number, level) => total + level,
     0,
   );
   return crew + (mountain.engineers?.length ?? 0) + levels;
 }
+
+/** One policy on one seed, sampled every play-minute, with the finish day stamped on. */
 
 function samplePolicy(
   policy: Policy,

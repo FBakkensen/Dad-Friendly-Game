@@ -110,8 +110,10 @@ export function relicsUncovered({
   return RELICS.filter((relic) => before < relic.depth && after >= relic.depth);
 }
 
-/** A vague sense of how near the next relic is; the progress bar carries the rest. */
-export function depthHint(mountain: Mountain): string | undefined {
+/** The next relic and how far along the way to it, 0 to 1. */
+function towardNext(
+  mountain: Mountain,
+): { readonly next: Relic; readonly progress: number } | undefined {
   const next = nextRelic(mountain);
   if (next === undefined) {
     return undefined;
@@ -119,17 +121,22 @@ export function depthHint(mountain: Mountain): string | undefined {
   const mined = MOUNTAIN_STONES - mountain.remaining;
   const from =
     RELICS.filter((relic) => relic.depth <= mined).at(-1)?.depth ?? 0;
-  const progress = (mined - from) / (next.depth - from);
-  if (progress >= 0.9) {
-    return "Almost there";
-  }
-  if (progress >= 0.6) {
-    return "Close now";
-  }
-  if (progress >= 0.25) {
-    return "Getting closer";
-  }
-  return "Far below";
+  return { next, progress: (mined - from) / (next.depth - from) };
+}
+
+const hintFor = (progress: number): string =>
+  progress >= 0.9
+    ? "Almost there"
+    : progress >= 0.6
+      ? "Close now"
+      : progress >= 0.25
+        ? "Getting closer"
+        : "Far below";
+
+/** A vague sense of how near the next relic is; the progress bar carries the rest. */
+export function depthHint(mountain: Mountain): string | undefined {
+  const toward = towardNext(mountain);
+  return toward === undefined ? undefined : hintFor(toward.progress);
 }
 
 /**
@@ -151,18 +158,14 @@ export function relicGoal(mountain: Mountain): RelicGoal {
   if (!hasRelic(mountain, "lantern")) {
     return { kind: "unguided" };
   }
-  const next = nextRelic(mountain);
-  if (next === undefined) {
+  const toward = towardNext(mountain);
+  if (toward === undefined) {
     return { kind: "done" };
   }
-  const mined = minedOut(mountain);
-  const from =
-    RELICS.filter((relic) => relic.depth <= mined).at(-1)?.depth ?? 0;
-  const percent = Math.floor(((mined - from) / (next.depth - from)) * 100);
   return {
     kind: "next",
-    name: next.name,
-    hint: depthHint(mountain) ?? "",
-    percent,
+    name: toward.next.name,
+    hint: hintFor(toward.progress),
+    percent: Math.floor(toward.progress * 100),
   };
 }
