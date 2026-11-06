@@ -460,22 +460,20 @@ async function collect(page) {
           left = Math.max(left, edge.left);
           right = Math.min(right, edge.right);
         }
-        if (bottom - top > 0 && right - left > 0) {
-          targets.push({
-            selector,
-            top,
-            left,
-            width: right - left,
-            height: bottom - top,
-            // The size check reads the whole button, not the part in view.
-            fullWidth: raw.width,
-            fullHeight: raw.height,
-            text: (el.textContent ?? "")
-              .replace(/\s+/g, " ")
-              .trim()
-              .slice(0, 60),
-          });
-        }
+        // Scrolled wholly out of view: still sized, never spaced.
+        const inView = bottom - top > 0 && right - left > 0;
+        targets.push({
+          selector,
+          top,
+          left,
+          width: Math.max(0, right - left),
+          height: Math.max(0, bottom - top),
+          inView,
+          // The size check reads the whole button, not the part in view.
+          fullWidth: raw.width,
+          fullHeight: raw.height,
+          text: (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60),
+        });
       }
     }
 
@@ -658,10 +656,12 @@ function analyse(sample, id, size) {
       )
     : [];
   const close = phone
-    ? targetsCloserThan(sample.targets).map((pair) => ({
-        ...pair,
-        gap: Math.round(pair.gap * 10) / 10,
-      }))
+    ? targetsCloserThan(sample.targets.filter((target) => target.inView)).map(
+        (pair) => ({
+          ...pair,
+          gap: Math.round(pair.gap * 10) / 10,
+        }),
+      )
     : [];
   const scroll = sample.scrollers.map((box) => ({
     selector: box.selector,

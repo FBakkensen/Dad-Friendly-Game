@@ -15,7 +15,11 @@ import {
 } from "./workshop-sheet";
 import { RECIPE_IDS, recipesForMined, type RecipeId } from "./workshop";
 import { effectiveRates } from "./rates";
-import { formatCraftSpeed, formatCrewSpeed } from "./screen-words";
+import {
+  craftSpeedPair,
+  formatCraftSpeed,
+  formatCrewSpeed,
+} from "./screen-words";
 
 const FULL = {
   clay: 40,
@@ -143,7 +147,14 @@ describe("workshop sheet (#199)", () => {
     expect(formatCraftSpeed(5197.5)).toBe("5,197");
     expect(formatCraftSpeed(5457.4)).toBe("5,457");
     expect(formatCraftSpeed(999.94)).toBe("999.9");
+    expect(formatCraftSpeed(999.96)).toBe("1,000");
     expect(formatCraftSpeed(28.8)).toBe("28.8");
+  });
+
+  it("never says the same number on both sides of a raise (#347)", () => {
+    expect(craftSpeedPair(5197.5, 5457.4)).toBe("5,197/s to 5,457/s");
+    expect(craftSpeedPair(1000.2, 1000.8)).toBe("1,000.2/s to 1,000.8/s");
+    expect(craftSpeedPair(28.8, 30.2)).toBe("28.8/s to 30.2/s");
   });
 
   it("greys a short craft with the first missing material", () => {

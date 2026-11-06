@@ -24,6 +24,7 @@ import {
   benchUnknownWords,
   craftPriceWords,
   craftTimeWords,
+  craftSpeedPair,
   formatCraftSpeed,
   formatCrewSpeed,
   crewAlreadyWords,
@@ -205,7 +206,7 @@ function tierShift(
     },
     now,
   ).tierSpeed[tier];
-  return `${TIER_WORD[tier]} ${formatCraftSpeed(before)}/s to ${formatCraftSpeed(after)}/s`;
+  return `${TIER_WORD[tier]} ${craftSpeedPair(before, after)}`;
 }
 
 function troubleLine(mountain: Mountain): string {
@@ -334,7 +335,7 @@ function emberLine(mountain: Mountain, now: number): string {
   if (after <= before) {
     return `The Great Machine keeps this lift for another ${time}.`;
   }
-  return `Great Machine ${formatCraftSpeed(before)}/s to ${formatCraftSpeed(after)}/s for ${time}.`;
+  return `Great Machine ${craftSpeedPair(before, after)} for ${time}.`;
 }
 
 function reinforceLine(mountain: Mountain, now: number): string {
@@ -356,7 +357,7 @@ function reinforceLine(mountain: Mountain, now: number): string {
     },
     now,
   ).tierSpeed[tier];
-  return `${word} ${formatCraftSpeed(before)}/s to ${formatCraftSpeed(after)}/s`;
+  return `${word} ${craftSpeedPair(before, after)}`;
 }
 
 /** What the crew feels once this craft is already fitted. A real number. */

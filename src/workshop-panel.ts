@@ -627,50 +627,56 @@ export function createWorkshopPanel({
     }
     bench.classList.toggle("is-hammer", at < hammerUntil);
     const cards = teachFirst(workshopCards(mountain, at), teach);
-    const pages = workshopPages(cards, pageSize);
-    if (page > pages.length - 1) {
-      page = Math.max(0, pages.length - 1);
-    }
-    const shown = pages[page] ?? [];
-    const signature = JSON.stringify({
-      page,
-      shaking,
-      teach,
-      cards: shown.map((item) =>
-        item.kind === "hidden"
-          ? item.hint
-          : {
-              id: item.id,
-              name: item.name,
-              level: item.level,
-              effect: item.effect,
-              stones: item.stones,
-              action: item.action,
-              time: item.time,
-            },
-      ),
-    });
-    if (signature !== painted) {
-      recipes.replaceChildren(...shown.map(paintCard));
-      painted = signature;
-      // Four cards that overflow this phone become pages of three, so no
-      // card is cut off at the bottom (#347). Measured once per opening.
-      if (
-        pageSize === undefined &&
-        shown.length > SHORT_WORKSHOP_PAGE &&
-        recipes.clientHeight > 0 &&
-        recipes.scrollHeight > recipes.clientHeight + 1
-      ) {
-        pageSize = SHORT_WORKSHOP_PAGE;
-        page = Math.floor((page * shown.length) / SHORT_WORKSHOP_PAGE);
-        painted = "";
-        requestRender();
+    // Pager first, then the cards, so the list is measured at its real height.
+    const paintPage = (): void => {
+      const pages = workshopPages(cards, pageSize);
+      if (page > pages.length - 1) {
+        page = Math.max(0, pages.length - 1);
       }
+      const several = pages.length > 1;
+      pager.hidden = howOpen || !several;
+      earlier.hidden = !several || page === 0;
+      more.hidden = !several || page >= pages.length - 1;
+      const shown = pages[page] ?? [];
+      const signature = JSON.stringify({
+        page,
+        pageSize,
+        shaking,
+        teach,
+        cards: shown.map((item) =>
+          item.kind === "hidden"
+            ? item.hint
+            : {
+                id: item.id,
+                name: item.name,
+                level: item.level,
+                effect: item.effect,
+                stones: item.stones,
+                action: item.action,
+                time: item.time,
+              },
+        ),
+      });
+      if (signature !== painted) {
+        recipes.replaceChildren(...shown.map(paintCard));
+        painted = signature;
+      }
+    };
+    paintPage();
+    // Four cards that overflow this phone become pages of three, so no card
+    // is cut off at the bottom (#347). Checked on every render until it
+    // trips, then held for this opening.
+    const showing = recipes.childElementCount;
+    if (
+      pageSize === undefined &&
+      showing > SHORT_WORKSHOP_PAGE &&
+      recipes.clientHeight > 0 &&
+      recipes.scrollHeight > recipes.clientHeight + 1
+    ) {
+      pageSize = SHORT_WORKSHOP_PAGE;
+      page = Math.floor((page * showing) / SHORT_WORKSHOP_PAGE);
+      paintPage();
     }
-    const several = pages.length > 1;
-    pager.hidden = howOpen || !several;
-    earlier.hidden = !several || page === 0;
-    more.hidden = !several || page >= pages.length - 1;
     if (at >= floatUntil) {
       if (floats.childElementCount > 0) {
         floats.replaceChildren();

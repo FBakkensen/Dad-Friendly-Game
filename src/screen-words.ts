@@ -1036,17 +1036,35 @@ export function craftTimeWords(ms: number): string {
 }
 
 /**
- * A craft rate to one decimal, the same grain as the rest of the crew.
- * "8.5", "10.6", "3,500". Whole numbers stay whole.
+ * "X/s to Y/s" for a craft card. When whole stones would print the same
+ * number on both sides, both keep a tenth (#347), so a raise always shows.
+ */
+export function craftSpeedPair(before: number, after: number): string {
+  const from = formatCraftSpeed(before);
+  const to = formatCraftSpeed(after);
+  if (from !== to || after <= before) {
+    return `${from}/s to ${to}/s`;
+  }
+  const tenth = (speed: number) =>
+    Math.max(0, speed).toLocaleString("en-US", {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+  return `${tenth(before)}/s to ${tenth(after)}/s`;
+}
+
+/**
+ * A craft rate to one decimal under a thousand, whole stones from there
+ * (#347). "8.5", "10.6", "5,197". Whole numbers stay whole.
  */
 export function formatCraftSpeed(speed: number): string {
   const abs = Math.max(0, speed);
-  const tenths = Math.round(abs * 10) / 10;
   // From a thousand on, whole stones like the header (#347): a tenth there
   // is noise ("5197.5/s").
-  if (tenths >= 1_000) {
-    return formatCompact(Math.floor(abs));
+  if (abs >= 1_000) {
+    return formatCompact(abs);
   }
+  const tenths = Math.round(abs * 10) / 10;
   if (Number.isInteger(tenths)) {
     return formatCompact(tenths);
   }
