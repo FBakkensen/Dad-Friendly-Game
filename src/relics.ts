@@ -74,7 +74,7 @@ export const RELICS: readonly Relic[] = [
   {
     id: "mantle",
     boost:
-      "Ends the run as a Legend. Later, it lets you pass the mine to your kid.",
+      "Ends the run as a Legend. Pass the mine to your kid when you are ready.",
     tease: "At the very bottom, a hero's mantle waits.",
     name: "Mantle of the Hero",
     virtue: "Heroism",
@@ -110,8 +110,10 @@ export function relicsUncovered({
   return RELICS.filter((relic) => before < relic.depth && after >= relic.depth);
 }
 
-/** A vague sense of how near the next relic is; the progress bar carries the rest. */
-export function depthHint(mountain: Mountain): string | undefined {
+/** The next relic and how far along the way to it, 0 to 1. */
+function towardNext(
+  mountain: Mountain,
+): { readonly next: Relic; readonly progress: number } | undefined {
   const next = nextRelic(mountain);
   if (next === undefined) {
     return undefined;
@@ -119,15 +121,51 @@ export function depthHint(mountain: Mountain): string | undefined {
   const mined = MOUNTAIN_STONES - mountain.remaining;
   const from =
     RELICS.filter((relic) => relic.depth <= mined).at(-1)?.depth ?? 0;
-  const progress = (mined - from) / (next.depth - from);
-  if (progress >= 0.9) {
-    return "Almost there";
+  return { next, progress: (mined - from) / (next.depth - from) };
+}
+
+const hintFor = (progress: number): string =>
+  progress >= 0.9
+    ? "Almost there"
+    : progress >= 0.6
+      ? "Close now"
+      : progress >= 0.25
+        ? "Getting closer"
+        : "Far below";
+
+/** A vague sense of how near the next relic is; the progress bar carries the rest. */
+export function depthHint(mountain: Mountain): string | undefined {
+  const toward = towardNext(mountain);
+  return toward === undefined ? undefined : hintFor(toward.progress);
+}
+
+/**
+ * Where the dig is headed, once the Lantern lights the way: the next relic,
+ * a vague hint, and how full the bar is. No depths or counts (discoveries
+ * stay vague). The menu ledger and the mountain's goal line share it (#336).
+ */
+export type RelicGoal =
+  | { readonly kind: "unguided" }
+  | { readonly kind: "done" }
+  | {
+      readonly kind: "next";
+      readonly name: string;
+      readonly hint: string;
+      readonly percent: number;
+    };
+
+export function relicGoal(mountain: Mountain): RelicGoal {
+  if (!hasRelic(mountain, "lantern")) {
+    return { kind: "unguided" };
   }
-  if (progress >= 0.6) {
-    return "Close now";
+  const toward = towardNext(mountain);
+  if (toward === undefined) {
+    return { kind: "done" };
   }
-  if (progress >= 0.25) {
-    return "Getting closer";
-  }
-  return "Far below";
+  return {
+    kind: "next",
+    name: toward.next.name,
+    hint: hintFor(toward.progress),
+    percent: Math.floor(toward.progress * 100),
+  };
 }

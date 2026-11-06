@@ -50,7 +50,9 @@ export function legacyCardWords(mountain: Mountain): LegacyCardWords {
         : `Your kid keeps the Legacy and ${formatCount(recipes)} recipes.`,
     fresh:
       "Stones, crew, engineers, upgrades and ore start fresh. The relics wait to be found again.",
-    legend: "You'll always be the Legend who began it.",
+    // #338: the old dad stays on as Grandpa.
+    legend:
+      "You'll always be the Legend who began it. Grandpa stays on to tend the machines.",
   };
 }
 

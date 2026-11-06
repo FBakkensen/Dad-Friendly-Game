@@ -6,7 +6,7 @@ import { glimmerText } from "./expeditions";
 import { RELICS } from "./relics";
 import type { Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
-import { upgradeById, type UpgradeId } from "./upgrades";
+import { UPGRADES, upgradeById, type UpgradeId } from "./upgrades";
 import {
   BROUGHT_HOME,
   FOUND_LABEL,
@@ -101,6 +101,13 @@ import {
   tripTitle,
   tunnelLock,
   upgradeEffectLine,
+  upgradeWhyLine,
+  awayCheerWords,
+  quietAwayWords,
+  grandpaChipWords,
+  grandpaSentence,
+  AWAY_CHEER,
+  DREAM_AWAY_MS,
 } from "./screen-words";
 
 const ada = (patch: Partial<Engineer> = {}): Engineer => ({
@@ -906,5 +913,143 @@ describe("upgrade card before and after (#324)", () => {
 
   it("Better boots keeps its line", () => {
     expect(line("boots", crew)).toBe("Workers 1/s to 2.4/s.");
+  });
+
+  it("Strong arms with Legacy running says both taps with Legacy in them", () => {
+    const big = { ...crew, helpers: 500 };
+    const bare = /^Taps (\d+) to (\d+)\.$/.exec(line("tap", big));
+    const proud = /^Taps (\d+) to (\d+)\.$/.exec(
+      line("tap", { ...big, legacy: 2 }),
+    );
+    expect(Number(bare?.[2])).toBeGreaterThan(Number(bare?.[1]));
+    // Legacy 2 doubles the whole tap, before and after alike.
+    expect(Number(proud?.[1])).toBe(2 * Number(bare?.[1]));
+    expect(Number(proud?.[2])).toBe(2 * Number(bare?.[2]));
+  });
+
+  it("Strong arms with Sharper picks running doubles both taps", () => {
+    const big = { ...crew, helpers: 500 };
+    const bare = /^Taps (\d+) to (\d+)\.$/.exec(line("tap", big));
+    const sharp = /^Taps (\d+) to (\d+)\.$/.exec(
+      line("tap", { ...big, boosts: { sharper: at + 60_000 } }),
+    );
+    expect(Number(sharp?.[1])).toBe(2 * Number(bare?.[1]));
+    expect(Number(sharp?.[2])).toBe(2 * Number(bare?.[2]));
+  });
+
+  it("only Strong arms ever says taps", () => {
+    const deep = { ...crew, helpers: 200, borers: 3, machines: 1 };
+    for (const upgrade of Object.values(UPGRADES)) {
+      if (upgrade.id === "tap") {
+        continue;
+      }
+      const maxed = {
+        ...deep,
+        upgrades: { [upgrade.id]: upgrade.maxLevel },
+      };
+      expect(upgradeEffectLine(upgrade, maxed, at)).not.toMatch(/Taps/);
+    }
+  });
+});
+
+describe("upgrade card why line (#342)", () => {
+  const at = Date.now();
+  const crew = { ...minedMountain(1_000_000), helpers: 12, carts: 5 };
+  const empty = { ...minedMountain(0), helpers: 0, carts: 0 };
+  const deep = {
+    ...minedMountain(100_000_000),
+    helpers: 200,
+    carts: 20,
+    drills: 6,
+    borers: 3,
+    machines: 1,
+  };
+
+  it("never repeats the effect line, on any card, crewed or not", () => {
+    for (const mountain of [empty, crew, deep]) {
+      for (const upgrade of Object.values(UPGRADES)) {
+        const effect = upgradeEffectLine(upgrade, mountain, at);
+        const why = upgradeWhyLine(upgrade, mountain, at);
+        expect(why).not.toBe(effect);
+        // Near-duplicates too: the same opening words.
+        expect(why.split(" ").slice(0, 3)).not.toEqual(
+          effect.split(" ").slice(0, 3),
+        );
+      }
+    }
+  });
+
+  it("a synergy with none of its source says what makes it count", () => {
+    expect(upgradeWhyLine(upgradeById("cartSyn"), empty, at)).toBe(
+      "It counts once you have workers.",
+    );
+    expect(upgradeWhyLine(upgradeById("machineSyn"), empty, at)).toBe(
+      "It counts once you have borers.",
+    );
+  });
+
+  it("Strong arms on a small crew does not promise more than the number", () => {
+    expect(upgradeEffectLine(upgradeById("tap"), crew, at)).toBe(
+      "Taps 1 to 1.",
+    );
+    expect(upgradeWhyLine(upgradeById("tap"), crew, at)).toBe(
+      "It grows with your crew's speed.",
+    );
+    expect(
+      upgradeWhyLine(upgradeById("tap"), { ...crew, helpers: 500 }, at),
+    ).toBe("Each tap takes a little more.");
+    const maxed = { ...crew, helpers: 500, upgrades: { tap: 10 } };
+    expect(upgradeEffectLine(upgradeById("tap"), maxed, at)).toMatch(
+      /^Taps now \d+\.$/,
+    );
+    expect(upgradeWhyLine(upgradeById("tap"), maxed, at)).toBe(
+      "Each tap takes a little more.",
+    );
+  });
+});
+
+describe("awayCheerWords: mountain dreams (#337)", () => {
+  const HOUR = 60 * 60 * 1000;
+
+  it("keeps the quote for a short absence", () => {
+    expect(awayCheerWords(DREAM_AWAY_MS - 1, "granite")).toBe(AWAY_CHEER);
+    expect(awayCheerWords(2 * HOUR, "topsoil")).toBe(AWAY_CHEER);
+  });
+
+  it("dreams of the band below after a long night away", () => {
+    expect(DREAM_AWAY_MS).toBe(8 * HOUR);
+    expect(awayCheerWords(DREAM_AWAY_MS, "granite")).toBe(
+      "While you were gone, something hummed below the Granite.",
+    );
+  });
+
+  it("gives every band its own dream, with no numbers and no depths", () => {
+    const dreams = (["topsoil", "granite", "crystal", "heart"] as const).map(
+      (id) => awayCheerWords(3 * 24 * HOUR, id),
+    );
+    expect(new Set(dreams).size).toBe(4);
+    for (const dream of dreams) {
+      expect(dream).not.toBe(AWAY_CHEER);
+      expect(dream).not.toMatch(/\d/);
+      // One line: shorter than the quote it replaces, so the card still fits.
+      expect(dream.length).toBeLessThan(AWAY_CHEER.length);
+    }
+  });
+});
+
+describe("quietAwayWords (#334)", () => {
+  it("says the stones a short absence paid, with a real number", () => {
+    expect(quietAwayWords(1_474)).toBe("+1,474 stones while you were away");
+    expect(quietAwayWords(1)).toBe("+1 stone while you were away");
+  });
+});
+
+describe("grandpa words (#338)", () => {
+  it("names his post on the chip and in a sentence, with no numbers", () => {
+    expect(grandpaChipWords("cart")).toBe("Grandpa on carts");
+    expect(grandpaChipWords("machine")).toBe("Grandpa on the machine");
+    expect(grandpaSentence("borer")).toBe(
+      "Grandpa tends the borers, slow and steady.",
+    );
   });
 });

@@ -16,6 +16,7 @@ function isDeadSample(sample: DecisionSample, method: ScoreMethod): boolean {
   const view =
     method === "value" ? sample.stretch.value : sample.stretch.payback;
   return (
+    sample.boughtSince !== true &&
     view.liveCount > 0 &&
     view.affordableLive === 0 &&
     view.waitToAffordSec >= DEAD_STRETCH.minWaitSec

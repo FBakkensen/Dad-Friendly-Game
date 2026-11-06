@@ -35,7 +35,11 @@ import {
   createMemoryBus,
   createTabWriter,
 } from "./tab-writer";
-import { WELCOME_MIN_AWAY_MS, createProgressStore } from "./progress-store";
+import {
+  QUIET_AWAY_MS,
+  WELCOME_MIN_AWAY_MS,
+  createProgressStore,
+} from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { buyTier } from "./tiers";
 import { buyUpgrade } from "./upgrades";
@@ -602,7 +606,7 @@ describe("away earnings", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    expect(progress.getSnapshot().away?.mined).toBe(72);
+    expect(progress.getSnapshot().quietAway).toBe(72);
     expect(docs.get("test-dad")?.pocket).toBe(77);
     expect(progress.getSnapshot().mountain.pocket).toBe(77);
   });
@@ -672,6 +676,41 @@ describe("away earnings", () => {
     });
     expect(progress.getSnapshot().away).toBeUndefined();
     expect(progress.getSnapshot().mountain.pocket).toBe(5 + 53);
+  });
+
+  it("pays a gap of a minute or two with a small note, not the card (#334)", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: crew, lastSeen: 0 });
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 2 * 60_000,
+    });
+    const snapshot = progress.getSnapshot();
+    expect(snapshot.away).toBeUndefined();
+    expect(snapshot.quietAway).toBe(snapshot.mountain.pocket - 5);
+    expect(snapshot.quietAway).toBeGreaterThan(0);
+    progress.dismissQuietAway();
+    expect(progress.getSnapshot().quietAway).toBeUndefined();
+  });
+
+  it("keeps the full card for a real absence, and no note under a minute", () => {
+    expect(QUIET_AWAY_MS).toBe(5 * 60_000);
+    const open = (at: number) => {
+      const storage = createMemoryStorage();
+      writeSessionSave({ storage, mountain: crew, lastSeen: 0 });
+      return createProgressStore({
+        auth: createMemoryAuth(),
+        sessionStorage: storage,
+        now: () => at,
+      }).getSnapshot();
+    };
+    const real = open(QUIET_AWAY_MS);
+    expect(real.away).toBeDefined();
+    expect(real.quietAway).toBeUndefined();
+    const reload = open(WELCOME_MIN_AWAY_MS - 1_000);
+    expect(reload.away).toBeUndefined();
+    expect(reload.quietAway).toBeUndefined();
   });
 
   it("pays another device's save silently after the first load", async () => {
@@ -849,13 +888,14 @@ describe("start over", () => {
       sessionStorage: storage,
       now: () => 60_000,
     });
-    expect(progress.getSnapshot().away).toBeDefined();
+    expect(progress.getSnapshot().quietAway).toBeDefined();
 
     progress.startOver();
 
     const fresh = { ...createMountain(), startedAt: 60_000 };
     expect(progress.getSnapshot().mountain).toEqual(fresh);
     expect(progress.getSnapshot().away).toBeUndefined();
+    expect(progress.getSnapshot().quietAway).toBeUndefined();
     expect(progress.getSnapshot().revealed).toBeUndefined();
     expect(readSessionSave({ storage })).toEqual({
       mountain: fresh,
@@ -1044,7 +1084,7 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       now: () => 100_000,
     });
     // 10 helpers + 10 carts = 70/s, 100 s away at 30%.
-    expect(progress.getSnapshot().away?.mined).toBe(2_100);
+    expect(progress.getSnapshot().quietAway).toBe(2_100);
     expect(progress.getSnapshot().crewJoined).toBe(10);
   });
 
@@ -1118,9 +1158,7 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       now: () => 100_000,
     });
     // 8 workers + a borer at +21.875% (435/s floored) for 100s at 30%.
-    expect(progress.getSnapshot().away?.mined).toBe(
-      Math.floor(100 * 443 * 0.3),
-    );
+    expect(progress.getSnapshot().quietAway).toBe(Math.floor(100 * 443 * 0.3));
     expect(progress.getSnapshot().engineerJoined).toBe(true);
   });
 
@@ -2744,11 +2782,12 @@ describe("layer card and craft-done notice", () => {
       lastSeen: 0,
     });
     const away = guest(awayStore, () => 120_000);
-    expect(away.getSnapshot().away).toBeDefined();
+    expect(away.getSnapshot().quietAway).toBeDefined();
     expect(away.getSnapshot().craftsFitted[0]?.line).toBe(
       "Your Iron rails are fitted. Carts now 7.5/s.",
     );
-    away.dismissAway();
+    // Two minutes is a quiet absence (#334): the fit is the craft-done notice.
+    away.dismissCraft();
     expect(away.getSnapshot().craftsFitted).toEqual([]);
     away.dispose();
   });

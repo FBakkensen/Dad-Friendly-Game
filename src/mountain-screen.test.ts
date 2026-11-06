@@ -874,6 +874,49 @@ describe("Lantern of Guidance on screen", () => {
     screen.root.remove();
   });
 
+  it("shows the next relic on the mountain too, only after the Lantern (#336)", () => {
+    const before = mountScreen({ storage: seeded(minedMountain(100)) });
+    expect(before.root.querySelector<HTMLElement>(".relic-goal")?.hidden).toBe(
+      true,
+    );
+    const after = mountScreen({ storage: seeded(minedMountain(5_500_000)) });
+    const line = after.root.querySelector<HTMLElement>(".relic-goal");
+    expect(line?.hidden).toBe(false);
+    expect(after.text(".relic-goal-text")).toBe(after.text(".goal"));
+    expect(after.text(".relic-goal-text")).not.toMatch(/\d/);
+    expect(
+      after.root
+        .querySelector(".relic-goal-bar")
+        ?.getAttribute("aria-valuenow"),
+    ).toBe(
+      after.root.querySelector(".guide-bar")?.getAttribute("aria-valuenow"),
+    );
+    const done = mountScreen({
+      storage: seeded(minedMountain(MOUNTAIN_STONES)),
+    });
+    expect(done.root.querySelector<HTMLElement>(".relic-goal")?.hidden).toBe(
+      true,
+    );
+  });
+
+  it("notes a short absence on the mountain, with no welcome card (#334)", async () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(2_000_000), helpers: 10 },
+      lastSeen: 0,
+    });
+    const screen = mountScreen({ storage, now: () => 2 * 60_000 });
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
+    ).toBe(true);
+    expect(screen.text(".vein-note")).toMatch(
+      /^\+[\d,]+ stones while you were away$/,
+    );
+    await Promise.resolve();
+    expect(screen.progress.getSnapshot().quietAway).toBeUndefined();
+  });
+
   it("fills the guide bar between relics", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(5_500_000)) });
     expect(

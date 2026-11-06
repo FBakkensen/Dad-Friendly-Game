@@ -28,6 +28,13 @@ import { upgradeLevel, type Upgrade, type UpgradeId } from "./upgrades";
 export const percent = (share: number): string =>
   `${String(Number((share * 100).toFixed(1)))}%`;
 
+/**
+ * The crew's stones a second, as the header shows it: whole stones, compact
+ * past ten thousand. Pass `crewPerSecond`, not the exact rate (#332).
+ */
+export const formatCrewSpeed = (perSecond: number): string =>
+  formatCompact(perSecond);
+
 /** Per-unit speed: one decimal while small and fractional (Better boots). */
 export const formatSpeed = (speed: number): string =>
   speed < 10 && !Number.isInteger(speed)
@@ -183,27 +190,41 @@ const withLevel = (
 });
 
 /**
- * What the card's number is before and after. One more level while one is
- * left; a one-level upgrade keeps showing what it did once it is owned.
+ * What the card's number is before and after one more level, or what it is
+ * now once every level is bought. A one-level upgrade keeps showing what it
+ * did once it is owned.
  */
-function beforeAndAfter(
+type UpgradeChange =
+  | { readonly kind: "next"; readonly before: Rates; readonly after: Rates }
+  | { readonly kind: "maxed"; readonly now: Rates };
+
+function upgradeChange(
   upgrade: Upgrade,
   mountain: Mountain,
   at: number,
-): { readonly before: Rates; readonly after: Rates } | undefined {
+): UpgradeChange {
   const level = upgradeLevel(mountain, upgrade.id);
   if (upgrade.maxLevel === 1) {
     return {
+      kind: "next",
       before: effectiveRates(withLevel(mountain, upgrade.id, 0), at),
       after: effectiveRates(withLevel(mountain, upgrade.id, 1), at),
     };
   }
   return level >= upgrade.maxLevel
-    ? undefined
+    ? { kind: "maxed", now: effectiveRates(mountain, at) }
     : {
+        kind: "next",
         before: effectiveRates(mountain, at),
         after: effectiveRates(withLevel(mountain, upgrade.id, level + 1), at),
       };
+}
+
+/** "6/s to 6.7/s", or "now 6.7/s" once every level is bought. */
+function fromTo(change: UpgradeChange, read: (rates: Rates) => string): string {
+  return change.kind === "maxed"
+    ? `now ${read(change.now)}`
+    : `${read(change.before)} to ${read(change.after)}`;
 }
 
 /**
@@ -215,41 +236,78 @@ export function upgradeEffectLine(
   mountain: Mountain,
   at: number,
 ): string {
-  const change = beforeAndAfter(upgrade, mountain, at);
-  if (change === undefined) {
-    return `Taps now ${formatCount(effectiveRates(mountain, at).tapYield)}.`;
-  }
-  const { before, after } = change;
+  const change = upgradeChange(upgrade, mountain, at);
   switch (upgrade.id) {
     case "tap":
-      return `Taps ${formatCount(before.tapYield)} to ${formatCount(after.tapYield)}.`;
+      return `Taps ${fromTo(change, (rates) => formatCount(rates.tapYield))}.`;
     case "boots":
-      return `Workers ${formatSpeed(before.tierSpeed.helper)}/s to ${formatSpeed(after.tierSpeed.helper)}/s.`;
+      return `Workers ${fromTo(change, (rates) => `${formatSpeed(rates.tierSpeed.helper)}/s`)}.`;
     case "steady":
-      return `Away pay ${shareWords(before.awayPay)} to ${shareWords(after.awayPay)}.`;
+      return `Away pay ${fromTo(change, (rates) => shareWords(rates.awayPay))}.`;
     case "cartSyn":
     case "drillSyn":
     case "borerSyn":
     case "machineSyn":
-      return synergyEffectLine(upgrade, mountain, before, after);
+      return synergyEffectLine(upgrade, mountain, change);
   }
 }
+
+/** Whether a synergy has any of the tier that feeds it. */
+const synergyFed = (upgrade: Upgrade, mountain: Mountain): boolean =>
+  upgrade.synergy !== undefined &&
+  owned(mountain, tierById(upgrade.synergy.from)) > 0;
 
 function synergyEffectLine(
   upgrade: Upgrade,
   mountain: Mountain,
-  before: Rates,
-  after: Rates,
+  change: UpgradeChange,
 ): string {
-  if (
-    upgrade.synergy === undefined ||
-    owned(mountain, tierById(upgrade.synergy.from)) === 0
-  ) {
+  if (upgrade.synergy === undefined || !synergyFed(upgrade, mountain)) {
     return upgrade.perLevel;
   }
   const to = tierById(upgrade.synergy.to);
   const name = to.id === "machine" ? "Great Machine" : `${to.shortName}s`;
-  return `${name} ${formatSpeed(before.tierSpeed[to.id])}/s to ${formatSpeed(after.tierSpeed[to.id])}/s.`;
+  return `${name} ${fromTo(change, (rates) => `${formatSpeed(rates.tierSpeed[to.id])}/s`)}.`;
+}
+
+/** The card's quiet second line: why it is worth it, never the effect again. */
+const UPGRADE_WHY: Record<UpgradeId, string> = {
+  tap: "Each tap takes a little more.",
+  boots: "The workers pick up their feet.",
+  steady: "Time away pays a little more.",
+  cartSyn: "Each worker makes carts 1% faster.",
+  drillSyn: "Each cart makes the drills a little quicker.",
+  borerSyn: "Each drill makes the borers a little quicker.",
+  machineSyn: "Each borer makes the machine a little quicker.",
+};
+
+/** "workers", "carts", "borers": the tier a synergy needs, plural. */
+const tierPlural = (id: TierId): string =>
+  id === "helper" ? workerWords(2) : `${tierById(id).shortName.toLowerCase()}s`;
+
+/**
+ * The why line under the effect line (#342). A synergy with none of its
+ * source already shows its rule, so this says what makes it count. Strong arms
+ * on a crew too small to move the number says it grows with the crew.
+ */
+export function upgradeWhyLine(
+  upgrade: Upgrade,
+  mountain: Mountain,
+  at: number,
+): string {
+  if (upgrade.synergy !== undefined && !synergyFed(upgrade, mountain)) {
+    return `It counts once you have ${tierPlural(upgrade.synergy.from)}.`;
+  }
+  if (upgrade.id === "tap") {
+    const change = upgradeChange(upgrade, mountain, at);
+    if (
+      change.kind === "next" &&
+      formatCount(change.before.tapYield) === formatCount(change.after.tapYield)
+    ) {
+      return "It grows with your crew's speed.";
+    }
+  }
+  return UPGRADE_WHY[upgrade.id];
 }
 
 /**
@@ -266,6 +324,45 @@ export function awayStretchWords(report: {
   return report.awayMs <= AWAY_END_MS
     ? "Your crew dug hard, then took it easy. Rested and ready for you."
     : "Your crew saved a full day's haul for you. Good to have you back.";
+}
+
+/** Grandpa's crew chip (#338): "Grandpa on carts". */
+export const grandpaChipWords = (post: TierId): string =>
+  `Grandpa on ${crewPostLabel(post) ?? "the crew"}`;
+
+/** What a screen reader hears about Grandpa (#338). */
+export const grandpaSentence = (post: TierId): string =>
+  `Grandpa tends ${post === "machine" ? "the Great Machine" : `the ${crewPostLabel(post) ?? "crew"}`}, slow and steady.`;
+
+/** The small note a short absence leaves on the mountain (#334). */
+export const quietAwayWords = (stones: number): string =>
+  `+${formatCount(stones)} ${stones === 1 ? "stone" : "stones"} while you were away`;
+
+/** The welcome card's quote line, under the haul. */
+export const AWAY_CHEER =
+  "Time with the people who matter is never wasted. Your crew kept the mountain moving.";
+
+/** Away this long (a night) and the quote gives way to a dream (#337). */
+export const DREAM_AWAY_MS = 8 * 60 * 60 * 1000;
+
+/**
+ * The quote line, or after a long absence one vague, dreamy line about what
+ * lies deeper than the band you are in (#337). No numbers, no depths.
+ */
+export function awayCheerWords(awayMs: number, band: LayerId): string {
+  if (awayMs < DREAM_AWAY_MS) {
+    return AWAY_CHEER;
+  }
+  switch (band) {
+    case "topsoil":
+      return "While you were gone, the crew dreamt of cold grey stone.";
+    case "granite":
+      return "While you were gone, something hummed below the Granite.";
+    case "crystal":
+      return "While you were gone, something warm stirred under the caves.";
+    case "heart":
+      return "While you were gone, the Deep Heart beat slow and steady.";
+  }
 }
 
 export const tapWords = (stones: number): string =>
@@ -939,15 +1036,42 @@ export function craftTimeWords(ms: number): string {
 }
 
 /**
- * A craft rate to one decimal, the same grain as the rest of the crew.
- * "8.5", "10.6", "3,500". Whole numbers stay whole.
+ * "X/s to Y/s" for a craft card. When whole stones would print the same
+ * number on both sides, both keep a tenth (#347), so a raise always shows.
+ */
+export function craftSpeedPair(before: number, after: number): string {
+  const from = formatCraftSpeed(before);
+  const to = formatCraftSpeed(after);
+  if (from !== to || after <= before) {
+    return `${from}/s to ${to}/s`;
+  }
+  // Past ten thousand "12.3K" can hide a raise: whole stones first, then
+  // a tenth only if those match too.
+  const whole = (speed: number) =>
+    Math.floor(Math.max(0, speed)).toLocaleString("en-US");
+  if (whole(before) !== whole(after)) {
+    return `${whole(before)}/s to ${whole(after)}/s`;
+  }
+  const tenth = (speed: number) =>
+    Math.max(0, speed).toLocaleString("en-US", {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+  return `${tenth(before)}/s to ${tenth(after)}/s`;
+}
+
+/**
+ * A craft rate to one decimal under a thousand, whole stones from there
+ * (#347). "8.5", "10.6", "5,197". Whole numbers stay whole.
  */
 export function formatCraftSpeed(speed: number): string {
   const abs = Math.max(0, speed);
-  const tenths = Math.round(abs * 10) / 10;
-  if (tenths >= 10_000) {
-    return formatCompact(Math.floor(abs));
+  // From a thousand on, whole stones like the header (#347): a tenth there
+  // is noise ("5197.5/s").
+  if (abs >= 1_000) {
+    return formatCompact(abs);
   }
+  const tenths = Math.round(abs * 10) / 10;
   if (Number.isInteger(tenths)) {
     return formatCompact(tenths);
   }

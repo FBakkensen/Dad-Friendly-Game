@@ -9,10 +9,17 @@ import {
   timerLines,
   workshopCards,
   workshopPages,
+  SHORT_WORKSHOP_PAGE,
   type RecipeCard,
   type WorkshopCard,
 } from "./workshop-sheet";
 import { RECIPE_IDS, recipesForMined, type RecipeId } from "./workshop";
+import { effectiveRates } from "./rates";
+import {
+  craftSpeedPair,
+  formatCraftSpeed,
+  formatCrewSpeed,
+} from "./screen-words";
 
 const FULL = {
   clay: 40,
@@ -33,6 +40,33 @@ function shed(extra: Partial<Mountain> = {}): Mountain {
     ...extra,
   };
 }
+
+describe("Blasting charge line rounds crew speed like the header (#332)", () => {
+  it("shows whole stones a second, the header's number, before and after", () => {
+    // The mid save's crew: 586.2 stones a second exactly, 586 on the header.
+    const mid = shed({
+      remaining: MOUNTAIN_STONES - 25_000_000,
+      helpers: 20,
+      carts: 5,
+      drills: 2,
+      borers: 1,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+      recipes: recipesForMined(25_000_000),
+    });
+    const header = formatCrewSpeed(effectiveRates(mid, 0).crewPerSecond);
+    const charge = recipe(workshopCards(mid, 0), "blasting-charge");
+    expect(charge.effect).toMatch(
+      new RegExp(`^Crew ${header}/s to [\\d,.KM]+/s for 20 min\\.$`),
+    );
+    expect(charge.effect).not.toMatch(/\d\.\d\/s/);
+  });
+
+  it("formats crew speed as whole stones, compact past ten thousand", () => {
+    expect(formatCrewSpeed(586)).toBe("586");
+    expect(formatCrewSpeed(1172)).toBe("1,172");
+    expect(formatCrewSpeed(25_400)).toBe("25.4K");
+  });
+});
 
 function recipe(cards: readonly WorkshopCard[], id: RecipeId): RecipeCard {
   const card = cards.find(
@@ -104,6 +138,24 @@ describe("workshop sheet (#199)", () => {
     expect(hidden?.kind === "hidden" ? hidden.hint : "x").not.toMatch(/[0-9?]/);
     expect(workshopPages(cards)).toHaveLength(2);
     expect(workshopPages(cards)[0]).toHaveLength(4);
+    // A short phone whose four cards overflow takes three a page (#347).
+    expect(workshopPages(cards, SHORT_WORKSHOP_PAGE)[0]).toHaveLength(3);
+    expect(workshopPages(cards, SHORT_WORKSHOP_PAGE).flat()).toEqual(cards);
+  });
+
+  it("names a big machine's speed in whole stones, a small one to a tenth (#347)", () => {
+    expect(formatCraftSpeed(5197.5)).toBe("5,197");
+    expect(formatCraftSpeed(5457.4)).toBe("5,457");
+    expect(formatCraftSpeed(999.94)).toBe("999.9");
+    expect(formatCraftSpeed(999.96)).toBe("1,000");
+    expect(formatCraftSpeed(28.8)).toBe("28.8");
+  });
+
+  it("never says the same number on both sides of a raise (#347)", () => {
+    expect(craftSpeedPair(5197.5, 5457.4)).toBe("5,197/s to 5,457/s");
+    expect(craftSpeedPair(1000.2, 1000.8)).toBe("1,000.2/s to 1,000.8/s");
+    expect(craftSpeedPair(28.8, 30.2)).toBe("28.8/s to 30.2/s");
+    expect(craftSpeedPair(12_340, 12_380)).toBe("12,340/s to 12,380/s");
   });
 
   it("greys a short craft with the first missing material", () => {

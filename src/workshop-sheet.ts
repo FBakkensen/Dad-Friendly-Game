@@ -24,7 +24,9 @@ import {
   benchUnknownWords,
   craftPriceWords,
   craftTimeWords,
+  craftSpeedPair,
   formatCraftSpeed,
+  formatCrewSpeed,
   crewAlreadyWords,
   craftLevelWords,
   materialCostWords,
@@ -204,7 +206,7 @@ function tierShift(
     },
     now,
   ).tierSpeed[tier];
-  return `${TIER_WORD[tier]} ${formatCraftSpeed(before)}/s to ${formatCraftSpeed(after)}/s`;
+  return `${TIER_WORD[tier]} ${craftSpeedPair(before, after)}`;
 }
 
 function troubleLine(mountain: Mountain): string {
@@ -292,8 +294,16 @@ function crewBuffLine(
   if (others > 1 && others + 1e-9 >= scale) {
     return crewAlreadyWords(others);
   }
-  if (after > before + 1e-9) {
-    return `Crew ${formatCraftSpeed(before)}/s to ${formatCraftSpeed(after)}/s for ${time}.`;
+  // Whole stones a second, the same number as the header (#332). Decided on
+  // the shown numbers, so it never reads "Crew 3/s to 3/s".
+  const shownBefore = formatCrewSpeed(
+    effectiveRates(mountain, now).crewPerSecond,
+  );
+  const shownAfter = formatCrewSpeed(
+    effectiveRates(afterMountain, now).crewPerSecond,
+  );
+  if (after > before + 1e-9 && shownAfter !== shownBefore) {
+    return `Crew ${shownBefore}/s to ${shownAfter}/s for ${time}.`;
   }
   const mark = formatCraftSpeed(scale);
   if (before <= 0) {
@@ -325,7 +335,7 @@ function emberLine(mountain: Mountain, now: number): string {
   if (after <= before) {
     return `The Great Machine keeps this lift for another ${time}.`;
   }
-  return `Great Machine ${formatCraftSpeed(before)}/s to ${formatCraftSpeed(after)}/s for ${time}.`;
+  return `Great Machine ${craftSpeedPair(before, after)} for ${time}.`;
 }
 
 function reinforceLine(mountain: Mountain, now: number): string {
@@ -347,7 +357,7 @@ function reinforceLine(mountain: Mountain, now: number): string {
     },
     now,
   ).tierSpeed[tier];
-  return `${word} ${formatCraftSpeed(before)}/s to ${formatCraftSpeed(after)}/s`;
+  return `${word} ${craftSpeedPair(before, after)}`;
 }
 
 /** What the crew feels once this craft is already fitted. A real number. */
@@ -708,16 +718,20 @@ export function workshopCards(
   return cards;
 }
 
-/** Pages of four. One page when the shed is still small. */
+/** A short phone whose four cards would overflow takes three a page (#347). */
+export const SHORT_WORKSHOP_PAGE = 3;
+
+/** Pages of four (or `size`). One page when the shed is still small. */
 export function workshopPages(
   cards: readonly WorkshopCard[],
+  size: number = WORKSHOP_PAGE,
 ): readonly (readonly WorkshopCard[])[] {
   if (cards.length === 0) {
     return [[]];
   }
   const pages: WorkshopCard[][] = [];
-  for (let index = 0; index < cards.length; index += WORKSHOP_PAGE) {
-    pages.push(cards.slice(index, index + WORKSHOP_PAGE));
+  for (let index = 0; index < cards.length; index += size) {
+    pages.push(cards.slice(index, index + size));
   }
   return pages;
 }

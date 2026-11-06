@@ -38,7 +38,8 @@ describe("legacy bonus", () => {
     const crew = {
       ...createMountain(),
       helpers: 100,
-      carts: 10,
+      // No machines: Grandpa (#338) has nothing to tend, so this compares
+      // the Legacy alone. A cart's own speed still shows the Legacy.
       upgrades: { tap: 5 },
     };
     const plain = effectiveRates(crew);

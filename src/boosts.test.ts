@@ -64,17 +64,20 @@ describe("quick boosts", () => {
         3 * boostCost(overtime, rates),
       );
     }
-    const tapPrice = Math.ceil(rates.tapYield * sharper.priceUnits);
+    // Priced from taps alone (#333): a slow session earns it back five times,
+    // however big the crew.
     const cost = boostCost(sharper, rates);
-    if (cost === Math.max(sharper.minCost, tapPrice)) {
-      // Priced from taps: a slow session still earns it back five times.
-      expect(sharperGain).toBeGreaterThanOrEqual(5 * cost);
-    } else {
-      // Priced from a minute of the crew, so a big mine does not sell it
-      // for pocket change. Taps alone no longer cover that price five times.
-      expect(cost).toBeGreaterThan(tapPrice);
-      expect(cost).toBeGreaterThanOrEqual(rates.crewPerSecond * 60);
-    }
+    expect(sharperGain).toBeGreaterThanOrEqual(5 * cost);
+  });
+
+  it("never prices Sharper picks off a big crew whose taps are still 1 (#333)", () => {
+    // The mid save: 586 stones a second, Strong arms at 0.
+    const rates = { crewPerSecond: 586, tapYield: 1 };
+    const sharper = boostById("sharper");
+    expect(boostCost(sharper, rates)).toBe(120);
+    expect(boostCost(sharper, { crewPerSecond: 60_000, tapYield: 1 })).toBe(
+      120,
+    );
   });
 
   it("never show more than a boost's full length after the clock is set back (#116)", () => {

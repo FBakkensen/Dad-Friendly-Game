@@ -1,7 +1,7 @@
 import { stretch } from "./scale";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
-import type { TierId } from "./tiers";
+import { TIERS, owned, type TierId } from "./tiers";
 
 /**
  * Engineers (M7 §3). A few named hands, never a second currency.
@@ -238,17 +238,57 @@ function hasEngineerOutOfTunnel(mountain: Mountain): boolean {
 export const TENDING_GAIN = 1.25;
 
 /**
+ * Grandpa (#338): after you pass the mine, the old dad stays on. He only
+ * tends, at an apprentice's pace (gentle, so the kid's run still stretches:
+ * the pacing sims pin it), never explores, and is never promoted. Nothing is
+ * saved for him: he is there whenever the Legacy is. Tending speeds his tier;
+ * it does not change its crew bill.
+ */
+export const GRANDPA_RANK: EngineerRank = 0;
+
+/**
+ * The machine Grandpa tends: the biggest one that is running (fully staffed,
+ * the way `effectiveRates` staffs biggest first) and that no engineer tends.
+ * Undefined before a pass, or with nothing running to tend. An idle machine
+ * never takes him, so buying one never slows the crew.
+ */
+export function grandpaPost(mountain: Mountain): TierId | undefined {
+  if ((mountain.legacy ?? 0) < 1) {
+    return undefined;
+  }
+  const tended = new Set<TierId | EngineerPost>(
+    (mountain.engineers ?? []).map((one) => one.post),
+  );
+  let free = mountain.helpers + mountain.kids;
+  for (const tier of [...TIERS].reverse()) {
+    const staff = staffNeeded(mountain, tier);
+    if (staff === 0) {
+      continue;
+    }
+    const running = Math.min(owned(mountain, tier), Math.floor(free / staff));
+    free -= running * staff;
+    if (running > 0 && !tended.has(tier.id)) {
+      return tier.id;
+    }
+  }
+  return undefined;
+}
+
+/**
  * How many tenths faster a tier runs because an engineer is posted there.
  * The best rank wins; they do not stack. Camp and tunnel tend nothing.
+ * After a pass, Grandpa counts at GRANDPA_RANK on his post (#338).
  * Ranks are +1, +2 and +3 tenths, times TENDING_GAIN. A sweep may scale it.
  */
 export function tendingTenths(mountain: Mountain, tierId: TierId): number {
+  const scale = factor("tending.gain") * TENDING_GAIN;
+  // Grandpa tends at his rank on his post (#338).
+  let best =
+    grandpaPost(mountain) === tierId ? TENDING_TENTHS[GRANDPA_RANK] * scale : 0;
   const engineers = mountain.engineers;
   if (engineers === undefined) {
-    return 0;
+    return best;
   }
-  const scale = factor("tending.gain") * TENDING_GAIN;
-  let best = 0;
   for (const engineer of engineers) {
     if (engineer.post === tierId) {
       best = Math.max(best, TENDING_TENTHS[engineer.rank] * scale);

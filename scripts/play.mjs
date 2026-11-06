@@ -1,4 +1,4 @@
-/* global console, process, sessionStorage, localStorage, setTimeout, URL */
+/* global console, process, sessionStorage, localStorage, setTimeout, URL, document, getComputedStyle */
 /**
  * Quick play-test in a real browser: open the game on a named save, run a
  * few taps, and keep a shot after each step plus the console and page errors.
@@ -20,6 +20,7 @@ import { createServer } from "vite";
 import {
   PLAY_USAGE,
   isPlayOutput,
+  labelMatch,
   parsePlayArgs,
   shotName,
   targetQuery,
@@ -33,6 +34,8 @@ import {
   seedJson,
   workshopSave,
 } from "./fixtures.mjs";
+
+const HOUR = 60 * 60 * 1000;
 
 /** Starting saves, from the visual check's fixtures. `fresh` seeds nothing. */
 const SAVES = {
@@ -54,17 +57,21 @@ const SAVES = {
     note: "one stone left: a tap finds the legend and offers passing the mine",
     save: lastStoneSave,
   },
-};
-
-const SCREENS = {
-  phone: {
-    width: 412,
-    height: 915,
-    isMobile: true,
-    hasTouch: true,
-    deviceScaleFactor: 2,
+  away: {
+    note: "the mid save, last seen 9 hours ago: the welcome-back card",
+    save: () => ({ ...openMountain(), lastSeen: Date.now() - 9 * HOUR }),
   },
-  desktop: { width: 1366, height: 768, deviceScaleFactor: 2 },
+  heir: {
+    note: "a kid's run after one pass: Grandpa tends the carts",
+    save: () => ({
+      ...crewMountain(),
+      mountain: { ...crewMountain().mountain, legacy: 1 },
+    }),
+  },
+  brief: {
+    note: "the mid save, last seen 2 minutes ago: the quiet away note",
+    save: () => ({ ...openMountain(), lastSeen: Date.now() - HOUR / 30 }),
+  },
 };
 
 const plan = parsePlayArgs(process.argv.slice(2), Object.keys(SAVES));
@@ -80,6 +87,16 @@ if (plan.kind === "error") {
   console.error(`${plan.message}\n\n${PLAY_USAGE}`);
   process.exit(2);
 }
+
+const SCREENS = {
+  phone: {
+    ...plan.phone,
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 2,
+  },
+  desktop: { width: 1366, height: 768, deviceScaleFactor: 2 },
+};
 
 const CHROME =
   process.env.CHROME_PATH ??
@@ -120,16 +137,75 @@ const browser = await puppeteer.launch({
   args: ["--no-sandbox"],
 });
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** What a person can tap, with the name a screen reader would give it. */
+const TAPPABLE =
+  "button, a[href], summary, input, select, textarea, [role=button], [role=tab], [role=link], [aria-label]";
+
+/**
+ * The first visible element whose accessible name is the label, else the first
+ * that starts with it ("Upgrades" finds "Upgrades, one is affordable").
+ */
+async function findByLabel(page, label) {
+  const deadline = Date.now() + 5_000;
+  for (;;) {
+    const handles = await page.$$(TAPPABLE);
+    const names = await Promise.all(
+      handles.map((handle) =>
+        handle.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          const visible =
+            box.width > 0 &&
+            box.height > 0 &&
+            style.visibility !== "hidden" &&
+            element.closest("[hidden], [inert]") === null;
+          if (!visible) {
+            return "";
+          }
+          const labelledBy = element.getAttribute("aria-labelledby");
+          const byId =
+            labelledBy === null
+              ? ""
+              : labelledBy
+                  .split(/\s+/)
+                  .map((id) => document.getElementById(id)?.textContent ?? "")
+                  .join(" ");
+          return (
+            element.getAttribute("aria-label") ??
+            (byId.trim() || element.textContent || "")
+          );
+        }),
+      ),
+    );
+    // A hidden control has no name, so it never matches.
+    const index = labelMatch(
+      names.map((name) => (name.trim() === "" ? "\u0000" : name)),
+      label,
+    );
+    if (index !== -1) {
+      return handles[index];
+    }
+    if (Date.now() > deadline) {
+      throw new Error(`No visible control named "${label}"`);
+    }
+    await sleep(100);
+  }
+}
+
 async function step(page, screen, action) {
   if (action.kind === "wait") {
-    await new Promise((resolve) => setTimeout(resolve, action.ms));
+    await sleep(action.ms);
     return;
   }
-  const query = targetQuery(action.target);
-  const element = await page.waitForSelector(query, {
-    visible: true,
-    timeout: 5_000,
-  });
+  const element =
+    action.target.by === "label"
+      ? await findByLabel(page, action.target.label)
+      : await page.waitForSelector(targetQuery(action.target), {
+          visible: true,
+          timeout: 5_000,
+        });
   if (action.kind === "waitFor") {
     return;
   }

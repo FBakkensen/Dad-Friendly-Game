@@ -105,6 +105,16 @@ body {
   outline-offset: 4px;
 }
 
+/* The band's tint (#325). The filter value comes from mountainTint. */
+.mountain-band {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: var(--band-tint, none);
+  transition: filter 600ms ease-out;
+  pointer-events: none;
+}
+
 .mountain-art {
   display: block;
   width: 100%;
@@ -188,7 +198,7 @@ body {
   gap: 4px;
   flex: none;
   /* Same pull-in as the upgrades button had on its own, so the row stays one line tall. */
-  height: 44px;
+  height: var(--target-min);
   margin-block: -6px;
 }
 
@@ -203,8 +213,8 @@ body {
   display: grid;
   place-items: center;
   flex: none;
-  width: 44px;
-  height: 44px;
+  width: var(--target-min);
+  height: var(--target-min);
   padding: 0;
   border: 2px solid #6b4a2a;
   border-radius: 12px;
@@ -241,8 +251,8 @@ body {
   appearance: none;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: var(--target-min);
+  height: var(--target-min);
   margin-block: -6px;
   padding: 0;
   border: 2px solid #6b4a2a;
@@ -493,7 +503,7 @@ body {
 .crew-posts {
   appearance: none;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--target-min);
   margin: 0;
   padding: 2px 8px;
   border: 0;
@@ -1171,7 +1181,8 @@ body {
   width: min(320px, 100%);
 }
 
-.guide-bar {
+.guide-bar,
+.relic-goal-bar {
   width: 100%;
   height: 8px;
   overflow: hidden;
@@ -1180,11 +1191,13 @@ body {
   background: #1e130d;
 }
 
-.guide-bar[hidden] {
+.guide-bar[hidden],
+.relic-goal-bar[hidden] {
   display: none;
 }
 
-.guide-bar span {
+.guide-bar span,
+.relic-goal-bar span {
   display: block;
   height: 100%;
   width: 0;
@@ -1334,11 +1347,11 @@ body {
   font-size: 1.25rem;
 }
 
-/* Tucked away: small and quiet, but still a 44px tap target. */
+/* Tucked away: small and quiet, but still a full tap target. */
 .start-over-link,
 .saved-copies-link {
   appearance: none;
-  min-height: 44px;
+  min-height: var(--target-min);
   padding: 8px 16px;
   border: 0;
   background: none;
@@ -1409,8 +1422,8 @@ body {
 .menu-button {
   appearance: none;
   flex: none;
-  width: 44px;
-  height: 44px;
+  width: var(--target-min);
+  height: var(--target-min);
   margin-left: auto;
   border: 1px solid #6b4a2a;
   border-radius: 10px;
@@ -1530,7 +1543,7 @@ body {
   width: 7.75rem;
   min-width: 7.75rem;
   max-width: 7.75rem;
-  min-height: 44px;
+  min-height: var(--target-min);
   margin-top: 0;
   padding: 2px 4px;
   font-size: 0.9rem;
@@ -1555,7 +1568,7 @@ body {
 }
 
 .upgrades-dialog .upgrades-close {
-  min-height: 44px;
+  min-height: var(--target-min);
   margin-top: 0;
   font-size: 1rem;
 }
@@ -1823,7 +1836,7 @@ body {
 }
 
 .relic-detail .reveal-card:has(.keepsakes:not([hidden])) .reveal-continue {
-  min-height: 44px;
+  min-height: var(--target-min);
   font-size: 1rem;
 }
 
@@ -2025,9 +2038,9 @@ body {
 
 .engineers-dialog .engineers-close {
   flex: none;
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
+  width: var(--target-min);
+  height: var(--target-min);
+  min-height: var(--target-min);
   padding: 0;
   border: 1px solid #5a4330;
   border-radius: 10px;
@@ -2135,7 +2148,7 @@ body {
 .recall-no,
 .recall-yes {
   appearance: none;
-  min-height: 44px;
+  min-height: var(--target-min);
   padding: 6px 4px;
   border: 2px solid #6b4a2a;
   border-radius: 10px;
@@ -2528,7 +2541,7 @@ body {
 
 .engineer-act {
   appearance: none;
-  min-height: 44px;
+  min-height: var(--target-min);
   padding: 8px 6px;
   border: 0;
   border-radius: 12px;
@@ -2582,7 +2595,7 @@ body {
   gap: 8px;
   align-items: center;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--target-min);
   padding: 4px 8px;
   border: 1px solid #5a4330;
   border-radius: 10px;
@@ -2645,7 +2658,7 @@ body {
   gap: 8px;
   align-items: center;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--target-min);
   padding: 5px 10px;
   overflow: hidden;
   border: 0;
@@ -2854,7 +2867,7 @@ body {
 .workshop-sound {
   flex: none;
   min-width: 72px;
-  min-height: 44px;
+  min-height: var(--target-min);
   padding: 4px 8px;
   font-size: 0.9rem;
 }
@@ -3037,7 +3050,7 @@ body {
 .workshop-close,
 .workshop-earlier,
 .workshop-more {
-  min-height: 44px;
+  min-height: var(--target-min);
   width: 100%;
 }
 
@@ -3109,7 +3122,7 @@ body {
 
 .workshop-craft {
   margin-top: auto;
-  min-height: 44px;
+  min-height: var(--target-min);
   padding: 4px 6px;
 }
 
@@ -3187,8 +3200,12 @@ body {
 }
 
 .workshop-pager {
+  /* Never squeezed by a full sheet: the recipe list gives instead (#346). */
+  flex: none;
   display: flex;
-  gap: 4px;
+  gap: var(--target-gap);
+  /* With the sheet's 4px gap, 8px above Back to the mountain (#328). */
+  margin-bottom: var(--space-4);
 }
 
 .workshop-close {
@@ -3260,7 +3277,7 @@ body {
 
 .save-conflict-sheet {
   align-items: stretch;
-  gap: 4px;
+  gap: var(--target-gap);
   width: 100%;
   max-height: 100%;
   margin: 0;
@@ -3279,7 +3296,7 @@ body {
 
 .save-pair {
   display: flex;
-  gap: 6px;
+  gap: var(--target-gap);
   min-width: 0;
 }
 
@@ -3396,7 +3413,15 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: var(--space-4);
+  /* The shelf and the rock are both targets: 8px apart (#346). */
+  gap: var(--target-gap);
+}
+
+/* With #app's 4px gap, the teach note and the bottom bar stand 8px from the
+   rock and from each other (#346). */
+#app > .teach-note,
+#app > .thumb-bar {
+  margin-top: var(--space-4);
 }
 
 .mountain-wrap > .relic-shelf {
@@ -4378,7 +4403,8 @@ body {
   align-items: center;
   justify-content: flex-end;
   width: auto;
-  min-width: 0;
+  /* A short price like "Craft" is still a full-width target (#328). */
+  min-width: var(--target-min);
   max-width: none;
   min-height: var(--target-min);
   margin: 0;
@@ -4848,7 +4874,8 @@ body {
   align-self: center;
   justify-content: center;
   min-height: var(--target-min);
-  margin: 0;
+  /* With the sheet's 4px gap, 8px below Quiet and the info button (#328). */
+  margin: var(--space-4) 0 0;
   padding: 0 var(--space-16);
   border: var(--line) solid var(--color-edge);
   border-radius: var(--radius-pill);
@@ -5279,4 +5306,32 @@ body {
 .welcome-card .welcome-continue,
 .legacy-card .start-over-actions {
   margin-top: var(--space-8);
+}
+
+/* The next relic on the mountain, above the shelf (#336). Vague words, thin bar. */
+.mountain-wrap > .relic-goal {
+  flex: none;
+  order: -2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  width: min(calc(var(--target-min) * 6), calc(100% - var(--space-16) * 2));
+  margin: 0;
+}
+
+.mountain-wrap > .relic-goal[hidden] {
+  display: none;
+}
+
+.relic-goal-text {
+  margin: 0;
+  font-size: var(--type-14);
+  line-height: var(--leading);
+  color: var(--color-quiet);
+  text-align: center;
+}
+
+.relic-goal-bar {
+  height: var(--space-4);
 }

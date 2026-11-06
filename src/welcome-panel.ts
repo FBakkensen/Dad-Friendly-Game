@@ -1,10 +1,13 @@
 import oreArt from "./assets/ore-lump.png";
 import { formatCount, formatDuration } from "./format";
+import { layerOf } from "./layers";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
+  AWAY_CHEER,
   AWAY_MATERIALS_USE,
   ENGINEER_WELCOME,
   awayMaterialsWords,
+  awayCheerWords,
   awayStretchWords,
   cameBack,
   layerWelcomeWords,
@@ -53,8 +56,7 @@ export function createWelcomePanel({
   welcomeOre.append(welcomeOreArt, welcomeOreText);
   const welcomeCheer = document.createElement("p");
   welcomeCheer.className = "welcome-cheer";
-  welcomeCheer.textContent =
-    "Time with the people who matter is never wasted. Your crew kept the mountain moving.";
+  welcomeCheer.textContent = AWAY_CHEER;
   // One-time note for saves from before machines needed helpers (#89).
   const welcomeCrew = document.createElement("p");
   welcomeCrew.className = "welcome-crew";
@@ -174,6 +176,10 @@ export function createWelcomePanel({
     }
     welcomeMined.textContent = `+${formatCount(report.mined)} ${report.mined === 1 ? "stone" : "stones"}`;
     welcomeDetail.textContent = `You were gone ${formatDuration(report.awayMs)}. ${awayStretchWords(report)}`;
+    welcomeCheer.textContent = awayCheerWords(
+      report.awayMs,
+      layerOf(view.mountain).id,
+    );
     welcomeDetail.textContent +=
       report.heart > 1
         ? ` The Heart of Patience made it ×${report.heart.toFixed(2).replace(/0$/, "")}.`

@@ -118,7 +118,8 @@ describe("layers", () => {
     }
     const granite = effectiveRates(minedMountain(10_000_000)).tierSpeed;
     expect(granite.helper).toBe(1);
-    expect(granite.kid).toBe(1);
+    // Kids keep their own speed in every band (25 since #327).
+    expect(granite.kid).toBe(25);
     expect(granite.cart).toBe(6);
     expect(granite.drill).toBeCloseTo(36 * SLOWED_SPEED);
     expect(granite.borer).toBeCloseTo(357 * 1.1);
@@ -131,7 +132,7 @@ describe("layers", () => {
     expect(crystal.machine).toBe(2_100);
     const heart = effectiveRates(minedMountain(120_000_000)).tierSpeed;
     expect(heart.helper).toBe(1);
-    expect(heart.kid).toBe(1);
+    expect(heart.kid).toBe(25);
     expect(heart.cart).toBe(6);
     expect(heart.drill).toBe(36);
     expect(heart.borer).toBeCloseTo(357 * SLOWED_SPEED);

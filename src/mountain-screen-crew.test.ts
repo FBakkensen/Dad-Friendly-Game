@@ -171,15 +171,22 @@ describe("upgrades on screen", () => {
 
   it("opens the sheet from beside the pocket, buys Strong arms, and taps harder", () => {
     setReducedMotion(false);
-    const screen = mountScreen({
-      storage: seededWith({
+    // A pinned clock (#348): on a busy machine a real one let a crew tick
+    // land inside the tap, and the float read the crew's 527 instead of 9.
+    const clock = Date.now();
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
         ...minedMountain(30_000),
         helpers: 500,
         // Three carts open Strong arms (#250).
         carts: 3,
         pocket: 500_000,
-      }),
+      },
+      lastSeen: clock,
     });
+    const screen = mountScreen({ storage, now: () => clock });
     document.body.append(screen.root);
     const button =
       screen.root.querySelector<HTMLButtonElement>(".upgrades-button");
@@ -276,8 +283,8 @@ describe("quick boosts on screen", () => {
       expect(screen.text('[data-boost="sharper"] .upgrade-name')).toBe(
         "Sharper picks",
       );
-      // 120 taps, or a minute of this 500-worker crew, whichever is more.
-      expect(buy?.textContent).toBe("Buy · 30K");
+      // 120 taps, whatever the crew (#333).
+      expect(buy?.textContent).toBe("Buy · 120");
       buy?.click();
       expect(buy?.disabled).toBe(true);
       expect(buy?.textContent).toBe("Running · 10:00");

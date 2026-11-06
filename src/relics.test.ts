@@ -6,6 +6,7 @@ import {
   foundRelics,
   hasRelic,
   nextRelic,
+  relicGoal,
   relicsUncovered,
 } from "./relics";
 import { minedMountain } from "./test-fixtures";
@@ -23,6 +24,14 @@ describe("relics", () => {
     const depths = RELICS.map((relic) => relic.depth);
     expect([...depths].sort((a, b) => a - b)).toEqual(depths);
     expect(depths.at(-1)).toBe(MOUNTAIN_STONES);
+  });
+
+  it("the Mantle's power points to passing the mine now, not later (#326)", () => {
+    const mantle = RELICS.find((relic) => relic.id === "mantle");
+    expect(mantle?.boost).toBe(
+      "Ends the run as a Legend. Pass the mine to your kid when you are ready.",
+    );
+    expect(mantle?.boost).not.toMatch(/later/i);
   });
 
   it("finds the Lantern at exactly 1,000,000 stones mined", () => {
@@ -80,6 +89,38 @@ describe("depthHint", () => {
     expect(depthHint(minedMountain(MOUNTAIN_STONES))).toBeUndefined();
     for (const relic of RELICS) {
       expect(relic.tease).not.toMatch(/\d|\?/);
+    }
+  });
+});
+
+describe("relicGoal (#336)", () => {
+  it("has no goal before the Lantern lights the way", () => {
+    expect(relicGoal(minedMountain(0))).toEqual({ kind: "unguided" });
+    expect(relicGoal(minedMountain(999_999))).toEqual({ kind: "unguided" });
+  });
+
+  it("names the next relic, a vague hint, and the bar's percent", () => {
+    const shield = RELICS.find((relic) => relic.id === "shield");
+    const from = 1_000_000;
+    const to = shield?.depth ?? 0;
+    const goal = relicGoal(minedMountain(from + Math.floor((to - from) / 2)));
+    expect(goal).toEqual({
+      kind: "next",
+      name: "Shield of Protection",
+      hint: "Getting closer",
+      percent: 50,
+    });
+  });
+
+  it("is done once every relic is found", () => {
+    expect(relicGoal(minedMountain(MOUNTAIN_STONES))).toEqual({ kind: "done" });
+  });
+
+  it("never says a depth or a stone count in its words", () => {
+    const goal = relicGoal(minedMountain(3_000_000));
+    expect(goal.kind).toBe("next");
+    if (goal.kind === "next") {
+      expect(`${goal.name} ${goal.hint}`).not.toMatch(/\d/);
     }
   });
 });

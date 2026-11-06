@@ -5,7 +5,7 @@
  */
 
 /** Something on the page to tap or wait for. */
-export type PlayTarget =
+type PlayTarget =
   | { readonly by: "selector"; readonly selector: string }
   | { readonly by: "label"; readonly label: string };
 
@@ -20,6 +20,13 @@ export type PlayAction =
 
 export type PlayScreen = "phone" | "desktop";
 
+/** The phone viewport in CSS pixels. */
+type PhoneSize = { readonly width: number; readonly height: number };
+
+/** The tallest supported phone (#273). 424x830 is the shorter one. */
+const DEFAULT_PHONE: PhoneSize = { width: 424, height: 924 };
+const MAX_SIDE = 4096;
+
 type PlayPlan = {
   readonly kind: "plan";
   readonly save: string;
@@ -28,6 +35,7 @@ type PlayPlan = {
   readonly out: string;
   /** A running app to drive instead of starting Vite. */
   readonly url: string | undefined;
+  readonly phone: PhoneSize;
 };
 
 export type PlayArgs =
@@ -42,11 +50,15 @@ Options:
   --screen <which>   phone, desktop, or both (default: both)
   --out <dir>        where shots and the log go (default: play-shots)
   --url <url>        drive a running app instead of starting Vite
+  --viewport <WxH>   the phone's size (default: 424x924); the other
+                     supported phone is 424x830
   --help             this text
 
 Actions run in order; a shot is taken after opening and after each one:
   tap:<css>          tap the first visible match, e.g. tap:.mountain
-  label:<name>       tap by accessible name (aria-label or text), e.g. label:Buys
+  label:<name>       tap the first visible match whose accessible name
+                     (aria-label or text) is or starts with the label,
+                     e.g. label:Upgrades
   wait:<ms>          wait that many milliseconds, e.g. wait:500
   wait:<css>         wait until a match is visible, e.g. wait:.buys-dialog
 Add *N to a tap to repeat it, e.g. tap:.mountain*5`;
@@ -110,13 +122,18 @@ export function parseAction(
     kind,
     repeat === null ? body : (repeat[1] ?? body),
   );
-  if (target.by === "label" && /[()]/.test(target.label)) {
-    return {
-      kind: "error",
-      message: `"${word}": a label cannot hold ( or ). Use tap:<css> instead.`,
-    };
-  }
   return { kind: "tap", target, times };
+}
+
+function parsePhone(value: string): PhoneSize | undefined {
+  const match = /^(\d+)x(\d+)$/i.exec(value);
+  if (match === null) {
+    return undefined;
+  }
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  const fits = (side: number) => side >= 1 && side <= MAX_SIDE;
+  return fits(width) && fits(height) ? { width, height } : undefined;
 }
 
 function parseScreens(value: string): readonly PlayScreen[] | undefined {
@@ -141,6 +158,7 @@ export function parsePlayArgs(
   let screens: readonly PlayScreen[] = ["phone", "desktop"];
   let out = DEFAULT_OUT;
   let url: string | undefined;
+  let phone = DEFAULT_PHONE;
   const actions: PlayAction[] = [];
   const rest = [...argv];
   for (let word = rest.shift(); word !== undefined; word = rest.shift()) {
@@ -182,6 +200,17 @@ export function parsePlayArgs(
         case "--url":
           url = value;
           break;
+        case "--viewport": {
+          const size = parsePhone(value);
+          if (size === undefined) {
+            return {
+              kind: "error",
+              message: `--viewport is WIDTHxHEIGHT, e.g. 424x830, not "${value}".`,
+            };
+          }
+          phone = size;
+          break;
+        }
         default:
           return { kind: "error", message: `Unknown option ${flag}.` };
       }
@@ -193,14 +222,31 @@ export function parsePlayArgs(
     }
     actions.push(action);
   }
-  return { kind: "plan", save, screens, actions, out, url };
+  return { kind: "plan", save, screens, actions, out, url, phone };
 }
 
-/** What puppeteer queries for a target. Labels use its accessible-name query. */
-export function targetQuery(target: PlayTarget): string {
-  return target.by === "selector"
-    ? target.selector
-    : `::-p-aria(${target.label})`;
+/** What puppeteer queries for a selector target. */
+export function targetQuery(target: {
+  readonly by: "selector";
+  readonly selector: string;
+}): string {
+  return target.selector;
+}
+
+const squash = (text: string) => text.replace(/\s+/g, " ").trim().toLowerCase();
+
+/**
+ * Which of the visible names a label: action taps, or -1. An exact name wins;
+ * else the first name that starts with the label, so "Upgrades" finds
+ * "Upgrades, one is affordable".
+ */
+export function labelMatch(names: readonly string[], label: string): number {
+  const want = squash(label);
+  const squashed = names.map(squash);
+  const exact = squashed.indexOf(want);
+  return exact !== -1
+    ? exact
+    : squashed.findIndex((name) => name.startsWith(want));
 }
 
 /** A short, file-safe name for an action, for the shot after it. */

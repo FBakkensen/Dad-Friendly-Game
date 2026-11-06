@@ -669,7 +669,8 @@ describe("layer card, material line, and craft-done notice", () => {
       },
       lastSeen: 0,
     });
-    const screen = mountScreen({ storage, now: () => 120_000 });
+    // Ten minutes: long enough for the card, not the quiet note (#334).
+    const screen = mountScreen({ storage, now: () => 10 * 60_000 });
     expect(
       screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
     ).toBe(false);

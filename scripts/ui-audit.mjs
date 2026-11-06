@@ -442,13 +442,36 @@ async function collect(page) {
         el.matches("button, a, input, textarea, select, [role='button']") &&
         el.getClientRects().length > 0;
       if (interactive) {
-        const box = el.getBoundingClientRect();
+        // Only the part a finger can reach: a scrolling list clips the card
+        // half under its edge, so that part is not near the next button.
+        const raw = el.getBoundingClientRect();
+        let top = raw.top;
+        let bottom = raw.bottom;
+        let left = raw.left;
+        let right = raw.right;
+        for (let up = el.parentElement; up !== null; up = up.parentElement) {
+          const clip = getComputedStyle(up);
+          if (clip.overflowX === "visible" && clip.overflowY === "visible") {
+            continue;
+          }
+          const edge = up.getBoundingClientRect();
+          top = Math.max(top, edge.top);
+          bottom = Math.min(bottom, edge.bottom);
+          left = Math.max(left, edge.left);
+          right = Math.min(right, edge.right);
+        }
+        // Scrolled wholly out of view: still sized, never spaced.
+        const inView = bottom - top > 0 && right - left > 0;
         targets.push({
           selector,
-          top: box.top,
-          left: box.left,
-          width: box.width,
-          height: box.height,
+          top,
+          left,
+          width: Math.max(0, right - left),
+          height: Math.max(0, bottom - top),
+          inView,
+          // The size check reads the whole button, not the part in view.
+          fullWidth: raw.width,
+          fullHeight: raw.height,
           text: (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60),
         });
       }
@@ -623,12 +646,22 @@ function analyse(sample, id, size) {
   const census = size === "424x830" || size === "424x924";
   const phone = size === "424x830";
   const thumb = size === "424x924";
-  const undersized = phone ? undersizedTargets(sample.targets) : [];
+  const undersized = phone
+    ? undersizedTargets(
+        sample.targets.map((target) => ({
+          ...target,
+          width: target.fullWidth,
+          height: target.fullHeight,
+        })),
+      )
+    : [];
   const close = phone
-    ? targetsCloserThan(sample.targets).map((pair) => ({
-        ...pair,
-        gap: Math.round(pair.gap * 10) / 10,
-      }))
+    ? targetsCloserThan(sample.targets.filter((target) => target.inView)).map(
+        (pair) => ({
+          ...pair,
+          gap: Math.round(pair.gap * 10) / 10,
+        }),
+      )
     : [];
   const scroll = sample.scrollers.map((box) => ({
     selector: box.selector,
@@ -707,6 +740,11 @@ async function capture(id, prepare) {
       if (opened.errors.length > 0) {
         throw new Error(opened.errors.join("\n"));
       }
+      // A tap in touch emulation can leave a button :active, nudged 2px by
+      // its press style. Measure and shoot the layout at rest.
+      await opened.page.addStyleTag({
+        content: ":active { transform: none !important; }",
+      });
       const sample = await collect(opened.page);
       const file = `${OUT}/${id}-${size}.png`;
       await opened.page.screenshot({ path: file });
@@ -763,6 +801,11 @@ async function main() {
   });
   await capture("mountain-hazard", async (viewport) => {
     const opened = await open(viewport, rest(), { search: "?trouble=cave-in" });
+    // The shout lives on the troubled machine's card, in Buys.
+    await opened.page.click(".buys-button");
+    await opened.page.waitForSelector('[data-trouble="cave-in"]', {
+      visible: true,
+    });
     await expectText(opened.page, /Cave-in!/, "mountain-hazard");
     return opened;
   });
@@ -771,6 +814,8 @@ async function main() {
       viewport,
       late(Date.now(), 30_000_000, { machines: 0, kids: 0 }),
     );
+    // The guide (goal, layer hint, bar) moved into the ☰ menu's ledger.
+    await openMenu(opened.page);
     await expectText(
       opened.page,
       /Deeper on, the walls start to glitter/,
@@ -780,8 +825,12 @@ async function main() {
   });
   await capture("crew-needs-workers", async (viewport) => {
     const opened = await open(viewport, rest());
-    await press(opened.page, ".crew-posts");
-    await expectText(opened.page, /Needs \d+ workers · \d+ free/, "crew");
+    // The free count stays on the crew chip; the machine cards (and their
+    // "Needs N workers" bill) moved into the Buys sheet.
+    await expectText(opened.page, /\d+ workers · \d+ free/, "crew chip");
+    await press(opened.page, ".buys-button");
+    await opened.page.waitForSelector(".buys-dialog:not([hidden])");
+    await expectText(opened.page, /Needs \d+ workers?/, "crew");
     const disabled = await opened.page.$(".tier:disabled");
     if (disabled === null) {
       throw new Error("expected a greyed-out machine card");
@@ -790,6 +839,8 @@ async function main() {
   });
   await capture("material-chips", async (viewport) => {
     const opened = await open(viewport, rest());
+    // The material line lives in the ☰ menu's ledger now.
+    await openMenu(opened.page);
     await expectText(opened.page, /Clay/, "chips");
     await expectText(opened.page, /Iron/, "chips");
     await expectText(opened.page, /Crystal/, "chips");
@@ -946,6 +997,8 @@ async function main() {
   });
   await capture("relic-tease", async (viewport) => {
     const opened = await open(viewport, late(Date.now(), 223_000_000));
+    // The relic goal line lives in the ☰ menu's ledger now.
+    await openMenu(opened.page);
     await expectText(opened.page, /Next: .+Almost there/, "relic tease");
     return opened;
   });
@@ -995,7 +1048,8 @@ async function main() {
     return opened;
   });
   await capture("welcome-back", async (viewport) => {
-    const away = Date.now() - 3 * 60_000;
+    // Past the five-minute quiet note (#334), so the card opens.
+    const away = Date.now() - 30 * 60_000;
     const opened = await open(
       viewport,
       late(away, 20_000_000, quietCrew({ pocket: 40_000 })),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { station } from "./engineers";
+import { TENDING_GAIN, TENDING_TENTHS, station } from "./engineers";
 import type { Trouble } from "./hazards";
 import { AWAY_PAY_RATE, effectiveRates, tendingGain } from "./rates";
 import { minedMountain } from "./test-fixtures";
@@ -168,6 +168,44 @@ describe("tendingGain", () => {
       ],
     };
     expect(tendingGain(journeyman, 1, "borer")).toBe(124);
+  });
+
+  it("counts a second post's tenth once, not again on the floor's post (#349)", () => {
+    // Ada's borer is the small tier, so the floor branch runs. Nils on the
+    // carts adds his tier's tenth and his own floor, nothing more.
+    const crew = {
+      ...minedMountain(0),
+      helpers: 40,
+      carts: 4,
+      drills: 2,
+      borers: 1,
+      machines: 1,
+      engineers: [{ ...ada, post: "borer" as const }],
+    };
+    const pair = {
+      ...crew,
+      engineers: [
+        { ...ada, post: "borer" as const },
+        {
+          name: "Nils" as const,
+          rank: 0 as const,
+          trips: 0,
+          post: "cart" as const,
+        },
+      ],
+    };
+    const plain = effectiveRates({
+      ...crew,
+      engineers: [{ ...ada, post: "camp" as const }],
+    });
+    const plainTotal = plain.exactCrewPerSecond;
+    const tenth = (TENDING_TENTHS[0] * TENDING_GAIN) / 10;
+    const cartRaise = plain.running.cart * plain.tierSpeed.cart * tenth;
+    const nilsFloor = (plainTotal * 12 * TENDING_GAIN) / 100;
+    expect(
+      effectiveRates(pair).exactCrewPerSecond -
+        effectiveRates(crew).exactCrewPerSecond,
+    ).toBeCloseTo(cartRaise + nilsFloor, 6);
   });
 
   it("lifts an apprentice to 9% of the crew when her tier is the small one", () => {
