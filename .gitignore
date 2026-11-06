@@ -47,3 +47,6 @@ play-shots/
 
 # npm run gate: step logs and incremental typecheck state
 .gate/
+
+# Superpowers scratch: brainstorm visual companion sessions and plan ledgers
+.superpowers/
