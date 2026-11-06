@@ -1045,6 +1045,13 @@ export function craftSpeedPair(before: number, after: number): string {
   if (from !== to || after <= before) {
     return `${from}/s to ${to}/s`;
   }
+  // Past ten thousand "12.3K" can hide a raise: whole stones first, then
+  // a tenth only if those match too.
+  const whole = (speed: number) =>
+    Math.floor(Math.max(0, speed)).toLocaleString("en-US");
+  if (whole(before) !== whole(after)) {
+    return `${whole(before)}/s to ${whole(after)}/s`;
+  }
   const tenth = (speed: number) =>
     Math.max(0, speed).toLocaleString("en-US", {
       minimumFractionDigits: 1,

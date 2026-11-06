@@ -155,6 +155,7 @@ describe("workshop sheet (#199)", () => {
     expect(craftSpeedPair(5197.5, 5457.4)).toBe("5,197/s to 5,457/s");
     expect(craftSpeedPair(1000.2, 1000.8)).toBe("1,000.2/s to 1,000.8/s");
     expect(craftSpeedPair(28.8, 30.2)).toBe("28.8/s to 30.2/s");
+    expect(craftSpeedPair(12_340, 12_380)).toBe("12,340/s to 12,380/s");
   });
 
   it("greys a short craft with the first missing material", () => {

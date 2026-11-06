@@ -86,6 +86,77 @@ function granite(): Mountain {
   };
 }
 
+describe("workshop pages on a short phone (#347)", () => {
+  /** Lets the recipe list overflow once it holds more than `fits` cards. */
+  function fakeHeight(list: HTMLElement, fits: () => number): void {
+    Object.defineProperty(list, "clientHeight", {
+      configurable: true,
+      get: () => 300,
+    });
+    Object.defineProperty(list, "scrollHeight", {
+      configurable: true,
+      get: () => (list.childElementCount > fits() ? 400 : 300),
+    });
+  }
+
+  const deepShed = (): Mountain => ({
+    ...granite(),
+    remaining: MOUNTAIN_STONES - 150_000_000,
+    recipes: recipesForMined(150_000_000),
+  });
+
+  const names = (root: HTMLElement): string[] =>
+    [...root.querySelectorAll(".workshop-recipes .workshop-card")].map(
+      (card) => card.textContent,
+    );
+
+  it("shows three a page, with the pager, when four would be cut off", () => {
+    const screen = mount(() => 1_700_000_000_000);
+    screen.progress.applyMutation(() => deepShed());
+    const list = screen.root.querySelector<HTMLElement>(".workshop-recipes");
+    if (list === null) {
+      throw new Error("no recipe list");
+    }
+    fakeHeight(list, () => 3);
+    screen.root.querySelector<HTMLButtonElement>(".workshop-open")?.click();
+    expect(names(screen.root)).toHaveLength(3);
+    expect(
+      screen.root.querySelector<HTMLElement>(".workshop-pager")?.hidden,
+    ).toBe(false);
+    expect(
+      screen.root.querySelector<HTMLElement>(".workshop-more")?.hidden,
+    ).toBe(false);
+  });
+
+  it("keeps the card you were on when a later page starts to overflow", () => {
+    let fits = 99;
+    const screen = mount(() => 1_700_000_000_000);
+    screen.progress.applyMutation(() => deepShed());
+    const list = screen.root.querySelector<HTMLElement>(".workshop-recipes");
+    if (list === null) {
+      throw new Error("no recipe list");
+    }
+    fakeHeight(list, () => fits);
+    screen.root.querySelector<HTMLButtonElement>(".workshop-open")?.click();
+    const firstPage = names(screen.root);
+    expect(firstPage).toHaveLength(4);
+    screen.root.querySelector<HTMLButtonElement>(".workshop-more")?.click();
+    const secondPage = names(screen.root);
+    expect(secondPage).toHaveLength(4);
+    // The phone gets shorter (a keyboard, a rotated bar): four now overflow.
+    fits = 3;
+    screen.progress.applyMutation((mountain) => ({ ...mountain }));
+    const shrunk = names(screen.root);
+    expect(shrunk).toHaveLength(3);
+    // Pages of three: the 5th card overall (the old page two's first) is on
+    // page two, cards 4 to 6.
+    expect(shrunk).toContain(secondPage[0]);
+    expect(
+      screen.root.querySelector<HTMLElement>(".workshop-pager")?.hidden,
+    ).toBe(false);
+  });
+});
+
 describe("workshop panel (#199)", () => {
   it("shows a craft this build cannot name and will not replace it", () => {
     const clock = 1_700_000_000_000;
