@@ -11,8 +11,11 @@ const COST_GROWTH = 2;
  * Kids share it.
  */
 const HELPER_COST_GROWTH = 1.1875;
-/** Kids follow the workers' curve from a late-game price. */
-const KID_FIRST_COST = 1_000_000;
+/**
+ * Kids follow the workers' curve from a late-game price. #327: cheap and
+ * quick enough (25/s) that one pays back in hours, not days.
+ */
+const KID_FIRST_COST = 250_000;
 
 export type TierId = "helper" | "cart" | "drill" | "borer" | "machine" | "kid";
 
@@ -103,7 +106,7 @@ export const TIERS: readonly Tier[] = [
     name: "Kid worker",
     shortName: "Kid",
     firstCost: KID_FIRST_COST,
-    perSecond: 1,
+    perSecond: 25,
     staff: 0,
     needs: "crown",
   },

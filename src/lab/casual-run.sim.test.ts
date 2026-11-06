@@ -17,11 +17,13 @@ describe("casual run", { timeout: 120_000 }, () => {
     // half day, at the lab's strict limit for a casual dad.
     expect(run.finishDay).toBe(6);
     expect(readFinishDay(run.samples)).toBe(6);
-    expect(report.value.singleShare).toBeCloseTo(0.32, 3);
+    // #327: kids at 250K and 25/s are worth buying, so the single buy's
+    // share of value drops.
+    expect(report.value.singleShare).toBeCloseTo(0.22, 3);
     expect(report.value.deadHours).toBeCloseTo(12, 2);
     expect(report.value.deadHours / HOURS_PER_DAY).toBeLessThanOrEqual(0.5);
     expect(report.value.deadStartDay).toBeCloseTo(2.5, 1);
-    expect(report.payback.singleShare).toBeCloseTo(0.34, 3);
+    expect(report.payback.singleShare).toBeCloseTo(0.33, 3);
     expect(report.payback.deadHours).toBeCloseTo(12, 2);
     expect(report.payback.deadStartDay).toBeCloseTo(2.5, 1);
   });
@@ -54,6 +56,7 @@ describe("casual run", { timeout: 120_000 }, () => {
     // Report-only (#252 follow-up): the value-per-stone dad saves a full day
     // for the borer, and two stretches are logged (#278). Pinned so a change shows.
     expect(value.value).toBeLessThanOrEqual(HOURS_PER_DAY);
-    expect(result.deadStretches).toHaveLength(2);
+    // One since #327: the kid fills what was the second quiet stretch.
+    expect(result.deadStretches).toHaveLength(1);
   }, 120_000);
 });
