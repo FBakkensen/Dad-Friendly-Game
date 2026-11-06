@@ -301,9 +301,10 @@ function applyTendingFloor(
     const extra = tenthsFor(mountain, tier.id);
     tierSpeed[tier.id] = (plain[tier.id] * (10 + extra)) / 10;
   }
-  const secondaryBonus = outputOf(tierSpeed, running) - plainTotal;
-  const add = floorStones + secondaryBonus;
-  tierSpeed[primary.post] = plain[primary.post] + add / running[primary.post];
+  // The other tiers already carry their own tenths, set just above. Adding
+  // that gain to the floor's post as well counted it twice (#349).
+  tierSpeed[primary.post] =
+    plain[primary.post] + floorStones / running[primary.post];
   addExtraPosts(mountain, plain, tierSpeed, running, primary.post, scale);
 }
 
