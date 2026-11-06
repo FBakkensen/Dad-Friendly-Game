@@ -22,11 +22,6 @@ export type Boost = {
    */
   readonly priceIn: "crewSeconds" | "taps";
   readonly priceUnits: number;
-  /**
-   * Also at least this many seconds of the crew, so a big mine does not
-   * sell a tap boost for pocket change. Sharper picks uses it. #178.
-   */
-  readonly crewSeconds?: number;
   /** …but never less than this, so a new dad can try it. */
   readonly minCost: number;
   /**
@@ -45,7 +40,6 @@ const BY_ID: Readonly<Record<BoostId, Boost>> = {
     multiplier: 2,
     priceIn: "taps",
     priceUnits: 120,
-    crewSeconds: 60,
     minCost: 100,
     unlock: { tier: "cart", count: 1 },
   },
@@ -93,11 +87,9 @@ export function boostCost(boost: Boost, pricing: BoostPricing, k = 1): number {
   const per =
     boost.priceIn === "taps" ? pricing.tapYield : pricing.crewPerSecond;
   const priced = Math.ceil(per * boost.priceUnits);
-  const crew =
-    boost.crewSeconds === undefined
-      ? 0
-      : Math.ceil(pricing.crewPerSecond * boost.crewSeconds);
-  return Math.max(Math.ceil(boost.minCost * k), priced, crew);
+  // A tap boost is priced on taps alone (#333): a crew floor made Sharper
+  // picks a trap while taps were still 1.
+  return Math.max(Math.ceil(boost.minCost * k), priced);
 }
 
 /** Starts a boost if it isn't already running and the pocket covers it. */

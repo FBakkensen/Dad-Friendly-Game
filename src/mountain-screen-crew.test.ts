@@ -276,8 +276,8 @@ describe("quick boosts on screen", () => {
       expect(screen.text('[data-boost="sharper"] .upgrade-name')).toBe(
         "Sharper picks",
       );
-      // 120 taps, or a minute of this 500-worker crew, whichever is more.
-      expect(buy?.textContent).toBe("Buy · 30K");
+      // 120 taps, whatever the crew (#333).
+      expect(buy?.textContent).toBe("Buy · 120");
       buy?.click();
       expect(buy?.disabled).toBe(true);
       expect(buy?.textContent).toBe("Running · 10:00");
