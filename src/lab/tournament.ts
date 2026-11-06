@@ -19,6 +19,8 @@ import {
 } from "./bands";
 import { createRevealLog, type RevealEvent } from "./reveal";
 import { minedOut } from "../scale";
+import type { Mountain } from "../mountain";
+import { TIERS, owned } from "../tiers";
 import { runPolicy } from "./run";
 import { scoreDecision } from "./score";
 import { mean, median } from "./stats";
@@ -137,6 +139,16 @@ export type JudgedInput = TournamentInput & {
 };
 
 /** One policy on one seed, sampled every play-minute, with the finish day stamped on. */
+/** Crew, kids, engineers, and upgrade levels: what a buy adds to (#335). */
+function ownedCount(mountain: Mountain): number {
+  const crew = TIERS.reduce((total, tier) => total + owned(mountain, tier), 0);
+  const levels = Object.values(mountain.upgrades ?? {}).reduce(
+    (total: number, level) => total + (level ?? 0),
+    0,
+  );
+  return crew + (mountain.engineers?.length ?? 0) + levels;
+}
+
 function samplePolicy(
   policy: Policy,
   seed: number,
@@ -152,6 +164,7 @@ function samplePolicy(
   const bands = createBandLog();
   const sittingAt = createSittingClock();
   const context = valueContext(policy.params);
+  let ownedBefore = 0;
   const run = runPolicy({
     policy,
     seed,
@@ -183,8 +196,10 @@ function samplePolicy(
                 policy.params,
                 trouble,
               );
-        samples.push(
-          scoreDecision({
+        const ownedNow = ownedCount(world.mountain);
+        samples.push({
+          boughtSince: ownedNow > ownedBefore,
+          ...scoreDecision({
             mountain: world.mountain,
             now: world.clock,
             context,
@@ -193,7 +208,8 @@ function samplePolicy(
             craft: policy.params.craft,
             ...(trouble === undefined ? {} : { trouble }),
           }),
-        );
+        });
+        ownedBefore = ownedNow;
         attach(samples, pending, pendingBands);
         pending = [];
         pendingBands = [];

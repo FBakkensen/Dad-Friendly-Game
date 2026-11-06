@@ -12,6 +12,12 @@ import type { RevealEvent } from "./reveal";
 export type DecisionSample = {
   /** Milliseconds from the start of the run. */
   readonly atMs: number;
+  /**
+   * The dad bought something (crew, a kid, an engineer, an upgrade level)
+   * since the sample before. A buy ends a dead stretch (#335): samples land on
+   * a drifting grid, so a sitting's first sample can already be spent down.
+   */
+  readonly boughtSince?: boolean;
   /** Moves whose payback is within `LIVE_RATIO` of the best. */
   readonly liveCount: number;
   /** How many of those live moves the pocket can pay for. */
