@@ -91,6 +91,12 @@ describe("pass-to-kid card (#247)", () => {
     );
   });
 
+  it("says Grandpa stays on to tend the machines (#338)", () => {
+    expect(legacyCardWords(bottom(0)).legend).toBe(
+      "You'll always be the Legend who began it. Grandpa stays on to tend the machines.",
+    );
+  });
+
   it("names the step from the current Legacy, and the tap once it grows", () => {
     const words = legacyCardWords(bottom(1));
     expect(words.lead).toBe("Legacy ×1.5 to ×2, for good");

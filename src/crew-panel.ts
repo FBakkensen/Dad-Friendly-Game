@@ -1,4 +1,6 @@
 import { stretch } from "./scale";
+import grandpaUrl from "./assets/grandpa-miner.png";
+import { grandpaPost } from "./grandpa";
 import { buyCrew, tierLock } from "./crew";
 import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
 import { staffForBuy, staffNeeded } from "./engineers";
@@ -34,6 +36,8 @@ import {
   NEEDS_MORE_WORKERS,
   TROUBLE_FIXED,
   crewPostLabel,
+  grandpaChipWords,
+  grandpaSentence,
   crewPostsWords,
   formatSpeed,
   percent,
@@ -604,7 +608,8 @@ export function createCrewPanel({
         },
       ];
     });
-    const fullPosts = crewPostsWords(pool, spare, posts);
+    const grandpa = grandpaPost(current);
+    const fullPosts = `${crewPostsWords(pool, spare, posts)}${grandpa === undefined ? "" : `. ${grandpaSentence(grandpa)}`}`;
     postsButton.hidden = pool <= 0;
     // The chips on the line are the breakdown. This sentence stays shut.
     postsDetail.hidden = true;
@@ -626,6 +631,10 @@ export function createCrewPanel({
           text: `${formatCompact(pool)} ${workerWords(pool)} · ${formatCompact(Math.max(0, Math.floor(spare)))} free`,
         },
         ...stationBits,
+        // After a pass, the old dad tends the biggest machine (#338).
+        ...(grandpa === undefined
+          ? []
+          : [{ src: grandpaUrl, text: grandpaChipWords(grandpa) }]),
       ];
       postsButton.classList.remove("is-open");
       // Fewest even rows whose widest row fits the line.

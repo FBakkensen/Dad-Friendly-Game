@@ -89,8 +89,10 @@ describe("pacing: a second run with one Legacy (×1.5)", () => {
     expect(run.reached.get(depth("mantle"))).toBe(4.5);
   });
 
+  // Grandpa (#338) tends from the first cart, so the borer comes a little
+  // sooner and Nils waits for the next sitting.
   it("pays the real promotion for Nils", () => {
-    expectPaidForNils(run, true);
+    expectPaidForNils(run, false);
   });
 });
 

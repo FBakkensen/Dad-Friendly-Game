@@ -104,6 +104,8 @@ import {
   upgradeWhyLine,
   awayCheerWords,
   quietAwayWords,
+  grandpaChipWords,
+  grandpaSentence,
   AWAY_CHEER,
   DREAM_AWAY_MS,
 } from "./screen-words";
@@ -1032,5 +1034,15 @@ describe("quietAwayWords (#334)", () => {
   it("says the stones a short absence paid, with a real number", () => {
     expect(quietAwayWords(1_474)).toBe("+1,474 stones while you were away");
     expect(quietAwayWords(1)).toBe("+1 stone while you were away");
+  });
+});
+
+describe("grandpa words (#338)", () => {
+  it("names his post on the chip and in a sentence, with no numbers", () => {
+    expect(grandpaChipWords("cart")).toBe("Grandpa on carts");
+    expect(grandpaChipWords("machine")).toBe("Grandpa on the machine");
+    expect(grandpaSentence("borer")).toBe(
+      "Grandpa tends the borers, slow and steady.",
+    );
   });
 });

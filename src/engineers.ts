@@ -2,6 +2,7 @@ import { stretch } from "./scale";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
 import type { TierId } from "./tiers";
+import { GRANDPA_RANK, grandpaPost } from "./grandpa";
 
 /**
  * Engineers (M7 §3). A few named hands, never a second currency.
@@ -240,15 +241,18 @@ export const TENDING_GAIN = 1.25;
 /**
  * How many tenths faster a tier runs because an engineer is posted there.
  * The best rank wins; they do not stack. Camp and tunnel tend nothing.
+ * After a pass, Grandpa counts as a master on his post (src/grandpa.ts).
  * Ranks are +1, +2 and +3 tenths, times TENDING_GAIN. A sweep may scale it.
  */
 export function tendingTenths(mountain: Mountain, tierId: TierId): number {
+  const scale = factor("tending.gain") * TENDING_GAIN;
+  // Grandpa tends like a master on his post (#338).
+  let best =
+    grandpaPost(mountain) === tierId ? TENDING_TENTHS[GRANDPA_RANK] * scale : 0;
   const engineers = mountain.engineers;
   if (engineers === undefined) {
-    return 0;
+    return best;
   }
-  const scale = factor("tending.gain") * TENDING_GAIN;
-  let best = 0;
   for (const engineer of engineers) {
     if (engineer.post === tierId) {
       best = Math.max(best, TENDING_TENTHS[engineer.rank] * scale);

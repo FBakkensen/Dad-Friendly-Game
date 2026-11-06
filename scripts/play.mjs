@@ -61,6 +61,13 @@ const SAVES = {
     note: "the mid save, last seen 9 hours ago: the welcome-back card",
     save: () => ({ ...openMountain(), lastSeen: Date.now() - 9 * HOUR }),
   },
+  heir: {
+    note: "a kid's run after one pass: Grandpa tends the carts",
+    save: () => ({
+      ...crewMountain(),
+      mountain: { ...crewMountain().mountain, legacy: 1 },
+    }),
+  },
   brief: {
     note: "the mid save, last seen 2 minutes ago: the quiet away note",
     save: () => ({ ...openMountain(), lastSeen: Date.now() - HOUR / 30 }),

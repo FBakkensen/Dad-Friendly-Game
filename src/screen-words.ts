@@ -326,6 +326,14 @@ export function awayStretchWords(report: {
     : "Your crew saved a full day's haul for you. Good to have you back.";
 }
 
+/** Grandpa's crew chip (#338): "Grandpa on carts". */
+export const grandpaChipWords = (post: TierId): string =>
+  `Grandpa on ${crewPostLabel(post) ?? "the crew"}`;
+
+/** What a screen reader hears about Grandpa (#338). */
+export const grandpaSentence = (post: TierId): string =>
+  `Grandpa tends ${post === "machine" ? "the Great Machine" : `the ${crewPostLabel(post) ?? "crew"}`}, slow and steady.`;
+
 /** The small note a short absence leaves on the mountain (#334). */
 export const quietAwayWords = (stones: number): string =>
   `+${formatCount(stones)} ${stones === 1 ? "stone" : "stones"} while you were away`;
