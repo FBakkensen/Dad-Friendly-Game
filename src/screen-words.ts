@@ -326,6 +326,10 @@ export function awayStretchWords(report: {
     : "Your crew saved a full day's haul for you. Good to have you back.";
 }
 
+/** The small note a short absence leaves on the mountain (#334). */
+export const quietAwayWords = (stones: number): string =>
+  `+${formatCount(stones)} ${stones === 1 ? "stone" : "stones"} while you were away`;
+
 /** The welcome card's quote line, under the haul. */
 export const AWAY_CHEER =
   "Time with the people who matter is never wasted. Your crew kept the mountain moving.";

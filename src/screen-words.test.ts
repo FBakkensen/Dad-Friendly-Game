@@ -103,6 +103,7 @@ import {
   upgradeEffectLine,
   upgradeWhyLine,
   awayCheerWords,
+  quietAwayWords,
   AWAY_CHEER,
   DREAM_AWAY_MS,
 } from "./screen-words";
@@ -1024,5 +1025,12 @@ describe("awayCheerWords: mountain dreams (#337)", () => {
       // One line: shorter than the quote it replaces, so the card still fits.
       expect(dream.length).toBeLessThan(AWAY_CHEER.length);
     }
+  });
+});
+
+describe("quietAwayWords (#334)", () => {
+  it("says the stones a short absence paid, with a real number", () => {
+    expect(quietAwayWords(1_474)).toBe("+1,474 stones while you were away");
+    expect(quietAwayWords(1)).toBe("+1 stone while you were away");
   });
 });

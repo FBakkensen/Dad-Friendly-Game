@@ -59,6 +59,7 @@ import {
   WORKSHOP_NOTE,
   engineersNote,
   formatCrewSpeed,
+  quietAwayWords,
 } from "./screen-words";
 import { metMaterialChips } from "./workshop-sheet";
 import {
@@ -170,7 +171,7 @@ export function mountMountainScreen({
   const relicLineText = document.createElement("p");
   relicLineText.className = "relic-goal-text";
   const relicLineBar = document.createElement("div");
-  relicLineBar.className = "guide-bar relic-goal-bar";
+  relicLineBar.className = "relic-goal-bar";
   relicLineBar.setAttribute("role", "progressbar");
   relicLineBar.setAttribute("aria-valuemin", "0");
   relicLineBar.setAttribute("aria-valuemax", "100");
@@ -321,6 +322,8 @@ export function mountMountainScreen({
   });
   let hiddenAt: number | undefined;
   let veinNoteUntil = 0;
+  /** How long the short-absence note stays (#334). */
+  const QUIET_NOTE_MS = 6000;
 
   const renderVein = (): void => {
     const glinting =
@@ -592,6 +595,14 @@ export function mountMountainScreen({
   };
 
   const render = (): void => {
+    // A short absence pays with a small note, not the welcome card (#334).
+    if (view.quietAway !== undefined) {
+      veinNote.textContent = quietAwayWords(view.quietAway);
+      veinNoteUntil = now() + QUIET_NOTE_MS;
+      queueMicrotask(() => {
+        progress.dismissQuietAway();
+      });
+    }
     const left = Math.ceil(stonesLeft(view.mountain));
     const total = shownStones(view.mountain, MOUNTAIN_STONES);
     remaining.textContent = `${formatCount(left)} stones left`;

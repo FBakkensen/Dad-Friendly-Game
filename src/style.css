@@ -1181,7 +1181,8 @@ body {
   width: min(320px, 100%);
 }
 
-.guide-bar {
+.guide-bar,
+.relic-goal-bar {
   width: 100%;
   height: 8px;
   overflow: hidden;
@@ -1190,11 +1191,13 @@ body {
   background: #1e130d;
 }
 
-.guide-bar[hidden] {
+.guide-bar[hidden],
+.relic-goal-bar[hidden] {
   display: none;
 }
 
-.guide-bar span {
+.guide-bar span,
+.relic-goal-bar span {
   display: block;
   height: 100%;
   width: 0;

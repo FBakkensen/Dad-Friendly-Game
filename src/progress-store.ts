@@ -95,6 +95,8 @@ export type ProgressSnapshot = {
   readonly log: string | undefined;
   /** Set once per open when helpers mined while the game was closed. */
   readonly away: AwayReport | undefined;
+  /** Stones a short absence paid: a small note, not the card (#334). */
+  readonly quietAway: number | undefined;
   /** The next relic uncovered during this open and not yet celebrated. */
   readonly revealed: Relic | undefined;
   /** Free helpers hired on load so an older save's machines run (#89), once. */
@@ -176,6 +178,8 @@ export type ProgressStore = {
   readonly passTheMine: () => boolean;
   /** Closes the welcome-back card, including any layer or craft folded into it. */
   readonly dismissAway: () => void;
+  /** The short-absence note has been shown. */
+  readonly dismissQuietAway: () => void;
   /** Closes the layer card. The next unread band, if any, follows. */
   readonly dismissLayer: () => void;
   /** Closes the craft-done notice. The next unread fitting, if any, follows. */
@@ -217,6 +221,11 @@ const LISTEN_BACKOFF_MAX_MS = 30_000;
 const RESUME_READ_TIMEOUT_MS = 5_000;
 /** Shorter absences still pay out, quietly, without the welcome-back card. */
 export const WELCOME_MIN_AWAY_MS = 60 * 1000;
+/**
+ * Under this (answering a text), the stones arrive with a small
+ * "+N while you were away" note instead of the full card (#334).
+ */
+export const QUIET_AWAY_MS = 5 * 60 * 1000;
 /** Longer than this between ticks and the game was not on screen. */
 const LIVE_GAP_MS = 10 * 1000;
 
@@ -277,6 +286,7 @@ export function createProgressStore({
   let unwatch: (() => void) | undefined;
   let disposed = false;
   let away: AwayReport | undefined;
+  let quietAway: number | undefined;
   const reveals: Relic[] = [];
   /**
    * Stones mined when relics were last checked. Unset until a save is loaded,
@@ -508,6 +518,7 @@ export function createProgressStore({
       ready: auth.getState().kind !== "signed-in" || hydrated,
       log: latest === undefined ? undefined : formatLogEvent(latest),
       away,
+      quietAway,
       revealed: reveals[0],
       crewJoined,
       engineerJoined,
@@ -1138,7 +1149,15 @@ export function createProgressStore({
     }
     // A reload or a quick app switch isn't "away": only greet after a real break.
     if (!welcomed && result.report.awayMs >= WELCOME_MIN_AWAY_MS) {
-      away = result.report;
+      // Ore needs its line on the card, so only plain stones go quiet.
+      const quiet =
+        result.report.awayMs < QUIET_AWAY_MS &&
+        Object.values(result.report.materials).every((count) => count === 0);
+      if (quiet) {
+        quietAway = result.mined;
+      } else {
+        away = result.report;
+      }
     }
     logger.record({
       level: "info",
@@ -2003,6 +2022,7 @@ export function createProgressStore({
     hazards = freshHazards(now());
     lastSeen = runStartedAt(next);
     away = undefined;
+    quietAway = undefined;
     homecomings = [];
     rememberHomecomings();
     reveals.length = 0;
@@ -2304,6 +2324,13 @@ export function createProgressStore({
       persistCloudSoon(false, true);
       emit();
       return "saved";
+    },
+    dismissQuietAway: () => {
+      if (quietAway === undefined) {
+        return;
+      }
+      quietAway = undefined;
+      emit();
     },
     dismissAway: () => {
       if (
