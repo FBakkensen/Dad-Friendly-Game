@@ -1,44 +1,14 @@
 import { chipTime } from "./format";
-import { BOOSTS } from "./boosts";
-import { MAX_EXPEDITIONS } from "./expeditions";
-import type { Mountain } from "./mountain";
-import { RECIPES, workshopUnlocked } from "./workshop";
-
-/** Craft clocks that keep their own end time, apart from the one bench. */
-const HOT_CRAFTS = RECIPES.filter((recipe) => {
-  const kind = recipe.effect.kind;
-  return (
-    kind === "charge" || kind === "axle" || kind === "flare" || kind === "ember"
-  );
-}).length;
-
-/**
- * Every countdown that can be hot together: both boosts, every craft clock,
- * the bench (when it is not already one of those clocks), and one expedition
- * per engineer.
- */
-const MAX_EFFECTS = BOOSTS.length + HOT_CRAFTS + 1 + MAX_EXPEDITIONS;
 
 /** Three chips per row. Twelve use four rows. */
 const EFFECT_PER_ROW = 3;
 
 /**
- * How many countdowns this mountain can run right now. Boosts are always
- * there. Craft clocks and the bench wait for the workshop. Each engineer
- * can be out at once.
+ * Rows for the countdowns running now. None running is no row, so the
+ * rock gets the height instead of an empty band under the crew.
  */
-export function effectCapacity(mountain: Mountain): number {
-  let slots = BOOSTS.length;
-  if (workshopUnlocked(mountain)) {
-    slots += HOT_CRAFTS + 1;
-  }
-  slots += Math.min(mountain.engineers?.length ?? 0, MAX_EXPEDITIONS);
-  return Math.min(slots, MAX_EFFECTS);
-}
-
-/** Rows reserved for that capacity. At least one, so the first boost does not jump. */
-export function effectRowCount(capacity: number): number {
-  return Math.max(1, Math.ceil(capacity / EFFECT_PER_ROW));
+export function effectRowCount(shown: number): number {
+  return Math.ceil(Math.max(0, shown) / EFFECT_PER_ROW);
 }
 
 const SHORT_NAME: Readonly<Record<string, string>> = {

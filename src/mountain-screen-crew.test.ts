@@ -335,6 +335,46 @@ describe("quick boosts on screen", () => {
     );
   });
 
+  it("sizes the countdown rows to the running clocks, not to what could run", () => {
+    const now = 5_000_000;
+    const open: Mountain = {
+      ...minedMountain(12_000_000),
+      pocket: 5_000_000,
+      helpers: 20,
+      carts: 2,
+      borers: 1,
+      staffed: 2,
+      engineers: [
+        { name: "Ada", rank: 0 as const, trips: 0, post: "camp" as const },
+      ],
+    };
+    const row = (
+      boosts: NonNullable<Mountain["boosts"]>,
+    ): HTMLElement | null => {
+      const storage = createMemoryStorage();
+      writeSessionSave({
+        storage,
+        mountain: { ...open, boosts },
+        lastSeen: now,
+      });
+      const screen = mountScreen({ storage, now: () => now });
+      const found = screen.root.querySelector<HTMLElement>(".effect-row");
+      screen.progress.dispose();
+      return found;
+    };
+    // The workshop and an engineer could run eight clocks; two are running.
+    const two = row({
+      sharper: now + 10 * 60_000,
+      overtime: now + 20 * 60_000,
+    });
+    expect(two?.dataset["rows"]).toBe("1");
+    expect(two?.hidden).toBe(false);
+    // Nothing running leaves no empty band under the crew.
+    const none = row({});
+    expect(none?.dataset["rows"]).toBe("0");
+    expect(none?.hidden).toBe(true);
+  });
+
   it("keeps every countdown on screen", () => {
     const now = 5_000_000;
     const names = ["Ada", "Nils", "Ruth", "Otto", "Mae"] as const;
