@@ -47,6 +47,8 @@ service cloud.firestore {
     //       (engineer, tunnel, returnsAt). Hazards are events only, never saved.
     //   - events: list of { at, code, data } (size <= 200)
     //   - updatedAt: int epoch ms
+    // Snapshot mined and left are depth units (<= 240M). Snapshot pocket and
+    // event stones are stones, which deep bands multiply: <= 10^15.
     // String caps and the 200-event cap keep the document under 50 KB.
     // Ownership is the document ID. No uid, role, or PII fields.
     //
@@ -338,7 +340,7 @@ service cloud.firestore {
         shot.left is int && shot.left >= 0 && shot.left <= 240000000 &&
         shot.legacy is int && shot.legacy >= 0 && shot.legacy <= 1000 &&
         shot.mined is int && shot.mined >= 0 && shot.mined <= 240000000 &&
-        shot.pocket is int && shot.pocket >= 0 && shot.pocket <= 240000000 &&
+        shot.pocket is int && shot.pocket >= 0 && shot.pocket <= 1000000000000000 &&
         isRelicList(shot.relics) &&
         shot.tapYield is number && shot.tapYield >= 0 && shot.tapYield <= 1000000000 &&
         isFieldUpgrades(shot.upgrades) &&
@@ -356,7 +358,7 @@ service cloud.firestore {
         (!('source' in eventData) || isShortText(eventData.source)) &&
         (!('count' in eventData) || (eventData.count is int && eventData.count >= 0 && eventData.count <= 1000000)) &&
         (!('ms' in eventData) || (eventData.ms is int && eventData.ms >= 0)) &&
-        (!('stones' in eventData) || (eventData.stones is number && eventData.stones >= 0 && eventData.stones <= 240000000));
+        (!('stones' in eventData) || (eventData.stones is number && eventData.stones >= 0 && eventData.stones <= 1000000000000000));
     }
 
     function eventOk(event) {

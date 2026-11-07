@@ -1,4 +1,3 @@
-import { MOUNTAIN_STONES } from "./scale";
 import { BOOSTS, type BoostId } from "./boosts";
 import { ENGINEER_NAMES } from "./engineers";
 import type { Mountain } from "./mountain";
@@ -7,6 +6,9 @@ import { foundRelics, type RelicId } from "./relics";
 import { minedOut } from "./scale";
 import { TIERS, owned, type TierId } from "./tiers";
 import { UPGRADES, upgradeLevel, type UpgradeId } from "./upgrades";
+
+/** Most stones one event or the pocket may carry; the rules cap both here. */
+export const FIELD_STONES_CAP = 1_000_000_000_000_000;
 
 /**
  * A snapshot and a short event ring Flemming and Grok Bot can read without
@@ -168,7 +170,7 @@ export function snapshot(
     // Depth in run-1 stones, whole, as the rules want (a kid run digs fractions).
     mined: Math.floor(minedOut(mountain)),
     left: Math.ceil(mountain.remaining),
-    pocket: Math.min(mountain.pocket, MOUNTAIN_STONES),
+    pocket: Math.min(mountain.pocket, FIELD_STONES_CAP),
     crew,
     crewSpeed: rates.crewPerSecond,
     tapYield: rates.tapYield,
@@ -197,12 +199,12 @@ export class EventRing {
   }
 
   push(event: FieldEvent): void {
-    // A big kid run can haul more than the rules' 240M per event.
+    // A deep-band haul can pass 240M; only past the rules' cap does it clamp.
     const stones = event.data.stones;
     this.#events.push(
-      stones === undefined || stones <= MOUNTAIN_STONES
+      stones === undefined || stones <= FIELD_STONES_CAP
         ? event
-        : { ...event, data: { ...event.data, stones: MOUNTAIN_STONES } },
+        : { ...event, data: { ...event.data, stones: FIELD_STONES_CAP } },
     );
     const extra = this.#events.length - this.#limit;
     if (extra > 0) {
