@@ -68,11 +68,16 @@ export function rankOf(trips: number): EngineerRank {
   return 0;
 }
 
+/** Rounded up to a whole stone, as upgradeCost is: a kid-run stretch is not whole, and the pocket must stay whole. */
 export function promoteCost(mountain: Mountain): number {
-  return (
-    PROMOTE_BASE_COST *
-    oneOffStretch(mountain) *
-    2 ** (mountain.engineers?.length ?? 0)
+  return Math.ceil(
+    Number(
+      (
+        PROMOTE_BASE_COST *
+        oneOffStretch(mountain) *
+        2 ** (mountain.engineers?.length ?? 0)
+      ).toPrecision(12),
+    ),
   );
 }
 
