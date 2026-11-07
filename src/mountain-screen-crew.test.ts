@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { send } from "./expeditions";
-import { kidStretch, shownStones, stonesLeft } from "./scale";
+import { BAND_STARTS, kidStretch, shownStones, stonesLeft } from "./scale";
 import { formatCount } from "./format";
+import { effectiveRates } from "./rates";
 import { RELICS } from "./relics";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -139,6 +140,31 @@ describe("what the crew gives", () => {
     expect(tap?.textContent).toBe("+1");
     expect(tap?.getAttribute("aria-hidden")).toBe("true");
     expect(screen.root.querySelector(".crew-float")).toBeNull();
+    setReducedMotion(true);
+  });
+
+  it("floats the stones a tap added to the pocket in a deep band (#356)", () => {
+    setReducedMotion(false);
+    const storage = createMemoryStorage();
+    const deep = {
+      ...minedMountain(BAND_STARTS[2] + 1_000),
+      helpers: 400,
+      carts: 300,
+      upgrades: { tap: 1 },
+    };
+    storage.setItem(
+      SESSION_SAVE_KEY,
+      JSON.stringify({ version: 5, mountain: deep, lastSeen: Date.now() }),
+    );
+    const screen = mountScreen({ storage });
+    const yieldStones = effectiveRates(deep).tapYield;
+    expect(yieldStones).toBeGreaterThan(1);
+    screen.mountain.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, detail: 1 }),
+    );
+    expect(screen.root.querySelector(".tap-float")?.textContent).toBe(
+      `+${formatCount(yieldStones)}`,
+    );
     setReducedMotion(true);
   });
 

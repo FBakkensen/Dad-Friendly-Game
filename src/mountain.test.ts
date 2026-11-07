@@ -2,13 +2,15 @@ import { EMPTY_MATERIALS } from "./layers";
 import { minedMountain } from "./test-fixtures";
 import { SHIELD_AWAY_CAP_MS, heartBonus } from "./rates";
 import { describe, expect, it } from "vitest";
-import { BAND_SCALE, shownStones } from "./scale";
+import { BAND_SCALE, BAND_STARTS, shownStones, stonesLeft } from "./scale";
+import { materialsGained } from "./layers";
 import { AWAY_PAY_RATE } from "./rates";
 import {
   MOUNTAIN_STONES,
   accrueAway,
   accrue,
   createMountain,
+  digStones,
   mineByHand,
   minedOut,
   parseMountain,
@@ -529,5 +531,53 @@ describe("Heart of Patience: away pay grows", () => {
     const away = accrueAway({ mountain: hearty, lastSeen: 0, now: 40 * HOUR });
     expect(away.report.heart).toBe(1.5);
     expect(away.mined).toBe(Math.floor(24 * 3600 * 10 * AWAY_PAY_RATE * 1.5));
+  });
+});
+
+describe("digging through band scales (#356)", () => {
+  it("a haul across two boundaries lands on the exact depth, pocket and materials", () => {
+    const start = minedMountain(9_000_000);
+    const stones =
+      (BAND_STARTS[1] - 9_000_000) * BAND_SCALE[0] +
+      (BAND_STARTS[2] - BAND_STARTS[1]) * BAND_SCALE[1] +
+      5_000_000 * BAND_SCALE[2];
+    const dug = digStones(start, stones);
+    expect(minedOut(dug)).toBe(BAND_STARTS[2] + 5_000_000);
+    expect(dug.pocket - start.pocket).toBe(stones);
+    const gained = materialsGained(9_000_000, minedOut(dug));
+    const before = start.materials ?? EMPTY_MATERIALS;
+    expect(dug.materials).toEqual({
+      ...before,
+      clay: before.clay + gained.clay,
+      iron: before.iron + gained.iron,
+      crystal: before.crystal + gained.crystal,
+    });
+    expect(gained.iron).toBeGreaterThan(0);
+  });
+
+  it("the last stones empty the mountain and the pocket gains exactly stonesLeft", () => {
+    const m = minedMountain(MOUNTAIN_STONES - 1_000);
+    const left = stonesLeft(m);
+    expect(left).toBe(1_000 * BAND_SCALE[3]);
+    const exact = digStones(m, left);
+    expect(exact.remaining).toBe(0);
+    const over = digStones(m, left + 5);
+    expect(over.remaining).toBe(0);
+    expect(over.pocket - m.pocket).toBe(left + 5);
+    const tapped = mineByHand({ ...m, remaining: 0 });
+    expect(tapped.remaining).toBe(0);
+  });
+
+  it("an hour in the Granite moves depth by stones over the band scale", () => {
+    const granite = {
+      ...minedMountain(BAND_STARTS[1] + 1_000),
+      helpers: 2,
+    };
+    const result = accrue({ mountain: granite, from: 0, to: 3_600_000 });
+    expect(result.mined).toBeGreaterThan(0);
+    expect(minedOut(result.mountain) - minedOut(granite)).toBeCloseTo(
+      result.mined / BAND_SCALE[1],
+      6,
+    );
   });
 });

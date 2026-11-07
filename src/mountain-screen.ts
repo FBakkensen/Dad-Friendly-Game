@@ -1,4 +1,4 @@
-import { shownStones, stonesLeft, stretch } from "./scale";
+import { shownStones, stonesLeft } from "./scale";
 import { canBuyAnyTier, canCraftNow, setAffordGlow } from "./afford-glow";
 import pickUrl from "./assets/pick.png";
 import { markSeen, noteFor, showsDot } from "./teach";
@@ -209,11 +209,11 @@ export function mountMountainScreen({
     if (!view.ready) {
       return;
     }
-    const before = view.mountain.remaining;
+    const before = view.mountain.pocket;
     progress.applyMutation((current) =>
       mineByHand(current, now(), progress.getSnapshot().trouble),
     );
-    const mined = (before - view.mountain.remaining) * stretch(view.mountain);
+    const mined = view.mountain.pocket - before;
     if (mined > 0) {
       // Above the finger so a thumb doesn't hide it; keyboard "clicks" have no point.
       const spot = tapFloatSpot(
