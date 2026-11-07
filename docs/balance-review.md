@@ -107,6 +107,10 @@ Suggested order:
 
 Steps 3 and 4 alone should fix the screenshot case. Step 5 is what makes the whole run feel like a real idle game.
 
+## Follow-up (same day)
+
+Steps 1 and 2 of the recommendation are done. The lab has the sitting log, four check-in measures, report-only guardrails and the `checkin-4x2` player (`docs/DESIGN.md`, "Check-in pacing"). The lab reads the Buys sheet only, so its numbers differ a little from the probe's tier-only view. At 3 seeds the check-in and checker dads miss all four rows, while the casual and evening dads pass. The overhaul is specified in `docs/economy-overhaul.md`. Two later probes there show that cheaper workers are what bring the borer back, and that re-curve plus depth scaling only work together.
+
 ## How this was measured
 
 A throwaway probe (not committed; it was a script on top of `runPolicy` with an `observe` hook) played each registered lab policy. It records every sitting's opening state, with every tier and upgrade option's cost, gain, value per stone and affordability, and every buy by sitting and second. The sweep wrapper sets `PROBE_FACTORS` (a JSON map of factor ids). The growth experiments used a temporary research knob, `growthset.<tier>`, which set a tier's absolute cost growth in `tierCost`; it was reverted afterwards. The baseline lab report (3 seeds) matched the probe: casual finishes day 6, checker day 5.15, casual value-per-stone stretch 11.98 h.
