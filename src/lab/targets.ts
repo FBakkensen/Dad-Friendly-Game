@@ -325,6 +325,15 @@ export const TARGETS: readonly Target[] = [
     why: "The best buy should never stay out of reach for more than two check-ins in a row.",
     reportOnly: true,
   },
+  {
+    id: "every-tier-bought",
+    measure: "fewestMachineBuys",
+    scope: { kind: "policyKinds", kinds: ["casual"] },
+    op: "gte",
+    value: 5,
+    why: "Every machine tier is bought at least five times in a run.",
+    reportOnly: true,
+  },
 ];
 
 /**
