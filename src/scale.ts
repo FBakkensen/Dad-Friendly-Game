@@ -46,17 +46,70 @@ export function stretch(mountain: { readonly stretch?: number }): number {
   return mountain.stretch ?? 1;
 }
 
+/** Depth (run-1 stones) where each band begins. `LAYERS[i].from` reads these. */
+export const BAND_STARTS = [0, 10_000_000, 45_000_000, 120_000_000] as const;
+
+/** Stones to dig per stone of depth in each band, at stretch 1. Deeper bands take more. */
+export const BAND_SCALE = [1, 3, 9, 27] as const;
+
+type Band = 0 | 1 | 2 | 3;
+const BANDS: readonly Band[] = [0, 1, 2, 3];
+
+/** A band's scale: `BAND_SCALE` times the lab's knob (1 in play). */
+export function bandScale(band: Band): number {
+  return BAND_SCALE[band] * factor(`band.${String(band + 1)}.scale`);
+}
+
+/** Where a band ends: the next band's start, or the bottom. */
+function bandEnd(band: Band): number {
+  return band === 3 ? MOUNTAIN_STONES : (BAND_STARTS[band + 1] as number);
+}
+
 /** A depth (in run-1 stones) as the stones this run shows for it. */
 export function shownStones(
   mountain: { readonly stretch?: number },
   depth: number,
 ): number {
-  return depth * stretch(mountain);
+  let stones = 0;
+  for (const band of BANDS) {
+    const span = Math.min(depth, bandEnd(band)) - BAND_STARTS[band];
+    if (span > 0) {
+      stones += span * bandScale(band);
+    }
+  }
+  return stones * stretch(mountain);
 }
 
 /** Stones still to dig before the bottom, in pocket stones. */
 export function stonesLeft(mountain: Sized): number {
-  return mountain.remaining * stretch(mountain);
+  return (
+    shownStones(mountain, MOUNTAIN_STONES) -
+    shownStones(mountain, minedOut(mountain))
+  );
+}
+
+/**
+ * The mined-out depth after digging `stones` more pocket stones, walking
+ * band by band from where the run stands. Capped at the bottom.
+ */
+export function depthAfterStones(mountain: Sized, stones: number): number {
+  const k = stretch(mountain);
+  let depth = minedOut(mountain);
+  let left = stones;
+  for (const band of BANDS) {
+    const end = bandEnd(band);
+    if (depth >= end) {
+      continue;
+    }
+    const perDepth = k * bandScale(band);
+    const room = (end - depth) * perDepth;
+    if (left < room) {
+      return depth + left / perDepth;
+    }
+    left -= room;
+    depth = end;
+  }
+  return MOUNTAIN_STONES;
 }
 
 /** Stones dug out so far. Here (not in mountain.ts) so relics can use it without a cycle. */

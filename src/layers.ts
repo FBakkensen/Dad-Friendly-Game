@@ -1,4 +1,4 @@
-import { MOUNTAIN_STONES, minedOut } from "./scale";
+import { BAND_STARTS, MOUNTAIN_STONES, minedOut } from "./scale";
 import type { TierId } from "./tiers";
 
 /**
@@ -48,28 +48,28 @@ export const LAYERS = [
     id: "topsoil",
     index: 1,
     name: "The Topsoil",
-    from: 0,
+    from: BAND_STARTS[0],
     material: "clay",
   },
   {
     id: "granite",
     index: 2,
     name: "The Granite",
-    from: 10_000_000,
+    from: BAND_STARTS[1],
     material: "iron",
   },
   {
     id: "crystal",
     index: 3,
     name: "The Crystal Caves",
-    from: 45_000_000,
+    from: BAND_STARTS[2],
     material: "crystal",
   },
   {
     id: "heart",
     index: 4,
     name: "The Deep Heart",
-    from: 120_000_000,
+    from: BAND_STARTS[3],
     material: "heartstone",
   },
 ] as const satisfies readonly Layer[];
