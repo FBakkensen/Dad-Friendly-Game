@@ -4,6 +4,7 @@ import {
   createSittingLog,
   longestBestWait,
   medianBuys,
+  placeSittings,
   sittingsOf,
   zeroBuyShare,
   type SittingEvent,
@@ -69,18 +70,46 @@ describe("createSittingLog", () => {
   });
 });
 
-describe("sittingsOf", () => {
-  it("keeps only sittings that opened inside the sample window", () => {
-    // A sitting closes at the next open, so it rides on a later sample. A
-    // scope that starts at hour 24 must not count the last day-one sitting.
-    const early = sitting(3, 8);
-    const late = sitting(4, 0, WAITING);
-    const window = [
-      { atMs: 4000, sittings: [early] },
-      { atMs: 5000, sittings: [late] },
+describe("placeSittings", () => {
+  it("hangs each sitting on its own first sample, so a window keeps it", () => {
+    // Samples every 1000 ms. Sitting 3 opened at 3600 (before the window),
+    // sitting 4 opened at 4500, half a sample before the window's first
+    // sample at 5000, and closed later.
+    const samples: { atMs: number; sittings?: readonly SittingEvent[] }[] = [
+      { atMs: 3000 },
+      { atMs: 4000 },
+      { atMs: 5000 },
+      { atMs: 6000 },
     ];
-    expect(sittingsOf(window)).toEqual([late]);
-    expect(sittingsOf([])).toEqual([]);
+    const before: SittingEvent = {
+      sitting: 3,
+      openedAtMs: 3600,
+      buys: 8,
+      open: AFFORDABLE,
+    };
+    const inside: SittingEvent = {
+      sitting: 4,
+      openedAtMs: 4500,
+      buys: 0,
+      open: WAITING,
+    };
+    placeSittings(samples, [before]);
+    placeSittings(samples, [inside]);
+    expect(sittingsOf(samples)).toEqual([before, inside]);
+    // A scope that starts at the 5000 sample keeps only sitting 4.
+    expect(sittingsOf(samples.slice(2))).toEqual([inside]);
+  });
+
+  it("falls back to the newest sample, and skips an empty run", () => {
+    const samples: { atMs: number; sittings?: readonly SittingEvent[] }[] = [
+      { atMs: 1000 },
+    ];
+    const late = sitting(9, 1);
+    placeSittings(samples, [late]);
+    expect(sittingsOf(samples)).toEqual([late]);
+    const none: { atMs: number }[] = [];
+    placeSittings(none, [late]);
+    expect(none).toEqual([]);
   });
 });
 

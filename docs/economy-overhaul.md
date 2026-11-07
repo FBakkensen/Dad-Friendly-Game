@@ -4,7 +4,7 @@ Status: draft for Flemming. This spec covers several slivers. It ships on its ow
 
 ## The problem in one paragraph
 
-From day 2 on, a short check-in usually has nothing to buy. The best buy, nearly always the next borer or Great Machine, is several sittings away, and the cheaper buttons are scenery. The lab now measures this. At 3 seeds on main, the two-minute check-in dad buys nothing in 42% of his sittings after day 1, and the checker in 49%. Their median buys per sitting are 0.83 and 0.5. The checker opens with the best buy in reach only 30% of the time, and waits up to 5.7 sittings in a row. Even the casual two-sitting dad buys a median of one thing per sitting. The causes are structural:
+From day 2 on, a short check-in usually has nothing to buy. The best buy, nearly always the next borer or Great Machine, is several sittings away, and the cheaper buttons are scenery. The lab now measures this. At 3 seeds on main, the two-minute check-in dad buys nothing in 47% of his sittings after day 1, and the checker in 50%. Their median buys per sitting are 0.67 and 0.5. The checker opens with the best buy in reach only 30% of the time, and waits up to 5.7 sittings in a row. Even the casual two-sitting dad buys a median of only two things per sitting. The causes are structural:
 
 - Cost curves are steep: ×2 carts, ×1.5 drills and borers, ×1.19 workers that staff everything.
 - The ladder has a hole: the first borer costs 540× the first drill.

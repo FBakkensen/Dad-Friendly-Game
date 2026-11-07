@@ -109,7 +109,7 @@ Steps 3 and 4 alone should fix the screenshot case. Step 5 is what makes the who
 
 ## Follow-up (same day)
 
-Steps 1 and 2 of the recommendation are done. The lab has the sitting log, four check-in measures, report-only guardrails and the `checkin-4x2` player (`docs/DESIGN.md`, "Check-in pacing"). The lab reads the Buys sheet only, so its numbers differ a little from the probe's tier-only view. At 3 seeds the check-in and checker dads miss all four rows. The casual dad misses one: a median of one buy per sitting after day one. The evening dad passes. The overhaul is specified in `docs/economy-overhaul.md`. Two later probes there show that cheaper workers are what bring the borer back, and that re-curve plus depth scaling only work together.
+Steps 1 and 2 of the recommendation are done. The lab has the sitting log, four check-in measures, report-only guardrails and the `checkin-4x2` player (`docs/DESIGN.md`, "Check-in pacing"). The lab reads the Buys sheet only, so its numbers differ a little from the probe's tier-only view. At 3 seeds the check-in and checker dads miss all four rows. The casual dad misses one: a median of two buys per sitting after day one. The evening dad passes. The overhaul is specified in `docs/economy-overhaul.md`. Two later probes there show that cheaper workers are what bring the borer back, and that re-curve plus depth scaling only work together.
 
 ## How this was measured
 

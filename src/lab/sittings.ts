@@ -106,25 +106,50 @@ export function createSittingLog(): SittingLog {
   };
 }
 
+type Carrier = {
+  readonly atMs: number;
+  readonly sittings?: readonly SittingEvent[];
+};
+
 /**
- * Every sitting that opened inside this window of samples, in order. A
- * sitting closes at the next open, so its event rides on a later sample:
- * a scope that starts at hour 24 would otherwise count the last sitting
- * of day one.
+ * Hangs each closed sitting on its own first sample: the first one taken at
+ * or after its open. A sitting lasts longer than the sample interval, so it
+ * always has one. A scope that keeps a window of samples then keeps exactly
+ * the sittings whose first sample is inside it, with no boundary sums in the
+ * measures. With no sample that late, the newest sample carries it.
+ * Returns the same array, changed in place.
  */
-export function sittingsOf(
-  samples: readonly {
-    readonly atMs: number;
-    readonly sittings?: readonly SittingEvent[];
-  }[],
-): readonly SittingEvent[] {
-  let from = Number.POSITIVE_INFINITY;
-  for (const sample of samples) {
-    from = Math.min(from, sample.atMs);
+export function placeSittings<T extends Carrier>(
+  samples: T[],
+  events: readonly SittingEvent[],
+): T[] {
+  for (const event of events) {
+    let index = samples.length - 1;
+    for (const [at, sample] of samples.entries()) {
+      if (sample.atMs >= event.openedAtMs) {
+        index = at;
+        break;
+      }
+    }
+    const carrier = samples[index];
+    if (carrier === undefined) {
+      continue;
+    }
+    const placed: T = {
+      ...carrier,
+      sittings: [...(carrier.sittings ?? []), event],
+    };
+    samples[index] = placed;
   }
+  return samples;
+}
+
+/** Every sitting riding on these samples, in order. */
+export function sittingsOf(
+  samples: readonly Carrier[],
+): readonly SittingEvent[] {
   return samples
     .flatMap((sample) => sample.sittings ?? [])
-    .filter((event) => event.openedAtMs >= from)
     .sort((left, right) => left.sitting - right.sitting);
 }
 

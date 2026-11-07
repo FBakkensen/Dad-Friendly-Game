@@ -18,11 +18,7 @@ import {
   type BandSummary,
 } from "./bands";
 import { createRevealLog, type RevealEvent } from "./reveal";
-import {
-  createSittingLog,
-  type SittingEvent,
-  type SittingOpen,
-} from "./sittings";
+import { createSittingLog, placeSittings, type SittingOpen } from "./sittings";
 import type { ValueContext } from "../economy/actions";
 import { minedOut } from "../scale";
 import type { Mountain } from "../mountain";
@@ -176,7 +172,6 @@ function samplePolicy(
   const bands = createBandLog();
   const sittingAt = createSittingClock();
   const sittingLog = createSittingLog();
-  let pendingSittings: SittingEvent[] = [];
   const context = valueContext(policy.params);
   let ownedBefore = 0;
   const run = runPolicy({
@@ -198,8 +193,9 @@ function samplePolicy(
         })),
       );
       pendingBands.push(...bands(world.mountain));
-      pendingSittings.push(
-        ...sittingLog.observe({
+      placeSittings(
+        samples,
+        sittingLog.observe({
           clock: world.clock,
           owned: ownedCount(world.mountain),
           open: () => openingView(world.mountain, world.clock, policy, context),
@@ -231,16 +227,15 @@ function samplePolicy(
           }),
         });
         ownedBefore = ownedNow;
-        attach(samples, pending, pendingBands, pendingSittings);
+        attach(samples, pending, pendingBands);
         pending = [];
         pendingBands = [];
-        pendingSittings = [];
       }
       live += 1;
     },
   });
-  pendingSittings.push(...sittingLog.flush());
-  attach(samples, pending, pendingBands, pendingSittings);
+  placeSittings(samples, sittingLog.flush());
+  attach(samples, pending, pendingBands);
   return withFinish(samples, run.finishDay);
 }
 
@@ -249,23 +244,16 @@ function attach(
   samples: DecisionSample[],
   events: readonly RevealEvent[],
   bandEvents: readonly BandEvent[],
-  sittingEvents: readonly SittingEvent[],
 ): void {
   const index = samples.length - 1;
   const last = samples[index];
-  if (
-    last === undefined ||
-    events.length + bandEvents.length + sittingEvents.length === 0
-  ) {
+  if (last === undefined || events.length + bandEvents.length === 0) {
     return;
   }
   samples[index] = {
     ...last,
     reveals: [...(last.reveals ?? []), ...events],
     bands: [...(last.bands ?? []), ...bandEvents],
-    ...(sittingEvents.length === 0
-      ? {}
-      : { sittings: [...(last.sittings ?? []), ...sittingEvents] }),
   };
 }
 
