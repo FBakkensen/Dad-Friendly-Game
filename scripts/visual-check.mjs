@@ -2941,7 +2941,9 @@ for (const viewport of EFFECT_VIEWS) {
           (expected > 0 || row.hidden || rowBox.height < 1);
         const goal = document.querySelector(".relic-goal");
         const goalBox =
-          goal === null || goal.hidden ? undefined : goal.getBoundingClientRect();
+          goal === null || goal.hidden
+            ? undefined
+            : goal.getBoundingClientRect();
         const goalClear =
           goalBox === undefined ||
           rowBox.height < 1 ||
