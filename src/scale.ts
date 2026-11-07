@@ -60,9 +60,16 @@ export function bandScale(band: Band): number {
   return BAND_SCALE[band] * factor(`band.${String(band + 1)}.scale`);
 }
 
-/** Where a band ends: the next band's start, or the bottom. */
+/** Where each band ends: the next band's start, or the bottom. */
+const BAND_ENDS = [
+  BAND_STARTS[1],
+  BAND_STARTS[2],
+  BAND_STARTS[3],
+  MOUNTAIN_STONES,
+] as const;
+
 function bandEnd(band: Band): number {
-  return band === 3 ? MOUNTAIN_STONES : (BAND_STARTS[band + 1] as number);
+  return BAND_ENDS[band];
 }
 
 /** A depth (in run-1 stones) as the stones this run shows for it. */
@@ -80,12 +87,17 @@ export function shownStones(
   return stones * stretch(mountain);
 }
 
-/** Stones still to dig before the bottom, in pocket stones. */
+/**
+ * Stones still to dig before the bottom, in whole pocket stones. Deep bands
+ * leave `remaining` fractional, so the sum drifts off a whole number by
+ * float error; rounding up (past the drift) keeps every dig, and the pocket,
+ * whole, so the save still reads back.
+ */
 export function stonesLeft(mountain: Sized): number {
-  return (
+  const raw =
     shownStones(mountain, MOUNTAIN_STONES) -
-    shownStones(mountain, minedOut(mountain))
-  );
+    shownStones(mountain, minedOut(mountain));
+  return Math.max(0, Math.ceil(raw - 1e-6));
 }
 
 /**
@@ -104,7 +116,9 @@ export function depthAfterStones(mountain: Sized, stones: number): number {
     const perDepth = k * bandScale(band);
     const room = (end - depth) * perDepth;
     if (left < room) {
-      return depth + left / perDepth;
+      const reached = depth + left / perDepth;
+      // A hair short of the bottom is the bottom (float drift).
+      return reached > MOUNTAIN_STONES - 1e-9 ? MOUNTAIN_STONES : reached;
     }
     left -= room;
     depth = end;

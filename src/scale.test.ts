@@ -3,7 +3,15 @@ import { boostById, boostCost } from "./boosts";
 import { tierLock } from "./crew";
 import { promoteCost } from "./engineers";
 import { howItWorks } from "./how-it-works";
-import { createMountain, digStones, MOUNTAIN_STONES } from "./mountain";
+import {
+  accrueAway,
+  createMountain,
+  digStones,
+  MOUNTAIN_STONES,
+  mineByHand,
+  type Mountain,
+} from "./mountain";
+import { mineVein } from "./veins";
 import { parseSaveValue, serializeSave } from "./persist";
 import { withFactors } from "./economy/factors";
 import {
@@ -67,7 +75,11 @@ describe("kid-run stretch (M13, #253)", () => {
   it("opens the Great Machine sooner from run 2 on, and names this run's stones", () => {
     const machine = tierById("machine");
     const runOne = minedMountain(25_000_000);
-    expect(tierLock(runOne, machine)).toMatchObject({ depth: 120_000_000 });
+    expect(tierLock(runOne, machine)).toMatchObject({
+      depth: 120_000_000,
+      // 10M x 1 + 35M x 3 + 75M x 9, one literal anchor for the band scales.
+      at: 790_000_000,
+    });
     const kid = { ...runOne, stretch: 1.75 };
     const lock = tierLock(kid, machine);
     expect(lock).toEqual({
@@ -78,7 +90,7 @@ describe("kid-run stretch (M13, #253)", () => {
     expect(
       lockBodyLine(machine, lock ?? { kind: "depth", depth: 0, at: 0 }),
     ).toBe(
-      "The Great Machine joins your crew at 1.1B stones. Keep digging, Dad!",
+      `The Great Machine joins your crew at ${formatCompact(shownStones(kid, 120_000_000 * KID_MACHINE_OPENS))} stones. Keep digging, Dad!`,
     );
     const borer = tierLock(
       { ...minedMountain(0), stretch: 2 },
@@ -185,4 +197,47 @@ describe("band scales (#356)", () => {
       withFactors({ "band.2.scale": 2 }, () => shownStones(fresh, 45 * M)),
     ).toBe(at10 + 2 * granite);
   });
+
+  const whole = (m: { pocket: number; remaining: number }) => {
+    expect(Number.isInteger(m.pocket)).toBe(true);
+  };
+  const roundTrips = (m: Mountain) => {
+    const back = parseSaveValue(
+      JSON.parse(JSON.stringify(serializeSave({ mountain: m, lastSeen: 1 }))),
+    );
+    expect(back).toBeDefined();
+  };
+
+  it.each([
+    ["Crystal", 100_000_000, 1, 1_000_000],
+    ["Heart", 239_999_000, 1, 3_000],
+    ["Heart, kid run", 239_999_000, 1.75, 3_000],
+  ])(
+    "keeps the pocket whole all the way down from the %s",
+    (_name, at, k, haul) => {
+      let m: Mountain = {
+        ...minedMountain(at),
+        stretch: k,
+        helpers: 3,
+        remaining: MOUNTAIN_STONES - at - 1 / 3,
+      };
+      for (let step = 0; step < 5_000 && m.remaining > 0; step += 1) {
+        const turn = step % 3;
+        if (turn === 0) {
+          m = mineByHand({ ...m, upgrades: { tap: 5 }, helpers: 500 });
+        } else if (turn === 1) {
+          m = accrueAway({
+            mountain: { ...m, helpers: haul },
+            lastSeen: 0,
+            now: 7_000,
+          }).mountain;
+        } else {
+          m = mineVein({ ...m, helpers: 40 });
+        }
+        whole(m);
+        roundTrips(m);
+      }
+      expect(m.remaining).toBe(0);
+    },
+  );
 });

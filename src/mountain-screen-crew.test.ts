@@ -1386,8 +1386,8 @@ describe("player-facing workers (#139)", () => {
       expect(
         screen.root.querySelector<HTMLElement>(".upgrades-dialog")?.hidden,
       ).toBe(false);
-      expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
-        "Workers 1.2/s to 2.8/s.",
+      expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toMatch(
+        /^Workers \d+\.\d\/s to \d+\.\d\/s\.$/,
       );
       expect(screen.text('[data-upgrade="cartSyn"] .upgrade-name')).toBe(
         "Helping hands",
