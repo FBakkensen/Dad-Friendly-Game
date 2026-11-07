@@ -224,8 +224,9 @@ describe("materials from digging", () => {
 
   it("pays the same units live, away, and in small slices", () => {
     const helpers = 1_500;
-    const depth = 12_000_000;
-    // From 7M, so the dig crosses into the Granite and the away pay divides whole seconds.
+    // From 7M to 14M, so the dig crosses into the Granite and the away pay
+    // divides whole seconds (3M + 4M x 1.5 = 9M stones, #356 tune).
+    const depth = 14_000_000;
     const mountain = { ...minedMountain(7_000_000), helpers };
     const stones =
       shownStones(mountain, depth) - shownStones(mountain, 7_000_000);
@@ -236,7 +237,7 @@ describe("materials from digging", () => {
     const closed = accrueAway({ mountain, lastSeen: 0, now: awayMs });
     const expected = {
       clay: 3,
-      iron: 2,
+      iron: 4,
       crystal: 0,
       heartstone: 0,
     };

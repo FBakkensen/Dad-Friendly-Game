@@ -554,20 +554,20 @@ describe("crew tiers on screen", () => {
         SESSION_SAVE_KEY,
         JSON.stringify({
           version: 5,
-          mountain: { ...minedMountain(100), helpers: 1 },
+          mountain: { ...minedMountain(150), helpers: 1 },
           lastSeen: Date.now(),
         }),
       );
       const screen = mountScreen({ storage });
       const cart = tierCard(screen.root, "cart");
-      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("100");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("150");
       expect(cart.disabled).toBe(false);
 
       cart.click();
       expect(screen.text(".pocket")).toBe("0 stones");
       expect(screen.text('[data-tier="cart"] .tier-name')).toBe("Mine cart");
       expect(screen.text('[data-tier="cart"] .tier-count')).toBe("×1");
-      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("115");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("170");
       expect(screen.text(".crew-status")).toBe(
         "Your crew mines 7 stones a second",
       );

@@ -5,6 +5,7 @@ import { createMountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { simulateDad, simulateDadRun, type DadRun } from "./pacing";
 import { RELICS } from "./relics";
+import { BAND_SCALE } from "./scale";
 
 const depth = (id: string) =>
   RELICS.find((relic) => relic.id === id)?.depth ?? 0;
@@ -12,18 +13,21 @@ const depth = (id: string) =>
 // Deterministic dads: two 10-minute sessions a day, 12 hours apart, 3 taps a
 // second, always buying the best speed per stone, paid for time away as the
 // game pays it. #198 hardened the rock; D3 (#246) lets each layer favour
-// one machine. The M12 retune (#252) opens the borer at 7M and the Great
-// Machine at 120M, so the plain dad reaches the bottom on day 6 and the
-// upgrade dads on day 5.5. This sim does not craft.
+// one machine. The M12 retune (#252) opens the Great Machine at 120M; the
+// new curve (#356) opens the borer at the Granite start, so the plain dad
+// reaches the bottom on day 4.5 and the upgrade dads on day 4. These are
+// regression pins, not limits: the run length is not graded. This sim does
+// not craft.
 describe.each([
-  ["a plain dad (crew only)", {}, 6],
-  ["a dad who also buys lasting upgrades", { buysUpgrades: true }, 5.5],
+  ["a plain dad (crew only)", {}, 4.5, 2.5],
+  ["a dad who also buys lasting upgrades", { buysUpgrades: true }, 4, 2.5],
   [
     "a dad who buys upgrades and starts every boost he can afford",
     { buysUpgrades: true, buysBoosts: true },
-    5.5,
+    4,
+    2,
   ],
-])("pacing: %s", (_, options, bottomDay) => {
+])("pacing: %s", (_, options, bottomDay, hammerDay) => {
   const reached = simulateDad({
     milestones: [depth("lantern"), depth("hammer"), depth("mantle")],
     ...options,
@@ -36,10 +40,11 @@ describe.each([
     expect(day("lantern")).toBe(1);
   });
 
-  it("finds the Hammer of the Builder (25M) on day 3 to 3.5", () => {
+  it("finds the Hammer of the Builder (25M) on the pinned day, after the Lantern", () => {
     const hammer = reached.get(depth("hammer")) ?? Infinity;
-    expect(hammer).toBeGreaterThanOrEqual(3);
-    expect(hammer).toBeLessThanOrEqual(3.5);
+    // The sim checks the depth once a tick, so the day can read a hair over.
+    expect(hammer).toBeCloseTo(hammerDay, 1);
+    expect(hammer).toBeGreaterThan(reached.get(depth("lantern")) ?? Infinity);
   });
 
   it("reaches the bottom on the pinned day", () => {
@@ -56,43 +61,40 @@ const NILS_PRICE = promoteCost({
 });
 
 /**
- * The sim dad spends that price and one worker for Nils.
- * `sameSitting` is the pinned gap: true when Nils is hired in the borer's
- * sitting, false when he waits for the next one (half a day later).
+ * The sim dad spends the sheet's price and one worker for Nils. One-offs cost
+ * more in deeper rock (#356), and he is hired in the Crystal Caves, so the
+ * price is the Topsoil price times that band's scale. `gapDays` is the pinned
+ * wait after the first borer: 0 in the same sitting, 1 a day later.
  */
-function expectPaidForNils(run: DadRun, sameSitting: boolean): void {
+function expectPaidForNils(run: DadRun, gapDays: number): void {
   expect(NILS_PRICE).toBe(2_000_000);
+  const crystalPrice = NILS_PRICE * BAND_SCALE[2];
   expect(run.promotions).toHaveLength(1);
   const paid = run.promotions[0];
-  expect(paid).toMatchObject({ name: "Nils", price: NILS_PRICE });
+  expect(paid).toMatchObject({ name: "Nils", price: crystalPrice });
   expect(paid?.helpersAfter).toBe((paid?.helpersBefore ?? 0) - 1);
-  expect(paid?.pocketAfter).toBe((paid?.pocketBefore ?? 0) - NILS_PRICE);
+  expect(paid?.pocketAfter).toBe((paid?.pocketBefore ?? 0) - crystalPrice);
   const borer = run.buys.find((buy) => buy.id === "borer");
   expect(paid?.day).toBeGreaterThanOrEqual(borer?.day ?? Infinity);
   const gap = (paid?.day ?? 0) - (borer?.day ?? 0);
-  if (sameSitting) {
-    expect(gap).toBeCloseTo(0, 4);
-  } else {
-    expect(gap).toBeCloseTo(0.5, 1);
-  }
+  expect(gap).toBeCloseTo(gapDays, 2);
 }
 
-// Second run (M6): the kid's crew is ×1.5. After the M12 retune (#252) the
-// bottom is day 4.5, still a shorter climb than the first.
+// Second run (M6): the kid's crew is ×1.5. On the new curve (#356) the
+// bottom is day 3.5, still a shorter climb than the first (day 4).
 describe("pacing: a second run with one Legacy (×1.5)", () => {
   const run = simulateDadRun({
     milestones: [depth("mantle")],
     legacy: 1,
     buysUpgrades: true,
   });
-  it("reaches the bottom on day 4.5", () => {
-    expect(run.reached.get(depth("mantle"))).toBe(4.5);
+  it("reaches the bottom on day 3.5", () => {
+    expect(run.reached.get(depth("mantle"))).toBe(3.5);
   });
 
-  // Grandpa (#338) tends from the first cart, so the borer comes a little
-  // sooner and Nils waits for the next sitting.
+  // Grandpa (#338) tends from the first cart; Nils joins in the borer's sitting.
   it("pays the real promotion for Nils", () => {
-    expectPaidForNils(run, false);
+    expectPaidForNils(run, 0);
   });
 });
 
@@ -115,20 +117,21 @@ function quietStretch(run: DadRun, until: number): number {
 }
 
 describe.each([
-  // The borer opens at 7M (#252), so Nils comes in the borer's sitting.
-  ["a plain dad", {}, 6, 2, 2, true],
-  ["an upgrade-buying dad", { buysUpgrades: true }, 5.5, 2, 2, true],
+  // The borer opens at the Granite start (#356). The upgrade dads hire Nils
+  // in the borer's sitting; the plain dad a day later.
+  ["a plain dad", {}, 4.5, 2, 18, 1],
+  ["an upgrade-buying dad", { buysUpgrades: true }, 4, 2, 10, 0],
   [
     "a dad who buys upgrades and boosts",
     { buysUpgrades: true, buysBoosts: true },
-    5.5,
+    4,
     2,
-    1,
-    true,
+    11,
+    0,
   ],
 ])(
   "pacing: no dead zone for %s (#140)",
-  (_, options, bottomDay, quietCap, machines, nilsSameSitting) => {
+  (_, options, bottomDay, quietCap, machines, nilsGapDays) => {
     const run = simulateDadRun({
       milestones: [depth("mantle")],
       ...options,
@@ -140,7 +143,7 @@ describe.each([
       expect(quietStretch(run, bottom)).toBeLessThanOrEqual(quietCap);
       const machine = run.buys.find((buy) => buy.id === "machine");
       expect(machine).toMatchObject({ count: 1, price: 40_200_000 });
-      expect(machine?.day).toBeGreaterThan(3.5);
+      expect(machine?.day).toBeGreaterThanOrEqual(3.5);
       expect(machine?.day).toBeLessThan(bottom);
       expect(run.mountain.machines).toBe(machines);
       expect(effectiveRates(run.mountain).running.machine).toBe(machines);
@@ -153,7 +156,7 @@ describe.each([
     });
 
     it("pays the real promotion for Nils", () => {
-      expectPaidForNils(run, nilsSameSitting);
+      expectPaidForNils(run, nilsGapDays);
     });
   },
 );
@@ -173,11 +176,11 @@ describe("pacing: lost tools (#148)", () => {
     });
     const scouts = (run.mountain.engineers ?? []).slice(1);
     expect(scouts.length).toBeGreaterThan(0);
-    expect(scouts.some((engineer) => engineer.rank >= 1)).toBe(true);
+    // On the new curve (#356) Nils joins on day 3 of a four-day run, so he
+    // walks the tunnels but has no time to rank up or bring a find home.
     expect(
       scouts.reduce((trips, engineer) => trips + engineer.trips, 0),
-    ).toBeGreaterThanOrEqual(4);
-    expect(run.mountain.finds?.length ?? 0).toBeGreaterThan(0);
+    ).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -187,27 +190,29 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
     buysUpgrades: true,
   });
 
-  it("staffs the first borer from spare workers, and the machine needs a few hired", () => {
-    // Drills take one worker since #252, so the crew has hands to spare.
+  it("hires the first borer's crew, and the machine needs a few hired", () => {
+    // On the new curve (#356) every hand already works a cart or a drill when
+    // the borer opens, so its eight are hired with it; the bill stays small.
     const borer = run.buys.find((buy) => buy.id === "borer");
-    expect(borer).toMatchObject({ count: 1, price: 7_600_000, short: 0 });
+    expect(borer).toMatchObject({ count: 1, price: 4_940_000, short: 8 });
+    expect((borer?.shortCost ?? 0) / (borer?.price ?? 1)).toBeLessThan(1.5);
     const machine = run.buys.find((buy) => buy.id === "machine");
     expect(machine?.short).toBeGreaterThan(0);
     expect((machine?.shortCost ?? 0) / (machine?.price ?? 1)).toBeLessThan(
-      0.05,
+      0.15,
     );
   });
 
-  it("runs a Great Machine after the Deep Heart opens, and the bottom stays day 5.5", () => {
+  it("runs a Great Machine after the Deep Heart opens, and the bottom stays day 4", () => {
     const bottom = run.reached.get(depth("mantle"));
     const machine = run.buys.find((buy) => buy.id === "machine");
-    expect(bottom).toBeCloseTo(5.5, 1);
+    expect(bottom).toBeCloseTo(4, 1);
     expect(machine).toMatchObject({ count: 1, price: 40_200_000 });
-    expect(machine?.day).toBeGreaterThanOrEqual(4.5);
+    expect(machine?.day).toBeGreaterThanOrEqual(3.5);
     expect(machine?.day).toBeLessThan(bottom ?? 0);
-    // A second one lands in the bottom sitting (M12-2, #250 retune).
-    expect(run.mountain.machines).toBe(2);
-    expect(effectiveRates(run.mountain).running.machine).toBe(2);
+    // The gentler curve buys ten by the bottom (#356).
+    expect(run.mountain.machines).toBe(10);
+    expect(effectiveRates(run.mountain).running.machine).toBe(10);
   });
 });
 

@@ -7,14 +7,16 @@ export const MOUNTAIN_STONES = 240_000_000;
  * How much longer each kid's run should feel (M13, #253): about this share
  * of run 1 added per generation, forever (Flemming, 4 Nov 2026: "the whole
  * idea is they take longer and longer"). The lab sweeps it as
- * `stretch.growth`; the game reads 1.
+ * `stretch.growth`; the game reads 1. #356 raised it from 1/8 so the
+ * marathon dad's second run still finishes a day later on the new curve.
  */
-export const KID_RUN_GROWTH = 1 / 8;
+export const KID_RUN_GROWTH = 3 / 8;
 
 /**
  * The biggest stretch a save may carry. Above kidStretch(1000), the rules' Legacy cap, so runs never stop growing.
+ * #356 raised it with KID_RUN_GROWTH: kidStretch(1000) is now about 70.8M.
  */
-export const MAX_STRETCH = 10_000_000;
+export const MAX_STRETCH = 100_000_000;
 
 /** The kid bonus per Legacy (mirrors LEGACY_STEP in rates.ts, a leaf here). */
 const BONUS_STEP = 0.5;
@@ -50,13 +52,13 @@ export function stretch(mountain: { readonly stretch?: number }): number {
 export const BAND_STARTS = [0, 10_000_000, 45_000_000, 120_000_000] as const;
 
 /** Stones to dig per stone of depth in each band, at stretch 1. Deeper bands take more. */
-export const BAND_SCALE = [1, 3, 9, 27] as const;
+export const BAND_SCALE = [1, 1.5, 9, 27] as const;
 
 type Band = 0 | 1 | 2 | 3;
 const BANDS: readonly Band[] = [0, 1, 2, 3];
 
 /** A band's scale: `BAND_SCALE` times the lab's knob (1 in play). */
-export function bandScale(band: Band): number {
+function bandScale(band: Band): number {
   return BAND_SCALE[band] * factor(`band.${String(band + 1)}.scale`);
 }
 

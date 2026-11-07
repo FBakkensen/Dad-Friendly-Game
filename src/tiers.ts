@@ -4,8 +4,11 @@ import type { Mountain } from "./mountain";
 import type { RelicId } from "./relics";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
-/** #356: carts, drills, borers, and the Great Machine climb ×1.15 a unit. */
-const MACHINE_COST_GROWTH = 1.15;
+/**
+ * #356: carts, drills, borers, and the Great Machine climb ×1.13 a unit
+ * (the lab's tune inside the 1.10–1.15 genre band).
+ */
+const MACHINE_COST_GROWTH = 1.13;
 /** #356: workers climb ×1.08 a unit, and kids share the curve. */
 const HELPER_COST_GROWTH = 1.08;
 /**
@@ -58,7 +61,8 @@ export const TIERS: readonly Tier[] = [
     field: "carts",
     name: "Mine cart",
     shortName: "Cart",
-    firstCost: 100,
+    // #356 tune: dearer, so the Topsoil lasts into a sitting.
+    firstCost: 150,
     perSecond: 6,
     staff: 1,
   },
@@ -67,7 +71,8 @@ export const TIERS: readonly Tier[] = [
     field: "drills",
     name: "Steam drill",
     shortName: "Drill",
-    firstCost: 14_000,
+    // #356 tune: dearer, with the cart, for the same reason.
+    firstCost: 21_000,
     perSecond: 36,
     staff: 1,
   },
@@ -76,9 +81,9 @@ export const TIERS: readonly Tier[] = [
     field: "borers",
     name: "Tunnel borer",
     shortName: "Borer",
-    // M12 retune (#252): priced so the checker buys one within two sittings,
-    // and no dearer, so the evening dad still buys it early in the Granite.
-    firstCost: 7_600_000,
+    // #356 tune: cheap enough that every casual dad buys one early in the
+    // Granite, and the run stays close for the marathon and the evening dad.
+    firstCost: 4_940_000,
     perSecond: 357,
     staff: 8,
     // Opens at the Granite start, the band that suits borers (D3), so no
@@ -122,7 +127,7 @@ export function owned(mountain: Mountain, tier: Tier): number {
   return mountain[tier.field];
 }
 
-/** Cookie Clicker curve: machines climb ×1.15, helpers ×1.08. */
+/** Cookie Clicker curve: machines climb ×1.13, helpers ×1.08. */
 export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
   // A sweep multiplies the sticker and the growth. Both factors are 1 in play.

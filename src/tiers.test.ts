@@ -28,9 +28,9 @@ describe("tiers", () => {
       TIERS.map(({ id, firstCost, perSecond }) => [id, firstCost, perSecond]),
     ).toEqual([
       ["helper", 20, 1],
-      ["cart", 100, 6],
-      ["drill", 14_000, 36],
-      ["borer", 7_600_000, 357],
+      ["cart", 150, 6],
+      ["drill", 21_000, 36],
+      ["borer", 4_940_000, 357],
       ["machine", 40_200_000, 2_100],
       ["kid", 250_000, 25],
     ]);
@@ -52,30 +52,30 @@ describe("tiers", () => {
     }
   });
 
-  it("machines climb x1.15 a unit, helpers x1.08", () => {
+  it("machines climb x1.13 a unit, helpers x1.08", () => {
     expect(
       [0, 1, 2, 3, 10, 50].map((n) => tierCost(tierById("helper"), n)),
     ).toEqual([20, 22, 24, 26, 44, 939]);
     expect([0, 1, 2].map((n) => tierCost(tierById("cart"), n))).toEqual([
-      100, 115, 133,
+      150, 170, 192,
     ]);
     expect([0, 1].map((n) => tierCost(tierById("machine"), n))).toEqual([
-      40_200_000, 46_230_000,
+      40_200_000, 45_426_000,
     ]);
     expect([0, 1, 2].map((n) => tierCost(tierById("drill"), n))).toEqual([
-      14_000, 16_100, 18_515,
+      21_000, 23_730, 26_815,
     ]);
     expect([0, 1, 2].map((n) => tierCost(tierById("borer"), n))).toEqual([
-      7_600_000, 8_740_000, 10_051_000,
+      4_940_000, 5_582_200, 6_307_886,
     ]);
   });
 
   it("buys only when the pocket covers the cost, and pays for it", () => {
-    const poor = at({ pocket: 99 });
+    const poor = at({ pocket: 149 });
     expect(buyTier(poor, "cart")).toBe(poor);
     const one = buyTier(at({ pocket: 350 }), "cart");
-    expect(one).toEqual(at({ pocket: 250, carts: 1 }));
-    expect(buyTier(one, "cart")).toEqual(at({ pocket: 135, carts: 2 }));
+    expect(one).toEqual(at({ pocket: 200, carts: 1 }));
+    expect(buyTier(one, "cart")).toEqual(at({ pocket: 30, carts: 2 }));
     expect(buyTier(at({ pocket: 25 }), "helper")).toEqual(
       at({ pocket: 5, helpers: 1 }),
     );
@@ -196,13 +196,13 @@ describe("Crown of Wisdom: kid helpers", () => {
 describe("gentler cost curves (#356)", () => {
   const ceil12 = (n: number) => Math.ceil(Number(n.toPrecision(12)));
 
-  it("machines climb x1.15 a unit", () => {
-    expect(tierCost(tierById("cart"), 13)).toBe(ceil12(100 * 1.15 ** 13));
-    expect(tierCost(tierById("cart"), 13)).toBe(616);
-    expect(tierCost(tierById("drill"), 11)).toBe(ceil12(14_000 * 1.15 ** 11));
-    expect(tierCost(tierById("borer"), 3)).toBe(ceil12(7_600_000 * 1.15 ** 3));
+  it("machines climb x1.13 a unit", () => {
+    expect(tierCost(tierById("cart"), 13)).toBe(ceil12(150 * 1.13 ** 13));
+    expect(tierCost(tierById("cart"), 13)).toBe(735);
+    expect(tierCost(tierById("drill"), 11)).toBe(ceil12(21_000 * 1.13 ** 11));
+    expect(tierCost(tierById("borer"), 3)).toBe(ceil12(4_940_000 * 1.13 ** 3));
     expect(tierCost(tierById("machine"), 2)).toBe(
-      ceil12(40_200_000 * 1.15 ** 2),
+      ceil12(40_200_000 * 1.13 ** 2),
     );
   });
 
@@ -213,7 +213,7 @@ describe("gentler cost curves (#356)", () => {
 
   it("the sweep growth factors still multiply", () => {
     withFactors({ "growth.machine": 2 }, () => {
-      expect(tierCost(tierById("cart"), 3)).toBe(ceil12(100 * 2.3 ** 3));
+      expect(tierCost(tierById("cart"), 3)).toBe(ceil12(150 * 2.26 ** 3));
     });
     withFactors({ "growth.worker": 2 }, () => {
       expect(tierCost(tierById("helper"), 3)).toBe(ceil12(20 * 2.16 ** 3));

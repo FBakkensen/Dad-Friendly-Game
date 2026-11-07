@@ -175,7 +175,7 @@ describe("promotion teach (#246)", () => {
     );
     const promoteButton =
       sheet?.querySelector<HTMLButtonElement>(".engineer-promote");
-    expect(promoteButton?.textContent).toBe(promotionAction("Nils", 6_000_000));
+    expect(promoteButton?.textContent).toBe(promotionAction("Nils", 3_000_000));
     promoteButton?.click();
     sheet?.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
     const mountain = screen.progress.getSnapshot().mountain;

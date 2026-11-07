@@ -2241,7 +2241,8 @@ section("section 18 (line 2148)", async () => {
       "424x830 conflict sheet has no placeholder question",
     );
     check(
-      cards.some((card) => card.includes("Granite, 12.4M deep")) &&
+      // 12.4M of depth reads 10M + 2.4M x 1.5 in the Granite's stones (#356).
+      cards.some((card) => card.includes("Granite, 13.6M deep")) &&
         cards.some((card) => card.includes("This phone")) &&
         cards.some((card) => card.includes("Other device")),
       "424x830 conflict cards name both saves",
@@ -2718,7 +2719,8 @@ for (const viewport of [
         machineGain: shown("machine", ".tier-gain"),
         machineWhy:
           card("machine")?.querySelector(".tier-why")?.textContent ===
-          "The Great Machine joins your crew at 120M stones. Keep digging, Dad!",
+          // The Deep Heart's 120M of depth in stones: 10M + 35M x 1.5 + 75M x 9 (#356).
+          "The Great Machine joins your crew at 737.5M stones. Keep digging, Dad!",
       };
     });
     check(

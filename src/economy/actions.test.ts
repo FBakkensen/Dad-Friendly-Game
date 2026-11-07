@@ -573,11 +573,11 @@ describe("valueOf", () => {
     };
     const borer = score(bare, { kind: "buyTier", id: "borer" }, HORIZON);
     expect(borer.gainPerSec).toBeCloseTo(392.7, 8);
-    expect(borer.cost).toBeGreaterThan(7_600_000);
+    expect(borer.cost).toBeGreaterThan(4_940_000);
     const staffed: Mountain = { ...bare, helpers: 11, pocket: 0 };
     const tended = score(staffed, { kind: "buyTier", id: "borer" }, HORIZON);
     expect(tended.gainPerSec).toBeCloseTo(392.7, 8);
-    expect(tended.cost).toBe(7_600_000);
+    expect(tended.cost).toBe(4_940_000);
     const applied = buyCrew({ ...staffed, pocket: 10_000_000 }, "borer");
     expect(crewDelta(staffed, applied)).toBe(479);
 
@@ -606,7 +606,7 @@ describe("valueOf", () => {
     const idle: Mountain = { ...fresh, carts: 1 };
     const value = score(idle, { kind: "buyTier", id: "cart" }, HORIZON);
     expect(value.gainPerSec).toBe(6);
-    expect(value.cost).toBe(135);
+    expect(value.cost).toBe(190);
   });
 
   it("uses the crew delta for every listed upgrade", () => {

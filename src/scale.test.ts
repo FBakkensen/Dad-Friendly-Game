@@ -78,8 +78,8 @@ describe("kid-run stretch (M13, #253)", () => {
     const runOne = minedMountain(25_000_000);
     expect(tierLock(runOne, machine)).toMatchObject({
       depth: 120_000_000,
-      // 10M x 1 + 35M x 3 + 75M x 9, one literal anchor for the band scales.
-      at: 790_000_000,
+      // 10M x 1 + 35M x 1.5 + 75M x 9, one literal anchor for the band scales.
+      at: 737_500_000,
     });
     const kid = { ...runOne, stretch: 1.75 };
     const lock = tierLock(kid, machine);
@@ -114,7 +114,7 @@ describe("kid-run stretch (M13, #253)", () => {
     expect(parseSaveValue(saved)?.mountain.stretch).toBe(1.75);
     const old = serializeSave({ mountain: createMountain(), lastSeen: 1 });
     expect(parseSaveValue(old)?.mountain.stretch).toBeUndefined();
-    for (const bad of [0.5, 1e8, "2"]) {
+    for (const bad of [0.5, 1e9, "2"]) {
       expect(
         parseSaveValue({
           ...saved,
