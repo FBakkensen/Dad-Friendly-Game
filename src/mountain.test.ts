@@ -2,6 +2,7 @@ import { EMPTY_MATERIALS } from "./layers";
 import { minedMountain } from "./test-fixtures";
 import { SHIELD_AWAY_CAP_MS, heartBonus } from "./rates";
 import { describe, expect, it } from "vitest";
+import { BAND_SCALE, shownStones } from "./scale";
 import { AWAY_PAY_RATE } from "./rates";
 import {
   MOUNTAIN_STONES,
@@ -220,16 +221,19 @@ describe("materials from digging", () => {
   });
 
   it("pays the same units live, away, and in small slices", () => {
-    const helpers = 2_000;
-    const stones = 12_000_000;
-    const mountain = { ...createMountain(), helpers };
+    const helpers = 1_500;
+    const depth = 12_000_000;
+    // From 7M, so the dig crosses into the Granite and the away pay divides whole seconds.
+    const mountain = { ...minedMountain(7_000_000), helpers };
+    const stones =
+      shownStones(mountain, depth) - shownStones(mountain, 7_000_000);
     const liveMs = (stones / helpers) * 1_000;
     const awayMs = liveMs / AWAY_PAY_RATE;
     const live = accrue({ mountain, from: 0, to: liveMs });
     const away = accrue({ mountain, from: 0, to: awayMs, pay: AWAY_PAY_RATE });
     const closed = accrueAway({ mountain, lastSeen: 0, now: awayMs });
     const expected = {
-      clay: 10,
+      clay: 3,
       iron: 2,
       crystal: 0,
       heartstone: 0,
@@ -249,7 +253,7 @@ describe("materials from digging", () => {
       sliced = part.mountain;
       at = part.settledAt;
     }
-    expect(minedOut(sliced)).toBe(stones);
+    expect(minedOut(sliced)).toBeCloseTo(depth, 3);
     expect(sliced.materials).toEqual(expected);
   });
 
@@ -278,8 +282,9 @@ describe("materials from digging", () => {
 });
 
 describe("accrue", () => {
+  // Shallow, in the Topsoil, so a stone is a stone of depth.
   const crew = {
-    remaining: 1000,
+    remaining: MOUNTAIN_STONES - 1000,
     pocket: 0,
     helpers: 2,
     carts: 0,
@@ -292,7 +297,7 @@ describe("accrue", () => {
   it("mines whole seconds and keeps the leftover part-second unspent", () => {
     expect(accrue({ mountain: crew, from: 0, to: 2_750 })).toEqual({
       mountain: {
-        remaining: 996,
+        remaining: MOUNTAIN_STONES - 1_004,
         pocket: 4,
         helpers: 2,
         carts: 0,
@@ -321,6 +326,8 @@ describe("accrue", () => {
   });
 
   it("stops at an empty mountain and spends the rest of the time", () => {
+    // 3 depth left in the Heart band takes 3 x BAND_SCALE[3] stones.
+    const left = 3 * BAND_SCALE[3];
     const almost = {
       remaining: 3,
       pocket: 0,
@@ -331,10 +338,12 @@ describe("accrue", () => {
       machines: 0,
       kids: 0,
     };
-    expect(accrue({ mountain: almost, from: 0, to: 10_500 })).toEqual({
+    expect(
+      accrue({ mountain: almost, from: 0, to: (left / 2 + 0.5) * 1_000 }),
+    ).toEqual({
       mountain: {
         remaining: 0,
-        pocket: 3,
+        pocket: left,
         helpers: 2,
         carts: 0,
         drills: 0,
@@ -343,8 +352,8 @@ describe("accrue", () => {
         kids: 0,
         materials: { ...EMPTY_MATERIALS, heartstone: 1 },
       },
-      mined: 3,
-      settledAt: 10_500,
+      mined: left,
+      settledAt: (left / 2 + 0.5) * 1_000,
     });
   });
 

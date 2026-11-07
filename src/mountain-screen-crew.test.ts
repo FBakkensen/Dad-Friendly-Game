@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 import { send } from "./expeditions";
-import { kidStretch } from "./scale";
+import { kidStretch, shownStones, stonesLeft } from "./scale";
 import { formatCount } from "./format";
 import { RELICS } from "./relics";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MOUNTAIN_STONES, type Mountain } from "./mountain";
+import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { SESSION_SAVE_KEY } from "./session-save";
 import { FIX_HOLD_MS } from "./hazards";
 import {
@@ -28,6 +28,9 @@ beforeEach(() => {
   setReducedMotion(true);
 });
 afterEach(stopScreens);
+
+// One depth short of the bottom: the Heart band's stones, so one strong tap digs the rest.
+const LAST_STONE = MOUNTAIN_STONES - 1;
 
 describe("what the crew gives", () => {
   const seededCrew = () => {
@@ -1074,7 +1077,11 @@ describe("Mantle of the Hero finale (#103)", () => {
 
   it("opens the Legend card after the Mantle's reveal, once, and closes with one tap", () => {
     const screen = mountScreen({
-      storage: seeded({ ...minedMountain(MOUNTAIN_STONES - 1), helpers: 40 }),
+      storage: seeded({
+        ...minedMountain(LAST_STONE),
+        helpers: 1_000,
+        upgrades: { tap: 3 },
+      }),
     });
     document.body.append(screen.root);
     const legend = screen.root.querySelector<HTMLElement>(".legend");
@@ -1090,7 +1097,7 @@ describe("Mantle of the Hero finale (#103)", () => {
     expect(legend?.hidden).toBe(false);
     expect(screen.text("#legend-title")).toBe("You became a Legend");
     expect(screen.text(".legend-stats")).toBe(
-      "240 million stones moved. Six relics found. A crew of 40 beside you.",
+      `${formatCount(shownStones(createMountain(), MOUNTAIN_STONES))} stones moved. Six relics found. A crew of 1,000 beside you.`,
     );
     expect(legend?.querySelectorAll(".legend-shelf img")).toHaveLength(6);
     expect(document.activeElement).toBe(
@@ -1241,8 +1248,9 @@ describe("pass the mine to your kid (#131)", () => {
 
   it("is offered on the Legend card, asks first, and hands down a Legacy", () => {
     const storage = seeded({
-      ...minedMountain(MOUNTAIN_STONES - 1),
-      helpers: 40,
+      ...minedMountain(LAST_STONE),
+      helpers: 1_000,
+      upgrades: { tap: 3 },
     });
     const screen = mountScreen({ storage });
     document.body.append(screen.root);
@@ -1277,7 +1285,7 @@ describe("pass the mine to your kid (#131)", () => {
 
     expect(dialog(screen)?.hidden).toBe(true);
     expect(screen.text(".stones-left")).toBe(
-      `${formatCount(240_000_000 * kidStretch(1))} stones left`,
+      `${formatCount(stonesLeft(createMountain()) * kidStretch(1))} stones left`,
     );
     expect(screen.text(".pocket")).toBe("0 stones");
     const badge = screen.root.querySelector<HTMLElement>(".legacy-badge");
@@ -1346,16 +1354,17 @@ describe("player-facing workers (#139)", () => {
     writeSessionSave({
       storage,
       mountain: {
-        // One stone short of the Crown. 23.5h of Shield away pay (under the
-        // 24h cap) reaches the 240M bottom, so the welcome card, the Crown,
-        // and the Legend finale all render.
+        // One stone short of the Crown. A crew of this size, on 23.5h of
+        // Shield away pay (under the 24h cap), reaches the bottom through the
+        // banded stones, so the welcome card, the Crown, and the Legend
+        // finale all render.
         ...minedMountain(69_999_999),
         pocket: 80_000_000,
-        helpers: 20,
-        carts: 5,
-        borers: 1,
-        machines: 2,
-        kids: 1,
+        helpers: 200,
+        carts: 50,
+        borers: 10,
+        machines: 20,
+        kids: 10,
         upgrades: { boots: 1, steady: 1, cartSyn: 1, tap: 2 },
       },
       lastSeen: Date.now() - 23.5 * 3_600_000,
@@ -1378,7 +1387,7 @@ describe("player-facing workers (#139)", () => {
         screen.root.querySelector<HTMLElement>(".upgrades-dialog")?.hidden,
       ).toBe(false);
       expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
-        "Workers 1.0/s to 2.4/s.",
+        "Workers 1.2/s to 2.8/s.",
       );
       expect(screen.text('[data-upgrade="cartSyn"] .upgrade-name')).toBe(
         "Helping hands",

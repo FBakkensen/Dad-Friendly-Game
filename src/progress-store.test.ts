@@ -423,7 +423,7 @@ describe("helpers mining live", () => {
       now: () => clock,
     });
     progress.applyMutation(() => ({
-      remaining: 500,
+      remaining: MOUNTAIN_STONES - 500,
       pocket: 0,
       helpers: 3,
       carts: 0,
@@ -441,7 +441,7 @@ describe("helpers mining live", () => {
     progress.flush();
     expect(readSessionSave({ storage })).toEqual({
       mountain: {
-        remaining: 494,
+        remaining: MOUNTAIN_STONES - 506,
         pocket: 6,
         helpers: 3,
         carts: 0,
@@ -450,7 +450,7 @@ describe("helpers mining live", () => {
         machines: 0,
         kids: 0,
         materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-        recipes: recipesForMined(MOUNTAIN_STONES - 494),
+        recipes: recipesForMined(506),
       },
       lastSeen: 3_000,
     });

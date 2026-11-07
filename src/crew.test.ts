@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buyCrew, staffExisting, tierLock, tierLocked } from "./crew";
-import type { Mountain } from "./mountain";
+import { createMountain, type Mountain } from "./mountain";
+import { shownStones } from "./scale";
 import { effectiveRates } from "./rates";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { tierById } from "./tiers";
@@ -25,7 +26,7 @@ describe("crew unlocks", () => {
     expect(tierLock(minedMountain(25_000_000), machine)).toEqual({
       kind: "depth",
       depth: 120_000_000,
-      at: 120_000_000,
+      at: shownStones(createMountain(), 120_000_000),
     });
     expect(tierLocked(nearHammer, tierById("borer"))).toBe(false);
   });
@@ -76,7 +77,7 @@ describe("crew unlocks", () => {
     expect(tierLock(deep, tierById("machine"))).toEqual({
       kind: "depth",
       depth: 120_000_000,
-      at: 120_000_000,
+      at: shownStones(createMountain(), 120_000_000),
     });
     expect(tierLock(deep, tierById("helper"))).toBeUndefined();
     // An older save that already owns a borer keeps buying them.

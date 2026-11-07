@@ -28,7 +28,12 @@ import {
 } from "./workshop";
 
 /** Mountain numbers live here; tier numbers in src/tiers.ts. See docs/DESIGN.md. */
-import { MOUNTAIN_STONES, minedOut, stonesLeft, stretch } from "./scale";
+import {
+  MOUNTAIN_STONES,
+  depthAfterStones,
+  minedOut,
+  stonesLeft,
+} from "./scale";
 
 export { MOUNTAIN_STONES };
 /** Base away cap; the Shield of Protection relic will lift it. */
@@ -177,9 +182,10 @@ export function mineByHand(
 /** Stones leave the mountain, and the band they came from drops its material. */
 export function digStones(mountain: Mountain, mined: number): Mountain {
   const before = minedOut(mountain);
-  const depth = mined / stretch(mountain);
   const remaining =
-    mined >= stonesLeft(mountain) ? 0 : mountain.remaining - depth;
+    mined >= stonesLeft(mountain)
+      ? 0
+      : MOUNTAIN_STONES - depthAfterStones(mountain, mined);
   return {
     ...mountain,
     remaining,
@@ -334,10 +340,7 @@ export function accrueAway({
       paidMs,
       capped,
       heart,
-      materials: materialsGained(
-        minedOut(mountain),
-        minedOut(mountain) + walked.mined,
-      ),
+      materials: materialsGained(minedOut(mountain), minedOut(walked.mountain)),
     },
   };
 }

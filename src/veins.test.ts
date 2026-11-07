@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_MATERIALS, materialsFromMined } from "./layers";
+import { BAND_SCALE } from "./scale";
 import {
   MOUNTAIN_STONES,
   accrue,
@@ -91,7 +92,7 @@ describe("golden veins", () => {
     ).toBe(180);
     expect(
       veinReward({
-        remaining: 20,
+        remaining: 1,
         pocket: 0,
         helpers: 3,
         carts: 0,
@@ -100,10 +101,10 @@ describe("golden veins", () => {
         machines: 0,
         kids: 0,
       }),
-    ).toBe(20);
+    ).toBe(BAND_SCALE[3]);
     expect(
       mineVein({
-        remaining: 1_000,
+        remaining: MOUNTAIN_STONES - 1_000,
         pocket: 7,
         helpers: 3,
         carts: 0,
@@ -113,7 +114,7 @@ describe("golden veins", () => {
         kids: 0,
       }),
     ).toEqual({
-      remaining: 820,
+      remaining: MOUNTAIN_STONES - 1_180,
       pocket: 187,
       helpers: 3,
       carts: 0,

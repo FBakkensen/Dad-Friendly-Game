@@ -51,7 +51,7 @@ describe("Strong arms (tap power)", () => {
     expect(tapped.remaining).toBe(crew.remaining - 25);
     // A tap never digs past the bottom.
     expect(
-      mineByHand({ ...crew, remaining: 5, upgrades: { tap: 3 } }).remaining,
+      mineByHand({ ...crew, remaining: 0.5, upgrades: { tap: 3 } }).remaining,
     ).toBe(0);
   });
 
