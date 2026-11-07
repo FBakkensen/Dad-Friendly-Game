@@ -63,6 +63,12 @@ describe("grandpa (#338)", () => {
     expect(grandpaPost({ ...many, legacy: 0 })).toBeUndefined();
   });
 
+  it("takes the higher tier when two groups put out the same (#356)", () => {
+    // Six carts at 6/s and one drill at 36/s: a tie goes to the drill.
+    const tie = { ...kidRun, helpers: 7, carts: 6, drills: 1 };
+    expect(grandpaPost(tie)).toBe("drill");
+  });
+
   it("a first borer never lowers the crew's income (#356)", () => {
     const drills = { ...kidRun, helpers: 400, drills: 60 };
     const bought = { ...drills, borers: 1 };

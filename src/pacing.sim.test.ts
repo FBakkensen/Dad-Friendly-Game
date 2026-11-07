@@ -204,6 +204,7 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
     );
     const machine = run.buys.find((buy) => buy.id === "machine");
     expect(machine?.short).toBeGreaterThan(0);
+    // Was < 0.05: on the ×1.08 worker curve (#356) the first machine comes five hands short, 5.6M on 40.2M (0.139).
     expect((machine?.shortCost ?? 0) / (machine?.price ?? 1)).toBeLessThan(
       0.15,
     );
