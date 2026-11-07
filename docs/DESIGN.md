@@ -320,7 +320,7 @@ One PR each, in order; the list with acceptance criteria is in the M7 PR descrip
 
 #### Pacing
 
-Decision quality comes first. A moment should offer more than one live buy, a dead stretch stays under half a day, and one move should not be the right buy for most of a casual run or the optimizer's. Finish days come second. Every casual dad finishes in 5–7 days, and never under 5. That is `casual-2x10`, the evening dad, and the checker, the same bound. Five minutes a day finishes within about 14 days. `tap-only` stays in the report and has no finish target: one stone a tap does not empty the mountain. An extreme may finish later. It may not finish much sooner than the casual dad (at most 15%). The optimizer may finish sooner than a casual dad, and not by more than a quarter.
+Decision quality comes first. A moment should offer more than one live buy, a dead stretch stays under half a day, and one move should not be the right buy for most of a casual run or the optimizer's. Finish days come second, and since 7 Nov 2026 they are reported, not limits: the game is endless, and each pass to the kid makes the next run harder (the generations lab keeps every kid run longer than the last, strict). `casual-finish` and `thin-habit-finish` stay in the report as report-only rows. Before that: every casual dad finished in 5–7 days, and never under 5. That is `casual-2x10`, the evening dad, and the checker, the same bound. Five minutes a day finishes within about 14 days. `tap-only` stays in the report and has no finish target: one stone a tap does not empty the mountain. An extreme may finish later. It may not finish much sooner than the casual dad (at most 15%). The optimizer may finish sooner than a casual dad, and not by more than a quarter.
 
 Each tap is one stone until an upgrade says otherwise. A single absence longer than half a day, before the Shield, pays 16 hours instead of 8, so one 20-minute evening stays within a quarter of the optimizer. Two shorter gaps in a day stay on the 8-hour cap. `liveMedian` after the first hour grades casual player types and the optimizer, the same population as single share and dominant share. The payback dead stretch is strict for casual player types. The optimizer's save for the borer and the Great Machine is still about half a day and is reported, not a failing guardrail: a real purchase in that window also moves the pinned pacing days or the casual wait. Workers-only, machines-only, never-workers, and tap-only may finish late: no finish target names them, and extreme win only limits finishing sooner.
 
@@ -343,7 +343,7 @@ Approved:
 
 - `LIVE_RATIO = 1.5`. A live option pays back within 1.5× of the best.
 - Longest dead stretch at most 0.5 day, for casual player types. The optimizer's wait is reported and does not fail the build.
-- `five-min-a-day` finishes within about 14 days. `tap-only` has no finish target.
+- `five-min-a-day` finishes within about 14 days. Report only since 7 Nov 2026 (the run length is not a limit). `tap-only` has no finish target.
 - `liveMedian` at least 2 after the first hour, for casual player types and the optimizer.
 
 The same file holds the horizon `H` (default 6 hours, passed into `valueOf`), the sample interval (one minute of play, plus the start of each session), the dead-stretch definition, and one typed entry per guardrail: `{ id, measure, scope, op, value, why }`. Each entry has a one-line `why`. `measure` is a registered measure id. `scope` says which runs the bound covers. `op` and `value` are the comparison.

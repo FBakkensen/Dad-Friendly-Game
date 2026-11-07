@@ -9,7 +9,7 @@ From day 2 on, a short check-in usually has nothing to buy. The best buy, nearly
 - Cost curves are steep: ×2 carts, ×1.5 drills and borers, ×1.19 workers that staff everything.
 - The ladder has a hole: the first borer costs 540× the first drill.
 - Every stone spent is a stone of depth in a fixed 240M mountain.
-- The run-length targets force paybacks of 15–20 hours.
+- The old 5–7 day run window forced paybacks of 15–20 hours. That window is lifted (Decided, below).
 
 Retuning prices alone only trades long waits for weak buys (the frontier in the review).
 
@@ -26,7 +26,7 @@ Retuning prices alone only trades long waits for weak buys (the frontier in the 
 - **Every machine tier is bought all run**, not just its first dozen, and old tiers stay worth a look.
 - **The numbers feel like an idle game.** Income should grow by three or more orders of magnitude over run 1, not about two.
 - **Keep what is already promised:**
-  - casual finish within days 5–7;
+  - the run is endless: each pass to the kid makes the next run longer and harder (the generations lab, strict). Run 1's length is reported, not graded;
   - extreme win ≤ 0.17 and regret ≤ 1.25 (unless Flemming changes them in decision D5);
   - every kid run longer than the last;
   - the numbers rule (real prices and gains, never payback or "best");
@@ -101,29 +101,33 @@ These came from a research-only lab probe at 3 seeds, with temporary factor knob
 | Machines 1.15 + s = 1/3/9/27                | 5.74 / 5.54 / 5.5                    | 207–275 | 6% / 4%                             | 6.0 / 3.7                             | 85% / 66%                            | Borer dies (3 per run); the Great Machine takes 77% of spend           |
 | Machines 1.15 + s = 1/3/9/27 + workers 1.08 | 4.25 / 3.87 / 4.5                    | 294–368 | 10% / 8%                            | 16.9 / 11.7                           | 100% / 97%                           | Every tier bought (11–16 borers, 44–54 drills); income ~100/s → 184K/s |
 
-The third row is the shape to build from. Its runs are about a day too short, so S2 starts by raising s (for example 1/4/16/64) and re-anchoring first prices until the casual finish is back in 5–7. Its buys per sitting are too many to tap, hence D.
+The third row is the shape to build from. Its run 1 ends after about 4–4.5 days, and that is fine: the run length is not a limit. S2 therefore tunes s and the first prices by feel, not by finish day: the four check-in rows, every tier bought, income growing by three or more orders of magnitude, and each kid run longer than the last. Its buys per sitting are too many to tap, hence D.
 
 ## Slivers
 
 Each sliver is one issue, one sitting and one PR, in this order:
 
-| #   | Sliver                                                                              | Depends on | Done when                                                                                                                                                                                                                            |
-| --- | ----------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| S1  | Lab check-in measures and the two-minute check-in dad                               | (none)     | **Built** with this spec: four report-only guardrails, `checkin-4x2`, and the sitting log                                                                                                                                            |
-| S2  | The new curve: A and B together, with first prices re-anchored by the lab           | S1         | The four check-in rows pass at 20 seeds for every casual type. Every existing strict row and the generations lab pass. The field log cap is raised and the rules test passes. Docs (DESIGN, ARCHITECTURE, design-intent) are updated |
-| S3  | Milestones on every tier (C), then the check-in rows go strict                      | S2         | The four rows are strict and green. Every machine tier is bought at least 5 times per run (report row). Copy is approved                                                                                                             |
-| S4  | Buy ×10 / Max on buy cards (D)                                                      | S2         | A two-minute check-in needs at most about 5 taps to spend a normal return. The phone layout still never scrolls. Verified with `npm run play`                                                                                        |
-| S5  | Ladder machine, only if E's trigger fires after S3                                  | S3         | The trigger measure passes in every band. Art is from PixelLab after asking. The count is stored in the workshop map                                                                                                                 |
-| S6  | A live-play lever (a strong short boost, Frenzy-style) and the extreme-win decision | S3         | Its own short spec. It is out of scope here                                                                                                                                                                                          |
+| #   | Sliver                                                                              | Depends on | Done when                                                                                                                                                                                                                                                                        |
+| --- | ----------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S1  | Lab check-in measures and the two-minute check-in dad                               | (none)     | **Built** with this spec: four report-only guardrails, `checkin-4x2`, and the sitting log                                                                                                                                                                                        |
+| S2  | The new curve: A and B together, with first prices re-anchored by the lab           | S1         | The four check-in rows pass at 20 seeds for every casual type. Every existing strict row and the generations lab pass. Run 1's finish day is reported, not graded. The field log cap is raised and the rules test passes. Docs (DESIGN, ARCHITECTURE, design-intent) are updated |
+| S3  | Milestones on every tier (C), then the check-in rows go strict                      | S2         | The four rows are strict and green. Every machine tier is bought at least 5 times per run (report row). Copy is approved                                                                                                                                                         |
+| S4  | Buy ×10 / Max on buy cards (D)                                                      | S2         | A two-minute check-in needs at most about 5 taps to spend a normal return. The phone layout still never scrolls. Verified with `npm run play`                                                                                                                                    |
+| S5  | Ladder machine, only if E's trigger fires after S3                                  | S3         | The trigger measure passes in every band. Art is from PixelLab after asking. The count is stored in the workshop map                                                                                                                                                             |
+| S6  | A live-play lever (a strong short boost, Frenzy-style) and the extreme-win decision | S3         | Its own short spec. It is out of scope here                                                                                                                                                                                                                                      |
 
-S2 is the big one. A alone shortens the run to about 3 days, and B alone does nothing for dead tiers, so they ship together. The probes show the two compensate for each other.
+S2 is the big one. A alone still misses the check-in rows (28% of check-ins buy nothing) and keeps income within about two orders of magnitude, because a fixed mountain caps the whole run's spending. B alone does nothing for dead tiers. So they ship together, and the probes show they work together.
 
-## Decisions for Flemming
+## Decided
+
+- **The run length is not a limit (Flemming, 7 Nov 2026).** "The run is endless, with each pass to the kid being harder." `casual-finish` (days 5–7) and `thin-habit-finish` (14 days) are report-only rows from now on. The kid-run rule stays strict: every run finishes later than the one before, with every machine bought. The pacing tests that pin a finish day are regression pins: S2 re-pins them and does not treat them as limits.
+
+## Open decisions for Flemming
 
 Each decision has a recommendation.
 
 1. **D1: the curve band.** Machines at about 1.15 and workers at about 1.08, with the exact values picked by the lab. _Recommended: yes._ The alternative is stepped prices like Antimatter Dimensions (a jump every 10 units, each with ×2 output), which suits few units per tier but is a bigger UI change.
-2. **D2: depth scale per band.** Start from s = 1/4/16/64 and let the lab settle it. _Recommended: yes._ The alternative is a bigger mountain with every price scaled up, which keeps today's flat ratios and so keeps the problem.
+2. **D2: depth scale per band.** Start from the probe's s = 1/3/9/27 and let the lab settle it by feel. _Recommended: yes._ The alternative is a bigger mountain with every price scaled up, which keeps today's flat ratios and so keeps the problem.
 3. **D3: the run in progress.**
    - (a) The new numbers apply from the next pass to the kid only.
    - (b) They apply at once: the save is just numbers, but the rest of today's run gets longer in stones and cheaper in machines.

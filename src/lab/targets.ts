@@ -125,7 +125,9 @@ type TargetBase = {
   readonly why: string;
   /**
    * A miss is still in the report. It does not fail `LAB_STRICT`.
-   * The check-in pacing rows set it until the economy overhaul lands.
+   * The finish-day rows set it for good: the run length is not a limit
+   * (Flemming, 7 Nov 2026). The check-in pacing rows set it until the
+   * economy overhaul lands.
    */
   readonly reportOnly?: boolean;
 };
@@ -198,6 +200,10 @@ export const TARGETS: readonly Target[] = [
     op: "between",
     value: [5, 7],
     why: "Every casual dad finishes inside a quiet week, and not before day five.",
+    // Flemming, 7 Nov 2026: the run length is not a limit. The game is
+    // endless, and each pass to the kid is harder (the generations lab
+    // keeps that strict). Reported so a retune can still see the day.
+    reportOnly: true,
   },
   {
     id: "thin-habit-finish",
@@ -206,6 +212,8 @@ export const TARGETS: readonly Target[] = [
     op: "lte",
     value: 14,
     why: "Five minutes a day still finishes inside two weeks.",
+    // Report only for the same reason as casual-finish (7 Nov 2026).
+    reportOnly: true,
   },
   {
     id: "extreme-win",
