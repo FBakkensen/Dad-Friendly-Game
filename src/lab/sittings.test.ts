@@ -4,6 +4,7 @@ import {
   createSittingLog,
   longestBestWait,
   medianBuys,
+  sittingsOf,
   zeroBuyShare,
   type SittingEvent,
   type SittingOpen,
@@ -56,7 +57,7 @@ describe("createSittingLog", () => {
     expect(log.flush()).toEqual([]);
   });
 
-  it("does not count a promotion that leaves the owned count lower", () => {
+  it("counts only rises in the owned count", () => {
     const log = createSittingLog();
     const open = (): SittingOpen => AFFORDABLE;
     log.observe({ clock: 1000, owned: 5, open });
@@ -65,6 +66,21 @@ describe("createSittingLog", () => {
     expect(log.flush()).toEqual([
       { sitting: 0, openedAtMs: 1000, buys: 2, open: AFFORDABLE },
     ]);
+  });
+});
+
+describe("sittingsOf", () => {
+  it("keeps only sittings that opened inside the sample window", () => {
+    // A sitting closes at the next open, so it rides on a later sample. A
+    // scope that starts at hour 24 must not count the last day-one sitting.
+    const early = sitting(3, 8);
+    const late = sitting(4, 0, WAITING);
+    const window = [
+      { atMs: 4000, sittings: [early] },
+      { atMs: 5000, sittings: [late] },
+    ];
+    expect(sittingsOf(window)).toEqual([late]);
+    expect(sittingsOf([])).toEqual([]);
   });
 });
 

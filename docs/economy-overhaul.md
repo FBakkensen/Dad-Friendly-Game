@@ -1,10 +1,10 @@
-# Economy overhaul: design spec (Nov 7, 2026)
+# Economy overhaul: design spec (7 Nov 2026)
 
 Status: draft for Flemming. This spec covers several slivers. It ships on its own, and each later sitting plans and builds one sliver from it (`.claude/rules/superpowers.md`). The evidence is in `docs/balance-review.md`. The lab measures that grade it are described in `docs/DESIGN.md`, "Check-in pacing".
 
 ## The problem in one paragraph
 
-From day 2 on, a short check-in usually has nothing to buy. The best buy, nearly always the next borer or Great Machine, is several sittings away, and the cheaper buttons are scenery. The lab now measures this. At 3 seeds on main, the two-minute check-in dad buys nothing in 46% of his sittings after day 1, and the checker in 53%. Their median buys per sitting are 0.67 and 0.17. The checker opens with the best buy in reach only 29% of the time, and waits up to 5.7 sittings in a row. The causes are structural:
+From day 2 on, a short check-in usually has nothing to buy. The best buy, nearly always the next borer or Great Machine, is several sittings away, and the cheaper buttons are scenery. The lab now measures this. At 3 seeds on main, the two-minute check-in dad buys nothing in 42% of his sittings after day 1, and the checker in 49%. Their median buys per sitting are 0.83 and 0.5. The checker opens with the best buy in reach only 30% of the time, and waits up to 5.7 sittings in a row. Even the casual two-sitting dad buys a median of one thing per sitting. The causes are structural:
 
 - Cost curves are steep: ×2 carts, ×1.5 drills and borers, ×1.19 workers that staff everything.
 - The ladder has a hole: the first borer costs 540× the first drill.
@@ -93,7 +93,7 @@ Retuning prices alone only trades long waits for weak buys (the frontier in the 
 
 ## Probes so far
 
-These came from a research-only lab probe at 3 seeds, with temporary factor knobs that were reverted. Band crossings in a haul were charged at the shallower band's scale, an approximation that sliver S2 must make exact. "Best affordable" is the share of sittings opening with the best tier buy in reach.
+These came from a research-only lab probe at 3 seeds, with temporary factor knobs that were reverted. Band crossings in a haul were charged at the shallower band's scale, an approximation that sliver S2 must make exact. "Best affordable" is the share of sittings opening with the best tier buy in reach. The probe counted tier buys only and gives a mean per sitting, so its "Main" row differs from the lab numbers in the problem paragraph, which use the Buys sheet and a median.
 
 | Variant (3 seeds)                           | Finish (check-in / checker / casual) | Buys    | 0-buy sittings (check-in / checker) | Buys per sitting (check-in / checker) | Best affordable (check-in / checker) | Notes                                                                  |
 | ------------------------------------------- | ------------------------------------ | ------- | ----------------------------------- | ------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------- |
@@ -105,16 +105,16 @@ The third row is the shape to build from. Its run 1 ends after about 4–4.5 day
 
 ## Slivers
 
-Each sliver is one issue, one sitting and one PR, in this order:
+Each sliver is one issue (under #354), one sitting and one PR, in this order:
 
-| #   | Sliver                                                                              | Depends on | Done when                                                                                                                                                                                                                                                                        |
-| --- | ----------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S1  | Lab check-in measures and the two-minute check-in dad                               | (none)     | **Built** with this spec: four report-only guardrails, `checkin-4x2`, and the sitting log                                                                                                                                                                                        |
-| S2  | The new curve: A and B together, with first prices re-anchored by the lab           | S1         | The four check-in rows pass at 20 seeds for every casual type. Every existing strict row and the generations lab pass. Run 1's finish day is reported, not graded. The field log cap is raised and the rules test passes. Docs (DESIGN, ARCHITECTURE, design-intent) are updated |
-| S3  | Milestones on every tier (C), then the check-in rows go strict                      | S2         | The four rows are strict and green. Every machine tier is bought at least 5 times per run (report row). Copy is approved                                                                                                                                                         |
-| S4  | Buy ×10 / Max on buy cards (D)                                                      | S2         | A two-minute check-in needs at most about 5 taps to spend a normal return. The phone layout still never scrolls. Verified with `npm run play`                                                                                                                                    |
-| S5  | Ladder machine, only if E's trigger fires after S3                                  | S3         | The trigger measure passes in every band. Art is from PixelLab after asking. The count is stored in the workshop map                                                                                                                                                             |
-| S6  | A live-play lever (a strong short boost, Frenzy-style) and the extreme-win decision | S3         | Its own short spec. It is out of scope here                                                                                                                                                                                                                                      |
+| #         | Sliver                                                                              | Depends on | Done when                                                                                                                                                                                                                                                                        |
+| --------- | ----------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S1 (#355) | Lab check-in measures and the two-minute check-in dad                               | (none)     | **Built** with this spec: four report-only guardrails, `checkin-4x2`, and the sitting log                                                                                                                                                                                        |
+| S2 (#356) | The new curve: A and B together, with first prices re-anchored by the lab           | S1         | The four check-in rows pass at 20 seeds for every casual type. Every existing strict row and the generations lab pass. Run 1's finish day is reported, not graded. The field log cap is raised and the rules test passes. Docs (DESIGN, ARCHITECTURE, design-intent) are updated |
+| S3 (#357) | Milestones on every tier (C), then the check-in rows go strict                      | S2         | The four rows are strict and green. Every machine tier is bought at least 5 times per run (report row). Copy is approved                                                                                                                                                         |
+| S4 (#358) | Buy ×10 / Max on buy cards (D)                                                      | S2         | A two-minute check-in needs at most about 5 taps to spend a normal return. The phone layout still never scrolls. Verified with `npm run play`                                                                                                                                    |
+| S5 (#359) | Ladder machine, only if E's trigger fires after S3                                  | S3         | The trigger measure passes in every band. Art is from PixelLab after asking. The count is stored in the workshop map                                                                                                                                                             |
+| S6 (#360) | A live-play lever (a strong short boost, Frenzy-style) and the extreme-win decision | S3         | Its own short spec. It is out of scope here                                                                                                                                                                                                                                      |
 
 S2 is the big one. A alone still misses the check-in rows (28% of check-ins buy nothing) and keeps income within about two orders of magnitude, because a fixed mountain caps the whole run's spending. B alone does nothing for dead tiers. So they ship together, and the probes show they work together.
 
@@ -126,7 +126,7 @@ S2 is the big one. A alone still misses the check-in rows (28% of check-ins buy 
 
 ## Open decisions for Flemming
 
-Each decision has a recommendation.
+Each decision has a recommendation. D3 (the run in progress) is decided above.
 
 1. **D1: the curve band.** Machines at about 1.15 and workers at about 1.08, with the exact values picked by the lab. _Recommended: yes._ The alternative is stepped prices like Antimatter Dimensions (a jump every 10 units, each with ×2 output), which suits few units per tier but is a bigger UI change.
 2. **D2: depth scale per band.** Start from the probe's s = 1/3/9/27 and let the lab settle it by feel. _Recommended: yes._ The alternative is a bigger mountain with every price scaled up, which keeps today's flat ratios and so keeps the problem.

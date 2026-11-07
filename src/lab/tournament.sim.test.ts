@@ -93,6 +93,9 @@ describe("tournament", () => {
     // Day one is a shopping spree: every check-in buys, many things each.
     expect(cell("zeroBuySittings")).toBe(0);
     expect(cell("buysPerSitting")).toBeGreaterThanOrEqual(5);
-    expect(cell("bestOpenShare")).toEqual(expect.any(Number));
+    const open = cell("bestOpenShare");
+    expect(open).not.toBeNaN();
+    expect(open).toBeGreaterThanOrEqual(0);
+    expect(open).toBeLessThanOrEqual(1);
   }, 30_000);
 });

@@ -50,7 +50,9 @@ export type SittingLog = {
 /**
  * A clock step longer than one second is time away. The observation after
  * it is the next sitting's open: away pay is in, nothing is bought yet.
- * The first sitting opens on the first observation of the run. A sitting
+ * The first sitting opens on the first observation of the run, after the
+ * first live second, so its opening view and buys miss that second. Scoped
+ * rows start after day one and are not affected. A sitting
  * that is only an open (the run ended after the last gap) is dropped.
  */
 export function createSittingLog(): SittingLog {
@@ -104,12 +106,25 @@ export function createSittingLog(): SittingLog {
   };
 }
 
-/** Every sitting event riding on these samples, in order. */
+/**
+ * Every sitting that opened inside this window of samples, in order. A
+ * sitting closes at the next open, so its event rides on a later sample:
+ * a scope that starts at hour 24 would otherwise count the last sitting
+ * of day one.
+ */
 export function sittingsOf(
-  samples: readonly { readonly sittings?: readonly SittingEvent[] }[],
+  samples: readonly {
+    readonly atMs: number;
+    readonly sittings?: readonly SittingEvent[];
+  }[],
 ): readonly SittingEvent[] {
+  let from = Number.POSITIVE_INFINITY;
+  for (const sample of samples) {
+    from = Math.min(from, sample.atMs);
+  }
   return samples
     .flatMap((sample) => sample.sittings ?? [])
+    .filter((event) => event.openedAtMs >= from)
     .sort((left, right) => left.sitting - right.sitting);
 }
 

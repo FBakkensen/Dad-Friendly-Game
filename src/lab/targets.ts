@@ -287,8 +287,8 @@ export const TARGETS: readonly Target[] = [
   },
   // Check-in pacing (balance review, docs/balance-review.md). Report only
   // until the economy overhaul in docs/economy-overhaul.md lands: today's
-  // economy misses them, which is the point. The re-curve sliver makes
-  // them strict.
+  // economy misses them, which is the point. They turn strict with the
+  // milestones sliver (S3, #357), after the new curve (#356).
   {
     id: "zero-buy-sittings",
     measure: "zeroBuySittings",
