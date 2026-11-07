@@ -3,6 +3,9 @@ import { tierLocked } from "./crew";
 import { minedMountain } from "./test-fixtures";
 import { accrue, accrueAway, stonesPerSecond, type Mountain } from "./mountain";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
+import { MOUNTAIN_STONES, stonesLeft } from "./scale";
+import { parseSaveValue, serializeSave } from "./persist";
+import { withFactors } from "./economy/factors";
 import { TIERS, buyTier, tierById, tierCost, tierShown } from "./tiers";
 
 const at = (
@@ -49,22 +52,21 @@ describe("tiers", () => {
     }
   });
 
-  it("carts double, later machines climb gently, helpers gentler still", () => {
+  it("machines climb x1.15 a unit, helpers x1.08", () => {
     expect(
       [0, 1, 2, 3, 10, 50].map((n) => tierCost(tierById("helper"), n)),
-    ).toEqual([20, 24, 29, 34, 112, 107_823]);
+    ).toEqual([20, 22, 24, 26, 44, 939]);
     expect([0, 1, 2].map((n) => tierCost(tierById("cart"), n))).toEqual([
-      100, 200, 400,
+      100, 115, 133,
     ]);
     expect([0, 1].map((n) => tierCost(tierById("machine"), n))).toEqual([
-      40_200_000, 56_280_000,
+      40_200_000, 46_230_000,
     ]);
     expect([0, 1, 2].map((n) => tierCost(tierById("drill"), n))).toEqual([
-      14_000, 21_000, 31_500,
+      14_000, 16_100, 18_515,
     ]);
-    // #177: borers climb at ×1.5 so a second and third stay buyable.
     expect([0, 1, 2].map((n) => tierCost(tierById("borer"), n))).toEqual([
-      7_600_000, 11_400_000, 17_100_000,
+      7_600_000, 8_740_000, 10_051_000,
     ]);
   });
 
@@ -73,7 +75,7 @@ describe("tiers", () => {
     expect(buyTier(poor, "cart")).toBe(poor);
     const one = buyTier(at({ pocket: 350 }), "cart");
     expect(one).toEqual(at({ pocket: 250, carts: 1 }));
-    expect(buyTier(one, "cart")).toEqual(at({ pocket: 50, carts: 2 }));
+    expect(buyTier(one, "cart")).toEqual(at({ pocket: 135, carts: 2 }));
     expect(buyTier(at({ pocket: 25 }), "helper")).toEqual(
       at({ pocket: 5, helpers: 1 }),
     );
@@ -173,7 +175,7 @@ describe("Crown of Wisdom: kid helpers", () => {
     expect(tierLocked(minedMountain(70_000_000), kid)).toBe(false);
     // #327: cheap enough, and quick enough, that a kid pays back in hours.
     expect(tierCost(kid, 0)).toBe(250_000);
-    expect(tierCost(kid, 1)).toBe(296_875);
+    expect(tierCost(kid, 1)).toBe(270_000);
   });
 
   it("mine, staff machines, and make every helper and kid 2% faster each", () => {
@@ -188,5 +190,54 @@ describe("Crown of Wisdom: kid helpers", () => {
     expect(rates.crewPerSecond).toBe(
       Math.floor(10 * 1.1 + 5 * 27.5 + 6 + 36 + 357),
     );
+  });
+});
+
+describe("gentler cost curves (#356)", () => {
+  const ceil12 = (n: number) => Math.ceil(Number(n.toPrecision(12)));
+
+  it("machines climb x1.15 a unit", () => {
+    expect(tierCost(tierById("cart"), 13)).toBe(ceil12(100 * 1.15 ** 13));
+    expect(tierCost(tierById("cart"), 13)).toBe(616);
+    expect(tierCost(tierById("drill"), 11)).toBe(ceil12(14_000 * 1.15 ** 11));
+    expect(tierCost(tierById("borer"), 3)).toBe(ceil12(7_600_000 * 1.15 ** 3));
+    expect(tierCost(tierById("machine"), 2)).toBe(
+      ceil12(40_200_000 * 1.15 ** 2),
+    );
+  });
+
+  it("workers and kids climb x1.08 a unit", () => {
+    expect(tierCost(tierById("helper"), 32)).toBe(ceil12(20 * 1.08 ** 32));
+    expect(tierCost(tierById("kid"), 5)).toBe(ceil12(250_000 * 1.08 ** 5));
+  });
+
+  it("the sweep growth factors still multiply", () => {
+    withFactors({ "growth.machine": 2 }, () => {
+      expect(tierCost(tierById("cart"), 3)).toBe(ceil12(100 * 2.3 ** 3));
+    });
+    withFactors({ "growth.worker": 2 }, () => {
+      expect(tierCost(tierById("helper"), 3)).toBe(ceil12(20 * 2.16 ** 3));
+    });
+  });
+
+  it("an old crew still prices every machine and the mountain is not smaller", () => {
+    const old = {
+      ...at({ helpers: 32, carts: 13, drills: 11, borers: 0 }),
+      remaining: MOUNTAIN_STONES - 12_000_000,
+    };
+    const loaded = parseSaveValue(
+      serializeSave({ mountain: old, lastSeen: 1 }),
+    );
+    if (loaded === undefined) {
+      throw new Error("the old crew did not load");
+    }
+    const m = loaded.mountain;
+    for (const id of ["cart", "drill", "borer"] as const) {
+      const t = tierById(id);
+      const cost = tierCost(t, m[t.field]);
+      expect(Number.isFinite(cost)).toBe(true);
+      expect(cost).toBeGreaterThan(0);
+    }
+    expect(stonesLeft(m)).toBeGreaterThan(MOUNTAIN_STONES - 12_000_000);
   });
 });

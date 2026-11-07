@@ -26,12 +26,12 @@ const posted = {
 describe("economy factors", () => {
   it("stays at 1 outside a sweep, and a sweep of 1 matches today's prices", () => {
     expect(factor("price.cart")).toBe(1);
-    expect(tierCost(tierById("helper"), 1)).toBe(24);
-    expect(tierCost(tierById("cart"), 2)).toBe(400);
+    expect(tierCost(tierById("helper"), 1)).toBe(22);
+    expect(tierCost(tierById("cart"), 2)).toBe(133);
     withFactors({ "price.helper": 1, "growth.worker": 1 }, () => {
-      expect(tierCost(tierById("helper"), 1)).toBe(24);
+      expect(tierCost(tierById("helper"), 1)).toBe(22);
     });
-    expect(tierCost(tierById("helper"), 1)).toBe(24);
+    expect(tierCost(tierById("helper"), 1)).toBe(22);
   });
 
   it("treats an empty sweep as no sweep, even inside another", () => {
@@ -62,9 +62,9 @@ describe("economy factors", () => {
   });
 
   it("scales growth, output, and tending, and restores them after a throw", () => {
-    expect(tierCost(tierById("cart"), 1)).toBe(200);
+    expect(tierCost(tierById("cart"), 1)).toBe(115);
     withFactors({ "growth.machine": 2 }, () => {
-      expect(tierCost(tierById("cart"), 1)).toBe(400);
+      expect(tierCost(tierById("cart"), 1)).toBe(230);
     });
     expect(effectiveRates(posted).tierSpeed.borer).toBeCloseTo(
       357 * 0.8 * 1.21875,

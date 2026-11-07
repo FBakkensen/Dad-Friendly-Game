@@ -532,11 +532,11 @@ describe("crew tiers on screen", () => {
       );
       expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Worker");
       expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×1");
-      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("24");
+      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("22");
       expect(hire.disabled).toBe(true);
       expect(cart.hidden).toBe(false);
       expect(hire.getAttribute("aria-label")).toBe(
-        "Buy a worker for 24 stones, mines 1 stone a second. You have 1.",
+        "Buy a worker for 22 stones, mines 1 stone a second. You have 1.",
       );
 
       await vi.advanceTimersByTimeAsync(3_000);
@@ -567,7 +567,7 @@ describe("crew tiers on screen", () => {
       expect(screen.text(".pocket")).toBe("0 stones");
       expect(screen.text('[data-tier="cart"] .tier-name')).toBe("Mine cart");
       expect(screen.text('[data-tier="cart"] .tier-count')).toBe("×1");
-      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("200");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("115");
       expect(screen.text(".crew-status")).toBe(
         "Your crew mines 7 stones a second",
       );

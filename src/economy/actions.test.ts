@@ -606,7 +606,7 @@ describe("valueOf", () => {
     const idle: Mountain = { ...fresh, carts: 1 };
     const value = score(idle, { kind: "buyTier", id: "cart" }, HORIZON);
     expect(value.gainPerSec).toBe(6);
-    expect(value.cost).toBe(220);
+    expect(value.cost).toBe(135);
   });
 
   it("uses the crew delta for every listed upgrade", () => {

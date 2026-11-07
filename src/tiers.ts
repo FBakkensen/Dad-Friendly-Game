@@ -4,13 +4,10 @@ import type { Mountain } from "./mountain";
 import type { RelicId } from "./relics";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
-const COST_GROWTH = 2;
-/**
- * Workers staff every machine. M7 (#140) steepens the curve from ×1.15 to
- * ×1.25 so a borer comes with a real hiring bill. Tuned by src/pacing.test.ts.
- * Kids share it.
- */
-const HELPER_COST_GROWTH = 1.1875;
+/** #356: carts, drills, borers, and the Great Machine climb ×1.15 a unit. */
+const MACHINE_COST_GROWTH = 1.15;
+/** #356: workers climb ×1.08 a unit, and kids share the curve. */
+const HELPER_COST_GROWTH = 1.08;
 /**
  * Kids follow the workers' curve from a late-game price. #327: cheap and
  * quick enough (25/s) that one pays back in hours, not days.
@@ -124,31 +121,12 @@ export function owned(mountain: Mountain, tier: Tier): number {
   return mountain[tier.field];
 }
 
-/**
- * Borers climb at ×1.5 so the second and third stay in reach on the way to
- * the Great Machine (#177). Carts, drills, and the machine still double.
- * The sweep's machine-growth knob scales every staffed curve, this one too.
- */
-const BORER_COST_GROWTH = 1.5;
-
-/**
- * M12 retune (#252): drills and the Great Machine climb more gently so an
- * older machine is still worth another one in its own band.
- */
-const TIER_COST_GROWTH: Partial<Record<TierId, number>> = {
-  drill: 1.5,
-  borer: BORER_COST_GROWTH,
-  machine: 1.4,
-};
-
-/** Cookie Clicker curve: machines double each time; helpers grow gently. */
+/** Cookie Clicker curve: machines climb ×1.15, helpers ×1.08. */
 export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
   // A sweep multiplies the sticker and the growth. Both factors are 1 in play.
   const workerCurve = tier.staff === 0;
-  const base = workerCurve
-    ? HELPER_COST_GROWTH
-    : (TIER_COST_GROWTH[tier.id] ?? COST_GROWTH);
+  const base = workerCurve ? HELPER_COST_GROWTH : MACHINE_COST_GROWTH;
   const growth =
     base * factor(workerCurve ? "growth.worker" : "growth.machine");
   const first = tier.firstCost * factor(`price.${tier.id}`) * k;
