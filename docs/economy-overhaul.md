@@ -126,6 +126,8 @@ S2 is the big one. A alone still misses the check-in rows (28% of check-ins buy 
 
 - **Fix two rules inside S2, then retune (Flemming, 7 Nov 2026).** The first tuning pass found two causes that prices cannot reach. (1) Grandpa (#338) sat on the highest running tier, so in a kid run one new borer pulled his tending off a big drill group and lowered income; no kid run then bought a borer or Great Machine. He now tends the group with the most base output. (2) Upgrades and promotions had fixed prices, tiny against the new income, so one of them was the best move for long stretches. They now scale with k × s of the band you stand in. Machine and worker prices still never scale with s.
 
+- **The lab judges each dad's own table (Flemming, 7 Nov 2026).** After the second tuning pass, `dominant-share` and `single-share` are scored on the spends each player type weighs, not on moves it never takes (promote, Cart roads). `small-reveal-wait` counts a material or recipe as used while the bench runs any craft. Bounds are unchanged. Kid-run growth may rise (1/8 → 1/4 in the probe) so each kid run stays longer than the last.
+
 ## Open decisions for Flemming
 
 Each decision has a recommendation. D3 (the run in progress) is decided above.
