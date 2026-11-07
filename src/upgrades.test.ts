@@ -1,3 +1,4 @@
+import { BAND_SCALE } from "./scale";
 import { describe, expect, it } from "vitest";
 import { accrue, accrueAway, mineByHand, stonesPerSecond } from "./mountain";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
@@ -50,9 +51,13 @@ describe("Strong arms (tap power)", () => {
     expect(tapped.pocket).toBe(25);
     expect(tapped.remaining).toBe(crew.remaining - 25);
     // A tap never digs past the bottom.
+    // One depth left in the Heart band is 27 stones; a strong tap clears it whole.
+    const last = mineByHand({ ...crew, remaining: 1, upgrades: { tap: 5 } });
     expect(
-      mineByHand({ ...crew, remaining: 5, upgrades: { tap: 3 } }).remaining,
-    ).toBe(0);
+      effectiveRates({ ...crew, upgrades: { tap: 5 } }).tapYield,
+    ).toBeGreaterThanOrEqual(BAND_SCALE[3]);
+    expect(last.remaining).toBe(0);
+    expect(last.pocket).toBe(crew.pocket + BAND_SCALE[3]);
   });
 
   it("doesn't change the crew's own speed or away pay", () => {

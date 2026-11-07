@@ -32,7 +32,7 @@ import {
   upgradeLevel,
 } from "../upgrades";
 import { MATERIAL_EVERY } from "../layers";
-import { minedOut } from "../scale";
+import { BAND_SCALE, minedOut, oneOffStretch } from "../scale";
 import {
   MAX_CRAFTED_LEVEL,
   cancelCraft,
@@ -573,11 +573,11 @@ describe("valueOf", () => {
     };
     const borer = score(bare, { kind: "buyTier", id: "borer" }, HORIZON);
     expect(borer.gainPerSec).toBeCloseTo(392.7, 8);
-    expect(borer.cost).toBeGreaterThan(7_600_000);
+    expect(borer.cost).toBeGreaterThan(4_940_000);
     const staffed: Mountain = { ...bare, helpers: 11, pocket: 0 };
     const tended = score(staffed, { kind: "buyTier", id: "borer" }, HORIZON);
     expect(tended.gainPerSec).toBeCloseTo(392.7, 8);
-    expect(tended.cost).toBe(7_600_000);
+    expect(tended.cost).toBe(4_940_000);
     const applied = buyCrew({ ...staffed, pocket: 10_000_000 }, "borer");
     expect(crewDelta(staffed, applied)).toBe(479);
 
@@ -606,7 +606,7 @@ describe("valueOf", () => {
     const idle: Mountain = { ...fresh, carts: 1 };
     const value = score(idle, { kind: "buyTier", id: "cart" }, HORIZON);
     expect(value.gainPerSec).toBe(6);
-    expect(value.cost).toBe(220);
+    expect(value.cost).toBe(190);
   });
 
   it("uses the crew delta for every listed upgrade", () => {
@@ -618,6 +618,7 @@ describe("valueOf", () => {
         const price = upgradeCost(
           upgradeById(action.id),
           upgradeLevel(mountain, action.id),
+          oneOffStretch(mountain),
         );
         expect(price).toBeDefined();
         if (price === undefined) {
@@ -785,7 +786,8 @@ describe("valueOf", () => {
 
   it("scores promote, send, and recall from the crew before and after", () => {
     const stepUp = score(rich, { kind: "promote" }, HORIZON);
-    expect(stepUp.cost).toBe(2_000_000);
+    // 25M mined is the Granite: one-off buys cost its band scale (#356).
+    expect(stepUp.cost).toBe(2_000_000 * BAND_SCALE[1]);
     expect(stepUp.gainPerSec).toBeGreaterThan(0);
     expect(stepUp.paybackSec).toBeGreaterThan(0);
     expect(Number.isFinite(stepUp.paybackSec)).toBe(true);

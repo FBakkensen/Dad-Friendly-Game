@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+import { formatCompact, formatCount } from "./format";
+import { shownStones, stonesLeft } from "./scale";
 import { RELICS } from "./relics";
 import { writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -70,15 +72,20 @@ describe("mountMountainScreen", () => {
   it("shows a hundred million stones and mines one per tap", () => {
     const screen = mountScreen();
 
-    expect(screen.text(".stones-left")).toBe("240 million stones left");
+    expect(screen.text(".stones-left")).toBe(
+      `${formatCount(stonesLeft(createMountain()))} stones left`,
+    );
     expect(screen.text(".pocket")).toBe("0 stones");
     expect(screen.text(".goal")).toContain("Legendary Relics of Fatherhood");
     expect(screen.text(".save-status")).toBe("Sign in to save");
 
+    const whole = stonesLeft(createMountain());
     screen.mountain.click();
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe("239,999,999 of 240,000,000");
+    ).toBe(
+      `${(whole - 1).toLocaleString("en-US")} of ${whole.toLocaleString("en-US")}`,
+    );
     expect(screen.text(".pocket")).toBe("1 stone");
     expect(screen.text(".save-status")).toBe("Saved on this device");
     expect(
@@ -89,7 +96,9 @@ describe("mountMountainScreen", () => {
     expect(screen.text(".pocket")).toBe("2 stones");
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe("239,999,998 of 240,000,000");
+    ).toBe(
+      `${(whole - 2).toLocaleString("en-US")} of ${whole.toLocaleString("en-US")}`,
+    );
   });
 
   it("shows an update prompt and reloads", () => {
@@ -222,11 +231,14 @@ describe("mountMountainScreen", () => {
       }),
     );
 
+    const allStones = stonesLeft(createMountain());
     const screen = mountScreen({ storage });
     expect(screen.text(".pocket")).toBe("3 stones");
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe("239,999,997 of 240,000,000");
+    ).toBe(
+      `${(allStones - 3).toLocaleString("en-US")} of ${allStones.toLocaleString("en-US")}`,
+    );
   });
 
   it("disables the mountain once it is mined out", () => {
@@ -431,10 +443,10 @@ describe("crew tiers on screen", () => {
     expect(machine.classList.contains("tier-locked")).toBe(true);
     expect(machine.querySelector(".tier-cost")?.textContent).toBe("Locked");
     expect(machine.querySelector(".tier-rate")?.textContent).toBe(
-      "Machine · 120M",
+      `Machine · ${formatCompact(shownStones(createMountain(), 120_000_000))}`,
     );
     expect(machine.getAttribute("aria-label")).toContain(
-      "Joins your crew at 120 million stones down",
+      `Joins your crew at ${String(shownStones(createMountain(), 120_000_000) / 1_000_000)} million stones down`,
     );
     machine.click();
     expect(
@@ -520,11 +532,11 @@ describe("crew tiers on screen", () => {
       );
       expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Worker");
       expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×1");
-      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("24");
+      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("22");
       expect(hire.disabled).toBe(true);
       expect(cart.hidden).toBe(false);
       expect(hire.getAttribute("aria-label")).toBe(
-        "Buy a worker for 24 stones, mines 1 stone a second. You have 1.",
+        "Buy a worker for 22 stones, mines 1 stone a second. You have 1.",
       );
 
       await vi.advanceTimersByTimeAsync(3_000);
@@ -542,20 +554,20 @@ describe("crew tiers on screen", () => {
         SESSION_SAVE_KEY,
         JSON.stringify({
           version: 5,
-          mountain: { ...minedMountain(100), helpers: 1 },
+          mountain: { ...minedMountain(150), helpers: 1 },
           lastSeen: Date.now(),
         }),
       );
       const screen = mountScreen({ storage });
       const cart = tierCard(screen.root, "cart");
-      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("100");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("150");
       expect(cart.disabled).toBe(false);
 
       cart.click();
       expect(screen.text(".pocket")).toBe("0 stones");
       expect(screen.text('[data-tier="cart"] .tier-name')).toBe("Mine cart");
       expect(screen.text('[data-tier="cart"] .tier-count')).toBe("×1");
-      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("200");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("170");
       expect(screen.text(".crew-status")).toBe(
         "Your crew mines 7 stones a second",
       );
@@ -1111,7 +1123,9 @@ describe("start over", () => {
     expect(screen.root.querySelector<HTMLElement>(".start-over")?.hidden).toBe(
       true,
     );
-    expect(screen.text(".stones-left")).toBe("240 million stones left");
+    expect(screen.text(".stones-left")).toBe(
+      `${formatCount(stonesLeft(createMountain()))} stones left`,
+    );
     expect(screen.text(".pocket")).toBe("0 stones");
     expect(screen.text(".crew-status")).toBe(
       "No crew yet. Hire a worker to mine for you.",

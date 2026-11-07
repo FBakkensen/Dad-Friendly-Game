@@ -14,7 +14,7 @@ import liveP10 from "./measures/liveP10";
 import { longestDeadHours } from "./stretch";
 import regretMeasure from "./measures/regret";
 import { regret } from "./measures/regret";
-import { singleShareOf } from "./measures/singleShare";
+import singleShare, { singleShareOf } from "./measures/singleShare";
 import { neverBest } from "./measures/typeEverBest";
 import { discover } from "./registry";
 import { applyScope } from "./scope";
@@ -48,6 +48,7 @@ function decision(
     readonly stretchLive?: number;
     readonly stretchAffordable?: number;
     readonly stretchWait?: number;
+    readonly stretchBestId?: string;
     readonly layer?: DecisionSample["layer"];
     readonly workshopOpen?: boolean;
     readonly benchFree?: boolean;
@@ -102,14 +103,14 @@ function decision(
         liveCount: over.stretchLive ?? liveCount,
         affordableLive: over.stretchAffordable ?? affordableLive,
         waitToAffordSec: over.stretchWait ?? wait,
-        bestId,
+        bestId: over.stretchBestId ?? bestId,
       },
       value: {
         liveCount: over.valueLive ?? over.stretchLive ?? liveCount,
         affordableLive:
           over.valueAffordable ?? over.stretchAffordable ?? affordableLive,
         waitToAffordSec: over.stretchWait ?? wait,
-        bestId,
+        bestId: over.stretchBestId ?? bestId,
       },
       nextPaybackRatio: 1,
     },
@@ -176,6 +177,14 @@ describe("measures", () => {
     expect(singleShareOf([one, many])).toBe(0.5);
     expect(singleShareOf([one, many], "value")).toBe(0.5);
     expect(singleShareOf([])).toBe(0);
+  });
+
+  it("reads single options from the dad's own table, not every legal move", () => {
+    const own = decision({ liveCount: 3, stretchLive: 1, valueLive: 3 });
+    expect(singleShareOf([own])).toBe(1);
+    expect(singleShare.sample?.(own)).toBe(1);
+    const ownValue = decision({ liveCount: 1, valueLive: 3, stretchLive: 1 });
+    expect(singleShareOf([ownValue], "value")).toBe(0);
   });
 
   it("measures a wait-only stretch in hours", () => {
@@ -278,6 +287,28 @@ describe("measures", () => {
     ];
     expect(dominantShare.aggregate(samples)).toBe(0.75);
     expect(dominantShare.aggregate([decision({ atMs: 0 })])).toBe(0);
+  });
+
+  it("counts the dad's own best spend, not the best legal move", () => {
+    const hour = HOUR_MS;
+    const samples = [
+      decision({
+        atMs: hour,
+        bestId: "promote",
+        stretchBestId: "buyTier:drill",
+      }),
+      decision({
+        atMs: hour * 2,
+        bestId: "promote",
+        stretchBestId: "buyTier:cart",
+      }),
+    ];
+    expect(dominantShare.aggregate(samples)).toBe(0.5);
+    const empty = [
+      ...samples,
+      decision({ atMs: hour * 3, bestId: "promote", stretchBestId: "" }),
+    ];
+    expect(dominantShare.aggregate(empty)).toBe(0.5);
   });
 
   it("lists kinds that were offered and never best", () => {

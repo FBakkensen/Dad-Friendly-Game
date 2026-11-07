@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Engineer } from "./engineers";
 import { materialsFromMined } from "./layers";
+import { BAND_STARTS } from "./scale";
 import {
+  digStones,
   minedOut,
   MOUNTAIN_STONES,
   createMountain,
@@ -840,5 +842,19 @@ describe("save v7 rev (#223)", () => {
       parseSaveValue({ ...saved, rev: 0, deviceId: "device-dad-1234" }),
     ).toBeUndefined();
     expect(parseSaveValue({ ...saved, deviceId: "short" })).toBeUndefined();
+  });
+});
+
+describe("saved rounding in a deep band (#356)", () => {
+  it("rounds remaining up, so a reload never gains depth", () => {
+    const live = digStones(minedMountain(BAND_STARTS[3] + 1_000), 1);
+    expect(Number.isInteger(live.remaining)).toBe(false);
+    const parsed = parseSaveValue(
+      JSON.parse(
+        JSON.stringify(serializeSave({ mountain: live, lastSeen: 1 })),
+      ),
+    )?.mountain;
+    expect(parsed?.remaining).toBe(Math.ceil(live.remaining));
+    expect(minedOut(parsed ?? live)).toBeLessThanOrEqual(minedOut(live));
   });
 });

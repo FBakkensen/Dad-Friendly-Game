@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryCloudSave } from "./cloud-save";
 import { EMPTY_MATERIALS, LAYERS } from "./layers";
 import { createMountain, type Mountain } from "./mountain";
+import { formatCompact } from "./format";
+import { shownStones } from "./scale";
 import { createWelcomePanel } from "./welcome-panel";
 import { createProgressStore } from "./progress-store";
 import { minedMountain } from "./test-fixtures";
@@ -947,9 +949,11 @@ describe("sheet buys", () => {
     // A locked card says where it opens, in words (#250).
     expect(line("machine", ".tier-why")?.hidden).toBe(false);
     expect(line("machine", ".tier-why")?.textContent).toBe(
-      "The Great Machine joins your crew at 120M stones. Keep digging, Dad!",
+      `The Great Machine joins your crew at ${formatCompact(shownStones(createMountain(), 120_000_000))} stones. Keep digging, Dad!`,
     );
-    expect(line("machine", ".tier-rate")?.textContent).toBe("Machine · 120M");
+    expect(line("machine", ".tier-rate")?.textContent).toBe(
+      `Machine · ${formatCompact(shownStones(createMountain(), 120_000_000))}`,
+    );
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
     const arms = screen.root.querySelector('[data-upgrade="tap"]');
     expect(arms?.classList.contains("is-dear")).toBe(true);

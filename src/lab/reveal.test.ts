@@ -50,7 +50,7 @@ describe("createRevealLog", () => {
     expect(log(hired, 3)).toEqual([]);
   });
 
-  it("starts the borer's wait when its card opens at 7M, not at the locked preview (#250)", () => {
+  it("starts the borer's wait when its card opens at the Granite (10M), not at the locked preview (#250)", () => {
     const log = createRevealLog();
     const drilling: Mountain = {
       ...createMountain(),
@@ -61,7 +61,7 @@ describe("createRevealLog", () => {
     expect(ids(log(drilling, 0), "appeared")).not.toContain("tier:borer");
     const near = {
       ...drilling,
-      ...minedMountain(6_999_999),
+      ...minedMountain(9_999_999),
       helpers: 1,
       carts: 1,
       drills: 1,
@@ -69,7 +69,7 @@ describe("createRevealLog", () => {
     expect(ids(log(near, 10), "appeared")).not.toContain("tier:borer");
     const open = {
       ...drilling,
-      ...minedMountain(7_000_000),
+      ...minedMountain(10_000_000),
       helpers: 1,
       carts: 1,
       drills: 1,
@@ -106,6 +106,40 @@ describe("createRevealLog", () => {
         { kind: "firstUse", id: "system:promote", liveSec: 6 },
       ]),
     );
+  });
+});
+
+describe("a busy bench counts as use", () => {
+  const rich: Mountain = {
+    ...minedMountain(5_000_000),
+    pocket: 1e12,
+    materials: { clay: 1000, iron: 1000, crystal: 1000, heartstone: 1000 },
+    recipes: ["axle-grease", "blasting-charge"],
+  };
+
+  it("logs clay and the Blasting charge as used while axle grease runs", () => {
+    const log = createRevealLog();
+    const busy: Mountain = {
+      ...rich,
+      bench: { recipe: "axle-grease", startedAt: 0, endsAt: 60_000 },
+    };
+    const events = log(busy, 0);
+    expect(events).toContainEqual({
+      kind: "firstUse",
+      id: "material:clay",
+      liveSec: 0,
+    });
+    expect(events).toContainEqual({
+      kind: "firstUse",
+      id: "recipe:blasting-charge",
+      liveSec: 0,
+    });
+  });
+
+  it("keeps an idle bench unused", () => {
+    const events = createRevealLog()(rich, 0);
+    expect(ids(events, "firstUse")).not.toContain("material:clay");
+    expect(ids(events, "firstUse")).not.toContain("recipe:blasting-charge");
   });
 });
 

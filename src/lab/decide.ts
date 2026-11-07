@@ -1,4 +1,4 @@
-import { stretch } from "../scale";
+import { oneOffStretch, stretch } from "../scale";
 import type { Trouble } from "../hazards";
 import { boostById, boostCost } from "../boosts";
 import {
@@ -251,7 +251,7 @@ export function sticker(mountain: Mountain, action: Action): number {
       const price = upgradeCost(
         upgradeById(action.id),
         upgradeLevel(mountain, action.id),
-        stretch(mountain),
+        oneOffStretch(mountain),
       );
       return price ?? Number.POSITIVE_INFINITY;
     }

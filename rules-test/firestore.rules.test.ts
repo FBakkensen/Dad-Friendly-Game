@@ -27,7 +27,12 @@ import {
   MAX_ENGINEERS,
   type Engineer,
 } from "../src/engineers";
-import { APP_VERSION, EVENT_RING_LIMIT, snapshot } from "../src/field-log";
+import {
+  APP_VERSION,
+  EVENT_RING_LIMIT,
+  FIELD_STONES_CAP,
+  snapshot,
+} from "../src/field-log";
 import {
   FIND_IDS,
   MAX_EXPEDITION_MS,
@@ -714,7 +719,13 @@ const fieldLog = (
   events: readonly {
     at: string;
     code: string;
-    data: { id?: string; count?: number; endsAt?: string; source?: string };
+    data: {
+      id?: string;
+      count?: number;
+      endsAt?: string;
+      source?: string;
+      stones?: number;
+    };
   }[] = [],
 ) => ({
   snapshot: gameSnapshot(),
@@ -836,6 +847,23 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     } finally {
       await deleteApp(guestApp);
     }
+  });
+
+  it("accepts a deep-band haul past 240M and refuses one over the cap (#356)", async () => {
+    const haul = (stones: number, pocket: number) => ({
+      ...fieldLog([{ at: ISO, code: "away.report", data: { stones } }]),
+      snapshot: { ...gameSnapshot(), pocket },
+    });
+    const written = haul(1_600_000_000, 1_600_000_000);
+    await setDoc(doc(db, "fieldLogs", "dad"), written);
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
+    const over = FIELD_STONES_CAP + 1;
+    await expect(
+      setDoc(doc(db, "fieldLogs", "dad"), haul(over, 1)),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      setDoc(doc(db, "fieldLogs", "dad"), haul(1, over)),
+    ).rejects.toThrow(/permission/i);
   });
 
   it("rejects an oversize event list and an oversize string", async () => {

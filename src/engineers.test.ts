@@ -21,7 +21,15 @@ import {
   tendingTenths,
   type Engineer,
 } from "./engineers";
-import { accrue, accrueAway, createMountain, parseMountain } from "./mountain";
+import {
+  MOUNTAIN_STONES,
+  accrue,
+  accrueAway,
+  createMountain,
+  parseMountain,
+} from "./mountain";
+import { parseSaveValue, serializeSave } from "./persist";
+import { kidStretch } from "./scale";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 import { tierById } from "./tiers";
@@ -139,6 +147,45 @@ describe("promote", () => {
       helpers: 0,
     };
     expect(promote(noWorkers)).toBe(noWorkers);
+  });
+
+  // #356: k × s × 2^n is not whole on kid runs (k has a denominator of 128,
+  // the Granite adds a half), and a fractional pocket no longer parses.
+  it.each([1, 3])(
+    "prices a whole promotion in every band on kid run legacy %i, and the save still loads",
+    (legacy) => {
+      for (const depth of [2_000_000, 12_000_000, 50_000_000, 130_000_000]) {
+        for (const engineers of [[], [ada]]) {
+          const mountain = {
+            ...crew(engineers),
+            pocket: 10_000_000_000,
+            remaining: MOUNTAIN_STONES - depth,
+            legacy,
+            stretch: kidStretch(legacy),
+          };
+          const price = promoteCost(mountain);
+          expect(Number.isSafeInteger(price)).toBe(true);
+          const hired = promote(mountain);
+          expect(hired.pocket).toBe(mountain.pocket - price);
+          const parsed = parseSaveValue(
+            JSON.parse(
+              JSON.stringify(serializeSave({ mountain: hired, lastSeen: 1 })),
+            ),
+          );
+          expect(parsed?.mountain.pocket).toBe(hired.pocket);
+        }
+      }
+    },
+  );
+
+  it("rounds Nils's Granite price on run 2 up to a whole stone", () => {
+    const mountain = {
+      ...crew([ada]),
+      remaining: MOUNTAIN_STONES - 12_000_000,
+      legacy: 1,
+      stretch: kidStretch(1),
+    };
+    expect(promoteCost(mountain)).toBe(8_507_813);
   });
 });
 

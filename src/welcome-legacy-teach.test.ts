@@ -4,7 +4,7 @@ import { legacyCardWords } from "./legacy-panel";
 import { EMPTY_MATERIALS, materialsGained } from "./layers";
 import { accrueAway, createMountain, type Mountain } from "./mountain";
 import type { ProgressSnapshot } from "./progress-store";
-import { MOUNTAIN_STONES } from "./scale";
+import { MOUNTAIN_STONES, minedOut } from "./scale";
 import { AWAY_MATERIALS_USE, awayMaterialsWords } from "./screen-words";
 import { minedMountain } from "./test-fixtures";
 import { createWelcomePanel } from "./welcome-panel";
@@ -24,7 +24,7 @@ describe("welcome-back ore (#247)", () => {
     const mountain = granite();
     const result = accrueAway({ mountain, lastSeen: 0, now: 3 * 3_600_000 });
     expect(result.report.materials).toEqual(
-      materialsGained(12_000_000, 12_000_000 + result.mined),
+      materialsGained(12_000_000, minedOut(result.mountain)),
     );
     expect(result.report.materials.iron).toBeGreaterThan(0);
     expect(result.mountain.materials?.iron).toBe(

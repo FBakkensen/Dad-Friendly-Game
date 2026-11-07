@@ -64,9 +64,10 @@ function withPocket(pocket: number, extra: Partial<Mountain> = {}): Mountain {
 /** Next buys are all past `pocket`, so the second can only promote. */
 function pricedOut(pocket: number): Mountain {
   return withPocket(pocket, {
-    helpers: 80,
-    carts: 15,
-    drills: 15,
+    // Pinned on the tuned curve (#356).
+    helpers: 160,
+    carts: 80,
+    drills: 40,
     borers: 1,
     engineers: [ada],
   });
@@ -683,11 +684,12 @@ describe("crafting", () => {
       params: casual.params,
     });
     expect(waiting?.kind).toBe("buyTier");
+    // Pinned on the tuned curve (#356).
     const late = workshop({
       pocket: 0,
-      helpers: 50,
-      carts: 12,
-      drills: 6,
+      helpers: 80,
+      carts: 40,
+      drills: 30,
       borers: 0,
       machines: 1,
     });

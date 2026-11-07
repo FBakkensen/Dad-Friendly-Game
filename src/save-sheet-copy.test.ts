@@ -1,3 +1,5 @@
+import { formatCompact } from "./format";
+import { shownStones } from "./scale";
 import { describe, expect, it } from "vitest";
 import { minedMountain } from "./test-fixtures";
 import {
@@ -39,7 +41,7 @@ describe("save card lines", () => {
       now,
     );
     expect(lines).toEqual({
-      depth: "Granite, 12.4M deep",
+      depth: `Granite, ${formatCompact(shownStones(minedMountain(0), 12_400_000))} deep`,
       pocket: "1.2M stones in the pocket",
       machines: "6 carts · 4 drills · 1 borer · the Great Machine",
       crew: "28 workers · 4 engineers",

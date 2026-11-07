@@ -37,7 +37,7 @@ const CREW: readonly CrewCard[] = [
   { id: "cart", owned: 24, rate: "+15 · 367/s" },
   { id: "drill", owned: 8, rate: "+198 · 1,588/s" },
   { id: "borer", owned: 3, rate: "+505 · 1,517/s" },
-  { id: "machine", owned: 3, rate: "+3,850 · 7,700/s" },
+  { id: "machine", owned: 6, rate: "+3,850 · 7,700/s" },
   { id: "kid", owned: 4, rate: "+1.1 · 4/s" },
 ];
 

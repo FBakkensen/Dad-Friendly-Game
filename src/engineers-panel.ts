@@ -1,4 +1,4 @@
-import { stretch } from "./scale";
+import { oneOffStretch, stretch } from "./scale";
 import { setAffordGlow } from "./afford-glow";
 import { HOW_IT_WORKS, howItWorks, type HowSystem } from "./how-it-works";
 import { markSeen, markTaught, showsDot } from "./teach";
@@ -200,7 +200,7 @@ export function createEngineersPanel({
   headTools.className = "workshop-head-tools";
   headTools.append(info);
   head.append(titles, headTools);
-  let howStretch = 1;
+  let howPriced = "1:1";
   const howCards = (["engineers", "expeditions", "tending"] as const).map(
     (system) => {
       const copy = HOW_IT_WORKS[system];
@@ -788,9 +788,10 @@ export function createEngineersPanel({
   const render = (): void => {
     const view = getView();
     const current = view.mountain;
-    if (stretch(current) !== howStretch) {
-      howStretch = stretch(current);
-      const copy = howItWorks(howStretch);
+    const howKey = `${String(stretch(current))}:${String(oneOffStretch(current))}`;
+    if (howKey !== howPriced) {
+      howPriced = howKey;
+      const copy = howItWorks(stretch(current), oneOffStretch(current));
       for (const made of howCards) {
         setHowSteps(made, copy[made.dataset["how"] as HowSystem].steps);
       }

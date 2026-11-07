@@ -121,11 +121,17 @@ const boostLine =
 
 /**
  * The how-it-works copy for a run stretched by k (M13): every stone price
- * shows this run's number.
+ * shows this run's number. Upgrades and promotions also scale with the band
+ * (#356), so they take `oneOff` (oneOffStretch), the factor the buttons use.
  */
-export function howItWorks(k: number): Readonly<Record<HowSystem, HowItWorks>> {
+export function howItWorks(
+  k: number,
+  oneOff = k,
+): Readonly<Record<HowSystem, HowItWorks>> {
   const stones = (count: number): string =>
     `${formatCompact(count * k)} stones`;
+  const oneOffStones = (count: number): string =>
+    `${formatCompact(count * oneOff)} stones`;
   return {
     tapping: {
       title: "Tapping",
@@ -201,7 +207,7 @@ export function howItWorks(k: number): Readonly<Record<HowSystem, HowItWorks>> {
       steps: [
         [
           "upgrades-icon",
-          `Upgrades start at ${stones(firstUpgrade)} and last the whole mountain.`,
+          `Upgrades start at ${oneOffStones(firstUpgrade)} and last the whole mountain.`,
         ],
         [
           "helper-miner",
@@ -255,7 +261,7 @@ export function howItWorks(k: number): Readonly<Record<HowSystem, HowItWorks>> {
       steps: [
         [
           "helper-miner",
-          `Promote a worker for ${stones(PROMOTE_BASE_COST)}. Each next one costs double.`,
+          `Promote a worker for ${oneOffStones(PROMOTE_BASE_COST)}. Each next one costs double.`,
         ],
         [
           "relics/crown",

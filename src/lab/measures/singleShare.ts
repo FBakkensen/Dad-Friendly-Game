@@ -7,7 +7,9 @@ import { mean } from "../stats";
 import { SINGLE_MAX_LIVE } from "../targets";
 
 function liveOf(sample: DecisionSample, method: ScoreMethod): number {
-  return method === "value" ? sample.byValue.liveCount : sample.liveCount;
+  return method === "value"
+    ? sample.stretch.value.liveCount
+    : sample.stretch.payback.liveCount;
 }
 
 function asShare(live: number): number {
@@ -26,7 +28,7 @@ export default defineMeasure({
   id: "singleShare",
   label: "Single option",
   unit: "share",
-  why: "A moment with one live option is a moment with nothing to choose.",
-  sample: (sample) => asShare(sample.liveCount),
+  why: "A moment with one live spend on the dad's own table has nothing to choose.",
+  sample: (sample) => asShare(liveOf(sample, "payback")),
   aggregate: (samples) => singleShareOf(samples, "payback"),
 });

@@ -21,6 +21,7 @@ import {
 import {
   MOUNTAIN_STONES,
   createMountain,
+  digStones,
   mineByHand,
   minedOut,
   accrueAway,
@@ -423,7 +424,7 @@ describe("helpers mining live", () => {
       now: () => clock,
     });
     progress.applyMutation(() => ({
-      remaining: 500,
+      remaining: MOUNTAIN_STONES - 500,
       pocket: 0,
       helpers: 3,
       carts: 0,
@@ -441,7 +442,7 @@ describe("helpers mining live", () => {
     progress.flush();
     expect(readSessionSave({ storage })).toEqual({
       mountain: {
-        remaining: 494,
+        remaining: MOUNTAIN_STONES - 506,
         pocket: 6,
         helpers: 3,
         carts: 0,
@@ -450,7 +451,7 @@ describe("helpers mining live", () => {
         machines: 0,
         kids: 0,
         materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-        recipes: recipesForMined(MOUNTAIN_STONES - 494),
+        recipes: recipesForMined(506),
       },
       lastSeen: 3_000,
     });
@@ -1569,7 +1570,8 @@ describe("field log events for the deep (#150)", () => {
 
     progress.applyMutation((mountain) => ({
       ...mountain,
-      pocket: 2_000_000,
+      // 10M mined is the Granite: the second engineer costs 2M × 3 (#356).
+      pocket: 6_000_000,
       helpers: 2,
     }));
     progress.applyMutation((mountain) => promote(mountain));
@@ -3556,6 +3558,99 @@ describe("fresh read, one writer, and a pending offline write", () => {
     }
     progress.dispose();
   });
+
+  // #356: in deep bands and kid runs a stone digs less than one unit of
+  // depth, so a tap held over the resume read must be counted in stones.
+  it.each([
+    { name: "in the Granite", depth: 12_000_000, stretch: undefined },
+    { name: "in a kid run", depth: 2_000_000, stretch: kidStretch(1) },
+  ])(
+    "keeps a whole tap from the resume gap $name",
+    async ({ depth, stretch }) => {
+      const storage = createMemoryStorage();
+      const start: Mountain = {
+        ...minedMountain(5_000_000),
+        remaining: MOUNTAIN_STONES - depth,
+        ...(stretch === undefined ? {} : { stretch }),
+      };
+      let server = { mountain: start, rev: 1, lastSeen: 1 };
+      let release: (() => void) | undefined;
+      const cloud: CloudSave = {
+        load: ({ fresh }) => {
+          const found: CloudLoadResult = {
+            kind: "found",
+            mountain: server.mountain,
+            lastSeen: server.lastSeen,
+            rev: server.rev,
+            deviceId: "other-device",
+          };
+          if (!fresh) {
+            return Promise.resolve(found);
+          }
+          return new Promise((resolve) => {
+            release = () => {
+              resolve(found);
+            };
+          });
+        },
+        write: (args) => {
+          server = {
+            mountain: args.mountain,
+            rev: args.rev,
+            lastSeen: args.lastSeen ?? 0,
+          };
+          return Promise.resolve({ kind: "ok" });
+        },
+        writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+        watch: ({ onChange }) => {
+          onChange({
+            kind: "found",
+            mountain: start,
+            lastSeen: 1,
+            rev: 1,
+            deviceId: "other-device",
+          });
+          return () => undefined;
+        },
+      };
+      const progress = createProgressStore({
+        auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+        cloudSave: cloud,
+        sessionStorage: storage,
+        now: () => 10_000,
+        cloudWriteGapMs: 0,
+      });
+      await vi.waitFor(() => {
+        expect(progress.getSnapshot().ready).toBe(true);
+      });
+      // The other device dug on from the synced copy (with any band recipes).
+      await vi.waitFor(() => {
+        expect(server.mountain.recipes).toEqual(
+          progress.getSnapshot().mountain.recipes,
+        );
+      });
+      const ahead = digStones(server.mountain, 150);
+      server = { mountain: ahead, rev: server.rev + 1, lastSeen: 2 };
+      const resume = progress.resume();
+      expect(resume.kind).toBe("reading");
+      progress.applyMutation((mountain) => digStones(mountain, 1));
+      if (resume.kind === "reading") {
+        release?.();
+        await resume.done;
+      }
+      const after = progress.getSnapshot().mountain;
+      expect(after.pocket).toBe(ahead.pocket + 1);
+      expect(Number.isSafeInteger(after.pocket)).toBe(true);
+      expect(after.remaining).toBe(digStones(ahead, 1).remaining);
+      const phone = readPhoneBackup({ storage, uid: user.uid });
+      expect(phone.kind).toBe("present");
+      expect(phonePocket(storage)).toBe(ahead.pocket + 1);
+      await vi.waitFor(() => {
+        expect(server.mountain.pocket).toBe(ahead.pocket + 1);
+      });
+      progress.dispose();
+    },
+  );
 
   it("uploads after a fresh read that finds no server doc, and holds the write when the read fails", async () => {
     const storage = createMemoryStorage();

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buyCrew, staffExisting, tierLock, tierLocked } from "./crew";
-import type { Mountain } from "./mountain";
+import { createMountain, type Mountain } from "./mountain";
+import { shownStones } from "./scale";
 import { effectiveRates } from "./rates";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { tierById } from "./tiers";
@@ -25,7 +26,7 @@ describe("crew unlocks", () => {
     expect(tierLock(minedMountain(25_000_000), machine)).toEqual({
       kind: "depth",
       depth: 120_000_000,
-      at: 120_000_000,
+      at: shownStones(createMountain(), 120_000_000),
     });
     expect(tierLocked(nearHammer, tierById("borer"))).toBe(false);
   });
@@ -57,18 +58,18 @@ describe("crew unlocks", () => {
     expect(buyCrew(fresh, "borer")).toBe(fresh);
   });
 
-  it("keeps the borer locked until 7M stones are mined, then sells it (#250)", () => {
-    const shallow = { ...minedMountain(6_999_999), pocket: 50_000_000 };
+  it("keeps the borer locked until the Granite (10M), then sells it (#250, #356)", () => {
+    const shallow = { ...minedMountain(9_999_999), pocket: 50_000_000 };
     expect(tierLock(shallow, tierById("borer"))).toEqual({
       kind: "depth",
-      depth: 7_000_000,
-      at: 7_000_000,
+      depth: 10_000_000,
+      at: 10_000_000,
     });
     expect(tierLocked(shallow, tierById("borer"))).toBe(true);
     expect(buyCrew(shallow, "borer")).toBe(shallow);
     const deep = {
       ...shallow,
-      ...minedMountain(7_000_000),
+      ...minedMountain(10_000_000),
       pocket: 50_000_000,
     };
     expect(tierLock(deep, tierById("borer"))).toBeUndefined();
@@ -76,7 +77,7 @@ describe("crew unlocks", () => {
     expect(tierLock(deep, tierById("machine"))).toEqual({
       kind: "depth",
       depth: 120_000_000,
-      at: 120_000_000,
+      at: shownStones(createMountain(), 120_000_000),
     });
     expect(tierLock(deep, tierById("helper"))).toBeUndefined();
     // An older save that already owns a borer keeps buying them.

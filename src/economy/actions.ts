@@ -39,7 +39,7 @@ import { EMPTY_MATERIALS, LAYERS } from "../layers";
 import { boostShown, upgradeShown } from "../upgrade-reveal";
 import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
-import { minedOut, stretch } from "../scale";
+import { minedOut, oneOffStretch, stretch } from "../scale";
 import { VEIN_MAX_GAP_MS, VEIN_MIN_GAP_MS, veinReward } from "../veins";
 import {
   MAX_CRAFTED_LEVEL,
@@ -376,7 +376,7 @@ function valueUpgrade(
   const price = upgradeCost(
     upgrade,
     upgradeLevel(mountain, id),
-    stretch(mountain),
+    oneOffStretch(mountain),
   );
   if (price === undefined || !upgradeUnlocked(mountain, upgrade)) {
     return rateValue(mountain, 0, price ?? 0, horizon, context);

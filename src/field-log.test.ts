@@ -14,6 +14,7 @@ import {
   fieldLogFingerprint,
   fieldLogWithinBudget,
   formatFieldLog,
+  FIELD_STONES_CAP,
   maxFieldLogDocumentBytes,
   shouldWriteFieldLog,
   snapshot,
@@ -171,11 +172,20 @@ describe("snapshot", () => {
 });
 
 describe("EventRing", () => {
-  it("clamps a kid run's big haul to the rules' 240M", () => {
+  it("keeps a deep-band haul whole and clamps only past the cap", () => {
     const ring = new EventRing();
-    ring.push({ at: "x", code: "away.report", data: { stones: 5e8 } });
+    ring.push({
+      at: "x",
+      code: "away.report",
+      data: { stones: 1_600_000_000 },
+    });
+    ring.push({ at: "x", code: "away.report", data: { stones: 2e15 } });
     ring.push({ at: "x", code: "vein.tap", data: { stones: 5 } });
-    expect(ring.last(2).map((e) => e.data.stones)).toEqual([240_000_000, 5]);
+    expect(ring.last(3).map((e) => e.data.stones)).toEqual([
+      1_600_000_000,
+      FIELD_STONES_CAP,
+      5,
+    ]);
   });
 
   it("keeps the last 200 events and copies the newest slice", () => {

@@ -1,4 +1,4 @@
-import { stretch } from "./scale";
+import { oneOffStretch } from "./scale";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
 import { TIERS, owned, type TierId } from "./tiers";
@@ -68,11 +68,16 @@ export function rankOf(trips: number): EngineerRank {
   return 0;
 }
 
+/** Rounded up to a whole stone, as upgradeCost is: a kid-run stretch is not whole, and the pocket must stay whole. */
 export function promoteCost(mountain: Mountain): number {
-  return (
-    PROMOTE_BASE_COST *
-    stretch(mountain) *
-    2 ** (mountain.engineers?.length ?? 0)
+  return Math.ceil(
+    Number(
+      (
+        PROMOTE_BASE_COST *
+        oneOffStretch(mountain) *
+        2 ** (mountain.engineers?.length ?? 0)
+      ).toPrecision(12),
+    ),
   );
 }
 
@@ -247,10 +252,12 @@ export const TENDING_GAIN = 1.25;
 export const GRANDPA_RANK: EngineerRank = 0;
 
 /**
- * The machine Grandpa tends: the biggest one that is running (fully staffed,
- * the way `effectiveRates` staffs biggest first) and that no engineer tends.
- * Undefined before a pass, or with nothing running to tend. An idle machine
- * never takes him, so buying one never slows the crew.
+ * The group Grandpa tends: of the machines that are running (fully staffed,
+ * the way `effectiveRates` staffs biggest first) and that no engineer tends,
+ * the one with the most base output, `running * tier.perSecond`. A tie goes to
+ * the higher tier. Undefined before a pass, or with nothing running to tend.
+ * An idle machine never takes him, and one new borer never pulls him off a
+ * big group of drills, so buying a machine never slows the crew (#356).
  */
 export function grandpaPost(mountain: Mountain): TierId | undefined {
   if ((mountain.legacy ?? 0) < 1) {
@@ -260,6 +267,8 @@ export function grandpaPost(mountain: Mountain): TierId | undefined {
     (mountain.engineers ?? []).map((one) => one.post),
   );
   let free = mountain.helpers + mountain.kids;
+  let best: TierId | undefined;
+  let bestOutput = 0;
   for (const tier of [...TIERS].reverse()) {
     const staff = staffNeeded(mountain, tier);
     if (staff === 0) {
@@ -267,11 +276,14 @@ export function grandpaPost(mountain: Mountain): TierId | undefined {
     }
     const running = Math.min(owned(mountain, tier), Math.floor(free / staff));
     free -= running * staff;
-    if (running > 0 && !tended.has(tier.id)) {
-      return tier.id;
+    const output = running * tier.perSecond;
+    // Biggest tier first, so only a strictly larger group displaces a tie.
+    if (running > 0 && !tended.has(tier.id) && output > bestOutput) {
+      best = tier.id;
+      bestOutput = output;
     }
   }
-  return undefined;
+  return best;
 }
 
 /**

@@ -5,9 +5,12 @@ import { createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
 import { createProgressStore } from "./progress-store";
 import { effectiveRates, promotePayoff } from "./rates";
-import { promote, station } from "./engineers";
+import { PROMOTE_BASE_COST, promote, promoteCost, station } from "./engineers";
+import { formatCompact } from "./format";
+import { BAND_SCALE } from "./scale";
 import {
   PROMOTION_INTRO,
+  promoteOffer,
   promotionAction,
   promotionPayoff,
   stonesPerSecond,
@@ -88,7 +91,8 @@ function crew(): Mountain {
   return {
     ...createMountain(),
     remaining: 200_000_000,
-    pocket: 2_500_000,
+    // 40M mined is the Granite: the second engineer costs 2M × 3 (#356).
+    pocket: 6_500_000,
     helpers: 60,
     carts: 10,
     drills: 6,
@@ -142,7 +146,7 @@ describe("promotion teach (#246)", () => {
     // With no engineer yet, the first hand is Ada, and any post is free.
     expect(promotePayoff(withoutEngineers(), 0)?.name).toBe("Ada");
     expect(promotePayoff({ ...crew(), pocket: 0 }, 0)).toBe(undefined);
-    expect(promotionAction("Nils", 2_000_000)).toBe("Promote Nils · 2M");
+    expect(promotionAction("Nils", 6_000_000)).toBe("Promote Nils · 6M");
     expect(promotionPayoff("Nils", "drill", "+217 stones/sec")).toBe(
       "Nils could tend the drills: +217 stones/sec",
     );
@@ -174,7 +178,7 @@ describe("promotion teach (#246)", () => {
     );
     const promoteButton =
       sheet?.querySelector<HTMLButtonElement>(".engineer-promote");
-    expect(promoteButton?.textContent).toBe(promotionAction("Nils", 2_000_000));
+    expect(promoteButton?.textContent).toBe(promotionAction("Nils", 3_000_000));
     promoteButton?.click();
     sheet?.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
     const mountain = screen.progress.getSnapshot().mountain;
@@ -188,5 +192,25 @@ describe("promotion teach (#246)", () => {
     expect(
       sheet?.querySelector<HTMLElement>(".engineer-first-tend:not([hidden])"),
     ).not.toBeNull();
+  });
+
+  it("quotes the band's promotion price on the how card, as the button does (#356)", () => {
+    const screen = mount(() => 1_700_000_000_000);
+    // 45M mined is the Crystal Caves: one-offs cost 9 times as much.
+    const caves = { ...crew(), remaining: 195_000_000, pocket: 0 };
+    screen.progress.applyMutation(() => caves);
+    screen.root.querySelector<HTMLButtonElement>(".engineers-button")?.click();
+    const sheet = screen.root.querySelector<HTMLElement>(".engineers-dialog");
+    const first = PROMOTE_BASE_COST * BAND_SCALE[2];
+    expect(promoteCost(caves)).toBe(first * 2);
+    expect(
+      sheet?.querySelector<HTMLButtonElement>(".engineer-promote")?.textContent,
+    ).toBe(promoteOffer(promoteCost(caves)));
+    const card = sheet?.querySelector<HTMLElement>(
+      '[data-how="engineers"] .teach-how-steps li span',
+    );
+    expect(card?.textContent).toBe(
+      `Promote a worker for ${formatCompact(first)} stones. Each next one costs double.`,
+    );
   });
 });

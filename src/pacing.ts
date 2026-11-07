@@ -1,4 +1,4 @@
-import { stretch } from "./scale";
+import { oneOffStretch, stretch } from "./scale";
 import { BOOSTS, buyBoost } from "./boosts";
 import {
   promote,
@@ -174,7 +174,7 @@ function sticker(mountain: Mountain, action: DadBuy): number {
   return upgradeCost(
     upgradeById(action.id),
     upgradeLevel(mountain, action.id),
-    stretch(mountain),
+    oneOffStretch(mountain),
   ) as number;
 }
 
