@@ -3408,11 +3408,15 @@ body {
   overflow-clip-margin: 0;
 }
 
-/* The shelf sits above the rock. An overlay put the peak through the relics. */
+/* The shelf sits above the rock. An overlay put the peak through the relics.
+   The goal line, the shelf and the rock stay together; on a phone taller than
+   the rock can use, the group is centred, so the spare height never sits
+   between the shelf and the peak. */
 .mountain-wrap {
+  container-type: inline-size;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   /* The shelf and the rock are both targets: 8px apart (#346). */
   gap: var(--target-gap);
 }
@@ -3437,15 +3441,37 @@ body {
   transform: none;
 }
 
+/*
+ * The rock is as tall as the screen lets it be. mountain.png is 114px square
+ * with the rock in its middle 86 columns, so the square art may be up to
+ * 114/86 of the column wide before the rock itself meets the edges; the clear
+ * sides overhang the stage, which clips them across only: the wrap's clip
+ * still let them widen the page. The stage is the art's height, so the vein
+ * and the floats still land on the rock.
+ */
 .mountain-stage {
-  flex: 1 1 auto;
+  --rock-reach: calc(114 / 86);
+  overflow-x: clip;
+  flex: 0 1 auto;
   align-self: stretch;
   width: 100%;
-  height: auto;
+  height: calc(100cqi * var(--rock-reach));
   min-height: calc(var(--target-min) * 2);
   max-height: none;
   max-width: none;
   aspect-ratio: auto;
+}
+
+.mountain-stage .mountain-band {
+  display: flex;
+  justify-content: center;
+}
+
+.mountain-stage .mountain-art {
+  flex: none;
+  width: auto;
+  height: 100%;
+  aspect-ratio: 1;
 }
 
 .pocket-row {
@@ -3649,6 +3675,10 @@ body {
     var(--effect-rows) * var(--effect-chip) + (var(--effect-rows) - 1) *
       var(--space-4)
   );
+}
+
+.effect-row[hidden] {
+  display: none;
 }
 
 .effect-row .effect-chip {

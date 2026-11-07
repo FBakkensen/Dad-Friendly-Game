@@ -112,10 +112,14 @@ page is the map, plus the rules that keep it that way.
   when the pocket is short. A locked card says Locked and hides those lines.
   Tapping the card buys. A drag that scrolls the list does not. Boost,
   expedition, craft, and bench countdowns share rows of three under the crew.
-  The rows match how many this mountain can run. Every active one stays
-  visible. The shelf sits above the rock. The ☰ menu holds the ledger:
-  stones left, materials, and the next-relic goal. After the Lantern the
-  same goal is a thin line on the mountain between the crew chips and the
+  The rows match how many are running now; none running is no row. Every
+  active one stays visible. The shelf sits above the rock. The rock takes the
+  height left over: the stage is as tall as the art can be before the rock
+  meets the column's sides (`--rock-reach`, 114/86 of the column for
+  `mountain.png`), and on a taller screen the goal line, shelf, and rock are
+  centred together, never with a band between the shelf and the peak. The
+  ☰ menu holds the ledger: stones left, materials, and the next-relic goal.
+  After the Lantern the same goal is a thin line on the mountain between the crew chips and the
   shelf; both read `relicGoal()` in `relics` (#336). The rock picture sits
   in a `.mountain-band` wrapper whose `--band-tint` is
   `mountainTint(layerOf(mountain).id)` (`mountain-tint`, #325), a CSS
