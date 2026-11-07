@@ -1569,7 +1569,8 @@ describe("field log events for the deep (#150)", () => {
 
     progress.applyMutation((mountain) => ({
       ...mountain,
-      pocket: 2_000_000,
+      // 10M mined is the Granite: the second engineer costs 2M × 3 (#356).
+      pocket: 6_000_000,
       helpers: 2,
     }));
     progress.applyMutation((mountain) => promote(mountain));

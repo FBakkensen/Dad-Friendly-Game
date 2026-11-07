@@ -1,4 +1,4 @@
-import { stretch } from "./scale";
+import { oneOffStretch } from "./scale";
 import type { Mountain } from "./mountain";
 import { owned, tierById, type TierId } from "./tiers";
 
@@ -163,7 +163,7 @@ export function upgradeCost(
 /** Buys the next level if affordable; otherwise the same mountain. */
 export function buyUpgrade(mountain: Mountain, id: UpgradeId): Mountain {
   const level = upgradeLevel(mountain, id);
-  const cost = upgradeCost(upgradeById(id), level, stretch(mountain));
+  const cost = upgradeCost(upgradeById(id), level, oneOffStretch(mountain));
   if (
     cost === undefined ||
     mountain.pocket < cost ||

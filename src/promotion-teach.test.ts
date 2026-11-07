@@ -88,7 +88,8 @@ function crew(): Mountain {
   return {
     ...createMountain(),
     remaining: 200_000_000,
-    pocket: 2_500_000,
+    // 40M mined is the Granite: the second engineer costs 2M × 3 (#356).
+    pocket: 6_500_000,
     helpers: 60,
     carts: 10,
     drills: 6,
@@ -142,7 +143,7 @@ describe("promotion teach (#246)", () => {
     // With no engineer yet, the first hand is Ada, and any post is free.
     expect(promotePayoff(withoutEngineers(), 0)?.name).toBe("Ada");
     expect(promotePayoff({ ...crew(), pocket: 0 }, 0)).toBe(undefined);
-    expect(promotionAction("Nils", 2_000_000)).toBe("Promote Nils · 2M");
+    expect(promotionAction("Nils", 6_000_000)).toBe("Promote Nils · 6M");
     expect(promotionPayoff("Nils", "drill", "+217 stones/sec")).toBe(
       "Nils could tend the drills: +217 stones/sec",
     );
@@ -174,7 +175,7 @@ describe("promotion teach (#246)", () => {
     );
     const promoteButton =
       sheet?.querySelector<HTMLButtonElement>(".engineer-promote");
-    expect(promoteButton?.textContent).toBe(promotionAction("Nils", 2_000_000));
+    expect(promoteButton?.textContent).toBe(promotionAction("Nils", 6_000_000));
     promoteButton?.click();
     sheet?.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
     const mountain = screen.progress.getSnapshot().mountain;

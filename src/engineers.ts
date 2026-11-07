@@ -1,4 +1,4 @@
-import { stretch } from "./scale";
+import { oneOffStretch } from "./scale";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
 import { TIERS, owned, type TierId } from "./tiers";
@@ -71,7 +71,7 @@ export function rankOf(trips: number): EngineerRank {
 export function promoteCost(mountain: Mountain): number {
   return (
     PROMOTE_BASE_COST *
-    stretch(mountain) *
+    oneOffStretch(mountain) *
     2 ** (mountain.engineers?.length ?? 0)
   );
 }

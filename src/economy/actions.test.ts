@@ -32,7 +32,7 @@ import {
   upgradeLevel,
 } from "../upgrades";
 import { MATERIAL_EVERY } from "../layers";
-import { minedOut } from "../scale";
+import { BAND_SCALE, minedOut, oneOffStretch } from "../scale";
 import {
   MAX_CRAFTED_LEVEL,
   cancelCraft,
@@ -618,6 +618,7 @@ describe("valueOf", () => {
         const price = upgradeCost(
           upgradeById(action.id),
           upgradeLevel(mountain, action.id),
+          oneOffStretch(mountain),
         );
         expect(price).toBeDefined();
         if (price === undefined) {
@@ -785,7 +786,8 @@ describe("valueOf", () => {
 
   it("scores promote, send, and recall from the crew before and after", () => {
     const stepUp = score(rich, { kind: "promote" }, HORIZON);
-    expect(stepUp.cost).toBe(2_000_000);
+    // 25M mined is the Granite: one-off buys cost its band scale (#356).
+    expect(stepUp.cost).toBe(2_000_000 * BAND_SCALE[1]);
     expect(stepUp.gainPerSec).toBeGreaterThan(0);
     expect(stepUp.paybackSec).toBeGreaterThan(0);
     expect(Number.isFinite(stepUp.paybackSec)).toBe(true);

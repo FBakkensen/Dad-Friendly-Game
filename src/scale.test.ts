@@ -21,6 +21,7 @@ import {
   MAX_STRETCH,
   depthAfterStones,
   kidStretch,
+  oneOffStretch,
   shownStones,
   stonesLeft,
   stretch,
@@ -28,7 +29,7 @@ import {
 import { minedMountain } from "./test-fixtures";
 import { tierById, tierCost } from "./tiers";
 import { lockBodyLine } from "./tier-lock-words";
-import { upgradeById, upgradeCost } from "./upgrades";
+import { buyUpgrade, upgradeById, upgradeCost } from "./upgrades";
 import { veinReward } from "./veins";
 import { recipeCost, startCraft, TOPSOIL_BENCH_FROM } from "./workshop";
 import { formatCompact } from "./format";
@@ -240,4 +241,40 @@ describe("band scales (#356)", () => {
       expect(m.remaining).toBe(0);
     },
   );
+});
+
+describe("one-off stretch (#356)", () => {
+  const at = (mined: number, k?: number): Mountain => ({
+    ...createMountain(),
+    remaining: MOUNTAIN_STONES - mined,
+    ...(k === undefined ? {} : { stretch: k }),
+  });
+
+  it("is 1 on a fresh mountain", () => {
+    expect(oneOffStretch(createMountain())).toBe(1);
+  });
+
+  it("takes the scale of the band the run stands in, a band starting inclusive", () => {
+    expect(oneOffStretch(at(9_999_999))).toBe(BAND_SCALE[0]);
+    expect(oneOffStretch(at(10_000_000))).toBe(BAND_SCALE[1]);
+    expect(oneOffStretch(at(45_000_000))).toBe(BAND_SCALE[2]);
+    expect(oneOffStretch(at(120_000_000, 1.75))).toBe(BAND_SCALE[3] * 1.75);
+  });
+
+  it("prices Better boots and a promotion by the band", () => {
+    const caves = { ...at(45_000_000), pocket: 1e12 };
+    expect(upgradeCost(upgradeById("boots"), 0, oneOffStretch(caves))).toBe(
+      1_625_000 * BAND_SCALE[2],
+    );
+    const bought = buyUpgrade(
+      { ...caves, helpers: 10, pocket: 1_625_000 * BAND_SCALE[2] },
+      "boots",
+    );
+    expect(bought.pocket).toBe(0);
+    const granite = {
+      ...at(10_000_000),
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" }],
+    } as Mountain;
+    expect(promoteCost(granite)).toBe(2_000_000 * BAND_SCALE[1]);
+  });
 });

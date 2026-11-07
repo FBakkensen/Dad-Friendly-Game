@@ -1,4 +1,4 @@
-import { stretch } from "./scale";
+import { oneOffStretch, stretch } from "./scale";
 import bootUrl from "./assets/boot-tile.png";
 import workerUrl from "./assets/helper-miner.png";
 import cartUrl from "./assets/mine-cart.png";
@@ -435,7 +435,7 @@ export function createUpgradesPanel({
         cost: upgradeCost(
           row.upgrade,
           upgradeLevel(current, row.upgrade.id),
-          stretch(current),
+          oneOffStretch(current),
         ),
       })),
     ].filter((row) => showsDot(current, row.id));
@@ -510,7 +510,7 @@ export function createUpgradesPanel({
       item.hidden = !upgradeShown(current, upgrade);
       upgradesShowing ||= !item.hidden;
       const level = upgradeLevel(current, upgrade.id);
-      const cost = upgradeCost(upgrade, level, stretch(current));
+      const cost = upgradeCost(upgrade, level, oneOffStretch(current));
       const affordable =
         !item.hidden && cost !== undefined && current.pocket >= cost;
       anyAffordable ||= affordable;
