@@ -83,6 +83,7 @@ import { boostById } from "./boosts";
 import { upgradeById } from "./upgrades";
 import { BAND_SCALE } from "./scale";
 import { buyPriceWords } from "./screen-words";
+import { formatCompact } from "./format";
 import { MOUNTAIN_STONES } from "./mountain";
 import { showsDot } from "./teach";
 
@@ -192,6 +193,30 @@ describe("upgrades sheet reveal (#245)", () => {
     screen.progress.applyMutation(() => caves(price));
     expect(buy()?.textContent).toBe(buyPriceWords(price));
     expect(buy()?.disabled).toBe(false);
+    screen.root.remove();
+  });
+
+  it("quotes the same first upgrade price on the how card as on its button (#356)", () => {
+    const screen = mount(() => clock);
+    const price = 46_000 * BAND_SCALE[2];
+    screen.progress.applyMutation(() => ({
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - 45_000_000,
+      helpers: 10,
+      carts: 3,
+      pocket: 0,
+    }));
+    screen.root.querySelector<HTMLElement>(".upgrades-button")?.click();
+    const buy = row(screen.root, "tap")?.querySelector<HTMLButtonElement>(
+      ".upgrade-buy",
+    );
+    expect(buy?.textContent).toBe(buyPriceWords(price));
+    const card = screen.root.querySelector<HTMLElement>(
+      '[data-how="upgrades"] .teach-how-steps li span',
+    );
+    expect(card?.textContent).toBe(
+      `Upgrades start at ${formatCompact(price)} stones and last the whole mountain.`,
+    );
     screen.root.remove();
   });
 

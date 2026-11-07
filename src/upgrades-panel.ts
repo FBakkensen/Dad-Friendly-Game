@@ -203,7 +203,7 @@ export function createUpgradesPanel({
     pick: pickUrl,
     stone: stoneUrl,
   };
-  let howStretch = 1;
+  let howPriced = "1:1";
   const howCards = (["upgrades", "boosts"] as const).map((system) => {
     const copy = HOW_IT_WORKS[system];
     const made = createHowCard(
@@ -411,9 +411,10 @@ export function createUpgradesPanel({
   const render = (): void => {
     const view = getView();
     const current = view.mountain;
-    if (stretch(current) !== howStretch) {
-      howStretch = stretch(current);
-      const copy = howItWorks(howStretch);
+    const howKey = `${String(stretch(current))}:${String(oneOffStretch(current))}`;
+    if (howKey !== howPriced) {
+      howPriced = howKey;
+      const copy = howItWorks(stretch(current), oneOffStretch(current));
       for (const made of howCards) {
         setHowSteps(made, copy[made.dataset["how"] as HowSystem].steps);
       }
