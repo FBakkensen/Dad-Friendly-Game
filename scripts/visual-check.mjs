@@ -2068,7 +2068,7 @@ for (const viewport of NOTICE_SIZES) {
         nodes.map((node) => node.textContent ?? ""),
       );
       const cart = rates.find((line) => line.includes("99/s"));
-      // Before 7M the borer is a locked preview that names its depth (#250).
+      // Before the Granite (10M) the borer is a locked preview that names its depth (#250, #356).
       const borer = rates.find((line) => line.startsWith("Borer"));
       await page.click(".buys-button");
       const inside = await page.$$eval(".tier-rate", (nodes) =>
@@ -2098,7 +2098,7 @@ for (const viewport of NOTICE_SIZES) {
           cart.includes("·") &&
           !cart.startsWith("\u2191") &&
           borer !== undefined &&
-          borer === "Borer · 7M",
+          borer === "Borer · 10M",
         `${size} cart shows +N and the locked borer says where it opens`,
       );
       if (!still || !inside || cart === undefined || borer === undefined) {

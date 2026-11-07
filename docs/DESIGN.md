@@ -91,13 +91,13 @@ Hand mining can't move a 100-million-stone mountain. Each tier is a visible jump
 
 Today's numbers (`src/tiers.ts`, after the M12 retune, #252). The notes below keep the prices of their time.
 
-| Tier          | First cost (stones) | Stones a second each | Unlock                                                                       |
-| ------------- | ------------------- | -------------------- | ---------------------------------------------------------------------------- |
-| Worker        | 20                  | 1                    | from the start                                                               |
-| Mine cart     | 100                 | 6                    | shown once you own a worker                                                  |
-| Steam drill   | 14,000              | 36                   | shown once you own a cart                                                    |
-| Tunnel borer  | 7,600,000           | 357                  | shown once you own a drill; on sale from 7,000,000 mined                     |
-| Great Machine | 40,200,000          | 2,100                | shown once you own a borer; needs the Hammer, on sale from 120,000,000 mined |
+| Tier          | First cost (stones) | Stones a second each | Unlock                                                                        |
+| ------------- | ------------------- | -------------------- | ----------------------------------------------------------------------------- |
+| Worker        | 20                  | 1                    | from the start                                                                |
+| Mine cart     | 100                 | 6                    | shown once you own a worker                                                   |
+| Steam drill   | 14,000              | 36                   | shown once you own a cart                                                     |
+| Tunnel borer  | 7,600,000           | 357                  | shown once you own a drill; on sale from 10,000,000 mined (the Granite start) |
+| Great Machine | 40,200,000          | 2,100                | shown once you own a borer; needs the Hammer, on sale from 120,000,000 mined  |
 
 - Carts, drills, and the Great Machine use `ceil(firstCost × 2^owned)`. Borers use `ceil(firstCost × 1.5^owned)` (#177) so a second and third stay buyable before the Great Machine. Workers grow by `1.25^owned` (M7 #140; ×1.15 since #89) because they staff the machines. Each tier is still a big jump in speed (about 6× or more). Untended, the Great Machine still needs 25 workers. An engineer tending it brings that down to 5, and its first cost is 67M so the pacing dad buys one and still has a night of mountain left (#177; #144 was 50M). These numbers come from the pacing simulation; see Pacing below.
 - One table of tiers (`src/tiers.ts`) drives buying, the speed total and the UI. `accrue` sums every tier, so away earnings use the same math automatically.

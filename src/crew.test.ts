@@ -58,18 +58,18 @@ describe("crew unlocks", () => {
     expect(buyCrew(fresh, "borer")).toBe(fresh);
   });
 
-  it("keeps the borer locked until 7M stones are mined, then sells it (#250)", () => {
-    const shallow = { ...minedMountain(6_999_999), pocket: 50_000_000 };
+  it("keeps the borer locked until the Granite (10M), then sells it (#250, #356)", () => {
+    const shallow = { ...minedMountain(9_999_999), pocket: 50_000_000 };
     expect(tierLock(shallow, tierById("borer"))).toEqual({
       kind: "depth",
-      depth: 7_000_000,
-      at: 7_000_000,
+      depth: 10_000_000,
+      at: 10_000_000,
     });
     expect(tierLocked(shallow, tierById("borer"))).toBe(true);
     expect(buyCrew(shallow, "borer")).toBe(shallow);
     const deep = {
       ...shallow,
-      ...minedMountain(7_000_000),
+      ...minedMountain(10_000_000),
       pocket: 50_000_000,
     };
     expect(tierLock(deep, tierById("borer"))).toBeUndefined();

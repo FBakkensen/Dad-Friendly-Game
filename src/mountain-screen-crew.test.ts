@@ -799,8 +799,8 @@ describe("Flemming's cart (#216)", () => {
     expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
       "+36\u2009·\u2009180/s · Needs 1 worker",
     );
-    // Above 7M the borer is a locked preview that says where it opens (#250).
-    expect(screen.text('[data-tier="borer"] .tier-rate')).toBe("Borer · 7M");
+    // Above the Granite the borer is a locked preview that says where it opens (#250, #356).
+    expect(screen.text('[data-tier="borer"] .tier-rate')).toBe("Borer · 10M");
     expect(
       screen.root.querySelector(".crew-posts")?.getAttribute("aria-label"),
     ).toBe("18 workers: 13 on carts, 5 on drills, 0 free");

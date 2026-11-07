@@ -1,4 +1,4 @@
-import { stretch } from "./scale";
+import { BAND_STARTS, stretch } from "./scale";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
 import type { RelicId } from "./relics";
@@ -81,8 +81,9 @@ export const TIERS: readonly Tier[] = [
     firstCost: 7_600_000,
     perSecond: 357,
     staff: 8,
-    // Opens just above the Granite, the band that suits borers (D3).
-    opensAt: 7_000_000,
+    // Opens at the Granite start, the band that suits borers (D3), so no
+    // dad meets it in the Topsoil (#356).
+    opensAt: BAND_STARTS[1],
   },
   {
     id: "machine",

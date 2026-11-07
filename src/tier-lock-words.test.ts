@@ -18,12 +18,12 @@ const lockOf = (id: Parameters<typeof tierById>[0]) => {
 describe("locked tier card words (#250)", () => {
   it("names the borer's depth, short and in the dad's voice", () => {
     const { tier, lock } = lockOf("borer");
-    expect(lockRateLine(tier, lock)).toBe("Borer · 7M");
+    expect(lockRateLine(tier, lock)).toBe("Borer · 10M");
     expect(lockBodyLine(tier, lock)).toBe(
-      "The Tunnel borer joins your crew at 7M stones. Keep digging, Dad!",
+      "The Tunnel borer joins your crew at 10M stones. Keep digging, Dad!",
     );
     expect(lockAria(tier, lock)).toBe(
-      "Tunnel borer, locked. Joins your crew at 7 million stones down.",
+      "Tunnel borer, locked. Joins your crew at 10 million stones down.",
     );
   });
 
@@ -60,7 +60,7 @@ describe("locked tier card words (#250)", () => {
 
   it("has no lock once the depth is reached", () => {
     expect(
-      tierLock(minedMountain(7_000_000), tierById("borer")),
+      tierLock(minedMountain(10_000_000), tierById("borer")),
     ).toBeUndefined();
   });
 });

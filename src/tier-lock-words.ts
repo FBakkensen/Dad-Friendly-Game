@@ -15,7 +15,7 @@ function depthOf(lock: TierLock): number {
   return lock.at;
 }
 
-/** The short line under the name: `Borer · 7M` or `Machine · 120M`. */
+/** The short line under the name: `Borer · 10M` or `Machine · 120M`. */
 export function lockRateLine(tier: Tier, lock: TierLock): string {
   const label = lock.kind === "depth" ? tier.shortName : relicShort(lock);
   return `${label} · ${formatCompact(depthOf(lock))}`;

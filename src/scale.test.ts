@@ -97,7 +97,7 @@ describe("kid-run stretch (M13, #253)", () => {
       { ...minedMountain(0), stretch: 2 },
       tierById("borer"),
     );
-    expect(borer).toEqual({ kind: "depth", depth: 7_000_000, at: 14_000_000 });
+    expect(borer).toEqual({ kind: "depth", depth: 10_000_000, at: 20_000_000 });
   });
 
   it("prices the how-it-works copy in this run's stones", () => {
