@@ -22,7 +22,7 @@
   - The card shows the new lines through the existing `milestoneLine`.
   - Test files that pin card text may be updated.
 - **Marks, copied from the spec:**
-  - carts, drills and borers at 10, 25, 50, 100, 150, 200;
+  - carts and drills at 10, 25, 50, 100, 150, 200; borers at 5, 10, 25, 50, 100, 150, 200 (the 5 mark kept from today's game: Flemming's ruling after the Task 3 stop, 7 Nov 2026);
   - the Great Machine at 2, 3, 5, 10, 25, 50;
   - workers (`helper`) at 25, 50, 100.
   - Each mark is ×2, and the marks stack.
@@ -89,7 +89,8 @@
 | drill   | 100 | A hundred drills. The whole hill thrums. Twice as fast again.              |
 | drill   | 150 | A hundred and fifty drills, and nobody has to shout. Twice as fast again.  |
 | drill   | 200 | Two hundred drills. The rock just gives way. Twice as fast again.          |
-| borer   | 10  | Ten borers side by side. They clear the tunnels twice as fast.             |
+| borer   | 5   | Five borers side by side. They clear the tunnels twice as fast.            |
+| borer   | 10  | Ten borers in step. Twice as fast again.                                   |
 | borer   | 25  | Twenty-five borers in step. Twice as fast again.                           |
 | borer   | 50  | Fifty borers, a slow and steady thunder. Twice as fast again.              |
 | borer   | 100 | A hundred borers. New tunnels open by the hour. Twice as fast again.       |
