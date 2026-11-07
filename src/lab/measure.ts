@@ -3,6 +3,7 @@ import type { LayerId, Materials } from "../layers";
 import type { Crafted, RecipeId } from "../workshop";
 import type { BandEvent } from "./bands";
 import type { RevealEvent } from "./reveal";
+import type { SittingEvent } from "./sittings";
 
 /**
  * One moment on the table. Official fields use payback. `byValue` is the
@@ -70,6 +71,8 @@ export type DecisionSample = {
   readonly reveals?: readonly RevealEvent[];
   /** Machine sales and purchases per band since the previous sample (#249). */
   readonly bands?: readonly BandEvent[];
+  /** Sittings that closed since the previous sample (balance review). */
+  readonly sittings?: readonly SittingEvent[];
   /** Day the mountain emptied, when the run finished. Same on every sample. */
   readonly finishDay?: number;
   /**

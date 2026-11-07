@@ -320,7 +320,9 @@ One PR each, in order; the list with acceptance criteria is in the M7 PR descrip
 
 #### Pacing
 
-Decision quality comes first. A moment should offer more than one live buy, a dead stretch stays under half a day, and one move should not be the right buy for most of a casual run or the optimizer's. Finish days come second. Every casual dad finishes in 5–7 days, and never under 5. That is `casual-2x10`, the evening dad, and the checker, the same bound. Five minutes a day finishes within about 14 days. `tap-only` stays in the report and has no finish target: one stone a tap does not empty the mountain. An extreme may finish later. It may not finish much sooner than the casual dad (at most 15%). The optimizer may finish sooner than a casual dad, and not by more than a quarter.
+Decision quality comes first. A moment should offer more than one live buy, a dead stretch stays under half a day, and one move should not be the right buy for most of a casual run or the optimizer's. Finish days come second, and since 7 Nov 2026 they are reported, not limits: the game is endless, and each pass to the kid makes the next run harder (the generations lab keeps every kid run longer than the last, strict). `casual-finish` and `thin-habit-finish` stay in the report as report-only rows. Before that, every casual dad had to finish in 5–7 days, and never under 5 (`casual-2x10`, the evening dad, and the checker, the same bound), and five minutes a day within about 14 days.
+
+`tap-only` stays in the report and has no finish target: one stone a tap does not empty the mountain. An extreme may finish later. It may not finish much sooner than the casual dad (at most 15%). The optimizer may finish sooner than a casual dad, and not by more than a quarter. These two comparisons are still strict.
 
 Each tap is one stone until an upgrade says otherwise. A single absence longer than half a day, before the Shield, pays 16 hours instead of 8, so one 20-minute evening stays within a quarter of the optimizer. Two shorter gaps in a day stay on the 8-hour cap. `liveMedian` after the first hour grades casual player types and the optimizer, the same population as single share and dominant share. The payback dead stretch is strict for casual player types. The optimizer's save for the borer and the Great Machine is still about half a day and is reported, not a failing guardrail: a real purchase in that window also moves the pinned pacing days or the casual wait. Workers-only, machines-only, never-workers, and tap-only may finish late: no finish target names them, and extreme win only limits finishing sooner.
 
@@ -343,7 +345,7 @@ Approved:
 
 - `LIVE_RATIO = 1.5`. A live option pays back within 1.5× of the best.
 - Longest dead stretch at most 0.5 day, for casual player types. The optimizer's wait is reported and does not fail the build.
-- `five-min-a-day` finishes within about 14 days. `tap-only` has no finish target.
+- `five-min-a-day` finishes within about 14 days. Report only since 7 Nov 2026 (the run length is not a limit). `tap-only` has no finish target.
 - `liveMedian` at least 2 after the first hour, for casual player types and the optimizer.
 
 The same file holds the horizon `H` (default 6 hours, passed into `valueOf`), the sample interval (one minute of play, plus the start of each session), the dead-stretch definition, and one typed entry per guardrail: `{ id, measure, scope, op, value, why }`. Each entry has a one-line `why`. `measure` is a registered measure id. `scope` says which runs the bound covers. `op` and `value` are the comparison.
@@ -357,6 +359,21 @@ Planned entries, beside the four above. M8-4 writes them into the file. A retune
 - An extreme's win over casual at most 15%.
 - Optimizer versus casual at most 25%.
 
+#### Check-in pacing (balance review, Nov 2026)
+
+The minute samples say what the table looked like. A sitting log (`src/lab/sittings.ts`) says what a check-in felt like. A clock jump is time away; the observation after it is the open, with away pay in and nothing bought yet. Each sitting records its buys (rises in the owned count, as `boughtSince` counts them) and its opening view: the best buy on this dad's Buys sheet by stones a second per stone (crew, machines and the upgrades he weighs; bench timers and boosts stay off it), affordable, waiting, or nothing on the table. A sitting that is only an open, because the run ended after the last gap, is dropped. Each event hangs on the sitting's own first sample, so scopes cut sittings where they start.
+
+Four measures read it: `zeroBuySittings`, `buysPerSitting` (median), `bestOpenShare` and `bestWaitSittings` (the longest run of sittings in a row that open with the best buy out of reach). Their guardrails grade casual player types after day one:
+
+| Guardrail            | Bound |
+| -------------------- | ----- |
+| `zero-buy-sittings`  | ≤ 0.2 |
+| `buys-per-sitting`   | ≥ 3   |
+| `best-open-share`    | ≥ 0.6 |
+| `best-wait-sittings` | ≤ 2   |
+
+They are report-only until the economy overhaul (`docs/economy-overhaul.md`). Today's economy misses them on purpose. They turn strict with the milestones sliver (#357), after the new curve (#356). Each sitting's event hangs on its own first sample (the first at or after its open), so a scope that keeps a window of samples keeps exactly the sittings that started in it. At 3 seeds on main, the short check-ins miss all four: the checker reads 0.50 / 0.5 / 0.30 / 5.67 and the check-in dad 0.47 / 0.67 / 0.44 / 2.67. The casual dad (0.12 / 2 / 0.88 / 1) misses only the buys row. The evening dad (0 / 4 / 0.80 / 1) passes: a long sitting after a long gap still shops. `checkin-4x2` is the design's two-minute check-in: four a day, the gap sliding by a tenth, otherwise the plain dad. It is a casual type, so every strict casual guardrail grades it too, and it passes them all today (finish day 5.49). The full write-up is `docs/balance-review.md`.
+
 #### How to extend
 
 Three moves. Each is one new file, or one entry in `targets.ts`. No other edit.
@@ -367,7 +384,7 @@ Three moves. Each is one new file, or one entry in `targets.ts`. No other edit.
 2. **Add a measure.** Add `src/lab/measures/<id>.ts`. It default-exports `defineMeasure({ id, label, unit, why, sample?, aggregate })` from `src/lab/measure.ts`. `sample`, when present, reads one `DecisionSample`: live count, best id, wait-to-afford, crew per second, pocket, and output share by source. `aggregate` turns the samples into the number the report shows. The loader picks the file up. The tournament gains a column. A target whose `measure` is not a registered id fails the load.
 3. **Add or change a target.** Add or edit one entry in `src/lab/targets.ts`: `{ id, measure, scope, op, value, why }`. The guardrail test (`src/lab/guardrails.test.ts`) makes one check per entry. It has no threshold constant of its own. The report's pass/fail cells read the same list.
 
-The first policy files are casual `casual-2x10` (today's plain dad: same finish day, same buy list), `evening-1x20`, and `checker-6x3`; extremes `never-workers`, `tap-only`, `machines-only`, `workers-only`, `hoarder`, `five-min-a-day`, `marathon`, `no-engineers`, `all-in-engineers`, `never-fix-trouble`, and `boost-junkie`; and one optimizer (greedy lowest payback, with a one-step "save for X" lookahead over the next session). The lookahead horizon comes from `targets.ts`. The optimizer finishes no later than casual. Built (#172).
+The first policy files are casual `casual-2x10` (today's plain dad: same finish day, same buy list), `evening-1x20`, and `checker-6x3` (`checkin-4x2` joined them with the balance review); extremes `never-workers`, `tap-only`, `machines-only`, `workers-only`, `hoarder`, `five-min-a-day`, `marathon`, `no-engineers`, `all-in-engineers`, `never-fix-trouble`, and `boost-junkie`; and one optimizer (greedy lowest payback, with a one-step "save for X" lookahead over the next session). The lookahead horizon comes from `targets.ts`. The optimizer finishes no later than casual. Built (#172).
 
 The first measure files are `liveMedian`, `liveP10`, `singleShare`, `longestDeadStretch`, `longestValueStretch`, `dominantShare`, `typeEverBest`, `featureShare`, and `finishDay`. `typeEverBest` is the "never best" list (a move kind that was never the right buy). `featureShare` is one named source's output share. Tending uses it. A policy that never owns a borer shows n/a for that share, and the guardrail does not fail it.
 

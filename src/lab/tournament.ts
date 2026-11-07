@@ -18,6 +18,8 @@ import {
   type BandSummary,
 } from "./bands";
 import { createRevealLog, type RevealEvent } from "./reveal";
+import { createSittingLog, placeSittings, type SittingOpen } from "./sittings";
+import type { ValueContext } from "../economy/actions";
 import { minedOut } from "../scale";
 import type { Mountain } from "../mountain";
 import { TIERS, owned } from "../tiers";
@@ -169,6 +171,7 @@ function samplePolicy(
   const reveal = createRevealLog();
   const bands = createBandLog();
   const sittingAt = createSittingClock();
+  const sittingLog = createSittingLog();
   const context = valueContext(policy.params);
   let ownedBefore = 0;
   const run = runPolicy({
@@ -190,6 +193,14 @@ function samplePolicy(
         })),
       );
       pendingBands.push(...bands(world.mountain));
+      placeSittings(
+        samples,
+        sittingLog.observe({
+          clock: world.clock,
+          owned: ownedCount(world.mountain),
+          open: () => openingView(world.mountain, world.clock, policy, context),
+        }),
+      );
       if (isSampleSecond(live)) {
         const trouble =
           world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
@@ -223,6 +234,7 @@ function samplePolicy(
       live += 1;
     },
   });
+  placeSittings(samples, sittingLog.flush());
   attach(samples, pending, pendingBands);
   return withFinish(samples, run.finishDay);
 }
@@ -243,6 +255,38 @@ function attach(
     reveals: [...(last.reveals ?? []), ...events],
     bands: [...(last.bands ?? []), ...bandEvents],
   };
+}
+
+/**
+ * The best buy on this dad's Buys sheet, by stones a second per stone, as
+ * he sits down: crew, machines and upgrades he weighs. Bench timers and
+ * boosts stay off it; a cheap axle grease would otherwise hide the machine
+ * he is saving for. Away time has cleared any trouble, so none is passed.
+ */
+function openingView(
+  mountain: Mountain,
+  now: number,
+  policy: Policy,
+  context: ValueContext,
+): SittingOpen {
+  const table = actionsOnTable(mountain, now, policy.params).filter(
+    (action) => action.kind === "buyTier" || action.kind === "buyUpgrade",
+  );
+  const view = scoreDecision({
+    mountain,
+    now,
+    context,
+    atMs: now,
+    actions: table,
+    stretchActions: table,
+    craft: policy.params.craft,
+  }).stretch.value;
+  if (view.bestId === "") {
+    return { kind: "nothing" };
+  }
+  return view.waitToAffordSec === 0
+    ? { kind: "affordable" }
+    : { kind: "waiting", waitSec: view.waitToAffordSec };
 }
 
 /** Every policy, every seed. The measures and targets decide the columns and the pass/fail. */

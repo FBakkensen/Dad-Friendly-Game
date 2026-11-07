@@ -69,4 +69,33 @@ describe("tournament", () => {
     expect(markdown).toContain("Optimizer finish day");
     expect(markdown).toContain("Casual finish day");
   }, 30_000);
+
+  it("logs each sitting's buys and its opening table", async () => {
+    const policies = (
+      await discover(path.resolve("src/lab/policies"), parsePolicyExport)
+    ).filter((policy) => policy.id === "checkin-4x2");
+    const measures = (
+      await discover(path.resolve("src/lab/measures"), parseMeasureExport)
+    ).filter((measure) =>
+      ["zeroBuySittings", "buysPerSitting", "bestOpenShare"].includes(
+        measure.id,
+      ),
+    );
+    const result = runTournament({
+      policies,
+      measures,
+      targets: [],
+      seeds: [1],
+      days: 1,
+    });
+    const cell = (id: string) =>
+      result.rows[0]?.cells.find((item) => item.measureId === id)?.value;
+    // Day one is a shopping spree: every check-in buys, many things each.
+    expect(cell("zeroBuySittings")).toBe(0);
+    expect(cell("buysPerSitting")).toBeGreaterThanOrEqual(5);
+    const open = cell("bestOpenShare");
+    expect(open).not.toBeNaN();
+    expect(open).toBeGreaterThanOrEqual(0);
+    expect(open).toBeLessThanOrEqual(1);
+  }, 30_000);
 });
