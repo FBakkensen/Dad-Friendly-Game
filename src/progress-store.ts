@@ -64,6 +64,7 @@ import {
 } from "./mountain";
 import { effectiveRates } from "./rates";
 import { relicsUncovered, type Relic } from "./relics";
+import { stonesLeft } from "./scale";
 import { readPhoneBackup, saveEchoKey, writePhoneBackup } from "./phone-backup";
 import type { TabWriter } from "./tab-writer";
 import { compareSaveProgress, type SaveMoment } from "./save-progress";
@@ -1771,7 +1772,9 @@ export function createProgressStore({
       return Promise.resolve();
     }
     const generation = hydrateGeneration;
-    const minedAtHold = minedOut(mountain);
+    // Counted in pocket stones: deep bands and kid runs dig less than one
+    // stone of depth per stone, so a depth difference is not a tap count.
+    const leftAtHold = stonesLeft(mountain);
     resumeHold = true;
     cancelPendingCloudWrite();
     persistPhoneBackup();
@@ -1822,7 +1825,7 @@ export function createProgressStore({
         scheduleResumeRetry();
         return;
       }
-      const tapped = minedOut(mountain) - minedAtHold;
+      const tapped = leftAtHold - stonesLeft(mountain);
       if (loaded.kind === "found" && loaded.pending !== true) {
         serverSeen = true;
         const serverRev = loaded.rev ?? 0;
