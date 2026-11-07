@@ -74,7 +74,8 @@ export function createSittingLog(): SittingLog {
   return {
     observe(observation) {
       const away =
-        lastClock !== undefined && observation.clock - lastClock > MS_PER_SECOND;
+        lastClock !== undefined &&
+        observation.clock - lastClock > MS_PER_SECOND;
       lastClock = observation.clock;
       let closed: readonly SittingEvent[] = [];
       if (away) {
@@ -134,7 +135,9 @@ export function bestOpenShare(events: readonly SittingEvent[]): number {
   if (priced.length === 0) {
     return Number.NaN;
   }
-  return mean(priced.map((event) => (event.open.kind === "affordable" ? 1 : 0)));
+  return mean(
+    priced.map((event) => (event.open.kind === "affordable" ? 1 : 0)),
+  );
 }
 
 /** Longest run of sittings in a row that open with the best buy out of reach. NaN with none. */
