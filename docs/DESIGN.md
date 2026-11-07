@@ -357,6 +357,21 @@ Planned entries, beside the four above. M8-4 writes them into the file. A retune
 - An extreme's win over casual at most 15%.
 - Optimizer versus casual at most 25%.
 
+#### Check-in pacing (balance review, Nov 2026)
+
+The minute samples say what the table looked like. A sitting log (`src/lab/sittings.ts`) says what a check-in felt like. A clock jump is time away; the observation after it is the open, with away pay in and nothing bought yet. Each sitting records its buys (rises in the owned count, as `boughtSince` counts them) and its opening view: the best buy on this dad's Buys sheet by stones a second per stone (crew, machines and the upgrades he weighs; bench timers and boosts stay off it), affordable, waiting, or nothing on the table. A sitting that is only an open, because the run ended after the last gap, is dropped. The events ride on the next sample, like reveal and band events.
+
+Four measures read it: `zeroBuySittings`, `buysPerSitting` (median), `bestOpenShare` and `bestWaitSittings` (the longest run of sittings in a row that open with the best buy out of reach). Their guardrails grade casual player types after day one:
+
+| Guardrail            | Bound |
+| -------------------- | ----- |
+| `zero-buy-sittings`  | ≤ 0.2 |
+| `buys-per-sitting`   | ≥ 3   |
+| `best-open-share`    | ≥ 0.6 |
+| `best-wait-sittings` | ≤ 2   |
+
+They are report-only until the economy overhaul (`docs/economy-overhaul.md`). Today's economy misses them on purpose, and the re-curve sliver turns them strict. At 3 seeds on main, the short check-ins miss all four: the checker reads 0.53 / 0.17 / 0.29 / 5.67 and the check-in dad 0.46 / 0.67 / 0.45 / 2.67. The casual dad (0.11 / 3 / 0.89 / 1) and the evening dad (0 / 8.5 / 0.67 / 1) pass: a long sitting after a long gap still shops. `checkin-4x2` is the design's two-minute check-in: four a day, the gap sliding by a tenth, otherwise the plain dad. It is a casual type, so every strict casual guardrail grades it too, and it passes them all today (finish day 5.49). The full write-up is `docs/balance-review.md`.
+
 #### How to extend
 
 Three moves. Each is one new file, or one entry in `targets.ts`. No other edit.
@@ -367,7 +382,7 @@ Three moves. Each is one new file, or one entry in `targets.ts`. No other edit.
 2. **Add a measure.** Add `src/lab/measures/<id>.ts`. It default-exports `defineMeasure({ id, label, unit, why, sample?, aggregate })` from `src/lab/measure.ts`. `sample`, when present, reads one `DecisionSample`: live count, best id, wait-to-afford, crew per second, pocket, and output share by source. `aggregate` turns the samples into the number the report shows. The loader picks the file up. The tournament gains a column. A target whose `measure` is not a registered id fails the load.
 3. **Add or change a target.** Add or edit one entry in `src/lab/targets.ts`: `{ id, measure, scope, op, value, why }`. The guardrail test (`src/lab/guardrails.test.ts`) makes one check per entry. It has no threshold constant of its own. The report's pass/fail cells read the same list.
 
-The first policy files are casual `casual-2x10` (today's plain dad: same finish day, same buy list), `evening-1x20`, and `checker-6x3`; extremes `never-workers`, `tap-only`, `machines-only`, `workers-only`, `hoarder`, `five-min-a-day`, `marathon`, `no-engineers`, `all-in-engineers`, `never-fix-trouble`, and `boost-junkie`; and one optimizer (greedy lowest payback, with a one-step "save for X" lookahead over the next session). The lookahead horizon comes from `targets.ts`. The optimizer finishes no later than casual. Built (#172).
+The first policy files are casual `casual-2x10` (today's plain dad: same finish day, same buy list), `evening-1x20`, and `checker-6x3` (`checkin-4x2` joined them with the balance review); extremes `never-workers`, `tap-only`, `machines-only`, `workers-only`, `hoarder`, `five-min-a-day`, `marathon`, `no-engineers`, `all-in-engineers`, `never-fix-trouble`, and `boost-junkie`; and one optimizer (greedy lowest payback, with a one-step "save for X" lookahead over the next session). The lookahead horizon comes from `targets.ts`. The optimizer finishes no later than casual. Built (#172).
 
 The first measure files are `liveMedian`, `liveP10`, `singleShare`, `longestDeadStretch`, `longestValueStretch`, `dominantShare`, `typeEverBest`, `featureShare`, and `finishDay`. `typeEverBest` is the "never best" list (a move kind that was never the right buy). `featureShare` is one named source's output share. Tending uses it. A policy that never owns a borer shows n/a for that share, and the guardrail does not fail it.
 

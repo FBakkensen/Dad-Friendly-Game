@@ -123,6 +123,9 @@ describe("measures", () => {
     const measures = await discover(dir, parseMeasureExport);
     expect(measures.map((measure) => measure.id)).toEqual([
       "benchIdle",
+      "bestOpenShare",
+      "bestWaitSittings",
+      "buysPerSitting",
       "craftShare",
       "dominantShare",
       "extremeWin",
@@ -144,6 +147,7 @@ describe("measures", () => {
       "singleShare",
       "smallRevealSittings",
       "typeEverBest",
+      "zeroBuySittings",
     ]);
     for (const measure of measures) {
       expect(measure.why.includes(" ")).toBe(true);

@@ -18,6 +18,12 @@ import {
   type BandSummary,
 } from "./bands";
 import { createRevealLog, type RevealEvent } from "./reveal";
+import {
+  createSittingLog,
+  type SittingEvent,
+  type SittingOpen,
+} from "./sittings";
+import type { ValueContext } from "../economy/actions";
 import { minedOut } from "../scale";
 import type { Mountain } from "../mountain";
 import { TIERS, owned } from "../tiers";
@@ -169,6 +175,8 @@ function samplePolicy(
   const reveal = createRevealLog();
   const bands = createBandLog();
   const sittingAt = createSittingClock();
+  const sittingLog = createSittingLog();
+  let pendingSittings: SittingEvent[] = [];
   const context = valueContext(policy.params);
   let ownedBefore = 0;
   const run = runPolicy({
@@ -190,6 +198,13 @@ function samplePolicy(
         })),
       );
       pendingBands.push(...bands(world.mountain));
+      pendingSittings.push(
+        ...sittingLog.observe({
+          clock: world.clock,
+          owned: ownedCount(world.mountain),
+          open: () => openingView(world.mountain, world.clock, policy, context),
+        }),
+      );
       if (isSampleSecond(live)) {
         const trouble =
           world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
@@ -216,14 +231,16 @@ function samplePolicy(
           }),
         });
         ownedBefore = ownedNow;
-        attach(samples, pending, pendingBands);
+        attach(samples, pending, pendingBands, pendingSittings);
         pending = [];
         pendingBands = [];
+        pendingSittings = [];
       }
       live += 1;
     },
   });
-  attach(samples, pending, pendingBands);
+  pendingSittings.push(...sittingLog.flush());
+  attach(samples, pending, pendingBands, pendingSittings);
   return withFinish(samples, run.finishDay);
 }
 
@@ -232,17 +249,56 @@ function attach(
   samples: DecisionSample[],
   events: readonly RevealEvent[],
   bandEvents: readonly BandEvent[],
+  sittingEvents: readonly SittingEvent[],
 ): void {
   const index = samples.length - 1;
   const last = samples[index];
-  if (last === undefined || events.length + bandEvents.length === 0) {
+  if (
+    last === undefined ||
+    events.length + bandEvents.length + sittingEvents.length === 0
+  ) {
     return;
   }
   samples[index] = {
     ...last,
     reveals: [...(last.reveals ?? []), ...events],
     bands: [...(last.bands ?? []), ...bandEvents],
+    ...(sittingEvents.length === 0
+      ? {}
+      : { sittings: [...(last.sittings ?? []), ...sittingEvents] }),
   };
+}
+
+/**
+ * The best buy on this dad's Buys sheet, by stones a second per stone, as
+ * he sits down: crew, machines and upgrades he weighs. Bench timers and
+ * boosts stay off it; a cheap axle grease would otherwise hide the machine
+ * he is saving for. Away time has cleared any trouble, so none is passed.
+ */
+function openingView(
+  mountain: Mountain,
+  now: number,
+  policy: Policy,
+  context: ValueContext,
+): SittingOpen {
+  const table = actionsOnTable(mountain, now, policy.params).filter(
+    (action) => action.kind === "buyTier" || action.kind === "buyUpgrade",
+  );
+  const view = scoreDecision({
+    mountain,
+    now,
+    context,
+    atMs: now,
+    actions: table,
+    stretchActions: table,
+    craft: policy.params.craft,
+  }).stretch.value;
+  if (view.bestId === "") {
+    return { kind: "nothing" };
+  }
+  return view.waitToAffordSec === 0
+    ? { kind: "affordable" }
+    : { kind: "waiting", waitSec: view.waitToAffordSec };
 }
 
 /** Every policy, every seed. The measures and targets decide the columns and the pass/fail. */

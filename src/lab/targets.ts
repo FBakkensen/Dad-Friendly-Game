@@ -125,7 +125,7 @@ type TargetBase = {
   readonly why: string;
   /**
    * A miss is still in the report. It does not fail `LAB_STRICT`.
-   * No current guardrail sets this. The exit path stays for a future row.
+   * The check-in pacing rows set it until the economy overhaul lands.
    */
   readonly reportOnly?: boolean;
 };
@@ -277,6 +277,46 @@ export const TARGETS: readonly Target[] = [
     value: 2,
     why: "a new machine should be bought within two sittings of showing up.",
   },
+  // Check-in pacing (balance review, docs/balance-review.md). Report only
+  // until the economy overhaul in docs/economy-overhaul.md lands: today's
+  // economy misses them, which is the point. The re-curve sliver makes
+  // them strict.
+  {
+    id: "zero-buy-sittings",
+    measure: "zeroBuySittings",
+    scope: { kind: "afterHour", hour: HOURS_PER_DAY, kinds: ["casual"] },
+    op: "lte",
+    value: 0.2,
+    why: "After day one, at most one check-in in five should buy nothing.",
+    reportOnly: true,
+  },
+  {
+    id: "buys-per-sitting",
+    measure: "buysPerSitting",
+    scope: { kind: "afterHour", hour: HOURS_PER_DAY, kinds: ["casual"] },
+    op: "gte",
+    value: 3,
+    why: "After day one, a typical check-in should buy at least three things.",
+    reportOnly: true,
+  },
+  {
+    id: "best-open-share",
+    measure: "bestOpenShare",
+    scope: { kind: "afterHour", hour: HOURS_PER_DAY, kinds: ["casual"] },
+    op: "gte",
+    value: 0.6,
+    why: "After day one, most check-ins should open with the best buy in reach.",
+    reportOnly: true,
+  },
+  {
+    id: "best-wait-sittings",
+    measure: "bestWaitSittings",
+    scope: { kind: "afterHour", hour: HOURS_PER_DAY, kinds: ["casual"] },
+    op: "lte",
+    value: 2,
+    why: "The best buy should never stay out of reach for more than two check-ins in a row.",
+    reportOnly: true,
+  },
 ];
 
 /**
@@ -333,6 +373,10 @@ export const EVENING_MINUTES = 20;
 export const CHECKER_SESSIONS = 6;
 export const CHECKER_MINUTES = 3;
 export const CHECKER_GAP_JITTER = 0.1;
+
+/** Four 2-minute check-ins, the design's short sitting. */
+export const CHECKIN_SESSIONS = 4;
+export const CHECKIN_MINUTES = 2;
 
 /** One 5-minute sitting, or one 3-hour sitting. */
 export const FIVE_MINUTES = 5;
