@@ -68,6 +68,22 @@ const SAVES = {
       mountain: { ...crewMountain().mountain, legacy: 1 },
     }),
   },
+  edge: {
+    note: "13 carts, four stones above the Granite: tap across, open Buys",
+    save: () => ({
+      version: 6,
+      lastSeen: Date.now(),
+      mountain: {
+        remaining: 240_000_000 - 9_999_996,
+        pocket: 2_000_000,
+        helpers: 40,
+        carts: 13,
+        drills: 4,
+        staffed: 2,
+      },
+      workshop: openMountain().workshop,
+    }),
+  },
   brief: {
     note: "the mid save, last seen 2 minutes ago: the quiet away note",
     save: () => ({ ...openMountain(), lastSeen: Date.now() - HOUR / 30 }),
