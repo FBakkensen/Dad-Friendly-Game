@@ -50,4 +50,24 @@ describe("grandpa (#338)", () => {
     // Legacy ×1.5 and his tending, nothing more.
     expect(after).toBeCloseTo(before * 1.5 * (1 + tends / 10));
   });
+
+  it("tends his biggest group by base output, not the newest machine (#356)", () => {
+    const many = { ...kidRun, helpers: 400, drills: 60, borers: 1 };
+    expect(grandpaPost(many)).toBe("drill");
+    expect(grandpaPost({ ...many, borers: 10 })).toBe("borer");
+    const drillsTended = {
+      ...many,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "drill" }] as const,
+    };
+    expect(grandpaPost(drillsTended)).toBe("borer");
+    expect(grandpaPost({ ...many, legacy: 0 })).toBeUndefined();
+  });
+
+  it("a first borer never lowers the crew's income (#356)", () => {
+    const drills = { ...kidRun, helpers: 400, drills: 60 };
+    const bought = { ...drills, borers: 1 };
+    expect(effectiveRates(bought).crewPerSecond).toBeGreaterThanOrEqual(
+      effectiveRates(drills).crewPerSecond,
+    );
+  });
 });
