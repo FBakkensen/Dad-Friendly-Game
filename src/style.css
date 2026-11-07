@@ -3411,12 +3411,14 @@ body {
 /* The shelf sits above the rock. An overlay put the peak through the relics.
    The goal line, the shelf and the rock stay together; on a phone taller than
    the rock can use, the group is centred, so the spare height never sits
-   between the shelf and the peak. */
+   between the shelf and the peak. Safe centring: on a phone too short for
+   the group it spills down only, never up over the clock chips. */
 .mountain-wrap {
   container-type: inline-size;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  justify-content: safe center;
   /* The shelf and the rock are both targets: 8px apart (#346). */
   gap: var(--target-gap);
 }
@@ -3658,11 +3660,11 @@ body {
 
 /*
  * The shared timer chip: a pill per countdown, three to a row, one row per
- * three it can run. A chip is 28px, not 48: a tap only names the timer, and
+ * three running. A chip is 28px, not 48: a tap only names the timer, and
  * small chips keep the mountain big with all twelve running.
  */
 .effect-row {
-  --effect-rows: 1;
+  --effect-rows: 0;
   --effect-chip: calc(var(--space-24) + var(--space-4));
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

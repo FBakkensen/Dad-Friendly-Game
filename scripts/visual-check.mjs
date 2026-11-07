@@ -2785,6 +2785,8 @@ for (const viewport of [
 const EFFECT_VIEWS = [
   [424, 830],
   [440, 924],
+  // A short phone (iPhone SE with Safari's bars): the goal must not climb over the chips.
+  [375, 548],
 ];
 function effectSave(count) {
   const now = Date.now();
@@ -2931,6 +2933,35 @@ for (const viewport of EFFECT_VIEWS) {
           artBox.top >= shelfBox.bottom - 0.5;
         const fat =
           artBox !== undefined && artBox.width >= 96 && artBox.height >= 96;
+        // #352: no empty band. The row holds only the running clocks, the
+        // goal sits clear of it, the shelf is 8px above the rock, and the
+        // rock either reaches the end of its wrap or its width cap.
+        const rowsFit =
+          row.dataset["rows"] === String(Math.ceil(expected / 3)) &&
+          (expected > 0 || row.hidden || rowBox.height < 1);
+        const goal = document.querySelector(".relic-goal");
+        const goalBox =
+          goal === null || goal.hidden ? undefined : goal.getBoundingClientRect();
+        const goalClear =
+          goalBox === undefined ||
+          rowBox.height < 1 ||
+          goalBox.top >= rowBox.bottom - 0.5;
+        const stageBox = rock?.getBoundingClientRect();
+        const shelfGap =
+          stageBox !== undefined && shelfBox !== undefined
+            ? stageBox.top - shelfBox.bottom
+            : -1;
+        const wrapBox = document
+          .querySelector(".mountain-wrap")
+          ?.getBoundingClientRect();
+        const rockFills =
+          stageBox !== undefined &&
+          wrapBox !== undefined &&
+          artBox !== undefined &&
+          (wrapBox.bottom - stageBox.bottom <= 1 ||
+            artBox.height >= (wrapBox.width * 114) / 86 - 1);
+        const noBand =
+          rowsFit && goalClear && Math.abs(shelfGap - 8) <= 1 && rockFills;
         const app = document.querySelector("#app");
         const still =
           app !== null &&
@@ -2944,6 +2975,7 @@ for (const viewport of EFFECT_VIEWS) {
             packed &&
             peakClear &&
             fat &&
+            noBand &&
             Math.round(rowBox.height) <= 124 &&
             chips.every((chip) => chip.scrollWidth <= chip.clientWidth + 1) &&
             !hits(shelf) &&
@@ -2956,6 +2988,10 @@ for (const viewport of EFFECT_VIEWS) {
           artHeight: artBox === undefined ? 0 : Math.round(artBox.height),
           peakClear,
           fat,
+          rowsFit,
+          goalClear,
+          shelfGap: Math.round(shelfGap),
+          rockFills,
           shown: chips.length,
           labels: chips.map((chip) => chip.textContent),
           welcomeShut,
