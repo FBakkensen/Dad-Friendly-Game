@@ -14,7 +14,7 @@ import {
   upgradeUnlocked,
 } from "./upgrades";
 
-const crew = { ...minedMountain(0), helpers: 500 }; // 500 stones a second
+const crew = { ...minedMountain(0), helpers: 500 }; // 500 workers, x8 at the 100 mark: 4,000 a second
 
 describe("Strong arms (tap power)", () => {
   const arms = upgradeById("tap");
@@ -45,11 +45,13 @@ describe("Strong arms (tap power)", () => {
 
   it("adds 1% of crew speed per level to every tap, rounded down", () => {
     expect(effectiveRates(crew).tapYield).toBe(1);
-    expect(effectiveRates({ ...crew, upgrades: { tap: 1 } }).tapYield).toBe(9);
-    expect(effectiveRates({ ...crew, upgrades: { tap: 3 } }).tapYield).toBe(25);
+    expect(effectiveRates({ ...crew, upgrades: { tap: 1 } }).tapYield).toBe(67);
+    expect(effectiveRates({ ...crew, upgrades: { tap: 3 } }).tapYield).toBe(
+      199,
+    );
     const tapped = mineByHand({ ...crew, upgrades: { tap: 3 } });
-    expect(tapped.pocket).toBe(25);
-    expect(tapped.remaining).toBe(crew.remaining - 25);
+    expect(tapped.pocket).toBe(199);
+    expect(tapped.remaining).toBe(crew.remaining - 199);
     // A tap never digs past the bottom.
     // One depth left in the Heart band is 27 stones; a strong tap clears it whole.
     const last = mineByHand({ ...crew, remaining: 1, upgrades: { tap: 5 } });
@@ -62,7 +64,7 @@ describe("Strong arms (tap power)", () => {
 
   it("doesn't change the crew's own speed or away pay", () => {
     const strong = { ...crew, upgrades: { tap: 5 } };
-    expect(stonesPerSecond(strong)).toBe(500);
+    expect(stonesPerSecond(strong)).toBe(4_000);
     expect(effectiveRates(strong).awayPay).toBe(effectiveRates(crew).awayPay);
   });
 
@@ -124,13 +126,13 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
     expect(effectiveRates(steady).awayPay).toBeCloseTo(AWAY_PAY_RATE * 1.25);
     expect(
       accrueAway({ mountain: crew, lastSeen: 0, now: 100_000 }).mined,
-    ).toBe(3_000);
+    ).toBe(24_000);
     expect(
       accrueAway({ mountain: steady, lastSeen: 0, now: 100_000 }).mined,
-    ).toBe(3_750);
+    ).toBe(30_000);
     expect(
       accrue({ mountain: steady, from: 0, to: 100_000, live: true }).mined,
-    ).toBe(10_000);
+    ).toBe(80_000);
   });
 
   it("saves and reads all three, and rejects levels past the top", () => {
@@ -181,14 +183,15 @@ describe("crew synergies", () => {
     const boosted = { ...crew, upgrades: { cartSyn: 1 } };
     expect(tierSynergy(boosted, "cart")).toBeCloseTo(0.2);
     const rates = effectiveRates(boosted);
-    expect(rates.tierSpeed.cart).toBeCloseTo(7.2);
+    // Ten carts is the first mark, so the carts run twice as fast: 7.2 × 2.
+    expect(rates.tierSpeed.cart).toBeCloseTo(14.4);
     expect(rates.tierSpeed.drill).toBe(36);
-    // 4 drills take 4 workers, so all 10 carts run: 20 + 10×7.2 + 4×36.
-    expect(rates.crewPerSecond).toBe(20 + 72 + 144);
+    // 4 drills take 4 workers, so all 10 carts run: 20 + 10×14.4 + 4×36.
+    expect(rates.crewPerSecond).toBe(20 + 144 + 144);
     // Away pay uses the same rates.
     expect(
       accrueAway({ mountain: boosted, lastSeen: 0, now: 10_000 }).mined,
-    ).toBe(708);
+    ).toBe(924);
   });
 
   it("stacks with Better boots and other synergies", () => {
@@ -200,10 +203,11 @@ describe("crew synergies", () => {
       upgrades: { boots: 1, cartSyn: 1, drillSyn: 1 },
     };
     const rates = effectiveRates(crew);
-    expect(rates.tierSpeed.helper).toBeCloseTo(2.36);
-    expect(rates.tierSpeed.cart).toBeCloseTo(8.4);
-    expect(rates.tierSpeed.drill).toBeCloseTo(39.6);
-    expect(rates.crewPerSecond).toBe(94 + 84 + 396);
+    // 40 workers, 10 carts and 10 drills each hold one ×2 mark.
+    expect(rates.tierSpeed.helper).toBeCloseTo(4.72);
+    expect(rates.tierSpeed.cart).toBeCloseTo(16.8);
+    expect(rates.tierSpeed.drill).toBeCloseTo(79.2);
+    expect(rates.crewPerSecond).toBe(188 + 168 + 792);
   });
 
   it("save and load", () => {

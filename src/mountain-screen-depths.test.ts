@@ -877,7 +877,7 @@ describe("sheet buys", () => {
         ?.hasAttribute("hidden"),
     ).toBe(false);
     expect(screen.text('[data-tier="drill"] .tier-preview')).toMatch(
-      /^\d+ of 20 · Twenty drills/,
+      /^\d+ of 10 · Ten drills/,
     );
     expect(screen.text('[data-tier="drill"]')).not.toMatch(/\?/);
     screen.root.querySelector<HTMLButtonElement>(".buys-close")?.click();

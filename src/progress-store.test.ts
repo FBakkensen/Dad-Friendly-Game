@@ -1084,8 +1084,9 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       sessionStorage: storage,
       now: () => 100_000,
     });
-    // 10 helpers + 10 carts = 70/s, 100 s away at 30%.
-    expect(progress.getSnapshot().quietAway).toBe(2_100);
+    // 10 helpers + 10 carts at their first mark (6 × 2 each) = 130/s,
+    // 100 s away at 30%.
+    expect(progress.getSnapshot().quietAway).toBe(3_900);
     expect(progress.getSnapshot().crewJoined).toBe(10);
   });
 

@@ -74,8 +74,9 @@ describe("what the crew gives", () => {
         return storage;
       })(),
     });
+    // 150 carts hold five marks: 6 × 32 each.
     expect(big.text('[data-tier="cart"] .tier-rate')).toBe(
-      "+6 each · 900/s · Needs 1 worker",
+      "+192 · 28.8K/s · Needs 1 worker",
     );
   });
 
@@ -236,7 +237,7 @@ describe("upgrades on screen", () => {
     );
     expect(screen.text('[data-upgrade="tap"] .sheet-level')).toBe("Lv 0/10");
     expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
-      "Taps 1 to 9.",
+      "Taps 1 to 67.",
     );
     const buy = screen.root.querySelector<HTMLButtonElement>(
       '[data-upgrade="tap"] .upgrade-buy',
@@ -248,7 +249,7 @@ describe("upgrades on screen", () => {
     );
     expect(screen.text('[data-upgrade="tap"] .sheet-level')).toBe("Lv 1/10");
     expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
-      "Taps 9 to 18.",
+      "Taps 67 to 133.",
     );
     expect(buy?.textContent).toBe("Buy · 368K");
     expect(buy?.disabled).toBe(false);
@@ -260,9 +261,9 @@ describe("upgrades on screen", () => {
     screen.mountain.dispatchEvent(
       new MouseEvent("click", { bubbles: true, detail: 1 }),
     );
-    expect(screen.root.querySelector(".tap-float")?.textContent).toBe("+9");
+    expect(screen.root.querySelector(".tap-float")?.textContent).toBe("+67");
     expect(screen.mountain.getAttribute("aria-label")).toBe(
-      "Mountain, tap to mine 9 stones",
+      "Mountain, tap to mine 67 stones",
     );
     screen.root.remove();
     setReducedMotion(true);
@@ -794,7 +795,7 @@ describe("Flemming's cart (#216)", () => {
       "+2.4\u2009·\u200942/s",
     );
     expect(screen.text('[data-tier="cart"] .tier-rate')).toBe(
-      "+7.1\u2009·\u200992/s · Needs 1 worker",
+      "+14\u2009·\u2009184/s · Needs 1 worker",
     );
     expect(screen.text('[data-tier="drill"] .tier-rate')).toBe(
       "+36\u2009·\u2009180/s · Needs 1 worker",
@@ -1413,7 +1414,7 @@ describe("player-facing workers (#139)", () => {
         screen.root.querySelector<HTMLElement>(".upgrades-dialog")?.hidden,
       ).toBe(false);
       expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toMatch(
-        /^Workers \d+\.\d\/s to \d+\.\d\/s\.$/,
+        /^Workers \d+(\.\d)?\/s to \d+(\.\d)?\/s\.$/,
       );
       expect(screen.text('[data-upgrade="cartSyn"] .upgrade-name')).toBe(
         "Helping hands",

@@ -230,7 +230,8 @@ describe("materials from digging", () => {
     const mountain = { ...minedMountain(7_000_000), helpers };
     const stones =
       shownStones(mountain, depth) - shownStones(mountain, 7_000_000);
-    const liveMs = (stones / helpers) * 1_000;
+    // 1,500 workers hold the top three marks, so each digs 8 a second.
+    const liveMs = (stones / (helpers * 8)) * 1_000;
     const awayMs = liveMs / AWAY_PAY_RATE;
     const live = accrue({ mountain, from: 0, to: liveMs });
     const away = accrue({ mountain, from: 0, to: awayMs, pay: AWAY_PAY_RATE });
@@ -250,8 +251,9 @@ describe("materials from digging", () => {
 
     let sliced = mountain;
     let at = 0;
-    const slice = liveMs / 1_000;
-    for (let step = 0; step < 1_000; step += 1) {
+    // Whole-second slices: the dig divides whole seconds.
+    const slice = 1_000;
+    for (let step = 0; step < liveMs / slice; step += 1) {
       const part = accrue({ mountain: sliced, from: at, to: at + slice });
       sliced = part.mountain;
       at = part.settledAt;

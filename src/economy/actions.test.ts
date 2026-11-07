@@ -932,9 +932,9 @@ describe("valueOf", () => {
     expect(arms.gainPerSec).toBe(0);
     expect(
       effectiveRates(small).exactCrewPerSecond * TAP_SHARE_PER_LEVEL,
-    ).toBeCloseTo(0.825, 6);
+    ).toBeCloseTo(3.3, 6);
 
-    const hundred: Mountain = { ...fresh, helpers: 70, carts: 3 };
+    const hundred: Mountain = { ...fresh, helpers: 24, carts: 9 };
     const bigArms = score(
       hundred,
       { kind: "buyUpgrade", id: "tap" },
