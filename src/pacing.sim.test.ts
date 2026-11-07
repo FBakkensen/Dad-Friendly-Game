@@ -177,10 +177,12 @@ describe("pacing: lost tools (#148)", () => {
     const scouts = (run.mountain.engineers ?? []).slice(1);
     expect(scouts.length).toBeGreaterThan(0);
     // On the new curve (#356) Nils joins on day 3 of a four-day run, so he
-    // walks the tunnels but has no time to rank up or bring a find home.
-    expect(
-      scouts.reduce((trips, engineer) => trips + engineer.trips, 0),
-    ).toBeGreaterThanOrEqual(1);
+    // walks the tunnels once but has no time to rank up or bring a find home.
+    expect(scouts.reduce((trips, engineer) => trips + engineer.trips, 0)).toBe(
+      1,
+    );
+    expect(scouts.every((engineer) => engineer.rank === 0)).toBe(true);
+    expect(run.mountain.finds ?? []).toHaveLength(0);
   });
 });
 
@@ -195,7 +197,11 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
     // the borer opens, so its eight are hired with it; the bill stays small.
     const borer = run.buys.find((buy) => buy.id === "borer");
     expect(borer).toMatchObject({ count: 1, price: 4_940_000, short: 8 });
-    expect((borer?.shortCost ?? 0) / (borer?.price ?? 1)).toBeLessThan(1.5);
+    // Eight workers at the top of the ×1.08 curve: 6,918,968 for a 4.94M borer.
+    expect((borer?.shortCost ?? 0) / (borer?.price ?? 1)).toBeCloseTo(
+      1.4006,
+      4,
+    );
     const machine = run.buys.find((buy) => buy.id === "machine");
     expect(machine?.short).toBeGreaterThan(0);
     expect((machine?.shortCost ?? 0) / (machine?.price ?? 1)).toBeLessThan(
