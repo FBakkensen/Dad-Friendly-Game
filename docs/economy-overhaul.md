@@ -124,6 +124,8 @@ S2 is the big one. A alone still misses the check-in rows (28% of check-ins buy 
 
 - **The new numbers apply to the run in progress (Flemming, 7 Nov 2026).** No "new runs only" flag. The rest of today's run gets more stones per stretch in the deeper bands and cheaper machines. Kid runs keep their stretch k on top.
 
+- **Fix two rules inside S2, then retune (Flemming, 7 Nov 2026).** The first tuning pass found two causes that prices cannot reach. (1) Grandpa (#338) sat on the highest running tier, so in a kid run one new borer pulled his tending off a big drill group and lowered income; no kid run then bought a borer or Great Machine. He now tends the group with the most base output. (2) Upgrades and promotions had fixed prices, tiny against the new income, so one of them was the best move for long stretches. They now scale with k × s of the band you stand in. Machine and worker prices still never scale with s.
+
 ## Open decisions for Flemming
 
 Each decision has a recommendation. D3 (the run in progress) is decided above.
