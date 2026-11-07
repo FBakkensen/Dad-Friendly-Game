@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
 import { createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
@@ -9,10 +9,18 @@ import { STAFFING_INTRO, staffingAction, staffingLine } from "./screen-words";
 import { tierById, tierCost } from "./tiers";
 import { noteFor, showsDot } from "./teach";
 
+// Each mounted screen runs a 1s ticker; abort it so it never fires after teardown.
+let screens = new AbortController();
+
 beforeEach(() => {
+  screens = new AbortController();
   window.matchMedia = ((query: string) => ({
     matches: query.includes("reduce"),
   })) as unknown as typeof window.matchMedia;
+});
+
+afterEach(() => {
+  screens.abort();
 });
 
 const tile =
@@ -72,6 +80,7 @@ function mount(now: () => number) {
     progress,
     now,
     random: () => 0,
+    signal: screens.signal,
   });
   document.body.append(root);
   return { root, progress };
