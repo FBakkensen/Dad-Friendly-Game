@@ -59,7 +59,7 @@ Retuning prices alone only trades long waits for weak buys (the frontier in the 
   - The field log caps one event's stones at the rules' 240M (`firestore.rules`). A deep-band away haul will pass that, so the cap rises in the same sliver, with the emulator round-trip test.
   - `pocket` is an int with no upper bound, and safe integers hold up to 9e15.
 - **Player text.** "Stones left" shows stones at band scales, so the number jumps when a deeper band opens. The layer card says so in dad words ("The Granite is harder. Every stretch takes more stones."). There is no ratio and no payback.
-- **Existing saves.** Decision D3.
+- **Existing saves.** The new numbers apply to the run in progress (Decided, below). The save holds only counts, depth and pocket, so nothing migrates: the next load reads the new tables.
 
 ### C. Ownership milestones on every tier
 
@@ -122,16 +122,14 @@ S2 is the big one. A alone still misses the check-in rows (28% of check-ins buy 
 
 - **The run length is not a limit (Flemming, 7 Nov 2026).** "The run is endless, with each pass to the kid being harder." `casual-finish` (days 5–7) and `thin-habit-finish` (14 days) are report-only rows from now on. The kid-run rule stays strict: every run finishes later than the one before, with every machine bought. The pacing tests that pin a finish day are regression pins: S2 re-pins them and does not treat them as limits.
 
+- **The new numbers apply to the run in progress (Flemming, 7 Nov 2026).** No "new runs only" flag. The rest of today's run gets more stones per stretch in the deeper bands and cheaper machines. Kid runs keep their stretch k on top.
+
 ## Open decisions for Flemming
 
 Each decision has a recommendation.
 
 1. **D1: the curve band.** Machines at about 1.15 and workers at about 1.08, with the exact values picked by the lab. _Recommended: yes._ The alternative is stepped prices like Antimatter Dimensions (a jump every 10 units, each with ×2 output), which suits few units per tier but is a bigger UI change.
 2. **D2: depth scale per band.** Start from the probe's s = 1/3/9/27 and let the lab settle it by feel. _Recommended: yes._ The alternative is a bigger mountain with every price scaled up, which keeps today's flat ratios and so keeps the problem.
-3. **D3: the run in progress.**
-   - (a) The new numbers apply from the next pass to the kid only.
-   - (b) They apply at once: the save is just numbers, but the rest of today's run gets longer in stones and cheaper in machines.
-   - _Recommended: (b)._ There is one real player, the new curve is kinder, and a stretch-style "new runs only" flag means carrying two economies in code and in the lab.
-4. **D4: milestone copy and marks.** The marks above, with lines in the existing voice ("Twenty-five drills and the crew finds its rhythm."). _Recommended: approve the marks; copy goes in the S3 PR body._
-5. **D5: the guardrails.** Turn the four check-in rows strict after S3, and keep every existing bound as it is. _Recommended: yes._ If S2 cannot meet extreme win ≤ 0.17 with live play this weak, report it and decide then; do not loosen it in advance.
-6. **D6: buy ×10 / Max.** _Recommended: yes, as S4._ Without it the check-in turns into a tapping chore.
+3. **D4: milestone copy and marks.** The marks above, with lines in the existing voice ("Twenty-five drills and the crew finds its rhythm."). _Recommended: approve the marks; copy goes in the S3 PR body._
+4. **D5: the guardrails.** Turn the four check-in rows strict after S3, and keep every existing bound as it is. _Recommended: yes._ If S2 cannot meet extreme win ≤ 0.17 with live play this weak, report it and decide then; do not loosen it in advance.
+5. **D6: buy ×10 / Max.** _Recommended: yes, as S4._ Without it the check-in turns into a tapping chore.
