@@ -64,12 +64,16 @@ function materialAffordable(mountain: Mountain, material: MaterialId): boolean {
   );
 }
 
+/** A busy bench counts as use: the dad cannot start a second craft on it. */
 function materialUsed(mountain: Mountain, material: MaterialId): boolean {
   const bench = mountain.bench?.recipe;
-  return knownRecipes(mountain).some(
-    (id) =>
-      recipeCost(id).materials[material] > 0 &&
-      (craftedLevel(mountain, id) > 0 || bench === id),
+  return (
+    mountain.bench !== undefined ||
+    knownRecipes(mountain).some(
+      (id) =>
+        recipeCost(id).materials[material] > 0 &&
+        (craftedLevel(mountain, id) > 0 || bench === id),
+    )
   );
 }
 
@@ -150,7 +154,7 @@ function recipeWatch(id: RecipeId): Watch {
     shown: (mountain) =>
       knownRecipes(mountain).includes(id) && recipeAffordable(mountain, id),
     used: (mountain) =>
-      craftedLevel(mountain, id) > 0 || mountain.bench?.recipe === id,
+      mountain.bench !== undefined || craftedLevel(mountain, id) > 0,
   };
 }
 

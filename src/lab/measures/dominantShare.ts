@@ -9,17 +9,21 @@ function afterOpening(
 }
 
 /**
- * Share of samples, after the first hour, where the most common best move
- * is the best move.
+ * Share of samples, after the first hour, where the most common best spend
+ * on this dad's own table is the best one. Samples with nothing on the
+ * table (`""`) are skipped.
  */
 function dominantShareOf(samples: readonly DecisionSample[]): number {
-  const later = afterOpening(samples);
+  const later = afterOpening(samples).filter(
+    (sample) => sample.stretch.payback.bestId !== "",
+  );
   if (later.length === 0) {
     return 0;
   }
   const counts = new Map<string, number>();
   for (const sample of later) {
-    counts.set(sample.bestId, (counts.get(sample.bestId) ?? 0) + 1);
+    const id = sample.stretch.payback.bestId;
+    counts.set(id, (counts.get(id) ?? 0) + 1);
   }
   let bestCount = 0;
   for (const count of counts.values()) {
@@ -34,6 +38,6 @@ export default defineMeasure({
   id: "dominantShare",
   label: "Dominant move",
   unit: "share",
-  why: "If one move is usually best, the other buttons are scenery.",
+  why: "If one spend is usually best on the dad's own table, the other buttons are scenery.",
   aggregate: (samples) => dominantShareOf(samples),
 });

@@ -109,6 +109,40 @@ describe("createRevealLog", () => {
   });
 });
 
+describe("a busy bench counts as use", () => {
+  const rich: Mountain = {
+    ...minedMountain(5_000_000),
+    pocket: 1e12,
+    materials: { clay: 1000, iron: 1000, crystal: 1000, heartstone: 1000 },
+    recipes: ["axle-grease", "blasting-charge"],
+  };
+
+  it("logs clay and the Blasting charge as used while axle grease runs", () => {
+    const log = createRevealLog();
+    const busy: Mountain = {
+      ...rich,
+      bench: { recipe: "axle-grease", startedAt: 0, endsAt: 60_000 },
+    };
+    const events = log(busy, 0);
+    expect(events).toContainEqual({
+      kind: "firstUse",
+      id: "material:clay",
+      liveSec: 0,
+    });
+    expect(events).toContainEqual({
+      kind: "firstUse",
+      id: "recipe:blasting-charge",
+      liveSec: 0,
+    });
+  });
+
+  it("keeps an idle bench unused", () => {
+    const events = createRevealLog()(rich, 0);
+    expect(ids(events, "firstUse")).not.toContain("material:clay");
+    expect(ids(events, "firstUse")).not.toContain("recipe:blasting-charge");
+  });
+});
+
 describe("revealGaps and neverUsed", () => {
   const events: RevealEvent[] = [
     { kind: "appeared", id: "a", liveSec: 0 },
