@@ -58,7 +58,7 @@ Retuning prices alone only trades long waits for weak buys (the frontier in the 
 - **Saves.** s is a constant table keyed by band, so there is no new save field and no rules change for the mountain.
   - The field log caps one event's stones at the rules' 240M (`firestore.rules`). A deep-band away haul will pass that, so the cap rises in the same sliver, with the emulator round-trip test.
   - `pocket` is an int with no upper bound, and safe integers hold up to 9e15.
-- **Player text.** "Stones left" shows stones at band scales, so the number jumps when a deeper band opens. The layer card says so in dad words ("The Granite is harder. Every stretch takes more stones."). There is no ratio and no payback.
+- **Player text.** "Stones left" shows stones at band scales, so the number jumps when a deeper band opens. There is no ratio and no payback. The new curve (#356) ships with no copy change (Flemming, 7 Nov 2026). If the jump reads like a bug in play, a one-line layer-card note becomes its own issue.
 - **Existing saves.** The new numbers apply to the run in progress (Decided, below). The save holds only counts, depth and pocket, so nothing migrates: the next load reads the new tables.
 
 ### C. Ownership milestones on every tier
