@@ -47,9 +47,11 @@ describe("owned-count milestones", () => {
 
   it("every staffed tier has the spec marks", () => {
     const ats = (id: TierId) => MILESTONES[id]?.map((mark) => mark.at);
-    for (const id of ["cart", "drill", "borer"] as const) {
+    for (const id of ["cart", "drill"] as const) {
       expect(ats(id)).toEqual([10, 25, 50, 100, 150, 200]);
     }
+    // Flemming's ruling after the Task 3 stop (#357): borers keep their 5.
+    expect(ats("borer")).toEqual([5, 10, 25, 50, 100, 150, 200]);
     expect(ats("machine")).toEqual([2, 3, 5, 10, 25, 50]);
     expect(ats("helper")).toEqual([25, 50, 100]);
     expect(MILESTONES.kid).toBeUndefined();
@@ -64,6 +66,21 @@ describe("owned-count milestones", () => {
     expect(milestoneMultiplier("helper", 100)).toBe(8);
     expect(milestoneMultiplier("helper", 1000)).toBe(8);
     expect(milestoneMultiplier("machine", 50)).toBe(64);
+  });
+
+  it("borers double from five and stop at x128", () => {
+    expect(milestoneMultiplier("borer", 4)).toBe(1);
+    expect(milestoneMultiplier("borer", 5)).toBe(2);
+    expect(milestoneMultiplier("borer", 10)).toBe(4);
+    expect(milestoneMultiplier("borer", 199)).toBe(64);
+    expect(milestoneMultiplier("borer", 200)).toBe(128);
+    expect(milestoneMultiplier("borer", 5000)).toBe(128);
+    expect(milestoneLine("borer", 3, plain)).toBe(
+      "3 of 5 · Five borers side by side. They clear the tunnels twice as fast.",
+    );
+    expect(milestoneLine("borer", 7, plain)).toBe(
+      "Twice as fast now. 7 of 10 · Ten borers in step. Twice as fast again.",
+    );
   });
 
   it("goal lines fit a phone card", () => {

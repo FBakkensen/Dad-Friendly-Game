@@ -71,11 +71,13 @@ export const MILESTONES: MilestoneTable = {
       goal: "Two hundred drills. The rock just gives way. Twice as fast again.",
     },
   ],
+  // Borers keep today's mark at 5 (Flemming, after the Task 3 stop, #357).
   borer: [
     {
-      at: 10,
-      goal: "Ten borers side by side. They clear the tunnels twice as fast.",
+      at: 5,
+      goal: "Five borers side by side. They clear the tunnels twice as fast.",
     },
+    { at: 10, goal: "Ten borers in step. Twice as fast again." },
     { at: 25, goal: "Twenty-five borers in step. Twice as fast again." },
     {
       at: 50,
