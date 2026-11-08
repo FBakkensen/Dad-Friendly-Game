@@ -216,7 +216,6 @@ body.desk #housing{display:block}
 .srow .mid{position:relative;display:flex;flex-direction:column;min-width:0;overflow:hidden}
 .srow .nm{font-size:17px;line-height:19px;font-weight:700;color:var(--ink);white-space:nowrap}
 .srow .info{font-size:13px;line-height:15px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.srow .info.good{color:var(--green)}
 .srow .need{font-size:13px;line-height:15px;color:var(--rust);white-space:nowrap}
 .srow .need:empty{display:none}
 .srow .flag{color:var(--amber)}
@@ -444,7 +443,7 @@ body.desk #housing{display:block}
 </div>
 </div>
 
-<!-- The game's numbers: src/tiers.ts, src/milestones.ts and src/layers.ts (the Granite).
+<!-- The game's numbers: src/tiers.ts, src/milestones.ts, src/layers.ts (the Granite) and src/upgrades.ts (boots).
      mockups/control-board.test.ts keeps this block equal to them (#387). -->
 <script type="application/json" id="game-numbers">
 {
@@ -470,6 +469,7 @@ body.desk #housing{display:block}
    "perSecond": 357
   }
  },
+ "boots": 1.36,
  "granite": {
   "drill": 0.8,
   "borer": 1.1
@@ -651,8 +651,10 @@ const curve = (first, g, n) => Math.ceil(Number((first * g ** n).toPrecision(12)
 const priceOf = id => curve(GAME.tiers[id].firstCost, id === "helper" ? GAME.growth.worker : GAME.growth.machine, COUNT[id]());
 /* src/milestones.ts: every mark reached doubles every one of that tier */
 const marksOf = (id, n) => GAME.milestones.marks[id].filter(m => n >= m.at).length;
-/* src/rates.ts: one of a tier, in the Granite, with its marks, before Overtime */
-const eachOf = id => GAME.tiers[id].perSecond * (GAME.granite[id] ?? 1) * GAME.milestones.multiplier ** marksOf(id, COUNT[id]());
+/* src/rates.ts: one of a tier, in the Granite, with its marks, before boots and Overtime */
+const plainOf = id => GAME.tiers[id].perSecond * (GAME.granite[id] ?? 1) * GAME.milestones.multiplier ** marksOf(id, COUNT[id]());
+/* Better boots speed every worker by GAME.boots of his own output */
+const eachOf = id => plainOf(id) * (id === "helper" && S.boots ? 1 + GAME.boots : 1);
 /* src/milestones.ts milestoneLine, with the board's number format */
 function milestoneLine(id){
   const n = COUNT[id](), marks = GAME.milestones.marks[id];
@@ -665,8 +667,7 @@ function milestoneLine(id){
 /* The Buys row's info line: the whole milestone line, then without the "twice as fast now"
    lead; the last one clips with an ellipsis (Flemming's call on #387) */
 const markInfo = id => { const line = milestoneLine(id); return [line, line.replace(GAME.milestones.reachedLine + " ", "")]; };
-const BOOTS_EACH = 1.36;
-const base = () => Object.keys(COUNT).reduce((sum, id) => sum + eachOf(id) * COUNT[id](), 0) + (S.boots ? S.workers * BOOTS_EACH : 0);
+const base = () => Object.keys(COUNT).reduce((sum, id) => sum + eachOf(id) * COUNT[id](), 0);
 const rate = () => base() * S.mul;
 const tapPower = () => (1 + Math.floor(rate() * 0.01 * S.tapLevel)) * (S.picksLeft > 0 ? 2 : 1);
 const T0 = new Date(); T0.setHours(22, 14, 0, 0);
@@ -728,7 +729,7 @@ const UPGRADES = [
     info: () => `Level ${S.tapLevel} to ${S.tapLevel + 1} · grows with crew`,
     buy(){ S.tapLevel++; return { text: `Strong arms, level ${S.tapLevel}` }; } },
   { key: "boots", group: "Lasting", name: "Better boots", verb: "Buy", once: () => S.boots,
-    cost: () => 650_000, gainText: () => "+" + Math.round(S.workers * BOOTS_EACH * S.mul) + "/s", info: () => "Every worker, every band",
+    cost: () => 650_000, gainText: () => "+" + short(S.workers * plainOf("helper") * GAME.boots * S.mul) + "/s", info: () => "Every worker, every band",
     buy(){ S.boots = true; return { text: "Better boots for the crew" }; } },
 ];
 const WORKSHOP = [
@@ -1502,7 +1503,7 @@ function paintRows(){
     b.classList.remove("held");
     const st = status(def);
     const info = b.querySelector(".info"), need = b.querySelector(".need"), flag = b.querySelector(".flag");
-    fitText(info, [].concat(def.info())); info.classList.toggle("good", !!def.good);
+    fitText(info, [].concat(def.info()));
     b.querySelector(".gain").textContent = gainOf(def);
     const p = b.querySelector(".p"), v = b.querySelector(".verb");
     const isS = !!(sg && sg.def === def);

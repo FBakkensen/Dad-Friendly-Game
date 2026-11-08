@@ -10,12 +10,14 @@ import {
   milestoneMultiplier,
 } from "../src/milestones.ts";
 import { tierById, tierCost, type TierId } from "../src/tiers.ts";
+import { BOOTS_SPEED_PER_LEVEL } from "../src/upgrades.ts";
 
 /**
  * The control-board reference mockup (#377) is plain HTML that opens from
  * any static server, so it cannot import src/. Its game numbers sit in one
  * JSON block instead, and this test keeps that block equal to the game
- * (#387).
+ * (#387). It checks the block, not the page's script: priceOf, eachOf and
+ * milestoneLine in index.html are ports, seen in its screenshots.
  */
 type MockNumbers = {
   readonly growth: { readonly machine: number; readonly worker: number };
@@ -23,6 +25,7 @@ type MockNumbers = {
     Record<string, { readonly firstCost: number; readonly perSecond: number }>
   >;
   readonly granite: Readonly<Record<string, number>>;
+  readonly boots: number;
   readonly milestones: {
     readonly multiplier: number;
     readonly reachedLine: string;
@@ -72,6 +75,10 @@ describe("control-board mockup numbers", () => {
     for (const id of BOARD_TIERS) {
       expect(mock.granite[id] ?? 1).toBe(hardnessOf(2, id));
     }
+  });
+
+  it("speeds workers with Better boots as src/upgrades.ts", () => {
+    expect(mock.boots).toBe(BOOTS_SPEED_PER_LEVEL);
   });
 
   it.each(BOARD_TIERS)("marks %s as src/milestones.ts", (id) => {
