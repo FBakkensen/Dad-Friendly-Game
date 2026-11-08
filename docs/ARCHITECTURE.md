@@ -75,6 +75,22 @@ page is the map, plus the rules that keep it that way.
    their own modules with a `create…Panel` factory returning their elements
    and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `menu-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). Shared player-facing
    wording lives in `screen-words`.
+   The control board (#370) is its own set of modules. Pure rules with unit
+   tests: `board-fit` (the scale that fits the 424×924 stage inside the
+   window and its `env(safe-area-inset-*)`, read back through a hidden
+   probe; 1 at 424×924 with no insets, so the art stays at exactly 2×),
+   `board-skin` (the 9-slice plan that draws a frame, tag or key skin on a
+   canvas behind its element), `odometer` (the five drum faces for a
+   pocket) and `crew-boost` (the crew timer the crew is running at, and the
+   dial frame). DOM parts take `getView` and callbacks like a panel:
+   `board-note` (the floating framed note, placed in board coordinates; a
+   note that holds a key stays up until the key, an outside pointerdown, or
+   Escape), `board-stock` (the odometer's drums and spend mark, and the
+   boost dial), `board-relics` (the relic plate: six sockets, their notes
+   with the Relic shelf key, and the tag) and `board-save` (the save line,
+   which keeps `.save-status` with `data-kind` and `data-log`, and its save
+   drawer). `main` calls `trackBoardFit`, which keeps `--board-scale` on the
+   root and re-fits on resize.
 
 ## Findings
 
@@ -99,28 +115,37 @@ page is the map, plus the rules that keep it that way.
   Done: `mountain-screen.ts` is now ~460 lines: layout, the mountain and
   vein taps, the guide bar, save status, and wiring the panels.
 
+- **Local spends (#370):** the odometer shows a spend only for this screen's
+  own mutations. `mountain-screen` wraps the store in a `Proxy` whose
+  `applyMutation` sets a `localChange` flag for the length of the call (and
+  clears it in `finally`); every other property goes straight to the store,
+  so spies and late swaps still see it. `renderStock` counts a fall in the
+  pocket beyond the stones dug as a spend only while that flag is set, so a
+  cloud copy, a chosen or restored copy, Start over or Pass the mine only
+  move the baseline.
+
 - **Panel contract:** a panel gets `progress`, `getView`, `now` and a
   `requestRender` callback; it never reads another panel's elements, and it
   owns its open/closed state. The thumb bar uses those gates: Workshop stays
   shut until `workshopUnlocked`, Engineers until a hand is on the crew. Buys
-  and Upgrades open from the first screen. The relic shelf is centred in the
-  mountain wrap. Buys and Upgrades scroll inside the sheet so the first card
-  clears the header and the last card clears the footer. The sheet stays
-  below the crew line. The pocket pill reserves the menu on both sides and
-  uses the same short counts as the cards. A crew line that does not fit splits
-  into even rows. An unlocked sheet card keeps its price, effect, and why
-  when the pocket is short. A locked card says Locked and hides those lines.
-  Tapping the card buys. A drag that scrolls the list does not. Boost,
-  expedition, craft, and bench countdowns share rows of three under the crew.
-  The rows match how many are running now; none running is no row. Every
-  active one stays visible. The shelf sits above the rock. The rock takes the
+  and Upgrades open from the first screen. The board's parts sit round the
+  panels: `#app` is the 424×924 stage, the board's top (relic plate and
+  stock row) and the save line are absolute children of it, and the
+  panels' column flows between them through `#app`'s padding. The relic
+  shelf opens from a socket note's Relic shelf key; opening a sheet, the
+  shelf or the menu closes the board note and the save drawer. Buys and
+  Upgrades scroll inside the sheet so the first card clears the header and
+  the last card clears the footer. The sheet stays below the crew line. A
+  crew line that does not fit splits into even rows. An unlocked sheet card
+  keeps its price, effect, and why when the pocket is short. A locked card
+  says Locked and hides those lines. Tapping the card buys. A drag that
+  scrolls the list does not. Boost, expedition, craft, and bench countdowns
+  share the effect row, which is the body of the boost dial's Running now
+  note, one per line. Every active one stays visible. The rock takes the
   height left over: the stage is as tall as the art can be before the rock
   meets the column's sides (`--rock-reach`, 114/86 of the column for
-  `mountain.png`), and on a taller screen the goal line, shelf, and rock are
-  centred together, never with a band between the shelf and the peak. The
-  ☰ menu holds the ledger: stones left, materials, and the next-relic goal.
-  After the Lantern the same goal is a thin line on the mountain between the crew chips and the
-  shelf; both read `relicGoal()` in `relics` (#336). The rock picture sits
+  `mountain.png`). The ☰ menu holds the ledger: stones left, materials, and
+  the next-relic goal, read from `relicGoal()` in `relics` (#336). The rock picture sits
   in a `.mountain-band` wrapper whose `--band-tint` is
   `mountainTint(layerOf(mountain).id)` (`mountain-tint`, #325), a CSS
   filter with no save field.
@@ -154,5 +179,5 @@ Staffing (#140), the workers' name (#139), the field log (#141–#143), engineer
 - Save v7 adds `rev`, `deviceId`, and `savedAt` beside the workshop. `rev` starts at 1 (a new doc, or the first write of a v6 doc, which counts as rev 0) and the rules accept only `stored + 1`. The compare is before the mountain walk so a stale write stays under the expression cap. `savedAt` must be `request.time`. One cloud write is in flight, at most one a second, and the newest mountain is the next payload. A rev refusal reads the server doc. A later run wins whole. A lower rev is never adopted. One copy fast-forwards when it is at least as far on stones mined, upgrade levels, crafts, recipes, finds, engineer trips, machines (carts, drills, borers, the Great Machine) and crew, and further on one of the progress facts. A lead that is only machines or crew, or a split where each side has something the other lacks, is not blended. The phone keeps its copy. The sheet "Two saves found" asks which to play. The other copy is archived first at `saveArchive/{uid}/copies/{id}` for seven days (owner create and read, no update, no delete). Then the chosen copy is written at the server rev plus one. A failed archive leaves both copies and the sheet. `syncedRev` on the phone backup is the last confirmed rev. `save.conflict` logs the revs, device ids, stones mined, and the choice. Saved copies in the menu restore one the same way and log `save.restore`. A copy from an earlier run is not restored: the current game, the phone backup, and the cloud stay as they are, and nothing new is archived. The field log snapshot includes `deviceId` and `rev`. A newer service worker shows "Update available" and a reload button. Old cached builds cannot write once a rev exists. Coming back reads the server before writing. A cached snapshot (Firestore persistent cache) does not count as that read. One writer tab per device; Play here flushes the phone backup first. Offline writes stay in that cache until the next open, and a stale queued rev is rejected like any other.
 - Save v6 keeps `materials`, `bench`, `crafted`, `recipes`, and optional `chargeUntil` on the mountain in memory, and writes them as one `workshop` map beside the mountain. The mountain key list in `firestore.rules` cannot grow, and a full crew is already at the expression budget, so the rules only require that map. The parser checks the four material ints (each capped at that band's width), the bench times, crafted levels, and a whole `chargeUntil`. An unknown shelf id is dropped. An unknown recipe id, a craft level, and a bench this build cannot name are written back, so a newer id cannot lock an older client out of the save. While that bench's clock is still running, the Workshop says "Something is on the bench" and a new craft waits (#202). A v1–v5 save, local or cloud, keeps the stones already mined and is granted the materials those stones would have dug. Recipes are the starting three, plus Reinforce once the Granite is reached, plus Diamond bits and Crystal flare in the Crystal Caves, plus the Heartstone core and Heartstone ember in the Deep Heart. The lamp and the kit are not granted. The bench is empty and nothing is crafted. A v6 document keeps the pocket it stored. Passing the mine keeps the recipes and clears materials, the bench, crafted gear, and a hot charge. Built (#195, #196).
 - `workshop` (rules layer, pure): one bench. A recipe this build cannot name still occupies it until its clock ends (`unknownBench`): the sheet counts it down, offers no refund, and a new craft waits. Once that clock has rung, a known craft may take the bench. `startCraft` spends stones and materials when the Granite is open, the recipe is known, and the pocket can pay. `settleBench` fits a craft whose clock has rung, once, including inside `accrue` and `accrueAway`. `cancelCraft` returns lasting gear in full, because its effect has not started, and only the unused share of a live timer (axle grease, a blasting charge, a crystal flare, a heartstone ember). A craft whose clock has already rung is fitted instead. `cancelRefund` and `hotTimers` are what the sheet reads. Rails, bits, the core, and Reinforce (max 5) multiply tier speed in `effectiveRates`. A blasting charge doubles the live crew until `chargeUntil`. Axle grease doubles the live crew until `axleUntil`, including while it is still on the bench. Axle grease, a blasting charge, and Overtime meet in `effectiveRates`, and the crew runs at the strongest of them. A heartstone ember multiplies the Great Machine by 1.25 until `emberUntil`. A crystal flare makes veins 25% more often until `flareUntil`. Crafting a flare, an ember, or another grease refreshes that clock and does not stack. None of those timers change away pay. Sturdy props stretch the trouble gap. The lamp makes golden veins more often for good. The engineer's kit shortens the next expedition. Strength and cost factors (`recipe.<id>.strength`, `recipe.<id>.cost`) default to 1; strength also scales a timed buff's length. Built (#196, #198, #210). The sheet is `workshop-panel` (#199): opened from the Workshop button on the bottom bar (quiet until the Granite) or the ☰ menu, which shows "Workshop · opens as the clay comes in" before that, four cards to a page so a short phone does not scroll, real costs and effects, a shake when the pocket is short, materials that float to the bench, a quiet hammer until Sound is on, and a cancel that names the refund. A grease or charge card says "Crew already at ×2" when another crew timer is already that strong, and otherwise names the crew in whole stones like the header (`formatCrewSpeed`, #332). The countdown keeps running while the sheet is shut.
-- Panels: `engineers-panel` is the Engineers sheet (#161): one open card and one-line rows, Tend and Send exploring choice lists, a cheer toast, and the walk-home state. A tend choice calls `station(recall(...))`, so a party is never left without its engineer. Call back confirms, then `recall`. Promote confirms, Step up checks the price again, and the cheer waits until that hand is actually on the crew. The button shows the price ("Promote: 2M stones"; a light pocket says "Needs 2M stones"). Tending choices, the open sentence, the cheer, and the lamp show the live stones/sec from `tendingGain`. Keepsakes already on `finds` are listed on the open card at reading size (`Brought home`); a full crew on a short phone keeps that to one line and a toast tells the stories. No new save field. A countdown chip still sits in the mountain's corner (words, not a clock). `progress-store` keeps `homecomings` until the welcome card closes, and writes them under `dad-friendly-homecomings` so a reload after a hidden settle still shows the notice. The card names who came back and what they found, sits above the other sheets, and a live return uses it with no away report. Becoming visible settles at once. The layout check covers the sheet with an expedition out, five engineers plus a keepsake at 424×830 (browser and installed PWA), and the welcome card with a find. Trouble is shown on the tier card in `crew-panel`: a warm shout ("Cave-in!"), five taps or a short hold, then "Fixed! The crew cheers." The layout check covers that card at 424×830, including the installed PWA. Built (#149).
+- Panels: `engineers-panel` is the Engineers sheet (#161): one open card and one-line rows, Tend and Send exploring choice lists, a cheer toast, and the walk-home state. A tend choice calls `station(recall(...))`, so a party is never left without its engineer. Call back confirms, then `recall`. Promote confirms, Step up checks the price again, and the cheer waits until that hand is actually on the crew. The button shows the price ("Promote: 2M stones"; a light pocket says "Needs 2M stones"). Tending choices, the open sentence, the cheer, and the lamp show the live stones/sec from `tendingGain`. Keepsakes already on `finds` are listed on the open card at reading size (`Brought home`); a full crew on a short phone keeps that to one line and a toast tells the stories. No new save field. A countdown chip still sits in the mountain's corner (words, not a clock). `progress-store` keeps `homecomings` until the welcome card closes, and writes them under `dad-friendly-homecomings` so a reload after a hidden settle still shows the notice. The card names who came back and what they found, sits above the other sheets, and a live return uses it with no away report. Becoming visible settles at once. The layout check covers the sheet with an expedition out, five engineers plus a keepsake at 424×924 (browser and installed PWA), and the welcome card with a find. Trouble is shown on the tier card in `crew-panel`: a warm shout ("Cave-in!"), five taps or a short hold, then "Fixed! The crew cheers." The layout check covers that card at 424×924, including the installed PWA. Built (#149).
 - Designed twice: expeditions as a negative-speed tier in `TIERS` was rejected (it leaks into buying, cards and the sim's value function). Separate modules that feed `effectiveRates` keep it the one place multipliers meet.

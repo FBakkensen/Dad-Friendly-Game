@@ -1,16 +1,5 @@
 import { chipTime } from "./format";
 
-/** Three chips per row. Twelve use four rows. */
-const EFFECT_PER_ROW = 3;
-
-/**
- * Rows for the countdowns running now. None running is no row, so the
- * rock gets the height instead of an empty band under the crew.
- */
-export function effectRowCount(shown: number): number {
-  return Math.ceil(Math.max(0, shown) / EFFECT_PER_ROW);
-}
-
 const SHORT_NAME: Readonly<Record<string, string>> = {
   "Sharper picks": "Picks",
   Overtime: "Overtime",
@@ -32,7 +21,7 @@ export function shortEffectName(full: string): string {
   return SHORT_NAME[full] ?? full.split(" ")[0] ?? full;
 }
 
-function multiplierMark(value: number): string {
+export function multiplierMark(value: number): string {
   const shown = Number.isInteger(value)
     ? String(value)
     : value.toLocaleString("en-US", { maximumFractionDigits: 2 });

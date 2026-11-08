@@ -18,10 +18,11 @@ import relicShield from "./assets/relics/shield.png";
 import { createAppServices } from "./boot";
 import { mountMountainScreen, showAppUpdate } from "./mountain-screen";
 import { registerServiceWorker } from "./pwa";
-import { trackPcZoom } from "./pc-zoom";
+import { trackBoardFit } from "./board-fit";
 import { bindWriterPageHide } from "./tab-writer";
 import "./tokens.css";
 import "./style.css";
+import "./board.css";
 
 const root = document.getElementById("app");
 if (!(root instanceof HTMLElement)) {
@@ -65,7 +66,7 @@ try {
   });
   // Reload fires pagehide. A back/forward-cache restore fires pageshow.
   bindWriterPageHide(tabWriter);
-  trackPcZoom();
+  trackBoardFit();
   void registerServiceWorker({
     onUpdate: () => {
       showAppUpdate(root);

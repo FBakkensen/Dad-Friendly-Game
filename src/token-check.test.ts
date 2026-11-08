@@ -74,7 +74,7 @@ describe("token lengths", () => {
       expect(game.get(name), name).toBe(value);
     }
     for (const [name, value] of game) {
-      if (mock.has(name)) {
+      if (mock.has(name) || BOARD_TOKEN.test(name)) {
         continue;
       }
       if (name === "--line") {
@@ -93,6 +93,27 @@ describe("token lengths", () => {
     expect(lengths.get("--sheet-price")).toBe(20);
     expect(lengths.has("--color-ink")).toBe(false);
     expect(lengths.has("--leading")).toBe(false);
+  });
+
+  it("reads the board tokens that match the control board mockup (#370)", () => {
+    // The board's raw values live in tokens.css by plan (B2 global
+    // constraints); its palette and save line come from the mockup's :root.
+    const page = readFileSync("mockups/control-board/index.html", "utf8");
+    const mock = properties(/:root\{([^}]*)\}/.exec(page)?.[1] ?? "");
+    const game = properties(readFileSync("src/tokens.css", "utf8"));
+    const board = [...game].filter(([name]) => BOARD_TOKEN.test(name));
+    expect(board.length).toBeGreaterThan(0);
+    expect(game.get("--art")).toBe("2px");
+    expect(game.get("--save-h")).toBe(mock.get("--save-h"));
+    let copied = 0;
+    for (const [name, value] of board) {
+      const twin = mock.get(name.replace(/^--board-/, "--"));
+      if (twin !== undefined) {
+        expect(value, name).toBe(twin);
+        copied += 1;
+      }
+    }
+    expect(copied).toBeGreaterThanOrEqual(10);
   });
 });
 
@@ -434,6 +455,9 @@ describe("token check", () => {
     ).toEqual([]);
   });
 });
+
+/** The control board's tokens (#370): one art pixel, the save line, and --board-*. */
+const BOARD_TOKEN = /^--(art|save-h|board-[\w-]+)$/;
 
 function properties(css: string): Map<string, string> {
   const map = new Map<string, string>();

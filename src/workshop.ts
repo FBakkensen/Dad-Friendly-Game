@@ -761,14 +761,14 @@ const TIMER_IDS = [
   "heartstone-ember",
 ] as const;
 
-type TimerId = (typeof TIMER_IDS)[number];
+export type TimerId = (typeof TIMER_IDS)[number];
 
 export type HotTimer = {
   readonly id: TimerId;
   readonly until: number;
 };
 
-function timerDuration(id: TimerId): number {
+export function timerDurationMs(id: TimerId): number {
   const effect = recipeById(id).effect;
   switch (effect.kind) {
     case "charge":
@@ -809,7 +809,7 @@ export function hotTimers(
   }
   const hot: HotTimer[] = [];
   for (const id of TIMER_IDS) {
-    const duration = timerDuration(id);
+    const duration = timerDurationMs(id);
     const stored = storedUntil(mountain, id);
     const ends: number[] = [];
     if (stored !== undefined && stored > now) {

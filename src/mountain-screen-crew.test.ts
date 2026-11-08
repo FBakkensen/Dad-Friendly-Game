@@ -3,8 +3,9 @@ import { boostById } from "./boosts";
 import { promoteCost } from "./engineers";
 import { send } from "./expeditions";
 import { BAND_STARTS, kidStretch, shownStones, stonesLeft } from "./scale";
-import { formatCompact, formatCount } from "./format";
+import { formatCount } from "./format";
 import { effectiveRates } from "./rates";
+import { odometerFace } from "./odometer";
 import { RELICS } from "./relics";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -383,7 +384,7 @@ describe("quick boosts on screen", () => {
     );
   });
 
-  it("sizes the countdown rows to the running clocks, not to what could run", () => {
+  it("lists the running clocks in Running now, not what could run", () => {
     const now = 5_000_000;
     const open: Mountain = {
       ...minedMountain(12_000_000),
@@ -406,24 +407,28 @@ describe("quick boosts on screen", () => {
         lastSeen: now,
       });
       const screen = mountScreen({ storage, now: () => now });
-      const found = screen.root.querySelector<HTMLElement>(".effect-row");
+      const found = screen.root.querySelector<HTMLElement>(".board-running");
       screen.progress.dispose();
       return found;
     };
+    const shown = (list: HTMLElement | null): number =>
+      list?.querySelectorAll(".effect-chip:not([hidden])").length ?? -1;
     // The workshop and an engineer could run eight clocks; two are running.
     const two = row({
       sharper: now + 10 * 60_000,
       overtime: now + 20 * 60_000,
     });
-    expect(two?.dataset["rows"]).toBe("1");
-    expect(two?.hidden).toBe(false);
-    // Nothing running leaves no empty band under the crew.
+    expect(shown(two)).toBe(2);
+    expect(two?.querySelector<HTMLElement>(".effect-row")?.hidden).toBe(false);
+    expect(two?.textContent).not.toContain("Nothing running");
+    // Nothing running says so, with no empty list.
     const none = row({});
-    expect(none?.dataset["rows"]).toBe("0");
-    expect(none?.hidden).toBe(true);
+    expect(shown(none)).toBe(0);
+    expect(none?.querySelector<HTMLElement>(".effect-row")?.hidden).toBe(true);
+    expect(none?.textContent).toBe("Running nowNothing running");
   });
 
-  it("keeps every countdown on screen", () => {
+  it("keeps every countdown in Running now", () => {
     const now = 5_000_000;
     const names = ["Ada", "Nils", "Ruth", "Otto", "Mae"] as const;
     const storage = createMemoryStorage();
@@ -469,8 +474,8 @@ describe("quick boosts on screen", () => {
     ].filter((chip) => !chip.hidden);
     expect(shown).toHaveLength(12);
     expect(
-      screen.root.querySelector<HTMLElement>(".effect-row")?.dataset["rows"],
-    ).toBe("4");
+      shown.every((chip) => chip.closest(".board-running .effect-row")),
+    ).toBe(true);
     const picks = screen.root.querySelector<HTMLElement>(
       ".boost-chip[data-boost='sharper']",
     );
@@ -1190,7 +1195,11 @@ describe("relic powers on the cards (shelf detail)", () => {
   it("opens a found relic from the shelf with its art, virtue and power; hidden ones stay shut", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(26_000_000)) });
     document.body.append(screen.root);
-    screen.root.querySelector<HTMLButtonElement>(".relic-shelf")?.click();
+    // The shelf opens from the Relic shelf key in a socket's note (#370).
+    screen.root.querySelector<HTMLButtonElement>(".board-socket")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-note .board-platebtn")
+      ?.click();
     const rows = [
       ...screen.root.querySelectorAll<HTMLElement>(".shelf-list li"),
     ];
@@ -1238,7 +1247,11 @@ describe("relic powers on the cards (shelf detail)", () => {
       }),
     });
     document.body.append(screen.root);
-    screen.root.querySelector<HTMLButtonElement>(".relic-shelf")?.click();
+    // The shelf opens from the Relic shelf key in a socket's note (#370).
+    screen.root.querySelector<HTMLButtonElement>(".board-socket")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-note .board-platebtn")
+      ?.click();
     screen.root
       .querySelectorAll(".shelf-list li")[2]
       ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -1338,7 +1351,9 @@ describe("pass the mine to your kid (#131)", () => {
     expect(screen.text(".stones-left")).toBe(
       `${formatCount(stonesLeft(createMountain()) * kidStretch(1))} stones left`,
     );
-    expect(screen.text(".pocket")).toBe("0 stones");
+    expect(screen.pocket()).toBe("Stones 0");
+    // A new mountain is not a spend.
+    expect(screen.text(".board-spend")).toBe("");
     const badge = screen.root.querySelector<HTMLElement>(".legacy-badge");
     expect(badge?.hidden).toBe(false);
     expect(badge?.textContent).toBe("Legacy ×1.5");
@@ -1454,7 +1469,11 @@ describe("player-facing workers (#139)", () => {
       );
       screen.root.querySelector<HTMLButtonElement>(".menu-close")?.click();
 
-      screen.root.querySelector<HTMLButtonElement>(".relic-shelf")?.click();
+      // The shelf opens from the Relic shelf key in a socket's note (#370).
+      screen.root.querySelector<HTMLButtonElement>(".board-socket")?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(".board-note .board-platebtn")
+        ?.click();
       const crown = [...screen.root.querySelectorAll(".shelf-list li")][4];
       if (!(crown instanceof HTMLElement)) {
         throw new Error("crown row did not render");
@@ -1922,8 +1941,8 @@ describe("engineers sheet (#145)", () => {
     expect(sheet.querySelector<HTMLElement>(".engineer-confirm")?.hidden).toBe(
       true,
     );
-    expect(screen.text(".pocket")).toBe(
-      `${formatCompact(nilsPrice + 3_000_000)} stones`,
+    expect(screen.pocket()).toBe(
+      `Stones ${odometerFace(nilsPrice + 3_000_000).words}`,
     );
 
     sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
@@ -1935,7 +1954,7 @@ describe("engineers sheet (#145)", () => {
 
     sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
     sheet.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
-    expect(screen.text(".pocket")).toBe("3M stones");
+    expect(screen.pocket()).toBe("Stones 3.000M");
     expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×19");
     const nils = sheet.querySelector('[data-name="Nils"]');
     expect(nils?.classList.contains("is-open")).toBe(true);

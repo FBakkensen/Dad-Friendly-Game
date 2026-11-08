@@ -1,0 +1,754 @@
+/*
+ * The board stage (#370). #app is a fixed 424x924 enamel panel. src/board-fit.ts
+ * sets --board-scale so the whole board shrinks to fit any screen; zoom keeps
+ * taps lined up. contain: layout keeps the fixed sheets inside the board.
+ * The old column fills 176..868; the bands above and below are for the board.
+ */
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  /* The board centres inside the safe area; board-fit.ts scales it to fit
+     there. Where the insets are 0 (the gate, a PC) this is no padding. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* board-fit.ts reads env() back through this probe's padding. */
+.board-safe-probe {
+  position: fixed;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+#app {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: var(--board-w);
+  height: var(--board-h);
+  /* index.html's boot style sets min-height: 100dvh, which zoom would enlarge. */
+  min-height: 0;
+  padding: var(--space-4);
+  padding-top: var(--board-top);
+  /* The column stops 8px above the save line, so the bottom bar's buttons
+     stand a full gap from it (#370). */
+  padding-bottom: calc(var(--save-h) + var(--art) * 4);
+  overflow: hidden;
+  contain: layout;
+  zoom: var(--board-scale, 1);
+  background: var(--board-enamel) url("./assets/board/panel-face.png") no-repeat
+    calc(var(--art) * -6) 0 / calc(var(--art) * 224) calc(var(--art) * 448);
+  image-rendering: pixelated;
+}
+
+/* Skins (9-slice canvases from board-skin.ts), the board note and the bundled fonts. */
+@font-face {
+  font-family: "Barlow Condensed";
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+  src: url("./assets/fonts/barlow-condensed-latin-500-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Barlow Condensed";
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+  src: url("./assets/fonts/barlow-condensed-latin-600-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Barlow Condensed";
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+  src: url("./assets/fonts/barlow-condensed-latin-700-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Share Tech Mono";
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+  src: url("./assets/fonts/share-tech-mono-latin-400-normal.woff2")
+    format("woff2");
+}
+
+.board-skin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+.board-skinned {
+  isolation: isolate;
+}
+
+.board-skinned:not(.board-note) {
+  position: relative;
+}
+
+.board-note {
+  position: absolute;
+  z-index: 30;
+  max-width: calc(var(--art) * 150);
+  padding: calc(var(--art) * 7) calc(var(--art) * 8);
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+  color: var(--board-ink);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* An open note takes every tap on it, so a tap on its words never falls
+   through to the dial or the menu beneath (#370). */
+.board-note.on {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* The mockup's width: #app > * (style.css) would otherwise outrank it. */
+#app > .board-note {
+  max-width: calc(var(--art) * 150);
+}
+
+.board-note-h {
+  display: block;
+  font-weight: 700;
+  font-size: var(--board-type-13);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--board-amber);
+}
+
+.board-note-q {
+  display: block;
+  color: var(--board-ink-2);
+}
+
+.board-lg {
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 700;
+  font-size: var(--board-type-13);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--board-ink-2);
+}
+
+.board-num {
+  font-family: "Share Tech Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- odometer ---------- */
+.board-odo {
+  position: relative;
+  width: calc(var(--art) * 120);
+  height: calc(var(--art) * 40);
+}
+
+.board-odo > img {
+  position: absolute;
+  image-rendering: pixelated;
+}
+
+.board-odo-body {
+  left: 0;
+  top: 0;
+  width: calc(var(--art) * 120);
+  height: calc(var(--art) * 40);
+}
+
+.board-drum {
+  position: absolute;
+  left: calc(var(--art) * var(--at));
+  width: calc(var(--art) * var(--w));
+  top: calc(var(--art) * 9);
+  height: calc(var(--art) * 24);
+  overflow: hidden;
+  z-index: 2;
+}
+
+.board-drum-face {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(var(--art) * 24);
+  line-height: calc(var(--art) * 24);
+  text-align: center;
+  font-size: var(--type-32);
+  color: var(--board-drum-ink);
+}
+
+.board-drum.is-decimal .board-drum-face {
+  color: var(--board-drum-dec-ink);
+}
+
+.board-odo-dec {
+  left: calc(var(--art) * var(--at));
+  top: calc(var(--art) * 8);
+  width: calc(var(--art) * 14);
+  height: calc(var(--art) * 25);
+}
+
+.board-odo-dec.odo-dec-2 {
+  width: calc(var(--art) * 15);
+}
+
+.board-odo-dot {
+  left: calc(var(--art) * var(--at));
+  top: calc(var(--art) * 26);
+  width: calc(var(--art) * 2);
+  height: calc(var(--art) * 2);
+  z-index: 3;
+}
+
+.board-odo-legend {
+  position: absolute;
+  left: calc(var(--art) * 5);
+  right: calc(var(--art) * 24);
+  top: calc(var(--art) * 40);
+  height: calc(var(--art) * 6);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.board-odo-legend .board-lg {
+  line-height: calc(var(--art) * 6);
+  text-shadow: 0 0 var(--art) var(--board-night);
+}
+
+/* Bare ink, as the dial's legend: ink-2 reads under 4.5:1 on the enamel. */
+.board-odo-legend .board-lg:not(.board-spend) {
+  color: var(--board-ink-bare);
+}
+
+.board-spend {
+  color: var(--board-rust);
+  opacity: 0;
+}
+
+.board-odo-legend.is-spending .board-spend {
+  opacity: 1;
+}
+
+/* ---------- boost dial ---------- */
+.board-dial {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+  height: calc(var(--art) * 44);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.board-dial-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  margin-top: calc(var(--art) * -2);
+}
+
+.board-dial .board-lg {
+  color: var(--board-ink-bare);
+}
+
+.board-dial-mul {
+  font-size: var(--type-24);
+  line-height: calc(var(--art) * 14.5);
+  font-weight: 700;
+  color: var(--board-amber-bare);
+}
+
+.board-dial-left {
+  font-size: var(--type-20);
+  line-height: calc(var(--art) * 12);
+  color: var(--board-ink-bare);
+}
+
+.board-dial-sprite {
+  flex: none;
+  width: calc(var(--art) * 44);
+  height: calc(var(--art) * 44);
+  background-size: calc(var(--art) * 1364) calc(var(--art) * 44);
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+/* The relic plate (#370): a framed 416x64 row, six 56x56 sockets, and the tag. */
+.board-relics {
+  width: calc(var(--art) * 208);
+  height: calc(var(--art) * 32);
+  margin-left: calc(var(--art) * 2);
+}
+
+.board-socket {
+  position: absolute;
+  top: calc(var(--art) * 2);
+  left: calc(var(--art) * var(--at));
+  width: calc(var(--art) * 28);
+  height: calc(var(--art) * 28);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.board-socket-base,
+.board-relic {
+  position: absolute;
+  image-rendering: pixelated;
+}
+
+.board-socket-base {
+  left: 0;
+  top: 0;
+  width: calc(var(--art) * 28);
+  height: calc(var(--art) * 28);
+}
+
+.board-relic {
+  left: calc(var(--art) * 2);
+  top: calc(var(--art) * 2);
+  width: calc(var(--art) * 24);
+  height: calc(var(--art) * 24);
+}
+
+.board-tag,
+.board-tag.board-skinned {
+  position: absolute;
+  left: calc(var(--art) * 50);
+  top: calc(var(--art) * 28);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--art) * 108);
+  height: calc(var(--art) * 10);
+  padding: 0;
+  border: 0;
+  background: none;
+  white-space: nowrap;
+  color: var(--board-ink-plate);
+  /* A label, not a door: taps fall through to the sockets (#370). */
+  pointer-events: none;
+}
+
+/* A socket's note ends in the Relic shelf key, the shelf's door (#370). */
+.board-note .board-platebtn {
+  width: 100%;
+  margin-top: calc(var(--art) * 4);
+}
+
+/* The rock's button stands 8px below the crew chips (with #app's 4px gap):
+   the goal line and the shelf that used to sit between them are on the
+   board's top now (#370). */
+#app > .mountain-wrap {
+  margin-top: calc(var(--art) * 2);
+}
+
+/* The ☰ menu stands a full gap below the boost dial. */
+.top-bar .menu-button {
+  margin-top: calc(var(--art) * 4);
+}
+
+.board-tag .board-lg {
+  color: var(--board-ink-plate);
+}
+
+/* The save line and its drawer (#370). */
+.board-saveline {
+  position: absolute;
+  top: calc(var(--board-h) - var(--save-h));
+  left: calc(var(--art) * 4);
+  /* Above every sheet and card (the highest in style.css is 30): the save
+     line stays on the board at all times, and the sheets stop at it. */
+  z-index: 32;
+  width: calc(var(--art) * 204);
+  height: calc(var(--art) * 27);
+}
+
+.save-status {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+  width: 100%;
+  height: 100%;
+  padding: 0 calc(var(--art) * 6) 0 calc(var(--art) * 4);
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--board-type-13);
+  line-height: var(--board-save-lead);
+  font-weight: var(--board-weight-semi);
+  white-space: nowrap;
+  color: var(--board-ink);
+  cursor: pointer;
+}
+
+.board-lamp {
+  display: block;
+  flex: none;
+  width: calc(var(--art) * 20);
+  height: calc(var(--art) * 20);
+  background: url("./assets/board/lamp.png") no-repeat 0 0 /
+    calc(var(--art) * 80) calc(var(--art) * 20);
+  image-rendering: pixelated;
+}
+
+.save-status .board-lamp {
+  margin: calc(var(--art) * -2) 0;
+}
+
+.board-save-text {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.board-save-safe {
+  color: var(--board-ink-2);
+}
+
+.board-save-why {
+  position: relative;
+  margin-left: auto;
+  color: var(--board-ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: calc(var(--art) * 1.5);
+  text-decoration-color: var(--board-ink-2);
+}
+
+.board-saveline.is-trying .board-lamp {
+  animation: board-blink 0.9s steps(2) infinite;
+}
+
+@keyframes board-blink {
+  50% {
+    background-position-x: 0;
+  }
+}
+
+.board-drawer,
+.board-drawer.board-skinned {
+  position: absolute;
+  left: calc(var(--art) * 4);
+  right: calc(var(--art) * 4);
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  visibility: hidden;
+  transform: translateY(calc(100% + var(--art) * 40));
+  transition:
+    transform 0.2s steps(5),
+    visibility 0s 0.2s;
+}
+
+.board-drawer.is-open {
+  visibility: visible;
+  transform: none;
+  transition:
+    transform 0.24s steps(6),
+    visibility 0s;
+}
+
+.board-save-drawer {
+  bottom: calc(var(--save-h) + var(--art) * 2);
+  padding: calc(var(--art) * 9) calc(var(--art) * 9) calc(var(--art) * 7);
+}
+
+.board-save-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+}
+
+.board-save-top .board-lamp {
+  margin: calc(var(--art) * -3) 0 calc(var(--art) * -3) calc(var(--art) * -3);
+}
+
+.board-save-kicker {
+  color: var(--board-amber);
+}
+
+.board-save-title {
+  position: relative;
+  margin: calc(var(--art) * 2) 0;
+  font-size: var(--board-type-22);
+  line-height: var(--board-title-lead);
+  font-weight: 700;
+  color: var(--board-ink);
+}
+
+.board-save-lost {
+  position: relative;
+  margin: 0 0 calc(var(--art) * 5);
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+  color: var(--board-ink-2);
+}
+
+.board-facts {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 3);
+  margin: calc(var(--art) * 3) 0 calc(var(--art) * 6);
+}
+
+.board-fact {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+  color: var(--board-ink);
+}
+
+.board-fact-k {
+  color: var(--board-ink-2);
+}
+
+.board-btnrow {
+  position: relative;
+  display: flex;
+  gap: calc(var(--art) * 5);
+}
+
+.board-platebtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--art) * 27);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--board-type-16);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  /* The mockup's .platebtn: light ink on the dark key face (#370). */
+  color: var(--board-ink);
+  cursor: pointer;
+}
+
+.board-platebtn-text {
+  position: relative;
+}
+
+.board-platebtn.down .board-platebtn-text {
+  top: var(--art);
+}
+
+.board-platebtn:disabled {
+  color: var(--board-ink-2);
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-drawer,
+  .board-drawer.is-open {
+    transition: none;
+  }
+  .board-saveline.is-trying .board-lamp {
+    animation: none;
+  }
+}
+
+/* The save line's spoken separator: in the text, not drawn. */
+.board-save-sep {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: pre;
+}
+
+/* The board's top (#370): the relic plate at 6px and the stock row at 86px,
+   both from the mockup's LAY["924"]. Today's column flows below, from 176px. */
+.board-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--board-w);
+  height: var(--board-top);
+}
+
+.board-top > .board-relics {
+  position: absolute;
+  top: calc(var(--art) * 3);
+  left: calc(var(--art) * 2);
+  margin: 0;
+}
+
+.board-stock {
+  position: absolute;
+  top: calc(var(--art) * 43);
+  left: 0;
+  width: var(--board-w);
+  height: calc(var(--art) * 44);
+}
+
+.board-stock > .board-odo {
+  position: absolute;
+  top: 0;
+  left: calc(var(--art) * 4);
+}
+
+.board-stock > .board-dial {
+  position: absolute;
+  top: 0;
+  right: calc(var(--art) * 4);
+}
+
+/* Running now: the dial's note, one countdown per line at 14px. */
+.board-running .effect-row {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 1);
+  margin-top: calc(var(--art) * 2);
+}
+
+.board-running .effect-row[hidden],
+.board-running .effect-chip[hidden],
+.board-running-none:empty {
+  display: none;
+}
+
+/* Plain lines on the note, not the old pills. */
+.board-running .effect-chip {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-weight: var(--board-weight-semi);
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+  white-space: nowrap;
+  color: var(--board-ink);
+}
+
+.board-running .effect-chip img {
+  flex: none;
+  width: calc(var(--art) * 12);
+  height: calc(var(--art) * 12);
+  image-rendering: pixelated;
+}
+
+.board-running .effect-name {
+  position: static;
+  display: inline;
+  width: auto;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--board-ink);
+  transform: none;
+}
+
+.board-running .effect-mult,
+.board-running .effect-time {
+  font-family: "Share Tech Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-running .effect-mult {
+  margin: 0;
+  color: var(--board-amber);
+}
+
+.board-running .effect-time {
+  margin-left: auto;
+  padding-left: calc(var(--art) * 4);
+}
+
+.board-running-none {
+  display: block;
+  margin-top: calc(var(--art) * 2);
+  color: var(--board-ink-2);
+}
+
+/* The save drawer's box: the board above the save line. It clips the closed
+   drawer, which waits below its edge, so the board never scrolls. */
+.board-drawer-clip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Over the sheets too: the save line opens it whatever is open. */
+  z-index: 31;
+  width: var(--board-w);
+  height: calc(var(--board-h) - var(--save-h));
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.board-drawer-clip > .board-save-drawer {
+  bottom: calc(var(--art) * 2);
+  pointer-events: auto;
+}
+
+/* Buys and Upgrades stop under the stock row's legend, so a buy's spend shows
+   on the odometer above the sheet (#370). */
+.buys-card,
+.upgrades-dialog .upgrades-card {
+  max-height: calc(100% - var(--board-top) - var(--art));
+}
+
+/* Every sheet and card stops at the save line, so the line is never covered
+   and the sheets' own buttons sit above it (#370). */
+.welcome-back,
+.layer-arrival,
+.craft-notice,
+.relic-reveal,
+.shelf-dialog,
+.start-over,
+.game-menu,
+.field-log-sheet,
+.buys-dialog,
+.upgrades-dialog,
+.engineers-dialog,
+.update-prompt,
+.other-tab,
+.save-conflict,
+.saved-copies,
+.workshop-dialog {
+  bottom: var(--save-h);
+}
+
+/* Closed, the drawer waits just under the clip's edge, so every step of the
+   slide shows more of it. */
+.board-drawer-clip > .board-save-drawer:not(.is-open) {
+  transform: translateY(calc(100% + var(--art) * 2));
+}

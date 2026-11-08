@@ -1,10 +1,10 @@
-/* global console, process, document, getComputedStyle, innerWidth, innerHeight, HTMLElement, Element, navigator, localStorage, URL */
+/* global console, process, document, getComputedStyle, innerWidth, innerHeight, HTMLElement, Element, navigator, localStorage, setTimeout, URL */
 /**
  * Screen audit capture. Not part of `npm run check`.
  *
  * Same browser setup as scripts/visual-check.mjs: Vite, puppeteer-core, and
- * a localStorage save planted before boot. Shots are 424×924 (the installed app) and
- * 424×830 (Chrome with the address bar) at device scale 2. Dev-only preview params (`?saves=two`,
+ * a localStorage save planted before boot. Shots are 424×924, the installed app
+ * and the board's own size (#370), at device scale 2. Dev-only preview params (`?saves=two`,
  * `?save=loading`, `?save=error`, `?copies=shelf`, `?trouble=cave-in`) seed
  * the save screens.
  */
@@ -25,10 +25,9 @@ import {
 
 const OUT = "docs/ui-audit";
 const SAVE_KEY = "dad-friendly-session";
-const VIEWPORTS = [
-  [424, 924],
-  [424, 830],
-];
+/** The phone: the board's 424x924 stage at scale 1 (#370). */
+const PHONE_SIZE = "424x924";
+const VIEWPORTS = [[424, 924]];
 const RECIPES = [
   "iron-rails",
   "sturdy-props",
@@ -254,6 +253,10 @@ async function collect(page) {
   return page.evaluate(() => {
     const visible = (el) => {
       if (!(el instanceof Element) || el.closest("[hidden]")) {
+        return false;
+      }
+      // A closed board drawer waits out of sight with visibility: hidden.
+      if (getComputedStyle(el).visibility === "hidden") {
         return false;
       }
       const box = el.getBoundingClientRect();
@@ -643,9 +646,9 @@ async function collect(page) {
  * @param {string} size
  */
 function analyse(sample, id, size) {
-  const census = size === "424x830" || size === "424x924";
-  const phone = size === "424x830";
-  const thumb = size === "424x924";
+  const census = size === PHONE_SIZE;
+  const phone = size === PHONE_SIZE;
+  const thumb = size === PHONE_SIZE;
   const undersized = phone
     ? undersizedTargets(
         sample.targets.map((target) => ({
@@ -698,7 +701,7 @@ function analyse(sample, id, size) {
     id,
     size,
     file: `${OUT}/${id}-${size}.png`,
-    text: size === "424x830" ? sample.text : "",
+    text: phone ? sample.text : "",
     under14,
     contrastFails,
     undersized: undersized.map((target) => ({
@@ -1020,7 +1023,9 @@ async function main() {
   });
   await capture("relic-shelf", async (viewport) => {
     const opened = await open(viewport, rest());
-    await press(opened.page, ".relic-shelf");
+    // A socket's note holds the Relic shelf key; the tag is a label (#370).
+    await press(opened.page, ".board-socket");
+    await press(opened.page, ".board-note.on .board-platebtn");
     await opened.page.waitForSelector(".shelf-dialog:not([hidden])");
     await expectText(opened.page, /A warm light waits|virtue of/, "shelf");
     return opened;
@@ -1141,6 +1146,24 @@ async function main() {
   await capture("save-status-error", async (viewport) => {
     const opened = await open(viewport, rest(), { search: "?save=error" });
     await expectText(opened.page, /Couldn't reach your save/, "error");
+    return opened;
+  });
+  await capture("save-drawer-error", async (viewport) => {
+    // The save line opens its drawer: the facts, Close, and Try again (#370).
+    const opened = await open(viewport, rest(), { search: "?save=error" });
+    await press(opened.page, ".save-status");
+    await opened.page.waitForSelector(".board-save-drawer.is-open");
+    // The drawer slides in steps(6) over 240ms.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await expectText(opened.page, /Nothing is lost/, "save drawer");
+    return opened;
+  });
+  await capture("running-now", async (viewport) => {
+    // The boost dial opens the Running now note: one line per countdown.
+    const opened = await open(viewport, withBoosts());
+    await press(opened.page, ".board-dial");
+    await opened.page.waitForSelector(".board-note.on");
+    await expectText(opened.page, /Running now/i, "running now");
     return opened;
   });
   await capture("save-conflict-rest", async (viewport) => {
@@ -1276,7 +1299,7 @@ function summarise(rows) {
       .join("")}`;
 
   for (const row of rows) {
-    const takeType = row.size === "424x830" || row.size === "424x924";
+    const takeType = row.size === PHONE_SIZE;
     if (takeType) {
       for (const item of row.type) {
         const key = `${item.size}|${item.weight}|${item.lineHeight}|${item.selector}`;
@@ -1358,7 +1381,7 @@ function summarise(rows) {
     for (const item of row.questions) {
       questions.push({ screen: row.id, size: row.size, ...item });
     }
-    if (row.size === "424x830") {
+    if (row.size === PHONE_SIZE) {
       for (const [group, counts] of Object.entries(row.components)) {
         for (const [selector, count] of Object.entries(counts)) {
           components[group][selector] =
@@ -1376,7 +1399,7 @@ function summarise(rows) {
         ...row.sheets.map((item) => ({ screen: row.id, ...item })),
       );
     }
-    if (row.size === "424x924") {
+    if (row.size === PHONE_SIZE) {
       topThird.push(
         ...row.topThird.map((item) => ({ screen: row.id, ...item })),
       );
@@ -1408,7 +1431,7 @@ function summarise(rows) {
   near.sort((a, b) => a.distance - b.distance);
 
   const worst = rows
-    .filter((row) => row.size === "424x830")
+    .filter((row) => row.size === PHONE_SIZE)
     .sort((a, b) => b.score - a.score)
     .slice(0, 8)
     .map((row) => ({

@@ -63,3 +63,36 @@
   --sheet-price: var(--type-20);
   --sheet-line: var(--type-16);
 }
+
+/* The control board: one art pixel is 2px, the stage is 424x924 (#370). */
+:root {
+  --art: 2px;
+  --board-w: 424px;
+  --board-h: 924px;
+  --board-top: 176px;
+  --save-h: 56px;
+  --board-ink: #d9ddd0;
+  --board-ink-2: #b3bcae;
+  --board-ink-plate: #050607;
+  --board-ink-bare: #eceee4;
+  --board-amber-bare: #ffd38c;
+  --board-amber: #e8ac4c;
+  --board-green: #9fcf86;
+  --board-rust: #e39a78;
+  --board-night: #0b0e0f;
+  --board-enamel: #1a2421;
+  --board-type-13: 13px;
+  --board-type-14: 14px;
+  --board-type-16: 16px;
+  --board-type-22: 22px;
+  --board-title-lead: 24px;
+  --board-save-lead: 16px;
+  --board-weight-semi: 600;
+  --board-note-lead: 18px;
+}
+
+/* Odometer drum figures: black on the cream drum, cream on the red decimal drum. */
+:root {
+  --board-drum-ink: #0e0d0a;
+  --board-drum-dec-ink: #ece4cc;
+}

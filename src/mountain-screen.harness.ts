@@ -128,5 +128,7 @@ export function mountScreen({
     mountain: find(".mountain", HTMLButtonElement),
     authButton: find(".auth-action", HTMLButtonElement),
     text: (selector: string) => root.querySelector(selector)?.textContent,
+    /** What the board's odometer reads, e.g. "Stones 41,380". */
+    pocket: () => root.querySelector(".board-odo")?.getAttribute("aria-label"),
   };
 }
