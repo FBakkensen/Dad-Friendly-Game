@@ -1,6 +1,7 @@
 import { stretch } from "./scale";
 import grandpaUrl from "./assets/grandpa-miner.png";
 import { buyCrew, tierLock } from "./crew";
+import { crewCounts } from "./crew-count";
 import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
 import { grandpaPost, staffForBuy, staffNeeded } from "./engineers";
 import { FIX_HOLD_MS } from "./hazards";
@@ -395,14 +396,7 @@ export function createCrewPanel({
     const { mountain: current, trouble } = getView();
     const rates = effectiveRates(current, now(), trouble);
     const rate = rateShown ?? rates.crewPerSecond;
-    const spare =
-      current.helpers +
-      current.kids -
-      TIERS.reduce(
-        (used, tier) =>
-          used + rates.running[tier.id] * staffNeeded(current, tier),
-        0,
-      );
+    const { spare } = crewCounts(current, now(), trouble);
     const idle = TIERS.reduce(
       (total, tier) => total + owned(current, tier) - rates.running[tier.id],
       0,

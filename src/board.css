@@ -752,3 +752,135 @@ body {
 .board-drawer-clip > .board-save-drawer:not(.is-open) {
   transform: translateY(calc(100% + var(--art) * 2));
 }
+
+/* ---------- output gauge (#371) ----------
+   The mockup's .gauge: a 104x104 art dial on 55 sheet frames, its marks
+   and unit printed on the face, the red counter and its legend. */
+.board-gauge {
+  position: relative;
+  width: calc(var(--art) * 104);
+  height: calc(var(--art) * 104);
+}
+
+.board-gauge-face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--art) * 104);
+  height: calc(var(--art) * 104);
+  background-repeat: no-repeat;
+  background-size: calc(var(--art) * 1144) calc(var(--art) * 520);
+  image-rendering: pixelated;
+}
+
+.board-gauge-mark,
+.board-gauge-unit {
+  position: absolute;
+  left: calc(var(--art) * var(--at));
+  top: calc(var(--art) * var(--y));
+  transform: translate(-50%, -50%);
+  font-size: var(--board-type-13);
+  line-height: calc(var(--art) * 7);
+  white-space: nowrap;
+  color: var(--board-gauge-ink);
+}
+
+.board-gauge-counter {
+  position: absolute;
+  left: calc(var(--art) * 39);
+  top: calc(var(--art) * 65);
+  width: calc(var(--art) * 25);
+  height: calc(var(--art) * 11);
+  image-rendering: pixelated;
+}
+
+.board-gauge-read {
+  position: absolute;
+  left: calc(var(--art) * 41);
+  top: calc(var(--art) * 67);
+  width: calc(var(--art) * 22);
+  height: calc(var(--art) * 8);
+  text-align: center;
+  font-size: var(--board-type-16);
+  line-height: calc(var(--art) * 8);
+  white-space: nowrap;
+  color: var(--board-drum-dec-ink);
+}
+
+.board-gauge-legend {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--art) * 77);
+  text-align: center;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 700;
+  font-size: var(--board-type-13);
+  line-height: var(--board-type-13);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--board-gauge-ink);
+}
+
+/* ---------- crew plate (#371) ----------
+   The mockup's .crew as a flex row: at rest each part starts where the
+   mockup puts it (legend 10, figure 29, lamp 60, free 81 art px). The legend
+   and figure boxes shrink to their words when a long free count needs the
+   room, so the words push along and never overlap or leave the plate. A
+   free count of five figures or more drops its letter-spacing to fit. */
+.board-crew {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--art);
+  width: calc(var(--art) * 106);
+  height: calc(var(--art) * 24);
+  padding: 0 calc(var(--art) * 3) 0 calc(var(--art) * 10);
+}
+
+.board-crew > :not(.board-skin) {
+  position: relative;
+  white-space: nowrap;
+  text-shadow: 0 0 var(--art) var(--board-night);
+}
+
+.board-crew .board-crew-legend {
+  flex: 0 1 calc(var(--art) * 18);
+  margin-top: calc(var(--art) * 8.5);
+  line-height: calc(var(--art) * 7);
+  color: var(--board-ink-bare);
+}
+
+.board-crew-n {
+  flex: 0 1 calc(var(--art) * 30);
+  margin-top: calc(var(--art) * 5.5);
+  font-size: var(--board-type-26);
+  line-height: calc(var(--art) * 13);
+  color: var(--board-ink-bare);
+}
+
+.board-crew-n.is-long {
+  font-size: var(--board-type-20);
+}
+
+.board-crew-n.is-longer {
+  font-size: var(--board-type-16);
+}
+
+.board-crew .board-lamp {
+  margin-top: calc(var(--art) * 2);
+}
+
+.board-crew .board-crew-free {
+  flex: none;
+  margin-top: calc(var(--art) * 8.5);
+  line-height: calc(var(--art) * 7);
+  color: var(--board-amber-bare);
+}
+
+.board-crew .board-crew-free.is-long {
+  letter-spacing: 0;
+}
+
+.board-crew.is-none .board-crew-free {
+  color: var(--board-ink-2);
+}
