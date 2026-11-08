@@ -1,4 +1,4 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement, Image */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement, HTMLImageElement, Image */
 /**
  * Real-browser layout guard (jsdom can't see CSS). Run it with:
  *   npm run visual   (starts its own dev server; part of npm run check)
@@ -20,7 +20,9 @@ import {
   CREW,
   SAVE_KEY,
   crewMountain,
+  crystalMountain,
   freshMountain,
+  heartMountain,
   lastStoneSave,
   openMountain,
   seedJson,
@@ -77,8 +79,15 @@ const check = (ok, label) => {
  * per core), on one Vite server and one Chrome.
  */
 const sections = [];
+/** VISUAL_ONLY=<regex> runs only the sections whose label matches. */
+const only =
+  process.env.VISUAL_ONLY === undefined
+    ? undefined
+    : new RegExp(process.env.VISUAL_ONLY);
 const section = (label, run) => {
-  sections.push({ label, run });
+  if (only === undefined || only.test(label)) {
+    sections.push({ label, run });
+  }
 };
 
 const browser = await puppeteer.launch({
@@ -142,7 +151,12 @@ async function boardProbe(page) {
 async function open(
   [width, height],
   save,
-  { standalone = false, search = "", stopClock = false } = {},
+  {
+    standalone = false,
+    search = "",
+    stopClock = false,
+    reducedMotion = false,
+  } = {},
 ) {
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
@@ -190,6 +204,11 @@ async function open(
     SAVE_KEY,
     seedJson(save),
   );
+  if (reducedMotion) {
+    await page.emulateMediaFeatures([
+      { name: "prefers-reduced-motion", value: "reduce" },
+    ]);
+  }
   await page.goto(new URL(search, BASE).href, { waitUntil: "networkidle0" });
   return { page, close: () => context.close() };
 }
@@ -387,6 +406,69 @@ async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
   return ok;
 }
 
+/**
+ * The window's rules module, as the dev server serves it: the checks place
+ * the vein with the game's own veinSpot. Passed into the page as data, so
+ * it is the browser's import, not one of this script's.
+ */
+const MINE_WINDOW_RULES = "/src/mine-window.ts";
+
+/**
+ * The vein at each corner of its range (veinSpot at x 0.35/0.65, y 0.4/0.8),
+ * placed as board-window.ts places it: inline, 7 art px in from the window's
+ * corner to the view. Each glint must sit inside .board-window-view and be
+ * what a finger at its centre meets (#371).
+ */
+async function veinInView(page) {
+  return page.evaluate(async (rules) => {
+    const { veinSpot } = await import(rules);
+    const vein = document.querySelector(".golden-vein");
+    const view = document.querySelector(".board-window-view");
+    if (vein === null || view === null) {
+      return { ok: false, spots: [] };
+    }
+    const { left, top } = vein.style;
+    const wasHidden = vein.hidden;
+    vein.hidden = false;
+    const spots = [];
+    for (const [x, y] of [
+      [0.35, 0.4],
+      [0.65, 0.4],
+      [0.35, 0.8],
+      [0.65, 0.8],
+    ]) {
+      const spot = veinSpot(x, y);
+      vein.style.left = `${String((7 + spot.left) * 2)}px`;
+      vein.style.top = `${String((7 + spot.top) * 2)}px`;
+      const v = vein.getBoundingClientRect();
+      const w = view.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        (v.left + v.right) / 2,
+        (v.top + v.bottom) / 2,
+      );
+      spots.push({
+        x,
+        y,
+        ok:
+          getComputedStyle(vein).position === "absolute" &&
+          v.width > 0 &&
+          v.left >= w.left - 0.5 &&
+          v.right <= w.right + 0.5 &&
+          v.top >= w.top - 0.5 &&
+          v.bottom <= w.bottom + 0.5 &&
+          hit !== null &&
+          vein.contains(hit),
+        vein: [v.left, v.top, v.right, v.bottom].map(Math.round),
+        view: [w.left, w.top, w.right, w.bottom].map(Math.round),
+      });
+    }
+    vein.hidden = wasHidden;
+    vein.style.left = left;
+    vein.style.top = top;
+    return { ok: spots.every((spot) => spot.ok), spots };
+  }, MINE_WINDOW_RULES);
+}
+
 // The main screen and its sheets, at the phone and on the PC.
 for (const viewport of SCREENS) {
   section(`section 1 (main screen) ${JSON.stringify(viewport)}`, async () => {
@@ -397,8 +479,9 @@ for (const viewport of SCREENS) {
       lastSeen: Date.now(),
     });
     check(await noScroll(page), `${size} main screen has no scroll`);
-    await new Promise((resolve) => setTimeout(resolve, 1_100));
-    check(await noScroll(page), `${size} no scroll with crew floats running`);
+    // A dig's "+N" rises inside the window; the page stays still (#371).
+    await press(page, ".board-window");
+    check(await noScroll(page), `${size} no scroll with a dig's +N rising`);
     const tiersVisible = await page.evaluate(() =>
       [...document.querySelectorAll(".tier")]
         .filter((tier) => !tier.hidden)
@@ -409,32 +492,16 @@ for (const viewport of SCREENS) {
     );
     check(tiersVisible, `${size} every tier card is above the fold`);
 
-    // The vein lives inside the mountain, not in the page flow.
-    const veinInside = await page.evaluate(() => {
-      const vein = document.querySelector(".golden-vein");
-      const wrap = document.querySelector(".mountain-stage");
-      if (vein === null || wrap === null) {
-        return false;
-      }
-      // Place it at the far corner a vein can use, as the game does inline.
-      const { left, top } = vein.style;
-      vein.style.left = "80%";
-      vein.style.top = "80%";
-      vein.hidden = false;
-      const v = vein.getBoundingClientRect();
-      const w = wrap.getBoundingClientRect();
-      const ok =
-        getComputedStyle(vein).position === "absolute" &&
-        v.top >= w.top - v.height / 2 &&
-        v.bottom <= w.bottom + v.height / 2 &&
-        v.left >= w.left - v.width / 2 &&
-        v.right <= w.right + v.width / 2;
-      vein.hidden = true;
-      vein.style.left = left;
-      vein.style.top = top;
-      return ok;
-    });
-    check(veinInside, `${size} golden vein sits inside the mountain`);
+    // The vein lives inside the window's view and on top of it, at every
+    // corner of its range (#371).
+    const veinInside = await veinInView(page);
+    check(
+      veinInside.ok,
+      `${size} golden vein sits inside the window's view, on top, at each end of its range`,
+    );
+    if (!veinInside.ok) {
+      console.log("vein in view", size, JSON.stringify(veinInside));
+    }
 
     // A socket's note holds the shelf's key; the tag is a label (#370).
     await openShelf(page);
@@ -788,8 +855,11 @@ for (const viewport of [PHONE]) {
         );
       });
       check(odometerFits, `${label} keep the odometer in its housing`);
+      // The crew line lives in the Crew section at the top of Buys (#371).
       const crewLineFits = await page.evaluate(() => {
-        const line = document.querySelector(".crew-status");
+        const line = document.querySelector(
+          ".buys-dialog:not([hidden]) .buys-card .crew .crew-status",
+        );
         if (line === null) return false;
         const box = line.getBoundingClientRect();
         const height = parseFloat(getComputedStyle(line).lineHeight) || 24;
@@ -866,14 +936,17 @@ for (const viewport of [PHONE]) {
     });
     check(
       veinOnTop,
-      `${size} standalone golden vein appears on top of the mountain`,
+      `${size} standalone golden vein appears on top of the window`,
     );
     if (veinOnTop) {
       await page.tap(".golden-vein");
-      const note = await page.$eval(
-        ".vein-note",
-        (element) => element.textContent,
-      );
+      // The payout shows in the board note under the window (#371).
+      await page
+        .waitForSelector(".board-note.on .vein-note", { timeout: 2_000 })
+        .catch(() => undefined);
+      const note = await page
+        .$eval(".board-note.on .vein-note", (element) => element.textContent)
+        .catch(() => undefined);
       check(
         note?.startsWith("Golden vein!") === true,
         `${size} standalone golden vein pays when tapped`,
@@ -1137,7 +1210,7 @@ for (const viewport of [[424, 924]]) {
       },
       lastSeen: Date.now(),
     });
-    await page.tap(".mountain");
+    await page.tap(".board-window");
     await page.waitForSelector(".relic-reveal:not([hidden])");
     await page.tap(".relic-reveal:not(.legend) .reveal-continue");
     check(
@@ -1164,7 +1237,7 @@ for (const viewport of [[424, 924]]) {
   section(`section 9 (line 1087) ${JSON.stringify(viewport)}`, async () => {
     const label = `${String(viewport[0])}x${String(viewport[1])}`;
     const { page, close } = await open(viewport, lastStoneSave());
-    await page.tap(".mountain");
+    await page.tap(".board-window");
     await page.waitForSelector(".relic-reveal:not([hidden])");
     await page.tap(".relic-reveal:not(.legend) .reveal-continue");
     await page.tap(".legend .legend-pass");
@@ -1193,17 +1266,40 @@ for (const viewport of [[424, 924]]) {
     // Let the last tap's float finish drifting first.
     await new Promise((resolve) => setTimeout(resolve, 1500));
     check(await noScroll(page), `${label} new run has no scroll`);
+    // The badge's words sit on the Legacy plate, inside the window and
+    // above the crew plate (#371).
     const badgeFits = await page.$eval(".legacy-badge", (badge) => {
       const box = badge.getBoundingClientRect();
-      const stage = badge.parentElement.getBoundingClientRect();
-      return (
-        box.left >= 0 &&
-        box.right <= innerWidth &&
-        box.top >= stage.top &&
-        box.bottom <= stage.bottom
-      );
+      const mine = document.querySelector(".board-mine");
+      const crew = document.querySelector(".board-crew");
+      if (mine === null || crew === null) {
+        return { ok: false };
+      }
+      const inside = mine.getBoundingClientRect();
+      const below = crew.getBoundingClientRect();
+      return {
+        ok:
+          box.width > 0 &&
+          badge.closest(".board-legacy") !== null &&
+          box.left >= inside.left &&
+          box.right <= inside.right &&
+          box.top >= inside.top &&
+          box.bottom <= inside.bottom &&
+          box.bottom <= below.top,
+        badge: [box.left, box.top, box.right, box.bottom].map(Math.round),
+        mine: [inside.left, inside.top, inside.right, inside.bottom].map(
+          Math.round,
+        ),
+        crewTop: Math.round(below.top),
+      };
     });
-    check(badgeFits, `${label} Legacy badge sits inside the mountain`);
+    check(
+      badgeFits.ok,
+      `${label} Legacy badge sits inside the window, above the crew plate`,
+    );
+    if (!badgeFits.ok) {
+      console.log("legacy badge", label, JSON.stringify(badgeFits));
+    }
     await close();
   });
 }
@@ -1928,7 +2024,7 @@ for (const viewport of NOTICE_SIZES) {
         viewport,
         noticeSave({ mined: 9_999_999, lastSeen: now }),
       );
-      await page.tap(".mountain");
+      await page.tap(".board-window");
       await page.waitForSelector(".relic-reveal:not([hidden])", {
         timeout: 3_000,
       });
@@ -2151,30 +2247,38 @@ for (const viewport of NOTICE_SIZES) {
       if (!still || !inside || cart === undefined || borer === undefined) {
         console.log("crew gains", size, rates, inside);
       }
-      const posts = await page.$eval(".crew-posts", (button) => ({
-        text: button.textContent ?? "",
-        label: button.getAttribute("aria-label") ?? "",
-        height: button.getBoundingClientRect().height,
-      }));
-      await page.tap(".crew-posts");
-      const opened = await page.$eval(".crew-breakdown", (line) => ({
-        hidden: line.hidden,
-        text: line.textContent ?? "",
-      }));
-      const named =
-        posts.text.includes("on carts") ||
-        posts.label.includes("on carts") ||
-        (!opened.hidden && opened.text.includes("on carts"));
+      // The crew line is the Crew section at the top of Buys (#371); its
+      // chips name the posts, and the label counts the free hands too.
+      const posts = await page.$eval(
+        ".buys-dialog:not([hidden]) .buys-card .crew",
+        (section) => {
+          const button = section.querySelector(".crew-posts");
+          const title = section.querySelector(".buys-crew-title");
+          const box = button?.getBoundingClientRect();
+          return {
+            text: button?.textContent ?? "",
+            label: button?.getAttribute("aria-label") ?? "",
+            height: box?.height ?? 0,
+            titled:
+              title !== null &&
+              title.textContent === "Crew" &&
+              box !== undefined &&
+              title.getBoundingClientRect().bottom <= box.top + 0.5,
+          };
+        },
+      );
+      const named = posts.text.includes("on carts");
       check(
         named &&
+          posts.titled &&
           posts.label.includes("on carts") &&
           posts.label.includes("free") &&
           posts.height >= 44 &&
           (await noScroll(page)),
         `${size} worker line names where the crew is`,
       );
-      if (!named || posts.height < 44) {
-        console.log("posts", size, posts, opened);
+      if (!named || !posts.titled || posts.height < 44) {
+        console.log("posts", size, posts);
       }
       await shot(page, `crew-gains-${size}`);
       await close();
@@ -2227,7 +2331,7 @@ section("section 17 (line 2085)", async () => {
     check(await noScroll(second), "424x924 other tab has no scroll");
     await shot(second, "other-tab-424x924");
     await first.bringToFront();
-    await first.tap(".mountain");
+    await first.tap(".board-window");
     // The odometer reads the pocket in words for a screen reader (#370).
     const kept = await first.$eval(".board-odo", (element) =>
       element.getAttribute("aria-label"),
@@ -2319,8 +2423,9 @@ section("section 18 (line 2148)", async () => {
   }
 });
 
-// The relic plate is centred on the board and the rock, and the rock sits
-// clear below the board's top (#370). Locked thumb buttons stay quiet.
+// The relic plate is centred on the board, and the gauge row spans the board
+// clear below its top, with a fat mine window (#370, #371). Locked thumb
+// buttons stay quiet.
 const SHELF_VIEWS = SCREENS;
 const PHONE_SHOTS = new Set(["424x924"]);
 
@@ -2329,37 +2434,35 @@ async function shelfCentre(page) {
     const board = globalThis.__board();
     const plate = document.querySelector(".board-relics");
     const top = document.querySelector(".board-top");
-    const rock = document.querySelector(".mountain-stage");
-    if (plate === null || top === null || rock === null) {
-      return { ok: false, delta: 999, rockDelta: 999 };
+    const row = document.querySelector(".board-gauge-row");
+    const win = document.querySelector(".board-window");
+    if (plate === null || top === null || row === null || win === null) {
+      return { ok: false, delta: 999 };
     }
     const box = plate.getBoundingClientRect();
     const topBox = top.getBoundingClientRect();
-    const rockBox = rock.getBoundingClientRect();
+    const rowBox = row.getBoundingClientRect();
+    const winBox = win.getBoundingClientRect();
     const mid = (box.left + box.right) / 2;
     const view = (board.left + board.right) / 2;
-    const rockMid = (rockBox.left + rockBox.right) / 2;
     // In board px, so a PC fit reads the same as the phone.
     const delta = (mid - view) / board.scale;
-    const rockDelta = (mid - rockMid) / board.scale;
-    const art = document.querySelector(".mountain-art");
-    const artBox = art?.getBoundingClientRect();
-    const clear =
-      artBox !== undefined &&
-      artBox.top >= topBox.bottom - 0.5 &&
-      artBox.height > 1;
+    const spanLeft = (rowBox.left - board.left) / board.scale;
+    const spanRight = (board.right - rowBox.right) / board.scale;
+    const spans = Math.abs(spanLeft) <= 2 && Math.abs(spanRight) <= 2;
+    const clear = rowBox.top >= topBox.bottom - 0.5 && rowBox.height > 1;
     const fat =
-      artBox !== undefined &&
-      artBox.width / board.scale >= 96 &&
-      artBox.height / board.scale >= 96;
+      winBox.width / board.scale >= 96 && winBox.height / board.scale >= 96;
     return {
-      ok: Math.abs(delta) <= 2 && Math.abs(rockDelta) <= 2 && clear && fat,
+      ok: Math.abs(delta) <= 2 && spans && clear && fat,
       delta,
-      rockDelta,
+      spanLeft,
+      spanRight,
       clear,
       fat,
-      artHeight:
-        artBox === undefined ? 0 : Math.round(artBox.height / board.scale),
+      window: [winBox.width, winBox.height].map((side) =>
+        Math.round(side / board.scale),
+      ),
     };
   });
 }
@@ -2697,10 +2800,6 @@ async function pillClear(page) {
       drums.length === 5 &&
       drums.every((drum) => drum.scrollWidth <= drum.clientWidth + 1) &&
       pill.scrollWidth <= pill.clientWidth + 1;
-    const rows = [...document.querySelectorAll(".crew-row")];
-    const counts = rows.map((row) => row.querySelectorAll(".crew-bit").length);
-    const balanced =
-      counts.length === 0 || Math.max(...counts) - Math.min(...counts) <= 1;
     const pageStill =
       scrollY === 0 &&
       app.scrollTop === 0 &&
@@ -2708,15 +2807,31 @@ async function pillClear(page) {
         document.documentElement.clientHeight &&
       app.scrollHeight === app.clientHeight;
     return {
-      ok: apart && housed && balanced && pageStill,
+      ok: apart && housed && pageStill,
       apart,
       housed,
-      balanced,
       pageStill,
-      counts,
       pocket: pill.getAttribute("aria-label"),
     };
   });
+}
+
+/**
+ * The crew line's chips, in the Crew section at the top of Buys (#371): Buys
+ * lays them out as it opens, in even rows, never one chip alone.
+ */
+async function crewRowsBalanced(page) {
+  await press(page, ".buys-button");
+  await page.waitForSelector(".buys-dialog:not([hidden])");
+  const counts = await page.$$eval(
+    ".buys-dialog:not([hidden]) .buys-card .crew .crew-row",
+    (rows) => rows.map((row) => row.querySelectorAll(".crew-bit").length),
+  );
+  await press(page, ".buys-close");
+  return {
+    ok: counts.length > 0 && Math.max(...counts) - Math.min(...counts) <= 1,
+    counts,
+  };
 }
 
 for (const viewport of PILL_VIEWS) {
@@ -2732,6 +2847,14 @@ for (const viewport of PILL_VIEWS) {
       );
       if (!clear.ok) {
         console.log("pill", size, pocket, clear);
+      }
+      const rows = await crewRowsBalanced(page);
+      check(
+        rows.ok,
+        `${size} pocket ${String(pocket)}: Buys' crew chips sit in even rows`,
+      );
+      if (!rows.ok) {
+        console.log("crew rows", size, pocket, rows);
       }
       if (pocket === 32_500) {
         await shot(page, `pocket-crew-${size}`);
@@ -3058,7 +3181,7 @@ const GUARD_SCREENS = [
       lastSeen: Date.now(),
     }),
     [
-      ".mountain",
+      ".board-window",
       ".relic-reveal:not(.legend) .reveal-continue",
       ".legend .legend-pass",
     ],
@@ -3117,9 +3240,12 @@ const BOARD_SAVES = [
   ["Overtime", () => overtimeSave(), ""],
   ["save error", () => openMountain(), "?save=error"],
 ];
-/** The board's own controls; the save drawer's buttons join when it is open. */
+/**
+ * The board's own controls; the save drawer's buttons join when it is open.
+ * The mine window and the vein are the gauge row's (#371).
+ */
 const BOARD_TARGETS =
-  ".board-socket, .board-dial, .save-status, .board-save-drawer.is-open .board-platebtn, .board-note.on .board-platebtn";
+  ".board-socket, .board-dial, .save-status, .board-save-drawer.is-open .board-platebtn, .board-note.on .board-platebtn, .board-window, .golden-vein";
 /** Every other control a finger can reach on the board at that moment. */
 const NEIGHBOURS = "#app button, #app [role='button']";
 /** Board text read against the board's art: the bars ask 4.5:1 of these. */
@@ -3130,7 +3256,20 @@ const BOARD_LEGENDS = [
   ".board-save-words",
   ".board-save-safe",
   ".board-save-why",
+  // The gauge row (#371): Stones a sec, the crew plate, No. 2 Shaft and the
+  // Legacy plate's words.
+  ".board-gauge-legend",
+  ".board-crew-legend",
+  ".board-crew-n",
+  ".board-crew-free",
+  ".board-window-tag .board-lg",
+  ".board-legacy .legacy-badge",
 ].join(", ");
+/** The board's parts whose text and art the bars measure. */
+const BOARD_PARTS =
+  ".board-top, .board-gauge-row, .board-saveline, .board-save-drawer.is-open, .board-note.on";
+/** Parts whose every img and sprite is measured; a note's art is its skins. */
+const BOARD_ART = ".board-top, .board-gauge-row, .board-saveline";
 /** The drawer slides in steps(6) over 240ms. */
 const DRAWER_MS = 400;
 
@@ -3222,24 +3361,29 @@ async function boardTargets(page) {
   );
 }
 
+/**
+ * The vein sits on the window as today's vein sat on the rock, so its gap to
+ * the window is the one gap the bars do not ask for (#371).
+ */
+const veinOnWindow = (pair) =>
+  [pair.a, pair.b].some((name) => name.startsWith(".board-window ")) &&
+  [pair.a, pair.b].some((name) => name.startsWith(".golden-vein "));
+
 /** Pairs closer than 8 board px where at least one is the board's own. */
 function boardGaps({ own, others }) {
   const ownNames = new Set(own.map((target) => target.selector));
   // A scaled board snaps each box to device pixels, so an 8px gap can read
   // 7.99 board px on a PC: allow a tenth of a pixel.
   return targetsCloserThan([...own, ...others], 7.9).filter(
-    (pair) => ownNames.has(pair.a) || ownNames.has(pair.b),
+    (pair) =>
+      (ownNames.has(pair.a) || ownNames.has(pair.b)) && !veinOnWindow(pair),
   );
 }
 
 /** Text in the board's parts that a person sees, and its size. */
 async function boardTextSizes(page) {
-  return page.evaluate(() => {
-    const roots = [
-      ...document.querySelectorAll(
-        ".board-top, .board-saveline, .board-save-drawer.is-open, .board-note.on",
-      ),
-    ];
+  return page.evaluate((parts) => {
+    const roots = [...document.querySelectorAll(parts)];
     const small = [];
     let count = 0;
     for (const root of roots) {
@@ -3268,84 +3412,84 @@ async function boardTextSizes(page) {
       }
     }
     return { count, small };
-  });
+  }, BOARD_PARTS);
 }
 
 /** Every img, sprite and skin of the board drawn at exactly twice its art. */
 async function boardArtAt2x(page) {
-  return page.evaluate(async () => {
-    const parts = [
-      ...document.querySelectorAll(
-        ".board-top, .board-saveline, .board-save-drawer.is-open, .board-note.on",
-      ),
-    ];
-    const misses = [];
-    let count = 0;
-    const drawn = (el) =>
-      el.getClientRects().length > 0 && el.closest("[hidden]") === null;
-    const natural = (url) =>
-      new Promise((resolve) => {
-        const art = new Image();
-        art.onload = () => {
-          resolve([art.naturalWidth, art.naturalHeight]);
-        };
-        art.onerror = () => {
-          resolve([0, 0]);
-        };
-        art.src = url;
-      });
-    for (const part of parts) {
-      const imgs = part.matches(".board-top, .board-saveline")
-        ? [...part.querySelectorAll("img")].filter(drawn)
-        : [];
-      for (const img of imgs) {
-        count += 1;
-        if (
-          img.naturalWidth === 0 ||
-          img.clientWidth !== 2 * img.naturalWidth ||
-          img.clientHeight !== 2 * img.naturalHeight
-        ) {
-          misses.push(
-            `img ${img.className} ${String(img.clientWidth)}x${String(img.clientHeight)} of ${String(img.naturalWidth)}x${String(img.naturalHeight)}`,
-          );
+  return page.evaluate(
+    async (partsOf, artOf) => {
+      const parts = [...document.querySelectorAll(partsOf)];
+      const misses = [];
+      let count = 0;
+      const drawn = (el) =>
+        el.getClientRects().length > 0 && el.closest("[hidden]") === null;
+      const natural = (url) =>
+        new Promise((resolve) => {
+          const art = new Image();
+          art.onload = () => {
+            resolve([art.naturalWidth, art.naturalHeight]);
+          };
+          art.onerror = () => {
+            resolve([0, 0]);
+          };
+          art.src = url;
+        });
+      for (const part of parts) {
+        const imgs = part.matches(artOf)
+          ? [...part.querySelectorAll("img")].filter(drawn)
+          : [];
+        for (const img of imgs) {
+          count += 1;
+          if (
+            img.naturalWidth === 0 ||
+            img.clientWidth !== 2 * img.naturalWidth ||
+            img.clientHeight !== 2 * img.naturalHeight
+          ) {
+            misses.push(
+              `img ${img.className} ${String(img.clientWidth)}x${String(img.clientHeight)} of ${String(img.naturalWidth)}x${String(img.naturalHeight)}`,
+            );
+          }
+        }
+        const sprites = part.matches(artOf)
+          ? [part, ...part.querySelectorAll("*")].filter(
+              (el) =>
+                drawn(el) &&
+                el.tagName !== "CANVAS" &&
+                getComputedStyle(el).backgroundImage.startsWith("url("),
+            )
+          : [];
+        for (const sprite of sprites) {
+          count += 1;
+          const style = getComputedStyle(sprite);
+          const url = /url\("?([^")]+)"?\)/.exec(style.backgroundImage)?.[1];
+          const [width, height] = await natural(url ?? "");
+          const size = style.backgroundSize.split(" ").map(Number.parseFloat);
+          if (width === 0 || size[0] !== 2 * width || size[1] !== 2 * height) {
+            misses.push(
+              `sprite ${sprite.className} ${style.backgroundSize} of ${String(width)}x${String(height)}`,
+            );
+          }
+        }
+        for (const canvas of part.querySelectorAll("canvas.board-skin")) {
+          if (!drawn(canvas.parentElement)) {
+            continue;
+          }
+          count += 1;
+          const width = Number.parseFloat(canvas.style.width);
+          const height = Number.parseFloat(canvas.style.height);
+          if (width !== 2 * canvas.width || height !== 2 * canvas.height) {
+            misses.push(
+              `skin of ${canvas.parentElement.className} ${canvas.style.width}x${canvas.style.height} of ${String(canvas.width)}x${String(canvas.height)}`,
+            );
+          }
         }
       }
-      const sprites = part.matches(".board-top, .board-saveline")
-        ? [part, ...part.querySelectorAll("*")].filter(
-            (el) =>
-              drawn(el) &&
-              el.tagName !== "CANVAS" &&
-              getComputedStyle(el).backgroundImage.startsWith("url("),
-          )
-        : [];
-      for (const sprite of sprites) {
-        count += 1;
-        const style = getComputedStyle(sprite);
-        const url = /url\("?([^")]+)"?\)/.exec(style.backgroundImage)?.[1];
-        const [width, height] = await natural(url ?? "");
-        const size = style.backgroundSize.split(" ").map(Number.parseFloat);
-        if (width === 0 || size[0] !== 2 * width || size[1] !== 2 * height) {
-          misses.push(
-            `sprite ${sprite.className} ${style.backgroundSize} of ${String(width)}x${String(height)}`,
-          );
-        }
-      }
-      for (const canvas of part.querySelectorAll("canvas.board-skin")) {
-        if (!drawn(canvas.parentElement)) {
-          continue;
-        }
-        count += 1;
-        const width = Number.parseFloat(canvas.style.width);
-        const height = Number.parseFloat(canvas.style.height);
-        if (width !== 2 * canvas.width || height !== 2 * canvas.height) {
-          misses.push(
-            `skin of ${canvas.parentElement.className} ${canvas.style.width}x${canvas.style.height} of ${String(canvas.width)}x${String(canvas.height)}`,
-          );
-        }
-      }
-    }
-    return { count, misses };
-  });
+      return { count, misses };
+    },
+    BOARD_PARTS,
+    BOARD_ART,
+  );
 }
 
 /**
@@ -3368,7 +3512,22 @@ async function boardContrast(page) {
         );
       })
       .map((el) => {
-        const box = el.getBoundingClientRect();
+        // The words' own extent: a legend centred in a wide box (Stones a
+        // sec spans the gauge) is read against what lies under its words,
+        // not against the bezel beside them (#371).
+        const outer = el.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const words = range.getBoundingClientRect();
+        const box =
+          words.width > 0 && words.height > 0
+            ? {
+                left: Math.max(outer.left, words.left),
+                top: Math.max(outer.top, words.top),
+                right: Math.min(outer.right, words.right),
+                bottom: Math.min(outer.bottom, words.bottom),
+              }
+            : outer;
         const rgb = /rgba?\(([^)]+)\)/
           .exec(getComputedStyle(el).color)?.[1]
           .split(/[\s,/]+/)
@@ -3479,10 +3638,10 @@ for (const viewport of SCREENS) {
       const contrast = await boardContrast(page);
       const dim = contrast.filter((row) => row.pct < 4.5);
       check(
-        contrast.length >= 4 && dim.length === 0,
+        contrast.length >= 9 && dim.length === 0,
         `${label} ${String(contrast.length)} legends at 4.5:1 or more (lowest ${String(Math.min(...contrast.map((row) => row.pct)))}:1 at p10/p90, ${String(Math.min(...contrast.map((row) => row.ratio)))}:1 at the extremes)`,
       );
-      if (dim.length > 0 || contrast.length < 4) {
+      if (dim.length > 0 || contrast.length < 9) {
         console.log("board contrast", size, name, JSON.stringify(contrast));
       }
 
@@ -3645,7 +3804,10 @@ for (const viewport of SCREENS) {
         ? ` (smallest drawn ${smallest.rendered.map((side) => side.toFixed(1)).join("x")})`
         : "";
       check(
-        rest.own.length >= 8 &&
+        rest.own.length >= 9 &&
+          rest.own.some((target) =>
+            target.selector.startsWith(".board-window "),
+          ) &&
           keyShown &&
           drawerTargets.own.length >= 3 &&
           under.length === 0 &&
@@ -3700,6 +3862,433 @@ for (const viewport of SCREENS) {
       await close();
     });
   }
+}
+
+// The gauge row (#371): the output gauge, the mine window down No. 2 Shaft
+// with its vein and Legacy plate, and the crew plate, at the phone and the
+// three PC sizes, in each band. The bars are the board's: no scroll, 48px
+// targets 8px apart (the vein exempt from its gap to the window only), 13px
+// text, art at exactly 2x, 4.5:1 contrast at p10/p90, and the crew plate's
+// words on the plate. These pages keep the bundled faces (Barlow Condensed,
+// Share Tech Mono): the plate is sized for them, and the check proves they
+// loaded rather than measuring a fallback face.
+const GAUGE_SAVES = [
+  ["early", () => crewMountain(), "topsoil"],
+  ["mid", () => openMountain(), "granite"],
+  ["crystal", () => crystalMountain(), "crystal"],
+  ["heart", () => heartMountain(), "heart"],
+];
+/** The vein's range: veinSpot at x 0.35/0.65 and y 0.4/0.8. */
+const VEIN_CORNERS = [
+  [0.35, 0.4],
+  [0.65, 0.4],
+  [0.35, 0.8],
+  [0.65, 0.8],
+];
+
+/** Shows the vein at a corner of its range, as board-window.ts places it; undefined hides it. */
+async function placeVein(page, corner) {
+  await page.evaluate(
+    async (at, rules) => {
+      const vein = document.querySelector(".golden-vein");
+      if (vein === null) {
+        return;
+      }
+      if (at === undefined) {
+        vein.hidden = true;
+        return;
+      }
+      const { veinSpot } = await import(rules);
+      const spot = veinSpot(at[0], at[1]);
+      vein.style.left = `${String((7 + spot.left) * 2)}px`;
+      vein.style.top = `${String((7 + spot.top) * 2)}px`;
+      vein.hidden = false;
+    },
+    corner,
+    MINE_WINDOW_RULES,
+  );
+}
+
+/** The bundled faces are loaded, so the plate is measured as it ships. */
+async function boardFontsLoaded(page) {
+  return page.evaluate(async () => {
+    await document.fonts.ready;
+    await Promise.all([
+      document.fonts.load('700 13px "Barlow Condensed"'),
+      document.fonts.load('26px "Share Tech Mono"'),
+    ]);
+    return (
+      document.fonts.check('700 13px "Barlow Condensed"') &&
+      document.fonts.check('26px "Share Tech Mono"') &&
+      [...document.fonts].some(
+        (face) =>
+          face.family.replace(/"/g, "") === "Barlow Condensed" &&
+          face.status === "loaded",
+      ) &&
+      [...document.fonts].some(
+        (face) =>
+          face.family.replace(/"/g, "") === "Share Tech Mono" &&
+          face.status === "loaded",
+      )
+    );
+  });
+}
+
+/**
+ * The crew plate's words (legend, figure, free count) measured as drawn
+ * glyph runs, not boxes: a flex item can shrink under its words and let them
+ * spill, so each run's range must sit inside the plate.
+ */
+async function crewPlateWords(page) {
+  return page.evaluate(() => {
+    const plate = document.querySelector(".board-crew");
+    if (plate === null) {
+      return { ok: false, runs: [] };
+    }
+    const box = plate.getBoundingClientRect();
+    const runs = [
+      ...plate.querySelectorAll(
+        ".board-crew-legend, .board-crew-n, .board-crew-free",
+      ),
+    ].map((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const r = range.getBoundingClientRect();
+      return {
+        text: el.textContent ?? "",
+        ok:
+          r.width > 0 &&
+          r.left >= box.left - 0.5 &&
+          r.right <= box.right + 0.5 &&
+          r.top >= box.top - 0.5 &&
+          r.bottom <= box.bottom + 0.5,
+        run: [r.left, r.right].map((side) => Math.round(side - box.left)),
+      };
+    });
+    // Neither run overlaps the next: the words push along, never over.
+    const apart = runs.every(
+      (run, index) => index === 0 || runs[index - 1].run[1] <= run.run[0] + 0.5,
+    );
+    return {
+      ok: runs.length === 3 && apart && runs.every((run) => run.ok),
+      plate: Math.round(box.width),
+      runs,
+    };
+  });
+}
+
+for (const viewport of SCREENS) {
+  for (const [name, save, band] of GAUGE_SAVES) {
+    section(`gauge row ${JSON.stringify(viewport)} ${name}`, async () => {
+      const size = `${String(viewport[0])}x${String(viewport[1])}`;
+      const label = `${size} gauge row, ${name}:`;
+      const { page, close } = await open(viewport, save());
+      await page.waitForSelector(".board-mine[data-band]");
+      const fonts = await boardFontsLoaded(page);
+      check(fonts, `${label} the bundled faces are loaded`);
+      check(await noScroll(page), `${label} no page scroll`);
+
+      // The band's view behind the glass, and what the save owns in it.
+      const scene = await page.evaluate(async () => {
+        const mine = document.querySelector(".board-mine");
+        const art = document.querySelector(".board-window-art");
+        if (art instanceof HTMLImageElement && !art.complete) {
+          await art.decode().catch(() => undefined);
+        }
+        const shown = (selector) => {
+          const el = document.querySelector(selector);
+          return (
+            el !== null &&
+            el.closest("[hidden]") === null &&
+            el.getClientRects().length > 0
+          );
+        };
+        return {
+          band: mine?.getAttribute("data-band") ?? "",
+          art: art?.getAttribute("src") ?? "",
+          artWidth: art?.naturalWidth ?? 0,
+          machine: shown(".board-window-machine"),
+          kid: shown(".board-window-kid"),
+          plate: shown(".board-legacy"),
+          badge: document.querySelector(".board-legacy .legacy-badge")
+            ?.textContent,
+        };
+      });
+      check(
+        scene.band === band &&
+          scene.art.includes(`mine-view-${band}`) &&
+          scene.artWidth === 92,
+        `${label} the window shows the ${band} view`,
+      );
+      const heart = name === "heart";
+      check(
+        heart
+          ? scene.machine &&
+              scene.kid &&
+              scene.plate &&
+              (scene.badge ?? "").startsWith("Legacy ×")
+          : !scene.machine && !scene.kid && !scene.plate,
+        heart
+          ? `${label} the Great Machine, the kid and the Legacy plate show`
+          : `${label} no Great Machine, kid or Legacy plate before they are earned`,
+      );
+      if (scene.band !== band || (heart && !scene.plate)) {
+        console.log("gauge row scene", size, name, JSON.stringify(scene));
+      }
+
+      // Targets at rest, then with the vein at each end of its range.
+      const sets = [await boardTargets(page)];
+      for (const corner of VEIN_CORNERS) {
+        await placeVein(page, corner);
+        sets.push(await boardTargets(page));
+      }
+      await placeVein(page, undefined);
+      const own = sets.flatMap((set) => set.own);
+      const under = undersizedTargets(own);
+      const close8 = [
+        ...new Map(
+          sets
+            .flatMap((set) => boardGaps(set))
+            .map((pair) => [`${pair.a}|${pair.b}`, pair]),
+        ).values(),
+      ];
+      const veins = own.filter((target) =>
+        target.selector.startsWith(".golden-vein "),
+      ).length;
+      check(
+        own.some((target) => target.selector.startsWith(".board-window ")) &&
+          veins === VEIN_CORNERS.length &&
+          under.length === 0 &&
+          close8.length === 0,
+        `${label} the window and the vein are 48x48 board px, 8px from the next`,
+      );
+      if (under.length > 0 || close8.length > 0) {
+        console.log(
+          "gauge row targets",
+          size,
+          name,
+          JSON.stringify({
+            under: under.map((target) => target.selector),
+            close: close8.map((pair) => [pair.a, pair.b, pair.gap]),
+          }),
+        );
+      }
+
+      // Contrast first, before a tap puts "+N" over the view.
+      const contrast = await boardContrast(page);
+      const dim = contrast.filter((row) => row.pct < 4.5);
+      const want = [
+        "Stones a sec",
+        "Crew",
+        "free",
+        "No. 2 Shaft",
+        ...(heart ? ["Legacy ×"] : []),
+      ];
+      const read = want.every((words) =>
+        contrast.some((row) => row.text.includes(words)),
+      );
+      check(
+        read && dim.length === 0,
+        `${label} ${String(contrast.length)} legends at 4.5:1 or more (lowest ${String(Math.min(...contrast.map((row) => row.pct)))}:1 at p10/p90)`,
+      );
+      if (!read || dim.length > 0) {
+        console.log("gauge row contrast", size, name, JSON.stringify(contrast));
+      }
+
+      // A dig shows "+N"; its text joins the 13px count.
+      await press(page, ".board-window");
+      const text = await boardTextSizes(page);
+      check(
+        text.small.length === 0 && text.count >= 20,
+        `${label} board text is 13px or more (${String(text.count)} runs)`,
+      );
+      if (text.small.length > 0) {
+        console.log("gauge row text", size, name, JSON.stringify(text.small));
+      }
+
+      // Art is measured at the phone, where the board is drawn at scale 1.
+      if (PHONE === viewport) {
+        await placeVein(page, VEIN_CORNERS[0]);
+        const art = await boardArtAt2x(page);
+        await placeVein(page, undefined);
+        check(
+          art.misses.length === 0 && art.count >= 20,
+          `${label} ${String(art.count)} images, sprites and skins at exactly 2x`,
+        );
+        if (art.misses.length > 0) {
+          console.log("gauge row 2x", size, name, JSON.stringify(art.misses));
+        }
+      }
+
+      const words = await crewPlateWords(page);
+      check(
+        fonts && words.ok,
+        `${label} the crew plate's words stay on the plate`,
+      );
+      if (!words.ok) {
+        console.log("crew plate", size, name, JSON.stringify(words));
+      }
+      await close();
+    });
+  }
+
+  section(`gauge row ${JSON.stringify(viewport)} moving parts`, async () => {
+    const size = `${String(viewport[0])}x${String(viewport[1])}`;
+    const label = `${size} gauge row:`;
+
+    // A cave-in shows in the window (the dev boot previews one).
+    {
+      const { page, close } = await open(viewport, openMountain(), {
+        search: "?trouble=cave-in",
+      });
+      await page.waitForSelector(".board-mine[data-band]");
+      const caveIn = await page
+        .waitForSelector(".board-window-cave-in:not([hidden])", {
+          visible: true,
+          timeout: 3_000,
+        })
+        .then(
+          () => true,
+          () => false,
+        );
+      check(caveIn, `${label} a cave-in shows in the window`);
+      check(await noScroll(page), `${label} no page scroll with the cave-in`);
+      await close();
+    }
+
+    // Three taps on the window add exactly three times the tap's yield, and
+    // the odometer reads it. The clock is stopped, so the crew adds nothing.
+    {
+      const start = heartMountain();
+      const { page, close } = await open(
+        viewport,
+        { ...start, mountain: { ...start.mountain, pocket: 0 } },
+        { stopClock: true },
+      );
+      await page.waitForSelector(".board-mine[data-band]");
+      const pocket = () =>
+        page.evaluate(
+          (key) =>
+            JSON.parse(localStorage.getItem(key) ?? "{}").mountain?.pocket,
+          SAVE_KEY,
+        );
+      const before = await pocket();
+      const yieldWords = await page.$eval(
+        ".board-window",
+        (button) => button.getAttribute("aria-label") ?? "",
+      );
+      const match = /tap to mine (one stone|([\d,.]+) stones)$/.exec(
+        yieldWords,
+      );
+      const each =
+        match === null
+          ? NaN
+          : match[2] === undefined
+            ? 1
+            : Number(match[2].replace(/,/g, ""));
+      for (let tap = 0; tap < 3; tap += 1) {
+        await press(page, ".board-window");
+      }
+      const after = await pocket();
+      const shown = await page.evaluate(() => ({
+        odo: document.querySelector(".board-odo")?.getAttribute("aria-label"),
+        plus: document.querySelector(".board-dig-plus")?.textContent,
+      }));
+      check(
+        Number.isFinite(each) &&
+          after - before === 3 * each &&
+          shown.odo === `Stones ${Math.floor(after).toLocaleString("en-US")}` &&
+          shown.plus === `+${match?.[2] ?? "1"}`,
+        `${label} three taps on the window add three times the tap's ${String(each)} and the odometer reads it`,
+      );
+      if (after - before !== 3 * each) {
+        console.log("window taps", size, { yieldWords, before, after, shown });
+      }
+      await close();
+    }
+
+    // Reduced motion: the window and the needle hold still; a tap still
+    // shows "+N", without rising.
+    {
+      const { page, close } = await open(viewport, heartMountain(), {
+        reducedMotion: true,
+      });
+      await page.waitForSelector(".board-mine[data-band]");
+      const clip = await page.evaluate(() => {
+        const row = document.querySelector(".board-gauge-row");
+        const box = row?.getBoundingClientRect();
+        return box === undefined
+          ? undefined
+          : {
+              x: Math.ceil(box.left),
+              y: Math.ceil(box.top),
+              width: Math.floor(box.width),
+              height: Math.floor(box.height),
+            };
+      });
+      // Let the first frames land, then compare two shots 600ms apart.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const first = await page.screenshot({ clip, encoding: "base64" });
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      const second = await page.screenshot({ clip, encoding: "base64" });
+      check(
+        clip !== undefined && first === second,
+        `${label} under reduced motion the window and the needle hold still`,
+      );
+      await press(page, ".board-window");
+      const plusAt = () =>
+        page.$eval(".board-dig-plus", (plus) => ({
+          shown: !plus.hidden && plus.getClientRects().length > 0,
+          top: plus.style.top,
+          text: plus.textContent,
+        }));
+      const up = await plusAt();
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      const later = await plusAt();
+      check(
+        up.shown && later.shown && up.top === later.top && up.text !== "",
+        `${label} under reduced motion a tap shows +N without rising`,
+      );
+      if (!up.shown || up.top !== later.top) {
+        console.log("reduced plus", size, up, later);
+      }
+      await close();
+    }
+
+    // The largest crews: the late save's 1,998 with 1,998 free, and a crew
+    // past a hundred thousand. The plate's words stay on it.
+    for (const [crewName, crewSave] of [
+      ["late", () => lastStoneSave()],
+      [
+        "huge",
+        () => ({
+          ...openMountain(),
+          mountain: { ...openMountain().mountain, helpers: 123_456, carts: 0 },
+        }),
+      ],
+    ]) {
+      const { page, close } = await open(viewport, crewSave(), {
+        stopClock: true,
+      });
+      await page.waitForSelector(".board-crew");
+      const fonts = await boardFontsLoaded(page);
+      const words = await crewPlateWords(page);
+      check(
+        fonts && words.ok,
+        `${label} the ${crewName} crew's plate keeps its words on it (${words.runs
+          .map((run) => run.text)
+          .join(" ")})`,
+      );
+      if (!words.ok) {
+        console.log("crew plate", size, crewName, JSON.stringify(words));
+      }
+      check(
+        await noScroll(page),
+        `${label} the ${crewName} crew does not scroll`,
+      );
+      await close();
+    }
+  });
 }
 
 // Pages wait on the network as much as the CPU, so 1.5 per core beats 1

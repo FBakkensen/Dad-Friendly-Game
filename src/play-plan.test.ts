@@ -14,14 +14,14 @@ const SAVES = ["fresh", "early", "mid", "late"];
 
 describe("parseAction", () => {
   it("reads a tap by selector, once or repeated", () => {
-    expect(parseAction("tap:.mountain")).toEqual({
+    expect(parseAction("tap:.board-window")).toEqual({
       kind: "tap",
-      target: { by: "selector", selector: ".mountain" },
+      target: { by: "selector", selector: ".board-window" },
       times: 1,
     });
-    expect(parseAction("tap:.mountain*5")).toEqual({
+    expect(parseAction("tap:.board-window*5")).toEqual({
       kind: "tap",
-      target: { by: "selector", selector: ".mountain" },
+      target: { by: "selector", selector: ".board-window" },
       times: 5,
     });
   });
@@ -64,12 +64,12 @@ describe("parseAction", () => {
   });
 
   it("refuses unknown, empty, and out-of-range actions", () => {
-    expect(parseAction("click:.mountain").kind).toBe("error");
+    expect(parseAction("click:.board-window").kind).toBe("error");
     expect(parseAction("tap").kind).toBe("error");
     expect(parseAction("tap:  ").kind).toBe("error");
     expect(parseAction("wait:60001").kind).toBe("error");
-    expect(parseAction("tap:.mountain*0").kind).toBe("error");
-    expect(parseAction("tap:.mountain*501").kind).toBe("error");
+    expect(parseAction("tap:.board-window*0").kind).toBe("error");
+    expect(parseAction("tap:.board-window*501").kind).toBe("error");
     expect(parseAction("wait:500ms").kind).toBe("error");
     expect(parseAction("wait:1.5").kind).toBe("error");
   });
@@ -85,7 +85,27 @@ describe("parsePlayArgs", () => {
       out: "play-shots",
       url: undefined,
       phone: { width: 424, height: 924 },
+      search: "",
     });
+  });
+
+  it("opens the page with a query, for a preview such as a cave-in", () => {
+    const search = (argv: readonly string[]) => {
+      const plan = parsePlayArgs(argv, SAVES);
+      return plan.kind === "plan" ? plan.search : plan.kind;
+    };
+    expect(search(["--search", "?trouble=cave-in"])).toBe("?trouble=cave-in");
+    expect(search(["--search=?trouble=cave-in"])).toBe("?trouble=cave-in");
+    expect(search([])).toBe("");
+    expect(search(["--search"])).toBe("error");
+    expect(search(["--search="])).toBe("error");
+    expect(search(["--search", "--save", "mid"])).toBe("error");
+  });
+
+  it("names --search and taps the mine window in the help (#371)", () => {
+    expect(PLAY_USAGE).toContain("--search <query>");
+    expect(PLAY_USAGE).toContain("tap:.board-window");
+    expect(PLAY_USAGE).not.toContain(".mountain");
   });
 
   it("shoots the phone at a chosen size", () => {
@@ -108,7 +128,7 @@ describe("parsePlayArgs", () => {
         "--save",
         "mid",
         "--screen=phone",
-        "tap:.mountain*3",
+        "tap:.board-window*3",
         "--out",
         "shots",
         "--url=http://127.0.0.1:5173/",
@@ -123,7 +143,7 @@ describe("parsePlayArgs", () => {
       actions: [
         {
           kind: "tap",
-          target: { by: "selector", selector: ".mountain" },
+          target: { by: "selector", selector: ".board-window" },
           times: 3,
         },
         { kind: "tap", target: { by: "label", label: "Buys" }, times: 1 },
@@ -131,6 +151,7 @@ describe("parsePlayArgs", () => {
       out: "shots",
       url: "http://127.0.0.1:5173/",
       phone: { width: 424, height: 924 },
+      search: "",
     });
   });
 
@@ -145,7 +166,7 @@ describe("parsePlayArgs", () => {
   });
 
   it("answers help", () => {
-    expect(parsePlayArgs(["tap:.mountain", "--help"], SAVES)).toEqual({
+    expect(parsePlayArgs(["tap:.board-window", "--help"], SAVES)).toEqual({
       kind: "help",
     });
     expect(parsePlayArgs(["-h"], SAVES)).toEqual({ kind: "help" });
@@ -172,7 +193,7 @@ describe("parsePlayArgs", () => {
       kind: "error",
       message: "Unknown option --fast.",
     });
-    expect(parsePlayArgs(["poke:.mountain"], SAVES).kind).toBe("error");
+    expect(parsePlayArgs(["poke:.board-window"], SAVES).kind).toBe("error");
   });
 });
 
@@ -213,10 +234,10 @@ describe("shot names", () => {
     expect(
       shotName("desktop", 3, {
         kind: "tap",
-        target: { by: "selector", selector: ".mountain" },
+        target: { by: "selector", selector: ".board-window" },
         times: 5,
       }),
-    ).toBe("desktop-03-tap-mountain-x5.png");
+    ).toBe("desktop-03-tap-board-window-x5.png");
     expect(
       shotName("phone", 12, {
         kind: "tap",
@@ -254,7 +275,7 @@ describe("isPlayOutput", () => {
   it("matches only what a run writes", () => {
     expect(isPlayOutput("log.txt")).toBe(true);
     expect(isPlayOutput("phone-00-open.png")).toBe(true);
-    expect(isPlayOutput("desktop-12-tap-mountain-x5.png")).toBe(true);
+    expect(isPlayOutput("desktop-12-tap-board-window-x5.png")).toBe(true);
     expect(isPlayOutput("notes.md")).toBe(false);
     expect(isPlayOutput("phone-open.png")).toBe(false);
     expect(isPlayOutput("src")).toBe(false);

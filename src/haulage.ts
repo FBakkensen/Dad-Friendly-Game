@@ -385,8 +385,7 @@ function hoistTick(t: Work, dt: number, events: HaulageEvent[]): void {
 /** Where everything stands, in whole art px inside the run box. */
 export function haulagePose(h: Haulage): HaulagePose {
   const t = open(h);
-  const frame =
-    t.pose ?? (t.face === "E" ? 0 : 8) + (t.walk ? 4 : 0) + t.f;
+  const frame = t.pose ?? (t.face === "E" ? 0 : 8) + (t.walk ? 4 : 0) + t.f;
   return {
     tubX: t.x,
     tubY: t.y,

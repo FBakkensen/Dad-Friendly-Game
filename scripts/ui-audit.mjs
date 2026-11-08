@@ -158,7 +158,7 @@ async function open(viewport, save, { search = "" } = {}) {
     save === undefined ? null : JSON.stringify(save),
   );
   await page.goto(new URL(search, BASE).href, { waitUntil: "networkidle0" });
-  await page.waitForSelector(".mountain", { timeout: 8_000 });
+  await page.waitForSelector(".board-window", { timeout: 8_000 });
   await page.evaluate(() => document.fonts.ready);
   return {
     page,
@@ -502,7 +502,7 @@ async function collect(page) {
     }
 
     const primarySelectors = [
-      ".mountain",
+      ".board-window",
       ".go",
       ".upgrade-buy",
       ".workshop-craft",
@@ -799,17 +799,32 @@ async function main() {
     await opened.page.waitForSelector(".golden-vein:not([hidden])", {
       timeout: 6_000,
     });
-    await expectText(opened.page, /stones/, "mountain-vein");
+    // The glint is art: its words are its label (#371).
+    const vein = await opened.page.$eval(
+      ".golden-vein",
+      (el) => el.getAttribute("aria-label") ?? "",
+    );
+    if (!/stones/.test(vein)) {
+      throw new Error(`mountain-vein: ${vein}`);
+    }
     return opened;
   });
   await capture("mountain-hazard", async (viewport) => {
+    const opened = await open(viewport, rest(), { search: "?trouble=cave-in" });
+    // The cave-in comes down in the mine window, on the board (#371).
+    await opened.page.waitForSelector(".board-window-cave-in:not([hidden])", {
+      visible: true,
+    });
+    return opened;
+  });
+  await capture("buys-hazard", async (viewport) => {
     const opened = await open(viewport, rest(), { search: "?trouble=cave-in" });
     // The shout lives on the troubled machine's card, in Buys.
     await opened.page.click(".buys-button");
     await opened.page.waitForSelector('[data-trouble="cave-in"]', {
       visible: true,
     });
-    await expectText(opened.page, /Cave-in!/, "mountain-hazard");
+    await expectText(opened.page, /Cave-in!/, "buys-hazard");
     return opened;
   });
   await capture("mountain-layer-hint", async (viewport) => {
@@ -828,11 +843,18 @@ async function main() {
   });
   await capture("crew-needs-workers", async (viewport) => {
     const opened = await open(viewport, rest());
-    // The free count stays on the crew chip; the machine cards (and their
-    // "Needs N workers" bill) moved into the Buys sheet.
-    await expectText(opened.page, /\d+ workers · \d+ free/, "crew chip");
+    // The crew plate is the only free count (#371); the machine cards (and
+    // their "Needs N workers" bill) and the crew line are in the Buys sheet.
+    const plate = await opened.page.$eval(
+      ".board-crew",
+      (el) => el.getAttribute("aria-label") ?? "",
+    );
+    if (!/^Crew: [\d,]+ workers?, [\d,]+ free$/.test(plate)) {
+      throw new Error(`crew plate: ${plate}`);
+    }
     await press(opened.page, ".buys-button");
     await opened.page.waitForSelector(".buys-dialog:not([hidden])");
+    await expectText(opened.page, /\d+ workers/, "crew line in Buys");
     await expectText(opened.page, /Needs \d+ workers?/, "crew");
     const disabled = await opened.page.$(".tier:disabled");
     if (disabled === null) {
@@ -1014,7 +1036,7 @@ async function main() {
         quietCrew({ pocket: 20, helpers: 0, carts: 0 }),
       ),
     );
-    await press(opened.page, ".mountain");
+    await press(opened.page, ".board-window");
     await opened.page.waitForSelector(".relic-reveal:not([hidden])", {
       timeout: 8_000,
     });
@@ -1035,7 +1057,8 @@ async function main() {
       viewport,
       late(Date.now(), 130_000_000, { legacy: 2 }),
     );
-    await expectText(opened.page, /Legacy ×/, "legacy badge");
+    // The plate sets its words in capitals.
+    await expectText(opened.page, /Legacy ×/i, "legacy badge");
     return opened;
   });
   await capture("legacy-pass", async (viewport) => {
@@ -1074,7 +1097,7 @@ async function main() {
         quietCrew({ pocket: 20, helpers: 0, carts: 0 }),
       ),
     );
-    await press(opened.page, ".mountain");
+    await press(opened.page, ".board-window");
     await opened.page.waitForSelector(".relic-reveal:not([hidden])", {
       timeout: 8_000,
     });

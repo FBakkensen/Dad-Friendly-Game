@@ -156,3 +156,43 @@ export function lastStoneSave() {
     lastSeen: Date.now(),
   };
 }
+
+/** The Crystal Caves (#371): drills and borers at work, the window's third view. */
+export function crystalMountain() {
+  const open = openMountain();
+  return {
+    ...open,
+    mountain: {
+      remaining: 180_000_000,
+      pocket: 3_000_000,
+      helpers: 30,
+      carts: 10,
+      drills: 6,
+      borers: 2,
+      staffed: 2,
+    },
+  };
+}
+
+/**
+ * The Deep Heart on a kid's run (#371): the Great Machine on the surface, a
+ * kid by the lamp, and the Legacy plate on the window's frame.
+ */
+export function heartMountain() {
+  const open = openMountain();
+  return {
+    ...open,
+    mountain: {
+      remaining: 110_000_000,
+      pocket: 40_000_000,
+      helpers: 60,
+      kids: 3,
+      carts: 20,
+      drills: 10,
+      borers: 4,
+      machines: 1,
+      staffed: 2,
+      legacy: 1,
+    },
+  };
+}
