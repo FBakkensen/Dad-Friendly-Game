@@ -1,6 +1,6 @@
 # Economy overhaul: design spec (7 Nov 2026)
 
-Status: draft for Flemming. This spec covers several slivers. It ships on its own, and each later sitting plans and builds one sliver from it (`.claude/rules/superpowers.md`). The evidence is in `docs/balance-review.md`. The lab measures that grade it are described in `docs/DESIGN.md`, "Check-in pacing".
+Status: draft for Flemming. This spec covers several slivers. It ships on its own, and each later sitting plans and builds one sliver from it (`.claude/rules/superpowers.md`). The evidence is in `docs/balance-review.md`. The lab measures that grade it are described in `docs/DESIGN.md`, "Check-in pacing". The numbers in this spec are probes and the slivers' history. Today's values are in [Numbers now](DESIGN.md#numbers-now).
 
 ## The problem in one paragraph
 
@@ -133,14 +133,14 @@ S2 is the big one. A alone still misses the check-in rows (28% of check-ins buy 
   - One-off prices scale with the band: upgrades and promotions use k × s of the current band; machines and workers use k only.
   - The lab judges each dad's own table (`sample.stretch`), and a busy crafting bench counts as using a material or recipe. The finish-day rows are report-only because the run is endless.
   - The borer opens at the Granite start (10M), not 7M (Flemming: the Granite is the band that suits it).
-  - `KID_RUN_GROWTH` is 3/8 (the probe's 1/4 was not enough on the new curve), so each kid run is longer than the last.
-  - `MAX_STRETCH` is 100M (was 10M), so deep kid runs still load.
+  - `KID_RUN_GROWTH` rose to 3/8 (the probe's 1/4 was not enough on the new curve), so each kid run is longer than the last.
+  - `MAX_STRETCH` rose to 100M (was 10M), so deep kid runs still load.
   - The sim dad's Nils joins on day 3 of a four-day first run: one trip, no find home.
 
-- **S3 built (#357).** Milestone marks (`src/milestones.ts`, each ×2 and stacking): carts and drills at 10/25/50/100/150/200; borers at 5/10/25/50/100/150/200; the Great Machine at 2/3/5/10/25/50; workers at 25/50/100; kids none. The four check-in rows are strict. `every-tier-bought` (`fewestMachineBuys`, at least 5 for casual types) is a new report-only row. Rulings:
+- **S3 built (#357).** Milestone marks on every staffed tier and the workers (`src/milestones.ts`, each ×2 and stacking; the marks shipped as section C proposed, plus the borer's mark at 5; see [Numbers now](DESIGN.md#numbers-now)). The four check-in rows are strict. `every-tier-bought` (`fewestMachineBuys`, at least 5 for casual types) is a new report-only row. Rulings:
   - **The borer's first mark is at 5 (Flemming).** It is kept from the old game.
   - **`single-share` is 0.26, was 0.25 (Flemming).** The checker's opening Topsoil and the deep Great Machine stretch are fixed one-buy moments, so a check-in dad cannot spread them out. The checker reads 0.256.
-  - **The D prices (Flemming, "Ship it").** Machines ×1.15, workers ×1.06; cart 600, drill 73,080, borer 4,940,000, Great Machine 120.6M; `BAND_SCALE` 1 / 2.625 / 6.3 / 32.4; `KID_RUN_GROWTH` unchanged.
+  - **The D prices (Flemming, "Ship it").** The growth, first prices and `BAND_SCALE` that shipped are the ones in [Numbers now](DESIGN.md#numbers-now). `KID_RUN_GROWTH` stayed as S2 set it.
   - **S2's numbers were retuned in S3.** S2 had ×1.13 / ×1.08, cart 150, drill 21,000, Great Machine 40.2M and `BAND_SCALE` 1 / 1.5 / 9 / 27. The marks made machines stronger, so the prices rose to keep the cart and drill from crowding out the borer.
   - **Measured at 20 seeds (strict lab exits 0; generations lab exits 0):** zero-buy 0; buys per sitting 8.8 to 63; best-open 0.995 to 1.0; best-wait 0 to 0.05; every-tier-bought 5 to 10.85; single-share 0.165 to 0.256. Run 1 ends on day 3.7 to 5.0; run 8 on day 20 to 27.6. Upgrade dads reach the bottom on day 3.5 and the second run on day 3. Only the report-only casual-finish row misses.
 
