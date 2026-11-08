@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  PLAY_USAGE,
   actionSlug,
   isPlayOutput,
   labelMatch,
@@ -92,13 +93,13 @@ describe("parsePlayArgs", () => {
       const plan = parsePlayArgs(["--viewport", value], SAVES);
       return plan.kind === "plan" ? plan.phone : plan.kind;
     };
-    expect(phone("424x830")).toEqual({ width: 424, height: 830 });
+    expect(phone("424x924")).toEqual({ width: 424, height: 924 });
     expect(phone("424X924")).toEqual({ width: 424, height: 924 });
-    expect(phone("412x915")).toEqual({ width: 412, height: 915 });
+    expect(phone("360x800")).toEqual({ width: 360, height: 800 });
     expect(phone("424")).toBe("error");
-    expect(phone("0x830")).toBe("error");
-    expect(phone("424x830x2")).toBe("error");
-    expect(phone("9000x830")).toBe("error");
+    expect(phone("0x924")).toBe("error");
+    expect(phone("424x924x2")).toBe("error");
+    expect(phone("9000x924")).toBe("error");
   });
 
   it("reads options in either form, with actions in order", () => {
@@ -148,6 +149,12 @@ describe("parsePlayArgs", () => {
       kind: "help",
     });
     expect(parsePlayArgs(["-h"], SAVES)).toEqual({ kind: "help" });
+  });
+
+  it("names the board's phone and the desktop shot in the help (#370)", () => {
+    expect(PLAY_USAGE).toContain("424x924");
+    expect(PLAY_USAGE).toContain("1366x768");
+    expect(PLAY_USAGE).not.toMatch(/424x830|412x|440x|375x/);
   });
 
   it("names the saves when one is unknown", () => {

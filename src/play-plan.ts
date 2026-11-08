@@ -23,7 +23,7 @@ export type PlayScreen = "phone" | "desktop";
 /** The phone viewport in CSS pixels. */
 type PhoneSize = { readonly width: number; readonly height: number };
 
-/** The tallest supported phone (#273). 424x830 is the shorter one. */
+/** The phone: the board's own 424x924 stage, the installed app (#370). */
 const DEFAULT_PHONE: PhoneSize = { width: 424, height: 924 };
 const MAX_SIDE = 4096;
 
@@ -50,8 +50,8 @@ Options:
   --screen <which>   phone, desktop, or both (default: both)
   --out <dir>        where shots and the log go (default: play-shots)
   --url <url>        drive a running app instead of starting Vite
-  --viewport <WxH>   the phone's size (default: 424x924); the other
-                     supported phone is 424x830
+  --viewport <WxH>   the phone's size (default: 424x924, the board);
+                     the desktop shot is 1366x768
   --help             this text
 
 Actions run in order; a shot is taken after opening and after each one:
@@ -205,7 +205,7 @@ export function parsePlayArgs(
           if (size === undefined) {
             return {
               kind: "error",
-              message: `--viewport is WIDTHxHEIGHT, e.g. 424x830, not "${value}".`,
+              message: `--viewport is WIDTHxHEIGHT, e.g. 424x924, not "${value}".`,
             };
           }
           phone = size;
