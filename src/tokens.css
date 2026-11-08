@@ -103,3 +103,9 @@
 :root {
   --board-gauge-ink: #0b0b09;
 }
+
+/* The mine window (#371): the view's night behind its art, and the "+N" outline's offset. */
+:root {
+  --board-view-night: #0a0c0e;
+  --board-hair: 1px;
+}

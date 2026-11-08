@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { nineSlicePlan, SKINS, skin } from "./board-skin";
+import { nineSlicePlan, SKINS, skin, skinArtSize } from "./board-skin";
 
 describe("nineSlicePlan", () => {
   it("a frame plan stays inside its box", () => {
@@ -37,6 +37,23 @@ describe("nineSlicePlan", () => {
     expect(rivets).toHaveLength(8);
   });
 
+  it("the brass plate keeps its four rivets", () => {
+    const plan = nineSlicePlan("brass", 64, 16);
+    for (const b of plan) {
+      expect(b.dx).toBeGreaterThanOrEqual(0);
+      expect(b.dy).toBeGreaterThanOrEqual(0);
+      expect(b.dx + b.w).toBeLessThanOrEqual(64);
+      expect(b.dy + b.h).toBeLessThanOrEqual(16);
+      expect(b.sx).toBeGreaterThanOrEqual(3);
+    }
+    expect(plan.slice(-4).map((b) => [b.dx, b.dy])).toEqual([
+      [0, 0],
+      [55, 0],
+      [0, 8],
+      [55, 8],
+    ]);
+  });
+
   it("keyp reads the pressed half", () => {
     const plan = nineSlicePlan("keyp", 40, 40);
     expect(plan.length).toBeGreaterThan(0);
@@ -47,6 +64,18 @@ describe("nineSlicePlan", () => {
 describe("SKINS", () => {
   it("keyp is the key source at the pressed cell", () => {
     expect(SKINS.keyp).toEqual({ ...SKINS.key, ox: 32 });
+  });
+});
+
+describe("skinArtSize", () => {
+  it("paints half the host's CSS size, with a floor per kind", () => {
+    expect(skinArtSize("frame", 212, 48)).toEqual({ width: 106, height: 24 });
+    expect(skinArtSize("frame", 20, 20)).toEqual({ width: 18, height: 17 });
+    expect(skinArtSize("tag", 88, 20)).toEqual({ width: 44, height: 10 });
+  });
+
+  it("a brass plate 32px tall paints 16 art px, not the frame's 17", () => {
+    expect(skinArtSize("brass", 128, 32)).toEqual({ width: 64, height: 16 });
   });
 });
 

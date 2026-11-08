@@ -1,11 +1,12 @@
 import frameUrl from "./assets/board/frame.png";
 import insetUrl from "./assets/board/inset.png";
 import keyUrl from "./assets/board/key.png";
+import brassUrl from "./assets/board/legacy-plate.png";
 import tagUrl from "./assets/board/tag.png";
 
-export type SkinKind = "frame" | "tag" | "key" | "keyp" | "inset";
+export type SkinKind = "frame" | "tag" | "key" | "keyp" | "inset" | "brass";
 
-type SkinSource = "frame" | "tag" | "key" | "inset";
+type SkinSource = "frame" | "tag" | "key" | "inset" | "brass";
 
 interface SkinSpec {
   readonly src: SkinSource;
@@ -100,6 +101,20 @@ export const SKINS: Readonly<Record<SkinKind, SkinSpec>> = {
     row: 16,
     fill: [14, 14, 4, 4],
   },
+  /* The Legacy plate (#371): its rivets sit in its 8px corners, so a 64x16 plate keeps all four. */
+  brass: {
+    src: "brass",
+    ox: 3,
+    sw: 98,
+    sh: 32,
+    l: 8,
+    t: 8,
+    r: 9,
+    b: 8,
+    col: 37,
+    row: 16,
+    fill: [37, 8, 32, 16],
+  },
 };
 
 /** One drawImage call, in art px: source rect then destination origin. */
@@ -177,11 +192,27 @@ export function nineSlicePlan(
   return out;
 }
 
+/** The least height each kind paints at, in art px: a 16-high brass plate must not stretch to 17. */
+const MIN_HEIGHT: Partial<Record<SkinKind, number>> = { tag: 6, brass: 16 };
+
+/** The art size a host of w x h CSS px paints at: half of it, never below the kind's floor. */
+export function skinArtSize(
+  kind: SkinKind,
+  w: number,
+  h: number,
+): { readonly width: number; readonly height: number } {
+  return {
+    width: Math.max(18, Math.floor(w / 2)),
+    height: Math.max(MIN_HEIGHT[kind] ?? 17, Math.floor(h / 2)),
+  };
+}
+
 const URLS: Record<SkinSource, string> = {
   frame: frameUrl,
   tag: tagUrl,
   key: keyUrl,
   inset: insetUrl,
+  brass: brassUrl,
 };
 
 const images = new Map<SkinSource, Promise<HTMLImageElement | null>>();
@@ -231,8 +262,7 @@ export function skin(
       if (!w || !h) return;
       const want = pressed && host.classList.contains("down") ? pressed : kind;
       const spec = SKINS[want];
-      const width = Math.max(18, Math.floor(w / 2));
-      const height = Math.max(want === "tag" ? 6 : 17, Math.floor(h / 2));
+      const { width, height } = skinArtSize(want, w, h);
       const g = canvas.getContext("2d");
       if (!g) return;
       void loadImage(spec.src).then((img) => {
