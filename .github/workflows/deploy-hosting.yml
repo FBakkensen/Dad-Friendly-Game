@@ -4,9 +4,15 @@ on:
   push:
     branches: [main]
 
+# Merges deploy in order, one at a time.
+concurrency:
+  group: deploy-hosting
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -14,6 +20,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # The backstop for local signoff (#397): a red gate on main deploys nothing.
+      - name: Full gate
+        run: npm run check
       - run: npm run build
         env:
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}

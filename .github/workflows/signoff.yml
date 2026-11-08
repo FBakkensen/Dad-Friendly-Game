@@ -1,0 +1,43 @@
+name: signoff
+
+# The relay for local CI (#397). `npm run gate -- signoff` starts it after a
+# green full gate on a clean, pushed commit; it only posts the `signoff`
+# status that the ruleset on main requires. It runs no checks: the gate ran
+# them on the machine that asked. Cloud sessions may not post statuses, but
+# may start a workflow. Never start it by hand.
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: The commit the full gate passed on
+        required: true
+        type: string
+      summary:
+        description: The full gate's total line
+        required: true
+        type: string
+
+permissions:
+  statuses: write
+
+jobs:
+  signoff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post the signoff status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ inputs.sha }}
+          SUMMARY: ${{ inputs.summary }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if ! printf '%s' "$SHA" | grep -Eqx '[0-9a-f]{40}'; then
+            echo "Not a full commit sha: $SHA" >&2
+            exit 1
+          fi
+          gh api -X POST "repos/$REPO/statuses/$SHA" \
+            -f state=success \
+            -f context=signoff \
+            -f description="${SUMMARY:0:140}" \
+            -f target_url="$RUN_URL"

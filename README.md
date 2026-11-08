@@ -25,7 +25,13 @@ npm run gate -- full
 
 `full` runs every check before a PR is opened: the toolchain report, typecheck, lint, import cycles, formatting, knip, CSS tokens, unit and sim tests with coverage, then the Firestore rules in the emulator and the two browser checks once the static checks pass. When the branch changes code the strategy lab runs (anything in the import closure of `tools/strategy-lab.ts`, `tools/generations-lab.ts`, and the lab's policies and measures), the strict lab runs too, beside the browser checks, once the tests pass. Independent steps run in parallel. On 4 cores the full tier takes about 3.5 minutes, or about 7 minutes when the lab runs (`lab:generations` plays each policy and seed in its own process; about 3 minutes alone, #314). `npm run check` is the same.
 
-There are no CI check runs. The gate is run by hand: `fast` where superpowers says to verify, and `full` before the PR is opened. Red means no PR. Only `deploy-hosting` runs on GitHub, on push to `main`.
+No checks run on GitHub for a pull request. The gate is run by hand: `fast` where superpowers says to verify, and `full` before the PR is opened. Red means no PR. A green `full` on a clean, committed HEAD can be signed off once it is pushed:
+
+```bash
+npm run gate -- signoff
+```
+
+It starts the `signoff` workflow, which only posts the `signoff` commit status. The ruleset on `main` requires that status on an up-to-date branch, so a PR merges only after the full gate passed on its last commit. Never post `signoff` any other way. On push to `main`, `deploy-hosting` runs `npm run check` again on a clean runner and deploys only if it passes (#397). On `main` nothing differs from `origin/main`, so the strict lab and the CSS token diff are judged on the branch, not there.
 
 Each step prints one line, such as `ok    typecheck  4.1s` or `FAIL  lint  2.3s  exit 1`. Every full log goes to `.gate/logs/<step>.log` (gitignored). A failed step also prints the last 40 lines of its log. A step behind a failed one is skipped. The steps, their tiers, and their order are a table in `src/gate.ts`.
 

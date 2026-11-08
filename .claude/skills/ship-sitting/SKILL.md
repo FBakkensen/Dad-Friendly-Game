@@ -29,10 +29,12 @@ A cloud session can be given a branch whose last PR was already squash-merged. S
 
 ## The gate
 
-There are no CI check runs on a PR. The proof is the gate, run by hand:
+No checks run on GitHub for a PR. The proof is the gate, run by hand, and the `signoff` status that records it:
 
 - `npm run gate -- fast` where superpowers says to verify, before calling a task done.
-- `npm run gate -- full` before opening the PR. It adds the strict strategy lab when economy code changed. Red means no PR.
+- `npm run gate -- full` before opening the PR. It adds the strict strategy lab when economy code changed. Red means no PR. Green on a clean, committed HEAD leaves the signoff marker.
+- `npm run gate -- signoff` after the push. It starts the `signoff` workflow, which posts the `signoff` status on HEAD. The ruleset on `main` requires that status on an up-to-date branch, so any later push needs the full gate and the signoff again. Never post `signoff` any other way, and never start the workflow by hand.
+- After the merge, `deploy-hosting` runs the full gate on `main` before it deploys. If it goes red, fix `main` first.
 
 ## Commit
 
@@ -50,7 +52,7 @@ Do not open the PR until the review returns only Minor findings, or none. Every 
 
 ## Open the PR
 
-Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Request" already chosen, against `main`. Its full test suite is `npm run gate -- full`: run it and see it green before the PR is opened. The title matches the sliver. The PR body:
+Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Request" already chosen, against `main`. Its full test suite is `npm run gate -- full`: run it and see it green, push, and see `npm run gate -- signoff` end with `signoff is green` before the PR is opened. The title matches the sliver. The PR body:
 
 ```markdown
 ## Summary
@@ -75,9 +77,9 @@ In a cloud session, subscribe to the PR (`subscribe_pr_activity`) and let events
 1. Refresh live PR state each pass. Do not act on stale state.
 2. Conflicts first, then unresolved review comments.
 3. Handle review comments with `superpowers:receiving-code-review`. Fix real in-scope issues. Dismiss invalid ones with a reason. Ask the human on auth, secrets, security, or a real product question. Nits do not block merge.
-4. Run the fast gate on every fix, commit, and push. Run `npm run gate -- full` again before merging when a fix changed code. Never force-push.
+4. Run the fast gate on every fix, commit, and push. Before merging, after any push (a fix, or `main` merged into the branch with `update_pull_request_branch` and pulled), run `npm run gate -- full`, then `npm run gate -- signoff`. Never force-push.
 
-When the PR is mergeable, the full gate is green since the last code change, and every non-nit comment is fixed or dismissed, it is ready. Squash-merge it when Flemming has asked to merge or ship. An ask such as "fix and ship it" at the start of the sitting counts. Without that ask, tell him the PR is ready, with its URL, and wait.
+When the PR is mergeable, its head commit has a green `signoff` (`gh api repos/{owner}/{repo}/commits/<sha>/status`), and every non-nit comment is fixed or dismissed, it is ready. Squash-merge it when Flemming has asked to merge or ship. An ask such as "fix and ship it" at the start of the sitting counts. Without that ask, tell him the PR is ready, with its URL, and wait.
 
 Merge with the GitHub MCP `merge_pull_request` tool (squash) in a cloud session, or `gh pr merge --squash` elsewhere. Then:
 
