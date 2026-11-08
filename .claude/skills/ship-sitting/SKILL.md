@@ -63,7 +63,7 @@ Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Re
 
 ## Rulings
 
-- ... (the plan's ledger rulings, such as prices, growth rates, and band scales picked inside the agreed levers, and deferred Minor findings from the review; omit if none)
+- ... (the plan's ledger rulings, such as prices, growth rates, and band scales picked inside the agreed levers, deferred Minor findings from the review, and small follow-ups not worth their own issue; omit if none)
 
 Fixes #N
 ```

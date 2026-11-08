@@ -6,7 +6,7 @@ How we build is dad-friendly too. The superpowers plugin is the workflow (`super
 
 - One sitting produces one user-visible sliver. The game still boots. Next sitting starts from a running game.
 - Chores (lint, folders, vendor setup) are not a sitting by themselves unless they unblock that same sliver, or the human picks them.
-- GitHub is the backbone: issues, PRs, and the dependency graph. Even a one-line idea gets an issue. Use the github-issues skill.
+- GitHub is the backbone: issues, PRs, and the dependency graph. An issue is a sliver: work worth its own sitting and PR. Use the github-issues skill.
 
 ## Docs
 
@@ -36,7 +36,7 @@ How we build is dad-friendly too. The superpowers plugin is the workflow (`super
 - One issue is one sliver. If the feature grows, do not enlarge the issue. Suggest a new issue and link it.
 - File that issue. Do not start it. The current sitting and PR stay on the issue we already picked.
 - One branch, one PR, until that PR is merged or closed. Never open a second branch or PR for the same sitting. Never stack PRs.
-- New ideas that appear mid-work go on GitHub. They do not sneak into the current PR.
+- New ideas that appear mid-work do not sneak into the current PR. One worth its own sitting becomes an issue. A review nit or small follow-up goes in the PR body under Rulings, or to Flemming in chat. File it only if he asks.
 - The agent keeps `blocked-by` / `blocking` / parent links truthful so the next sitting can start from unblocked work.
 
 ## Art and next work
