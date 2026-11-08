@@ -53,7 +53,7 @@ const SAVES = {
     save: crystalMountain,
   },
   heart: {
-    note: "the Deep Heart on a kid's run: the Great Machine and Legacy x2",
+    note: "the Deep Heart on a kid's run: the Great Machine and Legacy ×1.5",
     save: heartMountain,
   },
   workshop: {

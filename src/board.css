@@ -925,6 +925,9 @@ body {
    background-position-x from board-window.ts. */
 .board-mine {
   position: relative;
+  /* Its own stacking context: the vein (2) and the Legacy plate (3) order only over the window,
+     never against the board's sheets, notes or save line. */
+  isolation: isolate;
   width: calc(var(--art) * 106);
   height: calc(var(--art) * 90);
 }
@@ -1046,7 +1049,6 @@ body {
    stacking context: its tub (1) and miner (2) order only against each other
    and the cage, under the cave-in, the puffs, "+N", the glass and the frame. */
 .board-window-view > .board-window-run {
-  /* Its own stacking context, so the tub and miner stay under the later layers. */
   z-index: 0;
   top: calc(var(--art) * 28);
   width: calc(var(--art) * 92);

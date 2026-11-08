@@ -225,7 +225,25 @@ export function createMineWindow({
 
   root.append(dig, vein, plate);
 
-  for (const el of [dust, plus, fill, borerDust, caveIn]) {
+  // Until the save has loaded there is no scene: the window is its frame and glass on the dark,
+  // so nothing unearned shows while "Loading your save..." is up. The first render puts the view
+  // on, and paint() shows each machine only once it is owned.
+  const shaft = [art, sheave, steam, run];
+  for (const el of [
+    ...shaft,
+    machine,
+    drill,
+    tarp,
+    borer,
+    borerDust,
+    kid,
+    tub,
+    miner,
+    caveIn,
+    fill,
+    dust,
+    plus,
+  ]) {
     el.hidden = true;
   }
 
@@ -346,6 +364,11 @@ export function createMineWindow({
   });
 
   const render = (next: WindowScene): void => {
+    if (scene === undefined) {
+      for (const el of shaft) {
+        el.hidden = false;
+      }
+    }
     if (scene?.band !== next.band) {
       root.dataset.band = next.band;
       art.src = mineView(next.band);

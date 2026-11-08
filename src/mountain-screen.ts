@@ -200,10 +200,11 @@ export function mountMountainScreen({
     veinGapScale(view.mountain, hasRelic(view.mountain, "lantern"), now());
 
   // The vein's note and the quiet away line show in the board note under the
-  // window (#371); between shows the note waits in the park below.
+  // window (#371); between shows the note waits in the hidden park below. The
+  // board note's status announces them, so the words carry no live region of
+  // their own and are read once.
   const veinNote = document.createElement("p");
   veinNote.className = "vein-note";
-  veinNote.setAttribute("aria-live", "polite");
 
   // The countdowns running now, one per line: the body of the Running now
   // note the boost dial opens (#370). The engineers' trips land here too.

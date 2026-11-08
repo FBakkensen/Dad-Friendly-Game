@@ -104,8 +104,11 @@ page is the map, plus the rules that keep it that way.
    and the Legacy plate; `runBoardLoop` steps it and the needle once a frame,
    capped at 0.1s). The window's only input is a `WindowScene` built by
    `windowScene(mountain, trouble)`; it calls `onDig` and `onVein` and never
-   writes the mountain. `reducedMotion()` in `float-text` holds the window
-   and the needle still.
+   writes the mountain. Until its first render (a signed-in save still
+   loading) the window is its frame and glass on the dark: no view, machine,
+   kid or run. `reducedMotion()` in `float-text` holds the window and the
+   needle still; it makes one `MediaQueryList` and reads its live `.matches`
+   each frame.
 
 ## Findings
 

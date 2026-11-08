@@ -8,6 +8,7 @@ import {
   type MineWindow,
 } from "./board-window";
 import { mineView, type WindowScene } from "./mine-window";
+import { WINDOW_SCENE_PARTS } from "./ui-audit-measure";
 
 const motion = (reduce: boolean): void => {
   vi.stubGlobal(
@@ -101,6 +102,70 @@ describe("createMineWindow", () => {
     expect(win.dig.contains(win.vein)).toBe(false);
     expect(win.root.contains(win.vein)).toBe(true);
     expect(el(win, ".board-legacy").contains(badge)).toBe(true);
+  });
+
+  it("before the first render it is only the frame and the glass: no view, machine, kid or run", () => {
+    motion(false);
+    const { win } = make();
+    /** Shown only if neither it nor anything between it and the window is hidden. */
+    const visible = (selector: string): boolean => {
+      for (
+        let node: HTMLElement | null = el(win, selector);
+        node !== null && node !== win.root;
+        node = node.parentElement
+      ) {
+        if (node.hidden) return false;
+      }
+      return true;
+    };
+    // the browser checks' list, and the two puffs that are never up before a dig
+    const SCENE_PARTS = [
+      ...WINDOW_SCENE_PARTS,
+      ".board-window-fill",
+      ".board-dig-dust",
+    ];
+    for (const part of SCENE_PARTS) {
+      expect({ part, visible: visible(part) }).toEqual({
+        part,
+        visible: false,
+      });
+    }
+    expect(visible(".board-window-frame")).toBe(true);
+    expect(visible(".board-window-glass")).toBe(true);
+    expect(visible(".board-window-tag")).toBe(true);
+    // a tick before the save loads draws nothing either
+    win.tick(0.1);
+    expect(visible(".board-window-run")).toBe(false);
+    expect(visible(".board-window-drill")).toBe(false);
+
+    // the first render puts the shaft, the run and today's tarp on the view
+    win.render(SCENE);
+    for (const part of [
+      ".board-window-art",
+      ".board-window-sheave",
+      ".board-window-steam",
+      ".board-window-tarp",
+      ".board-window-run",
+      ".board-window-tub",
+      ".board-window-miner",
+      ".board-window-cage",
+    ]) {
+      expect({ part, visible: visible(part) }).toEqual({
+        part,
+        visible: true,
+      });
+    }
+    for (const part of [
+      ".board-window-machine",
+      ".board-window-drill",
+      ".board-window-borer",
+      ".board-window-kid",
+    ]) {
+      expect({ part, visible: visible(part) }).toEqual({
+        part,
+        visible: false,
+      });
+    }
   });
 
   it("shows the band's view and swaps it when the band changes", () => {
@@ -463,6 +528,9 @@ describe("the window's stacking", () => {
     ).toEqual(["board-window", "golden-vein", "board-legacy"]);
     expect(zIndex(win, ".golden-vein")).toBe("2");
     expect(zIndex(win, ".board-legacy")).toBe("3");
+    // and the window isolates them, so the vein's 2 and the plate's 3 never reach the board's
+    // sheets, notes or save line
+    expect(getComputedStyle(win.root).isolation).toBe("isolate");
   });
 });
 

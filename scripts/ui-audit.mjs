@@ -21,6 +21,7 @@ import {
   scrollOverflows,
   targetsCloserThan,
   undersizedTargets,
+  WINDOW_SCENE_PARTS,
 } from "../src/ui-audit-measure.ts";
 
 const OUT = "docs/ui-audit";
@@ -1153,6 +1154,20 @@ async function main() {
   await capture("save-status-loading", async (viewport) => {
     const opened = await open(viewport, rest(), { search: "?save=loading" });
     await expectText(opened.page, /Loading your save/, "loading");
+    // Until the save is in, the window is its frame and glass: nothing drawn
+    // from a save it has not read yet (#371).
+    const shown = await opened.page.evaluate(
+      (parts) =>
+        parts.filter((part) =>
+          [...document.querySelectorAll(part)].some(
+            (el) => el.getClientRects().length > 0,
+          ),
+        ),
+      [...WINDOW_SCENE_PARTS],
+    );
+    if (shown.length > 0) {
+      throw new Error(`loading: the mine window shows ${shown.join(", ")}`);
+    }
     return opened;
   });
   await capture("save-status-account", async (viewport) => {

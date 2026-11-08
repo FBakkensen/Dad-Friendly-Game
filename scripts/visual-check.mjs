@@ -15,6 +15,7 @@ import {
   contrastRatio,
   targetsCloserThan,
   undersizedTargets,
+  WINDOW_SCENE_PARTS,
 } from "../src/ui-audit-measure.ts";
 import {
   CREW,
@@ -4160,6 +4161,51 @@ for (const viewport of SCREENS) {
   section(`gauge row ${JSON.stringify(viewport)} moving parts`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     const label = `${size} gauge row:`;
+
+    // While a signed-in save loads, the window is its frame and glass alone:
+    // no view, machine, kid, tub or miner from a save it has not read yet.
+    // The Deep Heart save owns every machine and the kid, so any leak shows.
+    {
+      const { page, close } = await open(viewport, heartMountain(), {
+        search: "?save=loading",
+      });
+      const loading = await page
+        .waitForFunction(
+          () =>
+            (
+              document.querySelector(".save-status")?.textContent ?? ""
+            ).includes("Loading your save"),
+          { timeout: 3_000 },
+        )
+        .then(
+          () => true,
+          () => false,
+        );
+      // let the board's loop step a few frames over the empty window
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const seen = await page.evaluate(
+        (parts) => ({
+          parts: parts.filter((part) =>
+            [...document.querySelectorAll(part)].some(
+              (el) => el.getClientRects().length > 0,
+            ),
+          ),
+          glass: [".board-window-frame", ".board-window-glass"].every(
+            (part) =>
+              (document.querySelector(part)?.getClientRects().length ?? 0) > 0,
+          ),
+        }),
+        [...WINDOW_SCENE_PARTS],
+      );
+      check(
+        loading && seen.glass && seen.parts.length === 0,
+        `${label} while the save loads the window is its frame and glass, with no machine, kid, tub or miner`,
+      );
+      if (seen.parts.length > 0 || !loading) {
+        console.log("loading window", size, { loading, ...seen });
+      }
+      await close();
+    }
 
     // A cave-in shows in the window (the dev boot previews one).
     {

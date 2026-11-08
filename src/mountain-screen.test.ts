@@ -2027,9 +2027,18 @@ describe("the control board (#370)", () => {
       expect(screen.text(".board-note.on .vein-note")).toBe(
         "Golden vein! +50 stones",
       );
-      expect(
-        screen.root.querySelector(".vein-note")?.getAttribute("aria-live"),
-      ).toBe("polite");
+      // Announced once: by the board note's status, not again by the words inside it.
+      const words = screen.root.querySelector(".vein-note");
+      const live: string[] = [];
+      for (let at = words; at !== null; at = at.parentElement) {
+        if (
+          at.hasAttribute("aria-live") ||
+          at.getAttribute("role") === "status"
+        ) {
+          live.push(at.classList[0] ?? "");
+        }
+      }
+      expect(live).toEqual(["board-note"]);
       screen.root.remove();
     } finally {
       vi.useRealTimers();
