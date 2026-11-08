@@ -70,6 +70,14 @@ const BOARD_SELECTORS = [
   ".board-legacy",
   ".golden-vein",
   ".vein-note",
+  ".board-bays",
+  ".board-bay",
+  ".board-band",
+  ".board-flap",
+  ".board-thanks",
+  ".board-ready-row",
+  ".board-ready",
+  ".board-dig-button",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
@@ -144,9 +152,21 @@ describe("board.css", () => {
     expect(contrast(hex ?? "#000000", "#111518")).toBeGreaterThanOrEqual(4.5);
   });
 
+  it("stands the Ready row at its top in #app, under the bays (#372)", () => {
+    const rule = /^\.board-ready-row \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    expect(rule).toMatch(/position:\s*absolute/);
+    expect(rule).toMatch(/top:\s*var\(--ready-top\)/);
+  });
+
   it("lets an open note take taps, so none falls through to the dial or the menu", () => {
     expect(boardCss).toMatch(
       /^\.board-note\.on \{[^}]*pointer-events:\s*auto/m,
+    );
+  });
+
+  it("lets taps pass through a bay's thanks note to the bay under it (#372)", () => {
+    expect(boardCss).toMatch(
+      /^\.board-note\.on:has\(\.board-thanks\) \{[^}]*pointer-events:\s*none/m,
     );
   });
 

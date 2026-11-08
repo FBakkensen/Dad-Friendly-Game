@@ -2,8 +2,8 @@
  * The board stage (#370). #app is a fixed 424x924 enamel panel. src/board-fit.ts
  * sets --board-scale so the whole board shrinks to fit any screen; zoom keeps
  * taps lined up. contain: layout keeps the fixed sheets inside the board.
- * The old column fills 422..860, under the board's top and the gauge row (#371);
- * the bands above and below are for the board.
+ * The old column fills the rail slot, 768..860, under the board's top, the
+ * gauge row and the bays (#372); the bands above and below are for the board.
  */
 body {
   display: flex;
@@ -39,7 +39,7 @@ body {
   /* index.html's boot style sets min-height: 100dvh, which zoom would enlarge. */
   min-height: 0;
   padding: var(--space-4);
-  /* The column starts under the gauge row (#371). */
+  /* The column starts at the rail slot, under the bays and the Ready row (#372). */
   padding-top: var(--column-top);
   /* The column stops 8px above the save line, so the bottom bar's buttons
      stand a full gap from it (#370). */
@@ -123,6 +123,12 @@ body {
 .board-note.on {
   visibility: visible;
   pointer-events: auto;
+}
+
+/* A bay's thanks holds no key and stands over the next bay for 1.6s: a tap
+   there goes through to the bay (#372). */
+.board-note.on:has(.board-thanks) {
+  pointer-events: none;
 }
 
 /* The mockup's width: #app > * (style.css) would otherwise outrank it. */
@@ -364,10 +370,43 @@ body {
   margin-top: calc(var(--art) * 4);
 }
 
-/* The layer line and the ☰ menu sit at the column's top, 8px under the gauge
-   row; the teach note and the thumb bar sit at its foot (#371). */
-#app > .top-bar {
-  margin-bottom: auto;
+/* The thumb bar fills the rail slot's foot until B5's key rail; the ☰ menu
+   is its fifth cell, where B7's Ledger key goes (#372). */
+#app > .thumb-bar {
+  margin-top: auto;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.thumb-bar .menu-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: auto;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  margin: 0;
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-gold);
+  font-size: var(--type-24);
+  line-height: 1;
+}
+
+/* The New teach note in the board note (#372): the note's ink in place of
+   the old card's edge and face, still a 48px target. */
+.board-note .teach-note {
+  min-height: var(--target-min);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--board-ink);
+  font: inherit;
+  font-weight: 700;
+  line-height: var(--board-note-lead);
+  animation: none;
 }
 
 .board-tag .board-lg {
@@ -573,6 +612,9 @@ body {
     transition: none;
   }
   .board-saveline.is-trying .board-lamp {
+    animation: none;
+  }
+  .board-flap-d.is-flipping {
     animation: none;
   }
 }
@@ -1164,6 +1206,15 @@ body {
   color: var(--board-amber-bare);
 }
 
+/* A bay's fix thanks the crew in the board note (#372). */
+.board-thanks {
+  margin: 0;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--board-ink);
+}
+
 .board-vein-glint {
   display: block;
   width: calc(var(--art) * 25);
@@ -1211,4 +1262,418 @@ body {
 /* Last, so it outranks the display of every part above at equal specificity. */
 .board-mine [hidden] {
   display: none;
+}
+
+/* ---------- the Ready row (#372) ----------
+   The mockup's #rReady, 424 x 59 art at (0, --ready-top): the Ready now
+   plate, a 144x48 art button at (3, 0), and the red DIG button at (152, 0).
+   Its guard and the red button change whole frames from board-ready.ts
+   (inline background-position-x); the rest is placed here. */
+.board-ready-row {
+  position: absolute;
+  left: 0;
+  top: var(--ready-top);
+  width: var(--board-w);
+  height: calc(var(--art) * 59);
+}
+
+.board-ready,
+.board-dig-button {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  appearance: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.board-ready:focus-visible,
+.board-dig-button:focus-visible {
+  outline: calc(var(--art) * 1) solid var(--board-amber);
+  outline-offset: calc(var(--art) * 1);
+}
+
+.board-ready:disabled,
+.board-dig-button:disabled {
+  cursor: default;
+}
+
+.board-ready {
+  left: calc(var(--art) * 3);
+  width: calc(var(--art) * 144);
+  height: calc(var(--art) * 48);
+  text-align: left;
+}
+
+.board-ready > * {
+  position: absolute;
+  pointer-events: none;
+}
+
+.board-ready-kick {
+  left: calc(var(--art) * 50);
+  top: calc(var(--art) * 3);
+  line-height: calc(var(--art) * 7);
+  white-space: nowrap;
+  color: var(--board-amber-bare);
+  text-shadow: 0 0 var(--art) var(--board-night);
+}
+
+.board-ready.is-saving .board-ready-kick {
+  color: var(--board-ink-bare);
+}
+
+.board-ready.is-done .board-ready-kick {
+  color: var(--board-green);
+}
+
+.board-ready-guard {
+  left: 0;
+  top: calc(var(--art) * 8);
+  width: calc(var(--art) * 40);
+  height: calc(var(--art) * 40);
+  background-repeat: no-repeat;
+  background-size: calc(var(--art) * 200) calc(var(--art) * 40);
+  image-rendering: pixelated;
+}
+
+.board-ready-plate {
+  left: calc(var(--art) * 40);
+  top: calc(var(--art) * 12);
+  width: calc(var(--art) * 104);
+  height: calc(var(--art) * 32);
+  image-rendering: pixelated;
+}
+
+.board-ready-text {
+  left: calc(var(--art) * 48);
+  top: calc(var(--art) * 17);
+  width: calc(var(--art) * 88);
+  height: calc(var(--art) * 22);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  font-family: "Barlow Condensed", sans-serif;
+}
+
+.board-ready-main,
+.board-ready-why {
+  overflow: hidden;
+  white-space: nowrap;
+  text-shadow: 0 var(--board-hair) 0 var(--board-plate-shine);
+}
+
+.board-ready-main {
+  font-size: var(--board-type-18);
+  line-height: calc(var(--art) * 10);
+  font-weight: 700;
+  color: var(--board-ink-plate);
+}
+
+.board-ready-why {
+  font-size: var(--board-type-13);
+  line-height: calc(var(--art) * 8);
+  font-weight: var(--board-weight-semi);
+  color: var(--board-ink-plate-2);
+}
+
+/* The red DIG button: a 56x52 art target whose 56x56 art sprite may hang
+   past its foot, and its legend centred under it. */
+.board-dig {
+  position: absolute;
+  left: calc(var(--art) * 152);
+  top: 0;
+  width: calc(var(--art) * 56);
+  height: calc(var(--art) * 59);
+}
+
+.board-dig-button {
+  width: calc(var(--art) * 56);
+  height: calc(var(--art) * 52);
+  overflow: visible;
+}
+
+.board-dig-sprite {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--art) * 56);
+  height: calc(var(--art) * 56);
+  background-repeat: no-repeat;
+  background-size: calc(var(--art) * 168) calc(var(--art) * 56);
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.board-dig-lg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--art) * 50);
+  line-height: calc(var(--art) * 7);
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  color: var(--board-ink-bare);
+  text-shadow: 0 0 var(--art) var(--board-night);
+}
+
+.board-dig-lg b {
+  font-weight: 700;
+  color: var(--board-ink);
+}
+
+.board-dig.is-hit .board-dig-lg b {
+  color: var(--board-amber);
+}
+
+/* ---------- the machine bays (#372) ----------
+   The mockup's #rBays, 208 x 103 art at (2, --bays-top): the band tag on its
+   top edge and three 204x27 art bay buttons, 4 art apart. Lamps, the drill's
+   frames and the flap digits change from board-bays.ts (inline
+   background-position-x and --k); the rest is placed here. Tops inside a bay
+   are the mockup's 31 art row less the 2 art the button sits down. */
+.board-bays,
+.board-bays.board-skinned {
+  position: absolute;
+  left: calc(var(--art) * 2);
+  top: var(--bays-top);
+  width: calc(var(--art) * 208);
+  height: calc(var(--art) * 103);
+  font-family: "Barlow Condensed", sans-serif;
+}
+
+.board-band-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--art) * -5);
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  height: calc(var(--art) * 12);
+  pointer-events: none;
+}
+
+.board-band,
+.board-band.board-skinned {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: calc(var(--art) * 118);
+  height: calc(var(--art) * 12);
+  padding: 0 calc(var(--art) * 7);
+  white-space: nowrap;
+}
+
+.board-band .board-lg {
+  color: var(--board-ink-plate);
+}
+
+.board-bays-area {
+  position: absolute;
+  left: calc(var(--art) * 2);
+  top: calc(var(--art) * 6);
+  width: calc(var(--art) * 204);
+  height: calc(var(--art) * 93);
+}
+
+.board-bay {
+  position: absolute;
+  left: 0;
+  top: calc(var(--art) * (var(--i) * 31 + 2));
+  display: block;
+  width: calc(var(--art) * 204);
+  height: calc(var(--art) * 27);
+  padding: 0;
+  border: 0;
+  background: none;
+  appearance: none;
+  overflow: visible;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.board-bay:focus-visible {
+  outline: calc(var(--art) * 1) solid var(--board-amber);
+  outline-offset: calc(var(--art) * 1);
+}
+
+.board-bay:disabled {
+  cursor: default;
+}
+
+.board-bay > * {
+  position: absolute;
+  pointer-events: none;
+}
+
+.board-bay > .board-lamp {
+  left: calc(var(--art) * 3);
+  top: calc(var(--art) * 4);
+}
+
+/* The icons stand on their visible pixels: the cart, borer and Great Machine
+   at the row's top, the drill 2 art down. */
+.board-bay-icon {
+  left: calc(var(--art) * 25);
+  top: calc(var(--art) * -2);
+  width: calc(var(--art) * 32);
+  height: calc(var(--art) * 32);
+  background-repeat: no-repeat;
+  background-size: calc(var(--art) * 128) calc(var(--art) * 32);
+  image-rendering: pixelated;
+}
+
+.board-bay[data-tier="drill"] > .board-bay-icon {
+  top: 0;
+}
+
+.board-bay-text {
+  left: calc(var(--art) * 60);
+  top: calc(var(--art) * 4);
+  width: calc(var(--art) * 61);
+}
+
+/* Three flaps reach further left: the words end 2 art before them. */
+.board-bay.is-three > .board-bay-text {
+  width: calc(var(--art) * 50);
+}
+
+.board-bay-name,
+.board-bay-sub {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.board-bay-name {
+  font-size: var(--board-type-16);
+  line-height: var(--board-bay-name-lead);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--board-ink);
+}
+
+.board-bay-sub {
+  margin-top: var(--board-bay-sub-gap);
+  font-size: var(--board-type-13);
+  line-height: var(--board-bay-sub-lead);
+  color: var(--board-ink-2);
+}
+
+/* The flap counter: flip-counter.png's left cap (columns 0-5), a window
+   (6-15) per flap after the first, and the right cap with the last window
+   (16-31). Its right edge stays at 154 art of the row. */
+.board-flap {
+  right: calc(var(--art) * 50);
+  top: calc(var(--art) * 2);
+  display: flex;
+  height: calc(var(--art) * 24);
+}
+
+.board-flap-l,
+.board-flap-m,
+.board-flap-r {
+  display: block;
+  flex: none;
+  height: calc(var(--art) * 24);
+  background: url("./assets/board/flip-counter.png") no-repeat 0 0 /
+    calc(var(--art) * 32) calc(var(--art) * 24);
+  image-rendering: pixelated;
+}
+
+.board-flap-l {
+  width: calc(var(--art) * 6);
+}
+
+.board-flap-m {
+  width: calc(var(--art) * 10);
+  background-position-x: calc(var(--art) * -6);
+}
+
+.board-flap-r {
+  width: calc(var(--art) * 16);
+  background-position-x: calc(var(--art) * -16);
+}
+
+.board-flap-d {
+  position: absolute;
+  left: calc(var(--art) * (6 + 10 * var(--k)));
+  top: calc(var(--art) * 5);
+  width: calc(var(--art) * 9);
+  height: calc(var(--art) * 14);
+  line-height: calc(var(--art) * 14);
+  text-align: center;
+  font-size: var(--board-type-24);
+  color: var(--board-ink-flap);
+}
+
+.board-flap-d.is-flipping {
+  animation: board-flap 180ms steps(3) 1;
+}
+
+@keyframes board-flap {
+  0% {
+    transform: scaleY(1);
+  }
+
+  50% {
+    transform: scaleY(0.2);
+  }
+
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+.board-bay-price {
+  left: calc(var(--art) * 157);
+  top: calc(var(--art) * 2);
+  width: calc(var(--art) * 42);
+  height: calc(var(--art) * 24);
+}
+
+.board-bay-price-lg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  line-height: calc(var(--art) * 8);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.board-bay-tag,
+.board-bay-tag.board-skinned {
+  position: absolute;
+  left: 0;
+  top: calc(var(--art) * 10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--art) * 42);
+  height: calc(var(--art) * 10);
+  font-size: var(--board-type-14);
+  line-height: calc(var(--art) * 10);
+  white-space: nowrap;
+  color: var(--board-ink-plate);
+}
+
+.board-bay-tag[hidden] {
+  display: none;
+}
+
+.board-bay-tag-text {
+  position: relative;
 }

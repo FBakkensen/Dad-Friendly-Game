@@ -311,12 +311,12 @@ describe("side tunnels (#147)", () => {
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
-    expect(screen.text('[data-tier="borer"] .engineer-gain')).toBe(
+    expect(screen.text('.tier[data-tier="borer"] .engineer-gain')).toBe(
       "+78 stones/sec",
     );
     expect(
       screen.root
-        .querySelector('[data-tier="borer"]')
+        .querySelector('.tier[data-tier="borer"]')
         ?.getAttribute("aria-label"),
     ).toContain("+78 stones/sec");
     const sheet = openSheet(screen.root);
@@ -327,9 +327,9 @@ describe("side tunnels (#147)", () => {
     expect(sheet.textContent).toContain("None built yet. ");
     expect(sheet.textContent).not.toContain("+0 stones/sec");
     screen.root
-      .querySelector<HTMLButtonElement>('[data-tier="borer"]')
+      .querySelector<HTMLButtonElement>('.tier[data-tier="borer"]')
       ?.click();
-    expect(screen.text('[data-tier="borer"] .engineer-gain')).toBe(
+    expect(screen.text('.tier[data-tier="borer"] .engineer-gain')).toBe(
       "+156 stones/sec",
     );
     expect(sheet.textContent).toContain("+156 stones/sec");
@@ -833,8 +833,6 @@ describe("sheet buys", () => {
     expect(dialog?.hidden).toBe(true);
     screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
     expect(dialog?.hidden).toBe(false);
-    expect(screen.text(".layer-line")).toContain("The Granite");
-    expect(screen.text(".layer-line")).toContain("Suits borers.");
     expect(screen.text(".thumb-bar")).toContain("Buys");
     expect(screen.text(".thumb-bar")).toContain("Workshop");
     expect(screen.text(".thumb-bar")).toContain("Engineers");
@@ -842,43 +840,45 @@ describe("sheet buys", () => {
     expect(
       screen.root.querySelector(".engineers-button")?.hasAttribute("hidden"),
     ).toBe(false);
-    expect(screen.text('[data-tier="cart"] .tier-gain')).toBe("+6/s each");
-    expect(screen.text('[data-tier="cart"] .tier-needs')).toBe(
+    expect(screen.text('.tier[data-tier="cart"] .tier-gain')).toBe("+6/s each");
+    expect(screen.text('.tier[data-tier="cart"] .tier-needs')).toBe(
       "Needs 1 worker",
     );
-    expect(screen.text('[data-tier="cart"] .tier-why')).toBe(
+    expect(screen.text('.tier[data-tier="cart"] .tier-why')).toBe(
       "Hauls what the crew already cut.",
     );
-    expect(screen.text('[data-tier="drill"] .tier-needs')).toBe(
+    expect(screen.text('.tier[data-tier="drill"] .tier-needs')).toBe(
       "Needs 1 worker",
     );
-    expect(screen.text('[data-tier="drill"] .tier-why')).toBe(
+    expect(screen.text('.tier[data-tier="drill"] .tier-why')).toBe(
       "Bites the wall while you rest.",
     );
     expect(
       screen.root
-        .querySelector('[data-tier="drill"] .tier-why')
+        .querySelector('.tier[data-tier="drill"] .tier-why')
         ?.hasAttribute("hidden"),
     ).toBe(false);
     expect(
       screen.root
-        .querySelector('[data-tier="borer"] .tier-gain')
+        .querySelector('.tier[data-tier="borer"] .tier-gain')
         ?.hasAttribute("hidden"),
     ).toBe(false);
-    expect(screen.text('[data-tier="borer"] .tier-why')).toBe(
+    expect(screen.text('.tier[data-tier="borer"] .tier-why')).toBe(
       "Chews a tunnel you can walk from.",
     );
-    expect(screen.text('[data-tier="borer"] .tier-name')).toBe("Tunnel borer");
+    expect(screen.text('.tier[data-tier="borer"] .tier-name')).toBe(
+      "Tunnel borer",
+    );
     // The drill's first owned-count mark shows as a plain goal (#252).
     expect(
       screen.root
-        .querySelector('[data-tier="drill"] .tier-preview')
+        .querySelector('.tier[data-tier="drill"] .tier-preview')
         ?.hasAttribute("hidden"),
     ).toBe(false);
-    expect(screen.text('[data-tier="drill"] .tier-preview')).toMatch(
+    expect(screen.text('.tier[data-tier="drill"] .tier-preview')).toMatch(
       /^\d+ of 10 · Ten drills/,
     );
-    expect(screen.text('[data-tier="drill"]')).not.toMatch(/\?/);
+    expect(screen.text('.tier[data-tier="drill"]')).not.toMatch(/\?/);
     screen.root.querySelector<HTMLButtonElement>(".buys-close")?.click();
     expect(dialog?.hidden).toBe(true);
     screen.root.querySelector<HTMLButtonElement>(".thumb-workshop")?.click();
@@ -932,7 +932,7 @@ describe("sheet buys", () => {
     const screen = mountScreen({ storage });
     const line = (tier: string, selector: string): HTMLElement | null =>
       screen.root.querySelector<HTMLElement>(
-        `[data-tier="${tier}"] ${selector}`,
+        `.tier[data-tier="${tier}"] ${selector}`,
       );
     expect(line("cart", ".tier-name")?.textContent).toBe("Mine cart");
     expect(line("drill", ".tier-name")?.textContent).toBe("Steam drill");
@@ -1037,13 +1037,17 @@ describe("sheet buys", () => {
     };
     const carts = (): number => screen.progress.getSnapshot().mountain.carts;
     const before = carts();
-    const cartWhy = screen.root.querySelector('[data-tier="cart"] .tier-why');
+    const cartWhy = screen.root.querySelector(
+      '.tier[data-tier="cart"] .tier-why',
+    );
     if (cartWhy === null) {
       throw new Error("cart why did not render");
     }
     tap(cartWhy);
     expect(carts()).toBe(before + 1);
-    const drag = screen.root.querySelector('[data-tier="helper"] .tier-name');
+    const drag = screen.root.querySelector(
+      '.tier[data-tier="helper"] .tier-name',
+    );
     if (drag === null) {
       throw new Error("worker name did not render");
     }

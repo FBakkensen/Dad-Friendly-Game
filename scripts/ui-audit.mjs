@@ -272,6 +272,17 @@ async function collect(page) {
       }
       return el.tagName.toLowerCase();
     };
+    // A tier, boost, upgrade, recipe or side names its parts, and itself:
+    // the three machine bays (#372) and the Buys cards are each a [data-tier]
+    // host, so each bay and card is its own target and a part reads as the
+    // bay's (.board-bay-*) or the card's (.tier-*).
+    const KEYS = ["tier", "boost", "upgrade", "recipe", "side"];
+    const keyed = (host) => {
+      const key = KEYS.find((name) => host.dataset[name]);
+      return key === undefined
+        ? undefined
+        : `[data-${key}="${host.dataset[key] ?? ""}"]`;
+    };
     const selectorOf = (el) => {
       if (el.id) {
         return `#${el.id}`;
@@ -280,12 +291,10 @@ async function collect(page) {
         "[data-tier], [data-boost], [data-upgrade], [data-recipe], [data-side]",
       );
       const own = classBit(el);
-      if (host instanceof HTMLElement && host !== el) {
-        const key = ["tier", "boost", "upgrade", "recipe", "side"].find(
-          (name) => host.dataset[name],
-        );
+      if (host instanceof HTMLElement) {
+        const key = keyed(host);
         if (key !== undefined) {
-          return `[data-${key}="${host.dataset[key] ?? ""}"] ${own}`;
+          return host === el ? `${own}${key}` : `${key} ${own}`;
         }
       }
       return own;
@@ -504,6 +513,8 @@ async function collect(page) {
 
     const primarySelectors = [
       ".board-window",
+      ".board-ready",
+      ".board-dig-button",
       ".go",
       ".upgrade-buy",
       ".workshop-craft",
@@ -810,19 +821,43 @@ async function main() {
     }
     return opened;
   });
+  // The Granite before the Great Machine: the bays are cart, drill and
+  // borer, so the cart's cave-in lights a bay (#372).
+  const hazard = () => late(Date.now(), 30_000_000, { machines: 0, kids: 0 });
   await capture("mountain-hazard", async (viewport) => {
-    const opened = await open(viewport, rest(), { search: "?trouble=cave-in" });
+    const opened = await open(viewport, hazard(), {
+      search: "?trouble=cave-in",
+    });
     // The cave-in comes down in the mine window, on the board (#371).
     await opened.page.waitForSelector(".board-window-cave-in:not([hidden])", {
       visible: true,
     });
+    // The cart bay's lamp goes red and its sub-line asks for a hold (#372).
+    await opened.page.waitForSelector(
+      '.board-bay[data-tier="cart"][data-trouble="cave-in"]',
+      { visible: true },
+    );
+    const lamp = await opened.page.$eval(
+      '.board-bay[data-trouble="cave-in"] .board-lamp',
+      (el) => el.style.backgroundPositionX,
+    );
+    if (lamp !== "-120px") {
+      throw new Error(`mountain-hazard: the bay's lamp is at ${lamp}, not red`);
+    }
+    await expectText(opened.page, /Hold to fix/, "mountain-hazard");
     return opened;
   });
   await capture("buys-hazard", async (viewport) => {
-    const opened = await open(viewport, rest(), { search: "?trouble=cave-in" });
-    // The shout lives on the troubled machine's card, in Buys.
-    await opened.page.click(".buys-button");
+    const opened = await open(viewport, hazard(), {
+      search: "?trouble=cave-in",
+    });
+    // The bay shows the trouble first; the shout lives on the troubled
+    // machine's card, in Buys.
     await opened.page.waitForSelector('[data-trouble="cave-in"]', {
+      visible: true,
+    });
+    await press(opened.page, ".buys-button");
+    await opened.page.waitForSelector('.tier[data-trouble="cave-in"]', {
       visible: true,
     });
     await expectText(opened.page, /Cave-in!/, "buys-hazard");

@@ -460,7 +460,8 @@ describe("token check", () => {
  * The control board's tokens: one art pixel, the save line, and --board-*
  * (#370); the gauge row's height and the column's top under it (#371).
  */
-const BOARD_TOKEN = /^--(art|save-h|gauge-row-h|column-top|board-[\w-]+)$/;
+const BOARD_TOKEN =
+  /^--(art|save-h|gauge-row-h|column-top|bays-top|ready-top|rail-top|bay-h|board-[\w-]+)$/;
 
 function properties(css: string): Map<string, string> {
   const map = new Map<string, string>();

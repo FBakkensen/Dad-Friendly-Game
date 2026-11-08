@@ -35,7 +35,12 @@ page is the map, plus the rules that keep it that way.
    outside a sweep every factor is 1, and an empty map counts as no sweep. The tuned rock lives in `layers`, and
    `layer.<n>.<tier>.hardness` multiplies it (#194, #198).
    `pacing` simulates players on top of them and buys through the catalogue.
-   Every number lives here.
+   Every number lives here. Two display rules read these and never write
+   the mountain (#372): `ready-now` (`readyNow`, the Ready now plate's pick:
+   the biggest unlocked machine the free hands can run and the pocket
+   covers, else the cheapest one to save for with its time at the current
+   speed, else a worker, or mined out) and `machine-bays` (C2's three bay
+   tiers, each bay's view and lamp, and the flap digits).
 2. **Saves:** `persist` (versioned save format and parser; an unknown recipe, bench, or crafted level is written back instead of dropped), `session-save`
    (guest storage), `phone-backup` (signed-in on-phone copy, never deleted),
    `save-progress` (which copy is ahead), `cloud-save` (interface + memory fake),
@@ -102,13 +107,34 @@ page is the map, plus the rules that keep it that way.
    crew plate) and `board-window` (the window: the view, its machines and
    the run on hard steps, the dig's puff and "+N", the vein over the view,
    and the Legacy plate; `runBoardLoop` steps it and the needle once a frame,
-   capped at 0.1s). The window's only input is a `WindowScene` built by
+   capped at 0.1s; the bays' drill icon steps on it too). The window's only input is a `WindowScene` built by
    `windowScene(mountain, trouble)`; it calls `onDig` and `onVein` and never
    writes the mountain. Until its first render (a signed-in save still
    loading) the window is its frame and glass on the dark: no view, machine,
    kid or run. `reducedMotion()` in `float-text` holds the window and the
    needle still; it makes one `MediaQueryList` and reads its live `.matches`
    each frame.
+   The middle of the board (#372) adds three DOM parts. `board-bays` is the
+   band tag and three bay buttons (lamp, icon, name, sub-line, flap counter
+   and price); it draws `bayViews` and passes taps on, and keeps each bay's
+   element for the board's life. `board-ready` is the Ready now plate (its
+   1.9s Done hold, so a double tap buys one) and the red DIG button (its
+   press frames and the By hand tally). `trouble-tap` is the 600ms
+   hold-to-fix the Buys cards and the bays share. `mountain-screen` computes
+   `readyNow(view.mountain, now(), view.trouble)` once per render and hands
+   it to the plate and the bays; a tap on the plate reads the rule again
+   from the store's snapshot, never the painted pick, and buys through
+   `buyWithTeach` (in `crew-panel`), the Buys card's mutation, so a buy from
+   the plate is the same buy as one from Buys. A Saving for tap opens Buys.
+   Buys records when it opened from shut (`tapClock`, `performance.now` by
+   default, not the game clock a gate run stops), and `buyOnTap` asks a
+   card's `settling` when the finger goes down: a card pressed within
+   `BUYS_SETTLE_MS` (400ms) of the opening hires and buys nothing, so the
+   second tap of a double tap on the plate or a bay never spends.
+   The red button calls the same `dig()` as the window, and the window shows
+   the "+N". Until the save is in (a second load after sign-in or a user
+   switch included) the bays, the plate and the red button show only their
+   frames and art.
 
 ## Findings
 
@@ -155,9 +181,14 @@ page is the map, plus the rules that keep it that way.
   row (`.board-gauge-row`, `--gauge-row-h`, 176 to 414px) is another
   absolute child, under the board's top: the output gauge, the mine window
   (`.board-mine`, its `.board-window` button and the `.golden-vein`) and
-  the crew plate (`.board-crew`). The column starts at `--column-top`
-  (422px) with the layer line and the ☰ menu, and ends with the teach note
-  and the thumb bar 8px above the save line. The crew line (`crew-panel`'s
+  the crew plate (`.board-crew`). The bays (`.board-bays` at `--bays-top`,
+  430px; their band tag rises to 420) and the Ready row
+  (`.board-ready-row` at `--ready-top`, 644px: the plate and the red
+  button) are absolute children too. The column starts at `--column-top`,
+  which is `--rail-top` (768px), where B5's key rail goes; until then it
+  holds the thumb bar, with the ☰ menu as its fifth cell, ending 8px above
+  the save line. The New teach note shows in the board note above its thumb.
+  The sheets stop under the stock row, so they cover the bays and the plate. The crew line (`crew-panel`'s
   `section.crew`: sentence, chips and Grandpa) is the "Crew" section at the
   top of the Buys sheet; Buys calls `layoutChips()` as it opens, so its
   chips are measured at the sheet's width. Buys and

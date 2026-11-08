@@ -11,11 +11,20 @@ import {
   stonesPerSecond,
   type Mountain,
 } from "./mountain";
-import { type TierId } from "./tiers";
+import { owned, tierById, type TierId } from "./tiers";
+import type { TroubleTier } from "./hazards";
 import { hasRelic, relicGoal, type RelicId } from "./relics";
 import { BOOSTS } from "./boosts";
 import { createEffectChip, shortEffectName, writeChip } from "./effect-row";
 import { createBoardNote } from "./board-note";
+import { bandWords, createMachineBays } from "./board-bays";
+import { bayViews } from "./machine-bays";
+import { readyNow, type ReadyPick } from "./ready-now";
+import {
+  createDigButton,
+  createReadyPlate,
+  type ReadyTap,
+} from "./board-ready";
 import { createCrewPlate, createOutputGauge } from "./board-gauge";
 import { crewCounts } from "./crew-count";
 import { createMineWindow, runBoardLoop } from "./board-window";
@@ -27,7 +36,7 @@ import { liveCrewBoost } from "./crew-boost";
 import { effectiveRates } from "./rates";
 import { createRelicPanels } from "./relic-panels";
 import { createArrivalPanel } from "./arrival-panel";
-import { layerOf, nextLayer } from "./layers";
+import { nextLayer } from "./layers";
 import { createWelcomePanel } from "./welcome-panel";
 import { createMenuPanel } from "./menu-panel";
 import { createSaveConflictPanel } from "./save-conflict-panel";
@@ -35,7 +44,7 @@ import { createSavedCopiesPanel } from "./saved-copies-panel";
 import { createLegacyPanel, legacyWords } from "./legacy-panel";
 import { legacyBonus } from "./legacy";
 import { createBuysHead } from "./buys-head";
-import { createCrewPanel } from "./crew-panel";
+import { buyWithTeach, createCrewPanel } from "./crew-panel";
 import { SHEET_HOST } from "./sheet-card";
 import { createEngineersPanel } from "./engineers-panel";
 import { createUpgradesPanel } from "./upgrades-panel";
@@ -53,7 +62,7 @@ import {
   OTHER_TAB_BODY,
   OTHER_TAB_PLAY,
   OTHER_TAB_TITLE,
-  layerCardWords,
+  TROUBLE_FIXED,
   nextLayerHint,
   tapWords,
   WORKSHOP_NOTE,
@@ -98,6 +107,20 @@ function craftMultiplier(
   }
 }
 
+const MINED_OUT = "The mountain is mined out";
+
+/**
+ * A tap on Saving for or on a bay opens Buys over the board, so the second tap
+ * of a sleepy double tap lands on whichever Buys card is now under the finger,
+ * and a card buys on one tap (#372). A card pressed this soon after Buys opened
+ * buys nothing. Two taps of a double tap land about 100–300ms apart; a dad who
+ * opened Buys on purpose reads the card first, which takes longer than 400ms.
+ * Only buying waits: Back to the mountain and the other sheet controls work at
+ * once, and the sheet is not `inert`, which would let the tap fall through to
+ * the plate beneath and buy there.
+ */
+export const BUYS_SETTLE_MS = 400;
+
 export function mountMountainScreen({
   root,
   lanternUrl,
@@ -110,6 +133,7 @@ export function mountMountainScreen({
   auth = createUnconfiguredAuth(),
   progress: progressArg,
   now = Date.now,
+  tapClock = () => performance.now(),
   random = Math.random,
   veinStorage,
   signal,
@@ -125,6 +149,11 @@ export function mountMountainScreen({
   auth?: AuthController;
   progress?: ProgressStore;
   now?: () => number;
+  /**
+   * Milliseconds for timing taps against each other. Not `now`: that is the
+   * game's clock, which a gate run may stop.
+   */
+  tapClock?: () => number;
   random?: () => number;
   /** Where the vein wait is carried between sessions; localStorage by default. */
   veinStorage?: Pick<Storage, "getItem" | "setItem">;
@@ -189,12 +218,6 @@ export function mountMountainScreen({
   const ledger = document.createElement("div");
   ledger.className = "ledger";
   ledger.append(lantern, remaining, materialLine, guide);
-  const layerLine = document.createElement("p");
-  layerLine.className = "layer-line";
-  const layerName = document.createElement("span");
-  layerName.className = "layer-name";
-  const layerAdvice = document.createElement("span");
-  layerLine.append(layerName, layerAdvice);
 
   const gapForVeins = (): number =>
     veinGapScale(view.mountain, hasRelic(view.mountain, "lantern"), now());
@@ -220,12 +243,18 @@ export function mountMountainScreen({
   const running = document.createElement("div");
   running.className = "board-running";
   running.append(runningHead, effectRow, runningNone);
-  // While another note shows, the list and the vein's note wait here, so the
-  // chips and the live words stay in the page.
+  // A bay's fix thanks the crew in the board note (#372).
+  const bayThanks = document.createElement("p");
+  bayThanks.className = "board-thanks";
+  bayThanks.textContent = TROUBLE_FIXED;
+  // The New teach note shows in the board note above its thumb (#372).
+  const teachNote = createTeachNote();
+  // While another note shows, the list, the vein's note, the bay thanks and
+  // the teach note wait here, so the chips and the live words stay in the page.
   const runningPark = document.createElement("div");
   runningPark.className = "board-running-park";
   runningPark.hidden = true;
-  runningPark.append(running, veinNote);
+  runningPark.append(running, veinNote, bayThanks, teachNote.note);
   const chipFor = new Map(
     BOOSTS.map((boost) => {
       const chip = createEffectChip(
@@ -288,6 +317,8 @@ export function mountMountainScreen({
   const QUIET_NOTE_MS = 6000;
   /** How long the vein's payout note stays. */
   const VEIN_NOTE_MS = 4000;
+  /** How long a bay's "Fixed!" stays, as the Buys card's thanks does. */
+  const THANKS_MS = 1600;
   /** How far a dig and a local spend kick the output needle, in degrees (#371). */
   const DIG_KICK = 150;
   const SPEND_KICK = 120;
@@ -355,12 +386,15 @@ export function mountMountainScreen({
     renderVein();
   };
 
+  /** When Buys last opened from shut, on `tapClock`; never yet is -Infinity. */
+  let buysOpenedAt = Number.NEGATIVE_INFINITY;
   const crewPanel = createCrewPanel({
     progress,
     getView: () => view,
     now,
     tierArt,
     stoneUrl,
+    settling: () => tapClock() - buysOpenedAt < BUYS_SETTLE_MS,
   });
   const { crew, tierGrid, thanks } = crewPanel;
 
@@ -406,7 +440,15 @@ export function mountMountainScreen({
     crewPlate.set(crewCounts(mountain, now(), trouble));
   };
   const mine = createMineWindow({
-    onDig: dig,
+    // A window tap counts by hand on the red button, which echoes the press.
+    onDig: () => {
+      const mined = dig();
+      if (mined > 0) {
+        digButton.dug(mined);
+        digButton.echo();
+      }
+      return mined;
+    },
     onVein: tapVein,
     legacyBadge: legacy.badge,
     random,
@@ -414,6 +456,68 @@ export function mountMountainScreen({
   const gaugeRow = document.createElement("div");
   gaugeRow.className = "board-gauge-row";
   gaugeRow.append(gauge.root, mine.root, crewPlate.root);
+
+  // The Ready row (#372): the Ready now plate and the red DIG button.
+  /**
+   * A tap on the plate reads the rule again from the store, never the painted
+   * pick: a pocket that fell since the last frame buys nothing. A ready pick
+   * buys exactly one through the store; a pick being saved for opens Buys.
+   */
+  const tapReady = (): ReadyTap => {
+    const latest = progress.getSnapshot();
+    if (!latest.ready || !latest.playing) {
+      return { kind: "nothing" };
+    }
+    const pick = readyNow(latest.mountain, now(), latest.trouble);
+    if (pick.kind === "saving") {
+      openBuys();
+      return { kind: "opened" };
+    }
+    if (pick.kind !== "ready") {
+      return { kind: "nothing" };
+    }
+    const tier = tierById(pick.tier);
+    const before = owned(latest.mountain, tier);
+    progress.applyMutation((current) => buyWithTeach(current, pick.tier));
+    const count = owned(progress.getSnapshot().mountain, tier);
+    return count > before
+      ? { kind: "bought", tier: pick.tier, count, gain: pick.gain }
+      : { kind: "nothing" };
+  };
+  const readyPlate = createReadyPlate({ onTap: tapReady });
+  // The red button digs exactly as a window tap does, and the window shows it.
+  const digButton = createDigButton({
+    onPress: () => {
+      const mined = dig();
+      if (mined > 0) {
+        mine.dug(mined);
+        digButton.dug(mined);
+      }
+    },
+  });
+  readyPlate.root.append(digButton.root);
+  /** Until the save is in, nothing from it shows on the plate or the button. */
+  const renderReadyRow = (pick: ReadyPick): void => {
+    readyPlate.render(
+      view.ready ? pick : undefined,
+      view.playing && view.ready,
+    );
+    // A sign-in or another account loads a save again: back to loading.
+    if (!view.ready) {
+      digButton.loading();
+      return;
+    }
+    const tapYield = effectiveRates(view.mountain, now()).tapYield;
+    if (view.mountain.remaining === 0) {
+      digButton.set(undefined, false, MINED_OUT);
+      return;
+    }
+    digButton.set(
+      tapYield,
+      !mine.dig.disabled,
+      `Dig: tap to mine ${tapWords(tapYield)}`,
+    );
+  };
 
   /** The socket whose note opened the shelf: focus goes back there. */
   let shelfDoor: HTMLElement | undefined;
@@ -621,6 +725,8 @@ export function mountMountainScreen({
   otherCard.append(otherTitle, otherBody, playHere);
   otherTab.append(otherCard);
 
+  /** Whether the window shows a save, so a second load clears it once. */
+  let windowDrawn = false;
   const render = (): void => {
     // A short absence pays with a small note, not the welcome card (#334).
     if (view.quietAway !== undefined) {
@@ -645,20 +751,24 @@ export function mountMountainScreen({
     mine.dig.setAttribute(
       "aria-label",
       left === 0
-        ? "The mountain is mined out"
+        ? MINED_OUT
         : `Mine window: tap to mine ${tapWords(effectiveRates(view.mountain, now()).tapYield)}`,
     );
     // The window draws the save once it has loaded, so the first scene it
-    // sees is the save itself and nothing beats for it (#371).
+    // sees is the save itself and nothing beats for it (#371). A save that
+    // loads again (a sign-in, another account) puts it back to its frame.
     if (view.ready) {
       mine.render(windowScene(view.mountain, view.trouble));
+      windowDrawn = true;
+    } else if (windowDrawn) {
+      mine.loading();
+      windowDrawn = false;
     }
     renderGaugeRow();
-    const layer = layerOf(view.mountain);
-    const layerWords = layerCardWords(layer.id);
-    layerName.textContent = layer.name;
-    layerAdvice.textContent =
-      layerWords === undefined ? "" : ` · ${layerWords.line}`;
+    // The Ready now pick, once per render: the bays light theirs (#372).
+    const pick = readyNow(view.mountain, now(), view.trouble);
+    renderBays(pick);
+    renderReadyRow(pick);
     crewPanel.render();
     renderVein();
     renderGuide();
@@ -693,19 +803,7 @@ export function mountMountainScreen({
         showsDot(view.mountain, "tending") ||
         showsDot(view.mountain, "promotion"),
     );
-    // One note at a time, in the order teach.ts lists them.
-    const noteId = noteFor(view.mountain);
-    const firstEngineer = view.mountain.engineers?.[0]?.name;
-    if (noteId === "workshop") {
-      teachNote.show(relicArt.hammer, WORKSHOP_NOTE, openWorkshopSheet);
-    } else if (noteId === "engineers" && firstEngineer !== undefined) {
-      teachNote.show(tierArt.helper, engineersNote(firstEngineer), () => {
-        progress.applyMutation((current) => markSeen(current, "engineers"));
-        engineers.button.click();
-      });
-    } else {
-      teachNote.hide();
-    }
+    renderTeach();
     const at = now();
     const hot = hotTimers(view.mountain, at);
     for (const [id, chip] of craftChips) {
@@ -753,14 +851,90 @@ export function mountMountainScreen({
     if (running.parentNode === null) {
       runningPark.append(running);
     }
-    if (veinNote.parentNode === null) {
-      runningPark.append(veinNote);
+    // Back to the park whenever another note has taken their place.
+    for (const parked of [veinNote, bayThanks, teachNote.note]) {
+      if (parked.parentNode === null) {
+        runningPark.append(parked);
+      }
     }
     relicPlate.render();
     renderStock();
     savedCopies.render();
     conflictSheet.render(view.saveConflict, view.elsewhere);
     saveLine.render();
+    coverNote();
+  };
+
+  /** A sheet or card open over the board. */
+  const OPEN_SHEET =
+    ":scope > [role='dialog']:not([hidden]), :scope > [role='alertdialog']:not([hidden])";
+  /** The teach note last put in the board note: each shows once a launch. */
+  let teachShown: string | undefined;
+  /**
+   * A card that opens by itself (a relic, a layer, a craft done, a save
+   * conflict, an update) never closes the board's popups, and the board note
+   * stands above it. So any note goes once such a card is up. A New note it
+   * covered was never really seen: it shows once more after the card.
+   */
+  const coverNote = (): void => {
+    if (
+      !boardNote.note.classList.contains("on") ||
+      root.querySelector(OPEN_SHEET) === null
+    ) {
+      return;
+    }
+    if (boardNote.note.contains(teachNote.note)) {
+      teachShown = undefined;
+    }
+    boardNote.hide();
+  };
+  /**
+   * One note at a time, in the order teach.ts lists them (#372). It shows in
+   * the board note above its thumb, keyed so it stays until an outside tap,
+   * Escape or its own tap puts it away. A note or sheet already up waits it
+   * out, and a note put away never comes back this launch; the dot stays.
+   */
+  const renderTeach = (): void => {
+    const noteId = view.ready ? noteFor(view.mountain) : undefined;
+    const firstEngineer = view.mountain.engineers?.[0]?.name;
+    let anchor: HTMLElement | undefined;
+    if (noteId === "workshop") {
+      teachNote.show(relicArt.hammer, WORKSHOP_NOTE, openWorkshopSheet);
+      anchor = workshopThumb;
+    } else if (noteId === "engineers" && firstEngineer !== undefined) {
+      teachNote.show(tierArt.helper, engineersNote(firstEngineer), () => {
+        progress.applyMutation((current) => markSeen(current, "engineers"));
+        engineers.button.click();
+      });
+      anchor = engineers.button;
+    } else {
+      teachNote.hide();
+      if (boardNote.note.contains(teachNote.note)) {
+        boardNote.hide();
+      }
+      return;
+    }
+    // Another note, or a sheet over the board, holds it back until a later
+    // render or tick: the note would stand over the sheet.
+    const busy =
+      (boardNote.note.classList.contains("on") &&
+        !boardNote.note.contains(teachNote.note)) ||
+      root.querySelector(OPEN_SHEET) !== null;
+    if (noteId === teachShown || busy) {
+      return;
+    }
+    teachShown = noteId;
+    boardNote.show(anchor, teachNote.note, { key: teachNote.note });
+  };
+
+  /** The bays read the save once it is in; before, only their art shows (#372). */
+  const renderBays = (pick: ReadyPick): void => {
+    bays.render(
+      view.ready
+        ? bayViews(view.mountain, now(), view.trouble, pick)
+        : undefined,
+      view.ready ? bandWords(view.mountain) : "",
+    );
   };
 
   const renderMaterials = (): void => {
@@ -886,8 +1060,13 @@ export function mountMountainScreen({
     return span;
   };
   buysButton.append(thumbIcon(tierArt.cart), thumbLabel("Buys"));
-  buysButton.addEventListener("click", () => {
+  /** Opens Buys: the Buys thumb and a tap on a bay (#372). */
+  const openBuys = (): void => {
     closeBoardPopups();
+    // Only an opening starts the settle: a tap on an open sheet's door does not.
+    if (buysDialog.hidden) {
+      buysOpenedAt = tapClock();
+    }
     buysDialog.hidden = false;
     // The crew chips were measured while the sheet was shut: fit them now.
     crewPanel.layoutChips();
@@ -896,6 +1075,33 @@ export function mountMountainScreen({
     const fresh: Partial<Element> | null =
       buysDialog.querySelector(".tier.teach-new");
     fresh?.scrollIntoView?.({ block: "nearest" });
+  };
+  buysButton.addEventListener("click", openBuys);
+
+  /**
+   * The machine bays (#372). A tap opens Buys; on a troubled bay it presses or
+   * holds the fix through the store, as a Buys card does, and thanks the crew
+   * once the trouble is gone.
+   */
+  const thankFix = (tier: TroubleTier, bay: HTMLElement, fix: () => void) => {
+    const before = progress.getSnapshot().trouble;
+    fix();
+    if (before?.tier === tier && progress.getSnapshot().trouble === undefined) {
+      boardNote.show(bay, bayThanks, { ms: THANKS_MS });
+    }
+  };
+  const bays = createMachineBays({
+    onOpen: openBuys,
+    onPress: (tier, bay) => {
+      thankFix(tier, bay, () => {
+        progress.pressTrouble(tier);
+      });
+    },
+    onFix: (tier, bay) => {
+      thankFix(tier, bay, () => {
+        progress.fixTrouble(tier);
+      });
+    },
   });
   buysClose.addEventListener("click", () => {
     buysDialog.hidden = true;
@@ -917,8 +1123,14 @@ export function mountMountainScreen({
     }
   };
   workshopThumb.addEventListener("click", openWorkshopSheet);
-  const teachNote = createTeachNote();
-  thumbBar.append(buysButton, workshopThumb, engineers.button, upgradesButton);
+  // The ☰ menu is the fifth cell, where B7's Ledger key goes (#372).
+  thumbBar.append(
+    buysButton,
+    workshopThumb,
+    engineers.button,
+    upgradesButton,
+    menuButton,
+  );
   // Every other door to a sheet or the menu also puts the board's popups away.
   for (const door of [
     workshopThumb,
@@ -929,11 +1141,6 @@ export function mountMountainScreen({
   ]) {
     door?.addEventListener("click", closeBoardPopups);
   }
-
-  // The column's first row: the layer line, and the menu on the right.
-  const header = document.createElement("header");
-  header.className = "top-bar";
-  header.append(layerLine, menuButton);
 
   // The board's top: the relic plate and the stock row (#370).
   const stock = document.createElement("div");
@@ -951,8 +1158,8 @@ export function mountMountainScreen({
   root.replaceChildren(
     boardTop,
     gaugeRow,
-    header,
-    teachNote.note,
+    bays.root,
+    readyPlate.root,
     thumbBar,
     drawerClip,
     saveLine.line,
@@ -985,6 +1192,11 @@ export function mountMountainScreen({
     renderStock();
     stepVein();
     renderGaugeRow();
+    const pick = readyNow(view.mountain, now(), view.trouble);
+    renderBays(pick);
+    renderReadyRow(pick);
+    renderTeach();
+    coverNote();
   }, 1000);
   signal?.addEventListener("abort", () => {
     clearInterval(ticking);
@@ -993,6 +1205,7 @@ export function mountMountainScreen({
   runBoardLoop((dt) => {
     mine.tick(dt);
     gauge.tick(dt);
+    bays.tick(dt);
   }, signal);
   const listening = signal === undefined ? {} : { signal };
   document.addEventListener(

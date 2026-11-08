@@ -91,3 +91,19 @@ export function chipTime(ms: number): string {
   }
   return `${String(minutes)}:${String(total % 60).padStart(2, "0")}`;
 }
+
+/**
+ * A short wait for the Ready now plate: "4m", "1h 5m", ">99h". Rounds up to
+ * whole minutes, at least 1, so a stone short never reads as now.
+ */
+export function etaShort(ms: number): string {
+  const minutes = Math.max(1, Math.ceil(ms / 60_000));
+  if (minutes < 60) {
+    return `${String(minutes)}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  if (hours >= 100) {
+    return ">99h";
+  }
+  return `${String(hours)}h ${String(minutes % 60)}m`;
+}

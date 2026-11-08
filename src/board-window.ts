@@ -49,6 +49,10 @@ export interface MineWindow {
     spot: { readonly left: number; readonly top: number } | undefined,
   ): void;
   tick(dt: number): void;
+  /** Plays the dig puff and "+N" at the upper face for a dig made elsewhere (the red button). */
+  dug(mined: number): void;
+  /** Back to the frame and the glass while a save loads again; the next render is a first one. */
+  loading(): void;
 }
 
 type Spot = { readonly x: number; readonly y: number };
@@ -229,7 +233,7 @@ export function createMineWindow({
   // so nothing unearned shows while "Loading your save..." is up. The first render puts the view
   // on, and paint() shows each machine only once it is owned.
   const shaft = [art, sheave, steam, run];
-  for (const el of [
+  const sceneParts = [
     ...shaft,
     machine,
     drill,
@@ -243,7 +247,8 @@ export function createMineWindow({
     fill,
     dust,
     plus,
-  ]) {
+  ];
+  for (const el of sceneParts) {
     el.hidden = true;
   }
 
@@ -254,6 +259,19 @@ export function createMineWindow({
   let fillPuff: Puff | null = null;
   let rise: Rise | null = null;
   let point: Spot | undefined;
+
+  // A save that loads again (a sign-in, another account) starts the window over, as at mount.
+  const loading = (): void => {
+    for (const el of [...sceneParts, vein, plate]) {
+      el.hidden = true;
+    }
+    machines = machinesRest();
+    scene = undefined;
+    digPuff = null;
+    fillPuff = null;
+    rise = null;
+    point = undefined;
+  };
 
   const paint = (): void => {
     if (scene === undefined) {
@@ -443,7 +461,13 @@ export function createMineWindow({
     return { y: r.y, step: n, acc };
   };
 
-  return { root, dig, vein, render, showVein, tick };
+  const dug = (mined: number): void => {
+    if (mined > 0) {
+      showDig(undefined, mined);
+    }
+  };
+
+  return { root, dig, vein, render, showVein, tick, dug, loading };
 }
 
 /** The longest step the board takes: a tab back from hours away is one 0.1s step. */

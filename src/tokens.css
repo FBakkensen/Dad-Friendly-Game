@@ -111,8 +111,36 @@
 }
 
 /* The gauge row (#371): the output gauge, the mine window and the crew plate
-   stand under the board's top; the column starts 8px below the row (422px). */
+   stand under the board's top, 176..414. */
 :root {
   --gauge-row-h: 238px;
-  --column-top: calc(var(--board-top) + var(--gauge-row-h) + var(--art) * 4);
+}
+
+/* The board's middle rows (#372), at the mockup's LAY["924"] tops: the bays
+   (their band tag rises to 420), the Ready now row, and the rail slot. Until
+   B5's key rail, the column (the thumb bar with the ☰ menu) starts there. */
+:root {
+  --ready-top: 644px;
+  --rail-top: 768px;
+  --bay-h: 62px;
+  --column-top: var(--rail-top);
+}
+
+/* The Ready now plate (#372): the plate's quieter engraving, the light on its
+   lower lip, and the buy line's size. */
+:root {
+  --board-ink-plate-2: #0b0e10;
+  --board-plate-shine: rgba(255, 255, 255, 0.22);
+  --board-type-18: 18px;
+}
+
+/* The machine bays (#372): their row's top, the flaps' cream figures, the
+   figure size, and the name and sub-line leads that are not whole art px. */
+:root {
+  --bays-top: 430px;
+  --board-ink-flap: #e4dcc6;
+  --board-type-24: 24px;
+  --board-bay-name-lead: 17px;
+  --board-bay-sub-lead: 15px;
+  --board-bay-sub-gap: 3px;
 }

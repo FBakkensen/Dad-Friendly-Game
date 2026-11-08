@@ -104,6 +104,67 @@ describe("createMineWindow", () => {
     expect(el(win, ".board-legacy").contains(badge)).toBe(true);
   });
 
+  it("loading() takes it back to the frame and the glass, and the next save draws as a first render", () => {
+    motion(false);
+    const { win, onDig } = make(20);
+    const visible = (selector: string): boolean => {
+      for (
+        let node: HTMLElement | null = el(win, selector);
+        node !== null && node !== win.root;
+        node = node.parentElement
+      ) {
+        if (node.hidden) return false;
+      }
+      return true;
+    };
+    win.render(
+      scene({
+        drill: true,
+        drills: 2,
+        borer: true,
+        borers: 1,
+        machine: true,
+        kid: true,
+        legacy: true,
+        trouble: "cart",
+        carts: 3,
+      }),
+    );
+    keyboardClick(win.dig);
+    expect(onDig).toHaveBeenCalledTimes(1);
+    expect(visible(".board-dig-plus")).toBe(true);
+    expect(visible(".board-window-machine")).toBe(true);
+
+    win.loading();
+    for (const part of [
+      ...WINDOW_SCENE_PARTS,
+      ".board-window-fill",
+      ".board-dig-dust",
+      ".board-dig-plus",
+      ".board-legacy",
+    ]) {
+      expect({ part, visible: visible(part) }).toEqual({
+        part,
+        visible: false,
+      });
+    }
+    expect(visible(".board-window-frame")).toBe(true);
+    expect(visible(".board-window-glass")).toBe(true);
+    // a tick while it loads draws nothing
+    win.tick(0.1);
+    expect(visible(".board-window-run")).toBe(false);
+    expect(visible(".board-dig-plus")).toBe(false);
+
+    // the next save is a first render again: its own band, and no beat
+    win.render(scene({ band: "granite", carts: 40 }));
+    expect(win.root.dataset.band).toBe("granite");
+    expect(visible(".board-window-art")).toBe(true);
+    expect(visible(".board-window-run")).toBe(true);
+    expect(visible(".board-window-machine")).toBe(false);
+    expect(visible(".board-window-drill")).toBe(false);
+    expect(visible(".board-legacy")).toBe(false);
+  });
+
   it("before the first render it is only the frame and the glass: no view, machine, kid or run", () => {
     motion(false);
     const { win } = make();
@@ -238,6 +299,22 @@ describe("createMineWindow", () => {
     expect(plus.style.top).toBe("32px");
     win.tick(0.07);
     expect(plus.hidden).toBe(true);
+  });
+
+  it("dug(N) plays the puff and +N at the upper face, as a keyboard click does, without digging", () => {
+    motion(false);
+    const { win, onDig } = make(20);
+    win.render(SCENE);
+    win.dug(20);
+    expect(onDig).not.toHaveBeenCalled();
+    const plus = el(win, ".board-dig-plus");
+    expect(plus.hidden).toBe(false);
+    expect(plus.textContent).toBe("+20");
+    expect(plus.style.left).toBe("150px");
+    expect(plus.style.top).toBe("56px");
+    expect(shown(win, ".board-dig-dust")).toBe(true);
+    expect(el(win, ".board-dig-dust").style.left).toBe("134px");
+    expect(el(win, ".board-dig-dust").style.top).toBe("60px");
   });
 
   it("a dig that mines nothing shows nothing", () => {

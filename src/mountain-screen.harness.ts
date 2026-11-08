@@ -62,6 +62,7 @@ export function mountScreen({
   cloudSave,
   storage = createMemoryStorage(),
   now,
+  tapClock,
   random,
   veinStorage = storage,
   tabWriter,
@@ -72,6 +73,7 @@ export function mountScreen({
   storage?: Storage;
   veinStorage?: Pick<Storage, "getItem" | "setItem">;
   now?: () => number;
+  tapClock?: () => number;
   random?: () => number;
   tabWriter?: TabWriter;
   signal?: AbortSignal;
@@ -112,6 +114,7 @@ export function mountScreen({
     auth,
     progress,
     ...(now === undefined ? {} : { now }),
+    ...(tapClock === undefined ? {} : { tapClock }),
     ...(random === undefined ? {} : { random }),
     signal,
   });
