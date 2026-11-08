@@ -212,6 +212,20 @@ describe("the drawer shell", () => {
       expect(onClose).not.toHaveBeenCalled();
     });
 
+    it("a close that keeps focus leaves it where it is, on a card that covered the drawer", () => {
+      const onClose = vi.fn();
+      const sheet = make({ onClose });
+      const key = keyButton();
+      sheet.open(key);
+      const card = document.createElement("button");
+      document.body.append(card);
+      card.focus();
+      sheet.close({ restoreFocus: false });
+      expect(sheet.isOpen()).toBe(false);
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(document.activeElement).toBe(card);
+    });
+
     it("does not focus a key that left the page", () => {
       const sheet = make();
       const key = keyButton();
@@ -379,6 +393,22 @@ describe("the drawer shell", () => {
       expect(sheet.list.hidden).toBe(false);
       expect(footer.hidden).toBe(false);
       expect(document.activeElement).toBe(sheet.info);
+    });
+
+    it("back from the how cards settles again: the list is new under the finger", () => {
+      const sheet = make();
+      sheet.open();
+      time += 2000;
+      sheet.showHow(true);
+      time += 2000;
+      expect(sheet.settling()).toBe(false);
+      sheet.showHow(false);
+      time += 100;
+      expect(sheet.settling()).toBe(true);
+      press(sheet.back);
+      expect(sheet.isOpen()).toBe(true);
+      time += DRAWER_SETTLE_MS;
+      expect(sheet.settling()).toBe(false);
     });
 
     it("a close while the how cards show restores the drawer for next time", () => {

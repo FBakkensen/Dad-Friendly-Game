@@ -254,7 +254,10 @@ export function createUpgradesPanel({
   const spare = sheet.list.querySelector(".board-spare");
   /** The New row the list was last ordered for; null before the first order. */
   let orderedFor: RevealRowId | undefined | null = null;
-  /** Today's order: the New row first in its section, and its section first. */
+  /**
+   * Today's order: the New row first in its section, and its section first. Only while the
+   * drawer is shut, and as it opens.
+   */
   const order = (newId: RevealRowId | undefined): void => {
     if (newId === orderedFor) {
       return;
@@ -365,7 +368,11 @@ export function createUpgradesPanel({
     hide(lastingSec, !upgradesShowing);
     hide(foundSec, !anyFound);
     hide(foot, !anyHiddenRow(current));
-    order(newId);
+    // Rows never move under a finger: the order is set as the drawer opens and holds while it
+    // is open. A buy or the tick may pass the New flag to another row, in its place.
+    if (!sheet.isOpen()) {
+      order(newId);
+    }
     sheet.kick(newId === undefined ? UPGRADES_KICK : UPGRADES_INTRO);
     if (sheet.isOpen()) {
       sheet.fitSpare();
@@ -377,6 +384,10 @@ export function createUpgradesPanel({
     progress.applyMutation((current) =>
       markAllSeen(current, shownRows(current)),
     );
+    const view = getView();
+    if (view.ready) {
+      order(newRowId(view.mountain, now()));
+    }
     sheet.open(from);
   };
 

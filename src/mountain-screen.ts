@@ -124,6 +124,9 @@ const MINED_OUT = "The mountain is mined out";
  */
 export const BUYS_SETTLE_MS = DRAWER_SETTLE_MS;
 
+/** The update prompt tells its screen it is up, so an open drawer closes at once. */
+const UPDATE_SHOWN = "update-shown";
+
 export function mountMountainScreen({
   root,
   lanternUrl,
@@ -702,6 +705,10 @@ export function mountMountainScreen({
   const updatePrompt = document.createElement("div");
   updatePrompt.className = "update-prompt";
   updatePrompt.hidden = true;
+  // showAppUpdate opens the prompt from outside the screen: it covers the drawers at once.
+  updatePrompt.addEventListener(UPDATE_SHOWN, () => {
+    coverDrawers();
+  });
   updatePrompt.setAttribute("role", "dialog");
   updatePrompt.setAttribute("aria-modal", "true");
   updatePrompt.setAttribute("aria-labelledby", "update-prompt-title");
@@ -904,11 +911,12 @@ export function mountMountainScreen({
   /**
    * A card that opens by itself (a relic, a layer, a craft done, a save
    * conflict, an update) stands under the drawers' clip. It closes an open
-   * drawer, so it is never covered.
+   * drawer, so it is never covered, and keeps the focus it took: the thumb
+   * the drawer opened from is under the card.
    */
   const coverDrawers = (): void => {
     if (upgrades.sheet.isOpen() && root.querySelector(OPEN_CARD) !== null) {
-      upgrades.sheet.close();
+      upgrades.sheet.close({ restoreFocus: false });
     }
   };
   /** The teach note last put in the board note: each shows once a launch. */
@@ -1303,4 +1311,5 @@ export function showAppUpdate(root: ParentNode): void {
     return;
   }
   prompt.hidden = false;
+  prompt.dispatchEvent(new Event(UPDATE_SHOWN));
 }

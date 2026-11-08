@@ -28,7 +28,7 @@ import {
   upgradeWhyLine,
 } from "./screen-words";
 import { type CloudLoadResult, type CloudSave } from "./cloud-save";
-import { BUYS_SETTLE_MS } from "./mountain-screen";
+import { BUYS_SETTLE_MS, showAppUpdate } from "./mountain-screen";
 import { shownRows } from "./upgrade-reveal";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { tierById, tierCost } from "./tiers";
@@ -734,6 +734,7 @@ describe("upgrades on screen", () => {
       storage: seededWith(boostsOpen(0), CLOCK),
       now: () => CLOCK,
     });
+    document.body.append(screen.root);
     openUpgrades(screen);
     expect(drawerOf(screen)?.classList.contains("is-open")).toBe(true);
     screen.progress.previewConflict();
@@ -741,6 +742,189 @@ describe("upgrades on screen", () => {
       screen.root.querySelector<HTMLElement>(".save-conflict")?.hidden,
     ).toBe(false);
     expect(drawerOf(screen)?.classList.contains("is-open")).toBe(false);
+    // The card keeps its own focus: not the thumb now under it.
+    expect(document.activeElement).toBe(
+      screen.root.querySelector(".save-conflict-play"),
+    );
+    screen.root.remove();
+  });
+
+  it("a relic found while the drawer is open keeps its Continue focused", () => {
+    const screen = mountScreen({
+      storage: seededWith(minedMountain(999_999), CLOCK),
+      now: () => CLOCK,
+    });
+    document.body.append(screen.root);
+    openUpgrades(screen);
+    screen.dig.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".relic-reveal")?.hidden,
+    ).toBe(false);
+    expect(drawerOf(screen)?.classList.contains("is-open")).toBe(false);
+    expect(document.activeElement).toBe(
+      screen.root.querySelector(".reveal-continue"),
+    );
+    screen.root.remove();
+  });
+
+  it("the update prompt closes the drawer at once", () => {
+    const screen = mountScreen({
+      storage: seededWith(boostsOpen(0), CLOCK),
+      now: () => CLOCK,
+    });
+    openUpgrades(screen);
+    showAppUpdate(screen.root);
+    expect(
+      screen.root.querySelector<HTMLElement>(".update-prompt")?.hidden,
+    ).toBe(false);
+    expect(drawerOf(screen)?.classList.contains("is-open")).toBe(false);
+  });
+
+  /** The first row showing in the list, top to bottom. */
+  const topRow = (screen: ReturnType<typeof mountScreen>): HTMLElement => {
+    const row = [
+      ...(drawerOf(screen)?.querySelectorAll<HTMLElement>(
+        ".board-sheet-list > .board-row",
+      ) ?? []),
+    ].find((each) => !each.hidden);
+    if (row === undefined) throw new Error("no row showing");
+    return row;
+  };
+  const rowOrder = (screen: ReturnType<typeof mountScreen>): string[] =>
+    [
+      ...(drawerOf(screen)?.querySelector(".board-sheet-list")?.children ?? []),
+    ].map((kid) => {
+      const el = kid as HTMLElement;
+      return (
+        el.dataset["boost"] ??
+        el.dataset["upgrade"] ??
+        el.dataset["tool"] ??
+        el.dataset["sec"] ??
+        el.className
+      );
+    });
+
+  it("a sleepy second tap after a buy never lands on another row", () => {
+    // Sharper picks is the New row; Strong arms waits, dotted and affordable.
+    const base: Mountain = {
+      ...minedMountain(30_000),
+      helpers: 20,
+      carts: 3,
+      staffed: 2,
+    };
+    const m: Mountain = {
+      ...base,
+      pocket: sharperPrice(base) + upgradePrice("tap", 0) + 1_000,
+    };
+    let clock = 10_000;
+    const screen = mountScreen({
+      storage: seededWith(m, CLOCK),
+      now: () => CLOCK,
+      tapClock: () => clock,
+    });
+    openUpgrades(screen);
+    clock += BUYS_SETTLE_MS + 100;
+    const first = topRow(screen);
+    expect(first.dataset["boost"]).toBe("sharper");
+    const order = rowOrder(screen);
+    fingerTap(first);
+    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
+      CLOCK + boostById("sharper").durationMs,
+    );
+    // The New flag moves to Strong arms in place; no row moves.
+    expect(
+      rowOf(screen, '[data-upgrade="tap"]').classList.contains("teach-new"),
+    ).toBe(true);
+    expect(rowOrder(screen)).toEqual(order);
+    clock += 150;
+    fingerTap(topRow(screen));
+    expect(screen.progress.getSnapshot().mountain.upgrades?.tap).toBe(
+      undefined,
+    );
+    // The next opening leads with the New row's section.
+    drawerOf(screen)
+      ?.querySelector<HTMLButtonElement>(".board-sheet-back")
+      ?.click();
+    openUpgrades(screen);
+    expect(topRow(screen).dataset["upgrade"]).toBe("tap");
+  });
+
+  it("the tick never moves a row while the drawer is open", async () => {
+    vi.useFakeTimers();
+    try {
+      const base: Mountain = {
+        ...minedMountain(30_000),
+        helpers: 500,
+        carts: 3,
+        drills: 1,
+        staffed: 2,
+        // Sharper picks was used: Overtime and the upgrades carry the dots.
+        boosts: { sharper: CLOCK - 1 },
+        pocket: 0,
+      };
+      const overtimePrice = boostCost(
+        boostById("overtime"),
+        effectiveRates(base),
+        stretch(base),
+      );
+      expect(upgradePrice("tap", 0)).toBeLessThan(overtimePrice);
+      const screen = mountScreen({
+        storage: seededWith(base, CLOCK),
+        now: () => CLOCK,
+      });
+      openUpgrades(screen);
+      expect(
+        rowOf(screen, '[data-boost="overtime"]').classList.contains(
+          "teach-new",
+        ),
+      ).toBe(true);
+      const order = rowOrder(screen);
+      expect(order.indexOf("boosts")).toBeLessThan(order.indexOf("lasting"));
+      // The pocket covers Strong arms, not Overtime: Strong arms becomes New.
+      screen.progress.applyMutation((current) => ({
+        ...current,
+        pocket: upgradePrice("tap", 0),
+      }));
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(
+        rowOf(screen, '[data-upgrade="tap"]').classList.contains("teach-new"),
+      ).toBe(true);
+      expect(rowOrder(screen)).toEqual(order);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a double tap on Back to Upgrades never buys the row under it", () => {
+    const m = boostsOpen(50_000);
+    let clock = 10_000;
+    const screen = mountScreen({
+      storage: seededWith(m, CLOCK),
+      now: () => CLOCK,
+      tapClock: () => clock,
+    });
+    openUpgrades(screen);
+    clock += 5_000;
+    drawerOf(screen)
+      ?.querySelector<HTMLButtonElement>(".board-sheet-info")
+      ?.click();
+    clock += 5_000;
+    const back = [
+      ...(drawerOf(screen)?.querySelectorAll<HTMLElement>(".teach-how-back") ??
+        []),
+    ].find((each) => !each.hidden);
+    if (back === undefined) throw new Error("no Back to Upgrades");
+    fingerTap(back);
+    expect(
+      drawerOf(screen)?.querySelector<HTMLElement>(".board-sheet-list")?.hidden,
+    ).toBe(false);
+    clock += 100;
+    const pocket = screen.progress.getSnapshot().mountain.pocket;
+    fingerTap(rowOf(screen, '[data-boost="sharper"]'));
+    expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
+    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
+      undefined,
+    );
   });
 });
 

@@ -51,7 +51,11 @@ export interface BoardSheet {
   /** Open, and opened less than DRAWER_SETTLE_MS ago on the clock. */
   settling(): boolean;
   open(from?: HTMLElement): void;
-  close(): void;
+  /**
+   * Shuts the drawer and focuses the key it opened from. `restoreFocus: false` leaves focus
+   * where it is: a card that covered the drawer has already taken it.
+   */
+  close(options?: { readonly restoreFocus?: boolean }): void;
   /** The resting kick under the title. */
   kick(text: string): void;
   /** Shows `text` as done for `ms`, then the resting kick. */
@@ -173,6 +177,11 @@ export function createBoardSheet({
 
   const showHow = (on: boolean): void => {
     setHow(on);
+    // Back to the list is a new screen under the finger: the second tap of a double tap on
+    // the cards' Back must not buy the row under it, so the settle starts again.
+    if (!on && open) {
+      openedAt = clock();
+    }
     // The "i" hides under the cards, so focus moves with them, and back to it.
     focusQuietly(on ? how : info);
   };
@@ -196,7 +205,9 @@ export function createBoardSheet({
     requestAnimationFrame(fitSpare);
   };
 
-  const close = (): void => {
+  const close = ({
+    restoreFocus = true,
+  }: { readonly restoreFocus?: boolean } = {}): void => {
     if (!open) {
       return;
     }
@@ -204,7 +215,7 @@ export function createBoardSheet({
     root.classList.remove("is-open");
     setHow(false);
     onClose?.();
-    if (from?.isConnected === true) {
+    if (restoreFocus && from?.isConnected === true) {
       focusQuietly(from);
     }
   };
