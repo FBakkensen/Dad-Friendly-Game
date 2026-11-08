@@ -85,3 +85,9 @@
   --board-type-14: 14px;
   --board-note-lead: 18px;
 }
+
+/* Odometer drum figures: black on the cream drum, cream on the red decimal drum. */
+:root {
+  --board-drum-ink: #0e0d0a;
+  --board-drum-dec-ink: #ece4cc;
+}

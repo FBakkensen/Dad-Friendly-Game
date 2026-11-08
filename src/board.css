@@ -126,3 +126,92 @@ body {
   font-family: "Share Tech Mono", monospace;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------- odometer ---------- */
+.board-odo {
+  position: relative;
+  width: calc(var(--art) * 120);
+  height: calc(var(--art) * 40);
+}
+
+.board-odo > img {
+  position: absolute;
+  image-rendering: pixelated;
+}
+
+.board-odo-body {
+  left: 0;
+  top: 0;
+  width: calc(var(--art) * 120);
+  height: calc(var(--art) * 40);
+}
+
+.board-drum {
+  position: absolute;
+  left: calc(var(--art) * var(--at));
+  width: calc(var(--art) * var(--w));
+  top: calc(var(--art) * 9);
+  height: calc(var(--art) * 24);
+  overflow: hidden;
+  z-index: 2;
+}
+
+.board-drum-face {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(var(--art) * 24);
+  line-height: calc(var(--art) * 24);
+  text-align: center;
+  font-size: var(--type-32);
+  color: var(--board-drum-ink);
+}
+
+.board-drum.is-decimal .board-drum-face {
+  color: var(--board-drum-dec-ink);
+}
+
+.board-odo-dec {
+  left: calc(var(--art) * var(--at));
+  top: calc(var(--art) * 8);
+  width: calc(var(--art) * 14);
+  height: calc(var(--art) * 25);
+}
+
+.board-odo-dec.odo-dec-2 {
+  width: calc(var(--art) * 15);
+}
+
+.board-odo-dot {
+  left: calc(var(--art) * var(--at));
+  top: calc(var(--art) * 26);
+  width: calc(var(--art) * 2);
+  height: calc(var(--art) * 2);
+  z-index: 3;
+}
+
+.board-odo-legend {
+  position: absolute;
+  left: calc(var(--art) * 5);
+  right: calc(var(--art) * 24);
+  top: calc(var(--art) * 40);
+  height: calc(var(--art) * 6);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.board-odo-legend .board-lg {
+  line-height: calc(var(--art) * 6);
+  text-shadow: 0 0 var(--art) var(--board-night);
+}
+
+.board-spend {
+  color: var(--board-rust);
+  opacity: 0;
+}
+
+.board-odo-legend.is-spending .board-spend {
+  opacity: 1;
+}
