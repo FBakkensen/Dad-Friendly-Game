@@ -286,6 +286,14 @@ export function createReadyPlate({
   /** The pick on the plate now; undefined until the save is in. */
   let painted: ReadyPick | undefined;
   let holding = false;
+  let holdTimer: ReturnType<typeof setTimeout> | undefined;
+  const letGo = (): void => {
+    holding = false;
+    if (holdTimer !== undefined) {
+      clearTimeout(holdTimer);
+      holdTimer = undefined;
+    }
+  };
 
   const paint = (): void => {
     painted = last;
@@ -309,6 +317,11 @@ export function createReadyPlate({
   const render = (pick: ReadyPick | undefined, enabled: boolean): void => {
     last = pick;
     lastEnabled = enabled;
+    // A save loading again ends a Done hold: its line names a buy that may
+    // not be in the save that lands.
+    if (pick === undefined) {
+      letGo();
+    }
     if (!holding) {
       paint();
     }
@@ -334,8 +347,8 @@ export function createReadyPlate({
       return;
     }
     show(doneWords(result.tier, result.count, result.gain), "is-done");
-    setTimeout(() => {
-      holding = false;
+    holdTimer = setTimeout(() => {
+      letGo();
       paint();
     }, READY_HOLD_MS);
   });
@@ -440,7 +453,10 @@ export function createDigButton({
   };
 
   button.addEventListener("pointerdown", () => {
-    run(DIG_DOWN, []);
+    // A disabled button never clicks, so it never pops back up: no down frame.
+    if (!button.disabled) {
+      run(DIG_DOWN, []);
+    }
   });
   button.addEventListener("click", () => {
     onPress();

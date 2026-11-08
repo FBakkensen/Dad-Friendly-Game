@@ -4621,6 +4621,45 @@ async function putNoteAway(page) {
   }
 }
 
+/**
+ * A sleepy double tap at the selector's centre: two taps 120ms apart at one
+ * point, with nothing between them, so a loaded run keeps them close. The
+ * second lands on whatever the first put there.
+ */
+async function doubleTap(page, selector) {
+  const at = await page.$eval(selector, (el) => {
+    const b = el.getBoundingClientRect();
+    return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+  });
+  for (let tap = 0; tap < 2; tap += 1) {
+    if (tap > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    }
+    if (desks.get(page) === true) {
+      await page.mouse.click(at.x, at.y);
+    } else {
+      await page.touchscreen.tap(at.x, at.y);
+    }
+  }
+  // The second tap's buy, if any, lands a frame or two later.
+  await new Promise((resolve) => setTimeout(resolve, 120));
+}
+
+/** What a finger at the selector's centre meets now, for the check's line. */
+const underCentre = (page, selector) =>
+  page.$eval(selector, (el) => {
+    const b = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(
+      (b.left + b.right) / 2,
+      (b.top + b.bottom) / 2,
+    );
+    const card = hit?.closest("[data-tier]");
+    const name = card?.getAttribute("data-tier") ?? "";
+    return hit === null
+      ? "nothing"
+      : `${hit.closest(".buys-dialog") === null ? "the board" : "Buys"}${name === "" ? "" : ` ${name}`}`;
+  });
+
 const buysOpen = (page) =>
   page.$eval(".buys-dialog", (sheet) => !sheet.hidden).catch(() => false);
 
@@ -4768,28 +4807,42 @@ for (const viewport of SCREENS) {
       await baysDrawn(page);
       await page.waitForSelector(".board-ready:not(:disabled)");
       const kickBefore = await textOf(page, ".board-ready-kick");
+      const mainBefore = (await textOf(page, ".board-ready-main")) ?? "";
+      // "Buy a cart · 5,868": the price the plate offers, in whole stones.
+      const price = Number(
+        (mainBefore.split(" · ")[1] ?? "").replaceAll(",", ""),
+      );
       const flapsBefore = await cartFlaps(page);
-      const cartsBefore = (await storedMountain(page)).carts;
+      const storedBefore = await storedMountain(page);
       await press(page, ".board-ready");
       await new Promise((resolve) => setTimeout(resolve, 120));
       await press(page, ".board-ready");
       const done = await textOf(page, ".board-ready-kick");
       const flapsAfter = await cartFlaps(page);
-      const cartsAfter = (await storedMountain(page)).carts;
+      const storedAfter = await storedMountain(page);
+      const spent = storedBefore.pocket - storedAfter.pocket;
       check(
         kickBefore === "Ready now" &&
           flapsAfter - flapsBefore === 1 &&
-          cartsAfter - cartsBefore === 1 &&
+          storedAfter.carts - storedBefore.carts === 1 &&
+          Number.isFinite(price) &&
+          price > 0 &&
+          spent === price &&
           done === "Done",
-        `${label} a double tap on Ready now buys exactly one cart and shows Done`,
+        `${label} a double tap on Ready now buys exactly one cart for one price (${String(spent)} of ${String(price)}) and shows Done`,
       );
-      if (flapsAfter - flapsBefore !== 1 || done !== "Done") {
+      if (
+        flapsAfter - flapsBefore !== 1 ||
+        done !== "Done" ||
+        spent !== price
+      ) {
         console.log("double tap", size, {
           kickBefore,
+          mainBefore,
           flapsBefore,
           flapsAfter,
-          cartsBefore,
-          cartsAfter,
+          storedBefore,
+          storedAfter,
           done,
         });
       }
@@ -4802,7 +4855,10 @@ for (const viewport of SCREENS) {
       await close();
     }
 
-    // Saving for: the time shows, and a tap opens Buys and spends nothing.
+    // Saving for: the time shows, and a sleepy double tap opens Buys and
+    // spends nothing. The first tap opens Buys over the plate; the second
+    // lands on the Buys card under the finger (a worker, which the pocket
+    // can afford), and that card must not buy so soon after Buys opened.
     {
       const { page, close } = await open(viewport, savingMountain(), {
         stopClock: true,
@@ -4813,24 +4869,61 @@ for (const viewport of SCREENS) {
       const odoBefore = await page.$eval(".board-odo", (odo) =>
         odo.getAttribute("aria-label"),
       );
-      const pocketBefore = (await storedMountain(page)).pocket;
-      await press(page, ".board-ready");
+      const storedBefore = await storedMountain(page);
+      await doubleTap(page, ".board-ready");
       const opened = await page
         .waitForSelector(".buys-dialog:not([hidden])", { timeout: 2_000 })
         .then(
           () => true,
           () => false,
         );
+      const under = await underCentre(page, ".board-ready");
       const odoAfter = await page.$eval(".board-odo", (odo) =>
         odo.getAttribute("aria-label"),
       );
-      const pocketAfter = (await storedMountain(page)).pocket;
+      const storedAfter = await storedMountain(page);
       check(
         (main ?? "").startsWith("Saving for a cart · in ") &&
           opened &&
+          under.startsWith("Buys ") &&
           odoAfter === odoBefore &&
-          pocketAfter === pocketBefore,
-        `${label} Saving for reads "${String(main)}", and a tap opens Buys with the odometer unchanged`,
+          storedAfter.pocket === storedBefore.pocket &&
+          storedAfter.helpers === storedBefore.helpers,
+        `${label} Saving for reads "${String(main)}", and a double tap opens Buys with the pocket and odometer unchanged (second tap on ${under})`,
+      );
+      await close();
+    }
+
+    // A sleepy double tap on an open bay: the first opens Buys, the second
+    // lands on a Buys card the pocket can afford (5M stones affords any
+    // card here), and buys nothing.
+    {
+      const { page, close } = await open(viewport, openMountain(), {
+        stopClock: true,
+      });
+      await baysDrawn(page);
+      await page.waitForSelector(".board-ready:not(:disabled)");
+      await putNoteAway(page);
+      const bay = '.board-bay[data-tier="cart"]';
+      const storedBefore = await storedMountain(page);
+      await doubleTap(page, bay);
+      const opened = await page
+        .waitForSelector(".buys-dialog:not([hidden])", { timeout: 2_000 })
+        .then(
+          () => true,
+          () => false,
+        );
+      const under = await underCentre(page, bay);
+      const storedAfter = await storedMountain(page);
+      check(
+        opened &&
+          under.startsWith("Buys ") &&
+          storedAfter.pocket === storedBefore.pocket &&
+          storedAfter.carts === storedBefore.carts &&
+          storedAfter.drills === storedBefore.drills &&
+          storedAfter.borers === storedBefore.borers &&
+          storedAfter.helpers === storedBefore.helpers,
+        `${label} a double tap on an open bay opens Buys and spends nothing (second tap on ${under})`,
       );
       await close();
     }

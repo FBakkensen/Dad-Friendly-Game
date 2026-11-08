@@ -126,6 +126,11 @@ page is the map, plus the rules that keep it that way.
    from the store's snapshot, never the painted pick, and buys through
    `buyWithTeach` (in `crew-panel`), the Buys card's mutation, so a buy from
    the plate is the same buy as one from Buys. A Saving for tap opens Buys.
+   Buys records when it opened from shut (`tapClock`, `performance.now` by
+   default, not the game clock a gate run stops), and `buyOnTap` asks a
+   card's `settling` when the finger goes down: a card pressed within
+   `BUYS_SETTLE_MS` (400ms) of the opening hires and buys nothing, so the
+   second tap of a double tap on the plate or a bay never spends.
    The red button calls the same `dig()` as the window, and the window shows
    the "+N". Until the save is in (a second load after sign-in or a user
    switch included) the bays, the plate and the red button show only their

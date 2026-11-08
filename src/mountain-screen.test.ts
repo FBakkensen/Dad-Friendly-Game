@@ -18,7 +18,7 @@ import {
   stonesPerSecond,
   type Mountain,
 } from "./mountain";
-import { showAppUpdate } from "./mountain-screen";
+import { BUYS_SETTLE_MS, showAppUpdate } from "./mountain-screen";
 import { effectiveRates } from "./rates";
 import { veinReward } from "./veins";
 import { SESSION_SAVE_KEY } from "./session-save";
@@ -2655,6 +2655,105 @@ describe("the control board (#370)", () => {
     expect(pocketOf(screen)).toBe(pocket);
     expect(buysOpen(screen)).toBe(true);
     expect(screen.text(".board-ready-kick")).toBe("Saving for");
+  });
+
+  // A sleepy double tap: the first tap opens Buys over the plate or the bay,
+  // and the second lands on the Buys card under the finger. It must not buy.
+  const fingerTap = (el: HTMLElement): void => {
+    el.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+    );
+    el.dispatchEvent(
+      new PointerEvent("pointerup", { bubbles: true, button: 0 }),
+    );
+    el.click();
+  };
+  const cardOf = (screen: ReturnType<typeof mountScreen>, tier: string) => {
+    const card = screen.root.querySelector(`.tier[data-tier="${tier}"]`);
+    if (!(card instanceof HTMLButtonElement)) throw new Error("no card");
+    return card;
+  };
+
+  it("a double tap on Saving for opens Buys and spends nothing", () => {
+    // Saving for a cart with a hand free, while a worker is affordable: the
+    // worker card is what the second tap of a double tap meets.
+    const workerPrice = tierCost(tierById("helper"), 18);
+    const m = early({ pocket: workerPrice });
+    expect(workerPrice).toBeLessThan(tierCost(tierById("cart"), 6));
+    let clock = 10_000;
+    const screen = mountScreen({
+      storage: seeded(m, CLOCK),
+      now: () => CLOCK,
+      tapClock: () => clock,
+    });
+    expect(screen.text(".board-ready-kick")).toBe("Saving for");
+    fingerTap(plateOf(screen));
+    expect(buysOpen(screen)).toBe(true);
+    clock += 120;
+    fingerTap(cardOf(screen, "helper"));
+    expect(pocketOf(screen)).toBe(workerPrice);
+    expect(screen.progress.getSnapshot().mountain.helpers).toBe(18);
+    // A deliberate tap once the sheet has settled still hires.
+    clock += BUYS_SETTLE_MS;
+    fingerTap(cardOf(screen, "helper"));
+    expect(screen.progress.getSnapshot().mountain.helpers).toBe(19);
+    expect(pocketOf(screen)).toBe(0);
+  });
+
+  it("a double tap on a bay opens Buys and spends nothing", () => {
+    let clock = 10_000;
+    const screen = mountScreen({
+      storage: seeded(early(), CLOCK),
+      now: () => CLOCK,
+      tapClock: () => clock,
+    });
+    const bay = screen.root.querySelector<HTMLButtonElement>(
+      '.board-bay[data-tier="cart"]',
+    );
+    if (bay === null) throw new Error("no bay");
+    fingerTap(bay);
+    expect(buysOpen(screen)).toBe(true);
+    clock += BUYS_SETTLE_MS - 1;
+    fingerTap(cardOf(screen, "cart"));
+    expect(cartsOf(screen)).toBe(6);
+    expect(pocketOf(screen)).toBe(6_854);
+    clock += 1;
+    fingerTap(cardOf(screen, "cart"));
+    expect(cartsOf(screen)).toBe(7);
+    expect(pocketOf(screen)).toBe(6_854 - tierCost(tierById("cart"), 6));
+  });
+
+  it("the settle is judged by the press, not the click", () => {
+    let clock = 10_000;
+    const screen = mountScreen({
+      storage: seeded(early(), CLOCK),
+      now: () => CLOCK,
+      tapClock: () => clock,
+    });
+    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    const card = cardOf(screen, "cart");
+    // Pressed early, released late: still the double tap's press.
+    card.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+    );
+    clock += BUYS_SETTLE_MS * 2;
+    card.dispatchEvent(
+      new PointerEvent("pointerup", { bubbles: true, button: 0 }),
+    );
+    card.click();
+    expect(cartsOf(screen)).toBe(6);
+    // The next press is its own, and buys. Reopening an open sheet (the
+    // Buys thumb tapped again) does not restart the settle.
+    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    fingerTap(card);
+    expect(cartsOf(screen)).toBe(7);
+    // Back to the mountain works at once.
+    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".buys-close")?.click();
+    expect(buysOpen(screen)).toBe(false);
+    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    fingerTap(card);
+    expect(cartsOf(screen)).toBe(7);
   });
 
   it("the tap re-reads the store, never the painted plate", () => {

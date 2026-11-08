@@ -121,12 +121,15 @@ export function createCrewPanel({
   now,
   tierArt,
   stoneUrl,
+  settling,
 }: {
   progress: ProgressStore;
   getView: () => ProgressSnapshot;
   now: () => number;
   tierArt: Readonly<Record<TierId, string>>;
   stoneUrl: string;
+  /** True just after Buys opened: a card pressed then hires and buys nothing. */
+  settling?: () => boolean;
 }) {
   const crew = document.createElement("section");
   crew.className = "crew";
@@ -277,61 +280,74 @@ export function createCrewPanel({
         }
       },
     });
-    buyOnTap(card, card, () => {
-      if (hold.heldFix()) {
-        return;
-      }
-      if (!getView().ready) {
-        return;
-      }
-      const troubled = getView().trouble;
-      // The guided idle machine hires its crew. Another one would stand
-      // idle too, so the New card never buys more of it.
-      if (
-        guidedTier === tier.id &&
-        (troubled === undefined || troubled.tier !== tier.id)
-      ) {
-        hire(card);
-        return;
-      }
-      if (troubled !== undefined && troubled.tier === tier.id) {
-        progress.pressTrouble(troubled.tier);
-        if (getView().trouble === undefined) {
-          thank(card);
+    buyOnTap(
+      card,
+      card,
+      (press) => {
+        if (hold.heldFix()) {
+          return;
         }
-        return;
-      }
-      const before = owned(getView().mountain, tier);
-      const rateBefore = crewSpeed();
-      progress.applyMutation((mountain) => buyWithTeach(mountain, tier.id));
-      if (owned(getView().mountain, tier) > before) {
-        const after = effectiveRates(
-          getView().mountain,
-          now(),
-          getView().trouble,
-        );
-        // A new machine nobody can run says so, instead of promising speed.
-        const added = `+${formatSpeed(after.tierSpeed[tier.id])}/s`;
-        const bought = getView().mountain;
-        const spareNow =
-          bought.helpers +
-          bought.kids -
-          TIERS.reduce(
-            (used, item) =>
-              used + after.running[item.id] * staffNeeded(bought, item),
-            0,
+        if (!getView().ready) {
+          return;
+        }
+        const troubled = getView().trouble;
+        // The second tap of the double tap that opened Buys spends nothing. A
+        // trouble press is not a spend, so it still counts.
+        if (
+          press.early &&
+          (troubled === undefined || troubled.tier !== tier.id)
+        ) {
+          return;
+        }
+        // The guided idle machine hires its crew. Another one would stand
+        // idle too, so the New card never buys more of it.
+        if (
+          guidedTier === tier.id &&
+          (troubled === undefined || troubled.tier !== tier.id)
+        ) {
+          hire(card);
+          return;
+        }
+        if (troubled !== undefined && troubled.tier === tier.id) {
+          progress.pressTrouble(troubled.tier);
+          if (getView().trouble === undefined) {
+            thank(card);
+          }
+          return;
+        }
+        const before = owned(getView().mountain, tier);
+        const rateBefore = crewSpeed();
+        progress.applyMutation((mountain) => buyWithTeach(mountain, tier.id));
+        if (owned(getView().mountain, tier) > before) {
+          const after = effectiveRates(
+            getView().mountain,
+            now(),
+            getView().trouble,
           );
-        const bill = staffBillWords(staffForBuy(bought, tier), spareNow);
-        floatText(
-          card,
-          after.running[tier.id] > before || bill === undefined
-            ? added
-            : `${added} · ${bill}`,
-          "float-gain",
-        );
-        countCrewRate(rateBefore, crewSpeed());
-      }
-    });
+          // A new machine nobody can run says so, instead of promising speed.
+          const added = `+${formatSpeed(after.tierSpeed[tier.id])}/s`;
+          const bought = getView().mountain;
+          const spareNow =
+            bought.helpers +
+            bought.kids -
+            TIERS.reduce(
+              (used, item) =>
+                used + after.running[item.id] * staffNeeded(bought, item),
+              0,
+            );
+          const bill = staffBillWords(staffForBuy(bought, tier), spareNow);
+          floatText(
+            card,
+            after.running[tier.id] > before || bill === undefined
+              ? added
+              : `${added} · ${bill}`,
+            "float-gain",
+          );
+          countCrewRate(rateBefore, crewSpeed());
+        }
+      },
+      settling === undefined ? {} : { settling },
+    );
     tierGrid.append(card);
     return {
       tier,

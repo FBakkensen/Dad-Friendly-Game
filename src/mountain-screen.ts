@@ -109,6 +109,18 @@ function craftMultiplier(
 
 const MINED_OUT = "The mountain is mined out";
 
+/**
+ * A tap on Saving for or on a bay opens Buys over the board, so the second tap
+ * of a sleepy double tap lands on whichever Buys card is now under the finger,
+ * and a card buys on one tap (#372). A card pressed this soon after Buys opened
+ * buys nothing. Two taps of a double tap land about 100–300ms apart; a dad who
+ * opened Buys on purpose reads the card first, which takes longer than 400ms.
+ * Only buying waits: Back to the mountain and the other sheet controls work at
+ * once, and the sheet is not `inert`, which would let the tap fall through to
+ * the plate beneath and buy there.
+ */
+export const BUYS_SETTLE_MS = 400;
+
 export function mountMountainScreen({
   root,
   lanternUrl,
@@ -121,6 +133,7 @@ export function mountMountainScreen({
   auth = createUnconfiguredAuth(),
   progress: progressArg,
   now = Date.now,
+  tapClock = () => performance.now(),
   random = Math.random,
   veinStorage,
   signal,
@@ -136,6 +149,11 @@ export function mountMountainScreen({
   auth?: AuthController;
   progress?: ProgressStore;
   now?: () => number;
+  /**
+   * Milliseconds for timing taps against each other. Not `now`: that is the
+   * game's clock, which a gate run may stop.
+   */
+  tapClock?: () => number;
   random?: () => number;
   /** Where the vein wait is carried between sessions; localStorage by default. */
   veinStorage?: Pick<Storage, "getItem" | "setItem">;
@@ -368,12 +386,15 @@ export function mountMountainScreen({
     renderVein();
   };
 
+  /** When Buys last opened from shut, on `tapClock`; never yet is -Infinity. */
+  let buysOpenedAt = Number.NEGATIVE_INFINITY;
   const crewPanel = createCrewPanel({
     progress,
     getView: () => view,
     now,
     tierArt,
     stoneUrl,
+    settling: () => tapClock() - buysOpenedAt < BUYS_SETTLE_MS,
   });
   const { crew, tierGrid, thanks } = crewPanel;
 
@@ -1042,6 +1063,10 @@ export function mountMountainScreen({
   /** Opens Buys: the Buys thumb and a tap on a bay (#372). */
   const openBuys = (): void => {
     closeBoardPopups();
+    // Only an opening starts the settle: a tap on an open sheet's door does not.
+    if (buysDialog.hidden) {
+      buysOpenedAt = tapClock();
+    }
     buysDialog.hidden = false;
     // The crew chips were measured while the sheet was shut: fit them now.
     crewPanel.layoutChips();

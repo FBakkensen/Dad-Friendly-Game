@@ -8,19 +8,32 @@ function scroller(card: HTMLElement): HTMLElement | null {
   return found instanceof HTMLElement ? found : null;
 }
 
+/** How the tap that reached `buy` began. */
+export interface CardPress {
+  /**
+   * The finger went down while `settling` said the sheet had only just
+   * opened: the second tap of a double tap that opened it.
+   */
+  readonly early: boolean;
+}
+
 /**
  * `buy` runs for a tap or a key press. A finger that moves, or a list that
  * scrolls under the finger, does not buy. Pressed state covers `card`.
+ * `settling` is asked when the finger goes down, never at the click, so a
+ * press that started early stays early however long it is held.
  */
 export function buyOnTap(
   card: HTMLElement,
   button: HTMLButtonElement,
-  buy: () => void,
+  buy: (press: CardPress) => void,
+  { settling }: { settling?: () => boolean } = {},
 ): void {
   let armed = false;
   let moved = false;
   let gesture = 0;
   let blocked = -1;
+  let early = false;
   let x = 0;
   let y = 0;
   let top = 0;
@@ -32,6 +45,7 @@ export function buyOnTap(
     gesture += 1;
     armed = true;
     moved = false;
+    early = settling?.() === true;
     x = event.clientX;
     y = event.clientY;
     top = scroller(card)?.scrollTop ?? 0;
@@ -82,6 +96,9 @@ export function buyOnTap(
     button.click();
   });
   button.addEventListener("click", () => {
+    // A press is early once: a key press after it has no finger, so is not.
+    const press = { early };
+    early = false;
     if (blocked === gesture || button.disabled) {
       armed = false;
       moved = false;
@@ -89,6 +106,6 @@ export function buyOnTap(
     }
     armed = false;
     moved = false;
-    buy();
+    buy(press);
   });
 }

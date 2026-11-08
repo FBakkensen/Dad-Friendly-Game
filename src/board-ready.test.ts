@@ -313,6 +313,32 @@ describe("createReadyPlate", () => {
     expect(text(root, ".board-ready-kick")).toBe("Saving for");
   });
 
+  it("a save that loads again during the Done hold ends the hold at once", () => {
+    const onTap = vi.fn(() => bought);
+    const { root, button, render } = plate(onTap);
+    render(readyCart, true);
+    button.click();
+    expect(text(root, ".board-ready-kick")).toBe("Done");
+    render(undefined, false);
+    expect(text(root, ".board-ready-kick")).toBe("");
+    expect(text(root, ".board-ready-main")).toBe("");
+    expect(text(root, ".board-ready-why")).toBe("");
+    expect(button.classList.contains("is-done")).toBe(false);
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("aria-label")).toBe("Loading your save...");
+    // The save is in again: a tap buys, and the old hold's timer does not cut
+    // the new Done short.
+    render(readyCart, true);
+    expect(text(root, ".board-ready-kick")).toBe("Ready now");
+    vi.advanceTimersByTime(1000);
+    button.click();
+    expect(onTap).toHaveBeenCalledTimes(2);
+    vi.advanceTimersByTime(READY_HOLD_MS - 1000);
+    expect(text(root, ".board-ready-kick")).toBe("Done");
+    vi.advanceTimersByTime(1000);
+    expect(text(root, ".board-ready-kick")).toBe("Ready now");
+  });
+
   it("goes dark and disabled for no save, and when mined out", () => {
     const { root, button, render } = plate(() => bought);
     render(readyCart, true);
@@ -564,6 +590,13 @@ describe("createDigButton", () => {
     vi.advanceTimersByTime(69);
     expect(spriteAt(root)).toBe("-224px");
     vi.advanceTimersByTime(1);
+    expect(spriteAt(root)).toBe("0px");
+  });
+
+  it("shows no down frame for a press while disabled", () => {
+    const { root, button } = make();
+    expect(button.disabled).toBe(true);
+    button.dispatchEvent(new Event("pointerdown"));
     expect(spriteAt(root)).toBe("0px");
   });
 
