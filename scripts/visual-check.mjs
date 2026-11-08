@@ -79,11 +79,19 @@ const check = (ok, label) => {
  * per core), on one Vite server and one Chrome.
  */
 const sections = [];
-/** VISUAL_ONLY=<regex> runs only the sections whose label matches. */
+/**
+ * VISUAL_ONLY=<regex> runs only the sections whose label matches. A filtered
+ * run says so, and one that matches nothing fails rather than passing empty.
+ */
 const only =
   process.env.VISUAL_ONLY === undefined
     ? undefined
     : new RegExp(process.env.VISUAL_ONLY);
+if (only !== undefined) {
+  console.warn(
+    `VISUAL_ONLY=${String(process.env.VISUAL_ONLY)}: running only the sections it matches, not the whole check.`,
+  );
+}
 const section = (label, run) => {
   if (only === undefined || only.test(label)) {
     sections.push({ label, run });
@@ -4293,6 +4301,14 @@ for (const viewport of SCREENS) {
 
 // Pages wait on the network as much as the CPU, so 1.5 per core beats 1
 // (measured on 4 cores: 70 s at 4 jobs, 63 s at 6, 62 s at 8).
+if (only !== undefined && sections.length === 0) {
+  console.error(
+    `VISUAL_ONLY=${String(process.env.VISUAL_ONLY)} matches no section; nothing was checked.`,
+  );
+  await browser.close();
+  await server?.close();
+  process.exit(1);
+}
 const jobs = Math.max(
   1,
   Number(process.env.VISUAL_JOBS ?? Math.ceil(availableParallelism() * 1.5)),
@@ -4328,4 +4344,8 @@ if (failures.length > 0) {
   );
   process.exit(1);
 }
-console.log("\nAll visual checks passed.");
+console.log(
+  only === undefined
+    ? "\nAll visual checks passed."
+    : `\nThe ${String(sections.length)} section(s) VISUAL_ONLY=${String(process.env.VISUAL_ONLY)} matched passed; the rest did not run.`,
+);
