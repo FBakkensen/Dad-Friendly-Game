@@ -3135,6 +3135,22 @@ const BOARD_LEGENDS = [
 const DRAWER_MS = 400;
 
 /**
+ * A note's skins paint once their art has loaded (src/board-skin.ts), a frame
+ * or two after it opens: wait for that before measuring them.
+ */
+async function notePainted(page) {
+  await page
+    .waitForFunction(
+      () =>
+        [
+          ...document.querySelectorAll(".board-note.on canvas.board-skin"),
+        ].every((canvas) => canvas.style.width !== ""),
+      { timeout: 2_000 },
+    )
+    .catch(() => undefined);
+}
+
+/**
  * Visible controls in board px (rendered size / --board-scale): the board's
  * own, and the neighbours they must stand 8px from. A closed sheet, the
  * closed drawer and the parked note are not on screen, so they do not count.
@@ -3475,6 +3491,7 @@ for (const viewport of SCREENS) {
       await page
         .waitForSelector(SHELF_KEY, { visible: true, timeout: 2_000 })
         .catch(() => undefined);
+      await notePainted(page);
       const keyTargets = await boardTargets(page);
       const keyText = await boardTextSizes(page);
       const keyArt = PHONE === viewport ? await boardArtAt2x(page) : undefined;
@@ -3498,6 +3515,7 @@ for (const viewport of SCREENS) {
       await page
         .waitForSelector(".board-note.on", { timeout: 2_000 })
         .catch(() => undefined);
+      await notePainted(page);
       const note = await page.evaluate(() => {
         const board = globalThis.__board();
         const box = document
