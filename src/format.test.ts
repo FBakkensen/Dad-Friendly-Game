@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCompact, formatCount, formatDuration } from "./format";
+import { etaShort, formatCompact, formatCount, formatDuration } from "./format";
 
 describe("formatCount", () => {
   it.each([
@@ -51,5 +51,23 @@ describe("formatCompact", () => {
     [-5, "0"],
   ])("formats %d as %s", (count, text) => {
     expect(formatCompact(count)).toBe(text);
+  });
+});
+
+describe("etaShort", () => {
+  it.each([
+    [1, "1m"],
+    [60_000, "1m"],
+    [60_001, "2m"],
+    [240_000, "4m"],
+    // 59m01s rounds up to the hour.
+    [3_541_000, "1h 0m"],
+    [3_900_000, "1h 5m"],
+    // 99h59m, then a second more rounds up to 100h.
+    [359_940_000, "99h 59m"],
+    [359_941_000, ">99h"],
+    [360_000_000, ">99h"],
+  ])("reads %d ms as %s", (ms, text) => {
+    expect(etaShort(ms)).toBe(text);
   });
 });
