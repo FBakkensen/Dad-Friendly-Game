@@ -185,11 +185,7 @@ export interface BoostDial {
 const DIAL_FRAME_PX = 88;
 
 /** The crew timer the crew runs at: legend beside a 31-frame dial. */
-export function createBoostDial({
-  onOpen,
-}: {
-  onOpen: () => void;
-}): BoostDial {
+export function createBoostDial({ onOpen }: { onOpen: () => void }): BoostDial {
   const root = document.createElement("button");
   root.type = "button";
   root.className = "board-dial";

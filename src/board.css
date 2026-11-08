@@ -334,8 +334,9 @@ body {
   position: absolute;
   top: calc(var(--board-h) - var(--save-h));
   left: calc(var(--art) * 4);
-  /* Under the sheets (z-index 10), as the save words were: a sheet's foot stays tappable. */
-  z-index: 9;
+  /* Above every sheet and card (the highest in style.css is 30): the save
+     line stays on the board at all times, and the sheets stop at it. */
+  z-index: 32;
   width: calc(var(--art) * 204);
   height: calc(var(--art) * 27);
 }
@@ -502,7 +503,8 @@ body {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--board-ink-plate);
+  /* The mockup's .platebtn: light ink on the dark key face (#370). */
+  color: var(--board-ink);
   cursor: pointer;
 }
 
@@ -515,7 +517,7 @@ body {
 }
 
 .board-platebtn:disabled {
-  color: var(--board-ink-plate-2);
+  color: var(--board-ink-2);
   opacity: 0.6;
   cursor: default;
 }
@@ -655,7 +657,8 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 8;
+  /* Over the sheets too: the save line opens it whatever is open. */
+  z-index: 31;
   width: var(--board-w);
   height: calc(var(--board-h) - var(--save-h));
   overflow: hidden;
@@ -672,4 +675,31 @@ body {
 .buys-card,
 .upgrades-dialog .upgrades-card {
   max-height: calc(100% - var(--board-top) - var(--art));
+}
+
+/* Every sheet and card stops at the save line, so the line is never covered
+   and the sheets' own buttons sit above it (#370). */
+.welcome-back,
+.layer-arrival,
+.craft-notice,
+.relic-reveal,
+.shelf-dialog,
+.start-over,
+.game-menu,
+.field-log-sheet,
+.buys-dialog,
+.upgrades-dialog,
+.engineers-dialog,
+.update-prompt,
+.other-tab,
+.save-conflict,
+.saved-copies,
+.workshop-dialog {
+  bottom: var(--save-h);
+}
+
+/* Closed, the drawer waits just under the clip's edge, so every step of the
+   slide shows more of it. */
+.board-drawer-clip > .board-save-drawer:not(.is-open) {
+  transform: translateY(calc(100% + var(--art) * 2));
 }

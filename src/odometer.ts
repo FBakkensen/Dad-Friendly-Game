@@ -28,7 +28,11 @@ export function odometerFace(pocket: number): OdometerFace {
     const [a = "0", b = "0", c = "0", d = "0", e = "0"] = String(n)
       .padStart(5, "0")
       .split("");
-    return { drums: [a, b, c, d, e], point: -1, words: n.toLocaleString("en-US") };
+    return {
+      drums: [a, b, c, d, e],
+      point: -1,
+      words: n.toLocaleString("en-US"),
+    };
   }
   if (n >= 1e15) {
     return CAP;

@@ -30,11 +30,15 @@ describe("trackBoardFit", () => {
       document,
     }) as unknown as Window;
     trackBoardFit(fake);
-    expect(document.documentElement.style.getPropertyValue("--board-scale")).toBe("0.848");
+    expect(
+      document.documentElement.style.getPropertyValue("--board-scale"),
+    ).toBe("0.848");
     expect(document.body.classList.contains("desk")).toBe(true);
     Object.assign(fake, { innerWidth: 424, innerHeight: 924 });
     fake.dispatchEvent(new Event("resize"));
-    expect(document.documentElement.style.getPropertyValue("--board-scale")).toBe("1");
+    expect(
+      document.documentElement.style.getPropertyValue("--board-scale"),
+    ).toBe("1");
     expect(document.body.classList.contains("desk")).toBe(false);
   });
 });

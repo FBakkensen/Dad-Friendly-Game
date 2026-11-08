@@ -3591,10 +3591,6 @@ body {
   color: var(--color-gold);
 }
 
-.crew-status:not(.crew-short):not(.crew-waiting) {
-  display: none;
-}
-
 .crew-posts {
   display: flex;
   flex-direction: column;

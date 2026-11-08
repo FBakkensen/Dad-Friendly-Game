@@ -51,8 +51,8 @@ describe("createRelicPlate", () => {
 
   it("lights found relics, darkens the next, leaves the rest empty", () => {
     const { sockets } = setup();
-    const art = sockets.map((s) =>
-      s.querySelector<HTMLImageElement>("img.board-relic")?.src,
+    const art = sockets.map(
+      (s) => s.querySelector<HTMLImageElement>("img.board-relic")?.src,
     );
     expect(art[0]).toMatch(/relic-lantern/);
     expect(art[0]).not.toMatch(/dark/);

@@ -59,7 +59,9 @@ describe("liveCrewBoost", () => {
     expect(boost.kind).toBe("running");
     if (boost.kind === "running") {
       expect(boost.multiplier).toBe(Math.max(charge, overtime));
-      expect(boost.source).toBe(charge > overtime ? "blasting-charge" : "overtime");
+      expect(boost.source).toBe(
+        charge > overtime ? "blasting-charge" : "overtime",
+      );
     }
     agrees(m);
   });
@@ -70,9 +72,14 @@ describe("liveCrewBoost", () => {
       ...withOvertime(crew(), 29 * MIN),
       chargeUntil: NOW + 10 * MIN,
     };
-    expect(chargeCrewMultiplier(base, NOW)).toBe(boostById("overtime").multiplier);
+    expect(chargeCrewMultiplier(base, NOW)).toBe(
+      boostById("overtime").multiplier,
+    );
     const charge = liveCrewBoost(base, NOW);
-    expect(charge).toMatchObject({ source: "blasting-charge", leftMs: 10 * MIN });
+    expect(charge).toMatchObject({
+      source: "blasting-charge",
+      leftMs: 10 * MIN,
+    });
     const longer: Mountain = { ...base, chargeUntil: NOW + 30_000 };
     expect(liveCrewBoost(longer, NOW)).toMatchObject({
       source: "overtime",

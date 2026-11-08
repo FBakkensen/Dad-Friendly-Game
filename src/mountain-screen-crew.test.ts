@@ -1344,6 +1344,8 @@ describe("pass the mine to your kid (#131)", () => {
       `${formatCount(stonesLeft(createMountain()) * kidStretch(1))} stones left`,
     );
     expect(screen.pocket()).toBe("Stones 0");
+    // A new mountain is not a spend.
+    expect(screen.text(".board-spend")).toBe("");
     const badge = screen.root.querySelector<HTMLElement>(".legacy-badge");
     expect(badge?.hidden).toBe(false);
     expect(badge?.textContent).toBe("Legacy ×1.5");

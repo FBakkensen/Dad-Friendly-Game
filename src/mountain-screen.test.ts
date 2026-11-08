@@ -1408,6 +1408,14 @@ describe("the control board (#370)", () => {
     expect(screen.root.querySelector(".pocket-rate")).toBeNull();
   });
 
+  it("reads the crew's rate on the main screen, with the pocket gone", () => {
+    const screen = mountScreen({
+      storage: seeded({ ...minedMountain(400), helpers: 3, carts: 1 }),
+    });
+    const line = screen.root.querySelector(":scope > .crew > .crew-status");
+    expect(line?.textContent).toMatch(/^Your crew mines \d+ stones a second$/);
+  });
+
   it("a buy shows the spend on the odometer", () => {
     const price = tierCost(tierById("helper"), 0);
     const screen = mountScreen({ storage: seeded(minedMountain(price)) });
@@ -1451,6 +1459,32 @@ describe("the control board (#370)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("a cloud copy ahead with a smaller pocket shows no spend", async () => {
+    let push: (result: CloudLoadResult) => void = () => undefined;
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        push = onChange;
+        return () => undefined;
+      },
+    };
+    const screen = mountScreen({ auth: signedIn(), cloudSave });
+    push({ kind: "found", mountain: minedMountain(40_000), rev: 1 });
+    await Promise.resolve();
+    expect(screen.pocket()).toBe("Stones 40,000");
+    // The PC dug 20,000 more and spent 59,000 of it.
+    push({
+      kind: "found",
+      mountain: { ...minedMountain(60_000), pocket: 1_000 },
+      rev: 2,
+    });
+    await Promise.resolve();
+    expect(screen.pocket()).toBe("Stones 1,000");
+    expect(screen.text(".board-spend")).toBe("");
   });
 
   it("starting over is not a spend", () => {
@@ -1518,6 +1552,46 @@ describe("the control board (#370)", () => {
       );
     } finally {
       screen.root.remove();
+    }
+  });
+
+  it("keeps the running list in the page after a relic's note replaced it", () => {
+    const screen = mountScreen();
+    document.body.append(screen.root);
+    try {
+      screen.root.querySelector<HTMLButtonElement>(".board-dial")?.click();
+      screen.root.querySelector<HTMLButtonElement>(".board-socket")?.click();
+      expect(screen.root.querySelector(".board-note .effect-row")).toBeNull();
+      screen.mountain.click();
+      expect(
+        screen.root.querySelector(".board-running-park .effect-row"),
+      ).not.toBeNull();
+    } finally {
+      screen.root.remove();
+    }
+  });
+
+  it("fits the save line again once the board's fonts have loaded", async () => {
+    let loaded: () => void = () => undefined;
+    const ready = new Promise<void>((resolve) => {
+      loaded = resolve;
+    });
+    Object.defineProperty(document, "fonts", {
+      configurable: true,
+      value: { ready },
+    });
+    try {
+      const screen = mountScreen();
+      const words = screen.root.querySelector(".board-save-words");
+      if (words !== null) {
+        words.textContent = "stale";
+      }
+      loaded();
+      await ready;
+      await Promise.resolve();
+      expect(screen.text(".save-status")).toBe("Sign in to save");
+    } finally {
+      Reflect.deleteProperty(document, "fonts");
     }
   });
 
@@ -1589,8 +1663,13 @@ describe("the control board (#370)", () => {
       const note = screen.root.querySelector(".board-note");
       const status =
         screen.root.querySelector<HTMLButtonElement>(".save-status");
+      expect(
+        screen.root.querySelector<HTMLButtonElement>(".thumb-workshop")
+          ?.disabled,
+      ).toBe(false);
       const doors = [
         ".buys-button",
+        ".thumb-workshop",
         ".upgrades-button",
         ".engineers-button",
         ".board-tag",

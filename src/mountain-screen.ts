@@ -130,7 +130,30 @@ export function mountMountainScreen({
   /** Stops the screen's tick and page listeners. The app never unmounts; tests do. */
   signal?: AbortSignal;
 }): void {
-  const progress = progressArg ?? createProgressStore({ auth });
+  const store = progressArg ?? createProgressStore({ auth });
+  /**
+   * True only while this screen's own mutation (a tap, a buy, a craft) runs,
+   * so the odometer counts a spend for those alone: never for a cloud copy,
+   * a chosen or restored copy, Start over or Pass the mine (#370).
+   */
+  let localChange = false;
+  // Every other call goes straight to the store, so spies and late swaps still see it.
+  const progress = new Proxy(store, {
+    get(target, key, receiver): unknown {
+      if (key !== "applyMutation") {
+        return Reflect.get(target, key, receiver);
+      }
+      const apply: ProgressStore["applyMutation"] = (update, note) => {
+        localChange = true;
+        try {
+          target.applyMutation(update, note);
+        } finally {
+          localChange = false;
+        }
+      };
+      return apply;
+    },
+  });
   let view: ProgressSnapshot = progress.getSnapshot();
 
   const lantern = document.createElement("img");
@@ -454,15 +477,16 @@ export function mountMountainScreen({
   let shownPocket: number | undefined;
   let shownDug: number | undefined;
   /**
-   * The odometer and the dial. A spend is what left the pocket beyond the
-   * stones dug since the last paint, so a buy shows even when the crew
-   * earned more meanwhile. A new mountain (Start over, Pass the mine) digs
-   * less than before and is never a spend.
+   * The odometer and the dial. A spend is what one of this screen's own
+   * mutations took from the pocket beyond the stones it dug (the store
+   * settles the crew first), so a buy shows even when the crew earned more
+   * meanwhile. Any other change only moves the baseline.
    */
   const renderStock = (): void => {
     const held = view.mountain.pocket;
     const dug = shownStones(view.mountain, minedOut(view.mountain));
     if (
+      localChange &&
       shownPocket !== undefined &&
       shownDug !== undefined &&
       dug >= shownDug
@@ -998,7 +1022,9 @@ export function mountMountainScreen({
   // fonts have loaded (happy-dom has no FontFaceSet).
   const fonts = (document as { fonts?: FontFaceSet }).fonts;
   void fonts?.ready.then(() => {
-    saveLine.render();
+    if (signal?.aborted !== true) {
+      saveLine.render();
+    }
   });
 }
 

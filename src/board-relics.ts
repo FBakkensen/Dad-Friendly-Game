@@ -15,7 +15,13 @@ import { skin } from "./board-skin";
 import type { BoardNote } from "./board-note";
 import type { ProgressSnapshot } from "./progress-store";
 import { relicNote } from "./relic-panels";
-import { RELICS, foundRelics, hasRelic, nextRelic, type RelicId } from "./relics";
+import {
+  RELICS,
+  foundRelics,
+  hasRelic,
+  nextRelic,
+  type RelicId,
+} from "./relics";
 
 const LIT: Readonly<Record<RelicId, string>> = {
   lantern: lanternUrl,
@@ -111,11 +117,7 @@ export function createRelicPlate({
         art.draggable = false;
         button.append(art);
       }
-      const state = has
-        ? "found"
-        : isNext
-          ? "next relic"
-          : "not found yet";
+      const state = has ? "found" : isNext ? "next relic" : "not found yet";
       button.setAttribute("aria-label", `${relic.name}, ${state}. ${count}`);
     }
   };

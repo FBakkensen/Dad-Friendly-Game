@@ -4,7 +4,9 @@ import { createBoostDial, createOdometer } from "./board-stock";
 import type { CrewBoost } from "./crew-boost";
 
 const faces = (root: HTMLElement) =>
-  [...root.querySelectorAll(".board-drum")].map((d) => d.lastElementChild?.textContent);
+  [...root.querySelectorAll(".board-drum")].map(
+    (d) => d.lastElementChild?.textContent,
+  );
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -27,8 +29,12 @@ describe("createOdometer", () => {
     const drums = odo.root.querySelectorAll(".board-drum");
     expect(drums[3]?.classList.contains("is-decimal")).toBe(true);
     expect(drums[2]?.classList.contains("is-decimal")).toBe(false);
-    expect(odo.root.querySelector<HTMLElement>(".odo-dec-3")?.hidden).toBe(false);
-    expect(odo.root.querySelector<HTMLElement>(".odo-dec-1")?.hidden).toBe(true);
+    expect(odo.root.querySelector<HTMLElement>(".odo-dec-3")?.hidden).toBe(
+      false,
+    );
+    expect(odo.root.querySelector<HTMLElement>(".odo-dec-1")?.hidden).toBe(
+      true,
+    );
   });
 
   it("hides the point and decimal faces for whole numbers", () => {
@@ -36,7 +42,9 @@ describe("createOdometer", () => {
     odo.set(412_489);
     odo.set(41_380);
     expect(faces(odo.root)).toEqual(["4", "1", "3", "8", "0"]);
-    expect(odo.root.querySelector<HTMLElement>(".board-odo-dot")?.hidden).toBe(true);
+    expect(odo.root.querySelector<HTMLElement>(".board-odo-dot")?.hidden).toBe(
+      true,
+    );
     for (const el of odo.root.querySelectorAll<HTMLElement>(".board-odo-dec")) {
       expect(el.hidden).toBe(true);
     }

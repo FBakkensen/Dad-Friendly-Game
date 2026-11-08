@@ -27,7 +27,10 @@ export function boardFit(width: number, height: number): BoardFit {
 export function trackBoardFit(win: Window = window): void {
   const apply = () => {
     const { scale, desk } = boardFit(win.innerWidth, win.innerHeight);
-    win.document.documentElement.style.setProperty("--board-scale", String(scale));
+    win.document.documentElement.style.setProperty(
+      "--board-scale",
+      String(scale),
+    );
     win.document.body.classList.toggle("desk", desk);
   };
   apply();

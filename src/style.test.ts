@@ -65,7 +65,78 @@ const BOARD_SELECTORS = [
   ".board-running",
 ];
 
+/** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
+const OVERLAYS = [
+  ".welcome-back",
+  ".layer-arrival",
+  ".craft-notice",
+  ".relic-reveal",
+  ".shelf-dialog",
+  ".start-over",
+  ".game-menu",
+  ".field-log-sheet",
+  ".buys-dialog",
+  ".upgrades-dialog",
+  ".engineers-dialog",
+  ".update-prompt",
+  ".other-tab",
+  ".save-conflict",
+  ".saved-copies",
+  ".workshop-dialog",
+];
+
+/** WCAG 2 contrast ratio of two #rrggbb colours. */
+function contrast(a: string, b: string): number {
+  const lum = (hex: string): number => {
+    const [r = 0, g = 0, bl = 0] = [1, 3, 5].map((i) => {
+      const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05);
+}
+
+/** The z-index a rule for exactly this selector sets in board.css. */
+function boardZ(selector: string): number {
+  const escaped = selector.replace(/[.]/g, "\\.");
+  const rule = new RegExp(`^${escaped} \\{[^}]*z-index:\\s*(\\d+)`, "m").exec(
+    boardCss,
+  );
+  return Number(rule?.[1] ?? Number.NaN);
+}
+
 describe("board.css", () => {
+  it.each(OVERLAYS)("stops %s at the save line", (selector) => {
+    const group =
+      /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*bottom:\s*var\(--save-h\)/m.exec(
+        boardCss,
+      );
+    expect(group?.[1]?.split(",\n")).toContain(selector);
+  });
+
+  it("keeps the save line and its drawer above every overlay", () => {
+    const highest = Math.max(
+      ...[...css.matchAll(/z-index:\s*(\d+)/g)].map((m) => Number(m[1])),
+    );
+    expect(boardZ(".board-saveline")).toBeGreaterThan(highest);
+    expect(boardZ(".board-drawer-clip")).toBeGreaterThan(highest);
+  });
+
+  it("writes the plate buttons' words at 4.5:1 on the key skin", () => {
+    const tokens = readFileSync("src/tokens.css", "utf8");
+    const rule = /^\.board-platebtn \{[^}]*?\bcolor:\s*var\((--[\w-]+)\)/m.exec(
+      boardCss,
+    );
+    const hex = new RegExp(`${rule?.[1] ?? "--none"}:\\s*(#[0-9a-f]{6})`).exec(
+      tokens,
+    )?.[1];
+    // The key face (key.png's fill, up and pressed): #20272c and #111518.
+    expect(contrast(hex ?? "#000000", "#20272c")).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(hex ?? "#000000", "#111518")).toBeGreaterThanOrEqual(4.5);
+  });
+
   it.each(BOARD_SELECTORS)("styles %s", (selector) => {
     const escaped = selector.replace(".", "\\.");
     expect(boardCss).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));
@@ -73,6 +144,10 @@ describe("board.css", () => {
 });
 
 describe("style.css", () => {
+  it("keeps the crew's rate line on the main screen until B3's gauge (#370)", () => {
+    expect(css).not.toMatch(/^\.crew-status[^{]*\{[^}]*display:\s*none/m);
+  });
+
   it.each(REQUIRED_SELECTORS)("styles %s", (selector) => {
     const escaped = selector.replace(".", "\\.");
     expect(css).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));
