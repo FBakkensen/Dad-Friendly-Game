@@ -1,29 +1,4 @@
 {
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/scripts/gate-hook.mjs stop",
-            "timeout": 300
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/scripts/gate-hook.mjs push",
-            "timeout": 3600
-          }
-        ]
-      }
-    ]
-  },
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true
   },

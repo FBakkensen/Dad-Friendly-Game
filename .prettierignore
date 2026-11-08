@@ -5,3 +5,6 @@ package-lock.json
 
 # Superpowers scratch: plan ledgers, briefs, and brainstorm sessions
 .superpowers
+
+# Reference mockup for the control board spec, kept as built
+mockups/control-board/

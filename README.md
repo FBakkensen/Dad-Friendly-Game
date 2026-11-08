@@ -23,9 +23,9 @@ npm run gate -- full
 
 `fast` is the edit-and-test loop. It runs the typecheck (incremental, so a warm run is quick), plus ESLint and `vitest related --project unit` on the code files changed since `origin/main`, including staged, unstaged, and untracked ones. No browser, no emulator, no economy sims. `npm run check:fast` is the same.
 
-`full` runs every check before every push to a PR branch: the toolchain report, typecheck, lint, import cycles, formatting, knip, CSS tokens, unit and sim tests with coverage, then the Firestore rules in the emulator and the two browser checks once the static checks pass. When the branch changes code the strategy lab runs (anything in the import closure of `tools/strategy-lab.ts`, `tools/generations-lab.ts`, and the lab's policies and measures), the strict lab runs too, beside the browser checks, once the tests pass. Independent steps run in parallel. On 4 cores the full tier takes about 3.5 minutes, or about 7 minutes when the lab runs (`lab:generations` plays each policy and seed in its own process; about 3 minutes alone, #314). The push hook's timeout is an hour, because a hook that times out lets the push through. `npm run check` is the same.
+`full` runs every check before a PR is opened: the toolchain report, typecheck, lint, import cycles, formatting, knip, CSS tokens, unit and sim tests with coverage, then the Firestore rules in the emulator and the two browser checks once the static checks pass. When the branch changes code the strategy lab runs (anything in the import closure of `tools/strategy-lab.ts`, `tools/generations-lab.ts`, and the lab's policies and measures), the strict lab runs too, beside the browser checks, once the tests pass. Independent steps run in parallel. On 4 cores the full tier takes about 3.5 minutes, or about 7 minutes when the lab runs (`lab:generations` plays each policy and seed in its own process; about 3 minutes alone, #314). `npm run check` is the same.
 
-There are no CI check runs. The Claude Code hooks in `.claude/settings.json` are the gate: the end of a turn runs `fast` when code changed, `git push` runs `full`, and red blocks either one. Only `deploy-hosting` runs on GitHub, on push to `main`.
+There are no CI check runs. The gate is run by hand: `fast` where superpowers says to verify, and `full` before the PR is opened. Red means no PR. Only `deploy-hosting` runs on GitHub, on push to `main`.
 
 Each step prints one line, such as `ok    typecheck  4.1s` or `FAIL  lint  2.3s  exit 1`. Every full log goes to `.gate/logs/<step>.log` (gitignored). A failed step also prints the last 40 lines of its log. A step behind a failed one is skipped. The steps, their tiers, and their order are a table in `src/gate.ts`.
 
@@ -37,7 +37,7 @@ Tests run in plain `node`. A test file that needs the DOM opens with `// @vitest
 
 ## Strategy lab
 
-`npm run lab` plays every registered player type and writes `reports/strategy-lab.md` and `reports/strategy-lab.json`. Those files are gitignored. Locally the seed count is `LOCAL_SEEDS`. `--ci` uses `CI_SEEDS` (see `src/lab/targets.ts`). `--seeds` overrides either. The lab is not part of the game the player runs. The full gate runs it with `--ci` and `LAB_STRICT=1` when economy code changed, so a missed guardrail blocks the push. Without that variable a miss is a warning.
+`npm run lab` plays every registered player type and writes `reports/strategy-lab.md` and `reports/strategy-lab.json`. Those files are gitignored. Locally the seed count is `LOCAL_SEEDS`. `--ci` uses `CI_SEEDS` (see `src/lab/targets.ts`). `--seeds` overrides either. The lab is not part of the game the player runs. The full gate runs it with `--ci` and `LAB_STRICT=1` when economy code changed, so a missed guardrail fails the gate. Without that variable a miss is a warning.
 
 The markdown table is one row per player type and one column per measure. A green pass or a red fail means a guardrail in `src/lab/targets.ts` covers that cell. A bare number has no guardrail. The header gives the optimizer's finish day and the plain dad's (`casual-2x10`); regret and extreme win use those two figures.
 

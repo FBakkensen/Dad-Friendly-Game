@@ -22,9 +22,9 @@ page is the map, plus the rules that keep it that way.
    given and scores every measure. `lab/guardrails` turns `targets.ts` into
    one check per entry. `tools/strategy-lab.ts` (`npm run lab`) loads the
    registries, writes the report, and warns on a miss unless `LAB_STRICT=1`.
-   The full gate (`npm run check`, run by the `git push` hook) runs it and
+   The full gate (`npm run check`, run before a PR is opened) runs it and
    `lab:generations` with `--ci` and `LAB_STRICT=1` when the branch changes
-   a file the lab imports, and a miss blocks the push. `tools/generations-lab.ts`
+   a file the lab imports, and a miss fails the gate. `tools/generations-lab.ts`
    plays each policy and seed in its own child process, one per core
    (`LAB_JOBS` sets the count, `tools/lab-pool.ts`); the runs of one seed stay
    in order, and the report is assembled in policy and seed order (#314). The crafted-share and idle-material rows are strict

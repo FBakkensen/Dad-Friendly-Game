@@ -7,7 +7,6 @@ import {
   economyChanged,
   gateSteps,
   importClosure,
-  isGitPush,
   LAB_ENTRIES,
   logTail,
   relativeImports,
@@ -238,35 +237,6 @@ describe("importClosure and economyChanged", () => {
         "tools/lab-register.mjs",
       ]),
     );
-  });
-});
-
-describe("isGitPush", () => {
-  it("finds a push anywhere in the command", () => {
-    for (const command of [
-      "git push",
-      "git push -u origin claude/branch",
-      "cd /repo && git push origin main",
-      "git -C /repo push",
-      "git -c color.ui=never --no-pager push",
-      "npm run gate -- full; git push --force-with-lease",
-    ]) {
-      expect(isGitPush(command), command).toBe(true);
-    }
-  });
-
-  it("leaves other git commands and mere mentions alone", () => {
-    for (const command of [
-      "git",
-      "git status",
-      "git log --oneline origin/main..HEAD",
-      "git pull origin main",
-      'git commit -m "push the gate"',
-      "echo git push",
-      "grep -n push scripts/gate.mjs",
-    ]) {
-      expect(isGitPush(command), command).toBe(false);
-    }
   });
 });
 
