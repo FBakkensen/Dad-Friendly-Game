@@ -46,9 +46,9 @@ All art is drawn at exactly 2× (one art pixel is two CSS pixels), nearest neigh
 
 1. **Relic plate.** Six sockets with the found relics lit and the next one dark. A tap shows a short note in today's words (the found relic's virtue, or the vague hint for the next one). An enamel tag reads "Relics of Fatherhood · 2 of 6". The tag opens the relic shelf (today's shelf dialog, reskinned).
 2. **Stock row.**
-   - **Odometer:** five drums show the pocket. Under 100,000 it shows the whole number ("41,380"). From 100K up it shows four figures and a unit drum (K, M, B, T), and the drums after the point have red faces ("412.4K"). It rounds down, like today's formatters, and from 1,000T it reads ">999T". Drums roll in hard steps.
+   - **Odometer:** five drums show the pocket. Under 100,000 it shows the whole number ("41,380"). From 100K up it shows four figures and a unit drum (K, M, B, T), and the drums after the point have red faces ("412.4K"). Unlike today's compact numbers, which switch to K at 10,000, it keeps whole numbers up to 100,000, because five drums have room. It rounds down, like today's formatters, and from 1,000T it reads ">999T". Drums roll in hard steps.
    - **STONES legend** on the enamel under it. A spend shows a short "−5,868" on the same line for 1.9s.
-   - **Boost dial** on the right: "OVERTIME ×2 · 7:08 LEFT" and a 30-minute dial face. It shows the crew ×N timer with the most time left (Overtime, axle grease or a blasting charge), named on its legend, and the face spans that timer's full length. With none running it reads "×1 · rested". See "Where everything else goes" for the other timers.
+   - **Boost dial** on the right: "OVERTIME ×2 · 7:08 LEFT" and a 30-minute dial face. It shows the crew timer the crew is actually running at: the strongest of Overtime, axle grease and a blasting charge (`liveCrewTimer` in `src/rates.ts`), with a tie going to the most time left. It is named on its legend, and the face spans that timer's full length. With none running it reads "×1 · rested". See "Where everything else goes" for the other timers.
 3. **Gauge row.**
    - **Output gauge:** a damped needle on 5° frames reads stones a second. Its face reads 0–15 of a unit (×100, ×1000, ×10K…). The unit steps up whenever output outgrows the dial, so the needle never pegs. A counter in the face shows the exact rate ("1.9K"). It kicks gently on a dig or a buy.
    - **Mine window:** 212×180, view 184×152 (see "The mine window").
@@ -67,8 +67,8 @@ All art is drawn at exactly 2× (one art pixel is two CSS pixels), nearest neigh
 5. **Ready now plate and the red button.**
    - **Ready now:** a guarded lamp button with a name plate: "READY NOW · Buy a cart · 5,868 · +12/s · your free worker can run it". The rule:
      1. the biggest machine your free workers can run and you can afford;
-     2. else, if a worker is free but nothing is affordable, the plate reads "SAVING FOR · Saving for a cart · in 4m" with the price and gain under it: the cheapest machine he can run, and the time until the pocket reaches its price at the current speed, rounded up to the next minute (decision D1). At zero speed, as on a new mountain, the time is left off and the plate shows the price only (call C11);
-     3. else a worker, offered only when no hand is free. If the worker is not affordable either, the plate reads "Saving for a worker";
+     2. else, if a worker is free but nothing is affordable, the plate reads "SAVING FOR · Saving for a cart · in 4m" with the price and gain under it: the cheapest machine he can run, and the time until the pocket reaches its price at the current speed, rounded up to the next minute and written like the timer chips ("4m", "1h 5m") (decision D1). At zero speed, as on a new mountain, the time is left off and the plate shows the price only (call C11);
+     3. else a worker, offered only when no hand is free. If the worker is not affordable either, the plate reads "Saving for a worker", with the price, gain and time as in step 2;
      4. it never buys by itself.
 
      One tap buys exactly one. The plate then shows "Done · +12/s · Cart 31 is rolling" and ignores taps for 1.9s, so a sleepy double tap buys one. A tap while it reads "Saving for" opens Buys and spends nothing. This is the one gold control on the board (`docs/ui-audit.md`, point 6).
@@ -145,7 +145,7 @@ The mockup does not show everything the game has. Each piece keeps its rules and
 
 ## Rules the board keeps
 
-- **Numbers:** real prices, gains, staff and free workers. Discoveries stay vague. No "?" in player text, except the existing "Start over?". Copy comes from `src/screen-words.ts` and today's words. New strings, such as "Saving for", "Done", "By hand", "No. 2 Shaft" and "Back to the board", are listed in each sliver's PR for Flemming.
+- **Numbers:** real prices, gains, staff and free workers. Discoveries stay vague. No "?" in player text, except the existing "Start over?". Copy comes from `src/screen-words.ts` and today's words. New strings, such as "Saving for", "Done", "By hand", "No. 2 Shaft", "Back to the board", "Try again", the bay line "+12/s · 1 hand" and the plate's "your free worker can run it", are listed in each sliver's PR for Flemming.
 - **Targets:** at least 48×48 CSS px with 8px gaps at 424×924. On a PC they are measured in board pixels before the fit scale, and the rendered size is reported, not gated (call C4). The mockup uses 54px for strips and drawer buttons, 64px keys, and 10px gaps.
 - **Text and contrast:** at least 13px at 424×924. Contrast is at least 4.5:1, measured from screenshot pixels. Numbers use a monospaced, tabular face.
 - **Fonts:** Barlow Condensed for legends and Share Tech Mono for numbers, both OFL licensed. They are bundled with the app so it works offline, not loaded from Google Fonts.
@@ -168,7 +168,7 @@ The mockup does not show everything the game has. Each piece keeps its rules and
   - The Ready now rule is a pure function in the rules layer, with unit tests. It is display only and never buys.
 - **The art moves** from `mockups/control-board/assets/art/ind-board/` into `src/assets/board/`, imported as today. New art goes through the pixellab skill, which asks first. Flemming has said there is no cap on art or quality.
 - **CSS:** new board tokens, palette and pixel sizes in `src/tokens.css`, with the token check kept. Each sliver removes the CSS of the part it replaces.
-- **Straight to live (decision D3):** there is no flag. Each sliver replaces its part of today's screen for real, so between B2 and B7 the game mixes the board and today's look. Each sitting still ships a game that plays and never scrolls at 424×924.
+- **Straight to live (decision D3):** there is no flag. Each sliver replaces its part of today's screen for real, so from B2 until both B6 and B7 have shipped, the game mixes the board and today's look. Each sitting still ships a game that plays and never scrolls at 424×924.
 
 ## Art
 
@@ -234,7 +234,7 @@ Answered on 7 Nov 2026:
 
 - **D1, the Saving for time:** keep it. The plate reads "Saving for a cart · in 4m". This is the one written exception to "never show time-to-afford" in `docs/design-intent.md`, and B4 adds it there. It is the time at the current speed, rounded up, and it shows only on this plate.
 - **D2, heights:** one phone layout, 424×924, the installed app. Shorter screens scale the board and are not tested.
-- **D3, rollout:** straight to live. Each sliver replaces its part of today's screen, with no flag, and the game mixes the two looks until B7. B8 only removes CSS nothing uses any more.
+- **D3, rollout:** straight to live. Each sliver replaces its part of today's screen, with no flag, and the game mixes the two looks until both B6 and B7 have shipped. B8 then adds the PC desk and the docs, and removes any CSS nothing uses any more.
 
 Earlier in this session, Flemming also ruled:
 
