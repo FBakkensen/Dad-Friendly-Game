@@ -3,7 +3,14 @@ import { tierLocked } from "../crew";
 import { LAYER_FAVOURS, LAYERS, layerOf, type LayerId } from "../layers";
 import type { Mountain } from "../mountain";
 import { MOUNTAIN_STONES, minedOut } from "../scale";
-import { owned, tierById, tierCost, tierShown, type TierId } from "../tiers";
+import {
+  MACHINE_IDS,
+  owned,
+  tierById,
+  tierCost,
+  tierShown,
+  type MachineId,
+} from "../tiers";
 import type { DecisionSample } from "./measure";
 import type { RevealEvent } from "./reveal";
 import { mean } from "./stats";
@@ -18,15 +25,6 @@ import {
  * Per-band report for M12 (#249). Report only: no guardrail reads it.
  * A band's share runs from 0 where it starts to 1 where the next begins.
  */
-
-export const MACHINE_IDS = [
-  "cart",
-  "drill",
-  "borer",
-  "machine",
-] as const satisfies readonly TierId[];
-
-type MachineId = (typeof MACHINE_IDS)[number];
 
 export type BandEvent =
   | {

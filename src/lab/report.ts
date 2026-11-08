@@ -1,6 +1,6 @@
 import { LAYERS, type LayerId } from "../layers";
-import { tierById } from "../tiers";
-import { MACHINE_IDS, type BandSummary, type Spread } from "./bands";
+import { MACHINE_IDS, tierById } from "../tiers";
+import type { BandSummary, Spread } from "./bands";
 import type { MeasureValue, ScoreMethod } from "./measure";
 import {
   CASUAL_REFERENCE_ID,
