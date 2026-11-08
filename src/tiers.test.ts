@@ -6,7 +6,14 @@ import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { MOUNTAIN_STONES, stonesLeft } from "./scale";
 import { parseSaveValue, serializeSave } from "./persist";
 import { withFactors } from "./economy/factors";
-import { TIERS, buyTier, tierById, tierCost, tierShown } from "./tiers";
+import {
+  MACHINE_IDS,
+  TIERS,
+  buyTier,
+  tierById,
+  tierCost,
+  tierShown,
+} from "./tiers";
 
 const at = (
   fields: Partial<Omit<Mountain, "remaining" | "startedAt">>,
@@ -23,6 +30,15 @@ const at = (
 });
 
 describe("tiers", () => {
+  it("lists the machines: every staffed tier, in tier order (#388)", () => {
+    // A new staffed tier (#359) lands here and fails this pin, so the lab
+    // measures that read MACHINE_IDS are checked on purpose, not skipped.
+    expect(MACHINE_IDS).toEqual(["cart", "drill", "borer", "machine"]);
+    expect(MACHINE_IDS).toEqual(
+      TIERS.filter((tier) => tier.staff > 0).map((tier) => tier.id),
+    );
+  });
+
   it("lists every tier cheapest first, each a big jump in speed", () => {
     expect(
       TIERS.map(({ id, firstCost, perSecond }) => [id, firstCost, perSecond]),

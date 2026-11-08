@@ -119,6 +119,21 @@ export const TIERS: readonly Tier[] = [
   },
 ];
 
+/** A tier that takes helpers to run (staff > 0): cart, drill, borer, machine. */
+export type MachineId = Exclude<TierId, "helper" | "kid">;
+
+function isMachine(tier: Tier): tier is Tier & { readonly id: MachineId } {
+  return tier.staff > 0;
+}
+
+/**
+ * The machines, in tier order: every staffed tier. The one list the lab reads
+ * (bands, generations, report), so a new machine tier joins it (#388).
+ */
+export const MACHINE_IDS: readonly MachineId[] = TIERS.filter(isMachine).map(
+  (tier) => tier.id,
+);
+
 export function tierById(id: TierId): Tier {
   const tier = TIERS.find((candidate) => candidate.id === id);
   if (tier === undefined) {

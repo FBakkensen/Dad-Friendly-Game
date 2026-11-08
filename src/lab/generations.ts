@@ -4,16 +4,17 @@ import { createMountain, type Mountain } from "../mountain";
 import type { Policy } from "./policy";
 import { runPolicy } from "./run";
 import { stretch } from "../scale";
-
-/** The machines every run should still buy (D3: each one worth buying). */
-export const MACHINE_IDS = ["cart", "drill", "borer", "machine"] as const;
+import { MACHINE_IDS } from "../tiers";
 
 export type GenerationRun = {
   /** 1-based run number. Run N plays with Legacy N-1. */
   readonly run: number;
   readonly k: number;
   readonly finishDay: number | undefined;
-  /** Machines from `MACHINE_IDS` this run never bought. */
+  /**
+   * Machines from `MACHINE_IDS` (src/tiers.ts) this run never bought. Every
+   * run should still buy each one (D3: each one worth buying).
+   */
   readonly unbought: readonly string[];
 };
 
