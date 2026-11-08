@@ -21,8 +21,35 @@ import {
   type Relic,
   type RelicId,
 } from "./relics";
+import type { Mountain } from "./mountain";
 import { KEEPSAKES_TITLE, keepsakeWords } from "./screen-words";
 import { TIERS, owned } from "./tiers";
+
+/**
+ * The words for one relic, shared by the shelf rows and the board's relic
+ * plate so they never disagree. The hint is the guided next relic's only.
+ */
+export function relicNote(
+  mountain: Mountain,
+  relic: Relic,
+): {
+  readonly title: string;
+  readonly line: string;
+  readonly hint: string | undefined;
+} {
+  const hint = depthHint(mountain);
+  const isNext =
+    hasRelic(mountain, "lantern") &&
+    relic === nextRelic(mountain) &&
+    hint !== undefined;
+  return {
+    title: relic.name,
+    line: hasRelic(mountain, relic.id)
+      ? `The virtue of ${relic.virtue}. Your power: ${relic.boost}`
+      : relic.tease,
+    hint: isNext ? `Next · ${hint}` : undefined,
+  };
+}
 
 /** The relic shelf, a found relic's detail card, the relic-found card and the Legend finale. */
 export function createRelicPanels({
@@ -56,10 +83,11 @@ export function createRelicPanels({
     shelfButton.append(slot);
     return slot;
   });
-  shelfButton.addEventListener("click", () => {
+  const openShelf = (): void => {
     shelfOpen = true;
     requestRender();
-  });
+  };
+  shelfButton.addEventListener("click", openShelf);
 
   const shelf = document.createElement("div");
   shelf.className = "shelf-dialog";
@@ -312,9 +340,6 @@ export function createRelicPanels({
       "aria-label",
       `Relic shelf, ${String(found)} of ${String(RELICS.length)} found`,
     );
-    const guided = hasRelic(getView().mountain, "lantern");
-    const next = nextRelic(getView().mountain);
-    const hint = depthHint(getView().mountain);
     for (const [index, relic] of RELICS.entries()) {
       const has = hasRelic(getView().mountain, relic.id);
       const slot = shelfSlots[index];
@@ -327,10 +352,9 @@ export function createRelicPanels({
       row.row.classList.toggle(SHEET_READY, has);
       row.row.classList.toggle(SHEET_LOCKED, !has);
       row.art.src = relicArt[relic.id];
-      row.name.textContent = relic.name;
-      row.detail.textContent = has
-        ? `The virtue of ${relic.virtue}. Your power: ${relic.boost}`
-        : relic.tease;
+      const words = relicNote(getView().mountain, relic);
+      row.name.textContent = words.title;
+      row.detail.textContent = words.line;
       if (has) {
         row.row.tabIndex = 0;
         row.row.setAttribute("role", "button");
@@ -340,9 +364,8 @@ export function createRelicPanels({
         row.row.removeAttribute("role");
         row.row.removeAttribute("aria-label");
       }
-      const isNext = guided && relic === next && hint !== undefined;
-      row.hint.hidden = !isNext;
-      row.hint.textContent = isNext ? `Next · ${hint}` : "";
+      row.hint.hidden = words.hint === undefined;
+      row.hint.textContent = words.hint ?? "";
     }
     const detailWasOpen = !detail.hidden;
     detail.hidden = !shelfOpen || detailRelic === undefined;
@@ -409,5 +432,5 @@ export function createRelicPanels({
     renderShelf();
   };
 
-  return { shelfButton, shelf, detail, reveal, legend, render };
+  return { shelfButton, openShelf, shelf, detail, reveal, legend, render };
 }

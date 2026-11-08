@@ -262,3 +262,65 @@ body {
   background-repeat: no-repeat;
   image-rendering: pixelated;
 }
+
+/* The relic plate (#370): a framed 416x64 row, six 56x56 sockets, and the tag. */
+.board-relics {
+  width: calc(var(--art) * 208);
+  height: calc(var(--art) * 32);
+  margin-left: calc(var(--art) * 2);
+}
+
+.board-socket {
+  position: absolute;
+  top: calc(var(--art) * 2);
+  left: calc(var(--art) * var(--at));
+  width: calc(var(--art) * 28);
+  height: calc(var(--art) * 28);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.board-socket-base,
+.board-relic {
+  position: absolute;
+  image-rendering: pixelated;
+}
+
+.board-socket-base {
+  left: 0;
+  top: 0;
+  width: calc(var(--art) * 28);
+  height: calc(var(--art) * 28);
+}
+
+.board-relic {
+  left: calc(var(--art) * 2);
+  top: calc(var(--art) * 2);
+  width: calc(var(--art) * 24);
+  height: calc(var(--art) * 24);
+}
+
+.board-tag,
+.board-tag.board-skinned {
+  position: absolute;
+  left: calc(var(--art) * 50);
+  top: calc(var(--art) * 28);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--art) * 108);
+  height: calc(var(--art) * 10);
+  padding: 0;
+  border: 0;
+  background: none;
+  white-space: nowrap;
+  color: var(--board-ink-plate);
+  cursor: pointer;
+}
+
+.board-tag .board-lg {
+  color: var(--board-ink-plate);
+}
