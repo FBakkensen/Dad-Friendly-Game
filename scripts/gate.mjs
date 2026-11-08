@@ -3,7 +3,7 @@
  * One quiet gate, two tiers. One line per step; each full log goes to
  * .gate/logs/<step>.log, and a failed step prints its tail.
  *   npm run gate -- fast   the edit loop (npm run check:fast)
- *   npm run gate -- full   before every push to a PR branch (npm run check)
+ *   npm run gate -- full   before the PR is opened (npm run check)
  * The step table and its rules are in src/gate.ts.
  */
 import { spawn } from "node:child_process";

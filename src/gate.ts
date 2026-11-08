@@ -3,7 +3,7 @@
  * the order they may run in, and the one line each prints.
  *
  *   npm run gate -- fast   the edit loop: typecheck, lint and tests on changes
- *   npm run gate -- full   everything, before every push (`npm run check`)
+ *   npm run gate -- full   everything, before the PR (`npm run check`)
  */
 
 export type Tier = "fast" | "full";

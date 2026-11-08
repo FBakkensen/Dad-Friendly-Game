@@ -23,7 +23,7 @@ One issue, one branch, one PR, `Fixes #N`. Use the github-issues skill for the g
 
 ## Push as you go
 
-Commit and push the sitting's branch as work lands, with `git push` from the shell. That keeps the work safe if the cloud container is reclaimed, and it is what the cloud Stop hook asks (`CLAUDE.md`). A push is not shipping. Opening the PR is.
+Commit and push the sitting's branch as work lands, with `git push` from the shell, not the GitHub MCP `push_files` or `create_or_update_file`: they commit on the remote, and the local branch falls behind. Pushing as you go keeps the work safe if the cloud container is reclaimed, and it is what the cloud Stop hook asks (`CLAUDE.md`). A push is not shipping. Opening the PR is.
 
 ## The gate
 
@@ -34,7 +34,7 @@ There are no CI check runs on a PR. The proof is the gate, run by hand:
 
 ## Commit
 
-- The work is proven: gate green, and `npm run play` seen for anything the player sees.
+- Before the PR, the work is proven: gate green, and `npm run play` seen for anything the player sees.
 - On the sitting's branch, not `main`.
 - Stage only this issue's files. No secrets (`.env`, Firebase, PixelLab tokens).
 - If a second sliver snuck in, stop. That work gets its own issue, not this PR.
@@ -75,7 +75,7 @@ In a cloud session, subscribe to the PR (`subscribe_pr_activity`) and let events
 3. Handle review comments with `superpowers:receiving-code-review`. Fix real in-scope issues. Dismiss invalid ones with a reason. Ask the human on auth, secrets, security, or a real product question. Nits do not block merge.
 4. Run the fast gate on every fix, commit, and push. Run `npm run gate -- full` again before merging when a fix changed code. Never force-push.
 
-When the PR is mergeable, the full gate is green on its last commit, and every non-nit comment is fixed or dismissed, squash-merge without waiting:
+When the PR is mergeable, the full gate is green since the last code change, and every non-nit comment is fixed or dismissed, squash-merge without waiting:
 
 ```bash
 gh pr merge --squash
