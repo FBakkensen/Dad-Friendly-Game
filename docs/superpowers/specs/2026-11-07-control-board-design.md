@@ -48,7 +48,7 @@ All art is drawn at exactly 2× (one art pixel is two CSS pixels), nearest neigh
 2. **Stock row.**
    - **Odometer:** five drums show the pocket. Under 100,000 it shows the whole number ("41,380"). From 100K up it shows four figures and a unit drum (K, M, B, T), and the drums after the point have red faces ("412.4K"). Unlike today's compact numbers, which switch to K at 10,000, it keeps whole numbers up to 100,000, because five drums have room. It rounds down, like today's formatters, and from 1,000T it reads ">999T". Drums roll in hard steps.
    - **STONES legend** on the enamel under it. A spend shows a short "−5,868" on the same line for 1.9s.
-   - **Boost dial** on the right: "OVERTIME ×2 · 7:08 LEFT" and a 30-minute dial face. It shows the crew timer the crew is actually running at: the strongest of Overtime, axle grease and a blasting charge (`liveCrewTimer` in `src/rates.ts`), with a tie going to the most time left. It is named on its legend, and the face spans that timer's full length. With none running it reads "×1 · rested". See "Where everything else goes" for the other timers.
+   - **Boost dial** on the right: "OVERTIME ×2 · 7:08 LEFT" and a dial face (30 minutes for Overtime). It shows the crew timer the crew is actually running at: the strongest of Overtime, axle grease and a blasting charge (`liveCrewTimer` in `src/rates.ts`), with a tie going to the most time left. It is named on its legend, and the face spans that timer's full length. With none running it reads "×1 · rested". See "Where everything else goes" for the other timers.
 3. **Gauge row.**
    - **Output gauge:** a damped needle on 5° frames reads stones a second. Its face reads 0–15 of a unit (×100, ×1000, ×10K…). The unit steps up whenever output outgrows the dial, so the needle never pegs. A counter in the face shows the exact rate ("1.9K"). It kicks gently on a dig or a buy.
    - **Mine window:** 212×180, view 184×152 (see "The mine window").
@@ -67,7 +67,7 @@ All art is drawn at exactly 2× (one art pixel is two CSS pixels), nearest neigh
 5. **Ready now plate and the red button.**
    - **Ready now:** a guarded lamp button with a name plate: "READY NOW · Buy a cart · 5,868 · +12/s · your free worker can run it". The rule:
      1. the biggest machine your free workers can run and you can afford;
-     2. else, if a worker is free but nothing is affordable, the plate reads "SAVING FOR · Saving for a cart · in 4m" with the price and gain under it: the cheapest machine he can run, and the time until the pocket reaches its price at the current speed, rounded up to the next minute and written like the timer chips ("4m", "1h 5m") (decision D1). At zero speed, as on a new mountain, the time is left off and the plate shows the price only (call C11);
+     2. else, if a worker is free but nothing is affordable, the plate reads "SAVING FOR · Saving for a cart · in 4m" with the price and gain under it: the cheapest machine he can run, and the time until the pocket reaches its price at the current speed, rounded up to the next minute and written in a new short form: "4m" under an hour, "1h 5m" from an hour (the mockup's, listed as new copy in B4) (decision D1). At zero speed, as on a new mountain, the time is left off and the plate shows the price only (call C11);
      3. else a worker, offered only when no hand is free. If the worker is not affordable either, the plate reads "Saving for a worker", with the price, gain and time as in step 2;
      4. it never buys by itself.
 
