@@ -169,5 +169,6 @@ export function createOdometer(): Odometer {
   };
 
   set(0);
+  painted = false;
   return { root, set, spend };
 }

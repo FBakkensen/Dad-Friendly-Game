@@ -58,4 +58,21 @@ describe("createOdometer", () => {
     odo.spend(12_345);
     expect(odo.root.querySelector(".board-spend")?.textContent).toBe("−12.3K");
   });
+
+  it("swaps the first set() and rolls the next", () => {
+    const animate = vi.fn(() => ({ onfinish: null, getAnimations: () => [] }));
+    const proto = Element.prototype as { animate: unknown };
+    const original = proto.animate;
+    proto.animate = animate;
+    try {
+      const odo = createOdometer();
+      odo.set(41_380);
+      expect(animate).not.toHaveBeenCalled();
+      expect(faces(odo.root)).toEqual(["4", "1", "3", "8", "0"]);
+      odo.set(41_381);
+      expect(animate).toHaveBeenCalled();
+    } finally {
+      proto.animate = original;
+    }
+  });
 });

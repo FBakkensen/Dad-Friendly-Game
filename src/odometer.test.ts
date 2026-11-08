@@ -38,4 +38,17 @@ describe("odometerFace", () => {
     expect(face(-5)).toEqual({ drums: "00000", point: -1, words: "0" });
     expect(face(Infinity).words).toBe(">999T");
   });
+
+  it("keeps exact digits at round thousands", () => {
+    expect(face(1_001_000).words).toBe("1.001M");
+    expect(face(1_003_000).words).toBe("1.003M");
+    for (let k = 1001; k <= 1100; k++) {
+      const q = String(k);
+      expect(face(k * 1000)).toEqual({
+        drums: `${q}M`,
+        point: 0,
+        words: `${q.slice(0, 1)}.${q.slice(1)}M`,
+      });
+    }
+  });
 });

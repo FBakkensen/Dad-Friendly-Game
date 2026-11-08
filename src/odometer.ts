@@ -37,18 +37,15 @@ export function odometerFace(pocket: number): OdometerFace {
     value: 1e3,
     unit: "K",
   };
-  const scaled = n / value;
-  const intLen = String(Math.floor(scaled)).length;
+  const intLen = String(Math.floor(n / value)).length;
   const decimals = 4 - intLen;
-  const shown = (Math.floor(scaled * 10 ** decimals) / 10 ** decimals).toFixed(
-    decimals,
-  );
-  const digits = shown.replace(".", "").slice(0, 4).split("");
-  const [a = "0", b = "0", c = "0", d = "0"] = digits;
+  // value / 10 ** decimals is an exact integer, so the division floors without float error.
+  const shown = String(Math.floor(n / (value / 10 ** decimals)));
+  const [a = "0", b = "0", c = "0", d = "0"] = shown.split("");
   const point = (intLen - 1) as 0 | 1 | 2;
   return {
     drums: [a, b, c, d, unit],
     point,
-    words: `${shown.slice(0, intLen)}.${shown.slice(intLen + 1)}${unit}`,
+    words: `${shown.slice(0, intLen)}.${shown.slice(intLen)}${unit}`,
   };
 }
