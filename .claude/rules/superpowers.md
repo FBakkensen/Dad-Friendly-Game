@@ -23,6 +23,7 @@ The superpowers plugin (`superpowers@claude-plugins-official`, enabled in `.clau
   - PixelLab spend (the pixellab skill always asks first).
 
   Ask it as one question with three options and one recommended. Everything else is a ruling, as superpowers says: decide, record it in the ledger, and keep going. That includes prices, growth rates, and band scales inside the levers the plan agreed on. Rulings also go in the PR body (ship-sitting).
+
 - **Questions.** Brainstorming asks its own way. The three-option format is for picking work (what-next) and for the three stops above.
 - **Finishing.** In `superpowers:finishing-a-development-branch`, the choice is always "Push and create a Pull Request": do not show the menu. The base branch is `main`. Its full test suite is `npm run gate -- full`, run before the PR is opened. The PR URL is reported after the squash-merge, not at creation. Never merge locally into `main`. When a plan says to use finishing-a-development-branch, use the ship-sitting skill instead; it reviews, then calls finishing.
 - **Commit and push as work lands.** Push the sitting's branch after each commit. That keeps the work safe if the cloud container is reclaimed, and it is what the cloud Stop hook asks (`CLAUDE.md`). A push is not shipping. Opening the PR is.
