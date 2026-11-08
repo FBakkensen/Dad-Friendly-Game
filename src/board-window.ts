@@ -49,6 +49,8 @@ export interface MineWindow {
     spot: { readonly left: number; readonly top: number } | undefined,
   ): void;
   tick(dt: number): void;
+  /** Plays the dig puff and "+N" at the upper face for a dig made elsewhere (the red button). */
+  dug(mined: number): void;
 }
 
 type Spot = { readonly x: number; readonly y: number };
@@ -443,7 +445,13 @@ export function createMineWindow({
     return { y: r.y, step: n, acc };
   };
 
-  return { root, dig, vein, render, showVein, tick };
+  const dug = (mined: number): void => {
+    if (mined > 0) {
+      showDig(undefined, mined);
+    }
+  };
+
+  return { root, dig, vein, render, showVein, tick, dug };
 }
 
 /** The longest step the board takes: a tab back from hours away is one 0.1s step. */

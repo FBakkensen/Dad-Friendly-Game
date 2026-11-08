@@ -240,6 +240,22 @@ describe("createMineWindow", () => {
     expect(plus.hidden).toBe(true);
   });
 
+  it("dug(N) plays the puff and +N at the upper face, as a keyboard click does, without digging", () => {
+    motion(false);
+    const { win, onDig } = make(20);
+    win.render(SCENE);
+    win.dug(20);
+    expect(onDig).not.toHaveBeenCalled();
+    const plus = el(win, ".board-dig-plus");
+    expect(plus.hidden).toBe(false);
+    expect(plus.textContent).toBe("+20");
+    expect(plus.style.left).toBe("150px");
+    expect(plus.style.top).toBe("56px");
+    expect(shown(win, ".board-dig-dust")).toBe(true);
+    expect(el(win, ".board-dig-dust").style.left).toBe("134px");
+    expect(el(win, ".board-dig-dust").style.top).toBe("60px");
+  });
+
   it("a dig that mines nothing shows nothing", () => {
     motion(false);
     const { win, onDig } = make(0);

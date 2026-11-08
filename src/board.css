@@ -1265,12 +1265,14 @@ body {
 }
 
 /* ---------- the Ready row (#372) ----------
-   The mockup's #rReady, 424 x 59 art: the Ready now plate, a 144x48 art
-   button at (3, 0), and the red DIG button at (152, 0). Its guard and the
-   red button change whole frames from board-ready.ts (inline
-   background-position-x); the rest is placed here. */
+   The mockup's #rReady, 424 x 59 art at (0, --ready-top): the Ready now
+   plate, a 144x48 art button at (3, 0), and the red DIG button at (152, 0).
+   Its guard and the red button change whole frames from board-ready.ts
+   (inline background-position-x); the rest is placed here. */
 .board-ready-row {
-  position: relative;
+  position: absolute;
+  left: 0;
+  top: var(--ready-top);
   width: var(--board-w);
   height: calc(var(--art) * 59);
 }

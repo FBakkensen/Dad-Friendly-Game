@@ -75,6 +75,9 @@ const BOARD_SELECTORS = [
   ".board-band",
   ".board-flap",
   ".board-thanks",
+  ".board-ready-row",
+  ".board-ready",
+  ".board-dig-button",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
@@ -147,6 +150,12 @@ describe("board.css", () => {
     // The key face (key.png's fill, up and pressed): #20272c and #111518.
     expect(contrast(hex ?? "#000000", "#20272c")).toBeGreaterThanOrEqual(4.5);
     expect(contrast(hex ?? "#000000", "#111518")).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("stands the Ready row at its top in #app, under the bays (#372)", () => {
+    const rule = /^\.board-ready-row \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    expect(rule).toMatch(/position:\s*absolute/);
+    expect(rule).toMatch(/top:\s*var\(--ready-top\)/);
   });
 
   it("lets an open note take taps, so none falls through to the dial or the menu", () => {

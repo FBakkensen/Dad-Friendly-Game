@@ -11,7 +11,7 @@ import {
   stonesPerSecond,
   type Mountain,
 } from "./mountain";
-import { type TierId } from "./tiers";
+import { owned, tierById, type TierId } from "./tiers";
 import type { TroubleTier } from "./hazards";
 import { hasRelic, relicGoal, type RelicId } from "./relics";
 import { BOOSTS } from "./boosts";
@@ -20,6 +20,11 @@ import { createBoardNote } from "./board-note";
 import { bandWords, createMachineBays } from "./board-bays";
 import { bayViews } from "./machine-bays";
 import { readyNow, type ReadyPick } from "./ready-now";
+import {
+  createDigButton,
+  createReadyPlate,
+  type ReadyTap,
+} from "./board-ready";
 import { createCrewPlate, createOutputGauge } from "./board-gauge";
 import { crewCounts } from "./crew-count";
 import { createMineWindow, runBoardLoop } from "./board-window";
@@ -39,7 +44,7 @@ import { createSavedCopiesPanel } from "./saved-copies-panel";
 import { createLegacyPanel, legacyWords } from "./legacy-panel";
 import { legacyBonus } from "./legacy";
 import { createBuysHead } from "./buys-head";
-import { createCrewPanel } from "./crew-panel";
+import { buyWithTeach, createCrewPanel } from "./crew-panel";
 import { SHEET_HOST } from "./sheet-card";
 import { createEngineersPanel } from "./engineers-panel";
 import { createUpgradesPanel } from "./upgrades-panel";
@@ -101,6 +106,8 @@ function craftMultiplier(
     }
   }
 }
+
+const MINED_OUT = "The mountain is mined out";
 
 export function mountMountainScreen({
   root,
@@ -412,7 +419,15 @@ export function mountMountainScreen({
     crewPlate.set(crewCounts(mountain, now(), trouble));
   };
   const mine = createMineWindow({
-    onDig: dig,
+    // A window tap counts by hand on the red button, which echoes the press.
+    onDig: () => {
+      const mined = dig();
+      if (mined > 0) {
+        digButton.dug(mined);
+        digButton.echo();
+      }
+      return mined;
+    },
     onVein: tapVein,
     legacyBadge: legacy.badge,
     random,
@@ -420,6 +435,64 @@ export function mountMountainScreen({
   const gaugeRow = document.createElement("div");
   gaugeRow.className = "board-gauge-row";
   gaugeRow.append(gauge.root, mine.root, crewPlate.root);
+
+  // The Ready row (#372): the Ready now plate and the red DIG button.
+  /**
+   * A tap on the plate reads the rule again from the store, never the painted
+   * pick: a pocket that fell since the last frame buys nothing. A ready pick
+   * buys exactly one through the store; a pick being saved for opens Buys.
+   */
+  const tapReady = (): ReadyTap => {
+    const latest = progress.getSnapshot();
+    if (!latest.ready || !latest.playing) {
+      return { kind: "nothing" };
+    }
+    const pick = readyNow(latest.mountain, now(), latest.trouble);
+    if (pick.kind === "saving") {
+      openBuys();
+      return { kind: "opened" };
+    }
+    if (pick.kind !== "ready") {
+      return { kind: "nothing" };
+    }
+    const tier = tierById(pick.tier);
+    const before = owned(latest.mountain, tier);
+    progress.applyMutation((current) => buyWithTeach(current, pick.tier));
+    const count = owned(progress.getSnapshot().mountain, tier);
+    return count > before
+      ? { kind: "bought", tier: pick.tier, count, gain: pick.gain }
+      : { kind: "nothing" };
+  };
+  const readyPlate = createReadyPlate({ onTap: tapReady });
+  // The red button digs exactly as a window tap does, and the window shows it.
+  const digButton = createDigButton({
+    onPress: () => {
+      const mined = dig();
+      if (mined > 0) {
+        mine.dug(mined);
+        digButton.dug(mined);
+      }
+    },
+  });
+  readyPlate.root.append(digButton.root);
+  /** Until the save is in, nothing from it shows on the plate or the button. */
+  const renderReadyRow = (pick: ReadyPick): void => {
+    readyPlate.render(
+      view.ready ? pick : undefined,
+      view.playing && view.ready,
+    );
+    if (!view.ready) {
+      return;
+    }
+    const tapYield = effectiveRates(view.mountain, now()).tapYield;
+    digButton.set(
+      tapYield,
+      !mine.dig.disabled,
+      view.mountain.remaining === 0
+        ? MINED_OUT
+        : `Dig: tap to mine ${tapWords(tapYield)}`,
+    );
+  };
 
   /** The socket whose note opened the shelf: focus goes back there. */
   let shelfDoor: HTMLElement | undefined;
@@ -651,7 +724,7 @@ export function mountMountainScreen({
     mine.dig.setAttribute(
       "aria-label",
       left === 0
-        ? "The mountain is mined out"
+        ? MINED_OUT
         : `Mine window: tap to mine ${tapWords(effectiveRates(view.mountain, now()).tapYield)}`,
     );
     // The window draws the save once it has loaded, so the first scene it
@@ -663,6 +736,7 @@ export function mountMountainScreen({
     // The Ready now pick, once per render: the bays light theirs (#372).
     const pick = readyNow(view.mountain, now(), view.trouble);
     renderBays(pick);
+    renderReadyRow(pick);
     crewPanel.render();
     renderVein();
     renderGuide();
@@ -1049,6 +1123,7 @@ export function mountMountainScreen({
     boardTop,
     gaugeRow,
     bays.root,
+    readyPlate.root,
     thumbBar,
     drawerClip,
     saveLine.line,
@@ -1083,6 +1158,7 @@ export function mountMountainScreen({
     renderGaugeRow();
     const pick = readyNow(view.mountain, now(), view.trouble);
     renderBays(pick);
+    renderReadyRow(pick);
     renderTeach();
     coverNote();
   }, 1000);
