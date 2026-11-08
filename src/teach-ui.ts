@@ -115,11 +115,16 @@ export function createInfoButton(
   return button;
 }
 
-/** One screen, 3–4 lines with an icon each, and one way back. */
+/**
+ * One how card step: the icon's src, its words, and the icon's CSS px
+ * (32 when left out; the board's machines show at 64, #373).
+ */
+export type HowCardStep = readonly [src: string, words: string, px?: number];
+
 /** Rewrites a how card's step words in place (M13: a new run's prices). */
 export function setHowSteps(
   card: HTMLElement,
-  steps: readonly (readonly [string, string])[],
+  steps: readonly (readonly [unknown, string, ...unknown[]])[],
 ): void {
   const texts = card.querySelectorAll(".teach-how-steps li span");
   steps.forEach(([, words], index) => {
@@ -130,9 +135,10 @@ export function setHowSteps(
   });
 }
 
+/** One screen, 3–4 lines with an icon each, and one way back. */
 export function createHowCard(
   title: string,
-  steps: readonly (readonly [string, string])[],
+  steps: readonly HowCardStep[],
   back: string,
   onBack: () => void,
 ): HTMLElement {
@@ -144,13 +150,13 @@ export function createHowCard(
   heading.textContent = title;
   const list = document.createElement("ul");
   list.className = "teach-how-steps";
-  for (const [src, words] of steps) {
+  for (const [src, words, px = 32] of steps) {
     const item = document.createElement("li");
     const art = document.createElement("img");
     art.src = src;
     art.alt = "";
-    art.width = 32;
-    art.height = 32;
+    art.width = px;
+    art.height = px;
     art.draggable = false;
     const text = document.createElement("span");
     text.textContent = words;

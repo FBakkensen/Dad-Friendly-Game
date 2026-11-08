@@ -757,10 +757,9 @@ body {
   pointer-events: auto;
 }
 
-/* Buys and Upgrades stop under the stock row's legend, so a buy's spend shows
-   on the odometer above the sheet (#370). */
-.buys-card,
-.upgrades-dialog .upgrades-card {
+/* Buys stops under the stock row's legend, so a buy's spend shows on the
+   odometer above the sheet (#370). */
+.buys-card {
   max-height: calc(100% - var(--board-top) - var(--art));
 }
 
@@ -775,7 +774,6 @@ body {
 .game-menu,
 .field-log-sheet,
 .buys-dialog,
-.upgrades-dialog,
 .engineers-dialog,
 .update-prompt,
 .other-tab,
@@ -1839,6 +1837,11 @@ button.board-row:focus-visible {
   color: var(--board-green);
 }
 
+/* The New row speaks through its lamp and its New flag, not today's gold glow. */
+.board-row.teach-new {
+  box-shadow: none;
+}
+
 /* Last, so an empty part hides over its own display. An icon not drawn yet
    keeps its column. */
 .board-row [hidden] {
@@ -1868,6 +1871,7 @@ button.board-row:focus-visible {
 .board-sheet,
 .board-sheet.board-skinned {
   top: var(--sheet-top);
+  font-family: "Barlow Condensed", sans-serif;
   bottom: calc(var(--art) * 2);
   padding: calc(var(--art) * 7) calc(var(--art) * 7) calc(var(--art) * 6);
   pointer-events: auto;
@@ -2052,8 +2056,74 @@ button.board-row:focus-visible {
   display: block;
 }
 
+/* The "i" cards in a drawer (#373): today's how card in board ink. Machines
+   and the worker show at 32 art px, the small icons at 16 in the same column,
+   and the way back is a plate button like Back. */
+.board-sheet .teach-how {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 3);
+  padding: 0 calc(var(--art) * 2);
+  color: var(--board-ink);
+}
+
+.board-sheet .teach-how-title {
+  margin: 0;
+  font-size: var(--board-type-20);
+  line-height: var(--board-sheet-title-lead);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--board-ink);
+}
+
+.board-sheet .teach-how-steps {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-sheet .teach-how-steps li {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 5);
+  font-size: var(--board-type-15);
+  line-height: var(--board-row-gain-lead);
+  color: var(--board-ink);
+}
+
+.board-sheet .teach-how-steps img {
+  flex: none;
+  object-fit: fill;
+  image-rendering: pixelated;
+}
+
+.board-sheet .teach-how-steps img[width="64"] {
+  width: calc(var(--art) * 32);
+  height: calc(var(--art) * 32);
+}
+
+.board-sheet .teach-how-steps img[width="32"] {
+  width: calc(var(--art) * 16);
+  height: calc(var(--art) * 16);
+  margin: 0 calc(var(--art) * 8);
+}
+
+.board-sheet .teach-how-back {
+  flex: none;
+  width: 100%;
+  margin-top: calc(var(--art) * 2);
+  font-size: var(--board-type-16);
+}
+
 /* Last, so a hidden part hides over its own display. */
 .board-sheet > [hidden],
-.board-sheet-list > [hidden] {
+.board-sheet-list > [hidden],
+.board-sheet-how [hidden] {
   display: none;
 }

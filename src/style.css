@@ -154,14 +154,6 @@ body {
   image-rendering: pixelated;
 }
 
-.upgrades-heading {
-  align-self: flex-start;
-  margin: 4px 0 -6px;
-  font-size: 0.95rem;
-  letter-spacing: 0.04em;
-  color: #c9b08e;
-}
-
 /* Running boosts: small chips in the mountain's top corner, never in the flow. */
 .boost-chips {
   position: absolute;
@@ -191,67 +183,6 @@ body {
 .boost-chip[hidden],
 .expedition-chip[hidden] {
   display: none;
-}
-
-.upgrades-pocket {
-  margin: 0;
-  color: #f2c46d;
-  font-variant-numeric: tabular-nums;
-}
-
-.upgrade-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  text-align: left;
-}
-
-.upgrade {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px;
-  border: 1px solid #6b4a2a;
-  border-radius: 12px;
-}
-
-.upgrade p {
-  margin: 0;
-}
-
-.upgrade-name {
-  font-weight: 700;
-  color: #e8d4b8;
-}
-
-.upgrade-effect,
-.upgrade-now {
-  font-size: 0.9rem;
-  color: #c9b08e;
-}
-
-.upgrade-buy {
-  appearance: none;
-  min-height: 48px;
-  margin-top: 6px;
-  border: 0;
-  border-radius: 10px;
-  background: linear-gradient(#f2c46d, #c98a32);
-  color: #1e130d;
-  font: inherit;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.upgrade-buy:disabled {
-  background: #2a1a10;
-  color: #a88a62;
-  cursor: default;
 }
 
 .goal,
@@ -735,7 +666,6 @@ body {
 .game-menu,
 .field-log-sheet,
 .buys-dialog,
-.upgrades-dialog,
 .engineers-dialog,
 .update-prompt,
 .other-tab,
@@ -766,7 +696,6 @@ body {
 .game-menu[hidden],
 .field-log-sheet[hidden],
 .buys-dialog[hidden],
-.upgrades-dialog[hidden],
 .engineers-dialog[hidden],
 .other-tab[hidden],
 .save-conflict[hidden],
@@ -781,7 +710,6 @@ body {
 .shelf-card,
 .start-over-card,
 .menu-card,
-.upgrades-card,
 .update-card,
 .other-tab-card,
 .save-conflict-sheet,
@@ -805,7 +733,6 @@ body {
 .shelf-card h2,
 .start-over-card h2,
 .menu-card h2,
-.upgrades-card h2,
 .update-card h2,
 .other-tab-card h2 {
   margin: 0;
@@ -860,7 +787,6 @@ body {
 .reveal-continue,
 .shelf-close,
 .menu-close,
-.upgrades-close,
 .engineers-close {
   appearance: none;
   width: 100%;
@@ -879,7 +805,6 @@ body {
 .reveal-continue:focus-visible,
 .shelf-close:focus-visible,
 .menu-close:focus-visible,
-.upgrades-close:focus-visible,
 .engineers-close:focus-visible,
 .engineer-tunnel:focus-visible,
 .engineer-choice:focus-visible,
@@ -889,7 +814,6 @@ body {
 .engineer-recall:focus-visible,
 .recall-no:focus-visible,
 .recall-yes:focus-visible,
-.upgrade-buy:focus-visible,
 .upgrades-button:focus-visible,
 .engineers-button:focus-visible,
 .engineer-station:focus-visible,
@@ -1140,138 +1064,20 @@ body {
   display: none;
 }
 
-/* Engineers may scroll on a very short phone. Upgrades must not.
-   Lasting rows sit beside a one-line price. The two quick boosts share
-   one row so a 360×560 phone still shows the whole sheet. */
-.upgrades-dialog,
+/* Engineers may scroll on a very short phone. */
 .engineers-dialog {
   align-items: flex-start;
 }
 
-.upgrades-dialog {
-  overflow: hidden;
-  padding: max(2px, env(safe-area-inset-top)) 8px
-    max(2px, env(safe-area-inset-bottom));
-}
-
-.upgrades-dialog .upgrades-card {
-  gap: 0;
-  width: min(420px, 100%);
-  margin: 0 auto;
-  padding: 2px 8px;
-  background: var(--color-card);
-}
-
-/* The bottom sheets' gold frame (#285): Upgrades and Buys share it. */
-.upgrades-dialog .sheet-frame,
+/* The bottom sheet's gold frame (#285). Upgrades is a board drawer now (#373). */
 .buys-dialog .sheet-frame {
   border: 2px solid #e8a84a;
   border-radius: 20px;
   box-shadow: 0 0 48px rgba(232, 168, 74, 0.35);
 }
 
-.upgrades-dialog .upgrades-card h2 {
-  font-size: 1.05rem;
-  line-height: 1.15;
-}
-
-.upgrades-dialog .upgrades-pocket {
-  font-size: 0.9rem;
-  line-height: 1.15;
-}
-
-.upgrades-dialog .upgrades-heading {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.15;
-}
-
-.upgrades-dialog .upgrade-list {
-  gap: 1px;
-}
-
-/* Wide fonts wrap a stacked pair past the 360×560 budget. One row. */
-.upgrades-dialog .boost-list {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 4px;
-}
-
-.upgrades-dialog .upgrade {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 7.75rem;
-  gap: 0 8px;
-  align-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-}
-
-.upgrades-dialog .upgrade-name,
-.upgrades-dialog .upgrade-effect,
-.upgrades-dialog .upgrade-now {
-  grid-column: 1;
-  font-size: 0.9rem;
-  line-height: 1.15;
-}
-
-.upgrades-dialog .upgrade.is-locked .upgrade-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.upgrades-dialog .upgrade-effect:empty,
-.upgrades-dialog .upgrade-now:empty,
-.upgrades-dialog .upgrade-why:empty {
-  display: none;
-}
-
-.upgrades-dialog .upgrade-buy {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  justify-self: end;
-  align-self: center;
-  width: 7.75rem;
-  min-width: 7.75rem;
-  max-width: 7.75rem;
-  min-height: var(--target-min);
-  margin-top: 0;
-  padding: 2px 4px;
-  font-size: 0.9rem;
-  line-height: 1.1;
-}
-
-.upgrades-dialog .upgrade.boost {
-  grid-template-columns: minmax(0, 1fr);
-  align-content: start;
-  gap: 0;
-}
-
-.upgrades-dialog .upgrade.boost .upgrade-buy {
-  grid-column: 1;
-  grid-row: auto;
-  width: 100%;
-  min-width: 0;
-  max-width: none;
-  justify-self: stretch;
-  padding: 2px 2px;
-  white-space: nowrap;
-}
-
-.upgrades-dialog .upgrades-close {
-  min-height: var(--target-min);
-  margin-top: 0;
-  font-size: 1rem;
-}
-
-.upgrades-card,
 .engineers-card {
   margin-block: auto;
-}
-
-.upgrade-now:empty {
-  display: none;
 }
 
 /* Machines short of helpers: the rate line and crew line warn, quietly. */
@@ -1435,17 +1241,10 @@ body {
   display: none;
 }
 
-.found-heading[hidden],
-.found-list[hidden],
 .found-tool[hidden],
 .keepsakes[hidden],
 .keepsake-list li[hidden] {
   display: none;
-}
-
-.found-tool .upgrade-now {
-  color: #f2c46d;
-  font-weight: 700;
 }
 
 .keepsakes {
@@ -3232,16 +3031,6 @@ body {
   font-weight: var(--weight-bold);
 }
 
-.upgrade.is-ready {
-  border-color: var(--color-state-ready);
-}
-
-.upgrade.is-dear,
-.upgrade.is-locked {
-  background: var(--color-state-dear);
-  border-color: var(--color-edge);
-}
-
 /* Closed mountain, under the board's gauge row and bays (board.css): the
    thumb bar. */
 #app {
@@ -3290,7 +3079,6 @@ body {
 }
 
 .workshop-card.is-pressed,
-.upgrade.sheet-card.is-pressed,
 .engineer-promote-row.is-pressed,
 .tier.is-pressed {
   transform: translateY(var(--space-4));
@@ -3417,8 +3205,7 @@ body {
 }
 
 /* Sheets leave the board's top in view. Cards use the token type scale. */
-.buys-dialog,
-.upgrades-dialog {
+.buys-dialog {
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-end;
@@ -3427,8 +3214,7 @@ body {
   background: transparent;
 }
 
-.buys-card,
-.upgrades-dialog .upgrades-card {
+.buys-card {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -3474,7 +3260,6 @@ body {
 }
 
 .sheet-scroll,
-.upgrades-scroll,
 .buys-dialog .tier-grid,
 .buys-dialog .tier-grid-compact {
   display: flex;
@@ -3650,131 +3435,15 @@ body {
   display: none;
 }
 
-.upgrades-dialog .upgrades-card > h2 {
-  margin: 0;
-  font-size: var(--type-16);
-  line-height: var(--leading);
-}
-
-.upgrades-dialog .upgrades-pocket,
-.upgrades-dialog .upgrades-heading {
-  display: none;
-}
-
-.upgrades-dialog .upgrade-list,
-.upgrades-dialog .boost-list {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: var(--space-4);
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-.upgrades-dialog .upgrades-close {
-  flex: none;
-  appearance: none;
-  min-height: var(--target-min);
-  margin-top: var(--space-4);
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  color: var(--color-ink);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-}
-
-.upgrades-dialog .upgrade[hidden],
-.upgrades-dialog .found-list[hidden],
-.upgrades-dialog .found-heading[hidden] {
-  display: none;
-}
-
-.upgrades-dialog .upgrade,
-.upgrades-dialog .upgrade.boost {
-  display: grid;
-  flex: none;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0 var(--space-4);
-  min-height: var(--target-min);
-  padding: 0;
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  text-align: left;
-}
-
-.upgrades-dialog .upgrade-name,
-.upgrades-dialog .upgrade-effect,
-.upgrades-dialog .upgrade-now {
-  grid-column: 1;
-  overflow: visible;
-  color: var(--color-ink);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-  line-height: 1.15;
-  white-space: normal;
-  text-overflow: unset;
-}
-
-.upgrades-dialog .upgrade-effect {
-  color: var(--color-quiet);
-  font-weight: var(--weight-regular);
-}
-
 .buys-dialog .tier.sheet-card.sheet-dear .tier-gain,
-.buys-dialog .tier.sheet-card.tier-dear .tier-gain,
-.upgrades-dialog .upgrade.sheet-card.sheet-dear .sheet-card-line,
-.upgrades-dialog .upgrade.sheet-card.is-dear .sheet-card-line,
-.upgrades-dialog .upgrade.boost.sheet-card.is-dear .sheet-card-line {
+.buys-dialog .tier.sheet-card.tier-dear .tier-gain {
   color: var(--color-quiet);
-}
-
-.upgrades-dialog .upgrade-buy,
-.upgrades-dialog .upgrade.boost .upgrade-buy,
-.upgrades-dialog .upgrade-buy:disabled {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  justify-self: end;
-  align-self: center;
-  width: auto;
-  min-width: 0;
-  max-width: none;
-  min-height: calc(var(--target-min) - var(--line) * 2);
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-gold);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-  line-height: 1.1;
-  white-space: nowrap;
-  opacity: 1;
-}
-
-.upgrades-dialog .upgrade.is-dear .upgrade-buy,
-.upgrades-dialog .upgrade.is-locked .upgrade-buy,
-.upgrades-dialog .upgrade.is-dear .upgrade-buy:disabled,
-.upgrades-dialog .upgrade.is-locked .upgrade-buy:disabled {
-  color: var(--color-quiet);
-  font-size: var(--type-16);
-}
-
-.upgrades-dialog .upgrade.is-locked .upgrade-name {
-  overflow: visible;
-  white-space: nowrap;
-  text-overflow: unset;
 }
 
 /* Buys, Upgrades, Workshop and the relic shelf share one card. Lists may scroll. The page does not. */
 .buys-dialog .tier.sheet-card,
 .workshop-dialog .workshop-card.sheet-card,
-.shelf-dialog .shelf-row.sheet-card,
-.upgrades-dialog .upgrade.sheet-card,
-.upgrades-dialog .upgrades-more.sheet-card {
+.shelf-dialog .shelf-row.sheet-card {
   display: grid;
   grid-template-columns: var(--sheet-icon) minmax(0, 1fr);
   column-gap: var(--space-8);
@@ -3794,17 +3463,14 @@ body {
 /* The card's display beats the user-agent [hidden] rule. Keep hidden tiers out of the list. */
 .buys-dialog .tier.sheet-card[hidden],
 .workshop-dialog .workshop-card.sheet-card[hidden],
-.shelf-dialog .shelf-row.sheet-card[hidden],
-.upgrades-dialog .upgrade.sheet-card[hidden] {
+.shelf-dialog .shelf-row.sheet-card[hidden] {
   display: none;
 }
 
 .buys-dialog .tier.sheet-card.sheet-ready,
 .buys-dialog .tier.sheet-card.tier-ready,
 .workshop-dialog .workshop-card.sheet-card.sheet-ready,
-.shelf-dialog .shelf-row.sheet-card.sheet-ready,
-.upgrades-dialog .upgrade.sheet-card.sheet-ready,
-.upgrades-dialog .upgrade.sheet-card.is-ready {
+.shelf-dialog .shelf-row.sheet-card.sheet-ready {
   border-color: var(--color-state-ready);
 }
 
@@ -3819,21 +3485,15 @@ body {
 .buys-dialog .tier.sheet-card.tier-locked,
 .workshop-dialog .workshop-card.sheet-card.sheet-dear,
 .shelf-dialog .shelf-row.sheet-card.sheet-dear,
-.upgrades-dialog .upgrade.sheet-card.sheet-dear,
 .workshop-dialog .workshop-card.sheet-card.sheet-locked,
-.shelf-dialog .shelf-row.sheet-card.sheet-locked,
-.upgrades-dialog .upgrade.sheet-card.sheet-locked,
-.upgrades-dialog .upgrade.sheet-card.is-dear,
-.upgrades-dialog .upgrade.sheet-card.is-locked {
+.shelf-dialog .shelf-row.sheet-card.sheet-locked {
   background: var(--color-state-dear);
   border-color: var(--color-edge);
 }
 
 .buys-dialog .tier.sheet-card .sheet-card-icon,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-icon,
-.shelf-dialog .shelf-row.sheet-card .sheet-card-icon,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-icon,
-.upgrades-dialog .upgrades-more.sheet-card .sheet-card-icon {
+.shelf-dialog .shelf-row.sheet-card .sheet-card-icon {
   grid-column: 1;
   grid-row: 1;
   width: var(--sheet-icon);
@@ -3846,9 +3506,7 @@ body {
 
 .buys-dialog .tier.sheet-card .sheet-card-body,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-body,
-.shelf-dialog .shelf-row.sheet-card .sheet-card-body,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-body,
-.upgrades-dialog .upgrades-more.sheet-card .sheet-card-body {
+.shelf-dialog .shelf-row.sheet-card .sheet-card-body {
   display: grid;
   grid-column: 2;
   grid-row: 1;
@@ -3861,9 +3519,7 @@ body {
 
 .buys-dialog .tier.sheet-card .sheet-card-title,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-heading,
-.shelf-dialog .shelf-row.sheet-card .sheet-card-heading,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-heading,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-body > .sheet-card-title {
+.shelf-dialog .shelf-row.sheet-card .sheet-card-heading {
   grid-column: 1;
   grid-row: 1;
   display: flex;
@@ -3877,11 +3533,6 @@ body {
   font-weight: var(--weight-bold);
   line-height: 1;
   white-space: nowrap;
-}
-
-.upgrades-dialog .upgrade.sheet-card .sheet-card-heading .sheet-card-title {
-  display: block;
-  min-height: 0;
 }
 
 .sheet-level {
@@ -3912,10 +3563,7 @@ body {
 }
 
 .buys-dialog .tier.sheet-card .sheet-card-price,
-.workshop-dialog .workshop-card.sheet-card .sheet-card-price,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-price,
-.upgrades-dialog .upgrade.boost.sheet-card .sheet-card-price,
-.upgrades-dialog .upgrade.sheet-card .upgrade-buy:disabled {
+.workshop-dialog .workshop-card.sheet-card .sheet-card-price {
   grid-column: 2;
   grid-row: 1;
   display: flex;
@@ -3945,20 +3593,14 @@ body {
 .buys-dialog .tier.sheet-card.tier-dear .sheet-card-price,
 .buys-dialog .tier.sheet-card.tier-locked .sheet-card-price,
 .workshop-dialog .workshop-card.sheet-card.sheet-dear .sheet-card-price,
-.upgrades-dialog .upgrade.sheet-card.sheet-dear .sheet-card-price,
-.workshop-dialog .workshop-card.sheet-card.sheet-locked .sheet-card-price,
-.upgrades-dialog .upgrade.sheet-card.sheet-locked .sheet-card-price,
-.upgrades-dialog .upgrade.sheet-card.is-dear .sheet-card-price,
-.upgrades-dialog .upgrade.sheet-card.is-locked .sheet-card-price,
-.upgrades-dialog .upgrade.boost.sheet-card.is-dear .sheet-card-price {
+.workshop-dialog .workshop-card.sheet-card.sheet-locked .sheet-card-price {
   color: var(--color-quiet);
   font-size: var(--sheet-title);
 }
 
 .buys-dialog .tier.sheet-card .sheet-card-line,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-line,
-.shelf-dialog .shelf-row.sheet-card .sheet-card-line,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-line {
+.shelf-dialog .shelf-row.sheet-card .sheet-card-line {
   grid-column: 1 / -1;
   margin: 0;
   overflow: visible;
@@ -3971,14 +3613,12 @@ body {
 
 .buys-dialog .tier.sheet-card .sheet-card-quiet,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-quiet,
-.shelf-dialog .shelf-row.sheet-card .sheet-card-quiet,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-quiet {
+.shelf-dialog .shelf-row.sheet-card .sheet-card-quiet {
   color: var(--color-quiet);
   font-weight: var(--weight-regular);
 }
 
-.buys-close,
-.upgrades-dialog .upgrades-close {
+.buys-close {
   flex: none;
   margin-top: 0;
 }
@@ -4390,99 +4030,6 @@ body {
   color: var(--color-ink);
   font: inherit;
   cursor: pointer;
-}
-
-/* Upgrades New card (#245), the same as the Workshop's: tag top-right,
-   one big button under the lines, dimmed while the pocket is short. */
-.upgrades-dialog .upgrade.sheet-card.teach-new {
-  position: relative;
-  border-color: var(--color-gold);
-}
-
-.upgrades-dialog .upgrade.sheet-card > .teach-tag {
-  position: absolute;
-  top: var(--space-8);
-  right: var(--space-8);
-}
-
-.upgrades-dialog .upgrade.sheet-card .sheet-card-price.teach-action {
-  order: 1;
-  grid-column: 1 / -1;
-  grid-row: auto;
-  justify-self: stretch;
-  justify-content: center;
-  width: 100%;
-  min-height: var(--target-min);
-  margin-top: var(--space-8);
-  border-radius: var(--radius-control);
-  background: var(--color-gold);
-  color: var(--color-ink-on-gold);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-}
-
-.upgrades-dialog .upgrade.sheet-card .sheet-card-price.teach-action:disabled {
-  opacity: 0.5;
-}
-
-/* Upgrades sheet, same frame as the Workshop (#282): head with the
-   title left and "i" right, the same inset and card gap, and the same
-   dark hint card. */
-.upgrades-dialog .upgrades-card {
-  padding: var(--space-8);
-}
-
-.upgrades-dialog .upgrades-head h2 {
-  margin: 0;
-  font-size: 1.05rem;
-  line-height: 1.15;
-  color: var(--color-gold);
-  text-align: start;
-}
-
-.upgrades-dialog .upgrade-list,
-.upgrades-dialog .boost-list,
-.upgrades-dialog .upgrades-scroll {
-  gap: var(--target-gap);
-}
-
-.upgrades-dialog .upgrades-more.sheet-locked .sheet-card-icon {
-  filter: brightness(0);
-  opacity: 0.6;
-}
-
-.upgrades-dialog .upgrades-more .hint {
-  margin: 0;
-  color: var(--color-quiet);
-  font-size: 0.9rem;
-  line-height: 1.15;
-  text-align: start;
-}
-
-.upgrades-dialog .upgrades-how {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: grid;
-  align-content: start;
-  gap: var(--target-gap);
-  overflow-y: auto;
-}
-
-.upgrades-dialog .upgrades-how .teach-how-back {
-  min-height: var(--target-min);
-  border: var(--line) solid var(--color-gold);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  color: var(--color-gold);
-}
-
-.upgrades-dialog [hidden] {
-  display: none;
-}
-
-.upgrades-dialog .upgrades-how,
-.upgrades-dialog .upgrades-intro {
-  text-align: start;
 }
 
 /* Bottom bar (#282): gold glow when the sheet holds something he can buy

@@ -1,565 +1,384 @@
 import { oneOffStretch, stretch } from "./scale";
-import bootUrl from "./assets/boot-tile.png";
-import workerUrl from "./assets/helper-miner.png";
-import cartUrl from "./assets/mine-cart.png";
-import pickUrl from "./assets/pick.png";
-import hammerUrl from "./assets/relics/hammer.png";
-import lanternUrl from "./assets/relics/lantern.png";
-import shieldUrl from "./assets/relics/shield.png";
-import drillUrl from "./assets/steam-drill.png";
-import borerUrl from "./assets/tunnel-borer.png";
-import mapUrl from "./assets/worn-map.png";
-import stoneUrl from "./assets/stone.png";
-import upgradesIconUrl from "./assets/upgrades-icon.png";
-import { setAffordGlow } from "./afford-glow";
-import { HOW_IT_WORKS, howItWorks, type HowSystem } from "./how-it-works";
-import { BOOSTS, boostCost, boostLeft, buyBoost, type BoostId } from "./boosts";
+import { el } from "./board-dom";
+import { createBoardSheet, type BoardSheet } from "./board-drawer";
+import { boardHowCard } from "./board-how-art";
+import { createBoardRow, type BoardRow } from "./board-row";
+import { howItWorks } from "./how-it-works";
+import {
+  BOOSTS,
+  boostLeft,
+  buyBoost,
+  type Boost,
+  type BoostId,
+} from "./boosts";
 import { buyOnTap } from "./card-tap";
 import { shortEffectName, writeChip } from "./effect-row";
-import { formatCount } from "./format";
+import type { Mountain } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { effectiveRates } from "./rates";
-import { LOST_TOOLS, hasLostTool, type LostToolId } from "./lost-tools";
+import type { RowView } from "./row-view";
+import { LOST_TOOLS, type LostToolId } from "./lost-tools";
 import {
   BROUGHT_HOME,
-  FOUND_LABEL,
-  formatClock,
-  lostToolWords,
-  buyPriceWords,
   UPGRADES_INTRO,
   UPGRADES_MORE,
-  upgradeEffectLine,
-  upgradeWhyLine,
+  lostToolWords,
 } from "./screen-words";
+import { markAllSeen } from "./teach";
+import { setHowSteps } from "./teach-ui";
 import {
-  SHEET_CARD,
-  SHEET_CARD_BODY,
-  SHEET_CARD_ICON,
-  SHEET_CARD_LINE,
-  SHEET_CARD_PRICE,
-  SHEET_CARD_QUIET,
-  SHEET_CARD_TITLE,
-  SHEET_DEAR,
-  SHEET_HOST,
-  SHEET_LOCKED,
-  SHEET_READY,
-  SHEET_SCROLL,
-} from "./sheet-card";
-import { markAllSeen, showsDot } from "./teach";
-import { BOOST_WHY, boostInfo, newRowId } from "./upgrade-rows";
-import {
-  clearNewCard,
-  createHowCard,
-  setHowSteps,
-  createInfoButton,
-  markNewCard,
-  setTeachDot,
-} from "./teach-ui";
+  boostRowView,
+  newRowId,
+  toolRowView,
+  upgradeRowView,
+} from "./upgrade-rows";
 import {
   anyHiddenRow,
   boostRowId,
-  boostShown,
   shownRows,
   upgradeRowId,
-  upgradeShown,
   type RevealRowId,
 } from "./upgrade-reveal";
-import {
-  UPGRADES,
-  buyUpgrade,
-  upgradeCost,
-  upgradeLevel,
-  type UpgradeId,
-} from "./upgrades";
+import { UPGRADES, buyUpgrade, upgradeLevel, type Upgrade } from "./upgrades";
 
-const UPGRADE_ICON: Record<UpgradeId, string> = {
-  tap: hammerUrl,
-  boots: bootUrl,
-  steady: shieldUrl,
-  cartSyn: workerUrl,
-  drillSyn: cartUrl,
-  borerSyn: drillUrl,
-  machineSyn: borerUrl,
-};
+/*
+ * The Upgrades drawer (#373): Quick boosts, Lasting upgrades and Brought home as board rows,
+ * the "i" cards for upgrades and boosts, and the spare plate under a short list. It also keeps
+ * the running-boost chips in Running now current. Its rows and words come from upgrade-rows.ts;
+ * every buy goes through today's mutations, wrapped in markAllSeen.
+ */
 
-const BOOST_ICON: Record<BoostId, string> = {
-  sharper: pickUrl,
-  overtime: workerUrl,
-};
+/** The kick under the title when no row is new. */
+const UPGRADES_KICK = "Boosts for tonight, gear for good";
 
-function sheetWhy(): HTMLParagraphElement {
-  const why = document.createElement("p");
-  why.className = `upgrade-why ${SHEET_CARD_LINE} ${SHEET_CARD_QUIET}`;
-  return why;
+interface BoostRow {
+  readonly boost: Boost;
+  readonly id: RevealRowId;
+  readonly row: BoardRow;
 }
 
-function sheetHeading(title: HTMLElement, chip?: HTMLElement): HTMLDivElement {
-  const heading = document.createElement("div");
-  heading.className = "sheet-card-heading";
-  heading.append(title);
-  if (chip !== undefined) {
-    heading.append(chip);
+interface UpgradeRow {
+  readonly upgrade: Upgrade;
+  readonly id: RevealRowId;
+  readonly row: BoardRow;
+}
+
+interface ToolRow {
+  readonly id: LostToolId;
+  readonly row: BoardRow;
+}
+
+function hide(target: HTMLElement, hidden: boolean): void {
+  if (target.hidden !== hidden) {
+    target.hidden = hidden;
   }
-  return heading;
 }
 
-const TOOL_ICON: Record<LostToolId, string> = {
-  pick: hammerUrl,
-  lamp: lanternUrl,
-  map: mapUrl,
-  boots: bootUrl,
-};
+function mark(target: HTMLElement, name: string, on: boolean): void {
+  if (target.classList.contains(name) !== on) {
+    target.classList.toggle(name, on);
+  }
+}
 
-function sheetIcon(src: string): HTMLImageElement {
-  const icon = document.createElement("img");
-  icon.className = SHEET_CARD_ICON;
-  icon.src = src;
-  icon.alt = "";
-  icon.width = 32;
-  icon.height = 32;
-  icon.draggable = false;
-  return icon;
+/** A section's legend: its name, engraved. */
+function legend(name: string, key: string): HTMLElement {
+  const sec = el("div", "board-sec");
+  sec.dataset["sec"] = key;
+  sec.append(el("span", "board-lg", name));
+  return sec;
 }
 
 /**
- * The Upgrades button (beside the pocket) and its sheet: quick boosts and
- * lasting upgrades. Also keeps the running-boost chips on the mountain current.
+ * The Upgrades drawer. `open` marks every shown row seen, then opens the drawer; the opener
+ * (the thumb now, the key rail from Task 8) owns its glow and dot.
  */
 export function createUpgradesPanel({
   progress,
   getView,
   now,
-  upgradesUrl,
   chipFor,
-  requestRender,
+  clock,
+  signal,
 }: {
   progress: ProgressStore;
   getView: () => ProgressSnapshot;
+  /** The game's clock: prices, timers and the New row. */
   now: () => number;
-  upgradesUrl: string;
-  /** Countdown chips on the mountain, one per boost. */
+  /** Countdown chips in Running now, one per boost. */
   chipFor: ReadonlyMap<BoostId, HTMLElement>;
-  /** Asks the whole screen to re-render (open/close changes the page). */
-  requestRender: () => void;
-}): { button: HTMLButtonElement; sheet: HTMLDivElement; render: () => void } {
-  // Upgrades: one compact button beside the pocket (they're bought with it),
-  // opening a sheet so the main screen keeps its no-scroll budget.
-  const upgradesButton = document.createElement("button");
-  upgradesButton.type = "button";
-  upgradesButton.className = "upgrades-button";
-  upgradesButton.setAttribute("aria-label", "Upgrades");
-  upgradesButton.setAttribute("aria-haspopup", "dialog");
-  const upgradesIcon = document.createElement("img");
-  upgradesIcon.src = upgradesUrl;
-  upgradesIcon.alt = "";
-  upgradesIcon.width = 32;
-  upgradesIcon.height = 32;
-  upgradesIcon.draggable = false;
-  const upgradesLabel = document.createElement("span");
-  upgradesLabel.className = "thumb-label";
-  upgradesLabel.textContent = "Upgrades";
-  upgradesButton.append(upgradesIcon, upgradesLabel);
-  let upgradesOpen = false;
-  upgradesButton.addEventListener("click", () => {
-    upgradesOpen = true;
-    // Rows he has had in front of him stay, even after the pocket dips.
-    progress.applyMutation((current) =>
-      markAllSeen(current, shownRows(current)),
-    );
-    requestRender();
+  /** Milliseconds for the drawer's settle (the screen's tap clock). */
+  clock: () => number;
+  /** Aborting it removes the drawer's document listeners. */
+  signal?: AbortSignal;
+}): {
+  sheet: BoardSheet;
+  render: () => void;
+  open: (from?: HTMLElement) => void;
+} {
+  const sheet = createBoardSheet({
+    name: "upgrades",
+    title: "Upgrades",
+    infoLabel: "Upgrades and boosts",
+    clock,
+    ...(signal === undefined ? {} : { signal }),
   });
-  const upgradesSheet = document.createElement("div");
-  upgradesSheet.className = "upgrades-dialog";
-  upgradesSheet.setAttribute("role", "dialog");
-  upgradesSheet.setAttribute("aria-modal", "true");
-  upgradesSheet.setAttribute("aria-labelledby", "upgrades-title");
-  upgradesSheet.hidden = true;
-  const upgradesCard = document.createElement("div");
-  upgradesCard.className = "upgrades-card sheet-frame";
-  const upgradesTitle = document.createElement("h2");
-  upgradesTitle.id = "upgrades-title";
-  upgradesTitle.className = "label";
-  upgradesTitle.textContent = "Upgrades";
-  // The same head as the Workshop: title left, "i" right (#282).
-  let howOpen = false;
-  const info = createInfoButton("Upgrades and boosts", () => {
-    howOpen = true;
-    requestRender();
-  });
-  const upgradesHead = document.createElement("div");
-  upgradesHead.className = "workshop-head upgrades-head";
-  const headTools = document.createElement("div");
-  headTools.className = "workshop-head-tools";
-  headTools.append(info);
-  upgradesHead.append(upgradesTitle, headTools);
-  const HOW_ART: Readonly<Record<string, string>> = {
-    "upgrades-icon": upgradesIconUrl,
-    "helper-miner": workerUrl,
-    pick: pickUrl,
-    stone: stoneUrl,
-  };
-  let howPriced = "1:1";
-  const howCards = (["upgrades", "boosts"] as const).map((system) => {
-    const copy = HOW_IT_WORKS[system];
-    const made = createHowCard(
-      `How it works · ${copy.title}`,
-      copy.steps.map(
-        ([art, text]) => [HOW_ART[art] ?? stoneUrl, text] as const,
-      ),
-      "Back to Upgrades",
-      () => {
-        howOpen = false;
-        requestRender();
-        info.focus();
-      },
-    );
-    made.dataset["how"] = system;
-    return made;
-  });
-  // One way back, under the boosts card.
-  const firstBack = howCards[0]?.querySelector("button");
+  sheet.kick(UPGRADES_KICK);
+
+  // The "i": the upgrades and boosts cards in the drawer's place, one Back under the last.
+  const howCards = (["upgrades", "boosts"] as const).map((system) =>
+    boardHowCard(system, "Back to Upgrades", () => {
+      sheet.showHow(false);
+    }),
+  );
+  const firstBack = howCards[0]?.querySelector<HTMLElement>(".teach-how-back");
   if (firstBack) {
     firstBack.hidden = true;
   }
-  const howHost = document.createElement("div");
-  howHost.className = "upgrades-how";
-  howHost.hidden = true;
-  howHost.append(...howCards);
-  const upgradesPocket = document.createElement("p");
-  upgradesPocket.className = "upgrades-pocket";
-  const boostHeading = document.createElement("h3");
-  boostHeading.className = "upgrades-heading";
-  boostHeading.textContent = "Quick boosts";
-  const boostList = document.createElement("ul");
-  boostList.className = "upgrade-list boost-list";
-  const boostRows = BOOSTS.map((boost) => {
-    const item = document.createElement("li");
-    item.className = `upgrade boost ${SHEET_CARD}`;
-    item.dataset["boost"] = boost.id;
-    const title = document.createElement("p");
-    title.className = `upgrade-name ${SHEET_CARD_TITLE}`;
-    title.textContent = boost.name;
-    const effect = document.createElement("p");
-    effect.className = `upgrade-effect ${SHEET_CARD_LINE}`;
-    effect.textContent = boost.effect;
-    const buy = document.createElement("button");
-    buy.type = "button";
-    buy.className = `upgrade-buy ${SHEET_CARD_PRICE}`;
-    const why = sheetWhy();
-    why.textContent = BOOST_WHY[boost.id];
-    const body = document.createElement("div");
-    body.className = SHEET_CARD_BODY;
-    body.append(sheetHeading(title), buy, effect, why);
-    buyOnTap(item, buy, () => {
-      if (!getView().ready) {
-        return;
-      }
-      const at = now();
-      progress.applyMutation((current) =>
-        markAllSeen(
-          buyBoost({
-            mountain: current,
-            id: boost.id,
-            now: at,
-            pricing: effectiveRates(current),
-          }),
-          shownRows(current),
-        ),
-      );
-    });
-    item.append(sheetIcon(BOOST_ICON[boost.id]), body);
-    boostList.append(item);
-    return { boost, effect, buy, item, id: boostRowId(boost) };
+  sheet.how.append(...howCards);
+  sheet.info.addEventListener("click", () => {
+    sheet.showHow(true);
   });
-  const lastingHeading = document.createElement("h3");
-  lastingHeading.className = "upgrades-heading";
-  lastingHeading.textContent = "Lasting upgrades";
-  const upgradeList = document.createElement("ul");
-  upgradeList.className = "upgrade-list";
-  const upgradeRows = UPGRADES.map((upgrade) => {
-    const item = document.createElement("li");
-    item.className = `upgrade ${SHEET_CARD}`;
-    item.dataset["upgrade"] = upgrade.id;
-    const title = document.createElement("p");
-    title.className = `upgrade-name ${SHEET_CARD_TITLE}`;
-    const effect = document.createElement("p");
-    effect.className = `upgrade-effect ${SHEET_CARD_LINE}`;
-    effect.textContent = upgrade.perLevel;
-    const buy = document.createElement("button");
-    buy.type = "button";
-    buy.className = `upgrade-buy ${SHEET_CARD_PRICE}`;
-    const levelChip = document.createElement("span");
-    levelChip.className = "sheet-level";
-    levelChip.hidden = upgrade.maxLevel <= 1;
-    const why = sheetWhy();
-    const body = document.createElement("div");
-    body.className = SHEET_CARD_BODY;
-    body.append(sheetHeading(title, levelChip), buy, effect, why);
-    buyOnTap(item, buy, () => {
-      if (!getView().ready) {
-        return;
-      }
-      progress.applyMutation((current) =>
-        markAllSeen(buyUpgrade(current, upgrade.id), shownRows(current)),
-      );
-    });
-    item.append(sheetIcon(UPGRADE_ICON[upgrade.id]), body);
-    upgradeList.append(item);
-    return {
-      upgrade,
-      title,
-      effect,
-      why,
-      levelChip,
-      item,
-      buy,
-      id: upgradeRowId(upgrade),
-    };
-  });
-  const foundHeading = document.createElement("h3");
-  foundHeading.className = "upgrades-heading found-heading";
-  foundHeading.textContent = BROUGHT_HOME;
-  foundHeading.hidden = true;
-  const foundList = document.createElement("ul");
-  foundList.className = "upgrade-list found-list";
-  foundList.hidden = true;
-  const foundRows = LOST_TOOLS.map((id) => {
-    const words = lostToolWords(id);
-    const item = document.createElement("li");
-    item.className = `upgrade found-tool ${SHEET_CARD}`;
-    item.dataset["tool"] = id;
-    item.hidden = true;
-    const title = document.createElement("p");
-    title.className = `upgrade-name ${SHEET_CARD_TITLE}`;
-    title.textContent = words.name;
-    const effect = document.createElement("p");
-    effect.className = `upgrade-effect ${SHEET_CARD_LINE} ${SHEET_CARD_QUIET}`;
-    effect.textContent = words.line;
-    const status = document.createElement("p");
-    status.className = `upgrade-now ${SHEET_CARD_PRICE}`;
-    status.textContent = FOUND_LABEL;
-    const body = document.createElement("div");
-    body.className = SHEET_CARD_BODY;
-    body.append(title, status, effect);
-    item.append(sheetIcon(TOOL_ICON[id]), body);
-    foundList.append(item);
-    return { id, item };
-  });
-  const upgradesClose = document.createElement("button");
-  upgradesClose.type = "button";
-  upgradesClose.className = "upgrades-close";
-  upgradesClose.textContent = "Back to the mountain";
-  const closeUpgrades = (): void => {
-    upgradesOpen = false;
-    howOpen = false;
-    requestRender();
-    upgradesButton.focus();
-  };
-  upgradesClose.addEventListener("click", closeUpgrades);
-  upgradesSheet.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      closeUpgrades();
+  let howPriced = "1:1";
+
+  /**
+   * A buy row's tap. A second sleepy tap inside the Done hold, or the tap that opened the
+   * drawer, does nothing. The store is read again at the tap: a pocket that fell under the
+   * price since the last paint blinks and buys nothing.
+   */
+  const wireBuy = (
+    row: BoardRow,
+    viewOf: (mountain: Mountain, at: number) => RowView,
+    buy: (mountain: Mountain, at: number) => Mountain,
+    score: (mountain: Mountain) => number,
+  ): void => {
+    const root = row.root;
+    if (!(root instanceof HTMLButtonElement)) {
+      return;
     }
+    buyOnTap(
+      root,
+      root,
+      (press) => {
+        if (row.holding() || press.early) {
+          return;
+        }
+        const snapshot = progress.getSnapshot();
+        if (!snapshot.ready) {
+          return;
+        }
+        const at = now();
+        if (!viewOf(snapshot.mountain, at).can) {
+          row.blink();
+          return;
+        }
+        const before = score(snapshot.mountain);
+        progress.applyMutation((current) =>
+          markAllSeen(buy(current, at), shownRows(current)),
+        );
+        if (score(progress.getSnapshot().mountain) > before) {
+          row.done();
+        }
+      },
+      { settling: () => sheet.settling() },
+    );
+  };
+
+  const boostRows: readonly BoostRow[] = BOOSTS.map((boost) => {
+    const row = createBoardRow({
+      tag: "button",
+      className: "upgrade boost",
+      data: { boost: boost.id },
+      name: boost.name,
+      icon: false,
+    });
+    wireBuy(
+      row,
+      (mountain, at) => boostRowView(mountain, at, boost, false),
+      (mountain, at) =>
+        buyBoost({
+          mountain,
+          id: boost.id,
+          now: at,
+          pricing: effectiveRates(mountain),
+        }),
+      (mountain) => mountain.boosts?.[boost.id] ?? Number.NEGATIVE_INFINITY,
+    );
+    return { boost, id: boostRowId(boost), row };
   });
-  const upgradesHost = document.createElement("div");
-  upgradesHost.className = SHEET_HOST;
-  const upgradesScroll = document.createElement("div");
-  upgradesScroll.className = `upgrades-scroll ${SHEET_SCROLL}`;
-  const intro = document.createElement("p");
-  intro.className = "teach-intro upgrades-intro";
-  intro.textContent = UPGRADES_INTRO;
-  intro.hidden = true;
-  // The same hint card as the Workshop's dark sketch.
-  const more = document.createElement("div");
-  more.className = `upgrades-more ${SHEET_CARD} ${SHEET_LOCKED}`;
-  const moreArt = sheetIcon(stoneUrl);
-  moreArt.classList.add("shade");
-  const moreBody = document.createElement("div");
-  moreBody.className = SHEET_CARD_BODY;
-  const moreLine = document.createElement("p");
-  moreLine.className = `label hint ${SHEET_CARD_LINE} ${SHEET_CARD_QUIET}`;
-  moreLine.textContent = UPGRADES_MORE;
-  moreBody.append(moreLine);
-  more.append(moreArt, moreBody);
-  more.hidden = true;
-  let newShown: RevealRowId | undefined;
-  upgradesScroll.append(
-    intro,
-    boostHeading,
-    boostList,
-    lastingHeading,
-    upgradeList,
-    foundHeading,
-    foundList,
-    more,
-  );
-  upgradesHost.append(upgradesScroll);
-  upgradesCard.append(
-    upgradesHead,
-    upgradesPocket,
-    howHost,
-    upgradesHost,
-    upgradesClose,
-  );
-  upgradesSheet.append(upgradesCard);
+
+  const upgradeRows: readonly UpgradeRow[] = UPGRADES.map((upgrade) => {
+    const row = createBoardRow({
+      tag: "button",
+      className: "upgrade",
+      data: { upgrade: upgrade.id },
+      name: upgrade.name,
+      icon: false,
+    });
+    wireBuy(
+      row,
+      (mountain, at) => upgradeRowView(mountain, at, upgrade, false),
+      (mountain) => buyUpgrade(mountain, upgrade.id),
+      (mountain) => upgradeLevel(mountain, upgrade.id),
+    );
+    return { upgrade, id: upgradeRowId(upgrade), row };
+  });
+
+  const toolRows: readonly ToolRow[] = LOST_TOOLS.map((id) => {
+    const row = createBoardRow({
+      tag: "div",
+      className: "found-tool",
+      data: { tool: id },
+      name: lostToolWords(id).name,
+      icon: false,
+    });
+    return { id, row };
+  });
+
+  const boostSec = legend("Quick boosts", "boosts");
+  const lastingSec = legend("Lasting upgrades", "lasting");
+  const foundSec = legend(BROUGHT_HOME, "found");
+  const foot = el("p", "board-sheet-foot", UPGRADES_MORE);
+  // Until the save is in, nothing from it shows: no row, legend or footnote.
+  for (const part of [
+    boostSec,
+    lastingSec,
+    foundSec,
+    foot,
+    ...boostRows.map(({ row }) => row.root),
+    ...upgradeRows.map(({ row }) => row.root),
+    ...toolRows.map(({ row }) => row.root),
+  ]) {
+    part.hidden = true;
+  }
+
+  const spare = sheet.list.querySelector(".board-spare");
+  /** The New row the list was last ordered for; null before the first order. */
+  let orderedFor: RevealRowId | undefined | null = null;
+  /** Today's order: the New row first in its section, and its section first. */
+  const order = (newId: RevealRowId | undefined): void => {
+    if (newId === orderedFor) {
+      return;
+    }
+    orderedFor = newId;
+    const lead = (
+      rows: readonly { readonly id: RevealRowId; readonly row: BoardRow }[],
+    ): HTMLElement[] => {
+      const fresh = rows.find((item) => item.id === newId);
+      return [
+        ...(fresh === undefined ? [] : [fresh.row.root]),
+        ...rows.filter((item) => item !== fresh).map((item) => item.row.root),
+      ];
+    };
+    const boosts = [boostSec, ...lead(boostRows)];
+    const lasting = [lastingSec, ...lead(upgradeRows)];
+    const upgradeLeads = upgradeRows.some((item) => item.id === newId);
+    const parts = [
+      ...(upgradeLeads ? [...lasting, ...boosts] : [...boosts, ...lasting]),
+      foundSec,
+      ...toolRows.map(({ row }) => row.root),
+      foot,
+    ];
+    if (spare === null) {
+      sheet.list.append(...parts);
+    } else {
+      spare.before(...parts);
+    }
+  };
+  order(undefined);
+
+  /** The boost chips in Running now: as today, from the save whatever its state. */
+  const renderChips = (current: Mountain, at: number): void => {
+    for (const { boost } of boostRows) {
+      const chip = chipFor.get(boost.id);
+      if (chip === undefined) {
+        continue;
+      }
+      const left = boostLeft(current, boost.id, at);
+      writeChip(chip, {
+        short: shortEffectName(boost.name),
+        full: boost.name,
+        multiplier: boost.multiplier,
+        leftMs: left,
+        active: left > 0,
+      });
+    }
+  };
+
+  const renderHow = (current: Mountain): void => {
+    const key = `${String(stretch(current))}:${String(oneOffStretch(current))}`;
+    if (key === howPriced) {
+      return;
+    }
+    howPriced = key;
+    const copy = howItWorks(stretch(current), oneOffStretch(current));
+    for (const card of howCards) {
+      const system = card.dataset["how"];
+      if (system === "upgrades" || system === "boosts") {
+        setHowSteps(card, copy[system].steps);
+      }
+    }
+  };
 
   const render = (): void => {
     const view = getView();
     const current = view.mountain;
-    const howKey = `${String(stretch(current))}:${String(oneOffStretch(current))}`;
-    if (howKey !== howPriced) {
-      howPriced = howKey;
-      const copy = howItWorks(stretch(current), oneOffStretch(current));
-      for (const made of howCards) {
-        setHowSteps(made, copy[made.dataset["how"] as HowSystem].steps);
-      }
-    }
     const at = now();
-    // Price from the unboosted crew. The line shows what buying pays right now.
-    const pricing = effectiveRates(current);
-    let anyAffordable = false;
-    // The New card: the first row he has not bought yet, one he can
-    // afford now if there is one. It goes to the top of the sheet.
+    renderHow(current);
+    renderChips(current, at);
+    if (!view.ready) {
+      // The rows go dark and keep their places: names only, disabled, no numbers.
+      for (const { row } of [...boostRows, ...upgradeRows, ...toolRows]) {
+        row.render(undefined);
+        mark(row.root, "teach-new", false);
+      }
+      sheet.kick(UPGRADES_KICK);
+      if (sheet.isOpen()) {
+        sheet.fitSpare();
+      }
+      return;
+    }
     const newId = newRowId(current, at);
     let boostsShowing = false;
-    for (const { boost, effect, buy, item } of boostRows) {
-      item.hidden = !boostShown(current, boost);
-      boostsShowing ||= !item.hidden;
-      const left = boostLeft(current, boost.id, at);
-      const cost = boostCost(boost, pricing, stretch(current));
-      effect.textContent = boostInfo(current, at, boost);
-      const affordable = left === 0 && current.pocket >= cost;
-      anyAffordable ||= affordable;
-      buy.disabled = !view.ready || !affordable;
-      buy.textContent =
-        left > 0 ? `Running · ${formatClock(left)}` : buyPriceWords(cost);
-      const row = buy.closest(".upgrade");
-      row?.classList.toggle("is-ready", affordable);
-      row?.classList.toggle("is-dear", left === 0 && !affordable);
-      row?.classList.toggle(SHEET_READY, affordable);
-      row?.classList.toggle(SHEET_DEAR, left === 0 && !affordable);
-      const chip = chipFor.get(boost.id);
-      if (chip !== undefined) {
-        writeChip(chip, {
-          short: shortEffectName(boost.name),
-          full: boost.name,
-          multiplier: boost.multiplier,
-          leftMs: left,
-          active: left > 0,
-        });
-      }
+    for (const { boost, id, row } of boostRows) {
+      const rowView = boostRowView(current, at, boost, id === newId);
+      hide(row.root, !rowView.shown);
+      boostsShowing ||= rowView.shown;
+      row.render(rowView);
+      mark(row.root, "teach-new", id === newId);
     }
     let upgradesShowing = false;
-    for (const {
-      upgrade,
-      title,
-      effect,
-      why,
-      levelChip,
-      item,
-      buy,
-    } of upgradeRows) {
-      // Locked and far-off rows stay hidden until their owned count opens them (#250).
-      item.hidden = !upgradeShown(current, upgrade);
-      upgradesShowing ||= !item.hidden;
-      const level = upgradeLevel(current, upgrade.id);
-      const cost = upgradeCost(upgrade, level, oneOffStretch(current));
-      const affordable =
-        !item.hidden && cost !== undefined && current.pocket >= cost;
-      anyAffordable ||= affordable;
-      const dear = cost !== undefined && !affordable;
-      item.classList.toggle("is-ready", affordable);
-      item.classList.toggle("is-dear", dear);
-      item.classList.toggle(SHEET_READY, affordable);
-      item.classList.toggle(SHEET_DEAR, dear);
-      title.textContent = upgrade.name;
-      if (upgrade.maxLevel > 1) {
-        levelChip.hidden = false;
-        levelChip.textContent = `Lv ${String(level)}/${String(upgrade.maxLevel)}`;
-      }
-      effect.textContent = upgradeEffectLine(upgrade, current, at);
-      why.textContent = upgradeWhyLine(upgrade, current, at);
-      buy.disabled = !view.ready || !affordable;
-      buy.textContent =
-        cost === undefined
-          ? upgrade.maxLevel === 1
-            ? "Owned"
-            : "All levels bought"
-          : buyPriceWords(cost);
+    for (const { upgrade, id, row } of upgradeRows) {
+      const rowView = upgradeRowView(current, at, upgrade, id === newId);
+      hide(row.root, !rowView.shown);
+      upgradesShowing ||= rowView.shown;
+      row.render(rowView);
+      mark(row.root, "teach-new", id === newId);
     }
-    boostHeading.hidden = !boostsShowing;
-    boostList.hidden = !boostsShowing;
-    lastingHeading.hidden = !upgradesShowing;
-    upgradeList.hidden = !upgradesShowing;
-    more.hidden = !anyHiddenRow(current);
-    for (const row of [...boostRows, ...upgradeRows]) {
-      if (row.id === newId) {
-        markNewCard(row.item, row.buy, row.buy.textContent);
-      } else {
-        clearNewCard(row.item);
-      }
-    }
-    intro.hidden = newId === undefined;
-    if (newId !== newShown) {
-      newShown = newId;
-      const newUpgrade = upgradeRows.find((row) => row.id === newId);
-      const newBoost = boostRows.find((row) => row.id === newId);
-      upgradeList.append(...upgradeRows.map((row) => row.item));
-      boostList.append(...boostRows.map((row) => row.item));
-      if (newUpgrade !== undefined) {
-        upgradeList.prepend(newUpgrade.item);
-        upgradesScroll.append(
-          intro,
-          lastingHeading,
-          upgradeList,
-          boostHeading,
-          boostList,
-          foundHeading,
-          foundList,
-          more,
-        );
-      } else {
-        if (newBoost !== undefined) {
-          boostList.prepend(newBoost.item);
-        }
-        upgradesScroll.append(
-          intro,
-          boostHeading,
-          boostList,
-          lastingHeading,
-          upgradeList,
-          foundHeading,
-          foundList,
-          more,
-        );
-      }
-    }
-    setTeachDot(
-      upgradesButton,
-      [...boostRows, ...upgradeRows].some((row) => showsDot(current, row.id)),
-    );
     let anyFound = false;
-    for (const { id, item } of foundRows) {
-      const found = hasLostTool(current, id);
-      item.hidden = !found;
-      anyFound ||= found;
+    for (const { id, row } of toolRows) {
+      const rowView = toolRowView(current, id);
+      hide(row.root, !rowView.shown);
+      anyFound ||= rowView.shown;
+      row.render(rowView);
     }
-    foundHeading.hidden = !anyFound;
-    foundList.hidden = !anyFound;
-    upgradesPocket.textContent = `You have ${formatCount(current.pocket)} stones.`;
-    setAffordGlow(upgradesButton, anyAffordable && view.ready);
-    upgradesButton.setAttribute(
-      "aria-label",
-      anyAffordable ? "Upgrades, one is affordable" : "Upgrades",
-    );
-    howHost.hidden = !howOpen;
-    upgradesHost.hidden = howOpen;
-    upgradesPocket.hidden = howOpen;
-    const wasOpen = !upgradesSheet.hidden;
-    upgradesSheet.hidden = !upgradesOpen;
-    if (upgradesOpen && !wasOpen) {
-      upgradesClose.focus();
+    hide(boostSec, !boostsShowing);
+    hide(lastingSec, !upgradesShowing);
+    hide(foundSec, !anyFound);
+    hide(foot, !anyHiddenRow(current));
+    order(newId);
+    sheet.kick(newId === undefined ? UPGRADES_KICK : UPGRADES_INTRO);
+    if (sheet.isOpen()) {
+      sheet.fitSpare();
     }
   };
-  return { button: upgradesButton, sheet: upgradesSheet, render };
+
+  const open = (from?: HTMLElement): void => {
+    // Rows he has had in front of him stay, even after the pocket dips.
+    progress.applyMutation((current) =>
+      markAllSeen(current, shownRows(current)),
+    );
+    sheet.open(from);
+  };
+
+  return { sheet, render, open };
 }

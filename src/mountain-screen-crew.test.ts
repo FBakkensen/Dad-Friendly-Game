@@ -1,9 +1,15 @@
 // @vitest-environment happy-dom
-import { boostById } from "./boosts";
+import { boostById, boostCost } from "./boosts";
 import { promoteCost } from "./engineers";
 import { send } from "./expeditions";
-import { BAND_STARTS, kidStretch, shownStones, stonesLeft } from "./scale";
-import { formatCount } from "./format";
+import {
+  BAND_STARTS,
+  kidStretch,
+  shownStones,
+  stonesLeft,
+  stretch,
+} from "./scale";
+import { formatCompact, formatCount } from "./format";
 import { effectiveRates } from "./rates";
 import { odometerFace } from "./odometer";
 import { RELICS } from "./relics";
@@ -15,11 +21,15 @@ import { FIX_HOLD_MS } from "./hazards";
 import {
   ENGINEER_WELCOME,
   NEEDS_MORE_WORKERS,
-  buyPriceWords,
   promoteNeeds,
   promoteOffer,
   troubleAria,
+  upgradeEffectLine,
+  upgradeWhyLine,
 } from "./screen-words";
+import { type CloudLoadResult, type CloudSave } from "./cloud-save";
+import { BUYS_SETTLE_MS } from "./mountain-screen";
+import { shownRows } from "./upgrade-reveal";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { tierById, tierCost } from "./tiers";
 import { upgradeById, upgradeCost, type UpgradeId } from "./upgrades";
@@ -27,6 +37,7 @@ import {
   createMemoryStorage,
   mountScreen,
   setReducedMotion,
+  signedIn,
   stopScreens,
   tileUrl,
 } from "./mountain-screen.harness";
@@ -212,102 +223,524 @@ describe("what the crew gives", () => {
 });
 
 describe("upgrades on screen", () => {
-  const seededWith = (mountain: Mountain) => {
+  const seededWith = (mountain: Mountain, at = Date.now()) => {
     const storage = createMemoryStorage();
-    writeSessionSave({ storage, mountain, lastSeen: Date.now() });
+    writeSessionSave({ storage, mountain, lastSeen: at });
     return storage;
   };
+  const drawerOf = (screen: ReturnType<typeof mountScreen>) =>
+    screen.root.querySelector<HTMLElement>(
+      '.board-sheet[data-sheet="upgrades"]',
+    );
+  const openUpgrades = (screen: ReturnType<typeof mountScreen>): void => {
+    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+  };
+  const rowOf = (screen: ReturnType<typeof mountScreen>, selector: string) => {
+    const row = drawerOf(screen)?.querySelector(selector);
+    if (!(row instanceof HTMLElement)) throw new Error(`no ${selector}`);
+    return row;
+  };
+  const partOf = (row: HTMLElement, part: string) =>
+    row.querySelector<HTMLElement>(`.board-row-${part}`);
+  // A finger: the press, the lift, then the click it makes.
+  const fingerTap = (el: HTMLElement): void => {
+    el.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+    );
+    el.dispatchEvent(
+      new PointerEvent("pointerup", { bubbles: true, button: 0 }),
+    );
+    el.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+  };
+  const CLOCK = 1_700_000_000_000;
+  /** Both boosts and Strong arms show: a cart, a drill and three carts. */
+  const boostsOpen = (pocket: number): Mountain => ({
+    ...minedMountain(30_000),
+    helpers: 20,
+    carts: 3,
+    drills: 1,
+    staffed: 2,
+    pocket,
+  });
+  const sharperPrice = (mountain: Mountain): number =>
+    boostCost(
+      boostById("sharper"),
+      effectiveRates(mountain),
+      stretch(mountain),
+    );
 
-  it("opens the sheet from beside the pocket, buys Strong arms, and taps harder", () => {
-    setReducedMotion(false);
-    // A pinned clock (#348): on a busy machine a real one let a crew tick
-    // land inside the tap, and the float read the crew's 527 instead of 9.
-    const clock = Date.now();
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: {
-        ...minedMountain(30_000),
-        helpers: 500,
-        // Three carts open Strong arms (#250). The pocket covers two levels
-        // with stones to spare.
-        carts: 3,
-        pocket: upgradePrice("tap", 0) + upgradePrice("tap", 1) + 86_000,
-      },
-      lastSeen: clock,
+  it("the drawer opens with its rows", () => {
+    const m = boostsOpen(50_000);
+    const screen = mountScreen({
+      storage: seededWith(m, CLOCK),
+      now: () => CLOCK,
     });
-    const screen = mountScreen({ storage, now: () => clock });
     document.body.append(screen.root);
-    const button =
-      screen.root.querySelector<HTMLButtonElement>(".upgrades-button");
-    const sheet = screen.root.querySelector<HTMLElement>(".upgrades-dialog");
-    expect(button?.classList.contains("afford-glow")).toBe(true);
-    expect(button?.getAttribute("aria-label")).toBe(
-      "Upgrades, one is affordable",
+    const drawer = drawerOf(screen);
+    expect(drawer?.classList.contains("is-open")).toBe(false);
+    openUpgrades(screen);
+    expect(drawer?.classList.contains("is-open")).toBe(true);
+    expect(drawer?.querySelector(".board-sheet-title")?.textContent).toBe(
+      "Upgrades",
     );
-    expect(sheet?.hidden).toBe(true);
-
-    button?.click();
-    expect(sheet?.hidden).toBe(false);
-    expect(document.activeElement).toBe(
-      screen.root.querySelector(".upgrades-close"),
+    const sharper = rowOf(
+      screen,
+      '.board-row.upgrade.boost[data-boost="sharper"]',
     );
-    expect(screen.text('[data-upgrade="tap"] .upgrade-name')).toBe(
-      "Strong arms",
+    const overtime = rowOf(
+      screen,
+      '.board-row.upgrade.boost[data-boost="overtime"]',
     );
-    expect(screen.text('[data-upgrade="tap"] .sheet-level')).toBe("Lv 0/10");
-    expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
-      "Taps 1 to 67.",
+    expect(sharper.hidden).toBe(false);
+    expect(overtime.hidden).toBe(false);
+    expect(partOf(sharper, "name")?.textContent).toBe("Sharper picks");
+    expect(partOf(overtime, "name")?.textContent).toBe("Overtime");
+    expect(partOf(sharper, "price")?.textContent).toBe(
+      formatCompact(sharperPrice(m)),
     );
-    const buy = screen.root.querySelector<HTMLButtonElement>(
-      '[data-upgrade="tap"] .upgrade-buy',
+    const overtimePrice = boostCost(
+      boostById("overtime"),
+      effectiveRates(m),
+      stretch(m),
     );
-    expect(buy?.textContent).toBe(buyPriceWords(upgradePrice("tap", 0)));
-    buy?.click();
-    expect(screen.text('[data-upgrade="tap"] .upgrade-name')).toBe(
-      "Strong arms",
+    expect(partOf(overtime, "price")?.textContent).toBe(
+      formatCompact(overtimePrice),
     );
-    expect(screen.text('[data-upgrade="tap"] .sheet-level')).toBe("Lv 1/10");
-    expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
-      "Taps 67 to 133.",
-    );
-    expect(buy?.textContent).toBe(buyPriceWords(upgradePrice("tap", 1)));
-    expect(buy?.disabled).toBe(false);
-
-    screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
-    expect(sheet?.hidden).toBe(true);
-    expect(document.activeElement).toBe(button);
-
-    screen.dig.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, detail: 1 }),
-    );
-    expect(screen.root.querySelector(".board-dig-plus")?.textContent).toBe(
-      "+67",
-    );
-    expect(screen.dig.getAttribute("aria-label")).toBe(
-      "Mine window: tap to mine 67 stones",
-    );
+    // Sections in today's order, and the rows carry no icon.
+    expect(
+      [...(drawer?.querySelectorAll(".board-sec") ?? [])]
+        .filter((sec) => !(sec as HTMLElement).hidden)
+        .map((sec) => sec.textContent),
+    ).toEqual(["Quick boosts", "Lasting upgrades"]);
+    expect(drawer?.querySelector(".board-row-icon")).toBeNull();
+    expect(
+      [...(drawer?.querySelectorAll(".board-row") ?? [])].every((row) =>
+        row.classList.contains("no-icon"),
+      ),
+    ).toBe(true);
+    // The pocket shows on the odometer above the drawer, not in it.
+    expect(drawer?.textContent).not.toContain("You have");
     screen.root.remove();
-    setReducedMotion(true);
   });
 
-  it("dims the button and the buy line when nothing is affordable", () => {
+  it("a tap buys one and holds Done", async () => {
+    vi.useFakeTimers();
+    try {
+      const m = boostsOpen(50_000);
+      let clock = 10_000;
+      const screen = mountScreen({
+        storage: seededWith(m, CLOCK),
+        now: () => CLOCK,
+        tapClock: () => clock,
+      });
+      document.body.append(screen.root);
+      const pocket = screen.progress.getSnapshot().mountain.pocket;
+      const price = sharperPrice(screen.progress.getSnapshot().mountain);
+      openUpgrades(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      const sharper = rowOf(screen, '[data-boost="sharper"]');
+      fingerTap(sharper);
+      clock += 100;
+      fingerTap(sharper);
+      const after = screen.progress.getSnapshot().mountain;
+      expect(after.boosts?.sharper).toBe(
+        CLOCK + boostById("sharper").durationMs,
+      );
+      expect(after.pocket).toBe(pocket - price);
+      expect(partOf(sharper, "verb")?.textContent).toBe("Done");
+      expect(partOf(sharper, "flag")?.textContent).toBe("Done");
+      expect(sharper.getAttribute("aria-label")).toBe("Sharper picks. Done");
+      await vi.advanceTimersByTimeAsync(1_900);
+      expect(partOf(sharper, "verb")?.textContent).toBe("Running");
+      expect(partOf(sharper, "price")?.textContent).toBe("10:00");
+      expect(sharper.getAttribute("aria-label")).toContain(
+        "Running, 10:00 left",
+      );
+      screen.root.remove();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a dear tap blinks and spends nothing", () => {
+    vi.useFakeTimers();
+    setReducedMotion(false);
+    try {
+      const m = boostsOpen(10);
+      let clock = 10_000;
+      const screen = mountScreen({
+        storage: seededWith(m, CLOCK),
+        now: () => CLOCK,
+        tapClock: () => clock,
+      });
+      document.body.append(screen.root);
+      const pocket = screen.progress.getSnapshot().mountain.pocket;
+      openUpgrades(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      const sharper = rowOf(screen, '[data-boost="sharper"]');
+      expect(sharper.classList.contains("is-dear")).toBe(true);
+      const lamp = sharper.querySelector<HTMLElement>(".board-lamp");
+      const frames: string[] = [];
+      fingerTap(sharper);
+      frames.push(lamp?.style.backgroundPositionX ?? "");
+      vi.advanceTimersByTime(140);
+      frames.push(lamp?.style.backgroundPositionX ?? "");
+      expect(frames).toEqual(["-120px", "0px"]);
+      expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
+      expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
+        undefined,
+      );
+      screen.root.remove();
+    } finally {
+      vi.useRealTimers();
+      setReducedMotion(true);
+    }
+  });
+
+  it("a tap re-reads the store: a pocket that fell under the price buys nothing", () => {
+    const m = boostsOpen(50_000);
+    let clock = 10_000;
+    const screen = mountScreen({
+      storage: seededWith(m, CLOCK),
+      now: () => CLOCK,
+      tapClock: () => clock,
+    });
+    openUpgrades(screen);
+    clock += BUYS_SETTLE_MS + 100;
+    const sharper = rowOf(screen, '[data-boost="sharper"]');
+    expect(sharper.classList.contains("is-can")).toBe(true);
+    const real = screen.progress.getSnapshot();
+    const read = vi
+      .spyOn(screen.progress, "getSnapshot")
+      .mockReturnValue({ ...real, mountain: { ...real.mountain, pocket: 0 } });
+    const apply = vi.spyOn(screen.progress, "applyMutation");
+    fingerTap(sharper);
+    expect(apply).not.toHaveBeenCalled();
+    read.mockRestore();
+    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
+      undefined,
+    );
+  });
+
+  it("the settle", () => {
+    const m = boostsOpen(50_000);
+    let clock = 10_000;
+    const screen = mountScreen({
+      storage: seededWith(m, CLOCK),
+      now: () => CLOCK,
+      tapClock: () => clock,
+    });
+    const pocket = screen.progress.getSnapshot().mountain.pocket;
+    openUpgrades(screen);
+    clock += 100;
+    const sharper = rowOf(screen, '[data-boost="sharper"]');
+    fingerTap(sharper);
+    expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
+    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
+      undefined,
+    );
+    // Back shares the settle: the double tap does not close it either.
+    const back =
+      drawerOf(screen)?.querySelector<HTMLElement>(".board-sheet-back");
+    if (back) fingerTap(back);
+    expect(drawerOf(screen)?.classList.contains("is-open")).toBe(true);
+    // A deliberate tap once it has settled buys.
+    clock += BUYS_SETTLE_MS;
+    fingerTap(sharper);
+    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
+      CLOCK + boostById("sharper").durationMs,
+    );
+  });
+
+  it("lasting rows", () => {
+    const m: Mountain = {
+      ...boostsOpen(0),
+      helpers: 20,
+      upgrades: { tap: 2, boots: 1 },
+    };
+    const screen = mountScreen({
+      storage: seededWith(m, CLOCK),
+      now: () => CLOCK,
+    });
+    openUpgrades(screen);
+    const arms = rowOf(screen, '.board-row.upgrade[data-upgrade="tap"]');
+    const saved = screen.progress.getSnapshot().mountain;
+    expect(arms.classList.contains("no-icon")).toBe(true);
+    expect(partOf(arms, "name")?.firstChild?.textContent).toBe("Strong arms");
+    expect(partOf(arms, "badge")?.textContent).toBe("Lv 2/10");
+    expect(partOf(arms, "info")?.textContent).toBe(
+      upgradeEffectLine(upgradeById("tap"), saved, CLOCK),
+    );
+    expect(partOf(arms, "why")?.textContent).toBe(
+      upgradeWhyLine(upgradeById("tap"), saved, CLOCK),
+    );
+    expect(partOf(arms, "price")?.textContent).toBe(
+      formatCompact(upgradePrice("tap", 2)),
+    );
+    const boots = rowOf(screen, '[data-upgrade="boots"]');
+    expect(partOf(boots, "price")?.textContent).toBe("Owned");
+    expect(partOf(boots, "badge")?.hidden).toBe(true);
+    expect(boots.getAttribute("aria-label")).toMatch(/Owned$/);
+  });
+
+  it("buys Strong arms, and taps harder", async () => {
+    vi.useFakeTimers();
+    setReducedMotion(false);
+    try {
+      const clock = Date.now();
+      const screen = mountScreen({
+        storage: seededWith(
+          {
+            ...minedMountain(30_000),
+            helpers: 500,
+            // Three carts open Strong arms (#250). The pocket covers two
+            // levels with stones to spare.
+            carts: 3,
+            pocket: upgradePrice("tap", 0) + upgradePrice("tap", 1) + 86_000,
+          },
+          clock,
+        ),
+        now: () => clock,
+      });
+      document.body.append(screen.root);
+      const button =
+        screen.root.querySelector<HTMLButtonElement>(".upgrades-button");
+      expect(button?.classList.contains("afford-glow")).toBe(true);
+      expect(button?.getAttribute("aria-label")).toBe(
+        "Upgrades, one is affordable",
+      );
+      button?.click();
+      const drawer = drawerOf(screen);
+      expect(document.activeElement).toBe(
+        drawer?.querySelector(".board-sheet-title"),
+      );
+      const arms = rowOf(screen, '[data-upgrade="tap"]');
+      expect(partOf(arms, "badge")?.textContent).toBe("Lv 0/10");
+      expect(partOf(arms, "info")?.textContent).toBe("Taps 1 to 67.");
+      expect(partOf(arms, "price")?.textContent).toBe(
+        formatCompact(upgradePrice("tap", 0)),
+      );
+      arms.click();
+      expect(screen.progress.getSnapshot().mountain.upgrades?.tap).toBe(1);
+      expect(partOf(arms, "info")?.textContent).toBe("Taps 67 to 133.");
+      await vi.advanceTimersByTimeAsync(1_900);
+      expect(partOf(arms, "badge")?.textContent).toBe("Lv 1/10");
+      expect(partOf(arms, "price")?.textContent).toBe(
+        formatCompact(upgradePrice("tap", 1)),
+      );
+      expect(arms.classList.contains("is-can")).toBe(true);
+
+      drawer?.querySelector<HTMLButtonElement>(".board-sheet-back")?.click();
+      expect(drawer?.classList.contains("is-open")).toBe(false);
+      expect(document.activeElement).toBe(button);
+
+      screen.dig.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, detail: 1 }),
+      );
+      expect(screen.root.querySelector(".board-dig-plus")?.textContent).toBe(
+        "+67",
+      );
+      screen.root.remove();
+    } finally {
+      vi.useRealTimers();
+      setReducedMotion(true);
+    }
+  });
+
+  it("dims the button and the rows when nothing is affordable, and Escape closes", () => {
     const screen = mountScreen({ storage: seededWith(minedMountain(10)) });
+    document.body.append(screen.root);
     expect(
       screen.root
         .querySelector(".upgrades-button")
         ?.classList.contains("afford-glow"),
     ).toBe(false);
-    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    openUpgrades(screen);
+    const drawer = drawerOf(screen);
+    expect(drawer?.classList.contains("is-open")).toBe(true);
+    expect(drawer?.querySelector(".board-row.is-can")).toBeNull();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(drawer?.classList.contains("is-open")).toBe(false);
+    screen.root.remove();
+  });
+
+  it("opening marks every shown row seen", () => {
+    const m = boostsOpen(0);
+    const screen = mountScreen({
+      storage: seededWith(m, CLOCK),
+      now: () => CLOCK,
+    });
+    expect(screen.progress.getSnapshot().mountain.seen ?? []).toEqual([]);
+    openUpgrades(screen);
+    const after = screen.progress.getSnapshot().mountain;
+    expect([...(after.seen ?? [])].sort()).toEqual(
+      [...shownRows(after)].sort(),
+    );
+    expect(after.seen).toEqual(
+      expect.arrayContaining([
+        "boost:sharper",
+        "boost:overtime",
+        "upgrade:tap",
+      ]),
+    );
+  });
+
+  it("the i card", () => {
+    const screen = mountScreen({
+      storage: seededWith(boostsOpen(30_000), CLOCK),
+      now: () => CLOCK,
+    });
+    document.body.append(screen.root);
+    openUpgrades(screen);
+    const drawer = drawerOf(screen);
+    const head = drawer?.querySelector<HTMLElement>(".board-sheet-head");
+    const list = drawer?.querySelector<HTMLElement>(".board-sheet-list");
+    const footer = drawer?.querySelector<HTMLElement>(".board-sheet-footer");
+    drawer?.querySelector<HTMLButtonElement>(".board-sheet-info")?.click();
+    expect(head?.hidden).toBe(true);
+    expect(list?.hidden).toBe(true);
+    expect(footer?.hidden).toBe(true);
+    const how = drawer?.querySelector<HTMLElement>(".board-sheet-how");
+    expect(how?.hidden).toBe(false);
+    const cards = [...(how?.querySelectorAll<HTMLElement>(".teach-how") ?? [])];
+    expect(cards.map((card) => card.dataset["how"])).toEqual([
+      "upgrades",
+      "boosts",
+    ]);
+    // Board art: the upgrades icon, the worker and the pick at 2x.
     expect(
-      screen.root.querySelector<HTMLButtonElement>(".upgrade-buy")?.disabled,
-    ).toBe(true);
-    screen.root
-      .querySelector(".upgrades-dialog")
-      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      cards.flatMap((card) =>
+        [...card.querySelectorAll("img")].map((img) =>
+          img.getAttribute("width"),
+        ),
+      ),
+    ).toEqual(["32", "64", "32", "32", "64", "32"]);
+    const backs = cards
+      .flatMap((card) => [
+        ...card.querySelectorAll<HTMLButtonElement>(".teach-how-back"),
+      ])
+      .filter((back) => !back.hidden);
+    expect(backs.map((back) => back.textContent)).toEqual(["Back to Upgrades"]);
+    expect(backs[0]?.closest(".teach-how")).toBe(cards[1]);
+    backs[0]?.click();
+    expect(how?.hidden).toBe(true);
+    expect(head?.hidden).toBe(false);
+    expect(list?.hidden).toBe(false);
+    expect(footer?.hidden).toBe(false);
+    expect(drawer?.classList.contains("is-open")).toBe(true);
+    screen.root.remove();
+  });
+
+  it("until the save is in", async () => {
+    let finishLoad: (result: CloudLoadResult) => void = () => {
+      throw new Error("load was not pending");
+    };
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        finishLoad = onChange;
+        return () => undefined;
+      },
+    };
+    const screen = mountScreen({ auth: signedIn(), cloudSave });
+    openUpgrades(screen);
+    const drawer = drawerOf(screen);
+    expect(drawer?.classList.contains("is-open")).toBe(true);
+    const rows = [
+      ...(drawer?.querySelectorAll<HTMLElement>(".board-row") ?? []),
+    ];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      if (row instanceof HTMLButtonElement) {
+        expect(row.disabled).toBe(true);
+      }
+      expect(partOf(row, "price")?.textContent).toBe("");
+      expect(row.querySelector<HTMLElement>(".board-row-tag")?.hidden).toBe(
+        true,
+      );
+    }
+    finishLoad({ kind: "found", mountain: boostsOpen(50_000) });
+    await Promise.resolve();
+    // The open drawer stays open and its rows fill in.
+    expect(drawer?.classList.contains("is-open")).toBe(true);
+    const sharper = rowOf(screen, '[data-boost="sharper"]');
+    expect(sharper.hidden).toBe(false);
+    expect((sharper as HTMLButtonElement).disabled).toBe(false);
+    expect(partOf(sharper, "price")?.textContent).not.toBe("");
+  });
+
+  it("a teach note waits while the drawer is open, then shows after it", () => {
+    vi.useFakeTimers();
+    try {
+      const screen = mountScreen({
+        storage: seededWith(
+          {
+            ...minedMountain(12_000_000),
+            helpers: 20,
+            carts: 2,
+            staffed: 2,
+            seen: ["workshop"],
+            taught: ["workshop"],
+          },
+          CLOCK,
+        ),
+        now: () => CLOCK,
+      });
+      document.body.append(screen.root);
+      openUpgrades(screen);
+      // The first borer brings the first engineer while Upgrades is open.
+      screen.progress.applyMutation((m) => ({
+        ...m,
+        borers: 1,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+      }));
+      vi.advanceTimersByTime(2_000);
+      expect(drawerOf(screen)?.classList.contains("is-open")).toBe(true);
+      expect(screen.root.querySelector(".board-note.on")).toBeNull();
+      drawerOf(screen)
+        ?.querySelector<HTMLButtonElement>(".board-sheet-back")
+        ?.click();
+      vi.advanceTimersByTime(1_000);
+      expect(
+        screen.root.querySelector(".board-note.on .teach-note"),
+      ).not.toBeNull();
+      screen.root.remove();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("the scrim over the board's top closes the drawer", async () => {
+    const screen = mountScreen({
+      storage: seededWith(boostsOpen(0), CLOCK),
+      now: () => CLOCK,
+    });
+    const scrim = screen.root.querySelector<HTMLElement>(
+      ".board-sheet-clip > .board-scrim",
+    );
+    expect(scrim?.classList.contains("is-on")).toBe(false);
+    openUpgrades(screen);
+    // The scrim follows the drawer's class through a MutationObserver.
+    await Promise.resolve();
+    expect(scrim?.classList.contains("is-on")).toBe(true);
+    scrim?.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    expect(drawerOf(screen)?.classList.contains("is-open")).toBe(false);
+  });
+
+  it("a card that opens by itself closes the drawer, so it is never covered", () => {
+    const screen = mountScreen({
+      storage: seededWith(boostsOpen(0), CLOCK),
+      now: () => CLOCK,
+    });
+    openUpgrades(screen);
+    expect(drawerOf(screen)?.classList.contains("is-open")).toBe(true);
+    screen.progress.previewConflict();
     expect(
-      screen.root.querySelector<HTMLElement>(".upgrades-dialog")?.hidden,
-    ).toBe(true);
+      screen.root.querySelector<HTMLElement>(".save-conflict")?.hidden,
+    ).toBe(false);
+    expect(drawerOf(screen)?.classList.contains("is-open")).toBe(false);
   });
 });
 
@@ -320,7 +753,7 @@ describe("quick boosts on screen", () => {
       const storage = createMemoryStorage();
       writeSessionSave({
         storage,
-        mountain: { ...minedMountain(40_000), helpers: 500 },
+        mountain: { ...minedMountain(40_000), helpers: 500, carts: 1 },
         lastSeen: clock,
       });
       const screen = mountScreen({ storage, now: () => clock });
@@ -330,22 +763,35 @@ describe("quick boosts on screen", () => {
       expect(chip?.hidden).toBe(true);
       screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
       const buy = screen.root.querySelector<HTMLButtonElement>(
-        '[data-boost="sharper"] .upgrade-buy',
+        '.board-row[data-boost="sharper"]',
       );
-      expect(screen.text('[data-boost="sharper"] .upgrade-name')).toBe(
+      expect(screen.text('[data-boost="sharper"] .board-row-name')).toBe(
         "Sharper picks",
       );
       // Its taps' worth at one stone a tap, whatever the crew (#333).
-      expect(buy?.textContent).toBe(
-        buyPriceWords(boostById("sharper").priceUnits),
+      expect(screen.text('[data-boost="sharper"] .board-row-price')).toBe(
+        formatCompact(boostById("sharper").priceUnits),
       );
       buy?.click();
-      expect(buy?.disabled).toBe(true);
-      expect(buy?.textContent).toBe("Running · 10:00");
+      expect(screen.text('[data-boost="sharper"] .board-row-verb')).toBe(
+        "Done",
+      );
+      await vi.advanceTimersByTimeAsync(1_900);
+      expect(buy?.classList.contains("is-running")).toBe(true);
+      expect(screen.text('[data-boost="sharper"] .board-row-verb')).toBe(
+        "Running",
+      );
+      expect(screen.text('[data-boost="sharper"] .board-row-price')).toBe(
+        "10:00",
+      );
       expect(chip?.hidden).toBe(false);
       expect(chip?.textContent).toBe("Picks×2 10:00");
       expect(chip?.getAttribute("aria-label")).toContain("Sharper picks");
-      screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(
+          '[data-sheet="upgrades"] .board-sheet-back',
+        )
+        ?.click();
 
       screen.dig.dispatchEvent(
         new MouseEvent("click", { bubbles: true, detail: 1 }),
@@ -524,7 +970,7 @@ describe("quick boosts on screen", () => {
       "Your crew mines 20 stones a second",
     );
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
-    expect(screen.text('[data-boost="overtime"] .upgrade-effect')).toBe(
+    expect(screen.text('[data-boost="overtime"] .board-row-info')).toBe(
       "Crew ×2 for 30 min. 20/s.",
     );
   });
@@ -532,6 +978,7 @@ describe("quick boosts on screen", () => {
 
 describe("lasting upgrades on screen", () => {
   it("hides locked upgrades until open, and boosts helper cards once bought", () => {
+    vi.useFakeTimers();
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -547,8 +994,9 @@ describe("lasting upgrades on screen", () => {
     const screen = mountScreen({ storage });
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
     const boots = screen.root.querySelector<HTMLButtonElement>(
-      '[data-upgrade="boots"] .upgrade-buy',
+      '.board-row[data-upgrade="boots"]',
     );
+    const price = () => screen.text('[data-upgrade="boots"] .board-row-price');
     // Locked rows stay hidden until their owned count opens them (#250).
     expect(
       screen.root.querySelector<HTMLElement>('[data-upgrade="boots"]')?.hidden,
@@ -560,14 +1008,17 @@ describe("lasting upgrades on screen", () => {
     screen.root
       .querySelector<HTMLButtonElement>('.tier[data-tier="helper"]')
       ?.click();
-    expect(boots?.textContent).toBe(buyPriceWords(upgradePrice("boots")));
-    expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
+    expect(price()).toBe(formatCompact(upgradePrice("boots")));
+    expect(screen.text('[data-upgrade="boots"] .board-row-info')).toBe(
       "Workers 1/s to 2.4/s.",
     );
     boots?.click();
-    expect(boots?.textContent).toBe("Owned");
-    expect(boots?.disabled).toBe(true);
-    expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
+    vi.advanceTimersByTime(1_900);
+    vi.useRealTimers();
+    expect(price()).toBe("Owned");
+    expect(boots?.classList.contains("is-owned")).toBe(true);
+    expect(boots?.classList.contains("is-can")).toBe(false);
+    expect(screen.text('[data-upgrade="boots"] .board-row-info')).toBe(
       "Workers 1/s to 2.4/s.",
     );
     expect(screen.text('.tier[data-tier="helper"] .tier-rate')).toBe(
@@ -609,20 +1060,31 @@ describe("lasting upgrades on screen", () => {
       "pick",
       "boots",
     ]);
-    expect(screen.text('[data-tool="pick"] .upgrade-name')).toBe(
+    expect(
+      screen.root.querySelector('[data-tool="pick"]')?.tagName.toLowerCase(),
+    ).toBe("div");
+    expect(screen.text('[data-tool="pick"] .board-row-name')).toBe(
       "Grandfather's pick",
     );
-    expect(screen.text('[data-tool="pick"] .upgrade-effect')).toBe(
+    expect(screen.text('[data-tool="pick"] .board-row-info')).toBe(
       "Your taps bite a little deeper.",
     );
-    expect(screen.text('[data-tool="pick"] .upgrade-now')).toBe("Found");
+    expect(screen.text('[data-tool="pick"] .board-row-price')).toBe("Found");
+    // Under its legend: Brought home, then the found rows.
+    const legend = screen.root.querySelector<HTMLElement>(
+      '[data-sheet="upgrades"] .board-sec[data-sec="found"]',
+    );
+    expect(legend?.textContent).toBe("Brought home");
+    expect(legend?.hidden).toBe(false);
+    expect(legend?.nextElementSibling).toBe(
+      screen.root.querySelector('[data-tool="pick"]'),
+    );
     expect(
       screen.root.querySelector<HTMLElement>('[data-tool="lamp"]')?.hidden,
     ).toBe(true);
     expect(
       screen.root.querySelector<HTMLElement>('[data-tool="map"]')?.hidden,
     ).toBe(true);
-    expect(screen.text(".found-heading")).toBe("Brought home");
     expect(visible.map((row) => row.textContent).join(" ")).not.toMatch(
       /[0-9?]/,
     );
@@ -639,12 +1101,11 @@ describe("lasting upgrades on screen", () => {
       })(),
     });
     bare.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
-    expect(bare.root.querySelector<HTMLElement>(".found-heading")?.hidden).toBe(
-      true,
-    );
-    expect(bare.root.querySelector<HTMLElement>(".found-list")?.hidden).toBe(
-      true,
-    );
+    expect(
+      bare.root.querySelector<HTMLElement>(
+        '[data-sheet="upgrades"] .board-sec[data-sec="found"]',
+      )?.hidden,
+    ).toBe(true);
     expect(
       [...bare.root.querySelectorAll<HTMLElement>(".found-tool")].every(
         (row) => row.hidden,
@@ -669,10 +1130,10 @@ describe("crew synergies on screen", () => {
     });
     const screen = mountScreen({ storage });
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
-    expect(screen.text('[data-upgrade="cartSyn"] .upgrade-name')).toBe(
+    expect(screen.text('[data-upgrade="cartSyn"] .board-row-name')).toBe(
       "Helping hands",
     );
-    expect(screen.text('[data-upgrade="cartSyn"] .upgrade-effect')).toBe(
+    expect(screen.text('[data-upgrade="cartSyn"] .board-row-info')).toBe(
       "Carts 6/s to 6.7/s.",
     );
     expect(
@@ -680,9 +1141,9 @@ describe("crew synergies on screen", () => {
         ?.hidden,
     ).toBe(true);
     screen.root
-      .querySelector<HTMLButtonElement>('[data-upgrade="cartSyn"] .upgrade-buy')
+      .querySelector<HTMLButtonElement>('.board-row[data-upgrade="cartSyn"]')
       ?.click();
-    expect(screen.text('[data-upgrade="cartSyn"] .upgrade-effect')).toBe(
+    expect(screen.text('[data-upgrade="cartSyn"] .board-row-info')).toBe(
       "Carts 6/s to 6.7/s.",
     );
     expect(screen.text('.tier[data-tier="cart"] .tier-rate')).toBe(
@@ -1500,18 +1961,24 @@ describe("player-facing workers (#139)", () => {
 
       screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
       expect(
-        screen.root.querySelector<HTMLElement>(".upgrades-dialog")?.hidden,
-      ).toBe(false);
-      expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toMatch(
+        screen.root
+          .querySelector('.board-sheet[data-sheet="upgrades"]')
+          ?.classList.contains("is-open"),
+      ).toBe(true);
+      expect(screen.text('[data-upgrade="boots"] .board-row-info')).toMatch(
         /^Workers \d+(\.\d)?\/s to \d+(\.\d)?\/s\.$/,
       );
-      expect(screen.text('[data-upgrade="cartSyn"] .upgrade-name')).toBe(
+      expect(screen.text('[data-upgrade="cartSyn"] .board-row-name')).toBe(
         "Helping hands",
       );
-      expect(screen.text('[data-upgrade="cartSyn"] .upgrade-effect')).toMatch(
+      expect(screen.text('[data-upgrade="cartSyn"] .board-row-info')).toMatch(
         /^Carts \S+\/s to \S+\/s\.$/,
       );
-      screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(
+          '[data-sheet="upgrades"] .board-sheet-back',
+        )
+        ?.click();
 
       screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
       expect(screen.root.querySelector<HTMLElement>(".game-menu")?.hidden).toBe(

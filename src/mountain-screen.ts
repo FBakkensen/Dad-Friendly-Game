@@ -17,7 +17,8 @@ import { hasRelic, relicGoal, type RelicId } from "./relics";
 import { BOOSTS } from "./boosts";
 import { createEffectChip, shortEffectName, writeChip } from "./effect-row";
 import { createBoardNote } from "./board-note";
-import { DRAWER_SETTLE_MS } from "./board-drawer";
+import { DRAWER_SETTLE_MS, createSheetScrim } from "./board-drawer";
+import { keyViews } from "./key-rail";
 import { bandWords, createMachineBays } from "./board-bays";
 import { bayViews } from "./machine-bays";
 import { readyNow, type ReadyPick } from "./ready-now";
@@ -656,14 +657,30 @@ export function mountMountainScreen({
     progress,
     getView: () => view,
     now,
-    upgradesUrl,
     chipFor,
-    requestRender: () => {
-      render();
-    },
+    clock: tapClock,
+    ...(signal === undefined ? {} : { signal }),
   });
-  const upgradesButton = upgrades.button;
-  const upgradesSheet = upgrades.sheet;
+  // The Upgrades thumb opens the drawer until Task 8's key rail takes its place.
+  const upgradesButton = document.createElement("button");
+  upgradesButton.type = "button";
+  upgradesButton.className = "upgrades-button";
+  upgradesButton.setAttribute("aria-label", "Upgrades");
+  upgradesButton.setAttribute("aria-haspopup", "dialog");
+  const upgradesIcon = document.createElement("img");
+  upgradesIcon.src = upgradesUrl;
+  upgradesIcon.alt = "";
+  upgradesIcon.width = 32;
+  upgradesIcon.height = 32;
+  upgradesIcon.draggable = false;
+  const upgradesLabel = document.createElement("span");
+  upgradesLabel.className = "thumb-label";
+  upgradesLabel.textContent = "Upgrades";
+  upgradesButton.append(upgradesIcon, upgradesLabel);
+  upgradesButton.addEventListener("click", () => {
+    closeBoardPopups();
+    upgrades.open(upgradesButton);
+  });
 
   const engineers = createEngineersPanel({
     progress,
@@ -781,6 +798,14 @@ export function mountMountainScreen({
     menuPanel.render();
     legacy.render();
     upgrades.render();
+    // Gold glow and the dot on the Upgrades thumb, by the key rail's rules (#373).
+    const upgradesKey = keyViews(view.mountain, now(), view.trouble).upgrades;
+    setAffordGlow(upgradesButton, view.ready && upgradesKey.cap === "lit");
+    setTeachDot(upgradesButton, view.ready && upgradesKey.dot);
+    upgradesButton.setAttribute(
+      "aria-label",
+      view.ready ? upgradesKey.aria : "Upgrades",
+    );
     engineers.render();
     workshop.render();
     // The menu row hides Workshop until the Granite. The thumb uses that same gate.
@@ -864,12 +889,28 @@ export function mountMountainScreen({
     savedCopies.render();
     conflictSheet.render(view.saveConflict, view.elsewhere);
     saveLine.render();
+    coverDrawers();
     coverNote();
   };
 
-  /** A sheet or card open over the board. */
-  const OPEN_SHEET =
+  /** A card open over the board: today's sheets and the cards that open by themselves. */
+  const OPEN_CARD =
     ":scope > [role='dialog']:not([hidden]), :scope > [role='alertdialog']:not([hidden])";
+  /**
+   * A sheet or card open over the board. A drawer is never hidden: it is open
+   * while it has .is-open, inside the sheet clip (#373).
+   */
+  const OPEN_SHEET = `${OPEN_CARD}, :scope > .board-sheet-clip > .board-sheet.is-open`;
+  /**
+   * A card that opens by itself (a relic, a layer, a craft done, a save
+   * conflict, an update) stands under the drawers' clip. It closes an open
+   * drawer, so it is never covered.
+   */
+  const coverDrawers = (): void => {
+    if (upgrades.sheet.isOpen() && root.querySelector(OPEN_CARD) !== null) {
+      upgrades.sheet.close();
+    }
+  };
   /** The teach note last put in the board note: each shows once a launch. */
   let teachShown: string | undefined;
   /**
@@ -1137,7 +1178,6 @@ export function mountMountainScreen({
   for (const door of [
     workshopThumb,
     engineers.button,
-    upgradesButton,
     menuButton,
     openWorkshop,
   ]) {
@@ -1156,6 +1196,19 @@ export function mountMountainScreen({
   const drawerClip = document.createElement("div");
   drawerClip.className = "board-drawer-clip";
   drawerClip.append(saveLine.drawer);
+  // The drawers slide up inside the board above the save line; the scrim over
+  // the board's top closes them, and hands a tap on a relic to its socket (#373).
+  const sheetClip = document.createElement("div");
+  sheetClip.className = "board-sheet-clip";
+  sheetClip.append(
+    upgrades.sheet.root,
+    createSheetScrim({
+      sheets: [upgrades.sheet],
+      sockets: () => [
+        ...relicPlate.root.querySelectorAll<HTMLElement>(".board-socket"),
+      ],
+    }),
+  );
 
   root.replaceChildren(
     boardTop,
@@ -1163,6 +1216,7 @@ export function mountMountainScreen({
     bays.root,
     readyPlate.root,
     thumbBar,
+    sheetClip,
     drawerClip,
     saveLine.line,
     boardNote.note,
@@ -1178,7 +1232,6 @@ export function mountMountainScreen({
     legacy.dialog,
     menu,
     fieldLogSheet,
-    upgradesSheet,
     engineers.sheet,
     workshop.sheet,
     buysDialog,
@@ -1198,6 +1251,7 @@ export function mountMountainScreen({
     renderBays(pick);
     renderReadyRow(pick);
     renderTeach();
+    coverDrawers();
     coverNote();
   }, 1000);
   signal?.addEventListener("abort", () => {

@@ -7,6 +7,7 @@ import { EMPTY_MATERIALS, LAYERS } from "./layers";
 import { createMountain, type Mountain } from "./mountain";
 import { formatCompact } from "./format";
 import { shownStones } from "./scale";
+import { BUYS_SETTLE_MS } from "./mountain-screen";
 import { createWelcomePanel } from "./welcome-panel";
 import { createProgressStore } from "./progress-store";
 import { minedMountain } from "./test-fixtures";
@@ -334,10 +335,10 @@ describe("side tunnels (#147)", () => {
     );
     expect(sheet.textContent).toContain("+156 stones/sec");
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
-    expect(screen.text('[data-boost="sharper"] .upgrade-effect')).toContain(
+    expect(screen.text('[data-boost="sharper"] .board-row-info')).toContain(
       "a tap",
     );
-    expect(screen.text('[data-boost="overtime"] .upgrade-effect')).toMatch(
+    expect(screen.text('[data-boost="overtime"] .board-row-info')).toMatch(
       /\/s\.$/,
     );
     screen.root.remove();
@@ -889,13 +890,9 @@ describe("sheet buys", () => {
     screen.progress.dispose();
   });
 
-  it("uses one sheet card on buys and upgrades", () => {
+  it("uses one sheet card on buys, and drawer rows on upgrades (#373)", () => {
     const screen = mountScreen();
-    const cards = [
-      ...screen.root.querySelectorAll(
-        ".buys-dialog .tier, .upgrades-dialog .upgrade",
-      ),
-    ];
+    const cards = [...screen.root.querySelectorAll(".buys-dialog .tier")];
     expect(cards.length).toBeGreaterThan(1);
     for (const card of cards) {
       expect(card.classList.contains("sheet-card")).toBe(true);
@@ -906,13 +903,18 @@ describe("sheet buys", () => {
       expect(card.querySelector(".sheet-card-price")).not.toBeNull();
       expect(card.querySelector(".sheet-card-body")).not.toBeNull();
     }
-    const buysPad = getComputedStyle(
-      screen.root.querySelector(".buys-dialog .sheet-card") as Element,
-    ).padding;
-    const upgradePad = getComputedStyle(
-      screen.root.querySelector(".upgrades-dialog .sheet-card") as Element,
-    ).padding;
-    expect(buysPad).toBe(upgradePad);
+    const rows = [
+      ...screen.root.querySelectorAll(
+        '.board-sheet[data-sheet="upgrades"] .upgrade',
+      ),
+    ];
+    expect(rows.length).toBeGreaterThan(1);
+    for (const row of rows) {
+      expect(row.classList.contains("board-row")).toBe(true);
+      expect(row.classList.contains("sheet-card")).toBe(false);
+      expect(row.querySelector(".board-row-name")).not.toBeNull();
+      expect(row.querySelector(".board-row-price")).not.toBeNull();
+    }
     screen.progress.dispose();
   });
 
@@ -956,13 +958,13 @@ describe("sheet buys", () => {
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
     const arms = screen.root.querySelector('[data-upgrade="tap"]');
     expect(arms?.classList.contains("is-dear")).toBe(true);
-    expect(arms?.querySelector<HTMLElement>(".upgrade-effect")?.hidden).toBe(
+    expect(arms?.querySelector<HTMLElement>(".board-row-info")?.hidden).toBe(
       false,
     );
-    expect(arms?.querySelector<HTMLElement>(".upgrade-why")?.hidden).toBe(
+    expect(arms?.querySelector<HTMLElement>(".board-row-why")?.hidden).toBe(
       false,
     );
-    expect(arms?.querySelector(".upgrade-effect")?.textContent).not.toBe("");
+    expect(arms?.querySelector(".board-row-info")?.textContent).not.toBe("");
     const roads = screen.root.querySelector('[data-upgrade="drillSyn"]');
     expect(roads?.hasAttribute("hidden")).toBe(true);
     screen.progress.dispose();
@@ -1013,7 +1015,8 @@ describe("sheet buys", () => {
       },
       lastSeen: Date.now(),
     });
-    const screen = mountScreen({ storage });
+    let clock = 0;
+    const screen = mountScreen({ storage, tapClock: () => clock });
     const tap = (node: Element): void => {
       node.dispatchEvent(
         new PointerEvent("pointerdown", {
@@ -1083,13 +1086,21 @@ describe("sheet buys", () => {
     tap(drag);
     expect(screen.progress.getSnapshot().mountain.helpers).toBe(helpers + 1);
     screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
-    const why = screen.root.querySelector('[data-upgrade="tap"] .upgrade-why');
+    // Past the drawer's settle: a deliberate tap.
+    clock += BUYS_SETTLE_MS;
+    const why = screen.root.querySelector(
+      '[data-upgrade="tap"] .board-row-why',
+    );
     if (why === null) {
       throw new Error("upgrade why did not render");
     }
     tap(why);
     expect(screen.progress.getSnapshot().mountain.upgrades?.tap).toBe(1);
-    screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(
+        '[data-sheet="upgrades"] .board-sheet-back',
+      )
+      ?.click();
     screen.root.querySelector<HTMLButtonElement>(".thumb-workshop")?.click();
     const craftName = screen.root.querySelector(".workshop-card h3");
     if (craftName === null) {
@@ -1122,8 +1133,10 @@ describe("sheet buys", () => {
     expect(thumb(fresh.root, ".engineers-button")?.disabled).toBe(true);
     thumb(fresh.root, ".upgrades-button")?.click();
     expect(
-      fresh.root.querySelector(".upgrades-dialog")?.hasAttribute("hidden"),
-    ).toBe(false);
+      fresh.root
+        .querySelector('.board-sheet[data-sheet="upgrades"]')
+        ?.classList.contains("is-open"),
+    ).toBe(true);
     fresh.progress.dispose();
 
     const storage = createMemoryStorage();

@@ -82,7 +82,7 @@ import {
 import { boostById } from "./boosts";
 import { upgradeById, upgradeCost } from "./upgrades";
 import { BAND_SCALE } from "./scale";
-import { buyPriceWords } from "./screen-words";
+import { UPGRADES_INTRO, UPGRADES_MORE } from "./screen-words";
 import { formatCompact } from "./format";
 import { MOUNTAIN_STONES } from "./mountain";
 import { showsDot } from "./teach";
@@ -176,10 +176,24 @@ describe("rows open at a fixed point in the climb (#250)", () => {
   });
 });
 
-describe("upgrades sheet reveal (#245)", () => {
+describe("upgrades drawer reveal (#245)", () => {
   const clock = 1_700_000_000_000;
   const row = (root: HTMLElement, id: string) =>
-    root.querySelector<HTMLElement>(`[data-upgrade="${id}"]`);
+    root.querySelector<HTMLButtonElement>(`.board-row[data-upgrade="${id}"]`);
+  const drawer = (root: HTMLElement) =>
+    root.querySelector<HTMLElement>('.board-sheet[data-sheet="upgrades"]');
+  const kick = (root: HTMLElement) =>
+    drawer(root)?.querySelector(".board-sheet-kick")?.textContent;
+  /** The section legends showing, top to bottom. */
+  const sections = (root: HTMLElement) =>
+    [...(drawer(root)?.querySelectorAll<HTMLElement>(".board-sec") ?? [])]
+      .filter((sec) => !sec.hidden)
+      .map((sec) => sec.textContent);
+  /** The first row under a section's legend. */
+  const firstIn = (root: HTMLElement, name: string) =>
+    [...(drawer(root)?.querySelectorAll<HTMLElement>(".board-sec") ?? [])].find(
+      (sec) => sec.textContent === name,
+    )?.nextElementSibling;
 
   it("prices a lasting upgrade by the band it stands in (#356)", () => {
     const screen = mount(() => clock);
@@ -194,15 +208,13 @@ describe("upgrades sheet reveal (#245)", () => {
     });
     screen.progress.applyMutation(() => caves(price - 1));
     screen.root.querySelector<HTMLElement>(".upgrades-button")?.click();
-    const buy = () =>
-      row(screen.root, "boots")?.querySelector<HTMLButtonElement>(
-        ".upgrade-buy",
-      );
-    expect(buy()?.textContent).toBe(buyPriceWords(price));
-    expect(buy()?.disabled).toBe(true);
+    const boots = () => row(screen.root, "boots");
+    const buy = () => boots()?.querySelector(".board-row-price");
+    expect(buy()?.textContent).toBe(formatCompact(price));
+    expect(boots()?.classList.contains("is-dear")).toBe(true);
     screen.progress.applyMutation(() => caves(price));
-    expect(buy()?.textContent).toBe(buyPriceWords(price));
-    expect(buy()?.disabled).toBe(false);
+    expect(buy()?.textContent).toBe(formatCompact(price));
+    expect(boots()?.classList.contains("is-can")).toBe(true);
     screen.root.remove();
   });
 
@@ -217,10 +229,8 @@ describe("upgrades sheet reveal (#245)", () => {
       pocket: 0,
     }));
     screen.root.querySelector<HTMLElement>(".upgrades-button")?.click();
-    const buy = row(screen.root, "tap")?.querySelector<HTMLButtonElement>(
-      ".upgrade-buy",
-    );
-    expect(buy?.textContent).toBe(buyPriceWords(price));
+    const buy = row(screen.root, "tap")?.querySelector(".board-row-price");
+    expect(buy?.textContent).toBe(formatCompact(price));
     const card = screen.root.querySelector<HTMLElement>(
       '[data-how="upgrades"] .teach-how-steps li span',
     );
@@ -238,15 +248,15 @@ describe("upgrades sheet reveal (#245)", () => {
     button?.click();
     expect(row(screen.root, "tap")?.hidden).toBe(true);
     expect(
-      screen.root.querySelector<HTMLElement>('li[data-boost="sharper"]')
+      screen.root.querySelector<HTMLElement>('.board-row[data-boost="sharper"]')
         ?.hidden,
     ).toBe(true);
-    expect(
-      screen.root.querySelector<HTMLElement>(".upgrades-more")?.hidden,
-    ).toBe(false);
-    expect(
-      screen.root.querySelector<HTMLElement>(".upgrades-intro")?.hidden,
-    ).toBe(true);
+    const more = drawer(screen.root)?.querySelector<HTMLElement>(
+      ".board-sheet-foot",
+    );
+    expect(more?.hidden).toBe(false);
+    expect(more?.textContent).toBe(UPGRADES_MORE);
+    expect(kick(screen.root)).toBe("Boosts for tonight, gear for good");
     expect(screen.root.querySelector(".teach-new")).toBeNull();
     screen.root.remove();
   });
@@ -267,18 +277,15 @@ describe("upgrades sheet reveal (#245)", () => {
     const tap = row(screen.root, "tap");
     expect(tap?.hidden).toBe(false);
     expect(tap?.classList.contains("teach-new")).toBe(true);
-    expect(tap?.querySelector(".teach-tag")?.textContent).toBe("New");
-    const buy = tap?.querySelector<HTMLButtonElement>(".upgrade-buy");
-    expect(buy?.classList.contains("teach-action")).toBe(true);
-    expect(buy?.textContent).toBe(
-      buyPriceWords(mustPrice(upgradeCost(arms, 0))),
+    expect(tap?.querySelector(".board-row-flag")?.textContent).toBe("New");
+    expect(tap?.querySelector(".board-row-price")?.textContent).toBe(
+      formatCompact(mustPrice(upgradeCost(arms, 0))),
     );
-    expect(buy?.disabled).toBe(true);
-    expect(tap?.parentElement?.firstElementChild).toBe(tap);
-    const intro = screen.root.querySelector<HTMLElement>(".upgrades-intro");
-    expect(intro?.hidden).toBe(false);
-    expect(intro?.nextElementSibling?.textContent).toBe("Lasting upgrades");
-    expect(intro?.textContent).not.toContain("?");
+    expect(tap?.classList.contains("is-dear")).toBe(true);
+    expect(firstIn(screen.root, "Lasting upgrades")).toBe(tap);
+    expect(kick(screen.root)).toBe(UPGRADES_INTRO);
+    expect(sections(screen.root)[0]).toBe("Lasting upgrades");
+    expect(kick(screen.root)).not.toContain("?");
     expect(screen.progress.getSnapshot().mountain.seen).toContain(
       "upgrade:tap",
     );
@@ -288,17 +295,13 @@ describe("upgrades sheet reveal (#245)", () => {
       ...current,
       pocket: mustPrice(upgradeCost(arms, 0)),
     }));
-    row(screen.root, "tap")
-      ?.querySelector<HTMLButtonElement>(".upgrade-buy")
-      ?.click();
+    row(screen.root, "tap")?.click();
     expect(screen.progress.getSnapshot().mountain.upgrades?.tap).toBe(1);
     expect(row(screen.root, "tap")?.classList.contains("teach-new")).toBe(
       false,
     );
     expect(button?.querySelector(".teach-dot")).toBeNull();
-    expect(
-      screen.root.querySelector<HTMLElement>(".upgrades-intro")?.hidden,
-    ).toBe(true);
+    expect(kick(screen.root)).toBe("Boosts for tonight, gear for good");
     screen.root.remove();
   });
 
@@ -312,12 +315,13 @@ describe("upgrades sheet reveal (#245)", () => {
     }));
     screen.root.querySelector<HTMLElement>(".upgrades-button")?.click();
     const sharper = screen.root.querySelector<HTMLElement>(
-      'li[data-boost="sharper"]',
+      '.board-row[data-boost="sharper"]',
     );
     expect(sharper?.classList.contains("teach-new")).toBe(true);
-    expect(sharper?.parentElement?.firstElementChild).toBe(sharper);
-    const intro = screen.root.querySelector<HTMLElement>(".upgrades-intro");
-    expect(intro?.nextElementSibling?.textContent).toBe("Quick boosts");
+    expect(sharper?.querySelector(".board-row-flag")?.textContent).toBe("New");
+    expect(firstIn(screen.root, "Quick boosts")).toBe(sharper);
+    expect(kick(screen.root)).toBe(UPGRADES_INTRO);
+    expect(sections(screen.root)[0]).toBe("Quick boosts");
     screen.root.remove();
   });
 
@@ -328,11 +332,11 @@ describe("upgrades sheet reveal (#245)", () => {
       pocket: 30_000,
     }));
     screen.root.querySelector<HTMLElement>(".upgrades-button")?.click();
-    const sheet = screen.root.querySelector<HTMLElement>(".upgrades-dialog");
-    const head = sheet?.querySelector(".upgrades-head");
+    const sheet = drawer(screen.root);
+    const head = sheet?.querySelector(".board-sheet-head");
     expect(head?.querySelector("h2")?.textContent).toBe("Upgrades");
     head?.querySelector<HTMLButtonElement>(".teach-info")?.click();
-    const how = sheet?.querySelector<HTMLElement>(".upgrades-how");
+    const how = sheet?.querySelector<HTMLElement>(".board-sheet-how");
     expect(how?.hidden).toBe(false);
     expect(
       [...(how?.querySelectorAll<HTMLElement>(".teach-how") ?? [])].map(
@@ -343,14 +347,14 @@ describe("upgrades sheet reveal (#245)", () => {
       ...(how?.querySelectorAll<HTMLButtonElement>(".teach-how-back") ?? []),
     ].filter((button) => !button.hidden);
     expect(backs).toHaveLength(1);
-    expect(
-      sheet?.querySelector<HTMLElement>(".upgrades-scroll")?.parentElement
-        ?.hidden,
-    ).toBe(true);
+    expect(sheet?.querySelector<HTMLElement>(".board-sheet-list")?.hidden).toBe(
+      true,
+    );
     backs[0]?.click();
     expect(how?.hidden).toBe(true);
-    screen.root.querySelector<HTMLButtonElement>(".teach-info")?.click();
-    screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
+    sheet?.querySelector<HTMLButtonElement>(".teach-info")?.click();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(sheet?.classList.contains("is-open")).toBe(false);
     screen.root.querySelector<HTMLElement>(".upgrades-button")?.click();
     expect(how?.hidden).toBe(true);
     screen.root.remove();

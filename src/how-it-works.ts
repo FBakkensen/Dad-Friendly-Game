@@ -28,7 +28,7 @@ import { recipeById } from "./workshop";
  */
 
 /** An asset under src/assets, without ".png". */
-type HowArt =
+export type HowArt =
   | "pick"
   | "helper-miner"
   | "mine-cart"

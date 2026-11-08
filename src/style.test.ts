@@ -14,7 +14,6 @@ const REQUIRED_SELECTORS = [
   ".game-menu",
   ".field-log-sheet",
   ".menu-button",
-  ".upgrades-dialog",
   ".upgrades-button",
   ".engineers-dialog",
   ".engineers-button",
@@ -27,7 +26,6 @@ const REQUIRED_SELECTORS = [
   ".tier-grid",
   ".tier-trouble",
   ".trouble-thanks",
-  ".found-tool",
   ".keepsakes",
   ".keepsake-story",
   ".workshop-dialog",
@@ -78,6 +76,9 @@ const BOARD_SELECTORS = [
   ".board-ready-row",
   ".board-ready",
   ".board-dig-button",
+  ".board-sheet",
+  ".board-row",
+  ".board-scrim",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
@@ -91,7 +92,6 @@ const OVERLAYS = [
   ".game-menu",
   ".field-log-sheet",
   ".buys-dialog",
-  ".upgrades-dialog",
   ".engineers-dialog",
   ".update-prompt",
   ".other-tab",
@@ -216,6 +216,21 @@ describe("board.css", () => {
 });
 
 describe("style.css", () => {
+  it("keeps no rule for today's Upgrades sheet: its rows are board rows now (#373)", () => {
+    // A board row carries .upgrade and .is-ready, .is-dear: an old .upgrade
+    // rule would restyle it. The thumb's .upgrades-button stays until Task 8.
+    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
+      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+    );
+    expect(
+      selectors.filter((one) =>
+        /\.(upgrade\b|upgrade-|upgrades-(?!button)|boost-list|found-(heading|list))/.test(
+          one,
+        ),
+      ),
+    ).toEqual([]);
+  });
+
   it("keeps no lit crew chip: the crew plate holds the free count (#371)", () => {
     expect(css).not.toMatch(/teach-point/);
   });
@@ -244,7 +259,6 @@ describe("style.css", () => {
     ".game-menu",
     ".field-log-sheet",
     ".buys-dialog",
-    ".upgrades-dialog",
     ".engineers-dialog",
     ".update-prompt",
     ".other-tab",
