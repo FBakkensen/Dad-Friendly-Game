@@ -109,3 +109,10 @@
   --board-view-night: #0a0c0e;
   --board-hair: 1px;
 }
+
+/* The gauge row (#371): the output gauge, the mine window and the crew plate
+   stand under the board's top; the column starts 8px below the row (422px). */
+:root {
+  --gauge-row-h: 238px;
+  --column-top: calc(var(--board-top) + var(--gauge-row-h) + var(--art) * 4);
+}

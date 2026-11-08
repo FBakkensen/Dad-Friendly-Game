@@ -62,59 +62,6 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.mountain {
-  appearance: none;
-  display: block;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  border-radius: 16px;
-  background: transparent;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform 80ms ease-out;
-}
-
-.mountain:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.mountain:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.mountain:focus-visible {
-  outline: 4px solid #e8a84a;
-  outline-offset: 4px;
-}
-
-/* The band's tint (#325). The filter value comes from mountainTint. */
-.mountain-band {
-  display: block;
-  width: 100%;
-  height: 100%;
-  filter: var(--band-tint, none);
-  transition: filter 600ms ease-out;
-  pointer-events: none;
-}
-
-.mountain-art {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  image-rendering: pixelated;
-  pointer-events: none;
-  filter: drop-shadow(0 0 18px rgba(232, 168, 74, 0.35));
-  transition: filter 120ms ease-out;
-}
-
-.mountain:active:not(:disabled) .mountain-art {
-  filter: drop-shadow(0 0 26px rgba(255, 214, 102, 0.7)) brightness(1.08);
-}
-
 /* Materials met so far. One or two lines, so the tier cards stay on screen. */
 .material-line {
   display: flex;
@@ -766,8 +713,6 @@ body {
 }
 
 .float-gain,
-.tap-float,
-.crew-float,
 .copied-float {
   position: absolute;
   pointer-events: none;
@@ -785,13 +730,6 @@ body {
   font-size: 1.1rem;
 }
 
-/* A tap: bright and big, right under the finger. */
-.tap-float {
-  z-index: 2;
-  font-size: 1.4rem;
-  transform: translate(-50%, -100%);
-}
-
 .menu-card {
   position: relative;
 }
@@ -802,18 +740,6 @@ body {
   z-index: 3;
   font-size: 1.4rem;
   transform: translate(-50%, -50%);
-}
-
-/* The crew: small, muted, labelled, rising from the mine door. */
-.crew-float {
-  bottom: 14%;
-  font-size: 0.8rem;
-  font-weight: 650;
-  color: #d9b98a;
-  opacity: 0.85;
-  text-shadow: 0 1px 0 #3a2410;
-  transform: translateX(-50%);
-  white-space: nowrap;
 }
 
 @keyframes float-up {
@@ -829,8 +755,6 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .float-gain,
-  .tap-float,
-  .crew-float,
   .trouble-burst {
     display: none;
   }
@@ -1012,105 +936,6 @@ body {
 .engineer-confirm-yes:focus-visible {
   outline: 4px solid #e8d4b8;
   outline-offset: 4px;
-}
-
-/* Fills whatever height the rest of the screen leaves (see .mountain-wrap). */
-.mountain-stage {
-  position: relative;
-  height: 100%;
-  max-height: 340px;
-  max-width: 78vw;
-  aspect-ratio: 1;
-}
-
-.mountain-wrap {
-  /*
-   * The mountain takes the space left over, so every control fits whatever
-   * the viewport (browser chrome, installed PWA status and gesture bars).
-   */
-  flex: 1 1 0;
-  min-height: 96px;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Floating stone numbers and glints stay inside the mountain. */
-  overflow: clip;
-  overflow-clip-margin: 24px;
-  position: relative;
-}
-
-.golden-vein {
-  appearance: none;
-  position: absolute;
-  width: 72px;
-  height: 72px;
-  padding: 8px;
-  border: 0;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(
-    circle,
-    rgba(255, 214, 102, 0.55),
-    rgba(255, 214, 102, 0) 70%
-  );
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  animation: vein-glint 1.6s ease-in-out infinite;
-}
-
-.golden-vein[hidden] {
-  display: none;
-}
-
-.golden-vein img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 0 6px #ffd666);
-  pointer-events: none;
-}
-
-.golden-vein:focus-visible {
-  outline: 4px solid #e8d4b8;
-}
-
-.vein-note {
-  position: absolute;
-  left: 50%;
-  bottom: 8px;
-  transform: translateX(-50%);
-  margin: 0;
-  padding: 2px 10px;
-  border-radius: 8px;
-  background: rgba(18, 12, 10, 0.75);
-  white-space: nowrap;
-  pointer-events: none;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #ffd666;
-}
-
-@keyframes vein-glint {
-  0%,
-  100% {
-    box-shadow: 0 0 12px 2px rgba(255, 214, 102, 0.35);
-  }
-  50% {
-    box-shadow: 0 0 28px 8px rgba(255, 214, 102, 0.75);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .golden-vein {
-    animation: none;
-    box-shadow: 0 0 20px 6px rgba(255, 214, 102, 0.6);
-  }
-}
-
-.vein-note:empty {
-  display: none;
 }
 
 .guide {
@@ -1814,8 +1639,7 @@ body {
 }
 
 .legend-pass[hidden],
-.menu-pass[hidden],
-.legacy-badge[hidden] {
+.menu-pass[hidden] {
   display: none;
 }
 
@@ -1853,23 +1677,6 @@ body {
   text-align: left;
   resize: none;
   user-select: text;
-}
-
-/* "Legacy ×1.5" in the mountain's top-right corner (boost chips are top-left). */
-.legacy-badge {
-  position: absolute;
-  top: 2px;
-  right: 4px;
-  pointer-events: none;
-  padding: 2px 8px;
-  border: 1px solid rgba(242, 196, 109, 0.6);
-  border-radius: 999px;
-  background: rgba(232, 168, 74, 0.15);
-  color: #f2c46d;
-  font-size: 0.8rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .legend-actions {
@@ -3302,59 +3109,11 @@ body {
   min-width: 0;
 }
 
-.mountain-wrap {
-  overflow-clip-margin: 0;
-}
-
-/* The rock is centred in the height it gets. Safe centring: on a board too
-   short for it, it spills down only, never up over the crew. */
-.mountain-wrap {
-  container-type: inline-size;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  justify-content: safe center;
-  gap: var(--target-gap);
-}
-
-/* With #app's 4px gap, the teach note and the bottom bar stand 8px from the
-   rock and from each other (#346). */
+/* With #app's 4px gap, the teach note and the bottom bar stand 8px from each
+   other (#346). */
 #app > .teach-note,
 #app > .thumb-bar {
   margin-top: var(--space-4);
-}
-
-/*
- * The rock is as tall as the screen lets it be. mountain.png is 114px square
- * with the rock in its middle 86 columns, so the square art may be up to
- * 114/86 of the column wide before the rock itself meets the edges; the clear
- * sides overhang the stage, which clips them across only: the wrap's clip
- * still let them widen the page. The stage is the art's height, so the vein
- * and the floats still land on the rock.
- */
-.mountain-stage {
-  --rock-reach: calc(114 / 86);
-  overflow-x: clip;
-  flex: 0 1 auto;
-  align-self: stretch;
-  width: 100%;
-  height: calc(100cqi * var(--rock-reach));
-  min-height: calc(var(--target-min) * 2);
-  max-height: none;
-  max-width: none;
-  aspect-ratio: auto;
-}
-
-.mountain-stage .mountain-band {
-  display: flex;
-  justify-content: center;
-}
-
-.mountain-stage .mountain-art {
-  flex: none;
-  width: auto;
-  height: 100%;
-  aspect-ratio: 1;
 }
 
 .crew-status {
@@ -3512,8 +3271,8 @@ body {
   border-color: var(--color-edge);
 }
 
-/* Closed mountain, under the board's top (board.css): the layer line and the
-   menu, the crew, the rock, four labels. */
+/* Closed mountain, under the board's gauge row (board.css): the layer line and
+   the menu, the crew, four labels. */
 #app {
   position: relative;
 }

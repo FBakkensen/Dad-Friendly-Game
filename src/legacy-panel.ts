@@ -61,7 +61,8 @@ const canPass = (mountain: Mountain): boolean =>
 
 /**
  * Pass the mine to your kid (M6): the menu entry, the confirm card, and the
- * Legacy badge for the header. Offered only once the mountain is finished.
+ * Legacy badge, which sits on the mine window's brass plate (#371). Offered
+ * only once the mountain is finished.
  */
 export function createLegacyPanel({
   progress,

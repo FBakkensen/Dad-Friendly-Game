@@ -2,7 +2,8 @@
  * The board stage (#370). #app is a fixed 424x924 enamel panel. src/board-fit.ts
  * sets --board-scale so the whole board shrinks to fit any screen; zoom keeps
  * taps lined up. contain: layout keeps the fixed sheets inside the board.
- * The old column fills 176..868; the bands above and below are for the board.
+ * The old column fills 422..860, under the board's top and the gauge row (#371);
+ * the bands above and below are for the board.
  */
 body {
   display: flex;
@@ -38,7 +39,8 @@ body {
   /* index.html's boot style sets min-height: 100dvh, which zoom would enlarge. */
   min-height: 0;
   padding: var(--space-4);
-  padding-top: var(--board-top);
+  /* The column starts under the gauge row (#371). */
+  padding-top: var(--column-top);
   /* The column stops 8px above the save line, so the bottom bar's buttons
      stand a full gap from it (#370). */
   padding-bottom: calc(var(--save-h) + var(--art) * 4);
@@ -362,16 +364,10 @@ body {
   margin-top: calc(var(--art) * 4);
 }
 
-/* The rock's button stands 8px below the crew chips (with #app's 4px gap):
-   the goal line and the shelf that used to sit between them are on the
-   board's top now (#370). */
-#app > .mountain-wrap {
-  margin-top: calc(var(--art) * 2);
-}
-
-/* The ☰ menu stands a full gap below the boost dial. */
-.top-bar .menu-button {
-  margin-top: calc(var(--art) * 4);
+/* The layer line and the ☰ menu sit at the column's top, 8px under the gauge
+   row; the teach note and the thumb bar sit at its foot (#371). */
+#app > .top-bar {
+  margin-bottom: auto;
 }
 
 .board-tag .board-lg {
@@ -753,6 +749,30 @@ body {
   transform: translateY(calc(100% + var(--art) * 2));
 }
 
+/* ---------- the gauge row (#371) ----------
+   Under the board's top, 424 x 238: the output gauge at (0, 0) and the mine
+   window at (103, 3) art; the crew plate's slot at (103, 95) waits for B3's
+   next part. */
+.board-gauge-row {
+  position: absolute;
+  top: var(--board-top);
+  left: 0;
+  width: var(--board-w);
+  height: var(--gauge-row-h);
+}
+
+.board-gauge-row > .board-gauge {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.board-gauge-row > .board-mine {
+  position: absolute;
+  left: calc(var(--art) * 103);
+  top: calc(var(--art) * 3);
+}
+
 /* ---------- output gauge (#371) ----------
    The mockup's .gauge: a 104x104 art dial on 55 sheet frames, its marks
    and unit printed on the face, the red counter and its legend. */
@@ -1100,17 +1120,29 @@ body {
 }
 
 /* The vein sits on the view as today's vein sat on the rock: its 25x26 art
-   glint, no glow (the art glints), over the window. */
-.board-mine .golden-vein {
+   glint, no glow (the art glints), over the window. board-window.ts places it. */
+.golden-vein {
+  position: absolute;
   z-index: 2;
   width: calc(var(--art) * 25);
   height: calc(var(--art) * 26);
   padding: 0;
-  border-radius: 0;
-  transform: none;
+  border: 0;
   background: none;
-  box-shadow: none;
-  animation: none;
+  appearance: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.golden-vein:focus-visible {
+  outline: calc(var(--art) * 2) solid var(--board-ink-bare);
+}
+
+/* The vein's payout and the quiet away line, in the board note under the window. */
+.vein-note {
+  margin: 0;
+  font-weight: 700;
+  color: var(--board-amber-bare);
 }
 
 .board-vein-glint {

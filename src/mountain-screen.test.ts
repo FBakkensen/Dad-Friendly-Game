@@ -11,13 +11,22 @@ import {
   type CloudSave,
 } from "./cloud-save";
 import { APP_VERSION } from "./field-log";
-import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
+import { machinesBeat } from "./mine-window";
+import {
+  MOUNTAIN_STONES,
+  createMountain,
+  stonesPerSecond,
+  type Mountain,
+} from "./mountain";
 import { showAppUpdate } from "./mountain-screen";
+import { effectiveRates } from "./rates";
+import { veinReward } from "./veins";
 import { SESSION_SAVE_KEY } from "./session-save";
 import {
   OTHER_TAB_BODY,
   OTHER_TAB_PLAY,
   OTHER_TAB_TITLE,
+  tapWords,
 } from "./screen-words";
 import { minedMountain } from "./test-fixtures";
 import {
@@ -34,11 +43,45 @@ import {
   stopScreens,
 } from "./mountain-screen.harness";
 
+// The window's beats are counted where the window takes them (#371).
+vi.mock("./mine-window", async (importOriginal) => {
+  const real = await importOriginal<typeof import("./mine-window")>();
+  return { ...real, machinesBeat: vi.fn(real.machinesBeat) };
+});
+
 // Animations are opted into per test; most tests want instant numbers.
 beforeEach(() => {
   setReducedMotion(true);
 });
 afterEach(stopScreens);
+
+/**
+ * A fake frame clock for the board loop: frames asked for wait until `next`
+ * runs the oldest, and cancelAnimationFrame drops one.
+ */
+function fakeFrames() {
+  const frames = new Map<number, FrameRequestCallback>();
+  let id = 0;
+  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+    id += 1;
+    frames.set(id, cb);
+    return id;
+  });
+  vi.stubGlobal("cancelAnimationFrame", (handle: number) => {
+    frames.delete(handle);
+  });
+  return {
+    next: (at: number): void => {
+      const first = frames.entries().next();
+      if (first.done) throw new Error("no frame asked for");
+      const [handle, cb] = first.value;
+      frames.delete(handle);
+      cb(at);
+    },
+    pending: (): number => frames.size,
+    asked: (): number => id,
+  };
+}
 
 /** A socket's note carries the "Relic shelf" key that opens the shelf (#370). */
 function openShelfFromSocket(
@@ -50,8 +93,9 @@ function openShelfFromSocket(
 }
 
 describe("mountMountainScreen", () => {
-  it("stops its tick and its page listeners once its signal aborts", () => {
+  it("stops its tick, its animation frames and its page listeners once its signal aborts", () => {
     vi.useFakeTimers();
+    const frames = fakeFrames();
     try {
       const stop = new AbortController();
       const writes: string[] = [];
@@ -68,12 +112,21 @@ describe("mountMountainScreen", () => {
       window.dispatchEvent(new Event("pagehide"));
       expect(writes).toHaveLength(1);
 
+      // The board loop asks for one frame at a time.
+      frames.next(1_000);
+      frames.next(1_016);
+      expect(frames.pending()).toBe(1);
+      const asked = frames.asked();
+
       stop.abort();
       vi.advanceTimersByTime(3_000);
       window.dispatchEvent(new Event("pagehide"));
       expect(tick).toHaveBeenCalledTimes(3);
       expect(writes).toHaveLength(1);
+      expect(frames.pending()).toBe(0);
+      expect(frames.asked()).toBe(asked);
     } finally {
+      vi.unstubAllGlobals();
       vi.useRealTimers();
     }
   });
@@ -89,7 +142,7 @@ describe("mountMountainScreen", () => {
     expect(screen.text(".save-status")).toBe("Sign in to save");
 
     const whole = stonesLeft(createMountain());
-    screen.mountain.click();
+    screen.dig.click();
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
     ).toBe(
@@ -101,7 +154,7 @@ describe("mountMountainScreen", () => {
       screen.root.querySelector<HTMLElement>(".update-prompt")?.hidden,
     ).toBe(true);
 
-    screen.mountain.click();
+    screen.dig.click();
     expect(screen.pocket()).toBe("Stones 2");
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
@@ -186,9 +239,9 @@ describe("mountMountainScreen", () => {
       true,
     );
 
-    first.mountain.click();
+    first.dig.click();
     expect(first.pocket()).toBe("Stones 1");
-    second.mountain.click();
+    second.dig.click();
     expect(second.pocket()).toBe("Stones 0");
 
     second.root.querySelector<HTMLButtonElement>(".other-tab-play")?.click();
@@ -201,7 +254,7 @@ describe("mountMountainScreen", () => {
     expect(first.root.querySelector<HTMLElement>(".other-tab")?.hidden).toBe(
       false,
     );
-    second.mountain.click();
+    second.dig.click();
     expect(second.pocket()).toBe("Stones 2");
     first.progress.dispose();
     second.progress.dispose();
@@ -210,9 +263,9 @@ describe("mountMountainScreen", () => {
   it("keeps guest progress after the page is opened again", () => {
     const storage = createMemoryStorage();
     const first = mountScreen({ storage });
-    first.mountain.click();
-    first.mountain.click();
-    first.mountain.click();
+    first.dig.click();
+    first.dig.click();
+    first.dig.click();
     first.progress.dispose();
 
     const again = mountScreen({ storage });
@@ -269,8 +322,8 @@ describe("mountMountainScreen", () => {
 
     const screen = mountScreen({ storage });
     expect(screen.text(".stones-left")).toBe("0 stones left");
-    expect(screen.mountain.disabled).toBe(true);
-    expect(screen.mountain.getAttribute("aria-label")).toBe(
+    expect(screen.dig.disabled).toBe(true);
+    expect(screen.dig.getAttribute("aria-label")).toBe(
       "The mountain is mined out",
     );
   });
@@ -290,16 +343,16 @@ describe("mountMountainScreen", () => {
     };
     const screen = mountScreen({ auth: signedIn(), cloudSave });
 
-    expect(screen.mountain.disabled).toBe(true);
+    expect(screen.dig.disabled).toBe(true);
     expect(screen.text(".save-status")).toBe("Loading your save...");
-    screen.mountain.click();
+    screen.dig.click();
     expect(screen.pocket()).toBe("Stones 0");
 
     finishLoad({ kind: "found", mountain: minedMountain(40) });
     await Promise.resolve();
 
-    expect(screen.mountain.disabled).toBe(false);
-    screen.mountain.click();
+    expect(screen.dig.disabled).toBe(false);
+    screen.dig.click();
     expect(screen.pocket()).toBe("Stones 41");
   });
 
@@ -349,7 +402,7 @@ describe("mountMountainScreen", () => {
     await vi.waitFor(() => {
       expect(screen.text(".save-status")).toBe("Saved to your account");
     });
-    screen.mountain.click();
+    screen.dig.click();
     await vi.waitFor(() => {
       expect(screen.text(".save-status")).toBe(
         "Couldn't reach your save · Kept on this phone · Details",
@@ -367,7 +420,7 @@ describe("mountMountainScreen", () => {
       expect(docs.has("test-dad")).toBe(true);
     });
 
-    screen.mountain.click();
+    screen.dig.click();
 
     expect(docs.get("test-dad")).toEqual(minedMountain(1));
   });
@@ -381,7 +434,7 @@ describe("mountMountainScreen", () => {
     await vi.waitFor(() => {
       expect(docs.has("test-dad")).toBe(true);
     });
-    screen.mountain.click();
+    screen.dig.click();
     docs.delete("test-dad");
 
     Object.defineProperty(document, "visibilityState", {
@@ -540,7 +593,7 @@ describe("crew tiers on screen", () => {
       expect(hire.disabled).toBe(true);
       expect(cart.hidden).toBe(true);
 
-      screen.mountain.click();
+      screen.dig.click();
       expect(hire.disabled).toBe(false);
 
       hire.click();
@@ -716,8 +769,10 @@ describe("golden vein on screen", () => {
       clock = 3 * 60_000;
       await vi.advanceTimersByTimeAsync(1_000);
       expect(vein.hidden).toBe(false);
-      expect(vein.style.left).toBe("35%");
-      expect(vein.style.top).toBe("40%");
+      // Today's place (x 0.35, y 0.4) on the window's view: veinSpot's (8, 26)
+      // plus the view's 7 art px inset, at 2 CSS px an art px.
+      expect(vein.style.left).toBe("30px");
+      expect(vein.style.top).toBe("66px");
 
       vein.click();
       expect(vein.hidden).toBe(true);
@@ -888,7 +943,7 @@ describe("Lantern of Guidance on screen", () => {
     const reveal = screen.root.querySelector<HTMLElement>(".relic-reveal");
     expect(reveal?.hidden).toBe(true);
 
-    screen.mountain.click();
+    screen.dig.click();
 
     expect(reveal?.hidden).toBe(false);
     expect(screen.text("#relic-reveal-title")).toBe(
@@ -946,7 +1001,7 @@ describe("Lantern of Guidance on screen", () => {
     ).not.toContainEqual(expect.stringContaining("next relic"));
   });
 
-  it("notes a short absence on the mountain, with no welcome card (#334)", async () => {
+  it("a short absence leaves its note under the window, with no welcome card (#334)", async () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -957,7 +1012,7 @@ describe("Lantern of Guidance on screen", () => {
     expect(
       screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
     ).toBe(true);
-    expect(screen.text(".vein-note")).toMatch(
+    expect(screen.text(".board-note.on .vein-note")).toMatch(
       /^\+[\d,]+ stones while you were away$/,
     );
     await Promise.resolve();
@@ -1579,7 +1634,7 @@ describe("the control board (#370)", () => {
       screen.root.querySelector<HTMLButtonElement>(".board-dial")?.click();
       screen.root.querySelector<HTMLButtonElement>(".board-socket")?.click();
       expect(screen.root.querySelector(".board-note .effect-row")).toBeNull();
-      screen.mountain.click();
+      screen.dig.click();
       expect(
         screen.root.querySelector(".board-running-park .effect-row"),
       ).not.toBeNull();
@@ -1717,5 +1772,288 @@ describe("the control board (#370)", () => {
     } finally {
       screen.root.remove();
     }
+  });
+
+  // ---------- the gauge row (#371) ----------
+
+  /** A pointer click (detail 1); a keyboard click has detail 0. */
+  const tap = (button: HTMLElement): void => {
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+  };
+  const plus = (screen: ReturnType<typeof mountScreen>) =>
+    screen.root.querySelector<HTMLElement>(".board-mine .board-dig-plus");
+
+  it("the window digs exactly tap power", () => {
+    const clock = 5_000_000;
+    const m: Mountain = {
+      ...minedMountain(30_000),
+      helpers: 500,
+      carts: 3,
+      upgrades: { tap: 1 },
+    };
+    const screen = mountScreen({ storage: seeded(m, clock), now: () => clock });
+    const tapYield = effectiveRates(m, clock).tapYield;
+    expect(tapYield).toBeGreaterThan(1);
+    const pocket = () => screen.progress.getSnapshot().mountain.pocket;
+    const before = pocket();
+    tap(screen.dig);
+    tap(screen.dig);
+    tap(screen.dig);
+    expect(pocket()).toBe(before + 3 * tapYield);
+    expect(plus(screen)?.hidden).toBe(false);
+    expect(plus(screen)?.textContent).toBe(`+${formatCount(tapYield)}`);
+    expect(screen.dig.getAttribute("aria-label")).toBe(
+      `Mine window: tap to mine ${tapWords(tapYield)}`,
+    );
+    for (const gone of [".mountain", ".mountain-stage", ".tap-float"]) {
+      expect(screen.root.querySelector(gone), gone).toBeNull();
+    }
+  });
+
+  it("a dig's +N is the tap's own stones, not the crew's since the last tick", () => {
+    let clock = 5_000_000;
+    const m: Mountain = { ...minedMountain(400), helpers: 3, carts: 1 };
+    const screen = mountScreen({
+      storage: seeded(m, clock),
+      now: () => clock,
+    });
+    const pocket = () => screen.progress.getSnapshot().mountain.pocket;
+    const before = pocket();
+    // A second of crew work waits to be settled by the tap.
+    clock += 1_000;
+    tap(screen.dig);
+    expect(pocket() - before).toBeGreaterThan(1);
+    expect(plus(screen)?.textContent).toBe("+1");
+  });
+
+  it("a keyboard click on the window digs once and puffs at the upper face", () => {
+    const screen = mountScreen();
+    screen.dig.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, detail: 0 }),
+    );
+    expect(screen.pocket()).toBe("Stones 1");
+    const dust = screen.root.querySelector<HTMLElement>(".board-dig-dust");
+    expect(dust?.hidden).toBe(false);
+    // puffSpot's default (67, 30) in view art px, 2 CSS px each.
+    expect(dust?.style.left).toBe("134px");
+    expect(dust?.style.top).toBe("60px");
+    expect(plus(screen)?.textContent).toBe("+1");
+  });
+
+  it("no dig while loading or mined out", async () => {
+    let finishLoad: (result: CloudLoadResult) => void = () => {
+      throw new Error("load was not pending");
+    };
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        finishLoad = onChange;
+        return () => undefined;
+      },
+    };
+    const loading = mountScreen({ auth: signedIn(), cloudSave });
+    expect(loading.dig.disabled).toBe(true);
+    expect(loading.dig.getAttribute("aria-label")).toBe(
+      "Mine window: tap to mine one stone",
+    );
+    tap(loading.dig);
+    expect(loading.pocket()).toBe("Stones 0");
+    expect(plus(loading)?.hidden).toBe(true);
+    finishLoad({ kind: "found", mountain: minedMountain(40) });
+    await Promise.resolve();
+    expect(loading.dig.disabled).toBe(false);
+    tap(loading.dig);
+    expect(loading.pocket()).toBe("Stones 41");
+    expect(plus(loading)?.textContent).toBe("+1");
+
+    const done = mountScreen({
+      storage: seeded(minedMountain(MOUNTAIN_STONES)),
+    });
+    expect(done.dig.disabled).toBe(true);
+    expect(done.dig.getAttribute("aria-label")).toBe(
+      "The mountain is mined out",
+    );
+    const held = done.pocket();
+    tap(done.dig);
+    expect(done.pocket()).toBe(held);
+    expect(plus(done)?.hidden).toBe(true);
+  });
+
+  it("the window shows the band's view", () => {
+    const deep = mountScreen({ storage: seeded(minedMountain(60_000_000)) });
+    expect(
+      deep.root.querySelector(
+        '.board-gauge-row .board-mine[data-band="crystal"]',
+      ),
+    ).not.toBeNull();
+    const shallow = mountScreen({ storage: seeded(minedMountain(500_000)) });
+    expect(
+      shallow.root.querySelector<HTMLElement>(".board-mine")?.dataset["band"],
+    ).toBe("topsoil");
+  });
+
+  it("the gauge reads the crew's rate", async () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 5_000_000;
+      const m: Mountain = { ...minedMountain(400), helpers: 3, carts: 1 };
+      const screen = mountScreen({
+        storage: seeded(m, clock),
+        now: () => clock,
+      });
+      const gauge = screen.root.querySelector(".board-gauge-row .board-gauge");
+      const rate = stonesPerSecond(m, clock);
+      expect(rate).toBeGreaterThan(0);
+      expect(gauge?.getAttribute("aria-label")).toBe(
+        `Output: ${formatCount(rate)} stones a second`,
+      );
+      // The crew's number lives on the gauge now: no float over the window.
+      clock += 1_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(screen.root.querySelector(".crew-float")).toBeNull();
+      expect(gauge?.getAttribute("aria-label")).toBe(
+        `Output: ${formatCount(rate)} stones a second`,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("the vein glints in the window and pays today's vein", async () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 0;
+      const screen = mountScreen({ now: () => clock, random: () => 0 });
+      document.body.append(screen.root);
+      const vein = screen.root.querySelector<HTMLButtonElement>(
+        ".board-mine > .golden-vein",
+      );
+      clock = 3 * 60_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(vein?.hidden).toBe(false);
+      expect(screen.dig.contains(vein ?? null)).toBe(false);
+      const reward = veinReward(screen.progress.getSnapshot().mountain);
+      expect(reward).toBe(50);
+      vein?.click();
+      // The vein pays, and the window under it does not dig.
+      expect(screen.pocket()).toBe("Stones 50");
+      expect(plus(screen)?.hidden).toBe(true);
+      expect(screen.text(".board-note.on .vein-note")).toBe(
+        "Golden vein! +50 stones",
+      );
+      expect(
+        screen.root.querySelector(".vein-note")?.getAttribute("aria-live"),
+      ).toBe("polite");
+      screen.root.remove();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("the Legacy plate sits on the window", () => {
+    const heir = mountScreen({
+      storage: seeded({ ...minedMountain(1_000), legacy: 1 }),
+    });
+    const plate = heir.root.querySelector<HTMLElement>(
+      ".board-mine .board-legacy",
+    );
+    expect(plate?.hidden).toBe(false);
+    expect(plate?.querySelector(".legacy-badge")?.textContent).toBe(
+      "Legacy ×1.5",
+    );
+    const first = mountScreen({
+      storage: seeded({ ...minedMountain(1_000), legacy: 0 }),
+    });
+    expect(
+      first.root.querySelector<HTMLElement>(".board-mine .board-legacy")
+        ?.hidden,
+    ).toBe(true);
+  });
+
+  it("Start over brings the tarp back", () => {
+    const screen = mountScreen({
+      storage: seeded({ ...minedMountain(12_000_000), helpers: 4, borers: 1 }),
+    });
+    const part = (name: string) =>
+      screen.root.querySelector<HTMLElement>(`.board-window-${name}`);
+    expect(part("borer")?.hidden).toBe(false);
+    expect(part("tarp")?.hidden).toBe(true);
+    screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".start-over-confirm")
+      ?.click();
+    expect(part("borer")?.hidden).toBe(true);
+    expect(part("tarp")?.hidden).toBe(false);
+  });
+
+  it("beats once for a cloud copy with 25 more carts, never on the first render, a fall or Start over", async () => {
+    setReducedMotion(false);
+    const beats = vi.mocked(machinesBeat);
+    let push: (result: CloudLoadResult) => void = () => undefined;
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        push = onChange;
+        return () => undefined;
+      },
+    };
+    const screen = mountScreen({ auth: signedIn(), cloudSave });
+    beats.mockClear();
+    push({
+      kind: "found",
+      mountain: { ...minedMountain(40_000), helpers: 2, carts: 1 },
+      rev: 1,
+    });
+    await Promise.resolve();
+    expect(screen.text(".save-status")).toBe("Saved to your account");
+    expect(beats).not.toHaveBeenCalled();
+
+    push({
+      kind: "found",
+      mountain: { ...minedMountain(60_000), helpers: 2, carts: 26 },
+      rev: 2,
+    });
+    await Promise.resolve();
+    expect(screen.progress.getSnapshot().mountain.carts).toBe(26);
+    expect(beats.mock.calls.map(([, beat]) => beat)).toEqual(["cart"]);
+
+    beats.mockClear();
+    push({
+      kind: "found",
+      mountain: { ...minedMountain(80_000), helpers: 2, carts: 3 },
+      rev: 3,
+    });
+    await Promise.resolve();
+    expect(screen.progress.getSnapshot().mountain.carts).toBe(3);
+    screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".start-over-confirm")
+      ?.click();
+    expect(screen.progress.getSnapshot().mountain.carts).toBe(0);
+    expect(beats).not.toHaveBeenCalled();
+  });
+
+  it("no beat when the mine is passed down, or on a guest's first render", () => {
+    setReducedMotion(false);
+    const beats = vi.mocked(machinesBeat);
+    beats.mockClear();
+    const screen = mountScreen({
+      storage: seeded({
+        ...minedMountain(MOUNTAIN_STONES),
+        helpers: 40,
+        carts: 12,
+        drills: 3,
+        borers: 1,
+      }),
+    });
+    expect(beats).not.toHaveBeenCalled();
+    screen.root.querySelector<HTMLButtonElement>(".menu-pass")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".legacy-confirm")?.click();
+    expect(screen.progress.getSnapshot().mountain.legacy).toBe(1);
+    expect(beats).not.toHaveBeenCalled();
   });
 });

@@ -125,7 +125,7 @@ export function mountScreen({
   return {
     root,
     progress,
-    mountain: find(".mountain", HTMLButtonElement),
+    dig: find(".board-window", HTMLButtonElement),
     authButton: find(".auth-action", HTMLButtonElement),
     text: (selector: string) => root.querySelector(selector)?.textContent,
     /** What the board's odometer reads, e.g. "Stones 41,380". */

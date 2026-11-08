@@ -24,10 +24,6 @@ const REQUIRED_SELECTORS = [
   ".welcome-card",
   ".reveal-card",
   ".shelf-card",
-  ".mountain-wrap",
-  ".mountain-stage",
-  ".golden-vein",
-  ".vein-note",
   ".tier-grid",
   ".tier-trouble",
   ".trouble-thanks",
@@ -52,7 +48,10 @@ const REQUIRED_SELECTORS = [
   ".saved-copies",
 ];
 
-/** The board's parts that took over from the pocket pill and the relic shelf (#370). */
+/**
+ * The board's parts that took over from the pocket pill and the relic shelf
+ * (#370), and from the rock, its vein and the Legacy badge (#371).
+ */
 const BOARD_SELECTORS = [
   ".board-top",
   ".board-stock",
@@ -63,6 +62,13 @@ const BOARD_SELECTORS = [
   ".board-saveline",
   ".board-note",
   ".board-running",
+  ".board-gauge-row",
+  ".board-gauge",
+  ".board-mine",
+  ".board-window",
+  ".board-legacy",
+  ".golden-vein",
+  ".vein-note",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */

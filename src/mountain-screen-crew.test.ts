@@ -127,18 +127,16 @@ describe("what the crew gives", () => {
     }
   });
 
-  it("floats the crew's stones over the mountain every second", async () => {
+  it("reads the crew's stones on the gauge every second, with no float over the window (#371)", async () => {
     vi.useFakeTimers();
     setReducedMotion(false);
     try {
       const screen = mountScreen({ storage: seededCrew() });
       await vi.advanceTimersByTimeAsync(1_000);
-      const floats = screen.root.querySelectorAll(
-        ".mountain-stage .crew-float",
-      );
-      expect(floats).toHaveLength(1);
-      expect(floats[0]?.textContent).toBe("+22 crew");
-      expect(floats[0]?.getAttribute("aria-hidden")).toBe("true");
+      expect(screen.root.querySelector(".crew-float")).toBeNull();
+      expect(
+        screen.root.querySelector(".board-gauge")?.getAttribute("aria-label"),
+      ).toBe("Output: 22 stones a second");
     } finally {
       vi.useRealTimers();
       setReducedMotion(true);
@@ -148,11 +146,11 @@ describe("what the crew gives", () => {
   it("shows a tap's own yield where it landed, apart from the crew's", () => {
     setReducedMotion(false);
     const screen = mountScreen({ storage: seededCrew() });
-    screen.mountain.dispatchEvent(
+    screen.dig.dispatchEvent(
       new MouseEvent("click", { bubbles: true, detail: 1 }),
     );
     const tap = screen.root.querySelector<HTMLElement>(
-      ".mountain-stage .tap-float",
+      ".board-mine .board-dig-plus",
     );
     expect(tap?.textContent).toBe("+1");
     expect(tap?.getAttribute("aria-hidden")).toBe("true");
@@ -176,10 +174,10 @@ describe("what the crew gives", () => {
     const screen = mountScreen({ storage });
     const yieldStones = effectiveRates(deep).tapYield;
     expect(yieldStones).toBeGreaterThan(1);
-    screen.mountain.dispatchEvent(
+    screen.dig.dispatchEvent(
       new MouseEvent("click", { bubbles: true, detail: 1 }),
     );
-    expect(screen.root.querySelector(".tap-float")?.textContent).toBe(
+    expect(screen.root.querySelector(".board-dig-plus")?.textContent).toBe(
       `+${formatCount(yieldStones)}`,
     );
     setReducedMotion(true);
@@ -199,8 +197,11 @@ describe("what the crew gives", () => {
       );
       await vi.advanceTimersByTimeAsync(1_000);
       expect(screen.root.querySelector(".crew-float")).toBeNull();
-      screen.mountain.click();
-      expect(screen.root.querySelector(".tap-float")).toBeNull();
+      screen.dig.click();
+      // A dig still shows its "+N" under reduced motion; it just does not rise.
+      const plus = screen.root.querySelector<HTMLElement>(".board-dig-plus");
+      expect(plus?.hidden).toBe(false);
+      expect(plus?.textContent).toBe("+1");
     } finally {
       vi.useRealTimers();
       setReducedMotion(true);
@@ -275,12 +276,14 @@ describe("upgrades on screen", () => {
     expect(sheet?.hidden).toBe(true);
     expect(document.activeElement).toBe(button);
 
-    screen.mountain.dispatchEvent(
+    screen.dig.dispatchEvent(
       new MouseEvent("click", { bubbles: true, detail: 1 }),
     );
-    expect(screen.root.querySelector(".tap-float")?.textContent).toBe("+67");
-    expect(screen.mountain.getAttribute("aria-label")).toBe(
-      "Mountain, tap to mine 67 stones",
+    expect(screen.root.querySelector(".board-dig-plus")?.textContent).toBe(
+      "+67",
+    );
+    expect(screen.dig.getAttribute("aria-label")).toBe(
+      "Mine window: tap to mine 67 stones",
     );
     screen.root.remove();
     setReducedMotion(true);
@@ -342,10 +345,12 @@ describe("quick boosts on screen", () => {
       expect(chip?.getAttribute("aria-label")).toContain("Sharper picks");
       screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
 
-      screen.mountain.dispatchEvent(
+      screen.dig.dispatchEvent(
         new MouseEvent("click", { bubbles: true, detail: 1 }),
       );
-      expect(screen.root.querySelector(".tap-float")?.textContent).toBe("+2");
+      expect(screen.root.querySelector(".board-dig-plus")?.textContent).toBe(
+        "+2",
+      );
 
       clock += 4 * 60_000 + 30_000;
       await vi.advanceTimersByTimeAsync(1_000);
@@ -354,8 +359,8 @@ describe("quick boosts on screen", () => {
       clock += 6 * 60_000;
       await vi.advanceTimersByTimeAsync(1_000);
       expect(chip?.hidden).toBe(true);
-      expect(screen.mountain.getAttribute("aria-label")).toBe(
-        "Mountain, tap to mine one stone",
+      expect(screen.dig.getAttribute("aria-label")).toBe(
+        "Mine window: tap to mine one stone",
       );
     } finally {
       vi.useRealTimers();
@@ -1143,7 +1148,7 @@ describe("Mantle of the Hero finale (#103)", () => {
     const legend = screen.root.querySelector<HTMLElement>(".legend");
     expect(legend?.hidden).toBe(true);
 
-    screen.mountain.click();
+    screen.dig.click();
     expect(screen.text("#relic-reveal-title")).toBe(
       "You found the Mantle of the Hero",
     );
@@ -1166,7 +1171,7 @@ describe("Mantle of the Hero finale (#103)", () => {
 
   it("does not open for other relics", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(999_999)) });
-    screen.mountain.click();
+    screen.dig.click();
     screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
     expect(screen.root.querySelector<HTMLElement>(".legend")?.hidden).toBe(
       true,
@@ -1186,7 +1191,7 @@ describe("relic powers on the cards (shelf detail)", () => {
 
   it("says 'Your power' on the relic-found card", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(9_999_999)) });
-    screen.mountain.click();
+    screen.dig.click();
     expect(screen.text(".relic-reveal .relic-boost")).toBe(
       "Your power: Your crew keeps mining up to 24 hours while you're away.",
     );
@@ -1321,7 +1326,7 @@ describe("pass the mine to your kid (#131)", () => {
     expect(
       screen.root.querySelector<HTMLElement>(".legacy-badge")?.hidden,
     ).toBe(true);
-    screen.mountain.click();
+    screen.dig.click();
     screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
     const legend = screen.root.querySelector<HTMLElement>(".legend");
     legend?.querySelector<HTMLButtonElement>(".legend-pass")?.click();
