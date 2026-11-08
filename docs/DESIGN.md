@@ -185,7 +185,7 @@ M2 gives the player one choice: which tier to buy next. M3 adds the real idle-ga
   - _Grandpa (#338)_: after a pass, the old dad stays on. He only tends, at an apprentice's pace, on the biggest running machine no engineer is tending (`grandpaPost` in `src/engineers.ts`), from the kid's first cart. A machine short of workers never takes him, so a buy never slows the crew. No save field: he is there whenever the Legacy is. He never explores, is never promoted, and does not change a machine's crew bill. A crew chip says where he is ("Grandpa on carts", PixelLab portrait), and the pass confirm says "Grandpa stays on to tend the machines." A master's pace made the second run finish on day 4, so he tends like an apprentice; the bottom stays day 4.5, and Nils is promoted the sitting after the first borer. #356: he tends the running, untended group with the largest running × tier output, and a tie goes to the higher tier, so one new borer no longer pulls him off a big drill group.
 - **Boosts and time away** (decision, M6): boost timers are absolute end times, so they keep counting down while you're away, and they never pay anything away. Overtime is for play.
 - All multipliers live in one pure function over the save (`effectiveRates` in `src/rates.ts`, built in #78), returning tap yield, per-tier speed, crew speed and away pay, so live ticks, away earnings and the UI agree. Boost timers use absolute end times in the save. Away earnings ignore boosts.
-- UI: an "Upgrades" sheet behind one compact button. The main screen keeps its no-scroll budget (the browser check runs in CI).
+- UI: an "Upgrades" sheet behind one compact button. The main screen keeps its no-scroll budget (the browser check runs in the full gate).
 
 ### Later (sketch)
 

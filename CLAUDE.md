@@ -6,7 +6,7 @@ The always-on rules are in `.claude/rules/`: `dad-friendly-game.md`, `dad-friend
 
 ## Commands
 
-- `npm run gate -- fast` is the edit loop. Run it where superpowers says to verify, before calling a task done. Run `npm run gate -- full` before opening the PR. Fix any FAIL line first. Read `.gate/logs/<step>.log` for more than the printed tail.
+- `npm run gate -- fast` is the edit loop. Run it where superpowers says to verify, before calling a task done. Run `npm run gate -- full` before opening the PR, push, then `npm run gate -- signoff` (the ruleset on `main` requires its `signoff` status; never post it any other way). Fix any FAIL line first. Read `.gate/logs/<step>.log` for more than the printed tail.
 - `npm run play` checks gameplay in a real browser. `npm run play -- --help` lists the saves and actions.
 - `npm run lab:generations -- --ci` takes about 3 minutes on 4 cores, one process per policy and seed (`LAB_JOBS` sets the count). Run it in the background.
 
