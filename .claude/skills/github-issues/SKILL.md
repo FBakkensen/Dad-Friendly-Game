@@ -5,7 +5,7 @@ description: Keeps GitHub issues, PRs, and the blocked-by graph as the backbone 
 
 # GitHub issues
 
-GitHub is the backbone. Issues, PRs, dependencies. Also for simple ideas. The point is to finish the current sliver, not to grow it.
+GitHub is the backbone. Issues, PRs, dependencies. An issue is a sliver: work worth its own sitting and PR. The point is to finish the current sliver, not to grow it.
 
 Use `gh` for all of this. In a Claude Code cloud session, use the matching GitHub MCP tools for issues, PRs, and comments: `gh issue` and `gh pr` need GraphQL, which the session does not have. `gh api` on REST paths works there, and it is how dependencies are read and set. Do not keep the plan only in chat.
 
@@ -69,7 +69,7 @@ In a cloud session, create it with the MCP `issue_write` tool (it takes `parent_
 
 Omit flags you do not need. Body stays that short. No design doc in the issue.
 
-Simple ideas still get an issue. One or two sentences is enough.
+Not every idea is an issue. A review nit or small follow-up goes in the PR body under Rulings, or to Flemming in chat. File it only if he asks. A sliver's issue needs only one or two sentences.
 
 ## Work and PRs
 
