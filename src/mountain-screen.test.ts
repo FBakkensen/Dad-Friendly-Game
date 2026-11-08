@@ -445,8 +445,9 @@ describe("crew tiers on screen", () => {
     expect(machine.querySelector(".tier-rate")?.textContent).toBe(
       `Machine · ${formatCompact(shownStones(createMountain(), 120_000_000))}`,
     );
+    // #357: 574.375M stones, read to one decimal, rounded down.
     expect(machine.getAttribute("aria-label")).toContain(
-      `Joins your crew at ${String(shownStones(createMountain(), 120_000_000) / 1_000_000)} million stones down`,
+      "Joins your crew at 574.3 million stones down",
     );
     machine.click();
     expect(
@@ -462,7 +463,8 @@ describe("crew tiers on screen", () => {
       storage,
       mountain: {
         ...minedMountain(120_000_000),
-        pocket: 41_000_000,
+        // #357: the Great Machine is 120.6M.
+        pocket: 121_400_000,
         drills: 1,
         borers: 1,
       },
@@ -472,7 +474,7 @@ describe("crew tiers on screen", () => {
     const machine = tierCard(screen.root, "machine");
     expect(machine.classList.contains("tier-locked")).toBe(false);
     expect(machine.disabled).toBe(false);
-    expect(machine.querySelector(".tier-cost")?.textContent).toBe("40.2M");
+    expect(machine.querySelector(".tier-cost")?.textContent).toBe("120.6M");
     machine.click();
     expect(machine.querySelector(".tier-count")?.textContent).toBe("×1");
     expect(screen.text(".pocket")).toBe("800K stones");
@@ -554,20 +556,21 @@ describe("crew tiers on screen", () => {
         SESSION_SAVE_KEY,
         JSON.stringify({
           version: 5,
-          mountain: { ...minedMountain(150), helpers: 1 },
+          // #357: the first cart is 600.
+          mountain: { ...minedMountain(600), helpers: 1 },
           lastSeen: Date.now(),
         }),
       );
       const screen = mountScreen({ storage });
       const cart = tierCard(screen.root, "cart");
-      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("150");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("600");
       expect(cart.disabled).toBe(false);
 
       cart.click();
       expect(screen.text(".pocket")).toBe("0 stones");
       expect(screen.text('[data-tier="cart"] .tier-name')).toBe("Mine cart");
       expect(screen.text('[data-tier="cart"] .tier-count')).toBe("×1");
-      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("170");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("690");
       expect(screen.text(".crew-status")).toBe(
         "Your crew mines 7 stones a second",
       );

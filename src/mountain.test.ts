@@ -331,8 +331,9 @@ describe("accrue", () => {
   });
 
   it("stops at an empty mountain and spends the rest of the time", () => {
-    // 3 depth left in the Heart band takes 3 x BAND_SCALE[3] stones.
-    const left = 3 * BAND_SCALE[3];
+    // 3 depth left in the Heart band takes 3 x BAND_SCALE[3] stones, rounded
+    // up to whole stones (#357: 3 x 32.4 is 97.2, so 98).
+    const left = Math.ceil(3 * BAND_SCALE[3]);
     const almost = {
       remaining: 3,
       pocket: 0,

@@ -684,10 +684,11 @@ describe("crafting", () => {
       params: casual.params,
     });
     expect(waiting?.kind).toBe("buyTier");
-    // Pinned on the tuned curve (#356).
+    // Pinned on the tuned curve (#357): on the x1.06 worker curve, 80
+    // workers left the next one too cheap to wait on; 100 is well clear.
     const late = workshop({
       pocket: 0,
-      helpers: 80,
+      helpers: 100,
       carts: 40,
       drills: 30,
       borers: 0,

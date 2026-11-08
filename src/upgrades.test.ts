@@ -53,13 +53,14 @@ describe("Strong arms (tap power)", () => {
     expect(tapped.pocket).toBe(199);
     expect(tapped.remaining).toBe(crew.remaining - 199);
     // A tap never digs past the bottom.
-    // One depth left in the Heart band is 27 stones; a strong tap clears it whole.
+    // One depth left in the Heart band is BAND_SCALE[3] stones, rounded up to
+    // whole stones (#357: 32.4, so 33); a strong tap clears it whole.
     const last = mineByHand({ ...crew, remaining: 1, upgrades: { tap: 5 } });
     expect(
       effectiveRates({ ...crew, upgrades: { tap: 5 } }).tapYield,
-    ).toBeGreaterThanOrEqual(BAND_SCALE[3]);
+    ).toBeGreaterThanOrEqual(Math.ceil(BAND_SCALE[3]));
     expect(last.remaining).toBe(0);
-    expect(last.pocket).toBe(crew.pocket + BAND_SCALE[3]);
+    expect(last.pocket).toBe(crew.pocket + Math.ceil(BAND_SCALE[3]));
   });
 
   it("doesn't change the crew's own speed or away pay", () => {

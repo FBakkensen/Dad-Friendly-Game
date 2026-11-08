@@ -46,8 +46,8 @@ describe("bandShare", () => {
 describe("createBandLog", () => {
   it("logs what is on sale, first affordable and each buy, once per band", () => {
     const log = createBandLog();
-    // The first cart's price (#356 tune).
-    const first = log(at(0, { pocket: 150 }));
+    // The first cart's price (#357 tune).
+    const first = log(at(0, { pocket: 600 }));
     expect(first).toEqual([
       { kind: "available", tier: "cart", layer: "topsoil" },
       {
@@ -58,7 +58,7 @@ describe("createBandLog", () => {
         count: 0,
       },
     ]);
-    expect(log(at(0, { pocket: 150 }))).toEqual([]);
+    expect(log(at(0, { pocket: 600 }))).toEqual([]);
     const bought = log(at(GRANITE, { carts: 2 }));
     expect(bought).toContainEqual({
       kind: "bought",

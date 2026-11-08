@@ -422,8 +422,8 @@ describe("design token mocks (#234)", () => {
     ).toBe(true);
 
     const mountain = host(renderMock(view({ scene: "mountain-tokens" })));
-    // The tuned curve's next drill (#356).
-    expect(drill).toBe("55.8K");
+    // The tuned curve's next drill (#357: 73,080 x 1.15^8).
+    expect(drill).toBe("223.5K");
     expect(mountain.textContent).toContain(`Next: a drill · ${drill}`);
     expect(mountain.textContent).toContain("Needs 1 worker");
     expect(mountain.textContent).toContain("110 million stones left");
@@ -648,9 +648,10 @@ describe("component mocks (#235)", () => {
       expect(card.querySelector("img.kit-icon")).not.toBeNull();
     }
     const [cart, drill, borer] = cards;
-    expect(cart?.textContent).toContain("651");
+    // #357 curve: the 13th cart is 3,211 and the 9th drill 223.5K.
+    expect(cart?.textContent).toContain("3,211");
     expect(cart?.textContent).toContain("Needs 1 worker");
-    expect(drill?.textContent).toContain("55.8K");
+    expect(drill?.textContent).toContain("223.5K");
     expect(drill?.textContent).toContain("Needs 1 worker");
     expect((drill as HTMLButtonElement).disabled).toBe(true);
     // M12-2 (#250): the locked card names its depth, never a price.

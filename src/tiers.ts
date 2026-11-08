@@ -5,12 +5,13 @@ import type { RelicId } from "./relics";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
 /**
- * #356: carts, drills, borers, and the Great Machine climb ×1.13 a unit
- * (the lab's tune inside the 1.10–1.15 genre band).
+ * #357: carts, drills, borers, and the Great Machine climb ×1.15 a unit, the
+ * top of the 1.10–1.15 genre band, so the milestone marks do not let a
+ * cart or drill stack crowd the borer out.
  */
-const MACHINE_COST_GROWTH = 1.13;
-/** #356: workers climb ×1.08 a unit, and kids share the curve. */
-const HELPER_COST_GROWTH = 1.08;
+const MACHINE_COST_GROWTH = 1.15;
+/** #357: workers climb ×1.06 a unit, and kids share the curve. */
+const HELPER_COST_GROWTH = 1.06;
 /**
  * Kids follow the workers' curve from a late-game price. #327: cheap and
  * quick enough (25/s) that one pays back in hours, not days.
@@ -61,8 +62,8 @@ export const TIERS: readonly Tier[] = [
     field: "carts",
     name: "Mine cart",
     shortName: "Cart",
-    // #356 tune: dearer, so the Topsoil lasts into a sitting.
-    firstCost: 150,
+    // #357 tune: dearer again, so the cart's marks do not crowd out the borer.
+    firstCost: 600,
     perSecond: 6,
     staff: 1,
   },
@@ -71,8 +72,9 @@ export const TIERS: readonly Tier[] = [
     field: "drills",
     name: "Steam drill",
     shortName: "Drill",
-    // #356 tune: dearer, with the cart, for the same reason.
-    firstCost: 21_000,
+    // #357 tune: dearer, with the cart, yet cheap enough that a 2-minute
+    // check-in still buys one in the Topsoil.
+    firstCost: 73_080,
     perSecond: 36,
     staff: 1,
   },
@@ -95,7 +97,9 @@ export const TIERS: readonly Tier[] = [
     field: "machines",
     name: "Great Machine",
     shortName: "Machine",
-    firstCost: 40_200_000,
+    // #357 tune: three times dearer, so its marks at 2/3/5/10 do not let the
+    // marathon dad finish ahead of the casual dad.
+    firstCost: 120_600_000,
     perSecond: 2_100,
     staff: 10,
     needs: "hammer",
@@ -127,7 +131,7 @@ export function owned(mountain: Mountain, tier: Tier): number {
   return mountain[tier.field];
 }
 
-/** Cookie Clicker curve: machines climb ×1.13, helpers ×1.08. */
+/** Cookie Clicker curve: machines climb ×1.15, helpers ×1.06. */
 export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
   // A sweep multiplies the sticker and the growth. Both factors are 1 in play.
