@@ -15,8 +15,9 @@ describe("casual run", { timeout: 120_000 }, () => {
     // The pacing dad does not craft. On the #357 retune his climb still ends
     // on day 4.5. His payback table is never quiet for long: one minute on
     // day 1.5. The value-per-stone score waits out the night before the
-    // Deep Heart's next Great Machine (11.95 h from day 3.5), just inside
-    // the lab's half-day limit.
+    // Deep Heart's next Great Machine (11.95 h from day 3.5). That is the
+    // report-only value-per-stone score, pinned at a day or less; the strict
+    // half-day limit applies to the payback score, which waits about a minute.
     expect(run.finishDay).toBe(4.5);
     expect(readFinishDay(run.samples)).toBe(4.5);
     expect(report.value.singleShare).toBeCloseTo(0.343, 3);
@@ -57,7 +58,8 @@ describe("casual run", { timeout: 120_000 }, () => {
     // day. Pinned so a change shows.
     expect(value.value).toBeLessThanOrEqual(HOURS_PER_DAY);
     // #357 tune: the night on day 3 before the next Great Machine is the one
-    // long wait (11.98 h), logged once for each score.
+    // long wait (about 11.95 h in the value-per-stone score), logged once for
+    // each score.
     expect(result.deadStretches).toHaveLength(2);
     expect(
       result.deadStretches.every(
