@@ -2,7 +2,7 @@
 
 Measured on the running game by `npm run audit:ui` (`scripts/ui-audit.mjs`) at the supported phone, 424×924 (installed app) and 424×830 (Chrome with its address bar) (#273), portrait, device scale 2. It records; it changes no style, layout, copy or play.
 
-Shots live in [`docs/ui-audit/`](ui-audit/). Each file is `<screen>-<state>-<WxH>.png`.
+Shots live in [`docs/ui-audit/`](ui-audit/). Each file is `<screen>-<state>-<WxH>.png`. Prices, staff and other numbers in a shot are whatever the game showed when it was taken; today's economy numbers are in [Numbers now](DESIGN.md#numbers-now).
 
 Bars used below:
 
@@ -19,7 +19,7 @@ Bars used below:
 | Golden vein              | [shot](ui-audit/mountain-vein-424x924.png)          | [shot](ui-audit/mountain-vein-424x830.png)          | Same mountain, plus the vein. The `+13.6 thousand crew` float is 12.8px.                                                                                      |
 | Hazard                   | [shot](ui-audit/mountain-hazard-424x924.png)        | [shot](ui-audit/mountain-hazard-424x830.png)        | Buys sheet. The cave-in shout sits on the cart card and is readable.                                                                                          |
 | Next-layer hint          | [shot](ui-audit/mountain-layer-hint-424x924.png)    | [shot](ui-audit/mountain-layer-hint-424x830.png)    | ☰ menu. The hint sits in the ledger under the goal. Vague on purpose.                                                                                        |
-| Crew, needs workers      | [shot](ui-audit/crew-needs-workers-424x924.png)     | [shot](ui-audit/crew-needs-workers-424x830.png)     | Buys sheet. A card says `Needs 8 workers`; the free count stays on the crew chip.                                                                             |
+| Crew, needs workers      | [shot](ui-audit/crew-needs-workers-424x924.png)     | [shot](ui-audit/crew-needs-workers-424x830.png)     | Buys sheet. A borer card says `Needs 8 workers`; the free count stays on the crew chip.                                                                       |
 | Material chips           | [shot](ui-audit/material-chips-424x924.png)         | [shot](ui-audit/material-chips-424x830.png)         | ☰ menu ledger: clay, iron, crystal and heartstone with real counts.                                                                                          |
 | Upgrades and boosts      | [shot](ui-audit/upgrades-boosts-timer-424x924.png)  | [shot](ui-audit/upgrades-boosts-timer-424x830.png)  | The list scrolls inside the sheet. Running boosts are chips under the crew. The list scrolls clear of Close.                                                  |
 | Workshop, bench idle     | [shot](ui-audit/workshop-idle-424x924.png)          | [shot](ui-audit/workshop-idle-424x830.png)          | Bottom-bar Workshop. Real prices (`Craft · 500K`). Every control is 48px. Four cards a page at 424×924; three at 424×830, where four would be cut off (#347). |
