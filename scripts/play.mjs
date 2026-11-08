@@ -31,9 +31,11 @@ import {
   SAVE_KEY,
   crewMountain,
   crystalMountain,
+  fleetMountain,
   heartMountain,
   lastStoneSave,
   openMountain,
+  savingMountain,
   seedJson,
   workshopSave,
 } from "./fixtures.mjs";
@@ -98,6 +100,14 @@ const SAVES = {
   brief: {
     note: "the mid save, last seen 2 minutes ago: the quiet away note",
     save: () => ({ ...openMountain(), lastSeen: Date.now() - HOUR / 30 }),
+  },
+  saving: {
+    note: "a free hand and nothing affordable: Saving for a cart",
+    save: savingMountain,
+  },
+  fleet: {
+    note: "120 carts: three flaps on the cart bay",
+    save: fleetMountain,
   },
 };
 

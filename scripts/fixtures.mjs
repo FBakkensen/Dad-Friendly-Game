@@ -196,3 +196,39 @@ export function heartMountain() {
     },
   };
 }
+
+/**
+ * Granite with a hand free and nothing affordable (#372): the Ready now plate
+ * saves for a cart, with the time.
+ */
+export function savingMountain() {
+  const open = openMountain();
+  return {
+    ...open,
+    mountain: {
+      remaining: 240_000_000 - 25_000_000,
+      pocket: 100,
+      helpers: 18,
+      carts: 6,
+      borers: 1,
+      staffed: 2,
+    },
+  };
+}
+
+/** A big Granite fleet (#372): 120 carts, so the cart bay shows three flaps. */
+export function fleetMountain() {
+  const open = openMountain();
+  return {
+    ...open,
+    mountain: {
+      remaining: 240_000_000 - 30_000_000,
+      pocket: 50_000_000,
+      helpers: 170,
+      carts: 120,
+      drills: 30,
+      borers: 2,
+      staffed: 2,
+    },
+  };
+}
