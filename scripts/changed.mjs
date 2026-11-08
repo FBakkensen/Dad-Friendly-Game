@@ -1,8 +1,7 @@
 /* global console */
 /**
  * The code files changed since origin/main: committed, staged, unstaged, and
- * untracked. Shared by the gate (scripts/gate.mjs) and its Claude Code hooks
- * (scripts/gate-hook.mjs). Run from the repo root.
+ * untracked. Used by the gate (scripts/gate.mjs). Run from the repo root.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
