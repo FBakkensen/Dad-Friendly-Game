@@ -10,7 +10,7 @@ The superpowers plugin (`superpowers@claude-plugins-official`, enabled in `.clau
 4. **Plan:** `superpowers:writing-plans`, for one sliver only. A design that spans several slivers is split first (Specs and plans, below).
 5. **Build:** `superpowers:subagent-driven-development`, or `superpowers:executing-plans` for a plan of a few tasks. `superpowers:test-driven-development` and `superpowers:systematic-debugging` as they say.
 6. **Prove:** `superpowers:verification-before-completion`. The evidence is the gate and `npm run play` (`dad-friendly-work.md`).
-7. **Review and ship:** the ship-sitting skill (ours). It runs `superpowers:requesting-code-review`, then `superpowers:finishing-a-development-branch` with the PR option, then babysits and squash-merges. The sitting ends at the merge.
+7. **Review and ship:** the ship-sitting skill (ours). It runs `superpowers:requesting-code-review`, then `superpowers:finishing-a-development-branch` with the PR option, then babysits, and squash-merges when Flemming asks to merge or ship. The sitting ends at the merge.
 
 ## Where we differ
 
@@ -19,7 +19,7 @@ The superpowers plugin (`superpowers@claude-plugins-official`, enabled in `.clau
 - **Execution method is already chosen.** At the writing-plans handoff, it is subagent-driven, or executing-plans for a plan of a few tasks. Still ask the human to review the plan.
 - **Extra stops while running a plan.** Besides superpowers' own stop reasons, stop for any number, tuning, copy, or art call the approved spec does not settle. Ask it as one question with three options and one recommended. PixelLab always asks first (the pixellab skill). Other rulings go in the PR body.
 - **Questions.** Brainstorming asks its own way. The three-option format is for picking work (what-next) and for the stops above.
-- **Finishing.** In `superpowers:finishing-a-development-branch`, the choice is always "Push and create a Pull Request": do not show the menu. The base branch is `main`. Its full test suite is `npm run gate -- full`, run before the PR is opened. The PR URL is reported after the squash-merge, not at creation. Never merge locally into `main`. When a plan says to use finishing-a-development-branch, use the ship-sitting skill instead; it reviews, then calls finishing.
+- **Finishing.** In `superpowers:finishing-a-development-branch`, the choice is always "Push and create a Pull Request": do not show the menu. The base branch is `main`. Its full test suite is `npm run gate -- full`, run before the PR is opened. The PR URL is reported after the squash-merge, or when the PR is ready and waits for the ask to merge. Not at creation. Never merge locally into `main`. When a plan says to use finishing-a-development-branch, use the ship-sitting skill instead; it reviews, then calls finishing.
 - **Commit and push as work lands.** Push the sitting's branch after each commit. That keeps the work safe if the cloud container is reclaimed, and it is what the cloud Stop hook asks (`CLAUDE.md`). A push is not shipping. Opening the PR is.
 - **Review severity.** Critical and Important findings are non-nits and are fixed before the PR. Minor findings are nits and may ship. A follow-up idea from a review becomes a GitHub issue.
 - **Commit messages** follow the repo's style (`M13-5: ...` or a plain sentence), not `feat:` prefixes.
