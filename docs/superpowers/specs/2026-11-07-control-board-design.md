@@ -1,6 +1,6 @@
 # The control board: design spec (7 Nov 2026)
 
-Status: draft for Flemming. This spec covers several slivers. It ships on its own PR under the parent issue #368, and each later sitting plans and builds one sliver from it (`.claude/rules/superpowers.md`). The approved mockup is `mockups/control-board/index.html`; open it with any static server. Its screenshots are in `mockups/control-board/shots/`.
+Status: approved by Flemming on 8 Nov 2026. This spec covers several slivers. It ships on its own PR under the parent issue #368, and each later sitting plans and builds one sliver from it (`.claude/rules/superpowers.md`). The approved mockup is `mockups/control-board/index.html`; open it with any static server. Its screenshots are in `mockups/control-board/shots/`.
 
 ## Why
 
