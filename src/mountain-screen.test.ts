@@ -1480,12 +1480,68 @@ describe("the control board (#370)", () => {
     expect(screen.root.querySelector(".pocket-rate")).toBeNull();
   });
 
-  it("reads the crew's rate on the main screen, with the pocket gone", () => {
+  it("the crew line moves into Buys", () => {
     const screen = mountScreen({
       storage: seeded({ ...minedMountain(400), helpers: 3, carts: 1 }),
     });
-    const line = screen.root.querySelector(":scope > .crew > .crew-status");
+    const line = screen.root.querySelector(".buys-card .crew .crew-status");
     expect(line?.textContent).toMatch(/^Your crew mines \d+ stones a second$/);
+    const crew = screen.root.querySelector(".buys-card .crew");
+    const title = crew?.querySelector("h3.buys-crew-title");
+    expect(title?.textContent).toBe("Crew");
+    // The title stands above the crew sentence.
+    expect(
+      title?.compareDocumentPosition(line ?? document.body) ?? Number.NaN,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    // Head, intro, how card, crew, tier grid, thanks, close.
+    const card = screen.root.querySelector(".buys-card");
+    expect([...(card?.children ?? [])].map((child) => child.className)).toEqual(
+      [
+        "workshop-head buys-head",
+        "teach-intro buys-intro",
+        "buys-how",
+        "crew",
+        "sheet-host",
+        "trouble-thanks",
+        "buys-close",
+      ],
+    );
+    // How it works covers the crew too, and Back brings it back.
+    card?.querySelector<HTMLButtonElement>(".teach-info")?.click();
+    expect(crew?.hasAttribute("hidden")).toBe(true);
+    card?.querySelector<HTMLButtonElement>(".buys-how button")?.click();
+    expect(crew?.hasAttribute("hidden")).toBe(false);
+  });
+
+  it("the crew plate counts the crew and the free hands", () => {
+    const screen = mountScreen({
+      storage: seeded({ ...minedMountain(400), helpers: 18, carts: 6 }),
+    });
+    const plate = screen.root.querySelector(".board-gauge-row .board-crew");
+    expect(plate?.getAttribute("aria-label")).toBe("Crew: 18 workers, 12 free");
+    expect(screen.text(".board-crew .board-crew-free")).toBe("12 free");
+    expect(screen.root.querySelector("#app > .crew")).toBeNull();
+    expect(screen.root.querySelector(":scope > .crew")).toBeNull();
+  });
+
+  it("the crew plate follows a hire", () => {
+    const price = tierCost(tierById("helper"), 2);
+    const screen = mountScreen({
+      storage: seeded({
+        ...minedMountain(400),
+        pocket: price,
+        helpers: 2,
+        carts: 1,
+      }),
+    });
+    expect(screen.text(".board-crew-free")).toBe("1 free");
+    screen.root
+      .querySelector<HTMLButtonElement>('.tier[data-tier="helper"]')
+      ?.click();
+    expect(screen.text(".board-crew-free")).toBe("2 free");
+    expect(
+      screen.root.querySelector(".board-crew")?.getAttribute("aria-label"),
+    ).toBe("Crew: 3 workers, 2 free");
   });
 
   it("a buy shows the spend on the odometer", () => {
@@ -1879,6 +1935,34 @@ describe("the control board (#370)", () => {
     tap(done.dig);
     expect(done.pocket()).toBe(held);
     expect(plus(done)?.hidden).toBe(true);
+  });
+
+  it("the gauge reads 0 once the mountain is mined out", async () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 5_000_000;
+      const m: Mountain = {
+        ...minedMountain(MOUNTAIN_STONES),
+        helpers: 3,
+        carts: 1,
+      };
+      const screen = mountScreen({
+        storage: seeded(m, clock),
+        now: () => clock,
+      });
+      const gauge = screen.root.querySelector(".board-gauge-row .board-gauge");
+      expect(stonesPerSecond(m, clock)).toBeGreaterThan(0);
+      expect(gauge?.getAttribute("aria-label")).toBe(
+        "Output: 0 stones a second",
+      );
+      clock += 1_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(gauge?.getAttribute("aria-label")).toBe(
+        "Output: 0 stones a second",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("the window shows the band's view", () => {

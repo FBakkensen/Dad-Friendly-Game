@@ -842,7 +842,8 @@ describe("Flemming's cart (#216)", () => {
     expect(screen.text(".crew-posts")).toContain("18 workers");
     expect(screen.text(".crew-posts")).toContain("13 on carts");
     expect(screen.text(".crew-posts")).toContain("5 on drills");
-    expect(screen.text(".crew-posts")).toContain("0 free");
+    // The free count is the crew plate's alone now (#371).
+    expect(screen.text(".crew-posts")).not.toContain("free");
     expect(
       screen.root.querySelector<HTMLElement>(".crew-breakdown")?.hidden,
     ).toBe(true);
@@ -884,7 +885,7 @@ describe("Flemming's cart (#216)", () => {
     const sizes = rows.map((row) => row.querySelectorAll(".crew-bit").length);
     expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
     expect(posts.querySelector(".crew-bit")?.textContent).toMatch(
-      /workers · \d+ free$/,
+      /^\d+ workers$/,
     );
     posts.click();
     expect(

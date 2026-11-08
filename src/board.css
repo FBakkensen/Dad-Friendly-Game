@@ -750,9 +750,8 @@ body {
 }
 
 /* ---------- the gauge row (#371) ----------
-   Under the board's top, 424 x 238: the output gauge at (0, 0) and the mine
-   window at (103, 3) art; the crew plate's slot at (103, 95) waits for B3's
-   next part. */
+   Under the board's top, 424 x 238: the output gauge at (0, 0), the mine
+   window at (103, 3) and the crew plate at (103, 95) art. */
 .board-gauge-row {
   position: absolute;
   top: var(--board-top);
@@ -771,6 +770,12 @@ body {
   position: absolute;
   left: calc(var(--art) * 103);
   top: calc(var(--art) * 3);
+}
+
+.board-gauge-row > .board-crew {
+  position: absolute;
+  left: calc(var(--art) * 103);
+  top: calc(var(--art) * 95);
 }
 
 /* ---------- output gauge (#371) ----------
@@ -847,14 +852,22 @@ body {
    mockup puts it (legend 10, figure 29, lamp 60, free 81 art px). The legend
    and figure boxes shrink to their words when a long free count needs the
    room, so the words push along and never overlap or leave the plate. A
-   free count of five figures or more drops its letter-spacing to fit. */
+   free count of five figures or more drops its letter-spacing to fit. The
+   legend's left inset is a spacer that gives way first, so a wide fallback
+   face still ends inside the plate (#371). */
 .board-crew {
   display: flex;
   align-items: flex-start;
   gap: var(--art);
   width: calc(var(--art) * 106);
   height: calc(var(--art) * 24);
-  padding: 0 calc(var(--art) * 3) 0 calc(var(--art) * 10);
+  padding: 0 calc(var(--art) * 3) 0 0;
+}
+
+/* Nine art px and the gap: the legend starts at 10, as in the mockup. */
+.board-crew::before {
+  content: "";
+  flex: 0 1 calc(var(--art) * 9);
 }
 
 .board-crew > :not(.board-skin) {
@@ -1138,10 +1151,14 @@ body {
   outline: calc(var(--art) * 2) solid var(--board-ink-bare);
 }
 
-/* The vein's payout and the quiet away line, in the board note under the window. */
+/* The vein's payout and the quiet away line, in the board note under the
+   window: one line in the Legacy plate's condensed face, so the note ends
+   above the column's top and never covers the ☰ menu (#371). */
 .vein-note {
   margin: 0;
+  font-family: "Barlow Condensed", sans-serif;
   font-weight: 700;
+  white-space: nowrap;
   color: var(--board-amber-bare);
 }
 
@@ -1155,12 +1172,14 @@ body {
   pointer-events: none;
 }
 
-/* The Legacy plate straddles the frame's lower edge; a label, not a door. */
+/* The Legacy plate straddles the frame's lower edge; a label, not a door.
+   It ends one art px above the crew plate (window row 91, gauge row 94), so
+   the two plates never touch (#371). */
 .board-legacy,
 .board-legacy.board-skinned {
   position: absolute;
   left: calc(var(--art) * 21);
-  top: calc(var(--art) * 76);
+  top: calc(var(--art) * 75);
   z-index: 3;
   display: flex;
   align-items: center;

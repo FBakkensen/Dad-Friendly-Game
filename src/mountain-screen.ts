@@ -16,7 +16,8 @@ import { hasRelic, relicGoal, type RelicId } from "./relics";
 import { BOOSTS } from "./boosts";
 import { createEffectChip, shortEffectName, writeChip } from "./effect-row";
 import { createBoardNote } from "./board-note";
-import { createOutputGauge } from "./board-gauge";
+import { createCrewPlate, createOutputGauge } from "./board-gauge";
+import { crewCounts } from "./crew-count";
 import { createMineWindow, runBoardLoop } from "./board-window";
 import { veinSpot, windowScene } from "./mine-window";
 import { createBoostDial, createOdometer } from "./board-stock";
@@ -391,9 +392,18 @@ export function mountMountainScreen({
     },
   });
 
-  // The gauge row (#371): the output gauge and the mine window down No. 2
-  // Shaft, with the vein and the Legacy plate on it.
+  // The gauge row (#371): the output gauge, the mine window down No. 2
+  // Shaft with the vein and the Legacy plate on it, and the crew plate.
   const gauge = createOutputGauge();
+  const crewPlate = createCrewPlate();
+  /** The gauge shows what is earned: nothing once the mountain is mined out. */
+  const renderGaugeRow = (): void => {
+    const { mountain, trouble } = view;
+    gauge.set(
+      mountain.remaining > 0 ? stonesPerSecond(mountain, now(), trouble) : 0,
+    );
+    crewPlate.set(crewCounts(mountain, now(), trouble));
+  };
   const mine = createMineWindow({
     onDig: dig,
     onVein: tapVein,
@@ -402,7 +412,7 @@ export function mountMountainScreen({
   });
   const gaugeRow = document.createElement("div");
   gaugeRow.className = "board-gauge-row";
-  gaugeRow.append(gauge.root, mine.root);
+  gaugeRow.append(gauge.root, mine.root, crewPlate.root);
 
   /** The socket whose note opened the shelf: focus goes back there. */
   let shelfDoor: HTMLElement | undefined;
@@ -642,7 +652,7 @@ export function mountMountainScreen({
     if (view.ready) {
       mine.render(windowScene(view.mountain, view.trouble));
     }
-    gauge.set(stonesPerSecond(view.mountain, now(), view.trouble));
+    renderGaugeRow();
     const layer = layerOf(view.mountain);
     const layerWords = layerCardWords(layer.id);
     layerName.textContent = layer.name;
@@ -839,12 +849,18 @@ export function mountMountainScreen({
   const buysHost = document.createElement("div");
   buysHost.className = SHEET_HOST;
   buysHost.append(tierGrid);
-  const buysHead = createBuysHead({ tierArt, stoneUrl, body: [buysHost] });
+  // The crew line heads Buys until B5's drawer takes it (#371).
+  const buysHead = createBuysHead({
+    tierArt,
+    stoneUrl,
+    body: [crew, buysHost],
+  });
   buysDialog.setAttribute("aria-labelledby", "buys-title");
   buysCard.append(
     buysHead.head,
     buysHead.intro,
     buysHead.howHost,
+    crew,
     buysHost,
     thanks,
     buysClose,
@@ -933,7 +949,6 @@ export function mountMountainScreen({
     boardTop,
     gaugeRow,
     header,
-    crew,
     teachNote.note,
     thumbBar,
     drawerClip,
@@ -966,7 +981,7 @@ export function mountMountainScreen({
     workshop.render();
     renderStock();
     stepVein();
-    gauge.set(stonesPerSecond(view.mountain, now(), view.trouble));
+    renderGaugeRow();
   }, 1000);
   signal?.addEventListener("abort", () => {
     clearInterval(ticking);

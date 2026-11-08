@@ -64,6 +64,7 @@ const BOARD_SELECTORS = [
   ".board-running",
   ".board-gauge-row",
   ".board-gauge",
+  ".board-crew",
   ".board-mine",
   ".board-window",
   ".board-legacy",
@@ -179,8 +180,12 @@ describe("board.css", () => {
 });
 
 describe("style.css", () => {
-  it("keeps the crew's rate line on the main screen until B3's gauge (#370)", () => {
-    expect(css).not.toMatch(/^\.crew-status[^{]*\{[^}]*display:\s*none/m);
+  it("keeps no lit crew chip: the crew plate holds the free count (#371)", () => {
+    expect(css).not.toMatch(/teach-point/);
+  });
+
+  it("titles the crew section in Buys (#371)", () => {
+    expect(css).toMatch(/^\.buys-crew-title[\s,{]/m);
   });
 
   it.each(REQUIRED_SELECTORS)("styles %s", (selector) => {
