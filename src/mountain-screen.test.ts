@@ -135,7 +135,7 @@ describe("mountMountainScreen", () => {
       expect(frames.pending()).toBe(1);
       const asked = frames.asked();
 
-      // The plate's Done hold and the red button's press and tally run.
+      // The plate's Done hold and the red button's press and tally start.
       screen.root.querySelector<HTMLButtonElement>(".board-ready")?.click();
       screen.root
         .querySelector<HTMLButtonElement>(".board-dig-button")
@@ -147,8 +147,9 @@ describe("mountMountainScreen", () => {
       vi.advanceTimersByTime(3_000);
       window.dispatchEvent(new Event("pagehide"));
       expect(tick).toHaveBeenCalledTimes(3);
-      // Nothing keeps time after the abort: the plate's and the button's
-      // one-shot timers have run out and nothing set a new one.
+      // The abort does not clear the plate's Done hold or the button's press
+      // and tally timers. They are one-shot: within 3s they have run out, and
+      // nothing (the 1s tick included) has set a new one.
       expect(vi.getTimerCount()).toBe(0);
       expect(writes).toHaveLength(1);
       expect(frames.pending()).toBe(0);
@@ -2688,6 +2689,7 @@ describe("the control board (#370)", () => {
     const button = digButtonOf(screen);
     expect(button.disabled).toBe(true);
     expect(button.getAttribute("aria-label")).toBe("The mountain is mined out");
+    expect(screen.text(".board-dig-lg")).toBe("");
     const held = pocketOf(screen);
     pressed(button);
     expect(pocketOf(screen)).toBe(held);
@@ -2723,6 +2725,102 @@ describe("the control board (#370)", () => {
     expect(plate.disabled).toBe(false);
     expect(button.disabled).toBe(false);
     expect(screen.text(".board-ready-kick")).toBe("Ready now");
+  });
+
+  it("a save that loads again takes the window, the bays, the plate and the red button back to loading", async () => {
+    let finishLoad: (result: CloudLoadResult) => void = () => {
+      throw new Error("load was not pending");
+    };
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        finishLoad = onChange;
+        return () => undefined;
+      },
+    };
+    const auth = createMemoryAuth();
+    const screen = mountScreen({
+      auth,
+      cloudSave,
+      storage: seeded(early({ drills: 1, kids: 1, legacy: 1 }), CLOCK),
+      now: () => CLOCK,
+    });
+    const plate = plateOf(screen);
+    const button = digButtonOf(screen);
+    const shown = (selector: string): boolean => {
+      for (
+        let node = screen.root.querySelector<HTMLElement>(selector);
+        node !== null && node !== screen.root;
+        node = node.parentElement
+      ) {
+        if (node.hidden) return false;
+      }
+      return true;
+    };
+    const bays = () => [
+      ...screen.root.querySelectorAll<HTMLButtonElement>(".board-bay"),
+    ];
+    const digits = () =>
+      [...screen.root.querySelectorAll(".board-bay .board-flap-d")]
+        .map((d) => d.textContent)
+        .join("");
+    // Playing on the phone: everything is up, and a dig runs its tally.
+    tap(button);
+    expect(screen.text(".board-dig-lg")).toMatch(/^By hand · \+/);
+    expect(plate.disabled).toBe(false);
+    expect(shown(".board-window-art")).toBe(true);
+    expect(shown(".board-window-drill")).toBe(true);
+    expect(digits()).not.toBe("");
+
+    await auth.signIn();
+    await Promise.resolve();
+    expect(screen.progress.getSnapshot().ready).toBe(false);
+    // The red button.
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("aria-label")).toBe("Loading your save...");
+    expect(screen.text(".board-dig-lg")).toBe("");
+    // The plate.
+    expect(plate.disabled).toBe(true);
+    expect(screen.text(".board-ready-kick")).toBe("");
+    expect(screen.text(".board-ready-main")).toBe("");
+    // The bays.
+    expect(bays().every((bay) => bay.disabled)).toBe(true);
+    expect(digits()).toBe("");
+    expect(screen.text(".board-band")).toBe("");
+    // The window: its frame and glass, nothing of the phone's save.
+    for (const part of [
+      ".board-window-art",
+      ".board-window-run",
+      ".board-window-drill",
+      ".board-window-kid",
+      ".board-legacy",
+      ".board-dig-plus",
+    ]) {
+      expect({ part, shown: shown(part) }).toEqual({ part, shown: false });
+    }
+    expect(shown(".board-window-frame")).toBe(true);
+    const held = pocketOf(screen);
+    tap(button);
+    tap(screen.dig);
+    expect(pocketOf(screen)).toBe(held);
+    expect(screen.text(".board-dig-lg")).toBe("");
+
+    // The account's save comes in, ahead of the phone's: a first render of it.
+    finishLoad({
+      kind: "found",
+      mountain: { ...minedMountain(600_000), pocket: 0, legacy: 1 },
+    });
+    await Promise.resolve();
+    expect(button.disabled).toBe(false);
+    expect(screen.text(".board-dig-lg")).toBe("Dig · +1");
+    expect(plate.disabled).toBe(false);
+    expect(screen.text(".board-ready-main")).toBe("Saving for a worker");
+    expect(shown(".board-window-art")).toBe(true);
+    expect(shown(".board-window-drill")).toBe(false);
+    expect(shown(".board-window-kid")).toBe(false);
+    expect(bays().every((bay) => !bay.disabled)).toBe(true);
   });
 
   it("the red button digs exactly tap power", () => {

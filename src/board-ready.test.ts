@@ -479,8 +479,15 @@ describe("createDigButton", () => {
     return {
       root: made.root,
       button: made.button,
-      set: (tapYield: number, enabled: boolean, label: string): void => {
+      set: (
+        tapYield: number | undefined,
+        enabled: boolean,
+        label: string,
+      ): void => {
         made.set(tapYield, enabled, label);
+      },
+      loading: (): void => {
+        made.loading();
       },
       dug: (mined: number): void => {
         made.dug(mined);
@@ -592,11 +599,30 @@ describe("createDigButton", () => {
     expect(spriteAt(root)).toBe("0px");
   });
 
-  it("is disabled with the mined-out label", () => {
-    const { button, set } = make();
+  it("is disabled with the mined-out label and no legend", () => {
+    const { root, button, set } = make();
     set(20, true, "Dig");
-    set(20, false, "The mountain is mined out");
+    set(undefined, false, "The mountain is mined out");
     expect(button.disabled).toBe(true);
     expect(button.getAttribute("aria-label")).toBe("The mountain is mined out");
+    expect(text(root, ".board-dig-lg")).toBe("");
+  });
+
+  it("goes back to loading when the save loads again: disabled, no words, no tally", () => {
+    const { root, button, set, dug, loading } = make();
+    set(20, true, "Dig: tap to mine 20 stones");
+    dug(20);
+    expect(text(root, ".board-dig-lg")).toBe("By hand · +20");
+    loading();
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("aria-label")).toBe("Loading your save...");
+    expect(text(root, ".board-dig-lg")).toBe("");
+    expect(root.classList.contains("is-hit")).toBe(false);
+    vi.advanceTimersByTime(BY_HAND_MS);
+    expect(text(root, ".board-dig-lg")).toBe("");
+    // The next save starts its own tally.
+    set(5, true, "Dig");
+    dug(5);
+    expect(text(root, ".board-dig-lg")).toBe("By hand · +5");
   });
 });

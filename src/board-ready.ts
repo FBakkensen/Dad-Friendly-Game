@@ -48,7 +48,10 @@ export interface ReadyPlate {
 export interface DigButton {
   readonly root: HTMLElement;
   readonly button: HTMLButtonElement;
-  set(tapYield: number, enabled: boolean, label: string): void;
+  /** An undefined yield shows no legend: the mountain is mined out. */
+  set(tapYield: number | undefined, enabled: boolean, label: string): void;
+  /** Back to the start: disabled, no words or numbers, no tally (the save is loading again). */
+  loading(): void;
   dug(mined: number): void;
   echo(): void;
 }
@@ -452,7 +455,11 @@ export function createDigButton({
   button.addEventListener("pointercancel", lift);
   button.addEventListener("pointerleave", lift);
 
-  const set = (yieldNow: number, enabled: boolean, label: string): void => {
+  const set = (
+    yieldNow: number | undefined,
+    enabled: boolean,
+    label: string,
+  ): void => {
     tapYield = yieldNow;
     if (button.disabled === enabled) {
       button.disabled = !enabled;
@@ -463,6 +470,16 @@ export function createDigButton({
     if (tallyTimer === undefined) {
       settle();
     }
+  };
+
+  const loading = (): void => {
+    if (tallyTimer !== undefined) {
+      clearTimeout(tallyTimer);
+      tallyTimer = undefined;
+    }
+    tally = 0;
+    root.classList.remove("is-hit");
+    set(undefined, false, LOADING);
   };
 
   const dug = (mined: number): void => {
@@ -492,5 +509,5 @@ export function createDigButton({
 
   sprite.frame(DIG_REST);
   settle();
-  return { root, button, set, dug, echo };
+  return { root, button, set, loading, dug, echo };
 }

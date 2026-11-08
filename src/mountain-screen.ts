@@ -481,16 +481,20 @@ export function mountMountainScreen({
       view.ready ? pick : undefined,
       view.playing && view.ready,
     );
+    // A sign-in or another account loads a save again: back to loading.
     if (!view.ready) {
+      digButton.loading();
       return;
     }
     const tapYield = effectiveRates(view.mountain, now()).tapYield;
+    if (view.mountain.remaining === 0) {
+      digButton.set(undefined, false, MINED_OUT);
+      return;
+    }
     digButton.set(
       tapYield,
       !mine.dig.disabled,
-      view.mountain.remaining === 0
-        ? MINED_OUT
-        : `Dig: tap to mine ${tapWords(tapYield)}`,
+      `Dig: tap to mine ${tapWords(tapYield)}`,
     );
   };
 
@@ -700,6 +704,8 @@ export function mountMountainScreen({
   otherCard.append(otherTitle, otherBody, playHere);
   otherTab.append(otherCard);
 
+  /** Whether the window shows a save, so a second load clears it once. */
+  let windowDrawn = false;
   const render = (): void => {
     // A short absence pays with a small note, not the welcome card (#334).
     if (view.quietAway !== undefined) {
@@ -728,9 +734,14 @@ export function mountMountainScreen({
         : `Mine window: tap to mine ${tapWords(effectiveRates(view.mountain, now()).tapYield)}`,
     );
     // The window draws the save once it has loaded, so the first scene it
-    // sees is the save itself and nothing beats for it (#371).
+    // sees is the save itself and nothing beats for it (#371). A save that
+    // loads again (a sign-in, another account) puts it back to its frame.
     if (view.ready) {
       mine.render(windowScene(view.mountain, view.trouble));
+      windowDrawn = true;
+    } else if (windowDrawn) {
+      mine.loading();
+      windowDrawn = false;
     }
     renderGaugeRow();
     // The Ready now pick, once per render: the bays light theirs (#372).
