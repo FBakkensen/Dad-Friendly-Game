@@ -149,22 +149,6 @@ export function economyChanged(
   return changed.some((path) => closure.has(path));
 }
 
-/**
- * True when one of the shell command's parts runs `git push`, past git's own
- * options (`git -C repo push`). The pre-push hook gates on this.
- */
-export function isGitPush(command: string): boolean {
-  return command.split(/&&|\|\||[;|&\n]/).some((part) => {
-    const words = part.trim().split(/\s+/);
-    if (words[0] !== "git") return false;
-    let at = 1;
-    while (words[at]?.startsWith("-")) {
-      at += words[at] === "-C" || words[at] === "-c" ? 2 : 1;
-    }
-    return words[at] === "push";
-  });
-}
-
 const LAB = ["--import", "./tools/lab-register.mjs"];
 
 /**

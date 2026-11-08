@@ -97,7 +97,7 @@ const running = new Set();
 const children = new Set();
 const began = performance.now();
 
-// A Ctrl-C or a hook timeout stops the whole gate: dev servers, Chrome, and
+// A Ctrl-C or a timeout stops the whole gate: dev servers, Chrome, and
 // the emulator must not outlive it. Each step leads its own process group.
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
   process.on(signal, () => {

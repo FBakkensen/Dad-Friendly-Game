@@ -5,7 +5,7 @@ description: Use when the user asks to ship, commit and PR, file the PR, finish 
 
 # Ship sitting
 
-Superpowers reviews the branch and opens the PR. This skill adds what superpowers leaves out: one gated push when shipping, babysitting the PR in this conversation, and the squash-merge. The sitting ends at the merge. The agent files, babysits, and merges its own PR.
+Superpowers reviews the branch and opens the PR. This skill adds what superpowers leaves out: the full gate before the PR, babysitting the PR in this conversation, and the squash-merge. The sitting ends at the merge. The agent files, babysits, and merges its own PR.
 
 Stay in this conversation. Do not hand the PR to autopilot, a background babysitter, or another agent. In a Claude Code cloud session, `gh` works for search only: where this skill, or a superpowers skill it runs, says `gh`, use the matching GitHub MCP tool.
 
@@ -21,18 +21,16 @@ One issue, one branch, one PR, `Fixes #N`. Use the github-issues skill for the g
 - PR merged: report the PR URL and stop.
 - Nothing to ship: stop.
 
-## Push once
+## Push as you go
 
-Work stays local, committed or not, until this skill ships it. The first `git push` of the sitting is the one at Open the PR. After that, only babysitting fixes push. In a Claude Code cloud session, the environment's Stop hook asks to commit and push at the end of every turn with local work. Ignore it until then (`CLAUDE.md`, "Claude Code cloud sessions"): each push pays for the full gate.
+Commit and push the sitting's branch as work lands, with `git push` from the shell. That keeps the work safe if the cloud container is reclaimed, and it is what the cloud Stop hook asks (`CLAUDE.md`). A push is not shipping. Opening the PR is.
 
 ## The gate
 
-There are no CI check runs on a PR. The proof is the gate, run by the Claude Code hooks in `.claude/settings.json` (`scripts/gate-hook.mjs`):
+There are no CI check runs on a PR. The proof is the gate, run by hand:
 
-- **Stop:** when code changed since `origin/main`, the fast tier runs before the turn ends. Red keeps the turn going, with the FAIL lines as feedback.
-- **`git push`:** the full tier runs first (with the strict strategy lab when economy code changed). Red blocks the push.
-
-Push with `git push` from the shell, never with the GitHub MCP `push_files` or `create_or_update_file` tools, which skip the hook. Commit in one command and push in the next: the hook blocks the whole command, so a commit chained before a blocked push never happens. Every hook run adds a line to `.gate/hook.log`. Never bypass the hook, and never edit `.claude/settings.json` to get a push through.
+- `npm run gate -- fast` where superpowers says to verify, before calling a task done.
+- `npm run gate -- full` before opening the PR. It adds the strict strategy lab when economy code changed. Red means no PR.
 
 ## Commit
 
@@ -40,7 +38,7 @@ Push with `git push` from the shell, never with the GitHub MCP `push_files` or `
 - On the sitting's branch, not `main`.
 - Stage only this issue's files. No secrets (`.env`, Firebase, PixelLab tokens).
 - If a second sliver snuck in, stop. That work gets its own issue, not this PR.
-- Commit message: why, in 1-2 sentences, in the repo's style. Do not amend. If a hook rewrites files, make a new commit.
+- Commit message: why, in 1-2 sentences, in the repo's style. Do not amend.
 
 ## Review
 
@@ -50,7 +48,7 @@ Do not open the PR until the review returns only Minor findings, or none. Every 
 
 ## Open the PR
 
-Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Request" already chosen, against `main`. Its full test suite is `npm run gate -- full`. The push goes through the gate. The title matches the sliver. The PR body:
+Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Request" already chosen, against `main`. Its full test suite is `npm run gate -- full`: run it and see it green before the PR is opened. The title matches the sliver. The PR body:
 
 ```markdown
 ## Summary
@@ -75,9 +73,9 @@ In a cloud session, subscribe to the PR (`subscribe_pr_activity`) and let events
 1. Refresh live PR state each pass. Do not act on stale state.
 2. Conflicts first, then unresolved review comments.
 3. Handle review comments with `superpowers:receiving-code-review`. Fix real in-scope issues. Dismiss invalid ones with a reason. Ask the human on auth, secrets, security, or a real product question. Nits do not block merge.
-4. Every fix goes through the gate: the fast tier while editing, `git push` for the full tier. Never force-push.
+4. Run the fast gate on every fix, commit, and push. Run `npm run gate -- full` again before merging when a fix changed code. Never force-push.
 
-When the PR is mergeable, its last push went through the gate, and every non-nit comment is fixed or dismissed, squash-merge without waiting:
+When the PR is mergeable, the full gate is green on its last commit, and every non-nit comment is fixed or dismissed, squash-merge without waiting:
 
 ```bash
 gh pr merge --squash
