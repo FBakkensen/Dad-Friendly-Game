@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createMineWindow,
@@ -20,6 +22,8 @@ const motion = (reduce: boolean): void => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  document.head.replaceChildren();
+  document.body.replaceChildren();
 });
 
 const SCENE: WindowScene = {
@@ -299,6 +303,49 @@ describe("createMineWindow", () => {
     expect(win.vein.hidden).toBe(true);
   });
 
+  it("a press on the vein is never a dig, and a keyboard dig after it puffs once at the default spot", () => {
+    motion(false);
+    const { win, onDig, onVein } = make(20);
+    win.render(SCENE);
+    win.showVein({ left: 64, top: 48 });
+    win.vein.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        clientX: 150,
+        clientY: 120,
+      }),
+    );
+    win.vein.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, detail: 1 }),
+    );
+    expect(onVein).toHaveBeenCalledTimes(1);
+    expect(onDig).not.toHaveBeenCalled();
+    expect(shown(win, ".board-dig-plus")).toBe(false);
+    expect(shown(win, ".board-dig-dust")).toBe(false);
+    keyboardClick(win.dig);
+    expect(onDig).toHaveBeenCalledTimes(1);
+    expect(onVein).toHaveBeenCalledTimes(1);
+    expect(el(win, ".board-dig-dust").style.left).toBe("134px");
+    expect(el(win, ".board-dig-dust").style.top).toBe("60px");
+  });
+
+  it("a still window writes no styles on a tick", async () => {
+    motion(true);
+    const { win } = make();
+    win.render(scene({ drill: true, drills: 1, borer: true, borers: 1 }));
+    win.tick(0.1);
+    const writes: MutationRecord[] = [];
+    const watch = new MutationObserver((records) => {
+      writes.push(...records);
+    });
+    watch.observe(win.root, { attributes: true, subtree: true });
+    for (let i = 0; i < 10; i += 1) win.tick(0.1);
+    await Promise.resolve();
+    writes.push(...watch.takeRecords());
+    watch.disconnect();
+    expect(writes).toEqual([]);
+  });
+
   it("a new cart winds the sheave fast", () => {
     motion(false);
     const { win } = make();
@@ -366,31 +413,123 @@ describe("createMineWindow", () => {
   });
 });
 
+describe("the window's stacking", () => {
+  const zIndex = (win: MineWindow, selector: string): string =>
+    getComputedStyle(el(win, selector)).zIndex;
+
+  it("keeps the run's tub and miner inside the run, under the puffs, the glass and the frame", () => {
+    motion(false);
+    const style = document.createElement("style");
+    style.textContent = readFileSync(
+      resolve(process.cwd(), "src/board.css"),
+      "utf8",
+    );
+    document.head.append(style);
+    const { win } = make();
+    win.render(scene({ trouble: "cart" }));
+
+    // the run is its own stacking context, so its tub (1) and miner (2) stay in it
+    expect(zIndex(win, ".board-window-run")).toBe("0");
+    expect(zIndex(win, ".board-window-tub")).toBe("1");
+    expect(zIndex(win, ".board-window-miner")).toBe("2");
+
+    // after it, in the spec's order and none raised above it: cave-in, fill, puff, +N, glass
+    const view = el(win, ".board-window-view");
+    const layers = [...view.children].map((c) => c.className.split(" ")[0]);
+    expect(layers.slice(layers.indexOf("board-window-run"))).toEqual([
+      "board-window-run",
+      "board-window-cave-in",
+      "board-window-fill",
+      "board-dig-dust",
+      "board-dig-plus",
+      "board-window-glass",
+    ]);
+    for (const later of [
+      ".board-window-cave-in",
+      ".board-window-fill",
+      ".board-dig-dust",
+      ".board-dig-plus",
+      ".board-window-glass",
+    ]) {
+      expect(["auto", "0", ""]).toContain(zIndex(win, later));
+    }
+
+    // then the frame and tag over the view, and the vein and the plate over the window
+    expect([...win.dig.children].map((c) => c.className.split(" ")[0])).toEqual(
+      ["board-window-view", "board-window-frame", "board-window-tag"],
+    );
+    expect(
+      [...win.root.children].map((c) => c.className.split(" ")[0]),
+    ).toEqual(["board-window", "golden-vein", "board-legacy"]);
+    expect(zIndex(win, ".golden-vein")).toBe("2");
+    expect(zIndex(win, ".board-legacy")).toBe("3");
+  });
+});
+
 describe("runBoardLoop", () => {
-  it("steps in seconds, caps a long gap at 0.1s and stops on abort", () => {
-    const frames: FrameRequestCallback[] = [];
+  /** A fake frame clock: frames asked for, run in turn, and cancellable. */
+  const fakeFrames = () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let id = 0;
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
-      frames.push(cb);
-      return frames.length;
+      id += 1;
+      frames.set(id, cb);
+      return id;
     });
+    const cancel = vi.fn((handle: number) => {
+      frames.delete(handle);
+    });
+    vi.stubGlobal("cancelAnimationFrame", cancel);
+    const next = (at: number): void => {
+      const first = frames.entries().next();
+      if (first.done) throw new Error("no frame asked for");
+      const [handle, cb] = first.value;
+      frames.delete(handle);
+      cb(at);
+    };
+    return { frames, cancel, next };
+  };
+
+  it("steps in seconds, caps a long gap at 0.1s and stops on abort", () => {
+    const { frames, cancel, next } = fakeFrames();
     const step = vi.fn<(dt: number) => void>();
     const stop = new AbortController();
     runBoardLoop(step, stop.signal);
-    const next = (at: number): void => {
-      const cb = frames.shift();
-      if (!cb) throw new Error("no frame asked for");
-      cb(at);
-    };
     next(1000);
     next(1016);
     expect(step).toHaveBeenLastCalledWith(expect.closeTo(0.016, 6));
     next(6016);
     expect(step).toHaveBeenLastCalledWith(0.1);
     const calls = step.mock.calls.length;
+    expect(frames.size).toBe(1);
     stop.abort();
-    if (frames.length > 0) next(6032);
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(frames.size).toBe(0);
     expect(step).toHaveBeenCalledTimes(calls);
-    expect(frames).toHaveLength(0);
+  });
+
+  it("keeps going after a step throws", () => {
+    const { frames, next } = fakeFrames();
+    const step = vi.fn<(dt: number) => void>(() => {
+      throw new Error("a bad frame");
+    });
+    runBoardLoop(step);
+    next(1000);
+    expect(() => {
+      next(1016);
+    }).toThrow("a bad frame");
+    expect(frames.size).toBe(1);
+    step.mockImplementation(() => undefined);
+    next(1032);
+    expect(step).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks for no frame when the signal has already aborted", () => {
+    const { frames } = fakeFrames();
+    const stop = new AbortController();
+    stop.abort();
+    runBoardLoop(vi.fn(), stop.signal);
+    expect(frames.size).toBe(0);
   });
 
   it("does nothing without requestAnimationFrame", () => {

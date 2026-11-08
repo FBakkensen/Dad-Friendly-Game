@@ -81,13 +81,37 @@ const CAVE_IN_DOWN = 3;
 
 const px = (art: number): string => `${String(art * ART)}px`;
 
+type Inline = "left" | "top" | "backgroundPositionX";
+/** What each element was last given, so a frame writes only what changed. */
+const written = new WeakMap<HTMLElement, Map<Inline, string>>();
+
+/** Every moving style goes through here: it writes only a value that changed. */
+const put = (el: HTMLElement, prop: Inline, value: string): void => {
+  let seen = written.get(el);
+  if (seen === undefined) {
+    seen = new Map();
+    written.set(el, seen);
+  }
+  if (seen.get(prop) === value) {
+    return;
+  }
+  seen.set(prop, value);
+  el.style[prop] = value;
+};
+
+const show = (el: HTMLElement, on: boolean): void => {
+  if (el.hidden === on) {
+    el.hidden = !on;
+  }
+};
+
 const place = (el: HTMLElement, left: number, top: number): void => {
-  el.style.left = px(left);
-  el.style.top = px(top);
+  put(el, "left", px(left));
+  put(el, "top", px(top));
 };
 
 const frameX = (el: HTMLElement, frame: number, width: number): void => {
-  el.style.backgroundPositionX = px(-frame * width);
+  put(el, "backgroundPositionX", px(-frame * width));
 };
 
 function sprite(className: string, url: string): HTMLElement {
@@ -220,17 +244,17 @@ export function createMineWindow({
     const v = machinesView(machines, scene);
     frameX(sheave, v.sheave, W.sheave);
     frameX(steam, v.steam, W.steam);
-    drill.hidden = !scene.drill;
+    show(drill, scene.drill);
     frameX(drill, v.drill, W.drill);
-    borer.hidden = !scene.borer;
+    show(borer, scene.borer);
     frameX(borer, v.borer, W.borer);
-    borerDust.hidden = v.borerDust === undefined;
+    show(borerDust, v.borerDust !== undefined);
     frameX(borerDust, v.borerDust ?? 0, W.dust);
-    tarp.hidden = v.tarp === undefined;
+    show(tarp, v.tarp !== undefined);
     if (v.tarp) {
       place(tarp, v.tarp.x, v.tarp.y);
     }
-    caveIn.hidden = v.caveIn === undefined;
+    show(caveIn, v.caveIn !== undefined);
     if (v.caveIn !== undefined) {
       frameX(caveIn, reducedMotion() ? CAVE_IN_DOWN : v.caveIn, W.caveIn);
     }
@@ -238,8 +262,8 @@ export function createMineWindow({
 
     // the run, in run-box px; the box clips a tub hoisted up behind the deck beam
     const pose = v.run;
-    tub.hidden = !scene.run;
-    miner.hidden = !scene.run;
+    show(tub, scene.run);
+    show(miner, scene.run);
     if (pose.full !== fullTub) {
       fullTub = pose.full;
       tub.src = fullTub ? tubFullUrl : tubEmptyUrl;
@@ -248,7 +272,9 @@ export function createMineWindow({
     place(tub, pose.tubX, pose.tubY);
     place(miner, pose.minerX, pose.minerY);
     frameX(miner, pose.minerFrame, W.miner);
-    miner.classList.toggle("is-behind", pose.minerBehind);
+    if (miner.classList.contains("is-behind") !== pose.minerBehind) {
+      miner.classList.toggle("is-behind", pose.minerBehind);
+    }
     place(cage, pose.cageX, pose.cageY);
   };
 
@@ -390,7 +416,7 @@ export function createMineWindow({
         return null;
       }
     }
-    plus.style.top = px(r.y - n);
+    put(plus, "top", px(r.y - n));
     return { y: r.y, step: n, acc };
   };
 
@@ -411,16 +437,26 @@ export function runBoardLoop(
   if (typeof requestAnimationFrame !== "function") {
     return;
   }
+  if (signal?.aborted) {
+    return;
+  }
   let last: number | undefined;
+  let pending = 0;
   const frame = (now: number): void => {
-    if (signal?.aborted) {
-      return;
-    }
-    if (last !== undefined) {
-      step(Math.min(MAX_DT, Math.max(0, (now - last) / 1000)));
-    }
+    // the next frame is asked for first, so a step that throws never stops the board
+    pending = requestAnimationFrame(frame);
+    const dt = last === undefined ? undefined : (now - last) / 1000;
     last = now;
-    requestAnimationFrame(frame);
+    if (dt !== undefined) {
+      step(Math.min(MAX_DT, Math.max(0, dt)));
+    }
   };
-  requestAnimationFrame(frame);
+  pending = requestAnimationFrame(frame);
+  signal?.addEventListener(
+    "abort",
+    () => {
+      cancelAnimationFrame(pending);
+    },
+    { once: true },
+  );
 }
