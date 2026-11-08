@@ -75,6 +75,22 @@ page is the map, plus the rules that keep it that way.
    their own modules with a `create…Panel` factory returning their elements
    and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `menu-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). Shared player-facing
    wording lives in `screen-words`.
+   The control board (#370) is its own set of modules. Pure rules with unit
+   tests: `board-fit` (the scale that fits the 424×924 stage inside the
+   window and its `env(safe-area-inset-*)`, read back through a hidden
+   probe; 1 at 424×924 with no insets, so the art stays at exactly 2×),
+   `board-skin` (the 9-slice plan that draws a frame, tag or key skin on a
+   canvas behind its element), `odometer` (the five drum faces for a
+   pocket) and `crew-boost` (the crew timer the crew is running at, and the
+   dial frame). DOM parts take `getView` and callbacks like a panel:
+   `board-note` (the floating framed note, placed in board coordinates; a
+   note that holds a key stays up until the key, an outside pointerdown, or
+   Escape), `board-stock` (the odometer's drums and spend mark, and the
+   boost dial), `board-relics` (the relic plate: six sockets, their notes
+   with the Relic shelf key, and the tag) and `board-save` (the save line,
+   which keeps `.save-status` with `data-kind` and `data-log`, and its save
+   drawer). `main` calls `trackBoardFit`, which keeps `--board-scale` on the
+   root and re-fits on resize.
 
 ## Findings
 
@@ -99,28 +115,37 @@ page is the map, plus the rules that keep it that way.
   Done: `mountain-screen.ts` is now ~460 lines: layout, the mountain and
   vein taps, the guide bar, save status, and wiring the panels.
 
+- **Local spends (#370):** the odometer shows a spend only for this screen's
+  own mutations. `mountain-screen` wraps the store in a `Proxy` whose
+  `applyMutation` sets a `localChange` flag for the length of the call (and
+  clears it in `finally`); every other property goes straight to the store,
+  so spies and late swaps still see it. `renderStock` counts a fall in the
+  pocket beyond the stones dug as a spend only while that flag is set, so a
+  cloud copy, a chosen or restored copy, Start over or Pass the mine only
+  move the baseline.
+
 - **Panel contract:** a panel gets `progress`, `getView`, `now` and a
   `requestRender` callback; it never reads another panel's elements, and it
   owns its open/closed state. The thumb bar uses those gates: Workshop stays
   shut until `workshopUnlocked`, Engineers until a hand is on the crew. Buys
-  and Upgrades open from the first screen. The relic shelf is centred in the
-  mountain wrap. Buys and Upgrades scroll inside the sheet so the first card
-  clears the header and the last card clears the footer. The sheet stays
-  below the crew line. The pocket pill reserves the menu on both sides and
-  uses the same short counts as the cards. A crew line that does not fit splits
-  into even rows. An unlocked sheet card keeps its price, effect, and why
-  when the pocket is short. A locked card says Locked and hides those lines.
-  Tapping the card buys. A drag that scrolls the list does not. Boost,
-  expedition, craft, and bench countdowns share rows of three under the crew.
-  The rows match how many are running now; none running is no row. Every
-  active one stays visible. The shelf sits above the rock. The rock takes the
+  and Upgrades open from the first screen. The board's parts sit round the
+  panels: `#app` is the 424×924 stage, the board's top (relic plate and
+  stock row) and the save line are absolute children of it, and the
+  panels' column flows between them through `#app`'s padding. The relic
+  shelf opens from a socket note's Relic shelf key; opening a sheet, the
+  shelf or the menu closes the board note and the save drawer. Buys and
+  Upgrades scroll inside the sheet so the first card clears the header and
+  the last card clears the footer. The sheet stays below the crew line. A
+  crew line that does not fit splits into even rows. An unlocked sheet card
+  keeps its price, effect, and why when the pocket is short. A locked card
+  says Locked and hides those lines. Tapping the card buys. A drag that
+  scrolls the list does not. Boost, expedition, craft, and bench countdowns
+  share the effect row, which is the body of the boost dial's Running now
+  note, one per line. Every active one stays visible. The rock takes the
   height left over: the stage is as tall as the art can be before the rock
   meets the column's sides (`--rock-reach`, 114/86 of the column for
-  `mountain.png`), and on a taller screen the goal line, shelf, and rock are
-  centred together, never with a band between the shelf and the peak. The
-  ☰ menu holds the ledger: stones left, materials, and the next-relic goal.
-  After the Lantern the same goal is a thin line on the mountain between the crew chips and the
-  shelf; both read `relicGoal()` in `relics` (#336). The rock picture sits
+  `mountain.png`). The ☰ menu holds the ledger: stones left, materials, and
+  the next-relic goal, read from `relicGoal()` in `relics` (#336). The rock picture sits
   in a `.mountain-band` wrapper whose `--band-tint` is
   `mountainTint(layerOf(mountain).id)` (`mountain-tint`, #325), a CSS
   filter with no save field.

@@ -9,6 +9,21 @@ body {
   align-items: center;
   justify-content: center;
   height: 100%;
+  /* The board centres inside the safe area; board-fit.ts scales it to fit
+     there. Where the insets are 0 (the gate, a PC) this is no padding. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* board-fit.ts reads env() back through this probe's padding. */
+.board-safe-probe {
+  position: fixed;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 #app {
@@ -101,8 +116,16 @@ body {
   pointer-events: none;
 }
 
+/* An open note takes every tap on it, so a tap on its words never falls
+   through to the dial or the menu beneath (#370). */
 .board-note.on {
   visibility: visible;
+  pointer-events: auto;
+}
+
+/* The mockup's width: #app > * (style.css) would otherwise outrank it. */
+#app > .board-note {
+  max-width: calc(var(--art) * 150);
 }
 
 .board-note-h {
@@ -333,12 +356,10 @@ body {
   pointer-events: none;
 }
 
-/* A socket's note ends in the Relic shelf key, the shelf's door (#370). The
-   note itself lets taps through; its key takes them. */
+/* A socket's note ends in the Relic shelf key, the shelf's door (#370). */
 .board-note .board-platebtn {
   width: 100%;
   margin-top: calc(var(--art) * 4);
-  pointer-events: auto;
 }
 
 /* The rock's button stands 8px below the crew chips (with #app's 4px gap):

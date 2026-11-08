@@ -137,6 +137,35 @@ describe("board.css", () => {
     expect(contrast(hex ?? "#000000", "#111518")).toBeGreaterThanOrEqual(4.5);
   });
 
+  it("lets an open note take taps, so none falls through to the dial or the menu", () => {
+    expect(boardCss).toMatch(
+      /^\.board-note\.on \{[^}]*pointer-events:\s*auto/m,
+    );
+  });
+
+  it("caps the note at the mockup's width inside #app, over #app > *", () => {
+    expect(boardCss).toMatch(
+      /^#app > \.board-note \{[^}]*max-width:\s*calc\(var\(--art\) \* 150\)/m,
+    );
+  });
+
+  it("stops every board animation under reduced motion", () => {
+    const animated = [
+      ...boardCss.matchAll(/^([^{}\n]+) \{[^}]*\banimation:\s*board-/gm),
+    ].map((m) => m[1]?.trim() ?? "");
+    expect(animated.length).toBeGreaterThan(0);
+    const reduced =
+      /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(
+        boardCss,
+      )?.[1];
+    for (const selector of animated) {
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      expect(reduced).toMatch(
+        new RegExp(`${escaped} \\{[^}]*animation:\\s*none`),
+      );
+    }
+  });
+
   it.each(BOARD_SELECTORS)("styles %s", (selector) => {
     const escaped = selector.replace(".", "\\.");
     expect(boardCss).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));

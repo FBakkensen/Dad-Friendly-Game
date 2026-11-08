@@ -3187,7 +3187,8 @@ async function boardTargets(page) {
         return hit !== null && (el.contains(hit) || hit.contains(el));
       };
       // So is one the open note or drawer lies over: it is beneath the
-      // popup, and the popup's own buttons are what a finger meets there.
+      // popup, which takes every tap there (an open note is pointer-events
+      // auto), and the popup's own buttons are what a finger meets there.
       // That holds for the board's own controls too.
       const popupEls = [
         ...document.querySelectorAll(

@@ -6,8 +6,8 @@
 
 /*
  * The page itself never scrolls or bounces (Android Chrome rubber-bands a
- * page that is even 1px taller than the viewport). #app is exactly one
- * viewport tall and is the only thing that may scroll, as a last resort.
+ * page that is even 1px taller than the viewport). #app is the fixed board,
+ * scaled to fit the screen, and never scrolls either (board.css).
  */
 html,
 body {

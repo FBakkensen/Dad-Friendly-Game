@@ -140,4 +140,54 @@ describe("createRelicPlate", () => {
     );
     expect(plate.root.querySelectorAll("img.board-relic")).toHaveLength(4);
   });
+
+  it("a socket's note with its key stays up past 3.4s", () => {
+    const { sockets, board } = setup();
+    sockets[1]?.dispatchEvent(new MouseEvent("click", { detail: 1 }));
+    vi.advanceTimersByTime(10_000);
+    expect(board.note.classList.contains("on")).toBe(true);
+  });
+
+  it("a socket opened from the keyboard moves focus to the key", () => {
+    const { sockets, board } = setup();
+    sockets[1]?.focus();
+    sockets[1]?.dispatchEvent(new MouseEvent("click", { detail: 0 }));
+    const key = board.note.querySelector("button.board-platebtn");
+    expect(document.activeElement).toBe(key);
+  });
+
+  it("a socket opened by a tap leaves focus where it was", () => {
+    const { sockets } = setup();
+    sockets[1]?.focus();
+    sockets[1]?.dispatchEvent(new MouseEvent("click", { detail: 1 }));
+    expect(document.activeElement).toBe(sockets[1]);
+  });
+
+  it("a re-render with the same state keeps each socket's art", () => {
+    let mined = 12_000_000;
+    const stage = document.createElement("div");
+    document.body.append(stage);
+    const plate = createRelicPlate({
+      getView: () => view(mined),
+      note: createBoardNote(stage),
+      onShelf: () => undefined,
+    });
+    plate.render();
+    const before = [...plate.root.querySelectorAll("img.board-relic")];
+    plate.render();
+    const after = [...plate.root.querySelectorAll("img.board-relic")];
+    expect(after).toHaveLength(3);
+    after.forEach((img, i) => {
+      expect(img).toBe(before[i]);
+    });
+    // The hammer is found: its dark art lights, the heart's dark art appears.
+    mined = 30_000_000;
+    plate.render();
+    const hammer = plate.root
+      .querySelectorAll<HTMLImageElement>("button.board-socket")[2]
+      ?.querySelector<HTMLImageElement>("img.board-relic");
+    expect(hammer?.src).toMatch(/relic-hammer/);
+    expect(hammer?.src).not.toMatch(/dark/);
+    expect(plate.root.querySelectorAll("img.board-relic")).toHaveLength(4);
+  });
 });

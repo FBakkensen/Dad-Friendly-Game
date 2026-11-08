@@ -72,4 +72,83 @@ describe("createBoardNote", () => {
     hide();
     expect(note.classList.contains("on")).toBe(false);
   });
+
+  describe("a note that holds a key", () => {
+    const keyed = () => {
+      const t = setup();
+      const key = document.createElement("button");
+      key.textContent = "Relic shelf";
+      const body = document.createDocumentFragment();
+      body.append(text("Hello"), key);
+      return { ...t, key, body };
+    };
+
+    it("stays up past 3.4s", () => {
+      const { note, anchor, show, key, body } = keyed();
+      show(anchor, body, { key });
+      vi.advanceTimersByTime(60_000);
+      expect(note.classList.contains("on")).toBe(true);
+    });
+
+    it("Escape closes it and gives focus back to the anchor", () => {
+      const { note, anchor, show, key, body } = keyed();
+      show(anchor, body, { key, focus: true });
+      expect(document.activeElement).toBe(key);
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      expect(note.classList.contains("on")).toBe(false);
+      expect(document.activeElement).toBe(anchor);
+    });
+
+    it("an outside pointerdown closes it", () => {
+      const { note, anchor, show, key, body } = keyed();
+      show(anchor, body, { key });
+      document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      expect(note.classList.contains("on")).toBe(false);
+    });
+
+    it("using the key closes it", () => {
+      const { note, anchor, show, key, body } = keyed();
+      show(anchor, body, { key });
+      key.click();
+      expect(note.classList.contains("on")).toBe(false);
+    });
+
+    it("moves focus to the key only when asked", () => {
+      const { anchor, show, key, body } = keyed();
+      anchor.focus();
+      show(anchor, body, { key });
+      expect(document.activeElement).toBe(anchor);
+      // The fragment emptied into the note; show the key again.
+      show(anchor, key, { key, focus: true });
+      expect(document.activeElement).toBe(key);
+    });
+
+    it("a plain note after it auto-hides again", () => {
+      const { note, anchor, show, key, body } = keyed();
+      show(anchor, body, { key });
+      show(anchor, text("Plain"));
+      vi.advanceTimersByTime(3400);
+      expect(note.classList.contains("on")).toBe(false);
+    });
+  });
+
+  it("takes a custom time for a plain note", () => {
+    const { note, anchor, show } = setup();
+    show(anchor, text("Hello"), { ms: 6000 });
+    vi.advanceTimersByTime(5999);
+    expect(note.classList.contains("on")).toBe(true);
+    vi.advanceTimersByTime(1);
+    expect(note.classList.contains("on")).toBe(false);
+  });
+
+  it("Escape closes a plain note too", () => {
+    const { note, anchor, show } = setup();
+    show(anchor, text("Hello"));
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    expect(note.classList.contains("on")).toBe(false);
+  });
 });

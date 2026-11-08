@@ -474,7 +474,7 @@ export function mountMountainScreen({
   const odometer = createOdometer();
   const dial = createBoostDial({
     onOpen: () => {
-      boardNote.show(dial.root, running, RUNNING_NOTE_MS);
+      boardNote.show(dial.root, running, { ms: RUNNING_NOTE_MS });
     },
   });
   let shownPocket: number | undefined;

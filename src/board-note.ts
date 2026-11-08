@@ -10,9 +10,25 @@ const SAVE_LINE = 60;
 const STEP = 2;
 const DEFAULT_MS = 3400;
 
+interface NoteOptions {
+  /** How long a plain note stays up. */
+  readonly ms?: number;
+  /**
+   * The note's key, a button in `body`. A note with a key stays up until an
+   * outside pointerdown, Escape, or the key itself puts it away (#370).
+   */
+  readonly key?: HTMLElement;
+  /** Move focus to the key: the note was opened from the keyboard. */
+  readonly focus?: boolean;
+}
+
 export interface BoardNote {
   readonly note: HTMLElement;
-  readonly show: (anchor: HTMLElement, body: Node, ms?: number) => void;
+  readonly show: (
+    anchor: HTMLElement,
+    body: Node,
+    options?: NoteOptions,
+  ) => void;
   readonly hide: () => void;
 }
 
@@ -43,14 +59,22 @@ export function createBoardNote(stage: HTMLElement): BoardNote {
     if (note.contains(target) || anchorEl?.contains(target)) return;
     hide();
   });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !note.classList.contains("on")) return;
+    const hadFocus = note.contains(document.activeElement);
+    hide();
+    if (hadFocus) anchorEl?.focus();
+  });
 
   const show = (
     anchor: HTMLElement,
     body: Node,
-    ms: number = DEFAULT_MS,
+    { ms = DEFAULT_MS, key, focus = false }: NoteOptions = {},
   ): void => {
     anchorEl = anchor;
     content.replaceChildren(body);
+    // Using the key puts the note away; the key's own handler runs first.
+    key?.addEventListener("click", hide);
     note.style.left = "0px";
     note.style.top = "0px";
     note.classList.add("on");
@@ -73,7 +97,8 @@ export function createBoardNote(stage: HTMLElement): BoardNote {
     note.style.left = `${String(snap(x))}px`;
     note.style.top = `${String(snap(Math.max(GAP, y)))}px`;
     clearTimeout(timer);
-    timer = setTimeout(hide, ms);
+    if (key === undefined) timer = setTimeout(hide, ms);
+    else if (focus) key.focus();
   };
 
   return { note, show, hide };

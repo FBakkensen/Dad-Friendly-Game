@@ -91,6 +91,8 @@ export function createSaveLine({
   lamp.setAttribute("aria-hidden", "true");
   const text = el("span", "board-save-text");
   const words = el("span", "board-save-words");
+  // The old save words were a live region; these still are.
+  words.setAttribute("aria-live", "polite");
   const safe = el("span", "board-save-safe");
   const why = el("span", "board-save-why");
   // Read aloud and by the scripts, not drawn: "... phone · Details".
@@ -195,24 +197,36 @@ export function createSaveLine({
     setOpen(!isOpen);
   });
   closeBtn.addEventListener("click", close);
+  // A settled try is a try, even when the log reads the same as before.
+  const settle = (): void => {
+    progress.tick();
+    lastTry = now();
+    renderDrawer(getView());
+  };
   actBtn.addEventListener("click", () => {
     if (authState().kind === "signed-in") {
       progress.flush();
       // Settle once the cloud has been read, as a return to the tab does.
       const resume = progress.resume();
       if (resume.kind === "reading") {
-        void resume.done.then(() => {
-          progress.tick();
-        });
+        void resume.done.then(settle);
         return;
       }
-      progress.tick();
+      settle();
       return;
     }
     void auth.signIn();
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && isOpen) close();
+  });
+  // A tap on the board above the drawer closes it (the spec's scrim). The
+  // save line is not outside: its own click toggles the drawer.
+  document.addEventListener("pointerdown", (event) => {
+    const target = event.target;
+    if (!isOpen || !(target instanceof Node)) return;
+    if (drawer.contains(target) || line.contains(target)) return;
+    close();
   });
   auth.subscribe(() => {
     renderDrawer(getView());

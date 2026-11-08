@@ -73,7 +73,7 @@ export function createRelicPlate({
     base.alt = "";
     base.draggable = false;
     button.append(base);
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
       const words = relicNote(getView().mountain, relic);
       const body = document.createDocumentFragment();
       const h = document.createElement("span");
@@ -92,10 +92,16 @@ export function createRelicPlate({
         onShelf(button);
       });
       body.append(key);
-      note.show(button, body);
+      // The note keeps its key until it is used or put away; a socket opened
+      // from the keyboard (a click with no pointer: detail 0) hands it focus.
+      note.show(button, body, { key, focus: event.detail === 0 });
     });
+    const art = document.createElement("img");
+    art.className = "board-relic";
+    art.alt = "";
+    art.draggable = false;
     root.append(button);
-    return button;
+    return { button, art, shown: "" };
   });
 
   // The tag is a label: too small for a finger between the sockets and the
@@ -115,18 +121,20 @@ export function createRelicPlate({
     const next = nextRelic(mountain);
     tagText.textContent = `Relics of Fatherhood · ${String(found)} of ${String(RELICS.length)}`;
     for (const [i, relic] of RELICS.entries()) {
-      const button = sockets[i];
-      if (button === undefined) continue;
+      const socket = sockets[i];
+      if (socket === undefined) continue;
+      const { button, art } = socket;
       const has = hasRelic(mountain, relic.id);
       const isNext = relic === next;
-      button.querySelector(".board-relic")?.remove();
-      if (has || isNext) {
-        const art = document.createElement("img");
-        art.className = "board-relic";
-        art.src = has ? LIT[relic.id] : DARK[relic.id];
-        art.alt = "";
-        art.draggable = false;
-        button.append(art);
+      // The art changes only when the socket's state does (#370).
+      const shown = has ? LIT[relic.id] : isNext ? DARK[relic.id] : "";
+      if (shown !== socket.shown) {
+        socket.shown = shown;
+        if (shown === "") art.remove();
+        else {
+          art.src = shown;
+          button.append(art);
+        }
       }
       const state = has ? "found" : isNext ? "next relic" : "not found yet";
       button.setAttribute("aria-label", `${relic.name}, ${state}. ${count}`);

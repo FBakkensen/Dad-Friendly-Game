@@ -265,4 +265,61 @@ describe("createSaveLine", () => {
     const ok = setup({ kind: "account" });
     expect(ok.drawer.textContent).not.toContain("Nothing is lost");
   });
+
+  it("Last try moves on when Try again settles, though the log is the same", async () => {
+    const t = setup({
+      kind: "error",
+      log: "save.read · unreachable",
+      at: new Date(2026, 10, 8, 22, 13),
+    });
+    const last = (): string | null | undefined =>
+      t.drawer.querySelectorAll(".board-fact")[2]?.textContent;
+    expect(last()).toBe("Last try22:13");
+    t.setClock(new Date(2026, 10, 8, 23, 40));
+    must(t.buttons()[1]).click();
+    expect(last()).toBe("Last try23:40");
+
+    let read: () => void = () => undefined;
+    t.setResume({
+      kind: "reading",
+      done: new Promise<void>((resolve) => {
+        read = resolve;
+      }),
+    });
+    t.setClock(new Date(2026, 10, 8, 23, 52));
+    must(t.buttons()[1]).click();
+    expect(last()).toBe("Last try23:40");
+    read();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(last()).toBe("Last try23:52");
+  });
+
+  it("speaks a change of the save words politely", () => {
+    const t = setup();
+    expect(
+      t.status.querySelector(".board-save-words")?.getAttribute("aria-live"),
+    ).toBe("polite");
+  });
+
+  it("closes on a pointerdown on the board above it, not on the line or itself", () => {
+    const t = setup();
+    const board = document.createElement("div");
+    document.body.append(board);
+    const down = (target: EventTarget): void => {
+      target.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    };
+    t.status.click();
+    down(t.drawer);
+    expect(t.drawer.classList.contains("is-open")).toBe(true);
+    down(t.status);
+    expect(t.drawer.classList.contains("is-open")).toBe(true);
+    // The line's own click toggles it shut.
+    t.status.click();
+    expect(t.drawer.classList.contains("is-open")).toBe(false);
+    t.status.click();
+    down(board);
+    expect(t.drawer.classList.contains("is-open")).toBe(false);
+    expect(t.status.getAttribute("aria-expanded")).toBe("false");
+  });
 });
