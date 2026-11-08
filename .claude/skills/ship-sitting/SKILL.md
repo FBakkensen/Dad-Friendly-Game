@@ -25,7 +25,7 @@ One issue, one branch, one PR, `Fixes #N`. Use the github-issues skill for the g
 
 Commit and push the sitting's branch as work lands, with `git push` from the shell, not the GitHub MCP `push_files` or `create_or_update_file`: they commit on the remote, and the local branch falls behind. Pushing as you go keeps the work safe if the cloud container is reclaimed, and it is what the cloud Stop hook asks (`CLAUDE.md`). A push is not shipping. Opening the PR is.
 
-A cloud session can be given a branch whose last PR was already squash-merged. Start the new sitting from `main` without a force push: `git checkout -B <branch> origin/main`, then `git merge -s ours origin/<branch>`. The merge changes no files, and the first push fast-forwards. Never force-push.
+A cloud session can be given a branch whose last PR was already squash-merged. Start the new sitting from `main` without a force push: `git fetch origin`, `git checkout -B <branch> origin/main`, then `git merge -s ours -m "Start from main" origin/<branch>`. The merge changes no files, and the first push fast-forwards. Never force-push.
 
 ## The gate
 

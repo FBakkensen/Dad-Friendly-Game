@@ -13,7 +13,7 @@ Use `gh` for all of this. In a Claude Code cloud session, use the matching GitHu
 
 Read before you write:
 
-List open issues with `gh issue list --state open --limit 50` (the MCP `list_issues` tool in a cloud session). Read an issue's links with the REST API:
+List open issues with `gh issue list --state open --limit 50` (the MCP `list_issues` tool in a cloud session). Read an issue's links with the REST API (a 404 from `parent` means no parent):
 
 ```bash
 gh api repos/FBakkensen/Dad-Friendly-Game/issues/<n>/dependencies/blocked_by --jq '.[].number'
