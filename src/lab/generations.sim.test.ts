@@ -1,7 +1,8 @@
 // Long economy sims: the sim project (npm run gate -- full), not the fast tier.
 import { describe, expect, it } from "vitest";
 import casual from "./policies/casual-2x10";
-import { MACHINE_IDS, runGenerations } from "./generations";
+import { MACHINE_IDS } from "../tiers";
+import { runGenerations } from "./generations";
 import { kidStretch } from "../scale";
 
 describe("generations lab (M13, #253)", () => {
