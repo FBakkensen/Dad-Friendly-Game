@@ -75,7 +75,7 @@ describe("mountMountainScreen", () => {
     expect(screen.text(".stones-left")).toBe(
       `${formatCount(stonesLeft(createMountain()))} stones left`,
     );
-    expect(screen.text(".pocket")).toBe("0 stones");
+    expect(screen.pocket()).toBe("Stones 0");
     expect(screen.text(".goal")).toContain("Legendary Relics of Fatherhood");
     expect(screen.text(".save-status")).toBe("Sign in to save");
 
@@ -86,14 +86,14 @@ describe("mountMountainScreen", () => {
     ).toBe(
       `${(whole - 1).toLocaleString("en-US")} of ${whole.toLocaleString("en-US")}`,
     );
-    expect(screen.text(".pocket")).toBe("1 stone");
+    expect(screen.pocket()).toBe("Stones 1");
     expect(screen.text(".save-status")).toBe("Saved on this device");
     expect(
       screen.root.querySelector<HTMLElement>(".update-prompt")?.hidden,
     ).toBe(true);
 
     screen.mountain.click();
-    expect(screen.text(".pocket")).toBe("2 stones");
+    expect(screen.pocket()).toBe("Stones 2");
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
     ).toBe(
@@ -178,9 +178,9 @@ describe("mountMountainScreen", () => {
     );
 
     first.mountain.click();
-    expect(first.text(".pocket")).toBe("1 stone");
+    expect(first.pocket()).toBe("Stones 1");
     second.mountain.click();
-    expect(second.text(".pocket")).toBe("0 stones");
+    expect(second.pocket()).toBe("Stones 0");
 
     second.root.querySelector<HTMLButtonElement>(".other-tab-play")?.click();
     await vi.waitFor(() => {
@@ -188,12 +188,12 @@ describe("mountMountainScreen", () => {
         true,
       );
     });
-    expect(second.text(".pocket")).toBe("1 stone");
+    expect(second.pocket()).toBe("Stones 1");
     expect(first.root.querySelector<HTMLElement>(".other-tab")?.hidden).toBe(
       false,
     );
     second.mountain.click();
-    expect(second.text(".pocket")).toBe("2 stones");
+    expect(second.pocket()).toBe("Stones 2");
     first.progress.dispose();
     second.progress.dispose();
   });
@@ -207,7 +207,7 @@ describe("mountMountainScreen", () => {
     first.progress.dispose();
 
     const again = mountScreen({ storage });
-    expect(again.text(".pocket")).toBe("3 stones");
+    expect(again.pocket()).toBe("Stones 3");
     expect(again.text(".save-status")).toBe("Saved on this device");
   });
 
@@ -233,7 +233,7 @@ describe("mountMountainScreen", () => {
 
     const allStones = stonesLeft(createMountain());
     const screen = mountScreen({ storage });
-    expect(screen.text(".pocket")).toBe("3 stones");
+    expect(screen.pocket()).toBe("Stones 3");
     expect(
       screen.root.querySelector(".stones-left")?.getAttribute("title"),
     ).toBe(
@@ -284,14 +284,14 @@ describe("mountMountainScreen", () => {
     expect(screen.mountain.disabled).toBe(true);
     expect(screen.text(".save-status")).toBe("Loading your save...");
     screen.mountain.click();
-    expect(screen.text(".pocket")).toBe("0 stones");
+    expect(screen.pocket()).toBe("Stones 0");
 
     finishLoad({ kind: "found", mountain: minedMountain(40) });
     await Promise.resolve();
 
     expect(screen.mountain.disabled).toBe(false);
     screen.mountain.click();
-    expect(screen.text(".pocket")).toBe("41 stones");
+    expect(screen.pocket()).toBe("Stones 41");
   });
 
   it("signs in, loads the cloud mountain, and signs out", async () => {
@@ -307,7 +307,7 @@ describe("mountMountainScreen", () => {
     await vi.waitFor(() => {
       expect(screen.text(".save-status")).toBe("Saved to your account");
     });
-    expect(screen.text(".pocket")).toBe("12.3K stones");
+    expect(screen.pocket()).toBe("Stones 12,345");
     expect(screen.text(".auth-status")).toBe("Signed in as Test Dad");
     expect(
       screen.root.querySelector(".save-status")?.getAttribute("data-log"),
@@ -342,7 +342,9 @@ describe("mountMountainScreen", () => {
     });
     screen.mountain.click();
     await vi.waitFor(() => {
-      expect(screen.text(".save-status")).toBe("Couldn't reach your save");
+      expect(screen.text(".save-status")).toBe(
+        "Couldn't reach your save · Kept on this phone · Details",
+      );
     });
   });
 
@@ -477,7 +479,7 @@ describe("crew tiers on screen", () => {
     );
     machine.click();
     expect(machine.querySelector(".tier-count")?.textContent).toBe("×1");
-    expect(screen.text(".pocket")).toBe("800K stones");
+    expect(screen.pocket()).toBe("Stones 800.0K");
   });
 
   it("keeps the roomy two-column cards while three or fewer show", () => {
@@ -533,7 +535,7 @@ describe("crew tiers on screen", () => {
       expect(hire.disabled).toBe(false);
 
       hire.click();
-      expect(screen.text(".pocket")).toBe("0 stones");
+      expect(screen.pocket()).toBe("Stones 0");
       expect(screen.text(".crew-status")).toBe(
         "Your crew mines 1 stone a second",
       );
@@ -549,7 +551,7 @@ describe("crew tiers on screen", () => {
       );
 
       await vi.advanceTimersByTimeAsync(3_000);
-      expect(screen.text(".pocket")).toBe("3 stones");
+      expect(screen.pocket()).toBe("Stones 3");
     } finally {
       vi.useRealTimers();
     }
@@ -578,7 +580,7 @@ describe("crew tiers on screen", () => {
       expect(cart.disabled).toBe(false);
 
       cart.click();
-      expect(screen.text(".pocket")).toBe("0 stones");
+      expect(screen.pocket()).toBe("Stones 0");
       expect(screen.text('[data-tier="cart"] .tier-name')).toBe("Mine cart");
       expect(screen.text('[data-tier="cart"] .tier-count')).toBe("×1");
       expect(screen.text('[data-tier="cart"] .tier-cost')).toBe(
@@ -592,7 +594,7 @@ describe("crew tiers on screen", () => {
       ).toBe("3");
 
       await vi.advanceTimersByTimeAsync(2_000);
-      expect(screen.text(".pocket")).toBe("14 stones");
+      expect(screen.pocket()).toBe("Stones 14");
     } finally {
       vi.useRealTimers();
     }
@@ -636,7 +638,7 @@ describe("crew tiers on screen", () => {
 
     close.click();
     expect(card.hidden).toBe(true);
-    expect(screen.text(".pocket")).toBe("9,000 stones");
+    expect(screen.pocket()).toBe("Stones 9,000");
   });
 
   it("says the crew eased off on a long day away (#278)", () => {
@@ -710,7 +712,7 @@ describe("golden vein on screen", () => {
 
       vein.click();
       expect(vein.hidden).toBe(true);
-      expect(screen.text(".pocket")).toBe("50 stones");
+      expect(screen.pocket()).toBe("Stones 50");
       expect(screen.text(".vein-note")).toBe("Golden vein! +50 stones");
 
       clock += 5_000;
@@ -840,7 +842,7 @@ describe("golden vein on screen", () => {
       clock += 12_000;
       await vi.advanceTimersByTimeAsync(1_000);
       expect(vein.hidden).toBe(true);
-      expect(screen.text(".pocket")).toBe("0 stones");
+      expect(screen.pocket()).toBe("Stones 0");
 
       clock += 3 * 60_000 - 2_000;
       await vi.advanceTimersByTimeAsync(1_000);
@@ -902,29 +904,37 @@ describe("Lantern of Guidance on screen", () => {
     screen.root.remove();
   });
 
-  it("shows the next relic on the mountain too, only after the Lantern (#336)", () => {
+  it("hints the next relic on the board's plate, only after the Lantern (#336, #370)", () => {
+    const socketNote = (
+      screen: ReturnType<typeof mountScreen>,
+      index: number,
+    ): HTMLElement | null => {
+      screen.root
+        .querySelectorAll<HTMLButtonElement>(".board-socket")
+        [index]?.click();
+      return screen.root.querySelector<HTMLElement>(".board-note");
+    };
     const before = mountScreen({ storage: seeded(minedMountain(100)) });
-    expect(before.root.querySelector<HTMLElement>(".relic-goal")?.hidden).toBe(
-      true,
-    );
+    expect(socketNote(before, 0)?.querySelector(".board-note-q")).toBeNull();
     const after = mountScreen({ storage: seeded(minedMountain(5_500_000)) });
-    const line = after.root.querySelector<HTMLElement>(".relic-goal");
-    expect(line?.hidden).toBe(false);
-    expect(after.text(".relic-goal-text")).toBe(after.text(".goal"));
-    expect(after.text(".relic-goal-text")).not.toMatch(/\d/);
     expect(
       after.root
-        .querySelector(".relic-goal-bar")
-        ?.getAttribute("aria-valuenow"),
-    ).toBe(
-      after.root.querySelector(".guide-bar")?.getAttribute("aria-valuenow"),
+        .querySelectorAll(".board-socket")[1]
+        ?.getAttribute("aria-label"),
+    ).toBe("Shield of Protection, next relic. 1 of 6 found");
+    const hint = socketNote(after, 1)?.querySelector(".board-note-q");
+    expect(hint?.textContent).toBe(
+      `Next · ${String(after.text(".goal")).split(" · ")[1] ?? ""}`,
     );
+    expect(hint?.textContent).not.toMatch(/\d/);
     const done = mountScreen({
       storage: seeded(minedMountain(MOUNTAIN_STONES)),
     });
-    expect(done.root.querySelector<HTMLElement>(".relic-goal")?.hidden).toBe(
-      true,
-    );
+    expect(
+      [...done.root.querySelectorAll(".board-socket")].map((socket) =>
+        socket.getAttribute("aria-label"),
+      ),
+    ).not.toContainEqual(expect.stringContaining("next relic"));
   });
 
   it("notes a short absence on the mountain, with no welcome card (#334)", async () => {
@@ -981,13 +991,14 @@ describe("relic shelf", () => {
 
   it("shows six silhouettes for a new dad and opens a list of buried relics", () => {
     const screen = mountScreen();
-    const button = screen.root.querySelector<HTMLButtonElement>(".relic-shelf");
-    const slots = [...screen.root.querySelectorAll<HTMLElement>(".shelf-slot")];
-    expect(button?.getAttribute("aria-label")).toBe(
-      "Relic shelf, 0 of 6 found",
-    );
-    expect(slots.map((slot) => slot.dataset["found"])).toEqual(
-      Array.from({ length: 6 }, () => "false"),
+    const button = screen.root.querySelector<HTMLButtonElement>(".board-tag");
+    const sockets = [...screen.root.querySelectorAll(".board-socket")];
+    expect(button?.textContent).toBe("Relics of Fatherhood · 0 of 6");
+    expect(sockets.map((socket) => socket.getAttribute("aria-label"))).toEqual(
+      RELICS.map(
+        (relic, index) =>
+          `${relic.name}, ${index === 0 ? "next relic" : "not found yet"}. 0 of 6 found`,
+      ),
     );
 
     const dialog = screen.root.querySelector<HTMLElement>(".shelf-dialog");
@@ -1014,20 +1025,15 @@ describe("relic shelf", () => {
 
   it("lights up found relics, teases the rest, and hints only how near the next one is", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(12_000_000)) });
+    expect(screen.text(".board-tag")).toBe("Relics of Fatherhood · 2 of 6");
+    const sockets = [...screen.root.querySelectorAll(".board-socket")];
     expect(
-      screen.root.querySelector(".relic-shelf")?.getAttribute("aria-label"),
-    ).toBe("Relic shelf, 2 of 6 found");
-    const slots = [...screen.root.querySelectorAll<HTMLElement>(".shelf-slot")];
-    expect(slots.map((slot) => slot.dataset["found"])).toEqual([
-      "true",
-      "true",
-      "false",
-      "false",
-      "false",
-      "false",
-    ]);
+      sockets.map((socket) =>
+        socket.getAttribute("aria-label")?.includes(", found."),
+      ),
+    ).toEqual([true, true, false, false, false, false]);
 
-    screen.root.querySelector<HTMLButtonElement>(".relic-shelf")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".board-tag")?.click();
     const rows = [...screen.root.querySelectorAll(".shelf-list li")];
     expect(rows[0]?.querySelector(".shelf-name")?.textContent).toBe(
       "Lantern of Guidance",
@@ -1116,9 +1122,7 @@ describe("start over", () => {
       );
       expect(dialog?.hidden).toBe(true);
 
-      expect(
-        screen.root.querySelector(".relic-shelf")?.getAttribute("aria-label"),
-      ).toBe("Relic shelf, 2 of 6 found");
+      expect(screen.text(".board-tag")).toBe("Relics of Fatherhood · 2 of 6");
       expect(
         JSON.parse(storage.getItem(SESSION_SAVE_KEY) ?? "{}"),
       ).toMatchObject({ mountain: { helpers: 4 } });
@@ -1142,13 +1146,11 @@ describe("start over", () => {
     expect(screen.text(".stones-left")).toBe(
       `${formatCount(stonesLeft(createMountain()))} stones left`,
     );
-    expect(screen.text(".pocket")).toBe("0 stones");
+    expect(screen.pocket()).toBe("Stones 0");
     expect(screen.text(".crew-status")).toBe(
       "No crew yet. Hire a worker to mine for you.",
     );
-    expect(
-      screen.root.querySelector(".relic-shelf")?.getAttribute("aria-label"),
-    ).toBe("Relic shelf, 0 of 6 found");
+    expect(screen.text(".board-tag")).toBe("Relics of Fatherhood · 0 of 6");
     expect(
       screen.root.querySelector<HTMLElement>(".relic-reveal")?.hidden,
     ).toBe(true);
@@ -1382,6 +1384,228 @@ describe("menu", () => {
       expect(text).not.toContain("displayName");
     } finally {
       restore();
+      screen.root.remove();
+    }
+  });
+});
+
+describe("the control board (#370)", () => {
+  const seeded = (mountain: Mountain, lastSeen = Date.now()) => {
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain, lastSeen });
+    return storage;
+  };
+
+  it("the board shows the pocket on the odometer", () => {
+    const screen = mountScreen({
+      storage: seeded({ ...minedMountain(100_000), pocket: 41_380 }),
+    });
+    expect(
+      screen.root.querySelector(".board-top .board-stock .board-odo"),
+    ).not.toBeNull();
+    expect(screen.pocket()).toBe("Stones 41,380");
+    expect(screen.root.querySelector(".pocket")).toBeNull();
+    expect(screen.root.querySelector(".pocket-rate")).toBeNull();
+  });
+
+  it("a buy shows the spend on the odometer", () => {
+    const price = tierCost(tierById("helper"), 0);
+    const screen = mountScreen({ storage: seeded(minedMountain(price)) });
+    expect(screen.text(".board-spend")).toBe("");
+    screen.root
+      .querySelector<HTMLButtonElement>('.tier[data-tier="helper"]')
+      ?.click();
+    expect(screen.pocket()).toBe("Stones 0");
+    expect(screen.text(".board-spend")).toBe(
+      `−${price.toLocaleString("en-US")}`,
+    );
+  });
+
+  it("a buy shows its spend even when the crew earned more since the last tick", async () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 5_000_000;
+      const price = tierCost(tierById("helper"), 20);
+      const screen = mountScreen({
+        storage: seeded(
+          { ...minedMountain(25_000_000), helpers: 20, carts: 5, drills: 2 },
+          clock,
+        ),
+        now: () => clock,
+      });
+      // The crew mines for a few seconds: no spend shows.
+      for (let i = 0; i < 3; i += 1) {
+        clock += 1_000;
+        await vi.advanceTimersByTimeAsync(1_000);
+      }
+      expect(screen.text(".board-spend")).toBe("");
+      // Over a second of crew income, more than the price, lands with the buy.
+      clock += 1_500;
+      screen.root
+        .querySelector<HTMLButtonElement>('.tier[data-tier="helper"]')
+        ?.click();
+      expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×21");
+      expect(screen.text(".board-spend")).toBe(
+        `−${price.toLocaleString("en-US")}`,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("starting over is not a spend", () => {
+    const screen = mountScreen({ storage: seeded(minedMountain(5_000)) });
+    screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".start-over-confirm")
+      ?.click();
+    expect(screen.pocket()).toBe("Stones 0");
+    expect(screen.text(".board-spend")).toBe("");
+  });
+
+  it("the dial opens Running now", () => {
+    const clock = 5_000_000;
+    const screen = mountScreen({
+      storage: seeded(
+        {
+          ...minedMountain(0),
+          helpers: 3,
+          boosts: { overtime: clock + 20 * 60_000 },
+        },
+        clock,
+      ),
+      now: () => clock,
+    });
+    document.body.append(screen.root);
+    try {
+      const dial = screen.root.querySelector<HTMLButtonElement>(
+        ".board-stock .board-dial",
+      );
+      expect(dial?.getAttribute("aria-label")).toBe(
+        "Overtime, crew ×2, 20:00 left",
+      );
+      const note = screen.root.querySelector<HTMLElement>(".board-note");
+      expect(note?.classList.contains("on")).toBe(false);
+      dial?.click();
+      expect(note?.classList.contains("on")).toBe(true);
+      expect(note?.querySelector(".board-note-h")?.textContent).toBe(
+        "Running now",
+      );
+      const chip = note?.querySelector<HTMLElement>(
+        '.effect-row .boost-chip[data-boost="overtime"]',
+      );
+      expect(chip?.hidden).toBe(false);
+      expect(chip?.textContent).toBe("Overtime×2 20:00");
+      expect(note?.textContent).not.toContain("Nothing running");
+    } finally {
+      screen.root.remove();
+    }
+  });
+
+  it("the dial reads Nothing running when no clock runs", () => {
+    const screen = mountScreen();
+    document.body.append(screen.root);
+    try {
+      screen.root.querySelector<HTMLButtonElement>(".board-dial")?.click();
+      const note = screen.root.querySelector<HTMLElement>(".board-note");
+      expect(note?.classList.contains("on")).toBe(true);
+      expect(note?.querySelector(".board-note-h")?.textContent).toBe(
+        "Running now",
+      );
+      expect(note?.textContent).toContain("Nothing running");
+      expect(note?.querySelector<HTMLElement>(".effect-row")?.hidden).toBe(
+        true,
+      );
+    } finally {
+      screen.root.remove();
+    }
+  });
+
+  it("the relic plate replaces the goal line and the shelf button", () => {
+    const screen = mountScreen({
+      storage: seeded(minedMountain(12_000_000)),
+    });
+    expect(screen.root.querySelector(".relic-goal")).toBeNull();
+    expect(screen.root.querySelector(".relic-shelf")).toBeNull();
+    expect(
+      screen.root.querySelectorAll(".board-top .board-relics .board-socket"),
+    ).toHaveLength(6);
+    expect(screen.text(".board-tag")).toBe("Relics of Fatherhood · 2 of 6");
+    const shelf = screen.root.querySelector<HTMLElement>(".shelf-dialog");
+    expect(shelf?.hidden).toBe(true);
+    document.body.append(screen.root);
+    try {
+      const tag = screen.root.querySelector<HTMLButtonElement>(".board-tag");
+      tag?.click();
+      expect(shelf?.hidden).toBe(false);
+      screen.root.querySelector<HTMLButtonElement>(".shelf-close")?.click();
+      expect(shelf?.hidden).toBe(true);
+      expect(document.activeElement).toBe(tag);
+    } finally {
+      screen.root.remove();
+    }
+  });
+
+  it("the save line is the board's", () => {
+    const screen = mountScreen();
+    const status = screen.root.querySelector(".board-saveline .save-status");
+    expect(status).not.toBeNull();
+    expect(screen.root.querySelectorAll(".save-status")).toHaveLength(1);
+    expect(status?.textContent).toBe("Sign in to save");
+    expect(status?.getAttribute("data-kind")).toBe("unsigned");
+    expect(
+      screen.root.querySelector(":scope > .board-saveline"),
+    ).not.toBeNull();
+    expect(
+      screen.root.querySelector(
+        ":scope > .board-drawer-clip > .board-save-drawer",
+      ),
+    ).not.toBeNull();
+  });
+
+  it("keeps the menu button on the screen, and it opens the menu", () => {
+    const screen = mountScreen();
+    const button = screen.root.querySelector<HTMLButtonElement>(
+      ".top-bar .menu-button",
+    );
+    expect(button).not.toBeNull();
+    const menu = screen.root.querySelector<HTMLElement>(".game-menu");
+    expect(menu?.hidden).toBe(true);
+    button?.click();
+    expect(menu?.hidden).toBe(false);
+  });
+
+  it("opening a sheet, the shelf or the menu closes the save drawer and the note", () => {
+    const screen = mountScreen({
+      storage: seeded({
+        ...minedMountain(12_000_000),
+        helpers: 20,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" }],
+      }),
+    });
+    document.body.append(screen.root);
+    try {
+      const drawer = screen.root.querySelector(".board-save-drawer");
+      const note = screen.root.querySelector(".board-note");
+      const status =
+        screen.root.querySelector<HTMLButtonElement>(".save-status");
+      const doors = [
+        ".buys-button",
+        ".upgrades-button",
+        ".engineers-button",
+        ".board-tag",
+        ".menu-button",
+      ];
+      for (const door of doors) {
+        status?.click();
+        expect(drawer?.classList.contains("is-open")).toBe(true);
+        screen.root.querySelector<HTMLButtonElement>(".board-dial")?.click();
+        expect(note?.classList.contains("on")).toBe(true);
+        screen.root.querySelector<HTMLButtonElement>(door)?.click();
+        expect(drawer?.classList.contains("is-open"), door).toBe(false);
+        expect(note?.classList.contains("on"), door).toBe(false);
+      }
+    } finally {
       screen.root.remove();
     }
   });

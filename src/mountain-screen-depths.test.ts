@@ -833,7 +833,6 @@ describe("sheet buys", () => {
     expect(dialog?.hidden).toBe(true);
     screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
     expect(dialog?.hidden).toBe(false);
-    expect(screen.text(".pocket-rate")).toMatch(/stones\/s$/);
     expect(screen.text(".layer-line")).toContain("The Granite");
     expect(screen.text(".layer-line")).toContain("Suits borers.");
     expect(screen.text(".thumb-bar")).toContain("Buys");
@@ -988,7 +987,7 @@ describe("sheet buys", () => {
         endsAt: Date.now() + 120_000,
       },
     }));
-    expect(screen.text(".pocket")).toContain("T stones");
+    expect(screen.pocket()).toBe("Stones 999.9T");
     const charge = screen.root.querySelector("[data-craft='blasting-charge']");
     expect(charge?.textContent).toMatch(/Charge/);
     expect(charge?.textContent).toMatch(/×2/);

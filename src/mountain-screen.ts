@@ -1,11 +1,11 @@
-import { shownStones, stonesLeft } from "./scale";
+import { minedOut, shownStones, stonesLeft } from "./scale";
 import { canBuyAnyTier, canCraftNow, setAffordGlow } from "./afford-glow";
 import pickUrl from "./assets/pick.png";
 import { markSeen, noteFor, showsDot } from "./teach";
 import { createTeachNote, setTeachDot } from "./teach-ui";
 import { tapFloatSpot } from "./tap-float";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
-import { formatCompact, formatCount } from "./format";
+import { formatCount } from "./format";
 import {
   MOUNTAIN_STONES,
   mineByHand,
@@ -15,12 +15,12 @@ import {
 import { type TierId } from "./tiers";
 import { hasRelic, relicGoal, type RelicId } from "./relics";
 import { BOOSTS } from "./boosts";
-import {
-  createEffectChip,
-  effectRowCount,
-  shortEffectName,
-  writeChip,
-} from "./effect-row";
+import { createEffectChip, shortEffectName, writeChip } from "./effect-row";
+import { createBoardNote } from "./board-note";
+import { createBoostDial, createOdometer } from "./board-stock";
+import { createRelicPlate } from "./board-relics";
+import { createSaveLine } from "./board-save";
+import { liveCrewBoost } from "./crew-boost";
 import { effectiveRates } from "./rates";
 import { createRelicPanels } from "./relic-panels";
 import { createArrivalPanel } from "./arrival-panel";
@@ -57,7 +57,6 @@ import {
   tapWords,
   WORKSHOP_NOTE,
   engineersNote,
-  formatCrewSpeed,
   quietAwayWords,
 } from "./screen-words";
 import { metMaterialChips } from "./workshop-sheet";
@@ -163,20 +162,6 @@ export function mountMountainScreen({
   guide.append(goal, layerHint, guideBar);
   const materialLine = document.createElement("p");
   materialLine.className = "material-line";
-  // The same goal on the mountain, between the crew and the relic shelf (#336).
-  const relicLine = document.createElement("div");
-  relicLine.className = "relic-goal";
-  relicLine.hidden = true;
-  const relicLineText = document.createElement("p");
-  relicLineText.className = "relic-goal-text";
-  const relicLineBar = document.createElement("div");
-  relicLineBar.className = "relic-goal-bar";
-  relicLineBar.setAttribute("role", "progressbar");
-  relicLineBar.setAttribute("aria-valuemin", "0");
-  relicLineBar.setAttribute("aria-valuemax", "100");
-  const relicLineFill = document.createElement("span");
-  relicLineBar.append(relicLineFill);
-  relicLine.append(relicLineText, relicLineBar);
   const ledger = document.createElement("div");
   ledger.className = "ledger";
   ledger.append(lantern, remaining, materialLine, guide);
@@ -257,13 +242,25 @@ export function mountMountainScreen({
 
   mountainWrap.append(veinNote);
 
-  // Rows of three for the countdowns running now; none running is no row.
+  // The countdowns running now, one per line: the body of the Running now
+  // note the boost dial opens (#370). The engineers' trips land here too.
   const effectRow = document.createElement("div");
   effectRow.className = "effect-row";
   effectRow.setAttribute("aria-label", "Active effects");
-  effectRow.style.setProperty("--effect-rows", "0");
-  effectRow.dataset["rows"] = "0";
   effectRow.hidden = true;
+  const runningHead = document.createElement("span");
+  runningHead.className = "board-note-h";
+  runningHead.textContent = "Running now";
+  const runningNone = document.createElement("span");
+  runningNone.className = "board-running-none";
+  const running = document.createElement("div");
+  running.className = "board-running";
+  running.append(runningHead, effectRow, runningNone);
+  // While another note shows, the list waits here so its chips stay in the page.
+  const runningPark = document.createElement("div");
+  runningPark.className = "board-running-park";
+  runningPark.hidden = true;
+  runningPark.append(running);
   const chipFor = new Map(
     BOOSTS.map((boost) => {
       const chip = createEffectChip(
@@ -369,19 +366,6 @@ export function mountMountainScreen({
     renderVein();
   });
 
-  const pocket = document.createElement("p");
-  pocket.className = "pocket";
-  const pocketIcon = document.createElement("img");
-  pocketIcon.src = stoneUrl;
-  pocketIcon.alt = "";
-  pocketIcon.width = 32;
-  pocketIcon.height = 32;
-  pocketIcon.draggable = false;
-  const pocketText = document.createElement("span");
-  pocket.append(pocketIcon, pocketText);
-  const pocketRate = document.createElement("p");
-  pocketRate.className = "pocket-rate";
-
   const crewPanel = createCrewPanel({
     progress,
     getView: () => view,
@@ -428,11 +412,71 @@ export function mountMountainScreen({
     onPassTheMine: () => {
       legacy.open(undefined);
     },
+    onShelfClosed: () => {
+      relicPlate.root.querySelector<HTMLElement>(".board-tag")?.focus();
+    },
     requestRender: () => {
       render();
     },
   });
-  const { shelfButton, shelf, detail, reveal, legend } = relics;
+  const { shelf, detail, reveal, legend } = relics;
+
+  // The board (#370): the note, the relic plate, the odometer, the boost dial
+  // and the save line. The note is placed in board coordinates inside root.
+  const boardNote = createBoardNote(root);
+  const saveLine = createSaveLine({
+    progress,
+    auth,
+    getView: () => view,
+    now,
+  });
+  // Opening a sheet, the shelf or the menu puts the board's popups away.
+  const closeBoardPopups = (): void => {
+    saveLine.close();
+    boardNote.hide();
+  };
+  const relicPlate = createRelicPlate({
+    getView: () => view,
+    note: boardNote,
+    onShelf: () => {
+      closeBoardPopups();
+      relics.openShelf();
+    },
+  });
+  /** The Running now note stays a little longer than a relic's: it is a list. */
+  const RUNNING_NOTE_MS = 6000;
+  const odometer = createOdometer();
+  const dial = createBoostDial({
+    onOpen: () => {
+      boardNote.show(dial.root, running, RUNNING_NOTE_MS);
+    },
+  });
+  let shownPocket: number | undefined;
+  let shownDug: number | undefined;
+  /**
+   * The odometer and the dial. A spend is what left the pocket beyond the
+   * stones dug since the last paint, so a buy shows even when the crew
+   * earned more meanwhile. A new mountain (Start over, Pass the mine) digs
+   * less than before and is never a spend.
+   */
+  const renderStock = (): void => {
+    const held = view.mountain.pocket;
+    const dug = shownStones(view.mountain, minedOut(view.mountain));
+    if (
+      shownPocket !== undefined &&
+      shownDug !== undefined &&
+      dug >= shownDug
+    ) {
+      const spent = shownPocket + (dug - shownDug) - held;
+      if (spent >= 1) {
+        odometer.spend(spent);
+      }
+    }
+    shownPocket = held;
+    shownDug = dug;
+    odometer.set(held);
+    dial.set(liveCrewBoost(view.mountain, now()));
+  };
 
   const closeMenu = (): void => {
     menuPanel.close();
@@ -510,10 +554,6 @@ export function mountMountainScreen({
     },
   });
 
-  const saveStatus = document.createElement("p");
-  saveStatus.className = "save-status";
-  saveStatus.setAttribute("aria-live", "polite");
-
   const updatePrompt = document.createElement("div");
   updatePrompt.className = "update-prompt";
   updatePrompt.hidden = true;
@@ -559,41 +599,6 @@ export function mountMountainScreen({
   otherCard.append(otherTitle, otherBody, playHere);
   otherTab.append(otherCard);
 
-  const renderSave = (): void => {
-    switch (view.saveKind) {
-      case "unsigned":
-        saveStatus.textContent = "Sign in to save";
-        saveStatus.dataset["kind"] = "unsigned";
-        break;
-      case "session":
-        saveStatus.textContent = "Saved on this device";
-        saveStatus.dataset["kind"] = "session";
-        break;
-      case "loading":
-        saveStatus.textContent = "Loading your save...";
-        saveStatus.dataset["kind"] = "loading";
-        break;
-      case "account":
-        saveStatus.textContent = "Saved to your account";
-        saveStatus.dataset["kind"] = "account";
-        break;
-      case "error":
-        saveStatus.textContent = "Couldn't reach your save";
-        saveStatus.dataset["kind"] = "error";
-        break;
-      /* v8 ignore next 4 -- exhaustiveness guard, unreachable */
-      default: {
-        const _exhaustive: never = view.saveKind;
-        return _exhaustive;
-      }
-    }
-    if (view.log === undefined) {
-      delete saveStatus.dataset["log"];
-      return;
-    }
-    saveStatus.dataset["log"] = view.log;
-  };
-
   const render = (): void => {
     // A short absence pays with a small note, not the welcome card (#334).
     if (view.quietAway !== undefined) {
@@ -607,10 +612,6 @@ export function mountMountainScreen({
     const total = shownStones(view.mountain, MOUNTAIN_STONES);
     remaining.textContent = `${formatCount(left)} stones left`;
     remaining.title = `${left.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`;
-    const held = view.mountain.pocket;
-    const compactCount =
-      held === 1 ? "1 stone" : `${formatCompact(held)} stones`;
-    pocketText.textContent = compactCount;
     mountain.disabled = !view.playing || left === 0;
     const showElsewhere = view.elsewhere;
     otherTab.hidden = !showElsewhere;
@@ -626,12 +627,6 @@ export function mountMountainScreen({
         ? "The mountain is mined out"
         : `Mountain, tap to mine ${tapWords(effectiveRates(view.mountain, now()).tapYield)}`,
     );
-    const perSecond = effectiveRates(
-      view.mountain,
-      now(),
-      view.trouble,
-    ).crewPerSecond;
-    pocketRate.textContent = `${formatCrewSpeed(perSecond)} stones/s`;
     const layer = layerOf(view.mountain);
     if (band.dataset["layer"] !== layer.id) {
       band.dataset["layer"] = layer.id;
@@ -727,15 +722,19 @@ export function mountMountainScreen({
       writeChip(benchChip, { short: "", full: "", leftMs: 0, active: false });
     }
     // After every chip above and the engineers' trips have been written.
-    const rows = effectRowCount(
-      effectRow.querySelectorAll(".effect-chip:not([hidden])").length,
-    );
-    effectRow.style.setProperty("--effect-rows", String(rows));
-    effectRow.dataset["rows"] = String(rows);
-    effectRow.hidden = rows === 0;
+    const anyRunning =
+      effectRow.querySelector(".effect-chip:not([hidden])") !== null;
+    effectRow.hidden = !anyRunning;
+    runningNone.hidden = anyRunning;
+    runningNone.textContent = anyRunning ? "" : "Nothing running";
+    if (running.parentNode === null) {
+      runningPark.append(running);
+    }
+    relicPlate.render();
+    renderStock();
     savedCopies.render();
     conflictSheet.render(view.saveConflict, view.elsewhere);
-    renderSave();
+    saveLine.render();
   };
 
   const renderMaterials = (): void => {
@@ -768,8 +767,6 @@ export function mountMountainScreen({
     layerHint.textContent = hint ?? "";
     const goalNow = relicGoal(view.mountain);
     guideBar.hidden = goalNow.kind !== "next";
-    // The mountain's own goal line: only while a relic is still ahead (#336).
-    relicLine.hidden = goalNow.kind !== "next";
     if (goalNow.kind === "unguided") {
       goal.textContent =
         (view.mountain.legacy ?? 0) > 0
@@ -788,15 +785,9 @@ export function mountMountainScreen({
         ? `Progress to the ${name}`
         : `Progress to the ${name}. ${hint}`;
     goal.textContent = words;
-    relicLineText.textContent = words;
-    for (const [bar, fill] of [
-      [guideBar, guideFill],
-      [relicLineBar, relicLineFill],
-    ] as const) {
-      fill.style.width = `${String(percent)}%`;
-      bar.setAttribute("aria-valuenow", String(percent));
-      bar.setAttribute("aria-label", label);
-    }
+    guideFill.style.width = `${String(percent)}%`;
+    guideBar.setAttribute("aria-valuenow", String(percent));
+    guideBar.setAttribute("aria-label", label);
   };
 
   document.addEventListener("visibilitychange", () => {
@@ -864,6 +855,7 @@ export function mountMountainScreen({
   };
   buysButton.append(thumbIcon(tierArt.cart), thumbLabel("Buys"));
   buysButton.addEventListener("click", () => {
+    closeBoardPopups();
     buysDialog.hidden = false;
     // The staffing New card sits on top of the list: bring it into view.
     // Some test DOMs have no scrollIntoView.
@@ -876,9 +868,6 @@ export function mountMountainScreen({
     buysHead.close();
   });
 
-  const pocketRow = document.createElement("div");
-  pocketRow.className = "pocket-row";
-  pocketRow.append(pocket, pocketRate);
   const thumbBar = document.createElement("nav");
   thumbBar.className = "thumb-bar";
   const workshopThumb = document.createElement("button");
@@ -896,27 +885,48 @@ export function mountMountainScreen({
   workshopThumb.addEventListener("click", openWorkshopSheet);
   const teachNote = createTeachNote();
   thumbBar.append(buysButton, workshopThumb, engineers.button, upgradesButton);
-  const pocketStack = document.createElement("div");
-  pocketStack.className = "pocket-stack";
-  pocketStack.append(pocketRow);
+  // Every other door to a sheet or the menu also puts the board's popups away.
+  for (const door of [
+    workshopThumb,
+    engineers.button,
+    upgradesButton,
+    menuButton,
+    openWorkshop,
+  ]) {
+    door?.addEventListener("click", closeBoardPopups);
+  }
 
+  // The column's first row: the layer line, and the menu on the right.
   const header = document.createElement("header");
   header.className = "top-bar";
-  header.append(menuButton);
+  header.append(layerLine, menuButton);
   // The Legacy sits in the mountain's other corner: no layout cost.
   mountainStage.append(legacy.badge);
 
-  mountainWrap.append(relicLine, shelfButton);
+  // The board's top: the relic plate and the stock row (#370).
+  const stock = document.createElement("div");
+  stock.className = "board-stock";
+  stock.append(odometer.root, dial.root);
+  const boardTop = document.createElement("div");
+  boardTop.className = "board-top";
+  boardTop.append(relicPlate.root, stock);
+  // The closed drawer waits below the save line. This box clips it there, so
+  // the board never gains scroll height from it.
+  const drawerClip = document.createElement("div");
+  drawerClip.className = "board-drawer-clip";
+  drawerClip.append(saveLine.drawer);
+
   root.replaceChildren(
+    boardTop,
     header,
-    pocketStack,
-    layerLine,
     crew,
-    effectRow,
     mountainWrap,
     teachNote.note,
     thumbBar,
-    saveStatus,
+    drawerClip,
+    saveLine.line,
+    boardNote.note,
+    runningPark,
     welcome,
     arrival.layer,
     arrival.notice,
@@ -941,6 +951,7 @@ export function mountMountainScreen({
   const ticking = setInterval(() => {
     progress.tick();
     workshop.render();
+    renderStock();
     stepVein();
     const crewRate = stonesPerSecond(view.mountain, now(), view.trouble);
     if (
@@ -983,6 +994,12 @@ export function mountMountainScreen({
     render();
   });
   signal?.addEventListener("abort", unsubscribe);
+  // The save line fits its words by measuring; measure again once the board's
+  // fonts have loaded (happy-dom has no FontFaceSet).
+  const fonts = (document as { fonts?: FontFaceSet }).fonts;
+  void fonts?.ready.then(() => {
+    saveLine.render();
+  });
 }
 
 /** Shows the reload prompt. A newer service worker calls this. */

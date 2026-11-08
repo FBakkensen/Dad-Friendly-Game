@@ -15,7 +15,6 @@ import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
   RELICS,
   depthHint,
-  foundRelics,
   hasRelic,
   nextRelic,
   type Relic,
@@ -58,6 +57,7 @@ export function createRelicPanels({
   relicArt,
   keepsakeUrl,
   onPassTheMine,
+  onShelfClosed,
   requestRender,
 }: {
   progress: ProgressStore;
@@ -67,27 +67,14 @@ export function createRelicPanels({
   keepsakeUrl: string;
   /** Opens "Pass the mine to your kid" (M6) from the Legend card. */
   onPassTheMine: () => void;
+  /** Where focus goes back to when the shelf closes: the door that opened it. */
+  onShelfClosed: () => void;
   requestRender: () => void;
 }) {
-  const shelfButton = document.createElement("button");
-  shelfButton.type = "button";
-  shelfButton.className = "relic-shelf";
-  const shelfSlots = RELICS.map((relic) => {
-    const slot = document.createElement("img");
-    slot.className = "shelf-slot";
-    slot.src = relicArt[relic.id];
-    slot.alt = "";
-    slot.width = 32;
-    slot.height = 32;
-    slot.draggable = false;
-    shelfButton.append(slot);
-    return slot;
-  });
   const openShelf = (): void => {
     shelfOpen = true;
     requestRender();
   };
-  shelfButton.addEventListener("click", openShelf);
 
   const shelf = document.createElement("div");
   shelf.className = "shelf-dialog";
@@ -220,7 +207,7 @@ export function createRelicPanels({
   shelfClose.addEventListener("click", () => {
     shelfOpen = false;
     requestRender();
-    shelfButton.focus();
+    onShelfClosed();
   });
   shelfCard.append(shelfTitle, shelfList, shelfClose);
   shelf.append(shelfCard);
@@ -335,19 +322,12 @@ export function createRelicPanels({
   legend.append(legendCard);
 
   const renderShelf = (): void => {
-    const found = foundRelics(getView().mountain).length;
-    shelfButton.setAttribute(
-      "aria-label",
-      `Relic shelf, ${String(found)} of ${String(RELICS.length)} found`,
-    );
     for (const [index, relic] of RELICS.entries()) {
       const has = hasRelic(getView().mountain, relic.id);
-      const slot = shelfSlots[index];
       const row = shelfRows[index];
-      if (slot === undefined || row === undefined) {
+      if (row === undefined) {
         continue;
       }
-      slot.dataset["found"] = String(has);
       row.row.dataset["found"] = String(has);
       row.row.classList.toggle(SHEET_READY, has);
       row.row.classList.toggle(SHEET_LOCKED, !has);
@@ -432,5 +412,5 @@ export function createRelicPanels({
     renderShelf();
   };
 
-  return { shelfButton, openShelf, shelf, detail, reveal, legend, render };
+  return { openShelf, shelf, detail, reveal, legend, render };
 }

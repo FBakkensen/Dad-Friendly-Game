@@ -39,7 +39,8 @@ body {
   font-weight: 500;
   font-style: normal;
   font-display: block;
-  src: url("./assets/fonts/barlow-condensed-latin-500-normal.woff2") format("woff2");
+  src: url("./assets/fonts/barlow-condensed-latin-500-normal.woff2")
+    format("woff2");
 }
 
 @font-face {
@@ -47,7 +48,8 @@ body {
   font-weight: 600;
   font-style: normal;
   font-display: block;
-  src: url("./assets/fonts/barlow-condensed-latin-600-normal.woff2") format("woff2");
+  src: url("./assets/fonts/barlow-condensed-latin-600-normal.woff2")
+    format("woff2");
 }
 
 @font-face {
@@ -55,7 +57,8 @@ body {
   font-weight: 700;
   font-style: normal;
   font-display: block;
-  src: url("./assets/fonts/barlow-condensed-latin-700-normal.woff2") format("woff2");
+  src: url("./assets/fonts/barlow-condensed-latin-700-normal.woff2")
+    format("woff2");
 }
 
 @font-face {
@@ -63,7 +66,8 @@ body {
   font-weight: 400;
   font-style: normal;
   font-display: block;
-  src: url("./assets/fonts/share-tech-mono-latin-400-normal.woff2") format("woff2");
+  src: url("./assets/fonts/share-tech-mono-latin-400-normal.woff2")
+    format("woff2");
 }
 
 .board-skin {
@@ -330,7 +334,8 @@ body {
   position: absolute;
   top: calc(var(--board-h) - var(--save-h));
   left: calc(var(--art) * 4);
-  z-index: 21;
+  /* Under the sheets (z-index 10), as the save words were: a sheet's foot stays tappable. */
+  z-index: 9;
   width: calc(var(--art) * 204);
   height: calc(var(--art) * 27);
 }
@@ -358,8 +363,8 @@ body {
   flex: none;
   width: calc(var(--art) * 20);
   height: calc(var(--art) * 20);
-  background: url("./assets/board/lamp.png") no-repeat 0 0 / calc(var(--art) * 80)
-    calc(var(--art) * 20);
+  background: url("./assets/board/lamp.png") no-repeat 0 0 /
+    calc(var(--art) * 80) calc(var(--art) * 20);
   image-rendering: pixelated;
 }
 
@@ -397,11 +402,12 @@ body {
   }
 }
 
-.board-drawer {
+.board-drawer,
+.board-drawer.board-skinned {
   position: absolute;
   left: calc(var(--art) * 4);
   right: calc(var(--art) * 4);
-  z-index: 20;
+  z-index: 8;
   display: flex;
   flex-direction: column;
   visibility: hidden;
@@ -522,4 +528,148 @@ body {
   .board-saveline.is-trying .board-lamp {
     animation: none;
   }
+}
+
+/* The save line's spoken separator: in the text, not drawn. */
+.board-save-sep {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: pre;
+}
+
+/* The board's top (#370): the relic plate at 6px and the stock row at 86px,
+   both from the mockup's LAY["924"]. Today's column flows below, from 176px. */
+.board-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--board-w);
+  height: var(--board-top);
+}
+
+.board-top > .board-relics {
+  position: absolute;
+  top: calc(var(--art) * 3);
+  left: calc(var(--art) * 2);
+  margin: 0;
+}
+
+.board-stock {
+  position: absolute;
+  top: calc(var(--art) * 43);
+  left: 0;
+  width: var(--board-w);
+  height: calc(var(--art) * 44);
+}
+
+.board-stock > .board-odo {
+  position: absolute;
+  top: 0;
+  left: calc(var(--art) * 4);
+}
+
+.board-stock > .board-dial {
+  position: absolute;
+  top: 0;
+  right: calc(var(--art) * 4);
+}
+
+/* Running now: the dial's note, one countdown per line at 14px. */
+.board-running .effect-row {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 1);
+  margin-top: calc(var(--art) * 2);
+}
+
+.board-running .effect-row[hidden],
+.board-running .effect-chip[hidden],
+.board-running-none:empty {
+  display: none;
+}
+
+/* Plain lines on the note, not the old pills. */
+.board-running .effect-chip {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-weight: var(--board-weight-semi);
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+  white-space: nowrap;
+  color: var(--board-ink);
+}
+
+.board-running .effect-chip img {
+  flex: none;
+  width: calc(var(--art) * 12);
+  height: calc(var(--art) * 12);
+  image-rendering: pixelated;
+}
+
+.board-running .effect-name {
+  position: static;
+  display: inline;
+  width: auto;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--board-ink);
+  transform: none;
+}
+
+.board-running .effect-mult,
+.board-running .effect-time {
+  font-family: "Share Tech Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-running .effect-mult {
+  margin: 0;
+  color: var(--board-amber);
+}
+
+.board-running .effect-time {
+  margin-left: auto;
+  padding-left: calc(var(--art) * 4);
+}
+
+.board-running-none {
+  display: block;
+  margin-top: calc(var(--art) * 2);
+  color: var(--board-ink-2);
+}
+
+/* The save drawer's box: the board above the save line. It clips the closed
+   drawer, which waits below its edge, so the board never scrolls. */
+.board-drawer-clip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 8;
+  width: var(--board-w);
+  height: calc(var(--board-h) - var(--save-h));
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.board-drawer-clip > .board-save-drawer {
+  bottom: calc(var(--art) * 2);
+  pointer-events: auto;
+}
+
+/* Buys and Upgrades stop under the stock row's legend, so a buy's spend shows
+   on the odometer above the sheet (#370). */
+.buys-card,
+.upgrades-dialog .upgrades-card {
+  max-height: calc(100% - var(--board-top) - var(--art));
 }

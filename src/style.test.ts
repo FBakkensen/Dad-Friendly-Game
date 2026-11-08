@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 // Vitest runs from the repo root.
 const css = readFileSync("src/style.css", "utf8");
+const boardCss = readFileSync("src/board.css", "utf8");
 
 /** Rules whose loss breaks the game silently: jsdom tests don't apply CSS. */
 const REQUIRED_SELECTORS = [
@@ -20,7 +21,6 @@ const REQUIRED_SELECTORS = [
   ".engineer-tunnel",
   ".expedition-chip",
   ".welcome-return",
-  ".pocket-row",
   ".welcome-card",
   ".reveal-card",
   ".shelf-card",
@@ -31,7 +31,6 @@ const REQUIRED_SELECTORS = [
   ".tier-grid",
   ".tier-trouble",
   ".trouble-thanks",
-  ".relic-shelf",
   ".found-tool",
   ".keepsakes",
   ".keepsake-story",
@@ -52,6 +51,26 @@ const REQUIRED_SELECTORS = [
   ".save-conflict-play",
   ".saved-copies",
 ];
+
+/** The board's parts that took over from the pocket pill and the relic shelf (#370). */
+const BOARD_SELECTORS = [
+  ".board-top",
+  ".board-stock",
+  ".board-odo",
+  ".board-dial",
+  ".board-relics",
+  ".board-tag",
+  ".board-saveline",
+  ".board-note",
+  ".board-running",
+];
+
+describe("board.css", () => {
+  it.each(BOARD_SELECTORS)("styles %s", (selector) => {
+    const escaped = selector.replace(".", "\\.");
+    expect(boardCss).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));
+  });
+});
 
 describe("style.css", () => {
   it.each(REQUIRED_SELECTORS)("styles %s", (selector) => {

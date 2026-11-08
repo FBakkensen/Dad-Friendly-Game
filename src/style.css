@@ -32,7 +32,6 @@ body {
   background-attachment: fixed;
 }
 
-
 .top-bar {
   display: flex;
   align-items: center;
@@ -116,33 +115,6 @@ body {
   filter: drop-shadow(0 0 26px rgba(255, 214, 102, 0.7)) brightness(1.08);
 }
 
-.pocket {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  /* Shrinks on narrow phones so the longest count and both buttons fit on one line (DejaVu on CI is wide). */
-  font-size: 1.15rem;
-  font-variant-numeric: tabular-nums;
-  /* One line, so the pocket row never grows taller ("501.4 thousand stones"). */
-  white-space: nowrap;
-}
-
-.pocket-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.pocket-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  width: 100%;
-}
-
 /* Materials met so far. One or two lines, so the tier cards stay on screen. */
 .material-line {
   display: flex;
@@ -178,17 +150,6 @@ body {
   height: 16px;
 }
 
-.pocket-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: none;
-  /* Same pull-in as the upgrades button had on its own, so the row stays one line tall. */
-  height: var(--target-min);
-  margin-block: -6px;
-}
-
-.pocket-actions .upgrades-button,
 .engineers-button {
   margin-block: 0;
 }
@@ -354,14 +315,7 @@ body {
   cursor: default;
 }
 
-.pocket img {
-  width: 32px;
-  height: 32px;
-  image-rendering: pixelated;
-}
-
 .goal,
-.save-status,
 .auth-status {
   margin: 0;
   font-size: 1rem;
@@ -1167,8 +1121,7 @@ body {
   width: min(320px, 100%);
 }
 
-.guide-bar,
-.relic-goal-bar {
+.guide-bar {
   width: 100%;
   height: 8px;
   overflow: hidden;
@@ -1177,13 +1130,11 @@ body {
   background: #1e130d;
 }
 
-.guide-bar[hidden],
-.relic-goal-bar[hidden] {
+.guide-bar[hidden] {
   display: none;
 }
 
-.guide-bar span,
-.relic-goal-bar span {
+.guide-bar span {
   display: block;
   height: 100%;
   width: 0;
@@ -1219,37 +1170,6 @@ body {
   font-size: 1.05rem;
 }
 
-.relic-shelf {
-  appearance: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 48px;
-  padding: 6px 12px;
-  border: 1px solid #6b4a2a;
-  border-radius: 12px;
-  background: rgba(30, 19, 13, 0.8);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.relic-shelf:focus-visible {
-  outline: 4px solid #e8a84a;
-  outline-offset: 2px;
-}
-
-.shelf-slot {
-  width: 32px;
-  height: 32px;
-  image-rendering: pixelated;
-}
-
-/* Missing relics are dark silhouettes; found ones glow. */
-.shelf-slot[data-found="false"] {
-  filter: brightness(0) opacity(0.45);
-}
-
 /* Undiscovered relics: dark silhouettes with a soft warm glow. */
 .shelf-list li[data-found="false"] img {
   filter: brightness(0) drop-shadow(0 0 5px rgba(255, 196, 92, 0.55))
@@ -1275,7 +1195,6 @@ body {
   display: none;
 }
 
-.shelf-slot[data-found="true"],
 .shelf-list li[data-found="true"] img {
   filter: drop-shadow(0 0 6px rgba(255, 214, 102, 0.8));
 }
@@ -3387,18 +3306,14 @@ body {
   overflow-clip-margin: 0;
 }
 
-/* The shelf sits above the rock. An overlay put the peak through the relics.
-   The goal line, the shelf and the rock stay together; on a phone taller than
-   the rock can use, the group is centred, so the spare height never sits
-   between the shelf and the peak. Safe centring: on a phone too short for
-   the group it spills down only, never up over the clock chips. */
+/* The rock is centred in the height it gets. Safe centring: on a board too
+   short for it, it spills down only, never up over the crew. */
 .mountain-wrap {
   container-type: inline-size;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   justify-content: safe center;
-  /* The shelf and the rock are both targets: 8px apart (#346). */
   gap: var(--target-gap);
 }
 
@@ -3407,19 +3322,6 @@ body {
 #app > .teach-note,
 #app > .thumb-bar {
   margin-top: var(--space-4);
-}
-
-.mountain-wrap > .relic-shelf {
-  position: static;
-  top: auto;
-  left: auto;
-  z-index: 2;
-  flex: none;
-  order: -1;
-  width: max-content;
-  max-width: calc(100% - var(--space-8) * 2);
-  margin: 0;
-  transform: none;
 }
 
 /*
@@ -3453,20 +3355,6 @@ body {
   width: auto;
   height: 100%;
   aspect-ratio: 1;
-}
-
-.pocket-row {
-  border: var(--line) solid var(--color-gold);
-  border-radius: var(--radius-pill);
-  padding: var(--space-4) var(--space-16);
-  background: var(--color-card);
-}
-
-.pocket {
-  justify-content: center;
-  font-size: var(--type-24);
-  font-weight: var(--weight-bold);
-  color: var(--color-gold);
 }
 
 .crew-status {
@@ -3624,75 +3512,27 @@ body {
   border-color: var(--color-edge);
 }
 
-/* Closed mountain: the pill, one layer line, the crew, the rock, four labels. */
+/* Closed mountain, under the board's top (board.css): the layer line and the
+   menu, the crew, the rock, four labels. */
 #app {
   position: relative;
 }
 
 .top-bar {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
-  z-index: 3;
-  width: auto;
-}
-
-/*
- * The shared timer chip: a pill per countdown, three to a row, one row per
- * three running. A chip is 28px, not 48: a tap only names the timer, and
- * small chips keep the mountain big with all twelve running.
- */
-.effect-row {
-  --effect-rows: 0;
-  --effect-chip: calc(var(--space-24) + var(--space-4));
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(var(--effect-rows), var(--effect-chip));
-  align-items: center;
-  justify-items: stretch;
-  gap: var(--space-4);
-  width: 100%;
-  height: calc(
-    var(--effect-rows) * var(--effect-chip) + (var(--effect-rows) - 1) *
-      var(--space-4)
-  );
-}
-
-.effect-row[hidden] {
-  display: none;
-}
-
-.effect-row .effect-chip {
-  position: relative;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  width: 100%;
-  height: var(--effect-chip);
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  /* An inset ring, not a border, so ×1.25 49:56 fits a 360-wide row. */
-  border: 0;
-  box-shadow: inset 0 0 0 var(--line) var(--color-gold);
-  border-radius: var(--radius-pill);
-  background: var(--color-card);
-  color: var(--color-ink);
-  font-size: var(--type-14);
-  font-weight: var(--weight-regular);
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.effect-row .effect-chip img {
-  width: var(--space-24);
-  height: var(--space-24);
+  justify-content: space-between;
   flex: none;
 }
 
+.top-bar .layer-line {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+/*
+ * The shared timer chip. Its list is the Running now note (board.css); a tap
+ * on a chip names the timer.
+ */
 .effect-mult {
   margin-inline-end: var(--space-4);
   color: var(--color-gold);
@@ -3735,39 +3575,6 @@ body {
 .engineer-promote-row.is-pressed,
 .tier.is-pressed {
   transform: translateY(var(--space-4));
-}
-
-/* The menu is taken out of the flow. The same inset on both sides keeps the pill centred and clear of it. */
-.pocket-stack {
-  box-sizing: border-box;
-  padding-inline: calc(var(--target-min) + var(--space-8));
-}
-
-.pocket-row {
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-  width: max-content;
-  max-width: 100%;
-  min-width: 0;
-  margin-inline: auto;
-  overflow: hidden;
-}
-
-.pocket,
-.pocket-rate {
-  max-width: 100%;
-  min-width: 0;
-}
-
-.pocket-rate {
-  margin: 0;
-  color: var(--color-gold);
-  font-size: var(--type-24);
-  font-weight: var(--weight-bold);
-  line-height: 1.1;
-  text-align: center;
-  white-space: nowrap;
 }
 
 .layer-line {
@@ -3906,7 +3713,7 @@ body {
   text-shadow: none;
 }
 
-/* Sheets leave the pocket pill in view. Cards use the token type scale. */
+/* Sheets leave the board's top in view. Cards use the token type scale. */
 .buys-dialog,
 .upgrades-dialog {
   flex-direction: column;
@@ -5303,32 +5110,4 @@ body {
 .welcome-card .welcome-continue,
 .legacy-card .start-over-actions {
   margin-top: var(--space-8);
-}
-
-/* The next relic on the mountain, above the shelf (#336). Vague words, thin bar. */
-.mountain-wrap > .relic-goal {
-  flex: none;
-  order: -2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-4);
-  width: min(calc(var(--target-min) * 6), calc(100% - var(--space-16) * 2));
-  margin: 0;
-}
-
-.mountain-wrap > .relic-goal[hidden] {
-  display: none;
-}
-
-.relic-goal-text {
-  margin: 0;
-  font-size: var(--type-14);
-  line-height: var(--leading);
-  color: var(--color-quiet);
-  text-align: center;
-}
-
-.relic-goal-bar {
-  height: var(--space-4);
 }

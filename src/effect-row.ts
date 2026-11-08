@@ -1,16 +1,5 @@
 import { chipTime } from "./format";
 
-/** Three chips per row. Twelve use four rows. */
-const EFFECT_PER_ROW = 3;
-
-/**
- * Rows for the countdowns running now. None running is no row, so the
- * rock gets the height instead of an empty band under the crew.
- */
-export function effectRowCount(shown: number): number {
-  return Math.ceil(Math.max(0, shown) / EFFECT_PER_ROW);
-}
-
 const SHORT_NAME: Readonly<Record<string, string>> = {
   "Sharper picks": "Picks",
   Overtime: "Overtime",
