@@ -28,9 +28,14 @@ function setup(
   };
   const listeners = new Set<(s: AuthState) => void>();
   const order: string[] = [];
+  let resumeResult: unknown = { kind: "idle" };
   const progress = {
     flush: vi.fn(() => order.push("flush")),
-    resume: vi.fn(() => order.push("resume")),
+    resume: vi.fn(() => {
+      order.push("resume");
+      return resumeResult;
+    }),
+    tick: vi.fn(() => order.push("tick")),
   } as unknown as ProgressStore;
   const auth = {
     getState: () => authState,
@@ -70,6 +75,9 @@ function setup(
     },
     setClock(d: Date) {
       clock = d.getTime();
+    },
+    setResume(next: unknown) {
+      resumeResult = next;
     },
     buttons: () =>
       [...s.drawer.querySelectorAll<HTMLButtonElement>("button")].map((b) => b),
@@ -120,8 +128,9 @@ describe("createSaveLine", () => {
 
   it("only error adds the kept-on-phone words and Details", () => {
     const err = setup({ kind: "error" });
-    expect(err.status.textContent).toContain("· Kept on this phone");
-    expect(err.status.textContent).toContain("Details");
+    expect(err.status.textContent).toBe(
+      "Couldn't reach your save · Kept on this phone · Details",
+    );
     document.body.innerHTML = "";
     const ok = setup({ kind: "account" });
     expect(ok.status.textContent).not.toContain("Kept on this phone");
@@ -184,7 +193,24 @@ describe("createSaveLine", () => {
       "Try again",
     ]);
     must(t.buttons()[1]).click();
+    expect(t.order).toEqual(["flush", "resume", "tick"]);
+  });
+
+  it("Try again settles after the cloud has been read, like a return", async () => {
+    const t = setup();
+    let read: () => void = () => undefined;
+    t.setResume({
+      kind: "reading",
+      done: new Promise<void>((resolve) => {
+        read = resolve;
+      }),
+    });
+    must(t.buttons()[1]).click();
     expect(t.order).toEqual(["flush", "resume"]);
+    read();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(t.order).toEqual(["flush", "resume", "tick"]);
   });
 
   it("signed out: Not signed in, and Sign in calls auth.signIn", () => {

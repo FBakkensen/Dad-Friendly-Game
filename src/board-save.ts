@@ -93,8 +93,10 @@ export function createSaveLine({
   const words = el("span", "board-save-words");
   const safe = el("span", "board-save-safe");
   const why = el("span", "board-save-why");
+  // Read aloud and by the scripts, not drawn: "... phone · Details".
+  const sep = el("span", "board-save-sep");
   text.append(words, safe);
-  status.append(lamp, text, why);
+  status.append(lamp, text, sep, why);
   skin(status, "frame");
   line.append(status);
 
@@ -143,8 +145,9 @@ export function createSaveLine({
   const fitSafe = (): void => {
     for (const form of SAFE_FORMS) {
       safe.textContent = form;
-      if (text.scrollWidth <= text.clientWidth) return;
+      if (text.scrollWidth <= text.clientWidth) break;
     }
+    sep.textContent = safe.textContent.endsWith("·") ? " " : " · ";
   };
 
   const authState = (): AuthState => auth.getState();
@@ -177,6 +180,7 @@ export function createSaveLine({
     const failed = view.saveKind === "error";
     safe.textContent = failed ? (SAFE_FORMS[0] ?? "") : "";
     why.textContent = failed ? "Details" : "";
+    sep.textContent = "";
     const x = `${String(-LAMP_FRAME[view.saveKind] * LAMP_CSS_PX)}px`;
     // 0 reads "0px" so the frame is always a length.
     lamp.style.backgroundPositionX = x === "-0px" ? "0px" : x;
@@ -194,7 +198,15 @@ export function createSaveLine({
   actBtn.addEventListener("click", () => {
     if (authState().kind === "signed-in") {
       progress.flush();
-      progress.resume();
+      // Settle once the cloud has been read, as a return to the tab does.
+      const resume = progress.resume();
+      if (resume.kind === "reading") {
+        void resume.done.then(() => {
+          progress.tick();
+        });
+        return;
+      }
+      progress.tick();
       return;
     }
     void auth.signIn();
