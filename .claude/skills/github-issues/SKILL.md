@@ -48,7 +48,7 @@ If the human (or the agent) wants more:
 3. Create it only after they say yes.
 4. Do not start that issue. Do not branch, implement, or open a PR for it until this sitting's PR is done and they pick it.
 
-New ideas that appear through work follow the same path. They do not sneak into the current PR.
+A new idea worth its own sitting follows the same path. A nit or small follow-up does not (see Create). Neither sneaks into the current PR.
 
 ## Create
 
