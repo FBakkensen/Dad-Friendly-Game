@@ -1,0 +1,1511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0e0f">
+<title>Control Board</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABr0lEQVR4nH2TO0sDQRRGz6qwZpMsigpREFJIwI0EJCjprLT0F4iFnWBhaWNhZyVBUKxsRMEyYGFhJ4YQiIKYiEFEA5H4iKILMQY1FuuMO/HxNTN3Zr7DzJ17NcNnAnC0v1EHmFnYxi377UbO3+1mALKZFIAGoBk+k6XVtXrQW2J+eZe29k6KhQsu8zkFFAxZeP2mjM9zx7y+VLQWAGEGONjbkQa3BDAcjQHQZ0XIZlJoZ0eJ+sTsirya7jHosyIAjOqHErB+6gfg+bEsIQDa0MhYvdGc3pwksThHo9L5KuunfgXSAnBXugaguzfIqH5IYtG57kCkU5pPju8ZDrUCNvGk4+kK9NAEcFssEAxZNHk/vg59mwPWgBIPh1rRPQa3xQKAAxAa91z8am6ETA++SY8EVD9s5b3C9Ff8A1ApV5SNUu7k31gBhKMxnh/LbF0FACdhbpMYxXo8WZN1ouTg6eGedL76K0TEYl9UpawDcGrBbO9gqt+Wv+FWOl8lnqyphWT4TMLRmAIB0D2Gku14soZ4ruuspoludEPuStfyn4UamymbSX13o5Ab8p+EGeATQuq1pI3L8aYAAAAASUVORK5CYII=">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   Control board with a window down No. 2 shaft.
+   One board, 424 CSS px wide, laid out for 424x868 and 424x924.
+   Any other screen scales the whole board uniformly: it never rearranges.
+   Every graphic is PixelLab art from assets/art/ind-board, shown at
+   exactly 2x (1 art px = 2 CSS px), nearest neighbour, no filters.
+   Text is CSS: Barlow Condensed for legends, Share Tech Mono for numbers.
+   ===================================================================== */
+:root{
+  --ink:#d9ddd0;        /* legend on dark enamel */
+  --ink-2:#b3bcae;      /* quieter legend */
+  --ink-plate:#050607;  /* engraved on aluminium */
+  --ink-plate-2:#0b0e10;
+  --ink-bare:#eceee4;   /* legends painted straight on the enamel */
+  --amber-bare:#ffd38c;
+  --ink-flap:#e4dcc6;
+  --amber:#e8ac4c;      /* sodium: rare, means "act" or "boost" */
+  --green:#9fcf86;
+  --rust:#e39a78;
+  --night:#0b0e0f;
+  --save-h:56px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--night);overflow:hidden}
+body{font-family:"Barlow Condensed",system-ui,sans-serif;color:var(--ink);-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;overscroll-behavior:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;touch-action:manipulation}
+button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+img,.spr,canvas{image-rendering:pixelated;image-rendering:crisp-edges}
+img{display:block}
+.spr{display:block;background-repeat:no-repeat}
+.num{font-family:"Share Tech Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.lg{font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:13px;line-height:14px;color:var(--ink-2)}
+.engrave{text-shadow:0 1px 0 #000,0 0 3px rgba(0,0,0,.9),0 0 1px #000}
+.sk{position:absolute;left:0;top:0;pointer-events:none;z-index:-1}
+.skh{isolation:isolate}
+.abs{position:absolute}
+
+/* ---------- the frame the board sits in ---------- */
+#fit{position:fixed;inset:0;overflow:hidden}
+#case{position:absolute;left:0;top:0;width:424px;transform-origin:0 0}
+#housing{position:absolute;left:-8px;top:-8px;width:440px;display:none;pointer-events:none}
+body.desk{background:#0a0c0e url(assets/art/ind-board/desk.png) 0 0/256px 192px repeat}
+body.desk #housing{display:block}
+#stage{position:relative;width:424px;overflow:hidden;
+  background:#1a2421 url(assets/art/ind-board/panel-face.png) -12px 0/448px 896px no-repeat}
+.row{position:absolute;left:0;width:424px}
+
+/* ---------- relic plate ---------- */
+#rRelics{left:4px;width:416px;height:64px}
+.relic{position:absolute;top:4px;width:56px;height:56px}
+.relic .sock{position:absolute;left:0;top:0;width:56px;height:56px}
+.relic .rl{position:absolute;left:4px;top:4px;width:48px;height:48px}
+.relicLegend{position:absolute;left:100px;top:56px;width:216px;height:20px;display:none;align-items:center;justify-content:center;white-space:nowrap;color:var(--ink-plate);z-index:2}
+#stage[data-mode="924"] .relicLegend{display:flex}
+.relicLegend span{position:relative}
+
+/* ---------- stockpile row ---------- */
+#rStock{height:88px}
+.odo{position:absolute;left:8px;top:0;width:240px;height:80px}
+.odo .drum{position:absolute;top:18px;height:48px;overflow:hidden;z-index:2}
+.odo .drum span{position:absolute;left:0;right:0;top:0;height:48px;line-height:48px;text-align:center;font-size:32px;color:#0e0d0a}
+.odo .dot{position:absolute;width:4px;height:4px;z-index:3}
+.odo .dec{position:absolute;top:16px;height:50px;display:none}
+.odo .drum.dec-on span{color:#ece4cc}
+.odoLegend{position:absolute;left:10px;right:48px;top:80px;height:12px;display:flex;justify-content:space-between;align-items:center}
+.odoLegend .lg{line-height:12px}
+.odoLegend .spend{color:var(--rust);opacity:0}
+.odoLegend.spending .spend{opacity:1}
+.boost{position:absolute;right:8px;top:0;display:flex;align-items:center;gap:6px;height:88px}
+.boost .txt{display:flex;flex-direction:column;align-items:flex-end;text-align:right;margin-top:-4px}
+.boost .mul{font-size:24px;line-height:29px;font-weight:700;color:var(--amber-bare)}
+.boost .left{font-size:20px;line-height:24px;color:var(--ink-bare)}
+.boost .lg,.dig .lg,.key .lg,.key .sub{color:var(--ink-bare)}
+.boost .dial{width:88px;height:88px;background-size:2728px 88px}
+
+/* ---------- gauge row: gauge, the mine window, crew ---------- */
+#rGauge{height:238px}
+.gauge{position:absolute;left:0;top:0;width:208px;height:208px}
+#gBig{position:relative;width:208px;height:208px;background-size:2288px 1040px}
+.gauge .sc{position:absolute;font-size:13px;line-height:14px;color:#0b0b09;font-family:"Share Tech Mono",monospace;transform:translate(-50%,-50%)}
+.gauge .gctr{position:absolute;left:78px;top:130px;width:50px;height:22px}
+.gauge .read{position:absolute;left:82px;top:134px;width:44px;height:16px;text-align:center;font:16px/16px "Share Tech Mono",monospace;color:#ece4cc;white-space:nowrap}
+.gauge .glg{position:absolute;left:0;right:0;top:154px;text-align:center;font:700 13px/13px "Barlow Condensed";letter-spacing:.04em;color:#0b0b09;white-space:nowrap}
+
+#win{position:absolute;left:206px;top:6px;width:212px;height:180px;display:block}
+#win > *{position:absolute}
+#win .frame{left:0;top:0;width:212px;height:180px;pointer-events:none}
+#win .view{left:14px;top:14px;width:184px;height:152px;overflow:hidden;background:#0a0c0e}
+.view > *{position:absolute;left:0;top:0}
+#win .view img{pointer-events:none}
+#wSheave{left:14px;width:38px;height:34px;background-size:152px 34px}
+#wSteam{left:128px;top:-6px;width:22px;height:22px;background-size:88px 22px}
+#wDrill{left:114px;top:110px;width:46px;height:30px;background-size:184px 30px}
+#wTarp{left:14px;top:110px;width:52px;height:30px}
+#wBorer{left:14px;top:108px;width:56px;height:32px;background-size:224px 32px;display:none}
+#wBDust{left:4px;top:110px;width:32px;height:32px;background-size:128px 32px;display:none}
+/* the haulage run on the upper gallery: rows 28..47 of the view, so a tub hoisted up the shaft goes behind the deck beam */
+#wRun{left:0;top:56px;width:184px;height:44px;overflow:hidden}
+#wRun > *{position:absolute;left:0;top:0}
+#wTub{width:28px;height:24px;z-index:1}
+#wMiner{width:24px;height:42px;background-size:432px 42px;z-index:2}
+#wCage{width:40px;height:50px;z-index:0}
+#wMiner.behind{z-index:0}
+#wFill{width:32px;height:32px;background-size:128px 32px;display:none}
+#wDust{width:32px;height:32px;background-size:128px 32px;display:none}
+#wPlus{font-size:14px;line-height:14px;color:var(--amber-bare);display:none;white-space:nowrap;
+  text-shadow:1px 0 0 #0a0c0e,-1px 0 0 #0a0c0e,0 1px 0 #0a0c0e,0 -1px 0 #0a0c0e,1px 1px 0 #0a0c0e,-1px -1px 0 #0a0c0e,1px -1px 0 #0a0c0e,-1px 1px 0 #0a0c0e}
+#win .glass{width:184px;height:152px}
+#win .wtag{left:46px;top:2px;width:88px;height:20px;display:flex;align-items:center;justify-content:center;color:var(--ink-plate);white-space:nowrap;pointer-events:none}
+#win .wtag span{position:relative}
+
+.crew{position:absolute;left:206px;top:190px;width:212px;height:48px}
+.crew > *{position:absolute}
+.crew .cl{left:20px;top:17px}
+.crew .n{left:58px;top:11px;font-size:26px;line-height:26px;color:var(--ink)}
+.crew .lamp{left:120px;top:4px}
+.crew .fr{left:162px;top:17px;color:var(--amber)}
+.crew.none .fr{color:var(--ink-2)}
+.lamp{width:40px;height:40px;background-size:160px 40px}
+
+/* ---------- machine bays ---------- */
+#rBays{left:4px;width:416px}
+.band{position:absolute;left:90px;top:-10px;width:236px;height:24px;display:flex;align-items:center;justify-content:center;white-space:nowrap;z-index:2;color:var(--ink-plate)}
+.band span{position:relative}
+#bayBtn{position:absolute;left:4px;top:12px;width:408px;text-align:left}
+.bay{position:relative;height:var(--bay-h)}
+.bay > *{position:absolute}
+.bay .lamp{left:6px}
+.bay .ico{left:50px;width:64px;height:64px}
+.bay .tx{left:120px;width:122px}
+.bay .nm{display:block;font-size:16px;line-height:17px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--ink);white-space:nowrap}
+.bay .sub{display:block;font-size:13px;line-height:15px;color:var(--ink-2);white-space:nowrap;overflow:hidden;margin-top:3px}
+.flip{left:244px;width:64px;height:48px}
+.flip span{position:absolute;top:10px;width:18px;height:28px;line-height:28px;text-align:center;font-size:24px;color:var(--ink-flap)}
+.flip span:nth-of-type(1){left:12px}.flip span:nth-of-type(2){left:32px}
+.flip span.flipping{animation:flap .18s steps(3) 1}
+@keyframes flap{0%{transform:scaleY(1)}50%{transform:scaleY(.2)}100%{transform:scaleY(1)}}
+.pcol{left:314px;width:84px;height:48px}
+.pcol .lg{position:absolute;left:0;right:0;top:0;text-align:center}
+.pcol .ptag{position:absolute;left:0;top:20px;width:84px}
+.ptag{position:relative;height:20px;display:flex;align-items:center;justify-content:center;color:var(--ink-plate);font-size:14px;line-height:20px}
+.ptag span{position:relative}
+
+/* ---------- ready + dig ---------- */
+#rReady{height:118px}
+#ready{position:absolute;left:6px;top:0;width:288px;height:96px;text-align:left}
+#ready > *{position:absolute}
+#ready .kick{left:100px;top:6px;color:var(--amber-bare)}
+#ready.saving .kick{color:var(--ink-bare)}
+#ready.done .kick{color:var(--green)}
+#ready .guard{left:0;top:16px;width:80px;height:80px;background-size:400px 80px}
+#ready .plate{left:80px;top:24px;width:208px;height:64px}
+#ready .plate img{position:absolute;left:0;top:0}
+#ready .pt{position:absolute;left:16px;top:10px;width:176px;height:44px;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+#ready .main{font-size:18px;line-height:20px;font-weight:700;color:var(--ink-plate);white-space:nowrap}
+#ready .why{font-size:13px;line-height:16px;font-weight:600;color:var(--ink-plate-2);white-space:nowrap}
+#ready .main,#ready .why{text-shadow:0 1px 0 rgba(255,255,255,.22)}
+.dig{position:absolute;left:304px;top:0;width:112px;height:118px}
+#digBtn{position:absolute;left:0;top:0;width:112px;height:104px;display:block;overflow:visible}
+#digBtn .spr{position:absolute;left:0;top:0}
+#digBtn .spr{width:112px;height:112px;background-size:336px 112px}
+.dig .lg{position:absolute;left:0;right:0;top:100px;text-align:center;white-space:nowrap;pointer-events:none}
+.dig .lg b{color:var(--ink);font-weight:700}
+.dig.hit .lg b{color:var(--amber)}
+
+/* ---------- rail ---------- */
+#rRail{height:92px}
+.key{position:absolute;top:0;width:64px;height:76px;display:flex;flex-direction:column;align-items:center}
+#stage[data-mode="924"] .key[data-off]{height:90px}
+.key .cap{position:relative;width:64px;height:64px;background-size:256px 64px;flex:none}
+.key .cap img{position:absolute;left:16px;top:15px;width:32px;height:32px}
+.key.down .cap img{top:17px}
+.key .lg{color:var(--ink);margin-top:-2px;white-space:nowrap}
+.key .sub{font-size:13px;line-height:13px;color:var(--ink-bare);white-space:nowrap;display:none;margin-top:1px}
+#stage[data-mode="924"] .key .sub{display:block}
+.key.quiet .lg{color:#c9cec1}
+
+/* ---------- save line ---------- */
+#saveline{position:absolute;left:8px;width:408px;height:54px;z-index:21}
+#saveBtn{position:relative;width:100%;height:100%;display:flex;align-items:center;gap:6px;padding:0 12px 0 8px;font-size:13px;line-height:16px;font-weight:600;white-space:nowrap}
+#saveBtn .lamp{flex:none;margin:-4px 0}
+#saveBtn .t{position:relative;overflow:hidden}
+#saveBtn .w{color:var(--ink)}
+#saveBtn .safe{color:var(--ink-2)}
+#saveBtn .why{color:var(--ink);font-weight:700;margin-left:auto;position:relative;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--ink-2)}
+#saveline.trying .lamp{animation:blink .9s steps(2) infinite}
+@keyframes blink{50%{background-position:0 0}}
+
+/* ---------- drawers: sheet, save panel, note ---------- */
+.drawer{position:absolute;left:8px;right:8px;z-index:20;display:flex;flex-direction:column;visibility:hidden;transform:translateY(calc(100% + 80px))}
+.drawer.on{visibility:visible;transform:none;transition:transform .24s steps(6)}
+.drawer.closing{visibility:visible;transition:transform .2s steps(5)}
+#sheet{top:var(--sheet-top);bottom:calc(var(--save-h) + 4px);padding:14px 14px 12px}
+#sheet header{position:relative;display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:2px 4px 8px;flex:none}
+#sheet h2{margin:0;font-size:24px;line-height:26px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+#sheet .kick{font-size:13px;line-height:16px;color:var(--ink-2);margin-top:2px}
+#sheet .kick.done{color:var(--green)}
+#list{position:relative;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:10px;padding:0 0 4px;scrollbar-width:none}
+#list::-webkit-scrollbar{display:none}
+.sec{display:flex;justify-content:space-between;align-items:flex-end;padding:2px 6px 0;flex:none;margin-bottom:-6px}
+.srow{position:relative;flex:none;width:100%;height:var(--row-h);display:grid;grid-template-columns:40px 64px 1fr auto;align-items:center;column-gap:6px;padding:0 12px 0 10px;text-align:left}
+.srow.noico{grid-template-columns:40px 1fr auto}
+.srow .ico{width:64px;height:64px}
+.srow .mid{position:relative;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.srow .nm{font-size:17px;line-height:19px;font-weight:700;color:var(--ink);white-space:nowrap}
+.srow .info{font-size:13px;line-height:15px;color:var(--ink-2);white-space:nowrap}
+.srow .info.good{color:var(--green)}
+.srow .need{font-size:13px;line-height:15px;color:var(--rust);white-space:nowrap}
+.srow .need:empty{display:none}
+.srow .flag{color:var(--amber)}
+.srow .flag:empty{display:none}
+.srow .rt{position:relative;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.srow .rt .ptag{min-width:68px;padding:0 13px}
+.srow .gain{font-size:15px;line-height:17px;color:var(--ink)}
+.srow .verb{font-size:13px;line-height:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2)}
+.srow.can .verb{color:var(--green)}
+.srow.suggest .verb{color:var(--amber)}
+.srow.held .verb,.srow.held .flag{color:var(--green)}
+.srow .go{font-weight:700;font-size:15px;color:var(--amber);position:relative}
+.srow.info-row{cursor:default}
+.mats{display:flex;gap:8px;flex:none}
+.mat{position:relative;flex:1;height:48px;display:flex;align-items:center;gap:6px;padding:0 12px}
+.mat img{width:32px;height:32px;position:relative}
+.mat .n{font-size:20px;position:relative}
+.mat small{font-size:13px;color:var(--ink-2);position:relative}
+.log{position:relative;flex:none;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.log .e{position:relative;display:grid;grid-template-columns:44px 1fr;gap:8px;font-size:14px;line-height:17px;color:var(--ink)}
+.log time{color:var(--ink-2)}
+.log b{color:var(--amber);font-weight:700}
+.spare{position:relative;flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.spare.off{visibility:hidden}
+.spare .mk,.spare .st{position:relative;display:none}
+.spare .mk{width:192px;height:96px}
+.spare .st{width:192px;height:40px}
+.spare.tall .mk,.spare.mid .st,.spare.short .st{display:block}
+.spare.short canvas.sk{display:none}
+.foot{font-size:13px;line-height:16px;color:var(--ink-2);margin:2px 6px;flex:none}
+#sheet footer{flex:none;padding-top:10px}
+.platebtn{position:relative;width:100%;height:54px;display:flex;align-items:center;justify-content:center;color:var(--ink);font-size:16px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.platebtn span{position:relative}
+.platebtn.down span{top:2px}
+
+#savePanel{bottom:calc(var(--save-h) + 4px);padding:18px 18px 14px}
+#savePanel .top{display:flex;align-items:center;gap:6px;position:relative}
+#savePanel h3{margin:4px 0 4px;font-size:22px;line-height:24px;position:relative;color:var(--ink)}
+#savePanel p{margin:0 0 10px;font-size:14px;line-height:18px;color:var(--ink-2);position:relative}
+.facts{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;position:relative}
+.fact{display:flex;justify-content:space-between;font-size:14px;line-height:18px;color:var(--ink)}
+.fact .k{color:var(--ink-2)}
+.btnrow{display:flex;gap:10px;position:relative}
+.btnrow .platebtn{flex:1}
+#savePanel.trying #spRetry span{color:var(--ink-plate-2)}
+
+#scrim{position:absolute;inset:0;z-index:19;display:none}
+#scrim.on{display:block}
+#note{position:absolute;z-index:30;max-width:300px;padding:14px 16px;font-size:14px;line-height:18px;color:var(--ink);visibility:hidden;pointer-events:none}
+#note.on{visibility:visible}
+#note .h{display:block;position:relative;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--amber)}
+#note .b{position:relative;display:block}
+#note .q{position:relative;display:block;color:var(--ink-2)}
+
+#stage[data-mode="868"]{--bay-h:58px;--row-h:72px}
+#stage[data-mode="924"]{--bay-h:62px;--row-h:76px}
+@media (prefers-reduced-motion:reduce){.drawer.on,.drawer.closing{transition:none}.flip span.flipping{animation:none}}
+</style>
+</head>
+<body>
+<div id="fit">
+<div id="case">
+<div id="housing"><canvas class="sk" data-sk="frame"></canvas></div>
+<main id="stage" data-mode="868" aria-label="Mine control board">
+
+  <!-- relic plate -->
+  <section class="row" id="rRelics" aria-label="Relics of Fatherhood, 2 of 6 found">
+    <canvas class="sk" data-sk="frame"></canvas>
+    <div id="sockets"></div>
+    <div class="relicLegend lg" id="relicLegend"><canvas class="sk" data-sk="tag"></canvas><span>Relics of Fatherhood · 2 of 6</span></div>
+  </section>
+
+  <!-- stockpile -->
+  <section class="row" id="rStock">
+    <div class="odo" id="odo" role="img" aria-label="Stones 412.4K">
+      <img src="assets/art/ind-board/odometer.png" width="240" height="80" alt="">
+      <span class="drum num" style="left:26px;width:30px"></span>
+      <span class="drum num" style="left:64px;width:30px"></span>
+      <span class="drum num" style="left:104px;width:32px"></span>
+      <span class="drum num" style="left:144px;width:30px"></span>
+      <span class="drum num" style="left:184px;width:30px"></span>
+      <img class="dec" id="odoDec1" src="assets/art/ind-board/odo-dec-1.png" width="28" height="50" style="left:64px" alt="">
+      <img class="dec" id="odoDec2" src="assets/art/ind-board/odo-dec-2.png" width="30" height="50" style="left:104px" alt="">
+      <img class="dec" id="odoDec3" src="assets/art/ind-board/odo-dec-3.png" width="28" height="50" style="left:144px" alt="">
+      <img class="dot" id="odoDot" src="assets/art/ind-board/odo-dot.png" width="4" height="4" style="left:136px;top:52px" alt="">
+      <div class="odoLegend" id="odoLegend"><span class="lg engrave">Stones</span><span class="lg engrave spend num" id="spend"></span></div>
+    </div>
+    <div class="boost" id="boost" role="img" aria-label="Overtime boost">
+      <span class="txt engrave"><span class="lg">Overtime</span><span class="mul" id="bMul">×2</span><span class="left num" id="bLeft">7:09</span><span class="lg">left</span></span>
+      <i class="spr dial" id="dial" style="background-image:url(assets/art/ind-board/dial-boost-sheet.png)"></i>
+    </div>
+  </section>
+
+  <!-- output gauge, the mine window, crew -->
+  <section class="row" id="rGauge">
+    <div class="gauge" id="gauge" role="img" aria-label="Output gauge">
+      <i class="spr" id="gBig" style="background-image:url(assets/art/ind-board/gauge-output-sheet.png)">
+        <span class="sc" style="left:66px;top:139px">0</span>
+        <span class="sc" style="left:65px;top:65px">5</span>
+        <span class="sc" style="left:143px;top:65px">10</span>
+        <span class="sc" style="left:142px;top:139px">15</span>
+        <span class="sc" id="gUnit" style="left:104px;top:72px">×100</span>
+        <img class="gctr" src="assets/art/ind-board/gauge-counter.png" width="50" height="22" alt="">
+        <span class="read" id="gRead">974</span>
+        <span class="glg">Stones a sec</span>
+      </i>
+    </div>
+
+    <button id="win" aria-label="Dig: add stones by hand">
+      <span class="view" id="view">
+        <img src="assets/art/ind-board/mine-view.png" width="184" height="152" alt="">
+        <i class="spr" id="wSheave" style="background-image:url(assets/art/ind-board/anim/sheave-4f.png)"></i>
+        <i class="spr" id="wSteam" style="background-image:url(assets/art/ind-board/anim/steam-4f.png)"></i>
+        <i class="spr" id="wDrill" style="background-image:url(assets/art/ind-board/anim/drill-work-4f.png)"></i>
+        <img id="wTarp" src="assets/art/ind-board/borer-tarp.png" width="52" height="30" alt="">
+        <i class="spr" id="wBorer" style="background-image:url(assets/art/ind-board/anim/borer-cut-4f.png)"></i>
+        <i class="spr" id="wBDust" style="background-image:url(assets/art/ind-board/anim/dust-burst-4f.png)"></i>
+        <span id="wRun"><img id="wTub" src="assets/art/ind-board/tub-empty.png" width="28" height="24" alt=""><i class="spr" id="wMiner" style="background-image:url(assets/art/ind-board/anim/miner-18f.png)"></i><img id="wCage" src="assets/art/ind-board/cage.png" width="40" height="50" alt=""></span>
+        <i class="spr" id="wFill" style="background-image:url(assets/art/ind-board/anim/dust-burst-4f.png)"></i>
+        <i class="spr" id="wDust" style="background-image:url(assets/art/ind-board/anim/dust-burst-4f.png)"></i>
+        <span class="num" id="wPlus">+10</span>
+        <img class="glass" src="assets/art/ind-board/window-glass.png" width="184" height="152" alt="">
+      </span>
+      <img class="frame" src="assets/art/ind-board/window-frame.png" width="212" height="180" alt="">
+      <span class="wtag lg"><canvas class="sk" data-sk="tag"></canvas><span>No. 2 Shaft</span></span>
+    </button>
+
+    <div class="crew" id="crew" role="img" aria-label="Crew">
+      <canvas class="sk" data-sk="frame"></canvas>
+      <span class="lg cl engrave">Crew</span>
+      <span class="n num engrave" id="crewN">56</span>
+      <i class="spr lamp" id="freeLamp" style="background-image:url(assets/art/ind-board/lamp.png)"></i>
+      <span class="lg fr engrave" id="freeN">1 free</span>
+    </div>
+  </section>
+
+  <!-- machine bays -->
+  <section class="row" id="rBays">
+    <canvas class="sk" data-sk="frame"></canvas>
+    <div class="band lg" id="band"><canvas class="sk" data-sk="tag"></canvas><span>The Granite · Suits borers</span></div>
+    <button id="bayBtn" aria-label="Machine bays: open Buys">
+      <div class="bay" id="bayCart">
+        <i class="spr lamp" style="background-image:url(assets/art/ind-board/lamp.png)"></i>
+        <img class="ico" src="assets/art/ind-board/mach-cart.png" width="64" height="64" alt="">
+        <span class="tx engrave"><span class="nm">Mine carts</span><span class="sub"></span></span>
+        <span class="flip num"><img src="assets/art/ind-board/flip-counter.png" width="64" height="48" alt=""><span></span><span></span></span>
+        <span class="pcol"><span class="lg engrave">Next</span><span class="ptag num"><canvas class="sk" data-sk="tag"></canvas><span></span></span></span>
+      </div>
+      <div class="bay" id="bayDrill">
+        <i class="spr lamp" style="background-image:url(assets/art/ind-board/lamp.png)"></i>
+        <i class="spr ico" id="drillIco" style="background-image:url(assets/art/ind-board/drill-run.png);background-size:256px 64px"></i>
+        <span class="tx engrave"><span class="nm">Steam drills</span><span class="sub"></span></span>
+        <span class="flip num"><img src="assets/art/ind-board/flip-counter.png" width="64" height="48" alt=""><span></span><span></span></span>
+        <span class="pcol"><span class="lg engrave">Next</span><span class="ptag num"><canvas class="sk" data-sk="tag"></canvas><span></span></span></span>
+      </div>
+      <div class="bay" id="bayBorer">
+        <i class="spr lamp" style="background-image:url(assets/art/ind-board/lamp.png)"></i>
+        <img class="ico" id="borerIco" src="assets/art/ind-board/mach-borer-tarp.png" width="64" height="64" alt="">
+        <span class="tx engrave"><span class="nm">Tunnel borer</span><span class="sub"></span></span>
+        <span class="flip num"><img src="assets/art/ind-board/flip-counter.png" width="64" height="48" alt=""><span></span><span></span></span>
+        <span class="pcol"><span class="lg engrave">First</span><span class="ptag num"><canvas class="sk" data-sk="tag"></canvas><span></span></span></span>
+      </div>
+    </button>
+  </section>
+
+  <!-- ready now + dig -->
+  <section class="row" id="rReady">
+    <button id="ready" aria-live="polite">
+      <span class="kick lg engrave" id="rdKick">Ready now</span>
+      <i class="spr guard" id="guard" style="background-image:url(assets/art/ind-board/ready-guard.png)"></i>
+      <span class="plate"><img src="assets/art/ind-board/plate.png" width="208" height="64" alt=""><span class="pt"><span class="main" id="rdMain">Buy a cart · 204.8K</span><span class="why" id="rdWhy">+12/s · your free worker can run it</span></span></span>
+    </button>
+    <div class="dig" id="dig">
+      <button id="digBtn" aria-label="Dig: add stones by hand"><i class="spr" id="digSpr" style="background-image:url(assets/art/ind-board/dig-button.png)"></i></button>
+      <span class="lg engrave" id="digLg"><span id="digW">Dig</span> · <b id="digN">+10</b></span>
+    </div>
+  </section>
+
+  <!-- rail of keys -->
+  <nav class="row" id="rRail" aria-label="Actions">
+    <button class="key" style="left:16px" data-sheet="buys" id="kBuys"><i class="spr cap" style="background-image:url(assets/art/ind-board/key.png)"><img src="assets/art/ind-board/icon-buys.png" alt=""></i><span class="lg engrave">Buys</span></button>
+    <button class="key" style="left:96px" data-sheet="workshop" id="kShop"><i class="spr cap" style="background-image:url(assets/art/ind-board/key.png)"><img src="assets/art/ind-board/icon-workshop.png" alt=""></i><span class="lg engrave">Workshop</span></button>
+    <button class="key quiet" style="left:176px" data-sheet="engineers" id="kEng" data-off="1" aria-label="Engineers, locked until the first tunnel borer"><i class="spr cap" style="background-image:url(assets/art/ind-board/key.png);background-position:-128px 0"><img src="assets/art/ind-board/icon-engineers-dim.png" alt=""></i><span class="lg engrave">Engineers</span><span class="sub engrave">With 1st borer</span></button>
+    <button class="key" style="left:256px" data-sheet="upgrades" id="kUp"><i class="spr cap" style="background-image:url(assets/art/ind-board/key.png)"><img src="assets/art/ind-board/icon-upgrades.png" alt=""></i><span class="lg engrave">Upgrades</span></button>
+    <button class="key" style="left:336px" data-sheet="ledger" id="kLedger"><i class="spr cap" style="background-image:url(assets/art/ind-board/key.png)"><img src="assets/art/ind-board/icon-ledger.png" alt=""></i><span class="lg engrave">Ledger</span></button>
+  </nav>
+
+  <!-- save line: always visible -->
+  <div id="saveline" data-log="save.read · unreachable · tries 3">
+    <button id="saveBtn" aria-label="Save status: couldn't reach your save. Kept on this phone. Why?">
+      <canvas class="sk" data-sk="frame"></canvas>
+      <i class="spr lamp" id="saveLamp" style="background-image:url(assets/art/ind-board/lamp.png);background-position:-40px 0"></i>
+      <span class="t" id="saveText"><span class="w" id="saveWords">Couldn't reach your save</span><span class="safe" id="saveSafe"> · Kept on this phone ·</span></span>
+      <span class="why">Why?</span>
+    </button>
+  </div>
+
+  <!-- a tap on the board above an open drawer closes it -->
+  <div id="scrim" aria-hidden="true"></div>
+
+  <!-- drawer sheet -->
+  <section class="drawer" id="sheet" role="dialog" aria-labelledby="shTitle">
+    <canvas class="sk" data-sk="frame"></canvas>
+    <header><div style="position:relative"><h2 id="shTitle" class="engrave">Buys</h2><div class="kick" id="shKick"></div></div></header>
+    <div id="list"></div>
+    <footer><button class="platebtn" id="back"><canvas class="sk" data-sk="key" data-skp="keyp"></canvas><span>Back to the board</span></button></footer>
+  </section>
+
+  <!-- save explainer -->
+  <section class="drawer" id="savePanel" role="dialog" aria-labelledby="spTitle">
+    <canvas class="sk" data-sk="frame"></canvas>
+    <div class="top"><i class="spr lamp" style="background-image:url(assets/art/ind-board/lamp.png);background-position:-40px 0;margin:-6px 0 -6px -6px"></i><span class="lg" style="color:var(--amber)">Your save</span></div>
+    <h3 id="spTitle">Couldn't reach your save</h3>
+    <p>Every stone is kept on this phone and goes up when the cloud answers. Nothing is lost.</p>
+    <div class="facts">
+      <div class="fact"><span class="k">Account</span><span>Google</span></div>
+      <div class="fact"><span class="k">On this phone</span><span class="num" id="spPhone">412.4K</span></div>
+      <div class="fact"><span class="k">Last try</span><span class="num" id="spLast">22:13 · 3 tries</span></div>
+    </div>
+    <div class="btnrow"><button class="platebtn" id="spClose"><canvas class="sk" data-sk="key" data-skp="keyp"></canvas><span>Close</span></button><button class="platebtn" id="spRetry"><canvas class="sk" data-sk="key" data-skp="keyp"></canvas><span id="spRetryWords">Try again</span></button></div>
+  </section>
+
+  <div id="note"><canvas class="sk" data-sk="frame"></canvas><div id="noteBody" style="position:relative"></div></div>
+</main>
+</div>
+</div>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const stage = $("#stage");
+const ART = "assets/art/ind-board/";
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- 9-slice skins, composed at art size and shown at exactly 2x ---------- */
+const SK = {
+  frame: { src: "frame", l: 8, t: 9, r: 8, b: 8, col: 21, row: 23, rivetsH: [10, 6], rivetsV: [10, 6], pitch: 22, fill: [10, 11, 22, 24] },
+  tag:   { src: "tag",   l: 9, t: 3, r: 9, b: 3, col: 12, row: 5, fill: [9, 3, 8, 4] },
+  key:   { src: "key",   ox: 0,  l: 8, t: 8, r: 8, b: 8, col: 16, row: 16, fill: [8, 8, 16, 16] },
+  keyp:  { src: "key",   ox: 32, l: 8, t: 8, r: 8, b: 8, col: 16, row: 16, fill: [8, 8, 16, 16] },
+  inset: { src: "inset", l: 11, t: 11, r: 9, b: 9, col: 14, row: 16, fill: [14, 14, 4, 4] },
+};
+const IMG = {};
+function load(name){ return IMG[name] || (IMG[name] = new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = ART + name + ".png"; })); }
+const READY = {};
+function compose(kind, W, H){
+  const s = SK[kind], im = READY[s.src]; if (!im) return null;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const g = c.getContext("2d"); g.imageSmoothingEnabled = false;
+  const ox = s.ox || 0, sw = s.ox !== undefined ? 32 : im.width, sh = im.height, { l, t, r, b } = s;
+  const d = (sx, sy, w, h, dx, dy) => { if (w > 0 && h > 0) g.drawImage(im, sx + ox, sy, w, h, dx, dy, w, h); };
+  const [fx, fy, fw, fh] = s.fill;
+  for (let y = t; y < H - b; y += fh) for (let x = l; x < W - r; x += fw) d(fx, fy, Math.min(fw, W - r - x), Math.min(fh, H - b - y), x, y);
+  for (let x = l; x < W - r; x++){ d(s.col, 0, 1, t, x, 0); d(s.col, sh - b, 1, b, x, H - b); }
+  for (let y = t; y < H - b; y++){ d(0, s.row, l, 1, 0, y); d(sw - r, s.row, r, 1, W - r, y); }
+  if (s.rivetsH){
+    const [rx, rw] = s.rivetsH, span = W - l - r, n = Math.floor(span / s.pitch);
+    for (let i = 0; i < n; i++){ const x = l + Math.round((i + .5) * span / n - rw / 2); d(rx, 0, rw, t, x, 0); d(rx, sh - b, rw, b, x, H - b); }
+    const [ry, rh] = s.rivetsV, spanV = H - t - b, m = Math.floor(spanV / s.pitch);
+    for (let i = 0; i < m; i++){ const y = t + Math.round((i + .5) * spanV / m - rh / 2); d(0, ry, l, rh, 0, y); d(sw - r, ry, r, rh, W - r, y); }
+  }
+  d(0, 0, l, t, 0, 0); d(sw - r, 0, r, t, W - r, 0); d(0, sh - b, l, b, 0, H - b); d(sw - r, sh - b, r, b, W - r, H - b);
+  return c;
+}
+function paintSk(cv){
+  const host = cv.parentElement; if (!host || !host.offsetWidth) return;
+  const W = Math.max(18, Math.floor(host.offsetWidth / 2)), H = Math.max(cv.dataset.sk === "tag" ? 6 : 17, Math.floor(host.offsetHeight / 2));
+  const want = host.classList.contains("down") && cv.dataset.skp ? cv.dataset.skp : cv.dataset.sk;
+  if (cv.__kind !== want){ cv.__kind = want; cv.__ok = false; }
+  if (cv.width === W && cv.height === H && cv.__ok) return;
+  const art = compose(cv.__kind, W, H); if (!art) return;
+  host.classList.add("skh"); if (getComputedStyle(host).position === "static") host.style.position = "relative";
+  cv.width = W; cv.height = H; cv.style.width = W * 2 + "px"; cv.style.height = H * 2 + "px";
+  const g = cv.getContext("2d"); g.imageSmoothingEnabled = false; g.clearRect(0, 0, W, H); g.drawImage(art, 0, 0); cv.__ok = true;
+}
+const skinAll = (root = document) => root.querySelectorAll("canvas.sk").forEach(paintSk);
+
+const frameX = (el, i, fw) => { el.style.backgroundPosition = `${-i * fw}px 0`; };
+const LAMP = { off: 0, amber: 1, green: 2, red: 3 };
+const lamp = (el, k) => frameX(el, LAMP[k], 40);
+
+/* ---------- State: the player's real numbers ---------- */
+const S = {
+  stones: 412_400, base: 956, mul: 2,
+  boostLeft: 7 * 60 + 9, boostLen: 30 * 60,
+  workers: 56, free: 1, carts: 30, drills: 25, borers: 0,
+  tapLevel: 1, boots: false, picksLeft: 0,
+  mined: 10_840_000, iron: 14, clay: 6,
+  bench: null, saveTries: 3,
+};
+const STAFF = { cart: 1, drill: 1, borer: 8 };
+/* #363 curve: machines ×1.13 a unit, workers ×1.08 (src/tiers.ts tierCost) */
+const curve = (first, g, n) => Math.ceil(Number((first * g ** n).toPrecision(12)));
+const rate = () => S.base * S.mul;
+const tapPower = () => (1 + Math.floor(rate() * 0.01 * S.tapLevel)) * (S.picksLeft > 0 ? 2 : 1);
+const T0 = new Date(); T0.setHours(22, 14, 0, 0);
+const loadAt = performance.now();
+const nowDate = () => new Date(T0.getTime() + (performance.now() - loadAt));
+const hhmm = d => String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+const ago = min => new Date(T0.getTime() - min * 60000);
+const trim = s => s.replace(/\.0(?=[KM]|$)/, "");
+function short(n){
+  n = Math.max(0, Math.floor(n));
+  if (n < 10_000) return n.toLocaleString("en-US");
+  if (n < 1_000_000) return trim((Math.floor(n / 100) / 10).toFixed(1) + "K");
+  return trim((Math.floor(n / 100_000) / 10).toFixed(1) + "M");
+}
+function up(n){
+  n = Math.ceil(n);
+  if (n < 10_000) return n.toLocaleString("en-US");
+  if (n < 1_000_000) return trim((Math.ceil(n / 100) / 10).toFixed(1) + "K");
+  return trim((Math.ceil(n / 100_000) / 10).toFixed(1) + "M");
+}
+const clock = s => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+function eta(sec){
+  sec = Math.ceil(Math.max(1, sec));
+  if (sec < 60) return sec + "s";
+  const h = Math.floor(sec / 3600), m = Math.ceil((sec % 3600) / 60);
+  return h ? h + "h " + Math.min(59, m) + "m" : m + "m";
+}
+
+/* ---------- Buys, upgrades, workshop (same rules as the game) ---------- */
+const BUY = {
+  worker: { key: "worker", group: "Crew", name: "Worker", one: "worker", icon: "mach-worker", verb: "Hire",
+    cost: () => curve(20, 1.08, S.workers), gain: () => 1 * S.mul,
+    info: () => `${S.workers} hired · ${S.free} free`,
+    buy(){ S.workers++; S.free++; S.base += 1; return { text: `Worker ${S.workers} is on the crew` }; } },
+  cart: { key: "cart", group: "Machines", name: "Mine cart", one: "cart", icon: "mach-cart", verb: "Buy", staff: STAFF.cart,
+    cost: () => curve(150, 1.13, S.carts), gain: () => 6 * S.mul,
+    info: () => [`${S.carts} running · 1 worker each`, `${S.carts} running · 1 worker`],
+    buy(){ S.carts++; S.free--; S.base += 6; return { text: `Cart ${S.carts} is rolling`, bay: "bayCart" }; } },
+  drill: { key: "drill", group: "Machines", name: "Steam drill", one: "drill", icon: "mach-drill", verb: "Buy", staff: STAFF.drill,
+    cost: () => curve(21_000, 1.13, S.drills), gain: () => Math.round(28.8 * S.mul),
+    info: () => [`${S.drills} running · tough in the Granite`, `${S.drills} running · tough here`, `${S.drills} running`],
+    buy(){ S.drills++; S.free -= 1; S.base += 28.8; return { text: `Drill ${S.drills} is drilling`, bay: "bayDrill" }; } },
+  borer: { key: "borer", group: "Machines", name: "Tunnel borer", one: "borer", icon: "mach-borer-tarp", verb: "Buy", staff: STAFF.borer,
+    cost: () => curve(4_940_000, 1.13, S.borers), gain: () => Math.round(392.7 * S.mul),
+    info: () => `Suits the Granite`, good: true,
+    buy(){ S.borers++; S.free -= 8; S.base += 392.7; return { text: `Borer ${S.borers} is boring in`, bay: "bayBorer" }; } },
+};
+const BUYS = [BUY.worker, BUY.cart, BUY.drill, BUY.borer];
+const MACHINES = [BUY.borer, BUY.drill, BUY.cart];
+const UPGRADES = [
+  { key: "picks", group: "Quick boosts", name: "Sharper picks", verb: "Buy",
+    cost: () => 1_200, gainText: () => "Taps ×2", info: () => S.picksLeft > 0 ? `${clock(S.picksLeft)} left` : "For 10 minutes",
+    buy(){ S.picksLeft = 600; return { text: "Sharper picks are on" }; } },
+  { key: "overtime", group: "Quick boosts", name: "Overtime", verb: "Refresh",
+    cost: () => Math.ceil(S.base * 180), gainText: () => "to 30:00", info: () => S.boostLeft > 0 ? `Crew ×2 · ${clock(S.boostLeft)} left` : "Crew ×2 for 30 min",
+    buy(){ S.mul = 2; S.boostLeft = S.boostLen; return { text: "Overtime runs to 30:00" }; } },
+  { key: "arms", group: "Lasting", name: "Strong arms", verb: "Buy",
+    cost: () => 40_000 * 5 ** S.tapLevel, gainText: () => "+" + short(Math.floor(rate() * .01 * (S.tapLevel + 1)) - Math.floor(rate() * .01 * S.tapLevel)) + "/tap",
+    info: () => `Level ${S.tapLevel} to ${S.tapLevel + 1} · grows with crew`,
+    buy(){ S.tapLevel++; return { text: `Strong arms, level ${S.tapLevel}` }; } },
+  { key: "boots", group: "Lasting", name: "Better boots", verb: "Buy", once: () => S.boots,
+    cost: () => 650_000, gainText: () => "+" + Math.round(S.workers * 1.36 * S.mul) + "/s", info: () => "Every worker, every band",
+    buy(){ S.boots = true; S.base += S.workers * 1.36; return { text: "Better boots for the crew" }; } },
+];
+const WORKSHOP = [
+  { key: "grease", group: "Recipes", name: "Axle grease", verb: "Craft", bench: 600,
+    cost: () => 0, mats: { iron: 1 }, priceText: "1 iron", gainText: () => "×2 · 20m", info: () => "Crew ×2 for 20 min",
+    buy(){ return { text: "Axle grease is on the bench" }; } },
+  { key: "reinforce", group: "Recipes", name: "Reinforce", verb: "Craft", bench: 600,
+    cost: () => 0, mats: { iron: 5 }, priceText: "5 iron", gainText: () => "+5%", info: () => "Borers · level 0 of 5",
+    buy(){ return { text: "Reinforce is on the bench" }; } },
+  { key: "props", group: "Recipes", name: "Sturdy props", verb: "Craft", bench: 600,
+    cost: () => 250_000, mats: { iron: 4, clay: 10 }, gainText: () => "Safer", info: () => "Plus 4 iron and 10 clay",
+    buy(){ return { text: "Sturdy props are on the bench" }; } },
+];
+function status(def){
+  if (def.once && def.once()) return { done: true, ready: false, needs: [] };
+  const c = def.cost();
+  const needs = [];
+  if (c > S.stones) needs.push(up(c - S.stones) + " more");
+  if (def.mats){
+    if ((def.mats.iron || 0) > S.iron) needs.push((def.mats.iron - S.iron) + " more iron");
+    if ((def.mats.clay || 0) > S.clay) needs.push((def.mats.clay - S.clay) + " more clay");
+  }
+  if (def.staff && S.free < def.staff){ const n = def.staff - S.free; needs.push(n + " more worker" + (n > 1 ? "s" : "")); }
+  if (def.bench && S.bench) needs.push("a free bench");
+  return { ready: needs.length === 0, needs, c };
+}
+/* "Needs 28.5M more and 2 more workers", then "Needs 28.5M more · 2 workers", then the first need */
+const needText = needs => ["Needs " + needs.join(" and "), "Needs " + needs.map((n, i) => i ? n.replace(" more", "") : n).join(" · "), "Needs " + needs[0]];
+const gainOf = def => def.gainText ? def.gainText() : "+" + short(def.gain()) + "/s";
+
+/* The Ready now rule (the human's ruling):
+   - the biggest machine your free workers can run and you can afford;
+   - a free worker waits but nothing is affordable yet: save for the cheapest machine he can run, with a real ETA;
+   - a worker only when no hand is free;
+   - it never buys by itself. */
+function suggest(){
+  for (const m of MACHINES){
+    if (S.free >= m.staff && S.stones >= m.cost()) return { def: m, ready: true, why: S.free === 1 ? ["your free worker can run it", "free worker can run it", "free hand"] : [`${S.free} free workers can run it`, `${S.free} free can run it`] };
+  }
+  if (S.free > 0){
+    const runnable = MACHINES.filter(m => S.free >= m.staff).sort((a, b) => a.cost() - b.cost());
+    if (runnable.length) return { def: runnable[0], ready: false, why: S.free === 1 ? "your free worker waits" : `${S.free} free workers wait` };
+  }
+  const w = BUY.worker;
+  if (S.stones >= w.cost()) return { def: w, ready: true, why: ["every hand is busy", "every hand busy"] };
+  return { def: w, ready: false, why: "every hand is busy" };
+}
+
+/* ---------- Relics ---------- */
+const RELICS = [
+  { id: "lantern", name: "Lantern of Guidance", virtue: "Guide", found: true, note: "It lights the way to the next one." },
+  { id: "shield", name: "Shield of Protection", virtue: "Protect", found: true, note: "Time away is kept, however long." },
+  { id: "hammer", name: "Hammer of the Builder", found: false, next: true, note: "Far below." },
+  { id: "heart", found: false, note: "Somewhere in the deep." },
+  { id: "crown", found: false, note: "Somewhere in the deep." },
+  { id: "mantle", found: false, note: "At the very bottom." },
+];
+const HINT = "Under the granite, something glitters.";
+function buildRelics(){
+  const box = $("#sockets"); box.innerHTML = "";
+  RELICS.forEach((r, i) => {
+    const b = document.createElement("button");
+    b.className = "relic"; b.style.left = (15 + i * 66) + "px";
+    b.setAttribute("aria-label", (r.found ? r.name + ", found" : r.next ? "Next relic: " + r.name + ". " + r.note : "A relic, " + r.note) + ". 2 of 6 found");
+    const inner = r.found ? `<img class="rl" src="${ART}relic-${r.id}.png" alt="">` : r.next ? `<img class="rl" src="${ART}relic-${r.id}-dark.png" alt="">` : "";
+    b.innerHTML = `<img class="sock" src="${ART}relic-socket.png" alt="">${inner}`;
+    b.addEventListener("click", () => {
+      if (r.found) showNote(b, `<span class="h">${r.name}</span><span class="b">${r.virtue}. ${r.note}</span><span class="q">Relics of Fatherhood · 2 of 6 found</span>`);
+      else if (r.next) showNote(b, `<span class="h">Next relic</span><span class="b">${r.name}. ${r.note}</span><span class="q">${HINT}</span>`);
+      else showNote(b, `<span class="h">A relic</span><span class="b">${r.note}</span><span class="q">2 of 6 found</span>`);
+    });
+    box.appendChild(b);
+  });
+}
+
+/* ---------- Odometer: five drums that roll on hard steps ---------- */
+const drums = [...document.querySelectorAll(".odo .drum")];
+drums.forEach(d => { d.innerHTML = "<span></span>"; });
+function odoChars(n){
+  n = Math.max(0, Math.floor(n));
+  if (n < 100_000) return { ch: String(n).padStart(5, "0").split(""), dot: -1 };
+  let v, unit;
+  if (n < 1_000_000){ v = n / 1000; unit = "K"; }
+  else if (n < 1e9){ v = n / 1e6; unit = "M"; }
+  else { v = n / 1e9; unit = "B"; }
+  const ip = Math.floor(v), il = String(ip).length, dec = 4 - il;
+  const digits = (Math.floor(v * 10 ** dec) / 10 ** dec).toFixed(dec).replace(".", "").slice(0, 4).split("");
+  return { ch: [...digits, unit], dot: il - 1 };
+}
+const DOT_X = [56, 96, 136, 176];
+let odoShown = null;
+function paintOdo(force){
+  const { ch, dot } = odoChars(S.stones);
+  const dEl = $("#odoDot");
+  if (dot < 0) dEl.style.display = "none"; else { dEl.style.display = "block"; dEl.style.left = DOT_X[dot] + "px"; }
+  /* the drums after the point are the decimal drums: muted red faces, cream figures */
+  [1, 2, 3].forEach(i => {
+    const on = dot >= 0 && i > dot;
+    $("#odoDec" + i).style.display = on ? "block" : "none";
+    drums[i].classList.toggle("dec-on", on);
+  });
+  drums.forEach((d, i) => {
+    const cur = d.lastElementChild;
+    if (cur.textContent === ch[i]) return;
+    if (force || reduce || !odoShown){ cur.textContent = ch[i]; return; }
+    if (d.__rolling) { cur.textContent = ch[i]; return; }
+    const nx = document.createElement("span"); nx.textContent = ch[i]; nx.style.top = "48px"; d.appendChild(nx);
+    d.__rolling = true;
+    const kf = [{ transform: "translateY(0)" }, { transform: "translateY(-48px)" }];
+    const o = { duration: 160, easing: "steps(4)", fill: "forwards" };
+    cur.animate(kf, o); nx.animate(kf, o).onfinish = () => { cur.remove(); nx.getAnimations().forEach(a => a.cancel()); nx.style.top = "0px"; d.__rolling = false; };
+  });
+  odoShown = true;
+  $("#odo").setAttribute("aria-label", "Stones " + short(S.stones));
+}
+
+/* ---------- Flap counters ---------- */
+function setFlip(el, n, animate){
+  const [a, b] = el.querySelectorAll("span");
+  const s = String(Math.max(0, n)).padStart(2, " ").slice(-2);
+  [[a, s[0]], [b, s[1]]].forEach(([e, c]) => {
+    c = c === " " ? "" : c;
+    if (e.textContent === c) return;
+    e.textContent = c;
+    if (animate && !reduce){ e.classList.remove("flipping"); void e.offsetWidth; e.classList.add("flipping"); }
+  });
+}
+
+/* ---------- Output gauge: a damped needle on 5-degree frames ---------- */
+const G = { ang: -135, vel: 0, frame: -1, k: 0 };
+/* The dial reads 0 to 15 of a unit. The unit steps up (×100, ×1000, ×10K ...) whenever the
+   output outgrows the dial, so the needle never pegs at a rate the board can reach. Display only. */
+const FULL = 1500;
+const rangeK = () => { let k = 0; while (rate() > FULL * 10 ** k) k++; return k; };
+const targetAng = () => -135 + 270 * Math.min(1, rate() / (FULL * 10 ** G.k));
+const unitText = k => { const u = 100 * 10 ** k; return "×" + (u >= 10_000 ? short(u) : String(u)); };
+function gaugeFmt(n){
+  n = Math.max(0, Math.floor(n));
+  if (n < 1000) return String(n);
+  if (n < 10_000) return trim((Math.floor(n / 100) / 10).toFixed(1)) + "K";
+  if (n < 1_000_000) return Math.floor(n / 1000) + "K";
+  return trim((Math.floor(n / 100_000) / 10).toFixed(1)) + "M";
+}
+function paintGauge(dt){
+  const k = 46, c = 8.2;
+  const a = k * (targetAng() - G.ang) - c * G.vel;
+  G.vel += a * dt; G.ang += G.vel * dt;
+  if (G.ang > 138){ G.ang = 138; G.vel = -Math.abs(G.vel) * .3; }
+  if (G.ang < -135){ G.ang = -135; G.vel = 0; }
+  const f = Math.max(0, Math.min(54, Math.round((G.ang + 135) / 5)));
+  if (f !== G.frame){
+    G.frame = f;
+    const col = f % 11, row = Math.floor(f / 11);
+    $("#gBig").style.backgroundPosition = `${-col * 208}px ${-row * 208}px`;
+  }
+}
+function kickNeedle(v){ G.vel += v; }
+
+/* ---------- The window down No. 2 shaft ----------
+   Every layer moves on hard steps in whole art pixels (2 CSS px).
+   Coordinates below are art px inside the 92x76 view. */
+const V = {
+  sheave: $("#wSheave"), steam: $("#wSteam"), drill: $("#wDrill"), tarp: $("#wTarp"), borer: $("#wBorer"),
+  bdust: $("#wBDust"), tub: $("#wTub"), miner: $("#wMiner"), cage: $("#wCage"), fill: $("#wFill"), dust: $("#wDust"), plus: $("#wPlus"),
+};
+/* The haulage run. A miner pushes a tub out to the face, walks round behind it while it is filled,
+   pushes it back, tips it at the cage and walks round again. All in whole art px, on hard steps.
+   Miner frames: 0-3 push east, 4-7 walk east, 8-11 push west, 12-15 walk west, 16 and 17 three-quarter
+   turns (lamp east, lamp west) for the turnarounds and for standing by the cage (12x21 art px).
+   Tub: 14x12 empty, 14x15 heaped. Both stand on the rail at row 47; the run box starts at row 28.
+   The hoist cage (20x25) stands at the landing, its deck under the rail at rows 48-49; the tub rides it. */
+const TUB_E = ART + "tub-empty.png", TUB_F = ART + "tub-full.png";
+const RUN = { top: 28, floor: 47, cage: 14, face: 58, mw: 12, mh: 21, tw: 14, cageX: 11, cageY: 25, cageOff: 22 };
+const W = {
+  sheave: { f: 0, acc: 0, fast: 0 },
+  steam: { f: 0, acc: 0 },
+  drill: { seq: 0, acc: 0, strokes: 6, rest: 0 },
+  borer: { f: 0, acc: 0, dustIn: 3.4, dust: -1, dacc: 0 },
+  tub: { ph: "out", x: 14, y: 8, full: false, f: 0, acc: 0, t: 0, mx: 3, face: "E", walk: false },
+  nw: false,         // a new cart is on its way: the next full tub goes up the cage and the new one comes down
+  fill: null,
+  tarp: null,        // the tarp coming off the first borer
+  dust: null, plus: null,
+};
+const px = n => n * 2 + "px";
+const tubTop = full => RUN.floor - (full ? 15 : 12) + 1 - RUN.top;
+function paintRun(){
+  const t = W.tub;
+  const src = t.full ? TUB_F : TUB_E;
+  if (V.tub.__src !== src){ V.tub.__src = src; V.tub.src = src; V.tub.width = 28; V.tub.height = t.full ? 30 : 24; V.tub.style.height = (t.full ? 30 : 24) + "px"; }
+  V.tub.style.left = px(t.x); V.tub.style.top = px(t.y);
+  const fi = t.pose != null ? t.pose : (t.face === "E" ? 0 : 8) + (t.walk ? 4 : 0) + t.f;
+  V.miner.style.left = px(t.mx); V.miner.style.top = px(RUN.floor - RUN.mh + 1 - RUN.top);
+  frameX(V.miner, fi, 24);
+  V.miner.classList.toggle("behind", t.walk);
+  const dy = t.hoist ? t.hoist.dy : 0;     // the cage rides up and down with the tub
+  V.cage.style.left = px(RUN.cageX); V.cage.style.top = px(RUN.cageY - RUN.top + dy);
+}
+/* his hands (art x 8..9 of the frame, outline at 10) rest on the tub's end */
+const pushX = (t) => t.face === "E" ? t.x - 10 : t.x + RUN.tw - 2;
+function fillPuff(x, y){ W.fill = { f: 0, acc: 0 }; V.fill.style.left = px(x); V.fill.style.top = px(y); V.fill.style.display = "block"; frameX(V.fill, 0, 32); }
+function tubTick(dt){
+  const t = W.tub;
+  t.acc += dt; t.t += dt;
+  const go = (ph) => { t.ph = ph; t.t = 0; t.acc = 0; t.f = 0; };
+  if (t.ph === "out" || t.ph === "back"){
+    const dir = t.ph === "out" ? 1 : -1, end = t.ph === "out" ? RUN.face : RUN.cage;
+    t.walk = false; t.face = dir > 0 ? "E" : "W";
+    while (t.acc >= .2 && (t.ph === "out" || t.ph === "back")){
+      t.acc -= .2; t.x += dir; t.f = (t.f + 1) % 4;
+      if (t.x === end){ t.f = 0; go(t.ph === "out" ? "face" : "cage"); }
+    }
+    t.mx = pushX(t);
+  } else if (t.ph === "face"){
+    // he steps back, walks round behind the tub while it is loaded at the face, turns and takes hold again
+    if (!t.round){ t.round = { from: pushX(t), to: t.x + RUN.tw - 2, dir: 1 }; }
+    roundTick(t, dt, () => { t.full = true; fillPuff(t.x + 8, 29); }, () => { t.face = "W"; t.round = null; go("back"); });
+  } else if (t.ph === "cage"){
+    if ((W.nw && !t.round) || t.hoist){ hoistTick(t, dt); return paintRun(); }
+    if (!t.round){ t.round = { from: pushX(t), to: t.x - 10, dir: -1 }; }
+    roundTick(t, dt, () => { t.full = false; fillPuff(t.x - 4, 30); }, () => { t.face = "E"; t.round = null; go("out"); });
+  } else if (t.ph === "cage2"){
+    roundTick(t, dt, () => {}, () => { t.face = "E"; t.round = null; go("out"); });
+  }
+  t.y = tubTop(t.full);
+  paintRun();
+}
+/* a turnaround: a short pause, a walk round behind the tub (the load changes when he is behind it),
+   a beat facing the new way. 0.1 s a step. */
+function roundTick(t, dt, mid, done){
+  const r = t.round;
+  if (r.stage === undefined){ r.stage = 0; r.acc = 0; r.mx = r.from; r.f = 0; r.midDone = false; }
+  r.acc += dt;
+  if (r.stage === 0){ t.walk = false; t.f = 0; t.mx = r.from; if (r.acc >= .35){ r.stage = 1; r.acc = 0; t.pose = null; } return; }
+  if (r.stage === 1){
+    t.walk = true; t.face = r.dir > 0 ? "E" : "W";
+    while (r.acc >= .1 && r.stage === 1){
+      r.acc -= .1; r.mx += r.dir; r.f = (r.f + 1) % 4;
+      const mid0 = r.from + (r.to - r.from) / 2;
+      if (!r.midDone && (r.dir > 0 ? r.mx >= mid0 : r.mx <= mid0)){ r.midDone = true; mid(); }
+      if (r.mx === r.to){ r.stage = 3; r.acc = 0; r.f = 0; }
+    }
+    t.mx = r.mx; t.f = r.f;
+    if (r.stage === 3){ t.walk = false; t.pose = r.dir > 0 ? 16 : 17; }   // the step that arrives is the first turn frame
+    return;
+  }
+  // stage 3: he turns through two three-quarter frames, 0.1 s each, towards the tub
+  if (r.stage === 3){
+    t.walk = false; t.mx = r.to;
+    const seq = r.dir > 0 ? [16, 17] : [17, 16];
+    if (r.acc < .2){ t.pose = seq[r.acc < .1 ? 0 : 1]; return; }
+    r.stage = 2; r.acc = 0; t.pose = null;
+  }
+  // stage 2: he has turned to face the tub and takes hold
+  t.walk = false; t.face = r.dir > 0 ? "W" : "E"; t.f = 0; t.mx = r.to; t.pose = null;
+  if (r.acc >= .35) done();
+}
+/* the handover for a new cart: the full tub goes up the cage behind the deck beam, the new empty one
+   comes down in its place, and the miner walks round to take it out. */
+function hoistTick(t, dt){
+  // he lets go and stands back a pixel, three-quarter to the cage, hands down, while it winds
+  if (!t.hoist){ t.hoist = { stage: 0, acc: 0, dy: 0 }; t.walk = false; t.f = 0; t.mx = pushX(t) + 1; t.pose = 17; }
+  const h = t.hoist; h.acc += dt;
+  if (h.stage === 0){ if (h.acc >= .4){ h.stage = 1; h.acc = 0; W.sheave.fast = Math.max(W.sheave.fast, 3); } return; }
+  if (h.stage === 1){   // the cage goes up with the full tub until its deck is behind the deck beam
+    while (h.acc >= .07 && h.stage === 1){ h.acc -= .07; t.y--; h.dy--; if (h.dy <= -RUN.cageOff){ h.stage = 2; h.acc = 0; t.full = false; } }
+    return;
+  }
+  if (h.stage === 2){ if (h.acc >= .5){ h.stage = 3; h.acc = 0; h.dy = -RUN.cageOff; t.y = tubTop(false) - RUN.cageOff; } return; }
+  if (h.stage === 3){   // it comes back down with the new empty tub
+    while (h.acc >= .07 && h.stage === 3){ h.acc -= .07; t.y++; h.dy++; if (h.dy >= 0){ h.dy = 0; t.y = tubTop(false); h.stage = 4; h.acc = 0; W.nw = false; } }
+    return;
+  }
+  // stage 4: settled; he walks round it as at every cage visit, without a tip
+  t.hoist = null; t.round = { from: t.mx, to: t.x - 10, dir: -1 };   // still standing (pose 17) until he sets off
+  t.ph = "cage2";
+}
+function drillTick(dt){
+  const d = W.drill;
+  V.drill.style.display = S.drills > 0 ? "" : "none";
+  if (S.drills < 1) return;
+  if (d.rest > 0){ d.rest -= dt; frameX(V.drill, 0, 46); if (d.rest <= 0){ d.rest = 0; d.acc = 0; d.seq = 0; } return; }
+  d.acc += dt;
+  while (d.acc >= .14){
+    d.acc -= .14; d.seq++;
+    if (d.seq >= d.strokes * 4){ d.rest = 2; d.strokes = 6; d.seq = 0; frameX(V.drill, 0, 46); return; }
+  }
+  frameX(V.drill, [0, 1, 2, 1][d.seq % 4], 46);
+}
+function borerTick(dt){
+  const b = W.borer;
+  if (W.tarp){ tarpTick(dt); return; }
+  if (S.borers < 1) return;
+  b.acc += dt;
+  while (b.acc >= .16){ b.acc -= .16; b.f = (b.f + 1) % 4; }
+  frameX(V.borer, b.f, 56);
+  // now and then a little dust off the left face
+  if (b.dust < 0){ b.dustIn -= dt; if (b.dustIn <= 0){ b.dust = 0; b.dacc = 0; V.bdust.style.display = "block"; frameX(V.bdust, 0, 32); } }
+  else {
+    b.dacc += dt;
+    while (b.dacc >= .09 && b.dust >= 0){ b.dacc -= .09; b.dust++; if (b.dust > 3){ b.dust = -1; b.dustIn = 3 + Math.random(); V.bdust.style.display = "none"; } else frameX(V.bdust, b.dust, 32); }
+  }
+}
+/* the tarp lifts two pixels, then is dragged off to the left a pixel at a time */
+function tarpTick(dt){
+  const p = W.tarp;
+  p.acc += dt;
+  while (p.acc >= p.per && W.tarp){
+    p.acc -= p.per; p.step++;
+    if (p.step <= 2){ p.y = 55 - p.step; p.per = .12; }
+    else { p.x--; p.per = .06; }
+    V.tarp.style.left = px(p.x); V.tarp.style.top = px(p.y);
+    if (p.x <= -27){ W.tarp = null; V.tarp.style.display = "none"; }
+  }
+}
+function paintMachines(){
+  const bought = S.borers > 0;
+  V.borer.style.display = bought ? "block" : "none";
+  if (!W.tarp){ V.tarp.style.display = bought ? "none" : "block"; V.tarp.style.left = px(7); V.tarp.style.top = px(55); }
+  if (!bought) V.bdust.style.display = "none";
+  V.drill.style.display = S.drills > 0 ? "" : "none";
+}
+/* one calm beat in the window when a machine arrives */
+function windowBeat(key, firstBorer){
+  if (reduce){ paintMachines(); return; }
+  if (key === "cart"){
+    W.sheave.fast = 1.6;
+    W.nw = true;     // the handover happens at the tub's next visit to the cage
+  } else if (key === "drill"){
+    W.drill.rest = 0; W.drill.seq = 0; W.drill.acc = 0; W.drill.strokes = 9;
+    puff(69, 53, false);
+  } else if (key === "borer"){
+    if (firstBorer){
+      V.borer.style.display = "block"; frameX(V.borer, 0, 56);
+      W.tarp = { x: 7, y: 55, step: 0, acc: 0, per: .3 };
+      V.tarp.style.display = "block";
+    }
+  }
+}
+/* dig feedback inside the window: a dust puff and the stones it gave */
+function puff(xArt, yArt, withPlus, n){
+  W.dust = { f: 0, acc: 0 };
+  V.dust.style.left = px(xArt); V.dust.style.top = px(yArt); V.dust.style.display = "block"; frameX(V.dust, reduce ? 1 : 0, 32);
+  if (withPlus){
+    V.plus.textContent = "+" + short(n);
+    W.plus = { x: xArt, y: yArt - 2, step: 0, acc: 0 };
+    V.plus.style.display = "block";
+    const w = Math.ceil(V.plus.offsetWidth / 2);
+    W.plus.x = Math.max(1, Math.min(91 - w, xArt + 8 - Math.round(w / 2)));
+    W.plus.y = Math.max(1, Math.min(67, yArt - 2));
+    V.plus.style.left = px(W.plus.x); V.plus.style.top = px(W.plus.y);
+  }
+}
+function fxTick(dt){
+  if (W.dust){
+    const d = W.dust; d.acc += dt;
+    const per = reduce ? .24 : .07;
+    while (d.acc >= per && W.dust){ d.acc -= per; d.f++; if (d.f > 3 || reduce){ W.dust = null; V.dust.style.display = "none"; } else frameX(V.dust, d.f, 32); }
+  }
+  if (W.fill){
+    const d = W.fill; d.acc += dt;
+    while (d.acc >= .09 && W.fill){ d.acc -= .09; d.f++; if (d.f > 3){ W.fill = null; V.fill.style.display = "none"; } else frameX(V.fill, d.f, 32); }
+  }
+  if (W.plus){
+    const p = W.plus; p.acc += dt;
+    const per = reduce ? .7 : .07;
+    while (p.acc >= per && W.plus){
+      p.acc -= per; p.step++;
+      if (reduce || p.step > 12){ W.plus = null; V.plus.style.display = "none"; break; }
+      V.plus.style.top = px(p.y - p.step);
+    }
+  }
+}
+function windowTick(dt){
+  const sh = W.sheave;
+  sh.acc += dt * (sh.fast > 0 ? 3 : 1);
+  if (sh.fast > 0) sh.fast = Math.max(0, sh.fast - dt);
+  while (sh.acc >= .2){ sh.acc -= .2; sh.f = (sh.f + 1) % 4; }
+  frameX(V.sheave, sh.f, 38);
+  const st = W.steam; st.acc += dt;
+  while (st.acc >= .32){ st.acc -= .32; st.f = (st.f + 1) % 4; }
+  frameX(V.steam, st.f, 22);
+  tubTick(dt); drillTick(dt); borerTick(dt);
+}
+function windowRest(){
+  frameX(V.sheave, 0, 38); frameX(V.steam, 0, 22); frameX(V.drill, 0, 46); frameX(V.borer, 0, 56);
+  const t = W.tub; t.ph = "out"; t.x = RUN.cage; t.full = false; t.y = tubTop(false); t.face = "E"; t.walk = false; t.f = 0; t.pose = null; t.mx = pushX(t);
+  paintRun();
+}
+
+/* ---------- Bay drill icon ---------- */
+let drillF = 0, drillAcc = 0;
+function stepDrill(dt){
+  if (S.drills < 1) return;
+  drillAcc += dt; if (drillAcc < .18) return; drillAcc = 0;
+  drillF = (drillF + 1) % 4; frameX($("#drillIco"), drillF, 64);
+}
+
+/* ---------- Board paint ---------- */
+function fitText(el, opts){
+  opts = [].concat(opts).filter(Boolean);
+  for (const t of opts){ el.textContent = t; if (el.scrollWidth <= el.clientWidth + 1) return; }
+}
+/* Icons are anchored by their visible pixels so neighbours never touch:
+   cart art fills rows 6-64 of its 64px box, drill 4-60, tarp 8-56, borer 12-52. */
+function placeBayIcons(){
+  const h = mode === "924" ? 62 : 58, slack = 3 * h - (58 + 56 + 48);
+  const m = Math.floor(slack / 8) * 2, gi = Math.floor((slack - 2 * m) / 4) * 2;
+  const cartTop = m, drillTop = cartTop + 58 + gi, tarpTop = drillTop + 56 + gi;
+  $("#bayCart .ico").style.top = (cartTop - 6) + "px";
+  $("#drillIco").style.top = (drillTop - h - 4) + "px";
+  const bTop = S.borers ? tarpTop + 4 - 12 : tarpTop - 8;
+  $("#borerIco").style.top = (bTop - 2 * h) + "px";
+  const mid = (h - 40) / 2, lt = Math.round(mid / 2) * 2;
+  document.querySelectorAll(".bay .lamp").forEach(l => l.style.top = lt + "px");
+  const ft = Math.round((h - 48) / 4) * 2;
+  document.querySelectorAll(".bay .flip").forEach(f => f.style.top = ft + "px");
+  document.querySelectorAll(".bay .pcol").forEach(f => f.style.top = (ft + 0) + "px");
+  document.querySelectorAll(".bay .tx").forEach(f => f.style.top = (ft + 4) + "px");
+}
+function paintBays(animate){
+  const rows = [["bayCart", BUY.cart, S.carts], ["bayDrill", BUY.drill, S.drills], ["bayBorer", BUY.borer, S.borers]];
+  rows.forEach(([id, def, n]) => {
+    const el = document.getElementById(id);
+    setFlip(el.querySelector(".flip"), n, animate);
+    const pt = el.querySelector(".ptag span"), price = short(def.cost());
+    if (pt.textContent !== price){ pt.textContent = price; }
+  });
+  const sub = document.querySelectorAll(".bay .sub");
+  [BUY.cart, BUY.drill, BUY.borer].forEach((d, i) => {
+    const g = `+${short(d.gain())}/s`, h = `${d.staff} hand${d.staff > 1 ? "s" : ""}`;
+    sub[i].dataset.fit = `${g} · ${h} each|${g} · ${h}|${g}`;
+  });
+  /* all three bays use the same wording: the longest pattern that fits every one of them */
+  const key = [...sub].map(s => s.dataset.fit).join("#");
+  if (sub[0].__fit !== key){
+    sub[0].__fit = key;
+    const opts = [...sub].map(s => s.dataset.fit.split("|"));
+    for (let i = 0; i < opts[0].length; i++){
+      sub.forEach((s, j) => { s.textContent = opts[j][i]; });
+      if ([...sub].every(s => s.scrollWidth <= s.clientWidth + 1)) break;
+    }
+  }
+  $("#borerIco").src = ART + (S.borers ? "mach-borer.png" : "mach-borer-tarp.png");
+  document.querySelector("#bayBorer .pcol .lg").textContent = S.borers ? "Next" : "First";
+  paintBayLamps();
+  if (mode) placeBayIcons();
+}
+/* Bay lamps mean what the lamps in Buys mean: amber is the Ready now machine,
+   green is one you can buy now, dark is not yet. */
+function paintBayLamps(){
+  const sg = suggest();
+  [["bayCart", BUY.cart], ["bayDrill", BUY.drill], ["bayBorer", BUY.borer]].forEach(([id, def]) => {
+    const st = status(def), k = sg.ready && sg.def === def ? "amber" : st.ready ? "green" : "off";
+    const l = document.querySelector(`#${id} .lamp`);
+    if (l.__k !== k){ l.__k = k; lamp(l, k); }
+  });
+}
+/* Engineers: locked until the first tunnel borer arrives, then lit. */
+function paintEng(){
+  const k = $("#kEng"), on = S.borers > 0;
+  if (!!k.dataset.off === !on && k.__done) return;
+  k.__done = true;
+  if (on) delete k.dataset.off; else k.dataset.off = "1";
+  k.classList.toggle("quiet", !on);
+  k.querySelector(".cap img").src = ART + (on ? "icon-engineers.png" : "icon-engineers-dim.png");
+  if (!k.classList.contains("down")) frameX(k.querySelector(".cap"), on ? 0 : 2, 64);
+  k.querySelector(".sub").style.display = on ? "none" : "";
+  k.setAttribute("aria-label", on ? "Engineers" : "Engineers, locked until the first tunnel borer");
+}
+function paintCrew(){
+  $("#crewN").textContent = S.workers;
+  $("#freeN").textContent = S.free + " free";
+  lamp($("#freeLamp"), S.free > 0 ? "amber" : "off");
+  $("#crew").classList.toggle("none", S.free < 1);
+  $("#crew").setAttribute("aria-label", `Crew: ${S.workers} workers, ${S.free} free`);
+}
+let lastDialF = -1;
+function paintBoost(){
+  const m = S.boostLeft > 0 ? Math.min(30, Math.floor(S.boostLeft / 60)) : 0;
+  if (m !== lastDialF){ lastDialF = m; frameX($("#dial"), m, 88); }
+  if (S.boostLeft > 0){ $("#bMul").textContent = "×" + S.mul; $("#bLeft").textContent = clock(S.boostLeft); }
+  else { $("#bMul").textContent = "×1"; $("#bLeft").textContent = "rested"; }
+  $("#boost").setAttribute("aria-label", S.boostLeft > 0 ? `Overtime: crew ×${S.mul}, ${clock(S.boostLeft)} left of 30:00` : "Overtime is over");
+}
+let odoAt = 0, odoNow = false;
+function paintHud(){
+  const t = performance.now();
+  if (odoNow || t - odoAt >= 1000){ odoAt = t; odoNow = false; paintOdo(); }
+  const k = rangeK();
+  if (k !== G.k){ G.k = k; $("#gUnit").textContent = unitText(k); }
+  const r = gaugeFmt(rate());
+  if ($("#gRead").textContent !== r) $("#gRead").textContent = r;
+  $("#gauge").setAttribute("aria-label", `Output: ${Math.floor(rate()).toLocaleString("en-US")} stones a second`);
+  if (!tally) $("#digN").textContent = "+" + short(tapPower());
+  const upLit = UPGRADES.some(u => status(u).ready);
+  const ku = $("#kUp .cap"); if (!ku.parentElement.classList.contains("down")) frameX(ku, upLit ? 3 : 0, 64);
+  $("#spPhone").textContent = short(S.stones);
+}
+
+/* ---------- Ready now: a guarded lamp button and its name plate ---------- */
+const ready = $("#ready");
+let rdHold = false, rdKey = null;
+const GUARD = { lit: 0, dim: 1, pressed: 2, done: 3, off: 4 };
+const guard = k => frameX($("#guard"), GUARD[k], 80);
+function rdContent(sg){
+  const d = sg.def, cost = short(d.cost()), gain = "+" + short(d.gain()) + "/s";
+  if (sg.ready){
+    const verb = d.key === "worker" ? "Hire a worker" : "Buy a " + d.one;
+    return { kick: "Ready now", main: [`${verb} · ${cost}`, verb], why: [].concat(sg.why).map(w => `${gain} · ${w}`).concat([gain]) };
+  }
+  const e = eta((d.cost() - S.stones) / rate());
+  return { kick: "Saving for", main: [`Saving for a ${d.one} · in ${e}`, `For a ${d.one} · in ${e}`], why: [`${cost} · ${gain} · tap for Buys`, `${cost} · ${gain} · Buys`, `${cost} · ${gain}`] };
+}
+function paintReady(force){
+  if (rdHold) return;
+  const sg = suggest(), c = rdContent(sg);
+  const key = sg.def.key + (sg.ready ? ":r" : ":s");
+  ready.classList.toggle("saving", !sg.ready);
+  ready.classList.remove("done");
+  if (key !== rdKey || force){ rdKey = key; guard(sg.ready ? "lit" : "dim"); }
+  $("#rdKick").textContent = c.kick;
+  fitText($("#rdMain"), c.main); fitText($("#rdWhy"), c.why);
+  ready.setAttribute("aria-label", sg.ready ? `Ready now: ${c.main[0]}, ${c.why[0]}` : `${c.main[0]}. ${c.why[0]}. Opens Buys`);
+}
+ready.addEventListener("pointerdown", () => { if (!rdHold && suggest().ready) guard("pressed"); });
+ready.addEventListener("click", () => {
+  if (rdHold) return;
+  const sg = suggest();
+  if (!sg.ready){ openSheet("buys"); return; }
+  const st = status(sg.def);
+  if (!st.ready){ paintReady(true); return; }
+  rdHold = true;                       // lock first: a second sleepy tap buys nothing
+  const r = spend(sg.def, st);
+  guard("done");
+  ready.classList.add("done"); ready.classList.remove("saving");
+  $("#rdKick").textContent = "Done";
+  $("#rdMain").textContent = r.gain ? "Done · " + r.gain : "Done";
+  fitText($("#rdWhy"), [r.text]);
+  ready.setAttribute("aria-label", `Done. ${r.text}${r.gain ? ", " + r.gain : ""}`);
+  setTimeout(() => { rdHold = false; paintReady(true); }, 1900);
+});
+
+/* ---------- Spending ---------- */
+let spendT;
+function spendMark(text){
+  const lg = $("#odoLegend"); $("#spend").textContent = text;
+  lg.classList.add("spending"); clearTimeout(spendT); spendT = setTimeout(() => lg.classList.remove("spending"), 1900);
+}
+function spend(def, st){
+  S.stones -= st.c || 0; odoNow = true;
+  if (def.mats){ S.iron -= def.mats.iron || 0; S.clay -= def.mats.clay || 0; }
+  const gain = def.gain ? "+" + short(def.gain()) + "/s" : null;
+  const firstBorer = def.key === "borer" && S.borers === 0;
+  const res = def.buy();
+  if (def.bench) S.bench = { name: def.name, left: def.bench };
+  spendMark("−" + (st.c ? short(st.c) : def.priceText));
+  logEvent(gain ? `${res.text}. <b>${gain}</b>` : res.text + ".");
+  paintBays(true); paintCrew(); paintHud(); paintBoost(); paintEng();
+  if (def.gain){ kickNeedle(120); windowBeat(def.key, firstBorer); }
+  if (!W.tarp) paintMachines();
+  return { text: res.text, gain, def };
+}
+
+/* ---------- Digging: the red button, or a tap on the window ---------- */
+const digBtn = $("#digBtn"), digSpr = $("#digSpr");
+let digT, digT2, digHitT, tally = 0, handTotal = 0;
+digBtn.addEventListener("pointerdown", () => { clearTimeout(digT); clearTimeout(digT2); frameX(digSpr, 1, 112); });
+function dig(n){
+  S.stones += n; S.mined += n; handTotal += n;
+  kickNeedle(150);
+  const d = $("#dig"); d.classList.add("hit");
+  tally += n; $("#digW").textContent = "By hand"; $("#digN").textContent = "+" + short(tally);
+  clearTimeout(digHitT); digHitT = setTimeout(() => { d.classList.remove("hit"); tally = 0; $("#digW").textContent = "Dig"; $("#digN").textContent = "+" + short(tapPower()); }, 1500);
+  paintHud();
+}
+digBtn.addEventListener("click", () => {
+  const n = tapPower(); dig(n);
+  frameX(digSpr, 2, 112); clearTimeout(digT); digT = setTimeout(() => frameX(digSpr, 0, 112), 70);
+  puff(67, 30, true, n);           // the same puff at the upper face
+});
+addEventListener("pointerup", () => { if (!digT) frameX(digSpr, 0, 112); });
+addEventListener("pointercancel", () => frameX(digSpr, 0, 112));
+
+/* the window: a tap anywhere digs, the puff comes up where the finger was */
+const win = $("#win"), view = $("#view");
+let winPt = null;
+win.addEventListener("pointerdown", e => {
+  const r = view.getBoundingClientRect(), s = r.width / 184;
+  winPt = { x: (e.clientX - r.left) / s / 2, y: (e.clientY - r.top) / s / 2 };
+});
+win.addEventListener("click", () => {
+  if (current || sp.classList.contains("on")){ closeSheet(); closeSave(); winPt = null; return; }   // the scrim catches this; belt and braces
+  const n = tapPower(); dig(n);
+  let x = 67, y = 30;
+  if (winPt){ x = Math.round(winPt.x) - 8; y = Math.round(winPt.y) - 8; }
+  x = Math.max(-2, Math.min(78, x)); y = Math.max(-2, Math.min(62, y));
+  winPt = null;
+  puff(x, y, true, n);
+  // the red button runs its press frames with it, so both dig paths look the same
+  clearTimeout(digT); clearTimeout(digT2);
+  frameX(digSpr, 1, 112);
+  digT = setTimeout(() => { frameX(digSpr, 2, 112); digT2 = setTimeout(() => { frameX(digSpr, 0, 112); digT = 0; }, 60); }, 80);
+});
+
+/* ---------- Keys ---------- */
+document.querySelectorAll(".key").forEach(k => {
+  const cap = k.querySelector(".cap");
+  const base = () => k.dataset.off ? 2 : (k.id === "kUp" && UPGRADES.some(u => status(u).ready) ? 3 : 0);
+  k.addEventListener("pointerdown", () => { k.classList.add("down"); frameX(cap, 1, 64); });
+  const upk = () => { if (!k.classList.contains("down")) return; k.classList.remove("down"); frameX(cap, base(), 64); };
+  ["pointerup", "pointerleave", "pointercancel"].forEach(t => k.addEventListener(t, upk));
+  k.addEventListener("click", () => { upk(); current === k.dataset.sheet ? closeSheet() : openSheet(k.dataset.sheet); });
+});
+document.querySelectorAll(".platebtn").forEach(b => {
+  const sk = () => b.querySelectorAll("canvas.sk").forEach(paintSk);
+  b.addEventListener("pointerdown", () => { b.classList.add("down"); sk(); });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(t => b.addEventListener(t, () => { if (b.classList.contains("down")){ b.classList.remove("down"); sk(); } }));
+});
+
+/* ---------- Notes ---------- */
+const note = $("#note");
+let noteT;
+function showNote(anchor, html, ms = 3400){
+  $("#noteBody").innerHTML = html;
+  note.style.left = "0px"; note.style.top = "0px"; note.classList.add("on");
+  const sr = stage.getBoundingClientRect(), r = anchor.getBoundingClientRect(), k = sr.width / 424;
+  const nw = note.offsetWidth, nh = note.offsetHeight, SH = stage.offsetHeight;
+  const ax = (r.left - sr.left) / k, aw = r.width / k, at = (r.top - sr.top) / k, ab = (r.bottom - sr.top) / k;
+  const x = Math.max(8, Math.min(424 - nw - 8, ax + aw / 2 - nw / 2));
+  let y = ab + 6;
+  if (y + nh > SH - 60) y = at - nh - 6;
+  note.style.left = Math.round(x / 2) * 2 + "px"; note.style.top = Math.round(Math.max(6, y) / 2) * 2 + "px";
+  note.querySelectorAll("canvas.sk").forEach(c => { c.__ok = false; paintSk(c); });
+  clearTimeout(noteT); noteT = setTimeout(() => note.classList.remove("on"), ms);
+}
+document.addEventListener("pointerdown", e => { if (!e.target.closest("#note") && !e.target.closest(".relic")) note.classList.remove("on"); });
+$("#bayBtn").addEventListener("click", () => openSheet("buys"));
+
+/* ---------- Ledger ---------- */
+const LOG = [
+  { t: ago(1), line: "Couldn't reach your save. Every stone is kept on this phone." },
+  { t: ago(7), line: "Hired worker 56. One hand is free." },
+  { t: ago(23), line: "Overtime started. Crew <b>×2</b> for 30:00." },
+  { t: ago(26), line: "Came back. The crew dug <b>1.2M</b> while you slept." },
+];
+let freshLog = false;
+function logEvent(line){ LOG.unshift({ t: nowDate(), line }); freshLog = true; if (current === "ledger") renderLog(); }
+function renderLog(){
+  const box = $("#logBox"); if (!box) return;
+  [...box.children].forEach(c => { if (!c.classList.contains("sk")) c.remove(); });
+  box.insertAdjacentHTML("beforeend", LOG.slice(0, 4).map((e, i) => `<div class="e${i === 0 && freshLog ? " fresh" : ""}"><time class="num">${hhmm(e.t)}</time><span>${e.line}</span></div>`).join(""));
+  freshLog = false;
+}
+
+/* ---------- Sheets ---------- */
+const SHEETS = {
+  buys: { title: "Buys", kick: "Crew and machines that mine while you rest", rows: BUYS },
+  upgrades: { title: "Upgrades", kick: "Boosts for tonight, gear for good", rows: UPGRADES },
+  workshop: { title: "Workshop", kick: "One bench. Crafts finish while you are away", rows: WORKSHOP, mats: true },
+  engineers: { title: "Engineers", kick: () => S.borers > 0 ? "Your best hands, by the borers" : "Locked. Here is why", engineers: true },
+  ledger: { title: "Ledger", kick: "Tonight, and the mine so far", ledger: true },
+};
+let current = null;
+const list = $("#list"), sheet = $("#sheet");
+const kickOf = sh => typeof sh.kick === "function" ? sh.kick() : sh.kick;
+const lampHTML = (k = "off") => `<i class="spr lamp" style="background-image:url(${ART}lamp.png);background-position:${-LAMP[k] * 40}px 0"></i>`;
+function rowHTML(def, i){
+  const ico = def.icon ? `<img class="ico" src="${ART}${def.icon}.png" width="64" height="64" alt="">` : "";
+  return `<button class="srow${def.icon ? "" : " noico"}" data-i="${i}"><canvas class="sk" data-sk="frame"></canvas>${lampHTML()}${ico}
+    <span class="mid"><span class="nm">${def.name}</span><span class="info"></span><span class="need"></span><span class="flag lg"></span></span>
+    <span class="rt"><span class="gain num"></span><span class="ptag num"><canvas class="sk" data-sk="tag"></canvas><span class="p"></span></span><span class="verb"></span></span></button>`;
+}
+const secHTML = (name, col) => `<div class="sec"><span class="lg engrave">${name}</span>${col ? `<span class="lg engrave">${col}</span>` : ""}</div>`;
+function openSheet(key){
+  closeSave(true);
+  note.classList.remove("on");
+  current = key;
+  const sh = SHEETS[key];
+  $("#shTitle").textContent = sh.title;
+  const k = $("#shKick"); k.textContent = kickOf(sh); k.classList.remove("done");
+  let html = "";
+  if (sh.mats) html += `<div class="mats"><div class="mat"><canvas class="sk" data-sk="frame"></canvas><img src="${ART}res-iron.png" alt=""><span class="n num" id="mIron">${S.iron}</span><small>iron</small></div><div class="mat"><canvas class="sk" data-sk="frame"></canvas><img src="${ART}res-clay.png" alt=""><span class="n num" id="mClay">${S.clay}</span><small>clay</small></div></div>`;
+  if (sh.rows){
+    let g = null;
+    sh.rows.forEach((def, i) => {
+      if (def.group !== g){ g = def.group; html += secHTML(g, g === sh.rows[0].group ? (key === "buys" ? "per sec" : "gain") : ""); }
+      html += rowHTML(def, i);
+    });
+  }
+  if (key === "buys") html += `<p class="foot">Ready now offers the biggest machine your free workers can run and you can afford. It saves for the next one when nothing is affordable, offers a worker only when no hand is free, and never buys for you.</p>`;
+  if (sh.engineers && S.borers > 0){
+    html += secHTML("On the crew");
+    html += `<div class="srow info-row noico"><canvas class="sk" data-sk="frame"></canvas>${lampHTML("green")}<span class="mid"><span class="nm">Your first engineer is on the crew</span><span class="info" style="white-space:normal">Your best worker stepped up when the first tunnel borer arrived.</span></span><span></span></div>`;
+    html += secHTML("Later");
+    html += `<div class="srow info-row noico"><canvas class="sk" data-sk="frame"></canvas>${lampHTML("off")}<span class="mid"><span class="nm">Side tunnels</span><span class="info" style="white-space:normal">Engineers find them. What waits there stays a mystery.</span></span><span></span></div>`;
+  } else if (sh.engineers){
+    const b = BUY.borer, st = status(b);
+    html += secHTML("Why it is locked");
+    html += `<div class="srow info-row noico"><canvas class="sk" data-sk="frame"></canvas>${lampHTML("off")}<span class="mid"><span class="nm">No engineer yet</span><span class="info" style="white-space:normal">Your best worker steps up when the first tunnel borer arrives.</span></span><span></span></div>`;
+    html += `<button class="srow" id="toBorer"><canvas class="sk" data-sk="frame"></canvas>${lampHTML(st.ready ? "green" : "off")}<img class="ico" src="${ART}mach-borer-tarp.png" width="64" height="64" alt=""><span class="mid"><span class="nm">See the borer in Buys</span><span class="need" id="engNeed"></span><span class="info">${short(b.cost())} · 8 workers</span></span><span class="go">Open</span></button>`;
+    html += secHTML("Later");
+    html += `<div class="srow info-row noico"><canvas class="sk" data-sk="frame"></canvas>${lampHTML("off")}<span class="mid"><span class="nm">Side tunnels</span><span class="info" style="white-space:normal">Engineers find them. What waits there stays a mystery.</span></span><span></span></div>`;
+  }
+  if (sh.ledger){
+    html += secHTML("Tonight");
+    html += `<div class="log" id="logBox"><canvas class="sk" data-sk="frame"></canvas></div>`;
+    html += secHTML("The mine");
+    html += `<div class="srow info-row"><canvas class="sk" data-sk="frame"></canvas>${lampHTML("amber")}<img class="ico" src="${ART}relic-hammer-dark.png" width="48" height="48" style="width:48px;height:48px;justify-self:center" alt=""><span class="mid"><span class="nm">2 of 6 relics found</span><span class="info">Next · Hammer of the Builder · far below</span><span class="info">${HINT}</span></span><span></span></div>`;
+    html += `<button class="srow noico" id="ledgerSave"><canvas class="sk" data-sk="frame"></canvas>${lampHTML("amber")}<span class="mid"><span class="nm">Couldn't reach your save</span><span class="info">Kept on this phone · Google</span></span><span class="go">Why?</span></button>`;
+  }
+  /* what a short sheet leaves free is a recessed backplate, screwed at the corners, with the maker's plate on it */
+  html += `<div class="spare" aria-hidden="true"><canvas class="sk" data-sk="inset"></canvas><img class="mk" src="${ART}makers-plate-l.png" width="192" height="96" alt=""><img class="st" src="${ART}makers-strip.png" width="192" height="40" alt=""></div>`;
+  list.innerHTML = html;
+  if (sh.rows) list.querySelectorAll(".srow[data-i]").forEach(b => b.addEventListener("click", () => tryBuy(sh.rows[+b.dataset.i], b)));
+  if (sh.ledger){ renderLog(); $("#ledgerSave").addEventListener("click", openSave); }
+  if (sh.engineers && $("#toBorer")){ $("#toBorer").addEventListener("click", () => openSheet("buys")); const st = status(BUY.borer); requestAnimationFrame(() => fitText($("#engNeed"), st.ready ? [""] : needText(st.needs))); }
+  list.scrollTop = 0;
+  sheet.classList.remove("closing"); sheet.classList.add("on");
+  paintScrim();
+  /* tall: the backplate and the big maker's plate; mid: the backplate and the strip; short: the strip on its own */
+  const spare = () => {
+    const sp = list.querySelector(".spare"); if (!sp) return;
+    const h = sp.offsetHeight, tier = h >= 144 ? "tall" : h >= 84 ? "mid" : h >= 48 ? "short" : "off";
+    if (sp.dataset.tier === tier) return;
+    sp.dataset.tier = tier; ["tall", "mid", "short", "off"].forEach(c => sp.classList.toggle(c, c === tier));
+    sp.querySelectorAll("canvas.sk").forEach(c => { c.__ok = false; paintSk(c); });
+  };
+  requestAnimationFrame(() => { skinAll(sheet); paintRows(); spare(); });
+  skinAll(sheet); paintRows(); spare();
+}
+function closeSheet(){
+  if (!current) return;
+  current = null;
+  sheet.classList.add("closing"); sheet.classList.remove("on");
+  setTimeout(() => sheet.classList.remove("closing"), 260);
+  paintScrim();
+  paintReady(true);
+}
+const scrim = $("#scrim");
+function paintScrim(){ scrim.classList.toggle("on", !!current || sp.classList.contains("on")); }
+/* a tap on the scrim closes the drawer; over a relic socket it also shows that relic's note */
+scrim.addEventListener("click", e => {
+  const under = [...document.querySelectorAll(".relic")].find(b => { const r = b.getBoundingClientRect(); return e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom; });
+  closeSheet(); closeSave();
+  if (under) under.click();
+});
+$("#back").addEventListener("click", closeSheet);
+document.addEventListener("keydown", e => { if (e.key === "Escape"){ closeSheet(); closeSave(); } });
+function paintRows(){
+  if (!current) return;
+  const sh = SHEETS[current];
+  if (sh.mats){ const mi = $("#mIron"), mc = $("#mClay"); if (mi){ mi.textContent = S.iron; mc.textContent = S.clay; } }
+  if (!sh.rows) return;
+  const sg = current === "buys" ? suggest() : null;
+  sh.rows.forEach((def, i) => {
+    const b = list.querySelector(`.srow[data-i="${i}"]`);
+    if (!b || b.__flash) return;
+    if (held(def)){
+      fitText(b.querySelector(".info"), [].concat(def.info()));   // the count stays true while the row rests
+      b.querySelector(".gain").textContent = gainOf(def);
+      if (!b.classList.contains("held")){
+        b.classList.add("held"); b.classList.remove("can", "suggest");
+        b.querySelector(".verb").textContent = "Done"; b.querySelector(".flag").textContent = "Done";
+        b.querySelector(".need").textContent = ""; lamp(b.querySelector(".lamp"), "green");
+        b.setAttribute("aria-label", `${def.name}. Done`);
+      }
+      return;
+    }
+    b.classList.remove("held");
+    const st = status(def);
+    const info = b.querySelector(".info"), need = b.querySelector(".need"), flag = b.querySelector(".flag");
+    fitText(info, [].concat(def.info())); info.classList.toggle("good", !!def.good);
+    b.querySelector(".gain").textContent = gainOf(def);
+    const p = b.querySelector(".p"), v = b.querySelector(".verb");
+    const isS = !!(sg && sg.def === def);
+    if (st.done){ p.textContent = "Owned"; v.textContent = ""; need.textContent = ""; flag.textContent = ""; b.classList.remove("can", "suggest"); lamp(b.querySelector(".lamp"), "off"); return; }
+    p.textContent = def.priceText && def.key !== "props" ? def.priceText : short(st.c);
+    v.textContent = st.ready ? def.verb : (def.staff ? def.staff + (def.staff > 1 ? " workers" : " worker") : def.verb);
+    if (st.ready) need.textContent = ""; else fitText(need, needText(st.needs));
+    flag.textContent = isS ? (sg.ready ? "Ready now" : "Saving for") : "";
+    b.classList.toggle("can", st.ready);
+    b.classList.toggle("suggest", isS);
+    lamp(b.querySelector(".lamp"), isS && sg.ready ? "amber" : st.ready ? "green" : "off");
+    b.setAttribute("aria-label", `${def.name}. ${gainOf(def)}. ${st.ready ? def.verb + " for " + p.textContent : "Needs " + st.needs.join(" and ")}`);
+  });
+  sheet.querySelectorAll(".ptag canvas.sk").forEach(paintSk);
+}
+/* a buy on a sheet row locks that row for 1.9 s, so a sleepy double tap buys exactly one */
+const HOLD = {};
+const held = def => (HOLD[def.key] || 0) > performance.now();
+let doneT;
+function sheetDone(text){
+  const k = $("#shKick"); k.innerHTML = text; k.classList.add("done");
+  clearTimeout(doneT); doneT = setTimeout(() => { if (current){ k.textContent = kickOf(SHEETS[current]); k.classList.remove("done"); } }, 2200);
+}
+function tryBuy(def, b){
+  if (b.__flash || held(def)) return;
+  const st = status(def);
+  const lp = b.querySelector(".lamp");
+  if (!st.ready){
+    if (reduce){ return; }
+    b.__flash = true; let n = 0;
+    const tick = () => { lamp(lp, n % 2 ? "off" : "red"); if (++n < 4) setTimeout(tick, 140); else { b.__flash = false; paintRows(); } };
+    tick(); return;
+  }
+  HOLD[def.key] = performance.now() + 1900;          // lock first
+  const r = spend(def, st);
+  sheetDone(r.gain ? `${r.text} · <b style="color:var(--green)">${r.gain}</b>` : r.text);
+  paintRows();
+  setTimeout(paintRows, 1950);
+}
+
+/* ---------- Save line and its explainer ---------- */
+const sp = $("#savePanel");
+let lastTry = ago(1);
+function openSave(){
+  if (current) closeSheet();
+  note.classList.remove("on");
+  $("#spLast").textContent = `${hhmm(lastTry)} · ${S.saveTries} tries`;
+  sp.classList.remove("closing"); sp.classList.add("on");
+  paintScrim();
+  skinAll(sp); requestAnimationFrame(() => skinAll(sp));
+}
+function closeSave(){
+  if (!sp.classList.contains("on")) return;
+  sp.classList.add("closing"); sp.classList.remove("on");
+  paintScrim();
+  setTimeout(() => sp.classList.remove("closing"), 220);
+}
+function retrySave(){
+  if (sp.classList.contains("trying")) return;
+  const sl = $("#saveline");
+  sp.classList.add("trying"); sl.classList.add("trying");
+  $("#spRetryWords").textContent = "Trying";
+  $("#saveWords").textContent = "Trying your save";
+  setTimeout(() => {
+    S.saveTries++; lastTry = nowDate();
+    sp.classList.remove("trying"); sl.classList.remove("trying");
+    $("#spRetryWords").textContent = "Try again";
+    $("#saveWords").textContent = "Couldn't reach your save";
+    $("#spLast").textContent = `${hhmm(lastTry)} · ${S.saveTries} tries`;
+    sl.dataset.log = `save.read · unreachable · tries ${S.saveTries}`;
+    logEvent("Tried the save again. No answer yet; kept on this phone.");
+  }, 1600);
+}
+$("#saveBtn").addEventListener("click", () => (sp.classList.contains("on") ? closeSave() : openSave()));
+$("#spRetry").addEventListener("click", retrySave);
+$("#spClose").addEventListener("click", () => closeSave());
+
+/* ---------- Layout: one board, two heights, scaled to fit everything else ----------
+   868 is the installed PWA (status and gesture bars kept), 924 the full screen.
+   Between the two, the extra height goes evenly into the six gaps, in whole 2px steps.
+   Narrower or shorter screens scale the whole board; it never rearranges. */
+const LAY = {
+  "868": { relic: 6, stock: 76, gauge: 162, bays: 412, ready: 610, keys: 726, bayH: 58 },
+  "924": { relic: 6, stock: 86, gauge: 176, bays: 430, ready: 644, keys: 768, bayH: 62 },
+};
+const ROWS = [["relic", "#rRelics"], ["stock", "#rStock"], ["gauge", "#rGauge"], ["bays", "#rBays"], ["ready", "#rReady"], ["keys", "#rRail"]];
+let mode = null, scale = 1, Hd = 868;
+function layout(){
+  const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+  const desk = vw >= 700;
+  document.body.classList.toggle("desk", desk);
+  /* the desk: one dim pool of lamplight under the housing, the desk tile aligned to it */
+  if (desk){
+    const ox = Math.round((vw / 2 - 340) / 2) * 2, oy = Math.round((vh / 2 - 480) / 2) * 2;
+    document.body.style.background = `url(${ART}desk-pool.png) ${ox}px ${oy}px/680px 960px no-repeat, #0a0c0e url(${ART}desk.png) ${ox}px ${oy}px/256px 192px repeat`;
+  } else document.body.style.background = "";
+  const pad = desk ? 8 : 0;   // the housing's 8px lip, no more: keeps every target >= 48 at 1280x800
+  const aw = vw - 2 * pad, ah = vh - 2 * pad;
+  let s = Math.min(1, aw / 424), h;
+  const room = ah / s;
+  if (room >= 868){ h = Math.min(924, Math.floor(room / 2) * 2); }
+  else { h = 868; s = Math.min(s, ah / 868); }
+  Hd = h; scale = s;
+  const m = h >= 924 ? "924" : "868";
+  if (m !== mode){ mode = m; stage.dataset.mode = m; document.querySelectorAll(".bay .sub").forEach(x => x.__fit = null); }
+  const L = LAY[m], q = (h - (m === "924" ? 924 : 868)) / 2;
+  ROWS.forEach(([k, sel], i) => { $(sel).style.top = (L[k] + 2 * Math.floor(q * i / 6)) + "px"; });
+  $("#rBays").style.height = (3 * L.bayH + 20) + "px";
+  $("#bayBtn").style.height = (3 * L.bayH) + "px";
+  $("#saveline").style.top = (h - 56) + "px";
+  stage.style.height = h + "px";
+  $("#case").style.height = h + "px";
+  $("#housing").style.height = (h + 16) + "px";
+  const cw = 424 * s, ch = h * s;
+  const c = $("#case");
+  c.style.left = Math.round((vw - cw) / 2) + "px"; c.style.top = Math.round((vh - ch) / 2) + "px";
+  c.style.transform = s < 1 ? `scale(${s})` : "none";
+  stage.style.setProperty("--sheet-top", (parseInt($("#rStock").style.top) + 92) + "px");
+  document.querySelectorAll("canvas.sk").forEach(cv => cv.__ok = false);
+  skinAll();
+  paintBays(false); paintReady(true);
+  fitText($("#saveSafe"), [" · Kept on this phone ·", " · On this phone ·", " ·"]);
+}
+
+/* ---------- Loop ---------- */
+let last = performance.now(), acc = 0, slow = 0, paused = false;
+function frame(t){
+  const dt = Math.min(.1, Math.max(0, (t - last) / 1000)); last = t;
+  if (paused){ requestAnimationFrame(frame); return; }
+  S.stones += rate() * dt; S.mined += rate() * dt;
+  acc += dt; slow += dt;
+  if (acc >= 1){
+    acc -= 1;
+    if (S.boostLeft > 0){ S.boostLeft--; if (S.boostLeft === 0) S.mul = 1; }
+    if (S.picksLeft > 0) S.picksLeft--;
+    if (S.bench){ S.bench.left--; if (S.bench.left <= 0) S.bench = null; }
+    paintBoost();
+  }
+  if (slow >= .25){ slow = 0; paintRows(); paintReady(); paintHud(); paintBayLamps(); }
+  if (!reduce){ paintGauge(dt); windowTick(dt); stepDrill(dt); }
+  fxTick(dt);
+  requestAnimationFrame(frame);
+}
+addEventListener("resize", layout);
+buildRelics();
+Promise.all(Object.values(SK).map(s => load(s.src).then(im => { READY[s.src] = im; }))).then(() => { layout(); skinAll(); });
+layout(); paintOdo(true); paintCrew(); paintBoost(); paintHud(); paintReady(true); paintGauge(0);
+windowRest(); paintMachines(); paintEng();
+if (reduce){ const f = Math.round((targetAng() + 135) / 5); G.frame = -1; G.ang = -135 + f * 5; G.vel = 0; paintGauge(0); }
+requestAnimationFrame(t => { last = t; frame(t); });
+document.fonts && document.fonts.ready.then(() => layout());
+window.__S = S;
+window.__mock = {
+  S, suggest, gauge: G, window: W,
+  get handTotal(){ return handTotal; }, tapPower,
+  get layout(){ return { mode, scale, Hd }; },
+  hold(on){ paused = !!on; },   // test hook: freeze the board (for paired screenshots)
+  setStones(n){ S.stones = n; odoNow = true; paintHud(); paintReady(true); paintRows(); },
+};
+})();
+</script>
+</body>
+</html>
