@@ -42,13 +42,16 @@ import {
   createProgressStore,
 } from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
-import { buyTier } from "./tiers";
+import { buyTier, tierById, tierCost } from "./tiers";
 import { buyUpgrade } from "./upgrades";
 import { recipesForMined, startCraft } from "./workshop";
 import { mineVein } from "./veins";
 import { promote, station } from "./engineers";
 import { recall, send, type Expedition } from "./expeditions";
 import { ENGINEER_FIX_MS, nextTrouble } from "./hazards";
+
+/** The first worker's price, so a buy below always goes through. */
+const firstWorker = tierCost(tierById("helper"), 0);
 
 function createMemoryStorage(): Storage {
   const data = new Map<string, string>();
@@ -1381,7 +1384,7 @@ describe("field log", () => {
     const at = 1_000_000;
     const progress = guest(() => at);
     progress.applyMutation((mountain) =>
-      buyTier({ ...mountain, pocket: 20 }, "helper"),
+      buyTier({ ...mountain, pocket: firstWorker }, "helper"),
     );
     // Three carts open Strong arms (#250).
     progress.applyMutation((mountain) => ({ ...mountain, carts: 3 }));
@@ -1469,7 +1472,7 @@ describe("field log", () => {
   it("records Start over and passing the mine, each on a fresh ring", () => {
     const progress = guest(() => 8_000);
     progress.applyMutation((mountain) =>
-      buyTier({ ...mountain, pocket: 20 }, "helper"),
+      buyTier({ ...mountain, pocket: firstWorker }, "helper"),
     );
     progress.startOver();
     expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
@@ -1503,7 +1506,7 @@ describe("field log", () => {
       now: () => 1,
     });
     progress.applyMutation((mountain) =>
-      buyTier({ ...mountain, pocket: 20 }, "helper"),
+      buyTier({ ...mountain, pocket: firstWorker }, "helper"),
     );
     expect(progress.fieldLog().events).toHaveLength(1);
     expect(JSON.stringify(readSessionSave({ storage }))).not.toContain(

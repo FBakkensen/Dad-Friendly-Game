@@ -546,13 +546,18 @@ describe("valueOf", () => {
   });
 
   it("scores a worker by the crew they add, including an idle machine they start", () => {
+    const worker = tierCost(tierById("helper"), 0);
     expect(score(fresh, FIXTURES.buyTier, HORIZON)).toMatchObject({
       gainPerSec: 1,
-      cost: 20,
+      cost: worker,
       paybackSec: Number.POSITIVE_INFINITY,
     });
-    const covered = score({ ...fresh, pocket: 20 }, FIXTURES.buyTier, HORIZON);
-    expect(covered.paybackSec).toBe(20);
+    const covered = score(
+      { ...fresh, pocket: worker },
+      FIXTURES.buyTier,
+      HORIZON,
+    );
+    expect(covered.paybackSec).toBe(worker);
     const idleDrill: Mountain = { ...fresh, helpers: 9, machines: 1, carts: 1 };
     const hired = score(idleDrill, { kind: "buyTier", id: "helper" }, HORIZON);
     // The tenth worker starts the Great Machine and the cart loses its hand.
@@ -573,11 +578,12 @@ describe("valueOf", () => {
     };
     const borer = score(bare, { kind: "buyTier", id: "borer" }, HORIZON);
     expect(borer.gainPerSec).toBeCloseTo(392.7, 8);
-    expect(borer.cost).toBeGreaterThan(4_940_000);
+    const sticker = tierCost(tierById("borer"), 0);
+    expect(borer.cost).toBeGreaterThan(sticker);
     const staffed: Mountain = { ...bare, helpers: 11, pocket: 0 };
     const tended = score(staffed, { kind: "buyTier", id: "borer" }, HORIZON);
     expect(tended.gainPerSec).toBeCloseTo(392.7, 8);
-    expect(tended.cost).toBe(4_940_000);
+    expect(tended.cost).toBe(sticker);
     const applied = buyCrew({ ...staffed, pocket: 10_000_000 }, "borer");
     expect(crewDelta(staffed, applied)).toBe(479);
 
@@ -606,8 +612,10 @@ describe("valueOf", () => {
     const idle: Mountain = { ...fresh, carts: 1 };
     const value = score(idle, { kind: "buyTier", id: "cart" }, HORIZON);
     expect(value.gainPerSec).toBe(6);
-    // #357: the second cart is 690, plus a 20-stone worker.
-    expect(value.cost).toBe(710);
+    // The second cart, plus the worker it needs.
+    expect(value.cost).toBe(
+      tierCost(tierById("cart"), 1) + tierCost(tierById("helper"), 0),
+    );
   });
 
   it("uses the crew delta for every listed upgrade", () => {

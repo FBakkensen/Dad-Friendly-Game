@@ -25,7 +25,7 @@ import {
   createMemoryBus,
   createTabWriter,
 } from "./tab-writer";
-import { buyTier } from "./tiers";
+import { buyTier, tierById, tierCost } from "./tiers";
 import {
   createMemoryStorage,
   mountScreen,
@@ -445,9 +445,8 @@ describe("crew tiers on screen", () => {
     expect(machine.querySelector(".tier-rate")?.textContent).toBe(
       `Machine · ${formatCompact(shownStones(createMountain(), 120_000_000))}`,
     );
-    // #357: 574.375M stones, read to one decimal, rounded down.
     expect(machine.getAttribute("aria-label")).toContain(
-      "Joins your crew at 574.3 million stones down",
+      `Joins your crew at ${formatCount(shownStones(createMountain(), 120_000_000))} stones down`,
     );
     machine.click();
     expect(
@@ -463,8 +462,7 @@ describe("crew tiers on screen", () => {
       storage,
       mountain: {
         ...minedMountain(120_000_000),
-        // #357: the Great Machine is 120.6M.
-        pocket: 121_400_000,
+        pocket: tierCost(tierById("machine"), 0) + 800_000,
         drills: 1,
         borers: 1,
       },
@@ -474,7 +472,9 @@ describe("crew tiers on screen", () => {
     const machine = tierCard(screen.root, "machine");
     expect(machine.classList.contains("tier-locked")).toBe(false);
     expect(machine.disabled).toBe(false);
-    expect(machine.querySelector(".tier-cost")?.textContent).toBe("120.6M");
+    expect(machine.querySelector(".tier-cost")?.textContent).toBe(
+      formatCompact(tierCost(tierById("machine"), 0)),
+    );
     machine.click();
     expect(machine.querySelector(".tier-count")?.textContent).toBe("×1");
     expect(screen.text(".pocket")).toBe("800K stones");
@@ -498,12 +498,15 @@ describe("crew tiers on screen", () => {
   it("hires a helper when affordable, raises the price, and mines every second", async () => {
     vi.useFakeTimers();
     try {
+      const first = tierCost(tierById("helper"), 0);
+      const second = tierCost(tierById("helper"), 1);
       const storage = createMemoryStorage();
       storage.setItem(
         SESSION_SAVE_KEY,
         JSON.stringify({
           version: 5,
-          mountain: minedMountain(19),
+          // One tap short of the first worker.
+          mountain: minedMountain(first - 1),
           lastSeen: Date.now(),
         }),
       );
@@ -520,7 +523,9 @@ describe("crew tiers on screen", () => {
           '[data-tier="helper"] .tier-count',
         )?.hidden,
       ).toBe(true);
-      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("20");
+      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe(
+        formatCompact(first),
+      );
       expect(hire.disabled).toBe(true);
       expect(cart.hidden).toBe(true);
 
@@ -534,11 +539,13 @@ describe("crew tiers on screen", () => {
       );
       expect(screen.text('[data-tier="helper"] .tier-name')).toBe("Worker");
       expect(screen.text('[data-tier="helper"] .tier-count')).toBe("×1");
-      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe("22");
+      expect(screen.text('[data-tier="helper"] .tier-cost')).toBe(
+        formatCompact(second),
+      );
       expect(hire.disabled).toBe(true);
       expect(cart.hidden).toBe(false);
       expect(hire.getAttribute("aria-label")).toBe(
-        "Buy a worker for 22 stones, mines 1 stone a second. You have 1.",
+        `Buy a worker for ${formatCount(second)} stones, mines 1 stone a second. You have 1.`,
       );
 
       await vi.advanceTimersByTimeAsync(3_000);
@@ -556,21 +563,27 @@ describe("crew tiers on screen", () => {
         SESSION_SAVE_KEY,
         JSON.stringify({
           version: 5,
-          // #357: the first cart is 600.
-          mountain: { ...minedMountain(600), helpers: 1 },
+          mountain: {
+            ...minedMountain(tierCost(tierById("cart"), 0)),
+            helpers: 1,
+          },
           lastSeen: Date.now(),
         }),
       );
       const screen = mountScreen({ storage });
       const cart = tierCard(screen.root, "cart");
-      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("600");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe(
+        formatCompact(tierCost(tierById("cart"), 0)),
+      );
       expect(cart.disabled).toBe(false);
 
       cart.click();
       expect(screen.text(".pocket")).toBe("0 stones");
       expect(screen.text('[data-tier="cart"] .tier-name')).toBe("Mine cart");
       expect(screen.text('[data-tier="cart"] .tier-count')).toBe("×1");
-      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe("690");
+      expect(screen.text('[data-tier="cart"] .tier-cost')).toBe(
+        formatCompact(tierCost(tierById("cart"), 1)),
+      );
       expect(screen.text(".crew-status")).toBe(
         "Your crew mines 7 stones a second",
       );
@@ -1217,7 +1230,10 @@ describe("menu", () => {
     document.body.append(screen.root);
     try {
       screen.progress.applyMutation((mountain) =>
-        buyTier({ ...mountain, pocket: 20 }, "helper"),
+        buyTier(
+          { ...mountain, pocket: tierCost(tierById("helper"), 0) },
+          "helper",
+        ),
       );
       screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
       const copy =

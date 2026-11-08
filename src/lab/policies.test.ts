@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "../mountain";
+import { tierById, tierCost } from "../tiers";
 import {
   actionsOnTable,
   canPay,
@@ -226,7 +227,8 @@ describe("extremes", () => {
   });
 
   it("waits until the pocket holds 8 times the sticker", () => {
-    const poor = withPocket(159);
+    const sticker = tierCost(tierById("helper"), 0);
+    const poor = withPocket(8 * sticker - 1);
     const action = hoarder.decide({
       mountain: poor,
       now: 0,
@@ -238,18 +240,20 @@ describe("extremes", () => {
     }
     expect(hoarder.params.hoardK).toBe(8);
     expect(canPay(poor, action, hoarder.params.hoardK)).toBe(false);
-    expect(canPay(withPocket(160), action, hoarder.params.hoardK)).toBe(true);
-    expect(canPay(withPocket(19), action, 1)).toBe(false);
+    expect(canPay(withPocket(8 * sticker), action, hoarder.params.hoardK)).toBe(
+      true,
+    );
+    expect(canPay(withPocket(sticker - 1), action, 1)).toBe(false);
     const hoarded = runPolicy({
       policy: hoarder,
       seed: 1,
-      mountain: withPocket(100),
+      mountain: withPocket(5 * sticker),
       maxLiveSeconds: 1,
     });
     const spending = runPolicy({
       policy: casual,
       seed: 1,
-      mountain: withPocket(100),
+      mountain: withPocket(5 * sticker),
       maxLiveSeconds: 1,
     });
     expect(hoarded.buys).toEqual([]);

@@ -29,7 +29,7 @@ import {
   parseMountain,
 } from "./mountain";
 import { parseSaveValue, serializeSave } from "./persist";
-import { kidStretch } from "./scale";
+import { BAND_SCALE, kidStretch, oneOffStretch } from "./scale";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 import { tierById } from "./tiers";
@@ -185,8 +185,12 @@ describe("promote", () => {
       legacy: 1,
       stretch: kidStretch(1),
     };
-    // #357: 2M x the 2.625 Granite scale x kidStretch(1), rounded up.
-    expect(promoteCost(mountain)).toBe(14_888_672);
+    // Nils is the second engineer: twice the base, times the Granite scale
+    // and the run-2 stretch. That is not a whole number, so it rounds up.
+    const raw = PROMOTE_BASE_COST * 2 * oneOffStretch(mountain);
+    expect(Number.isInteger(raw)).toBe(false);
+    expect(promoteCost(mountain)).toBe(Math.ceil(raw));
+    expect(oneOffStretch(mountain)).toBe(BAND_SCALE[1] * kidStretch(1));
   });
 });
 

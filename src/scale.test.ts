@@ -78,9 +78,11 @@ describe("kid-run stretch (M13, #253)", () => {
     const runOne = minedMountain(25_000_000);
     expect(tierLock(runOne, machine)).toMatchObject({
       depth: 120_000_000,
-      // 10M x 1 + 35M x 2.625 + 75M x 6.3 (#357), one literal anchor for the
-      // band scales.
-      at: 574_375_000,
+      // 10M x s1 + 35M x s2 + 75M x s3; the scales are pinned in src/tuning.test.ts.
+      at:
+        10_000_000 * BAND_SCALE[0] +
+        35_000_000 * BAND_SCALE[1] +
+        75_000_000 * BAND_SCALE[2],
     });
     const kid = { ...runOne, stretch: 1.75 };
     const lock = tierLock(kid, machine);
