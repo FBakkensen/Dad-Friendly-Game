@@ -4,6 +4,7 @@ import { createUnconfiguredAuth } from "./auth";
 import { createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
 import { createProgressStore } from "./progress-store";
+import { buyWithTeach } from "./crew-panel";
 import { firstIdleTier } from "./rates";
 import { STAFFING_INTRO, staffingAction, staffingLine } from "./screen-words";
 import { tierById, tierCost } from "./tiers";
@@ -192,5 +193,28 @@ describe("staffing teach (#246)", () => {
         (item) => item.dataset["how"],
       ),
     ).toEqual(["staffing", "layers"]);
+  });
+});
+
+describe("buyWithTeach", () => {
+  it("a worker bought while a machine stands idle marks staffing taught", () => {
+    const before = crew();
+    expect(showsDot(before, "staffing")).toBe(true);
+    const after = buyWithTeach(before, "helper");
+    expect(after.helpers).toBe(before.helpers + 1);
+    expect(after.taught).toContain("staffing");
+  });
+
+  it("a cart is bought, and staffing stays untaught", () => {
+    const before = crew();
+    const after = buyWithTeach(before, "cart");
+    expect(after.carts).toBe(before.carts + 1);
+    expect(after.taught).not.toContain("staffing");
+  });
+
+  it("an unaffordable tier returns the same mountain", () => {
+    const broke = { ...crew(), pocket: 0 };
+    expect(buyWithTeach(broke, "helper")).toBe(broke);
+    expect(buyWithTeach(broke, "cart")).toBe(broke);
   });
 });

@@ -4,13 +4,14 @@ import { buyCrew, tierLock } from "./crew";
 import { crewCounts } from "./crew-count";
 import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
 import { grandpaPost, staffForBuy, staffNeeded } from "./engineers";
-import { FIX_HOLD_MS } from "./hazards";
+import { watchFixHold } from "./trouble-tap";
 import { buyOnTap } from "./card-tap";
 import { markTaught, showsDot } from "./teach";
 import { clearNewCard, markNewCard } from "./teach-ui";
 import { floatText, reducedMotion } from "./float-text";
 import { formatCompact, formatCount } from "./format";
 import { milestoneLine } from "./milestones";
+import type { Mountain } from "./mountain";
 import {
   SHEET_CARD,
   SHEET_CARD_BODY,
@@ -61,6 +62,19 @@ import {
   type TierId,
 } from "./tiers";
 import { tierSynergy } from "./upgrades";
+
+/**
+ * Today's card buy: one of `id`. Any worker hired while a machine stands
+ * idle is the first use of staffing (#246), so it marks staffing taught.
+ */
+export function buyWithTeach(mountain: Mountain, id: TierId): Mountain {
+  const next = buyCrew(mountain, id);
+  return id === "helper" &&
+    next.helpers > mountain.helpers &&
+    showsDot(mountain, "staffing")
+    ? markTaught(next, "staffing")
+    : next;
+}
 
 /** From this many tiers on screen, cards go three to a row. */
 const COMPACT_TIER_COUNT = 4;
@@ -185,12 +199,7 @@ export function createCrewPanel({
   const hire = (card: HTMLElement): void => {
     const rateBefore = crewSpeed();
     const before = getView().mountain.helpers;
-    progress.applyMutation((mountain) => {
-      const next = buyCrew(mountain, "helper");
-      return next.helpers > mountain.helpers && showsDot(mountain, "staffing")
-        ? markTaught(next, "staffing")
-        : next;
-    });
+    progress.applyMutation((mountain) => buyWithTeach(mountain, "helper"));
     if (getView().mountain.helpers > before) {
       const gained = crewSpeed() - rateBefore;
       floatText(card, `+${formatSpeed(Math.max(0, gained))}/s`, "float-gain");
@@ -254,39 +263,22 @@ export function createCrewPanel({
     gain.className = "engineer-gain";
     gain.hidden = true;
     card.append(art, words, countBadge, mark, gain);
-    let holdTimer: ReturnType<typeof setTimeout> | undefined;
-    let suppressClick = false;
-    const clearHold = (): void => {
-      if (holdTimer !== undefined) {
-        clearTimeout(holdTimer);
-        holdTimer = undefined;
-      }
-    };
-    card.addEventListener("pointerdown", (event) => {
-      const troubled = getView().trouble;
-      if (
-        event.button !== 0 ||
-        troubled === undefined ||
-        troubled.tier !== tier.id
-      ) {
-        return;
-      }
-      clearHold();
-      holdTimer = setTimeout(() => {
-        holdTimer = undefined;
-        suppressClick = true;
-        progress.fixTrouble(troubled.tier);
+    const hold = watchFixHold(card, {
+      tier: () => {
+        const troubled = getView().trouble;
+        return troubled !== undefined && troubled.tier === tier.id
+          ? troubled.tier
+          : undefined;
+      },
+      fix: (troubledTier) => {
+        progress.fixTrouble(troubledTier);
         if (getView().trouble === undefined) {
           thank(card);
         }
-      }, FIX_HOLD_MS);
+      },
     });
-    card.addEventListener("pointerup", clearHold);
-    card.addEventListener("pointercancel", clearHold);
-    card.addEventListener("pointerleave", clearHold);
     buyOnTap(card, card, () => {
-      if (suppressClick) {
-        suppressClick = false;
+      if (hold.heldFix()) {
         return;
       }
       if (!getView().ready) {
@@ -311,15 +303,7 @@ export function createCrewPanel({
       }
       const before = owned(getView().mountain, tier);
       const rateBefore = crewSpeed();
-      progress.applyMutation((mountain) => {
-        const next = buyCrew(mountain, tier.id);
-        // Any worker hired while a machine stands idle counts (#246).
-        return tier.id === "helper" &&
-          next.helpers > mountain.helpers &&
-          showsDot(mountain, "staffing")
-          ? markTaught(next, "staffing")
-          : next;
-      });
+      progress.applyMutation((mountain) => buyWithTeach(mountain, tier.id));
       if (owned(getView().mountain, tier) > before) {
         const after = effectiveRates(
           getView().mountain,
