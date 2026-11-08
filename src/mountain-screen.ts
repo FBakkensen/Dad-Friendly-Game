@@ -888,6 +888,8 @@ export function mountMountainScreen({
   buysButton.addEventListener("click", () => {
     closeBoardPopups();
     buysDialog.hidden = false;
+    // The crew chips were measured while the sheet was shut: fit them now.
+    crewPanel.layoutChips();
     // The staffing New card sits on top of the list: bring it into view.
     // Some test DOMs have no scrollIntoView.
     const fresh: Partial<Element> | null =

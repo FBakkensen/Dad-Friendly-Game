@@ -184,6 +184,11 @@ describe("style.css", () => {
     expect(css).not.toMatch(/teach-point/);
   });
 
+  it("lets a long crew row wrap rather than clip a chip (#371)", () => {
+    expect(css).toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*wrap/m);
+    expect(css).not.toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*nowrap/m);
+  });
+
   it("titles the crew section in Buys (#371)", () => {
     expect(css).toMatch(/^\.buys-crew-title[\s,{]/m);
   });

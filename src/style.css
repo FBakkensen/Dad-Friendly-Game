@@ -414,26 +414,6 @@ body {
   outline-offset: 2px;
 }
 
-.crew-breakdown {
-  position: absolute;
-  left: 0;
-  right: 0;
-  z-index: 6;
-  margin: 0;
-  padding: 8px 10px;
-  border: 2px solid #e8a84a;
-  border-radius: 12px;
-  background: #1e130d;
-  color: #e8d4b8;
-  font-size: 0.95rem;
-  font-weight: 650;
-  line-height: 1.25;
-}
-
-.crew-breakdown[hidden] {
-  display: none;
-}
-
 /* Two columns for the first tiers; three (compact) once four show, so up to six fit in two rows. */
 .tier-grid {
   display: grid;
@@ -3116,14 +3096,12 @@ body {
 /* The crew line heads the Buys sheet under its Crew title, until B5's
    drawer takes it (#371). The free count is the board's crew plate's. */
 .buys-card .crew {
-  position: relative;
   display: flex;
   flex: none;
   flex-direction: column;
   align-items: center;
   gap: var(--space-4);
   width: 100%;
-  overflow: hidden;
   text-align: center;
 }
 
@@ -3371,9 +3349,11 @@ body {
   text-overflow: unset;
 }
 
+/* Laid out as the fewest even rows that fit (crew-panel.ts); a row that
+   still runs long wraps rather than clipping a chip (#371). */
 .crew-row {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: var(--space-4);

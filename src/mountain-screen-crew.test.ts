@@ -894,6 +894,41 @@ describe("Flemming's cart (#216)", () => {
     screen.root.remove();
   });
 
+  it("lays the chips out again when Buys opens, now the line lives there (#371)", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(4_500_000),
+        helpers: 18,
+        carts: 13,
+        drills: 5,
+      },
+      lastSeen: Date.now(),
+    });
+    const screen = mountScreen({ storage });
+    document.body.append(screen.root);
+    const posts = screen.root.querySelector<HTMLButtonElement>(".crew-posts");
+    if (posts === null) {
+      throw new Error("crew posts did not render");
+    }
+    // Measured while the sheet was shut: no width, so one row.
+    expect(posts.querySelectorAll(".crew-row").length).toBe(1);
+    // The sheet opens and the line has its real width: too narrow for one row.
+    Object.defineProperty(posts, "clientWidth", {
+      configurable: true,
+      get: () => 40,
+    });
+    Object.defineProperty(posts, "scrollWidth", {
+      configurable: true,
+      get: () => 280,
+    });
+    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    expect(posts.querySelectorAll(".crew-row").length).toBe(2);
+    expect(posts.textContent).toContain("5 on drills");
+    screen.root.remove();
+  });
+
   it("hides the worker line before anyone is hired", () => {
     const screen = mountScreen();
     expect(screen.root.querySelector<HTMLElement>(".crew-posts")?.hidden).toBe(
