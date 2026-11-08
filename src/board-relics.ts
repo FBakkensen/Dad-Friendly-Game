@@ -11,6 +11,7 @@ import crownUrl from "./assets/board/relic-crown.png";
 import crownDarkUrl from "./assets/board/relic-crown-dark.png";
 import mantleUrl from "./assets/board/relic-mantle.png";
 import mantleDarkUrl from "./assets/board/relic-mantle-dark.png";
+import { plateButton } from "./board-save";
 import { skin } from "./board-skin";
 import type { BoardNote } from "./board-note";
 import type { ProgressSnapshot } from "./progress-store";
@@ -43,7 +44,10 @@ const DARK: Readonly<Record<RelicId, string>> = {
 /** Socket left edge in art px: 15 + 66i CSS px. board.css multiplies by --art. */
 const socketAt = (i: number): number => 7.5 + 33 * i;
 
-/** The framed row of six relic sockets and the tag that opens the shelf (#370). */
+/**
+ * The framed row of six relic sockets and the tag, a label. Each socket's
+ * note ends in the Relic shelf key that opens the shelf (#370).
+ */
 export function createRelicPlate({
   getView,
   note,
@@ -51,7 +55,8 @@ export function createRelicPlate({
 }: {
   getView: () => ProgressSnapshot;
   note: BoardNote;
-  onShelf: () => void;
+  /** Opens the shelf; `from` is the socket whose note held the key. */
+  onShelf: (from: HTMLElement) => void;
 }): { root: HTMLElement; render(): void } {
   const root = document.createElement("section");
   root.className = "board-relics";
@@ -81,20 +86,26 @@ export function createRelicPlate({
         q.textContent = words.hint;
         body.append(q);
       }
+      // The shelf's door: a 48px key in every socket's note (#370).
+      const key = plateButton("Relic shelf");
+      key.addEventListener("click", () => {
+        onShelf(button);
+      });
+      body.append(key);
       note.show(button, body);
     });
     root.append(button);
     return button;
   });
 
-  const tag = document.createElement("button");
-  tag.type = "button";
+  // The tag is a label: too small for a finger between the sockets and the
+  // stock row, so the shelf opens from a socket note's key instead (#370).
+  const tag = document.createElement("div");
   tag.className = "board-tag";
   skin(tag, "tag");
   const tagText = document.createElement("span");
   tagText.className = "board-lg";
   tag.append(tagText);
-  tag.addEventListener("click", onShelf);
   root.append(tag);
 
   const render = (): void => {

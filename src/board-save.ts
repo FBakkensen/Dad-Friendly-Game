@@ -50,7 +50,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 }
 
 /** A plate button: key skin, keyp while pressed. */
-function plateButton(label: string): HTMLButtonElement {
+export function plateButton(label: string): HTMLButtonElement {
   const b = el("button", "board-platebtn");
   b.type = "button";
   b.append(el("span", "board-platebtn-text", label));

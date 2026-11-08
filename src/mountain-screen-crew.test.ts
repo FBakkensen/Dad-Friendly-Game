@@ -1195,7 +1195,11 @@ describe("relic powers on the cards (shelf detail)", () => {
   it("opens a found relic from the shelf with its art, virtue and power; hidden ones stay shut", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(26_000_000)) });
     document.body.append(screen.root);
-    screen.root.querySelector<HTMLButtonElement>(".board-tag")?.click();
+    // The shelf opens from the Relic shelf key in a socket's note (#370).
+    screen.root.querySelector<HTMLButtonElement>(".board-socket")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-note .board-platebtn")
+      ?.click();
     const rows = [
       ...screen.root.querySelectorAll<HTMLElement>(".shelf-list li"),
     ];
@@ -1243,7 +1247,11 @@ describe("relic powers on the cards (shelf detail)", () => {
       }),
     });
     document.body.append(screen.root);
-    screen.root.querySelector<HTMLButtonElement>(".board-tag")?.click();
+    // The shelf opens from the Relic shelf key in a socket's note (#370).
+    screen.root.querySelector<HTMLButtonElement>(".board-socket")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-note .board-platebtn")
+      ?.click();
     screen.root
       .querySelectorAll(".shelf-list li")[2]
       ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -1461,7 +1469,11 @@ describe("player-facing workers (#139)", () => {
       );
       screen.root.querySelector<HTMLButtonElement>(".menu-close")?.click();
 
-      screen.root.querySelector<HTMLButtonElement>(".board-tag")?.click();
+      // The shelf opens from the Relic shelf key in a socket's note (#370).
+      screen.root.querySelector<HTMLButtonElement>(".board-socket")?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(".board-note .board-platebtn")
+        ?.click();
       const crown = [...screen.root.querySelectorAll(".shelf-list li")][4];
       if (!(crown instanceof HTMLElement)) {
         throw new Error("crown row did not render");

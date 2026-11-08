@@ -24,7 +24,9 @@ body {
   min-height: 0;
   padding: var(--space-4);
   padding-top: var(--board-top);
-  padding-bottom: var(--save-h);
+  /* The column stops 8px above the save line, so the bottom bar's buttons
+     stand a full gap from it (#370). */
+  padding-bottom: calc(var(--save-h) + var(--art) * 4);
   overflow: hidden;
   contain: layout;
   zoom: var(--board-scale, 1);
@@ -211,6 +213,11 @@ body {
   text-shadow: 0 0 var(--art) var(--board-night);
 }
 
+/* Bare ink, as the dial's legend: ink-2 reads under 4.5:1 on the enamel. */
+.board-odo-legend .board-lg:not(.board-spend) {
+  color: var(--board-ink-bare);
+}
+
 .board-spend {
   color: var(--board-rust);
   opacity: 0;
@@ -322,7 +329,28 @@ body {
   background: none;
   white-space: nowrap;
   color: var(--board-ink-plate);
-  cursor: pointer;
+  /* A label, not a door: taps fall through to the sockets (#370). */
+  pointer-events: none;
+}
+
+/* A socket's note ends in the Relic shelf key, the shelf's door (#370). The
+   note itself lets taps through; its key takes them. */
+.board-note .board-platebtn {
+  width: 100%;
+  margin-top: calc(var(--art) * 4);
+  pointer-events: auto;
+}
+
+/* The rock's button stands 8px below the crew chips (with #app's 4px gap):
+   the goal line and the shelf that used to sit between them are on the
+   board's top now (#370). */
+#app > .mountain-wrap {
+  margin-top: calc(var(--art) * 2);
+}
+
+/* The ☰ menu stands a full gap below the boost dial. */
+.top-bar .menu-button {
+  margin-top: calc(var(--art) * 4);
 }
 
 .board-tag .board-lg {

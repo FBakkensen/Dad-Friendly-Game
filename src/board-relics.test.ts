@@ -64,12 +64,30 @@ describe("createRelicPlate", () => {
     expect(art[5]).toBeUndefined();
   });
 
-  it("has a tag that counts the relics and opens the shelf", () => {
+  it("has a tag that counts the relics, as a label and not a button", () => {
     const { root, onShelf } = setup();
-    const tag = root.querySelector<HTMLButtonElement>("button.board-tag");
+    expect(root.querySelector("button.board-tag")).toBeNull();
+    const tag = root.querySelector<HTMLElement>(".board-tag");
     expect(tag?.textContent).toBe("Relics of Fatherhood · 2 of 6");
+    expect(tag?.getAttribute("aria-hidden")).toBeNull();
     tag?.click();
-    expect(onShelf).toHaveBeenCalledTimes(1);
+    expect(onShelf).not.toHaveBeenCalled();
+  });
+
+  it("puts a 'Relic shelf' key in every socket's note, which opens the shelf", () => {
+    const { sockets, board, onShelf } = setup();
+    // Found, next, and a later one still in the dark.
+    for (const index of [1, 2, 4]) {
+      const socket = sockets[index];
+      socket?.click();
+      const key = board.note.querySelector<HTMLButtonElement>(
+        "button.board-platebtn",
+      );
+      expect(key?.textContent).toBe("Relic shelf");
+      key?.click();
+      expect(onShelf).toHaveBeenLastCalledWith(socket);
+    }
+    expect(onShelf).toHaveBeenCalledTimes(3);
   });
 
   it("explains a found relic, the next relic and a hidden relic", () => {
@@ -117,7 +135,7 @@ describe("createRelicPlate", () => {
     plate.render();
     mined = 30_000_000;
     plate.render();
-    expect(plate.root.querySelector("button.board-tag")?.textContent).toBe(
+    expect(plate.root.querySelector(".board-tag")?.textContent).toBe(
       "Relics of Fatherhood · 3 of 6",
     );
     expect(plate.root.querySelectorAll("img.board-relic")).toHaveLength(4);

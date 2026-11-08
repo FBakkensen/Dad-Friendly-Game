@@ -40,6 +40,15 @@ beforeEach(() => {
 });
 afterEach(stopScreens);
 
+/** A socket's note carries the "Relic shelf" key that opens the shelf (#370). */
+function openShelfFromSocket(
+  root: HTMLElement,
+  socket: HTMLButtonElement | null | undefined,
+): void {
+  socket?.click();
+  root.querySelector<HTMLButtonElement>(".board-note .board-platebtn")?.click();
+}
+
 describe("mountMountainScreen", () => {
   it("stops its tick and its page listeners once its signal aborts", () => {
     vi.useFakeTimers();
@@ -991,9 +1000,11 @@ describe("relic shelf", () => {
 
   it("shows six silhouettes for a new dad and opens a list of buried relics", () => {
     const screen = mountScreen();
-    const button = screen.root.querySelector<HTMLButtonElement>(".board-tag");
-    const sockets = [...screen.root.querySelectorAll(".board-socket")];
-    expect(button?.textContent).toBe("Relics of Fatherhood · 0 of 6");
+    const tag = screen.root.querySelector<HTMLElement>(".board-tag");
+    const sockets = [
+      ...screen.root.querySelectorAll<HTMLButtonElement>(".board-socket"),
+    ];
+    expect(tag?.textContent).toBe("Relics of Fatherhood · 0 of 6");
     expect(sockets.map((socket) => socket.getAttribute("aria-label"))).toEqual(
       RELICS.map(
         (relic, index) =>
@@ -1003,7 +1014,10 @@ describe("relic shelf", () => {
 
     const dialog = screen.root.querySelector<HTMLElement>(".shelf-dialog");
     expect(dialog?.hidden).toBe(true);
-    button?.click();
+    // The tag is a label; the shelf opens from a socket note's key (#370).
+    tag?.click();
+    expect(dialog?.hidden).toBe(true);
+    openShelfFromSocket(screen.root, sockets[0]);
     expect(dialog?.hidden).toBe(false);
     const names = [...screen.root.querySelectorAll(".shelf-name")].map(
       (el) => el.textContent,
@@ -1033,7 +1047,10 @@ describe("relic shelf", () => {
       ),
     ).toEqual([true, true, false, false, false, false]);
 
-    screen.root.querySelector<HTMLButtonElement>(".board-tag")?.click();
+    openShelfFromSocket(
+      screen.root,
+      screen.root.querySelector<HTMLButtonElement>(".board-socket"),
+    );
     const rows = [...screen.root.querySelectorAll(".shelf-list li")];
     expect(rows[0]?.querySelector(".shelf-name")?.textContent).toBe(
       "Lantern of Guidance",
@@ -1609,12 +1626,14 @@ describe("the control board (#370)", () => {
     expect(shelf?.hidden).toBe(true);
     document.body.append(screen.root);
     try {
-      const tag = screen.root.querySelector<HTMLButtonElement>(".board-tag");
-      tag?.click();
+      const socket =
+        screen.root.querySelectorAll<HTMLButtonElement>(".board-socket")[2];
+      openShelfFromSocket(screen.root, socket);
       expect(shelf?.hidden).toBe(false);
       screen.root.querySelector<HTMLButtonElement>(".shelf-close")?.click();
       expect(shelf?.hidden).toBe(true);
-      expect(document.activeElement).toBe(tag);
+      // Focus goes back to the socket whose note opened the shelf.
+      expect(document.activeElement).toBe(socket);
     } finally {
       screen.root.remove();
     }
@@ -1672,7 +1691,6 @@ describe("the control board (#370)", () => {
         ".thumb-workshop",
         ".upgrades-button",
         ".engineers-button",
-        ".board-tag",
         ".menu-button",
       ];
       for (const door of doors) {
@@ -1684,6 +1702,18 @@ describe("the control board (#370)", () => {
         expect(drawer?.classList.contains("is-open"), door).toBe(false);
         expect(note?.classList.contains("on"), door).toBe(false);
       }
+      // The shelf's door is the Relic shelf key in a socket's note.
+      status?.click();
+      expect(drawer?.classList.contains("is-open")).toBe(true);
+      openShelfFromSocket(
+        screen.root,
+        screen.root.querySelector<HTMLButtonElement>(".board-socket"),
+      );
+      expect(drawer?.classList.contains("is-open")).toBe(false);
+      expect(note?.classList.contains("on")).toBe(false);
+      expect(
+        screen.root.querySelector<HTMLElement>(".shelf-dialog")?.hidden,
+      ).toBe(false);
     } finally {
       screen.root.remove();
     }

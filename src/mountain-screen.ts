@@ -427,6 +427,8 @@ export function mountMountainScreen({
     },
   });
 
+  /** The socket whose note opened the shelf: focus goes back there. */
+  let shelfDoor: HTMLElement | undefined;
   const relics = createRelicPanels({
     progress,
     getView: () => view,
@@ -436,7 +438,7 @@ export function mountMountainScreen({
       legacy.open(undefined);
     },
     onShelfClosed: () => {
-      relicPlate.root.querySelector<HTMLElement>(".board-tag")?.focus();
+      shelfDoor?.focus();
     },
     requestRender: () => {
       render();
@@ -461,7 +463,8 @@ export function mountMountainScreen({
   const relicPlate = createRelicPlate({
     getView: () => view,
     note: boardNote,
-    onShelf: () => {
+    onShelf: (from) => {
+      shelfDoor = from;
       closeBoardPopups();
       relics.openShelf();
     },
