@@ -4,9 +4,10 @@
  * .gate/logs/<step>.log, and a failed step prints its tail.
  *   npm run gate -- fast   the edit loop (npm run check:fast)
  *   npm run gate -- full   before the PR is opened (npm run check)
+ *   npm run gate -- signoff  after the push: the signoff status (signoff.mjs)
  * The step table and its rules are in src/gate.ts.
  */
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import {
   closeSync,
   existsSync,
@@ -14,6 +15,8 @@ import {
   openSync,
   readFileSync,
   readdirSync,
+  rmSync,
+  writeFileSync,
 } from "node:fs";
 import { performance } from "node:perf_hooks";
 import { constants } from "node:os";
@@ -34,6 +37,7 @@ import {
   summaryLine,
   totalLine,
 } from "../src/gate.ts";
+import { MARKER, markerAfterFull, markerText } from "../src/signoff.ts";
 import { changedSinceMain } from "./changed.mjs";
 
 // Every path below is repo-relative, wherever the gate was started from.
@@ -48,7 +52,19 @@ if (parsed.kind === "invalid") {
   console.error(`${parsed.message}\n\n${USAGE}`);
   process.exit(2);
 }
+if (parsed.kind === "signoff") {
+  const { signoff } = await import("./signoff.mjs");
+  process.exit(await signoff());
+}
 const { tier } = parsed;
+
+const git = (...args) => execFileSync("git", args, { encoding: "utf8" });
+/** HEAD and whether the tree is clean, untracked files included. */
+const treeState = () => ({
+  head: git("rev-parse", "HEAD").trim(),
+  clean: git("status", "--porcelain").trim() === "",
+});
+const before = treeState();
 
 const changed = changedSinceMain();
 
@@ -90,6 +106,8 @@ if (tier === "fast") {
 
 const LOGS = `${GATE_DIR}/logs`;
 mkdirSync(LOGS, { recursive: true });
+// A full run replaces the last pass: only a green run earns it back.
+if (tier === "full") rmSync(MARKER, { force: true });
 const logPath = (step) => `${LOGS}/${step.name.replace(/[^\w.-]/g, "_")}.log`;
 const width = Math.max(...steps.map((step) => step.name.length));
 const outcomes = new Map();
@@ -185,7 +203,26 @@ for (const step of steps) {
   }
 }
 const outcomeList = [...outcomes.values()];
-console.log(
-  `\n${totalLine(tier, outcomeList, (performance.now() - began) / 1000)}`,
-);
-process.exit(exitCode(outcomeList));
+const total = totalLine(tier, outcomeList, (performance.now() - began) / 1000);
+console.log(`\n${total}`);
+const code = exitCode(outcomeList);
+if (tier === "full") {
+  const after = treeState();
+  const move = markerAfterFull({
+    green: code === 0,
+    headBefore: before.head,
+    headAfter: after.head,
+    cleanBefore: before.clean,
+    cleanAfter: after.clean,
+    summary: total,
+  });
+  if (move.kind === "write") {
+    writeFileSync(MARKER, markerText(move.marker));
+    console.log(
+      `gate full: signoff ready for ${move.marker.sha.slice(0, 7)}; after the push, run npm run gate -- signoff.`,
+    );
+  } else {
+    console.log(`gate full: no signoff marker (${move.reason}).`);
+  }
+}
+process.exit(code);
