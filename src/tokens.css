@@ -116,3 +116,11 @@
   --gauge-row-h: 238px;
   --column-top: calc(var(--board-top) + var(--gauge-row-h) + var(--art) * 4);
 }
+
+/* The Ready now plate (#372): the plate's quieter engraving, the light on its
+   lower lip, and the buy line's size. */
+:root {
+  --board-ink-plate-2: #0b0e10;
+  --board-plate-shine: rgba(255, 255, 255, 0.22);
+  --board-type-18: 18px;
+}

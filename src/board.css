@@ -1212,3 +1212,170 @@ body {
 .board-mine [hidden] {
   display: none;
 }
+
+/* ---------- the Ready row (#372) ----------
+   The mockup's #rReady, 424 x 59 art: the Ready now plate, a 144x48 art
+   button at (3, 0), and the red DIG button at (152, 0). Its guard and the
+   red button change whole frames from board-ready.ts (inline
+   background-position-x); the rest is placed here. */
+.board-ready-row {
+  position: relative;
+  width: var(--board-w);
+  height: calc(var(--art) * 59);
+}
+
+.board-ready,
+.board-dig-button {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  appearance: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.board-ready:focus-visible,
+.board-dig-button:focus-visible {
+  outline: calc(var(--art) * 1) solid var(--board-amber);
+  outline-offset: calc(var(--art) * 1);
+}
+
+.board-ready:disabled,
+.board-dig-button:disabled {
+  cursor: default;
+}
+
+.board-ready {
+  left: calc(var(--art) * 3);
+  width: calc(var(--art) * 144);
+  height: calc(var(--art) * 48);
+  text-align: left;
+}
+
+.board-ready > * {
+  position: absolute;
+  pointer-events: none;
+}
+
+.board-ready-kick {
+  left: calc(var(--art) * 50);
+  top: calc(var(--art) * 3);
+  line-height: calc(var(--art) * 7);
+  white-space: nowrap;
+  color: var(--board-amber-bare);
+  text-shadow: 0 0 var(--art) var(--board-night);
+}
+
+.board-ready.is-saving .board-ready-kick {
+  color: var(--board-ink-bare);
+}
+
+.board-ready.is-done .board-ready-kick {
+  color: var(--board-green);
+}
+
+.board-ready-guard {
+  left: 0;
+  top: calc(var(--art) * 8);
+  width: calc(var(--art) * 40);
+  height: calc(var(--art) * 40);
+  background-repeat: no-repeat;
+  background-size: calc(var(--art) * 200) calc(var(--art) * 40);
+  image-rendering: pixelated;
+}
+
+.board-ready-plate {
+  left: calc(var(--art) * 40);
+  top: calc(var(--art) * 12);
+  width: calc(var(--art) * 104);
+  height: calc(var(--art) * 32);
+  image-rendering: pixelated;
+}
+
+.board-ready-text {
+  left: calc(var(--art) * 48);
+  top: calc(var(--art) * 17);
+  width: calc(var(--art) * 88);
+  height: calc(var(--art) * 22);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  font-family: "Barlow Condensed", sans-serif;
+}
+
+.board-ready-main,
+.board-ready-why {
+  overflow: hidden;
+  white-space: nowrap;
+  text-shadow: 0 var(--board-hair) 0 var(--board-plate-shine);
+}
+
+.board-ready-main {
+  font-size: var(--board-type-18);
+  line-height: calc(var(--art) * 10);
+  font-weight: 700;
+  color: var(--board-ink-plate);
+}
+
+.board-ready-why {
+  font-size: var(--board-type-13);
+  line-height: calc(var(--art) * 8);
+  font-weight: var(--board-weight-semi);
+  color: var(--board-ink-plate-2);
+}
+
+/* The red DIG button: a 56x52 art target whose 56x56 art sprite may hang
+   past its foot, and its legend centred under it. */
+.board-dig {
+  position: absolute;
+  left: calc(var(--art) * 152);
+  top: 0;
+  width: calc(var(--art) * 56);
+  height: calc(var(--art) * 59);
+}
+
+.board-dig-button {
+  width: calc(var(--art) * 56);
+  height: calc(var(--art) * 52);
+  overflow: visible;
+}
+
+.board-dig-sprite {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--art) * 56);
+  height: calc(var(--art) * 56);
+  background-repeat: no-repeat;
+  background-size: calc(var(--art) * 168) calc(var(--art) * 56);
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.board-dig-lg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--art) * 50);
+  line-height: calc(var(--art) * 7);
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  color: var(--board-ink-bare);
+  text-shadow: 0 0 var(--art) var(--board-night);
+}
+
+.board-dig-lg b {
+  font-weight: 700;
+  color: var(--board-ink);
+}
+
+.board-dig.is-hit .board-dig-lg b {
+  color: var(--board-amber);
+}
