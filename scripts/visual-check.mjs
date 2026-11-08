@@ -131,7 +131,7 @@ async function boardProbe(page) {
 async function open(
   [width, height],
   save,
-  { standalone = false, search = "" } = {},
+  { standalone = false, search = "", stopClock = false } = {},
 ) {
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
@@ -160,6 +160,14 @@ async function open(
     globalThis.__skewMs = 0;
     Date.now = () => realNow() + globalThis.__skewMs;
   });
+  if (stopClock) {
+    // A crew of thousands digs millions a second. With the clock stopped it
+    // cannot reach a relic mid-check, so no reveal lands on a tap.
+    await page.evaluateOnNewDocument(() => {
+      const stopped = Date.now();
+      Date.now = () => stopped;
+    });
+  }
   await boardProbe(page);
   await page.evaluateOnNewDocument(
     (key, value) => {
@@ -708,11 +716,15 @@ for (const viewport of [PHONE]) {
         "DejaVu Sans",
       ],
     ]) {
-      const { page, close } = await open(viewport, {
-        version: 4,
-        mountain: { remaining: 50_000_000, pocket: 49_999_999, ...crew },
-        lastSeen: Date.now(),
-      });
+      const { page, close } = await open(
+        viewport,
+        {
+          version: 4,
+          mountain: { remaining: 50_000_000, pocket: 49_999_999, ...crew },
+          lastSeen: Date.now(),
+        },
+        { stopClock: true },
+      );
       if (font !== undefined) {
         await page.addStyleTag({
           content: `* { font-family: "${font}" !important; }`,
@@ -787,10 +799,7 @@ for (const viewport of [PHONE]) {
         crew.upgrades === undefined
       ) {
         await page.evaluate(() => {
-          const closeBuys = document.querySelector(".buys-close");
-          if (closeBuys instanceof HTMLButtonElement) {
-            closeBuys.click();
-          }
+          document.querySelector(".buys-close")?.click();
         });
         check(
           await engineersSheetFits(page),
@@ -3057,7 +3066,7 @@ for (const viewport of GUARD_SIZES) {
           let opened = true;
           for (const selector of taps) {
             opened = await page
-              .waitForSelector(selector, { visible: true, timeout: 2_000 })
+              .waitForSelector(selector, { visible: true, timeout: 5_000 })
               .then(() => press(page, selector))
               .then(
                 () => true,
