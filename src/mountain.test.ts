@@ -225,7 +225,7 @@ describe("materials from digging", () => {
   it("pays the same units live, away, and in small slices", () => {
     const helpers = 1_500;
     // From 7M to 14M, so the dig crosses into the Granite and the away pay
-    // divides whole seconds (3M + 4M x 1.5 = 9M stones, #356 tune).
+    // divides whole seconds (3M + 4M x 2.625 = 13.5M stones, #357 tune).
     const depth = 14_000_000;
     const mountain = { ...minedMountain(7_000_000), helpers };
     const stones =

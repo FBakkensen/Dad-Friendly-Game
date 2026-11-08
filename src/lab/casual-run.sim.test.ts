@@ -16,8 +16,9 @@ describe("casual run", { timeout: 120_000 }, () => {
     // on day 4.5. His payback table is never quiet for long: one minute on
     // day 1.5. The value-per-stone score waits out the night before the
     // Deep Heart's next Great Machine (11.95 h from day 3.5). That is the
-    // report-only value-per-stone score, pinned at a day or less; the strict
-    // half-day limit applies to the payback score, which waits about a minute.
+    // report-only value-per-stone score. It passes the half-day limit with
+    // about 3 minutes to spare (0.498 of a day); the payback score waits
+    // about a minute.
     expect(run.finishDay).toBe(4.5);
     expect(readFinishDay(run.samples)).toBe(4.5);
     expect(report.value.singleShare).toBeCloseTo(0.343, 3);
