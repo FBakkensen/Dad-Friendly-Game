@@ -215,7 +215,7 @@ body.desk #housing{display:block}
 .srow .ico{width:64px;height:64px}
 .srow .mid{position:relative;display:flex;flex-direction:column;min-width:0;overflow:hidden}
 .srow .nm{font-size:17px;line-height:19px;font-weight:700;color:var(--ink);white-space:nowrap}
-.srow .info{font-size:13px;line-height:15px;color:var(--ink-2);white-space:nowrap}
+.srow .info{font-size:13px;line-height:15px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .srow .info.good{color:var(--green)}
 .srow .need{font-size:13px;line-height:15px;color:var(--rust);white-space:nowrap}
 .srow .need:empty{display:none}
@@ -444,6 +444,140 @@ body.desk #housing{display:block}
 </div>
 </div>
 
+<!-- The game's numbers: src/tiers.ts, src/milestones.ts and src/layers.ts (the Granite).
+     mockups/control-board.test.ts keeps this block equal to them (#387). -->
+<script type="application/json" id="game-numbers">
+{
+ "growth": {
+  "machine": 1.15,
+  "worker": 1.06
+ },
+ "tiers": {
+  "helper": {
+   "firstCost": 20,
+   "perSecond": 1
+  },
+  "cart": {
+   "firstCost": 600,
+   "perSecond": 6
+  },
+  "drill": {
+   "firstCost": 73080,
+   "perSecond": 36
+  },
+  "borer": {
+   "firstCost": 4940000,
+   "perSecond": 357
+  }
+ },
+ "granite": {
+  "drill": 0.8,
+  "borer": 1.1
+ },
+ "milestones": {
+  "multiplier": 2,
+  "reachedLine": "Twice as fast now.",
+  "marks": {
+   "helper": [
+    {
+     "at": 25,
+     "goal": "Twenty-five workers who know the songs. Every worker digs twice as fast."
+    },
+    {
+     "at": 50,
+     "goal": "Fifty workers around one long lunch table. Twice as fast again."
+    },
+    {
+     "at": 100,
+     "goal": "A hundred workers. The camp is a little village now. Twice as fast again."
+    }
+   ],
+   "cart": [
+    {
+     "at": 10,
+     "goal": "Ten carts on the rails. Every cart hauls twice as fast."
+    },
+    {
+     "at": 25,
+     "goal": "Twenty-five carts in a long, rattling line. Twice as fast again."
+    },
+    {
+     "at": 50,
+     "goal": "Fifty carts and the rails never rest. Twice as fast again."
+    },
+    {
+     "at": 100,
+     "goal": "A hundred carts, a river of rock. Twice as fast again."
+    },
+    {
+     "at": 150,
+     "goal": "A hundred and fifty carts. The tracks hum all night. Twice as fast again."
+    },
+    {
+     "at": 200,
+     "goal": "Two hundred carts. The old mine was never this busy. Twice as fast again."
+    }
+   ],
+   "drill": [
+    {
+     "at": 10,
+     "goal": "Ten drills and the crew finds its rhythm. Every drill mines twice as fast."
+    },
+    {
+     "at": 25,
+     "goal": "Twenty-five drills humming together. Twice as fast again."
+    },
+    {
+     "at": 50,
+     "goal": "Fifty drills in step, like one long breath. Twice as fast again."
+    },
+    {
+     "at": 100,
+     "goal": "A hundred drills. The whole hill thrums. Twice as fast again."
+    },
+    {
+     "at": 150,
+     "goal": "A hundred and fifty drills, and nobody has to shout. Twice as fast again."
+    },
+    {
+     "at": 200,
+     "goal": "Two hundred drills. The rock just gives way. Twice as fast again."
+    }
+   ],
+   "borer": [
+    {
+     "at": 5,
+     "goal": "Five borers side by side. They clear the tunnels twice as fast."
+    },
+    {
+     "at": 10,
+     "goal": "Ten borers in step. Twice as fast again."
+    },
+    {
+     "at": 25,
+     "goal": "Twenty-five borers in step. Twice as fast again."
+    },
+    {
+     "at": 50,
+     "goal": "Fifty borers, a slow and steady thunder. Twice as fast again."
+    },
+    {
+     "at": 100,
+     "goal": "A hundred borers. New tunnels open by the hour. Twice as fast again."
+    },
+    {
+     "at": 150,
+     "goal": "A hundred and fifty borers working the deep dark. Twice as fast again."
+    },
+    {
+     "at": 200,
+     "goal": "Two hundred borers. The mountain rings like a bell. Twice as fast again."
+    }
+   ]
+  }
+ }
+}
+</script>
 <script>
 (() => {
 "use strict";
@@ -501,7 +635,7 @@ const lamp = (el, k) => frameX(el, LAMP[k], 40);
 
 /* ---------- State: the player's real numbers ---------- */
 const S = {
-  stones: 412_400, base: 956, mul: 2,
+  stones: 412_400, mul: 2,
   boostLeft: 7 * 60 + 9, boostLen: 30 * 60,
   workers: 56, free: 1, carts: 30, drills: 25, borers: 0,
   tapLevel: 1, boots: false, picksLeft: 0,
@@ -509,9 +643,31 @@ const S = {
   bench: null, saveTries: 3,
 };
 const STAFF = { cart: 1, drill: 1, borer: 8 };
-/* #363 curve: machines ×1.13 a unit, workers ×1.08 (src/tiers.ts tierCost) */
+/* The game's numbers, from the game-numbers block above (#387) */
+const GAME = JSON.parse(document.getElementById("game-numbers").textContent);
+const COUNT = { helper: () => S.workers, cart: () => S.carts, drill: () => S.drills, borer: () => S.borers };
+/* src/tiers.ts tierCost: machines and workers each climb their own curve */
 const curve = (first, g, n) => Math.ceil(Number((first * g ** n).toPrecision(12)));
-const rate = () => S.base * S.mul;
+const priceOf = id => curve(GAME.tiers[id].firstCost, id === "helper" ? GAME.growth.worker : GAME.growth.machine, COUNT[id]());
+/* src/milestones.ts: every mark reached doubles every one of that tier */
+const marksOf = (id, n) => GAME.milestones.marks[id].filter(m => n >= m.at).length;
+/* src/rates.ts: one of a tier, in the Granite, with its marks, before Overtime */
+const eachOf = id => GAME.tiers[id].perSecond * (GAME.granite[id] ?? 1) * GAME.milestones.multiplier ** marksOf(id, COUNT[id]());
+/* src/milestones.ts milestoneLine, with the board's number format */
+function milestoneLine(id){
+  const n = COUNT[id](), marks = GAME.milestones.marks[id];
+  const now = marksOf(id, n) ? GAME.milestones.reachedLine : null;
+  const next = marks.find(m => n < m.at);
+  if (!next) return now;
+  const goal = `${short(n)} of ${short(next.at)} · ${next.goal}`;
+  return now ? `${now} ${goal}` : goal;
+}
+/* The Buys row's info line: the whole milestone line, then without the "twice as fast now"
+   lead; the last one clips with an ellipsis (Flemming's call on #387) */
+const markInfo = id => { const line = milestoneLine(id); return [line, line.replace(GAME.milestones.reachedLine + " ", "")]; };
+const BOOTS_EACH = 1.36;
+const base = () => Object.keys(COUNT).reduce((sum, id) => sum + eachOf(id) * COUNT[id](), 0) + (S.boots ? S.workers * BOOTS_EACH : 0);
+const rate = () => base() * S.mul;
 const tapPower = () => (1 + Math.floor(rate() * 0.01 * S.tapLevel)) * (S.picksLeft > 0 ? 2 : 1);
 const T0 = new Date(); T0.setHours(22, 14, 0, 0);
 const loadAt = performance.now();
@@ -542,21 +698,21 @@ function eta(sec){
 /* ---------- Buys, upgrades, workshop (same rules as the game) ---------- */
 const BUY = {
   worker: { key: "worker", group: "Crew", name: "Worker", one: "worker", icon: "mach-worker", verb: "Hire",
-    cost: () => curve(20, 1.08, S.workers), gain: () => 1 * S.mul,
-    info: () => `${S.workers} hired · ${S.free} free`,
-    buy(){ S.workers++; S.free++; S.base += 1; return { text: `Worker ${S.workers} is on the crew` }; } },
+    cost: () => priceOf("helper"), gain: () => eachOf("helper") * S.mul,
+    info: () => markInfo("helper"),
+    buy(){ S.workers++; S.free++; return { text: `Worker ${S.workers} is on the crew` }; } },
   cart: { key: "cart", group: "Machines", name: "Mine cart", one: "cart", icon: "mach-cart", verb: "Buy", staff: STAFF.cart,
-    cost: () => curve(150, 1.13, S.carts), gain: () => 6 * S.mul,
-    info: () => [`${S.carts} running · 1 worker each`, `${S.carts} running · 1 worker`],
-    buy(){ S.carts++; S.free--; S.base += 6; return { text: `Cart ${S.carts} is rolling`, bay: "bayCart" }; } },
+    cost: () => priceOf("cart"), gain: () => eachOf("cart") * S.mul,
+    info: () => markInfo("cart"),
+    buy(){ S.carts++; S.free--; return { text: `Cart ${S.carts} is rolling`, bay: "bayCart" }; } },
   drill: { key: "drill", group: "Machines", name: "Steam drill", one: "drill", icon: "mach-drill", verb: "Buy", staff: STAFF.drill,
-    cost: () => curve(21_000, 1.13, S.drills), gain: () => Math.round(28.8 * S.mul),
-    info: () => [`${S.drills} running · tough in the Granite`, `${S.drills} running · tough here`, `${S.drills} running`],
-    buy(){ S.drills++; S.free -= 1; S.base += 28.8; return { text: `Drill ${S.drills} is drilling`, bay: "bayDrill" }; } },
+    cost: () => priceOf("drill"), gain: () => Math.round(eachOf("drill") * S.mul),
+    info: () => markInfo("drill"),
+    buy(){ S.drills++; S.free -= 1; return { text: `Drill ${S.drills} is drilling`, bay: "bayDrill" }; } },
   borer: { key: "borer", group: "Machines", name: "Tunnel borer", one: "borer", icon: "mach-borer-tarp", verb: "Buy", staff: STAFF.borer,
-    cost: () => curve(4_940_000, 1.13, S.borers), gain: () => Math.round(392.7 * S.mul),
-    info: () => `Suits the Granite`, good: true,
-    buy(){ S.borers++; S.free -= 8; S.base += 392.7; return { text: `Borer ${S.borers} is boring in`, bay: "bayBorer" }; } },
+    cost: () => priceOf("borer"), gain: () => Math.round(eachOf("borer") * S.mul),
+    info: () => markInfo("borer"),
+    buy(){ S.borers++; S.free -= 8; return { text: `Borer ${S.borers} is boring in`, bay: "bayBorer" }; } },
 };
 const BUYS = [BUY.worker, BUY.cart, BUY.drill, BUY.borer];
 const MACHINES = [BUY.borer, BUY.drill, BUY.cart];
@@ -565,15 +721,15 @@ const UPGRADES = [
     cost: () => 1_200, gainText: () => "Taps ×2", info: () => S.picksLeft > 0 ? `${clock(S.picksLeft)} left` : "For 10 minutes",
     buy(){ S.picksLeft = 600; return { text: "Sharper picks are on" }; } },
   { key: "overtime", group: "Quick boosts", name: "Overtime", verb: "Refresh",
-    cost: () => Math.ceil(S.base * 180), gainText: () => "to 30:00", info: () => S.boostLeft > 0 ? `Crew ×2 · ${clock(S.boostLeft)} left` : "Crew ×2 for 30 min",
+    cost: () => Math.ceil(base() * 180), gainText: () => "to 30:00", info: () => S.boostLeft > 0 ? `Crew ×2 · ${clock(S.boostLeft)} left` : "Crew ×2 for 30 min",
     buy(){ S.mul = 2; S.boostLeft = S.boostLen; return { text: "Overtime runs to 30:00" }; } },
   { key: "arms", group: "Lasting", name: "Strong arms", verb: "Buy",
     cost: () => 40_000 * 5 ** S.tapLevel, gainText: () => "+" + short(Math.floor(rate() * .01 * (S.tapLevel + 1)) - Math.floor(rate() * .01 * S.tapLevel)) + "/tap",
     info: () => `Level ${S.tapLevel} to ${S.tapLevel + 1} · grows with crew`,
     buy(){ S.tapLevel++; return { text: `Strong arms, level ${S.tapLevel}` }; } },
   { key: "boots", group: "Lasting", name: "Better boots", verb: "Buy", once: () => S.boots,
-    cost: () => 650_000, gainText: () => "+" + Math.round(S.workers * 1.36 * S.mul) + "/s", info: () => "Every worker, every band",
-    buy(){ S.boots = true; S.base += S.workers * 1.36; return { text: "Better boots for the crew" }; } },
+    cost: () => 650_000, gainText: () => "+" + Math.round(S.workers * BOOTS_EACH * S.mul) + "/s", info: () => "Every worker, every band",
+    buy(){ S.boots = true; return { text: "Better boots for the crew" }; } },
 ];
 const WORKSHOP = [
   { key: "grease", group: "Recipes", name: "Axle grease", verb: "Craft", bench: 600,
@@ -1002,9 +1158,10 @@ function paintBays(animate){
     if (pt.textContent !== price){ pt.textContent = price; }
   });
   const sub = document.querySelectorAll(".bay .sub");
+  /* the milestone line when it fits (spec C, Milestones), else today's gain and hands */
   [BUY.cart, BUY.drill, BUY.borer].forEach((d, i) => {
     const g = `+${short(d.gain())}/s`, h = `${d.staff} hand${d.staff > 1 ? "s" : ""}`;
-    sub[i].dataset.fit = `${g} · ${h} each|${g} · ${h}|${g}`;
+    sub[i].dataset.fit = `${milestoneLine(d.key)}|${g} · ${h} each|${g} · ${h}|${g}`;
   });
   /* all three bays use the same wording: the longest pattern that fits every one of them */
   const key = [...sub].map(s => s.dataset.fit).join("#");
