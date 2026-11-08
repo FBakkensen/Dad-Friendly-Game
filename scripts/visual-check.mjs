@@ -98,6 +98,17 @@ async function press(page, selector) {
   }
 }
 
+/** The note's key on the board: a socket's note ends in "Relic shelf" (#370). */
+const SHELF_KEY = ".board-note.on .board-platebtn";
+
+/** Opens the relic shelf the way a dad does: a socket, then its note's key. */
+async function openShelf(page) {
+  await page.waitForSelector(".board-socket", { visible: true });
+  await press(page, ".board-socket");
+  await page.waitForSelector(SHELF_KEY, { visible: true, timeout: 5_000 });
+  await press(page, SHELF_KEY);
+}
+
 /** Installed PWA on Android: edge to edge, status bar and gesture bar as safe-area insets. */
 const STANDALONE_INSETS = { top: 24, bottom: 48, left: 0, right: 0 };
 
@@ -425,9 +436,8 @@ for (const viewport of SCREENS) {
     });
     check(veinInside, `${size} golden vein sits inside the mountain`);
 
-    // The relic plate's tag opens the shelf (#370).
-    await page.waitForSelector(".board-tag", { visible: true });
-    await press(page, ".board-tag");
+    // A socket's note holds the shelf's key; the tag is a label (#370).
+    await openShelf(page);
     check(
       await coversBoard(page, ".shelf-dialog"),
       `${size} relic shelf is laid over the game`,
@@ -971,7 +981,7 @@ async function foundSheetsFit(page, { top = 0, bottom = 0 } = {}) {
   );
   const toolsStill = await noScroll(page);
   await page.tap(".upgrades-close");
-  await page.tap(".board-tag");
+  await openShelf(page);
   await page.evaluate(() => {
     document.querySelectorAll(".shelf-list li")[2]?.scrollIntoView();
   });
@@ -1080,7 +1090,7 @@ for (const viewport of [[424, 924]]) {
       },
       lastSeen: Date.now(),
     });
-    await page.tap(".board-tag");
+    await openShelf(page);
     check(await noScroll(page), `${label} full shelf has no page scroll`);
     await page.evaluate(() => {
       document.querySelectorAll(".shelf-list li")[4]?.scrollIntoView();
@@ -3029,7 +3039,7 @@ const GUARD_SCREENS = [
   ["upgrades", () => guardSave(Date.now()), [".upgrades-button"]],
   ["workshop", () => guardSave(Date.now()), [".thumb-workshop"]],
   ["engineers", () => guardSave(Date.now()), [".engineers-button"]],
-  ["relic shelf", () => guardSave(Date.now()), [".board-tag"]],
+  ["relic shelf", () => guardSave(Date.now()), [".board-socket", SHELF_KEY]],
   ["save drawer", () => guardSave(Date.now()), [".save-status"]],
   ["menu", () => guardSave(Date.now()), [".menu-button"]],
   ["welcome", () => guardSave(Date.now() - 3 * 3_600_000), []],
@@ -3109,7 +3119,7 @@ const BOARD_SAVES = [
 ];
 /** The board's own controls; the save drawer's buttons join when it is open. */
 const BOARD_TARGETS =
-  ".board-socket, .board-tag, .board-dial, .save-status, .board-save-drawer.is-open .board-platebtn";
+  ".board-socket, .board-dial, .save-status, .board-save-drawer.is-open .board-platebtn, .board-note.on .board-platebtn";
 /** Every other control a finger can reach on the board at that moment. */
 const NEIGHBOURS = "#app button, #app [role='button']";
 /** Board text read against the board's art: the bars ask 4.5:1 of these. */
@@ -3151,7 +3161,6 @@ async function boardTargets(page) {
           rendered: [box.width, box.height],
         };
       };
-      const mine = [...document.querySelectorAll(own)].filter(onScreen);
       // A neighbour under the open drawer is out of reach, so it is skipped.
       const onTop = (el) => {
         const box = el.getBoundingClientRect();
@@ -3161,8 +3170,33 @@ async function boardTargets(page) {
         );
         return hit !== null && (el.contains(hit) || hit.contains(el));
       };
+      // So is one the open note or drawer lies over: it is beneath the
+      // popup, and the popup's own buttons are what a finger meets there.
+      // That holds for the board's own controls too.
+      const popupEls = [
+        ...document.querySelectorAll(
+          ".board-note.on, .board-save-drawer.is-open",
+        ),
+      ];
+      const popups = popupEls.map((popup) => popup.getBoundingClientRect());
+      const underPopup = (el) => {
+        const box = el.getBoundingClientRect();
+        return popups.some(
+          (popup) =>
+            box.left < popup.right &&
+            box.right > popup.left &&
+            box.top < popup.bottom &&
+            box.bottom > popup.top,
+        );
+      };
+      const mine = [...document.querySelectorAll(own)].filter(
+        (el) =>
+          onScreen(el) &&
+          (popupEls.some((popup) => popup.contains(el)) || !underPopup(el)),
+      );
       const others = [...document.querySelectorAll(neighbours)].filter(
-        (el) => onScreen(el) && onTop(el) && !mine.includes(el),
+        (el) =>
+          onScreen(el) && onTop(el) && !underPopup(el) && !mine.includes(el),
       );
       return { own: mine.map(measure), others: others.map(measure) };
     },
@@ -3174,7 +3208,9 @@ async function boardTargets(page) {
 /** Pairs closer than 8 board px where at least one is the board's own. */
 function boardGaps({ own, others }) {
   const ownNames = new Set(own.map((target) => target.selector));
-  return targetsCloserThan([...own, ...others], 8).filter(
+  // A scaled board snaps each box to device pixels, so an 8px gap can read
+  // 7.99 board px on a PC: allow a tenth of a pixel.
+  return targetsCloserThan([...own, ...others], 7.9).filter(
     (pair) => ownNames.has(pair.a) || ownNames.has(pair.b),
   );
 }
@@ -3296,8 +3332,9 @@ async function boardArtAt2x(page) {
 }
 
 /**
- * Each legend's text colour against the darkest and the lightest background
- * pixel in its box. The background is read from a screenshot (device scale 1)
+ * Each legend's text colour against its background pixels: the 10th and 90th
+ * percentile by luminance (which the gate reads) and the darkest and lightest
+ * (printed). The background is read from a screenshot (device scale 1)
  * taken with the text itself made clear, so glyph edges are never mistaken for
  * the background.
  */
@@ -3419,15 +3456,42 @@ for (const viewport of SCREENS) {
       // The controls at rest, before any note or drawer opens.
       const rest = await boardTargets(page);
 
+      // Gated on the 10th/90th percentile of the background: the enamel is
+      // textured, and a lone scratch should not fail a legend. The strict
+      // darkest/lightest ratio is printed beside it.
       const contrast = await boardContrast(page);
-      const dim = contrast.filter((row) => row.ratio < 4.5);
+      const dim = contrast.filter((row) => row.pct < 4.5);
       check(
         contrast.length >= 4 && dim.length === 0,
-        `${label} ${String(contrast.length)} legends at 4.5:1 or more (lowest ${String(Math.min(...contrast.map((row) => row.ratio)))}:1)`,
+        `${label} ${String(contrast.length)} legends at 4.5:1 or more (lowest ${String(Math.min(...contrast.map((row) => row.pct)))}:1 at p10/p90, ${String(Math.min(...contrast.map((row) => row.ratio)))}:1 at the extremes)`,
       );
       if (dim.length > 0 || contrast.length < 4) {
         console.log("board contrast", size, name, JSON.stringify(contrast));
       }
+
+      // A socket's note ends in the Relic shelf key, and the key opens the
+      // shelf over the board (#370).
+      await press(page, ".board-socket");
+      await page
+        .waitForSelector(SHELF_KEY, { visible: true, timeout: 2_000 })
+        .catch(() => undefined);
+      const keyTargets = await boardTargets(page);
+      const keyText = await boardTextSizes(page);
+      const keyArt = PHONE === viewport ? await boardArtAt2x(page) : undefined;
+      const keyShown = keyTargets.own.some((target) =>
+        target.selector.startsWith(".board-platebtn Relic shelf"),
+      );
+      if (keyShown) {
+        await press(page, SHELF_KEY);
+      }
+      check(
+        keyShown && (await coversBoard(page, ".shelf-dialog")),
+        `${label} a socket's note opens the shelf from its Relic shelf key`,
+      );
+      await press(page, ".shelf-close");
+      await page
+        .waitForSelector(".shelf-dialog[hidden]", { timeout: 2_000 })
+        .catch(() => undefined);
 
       // The Running now note opens under the dial and stays on the board.
       await press(page, ".board-dial");
@@ -3518,6 +3582,9 @@ for (const viewport of SCREENS) {
       const drawerTargets = await boardTargets(page);
       const targets = [
         ...rest.own,
+        ...keyTargets.own.filter((target) =>
+          target.selector.startsWith(".board-platebtn"),
+        ),
         ...drawerTargets.own.filter((target) =>
           target.selector.startsWith(".board-platebtn"),
         ),
@@ -3526,10 +3593,11 @@ for (const viewport of SCREENS) {
       // The plate and the stock row show in both states: name each pair once.
       const close8 = [
         ...new Map(
-          [...boardGaps(rest), ...boardGaps(drawerTargets)].map((pair) => [
-            `${pair.a}|${pair.b}`,
-            pair,
-          ]),
+          [
+            ...boardGaps(rest),
+            ...boardGaps(keyTargets),
+            ...boardGaps(drawerTargets),
+          ].map((pair) => [`${pair.a}|${pair.b}`, pair]),
         ).values(),
       ];
       // On a PC, say how big the smallest control is drawn on the desk.
@@ -3544,7 +3612,8 @@ for (const viewport of SCREENS) {
         ? ` (smallest drawn ${smallest.rendered.map((side) => side.toFixed(1)).join("x")})`
         : "";
       check(
-        rest.own.length >= 9 &&
+        rest.own.length >= 8 &&
+          keyShown &&
           drawerTargets.own.length >= 3 &&
           under.length === 0 &&
           close8.length === 0,
@@ -3571,10 +3640,10 @@ for (const viewport of SCREENS) {
       }
 
       const drawerText = await boardTextSizes(page);
-      const small = [...noteText.small, ...drawerText.small];
+      const small = [...keyText.small, ...noteText.small, ...drawerText.small];
       check(
         small.length === 0,
-        `${label} board text is 13px or more (${String(noteText.count + drawerText.count)} runs)`,
+        `${label} board text is 13px or more (${String(keyText.count + noteText.count + drawerText.count)} runs)`,
       );
       if (small.length > 0) {
         console.log("board text", size, name, JSON.stringify(small));
@@ -3582,10 +3651,14 @@ for (const viewport of SCREENS) {
 
       if (noteArt !== undefined) {
         const drawerArt = await boardArtAt2x(page);
-        const misses = [...noteArt.misses, ...drawerArt.misses];
+        const misses = [
+          ...(keyArt?.misses ?? []),
+          ...noteArt.misses,
+          ...drawerArt.misses,
+        ];
         check(
           misses.length === 0 && noteArt.count >= 8,
-          `${label} ${String(noteArt.count + drawerArt.count)} images, sprites and skins at exactly 2x`,
+          `${label} ${String((keyArt?.count ?? 0) + noteArt.count + drawerArt.count)} images, sprites and skins at exactly 2x`,
         );
         if (misses.length > 0) {
           console.log("board 2x", size, name, JSON.stringify(misses));

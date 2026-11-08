@@ -1023,8 +1023,9 @@ async function main() {
   });
   await capture("relic-shelf", async (viewport) => {
     const opened = await open(viewport, rest());
-    // The relic plate's tag opens the shelf (#370).
-    await press(opened.page, ".board-tag");
+    // A socket's note holds the Relic shelf key; the tag is a label (#370).
+    await press(opened.page, ".board-socket");
+    await press(opened.page, ".board-note.on .board-platebtn");
     await opened.page.waitForSelector(".shelf-dialog:not([hidden])");
     await expectText(opened.page, /A warm light waits|virtue of/, "shelf");
     return opened;
