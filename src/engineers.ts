@@ -168,7 +168,7 @@ export function addTrip(mountain: Mountain, index: number): Mountain {
 
 /**
  * Workers one Great Machine needs while an engineer tends that tier.
- * Untended, it still needs the tier's own staff (25). Tuned so the pacing
+ * Untended, it still needs the tier's own staff (10). Tuned so the pacing
  * dads run one after the Hammer and still take at least 5 days.
  */
 export const TENDED_MACHINE_STAFF = 5;

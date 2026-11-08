@@ -178,7 +178,8 @@ describe("promotion teach (#246)", () => {
     );
     const promoteButton =
       sheet?.querySelector<HTMLButtonElement>(".engineer-promote");
-    expect(promoteButton?.textContent).toBe(promotionAction("Nils", 3_000_000));
+    // #357: 2M x the 2.625 Granite scale.
+    expect(promoteButton?.textContent).toBe(promotionAction("Nils", 5_250_000));
     promoteButton?.click();
     sheet?.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
     const mountain = screen.progress.getSnapshot().mountain;
@@ -196,7 +197,7 @@ describe("promotion teach (#246)", () => {
 
   it("quotes the band's promotion price on the how card, as the button does (#356)", () => {
     const screen = mount(() => 1_700_000_000_000);
-    // 45M mined is the Crystal Caves: one-offs cost 9 times as much.
+    // 45M mined is the Crystal Caves: one-offs cost 6.3 times as much (#357).
     const caves = { ...crew(), remaining: 195_000_000, pocket: 0 };
     screen.progress.applyMutation(() => caves);
     screen.root.querySelector<HTMLButtonElement>(".engineers-button")?.click();

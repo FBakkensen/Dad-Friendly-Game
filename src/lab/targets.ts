@@ -126,8 +126,8 @@ type TargetBase = {
   /**
    * A miss is still in the report. It does not fail `LAB_STRICT`.
    * The finish-day rows set it for good: the run length is not a limit
-   * (Flemming, 7 Nov 2026). The check-in pacing rows set it until the
-   * economy overhaul lands.
+   * (Flemming, 7 Nov 2026). every-tier-bought sets it as a report row
+   * for the milestones sliver (#357).
    */
   readonly reportOnly?: boolean;
 };
@@ -158,7 +158,10 @@ export const TARGETS: readonly Target[] = [
     measure: "singleShare",
     scope: { kind: "policyKinds", kinds: ["casual", "optimizer"] },
     op: "lte",
-    value: 0.25,
+    // Flemming, 8 Nov 2026 (#357): 0.26 after the milestone marks; the
+    // checker's opening Topsoil and deep Great Machine stretch are fixed
+    // one-buy moments.
+    value: 0.26,
     why: "Most moments should offer more than one live option.",
   },
   {
@@ -285,10 +288,9 @@ export const TARGETS: readonly Target[] = [
     value: 2,
     why: "a new machine should be bought within two sittings of showing up.",
   },
-  // Check-in pacing (balance review, docs/balance-review.md). Report only
-  // until the economy overhaul in docs/economy-overhaul.md lands: today's
-  // economy misses them, which is the point. They turn strict with the
-  // milestones sliver (S3, #357), after the new curve (#356).
+  // Check-in pacing (balance review, docs/balance-review.md). Strict since
+  // the milestones sliver (#357): with the new curve (#356) and marks on
+  // every tier, a casual dad's check-ins hold them.
   {
     id: "zero-buy-sittings",
     measure: "zeroBuySittings",
@@ -296,7 +298,6 @@ export const TARGETS: readonly Target[] = [
     op: "lte",
     value: 0.2,
     why: "After day one, at most one check-in in five should buy nothing.",
-    reportOnly: true,
   },
   {
     id: "buys-per-sitting",
@@ -305,7 +306,6 @@ export const TARGETS: readonly Target[] = [
     op: "gte",
     value: 3,
     why: "After day one, a typical check-in should buy at least three things.",
-    reportOnly: true,
   },
   {
     id: "best-open-share",
@@ -314,7 +314,6 @@ export const TARGETS: readonly Target[] = [
     op: "gte",
     value: 0.6,
     why: "After day one, most check-ins should open with the best buy in reach.",
-    reportOnly: true,
   },
   {
     id: "best-wait-sittings",
@@ -323,6 +322,14 @@ export const TARGETS: readonly Target[] = [
     op: "lte",
     value: 2,
     why: "The best buy should never stay out of reach for more than two check-ins in a row.",
+  },
+  {
+    id: "every-tier-bought",
+    measure: "fewestMachineBuys",
+    scope: { kind: "policyKinds", kinds: ["casual"] },
+    op: "gte",
+    value: 5,
+    why: "Every machine tier is bought at least five times in a run.",
     reportOnly: true,
   },
 ];

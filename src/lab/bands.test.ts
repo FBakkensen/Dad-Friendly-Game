@@ -5,6 +5,7 @@ import {
   bandShare,
   createBandLog,
   createSittingClock,
+  fewestMachineBuys,
   runBands,
   summarizeBands,
   type BandEvent,
@@ -12,6 +13,7 @@ import {
 } from "./bands";
 import type { DecisionSample } from "./measure";
 import type { RevealEvent } from "./reveal";
+import { TARGETS } from "./targets";
 
 const GRANITE = 10_000_000;
 const CRYSTAL = 45_000_000;
@@ -44,8 +46,8 @@ describe("bandShare", () => {
 describe("createBandLog", () => {
   it("logs what is on sale, first affordable and each buy, once per band", () => {
     const log = createBandLog();
-    // The first cart's price (#356 tune).
-    const first = log(at(0, { pocket: 150 }));
+    // The first cart's price (#357 tune).
+    const first = log(at(0, { pocket: 600 }));
     expect(first).toEqual([
       { kind: "available", tier: "cart", layer: "topsoil" },
       {
@@ -56,7 +58,7 @@ describe("createBandLog", () => {
         count: 0,
       },
     ]);
-    expect(log(at(0, { pocket: 150 }))).toEqual([]);
+    expect(log(at(0, { pocket: 600 }))).toEqual([]);
     const bought = log(at(GRANITE, { carts: 2 }));
     expect(bought).toContainEqual({
       kind: "bought",
@@ -286,5 +288,49 @@ describe("createSittingClock", () => {
     expect(sittingAt(1000)).toBe(0);
     expect(sittingAt(60_000)).toBe(1);
     expect(sittingAt(61_000)).toBe(1);
+  });
+});
+
+describe("fewestMachineBuys", () => {
+  const buy = (
+    tier: "cart" | "drill" | "borer" | "machine",
+    layer: "topsoil" | "granite",
+    count: number,
+  ): BandEvent => ({ kind: "bought", tier, layer, share: 0, count });
+
+  it("fewest machine buys is the smallest per-tier total", () => {
+    const samples = [
+      sample([
+        buy("cart", "topsoil", 30),
+        buy("drill", "topsoil", 25),
+        buy("borer", "topsoil", 6),
+        buy("machine", "topsoil", 9),
+      ]),
+      sample([
+        buy("cart", "granite", 20),
+        buy("drill", "granite", 20),
+        buy("borer", "granite", 10),
+        buy("machine", "granite", 10),
+      ]),
+    ];
+    expect(fewestMachineBuys(samples)).toBe(16);
+  });
+
+  it("a machine never bought makes it 0", () => {
+    expect(fewestMachineBuys([sample([])])).toBe(0);
+    expect(fewestMachineBuys([])).toBe(0);
+  });
+
+  it("is a report-only casual target of at least 5", () => {
+    expect(TARGETS).toContainEqual(
+      expect.objectContaining({
+        id: "every-tier-bought",
+        measure: "fewestMachineBuys",
+        scope: { kind: "policyKinds", kinds: ["casual"] },
+        op: "gte",
+        value: 5,
+        reportOnly: true,
+      }),
+    );
   });
 });

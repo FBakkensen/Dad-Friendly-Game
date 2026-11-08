@@ -51,8 +51,11 @@ export function stretch(mountain: { readonly stretch?: number }): number {
 /** Depth (run-1 stones) where each band begins. `LAYERS[i].from` reads these. */
 export const BAND_STARTS = [0, 10_000_000, 45_000_000, 120_000_000] as const;
 
-/** Stones to dig per stone of depth in each band, at stretch 1. Deeper bands take more. */
-export const BAND_SCALE = [1, 1.5, 9, 27] as const;
+/**
+ * Stones to dig per stone of depth in each band, at stretch 1. Deeper bands
+ * take more. #357 retuned bands 2–4 for the milestone marks.
+ */
+export const BAND_SCALE = [1, 2.625, 6.3, 32.4] as const;
 
 type Band = 0 | 1 | 2 | 3;
 const BANDS: readonly Band[] = [0, 1, 2, 3];

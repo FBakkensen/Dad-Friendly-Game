@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { TENDING_GAIN, TENDING_TENTHS, station } from "./engineers";
 import type { Trouble } from "./hazards";
+import { milestoneMultiplier } from "./milestones";
 import { AWAY_PAY_RATE, effectiveRates, tendingGain } from "./rates";
 import { minedMountain } from "./test-fixtures";
 import { TIERS } from "./tiers";
@@ -289,5 +290,17 @@ describe("tendingGain", () => {
     expect(effectiveRates(masterFirst).exactCrewPerSecond).toBe(
       effectiveRates(masterOnCart).exactCrewPerSecond,
     );
+  });
+
+  it("an old save with 30 drills mines x4 at once", () => {
+    const old = { ...minedMountain(0), helpers: 40, drills: 30 };
+    const few = { ...old, drills: 9 };
+    expect(milestoneMultiplier("drill", 30)).toBe(4);
+    const drill = TIERS.find((tier) => tier.id === "drill");
+    expect(drill).toBeDefined();
+    const speed = (m: typeof old) => effectiveRates(m).tierSpeed.drill;
+    expect(speed(old)).toBeGreaterThan(0);
+    expect(speed(few)).toBeGreaterThan(0);
+    expect(speed(old) / speed(few)).toBeCloseTo(4, 6);
   });
 });

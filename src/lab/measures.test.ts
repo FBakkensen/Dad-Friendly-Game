@@ -132,6 +132,7 @@ describe("measures", () => {
       "extremeWin",
       "favouredBuyShare",
       "featureShare",
+      "fewestMachineBuys",
       "finishDay",
       "liveMedian",
       "liveP10",

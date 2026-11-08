@@ -8,14 +8,15 @@ import { tierById } from "./tiers";
 
 describe("crew unlocks", () => {
   // M12 retune (#252): the Hammer is found at 25M, the card opens at 120M.
+  // #357: pockets cover the 120.6M Great Machine.
   const nearHammer = {
     ...minedMountain(119_999_999),
-    pocket: 90_000_000,
+    pocket: 150_000_000,
     borers: 1,
   };
   const atHammer = {
     ...minedMountain(120_000_000),
-    pocket: 90_000_000,
+    pocket: 150_000_000,
     borers: 1,
   };
 
@@ -36,7 +37,7 @@ describe("crew unlocks", () => {
     expect(buyCrew(atHammer, "machine")).toMatchObject({
       machines: 1,
       kids: 0,
-      pocket: 49_800_000,
+      pocket: 29_400_000,
     });
     expect(buyCrew(nearHammer, "borer")).toMatchObject({ borers: 2 });
   });
@@ -88,7 +89,8 @@ describe("crew unlocks", () => {
 
   it("leaves an engineer's post alone when a Great Machine is bought", () => {
     const withBorer = buyCrew(
-      { ...minedMountain(120_000_000), pocket: 80_000_000, helpers: 5 },
+      // #357: enough for a borer and the 120.6M Great Machine.
+      { ...minedMountain(120_000_000), pocket: 130_000_000, helpers: 5 },
       "borer",
     );
     expect(withBorer.engineers?.[0]?.post).toBe("borer");

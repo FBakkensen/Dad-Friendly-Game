@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { TierId } from "./tiers.ts";
 import {
   MILESTONES,
   type MilestoneTable,
@@ -44,16 +45,63 @@ describe("owned-count milestones", () => {
     expect(milestoneMultiplier("machine", 3, TABLE)).toBe(4);
   });
 
-  it("ships the retune's marks (#252)", () => {
-    expect(MILESTONES).toEqual(TABLE);
-    expect(milestoneMultiplier("drill", 30)).toBe(4);
-    expect(milestoneLine("cart", 500, plain)).toBeUndefined();
+  it("every staffed tier has the spec marks", () => {
+    const ats = (id: TierId) => MILESTONES[id]?.map((mark) => mark.at);
+    for (const id of ["cart", "drill"] as const) {
+      expect(ats(id)).toEqual([10, 25, 50, 100, 150, 200]);
+    }
+    // Flemming's ruling after the Task 3 stop (#357): borers keep their 5.
+    expect(ats("borer")).toEqual([5, 10, 25, 50, 100, 150, 200]);
+    expect(ats("machine")).toEqual([2, 3, 5, 10, 25, 50]);
+    expect(ats("helper")).toEqual([25, 50, 100]);
+    expect(MILESTONES.kid).toBeUndefined();
+  });
+
+  it("marks stack to x64 and stop", () => {
+    expect(milestoneMultiplier("cart", 9)).toBe(1);
+    expect(milestoneMultiplier("cart", 10)).toBe(2);
+    expect(milestoneMultiplier("cart", 199)).toBe(32);
+    expect(milestoneMultiplier("cart", 200)).toBe(64);
+    expect(milestoneMultiplier("cart", 5000)).toBe(64);
+    expect(milestoneMultiplier("helper", 100)).toBe(8);
+    expect(milestoneMultiplier("helper", 1000)).toBe(8);
+    expect(milestoneMultiplier("machine", 50)).toBe(64);
+  });
+
+  it("borers double from five and stop at x128", () => {
+    expect(milestoneMultiplier("borer", 4)).toBe(1);
+    expect(milestoneMultiplier("borer", 5)).toBe(2);
+    expect(milestoneMultiplier("borer", 10)).toBe(4);
+    expect(milestoneMultiplier("borer", 199)).toBe(64);
+    expect(milestoneMultiplier("borer", 200)).toBe(128);
+    expect(milestoneMultiplier("borer", 5000)).toBe(128);
+    expect(milestoneLine("borer", 3, plain)).toBe(
+      "3 of 5 · Five borers side by side. They clear the tunnels twice as fast.",
+    );
+    expect(milestoneLine("borer", 7, plain)).toBe(
+      "Twice as fast now. 7 of 10 · Ten borers in step. Twice as fast again.",
+    );
+  });
+
+  it("goal lines fit a phone card", () => {
+    for (const marks of Object.values(MILESTONES)) {
+      for (const mark of marks) {
+        expect(mark.goal.length).toBeLessThanOrEqual(80);
+        expect(mark.goal.endsWith(".")).toBe(true);
+      }
+    }
+  });
+
+  it("past the last mark the card says twice as fast now", () => {
+    expect(milestoneLine("cart", 200, String)).toBe("Twice as fast now.");
   });
 
   it("leaves tiers without marks alone", () => {
+    expect(milestoneMultiplier("kid", 500)).toBe(1);
     expect(milestoneMultiplier("cart", 500, TABLE)).toBe(1);
     expect(milestoneMultiplier("helper", 500, TABLE)).toBe(1);
     expect(milestonesReached("kid", 500, TABLE)).toBe(0);
+    expect(milestoneLine("kid", 500, plain)).toBeUndefined();
     expect(milestoneLine("cart", 3, plain, TABLE)).toBeUndefined();
   });
 

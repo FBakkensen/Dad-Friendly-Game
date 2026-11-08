@@ -101,7 +101,8 @@ describe("golden veins", () => {
         machines: 0,
         kids: 0,
       }),
-    ).toBe(BAND_SCALE[3]);
+      // #357: one Heart depth is 32.4 stones, capped at the 33 whole stones left.
+    ).toBe(Math.ceil(BAND_SCALE[3]));
     expect(
       mineVein({
         remaining: MOUNTAIN_STONES - 1_000,

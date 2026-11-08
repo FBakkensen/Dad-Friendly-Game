@@ -179,6 +179,25 @@ describe("targets", () => {
     }
   });
 
+  it("keeps only the finish days and every-tier-bought report only (#357)", () => {
+    const reportOnly = TARGETS.filter((target) => target.reportOnly === true)
+      .map((target) => target.id)
+      .sort();
+    expect(reportOnly).toEqual(
+      ["casual-finish", "every-tier-bought", "thin-habit-finish"].sort(),
+    );
+    for (const id of [
+      "zero-buy-sittings",
+      "buys-per-sitting",
+      "best-open-share",
+      "best-wait-sittings",
+    ]) {
+      expect(TARGETS.find((target) => target.id === id)?.reportOnly).not.toBe(
+        true,
+      );
+    }
+  });
+
   it("fails when a target names an unknown measure", async () => {
     const measuresDir = path.join(labDir, "measures");
     await expect(

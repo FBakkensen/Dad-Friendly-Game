@@ -185,7 +185,8 @@ describe("promote", () => {
       legacy: 1,
       stretch: kidStretch(1),
     };
-    expect(promoteCost(mountain)).toBe(8_507_813);
+    // #357: 2M x the 2.625 Granite scale x kidStretch(1), rounded up.
+    expect(promoteCost(mountain)).toBe(14_888_672);
   });
 });
 

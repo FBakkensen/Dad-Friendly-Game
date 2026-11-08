@@ -597,7 +597,7 @@ describe("workshop rules", () => {
     const now = 1;
     const cool = { ...openShed(), helpers: 500 };
     const plain = effectiveRates(cool, now);
-    expect(plain.crewPerSecond).toBe(500);
+    expect(plain.crewPerSecond).toBe(4_000); // 500 workers x8
     const until = 30 * 60_000;
     const hot = {
       ...cool,
@@ -624,7 +624,7 @@ describe("workshop rules", () => {
     expect(doubled.tapYield).toBe(
       effectiveRates({ ...cool, upgrades: { tap: 1 } }, now).tapYield,
     );
-    expect(doubled.tapYield).toBe(9);
+    expect(doubled.tapYield).toBe(67);
     const stronger = withFactors(
       { "recipe.blasting-charge.strength": 2 },
       () => effectiveRates(hot, now).crewPerSecond,

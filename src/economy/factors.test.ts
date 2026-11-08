@@ -27,7 +27,8 @@ describe("economy factors", () => {
   it("stays at 1 outside a sweep, and a sweep of 1 matches today's prices", () => {
     expect(factor("price.cart")).toBe(1);
     expect(tierCost(tierById("helper"), 1)).toBe(22);
-    expect(tierCost(tierById("cart"), 2)).toBe(192);
+    // #357: a 600 cart on the x1.15 curve.
+    expect(tierCost(tierById("cart"), 2)).toBe(794);
     withFactors({ "price.helper": 1, "growth.worker": 1 }, () => {
       expect(tierCost(tierById("helper"), 1)).toBe(22);
     });
@@ -62,9 +63,10 @@ describe("economy factors", () => {
   });
 
   it("scales growth, output, and tending, and restores them after a throw", () => {
-    expect(tierCost(tierById("cart"), 1)).toBe(170);
+    // #357: 600 x 1.15, and 600 x 2.3 under the sweep.
+    expect(tierCost(tierById("cart"), 1)).toBe(690);
     withFactors({ "growth.machine": 2 }, () => {
-      expect(tierCost(tierById("cart"), 1)).toBe(339);
+      expect(tierCost(tierById("cart"), 1)).toBe(1_380);
     });
     expect(effectiveRates(posted).tierSpeed.borer).toBeCloseTo(
       357 * 0.8 * 1.21875,
@@ -82,10 +84,10 @@ describe("economy factors", () => {
     });
     expect(() =>
       withFactors({ "price.cart": 4 }, () => {
-        expect(tierCost(tierById("cart"), 0)).toBe(600);
+        expect(tierCost(tierById("cart"), 0)).toBe(2_400);
         throw new Error("stop");
       }),
     ).toThrow("stop");
-    expect(tierCost(tierById("cart"), 0)).toBe(150);
+    expect(tierCost(tierById("cart"), 0)).toBe(600);
   });
 });

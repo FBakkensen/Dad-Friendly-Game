@@ -367,6 +367,24 @@ export function favouredBuyShare(samples: readonly DecisionSample[]): number {
 }
 
 /**
+ * #357. The smallest total of machines bought of any one tier in a run. A
+ * tier never bought counts 0, so one idle tier pulls the whole row to 0.
+ */
+export function fewestMachineBuys(samples: readonly DecisionSample[]): number {
+  const totals = new Map<MachineId, number>();
+  for (const event of samples.flatMap((sample) => sample.bands ?? [])) {
+    if (event.kind === "bought") {
+      totals.set(event.tier, (totals.get(event.tier) ?? 0) + event.count);
+    }
+  }
+  let fewest = Number.POSITIVE_INFINITY;
+  for (const id of MACHINE_IDS) {
+    fewest = Math.min(fewest, totals.get(id) ?? 0);
+  }
+  return fewest;
+}
+
+/**
  * Rule 3, scoped (#252): a machine misses a band when it was buyable there
  * (shown, not locked, and the pocket reached its price) and none was bought,
  * counted only in the band where it opens and in the band that suits it.

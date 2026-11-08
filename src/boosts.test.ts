@@ -11,7 +11,7 @@ import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 
 const MIN = 60_000;
-const crew = { ...minedMountain(0), helpers: 500, pocket: 1_000_000 }; // 500/s
+const crew = { ...minedMountain(0), helpers: 500, pocket: 1_000_000 }; // 500 workers, x8 at the 100 mark: 4,000/s
 
 describe("quick boosts", () => {
   it("are priced from what they boost, with a floor for new dads", () => {
@@ -149,26 +149,26 @@ describe("quick boosts", () => {
       upgrades: { tap: 2 },
       boosts: { sharper: 10 * MIN },
     };
-    expect(effectiveRates(strong).tapYield).toBe(17);
-    expect(effectiveRates(strong, 5 * MIN).tapYield).toBe(34);
-    expect(effectiveRates(strong, 10 * MIN).tapYield).toBe(17);
-    expect(mineByHand(strong, 0).pocket - strong.pocket).toBe(34);
+    expect(effectiveRates(strong).tapYield).toBe(133);
+    expect(effectiveRates(strong, 5 * MIN).tapYield).toBe(266);
+    expect(effectiveRates(strong, 10 * MIN).tapYield).toBe(133);
+    expect(mineByHand(strong, 0).pocket - strong.pocket).toBe(266);
   });
 
   it("Overtime doubles the crew while playing, but never away earnings", () => {
     const over = { ...crew, boosts: { overtime: 30 * MIN } };
-    expect(stonesPerSecond(over)).toBe(500);
-    expect(stonesPerSecond(over, MIN)).toBe(1_000);
+    expect(stonesPerSecond(over)).toBe(4_000);
+    expect(stonesPerSecond(over, MIN)).toBe(8_000);
     // Tap power takes its share of the crew's own speed, not the doubled one.
     expect(
       effectiveRates({ ...over, upgrades: { tap: 1 } }, MIN).tapYield,
-    ).toBe(9);
+    ).toBe(67);
     expect(
       accrue({ mountain: over, from: 0, to: 10_000, live: true }).mined,
-    ).toBe(10_000);
-    expect(accrue({ mountain: over, from: 0, to: 10_000 }).mined).toBe(5_000);
+    ).toBe(80_000);
+    expect(accrue({ mountain: over, from: 0, to: 10_000 }).mined).toBe(40_000);
     expect(accrueAway({ mountain: over, lastSeen: 0, now: 10_000 }).mined).toBe(
-      1_500,
+      12_000,
     );
   });
 

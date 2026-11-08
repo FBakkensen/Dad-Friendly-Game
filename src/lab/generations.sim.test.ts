@@ -9,9 +9,10 @@ describe("generations lab (M13, #253)", () => {
     const runs = runGenerations({ policy: casual, seed: 1, runs: 2 });
     expect(runs.map((run) => run.run)).toEqual([1, 2]);
     expect(runs.map((run) => run.k)).toEqual([1, kidStretch(1)]);
-    // Regression pin on the tuned curve (#356); run 2 finishes later.
-    expect(runs[0]?.finishDay).toBe(4.5);
-    expect(runs[1]?.finishDay).toBeGreaterThan(4.5);
+    // Regression pin on the #357 retune (was 4.5 on #356); run 2 finishes
+    // later, on day 6.
+    expect(runs[0]?.finishDay).toBe(4);
+    expect(runs[1]?.finishDay).toBe(6);
     expect(runs[0]?.unbought).toEqual([]);
     expect(MACHINE_IDS).toContain("borer");
   }, 60_000);

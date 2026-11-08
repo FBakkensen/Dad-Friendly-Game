@@ -75,7 +75,7 @@ The choices are the game. Real numbers let the player reason for himself. A numb
 - Discoveries stay vague: relic finds, expedition finds, hazards, what comes next.
 - No "?" in player text.
 
-**A choice must not be obvious.** If every option grows the same way, the best buy is a single sort and the other buttons are scenery. Before #356 every machine added a fixed output and doubled in price (it now climbs ×1.13, and the deeper bands dig more stones per stone of depth), so "cheapest output per stone" is always the answer. The lab agrees: the same move is best 25–47% of the time, and boosts and crafts are almost never the best move.
+**A choice must not be obvious.** If every option grows the same way, the best buy is a single sort and the other buttons are scenery. Before #356 every machine added a fixed output and doubled in price (it now climbs ×1.15, and the deeper bands dig more stones per stone of depth), so "cheapest output per stone" is always the answer. The lab agrees: the same move is best 25–47% of the time, and boosts and crafts are almost never the best move.
 
 What makes a decision interesting (Sid Meier): there is a trade-off, the situation decides, and the player can read the consequences. The cures for a dominant strategy are trade-offs on several axes, feedback loops, and shared scarce resources (Adams and Dormans; Machinations). Idle games do it with growth curves that differ, synergies, milestones and prestige (Pecorella; Cookie Clicker; AdVenture Capitalist).
 
@@ -85,7 +85,7 @@ Each one stays readable from the real numbers on the card.
 
 1. **Lab measures, report-only.** Decision entropy (how often the top play styles disagree on the best move) and greedy regret (how far behind a "cheapest output per stone" bot finishes).
 2. **Layer-favoured machines.** Each band boosts one tool and slows another. The layer card names it ("The Granite suits drills"). Which machine each band favours is decision D3, which needs Flemming's OK.
-3. **Ownership milestones.** At 10, 25 and 50 of a machine, that tier digs twice as fast. Shown as "12 of 25 drills".
+3. **Ownership milestones (built, #357).** Marks on every machine tier and on workers make each of that tier dig twice as fast, so an older machine stays worth a look. Shown as "N of 10 · line".
 4. **A contested worker pool.** Machines, tending, crafts and repairs all draw on the same free workers. Shown as "Needs 8 workers · 5 free".
 5. **Short and long boosts and crafts.** A strong short timer and a gentle long one, so the right pick depends on the session.
 6. **Synergies and material forks.** One tier makes another stronger ("+1% to every drill for each cart"), and each band's material feeds two recipes for different play styles.

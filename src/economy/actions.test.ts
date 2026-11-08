@@ -606,7 +606,8 @@ describe("valueOf", () => {
     const idle: Mountain = { ...fresh, carts: 1 };
     const value = score(idle, { kind: "buyTier", id: "cart" }, HORIZON);
     expect(value.gainPerSec).toBe(6);
-    expect(value.cost).toBe(190);
+    // #357: the second cart is 690, plus a 20-stone worker.
+    expect(value.cost).toBe(710);
   });
 
   it("uses the crew delta for every listed upgrade", () => {
@@ -932,9 +933,9 @@ describe("valueOf", () => {
     expect(arms.gainPerSec).toBe(0);
     expect(
       effectiveRates(small).exactCrewPerSecond * TAP_SHARE_PER_LEVEL,
-    ).toBeCloseTo(0.825, 6);
+    ).toBeCloseTo(3.3, 6);
 
-    const hundred: Mountain = { ...fresh, helpers: 70, carts: 3 };
+    const hundred: Mountain = { ...fresh, helpers: 24, carts: 9 };
     const bigArms = score(
       hundred,
       { kind: "buyUpgrade", id: "tap" },
