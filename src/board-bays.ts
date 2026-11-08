@@ -4,6 +4,7 @@ import borerUrl from "./assets/board/mach-borer.png";
 import cartUrl from "./assets/board/mach-cart.png";
 import machineUrl from "./assets/board/mach-machine.png";
 import { skin } from "./board-skin";
+import { measurable, onFontsSettled } from "./fit-cache";
 import { reducedMotion } from "./float-text";
 import { formatCompact, formatCount } from "./format";
 import type { TroubleTier } from "./hazards";
@@ -379,12 +380,20 @@ export function createMachineBays({
   root.append(bandRow, area);
   skin(root, "frame");
 
-  /** The words last fitted, so a frame with the same words and widths measures nothing. */
+  /**
+   * The words last fitted, so a frame with the same words and widths measures nothing. A fit is
+   * kept only when every box was measured on the page with a width.
+   */
   let fittedNames = "";
   let fittedSubs = "";
+  /** The bays last drawn with the save in, to fit again when the fonts arrive. */
+  let lastDrawn: readonly (readonly [Bay, BayView])[] = [];
 
-  const loading = (bay: Bay): void => {
+  const loading = (bay: Bay, i: number): void => {
     bay.view = undefined;
+    const tier = START[i] ?? "cart";
+    setAttr(bay.button, "data-tier", tier);
+    placeIcon(bay, iconKey(tier, 0));
     setAttr(bay.button, "data-trouble", undefined);
     if (!bay.button.disabled) {
       bay.button.disabled = true;
@@ -431,7 +440,6 @@ export function createMachineBays({
     const names = drawn.map(([, view]) => view.tier).join("|");
     const nameKey = `${names}#${widths.join("")}`;
     if (nameKey !== fittedNames) {
-      fittedNames = nameKey;
       for (const [bay, view] of drawn) {
         const tier = tierById(view.tier);
         bay.name.textContent = tier.name;
@@ -439,11 +447,11 @@ export function createMachineBays({
           bay.name.textContent = tier.shortName;
         }
       }
+      fittedNames = drawn.every(([bay]) => measurable(bay.name)) ? nameKey : "";
     }
     const options = drawn.map(([, view]) => bayLines(view));
     const subKey = `${options.map((o) => o.join("\n")).join("\n#\n")}#${widths.join("")}`;
     if (subKey !== fittedSubs) {
-      fittedSubs = subKey;
       const pattern = sharedPattern(options, (b, text) => {
         const sub = drawn[b]?.[0].sub;
         if (sub === undefined) {
@@ -455,8 +463,18 @@ export function createMachineBays({
       drawn.forEach(([bay], b) => {
         write(bay.sub, pattern[b] ?? "");
       });
+      fittedSubs = drawn.every(([bay]) => measurable(bay.sub)) ? subKey : "";
     }
   };
+
+  // Words fitted with fallback metrics may not fit in the board's own fonts.
+  onFontsSettled(() => {
+    fittedNames = "";
+    fittedSubs = "";
+    if (lastDrawn.length > 0) {
+      fitWords(lastDrawn);
+    }
+  });
 
   const render = (
     views: readonly BayView[] | undefined,
@@ -467,12 +485,13 @@ export function createMachineBays({
     bays.forEach((bay, i) => {
       const view = views?.[i];
       if (view === undefined) {
-        loading(bay);
+        loading(bay, i);
         return;
       }
       draw(bay, view);
       drawn.push([bay, view]);
     });
+    lastDrawn = drawn;
     if (drawn.length === 0) {
       fittedNames = "";
       fittedSubs = "";

@@ -30,6 +30,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 const fits = (el: HTMLElement): boolean => el.textContent.length <= 26;
@@ -352,8 +353,10 @@ describe("createReadyPlate", () => {
   });
 
   it("fits the longest line that fits, and measures again only when the words change", () => {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(176);
     const measured = vi.fn(fits);
     const made = createReadyPlate({ onTap: () => bought, fits: measured });
+    document.body.append(made.root);
     const machine: ReadyPick = {
       kind: "saving",
       tier: "machine",
@@ -369,6 +372,93 @@ describe("createReadyPlate", () => {
     const calls = measured.mock.calls.length;
     made.render(machine, true);
     expect(measured.mock.calls.length).toBe(calls);
+  });
+
+  describe("fitting while the page settles", () => {
+    /** A font set the test loads by hand: happy-dom has none. */
+    const fontSet = (): { load: () => void; ready: () => void } => {
+      let settle = (): void => undefined;
+      const ready = new Promise<void>((resolve) => {
+        settle = resolve;
+      });
+      const fonts = Object.assign(new EventTarget(), { ready });
+      Object.defineProperty(document, "fonts", {
+        value: fonts,
+        configurable: true,
+      });
+      return {
+        load: () => fonts.dispatchEvent(new Event("loadingdone")),
+        ready: settle,
+      };
+    };
+
+    afterEach(() => {
+      Reflect.deleteProperty(document, "fonts");
+      vi.restoreAllMocks();
+      document.body.replaceChildren();
+    });
+
+    const sized = (): void => {
+      vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(
+        176,
+      );
+    };
+
+    /** A plate whose fit takes 10 characters until `widen`, then 40. */
+    const limited = (): {
+      root: HTMLElement;
+      render(): void;
+      widen(): void;
+    } => {
+      let limit = 10;
+      const made = createReadyPlate({
+        onTap: () => bought,
+        fits: (el) => el.textContent.length <= limit,
+      });
+      document.body.append(made.root);
+      return {
+        root: made.root,
+        render: () => {
+          made.render(readyCart, true);
+        },
+        widen: () => {
+          limit = 40;
+        },
+      };
+    };
+
+    it("keeps no fit measured in a box with no width yet", () => {
+      const plate = limited();
+      plate.render();
+      expect(text(plate.root, ".board-ready-main")).toBe("Buy a cart");
+      plate.widen();
+      plate.render();
+      expect(text(plate.root, ".board-ready-main")).toBe("Buy a cart · 5,868");
+    });
+
+    it("keeps a fit measured on the page until a font loads", () => {
+      sized();
+      const fonts = fontSet();
+      const plate = limited();
+      plate.render();
+      plate.widen();
+      plate.render();
+      expect(text(plate.root, ".board-ready-main")).toBe("Buy a cart");
+      fonts.load();
+      expect(text(plate.root, ".board-ready-main")).toBe("Buy a cart · 5,868");
+    });
+
+    it("fits again once the fonts are ready", async () => {
+      sized();
+      const fonts = fontSet();
+      const plate = limited();
+      plate.render();
+      plate.widen();
+      fonts.ready();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(text(plate.root, ".board-ready-main")).toBe("Buy a cart · 5,868");
+    });
   });
 
   it("falls back to the default fit: the first option that does not overflow", () => {

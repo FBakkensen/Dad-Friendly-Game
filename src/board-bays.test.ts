@@ -324,6 +324,117 @@ describe("createMachineBays", () => {
     expect(q(bay(bays, 0), ".board-bay-name").textContent).toBe("Mine cart");
   });
 
+  describe("fitting while the page settles", () => {
+    /** A font set the test loads by hand: happy-dom has none. */
+    const fontSet = (): { load: () => void; ready: () => void } => {
+      let settle = (): void => undefined;
+      const ready = new Promise<void>((resolve) => {
+        settle = resolve;
+      });
+      const fonts = Object.assign(new EventTarget(), { ready });
+      Object.defineProperty(document, "fonts", {
+        value: fonts,
+        configurable: true,
+      });
+      return {
+        load: () => fonts.dispatchEvent(new Event("loadingdone")),
+        ready: settle,
+      };
+    };
+
+    afterEach(() => {
+      Reflect.deleteProperty(document, "fonts");
+      vi.restoreAllMocks();
+    });
+
+    const sized = (): void => {
+      vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(
+        120,
+      );
+    };
+
+    const limited = (): {
+      bays: MachineBays;
+      fits: ReturnType<typeof vi.fn<(el: HTMLElement) => boolean>>;
+      widen: () => void;
+    } => {
+      let limit = 10;
+      const fits = vi.fn<(el: HTMLElement) => boolean>(
+        (el) => el.textContent.length <= limit,
+      );
+      const bays = createMachineBays({
+        onOpen: vi.fn(),
+        onPress: vi.fn(),
+        onFix: vi.fn(),
+        fits,
+      });
+      document.body.append(bays.root);
+      return {
+        bays,
+        fits,
+        widen: () => {
+          limit = 16;
+        },
+      };
+    };
+
+    const drillName = (bays: MachineBays): string | null =>
+      q(bay(bays, 1), ".board-bay-name").textContent;
+
+    it("keeps no fit measured in a box with no width yet", () => {
+      const { bays, widen } = limited();
+      bays.render(early(), "");
+      expect(drillName(bays)).toBe("Drill");
+      widen();
+      bays.render(early(), "");
+      expect(drillName(bays)).toBe("Steam drill");
+    });
+
+    it("keeps no fit measured off the page", () => {
+      sized();
+      const bays = createMachineBays({
+        onOpen: vi.fn(),
+        onPress: vi.fn(),
+        onFix: vi.fn(),
+        fits: (el) => el.isConnected,
+      });
+      bays.render(early(), "");
+      expect(q(bay(bays, 1), ".board-bay-name").textContent).toBe("Drill");
+      document.body.append(bays.root);
+      bays.render(early(), "");
+      expect(q(bay(bays, 1), ".board-bay-name").textContent).toBe(
+        "Steam drill",
+      );
+    });
+
+    it("keeps a fit measured on the page until a font loads", () => {
+      sized();
+      const fonts = fontSet();
+      const { bays, fits, widen } = limited();
+      bays.render(early(), "");
+      expect(drillName(bays)).toBe("Drill");
+      const calls = fits.mock.calls.length;
+      widen();
+      bays.render(early(), "");
+      expect(fits.mock.calls.length).toBe(calls);
+      expect(drillName(bays)).toBe("Drill");
+      fonts.load();
+      expect(drillName(bays)).toBe("Steam drill");
+    });
+
+    it("fits again once the fonts are ready", async () => {
+      sized();
+      const fonts = fontSet();
+      const { bays, widen } = limited();
+      bays.render(early(), "");
+      widen();
+      fonts.ready();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(drillName(bays)).toBe("Steam drill");
+    });
+  });
+
   it("covers a locked borer with its tarp, says Locked and hides the price", () => {
     const { bays } = make();
     bays.render(early(), "");
@@ -464,9 +575,21 @@ describe("createMachineBays", () => {
       expect(first.bays.root.querySelectorAll(".is-flipping")).toHaveLength(0);
 
       // C2: the Great Machine goes on sale, and the first bay becomes the drill.
+      const before = [...first.bays.bays];
       first.bays.render([drill({ count: 8 }), borer(), machine()], "");
       expect(digits(bay(first.bays, 0))).toEqual(["", "8"]);
       expect(first.bays.root.querySelectorAll(".is-flipping")).toHaveLength(0);
+      // The same buttons, so their listeners did not double.
+      expect(first.bays.bays).toEqual(before);
+      before.forEach((b, i) => {
+        expect(b).toBe(bay(first.bays, i));
+      });
+      bay(first.bays, 2).click();
+      expect(first.onOpen).toHaveBeenCalledTimes(1);
+      first.bays.render([troubled("drill"), borer(), machine()], "");
+      bay(first.bays, 0).click();
+      expect(first.onPress).toHaveBeenCalledTimes(1);
+      expect(first.onOpen).toHaveBeenCalledTimes(1);
 
       document.body.replaceChildren();
       motion(true);
@@ -567,6 +690,19 @@ describe("createMachineBays", () => {
       expect(q(bays.root, ".board-band").textContent).toBe("");
       bay(bays, 0).click();
       expect(onOpen).not.toHaveBeenCalled();
+    });
+
+    it("shows the start bays' art again when the save goes away", () => {
+      const { bays } = make();
+      bays.render([drill(), borer(), machine()], "");
+      bays.render(undefined, "");
+      const b = bay(bays, 2);
+      expect(b.getAttribute("data-tier")).toBe("borer");
+      expect(iconSrc(b)).toContain("mach-borer-tarp");
+      expect(bay(bays, 0).getAttribute("data-tier")).toBe("cart");
+      expect(iconSrc(bay(bays, 0))).toContain("mach-cart");
+      expect(bay(bays, 1).getAttribute("data-tier")).toBe("drill");
+      expect(iconSrc(bay(bays, 1))).toContain("drill-run");
     });
 
     it("enables the bays once the save is in", () => {

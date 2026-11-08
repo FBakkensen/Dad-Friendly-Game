@@ -1,6 +1,7 @@
 import digUrl from "./assets/board/dig-button.png";
 import plateUrl from "./assets/board/plate.png";
 import guardUrl from "./assets/board/ready-guard.png";
+import { measurable, onFontsSettled } from "./fit-cache";
 import { reducedMotion } from "./float-text";
 import { etaShort, formatCompact, formatCount } from "./format";
 import type { ReadyPick, ReadyTier } from "./ready-now";
@@ -233,19 +234,25 @@ export function createReadyPlate({
   root.append(button);
 
   const writeKick = words(kick);
-  /** The options last fitted into each line, so a frame with the same words measures nothing. */
-  const fitted = new WeakMap<HTMLElement, string>();
+  /**
+   * The options last fitted into each line, so a frame with the same words measures nothing. A
+   * fit is kept only when it was measured on the page with a width.
+   */
+  let fitted = new WeakMap<HTMLElement, string>();
   const fit = (el: HTMLElement, options: readonly string[]): void => {
     const key = options.join("\n");
     if (fitted.get(el) === key) {
       return;
     }
-    fitted.set(el, key);
+    fitted.delete(el);
     for (const option of options) {
       el.textContent = option;
       if (fits(el)) {
-        return;
+        break;
       }
+    }
+    if (measurable(el)) {
+      fitted.set(el, key);
     }
   };
 
@@ -342,6 +349,15 @@ export function createReadyPlate({
   };
   button.addEventListener("pointerleave", lift);
   button.addEventListener("pointercancel", lift);
+
+  // Lines fitted with fallback metrics may not fit in the board's own fonts. A Done hold keeps
+  // its words; the paint after it fits again.
+  onFontsSettled(() => {
+    fitted = new WeakMap();
+    if (!holding) {
+      paint();
+    }
+  });
 
   paint();
   return { root, button, render };
