@@ -82,6 +82,7 @@ export function createBoardSheet({
   clock,
   onOpen,
   onClose,
+  signal,
 }: {
   name: "buys" | "upgrades";
   title: string;
@@ -89,6 +90,8 @@ export function createBoardSheet({
   clock: () => number;
   onOpen?: () => void;
   onClose?: () => void;
+  /** Aborting it removes the sheet's document listeners. */
+  signal?: AbortSignal;
 }): BoardSheet {
   const root = el("section", "board-drawer board-sheet");
   root.dataset.sheet = name;
@@ -143,6 +146,8 @@ export function createBoardSheet({
   let resting = "";
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
   let tier: SpareTier | undefined;
+  /** Back was pressed by a finger while settling; the click that ends that press is ignored. */
+  let early = false;
 
   const settling = (): boolean => open && clock() - openedAt < DRAWER_SETTLE_MS;
 
@@ -178,6 +183,8 @@ export function createBoardSheet({
     }
     open = true;
     openedAt = clock();
+    // A press on Back lost before its click (dragged off) belongs to the last opening.
+    early = false;
     from = opener;
     root.classList.add("is-open");
     list.scrollTop = 0;
@@ -221,9 +228,8 @@ export function createBoardSheet({
   };
 
   // Back shares the settle: a finger that lands on it while the drawer settles is the second
-  // tap of the one that opened it. Judged at pointerdown, so a held press stays early; a
-  // keyboard press has no pointerdown, so is never early.
-  let early = false;
+  // tap of the one that opened it. Judged at pointerdown, so a held press stays early. A
+  // keyboard press is a click with no pointer (detail 0), so is never early.
   back.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) {
       return;
@@ -233,20 +239,24 @@ export function createBoardSheet({
   back.addEventListener("pointercancel", () => {
     early = false;
   });
-  back.addEventListener("click", () => {
-    const wasEarly = early;
+  back.addEventListener("click", (event) => {
+    const wasEarly = early && event.detail !== 0;
     early = false;
     if (!wasEarly) {
       close();
     }
   });
 
-  // Drawers are built once, so this listener lives as long as the page.
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && open) {
-      close();
-    }
-  });
+  // Drawers are built once; `signal` lets a test or a remount take this away.
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Escape" && open) {
+        close();
+      }
+    },
+    signal === undefined ? {} : { signal },
+  );
 
   return {
     root,
@@ -306,7 +316,15 @@ export function createSheetScrim({
         sheet.close();
       }
     }
-    under?.click();
+    // The pointer's own click (its detail), so the relic plate sees a finger, not a key,
+    // and its note does not take focus.
+    under?.dispatchEvent(
+      new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        detail: event.detail,
+      }),
+    );
   });
 
   return scrim;

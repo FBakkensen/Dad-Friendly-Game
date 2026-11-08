@@ -53,6 +53,13 @@ const part = (sheet: BoardSheet, selector: string): HTMLElement => {
   return found;
 };
 
+/** The click a finger's tap ends in: a pointer click counts its taps (detail 1). */
+const fingerClick = (target: HTMLElement): void => {
+  target.dispatchEvent(
+    new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
+  );
+};
+
 const press = (target: HTMLElement): void => {
   target.dispatchEvent(
     new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
@@ -60,7 +67,7 @@ const press = (target: HTMLElement): void => {
   target.dispatchEvent(
     new PointerEvent("pointerup", { bubbles: true, button: 0 }),
   );
-  target.click();
+  fingerClick(target);
 };
 
 const escape = (): void => {
@@ -246,7 +253,7 @@ describe("the drawer shell", () => {
         new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
       );
       time += 600;
-      sheet.back.click();
+      fingerClick(sheet.back);
       expect(sheet.isOpen()).toBe(true);
       // The next tap is a fresh press, long past the settle.
       press(sheet.back);
@@ -269,6 +276,38 @@ describe("the drawer shell", () => {
       expect(sheet.isOpen()).toBe(false);
     });
 
+    it("a press dragged off Back never swallows a later key press", () => {
+      const sheet = make();
+      sheet.open();
+      time += 100;
+      // Pressed in the settle, dragged off, let go elsewhere: no click.
+      sheet.back.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      sheet.back.dispatchEvent(
+        new PointerEvent("pointerleave", { bubbles: true }),
+      );
+      time += 2000;
+      // Enter on Back: a click with no pointer (detail 0).
+      sheet.back.click();
+      expect(sheet.isOpen()).toBe(false);
+    });
+
+    it("an early mark left by a lost press does not carry into the next opening", () => {
+      const sheet = make();
+      sheet.open();
+      time += 100;
+      sheet.back.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      // Closed another way before the press ended.
+      escape();
+      sheet.open();
+      time += 2000;
+      fingerClick(sheet.back);
+      expect(sheet.isOpen()).toBe(false);
+    });
+
     it("a press that was cancelled leaves no early mark for the keyboard", () => {
       const sheet = make();
       sheet.open();
@@ -285,6 +324,15 @@ describe("the drawer shell", () => {
   });
 
   describe("Escape", () => {
+    it("stops listening once its signal aborts", () => {
+      const stop = new AbortController();
+      const sheet = make({ signal: stop.signal });
+      sheet.open();
+      stop.abort();
+      escape();
+      expect(sheet.isOpen()).toBe(true);
+    });
+
     it("closes an open sheet and leaves a shut one shut", () => {
       const onClose = vi.fn();
       const open = make({ onClose });
@@ -460,7 +508,12 @@ describe("the scrim", () => {
 
   const tap = (scrim: HTMLElement, x: number, y: number): void => {
     scrim.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, clientX: x, clientY: y }),
+      new MouseEvent("click", {
+        bubbles: true,
+        clientX: x,
+        clientY: y,
+        detail: 1,
+      }),
     );
   };
 
@@ -487,6 +540,15 @@ describe("the scrim", () => {
     tap(scrim, 120, 40);
     expect(buys.isOpen()).toBe(false);
     expect(onSocket).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands the socket a finger's click, so its note does not take focus", () => {
+    const { buys, scrim, onSocket } = setup();
+    buys.open();
+    tap(scrim, 120, 40);
+    const click = onSocket.mock.calls[0]?.[0] as MouseEvent | undefined;
+    expect(click?.detail).toBe(1);
+    expect(click?.bubbles).toBe(true);
   });
 
   it("a tap elsewhere only closes", () => {

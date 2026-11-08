@@ -158,6 +158,22 @@ describe("board.css", () => {
     expect(rule).toMatch(/top:\s*var\(--ready-top\)/);
   });
 
+  it("a shut drawer takes no taps, from the moment it shuts (#373)", () => {
+    // It slides away for 200ms: a second tap on Back must not land on a row.
+    expect(boardCss).toMatch(
+      /^\.board-sheet-clip > \.board-sheet:not\(\.is-open\) \{[^}]*pointer-events:\s*none/m,
+    );
+    // Nothing inside a drawer takes taps back for itself.
+    const rules = [...boardCss.matchAll(/^([^{}@/]+?)\s*\{([^}]*)\}/gm)];
+    const inside = rules.filter(
+      ([, selector = "", body = ""]) =>
+        /\.board-(sheet|row|sec|spare)/.test(selector) &&
+        !/^\.board-sheet,/.test(selector.trim()) &&
+        /pointer-events:\s*auto/.test(body),
+    );
+    expect(inside.map(([, selector = ""]) => selector.trim())).toEqual([]);
+  });
+
   it("lets an open note take taps, so none falls through to the dial or the menu", () => {
     expect(boardCss).toMatch(
       /^\.board-note\.on \{[^}]*pointer-events:\s*auto/m,

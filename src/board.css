@@ -1873,9 +1873,12 @@ button.board-row:focus-visible {
   pointer-events: auto;
 }
 
-/* Shut, it waits just under the clip's edge, as the save drawer does. */
+/* Shut, it waits just under the clip's edge, as the save drawer does. It
+   takes no taps from the moment it shuts: while it slides away, the second
+   tap of a double tap on Back would land on a row (#373). */
 .board-sheet-clip > .board-sheet:not(.is-open) {
   transform: translateY(calc(100% + var(--art) * 2));
+  pointer-events: none;
 }
 
 .board-sheet-head {
