@@ -25,7 +25,6 @@ import {
   FOUND_LABEL,
   formatClock,
   lostToolWords,
-  boostOutcome,
   buyPriceWords,
   UPGRADES_INTRO,
   UPGRADES_MORE,
@@ -47,6 +46,7 @@ import {
   SHEET_SCROLL,
 } from "./sheet-card";
 import { markAllSeen, showsDot } from "./teach";
+import { BOOST_WHY, boostInfo, newRowId } from "./upgrade-rows";
 import {
   clearNewCard,
   createHowCard,
@@ -85,11 +85,6 @@ const UPGRADE_ICON: Record<UpgradeId, string> = {
 const BOOST_ICON: Record<BoostId, string> = {
   sharper: pickUrl,
   overtime: workerUrl,
-};
-
-const BOOST_WHY: Record<BoostId, string> = {
-  sharper: "A short push while you are here.",
-  overtime: "Twice as fast, then they rest.",
 };
 
 function sheetWhy(): HTMLParagraphElement {
@@ -422,60 +417,17 @@ export function createUpgradesPanel({
     const at = now();
     // Price from the unboosted crew. The line shows what buying pays right now.
     const pricing = effectiveRates(current);
-    const live = effectiveRates(current, at);
     let anyAffordable = false;
     // The New card: the first row he has not bought yet, one he can
     // afford now if there is one. It goes to the top of the sheet.
-    const fresh = [
-      ...boostRows.map((row) => ({
-        id: row.id,
-        cost: boostCost(row.boost, pricing, stretch(current)),
-      })),
-      ...upgradeRows.map((row) => ({
-        id: row.id,
-        cost: upgradeCost(
-          row.upgrade,
-          upgradeLevel(current, row.upgrade.id),
-          oneOffStretch(current),
-        ),
-      })),
-    ].filter((row) => showsDot(current, row.id));
-    const newId = (
-      fresh.find(
-        (row) => row.cost !== undefined && current.pocket >= row.cost,
-      ) ?? fresh[0]
-    )?.id;
+    const newId = newRowId(current, at);
     let boostsShowing = false;
     for (const { boost, effect, buy, item } of boostRows) {
       item.hidden = !boostShown(current, boost);
       boostsShowing ||= !item.hidden;
       const left = boostLeft(current, boost.id, at);
       const cost = boostCost(boost, pricing, stretch(current));
-      // Overtime shares the crew with axle grease and a blasting charge.
-      // The line shows the crew you would actually have, the strongest
-      // timer, so a second ×2 does not pretend to make it ×4.
-      const shown =
-        boost.id === "overtime"
-          ? effectiveRates(
-              left > 0
-                ? current
-                : {
-                    ...current,
-                    boosts: {
-                      ...current.boosts,
-                      overtime: at + boost.durationMs,
-                    },
-                  },
-              at,
-            )
-          : live;
-      effect.textContent = boostOutcome(
-        boost.id,
-        boost.effect,
-        boost.multiplier,
-        shown,
-        boost.id === "overtime" || left > 0,
-      );
+      effect.textContent = boostInfo(current, at, boost);
       const affordable = left === 0 && current.pocket >= cost;
       anyAffordable ||= affordable;
       buy.disabled = !view.ready || !affordable;

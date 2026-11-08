@@ -111,6 +111,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/upgrade-rows.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/mountain-screen.ts": {
           statements: 99,
           branches: 87,
