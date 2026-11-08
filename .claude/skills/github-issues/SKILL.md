@@ -7,21 +7,35 @@ description: Keeps GitHub issues, PRs, and the blocked-by graph as the backbone 
 
 GitHub is the backbone. Issues, PRs, dependencies. Also for simple ideas. The point is to finish the current sliver, not to grow it.
 
-Use `gh` for all of this. In a Claude Code cloud session, use the matching GitHub MCP tools instead (`gh` works there for search only). Do not keep the plan only in chat.
+Use `gh` for all of this. In a Claude Code cloud session, use the matching GitHub MCP tools for issues, PRs, and comments: `gh issue` and `gh pr` need GraphQL, which the session does not have. `gh api` on REST paths works there, and it is how dependencies are read and set. Do not keep the plan only in chat.
 
 ## Graph
 
 Read before you write:
 
+List open issues with `gh issue list --state open --limit 50` (the MCP `list_issues` tool in a cloud session). Read an issue's links with the REST API:
+
 ```bash
-gh issue list --state open --limit 50 --json number,title,blockedBy,blocking,parent,url
+gh api repos/FBakkensen/Dad-Friendly-Game/issues/<n>/dependencies/blocked_by --jq '.[].number'
+gh api repos/FBakkensen/Dad-Friendly-Game/issues/<n>/dependencies/blocking --jq '.[].number'
+gh api repos/FBakkensen/Dad-Friendly-Game/issues/<n>/parent --jq .number
 ```
 
 - **Parent / sub-issue:** the sitting is a child of a short theme (`--parent`, `--add-sub-issue`). The parent is a title, not a spec.
 - **blocked-by:** this issue cannot start until those issues close.
 - **blocking:** other issues wait on this one.
 
-After every create or split, set the links so the graph is still true. If the tool you have rejects dependency flags or cannot set them (the GitHub MCP tools set parents but not `blocked-by`), say so and ask the human to add them in the issue sidebar. Do not fake links in markdown instead.
+After every create or split, set the links so the graph is still true, then read them back to check. Set them yourself. Never ask the human to.
+
+- Parents: the MCP `issue_write` tool (`parent_issue_number`) or `sub_issue_write`.
+- `blocked-by`: the REST API. `<id>` is the blocker's numeric id (`gh api repos/FBakkensen/Dad-Friendly-Game/issues/<blocker> --jq .id`), not its number.
+
+```bash
+gh api -X POST repos/FBakkensen/Dad-Friendly-Game/issues/<n>/dependencies/blocked_by -F issue_id=<id>
+gh api -X DELETE repos/FBakkensen/Dad-Friendly-Game/issues/<n>/dependencies/blocked_by/<id>
+```
+
+Do not fake links in markdown instead.
 
 ## One issue is one sliver
 
@@ -50,6 +64,8 @@ gh issue create --title "..." --body "$(cat <<'EOF'
 EOF
 )" --parent N --blocked-by N,M --blocking P
 ```
+
+In a cloud session, create it with the MCP `issue_write` tool (it takes `parent_issue_number`), then set `blocked-by` with `gh api` as above.
 
 Omit flags you do not need. Body stays that short. No design doc in the issue.
 
