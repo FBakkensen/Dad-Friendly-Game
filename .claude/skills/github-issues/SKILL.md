@@ -78,6 +78,7 @@ Simple ideas still get an issue. One or two sentences is enough.
 - One branch and one PR at a time. Never a second branch, stacked PR, or parallel PR.
 - One PR closes one issue (`Fixes #N`).
 - If the diff grows a second sliver, stop. File the second issue. Do not start it. Keep this PR on `#N`.
+- A ruling made while a plan runs (a price, growth rate, or band scale inside the plan's levers) is not a new issue and not a stop. It goes in the ledger and in the PR body under Rulings. A plan stops only for the three stops in `superpowers.md`.
 - To review, file, babysit, and merge, use the ship-sitting skill.
 
 ## No remote yet
