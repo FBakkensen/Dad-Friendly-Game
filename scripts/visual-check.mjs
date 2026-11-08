@@ -3917,6 +3917,24 @@ async function placeVein(page, corner) {
   );
 }
 
+/**
+ * The board's targets with the vein placed at a corner of its range. The
+ * screen's own second tick hides a vein that is not really glinting, and under
+ * the full gate's load that tick can land between placing and measuring, so
+ * place and measure again until the vein is in the measurement.
+ */
+async function targetsWithVein(page, corner) {
+  let set = { own: [] };
+  for (let tries = 0; tries < 5; tries += 1) {
+    await placeVein(page, corner);
+    set = await boardTargets(page);
+    if (set.own.some((target) => target.selector.startsWith(".golden-vein "))) {
+      return set;
+    }
+  }
+  return set;
+}
+
 /** The bundled faces are loaded, so the plate is measured as it ships. */
 async function boardFontsLoaded(page) {
   return page.evaluate(async () => {
@@ -4047,8 +4065,7 @@ for (const viewport of SCREENS) {
       // Targets at rest, then with the vein at each end of its range.
       const sets = [await boardTargets(page)];
       for (const corner of VEIN_CORNERS) {
-        await placeVein(page, corner);
-        sets.push(await boardTargets(page));
+        sets.push(await targetsWithVein(page, corner));
       }
       await placeVein(page, undefined);
       const own = sets.flatMap((set) => set.own);
