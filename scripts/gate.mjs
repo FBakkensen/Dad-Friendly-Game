@@ -64,7 +64,8 @@ const treeState = () => ({
   head: git("rev-parse", "HEAD").trim(),
   clean: git("status", "--porcelain").trim() === "",
 });
-const before = treeState();
+// Only the full tier earns a signoff marker, so only it reads the tree.
+const before = tier === "full" ? treeState() : undefined;
 
 const changed = changedSinceMain();
 
@@ -206,7 +207,7 @@ const outcomeList = [...outcomes.values()];
 const total = totalLine(tier, outcomeList, (performance.now() - began) / 1000);
 console.log(`\n${total}`);
 const code = exitCode(outcomeList);
-if (tier === "full") {
+if (before !== undefined) {
   const after = treeState();
   const move = markerAfterFull({
     green: code === 0,

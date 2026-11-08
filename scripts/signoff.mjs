@@ -24,7 +24,10 @@ const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 
 /** `gh api` with the repo filled in from the git remote. */
 function gh(...args) {
-  const run = spawnSync("gh", ["api", ...args], { encoding: "utf8" });
+  const run = spawnSync("gh", ["api", ...args], {
+    encoding: "utf8",
+    timeout: 20_000,
+  });
   return {
     ok: run.status === 0,
     out: run.stdout ?? "",
@@ -72,11 +75,20 @@ export async function signoff() {
   console.log(`gate signoff: asked signoff.yml to sign off ${short}.`);
 
   let seen = "missing";
+  let lastError = "";
   for (let waited = 0; waited <= WAIT_MS; waited += POLL_MS) {
     await sleep(POLL_MS);
     const status = gh(`repos/{owner}/{repo}/commits/${decision.sha}/status`);
-    if (!status.ok) continue;
-    seen = signoffState(JSON.parse(status.out).statuses ?? []);
+    if (!status.ok) {
+      lastError = status.err.trim();
+      continue;
+    }
+    try {
+      seen = signoffState(JSON.parse(status.out).statuses ?? []);
+    } catch {
+      lastError = "GitHub's status reply was not JSON.";
+      continue;
+    }
     if (seen === "success") {
       console.log(`gate signoff: signoff is green on ${short}.`);
       return 0;
@@ -86,5 +98,6 @@ export async function signoff() {
   console.log(
     `gate signoff: signoff on ${short} is ${seen}. See the signoff runs in GitHub Actions.`,
   );
+  if (lastError !== "") console.log(`Last status read failed: ${lastError}`);
   return 1;
 }

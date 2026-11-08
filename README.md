@@ -31,7 +31,7 @@ No checks run on GitHub for a pull request. The gate is run by hand: `fast` wher
 npm run gate -- signoff
 ```
 
-It starts the `signoff` workflow, which only posts the `signoff` commit status. The ruleset on `main` requires that status on an up-to-date branch, so a PR merges only after the full gate passed on its last commit. Never post `signoff` any other way. On push to `main`, `deploy-hosting` runs `npm run check` again on a clean runner and deploys only if it passes (#397).
+It starts the `signoff` workflow, which only posts the `signoff` commit status. The ruleset on `main` requires that status on an up-to-date branch, so a PR merges only after the full gate passed on its last commit. Never post `signoff` any other way. On push to `main`, `deploy-hosting` runs `npm run check` again on a clean runner and deploys only if it passes (#397). On `main` nothing differs from `origin/main`, so the strict lab and the CSS token diff are judged on the branch, not there.
 
 Each step prints one line, such as `ok    typecheck  4.1s` or `FAIL  lint  2.3s  exit 1`. Every full log goes to `.gate/logs/<step>.log` (gitignored). A failed step also prints the last 40 lines of its log. A step behind a failed one is skipped. The steps, their tiers, and their order are a table in `src/gate.ts`.
 
