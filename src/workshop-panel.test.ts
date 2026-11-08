@@ -388,7 +388,19 @@ describe("workshop panel (#199)", () => {
     const thumb =
       screen.root.querySelector<HTMLButtonElement>(".thumb-workshop");
     expect(thumb?.querySelector(".teach-dot")).not.toBeNull();
-    screen.root.querySelector<HTMLButtonElement>(".teach-note")?.click();
+    // The New note waits for the relic and layer cards the jump opened, then shows in
+    // the board note above its thumb (#372).
+    expect(screen.root.querySelector(".board-note.on .teach-note")).toBeNull();
+    for (let i = 0; i < 20; i += 1) {
+      const go = screen.root.querySelector<HTMLButtonElement>(
+        ".relic-reveal:not([hidden]) .reveal-continue, .layer-arrival:not([hidden]) .layer-dig",
+      );
+      if (go === null) break;
+      go.click();
+    }
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-note.on .teach-note")
+      ?.click();
     const sheet = screen.root.querySelector<HTMLElement>(".workshop-dialog");
     expect(sheet?.hidden).toBe(false);
     expect(screen.root.querySelector<HTMLElement>(".teach-note")?.hidden).toBe(

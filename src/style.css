@@ -32,14 +32,6 @@ body {
   background-attachment: fixed;
 }
 
-.top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-}
-
 .lantern {
   display: block;
   flex: none;
@@ -3079,13 +3071,6 @@ body {
   min-width: 0;
 }
 
-/* With #app's 4px gap, the teach note and the bottom bar stand 8px from each
-   other (#346). */
-#app > .teach-note,
-#app > .thumb-bar {
-  margin-top: var(--space-4);
-}
-
 .crew-status {
   margin: 0;
   color: var(--color-gold);
@@ -3257,21 +3242,10 @@ body {
   border-color: var(--color-edge);
 }
 
-/* Closed mountain, under the board's gauge row (board.css): the layer line and
-   the menu, the crew, four labels. */
+/* Closed mountain, under the board's gauge row and bays (board.css): the
+   thumb bar. */
 #app {
   position: relative;
-}
-
-.top-bar {
-  justify-content: space-between;
-  flex: none;
-}
-
-.top-bar .layer-line {
-  flex: 1 1 auto;
-  min-width: 0;
-  text-align: left;
 }
 
 /*
@@ -3320,20 +3294,6 @@ body {
 .engineer-promote-row.is-pressed,
 .tier.is-pressed {
   transform: translateY(var(--space-4));
-}
-
-.layer-line {
-  margin: 0;
-  max-width: 100%;
-  color: var(--color-quiet);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-  line-height: var(--leading);
-  text-align: center;
-}
-
-.layer-name {
-  color: var(--color-gold);
 }
 
 .crew-posts {

@@ -70,6 +70,11 @@ const BOARD_SELECTORS = [
   ".board-legacy",
   ".golden-vein",
   ".vein-note",
+  ".board-bays",
+  ".board-bay",
+  ".board-band",
+  ".board-flap",
+  ".board-thanks",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */

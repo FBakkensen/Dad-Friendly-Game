@@ -2,8 +2,8 @@
  * The board stage (#370). #app is a fixed 424x924 enamel panel. src/board-fit.ts
  * sets --board-scale so the whole board shrinks to fit any screen; zoom keeps
  * taps lined up. contain: layout keeps the fixed sheets inside the board.
- * The old column fills 422..860, under the board's top and the gauge row (#371);
- * the bands above and below are for the board.
+ * The old column fills the rail slot, 768..860, under the board's top, the
+ * gauge row and the bays (#372); the bands above and below are for the board.
  */
 body {
   display: flex;
@@ -39,7 +39,7 @@ body {
   /* index.html's boot style sets min-height: 100dvh, which zoom would enlarge. */
   min-height: 0;
   padding: var(--space-4);
-  /* The column starts under the gauge row (#371). */
+  /* The column starts at the rail slot, under the bays and the Ready row (#372). */
   padding-top: var(--column-top);
   /* The column stops 8px above the save line, so the bottom bar's buttons
      stand a full gap from it (#370). */
@@ -364,10 +364,43 @@ body {
   margin-top: calc(var(--art) * 4);
 }
 
-/* The layer line and the ☰ menu sit at the column's top, 8px under the gauge
-   row; the teach note and the thumb bar sit at its foot (#371). */
-#app > .top-bar {
-  margin-bottom: auto;
+/* The thumb bar fills the rail slot's foot until B5's key rail; the ☰ menu
+   is its fifth cell, where B7's Ledger key goes (#372). */
+#app > .thumb-bar {
+  margin-top: auto;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.thumb-bar .menu-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: auto;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  margin: 0;
+  border: var(--line) solid var(--color-gold);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-gold);
+  font-size: var(--type-24);
+  line-height: 1;
+}
+
+/* The New teach note in the board note (#372): the note's ink in place of
+   the old card's edge and face, still a 48px target. */
+.board-note .teach-note {
+  min-height: var(--target-min);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--board-ink);
+  font: inherit;
+  font-weight: 700;
+  line-height: var(--board-note-lead);
+  animation: none;
 }
 
 .board-tag .board-lg {
@@ -573,6 +606,9 @@ body {
     transition: none;
   }
   .board-saveline.is-trying .board-lamp {
+    animation: none;
+  }
+  .board-flap-d.is-flipping {
     animation: none;
   }
 }
@@ -1164,6 +1200,15 @@ body {
   color: var(--board-amber-bare);
 }
 
+/* A bay's fix thanks the crew in the board note (#372). */
+.board-thanks {
+  margin: 0;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--board-ink);
+}
+
 .board-vein-glint {
   display: block;
   width: calc(var(--art) * 25);
@@ -1581,12 +1626,6 @@ body {
 
   100% {
     transform: scaleY(1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .board-flap-d.is-flipping {
-    animation: none;
   }
 }
 

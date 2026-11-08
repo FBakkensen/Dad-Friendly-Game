@@ -76,6 +76,17 @@ function mount(now: () => number) {
 import { noteFor, showsDot } from "./teach";
 import { engineersIntro, engineersNote, firstTripWords } from "./screen-words";
 
+/** Closes the relic and layer cards a jump in depth opens, one after another. */
+function closeArrivals(root: HTMLElement): void {
+  for (let i = 0; i < 20; i += 1) {
+    const go = root.querySelector<HTMLButtonElement>(
+      ".relic-reveal:not([hidden]) .reveal-continue, .layer-arrival:not([hidden]) .layer-dig",
+    );
+    if (go === null) return;
+    go.click();
+  }
+}
+
 const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
 function crew(): Mountain {
   return {
@@ -121,7 +132,13 @@ describe("engineers teach (#246)", () => {
     screen.progress.applyMutation(() => crew());
     const button = screen.root.querySelector<HTMLElement>(".engineers-button");
     expect(button?.querySelector(".teach-dot")).not.toBeNull();
-    const note = screen.root.querySelector<HTMLButtonElement>(".teach-note");
+    // The New note waits for the relic and layer cards the jump opened, then shows in
+    // the board note above its thumb (#372).
+    expect(screen.root.querySelector(".board-note.on .teach-note")).toBeNull();
+    closeArrivals(screen.root);
+    const note = screen.root.querySelector<HTMLButtonElement>(
+      ".board-note.on .teach-note",
+    );
     expect(note?.hidden).toBe(false);
     expect(note?.textContent).toBe("New · Ada is your first engineer");
     note?.click();
