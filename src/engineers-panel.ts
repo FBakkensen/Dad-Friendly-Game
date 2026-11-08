@@ -12,8 +12,9 @@ import {
 import { buyOnTap } from "./card-tap";
 import { createEffectChip, writeChip } from "./effect-row";
 import {
-  ENGINEER_NAMES,
   MAX_ENGINEERS,
+  canPromote,
+  nextEngineerName,
   promote,
   promoteCost,
   station,
@@ -656,7 +657,7 @@ export function createEngineersPanel({
   promoteButton.textContent = PROMOTE_BUTTON;
   arm("promote", promoteButton);
   buyOnTap(promoteRow, promoteButton, () => {
-    if (!getView().ready || !canPromote(getView())) {
+    if (!promotable(getView())) {
       return;
     }
     confirming = true;
@@ -694,7 +695,7 @@ export function createEngineersPanel({
     menu = undefined;
     const beforeCount = view.mountain.engineers?.length ?? 0;
     // Price and a free worker can change while the confirm sits open.
-    if (canPromote(view)) {
+    if (promotable(view)) {
       progress.applyMutation((current) => promote(current));
     }
     const name = getView().mountain.engineers?.[beforeCount]?.name;
@@ -917,7 +918,7 @@ export function createEngineersPanel({
       });
     }
     const next = nextEngineerName(engineers);
-    const affordable = canPromote(view);
+    const affordable = promotable(view);
     const cost = promoteCost(current);
     if (!affordable) {
       confirming = false;
@@ -973,21 +974,9 @@ export function createEngineersPanel({
   return { button, sheet, render };
 }
 
-function canPromote(view: ProgressSnapshot): boolean {
-  const current = view.mountain;
-  const engineers = current.engineers ?? [];
-  return (
-    view.ready &&
-    nextEngineerName(engineers) !== undefined &&
-    current.helpers >= 1 &&
-    current.pocket >= promoteCost(current)
-  );
-}
-
-function nextEngineerName(engineers: readonly Engineer[]): string | undefined {
-  return ENGINEER_NAMES.find((name) =>
-    engineers.every((engineer) => engineer.name !== name),
-  );
+/** The panel offers a promotion only once the save is in. */
+function promotable(view: ProgressSnapshot): boolean {
+  return view.ready && canPromote(view.mountain);
 }
 
 type EngineerRow = {

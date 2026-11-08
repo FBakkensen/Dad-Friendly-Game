@@ -8,7 +8,9 @@ import {
   MAX_ENGINEERS,
   PROMOTE_BASE_COST,
   addTrip,
+  canPromote,
   grantFirstEngineer,
+  nextEngineerName,
   parseEngineers,
   promote,
   promoteCost,
@@ -147,6 +149,28 @@ describe("promote", () => {
       helpers: 0,
     };
     expect(promote(noWorkers)).toBe(noWorkers);
+  });
+
+  it("canPromote reads promote's rule without spending, and names come in order", () => {
+    const full = crew(
+      ENGINEER_NAMES.map((name) => ({
+        name,
+        rank: 0 as const,
+        trips: 0,
+        post: "camp" as const,
+      })),
+    );
+    const broke = { ...crew([ada]), pocket: PROMOTE_BASE_COST * 2 - 1 };
+    const noWorkers = { ...crew([ada]), helpers: 0 };
+    for (const mountain of [crew([]), crew([ada]), full, broke, noWorkers]) {
+      expect(canPromote(mountain)).toBe(promote(mountain) !== mountain);
+    }
+    expect(canPromote(crew([ada]))).toBe(true);
+    expect(canPromote({ ...createMountain(), helpers: 1 })).toBe(false);
+    expect(nextEngineerName([])).toBe("Ada");
+    expect(nextEngineerName([ada])).toBe("Nils");
+    expect(nextEngineerName([{ ...ada, name: "Nils" }])).toBe("Ada");
+    expect(nextEngineerName(full.engineers ?? [])).toBe(undefined);
   });
 
   // #356: k × s × 2^n is not whole on kid runs (k has a denominator of 128,
