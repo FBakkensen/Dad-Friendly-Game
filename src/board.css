@@ -324,3 +324,202 @@ body {
 .board-tag .board-lg {
   color: var(--board-ink-plate);
 }
+
+/* The save line and its drawer (#370). */
+.board-saveline {
+  position: absolute;
+  top: calc(var(--board-h) - var(--save-h));
+  left: calc(var(--art) * 4);
+  z-index: 21;
+  width: calc(var(--art) * 204);
+  height: calc(var(--art) * 27);
+}
+
+.save-status {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+  width: 100%;
+  height: 100%;
+  padding: 0 calc(var(--art) * 6) 0 calc(var(--art) * 4);
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--board-type-13);
+  line-height: var(--board-save-lead);
+  font-weight: var(--board-weight-semi);
+  white-space: nowrap;
+  color: var(--board-ink);
+  cursor: pointer;
+}
+
+.board-lamp {
+  display: block;
+  flex: none;
+  width: calc(var(--art) * 20);
+  height: calc(var(--art) * 20);
+  background: url("./assets/board/lamp.png") no-repeat 0 0 / calc(var(--art) * 80)
+    calc(var(--art) * 20);
+  image-rendering: pixelated;
+}
+
+.save-status .board-lamp {
+  margin: calc(var(--art) * -2) 0;
+}
+
+.board-save-text {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.board-save-safe {
+  color: var(--board-ink-2);
+}
+
+.board-save-why {
+  position: relative;
+  margin-left: auto;
+  color: var(--board-ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: calc(var(--art) * 1.5);
+  text-decoration-color: var(--board-ink-2);
+}
+
+.board-saveline.is-trying .board-lamp {
+  animation: board-blink 0.9s steps(2) infinite;
+}
+
+@keyframes board-blink {
+  50% {
+    background-position-x: 0;
+  }
+}
+
+.board-drawer {
+  position: absolute;
+  left: calc(var(--art) * 4);
+  right: calc(var(--art) * 4);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  visibility: hidden;
+  transform: translateY(calc(100% + var(--art) * 40));
+  transition:
+    transform 0.2s steps(5),
+    visibility 0s 0.2s;
+}
+
+.board-drawer.is-open {
+  visibility: visible;
+  transform: none;
+  transition:
+    transform 0.24s steps(6),
+    visibility 0s;
+}
+
+.board-save-drawer {
+  bottom: calc(var(--save-h) + var(--art) * 2);
+  padding: calc(var(--art) * 9) calc(var(--art) * 9) calc(var(--art) * 7);
+}
+
+.board-save-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+}
+
+.board-save-top .board-lamp {
+  margin: calc(var(--art) * -3) 0 calc(var(--art) * -3) calc(var(--art) * -3);
+}
+
+.board-save-kicker {
+  color: var(--board-amber);
+}
+
+.board-save-title {
+  position: relative;
+  margin: calc(var(--art) * 2) 0;
+  font-size: var(--board-type-22);
+  line-height: var(--board-title-lead);
+  font-weight: 700;
+  color: var(--board-ink);
+}
+
+.board-save-lost {
+  position: relative;
+  margin: 0 0 calc(var(--art) * 5);
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+  color: var(--board-ink-2);
+}
+
+.board-facts {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 3);
+  margin: calc(var(--art) * 3) 0 calc(var(--art) * 6);
+}
+
+.board-fact {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+  color: var(--board-ink);
+}
+
+.board-fact-k {
+  color: var(--board-ink-2);
+}
+
+.board-btnrow {
+  position: relative;
+  display: flex;
+  gap: calc(var(--art) * 5);
+}
+
+.board-platebtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--art) * 27);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--board-type-16);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--board-ink-plate);
+  cursor: pointer;
+}
+
+.board-platebtn-text {
+  position: relative;
+}
+
+.board-platebtn.down .board-platebtn-text {
+  top: var(--art);
+}
+
+.board-platebtn:disabled {
+  color: var(--board-ink-plate-2);
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-drawer,
+  .board-drawer.is-open {
+    transition: none;
+  }
+  .board-saveline.is-trying .board-lamp {
+    animation: none;
+  }
+}

@@ -83,6 +83,12 @@
   --board-enamel: #1a2421;
   --board-type-13: 13px;
   --board-type-14: 14px;
+  --board-type-16: 16px;
+  --board-type-22: 22px;
+  --board-title-lead: 24px;
+  --board-save-lead: 16px;
+  --board-weight-semi: 600;
+  --board-ink-plate-2: #0b0e10;
   --board-note-lead: 18px;
 }
 
