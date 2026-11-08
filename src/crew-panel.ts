@@ -1,6 +1,7 @@
 import { stretch } from "./scale";
 import grandpaUrl from "./assets/grandpa-miner.png";
 import { buyCrew, tierLock } from "./crew";
+import { crewCounts } from "./crew-count";
 import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
 import { grandpaPost, staffForBuy, staffNeeded } from "./engineers";
 import { FIX_HOLD_MS } from "./hazards";
@@ -95,7 +96,11 @@ function perSecond(rate: number): string {
     : `${formatCount(rate)} stones a second`;
 }
 
-/** The crew: its speed line and the tier cards you hire from. */
+/**
+ * The crew: its speed line and posts, at the top of Buys under a Crew title
+ * (#371), and the tier cards you hire from. The free count is the board's
+ * crew plate's alone.
+ */
 export function createCrewPanel({
   progress,
   getView,
@@ -112,6 +117,9 @@ export function createCrewPanel({
   const crew = document.createElement("section");
   crew.className = "crew";
   crew.setAttribute("aria-label", "Your crew");
+  const crewTitle = document.createElement("h3");
+  crewTitle.className = "buys-crew-title";
+  crewTitle.textContent = "Crew";
   const crewStatus = document.createElement("p");
   crewStatus.className = "crew-status";
   const postsButton = document.createElement("button");
@@ -359,7 +367,7 @@ export function createCrewPanel({
       gain,
     };
   });
-  crew.append(crewStatus, postsButton, postsDetail, tierGrid, thanks);
+  crew.append(crewTitle, crewStatus, postsButton, postsDetail);
 
   /** The crew line counts up to the new rate after a purchase. */
   let rateShown: number | undefined;
@@ -395,14 +403,7 @@ export function createCrewPanel({
     const { mountain: current, trouble } = getView();
     const rates = effectiveRates(current, now(), trouble);
     const rate = rateShown ?? rates.crewPerSecond;
-    const spare =
-      current.helpers +
-      current.kids -
-      TIERS.reduce(
-        (used, tier) =>
-          used + rates.running[tier.id] * staffNeeded(current, tier),
-        0,
-      );
+    const { spare } = crewCounts(current, now(), trouble);
     const idle = TIERS.reduce(
       (total, tier) => total + owned(current, tier) - rates.running[tier.id],
       0,
@@ -424,7 +425,7 @@ export function createCrewPanel({
     const compact = shownCount >= COMPACT_TIER_COUNT;
     tierGrid.classList.toggle("tier-grid-compact", compact);
     // The first idle machine is the New card (#246): the dot only, its
-    // crew bill on the card, the free count on the crew chip above.
+    // crew bill on the card, the free count on the board's crew plate.
     guidedTier = showsDot(current, "staffing")
       ? firstIdleTier(current, now(), trouble)
       : undefined;
@@ -622,12 +623,13 @@ export function createCrewPanel({
       }));
     if (pool <= 0) {
       postsButton.textContent = "";
+      chipBits = [];
       delete postsButton.dataset["tight"];
     } else {
       const bits = [
         {
           src: tierArt.helper,
-          text: `${formatCompact(pool)} ${workerWords(pool)} · ${formatCompact(Math.max(0, Math.floor(spare)))} free`,
+          text: `${formatCompact(pool)} ${workerWords(pool)}`,
         },
         ...stationBits,
         // After a pass, the old dad tends the biggest machine (#338).
@@ -636,26 +638,35 @@ export function createCrewPanel({
           : [{ src: grandpaUrl, text: grandpaChipWords(grandpa) }]),
       ];
       postsButton.classList.remove("is-open");
-      // Fewest even rows whose widest row fits the line.
-      for (let rows = 1; rows <= bits.length; rows += 1) {
-        const size = Math.ceil(bits.length / rows);
-        paintRows(
-          Array.from({ length: Math.ceil(bits.length / size) }, (_, index) =>
-            bits.slice(index * size, (index + 1) * size),
-          ),
-        );
-        if (!crewRowsOverflow(postsButton)) {
-          break;
-        }
-      }
+      chipBits = bits;
+      layoutChips();
       postsButton.dataset["tight"] = "false";
       postsButton.removeAttribute("aria-expanded");
     }
-    // The free count lives only on the crew chip. While the idle machine is
-    // the New card, that chip is lit so the card's bill reads against it.
-    postsButton
-      .querySelector(".crew-bit")
-      ?.classList.toggle("teach-point", guidedTier !== undefined);
+  };
+
+  /** The chips last painted, so the sheet can lay them out again on open. */
+  let chipBits: readonly { readonly src: string; readonly text: string }[] = [];
+  /**
+   * Fewest even rows whose widest row fits the line. A shut sheet has no
+   * width to measure, so Buys calls this again once it is open (#371).
+   */
+  const layoutChips = (): void => {
+    if (postsButton.hidden || chipBits.length === 0) {
+      return;
+    }
+    const bits = chipBits;
+    for (let rows = 1; rows <= bits.length; rows += 1) {
+      const size = Math.ceil(bits.length / rows);
+      paintRows(
+        Array.from({ length: Math.ceil(bits.length / size) }, (_, index) =>
+          bits.slice(index * size, (index + 1) * size),
+        ),
+      );
+      if (!crewRowsOverflow(postsButton)) {
+        break;
+      }
+    }
   };
 
   const bitElement = (bit: {
@@ -693,7 +704,7 @@ export function createCrewPanel({
   };
   const render = renderCrew;
 
-  return { crew, tierGrid, thanks, render };
+  return { crew, tierGrid, thanks, render, layoutChips };
 }
 
 function crewRowsOverflow(line: HTMLElement): boolean {
@@ -701,7 +712,17 @@ function crewRowsOverflow(line: HTMLElement): boolean {
     return false;
   }
   const rows = [...line.querySelectorAll<HTMLElement>(".crew-row")];
-  if (rows.some((row) => row.scrollWidth > row.clientWidth + 1)) {
+  // A row that wrapped (style.css lets a row wrap rather than clip) also
+  // overflows: its chips do not all share one line.
+  const wrapped = (row: HTMLElement): boolean => {
+    const tops = [...row.querySelectorAll<HTMLElement>(".crew-bit")].map(
+      (chip) => chip.offsetTop,
+    );
+    return tops.some((top) => top !== tops[0]);
+  };
+  if (
+    rows.some((row) => row.scrollWidth > row.clientWidth + 1 || wrapped(row))
+  ) {
     return true;
   }
   return rows.length === 1 && line.scrollWidth > line.clientWidth + 1;

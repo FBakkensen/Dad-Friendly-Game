@@ -126,3 +126,27 @@ function channel(value: number): number {
   const scaled = value / 255;
   return scaled <= 0.04045 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
 }
+
+/**
+ * The mine window's parts drawn from the save (#371). While a signed-in save
+ * loads, none of them may show: the window is its frame and glass alone.
+ */
+export const WINDOW_SCENE_PARTS = [
+  ".board-window-art",
+  ".board-window-sheave",
+  ".board-window-steam",
+  ".board-window-machine",
+  ".board-window-drill",
+  ".board-window-tarp",
+  ".board-window-borer",
+  ".board-window-borer-dust",
+  ".board-window-kid",
+  ".board-window-run",
+  ".board-window-tub",
+  ".board-window-miner",
+  ".board-window-cage",
+  ".board-window-cave-in",
+  ".board-dig-plus",
+  ".golden-vein",
+  ".board-legacy",
+] as const;

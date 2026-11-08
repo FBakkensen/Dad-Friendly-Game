@@ -24,10 +24,6 @@ const REQUIRED_SELECTORS = [
   ".welcome-card",
   ".reveal-card",
   ".shelf-card",
-  ".mountain-wrap",
-  ".mountain-stage",
-  ".golden-vein",
-  ".vein-note",
   ".tier-grid",
   ".tier-trouble",
   ".trouble-thanks",
@@ -52,7 +48,10 @@ const REQUIRED_SELECTORS = [
   ".saved-copies",
 ];
 
-/** The board's parts that took over from the pocket pill and the relic shelf (#370). */
+/**
+ * The board's parts that took over from the pocket pill and the relic shelf
+ * (#370), and from the rock, its vein and the Legacy badge (#371).
+ */
 const BOARD_SELECTORS = [
   ".board-top",
   ".board-stock",
@@ -63,6 +62,14 @@ const BOARD_SELECTORS = [
   ".board-saveline",
   ".board-note",
   ".board-running",
+  ".board-gauge-row",
+  ".board-gauge",
+  ".board-crew",
+  ".board-mine",
+  ".board-window",
+  ".board-legacy",
+  ".golden-vein",
+  ".vein-note",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
@@ -173,8 +180,17 @@ describe("board.css", () => {
 });
 
 describe("style.css", () => {
-  it("keeps the crew's rate line on the main screen until B3's gauge (#370)", () => {
-    expect(css).not.toMatch(/^\.crew-status[^{]*\{[^}]*display:\s*none/m);
+  it("keeps no lit crew chip: the crew plate holds the free count (#371)", () => {
+    expect(css).not.toMatch(/teach-point/);
+  });
+
+  it("lets a long crew row wrap rather than clip a chip (#371)", () => {
+    expect(css).toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*wrap/m);
+    expect(css).not.toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*nowrap/m);
+  });
+
+  it("titles the crew section in Buys (#371)", () => {
+    expect(css).toMatch(/^\.buys-crew-title[\s,{]/m);
   });
 
   it.each(REQUIRED_SELECTORS)("styles %s", (selector) => {

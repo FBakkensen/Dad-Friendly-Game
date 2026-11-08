@@ -147,11 +147,17 @@ describe("staffing teach (#246)", () => {
     expect(card?.querySelector(".tier-needs")?.textContent).toBe(
       staffingLine(1, 4),
     );
-    // The free count stays on the crew chip, which is lit.
+    // The free count is on the crew plate alone (#371): not on the card,
+    // not on a crew chip, and nothing is lit to point at it.
     expect(card?.textContent).not.toContain("free");
-    const chip = screen.root.querySelector(".crew-posts .crew-bit");
-    expect(chip?.textContent).toContain("free");
-    expect(chip?.classList.contains("teach-point")).toBe(true);
+    expect(
+      screen.root.querySelector(".board-gauge-row .board-crew-free")
+        ?.textContent,
+    ).toContain("free");
+    for (const chip of screen.root.querySelectorAll(".crew-bit")) {
+      expect(chip.textContent).not.toContain("free");
+    }
+    expect(screen.root.querySelector(".teach-point")).toBeNull();
     card?.click();
     const mountain = screen.progress.getSnapshot().mountain;
     expect(mountain.carts).toBe(10);
@@ -159,9 +165,7 @@ describe("staffing teach (#246)", () => {
     expect(mountain.taught).toContain("staffing");
     expect(buys?.querySelector(".teach-dot")).toBeNull();
     expect(card?.classList.contains("teach-new")).toBe(false);
-    expect(chip?.isConnected && chip.classList.contains("teach-point")).toBe(
-      false,
-    );
+    expect(screen.root.querySelector(".teach-point")).toBeNull();
   });
 
   it("a worker hired from the Worker card also counts", () => {

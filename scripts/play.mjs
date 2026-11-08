@@ -3,6 +3,7 @@
  * Quick play-test in a real browser: open the game on a named save, run a
  * few taps, and keep a shot after each step plus the console and page errors.
  *   npm run play -- --save mid label:Buys
+ *   npm run play -- --save heart --search ?trouble=cave-in tap:.board-window
  *   npm run play -- --help
  * Shots and log.txt land in play-shots/ (git-ignored), replaced on each run.
  * Exits non-zero on any page error or an action that could not run.
@@ -29,6 +30,8 @@ import {
   CREW,
   SAVE_KEY,
   crewMountain,
+  crystalMountain,
+  heartMountain,
   lastStoneSave,
   openMountain,
   seedJson,
@@ -45,12 +48,20 @@ const SAVES = {
     note: "Granite with a borer: Workshop and Engineers open",
     save: openMountain,
   },
+  crystal: {
+    note: "the Crystal Caves: drills and borers at work",
+    save: crystalMountain,
+  },
+  heart: {
+    note: "the Deep Heart on a kid's run: the Great Machine and Legacy ×1.5",
+    save: heartMountain,
+  },
   workshop: {
     note: "a craft on the bench and axle grease running",
     save: () => workshopSave(Date.now(), true),
   },
   crew: {
-    note: "every tier so far and both boosts, still in the Topsoil",
+    note: "every tier so far and both boosts, in the Deep Heart",
     save: () => ({ version: 4, mountain: CREW, lastSeen: Date.now() }),
   },
   late: {
@@ -275,7 +286,9 @@ try {
         seedJson(save),
       );
     }
-    await page.goto(new URL(BASE).href, { waitUntil: "networkidle0" });
+    await page.goto(new URL(plan.search, BASE).href, {
+      waitUntil: "networkidle0",
+    });
     const shots = [shotName(screen, 0, undefined)];
     await page.screenshot({ path: join(plan.out, shots[0]) });
     for (const [index, action] of plan.actions.entries()) {

@@ -3,7 +3,6 @@ import { canBuyAnyTier, canCraftNow, setAffordGlow } from "./afford-glow";
 import pickUrl from "./assets/pick.png";
 import { markSeen, noteFor, showsDot } from "./teach";
 import { createTeachNote, setTeachDot } from "./teach-ui";
-import { tapFloatSpot } from "./tap-float";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
 import { formatCount } from "./format";
 import {
@@ -17,6 +16,10 @@ import { hasRelic, relicGoal, type RelicId } from "./relics";
 import { BOOSTS } from "./boosts";
 import { createEffectChip, shortEffectName, writeChip } from "./effect-row";
 import { createBoardNote } from "./board-note";
+import { createCrewPlate, createOutputGauge } from "./board-gauge";
+import { crewCounts } from "./crew-count";
+import { createMineWindow, runBoardLoop } from "./board-window";
+import { veinSpot, windowScene } from "./mine-window";
 import { createBoostDial, createOdometer } from "./board-stock";
 import { createRelicPlate } from "./board-relics";
 import { createSaveLine } from "./board-save";
@@ -27,7 +30,6 @@ import { createArrivalPanel } from "./arrival-panel";
 import { layerOf, nextLayer } from "./layers";
 import { createWelcomePanel } from "./welcome-panel";
 import { createMenuPanel } from "./menu-panel";
-import { mountainTint } from "./mountain-tint";
 import { createSaveConflictPanel } from "./save-conflict-panel";
 import { createSavedCopiesPanel } from "./saved-copies-panel";
 import { createLegacyPanel, legacyWords } from "./legacy-panel";
@@ -36,7 +38,6 @@ import { createBuysHead } from "./buys-head";
 import { createCrewPanel } from "./crew-panel";
 import { SHEET_HOST } from "./sheet-card";
 import { createEngineersPanel } from "./engineers-panel";
-import { floatText } from "./float-text";
 import { createUpgradesPanel } from "./upgrades-panel";
 import {
   axleCrewMultiplier,
@@ -198,72 +199,12 @@ export function mountMountainScreen({
   const gapForVeins = (): number =>
     veinGapScale(view.mountain, hasRelic(view.mountain, "lantern"), now());
 
-  const mountain = document.createElement("button");
-  mountain.type = "button";
-  mountain.className = "mountain";
-  const peak = document.createElement("img");
-  peak.className = "mountain-art";
-  peak.src = mountainUrl;
-  peak.alt = "";
-  peak.width = 114;
-  peak.height = 114;
-  peak.draggable = false;
-  // The band's tint sits on a wrapper, so the art keeps its own glow (#325).
-  const band = document.createElement("span");
-  band.className = "mountain-band";
-  band.append(peak);
-  mountain.append(band);
-  mountain.addEventListener("click", (event) => {
-    if (!view.ready) {
-      return;
-    }
-    const before = view.mountain.pocket;
-    progress.applyMutation((current) =>
-      mineByHand(current, now(), progress.getSnapshot().trouble),
-    );
-    const mined = view.mountain.pocket - before;
-    if (mined > 0) {
-      // Above the finger so a thumb doesn't hide it; keyboard "clicks" have no point.
-      const spot = tapFloatSpot(
-        mountain.getBoundingClientRect(),
-        event.detail > 0 ? { x: event.clientX, y: event.clientY } : undefined,
-      );
-      floatText(
-        mountainStage,
-        `+${formatCount(mined)}`,
-        "tap-float",
-        spot.x,
-        spot.y,
-      );
-    }
-  });
-
-  const vein = document.createElement("button");
-  vein.type = "button";
-  vein.className = "golden-vein";
-  vein.hidden = true;
-  vein.setAttribute("aria-label", "Golden vein, tap for a burst of stones");
-  const veinArt = document.createElement("img");
-  veinArt.src = veinUrl;
-  veinArt.alt = "";
-  veinArt.width = 32;
-  veinArt.height = 32;
-  veinArt.draggable = false;
-  vein.append(veinArt);
-
-  // The stage is exactly the mountain's box, so vein positions land on the art.
-  const mountainStage = document.createElement("div");
-  mountainStage.className = "mountain-stage";
-  mountainStage.append(mountain, vein);
-  const mountainWrap = document.createElement("div");
-  mountainWrap.className = "mountain-wrap";
-  mountainWrap.append(mountainStage);
-
+  // The vein's note and the quiet away line show in the board note under the
+  // window (#371); between shows the note waits in the hidden park below. The
+  // board note's status announces them, so the words carry no live region of
+  // their own and are read once.
   const veinNote = document.createElement("p");
   veinNote.className = "vein-note";
-  veinNote.setAttribute("aria-live", "polite");
-
-  mountainWrap.append(veinNote);
 
   // The countdowns running now, one per line: the body of the Running now
   // note the boost dial opens (#370). The engineers' trips land here too.
@@ -279,11 +220,12 @@ export function mountMountainScreen({
   const running = document.createElement("div");
   running.className = "board-running";
   running.append(runningHead, effectRow, runningNone);
-  // While another note shows, the list waits here so its chips stay in the page.
+  // While another note shows, the list and the vein's note wait here, so the
+  // chips and the live words stay in the page.
   const runningPark = document.createElement("div");
   runningPark.className = "board-running-park";
   runningPark.hidden = true;
-  runningPark.append(running);
+  runningPark.append(running, veinNote);
   const chipFor = new Map(
     BOOSTS.map((boost) => {
       const chip = createEffectChip(
@@ -344,17 +286,18 @@ export function mountMountainScreen({
   let veinNoteUntil = 0;
   /** How long the short-absence note stays (#334). */
   const QUIET_NOTE_MS = 6000;
+  /** How long the vein's payout note stays. */
+  const VEIN_NOTE_MS = 4000;
+  /** How far a dig and a local spend kick the output needle, in degrees (#371). */
+  const DIG_KICK = 150;
+  const SPEND_KICK = 120;
 
   const renderVein = (): void => {
-    const glinting =
-      veinState.kind === "glinting" &&
-      view.ready &&
-      view.mountain.remaining > 0;
-    vein.hidden = !glinting;
-    if (veinState.kind === "glinting") {
-      vein.style.left = `${String(veinState.x * 100)}%`;
-      vein.style.top = `${String(veinState.y * 100)}%`;
-    }
+    mine.showVein(
+      veinState.kind === "glinting" && view.ready && view.mountain.remaining > 0
+        ? veinSpot(veinState.x, veinState.y)
+        : undefined,
+    );
     if (now() >= veinNoteUntil) {
       veinNote.textContent = "";
     }
@@ -374,7 +317,28 @@ export function mountMountainScreen({
     renderVein();
   };
 
-  vein.addEventListener("click", () => {
+  /**
+   * A tap on the window: today's rock handler. Returns the stones the tap
+   * itself dug: the store settles the crew before the tap, and the crew's
+   * stones are the gauge's to show, not the dig's "+N" (#371).
+   */
+  const dig = (): number => {
+    if (!view.ready) {
+      return 0;
+    }
+    let mined = 0;
+    progress.applyMutation((current) => {
+      const next = mineByHand(current, now(), progress.getSnapshot().trouble);
+      mined = next.pocket - current.pocket;
+      return next;
+    });
+    if (mined > 0) {
+      gauge.kick(DIG_KICK);
+    }
+    return mined;
+  };
+
+  const tapVein = (): void => {
     if (veinState.kind !== "glinting" || !view.ready) {
       return;
     }
@@ -384,10 +348,12 @@ export function mountMountainScreen({
       return mineVein(latest);
     }, "vein.tap");
     veinState = waitForVein({ now: now(), random, gapScale: gapForVeins() });
-    veinNote.textContent = `Golden vein! +${formatCount(reward)} ${reward === 1 ? "stone" : "stones"}`;
-    veinNoteUntil = now() + 4000;
+    showVeinNote(
+      `Golden vein! +${formatCount(reward)} ${reward === 1 ? "stone" : "stones"}`,
+      VEIN_NOTE_MS,
+    );
     renderVein();
-  });
+  };
 
   const crewPanel = createCrewPanel({
     progress,
@@ -427,6 +393,28 @@ export function mountMountainScreen({
     },
   });
 
+  // The gauge row (#371): the output gauge, the mine window down No. 2
+  // Shaft with the vein and the Legacy plate on it, and the crew plate.
+  const gauge = createOutputGauge();
+  const crewPlate = createCrewPlate();
+  /** The gauge shows what is earned: nothing once the mountain is mined out. */
+  const renderGaugeRow = (): void => {
+    const { mountain, trouble } = view;
+    gauge.set(
+      mountain.remaining > 0 ? stonesPerSecond(mountain, now(), trouble) : 0,
+    );
+    crewPlate.set(crewCounts(mountain, now(), trouble));
+  };
+  const mine = createMineWindow({
+    onDig: dig,
+    onVein: tapVein,
+    legacyBadge: legacy.badge,
+    random,
+  });
+  const gaugeRow = document.createElement("div");
+  gaugeRow.className = "board-gauge-row";
+  gaugeRow.append(gauge.root, mine.root, crewPlate.root);
+
   /** The socket whose note opened the shelf: focus goes back there. */
   let shelfDoor: HTMLElement | undefined;
   const relics = createRelicPanels({
@@ -449,6 +437,12 @@ export function mountMountainScreen({
   // The board (#370): the note, the relic plate, the odometer, the boost dial
   // and the save line. The note is placed in board coordinates inside root.
   const boardNote = createBoardNote(root);
+  /** The vein's payout or the quiet away line, in the board note under the window. */
+  const showVeinNote = (words: string, ms: number): void => {
+    veinNote.textContent = words;
+    veinNoteUntil = now() + ms;
+    boardNote.show(mine.root, veinNote, { ms });
+  };
   const saveLine = createSaveLine({
     progress,
     auth,
@@ -497,6 +491,7 @@ export function mountMountainScreen({
       const spent = shownPocket + (dug - shownDug) - held;
       if (spent >= 1) {
         odometer.spend(spent);
+        gauge.kick(SPEND_KICK);
       }
     }
     shownPocket = held;
@@ -629,8 +624,7 @@ export function mountMountainScreen({
   const render = (): void => {
     // A short absence pays with a small note, not the welcome card (#334).
     if (view.quietAway !== undefined) {
-      veinNote.textContent = quietAwayWords(view.quietAway);
-      veinNoteUntil = now() + QUIET_NOTE_MS;
+      showVeinNote(quietAwayWords(view.quietAway), QUIET_NOTE_MS);
       queueMicrotask(() => {
         progress.dismissQuietAway();
       });
@@ -639,7 +633,7 @@ export function mountMountainScreen({
     const total = shownStones(view.mountain, MOUNTAIN_STONES);
     remaining.textContent = `${formatCount(left)} stones left`;
     remaining.title = `${left.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`;
-    mountain.disabled = !view.playing || left === 0;
+    mine.dig.disabled = !view.playing || left === 0;
     const showElsewhere = view.elsewhere;
     otherTab.hidden = !showElsewhere;
     if (showElsewhere && otherTab.dataset["shown"] !== "1") {
@@ -648,17 +642,19 @@ export function mountMountainScreen({
     } else if (!showElsewhere) {
       delete otherTab.dataset["shown"];
     }
-    mountain.setAttribute(
+    mine.dig.setAttribute(
       "aria-label",
       left === 0
         ? "The mountain is mined out"
-        : `Mountain, tap to mine ${tapWords(effectiveRates(view.mountain, now()).tapYield)}`,
+        : `Mine window: tap to mine ${tapWords(effectiveRates(view.mountain, now()).tapYield)}`,
     );
-    const layer = layerOf(view.mountain);
-    if (band.dataset["layer"] !== layer.id) {
-      band.dataset["layer"] = layer.id;
-      band.style.setProperty("--band-tint", mountainTint(layer.id));
+    // The window draws the save once it has loaded, so the first scene it
+    // sees is the save itself and nothing beats for it (#371).
+    if (view.ready) {
+      mine.render(windowScene(view.mountain, view.trouble));
     }
+    renderGaugeRow();
+    const layer = layerOf(view.mountain);
     const layerWords = layerCardWords(layer.id);
     layerName.textContent = layer.name;
     layerAdvice.textContent =
@@ -757,6 +753,9 @@ export function mountMountainScreen({
     if (running.parentNode === null) {
       runningPark.append(running);
     }
+    if (veinNote.parentNode === null) {
+      runningPark.append(veinNote);
+    }
     relicPlate.render();
     renderStock();
     savedCopies.render();
@@ -851,12 +850,18 @@ export function mountMountainScreen({
   const buysHost = document.createElement("div");
   buysHost.className = SHEET_HOST;
   buysHost.append(tierGrid);
-  const buysHead = createBuysHead({ tierArt, stoneUrl, body: [buysHost] });
+  // The crew line heads Buys until B5's drawer takes it (#371).
+  const buysHead = createBuysHead({
+    tierArt,
+    stoneUrl,
+    body: [crew, buysHost],
+  });
   buysDialog.setAttribute("aria-labelledby", "buys-title");
   buysCard.append(
     buysHead.head,
     buysHead.intro,
     buysHead.howHost,
+    crew,
     buysHost,
     thanks,
     buysClose,
@@ -884,6 +889,8 @@ export function mountMountainScreen({
   buysButton.addEventListener("click", () => {
     closeBoardPopups();
     buysDialog.hidden = false;
+    // The crew chips were measured while the sheet was shut: fit them now.
+    crewPanel.layoutChips();
     // The staffing New card sits on top of the list: bring it into view.
     // Some test DOMs have no scrollIntoView.
     const fresh: Partial<Element> | null =
@@ -927,8 +934,6 @@ export function mountMountainScreen({
   const header = document.createElement("header");
   header.className = "top-bar";
   header.append(layerLine, menuButton);
-  // The Legacy sits in the mountain's other corner: no layout cost.
-  mountainStage.append(legacy.badge);
 
   // The board's top: the relic plate and the stock row (#370).
   const stock = document.createElement("div");
@@ -945,9 +950,8 @@ export function mountMountainScreen({
 
   root.replaceChildren(
     boardTop,
+    gaugeRow,
     header,
-    crew,
-    mountainWrap,
     teachNote.note,
     thumbBar,
     drawerClip,
@@ -980,24 +984,16 @@ export function mountMountainScreen({
     workshop.render();
     renderStock();
     stepVein();
-    const crewRate = stonesPerSecond(view.mountain, now(), view.trouble);
-    if (
-      crewRate > 0 &&
-      view.mountain.remaining > 0 &&
-      document.visibilityState !== "hidden"
-    ) {
-      // Rises from the mine door, away from where taps land, and says whose it is.
-      floatText(
-        mountainStage,
-        `+${formatCount(crewRate)} crew`,
-        "crew-float",
-        44 + random() * 12,
-      );
-    }
+    renderGaugeRow();
   }, 1000);
   signal?.addEventListener("abort", () => {
     clearInterval(ticking);
   });
+  // The window's machines and the needle move on hard steps, once a frame.
+  runBoardLoop((dt) => {
+    mine.tick(dt);
+    gauge.tick(dt);
+  }, signal);
   const listening = signal === undefined ? {} : { signal };
   document.addEventListener(
     "visibilitychange",

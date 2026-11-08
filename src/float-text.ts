@@ -1,17 +1,37 @@
 const FLOAT_MS = 1200;
 
-/** No matchMedia (very old browsers, tests) counts as reduced motion. */
-export const reducedMotion = (): boolean =>
-  typeof window.matchMedia !== "function" ||
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const REDUCE = "(prefers-reduced-motion: reduce)";
 
-/** A short-lived number that drifts up and fades; skipped for reduced motion. */
+/** The one list the board reads each frame, and the matchMedia that made it. */
+let asked: { readonly by: unknown; readonly list: MediaQueryList } | undefined;
+
+/**
+ * No matchMedia (very old browsers, tests) counts as reduced motion. The list is made once and
+ * its live `.matches` read after, since the board asks every frame; a new matchMedia (a test's
+ * stub) is asked afresh.
+ */
+export const reducedMotion = (): boolean => {
+  if (typeof window.matchMedia !== "function") {
+    return true;
+  }
+  if (asked === undefined || asked.by !== window.matchMedia) {
+    asked = {
+      by: Reflect.get(window, "matchMedia"),
+      list: window.matchMedia(REDUCE),
+    };
+  }
+  return asked.list.matches;
+};
+
+/**
+ * A short-lived number that drifts up and fades; skipped for reduced motion.
+ * Its class places it (the rock's tap and crew floats that passed a spot went
+ * with the rock, #371).
+ */
 export const floatText = (
   parent: HTMLElement,
   text: string,
   className: string,
-  leftPercent?: number,
-  topPercent?: number,
 ): void => {
   if (reducedMotion()) {
     return;
@@ -20,12 +40,6 @@ export const floatText = (
   float.className = className;
   float.textContent = text;
   float.setAttribute("aria-hidden", "true");
-  if (leftPercent !== undefined) {
-    float.style.left = `${String(leftPercent)}%`;
-  }
-  if (topPercent !== undefined) {
-    float.style.top = `${String(topPercent)}%`;
-  }
   parent.append(float);
   setTimeout(() => {
     float.remove();

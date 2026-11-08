@@ -2,7 +2,8 @@
  * The board stage (#370). #app is a fixed 424x924 enamel panel. src/board-fit.ts
  * sets --board-scale so the whole board shrinks to fit any screen; zoom keeps
  * taps lined up. contain: layout keeps the fixed sheets inside the board.
- * The old column fills 176..868; the bands above and below are for the board.
+ * The old column fills 422..860, under the board's top and the gauge row (#371);
+ * the bands above and below are for the board.
  */
 body {
   display: flex;
@@ -38,7 +39,8 @@ body {
   /* index.html's boot style sets min-height: 100dvh, which zoom would enlarge. */
   min-height: 0;
   padding: var(--space-4);
-  padding-top: var(--board-top);
+  /* The column starts under the gauge row (#371). */
+  padding-top: var(--column-top);
   /* The column stops 8px above the save line, so the bottom bar's buttons
      stand a full gap from it (#370). */
   padding-bottom: calc(var(--save-h) + var(--art) * 4);
@@ -362,16 +364,10 @@ body {
   margin-top: calc(var(--art) * 4);
 }
 
-/* The rock's button stands 8px below the crew chips (with #app's 4px gap):
-   the goal line and the shelf that used to sit between them are on the
-   board's top now (#370). */
-#app > .mountain-wrap {
-  margin-top: calc(var(--art) * 2);
-}
-
-/* The ☰ menu stands a full gap below the boost dial. */
-.top-bar .menu-button {
-  margin-top: calc(var(--art) * 4);
+/* The layer line and the ☰ menu sit at the column's top, 8px under the gauge
+   row; the teach note and the thumb bar sit at its foot (#371). */
+#app > .top-bar {
+  margin-bottom: auto;
 }
 
 .board-tag .board-lg {
@@ -751,4 +747,468 @@ body {
    slide shows more of it. */
 .board-drawer-clip > .board-save-drawer:not(.is-open) {
   transform: translateY(calc(100% + var(--art) * 2));
+}
+
+/* ---------- the gauge row (#371) ----------
+   Under the board's top, 424 x 238: the output gauge at (0, 0), the mine
+   window at (103, 3) and the crew plate at (103, 95) art. */
+.board-gauge-row {
+  position: absolute;
+  top: var(--board-top);
+  left: 0;
+  width: var(--board-w);
+  height: var(--gauge-row-h);
+}
+
+.board-gauge-row > .board-gauge {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.board-gauge-row > .board-mine {
+  position: absolute;
+  left: calc(var(--art) * 103);
+  top: calc(var(--art) * 3);
+}
+
+.board-gauge-row > .board-crew {
+  position: absolute;
+  left: calc(var(--art) * 103);
+  top: calc(var(--art) * 95);
+}
+
+/* ---------- output gauge (#371) ----------
+   The mockup's .gauge: a 104x104 art dial on 55 sheet frames, its marks
+   and unit printed on the face, the red counter and its legend. */
+.board-gauge {
+  position: relative;
+  width: calc(var(--art) * 104);
+  height: calc(var(--art) * 104);
+}
+
+.board-gauge-face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--art) * 104);
+  height: calc(var(--art) * 104);
+  background-repeat: no-repeat;
+  background-size: calc(var(--art) * 1144) calc(var(--art) * 520);
+  image-rendering: pixelated;
+}
+
+.board-gauge-mark,
+.board-gauge-unit {
+  position: absolute;
+  left: calc(var(--art) * var(--at));
+  top: calc(var(--art) * var(--y));
+  transform: translate(-50%, -50%);
+  font-size: var(--board-type-13);
+  line-height: calc(var(--art) * 7);
+  white-space: nowrap;
+  color: var(--board-gauge-ink);
+}
+
+.board-gauge-counter {
+  position: absolute;
+  left: calc(var(--art) * 39);
+  top: calc(var(--art) * 65);
+  width: calc(var(--art) * 25);
+  height: calc(var(--art) * 11);
+  image-rendering: pixelated;
+}
+
+.board-gauge-read {
+  position: absolute;
+  left: calc(var(--art) * 41);
+  top: calc(var(--art) * 67);
+  width: calc(var(--art) * 22);
+  height: calc(var(--art) * 8);
+  text-align: center;
+  font-size: var(--board-type-16);
+  line-height: calc(var(--art) * 8);
+  white-space: nowrap;
+  color: var(--board-drum-dec-ink);
+}
+
+.board-gauge-legend {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--art) * 77);
+  text-align: center;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 700;
+  font-size: var(--board-type-13);
+  line-height: var(--board-type-13);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--board-gauge-ink);
+}
+
+/* ---------- crew plate (#371) ----------
+   The mockup's .crew as a flex row: at rest each part starts where the
+   mockup puts it (legend 10, figure 29, lamp 60, free 81 art px). The legend
+   and figure boxes shrink to their words when a long free count needs the
+   room, so the words push along and never overlap or leave the plate. A
+   free count of five figures or more drops its letter-spacing to fit. The
+   legend's left inset is a spacer that gives way first, so a wide fallback
+   face still ends inside the plate (#371). */
+.board-crew {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--art);
+  width: calc(var(--art) * 106);
+  height: calc(var(--art) * 24);
+  padding: 0 calc(var(--art) * 3) 0 0;
+}
+
+/* Nine art px and the gap: the legend starts at 10, as in the mockup. */
+.board-crew::before {
+  content: "";
+  flex: 0 1 calc(var(--art) * 9);
+}
+
+.board-crew > :not(.board-skin) {
+  position: relative;
+  white-space: nowrap;
+  text-shadow: 0 0 var(--art) var(--board-night);
+}
+
+.board-crew .board-crew-legend {
+  flex: 0 1 calc(var(--art) * 18);
+  margin-top: calc(var(--art) * 8.5);
+  line-height: calc(var(--art) * 7);
+  color: var(--board-ink-bare);
+}
+
+.board-crew-n {
+  flex: 0 1 calc(var(--art) * 30);
+  margin-top: calc(var(--art) * 5.5);
+  font-size: var(--board-type-26);
+  line-height: calc(var(--art) * 13);
+  color: var(--board-ink-bare);
+}
+
+.board-crew-n.is-long {
+  font-size: var(--board-type-20);
+}
+
+.board-crew-n.is-longer {
+  font-size: var(--board-type-16);
+}
+
+.board-crew .board-lamp {
+  margin-top: calc(var(--art) * 2);
+}
+
+.board-crew .board-crew-free {
+  flex: none;
+  margin-top: calc(var(--art) * 8.5);
+  line-height: calc(var(--art) * 7);
+  color: var(--board-amber-bare);
+}
+
+.board-crew .board-crew-free.is-long {
+  letter-spacing: 0;
+}
+
+.board-crew.is-none .board-crew-free {
+  color: var(--board-ink-2);
+}
+
+/* ---------- the mine window (#371) ----------
+   The mockup's #win: a 106x90 art frame round a 92x76 view at (7, 7), the
+   No. 2 Shaft tag on its top edge, and the Legacy plate on its lower edge.
+   Fixed places are here; what moves is inline left/top and
+   background-position-x from board-window.ts. */
+.board-mine {
+  position: relative;
+  /* Its own stacking context: the vein (2) and the Legacy plate (3) order only over the window,
+     never against the board's sheets, notes or save line. */
+  isolation: isolate;
+  width: calc(var(--art) * 106);
+  height: calc(var(--art) * 90);
+}
+
+.board-window {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: calc(var(--art) * 106);
+  height: calc(var(--art) * 90);
+  padding: 0;
+  border: 0;
+  background: none;
+  appearance: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.board-window:focus-visible {
+  outline: calc(var(--art) * 2) solid var(--board-ink-bare);
+}
+
+.board-window > * {
+  position: absolute;
+  pointer-events: none;
+}
+
+.board-window-view {
+  left: calc(var(--art) * 7);
+  top: calc(var(--art) * 7);
+  width: calc(var(--art) * 92);
+  height: calc(var(--art) * 76);
+  overflow: hidden;
+  background: var(--board-view-night);
+}
+
+.board-window-view > *,
+.board-window-run > * {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+.board-window-art,
+.board-window-glass {
+  width: calc(var(--art) * 92);
+  height: calc(var(--art) * 76);
+}
+
+.board-window-sheave {
+  left: calc(var(--art) * 7);
+  width: calc(var(--art) * 19);
+  height: calc(var(--art) * 17);
+  background-size: calc(var(--art) * 76) calc(var(--art) * 17);
+}
+
+.board-window-view > .board-window-steam {
+  left: calc(var(--art) * 64);
+  top: calc(var(--art) * -3);
+  width: calc(var(--art) * 11);
+  height: calc(var(--art) * 11);
+  background-size: calc(var(--art) * 44) calc(var(--art) * 11);
+}
+
+/* The Great Machine on the surface, between the headframe and the engine house. */
+.board-window-machine {
+  left: calc(var(--art) * 23);
+  width: calc(var(--art) * 28);
+  height: calc(var(--art) * 26);
+}
+
+.board-window-view > .board-window-drill {
+  left: calc(var(--art) * 57);
+  top: calc(var(--art) * 55);
+  width: calc(var(--art) * 23);
+  height: calc(var(--art) * 15);
+  background-size: calc(var(--art) * 92) calc(var(--art) * 15);
+}
+
+.board-window-tarp {
+  width: calc(var(--art) * 26);
+  height: calc(var(--art) * 15);
+}
+
+.board-window-view > .board-window-borer {
+  left: calc(var(--art) * 7);
+  top: calc(var(--art) * 54);
+  width: calc(var(--art) * 28);
+  height: calc(var(--art) * 16);
+  background-size: calc(var(--art) * 112) calc(var(--art) * 16);
+}
+
+.board-window-view > .board-window-borer-dust {
+  left: calc(var(--art) * 2);
+  top: calc(var(--art) * 55);
+}
+
+.board-window-borer-dust,
+.board-window-fill,
+.board-dig-dust {
+  width: calc(var(--art) * 16);
+  height: calc(var(--art) * 16);
+  background-size: calc(var(--art) * 64) calc(var(--art) * 16);
+}
+
+/* The kid in the lower gallery, by the lamp. */
+.board-window-view > .board-window-kid {
+  left: calc(var(--art) * 36);
+  top: calc(var(--art) * 57);
+  width: calc(var(--art) * 10);
+  height: calc(var(--art) * 14);
+}
+
+/* The haulage run on the upper gallery, rows 28..49: a tub hoisted up the
+   shaft goes out of the box, behind the deck beam. z-index 0 makes it a
+   stacking context: its tub (1) and miner (2) order only against each other
+   and the cage, under the cave-in, the puffs, "+N", the glass and the frame. */
+.board-window-view > .board-window-run {
+  z-index: 0;
+  top: calc(var(--art) * 28);
+  width: calc(var(--art) * 92);
+  height: calc(var(--art) * 22);
+  overflow: hidden;
+}
+
+.board-window-tub {
+  z-index: 1;
+  width: calc(var(--art) * 14);
+  height: calc(var(--art) * 12);
+}
+
+.board-window-tub.is-full {
+  height: calc(var(--art) * 15);
+}
+
+.board-window-miner {
+  z-index: 2;
+  width: calc(var(--art) * 12);
+  height: calc(var(--art) * 21);
+  background-size: calc(var(--art) * 216) calc(var(--art) * 21);
+}
+
+.board-window-miner.is-behind,
+.board-window-cage {
+  z-index: 0;
+}
+
+.board-window-cage {
+  width: calc(var(--art) * 20);
+  height: calc(var(--art) * 25);
+}
+
+/* The cave-in over the run's face end, during a cart trouble. */
+.board-window-view > .board-window-cave-in {
+  left: calc(var(--art) * 44);
+  top: calc(var(--art) * 24);
+  width: calc(var(--art) * 46);
+  height: calc(var(--art) * 24);
+  background-size: calc(var(--art) * 184) calc(var(--art) * 24);
+}
+
+.board-dig-plus {
+  font-size: var(--board-type-14);
+  line-height: var(--board-type-14);
+  white-space: nowrap;
+  color: var(--board-amber-bare);
+  text-shadow:
+    var(--board-hair) 0 0 var(--board-view-night),
+    calc(var(--board-hair) * -1) 0 0 var(--board-view-night),
+    0 var(--board-hair) 0 var(--board-view-night),
+    0 calc(var(--board-hair) * -1) 0 var(--board-view-night),
+    var(--board-hair) var(--board-hair) 0 var(--board-view-night),
+    calc(var(--board-hair) * -1) calc(var(--board-hair) * -1) 0
+      var(--board-view-night),
+    var(--board-hair) calc(var(--board-hair) * -1) 0 var(--board-view-night),
+    calc(var(--board-hair) * -1) var(--board-hair) 0 var(--board-view-night);
+}
+
+.board-window-frame {
+  left: 0;
+  top: 0;
+  width: calc(var(--art) * 106);
+  height: calc(var(--art) * 90);
+  image-rendering: pixelated;
+}
+
+.board-window-tag,
+.board-window-tag.board-skinned {
+  position: absolute;
+  left: calc(var(--art) * 23);
+  top: var(--art);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--art) * 44);
+  height: calc(var(--art) * 10);
+  white-space: nowrap;
+}
+
+.board-window-tag .board-lg {
+  color: var(--board-ink-plate);
+}
+
+/* The vein sits on the view as today's vein sat on the rock: its 25x26 art
+   glint, no glow (the art glints), over the window. board-window.ts places it. */
+.golden-vein {
+  position: absolute;
+  z-index: 2;
+  width: calc(var(--art) * 25);
+  height: calc(var(--art) * 26);
+  padding: 0;
+  border: 0;
+  background: none;
+  appearance: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.golden-vein:focus-visible {
+  outline: calc(var(--art) * 2) solid var(--board-ink-bare);
+}
+
+/* The vein's payout and the quiet away line, in the board note under the
+   window: one line in the Legacy plate's condensed face, so the note ends
+   above the column's top and never covers the ☰ menu (#371). */
+.vein-note {
+  margin: 0;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--board-amber-bare);
+}
+
+.board-vein-glint {
+  display: block;
+  width: calc(var(--art) * 25);
+  height: calc(var(--art) * 26);
+  background-repeat: no-repeat;
+  background-size: calc(var(--art) * 100) calc(var(--art) * 26);
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+/* The Legacy plate straddles the frame's lower edge; a label, not a door.
+   It ends one art px above the crew plate (window row 91, gauge row 94), so
+   the two plates never touch (#371). */
+.board-legacy,
+.board-legacy.board-skinned {
+  position: absolute;
+  left: calc(var(--art) * 21);
+  top: calc(var(--art) * 75);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--art) * 64);
+  height: calc(var(--art) * 16);
+  pointer-events: none;
+}
+
+.board-legacy .legacy-badge {
+  position: relative;
+  top: auto;
+  right: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 700;
+  font-size: var(--board-type-13);
+  line-height: var(--board-type-13);
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--board-ink-bare);
+}
+
+/* Last, so it outranks the display of every part above at equal specificity. */
+.board-mine [hidden] {
+  display: none;
 }

@@ -84,7 +84,9 @@
   --board-type-13: 13px;
   --board-type-14: 14px;
   --board-type-16: 16px;
+  --board-type-20: 20px;
   --board-type-22: 22px;
+  --board-type-26: 26px;
   --board-title-lead: 24px;
   --board-save-lead: 16px;
   --board-weight-semi: 600;
@@ -95,4 +97,22 @@
 :root {
   --board-drum-ink: #0e0d0a;
   --board-drum-dec-ink: #ece4cc;
+}
+
+/* The output gauge's face ink: the mockup's dark print on the cream dial (#371). */
+:root {
+  --board-gauge-ink: #0b0b09;
+}
+
+/* The mine window (#371): the view's night behind its art, and the "+N" outline's offset. */
+:root {
+  --board-view-night: #0a0c0e;
+  --board-hair: 1px;
+}
+
+/* The gauge row (#371): the output gauge, the mine window and the crew plate
+   stand under the board's top; the column starts 8px below the row (422px). */
+:root {
+  --gauge-row-h: 238px;
+  --column-top: calc(var(--board-top) + var(--gauge-row-h) + var(--art) * 4);
 }

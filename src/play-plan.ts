@@ -36,6 +36,8 @@ type PlayPlan = {
   /** A running app to drive instead of starting Vite. */
   readonly url: string | undefined;
   readonly phone: PhoneSize;
+  /** Appended to the page URL, e.g. ?trouble=cave-in for the dev preview. */
+  readonly search: string;
 };
 
 export type PlayArgs =
@@ -52,16 +54,17 @@ Options:
   --url <url>        drive a running app instead of starting Vite
   --viewport <WxH>   the phone's size (default: 424x924, the board);
                      the desktop shot is 1366x768
+  --search <query>   added to the page URL, e.g. ?trouble=cave-in
   --help             this text
 
 Actions run in order; a shot is taken after opening and after each one:
-  tap:<css>          tap the first visible match, e.g. tap:.mountain
+  tap:<css>          tap the first visible match, e.g. tap:.board-window
   label:<name>       tap the first visible match whose accessible name
                      (aria-label or text) is or starts with the label,
                      e.g. label:Upgrades
   wait:<ms>          wait that many milliseconds, e.g. wait:500
   wait:<css>         wait until a match is visible, e.g. wait:.buys-dialog
-Add *N to a tap to repeat it, e.g. tap:.mountain*5`;
+Add *N to a tap to repeat it, e.g. tap:.board-window*5`;
 
 const DEFAULT_OUT = "play-shots";
 const MAX_TAPS = 500;
@@ -159,6 +162,7 @@ export function parsePlayArgs(
   let out = DEFAULT_OUT;
   let url: string | undefined;
   let phone = DEFAULT_PHONE;
+  let search = "";
   const actions: PlayAction[] = [];
   const rest = [...argv];
   for (let word = rest.shift(); word !== undefined; word = rest.shift()) {
@@ -200,6 +204,9 @@ export function parsePlayArgs(
         case "--url":
           url = value;
           break;
+        case "--search":
+          search = value;
+          break;
         case "--viewport": {
           const size = parsePhone(value);
           if (size === undefined) {
@@ -222,7 +229,7 @@ export function parsePlayArgs(
     }
     actions.push(action);
   }
-  return { kind: "plan", save, screens, actions, out, url, phone };
+  return { kind: "plan", save, screens, actions, out, url, phone, search };
 }
 
 /** What puppeteer queries for a selector target. */
@@ -270,7 +277,7 @@ function targetText(target: PlayTarget): string {
   return target.by === "selector" ? target.selector : target.label;
 }
 
-/** `phone-03-tap-mountain-x5.png`: screen, step, then what happened. */
+/** `phone-03-tap-board-window-x5.png`: screen, step, then what happened. */
 export function shotName(
   screen: PlayScreen,
   step: number,
