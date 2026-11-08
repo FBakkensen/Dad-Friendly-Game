@@ -12,6 +12,7 @@
 
 ## Global Constraints
 
+- Cloud sessions cannot post statuses; the `signoff.yml` relay posts them (Task 0).
 - The status context is exactly `signoff` (so `gh signoff install`'s ruleset matches), state `success`.
 - No pre-push hook, no `gh signoff` extension in the repo or setup script, no PR trigger in Actions.
 - Never force-push. Agents never post `signoff` outside `npm run gate -- signoff`.
@@ -27,12 +28,9 @@
 
 ---
 
-### Task 0: Probe that this session may post commit statuses
+### Task 0: Probe that this session may post commit statuses (done)
 
-No code. Push the branch, then post a throwaway status on the pushed HEAD:
-
-- [ ] `gh api -X POST repos/{owner}/{repo}/statuses/$(git rev-parse HEAD) -f state=success -f context=probe -f description="permission probe for #397"`
-- [ ] Expected: JSON with `"context": "probe"`. A 403 stops the plan: tell Flemming the session's GitHub access cannot write statuses.
+Result: the cloud proxy refuses `POST /statuses` (403, "Write access to this GitHub API path is not permitted through this proxy"), and lets `POST /actions/workflows/<file>/dispatches` through (GitHub answered 404 for a missing workflow). Flemming picked the relay: `.github/workflows/signoff.yml` (workflow_dispatch, inputs `sha` and `summary`) posts the status with the Actions token. `npm run gate -- signoff` dispatches it on `ref: main` from every machine, so there is one path (ruling), then reads the commit status until `signoff` shows or about 90 s pass. Dispatch only works once the file is on `main`, so this PR's own signoff is proven after the merge.
 
 ### Task 1: The pure signoff rules
 
@@ -54,12 +52,14 @@ No code. Push the branch, then post a throwaway status on the pushed HEAD:
   - `export interface SignoffState { readonly head: string; readonly marker: Marker | undefined; readonly dirty: boolean; readonly pushed: boolean }`
   - `export type Signoff = { readonly kind: "post"; readonly sha: string; readonly description: string } | { readonly kind: "refuse"; readonly message: string }`
   - `export function decideSignoff(state: SignoffState): Signoff`
+  - `export function signoffState(statuses: readonly { readonly context: string; readonly state: string }[]): "success" | "pending" | "failure" | "missing"` (the `signoff` entry's state; `error` counts as `failure`)
 - Produces, in `src/gate.ts`: `Parsed` gains `{ readonly kind: "signoff" }`; `parseArgs(["signoff"])` returns it.
 
 - [ ] **Step 1: Write the failing tests** in `src/signoff.test.ts`:
   - `markerAfterFull`: green + clean before and after + same HEAD → `write` with `{ sha: headAfter, summary }`; red → `none` reason containing `"red"`; dirty before or after → `none` reason containing `"uncommitted"`; HEAD moved → `none` reason containing `"HEAD moved"`.
   - `parseMarker(markerText(m))` equals `m`; `parseMarker(undefined)`, `parseMarker("")`, `parseMarker("nope\nx")` are undefined.
   - `decideSignoff`: dirty → refuse mentioning `"commit"`; not pushed → refuse mentioning `"push"`; no marker → refuse mentioning `"npm run gate -- full"`; marker sha ≠ head → same refusal; all good → `post` with `sha: head` and `description` equal to the marker summary, cut to at most 140 characters (GitHub's limit). Dirty is checked first, then pushed, then the marker.
+  - `signoffState`: no `signoff` entry → `missing`; `{context:"signoff",state:"success"}` beside other contexts → `success`; `error` → `failure`; `pending` → `pending`.
   - In `src/gate.test.ts`: `parseArgs(["signoff"])` is `{ kind: "signoff" }`; `parseArgs(["signoff", "x"])` is invalid; `USAGE` contains `"signoff"`.
 - [ ] **Step 2:** `npx vitest run src/signoff.test.ts src/gate.test.ts` → FAIL (module missing).
 - [ ] **Step 3:** Implement. USAGE gains the line `  signoff  post the signoff status on HEAD after a green full run on it`.
@@ -80,7 +80,7 @@ No code. Push the branch, then post a throwaway status on the pushed HEAD:
 
 - [ ] **Step 1:** In `scripts/gate.mjs`, `signoff` is handled right after argument parsing: `await import("./signoff.mjs")` runs and exits with its code; no steps run.
 - [ ] **Step 2:** For the full tier, record HEAD (`git rev-parse HEAD`) and cleanliness (`git status --porcelain` empty, untracked included) before planning, delete `MARKER` before the steps start, and after the total line apply `markerAfterFull` with `summary` = the total line. On `write`, write `markerText` and print `gate full: signoff ready for <short sha>; run npm run gate -- signoff after the push.`; on `none`, print `gate full: no signoff marker (<reason>).`
-- [ ] **Step 3:** `scripts/signoff.mjs`: read `head`, `dirty` as above, `pushed` = `git branch -r --contains HEAD` non-empty, `marker` = `parseMarker` of the file (undefined if missing). On `refuse`, print `gate signoff: <message>` and exit 1. On `post`, run `gh api -X POST repos/{owner}/{repo}/statuses/<sha> -f state=success -f context=signoff -f description=<description>`, print `gate signoff: posted signoff on <short sha>`, exit 0; a non-zero `gh` exit prints its stderr and exits 1.
+- [ ] **Step 3:** `scripts/signoff.mjs`: read `head`, `dirty` as above, `pushed` = `git branch -r --contains HEAD` non-empty, `marker` = `parseMarker` of the file (undefined if missing). On `refuse`, print `gate signoff: <message>` and exit 1. On `post`, run `gh api -X POST repos/{owner}/{repo}/actions/workflows/signoff.yml/dispatches -f ref=main -f inputs[sha]=<sha> -f inputs[summary]=<description>`; a non-zero `gh` exit prints its stderr and exits 1. Then read `gh api repos/{owner}/{repo}/commits/<sha>/status` every 5 s for up to 90 s and apply `signoffState`: `success` prints `gate signoff: signoff is green on <short sha>` and exits 0; anything else after the wait prints what it saw and exits 1.
 - [ ] **Step 4:** Check by hand: `npm run gate -- signoff` with no marker → refuses with the full-gate message, exit 1.
 - [ ] **Step 5:** `npm run gate -- fast` green. Commit `The full gate leaves a signoff marker, and gate signoff posts the status (#397)`.
 
@@ -89,9 +89,11 @@ No code. Push the branch, then post a throwaway status on the pushed HEAD:
 **Files:**
 
 - Modify: `.github/workflows/deploy-hosting.yml`
+- Create: `.github/workflows/signoff.yml`
 
 - [ ] **Step 1:** Between `npm ci` and `npm run build`, add a step `name: Full gate (the backstop for local signoff)`, `run: npm run check`. No other change: a red step stops the job, so nothing deploys.
-- [ ] **Step 2:** Commit `deploy-hosting runs the full gate before it deploys main (#397)`. The run on the first merge is the proof; the PR body says so.
+- [ ] **Step 2:** `signoff.yml`: `on: workflow_dispatch` with required string inputs `sha` and `summary`; `permissions: statuses: write`; one job on `ubuntu-latest`, no checkout. Inputs go in through `env`, never inline in the script. It fails unless `sha` is 40 hex characters, then posts `state=success`, `context=signoff`, `description` = the summary cut to 140 characters, `target_url` = the run's URL, with `gh api` and `GH_TOKEN: ${{ github.token }}`.
+- [ ] **Step 3:** Commit `deploy-hosting runs the full gate before it deploys main (#397)`. The run on the first merge is the proof; the PR body says so.
 
 ### Task 4: Docs and skills say how a PR is signed off
 

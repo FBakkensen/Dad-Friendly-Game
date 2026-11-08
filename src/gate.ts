@@ -4,6 +4,7 @@
  *
  *   npm run gate -- fast   the edit loop: typecheck, lint and tests on changes
  *   npm run gate -- full   everything, before the PR (`npm run check`)
+ *   npm run gate -- signoff  the signoff status on HEAD (src/signoff.ts)
  */
 
 export type Tier = "fast" | "full";
@@ -246,12 +247,14 @@ export function gateSteps(
 
 export type Parsed =
   | { readonly kind: "tier"; readonly tier: Tier }
+  | { readonly kind: "signoff" }
   | { readonly kind: "help" }
   | { readonly kind: "invalid"; readonly message: string };
 
-export const USAGE = `npm run gate -- <fast|full>
-  fast  typecheck, plus lint and vitest related on the code changed since origin/main
-  full  every check (npm run check)
+export const USAGE = `npm run gate -- <fast|full|signoff>
+  fast     typecheck, plus lint and vitest related on the code changed since origin/main
+  full     every check (npm run check)
+  signoff  post the signoff status on HEAD after a green full run on it
 Logs go to ${GATE_DIR}/logs/. A failed step prints its log tail.`;
 
 export function parseArgs(args: readonly string[]): Parsed {
@@ -263,6 +266,7 @@ export function parseArgs(args: readonly string[]): Parsed {
   if (rest.length > 0) {
     return { kind: "invalid", message: `Unexpected: ${rest.join(" ")}` };
   }
+  if (first === "signoff") return { kind: "signoff" };
   const tier = TIERS.find((name) => name === first);
   return tier === undefined
     ? { kind: "invalid", message: `Unknown tier: ${first}` }

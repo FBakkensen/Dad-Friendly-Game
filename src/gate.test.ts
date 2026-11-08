@@ -16,6 +16,7 @@ import {
   splitGitPaths,
   summaryLine,
   totalLine,
+  USAGE,
 } from "./gate";
 
 const step = (name: string, after: readonly string[] = []): Step => ({
@@ -244,6 +245,15 @@ describe("parseArgs", () => {
   it("takes one tier", () => {
     expect(parseArgs(["fast"])).toEqual({ kind: "tier", tier: "fast" });
     expect(parseArgs(["full"])).toEqual({ kind: "tier", tier: "full" });
+  });
+
+  it("takes signoff alone", () => {
+    expect(parseArgs(["signoff"])).toEqual({ kind: "signoff" });
+    expect(parseArgs(["signoff", "x"])).toEqual({
+      kind: "invalid",
+      message: "Unexpected: x",
+    });
+    expect(USAGE).toContain("signoff");
   });
 
   it("asks for help", () => {
