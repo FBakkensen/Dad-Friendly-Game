@@ -1,15 +1,17 @@
 import { stretch } from "./scale";
+import { TIER_WHY, buyRowView } from "./buys-rows";
+import { readyNow } from "./ready-now";
 import grandpaUrl from "./assets/grandpa-miner.png";
 import { buyCrew, tierLock } from "./crew";
 import { crewCounts } from "./crew-count";
-import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
+import { lockBodyLine, lockRateLine } from "./tier-lock-words";
 import { grandpaPost, staffForBuy, staffNeeded } from "./engineers";
 import { watchFixHold } from "./trouble-tap";
 import { buyOnTap } from "./card-tap";
 import { markTaught, showsDot } from "./teach";
 import { clearNewCard, markNewCard } from "./teach-ui";
 import { floatText, reducedMotion } from "./float-text";
-import { formatCompact, formatCount } from "./format";
+import { formatCompact } from "./format";
 import { milestoneLine } from "./milestones";
 import type { Mountain } from "./mountain";
 import {
@@ -34,23 +36,20 @@ import {
   type TendTier,
 } from "./rates";
 import {
-  NEEDS_MORE_WORKERS,
   TROUBLE_FIXED,
   crewPostLabel,
   grandpaChipWords,
   grandpaSentence,
   crewPostsWords,
   formatSpeed,
-  percent,
   staffBillWords,
   staffingAction,
   staffingLine,
   tierPaceWords,
-  troubleAria,
   troubleShout,
+  stonesASecond,
   stonesPerSecond,
   tendingEngineer,
-  tendsNote,
   workerWords,
 } from "./screen-words";
 import {
@@ -92,23 +91,8 @@ function tendTierOf(id: TierId): TendTier | undefined {
   }
 }
 
-const TIER_WHY: Record<TierId, string> = {
-  helper: "Another pair of hands on the rock.",
-  cart: "Hauls what the crew already cut.",
-  drill: "Bites the wall while you rest.",
-  borer: "Chews a tunnel you can walk from.",
-  machine: "The big one, with a crew of its own.",
-  kid: "Mines, and teaches the others a little.",
-};
-
 const COUNT_STEPS = 8;
 const COUNT_STEP_MS = 60;
-
-function perSecond(rate: number): string {
-  return rate === 1
-    ? "1 stone a second"
-    : `${formatCount(rate)} stones a second`;
-}
 
 /**
  * The crew: its speed line and posts, at the top of Buys under a Crew title
@@ -418,7 +402,7 @@ export function createCrewPanel({
           : rate >= 1_000
             ? // Compact once it's big, so the line never wraps on a phone.
               `Your crew mines ${formatCompact(rate)} stones/s`
-            : `Your crew mines ${perSecond(rate)}`;
+            : `Your crew mines ${stonesASecond(rate)}`;
     const shownCount = TIERS.filter((tier) => tierShown(current, tier)).length;
     tierGrid.dataset["shown"] = String(shownCount);
     // Three to a row once there are four or more, so every tier fits in two rows.
@@ -429,6 +413,7 @@ export function createCrewPanel({
     guidedTier = showsDot(current, "staffing")
       ? firstIdleTier(current, now(), trouble)
       : undefined;
+    const pick = readyNow(current, now(), trouble);
     const worker = tierById("helper");
     const workerPrice = tierCost(
       worker,
@@ -544,8 +529,6 @@ export function createCrewPanel({
             );
       gain.hidden = gainText === "";
       gain.textContent = gainText;
-      const tends =
-        who === undefined ? "" : ` ${tendsNote(who.name, tier.id)} ${gainText}`;
       // Wide cards name the synergy percent. Compact cards keep +N · total/s.
       const synergy = tierSynergy(current, tier.id);
       tierRate.textContent =
@@ -585,13 +568,14 @@ export function createCrewPanel({
       }
       card.setAttribute(
         "aria-label",
-        guided
-          ? `${tier.name}: ${formatCount(idleHere)} idle: each needs ${String(staffNeeded(current, tier))} ${workerWords(staffNeeded(current, tier))} to run. Tap to hire a worker for ${formatCount(workerPrice)} stones.`
-          : cardTrouble !== undefined
-            ? troubleAria(cardTrouble.kind, tier)
-            : lock !== undefined
-              ? `${lockAria(tier, lock)} Mines ${perSecond(speed)} each.${tends}`
-              : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${perSecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idleHere > 0 ? `, ${formatCount(idleHere)} idle: each needs ${String(staffNeeded(current, tier))} ${workerWords(staffNeeded(current, tier))} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.${tends}`,
+        buyRowView({
+          mountain: current,
+          now: now(),
+          trouble,
+          tier: tier.id,
+          pick,
+          guided: guidedTier,
+        }).aria,
       );
     }
     const pool = current.helpers + current.kids;

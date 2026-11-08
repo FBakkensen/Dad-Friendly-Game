@@ -159,6 +159,10 @@ export const formatClock = (ms: number): string => {
 export const workerWords = (count: number): string =>
   count === 1 ? "worker" : "workers";
 
+/** "1 stone a second" or "6 stones a second": the crew line and Buys' aria. */
+export const stonesASecond = (rate: number): string =>
+  rate === 1 ? "1 stone a second" : `${formatCount(rate)} stones a second`;
+
 /**
  * Buy UI, before and after the tap, when the next machine would sit idle.
  * No counts: the idle line already says how many.
