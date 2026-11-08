@@ -1849,3 +1849,208 @@ button.board-row:focus-visible {
   display: block;
   visibility: hidden;
 }
+
+/* ---------- the drawer shell (#373) ----------
+   Buys and Upgrades slide up from under the stock row's legend to the save
+   line. The clip is the board above the save line: it hides a shut drawer
+   below its edge, so the board never scrolls, and passes taps through. */
+.board-sheet-clip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 29;
+  width: var(--board-w);
+  height: calc(var(--board-h) - var(--save-h));
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.board-sheet,
+.board-sheet.board-skinned {
+  top: var(--sheet-top);
+  bottom: calc(var(--art) * 2);
+  padding: calc(var(--art) * 7) calc(var(--art) * 7) calc(var(--art) * 6);
+  pointer-events: auto;
+}
+
+/* Shut, it waits just under the clip's edge, as the save drawer does. */
+.board-sheet-clip > .board-sheet:not(.is-open) {
+  transform: translateY(calc(100% + var(--art) * 2));
+}
+
+.board-sheet-head {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: calc(var(--art) * 4);
+  padding: calc(var(--art) * 1) calc(var(--art) * 2) calc(var(--art) * 4);
+}
+
+.board-sheet-title {
+  grid-column: 1;
+  margin: 0;
+  font-size: var(--board-type-24);
+  line-height: var(--board-sheet-title-lead);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--board-ink);
+}
+
+.board-sheet-title:focus,
+.board-sheet-how:focus {
+  outline: none;
+}
+
+.board-sheet-kick {
+  grid-column: 1;
+  margin: calc(var(--art) * 1) 0 0;
+  font-size: var(--board-type-13);
+  line-height: var(--board-kick-lead);
+  color: var(--board-ink-2);
+}
+
+.board-sheet-kick.is-done {
+  color: var(--board-green);
+}
+
+/* The "i": a 48px plate in the head's corner, over today's round teach-info. */
+.board-sheet-info.teach-info {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  flex: none;
+  width: calc(var(--art) * 24);
+  height: calc(var(--art) * 24);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-size: var(--board-type-20);
+  text-transform: none;
+  color: var(--board-ink);
+}
+
+.board-sheet-how {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 5);
+  overflow: hidden;
+}
+
+.board-sheet-list {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 5);
+  padding: 0 0 calc(var(--art) * 2);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.board-sheet-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* A section legend: its name, and the column's name at the right. */
+.board-sec {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: calc(var(--art) * 1) calc(var(--art) * 3) 0;
+  margin-bottom: calc(var(--art) * -3);
+}
+
+.board-sheet-foot {
+  flex: none;
+  margin: calc(var(--art) * 1) calc(var(--art) * 3);
+  font-size: var(--board-type-13);
+  line-height: var(--board-kick-lead);
+  color: var(--board-ink-2);
+}
+
+/* What a short list leaves free: a recessed backplate with the maker's plate
+   (tall), the backplate and the strip (mid), the strip alone (short), or
+   nothing (off). */
+.board-spare {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.board-spare.is-off {
+  visibility: hidden;
+}
+
+.board-spare-plate,
+.board-spare-strip {
+  position: relative;
+  display: none;
+  image-rendering: pixelated;
+}
+
+.board-spare-plate {
+  width: calc(var(--art) * 96);
+  height: calc(var(--art) * 48);
+}
+
+.board-spare-strip {
+  width: calc(var(--art) * 96);
+  height: calc(var(--art) * 20);
+}
+
+.board-spare.is-tall .board-spare-plate,
+.board-spare.is-mid .board-spare-strip,
+.board-spare.is-short .board-spare-strip {
+  display: block;
+}
+
+.board-spare.is-short > .board-skin {
+  display: none;
+}
+
+.board-sheet-footer {
+  position: relative;
+  flex: none;
+  padding-top: calc(var(--art) * 5);
+}
+
+/* Back is a full-width plate, 54px tall. */
+.board-sheet-back {
+  width: 100%;
+}
+
+/* The board above the drawers: a tap there closes them. */
+.board-scrim {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9;
+  display: none;
+  width: var(--board-w);
+  height: var(--sheet-top);
+  pointer-events: auto;
+}
+
+.board-scrim.is-on {
+  display: block;
+}
+
+/* Last, so a hidden part hides over its own display. */
+.board-sheet > [hidden],
+.board-sheet-list > [hidden] {
+  display: none;
+}

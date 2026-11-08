@@ -155,3 +155,12 @@
   --board-row-line-lead: 15px;
   --board-row-gain-lead: 17px;
 }
+
+/* The drawer shell (#373): its top, under the stock row's legend (the
+   mockup's stock top plus 92; --board-top stays for today's sheets), and the
+   leads of its title and kick. */
+:root {
+  --sheet-top: 178px;
+  --board-sheet-title-lead: 26px;
+  --board-kick-lead: 16px;
+}

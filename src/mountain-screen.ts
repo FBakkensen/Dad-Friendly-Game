@@ -17,6 +17,7 @@ import { hasRelic, relicGoal, type RelicId } from "./relics";
 import { BOOSTS } from "./boosts";
 import { createEffectChip, shortEffectName, writeChip } from "./effect-row";
 import { createBoardNote } from "./board-note";
+import { DRAWER_SETTLE_MS } from "./board-drawer";
 import { bandWords, createMachineBays } from "./board-bays";
 import { bayViews } from "./machine-bays";
 import { readyNow, type ReadyPick } from "./ready-now";
@@ -117,9 +118,10 @@ const MINED_OUT = "The mountain is mined out";
  * opened Buys on purpose reads the card first, which takes longer than 400ms.
  * Only buying waits: Back to the mountain and the other sheet controls work at
  * once, and the sheet is not `inert`, which would let the tap fall through to
- * the plate beneath and buy there.
+ * the plate beneath and buy there. The value is the drawer shell's settle
+ * (board-drawer.ts), which the B5 drawers and their Back plates share.
  */
-export const BUYS_SETTLE_MS = 400;
+export const BUYS_SETTLE_MS = DRAWER_SETTLE_MS;
 
 export function mountMountainScreen({
   root,
