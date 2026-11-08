@@ -1,0 +1,34 @@
+/*
+ * The board stage (#370). #app is a fixed 424x924 enamel panel. src/board-fit.ts
+ * sets --board-scale so the whole board shrinks to fit any screen; zoom keeps
+ * taps lined up. contain: layout keeps the fixed sheets inside the board.
+ * The old column fills 176..868; the bands above and below are for the board.
+ */
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+#app {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: var(--board-w);
+  height: var(--board-h);
+  /* index.html's boot style sets min-height: 100dvh, which zoom would enlarge. */
+  min-height: 0;
+  padding: var(--space-4);
+  padding-top: var(--board-top);
+  padding-bottom: var(--save-h);
+  overflow: hidden;
+  contain: layout;
+  zoom: var(--board-scale, 1);
+  background: var(--board-enamel) url("./assets/board/panel-face.png") no-repeat
+    calc(var(--art) * -6) 0 / calc(var(--art) * 224) calc(var(--art) * 448);
+  image-rendering: pixelated;
+}

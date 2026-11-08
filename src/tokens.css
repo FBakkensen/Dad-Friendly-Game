@@ -63,3 +63,22 @@
   --sheet-price: var(--type-20);
   --sheet-line: var(--type-16);
 }
+
+/* The control board: one art pixel is 2px, the stage is 424x924 (#370). */
+:root {
+  --art: 2px;
+  --board-w: 424px;
+  --board-h: 924px;
+  --board-top: 176px;
+  --save-h: 56px;
+  --board-ink: #d9ddd0;
+  --board-ink-2: #b3bcae;
+  --board-ink-plate: #050607;
+  --board-ink-bare: #eceee4;
+  --board-amber-bare: #ffd38c;
+  --board-amber: #e8ac4c;
+  --board-green: #9fcf86;
+  --board-rust: #e39a78;
+  --board-night: #0b0e0f;
+  --board-enamel: #1a2421;
+}

@@ -32,20 +32,6 @@ body {
   background-attachment: fixed;
 }
 
-#app {
-  height: 100vh;
-  height: 100svh;
-  height: 100dvh;
-  overflow-x: clip;
-  overflow-y: auto;
-  overscroll-behavior: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: max(10px, env(safe-area-inset-top)) 16px
-    max(16px, env(safe-area-inset-bottom));
-}
 
 .top-bar {
   display: flex;
@@ -3388,15 +3374,8 @@ body {
 
 /* Sheet layout. Spacing and colour come from tokens.css. */
 #app {
-  width: 100%;
-  max-width: 100%;
   gap: var(--space-4);
-  padding: var(--space-4);
-  padding-bottom: max(var(--space-16), env(safe-area-inset-bottom));
-  background: var(--color-page);
   color: var(--color-ink);
-  overflow-x: clip;
-  overflow-y: hidden;
 }
 
 #app > * {
@@ -4694,20 +4673,6 @@ body {
   height: var(--target-min);
   margin-top: 0;
   align-self: center;
-}
-
-/* One phone layout everywhere. On a PC it is a centred column; the page background frames it.
-   contain: layout keeps the fixed sheets inside the column too. --pc-zoom (src/pc-zoom.ts)
-   enlarges the whole column to fill a tall PC screen; zoom keeps taps lined up, and the
-   layout height is divided back so it still fills exactly one screen. Phones get 1. */
-#app {
-  max-width: 27.5rem;
-  margin-inline: auto;
-  contain: layout;
-  zoom: var(--pc-zoom, 1);
-  height: calc(100dvh / var(--pc-zoom, 1));
-  /* index.html's boot style sets min-height: 100dvh, which zoom would enlarge past the screen. */
-  min-height: 0;
 }
 
 /* ---- Teach parts (M11 #241, the hybrid pattern mocked on #240) ---- */
