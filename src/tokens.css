@@ -81,4 +81,7 @@
   --board-rust: #e39a78;
   --board-night: #0b0e0f;
   --board-enamel: #1a2421;
+  --board-type-13: 13px;
+  --board-type-14: 14px;
+  --board-note-lead: 18px;
 }

@@ -32,3 +32,97 @@ body {
     calc(var(--art) * -6) 0 / calc(var(--art) * 224) calc(var(--art) * 448);
   image-rendering: pixelated;
 }
+
+/* Skins (9-slice canvases from board-skin.ts), the board note and the bundled fonts. */
+@font-face {
+  font-family: "Barlow Condensed";
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-condensed-latin-500-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Barlow Condensed";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-condensed-latin-600-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Barlow Condensed";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-condensed-latin-700-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Share Tech Mono";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("./assets/fonts/share-tech-mono-latin-400-normal.woff2") format("woff2");
+}
+
+.board-skin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+.board-skinned {
+  isolation: isolate;
+}
+
+.board-skinned:not(.board-note) {
+  position: relative;
+}
+
+.board-note {
+  position: absolute;
+  z-index: 30;
+  max-width: calc(var(--art) * 150);
+  padding: calc(var(--art) * 7) calc(var(--art) * 8);
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+  color: var(--board-ink);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.board-note.on {
+  visibility: visible;
+}
+
+.board-note-h {
+  display: block;
+  font-weight: 700;
+  font-size: var(--board-type-13);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--board-amber);
+}
+
+.board-note-q {
+  display: block;
+  color: var(--board-ink-2);
+}
+
+.board-lg {
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 700;
+  font-size: var(--board-type-13);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--board-ink-2);
+}
+
+.board-num {
+  font-family: "Share Tech Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
