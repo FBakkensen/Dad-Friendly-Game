@@ -7,12 +7,15 @@ import { MOUNTAIN_STONES, stonesLeft } from "./scale";
 import { parseSaveValue, serializeSave } from "./persist";
 import { withFactors } from "./economy/factors";
 import {
+  HELPER_COST_GROWTH,
+  MACHINE_COST_GROWTH,
   MACHINE_IDS,
   TIERS,
   buyTier,
   tierById,
   tierCost,
   tierShown,
+  type TierId,
 } from "./tiers";
 
 const at = (
@@ -41,16 +44,14 @@ describe("tiers", () => {
   });
 
   it("lists every tier cheapest first, each a big jump in speed", () => {
-    expect(
-      TIERS.map(({ id, firstCost, perSecond }) => [id, firstCost, perSecond]),
-    ).toEqual([
-      ["helper", 20, 1],
-      // #357 retune for the milestone marks.
-      ["cart", 600, 6],
-      ["drill", 73_080, 36],
-      ["borer", 4_940_000, 357],
-      ["machine", 120_600_000, 2_100],
-      ["kid", 250_000, 25],
+    // First prices are pinned once, in src/tuning.test.ts (#381).
+    expect(TIERS.map(({ id, perSecond }) => [id, perSecond])).toEqual([
+      ["helper", 1],
+      ["cart", 6],
+      ["drill", 36],
+      ["borer", 357],
+      ["machine", 2_100],
+      ["kid", 25],
     ]);
     expect(tierById("machine").needs).toBe("hammer");
     expect(tierById("kid").needs).toBe("crown");
@@ -70,33 +71,17 @@ describe("tiers", () => {
     }
   });
 
-  // #357: machines climb x1.15 and helpers x1.06 after the milestone marks.
-  it("machines climb x1.15 a unit, helpers x1.06", () => {
-    expect(
-      [0, 1, 2, 3, 10, 50].map((n) => tierCost(tierById("helper"), n)),
-    ).toEqual([20, 22, 23, 24, 36, 369]);
-    expect([0, 1, 2].map((n) => tierCost(tierById("cart"), n))).toEqual([
-      600, 690, 794,
-    ]);
-    expect([0, 1].map((n) => tierCost(tierById("machine"), n))).toEqual([
-      120_600_000, 138_690_000,
-    ]);
-    expect([0, 1, 2].map((n) => tierCost(tierById("drill"), n))).toEqual([
-      73_080, 84_042, 96_649,
-    ]);
-    expect([0, 1, 2].map((n) => tierCost(tierById("borer"), n))).toEqual([
-      4_940_000, 5_681_000, 6_533_150,
-    ]);
-  });
-
   it("buys only when the pocket covers the cost, and pays for it", () => {
-    // #357: a cart is 600, then 690.
-    const poor = at({ pocket: 599 });
+    const cart = tierById("cart");
+    const first = tierCost(cart, 0);
+    const second = tierCost(cart, 1);
+    const poor = at({ pocket: first - 1 });
     expect(buyTier(poor, "cart")).toBe(poor);
-    const one = buyTier(at({ pocket: 1_400 }), "cart");
-    expect(one).toEqual(at({ pocket: 800, carts: 1 }));
+    const one = buyTier(at({ pocket: first + second + 110 }), "cart");
+    expect(one).toEqual(at({ pocket: second + 110, carts: 1 }));
     expect(buyTier(one, "cart")).toEqual(at({ pocket: 110, carts: 2 }));
-    expect(buyTier(at({ pocket: 25 }), "helper")).toEqual(
+    const worker = tierCost(tierById("helper"), 0);
+    expect(buyTier(at({ pocket: worker + 5 }), "helper")).toEqual(
       at({ pocket: 5, helpers: 1 }),
     );
   });
@@ -193,10 +178,11 @@ describe("Crown of Wisdom: kid helpers", () => {
     const kid = tierById("kid");
     expect(tierLocked(minedMountain(69_999_999), kid)).toBe(true);
     expect(tierLocked(minedMountain(70_000_000), kid)).toBe(false);
-    // #327: cheap enough, and quick enough, that a kid pays back in hours.
-    expect(tierCost(kid, 0)).toBe(250_000);
-    // #357: kids share the workers' x1.06 curve.
-    expect(tierCost(kid, 1)).toBe(265_000);
+    // Kids share the workers' curve (the price is pinned in src/tuning.test.ts).
+    expect(tierCost(kid, 0)).toBe(kid.firstCost);
+    expect(tierCost(kid, 1)).toBe(
+      Math.ceil(Number((kid.firstCost * HELPER_COST_GROWTH).toPrecision(12))),
+    );
   });
 
   it("mine, staff machines, and make every helper and kid 2% faster each", () => {
@@ -214,31 +200,43 @@ describe("Crown of Wisdom: kid helpers", () => {
   });
 });
 
-// #357 retuned the #356 curves for the milestone marks: x1.15 and x1.06.
-describe("gentler cost curves (#356)", () => {
+// #356 gentler curves: every tier climbs its growth from its first price.
+describe("cost curves (#356)", () => {
   const ceil12 = (n: number) => Math.ceil(Number(n.toPrecision(12)));
+  const curve = (id: TierId, n: number, growth: number) =>
+    ceil12(tierById(id).firstCost * growth ** n);
 
-  it("machines climb x1.15 a unit", () => {
-    expect(tierCost(tierById("cart"), 13)).toBe(ceil12(600 * 1.15 ** 13));
-    expect(tierCost(tierById("cart"), 13)).toBe(3_692);
-    expect(tierCost(tierById("drill"), 11)).toBe(ceil12(73_080 * 1.15 ** 11));
-    expect(tierCost(tierById("borer"), 3)).toBe(ceil12(4_940_000 * 1.15 ** 3));
-    expect(tierCost(tierById("machine"), 2)).toBe(
-      ceil12(120_600_000 * 1.15 ** 2),
-    );
+  it("machines climb the machine curve", () => {
+    for (const [id, n] of [
+      ["cart", 13],
+      ["drill", 11],
+      ["borer", 3],
+      ["machine", 2],
+    ] as const) {
+      expect(tierCost(tierById(id), 0)).toBe(tierById(id).firstCost);
+      expect(tierCost(tierById(id), n)).toBe(curve(id, n, MACHINE_COST_GROWTH));
+    }
   });
 
-  it("workers and kids climb x1.06 a unit", () => {
-    expect(tierCost(tierById("helper"), 32)).toBe(ceil12(20 * 1.06 ** 32));
-    expect(tierCost(tierById("kid"), 5)).toBe(ceil12(250_000 * 1.06 ** 5));
+  it("workers and kids climb the worker curve", () => {
+    expect(tierCost(tierById("helper"), 32)).toBe(
+      curve("helper", 32, HELPER_COST_GROWTH),
+    );
+    expect(tierCost(tierById("kid"), 5)).toBe(
+      curve("kid", 5, HELPER_COST_GROWTH),
+    );
   });
 
   it("the sweep growth factors still multiply", () => {
     withFactors({ "growth.machine": 2 }, () => {
-      expect(tierCost(tierById("cart"), 3)).toBe(ceil12(600 * 2.3 ** 3));
+      expect(tierCost(tierById("cart"), 3)).toBe(
+        curve("cart", 3, MACHINE_COST_GROWTH * 2),
+      );
     });
     withFactors({ "growth.worker": 2 }, () => {
-      expect(tierCost(tierById("helper"), 3)).toBe(ceil12(20 * 2.12 ** 3));
+      expect(tierCost(tierById("helper"), 3)).toBe(
+        curve("helper", 3, HELPER_COST_GROWTH * 2),
+      );
     });
   });
 

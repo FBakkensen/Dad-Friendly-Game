@@ -14,15 +14,29 @@ import {
   upgradeUnlocked,
 } from "./upgrades";
 
+/** A price that must exist: the upgrade is not maxed. */
+function mustCost(price: number | undefined): number {
+  if (price === undefined) {
+    throw new Error("expected a price");
+  }
+  return price;
+}
+
 const crew = { ...minedMountain(0), helpers: 500 }; // 500 workers, x8 at the 100 mark: 4,000 a second
 
 describe("Strong arms (tap power)", () => {
   const arms = upgradeById("tap");
 
-  it("costs 46,000, then 8× each level, up to level 10", () => {
-    expect([0, 1, 2, 3].map((level) => upgradeCost(arms, level))).toEqual([
-      46_000, 368_000, 2_944_000, 23_552_000,
-    ]);
+  // The price and growth are pinned in src/tuning.test.ts (#381).
+  it("climbs its growth each level, up to level 10", () => {
+    expect([0, 1, 2, 3].map((level) => upgradeCost(arms, level))).toEqual(
+      [0, 1, 2, 3].map((level) =>
+        Math.ceil(
+          Number((arms.firstCost * arms.costGrowth ** level).toPrecision(12)),
+        ),
+      ),
+    );
+    expect(upgradeCost(arms, 9)).toBeDefined();
     expect(upgradeCost(arms, 10)).toBeUndefined();
   });
 
@@ -31,11 +45,13 @@ describe("Strong arms (tap power)", () => {
     const shut = { ...crew, carts: 2, pocket: 1e9 };
     expect(buyUpgrade(shut, "tap")).toBe(shut);
     const open = { ...crew, carts: 3 };
-    const poor = { ...open, pocket: 45_999 };
+    const first = mustCost(upgradeCost(arms, 0));
+    const second = mustCost(upgradeCost(arms, 1));
+    const poor = { ...open, pocket: first - 1 };
     expect(buyUpgrade(poor, "tap")).toBe(poor);
-    const one = buyUpgrade({ ...open, pocket: 414_000 }, "tap");
+    const one = buyUpgrade({ ...open, pocket: first + second }, "tap");
     expect(upgradeLevel(one, "tap")).toBe(1);
-    expect(one.pocket).toBe(368_000);
+    expect(one.pocket).toBe(second);
     const two = buyUpgrade(one, "tap");
     expect(upgradeLevel(two, "tap")).toBe(2);
     expect(two.pocket).toBe(0);
@@ -104,7 +120,9 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
   it("are one-time buys", () => {
     const once = buyUpgrade({ ...base, helpers: 10 }, "boots");
     expect(once.upgrades).toEqual({ boots: 1 });
-    expect(once.pocket).toBe(20_000_000 - 1_625_000);
+    expect(once.pocket).toBe(
+      20_000_000 - mustCost(upgradeCost(upgradeById("boots"), 0)),
+    );
     expect(buyUpgrade(once, "boots")).toBe(once);
     expect(upgradeCost(upgradeById("steady"), 1)).toBeUndefined();
   });
@@ -159,18 +177,26 @@ describe("crew synergies", () => {
     ).toBeUndefined();
     const bought = buyUpgrade({ ...rich, carts: 5 }, "cartSyn");
     expect(bought.upgrades).toEqual({ cartSyn: 1 });
-    expect(bought.pocket).toBe(90_000_000 - 2_000_000);
+    expect(bought.pocket).toBe(
+      90_000_000 - mustCost(upgradeCost(upgradeById("cartSyn"), 0)),
+    );
     expect(buyUpgrade(bought, "cartSyn")).toBe(bought);
     expect(
       ["drillSyn", "borerSyn", "machineSyn"].map((id) => {
         const upgrade = upgradeById(id as "drillSyn");
-        return [upgrade.firstCost, upgrade.unlock, upgrade.synergy];
+        // Their prices are pinned in src/tuning.test.ts.
+        return [upgrade.unlock, upgrade.synergy];
       }),
     ).toEqual([
-      [3_000_000, { tier: "drill", count: 5 }, { from: "cart", to: "drill" }],
-      [15_000_000, { tier: "borer", count: 3 }, { from: "drill", to: "borer" }],
       [
-        30_000_000,
+        { tier: "drill", count: 5 },
+        { from: "cart", to: "drill" },
+      ],
+      [
+        { tier: "borer", count: 3 },
+        { from: "drill", to: "borer" },
+      ],
+      [
         { tier: "machine", count: 1 },
         { from: "borer", to: "machine" },
       ],

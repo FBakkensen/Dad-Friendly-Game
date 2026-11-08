@@ -15,17 +15,22 @@ const crew = { ...minedMountain(0), helpers: 500, pocket: 1_000_000 }; // 500 wo
 
 describe("quick boosts", () => {
   it("are priced from what they boost, with a floor for new dads", () => {
-    // Sharper picks: 120 taps' worth. Overtime: 3 minutes of the crew.
+    // Sharper picks is priced in taps, Overtime in seconds of the crew. The
+    // units and floors are pinned in src/tuning.test.ts (#381).
+    const sharper = boostById("sharper");
+    const overtime = boostById("overtime");
     const pricing = {
       crewPerSecond: 500,
       tapYield: 1_000,
     };
-    expect(boostCost(boostById("sharper"), pricing)).toBe(120_000);
-    expect(boostCost(boostById("overtime"), pricing)).toBe(90_000);
+    expect(boostCost(sharper, pricing)).toBe(1_000 * sharper.priceUnits);
+    expect(boostCost(overtime, pricing)).toBe(500 * overtime.priceUnits);
     const fresh = { crewPerSecond: 0, tapYield: 1 };
-    // 120 taps of one stone is already above the 100-stone floor.
-    expect(boostCost(boostById("sharper"), fresh)).toBe(120);
-    expect(boostCost(boostById("overtime"), fresh)).toBe(500);
+    // A one-stone tap already prices Sharper picks above its floor; a crew of
+    // nothing pays Overtime's floor.
+    expect(sharper.priceUnits).toBeGreaterThan(sharper.minCost);
+    expect(boostCost(sharper, fresh)).toBe(sharper.priceUnits);
+    expect(boostCost(overtime, fresh)).toBe(overtime.minCost);
   });
 
   // A dad who plays a 10-minute session tapping about once a second.
@@ -74,9 +79,10 @@ describe("quick boosts", () => {
     // The mid save: 586 stones a second, Strong arms at 0.
     const rates = { crewPerSecond: 586, tapYield: 1 };
     const sharper = boostById("sharper");
-    expect(boostCost(sharper, rates)).toBe(120);
+    // Its taps' worth, never the crew's.
+    expect(boostCost(sharper, rates)).toBe(sharper.priceUnits);
     expect(boostCost(sharper, { crewPerSecond: 60_000, tapYield: 1 })).toBe(
-      120,
+      sharper.priceUnits,
     );
   });
 
@@ -97,7 +103,10 @@ describe("quick boosts", () => {
       now: 1_000,
       pricing: { crewPerSecond: 500, tapYield: 500 },
     });
-    expect(sharp.pocket).toBe(940_000); // 120 taps × 500
+    // Its taps' worth at 500 a tap.
+    expect(sharp.pocket).toBe(
+      crew.pocket - boostById("sharper").priceUnits * 500,
+    );
     expect(sharp.boosts).toEqual({ sharper: 1_000 + 10 * MIN });
     expect(boostLeft(sharp, "sharper", 1_000 + 4 * MIN)).toBe(6 * MIN);
     // Already running: can't stack or restart.

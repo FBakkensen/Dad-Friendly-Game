@@ -178,8 +178,12 @@ describe("promotion teach (#246)", () => {
     );
     const promoteButton =
       sheet?.querySelector<HTMLButtonElement>(".engineer-promote");
-    // #357: 2M x the 2.625 Granite scale.
-    expect(promoteButton?.textContent).toBe(promotionAction("Nils", 5_250_000));
+    expect(promoteButton?.textContent).toBe(
+      promotionAction(
+        "Nils",
+        promoteCost(screen.progress.getSnapshot().mountain),
+      ),
+    );
     promoteButton?.click();
     sheet?.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
     const mountain = screen.progress.getSnapshot().mountain;

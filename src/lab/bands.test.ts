@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createMountain, type Mountain } from "../mountain";
 import { MOUNTAIN_STONES } from "../scale";
+import { tierById, tierCost } from "../tiers";
 import {
   bandShare,
   createBandLog,
@@ -46,8 +47,9 @@ describe("bandShare", () => {
 describe("createBandLog", () => {
   it("logs what is on sale, first affordable and each buy, once per band", () => {
     const log = createBandLog();
-    // The first cart's price (#357 tune).
-    const first = log(at(0, { pocket: 600 }));
+    // Exactly the first cart's price.
+    const cart = tierCost(tierById("cart"), 0);
+    const first = log(at(0, { pocket: cart }));
     expect(first).toEqual([
       { kind: "available", tier: "cart", layer: "topsoil" },
       {
@@ -58,7 +60,7 @@ describe("createBandLog", () => {
         count: 0,
       },
     ]);
-    expect(log(at(0, { pocket: 600 }))).toEqual([]);
+    expect(log(at(0, { pocket: cart }))).toEqual([]);
     const bought = log(at(GRANITE, { carts: 2 }));
     expect(bought).toContainEqual({
       kind: "bought",

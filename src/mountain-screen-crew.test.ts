@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
+import { boostById } from "./boosts";
+import { promoteCost } from "./engineers";
 import { send } from "./expeditions";
 import { BAND_STARTS, kidStretch, shownStones, stonesLeft } from "./scale";
-import { formatCount } from "./format";
+import { formatCompact, formatCount } from "./format";
 import { effectiveRates } from "./rates";
 import { RELICS } from "./relics";
 import { readSessionSave, writeSessionSave } from "./session-save";
@@ -12,10 +14,14 @@ import { FIX_HOLD_MS } from "./hazards";
 import {
   ENGINEER_WELCOME,
   NEEDS_MORE_WORKERS,
+  buyPriceWords,
+  promoteNeeds,
+  promoteOffer,
   troubleAria,
 } from "./screen-words";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
-import { tierById } from "./tiers";
+import { tierById, tierCost } from "./tiers";
+import { upgradeById, upgradeCost, type UpgradeId } from "./upgrades";
 import {
   createMemoryStorage,
   mountScreen,
@@ -23,6 +29,15 @@ import {
   stopScreens,
   tileUrl,
 } from "./mountain-screen.harness";
+
+/** An upgrade level's stone price on a Topsoil first run (k = 1). */
+function upgradePrice(id: UpgradeId, level = 0): number {
+  const price = upgradeCost(upgradeById(id), level);
+  if (price === undefined) {
+    throw new Error(`${id} has no level ${String(level)}`);
+  }
+  return price;
+}
 
 // Animations are opted into per test; most tests want instant numbers.
 beforeEach(() => {
@@ -210,9 +225,10 @@ describe("upgrades on screen", () => {
       mountain: {
         ...minedMountain(30_000),
         helpers: 500,
-        // Three carts open Strong arms (#250).
+        // Three carts open Strong arms (#250). The pocket covers two levels
+        // with stones to spare.
         carts: 3,
-        pocket: 500_000,
+        pocket: upgradePrice("tap", 0) + upgradePrice("tap", 1) + 86_000,
       },
       lastSeen: clock,
     });
@@ -242,7 +258,7 @@ describe("upgrades on screen", () => {
     const buy = screen.root.querySelector<HTMLButtonElement>(
       '[data-upgrade="tap"] .upgrade-buy',
     );
-    expect(buy?.textContent).toBe("Buy · 46K");
+    expect(buy?.textContent).toBe(buyPriceWords(upgradePrice("tap", 0)));
     buy?.click();
     expect(screen.text('[data-upgrade="tap"] .upgrade-name')).toBe(
       "Strong arms",
@@ -251,7 +267,7 @@ describe("upgrades on screen", () => {
     expect(screen.text('[data-upgrade="tap"] .upgrade-effect')).toBe(
       "Taps 67 to 133.",
     );
-    expect(buy?.textContent).toBe("Buy · 368K");
+    expect(buy?.textContent).toBe(buyPriceWords(upgradePrice("tap", 1)));
     expect(buy?.disabled).toBe(false);
 
     screen.root.querySelector<HTMLButtonElement>(".upgrades-close")?.click();
@@ -313,8 +329,10 @@ describe("quick boosts on screen", () => {
       expect(screen.text('[data-boost="sharper"] .upgrade-name')).toBe(
         "Sharper picks",
       );
-      // 120 taps, whatever the crew (#333).
-      expect(buy?.textContent).toBe("Buy · 120");
+      // Its taps' worth at one stone a tap, whatever the crew (#333).
+      expect(buy?.textContent).toBe(
+        buyPriceWords(boostById("sharper").priceUnits),
+      );
       buy?.click();
       expect(buy?.disabled).toBe(true);
       expect(buy?.textContent).toBe("Running · 10:00");
@@ -505,7 +523,13 @@ describe("lasting upgrades on screen", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(30_000), pocket: 1_700_000, helpers: 9 },
+      // Enough for the tenth worker and Better boots, with a little spare.
+      mountain: {
+        ...minedMountain(30_000),
+        pocket:
+          tierCost(tierById("helper"), 9) + upgradePrice("boots") + 50_000,
+        helpers: 9,
+      },
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
@@ -524,7 +548,7 @@ describe("lasting upgrades on screen", () => {
     screen.root
       .querySelector<HTMLButtonElement>('[data-tier="helper"]')
       ?.click();
-    expect(boots?.textContent).toBe("Buy · 1.6M");
+    expect(boots?.textContent).toBe(buyPriceWords(upgradePrice("boots")));
     expect(screen.text('[data-upgrade="boots"] .upgrade-effect')).toBe(
       "Workers 1/s to 2.4/s.",
     );
@@ -625,7 +649,7 @@ describe("crew synergies on screen", () => {
       storage,
       mountain: {
         ...minedMountain(1_000_000),
-        pocket: 2_000_000,
+        pocket: upgradePrice("cartSyn"),
         helpers: 12,
         carts: 5,
       },
@@ -1624,14 +1648,19 @@ describe("trouble on a tier card (#149)", () => {
 });
 
 describe("engineers sheet (#145)", () => {
-  const withAda = (patch: Partial<Mountain> = {}): Mountain => ({
+  const adaCrew: Mountain = {
     ...minedMountain(0),
-    pocket: 5_000_000,
     helpers: 20,
     carts: 2,
     drills: 1,
     borers: 1,
     engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+  };
+  // Nils's price, and a pocket that covers it with 3M to spare.
+  const nilsPrice = promoteCost(adaCrew);
+  const withAda = (patch: Partial<Mountain> = {}): Mountain => ({
+    ...adaCrew,
+    pocket: nilsPrice + 3_000_000,
     ...patch,
   });
 
@@ -1860,7 +1889,7 @@ describe("engineers sheet (#145)", () => {
     });
     const screen = mountScreen({ storage });
     const sheet = openSheet(screen.root);
-    expect(screen.text(".engineer-promote")).toBe("Promote: 2M stones");
+    expect(screen.text(".engineer-promote")).toBe(promoteOffer(nilsPrice));
     expect(screen.text(".engineer-promote-why")).toBe(
       "A new engineer can tend another machine or explore while the others work.",
     );
@@ -1893,7 +1922,9 @@ describe("engineers sheet (#145)", () => {
     expect(sheet.querySelector<HTMLElement>(".engineer-confirm")?.hidden).toBe(
       true,
     );
-    expect(screen.text(".pocket")).toBe("5M stones");
+    expect(screen.text(".pocket")).toBe(
+      `${formatCompact(nilsPrice + 3_000_000)} stones`,
+    );
 
     sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
     sheet.querySelector<HTMLButtonElement>(".engineer-confirm-no")?.click();
@@ -2013,7 +2044,7 @@ describe("engineers sheet (#145)", () => {
     const promote =
       broke.root.querySelector<HTMLButtonElement>(".engineer-promote");
     expect(promote?.disabled).toBe(true);
-    expect(promote?.textContent).toBe("Promote: 2M stones");
+    expect(promote?.textContent).toBe(promoteOffer(nilsPrice));
     expect(broke.text(".engineer-promote-why")).toBe(
       "No worker is free to step up.",
     );
@@ -2068,8 +2099,8 @@ describe("engineers sheet (#145)", () => {
     const sheet = openSheet(screen.root);
     const promote = sheet.querySelector<HTMLButtonElement>(".engineer-promote");
     expect(promote?.disabled).toBe(true);
-    expect(screen.text(".engineer-promote")).toBe("Promote: 2M stones");
-    expect(screen.text(".engineer-promote-why")).toBe("Needs 2M stones");
+    expect(screen.text(".engineer-promote")).toBe(promoteOffer(nilsPrice));
+    expect(screen.text(".engineer-promote-why")).toBe(promoteNeeds(nilsPrice));
     promote?.click();
     expect(sheet.querySelector<HTMLElement>(".engineer-confirm")?.hidden).toBe(
       true,

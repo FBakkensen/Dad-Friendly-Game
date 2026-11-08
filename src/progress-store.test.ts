@@ -42,13 +42,16 @@ import {
   createProgressStore,
 } from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
-import { buyTier } from "./tiers";
-import { buyUpgrade } from "./upgrades";
+import { buyTier, tierById, tierCost } from "./tiers";
+import { buyUpgrade, upgradeById, upgradeCost } from "./upgrades";
 import { recipesForMined, startCraft } from "./workshop";
 import { mineVein } from "./veins";
-import { promote, station } from "./engineers";
+import { promote, promoteCost, station } from "./engineers";
 import { recall, send, type Expedition } from "./expeditions";
 import { ENGINEER_FIX_MS, nextTrouble } from "./hazards";
+
+/** The first worker's price, so a buy below always goes through. */
+const firstWorker = tierCost(tierById("helper"), 0);
 
 function createMemoryStorage(): Storage {
   const data = new Map<string, string>();
@@ -1381,12 +1384,18 @@ describe("field log", () => {
     const at = 1_000_000;
     const progress = guest(() => at);
     progress.applyMutation((mountain) =>
-      buyTier({ ...mountain, pocket: 20 }, "helper"),
+      buyTier({ ...mountain, pocket: firstWorker }, "helper"),
     );
     // Three carts open Strong arms (#250).
     progress.applyMutation((mountain) => ({ ...mountain, carts: 3 }));
     progress.applyMutation((mountain) =>
-      buyUpgrade({ ...mountain, pocket: 46_000 }, "tap"),
+      buyUpgrade(
+        {
+          ...mountain,
+          pocket: upgradeCost(upgradeById("tap"), 0) ?? Number.NaN,
+        },
+        "tap",
+      ),
     );
     progress.applyMutation((mountain) => {
       const rich = { ...mountain, pocket: 1_000 };
@@ -1469,7 +1478,7 @@ describe("field log", () => {
   it("records Start over and passing the mine, each on a fresh ring", () => {
     const progress = guest(() => 8_000);
     progress.applyMutation((mountain) =>
-      buyTier({ ...mountain, pocket: 20 }, "helper"),
+      buyTier({ ...mountain, pocket: firstWorker }, "helper"),
     );
     progress.startOver();
     expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
@@ -1503,7 +1512,7 @@ describe("field log", () => {
       now: () => 1,
     });
     progress.applyMutation((mountain) =>
-      buyTier({ ...mountain, pocket: 20 }, "helper"),
+      buyTier({ ...mountain, pocket: firstWorker }, "helper"),
     );
     expect(progress.fieldLog().events).toHaveLength(1);
     expect(JSON.stringify(readSessionSave({ storage }))).not.toContain(
@@ -1558,7 +1567,8 @@ describe("field log events for the deep (#150)", () => {
         {
           ...mountain,
           remaining: mountain.remaining - 10_000_000,
-          pocket: 10_000_000,
+          // The borer and the workers it needs.
+          pocket: tierCost(tierById("borer"), 0) + 5_000_000,
         },
         "borer",
       ),
@@ -1569,12 +1579,11 @@ describe("field log events for the deep (#150)", () => {
       { name: "Ada", rank: 0, post: "borer" },
     ]);
 
-    progress.applyMutation((mountain) => ({
-      ...mountain,
-      // 10M mined is the Granite: the second engineer costs 2M × 3 (#356).
-      pocket: 6_000_000,
-      helpers: 2,
-    }));
+    progress.applyMutation((mountain) => {
+      const ready = { ...mountain, helpers: 2 };
+      // Exactly the second engineer's Granite price.
+      return { ...ready, pocket: promoteCost(ready) };
+    });
     progress.applyMutation((mountain) => promote(mountain));
     progress.applyMutation((mountain) => station(mountain, 1, "drill"));
     progress.applyMutation((mountain) => station(mountain, 1, "camp"));

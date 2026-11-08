@@ -422,8 +422,6 @@ describe("design token mocks (#234)", () => {
     ).toBe(true);
 
     const mountain = host(renderMock(view({ scene: "mountain-tokens" })));
-    // The tuned curve's next drill (#357: 73,080 x 1.15^8).
-    expect(drill).toBe("223.5K");
     expect(mountain.textContent).toContain(`Next: a drill · ${drill}`);
     expect(mountain.textContent).toContain("Needs 1 worker");
     expect(mountain.textContent).toContain("110 million stones left");
@@ -532,8 +530,9 @@ describe("design token mocks (#234)", () => {
     expect(opened.querySelector("[data-state='ready']")).not.toBeNull();
     // Carts and drills take one worker each now (#252); the spare crew covers both.
     expect(opened.querySelector("[data-state='short']")).toBeNull();
+    const borerTier = tierById("borer");
     expect(opened.querySelector("[data-state='dear']")?.textContent).toContain(
-      "Buy · 4.9M",
+      buyPriceWords(tierCost(borerTier, owned(mountainB, borerTier))),
     );
     expect(
       opened.querySelector("[data-state='dear']")?.textContent,
@@ -648,10 +647,14 @@ describe("component mocks (#235)", () => {
       expect(card.querySelector("img.kit-icon")).not.toBeNull();
     }
     const [cart, drill, borer] = cards;
-    // #357 curve: the 13th cart is 3,211 and the 9th drill 223.5K.
-    expect(cart?.textContent).toContain("3,211");
+    // The 13th cart and the 9th drill, at the real price.
+    expect(cart?.textContent).toContain(
+      formatCompact(tierCost(tierById("cart"), 12)),
+    );
     expect(cart?.textContent).toContain("Needs 1 worker");
-    expect(drill?.textContent).toContain("223.5K");
+    expect(drill?.textContent).toContain(
+      formatCompact(tierCost(tierById("drill"), 8)),
+    );
     expect(drill?.textContent).toContain("Needs 1 worker");
     expect((drill as HTMLButtonElement).disabled).toBe(true);
     // M12-2 (#250): the locked card names its depth, never a price.

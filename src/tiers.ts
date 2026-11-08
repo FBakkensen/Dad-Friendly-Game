@@ -9,9 +9,9 @@ import type { RelicId } from "./relics";
  * top of the 1.10–1.15 genre band, so the milestone marks do not let a
  * cart or drill stack crowd the borer out.
  */
-const MACHINE_COST_GROWTH = 1.15;
+export const MACHINE_COST_GROWTH = 1.15;
 /** #357: workers climb ×1.06 a unit, and kids share the curve. */
-const HELPER_COST_GROWTH = 1.06;
+export const HELPER_COST_GROWTH = 1.06;
 /**
  * Kids follow the workers' curve from a late-game price. #327: cheap and
  * quick enough (25/s) that one pays back in hours, not days.

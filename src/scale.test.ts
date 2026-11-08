@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { boostById, boostCost } from "./boosts";
 import { tierLock } from "./crew";
-import { promoteCost } from "./engineers";
+import { PROMOTE_BASE_COST, promoteCost } from "./engineers";
 import { howItWorks } from "./how-it-works";
 import {
   accrueAway,
@@ -78,9 +78,11 @@ describe("kid-run stretch (M13, #253)", () => {
     const runOne = minedMountain(25_000_000);
     expect(tierLock(runOne, machine)).toMatchObject({
       depth: 120_000_000,
-      // 10M x 1 + 35M x 2.625 + 75M x 6.3 (#357), one literal anchor for the
-      // band scales.
-      at: 574_375_000,
+      // 10M x s1 + 35M x s2 + 75M x s3; the scales are pinned in src/tuning.test.ts.
+      at:
+        10_000_000 * BAND_SCALE[0] +
+        35_000_000 * BAND_SCALE[1] +
+        75_000_000 * BAND_SCALE[2],
     });
     const kid = { ...runOne, stretch: 1.75 };
     const lock = tierLock(kid, machine);
@@ -264,11 +266,12 @@ describe("one-off stretch (#356)", () => {
 
   it("prices Better boots and a promotion by the band", () => {
     const caves = { ...at(45_000_000), pocket: 1e12 };
+    const boots = upgradeById("boots").firstCost * BAND_SCALE[2];
     expect(upgradeCost(upgradeById("boots"), 0, oneOffStretch(caves))).toBe(
-      1_625_000 * BAND_SCALE[2],
+      boots,
     );
     const bought = buyUpgrade(
-      { ...caves, helpers: 10, pocket: 1_625_000 * BAND_SCALE[2] },
+      { ...caves, helpers: 10, pocket: boots },
       "boots",
     );
     expect(bought.pocket).toBe(0);
@@ -276,6 +279,7 @@ describe("one-off stretch (#356)", () => {
       ...at(10_000_000),
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" }],
     } as Mountain;
-    expect(promoteCost(granite)).toBe(2_000_000 * BAND_SCALE[1]);
+    // Nils is the second engineer: twice the base price.
+    expect(promoteCost(granite)).toBe(PROMOTE_BASE_COST * 2 * BAND_SCALE[1]);
   });
 });

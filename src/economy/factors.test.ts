@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { activeFactors, factor, withFactors } from "./factors";
 import { tendingTenths } from "../engineers";
 import { effectiveRates } from "../rates";
-import { tierById, tierCost } from "../tiers";
+import {
+  HELPER_COST_GROWTH,
+  MACHINE_COST_GROWTH,
+  tierById,
+  tierCost,
+} from "../tiers";
 
 const posted = {
   remaining: 1_000,
@@ -26,13 +31,15 @@ const posted = {
 describe("economy factors", () => {
   it("stays at 1 outside a sweep, and a sweep of 1 matches today's prices", () => {
     expect(factor("price.cart")).toBe(1);
-    expect(tierCost(tierById("helper"), 1)).toBe(22);
-    // #357: a 600 cart on the x1.15 curve.
-    expect(tierCost(tierById("cart"), 2)).toBe(794);
+    const helper = tierById("helper");
+    const second = Math.ceil(
+      Number((helper.firstCost * HELPER_COST_GROWTH).toPrecision(12)),
+    );
+    expect(tierCost(helper, 1)).toBe(second);
     withFactors({ "price.helper": 1, "growth.worker": 1 }, () => {
-      expect(tierCost(tierById("helper"), 1)).toBe(22);
+      expect(tierCost(helper, 1)).toBe(second);
     });
-    expect(tierCost(tierById("helper"), 1)).toBe(22);
+    expect(tierCost(helper, 1)).toBe(second);
   });
 
   it("treats an empty sweep as no sweep, even inside another", () => {
@@ -50,23 +57,29 @@ describe("economy factors", () => {
   });
 
   it("scales a sticker, then puts the old prices back", () => {
-    expect(tierCost(tierById("borer"), 0)).toBe(4_940_000);
+    const sticker = tierById("borer").firstCost;
+    expect(tierCost(tierById("borer"), 0)).toBe(sticker);
     withFactors({ "price.borer": 2 }, () => {
-      expect(tierCost(tierById("borer"), 0)).toBe(9_880_000);
+      expect(tierCost(tierById("borer"), 0)).toBe(sticker * 2);
       withFactors({ "price.borer": 3 }, () => {
-        expect(tierCost(tierById("borer"), 0)).toBe(14_820_000);
+        expect(tierCost(tierById("borer"), 0)).toBe(sticker * 3);
       });
-      expect(tierCost(tierById("borer"), 0)).toBe(9_880_000);
+      expect(tierCost(tierById("borer"), 0)).toBe(sticker * 2);
     });
-    expect(tierCost(tierById("borer"), 0)).toBe(4_940_000);
+    expect(tierCost(tierById("borer"), 0)).toBe(sticker);
     expect(factor("price.borer")).toBe(1);
   });
 
   it("scales growth, output, and tending, and restores them after a throw", () => {
-    // #357: 600 x 1.15, and 600 x 2.3 under the sweep.
-    expect(tierCost(tierById("cart"), 1)).toBe(690);
+    // One cart up the curve, and twice the growth under the sweep.
+    const cart = tierById("cart").firstCost;
+    expect(tierCost(tierById("cart"), 1)).toBe(
+      Math.ceil(Number((cart * MACHINE_COST_GROWTH).toPrecision(12))),
+    );
     withFactors({ "growth.machine": 2 }, () => {
-      expect(tierCost(tierById("cart"), 1)).toBe(1_380);
+      expect(tierCost(tierById("cart"), 1)).toBe(
+        Math.ceil(Number((cart * MACHINE_COST_GROWTH * 2).toPrecision(12))),
+      );
     });
     expect(effectiveRates(posted).tierSpeed.borer).toBeCloseTo(
       357 * 0.8 * 1.21875,
@@ -84,10 +97,10 @@ describe("economy factors", () => {
     });
     expect(() =>
       withFactors({ "price.cart": 4 }, () => {
-        expect(tierCost(tierById("cart"), 0)).toBe(2_400);
+        expect(tierCost(tierById("cart"), 0)).toBe(cart * 4);
         throw new Error("stop");
       }),
     ).toThrow("stop");
-    expect(tierCost(tierById("cart"), 0)).toBe(600);
+    expect(tierCost(tierById("cart"), 0)).toBe(cart);
   });
 });
