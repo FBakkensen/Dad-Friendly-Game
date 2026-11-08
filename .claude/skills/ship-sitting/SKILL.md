@@ -5,9 +5,9 @@ description: Use when the user asks to ship, commit and PR, file the PR, finish 
 
 # Ship sitting
 
-Superpowers reviews the branch and opens the PR. This skill adds what superpowers leaves out: the full gate before the PR, babysitting the PR in this conversation, and the squash-merge. The sitting ends at the merge. The agent files, babysits, and merges its own PR.
+Superpowers reviews the branch and opens the PR. This skill adds what superpowers leaves out: the full gate before the PR, babysitting the PR in this conversation, and the squash-merge when Flemming asks for it. The sitting ends at the merge. The agent files and babysits its own PR, and merges it on that ask.
 
-Stay in this conversation. Do not hand the PR to autopilot, a background babysitter, or another agent. In a Claude Code cloud session, `gh` works for search only: where this skill, or a superpowers skill it runs, says `gh`, use the matching GitHub MCP tool.
+Stay in this conversation. Do not hand the PR to autopilot, a background babysitter, or another agent. In a Claude Code cloud session, `gh` has no GraphQL, so `gh pr` and `gh issue` fail: where this skill, or a superpowers skill it runs, says one of those, use the matching GitHub MCP tool. `gh api` on REST paths works.
 
 Stop and ask the human on auth, secrets, security, or a real product question, anywhere in this skill.
 
@@ -24,6 +24,8 @@ One issue, one branch, one PR, `Fixes #N`. Use the github-issues skill for the g
 ## Push as you go
 
 Commit and push the sitting's branch as work lands, with `git push` from the shell, not the GitHub MCP `push_files` or `create_or_update_file`: they commit on the remote, and the local branch falls behind. Pushing as you go keeps the work safe if the cloud container is reclaimed, and it is what the cloud Stop hook asks (`CLAUDE.md`). A push is not shipping. Opening the PR is.
+
+A cloud session can be given a branch whose last PR was already squash-merged. Start the new sitting from `main` without a force push: `git fetch origin`, `git checkout -B <branch> origin/main`, then `git merge -s ours -m "Start from main" origin/<branch>`. The merge changes no files, and the first push fast-forwards. Never force-push.
 
 ## The gate
 
@@ -75,10 +77,11 @@ In a cloud session, subscribe to the PR (`subscribe_pr_activity`) and let events
 3. Handle review comments with `superpowers:receiving-code-review`. Fix real in-scope issues. Dismiss invalid ones with a reason. Ask the human on auth, secrets, security, or a real product question. Nits do not block merge.
 4. Run the fast gate on every fix, commit, and push. Run `npm run gate -- full` again before merging when a fix changed code. Never force-push.
 
-When the PR is mergeable, the full gate is green since the last code change, and every non-nit comment is fixed or dismissed, squash-merge without waiting:
+When the PR is mergeable, the full gate is green since the last code change, and every non-nit comment is fixed or dismissed, it is ready. Squash-merge it when Flemming has asked to merge or ship. An ask such as "fix and ship it" at the start of the sitting counts. Without that ask, tell him the PR is ready, with its URL, and wait.
+
+Merge with the GitHub MCP `merge_pull_request` tool (squash) in a cloud session, or `gh pr merge --squash` elsewhere. Then:
 
 ```bash
-gh pr merge --squash
 git checkout main
 git pull
 ```

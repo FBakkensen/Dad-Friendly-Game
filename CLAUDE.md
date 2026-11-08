@@ -12,7 +12,7 @@ The always-on rules are in `.claude/rules/`: `dad-friendly-game.md`, `dad-friend
 
 ## Claude Code cloud sessions
 
-- `gh` works for search only (`gh api -X GET search/...`). Issues, PRs, comments, and merges go through the GitHub MCP tools.
+- `gh` has no GraphQL here, so `gh issue` and `gh pr` fail. `gh api` on REST paths works: search (`gh api -X GET search/...`) and issue dependencies (the github-issues skill). Issues, PRs, comments, and merges go through the GitHub MCP tools.
 - Chrome is `/usr/bin/google-chrome`. There is no browser MCP server.
 - PixelLab is the `pixellab` server in `.mcp.json`. Its token is a network secret for `api.pixellab.ai` that the proxy injects, not an env var. The pixellab skill covers setup.
 - The cloud environment has its own Stop hook (`~/.claude/stop-hook-git-check.sh`, registered in `/root/.claude/launcher-settings.json`, outside this repo). At the end of any turn with uncommitted, untracked, or unpushed work, it asks to commit and push, so a reclaimed container loses nothing. Do that: commit and push the sitting's branch as work lands. A push is not shipping. Opening the PR is (ship-sitting).
