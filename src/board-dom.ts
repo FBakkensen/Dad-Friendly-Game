@@ -49,7 +49,8 @@ export function frameX(target: HTMLElement, n: number, framePx: number): void {
   }
 }
 
-const defaultFits = (box: HTMLElement): boolean =>
+/** The default fit check: the line's text is no wider than its box. */
+export const fitsWidth = (box: HTMLElement): boolean =>
   box.scrollWidth <= box.clientWidth + 1;
 
 /** The options last fitted into each box, kept only when measured on the page with a width. */
@@ -62,7 +63,7 @@ const fitted = new WeakMap<HTMLElement, string>();
 export function fitFirst(
   target: HTMLElement,
   options: readonly string[],
-  fits: (box: HTMLElement) => boolean = defaultFits,
+  fits: (box: HTMLElement) => boolean = fitsWidth,
 ): void {
   const key = options.join("\n");
   if (fitted.get(target) === key) {

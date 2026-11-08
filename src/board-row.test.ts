@@ -146,6 +146,23 @@ describe("the drawer row", () => {
       expect(row.root.querySelector("img")).toBeNull();
     });
 
+    it("with no fits given, measures lines by width", () => {
+      const row = createBoardRow({
+        tag: "button",
+        className: "board-buy-row",
+        data: {},
+        name: "Cart",
+        icon: true,
+      });
+      const info = part(row, ".board-row-info");
+      vi.spyOn(info, "clientWidth", "get").mockReturnValue(100);
+      vi.spyOn(info, "scrollWidth", "get").mockImplementation(() =>
+        info.textContent.length > 10 ? 200 : 50,
+      );
+      row.render(ready());
+      expect(text(row, ".board-row-info")).toBe("12 owned");
+    });
+
     it("setIcon writes the icon and hides it for none", () => {
       const row = make();
       const icon = part(row, ".board-row-icon") as HTMLImageElement;
@@ -390,6 +407,40 @@ describe("the drawer row", () => {
       expect(row.root.getAttribute("aria-label")).toBe(ready().aria);
     });
 
+    it("a second done() while held does not extend the 1.9s hold", () => {
+      const row = make();
+      row.render(ready());
+      row.done();
+      vi.advanceTimersByTime(1000);
+      row.done();
+      vi.advanceTimersByTime(ROW_HOLD_MS - 1001);
+      expect(row.holding()).toBe(true);
+      vi.advanceTimersByTime(1);
+      expect(row.holding()).toBe(false);
+      expect(text(row, ".board-row-verb")).toBe("Buy");
+    });
+
+    it("a paint that throws while holding still lets go at 1.9s", () => {
+      let boom = true;
+      const row = make({
+        fits: (box) => {
+          if (boom && box.textContent === "Done") {
+            throw new Error("measure failed");
+          }
+          return fits(box);
+        },
+      });
+      row.render(ready());
+      expect(() => {
+        row.done();
+      }).toThrow("measure failed");
+      boom = false;
+      vi.advanceTimersByTime(ROW_HOLD_MS);
+      expect(row.holding()).toBe(false);
+      expect(row.root.classList.contains("is-held")).toBe(false);
+      expect(text(row, ".board-row-verb")).toBe("Buy");
+    });
+
     it("a save loading again ends the hold", () => {
       const row = make();
       row.render(ready());
@@ -440,6 +491,29 @@ describe("the drawer row", () => {
       expect(lampX(row)).toBe("-120px");
       vi.advanceTimersByTime(BLINK_STEP_MS * 4);
       expect(lampX(row)).toBe("-40px");
+    });
+
+    it("a lamp paint that throws mid-blink never sticks on a blink frame", () => {
+      const row = make();
+      row.render(ready());
+      const lamp = part(row, ".board-lamp");
+      Object.defineProperty(lamp.style, "backgroundPositionX", {
+        configurable: true,
+        get: () => "",
+        set: () => {
+          throw new Error("paint failed");
+        },
+      });
+      expect(() => {
+        row.blink();
+      }).toThrow("paint failed");
+      Reflect.deleteProperty(lamp.style, "backgroundPositionX");
+      vi.advanceTimersByTime(BLINK_STEP_MS * 4);
+      row.render(ready({ lamp: "amber", pick: true }));
+      expect(lampX(row)).toBe("-40px");
+      // The run ended, so the next blink starts afresh.
+      row.blink();
+      expect(lampX(row)).toBe("-120px");
     });
 
     it("does not blink under reduced motion", () => {

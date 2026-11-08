@@ -50,9 +50,6 @@ const DONE = "Done";
 /** One art px is 2 CSS px: the icon is 32 art px square. */
 const ICON_PX = "64";
 
-const defaultFits = (box: HTMLElement): boolean =>
-  box.scrollWidth <= box.clientWidth + 1;
-
 function toggle(target: HTMLElement, name: string, on: boolean): void {
   if (target.classList.contains(name) !== on) {
     target.classList.toggle(name, on);
@@ -81,13 +78,14 @@ export function createBoardRow({
   data,
   name,
   icon,
-  fits = defaultFits,
+  fits,
 }: {
   tag: "button" | "div";
   className: string;
   data: Readonly<Record<string, string>>;
   name: string;
   icon: boolean;
+  /** How a line is measured; undefined is board-dom's `fitsWidth`. */
   fits?: (box: HTMLElement) => boolean;
 }): BoardRow {
   const root = el(tag, `board-row ${className}`);
@@ -249,15 +247,19 @@ export function createBoardRow({
   };
 
   const done = (): void => {
+    // A second sleepy tap inside the hold must not stretch it.
+    if (held) {
+      return;
+    }
     stopBlink();
-    letGo();
     held = true;
-    paintHeld();
+    // Armed before painting: a paint that throws never leaves the row held.
     holdTimer = setTimeout(() => {
       holdTimer = undefined;
       held = false;
       paint();
     }, ROW_HOLD_MS);
+    paintHeld();
   };
 
   const blink = (): void => {
@@ -266,7 +268,7 @@ export function createBoardRow({
     }
     const step = (i: number): void => {
       blinkFrame = BLINK[i];
-      paintLamp();
+      // Armed before painting: a paint that throws never strands a blink frame.
       blinkTimer = setTimeout(() => {
         if (i + 1 < BLINK.length) {
           step(i + 1);
@@ -275,6 +277,7 @@ export function createBoardRow({
         stopBlink();
         paintLamp();
       }, BLINK_STEP_MS);
+      paintLamp();
     };
     step(0);
   };

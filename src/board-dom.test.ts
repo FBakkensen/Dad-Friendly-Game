@@ -1,6 +1,14 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { el, fitFirst, frameX, refitAll, setAttr, write } from "./board-dom";
+import {
+  el,
+  fitFirst,
+  fitsWidth,
+  frameX,
+  refitAll,
+  setAttr,
+  write,
+} from "./board-dom";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -44,6 +52,26 @@ describe("board-dom", () => {
     expect(box.hasAttribute("aria-label")).toBe(false);
     frameX(box, 3, 40);
     expect(box.style.backgroundPositionX).toBe("-120px");
+  });
+
+  it("fitsWidth: the text is no wider than its box, with a pixel of slack", () => {
+    const box = el("span", "box");
+    vi.spyOn(box, "clientWidth", "get").mockReturnValue(100);
+    const wide = vi.spyOn(box, "scrollWidth", "get");
+    wide.mockReturnValue(101);
+    expect(fitsWidth(box)).toBe(true);
+    wide.mockReturnValue(102);
+    expect(fitsWidth(box)).toBe(false);
+  });
+
+  it("fits by width when no check is given", () => {
+    const box = el("span", "box");
+    vi.spyOn(box, "clientWidth", "get").mockReturnValue(100);
+    vi.spyOn(box, "scrollWidth", "get").mockImplementation(() =>
+      box.textContent.length > 10 ? 200 : 50,
+    );
+    fitFirst(box, OPTIONS);
+    expect(box.textContent).toBe("Short");
   });
 
   it("writes the first option that fits", () => {
