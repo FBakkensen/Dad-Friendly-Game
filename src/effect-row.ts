@@ -32,7 +32,7 @@ export function shortEffectName(full: string): string {
   return SHORT_NAME[full] ?? full.split(" ")[0] ?? full;
 }
 
-function multiplierMark(value: number): string {
+export function multiplierMark(value: number): string {
   const shown = Number.isInteger(value)
     ? String(value)
     : value.toLocaleString("en-US", { maximumFractionDigits: 2 });

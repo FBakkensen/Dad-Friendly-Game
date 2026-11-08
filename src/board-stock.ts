@@ -3,7 +3,10 @@ import dec2Url from "./assets/board/odo-dec-2.png";
 import dec3Url from "./assets/board/odo-dec-3.png";
 import dotUrl from "./assets/board/odo-dot.png";
 import odometerUrl from "./assets/board/odometer.png";
-import { formatCompact } from "./format";
+import dialUrl from "./assets/board/dial-boost-sheet.png";
+import { dialFrame, type CrewBoost } from "./crew-boost";
+import { multiplierMark } from "./effect-row";
+import { chipTime, formatCompact } from "./format";
 import { odometerFace } from "./odometer";
 
 export interface Odometer {
@@ -171,4 +174,55 @@ export function createOdometer(): Odometer {
   set(0);
   painted = false;
   return { root, set, spend };
+}
+
+export interface BoostDial {
+  readonly root: HTMLButtonElement;
+  set(boost: CrewBoost): void;
+}
+
+/** One dial frame in CSS px: 44 art px at 2 px each. */
+const DIAL_FRAME_PX = 88;
+
+/** The crew timer the crew runs at: legend beside a 31-frame dial. */
+export function createBoostDial({
+  onOpen,
+}: {
+  onOpen: () => void;
+}): BoostDial {
+  const root = document.createElement("button");
+  root.type = "button";
+  root.className = "board-dial";
+
+  const name = span("board-lg board-dial-name");
+  const mul = span("board-dial-mul board-num");
+  const left = span("board-dial-left board-num");
+  const word = span("board-lg board-dial-word");
+  const text = document.createElement("span");
+  text.className = "board-dial-text";
+  text.append(name, mul, left, word);
+
+  const sprite = span("board-dial-sprite");
+  sprite.style.backgroundImage = `url(${dialUrl})`;
+  root.append(text, sprite);
+  root.addEventListener("click", onOpen);
+
+  const set = (boost: CrewBoost): void => {
+    const running = boost.kind === "running";
+    const clock = running ? chipTime(boost.leftMs) : "rested";
+    const mark = multiplierMark(running ? boost.multiplier : 1);
+    name.textContent = running ? boost.name : "Crew";
+    mul.textContent = mark;
+    left.textContent = clock;
+    word.textContent = running ? "left" : "";
+    sprite.style.backgroundPositionX = `${String(-dialFrame(boost) * DIAL_FRAME_PX)}px`;
+    root.setAttribute(
+      "aria-label",
+      running
+        ? `${boost.name}, crew ${mark}, ${clock} left`
+        : `Crew ${mark}, rested`,
+    );
+  };
+  set({ kind: "rested" });
+  return { root, set };
 }

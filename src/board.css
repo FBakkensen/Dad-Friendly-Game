@@ -215,3 +215,50 @@ body {
 .board-odo-legend.is-spending .board-spend {
   opacity: 1;
 }
+
+/* ---------- boost dial ---------- */
+.board-dial {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+  height: calc(var(--art) * 44);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.board-dial-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  margin-top: calc(var(--art) * -2);
+}
+
+.board-dial .board-lg {
+  color: var(--board-ink-bare);
+}
+
+.board-dial-mul {
+  font-size: var(--type-24);
+  line-height: calc(var(--art) * 14.5);
+  font-weight: 700;
+  color: var(--board-amber-bare);
+}
+
+.board-dial-left {
+  font-size: var(--type-20);
+  line-height: calc(var(--art) * 12);
+  color: var(--board-ink-bare);
+}
+
+.board-dial-sprite {
+  flex: none;
+  width: calc(var(--art) * 44);
+  height: calc(var(--art) * 44);
+  background-size: calc(var(--art) * 1364) calc(var(--art) * 44);
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}

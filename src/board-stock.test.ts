@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createOdometer } from "./board-stock";
+import { createBoostDial, createOdometer } from "./board-stock";
+import type { CrewBoost } from "./crew-boost";
 
 const faces = (root: HTMLElement) =>
   [...root.querySelectorAll(".board-drum")].map((d) => d.lastElementChild?.textContent);
@@ -74,5 +75,56 @@ describe("createOdometer", () => {
     } finally {
       proto.animate = original;
     }
+  });
+});
+
+describe("createBoostDial", () => {
+  const overtime: CrewBoost = {
+    kind: "running",
+    source: "overtime",
+    name: "Overtime",
+    multiplier: 2,
+    leftMs: 7 * 60_000 + 8_000,
+    fullMs: 30 * 60_000,
+  };
+  const text = (root: HTMLElement, sel: string) =>
+    root.querySelector(sel)?.textContent;
+
+  it("writes a running boost on the legend and the sprite", () => {
+    const dial = createBoostDial({ onOpen: () => undefined });
+    dial.set(overtime);
+    expect(dial.root.tagName).toBe("BUTTON");
+    expect(dial.root.classList.contains("board-dial")).toBe(true);
+    expect(text(dial.root, ".board-dial-name")).toBe("Overtime");
+    expect(text(dial.root, ".board-dial-mul")).toBe("×2");
+    expect(text(dial.root, ".board-dial-left")).toBe("7:08");
+    expect(text(dial.root, ".board-dial-word")).toBe("left");
+    const sprite = dial.root.querySelector<HTMLElement>(".board-dial-sprite");
+    expect(sprite?.style.backgroundPositionX).toBe("-704px");
+    expect(dial.root.getAttribute("aria-label")).toBe(
+      "Overtime, crew ×2, 7:08 left",
+    );
+  });
+
+  it("rests", () => {
+    const dial = createBoostDial({ onOpen: () => undefined });
+    dial.set(overtime);
+    dial.set({ kind: "rested" });
+    expect(text(dial.root, ".board-dial-name")).toBe("Crew");
+    expect(text(dial.root, ".board-dial-mul")).toBe("×1");
+    expect(text(dial.root, ".board-dial-left")).toBe("rested");
+    expect(text(dial.root, ".board-dial-word")).toBe("");
+    expect(
+      dial.root.querySelector<HTMLElement>(".board-dial-sprite")?.style
+        .backgroundPositionX,
+    ).toBe("0px");
+    expect(dial.root.getAttribute("aria-label")).toBe("Crew ×1, rested");
+  });
+
+  it("a click opens", () => {
+    let opened = 0;
+    const dial = createBoostDial({ onOpen: () => void (opened += 1) });
+    dial.root.click();
+    expect(opened).toBe(1);
   });
 });
