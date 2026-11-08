@@ -286,7 +286,7 @@ describe("upgrades sheet reveal (#245)", () => {
     expect(row(screen.root, "tap")?.hidden).toBe(false);
     screen.progress.applyMutation((current) => ({
       ...current,
-      pocket: 50_000,
+      pocket: mustPrice(upgradeCost(arms, 0)),
     }));
     row(screen.root, "tap")
       ?.querySelector<HTMLButtonElement>(".upgrade-buy")

@@ -184,13 +184,19 @@ describe("crew synergies", () => {
     expect(
       ["drillSyn", "borerSyn", "machineSyn"].map((id) => {
         const upgrade = upgradeById(id as "drillSyn");
-        return [upgrade.firstCost, upgrade.unlock, upgrade.synergy];
+        // Their prices are pinned in src/tuning.test.ts.
+        return [upgrade.unlock, upgrade.synergy];
       }),
     ).toEqual([
-      [3_000_000, { tier: "drill", count: 5 }, { from: "cart", to: "drill" }],
-      [15_000_000, { tier: "borer", count: 3 }, { from: "drill", to: "borer" }],
       [
-        30_000_000,
+        { tier: "drill", count: 5 },
+        { from: "cart", to: "drill" },
+      ],
+      [
+        { tier: "borer", count: 3 },
+        { from: "drill", to: "borer" },
+      ],
+      [
         { tier: "machine", count: 1 },
         { from: "borer", to: "machine" },
       ],

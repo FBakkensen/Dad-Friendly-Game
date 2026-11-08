@@ -1,6 +1,6 @@
 import { milestoneMultiplier } from "../milestones";
 import { describe, expect, it } from "vitest";
-import { buyBoost, boostLeft } from "../boosts";
+import { boostById, buyBoost, boostLeft } from "../boosts";
 import { buyCrew } from "../crew";
 import {
   promote,
@@ -741,8 +741,10 @@ describe("valueOf", () => {
     const half = score(crew, overtime, 60 * 60);
     expect(full.gainPerSec).toBe(10);
     expect(half.gainPerSec).toBe(5);
-    expect(full.cost).toBe(1_800);
-    expect(full.paybackSec).toBe(1_800 / 10);
+    // Its crew seconds' worth of a 10-a-second crew.
+    const price = boostById("overtime").priceUnits * 10;
+    expect(full.cost).toBe(price);
+    expect(full.paybackSec).toBe(price / 10);
     expect(score(crew, overtime, Number.POSITIVE_INFINITY).gainPerSec).toBe(0);
     expect(score(crew, FIXTURES.buyTier, 0).gainPerSec).toBe(1);
     const queued: Mountain = {

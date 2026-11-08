@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { boostById } from "./boosts";
 import { promoteCost } from "./engineers";
 import { send } from "./expeditions";
 import { BAND_STARTS, kidStretch, shownStones, stonesLeft } from "./scale";
@@ -328,8 +329,10 @@ describe("quick boosts on screen", () => {
       expect(screen.text('[data-boost="sharper"] .upgrade-name')).toBe(
         "Sharper picks",
       );
-      // 120 taps, whatever the crew (#333).
-      expect(buy?.textContent).toBe("Buy · 120");
+      // Its taps' worth at one stone a tap, whatever the crew (#333).
+      expect(buy?.textContent).toBe(
+        buyPriceWords(boostById("sharper").priceUnits),
+      );
       buy?.click();
       expect(buy?.disabled).toBe(true);
       expect(buy?.textContent).toBe("Running · 10:00");

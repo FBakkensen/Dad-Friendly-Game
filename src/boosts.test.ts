@@ -79,9 +79,10 @@ describe("quick boosts", () => {
     // The mid save: 586 stones a second, Strong arms at 0.
     const rates = { crewPerSecond: 586, tapYield: 1 };
     const sharper = boostById("sharper");
-    expect(boostCost(sharper, rates)).toBe(120);
+    // Its taps' worth, never the crew's.
+    expect(boostCost(sharper, rates)).toBe(sharper.priceUnits);
     expect(boostCost(sharper, { crewPerSecond: 60_000, tapYield: 1 })).toBe(
-      120,
+      sharper.priceUnits,
     );
   });
 
@@ -102,7 +103,10 @@ describe("quick boosts", () => {
       now: 1_000,
       pricing: { crewPerSecond: 500, tapYield: 500 },
     });
-    expect(sharp.pocket).toBe(940_000); // 120 taps × 500
+    // Its taps' worth at 500 a tap.
+    expect(sharp.pocket).toBe(
+      crew.pocket - boostById("sharper").priceUnits * 500,
+    );
     expect(sharp.boosts).toEqual({ sharper: 1_000 + 10 * MIN });
     expect(boostLeft(sharp, "sharper", 1_000 + 4 * MIN)).toBe(6 * MIN);
     // Already running: can't stack or restart.
