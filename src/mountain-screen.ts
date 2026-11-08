@@ -756,6 +756,7 @@ export function mountMountainScreen({
     savedCopies.render();
     conflictSheet.render(view.saveConflict, view.elsewhere);
     saveLine.render();
+    coverNote();
   };
 
   /** A sheet or card open over the board. */
@@ -763,6 +764,24 @@ export function mountMountainScreen({
     ":scope > [role='dialog']:not([hidden]), :scope > [role='alertdialog']:not([hidden])";
   /** The teach note last put in the board note: each shows once a launch. */
   let teachShown: string | undefined;
+  /**
+   * A card that opens by itself (a relic, a layer, a craft done, a save
+   * conflict, an update) never closes the board's popups, and the board note
+   * stands above it. So any note goes once such a card is up. A New note it
+   * covered was never really seen: it shows once more after the card.
+   */
+  const coverNote = (): void => {
+    if (
+      !boardNote.note.classList.contains("on") ||
+      root.querySelector(OPEN_SHEET) === null
+    ) {
+      return;
+    }
+    if (boardNote.note.contains(teachNote.note)) {
+      teachShown = undefined;
+    }
+    boardNote.hide();
+  };
   /**
    * One note at a time, in the order teach.ts lists them (#372). It shows in
    * the board note above its thumb, keyed so it stays until an outside tap,
@@ -1065,6 +1084,7 @@ export function mountMountainScreen({
     const pick = readyNow(view.mountain, now(), view.trouble);
     renderBays(pick);
     renderTeach();
+    coverNote();
   }, 1000);
   signal?.addEventListener("abort", () => {
     clearInterval(ticking);

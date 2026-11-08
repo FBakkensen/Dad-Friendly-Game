@@ -155,6 +155,12 @@ describe("board.css", () => {
     );
   });
 
+  it("lets taps pass through a bay's thanks note to the bay under it (#372)", () => {
+    expect(boardCss).toMatch(
+      /^\.board-note\.on:has\(\.board-thanks\) \{[^}]*pointer-events:\s*none/m,
+    );
+  });
+
   it("caps the note at the mockup's width inside #app, over #app > *", () => {
     expect(boardCss).toMatch(
       /^#app > \.board-note \{[^}]*max-width:\s*calc\(var\(--art\) \* 150\)/m,

@@ -125,6 +125,12 @@ body {
   pointer-events: auto;
 }
 
+/* A bay's thanks holds no key and stands over the next bay for 1.6s: a tap
+   there goes through to the bay (#372). */
+.board-note.on:has(.board-thanks) {
+  pointer-events: none;
+}
+
 /* The mockup's width: #app > * (style.css) would otherwise outrank it. */
 #app > .board-note {
   max-width: calc(var(--art) * 150);

@@ -1976,6 +1976,55 @@ describe("the control board (#370)", () => {
     expect(again.root.querySelector(".board-note.on")).toBeNull();
   });
 
+  it("a card that opens by itself puts any board note away; the New note comes back once", () => {
+    vi.useFakeTimers();
+    try {
+      const screen = mountScreen({ storage: seeded(firstEngineer()) });
+      const teach = () => screen.text(".board-note.on .teach-note");
+      expect(teach()).toBe(engineersNote("Ada"));
+      // Into the Crystal Caves: the relic and layer cards open from render,
+      // under the note.
+      screen.progress.applyMutation((m) => ({
+        ...m,
+        remaining: MOUNTAIN_STONES - 46_000_000,
+      }));
+      expect(
+        screen.root.querySelector<HTMLElement>(".relic-reveal")?.hidden,
+      ).toBe(false);
+      expect(screen.root.querySelector(".board-note.on")).toBeNull();
+      vi.advanceTimersByTime(1_000);
+      expect(screen.root.querySelector(".board-note.on")).toBeNull();
+      // Once the cards are shut, the note it never got to show comes back once.
+      for (let i = 0; i < 20; i += 1) {
+        const go = screen.root.querySelector<HTMLButtonElement>(
+          ".relic-reveal:not([hidden]) .reveal-continue, .layer-arrival:not([hidden]) .layer-dig",
+        );
+        if (go === null) break;
+        go.click();
+      }
+      vi.advanceTimersByTime(1_000);
+      expect(teach()).toBe(engineersNote("Ada"));
+
+      // Any other note goes too: the Running now list under the save conflict.
+      document.body.append(screen.root);
+      screen.dig.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      screen.root.querySelector<HTMLButtonElement>(".board-dial")?.click();
+      expect(
+        screen.root.querySelector(".board-note.on .board-running"),
+      ).not.toBeNull();
+      screen.progress.previewConflict();
+      expect(
+        screen.root.querySelector<HTMLElement>(".save-conflict")?.hidden,
+      ).toBe(false);
+      expect(screen.root.querySelector(".board-note.on")).toBeNull();
+      screen.root.remove();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("the New note waits while a sheet is open, then shows on the next tick", () => {
     vi.useFakeTimers();
     try {
