@@ -1677,3 +1677,175 @@ body {
 .board-bay-tag-text {
   position: relative;
 }
+
+/* ---------- drawer rows (#373) ---------- */
+/* One row: lamp, icon, the words, then gain, price tag and verb. The right
+   column stays a flex column, so a 48px toggle can join under the tag. */
+.board-row {
+  position: relative;
+  flex: none;
+  width: 100%;
+  height: var(--row-h);
+  display: grid;
+  grid-template-columns:
+    calc(var(--art) * 20) calc(var(--art) * 32)
+    1fr auto;
+  align-items: center;
+  column-gap: calc(var(--art) * 3);
+  padding: 0 calc(var(--art) * 6) 0 calc(var(--art) * 5);
+  border: 0;
+  background: none;
+  appearance: none;
+  font: inherit;
+  text-align: left;
+  color: var(--board-ink);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.board-row.no-icon {
+  grid-template-columns: calc(var(--art) * 20) 1fr auto;
+}
+
+button.board-row {
+  cursor: pointer;
+}
+
+button.board-row:disabled {
+  cursor: default;
+}
+
+button.board-row:focus-visible {
+  outline: calc(var(--art) * 1) solid var(--board-amber);
+  outline-offset: calc(var(--art) * 1);
+}
+
+.board-row-icon {
+  display: block;
+  width: calc(var(--art) * 32);
+  height: calc(var(--art) * 32);
+  image-rendering: pixelated;
+}
+
+.board-row-mid {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.board-row-name,
+.board-row-info,
+.board-row-need,
+.board-row-why,
+.board-row-flag {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.board-row-name {
+  font-size: var(--board-type-17);
+  line-height: var(--board-row-name-lead);
+  font-weight: 700;
+  color: var(--board-ink);
+}
+
+.board-row-badge {
+  margin-left: calc(var(--art) * 3);
+}
+
+.board-row-info,
+.board-row-why {
+  font-size: var(--board-type-13);
+  line-height: var(--board-row-line-lead);
+  color: var(--board-ink-2);
+}
+
+.board-row-need {
+  font-size: var(--board-type-13);
+  line-height: var(--board-row-line-lead);
+  color: var(--board-rust);
+}
+
+.board-row-flag {
+  line-height: var(--board-row-line-lead);
+  color: var(--board-amber);
+}
+
+.board-row.is-held .board-row-flag {
+  color: var(--board-green);
+}
+
+.board-row-rt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--art);
+}
+
+.board-row-gain {
+  font-size: var(--board-type-15);
+  line-height: var(--board-row-gain-lead);
+  color: var(--board-ink);
+  white-space: nowrap;
+}
+
+.board-row-tag,
+.board-row-tag.board-skinned {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--art) * 10);
+  min-width: calc(var(--art) * 34);
+  padding: 0 calc(var(--art) * 6.5);
+  font-size: var(--board-type-14);
+  line-height: calc(var(--art) * 10);
+  white-space: nowrap;
+  color: var(--board-ink-plate);
+}
+
+.board-row.is-dim-tag .board-row-tag {
+  color: var(--board-ink-plate-2);
+}
+
+.board-row-price {
+  position: relative;
+}
+
+.board-row-verb {
+  font-size: var(--board-type-13);
+  line-height: var(--board-type-13);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  color: var(--board-ink-2);
+}
+
+.board-row.is-can .board-row-verb {
+  color: var(--board-green);
+}
+
+.board-row.is-pick .board-row-verb {
+  color: var(--board-amber);
+}
+
+.board-row.is-held .board-row-verb {
+  color: var(--board-green);
+}
+
+/* Last, so an empty part hides over its own display. An icon not drawn yet
+   keeps its column. */
+.board-row [hidden] {
+  display: none;
+}
+
+.board-row > .board-row-icon[hidden] {
+  display: block;
+  visibility: hidden;
+}

@@ -144,3 +144,14 @@
   --board-bay-sub-lead: 15px;
   --board-bay-sub-gap: 3px;
 }
+
+/* The drawer rows (#373): a row's height, the name and gain sizes, and the
+   leads of the name, the small lines and the gain. */
+:root {
+  --row-h: 76px;
+  --board-type-15: 15px;
+  --board-type-17: 17px;
+  --board-row-name-lead: 19px;
+  --board-row-line-lead: 15px;
+  --board-row-gain-lead: 17px;
+}
