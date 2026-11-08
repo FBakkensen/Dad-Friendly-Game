@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "../mountain";
+import { promoteCost } from "../engineers";
 import { tierById, tierCost } from "../tiers";
 import {
   actionsOnTable,
@@ -61,6 +62,9 @@ const ada = {
 function withPocket(pocket: number, extra: Partial<Mountain> = {}): Mountain {
   return { ...createMountain(), pocket, ...extra };
 }
+
+/** Nils's price: the second engineer, on a Topsoil first run. */
+const nilsPrice = promoteCost(withPocket(0, { engineers: [ada] }));
 
 /** Next buys are all past `pocket`, so the second can only promote. */
 function pricedOut(pocket: number): Mountain {
@@ -264,7 +268,7 @@ describe("extremes", () => {
     const run = runPolicy({
       policy: noEngineers,
       seed: 1,
-      mountain: pricedOut(2_000_000),
+      mountain: pricedOut(nilsPrice),
       maxLiveSeconds: 1,
     });
     expect(run.promotions).toEqual([]);
@@ -274,7 +278,8 @@ describe("extremes", () => {
 
   it("promotes until the crew is full as soon as each price can be paid", () => {
     const hired = promoteAsap(
-      withPocket(40_000_000, {
+      // Covers Nils, Ruth, Otto and Mae (2 + 4 + 8 + 16 base prices), with spare.
+      withPocket(nilsPrice * 15 + 10_000_000, {
         helpers: 10,
         borers: 1,
         engineers: [ada],
@@ -291,7 +296,7 @@ describe("extremes", () => {
     const one = runPolicy({
       policy: allIn,
       seed: 1,
-      mountain: pricedOut(2_000_000),
+      mountain: pricedOut(nilsPrice),
       maxLiveSeconds: 1,
     });
     expect(one.promotions.map((promotion) => promotion.name)).toEqual(["Nils"]);
@@ -472,7 +477,7 @@ describe("policy shape", () => {
     expect(
       sticker(mountain, { kind: "buyBoost", id: "sharper" }),
     ).toBeGreaterThan(0);
-    expect(sticker(mountain, { kind: "promote" })).toBe(2_000_000);
+    expect(sticker(mountain, { kind: "promote" })).toBe(nilsPrice);
     expect(sticker(mountain, { kind: "station", index: 0, post: "camp" })).toBe(
       0,
     );

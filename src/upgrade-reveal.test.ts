@@ -80,7 +80,7 @@ import {
   upgradeShown,
 } from "./upgrade-reveal";
 import { boostById } from "./boosts";
-import { upgradeById } from "./upgrades";
+import { upgradeById, upgradeCost } from "./upgrades";
 import { BAND_SCALE } from "./scale";
 import { buyPriceWords } from "./screen-words";
 import { formatCompact } from "./format";
@@ -88,6 +88,14 @@ import { MOUNTAIN_STONES } from "./mountain";
 import { showsDot } from "./teach";
 
 const arms = upgradeById("tap");
+
+/** A price that must exist: the upgrade is not maxed. */
+function mustPrice(price: number | undefined): number {
+  if (price === undefined) {
+    throw new Error("expected a price");
+  }
+  return price;
+}
 
 describe("rows open at a fixed point in the climb (#250)", () => {
   it("shows an upgrade at its owned count, never for a full pocket", () => {
@@ -175,7 +183,9 @@ describe("upgrades sheet reveal (#245)", () => {
 
   it("prices a lasting upgrade by the band it stands in (#356)", () => {
     const screen = mount(() => clock);
-    const price = 1_625_000 * BAND_SCALE[2];
+    const price = mustPrice(
+      upgradeCost(upgradeById("boots"), 0, BAND_SCALE[2]),
+    );
     const caves = (pocket: number): Mountain => ({
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 45_000_000,
@@ -198,7 +208,7 @@ describe("upgrades sheet reveal (#245)", () => {
 
   it("quotes the same first upgrade price on the how card as on its button (#356)", () => {
     const screen = mount(() => clock);
-    const price = 46_000 * BAND_SCALE[2];
+    const price = mustPrice(upgradeCost(arms, 0, BAND_SCALE[2]));
     screen.progress.applyMutation(() => ({
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 45_000_000,
@@ -246,7 +256,8 @@ describe("upgrades sheet reveal (#245)", () => {
     screen.progress.applyMutation(() => ({
       ...createMountain(),
       carts: 3,
-      pocket: 30_000,
+      // Short of the first level, so the button is greyed.
+      pocket: Math.floor(mustPrice(upgradeCost(arms, 0)) * 0.65),
       upgrades: { steady: 1 },
       boosts: { sharper: 0, overtime: 0 },
     }));
@@ -259,7 +270,9 @@ describe("upgrades sheet reveal (#245)", () => {
     expect(tap?.querySelector(".teach-tag")?.textContent).toBe("New");
     const buy = tap?.querySelector<HTMLButtonElement>(".upgrade-buy");
     expect(buy?.classList.contains("teach-action")).toBe(true);
-    expect(buy?.textContent).toBe("Buy · 46K");
+    expect(buy?.textContent).toBe(
+      buyPriceWords(mustPrice(upgradeCost(arms, 0))),
+    );
     expect(buy?.disabled).toBe(true);
     expect(tap?.parentElement?.firstElementChild).toBe(tap);
     const intro = screen.root.querySelector<HTMLElement>(".upgrades-intro");

@@ -530,8 +530,9 @@ describe("design token mocks (#234)", () => {
     expect(opened.querySelector("[data-state='ready']")).not.toBeNull();
     // Carts and drills take one worker each now (#252); the spare crew covers both.
     expect(opened.querySelector("[data-state='short']")).toBeNull();
+    const borerTier = tierById("borer");
     expect(opened.querySelector("[data-state='dear']")?.textContent).toContain(
-      "Buy · 4.9M",
+      buyPriceWords(tierCost(borerTier, owned(mountainB, borerTier))),
     );
     expect(
       opened.querySelector("[data-state='dear']")?.textContent,

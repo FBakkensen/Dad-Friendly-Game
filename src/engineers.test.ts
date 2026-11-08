@@ -112,10 +112,10 @@ describe("promote", () => {
     });
     expect(hired.helpers).toBe(9);
     expect(hired.pocket).toBe(100_000_000 - PROMOTE_BASE_COST * 2);
-    expect(PROMOTE_BASE_COST).toBe(1_000_000);
-    expect(promoteCost(crew([]))).toBe(1_000_000);
-    expect(promoteCost(crew([ada]))).toBe(2_000_000);
-    expect(promoteCost(hired)).toBe(4_000_000);
+    // The base price is pinned in src/tuning.test.ts; it doubles per engineer.
+    expect(promoteCost(crew([]))).toBe(PROMOTE_BASE_COST);
+    expect(promoteCost(crew([ada]))).toBe(PROMOTE_BASE_COST * 2);
+    expect(promoteCost(hired)).toBe(PROMOTE_BASE_COST * 4);
 
     let mountain: ReturnType<typeof createMountain> = {
       ...createMountain(),

@@ -15,17 +15,22 @@ const crew = { ...minedMountain(0), helpers: 500, pocket: 1_000_000 }; // 500 wo
 
 describe("quick boosts", () => {
   it("are priced from what they boost, with a floor for new dads", () => {
-    // Sharper picks: 120 taps' worth. Overtime: 3 minutes of the crew.
+    // Sharper picks is priced in taps, Overtime in seconds of the crew. The
+    // units and floors are pinned in src/tuning.test.ts (#381).
+    const sharper = boostById("sharper");
+    const overtime = boostById("overtime");
     const pricing = {
       crewPerSecond: 500,
       tapYield: 1_000,
     };
-    expect(boostCost(boostById("sharper"), pricing)).toBe(120_000);
-    expect(boostCost(boostById("overtime"), pricing)).toBe(90_000);
+    expect(boostCost(sharper, pricing)).toBe(1_000 * sharper.priceUnits);
+    expect(boostCost(overtime, pricing)).toBe(500 * overtime.priceUnits);
     const fresh = { crewPerSecond: 0, tapYield: 1 };
-    // 120 taps of one stone is already above the 100-stone floor.
-    expect(boostCost(boostById("sharper"), fresh)).toBe(120);
-    expect(boostCost(boostById("overtime"), fresh)).toBe(500);
+    // A one-stone tap already prices Sharper picks above its floor; a crew of
+    // nothing pays Overtime's floor.
+    expect(sharper.priceUnits).toBeGreaterThan(sharper.minCost);
+    expect(boostCost(sharper, fresh)).toBe(sharper.priceUnits);
+    expect(boostCost(overtime, fresh)).toBe(overtime.minCost);
   });
 
   // A dad who plays a 10-minute session tapping about once a second.

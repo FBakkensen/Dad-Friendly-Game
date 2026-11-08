@@ -796,7 +796,8 @@ describe("valueOf", () => {
   it("scores promote, send, and recall from the crew before and after", () => {
     const stepUp = score(rich, { kind: "promote" }, HORIZON);
     // 25M mined is the Granite: one-off buys cost its band scale (#356).
-    expect(stepUp.cost).toBe(2_000_000 * BAND_SCALE[1]);
+    expect(stepUp.cost).toBe(promoteCost(rich));
+    expect(oneOffStretch(rich)).toBe(BAND_SCALE[1]);
     expect(stepUp.gainPerSec).toBeGreaterThan(0);
     expect(stepUp.paybackSec).toBeGreaterThan(0);
     expect(Number.isFinite(stepUp.paybackSec)).toBe(true);
@@ -871,7 +872,7 @@ describe("valueOf", () => {
       HORIZON,
     );
     expect(lockedBoots.gainPerSec).toBe(0);
-    expect(lockedBoots.cost).toBe(1_625_000);
+    expect(lockedBoots.cost).toBe(upgradeCost(upgradeById("boots"), 0));
     expect(lockedBoots.paybackSec).toBe(Number.POSITIVE_INFINITY);
     const machine = score(
       lockedMachine,

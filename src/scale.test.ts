@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { boostById, boostCost } from "./boosts";
 import { tierLock } from "./crew";
-import { promoteCost } from "./engineers";
+import { PROMOTE_BASE_COST, promoteCost } from "./engineers";
 import { howItWorks } from "./how-it-works";
 import {
   accrueAway,
@@ -266,11 +266,12 @@ describe("one-off stretch (#356)", () => {
 
   it("prices Better boots and a promotion by the band", () => {
     const caves = { ...at(45_000_000), pocket: 1e12 };
+    const boots = upgradeById("boots").firstCost * BAND_SCALE[2];
     expect(upgradeCost(upgradeById("boots"), 0, oneOffStretch(caves))).toBe(
-      1_625_000 * BAND_SCALE[2],
+      boots,
     );
     const bought = buyUpgrade(
-      { ...caves, helpers: 10, pocket: 1_625_000 * BAND_SCALE[2] },
+      { ...caves, helpers: 10, pocket: boots },
       "boots",
     );
     expect(bought.pocket).toBe(0);
@@ -278,6 +279,7 @@ describe("one-off stretch (#356)", () => {
       ...at(10_000_000),
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" }],
     } as Mountain;
-    expect(promoteCost(granite)).toBe(2_000_000 * BAND_SCALE[1]);
+    // Nils is the second engineer: twice the base price.
+    expect(promoteCost(granite)).toBe(PROMOTE_BASE_COST * 2 * BAND_SCALE[1]);
   });
 });
