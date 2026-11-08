@@ -3546,7 +3546,21 @@ for (const viewport of SCREENS) {
 
       // The save drawer slides up over the board; the save line stays.
       await press(page, ".save-status");
-      await new Promise((resolve) => setTimeout(resolve, DRAWER_MS));
+      // Wait for the slide to end, not a fixed time: under the full gate's
+      // load a fixed wait caught the drawer mid-slide.
+      await page
+        .waitForFunction(
+          () => {
+            const sheet = document.querySelector(".board-save-drawer");
+            return (
+              sheet !== null &&
+              sheet.classList.contains("is-open") &&
+              sheet.getAnimations().length === 0
+            );
+          },
+          { timeout: DRAWER_MS * 10 },
+        )
+        .catch(() => undefined);
       const drawer = await page.evaluate(() => {
         const board = globalThis.__board();
         const sheet = document.querySelector(".board-save-drawer");
