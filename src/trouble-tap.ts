@@ -6,7 +6,7 @@ import { FIX_HOLD_MS, type TroubleTier } from "./hazards";
  * while `tier()` names trouble here starts a `FIX_HOLD_MS` timer that calls
  * `fix` with that tier; releasing, cancelling or leaving clears it.
  * `heldFix()` is true once, for the click that ends a hold that fixed, so
- * the caller can ignore that click.
+ * the caller can ignore that click; the next press clears it.
  */
 export function watchFixHold(
   el: HTMLElement,
@@ -27,6 +27,9 @@ export function watchFixHold(
     }
   };
   el.addEventListener("pointerdown", (event) => {
+    // A new press starts fresh: a hold that fixed but ended with no click
+    // (the finger slid off) must not swallow this tap's click.
+    suppressClick = false;
     const troubled = tier();
     if (event.button !== 0 || troubled === undefined) {
       return;

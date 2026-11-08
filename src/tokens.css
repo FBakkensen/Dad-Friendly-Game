@@ -124,3 +124,14 @@
   --board-plate-shine: rgba(255, 255, 255, 0.22);
   --board-type-18: 18px;
 }
+
+/* The machine bays (#372): their row's top, the flaps' cream figures, the
+   figure size, and the name and sub-line leads that are not whole art px. */
+:root {
+  --bays-top: 430px;
+  --board-ink-flap: #e4dcc6;
+  --board-type-24: 24px;
+  --board-bay-name-lead: 17px;
+  --board-bay-sub-lead: 15px;
+  --board-bay-sub-gap: 3px;
+}

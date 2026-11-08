@@ -1379,3 +1379,254 @@ body {
 .board-dig.is-hit .board-dig-lg b {
   color: var(--board-amber);
 }
+
+/* ---------- the machine bays (#372) ----------
+   The mockup's #rBays, 208 x 103 art at (2, --bays-top): the band tag on its
+   top edge and three 204x27 art bay buttons, 4 art apart. Lamps, the drill's
+   frames and the flap digits change from board-bays.ts (inline
+   background-position-x and --k); the rest is placed here. Tops inside a bay
+   are the mockup's 31 art row less the 2 art the button sits down. */
+.board-bays,
+.board-bays.board-skinned {
+  position: absolute;
+  left: calc(var(--art) * 2);
+  top: var(--bays-top);
+  width: calc(var(--art) * 208);
+  height: calc(var(--art) * 103);
+  font-family: "Barlow Condensed", sans-serif;
+}
+
+.board-band-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--art) * -5);
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  height: calc(var(--art) * 12);
+  pointer-events: none;
+}
+
+.board-band,
+.board-band.board-skinned {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: calc(var(--art) * 118);
+  height: calc(var(--art) * 12);
+  padding: 0 calc(var(--art) * 7);
+  white-space: nowrap;
+}
+
+.board-band .board-lg {
+  color: var(--board-ink-plate);
+}
+
+.board-bays-area {
+  position: absolute;
+  left: calc(var(--art) * 2);
+  top: calc(var(--art) * 6);
+  width: calc(var(--art) * 204);
+  height: calc(var(--art) * 93);
+}
+
+.board-bay {
+  position: absolute;
+  left: 0;
+  top: calc(var(--art) * (var(--i) * 31 + 2));
+  display: block;
+  width: calc(var(--art) * 204);
+  height: calc(var(--art) * 27);
+  padding: 0;
+  border: 0;
+  background: none;
+  appearance: none;
+  overflow: visible;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.board-bay:focus-visible {
+  outline: calc(var(--art) * 1) solid var(--board-amber);
+  outline-offset: calc(var(--art) * 1);
+}
+
+.board-bay:disabled {
+  cursor: default;
+}
+
+.board-bay > * {
+  position: absolute;
+  pointer-events: none;
+}
+
+.board-bay > .board-lamp {
+  left: calc(var(--art) * 3);
+  top: calc(var(--art) * 4);
+}
+
+/* The icons stand on their visible pixels: the cart, borer and Great Machine
+   at the row's top, the drill 2 art down. */
+.board-bay-icon {
+  left: calc(var(--art) * 25);
+  top: calc(var(--art) * -2);
+  width: calc(var(--art) * 32);
+  height: calc(var(--art) * 32);
+  background-repeat: no-repeat;
+  background-size: calc(var(--art) * 128) calc(var(--art) * 32);
+  image-rendering: pixelated;
+}
+
+.board-bay[data-tier="drill"] > .board-bay-icon {
+  top: 0;
+}
+
+.board-bay-text {
+  left: calc(var(--art) * 60);
+  top: calc(var(--art) * 4);
+  width: calc(var(--art) * 61);
+}
+
+/* Three flaps reach further left: the words end 2 art before them. */
+.board-bay.is-three > .board-bay-text {
+  width: calc(var(--art) * 50);
+}
+
+.board-bay-name,
+.board-bay-sub {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.board-bay-name {
+  font-size: var(--board-type-16);
+  line-height: var(--board-bay-name-lead);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--board-ink);
+}
+
+.board-bay-sub {
+  margin-top: var(--board-bay-sub-gap);
+  font-size: var(--board-type-13);
+  line-height: var(--board-bay-sub-lead);
+  color: var(--board-ink-2);
+}
+
+/* The flap counter: flip-counter.png's left cap (columns 0-5), a window
+   (6-15) per flap after the first, and the right cap with the last window
+   (16-31). Its right edge stays at 154 art of the row. */
+.board-flap {
+  right: calc(var(--art) * 50);
+  top: calc(var(--art) * 2);
+  display: flex;
+  height: calc(var(--art) * 24);
+}
+
+.board-flap-l,
+.board-flap-m,
+.board-flap-r {
+  display: block;
+  flex: none;
+  height: calc(var(--art) * 24);
+  background: url("./assets/board/flip-counter.png") no-repeat 0 0 /
+    calc(var(--art) * 32) calc(var(--art) * 24);
+  image-rendering: pixelated;
+}
+
+.board-flap-l {
+  width: calc(var(--art) * 6);
+}
+
+.board-flap-m {
+  width: calc(var(--art) * 10);
+  background-position-x: calc(var(--art) * -6);
+}
+
+.board-flap-r {
+  width: calc(var(--art) * 16);
+  background-position-x: calc(var(--art) * -16);
+}
+
+.board-flap-d {
+  position: absolute;
+  left: calc(var(--art) * (6 + 10 * var(--k)));
+  top: calc(var(--art) * 5);
+  width: calc(var(--art) * 9);
+  height: calc(var(--art) * 14);
+  line-height: calc(var(--art) * 14);
+  text-align: center;
+  font-size: var(--board-type-24);
+  color: var(--board-ink-flap);
+}
+
+.board-flap-d.is-flipping {
+  animation: board-flap 180ms steps(3) 1;
+}
+
+@keyframes board-flap {
+  0% {
+    transform: scaleY(1);
+  }
+
+  50% {
+    transform: scaleY(0.2);
+  }
+
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-flap-d.is-flipping {
+    animation: none;
+  }
+}
+
+.board-bay-price {
+  left: calc(var(--art) * 157);
+  top: calc(var(--art) * 2);
+  width: calc(var(--art) * 42);
+  height: calc(var(--art) * 24);
+}
+
+.board-bay-price-lg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  line-height: calc(var(--art) * 8);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.board-bay-tag,
+.board-bay-tag.board-skinned {
+  position: absolute;
+  left: 0;
+  top: calc(var(--art) * 10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--art) * 42);
+  height: calc(var(--art) * 10);
+  font-size: var(--board-type-14);
+  line-height: calc(var(--art) * 10);
+  white-space: nowrap;
+  color: var(--board-ink-plate);
+}
+
+.board-bay-tag[hidden] {
+  display: none;
+}
+
+.board-bay-tag-text {
+  position: relative;
+}

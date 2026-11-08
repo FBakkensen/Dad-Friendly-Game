@@ -1,0 +1,623 @@
+// @vitest-environment happy-dom
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  bandWords,
+  bayLines,
+  createMachineBays,
+  sharedPattern,
+  type MachineBays,
+} from "./board-bays";
+import type { TierLock } from "./crew";
+import { FIX_HOLD_MS, type TroubleTier } from "./hazards";
+import type { BayView } from "./machine-bays";
+import { milestoneLine } from "./milestones";
+import { MOUNTAIN_STONES } from "./scale";
+import { formatCompact } from "./format";
+
+const motion = (reduce: boolean): void => {
+  vi.stubGlobal(
+    "matchMedia",
+    (query: string) =>
+      ({
+        matches: reduce && query === "(prefers-reduced-motion: reduce)",
+        media: query,
+      }) as MediaQueryList,
+  );
+};
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  motion(false);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  document.body.replaceChildren();
+});
+
+const fits = (el: HTMLElement): boolean => el.textContent.length <= 16;
+
+const mined = (stones: number): { remaining: number } => ({
+  remaining: MOUNTAIN_STONES - stones,
+});
+
+const borerLock: TierLock = {
+  kind: "depth",
+  depth: 10_000_000,
+  at: 10_000_000,
+};
+
+const cart = (
+  over: Partial<Extract<BayView, { kind: "open" }>> = {},
+): BayView => ({
+  kind: "open",
+  tier: "cart",
+  count: 12,
+  price: 5868,
+  gain: 12,
+  staff: 1,
+  lamp: "off",
+  ...over,
+});
+
+const drill = (
+  over: Partial<Extract<BayView, { kind: "open" }>> = {},
+): BayView => ({
+  kind: "open",
+  tier: "drill",
+  count: 3,
+  price: 40_000,
+  gain: 60,
+  staff: 2,
+  lamp: "off",
+  ...over,
+});
+
+const lockedBorer: BayView = {
+  kind: "locked",
+  tier: "borer",
+  count: 0,
+  lock: borerLock,
+};
+
+const borer = (
+  over: Partial<Extract<BayView, { kind: "open" }>> = {},
+): BayView => ({
+  kind: "open",
+  tier: "borer",
+  count: 2,
+  price: 1_200_000,
+  gain: 357,
+  staff: 8,
+  lamp: "off",
+  ...over,
+});
+
+const machine = (
+  over: Partial<Extract<BayView, { kind: "open" }>> = {},
+): BayView => ({
+  kind: "open",
+  tier: "machine",
+  count: 0,
+  price: 120_600_000,
+  gain: 50_000,
+  staff: 20,
+  lamp: "off",
+  ...over,
+});
+
+const troubled = (tier: TroubleTier): BayView => ({
+  kind: "trouble",
+  tier,
+  count: 4,
+  price: 9000,
+  gain: 12,
+  staff: 1,
+  trouble: "cave-in",
+});
+
+function make(): {
+  bays: MachineBays;
+  onOpen: ReturnType<typeof vi.fn<() => void>>;
+  onPress: ReturnType<
+    typeof vi.fn<(tier: TroubleTier, bay: HTMLElement) => void>
+  >;
+  onFix: ReturnType<
+    typeof vi.fn<(tier: TroubleTier, bay: HTMLElement) => void>
+  >;
+} {
+  const onOpen = vi.fn<() => void>();
+  const onPress = vi.fn<(tier: TroubleTier, bay: HTMLElement) => void>();
+  const onFix = vi.fn<(tier: TroubleTier, bay: HTMLElement) => void>();
+  const bays = createMachineBays({ onOpen, onPress, onFix, fits });
+  document.body.append(bays.root);
+  return { bays, onOpen, onPress, onFix };
+}
+
+const bay = (bays: MachineBays, i: number): HTMLButtonElement => {
+  const el = bays.bays[i];
+  if (el === undefined) throw new Error(`no bay ${String(i)}`);
+  return el;
+};
+
+const q = (el: HTMLElement, selector: string): HTMLElement => {
+  const found = el.querySelector<HTMLElement>(selector);
+  if (found === null) throw new Error(`no ${selector}`);
+  return found;
+};
+
+const digits = (el: HTMLElement): string[] =>
+  [...el.querySelectorAll(".board-flap-d")].map((d) => d.textContent);
+
+const flipping = (el: HTMLElement): boolean[] =>
+  [...el.querySelectorAll(".board-flap-d")].map((d) =>
+    d.classList.contains("is-flipping"),
+  );
+
+const iconSrc = (el: HTMLElement): string => {
+  const icon = q(el, ".board-bay-icon");
+  return icon instanceof HTMLImageElement
+    ? icon.src
+    : icon.style.backgroundImage;
+};
+
+const pointer = (el: HTMLElement, type: string): void => {
+  el.dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0 }));
+};
+
+const early = (): readonly BayView[] => [cart(), drill(), lockedBorer];
+
+describe("bandWords", () => {
+  it("names the band, with its line when it has one", () => {
+    expect(bandWords(mined(500_000))).toBe("The Topsoil");
+    expect(bandWords(mined(25_000_000))).toBe("The Granite · Suits borers");
+    expect(bandWords(mined(60_000_000))).toBe(
+      "The Crystal Caves · Suits drills",
+    );
+    expect(bandWords(mined(130_000_000))).toBe(
+      "The Deep Heart · Suits the Great Machine",
+    );
+  });
+});
+
+describe("bayLines", () => {
+  it("offers an open bay's milestone, then gain and hands, then gain", () => {
+    const lines = bayLines(cart());
+    expect(lines).toEqual([
+      milestoneLine("cart", 12, formatCompact),
+      "+12/s · 1 hand",
+      "+12/s",
+    ]);
+    expect(lines[0]).toContain("12 of 25");
+  });
+
+  it("counts several hands", () => {
+    expect(bayLines(borer())[1]).toBe("+357/s · 8 hands");
+  });
+
+  it("keeps three options when the tier has no milestone left", () => {
+    const lines = bayLines(cart({ count: 300 }));
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toBe(milestoneLine("cart", 300, formatCompact));
+  });
+
+  it("reads the lock, or the trouble to fix", () => {
+    expect(bayLines(lockedBorer)).toEqual(["Borer · 10M"]);
+    expect(bayLines(troubled("cart"))).toEqual(["Cave-in! · Hold to fix"]);
+  });
+});
+
+describe("sharedPattern", () => {
+  const short = (_bay: number, text: string): boolean => text.length <= 16;
+
+  it("picks the first pattern that fits every bay", () => {
+    expect(
+      sharedPattern(
+        [
+          ["aaaaaaaaaaaaaaaaaaaa", "+12/s · 1 hand", "+12/s"],
+          ["Borer · 10M"],
+          ["+2.4K/s · 8 hands", "+2.4K/s · 8 hands", "+2.4K/s"],
+        ],
+        short,
+      ),
+    ).toEqual(["+12/s", "Borer · 10M", "+2.4K/s"]);
+    expect(
+      sharedPattern(
+        [
+          ["aaaaaaaaaaaaaaaaaaaa", "+12/s · 1 hand", "+12/s"],
+          ["Borer · 10M"],
+          ["+357/s · 8 hands", "+357/s · 8 hands", "+357/s"],
+        ],
+        short,
+      ),
+    ).toEqual(["+12/s · 1 hand", "Borer · 10M", "+357/s · 8 hands"]);
+  });
+
+  it("falls back to the last pattern when nothing fits", () => {
+    expect(
+      sharedPattern([["aaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbb"]], short),
+    ).toEqual(["bbbbbbbbbbbbbbbbbbbb"]);
+  });
+
+  it("asks each bay with its own index", () => {
+    const asked: number[] = [];
+    sharedPattern([["a"], ["b"], ["c"]], (b) => {
+      asked.push(b);
+      return true;
+    });
+    expect(asked).toEqual([0, 1, 2]);
+  });
+});
+
+describe("createMachineBays", () => {
+  it("holds the band and three bays in their frame", () => {
+    const { bays } = make();
+    bays.render(early(), "The Granite · Suits borers");
+    expect(bays.root.matches("section.board-bays")).toBe(true);
+    const buttons = bays.root.querySelectorAll("button.board-bay");
+    expect(buttons).toHaveLength(3);
+    expect([...buttons].map((b) => b.getAttribute("data-tier"))).toEqual([
+      "cart",
+      "drill",
+      "borer",
+    ]);
+    expect(q(bays.root, ".board-band").textContent).toBe(
+      "The Granite · Suits borers",
+    );
+    expect(
+      bays.root.querySelector(":scope > canvas.board-skin"),
+    ).not.toBeNull();
+    expect(
+      q(bays.root, ".board-band").querySelector("canvas.board-skin"),
+    ).not.toBeNull();
+  });
+
+  it("puts every part in each bay", () => {
+    const { bays } = make();
+    bays.render(early(), "");
+    for (const el of bays.bays) {
+      for (const part of [
+        "i.board-lamp",
+        ".board-bay-icon",
+        ".board-bay-name",
+        ".board-bay-sub",
+        ".board-flap",
+        ".board-flap-l",
+        ".board-flap-m",
+        ".board-flap-r",
+        ".board-bay-price",
+        ".board-bay-price-lg",
+        ".board-bay-tag",
+      ]) {
+        expect(el.querySelector(part), part).not.toBeNull();
+      }
+    }
+  });
+
+  it("names each bay and fits the sub-lines to one shared pattern", () => {
+    const { bays } = make();
+    bays.render(early(), "");
+    expect(q(bay(bays, 0), ".board-bay-name").textContent).toBe("Mine cart");
+    expect(q(bay(bays, 1), ".board-bay-name").textContent).toBe("Steam drill");
+    expect(q(bay(bays, 2), ".board-bay-name").textContent).toBe("Tunnel borer");
+    // The milestone line is too long for 16, so all three read the gain and hands.
+    expect(q(bay(bays, 0), ".board-bay-sub").textContent).toBe(
+      "+12/s · 1 hand",
+    );
+    expect(q(bay(bays, 1), ".board-bay-sub").textContent).toBe(
+      "+60/s · 2 hands",
+    );
+    expect(q(bay(bays, 2), ".board-bay-sub").textContent).toBe("Borer · 10M");
+  });
+
+  it("shortens a name that does not fit", () => {
+    const onOpen = vi.fn<() => void>();
+    const bays = createMachineBays({
+      onOpen,
+      onPress: vi.fn(),
+      onFix: vi.fn(),
+      fits: (el) => el.textContent.length <= 10,
+    });
+    bays.render(early(), "");
+    expect(q(bay(bays, 1), ".board-bay-name").textContent).toBe("Drill");
+    expect(q(bay(bays, 0), ".board-bay-name").textContent).toBe("Mine cart");
+  });
+
+  it("covers a locked borer with its tarp, says Locked and hides the price", () => {
+    const { bays } = make();
+    bays.render(early(), "");
+    const b = bay(bays, 2);
+    expect(iconSrc(b)).toContain("mach-borer-tarp");
+    expect(q(b, ".board-bay-price-lg").textContent).toBe("Locked");
+    expect(q(b, ".board-bay-tag").hidden).toBe(true);
+    expect(q(b, ".board-lamp").style.backgroundPositionX).toBe("0px");
+    expect(b.getAttribute("aria-label")).toBe(
+      "Tunnel borer, locked. Joins your crew at 10 million stones down. Opens Buys",
+    );
+  });
+
+  it("shows an owned borer, Next and its price", () => {
+    const { bays } = make();
+    bays.render([cart(), drill(), borer()], "");
+    const b = bay(bays, 2);
+    expect(iconSrc(b)).toContain("mach-borer.png");
+    expect(iconSrc(b)).not.toContain("tarp");
+    expect(q(b, ".board-bay-price-lg").textContent).toBe("Next");
+    expect(q(b, ".board-bay-tag").hidden).toBe(false);
+    expect(q(b, ".board-bay-tag").textContent).toBe("1.2M");
+  });
+
+  it("offers the first borer once it is unlocked", () => {
+    const { bays } = make();
+    bays.render([cart(), drill(), borer({ count: 0 })], "");
+    const b = bay(bays, 2);
+    expect(q(b, ".board-bay-price-lg").textContent).toBe("First");
+    expect(iconSrc(b)).toContain("mach-borer-tarp");
+  });
+
+  it("gives the Great Machine its own icon in the machine era", () => {
+    const { bays } = make();
+    bays.render([drill(), borer(), machine()], "");
+    const b = bay(bays, 2);
+    expect(b.getAttribute("data-tier")).toBe("machine");
+    expect(iconSrc(b)).toContain("mach-machine");
+    expect(iconSrc(bay(bays, 0))).toContain("drill-run");
+    expect(q(b, ".board-bay-price-lg").textContent).toBe("First");
+  });
+
+  it("shows the count of a Great Machine owned before the Hammer is found", () => {
+    const { bays } = make();
+    const hammerLock: TierLock = {
+      kind: "depth",
+      depth: 120_000_000,
+      at: 120_000_000,
+    };
+    bays.render(
+      [
+        drill(),
+        borer(),
+        { kind: "locked", tier: "machine", count: 1, lock: hammerLock },
+      ],
+      "",
+    );
+    const b = bay(bays, 2);
+    expect(digits(b)).toEqual(["", "1"]);
+    expect(iconSrc(b)).toContain("mach-machine");
+    expect(q(b, ".board-bay-price-lg").textContent).toBe("Locked");
+    expect(q(b, ".board-bay-tag").hidden).toBe(true);
+  });
+
+  it("reads an open bay's label with its count, price, gain and hands", () => {
+    const { bays } = make();
+    bays.render(early(), "");
+    expect(bay(bays, 0).getAttribute("aria-label")).toBe(
+      "Mine cart: 12 owned. Next 5,868 stones, +12 stones a second, needs 1 worker. Opens Buys",
+    );
+    expect(bay(bays, 1).getAttribute("aria-label")).toBe(
+      "Steam drill: 3 owned. Next 40 thousand stones, +60 stones a second, needs 2 workers. Opens Buys",
+    );
+  });
+
+  it("lights each lamp's frame", () => {
+    const { bays } = make();
+    bays.render(
+      [
+        cart({ lamp: "amber" }),
+        drill({ lamp: "green" }),
+        borer({ lamp: "off" }),
+      ],
+      "",
+    );
+    const lamp = (i: number): string =>
+      q(bay(bays, i), ".board-lamp").style.backgroundPositionX;
+    expect(lamp(0)).toBe("-40px");
+    expect(lamp(1)).toBe("-80px");
+    expect(lamp(2)).toBe("0px");
+    bays.render([troubled("cart"), drill(), borer()], "");
+    expect(lamp(0)).toBe("-120px");
+  });
+
+  describe("the flaps", () => {
+    it("shows two flaps under a hundred and three from it", () => {
+      const { bays } = make();
+      bays.render([cart({ count: 6 }), drill({ count: 120 }), borer()], "");
+      const two = bay(bays, 0);
+      expect(digits(two)).toEqual(["", "6"]);
+      expect(two.querySelectorAll(".board-flap-m")).toHaveLength(1);
+      const three = bay(bays, 1);
+      expect(digits(three)).toEqual(["1", "2", "0"]);
+      expect(three.querySelectorAll(".board-flap-m")).toHaveLength(2);
+      expect(three.classList.contains("is-three")).toBe(true);
+      expect(two.classList.contains("is-three")).toBe(false);
+    });
+
+    it("places each digit's window", () => {
+      const { bays } = make();
+      bays.render([cart({ count: 120 }), drill(), borer()], "");
+      const ks = [
+        ...bay(bays, 0).querySelectorAll<HTMLElement>(".board-flap-d"),
+      ].map((d) => d.style.getPropertyValue("--k"));
+      expect(ks).toEqual(["0", "1", "2"]);
+    });
+
+    it("flips only the digit that changed", () => {
+      const { bays } = make();
+      bays.render([cart({ count: 6 }), drill(), borer()], "");
+      expect(flipping(bay(bays, 0))).toEqual([false, false]);
+      bays.render([cart({ count: 7 }), drill(), borer()], "");
+      expect(digits(bay(bays, 0))).toEqual(["", "7"]);
+      expect(flipping(bay(bays, 0))).toEqual([false, true]);
+    });
+
+    it("flips every changed digit when a third flap arrives", () => {
+      const { bays } = make();
+      bays.render([cart({ count: 99 }), drill(), borer()], "");
+      bays.render([cart({ count: 100 }), drill(), borer()], "");
+      expect(digits(bay(bays, 0))).toEqual(["1", "0", "0"]);
+      expect(flipping(bay(bays, 0))).toEqual([true, true, true]);
+    });
+
+    it("never flips on the first render, a tier swap, or under reduced motion", () => {
+      const first = make();
+      first.bays.render([cart({ count: 6 }), drill({ count: 7 }), borer()], "");
+      expect(first.bays.root.querySelectorAll(".is-flipping")).toHaveLength(0);
+
+      // C2: the Great Machine goes on sale, and the first bay becomes the drill.
+      first.bays.render([drill({ count: 8 }), borer(), machine()], "");
+      expect(digits(bay(first.bays, 0))).toEqual(["", "8"]);
+      expect(first.bays.root.querySelectorAll(".is-flipping")).toHaveLength(0);
+
+      document.body.replaceChildren();
+      motion(true);
+      const calm = make();
+      calm.bays.render([cart({ count: 6 }), drill(), borer()], "");
+      calm.bays.render([cart({ count: 7 }), drill(), borer()], "");
+      expect(calm.bays.root.querySelectorAll(".is-flipping")).toHaveLength(0);
+    });
+
+    it("lets a finished flip go", () => {
+      const { bays } = make();
+      bays.render([cart({ count: 6 }), drill(), borer()], "");
+      bays.render([cart({ count: 7 }), drill(), borer()], "");
+      const d = bay(bays, 0).querySelectorAll(".board-flap-d")[1];
+      d?.dispatchEvent(new Event("animationend", { bubbles: true }));
+      expect(flipping(bay(bays, 0))).toEqual([false, false]);
+    });
+  });
+
+  describe("taps", () => {
+    it("opens Buys from an open bay", () => {
+      const { bays, onOpen, onPress } = make();
+      bays.render(early(), "");
+      bay(bays, 0).click();
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      expect(onPress).not.toHaveBeenCalled();
+    });
+
+    it("opens Buys from a locked bay", () => {
+      const { bays, onOpen } = make();
+      bays.render(early(), "");
+      bay(bays, 2).click();
+      expect(onOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it("presses a troubled bay instead of opening Buys", () => {
+      const { bays, onOpen, onPress } = make();
+      bays.render([troubled("cart"), drill(), lockedBorer], "");
+      const b = bay(bays, 0);
+      expect(b.getAttribute("data-trouble")).toBe("cave-in");
+      expect(b.getAttribute("aria-label")).toBe(
+        "Cave-in! The mine carts need a hand. Tap a few times, or hold, to help.",
+      );
+      expect(q(b, ".board-bay-sub").textContent).toBe("Cave-in! · Hold to fix");
+      b.click();
+      expect(onPress).toHaveBeenCalledWith("cart", b);
+      expect(onOpen).not.toHaveBeenCalled();
+    });
+
+    it("fixes on a hold, and the click that ends it does nothing", () => {
+      const { bays, onOpen, onPress, onFix } = make();
+      bays.render([troubled("cart"), drill(), lockedBorer], "");
+      const b = bay(bays, 0);
+      pointer(b, "pointerdown");
+      vi.advanceTimersByTime(FIX_HOLD_MS);
+      expect(onFix).toHaveBeenCalledWith("cart", b);
+      pointer(b, "pointerup");
+      b.click();
+      expect(onPress).not.toHaveBeenCalled();
+      expect(onOpen).not.toHaveBeenCalled();
+    });
+
+    it("opens Buys once an engineer has fixed it", () => {
+      const { bays, onOpen, onPress } = make();
+      bays.render([troubled("cart"), drill(), lockedBorer], "");
+      bays.render(early(), "");
+      const b = bay(bays, 0);
+      expect(b.hasAttribute("data-trouble")).toBe(false);
+      b.click();
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      expect(onPress).not.toHaveBeenCalled();
+    });
+
+    it("builds each bay once, so re-renders never pile up listeners", () => {
+      const { bays, onPress } = make();
+      const first = bay(bays, 0);
+      for (let n = 0; n < 5; n++) {
+        bays.render([troubled("cart"), drill(), lockedBorer], "");
+      }
+      expect(bay(bays, 0)).toBe(first);
+      first.click();
+      expect(onPress).toHaveBeenCalledTimes(1);
+    });
+
+    it("shows only frames, art and dark lamps before the save is in", () => {
+      const { bays, onOpen } = make();
+      bays.render(undefined, "");
+      for (const el of bays.bays) {
+        expect(el.disabled).toBe(true);
+        expect(digits(el).join("")).toBe("");
+        expect(q(el, ".board-bay-name").textContent).toBe("");
+        expect(q(el, ".board-bay-sub").textContent).toBe("");
+        expect(q(el, ".board-bay-price-lg").textContent).toBe("");
+        expect(q(el, ".board-bay-tag").textContent).toBe("");
+        expect(q(el, ".board-lamp").style.backgroundPositionX).toBe("0px");
+        expect(el.querySelector(".board-bay-icon")).not.toBeNull();
+      }
+      expect(q(bays.root, ".board-band").textContent).toBe("");
+      bay(bays, 0).click();
+      expect(onOpen).not.toHaveBeenCalled();
+    });
+
+    it("enables the bays once the save is in", () => {
+      const { bays } = make();
+      bays.render(undefined, "");
+      bays.render(early(), "");
+      expect(bays.bays.every((b) => !b.disabled)).toBe(true);
+    });
+  });
+
+  describe("ticks", () => {
+    const drillIcon = (bays: MachineBays): string =>
+      q(bay(bays, 1), ".board-bay-icon").style.backgroundPositionX;
+
+    it("steps the drill a frame every 0.18s while drills are owned", () => {
+      const { bays } = make();
+      bays.render(early(), "");
+      expect(drillIcon(bays)).toBe("0px");
+      bays.tick(0.1);
+      expect(drillIcon(bays)).toBe("0px");
+      bays.tick(0.08);
+      expect(drillIcon(bays)).toBe("-64px");
+      bays.tick(0.18 * 3);
+      expect(drillIcon(bays)).toBe("0px");
+    });
+
+    it("holds the drill still with none owned, in trouble, or under reduced motion", () => {
+      const none = make();
+      none.bays.render([cart(), drill({ count: 0 }), lockedBorer], "");
+      none.bays.tick(0.18);
+      expect(drillIcon(none.bays)).toBe("0px");
+
+      const flooded = make();
+      flooded.bays.render([cart(), troubled("drill"), lockedBorer], "");
+      flooded.bays.tick(0.18);
+      expect(drillIcon(flooded.bays)).toBe("0px");
+
+      motion(true);
+      const calm = make();
+      calm.bays.render(early(), "");
+      calm.bays.tick(0.18);
+      expect(drillIcon(calm.bays)).toBe("0px");
+    });
+
+    it("follows the drill when it moves to the first bay", () => {
+      const { bays } = make();
+      bays.render([drill(), borer(), machine()], "");
+      bays.tick(0.18);
+      expect(q(bay(bays, 0), ".board-bay-icon").style.backgroundPositionX).toBe(
+        "-64px",
+      );
+    });
+  });
+});

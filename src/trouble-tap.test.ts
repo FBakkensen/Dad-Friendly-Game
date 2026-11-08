@@ -71,6 +71,18 @@ describe("watchFixHold", () => {
     expect(hold.heldFix()).toBe(false);
   });
 
+  it("a hold that fixed with no click after it does not swallow the next tap", () => {
+    const { el, fix, hold } = setup("cart");
+    press(el, "pointerdown");
+    vi.advanceTimersByTime(FIX_HOLD_MS);
+    expect(fix).toHaveBeenCalledTimes(1);
+    // The finger slid off: no click ends this hold.
+    press(el, "pointercancel");
+    press(el, "pointerdown");
+    press(el, "pointerup");
+    expect(hold.heldFix()).toBe(false);
+  });
+
   it("a second press restarts the hold rather than fixing twice", () => {
     const { el, fix } = setup("machine");
     press(el, "pointerdown");
