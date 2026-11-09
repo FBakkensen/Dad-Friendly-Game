@@ -3,7 +3,7 @@ const SLOP_PX = 10;
 /** The list that scrolls under a card, if this tap started in one. */
 function scroller(card: HTMLElement): HTMLElement | null {
   const found = card.closest(
-    ".sheet-scroll, .upgrades-scroll, .tier-grid, .workshop-recipes, .engineers-dialog, .board-sheet-list",
+    ".sheet-scroll, .upgrades-scroll, .workshop-recipes, .engineers-dialog, .board-sheet-list",
   );
   return found instanceof HTMLElement ? found : null;
 }

@@ -1,66 +1,48 @@
-import { stretch } from "./scale";
-import { TIER_WHY, buyRowView } from "./buys-rows";
-import { readyNow } from "./ready-now";
-import grandpaUrl from "./assets/grandpa-miner.png";
-import { buyCrew, tierLock } from "./crew";
-import { crewCounts } from "./crew-count";
-import { lockBodyLine, lockRateLine } from "./tier-lock-words";
-import { grandpaPost, staffForBuy, staffNeeded } from "./engineers";
-import { watchFixHold } from "./trouble-tap";
+import borerUrl from "./assets/board/mach-borer.png";
+import tarpUrl from "./assets/board/mach-borer-tarp.png";
+import cartUrl from "./assets/board/mach-cart.png";
+import drillUrl from "./assets/board/mach-drill.png";
+import kidDimUrl from "./assets/board/mach-kid-dim.png";
+import kidUrl from "./assets/board/mach-kid.png";
+import machineDimUrl from "./assets/board/mach-machine-dim.png";
+import machineUrl from "./assets/board/mach-machine.png";
+import workerUrl from "./assets/board/mach-worker.png";
+import { el, write } from "./board-dom";
+import { createBoardSheet, type BoardSheet } from "./board-drawer";
+import { boardHowCard } from "./board-how-art";
+import { createBoardRow, type BoardRow } from "./board-row";
+import { skin } from "./board-skin";
+import { BUY_SECTIONS, buyRowView, type BuyIcon } from "./buys-rows";
 import { buyOnTap } from "./card-tap";
-import { markTaught, showsDot } from "./teach";
-import { clearNewCard, markNewCard } from "./teach-ui";
-import { floatText, reducedMotion } from "./float-text";
+import { buyCrew } from "./crew";
+import { crewCounts } from "./crew-count";
+import { grandpaPost, staffNeeded } from "./engineers";
+import { reducedMotion } from "./float-text";
 import { formatCompact } from "./format";
-import { milestoneLine } from "./milestones";
 import type { Mountain } from "./mountain";
-import {
-  SHEET_CARD,
-  SHEET_CARD_BODY,
-  SHEET_CARD_ICON,
-  SHEET_CARD_LINE,
-  SHEET_CARD_PRICE,
-  SHEET_CARD_QUIET,
-  SHEET_CARD_TITLE,
-  SHEET_DEAR,
-  SHEET_LOCKED,
-  SHEET_READY,
-  SHEET_SCROLL,
-  SHEET_SHORT,
-} from "./sheet-card";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
+import { effectiveRates, firstIdleTier } from "./rates";
+import type { ReadyPick } from "./ready-now";
 import {
-  effectiveRates,
-  firstIdleTier,
-  tendingGain,
-  type TendTier,
-} from "./rates";
-import {
+  STAFFING_INTRO,
   TROUBLE_FIXED,
   crewPostLabel,
+  crewPostsWords,
   grandpaChipWords,
   grandpaSentence,
-  crewPostsWords,
-  formatSpeed,
-  staffBillWords,
-  staffingAction,
-  staffingLine,
-  tierPaceWords,
-  troubleShout,
   stonesASecond,
-  stonesPerSecond,
-  tendingEngineer,
   workerWords,
 } from "./screen-words";
-import {
-  TIERS,
-  owned,
-  tierById,
-  tierCost,
-  tierShown,
-  type TierId,
-} from "./tiers";
-import { tierSynergy } from "./upgrades";
+import { markTaught, showsDot } from "./teach";
+import { TIERS, owned, tierById, type TierId } from "./tiers";
+import { watchFixHold } from "./trouble-tap";
+
+/*
+ * The Buys drawer (#373): the Crew section with its sentence and chips, then a row per tier in
+ * the drawer skin, Crew first and Machines under it, and the Ready now footnote. Every row's
+ * words come from buys-rows.ts; every buy goes through today's mutations: the guided hire,
+ * buyWithTeach, pressTrouble and fixTrouble.
+ */
 
 /**
  * Today's card buy: one of `id`. Any worker hired while a machine stands
@@ -75,283 +57,142 @@ export function buyWithTeach(mountain: Mountain, id: TierId): Mountain {
     : next;
 }
 
-/** From this many tiers on screen, cards go three to a row. */
-const COMPACT_TIER_COUNT = 4;
+/** The kick under the title while staffing has nothing to teach. */
+const BUYS_KICK = "Crew and machines that mine while you rest";
+/** How the Ready now plate picks, under the list. */
+const READY_FOOT =
+  "Ready now offers the biggest machine your free workers can run and you can afford. It saves for the next one when nothing is affordable, offers a worker only when no hand is free, and never buys for you.";
+/** How long a fix's thanks holds the kick. */
+const THANKS_MS = 1_600;
 
-function tendTierOf(id: TierId): TendTier | undefined {
-  switch (id) {
-    case "cart":
-    case "drill":
-    case "borer":
-    case "machine":
-      return id;
-    case "helper":
-    case "kid":
-      return undefined;
-  }
-}
+/** Each Buys icon's board art, at 32 art px. */
+const BUY_ICON: Readonly<Record<BuyIcon, string>> = {
+  worker: workerUrl,
+  kid: kidUrl,
+  "kid-dim": kidDimUrl,
+  cart: cartUrl,
+  drill: drillUrl,
+  borer: borerUrl,
+  tarp: tarpUrl,
+  machine: machineUrl,
+  "machine-dim": machineDimUrl,
+};
+
+/** What a row shows before the save is in: the tier's own art, never a lock read from a save. */
+const FIRST_ICON: Readonly<Record<TierId, BuyIcon>> = {
+  helper: "worker",
+  kid: "kid",
+  cart: "cart",
+  drill: "drill",
+  borer: "borer",
+  machine: "machine",
+};
 
 const COUNT_STEPS = 8;
 const COUNT_STEP_MS = 60;
 
+interface TierRow {
+  readonly id: TierId;
+  readonly row: BoardRow;
+}
+
+function hide(target: HTMLElement, hidden: boolean): void {
+  if (target.hidden !== hidden) {
+    target.hidden = hidden;
+  }
+}
+
+function mark(target: HTMLElement, name: string, on: boolean): void {
+  if (target.classList.contains(name) !== on) {
+    target.classList.toggle(name, on);
+  }
+}
+
+/** A section's legend: its name, engraved, and the column's name at the right. */
+function legend(name: string, key: string, column?: string): HTMLElement {
+  const sec = el("div", "board-sec");
+  sec.dataset["sec"] = key;
+  sec.append(el("span", "board-lg", name));
+  if (column !== undefined) {
+    sec.append(el("span", "board-lg", column));
+  }
+  return sec;
+}
+
+/** The idle machine shown as the staffing New row (#246), while it is. */
+function guidedOf(
+  mountain: Mountain,
+  at: number,
+  trouble: ProgressSnapshot["trouble"],
+): TierId | undefined {
+  return showsDot(mountain, "staffing")
+    ? firstIdleTier(mountain, at, trouble)
+    : undefined;
+}
+
 /**
- * The crew: its speed line and posts, at the top of Buys under a Crew title
- * (#371), and the tier cards you hire from. The free count is the board's
- * crew plate's alone.
+ * The Buys drawer. `pick` is the Ready now pick the screen painted on the plate this frame,
+ * so a row's amber lamp always agrees with it. `open` lays the crew chips out on the open
+ * drawer and brings the staffing New row into view.
  */
 export function createCrewPanel({
   progress,
   getView,
   now,
-  tierArt,
-  stoneUrl,
-  settling,
+  pick,
+  clock,
+  signal,
 }: {
   progress: ProgressStore;
   getView: () => ProgressSnapshot;
+  /** The game's clock: rates, trouble and the New row. */
   now: () => number;
-  tierArt: Readonly<Record<TierId, string>>;
-  stoneUrl: string;
-  /** True just after Buys opened: a card pressed then hires and buys nothing. */
-  settling?: () => boolean;
-}) {
-  const crew = document.createElement("section");
-  crew.className = "crew";
-  crew.setAttribute("aria-label", "Your crew");
-  const crewTitle = document.createElement("h3");
-  crewTitle.className = "buys-crew-title";
-  crewTitle.textContent = "Crew";
-  const crewStatus = document.createElement("p");
-  crewStatus.className = "crew-status";
-  const postsButton = document.createElement("button");
-  postsButton.type = "button";
-  postsButton.className = "crew-posts";
-  postsButton.hidden = true;
-  const postsDetail = document.createElement("p");
-  postsDetail.className = "crew-breakdown";
-  postsDetail.hidden = true;
-  postsButton.addEventListener("pointerdown", () => {
-    postsButton.classList.add("is-pressed");
+  pick: () => ReadyPick;
+  /** Milliseconds for the drawer's settle (the screen's tap clock). */
+  clock: () => number;
+  /** Aborting it removes the drawer's document listeners. */
+  signal?: AbortSignal;
+}): {
+  sheet: BoardSheet;
+  render: () => void;
+  open: (from?: HTMLElement) => void;
+} {
+  const sheet = createBoardSheet({
+    name: "buys",
+    title: "Buys",
+    infoLabel: "Buys",
+    clock,
+    ...(signal === undefined ? {} : { signal }),
   });
-  const releasePosts = (): void => {
-    postsButton.classList.remove("is-pressed");
-  };
-  postsButton.addEventListener("pointerup", releasePosts);
-  postsButton.addEventListener("pointercancel", releasePosts);
-  postsButton.addEventListener("pointerleave", releasePosts);
+  sheet.kick(BUYS_KICK);
+
+  // The "i": staffing and layers in the drawer's place, one Back under the last.
+  const howCards = (["staffing", "layers"] as const).map((system) =>
+    boardHowCard(system, "Back to Buys", () => {
+      sheet.showHow(false);
+    }),
+  );
+  const firstBack = howCards[0]?.querySelector<HTMLElement>(".teach-how-back");
+  if (firstBack) {
+    firstBack.hidden = true;
+  }
+  sheet.how.append(...howCards);
+  sheet.info.addEventListener("click", () => {
+    sheet.showHow(true);
+  });
+
+  // The Crew section: the crew's sentence, then where the hands are, as chips.
+  const crew = el("section", "crew");
+  crew.setAttribute("aria-label", "Your crew");
+  const crewStatus = el("p", "crew-status");
   crewStatus.setAttribute("aria-live", "polite");
-  const tierGrid = document.createElement("div");
-  tierGrid.className = `tier-grid ${SHEET_SCROLL}`;
-  const thanks = document.createElement("p");
-  thanks.className = "trouble-thanks";
-  thanks.setAttribute("aria-live", "polite");
-  let thanksTimer: ReturnType<typeof setTimeout> | undefined;
-  const thank = (target: HTMLElement): void => {
-    thanks.textContent = TROUBLE_FIXED;
-    if (thanksTimer !== undefined) {
-      clearTimeout(thanksTimer);
-    }
-    thanksTimer = setTimeout(() => {
-      thanks.textContent = "";
-      thanksTimer = undefined;
-    }, 1_600);
-    if (reducedMotion()) {
-      return;
-    }
-    for (let i = 0; i < 5; i += 1) {
-      const bit = document.createElement("span");
-      bit.className = "trouble-burst";
-      bit.setAttribute("aria-hidden", "true");
-      const angle = (i / 5) * Math.PI * 2;
-      bit.style.setProperty(
-        "--dx",
-        `${String(Math.round(Math.cos(angle) * 18))}px`,
-      );
-      bit.style.setProperty(
-        "--dy",
-        `${String(Math.round(Math.sin(angle) * 14))}px`,
-      );
-      target.append(bit);
-      setTimeout(() => {
-        bit.remove();
-      }, 700);
-    }
-  };
+  // Text, not a door: the chips are the breakdown, and its label the full sentence.
+  const posts = el("p", "crew-posts");
+  posts.hidden = true;
+  crew.append(crewStatus, posts);
+
   const crewSpeed = (): number =>
     effectiveRates(getView().mountain, now(), getView().trouble).crewPerSecond;
-
-  /** The idle machine shown as the New card (#246), while it is. */
-  let guidedTier: TierId | undefined;
-  /** A hire while a machine stands idle is the first use of staffing. */
-  const hire = (card: HTMLElement): void => {
-    const rateBefore = crewSpeed();
-    const before = getView().mountain.helpers;
-    progress.applyMutation((mountain) => buyWithTeach(mountain, "helper"));
-    if (getView().mountain.helpers > before) {
-      const gained = crewSpeed() - rateBefore;
-      floatText(card, `+${formatSpeed(Math.max(0, gained))}/s`, "float-gain");
-      countCrewRate(rateBefore, crewSpeed());
-    }
-  };
-
-  const tierCards = TIERS.map((tier) => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = `tier ${SHEET_CARD}`;
-    card.dataset["tier"] = tier.id;
-    const art = document.createElement("img");
-    art.className = `tier-art ${SHEET_CARD_ICON}`;
-    art.src = tierArt[tier.id];
-    art.alt = "";
-    art.width = 32;
-    art.height = 32;
-    art.draggable = false;
-    const words = document.createElement("span");
-    words.className = `tier-words ${SHEET_CARD_BODY}`;
-    const name = document.createElement("span");
-    name.className = `tier-name ${SHEET_CARD_TITLE}`;
-    const cost = document.createElement("span");
-    cost.className = `tier-cost ${SHEET_CARD_PRICE}`;
-    const costIcon = document.createElement("img");
-    costIcon.className = "tier-cost-icon";
-    costIcon.src = stoneUrl;
-    costIcon.alt = "";
-    costIcon.width = 14;
-    costIcon.height = 14;
-    const costText = document.createElement("span");
-    cost.append(costIcon, costText);
-    // The count is a corner badge so a growing number never wraps the card.
-    const countBadge = document.createElement("span");
-    countBadge.className = "tier-count";
-    countBadge.setAttribute("aria-hidden", "true");
-    const rate = document.createElement("span");
-    rate.className = "tier-rate";
-    const gainLine = document.createElement("span");
-    gainLine.className = "tier-gain";
-    gainLine.hidden = true;
-    const needsLine = document.createElement("span");
-    needsLine.className = "tier-needs";
-    needsLine.hidden = true;
-    const pace = document.createElement("span");
-    pace.className = `tier-pace ${SHEET_CARD_LINE}`;
-    pace.append(gainLine, needsLine);
-    const whyLine = document.createElement("span");
-    whyLine.className = `tier-why ${SHEET_CARD_LINE} ${SHEET_CARD_QUIET}`;
-    whyLine.hidden = true;
-    const preview = document.createElement("span");
-    preview.className = "tier-preview";
-    preview.hidden = true;
-    words.append(name, cost, rate, pace, whyLine, preview);
-    const mark = document.createElement("span");
-    mark.className = "engineer-mark";
-    mark.hidden = true;
-    mark.setAttribute("aria-hidden", "true");
-    const gain = document.createElement("span");
-    gain.className = "engineer-gain";
-    gain.hidden = true;
-    card.append(art, words, countBadge, mark, gain);
-    const hold = watchFixHold(card, {
-      tier: () => {
-        const troubled = getView().trouble;
-        return troubled !== undefined && troubled.tier === tier.id
-          ? troubled.tier
-          : undefined;
-      },
-      fix: (troubledTier) => {
-        progress.fixTrouble(troubledTier);
-        if (getView().trouble === undefined) {
-          thank(card);
-        }
-      },
-    });
-    buyOnTap(
-      card,
-      card,
-      (press) => {
-        if (hold.heldFix()) {
-          return;
-        }
-        if (!getView().ready) {
-          return;
-        }
-        const troubled = getView().trouble;
-        // The second tap of the double tap that opened Buys spends nothing. A
-        // trouble press is not a spend, so it still counts.
-        if (
-          press.early &&
-          (troubled === undefined || troubled.tier !== tier.id)
-        ) {
-          return;
-        }
-        // The guided idle machine hires its crew. Another one would stand
-        // idle too, so the New card never buys more of it.
-        if (
-          guidedTier === tier.id &&
-          (troubled === undefined || troubled.tier !== tier.id)
-        ) {
-          hire(card);
-          return;
-        }
-        if (troubled !== undefined && troubled.tier === tier.id) {
-          progress.pressTrouble(troubled.tier);
-          if (getView().trouble === undefined) {
-            thank(card);
-          }
-          return;
-        }
-        const before = owned(getView().mountain, tier);
-        const rateBefore = crewSpeed();
-        progress.applyMutation((mountain) => buyWithTeach(mountain, tier.id));
-        if (owned(getView().mountain, tier) > before) {
-          const after = effectiveRates(
-            getView().mountain,
-            now(),
-            getView().trouble,
-          );
-          // A new machine nobody can run says so, instead of promising speed.
-          const added = `+${formatSpeed(after.tierSpeed[tier.id])}/s`;
-          const bought = getView().mountain;
-          const spareNow =
-            bought.helpers +
-            bought.kids -
-            TIERS.reduce(
-              (used, item) =>
-                used + after.running[item.id] * staffNeeded(bought, item),
-              0,
-            );
-          const bill = staffBillWords(staffForBuy(bought, tier), spareNow);
-          floatText(
-            card,
-            after.running[tier.id] > before || bill === undefined
-              ? added
-              : `${added} · ${bill}`,
-            "float-gain",
-          );
-          countCrewRate(rateBefore, crewSpeed());
-        }
-      },
-      settling === undefined ? {} : { settling },
-    );
-    tierGrid.append(card);
-    return {
-      tier,
-      card,
-      name,
-      cost,
-      costText,
-      countBadge,
-      rate,
-      gainLine,
-      needsLine,
-      pace,
-      whyLine,
-      preview,
-      costIcon,
-      mark,
-      gain,
-    };
-  });
-  crew.append(crewTitle, crewStatus, postsButton, postsDetail);
 
   /** The crew line counts up to the new rate after a purchase. */
   let rateShown: number | undefined;
@@ -383,18 +224,203 @@ export function createCrewPanel({
     }, COUNT_STEP_MS);
   };
 
+  const thank = (): void => {
+    sheet.flash(TROUBLE_FIXED, THANKS_MS);
+  };
+
+  /** A tap on the staffing New row hires a worker; the hold keeps a second tap off the machine. */
+  const hire = (row: BoardRow): void => {
+    const rateBefore = crewSpeed();
+    const before = progress.getSnapshot().mountain.helpers;
+    progress.applyMutation((mountain) => buyWithTeach(mountain, "helper"));
+    if (progress.getSnapshot().mountain.helpers > before) {
+      row.done();
+      countCrewRate(rateBefore, crewSpeed());
+    }
+  };
+
+  const rows: readonly TierRow[] = [
+    ...BUY_SECTIONS.crew,
+    ...BUY_SECTIONS.machines,
+  ].map((id) => {
+    const tier = tierById(id);
+    const row = createBoardRow({
+      tag: "button",
+      className: "tier",
+      data: { tier: id },
+      name: tier.name,
+      icon: true,
+    });
+    row.setIcon(BUY_ICON[FIRST_ICON[id]]);
+    const root = row.root;
+    if (!(root instanceof HTMLButtonElement)) {
+      return { id, row };
+    }
+    const troubledHere = (snapshot: ProgressSnapshot) =>
+      snapshot.trouble?.tier === id ? snapshot.trouble : undefined;
+    const hold = watchFixHold(root, {
+      tier: () => troubledHere(progress.getSnapshot())?.tier,
+      fix: (troubledTier) => {
+        progress.fixTrouble(troubledTier);
+        if (progress.getSnapshot().trouble === undefined) {
+          thank();
+        }
+      },
+    });
+    buyOnTap(
+      root,
+      root,
+      (press) => {
+        // The click that ends a hold that fixed is not a tap.
+        if (hold.heldFix()) {
+          return;
+        }
+        const snapshot = progress.getSnapshot();
+        if (!snapshot.ready) {
+          return;
+        }
+        const troubled = troubledHere(snapshot);
+        // The second tap of the double tap that opened Buys spends nothing. A trouble press is
+        // not a spend, so it still counts.
+        if (press.early && troubled === undefined) {
+          return;
+        }
+        // A second sleepy tap inside the Done hold buys nothing.
+        if (row.holding()) {
+          return;
+        }
+        // Read again at the tap: a pocket that fell since the last paint buys nothing.
+        const at = now();
+        const fresh = buyRowView({
+          mountain: snapshot.mountain,
+          now: at,
+          trouble: snapshot.trouble,
+          tier: id,
+          pick: pick(),
+          guided: guidedOf(snapshot.mountain, at, snapshot.trouble),
+        });
+        if (!fresh.can) {
+          row.blink();
+          return;
+        }
+        // The guided idle machine hires its crew. Another one would stand idle too, so the New
+        // row never buys more of it.
+        if (fresh.guided) {
+          hire(row);
+          return;
+        }
+        if (troubled !== undefined) {
+          progress.pressTrouble(troubled.tier);
+          if (progress.getSnapshot().trouble === undefined) {
+            thank();
+          }
+          return;
+        }
+        const before = owned(snapshot.mountain, tier);
+        const rateBefore = crewSpeed();
+        progress.applyMutation((mountain) => buyWithTeach(mountain, id));
+        if (owned(progress.getSnapshot().mountain, tier) > before) {
+          row.done();
+          countCrewRate(rateBefore, crewSpeed());
+        }
+      },
+      { settling: () => sheet.settling() },
+    );
+    return { id, row };
+  });
+
+  const crewSec = legend("Crew", "crew", "per sec");
+  const machineSec = legend("Machines", "machines");
+  const foot = el("p", "board-sheet-foot", READY_FOOT);
+  const rowOf = (id: TierId): HTMLElement[] =>
+    rows.filter((item) => item.id === id).map((item) => item.row.root);
+  const parts = [
+    crewSec,
+    crew,
+    ...BUY_SECTIONS.crew.flatMap(rowOf),
+    machineSec,
+    ...BUY_SECTIONS.machines.flatMap(rowOf),
+    foot,
+  ];
+  // Until the save is in, nothing from it shows: no row, legend, crew line or footnote.
+  for (const part of parts) {
+    part.hidden = true;
+  }
+  const spare = sheet.list.querySelector(".board-spare");
+  if (spare === null) {
+    sheet.list.append(...parts);
+  } else {
+    spare.before(...parts);
+  }
+
+  /** The chips last painted, so the drawer can lay them out again on open. */
+  let chipBits: readonly string[] = [];
+  /** One chip per bit, reused: each keeps its tag skin. */
+  const chipPool: HTMLElement[] = [];
+  const chipAt = (index: number, text: string): HTMLElement => {
+    let chip = chipPool[index];
+    if (chip === undefined) {
+      chip = el("span", "crew-bit");
+      chip.append(el("span", "crew-bit-text"));
+      skin(chip, "tag");
+      chipPool[index] = chip;
+    }
+    const words = chip.querySelector<HTMLElement>(".crew-bit-text");
+    if (words !== null) {
+      write(words, text);
+    }
+    return chip;
+  };
+  const paintRows = (sizes: readonly number[]): void => {
+    let next = 0;
+    posts.replaceChildren(
+      ...sizes.map((size) => {
+        const line = el("span", "crew-row");
+        for (let i = 0; i < size; i += 1) {
+          line.append(chipAt(next, chipBits[next] ?? ""));
+          next += 1;
+        }
+        return line;
+      }),
+    );
+  };
+  /**
+   * Fewest even rows whose widest row fits the line. A shut drawer has no width to measure,
+   * so Buys calls this again once it is open (#371).
+   */
+  const layoutChips = (): void => {
+    if (posts.hidden || chipBits.length === 0) {
+      return;
+    }
+    const count = chipBits.length;
+    for (let lines = 1; lines <= count; lines += 1) {
+      const size = Math.ceil(count / lines);
+      const full = Math.floor(count / size);
+      const rest = count - full * size;
+      paintRows([
+        ...Array.from({ length: full }, () => size),
+        ...(rest > 0 ? [rest] : []),
+      ]);
+      if (!crewRowsOverflow(posts)) {
+        break;
+      }
+    }
+  };
+
   const renderCrew = (): void => {
     const { mountain: current, trouble } = getView();
-    const rates = effectiveRates(current, now(), trouble);
+    const at = now();
+    const rates = effectiveRates(current, at, trouble);
     const rate = rateShown ?? rates.crewPerSecond;
-    const { spare } = crewCounts(current, now(), trouble);
+    const { spare: free } = crewCounts(current, at, trouble);
     const idle = TIERS.reduce(
       (total, tier) => total + owned(current, tier) - rates.running[tier.id],
       0,
     );
-    crewStatus.classList.toggle("crew-short", rates.helpersShort > 0);
-    crewStatus.classList.toggle("crew-waiting", rate === 0);
-    crewStatus.textContent =
+    mark(crewStatus, "crew-short", rates.helpersShort > 0);
+    mark(crewStatus, "crew-waiting", rate === 0);
+    write(
+      crewStatus,
       rates.helpersShort > 0
         ? `${formatCompact(rate)}/s · ${formatCompact(idle)} idle, need ${formatCompact(rates.helpersShort)} ${workerWords(rates.helpersShort)}`
         : rate === 0
@@ -402,293 +428,118 @@ export function createCrewPanel({
           : rate >= 1_000
             ? // Compact once it's big, so the line never wraps on a phone.
               `Your crew mines ${formatCompact(rate)} stones/s`
-            : `Your crew mines ${stonesASecond(rate)}`;
-    const shownCount = TIERS.filter((tier) => tierShown(current, tier)).length;
-    tierGrid.dataset["shown"] = String(shownCount);
-    // Three to a row once there are four or more, so every tier fits in two rows.
-    const compact = shownCount >= COMPACT_TIER_COUNT;
-    tierGrid.classList.toggle("tier-grid-compact", compact);
-    // The first idle machine is the New card (#246): the dot only, its
-    // crew bill on the card, the free count on the board's crew plate.
-    guidedTier = showsDot(current, "staffing")
-      ? firstIdleTier(current, now(), trouble)
-      : undefined;
-    const pick = readyNow(current, now(), trouble);
-    const worker = tierById("helper");
-    const workerPrice = tierCost(
-      worker,
-      owned(current, worker),
-      stretch(current),
+            : `Your crew mines ${stonesASecond(rate)}`,
     );
-    for (const {
-      tier,
-      card,
-      name,
-      cost,
-      costText,
-      countBadge,
-      rate: tierRate,
-      gainLine,
-      needsLine,
-      pace,
-      whyLine,
-      preview,
-      costIcon,
-      mark,
-      gain,
-    } of tierCards) {
-      const count = owned(current, tier);
-      const price = tierCost(tier, count, stretch(current));
-      card.hidden = !tierShown(current, tier);
-      const lock = tierLock(current, tier);
-      const locked = lock !== undefined;
-      const cardTrouble =
-        trouble !== undefined && trouble.tier === tier.id ? trouble : undefined;
-      // A troubled card stays tappable even when the next one is unaffordable.
-      card.disabled =
-        !getView().ready ||
-        (locked && cardTrouble === undefined) ||
-        (current.pocket < price && cardTrouble === undefined);
-      card.classList.toggle("tier-trouble", cardTrouble !== undefined);
-      if (cardTrouble === undefined) {
-        delete card.dataset["trouble"];
-      } else {
-        card.dataset["trouble"] = cardTrouble.kind;
-      }
-      card.classList.toggle("tier-locked", locked);
-      costIcon.hidden = locked;
-      countBadge.textContent = `×${formatCompact(count)}`;
-      countBadge.hidden = count === 0;
-      costText.textContent = locked ? "Locked" : formatCompact(price);
-      const speed = rates.tierSpeed[tier.id];
-      // Only staffed machines count; the rest show as idle.
-      const running = rates.running[tier.id];
-      const idleHere = count - running;
-      // One more of this tier. The Great Machine's bill drops when an
-      // engineer would tend it. Say so even when the ones you own still run.
-      const staff = staffForBuy(current, tier);
-      const needsMore = !locked && staff > 0 && spare < staff;
-      const dear =
-        !locked && cardTrouble === undefined && current.pocket < price;
-      const ready = !locked && !needsMore && !dear && cardTrouble === undefined;
-      card.classList.toggle("tier-ready", !locked && !needsMore && !dear);
-      card.classList.toggle("tier-short", needsMore && !dear);
-      card.classList.toggle("tier-dear", dear);
-      card.classList.toggle(SHEET_READY, ready);
-      card.classList.toggle(
-        SHEET_SHORT,
-        needsMore && !dear && cardTrouble === undefined,
-      );
-      card.classList.toggle(SHEET_DEAR, dear);
-      card.classList.toggle(SHEET_LOCKED, locked);
-      name.textContent = tier.name;
-      const previewLine =
-        locked || cardTrouble !== undefined
-          ? undefined
-          : milestoneLine(tier.id, count, formatCompact);
-      preview.hidden = previewLine === undefined;
-      preview.textContent = previewLine ?? "";
-      if (cardTrouble !== undefined) {
-        gainLine.hidden = false;
-        gainLine.textContent = troubleShout(cardTrouble.kind);
-        needsLine.hidden = true;
-        whyLine.hidden = true;
-      } else if (lock !== undefined) {
-        gainLine.hidden = true;
-        needsLine.hidden = true;
-        whyLine.hidden = false;
-        whyLine.textContent = lockBodyLine(tier, lock);
-      } else {
-        gainLine.hidden = false;
-        gainLine.textContent = `+${formatSpeed(speed)}/s each`;
-        const bill = staffBillWords(staff, spare);
-        needsLine.hidden = bill === undefined;
-        needsLine.textContent = bill ?? "";
-        whyLine.hidden = false;
-        whyLine.textContent = TIER_WHY[tier.id];
-      }
-      pace.hidden = gainLine.hidden && needsLine.hidden;
-      card.classList.toggle("tier-idle", !locked && idleHere > 0);
-      card.classList.toggle("tier-needs-workers", needsMore);
-      const who = tendingEngineer(current.engineers, tier.id);
-      mark.hidden = who === undefined;
-      const tendTier = tendTierOf(tier.id);
-      const gainText =
-        who === undefined || tendTier === undefined
-          ? ""
-          : stonesPerSecond(
-              tendingGain(
-                current,
-                (current.engineers ?? []).findIndex(
-                  (engineer) => engineer.name === who.name,
-                ),
-                tendTier,
-                now(),
-                trouble,
-              ),
-            );
-      gain.hidden = gainText === "";
-      gain.textContent = gainText;
-      // Wide cards name the synergy percent. Compact cards keep +N · total/s.
-      const synergy = tierSynergy(current, tier.id);
-      tierRate.textContent =
-        cardTrouble !== undefined
-          ? troubleShout(cardTrouble.kind)
-          : lock !== undefined
-            ? lockRateLine(tier, lock)
-            : tierPaceWords({
-                compact,
-                speed,
-                running,
-                count,
-                synergy,
-                staff,
-                spare,
-              });
-      const guided = guidedTier === tier.id && cardTrouble === undefined;
-      if (guided) {
-        const short = current.pocket < workerPrice;
-        card.disabled = !getView().ready;
-        card.classList.toggle("tier-ready", !short);
-        card.classList.toggle("tier-short", false);
-        card.classList.toggle("tier-dear", short);
-        card.classList.toggle(SHEET_READY, !short);
-        card.classList.toggle(SHEET_SHORT, false);
-        card.classList.toggle(SHEET_DEAR, short);
-        markNewCard(card, cost, staffingAction(workerPrice));
-        cost.prepend(costIcon);
-        needsLine.hidden = false;
-        needsLine.textContent = staffingLine(
-          staffNeeded(current, tier),
-          idleHere,
-        );
-      } else if (card.classList.contains("teach-new")) {
-        clearNewCard(card);
-        cost.replaceChildren(costIcon, costText);
-      }
-      card.setAttribute(
-        "aria-label",
-        buyRowView({
-          mountain: current,
-          now: now(),
-          trouble,
-          tier: tier.id,
-          pick,
-          guided: guidedTier,
-        }).aria,
-      );
-    }
     const pool = current.helpers + current.kids;
-    const posts = TIERS.flatMap((tier) => {
+    const stations = TIERS.flatMap((tier) => {
       const label = crewPostLabel(tier.id);
-      if (label === undefined) {
-        return [];
-      }
-      return [
-        {
-          label,
-          workers: rates.running[tier.id] * staffNeeded(current, tier),
-          art: tierArt[tier.id],
-        },
-      ];
+      return label === undefined
+        ? []
+        : [
+            {
+              label,
+              workers: rates.running[tier.id] * staffNeeded(current, tier),
+            },
+          ];
     });
     const grandpa = grandpaPost(current);
-    const fullPosts = `${crewPostsWords(pool, spare, posts)}${grandpa === undefined ? "" : `. ${grandpaSentence(grandpa)}`}`;
-    postsButton.hidden = pool <= 0;
-    // The chips on the line are the breakdown. This sentence stays shut.
-    postsDetail.hidden = true;
-    postsDetail.textContent = fullPosts;
-    postsButton.setAttribute("aria-label", fullPosts);
-    const stationBits = posts
-      .filter((post) => post.workers > 0)
-      .map((post) => ({
-        src: post.art,
-        text: `${formatCompact(post.workers)} on ${post.label}`,
-      }));
-    if (pool <= 0) {
-      postsButton.textContent = "";
-      chipBits = [];
-      delete postsButton.dataset["tight"];
-    } else {
-      const bits = [
-        {
-          src: tierArt.helper,
-          text: `${formatCompact(pool)} ${workerWords(pool)}`,
-        },
-        ...stationBits,
-        // After a pass, the old dad tends the biggest machine (#338).
-        ...(grandpa === undefined
-          ? []
-          : [{ src: grandpaUrl, text: grandpaChipWords(grandpa) }]),
-      ];
-      postsButton.classList.remove("is-open");
-      chipBits = bits;
-      layoutChips();
-      postsButton.dataset["tight"] = "false";
-      postsButton.removeAttribute("aria-expanded");
+    const fullPosts = `${crewPostsWords(pool, free, stations)}${grandpa === undefined ? "" : `. ${grandpaSentence(grandpa)}`}`;
+    hide(posts, pool <= 0);
+    if (posts.getAttribute("aria-label") !== fullPosts) {
+      posts.setAttribute("aria-label", fullPosts);
     }
-  };
-
-  /** The chips last painted, so the sheet can lay them out again on open. */
-  let chipBits: readonly { readonly src: string; readonly text: string }[] = [];
-  /**
-   * Fewest even rows whose widest row fits the line. A shut sheet has no
-   * width to measure, so Buys calls this again once it is open (#371).
-   */
-  const layoutChips = (): void => {
-    if (postsButton.hidden || chipBits.length === 0) {
+    const bits =
+      pool <= 0
+        ? []
+        : [
+            `${formatCompact(pool)} ${workerWords(pool)}`,
+            ...stations
+              .filter((post) => post.workers > 0)
+              .map((post) => `${formatCompact(post.workers)} on ${post.label}`),
+            // After a pass, the old dad tends the biggest machine (#338).
+            ...(grandpa === undefined ? [] : [grandpaChipWords(grandpa)]),
+          ];
+    if (bits.join("\n") === chipBits.join("\n")) {
       return;
     }
-    const bits = chipBits;
-    for (let rows = 1; rows <= bits.length; rows += 1) {
-      const size = Math.ceil(bits.length / rows);
-      paintRows(
-        Array.from({ length: Math.ceil(bits.length / size) }, (_, index) =>
-          bits.slice(index * size, (index + 1) * size),
-        ),
-      );
-      if (!crewRowsOverflow(postsButton)) {
-        break;
+    chipBits = bits;
+    if (bits.length === 0) {
+      posts.replaceChildren();
+      return;
+    }
+    layoutChips();
+  };
+
+  const render = (): void => {
+    const view = getView();
+    if (!view.ready) {
+      // The rows go dark and keep their places: names and icons only, disabled, no numbers.
+      for (const { row } of rows) {
+        row.render(undefined);
+        mark(row.root, "teach-new", false);
+        delete row.root.dataset["trouble"];
       }
+      // The crew's sentence and chips are the old save's: they wait for the new one.
+      hide(crew, true);
+      sheet.kick(BUYS_KICK);
+      if (sheet.isOpen()) {
+        sheet.fitSpare();
+      }
+      return;
+    }
+    const current = view.mountain;
+    const at = now();
+    const painted = pick();
+    const guided = guidedOf(current, at, view.trouble);
+    let machinesShowing = false;
+    for (const { id, row } of rows) {
+      const rowView = buyRowView({
+        mountain: current,
+        now: at,
+        trouble: view.trouble,
+        tier: id,
+        pick: painted,
+        guided,
+      });
+      hide(row.root, !rowView.shown);
+      if (rowView.shown && tierById(id).staff > 0) {
+        machinesShowing = true;
+      }
+      row.setIcon(BUY_ICON[rowView.icon]);
+      row.render(rowView);
+      mark(row.root, "teach-new", rowView.guided);
+      const trouble = rowView.state === "trouble" ? view.trouble : undefined;
+      if (trouble === undefined) {
+        if (row.root.dataset["trouble"] !== undefined) {
+          delete row.root.dataset["trouble"];
+        }
+      } else if (row.root.dataset["trouble"] !== trouble.kind) {
+        row.root.dataset["trouble"] = trouble.kind;
+      }
+    }
+    hide(crewSec, false);
+    hide(crew, false);
+    hide(machineSec, !machinesShowing);
+    hide(foot, false);
+    renderCrew();
+    sheet.kick(showsDot(current, "staffing") ? STAFFING_INTRO : BUYS_KICK);
+    if (sheet.isOpen()) {
+      sheet.fitSpare();
     }
   };
 
-  const bitElement = (bit: {
-    readonly src: string;
-    readonly text: string;
-  }): HTMLSpanElement => {
-    const item = document.createElement("span");
-    item.className = "crew-bit";
-    const face = document.createElement("img");
-    face.src = bit.src;
-    face.alt = "";
-    face.width = 24;
-    face.height = 24;
-    face.draggable = false;
-    face.setAttribute("aria-hidden", "true");
-    const words = document.createElement("span");
-    words.textContent = bit.text;
-    item.append(face, words);
-    return item;
-  };
-  const paintRows = (
-    rows: readonly (readonly {
-      readonly src: string;
-      readonly text: string;
-    }[])[],
-  ): void => {
-    postsButton.replaceChildren(
-      ...rows.map((bits) => {
-        const row = document.createElement("span");
-        row.className = "crew-row";
-        row.append(...bits.map(bitElement));
-        return row;
-      }),
+  const open = (from?: HTMLElement): void => {
+    sheet.open(from);
+    // The crew chips were measured while the drawer was shut: fit them now.
+    layoutChips();
+    // The staffing New row: bring it into view. Some test DOMs have no scrollIntoView.
+    const fresh: Partial<Element> | null = sheet.list.querySelector(
+      ".board-row.teach-new",
     );
+    fresh?.scrollIntoView?.({ block: "nearest" });
   };
-  const render = renderCrew;
 
-  return { crew, tierGrid, thanks, render, layoutChips };
+  return { sheet, render, open };
 }
 
 function crewRowsOverflow(line: HTMLElement): boolean {
@@ -696,8 +547,8 @@ function crewRowsOverflow(line: HTMLElement): boolean {
     return false;
   }
   const rows = [...line.querySelectorAll<HTMLElement>(".crew-row")];
-  // A row that wrapped (style.css lets a row wrap rather than clip) also
-  // overflows: its chips do not all share one line.
+  // A row that wrapped (board.css lets a row wrap rather than clip) also overflows: its chips
+  // do not all share one line.
   const wrapped = (row: HTMLElement): boolean => {
     const tops = [...row.querySelectorAll<HTMLElement>(".crew-bit")].map(
       (chip) => chip.offsetTop,

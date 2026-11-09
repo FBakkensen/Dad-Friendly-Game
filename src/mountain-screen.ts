@@ -45,9 +45,7 @@ import { createSaveConflictPanel } from "./save-conflict-panel";
 import { createSavedCopiesPanel } from "./saved-copies-panel";
 import { createLegacyPanel, legacyWords } from "./legacy-panel";
 import { legacyBonus } from "./legacy";
-import { createBuysHead } from "./buys-head";
 import { buyWithTeach, createCrewPanel } from "./crew-panel";
-import { SHEET_HOST } from "./sheet-card";
 import { createEngineersPanel } from "./engineers-panel";
 import { createUpgradesPanel } from "./upgrades-panel";
 import {
@@ -392,17 +390,16 @@ export function mountMountainScreen({
     renderVein();
   };
 
-  /** When Buys last opened from shut, on `tapClock`; never yet is -Infinity. */
-  let buysOpenedAt = Number.NEGATIVE_INFINITY;
+  /** The Ready now pick last painted on the plate: the Buys rows light the same one. */
+  let shownPick: ReadyPick = readyNow(view.mountain, now(), view.trouble);
   const crewPanel = createCrewPanel({
     progress,
     getView: () => view,
     now,
-    tierArt,
-    stoneUrl,
-    settling: () => tapClock() - buysOpenedAt < BUYS_SETTLE_MS,
+    pick: () => shownPick,
+    clock: tapClock,
+    ...(signal === undefined ? {} : { signal }),
   });
-  const { crew, tierGrid, thanks } = crewPanel;
 
   const welcomePanel = createWelcomePanel({ progress, getView: () => view });
   const { welcome } = welcomePanel;
@@ -476,7 +473,7 @@ export function mountMountainScreen({
     }
     const pick = readyNow(latest.mountain, now(), latest.trouble);
     if (pick.kind === "saving") {
-      openBuys();
+      openBuys(readyPlate.root);
       return { kind: "opened" };
     }
     if (pick.kind !== "ready") {
@@ -682,6 +679,7 @@ export function mountMountainScreen({
   upgradesButton.append(upgradesIcon, upgradesLabel);
   upgradesButton.addEventListener("click", () => {
     closeBoardPopups();
+    crewPanel.sheet.close({ restoreFocus: false });
     upgrades.open(upgradesButton);
   });
 
@@ -793,6 +791,7 @@ export function mountMountainScreen({
     renderGaugeRow();
     // The Ready now pick, once per render: the bays light theirs (#372).
     const pick = readyNow(view.mountain, now(), view.trouble);
+    shownPick = pick;
     renderBays(pick);
     renderReadyRow(pick);
     crewPanel.render();
@@ -827,9 +826,7 @@ export function mountMountainScreen({
     );
     setTeachDot(workshopThumb, showsDot(view.mountain, "workshop"));
     // Staffing is small (#246): a dot on Buys, no note.
-    const staffing = showsDot(view.mountain, "staffing");
-    setTeachDot(buysButton, staffing);
-    buysHead.render(staffing);
+    setTeachDot(buysButton, showsDot(view.mountain, "staffing"));
     // Tending is small (#246): its dot shares the button, with no note.
     setTeachDot(
       engineers.button,
@@ -915,8 +912,13 @@ export function mountMountainScreen({
    * the drawer opened from is under the card.
    */
   const coverDrawers = (): void => {
-    if (upgrades.sheet.isOpen() && root.querySelector(OPEN_CARD) !== null) {
-      upgrades.sheet.close({ restoreFocus: false });
+    if (root.querySelector(OPEN_CARD) === null) {
+      return;
+    }
+    for (const sheet of [crewPanel.sheet, upgrades.sheet]) {
+      if (sheet.isOpen()) {
+        sheet.close({ restoreFocus: false });
+      }
     }
   };
   /** The teach note last put in the board note: each shows once a launch. */
@@ -1061,37 +1063,6 @@ export function mountMountainScreen({
     progress.flush();
   });
 
-  const buysDialog = document.createElement("div");
-  buysDialog.className = "buys-dialog";
-  buysDialog.hidden = true;
-  buysDialog.setAttribute("role", "dialog");
-  buysDialog.setAttribute("aria-label", "Buys");
-  const buysCard = document.createElement("div");
-  buysCard.className = "buys-card sheet-frame";
-  const buysClose = document.createElement("button");
-  buysClose.type = "button";
-  buysClose.className = "buys-close";
-  buysClose.textContent = "Back to the mountain";
-  const buysHost = document.createElement("div");
-  buysHost.className = SHEET_HOST;
-  buysHost.append(tierGrid);
-  // The crew line heads Buys until B5's drawer takes it (#371).
-  const buysHead = createBuysHead({
-    tierArt,
-    stoneUrl,
-    body: [crew, buysHost],
-  });
-  buysDialog.setAttribute("aria-labelledby", "buys-title");
-  buysCard.append(
-    buysHead.head,
-    buysHead.intro,
-    buysHead.howHost,
-    crew,
-    buysHost,
-    thanks,
-    buysClose,
-  );
-  buysDialog.append(buysCard);
   const buysButton = document.createElement("button");
   buysButton.type = "button";
   buysButton.className = "buys-button";
@@ -1111,23 +1082,18 @@ export function mountMountainScreen({
     return span;
   };
   buysButton.append(thumbIcon(tierArt.cart), thumbLabel("Buys"));
-  /** Opens Buys: the Buys thumb and a tap on a bay (#372). */
-  const openBuys = (): void => {
+  /**
+   * Opens the Buys drawer: the Buys thumb, a bay and Saving for (#372). Only an opening starts
+   * the settle: a tap on an open drawer's door does not.
+   */
+  const openBuys = (from?: HTMLElement): void => {
     closeBoardPopups();
-    // Only an opening starts the settle: a tap on an open sheet's door does not.
-    if (buysDialog.hidden) {
-      buysOpenedAt = tapClock();
-    }
-    buysDialog.hidden = false;
-    // The crew chips were measured while the sheet was shut: fit them now.
-    crewPanel.layoutChips();
-    // The staffing New card sits on top of the list: bring it into view.
-    // Some test DOMs have no scrollIntoView.
-    const fresh: Partial<Element> | null =
-      buysDialog.querySelector(".tier.teach-new");
-    fresh?.scrollIntoView?.({ block: "nearest" });
+    upgrades.sheet.close({ restoreFocus: false });
+    crewPanel.open(from);
   };
-  buysButton.addEventListener("click", openBuys);
+  buysButton.addEventListener("click", () => {
+    openBuys(buysButton);
+  });
 
   /**
    * The machine bays (#372). A tap opens Buys; on a troubled bay it presses or
@@ -1153,10 +1119,6 @@ export function mountMountainScreen({
         progress.fixTrouble(tier);
       });
     },
-  });
-  buysClose.addEventListener("click", () => {
-    buysDialog.hidden = true;
-    buysHead.close();
   });
 
   const thumbBar = document.createElement("nav");
@@ -1209,9 +1171,10 @@ export function mountMountainScreen({
   const sheetClip = document.createElement("div");
   sheetClip.className = "board-sheet-clip";
   sheetClip.append(
+    crewPanel.sheet.root,
     upgrades.sheet.root,
     createSheetScrim({
-      sheets: [upgrades.sheet],
+      sheets: [crewPanel.sheet, upgrades.sheet],
       sockets: () => [
         ...relicPlate.root.querySelectorAll<HTMLElement>(".board-socket"),
       ],
@@ -1242,7 +1205,6 @@ export function mountMountainScreen({
     fieldLogSheet,
     engineers.sheet,
     workshop.sheet,
-    buysDialog,
     updatePrompt,
     otherTab,
     savedCopies.root,
@@ -1256,8 +1218,13 @@ export function mountMountainScreen({
     stepVein();
     renderGaugeRow();
     const pick = readyNow(view.mountain, now(), view.trouble);
+    shownPick = pick;
     renderBays(pick);
     renderReadyRow(pick);
+    // The open drawer's rows follow the clock: a pocket that grows, a boost that ends.
+    if (crewPanel.sheet.isOpen()) {
+      crewPanel.render();
+    }
     renderTeach();
     coverDrawers();
     coverNote();

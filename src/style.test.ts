@@ -23,9 +23,6 @@ const REQUIRED_SELECTORS = [
   ".welcome-card",
   ".reveal-card",
   ".shelf-card",
-  ".tier-grid",
-  ".tier-trouble",
-  ".trouble-thanks",
   ".keepsakes",
   ".keepsake-story",
   ".workshop-dialog",
@@ -91,7 +88,6 @@ const OVERLAYS = [
   ".start-over",
   ".game-menu",
   ".field-log-sheet",
-  ".buys-dialog",
   ".engineers-dialog",
   ".update-prompt",
   ".other-tab",
@@ -209,6 +205,21 @@ describe("board.css", () => {
     }
   });
 
+  it("lets a long crew row wrap rather than clip a chip (#371)", () => {
+    expect(boardCss).toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*wrap/m);
+    expect(boardCss).not.toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*nowrap/m);
+  });
+
+  it("clips the spare plate, so a stale skin never lengthens a drawer's scroll (#373)", () => {
+    expect(boardCss).toMatch(/^\.board-spare \{[^}]*overflow:\s*hidden/m);
+  });
+
+  it("styles the Crew section in the Buys drawer, its chips on the tag skin (#373)", () => {
+    expect(boardCss).toMatch(/^\.board-sheet \.crew \{/m);
+    expect(boardCss).toMatch(/^\.board-sheet \.crew-status \{/m);
+    expect(boardCss).toMatch(/^\.crew-bit,\n\.crew-bit\.board-skinned \{/m);
+  });
+
   it.each(BOARD_SELECTORS)("styles %s", (selector) => {
     const escaped = selector.replace(".", "\\.");
     expect(boardCss).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));
@@ -235,13 +246,17 @@ describe("style.css", () => {
     expect(css).not.toMatch(/teach-point/);
   });
 
-  it("lets a long crew row wrap rather than clip a chip (#371)", () => {
-    expect(css).toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*wrap/m);
-    expect(css).not.toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*nowrap/m);
-  });
-
-  it("titles the crew section in Buys (#371)", () => {
-    expect(css).toMatch(/^\.buys-crew-title[\s,{]/m);
+  it("keeps no rule for today's Buys sheet: its rows are board rows now (#373)", () => {
+    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
+      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+    );
+    expect(
+      selectors.filter((one) =>
+        /\.(buys-(?!button)|tier\b|tier-|crew\b|crew-|engineer-(mark|gain)|trouble-(thanks|burst)|float-gain)/.test(
+          one,
+        ),
+      ),
+    ).toEqual([]);
   });
 
   it.each(REQUIRED_SELECTORS)("styles %s", (selector) => {
@@ -258,7 +273,6 @@ describe("style.css", () => {
     ".start-over",
     ".game-menu",
     ".field-log-sheet",
-    ".buys-dialog",
     ".engineers-dialog",
     ".update-prompt",
     ".other-tab",

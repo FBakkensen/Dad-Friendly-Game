@@ -447,9 +447,11 @@ describe("token check", () => {
     } catch {
       execSync("git fetch origin main --depth=1", { stdio: "inherit" });
     }
-    const diff = execSync("git diff origin/main -U20 -- src", {
-      encoding: "utf8",
-    });
+    // As scripts/token-check.mjs reads it: the histogram diff.
+    const diff = execSync(
+      "git diff --diff-algorithm=histogram origin/main -U20 -- src",
+      { encoding: "utf8" },
+    );
     expect(
       findingsInDiff(diff, readFileSync("src/tokens.css", "utf8")),
     ).toEqual([]);

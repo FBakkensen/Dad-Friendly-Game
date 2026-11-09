@@ -16,7 +16,14 @@ try {
   execSync("git fetch origin main --depth=1", { stdio: "inherit" });
 }
 
-const diff = execSync("git diff origin/main -U20 -- src", { encoding: "utf8" });
+// Histogram, not git's default: removing long runs of old rules made the default diff pair
+// unchanged lines with the removed ones and report them as added (#373).
+const diff = execSync(
+  "git diff --diff-algorithm=histogram origin/main -U20 -- src",
+  {
+    encoding: "utf8",
+  },
+);
 const tokensCss = readFileSync(
   new URL("../src/tokens.css", import.meta.url),
   "utf8",

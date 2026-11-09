@@ -757,12 +757,6 @@ body {
   pointer-events: auto;
 }
 
-/* Buys stops under the stock row's legend, so a buy's spend shows on the
-   odometer above the sheet (#370). */
-.buys-card {
-  max-height: calc(100% - var(--board-top) - var(--art));
-}
-
 /* Every sheet and card stops at the save line, so the line is never covered
    and the sheets' own buttons sit above it (#370). */
 .welcome-back,
@@ -773,7 +767,6 @@ body {
 .start-over,
 .game-menu,
 .field-log-sheet,
-.buys-dialog,
 .engineers-dialog,
 .update-prompt,
 .other-tab,
@@ -1985,6 +1978,80 @@ button.board-row:focus-visible {
   color: var(--board-ink-2);
 }
 
+/* The Buys drawer's Crew section (#373): the crew's sentence, then where
+   the hands are, as chips on the tag skin laid out in the fewest even rows
+   (crew-panel.ts). Text only: the drawer's rows are the doors. */
+.board-sheet .crew {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+  padding: calc(var(--art) * 2) calc(var(--art) * 3) calc(var(--art) * 1);
+  text-align: center;
+}
+
+.board-sheet .crew[hidden] {
+  display: none;
+}
+
+.board-sheet .crew-status {
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--board-type-15);
+  line-height: var(--board-row-gain-lead);
+  font-weight: 700;
+  color: var(--board-ink);
+}
+
+.board-sheet .crew-status.crew-short {
+  color: var(--board-rust);
+}
+
+.board-sheet .crew-posts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--art) * 2);
+  width: 100%;
+  margin: 0;
+}
+
+.board-sheet .crew-posts[hidden] {
+  display: none;
+}
+
+/* A row that still runs long wraps rather than clipping a chip (#371). */
+.crew-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(var(--art) * 2);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.crew-bit,
+.crew-bit.board-skinned {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: calc(var(--art) * 10);
+  padding: 0 calc(var(--art) * 8);
+  font-size: var(--board-type-14);
+  line-height: calc(var(--art) * 10);
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--board-ink-plate);
+}
+
+.crew-bit-text {
+  position: relative;
+}
+
 /* What a short list leaves free: a recessed backplate with the maker's plate
    (tall), the backplate and the strip (mid), the strip alone (short), or
    nothing (off). */
@@ -1992,6 +2059,9 @@ button.board-row:focus-visible {
   position: relative;
   flex: 1 1 0;
   min-height: 0;
+  /* Its skin keeps the size it last painted at; clipped, a stale skin never
+     lengthens the list's scroll (#373). */
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;

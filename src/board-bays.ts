@@ -240,7 +240,8 @@ export function createMachineBays({
   onFix,
   fits = defaultFits,
 }: {
-  onOpen: () => void;
+  /** A tap on a bay with no trouble: the bay is where Buys opened from. */
+  onOpen: (from: HTMLElement) => void;
   onPress: (tier: TroubleTier, bay: HTMLElement) => void;
   onFix: (tier: TroubleTier, bay: HTMLElement) => void;
   fits?: (el: HTMLElement) => boolean;
@@ -336,7 +337,7 @@ export function createMachineBays({
         onPress(view.tier, button);
         return;
       }
-      onOpen();
+      onOpen(button);
     });
     return bay;
   });
