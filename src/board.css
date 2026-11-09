@@ -622,8 +622,10 @@ body {
 /* The save line's spoken separator: in the text, not drawn. */
 .board-save-sep {
   position: absolute;
-  width: 0;
-  height: 0;
+  width: var(--board-hair);
+  height: var(--board-hair);
+  margin: calc(var(--board-hair) * -1);
+  padding: 0;
   overflow: hidden;
   clip-path: inset(50%);
   white-space: pre;
@@ -2002,11 +2004,14 @@ button.board-row:focus-visible {
   visibility: hidden;
 }
 
-/* The crew's full sentence, spoken but not drawn: the chips say it in short. */
+/* The crew's full sentence, spoken but not drawn: the chips say it in short.
+   The screen-reader-only pattern: 1px and clipped, never zero-sized. */
 .crew-posts-words {
   position: absolute;
-  width: 0;
-  height: 0;
+  width: var(--board-hair);
+  height: var(--board-hair);
+  margin: calc(var(--board-hair) * -1);
+  padding: 0;
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
@@ -2050,6 +2055,12 @@ button.board-row:focus-visible {
   gap: calc(var(--art) * 2);
   max-width: 100%;
   min-width: 0;
+}
+
+/* While the drawer is open its chip rows never wrap: a chip whose words grew
+   runs on past the line until the next open, and no row moves (#373). */
+.board-sheet .crew-posts.is-frozen .crew-row {
+  flex-wrap: nowrap;
 }
 
 .crew-bit,

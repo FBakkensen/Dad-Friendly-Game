@@ -420,6 +420,21 @@ describe("the drawer row", () => {
       expect(text(row, ".board-row-verb")).toBe("Buy");
     });
 
+    it("hold() restarts a running hold, and outside one holds as done() does", () => {
+      const row = make();
+      row.render(ready());
+      row.hold();
+      expect(row.holding()).toBe(true);
+      expect(text(row, ".board-row-verb")).toBe("Done");
+      vi.advanceTimersByTime(1000);
+      row.hold();
+      vi.advanceTimersByTime(ROW_HOLD_MS - 1);
+      expect(row.holding()).toBe(true);
+      vi.advanceTimersByTime(1);
+      expect(row.holding()).toBe(false);
+      expect(text(row, ".board-row-verb")).toBe("Buy");
+    });
+
     it("a paint that throws while holding still lets go at 1.9s", () => {
       let boom = true;
       const row = make({

@@ -214,8 +214,22 @@ describe("board.css", () => {
     expect(boardCss).toMatch(
       /^\.board-sheet \.crew\.is-blank,\n\.board-sheet \.board-sec\.is-blank \{[^}]*visibility:\s*hidden/m,
     );
+    // The screen-reader-only pattern: 1px, clipped, never zero-sized; the save line's spoken
+    // separator too.
+    for (const selector of ["crew-posts-words", "board-save-sep"]) {
+      const rule =
+        new RegExp(`^\\.${selector} \\{([^}]*)\\}`, "m").exec(boardCss)?.[1] ??
+        "";
+      expect(rule).toMatch(/clip-path:\s*inset\(50%\)/);
+      expect(rule).toMatch(/width:\s*var\(--board-hair\)/);
+      expect(rule).toMatch(/height:\s*var\(--board-hair\)/);
+      expect(rule).toMatch(/overflow:\s*hidden/);
+    }
+  });
+
+  it("keeps the open drawer's chip rows from wrapping (#373)", () => {
     expect(boardCss).toMatch(
-      /^\.crew-posts-words \{[^}]*clip-path:\s*inset\(50%\)/m,
+      /^\.board-sheet \.crew-posts\.is-frozen \.crew-row \{[^}]*flex-wrap:\s*nowrap/m,
     );
   });
 

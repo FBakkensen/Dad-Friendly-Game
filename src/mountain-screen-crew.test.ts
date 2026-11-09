@@ -862,6 +862,92 @@ describe("the Buys drawer (#373)", () => {
     }
   });
 
+  it("chip words that grow while the drawer is open never add a chip row", () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 10_000;
+      const screen = mountScreen({
+        storage: seededWith(early({ pocket: 1_000_000 })),
+        now: () => CLOCK,
+        tapClock: () => clock,
+      });
+      document.body.append(screen.root);
+      const posts = chipsOf(screen);
+      Object.defineProperty(posts, "clientWidth", {
+        configurable: true,
+        get: () => 400,
+      });
+      let wide = 300;
+      Object.defineProperty(posts, "scrollWidth", {
+        configurable: true,
+        get: () => wide,
+      });
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      const before = listParts(screen);
+      const chipRows = posts.querySelectorAll(".crew-row").length;
+      // Frozen, the chip rows do not wrap (board.css).
+      expect(posts.classList.contains("is-frozen")).toBe(true);
+      // A hire changes only words; they now run past the line.
+      wide = 500;
+      fingerTap(rowOf(screen, "helper"));
+      expect(screen.progress.getSnapshot().mountain.helpers).toBe(19);
+      expect(posts.textContent).toContain("19 workers");
+      expect(posts.querySelectorAll(".crew-row").length).toBe(chipRows);
+      expect(listParts(screen)).toEqual(before);
+      // Shut, the line is laid out again as usual.
+      drawerOf(screen)
+        .querySelector<HTMLButtonElement>(".board-sheet-back")
+        ?.click();
+      expect(posts.classList.contains("is-frozen")).toBe(false);
+      expect(posts.querySelectorAll(".crew-row").length).toBeGreaterThan(
+        chipRows,
+      );
+      screen.root.remove();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a fix inside an earlier Done hold holds the row again", () => {
+    vi.useFakeTimers();
+    try {
+      const screen = mountScreen({
+        storage: seededWith(early({ pocket: 1_000_000 })),
+        now: () => CLOCK,
+      });
+      const cart = rowOf(screen, "cart");
+      cart.click();
+      expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
+      vi.advanceTimersByTime(1_500);
+      screen.progress.previewTrouble("cart");
+      for (let tap = 0; tap < 5; tap += 1) cart.click();
+      expect(screen.progress.getSnapshot().trouble).toBeUndefined();
+      // The first hold would have ended here; the fix's hold has not.
+      vi.advanceTimersByTime(1_000);
+      cart.click();
+      expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a row held in place but no longer shown buys nothing", () => {
+    const screen = mountScreen({
+      storage: seededWith(early({ pocket: 1_000_000 })),
+      now: () => CLOCK,
+    });
+    openBuys(screen);
+    const drill = rowOf(screen, "drill");
+    expect(drill.hidden).toBe(false);
+    // Another copy of the save lands: no carts, so the drill is not shown, but the open drawer
+    // keeps its row in place.
+    screen.progress.applyMutation((m) => ({ ...m, carts: 0 }));
+    expect(drill.hidden).toBe(false);
+    drill.click();
+    expect(screen.progress.getSnapshot().mountain.drills).toBe(0);
+  });
+
   it("a first hire while the drawer is open keeps the empty crew line closed until the next open", () => {
     const screen = mountScreen({
       storage: seededWith(minedMountain(tierCost(tierById("helper"), 0))),

@@ -281,7 +281,7 @@ export function createCrewPanel({
         progress.fixTrouble(troubledTier);
         if (progress.getSnapshot().trouble === undefined) {
           thank();
-          row.done();
+          row.hold();
         }
       },
     });
@@ -317,7 +317,8 @@ export function createCrewPanel({
           pick: pick(),
           guided: guidedOf(snapshot.mountain, at, snapshot.trouble),
         });
-        if (!fresh.can) {
+        // A row the open drawer holds in place for a tier no longer shown sells nothing.
+        if (!fresh.shown || !fresh.can) {
           row.blink();
           return;
         }
@@ -331,8 +332,9 @@ export function createCrewPanel({
           progress.pressTrouble(troubled.tier);
           if (progress.getSnapshot().trouble === undefined) {
             thank();
-            // The burst of presses that fixed it must not run on into a buy.
-            row.done();
+            // The burst of presses that fixed it must not run on into a buy, even inside the
+            // hold of an earlier buy.
+            row.hold();
           }
           return;
         }
@@ -476,9 +478,12 @@ export function createCrewPanel({
   /** The open drawer holds its layout from here; shut, it takes the latest. */
   const freeze = (): void => {
     frozen = true;
+    // Words that grow in place run on past the line rather than wrap a chip row (board.css).
+    mark(posts, "is-frozen", true);
   };
   const unfreeze = (): void => {
     frozen = false;
+    mark(posts, "is-frozen", false);
     for (const [part, hidden] of wanted) {
       hide(part, hidden);
     }

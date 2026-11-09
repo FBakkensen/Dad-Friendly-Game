@@ -23,6 +23,8 @@ export interface BoardRow {
   /** Undefined until the save is in: the name and icon only, dark and disabled. */
   render(view: RowView | undefined): void;
   done(): void;
+  /** Done, or a running Done hold started again: a later act that needs its own 1.9s. */
+  hold(): void;
   holding(): boolean;
   blink(): void;
 }
@@ -246,6 +248,15 @@ export function createBoardRow({
     paint();
   };
 
+  const armHold = (): void => {
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => {
+      holdTimer = undefined;
+      held = false;
+      paint();
+    }, ROW_HOLD_MS);
+  };
+
   const done = (): void => {
     // A second sleepy tap inside the hold must not stretch it.
     if (held) {
@@ -254,12 +265,16 @@ export function createBoardRow({
     stopBlink();
     held = true;
     // Armed before painting: a paint that throws never leaves the row held.
-    holdTimer = setTimeout(() => {
-      holdTimer = undefined;
-      held = false;
-      paint();
-    }, ROW_HOLD_MS);
+    armHold();
     paintHeld();
+  };
+
+  const hold = (): void => {
+    if (!held) {
+      done();
+      return;
+    }
+    armHold();
   };
 
   const blink = (): void => {
@@ -310,6 +325,7 @@ export function createBoardRow({
     setIcon,
     render,
     done,
+    hold,
     holding: () => held,
     blink,
   };
