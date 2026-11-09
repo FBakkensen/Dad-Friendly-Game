@@ -98,6 +98,7 @@ export function createUpgradesPanel({
   now,
   chipFor,
   clock,
+  pressAge,
   door,
   signal,
 }: {
@@ -109,6 +110,8 @@ export function createUpgradesPanel({
   chipFor: ReadonlyMap<BoostId, HTMLElement>;
   /** Milliseconds for the drawer's settle (the screen's tap clock). */
   clock: () => number;
+  /** How long a press waited before its handler ran (the drawer's default when left out). */
+  pressAge?: (event: Event) => number;
   /** The drawer's key on the rail: the shell writes its aria-expanded (#373). */
   door?: HTMLElement;
   /** Aborting it removes the drawer's document listeners. */
@@ -123,6 +126,7 @@ export function createUpgradesPanel({
     title: "Upgrades",
     infoLabel: "Upgrades and boosts",
     clock,
+    ...(pressAge === undefined ? {} : { pressAge }),
     ...(door === undefined ? {} : { door }),
     ...(signal === undefined ? {} : { signal }),
   });
@@ -183,7 +187,7 @@ export function createUpgradesPanel({
           row.done();
         }
       },
-      { settling: () => sheet.settling() },
+      { settling: (press) => sheet.settlingFor(press) },
     );
   };
 

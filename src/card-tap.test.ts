@@ -66,6 +66,16 @@ describe("buyOnTap's settle (#373)", () => {
     expect(buy).toHaveBeenCalledWith({ early: true });
   });
 
+  it("asks the settle about the press itself, so it can judge when the finger came down", () => {
+    const { row } = rowInList();
+    const settling = vi.fn((event: Event) => event.type === "pointerdown");
+    buyOnTap(row, row, vi.fn(), { settling });
+    pointer(row, "pointerdown");
+    expect(settling).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "pointerdown" }),
+    );
+  });
+
   it("a finger's click after the settle is not early", () => {
     const { row } = rowInList();
     const buy = vi.fn();

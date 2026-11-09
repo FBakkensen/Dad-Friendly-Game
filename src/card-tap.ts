@@ -30,7 +30,7 @@ export function buyOnTap(
   card: HTMLElement,
   button: HTMLButtonElement,
   buy: (press: CardPress) => void,
-  { settling }: { settling?: () => boolean } = {},
+  { settling }: { settling?: (press: Event) => boolean } = {},
 ): void {
   let armed = false;
   let moved = false;
@@ -50,7 +50,7 @@ export function buyOnTap(
     gesture += 1;
     armed = true;
     moved = false;
-    early = settling?.() === true;
+    early = settling?.(event) === true;
     x = event.clientX;
     y = event.clientY;
     top = scroller(card)?.scrollTop ?? 0;
@@ -108,7 +108,7 @@ export function buyOnTap(
   button.addEventListener("click", (event) => {
     // A press is early once, and only a finger's click is: a key press has no finger.
     const finger = event.detail !== 0 || fromPointerUp;
-    const press = { early: finger && (early || settling?.() === true) };
+    const press = { early: finger && (early || settling?.(event) === true) };
     early = false;
     if (blocked === gesture || button.disabled) {
       armed = false;

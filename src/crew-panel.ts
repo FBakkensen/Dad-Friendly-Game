@@ -151,6 +151,7 @@ export function createCrewPanel({
   now,
   pick,
   clock,
+  pressAge,
   door,
   signal,
 }: {
@@ -161,6 +162,8 @@ export function createCrewPanel({
   pick: () => ReadyPick;
   /** Milliseconds for the drawer's settle (the screen's tap clock). */
   clock: () => number;
+  /** How long a press waited before its handler ran (the drawer's default when left out). */
+  pressAge?: (event: Event) => number;
   /** The drawer's key on the rail: the shell writes its aria-expanded (#373). */
   door?: HTMLElement;
   /** Aborting it removes the drawer's document listeners. */
@@ -175,6 +178,7 @@ export function createCrewPanel({
     title: "Buys",
     infoLabel: "Buys",
     clock,
+    ...(pressAge === undefined ? {} : { pressAge }),
     ...(door === undefined ? {} : { door }),
     // Shut, the list takes its latest layout: rows, legends and chips.
     onClose: () => {
@@ -350,7 +354,7 @@ export function createCrewPanel({
           countCrewRate(rateBefore, crewSpeed());
         }
       },
-      { settling: () => sheet.settling() },
+      { settling: (press) => sheet.settlingFor(press) },
     );
     return { id, row };
   });

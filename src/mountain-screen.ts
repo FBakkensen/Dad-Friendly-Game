@@ -137,6 +137,7 @@ export function mountMountainScreen({
   progress: progressArg,
   now = Date.now,
   tapClock = () => performance.now(),
+  pressAge,
   random = Math.random,
   veinStorage,
   signal,
@@ -156,6 +157,8 @@ export function mountMountainScreen({
    * game's clock, which a gate run may stop.
    */
   tapClock?: () => number;
+  /** How long a press waited before its handler ran; a test on its own tap clock passes 0. */
+  pressAge?: (event: Event) => number;
   random?: () => number;
   /** Where the vein wait is carried between sessions; localStorage by default. */
   veinStorage?: Pick<Storage, "getItem" | "setItem">;
@@ -423,6 +426,7 @@ export function mountMountainScreen({
     now,
     pick: () => shownPick,
     clock: tapClock,
+    ...(pressAge === undefined ? {} : { pressAge }),
     door: rail.keys.buys,
     ...(signal === undefined ? {} : { signal }),
   });
@@ -686,6 +690,7 @@ export function mountMountainScreen({
     now,
     chipFor,
     clock: tapClock,
+    ...(pressAge === undefined ? {} : { pressAge }),
     door: rail.keys.upgrades,
     ...(signal === undefined ? {} : { signal }),
   });

@@ -4,6 +4,7 @@ import {
   DRAWER_SETTLE_MS,
   createBoardSheet,
   createSheetScrim,
+  eventAge,
   spareTier,
   type BoardSheet,
 } from "./board-drawer";
@@ -30,6 +31,7 @@ const make = (
     title: "Buys",
     infoLabel: "Buys",
     clock,
+    pressAge: () => 0,
     ...over,
   });
   document.body.append(sheet.root);
@@ -264,6 +266,29 @@ describe("the drawer shell", () => {
       sheet.close();
       time = 0;
       expect(sheet.settling()).toBe(false);
+    });
+
+    it("a finger that landed in the settle but reached the page after it closes nothing (#373)", () => {
+      // A busy phone hands the press over late: the settle is about when the finger came
+      // down, not when the page got to it.
+      const sheet = make({ pressAge: () => 100 });
+      sheet.open();
+      time += 450;
+      press(sheet.back);
+      expect(sheet.isOpen()).toBe(true);
+      time += 100;
+      press(sheet.back);
+      expect(sheet.isOpen()).toBe(false);
+    });
+
+    it("judges a row's press by when the finger came down (#373)", () => {
+      const sheet = make({
+        pressAge: (event) => (event.type === "late" ? 100 : 0),
+      });
+      sheet.open();
+      time += 450;
+      expect(sheet.settlingFor(new Event("late"))).toBe(true);
+      expect(sheet.settlingFor(new Event("now"))).toBe(false);
     });
 
     it("a finger on Back at 100ms closes nothing", () => {
@@ -683,5 +708,23 @@ describe("the scrim", () => {
     buys.open();
     tap(scrim, 156, 40);
     expect(onSocket).not.toHaveBeenCalled();
+  });
+});
+
+describe("eventAge (#373)", () => {
+  const at = (timeStamp: number): Event => {
+    const event = new Event("pointerdown");
+    Object.defineProperty(event, "timeStamp", { value: timeStamp });
+    return event;
+  };
+
+  it("is how long the event waited before the page got to it", () => {
+    expect(eventAge(at(900), 1000)).toBe(100);
+  });
+
+  it("is 0 for a stamp from the future, none, or one too old to trust", () => {
+    expect(eventAge(at(1100), 1000)).toBe(0);
+    expect(eventAge(at(0), 1000)).toBe(0);
+    expect(eventAge(at(1000 - 60_000), 1000)).toBe(0);
   });
 });

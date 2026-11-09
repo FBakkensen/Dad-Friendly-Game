@@ -20,6 +20,23 @@ import { skin } from "./board-skin";
 /** How long a drawer settles after opening: B4's double-tap guard, for every drawer. */
 export const DRAWER_SETTLE_MS = 400;
 
+/** An event older than this is a stamp gone wrong, not a press still in the queue. */
+const PRESS_AGE_LIMIT_MS = 10_000;
+
+/**
+ * How long an event waited before the page got to it: a busy phone hands a press over late,
+ * and the settle is about when the finger came down, not when the handler ran (#373). The
+ * stamp and `performance.now()` share one origin; a stamp from the future, none at all, or
+ * one too old to trust counts as now.
+ */
+export function eventAge(event: Event, now = performance.now()): number {
+  if (!(event.timeStamp > 0)) {
+    return 0;
+  }
+  const age = now - event.timeStamp;
+  return age > 0 && age < PRESS_AGE_LIMIT_MS ? age : 0;
+}
+
 /** What the spare plate under a short list shows, by its height. */
 export type SpareTier = "tall" | "mid" | "short" | "off";
 
@@ -55,6 +72,8 @@ export interface BoardSheet {
   isOpen(): boolean;
   /** Open, and opened less than DRAWER_SETTLE_MS ago on the clock. */
   settling(): boolean;
+  /** Was the drawer settling when this press's finger came down, however late it arrived? */
+  settlingFor(event: Event): boolean;
   open(from?: HTMLElement): void;
   /**
    * Shuts the drawer and focuses the key it opened from. `restoreFocus: false` leaves focus
@@ -89,6 +108,7 @@ export function createBoardSheet({
   title,
   infoLabel,
   clock,
+  pressAge = eventAge,
   onOpen,
   onClose,
   door,
@@ -98,6 +118,8 @@ export function createBoardSheet({
   title: string;
   infoLabel: string;
   clock: () => number;
+  /** How long a press waited before its handler ran; a test on its own clock passes 0. */
+  pressAge?: (event: Event) => number;
   onOpen?: () => void;
   onClose?: () => void;
   /**
@@ -165,7 +187,11 @@ export function createBoardSheet({
   /** Back was pressed by a finger while settling; the click that ends that press is ignored. */
   let early = false;
 
-  const settling = (): boolean => open && clock() - openedAt < DRAWER_SETTLE_MS;
+  const settlingAt = (at: number): boolean =>
+    open && at - openedAt < DRAWER_SETTLE_MS;
+  const settling = (): boolean => settlingAt(clock());
+  const settlingFor = (event: Event): boolean =>
+    settlingAt(clock() - pressAge(event));
 
   const fitSpare = (): void => {
     // Off, the plate gives its gap in the list back (board.css): measure it without that room,
@@ -266,13 +292,13 @@ export function createBoardSheet({
     if (event.button !== 0) {
       return;
     }
-    early = settling();
+    early = settlingFor(event);
   });
   back.addEventListener("pointercancel", () => {
     early = false;
   });
   back.addEventListener("click", (event) => {
-    const wasEarly = (early || settling()) && event.detail !== 0;
+    const wasEarly = (early || settlingFor(event)) && event.detail !== 0;
     early = false;
     if (!wasEarly) {
       close();
@@ -282,7 +308,7 @@ export function createBoardSheet({
   // The "i" shares the settle too. Its listener comes first, so a finger's early click stops
   // here, before the panel's own listener opens the cards.
   info.addEventListener("click", (event) => {
-    if (event.detail !== 0 && settling()) {
+    if (event.detail !== 0 && settlingFor(event)) {
       event.stopImmediatePropagation();
     }
   });
@@ -292,7 +318,7 @@ export function createBoardSheet({
   how.addEventListener(
     "click",
     (event) => {
-      if (event.detail !== 0 && settling()) {
+      if (event.detail !== 0 && settlingFor(event)) {
         event.stopPropagation();
       }
     },
@@ -324,6 +350,7 @@ export function createBoardSheet({
     back,
     isOpen: () => open,
     settling,
+    settlingFor,
     open: openSheet,
     close,
     kick,

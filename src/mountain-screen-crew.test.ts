@@ -396,6 +396,26 @@ describe("the Buys drawer (#373)", () => {
     );
   });
 
+  it("a finger that landed in the settle buys nothing, even when a busy page hands it over after (#373)", () => {
+    let clock = 10_000;
+    const screen = mountScreen({
+      storage: seededWith(early({ pocket: 1_000_000 })),
+      now: () => CLOCK,
+      tapClock: () => clock,
+      // Every press waited 100ms in the queue before its handler ran.
+      pressAge: () => 100,
+    });
+    openBuys(screen);
+    clock += BUYS_SETTLE_MS + 50;
+    const carts = () => screen.progress.getSnapshot().mountain.carts;
+    const before = carts();
+    fingerTap(rowOf(screen, "cart"));
+    expect(carts()).toBe(before);
+    clock += 100;
+    fingerTap(rowOf(screen, "cart"));
+    expect(carts()).toBe(before + 1);
+  });
+
   it("Done holds the row", () => {
     vi.useFakeTimers();
     try {
