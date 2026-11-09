@@ -1,4 +1,4 @@
-import { tierLock } from "./crew";
+import { tierLock, type TierLock } from "./crew";
 import { crewCounts } from "./crew-count";
 import { staffForBuy, staffNeeded } from "./engineers";
 import { formatCompact, formatCount } from "./format";
@@ -30,6 +30,7 @@ import {
   tierById,
   tierCost,
   tierShown,
+  type Tier,
   type TierId,
 } from "./tiers";
 import { tierSynergy } from "./upgrades";
@@ -112,26 +113,48 @@ function buyIcon(id: TierId, count: number, locked: boolean): BuyIcon {
   }
 }
 
-/**
- * One tier's Buys row, from what today's card reads. Display only: it reads
- * the mountain and never buys; only a tap buys. Trouble wins, then the
- * staffing New row, then a lock, then too dear, then short of workers.
- */
-export function buyRowView({
-  mountain,
-  now,
-  trouble,
-  tier: id,
-  pick,
-  guided,
-}: {
+type BuyInput = {
   mountain: Mountain;
   now: number;
   trouble: Trouble | undefined;
   tier: TierId;
   pick: ReadyPick;
   guided: TierId | undefined;
-}): BuyRowView {
+};
+
+type BuyFacts = {
+  readonly mountain: Mountain;
+  readonly id: TierId;
+  readonly tier: Tier;
+  readonly count: number;
+  readonly price: number;
+  readonly lock: TierLock | undefined;
+  readonly troubled: Trouble | undefined;
+  readonly speed: number;
+  readonly idle: number;
+  readonly crewEach: number;
+  readonly isGuided: boolean;
+  readonly workerPrice: number;
+  readonly pickHere: boolean;
+  readonly isPick: boolean;
+  readonly buyVerb: string;
+  readonly staff: number;
+  /** The workers one more of this tier still needs, in words, when there are too few spare. */
+  readonly shortOf: string | undefined;
+  readonly dear: boolean;
+};
+
+type Tending = { name: string; gain: number };
+
+/** What a Buys row reads off the mountain, worked out once. */
+function buyFacts({
+  mountain,
+  now,
+  trouble,
+  tier: id,
+  pick,
+  guided,
+}: BuyInput): BuyFacts {
   const tier = tierById(id);
   const count = owned(mountain, tier);
   const price = tierCost(tier, count, stretch(mountain));
@@ -143,123 +166,158 @@ export function buyRowView({
   // would tend it.
   const staff = staffForBuy(mountain, tier);
   const bill = staffBillWords(staff, spare);
-  const needsMore = lock === undefined && bill !== undefined && spare < staff;
-  const dear =
-    lock === undefined && troubled === undefined && mountain.pocket < price;
-  const speed = rates.tierSpeed[id];
-  const idle = count - rates.running[id];
-  const crewEach = staffNeeded(mountain, tier);
-  const isGuided = guided === id && troubled === undefined;
   const worker = tierById("helper");
-  const workerPrice = tierCost(
-    worker,
-    owned(mountain, worker),
-    stretch(mountain),
-  );
   const pickHere = pick.kind !== "mined-out" && pick.tier === id;
-  const isPick = pick.kind === "ready" && pickHere;
-  // Workers (helper, kid) are hired; machines are bought.
-  const buyVerb = tier.staff === 0 ? "Hire" : "Buy";
+  return {
+    mountain,
+    id,
+    tier,
+    count,
+    price,
+    lock,
+    troubled,
+    speed: rates.tierSpeed[id],
+    idle: count - rates.running[id],
+    crewEach: staffNeeded(mountain, tier),
+    isGuided: guided === id && troubled === undefined,
+    workerPrice: tierCost(worker, owned(mountain, worker), stretch(mountain)),
+    pickHere,
+    isPick: pick.kind === "ready" && pickHere,
+    // Workers (helper, kid) are hired; machines are bought.
+    buyVerb: tier.staff === 0 ? "Hire" : "Buy",
+    staff,
+    shortOf: lock === undefined && spare < staff ? bill : undefined,
+    dear:
+      lock === undefined && troubled === undefined && mountain.pocket < price,
+  };
+}
 
-  // The best-ranked engineer on this machine, and what she adds.
-  const tending = ((): { name: string; gain: number } | undefined => {
-    if (!isMachine(tier)) {
-      return undefined;
-    }
-    const engineers = mountain.engineers ?? [];
-    const who = tendingEngineer(engineers, tier.id);
-    return who === undefined
-      ? undefined
-      : {
-          name: who.name,
-          gain: tendingGain(
-            mountain,
-            engineers.indexOf(who),
-            tier.id,
-            now,
-            trouble,
-          ),
-        };
-  })();
+/** The best-ranked engineer on this machine, and what she adds. */
+function tendingOf(
+  mountain: Mountain,
+  tier: Tier,
+  now: number,
+  trouble: Trouble | undefined,
+): Tending | undefined {
+  if (!isMachine(tier)) {
+    return undefined;
+  }
+  const engineers = mountain.engineers ?? [];
+  const who = tendingEngineer(engineers, tier.id);
+  return who === undefined
+    ? undefined
+    : {
+        name: who.name,
+        gain: tendingGain(
+          mountain,
+          engineers.indexOf(who),
+          tier.id,
+          now,
+          trouble,
+        ),
+      };
+}
 
-  const face = ((): Face => {
-    if (troubled !== undefined) {
-      return {
-        state: "trouble",
-        info: [`${troubleShout(troubled.kind)} · Hold to fix`],
-        need: "",
-        price: "",
-        dimTag: false,
-        verb: "",
-        lamp: "red",
-        can: true,
-      };
-    }
-    if (isGuided) {
-      const short = mountain.pocket < workerPrice;
-      return {
-        state: short ? "dear" : "ready",
-        info: [staffingLine(crewEach, idle)],
-        need: "",
-        price: formatCompact(workerPrice),
-        dimTag: short,
-        verb: "Hire",
-        lamp: short ? "off" : "green",
-        can: !short,
-      };
-    }
-    if (lock !== undefined) {
-      return {
-        state: "locked",
-        info: [lockBodyLine(tier, lock), lockRateLine(tier, lock)],
-        need: "",
-        price: "Locked",
-        dimTag: true,
-        verb: "",
-        lamp: "off",
-        can: false,
-      };
-    }
-    const info = milestoneOptions(id, count);
-    if (dear) {
-      return {
-        state: "dear",
-        info,
-        need: "",
-        price: formatCompact(price),
-        dimTag: true,
-        verb: staff > 0 ? workersVerb(staff) : buyVerb,
-        lamp: "off",
-        can: false,
-      };
-    }
-    if (needsMore) {
-      return {
-        state: "short",
-        info,
-        need: bill,
-        price: formatCompact(price),
-        dimTag: false,
-        verb: workersVerb(staff),
-        lamp: "off",
-        can: true,
-      };
-    }
+function troubleFace(troubled: Trouble): Face {
+  return {
+    state: "trouble",
+    info: [`${troubleShout(troubled.kind)} · Hold to fix`],
+    need: "",
+    price: "",
+    dimTag: false,
+    verb: "",
+    lamp: "red",
+    can: true,
+  };
+}
+
+function guidedFace(facts: BuyFacts): Face {
+  const { mountain, workerPrice, crewEach, idle } = facts;
+  const short = mountain.pocket < workerPrice;
+  return {
+    state: short ? "dear" : "ready",
+    info: [staffingLine(crewEach, idle)],
+    need: "",
+    price: formatCompact(workerPrice),
+    dimTag: short,
+    verb: "Hire",
+    lamp: short ? "off" : "green",
+    can: !short,
+  };
+}
+
+function lockedFace(tier: Tier, lock: TierLock): Face {
+  return {
+    state: "locked",
+    info: [lockBodyLine(tier, lock), lockRateLine(tier, lock)],
+    need: "",
+    price: "Locked",
+    dimTag: true,
+    verb: "",
+    lamp: "off",
+    can: false,
+  };
+}
+
+/** An unlocked tier: too dear, short of workers, or ready. */
+function pricedFace(facts: BuyFacts): Face {
+  const { id, count, price, staff, shortOf, dear, buyVerb, isPick } = facts;
+  const info = milestoneOptions(id, count);
+  const shown = formatCompact(price);
+  if (dear) {
     return {
-      state: "ready",
+      state: "dear",
       info,
       need: "",
-      price: formatCompact(price),
+      price: shown,
+      dimTag: true,
+      verb: staff > 0 ? workersVerb(staff) : buyVerb,
+      lamp: "off",
+      can: false,
+    };
+  }
+  if (shortOf !== undefined) {
+    return {
+      state: "short",
+      info,
+      need: shortOf,
+      price: shown,
       dimTag: false,
-      verb: buyVerb,
-      lamp: isPick ? "amber" : "green",
+      verb: workersVerb(staff),
+      lamp: "off",
       can: true,
     };
-  })();
+  }
+  return {
+    state: "ready",
+    info,
+    need: "",
+    price: shown,
+    dimTag: false,
+    verb: buyVerb,
+    lamp: isPick ? "amber" : "green",
+    can: true,
+  };
+}
 
-  const pickWord = !pickHere
+function buyFace(facts: BuyFacts): Face {
+  const { troubled, isGuided, lock, tier } = facts;
+  if (troubled !== undefined) {
+    return troubleFace(troubled);
+  }
+  if (isGuided) {
+    return guidedFace(facts);
+  }
+  return lock === undefined ? pricedFace(facts) : lockedFace(tier, lock);
+}
+
+function buyFlag(facts: BuyFacts, tending: Tending | undefined): string[] {
+  if (facts.isGuided) {
+    return ["New"];
+  }
+  const pickWord = !facts.pickHere
     ? undefined
-    : pick.kind === "ready"
+    : facts.isPick
       ? "Ready now"
       : "Saving for";
   const tendWord =
@@ -269,26 +327,56 @@ export function buyRowView({
   const flagWords = [pickWord, tendWord].filter(
     (word): word is string => word !== undefined,
   );
-  const flag = isGuided
-    ? ["New"]
-    : flagWords.length === 2
-      ? [flagWords.join(" · "), ...flagWords.slice(0, 1)]
-      : flagWords;
+  return flagWords.length === 2
+    ? [flagWords.join(" · "), ...flagWords.slice(0, 1)]
+    : flagWords;
+}
 
+/** The buy sentence: price, output, synergy, what you have and who is idle. */
+function buyingAria(facts: BuyFacts, synergy: number): string {
+  const { tier, price, speed, count, idle, crewEach, shortOf } = facts;
+  const faster =
+    synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : "";
+  const idleWords =
+    idle > 0
+      ? `, ${formatCount(idle)} idle: each needs ${String(crewEach)} ${workerWords(crewEach)} to run`
+      : "";
+  const more = shortOf !== undefined ? `. ${NEEDS_MORE_WORKERS}` : "";
+  return `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${stonesASecond(speed)}${faster}. You have ${formatCount(count)}${idleWords}${more}.`;
+}
+
+function buyAria(
+  facts: BuyFacts,
+  tending: Tending | undefined,
+  synergy: number,
+): string {
+  const { id, tier, lock, troubled, isGuided, idle, crewEach, speed } = facts;
+  if (isGuided) {
+    return `${tier.name}: ${formatCount(idle)} idle: each needs ${String(crewEach)} ${workerWords(crewEach)} to run. Tap to hire a worker for ${formatCount(facts.workerPrice)} stones.`;
+  }
+  if (troubled !== undefined) {
+    return troubleAria(troubled.kind, tier);
+  }
   // Today's card's four sentences, word for word.
   const tends =
     tending === undefined
       ? ""
       : ` ${tendsNote(tending.name, id)} ${stonesPerSecond(tending.gain)}`;
-  const synergy = tierSynergy(mountain, id);
-  const aria = isGuided
-    ? `${tier.name}: ${formatCount(idle)} idle: each needs ${String(crewEach)} ${workerWords(crewEach)} to run. Tap to hire a worker for ${formatCount(workerPrice)} stones.`
-    : troubled !== undefined
-      ? troubleAria(troubled.kind, tier)
-      : lock !== undefined
-        ? `${lockAria(tier, lock)} Mines ${stonesASecond(speed)} each.${tends}`
-        : `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${stonesASecond(speed)}${synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : ""}. You have ${formatCount(count)}${idle > 0 ? `, ${formatCount(idle)} idle: each needs ${String(crewEach)} ${workerWords(crewEach)} to run` : ""}${needsMore ? `. ${NEEDS_MORE_WORKERS}` : ""}.${tends}`;
+  return lock === undefined
+    ? `${buyingAria(facts, synergy)}${tends}`
+    : `${lockAria(tier, lock)} Mines ${stonesASecond(speed)} each.${tends}`;
+}
 
+/**
+ * One tier's Buys row, from what today's card reads. Display only: it reads
+ * the mountain and never buys; only a tap buys. Trouble wins, then the
+ * staffing New row, then a lock, then too dear, then short of workers.
+ */
+export function buyRowView(input: BuyInput): BuyRowView {
+  const { mountain, now, trouble } = input;
+  const facts = buyFacts(input);
+  const { id, tier, lock, troubled, isGuided, count, speed } = facts;
+  const tending = tendingOf(mountain, tier, now, trouble);
   return {
     tier: id,
     shown: tierShown(mountain, tier),
@@ -296,14 +384,14 @@ export function buyRowView({
     guided: isGuided,
     name: tier.name,
     badge: "",
-    ...face,
+    ...buyFace(facts),
     why: "",
-    flag,
+    flag: buyFlag(facts, tending),
     gain:
       lock !== undefined || troubled !== undefined
         ? ""
         : `+${formatSpeed(speed)}/s`,
-    pick: isPick,
-    aria,
+    pick: facts.isPick,
+    aria: buyAria(facts, tending, tierSynergy(mountain, id)),
   };
 }

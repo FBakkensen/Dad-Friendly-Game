@@ -19,7 +19,6 @@ import {
   type Press,
 } from "./board-interaction";
 import { DRAWER_SETTLE_MS as DRAWER_SETTLE } from "./board-drawer";
-import { ROW_HOLD_MS } from "./board-row";
 
 /** A finger's act press on `layer`/`id`, handled at `at`. */
 function finger(
@@ -215,7 +214,6 @@ describe("the timing values", () => {
     expect(THANKS_MS).toBe(1600);
     expect(PRESS_AGE_LIMIT_MS).toBe(10_000);
     expect(DRAWER_SETTLE).toBe(DRAWER_SETTLE_MS);
-    expect(ROW_HOLD_MS).toBe(READY_HOLD_MS);
   });
 });
 
@@ -395,6 +393,25 @@ describe("the blink", () => {
       outcome: "applied",
     });
     expect(frame(state, 150)).toBeUndefined();
+  });
+
+  it("a fix on a drawer row ends its blink", () => {
+    const row = { layer: "buys", id: "drill" } as const;
+    const state = after(
+      { kind: "result", control: row, at: 0, outcome: "refused" },
+      { kind: "result", control: row, at: 100, outcome: "fixed" },
+    );
+    expect(boardView(state, 150).blinking.has("buys/drill")).toBe(false);
+  });
+
+  it("a buy that lands inside a running hold leaves the blink alone", () => {
+    const row = { layer: "buys", id: "drill" } as const;
+    const state = after(
+      { kind: "result", control: row, at: 0, outcome: "applied" },
+      { kind: "result", control: row, at: 100, outcome: "refused" },
+      { kind: "result", control: row, at: 200, outcome: "applied" },
+    );
+    expect(boardView(state, 250).blinking.get("buys/drill")).toBe("off");
   });
 
   it("shows no frame when read before the blink began", () => {

@@ -1,3 +1,6 @@
+import { eventAge } from "./board-host";
+import type { Pointer } from "./board-interaction";
+
 const SLOP_PX = 10;
 
 /** The list that scrolls under a card, if this tap started in one. */
@@ -8,37 +11,107 @@ function scroller(card: HTMLElement): HTMLElement | null {
   return found instanceof HTMLElement ? found : null;
 }
 
-/** How the tap that reached `buy` began. */
+/** How the press that reached `buy` came. */
 export interface CardPress {
+  readonly by: Pointer;
   /**
-   * The finger went down while `settling` said the sheet had only just
-   * opened: the second tap of a double tap that opened it.
+   * When this gesture's finger came down on the card, on the board's clock. Undefined for a
+   * key press, and for a finger's click on a card that saw no pointerdown of its own: the board
+   * then judges it by the click's own age.
    */
-  readonly early: boolean;
+  readonly downAt: number | undefined;
+}
+
+/** The clock a finger-down time is read on, and how late a press reached the page. */
+interface PressClock {
+  readonly clock: () => number;
+  readonly pressAge: (event: Event) => number;
+}
+
+/** One control's press, kept from its finger's pointerdown to its click. */
+export interface PressTracker {
+  /**
+   * How the press this click ends came, and when its finger came down. A click with no pointer
+   * (detail 0) is the keyboard, unless this tracker sent it with `clickFor`. The finger-down
+   * time is dropped here, so it can never reach a later press.
+   */
+  press(click: MouseEvent): CardPress;
+  /** Clicks `button` for a finger's pointerup: a click with no pointer, but a finger's. */
+  clickFor(button: HTMLElement): void;
+  /** Drops the finger-down time of a press that never reached its click. */
+  forget(): void;
 }
 
 /**
- * `buy` runs for a tap or a key press. A finger that moves, or a list that
- * scrolls under the finger, does not buy. Pressed state covers `card`.
- * `settling` is asked when the finger goes down, so a press that started
- * early stays early however long it is held, and again at a finger's click:
- * a touch's click lands where the finger lifts, on a row that may have slid
- * under it as the drawer rose and never saw the press (#373). A keyboard
- * press (a click with no pointer, detail 0) is never early.
+ * Keeps the finger-down time of the presses on `target`: a main-button pointerdown stores it
+ * on the clock, less the press's age, so a press held long is judged by when it came down. A
+ * cancel drops it.
+ */
+export function trackPress(
+  target: HTMLElement,
+  { clock, pressAge }: PressClock,
+  options: AddEventListenerOptions = {},
+): PressTracker {
+  let downAt: number | undefined;
+  /** The click this tracker sends itself for a finger. */
+  let sending = false;
+  const forget = (): void => {
+    downAt = undefined;
+  };
+  target.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (event.button === 0) {
+        downAt = clock() - pressAge(event);
+      }
+    },
+    options,
+  );
+  target.addEventListener("pointercancel", forget, options);
+  return {
+    press(click) {
+      const press: CardPress =
+        click.detail !== 0 || sending
+          ? { by: "finger", downAt }
+          : { by: "keyboard", downAt: undefined };
+      forget();
+      return press;
+    },
+    clickFor(button) {
+      sending = true;
+      try {
+        button.click();
+      } finally {
+        sending = false;
+      }
+    },
+    forget,
+  };
+}
+
+/**
+ * `buy` runs for a tap or a key press, with how it came and its click. A finger that moves, or
+ * a list that scrolls under the finger, does not buy. Pressed state covers `card`. The press is
+ * tracked on `card` (`trackPress`), and its finger-down time is also dropped at a drag. The click
+ * this handler sends itself at a finger's pointerup is a finger's.
  */
 export function buyOnTap(
   card: HTMLElement,
   button: HTMLButtonElement,
-  buy: (press: CardPress) => void,
-  { settling }: { settling?: (press: Event) => boolean } = {},
-): void {
+  buy: (press: CardPress, event: MouseEvent) => void,
+  {
+    clock = () => performance.now(),
+    pressAge = eventAge,
+  }: {
+    clock?: () => number;
+    pressAge?: (event: Event) => number;
+  } = {},
+): { forget(): void } {
   let armed = false;
   let moved = false;
   let gesture = 0;
   let blocked = -1;
-  let early = false;
-  /** The click this handler sends itself at a finger's pointerup. */
-  let fromPointerUp = false;
+  const tracker = trackPress(card, { clock, pressAge });
   let x = 0;
   let y = 0;
   let top = 0;
@@ -50,7 +123,6 @@ export function buyOnTap(
     gesture += 1;
     armed = true;
     moved = false;
-    early = settling?.(event) === true;
     x = event.clientX;
     y = event.clientY;
     top = scroller(card)?.scrollTop ?? 0;
@@ -91,6 +163,7 @@ export function buyOnTap(
       // The next press gets a new gesture, so it can still buy.
       blocked = gesture;
       armed = false;
+      tracker.forget();
       return;
     }
     const target = event.target;
@@ -98,25 +171,16 @@ export function buyOnTap(
       return;
     }
     armed = false;
-    fromPointerUp = true;
-    try {
-      button.click();
-    } finally {
-      fromPointerUp = false;
-    }
+    tracker.clickFor(button);
   });
   button.addEventListener("click", (event) => {
-    // A press is early once, and only a finger's click is: a key press has no finger.
-    const finger = event.detail !== 0 || fromPointerUp;
-    const press = { early: finger && (early || settling?.(event) === true) };
-    early = false;
-    if (blocked === gesture || button.disabled) {
-      armed = false;
-      moved = false;
-      return;
-    }
+    const press = tracker.press(event);
     armed = false;
     moved = false;
-    buy(press);
+    if (blocked === gesture || button.disabled) {
+      return;
+    }
+    buy(press, event);
   });
+  return tracker;
 }

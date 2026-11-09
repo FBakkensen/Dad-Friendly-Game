@@ -1,39 +1,35 @@
-import { DRAWER_SETTLE_MS, PRESS_AGE_LIMIT_MS } from "./board-interaction";
 import makersPlateUrl from "./assets/board/makers-plate-l.png";
 import makersStripUrl from "./assets/board/makers-strip.png";
-import { el, refitAll, write } from "./board-dom";
+import { el, hide, mark, refitAll, write } from "./board-dom";
+import type { BoardHost } from "./board-host";
+import { boardHowCard, type BoardHowSystem } from "./board-how-art";
+import {
+  type CloseBy,
+  type ControlRef,
+  type DrawerId,
+  type Pointer,
+  type PressDecision,
+} from "./board-interaction";
 import { plateButton } from "./board-save";
+import { trackPress, type PressTracker } from "./card-tap";
 import { skin } from "./board-skin";
+import { TROUBLE_FIXED } from "./screen-words";
 
 /*
  * The drawer shell (#373): a riveted sheet that slides up from under the board's middle to the
  * save line, with its title, kick and "i" on top, a list that scrolls inside itself, the spare
  * plate under a short list, and Back at its foot. Buys and Upgrades build their rows inside it.
  *
- * One settle for every drawer: for 400ms after it opens, a finger that lands on it is the
- * second tap of the double tap that opened it. Rows ask `settling` through buyOnTap; Back and
- * the "i" ask it here. It is judged at a finger's press and again at its click, since a touch's
- * click lands where the finger lifts, on whatever slid under it as the drawer rose (#373). A
- * keyboard press (a click with no pointer, detail 0) is never early. The scrim above the
- * drawers closes them.
+ * It paints and reports; the board's model decides. Opening, the "i" cards and closing go to
+ * the model, and Back, the "i" and the cards' Backs press through it, so a finger that lands
+ * while the drawer settles is the second tap of the double tap that opened it. A press is
+ * judged by when its finger came down, so a touch's click that lands on whatever slid under
+ * the finger as the drawer rose is judged by its own age. A keyboard press (a click with no
+ * pointer, detail 0) is never early. The scrim above the drawers closes them.
  */
 
-// The settle and the press-age limit live with the board's tap rules (#410).
+// The settle lives with the board's tap rules.
 export { DRAWER_SETTLE_MS } from "./board-interaction";
-
-/**
- * How long an event waited before the page got to it: a busy phone hands a press over late,
- * and the settle is about when the finger came down, not when the handler ran (#373). The
- * stamp and `performance.now()` share one origin; a stamp from the future, none at all, or
- * one too old to trust counts as now.
- */
-export function eventAge(event: Event, now = performance.now()): number {
-  if (!(event.timeStamp > 0)) {
-    return 0;
-  }
-  const age = now - event.timeStamp;
-  return age > 0 && age < PRESS_AGE_LIMIT_MS ? age : 0;
-}
 
 /** What the spare plate under a short list shows, by its height. */
 export type SpareTier = "tall" | "mid" | "short" | "off";
@@ -67,22 +63,23 @@ export interface BoardSheet {
   /** Under the list: Back, and a line a panel may set over it. */
   readonly footer: HTMLElement;
   readonly back: HTMLButtonElement;
+  /** Open in the board's model. */
   isOpen(): boolean;
-  /** Open, and opened less than DRAWER_SETTLE_MS ago on the clock. */
-  settling(): boolean;
-  /** Was the drawer settling when this press's finger came down, however late it arrived? */
-  settlingFor(event: Event): boolean;
   open(from?: HTMLElement): void;
   /**
    * Shuts the drawer and focuses the key it opened from. `restoreFocus: false` leaves focus
-   * where it is: a card that covered the drawer has already taken it.
+   * where it is: a card that covered the drawer has already taken it. `by` tells the model
+   * what closed it.
    */
-  close(options?: { readonly restoreFocus?: boolean }): void;
+  close(options: {
+    readonly restoreFocus?: boolean;
+    readonly by: CloseBy;
+  }): void;
   /** The resting kick under the title. */
   kick(text: string): void;
-  /** Shows `text` as done for `ms`, then the resting kick. */
-  flash(text: string, ms: number): void;
   showHow(on: boolean): void;
+  /** Inserts the parts into the list, before the spare plate. */
+  place(parts: readonly HTMLElement[]): void;
   fitSpare(): void;
 }
 
@@ -91,43 +88,69 @@ function focusQuietly(target: HTMLElement): void {
   target.focus({ preventScroll: true });
 }
 
-function hide(target: HTMLElement, hidden: boolean): void {
-  if (target.hidden !== hidden) {
-    target.hidden = hidden;
+/** The cards the "i" opens in a drawer's place. */
+export interface BoardHow {
+  readonly systems: readonly BoardHowSystem[];
+  readonly backLabel: string;
+}
+
+/** The spare plate under a short list: the makers' plate with its strip. */
+function spareCard(): HTMLElement {
+  const spare = el("div", "board-spare");
+  spare.setAttribute("aria-hidden", "true");
+  const plate = el("img", "board-spare-plate");
+  plate.src = makersPlateUrl;
+  plate.width = 192;
+  plate.height = 96;
+  plate.alt = "";
+  plate.draggable = false;
+  const strip = el("img", "board-spare-strip");
+  strip.src = makersStripUrl;
+  strip.width = 192;
+  strip.height = 40;
+  strip.alt = "";
+  strip.draggable = false;
+  spare.append(plate, strip);
+  skin(spare, "inset");
+  return spare;
+}
+
+/** The "i" cards, one Back under the last: the first card's Back stays hidden. */
+function howCards(
+  { systems, backLabel }: BoardHow,
+  back: () => void,
+): HTMLElement[] {
+  const cards = systems.map((system) => boardHowCard(system, backLabel, back));
+  const first = cards[0]?.querySelector<HTMLElement>(".teach-how-back");
+  if (first) {
+    first.hidden = true;
   }
+  return cards;
+}
+
+/** The shell's parts, built once. */
+interface SheetParts {
+  readonly root: HTMLElement;
+  readonly head: HTMLElement;
+  readonly heading: HTMLElement;
+  readonly kickLine: HTMLElement;
+  readonly info: HTMLButtonElement;
+  readonly how: HTMLElement;
+  readonly list: HTMLElement;
+  readonly spare: HTMLElement;
+  readonly footer: HTMLElement;
+  readonly back: HTMLButtonElement;
 }
 
 /**
- * A drawer, built once and reused. The root is
- * `section.board-drawer.board-sheet[data-sheet=name]`, a dialog labelled by its title.
+ * The root is `section.board-drawer.board-sheet[data-sheet=name]`, a dialog labelled by its
+ * title.
  */
-export function createBoardSheet({
-  name,
-  title,
-  infoLabel,
-  clock,
-  pressAge = eventAge,
-  onOpen,
-  onClose,
-  door,
-  signal,
-}: {
-  name: "buys" | "upgrades";
-  title: string;
-  infoLabel: string;
-  clock: () => number;
-  /** How long a press waited before its handler ran; a test on its own clock passes 0. */
-  pressAge?: (event: Event) => number;
-  onOpen?: () => void;
-  onClose?: () => void;
-  /**
-   * The drawer's key on the rail (#373): the shell writes only its aria-expanded, whichever
-   * door (the key, a bay, Saving for) opened the drawer.
-   */
-  door?: HTMLElement;
-  /** Aborting it removes the sheet's document listeners. */
-  signal?: AbortSignal;
-}): BoardSheet {
+function buildSheet(
+  name: DrawerId,
+  title: string,
+  infoLabel: string,
+): SheetParts {
   const root = el("section", "board-drawer board-sheet");
   root.dataset.sheet = name;
   root.setAttribute("role", "dialog");
@@ -147,24 +170,8 @@ export function createBoardSheet({
   const how = el("div", "board-sheet-how");
   how.tabIndex = -1;
   how.hidden = true;
-
   const list = el("div", "board-sheet-list");
-  const spare = el("div", "board-spare");
-  spare.setAttribute("aria-hidden", "true");
-  const plate = el("img", "board-spare-plate");
-  plate.src = makersPlateUrl;
-  plate.width = 192;
-  plate.height = 96;
-  plate.alt = "";
-  plate.draggable = false;
-  const strip = el("img", "board-spare-strip");
-  strip.src = makersStripUrl;
-  strip.width = 192;
-  strip.height = 40;
-  strip.alt = "";
-  strip.draggable = false;
-  spare.append(plate, strip);
-  skin(spare, "inset");
+  const spare = spareCard();
   list.append(spare);
 
   const footer = el("footer", "board-sheet-footer");
@@ -174,169 +181,265 @@ export function createBoardSheet({
 
   root.append(head, how, list, footer);
   skin(root, "frame");
+  return {
+    root,
+    head,
+    heading,
+    kickLine,
+    info,
+    how,
+    list,
+    spare,
+    footer,
+    back,
+  };
+}
 
-  let open = false;
+/** The kick line: the thanks for a fix while it lasts, as done, else the resting kick. */
+function paintKick(
+  kickLine: HTMLElement,
+  resting: string,
+  thanked: boolean,
+): void {
+  write(kickLine, thanked ? TROUBLE_FIXED : resting);
+  mark(kickLine, "is-done", thanked);
+}
+
+/** The spare plate's tier now: written to its class only when it changes. */
+function fitSpareTier(
+  { spare, list }: SheetParts,
+  tier: SpareTier | undefined,
+): SpareTier {
+  // Off, the plate gives its gap in the list back (board.css): measure it without that room,
+  // or it would flip between off and short at the edge.
+  const freed =
+    tier === "off" ? Number.parseFloat(getComputedStyle(list).rowGap) || 0 : 0;
+  const next = spareTier(spare.offsetHeight - freed);
+  if (next !== tier) {
+    for (const [each, cls] of Object.entries(TIER_CLASS)) {
+      mark(spare, cls, each === next);
+    }
+  }
+  return next;
+}
+
+/** The "i" cards in the drawer's place, or the drawer back. */
+function setHow({ how, head, list, footer }: SheetParts, on: boolean): void {
+  hide(how, !on);
+  hide(head, on);
+  hide(list, on);
+  hide(footer, on);
+}
+
+/**
+ * One of the shell's own controls, pressed through the board. Its press is tracked on the
+ * control itself, so it is judged by its own finger-down time, and that time is dropped at a
+ * cancel or when the drawer moves on.
+ */
+function pressOnBoard(
+  target: HTMLElement,
+  board: BoardHost,
+  control: ControlRef,
+  judged: (decision: PressDecision, by: Pointer, event: MouseEvent) => void,
+  options: AddEventListenerOptions = {},
+): PressTracker {
+  const tracker = trackPress(target, board, options);
+  target.addEventListener(
+    "click",
+    (event) => {
+      const { by, downAt } = tracker.press(event);
+      const decision = board.press({
+        control,
+        by,
+        intent: "act",
+        downAt,
+        event,
+      });
+      judged(decision, by, event);
+    },
+    options,
+  );
+  return tracker;
+}
+
+/** Back, the "i" and the cards' Backs: each acts only when the board says it may. */
+function wireSheetControls(
+  parts: SheetParts,
+  board: BoardHost,
+  layer: DrawerId,
+  act: Pick<BoardSheet, "close" | "showHow">,
+): readonly PressTracker[] {
+  return [
+    pressOnBoard(parts.back, board, { layer, id: "back" }, (decision, by) => {
+      if (decision === "act") {
+        act.close({ by });
+      }
+    }),
+    pressOnBoard(parts.info, board, { layer, id: "info" }, (decision) => {
+      if (decision === "act") {
+        act.showHow(true);
+      }
+    }),
+    // The cards' own Backs: an early click stops on the cards' host, before it reaches them.
+    pressOnBoard(
+      parts.how,
+      board,
+      { layer, id: "how-back" },
+      (decision, _by, event) => {
+        if (decision !== "act") {
+          event.stopPropagation();
+        }
+      },
+      { capture: true },
+    ),
+  ];
+}
+
+/**
+ * Escape closes the drawer, unless the save drawer is open over it. Heard on the way down,
+ * before the save line's own Escape can shut the save drawer and let this one through.
+ * Drawers are built once; `signal` lets a test or a remount take this away.
+ */
+function closeOnEscape(
+  close: () => void,
+  overSave: () => boolean,
+  signal: AbortSignal | undefined,
+): void {
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Escape" && !overSave()) {
+        close();
+      }
+    },
+    signal === undefined ? { capture: true } : { capture: true, signal },
+  );
+}
+
+/** A drawer, built once and reused, open and shut through the board's model. */
+export function createBoardSheet({
+  name,
+  title,
+  infoLabel,
+  how: howOf,
+  board,
+  overSave,
+  onOpen,
+  onClose,
+  onForget,
+  door,
+  signal,
+}: {
+  name: DrawerId;
+  title: string;
+  infoLabel: string;
+  /** The cards the "i" opens in the drawer's place, one Back under the last. */
+  how: BoardHow;
+  board: BoardHost;
+  /** The save drawer is open over this one: Escape is its alone. */
+  overSave: () => boolean;
+  /**
+   * The drawer is open on the page, and the board's model has not heard it yet: a panel
+   * measures here, and sends the layout the open then freezes.
+   */
+  onOpen?: () => void;
+  onClose?: () => void;
+  /** The drawer moved on (opened, paged or closed): the panel forgets its rows' presses. */
+  onForget?: () => void;
+  /**
+   * The drawer's key on the rail (#373): the shell writes only its aria-expanded, whichever
+   * door (the key, a bay, Saving for) opened the drawer.
+   */
+  door?: HTMLElement;
+  /** Aborting it removes the sheet's document listeners. */
+  signal?: AbortSignal;
+}): BoardSheet {
+  const parts = buildSheet(name, title, infoLabel);
+  const { root, heading, kickLine, info, how, list, spare, footer, back } =
+    parts;
+  /** What the page shows; the model says whether the drawer is open. */
+  let shown = false;
   door?.setAttribute("aria-expanded", "false");
-  let openedAt = Number.NEGATIVE_INFINITY;
   let from: HTMLElement | undefined;
   let resting = "";
-  let flashTimer: ReturnType<typeof setTimeout> | undefined;
   let tier: SpareTier | undefined;
-  /** Back was pressed by a finger while settling; the click that ends that press is ignored. */
-  let early = false;
+  let trackers: readonly PressTracker[] = [];
 
-  const settlingAt = (at: number): boolean =>
-    open && at - openedAt < DRAWER_SETTLE_MS;
-  const settling = (): boolean => settlingAt(clock());
-  const settlingFor = (event: Event): boolean =>
-    settlingAt(clock() - pressAge(event));
-
-  const fitSpare = (): void => {
-    // Off, the plate gives its gap in the list back (board.css): measure it without that room,
-    // or it would flip between off and short at the edge.
-    const freed =
-      tier === "off"
-        ? Number.parseFloat(getComputedStyle(list).rowGap) || 0
-        : 0;
-    const next = spareTier(spare.offsetHeight - freed);
-    if (next === tier) {
-      return;
+  const forget = (): void => {
+    for (const tracker of trackers) {
+      tracker.forget();
     }
-    tier = next;
-    for (const [each, cls] of Object.entries(TIER_CLASS)) {
-      if (spare.classList.contains(cls) !== (each === next)) {
-        spare.classList.toggle(cls, each === next);
-      }
-    }
+    onForget?.();
   };
-
-  const setHow = (on: boolean): void => {
-    hide(how, !on);
-    hide(head, on);
-    hide(list, on);
-    hide(footer, on);
+  const fitSpare = (): void => {
+    tier = fitSpareTier(parts, tier);
+  };
+  const paintThanks = (): void => {
+    paintKick(kickLine, resting, board.view().thanks.has(name));
   };
 
   const showHow = (on: boolean): void => {
-    setHow(on);
+    setHow(parts, on);
     // Each way is a new screen under the finger: the second tap of a double tap on the "i"
     // must not take the cards' Back, nor one on the cards' Back buy the row under it, so the
     // settle starts again (#373).
-    if (open) {
-      openedAt = clock();
+    if (shown) {
+      forget();
+      board.send({ kind: "page", overlay: name, at: board.clock() });
     }
     // The "i" hides under the cards, so focus moves with them, and back to it.
     focusQuietly(on ? how : info);
   };
 
   const openSheet = (opener?: HTMLElement): void => {
-    if (open) {
+    if (shown) {
       return;
     }
-    open = true;
-    openedAt = clock();
-    // A press on Back lost before its click (dragged off) belongs to the last opening.
-    early = false;
+    shown = true;
+    forget();
     from = opener;
     root.classList.add("is-open");
     door?.setAttribute("aria-expanded", "true");
     list.scrollTop = 0;
     focusQuietly(heading);
-    onOpen?.();
     // Lines fitted while shut are measured again on the open drawer.
     refitAll(root);
     fitSpare();
     requestAnimationFrame(fitSpare);
+    onOpen?.();
+    board.send({ kind: "open", overlay: name, at: board.clock() });
   };
 
-  const close = ({
-    restoreFocus = true,
-  }: { readonly restoreFocus?: boolean } = {}): void => {
-    if (!open) {
+  const close: BoardSheet["close"] = ({ restoreFocus = true, by }) => {
+    if (!shown) {
       return;
     }
-    open = false;
+    shown = false;
+    forget();
+    board.send({ kind: "close", overlay: name, at: board.clock(), by });
     root.classList.remove("is-open");
     door?.setAttribute("aria-expanded", "false");
-    setHow(false);
+    setHow(parts, false);
     onClose?.();
     if (restoreFocus && from?.isConnected === true) {
       focusQuietly(from);
     }
   };
 
-  const kick = (text: string): void => {
-    resting = text;
-    if (flashTimer === undefined) {
-      write(kickLine, text);
-    }
-  };
-
-  const flash = (text: string, ms: number): void => {
-    clearTimeout(flashTimer);
-    write(kickLine, text);
-    kickLine.classList.add("is-done");
-    flashTimer = setTimeout(() => {
-      flashTimer = undefined;
-      kickLine.classList.remove("is-done");
-      write(kickLine, resting);
-    }, ms);
-  };
-
-  // Back shares the settle: a finger that lands on it while the drawer settles is the second
-  // tap of the one that opened it. Judged at pointerdown, so a held press stays early. A
-  // keyboard press is a click with no pointer (detail 0), so is never early.
-  back.addEventListener("pointerdown", (event) => {
-    if (event.button !== 0) {
-      return;
-    }
-    early = settlingFor(event);
-  });
-  back.addEventListener("pointercancel", () => {
-    early = false;
-  });
-  back.addEventListener("click", (event) => {
-    const wasEarly = (early || settlingFor(event)) && event.detail !== 0;
-    early = false;
-    if (!wasEarly) {
-      close();
-    }
-  });
-
-  // The "i" shares the settle too. Its listener comes first, so a finger's early click stops
-  // here, before the panel's own listener opens the cards.
-  info.addEventListener("click", (event) => {
-    if (event.detail !== 0 && settlingFor(event)) {
-      event.stopImmediatePropagation();
-    }
-  });
-
-  // The how cards' own Back plates share it too: a finger's early click stops on the cards'
-  // host, before it reaches them.
-  how.addEventListener(
-    "click",
-    (event) => {
-      if (event.detail !== 0 && settlingFor(event)) {
-        event.stopPropagation();
-      }
-    },
-    { capture: true },
+  how.append(
+    ...howCards(howOf, () => {
+      showHow(false);
+    }),
   );
+  trackers = wireSheetControls(parts, board, name, { close, showHow });
+  board.subscribe(paintThanks);
 
-  // Drawers are built once; `signal` lets a test or a remount take this away.
-  document.addEventListener(
-    "keydown",
-    (event) => {
-      // The save drawer sits on top of a board drawer: its own Escape closes it alone.
-      if (
-        event.key === "Escape" &&
-        open &&
-        document.querySelector(".board-save-drawer.is-open") === null
-      ) {
-        close();
-      }
+  closeOnEscape(
+    () => {
+      close({ by: "keyboard" });
     },
-    signal === undefined ? {} : { signal },
+    overSave,
+    signal,
   );
 
   return {
@@ -346,14 +449,17 @@ export function createBoardSheet({
     info,
     footer,
     back,
-    isOpen: () => open,
-    settling,
-    settlingFor,
+    isOpen: () => board.view().stack.includes(name),
     open: openSheet,
     close,
-    kick,
-    flash,
+    kick: (text) => {
+      resting = text;
+      paintThanks();
+    },
     showHow,
+    place: (parts) => {
+      spare.before(...parts);
+    },
     fitSpare,
   };
 }
@@ -368,36 +474,35 @@ function inside(rect: DOMRect, x: number, y: number): boolean {
  * them all, and a tap over a relic socket then shows that relic's note.
  */
 export function createSheetScrim({
+  board,
   sheets,
   sockets,
 }: {
+  board: BoardHost;
   sheets: readonly BoardSheet[];
   sockets: () => readonly HTMLElement[];
 }): HTMLElement {
   const scrim = el("div", "board-scrim");
   scrim.setAttribute("aria-hidden", "true");
 
-  const sync = (): void => {
-    const on = sheets.some((sheet) => sheet.root.classList.contains("is-open"));
-    if (scrim.classList.contains("is-on") !== on) {
-      scrim.classList.toggle("is-on", on);
-    }
+  // The panels never need to know the scrim: it follows the board's model.
+  const paint = (): void => {
+    mark(
+      scrim,
+      "is-on",
+      sheets.some((sheet) => sheet.isOpen()),
+    );
   };
-  // The panels never need to know the scrim: it follows their class.
-  const watch = new MutationObserver(sync);
-  for (const sheet of sheets) {
-    watch.observe(sheet.root, { attributes: true, attributeFilter: ["class"] });
-  }
-  sync();
+  board.subscribe(paint);
+  paint();
 
   scrim.addEventListener("click", (event) => {
     const under = sockets().find((socket) =>
       inside(socket.getBoundingClientRect(), event.clientX, event.clientY),
     );
+    // A tap-through: the tap goes on to what lay under the drawers, which does not settle.
     for (const sheet of sheets) {
-      if (sheet.isOpen()) {
-        sheet.close();
-      }
+      sheet.close({ by: "tap-through" });
     }
     // The pointer's own click (its detail), so the relic plate sees a finger, not a key,
     // and its note does not take focus.

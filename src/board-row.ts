@@ -1,31 +1,45 @@
-import { el, fitFirst, frameX, refitAll, setAttr, write } from "./board-dom";
-import { BLINK_STEP_MS, READY_HOLD_MS } from "./board-interaction";
+import {
+  el,
+  fitFirst,
+  frameX,
+  hide,
+  mark,
+  refitAll,
+  setAttr,
+  write,
+} from "./board-dom";
+import type { BoardHost } from "./board-host";
+import {
+  controlKey,
+  type DrawerId,
+  type PressDecision,
+} from "./board-interaction";
 import { skin } from "./board-skin";
+import { buyOnTap, type CardPress } from "./card-tap";
 import { onFontsSettled } from "./fit-cache";
-import { reducedMotion } from "./float-text";
 import type { RowLamp, RowState, RowView } from "./row-view";
 
 /*
  * One drawer row (#373): lamp, icon, name with its badge and flag, info, needs and why, then
  * the gain, the price tag and the verb. buys-rows.ts and upgrade-rows.ts decide what a row says;
- * this draws it, writing only what changed. The drawers own the taps: after a buy they call
- * done(), which holds Done for 1.9s, and a tap that cannot act calls blink().
+ * the board's model decides when it holds Done and blinks. This draws both, writing only what
+ * changed.
  */
 
-/** How long Done holds after a buy: a second sleepy tap in it buys nothing. */
-export const ROW_HOLD_MS = READY_HOLD_MS;
-export { BLINK_STEP_MS } from "./board-interaction";
+/** What the board's model shows on a row now: Done while it holds, and the blink's frame. */
+export interface RowLive {
+  readonly held: boolean;
+  readonly blink: "red" | "off" | undefined;
+}
 
 export interface BoardRow {
   readonly root: HTMLElement;
   setIcon(url: string | undefined): void;
-  /** Undefined until the save is in: the name and icon only, dark and disabled. */
-  render(view: RowView | undefined): void;
-  done(): void;
-  /** Done, or a running Done hold started again: a later act that needs its own 1.9s. */
-  hold(): void;
-  holding(): boolean;
-  blink(): void;
+  /**
+   * An undefined view, until the save is in, shows the name and icon only, dark and disabled,
+   * whatever the model holds. Done keeps the row's words as they were but for info and gain.
+   */
+  render(view: RowView | undefined, live: RowLive): void;
 }
 
 /** One lamp frame in CSS px: 20 art px at 2 px each. */
@@ -36,7 +50,6 @@ const LAMP_FRAME: Readonly<Record<RowLamp, number>> = {
   green: 2,
   red: 3,
 };
-const BLINK: readonly RowLamp[] = ["red", "off", "red", "off"];
 const STATE_CLASS: Readonly<Record<RowState, string>> = {
   ready: "is-ready",
   short: "is-short",
@@ -51,36 +64,31 @@ const DONE = "Done";
 /** One art px is 2 CSS px: the icon is 32 art px square. */
 const ICON_PX = "64";
 
-function toggle(target: HTMLElement, name: string, on: boolean): void {
-  if (target.classList.contains(name) !== on) {
-    target.classList.toggle(name, on);
-  }
-}
-
-function hide(target: HTMLElement, hidden: boolean): void {
-  if (target.hidden !== hidden) {
-    target.hidden = hidden;
-  }
-}
-
 /** Text that hides its box when empty. */
 function line(target: HTMLElement, text: string): void {
   write(target, text);
   hide(target, text === "");
 }
 
-/**
- * A drawer row, built once and reused. The root is `${tag}.board-row.${className}` with the
- * `data-*` set and a frame skin. Before the first render it shows the name and icon only.
- */
-export function createBoardRow({
-  tag,
-  className,
-  data,
-  name,
-  icon,
-  fits,
-}: {
+/** A row's parts, built once. */
+interface RowParts {
+  readonly root: HTMLElement;
+  readonly button: HTMLButtonElement | undefined;
+  readonly lamp: HTMLElement;
+  readonly img: HTMLImageElement | undefined;
+  readonly nameText: Text;
+  readonly badge: HTMLElement;
+  readonly info: HTMLElement;
+  readonly need: HTMLElement;
+  readonly why: HTMLElement;
+  readonly flag: HTMLElement;
+  readonly gain: HTMLElement;
+  readonly tagBox: HTMLElement;
+  readonly price: HTMLElement;
+  readonly verb: HTMLElement;
+}
+
+interface RowOptions {
   tag: "button" | "div";
   className: string;
   data: Readonly<Record<string, string>>;
@@ -88,29 +96,41 @@ export function createBoardRow({
   icon: boolean;
   /** How a line is measured; undefined is board-dom's `fitsWidth`. */
   fits?: (box: HTMLElement) => boolean;
-}): BoardRow {
+}
+
+/** The icon, hidden until its art is set. */
+function rowIcon(): HTMLImageElement {
+  const img = el("img", "board-row-icon");
+  img.alt = "";
+  img.width = Number(ICON_PX);
+  img.height = Number(ICON_PX);
+  img.draggable = false;
+  img.hidden = true;
+  return img;
+}
+
+/**
+ * The root is `${tag}.board-row.${className}` with the `data-*` set and a frame skin.
+ */
+function buildRowParts({
+  tag,
+  className,
+  data,
+  name,
+  icon,
+}: RowOptions): RowParts {
   const root = el(tag, `board-row ${className}`);
   if (root instanceof HTMLButtonElement) {
     root.type = "button";
   }
-  if (!icon) {
-    root.classList.add("no-icon");
-  }
+  mark(root, "no-icon", !icon);
   for (const [key, value] of Object.entries(data)) {
     root.dataset[key] = value;
   }
-  const button = root instanceof HTMLButtonElement ? root : undefined;
 
   const lamp = el("i", "board-lamp");
   lamp.setAttribute("aria-hidden", "true");
-  const img = icon ? el("img", "board-row-icon") : undefined;
-  if (img !== undefined) {
-    img.alt = "";
-    img.width = Number(ICON_PX);
-    img.height = Number(ICON_PX);
-    img.draggable = false;
-    img.hidden = true;
-  }
+  const img = icon ? rowIcon() : undefined;
 
   const mid = el("span", "board-row-mid");
   const nameBox = el("span", "board-row-name");
@@ -138,198 +158,228 @@ export function createBoardRow({
 
   root.append(lamp, ...(img === undefined ? [] : [img]), mid, rt);
   skin(root, "frame");
-
-  /** The view last given; undefined until the save is in. */
-  let last: RowView | undefined;
-  let held = false;
-  let holdTimer: ReturnType<typeof setTimeout> | undefined;
-  /** The blink's frame while one runs. */
-  let blinkFrame: RowLamp | undefined;
-  let blinkTimer: ReturnType<typeof setTimeout> | undefined;
-
-  const writeName = (text: string): void => {
-    if (nameText.data !== text) {
-      nameText.data = text;
-    }
-  };
-
-  const fitLine = (target: HTMLElement, options: readonly string[]): void => {
-    const empty = options.every((option) => option === "");
-    // Shown before fitting, so a kept fit is measured on a laid-out box.
-    hide(target, empty);
-    fitFirst(target, empty ? [] : options, fits);
-  };
-
-  const paintLamp = (): void => {
-    const shown: RowLamp =
-      blinkFrame ?? (held ? "green" : (last?.lamp ?? "off"));
-    frameX(lamp, LAMP_FRAME[shown], LAMP_PX);
-  };
-
-  const setLabel = (label: string): void => {
-    if (button !== undefined) {
-      setAttr(button, "aria-label", label);
-    }
-  };
-
-  const setDisabled = (disabled: boolean): void => {
-    if (button !== undefined && button.disabled !== disabled) {
-      button.disabled = disabled;
-    }
-  };
-
-  /** The parts a render updates during a Done hold: info and gain. */
-  const paintLive = (view: RowView | undefined): void => {
-    fitLine(info, view?.info ?? []);
-    line(gain, view?.gain ?? "");
-  };
-
-  const paintHeld = (): void => {
-    toggle(root, "is-held", true);
-    fitLine(flag, [DONE]);
-    line(verb, DONE);
-    paintLamp();
-    setLabel(`${nameText.data}. ${DONE}`);
-  };
-
-  const paint = (): void => {
-    toggle(root, "is-held", false);
-    const view = last;
-    setDisabled(view === undefined);
-    writeName(view?.name ?? name);
-    line(badge, view?.badge ?? "");
-    paintLive(view);
-    line(need, view?.need ?? "");
-    line(why, view?.why ?? "");
-    fitLine(flag, view?.flag ?? []);
-    const priced = view?.price ?? "";
-    write(price, priced);
-    hide(tagBox, priced === "");
-    line(verb, view?.verb ?? "");
-    for (const [state, cls] of Object.entries(STATE_CLASS)) {
-      toggle(root, cls, view?.state === state);
-    }
-    // A guided row can be the pick while it lights green under its New flag: the lamp leads.
-    toggle(
-      root,
-      "is-pick",
-      view !== undefined && view.pick && view.lamp === "amber",
-    );
-    toggle(root, "is-can", view?.can ?? false);
-    toggle(root, "is-dim-tag", view?.dimTag ?? false);
-    paintLamp();
-    setLabel(view?.aria ?? name);
-  };
-
-  const letGo = (): void => {
-    held = false;
-    if (holdTimer !== undefined) {
-      clearTimeout(holdTimer);
-      holdTimer = undefined;
-    }
-  };
-
-  const stopBlink = (): void => {
-    blinkFrame = undefined;
-    if (blinkTimer !== undefined) {
-      clearTimeout(blinkTimer);
-      blinkTimer = undefined;
-    }
-  };
-
-  const render = (view: RowView | undefined): void => {
-    last = view;
-    // A save loading again ends a Done hold and a blink: they speak of a save that may not land.
-    if (view === undefined) {
-      letGo();
-      stopBlink();
-    }
-    if (held) {
-      paintLive(view);
-      return;
-    }
-    paint();
-  };
-
-  const armHold = (): void => {
-    clearTimeout(holdTimer);
-    holdTimer = setTimeout(() => {
-      holdTimer = undefined;
-      held = false;
-      paint();
-    }, ROW_HOLD_MS);
-  };
-
-  const done = (): void => {
-    // A second sleepy tap inside the hold must not stretch it.
-    if (held) {
-      return;
-    }
-    stopBlink();
-    held = true;
-    // Armed before painting: a paint that throws never leaves the row held.
-    armHold();
-    paintHeld();
-  };
-
-  const hold = (): void => {
-    if (!held) {
-      done();
-      return;
-    }
-    armHold();
-  };
-
-  const blink = (): void => {
-    if (blinkTimer !== undefined || reducedMotion()) {
-      return;
-    }
-    const step = (i: number): void => {
-      blinkFrame = BLINK[i];
-      // Armed before painting: a paint that throws never strands a blink frame.
-      blinkTimer = setTimeout(() => {
-        if (i + 1 < BLINK.length) {
-          step(i + 1);
-          return;
-        }
-        stopBlink();
-        paintLamp();
-      }, BLINK_STEP_MS);
-      paintLamp();
-    };
-    step(0);
-  };
-
-  const setIcon = (url: string | undefined): void => {
-    if (img === undefined) {
-      return;
-    }
-    if (url !== undefined) {
-      setAttr(img, "src", url);
-    }
-    hide(img, url === undefined);
-  };
-
-  // Lines fitted with fallback metrics may not fit in the board's own fonts. A Done hold keeps
-  // its flag; the paint after it fits again.
-  onFontsSettled(() => {
-    refitAll(root);
-    if (held) {
-      paintLive(last);
-      fitLine(flag, [DONE]);
-      return;
-    }
-    paint();
-  });
-
-  paint();
   return {
     root,
-    setIcon,
+    button: root instanceof HTMLButtonElement ? root : undefined,
+    lamp,
+    img,
+    nameText,
+    badge,
+    info,
+    need,
+    why,
+    flag,
+    gain,
+    tagBox,
+    price,
+    verb,
+  };
+}
+
+type Fits = ((box: HTMLElement) => boolean) | undefined;
+
+/** A line fitted to the first option that fits; hidden when every option is empty. */
+function fitLine(
+  target: HTMLElement,
+  options: readonly string[],
+  fits: Fits,
+): void {
+  const empty = options.every((option) => option === "");
+  // Shown before fitting, so a kept fit is measured on a laid-out box.
+  hide(target, empty);
+  fitFirst(target, empty ? [] : options, fits);
+}
+
+function setLabel(parts: RowParts, label: string): void {
+  if (parts.button !== undefined) {
+    setAttr(parts.button, "aria-label", label);
+  }
+}
+
+/** Done: the flag, the verb and the label; the lamp is painted apart. */
+function paintDone(parts: RowParts, fits: Fits): void {
+  mark(parts.root, "is-held", true);
+  fitLine(parts.flag, [DONE], fits);
+  line(parts.verb, DONE);
+  setLabel(parts, `${parts.nameText.data}. ${DONE}`);
+}
+
+/** Everything the view says but info and gain. */
+function paintWords(
+  parts: RowParts,
+  view: RowView | undefined,
+  name: string,
+  fits: Fits,
+): void {
+  const { root, button, nameText, badge, need, why, flag, price, tagBox } =
+    parts;
+  mark(root, "is-held", false);
+  if (button !== undefined && button.disabled !== (view === undefined)) {
+    button.disabled = view === undefined;
+  }
+  const shownName = view?.name ?? name;
+  if (nameText.data !== shownName) {
+    nameText.data = shownName;
+  }
+  line(badge, view?.badge ?? "");
+  line(need, view?.need ?? "");
+  line(why, view?.why ?? "");
+  fitLine(flag, view?.flag ?? [], fits);
+  const priced = view?.price ?? "";
+  write(price, priced);
+  hide(tagBox, priced === "");
+  line(parts.verb, view?.verb ?? "");
+  for (const [state, cls] of Object.entries(STATE_CLASS)) {
+    mark(root, cls, view?.state === state);
+  }
+  // A guided row can be the pick while it lights green under its New flag: the lamp leads.
+  mark(
+    root,
+    "is-pick",
+    view !== undefined && view.pick && view.lamp === "amber",
+  );
+  mark(root, "is-can", view?.can ?? false);
+  mark(root, "is-dim-tag", view?.dimTag ?? false);
+  setLabel(parts, view?.aria ?? name);
+}
+
+/**
+ * Paints the row from its view and the model. Until the save is in, the model shows nothing:
+ * its holds and blinks speak of a save that may not land. A Done hold updates info and gain
+ * alone, so a second sleepy tap meets the row it bought.
+ */
+function paintRow(
+  parts: RowParts,
+  view: RowView | undefined,
+  live: RowLive,
+  name: string,
+  fits: Fits,
+): void {
+  const held = view !== undefined && live.held;
+  const blink = view === undefined ? undefined : live.blink;
+  fitLine(parts.info, view?.info ?? [], fits);
+  line(parts.gain, view?.gain ?? "");
+  if (held) {
+    paintDone(parts, fits);
+  } else {
+    paintWords(parts, view, name, fits);
+  }
+  const lamp: RowLamp = blink ?? (held ? "green" : (view?.lamp ?? "off"));
+  frameX(parts.lamp, LAMP_FRAME[lamp], LAMP_PX);
+}
+
+const STILL: RowLive = { held: false, blink: undefined };
+
+/** A drawer row, built once and reused. Before the first render it shows the name and icon only. */
+export function createBoardRow(options: RowOptions): BoardRow {
+  const parts = buildRowParts(options);
+  let last: RowView | undefined;
+  let lastLive = STILL;
+
+  const render = (view: RowView | undefined, live: RowLive): void => {
+    last = view;
+    lastLive = live;
+    paintRow(parts, view, live, options.name, options.fits);
+  };
+
+  // Lines fitted with fallback metrics may not fit in the board's own fonts.
+  onFontsSettled(() => {
+    refitAll(parts.root);
+    render(last, lastLive);
+  });
+
+  render(undefined, STILL);
+  return {
+    root: parts.root,
+    setIcon: (url) => {
+      const { img } = parts;
+      if (img === undefined) {
+        return;
+      }
+      if (url !== undefined) {
+        setAttr(img, "src", url);
+      }
+      hide(img, url === undefined);
+    },
     render,
-    done,
-    hold,
-    holding: () => held,
-    blink,
+  };
+}
+
+/** A drawer's rows on the board's model: their taps, what those led to, and their Done and blink. */
+export interface RowsOnBoard {
+  /** Paints the row from this view now, and again from it whenever the model's Done or blink changes. */
+  paint(id: string, row: BoardRow, view: RowView | undefined): void;
+  /**
+   * Wires the row's taps: `act` hears each one with how it came and its click. The tracker is
+   * kept, so `forget` reaches it.
+   */
+  tap(
+    button: HTMLButtonElement,
+    act: (press: CardPress, event: MouseEvent) => void,
+  ): void;
+  /** Takes a tap through the model; the row acts only on "act". */
+  press(
+    id: string,
+    press: CardPress,
+    event: Event,
+    intent: "act" | "trouble",
+  ): PressDecision;
+  /** What an act led to: a buy landed, a dear tap was refused, or a trouble fixed. */
+  result(id: string, outcome: "applied" | "refused" | "fixed"): void;
+  /** The drawer moved on: no row's finger-down time carries over. */
+  forget(): void;
+}
+
+/** The rows of one drawer, on one host. It subscribes once, for every row it paints. */
+export function rowsOnBoard(board: BoardHost, layer: DrawerId): RowsOnBoard {
+  const painted = new Map<
+    string,
+    { row: BoardRow; view: RowView | undefined; live: RowLive }
+  >();
+  const trackers: { forget(): void }[] = [];
+  const liveOf = (id: string, view = board.view()): RowLive => {
+    const key = controlKey({ layer, id });
+    return { held: view.held.has(key), blink: view.blinking.get(key) };
+  };
+  // Only a row whose Done or blink changed is painted again.
+  board.subscribe(() => {
+    const view = board.view();
+    for (const [id, each] of painted) {
+      const live = liveOf(id, view);
+      if (live.held !== each.live.held || live.blink !== each.live.blink) {
+        each.live = live;
+        each.row.render(each.view, live);
+      }
+    }
+  });
+  return {
+    paint(id, row, view) {
+      const live = liveOf(id);
+      painted.set(id, { row, view, live });
+      row.render(view, live);
+    },
+    tap(button, act) {
+      trackers.push(
+        buyOnTap(button, button, act, {
+          clock: board.clock,
+          pressAge: board.pressAge,
+        }),
+      );
+    },
+    press: (id, { by, downAt }, event, intent) =>
+      board.press({ control: { layer, id }, by, intent, downAt, event }),
+    result(id, outcome) {
+      board.send({
+        kind: "result",
+        control: { layer, id },
+        at: board.clock(),
+        outcome,
+      });
+    },
+    forget() {
+      for (const tracker of trackers) {
+        tracker.forget();
+      }
+    },
   };
 }

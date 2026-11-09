@@ -7,18 +7,32 @@ import kidUrl from "./assets/board/mach-kid.png";
 import machineDimUrl from "./assets/board/mach-machine-dim.png";
 import machineUrl from "./assets/board/mach-machine.png";
 import workerUrl from "./assets/board/mach-worker.png";
-import { el, scrollIntoList, write } from "./board-dom";
-import { THANKS_MS } from "./board-interaction";
+import {
+  el,
+  hide,
+  legend,
+  mark,
+  scrollIntoList,
+  setAttr,
+  write,
+} from "./board-dom";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
-import { boardHowCard } from "./board-how-art";
-import { createBoardRow, type BoardRow } from "./board-row";
-import { skin } from "./board-skin";
+import type { BoardHost } from "./board-host";
+import {
+  createBoardRow,
+  rowsOnBoard,
+  type BoardRow,
+  type RowsOnBoard,
+} from "./board-row";
 import { BUY_SECTIONS, buyRowView, type BuyIcon } from "./buys-rows";
-import { buyOnTap } from "./card-tap";
+import { buysTap } from "./buys-tap";
+import { createCrewChips, type ChipBit } from "./crew-chips";
 import { crewCounts } from "./crew-count";
+import { createRateCounter } from "./crew-rate";
 import { grandpaPost, staffNeeded } from "./engineers";
 import { reducedMotion } from "./float-text";
 import { formatCompact } from "./format";
+import type { TroubleTier } from "./hazards";
 import type { Mountain } from "./mountain";
 import type {
   Dispatch,
@@ -29,7 +43,6 @@ import { effectiveRates, firstIdleTier } from "./rates";
 import type { ReadyPick } from "./ready-now";
 import {
   STAFFING_INTRO,
-  TROUBLE_FIXED,
   crewPostLabel,
   crewPostsWords,
   grandpaChipWords,
@@ -77,48 +90,101 @@ const FIRST_ICON: Readonly<Record<TierId, BuyIcon>> = {
   machine: "machine",
 };
 
-const COUNT_STEPS = 8;
-const COUNT_STEP_MS = 60;
+/** The list's parts that are not tier rows, by their ids in the board's layout. */
+const SEC_CREW = "sec:crew";
+const CREW = "crew";
+const POSTS = "posts";
+const SEC_MACHINES = "sec:machines";
+const FOOT = "foot";
 
 interface TierRow {
   readonly id: TierId;
   readonly row: BoardRow;
 }
 
-function hide(target: HTMLElement, hidden: boolean): void {
-  if (target.hidden !== hidden) {
-    target.hidden = hidden;
+/** The Crew section, the two legends and the footnote, built once. */
+interface CrewParts {
+  readonly crewSec: HTMLElement;
+  readonly crew: HTMLElement;
+  readonly crewStatus: HTMLElement;
+  readonly posts: HTMLElement;
+  readonly postsWords: HTMLElement;
+  readonly machineSec: HTMLElement;
+  readonly foot: HTMLElement;
+}
+
+function buildCrewParts(): CrewParts {
+  // The Crew section: the crew's sentence, then where the hands are, as chips.
+  const crew = el("section", "crew");
+  crew.setAttribute("aria-label", "Your crew");
+  const crewStatus = el("p", "crew-status");
+  crewStatus.setAttribute("aria-live", "polite");
+  // Text, not a door. The full sentence is spoken from hidden words; the chips say it again in
+  // short, for the eye only.
+  const posts = el("p", "crew-posts");
+  const postsWords = el("span", "crew-posts-words");
+  posts.append(postsWords);
+  crew.append(crewStatus, posts);
+  return {
+    crewSec: legend("Crew", "crew", "per sec"),
+    crew,
+    crewStatus,
+    posts,
+    postsWords,
+    machineSec: legend("Machines", "machines"),
+    foot: el("p", "board-sheet-foot", READY_FOOT),
+  };
+}
+
+/**
+ * Puts the parts in the drawer and returns them by their layout ids. The footnote stands under
+ * the list, over Back: never part of the list's scroll. Until the save is in, nothing from it
+ * shows: no row, legend, crew line or footnote.
+ */
+function placeParts(
+  sheet: BoardSheet,
+  parts: CrewParts,
+  rows: readonly TierRow[],
+): ReadonlyMap<string, HTMLElement> {
+  const inSection = (section: readonly TierId[]) =>
+    rows
+      .filter(({ id }) => section.includes(id))
+      .map(({ id, row }) => [id, row.root] as const);
+  const byId = new Map<string, HTMLElement>([
+    [SEC_CREW, parts.crewSec],
+    [CREW, parts.crew],
+    ...inSection(BUY_SECTIONS.crew),
+    [SEC_MACHINES, parts.machineSec],
+    ...inSection(BUY_SECTIONS.machines),
+  ]);
+  sheet.place([...byId.values()]);
+  sheet.footer.prepend(parts.foot);
+  byId.set(POSTS, parts.posts).set(FOOT, parts.foot);
+  for (const part of byId.values()) {
+    part.hidden = true;
   }
+  return byId;
 }
 
-function mark(target: HTMLElement, name: string, on: boolean): void {
-  if (target.classList.contains(name) !== on) {
-    target.classList.toggle(name, on);
-  }
+/** The ids of the parts the save shows, in list order. The footnote shows under every list. */
+function shownParts(
+  shown: readonly TierId[],
+  crewed: boolean,
+): readonly string[] {
+  const inSection = (section: readonly TierId[]) =>
+    section.filter((id) => shown.includes(id));
+  return [
+    SEC_CREW,
+    CREW,
+    ...(crewed ? [POSTS] : []),
+    ...inSection(BUY_SECTIONS.crew),
+    ...(shown.some((id) => tierById(id).staff > 0) ? [SEC_MACHINES] : []),
+    ...inSection(BUY_SECTIONS.machines),
+    FOOT,
+  ];
 }
 
-/** A section's legend: its name, engraved, and the column's name at the right. */
-function legend(name: string, key: string, column?: string): HTMLElement {
-  const sec = el("div", "board-sec");
-  sec.dataset["sec"] = key;
-  sec.append(el("span", "board-lg", name));
-  if (column !== undefined) {
-    sec.append(el("span", "board-lg", column));
-  }
-  return sec;
-}
-
-/** A post chip the crew has emptied while the drawer is open: it reads zero in its place. */
-function zeroChip(bit: {
-  readonly key: string;
-  readonly text: string;
-}): string {
-  return bit.key === "pool" || bit.key === "grandpa"
-    ? bit.text
-    : `0 on ${bit.key}`;
-}
-
-/** The idle machine shown as the staffing New row (#246), while it is. */
+/** The idle machine shown as the staffing New row, while it is. */
 function guidedOf(
   mountain: Mountain,
   at: number,
@@ -127,6 +193,333 @@ function guidedOf(
   return showsDot(mountain, "staffing")
     ? firstIdleTier(mountain, at, trouble)
     : undefined;
+}
+
+/** The crew's sentence: short of hands, no crew yet, or what it mines. */
+function crewSentence(rate: number, idle: number, short: number): string {
+  if (short > 0) {
+    return `${formatCompact(rate)}/s · ${formatCompact(idle)} idle, need ${formatCompact(short)} ${workerWords(short)}`;
+  }
+  if (rate === 0) {
+    return "No crew yet. Hire a worker to mine for you.";
+  }
+  // Compact once it's big, so the line never wraps on a phone.
+  return rate >= 1_000
+    ? `Your crew mines ${formatCompact(rate)} stones/s`
+    : `Your crew mines ${stonesASecond(rate)}`;
+}
+
+/** The crew line at `shown` stones a second, or at the crew's own rate. */
+function paintCrewStatus(
+  target: HTMLElement,
+  { mountain, trouble }: Pick<ProgressSnapshot, "mountain" | "trouble">,
+  at: number,
+  shown: number | undefined,
+): void {
+  const rates = effectiveRates(mountain, at, trouble);
+  const rate = shown ?? rates.crewPerSecond;
+  const idle = TIERS.reduce(
+    (total, tier) => total + owned(mountain, tier) - rates.running[tier.id],
+    0,
+  );
+  mark(target, "crew-short", rates.helpersShort > 0);
+  mark(target, "crew-waiting", rate === 0);
+  write(target, crewSentence(rate, idle, rates.helpersShort));
+}
+
+/** Where the hands are: the full sentence, spoken, and the chips that say it in short. */
+function crewPosts(
+  mountain: Mountain,
+  at: number,
+  trouble: ProgressSnapshot["trouble"],
+): { readonly words: string; readonly bits: readonly ChipBit[] } {
+  const rates = effectiveRates(mountain, at, trouble);
+  const pool = mountain.helpers + mountain.kids;
+  const { spare: free } = crewCounts(mountain, at, trouble);
+  const stations = TIERS.flatMap((tier) => {
+    const label = crewPostLabel(tier.id);
+    return label === undefined
+      ? []
+      : [
+          {
+            label,
+            workers: rates.running[tier.id] * staffNeeded(mountain, tier),
+          },
+        ];
+  });
+  const grandpa = grandpaPost(mountain);
+  const words = `${crewPostsWords(pool, free, stations)}${grandpa === undefined ? "" : `. ${grandpaSentence(grandpa)}`}`;
+  if (pool <= 0) {
+    return { words, bits: [] };
+  }
+  const bits = [
+    { key: "pool", text: `${formatCompact(pool)} ${workerWords(pool)}` },
+    ...stations
+      .filter((post) => post.workers > 0)
+      .map((post) => ({
+        key: post.label,
+        text: `${formatCompact(post.workers)} on ${post.label}`,
+      })),
+    // After a pass, the old dad tends the biggest machine.
+    ...(grandpa === undefined
+      ? []
+      : [{ key: "grandpa", text: grandpaChipWords(grandpa) }]),
+  ];
+  return { words, bits };
+}
+
+function sameChips(a: readonly ChipBit[], b: readonly ChipBit[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((bit, index) => bit.text === b[index]?.text)
+  );
+}
+
+/** Paints each row from its view. Returns the tiers shown, and the staffing New row's. */
+function paintRows(
+  rows: readonly TierRow[],
+  { mountain, trouble }: Pick<ProgressSnapshot, "mountain" | "trouble">,
+  { at, pick, onBoard }: { at: number; pick: ReadyPick; onBoard: RowsOnBoard },
+): { readonly shown: readonly TierId[]; readonly fresh: TierId | undefined } {
+  const guided = guidedOf(mountain, at, trouble);
+  const shown: TierId[] = [];
+  let fresh: TierId | undefined;
+  for (const { id, row } of rows) {
+    const view = buyRowView({
+      mountain,
+      now: at,
+      trouble,
+      tier: id,
+      pick,
+      guided,
+    });
+    if (view.shown) {
+      shown.push(id);
+    }
+    if (view.guided) {
+      fresh = id;
+    }
+    row.setIcon(BUY_ICON[view.icon]);
+    onBoard.paint(id, row, view);
+    mark(row.root, "teach-new", view.guided);
+    const kind = view.state === "trouble" ? trouble?.kind : undefined;
+    setAttr(row.root, "data-trouble", kind);
+  }
+  return { shown, fresh };
+}
+
+/** Until the save is in, the rows go dark in their places: names and icons only, disabled. */
+function paintRowsLoading(
+  rows: readonly TierRow[],
+  onBoard: RowsOnBoard,
+): void {
+  for (const { id, row } of rows) {
+    onBoard.paint(id, row, undefined);
+    mark(row.root, "teach-new", false);
+    setAttr(row.root, "data-trouble", undefined);
+  }
+}
+
+/** What a Buys row's tap needs from its drawer. */
+interface RowWiring {
+  readonly progress: ProgressStore;
+  readonly onBoard: RowsOnBoard;
+  readonly now: () => number;
+  readonly pick: () => ReadyPick;
+  /** Buys `what` from the row `id`: Done holds that row. */
+  readonly buy: (id: TierId, what: TierId) => void;
+}
+
+function troubledHere(
+  snapshot: ProgressSnapshot,
+  id: TierId,
+): TroubleTier | undefined {
+  return snapshot.trouble?.tier === id ? snapshot.trouble.tier : undefined;
+}
+
+/**
+ * A tier row's taps, through the board's model. The staffing New row hires a worker, and its
+ * hold keeps a second tap off the machine. A press on a troubled machine presses or holds the
+ * fix instead of buying.
+ */
+function wireTierRow(
+  button: HTMLButtonElement,
+  id: TierId,
+  { progress, onBoard, now, pick, buy }: RowWiring,
+): void {
+  // A fix holds the row again: the burst of presses that fixed it must not run on into a buy,
+  // even inside the hold of an earlier buy.
+  const fixed = (tier: TroubleTier): void => {
+    if (progress.getSnapshot().trouble === undefined) {
+      onBoard.result(tier, "fixed");
+    }
+  };
+  const fixHold = watchFixHold(button, {
+    tier: () => troubledHere(progress.getSnapshot(), id),
+    fix: (tier) => {
+      progress.fixTrouble(tier);
+      fixed(tier);
+    },
+  });
+  onBoard.tap(button, (press, event) => {
+    const snapshot = progress.getSnapshot();
+    // The click that ends a hold that fixed is not a tap, and nothing buys before the save is in.
+    if (fixHold.heldFix() || !snapshot.ready) {
+      return;
+    }
+    // The second tap of the double tap that opened Buys, or a second sleepy tap inside the
+    // Done hold, spends nothing. A trouble press is not a spend, so it still counts.
+    const intent = troubledHere(snapshot, id) === undefined ? "act" : "trouble";
+    if (onBoard.press(id, press, event, intent) !== "act") {
+      return;
+    }
+    const at = now();
+    const guided = guidedOf(snapshot.mountain, at, snapshot.trouble);
+    const tap = buysTap({ snapshot, tier: id, pick: pick(), now: at, guided });
+    switch (tap.kind) {
+      case "blink":
+        onBoard.result(id, "refused");
+        return;
+      case "hire":
+        buy(id, "helper");
+        return;
+      case "trouble":
+        progress.pressTrouble(tap.tier);
+        fixed(tap.tier);
+        return;
+      case "buy":
+        buy(id, id);
+    }
+  });
+}
+
+/** A tier's row, built once, with its own art until the save is in. */
+function tierRow(id: TierId, wiring: RowWiring): TierRow {
+  const row = createBoardRow({
+    tag: "button",
+    className: "tier",
+    data: { tier: id },
+    name: tierById(id).name,
+    icon: true,
+  });
+  row.setIcon(BUY_ICON[FIRST_ICON[id]]);
+  if (row.root instanceof HTMLButtonElement) {
+    wireTierRow(row.root, id, wiring);
+  }
+  return { id, row };
+}
+
+/** The Buys list on the board's model: the parts it shows, and the crew chips laid out on it. */
+interface BuysLayout {
+  /** A ready render: the save's latest parts and chips. */
+  paint(parts: readonly string[], bits: readonly ChipBit[]): void;
+  /** Open on the page, before the board's model hears it: measures what the open freezes. */
+  opening(): void;
+  /** Opens the drawer through `openSheet`. The latest layout stays whole. */
+  open(openSheet: () => void): void;
+  /** Shut: the latest shows, and the chips lay out again. */
+  closed(): void;
+}
+
+/**
+ * Rows never move under a finger: while the drawer is open with a save in, every part keeps the
+ * place it had as it opened, and words still change in place. The board's model holds that
+ * layout; this paints it, and measures the chips and the footnote for it.
+ */
+function createBuysLayout(
+  board: BoardHost,
+  sheet: BoardSheet,
+  byId: ReadonlyMap<string, HTMLElement>,
+  { posts, postsWords }: CrewParts,
+): BuysLayout {
+  const chips = createCrewChips(posts, postsWords);
+  let bits: readonly ChipBit[] = [];
+  let chipRows = 0;
+  const show = (parts: readonly string[]): void => {
+    for (const [id, part] of byId) {
+      hide(part, !parts.includes(id));
+    }
+  };
+  const paintView = (): void => {
+    const view = board.view();
+    const layout = view.layouts.get("buys");
+    if (layout !== undefined) {
+      show(layout.parts);
+    }
+    // Frozen, words that grow in place run on past the line rather than wrap a chip row
+    // (board.css).
+    mark(
+      posts,
+      "is-frozen",
+      layout !== undefined && view.stack.includes("buys"),
+    );
+  };
+  const layOut = (): void => {
+    chipRows = chips.layout(bits, posts.clientWidth);
+  };
+  const send = (parts: readonly string[]): void => {
+    board.send({
+      kind: "layout",
+      overlay: "buys",
+      layout: { parts, chipRows },
+    });
+  };
+  // The footnote takes room from the list. On an open drawer whose list would scroll with it
+  // there, it steps aside, so early and mid-game Buys fit.
+  const fitted = (parts: readonly string[]): readonly string[] =>
+    sheet.list.scrollHeight > sheet.list.clientHeight + 1
+      ? parts.filter((id) => id !== FOOT)
+      : parts;
+  return {
+    paint(parts, latest) {
+      const view = board.view();
+      const open = view.stack.includes("buys");
+      const frozen = open ? view.layouts.get("buys") : undefined;
+      // Not frozen, the latest shows, and the chips and the footnote measure on it.
+      if (frozen === undefined) {
+        show(parts);
+      }
+      if (!sameChips(latest, bits)) {
+        bits = latest;
+        if (frozen === undefined) {
+          layOut();
+        } else {
+          chips.refresh(latest);
+        }
+      }
+      // A drawer opened before the save was in lays out once, as the save lands.
+      if (open && frozen === undefined) {
+        send(fitted(parts));
+      }
+      send(parts);
+      paintView();
+    },
+    opening() {
+      // The chips were measured while the drawer was shut: fit them now.
+      layOut();
+      const latest = board.view().layouts.get("buys");
+      if (latest !== undefined) {
+        send(fitted(latest.parts));
+      }
+    },
+    open(openSheet) {
+      const view = board.view();
+      // The latest, before the open freezes what `opening` measured.
+      const latest = view.stack.includes("buys")
+        ? undefined
+        : view.layouts.get("buys");
+      openSheet();
+      // Shut again, the footnote comes back, to be measured at the next open.
+      if (latest !== undefined) {
+        send(latest.parts);
+      }
+      paintView();
+    },
+    closed() {
+      paintView();
+      layOut();
+    },
+  };
 }
 
 /**
@@ -140,8 +533,8 @@ export function createCrewPanel({
   getView,
   now,
   pick,
-  clock,
-  pressAge,
+  board,
+  overSave,
   door,
   signal,
 }: {
@@ -151,11 +544,11 @@ export function createCrewPanel({
   /** The game's clock: rates, trouble and the New row. */
   now: () => number;
   pick: () => ReadyPick;
-  /** Milliseconds for the drawer's settle (the screen's tap clock). */
-  clock: () => number;
-  /** How long a press waited before its handler ran (the drawer's default when left out). */
-  pressAge?: (event: Event) => number;
-  /** The drawer's key on the rail: the shell writes its aria-expanded (#373). */
+  /** The board's tap rules, shared by every drawer and the board. */
+  board: BoardHost;
+  /** The save drawer is open over the board: its Escape is its own. */
+  overSave: () => boolean;
+  /** The drawer's key on the rail: the shell writes its aria-expanded. */
   door?: HTMLElement;
   /** Aborting it removes the drawer's document listeners. */
   signal?: AbortSignal;
@@ -164,527 +557,98 @@ export function createCrewPanel({
   render: () => void;
   open: (from?: HTMLElement) => void;
 } {
+  const onBoard = rowsOnBoard(board, "buys");
   const sheet = createBoardSheet({
     name: "buys",
     title: "Buys",
     infoLabel: "Buys",
-    clock,
-    ...(pressAge === undefined ? {} : { pressAge }),
+    how: { systems: ["staffing", "layers"], backLabel: "Back to Buys" },
+    board,
+    overSave,
     ...(door === undefined ? {} : { door }),
-    // Shut, the list takes its latest layout: rows, legends and chips.
+    onOpen: () => {
+      layout.opening();
+    },
     onClose: () => {
-      unfreeze();
+      layout.closed();
+    },
+    onForget: () => {
+      onBoard.forget();
     },
     ...(signal === undefined ? {} : { signal }),
   });
   sheet.kick(BUYS_KICK);
+  const parts = buildCrewParts();
 
-  // The "i": staffing and layers in the drawer's place, one Back under the last.
-  const howCards = (["staffing", "layers"] as const).map((system) =>
-    boardHowCard(system, "Back to Buys", () => {
-      sheet.showHow(false);
-    }),
-  );
-  const firstBack = howCards[0]?.querySelector<HTMLElement>(".teach-how-back");
-  if (firstBack) {
-    firstBack.hidden = true;
-  }
-  sheet.how.append(...howCards);
-  sheet.info.addEventListener("click", () => {
-    sheet.showHow(true);
+  // The crew line counts up to the new rate after a purchase.
+  let rateShown: number | undefined;
+  const paintStatus = (): void => {
+    paintCrewStatus(parts.crewStatus, getView(), now(), rateShown);
+  };
+  const rate = createRateCounter({
+    reduced: reducedMotion,
+    paint: (shown) => {
+      rateShown = shown;
+      paintStatus();
+    },
   });
-
-  // The Crew section: the crew's sentence, then where the hands are, as chips.
-  const crew = el("section", "crew");
-  crew.setAttribute("aria-label", "Your crew");
-  const crewStatus = el("p", "crew-status");
-  crewStatus.setAttribute("aria-live", "polite");
-  // Text, not a door. The full sentence is spoken from hidden words; the chips say it again in
-  // short, for the eye only.
-  const posts = el("p", "crew-posts");
-  posts.hidden = true;
-  const postsWords = el("span", "crew-posts-words");
-  posts.append(postsWords);
-  crew.append(crewStatus, posts);
-
   const crewSpeed = (): number =>
     effectiveRates(getView().mountain, now(), getView().trouble).crewPerSecond;
-
-  /** The crew line counts up to the new rate after a purchase. */
-  let rateShown: number | undefined;
-  let countTimer: ReturnType<typeof setInterval> | undefined;
-  const countCrewRate = (from: number, to: number): void => {
-    if (countTimer !== undefined) {
-      clearInterval(countTimer);
-      countTimer = undefined;
-    }
-    if (reducedMotion() || to <= from) {
-      rateShown = undefined;
-      renderCrew();
-      return;
-    }
-    let step = 0;
-    rateShown = from;
-    renderCrew();
-    countTimer = setInterval(() => {
-      step += 1;
-      rateShown =
-        step >= COUNT_STEPS
-          ? undefined
-          : Math.round(from + ((to - from) * step) / COUNT_STEPS);
-      if (rateShown === undefined) {
-        clearInterval(countTimer);
-        countTimer = undefined;
-      }
-      renderCrew();
-    }, COUNT_STEP_MS);
-  };
-
-  const thank = (): void => {
-    sheet.flash(TROUBLE_FIXED, THANKS_MS);
-  };
-
-  /** A tap on the staffing New row hires a worker; the hold keeps a second tap off the machine. */
-  const hire = (row: BoardRow): void => {
-    const rateBefore = crewSpeed();
-    if (dispatch({ kind: "buyTier", id: "helper" }).kind === "applied") {
-      row.done();
-      countCrewRate(rateBefore, crewSpeed());
+  const buy = (id: TierId, what: TierId): void => {
+    const before = crewSpeed();
+    if (dispatch({ kind: "buyTier", id: what }).kind === "applied") {
+      onBoard.result(id, "applied");
+      rate.count(before, crewSpeed());
     }
   };
 
-  const rows: readonly TierRow[] = [
-    ...BUY_SECTIONS.crew,
-    ...BUY_SECTIONS.machines,
-  ].map((id) => {
-    const tier = tierById(id);
-    const row = createBoardRow({
-      tag: "button",
-      className: "tier",
-      data: { tier: id },
-      name: tier.name,
-      icon: true,
-    });
-    row.setIcon(BUY_ICON[FIRST_ICON[id]]);
-    const root = row.root;
-    if (!(root instanceof HTMLButtonElement)) {
-      return { id, row };
-    }
-    const troubledHere = (snapshot: ProgressSnapshot) =>
-      snapshot.trouble?.tier === id ? snapshot.trouble : undefined;
-    const hold = watchFixHold(root, {
-      tier: () => troubledHere(progress.getSnapshot())?.tier,
-      fix: (troubledTier) => {
-        progress.fixTrouble(troubledTier);
-        if (progress.getSnapshot().trouble === undefined) {
-          thank();
-          row.hold();
-        }
-      },
-    });
-    buyOnTap(
-      root,
-      root,
-      (press) => {
-        // The click that ends a hold that fixed is not a tap.
-        if (hold.heldFix()) {
-          return;
-        }
-        const snapshot = progress.getSnapshot();
-        if (!snapshot.ready) {
-          return;
-        }
-        const troubled = troubledHere(snapshot);
-        // The second tap of the double tap that opened Buys spends nothing. A trouble press is
-        // not a spend, so it still counts, in the settle and in a Done hold alike.
-        if (press.early && troubled === undefined) {
-          return;
-        }
-        // A second sleepy tap inside the Done hold buys nothing.
-        if (row.holding() && troubled === undefined) {
-          return;
-        }
-        // Read again at the tap: a pocket that fell since the last paint buys nothing.
-        const at = now();
-        const fresh = buyRowView({
-          mountain: snapshot.mountain,
-          now: at,
-          trouble: snapshot.trouble,
-          tier: id,
-          pick: pick(),
-          guided: guidedOf(snapshot.mountain, at, snapshot.trouble),
-        });
-        // A row the open drawer holds in place for a tier no longer shown sells nothing.
-        if (!fresh.shown || !fresh.can) {
-          row.blink();
-          return;
-        }
-        // The guided idle machine hires its crew. Another one would stand idle too, so the New
-        // row never buys more of it.
-        if (fresh.guided) {
-          hire(row);
-          return;
-        }
-        if (troubled !== undefined) {
-          progress.pressTrouble(troubled.tier);
-          if (progress.getSnapshot().trouble === undefined) {
-            thank();
-            // The burst of presses that fixed it must not run on into a buy, even inside the
-            // hold of an earlier buy.
-            row.hold();
-          }
-          return;
-        }
-        const rateBefore = crewSpeed();
-        if (dispatch({ kind: "buyTier", id }).kind === "applied") {
-          row.done();
-          countCrewRate(rateBefore, crewSpeed());
-        }
-      },
-      { settling: (press) => sheet.settlingFor(press) },
-    );
-    return { id, row };
-  });
-
-  const crewSec = legend("Crew", "crew", "per sec");
-  const machineSec = legend("Machines", "machines");
-  const foot = el("p", "board-sheet-foot", READY_FOOT);
-  const rowOf = (id: TierId): HTMLElement[] =>
-    rows.filter((item) => item.id === id).map((item) => item.row.root);
-  const parts = [
-    crewSec,
-    crew,
-    ...BUY_SECTIONS.crew.flatMap(rowOf),
-    machineSec,
-    ...BUY_SECTIONS.machines.flatMap(rowOf),
-  ];
-  // Until the save is in, nothing from it shows: no row, legend, crew line or footnote.
-  for (const part of [...parts, foot]) {
-    part.hidden = true;
-  }
-  const spare = sheet.list.querySelector(".board-spare");
-  if (spare === null) {
-    sheet.list.append(...parts);
-  } else {
-    spare.before(...parts);
-  }
-  // The footnote stands under the list, over Back: never part of the list's scroll (#373).
-  sheet.footer.prepend(foot);
-
-  /**
-   * Rows never move under a finger (#373): while the drawer is open with a save in, every part
-   * keeps the place it had as it opened. What a part should be is kept here and applied while
-   * the drawer is shut and as it opens. Words still change in place.
-   */
-  const wanted = new Map<HTMLElement, boolean>();
-  let frozen = false;
-  const place = (part: HTMLElement, hidden: boolean): void => {
-    wanted.set(part, hidden);
-    if (!frozen) {
-      hide(part, hidden);
-    }
-  };
-
-  /** One crew chip: what it stands for, and its words. */
-  interface ChipBit {
-    readonly key: string;
-    readonly text: string;
-  }
-  /** The chips the crew has now. */
-  let chipBits: readonly ChipBit[] = [];
-  /** The chips on the line, and in how many rows. */
-  let chipsShown: readonly ChipBit[] = [];
-  let chipLines = 0;
-  /** One chip per place on the line, reused: each keeps its tag skin. */
-  const chipPool: HTMLElement[] = [];
-  const chipAt = (index: number, text: string): HTMLElement => {
-    let chip = chipPool[index];
-    if (chip === undefined) {
-      chip = el("span", "crew-bit");
-      chip.append(el("span", "crew-bit-text"));
-      skin(chip, "tag");
-      chipPool[index] = chip;
-    }
-    const words = chip.querySelector<HTMLElement>(".crew-bit-text");
-    if (words !== null) {
-      write(words, text);
-    }
-    return chip;
-  };
-  /** `bits` in exactly `lines` rows, as even as they go. */
-  const paintChips = (bits: readonly ChipBit[], lines: number): void => {
-    const base = Math.floor(bits.length / lines);
-    const extra = bits.length % lines;
-    let next = 0;
-    posts.replaceChildren(
-      postsWords,
-      ...Array.from({ length: lines }, (_, index) => {
-        const line = el("span", "crew-row");
-        line.setAttribute("aria-hidden", "true");
-        for (let i = 0; i < base + (index < extra ? 1 : 0); i += 1) {
-          line.append(chipAt(next, bits[next]?.text ?? ""));
-          next += 1;
-        }
-        return line;
-      }),
-    );
-    chipsShown = bits;
-    chipLines = lines;
-  };
-  /**
-   * Fewest even rows whose widest row fits the line. A shut drawer has no width to measure,
-   * so Buys calls this again once it is open (#371).
-   */
-  const layoutChips = (): void => {
-    if (posts.hidden || chipBits.length === 0) {
-      return;
-    }
-    for (let lines = 1; lines <= chipBits.length; lines += 1) {
-      paintChips(chipBits, lines);
-      if (!crewRowsOverflow(posts)) {
-        break;
-      }
-    }
-  };
-  /**
-   * The open drawer's chips: the same chips in the same rows, their words new. A chip the crew
-   * no longer has reads zero; a new one joins only if it fits the rows already there.
-   */
-  const refreshChips = (): void => {
-    if (chipLines === 0) {
-      return;
-    }
-    const latest = new Map(chipBits.map((bit) => [bit.key, bit.text]));
-    const kept = chipsShown.map((bit) => ({
-      key: bit.key,
-      text: latest.get(bit.key) ?? zeroChip(bit),
-    }));
-    const added = chipBits.filter(
-      (bit) => !chipsShown.some((shown) => shown.key === bit.key),
-    );
-    if (added.length > 0 && kept.length + added.length >= chipLines) {
-      paintChips([...kept, ...added], chipLines);
-      if (!crewRowsOverflow(posts)) {
-        return;
-      }
-    }
-    paintChips(kept, chipLines);
-  };
-
-  /**
-   * The footnote takes room from the list. On an open drawer whose list would scroll with it
-   * there, it steps aside, so early and mid-game Buys fit; shut, it comes back to be measured
-   * at the next open (#373).
-   */
-  const fitFoot = (): void => {
-    if (!foot.hidden && sheet.list.scrollHeight > sheet.list.clientHeight + 1) {
-      hide(foot, true);
-    }
-  };
-
-  /** The open drawer holds its layout from here; shut, it takes the latest. */
-  const freeze = (): void => {
-    if (!frozen) {
-      fitFoot();
-    }
-    frozen = true;
-    // Words that grow in place run on past the line rather than wrap a chip row (board.css).
-    mark(posts, "is-frozen", true);
-  };
-  const unfreeze = (): void => {
-    frozen = false;
-    mark(posts, "is-frozen", false);
-    for (const [part, hidden] of wanted) {
-      hide(part, hidden);
-    }
-    layoutChips();
-  };
-
-  const renderCrew = (): void => {
-    const { mountain: current, trouble } = getView();
-    const at = now();
-    const rates = effectiveRates(current, at, trouble);
-    const rate = rateShown ?? rates.crewPerSecond;
-    const { spare: free } = crewCounts(current, at, trouble);
-    const idle = TIERS.reduce(
-      (total, tier) => total + owned(current, tier) - rates.running[tier.id],
-      0,
-    );
-    mark(crewStatus, "crew-short", rates.helpersShort > 0);
-    mark(crewStatus, "crew-waiting", rate === 0);
-    write(
-      crewStatus,
-      rates.helpersShort > 0
-        ? `${formatCompact(rate)}/s · ${formatCompact(idle)} idle, need ${formatCompact(rates.helpersShort)} ${workerWords(rates.helpersShort)}`
-        : rate === 0
-          ? "No crew yet. Hire a worker to mine for you."
-          : rate >= 1_000
-            ? // Compact once it's big, so the line never wraps on a phone.
-              `Your crew mines ${formatCompact(rate)} stones/s`
-            : `Your crew mines ${stonesASecond(rate)}`,
-    );
-    const pool = current.helpers + current.kids;
-    const stations = TIERS.flatMap((tier) => {
-      const label = crewPostLabel(tier.id);
-      return label === undefined
-        ? []
-        : [
-            {
-              label,
-              workers: rates.running[tier.id] * staffNeeded(current, tier),
-            },
-          ];
-    });
-    const grandpa = grandpaPost(current);
-    const fullPosts = `${crewPostsWords(pool, free, stations)}${grandpa === undefined ? "" : `. ${grandpaSentence(grandpa)}`}`;
-    place(posts, pool <= 0);
-    write(postsWords, fullPosts);
-    const bits: readonly ChipBit[] =
-      pool <= 0
-        ? []
-        : [
-            {
-              key: "pool",
-              text: `${formatCompact(pool)} ${workerWords(pool)}`,
-            },
-            ...stations
-              .filter((post) => post.workers > 0)
-              .map((post) => ({
-                key: post.label,
-                text: `${formatCompact(post.workers)} on ${post.label}`,
-              })),
-            // After a pass, the old dad tends the biggest machine (#338).
-            ...(grandpa === undefined
-              ? []
-              : [{ key: "grandpa", text: grandpaChipWords(grandpa) }]),
-          ];
-    const same = (a: readonly ChipBit[], b: readonly ChipBit[]): boolean =>
-      a.length === b.length &&
-      a.every((bit, index) => bit.text === b[index]?.text);
-    if (same(bits, chipBits)) {
-      return;
-    }
-    chipBits = bits;
-    if (frozen) {
-      refreshChips();
-      return;
-    }
-    if (bits.length === 0) {
-      posts.replaceChildren(postsWords);
-      chipsShown = [];
-      chipLines = 0;
-      return;
-    }
-    layoutChips();
-  };
+  const rows = [...BUY_SECTIONS.crew, ...BUY_SECTIONS.machines].map((id) =>
+    tierRow(id, { progress, onBoard, now, pick, buy }),
+  );
+  const layout = createBuysLayout(
+    board,
+    sheet,
+    placeParts(sheet, parts, rows),
+    parts,
+  );
+  /** The staffing New row the last render painted. */
+  let fresh: TierId | undefined;
 
   const render = (): void => {
     const view = getView();
-    if (!view.ready) {
-      // The rows go dark and keep their places: names and icons only, disabled, no numbers.
-      for (const { row } of rows) {
-        row.render(undefined);
-        mark(row.root, "teach-new", false);
-        delete row.root.dataset["trouble"];
-      }
-      // The crew's sentence and chips are the old save's: blank, in their places.
-      mark(crew, "is-blank", true);
-      mark(crewSec, "is-blank", true);
-      sheet.kick(BUYS_KICK);
-      if (sheet.isOpen()) {
-        sheet.fitSpare();
-      }
-      return;
+    // While the save loads, the crew's sentence and chips are the old save's: blank, in place.
+    mark(parts.crew, "is-blank", !view.ready);
+    mark(parts.crewSec, "is-blank", !view.ready);
+    if (view.ready) {
+      const at = now();
+      const painted = paintRows(rows, view, { at, pick: pick(), onBoard });
+      fresh = painted.fresh;
+      const line = crewPosts(view.mountain, at, view.trouble);
+      write(parts.postsWords, line.words);
+      paintStatus();
+      layout.paint(shownParts(painted.shown, line.bits.length > 0), line.bits);
+    } else {
+      fresh = undefined;
+      paintRowsLoading(rows, onBoard);
     }
-    const current = view.mountain;
-    const at = now();
-    const painted = pick();
-    const guided = guidedOf(current, at, view.trouble);
-    let machinesShowing = false;
-    for (const { id, row } of rows) {
-      const rowView = buyRowView({
-        mountain: current,
-        now: at,
-        trouble: view.trouble,
-        tier: id,
-        pick: painted,
-        guided,
-      });
-      place(row.root, !rowView.shown);
-      if (rowView.shown && tierById(id).staff > 0) {
-        machinesShowing = true;
-      }
-      row.setIcon(BUY_ICON[rowView.icon]);
-      row.render(rowView);
-      mark(row.root, "teach-new", rowView.guided);
-      const trouble = rowView.state === "trouble" ? view.trouble : undefined;
-      if (trouble === undefined) {
-        if (row.root.dataset["trouble"] !== undefined) {
-          delete row.root.dataset["trouble"];
-        }
-      } else if (row.root.dataset["trouble"] !== trouble.kind) {
-        row.root.dataset["trouble"] = trouble.kind;
-      }
-    }
-    place(crewSec, false);
-    place(crew, false);
-    place(machineSec, !machinesShowing);
-    place(foot, false);
-    mark(crew, "is-blank", false);
-    mark(crewSec, "is-blank", false);
-    renderCrew();
-    // A drawer opened before the save was in lays out once, as the save lands.
-    if (sheet.isOpen()) {
-      freeze();
-    }
-    sheet.kick(showsDot(current, "staffing") ? STAFFING_INTRO : BUYS_KICK);
+    const teach = view.ready && showsDot(view.mountain, "staffing");
+    sheet.kick(teach ? STAFFING_INTRO : BUYS_KICK);
     if (sheet.isOpen()) {
       sheet.fitSpare();
     }
   };
 
   const open = (from?: HTMLElement): void => {
-    const opening = !sheet.isOpen();
-    if (opening) {
-      unfreeze();
-    }
-    sheet.open(from);
-    if (opening) {
-      // The crew chips were measured while the drawer was shut: fit them now.
-      layoutChips();
-      // A save that is in sets the layout; one still loading sets it as it lands.
-      if (getView().ready) {
-        freeze();
-      }
-    }
+    layout.open(() => {
+      sheet.open(from);
+    });
     // The staffing New row: bring it into view, scrolling the list alone. The board's clip
-    // around the sliding drawer never scrolls (#373).
-    const fresh = sheet.list.querySelector<HTMLElement>(".board-row.teach-new");
-    if (fresh !== null) {
-      scrollIntoList(sheet.list, fresh);
+    // around the sliding drawer never scrolls.
+    const row = rows.find(({ id }) => id === fresh);
+    if (row !== undefined) {
+      scrollIntoList(sheet.list, row.row.root);
     }
   };
 
   return { sheet, render, open };
-}
-
-function crewRowsOverflow(line: HTMLElement): boolean {
-  if (!line.isConnected || line.clientWidth <= 0) {
-    return false;
-  }
-  const rows = [...line.querySelectorAll<HTMLElement>(".crew-row")];
-  // A row that wrapped (board.css lets a row wrap rather than clip) also overflows: its chips
-  // do not all share one line.
-  const wrapped = (row: HTMLElement): boolean => {
-    const tops = [...row.querySelectorAll<HTMLElement>(".crew-bit")].map(
-      (chip) => chip.offsetTop,
-    );
-    return tops.some((top) => top !== tops[0]);
-  };
-  if (
-    rows.some((row) => row.scrollWidth > row.clientWidth + 1 || wrapped(row))
-  ) {
-    return true;
-  }
-  return rows.length === 1 && line.scrollWidth > line.clientWidth + 1;
 }

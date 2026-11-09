@@ -5,6 +5,9 @@ import {
   fitFirst,
   fitsWidth,
   frameX,
+  hide,
+  legend,
+  mark,
   refitAll,
   scrollIntoList,
   setAttr,
@@ -188,5 +191,49 @@ describe("scrollIntoList (#373)", () => {
     const { list, row } = setup(400, 476);
     scrollIntoList(list, row);
     expect(list.scrollTop).toBe(40);
+  });
+
+  it("hide and mark write only on change", () => {
+    const box = el("div", "box");
+    const toggle = vi.spyOn(box.classList, "toggle");
+    mark(box, "is-on", true);
+    mark(box, "is-on", true);
+    expect(toggle).toHaveBeenCalledTimes(1);
+    mark(box, "is-on", false);
+    mark(box, "is-on", false);
+    expect(toggle).toHaveBeenCalledTimes(2);
+    expect(box.classList.contains("is-on")).toBe(false);
+
+    const writes = vi.fn();
+    let state = false;
+    Object.defineProperty(box, "hidden", {
+      get: () => state,
+      set: (value: boolean) => {
+        writes(value);
+        state = value;
+      },
+    });
+    hide(box, true);
+    hide(box, true);
+    expect(writes).toHaveBeenCalledTimes(1);
+    hide(box, false);
+    hide(box, false);
+    expect(writes).toHaveBeenCalledTimes(2);
+  });
+
+  it("legend builds the section legend", () => {
+    const plain = legend("Machines", "machines");
+    expect(plain.className).toBe("board-sec");
+    expect(plain.dataset["sec"]).toBe("machines");
+    expect([...plain.children].map((c) => c.textContent)).toEqual(["Machines"]);
+    const column = legend("Crew", "crew", "per sec");
+    expect([...column.children].map((c) => c.className)).toEqual([
+      "board-lg",
+      "board-lg",
+    ]);
+    expect([...column.children].map((c) => c.textContent)).toEqual([
+      "Crew",
+      "per sec",
+    ]);
   });
 });

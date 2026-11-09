@@ -1,7 +1,5 @@
 {
   "src/board-relics.ts#createRelicPlate>render": 19,
-  "src/buys-rows.ts#buyRowView": 34,
-  "src/crew-panel.ts#createCrewPanel>render": 20,
   "src/device-label.ts#deviceLabelFromAgent": 26,
   "src/engineers-panel.ts#createEngineersPanel>render": 60,
   "src/engineers-panel.ts#paintEngineer": 23,

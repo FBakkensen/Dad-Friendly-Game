@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { boostById, boostCost } from "./boosts";
+import { BOOSTS, boostById, boostCost } from "./boosts";
 import { promoteCost } from "./engineers";
 import { send } from "./expeditions";
 import {
@@ -30,10 +30,12 @@ import {
 import { createMemoryAuth } from "./auth";
 import { type CloudLoadResult, type CloudSave } from "./cloud-save";
 import { BUYS_SETTLE_MS, showAppUpdate } from "./mountain-screen";
-import { shownRows } from "./upgrade-reveal";
+import { shownRows, upgradeRowId } from "./upgrade-reveal";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { tierById, tierCost } from "./tiers";
-import { upgradeById, upgradeCost, type UpgradeId } from "./upgrades";
+import { UPGRADES, upgradeById, upgradeCost, type UpgradeId } from "./upgrades";
+import { upgradesOrder } from "./upgrades-panel";
+import { LOST_TOOLS } from "./lost-tools";
 import {
   createMemoryStorage,
   mountScreen,
@@ -434,11 +436,49 @@ describe("the Buys drawer (#373)", () => {
       expect(carts()).toBe(7);
       expect(partOf(cart, "verb")).toBe("Done");
       expect(cart.getAttribute("aria-label")).toBe("Mine cart. Done");
+      // The hold ends on the board's own clock: move it with the timers.
+      clock += 1_800;
       vi.advanceTimersByTime(1_800);
       cart.click();
       expect(carts()).toBe(7);
+      clock += 150;
       vi.advanceTimersByTime(150);
+      expect(partOf(cart, "verb")).toBe("Buy");
       cart.click();
+      expect(carts()).toBe(8);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a row's Done hold holds a press whose finger came down inside it, handled after it ended", () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 10_000;
+      let age = 0;
+      const screen = mountScreen({
+        storage: seededWith(early({ pocket: 1_000_000 })),
+        now: () => CLOCK,
+        tapClock: () => clock,
+        pressAge: () => age,
+      });
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      const cart = rowOf(screen, "cart");
+      const carts = () => screen.progress.getSnapshot().mountain.carts;
+      cart.click();
+      expect(carts()).toBe(7);
+      // A busy phone: the finger came down 1.8s into the hold, and the page got to the press
+      // 0.1s after the hold ended.
+      clock += 2_000;
+      vi.advanceTimersByTime(2_000);
+      expect(partOf(cart, "verb")).toBe("Buy");
+      age = 200;
+      fingerTap(cart);
+      expect(carts()).toBe(7);
+      // A press of its own after the hold buys.
+      age = 0;
+      fingerTap(cart);
       expect(carts()).toBe(8);
     } finally {
       vi.useRealTimers();
@@ -461,11 +501,14 @@ describe("the Buys drawer (#373)", () => {
       const pocket = screen.progress.getSnapshot().mountain.pocket;
       fingerTap(drill);
       expect(lampOf(drill)).toBe("-120px");
+      // The blink runs on the board's own clock: move it with the timers.
+      clock += 140;
       vi.advanceTimersByTime(140);
       expect(lampOf(drill)).toBe("0px");
       expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
       expect(screen.progress.getSnapshot().mountain.drills).toBe(0);
       // A locked row blinks too, and buys nothing.
+      clock += 1_000;
       vi.advanceTimersByTime(1_000);
       const borer = rowOf(screen, "borer");
       borer.click();
@@ -533,6 +576,8 @@ describe("the Buys drawer (#373)", () => {
           .querySelector(".board-sheet-kick")
           ?.classList.contains("is-done"),
       ).toBe(true);
+      // The thanks ends on the board's own clock: move it with the timers.
+      clock += 1_600;
       await vi.advanceTimersByTimeAsync(1_600);
       expect(kick(screen)).toBe("Crew and machines that mine while you rest");
       expect(cart.dataset["trouble"]).toBeUndefined();
@@ -1053,6 +1098,121 @@ describe("the Buys drawer (#373)", () => {
     expect(rowOf(screen, "cart").hidden).toBe(false);
   });
 
+  /** A signed-in screen whose save loads again on `reload`, and lands on `land`. */
+  const reloadable = (mountain: Mountain, tapClock?: () => number) => {
+    let landWith: (result: CloudLoadResult) => void = () => {
+      throw new Error("load was not pending");
+    };
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        landWith = onChange;
+        return () => undefined;
+      },
+    };
+    const auth = createMemoryAuth();
+    const screen = mountScreen({
+      auth,
+      cloudSave,
+      storage: seededWith(mountain),
+      now: () => CLOCK,
+      ...(tapClock === undefined ? {} : { tapClock }),
+    });
+    const reload = async (): Promise<void> => {
+      await auth.signIn();
+      await Promise.resolve();
+      expect(screen.progress.getSnapshot().ready).toBe(false);
+    };
+    // One more stone mined: the copy that lands is ahead of the phone's, so it is the one kept.
+    const land = async (landed: Mountain): Promise<void> => {
+      landWith({
+        kind: "found",
+        mountain: { ...landed, remaining: landed.remaining - 1 },
+      });
+      await Promise.resolve();
+      expect(screen.progress.getSnapshot().ready).toBe(true);
+    };
+    return { screen, reload, land };
+  };
+
+  it("a drawer opened while the save loads lays out once as it lands", async () => {
+    const { screen, reload, land } = reloadable(early());
+    expect(rowOf(screen, "drill").hidden).toBe(false);
+    await reload();
+    openBuys(screen);
+    // The save that lands has no carts: no drill to show.
+    await land(early({ carts: 0 }));
+    expect(rowOf(screen, "drill").hidden).toBe(true);
+    expect(chipsOf(screen).classList.contains("is-frozen")).toBe(true);
+    // From here the open drawer holds what it laid out.
+    screen.progress.applyMutation((m) => ({ ...m, carts: 6 }));
+    expect(rowOf(screen, "drill").hidden).toBe(true);
+    drawerOf(screen)
+      .querySelector<HTMLButtonElement>(".board-sheet-back")
+      ?.click();
+    expect(rowOf(screen, "drill").hidden).toBe(false);
+  });
+
+  it("a reload while open keeps the rows in place and blinks nothing while loading", async () => {
+    vi.useFakeTimers();
+    setReducedMotion(false);
+    try {
+      let clock = 10_000;
+      const { screen, reload, land } = reloadable(early(), () => clock);
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      const before = listParts(screen);
+      const drill = rowOf(screen, "drill");
+      fingerTap(drill);
+      expect(lampOf(drill)).toBe("-120px");
+      await reload();
+      expect(lampOf(drill)).toBe("0px");
+      fingerTap(drill);
+      expect(lampOf(drill)).toBe("0px");
+      expect(listParts(screen)).toEqual(before);
+      // The save that lands has no carts. The drill keeps its place, and the blink from before
+      // the reload is over.
+      await land(early({ carts: 0 }));
+      expect(listParts(screen)).toEqual(before);
+      expect(lampOf(drill)).toBe("0px");
+      // A row held in place for a tier no longer shown blinks, and buys nothing.
+      fingerTap(drill);
+      expect(lampOf(drill)).toBe("-120px");
+      expect(screen.progress.getSnapshot().mountain.drills).toBe(0);
+    } finally {
+      vi.useRealTimers();
+      setReducedMotion(true);
+    }
+  });
+
+  it("after a buy, a reload within the Done hold ends it, and the next press acts", async () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 10_000;
+      const { screen, reload, land } = reloadable(
+        early({ pocket: 1_000_000 }),
+        () => clock,
+      );
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      const carts = () => screen.progress.getSnapshot().mountain.carts;
+      rowOf(screen, "cart").click();
+      expect(carts()).toBe(7);
+      expect(partOf(rowOf(screen, "cart"), "verb")).toBe("Done");
+      clock += 500;
+      await reload();
+      await land(early({ pocket: 1_000_000 }));
+      expect(partOf(rowOf(screen, "cart"), "verb")).toBe("Buy");
+      rowOf(screen, "cart").click();
+      expect(carts()).toBe(7);
+      expect(partOf(rowOf(screen, "cart"), "verb")).toBe("Done");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("trouble presses count during a Done hold", () => {
     vi.useFakeTimers();
     try {
@@ -1322,6 +1482,8 @@ describe("upgrades on screen", () => {
       expect(partOf(sharper, "verb")?.textContent).toBe("Done");
       expect(partOf(sharper, "flag")?.textContent).toBe("Done");
       expect(sharper.getAttribute("aria-label")).toBe("Sharper picks. Done");
+      // The hold ends on the board's own clock: move it with the timers.
+      clock += 1_900;
       await vi.advanceTimersByTimeAsync(1_900);
       expect(partOf(sharper, "verb")?.textContent).toBe("Running");
       expect(partOf(sharper, "price")?.textContent).toBe("10:00");
@@ -1389,6 +1551,7 @@ describe("upgrades on screen", () => {
       const frames: string[] = [];
       fingerTap(sharper);
       frames.push(lamp?.style.backgroundPositionX ?? "");
+      clock += 140;
       vi.advanceTimersByTime(140);
       frames.push(lamp?.style.backgroundPositionX ?? "");
       expect(frames).toEqual(["-120px", "0px"]);
@@ -1940,6 +2103,70 @@ describe("upgrades on screen", () => {
     }
   });
 
+  it("Upgrades opened while the save reloads keeps its order", async () => {
+    // Sharper picks was used. With the pocket on Strong arms it is New, and Lasting leads.
+    const base: Mountain = {
+      ...minedMountain(30_000),
+      helpers: 500,
+      carts: 3,
+      drills: 1,
+      staffed: 2,
+      boosts: { sharper: CLOCK - 1 },
+      pocket: 0,
+    };
+    let landWith: (result: CloudLoadResult) => void = () => {
+      throw new Error("load was not pending");
+    };
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        landWith = onChange;
+        return () => undefined;
+      },
+    };
+    const auth = createMemoryAuth();
+    const screen = mountScreen({
+      auth,
+      cloudSave,
+      storage: seededWith({ ...base, pocket: upgradePrice("tap", 0) }, CLOCK),
+      now: () => CLOCK,
+    });
+    // The parts, without the spare plate under them, whose fit changes as the drawer opens.
+    const partsOrder = (): string[] =>
+      rowOrder(screen).filter((part) => !part.startsWith("board-spare"));
+    const order = partsOrder();
+    expect(order.indexOf("lasting")).toBeLessThan(order.indexOf("boosts"));
+    await auth.signIn();
+    await Promise.resolve();
+    expect(screen.progress.getSnapshot().ready).toBe(false);
+    openUpgrades(screen);
+    // The save that lands has an empty pocket: Overtime is New, and would lead.
+    landWith({
+      kind: "found",
+      mountain: { ...base, remaining: base.remaining - 1 },
+    });
+    await Promise.resolve();
+    expect(screen.progress.getSnapshot().ready).toBe(true);
+    expect(
+      rowOf(screen, '[data-boost="overtime"]').classList.contains("teach-new"),
+    ).toBe(true);
+    expect(partsOrder()).toEqual(order);
+    // Overtime does not lead the list it was not ordered for.
+    expect(
+      drawerOf(screen)?.querySelector(".board-sheet-kick")?.textContent,
+    ).toBe("Boosts for tonight, gear for good");
+    // The next opening leads with the New row's section.
+    drawerOf(screen)
+      ?.querySelector<HTMLButtonElement>(".board-sheet-back")
+      ?.click();
+    openUpgrades(screen);
+    const next = partsOrder();
+    expect(next.indexOf("boosts")).toBeLessThan(next.indexOf("lasting"));
+    expect(topRow(screen).dataset["boost"]).toBe("overtime");
+  });
+
   it("a double tap on Back to Upgrades never buys the row under it", () => {
     const m = boostsOpen(50_000);
     let clock = 10_000;
@@ -1970,6 +2197,51 @@ describe("upgrades on screen", () => {
     expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
       undefined,
     );
+  });
+});
+
+describe("the Upgrades order", () => {
+  const boosts = BOOSTS.map((boost) => `boost:${boost.id}`);
+  const lasting = UPGRADES.map((upgrade) => `upgrade:${upgrade.id}`);
+  const found = [
+    "sec:found",
+    ...LOST_TOOLS.map((tool) => `tool:${tool}`),
+    "foot",
+  ];
+
+  it("with no New row, Quick boosts lead, each in its own order", () => {
+    expect(upgradesOrder(undefined)).toEqual([
+      "sec:boosts",
+      ...boosts,
+      "sec:lasting",
+      ...lasting,
+      ...found,
+    ]);
+  });
+
+  it("a New boost leads Quick boosts", () => {
+    expect(upgradesOrder("boost:overtime")).toEqual([
+      "sec:boosts",
+      "boost:overtime",
+      ...boosts.filter((id) => id !== "boost:overtime"),
+      "sec:lasting",
+      ...lasting,
+      ...found,
+    ]);
+  });
+
+  it("a New upgrade leads its section, and its section leads", () => {
+    const second = UPGRADES[1];
+    if (second === undefined) throw new Error("only one upgrade");
+    const fresh = upgradeRowId(second);
+    expect(upgradesOrder(fresh)).toEqual([
+      "sec:lasting",
+      fresh,
+      ...lasting.filter((id) => id !== fresh),
+      "sec:boosts",
+      ...boosts,
+      ...found,
+    ]);
   });
 });
 
