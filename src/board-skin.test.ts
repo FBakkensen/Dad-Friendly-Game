@@ -91,4 +91,19 @@ describe("skin", () => {
     expect(div.querySelectorAll("canvas.board-skin")).toHaveLength(1);
     expect(div.classList.contains("board-skinned")).toBe(true);
   });
+
+  it("takes no room until it is painted, even on a host built hidden", () => {
+    // A canvas left at its default 300x150 sticks out of a small host until the first paint,
+    // a frame later: the "i" cards' Back overflowed its drawer that way (#403).
+    const div = document.createElement("div");
+    div.hidden = true;
+    document.body.append(div);
+    skin(div, "brass");
+    const canvas = div.querySelector("canvas.board-skin");
+    expect(canvas).toBeInstanceOf(HTMLCanvasElement);
+    expect([
+      (canvas as HTMLCanvasElement).width,
+      (canvas as HTMLCanvasElement).height,
+    ]).toEqual([0, 0]);
+  });
 });
