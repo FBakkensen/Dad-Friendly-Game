@@ -7,19 +7,9 @@ import {
   createTeachNote,
   markNewCard,
   setPayoff,
-  setTeachDot,
 } from "./teach-ui";
 
 describe("teach parts", () => {
-  it("adds one dot and takes it off again", () => {
-    const button = document.createElement("button");
-    setTeachDot(button, true);
-    setTeachDot(button, true);
-    expect(button.querySelectorAll(".teach-dot")).toHaveLength(1);
-    setTeachDot(button, false);
-    expect(button.querySelector(".teach-dot")).toBeNull();
-  });
-
   it("shows one note that opens its sheet, then hides", () => {
     const note = createTeachNote();
     expect(note.note.hidden).toBe(true);

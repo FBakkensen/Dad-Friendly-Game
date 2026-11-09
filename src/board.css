@@ -2,8 +2,8 @@
  * The board stage (#370). #app is a fixed 424x924 enamel panel. src/board-fit.ts
  * sets --board-scale so the whole board shrinks to fit any screen; zoom keeps
  * taps lined up. contain: layout keeps the fixed sheets inside the board.
- * The old column fills the rail slot, 768..860, under the board's top, the
- * gauge row and the bays (#372); the bands above and below are for the board.
+ * Every row has its place: the board's top, the gauge row, the bays, the
+ * Ready row and the key rail at 768..860 (#370-#373), above the save line.
  */
 body {
   display: flex;
@@ -370,28 +370,150 @@ body {
   margin-top: calc(var(--art) * 4);
 }
 
-/* The thumb bar fills the rail slot's foot until B5's key rail; the ☰ menu
-   is its fifth cell, where B7's Ledger key goes (#372). */
-#app > .thumb-bar {
-  margin-top: auto;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+/* ---------- the key rail (#373) ----------
+   The mockup's rail, 424 x 46 art at (0, --rail-top): five keys 32 art wide,
+   8 art apart. Each cap is key.png's 32 art cells (rest, down, off, lit),
+   changed whole frames from board-keys.ts (inline background-position-x). */
+.board-rail {
+  position: absolute;
+  left: 0;
+  top: var(--rail-top);
+  width: var(--board-w);
+  height: calc(var(--art) * 46);
 }
 
-.thumb-bar .menu-button {
+#app > .board-rail {
+  max-width: none;
+}
+
+.board-key {
+  position: absolute;
+  top: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: auto;
-  min-width: var(--target-min);
-  min-height: var(--target-min);
+  width: calc(var(--art) * 32);
+  height: calc(var(--art) * 38);
   margin: 0;
-  border: var(--line) solid var(--color-gold);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  color: var(--color-gold);
-  font-size: var(--type-24);
-  line-height: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.board-key:nth-child(1) {
+  left: calc(var(--art) * 8);
+}
+
+.board-key:nth-child(2) {
+  left: calc(var(--art) * 48);
+}
+
+.board-key:nth-child(3) {
+  left: calc(var(--art) * 88);
+}
+
+.board-key:nth-child(4) {
+  left: calc(var(--art) * 128);
+}
+
+.board-key:nth-child(5) {
+  left: calc(var(--art) * 168);
+}
+
+/* A sub-line (an unlock line or a clock) makes the key 45 art tall. */
+.board-key.has-sub {
+  height: calc(var(--art) * 45);
+}
+
+.board-key:disabled {
+  cursor: default;
+}
+
+.board-key:focus-visible {
+  outline: calc(var(--art) * 1) solid var(--board-amber);
+  outline-offset: calc(var(--art) * 1);
+}
+
+.board-key-cap {
+  position: relative;
+  display: block;
+  flex: none;
+  width: calc(var(--art) * 32);
+  height: calc(var(--art) * 32);
+  background: url("./assets/board/key.png") no-repeat 0 0 /
+    calc(var(--art) * 128) calc(var(--art) * 32);
+  image-rendering: pixelated;
+}
+
+.board-key-icon {
+  position: absolute;
+  left: calc(var(--art) * 8);
+  top: calc(var(--art) * 7.5);
+  width: calc(var(--art) * 16);
+  height: calc(var(--art) * 16);
+  image-rendering: pixelated;
+}
+
+/* The icon drops 1 art with the cap while the key is held. */
+.board-key.is-down .board-key-icon {
+  top: calc(var(--art) * 8.5);
+}
+
+/* The red dot lamp: a system still to be taught, or trouble with no bay. */
+.board-key-dot {
+  position: absolute;
+  right: var(--art);
+  top: var(--art);
+  width: calc(var(--art) * 10);
+  height: calc(var(--art) * 10);
+  image-rendering: pixelated;
+}
+
+.board-key-dot[hidden],
+.board-key-sub[hidden] {
+  display: none;
+}
+
+.board-key-name {
+  margin-top: calc(var(--art) * -1);
+  white-space: nowrap;
+  color: var(--board-ink);
+  text-shadow:
+    0 var(--board-hair) 0 var(--board-night),
+    0 0 var(--art) var(--board-night);
+}
+
+.board-key-sub.board-num {
+  font-family: "Share Tech Mono", monospace;
+}
+
+.board-key.is-locked .board-key-name {
+  color: var(--board-ink-quiet);
+}
+
+/* The sub-line may run into the gaps beside its key, never as far as the
+   next key's line (80px apart): longer words end in an ellipsis. */
+.board-key-sub {
+  max-width: calc(var(--art) * 39);
+  margin-top: var(--board-hair);
+  /* Clipped sideways only: the line's descenders hang below its 13px lead. */
+  overflow-x: clip;
+  overflow-y: visible;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 500;
+  font-size: var(--board-type-13);
+  line-height: var(--board-type-13);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--board-ink-bare);
+  text-shadow:
+    0 var(--board-hair) 0 var(--board-night),
+    0 0 var(--art) var(--board-night);
 }
 
 /* The New teach note in the board note (#372): the note's ink in place of

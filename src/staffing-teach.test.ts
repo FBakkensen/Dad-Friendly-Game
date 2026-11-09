@@ -62,7 +62,6 @@ function mount(now: () => number) {
     mountainUrl: tile,
     stoneUrl: tile,
     veinUrl: tile,
-    upgradesUrl: tile,
     tierArt: {
       helper: tile,
       cart: tile,
@@ -123,8 +122,10 @@ describe("staffing teach (#246)", () => {
     const clock = 1_700_000_000_000;
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => crew());
-    const buys = screen.root.querySelector<HTMLButtonElement>(".buys-button");
-    expect(buys?.querySelector(".teach-dot")).not.toBeNull();
+    const buys = screen.root.querySelector<HTMLButtonElement>(
+      ".board-key[data-key=buys]",
+    );
+    expect(buys?.querySelector(".board-key-dot:not([hidden])")).not.toBeNull();
     expect(
       screen.root.querySelector<HTMLElement>(".teach-note")?.hidden ?? true,
     ).toBe(true);
@@ -173,7 +174,7 @@ describe("staffing teach (#246)", () => {
     expect(mountain.carts).toBe(10);
     expect(mountain.helpers).toBe(7);
     expect(mountain.taught).toContain("staffing");
-    expect(buys?.querySelector(".teach-dot")).toBeNull();
+    expect(buys?.querySelector(".board-key-dot:not([hidden])")).toBeNull();
     expect(row?.classList.contains("teach-new")).toBe(false);
     // The hire holds Done: a second sleepy tap never buys the machine under it.
     row?.click();
@@ -194,7 +195,9 @@ describe("staffing teach (#246)", () => {
   it("opens How it works for staffing and layers", () => {
     const screen = mount(() => 1_700_000_000_000);
     screen.progress.applyMutation(() => crew());
-    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+      ?.click();
     screen.root
       .querySelector<HTMLButtonElement>(
         '.board-sheet[data-sheet="buys"].is-open .teach-info',

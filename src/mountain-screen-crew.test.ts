@@ -259,7 +259,9 @@ describe("the Buys drawer (#373)", () => {
   const lampOf = (row: HTMLElement) =>
     row.querySelector<HTMLElement>(".board-lamp")?.style.backgroundPositionX;
   const openBuys = (screen: ReturnType<typeof mountScreen>): void => {
-    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+      ?.click();
   };
   // A finger: the press, the lift, then the click it makes.
   const fingerTap = (target: HTMLElement): void => {
@@ -1084,7 +1086,9 @@ describe("the Buys drawer (#373)", () => {
         ?.classList.contains("is-open");
     openBuys(screen);
     expect(isOpen(screen)).toBe(true);
-    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
+      ?.click();
     expect(upgrades()).toBe(true);
     expect(isOpen(screen)).toBe(false);
     openBuys(screen);
@@ -1116,7 +1120,9 @@ describe("upgrades on screen", () => {
       '.board-sheet[data-sheet="upgrades"]',
     );
   const openUpgrades = (screen: ReturnType<typeof mountScreen>): void => {
-    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
+      ?.click();
   };
   const rowOf = (screen: ReturnType<typeof mountScreen>, selector: string) => {
     const row = drawerOf(screen)?.querySelector(selector);
@@ -1386,9 +1392,10 @@ describe("upgrades on screen", () => {
         now: () => clock,
       });
       document.body.append(screen.root);
-      const button =
-        screen.root.querySelector<HTMLButtonElement>(".upgrades-button");
-      expect(button?.classList.contains("afford-glow")).toBe(true);
+      const button = screen.root.querySelector<HTMLButtonElement>(
+        ".board-key[data-key=upgrades]",
+      );
+      expect(button?.classList.contains("is-lit")).toBe(true);
       expect(button?.getAttribute("aria-label")).toBe(
         "Upgrades, one is affordable",
       );
@@ -1435,8 +1442,8 @@ describe("upgrades on screen", () => {
     document.body.append(screen.root);
     expect(
       screen.root
-        .querySelector(".upgrades-button")
-        ?.classList.contains("afford-glow"),
+        .querySelector(".board-key[data-key=upgrades]")
+        ?.classList.contains("is-lit"),
     ).toBe(false);
     openUpgrades(screen);
     const drawer = drawerOf(screen);
@@ -1660,7 +1667,7 @@ describe("upgrades on screen", () => {
       screen.root.querySelector<HTMLElement>(".save-conflict")?.hidden,
     ).toBe(false);
     expect(drawerOf(screen)?.classList.contains("is-open")).toBe(false);
-    // The card keeps its own focus: not the thumb now under it.
+    // The card keeps its own focus: not the key now under it.
     expect(document.activeElement).toBe(
       screen.root.querySelector(".save-conflict-play"),
     );
@@ -1863,7 +1870,9 @@ describe("quick boosts on screen", () => {
         '.effect-row .boost-chip[data-boost="sharper"]',
       );
       expect(chip?.hidden).toBe(true);
-      screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
+        ?.click();
       const buy = screen.root.querySelector<HTMLButtonElement>(
         '.board-row[data-boost="sharper"]',
       );
@@ -2071,7 +2080,9 @@ describe("quick boosts on screen", () => {
     expect(screen.text(".crew-status")).toBe(
       "Your crew mines 20 stones a second",
     );
-    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
+      ?.click();
     expect(screen.text('[data-boost="overtime"] .board-row-info')).toBe(
       "Crew ×2 for 30 min. 20/s.",
     );
@@ -2094,7 +2105,9 @@ describe("lasting upgrades on screen", () => {
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
-    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
+      ?.click();
     const boots = screen.root.querySelector<HTMLButtonElement>(
       '.board-row[data-upgrade="boots"]',
     );
@@ -2154,7 +2167,9 @@ describe("lasting upgrades on screen", () => {
     });
     const screen = mountScreen({ storage });
     document.body.append(screen.root);
-    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
+      ?.click();
     const visible = [
       ...screen.root.querySelectorAll<HTMLElement>(".found-tool"),
     ].filter((row) => !row.hidden);
@@ -2202,7 +2217,9 @@ describe("lasting upgrades on screen", () => {
         return empty;
       })(),
     });
-    bare.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    bare.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
+      ?.click();
     expect(
       bare.root.querySelector<HTMLElement>(
         '[data-sheet="upgrades"] .board-sec[data-sec="found"]',
@@ -2231,7 +2248,9 @@ describe("crew synergies on screen", () => {
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
-    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
+      ?.click();
     expect(screen.text('[data-upgrade="cartSyn"] .board-row-name')).toBe(
       "Helping hands",
     );
@@ -2434,7 +2453,9 @@ describe("Flemming's cart (#216)", () => {
       configurable: true,
       get: () => 280,
     });
-    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+      ?.click();
     expect(posts.textContent).toContain("13 on carts");
     expect(posts.textContent).toContain("5 on drills");
     const rows = [...posts.querySelectorAll(".crew-row")];
@@ -2476,7 +2497,9 @@ describe("Flemming's cart (#216)", () => {
       configurable: true,
       get: () => 280,
     });
-    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+      ?.click();
     expect(posts.querySelectorAll(".crew-row").length).toBe(2);
     expect(posts.textContent).toContain("5 on drills");
     screen.root.remove();
@@ -3054,7 +3077,9 @@ describe("player-facing workers (#139)", () => {
         "Kid worker",
       );
 
-      screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
+        ?.click();
       expect(
         screen.root
           .querySelector('.board-sheet[data-sheet="upgrades"]')
@@ -3075,7 +3100,9 @@ describe("player-facing workers (#139)", () => {
         )
         ?.click();
 
-      screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
+        ?.click();
       expect(screen.root.querySelector<HTMLElement>(".game-menu")?.hidden).toBe(
         false,
       );
@@ -3287,7 +3314,9 @@ describe("engineers sheet (#145)", () => {
   });
 
   const openSheet = (root: HTMLElement): HTMLElement => {
-    const button = root.querySelector<HTMLButtonElement>(".engineers-button");
+    const button = root.querySelector<HTMLButtonElement>(
+      ".board-key[data-key=engineers]",
+    );
     if (button === null) {
       throw new Error("engineers button did not render");
     }
@@ -3312,8 +3341,9 @@ describe("engineers sheet (#145)", () => {
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
-    const button =
-      screen.root.querySelector<HTMLButtonElement>(".engineers-button");
+    const button = screen.root.querySelector<HTMLButtonElement>(
+      ".board-key[data-key=engineers]",
+    );
     expect(button?.hidden).toBe(false);
     expect(button?.textContent).toContain("Engineers");
     button?.click();

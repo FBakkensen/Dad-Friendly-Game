@@ -1,26 +1,12 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { canBuyAnyTier, canCraftNow, setAffordGlow } from "./afford-glow";
+import { canCraftNow } from "./afford-glow";
 import { MOUNTAIN_STONES, createMountain } from "./mountain";
 import { recipesForMined } from "./workshop";
 
 const NOW = 1_700_000_000_000;
 
 describe("afford glow (#282)", () => {
-  it("toggles one class and nothing else", () => {
-    const button = document.createElement("button");
-    setAffordGlow(button, true);
-    expect(button.className).toBe("afford-glow");
-    setAffordGlow(button, false);
-    expect(button.className).toBe("");
-  });
-
-  it("lights Buys only when a shown tier is affordable", () => {
-    const start = createMountain();
-    expect(canBuyAnyTier({ ...start, pocket: 0 })).toBe(false);
-    expect(canBuyAnyTier({ ...start, pocket: 1_000_000 })).toBe(true);
-  });
-
   it("lights the Workshop only with a free bench and a craft he can pay for", () => {
     const shed = {
       ...createMountain(),

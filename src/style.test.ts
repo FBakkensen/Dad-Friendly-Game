@@ -13,10 +13,7 @@ const REQUIRED_SELECTORS = [
   ".start-over",
   ".game-menu",
   ".field-log-sheet",
-  ".menu-button",
-  ".upgrades-button",
   ".engineers-dialog",
-  ".engineers-button",
   ".engineer-tunnel",
   ".expedition-chip",
   ".welcome-return",
@@ -76,6 +73,10 @@ const BOARD_SELECTORS = [
   ".board-sheet",
   ".board-row",
   ".board-scrim",
+  ".board-rail",
+  ".board-key",
+  ".board-key-cap",
+  ".board-key-dot",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
@@ -252,13 +253,13 @@ describe("board.css", () => {
 describe("style.css", () => {
   it("keeps no rule for today's Upgrades sheet: its rows are board rows now (#373)", () => {
     // A board row carries .upgrade and .is-ready, .is-dear: an old .upgrade
-    // rule would restyle it. The thumb's .upgrades-button stays until Task 8.
+    // rule would restyle it.
     const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
       ([, group = ""]) => group.split(",").map((one) => one.trim()),
     );
     expect(
       selectors.filter((one) =>
-        /\.(upgrade\b|upgrade-|upgrades-(?!button)|boost-list|found-(heading|list))/.test(
+        /\.(upgrade\b|upgrade-|upgrades-|boost-list|found-(heading|list))/.test(
           one,
         ),
       ),
@@ -275,11 +276,26 @@ describe("style.css", () => {
     );
     expect(
       selectors.filter((one) =>
-        /\.(buys-(?!button)|tier\b|tier-|crew\b|crew-|engineer-(mark|gain)|trouble-(thanks|burst)|float-gain)/.test(
+        /\.(buys-|tier\b|tier-|crew\b|crew-|engineer-(mark|gain)|trouble-(thanks|burst)|float-gain)/.test(
           one,
         ),
       ),
     ).toEqual([]);
+  });
+
+  it("keeps no thumb bar, menu button, afford glow or teach dot: the key rail took over (#373)", () => {
+    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
+      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+    );
+    expect(
+      selectors.filter((one) =>
+        /\.(thumb-|buys-button|upgrades-button|engineers-button|menu-button|afford-glow|teach-dot|has-teach-dot)/.test(
+          one,
+        ),
+      ),
+    ).toEqual([]);
+    expect(css).not.toMatch(/afford-glow-on/);
+    expect(boardCss).not.toMatch(/thumb-bar|menu-button/);
   });
 
   it.each(REQUIRED_SELECTORS)("styles %s", (selector) => {

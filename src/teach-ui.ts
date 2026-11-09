@@ -1,25 +1,9 @@
 /**
  * The shared teach parts (M11, #241), the hybrid pattern from #240.
- * Every system uses these, so the dot, the note, the New card, the payoff
+ * Every system uses these, so the note, the New card, the payoff
  * line and How it works look the same everywhere. Copy comes from the
  * caller; this file has none of its own beyond the New tag.
  */
-
-/** Red dot on a button. It stays until the first use. */
-export function setTeachDot(button: HTMLElement, on: boolean): void {
-  const dot = button.querySelector(":scope > .teach-dot");
-  if (on && dot === null) {
-    const added = document.createElement("span");
-    added.className = "teach-dot";
-    added.setAttribute("aria-hidden", "true");
-    button.append(added);
-    button.classList.add("has-teach-dot");
-  }
-  if (!on && dot !== null) {
-    dot.remove();
-    button.classList.remove("has-teach-dot");
-  }
-}
 
 /** One line above the bar, styled like the bar. Tapping it opens the sheet. */
 export function createTeachNote(): {

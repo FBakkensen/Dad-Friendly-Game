@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { canBuyAnyTier, canCraftNow } from "./afford-glow";
+import { canCraftNow } from "./afford-glow";
 import { boostById, boostCost } from "./boosts";
 import { canPromote } from "./engineers";
 import type { Expedition } from "./expeditions";
@@ -10,7 +10,7 @@ import { effectiveRates } from "./rates";
 import { stretch } from "./scale";
 import { troubleAria } from "./screen-words";
 import { showsDot } from "./teach";
-import { tierById } from "./tiers";
+import { tierById, tierCost } from "./tiers";
 import { recipesForMined } from "./workshop";
 
 const NOW = 1_700_000_000_000;
@@ -171,7 +171,9 @@ describe("the key rail (#373)", () => {
       borers: 50,
       machines: 1,
     });
-    expect(canBuyAnyTier(rich)).toBe(true);
+    expect(rich.pocket).toBeGreaterThan(
+      tierCost(tierById("cart"), rich.carts, stretch(rich)),
+    );
     expect(keyViews(rich, NOW, undefined).buys.cap).toBe("rest");
   });
 

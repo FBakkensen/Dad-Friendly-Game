@@ -1,5 +1,4 @@
 import { oneOffStretch, stretch } from "./scale";
-import { setAffordGlow } from "./afford-glow";
 import { HOW_IT_WORKS, howItWorks, type HowSystem } from "./how-it-works";
 import { markSeen, markTaught, showsDot } from "./teach";
 import {
@@ -9,6 +8,7 @@ import {
   createInfoButton,
   markNewCard,
 } from "./teach-ui";
+import { setAttr } from "./board-dom";
 import { buyOnTap } from "./card-tap";
 import { createEffectChip, writeChip } from "./effect-row";
 import {
@@ -109,6 +109,7 @@ export function createEngineersPanel({
   iconUrl,
   badgeUrl,
   chipHost,
+  door,
   now = Date.now,
 }: {
   progress: ProgressStore;
@@ -119,24 +120,14 @@ export function createEngineersPanel({
   badgeUrl: Readonly<Record<Exclude<TendPost, "camp">, string>>;
   /** Mountain corner. Chips sit with the boost countdowns, out of the flow. */
   chipHost: HTMLElement;
+  /**
+   * The key that opens the sheet (#373): the panel listens to its click, puts focus back on it
+   * at close and writes only its aria-expanded. The key rail draws it and decides its lock.
+   */
+  door: HTMLButtonElement;
   now?: () => number;
 }): { button: HTMLButtonElement; sheet: HTMLDivElement; render: () => void } {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "engineers-button";
-  button.setAttribute("aria-label", "Engineers");
-  button.setAttribute("aria-haspopup", "dialog");
-  const icon = document.createElement("img");
-  icon.src = iconUrl;
-  icon.alt = "";
-  icon.width = 32;
-  icon.height = 32;
-  icon.draggable = false;
-  const label = document.createElement("span");
-  label.className = "thumb-label";
-  label.textContent = "Engineers";
-  button.append(icon, label);
-
+  const button = door;
   let open = false;
   let confirming = false;
   /** Row whose recall confirm is open. */
@@ -811,10 +802,7 @@ export function createEngineersPanel({
     if (recalled !== undefined && recalled.post !== "tunnel") {
       recalling = undefined;
     }
-    button.hidden = false;
-    // No hand on the crew: the click would open and this render would shut it.
-    button.disabled = engineers.length === 0;
-    button.setAttribute("aria-expanded", open ? "true" : "false");
+    setAttr(button, "aria-expanded", open ? "true" : "false");
     sheet.classList.toggle("is-choosing", menu !== undefined);
     sheet.classList.toggle("is-packed", engineers.length >= 3);
     for (const [index, row] of rows.entries()) {
@@ -924,8 +912,6 @@ export function createEngineersPanel({
       confirming = false;
     }
     promoteRow.classList.toggle("is-blocked", !affordable);
-    // Hiring an engineer is the buy in this sheet.
-    setAffordGlow(button, affordable);
     promoteButton.hidden = confirming;
     promoteButton.disabled = !view.ready || !affordable;
     promoteButton.classList.toggle("is-pressed", pressedKey === "promote");

@@ -89,71 +89,6 @@ body {
   height: 16px;
 }
 
-.engineers-button {
-  margin-block: 0;
-}
-
-.engineers-button {
-  appearance: none;
-  position: relative;
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: var(--target-min);
-  height: var(--target-min);
-  padding: 0;
-  border: 2px solid #6b4a2a;
-  border-radius: 12px;
-  background: #2a1a10;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.engineers-button img {
-  width: 28px;
-  height: 28px;
-  image-rendering: pixelated;
-}
-
-/* The lamp says this worker portrait opens the engineers, not a hire. */
-.engineers-button::after {
-  content: "";
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 8px;
-  height: 8px;
-  border: 1px solid #1e130d;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #fff6d0, #e8a84a 55%, #8a5a20);
-  box-shadow: 0 0 4px rgba(255, 214, 102, 0.9);
-}
-
-.engineers-button[hidden] {
-  display: none;
-}
-
-.upgrades-button {
-  appearance: none;
-  display: grid;
-  place-items: center;
-  width: var(--target-min);
-  height: var(--target-min);
-  margin-block: -6px;
-  padding: 0;
-  border: 2px solid #6b4a2a;
-  border-radius: 12px;
-  background: #2a1a10;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.upgrades-button img {
-  width: 28px;
-  height: 28px;
-  image-rendering: pixelated;
-}
-
 /* Running boosts: small chips in the mountain's top corner, never in the flow. */
 .boost-chips {
   position: absolute;
@@ -465,8 +400,6 @@ body {
 .engineer-recall:focus-visible,
 .recall-no:focus-visible,
 .recall-yes:focus-visible,
-.upgrades-button:focus-visible,
-.engineers-button:focus-visible,
 .engineer-station:focus-visible,
 .engineer-promote:focus-visible,
 .engineer-confirm-no:focus-visible,
@@ -684,27 +617,6 @@ body {
   border: 2px solid #e74c3c;
   background: #7b1e14;
   color: #fff3f0;
-}
-
-.menu-button {
-  appearance: none;
-  flex: none;
-  width: var(--target-min);
-  height: var(--target-min);
-  margin-left: auto;
-  border: 1px solid #6b4a2a;
-  border-radius: 10px;
-  background: rgba(30, 19, 13, 0.8);
-  color: #f2c46d;
-  font: inherit;
-  font-size: 1.3rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.menu-button:focus-visible {
-  outline: 4px solid #e8d4b8;
-  outline-offset: 2px;
 }
 
 .menu-card .auth-action {
@@ -2502,42 +2414,7 @@ body {
   min-width: 0;
 }
 
-.thumb-bar {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(var(--target-min), 1fr));
-  gap: var(--target-gap);
-  width: 100%;
-}
-
-.thumb-bar > * {
-  width: 100%;
-}
-
-.thumb-bar .engineers-button,
-.thumb-bar .upgrades-button {
-  width: 100%;
-  height: auto;
-  margin: 0;
-}
-
-.buys-button,
-.thumb-workshop,
-.thumb-bar .engineers-button,
-.thumb-bar .upgrades-button {
-  appearance: none;
-  min-height: var(--target-min);
-  min-width: var(--target-min);
-  padding: var(--space-4);
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  color: var(--color-ink);
-  font-size: var(--type-14);
-  font-weight: var(--weight-bold);
-}
-
-/* Closed mountain, under the board's gauge row and bays (board.css): the
-   thumb bar. */
+/* Closed mountain: the board (board.css) places every row. */
 #app {
   position: relative;
 }
@@ -2586,63 +2463,6 @@ body {
 .workshop-card.is-pressed,
 .engineer-promote-row.is-pressed {
   transform: translateY(var(--space-4));
-}
-
-.thumb-bar {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.thumb-bar .buys-button,
-.thumb-bar .thumb-workshop,
-.thumb-bar .engineers-button,
-.thumb-bar .upgrades-button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  width: 100%;
-  height: auto;
-  margin: 0;
-  padding: var(--space-4) 0;
-  line-height: 1.1;
-}
-
-.thumb-bar .engineers-button::after {
-  content: none;
-}
-
-/* Same chrome for every thumb. Disabled follows the gate that keeps the sheet shut. */
-.thumb-bar button:not(:disabled) {
-  border-color: var(--color-gold);
-  background: var(--color-card);
-  color: var(--color-gold);
-  opacity: 1;
-}
-
-.thumb-bar button:disabled {
-  border-color: var(--color-disabled);
-  background: var(--color-disabled);
-  color: var(--color-quiet);
-  opacity: 1;
-}
-
-.thumb-bar button:disabled img {
-  opacity: 0.5;
-  filter: grayscale(1);
-}
-
-.thumb-label {
-  max-width: 100%;
-  font-size: var(--type-14);
-  font-weight: var(--weight-bold);
-  line-height: 1.1;
-}
-
-.thumb-bar img {
-  width: var(--space-24);
-  height: var(--space-24);
-  object-fit: contain;
 }
 
 .ledger {
@@ -3020,23 +2840,6 @@ body {
 
 /* ---- Teach parts (M11 #241, the hybrid pattern mocked on #240) ---- */
 
-/* The red dot stays until the first use. */
-.has-teach-dot {
-  position: relative;
-}
-
-.teach-dot {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
-  width: var(--space-16);
-  height: var(--space-16);
-  border: var(--line) solid var(--color-page);
-  border-radius: var(--radius-pill);
-  background: var(--color-danger);
-  pointer-events: none;
-}
-
 /* One note above the bar, the bar's face with a gold edge and one soft pulse. */
 .teach-note {
   display: flex;
@@ -3223,37 +3026,6 @@ body {
   color: var(--color-ink);
   font: inherit;
   cursor: pointer;
-}
-
-/* Bottom bar (#282): gold glow when the sheet holds something he can buy
-   now. Shadow only, so the bar never shifts. One soft pulse as it turns
-   on, never a loop. The red dot sits on top and can show with it. */
-.thumb-bar button.afford-glow:not(:disabled) {
-  border-color: var(--color-gold);
-  background: var(--color-card);
-  box-shadow:
-    inset 0 0 0 var(--line) var(--color-gold),
-    0 0 var(--space-16) var(--color-gold);
-  animation: afford-glow-on 0.9s ease-out 1;
-}
-
-@keyframes afford-glow-on {
-  0% {
-    box-shadow:
-      inset 0 0 0 var(--line) var(--color-gold),
-      0 0 0 var(--color-gold);
-  }
-  50% {
-    box-shadow:
-      inset 0 0 0 var(--line) var(--color-gold),
-      0 0 var(--space-24) var(--color-gold);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .thumb-bar button.afford-glow {
-    animation: none;
-  }
 }
 
 /* Engineers first visit (#246): the same New card as the Workshop's,

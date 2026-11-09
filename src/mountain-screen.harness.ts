@@ -94,7 +94,6 @@ export function mountScreen({
     mountainUrl: tileUrl,
     stoneUrl: tileUrl,
     veinUrl: tileUrl,
-    upgradesUrl: tileUrl,
     tierArt: {
       helper: "helper.png",
       cart: "cart.png",

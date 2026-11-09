@@ -39,7 +39,9 @@ describe("side tunnels (#147)", () => {
   });
 
   const openSheet = (root: HTMLElement): HTMLElement => {
-    const button = root.querySelector<HTMLButtonElement>(".engineers-button");
+    const button = root.querySelector<HTMLButtonElement>(
+      ".board-key[data-key=engineers]",
+    );
     button?.click();
     const sheet = root.querySelector<HTMLElement>(".engineers-dialog");
     if (sheet === null) {
@@ -338,7 +340,9 @@ describe("side tunnels (#147)", () => {
       /Ada tends · \+156\/s$/,
     );
     expect(sheet.textContent).toContain("+156 stones/sec");
-    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
+      ?.click();
     expect(screen.text('[data-boost="sharper"] .board-row-info')).toContain(
       "a tap",
     );
@@ -761,7 +765,9 @@ describe("layer card, material line, and craft-done notice", () => {
         screen.root.querySelector<HTMLElement>(".save-conflict")?.hidden,
       ).toBe(true);
     });
-    screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
+      ?.click();
     screen.root.querySelector<HTMLButtonElement>(".saved-copies-link")?.click();
     await vi.waitFor(() => {
       expect(screen.text(".saved-copies")).toContain("Chrome on Android");
@@ -798,7 +804,9 @@ describe("layer card, material line, and craft-done notice", () => {
       deviceId: "other-device",
       deviceLabel: "Safari on iPhone",
     });
-    screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
+      ?.click();
     screen.root.querySelector<HTMLButtonElement>(".saved-copies-link")?.click();
     await vi.waitFor(() => {
       expect(screen.text(".saved-copies")).toContain(
@@ -838,14 +846,18 @@ describe("sheet buys", () => {
       '.board-sheet[data-sheet="buys"]',
     );
     expect(dialog?.classList.contains("is-open")).toBe(false);
-    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+      ?.click();
     expect(dialog?.classList.contains("is-open")).toBe(true);
-    expect(screen.text(".thumb-bar")).toContain("Buys");
-    expect(screen.text(".thumb-bar")).toContain("Workshop");
-    expect(screen.text(".thumb-bar")).toContain("Engineers");
-    expect(screen.text(".thumb-bar")).toContain("Upgrades");
+    expect(screen.text(".board-rail")).toContain("Buys");
+    expect(screen.text(".board-rail")).toContain("Workshop");
+    expect(screen.text(".board-rail")).toContain("Engineers");
+    expect(screen.text(".board-rail")).toContain("Upgrades");
     expect(
-      screen.root.querySelector(".engineers-button")?.hasAttribute("hidden"),
+      screen.root
+        .querySelector(".board-key[data-key=engineers]")
+        ?.hasAttribute("hidden"),
     ).toBe(false);
     expect(screen.text('.tier[data-tier="cart"] .board-row-gain')).toBe("+6/s");
     expect(
@@ -870,7 +882,9 @@ describe("sheet buys", () => {
       )
       ?.click();
     expect(dialog?.classList.contains("is-open")).toBe(false);
-    screen.root.querySelector<HTMLButtonElement>(".thumb-workshop")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=workshop]")
+      ?.click();
     expect(
       screen.root.querySelector(".workshop-dialog")?.hasAttribute("hidden"),
     ).toBe(false);
@@ -944,7 +958,9 @@ describe("sheet buys", () => {
     expect(line("machine", ".board-row-info")?.textContent).toBe(
       `The Great Machine joins your crew at ${formatCompact(shownStones(createMountain(), 120_000_000))} stones. Keep digging, Dad!`,
     );
-    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
+      ?.click();
     const arms = screen.root.querySelector('[data-upgrade="tap"]');
     expect(arms?.classList.contains("is-dear")).toBe(true);
     expect(arms?.querySelector<HTMLElement>(".board-row-info")?.hidden).toBe(
@@ -1074,7 +1090,9 @@ describe("sheet buys", () => {
     expect(screen.progress.getSnapshot().mountain.helpers).toBe(helpers);
     tap(drag);
     expect(screen.progress.getSnapshot().mountain.helpers).toBe(helpers + 1);
-    screen.root.querySelector<HTMLButtonElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
+      ?.click();
     // Past the drawer's settle: a deliberate tap.
     clock += BUYS_SETTLE_MS;
     const why = screen.root.querySelector(
@@ -1090,7 +1108,9 @@ describe("sheet buys", () => {
         '[data-sheet="upgrades"] .board-sheet-back',
       )
       ?.click();
-    screen.root.querySelector<HTMLButtonElement>(".thumb-workshop")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=workshop]")
+      ?.click();
     const craftName = screen.root.querySelector(".workshop-card h3");
     if (craftName === null) {
       throw new Error("craft name did not render");
@@ -1100,27 +1120,37 @@ describe("sheet buys", () => {
     screen.progress.dispose();
   });
 
-  it("leaves a locked workshop closed when the thumb bar is tapped", () => {
+  it("leaves a locked workshop closed when its key is tapped", () => {
     const screen = mountScreen();
-    screen.root.querySelector<HTMLButtonElement>(".thumb-workshop")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=workshop]")
+      ?.click();
     expect(
       screen.root.querySelector(".workshop-dialog")?.hasAttribute("hidden"),
     ).toBe(true);
     screen.progress.dispose();
   });
 
-  it("enables a thumb button only when its sheet will open", () => {
+  it("enables a key only when its sheet will open", () => {
     const fresh = mountScreen();
-    const thumb = (
+    const keyOf = (
       root: HTMLElement,
       selector: string,
     ): HTMLButtonElement | null =>
       root.querySelector<HTMLButtonElement>(selector);
-    expect(thumb(fresh.root, ".buys-button")?.disabled).toBe(false);
-    expect(thumb(fresh.root, ".upgrades-button")?.disabled).toBe(false);
-    expect(thumb(fresh.root, ".thumb-workshop")?.disabled).toBe(true);
-    expect(thumb(fresh.root, ".engineers-button")?.disabled).toBe(true);
-    thumb(fresh.root, ".upgrades-button")?.click();
+    expect(keyOf(fresh.root, ".board-key[data-key=buys]")?.disabled).toBe(
+      false,
+    );
+    expect(keyOf(fresh.root, ".board-key[data-key=upgrades]")?.disabled).toBe(
+      false,
+    );
+    expect(keyOf(fresh.root, ".board-key[data-key=workshop]")?.disabled).toBe(
+      true,
+    );
+    expect(keyOf(fresh.root, ".board-key[data-key=engineers]")?.disabled).toBe(
+      true,
+    );
+    keyOf(fresh.root, ".board-key[data-key=upgrades]")?.click();
     expect(
       fresh.root
         .querySelector('.board-sheet[data-sheet="upgrades"]')
@@ -1142,15 +1172,23 @@ describe("sheet buys", () => {
       lastSeen: Date.now(),
     });
     const later = mountScreen({ storage });
-    expect(thumb(later.root, ".buys-button")?.disabled).toBe(false);
-    expect(thumb(later.root, ".upgrades-button")?.disabled).toBe(false);
-    expect(thumb(later.root, ".thumb-workshop")?.disabled).toBe(false);
-    expect(thumb(later.root, ".engineers-button")?.disabled).toBe(false);
-    thumb(later.root, ".thumb-workshop")?.click();
+    expect(keyOf(later.root, ".board-key[data-key=buys]")?.disabled).toBe(
+      false,
+    );
+    expect(keyOf(later.root, ".board-key[data-key=upgrades]")?.disabled).toBe(
+      false,
+    );
+    expect(keyOf(later.root, ".board-key[data-key=workshop]")?.disabled).toBe(
+      false,
+    );
+    expect(keyOf(later.root, ".board-key[data-key=engineers]")?.disabled).toBe(
+      false,
+    );
+    keyOf(later.root, ".board-key[data-key=workshop]")?.click();
     expect(
       later.root.querySelector(".workshop-dialog")?.hasAttribute("hidden"),
     ).toBe(false);
-    thumb(later.root, ".engineers-button")?.click();
+    keyOf(later.root, ".board-key[data-key=engineers]")?.click();
     expect(
       later.root.querySelector(".engineers-dialog")?.hasAttribute("hidden"),
     ).toBe(false);

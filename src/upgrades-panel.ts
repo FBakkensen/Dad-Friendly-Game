@@ -90,7 +90,7 @@ function legend(name: string, key: string): HTMLElement {
 
 /**
  * The Upgrades drawer. `open` marks every shown row seen, then opens the drawer; the opener
- * (the thumb now, the key rail from Task 8) owns its glow and dot.
+ * (the Upgrades key on the rail) owns its lit cap and dot.
  */
 export function createUpgradesPanel({
   progress,

@@ -117,8 +117,8 @@
 }
 
 /* The board's middle rows (#372), at the mockup's LAY["924"] tops: the bays
-   (their band tag rises to 420), the Ready now row, and the rail slot. Until
-   B5's key rail, the column (the thumb bar with the ☰ menu) starts there. */
+   (their band tag rises to 420), the Ready now row, and the key rail (#373).
+   #app's own flow still starts at the rail's top. */
 :root {
   --ready-top: 644px;
   --rail-top: 768px;
@@ -154,6 +154,11 @@
   --board-row-name-lead: 19px;
   --board-row-line-lead: 15px;
   --board-row-gain-lead: 17px;
+}
+
+/* The key rail (#373): a locked key's label. */
+:root {
+  --board-ink-quiet: #c9cec1;
 }
 
 /* The drawer shell (#373): its top, under the stock row's legend (the

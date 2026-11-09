@@ -48,7 +48,6 @@ function mount(now: () => number) {
     mountainUrl: tile,
     stoneUrl: tile,
     veinUrl: tile,
-    upgradesUrl: tile,
     tierArt: {
       helper: tile,
       cart: tile,
@@ -130,12 +129,23 @@ describe("engineers teach (#246)", () => {
     const clock = 1_700_000_000_000;
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => crew());
-    const button = screen.root.querySelector<HTMLElement>(".engineers-button");
-    expect(button?.querySelector(".teach-dot")).not.toBeNull();
+    const button = screen.root.querySelector<HTMLElement>(
+      ".board-key[data-key=engineers]",
+    );
+    expect(
+      button?.querySelector(".board-key-dot:not([hidden])"),
+    ).not.toBeNull();
     // The New note waits for the relic and layer cards the jump opened, then shows in
-    // the board note above its thumb (#372).
+    // the board note above its key (#372, #373).
     expect(screen.root.querySelector(".board-note.on .teach-note")).toBeNull();
     closeArrivals(screen.root);
+    // Anchored on the key: a press on it keeps the note up.
+    button?.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+    );
+    button?.dispatchEvent(
+      new PointerEvent("pointerup", { bubbles: true, button: 0 }),
+    );
     const note = screen.root.querySelector<HTMLButtonElement>(
       ".board-note.on .teach-note",
     );
@@ -176,7 +186,9 @@ describe("engineers teach (#246)", () => {
   it("opens How it works for engineers, expeditions and tending from the i", () => {
     const screen = mount(() => 1_700_000_000_000);
     screen.progress.applyMutation(() => crew());
-    screen.root.querySelector<HTMLButtonElement>(".engineers-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=engineers]")
+      ?.click();
     const sheet = screen.root.querySelector<HTMLElement>(".engineers-dialog");
     sheet?.querySelector<HTMLButtonElement>(".teach-info")?.click();
     const how = sheet?.querySelector<HTMLElement>(".engineers-how");
@@ -197,7 +209,9 @@ describe("engineers teach (#246)", () => {
     expect(how?.hidden).toBe(true);
     sheet?.querySelector<HTMLButtonElement>(".teach-info")?.click();
     sheet?.querySelector<HTMLButtonElement>(".engineers-close")?.click();
-    screen.root.querySelector<HTMLButtonElement>(".engineers-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=engineers]")
+      ?.click();
     expect(how?.hidden).toBe(true);
     screen.root.remove();
   });

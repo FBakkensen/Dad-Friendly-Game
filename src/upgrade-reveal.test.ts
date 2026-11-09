@@ -48,7 +48,6 @@ function mount(now: () => number) {
     mountainUrl: tile,
     stoneUrl: tile,
     veinUrl: tile,
-    upgradesUrl: tile,
     tierArt: {
       helper: tile,
       cart: tile,
@@ -207,7 +206,9 @@ describe("upgrades drawer reveal (#245)", () => {
       pocket,
     });
     screen.progress.applyMutation(() => caves(price - 1));
-    screen.root.querySelector<HTMLElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLElement>(".board-key[data-key=upgrades]")
+      ?.click();
     const boots = () => row(screen.root, "boots");
     const buy = () => boots()?.querySelector(".board-row-price");
     expect(buy()?.textContent).toBe(formatCompact(price));
@@ -228,7 +229,9 @@ describe("upgrades drawer reveal (#245)", () => {
       carts: 3,
       pocket: 0,
     }));
-    screen.root.querySelector<HTMLElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLElement>(".board-key[data-key=upgrades]")
+      ?.click();
     const buy = row(screen.root, "tap")?.querySelector(".board-row-price");
     expect(buy?.textContent).toBe(formatCompact(price));
     const card = screen.root.querySelector<HTMLElement>(
@@ -243,8 +246,10 @@ describe("upgrades drawer reveal (#245)", () => {
   it("hides everything far off, with one quiet line and no dot", () => {
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => createMountain());
-    const button = screen.root.querySelector<HTMLElement>(".upgrades-button");
-    expect(button?.querySelector(".teach-dot")).toBeNull();
+    const button = screen.root.querySelector<HTMLElement>(
+      ".board-key[data-key=upgrades]",
+    );
+    expect(button?.querySelector(".board-key-dot:not([hidden])")).toBeNull();
     button?.click();
     expect(row(screen.root, "tap")?.hidden).toBe(true);
     expect(
@@ -271,8 +276,12 @@ describe("upgrades drawer reveal (#245)", () => {
       upgrades: { steady: 1 },
       boosts: { sharper: 0, overtime: 0 },
     }));
-    const button = screen.root.querySelector<HTMLElement>(".upgrades-button");
-    expect(button?.querySelector(".teach-dot")).not.toBeNull();
+    const button = screen.root.querySelector<HTMLElement>(
+      ".board-key[data-key=upgrades]",
+    );
+    expect(
+      button?.querySelector(".board-key-dot:not([hidden])"),
+    ).not.toBeNull();
     button?.click();
     const tap = row(screen.root, "tap");
     expect(tap?.hidden).toBe(false);
@@ -300,7 +309,7 @@ describe("upgrades drawer reveal (#245)", () => {
     expect(row(screen.root, "tap")?.classList.contains("teach-new")).toBe(
       false,
     );
-    expect(button?.querySelector(".teach-dot")).toBeNull();
+    expect(button?.querySelector(".board-key-dot:not([hidden])")).toBeNull();
     expect(kick(screen.root)).toBe("Boosts for tonight, gear for good");
     screen.root.remove();
   });
@@ -313,7 +322,9 @@ describe("upgrades drawer reveal (#245)", () => {
       pocket: 400,
       upgrades: { tap: 1 },
     }));
-    screen.root.querySelector<HTMLElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLElement>(".board-key[data-key=upgrades]")
+      ?.click();
     const sharper = screen.root.querySelector<HTMLElement>(
       '.board-row[data-boost="sharper"]',
     );
@@ -331,7 +342,9 @@ describe("upgrades drawer reveal (#245)", () => {
       ...createMountain(),
       pocket: 30_000,
     }));
-    screen.root.querySelector<HTMLElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLElement>(".board-key[data-key=upgrades]")
+      ?.click();
     const sheet = drawer(screen.root);
     const head = sheet?.querySelector(".board-sheet-head");
     expect(head?.querySelector("h2")?.textContent).toBe("Upgrades");
@@ -355,16 +368,20 @@ describe("upgrades drawer reveal (#245)", () => {
     sheet?.querySelector<HTMLButtonElement>(".teach-info")?.click();
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(sheet?.classList.contains("is-open")).toBe(false);
-    screen.root.querySelector<HTMLElement>(".upgrades-button")?.click();
+    screen.root
+      .querySelector<HTMLElement>(".board-key[data-key=upgrades]")
+      ?.click();
     expect(how?.hidden).toBe(true);
     screen.root.remove();
   });
 
-  it("glows bar buttons live with the pocket, beside the dot, never on a locked one", () => {
+  it("lights the Upgrades key live with the pocket, beside the dot; Buys never lights; a locked key never lights (#373)", () => {
     let clock = 1_700_000_000_000;
     const screen = mount(() => clock);
-    const bar = (cls: string) =>
-      screen.root.querySelector<HTMLButtonElement>(`.thumb-bar .${cls}`);
+    const key = (id: string) =>
+      screen.root.querySelector<HTMLButtonElement>(
+        `.board-rail .board-key[data-key=${id}]`,
+      );
     screen.progress.applyMutation(() => ({
       ...createMountain(),
       carts: 3,
@@ -372,24 +389,28 @@ describe("upgrades drawer reveal (#245)", () => {
       boosts: { sharper: 0 },
       pocket: 0,
     }));
-    expect(bar("buys-button")?.classList.contains("afford-glow")).toBe(false);
-    expect(bar("upgrades-button")?.classList.contains("afford-glow")).toBe(
-      false,
-    );
+    expect(key("buys")?.classList.contains("is-lit")).toBe(false);
+    expect(key("upgrades")?.classList.contains("is-lit")).toBe(false);
     screen.progress.applyMutation((current) => ({
       ...current,
       pocket: 60_000,
     }));
     clock += 1000;
-    expect(bar("buys-button")?.classList.contains("afford-glow")).toBe(true);
-    const upgrades = bar("upgrades-button");
-    expect(upgrades?.classList.contains("afford-glow")).toBe(true);
-    expect(upgrades?.querySelector(".teach-dot")).not.toBeNull();
-    const workshop = bar("thumb-workshop");
+    // The Ready now plate and the bay lamps say what Buys can buy.
+    expect(key("buys")?.classList.contains("is-lit")).toBe(false);
+    const upgrades = key("upgrades");
+    expect(upgrades?.classList.contains("is-lit")).toBe(true);
+    expect(upgrades?.getAttribute("aria-label")).toBe(
+      "Upgrades, one is affordable",
+    );
+    expect(
+      upgrades?.querySelector(".board-key-dot:not([hidden])"),
+    ).not.toBeNull();
+    const workshop = key("workshop");
     expect(workshop?.disabled).toBe(true);
-    expect(workshop?.classList.contains("afford-glow")).toBe(false);
+    expect(workshop?.classList.contains("is-lit")).toBe(false);
     screen.progress.applyMutation((current) => ({ ...current, pocket: 0 }));
-    expect(bar("buys-button")?.classList.contains("afford-glow")).toBe(false);
+    expect(upgrades?.classList.contains("is-lit")).toBe(false);
     screen.root.remove();
   });
 });
