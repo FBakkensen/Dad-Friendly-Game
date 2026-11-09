@@ -6096,6 +6096,19 @@ async function tapBoard(page, x, y) {
 const odometer = (page) =>
   page.$eval(".board-odo", (odo) => odo.getAttribute("aria-label"));
 
+/** Every shown part of an open drawer's list: its top and height in board px. */
+const listBoxes = (page, name) =>
+  page.$eval(`${OPEN_SHEET(name)} .board-sheet-list`, (list) => {
+    const board = globalThis.__board();
+    const px = (value) => Math.round((value / board.scale) * 10) / 10;
+    return [...list.children]
+      .filter((child) => !child.hidden && child.getClientRects().length > 0)
+      .map((child) => {
+        const box = child.getBoundingClientRect();
+        return { top: px(box.top - board.top), height: px(box.height) };
+      });
+  });
+
 /** A drawer's "i" cards: shown in its place, inside it, with no scroll. */
 async function howFacts(page, name) {
   return page.$eval(OPEN_SHEET(name), (sheet) => {
@@ -6715,6 +6728,7 @@ for (const viewport of SCREENS) {
       await openSheet(page, "buys");
       await stepTapClock(page, PAST_SETTLE_MS);
       const before = await storedMountain(page);
+      const boxesBefore = await listBoxes(page, "buys");
       const cart = `${OPEN_SHEET("buys")} .tier[data-tier="cart"]`;
       await press(page, cart);
       const done = await page
@@ -6750,6 +6764,16 @@ for (const viewport of SCREENS) {
         done && bought,
         `${label} early: a finger tap on the cart row after the settle buys one cart and shows Done`,
       );
+      // Read once Done is painted: no row's top or height moved under the finger.
+      const boxesAfter = await listBoxes(page, "buys");
+      const moved = JSON.stringify(boxesAfter) !== JSON.stringify(boxesBefore);
+      check(
+        done && boxesBefore.length >= 3 && !moved,
+        `${label} early: the buy moves no row in the drawer (${String(boxesBefore.length)} parts, tops and heights unchanged)`,
+      );
+      if (moved) {
+        console.log("moved rows", size, boxesBefore, boxesAfter);
+      }
       await press(page, `${OPEN_SHEET("buys")} .board-sheet-info`);
       const cards = await page
         .waitForSelector(`${OPEN_SHEET("buys")} .teach-how`, {
