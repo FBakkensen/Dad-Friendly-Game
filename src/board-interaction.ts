@@ -27,7 +27,7 @@ export interface ControlRef {
   readonly layer: Layer;
   readonly id: string;
 }
-export type Pointer = "finger" | "keyboard";
+type Pointer = "finger" | "keyboard";
 /** What a drawer shows, in order: its rows and sections, and how many chip rows its crew line wraps to. */
 export interface Layout {
   readonly parts: readonly string[];
