@@ -1654,6 +1654,48 @@ describe("the control board (#370)", () => {
     expect(screen.text(".board-spend")).toBe("");
   });
 
+  it("a buy the store refuses shows no Done and no spend (#409)", () => {
+    const price = tierCost(tierById("helper"), 0);
+    const screen = mountScreen({ storage: seeded(minedMountain(price)) });
+    vi.spyOn(screen.progress, "dispatch").mockReturnValue({
+      kind: "refused",
+      reason: "not-playing",
+    });
+    const row = screen.root.querySelector<HTMLButtonElement>(
+      '.tier[data-tier="helper"]',
+    );
+    row?.click();
+    expect(row?.textContent).not.toContain("Done");
+    expect(screen.text(".board-spend")).toBe("");
+  });
+
+  it("a dig kicks the output needle (#409)", () => {
+    const frames = fakeFrames();
+    setReducedMotion(false);
+    try {
+      const screen = mountScreen();
+      const face = (): string | undefined =>
+        screen.root.querySelector<HTMLElement>(".board-gauge-face")?.style
+          .backgroundPosition;
+      let at = 0;
+      const frame = (): void => {
+        at += 1000 / 60;
+        frames.next(at);
+      };
+      for (let i = 0; i < 120; i += 1) frame();
+      const rest = face();
+      frame();
+      expect(face()).toBe(rest);
+      tap(screen.dig);
+      frame();
+      frame();
+      frame();
+      expect(face()).not.toBe(rest);
+    } finally {
+      setReducedMotion(true);
+    }
+  });
+
   it("starting over is not a spend", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(5_000)) });
     screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();

@@ -164,7 +164,7 @@ export type ProgressStore = {
    * The one way the game changes (#409): applies a move to the latest mountain (helpers'
    * work settled first), saves it, and says whether it applied.
    */
-  readonly dispatch: (move: Move) => DispatchResult;
+  readonly dispatch: Dispatch;
   /**
    * A test seam: applies any change to the latest mountain, as `dispatch` does. Production
    * code changes the game only through `dispatch` (an ESLint rule holds it to that).
@@ -260,6 +260,12 @@ function remoteSide(loaded: {
 export type DispatchResult =
   | { readonly kind: "applied"; readonly spent: number; readonly mined: number }
   | { readonly kind: "refused"; readonly reason: "not-playing" | "no-change" };
+
+/**
+ * How a screen part changes the game (#409). The screen hands its panels a wrapper around
+ * the store's `dispatch` that also shows each move's spend on the odometer.
+ */
+export type Dispatch = (move: Move) => DispatchResult;
 
 /** A move through the store's one commit path; the rules are `applyMove`'s. */
 function dispatchMove(

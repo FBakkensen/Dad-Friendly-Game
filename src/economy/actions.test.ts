@@ -121,8 +121,13 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
     case "promote":
       return promote(mountain);
     case "station": {
-      // The UI's tend (#409): a real station marks tending taught.
-      const moved = station(mountain, action.index, action.post);
+      // The UI's tend (#409): the party is called back first, and a real station marks
+      // tending taught.
+      const moved = station(
+        recall(mountain, action.index),
+        action.index,
+        action.post,
+      );
       return moved === mountain ? mountain : markTaught(moved, "tending");
     }
     case "send":
@@ -1256,6 +1261,20 @@ describe("applyMove (#409)", () => {
     expect(
       applyMove(rich, { kind: "station", index: 9, post: "camp" }, NOW, calm),
     ).toEqual({ kind: "refused" });
+  });
+
+  it("calls a party back before stationing its engineer, so no expedition is left without them", () => {
+    const moved = applyMove(
+      travelling,
+      { kind: "station", index: 0, post: "camp" },
+      NOW,
+      calm,
+    );
+    expect(moved.kind).toBe("applied");
+    if (moved.kind !== "applied") return;
+    expect(moved.mountain.expeditions ?? []).toEqual([]);
+    expect(moved.mountain.engineers?.[0]?.post).toBe("camp");
+    expect(moved.mountain.taught).toContain("tending");
   });
 
   it("digs by hand with what it mined, and taps a vein", () => {

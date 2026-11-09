@@ -14,13 +14,16 @@ import { createBoardRow, type BoardRow } from "./board-row";
 import { skin } from "./board-skin";
 import { BUY_SECTIONS, buyRowView, type BuyIcon } from "./buys-rows";
 import { buyOnTap } from "./card-tap";
-import { buyWithTeach } from "./economy/actions";
 import { crewCounts } from "./crew-count";
 import { grandpaPost, staffNeeded } from "./engineers";
 import { reducedMotion } from "./float-text";
 import { formatCompact } from "./format";
 import type { Mountain } from "./mountain";
-import type { ProgressSnapshot, ProgressStore } from "./progress-store";
+import type {
+  Dispatch,
+  ProgressSnapshot,
+  ProgressStore,
+} from "./progress-store";
 import { effectiveRates, firstIdleTier } from "./rates";
 import type { ReadyPick } from "./ready-now";
 import {
@@ -40,8 +43,8 @@ import { watchFixHold } from "./trouble-tap";
 /*
  * The Buys drawer (#373): the Crew section with its sentence and chips, then a row per tier in
  * the drawer skin, Crew first and Machines under it, and the Ready now footnote. Every row's
- * words come from buys-rows.ts; every buy goes through today's mutations: the guided hire,
- * buyWithTeach (economy/actions), pressTrouble and fixTrouble.
+ * words come from buys-rows.ts; every buy is a buyTier move through the screen's dispatch
+ * (#409), and a press on a troubled machine goes to pressTrouble and fixTrouble.
  */
 
 /** The kick under the title while staffing has nothing to teach. */
@@ -134,6 +137,7 @@ function guidedOf(
  */
 export function createCrewPanel({
   progress,
+  dispatch,
   getView,
   now,
   pick,
@@ -143,6 +147,7 @@ export function createCrewPanel({
   signal,
 }: {
   progress: ProgressStore;
+  dispatch: Dispatch;
   getView: () => ProgressSnapshot;
   /** The game's clock: rates, trouble and the New row. */
   now: () => number;
@@ -243,9 +248,7 @@ export function createCrewPanel({
   /** A tap on the staffing New row hires a worker; the hold keeps a second tap off the machine. */
   const hire = (row: BoardRow): void => {
     const rateBefore = crewSpeed();
-    const before = progress.getSnapshot().mountain.helpers;
-    progress.applyMutation((mountain) => buyWithTeach(mountain, "helper"));
-    if (progress.getSnapshot().mountain.helpers > before) {
+    if (dispatch({ kind: "buyTier", id: "helper" }).kind === "applied") {
       row.done();
       countCrewRate(rateBefore, crewSpeed());
     }
@@ -333,10 +336,8 @@ export function createCrewPanel({
           }
           return;
         }
-        const before = owned(snapshot.mountain, tier);
         const rateBefore = crewSpeed();
-        progress.applyMutation((mountain) => buyWithTeach(mountain, id));
-        if (owned(progress.getSnapshot().mountain, tier) > before) {
+        if (dispatch({ kind: "buyTier", id }).kind === "applied") {
           row.done();
           countCrewRate(rateBefore, crewSpeed());
         }

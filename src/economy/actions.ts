@@ -327,11 +327,14 @@ function actionApplied(
     case "promote":
       return promote(mountain);
     case "station": {
-      {
-        // A real station is the first tend (#246), as the UI's tend buttons mark it.
-        const next = station(mountain, action.index, action.post);
-        return next === mountain ? mountain : markTaught(next, "tending");
-      }
+      // From a tunnel, the post calls the party back first (no find, no trip), so no
+      // expedition is left without its engineer. A real station is the first tend (#246).
+      const next = station(
+        recall(mountain, action.index),
+        action.index,
+        action.post,
+      );
+      return next === mountain ? mountain : markTaught(next, "tending");
     }
     case "send":
       return send(mountain, action.index, action.tunnel, now);

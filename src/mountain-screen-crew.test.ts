@@ -1334,6 +1334,33 @@ describe("upgrades on screen", () => {
     }
   });
 
+  it("a boost buy shows its spend, and marks seen the rows shown at the tap (#409)", () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 10_000;
+      const screen = mountScreen({
+        storage: seededWith(boostsOpen(50_000), CLOCK),
+        now: () => CLOCK,
+        tapClock: () => clock,
+      });
+      document.body.append(screen.root);
+      const price = sharperPrice(screen.progress.getSnapshot().mountain);
+      openUpgrades(screen);
+      const atTap = shownRows(screen.progress.getSnapshot().mountain);
+      clock += BUYS_SETTLE_MS + 100;
+      fingerTap(rowOf(screen, '[data-boost="sharper"]'));
+      const after = screen.progress.getSnapshot().mountain;
+      expect(after.boosts?.sharper).toBeDefined();
+      expect(screen.text(".board-spend")).toBe(
+        `−${price.toLocaleString("en-US")}`,
+      );
+      expect([...(after.seen ?? [])].sort()).toEqual([...atTap].sort());
+      screen.root.remove();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("a dear tap blinks and spends nothing", () => {
     vi.useFakeTimers();
     setReducedMotion(false);
@@ -3690,6 +3717,18 @@ describe("engineers sheet (#145)", () => {
     expect(back?.parentElement?.lastElementChild).toBe(back);
     back?.click();
     expect(sheet.hidden).toBe(true);
+  });
+
+  it("a promotion shows its spend on the odometer (#409)", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: withAda(), lastSeen: Date.now() });
+    const screen = mountScreen({ storage });
+    const sheet = openSheet(screen.root);
+    expect(screen.text(".board-spend")).toBe("");
+    sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
+    sheet.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
+    expect(screen.progress.getSnapshot().mountain.engineers).toHaveLength(2);
+    expect(screen.text(".board-spend")).toBe(`−${formatCompact(nilsPrice)}`);
   });
 
   it("does not cheer when Step up is no longer affordable", () => {
