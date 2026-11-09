@@ -148,11 +148,11 @@ page is the map, plus the rules that keep it that way.
    from the store's snapshot, never the painted pick, and buys through
    `buyWithTeach` (in `crew-panel`), the Buys row's mutation, so a buy from
    the plate is the same buy as one from Buys. A Saving for tap opens Buys.
-   A drawer records when it opened from shut (`tapClock`, `performance.now`
-   by default, not the game clock a gate run stops), and `buyOnTap` asks a
-   row's `settling` when the finger goes down: a row pressed within
-   `DRAWER_SETTLE_MS` (400ms) of the opening hires and buys nothing, so the
-   second tap of a double tap on the plate or a bay never spends.
+   A drawer's opening is the board model's (#425): the model stamps when it
+   opened from shut on the host's clock (`performance.now` by default, not the
+   game clock a gate run stops), and a row pressed within `DRAWER_SETTLE_MS`
+   (400ms) of the opening hires and buys nothing, so the second tap of a
+   double tap on the plate or a bay never spends.
    The key rail and the drawers (#373) add six more DOM parts.
    `board-dom` holds the shared `el`, `write`, `setAttr` and `frameX`
    helpers, `scrollIntoList` (brings a row into its list's view by
@@ -161,36 +161,62 @@ page is the map, plus the rules that keep it that way.
    fit option that fits, keeps the fit only once measured on a laid-out box,
    and drops it when fonts settle. `board-row` is one drawer row (lamp,
    icon, name and badge, info, need, why, flag, gain, price tag and verb),
-   built once and reused, writing only what changed. It paints "Done" and
-   the red blink frames from the board's model: `rowsOnBoard` takes a
-   drawer's row taps through the host and repaints a row when its hold or
-   blink changes. `board-drawer` is
+   built once and reused, writing only what changed. It is a painter of the
+   board model's view (#425): `rowsOnBoard(board, layer)` takes a drawer's
+   rows on a `BoardHost`, subscribes once for all of them, and paints "Done"
+   and the red blink frames from the view. It sends the model each press with
+   when the finger came down, and tells it the result (`applied`, `refused`
+   or `fixed`), and the model decides whether the press acts. `forget()`
+   drops every row's finger-down time when the drawer moves on.
+   `board-host` is the one place the model meets the clock: it keeps the
+   model's state, steps it on every input and press, and holds the single
+   timer that wakes the painters when the view next changes (a hold ending,
+   a blink frame, a thanks going). `eventAge` reads how long an event waited
+   before its handler ran, so a busy phone's late handler still judges by
+   when the finger came down. `board-drawer` is
    `createBoardSheet` (the shell: head with the "i", the list, the spare
-   plate, Back, the slide, Escape and the settle) and `createSheetScrim`
+   plate, Back, the slide, Escape and the thanks) and `createSheetScrim`
    (the board above the drawers: a tap closes them, and over a relic socket
-   also shows its note). `board-how-art` draws the How it works cards in the
+   also shows its note). The shell holds no timer and no judge: it sends the
+   model `open`, `close`, `page` and `layout` and paints the view. Each
+   close says what closed it: `finger` (Back, the "i"'s way back),
+   `keyboard` (Escape), `tap-through` (the scrim, which hands its tap on) or
+   `program` (a timer, the update prompt). Escape listens in the capture
+   phase, so with the save drawer over a drawer it closes only the save
+   drawer. `board-how-art` draws the How it works cards in the
    drawer skin with the board's icons at 2x. `board-keys` is
    `createKeyRail`: five keys that draw `keyViews` and pass taps to
    `onKey`. `board-sign` is the slim New sign over a key. `crew-panel`
    builds Buys and `upgrades-panel` builds Upgrades as `BoardSheet`s of
-   `board-row`s; while Buys is open its rows, sections and chip rows
-   keep their places, and changes apply at the next open. Upgrades keeps
-   its row order while open; row visibility can still change on a re-load.
+   `board-row`s, each painting from the model. Buys sends its layout (its
+   parts in order and its chip rows) as the drawer opens, and the model
+   freezes it: rows, sections and chip rows keep their places while the
+   drawer is open, a row it no longer sells blinks, and words still change
+   in place. Upgrades keeps its row order through a reload: `upgradesOrder`
+   (in `upgrades-panel`) works the order out, every part in it shown or not,
+   and the panel sends it as the drawer opens. Row visibility can still
+   change on a re-load. The Buys parts are small modules:
+   `buys-rows` (each row's view), `buys-tap` (`buysTap`: what a tap on a
+   row does once the model lets it act, read again from the store at the
+   tap), `crew-chips` (the crew line's chips: laid out in the fewest even
+   rows that fit, then frozen with only their words changing) and
+   `crew-rate` (`createRateCounter`: the crew line's rate counting up to its
+   new value after a buy, 8 steps of 60ms, or at once under reduced motion).
    The two drawers
    and the scrim sit in `.board-sheet-clip` at z 29, under the board note
    (30) and the save drawer (31). The clip is `overflow: clip`, so nothing
    (not even script) can scroll it. `engineers-panel` and `menu-panel` take
    a `door` (the Engineers and Ledger keys) instead of building their own
-   buttons. `DRAWER_SETTLE_MS` (400ms) is every drawer's guard, B4's
-   Buys settle carried into the shell, judged for the whole drawer: rows
-   ask `settling` through `buyOnTap`, and Back and the "i" ask it in the
-   shell, each at a finger's pointerdown and again at its click (`detail`
-   not 0), since a touch's click lands where the finger lifts, on a row
-   that may have slid under it as the drawer rose. So the second tap of a
-   double tap on a key, a bay or Saving for never buys or closes. A
-   keyboard press (`detail` 0) is never early. Buys' footnote stands in
-   the drawer's footer, over Back, and steps aside on an opening whose list
-   it would push into a scroll.
+   buttons. `DRAWER_SETTLE_MS` (400ms, from `board-interaction`) is every
+   drawer's guard, B4's Buys settle carried into the model, judged for the
+   whole drawer: rows ask the model through `buyOnTap`, and Back and the "i"
+   ask it in the shell, each at a finger's pointerdown and again at its
+   click (`detail` not 0), since a touch's click lands where the finger
+   lifts, on a row that may have slid under it as the drawer rose. So the
+   second tap of a double tap on a key, a bay or Saving for never buys or
+   closes. A keyboard press (`detail` 0) is never early. Buys' footnote
+   stands in the drawer's footer, over Back, and steps aside on an opening
+   whose list it would push into a scroll.
    The red button calls the same `dig()` as the window, and the window shows
    the "+N". Until the save is in (a second load after sign-in or a user
    switch included) the bays, the plate and the red button show only their
@@ -228,8 +254,11 @@ page is the map, plus the rules that keep it that way.
   restored copy, Start over or Pass the mine never comes through it, so
   `renderStock` only sets the drums and the dial.
 
-- **Board tap rules (#410):** `board-interaction` is a pure reducer that holds
-  the board's tap rules once:
+- **Board tap rules (#410, #425):** `board-interaction` is a pure reducer that
+  holds the board's tap rules once, run through `board-host`. The Buys and
+  Upgrades drawers, their shell and their rows are painters of its view:
+  they send it inputs and presses and read `boardView`; none holds a settle,
+  a hold, a timer or a freeze of its own. The model:
   - the 400ms settle after a drawer opens or turns a page, and after a
     finger closes a drawer (Back), for what that close shows again (named
     fix 1). The save drawer and the board notes never settle, and a
@@ -244,7 +273,9 @@ page is the map, plus the rules that keep it that way.
     too. A save loading again keeps an open drawer's freeze but forgets the
     latest layouts, so a drawer opened then freezes the first layout it is
     given: Buys gives the new save's as it lands, and Upgrades, which keeps
-    its order through a reload, gives that order as it opens;
+    its order through a reload, gives that order as it opens. The screen
+    sends `unloaded` once per ready to not-ready edge (a save loading
+    again), which also ends every Done hold, as a reload always has;
   - the 1.6s thanks after a fix;
   - the overlay stack: a drawer stands alone, and the save drawer and a
     note go on top.
@@ -255,15 +286,20 @@ page is the map, plus the rules that keep it that way.
   read it again, so no timer lives in the rules. The timing values
   (`DRAWER_SETTLE_MS`, `READY_HOLD_MS`, `BLINK_STEP_MS`, `THANKS_MS`,
   `PRESS_AGE_LIMIT_MS`) live here, and the board parts import them. The
-  module is wired to nothing else until I2 (#411) moves the drawers, rows,
-  keys, plate and bays onto it and deletes their hand-rolled copies. A
+  module has one wiring: `board-host` steps it, and the drawers and rows
+  paint from it (#425). The keys, plate and bays move onto it in I2b (#426),
+  and the screen's own reads in I2c (#427); until then they keep their own
+  copies. A
   seeded random-sequence test (`board-interaction.random.test.ts`) holds its
   invariants: no act inside a settle or a hold, and no open drawer's rows
   move. It has a 100% coverage floor.
 
 - **Panel contract:** a panel gets `dispatch` (its only way to change the
   game), `getView`, `now` and a `requestRender` callback, and `progress` only
-  where it still reads the store or presses trouble; it never reads another panel's elements, and it
+  where it still reads the store or presses trouble. The Buys and Upgrades
+  panels also get `board`, the `BoardHost` they share with the screen, the
+  one place taps are judged (`overSave` tells them the save drawer is over
+  them, `door` is their key, `signal` ends their listeners); it never reads another panel's elements, and it
   owns its open/closed state. The key rail uses those gates: the Workshop
   key stays locked until `workshopUnlocked`, Engineers until the first
   borer. Buys, Upgrades and Ledger open from the first screen. The board's parts sit round the
