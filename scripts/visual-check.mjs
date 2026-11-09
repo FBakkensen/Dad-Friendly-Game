@@ -6444,14 +6444,18 @@ for (const viewport of SCREENS) {
               },
             )
             .catch(() => undefined);
+          // The cards can use a face the list did not, which only starts
+          // loading as they show: wait for it too, or a loaded runner measures
+          // the fallback font's taller wrap (#373).
           await page.evaluate(() =>
-            Promise.all(
-              [
+            Promise.all([
+              ...[
                 ...document.querySelectorAll(
                   ".board-sheet.is-open .teach-how img",
                 ),
               ].map((img) => img.decode().catch(() => undefined)),
-            ),
+              document.fonts.ready,
+            ]),
           );
           const how = await howFacts(page, name);
           const howArt = await boardArtAt2x(
