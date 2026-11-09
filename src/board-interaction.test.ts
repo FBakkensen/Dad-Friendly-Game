@@ -6,6 +6,7 @@ import {
   READY_HOLD_MS,
   THANKS_MS,
   boardView,
+  nextWake,
   controlKey,
   initialBoard,
   press,
@@ -184,5 +185,241 @@ describe("the timing values", () => {
     expect(PRESS_AGE_LIMIT_MS).toBe(10_000);
     expect(DRAWER_SETTLE).toBe(DRAWER_SETTLE_MS);
     expect(ROW_HOLD_MS).toBe(READY_HOLD_MS);
+  });
+});
+
+describe("the Done hold", () => {
+  const plate = { layer: "board", id: "plate" } as const;
+  const bought = (pressedAt = 1000, at = 1000): BoardState =>
+    step(press(initialBoard(), finger("board", "plate", pressedAt, at)).state, {
+      kind: "result",
+      control: plate,
+      at,
+      outcome: "applied",
+    });
+  const held = (state: BoardState, at: number) =>
+    boardView(state, at).held.has("board/plate");
+
+  it("holds Done for 1.9s after a buy, so a double tap buys one", () => {
+    const state = bought();
+    expect(decide(state, finger("board", "plate", 1200))).toBe("ignore-held");
+    expect(held(state, 2899)).toBe(true);
+    expect(held(state, 2900)).toBe(false);
+    expect(decide(state, finger("board", "plate", 2900))).toBe("act");
+  });
+
+  it("judges the hold by when the finger came down (named fix 2)", () => {
+    const state = bought();
+    expect(decide(state, finger("board", "plate", 2800, 3500))).toBe(
+      "ignore-held",
+    );
+    // This finger came down before the acting press did.
+    expect(decide(state, finger("board", "plate", 900, 1100))).toBe("act");
+  });
+
+  it("holds against the key's repeat", () => {
+    expect(
+      decide(bought(), { ...finger("board", "plate", 1500), by: "keyboard" }),
+    ).toBe("ignore-held");
+  });
+
+  it("does not stretch a hold with a second applied", () => {
+    const again = step(bought(), {
+      kind: "result",
+      control: plate,
+      at: 2000,
+      outcome: "applied",
+    });
+    expect(held(again, 2899)).toBe(true);
+    expect(held(again, 2900)).toBe(false);
+  });
+
+  it("starts a hold at the result when no act was recorded", () => {
+    const state = step(initialBoard(), {
+      kind: "result",
+      control: plate,
+      at: 1000,
+      outcome: "applied",
+    });
+    expect(decide(state, finger("board", "plate", 999, 1001))).toBe("act");
+    expect(decide(state, finger("board", "plate", 1000))).toBe("ignore-held");
+  });
+
+  it("holds no control that did not act", () => {
+    const refused = step(initialBoard(), {
+      kind: "result",
+      control: plate,
+      at: 1000,
+      outcome: "refused",
+    });
+    expect(decide(refused, finger("board", "plate", 1200))).toBe("act");
+    expect(decide(bought(), finger("board", "bay:0", 1200))).toBe("act");
+  });
+
+  it("lets a trouble press through a hold", () => {
+    expect(
+      decide(bought(), {
+        ...finger("board", "plate", 1200),
+        intent: "trouble",
+      }),
+    ).toBe("act");
+  });
+
+  it("lets go of holds and blinks when the save loads again", () => {
+    const blinking = step(bought(), {
+      kind: "result",
+      control: { layer: "board", id: "bay:0" },
+      at: 1000,
+      outcome: "refused",
+    });
+    const unloaded = step(blinking, { kind: "unloaded" });
+    expect(boardView(unloaded, 1100).held.size).toBe(0);
+    expect(boardView(unloaded, 1100).blinking.size).toBe(0);
+    expect(decide(unloaded, finger("board", "plate", 1200))).toBe("act");
+  });
+
+  it("keeps a hold long enough to judge a late press", () => {
+    const state = bought();
+    expect(decide(state, finger("board", "plate", 2800, 12_000))).toBe(
+      "ignore-held",
+    );
+    // An input 10s past the hold's end drops it: no stamp can reach back that far.
+    const later = step(state, { kind: "open", overlay: "note", at: 12_900 });
+    expect(decide(later, finger("board", "plate", 2800, 12_000))).toBe(
+      "ignore-held",
+    );
+    const gone = step(state, { kind: "open", overlay: "note", at: 13_000 });
+    expect(decide(gone, finger("board", "plate", 2800, 12_000))).toBe("act");
+  });
+});
+
+describe("the blink", () => {
+  const bay = { layer: "board", id: "bay:0" } as const;
+  const refused = (at: number) =>
+    ({ kind: "result", control: bay, at, outcome: "refused" }) as const;
+  const frame = (state: BoardState, at: number) =>
+    boardView(state, at).blinking.get("board/bay:0");
+
+  it("blinks red, off, red, off on a refused buy", () => {
+    const state = after(refused(0));
+    expect([0, 140, 280, 420].map((at) => frame(state, at))).toEqual([
+      "red",
+      "off",
+      "red",
+      "off",
+    ]);
+    expect(frame(state, 560)).toBeUndefined();
+    const twice = step(state, refused(200));
+    expect(frame(twice, 560)).toBeUndefined();
+  });
+
+  it("does not blink under reduced motion, and lets a running blink play out", () => {
+    expect(
+      frame(after({ kind: "motion", reduced: true }, refused(0)), 0),
+    ).toBeUndefined();
+    expect(
+      frame(after(refused(0), { kind: "motion", reduced: true }), 300),
+    ).toBe("red");
+    expect(
+      frame(
+        after(
+          { kind: "motion", reduced: true },
+          { kind: "motion", reduced: false },
+          refused(0),
+        ),
+        0,
+      ),
+    ).toBe("red");
+  });
+
+  it("ends a blink when a buy lands", () => {
+    const state = after(refused(0), {
+      kind: "result",
+      control: bay,
+      at: 100,
+      outcome: "applied",
+    });
+    expect(frame(state, 150)).toBeUndefined();
+  });
+
+  it("blinks again once a blink has ended", () => {
+    expect(frame(after(refused(0), refused(600)), 600)).toBe("red");
+  });
+});
+
+describe("the thanks", () => {
+  const fixed = (layer: Layer, id: string, at: number) =>
+    ({ kind: "result", control: { layer, id }, at, outcome: "fixed" }) as const;
+
+  it("thanks for 1.6s after a fix, on the drawer or on the bay", () => {
+    const state = after(fixed("buys", "drill", 0));
+    expect(boardView(state, 1599).thanks.has("buys")).toBe(true);
+    expect(boardView(state, 1600).thanks.has("buys")).toBe(false);
+    const again = step(state, fixed("buys", "drill", 1000));
+    expect(boardView(again, 2599).thanks.has("buys")).toBe(true);
+    const bay = after(fixed("board", "bay:1", 0));
+    expect(boardView(bay, 0).thanks.has("board/bay:1")).toBe(true);
+  });
+
+  it("holds a drawer row after its fix, and no bay", () => {
+    const pressed = press(initialBoard(), {
+      ...finger("buys", "drill", 0),
+      intent: "trouble",
+    });
+    expect(pressed.decision).toBe("act");
+    const state = step(pressed.state, fixed("buys", "drill", 0));
+    expect(decide(state, finger("buys", "drill", 500))).toBe("ignore-held");
+    const refixed = step(state, fixed("buys", "drill", 1500));
+    expect(boardView(refixed, 3399).held.has("buys/drill")).toBe(true);
+    expect(boardView(refixed, 3400).held.has("buys/drill")).toBe(false);
+    const bay = after(fixed("board", "bay:1", 0));
+    expect(decide(bay, finger("board", "bay:1", 500))).toBe("act");
+  });
+});
+
+describe("the wake time", () => {
+  const plate = { layer: "board", id: "plate" } as const;
+
+  it("wakes at the next change", () => {
+    expect(nextWake(initialBoard(), 0)).toBeUndefined();
+    const hold = after({
+      kind: "result",
+      control: plate,
+      at: 1000,
+      outcome: "applied",
+    });
+    expect(nextWake(hold, 1000)).toBe(2900);
+    expect(nextWake(hold, 2900)).toBeUndefined();
+    const blink = after({
+      kind: "result",
+      control: plate,
+      at: 0,
+      outcome: "refused",
+    });
+    expect([0, 140, 280, 420, 560].map((at) => nextWake(blink, at))).toEqual([
+      140,
+      280,
+      420,
+      560,
+      undefined,
+    ]);
+    const all = after(
+      { kind: "result", control: plate, at: 0, outcome: "applied" },
+      {
+        kind: "result",
+        control: { layer: "buys", id: "drill" },
+        at: 0,
+        outcome: "fixed",
+      },
+      {
+        kind: "result",
+        control: { layer: "board", id: "bay:0" },
+        at: 1000,
+        outcome: "refused",
+      },
+    );
+    expect(nextWake(all, 1000)).toBe(1140);
+    expect(nextWake(all, 1560)).toBe(1600);
+    expect(nextWake(all, 1600)).toBe(1900);
   });
 });
