@@ -25,6 +25,8 @@ export interface Step {
    * timing checks then fail under the load (#403). Heavy steps take turns.
    */
   readonly lane: "shared" | "heavy";
+  /** Deterministic, and skipped when the same inputs passed before (`reusedOutcome`). */
+  readonly reusable: boolean;
 }
 
 export type Outcome =
@@ -34,7 +36,73 @@ export type Outcome =
       readonly seconds: number;
       readonly code: number;
     }
-  | { readonly kind: "skipped"; readonly because: string };
+  | { readonly kind: "skipped"; readonly because: string }
+  /** Not run: the same inputs passed on `sha`, so this run would prove the same (#403). */
+  | { readonly kind: "reused"; readonly sha: string };
+
+/** A green run of a reusable step: the fingerprint of its inputs, and the commit it ran on. */
+export interface PassRecord {
+  readonly key: string;
+  readonly sha: string;
+}
+
+/** A record file's text, or undefined for anything that is not a whole record. */
+export function parsePass(text: string | undefined): PassRecord | undefined {
+  if (text === undefined) return undefined;
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  if (typeof value !== "object" || value === null) return undefined;
+  const { key, sha } = value as Record<string, unknown>;
+  return typeof key === "string" && typeof sha === "string"
+    ? { key, sha }
+    : undefined;
+}
+
+/**
+ * The canonical text of a reusable step's inputs, hashed by the runner into its key: the
+ * step's command, args and env, every file it reads (sorted by path), the lock file and the
+ * Node version. Any byte of any of them changes the text.
+ */
+export function reuseInputs({
+  step,
+  files,
+  lock,
+  node,
+}: {
+  readonly step: Step;
+  readonly files: readonly (readonly [path: string, content: string])[];
+  readonly lock: string;
+  readonly node: string;
+}): string {
+  const contents = new Map(files);
+  return JSON.stringify({
+    command: step.command,
+    args: step.args,
+    env: Object.keys(step.env)
+      .sort()
+      .map((name) => [name, step.env[name]]),
+    files: [...contents.keys()]
+      .sort()
+      .map((path) => [path, contents.get(path)]),
+    lock,
+    node,
+  });
+}
+
+/** Reused when the step may be and its inputs match a recorded green run; else undefined. */
+export function reusedOutcome(
+  step: Step,
+  key: string,
+  record: PassRecord | undefined,
+): Outcome | undefined {
+  return step.reusable && record?.key === key
+    ? { kind: "reused", sha: record.sha }
+    : undefined;
+}
 
 const CODE = /\.(?:ts|tsx|mts|cts|js|mjs|cjs)$/;
 const BUILT = /^(?:dist|coverage|node_modules|\.gate)\//;
@@ -172,6 +240,9 @@ const HEAVY: ReadonlySet<string> = new Set([
   "lab:generations",
 ]);
 
+/** The seeded labs: the same inputs give the same result, so a green run can stand (#403). */
+const REUSABLE: ReadonlySet<string> = new Set(["lab", "lab:generations"]);
+
 /**
  * Every step either tier can run. `changed` is the code changed since
  * origin/main: the fast tier lints and tests it, and with none only
@@ -205,6 +276,7 @@ export function gateSteps(
     after,
     env,
     lane: HEAVY.has(name) ? "heavy" : "shared",
+    reusable: REUSABLE.has(name),
   });
   // CI ran these on every PR (~18 min). Now only when the lab's code changed.
   const lab: readonly Step[] = economy
@@ -396,7 +468,10 @@ export function nextMoves(
     if (blocked !== undefined) {
       skip.push({ step, because: blocked });
     } else if (
-      step.after.every((name) => outcomes.get(name)?.kind === "passed") &&
+      step.after.every((name) => {
+        const kind = outcomes.get(name)?.kind;
+        return kind === "passed" || kind === "reused";
+      }) &&
       !(step.lane === "heavy" && heavyBusy)
     ) {
       start.push(step);
@@ -406,7 +481,12 @@ export function nextMoves(
   return { start, skip };
 }
 
-const LABEL = { passed: "ok", failed: "FAIL", skipped: "skip" } as const;
+const LABEL = {
+  passed: "ok",
+  failed: "FAIL",
+  skipped: "skip",
+  reused: "ok",
+} as const;
 
 /** `ok    typecheck        4.1s`; `width` lines the names up. */
 export function summaryLine(
@@ -422,11 +502,15 @@ export function summaryLine(
       return `${head}${outcome.seconds.toFixed(1)}s  exit ${String(outcome.code)}`;
     case "skipped":
       return `${head}blocked by ${outcome.because}`;
+    case "reused":
+      return `${head}reused (same inputs passed on ${outcome.sha.slice(0, 7)})`;
   }
 }
 
 export function exitCode(outcomes: Iterable<Outcome>): 0 | 1 {
-  for (const outcome of outcomes) if (outcome.kind !== "passed") return 1;
+  for (const outcome of outcomes) {
+    if (outcome.kind !== "passed" && outcome.kind !== "reused") return 1;
+  }
   return 0;
 }
 
@@ -440,7 +524,9 @@ export function totalLine(
   const skipped = list.filter((outcome) => outcome.kind === "skipped").length;
   const time = `${seconds.toFixed(1)}s`;
   if (failed === 0 && skipped === 0) {
-    return `gate ${tier}: ${String(list.length)} passed in ${time}`;
+    const reused = list.filter((outcome) => outcome.kind === "reused").length;
+    const note = reused === 0 ? "" : ` (${String(reused)} reused)`;
+    return `gate ${tier}: ${String(list.length)} passed${note} in ${time}`;
   }
   const parts = [`${String(failed)} failed`];
   if (skipped > 0) parts.push(`${String(skipped)} skipped`);

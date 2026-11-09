@@ -8,6 +8,7 @@
  * The step table and its rules are in src/gate.ts.
  */
 import { execFileSync, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   closeSync,
   existsSync,
@@ -33,7 +34,10 @@ import {
   logTail,
   nextMoves,
   parseArgs,
+  parsePass,
   planTier,
+  reuseInputs,
+  reusedOutcome,
   summaryLine,
   totalLine,
 } from "../src/gate.ts";
@@ -69,21 +73,39 @@ const before = tier === "full" ? treeState() : undefined;
 
 const changed = changedSinceMain();
 
-/** Does this branch touch code the strategy lab runs? Only the full tier asks. */
-function touchesEconomy() {
-  const read = (path) =>
-    existsSync(path) ? readFileSync(path, "utf8") : undefined;
+const read = (path) =>
+  existsSync(path) ? readFileSync(path, "utf8") : undefined;
+
+/** Every file the strategy lab runs: its commands, loader, policies and measures. */
+function labClosure() {
   const discovered = LAB_DIRS.flatMap((dir) =>
     readdirSync(dir)
       .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
       .map((name) => `${dir}/${name}`),
   );
-  return economyChanged(
-    changed,
-    importClosure([...LAB_ENTRIES, ...discovered], read),
-  );
+  return importClosure([...LAB_ENTRIES, ...discovered], read);
 }
-const economy = tier === "full" && touchesEconomy();
+// Only the full tier asks whether this branch touches code the lab runs.
+const closure = tier === "full" ? labClosure() : new Set();
+const economy = tier === "full" && economyChanged(changed, closure);
+
+// A reusable step that passed records the fingerprint of its inputs here; the same
+// fingerprint later reuses that pass instead of running it again (#403).
+const REUSE = `${GATE_DIR}/reuse`;
+const recordPath = (step) =>
+  `${REUSE}/${step.name.replace(/[^\w.-]/g, "_")}.json`;
+const reuseKey = (step) =>
+  createHash("sha256")
+    .update(
+      reuseInputs({
+        step,
+        files: [...closure].map((path) => [path, read(path) ?? ""]),
+        lock: read("package-lock.json") ?? "",
+        node: process.version,
+      }),
+    )
+    .digest("hex");
+const startedAt = git("rev-parse", "HEAD").trim();
 
 const plan = planTier(
   tier,
@@ -184,11 +206,36 @@ for (;;) {
   for (const { step, because } of skip) {
     settle(step, { kind: "skipped", because });
   }
+  let reusedNow = 0;
   for (const step of start) {
-    const job = run(step).then(() => inFlight.delete(job));
+    const key = step.reusable ? reuseKey(step) : undefined;
+    const reused =
+      key === undefined
+        ? undefined
+        : reusedOutcome(step, key, parsePass(read(recordPath(step))));
+    if (reused !== undefined) {
+      settle(step, reused);
+      reusedNow += 1;
+      continue;
+    }
+    const job = run(step).then(() => {
+      inFlight.delete(job);
+      if (key === undefined) return;
+      // Only a green run earns a record; a red one loses the old one.
+      if (outcomes.get(step.name)?.kind === "passed") {
+        mkdirSync(REUSE, { recursive: true });
+        writeFileSync(
+          recordPath(step),
+          JSON.stringify({ key, sha: startedAt }),
+        );
+      } else {
+        rmSync(recordPath(step), { force: true });
+      }
+    });
     inFlight.add(job);
   }
-  if (skip.length > 0 && start.length === 0) continue;
+  // A reused step settles at once: look again before waiting, so the next one starts now.
+  if (reusedNow > 0 || (skip.length > 0 && start.length === 0)) continue;
   if (inFlight.size === 0) break;
   await Promise.race(inFlight);
 }

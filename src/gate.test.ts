@@ -9,7 +9,10 @@ import {
   importClosure,
   LAB_ENTRIES,
   logTail,
+  parsePass,
   relativeImports,
+  reuseInputs,
+  reusedOutcome,
   nextMoves,
   parseArgs,
   planTier,
@@ -32,6 +35,7 @@ const step = (
   after,
   env: {},
   lane,
+  reusable: false,
 });
 
 const names = (steps: readonly Step[]) => steps.map((each) => each.name);
@@ -237,6 +241,11 @@ describe("the strategy lab in the full tier", () => {
   it("puts the visual check and both labs in the heavy lane, visual first", () => {
     const heavy = steps(true).filter((each) => each.lane === "heavy");
     expect(names(heavy)).toEqual(["visual", "lab", "lab:generations"]);
+  });
+
+  it("reuses only the two labs", () => {
+    const reusable = steps(true).filter((each) => each.reusable);
+    expect(names(reusable)).toEqual(["lab", "lab:generations"]);
   });
 
   it("is never in the fast tier", () => {
@@ -477,6 +486,114 @@ describe("nextMoves in the heavy lane", () => {
   });
 });
 
+describe("reuseInputs", () => {
+  const lab: Step = {
+    ...step("lab"),
+    reusable: true,
+    env: { LAB_STRICT: "1" },
+  };
+  const base = {
+    step: lab,
+    files: [
+      ["src/a.ts", "a"],
+      ["src/b.ts", "b"],
+    ] as const,
+    lock: "lock",
+    node: "v24.0.0",
+  };
+
+  it("changes when any input changes", () => {
+    const text = reuseInputs(base);
+    const variants = [
+      {
+        ...base,
+        files: [
+          ["src/a.ts", "a!"],
+          ["src/b.ts", "b"],
+        ] as const,
+      },
+      {
+        ...base,
+        files: [
+          ["src/A.ts", "a"],
+          ["src/b.ts", "b"],
+        ] as const,
+      },
+      { ...base, files: [...base.files, ["src/c.ts", "c"]] as const },
+      { ...base, lock: "lock2" },
+      { ...base, node: "v24.1.0" },
+      { ...base, step: { ...lab, args: ["--ci"] } },
+      { ...base, step: { ...lab, env: { LAB_STRICT: "0" } } },
+    ];
+    for (const variant of variants) {
+      expect(reuseInputs(variant)).not.toBe(text);
+    }
+  });
+
+  it("does not depend on the order of the env", () => {
+    const two = (env: Record<string, string>) =>
+      reuseInputs({ ...base, step: { ...lab, env } });
+    expect(two({ A: "1", B: "2" })).toBe(two({ B: "2", A: "1" }));
+  });
+
+  it("does not depend on the order the files come in", () => {
+    expect(
+      reuseInputs({ ...base, files: [base.files[1], base.files[0]] }),
+    ).toBe(reuseInputs(base));
+  });
+});
+
+describe("parsePass", () => {
+  it("reads a record back", () => {
+    expect(parsePass(JSON.stringify({ key: "k", sha: "abc" }))).toEqual({
+      key: "k",
+      sha: "abc",
+    });
+  });
+
+  it("reads anything else as no record, never as a pass", () => {
+    for (const text of [
+      undefined,
+      "not json",
+      "{}",
+      '{"key":1,"sha":"x"}',
+      "null",
+    ]) {
+      expect(parsePass(text)).toBeUndefined();
+    }
+  });
+});
+
+describe("reusedOutcome", () => {
+  const lab: Step = { ...step("lab"), reusable: true };
+  const record = { key: "k", sha: "abc1234def" };
+
+  it("reuses a reusable step whose inputs passed before", () => {
+    expect(reusedOutcome(lab, "k", record)).toEqual({
+      kind: "reused",
+      sha: "abc1234def",
+    });
+  });
+
+  it("runs it when the inputs differ, there is no record, or it never reuses", () => {
+    expect(reusedOutcome(lab, "other", record)).toBeUndefined();
+    expect(reusedOutcome(lab, "k", undefined)).toBeUndefined();
+    expect(reusedOutcome(step("visual"), "k", record)).toBeUndefined();
+  });
+});
+
+describe("nextMoves behind a reused step", () => {
+  it("starts a step behind a reused one", () => {
+    const steps = [step("lab"), step("after", ["lab"])];
+    const moves = nextMoves(
+      steps,
+      new Map([["lab", { kind: "reused", sha: "abc" } as const]]),
+      new Set(),
+    );
+    expect(names(moves.start)).toEqual(["after"]);
+  });
+});
+
 describe("summaryLine", () => {
   it("prints one aligned line per outcome", () => {
     expect(summaryLine("typecheck", { kind: "passed", seconds: 4.08 }, 9)).toBe(
@@ -488,6 +605,9 @@ describe("summaryLine", () => {
     expect(summaryLine("visual", { kind: "skipped", because: "lint" }, 9)).toBe(
       "skip  visual     blocked by lint",
     );
+    expect(summaryLine("lab", { kind: "reused", sha: "abc1234def" }, 9)).toBe(
+      "ok    lab        reused (same inputs passed on abc1234)",
+    );
   });
 });
 
@@ -498,6 +618,14 @@ describe("exitCode and totalLine", () => {
     expect(exitCode([passed, passed])).toBe(0);
     expect(totalLine("fast", [passed, passed], 12.34)).toBe(
       "gate fast: 2 passed in 12.3s",
+    );
+  });
+
+  it("counts a reused step as passed, and says how many were reused", () => {
+    const reused: Outcome = { kind: "reused", sha: "abc" };
+    expect(exitCode([passed, passed, reused])).toBe(0);
+    expect(totalLine("full", [passed, passed, reused], 3)).toBe(
+      "gate full: 3 passed (1 reused) in 3.0s",
     );
   });
 
