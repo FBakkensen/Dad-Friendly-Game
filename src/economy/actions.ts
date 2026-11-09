@@ -145,70 +145,93 @@ export function listActions(
   now: number,
   trouble?: Trouble,
 ): readonly Action[] {
-  const actions: Action[] = [];
-  for (const tier of TIERS) {
-    if (tierShown(mountain, tier) && !tierLocked(mountain, tier)) {
-      actions.push({ kind: "buyTier", id: tier.id });
-    }
-  }
-  for (const upgrade of UPGRADES) {
-    // Only rows the sheet shows (#245): opened by owned count, seen, or bought (#250).
-    if (
+  return [
+    ...tierActions(mountain),
+    ...upgradeActions(mountain),
+    ...boostActions(mountain, now),
+    ...promoteActions(mountain),
+    ...(mountain.engineers ?? []).flatMap((hand, index) =>
+      handActions(mountain, hand, index, now),
+    ),
+    ...workshopActions(mountain, now),
+    ...troubleActions(trouble),
+  ];
+}
+
+function tierActions(mountain: Mountain): readonly Action[] {
+  return TIERS.filter(
+    (tier) => tierShown(mountain, tier) && !tierLocked(mountain, tier),
+  ).map((tier) => ({ kind: "buyTier", id: tier.id }));
+}
+
+/** Only rows the sheet shows (#245): opened by owned count, seen, or bought (#250). */
+function upgradeActions(mountain: Mountain): readonly Action[] {
+  return UPGRADES.filter(
+    (upgrade) =>
       upgradeShown(mountain, upgrade) &&
-      upgradeCost(upgrade, upgradeLevel(mountain, upgrade.id)) !== undefined
-    ) {
-      actions.push({ kind: "buyUpgrade", id: upgrade.id });
-    }
-  }
-  for (const boost of BOOSTS) {
-    if (
-      boostLeft(mountain, boost.id, now) === 0 &&
-      boostShown(mountain, boost)
-    ) {
-      actions.push({ kind: "buyBoost", id: boost.id });
-    }
-  }
-  if (
-    (mountain.engineers?.length ?? 0) < MAX_ENGINEERS &&
+      upgradeCost(upgrade, upgradeLevel(mountain, upgrade.id)) !== undefined,
+  ).map((upgrade) => ({ kind: "buyUpgrade", id: upgrade.id }));
+}
+
+function boostActions(mountain: Mountain, now: number): readonly Action[] {
+  return BOOSTS.filter(
+    (boost) =>
+      boostLeft(mountain, boost.id, now) === 0 && boostShown(mountain, boost),
+  ).map((boost) => ({ kind: "buyBoost", id: boost.id }));
+}
+
+function promoteActions(mountain: Mountain): readonly Action[] {
+  return (mountain.engineers?.length ?? 0) < MAX_ENGINEERS &&
     mountain.helpers >= 1
-  ) {
-    actions.push({ kind: "promote" });
+    ? [{ kind: "promote" }]
+    : [];
+}
+
+/**
+ * One engineer's moves: a recall while out; else sends before posts. A payback tie keeps the
+ * earlier offer, and a scout's find is the choice when it ties a free walk to a machine.
+ */
+function handActions(
+  mountain: Mountain,
+  hand: Engineer,
+  index: number,
+  now: number,
+): readonly Action[] {
+  if (onTrip(mountain, hand.name)) {
+    return [{ kind: "recall", index }];
   }
-  for (const [index, hand] of (mountain.engineers ?? []).entries()) {
-    if (onTrip(mountain, hand.name)) {
-      actions.push({ kind: "recall", index });
-      continue;
-    }
-    // Sends before posts. A payback tie keeps the earlier offer, and a
-    // scout's find is the choice when it ties a free walk to a machine.
-    for (const spec of TUNNELS) {
-      if (canSend(mountain, hand, spec, now)) {
-        actions.push({ kind: "send", index, tunnel: spec.id });
-      }
-    }
-    for (const post of ENGINEER_POSTS) {
-      if (post !== "tunnel" && post !== hand.post) {
-        actions.push({ kind: "station", index, post });
-      }
-    }
-  }
+  const sends: Action[] = TUNNELS.filter((spec) =>
+    canSend(mountain, hand, spec, now),
+  ).map((spec) => ({ kind: "send", index, tunnel: spec.id }));
+  const posts: Action[] = ENGINEER_POSTS.filter(
+    (post) => post !== "tunnel" && post !== hand.post,
+  ).map((post) => ({ kind: "station", index, post }));
+  return [...sends, ...posts];
+}
+
+function workshopActions(mountain: Mountain, now: number): readonly Action[] {
   const bench = mountain.bench;
-  const held = bench === undefined && unknownBench(mountain, now) !== undefined;
-  if (!held && bench !== undefined && now < bench.endsAt) {
-    actions.push({ kind: "cancelCraft" });
-  } else if (!held && bench === undefined && workshopUnlocked(mountain)) {
-    for (const recipe of sinkRecipes(mountain)) {
-      actions.push({ kind: "craft", recipe });
-    }
+  if (bench === undefined && unknownBench(mountain, now) !== undefined) {
+    return [];
   }
-  if (trouble !== undefined) {
-    actions.push({
-      kind: "fixTrouble",
-      tier: trouble.tier,
-      startedAt: trouble.startedAt,
-    });
+  if (bench !== undefined) {
+    return now < bench.endsAt ? [{ kind: "cancelCraft" }] : [];
   }
-  return actions;
+  return workshopUnlocked(mountain)
+    ? sinkRecipes(mountain).map((recipe) => ({ kind: "craft", recipe }))
+    : [];
+}
+
+function troubleActions(trouble: Trouble | undefined): readonly Action[] {
+  return trouble === undefined
+    ? []
+    : [
+        {
+          kind: "fixTrouble",
+          tier: trouble.tier,
+          startedAt: trouble.startedAt,
+        },
+      ];
 }
 
 /**

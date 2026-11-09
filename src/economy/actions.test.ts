@@ -471,6 +471,34 @@ describe("listActions", () => {
   });
 });
 
+describe("listActions, characterized (#409)", () => {
+  it("lists the same moves, in the same order, as before its split", () => {
+    const mountains = {
+      fresh,
+      withHelper,
+      rich,
+      broke,
+      travelling,
+      lockedMachine,
+      crowned,
+      fullCrew: fullCrew(),
+    };
+    const listed = Object.fromEntries(
+      Object.entries(mountains).flatMap(([name, mountain]) =>
+        [NOW, 0].flatMap((now) =>
+          [undefined, trouble].map((passed) => [
+            `${name} at ${String(now)}${passed === undefined ? "" : " in trouble"}`,
+            listActions(mountain, now, passed)
+              .map((action) => Object.values(action).join(":"))
+              .join(" "),
+          ]),
+        ),
+      ),
+    );
+    expect(listed).toMatchSnapshot();
+  });
+});
+
 describe("applyAction", () => {
   const samples = [
     fresh,
