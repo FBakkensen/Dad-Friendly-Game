@@ -412,6 +412,19 @@ async function boardProbe(page) {
   });
 }
 
+/** Where a held tap clock starts: far past any event's stamp, which counts from the page's load. */
+const HELD_TAP_START = 1_000_000_000;
+
+/** A step of a held tap clock past a drawer's 400ms settle (board-interaction's DRAWER_SETTLE_MS). */
+const PAST_SETTLE_MS = 500;
+
+/** Moves a held tap clock on by `ms`, as if that long had passed for the board's model. */
+async function stepTapClock(page, ms) {
+  await page.evaluate((by) => {
+    globalThis.__tapNow += by;
+  }, ms);
+}
+
 async function open(
   [width, height],
   save,
@@ -420,6 +433,7 @@ async function open(
     search = "",
     stopClock = false,
     reducedMotion = false,
+    tapClock = "real",
   } = {},
 ) {
   const context = await browser.createBrowserContext();
@@ -456,6 +470,15 @@ async function open(
       const stopped = Date.now();
       Date.now = () => stopped;
     });
+  }
+  if (tapClock === "held") {
+    // The board's tap clock stands still until the check steps it (stepTapClock), so the
+    // drawer's settle and the Done hold end when the check says, never by load. It starts far
+    // past any event's stamp: every press is too old to trust and is judged when it is handled.
+    await page.evaluateOnNewDocument((start) => {
+      globalThis.__tapNow = start;
+      globalThis.performance.now = () => globalThis.__tapNow;
+    }, HELD_TAP_START);
   }
   await boardProbe(page);
   await page.evaluateOnNewDocument(
@@ -5162,6 +5185,22 @@ async function putNoteAway(page) {
 }
 
 /**
+ * Puts a board note away once the save is in (keysDrawn): a note that shows by itself, the
+ * quiet away line, shows on the render that brings the save in. With no fixed wait, for the
+ * drawer sections; the New sign is no note and takes no taps.
+ */
+async function noteAway(page) {
+  if ((await page.$(".board-note.on")) === null) {
+    return;
+  }
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(
+    () => document.querySelector(".board-note.on") === null,
+    { timeout: 2_000 },
+  );
+}
+
+/**
  * How often a double-tap check may try again when load pushed its second press past the
  * settle (#373). A buy inside the settle fails on any try; the last try must land inside.
  */
@@ -5879,8 +5918,8 @@ for (const viewport of SCREENS) {
 // where C1 allows, rows 76 tall and 10 apart with every part inside and
 // apart, 48px targets 8px apart, 13px text, art at 2x, row legends at 4.5:1,
 // the spare plate's tier, and the "i" cards fitting with no scroll. Then the
-// rows' states, the taps (a sleepy double tap on a key, the Done hold, the red
-// blink, the scrim, Escape, the "i") and reduced motion.
+// rows' states, each control wired once (a row's buy and Done, the red blink,
+// the scrim, Escape, the "i" and its Back) and reduced motion's first frame.
 const KEY_IDS = ["buys", "workshop", "engineers", "upgrades", "ledger"];
 const KEY_RULES = "/src/key-rail.ts";
 const SAVE_RULES = "/src/persist.ts";
@@ -6034,67 +6073,6 @@ async function railFacts(page) {
   );
 }
 
-/** Two taps at the selector's centre `gap` ms apart; the second meets what the first opened. */
-/**
- * Starts timing a drawer's open: the time its class lands (no earlier than the
- * settle's start) and every pointerdown after it, both on performance.now().
- */
-async function watchSheetOpen(page, selector) {
-  await page.evaluate((sel) => {
-    globalThis.__sheetOpenedAt = undefined;
-    globalThis.__sheetPresses = [];
-    if (globalThis.__sheetPress !== undefined) {
-      document.removeEventListener("pointerdown", globalThis.__sheetPress, {
-        capture: true,
-      });
-    }
-    globalThis.__sheetPress = () => {
-      globalThis.__sheetPresses.push(performance.now());
-    };
-    document.addEventListener("pointerdown", globalThis.__sheetPress, {
-      capture: true,
-    });
-    const sheet = document.querySelector(sel);
-    if (sheet !== null) {
-      new MutationObserver((records, observer) => {
-        if (sheet.classList.contains("is-open")) {
-          globalThis.__sheetOpenedAt = performance.now();
-          observer.disconnect();
-        }
-      }).observe(sheet, { attributes: true, attributeFilter: ["class"] });
-    }
-  }, selector);
-}
-
-/** How far into the drawer's settle the second press came, at least (Infinity if unknown). */
-async function secondPressIntoSettle(page) {
-  return page.evaluate(() => {
-    const opened = globalThis.__sheetOpenedAt;
-    const second = globalThis.__sheetPresses?.[1];
-    return opened === undefined || second === undefined
-      ? Number.POSITIVE_INFINITY
-      : Math.round(second - opened);
-  });
-}
-
-async function tapTwice(page, selector, gap) {
-  const at = await page.$eval(selector, (el) => {
-    const b = el.getBoundingClientRect();
-    return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
-  });
-  for (let tap = 0; tap < 2; tap += 1) {
-    if (tap > 0) {
-      await new Promise((resolve) => setTimeout(resolve, gap));
-    }
-    if (desks.get(page) === true) {
-      await page.mouse.click(at.x, at.y);
-    } else {
-      await page.touchscreen.tap(at.x, at.y);
-    }
-  }
-  await new Promise((resolve) => setTimeout(resolve, 150));
-}
-
 /** A tap at a board point (board px), the way a finger lands there. */
 async function tapBoard(page, x, y) {
   const at = await page.evaluate(
@@ -6117,21 +6095,6 @@ async function tapBoard(page, x, y) {
 
 const odometer = (page) =>
   page.$eval(".board-odo", (odo) => odo.getAttribute("aria-label"));
-
-/** Every shown part of an open drawer's list, by its top in board px. */
-const listTops = (page, name) =>
-  page.$eval(`${OPEN_SHEET(name)} .board-sheet-list`, (list) => {
-    const board = globalThis.__board();
-    return [...list.children]
-      .filter((child) => !child.hidden && child.getClientRects().length > 0)
-      .map(
-        (child) =>
-          Math.round(
-            ((child.getBoundingClientRect().top - board.top) / board.scale) *
-              10,
-          ) / 10,
-      );
-  });
 
 /** A drawer's "i" cards: shown in its place, inside it, with no scroll. */
 async function howFacts(page, name) {
@@ -6284,7 +6247,7 @@ for (const viewport of SCREENS) {
         });
         await keysDrawn(page);
         await page.evaluate(() => document.fonts.ready.then(() => true));
-        await putNoteAway(page);
+        await noteAway(page);
         for (const name of ["buys", "upgrades"]) {
           const label = `${size} ${name} drawer, ${saveName}:`;
           const up = await openSheet(page, name);
@@ -6438,10 +6401,11 @@ for (const viewport of SCREENS) {
             );
           }
           // The "i": its cards take the list's place, fit, and go back. A
-          // finger on it inside the drawer's 400ms settle is the double tap's
-          // second tap, so the press waits that out.
-          await new Promise((resolve) => setTimeout(resolve, 450));
-          await press(page, `${OPEN_SHEET(name)} .board-sheet-info`);
+          // keyboard press is never early, so the drawer's settle does not
+          // swallow it (the finger's "i" is wired in the taps section).
+          await page.$eval(`${OPEN_SHEET(name)} .board-sheet-info`, (info) => {
+            info.click();
+          });
           await page
             .waitForSelector(
               `${OPEN_SHEET(name)} .board-sheet-how:not([hidden])`,
@@ -6532,7 +6496,7 @@ for (const viewport of SCREENS) {
     const visit = async (save, name, search = "") => {
       const opened = await open(viewport, save(), { search, stopClock: true });
       await keysDrawn(opened.page);
-      await putNoteAway(opened.page);
+      await noteAway(opened.page);
       await openSheet(opened.page, name);
       return { ...opened, rows: await rows(opened.page, name) };
     };
@@ -6733,195 +6697,59 @@ for (const viewport of SCREENS) {
   section(`keys and drawers ${JSON.stringify(viewport)} taps`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     const label = `${size} keys and drawers:`;
-    // A sleepy double tap on each drawer's key, 150ms apart: the second tap
-    // lands on the drawer that slid up under the finger, and neither buys
-    // nor closes. Today's sheets (Workshop and Engineers until B6, the
-    // Ledger's menu until B7) never buy either.
-    {
-      const { page, close } = await open(viewport, openMountain(), {
-        stopClock: true,
-      });
-      await keysDrawn(page);
-      await putNoteAway(page);
-      for (const id of KEY_IDS) {
-        const before = await storedMountain(page);
-        const odoBefore = await odometer(page);
-        const drawerKey = id === "buys" || id === "upgrades";
-        // Under the full gate's load the second tap can come down after the
-        // drawer's 400ms settle, where Back rightly closes it: that try has not
-        // tested the guard. Retry it (at most SETTLE_TRIES times), judged from when the
-        // drawer opened, an upper bound on the settle's start.
-        let intoSettle = 0;
-        for (let attempt = 0; attempt < SETTLE_TRIES; attempt += 1) {
-          if (drawerKey) {
-            await watchSheetOpen(page, SHEET(id));
-          }
-          await tapTwice(page, KEY(id), 150);
-          if (!drawerKey) {
-            break;
-          }
-          intoSettle = await secondPressIntoSettle(page);
-          const open = await page.$eval(SHEET(id), (sheet) =>
-            sheet.classList.contains("is-open"),
-          );
-          if (open || intoSettle < 400 || attempt === SETTLE_TRIES - 1) {
-            break;
-          }
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        }
-        const after = await storedMountain(page);
-        const spent =
-          after.pocket !== before.pocket ||
-          (await odometer(page)) !== odoBefore ||
-          ["helpers", "carts", "drills", "borers", "machines"].some(
-            (tier) => (after[tier] ?? 0) !== (before[tier] ?? 0),
-          );
-        const drawer = id === "buys" || id === "upgrades";
-        const stays = drawer
-          ? await page.$eval(SHEET(id), (sheet) =>
-              sheet.classList.contains("is-open"),
-            )
-          : true;
-        check(
-          !spent && stays,
-          `${label} a double tap on the ${id} key ${drawer ? "leaves its drawer open and " : ""}buys nothing${drawer ? ` (second press ${String(intoSettle)}ms into the settle)` : ""}`,
-        );
-        if (spent || !stays) {
-          console.log(
-            "key double tap",
-            size,
-            id,
-            JSON.stringify({ before, after, stays }),
-          );
-        }
-        // Put whatever opened away before the next key.
-        await page.keyboard.press("Escape");
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        for (const sheet of ["buys", "upgrades"]) {
-          if (await page.$(OPEN_SHEET(sheet))) {
-            await closeSheet(page, sheet);
-          }
-        }
-        for (const back of [
-          ".workshop-close",
-          ".engineers-close",
-          ".menu-close",
-        ]) {
-          await page
-            .$eval(`${back}`, (button) => {
-              if (button.getClientRects().length > 0) {
-                button.click();
-              }
-            })
-            .catch(() => undefined);
-        }
-        await new Promise((resolve) => setTimeout(resolve, 300));
-      }
-      await close();
-    }
+    // The tap rules (a key's double tap, a second tap inside the Done hold,
+    // rows that hold their places, no red under reduced motion) are unit tests
+    // on the mounted screen. Here each family of controls is wired once, in
+    // Chrome. The board's tap clock is held, and the check steps it past the
+    // settle where a finger would wait.
 
-    // Early: the Buys key's double tap keeps Buys open with the odometer
-    // unchanged; a tap on the cart row after 600ms buys one and shows Done,
-    // and a second tap inside the 1.9s hold buys nothing. No row moves.
+    // Rows: a finger tap on the cart row after the settle buys one and shows
+    // Done. The "i" shows the how cards; their Back brings the list back.
     {
       const { page, close } = await open(viewport, crewMountain(), {
         stopClock: true,
+        tapClock: "held",
       });
       await keysDrawn(page);
-      await putNoteAway(page);
-      const odoBefore = await odometer(page);
-      await tapTwice(page, KEY("buys"), 150);
-      const stillOpen = (await page.$(OPEN_SHEET("buys"))) !== null;
-      check(
-        stillOpen && (await odometer(page)) === odoBefore,
-        `${label} early: a double tap on the Buys key leaves Buys open and the odometer unchanged`,
-      );
-      await sheetSettled(page, "buys");
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      const topsBefore = await listTops(page, "buys");
+      await noteAway(page);
+      await openSheet(page, "buys");
+      await stepTapClock(page, PAST_SETTLE_MS);
       const before = await storedMountain(page);
       const cart = `${OPEN_SHEET("buys")} .tier[data-tier="cart"]`;
-      // The second tap is meant 450ms after the first. A loaded runner can push it past the
-      // hold, where a buy is right, so the gap is read from the page's own press stamps: a
-      // try that landed outside the hold proves nothing and goes again; the last must land
-      // inside, and inside, nothing may be bought (#373).
-      const pressStamps = () =>
-        page.$eval(cart, (row) => {
-          const stamps = [];
-          row.addEventListener(
-            "pointerdown",
-            (event) => {
-              stamps.push(event.timeStamp);
-            },
-            { capture: true },
-          );
-          globalThis.__holdStamps = stamps;
-        });
-      const gapOf = () =>
-        page.evaluate(() => {
-          const [first, second] = globalThis.__holdStamps ?? [];
-          return second === undefined || first === undefined
-            ? Number.POSITIVE_INFINITY
-            : second - first;
-        });
-      await pressStamps();
       await press(page, cart);
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      const bought = await storedMountain(page);
-      const done = await page.$eval(cart, (row) => ({
-        verb: row.querySelector(".board-row-verb")?.textContent ?? "",
-        held: row.classList.contains("is-held"),
-      }));
+      const done = await page
+        .waitForFunction(
+          (selector) => {
+            const row = document.querySelector(selector);
+            return (
+              row?.classList.contains("is-held") === true &&
+              row.querySelector(".board-row-verb")?.textContent === "Done"
+            );
+          },
+          { timeout: 2_000 },
+          cart,
+        )
+        .then(
+          () => true,
+          () => false,
+        );
+      const bought = await page
+        .waitForFunction(
+          (key, carts) =>
+            JSON.parse(localStorage.getItem(key) ?? "{}").mountain?.carts ===
+            carts,
+          { timeout: 2_000 },
+          SAVE_KEY,
+          before.carts + 1,
+        )
+        .then(
+          () => true,
+          () => false,
+        );
       check(
-        bought.carts - before.carts === 1 && done.verb === "Done" && done.held,
-        `${label} early: a tap on the cart row after 600ms buys one cart and shows Done`,
+        done && bought,
+        `${label} early: a finger tap on the cart row after the settle buys one cart and shows Done`,
       );
-      let held = { inside: false, spent: true, gap: Number.POSITIVE_INFINITY };
-      let first = bought;
-      for (let tryNo = 0; tryNo < 3; tryNo += 1) {
-        if (tryNo > 0) {
-          // Wait out the hold, buy again, and try the second tap once more.
-          await page.waitForFunction(
-            (selector) =>
-              document
-                .querySelector(selector)
-                ?.classList.contains("is-held") === false,
-            { timeout: 5_000 },
-            cart,
-          );
-          await pressStamps();
-          await press(page, cart);
-          await new Promise((resolve) => setTimeout(resolve, 150));
-          first = await storedMountain(page);
-        }
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        await press(page, cart);
-        await new Promise((resolve) => setTimeout(resolve, 150));
-        const again = await storedMountain(page);
-        const gap = await gapOf();
-        held = {
-          inside: gap < 1_900,
-          spent: again.carts !== first.carts || again.pocket !== first.pocket,
-          gap,
-        };
-        if (held.inside) {
-          break;
-        }
-      }
-      check(
-        held.inside && !held.spent,
-        `${label} early: a second tap inside the 1.9s hold buys nothing (${String(Math.round(held.gap))}ms after the first)`,
-      );
-      const topsAfter = await listTops(page, "buys");
-      check(
-        topsAfter.join(",") === topsBefore.join(","),
-        `${label} early: a buy inside the drawer moves no row`,
-      );
-      if (topsAfter.join(",") !== topsBefore.join(",")) {
-        console.log("frozen rows", size, topsBefore, topsAfter);
-      }
-      // The "i" shows the how cards in the list's place; their Back brings
-      // the list back.
       await press(page, `${OPEN_SHEET("buys")} .board-sheet-info`);
       const cards = await page
         .waitForSelector(`${OPEN_SHEET("buys")} .teach-how`, {
@@ -6932,7 +6760,8 @@ for (const viewport of SCREENS) {
           () => true,
           () => false,
         );
-      await new Promise((resolve) => setTimeout(resolve, 450));
+      // The cards settle as they come in, as the drawer did.
+      await stepTapClock(page, PAST_SETTLE_MS);
       await press(
         page,
         `${OPEN_SHEET("buys")} .board-sheet-how .teach-how-back:not([hidden])`,
@@ -6961,15 +6790,17 @@ for (const viewport of SCREENS) {
     }
 
     // Saving: a tap on a row he cannot afford spends nothing and its lamp
-    // reads red within 200ms.
+    // reads red within 200ms. Timed on the browser's own stamps (the click's
+    // and each frame's), since the tap clock is held.
     {
       const { page, close } = await open(viewport, savingMountain(), {
         stopClock: true,
+        tapClock: "held",
       });
       await keysDrawn(page);
-      await putNoteAway(page);
+      await noteAway(page);
       await openSheet(page, "buys");
-      await new Promise((resolve) => setTimeout(resolve, 450));
+      await stepTapClock(page, PAST_SETTLE_MS);
       const odoBefore = await odometer(page);
       const before = await storedMountain(page);
       const dear = `${OPEN_SHEET("buys")} .tier.is-dear[data-tier="cart"]`;
@@ -6978,27 +6809,28 @@ for (const viewport of SCREENS) {
           new Promise((resolve) => {
             const row = document.querySelector(selector);
             const lamp = row?.querySelector(".board-lamp");
-            const started = performance.now();
+            let started;
             let at;
             row?.addEventListener(
               "click",
-              () => {
-                at = performance.now();
+              (event) => {
+                at = event.timeStamp;
               },
               { once: true },
             );
-            const look = () => {
+            const look = (frame) => {
+              started ??= frame;
               if (at !== undefined && lamp?.style.backgroundPositionX === red) {
-                resolve(performance.now() - at);
+                resolve(frame - at);
                 return;
               }
-              if (performance.now() - started > 3_000) {
+              if (frame - started > 3_000) {
                 resolve(Infinity);
                 return;
               }
               requestAnimationFrame(look);
             };
-            look();
+            requestAnimationFrame(look);
           }),
         dear,
         LAMP_X.red,
@@ -7021,11 +6853,12 @@ for (const viewport of SCREENS) {
     {
       const { page, close } = await open(viewport, openMountain(), {
         stopClock: true,
+        tapClock: "held",
       });
       await keysDrawn(page);
-      await putNoteAway(page);
+      await noteAway(page);
       await openSheet(page, "buys");
-      await new Promise((resolve) => setTimeout(resolve, 450));
+      await stepTapClock(page, PAST_SETTLE_MS);
       // A spot on the board above the drawer, off every socket: under the
       // odometer, at the left.
       await tapBoard(page, 24, 170);
@@ -7037,7 +6870,7 @@ for (const viewport of SCREENS) {
       check(shut && noNote, `${label} a scrim tap closes the drawer`);
 
       await openSheet(page, "buys");
-      await new Promise((resolve) => setTimeout(resolve, 450));
+      await stepTapClock(page, PAST_SETTLE_MS);
       const socket = await page.$eval(".board-socket", (el) => {
         const board = globalThis.__board();
         const b = el.getBoundingClientRect();
@@ -7057,8 +6890,7 @@ for (const viewport of SCREENS) {
         !(await buysOpen(page)) && note,
         `${label} a scrim tap on a socket closes the drawer and shows the relic's note`,
       );
-      await page.keyboard.press("Escape");
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await noteAway(page);
 
       await openSheet(page, "upgrades");
       await page.keyboard.press("Escape");
@@ -7075,15 +6907,14 @@ for (const viewport of SCREENS) {
     }
 
     // Reduced motion: a drawer is all the way open in the first frame after
-    // the tap, and a dear tap never paints red. Without it, the drawer is
-    // still sliding in that frame.
+    // the tap. Without it, the drawer is still sliding in that frame.
     for (const reducedMotion of [false, true]) {
       const { page, close } = await open(viewport, savingMountain(), {
         reducedMotion,
         stopClock: true,
       });
       await keysDrawn(page);
-      await putNoteAway(page);
+      await noteAway(page);
       const firstFrame = await page.evaluate(
         (key, sheetSelector) =>
           new Promise((resolve) => {
@@ -7107,35 +6938,6 @@ for (const viewport of SCREENS) {
         check(
           firstFrame > 178.5,
           `${label} without reduced motion the drawer is still sliding in the first frame (${String(Math.round(firstFrame))})`,
-        );
-      }
-      if (reducedMotion) {
-        await sheetSettled(page, "buys");
-        await new Promise((resolve) => setTimeout(resolve, 450));
-        const dear = `${OPEN_SHEET("buys")} .tier.is-dear[data-tier="cart"]`;
-        const watch = page.evaluate(
-          (selector, red) =>
-            new Promise((resolve) => {
-              const lamp = document.querySelector(`${selector} .board-lamp`);
-              const started = performance.now();
-              let painted = false;
-              const look = () => {
-                painted ||= lamp?.style.backgroundPositionX === red;
-                if (performance.now() - started > 800) {
-                  resolve(painted);
-                  return;
-                }
-                requestAnimationFrame(look);
-              };
-              look();
-            }),
-          dear,
-          LAMP_X.red,
-        );
-        await press(page, dear);
-        check(
-          !(await watch),
-          `${label} under reduced motion a dear tap never paints the lamp red`,
         );
       }
       await close();
