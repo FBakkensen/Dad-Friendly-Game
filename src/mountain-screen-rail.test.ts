@@ -608,7 +608,9 @@ describe("the key rail (#373)", () => {
       document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
       );
-      expect(screen.root.querySelector(".board-save-drawer.is-open")).toBeNull();
+      expect(
+        screen.root.querySelector(".board-save-drawer.is-open"),
+      ).toBeNull();
       expect(isOpen(screen, "buys")).toBe(true);
       document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
@@ -634,9 +636,7 @@ describe("the key rail (#373)", () => {
         engineers: [],
       }));
       expect(key(screen, "engineers").disabled).toBe(true);
-      screen.root
-        .querySelector<HTMLButtonElement>(".engineers-close")
-        ?.click();
+      screen.root.querySelector<HTMLButtonElement>(".engineers-close")?.click();
       expect(document.activeElement).toBe(key(screen, "ledger"));
     } finally {
       screen.root.remove();
