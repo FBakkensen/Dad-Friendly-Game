@@ -9,6 +9,7 @@ import {
   readyWords,
   type ReadyTap,
 } from "./board-ready";
+import { createBoardHost, type BoardHost } from "./board-host";
 import type { ReadyPick } from "./ready-now";
 
 const motion = (reduce: boolean): void => {
@@ -180,17 +181,41 @@ describe("doneWords", () => {
 describe("createReadyPlate", () => {
   const bought: ReadyTap = { kind: "bought", tier: "cart", count: 7, gain: 12 };
 
+  /** A board on a clock the test moves, with no press waiting in the queue. */
+  const host = (now: { value: number }): BoardHost =>
+    createBoardHost({
+      clock: () => now.value,
+      pressAge: () => 0,
+      reduced: () => false,
+    });
+
   const plate = (onTap: () => ReadyTap) => {
-    const made = createReadyPlate({ onTap, fits });
+    const now = { value: 0 };
+    const board = host(now);
+    const made = createReadyPlate({ board, onTap, fits });
     document.body.append(made.root);
-    // Bound, so a test can take render out of the plate.
     return {
       root: made.root,
       button: made.button,
+      board,
+      now,
+      // Bound, so a test can take render out of the plate.
       render: (pick: ReadyPick | undefined, enabled: boolean): void => {
         made.render(pick, enabled);
       },
+      /** The board's clock and the timers move on together: a hold ends only when both have. */
+      advance: (ms: number): void => {
+        now.value += ms;
+        vi.advanceTimersByTime(ms);
+      },
     };
+  };
+
+  /** A finger's tap: down, up and the click, which has a pointer (detail 1). */
+  const fingerTap = (button: HTMLElement): void => {
+    button.dispatchEvent(new PointerEvent("pointerdown", { button: 0 }));
+    button.dispatchEvent(new PointerEvent("pointerup", { button: 0 }));
+    button.dispatchEvent(new MouseEvent("click", { detail: 1 }));
   };
 
   it("builds the row: the guard, the plate and its lines in one live button", () => {
@@ -231,7 +256,7 @@ describe("createReadyPlate", () => {
 
   it("buys exactly one on a double tap, holds Done for 1.9s, then shows the last pick", () => {
     const onTap = vi.fn(() => bought);
-    const { root, button, render } = plate(onTap);
+    const { root, button, render, advance } = plate(onTap);
     render(readyCart, true);
     button.click();
     button.click();
@@ -248,12 +273,12 @@ describe("createReadyPlate", () => {
     render(savingCart, true);
     expect(text(root, ".board-ready-main")).toBe("Done · +12/s");
 
-    vi.advanceTimersByTime(1800);
+    advance(1800);
     button.click();
     expect(onTap).toHaveBeenCalledTimes(1);
     expect(text(root, ".board-ready-main")).toBe("Done · +12/s");
 
-    vi.advanceTimersByTime(READY_HOLD_MS - 1800);
+    advance(READY_HOLD_MS - 1800);
     expect(text(root, ".board-ready-kick")).toBe("Saving for");
     expect(text(root, ".board-ready-main")).toBe("Saving for a cart · in 4m");
     expect(button.classList.contains("is-done")).toBe(false);
@@ -265,43 +290,80 @@ describe("createReadyPlate", () => {
 
   it("a held key's repeats inside the hold buy nothing more", () => {
     const onTap = vi.fn(() => bought);
-    const { button, render } = plate(onTap);
+    const { button, render, advance } = plate(onTap);
     render(readyCart, true);
     for (let i = 0; i < 10; i += 1) {
       button.click();
-      vi.advanceTimersByTime(100);
+      advance(100);
     }
     expect(onTap).toHaveBeenCalledTimes(1);
   });
 
+  it("a press whose finger came down inside the Done hold is held, even if handled after it", () => {
+    const onTap = vi.fn(() => bought);
+    const { root, button, render, advance } = plate(onTap);
+    render(readyCart, true);
+    fingerTap(button);
+    expect(onTap).toHaveBeenCalledTimes(1);
+    advance(READY_HOLD_MS - 100);
+    // The second tap's finger comes down inside the hold; a busy phone hands its click over
+    // only after the hold has ended.
+    button.dispatchEvent(new PointerEvent("pointerdown", { button: 0 }));
+    advance(300);
+    expect(text(root, ".board-ready-kick")).toBe("Ready now");
+    button.dispatchEvent(new MouseEvent("click", { detail: 1 }));
+    expect(onTap).toHaveBeenCalledTimes(1);
+    // A new tap after the hold buys.
+    fingerTap(button);
+    expect(onTap).toHaveBeenCalledTimes(2);
+  });
+
+  it("a finger press on the plate right after a finger closed a drawer is ignored", () => {
+    const onTap = vi.fn(() => bought);
+    const { board, now, button, render, advance } = plate(onTap);
+    render(readyCart, true);
+    board.send({ kind: "open", overlay: "buys", at: now.value });
+    advance(500);
+    // The double tap on Back: its second tap lands on the plate under it.
+    board.send({ kind: "close", overlay: "buys", at: now.value, by: "finger" });
+    advance(150);
+    fingerTap(button);
+    expect(onTap).not.toHaveBeenCalled();
+    advance(400);
+    fingerTap(button);
+    expect(onTap).toHaveBeenCalledTimes(1);
+  });
+
   it.each([{ kind: "opened" } as const, { kind: "nothing" } as const])(
-    "releases the hold at once when the tap $kind",
+    "holds nothing when the tap $kind",
     (result) => {
       const onTap = vi.fn((): ReadyTap => result);
-      const { root, button, render } = plate(onTap);
+      const { root, button, board, render } = plate(onTap);
       render(savingCart, true);
       button.click();
       button.click();
       expect(onTap).toHaveBeenCalledTimes(2);
+      expect(board.view().held.size).toBe(0);
       expect(text(root, ".board-ready-kick")).toBe("Saving for");
     },
   );
 
-  it("lets go when the tap throws, so the plate never sticks", () => {
+  it("holds nothing when the tap throws, so the plate never sticks", () => {
     const onTap = vi.fn((): ReadyTap => {
       throw new Error("store gone");
     });
-    const { button, render } = plate(onTap);
+    const { button, board, render } = plate(onTap);
     render(readyCart, true);
     expect(() => {
       button.click();
     }).toThrow("store gone");
+    expect(board.view().held.size).toBe(0);
     onTap.mockImplementation(() => ({ kind: "nothing" }));
     button.click();
     expect(onTap).toHaveBeenCalledTimes(2);
   });
 
-  it("paints a render that came during the tap once the hold lets go", () => {
+  it("paints a render that came during the tap", () => {
     const late: { render?: (pick: ReadyPick, enabled: boolean) => void } = {};
     const { root, button, render } = plate((): ReadyTap => {
       late.render?.(savingCart, true);
@@ -313,12 +375,26 @@ describe("createReadyPlate", () => {
     expect(text(root, ".board-ready-kick")).toBe("Saving for");
   });
 
+  it("while Done holds, the button keeps its disabled; the latest pick paints when it ends", () => {
+    const { root, button, render, advance } = plate(() => bought);
+    render(readyCart, true);
+    button.click();
+    render(readyCart, false);
+    expect(button.disabled).toBe(false);
+    expect(text(root, ".board-ready-kick")).toBe("Done");
+    advance(READY_HOLD_MS);
+    expect(button.disabled).toBe(true);
+    expect(text(root, ".board-ready-kick")).toBe("Ready now");
+  });
+
   it("a save that loads again during the Done hold ends the hold at once", () => {
     const onTap = vi.fn(() => bought);
-    const { root, button, render } = plate(onTap);
+    const { root, button, board, render, advance } = plate(onTap);
     render(readyCart, true);
     button.click();
     expect(text(root, ".board-ready-kick")).toBe("Done");
+    // The screen tells the board first, then renders the loading plate.
+    board.send({ kind: "unloaded" });
     render(undefined, false);
     expect(text(root, ".board-ready-kick")).toBe("");
     expect(text(root, ".board-ready-main")).toBe("");
@@ -326,16 +402,15 @@ describe("createReadyPlate", () => {
     expect(button.classList.contains("is-done")).toBe(false);
     expect(button.disabled).toBe(true);
     expect(button.getAttribute("aria-label")).toBe("Loading your save...");
-    // The save is in again: a tap buys, and the old hold's timer does not cut
-    // the new Done short.
+    // The save is in again: a tap buys, and the old hold does not cut the new Done short.
     render(readyCart, true);
     expect(text(root, ".board-ready-kick")).toBe("Ready now");
-    vi.advanceTimersByTime(1000);
+    advance(1000);
     button.click();
     expect(onTap).toHaveBeenCalledTimes(2);
-    vi.advanceTimersByTime(READY_HOLD_MS - 1000);
+    advance(READY_HOLD_MS - 1000);
     expect(text(root, ".board-ready-kick")).toBe("Done");
-    vi.advanceTimersByTime(1000);
+    advance(1000);
     expect(text(root, ".board-ready-kick")).toBe("Ready now");
   });
 
@@ -381,7 +456,11 @@ describe("createReadyPlate", () => {
   it("fits the longest line that fits, and measures again only when the words change", () => {
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(176);
     const measured = vi.fn(fits);
-    const made = createReadyPlate({ onTap: () => bought, fits: measured });
+    const made = createReadyPlate({
+      board: host({ value: 0 }),
+      onTap: () => bought,
+      fits: measured,
+    });
     document.body.append(made.root);
     const machine: ReadyPick = {
       kind: "saving",
@@ -433,17 +512,20 @@ describe("createReadyPlate", () => {
     /** A plate whose fit takes 10 characters until `widen`, then 40. */
     const limited = (): {
       root: HTMLElement;
+      button: HTMLButtonElement;
       render(): void;
       widen(): void;
     } => {
       let limit = 10;
       const made = createReadyPlate({
+        board: host({ value: 0 }),
         onTap: () => bought,
         fits: (el) => el.textContent.length <= limit,
       });
       document.body.append(made.root);
       return {
         root: made.root,
+        button: made.button,
         render: () => {
           made.render(readyCart, true);
         },
@@ -474,6 +556,19 @@ describe("createReadyPlate", () => {
       expect(text(plate.root, ".board-ready-main")).toBe("Buy a cart · 5,868");
     });
 
+    it("a font that loads during the Done hold keeps the Done words, fitted again", () => {
+      sized();
+      const fonts = fontSet();
+      const plate = limited();
+      plate.render();
+      plate.button.click();
+      expect(text(plate.root, ".board-ready-main")).toBe("Done");
+      plate.widen();
+      fonts.load();
+      expect(text(plate.root, ".board-ready-kick")).toBe("Done");
+      expect(text(plate.root, ".board-ready-main")).toBe("Done · +12/s");
+    });
+
     it("fits again once the fonts are ready", async () => {
       sized();
       const fonts = fontSet();
@@ -488,7 +583,10 @@ describe("createReadyPlate", () => {
   });
 
   it("falls back to the default fit: the first option that does not overflow", () => {
-    const made = createReadyPlate({ onTap: () => bought });
+    const made = createReadyPlate({
+      board: host({ value: 0 }),
+      onTap: () => bought,
+    });
     made.render(readyCart, true);
     // happy-dom lays nothing out, so every option fits and the longest shows.
     expect(text(made.root, ".board-ready-why")).toBe(

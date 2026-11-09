@@ -1,4 +1,3 @@
-import { READY_HOLD_MS } from "./board-interaction";
 import digUrl from "./assets/board/dig-button.png";
 import plateUrl from "./assets/board/plate.png";
 import guardUrl from "./assets/board/ready-guard.png";
@@ -12,6 +11,9 @@ import {
   setAttr,
   write,
 } from "./board-dom";
+import type { BoardHost } from "./board-host";
+import { controlKey, type ControlRef } from "./board-interaction";
+import { pressOnBoard } from "./card-tap";
 import { onFontsSettled } from "./fit-cache";
 import { reducedMotion } from "./float-text";
 import { etaShort, formatCompact, formatCount } from "./format";
@@ -182,24 +184,43 @@ function strip(className: string, url: string): HTMLElement {
   return made;
 }
 
-/**
- * The Ready now plate. A tap holds first, then asks `onTap`, which re-reads the rule from the
- * store: the painted pick is never trusted. A buy shows Done and holds for READY_HOLD_MS, so a
- * double tap buys exactly one.
- */
-export function createReadyPlate({
-  onTap,
-  fits = fitsWidth,
-}: {
-  onTap: () => ReadyTap;
-  fits?: (el: HTMLElement) => boolean;
-}): ReadyPlate {
-  const root = el("div", "board-ready-row");
+/** The plate's parts, built once. */
+interface PlateParts {
+  readonly root: HTMLElement;
+  readonly button: HTMLButtonElement;
+  readonly kick: HTMLElement;
+  readonly guard: HTMLElement;
+  readonly main: HTMLElement;
+  readonly why: HTMLElement;
+}
 
+/** The buy a Done hold names. */
+type Bought = Extract<ReadyTap, { kind: "bought" }>;
+
+/** What the plate shows: the latest pick, or the buy its Done hold names while it holds. */
+interface PlateShows {
+  readonly pick: ReadyPick | undefined;
+  readonly enabled: boolean;
+  readonly done: Bought | undefined;
+}
+
+/** The plate on the board: its Done hold is the board's. */
+const READY: ControlRef = { layer: "board", id: "ready" };
+
+/** Before the save is in: no words, the guard dark. */
+const NO_SAVE: ReadyWords = {
+  kick: "",
+  main: [""],
+  why: [""],
+  aria: LOADING,
+  guard: "off",
+};
+
+function buildPlate(): PlateParts {
+  const root = el("div", "board-ready-row");
   const button = el("button", "board-ready");
   button.type = "button";
   button.setAttribute("aria-live", "polite");
-
   const kick = el("span", "board-ready-kick board-lg");
   const guard = strip("board-ready-guard", guardUrl);
   const plate = el("img", "board-ready-plate");
@@ -212,123 +233,125 @@ export function createReadyPlate({
   lines.append(main, why);
   button.append(kick, guard, plate, lines);
   root.append(button);
+  return { root, button, kick, guard, main, why };
+}
 
-  const fit = (box: HTMLElement, options: readonly string[]): void => {
-    fitFirst(box, options, fits);
-  };
-  const setLabel = (label: string): void => {
-    setAttr(button, "aria-label", label);
-  };
-  const frame = (n: number): void => {
-    frameX(guard, n, GUARD_PX);
-  };
-
-  const show = (
-    shown: ReadyWords,
-    state: "is-saving" | "is-done" | "",
-  ): void => {
-    for (const name of ["is-saving", "is-done"] as const) {
-      mark(button, name, name === state);
-    }
-    frame(GUARD_FRAME[shown.guard]);
-    write(kick, shown.kick);
-    fit(main, shown.main);
-    fit(why, shown.why);
-    setLabel(shown.aria);
-  };
-
-  let last: ReadyPick | undefined;
-  let lastEnabled = false;
-  /** The pick on the plate now; undefined until the save is in. */
-  let painted: ReadyPick | undefined;
-  let holding = false;
-  let holdTimer: ReturnType<typeof setTimeout> | undefined;
-  const letGo = (): void => {
-    holding = false;
-    if (holdTimer !== undefined) {
-      clearTimeout(holdTimer);
-      holdTimer = undefined;
-    }
-  };
-
-  const paint = (): void => {
-    painted = last;
+/**
+ * Paints Done while the plate holds, else the latest pick and whether it can be pressed. A hold
+ * leaves `disabled` as it was when the hold began; the pick after it sets it again.
+ */
+function paintPlate(
+  parts: PlateParts,
+  shows: PlateShows,
+  fits: (el: HTMLElement) => boolean,
+): void {
+  const { button } = parts;
+  const { done, pick } = shows;
+  let words: ReadyWords;
+  let state: "is-saving" | "is-done" | "";
+  if (done !== undefined) {
+    words = doneWords(done.tier, done.count, done.gain);
+    state = "is-done";
+  } else {
     const disabled =
-      last === undefined || last.kind === "mined-out" || !lastEnabled;
+      pick === undefined || pick.kind === "mined-out" || !shows.enabled;
     if (button.disabled !== disabled) {
       button.disabled = disabled;
     }
-    if (last === undefined) {
-      frame(GUARD_FRAME.off);
-      write(kick, "");
-      fit(main, [""]);
-      fit(why, [""]);
-      button.classList.remove("is-saving", "is-done");
-      setLabel(LOADING);
+    words = pick === undefined ? NO_SAVE : readyWords(pick);
+    state = pick?.kind === "saving" ? "is-saving" : "";
+  }
+  for (const name of ["is-saving", "is-done"] as const) {
+    mark(button, name, name === state);
+  }
+  frameX(parts.guard, GUARD_FRAME[words.guard], GUARD_PX);
+  write(parts.kick, words.kick);
+  fitFirst(parts.main, words.main, fits);
+  fitFirst(parts.why, words.why, fits);
+  setAttr(button, "aria-label", words.aria);
+}
+
+/**
+ * The plate's press goes through the board, judged by when its finger came down: only a press
+ * the board lets act asks `onTap`. A buy names its Done first, then tells the board, which holds
+ * the plate and paints it at once.
+ */
+function wirePlatePress(
+  button: HTMLButtonElement,
+  board: BoardHost,
+  onTap: () => ReadyTap,
+  bought: (done: Bought) => void,
+): void {
+  pressOnBoard(button, board, READY, (decision) => {
+    if (decision !== "act") {
       return;
     }
-    show(readyWords(last), last.kind === "saving" ? "is-saving" : "");
-  };
-
-  const render = (pick: ReadyPick | undefined, enabled: boolean): void => {
-    last = pick;
-    lastEnabled = enabled;
-    // A save loading again ends a Done hold: its line names a buy that may
-    // not be in the save that lands.
-    if (pick === undefined) {
-      letGo();
-    }
-    if (!holding) {
-      paint();
-    }
-  };
-
-  button.addEventListener("click", () => {
-    if (holding) {
-      return;
-    }
-    // Hold first: a second sleepy tap, or a held key's repeat, lands in the hold.
-    holding = true;
-    let result: ReadyTap = { kind: "nothing" };
-    try {
-      result = onTap();
-    } finally {
-      // Anything but a buy lets go at once, a throw included, so the plate never sticks.
-      if (result.kind !== "bought") {
-        holding = false;
-        paint();
-      }
-    }
+    // Opened or nothing holds nothing, and neither does a throw.
+    const result = onTap();
     if (result.kind !== "bought") {
       return;
     }
-    show(doneWords(result.tier, result.count, result.gain), "is-done");
-    holdTimer = setTimeout(() => {
-      letGo();
-      paint();
-    }, READY_HOLD_MS);
+    bought(result);
+    board.send({
+      kind: "result",
+      control: READY,
+      at: board.clock(),
+      outcome: "applied",
+    });
   });
+}
 
-  button.addEventListener("pointerdown", () => {
-    if (!holding && !button.disabled && painted?.kind === "ready") {
-      frame(GUARD_FRAME.pressed);
-    }
-  });
-  const lift = (): void => {
-    if (!holding) {
-      paint();
-    }
+/**
+ * The Ready now plate. A tap asks `onTap`, which re-reads the rule from the store: the painted
+ * pick is never trusted. A buy shows Done while the board holds the plate, READY_HOLD_MS, so a
+ * double tap buys exactly one.
+ */
+export function createReadyPlate({
+  board,
+  onTap,
+  fits = fitsWidth,
+}: {
+  board: BoardHost;
+  onTap: () => ReadyTap;
+  fits?: (el: HTMLElement) => boolean;
+}): ReadyPlate {
+  const parts = buildPlate();
+  const { root, button, guard } = parts;
+  /** Undefined until the save is in. */
+  let pick: ReadyPick | undefined;
+  let enabled = false;
+  /** The buy the latest Done hold names. */
+  let bought: Bought | undefined;
+
+  const holding = (): Bought | undefined =>
+    board.view().held.has(controlKey(READY)) ? bought : undefined;
+  const paint = (): void => {
+    paintPlate(parts, { pick, enabled, done: holding() }, fits);
   };
-  button.addEventListener("pointerleave", lift);
-  button.addEventListener("pointercancel", lift);
 
+  const render = (next: ReadyPick | undefined, on: boolean): void => {
+    pick = next;
+    enabled = on;
+    paint();
+  };
+
+  wirePlatePress(button, board, onTap, (done) => {
+    bought = done;
+  });
+  button.addEventListener("pointerdown", () => {
+    if (holding() === undefined && !button.disabled && pick?.kind === "ready") {
+      frameX(guard, GUARD_FRAME.pressed, GUARD_PX);
+    }
+  });
+  button.addEventListener("pointerleave", paint);
+  button.addEventListener("pointercancel", paint);
+
+  board.subscribe(paint);
   // Lines fitted with fallback metrics may not fit in the board's own fonts. A Done hold keeps
-  // its words; the paint after it fits again.
+  // its words, fitted again.
   onFontsSettled(() => {
     refitAll(root);
-    if (!holding) {
-      paint();
-    }
+    paint();
   });
 
   paint();

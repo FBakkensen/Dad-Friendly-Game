@@ -509,7 +509,7 @@ export function mountMountainScreen({
     const count = owned(progress.getSnapshot().mountain, tierById(pick.tier));
     return { kind: "bought", tier: pick.tier, count, gain: pick.gain };
   };
-  const readyPlate = createReadyPlate({ onTap: tapReady });
+  const readyPlate = createReadyPlate({ board, onTap: tapReady });
   // The red button digs exactly as a window tap does, and the window shows it.
   const digButton = createDigButton({
     onPress: () => {
