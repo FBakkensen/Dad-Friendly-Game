@@ -28,6 +28,11 @@ export interface ControlRef {
   readonly id: string;
 }
 export type Pointer = "finger" | "keyboard";
+/** What a drawer shows, in order: its rows and sections, and how many chip rows its crew line wraps to. */
+export interface Layout {
+  readonly parts: readonly string[];
+  readonly chipRows: number;
+}
 
 export type BoardInput =
   | { readonly kind: "open"; readonly overlay: OverlayId; readonly at: number }
@@ -39,6 +44,12 @@ export type BoardInput =
     }
   /** The "i" cards in or out: a new screen under the finger, so the settle starts again. */
   | { readonly kind: "page"; readonly overlay: OverlayId; readonly at: number }
+  /** What a drawer should show now; an open drawer keeps what it froze. */
+  | {
+      readonly kind: "layout";
+      readonly overlay: DrawerId;
+      readonly layout: Layout;
+    }
   /** What a press that acted led to: a buy landed, the buy was refused, or a trouble fixed. */
   | {
       readonly kind: "result";
@@ -60,7 +71,7 @@ export interface Press {
   /** A trouble press is not a spend: neither the settle nor a hold stops it. */
   readonly intent: "act" | "trouble";
 }
-export type PressDecision = "act" | "ignore-early" | "ignore-held";
+export type PressDecision = "act" | "ignore-early" | "ignore-held" | "blink";
 
 /** One open overlay, and when its settle last started (its open, or its last page). */
 interface Opened {
@@ -92,6 +103,10 @@ export interface BoardState {
   /** When each thanks host's thanks ends. */
   readonly thanks: ReadonlyMap<string, number>;
   readonly reduced: boolean;
+  /** Each drawer's latest layout. */
+  readonly wanted: ReadonlyMap<DrawerId, Layout>;
+  /** What each open drawer froze: kept as it was given, never copied. */
+  readonly frozen: ReadonlyMap<DrawerId, Layout>;
 }
 
 export interface BoardView {
@@ -103,18 +118,24 @@ export interface BoardView {
   readonly blinking: ReadonlyMap<string, "red" | "off">;
   /** Thanks hosts: a drawer's id for its kick line, or a board control's key (a bay). */
   readonly thanks: ReadonlySet<string>;
+  /** What each drawer shows: frozen while it is open, the latest while it is shut. */
+  readonly layouts: ReadonlyMap<DrawerId, Layout>;
 }
 
 const BLINK: readonly ("red" | "off")[] = ["red", "off", "red", "off"];
 const BLINK_MS = BLINK.length * BLINK_STEP_MS;
 
-const DRAWERS: ReadonlySet<OverlayId> = new Set<DrawerId>([
+const DRAWER_IDS: readonly DrawerId[] = [
   "buys",
   "upgrades",
   "workshop",
   "engineers",
   "ledger",
-]);
+];
+
+function isDrawer(overlay: Layer): overlay is DrawerId {
+  return (DRAWER_IDS as readonly Layer[]).includes(overlay);
+}
 
 export function initialBoard(): BoardState {
   return {
@@ -125,6 +146,8 @@ export function initialBoard(): BoardState {
     blinks: new Map(),
     thanks: new Map(),
     reduced: false,
+    wanted: new Map(),
+    frozen: new Map(),
   };
 }
 
@@ -236,7 +259,7 @@ function stackWith(
   at: number,
 ): readonly Opened[] {
   const opened: Opened = { overlay, settleFrom: at };
-  if (DRAWERS.has(overlay)) {
+  if (isDrawer(overlay)) {
     return [opened];
   }
   const below =
@@ -250,10 +273,46 @@ function opened(state: BoardState, overlay: OverlayId, at: number): BoardState {
   if (state.stack.some((each) => each.overlay === overlay)) {
     return state;
   }
+  const stack = stackWith(state.stack, overlay, at);
   return {
     ...state,
-    stack: stackWith(state.stack, overlay, at),
+    stack,
     revealed: undefined,
+    frozen: frozenFor(state, stack),
+  };
+}
+
+/** The freezes of the drawers still open in `stack`, and the latest layout of one just opened. */
+function frozenFor(
+  state: BoardState,
+  stack: readonly Opened[],
+): ReadonlyMap<DrawerId, Layout> {
+  const frozen = new Map<DrawerId, Layout>();
+  for (const { overlay } of stack) {
+    const layout = isDrawer(overlay)
+      ? (state.frozen.get(overlay) ?? state.wanted.get(overlay))
+      : undefined;
+    if (isDrawer(overlay) && layout !== undefined) {
+      frozen.set(overlay, layout);
+    }
+  }
+  return frozen;
+}
+
+/** A drawer's latest layout; an open drawer with nothing frozen yet freezes it. */
+function laidOut(
+  state: BoardState,
+  overlay: DrawerId,
+  layout: Layout,
+): BoardState {
+  const open = state.stack.some((each) => each.overlay === overlay);
+  return {
+    ...state,
+    wanted: new Map(state.wanted).set(overlay, layout),
+    frozen:
+      open && !state.frozen.has(overlay)
+        ? new Map(state.frozen).set(overlay, layout)
+        : state.frozen,
   };
 }
 
@@ -271,6 +330,7 @@ function closed(
   return {
     ...state,
     stack,
+    frozen: frozenFor(state, stack),
     revealed:
       by === "finger"
         ? {
@@ -303,6 +363,8 @@ export function step(state: BoardState, input: BoardInput): BoardState {
       return paged(pruned(state, input.at), input.overlay, input.at);
     case "result":
       return resulted(pruned(state, input.at), input);
+    case "layout":
+      return laidOut(state, input.overlay, input.layout);
     case "motion":
       return { ...state, reduced: input.reduced };
     case "unloaded":
@@ -337,6 +399,23 @@ function early(state: BoardState, input: Press, at: number): boolean {
   return state.revealed?.layer === layer && at < state.revealed.until;
 }
 
+/**
+ * A part the open drawer shows frozen but its latest layout no longer has: a row held in
+ * place for a tier no longer shown sells nothing.
+ */
+function gone(state: BoardState, control: ControlRef): boolean {
+  if (!isDrawer(control.layer)) {
+    return false;
+  }
+  const frozen = state.frozen.get(control.layer);
+  const latest = state.wanted.get(control.layer);
+  return (
+    frozen !== undefined &&
+    frozen.parts.includes(control.id) &&
+    latest?.parts.includes(control.id) !== true
+  );
+}
+
 /** An act press that came down inside its control's Done hold. */
 function inHold(state: BoardState, input: Press, at: number): boolean {
   const hold = state.holds.get(controlKey(input.control));
@@ -358,6 +437,12 @@ export function press(
   }
   if (inHold(state, input, at)) {
     return { state, decision: "ignore-held" };
+  }
+  if (gone(state, input.control)) {
+    return {
+      state: blinked(state, controlKey(input.control), input.at),
+      decision: "blink",
+    };
   }
   const recorded = pruned(state, input.at);
   return {
@@ -394,6 +479,12 @@ export function boardView(state: BoardState, at: number): BoardView {
     blinking,
     thanks: new Set(
       [...state.thanks].filter(([, until]) => at < until).map(([host]) => host),
+    ),
+    layouts: new Map(
+      [...state.wanted].map(([drawer, layout]) => [
+        drawer,
+        state.frozen.get(drawer) ?? layout,
+      ]),
     ),
   };
 }

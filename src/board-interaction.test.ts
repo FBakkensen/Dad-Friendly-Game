@@ -12,8 +12,10 @@ import {
   press,
   step,
   type BoardInput,
+  type DrawerId,
   type BoardState,
   type Layer,
+  type Layout,
   type Press,
 } from "./board-interaction";
 import { DRAWER_SETTLE_MS as DRAWER_SETTLE } from "./board-drawer";
@@ -421,5 +423,69 @@ describe("the wake time", () => {
     expect(nextWake(all, 1000)).toBe(1140);
     expect(nextWake(all, 1560)).toBe(1600);
     expect(nextWake(all, 1600)).toBe(1900);
+  });
+});
+
+describe("the freeze", () => {
+  const L1: Layout = { parts: ["crew", "helper", "cart"], chipRows: 1 };
+  const L2: Layout = { parts: ["crew", "helper", "drill"], chipRows: 2 };
+  const laid = (layout: Layout, overlay: DrawerId = "buys") =>
+    ({ kind: "layout", overlay, layout }) as const;
+  const open = (overlay: DrawerId = "buys", at = 0) =>
+    ({ kind: "open", overlay, at }) as const;
+  const close = (overlay: DrawerId = "buys") =>
+    ({ kind: "close", overlay, at: 0, by: "keyboard" }) as const;
+  const shown = (state: BoardState, overlay: DrawerId = "buys") =>
+    boardView(state, 0).layouts.get(overlay);
+
+  it("shows the latest layout while shut, and freezes it as the drawer opens", () => {
+    expect(shown(after(laid(L1)))).toBe(L1);
+    const frozen = after(laid(L1), open(), laid(L2));
+    expect(shown(frozen)).toBe(L1);
+    expect(shown(step(frozen, close()))).toBe(L2);
+  });
+
+  it("lays out once as the save lands, for a drawer opened before it", () => {
+    expect(shown(after(open(), laid(L1), laid(L2)))).toBe(L1);
+  });
+
+  it("opens on the newest layout", () => {
+    expect(shown(after(laid(L1), laid(L2), open()))).toBe(L2);
+  });
+
+  it("blinks a press on a part the open drawer holds but no longer shows", () => {
+    const state = after(laid(L1), open(), laid(L2));
+    const gone = press(state, finger("buys", "cart", 1000));
+    expect(gone.decision).toBe("blink");
+    expect(boardView(gone.state, 1000).blinking.get("buys/cart")).toBe("red");
+    expect(decide(state, finger("buys", "drill", 1000))).toBe("act");
+  });
+
+  it("acts on a part an open drawer shows, and on a drawer still unfrozen", () => {
+    expect(decide(after(laid(L1), open()), finger("buys", "cart", 1000))).toBe(
+      "act",
+    );
+    expect(decide(after(open()), finger("buys", "cart", 1000))).toBe("act");
+  });
+
+  it("keeps the freeze when the save loads again", () => {
+    expect(shown(after(laid(L1), open(), { kind: "unloaded" }, laid(L2)))).toBe(
+      L1,
+    );
+  });
+
+  it("freezes each drawer on its own", () => {
+    const U1: Layout = { parts: ["boost:sharper"], chipRows: 0 };
+    const U2: Layout = { parts: ["boost:sharper", "upgrade:tap"], chipRows: 0 };
+    const state = after(
+      laid(L1),
+      open(),
+      laid(L2),
+      laid(U1, "upgrades"),
+      open("upgrades"),
+      laid(U2, "upgrades"),
+    );
+    expect(shown(state)).toBe(L2);
+    expect(shown(state, "upgrades")).toBe(U1);
   });
 });
