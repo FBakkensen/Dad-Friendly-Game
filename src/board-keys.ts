@@ -7,13 +7,17 @@ import workshopDimUrl from "./assets/board/icon-workshop-dim.png";
 import workshopUrl from "./assets/board/icon-workshop.png";
 import dotUrl from "./assets/board/key-dot.png";
 import { el, frameX, hide, mark, setAttr, write } from "./board-dom";
+import type { BoardHost } from "./board-host";
+import type { ControlRef } from "./board-interaction";
+import { pressOnBoard } from "./card-tap";
 import { KEY_IDS, type KeyCap, type KeyId, type KeyView } from "./key-rail";
 
 /*
  * The key rail (#373): five steel keys under the Ready row, each the door to its drawer or
- * sheet. key-rail.ts decides what each key shows; this draws it and passes the click on. The
- * cap is key.png's 64px cells (rest, down, off, lit), changed whole frames at a time. Places
- * and sizes are in board.css; every render writes only what changed.
+ * sheet. key-rail.ts decides what each key shows; this draws it, and the board's model decides
+ * whether a click goes on. The cap is key.png's 64px cells (rest, down, off, lit), changed
+ * whole frames at a time. Places and sizes are in board.css; every render writes only what
+ * changed.
  */
 
 export interface KeyRail {
@@ -62,13 +66,38 @@ function image(className: string, src: string, px: number): HTMLImageElement {
   return made;
 }
 
+/** The key a click on the rail pressed, as a board control: `key:<id>`. */
+function keyPressed(click: MouseEvent): ControlRef | undefined {
+  const key =
+    click.target instanceof Element
+      ? click.target.closest<HTMLElement>(".board-key")
+      : null;
+  const id = key?.dataset["key"];
+  return id === undefined ? undefined : { layer: "board", id: `key:${id}` };
+}
+
 export function createKeyRail({
+  board,
   onKey,
 }: {
+  board: BoardHost;
   onKey: (id: KeyId, key: HTMLButtonElement) => void;
 }): KeyRail {
   const root = el("nav", "board-rail");
   root.setAttribute("aria-label", "Actions");
+  // Heard on the way down: a press the board turns away stops here, before any listener on
+  // the key, the panels' own door listeners among them.
+  pressOnBoard(
+    root,
+    board,
+    keyPressed,
+    (decision, _by, event) => {
+      if (decision !== "act") {
+        event.stopPropagation();
+      }
+    },
+    { capture: true },
+  );
 
   const built = KEY_IDS.map((id) => {
     const key = el("button", "board-key");

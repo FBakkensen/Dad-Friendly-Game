@@ -383,12 +383,13 @@ export function mountMountainScreen({
     renderVein();
   };
 
+  const board = createBoardHost({ clock: tapClock, pressAge, signal });
   /**
-   * The key rail (#373): five keys under the Ready row. Buys and Upgrades open their drawers
-   * from here; Engineers and the Ledger key (today's menu, until B7) are their panels' doors,
-   * whose own click handlers open them. Every key first puts the board's popups away.
+   * The key rail: Buys, Workshop and Upgrades open from here; Engineers and the Ledger key open
+   * through their panels' own click listeners. Every key first puts the board's popups away.
    */
   const rail = createKeyRail({
+    board,
     onKey: (id, key) => {
       closeBoardPopups();
       // A key pressed from the keyboard puts the New sign away too.
@@ -412,7 +413,6 @@ export function mountMountainScreen({
   });
   /** The Ready now pick last painted on the plate: the Buys rows light the same one. */
   let shownPick: ReadyPick = readyNow(view.mountain, now(), view.trouble);
-  const board = createBoardHost({ clock: tapClock, pressAge, signal });
   const crewPanel = createCrewPanel({
     progress,
     dispatch,

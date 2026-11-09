@@ -326,4 +326,22 @@ describe("pressOnBoard", () => {
     fingerClick(target);
     expect(seen).toEqual(["act"]);
   });
+
+  it("reads the control from the click, and presses nothing for a click on none", () => {
+    const { now, host, target } = settled();
+    const inner = document.createElement("span");
+    target.append(inner);
+    const seen: string[] = [];
+    pressOnBoard(
+      target,
+      host,
+      (click) => (click.target === inner ? control : undefined),
+      (decision) => seen.push(decision),
+    );
+    now.value = 1_100;
+    fingerClick(target);
+    expect(seen).toEqual([]);
+    fingerClick(inner);
+    expect(seen).toEqual(["ignore-early"]);
+  });
 });

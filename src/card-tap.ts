@@ -90,14 +90,15 @@ export function trackPress(
 }
 
 /**
- * One of the shell's own controls, pressed through the board. Its press is tracked on the
- * control itself, so it is judged by its own finger-down time, and that time is dropped at a
- * cancel or when the drawer moves on.
+ * One of the board's controls, pressed through the board. Its press is tracked on `target`, so
+ * it is judged by its own finger-down time, and that time is dropped at a cancel or when the
+ * drawer moves on. A target that holds several controls (the key rail) reads which one a click
+ * pressed from the click; a click on none of them presses nothing.
  */
 export function pressOnBoard(
   target: HTMLElement,
   board: BoardHost,
-  control: ControlRef,
+  control: ControlRef | ((click: MouseEvent) => ControlRef | undefined),
   judged: (decision: PressDecision, by: Pointer, event: MouseEvent) => void,
   options: AddEventListenerOptions = {},
 ): PressTracker {
@@ -106,8 +107,12 @@ export function pressOnBoard(
     "click",
     (event) => {
       const { by, downAt } = tracker.press(event);
+      const pressed = typeof control === "function" ? control(event) : control;
+      if (pressed === undefined) {
+        return;
+      }
       const decision = board.press({
-        control,
+        control: pressed,
         by,
         intent: "act",
         downAt,

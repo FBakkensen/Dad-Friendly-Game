@@ -741,4 +741,83 @@ describe("the key rail (#373)", () => {
     expect(key(screen, "workshop").disabled).toBe(false);
     expect(key(screen, "engineers").disabled).toBe(false);
   });
+
+  describe("a finger's close of a drawer settles the keys under Back", () => {
+    /** A finger's tap whose click has its pointer (detail 1), as a phone sends it. */
+    const touch = (el: HTMLElement): void => {
+      el.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      el.dispatchEvent(
+        new PointerEvent("pointerup", { bubbles: true, button: 0 }),
+      );
+      el.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
+      );
+    };
+    const back = (screen: ReturnType<typeof mountScreen>, name: string) => {
+      const found = drawer(screen, name).querySelector<HTMLButtonElement>(
+        ".board-sheet-back",
+      );
+      if (found === null) throw new Error(`no Back on ${name}`);
+      return found;
+    };
+    /** Buys open and settled, on a tap clock the test moves. */
+    const buysOpen = () => {
+      const clock = { value: 10_000 };
+      const screen = mountScreen({
+        storage: seeded(crewed(), CLOCK),
+        now: () => CLOCK,
+        tapClock: () => clock.value,
+      });
+      touch(key(screen, "buys"));
+      expect(isOpen(screen, "buys")).toBe(true);
+      clock.value += 500;
+      return { clock, screen };
+    };
+    const engineersShown = (screen: ReturnType<typeof mountScreen>) =>
+      screen.root.querySelector<HTMLElement>(".engineers-dialog")?.hidden ===
+      false;
+
+    it("a double tap on a drawer's Back opens no key under it", () => {
+      const { clock, screen } = buysOpen();
+      touch(back(screen, "buys"));
+      expect(isOpen(screen, "buys")).toBe(false);
+      // The second tap of the double tap lands on the key under Back.
+      clock.value += 150;
+      touch(key(screen, "engineers"));
+      expect(engineersShown(screen)).toBe(false);
+      expect(key(screen, "engineers").getAttribute("aria-expanded")).toBe(
+        "false",
+      );
+      touch(key(screen, "upgrades"));
+      expect(isOpen(screen, "upgrades")).toBe(false);
+      // Past the settle, the key opens.
+      clock.value += 400;
+      touch(key(screen, "engineers"));
+      expect(engineersShown(screen)).toBe(true);
+    });
+
+    it("Back by keyboard, then a key tap opens at once", () => {
+      const { clock, screen } = buysOpen();
+      back(screen, "buys").click();
+      expect(isOpen(screen, "buys")).toBe(false);
+      clock.value += 150;
+      touch(key(screen, "upgrades"));
+      expect(isOpen(screen, "upgrades")).toBe(true);
+    });
+
+    it("the scrim's close leaves a key tap acting", () => {
+      const { clock, screen } = buysOpen();
+      const scrim = screen.root.querySelector<HTMLElement>(".board-scrim");
+      if (scrim === null) throw new Error("no scrim");
+      scrim.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
+      );
+      expect(isOpen(screen, "buys")).toBe(false);
+      clock.value += 150;
+      touch(key(screen, "upgrades"));
+      expect(isOpen(screen, "upgrades")).toBe(true);
+    });
+  });
 });
