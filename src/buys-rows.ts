@@ -139,8 +139,8 @@ type BuyFacts = {
   readonly isPick: boolean;
   readonly buyVerb: string;
   readonly staff: number;
-  readonly bill: string | undefined;
-  readonly needsMore: boolean;
+  /** The workers one more of this tier still needs, in words, when there are too few spare. */
+  readonly shortOf: string | undefined;
   readonly dear: boolean;
 };
 
@@ -186,8 +186,7 @@ function buyFacts({
     // Workers (helper, kid) are hired; machines are bought.
     buyVerb: tier.staff === 0 ? "Hire" : "Buy",
     staff,
-    bill,
-    needsMore: lock === undefined && bill !== undefined && spare < staff,
+    shortOf: lock === undefined && spare < staff ? bill : undefined,
     dear:
       lock === undefined && troubled === undefined && mountain.pocket < price,
   };
@@ -262,8 +261,7 @@ function lockedFace(tier: Tier, lock: TierLock): Face {
 
 /** An unlocked tier: too dear, short of workers, or ready. */
 function pricedFace(facts: BuyFacts): Face {
-  const { id, count, price, staff, bill, needsMore, dear, buyVerb, isPick } =
-    facts;
+  const { id, count, price, staff, shortOf, dear, buyVerb, isPick } = facts;
   const info = milestoneOptions(id, count);
   const shown = formatCompact(price);
   if (dear) {
@@ -278,11 +276,11 @@ function pricedFace(facts: BuyFacts): Face {
       can: false,
     };
   }
-  if (needsMore) {
+  if (shortOf !== undefined) {
     return {
       state: "short",
       info,
-      need: bill ?? "",
+      need: shortOf,
       price: shown,
       dimTag: false,
       verb: workersVerb(staff),
@@ -336,14 +334,14 @@ function buyFlag(facts: BuyFacts, tending: Tending | undefined): string[] {
 
 /** The buy sentence: price, output, synergy, what you have and who is idle. */
 function buyingAria(facts: BuyFacts, synergy: number): string {
-  const { tier, price, speed, count, idle, crewEach, needsMore } = facts;
+  const { tier, price, speed, count, idle, crewEach, shortOf } = facts;
   const faster =
     synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : "";
   const idleWords =
     idle > 0
       ? `, ${formatCount(idle)} idle: each needs ${String(crewEach)} ${workerWords(crewEach)} to run`
       : "";
-  const more = needsMore ? `. ${NEEDS_MORE_WORKERS}` : "";
+  const more = shortOf !== undefined ? `. ${NEEDS_MORE_WORKERS}` : "";
   return `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${stonesASecond(speed)}${faster}. You have ${formatCount(count)}${idleWords}${more}.`;
 }
 
