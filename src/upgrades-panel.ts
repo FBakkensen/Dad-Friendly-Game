@@ -2,11 +2,15 @@ import { oneOffStretch, stretch } from "./scale";
 import { el, hide, legend, mark } from "./board-dom";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
 import type { BoardHost } from "./board-host";
-import { createBoardRow, type BoardRow } from "./board-row";
+import {
+  createBoardRow,
+  rowsOnBoard,
+  type BoardRow,
+  type RowsOnBoard,
+} from "./board-row";
 import { howItWorks } from "./how-it-works";
 import { BOOSTS, boostLeft, type Boost, type BoostId } from "./boosts";
 import type { Move } from "./economy/actions";
-import { buyOnTap } from "./card-tap";
 import { shortEffectName, writeChip } from "./effect-row";
 import type { Mountain } from "./mountain";
 import type {
@@ -65,6 +69,50 @@ interface ToolRow {
   readonly row: BoardRow;
 }
 
+/** What a buy row's tap reads and moves. */
+interface BuyTaps {
+  readonly progress: ProgressStore;
+  readonly dispatch: Dispatch;
+  /** The game's clock: prices and timers. */
+  readonly now: () => number;
+  readonly onBoard: RowsOnBoard;
+}
+
+/**
+ * A buy row's tap. A second sleepy tap inside the Done hold, or the tap that opened the
+ * drawer, does nothing. The store is read again at the tap: a pocket that fell under the
+ * price since the last paint blinks and buys nothing.
+ */
+function wireBuy(
+  { progress, dispatch, now, onBoard }: BuyTaps,
+  id: RevealRowId,
+  row: BoardRow,
+  viewOf: (mountain: Mountain, at: number) => RowView,
+  move: Extract<Move, { kind: "buyUpgrade" | "buyBoost" }>,
+): void {
+  const root = row.root;
+  if (!(root instanceof HTMLButtonElement)) {
+    return;
+  }
+  onBoard.tap(root, (press, event) => {
+    const snapshot = progress.getSnapshot();
+    if (!snapshot.ready || onBoard.press(id, press, event, "act") !== "act") {
+      return;
+    }
+    if (!viewOf(snapshot.mountain, now()).can) {
+      onBoard.result(id, "refused");
+      return;
+    }
+    // The rows he had in front of him when he tapped are seen, whatever the buy shows next.
+    const shown = shownRows(snapshot.mountain);
+    const bought = dispatch(move).kind === "applied";
+    dispatch({ kind: "markAllSeen", ids: shown });
+    if (bought) {
+      onBoard.result(id, "applied");
+    }
+  });
+}
+
 /**
  * The Upgrades drawer. `open` marks every shown row seen, then opens the drawer; the opener
  * (the Upgrades key on the rail) owns its lit cap and dot.
@@ -100,6 +148,7 @@ export function createUpgradesPanel({
   render: () => void;
   open: (from?: HTMLElement) => void;
 } {
+  const onBoard = rowsOnBoard(board, "upgrades");
   const sheet = createBoardSheet({
     name: "upgrades",
     title: "Upgrades",
@@ -110,6 +159,9 @@ export function createUpgradesPanel({
     },
     board,
     overSave,
+    onForget: () => {
+      onBoard.forget();
+    },
     ...(door === undefined ? {} : { door }),
     ...(signal === undefined ? {} : { signal }),
   });
@@ -117,47 +169,7 @@ export function createUpgradesPanel({
 
   let howPriced = "1:1";
 
-  /**
-   * A buy row's tap. A second sleepy tap inside the Done hold, or the tap that opened the
-   * drawer, does nothing. The store is read again at the tap: a pocket that fell under the
-   * price since the last paint blinks and buys nothing.
-   */
-  const wireBuy = (
-    row: BoardRow,
-    viewOf: (mountain: Mountain, at: number) => RowView,
-    move: Extract<Move, { kind: "buyUpgrade" | "buyBoost" }>,
-  ): void => {
-    const root = row.root;
-    if (!(root instanceof HTMLButtonElement)) {
-      return;
-    }
-    buyOnTap(
-      root,
-      root,
-      (press) => {
-        if (row.holding() || press.early) {
-          return;
-        }
-        const snapshot = progress.getSnapshot();
-        if (!snapshot.ready) {
-          return;
-        }
-        const at = now();
-        if (!viewOf(snapshot.mountain, at).can) {
-          row.blink();
-          return;
-        }
-        // The rows he had in front of him when he tapped are seen, whatever the buy shows next.
-        const shown = shownRows(snapshot.mountain);
-        const bought = dispatch(move).kind === "applied";
-        dispatch({ kind: "markAllSeen", ids: shown });
-        if (bought) {
-          row.done();
-        }
-      },
-      { settling: (press) => sheet.settlingFor(press) },
-    );
-  };
+  const taps: BuyTaps = { progress, dispatch, now, onBoard };
 
   const boostRows: readonly BoostRow[] = BOOSTS.map((boost) => {
     const row = createBoardRow({
@@ -167,11 +179,18 @@ export function createUpgradesPanel({
       name: boost.name,
       icon: false,
     });
-    wireBuy(row, (mountain, at) => boostRowView(mountain, at, boost, false), {
-      kind: "buyBoost",
-      id: boost.id,
-    });
-    return { boost, id: boostRowId(boost), row };
+    const id = boostRowId(boost);
+    wireBuy(
+      taps,
+      id,
+      row,
+      (mountain, at) => boostRowView(mountain, at, boost, false),
+      {
+        kind: "buyBoost",
+        id: boost.id,
+      },
+    );
+    return { boost, id, row };
   });
 
   const upgradeRows: readonly UpgradeRow[] = UPGRADES.map((upgrade) => {
@@ -182,12 +201,15 @@ export function createUpgradesPanel({
       name: upgrade.name,
       icon: false,
     });
+    const id = upgradeRowId(upgrade);
     wireBuy(
+      taps,
+      id,
       row,
       (mountain, at) => upgradeRowView(mountain, at, upgrade, false),
       { kind: "buyUpgrade", id: upgrade.id },
     );
-    return { upgrade, id: upgradeRowId(upgrade), row };
+    return { upgrade, id, row };
   });
 
   const toolRows: readonly ToolRow[] = LOST_TOOLS.map((id) => {
@@ -292,9 +314,12 @@ export function createUpgradesPanel({
     renderChips(current, at);
     if (!view.ready) {
       // The rows go dark and keep their places: names only, disabled, no numbers.
-      for (const { row } of [...boostRows, ...upgradeRows, ...toolRows]) {
-        row.render(undefined);
+      for (const { id, row } of [...boostRows, ...upgradeRows]) {
+        onBoard.paint(id, row, undefined);
         mark(row.root, "teach-new", false);
+      }
+      for (const { id, row } of toolRows) {
+        onBoard.paint(`tool:${id}`, row, undefined);
       }
       sheet.kick(UPGRADES_KICK);
       if (sheet.isOpen()) {
@@ -308,7 +333,7 @@ export function createUpgradesPanel({
       const rowView = boostRowView(current, at, boost, id === newId);
       hide(row.root, !rowView.shown);
       boostsShowing ||= rowView.shown;
-      row.render(rowView);
+      onBoard.paint(id, row, rowView);
       mark(row.root, "teach-new", id === newId);
     }
     let upgradesShowing = false;
@@ -316,7 +341,7 @@ export function createUpgradesPanel({
       const rowView = upgradeRowView(current, at, upgrade, id === newId);
       hide(row.root, !rowView.shown);
       upgradesShowing ||= rowView.shown;
-      row.render(rowView);
+      onBoard.paint(id, row, rowView);
       mark(row.root, "teach-new", id === newId);
     }
     let anyFound = false;
@@ -324,7 +349,7 @@ export function createUpgradesPanel({
       const rowView = toolRowView(current, id);
       hide(row.root, !rowView.shown);
       anyFound ||= rowView.shown;
-      row.render(rowView);
+      onBoard.paint(`tool:${id}`, row, rowView);
     }
     hide(boostSec, !boostsShowing);
     hide(lastingSec, !upgradesShowing);

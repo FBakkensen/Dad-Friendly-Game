@@ -8,7 +8,6 @@ import {
   initialBoard,
   nextWake,
   press,
-  PRESS_AGE_LIMIT_MS,
   step,
   type BoardInput,
   type BoardState,
@@ -20,16 +19,12 @@ import { reducedMotion } from "./float-text";
 
 /**
  * How long an event waited before the page got to it: a busy phone hands a press over late,
- * and the settle is about when the finger came down, not when the handler ran. The stamp and
- * `performance.now()` share one origin; a stamp from the future, none at all, or one too old
- * to trust counts as now.
+ * and the settle and the Done hold are about when the finger came down, not when the handler
+ * ran. The stamp and `performance.now()` share one origin. The age is raw: one from the future
+ * or too old to trust is the model's to judge. An event with no stamp at all has no age.
  */
 export function eventAge(event: Event, now = performance.now()): number {
-  if (!(event.timeStamp > 0)) {
-    return 0;
-  }
-  const age = now - event.timeStamp;
-  return age > 0 && age < PRESS_AGE_LIMIT_MS ? age : 0;
+  return event.timeStamp > 0 ? now - event.timeStamp : 0;
 }
 
 export interface BoardHost {

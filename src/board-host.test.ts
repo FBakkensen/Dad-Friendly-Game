@@ -178,9 +178,12 @@ describe("eventAge", () => {
     expect(eventAge(at(900), 1000)).toBe(100);
   });
 
-  it("is 0 for a stamp from the future, none, or one too old to trust", () => {
-    expect(eventAge(at(1100), 1000)).toBe(0);
+  it("is the raw age, even from the future or too old to trust: the board judges those", () => {
+    expect(eventAge(at(1100), 1000)).toBe(-100);
+    expect(eventAge(at(40_000), 100_000)).toBe(60_000);
+  });
+
+  it("is 0 for an event with no stamp", () => {
     expect(eventAge(at(0), 1000)).toBe(0);
-    expect(eventAge(at(1000 - 60_000), 1000)).toBe(0);
   });
 });

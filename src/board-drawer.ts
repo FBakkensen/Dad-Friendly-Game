@@ -4,7 +4,6 @@ import { el, hide, mark, refitAll, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { boardHowCard, type BoardHowSystem } from "./board-how-art";
 import {
-  DRAWER_SETTLE_MS,
   type CloseBy,
   type ControlRef,
   type DrawerId,
@@ -64,8 +63,6 @@ export interface BoardSheet {
   readonly back: HTMLButtonElement;
   /** Open in the board's model. */
   isOpen(): boolean;
-  /** Was the drawer settling when this press's finger came down, however late it arrived? */
-  settlingFor(event: Event): boolean;
   open(from?: HTMLElement): void;
   /**
    * Shuts the drawer and focuses the key it opened from. `restoreFocus: false` leaves focus
@@ -380,7 +377,6 @@ export function createBoardSheet({
   /** What the page shows; the model says whether the drawer is open. */
   let shown = false;
   door?.setAttribute("aria-expanded", "false");
-  let openedAt = Number.NEGATIVE_INFINITY;
   let from: HTMLElement | undefined;
   let resting = "";
   let tier: SpareTier | undefined;
@@ -405,9 +401,8 @@ export function createBoardSheet({
     // must not take the cards' Back, nor one on the cards' Back buy the row under it, so the
     // settle starts again (#373).
     if (shown) {
-      openedAt = board.clock();
       forget();
-      board.send({ kind: "page", overlay: name, at: openedAt });
+      board.send({ kind: "page", overlay: name, at: board.clock() });
     }
     // The "i" hides under the cards, so focus moves with them, and back to it.
     focusQuietly(on ? how : info);
@@ -418,10 +413,9 @@ export function createBoardSheet({
       return;
     }
     shown = true;
-    openedAt = board.clock();
     forget();
     from = opener;
-    board.send({ kind: "open", overlay: name, at: openedAt });
+    board.send({ kind: "open", overlay: name, at: board.clock() });
     root.classList.add("is-open");
     door?.setAttribute("aria-expanded", "true");
     list.scrollTop = 0;
@@ -473,9 +467,6 @@ export function createBoardSheet({
     footer,
     back,
     isOpen: () => board.view().stack.includes(name),
-    settlingFor: (event) =>
-      shown &&
-      board.clock() - board.pressAge(event) - openedAt < DRAWER_SETTLE_MS,
     open: openSheet,
     close,
     kick: (text) => {

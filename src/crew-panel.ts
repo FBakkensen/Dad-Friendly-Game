@@ -10,10 +10,9 @@ import workerUrl from "./assets/board/mach-worker.png";
 import { el, hide, legend, mark, scrollIntoList, write } from "./board-dom";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
 import type { BoardHost } from "./board-host";
-import { createBoardRow, type BoardRow } from "./board-row";
+import { createBoardRow, rowsOnBoard, type BoardRow } from "./board-row";
 import { skin } from "./board-skin";
 import { BUY_SECTIONS, buyRowView, type BuyIcon } from "./buys-rows";
-import { buyOnTap } from "./card-tap";
 import { crewCounts } from "./crew-count";
 import { grandpaPost, staffNeeded } from "./engineers";
 import { reducedMotion } from "./float-text";
@@ -104,12 +103,6 @@ function guidedOf(
     : undefined;
 }
 
-/** A fix in Buys thanks the crew on the drawer's kick line, through the board's model. */
-function thankCrew(board: BoardHost, id: TierId): void {
-  const control = { layer: "buys", id } as const;
-  board.send({ kind: "result", control, at: board.clock(), outcome: "fixed" });
-}
-
 /**
  * The Buys drawer. `pick` is the Ready now pick the screen painted on the plate this frame,
  * so a row's amber lamp always agrees with it. `open` lays the crew chips out on the open
@@ -145,6 +138,7 @@ export function createCrewPanel({
   render: () => void;
   open: (from?: HTMLElement) => void;
 } {
+  const onBoard = rowsOnBoard(board, "buys");
   const sheet = createBoardSheet({
     name: "buys",
     title: "Buys",
@@ -156,6 +150,9 @@ export function createCrewPanel({
     // Shut, the list takes its latest layout: rows, legends and chips.
     onClose: () => {
       unfreeze();
+    },
+    onForget: () => {
+      onBoard.forget();
     },
     ...(signal === undefined ? {} : { signal }),
   });
@@ -207,11 +204,14 @@ export function createCrewPanel({
     }, COUNT_STEP_MS);
   };
 
-  /** A tap on the staffing New row hires a worker; the hold keeps a second tap off the machine. */
-  const hire = (row: BoardRow): void => {
+  /**
+   * Buys `what` from the row `id`: Done holds that row, and the crew line counts up. The staffing
+   * New row hires a worker, and its hold keeps a second tap off the machine.
+   */
+  const buyFrom = (id: TierId, what: TierId): void => {
     const rateBefore = crewSpeed();
-    if (dispatch({ kind: "buyTier", id: "helper" }).kind === "applied") {
-      row.done();
+    if (dispatch({ kind: "buyTier", id: what }).kind === "applied") {
+      onBoard.result(id, "applied");
       countCrewRate(rateBefore, crewSpeed());
     }
   };
@@ -235,77 +235,63 @@ export function createCrewPanel({
     }
     const troubledHere = (snapshot: ProgressSnapshot) =>
       snapshot.trouble?.tier === id ? snapshot.trouble : undefined;
-    const hold = watchFixHold(root, {
+    const fixHold = watchFixHold(root, {
       tier: () => troubledHere(progress.getSnapshot())?.tier,
       fix: (troubledTier) => {
         progress.fixTrouble(troubledTier);
         if (progress.getSnapshot().trouble === undefined) {
-          thankCrew(board, troubledTier);
-          row.hold();
+          onBoard.result(troubledTier, "fixed");
         }
       },
     });
-    buyOnTap(
-      root,
-      root,
-      (press) => {
-        // The click that ends a hold that fixed is not a tap.
-        if (hold.heldFix()) {
-          return;
+    onBoard.tap(root, (press, event) => {
+      // The click that ends a hold that fixed is not a tap.
+      if (fixHold.heldFix()) {
+        return;
+      }
+      const snapshot = progress.getSnapshot();
+      if (!snapshot.ready) {
+        return;
+      }
+      const troubled = troubledHere(snapshot);
+      // The second tap of the double tap that opened Buys, or a second sleepy tap inside the
+      // Done hold, spends nothing. A trouble press is not a spend, so it still counts.
+      const intent = troubled === undefined ? "act" : "trouble";
+      if (onBoard.press(id, press, event, intent) !== "act") {
+        return;
+      }
+      // Read again at the tap: a pocket that fell since the last paint buys nothing.
+      const at = now();
+      const fresh = buyRowView({
+        mountain: snapshot.mountain,
+        now: at,
+        trouble: snapshot.trouble,
+        tier: id,
+        pick: pick(),
+        guided: guidedOf(snapshot.mountain, at, snapshot.trouble),
+      });
+      // A row the open drawer holds in place for a tier no longer shown sells nothing.
+      if (!fresh.shown || !fresh.can) {
+        onBoard.result(id, "refused");
+        return;
+      }
+      // The guided idle machine hires its crew. Another one would stand idle too, so the New
+      // row never buys more of it.
+      if (fresh.guided) {
+        buyFrom(id, "helper");
+        return;
+      }
+      if (troubled !== undefined) {
+        progress.pressTrouble(troubled.tier);
+        // The fix holds the row again: the burst of presses that fixed it must not run on into
+        // a buy, even inside the hold of an earlier buy.
+        if (progress.getSnapshot().trouble === undefined) {
+          onBoard.result(troubled.tier, "fixed");
         }
-        const snapshot = progress.getSnapshot();
-        if (!snapshot.ready) {
-          return;
-        }
-        const troubled = troubledHere(snapshot);
-        // The second tap of the double tap that opened Buys spends nothing. A trouble press is
-        // not a spend, so it still counts, in the settle and in a Done hold alike.
-        if (press.early && troubled === undefined) {
-          return;
-        }
-        // A second sleepy tap inside the Done hold buys nothing.
-        if (row.holding() && troubled === undefined) {
-          return;
-        }
-        // Read again at the tap: a pocket that fell since the last paint buys nothing.
-        const at = now();
-        const fresh = buyRowView({
-          mountain: snapshot.mountain,
-          now: at,
-          trouble: snapshot.trouble,
-          tier: id,
-          pick: pick(),
-          guided: guidedOf(snapshot.mountain, at, snapshot.trouble),
-        });
-        // A row the open drawer holds in place for a tier no longer shown sells nothing.
-        if (!fresh.shown || !fresh.can) {
-          row.blink();
-          return;
-        }
-        // The guided idle machine hires its crew. Another one would stand idle too, so the New
-        // row never buys more of it.
-        if (fresh.guided) {
-          hire(row);
-          return;
-        }
-        if (troubled !== undefined) {
-          progress.pressTrouble(troubled.tier);
-          if (progress.getSnapshot().trouble === undefined) {
-            thankCrew(board, troubled.tier);
-            // The burst of presses that fixed it must not run on into a buy, even inside the
-            // hold of an earlier buy.
-            row.hold();
-          }
-          return;
-        }
-        const rateBefore = crewSpeed();
-        if (dispatch({ kind: "buyTier", id }).kind === "applied") {
-          row.done();
-          countCrewRate(rateBefore, crewSpeed());
-        }
-      },
-      { settling: (press) => sheet.settlingFor(press) },
-    );
+        return;
+      }
+      buyFrom(id, id);
+    });
     return { id, row };
   });
 
@@ -540,8 +526,8 @@ export function createCrewPanel({
     const view = getView();
     if (!view.ready) {
       // The rows go dark and keep their places: names and icons only, disabled, no numbers.
-      for (const { row } of rows) {
-        row.render(undefined);
+      for (const { id, row } of rows) {
+        onBoard.paint(id, row, undefined);
         mark(row.root, "teach-new", false);
         delete row.root.dataset["trouble"];
       }
@@ -573,7 +559,7 @@ export function createCrewPanel({
         machinesShowing = true;
       }
       row.setIcon(BUY_ICON[rowView.icon]);
-      row.render(rowView);
+      onBoard.paint(id, row, rowView);
       mark(row.root, "teach-new", rowView.guided);
       const trouble = rowView.state === "trouble" ? view.trouble : undefined;
       if (trouble === undefined) {

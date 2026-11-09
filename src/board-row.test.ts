@@ -1,33 +1,15 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { READY_HOLD_MS } from "./board-ready";
+import { createBoardHost } from "./board-host";
 import {
-  BLINK_STEP_MS,
-  ROW_HOLD_MS,
   createBoardRow,
+  rowsOnBoard,
   type BoardRow,
+  type RowLive,
 } from "./board-row";
 import type { RowView } from "./row-view";
 
-const motion = (reduce: boolean): void => {
-  vi.stubGlobal(
-    "matchMedia",
-    (query: string) =>
-      ({
-        matches: reduce && query === "(prefers-reduced-motion: reduce)",
-        media: query,
-      }) as MediaQueryList,
-  );
-};
-
-beforeEach(() => {
-  vi.useFakeTimers();
-  motion(false);
-});
-
 afterEach(() => {
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
   vi.restoreAllMocks();
   document.body.replaceChildren();
 });
@@ -38,6 +20,11 @@ const fits = (box: HTMLElement): boolean => box.textContent.length <= limit;
 beforeEach(() => {
   limit = 16;
 });
+
+/** Nothing from the board's model: no Done hold, no blink. */
+const still: RowLive = { held: false, blink: undefined };
+/** The board's model holds Done on the row. */
+const held: RowLive = { held: true, blink: undefined };
 
 const ready = (over: Partial<RowView> = {}): RowView => ({
   name: "Cart",
@@ -95,11 +82,6 @@ const laidOut = (row: BoardRow): void => {
 };
 
 describe("the drawer row", () => {
-  it("holds for the Ready plate's 1.9s and blinks in 140ms frames", () => {
-    expect(ROW_HOLD_MS).toBe(READY_HOLD_MS);
-    expect(BLINK_STEP_MS).toBe(140);
-  });
-
   describe("structure", () => {
     it("a button row has every part, its data and a frame skin", () => {
       const row = make();
@@ -160,7 +142,7 @@ describe("the drawer row", () => {
       vi.spyOn(info, "scrollWidth", "get").mockImplementation(() =>
         info.textContent.length > 10 ? 200 : 50,
       );
-      row.render(ready());
+      row.render(ready(), still);
       expect(text(row, ".board-row-info")).toBe("12 owned");
     });
 
@@ -179,7 +161,7 @@ describe("the drawer row", () => {
     it("shows a ready view: name, fitting info, gain, price, verb and a green lamp", () => {
       const row = make();
       const view = ready();
-      row.render(view);
+      row.render(view, still);
       expect(nameText(row)).toBe("Cart");
       expect(text(row, ".board-row-info")).toBe("12 owned");
       expect(text(row, ".board-row-gain")).toBe("+12/s");
@@ -197,7 +179,10 @@ describe("the drawer row", () => {
 
     it("an amber pick lights amber and reads as the pick", () => {
       const row = make();
-      row.render(ready({ lamp: "amber", pick: true, flag: ["Ready now"] }));
+      row.render(
+        ready({ lamp: "amber", pick: true, flag: ["Ready now"] }),
+        still,
+      );
       expect(lampX(row)).toBe("-40px");
       expect(row.root.classList.contains("is-pick")).toBe(true);
       expect(text(row, ".board-row-flag")).toBe("Ready now");
@@ -206,7 +191,7 @@ describe("the drawer row", () => {
 
     it("a guided row follows its green lamp and New flag, not its pick", () => {
       const row = make();
-      row.render(ready({ lamp: "green", pick: true, flag: ["New"] }));
+      row.render(ready({ lamp: "green", pick: true, flag: ["New"] }), still);
       expect(lampX(row)).toBe("-80px");
       expect(row.root.classList.contains("is-pick")).toBe(false);
       expect(text(row, ".board-row-flag")).toBe("New");
@@ -214,7 +199,7 @@ describe("the drawer row", () => {
 
     it("trouble lights red and swaps the state class", () => {
       const row = make();
-      row.render(ready());
+      row.render(ready(), still);
       row.render(
         ready({
           state: "trouble",
@@ -224,6 +209,7 @@ describe("the drawer row", () => {
           price: "",
           verb: "",
         }),
+        still,
       );
       expect(lampX(row)).toBe("-120px");
       expect(row.root.classList.contains("is-trouble")).toBe(true);
@@ -235,7 +221,7 @@ describe("the drawer row", () => {
 
     it("hides empty parts and shows filled ones", () => {
       const row = make();
-      row.render(ready());
+      row.render(ready(), still);
       for (const selector of [
         ".board-row-need",
         ".board-row-why",
@@ -254,6 +240,7 @@ describe("the drawer row", () => {
           can: false,
           state: "dear",
         }),
+        still,
       );
       expect(text(row, ".board-row-need")).toBe("Needs 8 workers");
       expect(part(row, ".board-row-need").hidden).toBe(false);
@@ -269,7 +256,7 @@ describe("the drawer row", () => {
     it("a second identical render writes nothing", () => {
       const row = make();
       laidOut(row);
-      row.render(ready({ badge: "Lv 1/5", flag: ["Ready now"] }));
+      row.render(ready({ badge: "Lv 1/5", flag: ["Ready now"] }), still);
       const nodes = (): Node[] => {
         const walker = document.createTreeWalker(
           row.root,
@@ -292,7 +279,7 @@ describe("the drawer row", () => {
         characterData: true,
         attributes: true,
       });
-      row.render(ready({ badge: "Lv 1/5", flag: ["Ready now"] }));
+      row.render(ready({ badge: "Lv 1/5", flag: ["Ready now"] }), still);
       seen.push(...watch.takeRecords());
       watch.disconnect();
       expect(seen).toEqual([]);
@@ -318,7 +305,7 @@ describe("the drawer row", () => {
         limit = 10;
         const row = make();
         laidOut(row);
-        row.render(ready());
+        row.render(ready(), still);
         expect(text(row, ".board-row-info")).toBe("12 owned");
         limit = 40;
         settle();
@@ -343,8 +330,11 @@ describe("the drawer row", () => {
 
     it("render(undefined) empties every number and word but the name", () => {
       const row = make();
-      row.render(ready({ need: "Needs 8 workers", flag: ["Ready now"] }));
-      row.render(undefined);
+      row.render(
+        ready({ need: "Needs 8 workers", flag: ["Ready now"] }),
+        still,
+      );
+      row.render(undefined, still);
       const button = row.root as HTMLButtonElement;
       expect(button.disabled).toBe(true);
       expect(nameText(row)).toBe("Cart");
@@ -366,29 +356,32 @@ describe("the drawer row", () => {
     });
   });
 
-  describe("Done", () => {
-    it("holds Done for 1.9s, updating only info and gain, then paints the last view", () => {
+  describe("Done and the blink, as the board's model says", () => {
+    it("holds Done, updating only info and gain, then paints the last view", () => {
       const row = make();
-      row.render(ready({ lamp: "amber", pick: true, flag: ["Ready now"] }));
-      row.done();
+      row.render(
+        ready({ lamp: "amber", pick: true, flag: ["Ready now"] }),
+        still,
+      );
+      row.render(
+        ready({ lamp: "amber", pick: true, flag: ["Ready now"] }),
+        held,
+      );
       expect(text(row, ".board-row-flag")).toBe("Done");
       expect(part(row, ".board-row-flag").hidden).toBe(false);
       expect(text(row, ".board-row-verb")).toBe("Done");
       expect(lampX(row)).toBe("-80px");
-      expect(row.holding()).toBe(true);
       expect(row.root.classList.contains("is-held")).toBe(true);
       expect(row.root.getAttribute("aria-label")).toBe("Cart. Done");
 
-      vi.advanceTimersByTime(1000);
-      row.render(
-        ready({
-          gain: "+13/s",
-          info: ["13 owned"],
-          price: "6.4K",
-          lamp: "off",
-          verb: "Buy",
-        }),
-      );
+      const after = ready({
+        gain: "+13/s",
+        info: ["13 owned"],
+        price: "6.4K",
+        lamp: "off",
+        verb: "Buy",
+      });
+      row.render(after, held);
       expect(text(row, ".board-row-gain")).toBe("+13/s");
       expect(text(row, ".board-row-info")).toBe("13 owned");
       expect(text(row, ".board-row-price")).toBe("5.9K");
@@ -396,10 +389,7 @@ describe("the drawer row", () => {
       expect(text(row, ".board-row-verb")).toBe("Done");
       expect(lampX(row)).toBe("-80px");
 
-      vi.advanceTimersByTime(899);
-      expect(row.holding()).toBe(true);
-      vi.advanceTimersByTime(1);
-      expect(row.holding()).toBe(false);
+      row.render(after, still);
       expect(row.root.classList.contains("is-held")).toBe(false);
       expect(text(row, ".board-row-price")).toBe("6.4K");
       expect(text(row, ".board-row-verb")).toBe("Buy");
@@ -408,139 +398,125 @@ describe("the drawer row", () => {
       expect(row.root.getAttribute("aria-label")).toBe(ready().aria);
     });
 
-    it("a second done() while held does not extend the 1.9s hold", () => {
+    it("a save loading again paints no Done, whatever the model still holds", () => {
       const row = make();
-      row.render(ready());
-      row.done();
-      vi.advanceTimersByTime(1000);
-      row.done();
-      vi.advanceTimersByTime(ROW_HOLD_MS - 1001);
-      expect(row.holding()).toBe(true);
-      vi.advanceTimersByTime(1);
-      expect(row.holding()).toBe(false);
-      expect(text(row, ".board-row-verb")).toBe("Buy");
-    });
-
-    it("hold() restarts a running hold, and outside one holds as done() does", () => {
-      const row = make();
-      row.render(ready());
-      row.hold();
-      expect(row.holding()).toBe(true);
-      expect(text(row, ".board-row-verb")).toBe("Done");
-      vi.advanceTimersByTime(1000);
-      row.hold();
-      vi.advanceTimersByTime(ROW_HOLD_MS - 1);
-      expect(row.holding()).toBe(true);
-      vi.advanceTimersByTime(1);
-      expect(row.holding()).toBe(false);
-      expect(text(row, ".board-row-verb")).toBe("Buy");
-    });
-
-    it("a paint that throws while holding still lets go at 1.9s", () => {
-      let boom = true;
-      const row = make({
-        fits: (box) => {
-          if (boom && box.textContent === "Done") {
-            throw new Error("measure failed");
-          }
-          return fits(box);
-        },
-      });
-      row.render(ready());
-      expect(() => {
-        row.done();
-      }).toThrow("measure failed");
-      boom = false;
-      vi.advanceTimersByTime(ROW_HOLD_MS);
-      expect(row.holding()).toBe(false);
-      expect(row.root.classList.contains("is-held")).toBe(false);
-      expect(text(row, ".board-row-verb")).toBe("Buy");
-    });
-
-    it("a save loading again ends the hold", () => {
-      const row = make();
-      row.render(ready());
-      row.done();
-      row.render(undefined);
-      expect(row.holding()).toBe(false);
+      row.render(ready(), held);
+      row.render(undefined, held);
       expect(row.root.classList.contains("is-held")).toBe(false);
       expect(text(row, ".board-row-verb")).toBe("");
       expect((row.root as HTMLButtonElement).disabled).toBe(true);
-      vi.advanceTimersByTime(ROW_HOLD_MS);
-      expect(text(row, ".board-row-verb")).toBe("");
-    });
-  });
-
-  describe("blink", () => {
-    it("runs red, off, red, off, then shows the view's frame", () => {
-      const row = make();
-      row.render(ready());
-      row.blink();
-      expect(lampX(row)).toBe("-120px");
-      vi.advanceTimersByTime(BLINK_STEP_MS);
       expect(lampX(row)).toBe("0px");
-      vi.advanceTimersByTime(BLINK_STEP_MS);
+    });
+
+    it("paints the blink's frame over the lamp, and the view's lamp after it", () => {
+      const row = make();
+      row.render(ready(), { held: false, blink: "red" });
       expect(lampX(row)).toBe("-120px");
-      vi.advanceTimersByTime(BLINK_STEP_MS);
+      row.render(ready(), { held: false, blink: "off" });
       expect(lampX(row)).toBe("0px");
-      vi.advanceTimersByTime(BLINK_STEP_MS);
-      expect(lampX(row)).toBe("-80px");
-    });
-
-    it("a second blink mid-run does not restart it", () => {
-      const row = make();
-      row.render(ready());
-      row.blink();
-      vi.advanceTimersByTime(200);
-      row.blink();
-      vi.advanceTimersByTime(140); // 340ms: the second red of the first run
-      expect(lampX(row)).toBe("-120px");
-      vi.advanceTimersByTime(220); // 560ms: done
-      expect(lampX(row)).toBe("-80px");
-    });
-
-    it("ends on the newest view's frame when a render lands mid-blink", () => {
-      const row = make();
-      row.render(ready());
-      row.blink();
-      row.render(ready({ lamp: "amber", pick: true }));
-      expect(lampX(row)).toBe("-120px");
-      vi.advanceTimersByTime(BLINK_STEP_MS * 4);
-      expect(lampX(row)).toBe("-40px");
-    });
-
-    it("a lamp paint that throws mid-blink never sticks on a blink frame", () => {
-      const row = make();
-      row.render(ready());
-      const lamp = part(row, ".board-lamp");
-      Object.defineProperty(lamp.style, "backgroundPositionX", {
-        configurable: true,
-        get: () => "",
-        set: () => {
-          throw new Error("paint failed");
-        },
+      // A render that lands mid-blink keeps the frame, and ends on the newest view's lamp.
+      row.render(ready({ lamp: "amber", pick: true }), {
+        held: false,
+        blink: "red",
       });
-      expect(() => {
-        row.blink();
-      }).toThrow("paint failed");
-      Reflect.deleteProperty(lamp.style, "backgroundPositionX");
-      vi.advanceTimersByTime(BLINK_STEP_MS * 4);
-      row.render(ready({ lamp: "amber", pick: true }));
-      expect(lampX(row)).toBe("-40px");
-      // The run ended, so the next blink starts afresh.
-      row.blink();
       expect(lampX(row)).toBe("-120px");
+      row.render(ready({ lamp: "amber", pick: true }), still);
+      expect(lampX(row)).toBe("-40px");
     });
 
-    it("does not blink under reduced motion", () => {
-      motion(true);
+    it("a blink over a held row ends on Done's green", () => {
       const row = make();
-      row.render(ready());
-      row.blink();
-      for (let t = 0; t <= 4; t++) {
-        expect(lampX(row)).toBe("-80px");
-        vi.advanceTimersByTime(BLINK_STEP_MS);
+      row.render(ready({ lamp: "amber" }), { held: true, blink: "red" });
+      expect(lampX(row)).toBe("-120px");
+      row.render(ready({ lamp: "amber" }), held);
+      expect(lampX(row)).toBe("-80px");
+    });
+
+    it("a save loading again paints no blink", () => {
+      const row = make();
+      row.render(undefined, { held: false, blink: "red" });
+      expect(lampX(row)).toBe("0px");
+    });
+
+    it("keeps Done's flag when the fonts settle during a hold", () => {
+      const fonts = Object.assign(new EventTarget(), {
+        ready: Promise.resolve(),
+      });
+      Object.defineProperty(document, "fonts", {
+        value: fonts,
+        configurable: true,
+      });
+      try {
+        const row = make();
+        row.render(ready(), held);
+        fonts.dispatchEvent(new Event("loadingdone"));
+        expect(text(row, ".board-row-flag")).toBe("Done");
+        expect(text(row, ".board-row-verb")).toBe("Done");
+        expect(row.root.classList.contains("is-held")).toBe(true);
+      } finally {
+        Reflect.deleteProperty(document, "fonts");
       }
     });
+  });
+});
+
+describe("a drawer's rows on the board's model", () => {
+  let time = 0;
+  beforeEach(() => {
+    vi.useFakeTimers();
+    time = 0;
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+  const host = () =>
+    createBoardHost({
+      clock: () => time,
+      pressAge: () => 0,
+      reduced: () => false,
+    });
+
+  it("paints Done and the blink as the model changes, from the row's latest view", () => {
+    const board = host();
+    const rows = rowsOnBoard(board, "buys");
+    const row = make();
+    rows.paint("cart", row, ready());
+    rows.result("cart", "applied");
+    expect(text(row, ".board-row-verb")).toBe("Done");
+    rows.paint("cart", row, ready({ verb: "Hire", price: "6.4K" }));
+    expect(text(row, ".board-row-price")).toBe("5.9K");
+    // The hold ends on the board's clock and its one timer.
+    time += 1_900;
+    vi.advanceTimersByTime(1_900);
+    expect(text(row, ".board-row-verb")).toBe("Hire");
+    expect(text(row, ".board-row-price")).toBe("6.4K");
+    rows.result("cart", "refused");
+    expect(lampX(row)).toBe("-120px");
+    time += 140;
+    vi.advanceTimersByTime(140);
+    expect(lampX(row)).toBe("0px");
+  });
+
+  it("presses a row on its own drawer's layer, and forgets every row's finger-down time", () => {
+    const board = host();
+    const rows = rowsOnBoard(board, "upgrades");
+    const row = make({ data: { boost: "sharper" } });
+    const button = row.root as HTMLButtonElement;
+    rows.paint("boost:sharper", row, ready());
+    const decisions: string[] = [];
+    rows.tap(button, (press, event) => {
+      decisions.push(rows.press("boost:sharper", press, event, "act"));
+      rows.result("boost:sharper", "applied");
+    });
+    board.send({ kind: "open", overlay: "upgrades", at: 0 });
+    // A finger that came down in the settle, forgotten as the drawer moved on.
+    button.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+    );
+    rows.forget();
+    time += 500;
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    expect(decisions).toEqual(["act"]);
+    expect(board.view().held.has("upgrades/boost:sharper")).toBe(true);
   });
 });

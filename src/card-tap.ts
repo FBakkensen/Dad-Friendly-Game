@@ -1,3 +1,5 @@
+import { eventAge } from "./board-host";
+
 const SLOP_PX = 10;
 
 /** The list that scrolls under a card, if this tap started in one. */
@@ -8,41 +10,51 @@ function scroller(card: HTMLElement): HTMLElement | null {
   return found instanceof HTMLElement ? found : null;
 }
 
-/** How the tap that reached `buy` began. */
+/** How the press that reached `buy` came. */
 export interface CardPress {
+  readonly by: "finger" | "keyboard";
   /**
-   * The finger went down while `settling` said the sheet had only just
-   * opened: the second tap of a double tap that opened it.
+   * When this gesture's finger came down on the card, on the board's clock. Undefined for a
+   * key press, and for a finger's click on a card that saw no pointerdown of its own: the board
+   * then judges it by the click's own age.
    */
-  readonly early: boolean;
+  readonly downAt: number | undefined;
 }
 
 /**
- * `buy` runs for a tap or a key press. A finger that moves, or a list that
- * scrolls under the finger, does not buy. Pressed state covers `card`.
- * `settling` is asked when the finger goes down, so a press that started
- * early stays early however long it is held, and again at a finger's click:
- * a touch's click lands where the finger lifts, on a row that may have slid
- * under it as the drawer rose and never saw the press (#373). A keyboard
- * press (a click with no pointer, detail 0) is never early.
+ * `buy` runs for a tap or a key press, with how it came and its click. A finger that moves, or
+ * a list that scrolls under the finger, does not buy. Pressed state covers `card`. The finger-down
+ * time is kept from pointerdown to the click, so a press held long is still judged by when it came
+ * down. It is dropped at the click, at a cancel or a drag, and on `forget()`, so a lost press can
+ * never reach a later one. A keyboard press is a click with no pointer (detail 0) that this
+ * handler did not send itself at a finger's pointerup.
  */
 export function buyOnTap(
   card: HTMLElement,
   button: HTMLButtonElement,
-  buy: (press: CardPress) => void,
-  { settling }: { settling?: (press: Event) => boolean } = {},
-): void {
+  buy: (press: CardPress, event: MouseEvent) => void,
+  {
+    clock = () => performance.now(),
+    pressAge = eventAge,
+  }: {
+    clock?: () => number;
+    pressAge?: (event: Event) => number;
+  } = {},
+): { forget(): void } {
   let armed = false;
   let moved = false;
   let gesture = 0;
   let blocked = -1;
-  let early = false;
+  let downAt: number | undefined;
   /** The click this handler sends itself at a finger's pointerup. */
   let fromPointerUp = false;
   let x = 0;
   let y = 0;
   let top = 0;
 
+  const forget = (): void => {
+    downAt = undefined;
+  };
   card.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) {
       return;
@@ -50,7 +62,7 @@ export function buyOnTap(
     gesture += 1;
     armed = true;
     moved = false;
-    early = settling?.(event) === true;
+    downAt = clock() - pressAge(event);
     x = event.clientX;
     y = event.clientY;
     top = scroller(card)?.scrollTop ?? 0;
@@ -73,6 +85,7 @@ export function buyOnTap(
   card.addEventListener("pointercancel", () => {
     blocked = gesture;
     armed = false;
+    forget();
     release();
   });
   card.addEventListener("pointerleave", () => {
@@ -91,6 +104,7 @@ export function buyOnTap(
       // The next press gets a new gesture, so it can still buy.
       blocked = gesture;
       armed = false;
+      forget();
       return;
     }
     const target = event.target;
@@ -106,17 +120,17 @@ export function buyOnTap(
     }
   });
   button.addEventListener("click", (event) => {
-    // A press is early once, and only a finger's click is: a key press has no finger.
     const finger = event.detail !== 0 || fromPointerUp;
-    const press = { early: finger && (early || settling?.(event) === true) };
-    early = false;
-    if (blocked === gesture || button.disabled) {
-      armed = false;
-      moved = false;
-      return;
-    }
+    const press: CardPress = finger
+      ? { by: "finger", downAt }
+      : { by: "keyboard", downAt: undefined };
+    forget();
     armed = false;
     moved = false;
-    buy(press);
+    if (blocked === gesture || button.disabled) {
+      return;
+    }
+    buy(press, event);
   });
+  return { forget };
 }

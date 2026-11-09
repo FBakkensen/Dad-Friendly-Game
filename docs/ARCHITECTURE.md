@@ -161,8 +161,10 @@ page is the map, plus the rules that keep it that way.
    fit option that fits, keeps the fit only once measured on a laid-out box,
    and drops it when fonts settle. `board-row` is one drawer row (lamp,
    icon, name and badge, info, need, why, flag, gain, price tag and verb),
-   built once and reused, writing only what changed; `done()` holds "Done"
-   for 1.9s and `blink()` runs the four 140ms red frames. `board-drawer` is
+   built once and reused, writing only what changed. It paints "Done" and
+   the red blink frames from the board's model: `rowsOnBoard` takes a
+   drawer's row taps through the host and repaints a row when its hold or
+   blink changes. `board-drawer` is
    `createBoardSheet` (the shell: head with the "i", the list, the spare
    plate, Back, the slide, Escape and the settle) and `createSheetScrim`
    (the board above the drawers: a tap closes them, and over a relic socket

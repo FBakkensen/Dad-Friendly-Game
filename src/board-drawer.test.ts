@@ -327,15 +327,6 @@ describe("the drawer shell", () => {
       expect(sheet.isOpen()).toBe(false);
     });
 
-    it("judges a row's press by when the finger came down (#373)", () => {
-      board = boardOn((event) => (event.type === "late" ? 100 : 0));
-      const sheet = make();
-      sheet.open();
-      time += 450;
-      expect(sheet.settlingFor(new Event("late"))).toBe(true);
-      expect(sheet.settlingFor(new Event("now"))).toBe(false);
-    });
-
     it("a finger on Back at 100ms closes nothing", () => {
       const sheet = make();
       sheet.open();

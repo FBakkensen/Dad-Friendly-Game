@@ -19,7 +19,6 @@ import {
   type Press,
 } from "./board-interaction";
 import { DRAWER_SETTLE_MS as DRAWER_SETTLE } from "./board-drawer";
-import { ROW_HOLD_MS } from "./board-row";
 
 /** A finger's act press on `layer`/`id`, handled at `at`. */
 function finger(
@@ -215,7 +214,6 @@ describe("the timing values", () => {
     expect(THANKS_MS).toBe(1600);
     expect(PRESS_AGE_LIMIT_MS).toBe(10_000);
     expect(DRAWER_SETTLE).toBe(DRAWER_SETTLE_MS);
-    expect(ROW_HOLD_MS).toBe(READY_HOLD_MS);
   });
 });
 

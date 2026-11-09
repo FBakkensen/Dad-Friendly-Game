@@ -434,11 +434,49 @@ describe("the Buys drawer (#373)", () => {
       expect(carts()).toBe(7);
       expect(partOf(cart, "verb")).toBe("Done");
       expect(cart.getAttribute("aria-label")).toBe("Mine cart. Done");
+      // The hold ends on the board's own clock: move it with the timers.
+      clock += 1_800;
       vi.advanceTimersByTime(1_800);
       cart.click();
       expect(carts()).toBe(7);
+      clock += 150;
       vi.advanceTimersByTime(150);
+      expect(partOf(cart, "verb")).toBe("Buy");
       cart.click();
+      expect(carts()).toBe(8);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a row's Done hold holds a press whose finger came down inside it, handled after it ended", () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 10_000;
+      let age = 0;
+      const screen = mountScreen({
+        storage: seededWith(early({ pocket: 1_000_000 })),
+        now: () => CLOCK,
+        tapClock: () => clock,
+        pressAge: () => age,
+      });
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      const cart = rowOf(screen, "cart");
+      const carts = () => screen.progress.getSnapshot().mountain.carts;
+      cart.click();
+      expect(carts()).toBe(7);
+      // A busy phone: the finger came down 1.8s into the hold, and the page got to the press
+      // 0.1s after the hold ended.
+      clock += 2_000;
+      vi.advanceTimersByTime(2_000);
+      expect(partOf(cart, "verb")).toBe("Buy");
+      age = 200;
+      fingerTap(cart);
+      expect(carts()).toBe(7);
+      // A press of its own after the hold buys.
+      age = 0;
+      fingerTap(cart);
       expect(carts()).toBe(8);
     } finally {
       vi.useRealTimers();
@@ -461,11 +499,14 @@ describe("the Buys drawer (#373)", () => {
       const pocket = screen.progress.getSnapshot().mountain.pocket;
       fingerTap(drill);
       expect(lampOf(drill)).toBe("-120px");
+      // The blink runs on the board's own clock: move it with the timers.
+      clock += 140;
       vi.advanceTimersByTime(140);
       expect(lampOf(drill)).toBe("0px");
       expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
       expect(screen.progress.getSnapshot().mountain.drills).toBe(0);
       // A locked row blinks too, and buys nothing.
+      clock += 1_000;
       vi.advanceTimersByTime(1_000);
       const borer = rowOf(screen, "borer");
       borer.click();
@@ -1324,6 +1365,8 @@ describe("upgrades on screen", () => {
       expect(partOf(sharper, "verb")?.textContent).toBe("Done");
       expect(partOf(sharper, "flag")?.textContent).toBe("Done");
       expect(sharper.getAttribute("aria-label")).toBe("Sharper picks. Done");
+      // The hold ends on the board's own clock: move it with the timers.
+      clock += 1_900;
       await vi.advanceTimersByTimeAsync(1_900);
       expect(partOf(sharper, "verb")?.textContent).toBe("Running");
       expect(partOf(sharper, "price")?.textContent).toBe("10:00");
@@ -1391,6 +1434,7 @@ describe("upgrades on screen", () => {
       const frames: string[] = [];
       fingerTap(sharper);
       frames.push(lamp?.style.backgroundPositionX ?? "");
+      clock += 140;
       vi.advanceTimersByTime(140);
       frames.push(lamp?.style.backgroundPositionX ?? "");
       expect(frames).toEqual(["-120px", "0px"]);

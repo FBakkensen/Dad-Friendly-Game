@@ -402,7 +402,8 @@ export function step(state: BoardState, input: BoardInput): BoardState {
 
 /**
  * When a press is judged: when its finger came down, unless that stamp is from the future
- * or too old to trust, as `eventAge` reads it. Then it is judged when it was handled.
+ * or too old to trust. Then it is judged when it was handled. This is the one home of that
+ * rule: the host hands a press's raw age on.
  */
 function judgedAt(input: Press): number {
   const age = input.at - input.pressedAt;
