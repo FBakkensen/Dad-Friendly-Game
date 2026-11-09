@@ -44,6 +44,14 @@ export function changedCode(paths: readonly string[]): readonly string[] {
   ].sort();
 }
 
+/**
+ * Every changed path of any kind, once, sorted, without build output: what the fast tier
+ * checks the format of. Deleted files are the caller's to drop.
+ */
+export function touchedFiles(paths: readonly string[]): readonly string[] {
+  return [...new Set(paths.filter((path) => !BUILT.test(path)))].sort();
+}
+
 /** Splits `git ... --name-only -z` output. */
 export function splitGitPaths(output: string): readonly string[] {
   return output.split("\0").filter((path) => path !== "");
@@ -159,7 +167,14 @@ const LAB = ["--import", "./tools/lab-register.mjs"];
  */
 export function gateSteps(
   changed: readonly string[],
-  { economy }: { readonly economy: boolean },
+  {
+    economy,
+    touched = [],
+  }: {
+    readonly economy: boolean;
+    /** Every file changed since origin/main, of any kind: the fast tier checks their format. */
+    readonly touched?: readonly string[];
+  },
 ): readonly Step[] {
   const both: readonly Tier[] = ["fast", "full"];
   const full: readonly Tier[] = ["full"];
@@ -217,6 +232,18 @@ export function gateSteps(
             ["fast"],
           ),
         ];
+  // A prettier miss once cost a whole full run; the fast tier catches it in seconds.
+  const formatChanged: readonly Step[] =
+    touched.length === 0
+      ? []
+      : [
+          step(
+            "format:changed",
+            `${BIN}/prettier`,
+            ["--check", "--ignore-unknown", ...touched],
+            ["fast"],
+          ),
+        ];
   return [
     step("env", "node", ["scripts/env-report.mjs", "--strict"], full),
     step("typecheck", `${BIN}/tsc`, tsc("tsconfig.json", "app"), both),
@@ -227,6 +254,7 @@ export function gateSteps(
       both,
     ),
     ...onChanges,
+    ...formatChanged,
     step(
       "lint",
       `${BIN}/eslint`,

@@ -16,6 +16,7 @@ import {
   splitGitPaths,
   summaryLine,
   totalLine,
+  touchedFiles,
   USAGE,
 } from "./gate";
 
@@ -51,6 +52,20 @@ describe("changedCode", () => {
 
   it("is empty when no code changed", () => {
     expect(changedCode(["README.md"])).toEqual([]);
+  });
+});
+
+describe("touchedFiles", () => {
+  it("keeps every changed file once, sorted, of any kind, without build output", () => {
+    expect(
+      touchedFiles([
+        "src/a.ts",
+        "docs/b.md",
+        "src/a.ts",
+        "dist/x.js",
+        "coverage/y.json",
+      ]),
+    ).toEqual(["docs/b.md", "src/a.ts"]);
   });
 });
 
@@ -98,6 +113,47 @@ describe("gateSteps", () => {
 
   it("fast tier only typechecks when no code changed", () => {
     expect(names(fast([]))).toEqual(["typecheck", "typecheck:tools"]);
+  });
+
+  it("fast tier checks the format of every changed file, docs and styles too", () => {
+    const plan = planTier(
+      "fast",
+      gateSteps(["src/c.ts"], {
+        economy: false,
+        touched: ["docs/a.md", "src/b.css", "src/c.ts"],
+      }),
+    );
+    if (plan.kind !== "ok") throw new Error(plan.message);
+    const format = plan.steps.find((each) => each.name === "format:changed");
+    expect(format?.command).toBe("node_modules/.bin/prettier");
+    expect(format?.args).toEqual([
+      "--check",
+      "--ignore-unknown",
+      "docs/a.md",
+      "src/b.css",
+      "src/c.ts",
+    ]);
+    expect(format?.tiers).toEqual(["fast"]);
+  });
+
+  it("fast tier has no format step when nothing changed", () => {
+    const plan = planTier(
+      "fast",
+      gateSteps([], { economy: false, touched: [] }),
+    );
+    expect(plan.kind === "ok" && names(plan.steps)).not.toContain(
+      "format:changed",
+    );
+  });
+
+  it("full tier keeps its whole-tree format check and no format:changed", () => {
+    const plan = planTier(
+      "full",
+      gateSteps([], { economy: false, touched: ["docs/a.md"] }),
+    );
+    if (plan.kind !== "ok") throw new Error(plan.message);
+    expect(names(plan.steps)).toContain("format");
+    expect(names(plan.steps)).not.toContain("format:changed");
   });
 
   it("typecheck is incremental, with its state in the git-ignored gate folder", () => {

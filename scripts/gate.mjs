@@ -38,7 +38,7 @@ import {
   totalLine,
 } from "../src/gate.ts";
 import { MARKER, markerAfterFull, markerText } from "../src/signoff.ts";
-import { changedSinceMain } from "./changed.mjs";
+import { changedSinceMain, touchedSinceMain } from "./changed.mjs";
 
 // Every path below is repo-relative, wherever the gate was started from.
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
@@ -85,7 +85,10 @@ function touchesEconomy() {
 }
 const economy = tier === "full" && touchesEconomy();
 
-const plan = planTier(tier, gateSteps(changed, { economy }));
+const plan = planTier(
+  tier,
+  gateSteps(changed, { economy, touched: touchedSinceMain() }),
+);
 if (plan.kind === "invalid") {
   console.error(`gate: ${plan.message}`);
   process.exit(2);
