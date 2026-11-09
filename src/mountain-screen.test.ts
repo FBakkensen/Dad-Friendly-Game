@@ -2629,34 +2629,37 @@ describe("the control board (#370)", () => {
 
   it("a tap after a spend elsewhere buys nothing and opens Buys again", () => {
     vi.useFakeTimers();
-    const screen = readyAt(early());
-    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
-    const card = screen.root.querySelector<HTMLButtonElement>(
-      '.tier[data-tier="cart"]',
-    );
-    for (let i = 0; i < 20; i += 1) {
-      const m = screen.progress.getSnapshot().mountain;
-      if (m.pocket < tierCost(tierById("cart"), m.carts)) break;
-      card?.click();
-      // Each buy holds Done on its row; the next tap waits it out.
-      vi.advanceTimersByTime(2_000);
+    try {
+      const screen = readyAt(early());
+      screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+      const card = screen.root.querySelector<HTMLButtonElement>(
+        '.tier[data-tier="cart"]',
+      );
+      for (let i = 0; i < 20; i += 1) {
+        const m = screen.progress.getSnapshot().mountain;
+        if (m.pocket < tierCost(tierById("cart"), m.carts)) break;
+        card?.click();
+        // Each buy holds Done on its row; the next tap waits it out.
+        vi.advanceTimersByTime(2_000);
+      }
+      const carts = cartsOf(screen);
+      const pocket = pocketOf(screen);
+      expect(carts).toBeGreaterThan(6);
+      expect(pocket).toBeLessThan(tierCost(tierById("cart"), carts));
+      screen.root
+        .querySelector<HTMLButtonElement>(
+          '.board-sheet[data-sheet="buys"] .board-sheet-back',
+        )
+        ?.click();
+      expect(buysOpen(screen)).toBe(false);
+      plateOf(screen).click();
+      expect(cartsOf(screen)).toBe(carts);
+      expect(pocketOf(screen)).toBe(pocket);
+      expect(buysOpen(screen)).toBe(true);
+      expect(screen.text(".board-ready-kick")).toBe("Saving for");
+    } finally {
+      vi.useRealTimers();
     }
-    vi.useRealTimers();
-    const carts = cartsOf(screen);
-    const pocket = pocketOf(screen);
-    expect(carts).toBeGreaterThan(6);
-    expect(pocket).toBeLessThan(tierCost(tierById("cart"), carts));
-    screen.root
-      .querySelector<HTMLButtonElement>(
-        '.board-sheet[data-sheet="buys"] .board-sheet-back',
-      )
-      ?.click();
-    expect(buysOpen(screen)).toBe(false);
-    plateOf(screen).click();
-    expect(cartsOf(screen)).toBe(carts);
-    expect(pocketOf(screen)).toBe(pocket);
-    expect(buysOpen(screen)).toBe(true);
-    expect(screen.text(".board-ready-kick")).toBe("Saving for");
   });
 
   // A sleepy double tap: the first tap opens Buys over the plate or the bay,

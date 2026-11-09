@@ -2661,51 +2661,6 @@ body {
   text-shadow: none;
 }
 
-.sheet-host {
-  position: relative;
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.sheet-host::before,
-.sheet-host::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  left: 0;
-  height: var(--space-16);
-  pointer-events: none;
-}
-
-.sheet-host::before {
-  top: 0;
-  height: var(--space-8);
-  background: linear-gradient(var(--color-card), transparent);
-}
-
-.sheet-host::after {
-  bottom: 0;
-  height: var(--space-8);
-  background: linear-gradient(transparent, var(--color-card));
-}
-
-.sheet-scroll {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: var(--target-gap);
-  min-height: 0;
-  overflow: auto;
-  /* Header and footer sit outside this scroller. The insets keep both end cards clear. */
-  padding-top: var(--space-8);
-  padding-bottom: var(--space-8);
-  scroll-padding-top: var(--space-8);
-  scroll-padding-bottom: var(--space-8);
-}
-
 /* Workshop and the relic shelf share one card; Buys and Upgrades are board drawers (#373). Lists may scroll. The page does not. */
 .workshop-dialog .workshop-card.sheet-card,
 .shelf-dialog .shelf-row.sheet-card {

@@ -210,6 +210,15 @@ describe("board.css", () => {
     expect(boardCss).not.toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*nowrap/m);
   });
 
+  it("blanks the Crew section in its place while a save loads again, and speaks the posts unseen (#373)", () => {
+    expect(boardCss).toMatch(
+      /^\.board-sheet \.crew\.is-blank,\n\.board-sheet \.board-sec\.is-blank \{[^}]*visibility:\s*hidden/m,
+    );
+    expect(boardCss).toMatch(
+      /^\.crew-posts-words \{[^}]*clip-path:\s*inset\(50%\)/m,
+    );
+  });
+
   it("clips the spare plate, so a stale skin never lengthens a drawer's scroll (#373)", () => {
     expect(boardCss).toMatch(/^\.board-spare \{[^}]*overflow:\s*hidden/m);
   });

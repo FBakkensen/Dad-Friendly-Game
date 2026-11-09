@@ -526,9 +526,15 @@ describe("the Buys drawer (#373)", () => {
     );
     expect(chips).toContain("Grandpa on carts");
     expect(posts.querySelector("img")).toBeNull();
-    expect(posts.getAttribute("aria-label")).toContain(
+    // A paragraph takes no name: the full sentence is spoken from hidden text, and the chips,
+    // which say it again in short, are not.
+    expect(posts.hasAttribute("aria-label")).toBe(false);
+    expect(posts.querySelector(".crew-posts-words")?.textContent).toContain(
       "Grandpa tends the carts",
     );
+    for (const line of posts.querySelectorAll(".crew-row")) {
+      expect(line.getAttribute("aria-hidden")).toBe("true");
+    }
     // The chips lay out on open, on the drawer's real width.
     expect(posts.querySelectorAll(".crew-row").length).toBe(1);
     Object.defineProperty(posts, "clientWidth", {
@@ -676,6 +682,7 @@ describe("the Buys drawer (#373)", () => {
     });
     openBuys(screen);
     expect(partOf(rowOf(screen, "cart"), "price")).not.toBe("");
+    const openParts = listParts(screen);
     await auth.signIn();
     await Promise.resolve();
     expect(screen.progress.getSnapshot().ready).toBe(false);
@@ -686,9 +693,17 @@ describe("the Buys drawer (#373)", () => {
       ),
     ];
     expect(rows.length).toBe(6);
-    expect(
-      drawerOf(screen).querySelector<HTMLElement>("section.crew")?.hidden,
-    ).toBe(true);
+    // The Crew section and its legend keep their boxes, blank: nothing moves, nothing of the
+    // old save shows.
+    const crewBox = drawerOf(screen).querySelector<HTMLElement>("section.crew");
+    const crewLegend = drawerOf(screen).querySelector<HTMLElement>(
+      '.board-sec[data-sec="crew"]',
+    );
+    expect(crewBox?.hidden).toBe(false);
+    expect(crewLegend?.hidden).toBe(false);
+    expect(crewBox?.classList.contains("is-blank")).toBe(true);
+    expect(crewLegend?.classList.contains("is-blank")).toBe(true);
+    expect(listParts(screen)).toEqual(openParts);
     for (const row of rows) {
       expect(row.disabled).toBe(true);
       expect(partOf(row, "price")).toBe("");
@@ -700,8 +715,237 @@ describe("the Buys drawer (#373)", () => {
     expect(rowOf(screen, "cart").disabled).toBe(false);
     expect(partOf(rowOf(screen, "cart"), "price")).not.toBe("");
     expect(
-      drawerOf(screen).querySelector<HTMLElement>("section.crew")?.hidden,
+      drawerOf(screen)
+        .querySelector<HTMLElement>("section.crew")
+        ?.classList.contains("is-blank"),
     ).toBe(false);
+  });
+
+  /** The Deep Heart after the Hammer, one Great Machine short: the kid row waits for it. */
+  const machineShort = (): Mountain => ({
+    ...minedMountain(130_000_000),
+    pocket: tierCost(tierById("machine"), 0) + 1_000,
+    helpers: 60,
+    carts: 10,
+    drills: 6,
+    borers: 2,
+    staffed: 2,
+    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+  });
+  const listParts = (screen: ReturnType<typeof mountScreen>) =>
+    [
+      ...(drawerOf(screen).querySelector(".board-sheet-list")?.children ?? []),
+    ].map(
+      (part) =>
+        `${part.className.split(" ")[0] ?? ""}:${String((part as HTMLElement).hidden)}`,
+    );
+  const chipsOf = (screen: ReturnType<typeof mountScreen>) => {
+    const posts = drawerOf(screen).querySelector<HTMLElement>(".crew-posts");
+    if (posts === null) throw new Error("no crew posts");
+    return posts;
+  };
+
+  it("rows hold their places while the drawer is open: a first Great Machine waits to show the kid", () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 10_000;
+      const screen = mountScreen({
+        storage: seededWith(machineShort()),
+        now: () => CLOCK,
+        tapClock: () => clock,
+      });
+      document.body.append(screen.root);
+      const posts = chipsOf(screen);
+      Object.defineProperty(posts, "clientWidth", {
+        configurable: true,
+        get: () => 400,
+      });
+      let wide = 300;
+      Object.defineProperty(posts, "scrollWidth", {
+        configurable: true,
+        get: () => wide,
+      });
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      const before = listParts(screen);
+      const chipRows = posts.querySelectorAll(".crew-row").length;
+      const chips = posts.querySelectorAll(".crew-bit").length;
+      expect(rowOf(screen, "kid").hidden).toBe(true);
+      // The machine's own chip would wrap the line: it waits for the next open.
+      wide = 500;
+      fingerTap(rowOf(screen, "machine"));
+      expect(screen.progress.getSnapshot().mountain.machines).toBe(1);
+      vi.advanceTimersByTime(3_000);
+      expect(rowOf(screen, "kid").hidden).toBe(true);
+      expect(listParts(screen)).toEqual(before);
+      expect(posts.querySelectorAll(".crew-row").length).toBe(chipRows);
+      expect(posts.querySelectorAll(".crew-bit").length).toBe(chips);
+      // The words still change in place.
+      expect(posts.querySelector(".crew-posts-words")?.textContent).toContain(
+        "on the machine",
+      );
+      // The next open shows the kid and the machine's chip.
+      drawerOf(screen)
+        .querySelector<HTMLButtonElement>(".board-sheet-back")
+        ?.click();
+      openBuys(screen);
+      expect(rowOf(screen, "kid").hidden).toBe(false);
+      expect(posts.textContent).toContain("on the machine");
+      screen.root.remove();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a new chip that fits joins the open drawer's rows, never a new row", () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 10_000;
+      const screen = mountScreen({
+        storage: seededWith(machineShort()),
+        now: () => CLOCK,
+        tapClock: () => clock,
+      });
+      document.body.append(screen.root);
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      const posts = chipsOf(screen);
+      const chipRows = posts.querySelectorAll(".crew-row").length;
+      fingerTap(rowOf(screen, "machine"));
+      vi.advanceTimersByTime(1_000);
+      expect(posts.querySelectorAll(".crew-row").length).toBe(chipRows);
+      expect(
+        [...posts.querySelectorAll(".crew-bit")].map(
+          (chip) => chip.textContent,
+        ),
+      ).toContain("10 on the machine");
+      screen.root.remove();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a post the crew empties while the drawer is open reads zero in its place", () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 10_000;
+      // The first borer takes the hands off the cart: the borer runs first.
+      const screen = mountScreen({
+        storage: seededWith({
+          ...minedMountain(10_000_000),
+          pocket: 20_000_000,
+          helpers: 9,
+          carts: 1,
+          drills: 1,
+          staffed: 2,
+        }),
+        now: () => CLOCK,
+        tapClock: () => clock,
+      });
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      const chipWords = () =>
+        [...chipsOf(screen).querySelectorAll(".crew-bit")].map(
+          (chip) => chip.textContent,
+        );
+      expect(chipWords()).toContain("1 on carts");
+      fingerTap(rowOf(screen, "borer"));
+      expect(screen.progress.getSnapshot().mountain.borers).toBe(1);
+      expect(chipWords()).toContain("0 on carts");
+      drawerOf(screen)
+        .querySelector<HTMLButtonElement>(".board-sheet-back")
+        ?.click();
+      expect(chipWords()).not.toContain("0 on carts");
+      expect(chipWords().some((words) => /on borers$/.test(words))).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a first hire while the drawer is open keeps the empty crew line closed until the next open", () => {
+    const screen = mountScreen({
+      storage: seededWith(minedMountain(tierCost(tierById("helper"), 0))),
+      now: () => CLOCK,
+    });
+    openBuys(screen);
+    const before = listParts(screen);
+    expect(chipsOf(screen).hidden).toBe(true);
+    rowOf(screen, "helper").click();
+    expect(screen.progress.getSnapshot().mountain.helpers).toBe(1);
+    expect(chipsOf(screen).hidden).toBe(true);
+    // The cart row waits too.
+    expect(listParts(screen)).toEqual(before);
+    drawerOf(screen)
+      .querySelector<HTMLButtonElement>(".board-sheet-back")
+      ?.click();
+    expect(chipsOf(screen).hidden).toBe(false);
+    expect(rowOf(screen, "cart").hidden).toBe(false);
+  });
+
+  it("trouble presses count during a Done hold", () => {
+    vi.useFakeTimers();
+    try {
+      const screen = mountScreen({
+        storage: seededWith(early({ pocket: 1_000_000 })),
+        now: () => CLOCK,
+      });
+      const cart = rowOf(screen, "cart");
+      cart.click();
+      expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
+      screen.progress.previewTrouble("cart");
+      for (let tap = 0; tap < 5; tap += 1) cart.click();
+      expect(screen.progress.getSnapshot().trouble).toBeUndefined();
+      expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a sixth quick tap after the fix buys nothing", () => {
+    vi.useFakeTimers();
+    try {
+      const screen = mountScreen({
+        storage: seededWith(early({ pocket: 1_000_000 })),
+        now: () => CLOCK,
+      });
+      screen.progress.previewTrouble("cart");
+      const cart = rowOf(screen, "cart");
+      for (let tap = 0; tap < 5; tap += 1) cart.click();
+      expect(screen.progress.getSnapshot().trouble).toBeUndefined();
+      cart.click();
+      expect(screen.progress.getSnapshot().mountain.carts).toBe(6);
+      vi.advanceTimersByTime(1_900);
+      cart.click();
+      expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a fix by hold also holds the row", async () => {
+    vi.useFakeTimers();
+    try {
+      const screen = mountScreen({
+        storage: seededWith(early({ pocket: 1_000_000 })),
+        now: () => CLOCK,
+      });
+      screen.progress.previewTrouble("cart");
+      const cart = rowOf(screen, "cart");
+      cart.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      await vi.advanceTimersByTimeAsync(FIX_HOLD_MS);
+      expect(screen.progress.getSnapshot().trouble).toBeUndefined();
+      cart.dispatchEvent(
+        new PointerEvent("pointerup", { bubbles: true, button: 0 }),
+      );
+      cart.click();
+      // A quick tap after the hold's own click.
+      fingerTap(cart);
+      expect(screen.progress.getSnapshot().mountain.carts).toBe(6);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("a tap the store says came before the save is in buys nothing", () => {
@@ -2071,14 +2315,18 @@ describe("Flemming's cart (#216)", () => {
     expect(screen.text('.tier[data-tier="borer"] .board-row-info')).toBe(
       "The Tunnel borer joins your crew at 10M stones. Keep digging, Dad!",
     );
-    expect(
-      screen.root.querySelector(".crew-posts")?.getAttribute("aria-label"),
-    ).toBe("18 workers: 13 on carts, 5 on drills, 0 free");
-    expect(screen.text(".crew-posts")).toContain("18 workers");
-    expect(screen.text(".crew-posts")).toContain("13 on carts");
-    expect(screen.text(".crew-posts")).toContain("5 on drills");
-    // The free count is the crew plate's alone now (#371).
-    expect(screen.text(".crew-posts")).not.toContain("free");
+    expect(screen.root.querySelector(".crew-posts-words")?.textContent).toBe(
+      "18 workers: 13 on carts, 5 on drills, 0 free",
+    );
+    const chipWords = [...screen.root.querySelectorAll(".crew-bit")]
+      .map((chip) => chip.textContent)
+      .join(" ");
+    expect(chipWords).toContain("18 workers");
+    expect(chipWords).toContain("13 on carts");
+    expect(chipWords).toContain("5 on drills");
+    // The free count is the crew plate's alone on the board (#371); only the spoken sentence
+    // keeps it.
+    expect(chipWords).not.toContain("free");
 
     document.body.append(screen.root);
     const posts = screen.root.querySelector<HTMLElement>(".crew-posts");

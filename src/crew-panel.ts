@@ -119,6 +119,16 @@ function legend(name: string, key: string, column?: string): HTMLElement {
   return sec;
 }
 
+/** A post chip the crew has emptied while the drawer is open: it reads zero in its place. */
+function zeroChip(bit: {
+  readonly key: string;
+  readonly text: string;
+}): string {
+  return bit.key === "pool" || bit.key === "grandpa"
+    ? bit.text
+    : `0 on ${bit.key}`;
+}
+
 /** The idle machine shown as the staffing New row (#246), while it is. */
 function guidedOf(
   mountain: Mountain,
@@ -162,6 +172,10 @@ export function createCrewPanel({
     title: "Buys",
     infoLabel: "Buys",
     clock,
+    // Shut, the list takes its latest layout: rows, legends and chips.
+    onClose: () => {
+      unfreeze();
+    },
     ...(signal === undefined ? {} : { signal }),
   });
   sheet.kick(BUYS_KICK);
@@ -186,9 +200,12 @@ export function createCrewPanel({
   crew.setAttribute("aria-label", "Your crew");
   const crewStatus = el("p", "crew-status");
   crewStatus.setAttribute("aria-live", "polite");
-  // Text, not a door: the chips are the breakdown, and its label the full sentence.
+  // Text, not a door. The full sentence is spoken from hidden words; the chips say it again in
+  // short, for the eye only.
   const posts = el("p", "crew-posts");
   posts.hidden = true;
+  const postsWords = el("span", "crew-posts-words");
+  posts.append(postsWords);
   crew.append(crewStatus, posts);
 
   const crewSpeed = (): number =>
@@ -264,6 +281,7 @@ export function createCrewPanel({
         progress.fixTrouble(troubledTier);
         if (progress.getSnapshot().trouble === undefined) {
           thank();
+          row.done();
         }
       },
     });
@@ -281,12 +299,12 @@ export function createCrewPanel({
         }
         const troubled = troubledHere(snapshot);
         // The second tap of the double tap that opened Buys spends nothing. A trouble press is
-        // not a spend, so it still counts.
+        // not a spend, so it still counts, in the settle and in a Done hold alike.
         if (press.early && troubled === undefined) {
           return;
         }
         // A second sleepy tap inside the Done hold buys nothing.
-        if (row.holding()) {
+        if (row.holding() && troubled === undefined) {
           return;
         }
         // Read again at the tap: a pocket that fell since the last paint buys nothing.
@@ -313,6 +331,8 @@ export function createCrewPanel({
           progress.pressTrouble(troubled.tier);
           if (progress.getSnapshot().trouble === undefined) {
             thank();
+            // The burst of presses that fixed it must not run on into a buy.
+            row.done();
           }
           return;
         }
@@ -353,9 +373,31 @@ export function createCrewPanel({
     spare.before(...parts);
   }
 
-  /** The chips last painted, so the drawer can lay them out again on open. */
-  let chipBits: readonly string[] = [];
-  /** One chip per bit, reused: each keeps its tag skin. */
+  /**
+   * Rows never move under a finger (#373): while the drawer is open with a save in, every part
+   * keeps the place it had as it opened. What a part should be is kept here and applied while
+   * the drawer is shut and as it opens. Words still change in place.
+   */
+  const wanted = new Map<HTMLElement, boolean>();
+  let frozen = false;
+  const place = (part: HTMLElement, hidden: boolean): void => {
+    wanted.set(part, hidden);
+    if (!frozen) {
+      hide(part, hidden);
+    }
+  };
+
+  /** One crew chip: what it stands for, and its words. */
+  interface ChipBit {
+    readonly key: string;
+    readonly text: string;
+  }
+  /** The chips the crew has now. */
+  let chipBits: readonly ChipBit[] = [];
+  /** The chips on the line, and in how many rows. */
+  let chipsShown: readonly ChipBit[] = [];
+  let chipLines = 0;
+  /** One chip per place on the line, reused: each keeps its tag skin. */
   const chipPool: HTMLElement[] = [];
   const chipAt = (index: number, text: string): HTMLElement => {
     let chip = chipPool[index];
@@ -371,18 +413,25 @@ export function createCrewPanel({
     }
     return chip;
   };
-  const paintRows = (sizes: readonly number[]): void => {
+  /** `bits` in exactly `lines` rows, as even as they go. */
+  const paintChips = (bits: readonly ChipBit[], lines: number): void => {
+    const base = Math.floor(bits.length / lines);
+    const extra = bits.length % lines;
     let next = 0;
     posts.replaceChildren(
-      ...sizes.map((size) => {
+      postsWords,
+      ...Array.from({ length: lines }, (_, index) => {
         const line = el("span", "crew-row");
-        for (let i = 0; i < size; i += 1) {
-          line.append(chipAt(next, chipBits[next] ?? ""));
+        line.setAttribute("aria-hidden", "true");
+        for (let i = 0; i < base + (index < extra ? 1 : 0); i += 1) {
+          line.append(chipAt(next, bits[next]?.text ?? ""));
           next += 1;
         }
         return line;
       }),
     );
+    chipsShown = bits;
+    chipLines = lines;
   };
   /**
    * Fewest even rows whose widest row fits the line. A shut drawer has no width to measure,
@@ -392,19 +441,48 @@ export function createCrewPanel({
     if (posts.hidden || chipBits.length === 0) {
       return;
     }
-    const count = chipBits.length;
-    for (let lines = 1; lines <= count; lines += 1) {
-      const size = Math.ceil(count / lines);
-      const full = Math.floor(count / size);
-      const rest = count - full * size;
-      paintRows([
-        ...Array.from({ length: full }, () => size),
-        ...(rest > 0 ? [rest] : []),
-      ]);
+    for (let lines = 1; lines <= chipBits.length; lines += 1) {
+      paintChips(chipBits, lines);
       if (!crewRowsOverflow(posts)) {
         break;
       }
     }
+  };
+  /**
+   * The open drawer's chips: the same chips in the same rows, their words new. A chip the crew
+   * no longer has reads zero; a new one joins only if it fits the rows already there.
+   */
+  const refreshChips = (): void => {
+    if (chipLines === 0) {
+      return;
+    }
+    const latest = new Map(chipBits.map((bit) => [bit.key, bit.text]));
+    const kept = chipsShown.map((bit) => ({
+      key: bit.key,
+      text: latest.get(bit.key) ?? zeroChip(bit),
+    }));
+    const added = chipBits.filter(
+      (bit) => !chipsShown.some((shown) => shown.key === bit.key),
+    );
+    if (added.length > 0 && kept.length + added.length >= chipLines) {
+      paintChips([...kept, ...added], chipLines);
+      if (!crewRowsOverflow(posts)) {
+        return;
+      }
+    }
+    paintChips(kept, chipLines);
+  };
+
+  /** The open drawer holds its layout from here; shut, it takes the latest. */
+  const freeze = (): void => {
+    frozen = true;
+  };
+  const unfreeze = (): void => {
+    frozen = false;
+    for (const [part, hidden] of wanted) {
+      hide(part, hidden);
+    }
+    layoutChips();
   };
 
   const renderCrew = (): void => {
@@ -444,27 +522,42 @@ export function createCrewPanel({
     });
     const grandpa = grandpaPost(current);
     const fullPosts = `${crewPostsWords(pool, free, stations)}${grandpa === undefined ? "" : `. ${grandpaSentence(grandpa)}`}`;
-    hide(posts, pool <= 0);
-    if (posts.getAttribute("aria-label") !== fullPosts) {
-      posts.setAttribute("aria-label", fullPosts);
-    }
-    const bits =
+    place(posts, pool <= 0);
+    write(postsWords, fullPosts);
+    const bits: readonly ChipBit[] =
       pool <= 0
         ? []
         : [
-            `${formatCompact(pool)} ${workerWords(pool)}`,
+            {
+              key: "pool",
+              text: `${formatCompact(pool)} ${workerWords(pool)}`,
+            },
             ...stations
               .filter((post) => post.workers > 0)
-              .map((post) => `${formatCompact(post.workers)} on ${post.label}`),
+              .map((post) => ({
+                key: post.label,
+                text: `${formatCompact(post.workers)} on ${post.label}`,
+              })),
             // After a pass, the old dad tends the biggest machine (#338).
-            ...(grandpa === undefined ? [] : [grandpaChipWords(grandpa)]),
+            ...(grandpa === undefined
+              ? []
+              : [{ key: "grandpa", text: grandpaChipWords(grandpa) }]),
           ];
-    if (bits.join("\n") === chipBits.join("\n")) {
+    const same = (a: readonly ChipBit[], b: readonly ChipBit[]): boolean =>
+      a.length === b.length &&
+      a.every((bit, index) => bit.text === b[index]?.text);
+    if (same(bits, chipBits)) {
       return;
     }
     chipBits = bits;
+    if (frozen) {
+      refreshChips();
+      return;
+    }
     if (bits.length === 0) {
-      posts.replaceChildren();
+      posts.replaceChildren(postsWords);
+      chipsShown = [];
+      chipLines = 0;
       return;
     }
     layoutChips();
@@ -479,8 +572,9 @@ export function createCrewPanel({
         mark(row.root, "teach-new", false);
         delete row.root.dataset["trouble"];
       }
-      // The crew's sentence and chips are the old save's: they wait for the new one.
-      hide(crew, true);
+      // The crew's sentence and chips are the old save's: blank, in their places.
+      mark(crew, "is-blank", true);
+      mark(crewSec, "is-blank", true);
       sheet.kick(BUYS_KICK);
       if (sheet.isOpen()) {
         sheet.fitSpare();
@@ -501,7 +595,7 @@ export function createCrewPanel({
         pick: painted,
         guided,
       });
-      hide(row.root, !rowView.shown);
+      place(row.root, !rowView.shown);
       if (rowView.shown && tierById(id).staff > 0) {
         machinesShowing = true;
       }
@@ -517,11 +611,17 @@ export function createCrewPanel({
         row.root.dataset["trouble"] = trouble.kind;
       }
     }
-    hide(crewSec, false);
-    hide(crew, false);
-    hide(machineSec, !machinesShowing);
-    hide(foot, false);
+    place(crewSec, false);
+    place(crew, false);
+    place(machineSec, !machinesShowing);
+    place(foot, false);
+    mark(crew, "is-blank", false);
+    mark(crewSec, "is-blank", false);
     renderCrew();
+    // A drawer opened before the save was in lays out once, as the save lands.
+    if (sheet.isOpen()) {
+      freeze();
+    }
     sheet.kick(showsDot(current, "staffing") ? STAFFING_INTRO : BUYS_KICK);
     if (sheet.isOpen()) {
       sheet.fitSpare();
@@ -529,9 +629,19 @@ export function createCrewPanel({
   };
 
   const open = (from?: HTMLElement): void => {
+    const opening = !sheet.isOpen();
+    if (opening) {
+      unfreeze();
+    }
     sheet.open(from);
-    // The crew chips were measured while the drawer was shut: fit them now.
-    layoutChips();
+    if (opening) {
+      // The crew chips were measured while the drawer was shut: fit them now.
+      layoutChips();
+      // A save that is in sets the layout; one still loading sets it as it lands.
+      if (getView().ready) {
+        freeze();
+      }
+    }
     // The staffing New row: bring it into view. Some test DOMs have no scrollIntoView.
     const fresh: Partial<Element> | null = sheet.list.querySelector(
       ".board-row.teach-new",
