@@ -93,6 +93,23 @@ export function reuseInputs({
   });
 }
 
+/**
+ * What a reusable step's run does to its record. Only a green run whose inputs were the same
+ * when it finished as when it started earns one: an edit mid-run means the pass covered a mix
+ * of old and new, and a later run must not reuse it.
+ */
+export function recordMove({
+  passed,
+  before,
+  after,
+}: {
+  readonly passed: boolean;
+  readonly before: string;
+  readonly after: string;
+}): "write" | "delete" {
+  return passed && before === after ? "write" : "delete";
+}
+
 /** Reused when the step may be and its inputs match a recorded green run; else undefined. */
 export function reusedOutcome(
   step: Step,

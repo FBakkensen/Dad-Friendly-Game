@@ -36,6 +36,7 @@ import {
   parseArgs,
   parsePass,
   planTier,
+  recordMove,
   reuseInputs,
   reusedOutcome,
   summaryLine,
@@ -94,12 +95,12 @@ const economy = tier === "full" && economyChanged(changed, closure);
 const REUSE = `${GATE_DIR}/reuse`;
 const recordPath = (step) =>
   `${REUSE}/${step.name.replace(/[^\w.-]/g, "_")}.json`;
-const reuseKey = (step) =>
+const reuseKey = (step, files = closure) =>
   createHash("sha256")
     .update(
       reuseInputs({
         step,
-        files: [...closure].map((path) => [path, read(path) ?? ""]),
+        files: [...files].map((path) => [path, read(path) ?? ""]),
         lock: read("package-lock.json") ?? "",
         node: process.version,
       }),
@@ -221,8 +222,14 @@ for (;;) {
     const job = run(step).then(() => {
       inFlight.delete(job);
       if (key === undefined) return;
-      // Only a green run earns a record; a red one loses the old one.
-      if (outcomes.get(step.name)?.kind === "passed") {
+      // A green run earns a record only if its inputs did not change while it ran: the
+      // closure is read again now, so an edit mid-run is caught.
+      const move = recordMove({
+        passed: outcomes.get(step.name)?.kind === "passed",
+        before: key,
+        after: reuseKey(step, labClosure()),
+      });
+      if (move === "write") {
         mkdirSync(REUSE, { recursive: true });
         writeFileSync(
           recordPath(step),

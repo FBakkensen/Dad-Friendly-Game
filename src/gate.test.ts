@@ -10,6 +10,7 @@ import {
   LAB_ENTRIES,
   logTail,
   parsePass,
+  recordMove,
   relativeImports,
   reuseInputs,
   reusedOutcome,
@@ -579,6 +580,22 @@ describe("reusedOutcome", () => {
     expect(reusedOutcome(lab, "other", record)).toBeUndefined();
     expect(reusedOutcome(lab, "k", undefined)).toBeUndefined();
     expect(reusedOutcome(step("visual"), "k", record)).toBeUndefined();
+  });
+});
+
+describe("recordMove", () => {
+  it("records a pass only when the inputs did not change while it ran", () => {
+    expect(recordMove({ passed: true, before: "k", after: "k" })).toBe("write");
+    // Edited mid-run: the pass covered a mix of old and new, so it proves neither.
+    expect(recordMove({ passed: true, before: "k", after: "k2" })).toBe(
+      "delete",
+    );
+  });
+
+  it("a red run loses the old record", () => {
+    expect(recordMove({ passed: false, before: "k", after: "k" })).toBe(
+      "delete",
+    );
   });
 });
 
