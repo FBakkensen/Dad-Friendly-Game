@@ -148,6 +148,9 @@ Each sliver is one sitting and one PR, keeps the game booting with every gate gr
 8. **A2: the field log from events** (the rest of A, #413). Blocked by A1. It can run any time after A1; placed here so the UI work isn't delayed.
 9. **S1: one time step and a thin store** (C, #414). Blocked by A2 and #368's end (B8), so the store doesn't move under the UI work.
 10. **S2: a complete game state** (D, #415). Blocked by S1.
+11. **R1: the rules and lab functions under the limits** (#420, added 9 Nov). The rules, lab and tool functions no other sliver rewrites are simplified to the strict limits, with the lab's guardrails and the sim results identical. Blocked by nothing; it can run between any two slivers.
+12. **R2: the board parts no other sliver rewrites** (#421, added 9 Nov). The mine window, the "i" cards, the save line and the relic plate are split, with no change the player can see. Blocked by nothing.
+13. **V: the strict limits** (#422, added 9 Nov at Flemming's ask). Both ceiling lists are deleted, so any function over 150 lines or a cognitive complexity of 15 fails the gate. Until then, each sliver that reworks a listed function removes its entries, so the strict limits hold for the code it touched. Blocked by every sliver that still owns an entry: A1, I2, B6, B7, S1, S2, R1 and R2.
 
 **(My call)** I2 may split into "drawers and rows" and "keys, plate and bays" if its plan runs over one sitting. B6 is blocked only by the first half.
 

@@ -11,7 +11,13 @@ page is the map, plus the rules that keep it that way.
    `field-log` (a JSON snapshot and an event ring). `rates.exactCrewPerSecond`
    is the crew speed before the whole-stone floor. `economy/actions` lists
    every legal move, including a craft and a cancel, applies the existing
-   functions, and values income from that speed, taps, and away pay. A craft's
+   functions, and values income from that speed, taps, and away pay. A `Move`
+   is an `Action` or a screen-only move (a dig, a vein tap, a seen mark), and
+   `applyMove` is the one place any of them changes the mountain, for the UI and
+   the lab alike (#409): it says `applied` (with the stones spent and mined) or
+   `refused`, and it holds the UI's rules too: a worker bought beside an idle
+   machine marks staffing taught, a real station marks tending taught and first
+   calls a party back, and a recall with no expedition sends the hand to camp. A craft's
    payback adds the bench time. `lab/world` steps one seeded clock (live
    accrue, away pay, hazards, expedition settle) for the pacing sim and the
    strategy lab. `lab/targets` is the only place a lab threshold lives.
@@ -56,7 +62,11 @@ page is the map, plus the rules that keep it that way.
    `firebase-save` (the SDK adapter; mountain save plus `fieldLogs/{uid}`),
    `firestore.rules` (server-side mirror of the parser and the field log,
    guarded by `rules-drift.test.ts` and the emulator tests).
-3. **State:** `progress-store` owns the live mountain: settling time, away
+3. **State:** `progress-store` owns the live mountain, and the UI changes it
+   only with `dispatch(move)`, which settles the crew, runs `applyMove` and
+   commits, and says `applied` (spent, mined) or `refused` (`not-playing` or
+   `no-change`) (#409). `applyMutation` is a test seam: ESLint
+   (`no-restricted-properties`) bans it in non-test `src`. The store owns settling time, away
    pay, reveals, migrations, and when/where to save. A rejected cloud write
    keeps that mountain, shows the save error, retries once, and records the
    server error on `save.error`. A snapshot is adopted only when it is strictly
@@ -203,20 +213,19 @@ page is the map, plus the rules that keep it that way.
 
   That split brought `mountain-screen.ts` to about 460 lines: layout, the dig
   and vein taps, the guide bar, save status, and wiring the panels. It has since
-  regrown to about 1,280 lines, with `mountMountainScreen` at 1,152 (its ceiling
+  regrown to about 1,240 lines, with `mountMountainScreen` at 1,112 (its ceiling
   in `scripts/function-ceilings.json`). #411 moves its interaction rules out.
 
-- **Local spends (#370):** the odometer shows a spend only for this screen's
-  own mutations. `mountain-screen` wraps the store in a `Proxy` whose
-  `applyMutation` sets a `localChange` flag for the length of the call (and
-  clears it in `finally`); every other property goes straight to the store,
-  so spies and late swaps still see it. `renderStock` counts a fall in the
-  pocket beyond the stones dug as a spend only while that flag is set, so a
-  cloud copy, a chosen or restored copy, Start over or Pass the mine only
-  move the baseline.
+- **Local spends (#370, #409):** the odometer shows a spend only for the
+  player's own moves. `mountain-screen` hands every panel one `Dispatch`
+  wrapper around `progress.dispatch`: a move that applied with `spent >= 1`
+  rolls the spend mark and kicks the needle. A cloud copy, a chosen or
+  restored copy, Start over or Pass the mine never comes through it, so
+  `renderStock` only sets the drums and the dial.
 
-- **Panel contract:** a panel gets `progress`, `getView`, `now` and a
-  `requestRender` callback; it never reads another panel's elements, and it
+- **Panel contract:** a panel gets `dispatch` (its only way to change the
+  game), `getView`, `now` and a `requestRender` callback, and `progress` only
+  where it still reads the store or presses trouble; it never reads another panel's elements, and it
   owns its open/closed state. The key rail uses those gates: the Workshop
   key stays locked until `workshopUnlocked`, Engineers until the first
   borer. Buys, Upgrades and Ledger open from the first screen. The board's parts sit round the
