@@ -499,7 +499,7 @@ export function mountMountainScreen({
     }
     const pick = readyNow(latest.mountain, now(), latest.trouble);
     if (pick.kind === "saving") {
-      openBuys(readyPlate.root);
+      openBuys(readyPlate.button);
       return { kind: "opened" };
     }
     if (pick.kind !== "ready") {
@@ -702,6 +702,7 @@ export function mountMountainScreen({
     },
     chipHost: effectRow,
     door: rail.keys.engineers,
+    fallbackDoor: rail.keys.ledger,
     now,
     requestRender: () => {
       render();

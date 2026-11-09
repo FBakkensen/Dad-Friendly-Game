@@ -377,7 +377,13 @@ export function createUpgradesPanel({
     if (!sheet.isOpen()) {
       order(newId);
     }
-    sheet.kick(newId === undefined ? UPGRADES_KICK : UPGRADES_INTRO);
+    // "Right on top" only while the New row is the one the list was ordered for: that row leads
+    // the first section.
+    sheet.kick(
+      newId !== undefined && newId === orderedFor
+        ? UPGRADES_INTRO
+        : UPGRADES_KICK,
+    );
     if (sheet.isOpen()) {
       sheet.fitSpare();
     }
@@ -385,11 +391,13 @@ export function createUpgradesPanel({
 
   const open = (from?: HTMLElement): void => {
     // Rows he has had in front of him stay, even after the pocket dips.
-    progress.applyMutation((current) =>
-      markAllSeen(current, shownRows(current)),
-    );
+    if (!sheet.isOpen()) {
+      progress.applyMutation((current) =>
+        markAllSeen(current, shownRows(current)),
+      );
+    }
     const view = getView();
-    if (view.ready) {
+    if (view.ready && !sheet.isOpen()) {
       order(newRowId(view.mountain, now()));
     }
     sheet.open(from);

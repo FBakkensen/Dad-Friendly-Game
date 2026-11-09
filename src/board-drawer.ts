@@ -303,7 +303,12 @@ export function createBoardSheet({
   document.addEventListener(
     "keydown",
     (event) => {
-      if (event.key === "Escape" && open) {
+      // The save drawer sits on top of a board drawer: its own Escape closes it alone.
+      if (
+        event.key === "Escape" &&
+        open &&
+        document.querySelector(".board-save-drawer.is-open") === null
+      ) {
         close();
       }
     },

@@ -650,7 +650,6 @@ async function collect(page) {
         ".board-row-flag",
         ".board-key-dot",
         ".engineer-badge",
-        ".engineer-mark",
       ],
     };
     const components = {};

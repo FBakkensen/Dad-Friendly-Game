@@ -110,6 +110,7 @@ export function createEngineersPanel({
   badgeUrl,
   chipHost,
   door,
+  fallbackDoor,
   now = Date.now,
 }: {
   progress: ProgressStore;
@@ -125,6 +126,8 @@ export function createEngineersPanel({
    * at close and writes only its aria-expanded. The key rail draws it and decides its lock.
    */
   door: HTMLButtonElement;
+  /** Where focus goes at close while a re-load holds the door disabled. */
+  fallbackDoor: HTMLButtonElement;
   now?: () => number;
 }): { button: HTMLButtonElement; sheet: HTMLDivElement; render: () => void } {
   const button = door;
@@ -758,7 +761,7 @@ export function createEngineersPanel({
     recalling = undefined;
     menu = undefined;
     requestRender();
-    button.focus();
+    (button.disabled ? fallbackDoor : button).focus();
   };
   close.addEventListener("click", closeSheet);
   sheet.addEventListener("keydown", (event) => {

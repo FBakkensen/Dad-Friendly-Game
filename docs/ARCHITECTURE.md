@@ -158,8 +158,10 @@ page is the map, plus the rules that keep it that way.
    `createKeyRail`: five keys that draw `keyViews` and pass taps to
    `onKey`. `board-sign` is the slim New sign over a key. `crew-panel`
    builds Buys and `upgrades-panel` builds Upgrades as `BoardSheet`s of
-   `board-row`s; while a drawer is open its rows, sections and chip rows
-   keep their places, and changes apply at the next open. The two drawers
+   `board-row`s; while Buys is open its rows, sections and chip rows
+   keep their places, and changes apply at the next open. Upgrades keeps
+   its row order while open; row visibility can still change on a re-load.
+   The two drawers
    and the scrim sit in `.board-sheet-clip` at z 29, under the board note
    (30) and the save drawer (31). The clip is `overflow: clip`, so nothing
    (not even script) can scroll it. `engineers-panel` and `menu-panel` take

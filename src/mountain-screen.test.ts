@@ -2644,6 +2644,24 @@ describe("the control board (#370)", () => {
     expect(cartsOf(screen)).toBe(6);
   });
 
+  it("a drawer opened from Saving for gives focus back to the plate's button", () => {
+    const screen = readyAt(early({ pocket: 100 }));
+    document.body.append(screen.root);
+    try {
+      plateOf(screen).click();
+      expect(buysOpen(screen)).toBe(true);
+      screen.root
+        .querySelector<HTMLButtonElement>(
+          '.board-sheet[data-sheet="buys"] .board-sheet-back',
+        )
+        ?.click();
+      expect(buysOpen(screen)).toBe(false);
+      expect(document.activeElement).toBe(plateOf(screen));
+    } finally {
+      screen.root.remove();
+    }
+  });
+
   it("Saving for a worker when no hand is free", () => {
     const price = tierCost(tierById("helper"), 6);
     const screen = readyAt(early({ helpers: 6, pocket: price - 1 }));

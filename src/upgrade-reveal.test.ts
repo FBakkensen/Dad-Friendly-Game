@@ -336,6 +336,65 @@ describe("upgrades drawer reveal (#245)", () => {
     screen.root.remove();
   });
 
+  it("drops the 'on top' kick once the New flag moves to a row that is not on top", () => {
+    const screen = mount(() => clock);
+    screen.progress.applyMutation(() => ({
+      ...createMountain(),
+      carts: 1,
+      pocket: 400,
+      upgrades: { tap: 1 },
+    }));
+    screen.root
+      .querySelector<HTMLElement>(".board-key[data-key=upgrades]")
+      ?.click();
+    expect(kick(screen.root)).toBe(UPGRADES_INTRO);
+    // He buys the New row: the flag passes to another row, and the frozen order holds.
+    screen.root
+      .querySelector<HTMLElement>('.board-row[data-boost="sharper"]')
+      ?.click();
+    const flagged = screen.root.querySelector(".board-row.teach-new");
+    const first = screen.root.querySelector(
+      ".board-sheet[data-sheet=upgrades] .board-row:not([hidden])",
+    );
+    expect(flagged).not.toBeNull();
+    expect(flagged).not.toBe(first);
+    expect(kick(screen.root)).toBe("Boosts for tonight, gear for good");
+    screen.root.remove();
+  });
+
+  it("opening an open drawer again does not reorder or mark rows seen again", () => {
+    const screen = mount(() => clock);
+    screen.progress.applyMutation(() => ({
+      ...createMountain(),
+      carts: 1,
+      pocket: 400,
+      upgrades: { tap: 1 },
+    }));
+    const key = screen.root.querySelector<HTMLElement>(
+      ".board-key[data-key=upgrades]",
+    );
+    key?.click();
+    const before = [
+      ...screen.root.querySelectorAll(
+        ".board-sheet[data-sheet=upgrades] .board-row",
+      ),
+    ];
+    screen.progress.applyMutation((current) => ({
+      ...current,
+      pocket: 50_000_000,
+      carts: 5,
+    }));
+    const seen = screen.progress.getSnapshot().mountain.seen;
+    key?.click();
+    expect([
+      ...screen.root.querySelectorAll(
+        ".board-sheet[data-sheet=upgrades] .board-row",
+      ),
+    ]).toEqual(before);
+    expect(screen.progress.getSnapshot().mountain.seen).toEqual(seen);
+    screen.root.remove();
+  });
+
   it("opens How it works for upgrades and boosts from the i, with one way back", () => {
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => ({

@@ -596,6 +596,53 @@ describe("the key rail (#373)", () => {
     }
   });
 
+  it("Escape with the save drawer open over Buys closes only the save drawer", () => {
+    const screen = mountScreen({ storage: seeded(early()) });
+    document.body.append(screen.root);
+    try {
+      key(screen, "buys").click();
+      screen.root.querySelector<HTMLElement>(".save-status")?.click();
+      expect(
+        screen.root.querySelector(".board-save-drawer.is-open"),
+      ).not.toBeNull();
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      expect(screen.root.querySelector(".board-save-drawer.is-open")).toBeNull();
+      expect(isOpen(screen, "buys")).toBe(true);
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      expect(isOpen(screen, "buys")).toBe(false);
+    } finally {
+      screen.root.remove();
+    }
+  });
+
+  it("an Engineers sheet that closes while its key is held gives focus to the Ledger key", () => {
+    const screen = mountScreen({
+      storage: seeded(crewed(benchBusy(CLOCK)), CLOCK),
+      now: () => CLOCK,
+    });
+    document.body.append(screen.root);
+    try {
+      key(screen, "engineers").click();
+      // A re-load takes the borer: the Engineers key is held again.
+      screen.progress.applyMutation((current) => ({
+        ...current,
+        borers: 0,
+        engineers: [],
+      }));
+      expect(key(screen, "engineers").disabled).toBe(true);
+      screen.root
+        .querySelector<HTMLButtonElement>(".engineers-close")
+        ?.click();
+      expect(document.activeElement).toBe(key(screen, "ledger"));
+    } finally {
+      screen.root.remove();
+    }
+  });
+
   it("until the save is in, no key shows a dot, a lit cap or a sub-line", async () => {
     let finishLoad: (result: CloudLoadResult) => void = () => {
       throw new Error("load was not pending");
