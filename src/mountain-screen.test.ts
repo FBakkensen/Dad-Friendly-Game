@@ -32,6 +32,7 @@ import {
   tapWords,
 } from "./screen-words";
 import { FIX_HOLD_MS } from "./hazards";
+import { lockBodyLine } from "./tier-lock-words";
 import { minedMountain } from "./test-fixtures";
 import {
   bindWriterPageHide,
@@ -207,6 +208,15 @@ describe("mountMountainScreen", () => {
     button?.click();
     expect(reload).toHaveBeenCalled();
     reload.mockRestore();
+  });
+
+  it("an update on a page with no prompt shows nothing and throws nothing", () => {
+    // A newer service worker can call it before the screen is mounted.
+    const page = document.createElement("div");
+    expect(() => {
+      showAppUpdate(page);
+    }).not.toThrow();
+    expect(page.childElementCount).toBe(0);
   });
 
   it("Reload releases the writer seat so the next open is the writer", () => {
@@ -490,7 +500,7 @@ describe("crew tiers on screen", () => {
     return card;
   };
 
-  it("goes three to a row with short names once borers show", () => {
+  it("names the borer row, its gain and its bill once borers show", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -504,16 +514,20 @@ describe("crew tiers on screen", () => {
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
-    const grid = screen.root.querySelector(".tier-grid");
-    expect(grid?.getAttribute("data-shown")).toBe("5");
-    expect(grid?.classList.contains("tier-grid-compact")).toBe(true);
     const borer = tierCard(screen.root, "borer");
-    expect(borer.querySelector(".tier-name")?.textContent).toBe("Tunnel borer");
-    // The first borer's engineer tends them: 357 becomes 435, shown floored.
-    expect(borer.querySelector(".tier-rate")?.textContent).toBe(
-      "+435\u2009·\u2009870/s · Needs 8 workers",
+    expect(borer.querySelector(".board-row-name")?.textContent).toBe(
+      "Tunnel borer",
     );
-    expect(borer.querySelector(".tier-count")?.textContent).toBe("×2");
+    // The first borer's engineer tends them: 357 becomes 435, shown floored.
+    expect(borer.querySelector(".board-row-gain")?.textContent).toBe("+435/s");
+    // Too dear for now: the verb says the bill.
+    expect(borer.classList.contains("is-dear")).toBe(true);
+    expect(borer.querySelector(".board-row-verb")?.textContent).toBe(
+      "8 workers",
+    );
+    expect(borer.querySelector(".board-row-flag")?.textContent).toMatch(
+      /^Ada tends · \+156\/s$/,
+    );
     expect(borer.getAttribute("aria-label")).toContain("tunnel borer");
   });
 
@@ -532,21 +546,22 @@ describe("crew tiers on screen", () => {
     const screen = mountScreen({ storage });
     const machine = tierCard(screen.root, "machine");
     expect(machine.hidden).toBe(false);
-    expect(machine.disabled).toBe(true);
-    expect(machine.classList.contains("tier-locked")).toBe(true);
-    expect(machine.querySelector(".tier-cost")?.textContent).toBe("Locked");
-    expect(machine.querySelector(".tier-rate")?.textContent).toBe(
-      `Machine · ${formatCompact(shownStones(createMountain(), 120_000_000))}`,
+    expect(machine.classList.contains("is-locked")).toBe(true);
+    expect(machine.querySelector(".board-row-price")?.textContent).toBe(
+      "Locked",
+    );
+    expect(machine.querySelector(".board-row-info")?.textContent).toBe(
+      lockBodyLine(tierById("machine"), {
+        kind: "depth",
+        depth: 120_000_000,
+        at: shownStones(createMountain(), 120_000_000),
+      }),
     );
     expect(machine.getAttribute("aria-label")).toContain(
       `Joins your crew at ${formatCount(shownStones(createMountain(), 120_000_000))} stones down`,
     );
     machine.click();
-    expect(
-      screen.root
-        .querySelector('.tier[data-tier="machine"] .tier-count')
-        ?.hasAttribute("hidden"),
-    ).toBe(true);
+    expect(screen.progress.getSnapshot().mountain.machines).toBe(0);
   });
 
   it("sells the Great Machine at the Deep Heart, after the Hammer (#252)", () => {
@@ -563,29 +578,14 @@ describe("crew tiers on screen", () => {
     });
     const screen = mountScreen({ storage });
     const machine = tierCard(screen.root, "machine");
-    expect(machine.classList.contains("tier-locked")).toBe(false);
+    expect(machine.classList.contains("is-locked")).toBe(false);
     expect(machine.disabled).toBe(false);
-    expect(machine.querySelector(".tier-cost")?.textContent).toBe(
+    expect(machine.querySelector(".board-row-price")?.textContent).toBe(
       formatCompact(tierCost(tierById("machine"), 0)),
     );
     machine.click();
-    expect(machine.querySelector(".tier-count")?.textContent).toBe("×1");
+    expect(screen.progress.getSnapshot().mountain.machines).toBe(1);
     expect(screen.pocket()).toBe("Stones 800.0K");
-  });
-
-  it("keeps the roomy two-column cards while three or fewer show", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: { ...minedMountain(400), helpers: 3, carts: 2 },
-      lastSeen: Date.now(),
-    });
-    const screen = mountScreen({ storage });
-    const grid = screen.root.querySelector(".tier-grid");
-    expect(grid?.classList.contains("tier-grid-compact")).toBe(false);
-    expect(
-      tierCard(screen.root, "cart").querySelector(".tier-name")?.textContent,
-    ).toBe("Mine cart");
   });
 
   it("hires a helper when affordable, raises the price, and mines every second", async () => {
@@ -610,43 +610,42 @@ describe("crew tiers on screen", () => {
       expect(screen.text(".crew-status")).toBe(
         "No crew yet. Hire a worker to mine for you.",
       );
-      expect(screen.text('.tier[data-tier="helper"] .tier-name')).toBe(
+      expect(screen.text('.tier[data-tier="helper"] .board-row-name')).toBe(
         "Worker",
       );
-      expect(
-        screen.root.querySelector<HTMLElement>(
-          '.tier[data-tier="helper"] .tier-count',
-        )?.hidden,
-      ).toBe(true);
-      expect(screen.text('.tier[data-tier="helper"] .tier-cost')).toBe(
+      expect(screen.text('.tier[data-tier="helper"] .board-row-price')).toBe(
         formatCompact(first),
       );
-      expect(hire.disabled).toBe(true);
+      expect(hire.classList.contains("is-dear")).toBe(true);
       expect(cart.hidden).toBe(true);
 
       screen.dig.click();
-      expect(hire.disabled).toBe(false);
+      expect(hire.classList.contains("is-dear")).toBe(false);
 
       hire.click();
       expect(screen.pocket()).toBe("Stones 0");
+      expect(screen.progress.getSnapshot().mountain.helpers).toBe(1);
       expect(screen.text(".crew-status")).toBe(
         "Your crew mines 1 stone a second",
       );
-      expect(screen.text('.tier[data-tier="helper"] .tier-name')).toBe(
-        "Worker",
-      );
-      expect(screen.text('.tier[data-tier="helper"] .tier-count')).toBe("×1");
-      expect(screen.text('.tier[data-tier="helper"] .tier-cost')).toBe(
-        formatCompact(second),
-      );
-      expect(hire.disabled).toBe(true);
-      expect(cart.hidden).toBe(false);
-      expect(hire.getAttribute("aria-label")).toBe(
-        `Buy a worker for ${formatCount(second)} stones, mines 1 stone a second. You have 1.`,
+      // Done holds the row; the new price shows once it lets go.
+      expect(screen.text('.tier[data-tier="helper"] .board-row-verb')).toBe(
+        "Done",
       );
 
       await vi.advanceTimersByTimeAsync(3_000);
       expect(screen.pocket()).toBe("Stones 3");
+      expect(screen.text('.tier[data-tier="helper"] .board-row-name')).toBe(
+        "Worker",
+      );
+      expect(screen.text('.tier[data-tier="helper"] .board-row-price')).toBe(
+        formatCompact(second),
+      );
+      expect(hire.classList.contains("is-dear")).toBe(true);
+      expect(cart.hidden).toBe(false);
+      expect(hire.getAttribute("aria-label")).toBe(
+        `Buy a worker for ${formatCount(second)} stones, mines 1 stone a second. You have 1.`,
+      );
     } finally {
       vi.useRealTimers();
     }
@@ -669,29 +668,31 @@ describe("crew tiers on screen", () => {
       );
       const screen = mountScreen({ storage });
       const cart = tierCard(screen.root, "cart");
-      expect(screen.text('.tier[data-tier="cart"] .tier-cost')).toBe(
+      expect(screen.text('.tier[data-tier="cart"] .board-row-price')).toBe(
         formatCompact(tierCost(tierById("cart"), 0)),
       );
-      expect(cart.disabled).toBe(false);
+      expect(cart.classList.contains("is-can")).toBe(true);
 
       cart.click();
       expect(screen.pocket()).toBe("Stones 0");
-      expect(screen.text('.tier[data-tier="cart"] .tier-name')).toBe(
-        "Mine cart",
-      );
-      expect(screen.text('.tier[data-tier="cart"] .tier-count')).toBe("×1");
-      expect(screen.text('.tier[data-tier="cart"] .tier-cost')).toBe(
-        formatCompact(tierCost(tierById("cart"), 1)),
-      );
+      expect(screen.progress.getSnapshot().mountain.carts).toBe(1);
       expect(screen.text(".crew-status")).toBe(
         "Your crew mines 7 stones a second",
       );
       expect(
-        screen.root.querySelector(".tier-grid")?.getAttribute("data-shown"),
-      ).toBe("3");
+        [...screen.root.querySelectorAll<HTMLElement>(".board-row.tier")]
+          .filter((row) => !row.hidden)
+          .map((row) => row.dataset["tier"]),
+      ).toEqual(["helper", "cart", "drill"]);
 
       await vi.advanceTimersByTimeAsync(2_000);
       expect(screen.pocket()).toBe("Stones 14");
+      expect(screen.text('.tier[data-tier="cart"] .board-row-name')).toBe(
+        "Mine cart",
+      );
+      expect(screen.text('.tier[data-tier="cart"] .board-row-price')).toBe(
+        formatCompact(tierCost(tierById("cart"), 1)),
+      );
     } finally {
       vi.useRealTimers();
     }
@@ -1220,7 +1221,7 @@ describe("start over", () => {
         ?.click();
       expect(dialog?.hidden).toBe(true);
       expect(document.activeElement).toBe(
-        screen.root.querySelector(".menu-button"),
+        screen.root.querySelector(".board-key[data-key=ledger]"),
       );
 
       screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();
@@ -1282,16 +1283,17 @@ describe("start over", () => {
 });
 
 describe("menu", () => {
-  it("tucks account and Start over away behind the menu button", () => {
+  it("tucks account and Start over away behind the Ledger key", () => {
     const screen = mountScreen();
     document.body.append(screen.root);
     try {
       const menu = screen.root.querySelector<HTMLElement>(".game-menu");
-      const button =
-        screen.root.querySelector<HTMLButtonElement>(".menu-button");
-      expect(screen.root.querySelector(".thumb-bar > .menu-button")).toBe(
-        button,
+      const button = screen.root.querySelector<HTMLButtonElement>(
+        ".board-key[data-key=ledger]",
       );
+      expect(
+        screen.root.querySelector(".board-rail > .board-key[data-key=ledger]"),
+      ).toBe(button);
       expect(menu?.hidden).toBe(true);
       expect(menu?.querySelector(".auth-action")).not.toBeNull();
       expect(menu?.querySelector(".auth-status")).not.toBeNull();
@@ -1346,7 +1348,9 @@ describe("menu", () => {
           "helper",
         ),
       );
-      screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
+        ?.click();
       const copy =
         screen.root.querySelector<HTMLButtonElement>(".field-log-copy");
       expect(copy?.textContent).toBe("Copy field log");
@@ -1382,7 +1386,9 @@ describe("menu", () => {
         ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
       expect(screen.root.querySelector(".copied-float")).toBeNull();
 
-      screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
+        ?.click();
       copy?.click();
       await vi.waitFor(() => {
         expect(screen.root.querySelector(".copied-float")?.textContent).toBe(
@@ -1405,7 +1411,9 @@ describe("menu", () => {
     document.body.append(screen.root);
     try {
       const openCopy = (): void => {
-        screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+        screen.root
+          .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
+          ?.click();
         screen.root
           .querySelector<HTMLButtonElement>(".field-log-copy")
           ?.click();
@@ -1429,7 +1437,7 @@ describe("menu", () => {
       sheet().querySelector<HTMLButtonElement>(".field-log-close")?.click();
       expect(sheet().hidden).toBe(true);
       expect(document.activeElement).toBe(
-        screen.root.querySelector(".menu-button"),
+        screen.root.querySelector(".board-key[data-key=ledger]"),
       );
 
       restore();
@@ -1482,7 +1490,9 @@ describe("menu", () => {
         expect(screen.progress.getSnapshot().ready).toBe(true);
       });
       expect(screen.text(".auth-status")).toContain("dad@example.com");
-      screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
+        ?.click();
       screen.root.querySelector<HTMLButtonElement>(".field-log-copy")?.click();
       await vi.waitFor(() => {
         expect(writeText).toHaveBeenCalled();
@@ -1517,37 +1527,29 @@ describe("the control board (#370)", () => {
     expect(screen.root.querySelector(".pocket-rate")).toBeNull();
   });
 
-  it("the crew line moves into Buys", () => {
+  it("the crew line lives in the Buys drawer", () => {
     const screen = mountScreen({
       storage: seeded({ ...minedMountain(400), helpers: 3, carts: 1 }),
     });
-    const line = screen.root.querySelector(".buys-card .crew .crew-status");
-    expect(line?.textContent).toMatch(/^Your crew mines \d+ stones a second$/);
-    const crew = screen.root.querySelector(".buys-card .crew");
-    const title = crew?.querySelector("h3.buys-crew-title");
-    expect(title?.textContent).toBe("Crew");
-    // The title stands above the crew sentence.
-    expect(
-      title?.compareDocumentPosition(line ?? document.body) ?? Number.NaN,
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    // Head, intro, how card, crew, tier grid, thanks, close.
-    const card = screen.root.querySelector(".buys-card");
-    expect([...(card?.children ?? [])].map((child) => child.className)).toEqual(
-      [
-        "workshop-head buys-head",
-        "teach-intro buys-intro",
-        "buys-how",
-        "crew",
-        "sheet-host",
-        "trouble-thanks",
-        "buys-close",
-      ],
+    const drawer = screen.root.querySelector('.board-sheet[data-sheet="buys"]');
+    const line = drawer?.querySelector(
+      ".board-sheet-list > .crew .crew-status",
     );
-    // How it works covers the crew too, and Back brings it back.
-    card?.querySelector<HTMLButtonElement>(".teach-info")?.click();
-    expect(crew?.hasAttribute("hidden")).toBe(true);
-    card?.querySelector<HTMLButtonElement>(".buys-how button")?.click();
-    expect(crew?.hasAttribute("hidden")).toBe(false);
+    expect(line?.textContent).toMatch(/^Your crew mines \d+ stones a second$/);
+    const crew = drawer?.querySelector<HTMLElement>(".crew");
+    const legend = drawer?.querySelector('.board-sec[data-sec="crew"]');
+    expect(legend?.firstElementChild?.textContent).toBe("Crew");
+    expect(legend?.lastElementChild?.textContent).toBe("per sec");
+    // The legend stands right above the crew section.
+    expect(legend?.nextElementSibling).toBe(crew);
+    // How it works covers the list, and Back brings it back.
+    const list = drawer?.querySelector<HTMLElement>(".board-sheet-list");
+    drawer?.querySelector<HTMLButtonElement>(".teach-info")?.click();
+    expect(list?.hidden).toBe(true);
+    [...(drawer?.querySelectorAll<HTMLButtonElement>(".teach-how-back") ?? [])]
+      .find((back) => !back.hidden)
+      ?.click();
+    expect(list?.hidden).toBe(false);
   });
 
   it("the crew plate counts the crew and the free hands", () => {
@@ -1617,7 +1619,7 @@ describe("the control board (#370)", () => {
       screen.root
         .querySelector<HTMLButtonElement>('.tier[data-tier="helper"]')
         ?.click();
-      expect(screen.text('.tier[data-tier="helper"] .tier-count')).toBe("×21");
+      expect(screen.progress.getSnapshot().mountain.helpers).toBe(21);
       expect(screen.text(".board-spend")).toBe(
         `−${price.toLocaleString("en-US")}`,
       );
@@ -1804,26 +1806,6 @@ describe("the control board (#370)", () => {
     ).not.toBeNull();
   });
 
-  it("the ☰ menu sits at the end of the thumb bar", () => {
-    const screen = mountScreen();
-    const bar = screen.root.querySelector(":scope > .thumb-bar");
-    expect([...(bar?.children ?? [])].map((child) => child.className)).toEqual([
-      expect.stringContaining("buys-button"),
-      expect.stringContaining("thumb-workshop"),
-      expect.stringContaining("engineers-button"),
-      expect.stringContaining("upgrades-button"),
-      "menu-button",
-    ]);
-    const button = screen.root.querySelector<HTMLButtonElement>(
-      ".thumb-bar > .menu-button",
-    );
-    expect(bar?.lastElementChild).toBe(button);
-    const menu = screen.root.querySelector<HTMLElement>(".game-menu");
-    expect(menu?.hidden).toBe(true);
-    button?.click();
-    expect(menu?.hidden).toBe(false);
-  });
-
   it("the band tag replaces the layer line", () => {
     const screen = mountScreen({
       storage: seeded(minedMountain(25_000_000)),
@@ -1831,7 +1813,7 @@ describe("the control board (#370)", () => {
     expect(screen.root.querySelector(".layer-line")).toBeNull();
     expect(screen.root.querySelector(".top-bar")).toBeNull();
     expect(screen.text(".board-band")).toBe("The Granite · Suits borers");
-    // Under the gauge row, ahead of the thumb bar.
+    // Under the gauge row, ahead of the key rail.
     expect(
       screen.root.querySelector(":scope > .board-gauge-row + .board-bays"),
     ).not.toBeNull();
@@ -1866,11 +1848,13 @@ describe("the control board (#370)", () => {
     const screen = mountScreen({
       storage: seeded({ ...minedMountain(400), helpers: 3, carts: 1 }),
     });
-    const dialog = screen.root.querySelector<HTMLElement>(".buys-dialog");
-    expect(dialog?.hidden).toBe(true);
+    const dialog = screen.root.querySelector<HTMLElement>(
+      '.board-sheet[data-sheet="buys"]',
+    );
+    expect(dialog?.classList.contains("is-open")).toBe(false);
     const held = screen.pocket();
     screen.root.querySelector<HTMLButtonElement>(".board-bay")?.click();
-    expect(dialog?.hidden).toBe(false);
+    expect(dialog?.classList.contains("is-open")).toBe(true);
     expect(screen.pocket()).toBe(held);
   });
 
@@ -1883,7 +1867,9 @@ describe("the control board (#370)", () => {
         borers: 1,
       }),
     });
-    const dialog = screen.root.querySelector<HTMLElement>(".buys-dialog");
+    const dialog = screen.root.querySelector<HTMLElement>(
+      '.board-sheet[data-sheet="buys"]',
+    );
     const note = screen.root.querySelector<HTMLElement>(".board-note");
     const bay = () => {
       const found = screen.root.querySelector<HTMLButtonElement>(
@@ -1905,7 +1891,7 @@ describe("the control board (#370)", () => {
     bay().click();
     expect(screen.progress.getSnapshot().trouble).toBeUndefined();
     expect(screen.progress.getSnapshot().mountain.carts).toBe(6);
-    expect(dialog?.hidden).toBe(true);
+    expect(dialog?.classList.contains("is-open")).toBe(false);
     expect(screen.text(".board-note.on")).toBe(TROUBLE_FIXED);
     expect(bay().hasAttribute("data-trouble")).toBe(false);
 
@@ -1921,7 +1907,7 @@ describe("the control board (#370)", () => {
       expect(screen.progress.getSnapshot().trouble).toBeUndefined();
       expect(screen.text(".board-note.on")).toBe(TROUBLE_FIXED);
       bay().click();
-      expect(dialog?.hidden).toBe(true);
+      expect(dialog?.classList.contains("is-open")).toBe(false);
       expect(screen.progress.getSnapshot().mountain.carts).toBe(6);
     } finally {
       vi.useRealTimers();
@@ -1945,7 +1931,7 @@ describe("the control board (#370)", () => {
     const card = screen.root.querySelector<HTMLButtonElement>(
       '.tier[data-tier="cart"]',
     );
-    expect(card?.classList.contains("tier-trouble")).toBe(true);
+    expect(card?.classList.contains("is-trouble")).toBe(true);
     for (let tap = 0; tap < 5; tap += 1) {
       card?.click();
     }
@@ -1965,51 +1951,98 @@ describe("the control board (#370)", () => {
     taught: ["workshop"],
   });
 
-  it("the New note shows once, in a board note above its thumb", () => {
+  /** The New sign's words while it stands over a key, else undefined. */
+  const signOf = (screen: ReturnType<typeof mountScreen>) =>
+    screen.root.querySelector(".board-sign-slot:not([hidden])")?.textContent ??
+    undefined;
+
+  it("the New sign shows once over its key, and any tap puts it away", () => {
     vi.useFakeTimers();
     try {
       const screen = mountScreen({ storage: seeded(firstEngineer()) });
-      // The note's outside tap is heard on the document.
+      // A tap is heard on the document.
       document.body.append(screen.root);
-      const shown = () =>
-        screen.root.querySelector<HTMLButtonElement>(
-          ".board-note.on .teach-note",
-        );
-      expect(shown()?.textContent).toBe(engineersNote("Ada"));
-      expect(screen.root.querySelector(":scope > .teach-note")).toBeNull();
-      // Any outside tap puts it away; the dot stays, and a tick never brings it back.
+      expect(signOf(screen)).toBe(engineersNote("Ada"));
+      expect(
+        screen.root.querySelector(".board-sign-slot")?.getAttribute("data-key"),
+      ).toBe("engineers");
+      // A sign, not the board note, and not a button.
+      expect(screen.root.querySelector(".board-note.on")).toBeNull();
+      expect(screen.root.querySelector(".board-sign-slot button")).toBeNull();
+      // Any tap puts it away, even on its own key; the dot stays, and a tick never brings it back.
       screen.dig.dispatchEvent(
         new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
       );
-      expect(shown()).toBeNull();
+      expect(signOf(screen)).toBeUndefined();
       vi.advanceTimersByTime(1_000);
-      expect(shown()).toBeNull();
+      expect(signOf(screen)).toBeUndefined();
       expect(
-        screen.root.querySelector(".engineers-button .teach-dot"),
+        screen.root.querySelector(
+          ".board-key[data-key=engineers] .board-key-dot:not([hidden])",
+        ),
       ).not.toBeNull();
       screen.root.remove();
     } finally {
       vi.useRealTimers();
     }
 
+    // Escape puts it away too.
+    const quiet = mountScreen({ storage: seeded(firstEngineer()) });
+    document.body.append(quiet.root);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(signOf(quiet)).toBeUndefined();
+    quiet.root.remove();
+
+    // Its key opens the sheet, and that counts as seen.
     const again = mountScreen({ storage: seeded(firstEngineer()) });
     again.root
-      .querySelector<HTMLButtonElement>(".board-note.on .teach-note")
+      .querySelector<HTMLButtonElement>(".board-key[data-key=engineers]")
       ?.click();
     expect(
       again.root.querySelector<HTMLElement>(".engineers-dialog")?.hidden,
     ).toBe(false);
-    expect(again.root.querySelector(".board-note.on")).toBeNull();
+    expect(again.progress.getSnapshot().mountain.seen).toContain("engineers");
+    expect(signOf(again)).toBeUndefined();
   });
 
-  it("a card that opens by itself puts any board note away; the New note comes back once", () => {
+  it("the New sign takes no tap: a tap on it opens nothing, and its words join the key's label", () => {
+    const screen = mountScreen({ storage: seeded(firstEngineer()) });
+    const key = screen.root.querySelector<HTMLButtonElement>(
+      ".board-key[data-key=engineers]",
+    );
+    const label = key?.getAttribute("aria-label") ?? "";
+    expect(label.endsWith(`. ${engineersNote("Ada")}`)).toBe(true);
+    const plate = screen.root.querySelector<HTMLElement>(".board-ready");
+    const plateWords = plate?.textContent;
+    const plateLabel = plate?.getAttribute("aria-label");
+    screen.root.querySelector<HTMLElement>(".board-sign")?.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".engineers-dialog")?.hidden,
+    ).toBe(true);
+    expect(screen.progress.getSnapshot().mountain.seen).not.toContain(
+      "engineers",
+    );
+    // The plate under the band reads the same with the sign up.
+    expect(plate?.textContent).toBe(plateWords);
+    expect(plate?.getAttribute("aria-label")).toBe(plateLabel);
+    // Put away, the key's label is its own again.
+    document.body.append(screen.root);
+    screen.dig.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+    );
+    expect(key?.getAttribute("aria-label")).toBe(
+      label.slice(0, -`. ${engineersNote("Ada")}`.length),
+    );
+    screen.root.remove();
+  });
+
+  it("a card that opens by itself puts any board note and the New sign away; the sign comes back once", () => {
     vi.useFakeTimers();
     try {
       const screen = mountScreen({ storage: seeded(firstEngineer()) });
-      const teach = () => screen.text(".board-note.on .teach-note");
-      expect(teach()).toBe(engineersNote("Ada"));
+      expect(signOf(screen)).toBe(engineersNote("Ada"));
       // Into the Crystal Caves: the relic and layer cards open from render,
-      // under the note.
+      // under the sign.
       screen.progress.applyMutation((m) => ({
         ...m,
         remaining: MOUNTAIN_STONES - 46_000_000,
@@ -2017,10 +2050,10 @@ describe("the control board (#370)", () => {
       expect(
         screen.root.querySelector<HTMLElement>(".relic-reveal")?.hidden,
       ).toBe(false);
-      expect(screen.root.querySelector(".board-note.on")).toBeNull();
+      expect(signOf(screen)).toBeUndefined();
       vi.advanceTimersByTime(1_000);
-      expect(screen.root.querySelector(".board-note.on")).toBeNull();
-      // Once the cards are shut, the note it never got to show comes back once.
+      expect(signOf(screen)).toBeUndefined();
+      // Once the cards are shut, the sign it never got to show comes back once.
       for (let i = 0; i < 20; i += 1) {
         const go = screen.root.querySelector<HTMLButtonElement>(
           ".relic-reveal:not([hidden]) .reveal-continue, .layer-arrival:not([hidden]) .layer-dig",
@@ -2029,7 +2062,7 @@ describe("the control board (#370)", () => {
         go.click();
       }
       vi.advanceTimersByTime(1_000);
-      expect(teach()).toBe(engineersNote("Ada"));
+      expect(signOf(screen)).toBe(engineersNote("Ada"));
 
       // Any other note goes too: the Running now list under the save conflict.
       document.body.append(screen.root);
@@ -2051,25 +2084,30 @@ describe("the control board (#370)", () => {
     }
   });
 
-  it("the New note waits while a sheet is open, then shows on the next tick", () => {
+  it("the New sign waits while a sheet is open, then shows on the next tick", () => {
     vi.useFakeTimers();
     try {
       const screen = mountScreen({
         storage: seeded({ ...firstEngineer(), engineers: [], borers: 0 }),
       });
-      screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+        ?.click();
       // The first borer brings the first engineer while Buys is open.
       screen.progress.applyMutation((m) => ({
         ...m,
         borers: 1,
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       }));
-      expect(screen.root.querySelector(".board-note.on")).toBeNull();
-      screen.root.querySelector<HTMLButtonElement>(".buys-close")?.click();
       vi.advanceTimersByTime(1_000);
-      expect(screen.text(".board-note.on .teach-note")).toBe(
-        engineersNote("Ada"),
-      );
+      expect(signOf(screen)).toBeUndefined();
+      screen.root
+        .querySelector<HTMLButtonElement>(
+          '.board-sheet[data-sheet="buys"] .board-sheet-back',
+        )
+        ?.click();
+      vi.advanceTimersByTime(1_000);
+      expect(signOf(screen)).toBe(engineersNote("Ada"));
     } finally {
       vi.useRealTimers();
     }
@@ -2128,15 +2166,16 @@ describe("the control board (#370)", () => {
       const status =
         screen.root.querySelector<HTMLButtonElement>(".save-status");
       expect(
-        screen.root.querySelector<HTMLButtonElement>(".thumb-workshop")
-          ?.disabled,
+        screen.root.querySelector<HTMLButtonElement>(
+          ".board-key[data-key=workshop]",
+        )?.disabled,
       ).toBe(false);
       const doors = [
-        ".buys-button",
-        ".thumb-workshop",
-        ".upgrades-button",
-        ".engineers-button",
-        ".menu-button",
+        ".board-key[data-key=buys]",
+        ".board-key[data-key=workshop]",
+        ".board-key[data-key=upgrades]",
+        ".board-key[data-key=engineers]",
+        ".board-key[data-key=ledger]",
       ];
       for (const door of doors) {
         status?.click();
@@ -2512,16 +2551,18 @@ describe("the control board (#370)", () => {
   const pocketOf = (screen: ReturnType<typeof mountScreen>) =>
     screen.progress.getSnapshot().mountain.pocket;
   const buysOpen = (screen: ReturnType<typeof mountScreen>) =>
-    screen.root.querySelector<HTMLElement>(".buys-dialog")?.hidden === false;
+    screen.root
+      .querySelector('.board-sheet[data-sheet="buys"]')
+      ?.classList.contains("is-open") === true;
   const pressed = (button: HTMLElement): void => {
     button.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 }));
   };
 
-  it("the Ready row stands under the bays, ahead of the thumb bar", () => {
+  it("the Ready row stands under the bays, ahead of the key rail", () => {
     const screen = readyAt(early());
     expect(
       screen.root.querySelector(
-        ":scope > .board-bays + .board-ready-row + .thumb-bar",
+        ":scope > .board-bays + .board-ready-row + .board-rail",
       ),
     ).not.toBeNull();
     expect(
@@ -2603,6 +2644,24 @@ describe("the control board (#370)", () => {
     expect(cartsOf(screen)).toBe(6);
   });
 
+  it("a drawer opened from Saving for gives focus back to the plate's button", () => {
+    const screen = readyAt(early({ pocket: 100 }));
+    document.body.append(screen.root);
+    try {
+      plateOf(screen).click();
+      expect(buysOpen(screen)).toBe(true);
+      screen.root
+        .querySelector<HTMLButtonElement>(
+          '.board-sheet[data-sheet="buys"] .board-sheet-back',
+        )
+        ?.click();
+      expect(buysOpen(screen)).toBe(false);
+      expect(document.activeElement).toBe(plateOf(screen));
+    } finally {
+      screen.root.remove();
+    }
+  });
+
   it("Saving for a worker when no hand is free", () => {
     const price = tierCost(tierById("helper"), 6);
     const screen = readyAt(early({ helpers: 6, pocket: price - 1 }));
@@ -2634,31 +2693,50 @@ describe("the control board (#370)", () => {
   });
 
   it("a tap after a spend elsewhere buys nothing and opens Buys again", () => {
-    const screen = readyAt(early());
-    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
-    const card = screen.root.querySelector<HTMLButtonElement>(
-      '.tier[data-tier="cart"]',
-    );
-    for (let i = 0; i < 20; i += 1) {
-      const m = screen.progress.getSnapshot().mountain;
-      if (m.pocket < tierCost(tierById("cart"), m.carts)) break;
-      card?.click();
+    vi.useFakeTimers();
+    try {
+      const screen = readyAt(early());
+      screen.root
+        .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+        ?.click();
+      const card = screen.root.querySelector<HTMLButtonElement>(
+        '.tier[data-tier="cart"]',
+      );
+      for (let i = 0; i < 20; i += 1) {
+        const m = screen.progress.getSnapshot().mountain;
+        if (m.pocket < tierCost(tierById("cart"), m.carts)) break;
+        card?.click();
+        // Each buy holds Done on its row; the next tap waits it out.
+        vi.advanceTimersByTime(2_000);
+      }
+      const carts = cartsOf(screen);
+      const pocket = pocketOf(screen);
+      expect(carts).toBeGreaterThan(6);
+      expect(pocket).toBeLessThan(tierCost(tierById("cart"), carts));
+      screen.root
+        .querySelector<HTMLButtonElement>(
+          '.board-sheet[data-sheet="buys"] .board-sheet-back',
+        )
+        ?.click();
+      expect(buysOpen(screen)).toBe(false);
+      plateOf(screen).click();
+      expect(cartsOf(screen)).toBe(carts);
+      expect(pocketOf(screen)).toBe(pocket);
+      expect(buysOpen(screen)).toBe(true);
+      expect(screen.text(".board-ready-kick")).toBe("Saving for");
+    } finally {
+      vi.useRealTimers();
     }
-    const carts = cartsOf(screen);
-    const pocket = pocketOf(screen);
-    expect(carts).toBeGreaterThan(6);
-    expect(pocket).toBeLessThan(tierCost(tierById("cart"), carts));
-    screen.root.querySelector<HTMLButtonElement>(".buys-close")?.click();
-    expect(buysOpen(screen)).toBe(false);
-    plateOf(screen).click();
-    expect(cartsOf(screen)).toBe(carts);
-    expect(pocketOf(screen)).toBe(pocket);
-    expect(buysOpen(screen)).toBe(true);
-    expect(screen.text(".board-ready-kick")).toBe("Saving for");
   });
 
   // A sleepy double tap: the first tap opens Buys over the plate or the bay,
   // and the second lands on the Buys card under the finger. It must not buy.
+  // A finger's click has a detail of 1; a key press clicks with 0 (#373).
+  const fingerClick = (el: HTMLElement): void => {
+    el.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
+    );
+  };
   const fingerTap = (el: HTMLElement): void => {
     el.dispatchEvent(
       new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
@@ -2666,7 +2744,7 @@ describe("the control board (#370)", () => {
     el.dispatchEvent(
       new PointerEvent("pointerup", { bubbles: true, button: 0 }),
     );
-    el.click();
+    fingerClick(el);
   };
   const cardOf = (screen: ReturnType<typeof mountScreen>, tier: string) => {
     const card = screen.root.querySelector(`.tier[data-tier="${tier}"]`);
@@ -2721,6 +2799,40 @@ describe("the control board (#370)", () => {
     fingerTap(cardOf(screen, "cart"));
     expect(cartsOf(screen)).toBe(7);
     expect(pocketOf(screen)).toBe(6_854 - tierCost(tierById("cart"), 6));
+    // The row holds Done, in the drawer the bay opened.
+    expect(
+      cardOf(screen, "cart").closest('.board-sheet[data-sheet="buys"]'),
+    ).not.toBeNull();
+    expect(
+      cardOf(screen, "cart").querySelector(".board-row-verb")?.textContent,
+    ).toBe("Done");
+  });
+
+  it("a finger's click on a row that slid under it while Buys settled buys nothing (#373)", () => {
+    // The second tap of a double tap on a bay comes down on one row while the drawer still
+    // rises; a touch's click lands where the finger lifts, on the row now under it.
+    let clock = 10_000;
+    const screen = mountScreen({
+      storage: seeded(early(), CLOCK),
+      now: () => CLOCK,
+      tapClock: () => clock,
+    });
+    const bay = screen.root.querySelector<HTMLButtonElement>(
+      '.board-bay[data-tier="cart"]',
+    );
+    if (bay === null) throw new Error("no bay");
+    fingerTap(bay);
+    clock += 270;
+    cardOf(screen, "helper").dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+    );
+    fingerClick(cardOf(screen, "cart"));
+    expect(cartsOf(screen)).toBe(6);
+    expect(screen.progress.getSnapshot().mountain.helpers).toBe(18);
+    expect(pocketOf(screen)).toBe(6_854);
+    // A key press is never early, settle or not.
+    cardOf(screen, "cart").click();
+    expect(cartsOf(screen)).toBe(7);
   });
 
   it("the settle is judged by the press, not the click", () => {
@@ -2730,7 +2842,9 @@ describe("the control board (#370)", () => {
       now: () => CLOCK,
       tapClock: () => clock,
     });
-    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+      ?.click();
     const card = cardOf(screen, "cart");
     // Pressed early, released late: still the double tap's press.
     card.dispatchEvent(
@@ -2740,18 +2854,28 @@ describe("the control board (#370)", () => {
     card.dispatchEvent(
       new PointerEvent("pointerup", { bubbles: true, button: 0 }),
     );
-    card.click();
+    fingerClick(card);
     expect(cartsOf(screen)).toBe(6);
     // The next press is its own, and buys. Reopening an open sheet (the
-    // Buys thumb tapped again) does not restart the settle.
-    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    // Buys key tapped again) does not restart the settle.
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+      ?.click();
     fingerTap(card);
     expect(cartsOf(screen)).toBe(7);
     // Back to the mountain works at once.
-    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
-    screen.root.querySelector<HTMLButtonElement>(".buys-close")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+      ?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(
+        '.board-sheet[data-sheet="buys"] .board-sheet-back',
+      )
+      ?.click();
     expect(buysOpen(screen)).toBe(false);
-    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+      ?.click();
     fingerTap(card);
     expect(cartsOf(screen)).toBe(7);
   });

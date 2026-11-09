@@ -1,4 +1,5 @@
 import type { AuthController, AuthState } from "./auth";
+import { setAttr } from "./board-dom";
 import { formatFieldLog } from "./field-log";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
@@ -16,6 +17,7 @@ export function createMenuPanel({
   auth,
   onStartOver,
   extras = [],
+  door,
   requestRender,
 }: {
   /** More menu entries, shown above Start over (e.g. passing the mine). */
@@ -24,6 +26,11 @@ export function createMenuPanel({
   getView: () => ProgressSnapshot;
   auth: AuthController;
   onStartOver: () => void;
+  /**
+   * The key that opens the menu: the Ledger key until B7 gives it its drawer (#373). The panel
+   * listens to its click, puts focus back on it at close and writes only its aria-expanded.
+   */
+  door: HTMLButtonElement;
   requestRender: () => void;
 }) {
   const startOverLink = document.createElement("button");
@@ -38,12 +45,7 @@ export function createMenuPanel({
   });
 
   // Account and Start over live in a tucked-away menu so the main screen fits a phone.
-  const menuButton = document.createElement("button");
-  menuButton.type = "button";
-  menuButton.className = "menu-button";
-  menuButton.setAttribute("aria-label", "Menu");
-  menuButton.setAttribute("aria-haspopup", "dialog");
-  menuButton.textContent = "☰";
+  const menuButton = door;
   let menuOpen = false;
   menuButton.addEventListener("click", () => {
     menuOpen = true;
@@ -262,6 +264,7 @@ export function createMenuPanel({
   const renderMenu = (): void => {
     const wasOpen = !menu.hidden;
     menu.hidden = !menuOpen;
+    setAttr(menuButton, "aria-expanded", menuOpen ? "true" : "false");
     if (menuOpen && !wasOpen) {
       menuClose.focus({ preventScroll: true });
     }

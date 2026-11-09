@@ -2,8 +2,8 @@
  * The board stage (#370). #app is a fixed 424x924 enamel panel. src/board-fit.ts
  * sets --board-scale so the whole board shrinks to fit any screen; zoom keeps
  * taps lined up. contain: layout keeps the fixed sheets inside the board.
- * The old column fills the rail slot, 768..860, under the board's top, the
- * gauge row and the bays (#372); the bands above and below are for the board.
+ * Every row has its place: the board's top, the gauge row, the bays, the
+ * Ready row and the key rail at 768..860 (#370-#373), above the save line.
  */
 body {
   display: flex;
@@ -370,43 +370,201 @@ body {
   margin-top: calc(var(--art) * 4);
 }
 
-/* The thumb bar fills the rail slot's foot until B5's key rail; the ☰ menu
-   is its fifth cell, where B7's Ledger key goes (#372). */
-#app > .thumb-bar {
-  margin-top: auto;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+/* ---------- the key rail (#373) ----------
+   The mockup's rail, 424 x 46 art at (0, --rail-top): five keys 32 art wide,
+   8 art apart. Each cap is key.png's 32 art cells (rest, down, off, lit),
+   changed whole frames from board-keys.ts (inline background-position-x). */
+.board-rail {
+  position: absolute;
+  left: 0;
+  top: var(--rail-top);
+  width: var(--board-w);
+  height: calc(var(--art) * 46);
 }
 
-.thumb-bar .menu-button {
+#app > .board-rail {
+  max-width: none;
+}
+
+.board-key {
+  position: absolute;
+  top: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: auto;
-  min-width: var(--target-min);
-  min-height: var(--target-min);
+  width: calc(var(--art) * 32);
+  height: calc(var(--art) * 38);
   margin: 0;
-  border: var(--line) solid var(--color-gold);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  color: var(--color-gold);
-  font-size: var(--type-24);
-  line-height: 1;
-}
-
-/* The New teach note in the board note (#372): the note's ink in place of
-   the old card's edge and face, still a 48px target. */
-.board-note .teach-note {
-  min-height: var(--target-min);
   padding: 0;
   border: 0;
-  border-radius: 0;
   background: none;
-  color: var(--board-ink);
+  appearance: none;
   font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.board-key:nth-child(1) {
+  left: calc(var(--art) * 8);
+}
+
+.board-key:nth-child(2) {
+  left: calc(var(--art) * 48);
+}
+
+.board-key:nth-child(3) {
+  left: calc(var(--art) * 88);
+}
+
+.board-key:nth-child(4) {
+  left: calc(var(--art) * 128);
+}
+
+.board-key:nth-child(5) {
+  left: calc(var(--art) * 168);
+}
+
+/* A sub-line (an unlock line or a clock) makes the key 45 art tall. */
+.board-key.has-sub {
+  height: calc(var(--art) * 45);
+}
+
+.board-key:disabled {
+  cursor: default;
+}
+
+.board-key:focus-visible {
+  outline: calc(var(--art) * 1) solid var(--board-amber);
+  outline-offset: calc(var(--art) * 1);
+}
+
+.board-key-cap {
+  position: relative;
+  display: block;
+  flex: none;
+  width: calc(var(--art) * 32);
+  height: calc(var(--art) * 32);
+  background: url("./assets/board/key.png") no-repeat 0 0 /
+    calc(var(--art) * 128) calc(var(--art) * 32);
+  image-rendering: pixelated;
+}
+
+.board-key-icon {
+  position: absolute;
+  left: calc(var(--art) * 8);
+  top: calc(var(--art) * 7.5);
+  width: calc(var(--art) * 16);
+  height: calc(var(--art) * 16);
+  image-rendering: pixelated;
+}
+
+/* The icon drops 1 art with the cap while the key is held. */
+.board-key.is-down .board-key-icon {
+  top: calc(var(--art) * 8.5);
+}
+
+/* The red dot lamp: a system still to be taught, or trouble with no bay. */
+.board-key-dot {
+  position: absolute;
+  right: var(--art);
+  top: var(--art);
+  width: calc(var(--art) * 10);
+  height: calc(var(--art) * 10);
+  image-rendering: pixelated;
+}
+
+.board-key-dot[hidden],
+.board-key-sub[hidden] {
+  display: none;
+}
+
+.board-key-name {
+  margin-top: calc(var(--art) * -1);
+  white-space: nowrap;
+  color: var(--board-ink);
+  text-shadow:
+    0 var(--board-hair) 0 var(--board-night),
+    0 0 var(--art) var(--board-night);
+}
+
+.board-key-sub.board-num {
+  font-family: "Share Tech Mono", monospace;
+}
+
+.board-key.is-locked .board-key-name {
+  color: var(--board-ink-quiet);
+}
+
+/* The sub-line may run into the gaps beside its key, never as far as the
+   next key's line (80px apart): longer words end in an ellipsis. */
+.board-key-sub {
+  max-width: calc(var(--art) * 39);
+  margin-top: var(--board-hair);
+  /* Clipped sideways only: the line's descenders hang below its 13px lead. */
+  overflow-x: clip;
+  overflow-y: visible;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 500;
+  font-size: var(--board-type-13);
+  line-height: var(--board-type-13);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--board-ink-bare);
+  text-shadow:
+    0 var(--board-hair) 0 var(--board-night),
+    0 0 var(--art) var(--board-night);
+}
+
+/* The New sign (#373): one line on the tag skin in the band between the
+   Ready row's plate (its art ends at 732) and the key rail (768), centred
+   over its key. Its slot is 128 art wide around the key's centre, so the
+   sign never reaches the DIG legend. A sign, not a button: taps go through
+   it to the plate or the key, and its words are on the key's label. */
+.board-sign-slot {
+  position: absolute;
+  top: calc(var(--rail-top) - var(--art) * 13);
+  display: flex;
+  justify-content: center;
+  width: calc(var(--art) * 128);
+  height: calc(var(--art) * 12);
+  pointer-events: none;
+}
+
+.board-sign-slot[hidden] {
+  display: none;
+}
+
+#app > .board-sign-slot {
+  max-width: none;
+}
+
+.board-sign-slot[data-key="workshop"] {
+  left: 0;
+}
+
+.board-sign-slot[data-key="engineers"] {
+  left: calc(var(--art) * 40);
+}
+
+.board-sign {
+  display: block;
+  max-width: 100%;
+  height: calc(var(--art) * 12);
+  padding: 0 calc(var(--art) * 5);
+  overflow: hidden;
+}
+
+.board-sign-text {
+  display: block;
+  overflow: hidden;
+  font-family: "Barlow Condensed", sans-serif;
   font-weight: 700;
-  line-height: var(--board-note-lead);
-  animation: none;
+  font-size: var(--board-type-14);
+  line-height: calc(var(--art) * 12);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--board-ink-plate);
 }
 
 .board-tag .board-lg {
@@ -622,8 +780,10 @@ body {
 /* The save line's spoken separator: in the text, not drawn. */
 .board-save-sep {
   position: absolute;
-  width: 0;
-  height: 0;
+  width: var(--board-hair);
+  height: var(--board-hair);
+  margin: calc(var(--board-hair) * -1);
+  padding: 0;
   overflow: hidden;
   clip-path: inset(50%);
   white-space: pre;
@@ -748,20 +908,14 @@ body {
   z-index: 31;
   width: var(--board-w);
   height: calc(var(--board-h) - var(--save-h));
-  overflow: hidden;
+  /* Clip, not hidden: a hidden box can still be scrolled by script, and must never be (#373). */
+  overflow: clip;
   pointer-events: none;
 }
 
 .board-drawer-clip > .board-save-drawer {
   bottom: calc(var(--art) * 2);
   pointer-events: auto;
-}
-
-/* Buys and Upgrades stop under the stock row's legend, so a buy's spend shows
-   on the odometer above the sheet (#370). */
-.buys-card,
-.upgrades-dialog .upgrades-card {
-  max-height: calc(100% - var(--board-top) - var(--art));
 }
 
 /* Every sheet and card stops at the save line, so the line is never covered
@@ -774,8 +928,6 @@ body {
 .start-over,
 .game-menu,
 .field-log-sheet,
-.buys-dialog,
-.upgrades-dialog,
 .engineers-dialog,
 .update-prompt,
 .other-tab,
@@ -1197,7 +1349,7 @@ body {
 
 /* The vein's payout and the quiet away line, in the board note under the
    window: one line in the Legacy plate's condensed face, so the note ends
-   above the column's top and never covers the ☰ menu (#371). */
+   well above the key rail and never covers a key (#371, #373). */
 .vein-note {
   margin: 0;
   font-family: "Barlow Condensed", sans-serif;
@@ -1676,4 +1828,591 @@ body {
 
 .board-bay-tag-text {
   position: relative;
+}
+
+/* ---------- drawer rows (#373) ---------- */
+/* One row: lamp, icon, the words, then gain, price tag and verb. The right
+   column stays a flex column, so a 48px toggle can join under the tag. */
+.board-row {
+  position: relative;
+  flex: none;
+  width: 100%;
+  height: var(--row-h);
+  display: grid;
+  grid-template-columns:
+    calc(var(--art) * 20) calc(var(--art) * 32)
+    1fr auto;
+  align-items: center;
+  column-gap: calc(var(--art) * 3);
+  padding: 0 calc(var(--art) * 6) 0 calc(var(--art) * 5);
+  border: 0;
+  background: none;
+  appearance: none;
+  font: inherit;
+  text-align: left;
+  color: var(--board-ink);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.board-row.no-icon {
+  grid-template-columns: calc(var(--art) * 20) 1fr auto;
+}
+
+button.board-row {
+  cursor: pointer;
+}
+
+button.board-row:disabled {
+  cursor: default;
+}
+
+button.board-row:focus-visible {
+  outline: calc(var(--art) * 1) solid var(--board-amber);
+  outline-offset: calc(var(--art) * 1);
+}
+
+.board-row-icon {
+  display: block;
+  width: calc(var(--art) * 32);
+  height: calc(var(--art) * 32);
+  image-rendering: pixelated;
+}
+
+.board-row-mid {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.board-row-name,
+.board-row-info,
+.board-row-need,
+.board-row-why,
+.board-row-flag {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The name's line: the name with its badge, then the flag on the same line. A row has three
+   lines at most, inside the frame's face (#373). */
+.board-row-line {
+  display: flex;
+  align-items: baseline;
+  column-gap: calc(var(--art) * 3);
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* The name keeps its whole width; the flag gives way, falls back through its options and ends
+   in its ellipsis. */
+.board-row-line > .board-row-name {
+  flex: none;
+}
+
+.board-row-line > .board-row-flag {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.board-row-name {
+  font-size: var(--board-type-17);
+  line-height: var(--board-row-name-lead);
+  font-weight: 700;
+  color: var(--board-ink);
+}
+
+.board-row-badge {
+  margin-left: calc(var(--art) * 3);
+}
+
+.board-row-info,
+.board-row-why {
+  font-size: var(--board-type-13);
+  line-height: var(--board-row-line-lead);
+  color: var(--board-ink-2);
+}
+
+.board-row-need {
+  font-size: var(--board-type-13);
+  line-height: var(--board-row-line-lead);
+  color: var(--board-rust);
+}
+
+.board-row-flag {
+  line-height: var(--board-row-line-lead);
+  color: var(--board-amber);
+}
+
+.board-row.is-held .board-row-flag {
+  color: var(--board-green);
+}
+
+.board-row-rt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--art);
+}
+
+.board-row-gain {
+  font-size: var(--board-type-15);
+  line-height: var(--board-row-gain-lead);
+  color: var(--board-ink);
+  white-space: nowrap;
+}
+
+.board-row-tag,
+.board-row-tag.board-skinned {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--art) * 10);
+  min-width: calc(var(--art) * 34);
+  padding: 0 calc(var(--art) * 6.5);
+  font-size: var(--board-type-14);
+  line-height: calc(var(--art) * 10);
+  white-space: nowrap;
+  color: var(--board-ink-plate);
+}
+
+.board-row.is-dim-tag .board-row-tag {
+  color: var(--board-ink-plate-2);
+}
+
+.board-row-price {
+  position: relative;
+}
+
+.board-row-verb {
+  font-size: var(--board-type-13);
+  line-height: var(--board-type-13);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  color: var(--board-ink-2);
+}
+
+.board-row.is-can .board-row-verb {
+  color: var(--board-green);
+}
+
+.board-row.is-pick .board-row-verb {
+  color: var(--board-amber);
+}
+
+.board-row.is-held .board-row-verb {
+  color: var(--board-green);
+}
+
+/* The New row speaks through its lamp and its New flag, not today's gold glow. */
+.board-row.teach-new {
+  box-shadow: none;
+}
+
+/* Last, so an empty part hides over its own display. An icon not drawn yet
+   keeps its column. */
+.board-row [hidden] {
+  display: none;
+}
+
+.board-row > .board-row-icon[hidden] {
+  display: block;
+  visibility: hidden;
+}
+
+/* ---------- the drawer shell (#373) ----------
+   Buys and Upgrades slide up from under the stock row's legend to the save
+   line. The clip is the board above the save line: it hides a shut drawer
+   below its edge, so the board never scrolls, and passes taps through. */
+.board-sheet-clip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 29;
+  width: var(--board-w);
+  height: calc(var(--board-h) - var(--save-h));
+  /* Clip, not hidden: a hidden box can still be scrolled by script, and must never be (#373). */
+  overflow: clip;
+  pointer-events: none;
+}
+
+.board-sheet,
+.board-sheet.board-skinned {
+  top: var(--sheet-top);
+  font-family: "Barlow Condensed", sans-serif;
+  bottom: calc(var(--art) * 2);
+  padding: calc(var(--art) * 7) calc(var(--art) * 7) calc(var(--art) * 6);
+  pointer-events: auto;
+}
+
+/* Shut, it waits just under the clip's edge, as the save drawer does. It
+   takes no taps from the moment it shuts: while it slides away, the second
+   tap of a double tap on Back would land on a row (#373). */
+.board-sheet-clip > .board-sheet:not(.is-open) {
+  transform: translateY(calc(100% + var(--art) * 2));
+  pointer-events: none;
+}
+
+.board-sheet-head {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: calc(var(--art) * 4);
+  padding: calc(var(--art) * 1) calc(var(--art) * 2) calc(var(--art) * 4);
+}
+
+.board-sheet-title {
+  grid-column: 1;
+  margin: 0;
+  font-size: var(--board-type-24);
+  line-height: var(--board-sheet-title-lead);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--board-ink);
+}
+
+.board-sheet-title:focus,
+.board-sheet-how:focus {
+  outline: none;
+}
+
+.board-sheet-kick {
+  grid-column: 1;
+  margin: calc(var(--art) * 1) 0 0;
+  font-size: var(--board-type-13);
+  line-height: var(--board-kick-lead);
+  color: var(--board-ink-2);
+}
+
+.board-sheet-kick.is-done {
+  color: var(--board-green);
+}
+
+/* The "i": a 48px plate in the head's corner, over today's round teach-info. */
+.board-sheet-info.teach-info {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  flex: none;
+  width: calc(var(--art) * 24);
+  height: calc(var(--art) * 24);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-size: var(--board-type-20);
+  text-transform: none;
+  color: var(--board-ink);
+}
+
+.board-sheet-how {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 5);
+  overflow: hidden;
+}
+
+.board-sheet-list {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 5);
+  padding: 0 0 calc(var(--art) * 2);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.board-sheet-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* A section legend: its name, and the column's name at the right. */
+/* Tight enough that a mid-game Buys with two rows of crew chips fits the drawer (#373). */
+.board-sec {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 0 calc(var(--art) * 3);
+  margin-bottom: calc(var(--art) * -3);
+}
+
+.board-sheet-foot {
+  flex: none;
+  margin: calc(var(--art) * 1) calc(var(--art) * 3);
+  font-size: var(--board-type-13);
+  line-height: var(--board-kick-lead);
+  color: var(--board-ink-2);
+}
+
+/* Buys' footnote stands over Back, out of the list's scroll (#373). */
+.board-sheet-footer > .board-sheet-foot {
+  margin: 0 calc(var(--art) * 3) calc(var(--art) * 4);
+}
+
+/* The Buys drawer's Crew section (#373): the crew's sentence, then where
+   the hands are, as chips on the tag skin laid out in the fewest even rows
+   (crew-panel.ts). Text only: the drawer's rows are the doors. */
+.board-sheet .crew {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--art) * 2);
+  padding: calc(var(--art) * 1) calc(var(--art) * 3) 0;
+  text-align: center;
+}
+
+.board-sheet .crew[hidden] {
+  display: none;
+}
+
+/* While a save loads again, the Crew section and its legend keep their boxes
+   but show nothing of the old save, so no row moves (#373). */
+.board-sheet .crew.is-blank,
+.board-sheet .board-sec.is-blank {
+  visibility: hidden;
+}
+
+/* The crew's full sentence, spoken but not drawn: the chips say it in short.
+   The screen-reader-only pattern: 1px and clipped, never zero-sized. */
+.crew-posts-words {
+  position: absolute;
+  width: var(--board-hair);
+  height: var(--board-hair);
+  margin: calc(var(--board-hair) * -1);
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.board-sheet .crew-status {
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--board-type-15);
+  line-height: var(--board-type-15);
+  font-weight: 700;
+  color: var(--board-ink);
+}
+
+.board-sheet .crew-status.crew-short {
+  color: var(--board-rust);
+}
+
+.board-sheet .crew-posts {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--art) * 1);
+  width: 100%;
+  margin: 0;
+}
+
+.board-sheet .crew-posts[hidden] {
+  display: none;
+}
+
+/* A row that still runs long wraps rather than clipping a chip (#371). */
+.crew-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(var(--art) * 2);
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* While the drawer is open its chip rows never wrap: a chip whose words grew
+   runs on past the line until the next open, and no row moves (#373). */
+.board-sheet .crew-posts.is-frozen .crew-row {
+  flex-wrap: nowrap;
+}
+
+.crew-bit,
+.crew-bit.board-skinned {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--art) * 10);
+  padding: 0 calc(var(--art) * 8);
+  font-size: var(--board-type-14);
+  line-height: calc(var(--art) * 10);
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--board-ink-plate);
+}
+
+.crew-bit-text {
+  position: relative;
+}
+
+/* What a short list leaves free: a recessed backplate with the maker's plate
+   (tall), the backplate and the strip (mid), the strip alone (short), or
+   nothing (off). */
+.board-spare {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  /* Its skin keeps the size it last painted at; clipped, a stale skin never
+     lengthens the list's scroll (#373). */
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Off, it takes no room: its negative margin gives the list's gap back (#373). */
+.board-spare.is-off {
+  visibility: hidden;
+  margin-top: calc(var(--art) * -5);
+}
+
+.board-spare-plate,
+.board-spare-strip {
+  position: relative;
+  display: none;
+  image-rendering: pixelated;
+}
+
+.board-spare-plate {
+  width: calc(var(--art) * 96);
+  height: calc(var(--art) * 48);
+}
+
+.board-spare-strip {
+  width: calc(var(--art) * 96);
+  height: calc(var(--art) * 20);
+}
+
+.board-spare.is-tall .board-spare-plate,
+.board-spare.is-mid .board-spare-strip,
+.board-spare.is-short .board-spare-strip {
+  display: block;
+}
+
+.board-spare.is-short > .board-skin {
+  display: none;
+}
+
+.board-sheet-footer {
+  position: relative;
+  flex: none;
+  padding-top: calc(var(--art) * 5);
+}
+
+/* Back is a full-width plate, 54px tall. */
+.board-sheet-back {
+  width: 100%;
+}
+
+/* The board above the drawers: a tap there closes them. */
+.board-scrim {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9;
+  display: none;
+  width: var(--board-w);
+  height: var(--sheet-top);
+  pointer-events: auto;
+}
+
+.board-scrim.is-on {
+  display: block;
+}
+
+/* The "i" cards in a drawer (#373): today's how card in board ink. Machines
+   and the worker show at 32 art px, the small icons at 16 in the same column,
+   and the way back is a plate button like Back. */
+.board-sheet .teach-how {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 3);
+  padding: 0 calc(var(--art) * 2);
+  color: var(--board-ink);
+}
+
+.board-sheet .teach-how-title {
+  margin: 0;
+  font-size: var(--board-type-20);
+  line-height: var(--board-sheet-title-lead);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--board-ink);
+}
+
+.board-sheet .teach-how-steps {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-sheet .teach-how-steps li {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 5);
+  font-size: var(--board-type-15);
+  line-height: var(--board-row-gain-lead);
+  color: var(--board-ink);
+}
+
+.board-sheet .teach-how-steps img {
+  flex: none;
+  object-fit: fill;
+  image-rendering: pixelated;
+}
+
+.board-sheet .teach-how-steps img[width="64"] {
+  width: calc(var(--art) * 32);
+  height: calc(var(--art) * 32);
+}
+
+.board-sheet .teach-how-steps img[width="32"] {
+  width: calc(var(--art) * 16);
+  height: calc(var(--art) * 16);
+  margin: 0 calc(var(--art) * 8);
+}
+
+.board-sheet .teach-how-back {
+  flex: none;
+  width: 100%;
+  margin-top: calc(var(--art) * 2);
+  font-size: var(--board-type-16);
+}
+
+/* Last, so a hidden part hides over its own display. */
+.board-sheet > [hidden],
+.board-sheet-list > [hidden],
+.board-sheet-how [hidden] {
+  display: none;
 }

@@ -81,13 +81,34 @@ export function promoteCost(mountain: Mountain): number {
   );
 }
 
+/** The first warm name no engineer has yet, or undefined when all are taken. */
+export function nextEngineerName(
+  engineers: readonly Engineer[],
+): EngineerName | undefined {
+  return ENGINEER_NAMES.find((name) =>
+    engineers.every((engineer) => engineer.name !== name),
+  );
+}
+
+/**
+ * A promotion would go through now: a name is free, a worker can step up,
+ * and the pocket covers the price. The rule `promote` applies, read only.
+ */
+export function canPromote(mountain: Mountain): boolean {
+  return (
+    nextEngineerName(mountain.engineers ?? []) !== undefined &&
+    mountain.helpers >= 1 &&
+    mountain.pocket >= promoteCost(mountain)
+  );
+}
+
 /**
  * Turns one worker into an engineer at camp. Same mountain when the crew is
  * full, no worker is free to step up, or the pocket can't cover the price.
  */
 export function promote(mountain: Mountain): Mountain {
   const engineers = mountain.engineers ?? [];
-  const name = nextName(engineers);
+  const name = nextEngineerName(engineers);
   if (
     name === undefined ||
     mountain.helpers < 1 ||
@@ -327,12 +348,6 @@ export function parseEngineers(
     parsed.push(engineer);
   }
   return parsed;
-}
-
-function nextName(engineers: readonly Engineer[]): EngineerName | undefined {
-  return ENGINEER_NAMES.find((name) =>
-    engineers.every((engineer) => engineer.name !== name),
-  );
 }
 
 function parseEngineer(value: unknown): Engineer | undefined {

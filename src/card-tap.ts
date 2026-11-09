@@ -3,7 +3,7 @@ const SLOP_PX = 10;
 /** The list that scrolls under a card, if this tap started in one. */
 function scroller(card: HTMLElement): HTMLElement | null {
   const found = card.closest(
-    ".sheet-scroll, .upgrades-scroll, .tier-grid, .workshop-recipes, .engineers-dialog",
+    ".workshop-recipes, .engineers-dialog, .board-sheet-list",
   );
   return found instanceof HTMLElement ? found : null;
 }
@@ -20,20 +20,25 @@ export interface CardPress {
 /**
  * `buy` runs for a tap or a key press. A finger that moves, or a list that
  * scrolls under the finger, does not buy. Pressed state covers `card`.
- * `settling` is asked when the finger goes down, never at the click, so a
- * press that started early stays early however long it is held.
+ * `settling` is asked when the finger goes down, so a press that started
+ * early stays early however long it is held, and again at a finger's click:
+ * a touch's click lands where the finger lifts, on a row that may have slid
+ * under it as the drawer rose and never saw the press (#373). A keyboard
+ * press (a click with no pointer, detail 0) is never early.
  */
 export function buyOnTap(
   card: HTMLElement,
   button: HTMLButtonElement,
   buy: (press: CardPress) => void,
-  { settling }: { settling?: () => boolean } = {},
+  { settling }: { settling?: (press: Event) => boolean } = {},
 ): void {
   let armed = false;
   let moved = false;
   let gesture = 0;
   let blocked = -1;
   let early = false;
+  /** The click this handler sends itself at a finger's pointerup. */
+  let fromPointerUp = false;
   let x = 0;
   let y = 0;
   let top = 0;
@@ -45,7 +50,7 @@ export function buyOnTap(
     gesture += 1;
     armed = true;
     moved = false;
-    early = settling?.() === true;
+    early = settling?.(event) === true;
     x = event.clientX;
     y = event.clientY;
     top = scroller(card)?.scrollTop ?? 0;
@@ -93,11 +98,17 @@ export function buyOnTap(
       return;
     }
     armed = false;
-    button.click();
+    fromPointerUp = true;
+    try {
+      button.click();
+    } finally {
+      fromPointerUp = false;
+    }
   });
-  button.addEventListener("click", () => {
-    // A press is early once: a key press after it has no finger, so is not.
-    const press = { early };
+  button.addEventListener("click", (event) => {
+    // A press is early once, and only a finger's click is: a key press has no finger.
+    const finger = event.detail !== 0 || fromPointerUp;
+    const press = { early: finger && (early || settling?.(event) === true) };
     early = false;
     if (blocked === gesture || button.disabled) {
       armed = false;

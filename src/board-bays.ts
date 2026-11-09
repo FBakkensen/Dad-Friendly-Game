@@ -3,6 +3,7 @@ import tarpUrl from "./assets/board/mach-borer-tarp.png";
 import borerUrl from "./assets/board/mach-borer.png";
 import cartUrl from "./assets/board/mach-cart.png";
 import machineUrl from "./assets/board/mach-machine.png";
+import { el, frameX, setAttr, write } from "./board-dom";
 import { skin } from "./board-skin";
 import { measurable, onFontsSettled } from "./fit-cache";
 import { reducedMotion } from "./float-text";
@@ -113,43 +114,6 @@ export function sharedPattern(
     }
   }
   return at(depth - 1);
-}
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className: string,
-): HTMLElementTagNameMap[K] {
-  const made = document.createElement(tag);
-  made.className = className;
-  return made;
-}
-
-/** Text that is written only when it changes. */
-function write(target: HTMLElement, text: string): void {
-  if (target.textContent !== text) {
-    target.textContent = text;
-  }
-}
-
-function setAttr(
-  target: HTMLElement,
-  name: string,
-  value: string | undefined,
-): void {
-  if (value === undefined) {
-    if (target.hasAttribute(name)) {
-      target.removeAttribute(name);
-    }
-  } else if (target.getAttribute(name) !== value) {
-    target.setAttribute(name, value);
-  }
-}
-
-function frameX(target: HTMLElement, n: number, framePx: number): void {
-  const next = `${String(-n * framePx)}px`;
-  if (target.style.backgroundPositionX !== next) {
-    target.style.backgroundPositionX = next;
-  }
 }
 
 type IconKey = "cart" | "drill" | "borer" | "tarp" | "machine";
@@ -276,7 +240,8 @@ export function createMachineBays({
   onFix,
   fits = defaultFits,
 }: {
-  onOpen: () => void;
+  /** A tap on a bay with no trouble: the bay is where Buys opened from. */
+  onOpen: (from: HTMLElement) => void;
   onPress: (tier: TroubleTier, bay: HTMLElement) => void;
   onFix: (tier: TroubleTier, bay: HTMLElement) => void;
   fits?: (el: HTMLElement) => boolean;
@@ -372,7 +337,7 @@ export function createMachineBays({
         onPress(view.tier, button);
         return;
       }
-      onOpen();
+      onOpen(button);
     });
     return bay;
   });

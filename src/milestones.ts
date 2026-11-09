@@ -17,7 +17,7 @@ type Milestone = {
 const MILESTONE_MULTIPLIER = 2;
 
 /** Shown once a mark is reached. */
-const REACHED_LINE = "Twice as fast now.";
+export const REACHED_LINE = "Twice as fast now.";
 
 export type MilestoneTable = Readonly<
   Partial<Record<TierId, readonly Milestone[]>>

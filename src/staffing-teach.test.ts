@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
 import { createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
 import { createProgressStore } from "./progress-store";
 import { buyWithTeach } from "./crew-panel";
 import { firstIdleTier } from "./rates";
-import { STAFFING_INTRO, staffingAction, staffingLine } from "./screen-words";
+import { formatCompact, formatCount } from "./format";
+import { STAFFING_INTRO, staffingLine } from "./screen-words";
 import { tierById, tierCost } from "./tiers";
 import { noteFor, showsDot } from "./teach";
 
@@ -61,7 +62,6 @@ function mount(now: () => number) {
     mountainUrl: tile,
     stoneUrl: tile,
     veinUrl: tile,
-    upgradesUrl: tile,
     tierArt: {
       helper: tile,
       cart: tile,
@@ -115,42 +115,64 @@ describe("staffing teach (#246)", () => {
     expect(staffingLine(1, 4)).toBe("Needs 1 worker each · 4 idle");
     expect(staffingLine(3, 2)).toBe("Needs 3 workers each · 2 idle");
     expect(staffingLine(3, 2)).not.toContain("free");
-    expect(staffingAction(150_400)).toBe("Hire a worker · 150.4K");
     expect(STAFFING_INTRO).not.toContain("?");
   });
 
-  it("the idle machine is the New card; its tap hires, never another machine", () => {
+  it("the idle machine is the New row; its tap hires, never another machine", () => {
     const clock = 1_700_000_000_000;
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => crew());
-    const buys = screen.root.querySelector<HTMLButtonElement>(".buys-button");
-    expect(buys?.querySelector(".teach-dot")).not.toBeNull();
-    expect(
-      screen.root.querySelector<HTMLElement>(".teach-note")?.hidden ?? true,
-    ).toBe(true);
-    buys?.click();
-    const dialog = screen.root.querySelector<HTMLElement>(".buys-dialog");
-    expect(dialog?.querySelector<HTMLElement>(".buys-intro")?.hidden).toBe(
-      false,
+    const buys = screen.root.querySelector<HTMLButtonElement>(
+      ".board-key[data-key=buys]",
     );
-    expect(dialog?.querySelector(".buys-intro")?.textContent).toBe(
+    expect(buys?.querySelector(".board-key-dot:not([hidden])")).not.toBeNull();
+    expect(
+      screen.root.querySelector<HTMLElement>(".board-sign-slot")?.hidden,
+    ).toBe(true);
+    const row = screen.root.querySelector<HTMLButtonElement>(
+      '.board-sheet[data-sheet="buys"] .board-row.tier[data-tier="cart"]',
+    );
+    // The row sits under the list's view as the drawer opens (#373).
+    const list = screen.root.querySelector<HTMLElement>(
+      '.board-sheet[data-sheet="buys"] .board-sheet-list',
+    );
+    const clip = screen.root.querySelector<HTMLElement>(".board-sheet-clip");
+    const box = (top: number, bottom: number) =>
+      ({ top, bottom, left: 0, right: 100 }) as DOMRect;
+    const scrolled = vi.fn();
+    if (row !== null && list !== null) {
+      row.scrollIntoView = scrolled;
+      vi.spyOn(list, "getBoundingClientRect").mockReturnValue(box(250, 788));
+      vi.spyOn(row, "getBoundingClientRect").mockReturnValue(box(800, 876));
+    }
+    buys?.click();
+    const drawer = screen.root.querySelector<HTMLElement>(
+      '.board-sheet[data-sheet="buys"].is-open',
+    );
+    expect(drawer?.querySelector(".board-sheet-kick")?.textContent).toBe(
       STAFFING_INTRO,
     );
-    const card = dialog?.querySelector<HTMLButtonElement>(
-      '.tier[data-tier="cart"]',
-    );
-    expect(card?.classList.contains("teach-new")).toBe(true);
-    expect(card?.querySelector(".teach-tag")?.textContent).toBe("New");
+    // The New row is brought into view as the drawer opens, by its list alone: the board's
+    // clip never scrolls (#373).
+    expect(list?.scrollTop).toBe(88);
+    expect(clip?.scrollTop).toBe(0);
+    expect(scrolled).not.toHaveBeenCalled();
+    expect(row?.classList.contains("teach-new")).toBe(true);
+    expect(row?.querySelector(".board-row-flag")?.textContent).toBe("New");
+    expect(row?.querySelector(".board-row-verb")?.textContent).toBe("Hire");
     const worker = tierById("helper");
-    expect(card?.querySelector(".teach-action")?.textContent).toBe(
-      staffingAction(tierCost(worker, 6)),
+    expect(row?.querySelector(".board-row-price")?.textContent).toBe(
+      formatCompact(tierCost(worker, 6)),
     );
-    expect(card?.querySelector(".tier-needs")?.textContent).toBe(
+    expect(row?.querySelector(".board-row-info")?.textContent).toBe(
       staffingLine(1, 4),
     );
-    // The free count is on the crew plate alone (#371): not on the card,
+    expect(row?.getAttribute("aria-label")).toBe(
+      `Mine cart: 4 idle: each needs 1 worker to run. Tap to hire a worker for ${formatCount(tierCost(worker, 6))} stones.`,
+    );
+    // The free count is on the crew plate alone (#371): not on the row,
     // not on a crew chip, and nothing is lit to point at it.
-    expect(card?.textContent).not.toContain("free");
+    expect(row?.textContent).not.toContain("free");
     expect(
       screen.root.querySelector(".board-gauge-row .board-crew-free")
         ?.textContent,
@@ -159,13 +181,16 @@ describe("staffing teach (#246)", () => {
       expect(chip.textContent).not.toContain("free");
     }
     expect(screen.root.querySelector(".teach-point")).toBeNull();
-    card?.click();
+    row?.click();
     const mountain = screen.progress.getSnapshot().mountain;
     expect(mountain.carts).toBe(10);
     expect(mountain.helpers).toBe(7);
     expect(mountain.taught).toContain("staffing");
-    expect(buys?.querySelector(".teach-dot")).toBeNull();
-    expect(card?.classList.contains("teach-new")).toBe(false);
+    expect(buys?.querySelector(".board-key-dot:not([hidden])")).toBeNull();
+    expect(row?.classList.contains("teach-new")).toBe(false);
+    // The hire holds Done: a second sleepy tap never buys the machine under it.
+    row?.click();
+    expect(screen.progress.getSnapshot().mountain.carts).toBe(10);
     expect(screen.root.querySelector(".teach-point")).toBeNull();
   });
 
@@ -174,7 +199,7 @@ describe("staffing teach (#246)", () => {
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => crew());
     screen.root
-      .querySelector<HTMLButtonElement>('.tier[data-tier="helper"]')
+      .querySelector<HTMLButtonElement>('.board-row.tier[data-tier="helper"]')
       ?.click();
     expect(screen.progress.getSnapshot().mountain.taught).toContain("staffing");
   });
@@ -182,11 +207,17 @@ describe("staffing teach (#246)", () => {
   it("opens How it works for staffing and layers", () => {
     const screen = mount(() => 1_700_000_000_000);
     screen.progress.applyMutation(() => crew());
-    screen.root.querySelector<HTMLButtonElement>(".buys-button")?.click();
     screen.root
-      .querySelector<HTMLButtonElement>(".buys-dialog .teach-info")
+      .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
       ?.click();
-    const how = screen.root.querySelector<HTMLElement>(".buys-how");
+    screen.root
+      .querySelector<HTMLButtonElement>(
+        '.board-sheet[data-sheet="buys"].is-open .teach-info',
+      )
+      ?.click();
+    const how = screen.root.querySelector<HTMLElement>(
+      '.board-sheet[data-sheet="buys"] .board-sheet-how',
+    );
     expect(how?.hidden).toBe(false);
     expect(
       [...(how?.querySelectorAll<HTMLElement>("[data-how]") ?? [])].map(

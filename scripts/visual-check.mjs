@@ -1,4 +1,4 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement, HTMLImageElement, Image */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement, HTMLElement, Element, HTMLImageElement, Image, requestAnimationFrame, MutationObserver */
 /**
  * Real-browser layout guard (jsdom can't see CSS). Run it with:
  *   npm run visual   (starts its own dev server; part of npm run check)
@@ -25,10 +25,17 @@ import {
   fleetMountain,
   freshMountain,
   heartMountain,
+  fullGraniteMountain,
+  heirMountain,
+  idleMountain,
   lastStoneSave,
+  machineMountain,
+  machinePickMountain,
   openMountain,
   savingMountain,
   seedJson,
+  shortMountain,
+  toolsMountain,
   workshopSave,
 } from "./fixtures.mjs";
 
@@ -116,6 +123,252 @@ async function press(page, selector) {
   } else {
     await page.tap(selector);
   }
+}
+
+/** A key on the rail (#373): buys, workshop, engineers, upgrades or ledger. */
+const KEY = (id) => `.board-key[data-key="${id}"]`;
+/** A drawer (#373): buys or upgrades. */
+const SHEET = (name) => `.board-sheet[data-sheet="${name}"]`;
+/** A drawer that is open. */
+const OPEN_SHEET = (name) => `${SHEET(name)}.is-open`;
+/** A drawer's Back plate. */
+const SHEET_BACK = (name) => `${SHEET(name)} .board-sheet-back`;
+
+/**
+ * The drawer has slid all the way up: open, its slide done, its top at the
+ * board's --sheet-top (178 board px), and its skin painted.
+ */
+async function sheetSettled(page, name) {
+  return page
+    .waitForFunction(
+      (selector) => {
+        const sheet = document.querySelector(selector);
+        if (sheet === null || !sheet.classList.contains("is-open")) {
+          return false;
+        }
+        const board = globalThis.__board();
+        const top =
+          (sheet.getBoundingClientRect().top - board.top) / board.scale;
+        return (
+          sheet.getAnimations().length === 0 &&
+          Math.abs(top - 178) <= 0.5 &&
+          [...sheet.querySelectorAll(":scope > canvas.board-skin")].every(
+            (canvas) => canvas.style.width !== "",
+          )
+        );
+      },
+      { timeout: 5_000 },
+      SHEET(name),
+    )
+    .then(
+      () => true,
+      () => false,
+    );
+}
+
+/** Opens a drawer by its key, the way a dad does, and waits for the slide. */
+async function openSheet(page, name) {
+  await page.waitForSelector(`${KEY(name)}:not(:disabled)`, { visible: true });
+  await press(page, KEY(name));
+  return sheetSettled(page, name);
+}
+
+/**
+ * Shuts a drawer by its Back plate. A keyboard press (a click with no
+ * pointer) is never early, so the drawer's settle does not swallow it.
+ */
+async function closeSheet(page, name) {
+  await page.$eval(SHEET_BACK(name), (button) => {
+    button.click();
+  });
+  await page
+    .waitForSelector(`${SHEET(name)}:not(.is-open)`, { timeout: 2_000 })
+    .catch(() => undefined);
+}
+
+/** The drawer's own module, as the dev server serves it: the spare's tiers. */
+const DRAWER_UI = "/src/board-drawer.ts";
+
+/**
+ * An open drawer measured in board px (#373): its box, what it leaves in view,
+ * its list and spare plate, and each shown row with its parts. A row's name,
+ * info, need, why, flag, gain, tag and verb must lie inside it and apart.
+ */
+async function drawerFacts(page, name) {
+  return page.evaluate(
+    async (selector, ui) => {
+      const { spareTier } = await import(ui);
+      const board = globalThis.__board();
+      const sheet = document.querySelector(selector);
+      if (sheet === null) {
+        return { ok: false, missing: selector };
+      }
+      const px = (rect) => ({
+        l: (rect.left - board.left) / board.scale,
+        t: (rect.top - board.top) / board.scale,
+        r: (rect.right - board.left) / board.scale,
+        b: (rect.bottom - board.top) / board.scale,
+      });
+      const near = (a, b) => Math.abs(a - b) <= 0.5;
+      const box = px(sheet.getBoundingClientRect());
+      const placed =
+        near(box.t, 178) &&
+        near(box.b, 864) &&
+        near(box.l, 8) &&
+        near(box.r, 416);
+      // What a finger meets at the centre of the odometer and the save line.
+      const sheetBox = sheet.getBoundingClientRect();
+      const reach = (part, clear) => {
+        const el = document.querySelector(part);
+        if (el === null) {
+          return false;
+        }
+        const b = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          (b.left + b.right) / 2,
+          (b.top + b.bottom) / 2,
+        );
+        // The scrim over the board is clear: it shows what is under it.
+        return (
+          hit !== null &&
+          (el.contains(hit) || hit.classList.contains("board-scrim")) &&
+          clear(b)
+        );
+      };
+      const odometerClear = reach(
+        ".board-odo",
+        (b) => b.bottom <= sheetBox.top + 0.5,
+      );
+      const saveLineClear = reach(
+        ".board-saveline",
+        (b) => b.top >= sheetBox.bottom - 0.5,
+      );
+      const list = sheet.querySelector(".board-sheet-list");
+      const spare = sheet.querySelector(".board-spare");
+      const scrolls =
+        list !== null && list.scrollHeight > list.clientHeight + 1;
+      const spareClass =
+        spare === null
+          ? ""
+          : ([...spare.classList].find((cls) =>
+              ["is-tall", "is-mid", "is-short", "is-off"].includes(cls),
+            ) ?? "");
+      // Off, the plate gives the list's gap back, so it is measured without that room, as
+      // the drawer measures it.
+      const freed =
+        spare !== null && list !== null && spare.classList.contains("is-off")
+          ? Number.parseFloat(getComputedStyle(list).rowGap) || 0
+          : 0;
+      const spareWant =
+        spare === null ? "" : `is-${spareTier(spare.offsetHeight - freed)}`;
+      const shown = (el) =>
+        el.closest("[hidden]") === null && el.getClientRects().length > 0;
+      const rows = [...sheet.querySelectorAll(".board-row")].filter(shown);
+      const listBox = list?.getBoundingClientRect();
+      const PARTS = [
+        ".board-row-name",
+        ".board-row-info",
+        ".board-row-need",
+        ".board-row-why",
+        ".board-row-flag",
+        ".board-row-gain",
+        ".board-row-tag",
+        ".board-row-verb",
+      ];
+      const rowFacts = rows.map((row) => {
+        const r = px(row.getBoundingClientRect());
+        const parts = PARTS.flatMap((part) =>
+          [...row.querySelectorAll(part)]
+            .filter((el) => shown(el) && (el.textContent ?? "").trim() !== "")
+            .map((el) => ({ part, el, b: px(el.getBoundingClientRect()) })),
+        );
+        const inside = parts.every(
+          ({ b }) =>
+            b.l >= r.l - 0.5 &&
+            b.r <= r.r + 0.5 &&
+            b.t >= r.t - 0.5 &&
+            b.b <= r.b + 0.5,
+        );
+        // The name keeps its whole width on its line: one too long runs past
+        // the words' column, which clips it.
+        const mid = row.querySelector(".board-row-mid");
+        const nameEl = row.querySelector(".board-row-name");
+        const nameFull =
+          mid === null ||
+          nameEl === null ||
+          nameEl.getBoundingClientRect().right <=
+            mid.getBoundingClientRect().right + 0.5;
+        // A line that runs past its box is cut by an ellipsis inside it.
+        const spills = parts
+          .filter(({ el }) => el.scrollWidth > el.clientWidth + 1)
+          .filter(({ el }) => getComputedStyle(el).textOverflow !== "ellipsis")
+          .map(({ part }) => part);
+        const overlaps = [];
+        for (let i = 0; i < parts.length; i += 1) {
+          for (let j = i + 1; j < parts.length; j += 1) {
+            const a = parts[i].b;
+            const b = parts[j].b;
+            const w = Math.min(a.r, b.r) - Math.max(a.l, b.l);
+            const h = Math.min(a.b, b.b) - Math.max(a.t, b.t);
+            if (w > 0.5 && h > 0.5) {
+              overlaps.push(`${parts[i].part}/${parts[j].part}`);
+            }
+          }
+        }
+        return {
+          id:
+            row.dataset.tier ??
+            row.dataset.boost ??
+            row.dataset.upgrade ??
+            row.dataset.tool ??
+            "",
+          classes: [...row.classList].filter((cls) => cls.startsWith("is-")),
+          top: r.t,
+          bottom: r.b,
+          height: r.b - r.t,
+          width: r.r - r.l,
+          words: parts.map(({ el }) => (el.textContent ?? "").trim()),
+          inside: inside && nameFull,
+          nameFull,
+          spills,
+          overlaps,
+          inView:
+            listBox !== undefined &&
+            row.getBoundingClientRect().top >= listBox.top - 0.5 &&
+            row.getBoundingClientRect().bottom <= listBox.bottom + 0.5,
+        };
+      });
+      // Rows next to each other in the list stand 10 board px apart.
+      const gaps = [];
+      for (let i = 1; i < rows.length; i += 1) {
+        let between = rows[i].previousElementSibling;
+        while (between !== null && !shown(between)) {
+          between = between.previousElementSibling;
+        }
+        if (between === rows[i - 1]) {
+          gaps.push(
+            Math.round((rowFacts[i].top - rowFacts[i - 1].bottom) * 10) / 10,
+          );
+        }
+      }
+      return {
+        ok: true,
+        box: [box.l, box.t, box.r, box.b].map(
+          (side) => Math.round(side * 10) / 10,
+        ),
+        placed,
+        odometerClear,
+        saveLineClear,
+        scrolls,
+        spareClass,
+        spareWant,
+        rows: rowFacts,
+        gaps,
+      };
+    },
+    OPEN_SHEET(name),
+    DRAWER_UI,
+  );
 }
 
 /** The note's key on the board: a socket's note ends in "Relic shelf" (#370). */
@@ -321,7 +574,7 @@ async function noScroll(page) {
  * sit on screen, and the page itself does not scroll.
  */
 async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
-  await press(page, ".engineers-button");
+  await press(page, KEY("engineers"));
   const covered = await coversBoard(page, ".engineers-dialog");
   const detail = await page.$eval(
     ".engineers-dialog",
@@ -493,15 +746,42 @@ for (const viewport of SCREENS) {
     // A dig's "+N" rises inside the window; the page stays still (#371).
     await press(page, ".board-window");
     check(await noScroll(page), `${size} no scroll with a dig's +N rising`);
-    const tiersVisible = await page.evaluate(() =>
-      [...document.querySelectorAll(".tier")]
-        .filter((tier) => !tier.hidden)
-        .every(
-          (tier) =>
-            tier.getBoundingClientRect().bottom <= globalThis.__board().bottom,
-        ),
-    );
-    check(tiersVisible, `${size} every tier card is above the fold`);
+    // The tier rows live in the Buys drawer (#373): each one, brought into its
+    // list's view, sits wholly above the save line and below the drawer's top.
+    const buysUp = await openSheet(page, "buys");
+    const tiersVisible = await page.$eval(OPEN_SHEET("buys"), (sheet) => {
+      const board = globalThis.__board();
+      const list = sheet.querySelector(".board-sheet-list");
+      const rows = [...sheet.querySelectorAll(".tier")].filter(
+        (tier) => tier.closest("[hidden]") === null,
+      );
+      const ok =
+        list !== null &&
+        rows.length >= 4 &&
+        rows.every((tier) => {
+          // Scroll the list alone, never the clip or the page.
+          const port = list.getBoundingClientRect();
+          const at = tier.getBoundingClientRect();
+          if (at.bottom > port.bottom) {
+            list.scrollTop += at.bottom - port.bottom;
+          } else if (at.top < port.top) {
+            list.scrollTop -= port.top - at.top;
+          }
+          const box = tier.getBoundingClientRect();
+          return (
+            box.top >= port.top - 0.5 &&
+            box.bottom <= port.bottom + 0.5 &&
+            box.bottom <= board.saveTop &&
+            box.bottom <= board.bottom
+          );
+        });
+      if (list !== null) {
+        list.scrollTop = 0;
+      }
+      return ok;
+    });
+    check(buysUp && tiersVisible, `${size} every tier row is above the fold`);
+    await closeSheet(page, "buys");
 
     // The vein lives inside the window's view and on top of it, at every
     // corner of its range (#371).
@@ -521,7 +801,7 @@ for (const viewport of SCREENS) {
       `${size} relic shelf is laid over the game`,
     );
     await press(page, ".shelf-close");
-    await press(page, ".menu-button");
+    await press(page, KEY("ledger"));
     check(
       await coversBoard(page, ".game-menu"),
       `${size} menu is laid over the game`,
@@ -553,17 +833,28 @@ for (const viewport of SCREENS) {
       `${size} start-over confirm is laid over the game`,
     );
     await press(page, ".start-over-cancel");
-    await press(page, ".upgrades-button");
+    // Upgrades is a drawer now (#373): it slides up under the odometer to the
+    // save line, and the save line stays on top of the board.
+    const upgradesUp = await openSheet(page, "upgrades");
+    const upgradesBox = await drawerFacts(page, "upgrades");
     check(
-      await coversBoard(page, ".upgrades-dialog"),
-      `${size} upgrades sheet is laid over the game`,
+      upgradesUp &&
+        upgradesBox.placed &&
+        upgradesBox.odometerClear &&
+        upgradesBox.saveLineClear,
+      `${size} upgrades drawer is laid over the board, under the odometer and over the save line`,
     );
-    // Every buy button and the way back can be reached, scrolling if it must.
-    const sheetReachable = await page.$eval(".upgrades-dialog", (sheet) => {
+    if (!upgradesBox.placed || !upgradesBox.saveLineClear) {
+      console.log("upgrades drawer", size, JSON.stringify(upgradesBox));
+    }
+    // Every row, the "i" and the way back can be reached, scrolling if it must.
+    const sheetReachable = await page.$eval(OPEN_SHEET("upgrades"), (sheet) => {
       const board = globalThis.__board();
       // Rows not yet nearly affordable are hidden (#245); check what shows.
       const buttons = [...sheet.querySelectorAll("button")].filter(
-        (button) => button.getClientRects().length > 0,
+        (button) =>
+          button.closest("[hidden]") === null &&
+          button.getClientRects().length > 0,
       );
       const wide = buttons.every((button) => {
         const box = button.getBoundingClientRect();
@@ -573,14 +864,21 @@ for (const viewport of SCREENS) {
           box.right <= board.right
         );
       });
-      sheet.scrollTop = 0;
+      const list = sheet.querySelector(".board-sheet-list");
+      if (list !== null) {
+        list.scrollTop = 0;
+      }
       const titleTop =
         sheet.querySelector("h2")?.getBoundingClientRect().top ?? -1;
-      sheet.scrollTop = sheet.scrollHeight;
+      if (list !== null) {
+        list.scrollTop = list.scrollHeight;
+      }
       const closeBottom =
-        sheet.querySelector(".upgrades-close")?.getBoundingClientRect()
+        sheet.querySelector(".board-sheet-back")?.getBoundingClientRect()
           .bottom ?? Infinity;
-      sheet.scrollTop = 0;
+      if (list !== null) {
+        list.scrollTop = 0;
+      }
       return (
         buttons.length >= 2 &&
         wide &&
@@ -588,49 +886,45 @@ for (const viewport of SCREENS) {
         closeBottom <= board.saveTop
       );
     });
-    check(sheetReachable, `${size} upgrades sheet buttons are tappable`);
-    const sheetFit = await page.$eval(".upgrades-dialog", (sheet) => {
-      const card = sheet.querySelector(".upgrades-card");
-      const style = card === null ? null : getComputedStyle(card);
-      const background = style?.backgroundColor ?? "";
+    check(sheetReachable, `${size} upgrades drawer buttons are tappable`);
+    const sheetFit = await page.$eval(OPEN_SHEET("upgrades"), (sheet) => {
+      const shown = (el) =>
+        el.closest("[hidden]") === null && el.getClientRects().length > 0;
+      // The drawer is the board's riveted frame: its skin is painted, edge to
+      // edge, so nothing of the board shows through (#373).
+      const skinOf = sheet.querySelector(":scope > canvas.board-skin");
+      const box = sheet.getBoundingClientRect();
+      const skinBox = skinOf?.getBoundingClientRect();
       const opaque =
-        style !== null &&
-        background !== "transparent" &&
-        background !== "rgba(0, 0, 0, 0)" &&
-        style.backgroundImage === "none";
-      const border =
-        style !== null &&
-        Number.parseFloat(style.borderTopWidth) >= 1 &&
-        style.borderTopStyle !== "none";
-      const shadow = style !== null && style.boxShadow !== "none";
+        skinOf !== null &&
+        skinOf.width > 0 &&
+        skinBox !== undefined &&
+        Math.abs(skinBox.width - box.width) <= 1 &&
+        Math.abs(skinBox.height - box.height) <= 1;
+      const list = sheet.querySelector(".board-sheet-list");
       const text = [
         ...sheet.querySelectorAll(
-          ".upgrade-name, .upgrade-effect, .upgrade-buy",
+          ".board-row-name, .board-row-info, .board-row-price, .board-row-verb",
         ),
-      ];
+      ].filter((node) => shown(node) && (node.textContent ?? "") !== "");
+      // The board's bar: 13px or more (#370).
       const typeOk = text.every(
-        (node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 14.4,
+        (node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 13,
       );
-      const lastingBuys = [
-        // The New card's one big button runs full width under its lines.
-        ...sheet.querySelectorAll(
-          ".upgrade:not(.boost):not([hidden]) .upgrade-buy:not(.teach-action)",
-        ),
+      const lasting = [
+        ...sheet.querySelectorAll(".upgrade:not(.boost):not([hidden])"),
       ];
-      const cardRight = card?.getBoundingClientRect().right ?? 0;
-      const priceRight = lastingBuys.every((button) => {
-        const name = button.closest(".upgrade")?.querySelector(".upgrade-name");
-        if (name === null || name === undefined) {
+      const priceRight = lasting.every((row) => {
+        const name = row.querySelector(".board-row-name");
+        const tag = row.querySelector(".board-row-tag");
+        if (name === null || tag === null) {
           return false;
         }
-        const price = button.getBoundingClientRect();
+        const price = tag.getBoundingClientRect();
         const label = name.getBoundingClientRect();
-        // The price sits at the right of its own row card (#250 shows lasting
-        // rows here; before, the sheet held only the New card and boosts).
-        const rowRight =
-          button.closest(".upgrade")?.getBoundingClientRect().right ??
-          cardRight;
+        const rowRight = row.getBoundingClientRect().right;
         const scale = globalThis.__board().scale;
+        // The price tag sits at the right of its own row, past the name.
         return (
           price.left + 1 >= label.right - 1 &&
           rowRight - price.right <= 16 * scale &&
@@ -642,10 +936,9 @@ for (const viewport of SCREENS) {
         range.selectNodeContents(node);
         return range.getClientRects().length;
       };
-      const buyLinesOk = [...sheet.querySelectorAll(".upgrade-buy")].every(
-        (button) =>
-          !button.textContent.startsWith("Buy") || lineCount(button) <= 1,
-      );
+      const buyLinesOk = [...sheet.querySelectorAll(".board-row-verb")]
+        .filter(shown)
+        .every((verb) => lineCount(verb) <= 1);
       const boosts = [...sheet.querySelectorAll(".upgrade.boost")].filter(
         (row) => !row.hidden,
       );
@@ -654,40 +947,45 @@ for (const viewport of SCREENS) {
         boosts[1].getBoundingClientRect().top >=
           boosts[0].getBoundingClientRect().bottom - 1;
       const effectsOk = [
-        ...sheet.querySelectorAll(".upgrade:not([hidden]) .upgrade-effect"),
-      ].every((node) => lineCount(node) <= 2);
+        ...sheet.querySelectorAll(".upgrade:not([hidden]) .board-row-info"),
+      ]
+        .filter(shown)
+        .every((node) => lineCount(node) <= 2);
+      // A full Upgrades runs longer than the drawer and scrolls inside it,
+      // its spare plate off (C1); a shorter one fits.
+      const spare = sheet.querySelector(".board-spare");
+      const scrolls =
+        list !== null && list.scrollHeight > list.clientHeight + 1;
       return {
-        fits: sheet.scrollHeight <= sheet.clientHeight + 1,
-        scroll: sheet.scrollHeight,
-        client: sheet.clientHeight,
+        fits:
+          list !== null &&
+          (!scrolls ||
+            (spare?.classList.contains("is-off") === true &&
+              lasting.length + boosts.length >= 6)),
+        scroll: list?.scrollHeight,
+        client: list?.clientHeight,
         opaque,
-        border,
-        shadow,
         typeOk,
+        lasting: lasting.length,
         priceRight,
         buyLinesOk,
         stacked,
         effectsOk,
-        background,
       };
     });
     check(
       sheetFit.fits &&
         sheetFit.opaque &&
-        sheetFit.border &&
-        sheetFit.shadow &&
         sheetFit.typeOk &&
         sheetFit.priceRight &&
         sheetFit.buyLinesOk &&
         sheetFit.stacked &&
         sheetFit.effectsOk,
-      `${size} upgrades sheet fits, with an opaque card`,
+      `${size} upgrades drawer fits, on its painted frame`,
     );
     if (
       !sheetFit.fits ||
       !sheetFit.opaque ||
-      !sheetFit.border ||
-      !sheetFit.shadow ||
       !sheetFit.typeOk ||
       !sheetFit.priceRight ||
       !sheetFit.buyLinesOk ||
@@ -696,20 +994,21 @@ for (const viewport of SCREENS) {
     ) {
       console.log(`upgrades detail ${size} ${JSON.stringify(sheetFit)}`);
     }
-    await press(page, ".upgrades-close");
-    const engineersFat = await page.$eval(".engineers-button", (button) => {
+    await closeSheet(page, "upgrades");
+    const engineersFat = await page.$eval(KEY("engineers"), (button) => {
       const board = globalThis.__board();
       const box = button.getBoundingClientRect();
       return (
         !button.hidden &&
-        button.getAttribute("aria-label") === "Engineers" &&
+        !button.disabled &&
+        /^Engineers\b/.test(button.getAttribute("aria-label") ?? "") &&
         box.height / board.scale >= 44 &&
         box.width / board.scale >= 44 &&
         box.left >= board.left &&
         box.right <= board.right
       );
     });
-    check(engineersFat, `${size} engineers button is tappable`);
+    check(engineersFat, `${size} engineers key is tappable`);
     check(
       await engineersSheetFits(page),
       `${size} engineers sheet fits with no scroll`,
@@ -818,21 +1117,52 @@ for (const viewport of [PHONE]) {
           content: `* { font-family: "${font}" !important; }`,
         });
       }
-      await page.evaluate(() => {
-        const openBuys = document.querySelector(".buys-button");
-        if (openBuys instanceof HTMLButtonElement) {
-          openBuys.click();
-        }
-      });
+      await openSheet(page, "buys");
       const cards = await page.evaluate(() =>
         [...document.querySelectorAll(".tier")]
           .filter((card) => !card.hidden)
           .map((card) => ({
             height: Math.round(card.getBoundingClientRect().height),
+            // The name, the price and the gain show in full. The name keeps
+            // its whole width on its line, so a name too long for the row
+            // runs past the words' column, which clips it: its right edge is
+            // read against that column's. The info line falls back through
+            // its options and may end in its ellipsis, inside the row (#373,
+            // the plan's Review Focus 5).
             clipped: [
-              ...card.querySelectorAll(".tier-name, .tier-cost, .tier-rate"),
+              ...card.querySelectorAll(
+                ".board-row-name, .board-row-price, .board-row-info, .board-row-gain",
+              ),
             ]
-              .filter((line) => line.scrollWidth > line.clientWidth + 1)
+              .filter((line) => {
+                if (line.closest("[hidden]") !== null) {
+                  return false;
+                }
+                if (line.classList.contains("board-row-name")) {
+                  const mid = line.closest(".board-row-mid");
+                  return (
+                    mid === null ||
+                    line.getBoundingClientRect().right >
+                      mid.getBoundingClientRect().right + 0.5
+                  );
+                }
+                if (line.classList.contains("board-row-gain")) {
+                  return (
+                    line.scrollWidth > line.clientWidth + 1 ||
+                    line.getBoundingClientRect().right >
+                      card.getBoundingClientRect().right + 0.5
+                  );
+                }
+                return (
+                  line.scrollWidth > line.clientWidth + 1 &&
+                  !(
+                    line.classList.contains("board-row-info") &&
+                    getComputedStyle(line).textOverflow === "ellipsis" &&
+                    line.getBoundingClientRect().right <=
+                      card.getBoundingClientRect().right
+                  )
+                );
+              })
               .map((line) => line.textContent),
           })),
       );
@@ -844,7 +1174,7 @@ for (const viewport of [PHONE]) {
       const clipped = cards.flatMap((card) => card.clipped);
       check(
         clipped.length === 0,
-        `${label} show every line in full ${clipped.join(" | ")}`,
+        `${label} show every name, price and gain in full, and each info line whole or cut by its ellipsis ${clipped.join(" | ")}`,
       );
       check(await noScroll(page), `${label} have no scroll`);
       // The pocket is the odometer now (#370): five drums in their housing.
@@ -869,7 +1199,7 @@ for (const viewport of [PHONE]) {
       // The crew line lives in the Crew section at the top of Buys (#371).
       const crewLineFits = await page.evaluate(() => {
         const line = document.querySelector(
-          ".buys-dialog:not([hidden]) .buys-card .crew .crew-status",
+          '.board-sheet[data-sheet="buys"].is-open .crew .crew-status',
         );
         if (line === null) return false;
         const box = line.getBoundingClientRect();
@@ -889,9 +1219,7 @@ for (const viewport of [PHONE]) {
         crew.machines === 999 &&
         crew.upgrades === undefined
       ) {
-        await page.evaluate(() => {
-          document.querySelector(".buys-close")?.click();
-        });
+        await closeSheet(page, "buys");
         check(
           await engineersSheetFits(page),
           `${label} engineers sheet fits with no scroll`,
@@ -1034,22 +1362,29 @@ section("section 5 (line 856)", async () => {
 
 // Found tools on the Upgrades sheet, and keepsakes on a relic's detail (#148).
 async function foundSheetsFit(page, { top = 0, bottom = 0 } = {}) {
-  await page.tap(".upgrades-button");
+  await openSheet(page, "upgrades");
   const tools = await page.$eval(
-    ".upgrades-dialog",
+    OPEN_SHEET("upgrades"),
     (sheet, insets) => {
       const rows = [...sheet.querySelectorAll(".found-tool")].filter(
-        (row) => !row.hidden,
+        (row) => row.closest("[hidden]") === null,
       );
       const text = rows.map((row) => row.textContent ?? "").join(" ");
-      sheet.scrollTop = 0;
+      const list = sheet.querySelector(".board-sheet-list");
+      if (list !== null) {
+        list.scrollTop = 0;
+      }
       const titleTop =
         sheet.querySelector("h2")?.getBoundingClientRect().top ?? -1;
-      sheet.scrollTop = sheet.scrollHeight;
+      if (list !== null) {
+        list.scrollTop = list.scrollHeight;
+      }
       const close = sheet
-        .querySelector(".upgrades-close")
+        .querySelector(".board-sheet-back")
         ?.getBoundingClientRect();
-      sheet.scrollTop = 0;
+      if (list !== null) {
+        list.scrollTop = 0;
+      }
       return {
         count: rows.length,
         found: text.includes("Found") && text.includes("Grandfather's pick"),
@@ -1064,7 +1399,7 @@ async function foundSheetsFit(page, { top = 0, bottom = 0 } = {}) {
     { top, bottom },
   );
   const toolsStill = await noScroll(page);
-  await page.tap(".upgrades-close");
+  await closeSheet(page, "upgrades");
   await openShelf(page);
   await page.evaluate(() => {
     document.querySelectorAll(".shelf-list li")[2]?.scrollIntoView();
@@ -1326,13 +1661,13 @@ for (const standalone of [false, true]) {
       { version: 4, mountain: CREW, lastSeen: Date.now() },
       { standalone, search: "?trouble=cave-in" },
     );
-    await page.click(".buys-button");
+    await openSheet(page, "buys");
     const card = await page
       .$eval('.tier[data-tier="cart"]', (el) => {
         const box = el.getBoundingClientRect();
         return {
           kind: el.dataset.trouble ?? "",
-          rate: el.querySelector(".tier-rate")?.textContent ?? "",
+          rate: el.querySelector(".board-row-info")?.textContent ?? "",
           label: el.getAttribute("aria-label") ?? "",
           height: box.height,
           width: box.width,
@@ -1342,7 +1677,11 @@ for (const standalone of [false, true]) {
       })
       .catch(() => undefined);
     check(card?.kind === "cave-in", `${label} trouble card is a cave-in`);
-    check(card?.rate === "Cave-in!", `${label} trouble card says Cave-in!`);
+    // The shout leads the row's info line: "Cave-in! · Hold to fix" (#373).
+    check(
+      card?.rate.split(" · ")[0] === "Cave-in!",
+      `${label} trouble card says Cave-in!`,
+    );
     check(
       card !== undefined &&
         !/\d|\?/.test(card.label) &&
@@ -1444,7 +1783,7 @@ for (const standalone of [false, true]) {
       `${label} expedition chip sits in the Running now note (${chip.text})`,
     );
     check(await noScroll(page), `${label} expedition chip has no scroll`);
-    await page.tap(".engineers-button");
+    await page.tap(KEY("engineers"));
     const sheet = await page.$eval(
       ".engineers-dialog",
       (dialog, pad) => {
@@ -1549,7 +1888,7 @@ for (const viewport of [PHONE]) {
         { standalone },
       );
       const insets = standalone ? STANDALONE_INSETS : { top: 0, bottom: 0 };
-      await page.tap(".engineers-button");
+      await page.tap(KEY("engineers"));
       const crew = await page.$eval(
         ".engineers-dialog",
         (dialog, pad) => {
@@ -1725,7 +2064,7 @@ for (const viewport of WORKSHOP_SIZES) {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     const now = Date.now();
     const { page, close } = await open(viewport, workshopSave(now, true));
-    await press(page, ".menu-button");
+    await press(page, KEY("ledger"));
     await press(page, ".workshop-open");
     const laid = await coversBoard(page, ".workshop-dialog");
     const fit = await page.$eval(".workshop-dialog", (sheet) => {
@@ -1917,7 +2256,7 @@ section("section 15 (line 1703)", async () => {
         recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
       },
     });
-    await page.tap(".menu-button");
+    await page.tap(KEY("ledger"));
     const locked = await page.$eval(".workshop-locked", (row) => ({
       text: row.textContent ?? "",
       hidden: row.hidden,
@@ -2184,7 +2523,16 @@ for (const viewport of NOTICE_SIZES) {
         ".material-line",
         (row) => row.textContent ?? "",
       );
-      const fit = await fitOf(page, "#app", ".material-bit, .menu-button");
+      // The material line is in the ledger, which the Ledger key opens until
+      // B7 (#373): its chips are read where he sees them, in the open menu.
+      await press(page, KEY("ledger"));
+      await page
+        .waitForSelector(".game-menu:not([hidden]) .material-bit", {
+          visible: true,
+          timeout: 3_000,
+        })
+        .catch(() => undefined);
+      const fit = await fitOf(page, ".game-menu", ".material-bit");
       const still = await noScroll(page);
       const chipsOk = ["Clay", "Iron", "Crystal", "Heartstone"].every((name) =>
         line.includes(name),
@@ -2218,77 +2566,111 @@ for (const viewport of NOTICE_SIZES) {
           },
         }),
       );
-      const rates = await page.$$eval(".tier-rate", (nodes) =>
-        nodes.map((node) => node.textContent ?? ""),
+      // Each tier's gain and lines are its row in the Buys drawer (#373).
+      await openSheet(page, "buys");
+      const rows = await page.$$eval(".tier", (nodes) =>
+        nodes.map((node) => ({
+          tier: node.dataset.tier ?? "",
+          locked: node.classList.contains("is-locked"),
+          gain: node.querySelector(".board-row-gain")?.textContent ?? "",
+          info: node.querySelector(".board-row-info")?.textContent ?? "",
+          label: node.getAttribute("aria-label") ?? "",
+        })),
       );
-      const cart = rates.find((line) => line.includes("99/s"));
-      // Before the Granite (10M) the borer is a locked preview that names its depth (#250, #356).
-      const borer = rates.find((line) => line.startsWith("Borer"));
-      await page.click(".buys-button");
-      const inside = await page.$$eval(".tier-rate", (nodes) =>
-        nodes.every((node) => {
-          const card = node.closest(".tier");
-          if (card === null || card.hidden) {
-            return true;
-          }
-          const rate = node.getBoundingClientRect();
-          const box = card.getBoundingClientRect();
-          if (getComputedStyle(node).display === "none") {
-            return true;
-          }
-          return (
-            rate.height > 0 &&
-            rate.bottom <= box.bottom + 1 &&
-            rate.right <= box.right + 1
-          );
-        }),
+      const cartRow = rows.find((row) => row.tier === "cart");
+      const cart = cartRow?.gain;
+      // Before the Granite (10M) the borer is a locked preview that names its
+      // depth (#250, #356): "Borer · 10M", or the longer line that says it.
+      const borerRow = rows.find((row) => row.tier === "borer");
+      const borer =
+        borerRow?.locked === true && /\b10M\b/.test(borerRow.info)
+          ? borerRow.info
+          : undefined;
+      const inside = await page.$$eval(
+        ".tier .board-row-info, .tier .board-row-gain",
+        (nodes) =>
+          nodes.every((node) => {
+            const card = node.closest(".tier");
+            if (card === null || card.closest("[hidden]") !== null) {
+              return true;
+            }
+            if (node.hidden || getComputedStyle(node).display === "none") {
+              return true;
+            }
+            const rate = node.getBoundingClientRect();
+            const box = card.getBoundingClientRect();
+            return (
+              rate.height > 0 &&
+              rate.bottom <= box.bottom + 1 &&
+              rate.right <= box.right + 1
+            );
+          }),
       );
       const still = await noScroll(page);
-      check(
+      const gainsOk =
         still &&
-          inside &&
-          cart !== undefined &&
-          cart.startsWith("+") &&
-          cart.includes("·") &&
-          !cart.startsWith("\u2191") &&
-          borer !== undefined &&
-          borer === "Borer · 10M",
+        inside &&
+        // The row's gain is what one more cart adds, "+15/s"; the crew
+        // synergy it carries is in the row's label (#373).
+        cart !== undefined &&
+        /^\+[\d.,]+[KMBT]?\/s$/.test(cart) &&
+        !cart.startsWith("\u2191") &&
+        (cartRow?.label ?? "").includes("faster from crew synergy") &&
+        borer !== undefined;
+      check(
+        gainsOk,
         `${size} cart shows +N and the locked borer says where it opens`,
       );
-      if (!still || !inside || cart === undefined || borer === undefined) {
-        console.log("crew gains", size, rates, inside);
+      if (!gainsOk) {
+        console.log(
+          "crew gains",
+          size,
+          JSON.stringify({ rows, inside, still }),
+        );
       }
-      // The crew line is the Crew section at the top of Buys (#371); its
-      // chips name the posts, and the label counts the free hands too.
-      const posts = await page.$eval(
-        ".buys-dialog:not([hidden]) .buys-card .crew",
-        (section) => {
-          const button = section.querySelector(".crew-posts");
-          const title = section.querySelector(".buys-crew-title");
-          const box = button?.getBoundingClientRect();
-          return {
-            text: button?.textContent ?? "",
-            label: button?.getAttribute("aria-label") ?? "",
-            height: box?.height ?? 0,
-            titled:
-              title !== null &&
-              title.textContent === "Crew" &&
-              box !== undefined &&
-              title.getBoundingClientRect().bottom <= box.top + 0.5,
-          };
-        },
-      );
+      // The crew line is the Crew section at the top of Buys (#371), under
+      // its Crew legend; its chips name the posts, and the words a screen
+      // reader hears count the free hands too. Text, not a door (#373).
+      const posts = await page.$eval(OPEN_SHEET("buys"), (sheet) => {
+        const section = sheet.querySelector(".crew");
+        const line = section?.querySelector(".crew-posts");
+        const words = line?.querySelector(".crew-posts-words");
+        const title = sheet.querySelector('.board-sec[data-sec="crew"]');
+        const box = line?.getBoundingClientRect();
+        const chips = [...(line?.querySelectorAll(".crew-bit") ?? [])];
+        const sheetBox = sheet.getBoundingClientRect();
+        return {
+          text: chips.map((chip) => chip.textContent ?? "").join(" | "),
+          label: words?.textContent ?? "",
+          height: box?.height ?? 0,
+          chipsOk:
+            chips.length > 0 &&
+            chips.every((chip) => {
+              const at = chip.getBoundingClientRect();
+              return (
+                Number.parseFloat(getComputedStyle(chip).fontSize) >= 13 &&
+                at.left >= sheetBox.left &&
+                at.right <= sheetBox.right
+              );
+            }),
+          titled:
+            title !== null &&
+            (title.textContent ?? "").startsWith("Crew") &&
+            box !== undefined &&
+            title.getBoundingClientRect().bottom <= box.top + 0.5,
+        };
+      });
       const named = posts.text.includes("on carts");
       check(
         named &&
           posts.titled &&
+          posts.chipsOk &&
           posts.label.includes("on carts") &&
           posts.label.includes("free") &&
-          posts.height >= 44 &&
           (await noScroll(page)),
         `${size} worker line names where the crew is`,
       );
-      if (!named || !posts.titled || posts.height < 44) {
+      if (!named || !posts.titled || !posts.chipsOk) {
         console.log("posts", size, posts);
       }
       await shot(page, `crew-gains-${size}`);
@@ -2435,8 +2817,8 @@ section("section 18 (line 2148)", async () => {
 });
 
 // The relic plate is centred on the board, and the gauge row spans the board
-// clear below its top, with a fat mine window (#370, #371). Locked thumb
-// buttons stay quiet.
+// clear below its top, with a fat mine window (#370, #371). Locked keys
+// stay quiet (#373).
 const SHELF_VIEWS = SCREENS;
 const PHONE_SHOTS = new Set(["424x924"]);
 
@@ -2478,128 +2860,117 @@ async function shelfCentre(page) {
   });
 }
 
-async function thumbState(page) {
+/** The five keys on the rail (#373): locked or open, icon and ink, size. */
+async function keyState(page) {
   return page.evaluate(() => {
-    const read = (selector) => {
-      const button = document.querySelector(selector);
+    const read = (id) => {
+      const button = document.querySelector(`.board-key[data-key="${id}"]`);
       if (!(button instanceof HTMLButtonElement)) {
         return null;
       }
-      const style = getComputedStyle(button);
       const box = button.getBoundingClientRect();
       const scale = globalThis.__board().scale;
+      const icon = button.querySelector(".board-key-icon");
+      const name = button.querySelector(".board-key-name");
       return {
         disabled: button.disabled,
-        border: style.borderTopColor,
-        color: style.color,
-        background: style.backgroundColor,
+        locked: button.classList.contains("is-locked"),
+        dim: (icon?.getAttribute("src") ?? "").includes("-dim"),
+        color: name === null ? "" : getComputedStyle(name).color,
         width: box.width / scale,
         height: box.height / scale,
       };
     };
-    const buys = read(".buys-button");
-    const workshop = read(".thumb-workshop");
-    const engineers = read(".engineers-button");
-    const upgrades = read(".upgrades-button");
-    const buttons = [buys, workshop, engineers, upgrades];
-    if (buttons.some((button) => button === null)) {
-      return { ok: false, buys, workshop, engineers, upgrades };
+    const buys = read("buys");
+    const workshop = read("workshop");
+    const engineers = read("engineers");
+    const upgrades = read("upgrades");
+    const ledger = read("ledger");
+    const keys = [buys, workshop, engineers, upgrades, ledger];
+    if (keys.some((key) => key === null)) {
+      return { ok: false, buys, workshop, engineers, upgrades, ledger };
     }
+    // Every key is the same width and at least 48 board px each way; a key
+    // with a sub-line under it is taller.
     const laidOut =
-      buttons.every((button) => button.height >= 48 && button.width >= 48) &&
-      buttons.every(
-        (button) =>
-          Math.abs(button.width - buys.width) <= 1 &&
-          Math.abs(button.height - buys.height) <= 1,
-      );
-    return { ok: laidOut, buys, workshop, engineers, upgrades };
+      keys.every((key) => key.height >= 48 && key.width >= 48) &&
+      keys.every((key) => Math.abs(key.width - buys.width) <= 1);
+    return { ok: laidOut, buys, workshop, engineers, upgrades, ledger };
   });
 }
 
-async function scrollSheet(page, scroller, edge) {
-  await page.evaluate(
-    (scrollerSelector, which) => {
-      const element = document.querySelector(scrollerSelector);
-      const cards = [
-        ...(element?.querySelectorAll(".sheet-card") ?? []),
-      ].filter((node) => !node.hidden && node.getClientRects().length > 0);
-      const card =
-        which === "start"
-          ? cards.reduce((best, item) =>
-              item.getBoundingClientRect().top <
-              best.getBoundingClientRect().top
-                ? item
-                : best,
-            )
-          : cards.reduce((best, item) =>
-              item.getBoundingClientRect().bottom >
-              best.getBoundingClientRect().bottom
-                ? item
-                : best,
-            );
-      card?.scrollIntoView({
-        block: which === "start" ? "start" : "end",
-        inline: "nearest",
-      });
+/** An open key: enabled, its icon bright and its name in the board's ink. */
+const keyOpen = (key) =>
+  key.disabled === false &&
+  !key.locked &&
+  !key.dim &&
+  key.color === "rgb(217, 221, 208)";
+
+/**
+ * Scrolls an open drawer's list (#373) to its first or last item: a section
+ * legend, the crew line, a row or the footnote. The spare plate is not one.
+ */
+async function scrollSheet(page, name, edge) {
+  await page.$eval(
+    `${OPEN_SHEET(name)} .board-sheet-list`,
+    (list, which) => {
+      list.scrollTop = which === "start" ? 0 : list.scrollHeight;
     },
-    scroller,
     edge,
   );
 }
 
-async function sheetEdges(page, scroller) {
-  return page.evaluate((scrollerSelector) => {
-    const element = document.querySelector(scrollerSelector);
-    const sheet = element?.closest(".buys-card, .upgrades-card");
-    // The Upgrades header row holds the title and the 48px i, so the cards
-    // clear that row, not just the title text.
-    const header = sheet?.querySelector(".upgrades-head, h2");
-    const footer = sheet?.querySelector(".buys-close, .upgrades-close");
+async function sheetEdges(page, name) {
+  return page.evaluate((selector) => {
+    const sheet = document.querySelector(selector);
+    const element = sheet?.querySelector(".board-sheet-list");
+    // The head holds the title, the kick and the 48px "i"; the items clear
+    // all three, not just the title text.
+    const headParts = [
+      ...(sheet?.querySelectorAll(
+        ".board-sheet-title, .board-sheet-kick, .board-sheet-info",
+      ) ?? []),
+    ].filter((node) => node.getClientRects().length > 0);
+    // What stands under the list: Buys' footnote when it shows, else Back.
+    const footer = [
+      ...(sheet?.querySelectorAll(".board-sheet-footer > *") ?? []),
+    ].find((node) => !node.hidden && node.getClientRects().length > 0);
     const cards = () =>
-      [...(element?.querySelectorAll(".sheet-card") ?? [])].filter(
-        (node) => !node.hidden && node.getClientRects().length > 0,
+      [...(element?.children ?? [])].filter(
+        (node) =>
+          !node.hidden &&
+          !node.classList.contains("board-spare") &&
+          node.getClientRects().length > 0,
       );
     if (
-      element === null ||
       sheet === null ||
-      sheet === undefined ||
-      header === null ||
-      header === undefined ||
+      element === null ||
+      element === undefined ||
+      headParts.length === 0 ||
       footer === null ||
       footer === undefined ||
       cards().length === 0
     ) {
       return { ok: false, topGap: -1, endGap: -1, first: "", last: "" };
     }
-    const topmost = () =>
-      cards().reduce((best, card) =>
-        card.getBoundingClientRect().top < best.getBoundingClientRect().top
-          ? card
-          : best,
-      );
-    const bottommost = () =>
-      cards().reduce((best, card) =>
-        card.getBoundingClientRect().bottom >
-        best.getBoundingClientRect().bottom
-          ? card
-          : best,
-      );
-    const firstEl = topmost();
-    firstEl.scrollIntoView({ block: "start", inline: "nearest" });
+    const scale = globalThis.__board().scale;
+    const firstEl = cards()[0];
+    element.scrollTop = 0;
     const firstBox = firstEl.getBoundingClientRect();
-    const head = header.getBoundingClientRect();
+    const headBottom = Math.max(
+      ...headParts.map((node) => node.getBoundingClientRect().bottom),
+    );
     const portTop = element.getBoundingClientRect();
     // Gaps in board px, so a PC fit reads the same as the phone.
-    const scale = globalThis.__board().scale;
-    const topGap = (firstBox.top - head.bottom) / scale;
-    const lastEl = bottommost();
-    lastEl.scrollIntoView({ block: "end", inline: "nearest" });
+    const topGap = (firstBox.top - headBottom) / scale;
+    const lastEl = cards().at(-1);
+    element.scrollTop = element.scrollHeight;
     const lastBox = lastEl.getBoundingClientRect();
     const foot = footer.getBoundingClientRect();
     const portEnd = element.getBoundingClientRect();
     const endGap = (foot.top - lastBox.bottom) / scale;
     const overflows = element.scrollHeight > element.clientHeight + 1;
-    // The sheet stops under the odometer's legend, so a buy's spend shows
+    // The drawer stops under the odometer's legend, so a buy's spend shows
     // on the board above it (#370).
     const legend = document
       .querySelector(".board-odo-legend")
@@ -2618,11 +2989,12 @@ async function sheetEdges(page, scroller) {
       return rounded >= 8 && (!overflows || rounded <= 16);
     };
     const firstIn =
-      firstBox.top >= portTop.top + 7 * scale &&
-      firstBox.bottom <= portTop.bottom + 1;
+      firstBox.top >= portTop.top - 0.5 &&
+      firstBox.bottom <= portTop.bottom + 0.5;
     const lastIn =
-      lastBox.top >= portEnd.top - 1 &&
-      lastBox.bottom <= portEnd.bottom - 7 * scale;
+      lastBox.top >= portEnd.top - 0.5 &&
+      lastBox.bottom <= portEnd.bottom + 0.5;
+    element.scrollTop = 0;
     const clip = (node) =>
       (node.textContent ?? "").replaceAll(/\s+/g, " ").slice(0, 42);
     return {
@@ -2631,7 +3003,7 @@ async function sheetEdges(page, scroller) {
         odometerClear &&
         firstIn &&
         lastIn &&
-        firstBox.top >= head.bottom &&
+        firstBox.top >= headBottom &&
         lastBox.bottom <= foot.top &&
         gapOk(topGap) &&
         gapOk(endGap),
@@ -2639,10 +3011,12 @@ async function sheetEdges(page, scroller) {
       endGap: Math.round(endGap * 10) / 10,
       overflows,
       odometerClear,
+      firstIn,
+      lastIn,
       first: clip(firstEl),
       last: clip(lastEl),
     };
-  }, scroller);
+  }, OPEN_SHEET(name));
 }
 
 for (const viewport of SHELF_VIEWS) {
@@ -2660,22 +3034,21 @@ for (const viewport of SHELF_VIEWS) {
       if (!centre.ok) {
         console.log("shelf", size, centre);
       }
-      const thumbs = await thumbState(page);
+      const keys = await keyState(page);
       const freshPaint =
-        thumbs.ok &&
-        !thumbs.buys.disabled &&
-        thumbs.buys.border === "rgb(242, 196, 109)" &&
-        thumbs.workshop.disabled &&
-        thumbs.workshop.background === "rgb(58, 42, 28)" &&
-        thumbs.engineers.disabled &&
-        thumbs.upgrades.disabled === false &&
-        thumbs.upgrades.color === "rgb(242, 196, 109)";
+        keys.ok &&
+        keyOpen(keys.buys) &&
+        keyOpen(keys.upgrades) &&
+        keyOpen(keys.ledger) &&
+        [keys.workshop, keys.engineers].every(
+          (key) => key.disabled && key.locked && key.dim,
+        );
       check(
         freshPaint,
-        `${size} fresh thumb bar: Buys and Upgrades gold, Workshop and Engineers quiet`,
+        `${size} fresh key rail: Buys, Upgrades and Ledger open, Workshop and Engineers locked`,
       );
       if (!freshPaint) {
-        console.log("thumbs fresh", size, thumbs);
+        console.log("keys fresh", size, keys);
       }
       if (shotThis) {
         await shot(page, `mountain-fresh-${size}`);
@@ -2693,16 +3066,19 @@ for (const viewport of SHELF_VIEWS) {
       if (!centre.ok) {
         console.log("shelf relics", size, centre);
       }
-      const thumbs = await thumbState(page);
+      const keys = await keyState(page);
       const openPaint =
-        thumbs.ok &&
-        [thumbs.buys, thumbs.workshop, thumbs.engineers, thumbs.upgrades].every(
-          (button) =>
-            button.disabled === false && button.color === "rgb(242, 196, 109)",
-        );
-      check(openPaint, `${size} unlocked thumb bar is all gold`);
+        keys.ok &&
+        [
+          keys.buys,
+          keys.workshop,
+          keys.engineers,
+          keys.upgrades,
+          keys.ledger,
+        ].every(keyOpen);
+      check(openPaint, `${size} unlocked key rail is all open`);
       if (!openPaint) {
-        console.log("thumbs open", size, thumbs);
+        console.log("keys open", size, keys);
       }
       // A found relic is lit in its socket; the next one is dark (#370).
       const lit = await page.$$eval(
@@ -2728,22 +3104,17 @@ for (const viewport of SCREENS) {
     const shotThis = SHEET_SHOTS.has(size);
     const { page, close } = await open(viewport, crewMountain());
     await page.waitForSelector(".board-relics");
-    for (const [name, scroller, openSelector] of [
-      ["buys", ".buys-dialog .tier-grid", ".buys-button"],
-      ["upgrades", ".upgrades-scroll", ".upgrades-button"],
-    ]) {
-      await press(page, openSelector);
-      const dialog = name === "buys" ? ".buys-dialog" : ".upgrades-dialog";
-      await page.waitForSelector(`${dialog}:not([hidden])`);
-      await scrollSheet(page, scroller, "start");
+    for (const name of ["buys", "upgrades"]) {
+      await openSheet(page, name);
+      await scrollSheet(page, name, "start");
       if (shotThis) {
         await shot(page, `${name}-top-${size}`);
       }
-      await scrollSheet(page, scroller, "end");
+      await scrollSheet(page, name, "end");
       if (shotThis) {
         await shot(page, `${name}-end-${size}`);
       }
-      const edges = await sheetEdges(page, scroller);
+      const edges = await sheetEdges(page, name);
       check(
         edges.ok,
         `${size} ${name} first card clears the header and last card clears the footer`,
@@ -2751,8 +3122,7 @@ for (const viewport of SCREENS) {
       if (!edges.ok) {
         console.log(name, size, edges);
       }
-      const closeSelector = name === "buys" ? ".buys-close" : ".upgrades-close";
-      await page.click(closeSelector);
+      await closeSheet(page, name);
     }
     check(
       await noScroll(page),
@@ -2788,7 +3158,8 @@ function crewSave(pocket) {
 async function pillClear(page) {
   return page.evaluate(() => {
     const pill = document.querySelector(".board-odo");
-    const menu = document.querySelector(".menu-button");
+    // The menu's door is the Ledger key on the rail now (#373).
+    const menu = document.querySelector('.board-key[data-key="ledger"]');
     const dial = document.querySelector(".board-dial");
     const app = document.querySelector("#app");
     if (pill === null || menu === null || dial === null || app === null) {
@@ -2832,13 +3203,12 @@ async function pillClear(page) {
  * lays them out as it opens, in even rows, never one chip alone.
  */
 async function crewRowsBalanced(page) {
-  await press(page, ".buys-button");
-  await page.waitForSelector(".buys-dialog:not([hidden])");
+  await openSheet(page, "buys");
   const counts = await page.$$eval(
-    ".buys-dialog:not([hidden]) .buys-card .crew .crew-row",
+    `${OPEN_SHEET("buys")} .crew .crew-row`,
     (rows) => rows.map((row) => row.querySelectorAll(".crew-bit").length),
   );
-  await press(page, ".buys-close");
+  await closeSheet(page, "buys");
   return {
     ok: counts.length > 0 && Math.max(...counts) - Math.min(...counts) <= 1,
     counts,
@@ -2880,9 +3250,7 @@ for (const viewport of [PHONE]) {
   section(`section 22 (line 2613) ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     const { page, close } = await open(viewport, crewSave(32_500));
-    await page.waitForSelector(".buys-button");
-    await page.tap(".buys-button");
-    await page.waitForSelector(".buys-dialog:not([hidden])");
+    await openSheet(page, "buys");
     const buys = await page.evaluate(() => {
       const card = (tier) =>
         document.querySelector(`.tier[data-tier="${tier}"]`);
@@ -2897,22 +3265,36 @@ for (const viewport of [PHONE]) {
       };
       const drill = card("drill");
       const machine = card("machine");
+      // The Deep Heart's 120M of depth in stones: 10M + 35M x 2.625 + 75M x 6.3
+      // is 574.375M, shown as 574.3M (#357). The row shows the long line, or
+      // its short form where the long one does not fit (#373).
+      const machineLines = [
+        "The Great Machine joins your crew at 574.3M stones. Keep digging, Dad!",
+        "Machine · 574.3M",
+      ];
       return {
-        drillName: drill?.querySelector(".tier-name")?.textContent,
-        drillGain: shown("drill", ".tier-gain"),
-        drillWhy: shown("drill", ".tier-why"),
+        // A row a tap buys now: the worker or the cart.
+        readyRow: ["helper", "cart"].some(
+          (tier) => card(tier)?.classList.contains("is-ready") === true,
+        ),
+        drillName:
+          drill?.querySelector(".board-row-name")?.firstChild?.textContent,
+        drillDear: drill?.classList.contains("is-dear") === true,
+        drillGain: shown("drill", ".board-row-gain"),
+        drillWhy: shown("drill", ".board-row-info"),
         machineLocked:
-          machine?.querySelector(".tier-cost")?.textContent === "Locked",
-        machineGain: shown("machine", ".tier-gain"),
-        machineWhy:
-          card("machine")?.querySelector(".tier-why")?.textContent ===
-          // The Deep Heart's 120M of depth in stones: 10M + 35M x 2.625 + 75M x 6.3
-          // is 574.375M, shown as 574.3M (#357).
-          "The Great Machine joins your crew at 574.3M stones. Keep digging, Dad!",
+          machine?.classList.contains("is-locked") === true &&
+          machine.querySelector(".board-row-price")?.textContent === "Locked",
+        machineGain: shown("machine", ".board-row-gain"),
+        machineWhy: machineLines.includes(
+          machine?.querySelector(".board-row-info")?.textContent ?? "",
+        ),
       };
     });
     check(
-      buys.drillName === "Steam drill" &&
+      buys.readyRow &&
+        buys.drillName === "Steam drill" &&
+        buys.drillDear &&
         buys.drillGain &&
         buys.drillWhy &&
         buys.machineLocked &&
@@ -2920,20 +3302,29 @@ for (const viewport of [PHONE]) {
         buys.machineWhy,
       `${size} unaffordable drill keeps its lines and the locked machine says where it opens`,
     );
-    if (buys.drillName !== "Steam drill" || !buys.drillGain) {
+    if (
+      buys.drillName !== "Steam drill" ||
+      !buys.drillGain ||
+      !buys.machineWhy
+    ) {
       console.log("buys mix", size, buys);
     }
     await page.$eval('.tier[data-tier="drill"]', (card) => {
-      card.scrollIntoView({ block: "center" });
+      const list = card.closest(".board-sheet-list");
+      if (list !== null) {
+        list.scrollTop +=
+          card.getBoundingClientRect().top -
+          list.getBoundingClientRect().top -
+          (list.clientHeight - card.offsetHeight) / 2;
+      }
     });
     await shot(page, `buys-mix-${size}`);
-    await page.click(".buys-close");
-    await page.tap(".thumb-workshop");
+    await closeSheet(page, "buys");
+    await page.tap(KEY("workshop"));
     await page.waitForSelector(".workshop-dialog:not([hidden])");
     await shot(page, `workshop-mix-${size}`);
     await page.click(".workshop-close");
-    await page.tap(".upgrades-button");
-    await page.waitForSelector(".upgrades-dialog:not([hidden])");
+    await openSheet(page, "upgrades");
     const upgrades = await page.evaluate(() => {
       const card = (id) => document.querySelector(`[data-upgrade="${id}"]`);
       const shown = (id, selector) => {
@@ -2947,8 +3338,8 @@ for (const viewport of [PHONE]) {
       };
       return {
         armsDear: card("tap")?.classList.contains("is-dear") === true,
-        armsEffect: shown("tap", ".upgrade-effect"),
-        armsWhy: shown("tap", ".upgrade-why"),
+        armsEffect: shown("tap", ".board-row-info"),
+        armsWhy: shown("tap", ".board-row-why"),
         // A locked row is hidden until open and nearly affordable (#245).
         roadsLocked: card("drillSyn")?.hidden === true,
       };
@@ -2960,11 +3351,17 @@ for (const viewport of [PHONE]) {
         upgrades.roadsLocked,
       `${size} unaffordable upgrade keeps its lines and a locked one does not`,
     );
-    if (!upgrades.armsEffect) {
+    if (!upgrades.armsEffect || !upgrades.armsWhy) {
       console.log("upgrades mix", size, upgrades);
     }
     await page.$eval('[data-upgrade="tap"]', (card) => {
-      card.scrollIntoView({ block: "center" });
+      const list = card.closest(".board-sheet-list");
+      if (list !== null) {
+        list.scrollTop +=
+          card.getBoundingClientRect().top -
+          list.getBoundingClientRect().top -
+          (list.clientHeight - card.offsetHeight) / 2;
+      }
     });
     await shot(page, `upgrades-mix-${size}`);
     await close();
@@ -3170,13 +3567,14 @@ function guardSave(lastSeen, remaining = 200_000_000) {
 const GUARD_SCREENS = [
   ["main, fresh", () => freshMountain(), []],
   ["main, mid-game", () => guardSave(Date.now()), []],
-  ["buys", () => guardSave(Date.now()), [".buys-button"]],
-  ["upgrades", () => guardSave(Date.now()), [".upgrades-button"]],
-  ["workshop", () => guardSave(Date.now()), [".thumb-workshop"]],
-  ["engineers", () => guardSave(Date.now()), [".engineers-button"]],
+  // Each door by its key on the rail (#373).
+  ["buys", () => guardSave(Date.now()), [KEY("buys")]],
+  ["upgrades", () => guardSave(Date.now()), [KEY("upgrades")]],
+  ["workshop", () => guardSave(Date.now()), [KEY("workshop")]],
+  ["engineers", () => guardSave(Date.now()), [KEY("engineers")]],
   ["relic shelf", () => guardSave(Date.now()), [".board-socket", SHELF_KEY]],
   ["save drawer", () => guardSave(Date.now()), [".save-status"]],
-  ["menu", () => guardSave(Date.now()), [".menu-button"]],
+  ["menu", () => guardSave(Date.now()), [KEY("ledger")]],
   // A bay opens Buys; the Ready now plate buys the pick (#372).
   ["bays", () => guardSave(Date.now()), [".board-bay"]],
   ["ready", () => guardSave(Date.now()), [".board-ready"]],
@@ -3257,10 +3655,25 @@ const BOARD_SAVES = [
 ];
 /**
  * The board's own controls; the save drawer's buttons join when it is open.
- * The mine window and the vein are the gauge row's (#371).
+ * The mine window and the vein are the gauge row's (#371). The keys on the
+ * rail, and an open drawer's rows, plates and "i" (#373).
  */
-const BOARD_TARGETS =
-  ".board-socket, .board-dial, .save-status, .board-save-drawer.is-open .board-platebtn, .board-note.on .board-platebtn, .board-window, .golden-vein, .board-bay, .board-ready, .board-dig-button";
+const BOARD_TARGETS = [
+  ".board-socket",
+  ".board-dial",
+  ".save-status",
+  ".board-save-drawer.is-open .board-platebtn",
+  ".board-note.on .board-platebtn",
+  ".board-window",
+  ".golden-vein",
+  ".board-bay",
+  ".board-ready",
+  ".board-dig-button",
+  ".board-key:not(:disabled)",
+  ".board-sheet.is-open button.board-row:not([hidden])",
+  ".board-sheet.is-open .board-platebtn",
+  ".board-sheet.is-open .board-sheet-info",
+].join(", ");
 /** Every other control a finger can reach on the board at that moment. */
 const NEIGHBOURS = "#app button, #app [role='button']";
 /**
@@ -3284,9 +3697,10 @@ const BAY_LEGENDS = [
 /**
  * Legends every board shows at rest: the nine of the top, the gauge row and
  * the save line, then the band tag, three names, three sub-lines, three price
- * legends, the plate's three lines and the red button's legend (#372).
+ * legends, the plate's three lines and the red button's legend (#372), and
+ * the five key names on the rail (#373).
  */
-const LEGENDS_AT_REST = 9 + 14;
+const LEGENDS_AT_REST = 9 + 14 + 5;
 /** Board text read against the board's art: the bars ask 4.5:1 of these. */
 const BOARD_LEGENDS = [
   ".board-odo-legend .board-lg:not(.board-spend)",
@@ -3304,13 +3718,16 @@ const BOARD_LEGENDS = [
   ".board-window-tag .board-lg",
   ".board-legacy .legacy-badge",
   ...BAY_LEGENDS,
+  // The key rail (#373): each key's name and its unlock line or clock.
+  ".board-key-name",
+  ".board-key-sub",
 ].join(", ");
 /** The board's parts whose text and art the bars measure. */
 const BOARD_PARTS =
-  ".board-top, .board-gauge-row, .board-bays, .board-ready-row, .board-saveline, .board-save-drawer.is-open, .board-note.on";
+  ".board-top, .board-gauge-row, .board-bays, .board-ready-row, .board-rail, .board-saveline, .board-save-drawer.is-open, .board-note.on, .board-sheet.is-open";
 /** Parts whose every img and sprite is measured; a note's art is its skins. */
 const BOARD_ART =
-  ".board-top, .board-gauge-row, .board-bays, .board-ready-row, .board-saveline";
+  ".board-top, .board-gauge-row, .board-bays, .board-ready-row, .board-rail, .board-saveline, .board-sheet.is-open";
 /** The drawer slides in steps(6) over 240ms. */
 const DRAWER_MS = 400;
 
@@ -3374,7 +3791,7 @@ async function boardTargets(page) {
       // is still in reach and still measured.
       const popupEls = [
         ...document.querySelectorAll(
-          ".board-note.on, .board-save-drawer.is-open",
+          ".board-note.on, .board-save-drawer.is-open, .board-sheet.is-open",
         ),
       ].filter((popup) => getComputedStyle(popup).pointerEvents !== "none");
       const popups = popupEls.map((popup) => popup.getBoundingClientRect());
@@ -3388,14 +3805,30 @@ async function boardTargets(page) {
             box.bottom > popup.top,
         );
       };
+      // A row scrolled out of an open drawer's list (C1) is out of reach until
+      // the list brings it back, so only rows wholly in the list's view count.
+      const inPort = (el) => {
+        const list = el.closest(".board-sheet-list");
+        if (list === null) {
+          return true;
+        }
+        const box = el.getBoundingClientRect();
+        const port = list.getBoundingClientRect();
+        return box.top >= port.top - 0.5 && box.bottom <= port.bottom + 0.5;
+      };
       const mine = [...document.querySelectorAll(own)].filter(
         (el) =>
           onScreen(el) &&
+          inPort(el) &&
           (popupEls.some((popup) => popup.contains(el)) || !underPopup(el)),
       );
       const others = [...document.querySelectorAll(neighbours)].filter(
         (el) =>
-          onScreen(el) && onTop(el) && !underPopup(el) && !mine.includes(el),
+          onScreen(el) &&
+          inPort(el) &&
+          onTop(el) &&
+          !underPopup(el) &&
+          !mine.includes(el),
       );
       return { own: mine.map(measure), others: others.map(measure) };
     },
@@ -3465,8 +3898,11 @@ async function boardArtAt2x(page, partsOf = BOARD_PARTS, artOf = BOARD_ART) {
       const parts = [...document.querySelectorAll(partsOf)];
       const misses = [];
       let count = 0;
+      // Art under visibility: hidden (an off spare plate) is not drawn.
       const drawn = (el) =>
-        el.getClientRects().length > 0 && el.closest("[hidden]") === null;
+        el.getClientRects().length > 0 &&
+        el.closest("[hidden]") === null &&
+        getComputedStyle(el).visibility !== "hidden";
       const natural = (url) =>
         new Promise((resolve) => {
           const art = new Image();
@@ -3478,6 +3914,29 @@ async function boardArtAt2x(page, partsOf = BOARD_PARTS, artOf = BOARD_ART) {
           };
           art.src = url;
         });
+      // Art still loading is not art drawn wrong: an img whose source just
+      // changed (the tub filling) is decoded, and a skin is given a few
+      // frames to paint once its art has loaded (src/board-skin.ts), before
+      // either is measured. Under the full gate's load both can lag.
+      await Promise.all(
+        parts.flatMap((part) =>
+          [...part.querySelectorAll("img")].map((img) =>
+            img.decode().catch(() => undefined),
+          ),
+        ),
+      );
+      const unpainted = () =>
+        parts.some((part) =>
+          [...part.querySelectorAll("canvas.board-skin")].some(
+            (canvas) =>
+              canvas.style.width === "" &&
+              canvas.parentElement !== null &&
+              drawn(canvas.parentElement),
+          ),
+        );
+      for (let frame = 0; frame < 60 && unpainted(); frame += 1) {
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
       for (const part of parts) {
         const imgs = part.matches(artOf)
           ? [...part.querySelectorAll("img")].filter(drawn)
@@ -3544,12 +4003,24 @@ async function boardArtAt2x(page, partsOf = BOARD_PARTS, artOf = BOARD_ART) {
  */
 async function boardContrast(page, legends = BOARD_LEGENDS) {
   const boxes = await page.evaluate((selector) => {
+    // A legend scrolled out of an open drawer's list is not on screen.
+    const inPort = (el) => {
+      const list = el.closest(".board-sheet-list");
+      if (list === null) {
+        return true;
+      }
+      const box = el.getBoundingClientRect();
+      const port = list.getBoundingClientRect();
+      return box.top >= port.top - 0.5 && box.bottom <= port.bottom + 0.5;
+    };
     return [...document.querySelectorAll(selector)]
       .filter((el) => {
         const style = getComputedStyle(el);
         return (
           (el.textContent ?? "").trim() !== "" &&
           el.getClientRects().length > 0 &&
+          el.closest("[hidden]") === null &&
+          inPort(el) &&
           style.visibility !== "hidden" &&
           Number(style.opacity) > 0
         );
@@ -3674,7 +4145,7 @@ for (const viewport of SCREENS) {
       await page.evaluate(() => document.fonts.ready.then(() => true));
       check(await noScroll(page), `${label} no page scroll`);
       // The controls at rest, before any note or drawer opens. A New note
-      // that shows by itself above its thumb is put away first (#372).
+      // that shows by itself above its key is put away first (#372).
       await putNoteAway(page);
       const rest = await boardTargets(page);
 
@@ -4159,6 +4630,67 @@ for (const viewport of SCREENS) {
         console.log("gauge row contrast", size, name, JSON.stringify(contrast));
       }
 
+      // The New sign (#373): in the band between the plate's words and the
+      // key rail, clear of the DIG legend, and a tap at its middle goes through.
+      const sign = await page.evaluate(() => {
+        const slot = document.querySelector(".board-sign-slot:not([hidden])");
+        const face = slot?.querySelector(".board-sign");
+        if (face === null || face === undefined) {
+          return { shown: false };
+        }
+        const r = face.getBoundingClientRect();
+        const box = (selector) =>
+          document.querySelector(selector)?.getBoundingClientRect();
+        const apart = (b) =>
+          b === undefined ||
+          r.right <= b.left + 0.5 ||
+          r.left >= b.right - 0.5 ||
+          r.bottom <= b.top + 0.5 ||
+          r.top >= b.bottom - 0.5;
+        const words = box(".board-ready-text");
+        const legend = box(".board-dig-lg");
+        const rail = box(".board-rail");
+        const hit = document.elementFromPoint(
+          (r.left + r.right) / 2,
+          (r.top + r.bottom) / 2,
+        );
+        return {
+          shown: true,
+          key: slot?.getAttribute("data-key") ?? "",
+          text: face.textContent ?? "",
+          clearOfWords: apart(words),
+          clearOfLegend: apart(legend),
+          aboveRail: rail !== undefined && r.bottom <= rail.top + 0.5,
+          passes: hit !== null && !face.contains(hit) && hit !== slot,
+          size: Number.parseFloat(
+            getComputedStyle(face.querySelector(".board-sign-text") ?? face)
+              .fontSize,
+          ),
+          rect: [r.left, r.top, r.right, r.bottom].map(Math.round),
+        };
+      });
+      if (name === "mid" || sign.shown) {
+        check(
+          sign.shown &&
+            sign.clearOfWords &&
+            sign.clearOfLegend &&
+            sign.aboveRail &&
+            sign.passes &&
+            sign.size >= 14,
+          `${label} the New sign stands between the plate's words and the rail, clear of the DIG legend, at 14px, and taps go through it`,
+        );
+        if (
+          !sign.shown ||
+          !sign.clearOfWords ||
+          !sign.clearOfLegend ||
+          !sign.aboveRail ||
+          !sign.passes ||
+          sign.size < 14
+        ) {
+          console.log("new sign", size, name, JSON.stringify(sign));
+        }
+      }
+
       // A dig shows "+N"; its text joins the 13px count.
       await press(page, ".board-window");
       const text = await boardTextSizes(page);
@@ -4406,7 +4938,7 @@ for (const viewport of SCREENS) {
 // words and the bays are C2's tiers; every bay's words, flaps and price stay
 // in its button; the bars are the board's (48px targets 8px apart, 13px text,
 // art at exactly 2x, 4.5:1 contrast at p10/p90); the page never scrolls and
-// the thumb bar ends 8px above the save line. Then the taps: a sleepy double
+// the key rail ends at least 8px above the save line. Then the taps: a sleepy double
 // tap on Ready now buys exactly one, Saving for opens Buys, a troubled bay
 // fixes with five taps or a hold, and the red button digs exactly the tap's
 // yield.
@@ -4560,17 +5092,25 @@ async function baysLayout(page) {
   });
 }
 
-/** The thumb bar's foot stands 8 board px above the save line's top. */
-async function thumbBarFoot(page) {
+/**
+ * The key rail's foot, and every key's, stands at least 8 board px above the
+ * save line's top (#373).
+ */
+async function railFoot(page) {
   return page.evaluate(() => {
     const board = globalThis.__board();
-    const bar = document.querySelector("#app > .thumb-bar");
+    const bar = document.querySelector("#app > .board-rail");
     if (bar === null) {
       return { ok: false, gap: NaN };
     }
-    const gap =
-      (board.saveTop - bar.getBoundingClientRect().bottom) / board.scale;
-    return { ok: Math.abs(gap - 8) <= 0.1, gap: Math.round(gap * 100) / 100 };
+    const bottom = Math.max(
+      bar.getBoundingClientRect().bottom,
+      ...[...bar.querySelectorAll(".board-key")].map(
+        (key) => key.getBoundingClientRect().bottom,
+      ),
+    );
+    const gap = (board.saveTop - bottom) / board.scale;
+    return { ok: gap >= 7.9, gap: Math.round(gap * 100) / 100 };
   });
 }
 
@@ -4622,18 +5162,72 @@ async function putNoteAway(page) {
 }
 
 /**
- * A sleepy double tap at the selector's centre: two taps 120ms apart at one
- * point, with nothing between them, so a loaded run keeps them close. The
- * second lands on whatever the first put there.
+ * How often a double-tap check may try again when load pushed its second press past the
+ * settle (#373). A buy inside the settle fails on any try; the last try must land inside.
  */
-async function doubleTap(page, selector) {
+const SETTLE_TRIES = 5;
+
+/**
+ * A sleepy double tap at the selector's centre: two taps `gap` ms apart at
+ * one point, with nothing between them, so a loaded run keeps them close.
+ * The second lands on whatever the first put there. With `gap` "drawer", the
+ * second tap comes down as soon as a row of the rising Buys drawer is under
+ * the point, however slow the runner is (#373). Returns what the second press came down
+ * on (the board, or Buys and its row) and how long after the first, both read
+ * in the page as the presses land.
+ */
+async function doubleTap(page, selector, gap = 120) {
   const at = await page.$eval(selector, (el) => {
     const b = el.getBoundingClientRect();
     return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
   });
+  await page.evaluate(() => {
+    const presses = [];
+    globalThis.__presses = presses;
+    // When Buys opens, read as the class lands: after the click handler that
+    // opened it and set its settle's start, so it is no earlier than that
+    // start. A press this long after it is at least that long into the settle.
+    globalThis.__buysOpenedAt = undefined;
+    const sheet = document.querySelector('.board-sheet[data-sheet="buys"]');
+    if (sheet !== null) {
+      new MutationObserver((records, observer) => {
+        if (sheet.classList.contains("is-open")) {
+          globalThis.__buysOpenedAt = performance.now();
+          observer.disconnect();
+        }
+      }).observe(sheet, { attributes: true, attributeFilter: ["class"] });
+    }
+    document.addEventListener(
+      "pointerdown",
+      (event) => {
+        const hit = event.target instanceof Element ? event.target : null;
+        const card = hit?.closest("[data-tier]");
+        const name = card?.getAttribute("data-tier") ?? "";
+        presses.push({
+          at: event.timeStamp,
+          on:
+            hit === null
+              ? "nothing"
+              : `${hit.closest('.board-sheet[data-sheet="buys"]') === null ? "the board" : "Buys"}${name === "" ? "" : ` ${name}`}`,
+        });
+      },
+      { capture: true },
+    );
+  });
   for (let tap = 0; tap < 2; tap += 1) {
-    if (tap > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 120));
+    if (tap > 0 && gap === "drawer") {
+      await page
+        .waitForFunction(
+          ({ x, y }) =>
+            document
+              .elementFromPoint(x, y)
+              ?.closest('.board-sheet[data-sheet="buys"] .board-row') != null,
+          { polling: "raf", timeout: 2_000 },
+          at,
+        )
+        .catch(() => undefined);
+    } else if (tap > 0) {
+      await new Promise((resolve) => setTimeout(resolve, gap));
     }
     if (desks.get(page) === true) {
       await page.mouse.click(at.x, at.y);
@@ -4643,25 +5237,30 @@ async function doubleTap(page, selector) {
   }
   // The second tap's buy, if any, lands a frame or two later.
   await new Promise((resolve) => setTimeout(resolve, 120));
+  const { presses, openedAt } = await page.evaluate(() => ({
+    presses: globalThis.__presses ?? [],
+    openedAt: globalThis.__buysOpenedAt ?? null,
+  }));
+  const first = presses[0];
+  const second = presses[1];
+  return {
+    on: second?.on ?? "nothing",
+    ms:
+      first === undefined || second === undefined
+        ? Infinity
+        : Math.round(second.at - first.at),
+    // How far into Buys' 400ms settle the second press came, at least.
+    intoSettle:
+      second === undefined || openedAt === null
+        ? Infinity
+        : Math.round(second.at - openedAt),
+  };
 }
 
-/** What a finger at the selector's centre meets now, for the check's line. */
-const underCentre = (page, selector) =>
-  page.$eval(selector, (el) => {
-    const b = el.getBoundingClientRect();
-    const hit = document.elementFromPoint(
-      (b.left + b.right) / 2,
-      (b.top + b.bottom) / 2,
-    );
-    const card = hit?.closest("[data-tier]");
-    const name = card?.getAttribute("data-tier") ?? "";
-    return hit === null
-      ? "nothing"
-      : `${hit.closest(".buys-dialog") === null ? "the board" : "Buys"}${name === "" ? "" : ` ${name}`}`;
-  });
-
 const buysOpen = (page) =>
-  page.$eval(".buys-dialog", (sheet) => !sheet.hidden).catch(() => false);
+  page
+    .$eval(SHEET("buys"), (sheet) => sheet.classList.contains("is-open"))
+    .catch(() => false);
 
 for (const viewport of SCREENS) {
   for (const [name, save, tiers] of BAY_SAVES) {
@@ -4706,7 +5305,7 @@ for (const viewport of SCREENS) {
       }
 
       // Targets and gaps: the three bays, the plate and the red button. A
-      // New note may show over the Ready row above its thumb; put it away
+      // New note may show over the Ready row above its key; put it away
       // first, so what it covers is measured too.
       await putNoteAway(page);
       const targets = await boardTargets(page);
@@ -4777,10 +5376,10 @@ for (const viewport of SCREENS) {
       }
 
       check(await noScroll(page), `${label} no page scroll`);
-      const foot = await thumbBarFoot(page);
+      const foot = await railFoot(page);
       check(
         foot.ok,
-        `${label} the thumb bar ends 8px above the save line (${String(foot.gap)})`,
+        `${label} the rail ends at least 8px above the save line (${String(foot.gap)})`,
       );
       await close();
     });
@@ -4859,7 +5458,9 @@ for (const viewport of SCREENS) {
     // spends nothing. The first tap opens Buys over the plate; the second
     // lands on the Buys card under the finger (a worker, which the pocket
     // can afford), and that card must not buy so soon after Buys opened.
-    {
+    // A runner too slow to land the second tap inside the 400ms settle has
+    // not tried the guard: try again, at most SETTLE_TRIES times.
+    for (let attempt = 0; attempt < SETTLE_TRIES; attempt += 1) {
       const { page, close } = await open(viewport, savingMountain(), {
         stopClock: true,
       });
@@ -4870,34 +5471,53 @@ for (const viewport of SCREENS) {
         odo.getAttribute("aria-label"),
       );
       const storedBefore = await storedMountain(page);
-      await doubleTap(page, ".board-ready");
+      // The second tap comes down as a row of the rising drawer reaches the
+      // plate, inside its 400ms settle (#373).
+      const second = await doubleTap(page, ".board-ready", "drawer");
+      const under = `${second.on}, ${String(second.ms)}ms later, ${String(second.intoSettle)}ms into the settle`;
       const opened = await page
-        .waitForSelector(".buys-dialog:not([hidden])", { timeout: 2_000 })
+        .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
         .then(
           () => true,
           () => false,
         );
-      const under = await underCentre(page, ".board-ready");
       const odoAfter = await page.$eval(".board-odo", (odo) =>
         odo.getAttribute("aria-label"),
       );
       const storedAfter = await storedMountain(page);
+      const spent =
+        odoAfter !== odoBefore ||
+        storedAfter.pocket !== storedBefore.pocket ||
+        storedAfter.helpers !== storedBefore.helpers;
+      // Retried only when the second press surely came after the settle: a
+      // press this far after the class landed is at least that far after its
+      // start, so it is a real tap and a buy there is correct, not a miss.
+      if (second.intoSettle >= 400 && attempt < SETTLE_TRIES - 1) {
+        if (spent) {
+          console.log("saving-for double tap after the settle bought", under);
+        }
+        await close();
+        continue;
+      }
       check(
         (main ?? "").startsWith("Saving for a cart · in ") &&
           opened &&
-          under.startsWith("Buys ") &&
+          /^Buys \w/.test(second.on) &&
+          second.intoSettle < 400 &&
           odoAfter === odoBefore &&
           storedAfter.pocket === storedBefore.pocket &&
           storedAfter.helpers === storedBefore.helpers,
         `${label} Saving for reads "${String(main)}", and a double tap opens Buys with the pocket and odometer unchanged (second tap on ${under})`,
       );
       await close();
+      break;
     }
 
     // A sleepy double tap on an open bay: the first opens Buys, the second
     // lands on a Buys card the pocket can afford (5M stones affords any
     // card here), and buys nothing.
-    {
+    // As above, a runner too slow for the settle tries again, at most SETTLE_TRIES times.
+    for (let attempt = 0; attempt < SETTLE_TRIES; attempt += 1) {
       const { page, close } = await open(viewport, openMountain(), {
         stopClock: true,
       });
@@ -4906,18 +5526,33 @@ for (const viewport of SCREENS) {
       await putNoteAway(page);
       const bay = '.board-bay[data-tier="cart"]';
       const storedBefore = await storedMountain(page);
-      await doubleTap(page, bay);
+      // The second tap comes down as a row of the rising drawer reaches the
+      // bay, inside the 400ms settle (#373).
+      const second = await doubleTap(page, bay, "drawer");
+      const under = `${second.on}, ${String(second.ms)}ms later, ${String(second.intoSettle)}ms into the settle`;
       const opened = await page
-        .waitForSelector(".buys-dialog:not([hidden])", { timeout: 2_000 })
+        .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
         .then(
           () => true,
           () => false,
         );
-      const under = await underCentre(page, bay);
       const storedAfter = await storedMountain(page);
+      const spent = ["pocket", "carts", "drills", "borers", "helpers"].some(
+        (field) => storedAfter[field] !== storedBefore[field],
+      );
+      // Retried only when the second press surely came after the settle (at
+      // least 400ms after its start): a buy there is a real tap, not a miss.
+      if (second.intoSettle >= 400 && attempt < SETTLE_TRIES - 1) {
+        if (spent) {
+          console.log("bay double tap after the settle bought", under);
+        }
+        await close();
+        continue;
+      }
       check(
         opened &&
-          under.startsWith("Buys ") &&
+          /^Buys \w/.test(second.on) &&
+          second.intoSettle < 400 &&
           storedAfter.pocket === storedBefore.pocket &&
           storedAfter.carts === storedBefore.carts &&
           storedAfter.drills === storedBefore.drills &&
@@ -4925,7 +5560,15 @@ for (const viewport of SCREENS) {
           storedAfter.helpers === storedBefore.helpers,
         `${label} a double tap on an open bay opens Buys and spends nothing (second tap on ${under})`,
       );
+      if (storedAfter.pocket !== storedBefore.pocket || !opened) {
+        console.log(
+          "bay double tap",
+          size,
+          JSON.stringify({ opened, storedBefore, storedAfter }),
+        );
+      }
       await close();
+      break;
     }
 
     // Trouble on the cart bay: a red lamp and Hold to fix. Five taps fix it
@@ -5220,6 +5863,1280 @@ for (const viewport of SCREENS) {
       );
       if (seen.words.length > 0 || !loading) {
         console.log("loading bays", size, { loading, ...seen });
+      }
+      await close();
+    }
+  });
+}
+
+// Keys and drawers (#373): the key rail and the Buys and Upgrades drawers, at
+// the phone and the three PC sizes. The rail: five keys at the mockup's x
+// (16 + 80i) and top 768, caps, icons and dots at exactly 2x, names and
+// sub-lines at 13px and 4.5:1, each key's lock, lit cap, dot and timer as
+// key-rail.ts says, and the rail's foot 8px above the save line. Each drawer,
+// opened by its key on nine saves: its box (178..864 by 8..416) with the
+// odometer and the save line in view, no page scroll, its list scrolling only
+// where C1 allows, rows 76 tall and 10 apart with every part inside and
+// apart, 48px targets 8px apart, 13px text, art at 2x, row legends at 4.5:1,
+// the spare plate's tier, and the "i" cards fitting with no scroll. Then the
+// rows' states, the taps (a sleepy double tap on a key, the Done hold, the red
+// blink, the scrim, Escape, the "i") and reduced motion.
+const KEY_IDS = ["buys", "workshop", "engineers", "upgrades", "ledger"];
+const KEY_RULES = "/src/key-rail.ts";
+const SAVE_RULES = "/src/persist.ts";
+/** One key cap frame is 32 art px: rest 0, down 1, locked 2, lit 3. */
+const CAP_X = { rest: "0px", locked: "-128px", lit: "-192px" };
+const RAIL_SAVES = [
+  ["fresh", () => freshMountain()],
+  ["early", () => crewMountain()],
+  ["mid", () => openMountain()],
+  ["heart", () => heartMountain()],
+  // The bench clock under the Workshop key.
+  ["workshop", () => workshopSave(Date.now(), true)],
+];
+/** The mid save with hands and stones for the borer: the borer is the pick, Ada on it. */
+function borerPickMountain() {
+  const open = openMountain();
+  return {
+    ...open,
+    mountain: { ...open.mountain, helpers: 28, pocket: 6_000_000 },
+  };
+}
+const DRAWER_SAVES = [
+  ["fresh", () => freshMountain()],
+  ["early", () => crewMountain()],
+  ["mid", () => openMountain()],
+  ["short", () => shortMountain()],
+  ["idle", () => idleMountain()],
+  ["tools", () => toolsMountain()],
+  ["machine", () => machineMountain()],
+  ["heir", () => heirMountain()],
+  ["crew", () => ({ version: 4, mountain: CREW, lastSeen: Date.now() })],
+  ["mid, the borer the pick", () => borerPickMountain()],
+  // A full Granite: two rows of crew chips, and Buys still fits (#373).
+  ["mid, two chip rows", () => fullGraniteMountain()],
+  // The Great Machine the pick, with Ada tending it: the flag gives way.
+  ["machine, the Great Machine the pick", () => machinePickMountain()],
+];
+/**
+ * Late-game Buys runs longer than the drawer and scrolls inside it (C1): the
+ * Great Machine's era, with the Kid row. Up to the borer it fits, its
+ * footnote stepping aside when it would push the list into a scroll (#373).
+ */
+const LONG_BUYS = new Set(["machine", "machine, the Great Machine the pick"]);
+/**
+ * A full Upgrades scrolls inside its drawer too (C1, the spec's "a full
+ * Upgrades"): from six rows, more than the drawer holds at 76px each.
+ */
+const FULL_UPGRADES_ROWS = 6;
+/** Words a drawer row shows, read against its frame at 4.5:1. */
+const ROW_LEGENDS = (name) =>
+  [
+    ".board-row-name",
+    ".board-row-info",
+    ".board-row-need",
+    ".board-row-why",
+    ".board-row-flag",
+    ".board-row-gain",
+    ".board-row-price",
+    ".board-row-verb",
+    // Buys' footnote over Back, and Upgrades' at the list's end, when shown.
+    ".board-sheet-foot",
+  ]
+    .map((part) => `${OPEN_SHEET(name)} ${part}`)
+    .join(", ");
+/** One lamp frame is 20 art px: off 0, amber 1, green 2, red 3. */
+const LAMP_X = { off: "0px", amber: "-40px", green: "-80px", red: "-120px" };
+
+/** The keys have the save in: Ledger's name is written and every key is drawn. */
+async function keysDrawn(page) {
+  return page
+    .waitForFunction(
+      () =>
+        document.querySelectorAll(".board-rail .board-key").length === 5 &&
+        (document.querySelector(".save-status")?.textContent ?? "") !== "" &&
+        !(document.querySelector(".save-status")?.textContent ?? "").includes(
+          "Loading",
+        ),
+      { timeout: 5_000 },
+    )
+    .then(
+      () => true,
+      () => false,
+    );
+}
+
+/** Each key's place, size and face, beside what key-rail.ts says it shows. */
+async function railFacts(page) {
+  return page.evaluate(
+    async (keyRules, saveRules, saveKey, ids, capX) => {
+      const { keyViews } = await import(keyRules);
+      const { parseSaveValue } = await import(saveRules);
+      const parsed = parseSaveValue(
+        JSON.parse(localStorage.getItem(saveKey) ?? "null"),
+      );
+      const views =
+        parsed === undefined
+          ? undefined
+          : keyViews(parsed.mountain, Date.now(), undefined);
+      const board = globalThis.__board();
+      const clock = /^\d+:\d\d(:\d\d)?$/;
+      return ids.map((id, index) => {
+        const key = document.querySelector(`.board-key[data-key="${id}"]`);
+        if (key === null) {
+          return { id, ok: false };
+        }
+        const box = key.getBoundingClientRect();
+        const left = (box.left - board.left) / board.scale;
+        const top = (box.top - board.top) / board.scale;
+        const cap = key.querySelector(".board-key-cap");
+        const dot = key.querySelector(".board-key-dot");
+        const sub = key.querySelector(".board-key-sub");
+        const view = views?.[id];
+        const subText = sub?.hidden === false ? (sub.textContent ?? "") : "";
+        const capShown =
+          cap instanceof HTMLElement
+            ? cap.style.backgroundPositionX || "0px"
+            : "";
+        const face =
+          view !== undefined &&
+          capShown === capX[view.cap] &&
+          key.classList.contains("is-lit") === (view.cap === "lit") &&
+          key.classList.contains("is-locked") === (view.cap === "locked") &&
+          key.disabled === (view.cap === "locked") &&
+          (dot?.hidden === false) === view.dot &&
+          (clock.test(view.sub)
+            ? clock.test(subText) && sub.classList.contains("board-num")
+            : subText === view.sub);
+        return {
+          id,
+          ok:
+            Math.abs(left - (16 + 80 * index)) <= 0.5 &&
+            Math.abs(top - 768) <= 0.5 &&
+            face,
+          left: Math.round(left * 10) / 10,
+          top: Math.round(top * 10) / 10,
+          face,
+          cap: capShown,
+          want: view,
+          sub: subText,
+          dot: dot?.hidden === false,
+          locked: key.classList.contains("is-locked"),
+          lit: key.classList.contains("is-lit"),
+        };
+      });
+    },
+    KEY_RULES,
+    SAVE_RULES,
+    SAVE_KEY,
+    KEY_IDS,
+    CAP_X,
+  );
+}
+
+/** Two taps at the selector's centre `gap` ms apart; the second meets what the first opened. */
+/**
+ * Starts timing a drawer's open: the time its class lands (no earlier than the
+ * settle's start) and every pointerdown after it, both on performance.now().
+ */
+async function watchSheetOpen(page, selector) {
+  await page.evaluate((sel) => {
+    globalThis.__sheetOpenedAt = undefined;
+    globalThis.__sheetPresses = [];
+    if (globalThis.__sheetPress !== undefined) {
+      document.removeEventListener("pointerdown", globalThis.__sheetPress, {
+        capture: true,
+      });
+    }
+    globalThis.__sheetPress = () => {
+      globalThis.__sheetPresses.push(performance.now());
+    };
+    document.addEventListener("pointerdown", globalThis.__sheetPress, {
+      capture: true,
+    });
+    const sheet = document.querySelector(sel);
+    if (sheet !== null) {
+      new MutationObserver((records, observer) => {
+        if (sheet.classList.contains("is-open")) {
+          globalThis.__sheetOpenedAt = performance.now();
+          observer.disconnect();
+        }
+      }).observe(sheet, { attributes: true, attributeFilter: ["class"] });
+    }
+  }, selector);
+}
+
+/** How far into the drawer's settle the second press came, at least (Infinity if unknown). */
+async function secondPressIntoSettle(page) {
+  return page.evaluate(() => {
+    const opened = globalThis.__sheetOpenedAt;
+    const second = globalThis.__sheetPresses?.[1];
+    return opened === undefined || second === undefined
+      ? Number.POSITIVE_INFINITY
+      : Math.round(second - opened);
+  });
+}
+
+async function tapTwice(page, selector, gap) {
+  const at = await page.$eval(selector, (el) => {
+    const b = el.getBoundingClientRect();
+    return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+  });
+  for (let tap = 0; tap < 2; tap += 1) {
+    if (tap > 0) {
+      await new Promise((resolve) => setTimeout(resolve, gap));
+    }
+    if (desks.get(page) === true) {
+      await page.mouse.click(at.x, at.y);
+    } else {
+      await page.touchscreen.tap(at.x, at.y);
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 150));
+}
+
+/** A tap at a board point (board px), the way a finger lands there. */
+async function tapBoard(page, x, y) {
+  const at = await page.evaluate(
+    (bx, by) => {
+      const board = globalThis.__board();
+      return {
+        x: board.left + bx * board.scale,
+        y: board.top + by * board.scale,
+      };
+    },
+    x,
+    y,
+  );
+  if (desks.get(page) === true) {
+    await page.mouse.click(at.x, at.y);
+  } else {
+    await page.touchscreen.tap(at.x, at.y);
+  }
+}
+
+const odometer = (page) =>
+  page.$eval(".board-odo", (odo) => odo.getAttribute("aria-label"));
+
+/** Every shown part of an open drawer's list, by its top in board px. */
+const listTops = (page, name) =>
+  page.$eval(`${OPEN_SHEET(name)} .board-sheet-list`, (list) => {
+    const board = globalThis.__board();
+    return [...list.children]
+      .filter((child) => !child.hidden && child.getClientRects().length > 0)
+      .map(
+        (child) =>
+          Math.round(
+            ((child.getBoundingClientRect().top - board.top) / board.scale) *
+              10,
+          ) / 10,
+      );
+  });
+
+/** A drawer's "i" cards: shown in its place, inside it, with no scroll. */
+async function howFacts(page, name) {
+  return page.$eval(OPEN_SHEET(name), (sheet) => {
+    const how = sheet.querySelector(".board-sheet-how");
+    const list = sheet.querySelector(".board-sheet-list");
+    if (how === null || how.hidden) {
+      return { ok: false, shown: false };
+    }
+    const box = sheet.getBoundingClientRect();
+    const port = how.getBoundingClientRect();
+    const cards = [...how.querySelectorAll(".teach-how")].filter(
+      (card) => card.closest("[hidden]") === null,
+    );
+    const backs = [...how.querySelectorAll(".teach-how-back")].filter(
+      (back) =>
+        back.closest("[hidden]") === null && back.getClientRects().length > 0,
+    );
+    const within = (el) => {
+      const b = el.getBoundingClientRect();
+      return (
+        b.top >= port.top - 0.5 &&
+        b.bottom <= port.bottom + 0.5 &&
+        b.left >= box.left - 0.5 &&
+        b.right <= box.right + 0.5
+      );
+    };
+    return {
+      ok:
+        cards.length >= 1 &&
+        backs.length === 1 &&
+        how.scrollHeight <= how.clientHeight + 1 &&
+        cards.every(within) &&
+        backs.every(within) &&
+        list?.hidden === true,
+      shown: true,
+      cards: cards.length,
+      backs: backs.length,
+      scroll: [how.scrollHeight, how.clientHeight],
+    };
+  });
+}
+
+for (const viewport of SCREENS) {
+  section(`keys and drawers ${JSON.stringify(viewport)} rail`, async () => {
+    const size = `${String(viewport[0])}x${String(viewport[1])}`;
+    for (const [name, save] of RAIL_SAVES) {
+      const label = `${size} key rail, ${name}:`;
+      const { page, close } = await open(viewport, save());
+      const drawn = await keysDrawn(page);
+      await page.evaluate(() => document.fonts.ready.then(() => true));
+      await new Promise((resolve) => setTimeout(resolve, 1_100));
+      const keys = await railFacts(page);
+      check(
+        drawn && keys.every((key) => key.ok),
+        `${label} five keys at x 16 + 80i and top 768, each cap, dot and sub-line as key-rail.ts says`,
+      );
+      if (!keys.every((key) => key.ok)) {
+        console.log("rail keys", size, name, JSON.stringify(keys));
+      }
+      const art = await boardArtAt2x(page, ".board-rail", ".board-rail");
+      check(
+        art.misses.length === 0 && art.count >= 10,
+        `${label} ${String(art.count)} caps, icons and dots at exactly 2x`,
+      );
+      if (art.misses.length > 0) {
+        console.log("rail 2x", size, name, JSON.stringify(art.misses));
+      }
+      const text = await boardTextSizes(page, ".board-rail");
+      check(
+        text.small.length === 0 && text.count >= 5,
+        `${label} names and sub-lines are 13px or more (${String(text.count)} runs)`,
+      );
+      if (text.small.length > 0) {
+        console.log("rail text", size, name, JSON.stringify(text.small));
+      }
+      const contrast = await boardContrast(
+        page,
+        ".board-key-name, .board-key-sub",
+      );
+      const dim = contrast.filter((row) => row.pct < 4.5);
+      check(
+        contrast.length >= 5 && dim.length === 0,
+        `${label} ${String(contrast.length)} names and sub-lines at 4.5:1 or more (lowest ${String(Math.min(...contrast.map((row) => row.pct)))}:1 at p10/p90)`,
+      );
+      if (dim.length > 0) {
+        console.log("rail contrast", size, name, JSON.stringify(contrast));
+      }
+      const state = await keyState(page);
+      if (name === "fresh") {
+        const subs = Object.fromEntries(keys.map((key) => [key.id, key.sub]));
+        check(
+          state.ok &&
+            [state.workshop, state.engineers].every(
+              (key) => key.disabled && key.locked && key.dim,
+            ) &&
+            subs.workshop === "With the clay" &&
+            subs.engineers === "With 1st borer",
+          `${label} Workshop and Engineers are locked, with their unlock lines`,
+        );
+      }
+      if (name === "mid" || name === "heart") {
+        check(
+          state.ok &&
+            [
+              state.buys,
+              state.workshop,
+              state.engineers,
+              state.upgrades,
+              state.ledger,
+            ].every(keyOpen),
+          `${label} every key is open`,
+        );
+      }
+      if (name === "mid") {
+        // Upgrades lights where today's glow was, and the red lamps sit on
+        // the keys whose systems are still to be taught.
+        const lit = keys.find((key) => key.id === "upgrades");
+        check(
+          lit?.lit === true &&
+            lit.cap === CAP_X.lit &&
+            keys.some((key) => key.dot),
+          `${label} the Upgrades cap is lit and the red lamps show`,
+        );
+      }
+      if (name === "workshop") {
+        const bench = keys.find((key) => key.id === "workshop");
+        check(
+          /^\d+:\d\d$/.test(bench?.sub ?? ""),
+          `${label} the bench clock reads under the Workshop key (${String(bench?.sub)})`,
+        );
+      }
+      const foot = await railFoot(page);
+      check(
+        foot.ok,
+        `${label} the rail ends at least 8px above the save line (${String(foot.gap)})`,
+      );
+      check(await noScroll(page), `${label} no page scroll`);
+      await close();
+    }
+  });
+
+  for (const [saveName, save] of DRAWER_SAVES) {
+    section(
+      `keys and drawers ${JSON.stringify(viewport)} ${saveName}`,
+      async () => {
+        const size = `${String(viewport[0])}x${String(viewport[1])}`;
+        const { page, close } = await open(viewport, save(), {
+          stopClock: true,
+        });
+        await keysDrawn(page);
+        await page.evaluate(() => document.fonts.ready.then(() => true));
+        await putNoteAway(page);
+        for (const name of ["buys", "upgrades"]) {
+          const label = `${size} ${name} drawer, ${saveName}:`;
+          const up = await openSheet(page, name);
+          // Every row's art has loaded before it is measured.
+          await page.evaluate(() =>
+            Promise.all(
+              [...document.querySelectorAll(".board-sheet.is-open img")].map(
+                (img) => img.decode().catch(() => undefined),
+              ),
+            ),
+          );
+          const facts = await drawerFacts(page, name);
+          check(
+            up && facts.placed && facts.odometerClear && facts.saveLineClear,
+            `${label} stands at 178..864 by 8..416, with the odometer and the save line in view`,
+          );
+          if (!facts.placed || !facts.odometerClear || !facts.saveLineClear) {
+            const clip = await page.$eval(
+              ".board-sheet-clip",
+              (el) => el.scrollTop,
+            );
+            console.log(
+              "drawer box",
+              size,
+              saveName,
+              name,
+              JSON.stringify({ box: facts.box, clipScrollTop: clip }),
+            );
+          }
+          check(await noScroll(page), `${label} no page scroll`);
+          const mayScroll =
+            name === "buys"
+              ? LONG_BUYS.has(saveName)
+              : facts.rows.length >= FULL_UPGRADES_ROWS;
+          const mustScroll = name === "buys" && LONG_BUYS.has(saveName);
+          check(
+            facts.scrolls
+              ? mayScroll && facts.spareClass === "is-off"
+              : !mustScroll,
+            `${label} its list ${facts.scrolls ? "scrolls inside the drawer (C1) with the spare off" : "fits with no scroll"}`,
+          );
+          if (facts.scrolls !== mustScroll && !(facts.scrolls && mayScroll)) {
+            const sizes = await page.$eval(
+              `${OPEN_SHEET(name)} .board-sheet-list`,
+              (list) => [list.scrollHeight, list.clientHeight],
+            );
+            console.log("drawer scroll", size, saveName, name, sizes);
+          }
+          check(
+            facts.spareClass === facts.spareWant,
+            `${label} the spare plate is ${facts.spareClass}, as its height asks (${facts.spareWant})`,
+          );
+          const rowsOk =
+            facts.rows.every((row) => Math.abs(row.height - 76) <= 0.5) &&
+            facts.gaps.every((gap) => Math.abs(gap - 10) <= 0.5);
+          check(
+            rowsOk,
+            `${label} ${String(facts.rows.length)} rows are 76 tall and 10 apart`,
+          );
+          const crowded = facts.rows.filter(
+            (row) =>
+              !row.inside || row.overlaps.length > 0 || row.spills.length > 0,
+          );
+          check(
+            crowded.length === 0,
+            `${label} every row's name, info, need, flag, gain, tag and verb lie inside it and apart`,
+          );
+          if (!rowsOk || crowded.length > 0) {
+            console.log(
+              "drawer rows",
+              size,
+              saveName,
+              name,
+              JSON.stringify({
+                gaps: facts.gaps,
+                crowded,
+                rows: facts.rows.map((row) => [row.id, row.height]),
+              }),
+            );
+          }
+          const targets = await boardTargets(page);
+          const inSheet = (target) =>
+            /^\.(board-row|board-platebtn|board-sheet-info) /.test(
+              target.selector,
+            );
+          const own = targets.own.filter(inSheet);
+          // A scaled board snaps boxes to device pixels: allow a tenth of a pixel.
+          const under = undersizedTargets(own, 47.9);
+          const close8 = boardGaps(targets);
+          check(
+            own.length >= 2 && under.length === 0 && close8.length === 0,
+            `${label} ${String(own.length)} targets are 48x48 board px, 8px from the next`,
+          );
+          if (under.length > 0 || close8.length > 0) {
+            console.log(
+              "drawer targets",
+              size,
+              saveName,
+              name,
+              JSON.stringify({
+                under: under.map((target) => target.selector),
+                close: close8.map((pair) => [pair.a, pair.b, pair.gap]),
+              }),
+            );
+          }
+          const text = await boardTextSizes(page, OPEN_SHEET(name));
+          check(
+            text.small.length === 0 && text.count >= 3,
+            `${label} text is 13px or more (${String(text.count)} runs)`,
+          );
+          if (text.small.length > 0) {
+            console.log(
+              "drawer text",
+              size,
+              saveName,
+              name,
+              JSON.stringify(text.small),
+            );
+          }
+          const art = await boardArtAt2x(
+            page,
+            OPEN_SHEET(name),
+            OPEN_SHEET(name),
+          );
+          check(
+            art.misses.length === 0 && art.count >= 3,
+            `${label} ${String(art.count)} images, sprites and skins at exactly 2x`,
+          );
+          if (art.misses.length > 0) {
+            console.log(
+              "drawer 2x",
+              size,
+              saveName,
+              name,
+              JSON.stringify(art.misses),
+            );
+          }
+          const contrast = await boardContrast(page, ROW_LEGENDS(name));
+          const dim = contrast.filter((row) => row.pct < 4.5);
+          check(
+            dim.length === 0,
+            `${label} ${String(contrast.length)} row legends at 4.5:1 or more (lowest ${String(contrast.length === 0 ? "-" : Math.min(...contrast.map((row) => row.pct)))}:1 at p10/p90)`,
+          );
+          if (dim.length > 0) {
+            console.log(
+              "drawer contrast",
+              size,
+              saveName,
+              name,
+              JSON.stringify(dim),
+            );
+          }
+          // The "i": its cards take the list's place, fit, and go back. A
+          // finger on it inside the drawer's 400ms settle is the double tap's
+          // second tap, so the press waits that out.
+          await new Promise((resolve) => setTimeout(resolve, 450));
+          await press(page, `${OPEN_SHEET(name)} .board-sheet-info`);
+          await page
+            .waitForSelector(
+              `${OPEN_SHEET(name)} .board-sheet-how:not([hidden])`,
+              {
+                timeout: 2_000,
+              },
+            )
+            .catch(() => undefined);
+          // The cards can use a face the list did not, which only starts
+          // loading as they show: wait for it too, or a loaded runner measures
+          // the fallback font's taller wrap (#373).
+          await page.evaluate(() =>
+            Promise.all([
+              ...[
+                ...document.querySelectorAll(
+                  ".board-sheet.is-open .teach-how img",
+                ),
+              ].map((img) => img.decode().catch(() => undefined)),
+              document.fonts.ready,
+            ]),
+          );
+          const how = await howFacts(page, name);
+          const howArt = await boardArtAt2x(
+            page,
+            OPEN_SHEET(name),
+            OPEN_SHEET(name),
+          );
+          const howText = await boardTextSizes(page, OPEN_SHEET(name));
+          check(
+            how.ok && howArt.misses.length === 0 && howText.small.length === 0,
+            `${label} the "i" cards fit the drawer with no scroll, one Back, art at 2x and 13px text`,
+          );
+          if (!how.ok || howArt.misses.length > 0 || howText.small.length > 0) {
+            console.log(
+              "drawer how",
+              size,
+              saveName,
+              name,
+              JSON.stringify({ how, art: howArt.misses, text: howText.small }),
+            );
+          }
+          await page
+            .$eval(
+              `${OPEN_SHEET(name)} .board-sheet-how .teach-how-back:not([hidden])`,
+              (back) => {
+                back.click();
+              },
+            )
+            .catch(() => undefined);
+          await closeSheet(page, name);
+        }
+        await close();
+      },
+    );
+  }
+
+  section(`keys and drawers ${JSON.stringify(viewport)} states`, async () => {
+    const size = `${String(viewport[0])}x${String(viewport[1])}`;
+    const rows = (page, name) =>
+      page.$$eval(`${OPEN_SHEET(name)} .board-row`, (els) =>
+        Object.fromEntries(
+          els.map((row) => [
+            // A found tool shares its name with an upgrade (boots).
+            row.dataset.tool === undefined
+              ? (row.dataset.tier ??
+                row.dataset.boost ??
+                row.dataset.upgrade ??
+                "")
+              : `tool:${row.dataset.tool}`,
+            {
+              shown: row.closest("[hidden]") === null,
+              classes: [...row.classList],
+              lamp:
+                row.querySelector(".board-lamp")?.style.backgroundPositionX ??
+                "",
+              icon:
+                row.querySelector(".board-row-icon")?.getAttribute("src") ?? "",
+              need: row.querySelector(".board-row-need")?.textContent ?? "",
+              flag: row.querySelector(".board-row-flag")?.textContent ?? "",
+              badge: row.querySelector(".board-row-badge")?.textContent ?? "",
+              price: row.querySelector(".board-row-price")?.textContent ?? "",
+              verb: row.querySelector(".board-row-verb")?.textContent ?? "",
+              trouble: row.dataset.trouble ?? "",
+            },
+          ]),
+        ),
+      );
+    const visit = async (save, name, search = "") => {
+      const opened = await open(viewport, save(), { search, stopClock: true });
+      await keysDrawn(opened.page);
+      await putNoteAway(opened.page);
+      await openSheet(opened.page, name);
+      return { ...opened, rows: await rows(opened.page, name) };
+    };
+    {
+      const { close, rows: early } = await visit(() => crewMountain(), "buys");
+      check(
+        early.cart?.classes.includes("is-pick") === true &&
+          early.cart.lamp === LAMP_X.amber &&
+          early.drill?.classes.includes("is-dear") === true,
+        `${size} early Buys: the cart is the amber pick and the drill is dear`,
+      );
+      await close();
+    }
+    {
+      // The locked row: the Great Machine under its tarp until 120M.
+      const { close, rows: mid } = await visit(() => openMountain(), "buys");
+      check(
+        mid.machine?.classes.includes("is-locked") === true &&
+          mid.machine.price === "Locked" &&
+          mid.machine.icon.includes("mach-machine-dim"),
+        `${size} mid Buys: the Great Machine row is locked, dim, and reads Locked`,
+      );
+      await close();
+    }
+    {
+      const { close, rows: short } = await visit(() => shortMountain(), "buys");
+      check(
+        short.borer?.classes.includes("is-short") === true &&
+          short.borer.need === "Needs 8 workers",
+        `${size} short Buys: the borer is short of hands and reads Needs 8 workers (${String(short.borer?.need)})`,
+      );
+      await close();
+    }
+    {
+      const { close, rows: saving } = await visit(
+        () => savingMountain(),
+        "buys",
+      );
+      check(
+        saving.cart?.flag === "Saving for",
+        `${size} saving Buys: the cart row is flagged Saving for (${String(saving.cart?.flag)})`,
+      );
+      await close();
+    }
+    {
+      const {
+        page,
+        close,
+        rows: idle,
+      } = await visit(() => idleMountain(), "buys");
+      // The staffing New row is brought into the list's view, and only the
+      // list moves for it: the drawer stays where it opens.
+      const seen = await page.$eval(OPEN_SHEET("buys"), (sheet) => {
+        const row = sheet.querySelector(".board-row.teach-new");
+        const list = sheet.querySelector(".board-sheet-list");
+        const clip = sheet.closest(".board-sheet-clip");
+        const board = globalThis.__board();
+        if (row === null || list === null) {
+          return { ok: false };
+        }
+        const box = row.getBoundingClientRect();
+        const port = list.getBoundingClientRect();
+        const top =
+          (sheet.getBoundingClientRect().top - board.top) / board.scale;
+        return {
+          ok:
+            box.top >= port.top - 0.5 &&
+            box.bottom <= port.bottom + 0.5 &&
+            Math.abs(top - 178) <= 0.5 &&
+            (clip?.scrollTop ?? 0) === 0,
+          sheetTop: Math.round(top),
+          clipScrollTop: clip?.scrollTop,
+        };
+      });
+      check(
+        idle.cart?.classes.includes("teach-new") === true &&
+          idle.cart.flag === "New" &&
+          seen.ok,
+        `${size} idle Buys: the cart row is the staffing New row, in view, and the drawer stays at 178 (${JSON.stringify(seen)})`,
+      );
+      await close();
+    }
+    {
+      // The Great Machine the pick, Ada tending it: its flag shares the name's
+      // line, falls back to "Ready now" where the joined words do not fit,
+      // and the name shows in full.
+      const {
+        page,
+        close,
+        rows: pick,
+      } = await visit(() => machinePickMountain(), "buys");
+      const name = await page.$eval(
+        `${OPEN_SHEET("buys")} .tier[data-tier="machine"]`,
+        (row) => {
+          const mid = row.querySelector(".board-row-mid");
+          const words = row.querySelector(".board-row-name");
+          const flag = row.querySelector(".board-row-flag");
+          return {
+            full:
+              mid !== null &&
+              words !== null &&
+              words.getBoundingClientRect().right <=
+                mid.getBoundingClientRect().right + 0.5,
+            flagInside:
+              mid !== null &&
+              flag !== null &&
+              flag.getBoundingClientRect().right <=
+                mid.getBoundingClientRect().right + 0.5,
+          };
+        },
+      );
+      const flag = pick.machine?.flag ?? "";
+      check(
+        pick.machine?.classes.includes("is-pick") === true &&
+          (flag === "Ready now" || flag.startsWith("Ready now · Ada tends")) &&
+          name.full &&
+          name.flagInside,
+        `${size} the Great Machine as the pick with Ada tending it: the name in full and the flag "${flag}" beside it`,
+      );
+      await close();
+    }
+    {
+      const { close, rows: machine } = await visit(
+        () => machineMountain(),
+        "buys",
+      );
+      check(
+        machine.kid?.shown === true &&
+          machine.kid.classes.includes("is-locked") &&
+          machine.kid.icon.includes("mach-kid-dim"),
+        `${size} machine Buys: the Kid worker row is locked and drawn dim`,
+      );
+      await close();
+    }
+    {
+      const {
+        page,
+        close,
+        rows: machine,
+      } = await visit(() => machineMountain(), "buys", "?trouble=cave-in");
+      const dot = await page.$eval(
+        `${KEY("buys")} .board-key-dot`,
+        (el) => !el.hidden,
+      );
+      check(
+        dot && machine.cart?.trouble === "cave-in",
+        `${size} machine with a cave-in on the cart: the Buys key's red lamp shows and the cart row has the trouble`,
+      );
+      await close();
+    }
+    {
+      const { page, close } = await visit(() => heirMountain(), "buys");
+      const chips = await page.$$eval(
+        `${OPEN_SHEET("buys")} .crew-bit`,
+        (els) => els.map((chip) => chip.textContent ?? ""),
+      );
+      check(
+        chips.some((chip) => chip.startsWith("Grandpa")),
+        `${size} heir Buys: Grandpa's chip is on the crew line (${chips.join(" | ")})`,
+      );
+      await close();
+    }
+    {
+      const { close, rows: tools } = await visit(
+        () => toolsMountain(),
+        "upgrades",
+      );
+      check(
+        tools.tap?.badge === "Lv 2/10" &&
+          tools.boots?.price === "Owned" &&
+          tools["tool:pick"]?.price === "Found" &&
+          tools["tool:lamp"]?.price === "Found",
+        `${size} tools Upgrades: Strong arms at Lv 2/10, Better boots Owned, the pick and the lamp Found`,
+      );
+      if (tools.tap?.badge !== "Lv 2/10" || tools.boots?.price !== "Owned") {
+        console.log("tools upgrades", size, JSON.stringify(tools));
+      }
+      await close();
+    }
+    {
+      const { close, rows: crew } = await visit(
+        () => ({ version: 4, mountain: CREW, lastSeen: Date.now() }),
+        "upgrades",
+      );
+      check(
+        ["sharper", "overtime"].every(
+          (id) =>
+            crew[id]?.classes.includes("is-running") === true &&
+            crew[id].verb === "Running" &&
+            /^\d+:\d\d$/.test(crew[id].price),
+        ),
+        `${size} crew Upgrades: both boosts are Running with their clocks`,
+      );
+      await close();
+    }
+  });
+
+  section(`keys and drawers ${JSON.stringify(viewport)} taps`, async () => {
+    const size = `${String(viewport[0])}x${String(viewport[1])}`;
+    const label = `${size} keys and drawers:`;
+    // A sleepy double tap on each drawer's key, 150ms apart: the second tap
+    // lands on the drawer that slid up under the finger, and neither buys
+    // nor closes. Today's sheets (Workshop and Engineers until B6, the
+    // Ledger's menu until B7) never buy either.
+    {
+      const { page, close } = await open(viewport, openMountain(), {
+        stopClock: true,
+      });
+      await keysDrawn(page);
+      await putNoteAway(page);
+      for (const id of KEY_IDS) {
+        const before = await storedMountain(page);
+        const odoBefore = await odometer(page);
+        const drawerKey = id === "buys" || id === "upgrades";
+        // Under the full gate's load the second tap can come down after the
+        // drawer's 400ms settle, where Back rightly closes it: that try has not
+        // tested the guard. Retry it (at most SETTLE_TRIES times), judged from when the
+        // drawer opened, an upper bound on the settle's start.
+        let intoSettle = 0;
+        for (let attempt = 0; attempt < SETTLE_TRIES; attempt += 1) {
+          if (drawerKey) {
+            await watchSheetOpen(page, SHEET(id));
+          }
+          await tapTwice(page, KEY(id), 150);
+          if (!drawerKey) {
+            break;
+          }
+          intoSettle = await secondPressIntoSettle(page);
+          const open = await page.$eval(SHEET(id), (sheet) =>
+            sheet.classList.contains("is-open"),
+          );
+          if (open || intoSettle < 400 || attempt === SETTLE_TRIES - 1) {
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+        const after = await storedMountain(page);
+        const spent =
+          after.pocket !== before.pocket ||
+          (await odometer(page)) !== odoBefore ||
+          ["helpers", "carts", "drills", "borers", "machines"].some(
+            (tier) => (after[tier] ?? 0) !== (before[tier] ?? 0),
+          );
+        const drawer = id === "buys" || id === "upgrades";
+        const stays = drawer
+          ? await page.$eval(SHEET(id), (sheet) =>
+              sheet.classList.contains("is-open"),
+            )
+          : true;
+        check(
+          !spent && stays,
+          `${label} a double tap on the ${id} key ${drawer ? "leaves its drawer open and " : ""}buys nothing${drawer ? ` (second press ${String(intoSettle)}ms into the settle)` : ""}`,
+        );
+        if (spent || !stays) {
+          console.log(
+            "key double tap",
+            size,
+            id,
+            JSON.stringify({ before, after, stays }),
+          );
+        }
+        // Put whatever opened away before the next key.
+        await page.keyboard.press("Escape");
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        for (const sheet of ["buys", "upgrades"]) {
+          if (await page.$(OPEN_SHEET(sheet))) {
+            await closeSheet(page, sheet);
+          }
+        }
+        for (const back of [
+          ".workshop-close",
+          ".engineers-close",
+          ".menu-close",
+        ]) {
+          await page
+            .$eval(`${back}`, (button) => {
+              if (button.getClientRects().length > 0) {
+                button.click();
+              }
+            })
+            .catch(() => undefined);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+      await close();
+    }
+
+    // Early: the Buys key's double tap keeps Buys open with the odometer
+    // unchanged; a tap on the cart row after 600ms buys one and shows Done,
+    // and a second tap inside the 1.9s hold buys nothing. No row moves.
+    {
+      const { page, close } = await open(viewport, crewMountain(), {
+        stopClock: true,
+      });
+      await keysDrawn(page);
+      await putNoteAway(page);
+      const odoBefore = await odometer(page);
+      await tapTwice(page, KEY("buys"), 150);
+      const stillOpen = (await page.$(OPEN_SHEET("buys"))) !== null;
+      check(
+        stillOpen && (await odometer(page)) === odoBefore,
+        `${label} early: a double tap on the Buys key leaves Buys open and the odometer unchanged`,
+      );
+      await sheetSettled(page, "buys");
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      const topsBefore = await listTops(page, "buys");
+      const before = await storedMountain(page);
+      const cart = `${OPEN_SHEET("buys")} .tier[data-tier="cart"]`;
+      // The second tap is meant 450ms after the first. A loaded runner can push it past the
+      // hold, where a buy is right, so the gap is read from the page's own press stamps: a
+      // try that landed outside the hold proves nothing and goes again; the last must land
+      // inside, and inside, nothing may be bought (#373).
+      const pressStamps = () =>
+        page.$eval(cart, (row) => {
+          const stamps = [];
+          row.addEventListener(
+            "pointerdown",
+            (event) => {
+              stamps.push(event.timeStamp);
+            },
+            { capture: true },
+          );
+          globalThis.__holdStamps = stamps;
+        });
+      const gapOf = () =>
+        page.evaluate(() => {
+          const [first, second] = globalThis.__holdStamps ?? [];
+          return second === undefined || first === undefined
+            ? Number.POSITIVE_INFINITY
+            : second - first;
+        });
+      await pressStamps();
+      await press(page, cart);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const bought = await storedMountain(page);
+      const done = await page.$eval(cart, (row) => ({
+        verb: row.querySelector(".board-row-verb")?.textContent ?? "",
+        held: row.classList.contains("is-held"),
+      }));
+      check(
+        bought.carts - before.carts === 1 && done.verb === "Done" && done.held,
+        `${label} early: a tap on the cart row after 600ms buys one cart and shows Done`,
+      );
+      let held = { inside: false, spent: true, gap: Number.POSITIVE_INFINITY };
+      let first = bought;
+      for (let tryNo = 0; tryNo < 3; tryNo += 1) {
+        if (tryNo > 0) {
+          // Wait out the hold, buy again, and try the second tap once more.
+          await page.waitForFunction(
+            (selector) =>
+              document
+                .querySelector(selector)
+                ?.classList.contains("is-held") === false,
+            { timeout: 5_000 },
+            cart,
+          );
+          await pressStamps();
+          await press(page, cart);
+          await new Promise((resolve) => setTimeout(resolve, 150));
+          first = await storedMountain(page);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await press(page, cart);
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        const again = await storedMountain(page);
+        const gap = await gapOf();
+        held = {
+          inside: gap < 1_900,
+          spent: again.carts !== first.carts || again.pocket !== first.pocket,
+          gap,
+        };
+        if (held.inside) {
+          break;
+        }
+      }
+      check(
+        held.inside && !held.spent,
+        `${label} early: a second tap inside the 1.9s hold buys nothing (${String(Math.round(held.gap))}ms after the first)`,
+      );
+      const topsAfter = await listTops(page, "buys");
+      check(
+        topsAfter.join(",") === topsBefore.join(","),
+        `${label} early: a buy inside the drawer moves no row`,
+      );
+      if (topsAfter.join(",") !== topsBefore.join(",")) {
+        console.log("frozen rows", size, topsBefore, topsAfter);
+      }
+      // The "i" shows the how cards in the list's place; their Back brings
+      // the list back.
+      await press(page, `${OPEN_SHEET("buys")} .board-sheet-info`);
+      const cards = await page
+        .waitForSelector(`${OPEN_SHEET("buys")} .teach-how`, {
+          visible: true,
+          timeout: 2_000,
+        })
+        .then(
+          () => true,
+          () => false,
+        );
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      await press(
+        page,
+        `${OPEN_SHEET("buys")} .board-sheet-how .teach-how-back:not([hidden])`,
+      );
+      const restored = await page
+        .waitForFunction(
+          (selector) => {
+            const sheet = document.querySelector(selector);
+            return (
+              sheet?.querySelector(".board-sheet-list")?.hidden === false &&
+              sheet.querySelector(".board-sheet-how")?.hidden === true
+            );
+          },
+          { timeout: 2_000 },
+          OPEN_SHEET("buys"),
+        )
+        .then(
+          () => true,
+          () => false,
+        );
+      check(
+        cards && restored,
+        `${label} early: the "i" shows the how cards, and their Back restores the list`,
+      );
+      await close();
+    }
+
+    // Saving: a tap on a row he cannot afford spends nothing and its lamp
+    // reads red within 200ms.
+    {
+      const { page, close } = await open(viewport, savingMountain(), {
+        stopClock: true,
+      });
+      await keysDrawn(page);
+      await putNoteAway(page);
+      await openSheet(page, "buys");
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      const odoBefore = await odometer(page);
+      const before = await storedMountain(page);
+      const dear = `${OPEN_SHEET("buys")} .tier.is-dear[data-tier="cart"]`;
+      const watch = page.evaluate(
+        (selector, red) =>
+          new Promise((resolve) => {
+            const row = document.querySelector(selector);
+            const lamp = row?.querySelector(".board-lamp");
+            const started = performance.now();
+            let at;
+            row?.addEventListener(
+              "click",
+              () => {
+                at = performance.now();
+              },
+              { once: true },
+            );
+            const look = () => {
+              if (at !== undefined && lamp?.style.backgroundPositionX === red) {
+                resolve(performance.now() - at);
+                return;
+              }
+              if (performance.now() - started > 3_000) {
+                resolve(Infinity);
+                return;
+              }
+              requestAnimationFrame(look);
+            };
+            look();
+          }),
+        dear,
+        LAMP_X.red,
+      );
+      await press(page, dear);
+      const redAfter = await watch;
+      const after = await storedMountain(page);
+      check(
+        redAfter <= 200 &&
+          after.pocket === before.pocket &&
+          after.carts === before.carts &&
+          (await odometer(page)) === odoBefore,
+        `${label} saving: a tap on a dear row spends nothing and its lamp reads red within 200ms (${String(Math.round(redAfter))}ms)`,
+      );
+      await close();
+    }
+
+    // The ways out: a scrim tap, a scrim tap over a relic socket (which then
+    // shows the relic's note), and Escape.
+    {
+      const { page, close } = await open(viewport, openMountain(), {
+        stopClock: true,
+      });
+      await keysDrawn(page);
+      await putNoteAway(page);
+      await openSheet(page, "buys");
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      // A spot on the board above the drawer, off every socket: under the
+      // odometer, at the left.
+      await tapBoard(page, 24, 170);
+      await page
+        .waitForSelector(`${SHEET("buys")}:not(.is-open)`, { timeout: 2_000 })
+        .catch(() => undefined);
+      const shut = !(await buysOpen(page));
+      const noNote = (await page.$(".board-note.on")) === null;
+      check(shut && noNote, `${label} a scrim tap closes the drawer`);
+
+      await openSheet(page, "buys");
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      const socket = await page.$eval(".board-socket", (el) => {
+        const board = globalThis.__board();
+        const b = el.getBoundingClientRect();
+        return {
+          x: ((b.left + b.right) / 2 - board.left) / board.scale,
+          y: ((b.top + b.bottom) / 2 - board.top) / board.scale,
+        };
+      });
+      await tapBoard(page, socket.x, socket.y);
+      const note = await page
+        .waitForSelector(".board-note.on", { timeout: 2_000 })
+        .then(
+          () => true,
+          () => false,
+        );
+      check(
+        !(await buysOpen(page)) && note,
+        `${label} a scrim tap on a socket closes the drawer and shows the relic's note`,
+      );
+      await page.keyboard.press("Escape");
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      await openSheet(page, "upgrades");
+      await page.keyboard.press("Escape");
+      const escaped = await page
+        .waitForSelector(`${SHEET("upgrades")}:not(.is-open)`, {
+          timeout: 2_000,
+        })
+        .then(
+          () => true,
+          () => false,
+        );
+      check(escaped, `${label} Escape closes the drawer`);
+      await close();
+    }
+
+    // Reduced motion: a drawer is all the way open in the first frame after
+    // the tap, and a dear tap never paints red. Without it, the drawer is
+    // still sliding in that frame.
+    for (const reducedMotion of [false, true]) {
+      const { page, close } = await open(viewport, savingMountain(), {
+        reducedMotion,
+        stopClock: true,
+      });
+      await keysDrawn(page);
+      await putNoteAway(page);
+      const firstFrame = await page.evaluate(
+        (key, sheetSelector) =>
+          new Promise((resolve) => {
+            document.querySelector(key)?.click();
+            requestAnimationFrame(() => {
+              const board = globalThis.__board();
+              const sheet = document.querySelector(sheetSelector);
+              const top = sheet?.getBoundingClientRect().top ?? 0;
+              resolve((top - board.top) / board.scale);
+            });
+          }),
+        KEY("buys"),
+        SHEET("buys"),
+      );
+      if (reducedMotion) {
+        check(
+          Math.abs(firstFrame - 178) <= 0.5,
+          `${label} under reduced motion the drawer is fully open in the first frame (${String(Math.round(firstFrame))})`,
+        );
+      } else {
+        check(
+          firstFrame > 178.5,
+          `${label} without reduced motion the drawer is still sliding in the first frame (${String(Math.round(firstFrame))})`,
+        );
+      }
+      if (reducedMotion) {
+        await sheetSettled(page, "buys");
+        await new Promise((resolve) => setTimeout(resolve, 450));
+        const dear = `${OPEN_SHEET("buys")} .tier.is-dear[data-tier="cart"]`;
+        const watch = page.evaluate(
+          (selector, red) =>
+            new Promise((resolve) => {
+              const lamp = document.querySelector(`${selector} .board-lamp`);
+              const started = performance.now();
+              let painted = false;
+              const look = () => {
+                painted ||= lamp?.style.backgroundPositionX === red;
+                if (performance.now() - started > 800) {
+                  resolve(painted);
+                  return;
+                }
+                requestAnimationFrame(look);
+              };
+              look();
+            }),
+          dear,
+          LAMP_X.red,
+        );
+        await press(page, dear);
+        check(
+          !(await watch),
+          `${label} under reduced motion a dear tap never paints the lamp red`,
+        );
       }
       await close();
     }

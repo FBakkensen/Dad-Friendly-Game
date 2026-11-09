@@ -232,3 +232,134 @@ export function fleetMountain() {
     },
   };
 }
+
+/**
+ * Granite with a borer he can afford but not staff (#373): three hands free
+ * beside 6 carts, 4 drills and the borer, and a pocket over the next borer's
+ * price. The borer row reads "Needs 8 workers".
+ */
+export function shortMountain() {
+  const open = openMountain();
+  return {
+    ...open,
+    mountain: {
+      remaining: 240_000_000 - 25_000_000,
+      pocket: 6_000_000,
+      helpers: 21,
+      carts: 6,
+      drills: 4,
+      borers: 1,
+      staffed: 2,
+    },
+  };
+}
+
+/**
+ * Carts standing idle on a crewed Topsoil (#373): 6 carts and 3 workers, and
+ * staffing never taught, so Buys shows the staffing New row.
+ */
+export function idleMountain() {
+  return {
+    version: 6,
+    lastSeen: Date.now(),
+    mountain: {
+      remaining: 240_000_000 - 500_000,
+      pocket: 6_854,
+      helpers: 3,
+      carts: 6,
+      staffed: 2,
+      taught: [],
+    },
+    workshop: EMPTY_WORKSHOP,
+  };
+}
+
+/**
+ * The mid save with upgrades owned and levelled (#373): Better boots bought,
+ * Strong arms at level 2, and Grandfather's pick and the old lamp found.
+ */
+export function toolsMountain() {
+  const open = openMountain();
+  return {
+    ...open,
+    mountain: {
+      ...open.mountain,
+      upgrades: { boots: 1, tap: 2 },
+      finds: ["pick", "lamp"],
+    },
+  };
+}
+
+/**
+ * The Great Machine with the Kid row locked (#373): past the Hammer with one
+ * Great Machine and no kids, short of the Crown (70M stones down), so the Kid
+ * worker row shows, dim and locked. Buys runs longer than the drawer (C1).
+ * With ?trouble=cave-in the cart, which has no bay beside the machine, lights
+ * the Buys key's red lamp (C3).
+ */
+export function machineMountain() {
+  const open = openMountain();
+  return {
+    ...open,
+    mountain: {
+      remaining: 240_000_000 - 60_000_000,
+      pocket: 2_000_000,
+      helpers: 75,
+      kids: 0,
+      carts: 20,
+      drills: 10,
+      borers: 4,
+      machines: 1,
+      staffed: 2,
+    },
+  };
+}
+
+/** A kid's run after one pass (#338): the crewed Topsoil, Grandpa on the carts. */
+export function heirMountain() {
+  const crew = crewMountain();
+  return { ...crew, mountain: { ...crew.mountain, legacy: 1 } };
+}
+
+/**
+ * A full Granite before the Great Machine (#373): so many hands on carts,
+ * drills and borers, with two engineers, that the Buys crew chips take two
+ * rows. Mid-game Buys still fits its drawer.
+ */
+export function fullGraniteMountain() {
+  const open = openMountain();
+  return {
+    ...open,
+    mountain: {
+      remaining: 240_000_000 - 30_000_000,
+      pocket: 80_000_000,
+      helpers: 80,
+      carts: 24,
+      drills: 8,
+      borers: 3,
+      staffed: 2,
+      engineers: [
+        { name: "Ada", rank: 0, trips: 0, post: "borer" },
+        { name: "Nils", rank: 0, trips: 0, post: "drill" },
+      ],
+      upgrades: { tap: 3, boots: 1, steady: 1, cartSyn: 1 },
+    },
+  };
+}
+
+/**
+ * The Great Machine era with the Great Machine the Ready now pick and Ada
+ * tending it (#373): its row's flag gives way on the name's line.
+ */
+export function machinePickMountain() {
+  const machine = machineMountain();
+  return {
+    ...machine,
+    mountain: {
+      ...machine.mountain,
+      pocket: 200_000_000,
+      helpers: 90,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "machine" }],
+    },
+  };
+}

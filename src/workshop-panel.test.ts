@@ -49,7 +49,6 @@ function mount(now: () => number) {
     mountainUrl: tile,
     stoneUrl: tile,
     veinUrl: tile,
-    upgradesUrl: tile,
     tierArt: {
       helper: tile,
       cart: tile,
@@ -173,7 +172,9 @@ describe("workshop panel (#199)", () => {
         },
       },
     }));
-    screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
+      ?.click();
     expect(screen.root.querySelector(".workshop-open")?.textContent).toContain(
       "Workshop · 8:00",
     );
@@ -204,15 +205,25 @@ describe("workshop panel (#199)", () => {
     let clock = 1_700_000_000_000;
     const screen = mount(() => clock);
     const menu = () =>
-      screen.root.querySelector<HTMLButtonElement>(".menu-button");
+      screen.root.querySelector<HTMLButtonElement>(
+        ".board-key[data-key=ledger]",
+      );
     menu()?.click();
     const locked = screen.root.querySelector(".workshop-locked");
     expect(locked?.textContent).toBe("Workshop · opens as the clay comes in");
-    expect(locked?.querySelector("img")?.getAttribute("src")).toBe(
-      screen.root
-        .querySelector<HTMLImageElement>(".thumb-workshop img")
-        ?.getAttribute("src"),
+    // The menu row keeps the hammer; the locked key wears its dim icon (#373).
+    expect(locked?.querySelector("img")?.getAttribute("src")).toBe(tile);
+    const key = screen.root.querySelector<HTMLButtonElement>(
+      ".board-key[data-key=workshop]",
     );
+    expect(key?.disabled).toBe(true);
+    expect(
+      key?.querySelector(".board-key-icon")?.getAttribute("src"),
+    ).toContain("icon-workshop-dim");
+    expect(
+      screen.root.querySelector(".board-key[data-key=workshop] .board-key-sub")
+        ?.textContent,
+    ).toBe("With the clay");
     expect(locked?.textContent).not.toMatch(/\?/);
     expect(
       screen.root.querySelector<HTMLButtonElement>(".workshop-open")?.hidden,
@@ -339,7 +350,9 @@ describe("workshop panel (#199)", () => {
         pocket: 80_000_000,
         materials: { clay: 40, iron: 40, crystal: 0, heartstone: 0 },
       }));
-      screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
+        ?.click();
       screen.root.querySelector<HTMLButtonElement>(".workshop-open")?.click();
       const craft = () => {
         const found = screen.root.querySelector<HTMLButtonElement>(
@@ -385,12 +398,15 @@ describe("workshop panel (#199)", () => {
       helpers: 40,
       materials: { clay: 10, iron: 0, crystal: 0, heartstone: 0 },
     }));
-    const thumb =
-      screen.root.querySelector<HTMLButtonElement>(".thumb-workshop");
-    expect(thumb?.querySelector(".teach-dot")).not.toBeNull();
-    // The New note waits for the relic and layer cards the jump opened, then shows in
-    // the board note above its thumb (#372).
-    expect(screen.root.querySelector(".board-note.on .teach-note")).toBeNull();
+    const key = screen.root.querySelector<HTMLButtonElement>(
+      ".board-key[data-key=workshop]",
+    );
+    expect(key?.querySelector(".board-key-dot:not([hidden])")).not.toBeNull();
+    // The New sign waits for the relic and layer cards the jump opened, then stands
+    // over its key (#372, #373).
+    const sign = () =>
+      screen.root.querySelector<HTMLElement>(".board-sign-slot:not([hidden])");
+    expect(sign()).toBeNull();
     for (let i = 0; i < 20; i += 1) {
       const go = screen.root.querySelector<HTMLButtonElement>(
         ".relic-reveal:not([hidden]) .reveal-continue, .layer-arrival:not([hidden]) .layer-dig",
@@ -398,14 +414,15 @@ describe("workshop panel (#199)", () => {
       if (go === null) break;
       go.click();
     }
-    screen.root
-      .querySelector<HTMLButtonElement>(".board-note.on .teach-note")
-      ?.click();
+    expect(sign()?.dataset["key"]).toBe("workshop");
+    expect(key?.getAttribute("aria-label")).toBe(
+      "Workshop, a craft can start. New · The Workshop is open",
+    );
+    // Its key opens the sheet: seen, and the sign goes.
+    key?.click();
     const sheet = screen.root.querySelector<HTMLElement>(".workshop-dialog");
     expect(sheet?.hidden).toBe(false);
-    expect(screen.root.querySelector<HTMLElement>(".teach-note")?.hidden).toBe(
-      true,
-    );
+    expect(sign()).toBeNull();
     expect(sheet?.querySelector(".teach-intro")?.textContent).toBe(
       "Turn your clay into gear for the crew.",
     );
@@ -444,7 +461,7 @@ describe("workshop panel (#199)", () => {
       "blasting-charge",
     );
     expect(screen.progress.getSnapshot().mountain.taught).toEqual(["workshop"]);
-    expect(thumb?.querySelector(".teach-dot")).toBeNull();
+    expect(key?.querySelector(".board-key-dot:not([hidden])")).toBeNull();
     const after = sheet?.querySelector<HTMLElement>(".workshop-card");
     expect(after?.dataset["recipe"]).toBe("blasting-charge");
     expect(after?.querySelector(".teach-tag")).toBeNull();
@@ -469,7 +486,9 @@ describe("workshop panel (#199)", () => {
         endsAt: clock + 600_000,
       },
     }));
-    screen.root.querySelector<HTMLButtonElement>(".menu-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
+      ?.click();
     screen.root.querySelector<HTMLButtonElement>(".workshop-open")?.click();
     const cancel =
       screen.root.querySelector<HTMLButtonElement>(".workshop-cancel");

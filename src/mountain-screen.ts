@@ -1,8 +1,6 @@
 import { minedOut, shownStones, stonesLeft } from "./scale";
-import { canBuyAnyTier, canCraftNow, setAffordGlow } from "./afford-glow";
 import pickUrl from "./assets/pick.png";
-import { markSeen, noteFor, showsDot } from "./teach";
-import { createTeachNote, setTeachDot } from "./teach-ui";
+import { markSeen, noteFor } from "./teach";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
 import { formatCount } from "./format";
 import {
@@ -17,6 +15,11 @@ import { hasRelic, relicGoal, type RelicId } from "./relics";
 import { BOOSTS } from "./boosts";
 import { createEffectChip, shortEffectName, writeChip } from "./effect-row";
 import { createBoardNote } from "./board-note";
+import { DRAWER_SETTLE_MS, createSheetScrim } from "./board-drawer";
+import { keyViews, type KeyId } from "./key-rail";
+import { createKeyRail } from "./board-keys";
+import { createBoardSign } from "./board-sign";
+import { setAttr } from "./board-dom";
 import { bandWords, createMachineBays } from "./board-bays";
 import { bayViews } from "./machine-bays";
 import { readyNow, type ReadyPick } from "./ready-now";
@@ -43,9 +46,7 @@ import { createSaveConflictPanel } from "./save-conflict-panel";
 import { createSavedCopiesPanel } from "./saved-copies-panel";
 import { createLegacyPanel, legacyWords } from "./legacy-panel";
 import { legacyBonus } from "./legacy";
-import { createBuysHead } from "./buys-head";
 import { buyWithTeach, createCrewPanel } from "./crew-panel";
-import { SHEET_HOST } from "./sheet-card";
 import { createEngineersPanel } from "./engineers-panel";
 import { createUpgradesPanel } from "./upgrades-panel";
 import {
@@ -55,7 +56,6 @@ import {
   hotTimers,
   isRecipeId,
   recipeById,
-  workshopUnlocked,
 } from "./workshop";
 import { createWorkshopPanel } from "./workshop-panel";
 import {
@@ -117,9 +117,13 @@ const MINED_OUT = "The mountain is mined out";
  * opened Buys on purpose reads the card first, which takes longer than 400ms.
  * Only buying waits: Back to the mountain and the other sheet controls work at
  * once, and the sheet is not `inert`, which would let the tap fall through to
- * the plate beneath and buy there.
+ * the plate beneath and buy there. The value is the drawer shell's settle
+ * (board-drawer.ts), which the B5 drawers and their Back plates share.
  */
-export const BUYS_SETTLE_MS = 400;
+export const BUYS_SETTLE_MS = DRAWER_SETTLE_MS;
+
+/** The update prompt tells its screen it is up, so an open drawer closes at once. */
+const UPDATE_SHOWN = "update-shown";
 
 export function mountMountainScreen({
   root,
@@ -129,11 +133,11 @@ export function mountMountainScreen({
   veinUrl,
   tierArt,
   relicArt,
-  upgradesUrl,
   auth = createUnconfiguredAuth(),
   progress: progressArg,
   now = Date.now,
   tapClock = () => performance.now(),
+  pressAge,
   random = Math.random,
   veinStorage,
   signal,
@@ -145,7 +149,6 @@ export function mountMountainScreen({
   veinUrl: string;
   tierArt: Readonly<Record<TierId, string>>;
   relicArt: Readonly<Record<RelicId, string>>;
-  upgradesUrl: string;
   auth?: AuthController;
   progress?: ProgressStore;
   now?: () => number;
@@ -154,6 +157,8 @@ export function mountMountainScreen({
    * game's clock, which a gate run may stop.
    */
   tapClock?: () => number;
+  /** How long a press waited before its handler ran; a test on its own tap clock passes 0. */
+  pressAge?: (event: Event) => number;
   random?: () => number;
   /** Where the vein wait is carried between sessions; localStorage by default. */
   veinStorage?: Pick<Storage, "getItem" | "setItem">;
@@ -247,14 +252,14 @@ export function mountMountainScreen({
   const bayThanks = document.createElement("p");
   bayThanks.className = "board-thanks";
   bayThanks.textContent = TROUBLE_FIXED;
-  // The New teach note shows in the board note above its thumb (#372).
-  const teachNote = createTeachNote();
-  // While another note shows, the list, the vein's note, the bay thanks and
-  // the teach note wait here, so the chips and the live words stay in the page.
+  // The New sign stands in the band over its key (#373): a sign, not a button.
+  const sign = createBoardSign();
+  // While another note shows, the list, the vein's note and the bay thanks
+  // wait here, so the chips and the live words stay in the page.
   const runningPark = document.createElement("div");
   runningPark.className = "board-running-park";
   runningPark.hidden = true;
-  runningPark.append(running, veinNote, bayThanks, teachNote.note);
+  runningPark.append(running, veinNote, bayThanks);
   const chipFor = new Map(
     BOOSTS.map((boost) => {
       const chip = createEffectChip(
@@ -386,17 +391,45 @@ export function mountMountainScreen({
     renderVein();
   };
 
-  /** When Buys last opened from shut, on `tapClock`; never yet is -Infinity. */
-  let buysOpenedAt = Number.NEGATIVE_INFINITY;
+  /**
+   * The key rail (#373): five keys under the Ready row. Buys and Upgrades open their drawers
+   * from here; Engineers and the Ledger key (today's menu, until B7) are their panels' doors,
+   * whose own click handlers open them. Every key first puts the board's popups away.
+   */
+  const rail = createKeyRail({
+    onKey: (id, key) => {
+      closeBoardPopups();
+      // A key pressed from the keyboard puts the New sign away too.
+      putSignAway();
+      switch (id) {
+        case "buys":
+          openBuys(key);
+          return;
+        case "workshop":
+          openWorkshopSheet();
+          return;
+        case "upgrades":
+          crewPanel.sheet.close({ restoreFocus: false });
+          upgrades.open(key);
+          return;
+        case "engineers":
+        case "ledger":
+          return;
+      }
+    },
+  });
+  /** The Ready now pick last painted on the plate: the Buys rows light the same one. */
+  let shownPick: ReadyPick = readyNow(view.mountain, now(), view.trouble);
   const crewPanel = createCrewPanel({
     progress,
     getView: () => view,
     now,
-    tierArt,
-    stoneUrl,
-    settling: () => tapClock() - buysOpenedAt < BUYS_SETTLE_MS,
+    pick: () => shownPick,
+    clock: tapClock,
+    ...(pressAge === undefined ? {} : { pressAge }),
+    door: rail.keys.buys,
+    ...(signal === undefined ? {} : { signal }),
   });
-  const { crew, tierGrid, thanks } = crewPanel;
 
   const welcomePanel = createWelcomePanel({ progress, getView: () => view });
   const { welcome } = welcomePanel;
@@ -470,7 +503,7 @@ export function mountMountainScreen({
     }
     const pick = readyNow(latest.mountain, now(), latest.trouble);
     if (pick.kind === "saving") {
-      openBuys();
+      openBuys(readyPlate.button);
       return { kind: "opened" };
     }
     if (pick.kind !== "ready") {
@@ -607,9 +640,6 @@ export function mountMountainScreen({
   const closeMenu = (): void => {
     menuPanel.close();
   };
-  const focusMenu = (): void => {
-    menuButton.focus();
-  };
   const workshop = createWorkshopPanel({
     progress,
     getView: () => view,
@@ -617,7 +647,10 @@ export function mountMountainScreen({
     stoneUrl,
     hammerUrl: relicArt.hammer,
     onOpen: closeMenu,
-    onClose: focusMenu,
+    // Back to the door it opened from; the Ledger key while a re-load holds the Workshop's.
+    onClose: () => {
+      (workshopDoor.disabled ? rail.keys.ledger : workshopDoor).focus();
+    },
     requestRender: () => {
       render();
     },
@@ -644,24 +677,23 @@ export function mountMountainScreen({
     auth,
     onStartOver: resetVein,
     extras: [ledger, workshop.menuEntry, legacy.menuPass, savedCopies.entry],
+    door: rail.keys.ledger,
     requestRender: () => {
       render();
     },
   });
-  const { menuButton, menu, confirm, fieldLogSheet } = menuPanel;
+  const { menu, confirm, fieldLogSheet } = menuPanel;
 
   const upgrades = createUpgradesPanel({
     progress,
     getView: () => view,
     now,
-    upgradesUrl,
     chipFor,
-    requestRender: () => {
-      render();
-    },
+    clock: tapClock,
+    ...(pressAge === undefined ? {} : { pressAge }),
+    door: rail.keys.upgrades,
+    ...(signal === undefined ? {} : { signal }),
   });
-  const upgradesButton = upgrades.button;
-  const upgradesSheet = upgrades.sheet;
 
   const engineers = createEngineersPanel({
     progress,
@@ -674,6 +706,8 @@ export function mountMountainScreen({
       machine: tierArt.machine,
     },
     chipHost: effectRow,
+    door: rail.keys.engineers,
+    fallbackDoor: rail.keys.ledger,
     now,
     requestRender: () => {
       render();
@@ -683,6 +717,10 @@ export function mountMountainScreen({
   const updatePrompt = document.createElement("div");
   updatePrompt.className = "update-prompt";
   updatePrompt.hidden = true;
+  // showAppUpdate opens the prompt from outside the screen: it covers the drawers at once.
+  updatePrompt.addEventListener(UPDATE_SHOWN, () => {
+    coverDrawers();
+  });
   updatePrompt.setAttribute("role", "dialog");
   updatePrompt.setAttribute("aria-modal", "true");
   updatePrompt.setAttribute("aria-labelledby", "update-prompt-title");
@@ -767,6 +805,7 @@ export function mountMountainScreen({
     renderGaugeRow();
     // The Ready now pick, once per render: the bays light theirs (#372).
     const pick = readyNow(view.mountain, now(), view.trouble);
+    shownPick = pick;
     renderBays(pick);
     renderReadyRow(pick);
     crewPanel.render();
@@ -781,27 +820,11 @@ export function mountMountainScreen({
     upgrades.render();
     engineers.render();
     workshop.render();
-    // The menu row hides Workshop until the Granite. The thumb uses that same gate.
-    workshopThumb.disabled = !workshopUnlocked(view.mountain);
-    // Gold glow: something in the sheet he can buy right now (#282).
-    setAffordGlow(buysButton, view.ready && canBuyAnyTier(view.mountain));
-    setAffordGlow(
-      workshopThumb,
-      view.ready &&
-        !workshopThumb.disabled &&
-        canCraftNow(view.mountain, now()),
-    );
-    setTeachDot(workshopThumb, showsDot(view.mountain, "workshop"));
-    // Staffing is small (#246): a dot on Buys, no note.
-    const staffing = showsDot(view.mountain, "staffing");
-    setTeachDot(buysButton, staffing);
-    buysHead.render(staffing);
-    // Tending is small (#246): its dot shares the button, with no note.
-    setTeachDot(
-      engineers.button,
-      showsDot(view.mountain, "engineers") ||
-        showsDot(view.mountain, "tending") ||
-        showsDot(view.mountain, "promotion"),
+    // Today's Workshop sheet knows no key: the screen says whether it is open (#373).
+    setAttr(
+      rail.keys.workshop,
+      "aria-expanded",
+      workshop.sheet.hidden ? "false" : "true",
     );
     renderTeach();
     const at = now();
@@ -852,7 +875,7 @@ export function mountMountainScreen({
       runningPark.append(running);
     }
     // Back to the park whenever another note has taken their place.
-    for (const parked of [veinNote, bayThanks, teachNote.note]) {
+    for (const parked of [veinNote, bayThanks]) {
       if (parked.parentNode === null) {
         runningPark.append(parked);
       }
@@ -862,69 +885,123 @@ export function mountMountainScreen({
     savedCopies.render();
     conflictSheet.render(view.saveConflict, view.elsewhere);
     saveLine.render();
+    coverDrawers();
     coverNote();
+    // Locks, lit caps, red dot lamps and timers, by the key rail's rules (#373),
+    // with the New sign's words on its key's label.
+    renderRail();
   };
 
-  /** A sheet or card open over the board. */
-  const OPEN_SHEET =
+  /** A card open over the board: today's sheets and the cards that open by themselves. */
+  const OPEN_CARD =
     ":scope > [role='dialog']:not([hidden]), :scope > [role='alertdialog']:not([hidden])";
-  /** The teach note last put in the board note: each shows once a launch. */
+  /**
+   * A sheet or card open over the board. A drawer is never hidden: it is open
+   * while it has .is-open, inside the sheet clip (#373).
+   */
+  const OPEN_SHEET = `${OPEN_CARD}, :scope > .board-sheet-clip > .board-sheet.is-open`;
+  /**
+   * A card that opens by itself (a relic, a layer, a craft done, a save
+   * conflict, an update) stands under the drawers' clip. It closes an open
+   * drawer, so it is never covered, and keeps the focus it took: the key
+   * the drawer opened from is under the card.
+   */
+  const coverDrawers = (): void => {
+    if (root.querySelector(OPEN_CARD) === null) {
+      return;
+    }
+    for (const sheet of [crewPanel.sheet, upgrades.sheet]) {
+      if (sheet.isOpen()) {
+        sheet.close({ restoreFocus: false });
+      }
+    }
+  };
+  /** The New sign last shown: each shows once a launch. */
   let teachShown: string | undefined;
   /**
    * A card that opens by itself (a relic, a layer, a craft done, a save
    * conflict, an update) never closes the board's popups, and the board note
-   * stands above it. So any note goes once such a card is up. A New note it
-   * covered was never really seen: it shows once more after the card.
+   * stands above it. So any note goes once such a card is up, and so does the
+   * New sign. A sign it covered was never really seen: it shows once more after
+   * the card.
    */
   const coverNote = (): void => {
-    if (
-      !boardNote.note.classList.contains("on") ||
-      root.querySelector(OPEN_SHEET) === null
-    ) {
+    if (root.querySelector(OPEN_SHEET) === null) {
       return;
     }
-    if (boardNote.note.contains(teachNote.note)) {
+    if (sign.shown() !== undefined) {
       teachShown = undefined;
+      sign.hide();
     }
-    boardNote.hide();
+    if (boardNote.note.classList.contains("on")) {
+      boardNote.hide();
+    }
+  };
+  /** Any tap or Escape puts the New sign away; it never comes back this launch. */
+  const putSignAway = (): void => {
+    if (sign.shown() !== undefined) {
+      sign.hide();
+      renderRail();
+    }
   };
   /**
-   * One note at a time, in the order teach.ts lists them (#372). It shows in
-   * the board note above its thumb, keyed so it stays until an outside tap,
-   * Escape or its own tap puts it away. A note or sheet already up waits it
-   * out, and a note put away never comes back this launch; the dot stays.
+   * One New sign at a time, in the order teach.ts lists them (#372, #373). It
+   * stands in the band over its key until any tap or Escape puts it away. A
+   * note or sheet already up waits it out, and a sign put away never comes back
+   * this launch; the dot stays. Opening the sheet by its key counts as seen.
    */
   const renderTeach = (): void => {
     const noteId = view.ready ? noteFor(view.mountain) : undefined;
     const firstEngineer = view.mountain.engineers?.[0]?.name;
-    let anchor: HTMLElement | undefined;
+    let want: { readonly key: KeyId; readonly words: string } | undefined;
     if (noteId === "workshop") {
-      teachNote.show(relicArt.hammer, WORKSHOP_NOTE, openWorkshopSheet);
-      anchor = workshopThumb;
+      want = { key: "workshop", words: WORKSHOP_NOTE };
     } else if (noteId === "engineers" && firstEngineer !== undefined) {
-      teachNote.show(tierArt.helper, engineersNote(firstEngineer), () => {
-        progress.applyMutation((current) => markSeen(current, "engineers"));
-        engineers.button.click();
-      });
-      anchor = engineers.button;
-    } else {
-      teachNote.hide();
-      if (boardNote.note.contains(teachNote.note)) {
-        boardNote.hide();
-      }
+      want = { key: "engineers", words: engineersNote(firstEngineer) };
+    }
+    const up = sign.shown();
+    if (want === undefined || (up !== undefined && up.key !== want.key)) {
+      sign.hide();
+    }
+    if (want === undefined) {
+      return;
+    }
+    if (sign.shown() !== undefined) {
+      sign.show(want.key, want.words);
       return;
     }
     // Another note, or a sheet over the board, holds it back until a later
-    // render or tick: the note would stand over the sheet.
+    // render or tick: the sign would stand under the sheet.
     const busy =
-      (boardNote.note.classList.contains("on") &&
-        !boardNote.note.contains(teachNote.note)) ||
+      boardNote.note.classList.contains("on") ||
       root.querySelector(OPEN_SHEET) !== null;
     if (noteId === teachShown || busy) {
       return;
     }
     teachShown = noteId;
-    boardNote.show(anchor, teachNote.note, { key: teachNote.note });
+    sign.show(want.key, want.words);
+  };
+
+  /** The keys read the save once it is in; before, only their caps and icons show (#373). */
+  const renderRail = (): void => {
+    if (!view.ready) {
+      rail.render(undefined);
+      return;
+    }
+    const views = keyViews(view.mountain, now(), view.trouble);
+    // The New sign is quiet for readers: its words join its key's label.
+    const up = sign.shown();
+    rail.render(
+      up === undefined
+        ? views
+        : {
+            ...views,
+            [up.key]: {
+              ...views[up.key],
+              aria: `${views[up.key].aria}. ${up.words}`,
+            },
+          },
+    );
   };
 
   /** The bays read the save once it is in; before, only their art shows (#372). */
@@ -1010,73 +1087,15 @@ export function mountMountainScreen({
     progress.flush();
   });
 
-  const buysDialog = document.createElement("div");
-  buysDialog.className = "buys-dialog";
-  buysDialog.hidden = true;
-  buysDialog.setAttribute("role", "dialog");
-  buysDialog.setAttribute("aria-label", "Buys");
-  const buysCard = document.createElement("div");
-  buysCard.className = "buys-card sheet-frame";
-  const buysClose = document.createElement("button");
-  buysClose.type = "button";
-  buysClose.className = "buys-close";
-  buysClose.textContent = "Back to the mountain";
-  const buysHost = document.createElement("div");
-  buysHost.className = SHEET_HOST;
-  buysHost.append(tierGrid);
-  // The crew line heads Buys until B5's drawer takes it (#371).
-  const buysHead = createBuysHead({
-    tierArt,
-    stoneUrl,
-    body: [crew, buysHost],
-  });
-  buysDialog.setAttribute("aria-labelledby", "buys-title");
-  buysCard.append(
-    buysHead.head,
-    buysHead.intro,
-    buysHead.howHost,
-    crew,
-    buysHost,
-    thanks,
-    buysClose,
-  );
-  buysDialog.append(buysCard);
-  const buysButton = document.createElement("button");
-  buysButton.type = "button";
-  buysButton.className = "buys-button";
-  const thumbIcon = (src: string): HTMLImageElement => {
-    const img = document.createElement("img");
-    img.src = src;
-    img.alt = "";
-    img.width = 24;
-    img.height = 24;
-    img.draggable = false;
-    return img;
-  };
-  const thumbLabel = (text: string): HTMLSpanElement => {
-    const span = document.createElement("span");
-    span.className = "thumb-label";
-    span.textContent = text;
-    return span;
-  };
-  buysButton.append(thumbIcon(tierArt.cart), thumbLabel("Buys"));
-  /** Opens Buys: the Buys thumb and a tap on a bay (#372). */
-  const openBuys = (): void => {
+  /**
+   * Opens the Buys drawer: the Buys key, a bay and Saving for (#372, #373). Only an opening starts
+   * the settle: a tap on an open drawer's door does not.
+   */
+  const openBuys = (from?: HTMLElement): void => {
     closeBoardPopups();
-    // Only an opening starts the settle: a tap on an open sheet's door does not.
-    if (buysDialog.hidden) {
-      buysOpenedAt = tapClock();
-    }
-    buysDialog.hidden = false;
-    // The crew chips were measured while the sheet was shut: fit them now.
-    crewPanel.layoutChips();
-    // The staffing New card sits on top of the list: bring it into view.
-    // Some test DOMs have no scrollIntoView.
-    const fresh: Partial<Element> | null =
-      buysDialog.querySelector(".tier.teach-new");
-    fresh?.scrollIntoView?.({ block: "nearest" });
+    upgrades.sheet.close({ restoreFocus: false });
+    crewPanel.open(from);
   };
-  buysButton.addEventListener("click", openBuys);
 
   /**
    * The machine bays (#372). A tap opens Buys; on a troubled bay it presses or
@@ -1103,44 +1122,31 @@ export function mountMountainScreen({
       });
     },
   });
-  buysClose.addEventListener("click", () => {
-    buysDialog.hidden = true;
-    buysHead.close();
-  });
 
-  const thumbBar = document.createElement("nav");
-  thumbBar.className = "thumb-bar";
-  const workshopThumb = document.createElement("button");
-  workshopThumb.type = "button";
-  workshopThumb.className = "thumb-workshop";
-  workshopThumb.append(thumbIcon(relicArt.hammer), thumbLabel("Workshop"));
   const openWorkshop = workshop.menuEntry.querySelector(".workshop-open");
-  // Opening the sheet by any door counts as seen: the note goes, the dot stays.
+  /** The key the Workshop sheet opened from: its own, or the Ledger key that opened the menu. */
+  let workshopDoor: HTMLButtonElement = rail.keys.workshop;
+  let openingFromKey = false;
+  // Opening the sheet by any door counts as seen: the sign goes, the dot stays.
   const openWorkshopSheet = (): void => {
     if (openWorkshop instanceof HTMLButtonElement && !openWorkshop.hidden) {
       progress.applyMutation((current) => markSeen(current, "workshop"));
-      openWorkshop.click();
+      workshopDoor = rail.keys.workshop;
+      openingFromKey = true;
+      try {
+        openWorkshop.click();
+      } finally {
+        openingFromKey = false;
+      }
     }
   };
-  workshopThumb.addEventListener("click", openWorkshopSheet);
-  // The ☰ menu is the fifth cell, where B7's Ledger key goes (#372).
-  thumbBar.append(
-    buysButton,
-    workshopThumb,
-    engineers.button,
-    upgradesButton,
-    menuButton,
-  );
-  // Every other door to a sheet or the menu also puts the board's popups away.
-  for (const door of [
-    workshopThumb,
-    engineers.button,
-    upgradesButton,
-    menuButton,
-    openWorkshop,
-  ]) {
-    door?.addEventListener("click", closeBoardPopups);
-  }
+  // The menu's own Workshop row also puts the board's popups away.
+  openWorkshop?.addEventListener("click", () => {
+    closeBoardPopups();
+    if (!openingFromKey) {
+      workshopDoor = rail.keys.ledger;
+    }
+  });
 
   // The board's top: the relic plate and the stock row (#370).
   const stock = document.createElement("div");
@@ -1154,13 +1160,29 @@ export function mountMountainScreen({
   const drawerClip = document.createElement("div");
   drawerClip.className = "board-drawer-clip";
   drawerClip.append(saveLine.drawer);
+  // The drawers slide up inside the board above the save line; the scrim over
+  // the board's top closes them, and hands a tap on a relic to its socket (#373).
+  const sheetClip = document.createElement("div");
+  sheetClip.className = "board-sheet-clip";
+  sheetClip.append(
+    crewPanel.sheet.root,
+    upgrades.sheet.root,
+    createSheetScrim({
+      sheets: [crewPanel.sheet, upgrades.sheet],
+      sockets: () => [
+        ...relicPlate.root.querySelectorAll<HTMLElement>(".board-socket"),
+      ],
+    }),
+  );
 
   root.replaceChildren(
     boardTop,
     gaugeRow,
     bays.root,
     readyPlate.root,
-    thumbBar,
+    rail.root,
+    sign.root,
+    sheetClip,
     drawerClip,
     saveLine.line,
     boardNote.note,
@@ -1176,10 +1198,8 @@ export function mountMountainScreen({
     legacy.dialog,
     menu,
     fieldLogSheet,
-    upgradesSheet,
     engineers.sheet,
     workshop.sheet,
-    buysDialog,
     updatePrompt,
     otherTab,
     savedCopies.root,
@@ -1193,10 +1213,17 @@ export function mountMountainScreen({
     stepVein();
     renderGaugeRow();
     const pick = readyNow(view.mountain, now(), view.trouble);
+    shownPick = pick;
     renderBays(pick);
     renderReadyRow(pick);
+    // The open drawer's rows follow the clock: a pocket that grows, a boost that ends.
+    if (crewPanel.sheet.isOpen()) {
+      crewPanel.render();
+    }
     renderTeach();
+    coverDrawers();
     coverNote();
+    renderRail();
   }, 1000);
   signal?.addEventListener("abort", () => {
     clearInterval(ticking);
@@ -1224,6 +1251,17 @@ export function mountMountainScreen({
     listening,
   );
   window.addEventListener("pagehide", storeWait, listening);
+  // Any tap or Escape puts the New sign away (#373).
+  document.addEventListener("pointerdown", putSignAway, listening);
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Escape") {
+        putSignAway();
+      }
+    },
+    listening,
+  );
 
   const unsubscribe = progress.subscribe((next) => {
     view = next;
@@ -1247,4 +1285,5 @@ export function showAppUpdate(root: ParentNode): void {
     return;
   }
   prompt.hidden = false;
+  prompt.dispatchEvent(new Event(UPDATE_SHOWN));
 }

@@ -57,9 +57,9 @@ describe("parseAction", () => {
 
   it("reads a wait in milliseconds or for a selector", () => {
     expect(parseAction("wait:500")).toEqual({ kind: "wait", ms: 500 });
-    expect(parseAction("wait:.buys-dialog")).toEqual({
+    expect(parseAction("wait:.board-sheet.is-open")).toEqual({
       kind: "waitFor",
-      target: { by: "selector", selector: ".buys-dialog" },
+      target: { by: "selector", selector: ".board-sheet.is-open" },
     });
   });
 
@@ -199,9 +199,9 @@ describe("parsePlayArgs", () => {
 
 describe("targetQuery", () => {
   it("passes selectors through", () => {
-    expect(targetQuery({ by: "selector", selector: ".buys-button" })).toBe(
-      ".buys-button",
-    );
+    expect(
+      targetQuery({ by: "selector", selector: '.board-key[data-key="buys"]' }),
+    ).toBe('.board-key[data-key="buys"]');
   });
 });
 
@@ -252,9 +252,12 @@ describe("shot names", () => {
     expect(
       actionSlug({
         kind: "waitFor",
-        target: { by: "selector", selector: ".buys-dialog:not([hidden])" },
+        target: {
+          by: "selector",
+          selector: '.board-sheet[data-sheet="buys"]:not(.is-open)',
+        },
       }),
-    ).toBe("wait-buys-dialog-not-hidden");
+    ).toBe("wait-board-sheet-data-sheet-buys-not-is-open");
     const long = actionSlug({
       kind: "tap",
       target: { by: "selector", selector: `.a${"-b".repeat(40)}` },

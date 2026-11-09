@@ -117,8 +117,8 @@
 }
 
 /* The board's middle rows (#372), at the mockup's LAY["924"] tops: the bays
-   (their band tag rises to 420), the Ready now row, and the rail slot. Until
-   B5's key rail, the column (the thumb bar with the ☰ menu) starts there. */
+   (their band tag rises to 420), the Ready now row, and the key rail (#373).
+   #app's own flow still starts at the rail's top. */
 :root {
   --ready-top: 644px;
   --rail-top: 768px;
@@ -143,4 +143,29 @@
   --board-bay-name-lead: 17px;
   --board-bay-sub-lead: 15px;
   --board-bay-sub-gap: 3px;
+}
+
+/* The drawer rows (#373): a row's height, the name and gain sizes, and the
+   leads of the name, the small lines and the gain. */
+:root {
+  --row-h: 76px;
+  --board-type-15: 15px;
+  --board-type-17: 17px;
+  --board-row-name-lead: 19px;
+  --board-row-line-lead: 15px;
+  --board-row-gain-lead: 17px;
+}
+
+/* The key rail (#373): a locked key's label. */
+:root {
+  --board-ink-quiet: #c9cec1;
+}
+
+/* The drawer shell (#373): its top, under the stock row's legend (the
+   mockup's stock top plus 92; --board-top stays for today's sheets), and the
+   leads of its title and kick. */
+:root {
+  --sheet-top: 178px;
+  --board-sheet-title-lead: 26px;
+  --board-kick-lead: 16px;
 }

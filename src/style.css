@@ -89,79 +89,6 @@ body {
   height: 16px;
 }
 
-.engineers-button {
-  margin-block: 0;
-}
-
-.engineers-button {
-  appearance: none;
-  position: relative;
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: var(--target-min);
-  height: var(--target-min);
-  padding: 0;
-  border: 2px solid #6b4a2a;
-  border-radius: 12px;
-  background: #2a1a10;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.engineers-button img {
-  width: 28px;
-  height: 28px;
-  image-rendering: pixelated;
-}
-
-/* The lamp says this worker portrait opens the engineers, not a hire. */
-.engineers-button::after {
-  content: "";
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 8px;
-  height: 8px;
-  border: 1px solid #1e130d;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #fff6d0, #e8a84a 55%, #8a5a20);
-  box-shadow: 0 0 4px rgba(255, 214, 102, 0.9);
-}
-
-.engineers-button[hidden] {
-  display: none;
-}
-
-.upgrades-button {
-  appearance: none;
-  display: grid;
-  place-items: center;
-  width: var(--target-min);
-  height: var(--target-min);
-  margin-block: -6px;
-  padding: 0;
-  border: 2px solid #6b4a2a;
-  border-radius: 12px;
-  background: #2a1a10;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.upgrades-button img {
-  width: 28px;
-  height: 28px;
-  image-rendering: pixelated;
-}
-
-.upgrades-heading {
-  align-self: flex-start;
-  margin: 4px 0 -6px;
-  font-size: 0.95rem;
-  letter-spacing: 0.04em;
-  color: #c9b08e;
-}
-
 /* Running boosts: small chips in the mountain's top corner, never in the flow. */
 .boost-chips {
   position: absolute;
@@ -191,67 +118,6 @@ body {
 .boost-chip[hidden],
 .expedition-chip[hidden] {
   display: none;
-}
-
-.upgrades-pocket {
-  margin: 0;
-  color: #f2c46d;
-  font-variant-numeric: tabular-nums;
-}
-
-.upgrade-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  text-align: left;
-}
-
-.upgrade {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px;
-  border: 1px solid #6b4a2a;
-  border-radius: 12px;
-}
-
-.upgrade p {
-  margin: 0;
-}
-
-.upgrade-name {
-  font-weight: 700;
-  color: #e8d4b8;
-}
-
-.upgrade-effect,
-.upgrade-now {
-  font-size: 0.9rem;
-  color: #c9b08e;
-}
-
-.upgrade-buy {
-  appearance: none;
-  min-height: 48px;
-  margin-top: 6px;
-  border: 0;
-  border-radius: 10px;
-  background: linear-gradient(#f2c46d, #c98a32);
-  color: #1e130d;
-  font: inherit;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.upgrade-buy:disabled {
-  background: #2a1a10;
-  color: #a88a62;
-  cursor: default;
 }
 
 .goal,
@@ -339,342 +205,6 @@ body {
   display: none;
 }
 
-/* The "Fixed!" line floats above the cards, so it never grows the phone layout. */
-.trouble-thanks {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 100%;
-  margin: 0 0 2px;
-  text-align: center;
-  font-size: 0.78rem;
-  font-weight: 800;
-  color: #ffe08a;
-  text-shadow: 0 1px 0 #3a2410;
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.trouble-thanks:empty {
-  display: none;
-}
-
-.crew-status {
-  margin: 0;
-  min-height: 1.4em;
-  /* One line always: shrinks a little on narrow phones rather than wrapping. */
-  font-size: 0.95rem;
-  white-space: nowrap;
-  max-width: 100%;
-}
-
-/* Free workers, and where the busy ones are. Tap opens the breakdown when the line is tight. */
-.crew-posts {
-  appearance: none;
-  width: 100%;
-  min-height: var(--target-min);
-  margin: 0;
-  padding: 2px 8px;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  color: #e8d4b8;
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 650;
-  line-height: 1.15;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.crew-posts[hidden] {
-  display: none;
-}
-
-.crew-posts:active,
-.crew-posts.is-pressed,
-.crew-posts.is-open {
-  transform: scale(0.98);
-  background: rgba(232, 168, 74, 0.18);
-}
-
-.crew-posts:focus-visible {
-  outline: 4px solid #e8d4b8;
-  outline-offset: 2px;
-}
-
-/* Two columns for the first tiers; three (compact) once four show, so up to six fit in two rows. */
-.tier-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  width: 100%;
-}
-
-.tier {
-  appearance: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 64px;
-  padding: 6px;
-  border: 2px solid #f2c46d;
-  border-radius: 12px;
-  background: linear-gradient(#f2c46d, #c98a32);
-  color: #1e130d;
-  box-shadow: 0 0 14px rgba(232, 168, 74, 0.3);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.tier-grid-compact {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.tier-grid-compact .tier {
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
-  gap: 0;
-  padding: 4px 6px;
-}
-
-/* The art tucks in beside the cost; the name gets the full width. */
-.tier-grid-compact .tier-art {
-  position: absolute;
-  right: 4px;
-  bottom: 18px;
-  width: 22px;
-  height: 22px;
-}
-
-.tier-grid-compact .tier-name {
-  font-size: 0.82rem;
-}
-
-.tier-grid-compact .tier-cost {
-  font-size: 0.78rem;
-  padding-right: 24px;
-}
-
-.tier-grid-compact .tier-rate {
-  font-size: 0.64rem;
-  letter-spacing: -0.01em;
-}
-
-/* Not yet buildable: a dark silhouette until its relic is found. */
-.tier-locked .tier-art {
-  filter: brightness(0);
-  opacity: 0.55;
-}
-
-.tier[hidden] {
-  display: none;
-}
-
-/* A lone first tier spans the row so a new dad sees one big button. */
-.tier-grid[data-shown="1"] .tier {
-  grid-column: 1 / -1;
-}
-
-.tier:disabled {
-  cursor: default;
-  border-color: #6b4a2a;
-  background: #2a1a10;
-  color: #a88a62;
-  box-shadow: none;
-}
-
-.tier:focus-visible {
-  outline: 4px solid #e8d4b8;
-  outline-offset: 3px;
-}
-
-.tier-art {
-  flex: none;
-  width: 28px;
-  height: 28px;
-  image-rendering: pixelated;
-}
-
-.tier-words {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.15;
-}
-
-/* Fixed height, one line each: a card never grows as numbers grow. */
-.tier-name,
-.tier-cost,
-.tier-rate {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-variant-numeric: tabular-nums;
-}
-
-.tier-name {
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
-.tier-cost {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 0.85rem;
-}
-
-.tier-cost-icon {
-  flex: none;
-  width: 14px;
-  height: 14px;
-  image-rendering: pixelated;
-}
-
-.tier-rate {
-  font-size: 0.7rem;
-  font-weight: 650;
-  opacity: 0.85;
-  /* The worker bill shares the line. Wrap inside the card instead of clipping. */
-  white-space: normal;
-}
-
-/* Trouble is a warm shout, not a number. The card stays the same height. */
-.tier-trouble {
-  box-shadow: 0 0 16px rgba(232, 120, 40, 0.5);
-}
-
-.tier.tier-trouble .tier-rate {
-  color: #6b2d12;
-  font-weight: 800;
-  opacity: 1;
-  letter-spacing: 0.01em;
-}
-
-.trouble-burst {
-  position: absolute;
-  left: 50%;
-  top: 42%;
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px;
-  border-radius: 50%;
-  background: #fff4c8;
-  box-shadow: 0 0 6px #e8a84a;
-  pointer-events: none;
-  animation: trouble-burst 700ms ease-out forwards;
-}
-
-@keyframes trouble-burst {
-  to {
-    opacity: 0;
-    transform: translate(var(--dx), var(--dy));
-  }
-}
-
-/* The staffing warning wraps inside the fixed card; the idle line keeps its numbers. */
-.tier-needs-workers .tier-rate,
-.tier-idle .tier-rate {
-  white-space: normal;
-  font-size: 0.58rem;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-}
-
-.tier-grid-compact .tier-needs-workers .tier-rate,
-.tier-grid-compact .tier-idle .tier-rate {
-  font-size: 0.52rem;
-  line-height: 1.02;
-}
-
-.tier-count {
-  position: absolute;
-  top: -9px;
-  right: -4px;
-  min-width: 26px;
-  padding: 1px 7px;
-  border: 2px solid #1e130d;
-  border-radius: 999px;
-  background: #ffe08a;
-  color: #1e130d;
-  font-size: 0.8rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  text-align: center;
-}
-
-.tier-count[hidden] {
-  display: none;
-}
-
-/* A tended tier wears a small lamp. It sits on the art, so the 64px card stays put. */
-.engineer-mark {
-  position: absolute;
-  top: 4px;
-  left: 22px;
-  width: 10px;
-  height: 10px;
-  border: 1px solid #1e130d;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #fff6d0, #e8a84a 55%, #8a5a20);
-  box-shadow: 0 0 5px rgba(255, 214, 102, 0.95);
-  pointer-events: none;
-}
-
-.tier-grid-compact .engineer-mark {
-  top: auto;
-  left: auto;
-  right: 2px;
-  bottom: 34px;
-}
-
-.engineer-mark[hidden],
-.engineer-gain[hidden] {
-  display: none;
-}
-
-/* The tending gain sits next to the lamp, inside the card. */
-.engineer-gain {
-  position: absolute;
-  top: 1px;
-  left: 34px;
-  z-index: 2;
-  max-width: calc(100% - 40px);
-  overflow: hidden;
-  padding: 0 4px;
-  border-radius: 999px;
-  background: #ffe08a;
-  color: #1e130d;
-  font-size: 0.58rem;
-  font-weight: 800;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-.tier-grid-compact .engineer-gain {
-  top: auto;
-  right: auto;
-  bottom: 36px;
-  left: 2px;
-  max-width: calc(100% - 26px);
-  font-size: 0.52rem;
-}
-
-.tier {
-  position: relative;
-}
-
-.float-gain,
 .copied-float {
   position: absolute;
   pointer-events: none;
@@ -684,12 +214,6 @@ body {
     0 1px 0 #3a2410,
     0 0 8px rgba(255, 214, 102, 0.8);
   animation: float-up 1.2s ease-out forwards;
-}
-
-.float-gain {
-  top: -4px;
-  right: 8px;
-  font-size: 1.1rem;
 }
 
 .menu-card {
@@ -716,11 +240,6 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .float-gain,
-  .trouble-burst {
-    display: none;
-  }
-
   .copied-float {
     animation: none;
   }
@@ -734,8 +253,6 @@ body {
 .start-over,
 .game-menu,
 .field-log-sheet,
-.buys-dialog,
-.upgrades-dialog,
 .engineers-dialog,
 .update-prompt,
 .other-tab,
@@ -765,8 +282,6 @@ body {
 .start-over[hidden],
 .game-menu[hidden],
 .field-log-sheet[hidden],
-.buys-dialog[hidden],
-.upgrades-dialog[hidden],
 .engineers-dialog[hidden],
 .other-tab[hidden],
 .save-conflict[hidden],
@@ -781,7 +296,6 @@ body {
 .shelf-card,
 .start-over-card,
 .menu-card,
-.upgrades-card,
 .update-card,
 .other-tab-card,
 .save-conflict-sheet,
@@ -805,7 +319,6 @@ body {
 .shelf-card h2,
 .start-over-card h2,
 .menu-card h2,
-.upgrades-card h2,
 .update-card h2,
 .other-tab-card h2 {
   margin: 0;
@@ -860,7 +373,6 @@ body {
 .reveal-continue,
 .shelf-close,
 .menu-close,
-.upgrades-close,
 .engineers-close {
   appearance: none;
   width: 100%;
@@ -879,7 +391,6 @@ body {
 .reveal-continue:focus-visible,
 .shelf-close:focus-visible,
 .menu-close:focus-visible,
-.upgrades-close:focus-visible,
 .engineers-close:focus-visible,
 .engineer-tunnel:focus-visible,
 .engineer-choice:focus-visible,
@@ -889,9 +400,6 @@ body {
 .engineer-recall:focus-visible,
 .recall-no:focus-visible,
 .recall-yes:focus-visible,
-.upgrade-buy:focus-visible,
-.upgrades-button:focus-visible,
-.engineers-button:focus-visible,
 .engineer-station:focus-visible,
 .engineer-promote:focus-visible,
 .engineer-confirm-no:focus-visible,
@@ -1111,27 +619,6 @@ body {
   color: #fff3f0;
 }
 
-.menu-button {
-  appearance: none;
-  flex: none;
-  width: var(--target-min);
-  height: var(--target-min);
-  margin-left: auto;
-  border: 1px solid #6b4a2a;
-  border-radius: 10px;
-  background: rgba(30, 19, 13, 0.8);
-  color: #f2c46d;
-  font: inherit;
-  font-size: 1.3rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.menu-button:focus-visible {
-  outline: 4px solid #e8d4b8;
-  outline-offset: 2px;
-}
-
 .menu-card .auth-action {
   width: 100%;
 }
@@ -1140,150 +627,13 @@ body {
   display: none;
 }
 
-/* Engineers may scroll on a very short phone. Upgrades must not.
-   Lasting rows sit beside a one-line price. The two quick boosts share
-   one row so a 360×560 phone still shows the whole sheet. */
-.upgrades-dialog,
+/* Engineers may scroll on a very short phone. */
 .engineers-dialog {
   align-items: flex-start;
 }
 
-.upgrades-dialog {
-  overflow: hidden;
-  padding: max(2px, env(safe-area-inset-top)) 8px
-    max(2px, env(safe-area-inset-bottom));
-}
-
-.upgrades-dialog .upgrades-card {
-  gap: 0;
-  width: min(420px, 100%);
-  margin: 0 auto;
-  padding: 2px 8px;
-  background: var(--color-card);
-}
-
-/* The bottom sheets' gold frame (#285): Upgrades and Buys share it. */
-.upgrades-dialog .sheet-frame,
-.buys-dialog .sheet-frame {
-  border: 2px solid #e8a84a;
-  border-radius: 20px;
-  box-shadow: 0 0 48px rgba(232, 168, 74, 0.35);
-}
-
-.upgrades-dialog .upgrades-card h2 {
-  font-size: 1.05rem;
-  line-height: 1.15;
-}
-
-.upgrades-dialog .upgrades-pocket {
-  font-size: 0.9rem;
-  line-height: 1.15;
-}
-
-.upgrades-dialog .upgrades-heading {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.15;
-}
-
-.upgrades-dialog .upgrade-list {
-  gap: 1px;
-}
-
-/* Wide fonts wrap a stacked pair past the 360×560 budget. One row. */
-.upgrades-dialog .boost-list {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 4px;
-}
-
-.upgrades-dialog .upgrade {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 7.75rem;
-  gap: 0 8px;
-  align-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-}
-
-.upgrades-dialog .upgrade-name,
-.upgrades-dialog .upgrade-effect,
-.upgrades-dialog .upgrade-now {
-  grid-column: 1;
-  font-size: 0.9rem;
-  line-height: 1.15;
-}
-
-.upgrades-dialog .upgrade.is-locked .upgrade-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.upgrades-dialog .upgrade-effect:empty,
-.upgrades-dialog .upgrade-now:empty,
-.upgrades-dialog .upgrade-why:empty {
-  display: none;
-}
-
-.upgrades-dialog .upgrade-buy {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  justify-self: end;
-  align-self: center;
-  width: 7.75rem;
-  min-width: 7.75rem;
-  max-width: 7.75rem;
-  min-height: var(--target-min);
-  margin-top: 0;
-  padding: 2px 4px;
-  font-size: 0.9rem;
-  line-height: 1.1;
-}
-
-.upgrades-dialog .upgrade.boost {
-  grid-template-columns: minmax(0, 1fr);
-  align-content: start;
-  gap: 0;
-}
-
-.upgrades-dialog .upgrade.boost .upgrade-buy {
-  grid-column: 1;
-  grid-row: auto;
-  width: 100%;
-  min-width: 0;
-  max-width: none;
-  justify-self: stretch;
-  padding: 2px 2px;
-  white-space: nowrap;
-}
-
-.upgrades-dialog .upgrades-close {
-  min-height: var(--target-min);
-  margin-top: 0;
-  font-size: 1rem;
-}
-
-.upgrades-card,
 .engineers-card {
   margin-block: auto;
-}
-
-.upgrade-now:empty {
-  display: none;
-}
-
-/* Machines short of helpers: the rate line and crew line warn, quietly. */
-.tier-idle .tier-rate,
-.crew-short {
-  color: #ffb27a;
-}
-
-/* On a gold, affordable card the warning needs a dark ink to read. */
-.tier.tier-idle:enabled .tier-rate {
-  color: #8a2600;
-  opacity: 1;
 }
 
 .welcome-crew,
@@ -1435,17 +785,10 @@ body {
   display: none;
 }
 
-.found-heading[hidden],
-.found-list[hidden],
 .found-tool[hidden],
 .keepsakes[hidden],
 .keepsake-list li[hidden] {
   display: none;
-}
-
-.found-tool .upgrade-now {
-  color: #f2c46d;
-  font-weight: 700;
 }
 
 .keepsakes {
@@ -3071,179 +2414,7 @@ body {
   min-width: 0;
 }
 
-.crew-status {
-  margin: 0;
-  color: var(--color-gold);
-  font-weight: var(--weight-bold);
-  text-align: center;
-}
-
-/* The crew line heads the Buys sheet under its Crew title, until B5's
-   drawer takes it (#371). The free count is the board's crew plate's. */
-.buys-card .crew {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-4);
-  width: 100%;
-  text-align: center;
-}
-
-.buys-crew-title {
-  align-self: flex-start;
-  margin: 0;
-  color: var(--color-quiet);
-  font-size: var(--type-14);
-  font-weight: var(--weight-bold);
-  line-height: var(--leading);
-}
-
-.crew-posts {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-8);
-  min-height: var(--target-min);
-  min-width: 0;
-  max-width: 100%;
-  width: 100%;
-}
-
-.crew-posts img {
-  width: var(--space-24);
-  height: var(--space-24);
-  object-fit: contain;
-}
-
-.thumb-bar {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(var(--target-min), 1fr));
-  gap: var(--target-gap);
-  width: 100%;
-}
-
-.thumb-bar > * {
-  width: 100%;
-}
-
-.thumb-bar .engineers-button,
-.thumb-bar .upgrades-button {
-  width: 100%;
-  height: auto;
-  margin: 0;
-}
-
-.buys-button,
-.thumb-workshop,
-.thumb-bar .engineers-button,
-.thumb-bar .upgrades-button {
-  appearance: none;
-  min-height: var(--target-min);
-  min-width: var(--target-min);
-  padding: var(--space-4);
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  color: var(--color-ink);
-  font-size: var(--type-14);
-  font-weight: var(--weight-bold);
-}
-
-.buys-dialog {
-  align-items: flex-end;
-  background: var(--color-page);
-}
-
-.buys-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--target-gap);
-  width: 100%;
-  max-height: 100%;
-  overflow: auto;
-  padding: var(--space-8);
-  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
-  background: var(--color-card);
-}
-
-.buys-dialog .tier-grid,
-.buys-dialog .tier-grid-compact {
-  display: flex;
-  flex-direction: column;
-  gap: var(--target-gap);
-}
-
-.buys-dialog .tier {
-  position: relative;
-  height: auto;
-  min-height: var(--target-min);
-  width: 100%;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--space-8);
-  padding: var(--space-4) var(--space-8);
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  color: var(--color-ink);
-  box-shadow: none;
-}
-
-.buys-dialog .tier-ready {
-  border-color: var(--color-state-ready);
-}
-
-.buys-dialog .tier-short {
-  border-color: var(--color-state-short);
-}
-
-.buys-dialog .tier-short .tier-rate {
-  color: var(--color-state-short);
-  font-weight: var(--weight-bold);
-}
-
-.buys-dialog .tier-dear,
-.buys-dialog .tier-locked {
-  background: var(--color-state-dear);
-  border-color: var(--color-edge);
-}
-
-.buys-dialog .tier-dear .tier-rate,
-.buys-dialog .tier-locked .tier-rate {
-  display: none;
-}
-
-.buys-dialog .tier-art {
-  position: static;
-  width: var(--space-24);
-  height: var(--space-24);
-}
-
-.buys-close {
-  appearance: none;
-  flex: none;
-  min-height: var(--target-min);
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  color: var(--color-ink);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-}
-
-.upgrade.is-ready {
-  border-color: var(--color-state-ready);
-}
-
-.upgrade.is-dear,
-.upgrade.is-locked {
-  background: var(--color-state-dear);
-  border-color: var(--color-edge);
-}
-
-/* Closed mountain, under the board's gauge row and bays (board.css): the
-   thumb bar. */
+/* Closed mountain: the board (board.css) places every row. */
 #app {
   position: relative;
 }
@@ -3290,114 +2461,8 @@ body {
 }
 
 .workshop-card.is-pressed,
-.upgrade.sheet-card.is-pressed,
-.engineer-promote-row.is-pressed,
-.tier.is-pressed {
+.engineer-promote-row.is-pressed {
   transform: translateY(var(--space-4));
-}
-
-.crew-posts {
-  display: flex;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  gap: var(--space-4);
-  align-items: center;
-  justify-content: center;
-  height: auto;
-  overflow: hidden;
-  white-space: normal;
-  text-overflow: unset;
-}
-
-/* Laid out as the fewest even rows that fit (crew-panel.ts); a row that
-   still runs long wraps rather than clipping a chip (#371). */
-.crew-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
-  max-width: 100%;
-  min-width: 0;
-}
-
-.crew-bit {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: var(--space-4);
-  padding: 0 var(--space-8);
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-pill);
-  background: var(--color-card);
-  color: var(--color-ink);
-  font-size: var(--type-14);
-  font-weight: var(--weight-regular);
-  line-height: var(--leading);
-  white-space: nowrap;
-}
-
-.crew-bit img {
-  width: var(--space-24);
-  height: var(--space-24);
-  object-fit: contain;
-}
-
-.thumb-bar {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.thumb-bar .buys-button,
-.thumb-bar .thumb-workshop,
-.thumb-bar .engineers-button,
-.thumb-bar .upgrades-button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  width: 100%;
-  height: auto;
-  margin: 0;
-  padding: var(--space-4) 0;
-  line-height: 1.1;
-}
-
-.thumb-bar .engineers-button::after {
-  content: none;
-}
-
-/* Same chrome for every thumb. Disabled follows the gate that keeps the sheet shut. */
-.thumb-bar button:not(:disabled) {
-  border-color: var(--color-gold);
-  background: var(--color-card);
-  color: var(--color-gold);
-  opacity: 1;
-}
-
-.thumb-bar button:disabled {
-  border-color: var(--color-disabled);
-  background: var(--color-disabled);
-  color: var(--color-quiet);
-  opacity: 1;
-}
-
-.thumb-bar button:disabled img {
-  opacity: 0.5;
-  filter: grayscale(1);
-}
-
-.thumb-label {
-  max-width: 100%;
-  font-size: var(--type-14);
-  font-weight: var(--weight-bold);
-  line-height: 1.1;
-}
-
-.thumb-bar img {
-  width: var(--space-24);
-  height: var(--space-24);
-  object-fit: contain;
 }
 
 .ledger {
@@ -3416,365 +2481,9 @@ body {
   text-shadow: none;
 }
 
-/* Sheets leave the board's top in view. Cards use the token type scale. */
-.buys-dialog,
-.upgrades-dialog {
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-end;
-  overflow: hidden;
-  padding: env(safe-area-inset-top) var(--space-4) env(safe-area-inset-bottom);
-  background: transparent;
-}
-
-.buys-card,
-.upgrades-dialog .upgrades-card {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--target-gap);
-  width: 100%;
-  min-height: 0;
-  max-height: calc(100% - var(--space-24) * 7);
-  margin: 0;
-  margin-top: auto;
-  padding: 0;
-  overflow: hidden;
-}
-
-.sheet-host {
-  position: relative;
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.sheet-host::before,
-.sheet-host::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  left: 0;
-  height: var(--space-16);
-  pointer-events: none;
-}
-
-.sheet-host::before {
-  top: 0;
-  height: var(--space-8);
-  background: linear-gradient(var(--color-card), transparent);
-}
-
-.sheet-host::after {
-  bottom: 0;
-  height: var(--space-8);
-  background: linear-gradient(transparent, var(--color-card));
-}
-
-.sheet-scroll,
-.upgrades-scroll,
-.buys-dialog .tier-grid,
-.buys-dialog .tier-grid-compact {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: var(--target-gap);
-  min-height: 0;
-  overflow: auto;
-  /* Header and footer sit outside this scroller. The insets keep both end cards clear. */
-  padding-top: var(--space-8);
-  padding-bottom: var(--space-8);
-  scroll-padding-top: var(--space-8);
-  scroll-padding-bottom: var(--space-8);
-}
-
-.buys-dialog .tier-grid,
-.buys-dialog .tier-grid-compact {
-  flex-direction: column-reverse;
-}
-
-.buys-dialog .tier {
-  display: grid;
-  flex: none;
-  grid-template-columns: var(--space-24) minmax(0, 1fr);
-  grid-template-rows: auto;
-  column-gap: var(--space-8);
-  row-gap: 0;
-  align-items: start;
-  height: auto;
-  max-height: none;
-  padding: 0 var(--space-4);
-  overflow: visible;
-  color: var(--color-ink);
-  text-align: left;
-}
-
-.buys-dialog .tier:disabled {
-  color: var(--color-ink);
-  opacity: 1;
-}
-
-.buys-dialog .tier-art {
-  grid-column: 1;
-  grid-row: 1;
-  align-self: center;
-}
-
-.buys-dialog .tier-words {
-  display: grid;
-  grid-column: 2 / -1;
-  grid-row: 1;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: var(--space-8);
-  row-gap: 0;
-  min-width: 0;
-}
-
-.buys-dialog .tier-name {
-  grid-column: 1;
-  grid-row: 1;
-  overflow: visible;
-  color: var(--color-ink);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-  white-space: normal;
-}
-
-.buys-dialog .tier-cost {
-  grid-column: 2;
-  grid-row: 1;
-  justify-self: end;
-  overflow: visible;
-  font-size: var(--type-20);
-  font-weight: var(--weight-bold);
-  white-space: nowrap;
-}
-
-.buys-dialog .tier:not(.tier-locked) .tier-cost::before {
-  content: "Buy · ";
-}
-
-.buys-dialog .tier-cost-icon,
-.buys-dialog .tier-count,
-.buys-dialog .tier-rate,
-.buys-dialog .engineer-mark,
-.buys-dialog .engineer-gain {
-  display: none;
-}
-
-.buys-dialog .tier-ready .tier-cost,
-.buys-dialog .tier-short .tier-cost {
-  color: var(--color-gold);
-  font-size: var(--type-20);
-}
-
-.buys-dialog .tier-dear .tier-cost,
-.buys-dialog .tier-locked .tier-cost {
-  color: var(--color-quiet);
-  font-size: var(--type-16);
-}
-
-.buys-dialog .tier-pace {
-  display: flex;
-  grid-column: 1 / -1;
-  grid-row: 2;
-  align-items: baseline;
-  min-width: 0;
-  font-size: var(--type-14);
-  line-height: 1.15;
-}
-
-.buys-dialog .tier-pace[hidden] {
-  display: none;
-}
-
-.buys-dialog .tier-gain,
-.buys-dialog .tier-needs,
-.buys-dialog .tier-why,
-.buys-dialog .tier-preview {
-  overflow: visible;
-  font-size: var(--type-14);
-  font-weight: var(--weight-bold);
-  line-height: 1.15;
-  white-space: nowrap;
-}
-
-.buys-dialog .tier-gain {
-  color: var(--color-gold);
-}
-
-.buys-dialog .tier-pace:has(.tier-needs:not([hidden])) .tier-gain::after {
-  content: "·";
-  margin-inline: var(--space-4);
-  color: var(--color-gold);
-}
-
-.buys-dialog .tier-why {
-  grid-column: 1 / -1;
-  grid-row: 3;
-  color: var(--color-quiet);
-  font-weight: var(--weight-regular);
-}
-
-.buys-dialog .tier-preview {
-  grid-column: 1 / -1;
-  grid-row: 4;
-  /* The owned-count goal is a sentence; let it wrap inside the card. */
-  white-space: normal;
-}
-
-.buys-dialog .tier-trouble .tier-gain {
-  color: var(--color-danger);
-}
-
-.buys-dialog .tier-needs {
-  color: var(--color-ink);
-}
-
-.buys-dialog .tier-short .tier-needs {
-  color: var(--color-state-short);
-}
-
-.buys-dialog .tier-why,
-.buys-dialog .tier-preview {
-  color: var(--color-quiet);
-  font-weight: var(--weight-regular);
-}
-
-.buys-dialog .tier-gain[hidden],
-.buys-dialog .tier-needs[hidden],
-.buys-dialog .tier-why[hidden],
-.buys-dialog .tier-preview[hidden] {
-  display: none;
-}
-
-.upgrades-dialog .upgrades-card > h2 {
-  margin: 0;
-  font-size: var(--type-16);
-  line-height: var(--leading);
-}
-
-.upgrades-dialog .upgrades-pocket,
-.upgrades-dialog .upgrades-heading {
-  display: none;
-}
-
-.upgrades-dialog .upgrade-list,
-.upgrades-dialog .boost-list {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: var(--space-4);
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-.upgrades-dialog .upgrades-close {
-  flex: none;
-  appearance: none;
-  min-height: var(--target-min);
-  margin-top: var(--space-4);
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  color: var(--color-ink);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-}
-
-.upgrades-dialog .upgrade[hidden],
-.upgrades-dialog .found-list[hidden],
-.upgrades-dialog .found-heading[hidden] {
-  display: none;
-}
-
-.upgrades-dialog .upgrade,
-.upgrades-dialog .upgrade.boost {
-  display: grid;
-  flex: none;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0 var(--space-4);
-  min-height: var(--target-min);
-  padding: 0;
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  text-align: left;
-}
-
-.upgrades-dialog .upgrade-name,
-.upgrades-dialog .upgrade-effect,
-.upgrades-dialog .upgrade-now {
-  grid-column: 1;
-  overflow: visible;
-  color: var(--color-ink);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-  line-height: 1.15;
-  white-space: normal;
-  text-overflow: unset;
-}
-
-.upgrades-dialog .upgrade-effect {
-  color: var(--color-quiet);
-  font-weight: var(--weight-regular);
-}
-
-.buys-dialog .tier.sheet-card.sheet-dear .tier-gain,
-.buys-dialog .tier.sheet-card.tier-dear .tier-gain,
-.upgrades-dialog .upgrade.sheet-card.sheet-dear .sheet-card-line,
-.upgrades-dialog .upgrade.sheet-card.is-dear .sheet-card-line,
-.upgrades-dialog .upgrade.boost.sheet-card.is-dear .sheet-card-line {
-  color: var(--color-quiet);
-}
-
-.upgrades-dialog .upgrade-buy,
-.upgrades-dialog .upgrade.boost .upgrade-buy,
-.upgrades-dialog .upgrade-buy:disabled {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  justify-self: end;
-  align-self: center;
-  width: auto;
-  min-width: 0;
-  max-width: none;
-  min-height: calc(var(--target-min) - var(--line) * 2);
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-gold);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-  line-height: 1.1;
-  white-space: nowrap;
-  opacity: 1;
-}
-
-.upgrades-dialog .upgrade.is-dear .upgrade-buy,
-.upgrades-dialog .upgrade.is-locked .upgrade-buy,
-.upgrades-dialog .upgrade.is-dear .upgrade-buy:disabled,
-.upgrades-dialog .upgrade.is-locked .upgrade-buy:disabled {
-  color: var(--color-quiet);
-  font-size: var(--type-16);
-}
-
-.upgrades-dialog .upgrade.is-locked .upgrade-name {
-  overflow: visible;
-  white-space: nowrap;
-  text-overflow: unset;
-}
-
-/* Buys, Upgrades, Workshop and the relic shelf share one card. Lists may scroll. The page does not. */
-.buys-dialog .tier.sheet-card,
+/* Workshop and the relic shelf share one card; Buys and Upgrades are board drawers (#373). Lists may scroll. The page does not. */
 .workshop-dialog .workshop-card.sheet-card,
-.shelf-dialog .shelf-row.sheet-card,
-.upgrades-dialog .upgrade.sheet-card,
-.upgrades-dialog .upgrades-more.sheet-card {
+.shelf-dialog .shelf-row.sheet-card {
   display: grid;
   grid-template-columns: var(--sheet-icon) minmax(0, 1fr);
   column-gap: var(--space-8);
@@ -3791,49 +2500,27 @@ body {
   text-align: left;
 }
 
-/* The card's display beats the user-agent [hidden] rule. Keep hidden tiers out of the list. */
-.buys-dialog .tier.sheet-card[hidden],
+/* The card's display beats the user-agent [hidden] rule. Keep hidden cards out of the list. */
 .workshop-dialog .workshop-card.sheet-card[hidden],
-.shelf-dialog .shelf-row.sheet-card[hidden],
-.upgrades-dialog .upgrade.sheet-card[hidden] {
+.shelf-dialog .shelf-row.sheet-card[hidden] {
   display: none;
 }
 
-.buys-dialog .tier.sheet-card.sheet-ready,
-.buys-dialog .tier.sheet-card.tier-ready,
 .workshop-dialog .workshop-card.sheet-card.sheet-ready,
-.shelf-dialog .shelf-row.sheet-card.sheet-ready,
-.upgrades-dialog .upgrade.sheet-card.sheet-ready,
-.upgrades-dialog .upgrade.sheet-card.is-ready {
+.shelf-dialog .shelf-row.sheet-card.sheet-ready {
   border-color: var(--color-state-ready);
 }
 
-.buys-dialog .tier.sheet-card.sheet-short,
-.buys-dialog .tier.sheet-card.tier-short {
-  border-color: var(--color-state-short);
-}
-
-.buys-dialog .tier.sheet-card.sheet-dear,
-.buys-dialog .tier.sheet-card.sheet-locked,
-.buys-dialog .tier.sheet-card.tier-dear,
-.buys-dialog .tier.sheet-card.tier-locked,
 .workshop-dialog .workshop-card.sheet-card.sheet-dear,
 .shelf-dialog .shelf-row.sheet-card.sheet-dear,
-.upgrades-dialog .upgrade.sheet-card.sheet-dear,
 .workshop-dialog .workshop-card.sheet-card.sheet-locked,
-.shelf-dialog .shelf-row.sheet-card.sheet-locked,
-.upgrades-dialog .upgrade.sheet-card.sheet-locked,
-.upgrades-dialog .upgrade.sheet-card.is-dear,
-.upgrades-dialog .upgrade.sheet-card.is-locked {
+.shelf-dialog .shelf-row.sheet-card.sheet-locked {
   background: var(--color-state-dear);
   border-color: var(--color-edge);
 }
 
-.buys-dialog .tier.sheet-card .sheet-card-icon,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-icon,
-.shelf-dialog .shelf-row.sheet-card .sheet-card-icon,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-icon,
-.upgrades-dialog .upgrades-more.sheet-card .sheet-card-icon {
+.shelf-dialog .shelf-row.sheet-card .sheet-card-icon {
   grid-column: 1;
   grid-row: 1;
   width: var(--sheet-icon);
@@ -3844,11 +2531,8 @@ body {
   image-rendering: pixelated;
 }
 
-.buys-dialog .tier.sheet-card .sheet-card-body,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-body,
-.shelf-dialog .shelf-row.sheet-card .sheet-card-body,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-body,
-.upgrades-dialog .upgrades-more.sheet-card .sheet-card-body {
+.shelf-dialog .shelf-row.sheet-card .sheet-card-body {
   display: grid;
   grid-column: 2;
   grid-row: 1;
@@ -3859,11 +2543,8 @@ body {
   min-width: 0;
 }
 
-.buys-dialog .tier.sheet-card .sheet-card-title,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-heading,
-.shelf-dialog .shelf-row.sheet-card .sheet-card-heading,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-heading,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-body > .sheet-card-title {
+.shelf-dialog .shelf-row.sheet-card .sheet-card-heading {
   grid-column: 1;
   grid-row: 1;
   display: flex;
@@ -3877,11 +2558,6 @@ body {
   font-weight: var(--weight-bold);
   line-height: 1;
   white-space: nowrap;
-}
-
-.upgrades-dialog .upgrade.sheet-card .sheet-card-heading .sheet-card-title {
-  display: block;
-  min-height: 0;
 }
 
 .sheet-level {
@@ -3911,11 +2587,7 @@ body {
   text-align: center;
 }
 
-.buys-dialog .tier.sheet-card .sheet-card-price,
-.workshop-dialog .workshop-card.sheet-card .sheet-card-price,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-price,
-.upgrades-dialog .upgrade.boost.sheet-card .sheet-card-price,
-.upgrades-dialog .upgrade.sheet-card .upgrade-buy:disabled {
+.workshop-dialog .workshop-card.sheet-card .sheet-card-price {
   grid-column: 2;
   grid-row: 1;
   display: flex;
@@ -3940,25 +2612,14 @@ body {
   opacity: 1;
 }
 
-.buys-dialog .tier.sheet-card.sheet-dear .sheet-card-price,
-.buys-dialog .tier.sheet-card.sheet-locked .sheet-card-price,
-.buys-dialog .tier.sheet-card.tier-dear .sheet-card-price,
-.buys-dialog .tier.sheet-card.tier-locked .sheet-card-price,
 .workshop-dialog .workshop-card.sheet-card.sheet-dear .sheet-card-price,
-.upgrades-dialog .upgrade.sheet-card.sheet-dear .sheet-card-price,
-.workshop-dialog .workshop-card.sheet-card.sheet-locked .sheet-card-price,
-.upgrades-dialog .upgrade.sheet-card.sheet-locked .sheet-card-price,
-.upgrades-dialog .upgrade.sheet-card.is-dear .sheet-card-price,
-.upgrades-dialog .upgrade.sheet-card.is-locked .sheet-card-price,
-.upgrades-dialog .upgrade.boost.sheet-card.is-dear .sheet-card-price {
+.workshop-dialog .workshop-card.sheet-card.sheet-locked .sheet-card-price {
   color: var(--color-quiet);
   font-size: var(--sheet-title);
 }
 
-.buys-dialog .tier.sheet-card .sheet-card-line,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-line,
-.shelf-dialog .shelf-row.sheet-card .sheet-card-line,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-line {
+.shelf-dialog .shelf-row.sheet-card .sheet-card-line {
   grid-column: 1 / -1;
   margin: 0;
   overflow: visible;
@@ -3969,21 +2630,13 @@ body {
   white-space: normal;
 }
 
-.buys-dialog .tier.sheet-card .sheet-card-quiet,
 .workshop-dialog .workshop-card.sheet-card .sheet-card-quiet,
-.shelf-dialog .shelf-row.sheet-card .sheet-card-quiet,
-.upgrades-dialog .upgrade.sheet-card .sheet-card-quiet {
+.shelf-dialog .shelf-row.sheet-card .sheet-card-quiet {
   color: var(--color-quiet);
   font-weight: var(--weight-regular);
 }
 
-.buys-close,
-.upgrades-dialog .upgrades-close {
-  flex: none;
-  margin-top: 0;
-}
-
-/* Workshop crafts sit in the same one-column list as Buys and Upgrades. */
+/* Workshop crafts sit in a one-column list. */
 .workshop-dialog .workshop-recipes {
   display: flex;
   flex-direction: column;
@@ -4187,58 +2840,6 @@ body {
 
 /* ---- Teach parts (M11 #241, the hybrid pattern mocked on #240) ---- */
 
-/* The red dot stays until the first use. */
-.has-teach-dot {
-  position: relative;
-}
-
-.teach-dot {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
-  width: var(--space-16);
-  height: var(--space-16);
-  border: var(--line) solid var(--color-page);
-  border-radius: var(--radius-pill);
-  background: var(--color-danger);
-  pointer-events: none;
-}
-
-/* One note above the bar, the bar's face with a gold edge and one soft pulse. */
-.teach-note {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  width: 100%;
-  min-height: var(--target-min);
-  margin: 0;
-  padding: var(--space-8) var(--space-16);
-  border: var(--line) solid var(--color-gold);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  color: var(--color-gold);
-  font-size: var(--type-14);
-  font-weight: var(--weight-bold);
-  text-align: left;
-  animation: teach-pulse 1.2s ease-in-out 1;
-}
-
-.teach-note[hidden] {
-  display: none;
-}
-
-.teach-note img {
-  width: var(--space-24);
-  height: var(--space-24);
-  object-fit: contain;
-}
-
-@keyframes teach-pulse {
-  50% {
-    box-shadow: 0 0 var(--space-8) var(--color-gold);
-  }
-}
-
 /* The New card: lit, tagged, one big first action. */
 .teach-new {
   border-color: var(--color-gold);
@@ -4320,12 +2921,6 @@ body {
   font-size: var(--type-16);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .teach-note {
-    animation: none;
-  }
-}
-
 /* Workshop first visit (M11 #243): the New tag sits on the card's top edge. */
 .workshop-dialog .workshop-card.teach-new {
   position: relative;
@@ -4390,130 +2985,6 @@ body {
   color: var(--color-ink);
   font: inherit;
   cursor: pointer;
-}
-
-/* Upgrades New card (#245), the same as the Workshop's: tag top-right,
-   one big button under the lines, dimmed while the pocket is short. */
-.upgrades-dialog .upgrade.sheet-card.teach-new {
-  position: relative;
-  border-color: var(--color-gold);
-}
-
-.upgrades-dialog .upgrade.sheet-card > .teach-tag {
-  position: absolute;
-  top: var(--space-8);
-  right: var(--space-8);
-}
-
-.upgrades-dialog .upgrade.sheet-card .sheet-card-price.teach-action {
-  order: 1;
-  grid-column: 1 / -1;
-  grid-row: auto;
-  justify-self: stretch;
-  justify-content: center;
-  width: 100%;
-  min-height: var(--target-min);
-  margin-top: var(--space-8);
-  border-radius: var(--radius-control);
-  background: var(--color-gold);
-  color: var(--color-ink-on-gold);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-}
-
-.upgrades-dialog .upgrade.sheet-card .sheet-card-price.teach-action:disabled {
-  opacity: 0.5;
-}
-
-/* Upgrades sheet, same frame as the Workshop (#282): head with the
-   title left and "i" right, the same inset and card gap, and the same
-   dark hint card. */
-.upgrades-dialog .upgrades-card {
-  padding: var(--space-8);
-}
-
-.upgrades-dialog .upgrades-head h2 {
-  margin: 0;
-  font-size: 1.05rem;
-  line-height: 1.15;
-  color: var(--color-gold);
-  text-align: start;
-}
-
-.upgrades-dialog .upgrade-list,
-.upgrades-dialog .boost-list,
-.upgrades-dialog .upgrades-scroll {
-  gap: var(--target-gap);
-}
-
-.upgrades-dialog .upgrades-more.sheet-locked .sheet-card-icon {
-  filter: brightness(0);
-  opacity: 0.6;
-}
-
-.upgrades-dialog .upgrades-more .hint {
-  margin: 0;
-  color: var(--color-quiet);
-  font-size: 0.9rem;
-  line-height: 1.15;
-  text-align: start;
-}
-
-.upgrades-dialog .upgrades-how {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: grid;
-  align-content: start;
-  gap: var(--target-gap);
-  overflow-y: auto;
-}
-
-.upgrades-dialog .upgrades-how .teach-how-back {
-  min-height: var(--target-min);
-  border: var(--line) solid var(--color-gold);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  color: var(--color-gold);
-}
-
-.upgrades-dialog [hidden] {
-  display: none;
-}
-
-.upgrades-dialog .upgrades-how,
-.upgrades-dialog .upgrades-intro {
-  text-align: start;
-}
-
-/* Bottom bar (#282): gold glow when the sheet holds something he can buy
-   now. Shadow only, so the bar never shifts. One soft pulse as it turns
-   on, never a loop. The red dot sits on top and can show with it. */
-.thumb-bar button.afford-glow:not(:disabled) {
-  border-color: var(--color-gold);
-  background: var(--color-card);
-  box-shadow:
-    inset 0 0 0 var(--line) var(--color-gold),
-    0 0 var(--space-16) var(--color-gold);
-  animation: afford-glow-on 0.9s ease-out 1;
-}
-
-@keyframes afford-glow-on {
-  0% {
-    box-shadow:
-      inset 0 0 0 var(--line) var(--color-gold),
-      0 0 0 var(--color-gold);
-  }
-  50% {
-    box-shadow:
-      inset 0 0 0 var(--line) var(--color-gold),
-      0 0 var(--space-24) var(--color-gold);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .thumb-bar button.afford-glow {
-    animation: none;
-  }
 }
 
 /* Engineers first visit (#246): the same New card as the Workshop's,
@@ -4598,83 +3069,6 @@ body {
 .engineers-dialog .engineers-intro {
   margin-top: var(--space-8);
   text-align: start;
-}
-
-/* Buys head (#246): the same as Upgrades and Engineers. */
-.buys-card h2 {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: var(--weight-bold);
-  line-height: 1.15;
-  color: var(--color-gold);
-  text-align: start;
-}
-
-.buys-card .buys-intro {
-  text-align: start;
-}
-
-.buys-card .buys-how {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: grid;
-  align-content: start;
-  gap: var(--target-gap);
-  overflow-y: auto;
-  text-align: start;
-}
-
-.buys-card .buys-how .teach-how-back {
-  min-height: var(--target-min);
-  border: var(--line) solid var(--color-gold);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  color: var(--color-gold);
-}
-
-.buys-card [hidden] {
-  display: none;
-}
-
-/* Staffing New card (#246): on top of the list, tag top-right, one big
-   hire button under the lines, dimmed while the pocket is short. */
-.buys-dialog .tier.sheet-card.teach-new {
-  order: 1;
-  border-color: var(--color-gold);
-}
-
-.buys-dialog .tier.sheet-card > .teach-tag {
-  position: absolute;
-  top: var(--space-8);
-  right: var(--space-8);
-}
-
-.buys-dialog .tier.sheet-card .sheet-card-price.teach-action {
-  grid-column: 1 / -1;
-  grid-row: auto;
-  justify-self: stretch;
-  justify-content: center;
-  width: 100%;
-  min-height: var(--target-min);
-  margin-top: var(--space-8);
-  border-radius: var(--radius-control);
-  background: var(--color-gold);
-  color: var(--color-ink-on-gold);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-}
-
-.buys-dialog .tier.sheet-card.sheet-dear .sheet-card-price.teach-action {
-  opacity: 0.5;
-}
-
-.buys-dialog .tier .tier-cost.teach-action::before {
-  content: none;
-}
-
-/* The same inset as Upgrades, so the head lines up across sheets. */
-.buys-dialog .buys-card {
-  padding: var(--space-8);
 }
 
 /* Second engineer (#246): the Promote row as the New card. Tag top-right,

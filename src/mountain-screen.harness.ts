@@ -63,6 +63,7 @@ export function mountScreen({
   storage = createMemoryStorage(),
   now,
   tapClock,
+  pressAge = () => 0,
   random,
   veinStorage = storage,
   tabWriter,
@@ -74,6 +75,8 @@ export function mountScreen({
   veinStorage?: Pick<Storage, "getItem" | "setItem">;
   now?: () => number;
   tapClock?: () => number;
+  /** Tests run on fake clocks whose stamps do not line up with an event's: 0 unless set. */
+  pressAge?: (event: Event) => number;
   random?: () => number;
   tabWriter?: TabWriter;
   signal?: AbortSignal;
@@ -94,7 +97,6 @@ export function mountScreen({
     mountainUrl: tileUrl,
     stoneUrl: tileUrl,
     veinUrl: tileUrl,
-    upgradesUrl: tileUrl,
     tierArt: {
       helper: "helper.png",
       cart: "cart.png",
@@ -115,6 +117,7 @@ export function mountScreen({
     progress,
     ...(now === undefined ? {} : { now }),
     ...(tapClock === undefined ? {} : { tapClock }),
+    pressAge,
     ...(random === undefined ? {} : { random }),
     signal,
   });

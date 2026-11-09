@@ -13,21 +13,13 @@ const REQUIRED_SELECTORS = [
   ".start-over",
   ".game-menu",
   ".field-log-sheet",
-  ".menu-button",
-  ".upgrades-dialog",
-  ".upgrades-button",
   ".engineers-dialog",
-  ".engineers-button",
   ".engineer-tunnel",
   ".expedition-chip",
   ".welcome-return",
   ".welcome-card",
   ".reveal-card",
   ".shelf-card",
-  ".tier-grid",
-  ".tier-trouble",
-  ".trouble-thanks",
-  ".found-tool",
   ".keepsakes",
   ".keepsake-story",
   ".workshop-dialog",
@@ -78,6 +70,15 @@ const BOARD_SELECTORS = [
   ".board-ready-row",
   ".board-ready",
   ".board-dig-button",
+  ".board-sheet",
+  ".board-row",
+  ".board-scrim",
+  ".board-rail",
+  ".board-key",
+  ".board-key-cap",
+  ".board-key-dot",
+  ".board-sign-slot",
+  ".board-sign",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
@@ -90,8 +91,6 @@ const OVERLAYS = [
   ".start-over",
   ".game-menu",
   ".field-log-sheet",
-  ".buys-dialog",
-  ".upgrades-dialog",
   ".engineers-dialog",
   ".update-prompt",
   ".other-tab",
@@ -158,6 +157,22 @@ describe("board.css", () => {
     expect(rule).toMatch(/top:\s*var\(--ready-top\)/);
   });
 
+  it("a shut drawer takes no taps, from the moment it shuts (#373)", () => {
+    // It slides away for 200ms: a second tap on Back must not land on a row.
+    expect(boardCss).toMatch(
+      /^\.board-sheet-clip > \.board-sheet:not\(\.is-open\) \{[^}]*pointer-events:\s*none/m,
+    );
+    // Nothing inside a drawer takes taps back for itself.
+    const rules = [...boardCss.matchAll(/^([^{}@/]+?)\s*\{([^}]*)\}/gm)];
+    const inside = rules.filter(
+      ([, selector = "", body = ""]) =>
+        /\.board-(sheet|row|sec|spare)/.test(selector) &&
+        !/^\.board-sheet,/.test(selector.trim()) &&
+        /pointer-events:\s*auto/.test(body),
+    );
+    expect(inside.map(([, selector = ""]) => selector.trim())).toEqual([]);
+  });
+
   it("lets an open note take taps, so none falls through to the dial or the menu", () => {
     expect(boardCss).toMatch(
       /^\.board-note\.on \{[^}]*pointer-events:\s*auto/m,
@@ -193,6 +208,77 @@ describe("board.css", () => {
     }
   });
 
+  it("lets a long crew row wrap rather than clip a chip (#371)", () => {
+    expect(boardCss).toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*wrap/m);
+    expect(boardCss).not.toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*nowrap/m);
+  });
+
+  it("blanks the Crew section in its place while a save loads again, and speaks the posts unseen (#373)", () => {
+    expect(boardCss).toMatch(
+      /^\.board-sheet \.crew\.is-blank,\n\.board-sheet \.board-sec\.is-blank \{[^}]*visibility:\s*hidden/m,
+    );
+    // The screen-reader-only pattern: 1px, clipped, never zero-sized; the save line's spoken
+    // separator too.
+    for (const selector of ["crew-posts-words", "board-save-sep"]) {
+      const rule =
+        new RegExp(`^\\.${selector} \\{([^}]*)\\}`, "m").exec(boardCss)?.[1] ??
+        "";
+      expect(rule).toMatch(/clip-path:\s*inset\(50%\)/);
+      expect(rule).toMatch(/width:\s*var\(--board-hair\)/);
+      expect(rule).toMatch(/height:\s*var\(--board-hair\)/);
+      expect(rule).toMatch(/overflow:\s*hidden/);
+    }
+  });
+
+  it("keeps the open drawer's chip rows from wrapping (#373)", () => {
+    expect(boardCss).toMatch(
+      /^\.board-sheet \.crew-posts\.is-frozen \.crew-row \{[^}]*flex-wrap:\s*nowrap/m,
+    );
+  });
+
+  it("the drawers' clip can never scroll (#373)", () => {
+    // overflow: hidden can still be scrolled by script, and scrollIntoView did (the idle save).
+    expect(boardCss).toMatch(/^\.board-sheet-clip \{[^}]*overflow:\s*clip/m);
+  });
+
+  it("an off spare plate gives its gap in the list back (#373)", () => {
+    const rule =
+      /^\.board-spare\.is-off \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    // The list's gap is 5 art; the plate's negative margin cancels it.
+    expect(boardCss).toMatch(
+      /^\.board-sheet-list \{[^}]*gap:\s*calc\(var\(--art\) \* 5\)/m,
+    );
+    expect(rule).toMatch(/margin-top:\s*calc\(var\(--art\) \* -5\)/);
+  });
+
+  it("a drawer row's flag shares the name's line, so a row has three lines at most (#373)", () => {
+    const line = /^\.board-row-line \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    expect(line).toMatch(/display:\s*flex/);
+    expect(line).toMatch(/white-space:\s*nowrap/);
+    // The name keeps its whole width; the flag gives way and ends in its ellipsis.
+    expect(boardCss).toMatch(
+      /^\.board-row-line > \.board-row-name \{[^}]*flex:\s*none/m,
+    );
+    expect(boardCss).toMatch(
+      /^\.board-row-line > \.board-row-flag \{[^}]*min-width:\s*0/m,
+    );
+  });
+
+  it("clips the spare plate, so a stale skin never lengthens a drawer's scroll (#373)", () => {
+    expect(boardCss).toMatch(/^\.board-spare \{[^}]*overflow:\s*hidden/m);
+  });
+
+  it("styles the Crew section in the Buys drawer, its chips on the tag skin (#373)", () => {
+    expect(boardCss).toMatch(/^\.board-sheet \.crew \{/m);
+    expect(boardCss).toMatch(/^\.board-sheet \.crew-status \{/m);
+    expect(boardCss).toMatch(/^\.crew-bit,\n\.crew-bit\.board-skinned \{/m);
+  });
+
+  it("the New sign takes no taps: they go through to the plate or the key (#373)", () => {
+    const rule = /^\.board-sign-slot \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    expect(rule).toMatch(/pointer-events:\s*none/);
+  });
+
   it.each(BOARD_SELECTORS)("styles %s", (selector) => {
     const escaped = selector.replace(".", "\\.");
     expect(boardCss).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));
@@ -200,17 +286,51 @@ describe("board.css", () => {
 });
 
 describe("style.css", () => {
+  it("keeps no rule for today's Upgrades sheet: its rows are board rows now (#373)", () => {
+    // A board row carries .upgrade and .is-ready, .is-dear: an old .upgrade
+    // rule would restyle it.
+    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
+      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+    );
+    expect(
+      selectors.filter((one) =>
+        /\.(upgrade\b|upgrade-|upgrades-|boost-list|found-(heading|list))/.test(
+          one,
+        ),
+      ),
+    ).toEqual([]);
+  });
+
   it("keeps no lit crew chip: the crew plate holds the free count (#371)", () => {
     expect(css).not.toMatch(/teach-point/);
   });
 
-  it("lets a long crew row wrap rather than clip a chip (#371)", () => {
-    expect(css).toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*wrap/m);
-    expect(css).not.toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*nowrap/m);
+  it("keeps no rule for today's Buys sheet: its rows are board rows now (#373)", () => {
+    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
+      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+    );
+    expect(
+      selectors.filter((one) =>
+        /\.(buys-|tier\b|tier-|crew\b|crew-|engineer-(mark|gain)|trouble-(thanks|burst)|float-gain)/.test(
+          one,
+        ),
+      ),
+    ).toEqual([]);
   });
 
-  it("titles the crew section in Buys (#371)", () => {
-    expect(css).toMatch(/^\.buys-crew-title[\s,{]/m);
+  it("keeps no thumb bar, menu button, afford glow or teach dot: the key rail took over (#373)", () => {
+    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
+      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+    );
+    expect(
+      selectors.filter((one) =>
+        /\.(thumb-|buys-button|upgrades-button|engineers-button|menu-button|afford-glow|teach-dot|has-teach-dot)/.test(
+          one,
+        ),
+      ),
+    ).toEqual([]);
+    expect(css).not.toMatch(/afford-glow-on|teach-note|teach-pulse/);
+    expect(boardCss).not.toMatch(/thumb-bar|menu-button/);
   });
 
   it.each(REQUIRED_SELECTORS)("styles %s", (selector) => {
@@ -227,8 +347,6 @@ describe("style.css", () => {
     ".start-over",
     ".game-menu",
     ".field-log-sheet",
-    ".buys-dialog",
-    ".upgrades-dialog",
     ".engineers-dialog",
     ".update-prompt",
     ".other-tab",

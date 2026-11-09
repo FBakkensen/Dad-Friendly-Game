@@ -51,7 +51,6 @@ function mount(now: () => number) {
     mountainUrl: tile,
     stoneUrl: tile,
     veinUrl: tile,
-    upgradesUrl: tile,
     tierArt: {
       helper: tile,
       cart: tile,
@@ -129,11 +128,14 @@ describe("tending teach (#246)", () => {
     const clock = 1_700_000_000_000;
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => crew());
-    const button =
-      screen.root.querySelector<HTMLButtonElement>(".engineers-button");
-    expect(button?.querySelector(".teach-dot")).not.toBeNull();
+    const button = screen.root.querySelector<HTMLButtonElement>(
+      ".board-key[data-key=engineers]",
+    );
     expect(
-      screen.root.querySelector<HTMLElement>(".teach-note")?.hidden ?? true,
+      button?.querySelector(".board-key-dot:not([hidden])"),
+    ).not.toBeNull();
+    expect(
+      screen.root.querySelector<HTMLElement>(".board-sign-slot")?.hidden,
     ).toBe(true);
     button?.click();
     const sheet = screen.root.querySelector<HTMLElement>(".engineers-dialog");
@@ -174,7 +176,9 @@ describe("tending teach (#246)", () => {
     const clock = 1_700_000_000_000;
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => crew());
-    screen.root.querySelector<HTMLButtonElement>(".engineers-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=engineers]")
+      ?.click();
     const choice = screen.root.querySelector<HTMLButtonElement>(
       '.engineer-choice[data-post="borer"]',
     );

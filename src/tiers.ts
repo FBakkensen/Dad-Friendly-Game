@@ -122,7 +122,9 @@ export const TIERS: readonly Tier[] = [
 /** A tier that takes helpers to run (staff > 0): cart, drill, borer, machine. */
 export type MachineId = Exclude<TierId, "helper" | "kid">;
 
-function isMachine(tier: Tier): tier is Tier & { readonly id: MachineId } {
+export function isMachine(
+  tier: Tier,
+): tier is Tier & { readonly id: MachineId } {
   return tier.staff > 0;
 }
 

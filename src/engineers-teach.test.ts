@@ -48,7 +48,6 @@ function mount(now: () => number) {
     mountainUrl: tile,
     stoneUrl: tile,
     veinUrl: tile,
-    upgradesUrl: tile,
     tierArt: {
       helper: tile,
       cart: tile,
@@ -126,24 +125,28 @@ describe("engineers teach (#246)", () => {
     }
   });
 
-  it("opens from the note on the New card, and the one big button sends the first trip", () => {
+  it("opens from its key under the New sign, and the one big button sends the first trip", () => {
     const clock = 1_700_000_000_000;
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => crew());
-    const button = screen.root.querySelector<HTMLElement>(".engineers-button");
-    expect(button?.querySelector(".teach-dot")).not.toBeNull();
-    // The New note waits for the relic and layer cards the jump opened, then shows in
-    // the board note above its thumb (#372).
-    expect(screen.root.querySelector(".board-note.on .teach-note")).toBeNull();
-    closeArrivals(screen.root);
-    const note = screen.root.querySelector<HTMLButtonElement>(
-      ".board-note.on .teach-note",
+    const button = screen.root.querySelector<HTMLElement>(
+      ".board-key[data-key=engineers]",
     );
-    expect(note?.hidden).toBe(false);
-    expect(note?.textContent).toBe("New · Ada is your first engineer");
-    note?.click();
+    expect(
+      button?.querySelector(".board-key-dot:not([hidden])"),
+    ).not.toBeNull();
+    // The New sign waits for the relic and layer cards the jump opened, then stands
+    // over its key (#372, #373).
+    const sign = () =>
+      screen.root.querySelector<HTMLElement>(".board-sign-slot:not([hidden])");
+    expect(sign()).toBeNull();
+    closeArrivals(screen.root);
+    expect(sign()?.dataset["key"]).toBe("engineers");
+    expect(sign()?.textContent).toBe("New · Ada is your first engineer");
+    // Its key opens the sheet: seen, and the sign goes.
+    button?.click();
     expect(screen.progress.getSnapshot().mountain.seen).toContain("engineers");
-    expect(note?.hidden).toBe(true);
+    expect(sign()).toBeNull();
     const sheet = screen.root.querySelector<HTMLElement>(".engineers-dialog");
     expect(sheet?.hidden).toBe(false);
     expect(
@@ -176,7 +179,9 @@ describe("engineers teach (#246)", () => {
   it("opens How it works for engineers, expeditions and tending from the i", () => {
     const screen = mount(() => 1_700_000_000_000);
     screen.progress.applyMutation(() => crew());
-    screen.root.querySelector<HTMLButtonElement>(".engineers-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=engineers]")
+      ?.click();
     const sheet = screen.root.querySelector<HTMLElement>(".engineers-dialog");
     sheet?.querySelector<HTMLButtonElement>(".teach-info")?.click();
     const how = sheet?.querySelector<HTMLElement>(".engineers-how");
@@ -197,7 +202,9 @@ describe("engineers teach (#246)", () => {
     expect(how?.hidden).toBe(true);
     sheet?.querySelector<HTMLButtonElement>(".teach-info")?.click();
     sheet?.querySelector<HTMLButtonElement>(".engineers-close")?.click();
-    screen.root.querySelector<HTMLButtonElement>(".engineers-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=engineers]")
+      ?.click();
     expect(how?.hidden).toBe(true);
     screen.root.remove();
   });

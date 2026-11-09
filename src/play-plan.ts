@@ -63,7 +63,7 @@ Actions run in order; a shot is taken after opening and after each one:
                      (aria-label or text) is or starts with the label,
                      e.g. label:Upgrades
   wait:<ms>          wait that many milliseconds, e.g. wait:500
-  wait:<css>         wait until a match is visible, e.g. wait:.buys-dialog
+  wait:<css>         wait until a match is visible, e.g. wait:.board-sheet.is-open
 Add *N to a tap to repeat it, e.g. tap:.board-window*5`;
 
 const DEFAULT_OUT = "play-shots";

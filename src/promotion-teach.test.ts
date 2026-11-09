@@ -60,7 +60,6 @@ function mount(now: () => number) {
     mountainUrl: tile,
     stoneUrl: tile,
     veinUrl: tile,
-    upgradesUrl: tile,
     tierArt: {
       helper: tile,
       cart: tile,
@@ -157,9 +156,12 @@ describe("promotion teach (#246)", () => {
     const clock = 1_700_000_000_000;
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => crew());
-    const button =
-      screen.root.querySelector<HTMLButtonElement>(".engineers-button");
-    expect(button?.querySelector(".teach-dot")).not.toBeNull();
+    const button = screen.root.querySelector<HTMLButtonElement>(
+      ".board-key[data-key=engineers]",
+    );
+    expect(
+      button?.querySelector(".board-key-dot:not([hidden])"),
+    ).not.toBeNull();
     button?.click();
     const sheet = screen.root.querySelector<HTMLElement>(".engineers-dialog");
     expect(sheet?.querySelector(".engineers-intro")?.textContent).toBe(
@@ -204,7 +206,9 @@ describe("promotion teach (#246)", () => {
     // 45M mined is the Crystal Caves: one-offs cost 6.3 times as much (#357).
     const caves = { ...crew(), remaining: 195_000_000, pocket: 0 };
     screen.progress.applyMutation(() => caves);
-    screen.root.querySelector<HTMLButtonElement>(".engineers-button")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=engineers]")
+      ?.click();
     const sheet = screen.root.querySelector<HTMLElement>(".engineers-dialog");
     const first = PROMOTE_BASE_COST * BAND_SCALE[2];
     expect(promoteCost(caves)).toBe(first * 2);

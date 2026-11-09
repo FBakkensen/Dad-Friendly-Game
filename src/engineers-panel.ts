@@ -1,5 +1,4 @@
 import { oneOffStretch, stretch } from "./scale";
-import { setAffordGlow } from "./afford-glow";
 import { HOW_IT_WORKS, howItWorks, type HowSystem } from "./how-it-works";
 import { markSeen, markTaught, showsDot } from "./teach";
 import {
@@ -9,11 +8,13 @@ import {
   createInfoButton,
   markNewCard,
 } from "./teach-ui";
+import { setAttr } from "./board-dom";
 import { buyOnTap } from "./card-tap";
 import { createEffectChip, writeChip } from "./effect-row";
 import {
-  ENGINEER_NAMES,
   MAX_ENGINEERS,
+  canPromote,
+  nextEngineerName,
   promote,
   promoteCost,
   station,
@@ -108,6 +109,8 @@ export function createEngineersPanel({
   iconUrl,
   badgeUrl,
   chipHost,
+  door,
+  fallbackDoor,
   now = Date.now,
 }: {
   progress: ProgressStore;
@@ -118,24 +121,16 @@ export function createEngineersPanel({
   badgeUrl: Readonly<Record<Exclude<TendPost, "camp">, string>>;
   /** Mountain corner. Chips sit with the boost countdowns, out of the flow. */
   chipHost: HTMLElement;
+  /**
+   * The key that opens the sheet (#373): the panel listens to its click, puts focus back on it
+   * at close and writes only its aria-expanded. The key rail draws it and decides its lock.
+   */
+  door: HTMLButtonElement;
+  /** Where focus goes at close while a re-load holds the door disabled. */
+  fallbackDoor: HTMLButtonElement;
   now?: () => number;
 }): { button: HTMLButtonElement; sheet: HTMLDivElement; render: () => void } {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "engineers-button";
-  button.setAttribute("aria-label", "Engineers");
-  button.setAttribute("aria-haspopup", "dialog");
-  const icon = document.createElement("img");
-  icon.src = iconUrl;
-  icon.alt = "";
-  icon.width = 32;
-  icon.height = 32;
-  icon.draggable = false;
-  const label = document.createElement("span");
-  label.className = "thumb-label";
-  label.textContent = "Engineers";
-  button.append(icon, label);
-
+  const button = door;
   let open = false;
   let confirming = false;
   /** Row whose recall confirm is open. */
@@ -656,7 +651,7 @@ export function createEngineersPanel({
   promoteButton.textContent = PROMOTE_BUTTON;
   arm("promote", promoteButton);
   buyOnTap(promoteRow, promoteButton, () => {
-    if (!getView().ready || !canPromote(getView())) {
+    if (!promotable(getView())) {
       return;
     }
     confirming = true;
@@ -694,7 +689,7 @@ export function createEngineersPanel({
     menu = undefined;
     const beforeCount = view.mountain.engineers?.length ?? 0;
     // Price and a free worker can change while the confirm sits open.
-    if (canPromote(view)) {
+    if (promotable(view)) {
       progress.applyMutation((current) => promote(current));
     }
     const name = getView().mountain.engineers?.[beforeCount]?.name;
@@ -766,7 +761,7 @@ export function createEngineersPanel({
     recalling = undefined;
     menu = undefined;
     requestRender();
-    button.focus();
+    (button.disabled ? fallbackDoor : button).focus();
   };
   close.addEventListener("click", closeSheet);
   sheet.addEventListener("keydown", (event) => {
@@ -810,10 +805,7 @@ export function createEngineersPanel({
     if (recalled !== undefined && recalled.post !== "tunnel") {
       recalling = undefined;
     }
-    button.hidden = false;
-    // No hand on the crew: the click would open and this render would shut it.
-    button.disabled = engineers.length === 0;
-    button.setAttribute("aria-expanded", open ? "true" : "false");
+    setAttr(button, "aria-expanded", open ? "true" : "false");
     sheet.classList.toggle("is-choosing", menu !== undefined);
     sheet.classList.toggle("is-packed", engineers.length >= 3);
     for (const [index, row] of rows.entries()) {
@@ -917,14 +909,12 @@ export function createEngineersPanel({
       });
     }
     const next = nextEngineerName(engineers);
-    const affordable = canPromote(view);
+    const affordable = promotable(view);
     const cost = promoteCost(current);
     if (!affordable) {
       confirming = false;
     }
     promoteRow.classList.toggle("is-blocked", !affordable);
-    // Hiring an engineer is the buy in this sheet.
-    setAffordGlow(button, affordable);
     promoteButton.hidden = confirming;
     promoteButton.disabled = !view.ready || !affordable;
     promoteButton.classList.toggle("is-pressed", pressedKey === "promote");
@@ -973,21 +963,9 @@ export function createEngineersPanel({
   return { button, sheet, render };
 }
 
-function canPromote(view: ProgressSnapshot): boolean {
-  const current = view.mountain;
-  const engineers = current.engineers ?? [];
-  return (
-    view.ready &&
-    nextEngineerName(engineers) !== undefined &&
-    current.helpers >= 1 &&
-    current.pocket >= promoteCost(current)
-  );
-}
-
-function nextEngineerName(engineers: readonly Engineer[]): string | undefined {
-  return ENGINEER_NAMES.find((name) =>
-    engineers.every((engineer) => engineer.name !== name),
-  );
+/** The panel offers a promotion only once the save is in. */
+function promotable(view: ProgressSnapshot): boolean {
+  return view.ready && canPromote(view.mountain);
 }
 
 type EngineerRow = {

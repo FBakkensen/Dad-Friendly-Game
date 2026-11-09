@@ -1,5 +1,3 @@
-const FLOAT_MS = 1200;
-
 const REDUCE = "(prefers-reduced-motion: reduce)";
 
 /** The one list the board reads each frame, and the matchMedia that made it. */
@@ -21,27 +19,4 @@ export const reducedMotion = (): boolean => {
     };
   }
   return asked.list.matches;
-};
-
-/**
- * A short-lived number that drifts up and fades; skipped for reduced motion.
- * Its class places it (the rock's tap and crew floats that passed a spot went
- * with the rock, #371).
- */
-export const floatText = (
-  parent: HTMLElement,
-  text: string,
-  className: string,
-): void => {
-  if (reducedMotion()) {
-    return;
-  }
-  const float = document.createElement("span");
-  float.className = className;
-  float.textContent = text;
-  float.setAttribute("aria-hidden", "true");
-  parent.append(float);
-  setTimeout(() => {
-    float.remove();
-  }, FLOAT_MS);
 };

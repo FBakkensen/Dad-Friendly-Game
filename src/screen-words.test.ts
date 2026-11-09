@@ -65,7 +65,6 @@ import {
   crewPostsShort,
   crewPostsWords,
   staffBillWords,
-  tierPaceWords,
   refundBackWords,
   timerLeftWords,
   workshopMenuWords,
@@ -723,126 +722,7 @@ describe("layer card and craft-done copy", () => {
   });
 });
 
-describe("gain of one more on a machine card", () => {
-  it("keeps +N · total/s on a compact card, synergy or not", () => {
-    expect(
-      tierPaceWords({
-        compact: true,
-        speed: 12.8,
-        running: 13,
-        count: 13,
-        synergy: 0.28,
-        staff: 1,
-        spare: 0,
-      }),
-    ).toBe("+12\u2009·\u2009166/s · Needs 1 worker");
-    expect(
-      tierPaceWords({
-        compact: true,
-        speed: 2.36,
-        running: 28,
-        count: 28,
-        synergy: 0,
-        staff: 0,
-        spare: 28,
-      }),
-    ).toBe("+2.4\u2009·\u200966/s");
-    expect(
-      tierPaceWords({
-        compact: true,
-        speed: 60,
-        running: 5,
-        count: 5,
-        synergy: 0,
-        staff: 3,
-        spare: 0,
-      }),
-    ).toBe("+60\u2009·\u2009300/s · Needs 3 workers");
-  });
-
-  it("says how many workers a machine still needs, and keeps the gain", () => {
-    expect(
-      tierPaceWords({
-        compact: true,
-        speed: 595,
-        running: 0,
-        count: 0,
-        synergy: 0,
-        staff: 8,
-        spare: 0,
-      }),
-    ).toBe("+595/s · Needs 8 workers");
-    expect(
-      tierPaceWords({
-        compact: false,
-        speed: 10,
-        running: 2,
-        count: 3,
-        synergy: 0,
-        staff: 1,
-        spare: 0,
-      }),
-    ).toBe("+10 each · 20/s · Needs 1 worker");
-  });
-
-  it("keeps the wide card's percent, each, and empty-tier line", () => {
-    expect(
-      tierPaceWords({
-        compact: false,
-        speed: 11.2,
-        running: 5,
-        count: 5,
-        synergy: 0.12,
-        staff: 1,
-        spare: 12,
-      }),
-    ).toBe("+11 \u219112% · 56/s · Needs 1 worker");
-    expect(
-      tierPaceWords({
-        compact: false,
-        speed: 10,
-        running: 3,
-        count: 3,
-        synergy: 0,
-        staff: 1,
-        spare: 4,
-      }),
-    ).toBe("+10 each · 30/s · Needs 1 worker");
-    expect(
-      tierPaceWords({
-        compact: false,
-        speed: 10,
-        running: 150,
-        count: 150,
-        synergy: 0,
-        staff: 1,
-        spare: 200,
-      }),
-    ).toBe("+10 · 1,500/s · Needs 1 worker");
-    expect(
-      tierPaceWords({
-        compact: false,
-        speed: 1,
-        running: 0,
-        count: 0,
-        synergy: 0,
-        staff: 0,
-        spare: 0,
-      }),
-    ).toBe("+1/s each");
-    expect(
-      tierPaceWords({
-        compact: true,
-        speed: 1,
-        running: 0,
-        count: 0,
-        synergy: 0,
-        staff: 0,
-        spare: 0,
-      }),
-    ).toBe("+1/s");
-  });
-
+describe("a machine's crew", () => {
   it("names the real crew a machine needs, and where the workers are", () => {
     expect(staffBillWords(0, 4)).toBeUndefined();
     expect(staffBillWords(1, 3)).toBe("Needs 1 worker");
