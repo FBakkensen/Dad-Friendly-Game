@@ -117,6 +117,7 @@ A press's judged time is `pressedAt`, except that a `pressedAt` after `at` or mo
    - its layer is the one a finger's `close` revealed (the new top layer, or `"board"`), and the judged time is under `DRAWER_SETTLE_MS` after that close.
 
    A keyboard press is never early. Any `open` clears the revealed settle.
+
 2. **Held:** a press (not a trouble press, from a finger or the keyboard) on a control holding Done is `ignore-held` when its judged time is at or after the acting press's `pressedAt` and before the hold's end.
    - `applied` starts a hold, from the acting press's `pressedAt` (the latest act on that control, or the result's own `at` when none was recorded) to `at + READY_HOLD_MS`. An `applied` while a hold runs doesn't stretch it.
    - `fixed` on a control in a drawer starts the hold again, from the fixing press to `at + READY_HOLD_MS`, the way `row.hold()` does today. On a board control (a bay) it starts no hold.
@@ -124,6 +125,7 @@ A press's judged time is `pressedAt`, except that a `pressedAt` after `at` or mo
 4. Otherwise the press gets `act`, and the press is recorded as its control's acting press.
 
 **Blink:**
+
 - `refused`, or a `blink` decision, starts a blink at `at`, unless motion is reduced or that control's blink is still running. A running blink is not restarted.
 - The frames are red, off, red, off, one every `BLINK_STEP_MS`, and the blink is gone at `4 × BLINK_STEP_MS`.
 - `applied` ends a running blink.
@@ -132,11 +134,13 @@ A press's judged time is `pressedAt`, except that a `pressedAt` after `at` or mo
 **Thanks:** `fixed` shows thanks on its host until `at + THANKS_MS`. A new `fixed` starts the thanks again. The host is the control's drawer, or for a board control its own key.
 
 **Overlays:**
+
 - `open` of a drawer closes everything and stands alone. `save` and `note` open on top; a note replaces a note on top.
 - Opening an overlay that is already open changes nothing, and its settle doesn't restart.
 - `close` removes the overlay and everything above it, and a closed overlay's close changes nothing. Only a finger close starts the revealed settle.
 
 **Freeze:**
+
 - `layout` always records the drawer's latest layout.
 - `open` of a drawer freezes the latest layout, if there is one. The frozen `Layout` object is kept as it is, never copied, so a painter can compare by identity.
 - A `layout` for an open drawer with nothing frozen yet freezes that layout. That covers a drawer opened before the save was in, which lays out once, as the save lands.
@@ -152,6 +156,7 @@ A press's judged time is `pressedAt`, except that a `pressedAt` after `at` or mo
 ### Task 1: The module, the constants, overlays and the settle
 
 **Files:**
+
 - Create: `src/board-interaction.ts` and `src/board-interaction.test.ts`.
 - Modify, constants only:
   - `src/board-drawer.ts`: `DRAWER_SETTLE_MS` and `PRESS_AGE_LIMIT_MS` are imported, and `DRAWER_SETTLE_MS` is re-exported, so its importers are unchanged;
@@ -160,6 +165,7 @@ A press's judged time is `pressedAt`, except that a `pressedAt` after `at` or mo
   - `src/crew-panel.ts` and `src/mountain-screen.ts`: their local `THANKS_MS` goes, and each imports it.
 
 **Interfaces:**
+
 - Produces: the whole interface block above, with `press` deciding `act` or `ignore-early` and `boardView(...).stack`.
 - `held`, `blinking`, `thanks` and `layouts` are empty until Tasks 2 and 3. `nextWake` returns `undefined` until Task 2.
 
@@ -197,6 +203,7 @@ A press's judged time is `pressedAt`, except that a `pressedAt` after `at` or mo
 **Files:** `src/board-interaction.ts` and `src/board-interaction.test.ts`.
 
 **Interfaces:**
+
 - Consumes: Task 1's types and `press`.
 - Produces: `result`, `motion` and `unloaded` in `step`; `ignore-held`; `held`, `blinking` and `thanks` in `boardView`; `nextWake`.
 
@@ -249,6 +256,7 @@ A press's judged time is `pressedAt`, except that a `pressedAt` after `at` or mo
 **Files:** `src/board-interaction.ts` and `src/board-interaction.test.ts`.
 
 **Interfaces:**
+
 - Consumes: Task 1's `open`, `close` and stack, and Task 2's blink.
 - Produces: `layout` in `step`; `layouts` in `boardView`; the `blink` decision.
 
@@ -272,6 +280,7 @@ A press's judged time is `pressedAt`, except that a `pressedAt` after `at` or mo
 ### Task 4: The random-sequence invariants, the coverage floor and the docs
 
 **Files:**
+
 - Create: `src/board-interaction.random.test.ts`.
 - Modify: `vite.config.ts` (add the floor), `docs/ARCHITECTURE.md` and `docs/superpowers/specs/2026-11-09-architecture-design.md` (only if its part B names something this plan renamed).
 
