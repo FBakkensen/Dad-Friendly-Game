@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
-  type FunctionSpan,
+  COMPLEXITY,
+  LINES,
   baseFromShow,
   isMeasured,
-  judgeLengths,
+  judgeCeilings,
   measureFunctions,
   parseCeilings,
   problemLine,
-} from "./function-length";
+} from "./function-ratchet";
 
 const ids = (source: string): readonly string[] =>
   measureFunctions("p.ts", source).map((span) => span.id);
@@ -91,17 +92,16 @@ describe("measureFunctions", () => {
   });
 });
 
-describe("judgeLengths", () => {
-  const span = (id: string, lines: number): FunctionSpan => ({
-    id,
-    line: 1,
-    lines,
-  });
+describe("judgeCeilings", () => {
+  const span = (id: string, value: number) => ({ id, value });
   const lines = (
-    spans: readonly FunctionSpan[],
+    values: readonly { id: string; value: number }[],
     ceilings: Readonly<Record<string, number>>,
     base?: Readonly<Record<string, number>>,
-  ) => judgeLengths({ spans, ceilings, base }).map(problemLine);
+  ) =>
+    judgeCeilings({ values, ceilings, base, measure: LINES }).map((problem) =>
+      problemLine(problem, LINES),
+    );
 
   it("passes a function of exactly 150 lines, and one at its ceiling", () => {
     expect(
@@ -113,13 +113,13 @@ describe("judgeLengths", () => {
 
   it("fails a function over 150 lines with no ceiling", () => {
     expect(lines([span("src/a.ts#f", 151)], {})).toEqual([
-      "src/a.ts#f is 151 lines; the limit is 150. Split it.",
+      "src/a.ts#f is 151 lines; the limit is 150 lines. Split it.",
     ]);
   });
 
   it("fails a function that grew past its ceiling", () => {
     expect(lines([span("src/a.ts#f", 210)], { "src/a.ts#f": 200 })).toEqual([
-      "src/a.ts#f grew to 210 lines; its ceiling is 200. Split it.",
+      "src/a.ts#f grew to 210 lines; its ceiling is 200 lines. Split it.",
     ]);
   });
 
@@ -136,8 +136,8 @@ describe("judgeLengths", () => {
         "src/a.ts#g": 160,
       }),
     ).toEqual([
-      "src/a.ts#f is gone or under 150 lines; remove its ceiling.",
-      "src/a.ts#g is gone or under 150 lines; remove its ceiling.",
+      "src/a.ts#f is gone or within the limit; remove its ceiling.",
+      "src/a.ts#g is gone or within the limit; remove its ceiling.",
     ]);
   });
 
@@ -150,7 +150,7 @@ describe("judgeLengths", () => {
       ),
     ).toEqual([
       "src/a.ts#f's ceiling rose from 200 to 210; ceilings only go down.",
-      "src/a.ts#n has a new ceiling; new functions stay under 150 lines.",
+      "src/a.ts#n has a new ceiling; new functions stay within the limit.",
     ]);
   });
 
@@ -164,8 +164,8 @@ describe("judgeLengths", () => {
         },
       ),
     ).toEqual([
-      "src/a.ts#f is gone or under 150 lines; remove its ceiling.",
-      "src/a.ts#renamed is 200 lines; the limit is 150. Split it.",
+      "src/a.ts#f is gone or within the limit; remove its ceiling.",
+      "src/a.ts#renamed is 200 lines; the limit is 150 lines. Split it.",
     ]);
   });
 
@@ -185,7 +185,7 @@ describe("judgeLengths", () => {
         { "src/a.ts#f": 200 },
       ),
     ).toEqual([
-      "src/a.ts#f is gone or under 150 lines; remove its ceiling.",
+      "src/a.ts#f is gone or within the limit; remove its ceiling.",
       "src/a.ts#f's ceiling rose from 200 to 210; ceilings only go down.",
     ]);
   });
@@ -196,12 +196,50 @@ describe("judgeLengths", () => {
         "src/a.ts#f>(anonymous 5)": 351,
       }),
     ).toEqual([
-      "src/a.ts#f>(anonymous 5) has no name to hold a ceiling; name it, or split it under 150 lines.",
+      "src/a.ts#f>(anonymous 5) has no name to hold a ceiling; name it, or bring it within the limit.",
     ]);
   });
 
   it("with no base, ceilings are not compared", () => {
     expect(lines([span("src/a.ts#f", 210)], { "src/a.ts#f": 210 })).toEqual([]);
+  });
+});
+
+describe("the complexity measure", () => {
+  it("judges complexity by the same rules, with its own limit and words", () => {
+    const problems = judgeCeilings({
+      values: [
+        { id: "src/a.ts#f", value: 20 },
+        { id: "src/a.ts#g", value: 15 },
+      ],
+      ceilings: {},
+      base: undefined,
+      measure: COMPLEXITY,
+    });
+    expect(problems.map((problem) => problemLine(problem, COMPLEXITY))).toEqual(
+      ["src/a.ts#f is complexity 20; the limit is complexity 15. Simplify it."],
+    );
+  });
+});
+
+describe("function heads", () => {
+  it("runs from a function's first token to the start of its body", () => {
+    const source = [
+      "function a(x: number) {", // the body opens at column 23
+      "  return x;",
+      "}",
+      "const b = (",
+      "  y: number,",
+      ") => y;",
+      "class C { m() {} }",
+    ].join("\n");
+    expect(
+      measureFunctions("p.ts", source).map(({ id, head }) => [id, head]),
+    ).toEqual([
+      ["p.ts#a", { line: 1, column: 1, endLine: 1, endColumn: 23 }],
+      ["p.ts#b", { line: 4, column: 11, endLine: 6, endColumn: 6 }],
+      ["p.ts#C.m", { line: 7, column: 11, endLine: 7, endColumn: 15 }],
+    ]);
   });
 });
 
