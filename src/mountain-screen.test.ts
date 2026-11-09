@@ -489,6 +489,32 @@ describe("mountMountainScreen", () => {
 
     expect(docs.get("test-dad")).toEqual(minedMountain(1));
   });
+
+  it("settles a return to the tab once the server has been read", async () => {
+    const docs = new Map<string, Mountain>();
+    const screen = mountScreen({
+      auth: signedIn(),
+      cloudSave: createMemoryCloudSave({ docs }),
+    });
+    await vi.waitFor(() => {
+      expect(docs.has("test-dad")).toBe(true);
+    });
+    const resume = vi.spyOn(screen.progress, "resume");
+    const tick = vi.spyOn(screen.progress, "tick");
+
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    const read = resume.mock.results[0]?.value as
+      ReturnType<typeof screen.progress.resume> | undefined;
+    if (read?.kind !== "reading") {
+      throw new Error("expected the return to read the server");
+    }
+    // No tap lands on top of another device's save: nothing settles before the read.
+    expect(tick).not.toHaveBeenCalled();
+    await read.done;
+    await Promise.resolve();
+    expect(tick).toHaveBeenCalled();
+  });
 });
 
 describe("crew tiers on screen", () => {

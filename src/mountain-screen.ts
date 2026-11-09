@@ -1,12 +1,10 @@
 import { shownStones, stonesLeft } from "./scale";
 import pickUrl from "./assets/pick.png";
 import { noteFor } from "./teach";
-import { THANKS_MS } from "./board-interaction";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
 import { formatCount } from "./format";
 import { MOUNTAIN_STONES, stonesPerSecond, type Mountain } from "./mountain";
 import { owned, tierById, type TierId } from "./tiers";
-import type { TroubleTier } from "./hazards";
 import { hasRelic, relicGoal, type RelicId } from "./relics";
 import { BOOSTS } from "./boosts";
 import { createEffectChip, shortEffectName, writeChip } from "./effect-row";
@@ -59,7 +57,6 @@ import {
   OTHER_TAB_BODY,
   OTHER_TAB_PLAY,
   OTHER_TAB_TITLE,
-  TROUBLE_FIXED,
   nextLayerHint,
   tapWords,
   WORKSHOP_NOTE,
@@ -173,7 +170,7 @@ export function mountMountainScreen({
   random?: () => number;
   /** Where the vein wait is carried between sessions; localStorage by default. */
   veinStorage?: Pick<Storage, "getItem" | "setItem">;
-  /** Stops the screen's tick and page listeners. The app never unmounts; tests do. */
+  /** Stops the screen's tick, page listeners and watches. The app never unmounts; tests do. */
   signal?: AbortSignal;
 }): void {
   const progress = progressArg ?? createProgressStore({ auth });
@@ -249,18 +246,14 @@ export function mountMountainScreen({
   const running = document.createElement("div");
   running.className = "board-running";
   running.append(runningHead, effectRow, runningNone);
-  // A bay's fix thanks the crew in the board note (#372).
-  const bayThanks = document.createElement("p");
-  bayThanks.className = "board-thanks";
-  bayThanks.textContent = TROUBLE_FIXED;
   // The New sign stands in the band over its key (#373): a sign, not a button.
   const sign = createBoardSign();
-  // While another note shows, the list, the vein's note and the bay thanks
-  // wait here, so the chips and the live words stay in the page.
+  // While another note shows, the list and the vein's note wait here, so the
+  // chips and the live words stay in the page.
   const runningPark = document.createElement("div");
   runningPark.className = "board-running-park";
   runningPark.hidden = true;
-  runningPark.append(running, veinNote, bayThanks);
+  runningPark.append(running, veinNote);
   const chipFor = new Map(
     BOOSTS.map((boost) => {
       const chip = createEffectChip(
@@ -383,12 +376,13 @@ export function mountMountainScreen({
     renderVein();
   };
 
+  const board = createBoardHost({ clock: tapClock, pressAge, signal });
   /**
-   * The key rail (#373): five keys under the Ready row. Buys and Upgrades open their drawers
-   * from here; Engineers and the Ledger key (today's menu, until B7) are their panels' doors,
-   * whose own click handlers open them. Every key first puts the board's popups away.
+   * The key rail: Buys, Workshop and Upgrades open from here; Engineers and the Ledger key open
+   * through their panels' own click listeners. Every key first puts the board's popups away.
    */
   const rail = createKeyRail({
+    board,
     onKey: (id, key) => {
       closeBoardPopups();
       // A key pressed from the keyboard puts the New sign away too.
@@ -412,7 +406,6 @@ export function mountMountainScreen({
   });
   /** The Ready now pick last painted on the plate: the Buys rows light the same one. */
   let shownPick: ReadyPick = readyNow(view.mountain, now(), view.trouble);
-  const board = createBoardHost({ clock: tapClock, pressAge, signal });
   const crewPanel = createCrewPanel({
     progress,
     dispatch,
@@ -509,7 +502,7 @@ export function mountMountainScreen({
     const count = owned(progress.getSnapshot().mountain, tierById(pick.tier));
     return { kind: "bought", tier: pick.tier, count, gain: pick.gain };
   };
-  const readyPlate = createReadyPlate({ onTap: tapReady });
+  const readyPlate = createReadyPlate({ board, onTap: tapReady });
   // The red button digs exactly as a window tap does, and the window shows it.
   const digButton = createDigButton({
     onPress: () => {
@@ -565,7 +558,7 @@ export function mountMountainScreen({
 
   // The board (#370): the note, the relic plate, the odometer, the boost dial
   // and the save line. The note is placed in board coordinates inside root.
-  const boardNote = createBoardNote(root);
+  const boardNote = createBoardNote(root, signal);
   /** The vein's payout or the quiet away line, in the board note under the window. */
   const showVeinNote = (words: string, ms: number): void => {
     veinNote.textContent = words;
@@ -577,6 +570,7 @@ export function mountMountainScreen({
     auth,
     getView: () => view,
     now,
+    signal,
   });
   // Opening a sheet, the shelf or the menu puts the board's popups away.
   const closeBoardPopups = (): void => {
@@ -650,6 +644,7 @@ export function mountMountainScreen({
     requestRender: () => {
       render();
     },
+    signal,
   });
   const { menu, confirm, fieldLogSheet } = menuPanel;
 
@@ -844,11 +839,9 @@ export function mountMountainScreen({
     if (running.parentNode === null) {
       runningPark.append(running);
     }
-    // Back to the park whenever another note has taken their place.
-    for (const parked of [veinNote, bayThanks]) {
-      if (parked.parentNode === null) {
-        runningPark.append(parked);
-      }
+    // Back to the park whenever another note has taken its place.
+    if (veinNote.parentNode === null) {
+      runningPark.append(veinNote);
     }
     relicPlate.render();
     renderStock();
@@ -1035,25 +1028,8 @@ export function mountMountainScreen({
     guideBar.setAttribute("aria-label", label);
   };
 
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") {
-      progress.flush();
-      return;
-    }
-    // A return settles after the server has been read, so a tap cannot
-    // land on top of another device's save. Guests settle immediately.
-    const resume = progress.resume();
-    if (resume.kind === "reading") {
-      void resume.done.then(() => {
-        progress.tick();
-      });
-      return;
-    }
-    progress.tick();
-  });
-  window.addEventListener("pagehide", () => {
-    progress.flush();
-  });
+  const listening = signal === undefined ? {} : { signal };
+  saveOnLeave(progress, listening);
 
   /**
    * Opens the Buys drawer: the Buys key, a bay and Saving for (#372, #373). Only an opening starts
@@ -1067,27 +1043,16 @@ export function mountMountainScreen({
 
   /**
    * The machine bays (#372). A tap opens Buys; on a troubled bay it presses or
-   * holds the fix through the store, as a Buys card does, and thanks the crew
-   * once the trouble is gone.
+   * holds the fix through the store, as a Buys card does, and the bay thanks
+   * the crew once the trouble is gone.
    */
-  const thankFix = (tier: TroubleTier, bay: HTMLElement, fix: () => void) => {
-    const before = progress.getSnapshot().trouble;
-    fix();
-    if (before?.tier === tier && progress.getSnapshot().trouble === undefined) {
-      boardNote.show(bay, bayThanks, { ms: THANKS_MS });
-    }
-  };
   const bays = createMachineBays({
+    board,
+    note: boardNote,
     onOpen: openBuys,
-    onPress: (tier, bay) => {
-      thankFix(tier, bay, () => {
-        progress.pressTrouble(tier);
-      });
-    },
-    onFix: (tier, bay) => {
-      thankFix(tier, bay, () => {
-        progress.fixTrouble(tier);
-      });
+    onTrouble: (tier, how) => {
+      (how === "hold" ? progress.fixTrouble : progress.pressTrouble)(tier);
+      return progress.getSnapshot().trouble === undefined;
     },
   });
 
@@ -1203,7 +1168,6 @@ export function mountMountainScreen({
     gauge.tick(dt);
     bays.tick(dt);
   }, signal);
-  const listening = signal === undefined ? {} : { signal };
   document.addEventListener(
     "visibilitychange",
     () => {
@@ -1245,6 +1209,41 @@ export function mountMountainScreen({
       saveLine.render();
     }
   });
+}
+
+/**
+ * A hidden or closed page saves at once. A return settles after the server has been read, so a
+ * tap cannot land on top of another device's save; guests settle at once.
+ */
+function saveOnLeave(
+  progress: ProgressStore,
+  listening: { readonly signal?: AbortSignal },
+): void {
+  document.addEventListener(
+    "visibilitychange",
+    () => {
+      if (document.visibilityState === "hidden") {
+        progress.flush();
+        return;
+      }
+      const resume = progress.resume();
+      if (resume.kind === "reading") {
+        void resume.done.then(() => {
+          progress.tick();
+        });
+        return;
+      }
+      progress.tick();
+    },
+    listening,
+  );
+  window.addEventListener(
+    "pagehide",
+    () => {
+      progress.flush();
+    },
+    listening,
+  );
 }
 
 /** Shows the reload prompt. A newer service worker calls this. */

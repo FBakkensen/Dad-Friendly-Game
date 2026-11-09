@@ -3,15 +3,9 @@ import makersStripUrl from "./assets/board/makers-strip.png";
 import { el, hide, mark, refitAll, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { boardHowCard, type BoardHowSystem } from "./board-how-art";
-import {
-  type CloseBy,
-  type ControlRef,
-  type DrawerId,
-  type Pointer,
-  type PressDecision,
-} from "./board-interaction";
+import { type CloseBy, type DrawerId } from "./board-interaction";
 import { plateButton } from "./board-save";
-import { trackPress, type PressTracker } from "./card-tap";
+import { pressOnBoard, type PressTracker } from "./card-tap";
 import { skin } from "./board-skin";
 import { TROUBLE_FIXED } from "./screen-words";
 
@@ -229,37 +223,6 @@ function setHow({ how, head, list, footer }: SheetParts, on: boolean): void {
   hide(head, on);
   hide(list, on);
   hide(footer, on);
-}
-
-/**
- * One of the shell's own controls, pressed through the board. Its press is tracked on the
- * control itself, so it is judged by its own finger-down time, and that time is dropped at a
- * cancel or when the drawer moves on.
- */
-function pressOnBoard(
-  target: HTMLElement,
-  board: BoardHost,
-  control: ControlRef,
-  judged: (decision: PressDecision, by: Pointer, event: MouseEvent) => void,
-  options: AddEventListenerOptions = {},
-): PressTracker {
-  const tracker = trackPress(target, board, options);
-  target.addEventListener(
-    "click",
-    (event) => {
-      const { by, downAt } = tracker.press(event);
-      const decision = board.press({
-        control,
-        by,
-        intent: "act",
-        downAt,
-        event,
-      });
-      judged(decision, by, event);
-    },
-    options,
-  );
-  return tracker;
 }
 
 /** Back, the "i" and the cards' Backs: each acts only when the board says it may. */

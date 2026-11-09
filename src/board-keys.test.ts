@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createBoardHost, type BoardHost } from "./board-host";
 import { createKeyRail, type KeyRail } from "./board-keys";
 import { KEY_IDS, type KeyId, type KeyView } from "./key-rail";
 
@@ -28,7 +29,20 @@ const LOCKED_ENGINEERS: KeyView = {
   aria: "Engineers, locked until the first tunnel borer",
 };
 
-const rail = (onKey = vi.fn()): KeyRail => createKeyRail({ onKey });
+/** A board on a clock the test moves, with no press waiting in the queue. */
+const host = (now: { value: number } = { value: 0 }): BoardHost =>
+  createBoardHost({
+    clock: () => now.value,
+    pressAge: () => 0,
+    reduced: () => false,
+  });
+
+const rail = (onKey = vi.fn(), board = host()): KeyRail =>
+  createKeyRail({ board, onKey });
+
+afterEach(() => {
+  document.body.replaceChildren();
+});
 
 const cap = (key: HTMLElement): HTMLElement =>
   key.querySelector<HTMLElement>(".board-key-cap") as HTMLElement;
@@ -41,6 +55,15 @@ const sub = (key: HTMLElement): HTMLElement =>
 
 const press = (key: HTMLElement, type: string): void => {
   key.dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0 }));
+};
+
+/** A finger's tap: down, up and the click, which has a pointer (detail 1). */
+const fingerTap = (key: HTMLElement): void => {
+  press(key, "pointerdown");
+  press(key, "pointerup");
+  key.dispatchEvent(
+    new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
+  );
 };
 
 describe("the key rail (#373)", () => {
@@ -222,5 +245,62 @@ describe("the key rail (#373)", () => {
     seen.push(...watch.takeRecords());
     watch.disconnect();
     expect(seen).toEqual([]);
+  });
+
+  describe("presses through the board", () => {
+    /** A rail on the page whose board a finger closed Buys on at 1,000: settling up to 1,400. */
+    const settled = () => {
+      const now = { value: 1_000 };
+      const board = host(now);
+      board.send({ kind: "open", overlay: "buys", at: 0 });
+      board.send({ kind: "close", overlay: "buys", at: 1_000, by: "finger" });
+      const onKey = vi.fn();
+      const made = rail(onKey, board);
+      made.render(views());
+      document.body.append(made.root);
+      // A panel's own door listener, added after the rail's, as Engineers and the Ledger do.
+      const door = vi.fn();
+      made.keys.engineers.addEventListener("click", door);
+      return { now, made, onKey, door };
+    };
+
+    it("a finger press on a key right after a finger closed a drawer reaches no listener", () => {
+      const { now, made, onKey, door } = settled();
+      now.value = 1_150;
+      fingerTap(made.keys.engineers);
+      fingerTap(made.keys.upgrades);
+      expect(onKey).not.toHaveBeenCalled();
+      expect(door).not.toHaveBeenCalled();
+      // The press frame still lets go.
+      expect(made.keys.engineers.classList.contains("is-down")).toBe(false);
+      expect(cap(made.keys.engineers).style.backgroundPositionX).toBe("0px");
+    });
+
+    it("a keyboard press acts at once", () => {
+      const { now, made, onKey, door } = settled();
+      now.value = 1_150;
+      made.keys.engineers.click();
+      expect(onKey).toHaveBeenCalledWith("engineers", made.keys.engineers);
+      expect(door).toHaveBeenCalledTimes(1);
+    });
+
+    it("past the settle, the key acts", () => {
+      const { now, made, onKey, door } = settled();
+      now.value = 1_400;
+      fingerTap(made.keys.engineers);
+      expect(onKey).toHaveBeenCalledWith("engineers", made.keys.engineers);
+      expect(door).toHaveBeenCalledTimes(1);
+    });
+
+    it("judges a finger press by when its finger came down", () => {
+      const { now, made, onKey } = settled();
+      now.value = 1_150;
+      press(made.keys.upgrades, "pointerdown");
+      now.value = 1_600;
+      made.keys.upgrades.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
+      );
+      expect(onKey).not.toHaveBeenCalled();
+    });
   });
 });

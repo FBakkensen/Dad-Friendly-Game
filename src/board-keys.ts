@@ -6,14 +6,18 @@ import upgradesUrl from "./assets/board/icon-upgrades.png";
 import workshopDimUrl from "./assets/board/icon-workshop-dim.png";
 import workshopUrl from "./assets/board/icon-workshop.png";
 import dotUrl from "./assets/board/key-dot.png";
-import { el, frameX, setAttr, write } from "./board-dom";
+import { el, frameX, hide, mark, setAttr, write } from "./board-dom";
+import type { BoardHost } from "./board-host";
+import type { ControlRef } from "./board-interaction";
+import { pressOnBoard } from "./card-tap";
 import { KEY_IDS, type KeyCap, type KeyId, type KeyView } from "./key-rail";
 
 /*
  * The key rail (#373): five steel keys under the Ready row, each the door to its drawer or
- * sheet. key-rail.ts decides what each key shows; this draws it and passes the click on. The
- * cap is key.png's 64px cells (rest, down, off, lit), changed whole frames at a time. Places
- * and sizes are in board.css; every render writes only what changed.
+ * sheet. key-rail.ts decides what each key shows; this draws it, and the board's model decides
+ * whether a click goes on. The cap is key.png's 64px cells (rest, down, off, lit), changed
+ * whole frames at a time. Places and sizes are in board.css; every render writes only what
+ * changed.
  */
 
 export interface KeyRail {
@@ -52,18 +56,6 @@ const HELD_UNTIL_READY: ReadonlySet<KeyId> = new Set(["workshop", "engineers"]);
 /** formatClock's shape: m:ss or h:mm:ss. */
 const CLOCK = /^\d+(?::\d\d)+$/;
 
-function toggle(target: HTMLElement, name: string, on: boolean): void {
-  if (target.classList.contains(name) !== on) {
-    target.classList.toggle(name, on);
-  }
-}
-
-function show(target: HTMLElement, on: boolean): void {
-  if (target.hidden === on) {
-    target.hidden = !on;
-  }
-}
-
 function image(className: string, src: string, px: number): HTMLImageElement {
   const made = el("img", className);
   made.src = src;
@@ -74,13 +66,38 @@ function image(className: string, src: string, px: number): HTMLImageElement {
   return made;
 }
 
+/** The key a click on the rail pressed, as a board control: `key:<id>`. */
+function keyPressed(click: MouseEvent): ControlRef | undefined {
+  const key =
+    click.target instanceof Element
+      ? click.target.closest<HTMLElement>(".board-key")
+      : null;
+  const id = key?.dataset["key"];
+  return id === undefined ? undefined : { layer: "board", id: `key:${id}` };
+}
+
 export function createKeyRail({
+  board,
   onKey,
 }: {
+  board: BoardHost;
   onKey: (id: KeyId, key: HTMLButtonElement) => void;
 }): KeyRail {
   const root = el("nav", "board-rail");
   root.setAttribute("aria-label", "Actions");
+  // Heard on the way down: a press the board turns away stops here, before any listener on
+  // the key, the panels' own door listeners among them.
+  pressOnBoard(
+    root,
+    board,
+    keyPressed,
+    (decision, _by, event) => {
+      if (decision !== "act") {
+        event.stopPropagation();
+      }
+    },
+    { capture: true },
+  );
 
   const built = KEY_IDS.map((id) => {
     const key = el("button", "board-key");
@@ -103,17 +120,21 @@ export function createKeyRail({
 
     /** The cap's frame when not held down: the last view's. */
     let base = FRAME.rest;
+    let down = false;
+    let disabled = key.disabled;
     const up = (): void => {
-      if (!key.classList.contains("is-down")) {
+      if (!down) {
         return;
       }
+      down = false;
       key.classList.remove("is-down");
       frameX(cap, base, CELL_PX);
     };
     key.addEventListener("pointerdown", () => {
-      if (key.disabled) {
+      if (disabled) {
         return;
       }
+      down = true;
       key.classList.add("is-down");
       frameX(cap, DOWN, CELL_PX);
     });
@@ -129,25 +150,25 @@ export function createKeyRail({
       const locked = view?.cap === "locked";
       const lit = view?.cap === "lit";
       base = FRAME[view?.cap ?? "rest"];
-      if (!key.classList.contains("is-down")) {
+      if (!down) {
         frameX(cap, base, CELL_PX);
       }
       setAttr(icon, "src", locked ? ICON[id].dim : ICON[id].bright);
-      const disabled = view === undefined ? HELD_UNTIL_READY.has(id) : locked;
+      disabled = view === undefined ? HELD_UNTIL_READY.has(id) : locked;
       if (key.disabled !== disabled) {
         key.disabled = disabled;
       }
       if (disabled) {
         up();
       }
-      toggle(key, "is-locked", locked);
-      toggle(key, "is-lit", lit);
-      show(dot, view?.dot === true);
+      mark(key, "is-locked", locked);
+      mark(key, "is-lit", lit);
+      hide(dot, view?.dot !== true);
       const words = view?.sub ?? "";
       write(sub, words);
-      show(sub, words !== "");
-      toggle(sub, "board-num", CLOCK.test(words));
-      toggle(key, "has-sub", words !== "");
+      hide(sub, words === "");
+      mark(sub, "board-num", CLOCK.test(words));
+      mark(key, "has-sub", words !== "");
       setAttr(key, "aria-label", view?.aria ?? NAME[id]);
     };
     return [id, key, render] as const;

@@ -54,12 +54,14 @@ export function plateButton(label: string): HTMLButtonElement {
   const b = el("button", "board-platebtn");
   b.type = "button";
   b.append(el("span", "board-platebtn-text", label));
-  skin(b, "key", "keyp");
+  const repaint = skin(b, "key", "keyp");
   const up = (): void => {
     b.classList.remove("down");
+    repaint();
   };
   b.addEventListener("pointerdown", () => {
     b.classList.add("down");
+    repaint();
   });
   b.addEventListener("pointerup", up);
   b.addEventListener("pointerleave", up);
@@ -77,6 +79,43 @@ interface SaveLine {
 }
 
 /**
+ * Escape closes the drawer, and so does a tap on the board above it (the spec's scrim). The
+ * save line is not outside: its own click toggles the drawer.
+ */
+function closeFromPage({
+  line,
+  drawer,
+  isOpen,
+  close,
+  signal,
+}: {
+  line: HTMLElement;
+  drawer: HTMLElement;
+  isOpen: () => boolean;
+  close: () => void;
+  signal: AbortSignal | undefined;
+}): void {
+  const listening = signal === undefined ? {} : { signal };
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Escape" && isOpen()) close();
+    },
+    listening,
+  );
+  document.addEventListener(
+    "pointerdown",
+    (event) => {
+      const target = event.target;
+      if (!isOpen() || !(target instanceof Node)) return;
+      if (drawer.contains(target) || line.contains(target)) return;
+      close();
+    },
+    listening,
+  );
+}
+
+/**
  * The save line at the foot of the board and the drawer it opens (#370).
  * The line keeps today's `.save-status` words, data-kind and data-log.
  */
@@ -85,11 +124,14 @@ export function createSaveLine({
   auth,
   getView,
   now,
+  signal,
 }: {
   progress: ProgressStore;
   auth: AuthController;
   getView: () => ProgressSnapshot;
   now: () => number;
+  /** Takes the save line's page listeners and auth watch off; the app never unmounts. */
+  signal?: AbortSignal | undefined;
 }): SaveLine {
   const line = el("div", "board-saveline");
   const status = el("button", "save-status");
@@ -226,20 +268,11 @@ export function createSaveLine({
     }
     void auth.signIn();
   });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && isOpen) close();
-  });
-  // A tap on the board above the drawer closes it (the spec's scrim). The
-  // save line is not outside: its own click toggles the drawer.
-  document.addEventListener("pointerdown", (event) => {
-    const target = event.target;
-    if (!isOpen || !(target instanceof Node)) return;
-    if (drawer.contains(target) || line.contains(target)) return;
-    close();
-  });
-  auth.subscribe(() => {
+  closeFromPage({ line, drawer, isOpen: () => isOpen, close, signal });
+  const unwatchAuth = auth.subscribe(() => {
     renderDrawer(getView());
   });
+  signal?.addEventListener("abort", unwatchAuth);
 
   render();
   return { line, drawer, render, close, isOpen: () => isOpen };

@@ -1,5 +1,5 @@
-import { eventAge } from "./board-host";
-import type { Pointer } from "./board-interaction";
+import { eventAge, type BoardHost } from "./board-host";
+import type { ControlRef, Pointer, PressDecision } from "./board-interaction";
 
 const SLOP_PX = 10;
 
@@ -87,6 +87,52 @@ export function trackPress(
     },
     forget,
   };
+}
+
+/** How a board control's listeners are added, and what kind of press a click is. */
+export interface BoardPressOptions extends AddEventListenerOptions {
+  /**
+   * A trouble press (a bay in trouble) is never early or held. Without `intent: "trouble"`, a
+   * press is an act press, judged by the board's settle and holds: it can still be ignored as early,
+   * ignored as held, or blink.
+   */
+  readonly intent?: (click: MouseEvent) => "act" | "trouble";
+}
+
+/**
+ * One of the board's controls, pressed through the board. Its press is tracked on `target`, so
+ * it is judged by its own finger-down time, and that time is dropped at a cancel or when the
+ * drawer moves on. A target that holds several controls (the key rail) reads which one a click
+ * pressed from the click; a click on none of them presses nothing.
+ */
+export function pressOnBoard(
+  target: HTMLElement,
+  board: BoardHost,
+  control: ControlRef | ((click: MouseEvent) => ControlRef | undefined),
+  judged: (decision: PressDecision, by: Pointer, event: MouseEvent) => void,
+  { intent = () => "act", ...options }: BoardPressOptions = {},
+): PressTracker {
+  const tracker = trackPress(target, board, options);
+  target.addEventListener(
+    "click",
+    (event) => {
+      const { by, downAt } = tracker.press(event);
+      const pressed = typeof control === "function" ? control(event) : control;
+      if (pressed === undefined) {
+        return;
+      }
+      const decision = board.press({
+        control: pressed,
+        by,
+        intent: intent(event),
+        downAt,
+        event,
+      });
+      judged(decision, by, event);
+    },
+    options,
+  );
+  return tracker;
 }
 
 /**

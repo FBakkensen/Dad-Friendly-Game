@@ -3,8 +3,12 @@ import tarpUrl from "./assets/board/mach-borer-tarp.png";
 import borerUrl from "./assets/board/mach-borer.png";
 import cartUrl from "./assets/board/mach-cart.png";
 import machineUrl from "./assets/board/mach-machine.png";
-import { el, frameX, setAttr, write } from "./board-dom";
+import { el, fitsWidth, frameX, hide, mark, setAttr, write } from "./board-dom";
+import type { BoardHost } from "./board-host";
+import { controlKey, type ControlRef } from "./board-interaction";
+import type { BoardNote } from "./board-note";
 import { skin } from "./board-skin";
+import { pressOnBoard } from "./card-tap";
 import { measurable, onFontsSettled } from "./fit-cache";
 import { reducedMotion } from "./float-text";
 import { formatCompact, formatCount } from "./format";
@@ -22,6 +26,7 @@ import {
   layerCardWords,
   troubleAria,
   troubleShout,
+  TROUBLE_FIXED,
   workerWords,
 } from "./screen-words";
 import { lockAria, lockRateLine } from "./tier-lock-words";
@@ -60,9 +65,6 @@ const DRILL_STEP_S = 0.18;
 const DRILL_EPSILON = 1e-9;
 /** Before the save is in: a disabled button needs a name, and this is no news. */
 const LOADING = "Loading your save...";
-
-const defaultFits = (el: HTMLElement): boolean =>
-  el.scrollWidth <= el.clientWidth + 1;
 
 /** The band tag: the layer's name, and its short advice without the full stop. */
 export function bandWords(mountain: { readonly remaining: number }): string {
@@ -209,9 +211,7 @@ function showFlap(bay: Bay, text: string, animate: boolean): void {
   if (bay.digits.length !== n) {
     buildFlap(bay, n);
   }
-  if (bay.button.classList.contains("is-three") !== (n === 3)) {
-    bay.button.classList.toggle("is-three", n === 3);
-  }
+  mark(bay.button, "is-three", n === 3);
   const before = bay.shown.padStart(n, " ").slice(-n);
   const now = text.padStart(n, " ");
   bay.digits.forEach((digit, k) => {
@@ -230,20 +230,352 @@ function showFlap(bay: Bay, text: string, animate: boolean): void {
   bay.shown = text;
 }
 
+/** A bay's control on the board, and the host of its thanks after a fix. */
+const bayControl = (i: number): ControlRef => ({
+  layer: "board",
+  id: `bay:${String(i)}`,
+});
+
+/** The running drill's frame and the time towards its next one. */
+interface Drill {
+  /** A bay icon, the drill showing its current frame. */
+  icon(key: IconKey): HTMLElement;
+  /** Swaps the bay's icon when the art it should show changed. */
+  place(bay: Bay, key: IconKey): void;
+  /** Steps the drill a frame every DRILL_STEP_S while drills are owned and work. */
+  tick(bays: readonly Bay[], dt: number): void;
+}
+
+function createDrill(): Drill {
+  let frame = 0;
+  let clock = 0;
+  const icon = (key: IconKey): HTMLElement => {
+    const made = makeIcon(key);
+    if (key === "drill") {
+      frameX(made, frame, DRILL_PX);
+    }
+    return made;
+  };
+  return {
+    icon,
+    place(bay, key) {
+      if (bay.iconKey === key) {
+        return;
+      }
+      const made = icon(key);
+      bay.icon.replaceWith(made);
+      bay.icon = made;
+      bay.iconKey = key;
+    },
+    tick(bays, dt) {
+      if (!(dt > 0) || reducedMotion()) {
+        return;
+      }
+      const bay = bays.find((b) => b.view?.tier === "drill");
+      const view = bay?.view;
+      if (bay === undefined || view === undefined) {
+        return;
+      }
+      if (view.kind === "trouble" || !(view.count > 0)) {
+        return;
+      }
+      clock += dt;
+      const steps = Math.floor(clock / DRILL_STEP_S + DRILL_EPSILON);
+      if (steps < 1) {
+        return;
+      }
+      clock = Math.max(0, clock - steps * DRILL_STEP_S);
+      frame = (frame + steps) % DRILL_FRAMES;
+      frameX(bay.icon, frame, DRILL_PX);
+    },
+  };
+}
+
+/** One bay's button and its parts, showing the start art for `tier`. */
+function buildBay(tier: MachineId, i: number, drill: Drill): Bay {
+  const button = el("button", "board-bay");
+  button.type = "button";
+  button.style.setProperty("--i", String(i));
+  button.dataset.tier = tier;
+
+  const lamp = el("i", "board-lamp");
+  lamp.setAttribute("aria-hidden", "true");
+  const key = iconKey(tier, 0);
+  const icon = drill.icon(key);
+  const text = el("span", "board-bay-text");
+  const name = el("span", "board-bay-name");
+  const sub = el("span", "board-bay-sub");
+  text.append(name, sub);
+  const flap = el("span", "board-flap board-num");
+  flap.setAttribute("aria-hidden", "true");
+  const priceCol = el("span", "board-bay-price");
+  const legend = el("span", "board-bay-price-lg board-lg");
+  const tag = el("span", "board-bay-tag board-num");
+  skin(tag, "tag");
+  const price = el("span", "board-bay-tag-text");
+  tag.append(price);
+  priceCol.append(legend, tag);
+  button.append(lamp, icon, text, flap, priceCol);
+
+  const bay: Bay = {
+    button,
+    lamp,
+    name,
+    sub,
+    flap,
+    legend,
+    tag,
+    price,
+    icon,
+    iconKey: key,
+    digits: [],
+    shown: "",
+    view: undefined,
+  };
+  buildFlap(bay, 2);
+  return bay;
+}
+
+/** How a troubled bay was helped: a tap, or a hold. */
+type TroubleHelp = "press" | "hold";
+
+interface BayWiring {
+  readonly board: BoardHost;
+  readonly onOpen: (from: HTMLElement) => void;
+  readonly onTrouble: (tier: TroubleTier, how: TroubleHelp) => boolean;
+  /** Bay `i` fixed its trouble. */
+  readonly fixed: (i: number) => void;
+}
+
+/**
+ * A bay's taps, through the board: a calm bay opens Buys, a troubled one presses its fix, and
+ * a hold fixes it. A trouble press is not a spend, so neither the settle nor a hold stops it.
+ */
+function wireBayTaps(
+  bay: Bay,
+  i: number,
+  { board, onOpen, onTrouble, fixed }: BayWiring,
+): void {
+  const troubled = (): TroubleTier | undefined =>
+    bay.view?.kind === "trouble" ? bay.view.tier : undefined;
+  const help = (tier: TroubleTier, how: TroubleHelp): void => {
+    if (onTrouble(tier, how)) {
+      fixed(i);
+    }
+  };
+  const hold = watchFixHold(bay.button, {
+    tier: troubled,
+    fix: (tier) => {
+      help(tier, "hold");
+    },
+  });
+  const control = bayControl(i);
+  pressOnBoard(
+    bay.button,
+    board,
+    // The click that ends a hold that fixed is not a tap, and nothing opens before the save is in.
+    () => (hold.heldFix() || bay.view === undefined ? undefined : control),
+    (decision) => {
+      if (decision !== "act") {
+        return;
+      }
+      const tier = troubled();
+      if (tier === undefined) {
+        onOpen(bay.button);
+      } else {
+        help(tier, "press");
+      }
+    },
+    { intent: () => (troubled() === undefined ? "act" : "trouble") },
+  );
+}
+
+/**
+ * The thanks after a bay's fix, shown on the board note at that bay while the board thanks it.
+ * Only a thanks starting or ending moves the note: a note a tap put away stays away, and a note
+ * that took the thanks' place stays up when the thanks ends. Returns what a fix calls.
+ */
+function createBayThanks(
+  board: BoardHost,
+  note: BoardNote,
+  buttons: readonly HTMLElement[],
+): (i: number) => void {
+  // One body a bay, so one bay's thanks ending never hides another's.
+  const bodies = buttons.map(() => el("p", "board-thanks", TROUBLE_FIXED));
+  const shown = new Set<number>();
+  board.subscribe(() => {
+    const thanks = board.view().thanks;
+    buttons.forEach((button, i) => {
+      const body = bodies[i];
+      const now = thanks.has(controlKey(bayControl(i)));
+      if (body === undefined || now === shown.has(i)) {
+        return;
+      }
+      if (now) {
+        shown.add(i);
+        note.show(button, body);
+      } else {
+        shown.delete(i);
+        note.hideIf(body);
+      }
+    });
+  });
+  return (i) => {
+    // A fix starts its thanks again, so it shows even while an earlier thanks runs.
+    shown.delete(i);
+    board.send({
+      kind: "result",
+      control: bayControl(i),
+      at: board.clock(),
+      outcome: "fixed",
+    });
+  };
+}
+
+/** Draws a bay before the save is in: its start art, dark and disabled. */
+function paintLoading(bay: Bay, i: number, drill: Drill): void {
+  bay.view = undefined;
+  const tier = START[i] ?? "cart";
+  setAttr(bay.button, "data-tier", tier);
+  drill.place(bay, iconKey(tier, 0));
+  setAttr(bay.button, "data-trouble", undefined);
+  if (!bay.button.disabled) {
+    bay.button.disabled = true;
+  }
+  setAttr(bay.button, "aria-label", LOADING);
+  frameX(bay.lamp, LAMP_FRAME.off, LAMP_PX);
+  write(bay.name, "");
+  write(bay.sub, "");
+  write(bay.legend, "");
+  write(bay.price, "");
+  hide(bay.tag, true);
+  showFlap(bay, "", false);
+}
+
+/** Draws a bay's view, all but its words; its flaps flip when the same tier counts on. */
+function paintBay(bay: Bay, view: BayView, drill: Drill): void {
+  const animate =
+    bay.view !== undefined && bay.view.tier === view.tier && !reducedMotion();
+  bay.view = view;
+  setAttr(bay.button, "data-tier", view.tier);
+  setAttr(
+    bay.button,
+    "data-trouble",
+    view.kind === "trouble" ? view.trouble : undefined,
+  );
+  if (bay.button.disabled) {
+    bay.button.disabled = false;
+  }
+  setAttr(bay.button, "aria-label", bayAria(view));
+  drill.place(bay, iconKey(view.tier, view.count));
+  frameX(bay.lamp, LAMP_FRAME[bayLamp(view)], LAMP_PX);
+  showFlap(bay, flapDigits(view.count), animate);
+  write(bay.legend, priceLegend(view));
+  const locked = view.kind === "locked";
+  hide(bay.tag, locked);
+  write(bay.price, locked ? "" : formatCompact(view.price));
+}
+
+type Drawn = readonly (readonly [Bay, BayView])[];
+
+/** The bays' names and sub-lines, fitted to their boxes. */
+interface BayFit {
+  fit(drawn: Drawn): void;
+  /** Nothing is drawn with the save in: the next fit measures afresh. */
+  reset(): void;
+}
+
+/**
+ * Keeps the words last fitted, so a frame with the same words and widths measures nothing. A
+ * fit is kept only when every box was measured on the page with a width. The fonts settling
+ * fit the bays last drawn again.
+ */
+function createBayFit(fits: (el: HTMLElement) => boolean): BayFit {
+  let fittedNames = "";
+  let fittedSubs = "";
+  let lastDrawn: Drawn = [];
+
+  const fitNames = (drawn: Drawn, widths: string): void => {
+    const nameKey = `${drawn.map(([, view]) => view.tier).join("|")}#${widths}`;
+    if (nameKey === fittedNames) {
+      return;
+    }
+    for (const [bay, view] of drawn) {
+      const tier = tierById(view.tier);
+      bay.name.textContent = tier.name;
+      if (!fits(bay.name)) {
+        bay.name.textContent = tier.shortName;
+      }
+    }
+    fittedNames = drawn.every(([bay]) => measurable(bay.name)) ? nameKey : "";
+  };
+
+  const fitSubs = (drawn: Drawn, widths: string): void => {
+    const options = drawn.map(([, view]) => bayLines(view));
+    const subKey = `${options.map((o) => o.join("\n")).join("\n#\n")}#${widths}`;
+    if (subKey === fittedSubs) {
+      return;
+    }
+    const pattern = sharedPattern(options, (b, text) => {
+      const sub = drawn[b]?.[0].sub;
+      if (sub === undefined) {
+        return true;
+      }
+      sub.textContent = text;
+      return fits(sub);
+    });
+    drawn.forEach(([bay], b) => {
+      write(bay.sub, pattern[b] ?? "");
+    });
+    fittedSubs = drawn.every(([bay]) => measurable(bay.sub)) ? subKey : "";
+  };
+
+  const fit = (drawn: Drawn): void => {
+    lastDrawn = drawn;
+    const widths = drawn
+      .map(([bay]) => (bay.digits.length === 3 ? "3" : "2"))
+      .join("");
+    fitNames(drawn, widths);
+    fitSubs(drawn, widths);
+  };
+
+  // Words fitted with fallback metrics may not fit in the board's own fonts.
+  onFontsSettled(() => {
+    fittedNames = "";
+    fittedSubs = "";
+    if (lastDrawn.length > 0) {
+      fit(lastDrawn);
+    }
+  });
+
+  return {
+    fit,
+    reset() {
+      lastDrawn = [];
+      fittedNames = "";
+      fittedSubs = "";
+    },
+  };
+}
+
 /**
  * The machine bays. Each bay's element is built once and kept: the hold-to-fix listeners live
  * as long as the board, so a render never rebuilds a bay.
  */
 export function createMachineBays({
+  board,
+  note,
   onOpen,
-  onPress,
-  onFix,
-  fits = defaultFits,
+  onTrouble,
+  fits = fitsWidth,
 }: {
+  board: BoardHost;
+  /** Where a fix's thanks shows. */
+  note: BoardNote;
   /** A tap on a bay with no trouble: the bay is where Buys opened from. */
   onOpen: (from: HTMLElement) => void;
-  onPress: (tier: TroubleTier, bay: HTMLElement) => void;
-  onFix: (tier: TroubleTier, bay: HTMLElement) => void;
+  /** A tap or a hold on a troubled bay; true when the trouble is gone. */
+  onTrouble: (tier: TroubleTier, how: TroubleHelp) => boolean;
   fits?: (el: HTMLElement) => boolean;
 }): MachineBays {
   const root = el("section", "board-bays");
@@ -256,190 +588,22 @@ export function createMachineBays({
   bandRow.append(band);
 
   const area = el("div", "board-bays-area");
-
-  let drillFrame = 0;
-  let drillClock = 0;
-
-  const placeIcon = (bay: Bay, key: IconKey): void => {
-    if (bay.iconKey === key) {
-      return;
-    }
-    const icon = makeIcon(key);
-    bay.icon.replaceWith(icon);
-    bay.icon = icon;
-    bay.iconKey = key;
-    if (key === "drill") {
-      frameX(icon, drillFrame, DRILL_PX);
-    }
-  };
-
-  const bays: Bay[] = START.map((tier, i) => {
-    const button = el("button", "board-bay");
-    button.type = "button";
-    button.style.setProperty("--i", String(i));
-    button.dataset.tier = tier;
-
-    const lamp = el("i", "board-lamp");
-    lamp.setAttribute("aria-hidden", "true");
-    const key = iconKey(tier, 0);
-    const icon = makeIcon(key);
-    const text = el("span", "board-bay-text");
-    const name = el("span", "board-bay-name");
-    const sub = el("span", "board-bay-sub");
-    text.append(name, sub);
-    const flap = el("span", "board-flap board-num");
-    flap.setAttribute("aria-hidden", "true");
-    const priceCol = el("span", "board-bay-price");
-    const legend = el("span", "board-bay-price-lg board-lg");
-    const tag = el("span", "board-bay-tag board-num");
-    skin(tag, "tag");
-    const price = el("span", "board-bay-tag-text");
-    tag.append(price);
-    priceCol.append(legend, tag);
-    button.append(lamp, icon, text, flap, priceCol);
-    area.append(button);
-
-    const bay: Bay = {
-      button,
-      lamp,
-      name,
-      sub,
-      flap,
-      legend,
-      tag,
-      price,
-      icon,
-      iconKey: key,
-      digits: [],
-      shown: "",
-      view: undefined,
-    };
-    if (key === "drill") {
-      frameX(icon, drillFrame, DRILL_PX);
-    }
-    buildFlap(bay, 2);
-
-    const hold = watchFixHold(button, {
-      tier: () => (bay.view?.kind === "trouble" ? bay.view.tier : undefined),
-      fix: (troubled) => {
-        onFix(troubled, button);
-      },
-    });
-    button.addEventListener("click", () => {
-      if (hold.heldFix()) {
-        return;
-      }
-      const view = bay.view;
-      if (view === undefined) {
-        return;
-      }
-      if (view.kind === "trouble") {
-        onPress(view.tier, button);
-        return;
-      }
-      onOpen(button);
-    });
-    return bay;
+  const drill = createDrill();
+  const bays = START.map((tier, i) => buildBay(tier, i, drill));
+  area.append(...bays.map((bay) => bay.button));
+  const fixed = createBayThanks(
+    board,
+    note,
+    bays.map((bay) => bay.button),
+  );
+  bays.forEach((bay, i) => {
+    wireBayTaps(bay, i, { board, onOpen, onTrouble, fixed });
   });
 
   root.append(bandRow, area);
   skin(root, "frame");
 
-  /**
-   * The words last fitted, so a frame with the same words and widths measures nothing. A fit is
-   * kept only when every box was measured on the page with a width.
-   */
-  let fittedNames = "";
-  let fittedSubs = "";
-  /** The bays last drawn with the save in, to fit again when the fonts arrive. */
-  let lastDrawn: readonly (readonly [Bay, BayView])[] = [];
-
-  const loading = (bay: Bay, i: number): void => {
-    bay.view = undefined;
-    const tier = START[i] ?? "cart";
-    setAttr(bay.button, "data-tier", tier);
-    placeIcon(bay, iconKey(tier, 0));
-    setAttr(bay.button, "data-trouble", undefined);
-    if (!bay.button.disabled) {
-      bay.button.disabled = true;
-    }
-    setAttr(bay.button, "aria-label", LOADING);
-    frameX(bay.lamp, LAMP_FRAME.off, LAMP_PX);
-    write(bay.name, "");
-    write(bay.sub, "");
-    write(bay.legend, "");
-    write(bay.price, "");
-    if (!bay.tag.hidden) {
-      bay.tag.hidden = true;
-    }
-    showFlap(bay, "", false);
-  };
-
-  const draw = (bay: Bay, view: BayView): void => {
-    const animate =
-      bay.view !== undefined && bay.view.tier === view.tier && !reducedMotion();
-    bay.view = view;
-    setAttr(bay.button, "data-tier", view.tier);
-    setAttr(
-      bay.button,
-      "data-trouble",
-      view.kind === "trouble" ? view.trouble : undefined,
-    );
-    if (bay.button.disabled) {
-      bay.button.disabled = false;
-    }
-    setAttr(bay.button, "aria-label", bayAria(view));
-    placeIcon(bay, iconKey(view.tier, view.count));
-    frameX(bay.lamp, LAMP_FRAME[bayLamp(view)], LAMP_PX);
-    showFlap(bay, flapDigits(view.count), animate);
-    write(bay.legend, priceLegend(view));
-    const locked = view.kind === "locked";
-    if (bay.tag.hidden !== locked) {
-      bay.tag.hidden = locked;
-    }
-    write(bay.price, locked ? "" : formatCompact(view.price));
-  };
-
-  const fitWords = (drawn: readonly (readonly [Bay, BayView])[]): void => {
-    const widths = drawn.map(([bay]) => (bay.digits.length === 3 ? "3" : "2"));
-    const names = drawn.map(([, view]) => view.tier).join("|");
-    const nameKey = `${names}#${widths.join("")}`;
-    if (nameKey !== fittedNames) {
-      for (const [bay, view] of drawn) {
-        const tier = tierById(view.tier);
-        bay.name.textContent = tier.name;
-        if (!fits(bay.name)) {
-          bay.name.textContent = tier.shortName;
-        }
-      }
-      fittedNames = drawn.every(([bay]) => measurable(bay.name)) ? nameKey : "";
-    }
-    const options = drawn.map(([, view]) => bayLines(view));
-    const subKey = `${options.map((o) => o.join("\n")).join("\n#\n")}#${widths.join("")}`;
-    if (subKey !== fittedSubs) {
-      const pattern = sharedPattern(options, (b, text) => {
-        const sub = drawn[b]?.[0].sub;
-        if (sub === undefined) {
-          return true;
-        }
-        sub.textContent = text;
-        return fits(sub);
-      });
-      drawn.forEach(([bay], b) => {
-        write(bay.sub, pattern[b] ?? "");
-      });
-      fittedSubs = drawn.every(([bay]) => measurable(bay.sub)) ? subKey : "";
-    }
-  };
-
-  // Words fitted with fallback metrics may not fit in the board's own fonts.
-  onFontsSettled(() => {
-    fittedNames = "";
-    fittedSubs = "";
-    if (lastDrawn.length > 0) {
-      fitWords(lastDrawn);
-    }
-  });
+  const wording = createBayFit(fits);
 
   const render = (
     views: readonly BayView[] | undefined,
@@ -450,41 +614,17 @@ export function createMachineBays({
     bays.forEach((bay, i) => {
       const view = views?.[i];
       if (view === undefined) {
-        loading(bay, i);
+        paintLoading(bay, i, drill);
         return;
       }
-      draw(bay, view);
+      paintBay(bay, view, drill);
       drawn.push([bay, view]);
     });
-    lastDrawn = drawn;
     if (drawn.length === 0) {
-      fittedNames = "";
-      fittedSubs = "";
+      wording.reset();
       return;
     }
-    fitWords(drawn);
-  };
-
-  const tick = (dt: number): void => {
-    if (!(dt > 0) || reducedMotion()) {
-      return;
-    }
-    const bay = bays.find((b) => b.view?.tier === "drill");
-    const view = bay?.view;
-    if (bay === undefined || view === undefined) {
-      return;
-    }
-    if (view.kind === "trouble" || !(view.count > 0)) {
-      return;
-    }
-    drillClock += dt;
-    const steps = Math.floor(drillClock / DRILL_STEP_S + DRILL_EPSILON);
-    if (steps < 1) {
-      return;
-    }
-    drillClock = Math.max(0, drillClock - steps * DRILL_STEP_S);
-    drillFrame = (drillFrame + steps) % DRILL_FRAMES;
-    frameX(bay.icon, drillFrame, DRILL_PX);
+    wording.fit(drawn);
   };
 
   render(undefined, "");
@@ -492,6 +632,8 @@ export function createMachineBays({
     root,
     bays: bays.map((bay) => bay.button),
     render,
-    tick,
+    tick: (dt) => {
+      drill.tick(bays, dt);
+    },
   };
 }

@@ -241,14 +241,15 @@ function loadImage(src: SkinSource): Promise<HTMLImageElement | null> {
 
 /**
  * Puts one canvas.board-skin behind the host's content, painted at floor(host size / 2)
- * art px and shown at 2x. `pressed` swaps the kind while the host has .down.
- * Never throws: with no 2D context or no image the canvas stays blank.
+ * art px and shown at 2x. `pressed` swaps the kind while the host has .down; whoever toggles
+ * .down calls the returned repaint. Never throws: with no 2D context or no image the canvas
+ * stays blank.
  */
 export function skin(
   host: HTMLElement,
   kind: SkinKind,
   pressed?: SkinKind,
-): void {
+): () => void {
   const canvas = document.createElement("canvas");
   canvas.className = "board-skin";
   canvas.setAttribute("aria-hidden", "true");
@@ -292,9 +293,5 @@ export function skin(
       paint();
     }).observe(host);
   }
-  if (pressed && typeof MutationObserver !== "undefined") {
-    new MutationObserver(() => {
-      paint();
-    }).observe(host, { attributes: true, attributeFilter: ["class"] });
-  }
+  return paint;
 }

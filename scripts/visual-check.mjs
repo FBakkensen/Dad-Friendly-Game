@@ -1,4 +1,4 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement, HTMLElement, Element, HTMLImageElement, Image, requestAnimationFrame, MutationObserver */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement, HTMLElement, HTMLImageElement, Image, requestAnimationFrame */
 /**
  * Real-browser layout guard (jsdom can't see CSS). Run it with:
  *   npm run visual   (starts its own dev server; part of npm run check)
@@ -4961,10 +4961,10 @@ for (const viewport of SCREENS) {
 // words and the bays are C2's tiers; every bay's words, flaps and price stay
 // in its button; the bars are the board's (48px targets 8px apart, 13px text,
 // art at exactly 2x, 4.5:1 contrast at p10/p90); the page never scrolls and
-// the key rail ends at least 8px above the save line. Then the taps: a sleepy double
-// tap on Ready now buys exactly one, Saving for opens Buys, a troubled bay
-// fixes with five taps or a hold, and the red button digs exactly the tap's
-// yield.
+// the key rail ends at least 8px above the save line. Then each control wired
+// once: a tap on Ready now buys exactly one, Saving for and an open bay open
+// Buys, a troubled bay fixes with five taps or a hold, and the red button digs
+// exactly the tap's yield.
 const BAYS_UI = "/src/board-bays.ts";
 const EARLY_TIERS = ["cart", "drill", "borer"];
 const MACHINE_TIERS = ["drill", "borer", "machine"];
@@ -5152,22 +5152,63 @@ async function storedMountain(page) {
   );
 }
 
-/** A finger (or the mouse button) held on the selector's centre for `ms`. */
-async function hold(page, selector, ms) {
+/**
+ * A finger (or the mouse button) held on the selector's centre, and lifted once `done(selector)`
+ * holds in the page. True when it held before the timeout.
+ */
+async function holdThrough(page, selector, done) {
   const at = await page.$eval(selector, (el) => {
     const b = el.getBoundingClientRect();
     return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
   });
-  if (desks.get(page) === true) {
+  const desk = desks.get(page) === true;
+  if (desk) {
     await page.mouse.move(at.x, at.y);
     await page.mouse.down();
-    await new Promise((resolve) => setTimeout(resolve, ms));
-    await page.mouse.up();
   } else {
     await page.touchscreen.touchStart(at.x, at.y);
-    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+  const held = await page
+    .waitForFunction(done, { timeout: 3_000 }, selector)
+    .then(
+      () => true,
+      () => false,
+    );
+  if (desk) {
+    await page.mouse.up();
+  } else {
     await page.touchscreen.touchEnd();
   }
+  return held;
+}
+
+/** Waits for the page to paint `count` more frames: what a press set off has painted. */
+async function framesPainted(page, count) {
+  await page.evaluate(async (frames) => {
+    for (let frame = 0; frame < frames; frame += 1) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+  }, count);
+}
+
+/** Waits for the page to paint frames whose own stamps span at least `ms`. */
+async function framesSpanning(page, ms) {
+  await page.evaluate(
+    (span) =>
+      new Promise((resolve) => {
+        let first;
+        const look = (stamp) => {
+          first ??= stamp;
+          if (stamp - first >= span) {
+            resolve(undefined);
+            return;
+          }
+          requestAnimationFrame(look);
+        };
+        requestAnimationFrame(look);
+      }),
+    ms,
+  );
 }
 
 /**
@@ -5198,102 +5239,6 @@ async function noteAway(page) {
     () => document.querySelector(".board-note.on") === null,
     { timeout: 2_000 },
   );
-}
-
-/**
- * How often a double-tap check may try again when load pushed its second press past the
- * settle (#373). A buy inside the settle fails on any try; the last try must land inside.
- */
-const SETTLE_TRIES = 5;
-
-/**
- * A sleepy double tap at the selector's centre: two taps `gap` ms apart at
- * one point, with nothing between them, so a loaded run keeps them close.
- * The second lands on whatever the first put there. With `gap` "drawer", the
- * second tap comes down as soon as a row of the rising Buys drawer is under
- * the point, however slow the runner is (#373). Returns what the second press came down
- * on (the board, or Buys and its row) and how long after the first, both read
- * in the page as the presses land.
- */
-async function doubleTap(page, selector, gap = 120) {
-  const at = await page.$eval(selector, (el) => {
-    const b = el.getBoundingClientRect();
-    return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
-  });
-  await page.evaluate(() => {
-    const presses = [];
-    globalThis.__presses = presses;
-    // When Buys opens, read as the class lands: after the click handler that
-    // opened it and set its settle's start, so it is no earlier than that
-    // start. A press this long after it is at least that long into the settle.
-    globalThis.__buysOpenedAt = undefined;
-    const sheet = document.querySelector('.board-sheet[data-sheet="buys"]');
-    if (sheet !== null) {
-      new MutationObserver((records, observer) => {
-        if (sheet.classList.contains("is-open")) {
-          globalThis.__buysOpenedAt = performance.now();
-          observer.disconnect();
-        }
-      }).observe(sheet, { attributes: true, attributeFilter: ["class"] });
-    }
-    document.addEventListener(
-      "pointerdown",
-      (event) => {
-        const hit = event.target instanceof Element ? event.target : null;
-        const card = hit?.closest("[data-tier]");
-        const name = card?.getAttribute("data-tier") ?? "";
-        presses.push({
-          at: event.timeStamp,
-          on:
-            hit === null
-              ? "nothing"
-              : `${hit.closest('.board-sheet[data-sheet="buys"]') === null ? "the board" : "Buys"}${name === "" ? "" : ` ${name}`}`,
-        });
-      },
-      { capture: true },
-    );
-  });
-  for (let tap = 0; tap < 2; tap += 1) {
-    if (tap > 0 && gap === "drawer") {
-      await page
-        .waitForFunction(
-          ({ x, y }) =>
-            document
-              .elementFromPoint(x, y)
-              ?.closest('.board-sheet[data-sheet="buys"] .board-row') != null,
-          { polling: "raf", timeout: 2_000 },
-          at,
-        )
-        .catch(() => undefined);
-    } else if (tap > 0) {
-      await new Promise((resolve) => setTimeout(resolve, gap));
-    }
-    if (desks.get(page) === true) {
-      await page.mouse.click(at.x, at.y);
-    } else {
-      await page.touchscreen.tap(at.x, at.y);
-    }
-  }
-  // The second tap's buy, if any, lands a frame or two later.
-  await new Promise((resolve) => setTimeout(resolve, 120));
-  const { presses, openedAt } = await page.evaluate(() => ({
-    presses: globalThis.__presses ?? [],
-    openedAt: globalThis.__buysOpenedAt ?? null,
-  }));
-  const first = presses[0];
-  const second = presses[1];
-  return {
-    on: second?.on ?? "nothing",
-    ms:
-      first === undefined || second === undefined
-        ? Infinity
-        : Math.round(second.at - first.at),
-    // How far into Buys' 400ms settle the second press came, at least.
-    intoSettle:
-      second === undefined || openedAt === null
-        ? Infinity
-        : Math.round(second.at - openedAt),
-  };
 }
 
 const buysOpen = (page) =>
@@ -5344,9 +5289,9 @@ for (const viewport of SCREENS) {
       }
 
       // Targets and gaps: the three bays, the plate and the red button. A
-      // New note may show over the Ready row above its key; put it away
-      // first, so what it covers is measured too.
-      await putNoteAway(page);
+      // note may show over the Ready row; put it away first, so what it
+      // covers is measured too.
+      await noteAway(page);
       const targets = await boardTargets(page);
       const mine = targets.own.filter((target) =>
         /^\.board-(bay|ready|dig-button) /.test(target.selector),
@@ -5436,14 +5381,20 @@ for (const viewport of SCREENS) {
         ),
       );
 
-    // A sleepy double tap: two taps 120ms apart buy exactly one cart, the
-    // plate says Done, and after the hold it offers the next pick.
+    // The tap rules (a double tap on the plate, a bay or Saving for, the Done
+    // hold, a tap inside a drawer's settle) are unit tests on the board's model
+    // and the mounted screen. Here each family of controls is wired once, in
+    // Chrome, with the board's tap clock held so no press is early by load.
+
+    // Ready now: a tap buys exactly one cart for one price and paints Done.
     {
       const { page, close } = await open(viewport, crewMountain(), {
         stopClock: true,
+        tapClock: "held",
       });
       await baysDrawn(page);
       await page.waitForSelector(".board-ready:not(:disabled)");
+      await noteAway(page);
       const kickBefore = await textOf(page, ".board-ready-kick");
       const mainBefore = (await textOf(page, ".board-ready-main")) ?? "";
       // "Buy a cart · 5,868": the price the plate offers, in whole stones.
@@ -5453,9 +5404,28 @@ for (const viewport of SCREENS) {
       const flapsBefore = await cartFlaps(page);
       const storedBefore = await storedMountain(page);
       await press(page, ".board-ready");
-      await new Promise((resolve) => setTimeout(resolve, 120));
-      await press(page, ".board-ready");
-      const done = await textOf(page, ".board-ready-kick");
+      const done = await page
+        .waitForFunction(
+          () =>
+            (
+              document.querySelector(".board-ready-kick")?.textContent ?? ""
+            ).trim() === "Done",
+          { timeout: 2_000 },
+        )
+        .then(
+          () => true,
+          () => false,
+        );
+      await page
+        .waitForFunction(
+          (key, carts) =>
+            JSON.parse(localStorage.getItem(key) ?? "{}").mountain?.carts ===
+            carts,
+          { timeout: 2_000 },
+          SAVE_KEY,
+          storedBefore.carts + 1,
+        )
+        .catch(() => undefined);
       const flapsAfter = await cartFlaps(page);
       const storedAfter = await storedMountain(page);
       const spent = storedBefore.pocket - storedAfter.pocket;
@@ -5466,15 +5436,11 @@ for (const viewport of SCREENS) {
           Number.isFinite(price) &&
           price > 0 &&
           spent === price &&
-          done === "Done",
-        `${label} a double tap on Ready now buys exactly one cart for one price (${String(spent)} of ${String(price)}) and shows Done`,
+          done,
+        `${label} a tap on Ready now buys exactly one cart for one price (${String(spent)} of ${String(price)}) and shows Done`,
       );
-      if (
-        flapsAfter - flapsBefore !== 1 ||
-        done !== "Done" ||
-        spent !== price
-      ) {
-        console.log("double tap", size, {
+      if (flapsAfter - flapsBefore !== 1 || !done || spent !== price) {
+        console.log("plate tap", size, {
           kickBefore,
           mainBefore,
           flapsBefore,
@@ -5484,91 +5450,52 @@ for (const viewport of SCREENS) {
           done,
         });
       }
-      await new Promise((resolve) => setTimeout(resolve, 2_100));
-      const after = await textOf(page, ".board-ready-kick");
-      check(
-        after === "Ready now" || after === "Saving for",
-        `${label} after the hold the plate reads Ready now or Saving for (${String(after)})`,
-      );
       await close();
     }
 
-    // Saving for: the time shows, and a sleepy double tap opens Buys and
-    // spends nothing. The first tap opens Buys over the plate; the second
-    // lands on the Buys card under the finger (a worker, which the pocket
-    // can afford), and that card must not buy so soon after Buys opened.
-    // A runner too slow to land the second tap inside the 400ms settle has
-    // not tried the guard: try again, at most SETTLE_TRIES times.
-    for (let attempt = 0; attempt < SETTLE_TRIES; attempt += 1) {
+    // Saving for: the time shows, and a tap opens Buys and spends nothing.
+    {
       const { page, close } = await open(viewport, savingMountain(), {
         stopClock: true,
+        tapClock: "held",
       });
       await baysDrawn(page);
       await page.waitForSelector(".board-ready:not(:disabled)");
+      await noteAway(page);
       const main = await textOf(page, ".board-ready-main");
-      const odoBefore = await page.$eval(".board-odo", (odo) =>
-        odo.getAttribute("aria-label"),
-      );
+      const odoBefore = await odometer(page);
       const storedBefore = await storedMountain(page);
-      // The second tap comes down as a row of the rising drawer reaches the
-      // plate, inside its 400ms settle (#373).
-      const second = await doubleTap(page, ".board-ready", "drawer");
-      const under = `${second.on}, ${String(second.ms)}ms later, ${String(second.intoSettle)}ms into the settle`;
+      await press(page, ".board-ready");
       const opened = await page
         .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
         .then(
           () => true,
           () => false,
         );
-      const odoAfter = await page.$eval(".board-odo", (odo) =>
-        odo.getAttribute("aria-label"),
-      );
+      const odoAfter = await odometer(page);
       const storedAfter = await storedMountain(page);
-      const spent =
-        odoAfter !== odoBefore ||
-        storedAfter.pocket !== storedBefore.pocket ||
-        storedAfter.helpers !== storedBefore.helpers;
-      // Retried only when the second press surely came after the settle: a
-      // press this far after the class landed is at least that far after its
-      // start, so it is a real tap and a buy there is correct, not a miss.
-      if (second.intoSettle >= 400 && attempt < SETTLE_TRIES - 1) {
-        if (spent) {
-          console.log("saving-for double tap after the settle bought", under);
-        }
-        await close();
-        continue;
-      }
       check(
         (main ?? "").startsWith("Saving for a cart · in ") &&
           opened &&
-          /^Buys \w/.test(second.on) &&
-          second.intoSettle < 400 &&
           odoAfter === odoBefore &&
           storedAfter.pocket === storedBefore.pocket &&
           storedAfter.helpers === storedBefore.helpers,
-        `${label} Saving for reads "${String(main)}", and a double tap opens Buys with the pocket and odometer unchanged (second tap on ${under})`,
+        `${label} Saving for reads "${String(main)}", and a tap opens Buys with the pocket and odometer unchanged`,
       );
       await close();
-      break;
     }
 
-    // A sleepy double tap on an open bay: the first opens Buys, the second
-    // lands on a Buys card the pocket can afford (5M stones affords any
-    // card here), and buys nothing.
-    // As above, a runner too slow for the settle tries again, at most SETTLE_TRIES times.
-    for (let attempt = 0; attempt < SETTLE_TRIES; attempt += 1) {
+    // An open bay: a tap opens Buys and spends nothing.
+    {
       const { page, close } = await open(viewport, openMountain(), {
         stopClock: true,
+        tapClock: "held",
       });
       await baysDrawn(page);
       await page.waitForSelector(".board-ready:not(:disabled)");
-      await putNoteAway(page);
-      const bay = '.board-bay[data-tier="cart"]';
+      await noteAway(page);
       const storedBefore = await storedMountain(page);
-      // The second tap comes down as a row of the rising drawer reaches the
-      // bay, inside the 400ms settle (#373).
-      const second = await doubleTap(page, bay, "drawer");
-      const under = `${second.on}, ${String(second.ms)}ms later, ${String(second.intoSettle)}ms into the settle`;
+      await press(page, '.board-bay[data-tier="cart"]');
       const opened = await page
         .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
         .then(
@@ -5576,48 +5503,32 @@ for (const viewport of SCREENS) {
           () => false,
         );
       const storedAfter = await storedMountain(page);
-      const spent = ["pocket", "carts", "drills", "borers", "helpers"].some(
-        (field) => storedAfter[field] !== storedBefore[field],
+      const kept = ["pocket", "carts", "drills", "borers", "helpers"].every(
+        (field) => storedAfter[field] === storedBefore[field],
       );
-      // Retried only when the second press surely came after the settle (at
-      // least 400ms after its start): a buy there is a real tap, not a miss.
-      if (second.intoSettle >= 400 && attempt < SETTLE_TRIES - 1) {
-        if (spent) {
-          console.log("bay double tap after the settle bought", under);
-        }
-        await close();
-        continue;
-      }
       check(
-        opened &&
-          /^Buys \w/.test(second.on) &&
-          second.intoSettle < 400 &&
-          storedAfter.pocket === storedBefore.pocket &&
-          storedAfter.carts === storedBefore.carts &&
-          storedAfter.drills === storedBefore.drills &&
-          storedAfter.borers === storedBefore.borers &&
-          storedAfter.helpers === storedBefore.helpers,
-        `${label} a double tap on an open bay opens Buys and spends nothing (second tap on ${under})`,
+        opened && kept,
+        `${label} a tap on an open bay opens Buys and spends nothing`,
       );
-      if (storedAfter.pocket !== storedBefore.pocket || !opened) {
+      if (!opened || !kept) {
         console.log(
-          "bay double tap",
+          "bay tap",
           size,
           JSON.stringify({ opened, storedBefore, storedAfter }),
         );
       }
       await close();
-      break;
     }
 
     // Trouble on the cart bay: a red lamp and Hold to fix. Five taps fix it
     // with Buys shut, and the thanks note lets taps through to the bay
-    // under it. On a fresh page a 700ms hold fixes it too.
+    // under it. On a fresh page a hold fixes it too.
     {
       const troubled = '.board-bay[data-tier="cart"][data-trouble="cave-in"]';
       const { page, close } = await open(viewport, openMountain(), {
         search: "?trouble=cave-in",
         stopClock: true,
+        tapClock: "held",
       });
       await baysDrawn(page);
       const shown = await page
@@ -5636,7 +5547,6 @@ for (const viewport of SCREENS) {
       );
       for (let tap = 0; tap < 5; tap += 1) {
         await press(page, '.board-bay[data-tier="cart"]');
-        await new Promise((resolve) => setTimeout(resolve, 80));
       }
       const fixed = await page
         .waitForFunction(
@@ -5650,6 +5560,7 @@ for (const viewport of SCREENS) {
           () => true,
           () => false,
         );
+      await framesPainted(page, 2);
       const shut = !(await buysOpen(page));
       check(
         fixed && shut,
@@ -5685,25 +5596,27 @@ for (const viewport of SCREENS) {
       await close();
     }
     {
+      const bay = '.board-bay[data-tier="cart"]';
       const { page, close } = await open(viewport, openMountain(), {
         search: "?trouble=cave-in",
         stopClock: true,
+        tapClock: "held",
       });
       await baysDrawn(page);
       await page
-        .waitForSelector('.board-bay[data-tier="cart"][data-trouble]', {
-          timeout: 3_000,
-        })
+        .waitForSelector(`${bay}[data-trouble]`, { timeout: 3_000 })
         .catch(() => undefined);
-      await hold(page, '.board-bay[data-tier="cart"]', 700);
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      const cleared = await page.$eval(
-        '.board-bay[data-tier="cart"]',
-        (bay) => !bay.hasAttribute("data-trouble"),
+      const cleared = await holdThrough(
+        page,
+        bay,
+        (selector) =>
+          document.querySelector(selector)?.hasAttribute("data-trouble") ===
+          false,
       );
+      await framesPainted(page, 2);
       check(
         cleared && !(await buysOpen(page)),
-        `${label} a 700ms hold fixes the troubled bay with Buys shut`,
+        `${label} a hold fixes the troubled bay with Buys shut`,
       );
       await close();
     }
@@ -5755,39 +5668,68 @@ for (const viewport of SCREENS) {
       await close();
     }
 
-    // Reduced motion: two shots of the bays 600ms apart are the same. As a
-    // control, without it the drill bay's icon steps between shots (a frame
-    // every 0.18s over four frames, so look a few times).
+    // Reduced motion: two shots of the bays, painted frames covering four of
+    // the drill's 0.18s steps apart, are the same. As a control, without it
+    // the drill bay's icon steps.
     for (const reducedMotion of [false, true]) {
       const { page, close } = await open(viewport, heartMountain(), {
         reducedMotion,
         stopClock: true,
       });
       await baysDrawn(page);
-      const clip = await page.$eval(".board-bays", (bays) => {
-        const box = bays.getBoundingClientRect();
-        return {
-          x: Math.ceil(box.left),
-          y: Math.ceil(box.top),
-          width: Math.floor(box.width),
-          height: Math.floor(box.height),
-        };
-      });
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      const first = await page.screenshot({ clip, encoding: "base64" });
-      const later = [];
-      for (const wait of reducedMotion ? [600] : [100, 100, 100, 100]) {
-        await new Promise((resolve) => setTimeout(resolve, wait));
-        later.push(await page.screenshot({ clip, encoding: "base64" }));
+      const icon = '.board-bay[data-tier="drill"] .board-bay-icon';
+      if (reducedMotion) {
+        const clip = await page.$eval(".board-bays", (bays) => {
+          const box = bays.getBoundingClientRect();
+          return {
+            x: Math.ceil(box.left),
+            y: Math.ceil(box.top),
+            width: Math.floor(box.width),
+            height: Math.floor(box.height),
+          };
+        });
+        // Still art first: the faces, the images and the skins are in.
+        await boardFontsLoaded(page);
+        await page.waitForFunction(
+          () =>
+            [...document.querySelectorAll(".board-bays img")].every(
+              (img) => img.complete,
+            ) &&
+            [
+              ...document.querySelectorAll(".board-bays canvas.board-skin"),
+            ].every((canvas) => canvas.style.width !== ""),
+          { timeout: 5_000 },
+        );
+        const first = await page.screenshot({ clip, encoding: "base64" });
+        await framesSpanning(page, 720);
+        const later = await page.screenshot({ clip, encoding: "base64" });
+        check(
+          later === first,
+          `${label} under reduced motion the bays hold still`,
+        );
+      } else {
+        const from = await page.$eval(
+          icon,
+          (el) => el.style.backgroundPositionX,
+        );
+        const stepped = await page
+          .waitForFunction(
+            (selector, was) =>
+              document.querySelector(selector)?.style.backgroundPositionX !==
+              was,
+            { timeout: 3_000 },
+            icon,
+            from,
+          )
+          .then(
+            () => true,
+            () => false,
+          );
+        check(
+          stepped,
+          `${label} without reduced motion the drill bay's icon steps`,
+        );
       }
-      check(
-        reducedMotion
-          ? later.every((shot) => shot === first)
-          : later.some((shot) => shot !== first),
-        reducedMotion
-          ? `${label} under reduced motion the bays hold still`
-          : `${label} without reduced motion the drill bay's icon steps`,
-      );
       await close();
     }
 
@@ -5847,7 +5789,6 @@ for (const viewport of SCREENS) {
           () => true,
           () => false,
         );
-      await new Promise((resolve) => setTimeout(resolve, 300));
       const seen = await page.evaluate(() => {
         const drawn = (selector) =>
           [...document.querySelectorAll(selector)].filter(
@@ -6158,8 +6099,15 @@ for (const viewport of SCREENS) {
       const label = `${size} key rail, ${name}:`;
       const { page, close } = await open(viewport, save());
       const drawn = await keysDrawn(page);
-      await page.evaluate(() => document.fonts.ready.then(() => true));
-      await new Promise((resolve) => setTimeout(resolve, 1_100));
+      // The rail's faces and images are in before it is measured.
+      await page.waitForFunction(
+        () =>
+          document.fonts.status === "loaded" &&
+          [...document.querySelectorAll(".board-rail img")].every(
+            (img) => img.complete && img.naturalWidth > 0,
+          ),
+        { timeout: 5_000 },
+      );
       const keys = await railFacts(page);
       check(
         drawn && keys.every((key) => key.ok),
@@ -6927,6 +6875,81 @@ for (const viewport of SCREENS) {
           () => false,
         );
       check(escaped, `${label} Escape closes the drawer`);
+      await close();
+    }
+
+    // A finger that shuts Buys by its Back and taps again at once, at the
+    // same spot, meets the key under Back, which waits out the settle the
+    // close started; past it, a tap there opens that key.
+    {
+      const { page, close } = await open(viewport, openMountain(), {
+        stopClock: true,
+        tapClock: "held",
+      });
+      await keysDrawn(page);
+      await noteAway(page);
+      await openSheet(page, "buys");
+      await stepTapClock(page, PAST_SETTLE_MS);
+      const back = await page.$eval(SHEET_BACK("buys"), (el) => {
+        const board = globalThis.__board();
+        const b = el.getBoundingClientRect();
+        return {
+          x: ((b.left + b.right) / 2 - board.left) / board.scale,
+          y: ((b.top + b.bottom) / 2 - board.top) / board.scale,
+        };
+      });
+      await press(page, SHEET_BACK("buys"));
+      const shut = await page
+        .waitForFunction(
+          (selector) => {
+            const sheet = document.querySelector(selector);
+            return (
+              sheet !== null &&
+              !sheet.classList.contains("is-open") &&
+              sheet.getAnimations().length === 0
+            );
+          },
+          { timeout: 2_000 },
+          SHEET("buys"),
+        )
+        .then(
+          () => true,
+          () => false,
+        );
+      const under = await page.evaluate(({ x, y }) => {
+        const board = globalThis.__board();
+        return (
+          document
+            .elementFromPoint(
+              board.left + x * board.scale,
+              board.top + y * board.scale,
+            )
+            ?.closest(".board-key")
+            ?.getAttribute("data-key") ?? "nothing"
+        );
+      }, back);
+      const engineersShown = () =>
+        page.$eval(".engineers-dialog", (dialog) => !dialog.hidden);
+      await tapBoard(page, back.x, back.y);
+      await framesPainted(page, 2);
+      const early =
+        (await page.$(".board-sheet.is-open")) === null &&
+        !(await engineersShown());
+      await stepTapClock(page, PAST_SETTLE_MS);
+      await tapBoard(page, back.x, back.y);
+      const opened = await page
+        .waitForSelector(".engineers-dialog:not([hidden])", { timeout: 2_000 })
+        .then(
+          () => true,
+          () => false,
+        );
+      check(
+        shut && under === "engineers" && early && opened,
+        `${label} a finger tap at once where Buys' Back was opens nothing; past the settle it opens the key under it (${under})`,
+      );
+      if (!shut || !early || !opened) {
+        console.log("tap under Back", size, { shut, under, early, opened });
+      }
       await close();
     }
 

@@ -8,10 +8,12 @@ const GAP = 6;
 /** A note that would reach this close to the bottom (the save line) goes above its anchor. */
 const SAVE_LINE = 60;
 const STEP = 2;
-const DEFAULT_MS = 3400;
 
 interface NoteOptions {
-  /** How long a plain note stays up. */
+  /**
+   * How long a plain note stays up. A note with no time stays up while nothing puts it away:
+   * an outside pointerdown, Escape, or its owner.
+   */
   readonly ms?: number;
   /**
    * The note's key, a button in `body`. A note with a key stays up until an
@@ -30,12 +32,17 @@ export interface BoardNote {
     options?: NoteOptions,
   ) => void;
   readonly hide: () => void;
+  /** Hides the note only while it still shows `body`: another note may have taken its place. */
+  readonly hideIf: (body: Node) => void;
 }
 
 const snap = (v: number): number => Math.round(v / STEP) * STEP;
 
 /** The floating framed card that explains a tap. Placed in board coordinates inside the stage. */
-export function createBoardNote(stage: HTMLElement): BoardNote {
+export function createBoardNote(
+  stage: HTMLElement,
+  signal?: AbortSignal,
+): BoardNote {
   const note = document.createElement("div");
   note.className = "board-note";
   note.setAttribute("role", "status");
@@ -53,23 +60,33 @@ export function createBoardNote(stage: HTMLElement): BoardNote {
     note.classList.remove("on");
   };
 
-  document.addEventListener("pointerdown", (e) => {
-    const target = e.target;
-    if (!(target instanceof Node)) return;
-    if (note.contains(target) || anchorEl?.contains(target)) return;
-    hide();
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape" || !note.classList.contains("on")) return;
-    const hadFocus = note.contains(document.activeElement);
-    hide();
-    if (hadFocus) anchorEl?.focus();
-  });
+  // A tap elsewhere or Escape puts the note away; the board's signal takes these off.
+  const listening = signal === undefined ? {} : { signal };
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      const target = e.target;
+      if (!(target instanceof Node)) return;
+      if (note.contains(target) || anchorEl?.contains(target)) return;
+      hide();
+    },
+    listening,
+  );
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key !== "Escape" || !note.classList.contains("on")) return;
+      const hadFocus = note.contains(document.activeElement);
+      hide();
+      if (hadFocus) anchorEl?.focus();
+    },
+    listening,
+  );
 
   const show = (
     anchor: HTMLElement,
     body: Node,
-    { ms = DEFAULT_MS, key, focus = false }: NoteOptions = {},
+    { ms, key, focus = false }: NoteOptions = {},
   ): void => {
     anchorEl = anchor;
     content.replaceChildren(body);
@@ -97,9 +114,14 @@ export function createBoardNote(stage: HTMLElement): BoardNote {
     note.style.left = `${String(snap(x))}px`;
     note.style.top = `${String(snap(Math.max(GAP, y)))}px`;
     clearTimeout(timer);
-    if (key === undefined) timer = setTimeout(hide, ms);
-    else if (focus) key.focus();
+    if (key === undefined) {
+      if (ms !== undefined) timer = setTimeout(hide, ms);
+    } else if (focus) key.focus();
   };
 
-  return { note, show, hide };
+  const hideIf = (body: Node): void => {
+    if (body.parentNode === content) hide();
+  };
+
+  return { note, show, hide, hideIf };
 }

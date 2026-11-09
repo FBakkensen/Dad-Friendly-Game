@@ -10,6 +10,21 @@ import {
   fieldLogTitle,
 } from "./screen-words";
 
+/** Copies the field log; false when the browser has no clipboard or refuses it. */
+async function writeClipboard(text: string): Promise<boolean> {
+  const clipboard = Reflect.get(navigator, "clipboard") as
+    { readonly writeText?: (value: string) => Promise<void> } | undefined;
+  if (clipboard === undefined || typeof clipboard.writeText !== "function") {
+    return false;
+  }
+  try {
+    await clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** The tucked-away menu (account, sign in/out, Start over) and the Start over confirm. */
 export function createMenuPanel({
   progress,
@@ -19,6 +34,7 @@ export function createMenuPanel({
   extras = [],
   door,
   requestRender,
+  signal,
 }: {
   /** More menu entries, shown above Start over (e.g. passing the mine). */
   extras?: readonly HTMLElement[];
@@ -32,6 +48,8 @@ export function createMenuPanel({
    */
   door: HTMLButtonElement;
   requestRender: () => void;
+  /** Stops the menu watching the account; the app never unmounts. */
+  signal?: AbortSignal | undefined;
 }) {
   const startOverLink = document.createElement("button");
   startOverLink.type = "button";
@@ -233,20 +251,6 @@ export function createMenuPanel({
     menuCard.append(copied);
   };
 
-  const writeClipboard = async (text: string): Promise<boolean> => {
-    const clipboard = Reflect.get(navigator, "clipboard") as
-      { readonly writeText?: (value: string) => Promise<void> } | undefined;
-    if (clipboard === undefined || typeof clipboard.writeText !== "function") {
-      return false;
-    }
-    try {
-      await clipboard.writeText(text);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
   copyButton.addEventListener("click", () => {
     const text = formatFieldLog(progress.fieldLog());
     void writeClipboard(text).then((copied) => {
@@ -289,7 +293,8 @@ export function createMenuPanel({
     menuClose,
   );
 
-  auth.subscribe(renderAuth);
+  const unwatchAuth = auth.subscribe(renderAuth);
+  signal?.addEventListener("abort", unwatchAuth);
 
   const renderFieldLog = (): void => {
     copyButton.disabled = !getView().ready;
