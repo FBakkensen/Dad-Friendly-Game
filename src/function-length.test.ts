@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { measureFunctions } from "./function-length";
+import {
+  type FunctionSpan,
+  judgeLengths,
+  measureFunctions,
+  problemLine,
+} from "./function-length";
 
 const ids = (source: string): readonly string[] =>
   measureFunctions("p.ts", source).map((span) => span.id);
@@ -80,5 +85,109 @@ describe("measureFunctions", () => {
     expect(ids("function ok() { return 1; }\nfunction broken( {")).toContain(
       "p.ts#ok",
     );
+  });
+});
+
+describe("judgeLengths", () => {
+  const span = (id: string, lines: number): FunctionSpan => ({
+    id,
+    line: 1,
+    lines,
+  });
+  const lines = (
+    spans: readonly FunctionSpan[],
+    ceilings: Readonly<Record<string, number>>,
+    base?: Readonly<Record<string, number>>,
+  ) => judgeLengths({ spans, ceilings, base }).map(problemLine);
+
+  it("passes a function of exactly 150 lines, and one at its ceiling", () => {
+    expect(
+      lines([span("src/a.ts#f", 150), span("src/a.ts#g", 200)], {
+        "src/a.ts#g": 200,
+      }),
+    ).toEqual([]);
+  });
+
+  it("fails a function over 150 lines with no ceiling", () => {
+    expect(lines([span("src/a.ts#f", 151)], {})).toEqual([
+      "src/a.ts#f is 151 lines; the limit is 150. Split it.",
+    ]);
+  });
+
+  it("fails a function that grew past its ceiling", () => {
+    expect(lines([span("src/a.ts#f", 210)], { "src/a.ts#f": 200 })).toEqual([
+      "src/a.ts#f grew to 210 lines; its ceiling is 200. Split it.",
+    ]);
+  });
+
+  it("asks for a ceiling above the function's length to come down", () => {
+    expect(lines([span("src/a.ts#f", 180)], { "src/a.ts#f": 200 })).toEqual([
+      "src/a.ts#f is 180 lines; lower its ceiling from 200 to 180.",
+    ]);
+  });
+
+  it("asks for the ceiling of a function now gone or under the limit to go", () => {
+    expect(
+      lines([span("src/a.ts#g", 120)], {
+        "src/a.ts#f": 200,
+        "src/a.ts#g": 160,
+      }),
+    ).toEqual([
+      "src/a.ts#f is gone or under 150 lines; remove its ceiling.",
+      "src/a.ts#g is gone or under 150 lines; remove its ceiling.",
+    ]);
+  });
+
+  it("refuses a ceiling that rose, or one that is new, against the base", () => {
+    expect(
+      lines(
+        [span("src/a.ts#f", 210), span("src/a.ts#n", 170)],
+        { "src/a.ts#f": 210, "src/a.ts#n": 170 },
+        { "src/a.ts#f": 200 },
+      ),
+    ).toEqual([
+      "src/a.ts#f's ceiling rose from 200 to 210; ceilings only go down.",
+      "src/a.ts#n has a new ceiling; new functions stay under 150 lines.",
+    ]);
+  });
+
+  it("a renamed long function fails as too long, and its old ceiling must go", () => {
+    expect(
+      lines(
+        [span("src/a.ts#renamed", 200)],
+        { "src/a.ts#f": 200 },
+        {
+          "src/a.ts#f": 200,
+        },
+      ),
+    ).toEqual([
+      "src/a.ts#f is gone or under 150 lines; remove its ceiling.",
+      "src/a.ts#renamed is 200 lines; the limit is 150. Split it.",
+    ]);
+  });
+
+  it("counts two functions with one id as the longer", () => {
+    expect(
+      lines([span("src/a.ts#f", 200), span("src/a.ts#f", 160)], {
+        "src/a.ts#f": 200,
+      }),
+    ).toEqual([]);
+  });
+
+  it("lists every problem of one id, the length first", () => {
+    expect(
+      lines(
+        [span("src/a.ts#f", 100)],
+        { "src/a.ts#f": 210 },
+        { "src/a.ts#f": 200 },
+      ),
+    ).toEqual([
+      "src/a.ts#f is gone or under 150 lines; remove its ceiling.",
+      "src/a.ts#f's ceiling rose from 200 to 210; ceilings only go down.",
+    ]);
+  });
+
+  it("with no base, ceilings are not compared", () => {
+    expect(lines([span("src/a.ts#f", 210)], { "src/a.ts#f": 210 })).toEqual([]);
   });
 });

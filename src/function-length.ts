@@ -109,3 +109,110 @@ export function measureFunctions(
   visit(file, [], { count: 0 });
   return spans;
 }
+
+/** The ceiling list: a function id and the most lines it may have. */
+export type Ceilings = Readonly<Record<string, number>>;
+
+/** One way a measurement and the ceiling list disagree. */
+export type LengthProblem =
+  | { readonly kind: "too-long"; readonly id: string; readonly lines: number }
+  | {
+      readonly kind: "grew";
+      readonly id: string;
+      readonly lines: number;
+      readonly ceiling: number;
+    }
+  | {
+      readonly kind: "lower";
+      readonly id: string;
+      readonly lines: number;
+      readonly ceiling: number;
+    }
+  | { readonly kind: "remove"; readonly id: string; readonly ceiling: number }
+  | {
+      readonly kind: "raised";
+      readonly id: string;
+      readonly ceiling: number;
+      readonly was: number;
+    }
+  | { readonly kind: "added"; readonly id: string; readonly ceiling: number };
+
+const KIND_ORDER: readonly LengthProblem["kind"][] = [
+  "too-long",
+  "grew",
+  "lower",
+  "remove",
+  "raised",
+  "added",
+];
+
+/**
+ * Every disagreement between the measured functions and the ceiling list, sorted by id then
+ * kind. A ceiling must match its function's length exactly, so the list only ever shrinks.
+ * Against `base` (the list on origin/main), a ceiling may not rise and none may be added.
+ * Two functions with one id (the same name in sibling blocks) count as the longer.
+ */
+export function judgeLengths({
+  spans,
+  ceilings,
+  base,
+}: {
+  readonly spans: readonly FunctionSpan[];
+  readonly ceilings: Ceilings;
+  readonly base: Ceilings | undefined;
+}): readonly LengthProblem[] {
+  const longest = new Map<string, number>();
+  for (const { id, lines } of spans) {
+    longest.set(id, Math.max(lines, longest.get(id) ?? 0));
+  }
+  const problems: LengthProblem[] = [];
+  for (const [id, lines] of longest) {
+    const ceiling = ceilings[id];
+    if (lines <= FUNCTION_LIMIT) continue;
+    if (ceiling === undefined) {
+      problems.push({ kind: "too-long", id, lines });
+    } else if (lines > ceiling) {
+      problems.push({ kind: "grew", id, lines, ceiling });
+    } else if (lines < ceiling) {
+      problems.push({ kind: "lower", id, lines, ceiling });
+    }
+  }
+  for (const [id, ceiling] of Object.entries(ceilings)) {
+    if ((longest.get(id) ?? 0) <= FUNCTION_LIMIT) {
+      problems.push({ kind: "remove", id, ceiling });
+    }
+    if (base === undefined) continue;
+    const was = base[id];
+    if (was === undefined) {
+      problems.push({ kind: "added", id, ceiling });
+    } else if (ceiling > was) {
+      problems.push({ kind: "raised", id, ceiling, was });
+    }
+  }
+  return problems.sort((a, b) =>
+    a.id === b.id
+      ? KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind)
+      : a.id < b.id
+        ? -1
+        : 1,
+  );
+}
+
+/** One line telling the author what to do about a problem. */
+export function problemLine(problem: LengthProblem): string {
+  const { id } = problem;
+  switch (problem.kind) {
+    case "too-long":
+      return `${id} is ${String(problem.lines)} lines; the limit is ${String(FUNCTION_LIMIT)}. Split it.`;
+    case "grew":
+      return `${id} grew to ${String(problem.lines)} lines; its ceiling is ${String(problem.ceiling)}. Split it.`;
+    case "lower":
+      return `${id} is ${String(problem.lines)} lines; lower its ceiling from ${String(problem.ceiling)} to ${String(problem.lines)}.`;
+    case "remove":
+      return `${id} is gone or under ${String(FUNCTION_LIMIT)} lines; remove its ceiling.`;
+    case "raised":
+      return `${id}'s ceiling rose from ${String(problem.was)} to ${String(problem.ceiling)}; ceilings only go down.`;
+    case "added":
+      return `${id} has a new ceiling; new functions stay under ${String(FUNCTION_LIMIT)} lines.`;
+  }
+}
