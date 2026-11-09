@@ -101,13 +101,17 @@ page is the map, plus the rules that keep it that way.
 4. **Screen:** `mountain-screen` builds the page and wires panels; panels are
    their own modules with a `create…Panel` factory returning their elements
    and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `menu-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). Shared player-facing
-   wording lives in `screen-words`.
+   wording lives in `screen-words`. The screen's optional `signal` (tests
+   pass one; the app never unmounts) takes off everything it hangs outside
+   its own elements: the tick, the frame loop, its document and window
+   listeners (the note's, the save line's and the drawers' too), and its
+   store and account watches.
    The control board (#370) is its own set of modules. Pure rules with unit
    tests: `board-fit` (the scale that fits the 424×924 stage inside the
    window and its `env(safe-area-inset-*)`, read back through a hidden
    probe; 1 at 424×924 with no insets, so the art stays at exactly 2×),
    `board-skin` (the 9-slice plan that draws a frame, tag or key skin on a
-   canvas behind its element), `odometer` (the five drum faces for a
+   canvas behind its element; a plate key's press repaints its pressed skin), `odometer` (the five drum faces for a
    pocket) and `crew-boost` (the crew timer the crew is running at, and the
    dial frame). DOM parts take `getView` and callbacks like a panel:
    `board-note` (the floating framed note, placed in board coordinates; a

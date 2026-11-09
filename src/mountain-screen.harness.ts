@@ -20,13 +20,22 @@ export function setReducedMotion(reduce: boolean): void {
 
 let unmount = new AbortController();
 
+/** The real timer, taken before any test fakes the clock. */
+const nextTask = globalThis.setTimeout;
+
 /**
- * Each mounted screen ticks every second. Call this after each test, or the
- * leaked ticks pile up and slow every later test in the file.
+ * Each mounted screen ticks every second and listens to the page. Call this after each test,
+ * or the screens pile up and every later test in the file runs slower and in more memory.
+ * It waits one task after the abort: V8 keeps whatever a WeakRef was made for (happy-dom's
+ * query caches make many) alive to the end of the task, and a test file's tests otherwise run
+ * as one long task.
  */
-export function stopScreens(): void {
+export async function stopScreens(): Promise<void> {
   unmount.abort();
   unmount = new AbortController();
+  await new Promise((resolve) => {
+    nextTask(resolve, 0);
+  });
 }
 
 export const tileUrl =

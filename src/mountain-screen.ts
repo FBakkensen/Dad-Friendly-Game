@@ -170,7 +170,7 @@ export function mountMountainScreen({
   random?: () => number;
   /** Where the vein wait is carried between sessions; localStorage by default. */
   veinStorage?: Pick<Storage, "getItem" | "setItem">;
-  /** Stops the screen's tick and page listeners. The app never unmounts; tests do. */
+  /** Stops the screen's tick, page listeners and watches. The app never unmounts; tests do. */
   signal?: AbortSignal;
 }): void {
   const progress = progressArg ?? createProgressStore({ auth });
@@ -558,7 +558,7 @@ export function mountMountainScreen({
 
   // The board (#370): the note, the relic plate, the odometer, the boost dial
   // and the save line. The note is placed in board coordinates inside root.
-  const boardNote = createBoardNote(root);
+  const boardNote = createBoardNote(root, signal);
   /** The vein's payout or the quiet away line, in the board note under the window. */
   const showVeinNote = (words: string, ms: number): void => {
     veinNote.textContent = words;
@@ -570,6 +570,7 @@ export function mountMountainScreen({
     auth,
     getView: () => view,
     now,
+    signal,
   });
   // Opening a sheet, the shelf or the menu puts the board's popups away.
   const closeBoardPopups = (): void => {
@@ -643,6 +644,7 @@ export function mountMountainScreen({
     requestRender: () => {
       render();
     },
+    signal,
   });
   const { menu, confirm, fieldLogSheet } = menuPanel;
 
@@ -1026,25 +1028,8 @@ export function mountMountainScreen({
     guideBar.setAttribute("aria-label", label);
   };
 
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") {
-      progress.flush();
-      return;
-    }
-    // A return settles after the server has been read, so a tap cannot
-    // land on top of another device's save. Guests settle immediately.
-    const resume = progress.resume();
-    if (resume.kind === "reading") {
-      void resume.done.then(() => {
-        progress.tick();
-      });
-      return;
-    }
-    progress.tick();
-  });
-  window.addEventListener("pagehide", () => {
-    progress.flush();
-  });
+  const listening = signal === undefined ? {} : { signal };
+  saveOnLeave(progress, listening);
 
   /**
    * Opens the Buys drawer: the Buys key, a bay and Saving for (#372, #373). Only an opening starts
@@ -1183,7 +1168,6 @@ export function mountMountainScreen({
     gauge.tick(dt);
     bays.tick(dt);
   }, signal);
-  const listening = signal === undefined ? {} : { signal };
   document.addEventListener(
     "visibilitychange",
     () => {
@@ -1225,6 +1209,41 @@ export function mountMountainScreen({
       saveLine.render();
     }
   });
+}
+
+/**
+ * A hidden or closed page saves at once. A return settles after the server has been read, so a
+ * tap cannot land on top of another device's save; guests settle at once.
+ */
+function saveOnLeave(
+  progress: ProgressStore,
+  listening: { readonly signal?: AbortSignal },
+): void {
+  document.addEventListener(
+    "visibilitychange",
+    () => {
+      if (document.visibilityState === "hidden") {
+        progress.flush();
+        return;
+      }
+      const resume = progress.resume();
+      if (resume.kind === "reading") {
+        void resume.done.then(() => {
+          progress.tick();
+        });
+        return;
+      }
+      progress.tick();
+    },
+    listening,
+  );
+  window.addEventListener(
+    "pagehide",
+    () => {
+      progress.flush();
+    },
+    listening,
+  );
 }
 
 /** Shows the reload prompt. A newer service worker calls this. */

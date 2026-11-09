@@ -39,7 +39,10 @@ export interface BoardNote {
 const snap = (v: number): number => Math.round(v / STEP) * STEP;
 
 /** The floating framed card that explains a tap. Placed in board coordinates inside the stage. */
-export function createBoardNote(stage: HTMLElement): BoardNote {
+export function createBoardNote(
+  stage: HTMLElement,
+  signal?: AbortSignal,
+): BoardNote {
   const note = document.createElement("div");
   note.className = "board-note";
   note.setAttribute("role", "status");
@@ -57,18 +60,28 @@ export function createBoardNote(stage: HTMLElement): BoardNote {
     note.classList.remove("on");
   };
 
-  document.addEventListener("pointerdown", (e) => {
-    const target = e.target;
-    if (!(target instanceof Node)) return;
-    if (note.contains(target) || anchorEl?.contains(target)) return;
-    hide();
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape" || !note.classList.contains("on")) return;
-    const hadFocus = note.contains(document.activeElement);
-    hide();
-    if (hadFocus) anchorEl?.focus();
-  });
+  // A tap elsewhere or Escape puts the note away; the board's signal takes these off.
+  const listening = signal === undefined ? {} : { signal };
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      const target = e.target;
+      if (!(target instanceof Node)) return;
+      if (note.contains(target) || anchorEl?.contains(target)) return;
+      hide();
+    },
+    listening,
+  );
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key !== "Escape" || !note.classList.contains("on")) return;
+      const hadFocus = note.contains(document.activeElement);
+      hide();
+      if (hadFocus) anchorEl?.focus();
+    },
+    listening,
+  );
 
   const show = (
     anchor: HTMLElement,
