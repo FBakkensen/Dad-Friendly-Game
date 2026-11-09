@@ -214,13 +214,16 @@ export function send(
 /** Back at the post they left. No find, no trip, no cost. */
 export function recall(mountain: Mountain, engineer: number): Mountain {
   const hand = mountain.engineers?.[engineer];
-  const trips = mountain.expeditions;
-  if (hand === undefined || trips === undefined) {
+  if (hand === undefined) {
     return mountain;
   }
+  const trips = mountain.expeditions ?? [];
   const trip = trips.find((candidate) => candidate.engineer === hand.name);
   if (trip === undefined) {
-    return mountain;
+    // A tunnel post with no trip has no home post to restore: back to camp (#409).
+    return hand.post === "tunnel"
+      ? station(mountain, engineer, "camp")
+      : mountain;
   }
   const stationed = station(mountain, engineer, trip.home);
   const remaining = trips.filter(

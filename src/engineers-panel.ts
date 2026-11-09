@@ -1,6 +1,6 @@
 import { oneOffStretch, stretch } from "./scale";
 import { HOW_IT_WORKS, howItWorks, type HowSystem } from "./how-it-works";
-import { markSeen, markTaught, showsDot } from "./teach";
+import { showsDot } from "./teach";
 import {
   clearNewCard,
   createHowCard,
@@ -15,15 +15,13 @@ import {
   MAX_ENGINEERS,
   canPromote,
   nextEngineerName,
-  promote,
   promoteCost,
-  station,
   type Engineer,
   type EngineerPost,
 } from "./engineers";
-import { KEEPSAKES, TUNNELS, recall, send, type TunnelId } from "./expeditions";
+import { KEEPSAKES, TUNNELS, type TunnelId } from "./expeditions";
 import type { Mountain } from "./mountain";
-import type { ProgressSnapshot, ProgressStore } from "./progress-store";
+import type { Dispatch, ProgressSnapshot } from "./progress-store";
 import { firstTend, moveGain, promotePayoff, tendingGain } from "./rates";
 import { owned, tierById } from "./tiers";
 import {
@@ -103,7 +101,7 @@ const TOAST_MS = 2200;
  * party back first.
  */
 export function createEngineersPanel({
-  progress,
+  dispatch,
   getView,
   requestRender,
   iconUrl,
@@ -113,7 +111,7 @@ export function createEngineersPanel({
   fallbackDoor,
   now = Date.now,
 }: {
-  progress: ProgressStore;
+  dispatch: Dispatch;
   getView: () => ProgressSnapshot;
   requestRender: () => void;
   /** Existing worker portrait. A badge uses the machine art. No new art. */
@@ -157,7 +155,7 @@ export function createEngineersPanel({
   button.addEventListener("click", () => {
     open = true;
     // Opening the sheet counts as seen: the note goes, the dot stays.
-    progress.applyMutation((current) => markSeen(current, "engineers"));
+    dispatch({ kind: "markSeen", id: "engineers" });
     confirming = false;
     recalling = undefined;
     menu = undefined;
@@ -400,9 +398,7 @@ export function createEngineersPanel({
       }
       cheer(exploreCheer(engineer.name));
       glow(index);
-      progress.applyMutation((current) =>
-        send(current, index, FIRST_TUNNEL.id, now()),
-      );
+      dispatch({ kind: "send", index, tunnel: FIRST_TUNNEL.id });
     });
     // The guided first tend (#246): one big button, one step up.
     const firstTendButton = document.createElement("button");
@@ -421,9 +417,7 @@ export function createEngineersPanel({
       );
       cheer(stationCheer(engineer.name, step.post, gain), true);
       glow(index);
-      progress.applyMutation((current) =>
-        markTaught(station(current, index, step.post), "tending"),
-      );
+      dispatch({ kind: "station", index, post: step.post });
     });
     arm(`${String(index)}:tend`, tend);
     arm(`${String(index)}:explore`, explore);
@@ -471,11 +465,8 @@ export function createEngineersPanel({
               );
         cheer(stationCheer(engineer.name, post, gain), gain !== undefined);
         glow(index);
-        // From a tunnel, the post calls the party back first (no find, no
-        // trip), so no expedition is left without its engineer.
-        progress.applyMutation((current) =>
-          markTaught(station(recall(current, index), index, post), "tending"),
-        );
+        // From a tunnel, the station move calls the party back first (no find, no trip).
+        dispatch({ kind: "station", index, post });
       });
       tendList.append(choice);
       return { choice, label, benefit, post };
@@ -515,9 +506,7 @@ export function createEngineersPanel({
         menu = undefined;
         cheer(exploreCheer(engineer.name));
         glow(index);
-        progress.applyMutation((current) =>
-          send(current, index, spec.id, now()),
-        );
+        dispatch({ kind: "send", index, tunnel: spec.id });
       });
       exploreList.append(choice);
       return { choice, benefit, id: spec.id };
@@ -690,11 +679,11 @@ export function createEngineersPanel({
     menu = undefined;
     const beforeCount = view.mountain.engineers?.length ?? 0;
     // Price and a free worker can change while the confirm sits open.
-    if (promotable(view)) {
-      progress.applyMutation((current) => promote(current));
-    }
+    const promoted =
+      promotable(view) && dispatch({ kind: "promote" }).kind === "applied";
+    // The new engineer joins at the end of the crew.
     const name = getView().mountain.engineers?.[beforeCount]?.name;
-    if (name !== undefined) {
+    if (promoted && name !== undefined) {
       expanded = beforeCount;
       cheer(promoteCheer(name));
       glow(beforeCount);
@@ -735,15 +724,8 @@ export function createEngineersPanel({
     }
     cheer(homeCheer(engineer.name));
     glow(index);
-    progress.applyMutation((current) => {
-      const next = recall(current, index);
-      const hand = next.engineers?.[index];
-      // A tunnel with no expedition has no home post to restore.
-      if (hand !== undefined && hand.post === "tunnel") {
-        return station(next, index, "camp");
-      }
-      return next;
-    });
+    // A tunnel with no expedition has no home post to restore: the recall move sends them to camp.
+    dispatch({ kind: "recall", index });
   });
   recallActions.append(recallNo, recallYes);
   recallBox.append(recallLine, recallActions);

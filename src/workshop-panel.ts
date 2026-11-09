@@ -1,7 +1,6 @@
 import stoneIconUrl from "./assets/stone.png";
 import { buyOnTap } from "./card-tap";
 import { HOW_IT_WORKS } from "./how-it-works";
-import { markSeen } from "./teach";
 import {
   createHowCard,
   createInfoButton,
@@ -29,7 +28,7 @@ import {
   SHEET_LOCKED,
   SHEET_READY,
 } from "./sheet-card";
-import type { ProgressSnapshot, ProgressStore } from "./progress-store";
+import type { Dispatch, ProgressSnapshot } from "./progress-store";
 import {
   RECIPE_ON_BENCH,
   WORKSHOP_BENCH_BUSY,
@@ -56,12 +55,7 @@ import {
   type RecipeCard,
   type WorkshopCard,
 } from "./workshop-sheet";
-import {
-  cancelCraft,
-  startCraft,
-  workshopUnlocked,
-  type RecipeId,
-} from "./workshop";
+import { workshopUnlocked, type RecipeId } from "./workshop";
 
 /**
  * The Workshop sheet (M9-8). One bench, real numbers, a dark sketch for
@@ -150,7 +144,7 @@ function materialIcon(id: MaterialId, stoneUrl: string): HTMLImageElement {
 }
 
 export function createWorkshopPanel({
-  progress,
+  dispatch,
   getView,
   now,
   stoneUrl,
@@ -159,7 +153,7 @@ export function createWorkshopPanel({
   onClose,
   requestRender,
 }: {
-  progress: ProgressStore;
+  dispatch: Dispatch;
   getView: () => ProgressSnapshot;
   now: () => number;
   stoneUrl: string;
@@ -200,7 +194,7 @@ export function createWorkshopPanel({
     page = 0;
     pageSize = undefined;
     howShown = undefined;
-    progress.applyMutation((current) => markSeen(current, "workshop"));
+    dispatch({ kind: "markSeen", id: "workshop" });
     onOpen();
     requestRender();
   });
@@ -331,7 +325,7 @@ export function createWorkshopPanel({
       return;
     }
     disarmCancel();
-    progress.applyMutation((current) => cancelCraft(current, now()));
+    dispatch({ kind: "cancelCraft" });
   });
   const hammer = document.createElement("img");
   hammer.className = "workshop-hammer";
@@ -431,7 +425,7 @@ export function createWorkshopPanel({
       return;
     }
     celebrate(recipe.costs);
-    progress.applyMutation((current) => startCraft(current, recipe.id, now()));
+    dispatch({ kind: "craft", recipe: recipe.id });
   };
 
   let teach = workshopTeach(getView().mountain, now());

@@ -4,7 +4,7 @@ import { createUnconfiguredAuth } from "./auth";
 import { createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
 import { createProgressStore } from "./progress-store";
-import { buyWithTeach } from "./crew-panel";
+import { buyWithTeach } from "./economy/actions";
 import { firstIdleTier } from "./rates";
 import { formatCompact, formatCount } from "./format";
 import { STAFFING_INTRO, staffingLine } from "./screen-words";

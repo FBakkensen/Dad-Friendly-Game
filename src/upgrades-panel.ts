@@ -4,18 +4,16 @@ import { createBoardSheet, type BoardSheet } from "./board-drawer";
 import { boardHowCard } from "./board-how-art";
 import { createBoardRow, type BoardRow } from "./board-row";
 import { howItWorks } from "./how-it-works";
-import {
-  BOOSTS,
-  boostLeft,
-  buyBoost,
-  type Boost,
-  type BoostId,
-} from "./boosts";
+import { BOOSTS, boostLeft, type Boost, type BoostId } from "./boosts";
+import type { Move } from "./economy/actions";
 import { buyOnTap } from "./card-tap";
 import { shortEffectName, writeChip } from "./effect-row";
 import type { Mountain } from "./mountain";
-import type { ProgressSnapshot, ProgressStore } from "./progress-store";
-import { effectiveRates } from "./rates";
+import type {
+  Dispatch,
+  ProgressSnapshot,
+  ProgressStore,
+} from "./progress-store";
 import type { RowView } from "./row-view";
 import { LOST_TOOLS, type LostToolId } from "./lost-tools";
 import {
@@ -24,7 +22,6 @@ import {
   UPGRADES_MORE,
   lostToolWords,
 } from "./screen-words";
-import { markAllSeen } from "./teach";
 import { setHowSteps } from "./teach-ui";
 import {
   boostRowView,
@@ -39,13 +36,13 @@ import {
   upgradeRowId,
   type RevealRowId,
 } from "./upgrade-reveal";
-import { UPGRADES, buyUpgrade, upgradeLevel, type Upgrade } from "./upgrades";
+import { UPGRADES, type Upgrade } from "./upgrades";
 
 /*
  * The Upgrades drawer (#373): Quick boosts, Lasting upgrades and Brought home as board rows,
  * the "i" cards for upgrades and boosts, and the spare plate under a short list. It also keeps
  * the running-boost chips in Running now current. Its rows and words come from upgrade-rows.ts;
- * every buy goes through today's mutations, wrapped in markAllSeen.
+ * every buy is a move through the screen's dispatch, then marks seen the rows shown before it.
  */
 
 /** The kick under the title when no row is new. */
@@ -94,6 +91,7 @@ function legend(name: string, key: string): HTMLElement {
  */
 export function createUpgradesPanel({
   progress,
+  dispatch,
   getView,
   now,
   chipFor,
@@ -103,6 +101,7 @@ export function createUpgradesPanel({
   signal,
 }: {
   progress: ProgressStore;
+  dispatch: Dispatch;
   getView: () => ProgressSnapshot;
   /** The game's clock: prices, timers and the New row. */
   now: () => number;
@@ -156,8 +155,7 @@ export function createUpgradesPanel({
   const wireBuy = (
     row: BoardRow,
     viewOf: (mountain: Mountain, at: number) => RowView,
-    buy: (mountain: Mountain, at: number) => Mountain,
-    score: (mountain: Mountain) => number,
+    move: Extract<Move, { kind: "buyUpgrade" | "buyBoost" }>,
   ): void => {
     const root = row.root;
     if (!(root instanceof HTMLButtonElement)) {
@@ -179,11 +177,11 @@ export function createUpgradesPanel({
           row.blink();
           return;
         }
-        const before = score(snapshot.mountain);
-        progress.applyMutation((current) =>
-          markAllSeen(buy(current, at), shownRows(current)),
-        );
-        if (score(progress.getSnapshot().mountain) > before) {
+        // The rows he had in front of him when he tapped are seen, whatever the buy shows next.
+        const shown = shownRows(snapshot.mountain);
+        const bought = dispatch(move).kind === "applied";
+        dispatch({ kind: "markAllSeen", ids: shown });
+        if (bought) {
           row.done();
         }
       },
@@ -199,18 +197,10 @@ export function createUpgradesPanel({
       name: boost.name,
       icon: false,
     });
-    wireBuy(
-      row,
-      (mountain, at) => boostRowView(mountain, at, boost, false),
-      (mountain, at) =>
-        buyBoost({
-          mountain,
-          id: boost.id,
-          now: at,
-          pricing: effectiveRates(mountain),
-        }),
-      (mountain) => mountain.boosts?.[boost.id] ?? Number.NEGATIVE_INFINITY,
-    );
+    wireBuy(row, (mountain, at) => boostRowView(mountain, at, boost, false), {
+      kind: "buyBoost",
+      id: boost.id,
+    });
     return { boost, id: boostRowId(boost), row };
   });
 
@@ -225,8 +215,7 @@ export function createUpgradesPanel({
     wireBuy(
       row,
       (mountain, at) => upgradeRowView(mountain, at, upgrade, false),
-      (mountain) => buyUpgrade(mountain, upgrade.id),
-      (mountain) => upgradeLevel(mountain, upgrade.id),
+      { kind: "buyUpgrade", id: upgrade.id },
     );
     return { upgrade, id: upgradeRowId(upgrade), row };
   });
@@ -396,9 +385,10 @@ export function createUpgradesPanel({
   const open = (from?: HTMLElement): void => {
     // Rows he has had in front of him stay, even after the pocket dips.
     if (!sheet.isOpen()) {
-      progress.applyMutation((current) =>
-        markAllSeen(current, shownRows(current)),
-      );
+      dispatch({
+        kind: "markAllSeen",
+        ids: shownRows(progress.getSnapshot().mountain),
+      });
     }
     const view = getView();
     if (view.ready && !sheet.isOpen()) {

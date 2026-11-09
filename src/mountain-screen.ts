@@ -1,14 +1,9 @@
-import { minedOut, shownStones, stonesLeft } from "./scale";
+import { shownStones, stonesLeft } from "./scale";
 import pickUrl from "./assets/pick.png";
-import { markSeen, noteFor } from "./teach";
+import { noteFor } from "./teach";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
 import { formatCount } from "./format";
-import {
-  MOUNTAIN_STONES,
-  mineByHand,
-  stonesPerSecond,
-  type Mountain,
-} from "./mountain";
+import { MOUNTAIN_STONES, stonesPerSecond, type Mountain } from "./mountain";
 import { owned, tierById, type TierId } from "./tiers";
 import type { TroubleTier } from "./hazards";
 import { hasRelic, relicGoal, type RelicId } from "./relics";
@@ -46,7 +41,7 @@ import { createSaveConflictPanel } from "./save-conflict-panel";
 import { createSavedCopiesPanel } from "./saved-copies-panel";
 import { createLegacyPanel, legacyWords } from "./legacy-panel";
 import { legacyBonus } from "./legacy";
-import { buyWithTeach, createCrewPanel } from "./crew-panel";
+import { createCrewPanel } from "./crew-panel";
 import { createEngineersPanel } from "./engineers-panel";
 import { createUpgradesPanel } from "./upgrades-panel";
 import {
@@ -73,17 +68,16 @@ import { metMaterialChips } from "./workshop-sheet";
 import {
   veinGapScale,
   advanceVein,
-  mineVein,
   pauseVein,
   resumeVein,
   veinGlintMs,
   veinWaitLeft,
-  veinReward,
   waitForVein,
   type VeinState,
 } from "./veins";
 import {
   createProgressStore,
+  type Dispatch,
   type ProgressSnapshot,
   type ProgressStore,
 } from "./progress-store";
@@ -165,30 +159,20 @@ export function mountMountainScreen({
   /** Stops the screen's tick and page listeners. The app never unmounts; tests do. */
   signal?: AbortSignal;
 }): void {
-  const store = progressArg ?? createProgressStore({ auth });
+  const progress = progressArg ?? createProgressStore({ auth });
   /**
-   * True only while this screen's own mutation (a tap, a buy, a craft) runs,
-   * so the odometer counts a spend for those alone: never for a cloud copy,
-   * a chosen or restored copy, Start over or Pass the mine (#370).
+   * Every change the player makes (#409): a move that took stones rolls the odometer's spend
+   * and kicks the needle (made further down; no panel dispatches while it is built). A cloud
+   * copy, a restored copy, Start over or Pass the mine never comes here: no spend (#370).
    */
-  let localChange = false;
-  // Every other call goes straight to the store, so spies and late swaps still see it.
-  const progress = new Proxy(store, {
-    get(target, key, receiver): unknown {
-      if (key !== "applyMutation") {
-        return Reflect.get(target, key, receiver);
-      }
-      const apply: ProgressStore["applyMutation"] = (update, note) => {
-        localChange = true;
-        try {
-          target.applyMutation(update, note);
-        } finally {
-          localChange = false;
-        }
-      };
-      return apply;
-    },
-  });
+  const dispatch: Dispatch = (move) => {
+    const result = progress.dispatch(move);
+    if (result.kind === "applied" && result.spent >= 1) {
+      odometer.spend(result.spent);
+      gauge.kick(SPEND_KICK);
+    }
+    return result;
+  };
   let view: ProgressSnapshot = progress.getSnapshot();
 
   const lantern = document.createElement("img");
@@ -362,12 +346,8 @@ export function mountMountainScreen({
     if (!view.ready) {
       return 0;
     }
-    let mined = 0;
-    progress.applyMutation((current) => {
-      const next = mineByHand(current, now(), progress.getSnapshot().trouble);
-      mined = next.pocket - current.pocket;
-      return next;
-    });
+    const result = dispatch({ kind: "dig" });
+    const mined = result.kind === "applied" ? result.gained : 0;
     if (mined > 0) {
       gauge.kick(DIG_KICK);
     }
@@ -378,11 +358,8 @@ export function mountMountainScreen({
     if (veinState.kind !== "glinting" || !view.ready) {
       return;
     }
-    let reward = 0;
-    progress.applyMutation((latest) => {
-      reward = veinReward(latest);
-      return mineVein(latest);
-    }, "vein.tap");
+    const result = dispatch({ kind: "tapVein" });
+    const reward = result.kind === "applied" ? result.gained : 0;
     veinState = waitForVein({ now: now(), random, gapScale: gapForVeins() });
     showVeinNote(
       `Golden vein! +${formatCount(reward)} ${reward === 1 ? "stone" : "stones"}`,
@@ -422,6 +399,7 @@ export function mountMountainScreen({
   let shownPick: ReadyPick = readyNow(view.mountain, now(), view.trouble);
   const crewPanel = createCrewPanel({
     progress,
+    dispatch,
     getView: () => view,
     now,
     pick: () => shownPick,
@@ -509,13 +487,11 @@ export function mountMountainScreen({
     if (pick.kind !== "ready") {
       return { kind: "nothing" };
     }
-    const tier = tierById(pick.tier);
-    const before = owned(latest.mountain, tier);
-    progress.applyMutation((current) => buyWithTeach(current, pick.tier));
-    const count = owned(progress.getSnapshot().mountain, tier);
-    return count > before
-      ? { kind: "bought", tier: pick.tier, count, gain: pick.gain }
-      : { kind: "nothing" };
+    if (dispatch({ kind: "buyTier", id: pick.tier }).kind !== "applied") {
+      return { kind: "nothing" };
+    }
+    const count = owned(progress.getSnapshot().mountain, tierById(pick.tier));
+    return { kind: "bought", tier: pick.tier, count, gain: pick.gain };
   };
   const readyPlate = createReadyPlate({ onTap: tapReady });
   // The red button digs exactly as a window tap does, and the window shows it.
@@ -608,32 +584,9 @@ export function mountMountainScreen({
       boardNote.show(dial.root, running, { ms: RUNNING_NOTE_MS });
     },
   });
-  let shownPocket: number | undefined;
-  let shownDug: number | undefined;
-  /**
-   * The odometer and the dial. A spend is what one of this screen's own
-   * mutations took from the pocket beyond the stones it dug (the store
-   * settles the crew first), so a buy shows even when the crew earned more
-   * meanwhile. Any other change only moves the baseline.
-   */
+  /** The odometer and the dial. A spend is shown by `dispatch`, from what the move took. */
   const renderStock = (): void => {
-    const held = view.mountain.pocket;
-    const dug = shownStones(view.mountain, minedOut(view.mountain));
-    if (
-      localChange &&
-      shownPocket !== undefined &&
-      shownDug !== undefined &&
-      dug >= shownDug
-    ) {
-      const spent = shownPocket + (dug - shownDug) - held;
-      if (spent >= 1) {
-        odometer.spend(spent);
-        gauge.kick(SPEND_KICK);
-      }
-    }
-    shownPocket = held;
-    shownDug = dug;
-    odometer.set(held);
+    odometer.set(view.mountain.pocket);
     dial.set(liveCrewBoost(view.mountain, now()));
   };
 
@@ -641,7 +594,7 @@ export function mountMountainScreen({
     menuPanel.close();
   };
   const workshop = createWorkshopPanel({
-    progress,
+    dispatch,
     getView: () => view,
     now,
     stoneUrl,
@@ -686,6 +639,7 @@ export function mountMountainScreen({
 
   const upgrades = createUpgradesPanel({
     progress,
+    dispatch,
     getView: () => view,
     now,
     chipFor,
@@ -696,7 +650,7 @@ export function mountMountainScreen({
   });
 
   const engineers = createEngineersPanel({
-    progress,
+    dispatch,
     getView: () => view,
     iconUrl: tierArt.helper,
     badgeUrl: {
@@ -1130,7 +1084,7 @@ export function mountMountainScreen({
   // Opening the sheet by any door counts as seen: the sign goes, the dot stays.
   const openWorkshopSheet = (): void => {
     if (openWorkshop instanceof HTMLButtonElement && !openWorkshop.hidden) {
-      progress.applyMutation((current) => markSeen(current, "workshop"));
+      dispatch({ kind: "markSeen", id: "workshop" });
       workshopDoor = rail.keys.workshop;
       openingFromKey = true;
       try {

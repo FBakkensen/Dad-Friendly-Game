@@ -20,5 +20,19 @@ export default tseslint.config(
     files: ["**/*.js", "**/*.mjs"],
     ...tseslint.configs.disableTypeChecked,
   },
+  {
+    // The game changes only through dispatch(move) (#409); applyMutation is a test seam.
+    files: ["src/**/*.ts"],
+    ignores: ["src/**/*.test.ts", "src/**/*.harness.ts"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        {
+          property: "applyMutation",
+          message: "Change the game with dispatch(move) (#409).",
+        },
+      ],
+    },
+  },
   prettier,
 );

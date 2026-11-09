@@ -40,7 +40,13 @@ import { boostShown, upgradeShown } from "../upgrade-reveal";
 import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
 import { minedOut, oneOffStretch, stretch } from "../scale";
-import { VEIN_MAX_GAP_MS, VEIN_MIN_GAP_MS, veinReward } from "../veins";
+import { markAllSeen, markSeen, markTaught, showsDot } from "../teach";
+import {
+  VEIN_MAX_GAP_MS,
+  VEIN_MIN_GAP_MS,
+  mineVein,
+  veinReward,
+} from "../veins";
 import {
   MAX_CRAFTED_LEVEL,
   cancelCraft,
@@ -139,70 +145,93 @@ export function listActions(
   now: number,
   trouble?: Trouble,
 ): readonly Action[] {
-  const actions: Action[] = [];
-  for (const tier of TIERS) {
-    if (tierShown(mountain, tier) && !tierLocked(mountain, tier)) {
-      actions.push({ kind: "buyTier", id: tier.id });
-    }
-  }
-  for (const upgrade of UPGRADES) {
-    // Only rows the sheet shows (#245): opened by owned count, seen, or bought (#250).
-    if (
+  return [
+    ...tierActions(mountain),
+    ...upgradeActions(mountain),
+    ...boostActions(mountain, now),
+    ...promoteActions(mountain),
+    ...(mountain.engineers ?? []).flatMap((hand, index) =>
+      handActions(mountain, hand, index, now),
+    ),
+    ...workshopActions(mountain, now),
+    ...troubleActions(trouble),
+  ];
+}
+
+function tierActions(mountain: Mountain): readonly Action[] {
+  return TIERS.filter(
+    (tier) => tierShown(mountain, tier) && !tierLocked(mountain, tier),
+  ).map((tier) => ({ kind: "buyTier", id: tier.id }));
+}
+
+/** Only rows the sheet shows (#245): opened by owned count, seen, or bought (#250). */
+function upgradeActions(mountain: Mountain): readonly Action[] {
+  return UPGRADES.filter(
+    (upgrade) =>
       upgradeShown(mountain, upgrade) &&
-      upgradeCost(upgrade, upgradeLevel(mountain, upgrade.id)) !== undefined
-    ) {
-      actions.push({ kind: "buyUpgrade", id: upgrade.id });
-    }
-  }
-  for (const boost of BOOSTS) {
-    if (
-      boostLeft(mountain, boost.id, now) === 0 &&
-      boostShown(mountain, boost)
-    ) {
-      actions.push({ kind: "buyBoost", id: boost.id });
-    }
-  }
-  if (
-    (mountain.engineers?.length ?? 0) < MAX_ENGINEERS &&
+      upgradeCost(upgrade, upgradeLevel(mountain, upgrade.id)) !== undefined,
+  ).map((upgrade) => ({ kind: "buyUpgrade", id: upgrade.id }));
+}
+
+function boostActions(mountain: Mountain, now: number): readonly Action[] {
+  return BOOSTS.filter(
+    (boost) =>
+      boostLeft(mountain, boost.id, now) === 0 && boostShown(mountain, boost),
+  ).map((boost) => ({ kind: "buyBoost", id: boost.id }));
+}
+
+function promoteActions(mountain: Mountain): readonly Action[] {
+  return (mountain.engineers?.length ?? 0) < MAX_ENGINEERS &&
     mountain.helpers >= 1
-  ) {
-    actions.push({ kind: "promote" });
+    ? [{ kind: "promote" }]
+    : [];
+}
+
+/**
+ * One engineer's moves: a recall while out; else sends before posts. A payback tie keeps the
+ * earlier offer, and a scout's find is the choice when it ties a free walk to a machine.
+ */
+function handActions(
+  mountain: Mountain,
+  hand: Engineer,
+  index: number,
+  now: number,
+): readonly Action[] {
+  if (onTrip(mountain, hand.name)) {
+    return [{ kind: "recall", index }];
   }
-  for (const [index, hand] of (mountain.engineers ?? []).entries()) {
-    if (onTrip(mountain, hand.name)) {
-      actions.push({ kind: "recall", index });
-      continue;
-    }
-    // Sends before posts. A payback tie keeps the earlier offer, and a
-    // scout's find is the choice when it ties a free walk to a machine.
-    for (const spec of TUNNELS) {
-      if (canSend(mountain, hand, spec, now)) {
-        actions.push({ kind: "send", index, tunnel: spec.id });
-      }
-    }
-    for (const post of ENGINEER_POSTS) {
-      if (post !== "tunnel" && post !== hand.post) {
-        actions.push({ kind: "station", index, post });
-      }
-    }
-  }
+  const sends: Action[] = TUNNELS.filter((spec) =>
+    canSend(mountain, hand, spec, now),
+  ).map((spec) => ({ kind: "send", index, tunnel: spec.id }));
+  const posts: Action[] = ENGINEER_POSTS.filter(
+    (post) => post !== "tunnel" && post !== hand.post,
+  ).map((post) => ({ kind: "station", index, post }));
+  return [...sends, ...posts];
+}
+
+function workshopActions(mountain: Mountain, now: number): readonly Action[] {
   const bench = mountain.bench;
-  const held = bench === undefined && unknownBench(mountain, now) !== undefined;
-  if (!held && bench !== undefined && now < bench.endsAt) {
-    actions.push({ kind: "cancelCraft" });
-  } else if (!held && bench === undefined && workshopUnlocked(mountain)) {
-    for (const recipe of sinkRecipes(mountain)) {
-      actions.push({ kind: "craft", recipe });
-    }
+  if (bench === undefined && unknownBench(mountain, now) !== undefined) {
+    return [];
   }
-  if (trouble !== undefined) {
-    actions.push({
-      kind: "fixTrouble",
-      tier: trouble.tier,
-      startedAt: trouble.startedAt,
-    });
+  if (bench !== undefined) {
+    return now < bench.endsAt ? [{ kind: "cancelCraft" }] : [];
   }
-  return actions;
+  return workshopUnlocked(mountain)
+    ? sinkRecipes(mountain).map((recipe) => ({ kind: "craft", recipe }))
+    : [];
+}
+
+function troubleActions(trouble: Trouble | undefined): readonly Action[] {
+  return trouble === undefined
+    ? []
+    : [
+        {
+          kind: "fixTrouble",
+          tier: trouble.tier,
+          startedAt: trouble.startedAt,
+        },
+      ];
 }
 
 /**
@@ -217,18 +246,76 @@ export function sinkRecipes(mountain: Mountain): readonly RecipeId[] {
 }
 
 /**
- * Plays the move through the function the game already uses. Fixing trouble
- * does not change the mountain: that state lives on the session, and
- * `hazards.fix` is what clears it.
+ * Today's card buy: one of `id`. Any worker hired while a machine stands
+ * idle is the first use of staffing (#246), so it marks staffing taught. The game and the
+ * lab buy the same way (#409).
  */
-export function applyAction(
+export function buyWithTeach(mountain: Mountain, id: TierId): Mountain {
+  const next = buyCrew(mountain, id);
+  return id === "helper" &&
+    next.helpers > mountain.helpers &&
+    showsDot(mountain, "staffing")
+    ? markTaught(next, "staffing")
+    : next;
+}
+
+/** A move only the screen makes: the lab plays taps and marks through its value model. */
+type ScreenMove =
+  | { readonly kind: "dig" }
+  | { readonly kind: "tapVein" }
+  | { readonly kind: "markSeen"; readonly id: string }
+  | { readonly kind: "markAllSeen"; readonly ids: readonly string[] };
+
+/** Every move the player can make (#409). The lab plans the `Action` half. */
+export type Move = Action | ScreenMove;
+
+/**
+ * What a move did: applied, with what it took from the pocket and what it put in (each at
+ * least 0: a dig's or a vein's stones, a cancelled craft's refund), or refused because it
+ * changed nothing.
+ */
+export type MoveResult =
+  | {
+      readonly kind: "applied";
+      readonly mountain: Mountain;
+      readonly spent: number;
+      readonly gained: number;
+    }
+  | { readonly kind: "refused" };
+
+/** What a move sees besides the mountain and the clock. */
+export interface MoveContext {
+  readonly trouble: Trouble | undefined;
+}
+
+function moved(
+  mountain: Mountain,
+  move: Move,
+  now: number,
+  context: MoveContext,
+): Mountain {
+  switch (move.kind) {
+    case "dig":
+      return mineByHand(mountain, now, context.trouble);
+    case "tapVein":
+      return mineVein(mountain);
+    case "markSeen":
+      return markSeen(mountain, move.id);
+    case "markAllSeen":
+      return markAllSeen(mountain, move.ids);
+    default:
+      return actionApplied(mountain, move, now);
+  }
+}
+
+function actionApplied(
   mountain: Mountain,
   action: Action,
   now: number,
 ): Mountain {
   switch (action.kind) {
     case "buyTier":
-      return buyCrew(mountain, action.id);
+      return buyWithTeach(mountain, action.id);
     case "buyUpgrade":
       return buyUpgrade(mountain, action.id);
     case "buyBoost":
@@ -240,8 +327,16 @@ export function applyAction(
       });
     case "promote":
       return promote(mountain);
-    case "station":
-      return station(mountain, action.index, action.post);
+    case "station": {
+      // From a tunnel, the post calls the party back first (no find, no trip), so no
+      // expedition is left without its engineer. A real station is the first tend (#246).
+      const next = station(
+        recall(mountain, action.index),
+        action.index,
+        action.post,
+      );
+      return next === mountain ? mountain : markTaught(next, "tending");
+    }
     case "send":
       return send(mountain, action.index, action.tunnel, now);
     case "recall":
@@ -263,6 +358,39 @@ export function applyAction(
       return unexpected;
     }
   }
+}
+
+/**
+ * Applies one move, the one way the game changes (#409): the store dispatches it, and the
+ * lab's `applyAction` calls it. A move that leaves the mountain as it was is refused.
+ */
+export function applyMove(
+  mountain: Mountain,
+  move: Move,
+  now: number,
+  context: MoveContext,
+): MoveResult {
+  const next = moved(mountain, move, now, context);
+  if (next === mountain) {
+    return { kind: "refused" };
+  }
+  const gained = next.pocket - mountain.pocket;
+  return {
+    kind: "applied",
+    mountain: next,
+    spent: Math.max(0, -gained),
+    gained: Math.max(0, gained),
+  };
+}
+
+/** The lab's move: the same rules as the game, with no trouble passed in. */
+export function applyAction(
+  mountain: Mountain,
+  action: Action,
+  now: number,
+): Mountain {
+  const result = applyMove(mountain, action, now, { trouble: undefined });
+  return result.kind === "applied" ? result.mountain : mountain;
 }
 
 /**

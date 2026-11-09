@@ -5356,3 +5356,126 @@ describe("two saves found (#226)", () => {
     progress.dispose();
   });
 });
+
+describe("dispatch (#409)", () => {
+  const store = () =>
+    createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: createMemoryStorage(),
+    });
+
+  it("applies a buy, says what it spent, saves it and tells listeners", () => {
+    const sessionStorage = createMemoryStorage();
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage,
+    });
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    const heard: number[] = [];
+    progress.subscribe((snapshot) => heard.push(snapshot.mountain.helpers));
+    const result = progress.dispatch({ kind: "buyTier", id: "helper" });
+    expect(result).toEqual({ kind: "applied", spent: 20, gained: 0 });
+    expect(progress.getSnapshot().mountain.helpers).toBe(1);
+    expect(readSessionSave({ storage: sessionStorage })?.mountain.helpers).toBe(
+      1,
+    );
+    expect(heard.at(-1)).toBe(1);
+  });
+
+  it("refuses a buy the pocket cannot pay, and changes nothing", () => {
+    const progress = store();
+    const before = progress.getSnapshot().mountain;
+    expect(progress.dispatch({ kind: "buyTier", id: "cart" })).toEqual({
+      kind: "refused",
+      reason: "no-change",
+    });
+    expect(progress.getSnapshot().mountain).toBe(before);
+  });
+
+  it("refuses every move while the session is not playing, and writes nothing", () => {
+    const sessionStorage = createMemoryStorage();
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage,
+    });
+    progress.dispose();
+    const saved = readSessionSave({ storage: sessionStorage });
+    expect(progress.dispatch({ kind: "dig" })).toEqual({
+      kind: "refused",
+      reason: "not-playing",
+    });
+    expect(readSessionSave({ storage: sessionStorage })).toEqual(saved);
+  });
+
+  it("digs with the trouble the settle leaves, even one that starts in that settle", () => {
+    const open = () => {
+      let clock = 10_000;
+      const progress = createProgressStore({
+        auth: createMemoryAuth(),
+        sessionStorage: createMemoryStorage(),
+        now: () => clock,
+        hazardSeed: 1,
+      });
+      progress.applyMutation(() => ({
+        ...minedMountain(5_000_000),
+        helpers: 40,
+        carts: 10,
+        drills: 4,
+        borers: 2,
+        // A tap takes a share of the crew's speed, so a slowed machine digs less.
+        upgrades: { tap: 5 },
+      }));
+      return {
+        progress,
+        step: () => {
+          clock += 1_000;
+        },
+      };
+    };
+    // Find the second the first trouble starts.
+    const probe = open();
+    let seconds = 0;
+    while (probe.progress.getSnapshot().trouble === undefined) {
+      probe.step();
+      probe.progress.tick();
+      seconds += 1;
+      if (seconds > 3_600) throw new Error("no trouble in an hour");
+    }
+    const ticked = probe.progress.dispatch({ kind: "dig" });
+    // The same clock, but the trouble starts inside the dig's own settle.
+    const late = open();
+    for (let second = 1; second < seconds; second += 1) {
+      late.step();
+      late.progress.tick();
+    }
+    late.step();
+    expect(late.progress.getSnapshot().trouble).toBeUndefined();
+    const dug = late.progress.dispatch({ kind: "dig" });
+    expect(late.progress.getSnapshot().trouble).toEqual(
+      probe.progress.getSnapshot().trouble,
+    );
+    expect(dug).toEqual(ticked);
+  });
+
+  it("digs by hand, with what it mined", () => {
+    const progress = store();
+    const result = progress.dispatch({ kind: "dig" });
+    expect(result.kind === "applied" && result.gained).toBeGreaterThan(0);
+    expect(progress.getSnapshot().mountain.pocket).toBe(
+      result.kind === "applied" ? result.gained : -1,
+    );
+  });
+
+  it("logs a vein tap with the stones it gave", () => {
+    const progress = store();
+    progress.applyMutation(() => minedMountain(1_000));
+    const result = progress.dispatch({ kind: "tapVein" });
+    expect(result.kind).toBe("applied");
+    const tap = progress
+      .fieldLog()
+      .events.find((event) => event.code === "vein.tap");
+    expect(tap?.data["stones"]).toBe(
+      result.kind === "applied" ? result.gained : -1,
+    );
+  });
+});
