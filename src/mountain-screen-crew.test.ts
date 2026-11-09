@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { boostById, boostCost } from "./boosts";
+import { BOOSTS, boostById, boostCost } from "./boosts";
 import { promoteCost } from "./engineers";
 import { send } from "./expeditions";
 import {
@@ -30,10 +30,12 @@ import {
 import { createMemoryAuth } from "./auth";
 import { type CloudLoadResult, type CloudSave } from "./cloud-save";
 import { BUYS_SETTLE_MS, showAppUpdate } from "./mountain-screen";
-import { shownRows } from "./upgrade-reveal";
+import { shownRows, upgradeRowId } from "./upgrade-reveal";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { tierById, tierCost } from "./tiers";
-import { upgradeById, upgradeCost, type UpgradeId } from "./upgrades";
+import { UPGRADES, upgradeById, upgradeCost, type UpgradeId } from "./upgrades";
+import { upgradesOrder } from "./upgrades-panel";
+import { LOST_TOOLS } from "./lost-tools";
 import {
   createMemoryStorage,
   mountScreen,
@@ -2101,6 +2103,70 @@ describe("upgrades on screen", () => {
     }
   });
 
+  it("Upgrades opened while the save reloads keeps its order", async () => {
+    // Sharper picks was used. With the pocket on Strong arms it is New, and Lasting leads.
+    const base: Mountain = {
+      ...minedMountain(30_000),
+      helpers: 500,
+      carts: 3,
+      drills: 1,
+      staffed: 2,
+      boosts: { sharper: CLOCK - 1 },
+      pocket: 0,
+    };
+    let landWith: (result: CloudLoadResult) => void = () => {
+      throw new Error("load was not pending");
+    };
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        landWith = onChange;
+        return () => undefined;
+      },
+    };
+    const auth = createMemoryAuth();
+    const screen = mountScreen({
+      auth,
+      cloudSave,
+      storage: seededWith({ ...base, pocket: upgradePrice("tap", 0) }, CLOCK),
+      now: () => CLOCK,
+    });
+    // The parts, without the spare plate under them, whose fit changes as the drawer opens.
+    const partsOrder = (): string[] =>
+      rowOrder(screen).filter((part) => !part.startsWith("board-spare"));
+    const order = partsOrder();
+    expect(order.indexOf("lasting")).toBeLessThan(order.indexOf("boosts"));
+    await auth.signIn();
+    await Promise.resolve();
+    expect(screen.progress.getSnapshot().ready).toBe(false);
+    openUpgrades(screen);
+    // The save that lands has an empty pocket: Overtime is New, and would lead.
+    landWith({
+      kind: "found",
+      mountain: { ...base, remaining: base.remaining - 1 },
+    });
+    await Promise.resolve();
+    expect(screen.progress.getSnapshot().ready).toBe(true);
+    expect(
+      rowOf(screen, '[data-boost="overtime"]').classList.contains("teach-new"),
+    ).toBe(true);
+    expect(partsOrder()).toEqual(order);
+    // Overtime does not lead the list it was not ordered for.
+    expect(
+      drawerOf(screen)?.querySelector(".board-sheet-kick")?.textContent,
+    ).toBe("Boosts for tonight, gear for good");
+    // The next opening leads with the New row's section.
+    drawerOf(screen)
+      ?.querySelector<HTMLButtonElement>(".board-sheet-back")
+      ?.click();
+    openUpgrades(screen);
+    const next = partsOrder();
+    expect(next.indexOf("boosts")).toBeLessThan(next.indexOf("lasting"));
+    expect(topRow(screen).dataset["boost"]).toBe("overtime");
+  });
+
   it("a double tap on Back to Upgrades never buys the row under it", () => {
     const m = boostsOpen(50_000);
     let clock = 10_000;
@@ -2131,6 +2197,51 @@ describe("upgrades on screen", () => {
     expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
       undefined,
     );
+  });
+});
+
+describe("the Upgrades order", () => {
+  const boosts = BOOSTS.map((boost) => `boost:${boost.id}`);
+  const lasting = UPGRADES.map((upgrade) => `upgrade:${upgrade.id}`);
+  const found = [
+    "sec:found",
+    ...LOST_TOOLS.map((tool) => `tool:${tool}`),
+    "foot",
+  ];
+
+  it("with no New row, Quick boosts lead, each in its own order", () => {
+    expect(upgradesOrder(undefined)).toEqual([
+      "sec:boosts",
+      ...boosts,
+      "sec:lasting",
+      ...lasting,
+      ...found,
+    ]);
+  });
+
+  it("a New boost leads Quick boosts", () => {
+    expect(upgradesOrder("boost:overtime")).toEqual([
+      "sec:boosts",
+      "boost:overtime",
+      ...boosts.filter((id) => id !== "boost:overtime"),
+      "sec:lasting",
+      ...lasting,
+      ...found,
+    ]);
+  });
+
+  it("a New upgrade leads its section, and its section leads", () => {
+    const second = UPGRADES[1];
+    if (second === undefined) throw new Error("only one upgrade");
+    const fresh = upgradeRowId(second);
+    expect(upgradesOrder(fresh)).toEqual([
+      "sec:lasting",
+      fresh,
+      ...lasting.filter((id) => id !== fresh),
+      "sec:boosts",
+      ...boosts,
+      ...found,
+    ]);
   });
 });
 

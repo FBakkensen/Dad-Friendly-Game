@@ -2,6 +2,7 @@ import { oneOffStretch, stretch } from "./scale";
 import { el, hide, legend, mark } from "./board-dom";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
 import type { BoardHost } from "./board-host";
+import type { Layout } from "./board-interaction";
 import {
   createBoardRow,
   rowsOnBoard,
@@ -32,6 +33,7 @@ import {
   newRowId,
   toolRowView,
   upgradeRowView,
+  type UpgradeRowView,
 } from "./upgrade-rows";
 import {
   anyHiddenRow,
@@ -113,6 +115,321 @@ function wireBuy(
   });
 }
 
+/** The Upgrades list's parts that are not rows, by their ids in the board's layout. */
+const SEC_BOOSTS = "sec:boosts";
+const SEC_LASTING = "sec:lasting";
+const SEC_FOUND = "sec:found";
+const FOOT = "foot";
+
+const BOOST_IDS: readonly RevealRowId[] = BOOSTS.map(boostRowId);
+const UPGRADE_IDS: readonly RevealRowId[] = UPGRADES.map(upgradeRowId);
+const toolPartId = (id: LostToolId): string => `tool:${id}`;
+
+/** The ids with the New row first, when it is one of them. */
+function led(
+  ids: readonly RevealRowId[],
+  newId: RevealRowId | undefined,
+): readonly RevealRowId[] {
+  return newId !== undefined && ids.includes(newId)
+    ? [newId, ...ids.filter((id) => id !== newId)]
+    : ids;
+}
+
+/**
+ * The Upgrades list's order, every part in it, shown or not: the New row first in its
+ * section, and its section first. Brought home and the footnote stay last.
+ */
+export function upgradesOrder(
+  newId: RevealRowId | undefined,
+): readonly string[] {
+  const boosts = [SEC_BOOSTS, ...led(BOOST_IDS, newId)];
+  const lasting = [SEC_LASTING, ...led(UPGRADE_IDS, newId)];
+  const upgradeLeads = newId !== undefined && UPGRADE_IDS.includes(newId);
+  return [
+    ...(upgradeLeads ? [...lasting, ...boosts] : [...boosts, ...lasting]),
+    SEC_FOUND,
+    ...LOST_TOOLS.map(toolPartId),
+    FOOT,
+  ];
+}
+
+/** The drawer's rows, built once and wired to buy. */
+interface UpgradesRows {
+  readonly boosts: readonly BoostRow[];
+  readonly upgrades: readonly UpgradeRow[];
+  readonly tools: readonly ToolRow[];
+}
+
+function buildRows(taps: BuyTaps): UpgradesRows {
+  const buyRow = (
+    className: string,
+    data: Readonly<Record<string, string>>,
+    name: string,
+  ): BoardRow =>
+    createBoardRow({ tag: "button", className, data, name, icon: false });
+  const boosts = BOOSTS.map((boost) => {
+    const row = buyRow("upgrade boost", { boost: boost.id }, boost.name);
+    const id = boostRowId(boost);
+    wireBuy(
+      taps,
+      id,
+      row,
+      (mountain, at) => boostRowView(mountain, at, boost, false),
+      { kind: "buyBoost", id: boost.id },
+    );
+    return { boost, id, row };
+  });
+  const upgrades = UPGRADES.map((upgrade) => {
+    const row = buyRow("upgrade", { upgrade: upgrade.id }, upgrade.name);
+    const id = upgradeRowId(upgrade);
+    wireBuy(
+      taps,
+      id,
+      row,
+      (mountain, at) => upgradeRowView(mountain, at, upgrade, false),
+      { kind: "buyUpgrade", id: upgrade.id },
+    );
+    return { upgrade, id, row };
+  });
+  const tools = LOST_TOOLS.map((id) => ({
+    id,
+    row: createBoardRow({
+      tag: "div",
+      className: "found-tool",
+      data: { tool: id },
+      name: lostToolWords(id).name,
+      icon: false,
+    }),
+  }));
+  return { boosts, upgrades, tools };
+}
+
+/** The legends and the footnote, built once. */
+interface UpgradesParts {
+  readonly boostSec: HTMLElement;
+  readonly lastingSec: HTMLElement;
+  readonly foundSec: HTMLElement;
+  readonly foot: HTMLElement;
+}
+
+/**
+ * Builds the legends and the footnote, puts every part in the drawer in the order with no New
+ * row, and returns them by their layout ids. Until the save is in, nothing from it shows: no
+ * row, legend or footnote.
+ */
+function placeParts(
+  sheet: BoardSheet,
+  rows: UpgradesRows,
+): {
+  readonly parts: UpgradesParts;
+  readonly byId: ReadonlyMap<string, HTMLElement>;
+} {
+  const parts: UpgradesParts = {
+    boostSec: legend("Quick boosts", "boosts"),
+    lastingSec: legend("Lasting upgrades", "lasting"),
+    foundSec: legend(BROUGHT_HOME, "found"),
+    foot: el("p", "board-sheet-foot", UPGRADES_MORE),
+  };
+  const byId = new Map<string, HTMLElement>([
+    [SEC_BOOSTS, parts.boostSec],
+    [SEC_LASTING, parts.lastingSec],
+    [SEC_FOUND, parts.foundSec],
+    [FOOT, parts.foot],
+    ...[...rows.boosts, ...rows.upgrades].map(
+      ({ id, row }) => [id, row.root] as const,
+    ),
+    ...rows.tools.map(({ id, row }) => [toolPartId(id), row.root] as const),
+  ]);
+  for (const part of byId.values()) {
+    part.hidden = true;
+  }
+  sheet.place(upgradesOrder(undefined).flatMap((id) => byId.get(id) ?? []));
+  return { parts, byId };
+}
+
+/** The Upgrades list's order on the board's model. */
+interface UpgradesLayout {
+  /**
+   * The order for the New row `newId`, from a ready render or as the drawer opens: shut, the
+   * list takes it, and an opening freezes it; open, the list keeps the order it froze. Returns
+   * the New row the order the list shows was made for.
+   */
+  paint(newId: RevealRowId | undefined): RevealRowId | undefined;
+  /** Opened while the save loads: the open freezes the order the list shows. */
+  keep(): void;
+}
+
+/**
+ * Rows never move under a finger: the order is set while the drawer is shut and as it opens,
+ * and holds while it is open. The board's model holds that order; this arranges the list by
+ * it. Which rows show stays the render's, live, so a buy or the tick may pass the New flag to
+ * another row, in its place.
+ */
+function createUpgradesLayout(
+  board: BoardHost,
+  sheet: BoardSheet,
+  byId: ReadonlyMap<string, HTMLElement>,
+): UpgradesLayout {
+  /** The New row each order this drawer sent was made for. */
+  const madeFor = new WeakMap<Layout, RevealRowId | undefined>();
+  let arranged = upgradesOrder(undefined);
+  let arrangedFor: RevealRowId | undefined;
+  const send = (
+    parts: readonly string[],
+    newId: RevealRowId | undefined,
+  ): void => {
+    const layout: Layout = { parts, chipRows: 0 };
+    madeFor.set(layout, newId);
+    board.send({ kind: "layout", overlay: "upgrades", layout });
+  };
+  // The model keeps a layout as it was given, so the one it shows finds its note.
+  const arrange = (): void => {
+    const layout = board.view().layouts.get("upgrades");
+    if (layout === undefined) {
+      return;
+    }
+    arrangedFor = madeFor.get(layout);
+    if (!sameParts(layout.parts, arranged)) {
+      arranged = layout.parts;
+      sheet.place(arranged.flatMap((id) => byId.get(id) ?? []));
+    }
+  };
+  return {
+    paint(newId) {
+      send(upgradesOrder(newId), newId);
+      arrange();
+      return arrangedFor;
+    },
+    keep() {
+      send(arranged, arrangedFor);
+      arrange();
+    },
+  };
+}
+
+function sameParts(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((id, index) => id === b[index]);
+}
+
+/** The boost chips in Running now: as today, from the save whatever its state. */
+function renderChips(
+  chipFor: ReadonlyMap<BoostId, HTMLElement>,
+  current: Mountain,
+  at: number,
+): void {
+  for (const boost of BOOSTS) {
+    const chip = chipFor.get(boost.id);
+    if (chip === undefined) {
+      continue;
+    }
+    const left = boostLeft(current, boost.id, at);
+    writeChip(chip, {
+      short: shortEffectName(boost.name),
+      full: boost.name,
+      multiplier: boost.multiplier,
+      leftMs: left,
+      active: left > 0,
+    });
+  }
+}
+
+/** The "i" cards' steps, priced for the save's stretch: written again only when it changes. */
+function createHowPricer(how: HTMLElement): (current: Mountain) => void {
+  let priced = "1:1";
+  return (current) => {
+    const key = `${String(stretch(current))}:${String(oneOffStretch(current))}`;
+    if (key === priced) {
+      return;
+    }
+    priced = key;
+    const copy = howItWorks(stretch(current), oneOffStretch(current));
+    for (const card of how.querySelectorAll<HTMLElement>("[data-how]")) {
+      const system = card.dataset["how"];
+      if (system === "upgrades" || system === "boosts") {
+        setHowSteps(card, copy[system].steps);
+      }
+    }
+  };
+}
+
+/** Paints a section's buy rows, the New row marked. Returns whether any row shows. */
+function paintBuyRows<
+  Row extends { readonly id: RevealRowId; readonly row: BoardRow },
+>(
+  rows: readonly Row[],
+  viewOf: (item: Row, fresh: boolean) => UpgradeRowView,
+  newId: RevealRowId | undefined,
+  onBoard: RowsOnBoard,
+): boolean {
+  let showing = false;
+  for (const item of rows) {
+    const rowView = viewOf(item, item.id === newId);
+    hide(item.row.root, !rowView.shown);
+    showing ||= rowView.shown;
+    onBoard.paint(item.id, item.row, rowView);
+    mark(item.row.root, "teach-new", item.id === newId);
+  }
+  return showing;
+}
+
+/** Paints the rows, legends and footnote from a ready save. */
+function paintReady(
+  { boosts, upgrades, tools }: UpgradesRows,
+  parts: UpgradesParts,
+  {
+    current,
+    at,
+    newId,
+    onBoard,
+  }: {
+    current: Mountain;
+    at: number;
+    newId: RevealRowId | undefined;
+    onBoard: RowsOnBoard;
+  },
+): void {
+  const boostsShowing = paintBuyRows(
+    boosts,
+    ({ boost }, fresh) => boostRowView(current, at, boost, fresh),
+    newId,
+    onBoard,
+  );
+  const upgradesShowing = paintBuyRows(
+    upgrades,
+    ({ upgrade }, fresh) => upgradeRowView(current, at, upgrade, fresh),
+    newId,
+    onBoard,
+  );
+  let anyFound = false;
+  for (const { id, row } of tools) {
+    const rowView = toolRowView(current, id);
+    hide(row.root, !rowView.shown);
+    anyFound ||= rowView.shown;
+    onBoard.paint(toolPartId(id), row, rowView);
+  }
+  hide(parts.boostSec, !boostsShowing);
+  hide(parts.lastingSec, !upgradesShowing);
+  hide(parts.foundSec, !anyFound);
+  hide(parts.foot, !anyHiddenRow(current));
+}
+
+/**
+ * Until the save is in, the rows go dark and keep their places: names only, disabled, no
+ * numbers.
+ */
+function paintLoading(
+  { boosts, upgrades, tools }: UpgradesRows,
+  onBoard: RowsOnBoard,
+): void {
+  for (const { id, row } of [...boosts, ...upgrades]) {
+    onBoard.paint(id, row, undefined);
+    mark(row.root, "teach-new", false);
+  }
+  for (const { id, row } of tools) {
+    onBoard.paint(toolPartId(id), row, undefined);
+  }
+}
+
 /**
  * The Upgrades drawer. `open` marks every shown row seen, then opens the drawer; the opener
  * (the Upgrades key on the rail) owns its lit cap and dot.
@@ -159,6 +476,15 @@ export function createUpgradesPanel({
     },
     board,
     overSave,
+    // The order the open freezes. Opened while the save loads, the list keeps its order.
+    onOpen: () => {
+      const view = getView();
+      if (view.ready) {
+        layout.paint(newRowId(view.mountain, now()));
+      } else {
+        layout.keep();
+      }
+    },
     onForget: () => {
       onBoard.forget();
     },
@@ -167,206 +493,32 @@ export function createUpgradesPanel({
   });
   sheet.kick(UPGRADES_KICK);
 
-  let howPriced = "1:1";
-
-  const taps: BuyTaps = { progress, dispatch, now, onBoard };
-
-  const boostRows: readonly BoostRow[] = BOOSTS.map((boost) => {
-    const row = createBoardRow({
-      tag: "button",
-      className: "upgrade boost",
-      data: { boost: boost.id },
-      name: boost.name,
-      icon: false,
-    });
-    const id = boostRowId(boost);
-    wireBuy(
-      taps,
-      id,
-      row,
-      (mountain, at) => boostRowView(mountain, at, boost, false),
-      {
-        kind: "buyBoost",
-        id: boost.id,
-      },
-    );
-    return { boost, id, row };
-  });
-
-  const upgradeRows: readonly UpgradeRow[] = UPGRADES.map((upgrade) => {
-    const row = createBoardRow({
-      tag: "button",
-      className: "upgrade",
-      data: { upgrade: upgrade.id },
-      name: upgrade.name,
-      icon: false,
-    });
-    const id = upgradeRowId(upgrade);
-    wireBuy(
-      taps,
-      id,
-      row,
-      (mountain, at) => upgradeRowView(mountain, at, upgrade, false),
-      { kind: "buyUpgrade", id: upgrade.id },
-    );
-    return { upgrade, id, row };
-  });
-
-  const toolRows: readonly ToolRow[] = LOST_TOOLS.map((id) => {
-    const row = createBoardRow({
-      tag: "div",
-      className: "found-tool",
-      data: { tool: id },
-      name: lostToolWords(id).name,
-      icon: false,
-    });
-    return { id, row };
-  });
-
-  const boostSec = legend("Quick boosts", "boosts");
-  const lastingSec = legend("Lasting upgrades", "lasting");
-  const foundSec = legend(BROUGHT_HOME, "found");
-  const foot = el("p", "board-sheet-foot", UPGRADES_MORE);
-  // Until the save is in, nothing from it shows: no row, legend or footnote.
-  for (const part of [
-    boostSec,
-    lastingSec,
-    foundSec,
-    foot,
-    ...boostRows.map(({ row }) => row.root),
-    ...upgradeRows.map(({ row }) => row.root),
-    ...toolRows.map(({ row }) => row.root),
-  ]) {
-    part.hidden = true;
-  }
-
-  /** The New row the list was last ordered for; null before the first order. */
-  let orderedFor: RevealRowId | undefined | null = null;
-  /**
-   * Today's order: the New row first in its section, and its section first. Only while the
-   * drawer is shut, and as it opens.
-   */
-  const order = (newId: RevealRowId | undefined): void => {
-    if (newId === orderedFor) {
-      return;
-    }
-    orderedFor = newId;
-    const lead = (
-      rows: readonly { readonly id: RevealRowId; readonly row: BoardRow }[],
-    ): HTMLElement[] => {
-      const fresh = rows.find((item) => item.id === newId);
-      return [
-        ...(fresh === undefined ? [] : [fresh.row.root]),
-        ...rows.filter((item) => item !== fresh).map((item) => item.row.root),
-      ];
-    };
-    const boosts = [boostSec, ...lead(boostRows)];
-    const lasting = [lastingSec, ...lead(upgradeRows)];
-    const upgradeLeads = upgradeRows.some((item) => item.id === newId);
-    const parts = [
-      ...(upgradeLeads ? [...lasting, ...boosts] : [...boosts, ...lasting]),
-      foundSec,
-      ...toolRows.map(({ row }) => row.root),
-      foot,
-    ];
-    sheet.place(parts);
-  };
-  order(undefined);
-
-  /** The boost chips in Running now: as today, from the save whatever its state. */
-  const renderChips = (current: Mountain, at: number): void => {
-    for (const { boost } of boostRows) {
-      const chip = chipFor.get(boost.id);
-      if (chip === undefined) {
-        continue;
-      }
-      const left = boostLeft(current, boost.id, at);
-      writeChip(chip, {
-        short: shortEffectName(boost.name),
-        full: boost.name,
-        multiplier: boost.multiplier,
-        leftMs: left,
-        active: left > 0,
-      });
-    }
-  };
-
-  const renderHow = (current: Mountain): void => {
-    const key = `${String(stretch(current))}:${String(oneOffStretch(current))}`;
-    if (key === howPriced) {
-      return;
-    }
-    howPriced = key;
-    const copy = howItWorks(stretch(current), oneOffStretch(current));
-    for (const card of sheet.how.querySelectorAll<HTMLElement>("[data-how]")) {
-      const system = card.dataset["how"];
-      if (system === "upgrades" || system === "boosts") {
-        setHowSteps(card, copy[system].steps);
-      }
-    }
-  };
+  const rows = buildRows({ progress, dispatch, now, onBoard });
+  const { parts, byId } = placeParts(sheet, rows);
+  const layout = createUpgradesLayout(board, sheet, byId);
+  const priceHow = createHowPricer(sheet.how);
 
   const render = (): void => {
     const view = getView();
     const current = view.mountain;
     const at = now();
-    renderHow(current);
-    renderChips(current, at);
-    if (!view.ready) {
-      // The rows go dark and keep their places: names only, disabled, no numbers.
-      for (const { id, row } of [...boostRows, ...upgradeRows]) {
-        onBoard.paint(id, row, undefined);
-        mark(row.root, "teach-new", false);
-      }
-      for (const { id, row } of toolRows) {
-        onBoard.paint(`tool:${id}`, row, undefined);
-      }
+    priceHow(current);
+    renderChips(chipFor, current, at);
+    if (view.ready) {
+      const newId = newRowId(current, at);
+      paintReady(rows, parts, { current, at, newId, onBoard });
+      // "Right on top" only while the New row is the one the list was ordered for: that row
+      // leads the first section.
+      const orderedFor = layout.paint(newId);
+      sheet.kick(
+        newId !== undefined && newId === orderedFor
+          ? UPGRADES_INTRO
+          : UPGRADES_KICK,
+      );
+    } else {
+      paintLoading(rows, onBoard);
       sheet.kick(UPGRADES_KICK);
-      if (sheet.isOpen()) {
-        sheet.fitSpare();
-      }
-      return;
     }
-    const newId = newRowId(current, at);
-    let boostsShowing = false;
-    for (const { boost, id, row } of boostRows) {
-      const rowView = boostRowView(current, at, boost, id === newId);
-      hide(row.root, !rowView.shown);
-      boostsShowing ||= rowView.shown;
-      onBoard.paint(id, row, rowView);
-      mark(row.root, "teach-new", id === newId);
-    }
-    let upgradesShowing = false;
-    for (const { upgrade, id, row } of upgradeRows) {
-      const rowView = upgradeRowView(current, at, upgrade, id === newId);
-      hide(row.root, !rowView.shown);
-      upgradesShowing ||= rowView.shown;
-      onBoard.paint(id, row, rowView);
-      mark(row.root, "teach-new", id === newId);
-    }
-    let anyFound = false;
-    for (const { id, row } of toolRows) {
-      const rowView = toolRowView(current, id);
-      hide(row.root, !rowView.shown);
-      anyFound ||= rowView.shown;
-      onBoard.paint(`tool:${id}`, row, rowView);
-    }
-    hide(boostSec, !boostsShowing);
-    hide(lastingSec, !upgradesShowing);
-    hide(foundSec, !anyFound);
-    hide(foot, !anyHiddenRow(current));
-    // Rows never move under a finger: the order is set as the drawer opens and holds while it
-    // is open. A buy or the tick may pass the New flag to another row, in its place.
-    if (!sheet.isOpen()) {
-      order(newId);
-    }
-    // "Right on top" only while the New row is the one the list was ordered for: that row leads
-    // the first section.
-    sheet.kick(
-      newId !== undefined && newId === orderedFor
-        ? UPGRADES_INTRO
-        : UPGRADES_KICK,
-    );
     if (sheet.isOpen()) {
       sheet.fitSpare();
     }
@@ -379,10 +531,6 @@ export function createUpgradesPanel({
         kind: "markAllSeen",
         ids: shownRows(progress.getSnapshot().mountain),
       });
-    }
-    const view = getView();
-    if (view.ready && !sheet.isOpen()) {
-      order(newRowId(view.mountain, now()));
     }
     sheet.open(from);
   };
