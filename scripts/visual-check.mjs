@@ -4159,6 +4159,67 @@ for (const viewport of SCREENS) {
         console.log("gauge row contrast", size, name, JSON.stringify(contrast));
       }
 
+      // The New sign (#373): in the band between the plate's words and the
+      // key rail, clear of the DIG legend, and a tap at its middle goes through.
+      const sign = await page.evaluate(() => {
+        const slot = document.querySelector(".board-sign-slot:not([hidden])");
+        const face = slot?.querySelector(".board-sign");
+        if (face === null || face === undefined) {
+          return { shown: false };
+        }
+        const r = face.getBoundingClientRect();
+        const box = (selector) =>
+          document.querySelector(selector)?.getBoundingClientRect();
+        const apart = (b) =>
+          b === undefined ||
+          r.right <= b.left + 0.5 ||
+          r.left >= b.right - 0.5 ||
+          r.bottom <= b.top + 0.5 ||
+          r.top >= b.bottom - 0.5;
+        const words = box(".board-ready-text");
+        const legend = box(".board-dig-lg");
+        const rail = box(".board-rail");
+        const hit = document.elementFromPoint(
+          (r.left + r.right) / 2,
+          (r.top + r.bottom) / 2,
+        );
+        return {
+          shown: true,
+          key: slot?.getAttribute("data-key") ?? "",
+          text: face.textContent ?? "",
+          clearOfWords: apart(words),
+          clearOfLegend: apart(legend),
+          aboveRail: rail !== undefined && r.bottom <= rail.top + 0.5,
+          passes: hit !== null && !face.contains(hit) && hit !== slot,
+          size: Number.parseFloat(
+            getComputedStyle(face.querySelector(".board-sign-text") ?? face)
+              .fontSize,
+          ),
+          rect: [r.left, r.top, r.right, r.bottom].map(Math.round),
+        };
+      });
+      if (name === "mid" || sign.shown) {
+        check(
+          sign.shown &&
+            sign.clearOfWords &&
+            sign.clearOfLegend &&
+            sign.aboveRail &&
+            sign.passes &&
+            sign.size >= 14,
+          `${label} the New sign stands between the plate's words and the rail, clear of the DIG legend, at 14px, and taps go through it`,
+        );
+        if (
+          !sign.shown ||
+          !sign.clearOfWords ||
+          !sign.clearOfLegend ||
+          !sign.aboveRail ||
+          !sign.passes ||
+          sign.size < 14
+        ) {
+          console.log("new sign", size, name, JSON.stringify(sign));
+        }
+      }
+
       // A dig shows "+N"; its text joins the 13px count.
       await press(page, ".board-window");
       const text = await boardTextSizes(page);

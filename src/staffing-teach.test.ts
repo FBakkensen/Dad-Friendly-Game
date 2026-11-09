@@ -127,7 +127,7 @@ describe("staffing teach (#246)", () => {
     );
     expect(buys?.querySelector(".board-key-dot:not([hidden])")).not.toBeNull();
     expect(
-      screen.root.querySelector<HTMLElement>(".teach-note")?.hidden ?? true,
+      screen.root.querySelector<HTMLElement>(".board-sign-slot")?.hidden,
     ).toBe(true);
     const row = screen.root.querySelector<HTMLButtonElement>(
       '.board-sheet[data-sheet="buys"] .board-row.tier[data-tier="cart"]',

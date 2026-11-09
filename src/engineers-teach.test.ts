@@ -125,7 +125,7 @@ describe("engineers teach (#246)", () => {
     }
   });
 
-  it("opens from the note on the New card, and the one big button sends the first trip", () => {
+  it("opens from its key under the New sign, and the one big button sends the first trip", () => {
     const clock = 1_700_000_000_000;
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => crew());
@@ -135,25 +135,18 @@ describe("engineers teach (#246)", () => {
     expect(
       button?.querySelector(".board-key-dot:not([hidden])"),
     ).not.toBeNull();
-    // The New note waits for the relic and layer cards the jump opened, then shows in
-    // the board note above its key (#372, #373).
-    expect(screen.root.querySelector(".board-note.on .teach-note")).toBeNull();
+    // The New sign waits for the relic and layer cards the jump opened, then stands
+    // over its key (#372, #373).
+    const sign = () =>
+      screen.root.querySelector<HTMLElement>(".board-sign-slot:not([hidden])");
+    expect(sign()).toBeNull();
     closeArrivals(screen.root);
-    // Anchored on the key: a press on it keeps the note up.
-    button?.dispatchEvent(
-      new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
-    );
-    button?.dispatchEvent(
-      new PointerEvent("pointerup", { bubbles: true, button: 0 }),
-    );
-    const note = screen.root.querySelector<HTMLButtonElement>(
-      ".board-note.on .teach-note",
-    );
-    expect(note?.hidden).toBe(false);
-    expect(note?.textContent).toBe("New · Ada is your first engineer");
-    note?.click();
+    expect(sign()?.dataset["key"]).toBe("engineers");
+    expect(sign()?.textContent).toBe("New · Ada is your first engineer");
+    // Its key opens the sheet: seen, and the sign goes.
+    button?.click();
     expect(screen.progress.getSnapshot().mountain.seen).toContain("engineers");
-    expect(note?.hidden).toBe(true);
+    expect(sign()).toBeNull();
     const sheet = screen.root.querySelector<HTMLElement>(".engineers-dialog");
     expect(sheet?.hidden).toBe(false);
     expect(

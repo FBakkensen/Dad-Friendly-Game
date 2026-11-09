@@ -1,47 +1,9 @@
 /**
  * The shared teach parts (M11, #241), the hybrid pattern from #240.
- * Every system uses these, so the note, the New card, the payoff
+ * Every system uses these, so the New card, the payoff
  * line and How it works look the same everywhere. Copy comes from the
  * caller; this file has none of its own beyond the New tag.
  */
-
-/** One line above the bar, styled like the bar. Tapping it opens the sheet. */
-export function createTeachNote(): {
-  readonly note: HTMLButtonElement;
-  readonly show: (art: string, text: string, open: () => void) => void;
-  readonly hide: () => void;
-} {
-  const note = document.createElement("button");
-  note.type = "button";
-  note.className = "teach-note";
-  note.hidden = true;
-  const art = document.createElement("img");
-  art.alt = "";
-  art.width = 24;
-  art.height = 24;
-  art.draggable = false;
-  const text = document.createElement("span");
-  note.append(art, text);
-  let onOpen: (() => void) | undefined;
-  note.addEventListener("click", () => {
-    onOpen?.();
-  });
-  return {
-    note,
-    show: (src, words, open) => {
-      if (art.getAttribute("src") !== src) {
-        art.src = src;
-      }
-      text.textContent = words;
-      onOpen = open;
-      note.hidden = false;
-    },
-    hide: () => {
-      note.hidden = true;
-      onOpen = undefined;
-    },
-  };
-}
 
 /**
  * Marks a shared sheet card as the new one: lit, tagged New, and its own

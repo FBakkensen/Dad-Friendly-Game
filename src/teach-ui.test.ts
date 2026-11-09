@@ -4,26 +4,11 @@ import {
   clearNewCard,
   createHowCard,
   createInfoButton,
-  createTeachNote,
   markNewCard,
   setPayoff,
 } from "./teach-ui";
 
 describe("teach parts", () => {
-  it("shows one note that opens its sheet, then hides", () => {
-    const note = createTeachNote();
-    expect(note.note.hidden).toBe(true);
-    const open = vi.fn();
-    note.show("hammer.png", "New · The Workshop is open", open);
-    expect(note.note.textContent).toBe("New · The Workshop is open");
-    note.note.click();
-    expect(open).toHaveBeenCalledOnce();
-    note.hide();
-    expect(note.note.hidden).toBe(true);
-    note.note.click();
-    expect(open).toHaveBeenCalledOnce();
-  });
-
   it("tags the New card and turns its own button into the big action", () => {
     const card = document.createElement("div");
     const button = document.createElement("button");

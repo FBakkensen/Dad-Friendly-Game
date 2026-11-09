@@ -151,6 +151,7 @@ export function createCrewPanel({
   now,
   pick,
   clock,
+  door,
   signal,
 }: {
   progress: ProgressStore;
@@ -160,6 +161,8 @@ export function createCrewPanel({
   pick: () => ReadyPick;
   /** Milliseconds for the drawer's settle (the screen's tap clock). */
   clock: () => number;
+  /** The drawer's key on the rail: the shell writes its aria-expanded (#373). */
+  door?: HTMLElement;
   /** Aborting it removes the drawer's document listeners. */
   signal?: AbortSignal;
 }): {
@@ -172,6 +175,7 @@ export function createCrewPanel({
     title: "Buys",
     infoLabel: "Buys",
     clock,
+    ...(door === undefined ? {} : { door }),
     // Shut, the list takes its latest layout: rows, legends and chips.
     onClose: () => {
       unfreeze();

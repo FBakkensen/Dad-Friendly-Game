@@ -98,6 +98,7 @@ export function createUpgradesPanel({
   now,
   chipFor,
   clock,
+  door,
   signal,
 }: {
   progress: ProgressStore;
@@ -108,6 +109,8 @@ export function createUpgradesPanel({
   chipFor: ReadonlyMap<BoostId, HTMLElement>;
   /** Milliseconds for the drawer's settle (the screen's tap clock). */
   clock: () => number;
+  /** The drawer's key on the rail: the shell writes its aria-expanded (#373). */
+  door?: HTMLElement;
   /** Aborting it removes the drawer's document listeners. */
   signal?: AbortSignal;
 }): {
@@ -120,6 +123,7 @@ export function createUpgradesPanel({
     title: "Upgrades",
     infoLabel: "Upgrades and boosts",
     clock,
+    ...(door === undefined ? {} : { door }),
     ...(signal === undefined ? {} : { signal }),
   });
   sheet.kick(UPGRADES_KICK);

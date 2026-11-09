@@ -402,9 +402,11 @@ describe("workshop panel (#199)", () => {
       ".board-key[data-key=workshop]",
     );
     expect(key?.querySelector(".board-key-dot:not([hidden])")).not.toBeNull();
-    // The New note waits for the relic and layer cards the jump opened, then shows in
-    // the board note above its key (#372, #373).
-    expect(screen.root.querySelector(".board-note.on .teach-note")).toBeNull();
+    // The New sign waits for the relic and layer cards the jump opened, then stands
+    // over its key (#372, #373).
+    const sign = () =>
+      screen.root.querySelector<HTMLElement>(".board-sign-slot:not([hidden])");
+    expect(sign()).toBeNull();
     for (let i = 0; i < 20; i += 1) {
       const go = screen.root.querySelector<HTMLButtonElement>(
         ".relic-reveal:not([hidden]) .reveal-continue, .layer-arrival:not([hidden]) .layer-dig",
@@ -412,24 +414,15 @@ describe("workshop panel (#199)", () => {
       if (go === null) break;
       go.click();
     }
-    // Anchored on the key: a press on it keeps the note up.
-    key?.dispatchEvent(
-      new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+    expect(sign()?.dataset["key"]).toBe("workshop");
+    expect(key?.getAttribute("aria-label")).toBe(
+      "Workshop, a craft can start. New · The Workshop is open",
     );
-    key?.dispatchEvent(
-      new PointerEvent("pointerup", { bubbles: true, button: 0 }),
-    );
-    expect(
-      screen.root.querySelector(".board-note.on .teach-note"),
-    ).not.toBeNull();
-    screen.root
-      .querySelector<HTMLButtonElement>(".board-note.on .teach-note")
-      ?.click();
+    // Its key opens the sheet: seen, and the sign goes.
+    key?.click();
     const sheet = screen.root.querySelector<HTMLElement>(".workshop-dialog");
     expect(sheet?.hidden).toBe(false);
-    expect(screen.root.querySelector<HTMLElement>(".teach-note")?.hidden).toBe(
-      true,
-    );
+    expect(sign()).toBeNull();
     expect(sheet?.querySelector(".teach-intro")?.textContent).toBe(
       "Turn your clay into gear for the crew.",
     );

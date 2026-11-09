@@ -91,6 +91,21 @@ describe("spareTier", () => {
 });
 
 describe("the drawer shell", () => {
+  it("writes only aria-expanded on its door, whichever opener it opened from (#373)", () => {
+    const door = keyButton();
+    const sheet = make({ door });
+    expect(door.getAttribute("aria-expanded")).toBe("false");
+    const bay = keyButton();
+    sheet.open(bay);
+    expect(door.getAttribute("aria-expanded")).toBe("true");
+    expect(bay.hasAttribute("aria-expanded")).toBe(false);
+    sheet.close();
+    expect(door.getAttribute("aria-expanded")).toBe("false");
+    sheet.open(door);
+    sheet.close({ restoreFocus: false });
+    expect(door.getAttribute("aria-expanded")).toBe("false");
+  });
+
   it("settles for 400ms", () => {
     expect(DRAWER_SETTLE_MS).toBe(400);
   });

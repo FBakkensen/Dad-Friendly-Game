@@ -135,7 +135,7 @@ describe("tending teach (#246)", () => {
       button?.querySelector(".board-key-dot:not([hidden])"),
     ).not.toBeNull();
     expect(
-      screen.root.querySelector<HTMLElement>(".teach-note")?.hidden ?? true,
+      screen.root.querySelector<HTMLElement>(".board-sign-slot")?.hidden,
     ).toBe(true);
     button?.click();
     const sheet = screen.root.querySelector<HTMLElement>(".engineers-dialog");

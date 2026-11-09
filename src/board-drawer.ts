@@ -86,6 +86,7 @@ export function createBoardSheet({
   clock,
   onOpen,
   onClose,
+  door,
   signal,
 }: {
   name: "buys" | "upgrades";
@@ -94,6 +95,11 @@ export function createBoardSheet({
   clock: () => number;
   onOpen?: () => void;
   onClose?: () => void;
+  /**
+   * The drawer's key on the rail (#373): the shell writes only its aria-expanded, whichever
+   * door (the key, a bay, Saving for) opened the drawer.
+   */
+  door?: HTMLElement;
   /** Aborting it removes the sheet's document listeners. */
   signal?: AbortSignal;
 }): BoardSheet {
@@ -145,6 +151,7 @@ export function createBoardSheet({
   skin(root, "frame");
 
   let open = false;
+  door?.setAttribute("aria-expanded", "false");
   let openedAt = Number.NEGATIVE_INFINITY;
   let from: HTMLElement | undefined;
   let resting = "";
@@ -196,6 +203,7 @@ export function createBoardSheet({
     early = false;
     from = opener;
     root.classList.add("is-open");
+    door?.setAttribute("aria-expanded", "true");
     list.scrollTop = 0;
     focusQuietly(heading);
     onOpen?.();
@@ -213,6 +221,7 @@ export function createBoardSheet({
     }
     open = false;
     root.classList.remove("is-open");
+    door?.setAttribute("aria-expanded", "false");
     setHow(false);
     onClose?.();
     if (restoreFocus && from?.isConnected === true) {

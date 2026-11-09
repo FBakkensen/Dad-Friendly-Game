@@ -1,7 +1,6 @@
 import { minedOut, shownStones, stonesLeft } from "./scale";
 import pickUrl from "./assets/pick.png";
 import { markSeen, noteFor } from "./teach";
-import { createTeachNote } from "./teach-ui";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
 import { formatCount } from "./format";
 import {
@@ -17,8 +16,10 @@ import { BOOSTS } from "./boosts";
 import { createEffectChip, shortEffectName, writeChip } from "./effect-row";
 import { createBoardNote } from "./board-note";
 import { DRAWER_SETTLE_MS, createSheetScrim } from "./board-drawer";
-import { keyViews } from "./key-rail";
+import { keyViews, type KeyId } from "./key-rail";
 import { createKeyRail } from "./board-keys";
+import { createBoardSign } from "./board-sign";
+import { setAttr } from "./board-dom";
 import { bandWords, createMachineBays } from "./board-bays";
 import { bayViews } from "./machine-bays";
 import { readyNow, type ReadyPick } from "./ready-now";
@@ -248,14 +249,14 @@ export function mountMountainScreen({
   const bayThanks = document.createElement("p");
   bayThanks.className = "board-thanks";
   bayThanks.textContent = TROUBLE_FIXED;
-  // The New teach note shows in the board note above its key (#372, #373).
-  const teachNote = createTeachNote();
-  // While another note shows, the list, the vein's note, the bay thanks and
-  // the teach note wait here, so the chips and the live words stay in the page.
+  // The New sign stands in the band over its key (#373): a sign, not a button.
+  const sign = createBoardSign();
+  // While another note shows, the list, the vein's note and the bay thanks
+  // wait here, so the chips and the live words stay in the page.
   const runningPark = document.createElement("div");
   runningPark.className = "board-running-park";
   runningPark.hidden = true;
-  runningPark.append(running, veinNote, bayThanks, teachNote.note);
+  runningPark.append(running, veinNote, bayThanks);
   const chipFor = new Map(
     BOOSTS.map((boost) => {
       const chip = createEffectChip(
@@ -387,6 +388,33 @@ export function mountMountainScreen({
     renderVein();
   };
 
+  /**
+   * The key rail (#373): five keys under the Ready row. Buys and Upgrades open their drawers
+   * from here; Engineers and the Ledger key (today's menu, until B7) are their panels' doors,
+   * whose own click handlers open them. Every key first puts the board's popups away.
+   */
+  const rail = createKeyRail({
+    onKey: (id, key) => {
+      closeBoardPopups();
+      // A key pressed from the keyboard puts the New sign away too.
+      putSignAway();
+      switch (id) {
+        case "buys":
+          openBuys(key);
+          return;
+        case "workshop":
+          openWorkshopSheet();
+          return;
+        case "upgrades":
+          crewPanel.sheet.close({ restoreFocus: false });
+          upgrades.open(key);
+          return;
+        case "engineers":
+        case "ledger":
+          return;
+      }
+    },
+  });
   /** The Ready now pick last painted on the plate: the Buys rows light the same one. */
   let shownPick: ReadyPick = readyNow(view.mountain, now(), view.trouble);
   const crewPanel = createCrewPanel({
@@ -395,6 +423,7 @@ export function mountMountainScreen({
     now,
     pick: () => shownPick,
     clock: tapClock,
+    door: rail.keys.buys,
     ...(signal === undefined ? {} : { signal }),
   });
 
@@ -607,31 +636,6 @@ export function mountMountainScreen({
   const closeMenu = (): void => {
     menuPanel.close();
   };
-  /**
-   * The key rail (#373): five keys under the Ready row. Buys and Upgrades open their drawers
-   * from here; Engineers and the Ledger key (today's menu, until B7) are their panels' doors,
-   * whose own click handlers open them. Every key first puts the board's popups away.
-   */
-  const rail = createKeyRail({
-    onKey: (id, key) => {
-      closeBoardPopups();
-      switch (id) {
-        case "buys":
-          openBuys(key);
-          return;
-        case "workshop":
-          openWorkshopSheet();
-          return;
-        case "upgrades":
-          crewPanel.sheet.close({ restoreFocus: false });
-          upgrades.open(key);
-          return;
-        case "engineers":
-        case "ledger":
-          return;
-      }
-    },
-  });
   const workshop = createWorkshopPanel({
     progress,
     getView: () => view,
@@ -639,8 +643,9 @@ export function mountMountainScreen({
     stoneUrl,
     hammerUrl: relicArt.hammer,
     onOpen: closeMenu,
+    // Back to the door it opened from; the Ledger key while a re-load holds the Workshop's.
     onClose: () => {
-      rail.keys.workshop.focus();
+      (workshopDoor.disabled ? rail.keys.ledger : workshopDoor).focus();
     },
     requestRender: () => {
       render();
@@ -681,6 +686,7 @@ export function mountMountainScreen({
     now,
     chipFor,
     clock: tapClock,
+    door: rail.keys.upgrades,
     ...(signal === undefined ? {} : { signal }),
   });
 
@@ -808,8 +814,12 @@ export function mountMountainScreen({
     upgrades.render();
     engineers.render();
     workshop.render();
-    // Locks, lit caps, red dot lamps and timers, by the key rail's rules (#373).
-    renderRail();
+    // Today's Workshop sheet knows no key: the screen says whether it is open (#373).
+    setAttr(
+      rail.keys.workshop,
+      "aria-expanded",
+      workshop.sheet.hidden ? "false" : "true",
+    );
     renderTeach();
     const at = now();
     const hot = hotTimers(view.mountain, at);
@@ -859,7 +869,7 @@ export function mountMountainScreen({
       runningPark.append(running);
     }
     // Back to the park whenever another note has taken their place.
-    for (const parked of [veinNote, bayThanks, teachNote.note]) {
+    for (const parked of [veinNote, bayThanks]) {
       if (parked.parentNode === null) {
         runningPark.append(parked);
       }
@@ -871,6 +881,9 @@ export function mountMountainScreen({
     saveLine.render();
     coverDrawers();
     coverNote();
+    // Locks, lit caps, red dot lamps and timers, by the key rail's rules (#373),
+    // with the New sign's words on its key's label.
+    renderRail();
   };
 
   /** A card open over the board: today's sheets and the cards that open by themselves. */
@@ -897,69 +910,91 @@ export function mountMountainScreen({
       }
     }
   };
-  /** The teach note last put in the board note: each shows once a launch. */
+  /** The New sign last shown: each shows once a launch. */
   let teachShown: string | undefined;
   /**
    * A card that opens by itself (a relic, a layer, a craft done, a save
    * conflict, an update) never closes the board's popups, and the board note
-   * stands above it. So any note goes once such a card is up. A New note it
-   * covered was never really seen: it shows once more after the card.
+   * stands above it. So any note goes once such a card is up, and so does the
+   * New sign. A sign it covered was never really seen: it shows once more after
+   * the card.
    */
   const coverNote = (): void => {
-    if (
-      !boardNote.note.classList.contains("on") ||
-      root.querySelector(OPEN_SHEET) === null
-    ) {
+    if (root.querySelector(OPEN_SHEET) === null) {
       return;
     }
-    if (boardNote.note.contains(teachNote.note)) {
+    if (sign.shown() !== undefined) {
       teachShown = undefined;
+      sign.hide();
     }
-    boardNote.hide();
+    if (boardNote.note.classList.contains("on")) {
+      boardNote.hide();
+    }
+  };
+  /** Any tap or Escape puts the New sign away; it never comes back this launch. */
+  const putSignAway = (): void => {
+    if (sign.shown() !== undefined) {
+      sign.hide();
+      renderRail();
+    }
   };
   /**
-   * One note at a time, in the order teach.ts lists them (#372). It shows in
-   * the board note above its key, keyed so it stays until an outside tap,
-   * Escape or its own tap puts it away. A note or sheet already up waits it
-   * out, and a note put away never comes back this launch; the dot stays.
+   * One New sign at a time, in the order teach.ts lists them (#372, #373). It
+   * stands in the band over its key until any tap or Escape puts it away. A
+   * note or sheet already up waits it out, and a sign put away never comes back
+   * this launch; the dot stays. Opening the sheet by its key counts as seen.
    */
   const renderTeach = (): void => {
     const noteId = view.ready ? noteFor(view.mountain) : undefined;
     const firstEngineer = view.mountain.engineers?.[0]?.name;
-    let anchor: HTMLElement | undefined;
+    let want: { readonly key: KeyId; readonly words: string } | undefined;
     if (noteId === "workshop") {
-      teachNote.show(relicArt.hammer, WORKSHOP_NOTE, openWorkshopSheet);
-      anchor = rail.keys.workshop;
+      want = { key: "workshop", words: WORKSHOP_NOTE };
     } else if (noteId === "engineers" && firstEngineer !== undefined) {
-      teachNote.show(tierArt.helper, engineersNote(firstEngineer), () => {
-        progress.applyMutation((current) => markSeen(current, "engineers"));
-        rail.keys.engineers.click();
-      });
-      anchor = rail.keys.engineers;
-    } else {
-      teachNote.hide();
-      if (boardNote.note.contains(teachNote.note)) {
-        boardNote.hide();
-      }
+      want = { key: "engineers", words: engineersNote(firstEngineer) };
+    }
+    const up = sign.shown();
+    if (want === undefined || (up !== undefined && up.key !== want.key)) {
+      sign.hide();
+    }
+    if (want === undefined) {
+      return;
+    }
+    if (sign.shown() !== undefined) {
+      sign.show(want.key, want.words);
       return;
     }
     // Another note, or a sheet over the board, holds it back until a later
-    // render or tick: the note would stand over the sheet.
+    // render or tick: the sign would stand under the sheet.
     const busy =
-      (boardNote.note.classList.contains("on") &&
-        !boardNote.note.contains(teachNote.note)) ||
+      boardNote.note.classList.contains("on") ||
       root.querySelector(OPEN_SHEET) !== null;
     if (noteId === teachShown || busy) {
       return;
     }
     teachShown = noteId;
-    boardNote.show(anchor, teachNote.note, { key: teachNote.note });
+    sign.show(want.key, want.words);
   };
 
   /** The keys read the save once it is in; before, only their caps and icons show (#373). */
   const renderRail = (): void => {
+    if (!view.ready) {
+      rail.render(undefined);
+      return;
+    }
+    const views = keyViews(view.mountain, now(), view.trouble);
+    // The New sign is quiet for readers: its words join its key's label.
+    const up = sign.shown();
     rail.render(
-      view.ready ? keyViews(view.mountain, now(), view.trouble) : undefined,
+      up === undefined
+        ? views
+        : {
+            ...views,
+            [up.key]: {
+              ...views[up.key],
+              aria: `${views[up.key].aria}. ${up.words}`,
+            },
+          },
     );
   };
 
@@ -1083,15 +1118,29 @@ export function mountMountainScreen({
   });
 
   const openWorkshop = workshop.menuEntry.querySelector(".workshop-open");
-  // Opening the sheet by any door counts as seen: the note goes, the dot stays.
+  /** The key the Workshop sheet opened from: its own, or the Ledger key that opened the menu. */
+  let workshopDoor: HTMLButtonElement = rail.keys.workshop;
+  let openingFromKey = false;
+  // Opening the sheet by any door counts as seen: the sign goes, the dot stays.
   const openWorkshopSheet = (): void => {
     if (openWorkshop instanceof HTMLButtonElement && !openWorkshop.hidden) {
       progress.applyMutation((current) => markSeen(current, "workshop"));
-      openWorkshop.click();
+      workshopDoor = rail.keys.workshop;
+      openingFromKey = true;
+      try {
+        openWorkshop.click();
+      } finally {
+        openingFromKey = false;
+      }
     }
   };
   // The menu's own Workshop row also puts the board's popups away.
-  openWorkshop?.addEventListener("click", closeBoardPopups);
+  openWorkshop?.addEventListener("click", () => {
+    closeBoardPopups();
+    if (!openingFromKey) {
+      workshopDoor = rail.keys.ledger;
+    }
+  });
 
   // The board's top: the relic plate and the stock row (#370).
   const stock = document.createElement("div");
@@ -1126,6 +1175,7 @@ export function mountMountainScreen({
     bays.root,
     readyPlate.root,
     rail.root,
+    sign.root,
     sheetClip,
     drawerClip,
     saveLine.line,
@@ -1160,7 +1210,6 @@ export function mountMountainScreen({
     shownPick = pick;
     renderBays(pick);
     renderReadyRow(pick);
-    renderRail();
     // The open drawer's rows follow the clock: a pocket that grows, a boost that ends.
     if (crewPanel.sheet.isOpen()) {
       crewPanel.render();
@@ -1168,6 +1217,7 @@ export function mountMountainScreen({
     renderTeach();
     coverDrawers();
     coverNote();
+    renderRail();
   }, 1000);
   signal?.addEventListener("abort", () => {
     clearInterval(ticking);
@@ -1195,6 +1245,17 @@ export function mountMountainScreen({
     listening,
   );
   window.addEventListener("pagehide", storeWait, listening);
+  // Any tap or Escape puts the New sign away (#373).
+  document.addEventListener("pointerdown", putSignAway, listening);
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Escape") {
+        putSignAway();
+      }
+    },
+    listening,
+  );
 
   const unsubscribe = progress.subscribe((next) => {
     view = next;

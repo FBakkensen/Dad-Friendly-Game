@@ -1624,12 +1624,15 @@ describe("upgrades on screen", () => {
       vi.advanceTimersByTime(2_000);
       expect(drawerOf(screen)?.classList.contains("is-open")).toBe(true);
       expect(screen.root.querySelector(".board-note.on")).toBeNull();
+      expect(
+        screen.root.querySelector(".board-sign-slot:not([hidden])"),
+      ).toBeNull();
       drawerOf(screen)
         ?.querySelector<HTMLButtonElement>(".board-sheet-back")
         ?.click();
       vi.advanceTimersByTime(1_000);
       expect(
-        screen.root.querySelector(".board-note.on .teach-note"),
+        screen.root.querySelector(".board-sign-slot:not([hidden])"),
       ).not.toBeNull();
       screen.root.remove();
     } finally {

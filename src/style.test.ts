@@ -77,6 +77,8 @@ const BOARD_SELECTORS = [
   ".board-key",
   ".board-key-cap",
   ".board-key-dot",
+  ".board-sign-slot",
+  ".board-sign",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
@@ -244,6 +246,11 @@ describe("board.css", () => {
     expect(boardCss).toMatch(/^\.crew-bit,\n\.crew-bit\.board-skinned \{/m);
   });
 
+  it("the New sign takes no taps: they go through to the plate or the key (#373)", () => {
+    const rule = /^\.board-sign-slot \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    expect(rule).toMatch(/pointer-events:\s*none/);
+  });
+
   it.each(BOARD_SELECTORS)("styles %s", (selector) => {
     const escaped = selector.replace(".", "\\.");
     expect(boardCss).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));
@@ -294,7 +301,7 @@ describe("style.css", () => {
         ),
       ),
     ).toEqual([]);
-    expect(css).not.toMatch(/afford-glow-on/);
+    expect(css).not.toMatch(/afford-glow-on|teach-note|teach-pulse/);
     expect(boardCss).not.toMatch(/thumb-bar|menu-button/);
   });
 

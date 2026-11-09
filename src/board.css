@@ -516,19 +516,55 @@ body {
     0 0 var(--art) var(--board-night);
 }
 
-/* The New teach note in the board note (#372): the note's ink in place of
-   the old card's edge and face, still a 48px target. */
-.board-note .teach-note {
-  min-height: var(--target-min);
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  color: var(--board-ink);
-  font: inherit;
+/* The New sign (#373): one line on the tag skin in the band between the
+   Ready row's plate (its art ends at 732) and the key rail (768), centred
+   over its key. Its slot is 128 art wide around the key's centre, so the
+   sign never reaches the DIG legend. A sign, not a button: taps go through
+   it to the plate or the key, and its words are on the key's label. */
+.board-sign-slot {
+  position: absolute;
+  top: calc(var(--rail-top) - var(--art) * 13);
+  display: flex;
+  justify-content: center;
+  width: calc(var(--art) * 128);
+  height: calc(var(--art) * 12);
+  pointer-events: none;
+}
+
+.board-sign-slot[hidden] {
+  display: none;
+}
+
+#app > .board-sign-slot {
+  max-width: none;
+}
+
+.board-sign-slot[data-key="workshop"] {
+  left: 0;
+}
+
+.board-sign-slot[data-key="engineers"] {
+  left: calc(var(--art) * 40);
+}
+
+.board-sign {
+  display: block;
+  max-width: 100%;
+  height: calc(var(--art) * 12);
+  padding: 0 calc(var(--art) * 5);
+  overflow: hidden;
+}
+
+.board-sign-text {
+  display: block;
+  overflow: hidden;
+  font-family: "Barlow Condensed", sans-serif;
   font-weight: 700;
-  line-height: var(--board-note-lead);
-  animation: none;
+  font-size: var(--board-type-14);
+  line-height: calc(var(--art) * 12);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--board-ink-plate);
 }
 
 .board-tag .board-lg {
@@ -1312,7 +1348,7 @@ body {
 
 /* The vein's payout and the quiet away line, in the board note under the
    window: one line in the Legacy plate's condensed face, so the note ends
-   above the column's top and never covers the ☰ menu (#371). */
+   well above the key rail and never covers a key (#371, #373). */
 .vein-note {
   margin: 0;
   font-family: "Barlow Condensed", sans-serif;
