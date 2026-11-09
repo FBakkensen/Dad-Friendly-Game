@@ -112,7 +112,9 @@ page is the map, plus the rules that keep it that way.
    dial frame). DOM parts take `getView` and callbacks like a panel:
    `board-note` (the floating framed note, placed in board coordinates; a
    note that holds a key stays up until the key, an outside pointerdown, or
-   Escape), `board-stock` (the odometer's drums and spend mark, and the
+   Escape; a show with no `ms` and no key has no timer and stays until
+   something hides it, and `hideIf(body)` hides only a note still showing
+   that body, which is how the bays' thanks ends), `board-stock` (the odometer's drums and spend mark, and the
    boost dial), `board-relics` (the relic plate: six sockets, their notes
    with the Relic shelf key, and the tag) and `board-save` (the save line,
    which keeps `.save-status` with `data-kind` and `data-log`, and its save
@@ -139,9 +141,13 @@ page is the map, plus the rules that keep it that way.
    The middle of the board (#372) adds three DOM parts. `board-bays` is the
    band tag and three bay buttons (lamp, icon, name, sub-line, flap counter
    and price); it draws `bayViews` and passes taps on, and keeps each bay's
-   element for the board's life. `board-ready` is the Ready now plate (its
-   1.9s Done hold, so a double tap buys one) and the red DIG button (its
-   press frames and the By hand tally). `trouble-tap` is the 600ms
+   element for the board's life; each bay presses through `pressOnBoard`
+   as a board control, and its "Fixed!" thanks is painted on the board note
+   from the model's `fixed` (#426). `board-ready` is the Ready now plate
+   and the red DIG button (its press frames and the By hand tally). The
+   plate presses through `pressOnBoard` and paints its Done from the
+   model's hold (judged by when the finger came down), so a double tap buys
+   one. `trouble-tap` is the 600ms
    hold-to-fix the Buys rows and the bays share. `mountain-screen` computes
    `readyNow(view.mountain, now(), view.trouble)` once per render and hands
    it to the plate and the bays; a tap on the plate reads the rule again
@@ -186,7 +192,10 @@ page is the map, plus the rules that keep it that way.
    drawer. `board-how-art` draws the How it works cards in the
    drawer skin with the board's icons at 2x. `board-keys` is
    `createKeyRail`: five keys that draw `keyViews` and pass taps to
-   `onKey`. `board-sign` is the slim New sign over a key. `crew-panel`
+   `onKey`. The rail root has one capture-phase `pressOnBoard` listener
+   that reads which key a click pressed; the model's decision (a press in
+   the settle after Back closed a drawer is ignored, named fix 1) decides
+   whether the click goes on to the key. `board-sign` is the slim New sign over a key. `crew-panel`
    builds Buys and `upgrades-panel` builds Upgrades as `BoardSheet`s of
    `board-row`s, each painting from the model. Buys sends its layout (its
    parts in order and its chip rows) as the drawer opens, and the model
@@ -211,7 +220,7 @@ page is the map, plus the rules that keep it that way.
    drawer's guard, B4's Buys settle carried into the model, judged for the
    whole drawer. The rows (through `buyOnTap`) and Back, the "i" and the how
    cards' Back (in the shell) each keep their own press with `card-tap`'s one
-   `trackPress`: a press is judged by when its finger came down, and a
+   `trackPress` (the keys, plate and bays use `pressOnBoard`, which wraps it): a press is judged by when its finger came down, and a
    finger's click (`detail` not 0) with no pointerdown of its own by the
    click's age, since a touch's click lands where the finger lifts, on a row
    that may have slid under it as the drawer rose. So the
@@ -256,18 +265,25 @@ page is the map, plus the rules that keep it that way.
   restored copy, Start over or Pass the mine never comes through it, so
   `renderStock` only sets the drums and the dial.
 
-- **Board tap rules (#410, #425):** `board-interaction` is a pure reducer that
+- **Board tap rules (#410, #425, #426):** `board-interaction` is a pure reducer that
   holds the board's tap rules once, run through `board-host`. The Buys and
-  Upgrades drawers, their shell and their rows are painters of its view:
-  they send it inputs and presses and read `boardView`; none holds a settle,
-  a hold, a timer or a freeze of its own. The model:
+  Upgrades drawers, their shell and their rows, the key rail, the Ready now
+  plate and the machine bays are painters of its view: they send it inputs
+  and presses and read `boardView`; none holds a settle, a hold, a timer or
+  a freeze of its own. `pressOnBoard` (in `card-tap`) is the one board
+  press: it tracks a control's finger-down time, sends the model the press
+  (the control, who pressed, the finger's `downAt` and the click) and hands
+  back its decision. Its `control` is a `ControlRef` or a function of the
+  click (the rail root tells its keys apart; a click on none presses
+  nothing), and an optional `intent` marks a trouble press. The model:
   - the 400ms settle after a drawer opens or turns a page, and after a
     finger closes a drawer (Back), for what that close shows again (named
     fix 1). The save drawer and the board notes never settle, and a
     tap-through close (the scrim, a tap outside a note) hands its tap on;
   - the 1.9s Done hold: every press judged before it ends is held, judged by
     when the finger came down (named fix 2), so a press handled after the
-    hold whose finger came down inside it is held too;
+    hold whose finger came down inside it is held too. The Ready now plate's
+    Done is this hold, not a timer of its own;
   - the red, off, red, off blink on a tap that cannot act;
   - the freeze of an open drawer's layout, its parts in order and its chip
     rows, and the blink on a part it holds but no longer sells. A drawer
@@ -278,7 +294,8 @@ page is the map, plus the rules that keep it that way.
     its order through a reload, gives that order as it opens. The screen
     sends `unloaded` once per ready to not-ready edge (a save loading
     again), which also ends every Done hold, as a reload always has;
-  - the 1.6s thanks after a fix;
+  - the 1.6s thanks after a fix: the bays' "Fixed!" note is painted from the
+    model's `fixed`, not from a timer of their own;
   - the overlay stack: a drawer stands alone, and the save drawer and a
     note go on top.
 
@@ -289,10 +306,8 @@ page is the map, plus the rules that keep it that way.
   (`DRAWER_SETTLE_MS`, `READY_HOLD_MS`, `BLINK_STEP_MS`, `THANKS_MS`,
   `PRESS_AGE_LIMIT_MS`) live here, and the board parts import them. The
   module has one wiring: `board-host` steps it, and the drawers and rows
-  paint from it (#425). The keys, plate and bays move onto it in I2b (#426),
-  and the screen's own reads in I2c (#427); until then they keep their own
-  copies. A
-  seeded random-sequence test (`board-interaction.random.test.ts`) holds its
+  paint from it (#425, #426). The screen's own reads move onto it in I2c
+  (#427). A seeded random-sequence test (`board-interaction.random.test.ts`) holds its
   invariants: no act inside a settle or a hold, and no open drawer's rows
   move. It has a 100% coverage floor.
 
