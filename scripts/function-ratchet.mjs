@@ -10,10 +10,15 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { ESLint } from "eslint";
+import sonarjs from "eslint-plugin-sonarjs";
+import tseslint from "typescript-eslint";
 import { splitGitPaths } from "../src/gate.ts";
 import {
+  COMPLEXITY,
   LINES,
   baseFromShow,
+  complexityValues,
   isMeasured,
   judgeCeilings,
   measureFunctions,
@@ -46,9 +51,38 @@ const files = splitGitPaths(
 )
   // A file deleted but not yet committed is still listed: skip what is gone.
   .filter((path) => isMeasured(path) && existsSync(path));
-const spans = files.flatMap((path) =>
-  measureFunctions(path, readFileSync(path, "utf8")),
+const spansByFile = new Map(
+  files.map((path) => [
+    path,
+    measureFunctions(path, readFileSync(path, "utf8")),
+  ]),
 );
+const spans = [...spansByFile.values()].flat();
+
+// Every function's cognitive complexity, from the plugin with a limit of 0 so each one
+// reports. No type information is needed, so this is a few seconds, not a full lint.
+const complexityLint = new ESLint({
+  overrideConfigFile: true,
+  overrideConfig: [
+    {
+      files: ["**/*.ts"],
+      languageOptions: { parser: tseslint.parser },
+      plugins: { sonarjs },
+      rules: { "sonarjs/cognitive-complexity": ["error", 0] },
+    },
+  ],
+});
+const complexity = (await complexityLint.lintFiles(files)).flatMap((result) => {
+  const path = files.find((each) => result.filePath.endsWith(`/${each}`));
+  const fatal = result.messages.find((message) => message.fatal === true);
+  if (path === undefined || fatal !== undefined) {
+    console.error(
+      `function-ratchet: cannot score ${result.filePath}: ${fatal?.message ?? "not a measured file"}`,
+    );
+    process.exit(1);
+  }
+  return complexityValues(spansByFile.get(path) ?? [], result.messages);
+});
 
 /** Each measure, its ceiling list, and every function's value under it. */
 const checks = [
@@ -58,6 +92,13 @@ const checks = [
     measure: LINES,
     ceilings: "scripts/function-ceilings.json",
     values: spans.map((span) => ({ id: span.id, value: span.lines })),
+  },
+  {
+    name: "complexity",
+    title: "Function complexity",
+    measure: COMPLEXITY,
+    ceilings: "scripts/complexity-ceilings.json",
+    values: complexity,
   },
 ];
 

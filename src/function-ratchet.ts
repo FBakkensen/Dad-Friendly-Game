@@ -28,7 +28,7 @@ export const COMPLEXITY: Measure = {
 };
 
 /** From a function's first token to the start of its body, 1-based as ESLint counts. */
-export interface Head {
+interface Head {
   readonly line: number;
   readonly column: number;
   readonly endLine: number;

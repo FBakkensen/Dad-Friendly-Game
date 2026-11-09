@@ -223,6 +223,29 @@ describe("the complexity measure", () => {
   });
 });
 
+describe("two measures on one function", () => {
+  it("judges a function over both limits by two ceilings that move apart", () => {
+    const judge = (lines: number, complexity: number) => [
+      ...judgeCeilings({
+        values: [{ id: "src/a.ts#f", value: lines }],
+        ceilings: { "src/a.ts#f": 160 },
+        base: undefined,
+        measure: LINES,
+      }).map((problem) => problemLine(problem, LINES)),
+      ...judgeCeilings({
+        values: [{ id: "src/a.ts#f", value: complexity }],
+        ceilings: { "src/a.ts#f": 20 },
+        base: undefined,
+        measure: COMPLEXITY,
+      }).map((problem) => problemLine(problem, COMPLEXITY)),
+    ];
+    expect(judge(160, 20)).toEqual([]);
+    expect(judge(160, 18)).toEqual([
+      "src/a.ts#f is complexity 18; lower its ceiling from 20 to 18.",
+    ]);
+  });
+});
+
 describe("function heads", () => {
   it("runs from a function's first token to the start of its body", () => {
     const source = [
