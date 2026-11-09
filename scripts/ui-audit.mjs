@@ -248,6 +248,9 @@ async function openDrawer(page, name) {
     { timeout: 8_000 },
     OPEN_SHEET(name),
   );
+  // A finger on the drawer inside its 400ms settle is the double tap's
+  // second tap and does nothing (#373): a deliberate tap comes after it.
+  await new Promise((resolve) => setTimeout(resolve, 450));
 }
 
 /** @param {import("puppeteer-core").Page} page */

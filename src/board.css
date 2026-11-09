@@ -908,7 +908,8 @@ body {
   z-index: 31;
   width: var(--board-w);
   height: calc(var(--board-h) - var(--save-h));
-  overflow: hidden;
+  /* Clip, not hidden: a hidden box can still be scrolled by script, and must never be (#373). */
+  overflow: clip;
   pointer-events: none;
 }
 
@@ -1897,6 +1898,27 @@ button.board-row:focus-visible {
   text-overflow: ellipsis;
 }
 
+/* The name's line: the name with its badge, then the flag on the same line. A row has three
+   lines at most, inside the frame's face (#373). */
+.board-row-line {
+  display: flex;
+  align-items: baseline;
+  column-gap: calc(var(--art) * 3);
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* The name keeps its whole width; the flag gives way, falls back through its options and ends
+   in its ellipsis. */
+.board-row-line > .board-row-name {
+  flex: none;
+}
+
+.board-row-line > .board-row-flag {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
 .board-row-name {
   font-size: var(--board-type-17);
   line-height: var(--board-row-name-lead);
@@ -2017,7 +2039,8 @@ button.board-row:focus-visible {
   z-index: 29;
   width: var(--board-w);
   height: calc(var(--board-h) - var(--save-h));
-  overflow: hidden;
+  /* Clip, not hidden: a hidden box can still be scrolled by script, and must never be (#373). */
+  overflow: clip;
   pointer-events: none;
 }
 
@@ -2138,6 +2161,11 @@ button.board-row:focus-visible {
   color: var(--board-ink-2);
 }
 
+/* Buys' footnote stands over Back, out of the list's scroll (#373). */
+.board-sheet-footer > .board-sheet-foot {
+  margin: 0 calc(var(--art) * 3) calc(var(--art) * 4);
+}
+
 /* The Buys drawer's Crew section (#373): the crew's sentence, then where
    the hands are, as chips on the tag skin laid out in the fewest even rows
    (crew-panel.ts). Text only: the drawer's rows are the doors. */
@@ -2256,8 +2284,10 @@ button.board-row:focus-visible {
   pointer-events: none;
 }
 
+/* Off, it takes no room: its negative margin gives the list's gap back (#373). */
 .board-spare.is-off {
   visibility: hidden;
+  margin-top: calc(var(--art) * -5);
 }
 
 .board-spare-plate,

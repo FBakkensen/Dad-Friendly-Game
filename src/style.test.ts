@@ -236,6 +236,34 @@ describe("board.css", () => {
     );
   });
 
+  it("the drawers' clip can never scroll (#373)", () => {
+    // overflow: hidden can still be scrolled by script, and scrollIntoView did (the idle save).
+    expect(boardCss).toMatch(/^\.board-sheet-clip \{[^}]*overflow:\s*clip/m);
+  });
+
+  it("an off spare plate gives its gap in the list back (#373)", () => {
+    const rule =
+      /^\.board-spare\.is-off \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    // The list's gap is 5 art; the plate's negative margin cancels it.
+    expect(boardCss).toMatch(
+      /^\.board-sheet-list \{[^}]*gap:\s*calc\(var\(--art\) \* 5\)/m,
+    );
+    expect(rule).toMatch(/margin-top:\s*calc\(var\(--art\) \* -5\)/);
+  });
+
+  it("a drawer row's flag shares the name's line, so a row has three lines at most (#373)", () => {
+    const line = /^\.board-row-line \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    expect(line).toMatch(/display:\s*flex/);
+    expect(line).toMatch(/white-space:\s*nowrap/);
+    // The name keeps its whole width; the flag gives way and ends in its ellipsis.
+    expect(boardCss).toMatch(
+      /^\.board-row-line > \.board-row-name \{[^}]*flex:\s*none/m,
+    );
+    expect(boardCss).toMatch(
+      /^\.board-row-line > \.board-row-flag \{[^}]*min-width:\s*0/m,
+    );
+  });
+
   it("clips the spare plate, so a stale skin never lengthens a drawer's scroll (#373)", () => {
     expect(boardCss).toMatch(/^\.board-spare \{[^}]*overflow:\s*hidden/m);
   });

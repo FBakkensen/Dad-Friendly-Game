@@ -142,7 +142,9 @@ page is the map, plus the rules that keep it that way.
    second tap of a double tap on the plate or a bay never spends.
    The key rail and the drawers (#373) add six more DOM parts.
    `board-dom` holds the shared `el`, `write`, `setAttr` and `frameX`
-   helpers and `fitFirst`, a measure-once line fitter: it writes the first
+   helpers, `scrollIntoList` (brings a row into its list's view by
+   scrolling the list alone, never the board's clip) and `fitFirst`, a
+   measure-once line fitter: it writes the first
    fit option that fits, keeps the fit only once measured on a laid-out box,
    and drops it when fonts settle. `board-row` is one drawer row (lamp,
    icon, name and badge, info, need, why, flag, gain, price tag and verb),
@@ -159,13 +161,19 @@ page is the map, plus the rules that keep it that way.
    `board-row`s; while a drawer is open its rows, sections and chip rows
    keep their places, and changes apply at the next open. The two drawers
    and the scrim sit in `.board-sheet-clip` at z 29, under the board note
-   (30) and the save drawer (31). `engineers-panel` and `menu-panel` take
+   (30) and the save drawer (31). The clip is `overflow: clip`, so nothing
+   (not even script) can scroll it. `engineers-panel` and `menu-panel` take
    a `door` (the Engineers and Ledger keys) instead of building their own
    buttons. `DRAWER_SETTLE_MS` (400ms) is every drawer's guard, B4's
-   Buys settle carried into the shell: rows ask `settling` through
-   `buyOnTap`, and Back asks it at pointerdown, so the second tap of a
+   Buys settle carried into the shell, judged for the whole drawer: rows
+   ask `settling` through `buyOnTap`, and Back and the "i" ask it in the
+   shell, each at a finger's pointerdown and again at its click (`detail`
+   not 0), since a touch's click lands where the finger lifts, on a row
+   that may have slid under it as the drawer rose. So the second tap of a
    double tap on a key, a bay or Saving for never buys or closes. A
-   keyboard press is never early.
+   keyboard press (`detail` 0) is never early. Buys' footnote stands in
+   the drawer's footer, over Back, and steps aside on an opening whose list
+   it would push into a scroll.
    The red button calls the same `dig()` as the window, and the window shows
    the "+N". Until the save is in (a second load after sign-in or a user
    switch included) the bays, the plate and the red button show only their

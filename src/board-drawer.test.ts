@@ -289,6 +289,34 @@ describe("the drawer shell", () => {
       expect(sheet.isOpen()).toBe(false);
     });
 
+    it("a finger's click on Back with no press of its own at 100ms closes nothing (#373)", () => {
+      // A touch's click lands where the finger lifts: on Back as it slides up under a finger
+      // that pressed somewhere else.
+      const sheet = make();
+      sheet.open();
+      time += 100;
+      fingerClick(sheet.back);
+      expect(sheet.isOpen()).toBe(true);
+      time += 400;
+      fingerClick(sheet.back);
+      expect(sheet.isOpen()).toBe(false);
+    });
+
+    it("a finger's click on the i while it settles opens nothing; a key press does (#373)", () => {
+      const sheet = make();
+      const opened = vi.fn();
+      sheet.info.addEventListener("click", opened);
+      sheet.open();
+      time += 100;
+      fingerClick(sheet.info);
+      expect(opened).not.toHaveBeenCalled();
+      sheet.info.click();
+      expect(opened).toHaveBeenCalledTimes(1);
+      time += 400;
+      fingerClick(sheet.info);
+      expect(opened).toHaveBeenCalledTimes(2);
+    });
+
     it("a finger on Back at 500ms closes it", () => {
       const sheet = make();
       sheet.open();
@@ -506,6 +534,27 @@ describe("the drawer shell", () => {
       seen.push(...watch.takeRecords());
       watch.disconnect();
       expect(seen).toEqual([]);
+    });
+
+    it("off, it takes no gap, and is measured without the gap it gave back (#373)", () => {
+      const sheet = make();
+      const spare = part(sheet, ".board-spare");
+      part(sheet, ".board-sheet-list").style.rowGap = "10px";
+      const height = vi.spyOn(spare, "offsetHeight", "get");
+      height.mockReturnValue(20);
+      sheet.fitSpare();
+      expect(spare.classList.contains("is-off")).toBe(true);
+      // The gap it gave back is room it only has while off: 55px is 45 with it.
+      height.mockReturnValue(55);
+      sheet.fitSpare();
+      expect(spare.classList.contains("is-off")).toBe(true);
+      height.mockReturnValue(60);
+      sheet.fitSpare();
+      expect(spare.classList.contains("is-short")).toBe(true);
+      // Short, it takes its gap again and is measured as it stands.
+      height.mockReturnValue(50);
+      sheet.fitSpare();
+      expect(spare.classList.contains("is-short")).toBe(true);
     });
 
     it("fits on open and again on the next frame", () => {

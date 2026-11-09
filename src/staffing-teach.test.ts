@@ -132,9 +132,18 @@ describe("staffing teach (#246)", () => {
     const row = screen.root.querySelector<HTMLButtonElement>(
       '.board-sheet[data-sheet="buys"] .board-row.tier[data-tier="cart"]',
     );
+    // The row sits under the list's view as the drawer opens (#373).
+    const list = screen.root.querySelector<HTMLElement>(
+      '.board-sheet[data-sheet="buys"] .board-sheet-list',
+    );
+    const clip = screen.root.querySelector<HTMLElement>(".board-sheet-clip");
+    const box = (top: number, bottom: number) =>
+      ({ top, bottom, left: 0, right: 100 }) as DOMRect;
     const scrolled = vi.fn();
-    if (row !== null) {
+    if (row !== null && list !== null) {
       row.scrollIntoView = scrolled;
+      vi.spyOn(list, "getBoundingClientRect").mockReturnValue(box(250, 788));
+      vi.spyOn(row, "getBoundingClientRect").mockReturnValue(box(800, 876));
     }
     buys?.click();
     const drawer = screen.root.querySelector<HTMLElement>(
@@ -143,8 +152,11 @@ describe("staffing teach (#246)", () => {
     expect(drawer?.querySelector(".board-sheet-kick")?.textContent).toBe(
       STAFFING_INTRO,
     );
-    // The New row is brought into view as the drawer opens.
-    expect(scrolled).toHaveBeenCalledWith({ block: "nearest" });
+    // The New row is brought into view as the drawer opens, by its list alone: the board's
+    // clip never scrolls (#373).
+    expect(list?.scrollTop).toBe(88);
+    expect(clip?.scrollTop).toBe(0);
+    expect(scrolled).not.toHaveBeenCalled();
     expect(row?.classList.contains("teach-new")).toBe(true);
     expect(row?.querySelector(".board-row-flag")?.textContent).toBe("New");
     expect(row?.querySelector(".board-row-verb")?.textContent).toBe("Hire");

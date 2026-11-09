@@ -6,8 +6,8 @@ import { reducedMotion } from "./float-text";
 import type { RowLamp, RowState, RowView } from "./row-view";
 
 /*
- * One drawer row (#373): lamp, icon, name with its badge, info, needs, why and flag, then the
- * gain, the price tag and the verb. buys-rows.ts and upgrade-rows.ts decide what a row says;
+ * One drawer row (#373): lamp, icon, name with its badge and flag, info, needs and why, then
+ * the gain, the price tag and the verb. buys-rows.ts and upgrade-rows.ts decide what a row says;
  * this draws it, writing only what changed. The drawers own the taps: after a buy they call
  * done(), which holds Done for 1.9s, and a tap that cannot act calls blink().
  */
@@ -122,7 +122,11 @@ export function createBoardRow({
   const need = el("span", "board-row-need");
   const why = el("span", "board-row-why");
   const flag = el("span", "board-row-flag board-lg");
-  mid.append(nameBox, info, need, why, flag);
+  // The flag shares the name's line: four lines (name, info, need or why, flag) would run onto
+  // the frame's rails, so a row has three at most (#373).
+  const nameLine = el("span", "board-row-line");
+  nameLine.append(nameBox, flag);
+  mid.append(nameLine, info, need, why);
 
   const rt = el("span", "board-row-rt");
   const gain = el("span", "board-row-gain board-num");

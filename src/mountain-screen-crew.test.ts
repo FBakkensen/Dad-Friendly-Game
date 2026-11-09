@@ -292,7 +292,7 @@ describe("the Buys drawer (#373)", () => {
       "Buys",
     );
     expect(kick(screen)).toBe("Crew and machines that mine while you rest");
-    // The list in order: Crew, the crew line, the worker, Machines, the machines, the footnote.
+    // The list in order: Crew, the crew line, the worker, Machines, the machines.
     const list = drawer.querySelector(".board-sheet-list");
     const order = [...(list?.children ?? [])]
       .filter((part) => !(part as HTMLElement).hidden)
@@ -312,9 +312,15 @@ describe("the Buys drawer (#373)", () => {
       "sec:Machines",
       "row:cart",
       "row:drill",
-      "board-sheet-foot",
       "board-spare",
     ]);
+    // The footnote stands under the list, over Back, out of the list's scroll (#373).
+    const footer = drawer.querySelector(".board-sheet-footer");
+    expect(
+      [...(footer?.children ?? [])].map(
+        (part) => part.className.split(" ")[0] ?? "",
+      ),
+    ).toEqual(["board-sheet-foot", "board-platebtn"]);
     expect(
       drawer.querySelector("section.crew")?.getAttribute("aria-label"),
     ).toBe("Your crew");
@@ -332,6 +338,34 @@ describe("the Buys drawer (#373)", () => {
       drawer.querySelector(".sheet-card, .tier-count, .float-gain"),
     ).toBeNull();
     expect(screen.root.querySelector(".buys-dialog")).toBeNull();
+    screen.root.remove();
+  });
+
+  it("the footnote steps aside on an open drawer whose list it would push into a scroll (#373)", () => {
+    const screen = mountScreen({
+      storage: seededWith(early()),
+      now: () => CLOCK,
+    });
+    document.body.append(screen.root);
+    const drawer = drawerOf(screen);
+    const list = drawer.querySelector<HTMLElement>(".board-sheet-list");
+    const foot = drawer.querySelector<HTMLElement>(".board-sheet-foot");
+    if (list === null || foot === null) throw new Error("no list or footnote");
+    const scroll = vi.spyOn(list, "scrollHeight", "get").mockReturnValue(400);
+    vi.spyOn(list, "clientHeight", "get").mockReturnValue(480);
+    openBuys(screen);
+    // The list fits with it: it stays.
+    expect(foot.hidden).toBe(false);
+    drawer.querySelector<HTMLButtonElement>(".board-sheet-back")?.click();
+    // A mid-game list that would scroll with the footnote under it: it gives the room back.
+    scroll.mockReturnValue(531);
+    openBuys(screen);
+    expect(foot.hidden).toBe(true);
+    // A render while open keeps it aside; shut, it comes back for the next open to measure.
+    screen.progress.applyMutation((m) => ({ ...m, pocket: m.pocket + 1 }));
+    expect(foot.hidden).toBe(true);
+    drawer.querySelector<HTMLButtonElement>(".board-sheet-back")?.click();
+    expect(foot.hidden).toBe(false);
     screen.root.remove();
   });
 
@@ -721,6 +755,35 @@ describe("the Buys drawer (#373)", () => {
         .querySelector<HTMLElement>("section.crew")
         ?.classList.contains("is-blank"),
     ).toBe(false);
+  });
+
+  it("a tap on the mine window or a still vein while the save loads again digs nothing", async () => {
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: () => () => undefined,
+    };
+    const auth = createMemoryAuth();
+    const screen = mountScreen({
+      auth,
+      cloudSave,
+      storage: seededWith(early()),
+      now: () => CLOCK,
+    });
+    await auth.signIn();
+    await Promise.resolve();
+    expect(screen.progress.getSnapshot().ready).toBe(false);
+    const apply = vi.spyOn(screen.progress, "applyMutation");
+    screen.root.querySelector<HTMLButtonElement>(".board-window")?.click();
+    // A vein that is not glinting pays nothing either, even to a click that reaches it.
+    screen.root.querySelector<HTMLElement>(".golden-vein")?.click();
+    // Nothing is dug from a save not yet read, and the window shows no "+N".
+    expect(apply).not.toHaveBeenCalled();
+    expect(
+      screen.root.querySelector(".board-dig-plus:not([hidden])")?.textContent ??
+        "",
+    ).toBe("");
   });
 
   /** The Deep Heart after the Hammer, one Great Machine short: the kid row waits for it. */

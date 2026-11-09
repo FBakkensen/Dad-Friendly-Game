@@ -251,8 +251,14 @@ async function drawerFacts(page, name) {
           : ([...spare.classList].find((cls) =>
               ["is-tall", "is-mid", "is-short", "is-off"].includes(cls),
             ) ?? "");
+      // Off, the plate gives the list's gap back, so it is measured without that room, as
+      // the drawer measures it.
+      const freed =
+        spare !== null && list !== null && spare.classList.contains("is-off")
+          ? Number.parseFloat(getComputedStyle(list).rowGap) || 0
+          : 0;
       const spareWant =
-        spare === null ? "" : `is-${spareTier(spare.offsetHeight)}`;
+        spare === null ? "" : `is-${spareTier(spare.offsetHeight - freed)}`;
       const shown = (el) =>
         el.closest("[hidden]") === null && el.getClientRects().length > 0;
       const rows = [...sheet.querySelectorAll(".board-row")].filter(shown);
@@ -2891,7 +2897,10 @@ async function sheetEdges(page, name) {
         ".board-sheet-title, .board-sheet-kick, .board-sheet-info",
       ) ?? []),
     ].filter((node) => node.getClientRects().length > 0);
-    const footer = sheet?.querySelector(".board-sheet-back");
+    // What stands under the list: Buys' footnote when it shows, else Back.
+    const footer = [
+      ...(sheet?.querySelectorAll(".board-sheet-footer > *") ?? []),
+    ].find((node) => !node.hidden && node.getClientRects().length > 0);
     const cards = () =>
       [...(element?.children ?? [])].filter(
         (node) =>
@@ -5098,9 +5107,11 @@ async function putNoteAway(page) {
 /**
  * A sleepy double tap at the selector's centre: two taps `gap` ms apart at
  * one point, with nothing between them, so a loaded run keeps them close.
- * The second lands on whatever the first put there. Returns what the second
- * press came down on (the board, or Buys and its row) and how long after the
- * first, both read in the page as the presses land.
+ * The second lands on whatever the first put there. With `gap` "drawer", the
+ * second tap comes down as soon as a row of the rising Buys drawer is under
+ * the point, however slow the runner is (#373). Returns what the second press came down
+ * on (the board, or Buys and its row) and how long after the first, both read
+ * in the page as the presses land.
  */
 async function doubleTap(page, selector, gap = 120) {
   const at = await page.$eval(selector, (el) => {
@@ -5128,7 +5139,18 @@ async function doubleTap(page, selector, gap = 120) {
     );
   });
   for (let tap = 0; tap < 2; tap += 1) {
-    if (tap > 0) {
+    if (tap > 0 && gap === "drawer") {
+      await page
+        .waitForFunction(
+          ({ x, y }) =>
+            document
+              .elementFromPoint(x, y)
+              ?.closest('.board-sheet[data-sheet="buys"] .board-row') != null,
+          { polling: "raf", timeout: 2_000 },
+          at,
+        )
+        .catch(() => undefined);
+    } else if (tap > 0) {
       await new Promise((resolve) => setTimeout(resolve, gap));
     }
     if (desks.get(page) === true) {
@@ -5352,7 +5374,9 @@ for (const viewport of SCREENS) {
     // spends nothing. The first tap opens Buys over the plate; the second
     // lands on the Buys card under the finger (a worker, which the pocket
     // can afford), and that card must not buy so soon after Buys opened.
-    {
+    // A runner too slow to land the second tap inside the 400ms settle has
+    // not tried the guard: try again, at most three times.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
       const { page, close } = await open(viewport, savingMountain(), {
         stopClock: true,
       });
@@ -5363,9 +5387,9 @@ for (const viewport of SCREENS) {
         odo.getAttribute("aria-label"),
       );
       const storedBefore = await storedMountain(page);
-      // 200ms apart: the drawer is on the last steps of its 240ms slide when
-      // the second tap lands on Buys, inside its 400ms settle (#373).
-      const second = await doubleTap(page, ".board-ready", 200);
+      // The second tap comes down as a row of the rising drawer reaches the
+      // plate, inside its 400ms settle (#373).
+      const second = await doubleTap(page, ".board-ready", "drawer");
       const under = `${second.on}, ${String(second.ms)}ms later`;
       const opened = await page
         .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
@@ -5377,10 +5401,14 @@ for (const viewport of SCREENS) {
         odo.getAttribute("aria-label"),
       );
       const storedAfter = await storedMountain(page);
+      if (second.ms >= 400 && attempt < 2) {
+        await close();
+        continue;
+      }
       check(
         (main ?? "").startsWith("Saving for a cart · in ") &&
           opened &&
-          under.startsWith("Buys") &&
+          /^Buys \w/.test(second.on) &&
           second.ms < 400 &&
           odoAfter === odoBefore &&
           storedAfter.pocket === storedBefore.pocket &&
@@ -5388,12 +5416,14 @@ for (const viewport of SCREENS) {
         `${label} Saving for reads "${String(main)}", and a double tap opens Buys with the pocket and odometer unchanged (second tap on ${under})`,
       );
       await close();
+      break;
     }
 
     // A sleepy double tap on an open bay: the first opens Buys, the second
     // lands on a Buys card the pocket can afford (5M stones affords any
     // card here), and buys nothing.
-    {
+    // As above, a runner too slow for the settle tries again, at most thrice.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
       const { page, close } = await open(viewport, openMountain(), {
         stopClock: true,
       });
@@ -5402,9 +5432,9 @@ for (const viewport of SCREENS) {
       await putNoteAway(page);
       const bay = '.board-bay[data-tier="cart"]';
       const storedBefore = await storedMountain(page);
-      // 240ms apart, so the drawer has slid up under the finger, and the
-      // second tap lands on a row inside the 400ms settle (#373).
-      const second = await doubleTap(page, bay, 240);
+      // The second tap comes down as a row of the rising drawer reaches the
+      // bay, inside the 400ms settle (#373).
+      const second = await doubleTap(page, bay, "drawer");
       const under = `${second.on}, ${String(second.ms)}ms later`;
       const opened = await page
         .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
@@ -5413,9 +5443,13 @@ for (const viewport of SCREENS) {
           () => false,
         );
       const storedAfter = await storedMountain(page);
+      if (second.ms >= 400 && attempt < 2) {
+        await close();
+        continue;
+      }
       check(
         opened &&
-          second.on.startsWith("Buys") &&
+          /^Buys \w/.test(second.on) &&
           second.ms < 400 &&
           storedAfter.pocket === storedBefore.pocket &&
           storedAfter.carts === storedBefore.carts &&
@@ -5432,6 +5466,7 @@ for (const viewport of SCREENS) {
         );
       }
       await close();
+      break;
     }
 
     // Trouble on the cart bay: a red lamp and Hold to fix. Five taps fix it
@@ -5777,8 +5812,12 @@ const DRAWER_SAVES = [
   ["crew", () => ({ version: 4, mountain: CREW, lastSeen: Date.now() })],
   ["mid, the borer the pick", () => borerPickMountain()],
 ];
-/** Late-game Buys runs longer than the drawer and scrolls inside it (C1). */
-const LONG_BUYS = new Set(["crew", "machine"]);
+/**
+ * Late-game Buys runs longer than the drawer and scrolls inside it (C1): the
+ * Great Machine's era, with the Kid row. Up to the borer it fits, its
+ * footnote stepping aside when it would push the list into a scroll (#373).
+ */
+const LONG_BUYS = new Set(["machine"]);
 /**
  * A full Upgrades scrolls inside its drawer too (C1, the spec's "a full
  * Upgrades"): from six rows, more than the drawer holds at 76px each.
@@ -6248,7 +6287,10 @@ for (const viewport of SCREENS) {
               JSON.stringify(dim),
             );
           }
-          // The "i": its cards take the list's place, fit, and go back.
+          // The "i": its cards take the list's place, fit, and go back. A
+          // finger on it inside the drawer's 400ms settle is the double tap's
+          // second tap, so the press waits that out.
+          await new Promise((resolve) => setTimeout(resolve, 450));
           await press(page, `${OPEN_SHEET(name)} .board-sheet-info`);
           await page
             .waitForSelector(

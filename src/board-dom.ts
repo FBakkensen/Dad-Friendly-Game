@@ -91,3 +91,18 @@ export function refitAll(root: HTMLElement): void {
     fitted.delete(box);
   }
 }
+
+/**
+ * Brings `item` into `list`'s view by scrolling the list alone, as `block: "nearest"` would.
+ * A drawer's list sits in the board's clip, which must never scroll: the browser's own
+ * scrollIntoView scrolls every ancestor, the clip included, while the drawer still slides (#373).
+ */
+export function scrollIntoList(list: HTMLElement, item: HTMLElement): void {
+  const port = list.getBoundingClientRect();
+  const box = item.getBoundingClientRect();
+  if (box.bottom > port.bottom) {
+    list.scrollTop += box.bottom - port.bottom;
+  } else if (box.top < port.top) {
+    list.scrollTop -= port.top - box.top;
+  }
+}

@@ -210,6 +210,15 @@ describe("mountMountainScreen", () => {
     reload.mockRestore();
   });
 
+  it("an update on a page with no prompt shows nothing and throws nothing", () => {
+    // A newer service worker can call it before the screen is mounted.
+    const page = document.createElement("div");
+    expect(() => {
+      showAppUpdate(page);
+    }).not.toThrow();
+    expect(page.childElementCount).toBe(0);
+  });
+
   it("Reload releases the writer seat so the next open is the writer", () => {
     const storage = createMemoryStorage();
     const writer = createTabWriter({
@@ -2704,6 +2713,12 @@ describe("the control board (#370)", () => {
 
   // A sleepy double tap: the first tap opens Buys over the plate or the bay,
   // and the second lands on the Buys card under the finger. It must not buy.
+  // A finger's click has a detail of 1; a key press clicks with 0 (#373).
+  const fingerClick = (el: HTMLElement): void => {
+    el.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
+    );
+  };
   const fingerTap = (el: HTMLElement): void => {
     el.dispatchEvent(
       new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
@@ -2711,7 +2726,7 @@ describe("the control board (#370)", () => {
     el.dispatchEvent(
       new PointerEvent("pointerup", { bubbles: true, button: 0 }),
     );
-    el.click();
+    fingerClick(el);
   };
   const cardOf = (screen: ReturnType<typeof mountScreen>, tier: string) => {
     const card = screen.root.querySelector(`.tier[data-tier="${tier}"]`);
@@ -2775,6 +2790,33 @@ describe("the control board (#370)", () => {
     ).toBe("Done");
   });
 
+  it("a finger's click on a row that slid under it while Buys settled buys nothing (#373)", () => {
+    // The second tap of a double tap on a bay comes down on one row while the drawer still
+    // rises; a touch's click lands where the finger lifts, on the row now under it.
+    let clock = 10_000;
+    const screen = mountScreen({
+      storage: seeded(early(), CLOCK),
+      now: () => CLOCK,
+      tapClock: () => clock,
+    });
+    const bay = screen.root.querySelector<HTMLButtonElement>(
+      '.board-bay[data-tier="cart"]',
+    );
+    if (bay === null) throw new Error("no bay");
+    fingerTap(bay);
+    clock += 270;
+    cardOf(screen, "helper").dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+    );
+    fingerClick(cardOf(screen, "cart"));
+    expect(cartsOf(screen)).toBe(6);
+    expect(screen.progress.getSnapshot().mountain.helpers).toBe(18);
+    expect(pocketOf(screen)).toBe(6_854);
+    // A key press is never early, settle or not.
+    cardOf(screen, "cart").click();
+    expect(cartsOf(screen)).toBe(7);
+  });
+
   it("the settle is judged by the press, not the click", () => {
     let clock = 10_000;
     const screen = mountScreen({
@@ -2794,7 +2836,7 @@ describe("the control board (#370)", () => {
     card.dispatchEvent(
       new PointerEvent("pointerup", { bubbles: true, button: 0 }),
     );
-    card.click();
+    fingerClick(card);
     expect(cartsOf(screen)).toBe(6);
     // The next press is its own, and buys. Reopening an open sheet (the
     // Buys key tapped again) does not restart the settle.

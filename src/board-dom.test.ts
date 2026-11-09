@@ -6,6 +6,7 @@ import {
   fitsWidth,
   frameX,
   refitAll,
+  scrollIntoList,
   setAttr,
   write,
 } from "./board-dom";
@@ -137,5 +138,55 @@ describe("board-dom", () => {
     }
     // a and deep measure again (2 each); the box outside the root keeps its fit.
     expect(fits).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe("scrollIntoList (#373)", () => {
+  const rect = (top: number, bottom: number): DOMRect => ({
+    top,
+    bottom,
+    left: 0,
+    right: 100,
+    width: 100,
+    height: bottom - top,
+    x: 0,
+    y: top,
+    toJSON: () => ({}),
+  });
+  const setup = (rowTop: number, rowBottom: number) => {
+    const clip = el("div", "board-sheet-clip");
+    const list = el("div", "board-sheet-list");
+    const row = el("button", "board-row");
+    list.append(row);
+    clip.append(list);
+    document.body.append(clip);
+    vi.spyOn(list, "getBoundingClientRect").mockReturnValue(rect(250, 788));
+    vi.spyOn(row, "getBoundingClientRect").mockReturnValue(
+      rect(rowTop, rowBottom),
+    );
+    const native = vi.fn();
+    row.scrollIntoView = native;
+    list.scrollTop = 40;
+    return { clip, list, row, native };
+  };
+
+  it("scrolls the list alone to bring a row below its view up to its foot", () => {
+    const { clip, list, row, native } = setup(800, 876);
+    scrollIntoList(list, row);
+    expect(list.scrollTop).toBe(40 + 88);
+    expect(clip.scrollTop).toBe(0);
+    expect(native).not.toHaveBeenCalled();
+  });
+
+  it("scrolls a row above its view down to its top", () => {
+    const { list, row } = setup(230, 306);
+    scrollIntoList(list, row);
+    expect(list.scrollTop).toBe(20);
+  });
+
+  it("leaves a row already in view where it is", () => {
+    const { list, row } = setup(400, 476);
+    scrollIntoList(list, row);
+    expect(list.scrollTop).toBe(40);
   });
 });

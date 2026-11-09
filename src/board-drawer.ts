@@ -10,8 +10,11 @@ import { skin } from "./board-skin";
  * plate under a short list, and Back at its foot. Buys and Upgrades build their rows inside it.
  *
  * One settle for every drawer: for 400ms after it opens, a finger that lands on it is the
- * second tap of the double tap that opened it. Rows ask `settling` through buyOnTap; Back asks
- * it here. A keyboard press is never early. The scrim above the drawers closes them.
+ * second tap of the double tap that opened it. Rows ask `settling` through buyOnTap; Back and
+ * the "i" ask it here. It is judged at a finger's press and again at its click, since a touch's
+ * click lands where the finger lifts, on whatever slid under it as the drawer rose (#373). A
+ * keyboard press (a click with no pointer, detail 0) is never early. The scrim above the
+ * drawers closes them.
  */
 
 /** How long a drawer settles after opening: B4's double-tap guard, for every drawer. */
@@ -46,6 +49,8 @@ export interface BoardSheet {
   readonly list: HTMLElement;
   readonly how: HTMLElement;
   readonly info: HTMLButtonElement;
+  /** Under the list: Back, and a line a panel may set over it. */
+  readonly footer: HTMLElement;
   readonly back: HTMLButtonElement;
   isOpen(): boolean;
   /** Open, and opened less than DRAWER_SETTLE_MS ago on the clock. */
@@ -163,7 +168,13 @@ export function createBoardSheet({
   const settling = (): boolean => open && clock() - openedAt < DRAWER_SETTLE_MS;
 
   const fitSpare = (): void => {
-    const next = spareTier(spare.offsetHeight);
+    // Off, the plate gives its gap in the list back (board.css): measure it without that room,
+    // or it would flip between off and short at the edge.
+    const freed =
+      tier === "off"
+        ? Number.parseFloat(getComputedStyle(list).rowGap) || 0
+        : 0;
+    const next = spareTier(spare.offsetHeight - freed);
     if (next === tier) {
       return;
     }
@@ -260,10 +271,18 @@ export function createBoardSheet({
     early = false;
   });
   back.addEventListener("click", (event) => {
-    const wasEarly = early && event.detail !== 0;
+    const wasEarly = (early || settling()) && event.detail !== 0;
     early = false;
     if (!wasEarly) {
       close();
+    }
+  });
+
+  // The "i" shares the settle too. Its listener comes first, so a finger's early click stops
+  // here, before the panel's own listener opens the cards.
+  info.addEventListener("click", (event) => {
+    if (event.detail !== 0 && settling()) {
+      event.stopImmediatePropagation();
     }
   });
 
@@ -283,6 +302,7 @@ export function createBoardSheet({
     list,
     how,
     info,
+    footer,
     back,
     isOpen: () => open,
     settling,

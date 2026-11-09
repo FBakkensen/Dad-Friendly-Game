@@ -117,11 +117,12 @@ describe("the drawer row", () => {
       expect(icon.getAttribute("height")).toBe("64");
       const mid = part(row, ":scope > .board-row-mid");
       for (const selector of [
-        ".board-row-name > .board-row-badge",
-        ".board-row-info",
-        ".board-row-need",
-        ".board-row-why",
-        ".board-row-flag.board-lg",
+        // The flag shares the name's line, so the row has three lines at most (#373).
+        ":scope > .board-row-line > .board-row-name > .board-row-badge",
+        ":scope > .board-row-line > .board-row-name + .board-row-flag.board-lg",
+        ":scope > .board-row-info",
+        ":scope > .board-row-need",
+        ":scope > .board-row-why",
       ]) {
         expect(mid.querySelector(selector), selector).not.toBeNull();
       }

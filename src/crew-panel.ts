@@ -7,7 +7,7 @@ import kidUrl from "./assets/board/mach-kid.png";
 import machineDimUrl from "./assets/board/mach-machine-dim.png";
 import machineUrl from "./assets/board/mach-machine.png";
 import workerUrl from "./assets/board/mach-worker.png";
-import { el, write } from "./board-dom";
+import { el, scrollIntoList, write } from "./board-dom";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
 import { boardHowCard } from "./board-how-art";
 import { createBoardRow, type BoardRow } from "./board-row";
@@ -366,10 +366,9 @@ export function createCrewPanel({
     ...BUY_SECTIONS.crew.flatMap(rowOf),
     machineSec,
     ...BUY_SECTIONS.machines.flatMap(rowOf),
-    foot,
   ];
   // Until the save is in, nothing from it shows: no row, legend, crew line or footnote.
-  for (const part of parts) {
+  for (const part of [...parts, foot]) {
     part.hidden = true;
   }
   const spare = sheet.list.querySelector(".board-spare");
@@ -378,6 +377,8 @@ export function createCrewPanel({
   } else {
     spare.before(...parts);
   }
+  // The footnote stands under the list, over Back: never part of the list's scroll (#373).
+  sheet.footer.prepend(foot);
 
   /**
    * Rows never move under a finger (#373): while the drawer is open with a save in, every part
@@ -479,8 +480,22 @@ export function createCrewPanel({
     paintChips(kept, chipLines);
   };
 
+  /**
+   * The footnote takes room from the list. On an open drawer whose list would scroll with it
+   * there, it steps aside, so early and mid-game Buys fit; shut, it comes back to be measured
+   * at the next open (#373).
+   */
+  const fitFoot = (): void => {
+    if (!foot.hidden && sheet.list.scrollHeight > sheet.list.clientHeight + 1) {
+      hide(foot, true);
+    }
+  };
+
   /** The open drawer holds its layout from here; shut, it takes the latest. */
   const freeze = (): void => {
+    if (!frozen) {
+      fitFoot();
+    }
     frozen = true;
     // Words that grow in place run on past the line rather than wrap a chip row (board.css).
     mark(posts, "is-frozen", true);
@@ -651,11 +666,12 @@ export function createCrewPanel({
         freeze();
       }
     }
-    // The staffing New row: bring it into view. Some test DOMs have no scrollIntoView.
-    const fresh: Partial<Element> | null = sheet.list.querySelector(
-      ".board-row.teach-new",
-    );
-    fresh?.scrollIntoView?.({ block: "nearest" });
+    // The staffing New row: bring it into view, scrolling the list alone. The board's clip
+    // around the sliding drawer never scrolls (#373).
+    const fresh = sheet.list.querySelector<HTMLElement>(".board-row.teach-new");
+    if (fresh !== null) {
+      scrollIntoList(sheet.list, fresh);
+    }
   };
 
   return { sheet, render, open };
