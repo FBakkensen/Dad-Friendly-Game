@@ -13,6 +13,10 @@ import type { BayView } from "./machine-bays";
 import { milestoneLine } from "./milestones";
 import { MOUNTAIN_STONES } from "./scale";
 import { formatCompact } from "./format";
+import { createBoardHost, type BoardHost } from "./board-host";
+import { THANKS_MS } from "./board-interaction";
+import { createBoardNote, type BoardNote } from "./board-note";
+import { TROUBLE_FIXED } from "./screen-words";
 
 const motion = (reduce: boolean): void => {
   vi.stubGlobal(
@@ -117,23 +121,69 @@ const troubled = (tier: TroubleTier): BayView => ({
   trouble: "cave-in",
 });
 
+type OnTrouble = (tier: TroubleTier, how: "press" | "hold") => boolean;
+
 function make(): {
   bays: MachineBays;
-  onOpen: ReturnType<typeof vi.fn<() => void>>;
-  onPress: ReturnType<
-    typeof vi.fn<(tier: TroubleTier, bay: HTMLElement) => void>
-  >;
-  onFix: ReturnType<
-    typeof vi.fn<(tier: TroubleTier, bay: HTMLElement) => void>
-  >;
+  board: BoardHost;
+  note: BoardNote;
+  stage: HTMLElement;
+  onOpen: ReturnType<typeof vi.fn<(from: HTMLElement) => void>>;
+  onTrouble: ReturnType<typeof vi.fn<OnTrouble>>;
+  /** The board's clock and the timers move on together: a thanks ends only when both have. */
+  advance: (ms: number) => void;
 } {
-  const onOpen = vi.fn<() => void>();
-  const onPress = vi.fn<(tier: TroubleTier, bay: HTMLElement) => void>();
-  const onFix = vi.fn<(tier: TroubleTier, bay: HTMLElement) => void>();
-  const bays = createMachineBays({ onOpen, onPress, onFix, fits });
-  document.body.append(bays.root);
-  return { bays, onOpen, onPress, onFix };
+  const now = { value: 0 };
+  const board = createBoardHost({
+    clock: () => now.value,
+    pressAge: () => 0,
+    reduced: () => false,
+  });
+  const stage = document.createElement("div");
+  document.body.append(stage);
+  const note = createBoardNote(stage);
+  const onOpen = vi.fn<(from: HTMLElement) => void>();
+  const onTrouble = vi.fn<OnTrouble>(() => false);
+  const bays = createMachineBays({ board, note, onOpen, onTrouble, fits });
+  stage.append(bays.root);
+  return {
+    bays,
+    board,
+    note,
+    stage,
+    onOpen,
+    onTrouble,
+    advance: (ms) => {
+      now.value += ms;
+      vi.advanceTimersByTime(ms);
+    },
+  };
 }
+
+/** A board, a note and taps that go nowhere, for a test about drawing. */
+const wiring = () => ({
+  board: createBoardHost({
+    clock: () => 0,
+    pressAge: () => 0,
+    reduced: () => false,
+  }),
+  note: createBoardNote(document.createElement("div")),
+  onOpen: vi.fn(),
+  onTrouble: vi.fn(() => false),
+});
+
+/** A finger's tap: down, up and the click, which has a pointer (detail 1). */
+const fingerTap = (el: HTMLElement): void => {
+  el.dispatchEvent(
+    new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+  );
+  el.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0 }));
+  el.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+};
+
+const thanking = (note: BoardNote): boolean =>
+  note.note.classList.contains("on") &&
+  note.note.querySelector(".board-thanks")?.textContent === TROUBLE_FIXED;
 
 const bay = (bays: MachineBays, i: number): HTMLButtonElement => {
   const el = bays.bays[i];
@@ -312,11 +362,8 @@ describe("createMachineBays", () => {
   });
 
   it("shortens a name that does not fit", () => {
-    const onOpen = vi.fn<() => void>();
     const bays = createMachineBays({
-      onOpen,
-      onPress: vi.fn(),
-      onFix: vi.fn(),
+      ...wiring(),
       fits: (el) => el.textContent.length <= 10,
     });
     bays.render(early(), "");
@@ -363,9 +410,7 @@ describe("createMachineBays", () => {
         (el) => el.textContent.length <= limit,
       );
       const bays = createMachineBays({
-        onOpen: vi.fn(),
-        onPress: vi.fn(),
-        onFix: vi.fn(),
+        ...wiring(),
         fits,
       });
       document.body.append(bays.root);
@@ -393,9 +438,7 @@ describe("createMachineBays", () => {
     it("keeps no fit measured off the page", () => {
       sized();
       const bays = createMachineBays({
-        onOpen: vi.fn(),
-        onPress: vi.fn(),
-        onFix: vi.fn(),
+        ...wiring(),
         fits: (el) => el.isConnected,
       });
       bays.render(early(), "");
@@ -588,7 +631,7 @@ describe("createMachineBays", () => {
       expect(first.onOpen).toHaveBeenCalledTimes(1);
       first.bays.render([troubled("drill"), borer(), machine()], "");
       bay(first.bays, 0).click();
-      expect(first.onPress).toHaveBeenCalledTimes(1);
+      expect(first.onTrouble).toHaveBeenCalledTimes(1);
       expect(first.onOpen).toHaveBeenCalledTimes(1);
 
       document.body.replaceChildren();
@@ -611,11 +654,11 @@ describe("createMachineBays", () => {
 
   describe("taps", () => {
     it("opens Buys from an open bay", () => {
-      const { bays, onOpen, onPress } = make();
+      const { bays, onOpen, onTrouble } = make();
       bays.render(early(), "");
       bay(bays, 0).click();
-      expect(onOpen).toHaveBeenCalledTimes(1);
-      expect(onPress).not.toHaveBeenCalled();
+      expect(onOpen).toHaveBeenCalledWith(bay(bays, 0));
+      expect(onTrouble).not.toHaveBeenCalled();
     });
 
     it("opens Buys from a locked bay", () => {
@@ -626,7 +669,7 @@ describe("createMachineBays", () => {
     });
 
     it("presses a troubled bay instead of opening Buys", () => {
-      const { bays, onOpen, onPress } = make();
+      const { bays, note, onOpen, onTrouble } = make();
       bays.render([troubled("cart"), drill(), lockedBorer], "");
       const b = bay(bays, 0);
       expect(b.getAttribute("data-trouble")).toBe("cave-in");
@@ -635,43 +678,152 @@ describe("createMachineBays", () => {
       );
       expect(q(b, ".board-bay-sub").textContent).toBe("Cave-in! · Hold to fix");
       b.click();
-      expect(onPress).toHaveBeenCalledWith("cart", b);
+      expect(onTrouble).toHaveBeenCalledWith("cart", "press");
       expect(onOpen).not.toHaveBeenCalled();
+      // The trouble is still there: no thanks.
+      expect(thanking(note)).toBe(false);
     });
 
     it("fixes on a hold, and the click that ends it does nothing", () => {
-      const { bays, onOpen, onPress, onFix } = make();
+      const { bays, note, onOpen, onTrouble } = make();
+      onTrouble.mockReturnValue(true);
       bays.render([troubled("cart"), drill(), lockedBorer], "");
       const b = bay(bays, 0);
       pointer(b, "pointerdown");
       vi.advanceTimersByTime(FIX_HOLD_MS);
-      expect(onFix).toHaveBeenCalledWith("cart", b);
+      expect(onTrouble).toHaveBeenCalledWith("cart", "hold");
+      expect(thanking(note)).toBe(true);
       pointer(b, "pointerup");
       b.click();
-      expect(onPress).not.toHaveBeenCalled();
+      expect(onTrouble).toHaveBeenCalledTimes(1);
       expect(onOpen).not.toHaveBeenCalled();
     });
 
     it("opens Buys once an engineer has fixed it", () => {
-      const { bays, onOpen, onPress } = make();
+      const { bays, onOpen, onTrouble } = make();
       bays.render([troubled("cart"), drill(), lockedBorer], "");
       bays.render(early(), "");
       const b = bay(bays, 0);
       expect(b.hasAttribute("data-trouble")).toBe(false);
       b.click();
       expect(onOpen).toHaveBeenCalledTimes(1);
-      expect(onPress).not.toHaveBeenCalled();
+      expect(onTrouble).not.toHaveBeenCalled();
+    });
+
+    it("a fix shows the thanks on the bay and it goes after 1.6s", () => {
+      const { bays, note, onTrouble, advance } = make();
+      onTrouble.mockReturnValue(true);
+      bays.render([drill(), troubled("borer"), machine()], "");
+      bay(bays, 1).click();
+      expect(thanking(note)).toBe(true);
+      // The thanks lets taps through to the bays under it.
+      expect(note.note.querySelector("p.board-thanks")).not.toBeNull();
+      advance(THANKS_MS - 1);
+      expect(thanking(note)).toBe(true);
+      advance(1);
+      expect(note.note.classList.contains("on")).toBe(false);
+    });
+
+    it("a note put away by a tap is not shown again on a later repaint", () => {
+      const { bays, note, onTrouble, advance } = make();
+      onTrouble.mockReturnValue(true);
+      bays.render([troubled("cart"), drill(), lockedBorer], "");
+      bay(bays, 0).click();
+      expect(thanking(note)).toBe(true);
+      // A tap on the drill bay puts the note away, and its press wakes every painter.
+      fingerTap(bay(bays, 1));
+      expect(note.note.classList.contains("on")).toBe(false);
+      advance(100);
+      bay(bays, 2).click();
+      expect(note.note.classList.contains("on")).toBe(false);
+      advance(THANKS_MS);
+      expect(note.note.classList.contains("on")).toBe(false);
+    });
+
+    it("a vein note that replaced the thanks is not hidden when the thanks ends", () => {
+      const { bays, note, stage, onTrouble, advance } = make();
+      onTrouble.mockReturnValue(true);
+      bays.render([troubled("cart"), drill(), lockedBorer], "");
+      bay(bays, 0).click();
+      expect(thanking(note)).toBe(true);
+      const vein = document.createElement("p");
+      vein.textContent = "A rich vein";
+      note.show(stage, vein, { ms: 6000 });
+      advance(THANKS_MS);
+      expect(note.note.classList.contains("on")).toBe(true);
+      expect(note.note.textContent).toBe("A rich vein");
+    });
+
+    it("a second fix inside the thanks shows it again", () => {
+      const { bays, note, onTrouble, advance } = make();
+      onTrouble.mockReturnValue(true);
+      bays.render([troubled("cart"), drill(), lockedBorer], "");
+      bay(bays, 0).click();
+      note.hide();
+      advance(500);
+      bay(bays, 0).click();
+      expect(thanking(note)).toBe(true);
+      // The second fix's thanks runs its own full time.
+      advance(THANKS_MS - 1);
+      expect(thanking(note)).toBe(true);
+      advance(1);
+      expect(note.note.classList.contains("on")).toBe(false);
+    });
+
+    it("an open-Buys tap right after a finger closed a drawer opens nothing", () => {
+      const { bays, board, onOpen, advance } = make();
+      bays.render(early(), "");
+      board.send({ kind: "open", overlay: "buys", at: 0 });
+      advance(500);
+      // The double tap on Back: its second tap lands on the bay under it.
+      board.send({ kind: "close", overlay: "buys", at: 500, by: "finger" });
+      advance(150);
+      fingerTap(bay(bays, 0));
+      expect(onOpen).not.toHaveBeenCalled();
+      advance(400);
+      fingerTap(bay(bays, 0));
+      expect(onOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it("a trouble tap right after a finger closed a drawer still presses", () => {
+      const { bays, board, onTrouble, advance } = make();
+      bays.render([troubled("cart"), drill(), lockedBorer], "");
+      board.send({ kind: "open", overlay: "buys", at: 0 });
+      advance(500);
+      board.send({ kind: "close", overlay: "buys", at: 500, by: "finger" });
+      advance(150);
+      fingerTap(bay(bays, 0));
+      expect(onTrouble).toHaveBeenCalledWith("cart", "press");
+    });
+
+    it("a 6th tap after a 5-tap fix opens Buys", () => {
+      const { bays, onOpen, onTrouble } = make();
+      let taps = 0;
+      onTrouble.mockImplementation(() => {
+        taps += 1;
+        return taps === 5;
+      });
+      bays.render([troubled("cart"), drill(), lockedBorer], "");
+      for (let tap = 0; tap < 5; tap += 1) {
+        fingerTap(bay(bays, 0));
+      }
+      expect(onTrouble).toHaveBeenCalledTimes(5);
+      expect(onOpen).not.toHaveBeenCalled();
+      // The store has no trouble now, so the screen draws the bay calm.
+      bays.render(early(), "");
+      fingerTap(bay(bays, 0));
+      expect(onOpen).toHaveBeenCalledTimes(1);
     });
 
     it("builds each bay once, so re-renders never pile up listeners", () => {
-      const { bays, onPress } = make();
+      const { bays, onTrouble } = make();
       const first = bay(bays, 0);
       for (let n = 0; n < 5; n++) {
         bays.render([troubled("cart"), drill(), lockedBorer], "");
       }
       expect(bay(bays, 0)).toBe(first);
       first.click();
-      expect(onPress).toHaveBeenCalledTimes(1);
+      expect(onTrouble).toHaveBeenCalledTimes(1);
     });
 
     it("shows only frames, art and dark lamps before the save is in", () => {

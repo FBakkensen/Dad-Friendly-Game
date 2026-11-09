@@ -344,4 +344,18 @@ describe("pressOnBoard", () => {
     fingerClick(inner);
     expect(seen).toEqual(["ignore-early"]);
   });
+
+  it("reads a trouble press from the click, which the settle never stops", () => {
+    const { now, host, target } = settled();
+    let troubled = true;
+    const seen: string[] = [];
+    pressOnBoard(target, host, control, (decision) => seen.push(decision), {
+      intent: () => (troubled ? "trouble" : "act"),
+    });
+    now.value = 1_100;
+    fingerClick(target);
+    troubled = false;
+    fingerClick(target);
+    expect(seen).toEqual(["act", "ignore-early"]);
+  });
 });

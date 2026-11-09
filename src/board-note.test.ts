@@ -29,13 +29,50 @@ describe("createBoardNote", () => {
     expect(note.textContent).toContain("Hello");
   });
 
-  it("hides after 3400ms", () => {
+  it("stays up with no time given, while nothing puts it away", () => {
     const { note, anchor, show } = setup();
     show(anchor, text("Hello"));
-    vi.advanceTimersByTime(3399);
+    vi.advanceTimersByTime(60_000);
     expect(note.classList.contains("on")).toBe(true);
-    vi.advanceTimersByTime(1);
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     expect(note.classList.contains("on")).toBe(false);
+  });
+
+  it("a show with no time ends the timer of the note it replaces", () => {
+    const { note, anchor, show } = setup();
+    show(anchor, text("First"), { ms: 3400 });
+    show(anchor, text("Second"));
+    vi.advanceTimersByTime(60_000);
+    expect(note.classList.contains("on")).toBe(true);
+    expect(note.textContent).toContain("Second");
+  });
+
+  describe("hideIf", () => {
+    const body = (words: string): HTMLElement => {
+      const p = document.createElement("p");
+      p.textContent = words;
+      return p;
+    };
+
+    it("hides the note while it shows that body", () => {
+      const { note, anchor, show, hideIf } = setup();
+      const thanks = body("Thanks");
+      show(anchor, thanks);
+      hideIf(thanks);
+      expect(note.classList.contains("on")).toBe(false);
+    });
+
+    it("leaves a note that shows another body", () => {
+      const { note, anchor, show, hideIf } = setup();
+      const thanks = body("Thanks");
+      show(anchor, thanks);
+      show(anchor, body("Vein"), { ms: 6000 });
+      hideIf(thanks);
+      expect(note.classList.contains("on")).toBe(true);
+      expect(note.textContent).toContain("Vein");
+      vi.advanceTimersByTime(6000);
+      expect(note.classList.contains("on")).toBe(false);
+    });
   });
 
   it("a pointerdown outside hides it", () => {
@@ -55,9 +92,9 @@ describe("createBoardNote", () => {
 
   it("a second show replaces the body and restarts the timer", () => {
     const { note, anchor, show } = setup();
-    show(anchor, text("First"));
+    show(anchor, text("First"), { ms: 3400 });
     vi.advanceTimersByTime(3000);
-    show(anchor, text("Second"));
+    show(anchor, text("Second"), { ms: 3400 });
     expect(note.textContent).toContain("Second");
     expect(note.textContent).not.toContain("First");
     vi.advanceTimersByTime(3000);
@@ -128,7 +165,7 @@ describe("createBoardNote", () => {
     it("a plain note after it auto-hides again", () => {
       const { note, anchor, show, key, body } = keyed();
       show(anchor, body, { key });
-      show(anchor, text("Plain"));
+      show(anchor, text("Plain"), { ms: 3400 });
       vi.advanceTimersByTime(3400);
       expect(note.classList.contains("on")).toBe(false);
     });

@@ -89,6 +89,12 @@ export function trackPress(
   };
 }
 
+/** How a board control's listeners are added, and what kind of press a click is. */
+export interface BoardPressOptions extends AddEventListenerOptions {
+  /** A trouble press (a bay in trouble) is never early or held. Every click acts otherwise. */
+  readonly intent?: (click: MouseEvent) => "act" | "trouble";
+}
+
 /**
  * One of the board's controls, pressed through the board. Its press is tracked on `target`, so
  * it is judged by its own finger-down time, and that time is dropped at a cancel or when the
@@ -100,7 +106,7 @@ export function pressOnBoard(
   board: BoardHost,
   control: ControlRef | ((click: MouseEvent) => ControlRef | undefined),
   judged: (decision: PressDecision, by: Pointer, event: MouseEvent) => void,
-  options: AddEventListenerOptions = {},
+  { intent = () => "act", ...options }: BoardPressOptions = {},
 ): PressTracker {
   const tracker = trackPress(target, board, options);
   target.addEventListener(
@@ -114,7 +120,7 @@ export function pressOnBoard(
       const decision = board.press({
         control: pressed,
         by,
-        intent: "act",
+        intent: intent(event),
         downAt,
         event,
       });

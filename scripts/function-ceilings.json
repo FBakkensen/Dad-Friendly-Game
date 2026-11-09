@@ -1,5 +1,4 @@
 {
-  "src/board-bays.ts#createMachineBays": 257,
   "src/board-save.ts#createSaveLine": 164,
   "src/board-window.ts#createMineWindow": 326,
   "src/engineers-panel.ts#createEngineersPanel": 845,
@@ -8,7 +7,7 @@
   "src/firebase-save.ts#createFirebaseCloudSave": 166,
   "src/how-it-works.ts#howItWorks": 286,
   "src/menu-panel.ts#createMenuPanel": 302,
-  "src/mountain-screen.ts#mountMountainScreen": 1110,
+  "src/mountain-screen.ts#mountMountainScreen": 1093,
   "src/pacing.ts#simulateDadRun": 164,
   "src/progress-store.ts#createProgressStore": 2196,
   "src/relic-panels.ts#createRelicPanels": 363,

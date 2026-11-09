@@ -1,12 +1,10 @@
 import { shownStones, stonesLeft } from "./scale";
 import pickUrl from "./assets/pick.png";
 import { noteFor } from "./teach";
-import { THANKS_MS } from "./board-interaction";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
 import { formatCount } from "./format";
 import { MOUNTAIN_STONES, stonesPerSecond, type Mountain } from "./mountain";
 import { owned, tierById, type TierId } from "./tiers";
-import type { TroubleTier } from "./hazards";
 import { hasRelic, relicGoal, type RelicId } from "./relics";
 import { BOOSTS } from "./boosts";
 import { createEffectChip, shortEffectName, writeChip } from "./effect-row";
@@ -59,7 +57,6 @@ import {
   OTHER_TAB_BODY,
   OTHER_TAB_PLAY,
   OTHER_TAB_TITLE,
-  TROUBLE_FIXED,
   nextLayerHint,
   tapWords,
   WORKSHOP_NOTE,
@@ -249,18 +246,14 @@ export function mountMountainScreen({
   const running = document.createElement("div");
   running.className = "board-running";
   running.append(runningHead, effectRow, runningNone);
-  // A bay's fix thanks the crew in the board note (#372).
-  const bayThanks = document.createElement("p");
-  bayThanks.className = "board-thanks";
-  bayThanks.textContent = TROUBLE_FIXED;
   // The New sign stands in the band over its key (#373): a sign, not a button.
   const sign = createBoardSign();
-  // While another note shows, the list, the vein's note and the bay thanks
-  // wait here, so the chips and the live words stay in the page.
+  // While another note shows, the list and the vein's note wait here, so the
+  // chips and the live words stay in the page.
   const runningPark = document.createElement("div");
   runningPark.className = "board-running-park";
   runningPark.hidden = true;
-  runningPark.append(running, veinNote, bayThanks);
+  runningPark.append(running, veinNote);
   const chipFor = new Map(
     BOOSTS.map((boost) => {
       const chip = createEffectChip(
@@ -844,11 +837,9 @@ export function mountMountainScreen({
     if (running.parentNode === null) {
       runningPark.append(running);
     }
-    // Back to the park whenever another note has taken their place.
-    for (const parked of [veinNote, bayThanks]) {
-      if (parked.parentNode === null) {
-        runningPark.append(parked);
-      }
+    // Back to the park whenever another note has taken its place.
+    if (veinNote.parentNode === null) {
+      runningPark.append(veinNote);
     }
     relicPlate.render();
     renderStock();
@@ -1067,27 +1058,16 @@ export function mountMountainScreen({
 
   /**
    * The machine bays (#372). A tap opens Buys; on a troubled bay it presses or
-   * holds the fix through the store, as a Buys card does, and thanks the crew
-   * once the trouble is gone.
+   * holds the fix through the store, as a Buys card does, and the bay thanks
+   * the crew once the trouble is gone.
    */
-  const thankFix = (tier: TroubleTier, bay: HTMLElement, fix: () => void) => {
-    const before = progress.getSnapshot().trouble;
-    fix();
-    if (before?.tier === tier && progress.getSnapshot().trouble === undefined) {
-      boardNote.show(bay, bayThanks, { ms: THANKS_MS });
-    }
-  };
   const bays = createMachineBays({
+    board,
+    note: boardNote,
     onOpen: openBuys,
-    onPress: (tier, bay) => {
-      thankFix(tier, bay, () => {
-        progress.pressTrouble(tier);
-      });
-    },
-    onFix: (tier, bay) => {
-      thankFix(tier, bay, () => {
-        progress.fixTrouble(tier);
-      });
+    onTrouble: (tier, how) => {
+      (how === "hold" ? progress.fixTrouble : progress.pressTrouble)(tier);
+      return progress.getSnapshot().trouble === undefined;
     },
   });
 
