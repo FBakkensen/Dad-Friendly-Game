@@ -139,14 +139,15 @@ These are the only player-visible changes. Each is a bug today.
 Each sliver is one sitting and one PR, keeps the game booting with every gate green, and deletes what it replaces. The order, with what each one is blocked by:
 
 1. **G: the ratchet and the rules** (F, #408). Blocked by nothing. It's first so nothing grows while the rest lands.
-2. **A1: actions and dispatch** (#409; A, without the field-log change). The UI's 18 `applyMutation` sites move to `dispatch`; the Proxy and the count diffs go; the three UI/lab divergences are unified (named fix 3). Blocked by G.
-3. **I1: the board interaction model** (#410; B, the pure module and its tests only, wired to nothing yet). Blocked by A1, since it consumes dispatch results.
-4. **I2: Buys and Upgrades onto the model** (#411). The drawers, their rows, the keys and Back move onto it, along with the Ready plate and the bays (named fixes 1 and 2). The hand-rolled copies go, and the screen gets one render path for these parts. Their tap checks move from the browser to I1's unit tests, leaving one wiring check each. Blocked by I1.
-5. **H: the shared browser harness** (E, #412). The sections stay as they are, moved onto the harness, then converted to tables. Blocked by I2, so it converts the checks once, after they've shrunk.
-6. **B6–B8 (#374–#376)** continue on the model and the harness. B6's Workshop and Engineers drawers are the model's next users and add browser checks as table rows. Blocked by H.
-7. **A2: the field log from events** (the rest of A, #413). Blocked by A1. It can run any time after A1; placed here so the UI work isn't delayed.
-8. **S1: one time step and a thin store** (C, #414). Blocked by A2 and #368's end (B8), so the store doesn't move under the UI work.
-9. **S2: a complete game state** (D, #415). Blocked by S1.
+2. **G2: the complexity ratchet** (#418, added 9 Nov at Flemming's ask). A cognitive-complexity ceiling list beside the length one, on the same judge, scored by `eslint-plugin-sonarjs`. Blocked by G; A1 is blocked by it.
+3. **A1: actions and dispatch** (#409; A, without the field-log change). The UI's 18 `applyMutation` sites move to `dispatch`; the Proxy and the count diffs go; the three UI/lab divergences are unified (named fix 3). Blocked by G2.
+4. **I1: the board interaction model** (#410; B, the pure module and its tests only, wired to nothing yet). Blocked by A1, since it consumes dispatch results.
+5. **I2: Buys and Upgrades onto the model** (#411). The drawers, their rows, the keys and Back move onto it, along with the Ready plate and the bays (named fixes 1 and 2). The hand-rolled copies go, and the screen gets one render path for these parts. Their tap checks move from the browser to I1's unit tests, leaving one wiring check each. Blocked by I1.
+6. **H: the shared browser harness** (E, #412). The sections stay as they are, moved onto the harness, then converted to tables. Blocked by I2, so it converts the checks once, after they've shrunk.
+7. **B6–B8 (#374–#376)** continue on the model and the harness. B6's Workshop and Engineers drawers are the model's next users and add browser checks as table rows. Blocked by H.
+8. **A2: the field log from events** (the rest of A, #413). Blocked by A1. It can run any time after A1; placed here so the UI work isn't delayed.
+9. **S1: one time step and a thin store** (C, #414). Blocked by A2 and #368's end (B8), so the store doesn't move under the UI work.
+10. **S2: a complete game state** (D, #415). Blocked by S1.
 
 **(My call)** I2 may split into "drawers and rows" and "keys, plate and bays" if its plan runs over one sitting. B6 is blocked only by the first half.
 
