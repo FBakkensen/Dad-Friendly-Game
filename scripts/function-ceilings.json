@@ -6,7 +6,7 @@
   "src/engineers-panel.ts#createEngineersPanel>render": 179,
   "src/firebase-save.ts#createFirebaseCloudSave": 166,
   "src/how-it-works.ts#howItWorks": 286,
-  "src/menu-panel.ts#createMenuPanel": 291,
+  "src/menu-panel.ts#createMenuPanel": 292,
   "src/mountain-screen.ts#mountMountainScreen": 1077,
   "src/pacing.ts#simulateDadRun": 164,
   "src/progress-store.ts#createProgressStore": 2196,

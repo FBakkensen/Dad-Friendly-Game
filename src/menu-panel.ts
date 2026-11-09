@@ -293,7 +293,8 @@ export function createMenuPanel({
     menuClose,
   );
 
-  signal?.addEventListener("abort", auth.subscribe(renderAuth));
+  const unwatchAuth = auth.subscribe(renderAuth);
+  signal?.addEventListener("abort", unwatchAuth);
 
   const renderFieldLog = (): void => {
     copyButton.disabled = !getView().ready;
