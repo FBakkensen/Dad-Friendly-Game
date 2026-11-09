@@ -8,7 +8,7 @@
  *   node scripts/function-length.mjs --print  the current over-limit functions, as JSON
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   FUNCTION_LIMIT,
@@ -29,9 +29,19 @@ const git = (...args) =>
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-const files = git("ls-files", "-z", "--", "src")
+// Untracked files too: a new file is measured before it is committed.
+const files = git(
+  "ls-files",
+  "-z",
+  "--cached",
+  "--others",
+  "--exclude-standard",
+  "--",
+  "src",
+)
   .split("\0")
-  .filter((path) => path !== "" && isMeasured(path));
+  // A file deleted but not yet committed is still listed: skip what is gone.
+  .filter((path) => path !== "" && isMeasured(path) && existsSync(path));
 const spans = files.flatMap((path) =>
   measureFunctions(path, readFileSync(path, "utf8")),
 );
