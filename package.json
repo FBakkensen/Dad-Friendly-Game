@@ -21,6 +21,7 @@
     "format:check": "prettier --check .",
     "knip": "node scripts/knip-strict.js",
     "tokens": "node scripts/token-check.mjs",
+    "functions": "node scripts/function-length.mjs",
     "cycles": "node scripts/check-cycles.mjs",
     "gate": "node scripts/gate.mjs",
     "check": "node scripts/gate.mjs full",

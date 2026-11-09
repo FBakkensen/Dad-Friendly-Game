@@ -216,3 +216,29 @@ export function problemLine(problem: LengthProblem): string {
       return `${id} has a new ceiling; new functions stay under ${String(FUNCTION_LIMIT)} lines.`;
   }
 }
+
+/** The files the ratchet measures: TypeScript under src/, but no tests or test harnesses. */
+export function isMeasured(path: string): boolean {
+  return (
+    path.startsWith("src/") &&
+    path.endsWith(".ts") &&
+    !path.endsWith(".test.ts") &&
+    !path.endsWith(".harness.ts")
+  );
+}
+
+/** The ceiling list's text. Throws on anything but ids mapped to positive whole numbers. */
+export function parseCeilings(text: string): Ceilings {
+  const value: unknown = JSON.parse(text);
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("The ceiling list must be an object of function ids.");
+  }
+  const ceilings: Record<string, number> = {};
+  for (const [id, lines] of Object.entries(value)) {
+    if (typeof lines !== "number" || !Number.isInteger(lines) || lines < 1) {
+      throw new Error(`The ceiling for ${id} must be a positive whole number.`);
+    }
+    ceilings[id] = lines;
+  }
+  return ceilings;
+}

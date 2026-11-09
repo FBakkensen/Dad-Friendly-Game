@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   type FunctionSpan,
+  isMeasured,
   judgeLengths,
   measureFunctions,
+  parseCeilings,
   problemLine,
 } from "./function-length";
 
@@ -189,5 +191,41 @@ describe("judgeLengths", () => {
 
   it("with no base, ceilings are not compared", () => {
     expect(lines([span("src/a.ts#f", 210)], { "src/a.ts#f": 210 })).toEqual([]);
+  });
+});
+
+describe("isMeasured", () => {
+  it("measures non-test src files and skips tests and harnesses", () => {
+    const measured = [
+      "src/a.ts",
+      "src/lab/x.ts",
+      "src/a.test.ts",
+      "src/a.sim.test.ts",
+      "src/mountain-screen.harness.ts",
+      "src/latest.ts",
+      "scripts/a.mjs",
+      "docs/a.md",
+      "src/a.css",
+    ].filter(isMeasured);
+    expect(measured).toEqual(["src/a.ts", "src/lab/x.ts", "src/latest.ts"]);
+  });
+});
+
+describe("parseCeilings", () => {
+  it("reads an object of positive whole line counts", () => {
+    expect(parseCeilings('{"src/a.ts#f": 200}')).toEqual({ "src/a.ts#f": 200 });
+  });
+
+  it("throws on anything else, so a broken list never lets a function through", () => {
+    for (const text of [
+      "[]",
+      "null",
+      '{"a":0}',
+      '{"a":1.5}',
+      '{"a":"2"}',
+      "nope",
+    ]) {
+      expect(() => parseCeilings(text)).toThrow();
+    }
   });
 });
