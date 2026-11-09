@@ -5162,6 +5162,12 @@ async function putNoteAway(page) {
 }
 
 /**
+ * How often a double-tap check may try again when load pushed its second press past the
+ * settle (#373). A buy inside the settle fails on any try; the last try must land inside.
+ */
+const SETTLE_TRIES = 5;
+
+/**
  * A sleepy double tap at the selector's centre: two taps `gap` ms apart at
  * one point, with nothing between them, so a loaded run keeps them close.
  * The second lands on whatever the first put there. With `gap` "drawer", the
@@ -5453,8 +5459,8 @@ for (const viewport of SCREENS) {
     // lands on the Buys card under the finger (a worker, which the pocket
     // can afford), and that card must not buy so soon after Buys opened.
     // A runner too slow to land the second tap inside the 400ms settle has
-    // not tried the guard: try again, at most three times.
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    // not tried the guard: try again, at most SETTLE_TRIES times.
+    for (let attempt = 0; attempt < SETTLE_TRIES; attempt += 1) {
       const { page, close } = await open(viewport, savingMountain(), {
         stopClock: true,
       });
@@ -5486,7 +5492,7 @@ for (const viewport of SCREENS) {
       // Retried only when the second press surely came after the settle: a
       // press this far after the class landed is at least that far after its
       // start, so it is a real tap and a buy there is correct, not a miss.
-      if (second.intoSettle >= 400 && attempt < 2) {
+      if (second.intoSettle >= 400 && attempt < SETTLE_TRIES - 1) {
         if (spent) {
           console.log("saving-for double tap after the settle bought", under);
         }
@@ -5510,8 +5516,8 @@ for (const viewport of SCREENS) {
     // A sleepy double tap on an open bay: the first opens Buys, the second
     // lands on a Buys card the pocket can afford (5M stones affords any
     // card here), and buys nothing.
-    // As above, a runner too slow for the settle tries again, at most thrice.
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    // As above, a runner too slow for the settle tries again, at most SETTLE_TRIES times.
+    for (let attempt = 0; attempt < SETTLE_TRIES; attempt += 1) {
       const { page, close } = await open(viewport, openMountain(), {
         stopClock: true,
       });
@@ -5536,7 +5542,7 @@ for (const viewport of SCREENS) {
       );
       // Retried only when the second press surely came after the settle (at
       // least 400ms after its start): a buy there is a real tap, not a miss.
-      if (second.intoSettle >= 400 && attempt < 2) {
+      if (second.intoSettle >= 400 && attempt < SETTLE_TRIES - 1) {
         if (spent) {
           console.log("bay double tap after the settle bought", under);
         }
@@ -6743,10 +6749,10 @@ for (const viewport of SCREENS) {
         const drawerKey = id === "buys" || id === "upgrades";
         // Under the full gate's load the second tap can come down after the
         // drawer's 400ms settle, where Back rightly closes it: that try has not
-        // tested the guard. Retry it (at most thrice), judged from when the
+        // tested the guard. Retry it (at most SETTLE_TRIES times), judged from when the
         // drawer opened, an upper bound on the settle's start.
         let intoSettle = 0;
-        for (let attempt = 0; attempt < 3; attempt += 1) {
+        for (let attempt = 0; attempt < SETTLE_TRIES; attempt += 1) {
           if (drawerKey) {
             await watchSheetOpen(page, SHEET(id));
           }
@@ -6758,7 +6764,7 @@ for (const viewport of SCREENS) {
           const open = await page.$eval(SHEET(id), (sheet) =>
             sheet.classList.contains("is-open"),
           );
-          if (open || intoSettle < 400 || attempt === 2) {
+          if (open || intoSettle < 400 || attempt === SETTLE_TRIES - 1) {
             break;
           }
           await new Promise((resolve) => setTimeout(resolve, 300));
@@ -6835,6 +6841,30 @@ for (const viewport of SCREENS) {
       const topsBefore = await listTops(page, "buys");
       const before = await storedMountain(page);
       const cart = `${OPEN_SHEET("buys")} .tier[data-tier="cart"]`;
+      // The second tap is meant 450ms after the first. A loaded runner can push it past the
+      // hold, where a buy is right, so the gap is read from the page's own press stamps: a
+      // try that landed outside the hold proves nothing and goes again; the last must land
+      // inside, and inside, nothing may be bought (#373).
+      const pressStamps = () =>
+        page.$eval(cart, (row) => {
+          const stamps = [];
+          row.addEventListener(
+            "pointerdown",
+            (event) => {
+              stamps.push(event.timeStamp);
+            },
+            { capture: true },
+          );
+          globalThis.__holdStamps = stamps;
+        });
+      const gapOf = () =>
+        page.evaluate(() => {
+          const [first, second] = globalThis.__holdStamps ?? [];
+          return second === undefined || first === undefined
+            ? Number.POSITIVE_INFINITY
+            : second - first;
+        });
+      await pressStamps();
       await press(page, cart);
       await new Promise((resolve) => setTimeout(resolve, 150));
       const bought = await storedMountain(page);
@@ -6846,13 +6876,41 @@ for (const viewport of SCREENS) {
         bought.carts - before.carts === 1 && done.verb === "Done" && done.held,
         `${label} early: a tap on the cart row after 600ms buys one cart and shows Done`,
       );
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      await press(page, cart);
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      const again = await storedMountain(page);
+      let held = { inside: false, spent: true, gap: Number.POSITIVE_INFINITY };
+      let first = bought;
+      for (let tryNo = 0; tryNo < 3; tryNo += 1) {
+        if (tryNo > 0) {
+          // Wait out the hold, buy again, and try the second tap once more.
+          await page.waitForFunction(
+            (selector) =>
+              document
+                .querySelector(selector)
+                ?.classList.contains("is-held") === false,
+            { timeout: 5_000 },
+            cart,
+          );
+          await pressStamps();
+          await press(page, cart);
+          await new Promise((resolve) => setTimeout(resolve, 150));
+          first = await storedMountain(page);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await press(page, cart);
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        const again = await storedMountain(page);
+        const gap = await gapOf();
+        held = {
+          inside: gap < 1_900,
+          spent: again.carts !== first.carts || again.pocket !== first.pocket,
+          gap,
+        };
+        if (held.inside) {
+          break;
+        }
+      }
       check(
-        again.carts === bought.carts && again.pocket === bought.pocket,
-        `${label} early: a second tap inside the 1.9s hold buys nothing`,
+        held.inside && !held.spent,
+        `${label} early: a second tap inside the 1.9s hold buys nothing (${String(Math.round(held.gap))}ms after the first)`,
       );
       const topsAfter = await listTops(page, "buys");
       check(
