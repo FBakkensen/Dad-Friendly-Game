@@ -80,6 +80,7 @@ import {
   type RecipeId,
 } from "./workshop";
 import { fittedEffect } from "./workshop-sheet";
+import { applyMove, type Move, type MoveResult } from "./economy/actions";
 import {
   clearSessionSave,
   readSessionSave,
@@ -159,7 +160,15 @@ export type ProgressStore = {
   readonly subscribe: (
     listener: (snapshot: ProgressSnapshot) => void,
   ) => () => void;
-  /** Applies a player action to the latest mountain (helpers' work settled first) and saves it. */
+  /**
+   * The one way the game changes (#409): applies a move to the latest mountain (helpers'
+   * work settled first), saves it, and says whether it applied.
+   */
+  readonly dispatch: (move: Move) => DispatchResult;
+  /**
+   * A test seam: applies any change to the latest mountain, as `dispatch` does. Production
+   * code changes the game only through `dispatch` (an ESLint rule holds it to that).
+   */
   readonly applyMutation: (
     update: (mountain: Mountain) => Mountain,
     note?: "vein.tap",
@@ -227,6 +236,59 @@ export const WELCOME_MIN_AWAY_MS = 60 * 1000;
  * "+N while you were away" note instead of the full card (#334).
  */
 export const QUIET_AWAY_MS = 5 * 60 * 1000;
+/** A loaded cloud copy as one side of a save conflict. */
+function remoteSide(loaded: {
+  mountain: Mountain;
+  lastSeen?: number | undefined;
+  rev?: number;
+  deviceId?: string;
+  deviceLabel?: string;
+}): SaveSide {
+  return {
+    mountain: loaded.mountain,
+    lastSeen: loaded.lastSeen,
+    rev: loaded.rev ?? 0,
+    deviceId: loaded.deviceId ?? "",
+    deviceLabel:
+      loaded.deviceLabel !== undefined && loaded.deviceLabel.length > 0
+        ? loaded.deviceLabel
+        : "Another phone",
+  };
+}
+
+/** What a dispatched move did (#409): applied, with what it spent and mined, or why not. */
+export type DispatchResult =
+  | { readonly kind: "applied"; readonly spent: number; readonly mined: number }
+  | { readonly kind: "refused"; readonly reason: "not-playing" | "no-change" };
+
+/** A move through the store's one commit path; the rules are `applyMove`'s. */
+function dispatchMove(
+  move: Move,
+  commit: (
+    update: (mountain: Mountain) => Mountain,
+    note?: "vein.tap",
+  ) => boolean,
+  at: number,
+  trouble: Trouble | undefined,
+): DispatchResult {
+  // The update runs inside commit, after the crew's work is settled.
+  const box: { result: MoveResult } = { result: { kind: "refused" } };
+  const playing = commit(
+    (mountain) => {
+      box.result = applyMove(mountain, move, at, { trouble });
+      return box.result.kind === "applied" ? box.result.mountain : mountain;
+    },
+    move.kind === "tapVein" ? "vein.tap" : undefined,
+  );
+  const { result } = box;
+  if (!playing) {
+    return { kind: "refused", reason: "not-playing" };
+  }
+  return result.kind === "applied"
+    ? { kind: "applied", spent: result.spent, mined: result.mined }
+    : { kind: "refused", reason: "no-change" };
+}
+
 /** Longer than this between ticks and the game was not on screen. */
 const LIVE_GAP_MS = 10 * 1000;
 
@@ -848,23 +910,6 @@ export function createProgressStore({
     }
     return "applied";
   };
-
-  const remoteSide = (loaded: {
-    mountain: Mountain;
-    lastSeen?: number | undefined;
-    rev?: number;
-    deviceId?: string;
-    deviceLabel?: string;
-  }): SaveSide => ({
-    mountain: loaded.mountain,
-    lastSeen: loaded.lastSeen,
-    rev: loaded.rev ?? 0,
-    deviceId: loaded.deviceId ?? "",
-    deviceLabel:
-      loaded.deviceLabel !== undefined && loaded.deviceLabel.length > 0
-        ? loaded.deviceLabel
-        : "Another phone",
-  });
 
   const finishFlight = (): void => {
     cloudFlight = false;
@@ -2048,6 +2093,40 @@ export function createProgressStore({
     return true;
   };
 
+  /** Commits one change: false when the session is not playing (#409). */
+  const commit = (
+    update: (mountain: Mountain) => Mountain,
+    note?: "vein.tap",
+  ): boolean => {
+    if (!canPlay()) {
+      return false;
+    }
+    const beforeTrouble = troubleMark();
+    const mined = settle();
+    const before = mountain;
+    const next = recordFirstUse(update(mountain));
+    if (next === before) {
+      if (mined > 0 || troubleMark() !== beforeTrouble || newsPending) {
+        persistPhoneBackup();
+        emit();
+      }
+      return true;
+    }
+    mountain = next;
+    phoneDirty = true;
+    noteChanges(before, next);
+    noteCrew(before, next);
+    if (note === "vein.tap") {
+      record("vein.tap", { stones: next.pocket - before.pocket });
+    }
+    persistCloudSoon();
+    persistFieldLog("interval");
+    persistSession();
+    persistPhoneBackup();
+    emit();
+    return true;
+  };
+
   return {
     getSnapshot: snapshot,
     subscribe: (listener) => {
@@ -2057,33 +2136,9 @@ export function createProgressStore({
         listeners.delete(listener);
       };
     },
+    dispatch: (move) => dispatchMove(move, commit, now(), activeTrouble()),
     applyMutation: (update, note) => {
-      if (!canPlay()) {
-        return;
-      }
-      const beforeTrouble = troubleMark();
-      const mined = settle();
-      const before = mountain;
-      const next = recordFirstUse(update(mountain));
-      if (next === before) {
-        if (mined > 0 || troubleMark() !== beforeTrouble || newsPending) {
-          persistPhoneBackup();
-          emit();
-        }
-        return;
-      }
-      mountain = next;
-      phoneDirty = true;
-      noteChanges(before, next);
-      noteCrew(before, next);
-      if (note === "vein.tap") {
-        record("vein.tap", { stones: next.pocket - before.pocket });
-      }
-      persistCloudSoon();
-      persistFieldLog("interval");
-      persistSession();
-      persistPhoneBackup();
-      emit();
+      commit(update, note);
     },
     dismissReveal: () => {
       if (reveals.length === 0) {

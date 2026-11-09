@@ -5356,3 +5356,61 @@ describe("two saves found (#226)", () => {
     progress.dispose();
   });
 });
+
+describe("dispatch (#409)", () => {
+  const store = () =>
+    createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: createMemoryStorage(),
+    });
+
+  it("applies a buy, says what it spent, saves it and tells listeners", () => {
+    const progress = store();
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    const heard: number[] = [];
+    progress.subscribe((snapshot) => heard.push(snapshot.mountain.helpers));
+    const result = progress.dispatch({ kind: "buyTier", id: "helper" });
+    expect(result).toEqual({ kind: "applied", spent: 20, mined: 0 });
+    expect(progress.getSnapshot().mountain.helpers).toBe(1);
+    expect(progress.getSnapshot().saveKind).toBe("session");
+    expect(heard.at(-1)).toBe(1);
+  });
+
+  it("refuses a buy the pocket cannot pay, and changes nothing", () => {
+    const progress = store();
+    const before = progress.getSnapshot().mountain;
+    expect(progress.dispatch({ kind: "buyTier", id: "cart" })).toEqual({
+      kind: "refused",
+      reason: "no-change",
+    });
+    expect(progress.getSnapshot().mountain).toBe(before);
+  });
+
+  it("refuses every move while the session is not playing", () => {
+    const progress = store();
+    progress.dispose();
+    expect(progress.dispatch({ kind: "dig" })).toEqual({
+      kind: "refused",
+      reason: "not-playing",
+    });
+  });
+
+  it("digs by hand, with what it mined", () => {
+    const progress = store();
+    const result = progress.dispatch({ kind: "dig" });
+    expect(result.kind === "applied" && result.mined).toBeGreaterThan(0);
+    expect(progress.getSnapshot().mountain.pocket).toBe(
+      result.kind === "applied" ? result.mined : -1,
+    );
+  });
+
+  it("logs a vein tap with the stones it gave", () => {
+    const progress = store();
+    progress.applyMutation(() => minedMountain(1_000));
+    const result = progress.dispatch({ kind: "tapVein" });
+    expect(result.kind).toBe("applied");
+    expect(
+      progress.fieldLog().events.some((event) => event.code === "vein.tap"),
+    ).toBe(true);
+  });
+});
