@@ -13,7 +13,7 @@ import {
 import { recall, send } from "../expeditions";
 import { markTaught } from "../teach";
 import type { Trouble } from "../hazards";
-import { createMountain, type Mountain } from "../mountain";
+import { createMountain, mineByHand, type Mountain } from "../mountain";
 import { minedMountain } from "../test-fixtures";
 import {
   AWAY_FULL_MS,
@@ -1250,7 +1250,7 @@ describe("applyMove (#409)", () => {
     if (bought.kind !== "applied") return;
     expect(bought.mountain.carts).toBe(rich.carts + 1);
     expect(bought.spent).toBe(rich.pocket - bought.mountain.pocket);
-    expect(bought.mined).toBe(0);
+    expect(bought.gained).toBe(0);
     expect(applyMove(broke, cart, NOW, calm)).toEqual({ kind: "refused" });
   });
 
@@ -1284,12 +1284,25 @@ describe("applyMove (#409)", () => {
     expect(moved.mountain.taught).toContain("tending");
   });
 
+  it("digs with the trouble it is given: a slowed machine gives a tap less, never nothing", () => {
+    const tapper: Mountain = { ...rich, upgrades: { tap: 5 } };
+    const calmDig = applyMove(tapper, { kind: "dig" }, NOW, calm);
+    const caveIn = applyMove(tapper, { kind: "dig" }, NOW, { trouble });
+    const gained = (result: typeof calmDig) =>
+      result.kind === "applied" ? result.gained : -1;
+    expect(gained(caveIn)).toBe(
+      mineByHand(tapper, NOW, trouble).pocket - tapper.pocket,
+    );
+    expect(gained(caveIn)).toBeGreaterThan(0);
+    expect(gained(caveIn)).toBeLessThan(gained(calmDig));
+  });
+
   it("digs by hand with what it mined, and taps a vein", () => {
     const dug = applyMove(fresh, { kind: "dig" }, NOW, calm);
-    expect(dug.kind === "applied" && dug.mined).toBeGreaterThan(0);
+    expect(dug.kind === "applied" && dug.gained).toBeGreaterThan(0);
     expect(dug.kind === "applied" && dug.spent).toBe(0);
     const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
-    expect(vein.kind === "applied" && vein.mined).toBeGreaterThan(0);
+    expect(vein.kind === "applied" && vein.gained).toBeGreaterThan(0);
   });
 
   it("marks a sheet seen, and refuses a mark already made", () => {

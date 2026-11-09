@@ -13,9 +13,11 @@ page is the map, plus the rules that keep it that way.
    every legal move, including a craft and a cancel, applies the existing
    functions, and values income from that speed, taps, and away pay. A `Move`
    is an `Action` or a screen-only move (a dig, a vein tap, a seen mark), and
-   `applyMove` is the one place any of them changes the mountain, for the UI and
-   the lab alike (#409): it says `applied` (with the stones spent and mined) or
-   `refused`, and it holds the UI's rules too: a worker bought beside an idle
+   `applyMove` is the one place the UI changes the mountain, and the lab's
+   `applyAction` too (#409). The lab's runner and the pacing sim still call some
+   rule functions directly (`promote`, `buyBoost`, `send`, `tendBestTier`),
+   which R1 (#420) folds in. It says `applied` (with what the move took from the
+   pocket and put in) or `refused`, and it holds the UI's rules too: a worker bought beside an idle
    machine marks staffing taught, a real station marks tending taught and first
    calls a party back, and a recall with no expedition sends the hand to camp. A craft's
    payback adds the bench time. `lab/world` steps one seeded clock (live
@@ -63,9 +65,10 @@ page is the map, plus the rules that keep it that way.
    `firestore.rules` (server-side mirror of the parser and the field log,
    guarded by `rules-drift.test.ts` and the emulator tests).
 3. **State:** `progress-store` owns the live mountain, and the UI changes it
-   only with `dispatch(move)`, which settles the crew, runs `applyMove` and
-   commits, and says `applied` (spent, mined) or `refused` (`not-playing` or
-   `no-change`) (#409). `applyMutation` is a test seam: ESLint
+   only with `dispatch(move)`, which settles the crew, runs `applyMove` with the
+   clock and the trouble as that settle left them, and commits, and says
+   `applied` (spent, gained) or `refused` (`not-playing` or `no-change`) (#409).
+   A trouble press or fix is still a store method (S1, #414). `applyMutation` is a test seam: ESLint
    (`no-restricted-properties`) bans it in non-test `src`. The store owns settling time, away
    pay, reveals, migrations, and when/where to save. A rejected cloud write
    keeps that mountain, shows the save error, retries once, and records the

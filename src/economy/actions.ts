@@ -270,15 +270,16 @@ type ScreenMove =
 export type Move = Action | ScreenMove;
 
 /**
- * What a move did: applied, with the pocket it spent and the stones it mined (each at least
- * 0), or refused because it changed nothing.
+ * What a move did: applied, with what it took from the pocket and what it put in (each at
+ * least 0: a dig's or a vein's stones, a cancelled craft's refund), or refused because it
+ * changed nothing.
  */
 export type MoveResult =
   | {
       readonly kind: "applied";
       readonly mountain: Mountain;
       readonly spent: number;
-      readonly mined: number;
+      readonly gained: number;
     }
   | { readonly kind: "refused" };
 
@@ -378,7 +379,7 @@ export function applyMove(
     kind: "applied",
     mountain: next,
     spent: Math.max(0, -gained),
-    mined: Math.max(0, gained),
+    gained: Math.max(0, gained),
   };
 }
 

@@ -155,7 +155,7 @@ export function createUpgradesPanel({
   const wireBuy = (
     row: BoardRow,
     viewOf: (mountain: Mountain, at: number) => RowView,
-    move: Move,
+    move: Extract<Move, { kind: "buyUpgrade" | "buyBoost" }>,
   ): void => {
     const root = row.root;
     if (!(root instanceof HTMLButtonElement)) {

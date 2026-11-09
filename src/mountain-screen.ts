@@ -161,9 +161,9 @@ export function mountMountainScreen({
 }): void {
   const progress = progressArg ?? createProgressStore({ auth });
   /**
-   * Every change the player makes (#409). A move that took stones shows them on the odometer
-   * and kicks the needle; a cloud copy, a chosen or restored copy, Start over or Pass the mine
-   * never comes through here, so it never shows a spend (#370).
+   * Every change the player makes (#409): a move that took stones rolls the odometer's spend
+   * and kicks the needle (made further down; no panel dispatches while it is built). A cloud
+   * copy, a restored copy, Start over or Pass the mine never comes here: no spend (#370).
    */
   const dispatch: Dispatch = (move) => {
     const result = progress.dispatch(move);
@@ -347,7 +347,7 @@ export function mountMountainScreen({
       return 0;
     }
     const result = dispatch({ kind: "dig" });
-    const mined = result.kind === "applied" ? result.mined : 0;
+    const mined = result.kind === "applied" ? result.gained : 0;
     if (mined > 0) {
       gauge.kick(DIG_KICK);
     }
@@ -359,7 +359,7 @@ export function mountMountainScreen({
       return;
     }
     const result = dispatch({ kind: "tapVein" });
-    const reward = result.kind === "applied" ? result.mined : 0;
+    const reward = result.kind === "applied" ? result.gained : 0;
     veinState = waitForVein({ now: now(), random, gapScale: gapForVeins() });
     showVeinNote(
       `Golden vein! +${formatCount(reward)} ${reward === 1 ? "stone" : "stones"}`,

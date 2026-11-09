@@ -1344,9 +1344,15 @@ describe("upgrades on screen", () => {
         tapClock: () => clock,
       });
       document.body.append(screen.root);
-      const price = sharperPrice(screen.progress.getSnapshot().mountain);
       openUpgrades(screen);
+      // A row comes in while the drawer is open: the fifth cart shows Helping hands, unseen.
+      screen.progress.applyMutation((mountain) => ({ ...mountain, carts: 5 }));
       const atTap = shownRows(screen.progress.getSnapshot().mountain);
+      expect(atTap).toContain("upgrade:cartSyn");
+      expect(screen.progress.getSnapshot().mountain.seen).not.toContain(
+        "upgrade:cartSyn",
+      );
+      const price = sharperPrice(screen.progress.getSnapshot().mountain);
       clock += BUYS_SETTLE_MS + 100;
       fingerTap(rowOf(screen, '[data-boost="sharper"]'));
       const after = screen.progress.getSnapshot().mountain;
@@ -1354,6 +1360,7 @@ describe("upgrades on screen", () => {
       expect(screen.text(".board-spend")).toBe(
         `−${price.toLocaleString("en-US")}`,
       );
+      // The buy marks every row he had in front of him, the new one too.
       expect([...(after.seen ?? [])].sort()).toEqual([...atTap].sort());
       screen.root.remove();
     } finally {

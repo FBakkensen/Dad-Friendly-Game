@@ -256,32 +256,43 @@ function remoteSide(loaded: {
   };
 }
 
-/** What a dispatched move did (#409): applied, with what it spent and mined, or why not. */
+/** What a dispatched move did (#409): applied, with what it spent and gained, or why not. */
 type DispatchResult =
-  | { readonly kind: "applied"; readonly spent: number; readonly mined: number }
+  | {
+      readonly kind: "applied";
+      readonly spent: number;
+      readonly gained: number;
+    }
   | { readonly kind: "refused"; readonly reason: "not-playing" | "no-change" };
 
 /**
  * How a screen part changes the game (#409). The screen hands its panels a wrapper around
  * the store's `dispatch` that also shows each move's spend on the odometer.
  */
-export type Dispatch = (move: Move) => DispatchResult;
+export type Dispatch = (move: StoreMove) => DispatchResult;
+
+/**
+ * Every move but `fixTrouble`: the store's trouble presses and fixes stay its own methods
+ * until the trouble state moves into the game state (S1, #414).
+ */
+type StoreMove = Exclude<Move, { readonly kind: "fixTrouble" }>;
 
 /** A move through the store's one commit path; the rules are `applyMove`'s. */
 function dispatchMove(
-  move: Move,
+  move: StoreMove,
   commit: (
     update: (mountain: Mountain) => Mountain,
     note?: "vein.tap",
   ) => boolean,
-  at: number,
-  trouble: Trouble | undefined,
+  now: () => number,
+  trouble: () => Trouble | undefined,
 ): DispatchResult {
-  // The update runs inside commit, after the crew's work is settled.
+  // The update runs inside commit, after the crew's work is settled: the clock and the
+  // trouble are read there, so a trouble that settle starts or clears is the one the move sees.
   const box: { result: MoveResult } = { result: { kind: "refused" } };
   const playing = commit(
     (mountain) => {
-      box.result = applyMove(mountain, move, at, { trouble });
+      box.result = applyMove(mountain, move, now(), { trouble: trouble() });
       return box.result.kind === "applied" ? box.result.mountain : mountain;
     },
     move.kind === "tapVein" ? "vein.tap" : undefined,
@@ -291,7 +302,7 @@ function dispatchMove(
     return { kind: "refused", reason: "not-playing" };
   }
   return result.kind === "applied"
-    ? { kind: "applied", spent: result.spent, mined: result.mined }
+    ? { kind: "applied", spent: result.spent, gained: result.gained }
     : { kind: "refused", reason: "no-change" };
 }
 
@@ -2142,7 +2153,7 @@ export function createProgressStore({
         listeners.delete(listener);
       };
     },
-    dispatch: (move) => dispatchMove(move, commit, now(), activeTrouble()),
+    dispatch: (move) => dispatchMove(move, commit, now, activeTrouble),
     applyMutation: (update, note) => {
       commit(update, note);
     },
