@@ -252,6 +252,10 @@ export function skin(
   const canvas = document.createElement("canvas");
   canvas.className = "board-skin";
   canvas.setAttribute("aria-hidden", "true");
+  // Nothing until painted: a canvas left at its default 300x150 sticks out of a small host
+  // (one built hidden is painted only a frame after it shows) and stretches what holds it (#403).
+  canvas.width = 0;
+  canvas.height = 0;
   host.classList.add("board-skinned");
   host.insertBefore(canvas, host.firstChild);
 

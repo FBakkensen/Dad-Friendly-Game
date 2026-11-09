@@ -9,23 +9,34 @@ import {
   importClosure,
   LAB_ENTRIES,
   logTail,
+  parsePass,
+  recordMove,
   relativeImports,
+  reuseInputs,
+  reusedOutcome,
   nextMoves,
   parseArgs,
   planTier,
   splitGitPaths,
   summaryLine,
   totalLine,
+  touchedFiles,
   USAGE,
 } from "./gate";
 
-const step = (name: string, after: readonly string[] = []): Step => ({
+const step = (
+  name: string,
+  after: readonly string[] = [],
+  lane: Step["lane"] = "shared",
+): Step => ({
   name,
   command: "node",
   args: [],
   tiers: ["full"],
   after,
   env: {},
+  lane,
+  reusable: false,
 });
 
 const names = (steps: readonly Step[]) => steps.map((each) => each.name);
@@ -51,6 +62,20 @@ describe("changedCode", () => {
 
   it("is empty when no code changed", () => {
     expect(changedCode(["README.md"])).toEqual([]);
+  });
+});
+
+describe("touchedFiles", () => {
+  it("keeps every changed file once, sorted, of any kind, without build output", () => {
+    expect(
+      touchedFiles([
+        "src/a.ts",
+        "docs/b.md",
+        "src/a.ts",
+        "dist/x.js",
+        "coverage/y.json",
+      ]),
+    ).toEqual(["docs/b.md", "src/a.ts"]);
   });
 });
 
@@ -98,6 +123,47 @@ describe("gateSteps", () => {
 
   it("fast tier only typechecks when no code changed", () => {
     expect(names(fast([]))).toEqual(["typecheck", "typecheck:tools"]);
+  });
+
+  it("fast tier checks the format of every changed file, docs and styles too", () => {
+    const plan = planTier(
+      "fast",
+      gateSteps(["src/c.ts"], {
+        economy: false,
+        touched: ["docs/a.md", "src/b.css", "src/c.ts"],
+      }),
+    );
+    if (plan.kind !== "ok") throw new Error(plan.message);
+    const format = plan.steps.find((each) => each.name === "format:changed");
+    expect(format?.command).toBe("node_modules/.bin/prettier");
+    expect(format?.args).toEqual([
+      "--check",
+      "--ignore-unknown",
+      "docs/a.md",
+      "src/b.css",
+      "src/c.ts",
+    ]);
+    expect(format?.tiers).toEqual(["fast"]);
+  });
+
+  it("fast tier has no format step when nothing changed", () => {
+    const plan = planTier(
+      "fast",
+      gateSteps([], { economy: false, touched: [] }),
+    );
+    expect(plan.kind === "ok" && names(plan.steps)).not.toContain(
+      "format:changed",
+    );
+  });
+
+  it("full tier keeps its whole-tree format check and no format:changed", () => {
+    const plan = planTier(
+      "full",
+      gateSteps([], { economy: false, touched: ["docs/a.md"] }),
+    );
+    if (plan.kind !== "ok") throw new Error(plan.message);
+    expect(names(plan.steps)).toContain("format");
+    expect(names(plan.steps)).not.toContain("format:changed");
   });
 
   it("typecheck is incremental, with its state in the git-ignored gate folder", () => {
@@ -171,6 +237,16 @@ describe("the strategy lab in the full tier", () => {
       "tools/strategy-lab.ts",
       "tools/generations-lab.ts",
     ]);
+  });
+
+  it("puts the visual check and both labs in the heavy lane, visual first", () => {
+    const heavy = steps(true).filter((each) => each.lane === "heavy");
+    expect(names(heavy)).toEqual(["visual", "lab", "lab:generations"]);
+  });
+
+  it("reuses only the two labs", () => {
+    const reusable = steps(true).filter((each) => each.reusable);
+    expect(names(reusable)).toEqual(["lab", "lab:generations"]);
   });
 
   it("is never in the fast tier", () => {
@@ -386,6 +462,155 @@ describe("nextMoves", () => {
   });
 });
 
+describe("nextMoves in the heavy lane", () => {
+  const steps = [step("h1", [], "heavy"), step("h2", [], "heavy"), step("s")];
+  const passed: Outcome = { kind: "passed", seconds: 1 };
+  const failed: Outcome = { kind: "failed", seconds: 1, code: 1 };
+
+  it("runs one heavy step at a time, in table order", () => {
+    expect(names(nextMoves(steps, new Map(), new Set()).start)).toEqual([
+      "h1",
+      "s",
+    ]);
+    expect(
+      names(nextMoves(steps, new Map(), new Set(["h1", "s"])).start),
+    ).toEqual([]);
+    expect(
+      names(nextMoves(steps, new Map([["h1", passed]]), new Set(["s"])).start),
+    ).toEqual(["h2"]);
+  });
+
+  it("a failed heavy step frees the lane", () => {
+    expect(
+      names(nextMoves(steps, new Map([["h1", failed]]), new Set()).start),
+    ).toEqual(["h2", "s"]);
+  });
+});
+
+describe("reuseInputs", () => {
+  const lab: Step = {
+    ...step("lab"),
+    reusable: true,
+    env: { LAB_STRICT: "1" },
+  };
+  const base = {
+    step: lab,
+    files: [
+      ["src/a.ts", "a"],
+      ["src/b.ts", "b"],
+    ] as const,
+    lock: "lock",
+    node: "v24.0.0",
+  };
+
+  it("changes when any input changes", () => {
+    const text = reuseInputs(base);
+    const variants = [
+      {
+        ...base,
+        files: [
+          ["src/a.ts", "a!"],
+          ["src/b.ts", "b"],
+        ] as const,
+      },
+      {
+        ...base,
+        files: [
+          ["src/A.ts", "a"],
+          ["src/b.ts", "b"],
+        ] as const,
+      },
+      { ...base, files: [...base.files, ["src/c.ts", "c"]] as const },
+      { ...base, lock: "lock2" },
+      { ...base, node: "v24.1.0" },
+      { ...base, step: { ...lab, args: ["--ci"] } },
+      { ...base, step: { ...lab, env: { LAB_STRICT: "0" } } },
+    ];
+    for (const variant of variants) {
+      expect(reuseInputs(variant)).not.toBe(text);
+    }
+  });
+
+  it("does not depend on the order of the env", () => {
+    const two = (env: Record<string, string>) =>
+      reuseInputs({ ...base, step: { ...lab, env } });
+    expect(two({ A: "1", B: "2" })).toBe(two({ B: "2", A: "1" }));
+  });
+
+  it("does not depend on the order the files come in", () => {
+    expect(
+      reuseInputs({ ...base, files: [base.files[1], base.files[0]] }),
+    ).toBe(reuseInputs(base));
+  });
+});
+
+describe("parsePass", () => {
+  it("reads a record back", () => {
+    expect(parsePass(JSON.stringify({ key: "k", sha: "abc" }))).toEqual({
+      key: "k",
+      sha: "abc",
+    });
+  });
+
+  it("reads anything else as no record, never as a pass", () => {
+    for (const text of [
+      undefined,
+      "not json",
+      "{}",
+      '{"key":1,"sha":"x"}',
+      "null",
+    ]) {
+      expect(parsePass(text)).toBeUndefined();
+    }
+  });
+});
+
+describe("reusedOutcome", () => {
+  const lab: Step = { ...step("lab"), reusable: true };
+  const record = { key: "k", sha: "abc1234def" };
+
+  it("reuses a reusable step whose inputs passed before", () => {
+    expect(reusedOutcome(lab, "k", record)).toEqual({
+      kind: "reused",
+      sha: "abc1234def",
+    });
+  });
+
+  it("runs it when the inputs differ, there is no record, or it never reuses", () => {
+    expect(reusedOutcome(lab, "other", record)).toBeUndefined();
+    expect(reusedOutcome(lab, "k", undefined)).toBeUndefined();
+    expect(reusedOutcome(step("visual"), "k", record)).toBeUndefined();
+  });
+});
+
+describe("recordMove", () => {
+  it("records a pass only when the inputs did not change while it ran", () => {
+    expect(recordMove({ passed: true, before: "k", after: "k" })).toBe("write");
+    // Edited mid-run: the pass covered a mix of old and new, so it proves neither.
+    expect(recordMove({ passed: true, before: "k", after: "k2" })).toBe(
+      "delete",
+    );
+  });
+
+  it("a red run loses the old record", () => {
+    expect(recordMove({ passed: false, before: "k", after: "k" })).toBe(
+      "delete",
+    );
+  });
+});
+
+describe("nextMoves behind a reused step", () => {
+  it("starts a step behind a reused one", () => {
+    const steps = [step("lab"), step("after", ["lab"])];
+    const moves = nextMoves(
+      steps,
+      new Map([["lab", { kind: "reused", sha: "abc" } as const]]),
+      new Set(),
+    );
+    expect(names(moves.start)).toEqual(["after"]);
+  });
+});
+
 describe("summaryLine", () => {
   it("prints one aligned line per outcome", () => {
     expect(summaryLine("typecheck", { kind: "passed", seconds: 4.08 }, 9)).toBe(
@@ -397,6 +622,9 @@ describe("summaryLine", () => {
     expect(summaryLine("visual", { kind: "skipped", because: "lint" }, 9)).toBe(
       "skip  visual     blocked by lint",
     );
+    expect(summaryLine("lab", { kind: "reused", sha: "abc1234def" }, 9)).toBe(
+      "ok    lab        reused (same inputs passed on abc1234)",
+    );
   });
 });
 
@@ -407,6 +635,14 @@ describe("exitCode and totalLine", () => {
     expect(exitCode([passed, passed])).toBe(0);
     expect(totalLine("fast", [passed, passed], 12.34)).toBe(
       "gate fast: 2 passed in 12.3s",
+    );
+  });
+
+  it("counts a reused step as passed, and says how many were reused", () => {
+    const reused: Outcome = { kind: "reused", sha: "abc" };
+    expect(exitCode([passed, passed, reused])).toBe(0);
+    expect(totalLine("full", [passed, passed, reused], 3)).toBe(
+      "gate full: 3 passed (1 reused) in 3.0s",
     );
   });
 

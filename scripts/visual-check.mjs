@@ -6450,9 +6450,9 @@ for (const viewport of SCREENS) {
               },
             )
             .catch(() => undefined);
-          // The cards can use a face the list did not, which only starts
-          // loading as they show: wait for it too, or a loaded runner measures
-          // the fallback font's taller wrap (#373).
+          // The cards' art and any face the list did not use load as they
+          // show: wait for both before measuring. (The 708/660 overflow once
+          // blamed on fonts was a skin canvas at its default size, #403.)
           await page.evaluate(() =>
             Promise.all([
               ...[

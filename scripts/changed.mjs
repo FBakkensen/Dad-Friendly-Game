@@ -5,7 +5,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { changedCode, splitGitPaths } from "../src/gate.ts";
+import { changedCode, splitGitPaths, touchedFiles } from "../src/gate.ts";
 
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" });
 
@@ -19,10 +19,17 @@ function base() {
   }
 }
 
+const sincePaths = () => [
+  ...splitGitPaths(git("diff", "--name-only", "-z", base())),
+  ...splitGitPaths(git("ls-files", "--others", "--exclude-standard", "-z")),
+];
+
 /** Repo-relative code paths that still exist, sorted, once each. */
 export function changedSinceMain() {
-  return changedCode([
-    ...splitGitPaths(git("diff", "--name-only", "-z", base())),
-    ...splitGitPaths(git("ls-files", "--others", "--exclude-standard", "-z")),
-  ]).filter((path) => existsSync(path));
+  return changedCode(sincePaths()).filter((path) => existsSync(path));
+}
+
+/** Every changed path of any kind that still exists, sorted, once each. */
+export function touchedSinceMain() {
+  return touchedFiles(sincePaths()).filter((path) => existsSync(path));
 }
