@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  type FunctionSpan,
+  COMPLEXITY,
+  LINES,
   baseFromShow,
+  complexityValues,
   isMeasured,
-  judgeLengths,
+  judgeCeilings,
   measureFunctions,
   parseCeilings,
   problemLine,
-} from "./function-length";
+} from "./function-ratchet";
 
 const ids = (source: string): readonly string[] =>
   measureFunctions("p.ts", source).map((span) => span.id);
@@ -91,17 +93,16 @@ describe("measureFunctions", () => {
   });
 });
 
-describe("judgeLengths", () => {
-  const span = (id: string, lines: number): FunctionSpan => ({
-    id,
-    line: 1,
-    lines,
-  });
+describe("judgeCeilings", () => {
+  const span = (id: string, value: number) => ({ id, value });
   const lines = (
-    spans: readonly FunctionSpan[],
+    values: readonly { id: string; value: number }[],
     ceilings: Readonly<Record<string, number>>,
     base?: Readonly<Record<string, number>>,
-  ) => judgeLengths({ spans, ceilings, base }).map(problemLine);
+  ) =>
+    judgeCeilings({ values, ceilings, base, measure: LINES }).map((problem) =>
+      problemLine(problem, LINES),
+    );
 
   it("passes a function of exactly 150 lines, and one at its ceiling", () => {
     expect(
@@ -113,13 +114,13 @@ describe("judgeLengths", () => {
 
   it("fails a function over 150 lines with no ceiling", () => {
     expect(lines([span("src/a.ts#f", 151)], {})).toEqual([
-      "src/a.ts#f is 151 lines; the limit is 150. Split it.",
+      "src/a.ts#f is 151 lines; the limit is 150 lines. Split it.",
     ]);
   });
 
   it("fails a function that grew past its ceiling", () => {
     expect(lines([span("src/a.ts#f", 210)], { "src/a.ts#f": 200 })).toEqual([
-      "src/a.ts#f grew to 210 lines; its ceiling is 200. Split it.",
+      "src/a.ts#f grew to 210 lines; its ceiling is 200 lines. Split it.",
     ]);
   });
 
@@ -136,8 +137,8 @@ describe("judgeLengths", () => {
         "src/a.ts#g": 160,
       }),
     ).toEqual([
-      "src/a.ts#f is gone or under 150 lines; remove its ceiling.",
-      "src/a.ts#g is gone or under 150 lines; remove its ceiling.",
+      "src/a.ts#f is gone or within the limit; remove its ceiling.",
+      "src/a.ts#g is gone or within the limit; remove its ceiling.",
     ]);
   });
 
@@ -150,7 +151,7 @@ describe("judgeLengths", () => {
       ),
     ).toEqual([
       "src/a.ts#f's ceiling rose from 200 to 210; ceilings only go down.",
-      "src/a.ts#n has a new ceiling; new functions stay under 150 lines.",
+      "src/a.ts#n has a new ceiling; new functions stay within the limit.",
     ]);
   });
 
@@ -164,8 +165,8 @@ describe("judgeLengths", () => {
         },
       ),
     ).toEqual([
-      "src/a.ts#f is gone or under 150 lines; remove its ceiling.",
-      "src/a.ts#renamed is 200 lines; the limit is 150. Split it.",
+      "src/a.ts#f is gone or within the limit; remove its ceiling.",
+      "src/a.ts#renamed is 200 lines; the limit is 150 lines. Split it.",
     ]);
   });
 
@@ -185,7 +186,7 @@ describe("judgeLengths", () => {
         { "src/a.ts#f": 200 },
       ),
     ).toEqual([
-      "src/a.ts#f is gone or under 150 lines; remove its ceiling.",
+      "src/a.ts#f is gone or within the limit; remove its ceiling.",
       "src/a.ts#f's ceiling rose from 200 to 210; ceilings only go down.",
     ]);
   });
@@ -196,12 +197,73 @@ describe("judgeLengths", () => {
         "src/a.ts#f>(anonymous 5)": 351,
       }),
     ).toEqual([
-      "src/a.ts#f>(anonymous 5) has no name to hold a ceiling; name it, or split it under 150 lines.",
+      "src/a.ts#f>(anonymous 5) has no name to hold a ceiling; name it, or bring it within the limit.",
     ]);
   });
 
   it("with no base, ceilings are not compared", () => {
     expect(lines([span("src/a.ts#f", 210)], { "src/a.ts#f": 210 })).toEqual([]);
+  });
+});
+
+describe("the complexity measure", () => {
+  it("judges complexity by the same rules, with its own limit and words", () => {
+    const problems = judgeCeilings({
+      values: [
+        { id: "src/a.ts#f", value: 20 },
+        { id: "src/a.ts#g", value: 15 },
+      ],
+      ceilings: {},
+      base: undefined,
+      measure: COMPLEXITY,
+    });
+    expect(problems.map((problem) => problemLine(problem, COMPLEXITY))).toEqual(
+      ["src/a.ts#f is complexity 20; the limit is complexity 15. Simplify it."],
+    );
+  });
+});
+
+describe("two measures on one function", () => {
+  it("judges a function over both limits by two ceilings that move apart", () => {
+    const judge = (lines: number, complexity: number) => [
+      ...judgeCeilings({
+        values: [{ id: "src/a.ts#f", value: lines }],
+        ceilings: { "src/a.ts#f": 160 },
+        base: undefined,
+        measure: LINES,
+      }).map((problem) => problemLine(problem, LINES)),
+      ...judgeCeilings({
+        values: [{ id: "src/a.ts#f", value: complexity }],
+        ceilings: { "src/a.ts#f": 20 },
+        base: undefined,
+        measure: COMPLEXITY,
+      }).map((problem) => problemLine(problem, COMPLEXITY)),
+    ];
+    expect(judge(160, 20)).toEqual([]);
+    expect(judge(160, 18)).toEqual([
+      "src/a.ts#f is complexity 18; lower its ceiling from 20 to 18.",
+    ]);
+  });
+});
+
+describe("function heads", () => {
+  it("runs from a function's first token to the start of its body", () => {
+    const source = [
+      "function a(x: number) {", // the body opens at column 23
+      "  return x;",
+      "}",
+      "const b = (",
+      "  y: number,",
+      ") => y;",
+      "class C { m() {} }",
+    ].join("\n");
+    expect(
+      measureFunctions("p.ts", source).map(({ id, head }) => [id, head]),
+    ).toEqual([
+      ["p.ts#a", { line: 1, column: 1, endLine: 1, endColumn: 23 }],
+      ["p.ts#b", { line: 4, column: 11, endLine: 6, endColumn: 6 }],
+      ["p.ts#C.m", { line: 7, column: 11, endLine: 7, endColumn: 15 }],
+    ]);
   });
 });
 
@@ -267,5 +329,90 @@ describe("baseFromShow", () => {
       }),
     ).toThrow(/invalid object name/);
     expect(() => baseFromShow({ kind: "shown", text: "{not json" })).toThrow();
+  });
+});
+
+describe("complexityValues", () => {
+  // The positions eslint-plugin-sonarjs reports at (probed): a declaration's or a method's
+  // name, and an arrow's "=>".
+  const source = [
+    "function a(x: number) {", // 1: "a" at column 10
+    "  return x ? 1 : 2;",
+    "}",
+    "const b = (", // 4
+    "  y: number,",
+    ") => {", // 6: "=>" at column 3
+    "  return [y].map((z) => (z ? 1 : 2));", // 7: the inner "=>" at column 22
+    "};",
+    "class C { m(q: boolean) { return q ? 1 : 2; } }", // 9: "m" at column 11
+  ].join("\n");
+  const spans = measureFunctions("p.ts", source);
+  const report = (line: number, column: number, score: number) => ({
+    line,
+    column,
+    ruleId: "sonarjs/cognitive-complexity",
+    message: `Refactor this function to reduce its Cognitive Complexity from ${String(score)} to the 0 allowed.`,
+  });
+
+  it("gives each report to the function whose head holds it, nested ones included", () => {
+    expect(
+      complexityValues(spans, [
+        report(1, 10, 1),
+        report(6, 3, 6),
+        report(7, 22, 1),
+        report(9, 11, 2),
+      ]),
+    ).toEqual([
+      { id: "p.ts#a", value: 1 },
+      { id: "p.ts#b", value: 6 },
+      { id: "p.ts#b>(anonymous 1)", value: 1 },
+      { id: "p.ts#C.m", value: 2 },
+    ]);
+  });
+
+  it("gives a report in a default parameter's arrow to that arrow, not its parent", () => {
+    // "=>" of the default value at column 21, inside f's own head.
+    const inner = measureFunctions(
+      "q.ts",
+      "function f(cb = () => (1 ? 2 : 3)) {}",
+    );
+    expect(complexityValues(inner, [report(1, 21, 1)])).toEqual([
+      { id: "q.ts#f>(anonymous 1)", value: 1 },
+    ]);
+  });
+
+  it("throws on a report outside every head, or a message with no score", () => {
+    expect(() => complexityValues(spans, [report(2, 3, 4)])).toThrow(
+      /no function/,
+    );
+    expect(() =>
+      complexityValues(spans, [
+        {
+          line: 1,
+          column: 10,
+          ruleId: "sonarjs/cognitive-complexity",
+          message: "Something else entirely.",
+        },
+      ]),
+    ).toThrow(/score/);
+  });
+
+  it("throws on a report from any other rule, such as a disable comment for an unknown rule", () => {
+    expect(() =>
+      complexityValues(spans, [
+        {
+          line: 1,
+          column: 10,
+          ruleId: "@typescript-eslint/no-explicit-any",
+          message:
+            "Definition for rule '@typescript-eslint/no-explicit-any' was not found.",
+        },
+      ]),
+    ).toThrow(/only the complexity rule/);
+    expect(() =>
+      complexityValues(spans, [
+        { line: 1, column: 1, ruleId: null, message: "Parsing error." },
+      ]),
+    ).toThrow(/only the complexity rule/);
   });
 });

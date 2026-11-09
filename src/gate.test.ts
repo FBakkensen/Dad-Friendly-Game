@@ -171,13 +171,13 @@ describe("gateSteps", () => {
     expect(names(plan.steps)).not.toContain("format:changed");
   });
 
-  it("both tiers run the function-length ratchet, with nothing before it", () => {
+  it("both tiers run the function ratchet, with nothing before it", () => {
     for (const tier of ["fast", "full"] as const) {
       const plan = planTier(tier, gateSteps([], { economy: false }));
       if (plan.kind !== "ok") throw new Error(plan.message);
       const ratchet = plan.steps.find((each) => each.name === "functions");
       expect(ratchet?.command).toBe("node");
-      expect(ratchet?.args).toEqual(["scripts/function-length.mjs"]);
+      expect(ratchet?.args).toEqual(["scripts/function-ratchet.mjs"]);
       expect(ratchet?.after).toEqual([]);
     }
   });
