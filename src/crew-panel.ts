@@ -7,10 +7,9 @@ import kidUrl from "./assets/board/mach-kid.png";
 import machineDimUrl from "./assets/board/mach-machine-dim.png";
 import machineUrl from "./assets/board/mach-machine.png";
 import workerUrl from "./assets/board/mach-worker.png";
-import { el, scrollIntoList, write } from "./board-dom";
+import { el, hide, legend, mark, scrollIntoList, write } from "./board-dom";
 import { THANKS_MS } from "./board-interaction";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
-import { boardHowCard } from "./board-how-art";
 import { createBoardRow, type BoardRow } from "./board-row";
 import { skin } from "./board-skin";
 import { BUY_SECTIONS, buyRowView, type BuyIcon } from "./buys-rows";
@@ -85,29 +84,6 @@ interface TierRow {
   readonly row: BoardRow;
 }
 
-function hide(target: HTMLElement, hidden: boolean): void {
-  if (target.hidden !== hidden) {
-    target.hidden = hidden;
-  }
-}
-
-function mark(target: HTMLElement, name: string, on: boolean): void {
-  if (target.classList.contains(name) !== on) {
-    target.classList.toggle(name, on);
-  }
-}
-
-/** A section's legend: its name, engraved, and the column's name at the right. */
-function legend(name: string, key: string, column?: string): HTMLElement {
-  const sec = el("div", "board-sec");
-  sec.dataset["sec"] = key;
-  sec.append(el("span", "board-lg", name));
-  if (column !== undefined) {
-    sec.append(el("span", "board-lg", column));
-  }
-  return sec;
-}
-
 /** A post chip the crew has emptied while the drawer is open: it reads zero in its place. */
 function zeroChip(bit: {
   readonly key: string;
@@ -168,6 +144,7 @@ export function createCrewPanel({
     name: "buys",
     title: "Buys",
     infoLabel: "Buys",
+    how: { systems: ["staffing", "layers"], backLabel: "Back to Buys" },
     clock,
     ...(pressAge === undefined ? {} : { pressAge }),
     ...(door === undefined ? {} : { door }),
@@ -178,21 +155,6 @@ export function createCrewPanel({
     ...(signal === undefined ? {} : { signal }),
   });
   sheet.kick(BUYS_KICK);
-
-  // The "i": staffing and layers in the drawer's place, one Back under the last.
-  const howCards = (["staffing", "layers"] as const).map((system) =>
-    boardHowCard(system, "Back to Buys", () => {
-      sheet.showHow(false);
-    }),
-  );
-  const firstBack = howCards[0]?.querySelector<HTMLElement>(".teach-how-back");
-  if (firstBack) {
-    firstBack.hidden = true;
-  }
-  sheet.how.append(...howCards);
-  sheet.info.addEventListener("click", () => {
-    sheet.showHow(true);
-  });
 
   // The Crew section: the crew's sentence, then where the hands are, as chips.
   const crew = el("section", "crew");
@@ -362,12 +324,7 @@ export function createCrewPanel({
   for (const part of [...parts, foot]) {
     part.hidden = true;
   }
-  const spare = sheet.list.querySelector(".board-spare");
-  if (spare === null) {
-    sheet.list.append(...parts);
-  } else {
-    spare.before(...parts);
-  }
+  sheet.place(parts);
   // The footnote stands under the list, over Back: never part of the list's scroll (#373).
   sheet.footer.prepend(foot);
 

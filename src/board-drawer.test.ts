@@ -30,6 +30,7 @@ const make = (
     name: "buys",
     title: "Buys",
     infoLabel: "Buys",
+    how: { systems: [], backLabel: "Back to Buys" },
     clock,
     pressAge: () => 0,
     ...over,
@@ -443,6 +444,35 @@ describe("the drawer shell", () => {
   });
 
   describe("the how cards", () => {
+    it("builds the cards, hides the first Back, and opens them from the i", () => {
+      const sheet = make({
+        how: { systems: ["staffing", "layers"], backLabel: "Back to Buys" },
+      });
+      const cards = [...sheet.how.querySelectorAll<HTMLElement>("[data-how]")];
+      expect(cards.map((card) => card.dataset["how"])).toEqual([
+        "staffing",
+        "layers",
+      ]);
+      const backs = sheet.how.querySelectorAll<HTMLElement>(".teach-how-back");
+      expect(backs[0]?.hidden).toBe(true);
+      expect(backs[1]?.hidden).toBe(false);
+      sheet.open();
+      sheet.info.click();
+      expect(sheet.how.hidden).toBe(false);
+      backs[1]?.click();
+      expect(sheet.how.hidden).toBe(true);
+    });
+
+    it("place inserts the parts before the spare plate", () => {
+      const sheet = make();
+      const a = document.createElement("div");
+      const b = document.createElement("div");
+      sheet.place([a, b]);
+      const kids = [...sheet.list.children];
+      expect(kids.slice(0, 2)).toEqual([a, b]);
+      expect(kids[2]?.classList.contains("board-spare")).toBe(true);
+    });
+
     it("showHow swaps the head, list and footer for the how host, and back", () => {
       const sheet = make();
       const head = part(sheet, ".board-sheet-head");

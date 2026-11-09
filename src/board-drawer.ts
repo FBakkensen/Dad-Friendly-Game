@@ -1,7 +1,8 @@
 import { DRAWER_SETTLE_MS, PRESS_AGE_LIMIT_MS } from "./board-interaction";
 import makersPlateUrl from "./assets/board/makers-plate-l.png";
 import makersStripUrl from "./assets/board/makers-strip.png";
-import { el, refitAll, write } from "./board-dom";
+import { el, hide, mark, refitAll, write } from "./board-dom";
+import { boardHowCard, type BoardHowSystem } from "./board-how-art";
 import { plateButton } from "./board-save";
 import { skin } from "./board-skin";
 
@@ -83,6 +84,8 @@ export interface BoardSheet {
   /** Shows `text` as done for `ms`, then the resting kick. */
   flash(text: string, ms: number): void;
   showHow(on: boolean): void;
+  /** Inserts the parts into the list, before the spare plate. */
+  place(parts: readonly HTMLElement[]): void;
   fitSpare(): void;
 }
 
@@ -91,10 +94,44 @@ function focusQuietly(target: HTMLElement): void {
   target.focus({ preventScroll: true });
 }
 
-function hide(target: HTMLElement, hidden: boolean): void {
-  if (target.hidden !== hidden) {
-    target.hidden = hidden;
+/** The cards the "i" opens in a drawer's place. */
+export interface BoardHow {
+  readonly systems: readonly BoardHowSystem[];
+  readonly backLabel: string;
+}
+
+/** The spare plate under a short list: the makers' plate with its strip. */
+function spareCard(): HTMLElement {
+  const spare = el("div", "board-spare");
+  spare.setAttribute("aria-hidden", "true");
+  const plate = el("img", "board-spare-plate");
+  plate.src = makersPlateUrl;
+  plate.width = 192;
+  plate.height = 96;
+  plate.alt = "";
+  plate.draggable = false;
+  const strip = el("img", "board-spare-strip");
+  strip.src = makersStripUrl;
+  strip.width = 192;
+  strip.height = 40;
+  strip.alt = "";
+  strip.draggable = false;
+  spare.append(plate, strip);
+  skin(spare, "inset");
+  return spare;
+}
+
+/** The "i" cards, one Back under the last: the first card's Back stays hidden. */
+function howCards(
+  { systems, backLabel }: BoardHow,
+  back: () => void,
+): HTMLElement[] {
+  const cards = systems.map((system) => boardHowCard(system, backLabel, back));
+  const first = cards[0]?.querySelector<HTMLElement>(".teach-how-back");
+  if (first) {
+    first.hidden = true;
   }
+  return cards;
 }
 
 /**
@@ -105,6 +142,7 @@ export function createBoardSheet({
   name,
   title,
   infoLabel,
+  how: howOf,
   clock,
   pressAge = eventAge,
   onOpen,
@@ -115,6 +153,8 @@ export function createBoardSheet({
   name: "buys" | "upgrades";
   title: string;
   infoLabel: string;
+  /** The cards the "i" opens in the drawer's place, one Back under the last. */
+  how: BoardHow;
   clock: () => number;
   /** How long a press waited before its handler ran; a test on its own clock passes 0. */
   pressAge?: (event: Event) => number;
@@ -147,24 +187,8 @@ export function createBoardSheet({
   const how = el("div", "board-sheet-how");
   how.tabIndex = -1;
   how.hidden = true;
-
   const list = el("div", "board-sheet-list");
-  const spare = el("div", "board-spare");
-  spare.setAttribute("aria-hidden", "true");
-  const plate = el("img", "board-spare-plate");
-  plate.src = makersPlateUrl;
-  plate.width = 192;
-  plate.height = 96;
-  plate.alt = "";
-  plate.draggable = false;
-  const strip = el("img", "board-spare-strip");
-  strip.src = makersStripUrl;
-  strip.width = 192;
-  strip.height = 40;
-  strip.alt = "";
-  strip.draggable = false;
-  spare.append(plate, strip);
-  skin(spare, "inset");
+  const spare = spareCard();
   list.append(spare);
 
   const footer = el("footer", "board-sheet-footer");
@@ -204,9 +228,7 @@ export function createBoardSheet({
     }
     tier = next;
     for (const [each, cls] of Object.entries(TIER_CLASS)) {
-      if (spare.classList.contains(cls) !== (each === next)) {
-        spare.classList.toggle(cls, each === next);
-      }
+      mark(spare, cls, each === next);
     }
   };
 
@@ -311,6 +333,15 @@ export function createBoardSheet({
     }
   });
 
+  how.append(
+    ...howCards(howOf, () => {
+      showHow(false);
+    }),
+  );
+  info.addEventListener("click", () => {
+    showHow(true);
+  });
+
   // The how cards' own Back plates share it too: a finger's early click stops on the cards'
   // host, before it reaches them.
   how.addEventListener(
@@ -354,6 +385,9 @@ export function createBoardSheet({
     kick,
     flash,
     showHow,
+    place: (parts) => {
+      spare.before(...parts);
+    },
     fitSpare,
   };
 }

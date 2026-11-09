@@ -1,7 +1,6 @@
 import { oneOffStretch, stretch } from "./scale";
-import { el } from "./board-dom";
+import { el, hide, legend, mark } from "./board-dom";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
-import { boardHowCard } from "./board-how-art";
 import { createBoardRow, type BoardRow } from "./board-row";
 import { howItWorks } from "./how-it-works";
 import { BOOSTS, boostLeft, type Boost, type BoostId } from "./boosts";
@@ -65,26 +64,6 @@ interface ToolRow {
   readonly row: BoardRow;
 }
 
-function hide(target: HTMLElement, hidden: boolean): void {
-  if (target.hidden !== hidden) {
-    target.hidden = hidden;
-  }
-}
-
-function mark(target: HTMLElement, name: string, on: boolean): void {
-  if (target.classList.contains(name) !== on) {
-    target.classList.toggle(name, on);
-  }
-}
-
-/** A section's legend: its name, engraved. */
-function legend(name: string, key: string): HTMLElement {
-  const sec = el("div", "board-sec");
-  sec.dataset["sec"] = key;
-  sec.append(el("span", "board-lg", name));
-  return sec;
-}
-
 /**
  * The Upgrades drawer. `open` marks every shown row seen, then opens the drawer; the opener
  * (the Upgrades key on the rail) owns its lit cap and dot.
@@ -124,6 +103,10 @@ export function createUpgradesPanel({
     name: "upgrades",
     title: "Upgrades",
     infoLabel: "Upgrades and boosts",
+    how: {
+      systems: ["upgrades", "boosts"],
+      backLabel: "Back to Upgrades",
+    },
     clock,
     ...(pressAge === undefined ? {} : { pressAge }),
     ...(door === undefined ? {} : { door }),
@@ -131,20 +114,6 @@ export function createUpgradesPanel({
   });
   sheet.kick(UPGRADES_KICK);
 
-  // The "i": the upgrades and boosts cards in the drawer's place, one Back under the last.
-  const howCards = (["upgrades", "boosts"] as const).map((system) =>
-    boardHowCard(system, "Back to Upgrades", () => {
-      sheet.showHow(false);
-    }),
-  );
-  const firstBack = howCards[0]?.querySelector<HTMLElement>(".teach-how-back");
-  if (firstBack) {
-    firstBack.hidden = true;
-  }
-  sheet.how.append(...howCards);
-  sheet.info.addEventListener("click", () => {
-    sheet.showHow(true);
-  });
   let howPriced = "1:1";
 
   /**
@@ -248,7 +217,6 @@ export function createUpgradesPanel({
     part.hidden = true;
   }
 
-  const spare = sheet.list.querySelector(".board-spare");
   /** The New row the list was last ordered for; null before the first order. */
   let orderedFor: RevealRowId | undefined | null = null;
   /**
@@ -278,11 +246,7 @@ export function createUpgradesPanel({
       ...toolRows.map(({ row }) => row.root),
       foot,
     ];
-    if (spare === null) {
-      sheet.list.append(...parts);
-    } else {
-      spare.before(...parts);
-    }
+    sheet.place(parts);
   };
   order(undefined);
 
@@ -311,7 +275,7 @@ export function createUpgradesPanel({
     }
     howPriced = key;
     const copy = howItWorks(stretch(current), oneOffStretch(current));
-    for (const card of howCards) {
+    for (const card of sheet.how.querySelectorAll<HTMLElement>("[data-how]")) {
       const system = card.dataset["how"];
       if (system === "upgrades" || system === "boosts") {
         setHowSteps(card, copy[system].steps);

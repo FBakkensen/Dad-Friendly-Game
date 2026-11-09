@@ -1,4 +1,13 @@
-import { el, fitFirst, frameX, refitAll, setAttr, write } from "./board-dom";
+import {
+  el,
+  fitFirst,
+  frameX,
+  hide,
+  mark,
+  refitAll,
+  setAttr,
+  write,
+} from "./board-dom";
 import { BLINK_STEP_MS, READY_HOLD_MS } from "./board-interaction";
 import { skin } from "./board-skin";
 import { onFontsSettled } from "./fit-cache";
@@ -50,18 +59,6 @@ const STATE_CLASS: Readonly<Record<RowState, string>> = {
 const DONE = "Done";
 /** One art px is 2 CSS px: the icon is 32 art px square. */
 const ICON_PX = "64";
-
-function toggle(target: HTMLElement, name: string, on: boolean): void {
-  if (target.classList.contains(name) !== on) {
-    target.classList.toggle(name, on);
-  }
-}
-
-function hide(target: HTMLElement, hidden: boolean): void {
-  if (target.hidden !== hidden) {
-    target.hidden = hidden;
-  }
-}
 
 /** Text that hides its box when empty. */
 function line(target: HTMLElement, text: string): void {
@@ -185,7 +182,7 @@ export function createBoardRow({
   };
 
   const paintHeld = (): void => {
-    toggle(root, "is-held", true);
+    mark(root, "is-held", true);
     fitLine(flag, [DONE]);
     line(verb, DONE);
     paintLamp();
@@ -193,7 +190,7 @@ export function createBoardRow({
   };
 
   const paint = (): void => {
-    toggle(root, "is-held", false);
+    mark(root, "is-held", false);
     const view = last;
     setDisabled(view === undefined);
     writeName(view?.name ?? name);
@@ -207,16 +204,16 @@ export function createBoardRow({
     hide(tagBox, priced === "");
     line(verb, view?.verb ?? "");
     for (const [state, cls] of Object.entries(STATE_CLASS)) {
-      toggle(root, cls, view?.state === state);
+      mark(root, cls, view?.state === state);
     }
     // A guided row can be the pick while it lights green under its New flag: the lamp leads.
-    toggle(
+    mark(
       root,
       "is-pick",
       view !== undefined && view.pick && view.lamp === "amber",
     );
-    toggle(root, "is-can", view?.can ?? false);
-    toggle(root, "is-dim-tag", view?.dimTag ?? false);
+    mark(root, "is-can", view?.can ?? false);
+    mark(root, "is-dim-tag", view?.dimTag ?? false);
     paintLamp();
     setLabel(view?.aria ?? name);
   };

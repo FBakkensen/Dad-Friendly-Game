@@ -26,6 +26,35 @@ export function write(target: HTMLElement, text: string): void {
   }
 }
 
+/** A box hidden or shown, written only when it changes. */
+export function hide(target: HTMLElement, hidden: boolean): void {
+  if (target.hidden !== hidden) {
+    target.hidden = hidden;
+  }
+}
+
+/** A class switched on or off, written only when it changes. */
+export function mark(target: HTMLElement, name: string, on: boolean): void {
+  if (target.classList.contains(name) !== on) {
+    target.classList.toggle(name, on);
+  }
+}
+
+/** A section's legend: its name, engraved, and the column's name at the right. */
+export function legend(
+  name: string,
+  key: string,
+  column?: string,
+): HTMLElement {
+  const sec = el("div", "board-sec");
+  sec.dataset["sec"] = key;
+  sec.append(el("span", "board-lg", name));
+  if (column !== undefined) {
+    sec.append(el("span", "board-lg", column));
+  }
+  return sec;
+}
+
 /** An attribute written only when it changes; undefined removes it. */
 export function setAttr(
   target: HTMLElement,
