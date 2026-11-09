@@ -20,13 +20,18 @@ import {
   USAGE,
 } from "./gate";
 
-const step = (name: string, after: readonly string[] = []): Step => ({
+const step = (
+  name: string,
+  after: readonly string[] = [],
+  lane: Step["lane"] = "shared",
+): Step => ({
   name,
   command: "node",
   args: [],
   tiers: ["full"],
   after,
   env: {},
+  lane,
 });
 
 const names = (steps: readonly Step[]) => steps.map((each) => each.name);
@@ -227,6 +232,11 @@ describe("the strategy lab in the full tier", () => {
       "tools/strategy-lab.ts",
       "tools/generations-lab.ts",
     ]);
+  });
+
+  it("puts the visual check and both labs in the heavy lane, visual first", () => {
+    const heavy = steps(true).filter((each) => each.lane === "heavy");
+    expect(names(heavy)).toEqual(["visual", "lab", "lab:generations"]);
   });
 
   it("is never in the fast tier", () => {
@@ -439,6 +449,31 @@ describe("nextMoves", () => {
       new Set(["b"]),
     );
     expect(moves.skip.map((each) => each.step.name)).toEqual(["c"]);
+  });
+});
+
+describe("nextMoves in the heavy lane", () => {
+  const steps = [step("h1", [], "heavy"), step("h2", [], "heavy"), step("s")];
+  const passed: Outcome = { kind: "passed", seconds: 1 };
+  const failed: Outcome = { kind: "failed", seconds: 1, code: 1 };
+
+  it("runs one heavy step at a time, in table order", () => {
+    expect(names(nextMoves(steps, new Map(), new Set()).start)).toEqual([
+      "h1",
+      "s",
+    ]);
+    expect(
+      names(nextMoves(steps, new Map(), new Set(["h1", "s"])).start),
+    ).toEqual([]);
+    expect(
+      names(nextMoves(steps, new Map([["h1", passed]]), new Set(["s"])).start),
+    ).toEqual(["h2"]);
+  });
+
+  it("a failed heavy step frees the lane", () => {
+    expect(
+      names(nextMoves(steps, new Map([["h1", failed]]), new Set()).start),
+    ).toEqual(["h2", "s"]);
   });
 });
 

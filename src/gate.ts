@@ -20,6 +20,11 @@ export interface Step {
   readonly after: readonly string[];
   /** Added to the gate's own environment for this step. */
   readonly env: Readonly<Record<string, string>>;
+  /**
+   * A heavy step fills every core: two at once starve each other, and the visual check's
+   * timing checks then fail under the load (#403). Heavy steps take turns.
+   */
+  readonly lane: "shared" | "heavy";
 }
 
 export type Outcome =
@@ -160,6 +165,13 @@ export function economyChanged(
 
 const LAB = ["--import", "./tools/lab-register.mjs"];
 
+/** The steps that fill every core, in the order they take turns: visual first (#403). */
+const HEAVY: ReadonlySet<string> = new Set([
+  "visual",
+  "lab",
+  "lab:generations",
+]);
+
 /**
  * Every step either tier can run. `changed` is the code changed since
  * origin/main: the fast tier lints and tests it, and with none only
@@ -185,7 +197,15 @@ export function gateSteps(
     tiers: readonly Tier[],
     after: readonly string[] = [],
     env: Readonly<Record<string, string>> = {},
-  ): Step => ({ name, command, args, tiers, after, env });
+  ): Step => ({
+    name,
+    command,
+    args,
+    tiers,
+    after,
+    env,
+    lane: HEAVY.has(name) ? "heavy" : "shared",
+  });
   // CI ran these on every PR (~18 min). Now only when the lab's code changed.
   const lab: readonly Step[] = economy
     ? [
@@ -363,6 +383,10 @@ export function nextMoves(
 ): Moves {
   const start: Step[] = [];
   const skip: { step: Step; because: string }[] = [];
+  // One heavy step at a time: busy while one runs, or once this move starts one.
+  let heavyBusy = steps.some(
+    (step) => step.lane === "heavy" && running.has(step.name),
+  );
   for (const step of steps) {
     if (outcomes.has(step.name) || running.has(step.name)) continue;
     const blocked = step.after.find((name) => {
@@ -372,9 +396,11 @@ export function nextMoves(
     if (blocked !== undefined) {
       skip.push({ step, because: blocked });
     } else if (
-      step.after.every((name) => outcomes.get(name)?.kind === "passed")
+      step.after.every((name) => outcomes.get(name)?.kind === "passed") &&
+      !(step.lane === "heavy" && heavyBusy)
     ) {
       start.push(step);
+      heavyBusy ||= step.lane === "heavy";
     }
   }
   return { start, skip };
