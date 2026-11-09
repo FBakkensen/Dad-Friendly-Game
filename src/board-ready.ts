@@ -1,3 +1,4 @@
+import { READY_HOLD_MS } from "./board-interaction";
 import digUrl from "./assets/board/dig-button.png";
 import plateUrl from "./assets/board/plate.png";
 import guardUrl from "./assets/board/ready-guard.png";
@@ -15,7 +16,7 @@ import { formatSpeed } from "./screen-words";
  */
 
 /** How long Done holds after a buy: a second sleepy tap in it buys nothing. */
-export const READY_HOLD_MS = 1900;
+export { READY_HOLD_MS } from "./board-interaction";
 /** How long "By hand" holds after the last dig before the legend settles back to Dig. */
 export const BY_HAND_MS = 1500;
 

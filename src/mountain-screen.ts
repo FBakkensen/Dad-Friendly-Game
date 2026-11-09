@@ -1,6 +1,7 @@
 import { shownStones, stonesLeft } from "./scale";
 import pickUrl from "./assets/pick.png";
 import { noteFor } from "./teach";
+import { THANKS_MS } from "./board-interaction";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
 import { formatCount } from "./format";
 import { MOUNTAIN_STONES, stonesPerSecond, type Mountain } from "./mountain";
@@ -306,8 +307,6 @@ export function mountMountainScreen({
   const QUIET_NOTE_MS = 6000;
   /** How long the vein's payout note stays. */
   const VEIN_NOTE_MS = 4000;
-  /** How long a bay's "Fixed!" stays, as the Buys card's thanks does. */
-  const THANKS_MS = 1600;
   /** How far a dig and a local spend kick the output needle, in degrees (#371). */
   const DIG_KICK = 150;
   const SPEND_KICK = 120;

@@ -8,6 +8,7 @@ import machineDimUrl from "./assets/board/mach-machine-dim.png";
 import machineUrl from "./assets/board/mach-machine.png";
 import workerUrl from "./assets/board/mach-worker.png";
 import { el, scrollIntoList, write } from "./board-dom";
+import { THANKS_MS } from "./board-interaction";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
 import { boardHowCard } from "./board-how-art";
 import { createBoardRow, type BoardRow } from "./board-row";
@@ -52,8 +53,6 @@ const BUYS_KICK = "Crew and machines that mine while you rest";
 /** How the Ready now plate picks, under the list. */
 const READY_FOOT =
   "Ready now offers the biggest machine your free workers can run and you can afford. It saves for the next one when nothing is affordable, offers a worker only when no hand is free, and never buys for you.";
-/** How long a fix's thanks holds the kick. */
-const THANKS_MS = 1_600;
 
 /** Each Buys icon's board art, at 32 art px. */
 const BUY_ICON: Readonly<Record<BuyIcon, string>> = {
