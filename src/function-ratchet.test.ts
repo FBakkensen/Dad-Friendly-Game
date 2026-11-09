@@ -3,6 +3,7 @@ import {
   COMPLEXITY,
   LINES,
   baseFromShow,
+  complexityValues,
   isMeasured,
   judgeCeilings,
   measureFunctions,
@@ -305,5 +306,65 @@ describe("baseFromShow", () => {
       }),
     ).toThrow(/invalid object name/);
     expect(() => baseFromShow({ kind: "shown", text: "{not json" })).toThrow();
+  });
+});
+
+describe("complexityValues", () => {
+  // The positions eslint-plugin-sonarjs reports at (probed): a declaration's or a method's
+  // name, and an arrow's "=>".
+  const source = [
+    "function a(x: number) {", // 1: "a" at column 10
+    "  return x ? 1 : 2;",
+    "}",
+    "const b = (", // 4
+    "  y: number,",
+    ") => {", // 6: "=>" at column 3
+    "  return [y].map((z) => (z ? 1 : 2));", // 7: the inner "=>" at column 22
+    "};",
+    "class C { m(q: boolean) { return q ? 1 : 2; } }", // 9: "m" at column 11
+  ].join("\n");
+  const spans = measureFunctions("p.ts", source);
+  const report = (line: number, column: number, score: number) => ({
+    line,
+    column,
+    message: `Refactor this function to reduce its Cognitive Complexity from ${String(score)} to the 0 allowed.`,
+  });
+
+  it("gives each report to the function whose head holds it, nested ones included", () => {
+    expect(
+      complexityValues(spans, [
+        report(1, 10, 1),
+        report(6, 3, 6),
+        report(7, 22, 1),
+        report(9, 11, 2),
+      ]),
+    ).toEqual([
+      { id: "p.ts#a", value: 1 },
+      { id: "p.ts#b", value: 6 },
+      { id: "p.ts#b>(anonymous 1)", value: 1 },
+      { id: "p.ts#C.m", value: 2 },
+    ]);
+  });
+
+  it("gives a report in a default parameter's arrow to that arrow, not its parent", () => {
+    // "=>" of the default value at column 21, inside f's own head.
+    const inner = measureFunctions(
+      "q.ts",
+      "function f(cb = () => (1 ? 2 : 3)) {}",
+    );
+    expect(complexityValues(inner, [report(1, 21, 1)])).toEqual([
+      { id: "q.ts#f>(anonymous 1)", value: 1 },
+    ]);
+  });
+
+  it("throws on a report outside every head, or a message with no score", () => {
+    expect(() => complexityValues(spans, [report(2, 3, 4)])).toThrow(
+      /no function/,
+    );
+    expect(() =>
+      complexityValues(spans, [
+        { line: 1, column: 10, message: "Something else entirely." },
+      ]),
+    ).toThrow(/score/);
   });
 });

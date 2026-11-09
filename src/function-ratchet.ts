@@ -283,6 +283,52 @@ export function problemLine(problem: CeilingProblem, measure: Measure): string {
   }
 }
 
+/** One ESLint report: where it points, and its message. */
+export interface Report {
+  readonly line: number;
+  readonly column: number;
+  readonly message: string;
+}
+
+const SCORE = /Cognitive Complexity from (\d+) to/;
+
+function holds(head: Head, line: number, column: number): boolean {
+  const afterStart =
+    line > head.line || (line === head.line && column >= head.column);
+  const beforeBody =
+    line < head.endLine || (line === head.endLine && column < head.endColumn);
+  return afterStart && beforeBody;
+}
+
+/**
+ * Each `sonarjs/cognitive-complexity` report as a function's value. The plugin reports at a
+ * function's head (its name, or an arrow's "=>"), so a report belongs to the function whose
+ * head holds it, the innermost one when heads nest (an arrow in a default parameter). Throws
+ * on a report no head holds, or a message with no score, so a plugin change fails loudly.
+ */
+export function complexityValues(
+  spans: readonly FunctionSpan[],
+  reports: readonly Report[],
+): readonly MeasuredValue[] {
+  return reports.map(({ line, column, message }) => {
+    const score = SCORE.exec(message)?.[1];
+    if (score === undefined) {
+      throw new Error(`No complexity score in the report: ${message}`);
+    }
+    const owner = spans
+      .filter(
+        (span) => span.head !== undefined && holds(span.head, line, column),
+      )
+      .at(-1);
+    if (owner === undefined) {
+      throw new Error(
+        `A complexity report at ${String(line)}:${String(column)} names no function.`,
+      );
+    }
+    return { id: owner.id, value: Number(score) };
+  });
+}
+
 /** The files the ratchet measures: TypeScript under src/, but no tests or test harnesses. */
 export function isMeasured(path: string): boolean {
   return (
