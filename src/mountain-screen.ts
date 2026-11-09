@@ -12,7 +12,7 @@ import { BOOSTS } from "./boosts";
 import { createEffectChip, shortEffectName, writeChip } from "./effect-row";
 import { createBoardNote } from "./board-note";
 import { DRAWER_SETTLE_MS, createSheetScrim } from "./board-drawer";
-import { createBoardHost } from "./board-host";
+import { createBoardHost, type BoardHost } from "./board-host";
 import { keyViews, type KeyId } from "./key-rail";
 import { createKeyRail } from "./board-keys";
 import { createBoardSign } from "./board-sign";
@@ -117,6 +117,21 @@ const MINED_OUT = "The mountain is mined out";
  * (board-drawer.ts), which the B5 drawers and their Back plates share.
  */
 export const BUYS_SETTLE_MS = DRAWER_SETTLE_MS;
+
+/**
+ * The screen's next view. A save that loads again (ready, then not) tells the board's model,
+ * whose holds and blinks spoke of the old save.
+ */
+function nextView(
+  board: BoardHost,
+  view: ProgressSnapshot,
+  next: ProgressSnapshot,
+): ProgressSnapshot {
+  if (view.ready && !next.ready) {
+    board.send({ kind: "unloaded" });
+  }
+  return next;
+}
 
 /** The update prompt tells its screen it is up, so an open drawer closes at once. */
 const UPDATE_SHOWN = "update-shown";
@@ -1218,7 +1233,7 @@ export function mountMountainScreen({
   );
 
   const unsubscribe = progress.subscribe((next) => {
-    view = next;
+    view = nextView(board, view, next);
     render();
   });
   signal?.addEventListener("abort", unsubscribe);

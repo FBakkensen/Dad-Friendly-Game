@@ -359,6 +359,10 @@ export function createBoardSheet({
   board: BoardHost;
   /** The save drawer is open over this one: Escape is its alone. */
   overSave: () => boolean;
+  /**
+   * The drawer is open on the page, and the board's model has not heard it yet: a panel
+   * measures here, and sends the layout the open then freezes.
+   */
   onOpen?: () => void;
   onClose?: () => void;
   /** The drawer moved on (opened, paged or closed): the panel forgets its rows' presses. */
@@ -415,16 +419,16 @@ export function createBoardSheet({
     shown = true;
     forget();
     from = opener;
-    board.send({ kind: "open", overlay: name, at: board.clock() });
     root.classList.add("is-open");
     door?.setAttribute("aria-expanded", "true");
     list.scrollTop = 0;
     focusQuietly(heading);
-    onOpen?.();
     // Lines fitted while shut are measured again on the open drawer.
     refitAll(root);
     fitSpare();
     requestAnimationFrame(fitSpare);
+    onOpen?.();
+    board.send({ kind: "open", overlay: name, at: board.clock() });
   };
 
   const close: BoardSheet["close"] = ({ restoreFocus = true, by }) => {

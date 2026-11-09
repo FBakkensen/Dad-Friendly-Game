@@ -3,7 +3,6 @@
   "src/board-ready.ts#createReadyPlate": 171,
   "src/board-save.ts#createSaveLine": 164,
   "src/board-window.ts#createMineWindow": 326,
-  "src/crew-panel.ts#createCrewPanel": 503,
   "src/engineers-panel.ts#createEngineersPanel": 845,
   "src/engineers-panel.ts#createEngineersPanel>buildRow": 342,
   "src/engineers-panel.ts#createEngineersPanel>render": 179,

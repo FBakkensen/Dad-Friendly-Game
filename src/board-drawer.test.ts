@@ -235,6 +235,21 @@ describe("the drawer shell", () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
+    it("calls onOpen on the open drawer, before the board's model hears the open", () => {
+      const seen: { onPage: boolean; inModel: boolean }[] = [];
+      const sheet = make({
+        onOpen: () => {
+          seen.push({
+            onPage: sheet.root.classList.contains("is-open"),
+            inModel: sheet.isOpen(),
+          });
+        },
+      });
+      sheet.open();
+      expect(seen).toEqual([{ onPage: true, inModel: false }]);
+      expect(sheet.isOpen()).toBe(true);
+    });
+
     it("a second open keeps the first one's settle and calls nothing", () => {
       const onOpen = vi.fn();
       const sheet = make({ onOpen });

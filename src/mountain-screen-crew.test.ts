@@ -1096,6 +1096,121 @@ describe("the Buys drawer (#373)", () => {
     expect(rowOf(screen, "cart").hidden).toBe(false);
   });
 
+  /** A signed-in screen whose save loads again on `reload`, and lands on `land`. */
+  const reloadable = (mountain: Mountain, tapClock?: () => number) => {
+    let landWith: (result: CloudLoadResult) => void = () => {
+      throw new Error("load was not pending");
+    };
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        landWith = onChange;
+        return () => undefined;
+      },
+    };
+    const auth = createMemoryAuth();
+    const screen = mountScreen({
+      auth,
+      cloudSave,
+      storage: seededWith(mountain),
+      now: () => CLOCK,
+      ...(tapClock === undefined ? {} : { tapClock }),
+    });
+    const reload = async (): Promise<void> => {
+      await auth.signIn();
+      await Promise.resolve();
+      expect(screen.progress.getSnapshot().ready).toBe(false);
+    };
+    // One more stone mined: the copy that lands is ahead of the phone's, so it is the one kept.
+    const land = async (landed: Mountain): Promise<void> => {
+      landWith({
+        kind: "found",
+        mountain: { ...landed, remaining: landed.remaining - 1 },
+      });
+      await Promise.resolve();
+      expect(screen.progress.getSnapshot().ready).toBe(true);
+    };
+    return { screen, reload, land };
+  };
+
+  it("a drawer opened while the save loads lays out once as it lands", async () => {
+    const { screen, reload, land } = reloadable(early());
+    expect(rowOf(screen, "drill").hidden).toBe(false);
+    await reload();
+    openBuys(screen);
+    // The save that lands has no carts: no drill to show.
+    await land(early({ carts: 0 }));
+    expect(rowOf(screen, "drill").hidden).toBe(true);
+    expect(chipsOf(screen).classList.contains("is-frozen")).toBe(true);
+    // From here the open drawer holds what it laid out.
+    screen.progress.applyMutation((m) => ({ ...m, carts: 6 }));
+    expect(rowOf(screen, "drill").hidden).toBe(true);
+    drawerOf(screen)
+      .querySelector<HTMLButtonElement>(".board-sheet-back")
+      ?.click();
+    expect(rowOf(screen, "drill").hidden).toBe(false);
+  });
+
+  it("a reload while open keeps the rows in place and blinks nothing while loading", async () => {
+    vi.useFakeTimers();
+    setReducedMotion(false);
+    try {
+      let clock = 10_000;
+      const { screen, reload, land } = reloadable(early(), () => clock);
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      const before = listParts(screen);
+      const drill = rowOf(screen, "drill");
+      fingerTap(drill);
+      expect(lampOf(drill)).toBe("-120px");
+      await reload();
+      expect(lampOf(drill)).toBe("0px");
+      fingerTap(drill);
+      expect(lampOf(drill)).toBe("0px");
+      expect(listParts(screen)).toEqual(before);
+      // The save that lands has no carts. The drill keeps its place, and the blink from before
+      // the reload is over.
+      await land(early({ carts: 0 }));
+      expect(listParts(screen)).toEqual(before);
+      expect(lampOf(drill)).toBe("0px");
+      // A row held in place for a tier no longer shown blinks, and buys nothing.
+      fingerTap(drill);
+      expect(lampOf(drill)).toBe("-120px");
+      expect(screen.progress.getSnapshot().mountain.drills).toBe(0);
+    } finally {
+      vi.useRealTimers();
+      setReducedMotion(true);
+    }
+  });
+
+  it("after a buy, a reload within the Done hold ends it, and the next press acts", async () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 10_000;
+      const { screen, reload, land } = reloadable(
+        early({ pocket: 1_000_000 }),
+        () => clock,
+      );
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      const carts = () => screen.progress.getSnapshot().mountain.carts;
+      rowOf(screen, "cart").click();
+      expect(carts()).toBe(7);
+      expect(partOf(rowOf(screen, "cart"), "verb")).toBe("Done");
+      clock += 500;
+      await reload();
+      await land(early({ pocket: 1_000_000 }));
+      expect(partOf(rowOf(screen, "cart"), "verb")).toBe("Buy");
+      rowOf(screen, "cart").click();
+      expect(carts()).toBe(7);
+      expect(partOf(rowOf(screen, "cart"), "verb")).toBe("Done");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("trouble presses count during a Done hold", () => {
     vi.useFakeTimers();
     try {
