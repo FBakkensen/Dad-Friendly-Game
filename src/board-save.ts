@@ -67,6 +67,15 @@ export function plateButton(label: string): HTMLButtonElement {
   return b;
 }
 
+interface SaveLine {
+  readonly line: HTMLElement;
+  readonly drawer: HTMLElement;
+  render(): void;
+  close(): void;
+  /** The save drawer is open. */
+  isOpen(): boolean;
+}
+
 /**
  * The save line at the foot of the board and the drawer it opens (#370).
  * The line keeps today's `.save-status` words, data-kind and data-log.
@@ -81,7 +90,7 @@ export function createSaveLine({
   auth: AuthController;
   getView: () => ProgressSnapshot;
   now: () => number;
-}): { line: HTMLElement; drawer: HTMLElement; render(): void; close(): void } {
+}): SaveLine {
   const line = el("div", "board-saveline");
   const status = el("button", "save-status");
   status.type = "button";
@@ -233,5 +242,5 @@ export function createSaveLine({
   });
 
   render();
-  return { line, drawer, render, close };
+  return { line, drawer, render, close, isOpen: () => isOpen };
 }

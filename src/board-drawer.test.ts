@@ -4,17 +4,24 @@ import {
   DRAWER_SETTLE_MS,
   createBoardSheet,
   createSheetScrim,
-  eventAge,
   spareTier,
   type BoardSheet,
 } from "./board-drawer";
+import { createBoardHost, type BoardHost } from "./board-host";
+import type { ControlRef } from "./board-interaction";
+import { TROUBLE_FIXED } from "./screen-words";
 
 let time = 0;
 const clock = (): number => time;
+/** The board every sheet in a test shares, on the test's clock. */
+let board: BoardHost;
+const boardOn = (pressAge: (event: Event) => number): BoardHost =>
+  createBoardHost({ clock, pressAge, reduced: () => false });
 
 beforeEach(() => {
   vi.useFakeTimers();
   time = 1000;
+  board = boardOn(() => 0);
 });
 
 afterEach(() => {
@@ -31,8 +38,8 @@ const make = (
     title: "Buys",
     infoLabel: "Buys",
     how: { systems: [], backLabel: "Back to Buys" },
-    clock,
-    pressAge: () => 0,
+    board,
+    overSave: () => false,
     ...over,
   });
   document.body.append(sheet.root);
@@ -79,6 +86,22 @@ const escape = (): void => {
   );
 };
 
+/** Moves the test's clock and the fake timers together, as a real evening does. */
+const advance = (ms: number): void => {
+  time += ms;
+  vi.advanceTimersByTime(ms);
+};
+
+/** What a finger's tap on the board under the drawers would be judged as now. */
+const boardTap = (): string =>
+  board.press({
+    control: { layer: "board", id: "socket" },
+    by: "finger",
+    intent: "act",
+    downAt: undefined,
+    event: new Event("click"),
+  });
+
 describe("spareTier", () => {
   it.each([
     [0, "off"],
@@ -102,10 +125,10 @@ describe("the drawer shell", () => {
     sheet.open(bay);
     expect(door.getAttribute("aria-expanded")).toBe("true");
     expect(bay.hasAttribute("aria-expanded")).toBe(false);
-    sheet.close();
+    sheet.close({ by: "program" });
     expect(door.getAttribute("aria-expanded")).toBe("false");
     sheet.open(door);
-    sheet.close({ restoreFocus: false });
+    sheet.close({ restoreFocus: false, by: "program" });
     expect(door.getAttribute("aria-expanded")).toBe("false");
   });
 
@@ -204,7 +227,7 @@ describe("the drawer shell", () => {
       expect(document.activeElement).toBe(part(sheet, ".board-sheet-title"));
       expect(sheet.list.scrollTop).toBe(0);
 
-      sheet.close();
+      sheet.close({ by: "program" });
       expect(sheet.isOpen()).toBe(false);
       expect(sheet.root.classList.contains("is-open")).toBe(false);
       expect(document.activeElement).toBe(key);
@@ -220,14 +243,37 @@ describe("the drawer shell", () => {
       sheet.open();
       expect(onOpen).toHaveBeenCalledTimes(1);
       time += 100;
-      expect(sheet.settling()).toBe(false);
+      press(sheet.back);
+      expect(sheet.isOpen()).toBe(false);
     });
 
     it("a close while shut calls nothing", () => {
       const onClose = vi.fn();
       const sheet = make({ onClose });
-      sheet.close();
+      sheet.close({ by: "program" });
       expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("is open while the board's model has it open", () => {
+      const buys = make();
+      const upgrades = make({ name: "upgrades", title: "Upgrades" });
+      buys.open();
+      expect(board.view().stack).toEqual(["buys"]);
+      upgrades.open();
+      expect(buys.isOpen()).toBe(false);
+      expect(upgrades.isOpen()).toBe(true);
+      upgrades.close({ by: "program" });
+      expect(board.view().stack).toEqual([]);
+    });
+
+    it("forgets its own presses, and asks the panel to, on every open, page and close", () => {
+      const onForget = vi.fn();
+      const sheet = make({ onForget });
+      sheet.open();
+      sheet.showHow(true);
+      sheet.showHow(false);
+      sheet.close({ by: "program" });
+      expect(onForget).toHaveBeenCalledTimes(4);
     });
 
     it("a close that keeps focus leaves it where it is, on a card that covered the drawer", () => {
@@ -238,7 +284,7 @@ describe("the drawer shell", () => {
       const card = document.createElement("button");
       document.body.append(card);
       card.focus();
-      sheet.close({ restoreFocus: false });
+      sheet.close({ restoreFocus: false, by: "program" });
       expect(sheet.isOpen()).toBe(false);
       expect(onClose).toHaveBeenCalledTimes(1);
       expect(document.activeElement).toBe(card);
@@ -250,29 +296,28 @@ describe("the drawer shell", () => {
       sheet.open(key);
       key.remove();
       const focus = vi.spyOn(key, "focus");
-      sheet.close();
+      sheet.close({ by: "program" });
       expect(focus).not.toHaveBeenCalled();
     });
   });
 
   describe("the settle", () => {
-    it("is on until 400ms after opening, and off while shut", () => {
+    it("is on until 400ms after opening", () => {
       const sheet = make();
-      expect(sheet.settling()).toBe(false);
       sheet.open();
       time += 399;
-      expect(sheet.settling()).toBe(true);
+      press(sheet.back);
+      expect(sheet.isOpen()).toBe(true);
       time += 1;
-      expect(sheet.settling()).toBe(false);
-      sheet.close();
-      time = 0;
-      expect(sheet.settling()).toBe(false);
+      press(sheet.back);
+      expect(sheet.isOpen()).toBe(false);
     });
 
     it("a finger that landed in the settle but reached the page after it closes nothing (#373)", () => {
       // A busy phone hands the press over late: the settle is about when the finger came
       // down, not when the page got to it.
-      const sheet = make({ pressAge: () => 100 });
+      board = boardOn(() => 100);
+      const sheet = make();
       sheet.open();
       time += 450;
       press(sheet.back);
@@ -283,9 +328,8 @@ describe("the drawer shell", () => {
     });
 
     it("judges a row's press by when the finger came down (#373)", () => {
-      const sheet = make({
-        pressAge: (event) => (event.type === "late" ? 100 : 0),
-      });
+      board = boardOn((event) => (event.type === "late" ? 100 : 0));
+      const sheet = make();
       sheet.open();
       time += 450;
       expect(sheet.settlingFor(new Event("late"))).toBe(true);
@@ -330,17 +374,20 @@ describe("the drawer shell", () => {
 
     it("a finger's click on the i while it settles opens nothing; a key press does (#373)", () => {
       const sheet = make();
-      const opened = vi.fn();
-      sheet.info.addEventListener("click", opened);
       sheet.open();
       time += 100;
       fingerClick(sheet.info);
-      expect(opened).not.toHaveBeenCalled();
+      expect(sheet.how.hidden).toBe(true);
       sheet.info.click();
-      expect(opened).toHaveBeenCalledTimes(1);
-      time += 400;
-      fingerClick(sheet.info);
-      expect(opened).toHaveBeenCalledTimes(2);
+      expect(sheet.how.hidden).toBe(false);
+    });
+
+    it("a finger on the i after the settle opens the cards", () => {
+      const sheet = make();
+      sheet.open();
+      time += DRAWER_SETTLE_MS;
+      press(sheet.info);
+      expect(sheet.how.hidden).toBe(false);
     });
 
     it("a finger on Back at 500ms closes it", () => {
@@ -391,6 +438,55 @@ describe("the drawer shell", () => {
       expect(sheet.isOpen()).toBe(false);
     });
 
+    it("a lost press on Back doesn't make the next opening's Back early", () => {
+      const sheet = make();
+      sheet.open();
+      time += 100;
+      // Pressed in the settle, then a card covered the drawer before the press ended.
+      sheet.back.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      sheet.close({ restoreFocus: false, by: "program" });
+      time += 5000;
+      sheet.open();
+      time += DRAWER_SETTLE_MS + 100;
+      // A touch's click with no press of its own on Back: judged now, not by the lost press.
+      fingerClick(sheet.back);
+      expect(sheet.isOpen()).toBe(false);
+    });
+
+    it("a press that was cancelled leaves no early mark for a finger's click", () => {
+      const sheet = make();
+      sheet.open();
+      time += 100;
+      sheet.back.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      sheet.back.dispatchEvent(
+        new PointerEvent("pointercancel", { bubbles: true }),
+      );
+      time += DRAWER_SETTLE_MS;
+      fingerClick(sheet.back);
+      expect(sheet.isOpen()).toBe(false);
+    });
+
+    it("a finger's Back settles the board under it; a key's Back and Escape do not", () => {
+      const sheet = make();
+      sheet.open();
+      time += 500;
+      sheet.back.click();
+      expect(boardTap()).toBe("act");
+      sheet.open();
+      time += 500;
+      escape();
+      expect(boardTap()).toBe("act");
+      sheet.open();
+      time += 500;
+      press(sheet.back);
+      expect(sheet.isOpen()).toBe(false);
+      expect(boardTap()).toBe("ignore-early");
+    });
+
     it("a press that was cancelled leaves no early mark for the keyboard", () => {
       const sheet = make();
       sheet.open();
@@ -431,6 +527,35 @@ describe("the drawer shell", () => {
       expect(shut.isOpen()).toBe(false);
       expect(onClose).toHaveBeenCalledTimes(1);
       expect(shutClose).not.toHaveBeenCalled();
+    });
+
+    it("Escape over the save drawer leaves the board drawer open", () => {
+      let overSave = true;
+      const sheet = make({ overSave: () => overSave });
+      sheet.open();
+      escape();
+      expect(sheet.isOpen()).toBe(true);
+      overSave = false;
+      escape();
+      expect(sheet.isOpen()).toBe(false);
+    });
+
+    it("is read before any later listener on the page, so one that closes the save drawer can't let it through", () => {
+      let overSave = true;
+      const page = new AbortController();
+      // The save line's own Escape, set up before the drawer, closes the save drawer.
+      document.addEventListener(
+        "keydown",
+        () => {
+          overSave = false;
+        },
+        { signal: page.signal },
+      );
+      const sheet = make({ overSave: () => overSave });
+      sheet.open();
+      escape();
+      page.abort();
+      expect(sheet.isOpen()).toBe(true);
     });
 
     it("ignores other keys", () => {
@@ -504,7 +629,6 @@ describe("the drawer shell", () => {
       time += 2000;
       sheet.showHow(true);
       time += 100;
-      expect(sheet.settling()).toBe(true);
       // The second tap of a double tap on the "i" lands on the cards' Back: nothing.
       fingerClick(back);
       expect(went).not.toHaveBeenCalled();
@@ -522,14 +646,13 @@ describe("the drawer shell", () => {
       time += 2000;
       sheet.showHow(true);
       time += 2000;
-      expect(sheet.settling()).toBe(false);
       sheet.showHow(false);
       time += 100;
-      expect(sheet.settling()).toBe(true);
       press(sheet.back);
       expect(sheet.isOpen()).toBe(true);
       time += DRAWER_SETTLE_MS;
-      expect(sheet.settling()).toBe(false);
+      press(sheet.back);
+      expect(sheet.isOpen()).toBe(false);
     });
 
     it("a close while the how cards show restores the drawer for next time", () => {
@@ -539,7 +662,7 @@ describe("the drawer shell", () => {
       const footer = sheet.back.parentElement as HTMLElement;
       sheet.open(key);
       sheet.showHow(true);
-      sheet.close();
+      sheet.close({ by: "program" });
       expect(sheet.how.hidden).toBe(true);
       expect(head.hidden).toBe(false);
       expect(sheet.list.hidden).toBe(false);
@@ -549,38 +672,53 @@ describe("the drawer shell", () => {
   });
 
   describe("the kick", () => {
-    it("flash shows its words as done, then the resting kick", () => {
+    const cart: ControlRef = { layer: "buys", id: "cart" };
+    const fixed = (control: ControlRef = cart): void => {
+      board.send({ kind: "result", control, at: time, outcome: "fixed" });
+    };
+
+    it("a fix in the drawer shows the thanks as done, then the resting kick", () => {
       const sheet = make();
       const kick = part(sheet, ".board-sheet-kick");
       sheet.kick("Crew and machines that mine while you rest");
       expect(kick.textContent).toBe(
         "Crew and machines that mine while you rest",
       );
-      sheet.flash("Fixed! The crew cheers.", 1600);
-      expect(kick.textContent).toBe("Fixed! The crew cheers.");
+      fixed();
+      expect(kick.textContent).toBe(TROUBLE_FIXED);
       expect(kick.classList.contains("is-done")).toBe(true);
-      vi.advanceTimersByTime(1599);
-      expect(kick.textContent).toBe("Fixed! The crew cheers.");
-      vi.advanceTimersByTime(1);
+      advance(1599);
+      expect(kick.textContent).toBe(TROUBLE_FIXED);
+      advance(1);
       expect(kick.textContent).toBe(
         "Crew and machines that mine while you rest",
       );
       expect(kick.classList.contains("is-done")).toBe(false);
     });
 
-    it("a kick set during a flash waits for it; a second flash restarts it", () => {
+    it("a kick set during the thanks waits for it; a second fix restarts it", () => {
       const sheet = make();
       const kick = part(sheet, ".board-sheet-kick");
       sheet.kick("Old");
-      sheet.flash("One", 1000);
+      fixed();
       sheet.kick("New");
-      expect(kick.textContent).toBe("One");
-      vi.advanceTimersByTime(800);
-      sheet.flash("Two", 1000);
-      vi.advanceTimersByTime(800);
-      expect(kick.textContent).toBe("Two");
-      vi.advanceTimersByTime(200);
+      expect(kick.textContent).toBe(TROUBLE_FIXED);
+      advance(800);
+      fixed();
+      advance(1500);
+      expect(kick.textContent).toBe(TROUBLE_FIXED);
+      advance(100);
       expect(kick.textContent).toBe("New");
+    });
+
+    it("thanks only the drawer the fix was in", () => {
+      const sheet = make({ name: "upgrades", title: "Upgrades" });
+      const kick = part(sheet, ".board-sheet-kick");
+      sheet.kick("Upgrades");
+      fixed();
+      fixed({ layer: "board", id: "bay:cart" });
+      expect(kick.textContent).toBe("Upgrades");
+      expect(kick.classList.contains("is-done")).toBe(false);
     });
   });
 
@@ -671,6 +809,7 @@ describe("the scrim", () => {
     socket.addEventListener("click", onSocket);
     document.body.append(socket);
     const scrim = createSheetScrim({
+      board,
       sheets: [buys, upgrades],
       sockets: () => [socket],
     });
@@ -689,20 +828,25 @@ describe("the scrim", () => {
     );
   };
 
-  it("is a board-scrim, hidden from readers, on while any sheet is open", async () => {
+  it("is a board-scrim, hidden from readers, on while any sheet is open", () => {
     const { buys, upgrades, scrim } = setup();
     expect(scrim.classList.contains("board-scrim")).toBe(true);
     expect(scrim.getAttribute("aria-hidden")).toBe("true");
     expect(scrim.classList.contains("is-on")).toBe(false);
     buys.open();
-    await Promise.resolve();
     expect(scrim.classList.contains("is-on")).toBe(true);
     upgrades.open();
-    buys.close();
-    await Promise.resolve();
+    buys.close({ by: "program" });
     expect(scrim.classList.contains("is-on")).toBe(true);
-    upgrades.close();
-    await Promise.resolve();
+    upgrades.close({ by: "program" });
+    expect(scrim.classList.contains("is-on")).toBe(false);
+  });
+
+  it("follows the board's model, not the sheets' classes", () => {
+    const { scrim } = setup();
+    board.send({ kind: "open", overlay: "upgrades", at: time });
+    expect(scrim.classList.contains("is-on")).toBe(true);
+    board.send({ kind: "close", overlay: "upgrades", at: time, by: "program" });
     expect(scrim.classList.contains("is-on")).toBe(false);
   });
 
@@ -723,6 +867,16 @@ describe("the scrim", () => {
     expect(click?.bubbles).toBe(true);
   });
 
+  it("a scrim close is a tap-through: the socket's click still acts", () => {
+    const { buys, scrim, onSocket } = setup();
+    buys.open();
+    time += 500;
+    tap(scrim, 120, 40);
+    expect(onSocket).toHaveBeenCalledTimes(1);
+    // The tap went on to what lay under the drawer: nothing there settles.
+    expect(boardTap()).toBe("act");
+  });
+
   it("a tap elsewhere only closes", () => {
     const { buys, upgrades, scrim, onSocket } = setup();
     buys.open();
@@ -738,23 +892,5 @@ describe("the scrim", () => {
     buys.open();
     tap(scrim, 156, 40);
     expect(onSocket).not.toHaveBeenCalled();
-  });
-});
-
-describe("eventAge (#373)", () => {
-  const at = (timeStamp: number): Event => {
-    const event = new Event("pointerdown");
-    Object.defineProperty(event, "timeStamp", { value: timeStamp });
-    return event;
-  };
-
-  it("is how long the event waited before the page got to it", () => {
-    expect(eventAge(at(900), 1000)).toBe(100);
-  });
-
-  it("is 0 for a stamp from the future, none, or one too old to trust", () => {
-    expect(eventAge(at(1100), 1000)).toBe(0);
-    expect(eventAge(at(0), 1000)).toBe(0);
-    expect(eventAge(at(1000 - 60_000), 1000)).toBe(0);
   });
 });

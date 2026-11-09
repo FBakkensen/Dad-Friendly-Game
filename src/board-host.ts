@@ -8,6 +8,7 @@ import {
   initialBoard,
   nextWake,
   press,
+  PRESS_AGE_LIMIT_MS,
   step,
   type BoardInput,
   type BoardState,
@@ -15,10 +16,27 @@ import {
   type ControlRef,
   type PressDecision,
 } from "./board-interaction";
-import { eventAge } from "./board-drawer";
 import { reducedMotion } from "./float-text";
 
+/**
+ * How long an event waited before the page got to it: a busy phone hands a press over late,
+ * and the settle is about when the finger came down, not when the handler ran. The stamp and
+ * `performance.now()` share one origin; a stamp from the future, none at all, or one too old
+ * to trust counts as now.
+ */
+export function eventAge(event: Event, now = performance.now()): number {
+  if (!(event.timeStamp > 0)) {
+    return 0;
+  }
+  const age = now - event.timeStamp;
+  return age > 0 && age < PRESS_AGE_LIMIT_MS ? age : 0;
+}
+
 export interface BoardHost {
+  /** The clock every input's time is read from. */
+  readonly clock: () => number;
+  /** How long an event waited before its handler ran, on that clock. */
+  readonly pressAge: (event: Event) => number;
   send(input: BoardInput): void;
   press(input: {
     control: ControlRef;
@@ -38,9 +56,9 @@ export function createBoardHost({
   signal,
 }: {
   clock: () => number;
-  pressAge?: (event: Event) => number;
+  pressAge?: ((event: Event) => number) | undefined;
   reduced?: () => boolean;
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
 }): BoardHost {
   let state: BoardState = initialBoard();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -85,6 +103,8 @@ export function createBoardHost({
   signal?.addEventListener("abort", disarm, { once: true });
 
   return {
+    clock,
+    pressAge,
     send(input) {
       change(step(state, input), false);
     },

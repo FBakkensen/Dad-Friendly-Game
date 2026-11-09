@@ -533,6 +533,8 @@ describe("the Buys drawer (#373)", () => {
           .querySelector(".board-sheet-kick")
           ?.classList.contains("is-done"),
       ).toBe(true);
+      // The thanks ends on the board's own clock: move it with the timers.
+      clock += 1_600;
       await vi.advanceTimersByTimeAsync(1_600);
       expect(kick(screen)).toBe("Crew and machines that mine while you rest");
       expect(cart.dataset["trouble"]).toBeUndefined();

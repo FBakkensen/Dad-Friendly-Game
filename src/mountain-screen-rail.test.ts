@@ -621,6 +621,24 @@ describe("the key rail (#373)", () => {
     }
   });
 
+  it("Escape with the save drawer open over Upgrades closes only the save drawer", () => {
+    const screen = mountScreen({ storage: seeded(early()) });
+    document.body.append(screen.root);
+    try {
+      key(screen, "upgrades").click();
+      screen.root.querySelector<HTMLElement>(".save-status")?.click();
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      expect(
+        screen.root.querySelector(".board-save-drawer.is-open"),
+      ).toBeNull();
+      expect(isOpen(screen, "upgrades")).toBe(true);
+    } finally {
+      screen.root.remove();
+    }
+  });
+
   it("an Engineers sheet that closes while its key is held gives focus to the Ledger key", () => {
     const screen = mountScreen({
       storage: seeded(crewed(benchBusy(CLOCK)), CLOCK),

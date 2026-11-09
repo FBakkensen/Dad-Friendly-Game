@@ -8,8 +8,8 @@ import machineDimUrl from "./assets/board/mach-machine-dim.png";
 import machineUrl from "./assets/board/mach-machine.png";
 import workerUrl from "./assets/board/mach-worker.png";
 import { el, hide, legend, mark, scrollIntoList, write } from "./board-dom";
-import { THANKS_MS } from "./board-interaction";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
+import type { BoardHost } from "./board-host";
 import { createBoardRow, type BoardRow } from "./board-row";
 import { skin } from "./board-skin";
 import { BUY_SECTIONS, buyRowView, type BuyIcon } from "./buys-rows";
@@ -28,7 +28,6 @@ import { effectiveRates, firstIdleTier } from "./rates";
 import type { ReadyPick } from "./ready-now";
 import {
   STAFFING_INTRO,
-  TROUBLE_FIXED,
   crewPostLabel,
   crewPostsWords,
   grandpaChipWords,
@@ -105,6 +104,12 @@ function guidedOf(
     : undefined;
 }
 
+/** A fix in Buys thanks the crew on the drawer's kick line, through the board's model. */
+function thankCrew(board: BoardHost, id: TierId): void {
+  const control = { layer: "buys", id } as const;
+  board.send({ kind: "result", control, at: board.clock(), outcome: "fixed" });
+}
+
 /**
  * The Buys drawer. `pick` is the Ready now pick the screen painted on the plate this frame,
  * so a row's amber lamp always agrees with it. `open` lays the crew chips out on the open
@@ -116,8 +121,8 @@ export function createCrewPanel({
   getView,
   now,
   pick,
-  clock,
-  pressAge,
+  board,
+  overSave,
   door,
   signal,
 }: {
@@ -127,10 +132,10 @@ export function createCrewPanel({
   /** The game's clock: rates, trouble and the New row. */
   now: () => number;
   pick: () => ReadyPick;
-  /** Milliseconds for the drawer's settle (the screen's tap clock). */
-  clock: () => number;
-  /** How long a press waited before its handler ran (the drawer's default when left out). */
-  pressAge?: (event: Event) => number;
+  /** The board's tap rules, shared by every drawer and the board. */
+  board: BoardHost;
+  /** The save drawer is open over the board: its Escape is its own. */
+  overSave: () => boolean;
   /** The drawer's key on the rail: the shell writes its aria-expanded (#373). */
   door?: HTMLElement;
   /** Aborting it removes the drawer's document listeners. */
@@ -145,8 +150,8 @@ export function createCrewPanel({
     title: "Buys",
     infoLabel: "Buys",
     how: { systems: ["staffing", "layers"], backLabel: "Back to Buys" },
-    clock,
-    ...(pressAge === undefined ? {} : { pressAge }),
+    board,
+    overSave,
     ...(door === undefined ? {} : { door }),
     // Shut, the list takes its latest layout: rows, legends and chips.
     onClose: () => {
@@ -202,10 +207,6 @@ export function createCrewPanel({
     }, COUNT_STEP_MS);
   };
 
-  const thank = (): void => {
-    sheet.flash(TROUBLE_FIXED, THANKS_MS);
-  };
-
   /** A tap on the staffing New row hires a worker; the hold keeps a second tap off the machine. */
   const hire = (row: BoardRow): void => {
     const rateBefore = crewSpeed();
@@ -239,7 +240,7 @@ export function createCrewPanel({
       fix: (troubledTier) => {
         progress.fixTrouble(troubledTier);
         if (progress.getSnapshot().trouble === undefined) {
-          thank();
+          thankCrew(board, troubledTier);
           row.hold();
         }
       },
@@ -290,7 +291,7 @@ export function createCrewPanel({
         if (troubled !== undefined) {
           progress.pressTrouble(troubled.tier);
           if (progress.getSnapshot().trouble === undefined) {
-            thank();
+            thankCrew(board, troubled.tier);
             // The burst of presses that fixed it must not run on into a buy, even inside the
             // hold of an earlier buy.
             row.hold();

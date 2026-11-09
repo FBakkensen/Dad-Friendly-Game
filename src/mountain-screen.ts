@@ -12,6 +12,7 @@ import { BOOSTS } from "./boosts";
 import { createEffectChip, shortEffectName, writeChip } from "./effect-row";
 import { createBoardNote } from "./board-note";
 import { DRAWER_SETTLE_MS, createSheetScrim } from "./board-drawer";
+import { createBoardHost } from "./board-host";
 import { keyViews, type KeyId } from "./key-rail";
 import { createKeyRail } from "./board-keys";
 import { createBoardSign } from "./board-sign";
@@ -385,7 +386,7 @@ export function mountMountainScreen({
           openWorkshopSheet();
           return;
         case "upgrades":
-          crewPanel.sheet.close({ restoreFocus: false });
+          crewPanel.sheet.close({ restoreFocus: false, by: "program" });
           upgrades.open(key);
           return;
         case "engineers":
@@ -396,14 +397,15 @@ export function mountMountainScreen({
   });
   /** The Ready now pick last painted on the plate: the Buys rows light the same one. */
   let shownPick: ReadyPick = readyNow(view.mountain, now(), view.trouble);
+  const board = createBoardHost({ clock: tapClock, pressAge, signal });
   const crewPanel = createCrewPanel({
     progress,
     dispatch,
     getView: () => view,
     now,
     pick: () => shownPick,
-    clock: tapClock,
-    ...(pressAge === undefined ? {} : { pressAge }),
+    board,
+    overSave: () => saveLine.isOpen(),
     door: rail.keys.buys,
     ...(signal === undefined ? {} : { signal }),
   });
@@ -642,8 +644,8 @@ export function mountMountainScreen({
     getView: () => view,
     now,
     chipFor,
-    clock: tapClock,
-    ...(pressAge === undefined ? {} : { pressAge }),
+    board,
+    overSave: () => saveLine.isOpen(),
     door: rail.keys.upgrades,
     ...(signal === undefined ? {} : { signal }),
   });
@@ -864,9 +866,7 @@ export function mountMountainScreen({
       return;
     }
     for (const sheet of [crewPanel.sheet, upgrades.sheet]) {
-      if (sheet.isOpen()) {
-        sheet.close({ restoreFocus: false });
-      }
+      sheet.close({ restoreFocus: false, by: "program" });
     }
   };
   /** The New sign last shown: each shows once a launch. */
@@ -1046,7 +1046,7 @@ export function mountMountainScreen({
    */
   const openBuys = (from?: HTMLElement): void => {
     closeBoardPopups();
-    upgrades.sheet.close({ restoreFocus: false });
+    upgrades.sheet.close({ restoreFocus: false, by: "program" });
     crewPanel.open(from);
   };
 
@@ -1121,6 +1121,7 @@ export function mountMountainScreen({
     crewPanel.sheet.root,
     upgrades.sheet.root,
     createSheetScrim({
+      board,
       sheets: [crewPanel.sheet, upgrades.sheet],
       sockets: () => [
         ...relicPlate.root.querySelectorAll<HTMLElement>(".board-socket"),

@@ -32,7 +32,7 @@ type Pointer = "finger" | "keyboard";
  * shows again. A tap-through close (the scrim, a tap outside a note) hands that same tap on
  * to what lay under it, and a program close (a timer, an update prompt) has no tap at all.
  */
-type CloseBy = Pointer | "tap-through" | "program";
+export type CloseBy = Pointer | "tap-through" | "program";
 /**
  * What a drawer holds in place while it is open, in order: its rows and sections, and how
  * many chip rows its crew line wraps to. A drawer whose rows show or hide in place (Upgrades)

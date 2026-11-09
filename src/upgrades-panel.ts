@@ -1,6 +1,7 @@
 import { oneOffStretch, stretch } from "./scale";
 import { el, hide, legend, mark } from "./board-dom";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
+import type { BoardHost } from "./board-host";
 import { createBoardRow, type BoardRow } from "./board-row";
 import { howItWorks } from "./how-it-works";
 import { BOOSTS, boostLeft, type Boost, type BoostId } from "./boosts";
@@ -74,8 +75,8 @@ export function createUpgradesPanel({
   getView,
   now,
   chipFor,
-  clock,
-  pressAge,
+  board,
+  overSave,
   door,
   signal,
 }: {
@@ -86,10 +87,10 @@ export function createUpgradesPanel({
   now: () => number;
   /** Countdown chips in Running now, one per boost. */
   chipFor: ReadonlyMap<BoostId, HTMLElement>;
-  /** Milliseconds for the drawer's settle (the screen's tap clock). */
-  clock: () => number;
-  /** How long a press waited before its handler ran (the drawer's default when left out). */
-  pressAge?: (event: Event) => number;
+  /** The board's tap rules, shared by every drawer and the board. */
+  board: BoardHost;
+  /** The save drawer is open over the board: its Escape is its own. */
+  overSave: () => boolean;
   /** The drawer's key on the rail: the shell writes its aria-expanded (#373). */
   door?: HTMLElement;
   /** Aborting it removes the drawer's document listeners. */
@@ -107,8 +108,8 @@ export function createUpgradesPanel({
       systems: ["upgrades", "boosts"],
       backLabel: "Back to Upgrades",
     },
-    clock,
-    ...(pressAge === undefined ? {} : { pressAge }),
+    board,
+    overSave,
     ...(door === undefined ? {} : { door }),
     ...(signal === undefined ? {} : { signal }),
   });

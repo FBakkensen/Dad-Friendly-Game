@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createBoardHost } from "./board-host";
+import { createBoardHost, eventAge } from "./board-host";
 import type { BoardInput, ControlRef } from "./board-interaction";
 
 const row: ControlRef = { layer: "buys", id: "drill" };
@@ -156,5 +156,31 @@ describe("the board host", () => {
         event: new Event("click"),
       }),
     ).toBe("act");
+  });
+
+  it("lends its clock and press age to the parts that stamp their own inputs", () => {
+    const pressAge = (): number => 40;
+    const host = createBoardHost({ clock, pressAge });
+    now = 123;
+    expect(host.clock()).toBe(123);
+    expect(host.pressAge(new Event("click"))).toBe(40);
+  });
+});
+
+describe("eventAge", () => {
+  const at = (timeStamp: number): Event => {
+    const event = new Event("pointerdown");
+    Object.defineProperty(event, "timeStamp", { value: timeStamp });
+    return event;
+  };
+
+  it("is how long the event waited before the page got to it", () => {
+    expect(eventAge(at(900), 1000)).toBe(100);
+  });
+
+  it("is 0 for a stamp from the future, none, or one too old to trust", () => {
+    expect(eventAge(at(1100), 1000)).toBe(0);
+    expect(eventAge(at(0), 1000)).toBe(0);
+    expect(eventAge(at(1000 - 60_000), 1000)).toBe(0);
   });
 });
