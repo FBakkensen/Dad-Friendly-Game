@@ -5,7 +5,6 @@
   "src/board-row.ts#createBoardRow": 260,
   "src/board-save.ts#createSaveLine": 164,
   "src/board-window.ts#createMineWindow": 326,
-  "src/buys-rows.ts#buyRowView": 190,
   "src/crew-panel.ts#createCrewPanel": 514,
   "src/engineers-panel.ts#createEngineersPanel": 845,
   "src/engineers-panel.ts#createEngineersPanel>buildRow": 342,
