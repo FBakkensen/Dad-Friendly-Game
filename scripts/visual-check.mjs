@@ -1,4 +1,4 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement, HTMLElement, HTMLImageElement, Image, requestAnimationFrame */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement, HTMLElement, Element, HTMLImageElement, Image, requestAnimationFrame */
 /**
  * Real-browser layout guard (jsdom can't see CSS). Run it with:
  *   npm run visual   (starts its own dev server; part of npm run check)
@@ -5095,33 +5095,41 @@ async function putNoteAway(page) {
   }
 }
 
-/** What a finger at a viewport point meets: the board, or a Buys row. */
-const underPoint = (page, at) =>
-  page.evaluate(({ x, y }) => {
-    const hit = document.elementFromPoint(x, y);
-    const card = hit?.closest("[data-tier]");
-    const name = card?.getAttribute("data-tier") ?? "";
-    return hit === null
-      ? "nothing"
-      : `${hit.closest('.board-sheet[data-sheet="buys"]') === null ? "the board" : "Buys"}${name === "" ? "" : ` ${name}`}`;
-  }, at);
-
 /**
  * A sleepy double tap at the selector's centre: two taps `gap` ms apart at
  * one point, with nothing between them, so a loaded run keeps them close.
- * The second lands on whatever the first put there. Returns what was under
- * the finger as the second tap came down.
+ * The second lands on whatever the first put there. Returns what the second
+ * press came down on (the board, or Buys and its row) and how long after the
+ * first, both read in the page as the presses land.
  */
 async function doubleTap(page, selector, gap = 120) {
   const at = await page.$eval(selector, (el) => {
     const b = el.getBoundingClientRect();
     return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
   });
-  let second = "nothing";
+  await page.evaluate(() => {
+    const presses = [];
+    globalThis.__presses = presses;
+    document.addEventListener(
+      "pointerdown",
+      (event) => {
+        const hit = event.target instanceof Element ? event.target : null;
+        const card = hit?.closest("[data-tier]");
+        const name = card?.getAttribute("data-tier") ?? "";
+        presses.push({
+          at: event.timeStamp,
+          on:
+            hit === null
+              ? "nothing"
+              : `${hit.closest('.board-sheet[data-sheet="buys"]') === null ? "the board" : "Buys"}${name === "" ? "" : ` ${name}`}`,
+        });
+      },
+      { capture: true },
+    );
+  });
   for (let tap = 0; tap < 2; tap += 1) {
     if (tap > 0) {
       await new Promise((resolve) => setTimeout(resolve, gap));
-      second = await underPoint(page, at);
     }
     if (desks.get(page) === true) {
       await page.mouse.click(at.x, at.y);
@@ -5131,7 +5139,16 @@ async function doubleTap(page, selector, gap = 120) {
   }
   // The second tap's buy, if any, lands a frame or two later.
   await new Promise((resolve) => setTimeout(resolve, 120));
-  return second;
+  const presses = await page.evaluate(() => globalThis.__presses ?? []);
+  const first = presses[0];
+  const second = presses[1];
+  return {
+    on: second?.on ?? "nothing",
+    ms:
+      first === undefined || second === undefined
+        ? Infinity
+        : Math.round(second.at - first.at),
+  };
 }
 
 const buysOpen = (page) =>
@@ -5346,10 +5363,10 @@ for (const viewport of SCREENS) {
         odo.getAttribute("aria-label"),
       );
       const storedBefore = await storedMountain(page);
-      // 260ms apart: the drawer's 240ms slide is done, so the second tap
-      // lands on Buys, inside its 400ms settle (#373). The plate's centre
-      // meets the list between two rows there.
-      const under = await doubleTap(page, ".board-ready", 260);
+      // 200ms apart: the drawer is on the last steps of its 240ms slide when
+      // the second tap lands on Buys, inside its 400ms settle (#373).
+      const second = await doubleTap(page, ".board-ready", 200);
+      const under = `${second.on}, ${String(second.ms)}ms later`;
       const opened = await page
         .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
         .then(
@@ -5364,6 +5381,7 @@ for (const viewport of SCREENS) {
         (main ?? "").startsWith("Saving for a cart · in ") &&
           opened &&
           under.startsWith("Buys") &&
+          second.ms < 400 &&
           odoAfter === odoBefore &&
           storedAfter.pocket === storedBefore.pocket &&
           storedAfter.helpers === storedBefore.helpers,
@@ -5384,8 +5402,10 @@ for (const viewport of SCREENS) {
       await putNoteAway(page);
       const bay = '.board-bay[data-tier="cart"]';
       const storedBefore = await storedMountain(page);
-      // 260ms apart, so the drawer has slid up under the finger (#373).
-      const under = await doubleTap(page, bay, 260);
+      // 240ms apart, so the drawer has slid up under the finger, and the
+      // second tap lands on a row inside the 400ms settle (#373).
+      const second = await doubleTap(page, bay, 240);
+      const under = `${second.on}, ${String(second.ms)}ms later`;
       const opened = await page
         .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
         .then(
@@ -5395,7 +5415,8 @@ for (const viewport of SCREENS) {
       const storedAfter = await storedMountain(page);
       check(
         opened &&
-          under.startsWith("Buys ") &&
+          second.on.startsWith("Buys") &&
+          second.ms < 400 &&
           storedAfter.pocket === storedBefore.pocket &&
           storedAfter.carts === storedBefore.carts &&
           storedAfter.drills === storedBefore.drills &&
@@ -5403,6 +5424,13 @@ for (const viewport of SCREENS) {
           storedAfter.helpers === storedBefore.helpers,
         `${label} a double tap on an open bay opens Buys and spends nothing (second tap on ${under})`,
       );
+      if (storedAfter.pocket !== storedBefore.pocket || !opened) {
+        console.log(
+          "bay double tap",
+          size,
+          JSON.stringify({ opened, storedBefore, storedAfter }),
+        );
+      }
       await close();
     }
 
