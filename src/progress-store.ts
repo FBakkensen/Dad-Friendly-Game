@@ -257,7 +257,7 @@ function remoteSide(loaded: {
 }
 
 /** What a dispatched move did (#409): applied, with what it spent and mined, or why not. */
-export type DispatchResult =
+type DispatchResult =
   | { readonly kind: "applied"; readonly spent: number; readonly mined: number }
   | { readonly kind: "refused"; readonly reason: "not-playing" | "no-change" };
 

@@ -260,7 +260,7 @@ export function buyWithTeach(mountain: Mountain, id: TierId): Mountain {
 }
 
 /** A move only the screen makes: the lab plays taps and marks through its value model. */
-export type ScreenMove =
+type ScreenMove =
   | { readonly kind: "dig" }
   | { readonly kind: "tapVein" }
   | { readonly kind: "markSeen"; readonly id: string }

@@ -1218,6 +1218,13 @@ describe("valueOf", () => {
         .gainPerSec,
     ).toBe(0);
     expect(score(shed(), { kind: "cancelCraft" }).gainPerSec).toBe(0);
+    // A bench whose time is up is collected by the store: no cancel, and no new craft yet.
+    const benchMoves = (at: number) =>
+      listActions(busy, at).filter(
+        (action) => action.kind === "craft" || action.kind === "cancelCraft",
+      );
+    expect(benchMoves(NOW)).toEqual([{ kind: "cancelCraft" }]);
+    expect(benchMoves(finishedAt)).toEqual([]);
 
     const granted = applyAction(
       shed(),
