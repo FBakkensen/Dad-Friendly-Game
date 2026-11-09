@@ -209,10 +209,12 @@ page is the map, plus the rules that keep it that way.
    a `door` (the Engineers and Ledger keys) instead of building their own
    buttons. `DRAWER_SETTLE_MS` (400ms, from `board-interaction`) is every
    drawer's guard, B4's Buys settle carried into the model, judged for the
-   whole drawer: rows ask the model through `buyOnTap`, and Back and the "i"
-   ask it in the shell, each at a finger's pointerdown and again at its
-   click (`detail` not 0), since a touch's click lands where the finger
-   lifts, on a row that may have slid under it as the drawer rose. So the
+   whole drawer. The rows (through `buyOnTap`) and Back, the "i" and the how
+   cards' Back (in the shell) each keep their own press with `card-tap`'s one
+   `trackPress`: a press is judged by when its finger came down, and a
+   finger's click (`detail` not 0) with no pointerdown of its own by the
+   click's age, since a touch's click lands where the finger lifts, on a row
+   that may have slid under it as the drawer rose. So the
    second tap of a double tap on a key, a bay or Saving for never buys or
    closes. A keyboard press (`detail` 0) is never early. Buys' footnote
    stands in the drawer's footer, over Back, and steps aside on an opening
