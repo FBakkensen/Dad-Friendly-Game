@@ -6029,6 +6029,48 @@ async function railFacts(page) {
 }
 
 /** Two taps at the selector's centre `gap` ms apart; the second meets what the first opened. */
+/**
+ * Starts timing a drawer's open: the time its class lands (no earlier than the
+ * settle's start) and every pointerdown after it, both on performance.now().
+ */
+async function watchSheetOpen(page, selector) {
+  await page.evaluate((sel) => {
+    globalThis.__sheetOpenedAt = undefined;
+    globalThis.__sheetPresses = [];
+    if (globalThis.__sheetPress !== undefined) {
+      document.removeEventListener("pointerdown", globalThis.__sheetPress, {
+        capture: true,
+      });
+    }
+    globalThis.__sheetPress = () => {
+      globalThis.__sheetPresses.push(performance.now());
+    };
+    document.addEventListener("pointerdown", globalThis.__sheetPress, {
+      capture: true,
+    });
+    const sheet = document.querySelector(sel);
+    if (sheet !== null) {
+      new MutationObserver((records, observer) => {
+        if (sheet.classList.contains("is-open")) {
+          globalThis.__sheetOpenedAt = performance.now();
+          observer.disconnect();
+        }
+      }).observe(sheet, { attributes: true, attributeFilter: ["class"] });
+    }
+  }, selector);
+}
+
+/** How far into the drawer's settle the second press came, at least (Infinity if unknown). */
+async function secondPressIntoSettle(page) {
+  return page.evaluate(() => {
+    const opened = globalThis.__sheetOpenedAt;
+    const second = globalThis.__sheetPresses?.[1];
+    return opened === undefined || second === undefined
+      ? Number.POSITIVE_INFINITY
+      : Math.round(second - opened);
+  });
+}
+
 async function tapTwice(page, selector, gap) {
   const at = await page.$eval(selector, (el) => {
     const b = el.getBoundingClientRect();
@@ -6694,7 +6736,29 @@ for (const viewport of SCREENS) {
       for (const id of KEY_IDS) {
         const before = await storedMountain(page);
         const odoBefore = await odometer(page);
-        await tapTwice(page, KEY(id), 150);
+        const drawerKey = id === "buys" || id === "upgrades";
+        // Under the full gate's load the second tap can come down after the
+        // drawer's 400ms settle, where Back rightly closes it: that try has not
+        // tested the guard. Retry it (at most thrice), judged from when the
+        // drawer opened, an upper bound on the settle's start.
+        let intoSettle = 0;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          if (drawerKey) {
+            await watchSheetOpen(page, SHEET(id));
+          }
+          await tapTwice(page, KEY(id), 150);
+          if (!drawerKey) {
+            break;
+          }
+          intoSettle = await secondPressIntoSettle(page);
+          const open = await page.$eval(SHEET(id), (sheet) =>
+            sheet.classList.contains("is-open"),
+          );
+          if (open || intoSettle < 400 || attempt === 2) {
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
         const after = await storedMountain(page);
         const spent =
           after.pocket !== before.pocket ||
@@ -6710,7 +6774,7 @@ for (const viewport of SCREENS) {
           : true;
         check(
           !spent && stays,
-          `${label} a double tap on the ${id} key ${drawer ? "leaves its drawer open and " : ""}buys nothing`,
+          `${label} a double tap on the ${id} key ${drawer ? "leaves its drawer open and " : ""}buys nothing${drawer ? ` (second press ${String(intoSettle)}ms into the settle)` : ""}`,
         );
         if (spent || !stays) {
           console.log(
