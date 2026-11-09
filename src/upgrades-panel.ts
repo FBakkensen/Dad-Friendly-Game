@@ -457,7 +457,7 @@ export function createUpgradesPanel({
   /** The save drawer is open over the board: its Escape is its own. */
   overSave: () => boolean;
   /** The drawer's key on the rail: the shell writes its aria-expanded (#373). */
-  door?: HTMLElement;
+  door: HTMLElement;
   /** Aborting it removes the drawer's document listeners. */
   signal?: AbortSignal;
 }): {
@@ -488,7 +488,7 @@ export function createUpgradesPanel({
     onForget: () => {
       onBoard.forget();
     },
-    ...(door === undefined ? {} : { door }),
+    door,
     ...(signal === undefined ? {} : { signal }),
   });
   sheet.kick(UPGRADES_KICK);
