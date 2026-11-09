@@ -7,9 +7,11 @@ import {
   type CloseBy,
   type ControlRef,
   type DrawerId,
+  type Pointer,
   type PressDecision,
 } from "./board-interaction";
 import { plateButton } from "./board-save";
+import { trackPress, type PressTracker } from "./card-tap";
 import { skin } from "./board-skin";
 import { TROUBLE_FIXED } from "./screen-words";
 
@@ -229,58 +231,35 @@ function setHow({ how, head, list, footer }: SheetParts, on: boolean): void {
   hide(footer, on);
 }
 
-type Pointer = "finger" | "keyboard";
-
-/** A press the shell keeps from its finger's pointerdown to its click. */
-interface Tracker {
-  /** Drops the finger-down time of a press that never reached its click. */
-  forget(): void;
-}
-
 /**
- * One of the shell's own controls, pressed through the board. The finger-down time is kept
- * from pointerdown to the click, so a press held long is judged by when it came down. A press
- * dragged off or cancelled, or one the drawer moved on from, is forgotten.
+ * One of the shell's own controls, pressed through the board. Its press is tracked on the
+ * control itself, so it is judged by its own finger-down time, and that time is dropped at a
+ * cancel or when the drawer moves on.
  */
-function trackPress(
+function pressOnBoard(
   target: HTMLElement,
   board: BoardHost,
   control: ControlRef,
   judged: (decision: PressDecision, by: Pointer, event: MouseEvent) => void,
   options: AddEventListenerOptions = {},
-): Tracker {
-  let downAt: number | undefined;
-  const forget = (): void => {
-    downAt = undefined;
-  };
-  target.addEventListener(
-    "pointerdown",
-    (event) => {
-      if (event.button === 0) {
-        downAt = board.clock() - board.pressAge(event);
-      }
-    },
-    options,
-  );
-  target.addEventListener("pointercancel", forget, options);
+): PressTracker {
+  const tracker = trackPress(target, board, options);
   target.addEventListener(
     "click",
     (event) => {
-      const by: Pointer = event.detail === 0 ? "keyboard" : "finger";
-      const finger = by === "finger" ? downAt : undefined;
-      forget();
+      const { by, downAt } = tracker.press(event);
       const decision = board.press({
         control,
         by,
         intent: "act",
-        downAt: finger,
+        downAt,
         event,
       });
       judged(decision, by, event);
     },
     options,
   );
-  return { forget };
+  return tracker;
 }
 
 /** Back, the "i" and the cards' Backs: each acts only when the board says it may. */
@@ -289,20 +268,20 @@ function wireSheetControls(
   board: BoardHost,
   layer: DrawerId,
   act: Pick<BoardSheet, "close" | "showHow">,
-): readonly Tracker[] {
+): readonly PressTracker[] {
   return [
-    trackPress(parts.back, board, { layer, id: "back" }, (decision, by) => {
+    pressOnBoard(parts.back, board, { layer, id: "back" }, (decision, by) => {
       if (decision === "act") {
         act.close({ by });
       }
     }),
-    trackPress(parts.info, board, { layer, id: "info" }, (decision) => {
+    pressOnBoard(parts.info, board, { layer, id: "info" }, (decision) => {
       if (decision === "act") {
         act.showHow(true);
       }
     }),
     // The cards' own Backs: an early click stops on the cards' host, before it reaches them.
-    trackPress(
+    pressOnBoard(
       parts.how,
       board,
       { layer, id: "how-back" },
@@ -384,7 +363,7 @@ export function createBoardSheet({
   let from: HTMLElement | undefined;
   let resting = "";
   let tier: SpareTier | undefined;
-  let trackers: readonly Tracker[] = [];
+  let trackers: readonly PressTracker[] = [];
 
   const forget = (): void => {
     for (const tracker of trackers) {

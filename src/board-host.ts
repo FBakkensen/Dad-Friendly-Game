@@ -13,6 +13,7 @@ import {
   type BoardState,
   type BoardView,
   type ControlRef,
+  type Pointer,
   type PressDecision,
 } from "./board-interaction";
 import { reducedMotion } from "./float-text";
@@ -35,7 +36,7 @@ export interface BoardHost {
   send(input: BoardInput): void;
   press(input: {
     control: ControlRef;
-    by: "finger" | "keyboard";
+    by: Pointer;
     intent: "act" | "trouble";
     downAt: number | undefined;
     event: Event;

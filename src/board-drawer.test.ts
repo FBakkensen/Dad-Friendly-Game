@@ -9,6 +9,7 @@ import {
 } from "./board-drawer";
 import { createBoardHost, type BoardHost } from "./board-host";
 import type { ControlRef } from "./board-interaction";
+import { rowsOnBoard } from "./board-row";
 import { TROUBLE_FIXED } from "./screen-words";
 
 let time = 0;
@@ -459,6 +460,38 @@ describe("the drawer shell", () => {
       // A touch's click with no press of its own on Back: judged now, not by the lost press.
       fingerClick(sheet.back);
       expect(sheet.isOpen()).toBe(false);
+    });
+
+    it("Back and a row each keep their own finger-down time: a drag on the row leaves Back's early press early", () => {
+      const sheet = make();
+      const rows = rowsOnBoard(board, "buys");
+      const row = document.createElement("button");
+      part(sheet, ".board-sheet-list").prepend(row);
+      const decisions: string[] = [];
+      rows.tap(row, (tap, event) => {
+        decisions.push(rows.press("cart", tap, event, "act"));
+      });
+      sheet.open();
+      time += 100;
+      sheet.back.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      // Another finger drags on a row: the row drops its press, Back keeps its own.
+      const drag = (type: string, clientX: number): void => {
+        row.dispatchEvent(
+          new PointerEvent(type, { bubbles: true, button: 0, clientX }),
+        );
+      };
+      drag("pointerdown", 0);
+      drag("pointermove", 50);
+      drag("pointerup", 50);
+      fingerClick(row);
+      time += 600;
+      fingerClick(sheet.back);
+      expect(sheet.isOpen()).toBe(true);
+      // The row's next press is its own, long past the settle: it acts.
+      press(row);
+      expect(decisions).toEqual(["act"]);
     });
 
     it("a press that was cancelled leaves no early mark for a finger's click", () => {

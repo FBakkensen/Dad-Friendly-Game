@@ -26,7 +26,8 @@ export interface ControlRef {
   readonly layer: Layer;
   readonly id: string;
 }
-type Pointer = "finger" | "keyboard";
+/** How a press came: a finger (or mouse or pen) on the screen, or a key. */
+export type Pointer = "finger" | "keyboard";
 /**
  * How an overlay closed. Only a finger's close that ends its own tap (Back) settles what it
  * shows again. A tap-through close (the scrim, a tap outside a note) hands that same tap on

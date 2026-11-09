@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buyOnTap } from "./card-tap";
+import { buyOnTap, trackPress } from "./card-tap";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -143,5 +143,101 @@ describe("how buyOnTap reports a press", () => {
     pointer(row, "pointerdown");
     tracker.forget();
     expect(lateClick()).toEqual(untracked);
+  });
+});
+
+describe("trackPress", () => {
+  const button = (): HTMLButtonElement => {
+    const made = document.createElement("button");
+    document.body.append(made);
+    return made;
+  };
+  /** The press each click on `target` reports, in order. */
+  const reported = (
+    target: HTMLElement,
+    tracker: ReturnType<typeof trackPress>,
+  ): unknown[] => {
+    const seen: unknown[] = [];
+    target.addEventListener("click", (event) => {
+      seen.push(tracker.press(event));
+    });
+    return seen;
+  };
+
+  it("keeps a main-button finger-down time on the clock, less the press's age, until the click", () => {
+    const back = button();
+    let clock = 1_000;
+    const tracker = trackPress(back, {
+      clock: () => clock,
+      pressAge: () => 30,
+    });
+    const seen = reported(back, tracker);
+    pointer(back, "pointerdown");
+    clock += 2_000;
+    fingerClick(back);
+    fingerClick(back);
+    back.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 2 }),
+    );
+    fingerClick(back);
+    expect(seen).toEqual([
+      { by: "finger", downAt: 970 },
+      { by: "finger", downAt: undefined },
+      { by: "finger", downAt: undefined },
+    ]);
+  });
+
+  it("a click with no pointer is the keyboard, with no finger-down time, unless it sent that click itself", () => {
+    const back = button();
+    const tracker = trackPress(back, { clock: () => 1_000, pressAge: () => 0 });
+    const seen = reported(back, tracker);
+    pointer(back, "pointerdown");
+    back.click();
+    pointer(back, "pointerdown");
+    tracker.clickFor(back);
+    back.click();
+    expect(seen).toEqual([
+      { by: "keyboard", downAt: undefined },
+      { by: "finger", downAt: 1_000 },
+      { by: "keyboard", downAt: undefined },
+    ]);
+  });
+
+  it("forgets the finger-down time at pointercancel and on forget()", () => {
+    const back = button();
+    const tracker = trackPress(back, { clock: () => 1_000, pressAge: () => 0 });
+    const seen = reported(back, tracker);
+    pointer(back, "pointerdown");
+    pointer(back, "pointercancel");
+    fingerClick(back);
+    pointer(back, "pointerdown");
+    tracker.forget();
+    fingerClick(back);
+    expect(seen).toEqual([
+      { by: "finger", downAt: undefined },
+      { by: "finger", downAt: undefined },
+    ]);
+  });
+
+  it("listens in the capture phase when asked, so a host hears its cards' presses first", () => {
+    const host = document.createElement("div");
+    const inner = button();
+    host.append(inner);
+    document.body.append(host);
+    const tracker = trackPress(
+      host,
+      { clock: () => 1_000, pressAge: () => 0 },
+      { capture: true },
+    );
+    inner.addEventListener("pointerdown", (event) => {
+      event.stopPropagation();
+    });
+    const seen: unknown[] = [];
+    inner.addEventListener("click", (event) => {
+      seen.push(tracker.press(event));
+    });
+    pointer(inner, "pointerdown");
+    fingerClick(inner);
+    expect(seen).toEqual([{ by: "finger", downAt: 1_000 }]);
   });
 });
