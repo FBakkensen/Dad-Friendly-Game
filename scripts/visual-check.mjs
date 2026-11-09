@@ -1,4 +1,4 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement, HTMLElement, Element, HTMLImageElement, Image, requestAnimationFrame */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement, HTMLElement, Element, HTMLImageElement, Image, requestAnimationFrame, MutationObserver */
 /**
  * Real-browser layout guard (jsdom can't see CSS). Run it with:
  *   npm run visual   (starts its own dev server; part of npm run check)
@@ -25,10 +25,12 @@ import {
   fleetMountain,
   freshMountain,
   heartMountain,
+  fullGraniteMountain,
   heirMountain,
   idleMountain,
   lastStoneSave,
   machineMountain,
+  machinePickMountain,
   openMountain,
   savingMountain,
   seedJson,
@@ -287,6 +289,15 @@ async function drawerFacts(page, name) {
             b.t >= r.t - 0.5 &&
             b.b <= r.b + 0.5,
         );
+        // The name keeps its whole width on its line: one too long runs past
+        // the words' column, which clips it.
+        const mid = row.querySelector(".board-row-mid");
+        const nameEl = row.querySelector(".board-row-name");
+        const nameFull =
+          mid === null ||
+          nameEl === null ||
+          nameEl.getBoundingClientRect().right <=
+            mid.getBoundingClientRect().right + 0.5;
         // A line that runs past its box is cut by an ellipsis inside it.
         const spills = parts
           .filter(({ el }) => el.scrollWidth > el.clientWidth + 1)
@@ -317,7 +328,8 @@ async function drawerFacts(page, name) {
           height: r.b - r.t,
           width: r.r - r.l,
           words: parts.map(({ el }) => (el.textContent ?? "").trim()),
-          inside,
+          inside: inside && nameFull,
+          nameFull,
           spills,
           overlaps,
           inView:
@@ -1111,24 +1123,46 @@ for (const viewport of [PHONE]) {
           .filter((card) => !card.hidden)
           .map((card) => ({
             height: Math.round(card.getBoundingClientRect().height),
-            // The name and the price show in full. The info line falls back
-            // through its options and may end in its ellipsis, inside the
-            // row (#373, the plan's Review Focus 5).
+            // The name, the price and the gain show in full. The name keeps
+            // its whole width on its line, so a name too long for the row
+            // runs past the words' column, which clips it: its right edge is
+            // read against that column's. The info line falls back through
+            // its options and may end in its ellipsis, inside the row (#373,
+            // the plan's Review Focus 5).
             clipped: [
               ...card.querySelectorAll(
-                ".board-row-name, .board-row-price, .board-row-info",
+                ".board-row-name, .board-row-price, .board-row-info, .board-row-gain",
               ),
             ]
-              .filter(
-                (line) =>
+              .filter((line) => {
+                if (line.closest("[hidden]") !== null) {
+                  return false;
+                }
+                if (line.classList.contains("board-row-name")) {
+                  const mid = line.closest(".board-row-mid");
+                  return (
+                    mid === null ||
+                    line.getBoundingClientRect().right >
+                      mid.getBoundingClientRect().right + 0.5
+                  );
+                }
+                if (line.classList.contains("board-row-gain")) {
+                  return (
+                    line.scrollWidth > line.clientWidth + 1 ||
+                    line.getBoundingClientRect().right >
+                      card.getBoundingClientRect().right + 0.5
+                  );
+                }
+                return (
                   line.scrollWidth > line.clientWidth + 1 &&
                   !(
                     line.classList.contains("board-row-info") &&
                     getComputedStyle(line).textOverflow === "ellipsis" &&
                     line.getBoundingClientRect().right <=
                       card.getBoundingClientRect().right
-                  ),
-              )
+                  )
+                );
+              })
               .map((line) => line.textContent),
           })),
       );
@@ -1140,7 +1174,7 @@ for (const viewport of [PHONE]) {
       const clipped = cards.flatMap((card) => card.clipped);
       check(
         clipped.length === 0,
-        `${label} show every name and price in full, and each info line whole or cut by its ellipsis ${clipped.join(" | ")}`,
+        `${label} show every name, price and gain in full, and each info line whole or cut by its ellipsis ${clipped.join(" | ")}`,
       );
       check(await noScroll(page), `${label} have no scroll`);
       // The pocket is the odometer now (#370): five drums in their housing.
@@ -5121,6 +5155,19 @@ async function doubleTap(page, selector, gap = 120) {
   await page.evaluate(() => {
     const presses = [];
     globalThis.__presses = presses;
+    // When Buys opens, read as the class lands: after the click handler that
+    // opened it and set its settle's start, so it is no earlier than that
+    // start. A press this long after it is at least that long into the settle.
+    globalThis.__buysOpenedAt = undefined;
+    const sheet = document.querySelector('.board-sheet[data-sheet="buys"]');
+    if (sheet !== null) {
+      new MutationObserver((records, observer) => {
+        if (sheet.classList.contains("is-open")) {
+          globalThis.__buysOpenedAt = performance.now();
+          observer.disconnect();
+        }
+      }).observe(sheet, { attributes: true, attributeFilter: ["class"] });
+    }
     document.addEventListener(
       "pointerdown",
       (event) => {
@@ -5161,7 +5208,10 @@ async function doubleTap(page, selector, gap = 120) {
   }
   // The second tap's buy, if any, lands a frame or two later.
   await new Promise((resolve) => setTimeout(resolve, 120));
-  const presses = await page.evaluate(() => globalThis.__presses ?? []);
+  const { presses, openedAt } = await page.evaluate(() => ({
+    presses: globalThis.__presses ?? [],
+    openedAt: globalThis.__buysOpenedAt ?? null,
+  }));
   const first = presses[0];
   const second = presses[1];
   return {
@@ -5170,6 +5220,11 @@ async function doubleTap(page, selector, gap = 120) {
       first === undefined || second === undefined
         ? Infinity
         : Math.round(second.at - first.at),
+    // How far into Buys' 400ms settle the second press came, at least.
+    intoSettle:
+      second === undefined || openedAt === null
+        ? Infinity
+        : Math.round(second.at - openedAt),
   };
 }
 
@@ -5390,7 +5445,7 @@ for (const viewport of SCREENS) {
       // The second tap comes down as a row of the rising drawer reaches the
       // plate, inside its 400ms settle (#373).
       const second = await doubleTap(page, ".board-ready", "drawer");
-      const under = `${second.on}, ${String(second.ms)}ms later`;
+      const under = `${second.on}, ${String(second.ms)}ms later, ${String(second.intoSettle)}ms into the settle`;
       const opened = await page
         .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
         .then(
@@ -5401,7 +5456,18 @@ for (const viewport of SCREENS) {
         odo.getAttribute("aria-label"),
       );
       const storedAfter = await storedMountain(page);
-      if (second.ms >= 400 && attempt < 2) {
+      const spent =
+        odoAfter !== odoBefore ||
+        storedAfter.pocket !== storedBefore.pocket ||
+        storedAfter.helpers !== storedBefore.helpers;
+      // Retried only when the second press surely came after the settle: a
+      // press this far after the class landed is that far after its start.
+      if (second.intoSettle >= 400 && attempt < 2) {
+        // Even a dropped try must not have spent: it fails the check if so.
+        check(
+          !spent,
+          `${label} a Saving for double tap too slow for the settle spends nothing (${under})`,
+        );
         await close();
         continue;
       }
@@ -5409,7 +5475,7 @@ for (const viewport of SCREENS) {
         (main ?? "").startsWith("Saving for a cart · in ") &&
           opened &&
           /^Buys \w/.test(second.on) &&
-          second.ms < 400 &&
+          second.intoSettle < 400 &&
           odoAfter === odoBefore &&
           storedAfter.pocket === storedBefore.pocket &&
           storedAfter.helpers === storedBefore.helpers,
@@ -5435,7 +5501,7 @@ for (const viewport of SCREENS) {
       // The second tap comes down as a row of the rising drawer reaches the
       // bay, inside the 400ms settle (#373).
       const second = await doubleTap(page, bay, "drawer");
-      const under = `${second.on}, ${String(second.ms)}ms later`;
+      const under = `${second.on}, ${String(second.ms)}ms later, ${String(second.intoSettle)}ms into the settle`;
       const opened = await page
         .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
         .then(
@@ -5443,14 +5509,23 @@ for (const viewport of SCREENS) {
           () => false,
         );
       const storedAfter = await storedMountain(page);
-      if (second.ms >= 400 && attempt < 2) {
+      const spent = ["pocket", "carts", "drills", "borers", "helpers"].some(
+        (field) => storedAfter[field] !== storedBefore[field],
+      );
+      // Retried only when the second press surely came after the settle; even
+      // a dropped try must not have spent.
+      if (second.intoSettle >= 400 && attempt < 2) {
+        check(
+          !spent,
+          `${label} a bay double tap too slow for the settle spends nothing (${under})`,
+        );
         await close();
         continue;
       }
       check(
         opened &&
           /^Buys \w/.test(second.on) &&
-          second.ms < 400 &&
+          second.intoSettle < 400 &&
           storedAfter.pocket === storedBefore.pocket &&
           storedAfter.carts === storedBefore.carts &&
           storedAfter.drills === storedBefore.drills &&
@@ -5811,13 +5886,17 @@ const DRAWER_SAVES = [
   ["heir", () => heirMountain()],
   ["crew", () => ({ version: 4, mountain: CREW, lastSeen: Date.now() })],
   ["mid, the borer the pick", () => borerPickMountain()],
+  // A full Granite: two rows of crew chips, and Buys still fits (#373).
+  ["mid, two chip rows", () => fullGraniteMountain()],
+  // The Great Machine the pick, with Ada tending it: the flag gives way.
+  ["machine, the Great Machine the pick", () => machinePickMountain()],
 ];
 /**
  * Late-game Buys runs longer than the drawer and scrolls inside it (C1): the
  * Great Machine's era, with the Kid row. Up to the borer it fits, its
  * footnote stepping aside when it would push the list into a scroll (#373).
  */
-const LONG_BUYS = new Set(["machine"]);
+const LONG_BUYS = new Set(["machine", "machine, the Great Machine the pick"]);
 /**
  * A full Upgrades scrolls inside its drawer too (C1, the spec's "a full
  * Upgrades"): from six rows, more than the drawer holds at 76px each.
@@ -5834,6 +5913,8 @@ const ROW_LEGENDS = (name) =>
     ".board-row-gain",
     ".board-row-price",
     ".board-row-verb",
+    // Buys' footnote over Back, and Upgrades' at the list's end, when shown.
+    ".board-sheet-foot",
   ]
     .map((part) => `${OPEN_SHEET(name)} ${part}`)
     .join(", ");
@@ -6458,6 +6539,45 @@ for (const viewport of SCREENS) {
           idle.cart.flag === "New" &&
           seen.ok,
         `${size} idle Buys: the cart row is the staffing New row, in view, and the drawer stays at 178 (${JSON.stringify(seen)})`,
+      );
+      await close();
+    }
+    {
+      // The Great Machine the pick, Ada tending it: its flag shares the name's
+      // line, falls back to "Ready now" where the joined words do not fit,
+      // and the name shows in full.
+      const {
+        page,
+        close,
+        rows: pick,
+      } = await visit(() => machinePickMountain(), "buys");
+      const name = await page.$eval(
+        `${OPEN_SHEET("buys")} .tier[data-tier="machine"]`,
+        (row) => {
+          const mid = row.querySelector(".board-row-mid");
+          const words = row.querySelector(".board-row-name");
+          const flag = row.querySelector(".board-row-flag");
+          return {
+            full:
+              mid !== null &&
+              words !== null &&
+              words.getBoundingClientRect().right <=
+                mid.getBoundingClientRect().right + 0.5,
+            flagInside:
+              mid !== null &&
+              flag !== null &&
+              flag.getBoundingClientRect().right <=
+                mid.getBoundingClientRect().right + 0.5,
+          };
+        },
+      );
+      const flag = pick.machine?.flag ?? "";
+      check(
+        pick.machine?.classes.includes("is-pick") === true &&
+          (flag === "Ready now" || flag.startsWith("Ready now · Ada tends")) &&
+          name.full &&
+          name.flagInside,
+        `${size} the Great Machine as the pick with Ada tending it: the name in full and the flag "${flag}" beside it`,
       );
       await close();
     }

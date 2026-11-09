@@ -67,7 +67,7 @@ Every target is at least 48px, the page never scrolls, and no measured text pair
 
 ### Lists that scroll
 
-The audit flags a drawer list that scrolls. Late-game Buys and a full Upgrades scroll inside their drawer, as C1 allows (Crew, needs workers; Upgrades and boosts; Upgrades drawer). Hazard in Buys is a full Granite save (24 carts, 8 drills, 3 borers and two engineers), whose crew chips take a second row: its list runs 13px past the drawer. The `mid`, `short` and `tools` saves fit (#373): Buys' footnote stands over Back, and steps aside on an opening whose list it would push into a scroll.
+The audit flags a drawer list that scrolls. Only late-game Buys and a full Upgrades scroll inside their drawer, as C1 allows (Crew, needs workers; Upgrades and boosts; Upgrades drawer). Mid-game Buys fits, Hazard in Buys included: a full Granite whose crew chips take two rows (#373). Buys' footnote stands over Back, and steps aside on an opening whose list it would push into a scroll.
 
 ### Targets under 48px or closer than 8px
 

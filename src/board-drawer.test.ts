@@ -438,6 +438,29 @@ describe("the drawer shell", () => {
       expect(document.activeElement).toBe(sheet.info);
     });
 
+    it("the how cards settle as they open: their Back is new under the finger (#373)", () => {
+      const sheet = make();
+      const back = document.createElement("button");
+      back.className = "teach-how-back";
+      const went = vi.fn();
+      back.addEventListener("click", went);
+      sheet.how.append(back);
+      sheet.open();
+      time += 2000;
+      sheet.showHow(true);
+      time += 100;
+      expect(sheet.settling()).toBe(true);
+      // The second tap of a double tap on the "i" lands on the cards' Back: nothing.
+      fingerClick(back);
+      expect(went).not.toHaveBeenCalled();
+      // A key press is never early.
+      back.click();
+      expect(went).toHaveBeenCalledTimes(1);
+      time += 400;
+      fingerClick(back);
+      expect(went).toHaveBeenCalledTimes(2);
+    });
+
     it("back from the how cards settles again: the list is new under the finger", () => {
       const sheet = make();
       sheet.open();

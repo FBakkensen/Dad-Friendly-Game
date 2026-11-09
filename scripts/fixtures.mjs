@@ -320,3 +320,46 @@ export function heirMountain() {
   const crew = crewMountain();
   return { ...crew, mountain: { ...crew.mountain, legacy: 1 } };
 }
+
+/**
+ * A full Granite before the Great Machine (#373): so many hands on carts,
+ * drills and borers, with two engineers, that the Buys crew chips take two
+ * rows. Mid-game Buys still fits its drawer.
+ */
+export function fullGraniteMountain() {
+  const open = openMountain();
+  return {
+    ...open,
+    mountain: {
+      remaining: 240_000_000 - 30_000_000,
+      pocket: 80_000_000,
+      helpers: 80,
+      carts: 24,
+      drills: 8,
+      borers: 3,
+      staffed: 2,
+      engineers: [
+        { name: "Ada", rank: 0, trips: 0, post: "borer" },
+        { name: "Nils", rank: 0, trips: 0, post: "drill" },
+      ],
+      upgrades: { tap: 3, boots: 1, steady: 1, cartSyn: 1 },
+    },
+  };
+}
+
+/**
+ * The Great Machine era with the Great Machine the Ready now pick and Ada
+ * tending it (#373): its row's flag gives way on the name's line.
+ */
+export function machinePickMountain() {
+  const machine = machineMountain();
+  return {
+    ...machine,
+    mountain: {
+      ...machine.mountain,
+      pocket: 200_000_000,
+      helpers: 90,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "machine" }],
+    },
+  };
+}

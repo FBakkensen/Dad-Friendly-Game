@@ -195,9 +195,10 @@ export function createBoardSheet({
 
   const showHow = (on: boolean): void => {
     setHow(on);
-    // Back to the list is a new screen under the finger: the second tap of a double tap on
-    // the cards' Back must not buy the row under it, so the settle starts again.
-    if (!on && open) {
+    // Each way is a new screen under the finger: the second tap of a double tap on the "i"
+    // must not take the cards' Back, nor one on the cards' Back buy the row under it, so the
+    // settle starts again (#373).
+    if (open) {
       openedAt = clock();
     }
     // The "i" hides under the cards, so focus moves with them, and back to it.
@@ -285,6 +286,18 @@ export function createBoardSheet({
       event.stopImmediatePropagation();
     }
   });
+
+  // The how cards' own Back plates share it too: a finger's early click stops on the cards'
+  // host, before it reaches them.
+  how.addEventListener(
+    "click",
+    (event) => {
+      if (event.detail !== 0 && settling()) {
+        event.stopPropagation();
+      }
+    },
+    { capture: true },
+  );
 
   // Drawers are built once; `signal` lets a test or a remount take this away.
   document.addEventListener(

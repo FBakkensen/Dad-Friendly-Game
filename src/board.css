@@ -2144,12 +2144,13 @@ button.board-row:focus-visible {
 }
 
 /* A section legend: its name, and the column's name at the right. */
+/* Tight enough that a mid-game Buys with two rows of crew chips fits the drawer (#373). */
 .board-sec {
   flex: none;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  padding: calc(var(--art) * 1) calc(var(--art) * 3) 0;
+  padding: 0 calc(var(--art) * 3);
   margin-bottom: calc(var(--art) * -3);
 }
 
@@ -2174,8 +2175,8 @@ button.board-row:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: calc(var(--art) * 3);
-  padding: calc(var(--art) * 2) calc(var(--art) * 3) calc(var(--art) * 1);
+  gap: calc(var(--art) * 2);
+  padding: calc(var(--art) * 1) calc(var(--art) * 3) 0;
   text-align: center;
 }
 
@@ -2210,7 +2211,7 @@ button.board-row:focus-visible {
   white-space: nowrap;
   text-overflow: ellipsis;
   font-size: var(--board-type-15);
-  line-height: var(--board-row-gain-lead);
+  line-height: var(--board-type-15);
   font-weight: 700;
   color: var(--board-ink);
 }
@@ -2224,7 +2225,7 @@ button.board-row:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: calc(var(--art) * 2);
+  gap: calc(var(--art) * 1);
   width: 100%;
   margin: 0;
 }
