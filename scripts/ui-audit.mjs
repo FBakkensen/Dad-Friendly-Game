@@ -23,6 +23,12 @@ import {
   undersizedTargets,
   WINDOW_SCENE_PARTS,
 } from "../src/ui-audit-measure.ts";
+import {
+  crewMountain,
+  seedJson,
+  shortMountain,
+  toolsMountain,
+} from "./fixtures.mjs";
 
 const OUT = "docs/ui-audit";
 const SAVE_KEY = "dad-friendly-session";
@@ -219,9 +225,35 @@ async function showRecipe(page, name) {
   throw new Error(`recipe not visible: ${name}`);
 }
 
+/** A key on the rail (#373): buys, workshop, engineers, upgrades or ledger. */
+const KEY = (id) => `.board-key[data-key="${id}"]`;
+/** An open drawer (#373): buys or upgrades. */
+const OPEN_SHEET = (name) => `.board-sheet[data-sheet="${name}"].is-open`;
+
+/** A play save from scripts/fixtures.mjs, as the browser's storage holds it. */
+const seeded = (save) => JSON.parse(seedJson(save));
+
+/**
+ * Opens a drawer by its key and waits for its slide to end, so the shot and
+ * the measures see it where it rests.
+ * @param {import("puppeteer-core").Page} page
+ * @param {"buys" | "upgrades"} name
+ */
+async function openDrawer(page, name) {
+  await press(page, KEY(name));
+  await page.waitForSelector(OPEN_SHEET(name), { timeout: 8_000 });
+  await page.waitForFunction(
+    (selector) =>
+      document.querySelector(selector)?.getAnimations().length === 0,
+    { timeout: 8_000 },
+    OPEN_SHEET(name),
+  );
+}
+
 /** @param {import("puppeteer-core").Page} page */
 async function openMenu(page) {
-  await press(page, ".menu-button");
+  // The ☰ menu's door is the Ledger key on the rail until B7 (#373).
+  await press(page, KEY("ledger"));
   await page.waitForSelector(".game-menu:not([hidden])", { timeout: 8_000 });
 }
 
@@ -260,6 +292,10 @@ async function collect(page) {
       if (getComputedStyle(el).visibility === "hidden") {
         return false;
       }
+      // A shut Buys or Upgrades drawer waits under the board's edge (#373).
+      if (el.closest(".board-sheet:not(.is-open)") !== null) {
+        return false;
+      }
       const box = el.getBoundingClientRect();
       return box.width > 0 && box.height > 0;
     };
@@ -273,9 +309,9 @@ async function collect(page) {
       return el.tagName.toLowerCase();
     };
     // A tier, boost, upgrade, recipe or side names its parts, and itself:
-    // the three machine bays (#372) and the Buys cards are each a [data-tier]
-    // host, so each bay and card is its own target and a part reads as the
-    // bay's (.board-bay-*) or the card's (.tier-*).
+    // the three machine bays (#372) and the Buys rows (#373) are each a
+    // [data-tier] host, so each bay and row is its own target and a part
+    // reads as the bay's (.board-bay-*) or the row's (.board-row-*).
     const KEYS = ["tier", "boost", "upgrade", "recipe", "side"];
     const keyed = (host) => {
       const key = KEYS.find((name) => host.dataset[name]);
@@ -504,7 +540,7 @@ async function collect(page) {
     remember(document.documentElement, "html");
     remember(document.querySelector("#app"), "#app");
     for (const el of document.querySelectorAll(
-      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .upgrades-card, .engineers-card, .menu-card, .shelf-card, .save-conflict-sheet",
+      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .engineers-card, .menu-card, .shelf-card, .save-conflict-sheet",
     )) {
       if (visible(el)) {
         remember(el, selectorOf(el));
@@ -516,7 +552,7 @@ async function collect(page) {
       ".board-ready",
       ".board-dig-button",
       ".go",
-      ".upgrade-buy",
+      ".board-row.upgrade",
       ".workshop-craft",
       ".welcome-continue",
       ".layer-dig",
@@ -603,11 +639,13 @@ async function collect(page) {
         ".vein-note",
         ".welcome-back",
         ".layer-arrival",
-        ".trouble-thanks",
+        ".board-sheet-kick.is-done",
       ],
       badge: [
         ".legacy-badge",
-        ".tier-count",
+        ".board-row-badge",
+        ".board-row-flag",
+        ".board-key-dot",
         ".engineer-badge",
         ".engineer-mark",
       ],
@@ -856,8 +894,8 @@ async function main() {
     await opened.page.waitForSelector('[data-trouble="cave-in"]', {
       visible: true,
     });
-    await press(opened.page, ".buys-button");
-    await opened.page.waitForSelector('.tier[data-trouble="cave-in"]', {
+    await openDrawer(opened.page, "buys");
+    await opened.page.waitForSelector('.board-row[data-trouble="cave-in"]', {
       visible: true,
     });
     await expectText(opened.page, /Cave-in!/, "buys-hazard");
@@ -878,9 +916,14 @@ async function main() {
     return opened;
   });
   await capture("crew-needs-workers", async (viewport) => {
-    const opened = await open(viewport, rest());
-    // The crew plate is the only free count (#371); the machine cards (and
-    // their "Needs N workers" bill) and the crew line are in the Buys sheet.
+    // Three hands free: the borer, which the pocket covers, is short of
+    // workers, and the Great Machine is dear (#373).
+    const opened = await open(
+      viewport,
+      late(Date.now(), 130_000_000, { helpers: 65 }),
+    );
+    // The crew plate is the only free count (#371); the machine rows (and
+    // their "Needs N workers" bill) and the crew line are in the Buys drawer.
     const plate = await opened.page.$eval(
       ".board-crew",
       (el) => el.getAttribute("aria-label") ?? "",
@@ -888,13 +931,13 @@ async function main() {
     if (!/^Crew: [\d,]+ workers?, [\d,]+ free$/.test(plate)) {
       throw new Error(`crew plate: ${plate}`);
     }
-    await press(opened.page, ".buys-button");
-    await opened.page.waitForSelector(".buys-dialog:not([hidden])");
+    await openDrawer(opened.page, "buys");
     await expectText(opened.page, /\d+ workers/, "crew line in Buys");
     await expectText(opened.page, /Needs \d+ workers?/, "crew");
-    const disabled = await opened.page.$(".tier:disabled");
-    if (disabled === null) {
-      throw new Error("expected a greyed-out machine card");
+    // A row he cannot afford is dear: its lamp off and its tag dim (#373).
+    const dear = await opened.page.$(".tier.is-dear");
+    if (dear === null) {
+      throw new Error("expected a dear machine row");
     }
     return opened;
   });
@@ -910,9 +953,101 @@ async function main() {
   });
   await capture("upgrades-boosts-timer", async (viewport) => {
     const opened = await open(viewport, withBoosts());
-    await press(opened.page, ".upgrades-button");
-    await opened.page.waitForSelector(".upgrades-dialog:not([hidden])");
-    await expectText(opened.page, /Running · \d+:\d\d/, "boost timer");
+    await openDrawer(opened.page, "upgrades");
+    // A running boost's row says Running, with its clock on the tag (#373).
+    const running = await opened.page.$$eval(
+      `${OPEN_SHEET("upgrades")} .upgrade.boost.is-running`,
+      (rows) =>
+        rows.map((row) => ({
+          verb: row.querySelector(".board-row-verb")?.textContent ?? "",
+          tag: row.querySelector(".board-row-price")?.textContent ?? "",
+        })),
+    );
+    if (
+      running.length === 0 ||
+      !running.every(
+        (row) => row.verb === "Running" && /^\d+:\d\d$/.test(row.tag),
+      )
+    ) {
+      throw new Error(`boost timer: ${JSON.stringify(running)}`);
+    }
+    return opened;
+  });
+  // The key rail (#373): an early save, so Workshop and Engineers stand
+  // locked with their unlock lines, and Upgrades shows its lit cap and its
+  // red dot lamp.
+  await capture("key-rail", async (viewport) => {
+    const opened = await open(viewport, seeded(crewMountain()));
+    await opened.page.waitForSelector(".board-key.is-lit", { timeout: 8_000 });
+    const keys = await opened.page.$$eval(".board-rail .board-key", (els) =>
+      els.map((key) => ({
+        id: key.dataset.key,
+        locked: key.classList.contains("is-locked"),
+        lit: key.classList.contains("is-lit"),
+        dot: key.querySelector(".board-key-dot")?.hidden === false,
+        sub: key.querySelector(".board-key-sub")?.textContent ?? "",
+      })),
+    );
+    const byId = Object.fromEntries(keys.map((key) => [key.id, key]));
+    if (
+      keys.length !== 5 ||
+      byId.workshop?.sub !== "With the clay" ||
+      byId.engineers?.sub !== "With 1st borer" ||
+      !byId.workshop.locked ||
+      !byId.engineers.locked ||
+      byId.upgrades?.lit !== true ||
+      !byId.upgrades.dot
+    ) {
+      throw new Error(`key-rail: ${JSON.stringify(keys)}`);
+    }
+    return opened;
+  });
+  // The Buys drawer (#373): a borer he can afford but not staff, beside the
+  // amber pick, dear and locked rows.
+  await capture("buys-drawer", async (viewport) => {
+    const opened = await open(viewport, seeded(shortMountain()));
+    await openDrawer(opened.page, "buys");
+    await opened.page.waitForSelector(
+      `${OPEN_SHEET("buys")} .tier.is-short[data-tier="borer"]`,
+    );
+    await expectText(opened.page, /Needs 8 workers/, "buys-drawer");
+    return opened;
+  });
+  // Its "i": the Staffing and Layers cards in the drawer's place, one Back.
+  await capture("buys-how", async (viewport) => {
+    const opened = await open(viewport, seeded(shortMountain()));
+    await openDrawer(opened.page, "buys");
+    await press(opened.page, `${OPEN_SHEET("buys")} .board-sheet-info`);
+    await opened.page.waitForSelector(`${OPEN_SHEET("buys")} .teach-how`, {
+      visible: true,
+    });
+    await expectText(opened.page, /How it works/i, "buys-how");
+    return opened;
+  });
+  // The Upgrades drawer (#373): a levelled upgrade, an owned one, and found
+  // tools under Brought home.
+  await capture("upgrades-drawer", async (viewport) => {
+    const opened = await open(viewport, seeded(toolsMountain()));
+    await openDrawer(opened.page, "upgrades");
+    const words = await opened.page.$eval(OPEN_SHEET("upgrades"), (sheet) => ({
+      badge:
+        sheet.querySelector('[data-upgrade="tap"] .board-row-badge')
+          ?.textContent ?? "",
+      owned:
+        sheet.querySelector('[data-upgrade="boots"] .board-row-price')
+          ?.textContent ?? "",
+      found: [...sheet.querySelectorAll(".found-tool")]
+        .filter((row) => row.closest("[hidden]") === null)
+        .map((row) => row.querySelector(".board-row-price")?.textContent ?? ""),
+    }));
+    if (
+      words.badge !== "Lv 2/10" ||
+      words.owned !== "Owned" ||
+      words.found.length !== 2 ||
+      !words.found.every((word) => word === "Found")
+    ) {
+      throw new Error(`upgrades-drawer: ${JSON.stringify(words)}`);
+    }
     return opened;
   });
   await capture("workshop-idle", async (viewport) => {
@@ -1000,7 +1135,7 @@ async function main() {
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       }),
     );
-    await press(opened.page, ".engineers-button");
+    await press(opened.page, KEY("engineers"));
     await opened.page.waitForSelector(".engineers-dialog:not([hidden])");
     await expectText(opened.page, /Promote/, "promote");
     return opened;
@@ -1025,7 +1160,7 @@ async function main() {
         ],
       }),
     );
-    await press(opened.page, ".engineers-button");
+    await press(opened.page, KEY("engineers"));
     await opened.page.waitForSelector(".engineers-dialog:not([hidden])");
     await expectText(opened.page, /exploring|will be gone/, "expedition");
     return opened;

@@ -40,7 +40,16 @@ page is the map, plus the rules that keep it that way.
    the biggest unlocked machine the free hands can run and the pocket
    covers, else the cheapest one to save for with its time at the current
    speed, else a worker, or mined out) and `machine-bays` (C2's three bay
-   tiers, each bay's view and lamp, and the flap digits).
+   tiers, each bay's view and lamp, and the flap digits). The key rail and
+   the drawers (#373) read four more, none of which imports art:
+   `row-view` (types only: one `RowView` for every drawer row: its words
+   as fit options, lamp, state, and whether a tap acts), `buys-rows`
+   (`buyRowView`: each Buys row's state, words, lamp and icon key, lifted
+   out of `crew-panel`'s old render), `upgrade-rows` (the boost, lasting
+   upgrade and found-tool rows, and `anyUpgradeAffordable` for the
+   Upgrades key's lit cap) and `key-rail` (`keyViews`: each key's cap
+   (rest, locked or lit), sub-line (an unlock line, the bench clock or the
+   soonest trip), red dot and label).
 2. **Saves:** `persist` (versioned save format and parser; an unknown recipe, bench, or crafted level is written back instead of dropped), `session-save`
    (guest storage), `phone-backup` (signed-in on-phone copy, never deleted),
    `save-progress` (which copy is ahead), `cloud-save` (interface + memory fake),
@@ -120,17 +129,43 @@ page is the map, plus the rules that keep it that way.
    element for the board's life. `board-ready` is the Ready now plate (its
    1.9s Done hold, so a double tap buys one) and the red DIG button (its
    press frames and the By hand tally). `trouble-tap` is the 600ms
-   hold-to-fix the Buys cards and the bays share. `mountain-screen` computes
+   hold-to-fix the Buys rows and the bays share. `mountain-screen` computes
    `readyNow(view.mountain, now(), view.trouble)` once per render and hands
    it to the plate and the bays; a tap on the plate reads the rule again
    from the store's snapshot, never the painted pick, and buys through
-   `buyWithTeach` (in `crew-panel`), the Buys card's mutation, so a buy from
+   `buyWithTeach` (in `crew-panel`), the Buys row's mutation, so a buy from
    the plate is the same buy as one from Buys. A Saving for tap opens Buys.
-   Buys records when it opened from shut (`tapClock`, `performance.now` by
-   default, not the game clock a gate run stops), and `buyOnTap` asks a
-   card's `settling` when the finger goes down: a card pressed within
-   `BUYS_SETTLE_MS` (400ms) of the opening hires and buys nothing, so the
+   A drawer records when it opened from shut (`tapClock`, `performance.now`
+   by default, not the game clock a gate run stops), and `buyOnTap` asks a
+   row's `settling` when the finger goes down: a row pressed within
+   `DRAWER_SETTLE_MS` (400ms) of the opening hires and buys nothing, so the
    second tap of a double tap on the plate or a bay never spends.
+   The key rail and the drawers (#373) add six more DOM parts.
+   `board-dom` holds the shared `el`, `write`, `setAttr` and `frameX`
+   helpers and `fitFirst`, a measure-once line fitter: it writes the first
+   fit option that fits, keeps the fit only once measured on a laid-out box,
+   and drops it when fonts settle. `board-row` is one drawer row (lamp,
+   icon, name and badge, info, need, why, flag, gain, price tag and verb),
+   built once and reused, writing only what changed; `done()` holds "Done"
+   for 1.9s and `blink()` runs the four 140ms red frames. `board-drawer` is
+   `createBoardSheet` (the shell: head with the "i", the list, the spare
+   plate, Back, the slide, Escape and the settle) and `createSheetScrim`
+   (the board above the drawers: a tap closes them, and over a relic socket
+   also shows its note). `board-how-art` draws the How it works cards in the
+   drawer skin with the board's icons at 2x. `board-keys` is
+   `createKeyRail`: five keys that draw `keyViews` and pass taps to
+   `onKey`. `board-sign` is the slim New sign over a key. `crew-panel`
+   builds Buys and `upgrades-panel` builds Upgrades as `BoardSheet`s of
+   `board-row`s; while a drawer is open its rows, sections and chip rows
+   keep their places, and changes apply at the next open. The two drawers
+   and the scrim sit in `.board-sheet-clip` at z 29, under the board note
+   (30) and the save drawer (31). `engineers-panel` and `menu-panel` take
+   a `door` (the Engineers and Ledger keys) instead of building their own
+   buttons. `DRAWER_SETTLE_MS` (400ms) is every drawer's guard, B4's
+   Buys settle carried into the shell: rows ask `settling` through
+   `buyOnTap`, and Back asks it at pointerdown, so the second tap of a
+   double tap on a key, a bay or Saving for never buys or closes. A
+   keyboard press is never early.
    The red button calls the same `dig()` as the window, and the window shows
    the "+N". Until the save is in (a second load after sign-in or a user
    switch included) the bays, the plate and the red button show only their
@@ -170,9 +205,9 @@ page is the map, plus the rules that keep it that way.
 
 - **Panel contract:** a panel gets `progress`, `getView`, `now` and a
   `requestRender` callback; it never reads another panel's elements, and it
-  owns its open/closed state. The thumb bar uses those gates: Workshop stays
-  shut until `workshopUnlocked`, Engineers until a hand is on the crew. Buys
-  and Upgrades open from the first screen. The board's parts sit round the
+  owns its open/closed state. The key rail uses those gates: the Workshop
+  key stays locked until `workshopUnlocked`, Engineers until the first
+  borer. Buys, Upgrades and Ledger open from the first screen. The board's parts sit round the
   panels: `#app` is the 424×924 stage, the board's top (relic plate and
   stock row) and the save line are absolute children of it, and the
   panels' column flows between them through `#app`'s padding. The relic
@@ -184,23 +219,30 @@ page is the map, plus the rules that keep it that way.
   the crew plate (`.board-crew`). The bays (`.board-bays` at `--bays-top`,
   430px; their band tag rises to 420) and the Ready row
   (`.board-ready-row` at `--ready-top`, 644px: the plate and the red
-  button) are absolute children too. The column starts at `--column-top`,
-  which is `--rail-top` (768px), where B5's key rail goes; until then it
-  holds the thumb bar, with the ☰ menu as its fifth cell, ending 8px above
-  the save line. The New teach note shows in the board note above its thumb.
-  The sheets stop under the stock row, so they cover the bays and the plate. The crew line (`crew-panel`'s
-  `section.crew`: sentence, chips and Grandpa) is the "Crew" section at the
-  top of the Buys sheet; Buys calls `layoutChips()` as it opens, so its
-  chips are measured at the sheet's width. Buys and
-  Upgrades scroll inside the sheet so the first card clears the header and
-  the last card clears the footer. The sheet stays below the odometer. A
-  crew line that does not fit splits into even rows. An unlocked sheet card
-  keeps its price, effect, and why when the pocket is short. A locked card
-  says Locked and hides those lines. Tapping the card buys. A drag that
-  scrolls the list does not. Boost, expedition, craft, and bench countdowns
+  button) are absolute children too. The key rail (`nav.board-rail` at
+  `--rail-top`, 768px, #373) is another, between the Ready row and the
+  sheet clip: five `button.board-key[data-key]`, each with `aria-expanded`
+  and `aria-haspopup`, ending at least 8px above the save line. The column
+  starts at `--column-top`, which is `--rail-top`. The New teach note is a
+  slim sign (`board-sign`) over its key, with `pointer-events: none`; its
+  words go on the key's label. The Buys and Upgrades drawers
+  (`.board-drawer.board-sheet[data-sheet]`, open with `.is-open`) stand
+  at `--sheet-top` (178px) down to the save line, so they cover the bays,
+  the plate and the rail and leave the odometer in view. Today's Workshop,
+  Engineers and menu sheets keep B2's `--board-top` (176px) until B6 and
+  B7. The crew line (`crew-panel`'s `section.crew`: sentence, chips and
+  Grandpa) is the "Crew" section at the top of the Buys drawer; Buys calls
+  `layoutChips()` as it opens, so its chips are measured at the drawer's
+  width, and while it is open the chip rows never wrap. A drawer's list
+  scrolls inside itself only when it is longer than the drawer (C1:
+  late-game Buys, a full Upgrades), with the spare plate off; the page
+  never scrolls. A crew line that does not fit splits into even rows. An
+  unlocked row keeps its price, effect, and why when the pocket is short.
+  A locked row says Locked. Tapping the row buys. A drag that scrolls the
+  list does not. Boost, expedition, craft, and bench countdowns
   share the effect row, which is the body of the boost dial's Running now
-  note, one per line. Every active one stays visible. The ☰ menu holds the
-  ledger: stones left, materials, and the next-relic goal, read from
+  note, one per line. Every active one stays visible. The menu, behind the
+  Ledger key until B7, holds the ledger: stones left, materials, and the next-relic goal, read from
   `relicGoal()` in `relics` (#336). The band shows in the mine window's
   view (`mineView(band)`); there is no tint module (`mountain-tint` went
   with the rock in #371), and no `tap-float`: a dig's "+N" is the window's

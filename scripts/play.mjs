@@ -33,10 +33,15 @@ import {
   crystalMountain,
   fleetMountain,
   heartMountain,
+  heirMountain,
+  idleMountain,
   lastStoneSave,
+  machineMountain,
   openMountain,
   savingMountain,
   seedJson,
+  shortMountain,
+  toolsMountain,
   workshopSave,
 } from "./fixtures.mjs";
 
@@ -76,10 +81,7 @@ const SAVES = {
   },
   heir: {
     note: "a kid's run after one pass: Grandpa tends the carts",
-    save: () => ({
-      ...crewMountain(),
-      mountain: { ...crewMountain().mountain, legacy: 1 },
-    }),
+    save: heirMountain,
   },
   edge: {
     note: "13 carts, four stones above the Granite: tap across, open Buys",
@@ -108,6 +110,22 @@ const SAVES = {
   fleet: {
     note: "120 carts: three flaps on the cart bay",
     save: fleetMountain,
+  },
+  short: {
+    note: "a borer he can afford but not staff: Needs 8 workers",
+    save: shortMountain,
+  },
+  idle: {
+    note: "carts standing idle: the staffing New row in Buys",
+    save: idleMountain,
+  },
+  tools: {
+    note: "upgrades owned and levelled, and found tools under Brought home",
+    save: toolsMountain,
+  },
+  machine: {
+    note: "the Great Machine with the Kid row locked; add ?trouble=cave-in for the Buys key's red lamp",
+    save: machineMountain,
   },
 };
 

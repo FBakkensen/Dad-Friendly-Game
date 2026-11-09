@@ -57,7 +57,7 @@ Measured by the strategy lab (main at 77d4599, 20 seeds). Every new thing should
 
 Every system announces itself, explains itself in one or two lines, guides one first use, and keeps a "How it works" card one tap away:
 
-1. **Trigger:** a dot badge on the button and a one-line "New" note.
+1. **Trigger:** a red dot lamp on its key's cap (#373) and a one-line "New" note.
 2. **Reveal card:** a title, one or two lines, and one big button that does the first action.
 3. **Guided first use:** the target is highlighted until it's done once, then a short payoff line.
 4. **Info button:** in the same corner of every sheet, one screen of "How it works", no scroll.
