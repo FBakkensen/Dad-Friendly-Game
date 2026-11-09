@@ -3650,13 +3650,15 @@ describe("engineers sheet (#145)", () => {
   });
 
   it("confirms a promotion, and Not yet spends nothing", () => {
+    // A fixed clock: on the real one, a slow run lets the crew mine into the pocket.
+    const clock = Date.now();
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
       mountain: withAda(),
-      lastSeen: Date.now(),
+      lastSeen: clock,
     });
-    const screen = mountScreen({ storage });
+    const screen = mountScreen({ storage, now: () => clock });
     const sheet = openSheet(screen.root);
     expect(screen.text(".engineer-promote")).toBe(promoteOffer(nilsPrice));
     expect(screen.text(".engineer-promote-why")).toBe(
@@ -3739,13 +3741,15 @@ describe("engineers sheet (#145)", () => {
   });
 
   it("does not cheer when Step up is no longer affordable", () => {
+    // A fixed clock: on the real one, a slow run lets the crew mine into the pocket.
+    const clock = Date.now();
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
       mountain: withAda(),
-      lastSeen: Date.now(),
+      lastSeen: clock,
     });
-    const screen = mountScreen({ storage });
+    const screen = mountScreen({ storage, now: () => clock });
     const sheet = openSheet(screen.root);
     sheet.querySelector<HTMLButtonElement>(".engineer-promote")?.click();
     expect(sheet.querySelector<HTMLElement>(".engineer-confirm")?.hidden).toBe(
