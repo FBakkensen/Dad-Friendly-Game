@@ -1,5 +1,5 @@
 import { el, fitFirst, frameX, refitAll, setAttr, write } from "./board-dom";
-import { READY_HOLD_MS } from "./board-ready";
+import { BLINK_STEP_MS, READY_HOLD_MS } from "./board-interaction";
 import { skin } from "./board-skin";
 import { onFontsSettled } from "./fit-cache";
 import { reducedMotion } from "./float-text";
@@ -14,8 +14,7 @@ import type { RowLamp, RowState, RowView } from "./row-view";
 
 /** How long Done holds after a buy: a second sleepy tap in it buys nothing. */
 export const ROW_HOLD_MS = READY_HOLD_MS;
-/** One frame of the red blink: red, off, red, off. */
-export const BLINK_STEP_MS = 140;
+export { BLINK_STEP_MS } from "./board-interaction";
 
 export interface BoardRow {
   readonly root: HTMLElement;

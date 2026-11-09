@@ -57,6 +57,12 @@ export default defineConfig({
       // Floors per module (#114): coverage may rise, never drop. Raise these
       // when tests improve; never lower them to make a PR pass.
       thresholds: {
+        "src/board-interaction.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/boosts.ts": {
           statements: 100,
           branches: 100,

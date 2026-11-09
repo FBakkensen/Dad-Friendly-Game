@@ -1,3 +1,4 @@
+import { DRAWER_SETTLE_MS, PRESS_AGE_LIMIT_MS } from "./board-interaction";
 import makersPlateUrl from "./assets/board/makers-plate-l.png";
 import makersStripUrl from "./assets/board/makers-strip.png";
 import { el, refitAll, write } from "./board-dom";
@@ -17,11 +18,8 @@ import { skin } from "./board-skin";
  * drawers closes them.
  */
 
-/** How long a drawer settles after opening: B4's double-tap guard, for every drawer. */
-export const DRAWER_SETTLE_MS = 400;
-
-/** An event older than this is a stamp gone wrong, not a press still in the queue. */
-const PRESS_AGE_LIMIT_MS = 10_000;
+// The settle and the press-age limit live with the board's tap rules (#410).
+export { DRAWER_SETTLE_MS } from "./board-interaction";
 
 /**
  * How long an event waited before the page got to it: a busy phone hands a press over late,
