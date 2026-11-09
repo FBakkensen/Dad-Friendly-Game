@@ -15,6 +15,7 @@ The superpowers plugin (`superpowers@claude-plugins-official`, enabled in `.clau
 ## Where we differ
 
 - **Specs for big designs.** A brainstorm whose design spans several slivers produces one spec. After the spec is approved, do not go to writing-plans (this replaces brainstorming's handoff). The spec ships as its own PR on a parent issue and is split into sliver issues under it. Each later sitting plans one sliver from that spec (no new brainstorm), builds it, and ships one PR. A small change does its short design, plan, and build in one sitting and one PR. Plans are committed with the sliver.
+- **Name the shared module.** A plan names the existing module each new behaviour goes into, or says why it needs a new one. A mechanism that already exists (a guard, a hold, a helper) is extended, never copied into a second home.
 - **Finishing is always a PR.** In `superpowers:finishing-a-development-branch`, do not show the menu: the choice is "Push and create a Pull Request" against `main`. A local merge would stay in a cloud container that gets thrown away. Its test suite is `npm run gate -- full`. When a plan says to use finishing-a-development-branch, use the ship-sitting skill instead; it reviews, calls finishing, and merges when Flemming asks.
 - **Three stops while running a plan.** Besides superpowers' own stop reasons, stop for only three things:
   - a guardrail limit in `src/lab/targets.ts`;
