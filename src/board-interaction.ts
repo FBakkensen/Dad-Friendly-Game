@@ -28,7 +28,18 @@ export interface ControlRef {
   readonly id: string;
 }
 type Pointer = "finger" | "keyboard";
-/** What a drawer shows, in order: its rows and sections, and how many chip rows its crew line wraps to. */
+/**
+ * How an overlay closed. Only a finger's close that ends its own tap (Back) settles what it
+ * shows again. A tap-through close (the scrim, a tap outside a note) hands that same tap on
+ * to what lay under it, and a program close (a timer, an update prompt) has no tap at all.
+ */
+type CloseBy = Pointer | "tap-through" | "program";
+/**
+ * What a drawer holds in place while it is open, in order: its rows and sections, and how
+ * many chip rows its crew line wraps to. A drawer whose rows show or hide in place (Upgrades)
+ * lists every row it can show, hidden ones too, so their order holds and their showing stays
+ * the painter's. Only a part the latest layout leaves out counts as no longer sold.
+ */
 export interface Layout {
   readonly parts: readonly string[];
   readonly chipRows: number;
@@ -40,7 +51,7 @@ export type BoardInput =
       readonly kind: "close";
       readonly overlay: OverlayId;
       readonly at: number;
-      readonly by: Pointer;
+      readonly by: CloseBy;
     }
   /** The "i" cards in or out: a new screen under the finger, so the settle starts again. */
   | { readonly kind: "page"; readonly overlay: OverlayId; readonly at: number }
@@ -85,9 +96,12 @@ interface Revealed {
   readonly until: number;
 }
 
-/** A Done hold: presses judged from `from` (the acting press) until `until` are held. */
+/**
+ * A Done hold: every press judged before `until` is held. A press reaches the model after the
+ * buy that started the hold, so one whose finger came down just before that buy is its
+ * double tap too.
+ */
 interface Hold {
-  readonly from: number;
   readonly until: number;
 }
 
@@ -95,8 +109,6 @@ export interface BoardState {
   /** Open overlays, bottom first. */
   readonly stack: readonly Opened[];
   readonly revealed: Revealed | undefined;
-  /** Each control's latest acting press, by its judged time. */
-  readonly acted: ReadonlyMap<string, number>;
   readonly holds: ReadonlyMap<string, Hold>;
   /** When each control's blink started. */
   readonly blinks: ReadonlyMap<string, number>;
@@ -141,7 +153,6 @@ export function initialBoard(): BoardState {
   return {
     stack: [],
     revealed: undefined,
-    acted: new Map(),
     holds: new Map(),
     blinks: new Map(),
     thanks: new Map(),
@@ -186,16 +197,12 @@ function kept<V>(
  */
 function pruned(state: BoardState, at: number): BoardState {
   const since = at - PRESS_AGE_LIMIT_MS;
-  const acted = kept(state.acted, (pressedAt) => pressedAt >= since);
   const holds = kept(state.holds, (hold) => hold.until >= since);
   const blinks = kept(state.blinks, (start) => start + BLINK_MS >= since);
   const thanks = kept(state.thanks, (until) => until >= since);
   const same =
-    acted === state.acted &&
-    holds === state.holds &&
-    blinks === state.blinks &&
-    thanks === state.thanks;
-  return same ? state : { ...state, acted, holds, blinks, thanks };
+    holds === state.holds && blinks === state.blinks && thanks === state.thanks;
+  return same ? state : { ...state, holds, blinks, thanks };
 }
 
 /** A blink on `key` from `at`, unless motion is reduced or one is still running there. */
@@ -207,9 +214,10 @@ function blinked(state: BoardState, key: string, at: number): BoardState {
   return { ...state, blinks: withEntry(state.blinks, key, at) };
 }
 
-/** A hold on `key` from its acting press (or `at`) for READY_HOLD_MS. */
+/** A hold on `key` for READY_HOLD_MS from `at`, never ending sooner than one running. */
 function heldFrom(state: BoardState, key: string, at: number): BoardState {
-  const hold = { from: state.acted.get(key) ?? at, until: at + READY_HOLD_MS };
+  const running = state.holds.get(key)?.until ?? at;
+  const hold = { until: Math.max(running, at + READY_HOLD_MS) };
   return { ...state, holds: withEntry(state.holds, key, hold) };
 }
 
@@ -316,7 +324,7 @@ function closed(
   state: BoardState,
   overlay: OverlayId,
   at: number,
-  by: Pointer,
+  by: CloseBy,
 ): BoardState {
   const index = state.stack.findIndex((each) => each.overlay === overlay);
   if (index === -1) {
@@ -327,8 +335,9 @@ function closed(
     ...state,
     stack,
     frozen: frozenFor(state, stack),
+    // Named fix 1: after a finger closes a drawer, a tap on what lies under it settles.
     revealed:
-      by === "finger"
+      by === "finger" && isDrawer(overlay)
         ? {
             layer: stack.at(-1)?.overlay ?? "board",
             until: at + DRAWER_SETTLE_MS,
@@ -364,11 +373,12 @@ export function step(state: BoardState, input: BoardInput): BoardState {
     case "motion":
       return { ...state, reduced: input.reduced };
     case "unloaded":
+      // A drawer's latest layout spoke of the old save too: one opened now freezes the next.
       return {
         ...state,
-        acted: new Map(),
         holds: new Map(),
         blinks: new Map(),
+        wanted: new Map(),
       };
   }
 }
@@ -382,13 +392,16 @@ function judgedAt(input: Press): number {
   return age > 0 && age < PRESS_AGE_LIMIT_MS ? input.pressedAt : input.at;
 }
 
-/** A finger act press that came down while its layer was settling. */
+/** A finger act press that came down while its drawer settled, or what a drawer's close showed. */
 function early(state: BoardState, input: Press, at: number): boolean {
   if (input.by !== "finger" || input.intent !== "act") {
     return false;
   }
   const { layer } = input.control;
-  const settling = state.stack.find((each) => each.overlay === layer);
+  // Drawers settle as they open; the save drawer and the board notes never did.
+  const settling = isDrawer(layer)
+    ? state.stack.find((each) => each.overlay === layer)
+    : undefined;
   if (settling !== undefined && at < settling.settleFrom + DRAWER_SETTLE_MS) {
     return true;
   }
@@ -405,22 +418,19 @@ function gone(state: BoardState, control: ControlRef): boolean {
   }
   const frozen = state.frozen.get(control.layer);
   const latest = state.wanted.get(control.layer);
+  // While the save loads again there is no latest layout to say what is sold: nothing is gone.
   return (
     frozen !== undefined &&
+    latest !== undefined &&
     frozen.parts.includes(control.id) &&
-    latest?.parts.includes(control.id) !== true
+    !latest.parts.includes(control.id)
   );
 }
 
 /** An act press that came down inside its control's Done hold. */
 function inHold(state: BoardState, input: Press, at: number): boolean {
   const hold = state.holds.get(controlKey(input.control));
-  return (
-    input.intent === "act" &&
-    hold !== undefined &&
-    at >= hold.from &&
-    at < hold.until
-  );
+  return input.intent === "act" && hold !== undefined && at < hold.until;
 }
 
 export function press(
@@ -440,14 +450,7 @@ export function press(
       decision: "blink",
     };
   }
-  const recorded = pruned(state, input.at);
-  return {
-    state: {
-      ...recorded,
-      acted: withEntry(recorded.acted, controlKey(input.control), at),
-    },
-    decision: "act",
-  };
+  return { state: pruned(state, input.at), decision: "act" };
 }
 
 /** The frame a blink from `start` shows at `at`: none before it starts or after it ends. */
@@ -474,12 +477,8 @@ export function boardView(state: BoardState, at: number): BoardView {
     thanks: new Set(
       [...state.thanks].filter(([, until]) => at < until).map(([host]) => host),
     ),
-    layouts: new Map(
-      [...state.wanted].map(([drawer, layout]) => [
-        drawer,
-        state.frozen.get(drawer) ?? layout,
-      ]),
-    ),
+    // An open drawer shows what it froze, even while the save loads again; a shut one its latest.
+    layouts: new Map([...state.wanted, ...state.frozen]),
   };
 }
 

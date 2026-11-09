@@ -45,7 +45,6 @@ const CONTROLS = ["c0", "c1", "c2"];
 const PARTS = [...CONTROLS, "section"];
 
 interface Hold {
-  readonly from: number;
   readonly until: number;
 }
 
@@ -53,7 +52,6 @@ interface Hold {
 interface Shadow {
   stack: { overlay: OverlayId; settleFrom: number }[];
   revealed: { layer: Layer; until: number } | undefined;
-  acted: Map<string, number>;
   holds: Map<string, Hold>;
   wanted: Map<DrawerId, Layout>;
   frozen: Map<DrawerId, Layout>;
@@ -101,7 +99,7 @@ function shadowClose(
   }
   shadow.stack = shadow.stack.slice(0, index);
   shadow.revealed =
-    input.by === "finger"
+    input.by === "finger" && isDrawer(input.overlay)
       ? {
           layer: shadow.stack.at(-1)?.overlay ?? "board",
           until: input.at + DRAWER_SETTLE_MS,
@@ -113,7 +111,9 @@ function shadowClose(
 function inSettle(shadow: Shadow, input: Press): boolean {
   const at = judged(input);
   const layer = input.control.layer;
-  const own = shadow.stack.find((each) => each.overlay === layer);
+  const own = isDrawer(layer)
+    ? shadow.stack.find((each) => each.overlay === layer)
+    : undefined;
   return (
     (own !== undefined && at < own.settleFrom + DRAWER_SETTLE_MS) ||
     (shadow.revealed?.layer === layer && at < shadow.revealed.until)
@@ -123,7 +123,7 @@ function inSettle(shadow: Shadow, input: Press): boolean {
 function inHold(shadow: Shadow, input: Press): boolean {
   const hold = shadow.holds.get(controlKey(input.control));
   const at = judged(input);
-  return hold !== undefined && at >= hold.from && at < hold.until;
+  return hold !== undefined && at < hold.until;
 }
 
 function randomLayout(random: () => number): Layout {
@@ -144,7 +144,13 @@ function randomInput(
   const roll = random();
   if (roll < 0.12) return { kind: "open", overlay: pick(OVERLAYS), at };
   if (roll < 0.22) {
-    const by = random() < 0.7 ? "finger" : "keyboard";
+    const by = pick([
+      "finger",
+      "finger",
+      "keyboard",
+      "tap-through",
+      "program",
+    ] as const);
     return { kind: "close", overlay: pick(OVERLAYS), at, by };
   }
   if (roll < 0.26) return { kind: "page", overlay: pick(DRAWERS), at };
@@ -159,6 +165,8 @@ function randomInput(
   const layers: readonly Layer[] = [
     "board",
     ...shadow.stack.map((each) => each.overlay),
+    // Now and then a press queued for a layer that has closed since.
+    ...(random() < 0.2 ? OVERLAYS : []),
   ];
   return {
     control: { layer: pick(layers), id: pick(CONTROLS) },
@@ -176,12 +184,8 @@ function shadowAct(
   outcome: "applied" | "refused" | "fixed" | undefined,
 ): void {
   const key = controlKey(input.control);
-  shadow.acted.set(key, judged(input));
   const running = shadow.holds.get(key);
-  const hold = {
-    from: shadow.acted.get(key) ?? input.at,
-    until: input.at + READY_HOLD_MS,
-  };
+  const hold = { until: input.at + READY_HOLD_MS };
   if (
     outcome === "applied" &&
     (running === undefined || input.at >= running.until)
@@ -210,12 +214,17 @@ function play(seed: number): string | undefined {
   const shadow: Shadow = {
     stack: [],
     revealed: undefined,
-    acted: new Map(),
     holds: new Map(),
     wanted: new Map(),
     frozen: new Map(),
   };
   let at = 0;
+  // Kept apart from the shadow's rules: when each control's last buy landed, how many times
+  // the save has loaded again, and in which load each layout was given and each drawer opened.
+  const bought = new Map<string, number>();
+  let loads = 0;
+  const givenIn = new Map<Layout, number>();
+  const openedIn = new Map<DrawerId, number>();
   for (let index = 0; index < STEPS; index += 1) {
     at += Math.floor(random() * 700);
     const input = randomInput(random, shadow, at);
@@ -232,6 +241,15 @@ function play(seed: number): string | undefined {
         if (input.intent === "act" && holding) {
           return `${where}: a second tap bought inside a Done hold`;
         }
+        // From the outside: no buy lands while an earlier one's Done shows.
+        const last = bought.get(controlKey(input.control));
+        if (
+          input.intent === "act" &&
+          last !== undefined &&
+          judged(input) < last + READY_HOLD_MS
+        ) {
+          return `${where}: a double tap bought twice`;
+        }
         const outcome = outcomeFor(random, input);
         if (outcome !== undefined) {
           state = step(state, {
@@ -242,9 +260,19 @@ function play(seed: number): string | undefined {
           });
         }
         shadowAct(shadow, input, outcome);
+        if (outcome === "applied" && input.intent === "act") {
+          bought.set(controlKey(input.control), input.at);
+        }
       }
     } else {
       state = step(state, input);
+      if (
+        input.kind === "open" &&
+        isDrawer(input.overlay) &&
+        !shadow.stack.some((each) => each.overlay === input.overlay)
+      ) {
+        openedIn.set(input.overlay, loads);
+      }
       if (input.kind === "open") shadowOpen(shadow, input.overlay, input.at);
       if (input.kind === "close") shadowClose(shadow, input);
       if (input.kind === "page") {
@@ -263,14 +291,25 @@ function play(seed: number): string | undefined {
         }
       }
       if (input.kind === "unloaded") {
-        shadow.acted.clear();
         shadow.holds.clear();
+        shadow.wanted.clear();
+        bought.clear();
+        loads += 1;
       }
+      if (input.kind === "layout") givenIn.set(input.layout, loads);
     }
     const layouts = boardView(state, at).layouts;
     for (const [drawer, frozen] of shadow.frozen) {
       if (layouts.get(drawer) !== frozen) {
         return `${where}: the open ${drawer} drawer's rows moved`;
+      }
+    }
+    for (const { overlay } of shadow.stack) {
+      const shows = isDrawer(overlay) ? layouts.get(overlay) : undefined;
+      const given = shows === undefined ? undefined : givenIn.get(shows);
+      const opened = isDrawer(overlay) ? openedIn.get(overlay) : undefined;
+      if (given !== undefined && opened !== undefined && given < opened) {
+        return `${where}: the ${overlay} drawer froze the old save's rows`;
       }
     }
   }

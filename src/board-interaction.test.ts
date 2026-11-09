@@ -100,13 +100,42 @@ describe("the settle", () => {
     expect(decide(closed, finger("board", "key:upgrades", 1100))).toBe("act");
   });
 
-  it("settles the drawer under the save drawer when the save drawer closes", () => {
-    const closed = after(
+  it("settles only after a drawer's own close, not the save drawer's or a note's", () => {
+    const underSave = after(
       { kind: "open", overlay: "buys", at: 0 },
       { kind: "open", overlay: "save", at: 5000 },
       { kind: "close", overlay: "save", at: 6000, by: "finger" },
     );
-    expect(decide(closed, finger("buys", "cart", 6100))).toBe("ignore-early");
+    expect(decide(underSave, finger("buys", "cart", 6100))).toBe("act");
+    // A tap that dismisses a board note goes on to its target, and acts there.
+    const noted = after(
+      { kind: "open", overlay: "note", at: 4000 },
+      { kind: "close", overlay: "note", at: 5000, by: "finger" },
+    );
+    expect(decide(noted, finger("board", "key:buys", 5000))).toBe("act");
+  });
+
+  it("does not settle the save drawer or a note as it opens", () => {
+    const opened = after(
+      { kind: "open", overlay: "save", at: 1000 },
+      { kind: "open", overlay: "note", at: 1000 },
+    );
+    expect(decide(opened, finger("save", "account", 1100))).toBe("act");
+    expect(decide(opened, finger("note", "shelf", 1100))).toBe("act");
+  });
+
+  it("lets a tap that closes a drawer through to what it closed over", () => {
+    // The scrim closes the drawers and hands the same tap to the relic socket under it.
+    const scrim = after(
+      { kind: "open", overlay: "buys", at: 0 },
+      { kind: "close", overlay: "buys", at: 1000, by: "tap-through" },
+    );
+    expect(decide(scrim, finger("board", "socket:0", 1000))).toBe("act");
+    const timed = after(
+      { kind: "open", overlay: "buys", at: 0 },
+      { kind: "close", overlay: "buys", at: 1000, by: "program" },
+    );
+    expect(decide(timed, finger("board", "key:buys", 1100))).toBe("act");
   });
 
   it("clears the revealed settle when anything opens", () => {
@@ -215,8 +244,30 @@ describe("the Done hold", () => {
     expect(decide(state, finger("board", "plate", 2800, 3500))).toBe(
       "ignore-held",
     );
-    // This finger came down before the acting press did.
-    expect(decide(state, finger("board", "plate", 900, 1100))).toBe("act");
+  });
+
+  it("holds a press that came down just before the buy but was handled after it", () => {
+    // Two fingers 10ms apart: the second is handled after the first one's buy landed.
+    expect(decide(bought(), finger("board", "plate", 990, 1100))).toBe(
+      "ignore-held",
+    );
+  });
+
+  it("keeps a buy's hold through a fix that starts the hold again", () => {
+    const row = { layer: "buys", id: "drill" } as const;
+    const buy = step(
+      press(initialBoard(), finger("buys", "drill", 1000)).state,
+      { kind: "result", control: row, at: 1000, outcome: "applied" },
+    );
+    const fixed = step(
+      press(buy, { ...finger("buys", "drill", 1500), intent: "trouble" }).state,
+      { kind: "result", control: row, at: 1500, outcome: "fixed" },
+    );
+    expect(decide(fixed, finger("buys", "drill", 1200, 1600))).toBe(
+      "ignore-held",
+    );
+    expect(boardView(fixed, 3399).held.has("buys/drill")).toBe(true);
+    expect(boardView(fixed, 3400).held.has("buys/drill")).toBe(false);
   });
 
   it("holds against the key's repeat", () => {
@@ -236,15 +287,17 @@ describe("the Done hold", () => {
     expect(held(again, 2900)).toBe(false);
   });
 
-  it("starts a hold at the result when no act was recorded", () => {
+  it("holds from the result even when no act was recorded", () => {
     const state = step(initialBoard(), {
       kind: "result",
       control: plate,
       at: 1000,
       outcome: "applied",
     });
-    expect(decide(state, finger("board", "plate", 999, 1001))).toBe("act");
-    expect(decide(state, finger("board", "plate", 1000))).toBe("ignore-held");
+    expect(decide(state, finger("board", "plate", 999, 1001))).toBe(
+      "ignore-held",
+    );
+    expect(decide(state, finger("board", "plate", 2900))).toBe("act");
   });
 
   it("holds no control that did not act", () => {
@@ -476,6 +529,32 @@ describe("the freeze", () => {
     expect(shown(after(laid(L1), open(), { kind: "unloaded" }, laid(L2)))).toBe(
       L1,
     );
+  });
+
+  it("freezes the new save's layout for a drawer opened while the save loads again", () => {
+    const state = after(laid(L1), { kind: "unloaded" }, open(), laid(L2));
+    expect(shown(state)).toBe(L2);
+    expect(decide(state, finger("buys", "drill", 1000))).toBe("act");
+  });
+
+  it("holds the places of parts listed but hidden, so only a part the drawer drops blinks", () => {
+    // Upgrades lists every row it can show, hidden ones too: their places hold, and
+    // showing or hiding one in place is the painter's.
+    const all: Layout = {
+      parts: ["boost:sharper", "upgrade:tap"],
+      chipRows: 0,
+    };
+    const reordered: Layout = {
+      parts: ["upgrade:tap", "boost:sharper"],
+      chipRows: 0,
+    };
+    const state = after(
+      laid(all, "upgrades"),
+      open("upgrades"),
+      laid(reordered, "upgrades"),
+    );
+    expect(shown(state, "upgrades")).toBe(all);
+    expect(decide(state, finger("upgrades", "upgrade:tap", 1000))).toBe("act");
   });
 
   it("freezes each drawer on its own", () => {

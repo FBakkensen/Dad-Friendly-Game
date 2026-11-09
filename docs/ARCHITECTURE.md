@@ -228,12 +228,19 @@ page is the map, plus the rules that keep it that way.
 
 - **Board tap rules (#410):** `board-interaction` is a pure reducer that holds
   the board's tap rules once:
-  - the 400ms settle after an overlay opens or turns a page, and after a
-    finger's close, for what that close shows again (named fix 1);
-  - the 1.9s Done hold, judged by when the finger came down (named fix 2);
+  - the 400ms settle after a drawer opens or turns a page, and after a
+    finger closes a drawer (Back), for what that close shows again (named
+    fix 1). The save drawer and the board notes never settle, and a
+    tap-through close (the scrim, a tap outside a note) hands its tap on;
+  - the 1.9s Done hold: every press judged before it ends is held, judged by
+    when the finger came down (named fix 2), so a press handled after the
+    hold whose finger came down inside it is held too;
   - the red, off, red, off blink on a tap that cannot act;
   - the freeze of an open drawer's layout, its parts in order and its chip
-    rows, and the blink on a part it holds but no longer sells;
+    rows, and the blink on a part it holds but no longer sells. A drawer
+    whose rows show or hide in place (Upgrades) lists every row, hidden ones
+    too. A save loading again keeps an open drawer's freeze but forgets the
+    latest layouts, so a drawer opened then freezes the new save's;
   - the 1.6s thanks after a fix;
   - the overlay stack: a drawer stands alone, and the save drawer and a
     note go on top.
