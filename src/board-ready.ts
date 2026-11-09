@@ -317,7 +317,7 @@ export function createReadyPlate({
 }): ReadyPlate {
   const parts = buildPlate();
   const { root, button, guard } = parts;
-  /** Undefined until the save is in. */
+  /** Undefined before the save is in. */
   let pick: ReadyPick | undefined;
   let enabled = false;
   /** The buy the latest Done hold names. */
@@ -396,7 +396,7 @@ export function createDigButton({
     write(count, figure === undefined ? "" : `+${formatCompact(figure)}`);
   };
 
-  /** Undefined until the save is in: no words or numbers before then. */
+  /** Undefined before the save is in: no words or numbers yet. */
   let tapYield: number | undefined;
   let tally = 0;
   let tallyTimer: ReturnType<typeof setTimeout> | undefined;

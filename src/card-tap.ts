@@ -91,7 +91,11 @@ export function trackPress(
 
 /** How a board control's listeners are added, and what kind of press a click is. */
 export interface BoardPressOptions extends AddEventListenerOptions {
-  /** A trouble press (a bay in trouble) is never early or held. Every click acts otherwise. */
+  /**
+   * A trouble press (a bay in trouble) is never early or held. Without `intent: "trouble"`, a
+   * press is an act press, judged by the board's settle and holds: it can still be ignored as early,
+   * ignored as held, or blink.
+   */
   readonly intent?: (click: MouseEvent) => "act" | "trouble";
 }
 

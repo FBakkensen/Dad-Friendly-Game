@@ -245,7 +245,7 @@ describe("trackPress", () => {
 
 describe("pressOnBoard", () => {
   const control = { layer: "board", id: "key:upgrades" } as const;
-  /** A host whose drawer a finger closed at 1,000, so the board settles until 1,400. */
+  /** A host whose drawer a finger closed at 1,000, so the board settles up to 1,400. */
   const settled = (): {
     now: { value: number };
     host: ReturnType<typeof createBoardHost>;

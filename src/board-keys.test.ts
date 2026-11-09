@@ -248,7 +248,7 @@ describe("the key rail (#373)", () => {
   });
 
   describe("presses through the board", () => {
-    /** A rail on the page whose board a finger closed Buys on at 1,000: settling until 1,400. */
+    /** A rail on the page whose board a finger closed Buys on at 1,000: settling up to 1,400. */
     const settled = () => {
       const now = { value: 1_000 };
       const board = host(now);
