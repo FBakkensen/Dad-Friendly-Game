@@ -10,8 +10,10 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { splitGitPaths } from "../src/gate.ts";
 import {
   FUNCTION_LIMIT,
+  baseFromShow,
   isMeasured,
   judgeLengths,
   measureFunctions,
@@ -23,25 +25,28 @@ import {
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 
 const CEILINGS = "scripts/function-ceilings.json";
+// The C locale keeps git's messages in English, which baseFromShow reads.
 const git = (...args) =>
   execFileSync("git", args, {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, LC_ALL: "C" },
   });
 
 // Untracked files too: a new file is measured before it is committed.
-const files = git(
-  "ls-files",
-  "-z",
-  "--cached",
-  "--others",
-  "--exclude-standard",
-  "--",
-  "src",
+const files = splitGitPaths(
+  git(
+    "ls-files",
+    "-z",
+    "--cached",
+    "--others",
+    "--exclude-standard",
+    "--",
+    "src",
+  ),
 )
-  .split("\0")
   // A file deleted but not yet committed is still listed: skip what is gone.
-  .filter((path) => path !== "" && isMeasured(path) && existsSync(path));
+  .filter((path) => isMeasured(path) && existsSync(path));
 const spans = files.flatMap((path) =>
   measureFunctions(path, readFileSync(path, "utf8")),
 );
@@ -57,22 +62,21 @@ if (process.argv.includes("--print")) {
   process.exit(0);
 }
 
-/** The list on the base, or undefined when the base has no list yet (its first PR). */
+/** The list on the base (origin/main, or FUNCTION_BASE), through baseFromShow. */
 function baseCeilings() {
   const ref = process.env.FUNCTION_BASE ?? "origin/main";
-  let text;
+  let outcome;
   try {
-    text = git("show", `${ref}:${CEILINGS}`);
+    outcome = { kind: "shown", text: git("show", `${ref}:${CEILINGS}`) };
   } catch (error) {
-    const said = String(error?.stderr ?? error);
-    if (/does not exist|exists on disk, but not in/.test(said))
-      return undefined;
-    console.error(
-      `function-length: cannot read ${CEILINGS} on ${ref}: ${said}`,
-    );
+    outcome = { kind: "failed", message: String(error?.stderr ?? error) };
+  }
+  try {
+    return baseFromShow(outcome);
+  } catch (error) {
+    console.error(`function-length: ${String(error?.message ?? error)}`);
     process.exit(1);
   }
-  return parseCeilings(text);
 }
 
 const problems = judgeLengths({

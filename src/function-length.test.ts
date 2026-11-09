@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type FunctionSpan,
+  baseFromShow,
   isMeasured,
   judgeLengths,
   measureFunctions,
@@ -189,6 +190,16 @@ describe("judgeLengths", () => {
     ]);
   });
 
+  it("refuses a ceiling for an anonymous function, whose id moves when code around it changes", () => {
+    expect(
+      lines([span("src/a.ts#f>(anonymous 5)", 351)], {
+        "src/a.ts#f>(anonymous 5)": 351,
+      }),
+    ).toEqual([
+      "src/a.ts#f>(anonymous 5) has no name to hold a ceiling; name it, or split it under 150 lines.",
+    ]);
+  });
+
   it("with no base, ceilings are not compared", () => {
     expect(lines([span("src/a.ts#f", 210)], { "src/a.ts#f": 210 })).toEqual([]);
   });
@@ -227,5 +238,34 @@ describe("parseCeilings", () => {
     ]) {
       expect(() => parseCeilings(text)).toThrow();
     }
+  });
+});
+
+describe("baseFromShow", () => {
+  it("reads the base's list when git showed it", () => {
+    expect(
+      baseFromShow({ kind: "shown", text: '{"src/a.ts#f": 200}' }),
+    ).toEqual({
+      "src/a.ts#f": 200,
+    });
+  });
+
+  it("has no base when the base has no list yet", () => {
+    for (const message of [
+      "fatal: path 'scripts/function-ceilings.json' does not exist in 'origin/main'",
+      "fatal: path 'scripts/function-ceilings.json' exists on disk, but not in 'HEAD'",
+    ]) {
+      expect(baseFromShow({ kind: "failed", message })).toBeUndefined();
+    }
+  });
+
+  it("throws on any other git failure or a corrupt list, so nothing slips through", () => {
+    expect(() =>
+      baseFromShow({
+        kind: "failed",
+        message: "fatal: invalid object name 'origin/main'.",
+      }),
+    ).toThrow(/invalid object name/);
+    expect(() => baseFromShow({ kind: "shown", text: "{not json" })).toThrow();
   });
 });

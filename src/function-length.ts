@@ -135,7 +135,12 @@ export type LengthProblem =
       readonly ceiling: number;
       readonly was: number;
     }
-  | { readonly kind: "added"; readonly id: string; readonly ceiling: number };
+  | { readonly kind: "added"; readonly id: string; readonly ceiling: number }
+  | {
+      readonly kind: "anonymous";
+      readonly id: string;
+      readonly ceiling: number;
+    };
 
 const KIND_ORDER: readonly LengthProblem["kind"][] = [
   "too-long",
@@ -144,6 +149,7 @@ const KIND_ORDER: readonly LengthProblem["kind"][] = [
   "remove",
   "raised",
   "added",
+  "anonymous",
 ];
 
 /**
@@ -178,6 +184,10 @@ export function judgeLengths({
     }
   }
   for (const [id, ceiling] of Object.entries(ceilings)) {
+    // "(anonymous N)" is a position, not a name: it moves when a sibling callback is added.
+    if (id.includes("(anonymous ")) {
+      problems.push({ kind: "anonymous", id, ceiling });
+    }
     if ((longest.get(id) ?? 0) <= FUNCTION_LIMIT) {
       problems.push({ kind: "remove", id, ceiling });
     }
@@ -214,6 +224,8 @@ export function problemLine(problem: LengthProblem): string {
       return `${id}'s ceiling rose from ${String(problem.was)} to ${String(problem.ceiling)}; ceilings only go down.`;
     case "added":
       return `${id} has a new ceiling; new functions stay under ${String(FUNCTION_LIMIT)} lines.`;
+    case "anonymous":
+      return `${id} has no name to hold a ceiling; name it, or split it under ${String(FUNCTION_LIMIT)} lines.`;
   }
 }
 
@@ -241,4 +253,26 @@ export function parseCeilings(text: string): Ceilings {
     ceilings[id] = lines;
   }
   return ceilings;
+}
+
+/** What `git show <base>:<list>` gave: the list's text, or git's error message. */
+export type ShowOutcome =
+  | { readonly kind: "shown"; readonly text: string }
+  | { readonly kind: "failed"; readonly message: string };
+
+/**
+ * The base's ceiling list, or undefined when the base has no list yet (the PR that adds it).
+ * Any other git failure, or a list that does not parse, throws: a check that could not read
+ * its base must fail, never compare nothing. Run git with LC_ALL=C so the messages match.
+ */
+export function baseFromShow(outcome: ShowOutcome): Ceilings | undefined {
+  if (outcome.kind === "shown") {
+    return parseCeilings(outcome.text);
+  }
+  if (
+    /does not exist in '|exists on disk, but not in '/.test(outcome.message)
+  ) {
+    return undefined;
+  }
+  throw new Error(`Cannot read the base's ceiling list: ${outcome.message}`);
 }

@@ -279,7 +279,7 @@ export function createEngineersPanel({
     }, GLOW_MS);
   };
 
-  const rows = Array.from({ length: MAX_ENGINEERS }, (_, index) => {
+  const buildRow = (_: unknown, index: number) => {
     const item = document.createElement("li");
     item.className = "engineer";
     item.hidden = true;
@@ -629,7 +629,8 @@ export function createEngineersPanel({
       miniLamp,
       duty,
     };
-  });
+  };
+  const rows = Array.from({ length: MAX_ENGINEERS }, buildRow);
 
   const promoteRow = document.createElement("div");
   promoteRow.className = "engineer-promote-row";
