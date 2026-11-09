@@ -350,6 +350,7 @@ describe("complexityValues", () => {
   const report = (line: number, column: number, score: number) => ({
     line,
     column,
+    ruleId: "sonarjs/cognitive-complexity",
     message: `Refactor this function to reduce its Cognitive Complexity from ${String(score)} to the 0 allowed.`,
   });
 
@@ -386,8 +387,32 @@ describe("complexityValues", () => {
     );
     expect(() =>
       complexityValues(spans, [
-        { line: 1, column: 10, message: "Something else entirely." },
+        {
+          line: 1,
+          column: 10,
+          ruleId: "sonarjs/cognitive-complexity",
+          message: "Something else entirely.",
+        },
       ]),
     ).toThrow(/score/);
+  });
+
+  it("throws on a report from any other rule, such as a disable comment for an unknown rule", () => {
+    expect(() =>
+      complexityValues(spans, [
+        {
+          line: 1,
+          column: 10,
+          ruleId: "@typescript-eslint/no-explicit-any",
+          message:
+            "Definition for rule '@typescript-eslint/no-explicit-any' was not found.",
+        },
+      ]),
+    ).toThrow(/only the complexity rule/);
+    expect(() =>
+      complexityValues(spans, [
+        { line: 1, column: 1, ruleId: null, message: "Parsing error." },
+      ]),
+    ).toThrow(/only the complexity rule/);
   });
 });

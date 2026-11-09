@@ -63,6 +63,9 @@ const spans = [...spansByFile.values()].flat();
 // reports. No type information is needed, so this is a few seconds, not a full lint.
 const complexityLint = new ESLint({
   overrideConfigFile: true,
+  // The scored code's own eslint-disable comments must neither hide a score nor name rules
+  // this run does not load.
+  allowInlineConfig: false,
   overrideConfig: [
     {
       files: ["**/*.ts"],

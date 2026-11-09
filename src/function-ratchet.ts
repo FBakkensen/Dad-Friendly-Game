@@ -287,8 +287,12 @@ export function problemLine(problem: CeilingProblem, measure: Measure): string {
 export interface Report {
   readonly line: number;
   readonly column: number;
+  readonly ruleId: string | null;
   readonly message: string;
 }
+
+/** The one rule the complexity run loads. */
+const COMPLEXITY_RULE = "sonarjs/cognitive-complexity";
 
 const SCORE = /Cognitive Complexity from (\d+) to/;
 
@@ -304,13 +308,19 @@ function holds(head: Head, line: number, column: number): boolean {
  * Each `sonarjs/cognitive-complexity` report as a function's value. The plugin reports at a
  * function's head (its name, or an arrow's "=>"), so a report belongs to the function whose
  * head holds it, the innermost one when heads nest (an arrow in a default parameter). Throws
- * on a report no head holds, or a message with no score, so a plugin change fails loudly.
+ * on a report from any other rule, one no head holds, or a message with no score, so a plugin
+ * change or a stray comment fails loudly.
  */
 export function complexityValues(
   spans: readonly FunctionSpan[],
   reports: readonly Report[],
 ): readonly MeasuredValue[] {
-  return reports.map(({ line, column, message }) => {
+  return reports.map(({ line, column, ruleId, message }) => {
+    if (ruleId !== COMPLEXITY_RULE) {
+      throw new Error(
+        `The complexity run expects only the complexity rule, but got ${ruleId ?? "no rule"} at ${String(line)}:${String(column)}: ${message}`,
+      );
+    }
     const score = SCORE.exec(message)?.[1];
     if (score === undefined) {
       throw new Error(`No complexity score in the report: ${message}`);
