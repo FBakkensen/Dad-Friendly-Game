@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buyOnTap, trackPress } from "./card-tap";
+import { createBoardHost } from "./board-host";
+import { buyOnTap, pressOnBoard, trackPress } from "./card-tap";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -239,5 +240,90 @@ describe("trackPress", () => {
     pointer(inner, "pointerdown");
     fingerClick(inner);
     expect(seen).toEqual([{ by: "finger", downAt: 1_000 }]);
+  });
+});
+
+describe("pressOnBoard", () => {
+  const control = { layer: "board", id: "key:upgrades" } as const;
+  /** A host whose drawer a finger closed at 1,000, so the board settles until 1,400. */
+  const settled = (): {
+    now: { value: number };
+    host: ReturnType<typeof createBoardHost>;
+    target: HTMLButtonElement;
+  } => {
+    const now = { value: 1_000 };
+    const host = createBoardHost({
+      clock: () => now.value,
+      pressAge: () => 0,
+      reduced: () => false,
+    });
+    host.send({ kind: "open", overlay: "buys", at: 0 });
+    host.send({ kind: "close", overlay: "buys", at: 1_000, by: "finger" });
+    const target = document.createElement("button");
+    document.body.append(target);
+    return { now, host, target };
+  };
+
+  it("judges a finger's press by when its finger came down", () => {
+    const { now, host, target } = settled();
+    const seen: string[] = [];
+    pressOnBoard(target, host, control, (decision) => seen.push(decision));
+    now.value = 1_100;
+    pointer(target, "pointerdown");
+    now.value = 1_900;
+    fingerClick(target);
+    now.value = 2_000;
+    fingerClick(target);
+    expect(seen).toEqual(["ignore-early", "act"]);
+  });
+
+  it("never judges a key press early, and reports how it came", () => {
+    const { now, host, target } = settled();
+    const seen: unknown[] = [];
+    pressOnBoard(target, host, control, (decision, by) =>
+      seen.push([decision, by]),
+    );
+    now.value = 1_100;
+    target.click();
+    expect(seen).toEqual([["act", "keyboard"]]);
+  });
+
+  it("lets a capture listener stop the click an early press would have sent on", () => {
+    const { now, host, target } = settled();
+    const inner = document.createElement("span");
+    target.append(inner);
+    const reached = vi.fn();
+    inner.addEventListener("click", reached);
+    pressOnBoard(
+      target,
+      host,
+      control,
+      (decision, _by, event) => {
+        if (decision !== "act") {
+          event.stopPropagation();
+        }
+      },
+      { capture: true },
+    );
+    now.value = 1_100;
+    fingerClick(inner);
+    expect(reached).not.toHaveBeenCalled();
+    now.value = 1_500;
+    fingerClick(inner);
+    expect(reached).toHaveBeenCalledTimes(1);
+  });
+
+  it("forget drops the finger-down time, so the click is judged by its own age", () => {
+    const { now, host, target } = settled();
+    const seen: string[] = [];
+    const press = pressOnBoard(target, host, control, (decision) =>
+      seen.push(decision),
+    );
+    now.value = 1_100;
+    pointer(target, "pointerdown");
+    press.forget();
+    now.value = 1_900;
+    fingerClick(target);
+    expect(seen).toEqual(["act"]);
   });
 });

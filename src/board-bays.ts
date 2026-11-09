@@ -3,7 +3,7 @@ import tarpUrl from "./assets/board/mach-borer-tarp.png";
 import borerUrl from "./assets/board/mach-borer.png";
 import cartUrl from "./assets/board/mach-cart.png";
 import machineUrl from "./assets/board/mach-machine.png";
-import { el, frameX, setAttr, write } from "./board-dom";
+import { el, fitsWidth, frameX, hide, mark, setAttr, write } from "./board-dom";
 import { skin } from "./board-skin";
 import { measurable, onFontsSettled } from "./fit-cache";
 import { reducedMotion } from "./float-text";
@@ -60,9 +60,6 @@ const DRILL_STEP_S = 0.18;
 const DRILL_EPSILON = 1e-9;
 /** Before the save is in: a disabled button needs a name, and this is no news. */
 const LOADING = "Loading your save...";
-
-const defaultFits = (el: HTMLElement): boolean =>
-  el.scrollWidth <= el.clientWidth + 1;
 
 /** The band tag: the layer's name, and its short advice without the full stop. */
 export function bandWords(mountain: { readonly remaining: number }): string {
@@ -209,9 +206,7 @@ function showFlap(bay: Bay, text: string, animate: boolean): void {
   if (bay.digits.length !== n) {
     buildFlap(bay, n);
   }
-  if (bay.button.classList.contains("is-three") !== (n === 3)) {
-    bay.button.classList.toggle("is-three", n === 3);
-  }
+  mark(bay.button, "is-three", n === 3);
   const before = bay.shown.padStart(n, " ").slice(-n);
   const now = text.padStart(n, " ");
   bay.digits.forEach((digit, k) => {
@@ -238,7 +233,7 @@ export function createMachineBays({
   onOpen,
   onPress,
   onFix,
-  fits = defaultFits,
+  fits = fitsWidth,
 }: {
   /** A tap on a bay with no trouble: the bay is where Buys opened from. */
   onOpen: (from: HTMLElement) => void;
@@ -369,9 +364,7 @@ export function createMachineBays({
     write(bay.sub, "");
     write(bay.legend, "");
     write(bay.price, "");
-    if (!bay.tag.hidden) {
-      bay.tag.hidden = true;
-    }
+    hide(bay.tag, true);
     showFlap(bay, "", false);
   };
 
@@ -394,9 +387,7 @@ export function createMachineBays({
     showFlap(bay, flapDigits(view.count), animate);
     write(bay.legend, priceLegend(view));
     const locked = view.kind === "locked";
-    if (bay.tag.hidden !== locked) {
-      bay.tag.hidden = locked;
-    }
+    hide(bay.tag, locked);
     write(bay.price, locked ? "" : formatCompact(view.price));
   };
 

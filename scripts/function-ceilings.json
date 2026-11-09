@@ -1,6 +1,5 @@
 {
-  "src/board-bays.ts#createMachineBays": 261,
-  "src/board-ready.ts#createReadyPlate": 171,
+  "src/board-bays.ts#createMachineBays": 257,
   "src/board-save.ts#createSaveLine": 164,
   "src/board-window.ts#createMineWindow": 326,
   "src/engineers-panel.ts#createEngineersPanel": 845,

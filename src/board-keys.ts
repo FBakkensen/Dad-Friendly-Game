@@ -6,7 +6,7 @@ import upgradesUrl from "./assets/board/icon-upgrades.png";
 import workshopDimUrl from "./assets/board/icon-workshop-dim.png";
 import workshopUrl from "./assets/board/icon-workshop.png";
 import dotUrl from "./assets/board/key-dot.png";
-import { el, frameX, setAttr, write } from "./board-dom";
+import { el, frameX, hide, mark, setAttr, write } from "./board-dom";
 import { KEY_IDS, type KeyCap, type KeyId, type KeyView } from "./key-rail";
 
 /*
@@ -52,18 +52,6 @@ const HELD_UNTIL_READY: ReadonlySet<KeyId> = new Set(["workshop", "engineers"]);
 /** formatClock's shape: m:ss or h:mm:ss. */
 const CLOCK = /^\d+(?::\d\d)+$/;
 
-function toggle(target: HTMLElement, name: string, on: boolean): void {
-  if (target.classList.contains(name) !== on) {
-    target.classList.toggle(name, on);
-  }
-}
-
-function show(target: HTMLElement, on: boolean): void {
-  if (target.hidden === on) {
-    target.hidden = !on;
-  }
-}
-
 function image(className: string, src: string, px: number): HTMLImageElement {
   const made = el("img", className);
   made.src = src;
@@ -103,17 +91,21 @@ export function createKeyRail({
 
     /** The cap's frame when not held down: the last view's. */
     let base = FRAME.rest;
+    let down = false;
+    let disabled = key.disabled;
     const up = (): void => {
-      if (!key.classList.contains("is-down")) {
+      if (!down) {
         return;
       }
+      down = false;
       key.classList.remove("is-down");
       frameX(cap, base, CELL_PX);
     };
     key.addEventListener("pointerdown", () => {
-      if (key.disabled) {
+      if (disabled) {
         return;
       }
+      down = true;
       key.classList.add("is-down");
       frameX(cap, DOWN, CELL_PX);
     });
@@ -129,25 +121,25 @@ export function createKeyRail({
       const locked = view?.cap === "locked";
       const lit = view?.cap === "lit";
       base = FRAME[view?.cap ?? "rest"];
-      if (!key.classList.contains("is-down")) {
+      if (!down) {
         frameX(cap, base, CELL_PX);
       }
       setAttr(icon, "src", locked ? ICON[id].dim : ICON[id].bright);
-      const disabled = view === undefined ? HELD_UNTIL_READY.has(id) : locked;
+      disabled = view === undefined ? HELD_UNTIL_READY.has(id) : locked;
       if (key.disabled !== disabled) {
         key.disabled = disabled;
       }
       if (disabled) {
         up();
       }
-      toggle(key, "is-locked", locked);
-      toggle(key, "is-lit", lit);
-      show(dot, view?.dot === true);
+      mark(key, "is-locked", locked);
+      mark(key, "is-lit", lit);
+      hide(dot, view?.dot !== true);
       const words = view?.sub ?? "";
       write(sub, words);
-      show(sub, words !== "");
-      toggle(sub, "board-num", CLOCK.test(words));
-      toggle(key, "has-sub", words !== "");
+      hide(sub, words === "");
+      mark(sub, "board-num", CLOCK.test(words));
+      mark(key, "has-sub", words !== "");
       setAttr(key, "aria-label", view?.aria ?? NAME[id]);
     };
     return [id, key, render] as const;

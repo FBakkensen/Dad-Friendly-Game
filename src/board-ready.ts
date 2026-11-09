@@ -2,7 +2,17 @@ import { READY_HOLD_MS } from "./board-interaction";
 import digUrl from "./assets/board/dig-button.png";
 import plateUrl from "./assets/board/plate.png";
 import guardUrl from "./assets/board/ready-guard.png";
-import { measurable, onFontsSettled } from "./fit-cache";
+import {
+  el,
+  fitFirst,
+  fitsWidth,
+  frameX,
+  mark,
+  refitAll,
+  setAttr,
+  write,
+} from "./board-dom";
+import { onFontsSettled } from "./fit-cache";
 import { reducedMotion } from "./float-text";
 import { etaShort, formatCompact, formatCount } from "./format";
 import type { ReadyPick, ReadyTier } from "./ready-now";
@@ -164,43 +174,12 @@ const ECHO_UP_MS = 60;
 /** Before the save is in: a disabled button needs a name, and this is no news. */
 const LOADING = "Loading your save...";
 
-const defaultFits = (el: HTMLElement): boolean =>
-  el.scrollWidth <= el.clientWidth + 1;
-
-/** A sprite strip whose frame is written only when it changes. */
-function strip(
-  className: string,
-  url: string,
-  framePx: number,
-): { readonly el: HTMLElement; frame(n: number): void } {
-  const el = document.createElement("i");
-  el.className = className;
-  el.style.backgroundImage = `url(${url})`;
-  el.setAttribute("aria-hidden", "true");
-  let shown = "";
-  const frame = (n: number): void => {
-    const next = `${String(-n * framePx)}px`;
-    if (next !== shown) {
-      shown = next;
-      el.style.backgroundPositionX = next;
-    }
-  };
-  return { el, frame };
-}
-
-function span(className: string): HTMLSpanElement {
-  const el = document.createElement("span");
-  el.className = className;
-  return el;
-}
-
-/** Text that is written only when it changes. */
-function words(el: HTMLElement): (text: string) => void {
-  return (text) => {
-    if (el.textContent !== text) {
-      el.textContent = text;
-    }
-  };
+/** A sprite strip: its frames are written with frameX. */
+function strip(className: string, url: string): HTMLElement {
+  const made = el("i", className);
+  made.style.backgroundImage = `url(${url})`;
+  made.setAttribute("aria-hidden", "true");
+  return made;
 }
 
 /**
@@ -210,60 +189,38 @@ function words(el: HTMLElement): (text: string) => void {
  */
 export function createReadyPlate({
   onTap,
-  fits = defaultFits,
+  fits = fitsWidth,
 }: {
   onTap: () => ReadyTap;
   fits?: (el: HTMLElement) => boolean;
 }): ReadyPlate {
-  const root = document.createElement("div");
-  root.className = "board-ready-row";
+  const root = el("div", "board-ready-row");
 
-  const button = document.createElement("button");
+  const button = el("button", "board-ready");
   button.type = "button";
-  button.className = "board-ready";
   button.setAttribute("aria-live", "polite");
 
-  const kick = span("board-ready-kick board-lg");
-  const guard = strip("board-ready-guard", guardUrl, GUARD_PX);
-  const plate = document.createElement("img");
-  plate.className = "board-ready-plate";
+  const kick = el("span", "board-ready-kick board-lg");
+  const guard = strip("board-ready-guard", guardUrl);
+  const plate = el("img", "board-ready-plate");
   plate.src = plateUrl;
   plate.alt = "";
   plate.draggable = false;
-  const lines = span("board-ready-text");
-  const main = span("board-ready-main");
-  const why = span("board-ready-why");
+  const lines = el("span", "board-ready-text");
+  const main = el("span", "board-ready-main");
+  const why = el("span", "board-ready-why");
   lines.append(main, why);
-  button.append(kick, guard.el, plate, lines);
+  button.append(kick, guard, plate, lines);
   root.append(button);
 
-  const writeKick = words(kick);
-  /**
-   * The options last fitted into each line, so a frame with the same words measures nothing. A
-   * fit is kept only when it was measured on the page with a width.
-   */
-  let fitted = new WeakMap<HTMLElement, string>();
-  const fit = (el: HTMLElement, options: readonly string[]): void => {
-    const key = options.join("\n");
-    if (fitted.get(el) === key) {
-      return;
-    }
-    fitted.delete(el);
-    for (const option of options) {
-      el.textContent = option;
-      if (fits(el)) {
-        break;
-      }
-    }
-    if (measurable(el)) {
-      fitted.set(el, key);
-    }
+  const fit = (box: HTMLElement, options: readonly string[]): void => {
+    fitFirst(box, options, fits);
   };
-
   const setLabel = (label: string): void => {
-    if (button.getAttribute("aria-label") !== label) {
-      button.setAttribute("aria-label", label);
-    }
+    setAttr(button, "aria-label", label);
+  };
+  const frame = (n: number): void => {
+    frameX(guard, n, GUARD_PX);
   };
 
   const show = (
@@ -271,12 +228,10 @@ export function createReadyPlate({
     state: "is-saving" | "is-done" | "",
   ): void => {
     for (const name of ["is-saving", "is-done"] as const) {
-      if (button.classList.contains(name) !== (name === state)) {
-        button.classList.toggle(name, name === state);
-      }
+      mark(button, name, name === state);
     }
-    guard.frame(GUARD_FRAME[shown.guard]);
-    writeKick(shown.kick);
+    frame(GUARD_FRAME[shown.guard]);
+    write(kick, shown.kick);
     fit(main, shown.main);
     fit(why, shown.why);
     setLabel(shown.aria);
@@ -304,8 +259,8 @@ export function createReadyPlate({
       button.disabled = disabled;
     }
     if (last === undefined) {
-      guard.frame(GUARD_FRAME.off);
-      writeKick("");
+      frame(GUARD_FRAME.off);
+      write(kick, "");
       fit(main, [""]);
       fit(why, [""]);
       button.classList.remove("is-saving", "is-done");
@@ -356,7 +311,7 @@ export function createReadyPlate({
 
   button.addEventListener("pointerdown", () => {
     if (!holding && !button.disabled && painted?.kind === "ready") {
-      guard.frame(GUARD_FRAME.pressed);
+      frame(GUARD_FRAME.pressed);
     }
   });
   const lift = (): void => {
@@ -370,7 +325,7 @@ export function createReadyPlate({
   // Lines fitted with fallback metrics may not fit in the board's own fonts. A Done hold keeps
   // its words; the paint after it fits again.
   onFontsSettled(() => {
-    fitted = new WeakMap();
+    refitAll(root);
     if (!holding) {
       paint();
     }
@@ -389,34 +344,33 @@ export function createDigButton({
 }: {
   onPress: () => void;
 }): DigButton {
-  const root = document.createElement("div");
-  root.className = "board-dig";
+  const root = el("div", "board-dig");
 
-  const button = document.createElement("button");
+  const button = el("button", "board-dig-button");
   button.type = "button";
-  button.className = "board-dig-button";
   button.disabled = true;
   button.setAttribute("aria-label", LOADING);
-  const sprite = strip("board-dig-sprite", digUrl, DIG_PX);
-  button.append(sprite.el);
+  const sprite = strip("board-dig-sprite", digUrl);
+  const frame = (n: number): void => {
+    frameX(sprite, n, DIG_PX);
+  };
+  button.append(sprite);
 
-  const lg = span("board-dig-lg board-lg");
+  const lg = el("span", "board-dig-lg board-lg");
   lg.setAttribute("aria-hidden", "true");
-  const word = document.createElement("span");
+  const word = el("span", "");
   const sep = document.createTextNode("");
-  const count = document.createElement("b");
+  const count = el("b", "");
   lg.append(word, sep, count);
   root.append(button, lg);
 
-  const writeWord = words(word);
-  const writeCount = words(count);
   const legend = (w: string, figure: number | undefined): void => {
-    writeWord(w);
+    write(word, w);
     const dot = w === "" ? "" : " · ";
     if (sep.data !== dot) {
       sep.data = dot;
     }
-    writeCount(figure === undefined ? "" : `+${formatCompact(figure)}`);
+    write(count, figure === undefined ? "" : `+${formatCompact(figure)}`);
   };
 
   /** Undefined until the save is in: no words or numbers before then. */
@@ -436,13 +390,13 @@ export function createDigButton({
     }
   };
 
-  /** Shows `frame`, then each later step after its wait; a new press cuts the run short. */
+  /** Shows `first`, then each later step after its wait; a new press cuts the run short. */
   const run = (
-    frame: number,
+    first: number,
     steps: readonly (readonly [ms: number, frame: number])[],
   ): void => {
     stopPress();
-    sprite.frame(frame);
+    frame(first);
     const [next, ...rest] = steps;
     if (next === undefined) {
       return;
@@ -465,7 +419,7 @@ export function createDigButton({
   });
   const lift = (): void => {
     if (pressTimer === undefined) {
-      sprite.frame(DIG_REST);
+      frame(DIG_REST);
     }
   };
   button.addEventListener("pointerup", lift);
@@ -481,9 +435,7 @@ export function createDigButton({
     if (button.disabled === enabled) {
       button.disabled = !enabled;
     }
-    if (button.getAttribute("aria-label") !== label) {
-      button.setAttribute("aria-label", label);
-    }
+    setAttr(button, "aria-label", label);
     if (tallyTimer === undefined) {
       settle();
     }
@@ -524,7 +476,7 @@ export function createDigButton({
     ]);
   };
 
-  sprite.frame(DIG_REST);
+  frame(DIG_REST);
   settle();
   return { root, button, set, loading, dug, echo };
 }

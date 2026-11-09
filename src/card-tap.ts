@@ -1,5 +1,5 @@
-import { eventAge } from "./board-host";
-import type { Pointer } from "./board-interaction";
+import { eventAge, type BoardHost } from "./board-host";
+import type { ControlRef, Pointer, PressDecision } from "./board-interaction";
 
 const SLOP_PX = 10;
 
@@ -87,6 +87,37 @@ export function trackPress(
     },
     forget,
   };
+}
+
+/**
+ * One of the shell's own controls, pressed through the board. Its press is tracked on the
+ * control itself, so it is judged by its own finger-down time, and that time is dropped at a
+ * cancel or when the drawer moves on.
+ */
+export function pressOnBoard(
+  target: HTMLElement,
+  board: BoardHost,
+  control: ControlRef,
+  judged: (decision: PressDecision, by: Pointer, event: MouseEvent) => void,
+  options: AddEventListenerOptions = {},
+): PressTracker {
+  const tracker = trackPress(target, board, options);
+  target.addEventListener(
+    "click",
+    (event) => {
+      const { by, downAt } = tracker.press(event);
+      const decision = board.press({
+        control,
+        by,
+        intent: "act",
+        downAt,
+        event,
+      });
+      judged(decision, by, event);
+    },
+    options,
+  );
+  return tracker;
 }
 
 /**
