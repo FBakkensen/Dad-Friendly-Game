@@ -1,9 +1,8 @@
 /*
- * The board's tap rules in one pure place (#410, spec part B): the settle after an opening,
- * the Done hold, the blink on a tap that cannot act, the freeze while a drawer is open and the
- * thanks after a fix. No DOM and no clock: every input carries its own times, the view is read
- * at a time the caller gives, and `nextWake` says when to read it again. I2 (#411) moves the
- * board's parts onto it; until then it is wired to nothing but its timing values.
+ * The board's tap rules in one pure place: the settle after an opening, the Done hold, the
+ * blink on a tap that cannot act, the freeze while a drawer is open and the thanks after a
+ * fix. No DOM and no clock: every input carries its own times, the view is read at a time the
+ * caller gives, and `nextWake` says when to read it again.
  */
 
 /** How long an overlay settles after opening: B4's double-tap guard, for every drawer. */
@@ -226,16 +225,23 @@ function heldFrom(state: BoardState, key: string, at: number): BoardState {
   return { ...state, holds: withEntry(state.holds, key, hold) };
 }
 
-/** A buy landed: Done holds, unless a hold already runs, and a running blink ends. */
+/** A buy landed: Done holds and a running blink ends, unless a hold already runs. */
 function applied(state: BoardState, key: string, at: number): BoardState {
-  const quiet = { ...state, blinks: withoutEntry(state.blinks, key) };
   const running = state.holds.get(key);
-  return running !== undefined && at < running.until
-    ? quiet
-    : heldFrom(quiet, key, at);
+  if (running !== undefined && at < running.until) {
+    return state;
+  }
+  return heldFrom(
+    { ...state, blinks: withoutEntry(state.blinks, key) },
+    key,
+    at,
+  );
 }
 
-/** A fix thanks its host; a drawer row also holds again, so the burst runs on into no buy. */
+/**
+ * A fix thanks its host; a drawer row also holds again, so the burst runs on into no buy, and
+ * its running blink ends.
+ */
 function fixed(state: BoardState, control: ControlRef, at: number): BoardState {
   const key = controlKey(control);
   const host = control.layer === "board" ? key : control.layer;
@@ -243,7 +249,13 @@ function fixed(state: BoardState, control: ControlRef, at: number): BoardState {
     ...state,
     thanks: withEntry(state.thanks, host, at + THANKS_MS),
   };
-  return control.layer === "board" ? thanked : heldFrom(thanked, key, at);
+  return control.layer === "board"
+    ? thanked
+    : heldFrom(
+        { ...thanked, blinks: withoutEntry(thanked.blinks, key) },
+        key,
+        at,
+      );
 }
 
 function resulted(

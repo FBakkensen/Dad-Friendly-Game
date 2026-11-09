@@ -397,6 +397,25 @@ describe("the blink", () => {
     expect(frame(state, 150)).toBeUndefined();
   });
 
+  it("a fix on a drawer row ends its blink", () => {
+    const row = { layer: "buys", id: "drill" } as const;
+    const state = after(
+      { kind: "result", control: row, at: 0, outcome: "refused" },
+      { kind: "result", control: row, at: 100, outcome: "fixed" },
+    );
+    expect(boardView(state, 150).blinking.has("buys/drill")).toBe(false);
+  });
+
+  it("a buy that lands inside a running hold leaves the blink alone", () => {
+    const row = { layer: "buys", id: "drill" } as const;
+    const state = after(
+      { kind: "result", control: row, at: 0, outcome: "applied" },
+      { kind: "result", control: row, at: 100, outcome: "refused" },
+      { kind: "result", control: row, at: 200, outcome: "applied" },
+    );
+    expect(boardView(state, 250).blinking.get("buys/drill")).toBe("off");
+  });
+
   it("shows no frame when read before the blink began", () => {
     expect(frame(after(refused(500)), 400)).toBeUndefined();
   });
