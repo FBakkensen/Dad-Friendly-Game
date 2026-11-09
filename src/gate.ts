@@ -154,6 +154,7 @@ const STATIC = [
   "env",
   "typecheck",
   "typecheck:tools",
+  "functions",
   "lint",
   "cycles",
   "format",
@@ -362,6 +363,8 @@ export function gateSteps(
       tsc("tools/tsconfig.json", "tools"),
       both,
     ),
+    // No function grows past 150 lines, and the large ones only shrink (#408).
+    step("functions", "node", ["scripts/function-length.mjs"], both),
     ...onChanges,
     ...formatChanged,
     step(

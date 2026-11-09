@@ -101,6 +101,7 @@ describe("gateSteps", () => {
     expect(names(steps)).toEqual([
       "typecheck",
       "typecheck:tools",
+      "functions",
       "lint:changed",
       "test:related",
     ]);
@@ -122,7 +123,11 @@ describe("gateSteps", () => {
   });
 
   it("fast tier only typechecks when no code changed", () => {
-    expect(names(fast([]))).toEqual(["typecheck", "typecheck:tools"]);
+    expect(names(fast([]))).toEqual([
+      "typecheck",
+      "typecheck:tools",
+      "functions",
+    ]);
   });
 
   it("fast tier checks the format of every changed file, docs and styles too", () => {
@@ -166,6 +171,17 @@ describe("gateSteps", () => {
     expect(names(plan.steps)).not.toContain("format:changed");
   });
 
+  it("both tiers run the function-length ratchet, with nothing before it", () => {
+    for (const tier of ["fast", "full"] as const) {
+      const plan = planTier(tier, gateSteps([], { economy: false }));
+      if (plan.kind !== "ok") throw new Error(plan.message);
+      const ratchet = plan.steps.find((each) => each.name === "functions");
+      expect(ratchet?.command).toBe("node");
+      expect(ratchet?.args).toEqual(["scripts/function-length.mjs"]);
+      expect(ratchet?.after).toEqual([]);
+    }
+  });
+
   it("typecheck is incremental, with its state in the git-ignored gate folder", () => {
     const [typecheck] = fast([]);
     expect(typecheck?.args).toEqual(
@@ -181,6 +197,7 @@ describe("gateSteps", () => {
       "env",
       "typecheck",
       "typecheck:tools",
+      "functions",
       "lint",
       "cycles",
       "format",
