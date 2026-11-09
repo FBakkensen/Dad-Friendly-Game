@@ -40,7 +40,13 @@ import { boostShown, upgradeShown } from "../upgrade-reveal";
 import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
 import { minedOut, oneOffStretch, stretch } from "../scale";
-import { VEIN_MAX_GAP_MS, VEIN_MIN_GAP_MS, veinReward } from "../veins";
+import { markAllSeen, markSeen, markTaught, showsDot } from "../teach";
+import {
+  VEIN_MAX_GAP_MS,
+  VEIN_MIN_GAP_MS,
+  mineVein,
+  veinReward,
+} from "../veins";
 import {
   MAX_CRAFTED_LEVEL,
   cancelCraft,
@@ -217,18 +223,75 @@ export function sinkRecipes(mountain: Mountain): readonly RecipeId[] {
 }
 
 /**
- * Plays the move through the function the game already uses. Fixing trouble
- * does not change the mountain: that state lives on the session, and
- * `hazards.fix` is what clears it.
+ * Today's card buy: one of `id`. Any worker hired while a machine stands
+ * idle is the first use of staffing (#246), so it marks staffing taught. The game and the
+ * lab buy the same way (#409).
  */
-export function applyAction(
+export function buyWithTeach(mountain: Mountain, id: TierId): Mountain {
+  const next = buyCrew(mountain, id);
+  return id === "helper" &&
+    next.helpers > mountain.helpers &&
+    showsDot(mountain, "staffing")
+    ? markTaught(next, "staffing")
+    : next;
+}
+
+/** A move only the screen makes: the lab plays taps and marks through its value model. */
+export type ScreenMove =
+  | { readonly kind: "dig" }
+  | { readonly kind: "tapVein" }
+  | { readonly kind: "markSeen"; readonly id: string }
+  | { readonly kind: "markAllSeen"; readonly ids: readonly string[] };
+
+/** Every move the player can make (#409). The lab plans the `Action` half. */
+export type Move = Action | ScreenMove;
+
+/**
+ * What a move did: applied, with the pocket it spent and the stones it mined (each at least
+ * 0), or refused because it changed nothing.
+ */
+export type MoveResult =
+  | {
+      readonly kind: "applied";
+      readonly mountain: Mountain;
+      readonly spent: number;
+      readonly mined: number;
+    }
+  | { readonly kind: "refused" };
+
+/** What a move sees besides the mountain and the clock. */
+export interface MoveContext {
+  readonly trouble: Trouble | undefined;
+}
+
+function moved(
+  mountain: Mountain,
+  move: Move,
+  now: number,
+  context: MoveContext,
+): Mountain {
+  switch (move.kind) {
+    case "dig":
+      return mineByHand(mountain, now, context.trouble);
+    case "tapVein":
+      return mineVein(mountain);
+    case "markSeen":
+      return markSeen(mountain, move.id);
+    case "markAllSeen":
+      return markAllSeen(mountain, move.ids);
+    default:
+      return actionApplied(mountain, move, now);
+  }
+}
+
+function actionApplied(
   mountain: Mountain,
   action: Action,
   now: number,
 ): Mountain {
   switch (action.kind) {
     case "buyTier":
-      return buyCrew(mountain, action.id);
+      return buyWithTeach(mountain, action.id);
     case "buyUpgrade":
       return buyUpgrade(mountain, action.id);
     case "buyBoost":
@@ -240,8 +303,13 @@ export function applyAction(
       });
     case "promote":
       return promote(mountain);
-    case "station":
-      return station(mountain, action.index, action.post);
+    case "station": {
+      {
+        // A real station is the first tend (#246), as the UI's tend buttons mark it.
+        const next = station(mountain, action.index, action.post);
+        return next === mountain ? mountain : markTaught(next, "tending");
+      }
+    }
     case "send":
       return send(mountain, action.index, action.tunnel, now);
     case "recall":
@@ -263,6 +331,39 @@ export function applyAction(
       return unexpected;
     }
   }
+}
+
+/**
+ * Applies one move, the one way the game changes (#409): the store dispatches it, and the
+ * lab's `applyAction` calls it. A move that leaves the mountain as it was is refused.
+ */
+export function applyMove(
+  mountain: Mountain,
+  move: Move,
+  now: number,
+  context: MoveContext,
+): MoveResult {
+  const next = moved(mountain, move, now, context);
+  if (next === mountain) {
+    return { kind: "refused" };
+  }
+  const gained = next.pocket - mountain.pocket;
+  return {
+    kind: "applied",
+    mountain: next,
+    spent: Math.max(0, -gained),
+    mined: Math.max(0, gained),
+  };
+}
+
+/** The lab's move: the same rules as the game, with no trouble passed in. */
+export function applyAction(
+  mountain: Mountain,
+  action: Action,
+  now: number,
+): Mountain {
+  const result = applyMove(mountain, action, now, { trouble: undefined });
+  return result.kind === "applied" ? result.mountain : mountain;
 }
 
 /**

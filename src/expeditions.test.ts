@@ -127,6 +127,11 @@ describe("send and recall", () => {
     expect(send(packed, 0, "side-seam", 0)).toBe(packed);
   });
 
+  it("calls a tunnel post with no expedition back to camp (#409)", () => {
+    const stuck = crew([{ ...ada, post: "tunnel" }]);
+    expect(recall(stuck, 0).engineers?.[0]?.post).toBe("camp");
+  });
+
   it("recalls empty-handed, back at the old post, with no trip and no find", () => {
     const sent = send(crew(), 0, "old-shaft", 80);
     const back = recall(sent, 0);

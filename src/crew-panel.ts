@@ -14,7 +14,7 @@ import { createBoardRow, type BoardRow } from "./board-row";
 import { skin } from "./board-skin";
 import { BUY_SECTIONS, buyRowView, type BuyIcon } from "./buys-rows";
 import { buyOnTap } from "./card-tap";
-import { buyCrew } from "./crew";
+import { buyWithTeach } from "./economy/actions";
 import { crewCounts } from "./crew-count";
 import { grandpaPost, staffNeeded } from "./engineers";
 import { reducedMotion } from "./float-text";
@@ -33,7 +33,7 @@ import {
   stonesASecond,
   workerWords,
 } from "./screen-words";
-import { markTaught, showsDot } from "./teach";
+import { showsDot } from "./teach";
 import { TIERS, owned, tierById, type TierId } from "./tiers";
 import { watchFixHold } from "./trouble-tap";
 
@@ -41,21 +41,8 @@ import { watchFixHold } from "./trouble-tap";
  * The Buys drawer (#373): the Crew section with its sentence and chips, then a row per tier in
  * the drawer skin, Crew first and Machines under it, and the Ready now footnote. Every row's
  * words come from buys-rows.ts; every buy goes through today's mutations: the guided hire,
- * buyWithTeach, pressTrouble and fixTrouble.
+ * buyWithTeach (economy/actions), pressTrouble and fixTrouble.
  */
-
-/**
- * Today's card buy: one of `id`. Any worker hired while a machine stands
- * idle is the first use of staffing (#246), so it marks staffing taught.
- */
-export function buyWithTeach(mountain: Mountain, id: TierId): Mountain {
-  const next = buyCrew(mountain, id);
-  return id === "helper" &&
-    next.helpers > mountain.helpers &&
-    showsDot(mountain, "staffing")
-    ? markTaught(next, "staffing")
-    : next;
-}
 
 /** The kick under the title while staffing has nothing to teach. */
 const BUYS_KICK = "Crew and machines that mine while you rest";

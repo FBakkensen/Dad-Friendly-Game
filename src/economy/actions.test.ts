@@ -11,6 +11,7 @@ import {
   type Engineer,
 } from "../engineers";
 import { recall, send } from "../expeditions";
+import { markTaught } from "../teach";
 import type { Trouble } from "../hazards";
 import { createMountain, type Mountain } from "../mountain";
 import { minedMountain } from "../test-fixtures";
@@ -43,6 +44,8 @@ import {
 } from "../workshop";
 import {
   applyAction,
+  applyMove,
+  buyWithTeach,
   listActions,
   sinkRecipes,
   valueOf,
@@ -104,7 +107,8 @@ const trouble: Trouble = { kind: "jam", tier: "borer", startedAt: NOW };
 function direct(mountain: Mountain, action: Action, now: number): Mountain {
   switch (action.kind) {
     case "buyTier":
-      return buyCrew(mountain, action.id);
+      // The UI's buy (#409): a worker bought beside an idle machine marks staffing taught.
+      return buyWithTeach(mountain, action.id);
     case "buyUpgrade":
       return buyUpgrade(mountain, action.id);
     case "buyBoost":
@@ -116,8 +120,11 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
       });
     case "promote":
       return promote(mountain);
-    case "station":
-      return station(mountain, action.index, action.post);
+    case "station": {
+      // The UI's tend (#409): a real station marks tending taught.
+      const moved = station(mountain, action.index, action.post);
+      return moved === mountain ? mountain : markTaught(moved, "tending");
+    }
     case "send":
       return send(mountain, action.index, action.tunnel, now);
     case "recall":
@@ -1190,5 +1197,78 @@ describe("valueOf", () => {
     expect(
       applyAction(plain, { kind: "craft", recipe: "crystal-lamp" }, NOW),
     ).toBe(plain);
+  });
+});
+
+describe("applyMove (#409)", () => {
+  const calm = { trouble: undefined };
+
+  it("applies a buy, with what it spent, and refuses one the pocket cannot pay", () => {
+    const cart = { kind: "buyTier", id: "cart" } as const;
+    const bought = applyMove(rich, cart, NOW, calm);
+    expect(bought.kind).toBe("applied");
+    if (bought.kind !== "applied") return;
+    expect(bought.mountain.carts).toBe(rich.carts + 1);
+    expect(bought.spent).toBe(rich.pocket - bought.mountain.pocket);
+    expect(bought.mined).toBe(0);
+    expect(applyMove(broke, cart, NOW, calm)).toEqual({ kind: "refused" });
+  });
+
+  it("marks tending taught on a real station, and refuses a station that changes nothing", () => {
+    const moved = applyMove(
+      rich,
+      { kind: "station", index: 0, post: "camp" },
+      NOW,
+      calm,
+    );
+    expect(moved.kind === "applied" && moved.mountain.taught).toContain(
+      "tending",
+    );
+    // No engineer at that index: nothing changes, so nothing is marked either.
+    expect(
+      applyMove(rich, { kind: "station", index: 9, post: "camp" }, NOW, calm),
+    ).toEqual({ kind: "refused" });
+  });
+
+  it("digs by hand with what it mined, and taps a vein", () => {
+    const dug = applyMove(fresh, { kind: "dig" }, NOW, calm);
+    expect(dug.kind === "applied" && dug.mined).toBeGreaterThan(0);
+    expect(dug.kind === "applied" && dug.spent).toBe(0);
+    const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
+    expect(vein.kind === "applied" && vein.mined).toBeGreaterThan(0);
+  });
+
+  it("marks a sheet seen, and refuses a mark already made", () => {
+    const seen = applyMove(
+      fresh,
+      { kind: "markSeen", id: "workshop" },
+      NOW,
+      calm,
+    );
+    expect(seen.kind).toBe("applied");
+    if (seen.kind !== "applied") return;
+    expect(seen.mountain.seen).toContain("workshop");
+    expect(
+      applyMove(seen.mountain, { kind: "markSeen", id: "workshop" }, NOW, calm),
+    ).toEqual({ kind: "refused" });
+    const all = applyMove(
+      fresh,
+      { kind: "markAllSeen", ids: ["workshop", "engineers"] },
+      NOW,
+      calm,
+    );
+    expect(all.kind === "applied" && all.mountain.seen).toEqual([
+      "workshop",
+      "engineers",
+    ]);
+  });
+
+  it("gives the lab's applyAction the same mountain for every listed move", () => {
+    for (const action of listActions(rich, NOW, trouble)) {
+      const moved = applyMove(rich, action, NOW, calm);
+      expect(applyAction(rich, action, NOW)).toEqual(
+        moved.kind === "applied" ? moved.mountain : rich,
+      );
+    }
   });
 });

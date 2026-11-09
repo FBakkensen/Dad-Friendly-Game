@@ -46,7 +46,8 @@ import { createSaveConflictPanel } from "./save-conflict-panel";
 import { createSavedCopiesPanel } from "./saved-copies-panel";
 import { createLegacyPanel, legacyWords } from "./legacy-panel";
 import { legacyBonus } from "./legacy";
-import { buyWithTeach, createCrewPanel } from "./crew-panel";
+import { createCrewPanel } from "./crew-panel";
+import { buyWithTeach } from "./economy/actions";
 import { createEngineersPanel } from "./engineers-panel";
 import { createUpgradesPanel } from "./upgrades-panel";
 import {
