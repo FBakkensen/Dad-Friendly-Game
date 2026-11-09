@@ -182,5 +182,5 @@ export function buyOnTap(
     }
     buy(press, event);
   });
-  return { forget: tracker.forget };
+  return tracker;
 }
