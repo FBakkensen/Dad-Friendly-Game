@@ -240,7 +240,9 @@ page is the map, plus the rules that keep it that way.
     rows, and the blink on a part it holds but no longer sells. A drawer
     whose rows show or hide in place (Upgrades) lists every row, hidden ones
     too. A save loading again keeps an open drawer's freeze but forgets the
-    latest layouts, so a drawer opened then freezes the new save's;
+    latest layouts, so a drawer opened then freezes the first layout it is
+    given: Buys gives the new save's as it lands, and Upgrades, which keeps
+    its order through a reload, gives that order as it opens;
   - the 1.6s thanks after a fix;
   - the overlay stack: a drawer stands alone, and the save drawer and a
     note go on top.

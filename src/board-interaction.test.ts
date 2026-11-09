@@ -537,6 +537,30 @@ describe("the freeze", () => {
     expect(decide(state, finger("buys", "drill", 1000))).toBe("act");
   });
 
+  it("keeps the order a drawer gives as it opens while the save loads again", () => {
+    // Upgrades keeps its order through a reload: it gives that order as it opens.
+    const kept: Layout = {
+      parts: ["boost:sharper", "upgrade:tap"],
+      chipRows: 0,
+    };
+    const landed: Layout = {
+      parts: ["upgrade:tap", "boost:sharper"],
+      chipRows: 0,
+    };
+    const state = after(
+      laid(kept, "upgrades"),
+      { kind: "unloaded" },
+      open("upgrades"),
+      laid(kept, "upgrades"),
+      laid(landed, "upgrades"),
+    );
+    expect(shown(state, "upgrades")).toBe(kept);
+    // Before any layout, a drawer has no entry: the painter leaves it as it is.
+    expect(
+      shown(after({ kind: "unloaded" }, open("upgrades")), "upgrades"),
+    ).toBe(undefined);
+  });
+
   it("holds the places of parts listed but hidden, so only a part the drawer drops blinks", () => {
     // Upgrades lists every row it can show, hidden ones too: their places hold, and
     // showing or hiding one in place is the painter's.

@@ -130,7 +130,12 @@ export interface BoardView {
   readonly blinking: ReadonlyMap<string, "red" | "off">;
   /** Thanks hosts: a drawer's id for its kick line, or a board control's key (a bay). */
   readonly thanks: ReadonlySet<string>;
-  /** What each drawer shows: frozen while it is open, the latest while it is shut. */
+  /**
+   * What each drawer shows: frozen while it is open, the latest while it is shut. A drawer
+   * with no entry (opened while the save loads, before any layout) is left as it is. A drawer
+   * that keeps its order while loading (Upgrades) gives that order as a layout as it opens,
+   * and the model freezes it; one that lays out as the save lands (Buys) gives nothing yet.
+   */
   readonly layouts: ReadonlyMap<DrawerId, Layout>;
 }
 
