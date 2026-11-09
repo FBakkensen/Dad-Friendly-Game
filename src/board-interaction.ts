@@ -252,7 +252,7 @@ export function controlKey(control: ControlRef): string {
   return `${control.layer}/${control.id}`;
 }
 
-/** The stack once `overlay` opens: a drawer stands alone, a note replaces a note on top. */
+/** The stack once `overlay` opens: a drawer stands alone; the save drawer and a note go on top. */
 function stackWith(
   stack: readonly Opened[],
   overlay: OverlayId,
@@ -262,11 +262,7 @@ function stackWith(
   if (isDrawer(overlay)) {
     return [opened];
   }
-  const below =
-    overlay === "note" && stack.at(-1)?.overlay === "note"
-      ? stack.slice(0, -1)
-      : stack;
-  return [...below, opened];
+  return [...stack, opened];
 }
 
 function opened(state: BoardState, overlay: OverlayId, at: number): BoardState {
@@ -454,11 +450,9 @@ export function press(
   };
 }
 
-/** The frame a blink from `start` shows at `at`, if it still runs. */
+/** The frame a blink from `start` shows at `at`: none before it starts or after it ends. */
 function blinkFrame(start: number, at: number): "red" | "off" | undefined {
-  return at < start
-    ? undefined
-    : BLINK[Math.floor((at - start) / BLINK_STEP_MS)];
+  return BLINK[Math.floor((at - start) / BLINK_STEP_MS)];
 }
 
 export function boardView(state: BoardState, at: number): BoardView {

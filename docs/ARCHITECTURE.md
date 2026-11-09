@@ -226,6 +226,30 @@ page is the map, plus the rules that keep it that way.
   restored copy, Start over or Pass the mine never comes through it, so
   `renderStock` only sets the drums and the dial.
 
+- **Board tap rules (#410):** `board-interaction` is a pure reducer that holds
+  the board's tap rules once:
+  - the 400ms settle after an overlay opens or turns a page, and after a
+    finger's close, for what that close shows again (named fix 1);
+  - the 1.9s Done hold, judged by when the finger came down (named fix 2);
+  - the red, off, red, off blink on a tap that cannot act;
+  - the freeze of an open drawer's layout, its parts in order and its chip
+    rows, and the blink on a part it holds but no longer sells;
+  - the 1.6s thanks after a fix;
+  - the overlay stack: a drawer stands alone, and the save drawer and a
+    note go on top.
+
+  Inputs carry their own times (`pressedAt` for when the finger came down,
+  `at` for when the handler ran), and `boardView(state, at)` derives what is
+  open, held, blinking, thanked and frozen. `nextWake` gives the one time to
+  read it again, so no timer lives in the rules. The timing values
+  (`DRAWER_SETTLE_MS`, `READY_HOLD_MS`, `BLINK_STEP_MS`, `THANKS_MS`,
+  `PRESS_AGE_LIMIT_MS`) live here, and the board parts import them. The
+  module is wired to nothing else until I2 (#411) moves the drawers, rows,
+  keys, plate and bays onto it and deletes their hand-rolled copies. A
+  seeded random-sequence test (`board-interaction.random.test.ts`) holds its
+  invariants: no act inside a settle or a hold, and no open drawer's rows
+  move. It has a 100% coverage floor.
+
 - **Panel contract:** a panel gets `dispatch` (its only way to change the
   game), `getView`, `now` and a `requestRender` callback, and `progress` only
   where it still reads the store or presses trouble; it never reads another panel's elements, and it

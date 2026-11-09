@@ -344,6 +344,10 @@ describe("the blink", () => {
     expect(frame(state, 150)).toBeUndefined();
   });
 
+  it("shows no frame when read before the blink began", () => {
+    expect(frame(after(refused(500)), 400)).toBeUndefined();
+  });
+
   it("blinks again once a blink has ended", () => {
     expect(frame(after(refused(0), refused(600)), 600)).toBe("red");
   });
