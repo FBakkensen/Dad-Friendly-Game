@@ -5,7 +5,9 @@ import {
   SAVE_KEY,
   chromePath,
   clockPatches,
+  holdThrough,
   openPair,
+  press,
   seedScript,
   startServer,
   stepTapClock,
@@ -172,5 +174,80 @@ describe("held tap clock and the pair", () => {
     expect(calls).toEqual(["first http://x.test/", "second http://x.test/"]);
     await pair.close();
     expect(context.close).toHaveBeenCalled();
+  });
+});
+
+describe("press and holdThrough", () => {
+  const fakePage = (held: boolean) => {
+    const calls: string[] = [];
+    const page = {
+      click: vi.fn((selector: string) => {
+        calls.push(`click ${selector}`);
+        return Promise.resolve();
+      }),
+      tap: vi.fn((selector: string) => {
+        calls.push(`tap ${selector}`);
+        return Promise.resolve();
+      }),
+      $eval: vi.fn(() => Promise.resolve({ x: 10, y: 20 })),
+      waitForFunction: vi.fn(
+        (_done: unknown, options: { timeout: number }, selector: string) => {
+          calls.push(`wait ${selector} ${String(options.timeout)}`);
+          return held ? Promise.resolve() : Promise.reject(new Error("t/o"));
+        },
+      ),
+      mouse: {
+        move: vi.fn((x: number, y: number) => {
+          calls.push(`move ${String(x)},${String(y)}`);
+          return Promise.resolve();
+        }),
+        down: vi.fn(() => {
+          calls.push("down");
+          return Promise.resolve();
+        }),
+        up: vi.fn(() => {
+          calls.push("up");
+          return Promise.resolve();
+        }),
+      },
+      touchscreen: {
+        touchStart: vi.fn((x: number, y: number) => {
+          calls.push(`touchStart ${String(x)},${String(y)}`);
+          return Promise.resolve();
+        }),
+        touchEnd: vi.fn(() => {
+          calls.push("touchEnd");
+          return Promise.resolve();
+        }),
+      },
+    };
+    return { page, calls };
+  };
+
+  it("press clicks on a desk and taps on the phone", async () => {
+    const desk = fakePage(true);
+    await press(desk.page as never, ".a", { desk: true });
+    expect(desk.calls).toEqual(["click .a"]);
+    const phone = fakePage(true);
+    await press(phone.page as never, ".a", { desk: false });
+    expect(phone.calls).toEqual(["tap .a"]);
+  });
+
+  it("holdThrough holds the mouse on a desk until done, then lifts", async () => {
+    const { page, calls } = fakePage(true);
+    const held = await holdThrough(page as never, ".k", () => true, {
+      desk: true,
+    });
+    expect(held).toBe(true);
+    expect(calls).toEqual(["move 10,20", "down", "wait .k 3000", "up"]);
+  });
+
+  it("holdThrough holds a finger on the phone, and lifts after a timeout", async () => {
+    const { page, calls } = fakePage(false);
+    const held = await holdThrough(page as never, ".k", () => true, {
+      desk: false,
+    });
+    expect(held).toBe(false);
+    expect(calls).toEqual(["touchStart 10,20", "wait .k 3000", "touchEnd"]);
   });
 });

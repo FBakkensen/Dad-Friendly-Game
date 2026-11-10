@@ -1,4 +1,4 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement, HTMLElement, HTMLImageElement, Image, requestAnimationFrame */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, localStorage, getComputedStyle, setTimeout, HTMLButtonElement, HTMLElement, HTMLImageElement, Image, requestAnimationFrame */
 /**
  * Real-browser layout guard (jsdom can't see CSS). Run it with:
  *   npm run visual   (starts its own dev server; part of npm run check)
@@ -6,11 +6,18 @@
  * overlay isn't laid over the board, or if the board's own parts miss their
  * bars (targets, type, contrast, exact 2x art) (#370).
  */
-import { existsSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { performance } from "node:perf_hooks";
-import puppeteer from "puppeteer-core";
-import { createServer } from "vite";
+import {
+  holdThrough as holdThroughOn,
+  launchChrome,
+  open as openHarness,
+  openPair,
+  press as pressOn,
+  startServer,
+  stepTapClock,
+} from "../tools/browser/harness.ts";
 import {
   contrastRatio,
   targetsCloserThan,
@@ -40,23 +47,8 @@ import {
 } from "./fixtures.mjs";
 
 // Serves the app itself unless VISUAL_URL points at a running one.
-const server =
-  process.env.VISUAL_URL === undefined
-    ? await createServer({
-        server: { host: "127.0.0.1", port: 4174, strictPort: false },
-        logLevel: "error",
-      }).then((dev) => dev.listen())
-    : undefined;
-const BASE =
-  process.env.VISUAL_URL ??
-  server?.resolvedUrls?.local[0] ??
-  "http://127.0.0.1:4174/";
-const CHROME =
-  process.env.CHROME_PATH ??
-  ["/usr/bin/google-chrome", "/usr/local/bin/google-chrome"].find((path) =>
-    existsSync(path),
-  ) ??
-  "/usr/bin/google-chrome";
+const server = await startServer({ port: 4174, url: process.env.VISUAL_URL });
+const BASE = server.base;
 /** The phone: the installed app on the OnePlus 15, the board at scale 1 (#370). */
 const PHONE = [424, 924];
 /** The PC sizes: the same board, scaled to fit on the desk. */
@@ -108,21 +100,14 @@ const section = (label, run) => {
   }
 };
 
-const browser = await puppeteer.launch({
-  executablePath: CHROME,
-  args: ["--no-sandbox"],
-});
+const browser = await launchChrome();
 
 /** Pages opened at a PC size: they take clicks, the phone takes taps. */
 const desks = new WeakMap();
 
 /** A tap on the phone, a click on a PC. */
 async function press(page, selector) {
-  if (desks.get(page) === true) {
-    await page.click(selector);
-  } else {
-    await page.tap(selector);
-  }
+  await pressOn(page, selector, { desk: desks.get(page) === true });
 }
 
 /** A key on the rail (#373): buys, workshop, engineers, upgrades or ledger. */
@@ -412,18 +397,8 @@ async function boardProbe(page) {
   });
 }
 
-/** Where a held tap clock starts: far past any event's stamp, which counts from the page's load. */
-const HELD_TAP_START = 1_000_000_000;
-
 /** A step of a held tap clock past a drawer's 400ms settle (board-interaction's DRAWER_SETTLE_MS). */
 const PAST_SETTLE_MS = 500;
-
-/** Moves a held tap clock on by `ms`, as if that long had passed for the board's model. */
-async function stepTapClock(page, ms) {
-  await page.evaluate((by) => {
-    globalThis.__tapNow += by;
-  }, ms);
-}
 
 async function open(
   [width, height],
@@ -436,68 +411,41 @@ async function open(
     tapClock = "real",
   } = {},
 ) {
-  const context = await browser.createBrowserContext();
-  const page = await context.newPage();
-  if (standalone) {
-    const cdp = await page.createCDPSession();
-    await cdp.send("Emulation.setSafeAreaInsetsOverride", {
-      insets: STANDALONE_INSETS,
-    });
-    await cdp
-      .send("Emulation.setEmulatedMedia", {
-        features: [{ name: "display-mode", value: "standalone" }],
-      })
-      .catch(() => undefined);
-  }
-  page.on("pageerror", (error) => {
-    failures.push(
-      `page error at ${String(width)}x${String(height)}: ${String(error)}`,
-    );
-  });
   const desk = isDesk([width, height]);
-  desks.set(page, desk);
-  await page.setViewport({ width, height, isMobile: !desk, hasTouch: !desk });
-  // A clock the check can push forward, for veins and other timed things.
-  await page.evaluateOnNewDocument(() => {
-    const realNow = Date.now.bind(Date);
-    globalThis.__skewMs = 0;
-    Date.now = () => realNow() + globalThis.__skewMs;
-  });
-  if (stopClock) {
-    // A crew of thousands digs millions a second. With the clock stopped it
-    // cannot reach a relic mid-check, so no reveal lands on a tap.
-    await page.evaluateOnNewDocument(() => {
-      const stopped = Date.now();
-      Date.now = () => stopped;
-    });
-  }
-  if (tapClock === "held") {
-    // The board's tap clock stands still until the check steps it (stepTapClock), so the
-    // drawer's settle and the Done hold end when the check says, never by load. It starts far
-    // past any event's stamp: every press is too old to trust and is judged when it is handled.
-    await page.evaluateOnNewDocument((start) => {
-      globalThis.__tapNow = start;
-      globalThis.performance.now = () => globalThis.__tapNow;
-    }, HELD_TAP_START);
-  }
-  await boardProbe(page);
-  await page.evaluateOnNewDocument(
-    (key, value) => {
-      if (sessionStorage.getItem("visual-seeded") === null) {
-        sessionStorage.setItem("visual-seeded", "1");
-        localStorage.setItem(key, value);
+  const { page, close } = await openHarness(browser, BASE, {
+    viewport: { width, height, isMobile: !desk, hasTouch: !desk },
+    seed: { kind: "once", guard: "visual-seeded", json: seedJson(save) },
+    // A clock the check can push forward, for veins and other timed things; stopped, a crew of
+    // thousands cannot reach a relic mid-check. A held tap clock moves only by stepTapClock.
+    clock: { date: stopClock ? "stopped" : "skewable", tap: tapClock },
+    search,
+    onPageError: (error) => {
+      failures.push(
+        `page error at ${String(width)}x${String(height)}: ${String(error)}`,
+      );
+    },
+    beforeLoad: async (page) => {
+      if (standalone) {
+        const cdp = await page.createCDPSession();
+        await cdp.send("Emulation.setSafeAreaInsetsOverride", {
+          insets: STANDALONE_INSETS,
+        });
+        await cdp
+          .send("Emulation.setEmulatedMedia", {
+            features: [{ name: "display-mode", value: "standalone" }],
+          })
+          .catch(() => undefined);
+      }
+      await boardProbe(page);
+      if (reducedMotion) {
+        await page.emulateMediaFeatures([
+          { name: "prefers-reduced-motion", value: "reduce" },
+        ]);
       }
     },
-    SAVE_KEY,
-    seedJson(save),
-  );
-  if (reducedMotion) {
-    await page.emulateMediaFeatures([
-      { name: "prefers-reduced-motion", value: "reduce" },
-    ]);
-  }
-  await page.goto(new URL(search, BASE).href, { waitUntil: "networkidle0" });
-  return { page, close: () => context.close() };
+  });
+  desks.set(page, desk);
+  return { page, close };
 }
 
 /**
@@ -2705,19 +2653,19 @@ for (const viewport of NOTICE_SIZES) {
 // One writer tab. The other shows a card and does not scroll in Chrome on the phone.
 section("section 17 (line 2085)", async () => {
   {
-    const context = await browser.createBrowserContext();
     const [width, height] = PHONE;
-    const first = await context.newPage();
-    const second = await context.newPage();
-    for (const page of [first, second]) {
-      await boardProbe(page);
-      page.on("pageerror", (error) => {
+    const {
+      pages: [first, second],
+      close,
+    } = await openPair(browser, BASE, {
+      viewport: { width, height, isMobile: true, hasTouch: true },
+      seed: { kind: "none" },
+      clock: { date: "real", tap: "real" },
+      onPageError: (error) => {
         failures.push(`other tab: ${String(error)}`);
-      });
-      await page.setViewport({ width, height, isMobile: true, hasTouch: true });
-    }
-    await first.goto(BASE, { waitUntil: "networkidle0" });
-    await second.goto(BASE, { waitUntil: "networkidle0" });
+      },
+      beforeLoad: boardProbe,
+    });
     await second.waitForSelector(".other-tab:not([hidden])", {
       timeout: 5_000,
     });
@@ -2771,7 +2719,7 @@ section("section 17 (line 2085)", async () => {
     );
     await shot(first, "other-tab-stepped-aside-424x924");
     await shot(second, "other-tab-playing-here-424x924");
-    await context.close();
+    await close();
   }
 });
 
@@ -5157,29 +5105,9 @@ async function storedMountain(page) {
  * holds in the page. True when it held before the timeout.
  */
 async function holdThrough(page, selector, done) {
-  const at = await page.$eval(selector, (el) => {
-    const b = el.getBoundingClientRect();
-    return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+  return holdThroughOn(page, selector, done, {
+    desk: desks.get(page) === true,
   });
-  const desk = desks.get(page) === true;
-  if (desk) {
-    await page.mouse.move(at.x, at.y);
-    await page.mouse.down();
-  } else {
-    await page.touchscreen.touchStart(at.x, at.y);
-  }
-  const held = await page
-    .waitForFunction(done, { timeout: 3_000 }, selector)
-    .then(
-      () => true,
-      () => false,
-    );
-  if (desk) {
-    await page.mouse.up();
-  } else {
-    await page.touchscreen.touchEnd();
-  }
-  return held;
 }
 
 /** Waits for the page to paint `count` more frames: what a press set off has painted. */
@@ -7192,7 +7120,7 @@ if (only !== undefined && sections.length === 0) {
     `VISUAL_ONLY=${String(process.env.VISUAL_ONLY)} matches no section; nothing was checked.`,
   );
   await browser.close();
-  await server?.close();
+  await server.close();
   process.exit(1);
 }
 const jobs = Math.max(
@@ -7223,7 +7151,7 @@ if (process.env.VISUAL_TIMINGS) {
 }
 
 await browser.close();
-await server?.close();
+await server.close();
 if (failures.length > 0) {
   console.error(
     `\n${String(failures.length)} visual check(s) failed:\n- ${failures.join("\n- ")}`,
