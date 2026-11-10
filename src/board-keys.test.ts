@@ -303,4 +303,15 @@ describe("the key rail (#373)", () => {
       expect(onKey).not.toHaveBeenCalled();
     });
   });
+
+  it("locked reads the last painted lock: held until ready, then from the view", () => {
+    const r = rail();
+    expect(r.locked("workshop")).toBe(true);
+    expect(r.locked("buys")).toBe(false);
+    r.render(views({ engineers: LOCKED_ENGINEERS }));
+    expect(r.locked("workshop")).toBe(false);
+    expect(r.locked("engineers")).toBe(true);
+    r.render(undefined);
+    expect(r.locked("workshop")).toBe(true);
+  });
 });

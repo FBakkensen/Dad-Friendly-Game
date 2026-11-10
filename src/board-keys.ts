@@ -25,6 +25,8 @@ export interface KeyRail {
   readonly keys: Readonly<Record<KeyId, HTMLButtonElement>>;
   /** Undefined until the save is in: rest caps, bright icons, nothing from the save. */
   render(views: Readonly<Record<KeyId, KeyView>> | undefined): void;
+  /** The lock last painted on a key: held until ready, then from its view. */
+  locked(id: KeyId): boolean;
 }
 
 const NAME: Readonly<Record<KeyId, string>> = {
@@ -171,7 +173,7 @@ export function createKeyRail({
       mark(key, "has-sub", words !== "");
       setAttr(key, "aria-label", view?.aria ?? NAME[id]);
     };
-    return [id, key, render] as const;
+    return [id, key, render, () => disabled] as const;
   });
 
   const keys = Object.fromEntries(
@@ -187,5 +189,6 @@ export function createKeyRail({
         render(views?.[id]);
       }
     },
+    locked: (id) => built.find(([builtId]) => builtId === id)?.[3]() ?? false,
   };
 }

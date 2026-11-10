@@ -1,4 +1,4 @@
-import { showCard } from "./card-state";
+import { cardUp, showCard } from "./card-state";
 import { shownStones, stonesLeft } from "./scale";
 import pickUrl from "./assets/pick.png";
 import { noteFor } from "./teach";
@@ -46,6 +46,7 @@ import { legacyBonus } from "./legacy";
 import { createCrewPanel } from "./crew-panel";
 import { createEngineersPanel } from "./engineers-panel";
 import { createUpgradesPanel } from "./upgrades-panel";
+import { workshopUnlocked } from "./workshop";
 import { createWorkshopPanel } from "./workshop-panel";
 import {
   OTHER_TAB_BODY,
@@ -501,7 +502,7 @@ export function mountMountainScreen({
     }
     digButton.set(
       tapYield,
-      !mine.dig.disabled,
+      view.playing,
       `Dig: tap to mine ${tapWords(tapYield)}`,
     );
   };
@@ -527,7 +528,10 @@ export function mountMountainScreen({
 
   // The board (#370): the note, the relic plate, the odometer, the boost dial
   // and the save line. The note is placed in board coordinates inside root.
-  const boardNote = createBoardNote(root, signal);
+  const boardNote = createBoardNote(root, signal, (body) => {
+    // Back to the park whenever another note has taken its place.
+    if (body === running || body === veinNote) runningPark.append(body);
+  });
   /** The vein's payout or the quiet away line, in the board note under the window. */
   const showVeinNote = (words: string, ms: number): void => {
     veinNote.textContent = words;
@@ -581,7 +585,7 @@ export function mountMountainScreen({
     onOpen: closeMenu,
     // Back to the door it opened from; the Ledger key while a re-load holds the Workshop's.
     onClose: () => {
-      (workshopDoor.disabled ? rail.keys.ledger : workshopDoor).focus();
+      (rail.locked(doorKey) ? rail.keys.ledger : workshopDoor).focus();
     },
     requestRender: () => {
       render();
@@ -758,7 +762,7 @@ export function mountMountainScreen({
     setAttr(
       rail.keys.workshop,
       "aria-expanded",
-      workshop.sheet.hidden ? "false" : "true",
+      cardUp(workshop.sheet) ? "true" : "false",
     );
     renderTeach();
     const at = now();
@@ -772,13 +776,6 @@ export function mountMountainScreen({
     effectRow.hidden = !anyRunning;
     runningNone.hidden = anyRunning;
     runningNone.textContent = anyRunning ? "" : "Nothing running";
-    if (running.parentNode === null) {
-      runningPark.append(running);
-    }
-    // Back to the park whenever another note has taken its place.
-    if (veinNote.parentNode === null) {
-      runningPark.append(veinNote);
-    }
     relicPlate.render();
     renderStock();
     savedCopies.render();
@@ -830,7 +827,7 @@ export function mountMountainScreen({
       teachShown = undefined;
       sign.hide();
     }
-    if (boardNote.note.classList.contains("on")) {
+    if (boardNote.isOn()) {
       boardNote.hide();
     }
   };
@@ -869,9 +866,7 @@ export function mountMountainScreen({
     }
     // Another note, or a sheet over the board, holds it back until a later
     // render or tick: the sign would stand under the sheet.
-    const busy =
-      boardNote.note.classList.contains("on") ||
-      root.querySelector(OPEN_SHEET) !== null;
+    const busy = boardNote.isOn() || root.querySelector(OPEN_SHEET) !== null;
     if (noteId === teachShown || busy) {
       return;
     }
@@ -992,15 +987,18 @@ export function mountMountainScreen({
     },
   });
 
-  const openWorkshop = workshop.menuEntry.querySelector(".workshop-open");
+  const openWorkshop = workshop.openButton;
+  /** The id of the key `workshopDoor` is, so the rail can say whether it is locked. */
+  let doorKey: KeyId = "workshop";
   /** The key the Workshop sheet opened from: its own, or the Ledger key that opened the menu. */
   let workshopDoor: HTMLButtonElement = rail.keys.workshop;
   let openingFromKey = false;
   // Opening the sheet by any door counts as seen: the sign goes, the dot stays.
   const openWorkshopSheet = (): void => {
-    if (openWorkshop instanceof HTMLButtonElement && !openWorkshop.hidden) {
+    if (view.ready && workshopUnlocked(view.mountain)) {
       dispatch({ kind: "markSeen", id: "workshop" });
       workshopDoor = rail.keys.workshop;
+      doorKey = "workshop";
       openingFromKey = true;
       try {
         openWorkshop.click();
@@ -1010,10 +1008,11 @@ export function mountMountainScreen({
     }
   };
   // The menu's own Workshop row also puts the board's popups away.
-  openWorkshop?.addEventListener("click", () => {
+  openWorkshop.addEventListener("click", () => {
     closeBoardPopups();
     if (!openingFromKey) {
       workshopDoor = rail.keys.ledger;
+      doorKey = "ledger";
     }
   });
 

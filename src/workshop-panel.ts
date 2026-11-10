@@ -144,6 +144,14 @@ function materialIcon(id: MaterialId, stoneUrl: string): HTMLImageElement {
   return icon;
 }
 
+interface WorkshopPanel {
+  menuEntry: HTMLElement;
+  /** The menu's Workshop row: the one door the screen opens the sheet through. */
+  openButton: HTMLButtonElement;
+  sheet: HTMLDivElement;
+  render: () => void;
+}
+
 export function createWorkshopPanel({
   dispatch,
   getView,
@@ -164,7 +172,7 @@ export function createWorkshopPanel({
   /** Focus returns to the menu button. */
   onClose: () => void;
   requestRender: () => void;
-}): { menuEntry: HTMLElement; sheet: HTMLDivElement; render: () => void } {
+}): WorkshopPanel {
   let open = false;
   let page = 0;
   /** Cards a page: four, or three once four overflow this screen (#347). */
@@ -692,5 +700,5 @@ export function createWorkshopPanel({
     }
   };
 
-  return { menuEntry, sheet, render };
+  return { menuEntry, openButton, sheet, render };
 }

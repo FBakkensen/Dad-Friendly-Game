@@ -34,6 +34,8 @@ export interface BoardNote {
   readonly hide: () => void;
   /** Hides the note only while it still shows `body`: another note may have taken its place. */
   readonly hideIf: (body: Node) => void;
+  /** Whether the note is up: set by `show`, cleared by `hide`. */
+  readonly isOn: () => boolean;
 }
 
 const snap = (v: number): number => Math.round(v / STEP) * STEP;
@@ -42,6 +44,8 @@ const snap = (v: number): number => Math.round(v / STEP) * STEP;
 export function createBoardNote(
   stage: HTMLElement,
   signal?: AbortSignal,
+  /** Heard when `show` replaces a body with a different one; `hide` keeps its body. */
+  onDrop?: (body: Node) => void,
 ): BoardNote {
   const note = document.createElement("div");
   note.className = "board-note";
@@ -54,9 +58,12 @@ export function createBoardNote(
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   let anchorEl: HTMLElement | null = null;
+  let on = false;
+  let shown: Node | undefined;
 
   const hide = (): void => {
     clearTimeout(timer);
+    on = false;
     note.classList.remove("on");
   };
 
@@ -75,7 +82,7 @@ export function createBoardNote(
   document.addEventListener(
     "keydown",
     (e) => {
-      if (e.key !== "Escape" || !note.classList.contains("on")) return;
+      if (e.key !== "Escape" || !on) return;
       const hadFocus = note.contains(document.activeElement);
       hide();
       if (hadFocus) anchorEl?.focus();
@@ -89,11 +96,15 @@ export function createBoardNote(
     { ms, key, focus = false }: NoteOptions = {},
   ): void => {
     anchorEl = anchor;
+    const old = shown;
+    shown = body;
     content.replaceChildren(body);
+    if (old !== undefined && old !== body) onDrop?.(old);
     // Using the key puts the note away; the key's own handler runs first.
     key?.addEventListener("click", hide);
     note.style.left = "0px";
     note.style.top = "0px";
+    on = true;
     note.classList.add("on");
     const sr = stage.getBoundingClientRect();
     const r = anchor.getBoundingClientRect();
@@ -123,5 +134,5 @@ export function createBoardNote(
     if (body.parentNode === content) hide();
   };
 
-  return { note, show, hide, hideIf };
+  return { note, show, hide, hideIf, isOn: () => on };
 }

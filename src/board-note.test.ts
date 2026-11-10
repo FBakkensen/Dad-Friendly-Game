@@ -188,4 +188,59 @@ describe("createBoardNote", () => {
     );
     expect(note.classList.contains("on")).toBe(false);
   });
+
+  it("isOn follows show, hide, the timer and Escape", () => {
+    const { anchor, show, hide, isOn } = setup();
+    expect(isOn()).toBe(false);
+    show(anchor, text("a"), { ms: 1000 });
+    expect(isOn()).toBe(true);
+    hide();
+    expect(isOn()).toBe(false);
+    show(anchor, text("a"), { ms: 1000 });
+    vi.advanceTimersByTime(1000);
+    expect(isOn()).toBe(false);
+    show(anchor, text("a"));
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    expect(isOn()).toBe(false);
+  });
+
+  describe("onDrop", () => {
+    const withDrop = () => {
+      const stage = document.createElement("div");
+      const anchor = document.createElement("button");
+      stage.append(anchor);
+      document.body.append(stage);
+      const onDrop = vi.fn();
+      return {
+        anchor,
+        onDrop,
+        ...createBoardNote(stage, undefined, onDrop),
+      };
+    };
+
+    it("showing another body hands the old one to onDrop", () => {
+      const { anchor, show, onDrop } = withDrop();
+      const one = text("one");
+      show(anchor, one);
+      show(anchor, text("two"));
+      expect(onDrop).toHaveBeenCalledExactlyOnceWith(one);
+    });
+
+    it("showing the same body again does not drop it", () => {
+      const { anchor, show, onDrop } = withDrop();
+      const one = text("one");
+      show(anchor, one);
+      show(anchor, one);
+      expect(onDrop).not.toHaveBeenCalled();
+    });
+
+    it("hide drops nothing", () => {
+      const { anchor, show, hide, onDrop } = withDrop();
+      show(anchor, text("one"));
+      hide();
+      expect(onDrop).not.toHaveBeenCalled();
+    });
+  });
 });
