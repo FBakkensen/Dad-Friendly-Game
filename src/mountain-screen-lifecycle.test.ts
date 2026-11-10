@@ -9,7 +9,11 @@ import { mountScreen, signedIn, stopScreens } from "./mountain-screen.harness";
  * when its signal aborts, or every screen a test file mounts stays in memory to the end.
  */
 
-afterEach(stopScreens);
+// Stop the screen, then put back every store spy so nothing holds the screen past its test.
+afterEach(async () => {
+  await stopScreens();
+  vi.restoreAllMocks();
+});
 
 /** A listener the screen added to the document or window, and how often it has run. */
 interface Heard {

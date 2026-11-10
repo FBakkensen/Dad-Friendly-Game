@@ -58,7 +58,11 @@ vi.mock("./mine-window", async (importOriginal) => {
 beforeEach(() => {
   setReducedMotion(true);
 });
-afterEach(stopScreens);
+// Stop the screen, then put back every store spy so nothing holds the screen past its test.
+afterEach(async () => {
+  await stopScreens();
+  vi.restoreAllMocks();
+});
 
 /**
  * A fake frame clock for the board loop: frames asked for wait until `next`
@@ -2167,23 +2171,18 @@ describe("the control board (#370)", () => {
   });
 
   it("the update prompt puts the board note and the New sign away at once", () => {
-    vi.useFakeTimers();
-    try {
-      const screen = mountScreen({ storage: seeded(firstEngineer()) });
-      document.body.append(screen.root);
-      expect(signOf(screen)).toBe(engineersNote("Ada"));
-      screen.dig.dispatchEvent(
-        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
-      );
-      screen.root.querySelector<HTMLButtonElement>(".board-dial")?.click();
-      expect(screen.root.querySelector(".board-note.on")).not.toBeNull();
-      showAppUpdate(screen.root);
-      expect(screen.root.querySelector(".board-note.on")).toBeNull();
-      expect(signOf(screen)).toBeUndefined();
-      screen.root.remove();
-    } finally {
-      vi.useRealTimers();
-    }
+    const screen = mountScreen({ storage: seeded(firstEngineer()) });
+    document.body.append(screen.root);
+    expect(signOf(screen)).toBe(engineersNote("Ada"));
+    screen.dig.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+    );
+    screen.root.querySelector<HTMLButtonElement>(".board-dial")?.click();
+    expect(screen.root.querySelector(".board-note.on")).not.toBeNull();
+    showAppUpdate(screen.root);
+    expect(screen.root.querySelector(".board-note.on")).toBeNull();
+    expect(signOf(screen)).toBeUndefined();
+    screen.root.remove();
   });
 
   it("a card that opens by itself puts any board note and the New sign away; the sign comes back once", () => {
