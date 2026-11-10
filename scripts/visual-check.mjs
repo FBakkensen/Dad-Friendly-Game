@@ -3895,10 +3895,13 @@ async function boardArtAt2x(page, partsOf = BOARD_PARTS, artOf = BOARD_ART) {
       // its art has loaded (src/board-skin.ts), before either is measured.
       // The window keeps running while this waits, so the tub can swap to
       // its other picture inside the wait (#445): every frame decodes again
-      // any img that is not loaded, and the measure below runs in the same
-      // task as the last check, with no frame between.
+      // any img that is not loaded. The imgs and skins are then measured in
+      // the same task as the last check, before the sprites' await, so no
+      // frame can swap a picture in between. An img that never loads still
+      // fails, after the 60 frames.
+      const artParts = parts.filter((part) => part.matches(artOf));
       const images = () =>
-        parts.flatMap((part) => [...part.querySelectorAll("img")]);
+        artParts.flatMap((part) => [...part.querySelectorAll("img")]);
       // Only drawn art is measured, so only drawn art is waited for.
       const loading = () =>
         images().filter(
@@ -3929,6 +3932,7 @@ async function boardArtAt2x(page, partsOf = BOARD_PARTS, artOf = BOARD_ART) {
           ...loading().map((img) => img.decode().catch(() => undefined)),
         ]);
       }
+      // Every img and skin first, with no await: nothing moves while they are read.
       for (const part of parts) {
         const imgs = part.matches(artOf)
           ? [...part.querySelectorAll("img")].filter(drawn)
@@ -3945,6 +3949,22 @@ async function boardArtAt2x(page, partsOf = BOARD_PARTS, artOf = BOARD_ART) {
             );
           }
         }
+        for (const canvas of part.querySelectorAll("canvas.board-skin")) {
+          if (!drawn(canvas.parentElement)) {
+            continue;
+          }
+          count += 1;
+          const width = Number.parseFloat(canvas.style.width);
+          const height = Number.parseFloat(canvas.style.height);
+          if (width !== 2 * canvas.width || height !== 2 * canvas.height) {
+            misses.push(
+              `skin of ${canvas.parentElement.className} ${canvas.style.width}x${canvas.style.height} of ${String(canvas.width)}x${String(canvas.height)}`,
+            );
+          }
+        }
+      }
+      // Then the sprites, whose art sizes load one at a time.
+      for (const part of parts) {
         const sprites = part.matches(artOf)
           ? [part, ...part.querySelectorAll("*")].filter(
               (el) =>
@@ -3962,19 +3982,6 @@ async function boardArtAt2x(page, partsOf = BOARD_PARTS, artOf = BOARD_ART) {
           if (width === 0 || size[0] !== 2 * width || size[1] !== 2 * height) {
             misses.push(
               `sprite ${sprite.className} ${style.backgroundSize} of ${String(width)}x${String(height)}`,
-            );
-          }
-        }
-        for (const canvas of part.querySelectorAll("canvas.board-skin")) {
-          if (!drawn(canvas.parentElement)) {
-            continue;
-          }
-          count += 1;
-          const width = Number.parseFloat(canvas.style.width);
-          const height = Number.parseFloat(canvas.style.height);
-          if (width !== 2 * canvas.width || height !== 2 * canvas.height) {
-            misses.push(
-              `skin of ${canvas.parentElement.className} ${canvas.style.width}x${canvas.style.height} of ${String(canvas.width)}x${String(canvas.height)}`,
             );
           }
         }
