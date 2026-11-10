@@ -242,8 +242,8 @@ function loadImage(src: SkinSource): Promise<HTMLImageElement | null> {
 /**
  * Puts one canvas.board-skin behind the host's content, painted at floor(host size / 2)
  * art px and shown at 2x. `pressed` swaps the kind while its `down()` is true; every paint, the
- * resize repaint too, asks it, and whoever changes it calls the returned repaint. Never throws: with no 2D context or no image the canvas
- * stays blank.
+ * resize repaint too, asks it, and whoever changes it calls the returned repaint. Never throws:
+ * with no 2D context or no image the canvas stays blank.
  */
 export function skin(
   host: HTMLElement,
