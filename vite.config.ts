@@ -225,6 +225,30 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/screen-context.ts": {
+          statements: 100,
+          branches: 91,
+          functions: 100,
+          lines: 100,
+        },
+        "src/screen-ledger.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/screen-prompts.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/screen-running.ts": {
+          statements: 100,
+          branches: 75,
+          functions: 100,
+          lines: 100,
+        },
         "src/card-state.ts": {
           statements: 100,
           branches: 100,

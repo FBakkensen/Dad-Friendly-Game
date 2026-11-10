@@ -1,19 +1,18 @@
-import { cardUp, showCard } from "./card-state";
-import { shownStones, stonesLeft } from "./scale";
-import pickUrl from "./assets/pick.png";
+import { cardUp } from "./card-state";
+import { createScreenCtx, type ScreenOptions } from "./screen-context";
+import { createLedger } from "./screen-ledger";
+import { createRunningNow } from "./screen-running";
+import { createOtherTab, createUpdatePrompt } from "./screen-prompts";
+import { stonesLeft } from "./scale";
 import { coverFor, wantedSign, type Cover } from "./screen-cover";
 import { drawerOpen } from "./board-interaction";
-import { createUnconfiguredAuth, type AuthController } from "./auth";
 import { formatCount } from "./format";
-import { MOUNTAIN_STONES, stonesPerSecond } from "./mountain";
-import { owned, tierById, type TierId } from "./tiers";
-import { hasRelic, relicGoal, type RelicId } from "./relics";
-import { BOOSTS } from "./boosts";
-import { anyChipActive, createEffectChip, writeChip } from "./effect-row";
-import { CRAFT_IDS, runningLabels } from "./screen-chips";
+import { stonesPerSecond } from "./mountain";
+import { owned, tierById } from "./tiers";
+import { hasRelic } from "./relics";
 import { createBoardNote } from "./board-note";
 import { DRAWER_SETTLE_MS, createSheetScrim } from "./board-drawer";
-import { createBoardHost, type BoardHost } from "./board-host";
+import { type BoardHost } from "./board-host";
 import { keyViews, type KeyId } from "./key-rail";
 import { createKeyRail } from "./board-keys";
 import { createBoardSign } from "./board-sign";
@@ -37,27 +36,17 @@ import { liveCrewBoost } from "./crew-boost";
 import { effectiveRates } from "./rates";
 import { createRelicPanels } from "./relic-panels";
 import { createArrivalPanel } from "./arrival-panel";
-import { nextLayer } from "./layers";
 import { createWelcomePanel } from "./welcome-panel";
 import { createMenuPanel } from "./menu-panel";
 import { createSaveConflictPanel } from "./save-conflict-panel";
 import { createSavedCopiesPanel } from "./saved-copies-panel";
-import { createLegacyPanel, legacyWords } from "./legacy-panel";
-import { legacyBonus } from "./legacy";
+import { createLegacyPanel } from "./legacy-panel";
 import { createCrewPanel } from "./crew-panel";
 import { createEngineersPanel } from "./engineers-panel";
 import { createUpgradesPanel } from "./upgrades-panel";
 import { workshopUnlocked } from "./workshop";
 import { createWorkshopPanel } from "./workshop-panel";
-import {
-  OTHER_TAB_BODY,
-  OTHER_TAB_PLAY,
-  OTHER_TAB_TITLE,
-  nextLayerHint,
-  tapWords,
-  quietAwayWords,
-} from "./screen-words";
-import { metMaterialChips } from "./workshop-sheet";
+import { tapWords, quietAwayWords } from "./screen-words";
 import {
   veinGapScale,
   advanceVein,
@@ -68,12 +57,9 @@ import {
   waitForVein,
   type VeinState,
 } from "./veins";
-import {
-  createProgressStore,
-  type Dispatch,
-  type ProgressSnapshot,
-  type ProgressStore,
-} from "./progress-store";
+import { type ProgressSnapshot, type ProgressStore } from "./progress-store";
+
+export { showAppUpdate } from "./screen-prompts";
 
 const MINED_OUT = "The mountain is mined out";
 
@@ -105,152 +91,44 @@ function nextView(
   return next;
 }
 
-/** The update prompt tells its screen it is up, so an open drawer closes at once. */
-const UPDATE_SHOWN = "update-shown";
-
-export function mountMountainScreen({
-  root,
-  lanternUrl,
-  mountainUrl,
-  stoneUrl,
-  veinUrl,
-  tierArt,
-  relicArt,
-  auth = createUnconfiguredAuth(),
-  progress: progressArg,
-  now = Date.now,
-  tapClock = () => performance.now(),
-  pressAge,
-  random = Math.random,
-  veinStorage,
-  signal,
-}: {
-  root: HTMLElement;
-  lanternUrl: string;
-  mountainUrl: string;
-  stoneUrl: string;
-  veinUrl: string;
-  tierArt: Readonly<Record<TierId, string>>;
-  relicArt: Readonly<Record<RelicId, string>>;
-  auth?: AuthController;
-  progress?: ProgressStore;
-  now?: () => number;
-  /**
-   * Milliseconds for timing taps against each other. Not `now`: that is the
-   * game's clock, which a gate run may stop.
-   */
-  tapClock?: () => number;
-  /** How long a press waited before its handler ran; a test on its own tap clock passes 0. */
-  pressAge?: (event: Event) => number;
-  random?: () => number;
-  /** Where the vein wait is carried between sessions; localStorage by default. */
-  veinStorage?: Pick<Storage, "getItem" | "setItem">;
-  /** Stops the screen's tick, page listeners and watches. The app never unmounts; tests do. */
-  signal?: AbortSignal;
-}): void {
-  const progress = progressArg ?? createProgressStore({ auth });
-  /**
-   * Every change the player makes (#409): a move that took stones rolls the odometer's spend
-   * and kicks the needle (made further down; no panel dispatches while it is built). A cloud
-   * copy, a restored copy, Start over or Pass the mine never comes here: no spend (#370).
-   */
-  const dispatch: Dispatch = (move) => {
-    const result = progress.dispatch(move);
-    if (result.kind === "applied" && result.spent >= 1) {
-      odometer.spend(result.spent);
+export function mountMountainScreen(options: ScreenOptions): void {
+  const { ctx, setView } = createScreenCtx(options, {
+    paint: () => {
+      paint();
+    },
+    spent: (stones) => {
+      odometer.spend(stones);
       gauge.kick(SPEND_KICK);
-    }
-    return result;
-  };
-  let view: ProgressSnapshot = progress.getSnapshot();
+    },
+  });
+  const {
+    root,
+    progress,
+    auth,
+    dispatch,
+    now,
+    random,
+    board,
+    signal,
+    listening,
+  } = ctx;
+  const { lanternUrl, mountainUrl, stoneUrl, veinUrl, tierArt, relicArt } =
+    ctx.art;
+  const { veinStorage } = ctx;
 
-  const lantern = document.createElement("img");
-  lantern.className = "lantern";
-  lantern.src = lanternUrl;
-  lantern.alt = "Lantern";
-  lantern.width = 32;
-  lantern.height = 32;
-  lantern.draggable = false;
-
-  const remaining = document.createElement("p");
-  remaining.className = "stones-left";
-  remaining.setAttribute("role", "status");
-
-  const goal = document.createElement("p");
-  goal.className = "goal";
-  const guide = document.createElement("div");
-  guide.className = "guide";
-  const guideBar = document.createElement("div");
-  guideBar.className = "guide-bar";
-  guideBar.setAttribute("role", "progressbar");
-  guideBar.setAttribute("aria-valuemin", "0");
-  guideBar.setAttribute("aria-valuemax", "100");
-  const guideFill = document.createElement("span");
-  guideBar.append(guideFill);
-  const layerHint = document.createElement("p");
-  layerHint.className = "layer-hint";
-  layerHint.hidden = true;
-  guide.append(goal, layerHint, guideBar);
-  const materialLine = document.createElement("p");
-  materialLine.className = "material-line";
-  const ledger = document.createElement("div");
-  ledger.className = "ledger";
-  ledger.append(lantern, remaining, materialLine, guide);
+  const ledger = createLedger(ctx);
+  const runningNow = createRunningNow(ctx);
+  const { veinNote, effectRow, chipFor } = runningNow;
 
   const gapForVeins = (): number =>
-    veinGapScale(view.mountain, hasRelic(view.mountain, "lantern"), now());
+    veinGapScale(
+      ctx.view().mountain,
+      hasRelic(ctx.view().mountain, "lantern"),
+      now(),
+    );
 
-  // The vein's note and the quiet away line show in the board note under the
-  // window (#371); between shows the note waits in the hidden park below. The
-  // board note's status announces them, so the words carry no live region of
-  // their own and are read once.
-  const veinNote = document.createElement("p");
-  veinNote.className = "vein-note";
-
-  // The countdowns running now, one per line: the body of the Running now
-  // note the boost dial opens (#370). The engineers' trips land here too.
-  const effectRow = document.createElement("div");
-  effectRow.className = "effect-row";
-  effectRow.setAttribute("aria-label", "Active effects");
-  effectRow.hidden = true;
-  const runningHead = document.createElement("span");
-  runningHead.className = "board-note-h";
-  runningHead.textContent = "Running now";
-  const runningNone = document.createElement("span");
-  runningNone.className = "board-running-none";
-  const running = document.createElement("div");
-  running.className = "board-running";
-  running.append(runningHead, effectRow, runningNone);
   // The New sign stands in the band over its key (#373): a sign, not a button.
   const sign = createBoardSign();
-  // While another note shows, the list and the vein's note wait here, so the
-  // chips and the live words stay in the page.
-  const runningPark = document.createElement("div");
-  runningPark.className = "board-running-park";
-  runningPark.hidden = true;
-  runningPark.append(running, veinNote);
-  const chipFor = new Map(
-    BOOSTS.map((boost) => {
-      const chip = createEffectChip(
-        "boost-chip",
-        boost.id === "sharper" ? pickUrl : tierArt.helper,
-      );
-      chip.dataset["boost"] = boost.id;
-      effectRow.append(chip);
-      return [boost.id, chip] as const;
-    }),
-  );
-  const craftChips = new Map(
-    CRAFT_IDS.map((id) => {
-      const chip = createEffectChip("craft-chip", relicArt.hammer);
-      chip.dataset["craft"] = id;
-      effectRow.append(chip);
-      return [id, chip] as const;
-    }),
-  );
-  const benchChip = createEffectChip("craft-chip", relicArt.hammer);
-  benchChip.dataset["craft"] = "bench";
-  effectRow.append(benchChip);
 
   // The wait for the next vein counts play time only, and survives the phone
   // locking or the PWA being closed, so short sessions still add up to a vein.
@@ -291,7 +169,9 @@ export function mountMountainScreen({
 
   const renderVein = (): void => {
     mine.showVein(
-      veinState.kind === "glinting" && view.ready && view.mountain.remaining > 0
+      veinState.kind === "glinting" &&
+        ctx.view().ready &&
+        ctx.view().mountain.remaining > 0
         ? veinSpot(veinState.x, veinState.y)
         : undefined,
     );
@@ -301,7 +181,7 @@ export function mountMountainScreen({
   };
 
   const stepVein = (): void => {
-    if (!view.ready || view.mountain.remaining === 0) {
+    if (!ctx.view().ready || ctx.view().mountain.remaining === 0) {
       return;
     }
     veinState = advanceVein({
@@ -309,7 +189,7 @@ export function mountMountainScreen({
       now: now(),
       random,
       gapScale: gapForVeins(),
-      glintMs: veinGlintMs(view.mountain),
+      glintMs: veinGlintMs(ctx.view().mountain),
     });
     renderVein();
   };
@@ -320,7 +200,7 @@ export function mountMountainScreen({
    * stones are the gauge's to show, not the dig's "+N" (#371).
    */
   const dig = (): number => {
-    if (!view.ready) {
+    if (!ctx.view().ready) {
       return 0;
     }
     const result = dispatch({ kind: "dig" });
@@ -332,7 +212,7 @@ export function mountMountainScreen({
   };
 
   const tapVein = (): void => {
-    if (veinState.kind !== "glinting" || !view.ready) {
+    if (veinState.kind !== "glinting" || !ctx.view().ready) {
       return;
     }
     const result = dispatch({ kind: "tapVein" });
@@ -345,7 +225,6 @@ export function mountMountainScreen({
     renderVein();
   };
 
-  const board = createBoardHost({ clock: tapClock, pressAge, signal });
   /**
    * The key rail: Buys, Workshop and Upgrades open from here; Engineers and the Ledger key open
    * through their panels' own click listeners. Every key first puts the board's popups away.
@@ -374,11 +253,15 @@ export function mountMountainScreen({
     },
   });
   /** The Ready now pick last painted on the plate: the Buys rows light the same one. */
-  let shownPick: ReadyPick = readyNow(view.mountain, now(), view.trouble);
+  let shownPick: ReadyPick = readyNow(
+    ctx.view().mountain,
+    now(),
+    ctx.view().trouble,
+  );
   const crewPanel = createCrewPanel({
     progress,
     dispatch,
-    getView: () => view,
+    getView: ctx.view,
     now,
     pick: () => shownPick,
     board,
@@ -387,11 +270,11 @@ export function mountMountainScreen({
     ...(signal === undefined ? {} : { signal }),
   });
 
-  const welcomePanel = createWelcomePanel({ progress, getView: () => view });
+  const welcomePanel = createWelcomePanel({ progress, getView: ctx.view });
   const { welcome } = welcomePanel;
   const arrival = createArrivalPanel({
     progress,
-    getView: () => view,
+    getView: ctx.view,
     mountainUrl,
     oreUrl: stoneUrl,
     lanternUrl,
@@ -403,20 +286,17 @@ export function mountMountainScreen({
     renderVein();
   };
 
-  /** A panel's own change repaints the whole screen; `paint` is set up below. */
-  const requestPaint = (): void => {
-    paint();
-  };
-
+  // A panel's own change repaints the whole screen: its `requestRender` is `ctx.paint`, which
+  // reads `paint` (set up below) when called.
   // Pass the mine to your kid (M6): offered from the Legend card and the menu.
   const legacy = createLegacyPanel({
     progress,
-    getView: () => view,
+    getView: ctx.view,
     onPassed: resetVein,
     beforeOpen: () => {
       menuPanel.close();
     },
-    requestRender: requestPaint,
+    requestRender: ctx.paint,
   });
 
   // The gauge row (#371): the output gauge, the mine window down No. 2
@@ -425,7 +305,7 @@ export function mountMountainScreen({
   const crewPlate = createCrewPlate();
   /** The gauge shows what is earned: nothing once the mountain is mined out. */
   const renderGaugeRow = (): void => {
-    const { mountain, trouble } = view;
+    const { mountain, trouble } = ctx.view();
     gauge.set(
       mountain.remaining > 0 ? stonesPerSecond(mountain, now(), trouble) : 0,
     );
@@ -489,22 +369,22 @@ export function mountMountainScreen({
   /** Until the save is in, nothing from it shows on the plate or the button. */
   const renderReadyRow = (pick: ReadyPick): void => {
     readyPlate.render(
-      view.ready ? pick : undefined,
-      view.playing && view.ready,
+      ctx.view().ready ? pick : undefined,
+      ctx.view().playing && ctx.view().ready,
     );
     // A sign-in or another account loads a save again: back to loading.
-    if (!view.ready) {
+    if (!ctx.view().ready) {
       digButton.loading();
       return;
     }
-    const tapYield = effectiveRates(view.mountain, now()).tapYield;
-    if (view.mountain.remaining === 0) {
+    const tapYield = effectiveRates(ctx.view().mountain, now()).tapYield;
+    if (ctx.view().mountain.remaining === 0) {
       digButton.set(undefined, false, MINED_OUT);
       return;
     }
     digButton.set(
       tapYield,
-      view.playing,
+      ctx.view().playing,
       `Dig: tap to mine ${tapWords(tapYield)}`,
     );
   };
@@ -513,7 +393,7 @@ export function mountMountainScreen({
   let shelfDoor: HTMLElement | undefined;
   const relics = createRelicPanels({
     progress,
-    getView: () => view,
+    getView: ctx.view,
     relicArt,
     keepsakeUrl: veinUrl,
     onPassTheMine: () => {
@@ -522,16 +402,13 @@ export function mountMountainScreen({
     onShelfClosed: () => {
       shelfDoor?.focus();
     },
-    requestRender: requestPaint,
+    requestRender: ctx.paint,
   });
   const { shelf, detail, reveal, legend } = relics;
 
   // The board (#370): the note, the relic plate, the odometer, the boost dial
   // and the save line. The note is placed in board coordinates inside root.
-  const boardNote = createBoardNote(root, signal, (body) => {
-    // Back to the park whenever another note has taken its place.
-    if (body === running || body === veinNote) runningPark.append(body);
-  });
+  const boardNote = createBoardNote(root, signal, runningNow.park);
   /** The vein's payout or the quiet away line, in the board note under the window. */
   const showVeinNote = (words: string, ms: number): void => {
     veinNote.textContent = words;
@@ -541,7 +418,7 @@ export function mountMountainScreen({
   const saveLine = createSaveLine({
     progress,
     auth,
-    getView: () => view,
+    getView: ctx.view,
     now,
     signal,
   });
@@ -551,7 +428,7 @@ export function mountMountainScreen({
     boardNote.hide();
   };
   const relicPlate = createRelicPlate({
-    getView: () => view,
+    getView: ctx.view,
     note: boardNote,
     onShelf: (from) => {
       shelfDoor = from;
@@ -564,13 +441,13 @@ export function mountMountainScreen({
   const odometer = createOdometer();
   const dial = createBoostDial({
     onOpen: () => {
-      boardNote.show(dial.root, running, { ms: RUNNING_NOTE_MS });
+      boardNote.show(dial.root, runningNow.running, { ms: RUNNING_NOTE_MS });
     },
   });
   /** The odometer and the dial. A spend is shown by `dispatch`, from what the move took. */
   const renderStock = (): void => {
-    odometer.set(view.mountain.pocket);
-    dial.set(liveCrewBoost(view.mountain, now()));
+    odometer.set(ctx.view().mountain.pocket);
+    dial.set(liveCrewBoost(ctx.view().mountain, now()));
   };
 
   const closeMenu = (): void => {
@@ -578,7 +455,7 @@ export function mountMountainScreen({
   };
   const workshop = createWorkshopPanel({
     dispatch,
-    getView: () => view,
+    getView: ctx.view,
     now,
     stoneUrl,
     hammerUrl: relicArt.hammer,
@@ -587,28 +464,33 @@ export function mountMountainScreen({
     onClose: () => {
       (rail.locked(doorKey) ? rail.keys.ledger : workshopDoor).focus();
     },
-    requestRender: requestPaint,
+    requestRender: ctx.paint,
   });
 
   const savedCopies = createSavedCopiesPanel({
     progress,
     now,
     onOpen: closeMenu,
-    requestRender: requestPaint,
+    requestRender: ctx.paint,
   });
   const conflictSheet = createSaveConflictPanel({
     progress,
     now,
-    requestRender: requestPaint,
+    requestRender: ctx.paint,
   });
   const menuPanel = createMenuPanel({
     progress,
-    getView: () => view,
+    getView: ctx.view,
     auth,
     onStartOver: resetVein,
-    extras: [ledger, workshop.menuEntry, legacy.menuPass, savedCopies.entry],
+    extras: [
+      ledger.root,
+      workshop.menuEntry,
+      legacy.menuPass,
+      savedCopies.entry,
+    ],
     door: rail.keys.ledger,
-    requestRender: requestPaint,
+    requestRender: ctx.paint,
     signal,
   });
   const { menu, confirm, fieldLogSheet } = menuPanel;
@@ -616,7 +498,7 @@ export function mountMountainScreen({
   const upgrades = createUpgradesPanel({
     progress,
     dispatch,
-    getView: () => view,
+    getView: ctx.view,
     now,
     chipFor,
     board,
@@ -627,7 +509,7 @@ export function mountMountainScreen({
 
   const engineers = createEngineersPanel({
     dispatch,
-    getView: () => view,
+    getView: ctx.view,
     iconUrl: tierArt.helper,
     badgeUrl: {
       cart: tierArt.cart,
@@ -639,85 +521,33 @@ export function mountMountainScreen({
     door: rail.keys.engineers,
     fallbackDoor: rail.keys.ledger,
     now,
-    requestRender: requestPaint,
+    requestRender: ctx.paint,
   });
 
-  const updatePrompt = document.createElement("div");
-  updatePrompt.className = "update-prompt";
-  updatePrompt.hidden = true;
-  // showAppUpdate opens the prompt from outside the screen: it covers the drawers at once.
-  updatePrompt.addEventListener(UPDATE_SHOWN, () => {
+  const updatePrompt = createUpdatePrompt(() => {
     paint();
   });
-  updatePrompt.setAttribute("role", "dialog");
-  updatePrompt.setAttribute("aria-modal", "true");
-  updatePrompt.setAttribute("aria-labelledby", "update-prompt-title");
-  const updateCard = document.createElement("div");
-  updateCard.className = "update-card";
-  const updateTitle = document.createElement("h2");
-  updateTitle.id = "update-prompt-title";
-  updateTitle.textContent = "Update available";
-  const updateReload = document.createElement("button");
-  updateReload.type = "button";
-  updateReload.className = "update-reload";
-  updateReload.textContent = "Reload";
-  updateReload.addEventListener("click", () => {
-    globalThis.location.reload();
-  });
-  updateCard.append(updateTitle, updateReload);
-  updatePrompt.append(updateCard);
-
-  const otherTab = document.createElement("div");
-  otherTab.className = "other-tab";
-  otherTab.hidden = true;
-  otherTab.setAttribute("role", "dialog");
-  otherTab.setAttribute("aria-modal", "true");
-  otherTab.setAttribute("aria-labelledby", "other-tab-title");
-  const otherCard = document.createElement("div");
-  otherCard.className = "other-tab-card";
-  const otherTitle = document.createElement("h2");
-  otherTitle.id = "other-tab-title";
-  otherTitle.textContent = OTHER_TAB_TITLE;
-  const otherBody = document.createElement("p");
-  otherBody.className = "other-tab-body";
-  otherBody.textContent = OTHER_TAB_BODY;
-  const playHere = document.createElement("button");
-  playHere.type = "button";
-  playHere.className = "other-tab-play";
-  playHere.textContent = OTHER_TAB_PLAY;
-  playHere.addEventListener("click", () => {
-    void progress.playHere();
-  });
-  otherCard.append(otherTitle, otherBody, playHere);
-  otherTab.append(otherCard);
+  const otherTab = createOtherTab(progress);
 
   /** Whether the window shows a save, so a second load clears it once. */
   let windowDrawn = false;
-  /** Whether the other-tab card is up, so it takes the focus once. */
-  let otherShown = false;
   /** The board under the cards: stones, window, gauges, bays, Ready row and guide. */
   const paintBoard = (): void => {
-    const left = Math.ceil(stonesLeft(view.mountain));
-    const total = shownStones(view.mountain, MOUNTAIN_STONES);
-    remaining.textContent = `${formatCount(left)} stones left`;
-    remaining.title = `${left.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`;
-    mine.dig.disabled = !view.playing || left === 0;
-    showCard(otherTab, view.elsewhere);
-    if (view.elsewhere && !otherShown) {
-      playHere.focus();
-    }
-    otherShown = view.elsewhere;
+    ledger.paintStones();
+    const left = Math.ceil(stonesLeft(ctx.view().mountain));
+    otherTab.paint(ctx.view().elsewhere);
+    mine.dig.disabled = !ctx.view().playing || left === 0;
     mine.dig.setAttribute(
       "aria-label",
       left === 0
         ? MINED_OUT
-        : `Mine window: tap to mine ${tapWords(effectiveRates(view.mountain, now()).tapYield)}`,
+        : `Mine window: tap to mine ${tapWords(effectiveRates(ctx.view().mountain, now()).tapYield)}`,
     );
     // The window draws the save once it has loaded, so the first scene it
     // sees is the save itself and nothing beats for it (#371). A save that
     // loads again (a sign-in, another account) puts it back to its frame.
-    if (view.ready) {
-      mine.render(windowScene(view.mountain, view.trouble));
+    if (ctx.view().ready) {
+      mine.render(windowScene(ctx.view().mountain, ctx.view().trouble));
       windowDrawn = true;
     } else if (windowDrawn) {
       mine.loading();
@@ -725,14 +555,13 @@ export function mountMountainScreen({
     }
     renderGaugeRow();
     // The Ready now pick, once per paint: the bays light theirs (#372).
-    const pick = readyNow(view.mountain, now(), view.trouble);
+    const pick = readyNow(ctx.view().mountain, now(), ctx.view().trouble);
     shownPick = pick;
     renderBays(pick);
     renderReadyRow(pick);
     crewPanel.render();
     renderVein();
-    renderGuide();
-    renderMaterials();
+    ledger.paintGuide();
   };
   const paintPanels = (): void => {
     welcomePanel.render();
@@ -750,24 +579,11 @@ export function mountMountainScreen({
       cardUp(workshop.sheet) ? "true" : "false",
     );
   };
-  /** The Running now list: each clock counts down on every paint. */
-  const paintRunning = (): void => {
-    const labels = runningLabels(view.mountain, now());
-    for (const [id, chip] of craftChips) {
-      writeChip(chip, labels.crafts[id]);
-    }
-    writeChip(benchChip, labels.bench);
-    // After every chip above and the engineers' trips have been written.
-    const anyRunning = anyChipActive(effectRow);
-    effectRow.hidden = !anyRunning;
-    runningNone.hidden = anyRunning;
-    runningNone.textContent = anyRunning ? "" : "Nothing running";
-  };
   const paintRest = (): void => {
     relicPlate.render();
     renderStock();
     savedCopies.render();
-    conflictSheet.render(view.saveConflict, view.elsewhere);
+    conflictSheet.render(ctx.view().saveConflict, ctx.view().elsewhere);
     saveLine.render();
   };
   /** The panels painted first, so a card opened in this paint holds the sign back. */
@@ -786,7 +602,7 @@ export function mountMountainScreen({
   const paint = (): void => {
     paintBoard();
     paintPanels();
-    paintRunning();
+    runningNow.paint();
     paintRest();
     paintOverlays();
   };
@@ -807,7 +623,7 @@ export function mountMountainScreen({
     engineers.sheet,
     workshop.sheet,
     updatePrompt,
-    otherTab,
+    otherTab.root,
     savedCopies.root,
     conflictSheet.root,
   ];
@@ -867,7 +683,7 @@ export function mountMountainScreen({
    * this launch; the dot stays. Opening the sheet by its key counts as seen.
    */
   const renderTeach = (): void => {
-    const want = wantedSign(view);
+    const want = wantedSign(ctx.view());
     const up = sign.shown();
     if (want === undefined || (up !== undefined && up.key !== want.key)) {
       sign.hide();
@@ -890,11 +706,11 @@ export function mountMountainScreen({
 
   /** The keys read the save once it is in; before, only their caps and icons show (#373). */
   const renderRail = (): void => {
-    if (!view.ready) {
+    if (!ctx.view().ready) {
       rail.render(undefined);
       return;
     }
-    const views = keyViews(view.mountain, now(), view.trouble);
+    const views = keyViews(ctx.view().mountain, now(), ctx.view().trouble);
     // The New sign is quiet for readers: its words join its key's label.
     const up = sign.shown();
     rail.render(
@@ -913,74 +729,13 @@ export function mountMountainScreen({
   /** The bays read the save once it is in; before, only their art shows (#372). */
   const renderBays = (pick: ReadyPick): void => {
     bays.render(
-      view.ready
-        ? bayViews(view.mountain, now(), view.trouble, pick)
+      ctx.view().ready
+        ? bayViews(ctx.view().mountain, now(), ctx.view().trouble, pick)
         : undefined,
-      view.ready ? bandWords(view.mountain) : "",
+      ctx.view().ready ? bandWords(ctx.view().mountain) : "",
     );
   };
 
-  /** The materials last drawn: each paint rebuilds the line only when they change. */
-  let materialsKey: string | undefined;
-  const renderMaterials = (): void => {
-    const chips = metMaterialChips(view.mountain);
-    const key = chips.map((chip) => `${chip.id}:${chip.text}`).join("|");
-    if (key === materialsKey) {
-      return;
-    }
-    materialsKey = key;
-    materialLine.replaceChildren();
-    chips.forEach((chip, index) => {
-      if (index > 0) {
-        const dot = document.createElement("span");
-        dot.className = "dot";
-        dot.textContent = "·";
-        materialLine.append(dot);
-      }
-      const bit = document.createElement("span");
-      bit.className = "material-bit";
-      const icon = document.createElement("img");
-      icon.className = `mat mat-${chip.id}`;
-      icon.src = stoneUrl;
-      icon.alt = "";
-      icon.width = 16;
-      icon.height = 16;
-      icon.draggable = false;
-      bit.append(icon, document.createTextNode(chip.text));
-      materialLine.append(bit);
-    });
-  };
-
-  const renderGuide = (): void => {
-    const hint = nextLayerHint(nextLayer(view.mountain)?.id);
-    layerHint.hidden = hint === undefined;
-    layerHint.textContent = hint ?? "";
-    const goalNow = relicGoal(view.mountain);
-    guideBar.hidden = goalNow.kind !== "next";
-    if (goalNow.kind === "unguided") {
-      goal.textContent =
-        (view.mountain.legacy ?? 0) > 0
-          ? `Your kid's mine: six relics wait inside. Legacy ${legacyWords(legacyBonus(view.mountain))}.`
-          : "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.";
-      return;
-    }
-    if (goalNow.kind === "done") {
-      goal.textContent = "Every relic is yours. You are a legend.";
-      return;
-    }
-    const { name, percent } = goalNow;
-    const words = `Next: ${name} · ${goalNow.hint}`;
-    const label =
-      hint === undefined
-        ? `Progress to the ${name}`
-        : `Progress to the ${name}. ${hint}`;
-    goal.textContent = words;
-    guideFill.style.width = `${String(percent)}%`;
-    guideBar.setAttribute("aria-valuenow", String(percent));
-    guideBar.setAttribute("aria-label", label);
-  };
-
-  const listening = signal === undefined ? {} : { signal };
   saveOnLeave(progress, listening);
 
   /**
@@ -1016,7 +771,7 @@ export function mountMountainScreen({
   let openingFromKey = false;
   // Opening the sheet by any door counts as seen: the sign goes, the dot stays.
   const openWorkshopSheet = (): void => {
-    if (view.ready && workshopUnlocked(view.mountain)) {
+    if (ctx.view().ready && workshopUnlocked(ctx.view().mountain)) {
       dispatch({ kind: "markSeen", id: "workshop" });
       workshopDoor = rail.keys.workshop;
       doorKey = "workshop";
@@ -1076,7 +831,7 @@ export function mountMountainScreen({
     drawerClip,
     saveLine.line,
     boardNote.note,
-    runningPark,
+    runningNow.parkRoot,
     ...cards,
   );
 
@@ -1123,10 +878,11 @@ export function mountMountainScreen({
   );
 
   const unsubscribe = progress.subscribe((next) => {
-    view = nextView(board, view, next);
+    setView(nextView(board, ctx.view(), next));
     // A short absence pays with a small note, not the welcome card (#334).
-    if (view.quietAway !== undefined) {
-      showVeinNote(quietAwayWords(view.quietAway), QUIET_NOTE_MS);
+    const { quietAway } = ctx.view();
+    if (quietAway !== undefined) {
+      showVeinNote(quietAwayWords(quietAway), QUIET_NOTE_MS);
       queueMicrotask(() => {
         progress.dismissQuietAway();
       });
@@ -1177,14 +933,4 @@ function saveOnLeave(
     },
     listening,
   );
-}
-
-/** Shows the reload prompt. A newer service worker calls this. */
-export function showAppUpdate(root: ParentNode): void {
-  const prompt = root.querySelector<HTMLElement>(".update-prompt");
-  if (prompt === null) {
-    return;
-  }
-  showCard(prompt, true);
-  prompt.dispatchEvent(new Event(UPDATE_SHOWN));
 }
