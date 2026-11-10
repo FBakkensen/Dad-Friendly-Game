@@ -1,7 +1,8 @@
 import { cardUp, showCard } from "./card-state";
 import { shownStones, stonesLeft } from "./scale";
 import pickUrl from "./assets/pick.png";
-import { noteFor } from "./teach";
+import { coverFor, wantedSign, type Cover } from "./screen-cover";
+import { drawerOpen } from "./board-interaction";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
 import { formatCount } from "./format";
 import { MOUNTAIN_STONES, stonesPerSecond } from "./mountain";
@@ -54,8 +55,6 @@ import {
   OTHER_TAB_TITLE,
   nextLayerHint,
   tapWords,
-  WORKSHOP_NOTE,
-  engineersNote,
   quietAwayWords,
 } from "./screen-words";
 import { metMaterialChips } from "./workshop-sheet";
@@ -658,6 +657,8 @@ export function mountMountainScreen({
   // showAppUpdate opens the prompt from outside the screen: it covers the drawers at once.
   updatePrompt.addEventListener(UPDATE_SHOWN, () => {
     coverDrawers();
+    coverNote();
+    renderRail();
   });
   updatePrompt.setAttribute("role", "dialog");
   updatePrompt.setAttribute("aria-modal", "true");
@@ -788,14 +789,33 @@ export function mountMountainScreen({
     renderRail();
   };
 
-  /** A card open over the board: today's sheets and the cards that open by themselves. */
-  const OPEN_CARD =
-    ":scope > [role='dialog']:not([hidden]), :scope > [role='alertdialog']:not([hidden])";
-  /**
-   * A sheet or card open over the board. A drawer is never hidden: it is open
-   * while it has .is-open, inside the sheet clip (#373).
-   */
-  const OPEN_SHEET = `${OPEN_CARD}, :scope > .board-sheet-clip > .board-sheet.is-open`;
+  /** The cards, in the order they stand in the root. */
+  const cards = [
+    welcome,
+    arrival.layer,
+    arrival.notice,
+    reveal,
+    legend,
+    shelf,
+    detail,
+    confirm,
+    legacy.dialog,
+    menu,
+    fieldLogSheet,
+    engineers.sheet,
+    workshop.sheet,
+    updatePrompt,
+    otherTab,
+    savedCopies.root,
+    conflictSheet.root,
+  ];
+  /** Read fresh at each use: closing the drawers changes the stack. */
+  const cover = (): Cover =>
+    coverFor({
+      cardUp: cards.some(cardUp),
+      drawerOpen: drawerOpen(board.view()),
+      noteOn: boardNote.isOn(),
+    });
   /**
    * A card that opens by itself (a relic, a layer, a craft done, a save
    * conflict, an update) stands under the drawers' clip. It closes an open
@@ -803,7 +823,7 @@ export function mountMountainScreen({
    * the drawer opened from is under the card.
    */
   const coverDrawers = (): void => {
-    if (root.querySelector(OPEN_CARD) === null) {
+    if (!cover().closeDrawers) {
       return;
     }
     for (const sheet of [crewPanel.sheet, upgrades.sheet]) {
@@ -820,7 +840,7 @@ export function mountMountainScreen({
    * the card.
    */
   const coverNote = (): void => {
-    if (root.querySelector(OPEN_SHEET) === null) {
+    if (!cover().putAway) {
       return;
     }
     if (sign.shown() !== undefined) {
@@ -845,14 +865,7 @@ export function mountMountainScreen({
    * this launch; the dot stays. Opening the sheet by its key counts as seen.
    */
   const renderTeach = (): void => {
-    const noteId = view.ready ? noteFor(view.mountain) : undefined;
-    const firstEngineer = view.mountain.engineers?.[0]?.name;
-    let want: { readonly key: KeyId; readonly words: string } | undefined;
-    if (noteId === "workshop") {
-      want = { key: "workshop", words: WORKSHOP_NOTE };
-    } else if (noteId === "engineers" && firstEngineer !== undefined) {
-      want = { key: "engineers", words: engineersNote(firstEngineer) };
-    }
+    const want = wantedSign(view);
     const up = sign.shown();
     if (want === undefined || (up !== undefined && up.key !== want.key)) {
       sign.hide();
@@ -866,11 +879,10 @@ export function mountMountainScreen({
     }
     // Another note, or a sheet over the board, holds it back until a later
     // render or tick: the sign would stand under the sheet.
-    const busy = boardNote.isOn() || root.querySelector(OPEN_SHEET) !== null;
-    if (noteId === teachShown || busy) {
+    if (want.id === teachShown || cover().holdSign) {
       return;
     }
-    teachShown = noteId;
+    teachShown = want.id;
     sign.show(want.key, want.words);
   };
 
@@ -1056,23 +1068,7 @@ export function mountMountainScreen({
     saveLine.line,
     boardNote.note,
     runningPark,
-    welcome,
-    arrival.layer,
-    arrival.notice,
-    reveal,
-    legend,
-    shelf,
-    detail,
-    confirm,
-    legacy.dialog,
-    menu,
-    fieldLogSheet,
-    engineers.sheet,
-    workshop.sheet,
-    updatePrompt,
-    otherTab,
-    savedCopies.root,
-    conflictSheet.root,
+    ...cards,
   );
 
   const ticking = setInterval(() => {

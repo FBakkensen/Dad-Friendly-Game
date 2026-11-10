@@ -6,6 +6,7 @@ import {
   READY_HOLD_MS,
   THANKS_MS,
   boardView,
+  drawerOpen,
   nextWake,
   controlKey,
   initialBoard,
@@ -611,5 +612,32 @@ describe("the freeze", () => {
     );
     expect(shown(state)).toBe(L2);
     expect(shown(state, "upgrades")).toBe(U1);
+  });
+});
+
+describe("drawerOpen", () => {
+  const open = (...overlays: readonly Layer[]) =>
+    drawerOpen(
+      boardView(
+        after(
+          ...overlays.map((overlay): BoardInput => ({
+            kind: "open",
+            overlay: overlay as "buys",
+            at: 0,
+          })),
+        ),
+        0,
+      ),
+    );
+
+  it("is false on the board alone, under a note, and under the save drawer", () => {
+    expect(open()).toBe(false);
+    expect(open("note")).toBe(false);
+    expect(open("save")).toBe(false);
+  });
+
+  it("is true while a drawer is on the stack, with or without a note over it", () => {
+    expect(open("buys")).toBe(true);
+    expect(open("upgrades", "note")).toBe(true);
   });
 });
