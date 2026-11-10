@@ -11,6 +11,7 @@ import { type CloudSave } from "./cloud-save";
 import { mountMountainScreen } from "./mountain-screen";
 import { createProgressStore } from "./progress-store";
 import { type TabWriter } from "./tab-writer";
+import { vi } from "vitest";
 
 export function setReducedMotion(reduce: boolean): void {
   window.matchMedia = ((query: string) => ({
@@ -29,6 +30,7 @@ const nextTask = globalThis.setTimeout;
  * It waits one task after the abort: V8 keeps whatever a WeakRef was made for (happy-dom's
  * query caches make many) alive to the end of the task, and a test file's tests otherwise run
  * as one long task.
+ * Then it puts back every vi.spyOn, so a spy on a store never holds a stopped screen.
  */
 export async function stopScreens(): Promise<void> {
   unmount.abort();
@@ -36,6 +38,7 @@ export async function stopScreens(): Promise<void> {
   await new Promise((resolve) => {
     nextTask(resolve, 0);
   });
+  vi.restoreAllMocks();
 }
 
 export const tileUrl =
