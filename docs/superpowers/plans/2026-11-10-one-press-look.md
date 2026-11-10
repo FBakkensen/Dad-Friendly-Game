@@ -204,7 +204,7 @@
 - [ ] **Step 1 (option A only): Route `arm` through `pressLook`.**
   - Use `pressLook(target, { enabled: () => !target.disabled, lifts: [], paint: (down) => { if (down) { /* today's pressedKey, requestRender and PRESS_MS timer */ } } })`.
   - The flash keeps its `PRESS_MS` timing and its `is-pressed` render. `createEngineersPanel` must stay at 845 lines or under (`npm run functions`); lower its ceiling if it comes down.
-  - Run `npx vitest run src/engineers-panel.test.ts src/mountain-screen-crew.test.ts -t "press"`, and expect PASS unchanged. That runs the crew file without editing it.
+  - Run `npx vitest run src/mountain-screen-crew.test.ts src/promotion-teach.test.ts src/engineers-teach.test.ts`, and expect PASS unchanged. That runs the crew file without editing it.
 - [ ] **Step 2: Docs.** In `docs/ARCHITECTURE.md`'s board section, say:
   - every board control's "is down" look goes through `pressLook` in `card-tap`, and each part paints its own look;
   - `skin` is told whether its host is down;
