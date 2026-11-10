@@ -9,6 +9,7 @@ import {
   FIELD_LOG_MAX_BYTES,
   FIELD_LOG_TEXT_MAX,
   FIELD_LOG_WRITE_GAP_MS,
+  fieldEntry,
   fieldErrorId,
   fieldLogDocumentBytes,
   fieldLogFingerprint,
@@ -411,5 +412,54 @@ describe("field log cloud copy", () => {
     expect(() =>
       storedDocumentBytes(["fieldLogs", "dad"], { bad: undefined }),
     ).toThrow(/unsupported/);
+  });
+});
+
+describe("fieldEntry", () => {
+  it("maps each move event to today's ring entry", () => {
+    expect(fieldEntry({ kind: "tierBought", id: "cart", count: 3 })).toEqual({
+      code: "tier.buy",
+      data: { id: "cart", count: 3 },
+    });
+    expect(fieldEntry({ kind: "upgradeBought", id: "tap", level: 2 })).toEqual({
+      code: "upgrade.buy",
+      data: { id: "tap", count: 2 },
+    });
+    expect(
+      fieldEntry({ kind: "boostStarted", id: "sharper", endsAt: AT }),
+    ).toEqual({
+      code: "boost.start",
+      data: { id: "sharper", endsAt: "2026-01-02T03:04:05.000Z" },
+    });
+    expect(fieldEntry({ kind: "craftStarted", recipe: "iron-rails" })).toEqual({
+      code: "craft.start",
+      data: { id: "iron-rails" },
+    });
+    expect(fieldEntry({ kind: "promoted", name: "Nils", crew: 2 })).toEqual({
+      code: "engineer.promote",
+      data: { id: "Nils", count: 2 },
+    });
+    expect(
+      fieldEntry({ kind: "sent", name: "Ada", tunnel: "side-seam" }),
+    ).toEqual({
+      code: "expedition.send",
+      data: { id: "Ada", source: "side-seam" },
+    });
+    expect(
+      fieldEntry({ kind: "recalled", name: "Ada", tunnel: "old-shaft" }),
+    ).toEqual({
+      code: "expedition.recall",
+      data: { id: "Ada", source: "old-shaft" },
+    });
+    expect(
+      fieldEntry({ kind: "stationed", name: "Ada", post: "camp" }),
+    ).toEqual({
+      code: "engineer.station",
+      data: { id: "Ada", source: "camp" },
+    });
+    expect(fieldEntry({ kind: "veinTapped", stones: 60 })).toEqual({
+      code: "vein.tap",
+      data: { stones: 60 },
+    });
   });
 });

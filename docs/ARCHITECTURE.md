@@ -68,7 +68,10 @@ page is the map, plus the rules that keep it that way.
    only with `dispatch(move)`, which settles the crew, runs `applyMove` with the
    clock and the trouble as that settle left them, and commits, and says
    `applied` (spent, gained) or `refused` (`not-playing` or `no-change`) (#409).
-   A trouble press or fix is still a store method (S1, #414). `applyMutation` is a test seam: ESLint
+   `applyMove` also returns the move's typed events (`MoveEvent`), and `dispatch`
+   records them in the field log; a refused move has none (#413).
+   A trouble press or fix is still a store method (S1, #414). `applyMutation` is a test seam that
+   records no move events: ESLint
    (`no-restricted-properties`) bans it in non-test `src`. The store owns settling time, away
    pay, reveals, migrations, and when/where to save. A rejected cloud write
    keeps that mountain, shows the save error, retries once, and records the
@@ -481,9 +484,11 @@ returnsAt, home, find }[]` (≤5, `returnsAt > sentAt`, no longer than the deep
   the deep dark each night. Finds apply.
 - `hazards` (rules layer, pure): `nextTrouble(seed, now, mountain)`, `fix`, `pressTrouble`, `slowedSpeed`. One trouble at a time, every 3–6 minutes of live play, only once a borer is owned. Cave-in on carts, flood on drills, jam on borers or the Great Machine. The tier keeps three quarters of its speed at first and eases to half over two minutes. Five taps or a 600ms hold fixes it. An engineer tending that tier fixes it after 30 seconds; a Master fixes it at once. Steel-toe boots double the gap when `wearsSteelToes(mountain)` is true (or the caller passes `boots: true`). Built (#148). Session state lives in `progress-store`, never in the save, and clears on close, reload, and away time. Built (#149).
 - `field-log` (rules layer, pure): `snapshot(mountain, rates, now, version)` and
-  `EventRing` (last 200) are built (#141). `progress-store` records tier and
-  upgrade purchases, boosts started, relic found, vein tapped, away report,
-  Start over, pass the mine, and save errors. The ring is not a mountain save
+  `EventRing` (last 200) are built (#141). The ring's move entries (tier and
+  upgrade purchases, boosts started, vein tapped, craft started, promotions,
+  posts, sends, and recalls) come from the events a dispatched move returns,
+  through `fieldEntry`; nothing diffs the mountain (#413). `progress-store` also
+  records relic found, away report, Start over, pass the mine, and save errors. The ring is not a mountain save
   field. The menu copies `{ snapshot, events: last 50 }` as pretty JSON, with a
   read-only sheet when the clipboard is missing. No email or display name.
   Signed-in games write `fieldLogs/{uid}` = `{ snapshot, events (≤200),
