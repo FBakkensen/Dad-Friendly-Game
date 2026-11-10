@@ -299,6 +299,36 @@ describe("mountMountainScreen", () => {
     second.progress.dispose();
   });
 
+  it("the other-tab card takes focus once, not each second", async () => {
+    vi.useFakeTimers();
+    const storage = createMemoryStorage();
+    const bus = createMemoryBus();
+    const tab = (tabId: string) =>
+      createTabWriter({ tabId, storage, bus, handoffMs: 0, yieldWaitMs: 30 });
+    const first = mountScreen({ storage, tabWriter: tab("tab-writer") });
+    const second = mountScreen({ storage, tabWriter: tab("tab-other1") });
+    // Focus moves only in the page: the first tab's card opens once it is in.
+    document.body.append(first.root);
+    try {
+      second.root.querySelector<HTMLButtonElement>(".other-tab-play")?.click();
+      await vi.advanceTimersByTimeAsync(100);
+      const card = first.root.querySelector<HTMLElement>(".other-tab");
+      const play =
+        first.root.querySelector<HTMLButtonElement>(".other-tab-play");
+      expect(card?.hidden).toBe(false);
+      expect(document.activeElement).toBe(play);
+      play?.blur();
+      vi.advanceTimersByTime(3_000);
+      expect(card?.hidden).toBe(false);
+      expect(document.activeElement).not.toBe(play);
+    } finally {
+      first.root.remove();
+      first.progress.dispose();
+      second.progress.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps guest progress after the page is opened again", () => {
     const storage = createMemoryStorage();
     const first = mountScreen({ storage });
@@ -1768,6 +1798,38 @@ describe("the control board (#370)", () => {
       expect(note?.textContent).not.toContain("Nothing running");
     } finally {
       screen.root.remove();
+    }
+  });
+
+  it("a running boost's chip counts down each second on a save with no crew mining", () => {
+    vi.useFakeTimers();
+    try {
+      const at = Date.now();
+      const screen = mountScreen({
+        storage: seeded(
+          {
+            ...minedMountain(0),
+            helpers: 0,
+            carts: 0,
+            drills: 0,
+            boosts: { overtime: at + 90_000 },
+          },
+          at,
+        ),
+        now: () => Date.now(),
+      });
+      const chip = screen.root.querySelector<HTMLElement>(
+        '.effect-row .boost-chip[data-boost="overtime"]',
+      );
+      const time = (): string | null | undefined =>
+        chip?.querySelector(".effect-time")?.textContent;
+      expect(chip?.hidden).toBe(false);
+      const before = time();
+      expect(before).toMatch(/\d/);
+      vi.advanceTimersByTime(1_000);
+      expect(time()).not.toBe(before);
+    } finally {
+      vi.useRealTimers();
     }
   });
 

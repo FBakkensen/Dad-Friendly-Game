@@ -412,7 +412,7 @@ export function mountMountainScreen({
       menuPanel.close();
     },
     requestRender: () => {
-      render();
+      paint();
     },
   });
 
@@ -520,7 +520,7 @@ export function mountMountainScreen({
       shelfDoor?.focus();
     },
     requestRender: () => {
-      render();
+      paint();
     },
   });
   const { shelf, detail, reveal, legend } = relics;
@@ -587,7 +587,7 @@ export function mountMountainScreen({
       (rail.locked(doorKey) ? rail.keys.ledger : workshopDoor).focus();
     },
     requestRender: () => {
-      render();
+      paint();
     },
   });
 
@@ -596,14 +596,14 @@ export function mountMountainScreen({
     now,
     onOpen: closeMenu,
     requestRender: () => {
-      render();
+      paint();
     },
   });
   const conflictSheet = createSaveConflictPanel({
     progress,
     now,
     requestRender: () => {
-      render();
+      paint();
     },
   });
   const menuPanel = createMenuPanel({
@@ -614,7 +614,7 @@ export function mountMountainScreen({
     extras: [ledger, workshop.menuEntry, legacy.menuPass, savedCopies.entry],
     door: rail.keys.ledger,
     requestRender: () => {
-      render();
+      paint();
     },
     signal,
   });
@@ -647,7 +647,7 @@ export function mountMountainScreen({
     fallbackDoor: rail.keys.ledger,
     now,
     requestRender: () => {
-      render();
+      paint();
     },
   });
 
@@ -704,27 +704,20 @@ export function mountMountainScreen({
 
   /** Whether the window shows a save, so a second load clears it once. */
   let windowDrawn = false;
-  const render = (): void => {
-    // A short absence pays with a small note, not the welcome card (#334).
-    if (view.quietAway !== undefined) {
-      showVeinNote(quietAwayWords(view.quietAway), QUIET_NOTE_MS);
-      queueMicrotask(() => {
-        progress.dismissQuietAway();
-      });
-    }
+  /** Whether the other-tab card is up, so it takes the focus once. */
+  let otherShown = false;
+  /** The board under the cards: stones, window, gauges, bays, Ready row and guide. */
+  const paintBoard = (): void => {
     const left = Math.ceil(stonesLeft(view.mountain));
     const total = shownStones(view.mountain, MOUNTAIN_STONES);
     remaining.textContent = `${formatCount(left)} stones left`;
     remaining.title = `${left.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`;
     mine.dig.disabled = !view.playing || left === 0;
-    const showElsewhere = view.elsewhere;
-    showCard(otherTab, showElsewhere);
-    if (showElsewhere && otherTab.dataset["shown"] !== "1") {
-      otherTab.dataset["shown"] = "1";
+    showCard(otherTab, view.elsewhere);
+    if (view.elsewhere && !otherShown) {
       playHere.focus();
-    } else if (!showElsewhere) {
-      delete otherTab.dataset["shown"];
     }
+    otherShown = view.elsewhere;
     mine.dig.setAttribute(
       "aria-label",
       left === 0
@@ -742,7 +735,7 @@ export function mountMountainScreen({
       windowDrawn = false;
     }
     renderGaugeRow();
-    // The Ready now pick, once per render: the bays light theirs (#372).
+    // The Ready now pick, once per paint: the bays light theirs (#372).
     const pick = readyNow(view.mountain, now(), view.trouble);
     shownPick = pick;
     renderBays(pick);
@@ -751,6 +744,8 @@ export function mountMountainScreen({
     renderVein();
     renderGuide();
     renderMaterials();
+  };
+  const paintPanels = (): void => {
     welcomePanel.render();
     arrival.render();
     relics.render();
@@ -765,9 +760,10 @@ export function mountMountainScreen({
       "aria-expanded",
       cardUp(workshop.sheet) ? "true" : "false",
     );
-    renderTeach();
-    const at = now();
-    const labels = runningLabels(view.mountain, at);
+  };
+  /** The Running now list: each clock counts down on every paint. */
+  const paintRunning = (): void => {
+    const labels = runningLabels(view.mountain, now());
     for (const [id, chip] of craftChips) {
       writeChip(chip, labels.crafts.get(id) ?? INACTIVE_CHIP);
     }
@@ -777,16 +773,33 @@ export function mountMountainScreen({
     effectRow.hidden = !anyRunning;
     runningNone.hidden = anyRunning;
     runningNone.textContent = anyRunning ? "" : "Nothing running";
+  };
+  const paintRest = (): void => {
     relicPlate.render();
     renderStock();
     savedCopies.render();
     conflictSheet.render(view.saveConflict, view.elsewhere);
     saveLine.render();
+  };
+  /** The panels painted first, so a card opened in this paint holds the sign back. */
+  const paintOverlays = (): void => {
+    renderTeach();
     coverDrawers();
     coverNote();
     // Locks, lit caps, red dot lamps and timers, by the key rail's rules (#373),
     // with the New sign's words on its key's label.
     renderRail();
+  };
+  /**
+   * The screen's one repaint: the store's updates, a panel's own change and
+   * the 1s tick all come here, so every clock on the board moves each second.
+   */
+  const paint = (): void => {
+    paintBoard();
+    paintPanels();
+    paintRunning();
+    paintRest();
+    paintOverlays();
   };
 
   /** The cards, in the order they stand in the root. */
@@ -918,8 +931,15 @@ export function mountMountainScreen({
     );
   };
 
+  /** The materials last drawn: each paint rebuilds the line only when they change. */
+  let materialsKey: string | undefined;
   const renderMaterials = (): void => {
     const chips = metMaterialChips(view.mountain);
+    const key = chips.map((chip) => `${chip.id}:${chip.text}`).join("|");
+    if (key === materialsKey) {
+      return;
+    }
+    materialsKey = key;
     materialLine.replaceChildren();
     chips.forEach((chip, index) => {
       if (index > 0) {
@@ -1073,22 +1093,8 @@ export function mountMountainScreen({
 
   const ticking = setInterval(() => {
     progress.tick();
-    workshop.render();
-    renderStock();
     stepVein();
-    renderGaugeRow();
-    const pick = readyNow(view.mountain, now(), view.trouble);
-    shownPick = pick;
-    renderBays(pick);
-    renderReadyRow(pick);
-    // The open drawer's rows follow the clock: a pocket that grows, a boost that ends.
-    if (crewPanel.sheet.isOpen()) {
-      crewPanel.render();
-    }
-    renderTeach();
-    coverDrawers();
-    coverNote();
-    renderRail();
+    paint();
   }, 1000);
   signal?.addEventListener("abort", () => {
     clearInterval(ticking);
@@ -1129,7 +1135,14 @@ export function mountMountainScreen({
 
   const unsubscribe = progress.subscribe((next) => {
     view = nextView(board, view, next);
-    render();
+    // A short absence pays with a small note, not the welcome card (#334).
+    if (view.quietAway !== undefined) {
+      showVeinNote(quietAwayWords(view.quietAway), QUIET_NOTE_MS);
+      queueMicrotask(() => {
+        progress.dismissQuietAway();
+      });
+    }
+    paint();
   });
   signal?.addEventListener("abort", unsubscribe);
   // The save line fits its words by measuring; measure again once the board's

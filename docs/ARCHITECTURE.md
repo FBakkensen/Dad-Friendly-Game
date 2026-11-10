@@ -106,6 +106,22 @@ page is the map, plus the rules that keep it that way.
    its own elements: the tick, the frame loop, its document and window
    listeners (the note's, the save line's and the drawers' too), and its
    store and account watches.
+   The screen has one repaint, `paint()` (#427). The store subscription, every
+   panel's `requestRender` and the 1s tick (`progress.tick()`, the vein's
+   step, then `paint()`) all call it, so every Running now clock, a boost's
+   chip included, ticks each second on every save, crew or none. It paints in
+   a fixed order: the board (stones, window, gauge row, bays, Ready row, Buys,
+   vein, guide, materials), the panels, the Running now chips, the relic plate
+   and the rest, then the overlays (the New sign, the covers and the key rail).
+   The panels paint before the New sign, so a card opened in that paint holds
+   the sign back. Each paint is safe to repeat: a card takes focus only when
+   it opens, and the materials line is rebuilt only when its chips change.
+   Three small modules carry the screen's decisions: `card-state` is the cards'
+   shown state (`showCard` writes it, `cardUp` reads it), `screen-cover`
+   decides from the screen's `cards`, the board's drawers and the note whether
+   to close the drawers, put the note and sign away, or hold the sign
+   (`coverFor`), and which New sign is wanted (`wantedSign`), and
+   `screen-chips` gives the Running now labels for the crafts and the bench.
    The control board (#370) is its own set of modules. Pure rules with unit
    tests: `board-fit` (the scale that fits the 424×924 stage inside the
    window and its `env(safe-area-inset-*)`, read back through a hidden
@@ -153,7 +169,7 @@ page is the map, plus the rules that keep it that way.
    model's hold (judged by when the finger came down), so a double tap buys
    one. `trouble-tap` is the 600ms
    hold-to-fix the Buys rows and the bays share. `mountain-screen` computes
-   `readyNow(view.mountain, now(), view.trouble)` once per render and hands
+   `readyNow(view.mountain, now(), view.trouble)` once per paint and hands
    it to the plate and the bays; a tap on the plate reads the rule again
    from the store's snapshot, never the painted pick, and buys through
    `buyWithTeach` (in `crew-panel`), the Buys row's mutation, so a buy from
@@ -310,8 +326,8 @@ page is the map, plus the rules that keep it that way.
   (`DRAWER_SETTLE_MS`, `READY_HOLD_MS`, `BLINK_STEP_MS`, `THANKS_MS`,
   `PRESS_AGE_LIMIT_MS`) live here, and the board parts import them. The
   module has one wiring: `board-host` steps it, and the drawers and rows
-  paint from it (#425, #426). The screen's own reads move onto it in I2c
-  (#427). A seeded random-sequence test (`board-interaction.random.test.ts`) holds its
+  paint from it (#425, #426). The screen reads it too: `drawerOpen` says
+  whether a drawer is over the board (#427). A seeded random-sequence test (`board-interaction.random.test.ts`) holds its
   invariants: no act inside a settle or a hold, and no open drawer's rows
   move. It has a 100% coverage floor.
 
