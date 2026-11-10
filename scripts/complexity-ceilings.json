@@ -14,7 +14,6 @@
   "src/lab/run.ts#playSecond": 17,
   "src/lab/tournament.ts#stretchesFor": 20,
   "src/mine-window.ts#machinesStep": 19,
-  "src/mountain-screen.ts#mountMountainScreen>render": 18,
   "src/mountain.ts#parseMountain": 36,
   "src/pacing.ts#simulateDadRun": 61,
   "src/persist.ts#parseSaveValue": 44,
@@ -30,6 +29,6 @@
   "src/save-merge.ts#mergeSaves": 16,
   "src/token-check.ts#consumeLine": 17,
   "src/token-check.ts#takeChar": 17,
-  "src/welcome-panel.ts#createWelcomePanel>renderWelcome": 24,
+  "src/welcome-panel.ts#createWelcomePanel>renderWelcome": 23,
   "src/workshop-panel.ts#createWorkshopPanel>render": 28
 }

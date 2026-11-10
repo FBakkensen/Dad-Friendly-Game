@@ -781,6 +781,44 @@ describe("layer card, material line, and craft-done notice", () => {
     screen.progress.dispose();
   });
 
+  it("an open saved copies sheet keeps the focus on a copy's Play through the tick", async () => {
+    vi.useFakeTimers();
+    try {
+      const cloud = createMemoryCloudSave();
+      const screen = mountScreen({ auth: signedIn(), cloudSave: cloud });
+      document.body.append(screen.root);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(screen.progress.getSnapshot().ready).toBe(true);
+      await cloud.archiveCopy?.({
+        uid: "test-dad",
+        mountain: { ...screen.progress.getSnapshot().mountain, pocket: 12 },
+        lastSeen: 1,
+        rev: 1,
+        deviceId: "other-device",
+        deviceLabel: "Safari on iPhone",
+      });
+      screen.root
+        .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
+        ?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(".saved-copies-link")
+        ?.click();
+      await vi.advanceTimersByTimeAsync(0);
+      const play = screen.root.querySelector<HTMLButtonElement>(
+        ".saved-copies .save-conflict-play",
+      );
+      expect(play).not.toBeNull();
+      play?.focus();
+      expect(document.activeElement).toBe(play);
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(document.activeElement).toBe(play);
+      screen.root.remove();
+      screen.progress.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("greys out a saved copy from an earlier run", async () => {
     const cloud = createMemoryCloudSave();
     const screen = mountScreen({

@@ -1,3 +1,4 @@
+import { showCard } from "./card-state";
 import type { ArchivedCopy } from "./cloud-save";
 import { runStartedAt } from "./mountain";
 import type { ProgressStore } from "./progress-store";
@@ -8,6 +9,12 @@ import {
   SAVED_COPIES_TITLE,
   SAVED_COPY_EARLIER_RUN,
 } from "./screen-words";
+
+interface CopyRow {
+  readonly copy: ArchivedCopy;
+  readonly earlier: boolean;
+  readonly texts: readonly string[];
+}
 
 /** Menu list of archived copies. Play one through the same archive-then-switch path. */
 export function createSavedCopiesPanel({
@@ -73,63 +80,84 @@ export function createSavedCopiesPanel({
     requestRender();
   });
 
+  /** One row's words: an earlier run's copy cannot be played. */
+  const rowLines = (copy: ArchivedCopy, clock: number): CopyRow => {
+    const lines = saveCardLines(copy.mountain, copy.lastSeen, clock);
+    const earlier =
+      runStartedAt(copy.mountain) <
+      runStartedAt(progress.getSnapshot().mountain);
+    const texts = [
+      copy.deviceLabel,
+      lines.depth,
+      lines.pocket,
+      lines.machines,
+      lines.crew,
+      lines.played,
+      keptUntilWords(copy.expiresAt),
+    ];
+    return { copy, earlier, texts };
+  };
+
+  const paintRow = ({ copy, earlier, texts }: CopyRow): HTMLElement => {
+    const row = document.createElement("article");
+    row.className = earlier
+      ? "saved-copy card is-earlier-run"
+      : "saved-copy card";
+    for (const text of texts) {
+      const line = document.createElement("p");
+      line.className = "label";
+      line.textContent = text;
+      row.append(line);
+    }
+    if (earlier) {
+      const blocked = document.createElement("p");
+      blocked.className = "label earlier-run";
+      blocked.textContent = SAVED_COPY_EARLIER_RUN;
+      row.append(blocked);
+      return row;
+    }
+    const play = document.createElement("button");
+    play.type = "button";
+    play.className = "go save-conflict-play";
+    play.textContent = SAVE_CONFLICT_PLAY;
+    play.addEventListener("click", () => {
+      void progress.restoreCopy(copy.id).then((result) => {
+        if (result === "saved") {
+          closeSheet();
+          return;
+        }
+        note =
+          result === "missing"
+            ? "That copy is no longer here."
+            : SAVE_CONFLICT_ERROR;
+        requestRender();
+      });
+    });
+    row.append(play);
+    return row;
+  };
+
+  /** What the open list last showed: a repaint with the same rows keeps them, and the focus. */
+  let shownKey: string | undefined;
   const render = (): void => {
-    root.hidden = !open;
+    showCard(root, open);
+    if (!open) {
+      shownKey = undefined;
+      return;
+    }
     empty.hidden = copies.length > 0;
     error.hidden = note === "";
     error.textContent = note;
-    list.replaceChildren();
     const clock = now();
-    const currentRun = runStartedAt(progress.getSnapshot().mountain);
-    for (const copy of copies) {
-      const earlier = runStartedAt(copy.mountain) < currentRun;
-      const row = document.createElement("article");
-      row.className = earlier
-        ? "saved-copy card is-earlier-run"
-        : "saved-copy card";
-      const lines = saveCardLines(copy.mountain, copy.lastSeen, clock);
-      for (const text of [
-        copy.deviceLabel,
-        lines.depth,
-        lines.pocket,
-        lines.machines,
-        lines.crew,
-        lines.played,
-        keptUntilWords(copy.expiresAt),
-      ]) {
-        const line = document.createElement("p");
-        line.className = "label";
-        line.textContent = text;
-        row.append(line);
-      }
-      if (earlier) {
-        const blocked = document.createElement("p");
-        blocked.className = "label earlier-run";
-        blocked.textContent = SAVED_COPY_EARLIER_RUN;
-        row.append(blocked);
-        list.append(row);
-        continue;
-      }
-      const play = document.createElement("button");
-      play.type = "button";
-      play.className = "go save-conflict-play";
-      play.textContent = SAVE_CONFLICT_PLAY;
-      play.addEventListener("click", () => {
-        void progress.restoreCopy(copy.id).then((result) => {
-          if (result === "saved") {
-            closeSheet();
-            return;
-          }
-          note =
-            result === "missing"
-              ? "That copy is no longer here."
-              : SAVE_CONFLICT_ERROR;
-          requestRender();
-        });
-      });
-      row.append(play);
-      list.append(row);
+    const rows = copies.map((copy) => rowLines(copy, clock));
+    const key = JSON.stringify(
+      rows.map(({ copy, earlier, texts }) => [copy.id, earlier, texts]),
+    );
+    if (key === shownKey) {
+      return;
     }
+    shownKey = key;
+    list.replaceChildren(...rows.map(paintRow));
   };
 
   return { entry, root, render };

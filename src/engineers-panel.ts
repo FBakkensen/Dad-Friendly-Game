@@ -1,3 +1,4 @@
+import { cardUp, showCard } from "./card-state";
 import { oneOffStretch, stretch } from "./scale";
 import { HOW_IT_WORKS, howItWorks, type HowSystem } from "./how-it-works";
 import { showsDot } from "./teach";
@@ -936,8 +937,8 @@ export function createEngineersPanel({
     toast.classList.toggle("is-shown", toastOn);
     toast.classList.toggle("is-story", toastOn && toastStory);
     toast.textContent = toastOn ? toastText : "";
-    const wasOpen = !sheet.hidden;
-    sheet.hidden = !open;
+    const wasOpen = cardUp(sheet);
+    showCard(sheet, open);
     if (open && !wasOpen) {
       close.focus();
     }

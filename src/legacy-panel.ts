@@ -1,3 +1,4 @@
+import { cardUp, showCard } from "./card-state";
 import { kidStretch, stretch } from "./scale";
 import { formatCount } from "./format";
 import { legacyBonus, passTheMine } from "./legacy";
@@ -185,9 +186,9 @@ export function createLegacyPanel({
     keeps.textContent = words.keeps;
     fresh.textContent = words.fresh;
     legend.textContent = words.legend;
-    const wasOpen = !dialog.hidden;
-    dialog.hidden = !open || !offered;
-    if (!dialog.hidden && !wasOpen) {
+    const wasOpen = cardUp(dialog);
+    showCard(dialog, open && offered);
+    if (cardUp(dialog) && !wasOpen) {
       cancel.focus();
     }
   };

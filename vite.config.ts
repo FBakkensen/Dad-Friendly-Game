@@ -213,6 +213,24 @@ export default defineConfig({
           functions: 100,
           lines: 99,
         },
+        "src/screen-chips.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/screen-cover.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/card-state.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/float-text.ts": {
           statements: 100,
           branches: 100,

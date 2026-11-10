@@ -1,3 +1,4 @@
+import { showCard } from "./card-state";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
   CRAFT_DONE_BUTTON,
@@ -114,7 +115,7 @@ export function createArrivalPanel({
       arrived === undefined ? undefined : layerCardWords(arrived.id);
     const showLayer = !waiting && words !== undefined;
     paintLayer(words);
-    layer.hidden = !showLayer;
+    showCard(layer, showLayer);
     if (showLayer && !layerWasOpen) {
       layerGo.focus();
     }
@@ -126,7 +127,7 @@ export function createArrivalPanel({
       noticeArt.src = noticeArtFor(fitted.id, { oreUrl, lanternUrl, tierArt });
       noticeLine.textContent = fitted.line;
     }
-    notice.hidden = !showNotice;
+    showCard(notice, showNotice);
     if (showNotice && !noticeWasOpen) {
       noticeGo.focus();
     }

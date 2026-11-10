@@ -1,3 +1,4 @@
+import { cardUp, showCard } from "./card-state";
 import type { AuthController, AuthState } from "./auth";
 import { setAttr } from "./board-dom";
 import { formatFieldLog } from "./field-log";
@@ -266,8 +267,8 @@ export function createMenuPanel({
   });
 
   const renderMenu = (): void => {
-    const wasOpen = !menu.hidden;
-    menu.hidden = !menuOpen;
+    const wasOpen = cardUp(menu);
+    showCard(menu, menuOpen);
     setAttr(menuButton, "aria-expanded", menuOpen ? "true" : "false");
     if (menuOpen && !wasOpen) {
       menuClose.focus({ preventScroll: true });
@@ -276,8 +277,8 @@ export function createMenuPanel({
 
   const renderConfirm = (): void => {
     startOverLink.disabled = !getView().ready;
-    const wasOpen = !confirm.hidden;
-    confirm.hidden = !confirmingStartOver;
+    const wasOpen = cardUp(confirm);
+    showCard(confirm, confirmingStartOver);
     if (confirmingStartOver && !wasOpen) {
       confirmCancel.focus();
     }
@@ -298,8 +299,8 @@ export function createMenuPanel({
 
   const renderFieldLog = (): void => {
     copyButton.disabled = !getView().ready;
-    const wasOpen = !fieldLogSheet.hidden;
-    fieldLogSheet.hidden = !fieldLogOpen;
+    const wasOpen = cardUp(fieldLogSheet);
+    showCard(fieldLogSheet, fieldLogOpen);
     if (fieldLogOpen && !wasOpen) {
       fieldLogBox.focus();
     }
