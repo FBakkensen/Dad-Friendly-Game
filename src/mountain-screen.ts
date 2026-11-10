@@ -403,6 +403,11 @@ export function mountMountainScreen({
     renderVein();
   };
 
+  /** A panel's own change repaints the whole screen; `paint` is set up below. */
+  const requestPaint = (): void => {
+    paint();
+  };
+
   // Pass the mine to your kid (M6): offered from the Legend card and the menu.
   const legacy = createLegacyPanel({
     progress,
@@ -411,9 +416,7 @@ export function mountMountainScreen({
     beforeOpen: () => {
       menuPanel.close();
     },
-    requestRender: () => {
-      paint();
-    },
+    requestRender: requestPaint,
   });
 
   // The gauge row (#371): the output gauge, the mine window down No. 2
@@ -519,9 +522,7 @@ export function mountMountainScreen({
     onShelfClosed: () => {
       shelfDoor?.focus();
     },
-    requestRender: () => {
-      paint();
-    },
+    requestRender: requestPaint,
   });
   const { shelf, detail, reveal, legend } = relics;
 
@@ -586,25 +587,19 @@ export function mountMountainScreen({
     onClose: () => {
       (rail.locked(doorKey) ? rail.keys.ledger : workshopDoor).focus();
     },
-    requestRender: () => {
-      paint();
-    },
+    requestRender: requestPaint,
   });
 
   const savedCopies = createSavedCopiesPanel({
     progress,
     now,
     onOpen: closeMenu,
-    requestRender: () => {
-      paint();
-    },
+    requestRender: requestPaint,
   });
   const conflictSheet = createSaveConflictPanel({
     progress,
     now,
-    requestRender: () => {
-      paint();
-    },
+    requestRender: requestPaint,
   });
   const menuPanel = createMenuPanel({
     progress,
@@ -613,9 +608,7 @@ export function mountMountainScreen({
     onStartOver: resetVein,
     extras: [ledger, workshop.menuEntry, legacy.menuPass, savedCopies.entry],
     door: rail.keys.ledger,
-    requestRender: () => {
-      paint();
-    },
+    requestRender: requestPaint,
     signal,
   });
   const { menu, confirm, fieldLogSheet } = menuPanel;
@@ -646,9 +639,7 @@ export function mountMountainScreen({
     door: rail.keys.engineers,
     fallbackDoor: rail.keys.ledger,
     now,
-    requestRender: () => {
-      paint();
-    },
+    requestRender: requestPaint,
   });
 
   const updatePrompt = document.createElement("div");
