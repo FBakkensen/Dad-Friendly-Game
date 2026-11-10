@@ -21,6 +21,7 @@ import {
 import { launchChrome, open, startServer } from "../tools/browser/harness.ts";
 import {
   crewMountain,
+  crewV4Save,
   crystalMountain,
   fleetMountain,
   heartMountain,
@@ -31,7 +32,6 @@ import {
   openMountain,
   playAwaySave,
   playBriefSave,
-  playCrewSave,
   playEdgeSave,
   savingMountain,
   seedJson,
@@ -40,7 +40,7 @@ import {
   workshopSave,
 } from "../tools/browser/fixtures.ts";
 
-/** Starting saves, from the visual check's fixtures. `fresh` seeds nothing. */
+/** Starting saves, from the typed fixtures in tools/browser/fixtures.ts. `fresh` seeds nothing. */
 const SAVES = {
   fresh: { note: "first open, nothing saved", save: () => undefined },
   early: { note: "a crewed Topsoil: workers and carts", save: crewMountain },
@@ -62,7 +62,7 @@ const SAVES = {
   },
   crew: {
     note: "every tier so far and both boosts, in the Deep Heart",
-    save: playCrewSave,
+    save: crewV4Save,
   },
   late: {
     note: "one stone left: a tap finds the legend and offers passing the mine",

@@ -1,6 +1,7 @@
 /**
  * Seed saves shared by the real-browser scripts: the layout guard
- * (scripts/visual-check.mjs) and the play-test shots (scripts/play.mjs).
+ * (scripts/visual-check.mjs), the screen audit (scripts/ui-audit.mjs) and the
+ * play-test shots (scripts/play.mjs).
  * Each is what a tab finds in localStorage on its first load.
  */
 
@@ -411,7 +412,7 @@ export function machinePickMountain(): SeedV6 {
 }
 
 // ---------------------------------------------------------------------------
-// The builders that used to live in scripts/visual-check.mjs.
+// The visual check's builders: one per screen state it seeds.
 // ---------------------------------------------------------------------------
 
 /** The v6 save the craft-done notice and layer-card sections start from. */
@@ -585,7 +586,10 @@ export function crewV4Save(): LegacySeed {
 
 /** The Buys drawer's fit check: the crew's tiers on a big pocket and a long mountain. */
 export function buysFitSave(
-  crew: Omit<SeedMountain, "remaining" | "pocket"> & { pocket?: number },
+  crew: Omit<SeedMountain, "remaining" | "pocket"> & {
+    remaining?: number;
+    pocket?: number;
+  },
 ): LegacySeed {
   return {
     version: 4,
@@ -793,22 +797,6 @@ export function lockedWorkshopSave(now: number): SeedV6 {
   };
 }
 
-/** One stone left and a legacy: the Legend finale. */
-export function legendSave(): LegacySeed {
-  return {
-    version: 5,
-    mountain: {
-      remaining: 1,
-      pocket: 0,
-      helpers: 999,
-      kids: 999,
-      staffed: 2,
-      legacy: 1,
-    },
-    lastSeen: Date.now(),
-  };
-}
-
 const RECIPES: SeedWorkshop["recipes"] = [
   "iron-rails",
   "sturdy-props",
@@ -822,7 +810,7 @@ const RECIPES: SeedWorkshop["recipes"] = [
   "heartstone-core",
   "heartstone-ember",
 ];
-const MOUNTAIN = 240_000_000;
+export const MOUNTAIN = 240_000_000;
 const HOUR = 60 * 60 * 1000;
 
 /**
@@ -897,11 +885,6 @@ export function quietCrew(extra: MountainOverrides = {}): MountainOverrides {
     upgrades: undefined,
     ...extra,
   };
-}
-
-/** play's `crew` save: the v4 CREW in the Deep Heart. */
-export function playCrewSave(): LegacySeed {
-  return { version: 4, mountain: CREW, lastSeen: Date.now() };
 }
 
 /** play's `edge` save: four stones above the Granite with 13 carts. */

@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { grantFirstEngineer } from "../../src/engineers.ts";
 import type { Mountain } from "../../src/mountain.ts";
+import { MOUNTAIN_STONES } from "../../src/scale.ts";
 
 /**
  * Every value the browser scripts seed, pinned. EXPECTED was printed by
@@ -428,7 +429,7 @@ const EXPECTED = {
 };
 
 /**
- * The builders that used to live in scripts/visual-check.mjs, pinned. Each string
+ * The visual check's builders, pinned. Each string
  * is the JSON of the old inline code, printed with Date.now frozen at FIXED and
  * called with the arguments its call sites pass. A few builders take their own
  * clock (`now`); the test passes FIXED.
@@ -489,8 +490,6 @@ const VISUAL_EXPECTED: Record<string, string> = {
     '{"version":4,"mountain":{"remaining":90700000,"pocket":9765,"helpers":20,"carts":1,"drills":1,"borers":1,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"tunnel"}],"expeditions":[{"engineer":"Ada","tunnel":"old-shaft","sentAt":1699994600000,"returnsAt":1699998200000,"home":"borer","find":{"kind":"tool","id":"pick"}}]},"lastSeen":1699992800000}',
   locked:
     '{"version":6,"lastSeen":1700000000000,"mountain":{"remaining":239500000,"pocket":100,"helpers":1,"staffed":2,"startedAt":1699999999000},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
-  legend:
-    '{"version":5,"mountain":{"remaining":1,"pocket":0,"helpers":999,"kids":999,"staffed":2,"legacy":1},"lastSeen":1700000000000}',
 };
 
 type Fixtures = typeof import("./fixtures.ts");
@@ -677,7 +676,6 @@ describe("the visual check's builders", () => {
       posts: () => f.campPostsSave(FIXED),
       toolHome: () => f.toolHomeSave(FIXED),
       locked: () => f.lockedWorkshopSave(FIXED),
-      legend: () => f.legendSave(),
     };
   }
 
@@ -718,8 +716,6 @@ describe("the audit's and play's saves", () => {
       '{"helpers":8,"kids":0,"carts":2,"drills":0,"borers":0,"machines":0}',
     quietExtra:
       '{"helpers":8,"kids":0,"carts":2,"drills":0,"borers":0,"machines":0,"pocket":40000}',
-    playCrewSave:
-      '{"version":4,"mountain":{"remaining":90700000,"pocket":9765,"helpers":51,"carts":24,"drills":6,"borers":2,"boosts":{"sharper":1700003600000,"overtime":1700003600000}},"lastSeen":1700000000000}',
     playEdgeSave:
       '{"version":6,"lastSeen":1700000000000,"mountain":{"remaining":230000004,"pocket":2000000,"helpers":40,"carts":13,"drills":4,"staffed":2},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease"]}}',
     playAwaySave:
@@ -762,7 +758,6 @@ describe("the audit's and play's saves", () => {
         ),
       quietBare: () => f.quietCrew(),
       quietExtra: () => f.quietCrew({ pocket: 40_000 }),
-      playCrewSave: () => f.playCrewSave(),
       playEdgeSave: () => f.playEdgeSave(),
       playAwaySave: () => f.playAwaySave(),
       playBriefSave: () => f.playBriefSave(),
@@ -779,5 +774,11 @@ describe("the audit's and play's saves", () => {
     const build = calls()[name];
     if (build === undefined) throw new Error(name);
     expect(JSON.stringify(build())).toBe(EXPECTED_AUDIT[name]);
+  });
+});
+
+describe("the mountain size", () => {
+  it("is the game's", () => {
+    expect(f.MOUNTAIN).toBe(MOUNTAIN_STONES);
   });
 });

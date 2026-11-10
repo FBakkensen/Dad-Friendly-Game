@@ -36,7 +36,6 @@ import {
   foundBelowSave,
   fullShelfSave,
   guardSave,
-  legendSave,
   lockedWorkshopSave,
   mantleSave,
   noticeSave,
@@ -3276,7 +3275,7 @@ const GUARD_SCREENS = [
   ["welcome", () => guardSave(Date.now() - 3 * 3_600_000), []],
   [
     "legacy",
-    () => legendSave(),
+    () => lastStoneSave(),
     [
       ".board-window",
       ".relic-reveal:not(.legend) .reveal-continue",
@@ -4595,7 +4594,7 @@ for (const viewport of SCREENS) {
 
     // The largest crews: the late save's 1,998 with 1,998 free, and a crew
     // past a hundred thousand. The plate's words stay on it.
-    for (const [crewName, crewSave] of [
+    for (const [crewName, buildSave] of [
       ["late", () => lastStoneSave()],
       [
         "huge",
@@ -4605,7 +4604,7 @@ for (const viewport of SCREENS) {
         }),
       ],
     ]) {
-      const { page, close } = await openScreen(viewport, crewSave(), {
+      const { page, close } = await openScreen(viewport, buildSave(), {
         stopClock: true,
       });
       await page.waitForSelector(".board-crew");

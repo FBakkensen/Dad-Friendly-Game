@@ -30,6 +30,7 @@ import {
 import {
   crewMountain,
   late,
+  MOUNTAIN,
   quietCrew,
   seedJson,
   shortMountain,
@@ -40,7 +41,6 @@ const OUT = "docs/ui-audit";
 /** The phone: the board's 424x924 stage at scale 1 (#370). */
 const PHONE_SIZE = "424x924";
 const VIEWPORTS = [[424, 924]];
-const MOUNTAIN = 240_000_000;
 
 const server = await startServer({ port: 4175, url: undefined });
 const BASE = server.base;
