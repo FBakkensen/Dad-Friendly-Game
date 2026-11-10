@@ -20,7 +20,6 @@ import {
 } from "../src/play-plan.ts";
 import { launchChrome, open, startServer } from "../tools/browser/harness.ts";
 import {
-  CREW,
   crewMountain,
   crystalMountain,
   fleetMountain,
@@ -30,14 +29,16 @@ import {
   lastStoneSave,
   machineMountain,
   openMountain,
+  playAwaySave,
+  playBriefSave,
+  playCrewSave,
+  playEdgeSave,
   savingMountain,
   seedJson,
   shortMountain,
   toolsMountain,
   workshopSave,
 } from "../tools/browser/fixtures.ts";
-
-const HOUR = 60 * 60 * 1000;
 
 /** Starting saves, from the visual check's fixtures. `fresh` seeds nothing. */
 const SAVES = {
@@ -61,7 +62,7 @@ const SAVES = {
   },
   crew: {
     note: "every tier so far and both boosts, in the Deep Heart",
-    save: () => ({ version: 4, mountain: CREW, lastSeen: Date.now() }),
+    save: playCrewSave,
   },
   late: {
     note: "one stone left: a tap finds the legend and offers passing the mine",
@@ -69,7 +70,7 @@ const SAVES = {
   },
   away: {
     note: "the mid save, last seen 9 hours ago: the welcome-back card",
-    save: () => ({ ...openMountain(), lastSeen: Date.now() - 9 * HOUR }),
+    save: playAwaySave,
   },
   heir: {
     note: "a kid's run after one pass: Grandpa tends the carts",
@@ -77,23 +78,11 @@ const SAVES = {
   },
   edge: {
     note: "13 carts, four stones above the Granite: tap across, open Buys",
-    save: () => ({
-      version: 6,
-      lastSeen: Date.now(),
-      mountain: {
-        remaining: 240_000_000 - 9_999_996,
-        pocket: 2_000_000,
-        helpers: 40,
-        carts: 13,
-        drills: 4,
-        staffed: 2,
-      },
-      workshop: openMountain().workshop,
-    }),
+    save: playEdgeSave,
   },
   brief: {
     note: "the mid save, last seen 2 minutes ago: the quiet away note",
-    save: () => ({ ...openMountain(), lastSeen: Date.now() - HOUR / 30 }),
+    save: playBriefSave,
   },
   saving: {
     note: "a free hand and nothing affordable: Saving for a cart",

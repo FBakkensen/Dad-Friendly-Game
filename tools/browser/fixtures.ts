@@ -808,3 +808,125 @@ export function legendSave(): LegacySeed {
     lastSeen: Date.now(),
   };
 }
+
+const RECIPES: SeedWorkshop["recipes"] = [
+  "iron-rails",
+  "sturdy-props",
+  "blasting-charge",
+  "reinforce",
+  "axle-grease",
+  "diamond-bits",
+  "crystal-flare",
+  "crystal-lamp",
+  "engineers-kit",
+  "heartstone-core",
+  "heartstone-ember",
+];
+const MOUNTAIN = 240_000_000;
+const HOUR = 60 * 60 * 1000;
+
+/**
+ * Tiers a shot overrides. A key set to `undefined` drops the tier from the
+ * saved JSON (quietCrew does, to leave the crew bare).
+ */
+export type MountainOverrides = {
+  readonly [K in keyof SeedMountain]?: SeedMountain[K] | undefined;
+};
+
+/**
+ * A late-game save. Real pocket, crew and materials. Spread `mountain` /
+ * `workshop` over the defaults when a shot needs a different moment.
+ * (The UI audit's builder.)
+ */
+export function late(
+  now: number,
+  mined: number,
+  mountain: MountainOverrides = {},
+  workshop: Partial<SeedWorkshop> = {},
+): SeedV6 {
+  const deep = mined >= 70_000_000;
+  const built = mined >= 25_000_000;
+  return {
+    version: 6,
+    lastSeen: now,
+    mountain: {
+      remaining: MOUNTAIN - mined,
+      pocket: 80_000_000,
+      helpers: 80,
+      kids: deep ? 4 : 0,
+      carts: 24,
+      drills: 8,
+      borers: 3,
+      machines: built ? 2 : 0,
+      staffed: 2,
+      startedAt: now - 86_400_000,
+      engineers: [
+        {
+          name: "Ada",
+          rank: 0,
+          trips: 0,
+          post: built ? "machine" : "borer",
+        },
+        { name: "Nils", rank: 0, trips: 0, post: "drill" },
+      ],
+      upgrades: { tap: 3, boots: 1, steady: 1, cartSyn: 1 },
+      finds: ["pick", "lamp", "drawing"],
+      // The undefined keys quietCrew sends are dropped by JSON; the cast only
+      // admits them past exactOptionalPropertyTypes.
+      ...(mountain as Partial<SeedMountain>),
+    },
+    workshop: {
+      materials: { clay: 40, iron: 28, crystal: 12, heartstone: 3 },
+      recipes: RECIPES,
+      ...workshop,
+    },
+  };
+}
+
+/** A small, plain crew: no engineers, finds or upgrades. (The UI audit's.) */
+export function quietCrew(extra: MountainOverrides = {}): MountainOverrides {
+  return {
+    helpers: 8,
+    kids: 0,
+    carts: 2,
+    drills: 0,
+    borers: 0,
+    machines: 0,
+    engineers: undefined,
+    finds: undefined,
+    upgrades: undefined,
+    ...extra,
+  };
+}
+
+/** play's `crew` save: the v4 CREW in the Deep Heart. */
+export function playCrewSave(): LegacySeed {
+  return { version: 4, mountain: CREW, lastSeen: Date.now() };
+}
+
+/** play's `edge` save: four stones above the Granite with 13 carts. */
+export function playEdgeSave(): SeedV6 {
+  return {
+    version: 6,
+    lastSeen: Date.now(),
+    mountain: {
+      remaining: 240_000_000 - 9_999_996,
+      pocket: 2_000_000,
+      helpers: 40,
+      carts: 13,
+      drills: 4,
+      staffed: 2,
+    },
+    workshop: openMountain().workshop,
+  };
+}
+
+/** play's `away` save: the mid save, last seen 9 hours ago. */
+export function playAwaySave(): SeedV6 {
+  return { ...openMountain(), lastSeen: Date.now() - 9 * HOUR };
+}
+
+/** play's `brief` save: the mid save, last seen 2 minutes ago. */
+export function playBriefSave(): SeedV6 {
+  return { ...openMountain(), lastSeen: Date.now() - HOUR / 30 };
+}
