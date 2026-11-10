@@ -3,8 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import { kidStretch } from "./scale";
 import { EMPTY_MATERIALS } from "./layers";
 import { createMemoryAuth } from "./auth";
-import { buyBoost } from "./boosts";
-import { buyCrew } from "./crew";
 import {
   createMemoryCloudSave,
   createUnavailableCloudSave,
@@ -28,7 +26,6 @@ import {
   type Mountain,
 } from "./mountain";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
-import { effectiveRates } from "./rates";
 import { readDeviceId } from "./device-id";
 import { readPhoneBackup, writePhoneBackup } from "./phone-backup";
 import {
@@ -43,11 +40,10 @@ import {
 } from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { buyTier, tierById, tierCost } from "./tiers";
-import { buyUpgrade, upgradeById, upgradeCost } from "./upgrades";
-import { recipesForMined, startCraft } from "./workshop";
-import { mineVein } from "./veins";
-import { promote, promoteCost, station } from "./engineers";
-import { recall, send, type Expedition } from "./expeditions";
+import { upgradeById, upgradeCost } from "./upgrades";
+import { recipesForMined } from "./workshop";
+import { promoteCost } from "./engineers";
+import { send, type Expedition } from "./expeditions";
 import { ENGINEER_FIX_MS, nextTrouble } from "./hazards";
 
 /** The first worker's price, so a buy below always goes through. */
@@ -1371,11 +1367,8 @@ describe("field log", () => {
 
   it("ignores a plain tap and an unaffordable buy", () => {
     const progress = guest();
-    progress.applyMutation((mountain) => mineByHand(mountain));
-    progress.applyMutation(
-      (mountain) => buyTier(mountain, "helper"),
-      "vein.tap",
-    );
+    progress.dispatch({ kind: "dig" });
+    progress.dispatch({ kind: "buyTier", id: "helper" });
     expect(progress.fieldLog().events).toEqual([]);
     expect(progress.fieldLog().snapshot.version).toBe(APP_VERSION);
   });
@@ -1383,70 +1376,60 @@ describe("field log", () => {
   it("records a tier buy, an upgrade, and a boost with its end time", () => {
     const at = 1_000_000;
     const progress = guest(() => at);
-    progress.applyMutation((mountain) =>
-      buyTier({ ...mountain, pocket: firstWorker }, "helper"),
-    );
-    // Three carts open Strong arms (#250).
-    progress.applyMutation((mountain) => ({ ...mountain, carts: 3 }));
-    progress.applyMutation((mountain) =>
-      buyUpgrade(
-        {
-          ...mountain,
-          pocket: upgradeCost(upgradeById("tap"), 0) ?? Number.NaN,
-        },
-        "tap",
-      ),
-    );
-    progress.applyMutation((mountain) => {
-      const rich = { ...mountain, pocket: 1_000 };
-      return buyBoost({
-        mountain: rich,
-        id: "sharper",
-        now: at,
-        pricing: effectiveRates(rich),
-      });
-    });
-    progress.applyMutation((mountain) => mountain);
-
-    const codes = progress.fieldLog().events.map((event) => event.code);
-    expect(codes).toEqual([
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      pocket: firstWorker,
+    }));
+    progress.dispatch({ kind: "buyTier", id: "helper" });
+    expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
       "tier.buy",
-      "tier.buy",
-      "upgrade.buy",
-      "boost.start",
     ]);
     expect(progress.fieldLog().events[0]?.data).toEqual({
       id: "helper",
       count: 1,
     });
-    expect(progress.fieldLog().events[2]?.data).toEqual({
-      id: "tap",
-      count: 1,
-    });
+
+    // Three carts open Strong arms (#250). The set-up is not a move.
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      carts: 3,
+      pocket: upgradeCost(upgradeById("tap"), 0) ?? Number.NaN,
+    }));
+    const from = progress.fieldLog().events.length;
+    progress.dispatch({ kind: "buyUpgrade", id: "tap" });
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    progress.dispatch({ kind: "buyBoost", id: "sharper" });
+
+    const moves = progress.fieldLog().events.slice(from);
+    expect(moves.map((event) => event.code)).toEqual([
+      "upgrade.buy",
+      "boost.start",
+    ]);
+    expect(moves[0]?.data).toEqual({ id: "tap", count: 1 });
     const endsAt = progress.getSnapshot().mountain.boosts?.sharper;
     expect(endsAt).toBeTypeOf("number");
-    expect(progress.fieldLog().events[3]?.data).toEqual({
+    expect(moves[1]?.data).toEqual({
       id: "sharper",
       endsAt: new Date(endsAt ?? 0).toISOString(),
     });
   });
 
-  it("does not record a boost whose end time did not change", () => {
+  it("records nothing for a refused move", () => {
     const progress = guest(() => 5_000);
-    const endsAt = 9_000;
     progress.applyMutation((mountain) => ({
       ...mountain,
-      boosts: { sharper: endsAt },
+      carts: 1,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
     }));
-    progress.applyMutation((mountain) => ({
-      ...mountain,
-      boosts: { sharper: endsAt },
-    }));
+    const before = progress.fieldLog().events;
+    expect(progress.dispatch({ kind: "buyBoost", id: "sharper" })).toEqual({
+      kind: "refused",
+      reason: "no-change",
+    });
     expect(
-      progress
-        .fieldLog()
-        .events.filter((event) => event.code === "boost.start"),
-    ).toHaveLength(1);
+      progress.dispatch({ kind: "station", index: 0, post: "cart" }),
+    ).toEqual({ kind: "refused", reason: "no-change" });
+    expect(progress.fieldLog().events).toEqual(before);
   });
 
   it("records a vein tap's stones, a relic, and an away report", () => {
@@ -1461,7 +1444,7 @@ describe("field log", () => {
       sessionStorage: storage,
       now: () => 120_000,
     });
-    progress.applyMutation((mountain) => mineVein(mountain), "vein.tap");
+    progress.dispatch({ kind: "tapVein" });
     progress.applyMutation(() => minedMountain(1_000_000));
 
     const events = progress.fieldLog().events;
@@ -1494,9 +1477,9 @@ describe("field log", () => {
 
   it("copies the newest 50 events", () => {
     const progress = guest();
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1_000_000 }));
     for (let count = 1; count <= 60; count += 1) {
-      const next = count;
-      progress.applyMutation((mountain) => ({ ...mountain, helpers: next }));
+      progress.dispatch({ kind: "buyTier", id: "helper" });
     }
     const events = progress.fieldLog().events;
     expect(events).toHaveLength(50);
@@ -1511,9 +1494,11 @@ describe("field log", () => {
       sessionStorage: storage,
       now: () => 1,
     });
-    progress.applyMutation((mountain) =>
-      buyTier({ ...mountain, pocket: firstWorker }, "helper"),
-    );
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      pocket: firstWorker,
+    }));
+    progress.dispatch({ kind: "buyTier", id: "helper" });
     expect(progress.fieldLog().events).toHaveLength(1);
     expect(JSON.stringify(readSessionSave({ storage }))).not.toContain(
       "tier.buy",
@@ -1561,18 +1546,14 @@ describe("field log events for the deep (#150)", () => {
 
   it("records a promotion, a station, a call back to camp, and the free first engineer as crew", () => {
     const { progress } = guest();
-    progress.applyMutation((mountain) =>
+    progress.applyMutation((mountain) => ({
+      ...mountain,
       // The borer opens at 10M stones (#250).
-      buyCrew(
-        {
-          ...mountain,
-          remaining: mountain.remaining - 10_000_000,
-          // The borer and the workers it needs.
-          pocket: tierCost(tierById("borer"), 0) + 5_000_000,
-        },
-        "borer",
-      ),
-    );
+      remaining: mountain.remaining - 10_000_000,
+      // The borer and the workers it needs.
+      pocket: tierCost(tierById("borer"), 0) + 5_000_000,
+    }));
+    progress.dispatch({ kind: "buyTier", id: "borer" });
     expect(codes(progress)).toContain("tier.buy");
     expect(codes(progress)).not.toContain("engineer.promote");
     expect(progress.fieldLog().snapshot.engineers).toEqual([
@@ -1584,10 +1565,10 @@ describe("field log events for the deep (#150)", () => {
       // Exactly the second engineer's Granite price.
       return { ...ready, pocket: promoteCost(ready) };
     });
-    progress.applyMutation((mountain) => promote(mountain));
-    progress.applyMutation((mountain) => station(mountain, 1, "drill"));
-    progress.applyMutation((mountain) => station(mountain, 1, "camp"));
-    progress.applyMutation((mountain) => station(mountain, 1, "camp"));
+    progress.dispatch({ kind: "promote" });
+    progress.dispatch({ kind: "station", index: 1, post: "drill" });
+    progress.dispatch({ kind: "station", index: 1, post: "camp" });
+    progress.dispatch({ kind: "station", index: 1, post: "camp" });
 
     const events = progress.fieldLog().events;
     expect(events).toContainEqual(
@@ -1628,9 +1609,7 @@ describe("field log events for the deep (#150)", () => {
       borers: 1,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     }));
-    progress.applyMutation((mountain) =>
-      send(mountain, 0, "side-seam", 10_000),
-    );
+    progress.dispatch({ kind: "send", index: 0, tunnel: "side-seam" });
     const trip = progress.getSnapshot().mountain.expeditions?.[0];
     if (trip === undefined) {
       throw new Error("expected a trip");
@@ -1649,9 +1628,7 @@ describe("field log events for the deep (#150)", () => {
       }),
     );
 
-    progress.applyMutation((mountain) =>
-      station(recall(mountain, 0), 0, "cart"),
-    );
+    progress.dispatch({ kind: "station", index: 0, post: "cart" });
     expect(progress.fieldLog().events).toContainEqual(
       expect.objectContaining({
         code: "expedition.recall",
@@ -1724,11 +1701,9 @@ describe("field log events for the deep (#150)", () => {
       }),
     );
 
-    progress.applyMutation((mountain) =>
-      send(mountain, 0, "side-seam", 70_000),
-    );
+    progress.dispatch({ kind: "send", index: 0, tunnel: "side-seam" });
     const before = codes(progress).length;
-    progress.applyMutation((mountain) => recall(mountain, 0));
+    progress.dispatch({ kind: "recall", index: 0 });
     const added = progress.fieldLog().events.slice(before);
     expect(added.map((event) => event.code)).toEqual(["expedition.recall"]);
     expect(added[0]?.data).toEqual({ id: "Ada", source: "side-seam" });
@@ -1951,12 +1926,12 @@ describe("field log events for the deep (#150)", () => {
 describe("field log cloud copy", () => {
   const user = { uid: "test-dad", label: "Test Dad" };
 
-  const signedIn = (now: () => number) => {
+  const signedIn = (now: () => number, pocket = 0) => {
     const fieldLogs = new Map<string, FieldLogDocument>();
     const progress = createProgressStore({
       auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
       cloudSave: createMemoryCloudSave({
-        docs: new Map([[user.uid, createMountain()]]),
+        docs: new Map([[user.uid, { ...createMountain(), pocket }]]),
         fieldLogs,
       }),
       sessionStorage: createMemoryStorage(),
@@ -2010,8 +1985,8 @@ describe("field log cloud copy", () => {
 
   it("resets the ring and overwrites the doc on Start over and passing the mine", () => {
     let clock = 8_000;
-    const { fieldLogs, progress } = signedIn(() => clock);
-    progress.applyMutation((mountain) => ({ ...mountain, helpers: 4 }));
+    const { fieldLogs, progress } = signedIn(() => clock, firstWorker);
+    progress.dispatch({ kind: "buyTier", id: "helper" });
     expect(fieldLogs.get(user.uid)?.events.map((event) => event.code)).toEqual([
       "tier.buy",
     ]);
@@ -2039,9 +2014,9 @@ describe("field log cloud copy", () => {
   });
 
   it("copies the whole ring on hide, not just the menu's 50", () => {
-    const { fieldLogs, progress } = signedIn(() => 50_000);
+    const { fieldLogs, progress } = signedIn(() => 50_000, 1_000_000_000);
     for (let count = 1; count <= 201; count += 1) {
-      progress.applyMutation((mountain) => ({ ...mountain, helpers: count }));
+      progress.dispatch({ kind: "buyTier", id: "helper" });
     }
     expect(fieldLogs.get(user.uid)?.events).toHaveLength(1);
     expect(progress.fieldLog().events).toHaveLength(50);
@@ -2745,7 +2720,8 @@ describe("layer card and craft-done notice", () => {
     const storage = createMemoryStorage();
     let clock = 0;
     const progress = guest(storage, () => clock);
-    progress.applyMutation(() => startCraft(shed(), "iron-rails", clock));
+    progress.applyMutation(() => shed());
+    progress.dispatch({ kind: "craft", recipe: "iron-rails" });
     expect(progress.fieldLog().events).toContainEqual(
       expect.objectContaining({
         code: "craft.start",
@@ -5405,6 +5381,21 @@ describe("dispatch (#409)", () => {
       reason: "not-playing",
     });
     expect(readSessionSave({ storage: sessionStorage })).toEqual(saved);
+  });
+
+  it("records nothing for a move while the session is not playing", () => {
+    const progress = store();
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      pocket: firstWorker,
+    }));
+    progress.dispose();
+    const before = progress.fieldLog().events;
+    expect(progress.dispatch({ kind: "buyTier", id: "helper" })).toEqual({
+      kind: "refused",
+      reason: "not-playing",
+    });
+    expect(progress.fieldLog().events).toEqual(before);
   });
 
   it("digs with the trouble the settle leaves, even one that starts in that settle", () => {

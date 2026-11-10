@@ -39,7 +39,7 @@ import {
   createMemoryBus,
   createTabWriter,
 } from "./tab-writer";
-import { buyTier, tierById, tierCost } from "./tiers";
+import { tierById, tierCost } from "./tiers";
 import {
   createMemoryStorage,
   mountScreen,
@@ -1398,12 +1398,11 @@ describe("menu", () => {
     const screen = mountScreen();
     document.body.append(screen.root);
     try {
-      screen.progress.applyMutation((mountain) =>
-        buyTier(
-          { ...mountain, pocket: tierCost(tierById("helper"), 0) },
-          "helper",
-        ),
-      );
+      screen.progress.applyMutation((mountain) => ({
+        ...mountain,
+        pocket: tierCost(tierById("helper"), 0),
+      }));
+      screen.progress.dispatch({ kind: "buyTier", id: "helper" });
       screen.root
         .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
         ?.click();
