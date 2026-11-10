@@ -25,8 +25,25 @@ import {
   WINDOW_SCENE_PARTS,
 } from "../src/ui-audit-measure.ts";
 import {
-  CREW,
   SAVE_KEY,
+  awayTripSave,
+  borerPickMountain,
+  buysFitSave,
+  campPostsSave,
+  crewSave,
+  crewV4Save,
+  effectSave,
+  foundBelowSave,
+  fullShelfSave,
+  guardSave,
+  legendSave,
+  lockedWorkshopSave,
+  mantleSave,
+  noticeSave,
+  overtimeSave,
+  staffingNoteSave,
+  toolHomeSave,
+  welcomeBackSave,
   crewMountain,
   crystalMountain,
   fleetMountain,
@@ -60,14 +77,6 @@ const PCS = [
 const SCREENS = [PHONE, ...PCS];
 /** A PC is a desk from 600px wide (src/board-fit.ts): mouse, not touch. */
 const isDesk = ([width]) => width >= 600;
-
-// One stone short of the Lantern of Guidance, away for ten minutes.
-const BEFORE_LANTERN = {
-  remaining: 99_000_001,
-  pocket: 180,
-  helpers: 0,
-  carts: 0,
-};
 
 const failures = [];
 const check = (ok, label) => {
@@ -709,11 +718,7 @@ async function veinInView(page) {
 for (const viewport of SCREENS) {
   section(`section 1 (main screen) ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await openScreen(viewport, {
-      version: 4,
-      mountain: CREW,
-      lastSeen: Date.now(),
-    });
+    const { page, close } = await openScreen(viewport, crewV4Save());
     check(await noScroll(page), `${size} main screen has no scroll`);
     // A dig's "+N" rises inside the window; the page stays still (#371).
     await press(page, ".board-window");
@@ -1075,15 +1080,9 @@ for (const viewport of [PHONE]) {
         "DejaVu Sans",
       ],
     ]) {
-      const { page, close } = await openScreen(
-        viewport,
-        {
-          version: 4,
-          mountain: { remaining: 50_000_000, pocket: 49_999_999, ...crew },
-          lastSeen: Date.now(),
-        },
-        { stopClock: true },
-      );
+      const { page, close } = await openScreen(viewport, buysFitSave(crew), {
+        stopClock: true,
+      });
       if (font !== undefined) {
         await page.addStyleTag({
           content: `* { font-family: "${font}" !important; }`,
@@ -1208,11 +1207,9 @@ for (const viewport of [PHONE]) {
 for (const viewport of [PHONE]) {
   section(`section 3 (standalone) ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await openScreen(
-      viewport,
-      { version: 4, mountain: CREW, lastSeen: Date.now() },
-      { standalone: true },
-    );
+    const { page, close } = await openScreen(viewport, crewV4Save(), {
+      standalone: true,
+    });
     await new Promise((resolve) => setTimeout(resolve, 1_100));
     check(
       await noScroll(page),
@@ -1273,16 +1270,9 @@ for (const standalone of [false, true]) {
   section(`section 4 (line 816) ${JSON.stringify(standalone)}`, async () => {
     const viewport = PHONE;
     const label = `424x924${standalone ? " standalone" : ""}`;
-    const { page, close } = await openScreen(
-      viewport,
-      {
-        legacy: true,
-        version: 4,
-        mountain: { ...CREW, helpers: 3 },
-        lastSeen: Date.now(),
-      },
-      { standalone },
-    );
+    const { page, close } = await openScreen(viewport, staffingNoteSave(), {
+      standalone,
+    });
     const crewText = await page.$eval(".welcome-crew", (el) => el.textContent);
     check(
       crewText?.endsWith("joined to run your machines.") === true,
@@ -1314,11 +1304,7 @@ for (const standalone of [false, true]) {
 section("section 5 (line 856)", async () => {
   {
     const viewport = PHONE;
-    const { page, close } = await openScreen(viewport, {
-      version: 4,
-      mountain: { ...BEFORE_LANTERN, helpers: 5 },
-      lastSeen: Date.now() - 10 * 60 * 1000,
-    });
+    const { page, close } = await openScreen(viewport, welcomeBackSave());
     check(
       await coversBoard(page, ".welcome-back"),
       "welcome-back is laid over the game",
@@ -1419,37 +1405,13 @@ async function foundSheetsFit(page, { top = 0, bottom = 0 } = {}) {
   return ok;
 }
 
-const FOUND_BELOW = {
-  remaining: 74_000_000,
-  pocket: 100,
-  helpers: 12,
-  carts: 2,
-  drills: 1,
-  borers: 1,
-  machines: 0,
-  kids: 0,
-  finds: [
-    "pick",
-    "lamp",
-    "map",
-    "boots",
-    "drawing",
-    "watch",
-    "whistle",
-    "pebble",
-    "ribbon",
-  ],
-};
-
 for (const standalone of [false, true]) {
   section(`section 6 (line 977) ${JSON.stringify(standalone)}`, async () => {
     const viewport = PHONE;
     const label = `424x924${standalone ? " standalone" : ""}`;
-    const { page, close } = await openScreen(
-      viewport,
-      { version: 4, mountain: FOUND_BELOW, lastSeen: Date.now() },
-      { standalone },
-    );
+    const { page, close } = await openScreen(viewport, foundBelowSave(), {
+      standalone,
+    });
     check(
       await foundSheetsFit(
         page,
@@ -1466,21 +1428,7 @@ for (const standalone of [false, true]) {
 for (const viewport of [[424, 924]]) {
   section(`section 7 (line 997) ${JSON.stringify(viewport)}`, async () => {
     const label = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await openScreen(viewport, {
-      version: 5,
-      mountain: {
-        remaining: 0,
-        pocket: 0,
-        helpers: 40,
-        carts: 10,
-        drills: 0,
-        borers: 0,
-        machines: 0,
-        kids: 0,
-        staffed: 2,
-      },
-      lastSeen: Date.now(),
-    });
+    const { page, close } = await openScreen(viewport, fullShelfSave());
     await openShelf(page);
     check(await noScroll(page), `${label} full shelf has no page scroll`);
     await page.evaluate(() => {
@@ -1513,21 +1461,7 @@ for (const viewport of [[424, 924]]) {
 for (const viewport of [[424, 924]]) {
   section(`section 8 (line 1045) ${JSON.stringify(viewport)}`, async () => {
     const label = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await openScreen(viewport, {
-      version: 5,
-      mountain: {
-        remaining: 1,
-        pocket: 0,
-        helpers: 999,
-        carts: 999,
-        drills: 999,
-        borers: 999,
-        machines: 999,
-        kids: 999,
-        staffed: 2,
-      },
-      lastSeen: Date.now(),
-    });
+    const { page, close } = await openScreen(viewport, mantleSave());
     await page.tap(".board-window");
     await page.waitForSelector(".relic-reveal:not([hidden])");
     await page.tap(".relic-reveal:not(.legend) .reveal-continue");
@@ -1628,11 +1562,10 @@ for (const standalone of [false, true]) {
   section(`section 10 (line 1138) ${JSON.stringify(standalone)}`, async () => {
     const viewport = PHONE;
     const label = `424x924${standalone ? " standalone" : ""}`;
-    const { page, close } = await openScreen(
-      viewport,
-      { version: 4, mountain: CREW, lastSeen: Date.now() },
-      { standalone, search: "?trouble=cave-in" },
-    );
+    const { page, close } = await openScreen(viewport, crewV4Save(), {
+      standalone,
+      search: "?trouble=cave-in",
+    });
     await openSheet(page, "buys");
     const card = await page
       .$eval('.tier[data-tier="cart"]', (el) => {
@@ -1688,33 +1621,9 @@ for (const standalone of [false, true]) {
     const viewport = PHONE;
     const label = `424x924${standalone ? " standalone" : ""}`;
     const now = Date.now();
-    const { page, close } = await openScreen(
-      viewport,
-      {
-        version: 4,
-        mountain: {
-          remaining: 90_700_000,
-          pocket: 9_765,
-          helpers: 51,
-          carts: 24,
-          drills: 6,
-          borers: 2,
-          engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
-          expeditions: [
-            {
-              engineer: "Ada",
-              tunnel: "old-shaft",
-              sentAt: now,
-              returnsAt: now + 40 * 60_000,
-              home: "borer",
-              find: { kind: "quiet" },
-            },
-          ],
-        },
-        lastSeen: now,
-      },
-      { standalone },
-    );
+    const { page, close } = await openScreen(viewport, awayTripSave(now), {
+      standalone,
+    });
     const insets = standalone ? STANDALONE_INSETS : { top: 0, bottom: 0 };
     // The trip's clock lives in the Running now note the dial opens (#370).
     await page.tap(".board-dial");
@@ -1825,40 +1734,9 @@ for (const viewport of [PHONE]) {
     for (const standalone of [false, true]) {
       const label = `${String(viewport[0])}x${String(viewport[1])}${standalone ? " standalone" : ""}`;
       const now = Date.now();
-      const { page, close } = await openScreen(
-        viewport,
-        {
-          version: 4,
-          mountain: {
-            remaining: 90_700_000,
-            pocket: 9_765,
-            helpers: 51,
-            carts: 24,
-            drills: 6,
-            borers: 2,
-            engineers: [
-              { name: "Ada", rank: 1, trips: 3, post: "borer" },
-              { name: "Nils", rank: 0, trips: 0, post: "camp" },
-              { name: "Ruth", rank: 2, trips: 9, post: "drill" },
-              { name: "Otto", rank: 0, trips: 0, post: "tunnel" },
-              { name: "Mae", rank: 0, trips: 0, post: "cart" },
-            ],
-            expeditions: [
-              {
-                engineer: "Otto",
-                tunnel: "old-shaft",
-                sentAt: now,
-                returnsAt: now + 40 * 60_000,
-                home: "camp",
-                find: { kind: "quiet" },
-              },
-            ],
-            finds: ["drawing", "watch"],
-          },
-          lastSeen: now,
-        },
-        { standalone },
-      );
+      const { page, close } = await openScreen(viewport, campPostsSave(now), {
+        standalone,
+      });
       const insets = standalone ? STANDALONE_INSETS : { top: 0, bottom: 0 };
       await page.tap(KEY("engineers"));
       const crew = await page.$eval(
@@ -1935,33 +1813,9 @@ for (const standalone of [false, true]) {
     const viewport = PHONE;
     const label = `424x924${standalone ? " standalone" : ""}`;
     const now = Date.now();
-    const { page, close } = await openScreen(
-      viewport,
-      {
-        version: 4,
-        mountain: {
-          remaining: 90_700_000,
-          pocket: 9_765,
-          helpers: 20,
-          carts: 1,
-          drills: 1,
-          borers: 1,
-          engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
-          expeditions: [
-            {
-              engineer: "Ada",
-              tunnel: "old-shaft",
-              sentAt: now - 90 * 60_000,
-              returnsAt: now - 30 * 60_000,
-              home: "borer",
-              find: { kind: "tool", id: "pick" },
-            },
-          ],
-        },
-        lastSeen: now - 2 * 60 * 60_000,
-      },
-      { standalone },
-    );
+    const { page, close } = await openScreen(viewport, toolHomeSave(now), {
+      standalone,
+    });
     const bottom = standalone ? STANDALONE_INSETS.bottom : 0;
     const card = await page.$eval(
       ".welcome-back",
@@ -2213,21 +2067,7 @@ for (const viewport of WORKSHOP_SIZES) {
 section("section 15 (line 1703)", async () => {
   {
     const now = Date.now();
-    const { page, close } = await openScreen(PHONE, {
-      version: 6,
-      lastSeen: now,
-      mountain: {
-        remaining: 239_500_000,
-        pocket: 100,
-        helpers: 1,
-        staffed: 2,
-        startedAt: now - 1_000,
-      },
-      workshop: {
-        materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-        recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
-      },
-    });
+    const { page, close } = await openScreen(PHONE, lockedWorkshopSave(now));
     await page.tap(KEY("ledger"));
     const locked = await page.$eval(".workshop-locked", (row) => ({
       text: row.textContent ?? "",
@@ -2255,26 +2095,6 @@ section("section 15 (line 1703)", async () => {
  * Same sizes as the workshop check.
  */
 const NOTICE_SIZES = [[424, 924]];
-
-function noticeSave({ mined, lastSeen, mountain = {}, workshop = {} }) {
-  return {
-    version: 6,
-    lastSeen,
-    mountain: {
-      remaining: 240_000_000 - mined,
-      pocket: 20,
-      helpers: 0,
-      carts: 0,
-      staffed: 2,
-      ...mountain,
-    },
-    workshop: {
-      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
-      ...workshop,
-    },
-  };
-}
 
 /** Visible buttons and reading-size labels inside one root. */
 async function fitOf(page, selector, labelSelector) {
@@ -3112,24 +2932,6 @@ for (const viewport of SCREENS) {
 // menu at every length (#370), and a four-part crew line must not leave one
 // chip alone on the next row.
 const PILL_VIEWS = [PHONE];
-function crewSave(pocket) {
-  return {
-    version: 6,
-    lastSeen: Date.now(),
-    mountain: {
-      remaining: 240_000_000 - 12_000_000,
-      pocket,
-      helpers: 18,
-      carts: 7,
-      drills: 2,
-      staffed: 2,
-    },
-    workshop: {
-      materials: { clay: 10, iron: 0, crystal: 0, heartstone: 0 },
-      recipes: ["iron-rails", "sturdy-props", "blasting-charge", "reinforce"],
-    },
-  };
-}
 
 async function pillClear(page) {
   return page.evaluate(() => {
@@ -3347,68 +3149,6 @@ for (const viewport of [PHONE]) {
 // The running countdowns (0, 1, 3, and every one at once) are lines in the
 // Running now note the boost dial opens, and the note stays on the board (#370).
 const EFFECT_VIEWS = SCREENS;
-function effectSave(count) {
-  const now = Date.now();
-  // 0, 1, and 3 are that many chips. 12 is both boosts, four craft clocks, the bench, and five trips.
-  const names = ["Ada", "Nils", "Ruth", "Otto", "Mae"];
-  const full = count >= 12;
-  const tripCount = full ? 5 : count >= 3 ? 1 : 0;
-  const expeditions = Array.from({ length: tripCount }, (_, index) => ({
-    engineer: names[index],
-    tunnel: "side-seam",
-    sentAt: now - 60_000,
-    // Longer than the boosts, so a clock stays on screen when the row is full.
-    returnsAt: now + (40 + index) * 60_000,
-    home: "camp",
-    find: { kind: "quiet" },
-  }));
-  const boosts =
-    count >= 2
-      ? { sharper: now + 10 * 60_000, overtime: now + 20 * 60_000 }
-      : count >= 1
-        ? { sharper: now + 10 * 60_000 }
-        : {};
-  const engineers = names
-    .slice(0, Math.max(1, tripCount))
-    .map((name, index) => ({
-      name,
-      rank: 0,
-      trips: 0,
-      post: index < tripCount ? "tunnel" : "camp",
-    }));
-  return {
-    version: 6,
-    lastSeen: now,
-    mountain: {
-      remaining: 240_000_000 - 12_000_000,
-      pocket: 5_000_000,
-      helpers: 20,
-      carts: 2,
-      borers: 1,
-      staffed: 2,
-      engineers,
-      expeditions,
-      boosts,
-    },
-    workshop: {
-      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
-      ...(full
-        ? {
-            chargeUntil: now + 8 * 60_000,
-            axleUntil: now + 12 * 60_000,
-            flareUntil: now + 50 * 60_000,
-            emberUntil: now + 15 * 60_000,
-            bench: {
-              recipe: "iron-rails",
-              startedAt: now - 1_000,
-              endsAt: now + 9 * 60_000,
-            },
-          }
-        : {}),
-    },
-  };
-}
 
 for (const viewport of EFFECT_VIEWS) {
   section(`section 23 (Running now) ${JSON.stringify(viewport)}`, async () => {
@@ -3519,27 +3259,6 @@ for (const viewport of EFFECT_VIEWS) {
 
 // #238: no screen moves the page. Lists inside a sheet may scroll; the page never does.
 const GUARD_SIZES = SCREENS;
-function guardSave(lastSeen, remaining = 200_000_000) {
-  return {
-    version: 6,
-    lastSeen,
-    mountain: {
-      remaining,
-      pocket: 3_250_000,
-      helpers: 34,
-      carts: 12,
-      drills: 4,
-      borers: 1,
-      staffed: 2,
-      engineers: [{ name: "Ada", rank: 1, trips: 3, post: "camp" }],
-      boosts: { sharper: lastSeen + 3_600_000 },
-    },
-    workshop: {
-      materials: { clay: 12, iron: 6, crystal: 2, heartstone: 0 },
-      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
-    },
-  };
-}
 const GUARD_SCREENS = [
   ["main, fresh", () => freshMountain(), []],
   ["main, mid-game", () => guardSave(Date.now()), []],
@@ -3557,18 +3276,7 @@ const GUARD_SCREENS = [
   ["welcome", () => guardSave(Date.now() - 3 * 3_600_000), []],
   [
     "legacy",
-    () => ({
-      version: 5,
-      mountain: {
-        remaining: 1,
-        pocket: 0,
-        helpers: 999,
-        kids: 999,
-        staffed: 2,
-        legacy: 1,
-      },
-      lastSeen: Date.now(),
-    }),
+    () => legendSave(),
     [
       ".board-window",
       ".relic-reveal:not(.legend) .reveal-continue",
@@ -3613,16 +3321,6 @@ for (const viewport of GUARD_SIZES) {
 // The board itself (#370): the relic plate, the stock row, the save line and
 // its drawer, at the phone and the three PC sizes, on a fresh save, a mid save,
 // one with Overtime running, and the save line in its error words.
-function overtimeSave() {
-  const save = openMountain();
-  return {
-    ...save,
-    mountain: {
-      ...save.mountain,
-      boosts: { overtime: Date.now() + 20 * 60_000 },
-    },
-  };
-}
 const BOARD_SAVES = [
   ["fresh", () => freshMountain(), ""],
   ["mid", () => openMountain(), ""],
@@ -5832,14 +5530,6 @@ const RAIL_SAVES = [
   // The bench clock under the Workshop key.
   ["workshop", () => workshopSave(Date.now(), true)],
 ];
-/** The mid save with hands and stones for the borer: the borer is the pick, Ada on it. */
-function borerPickMountain() {
-  const open = openMountain();
-  return {
-    ...open,
-    mountain: { ...open.mountain, helpers: 28, pocket: 6_000_000 },
-  };
-}
 const DRAWER_SAVES = [
   ["fresh", () => freshMountain()],
   ["early", () => crewMountain()],
@@ -5849,7 +5539,7 @@ const DRAWER_SAVES = [
   ["tools", () => toolsMountain()],
   ["machine", () => machineMountain()],
   ["heir", () => heirMountain()],
-  ["crew", () => ({ version: 4, mountain: CREW, lastSeen: Date.now() })],
+  ["crew", () => crewV4Save()],
   ["mid, the borer the pick", () => borerPickMountain()],
   // A full Granite: two rows of crew chips, and Buys still fits (#373).
   ["mid, two chip rows", () => fullGraniteMountain()],
@@ -6599,10 +6289,7 @@ for (const viewport of SCREENS) {
       await close();
     }
     {
-      const { close, rows: crew } = await visit(
-        () => ({ version: 4, mountain: CREW, lastSeen: Date.now() }),
-        "upgrades",
-      );
+      const { close, rows: crew } = await visit(() => crewV4Save(), "upgrades");
       check(
         ["sharper", "overtime"].every(
           (id) =>

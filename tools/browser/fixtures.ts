@@ -4,6 +4,8 @@
  * Each is what a tab finds in localStorage on its first load.
  */
 
+import type { Engineer, EngineerName } from "../../src/engineers.ts";
+import type { Expedition } from "../../src/expeditions.ts";
 import type { Mountain } from "../../src/mountain.ts";
 import type { MountainSaveV6, MountainSaveV7 } from "../../src/persist.ts";
 
@@ -405,5 +407,404 @@ export function machinePickMountain(): SeedV6 {
       helpers: 90,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "machine" }],
     },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The builders that used to live in scripts/visual-check.mjs.
+// ---------------------------------------------------------------------------
+
+/** The v6 save the craft-done notice and layer-card sections start from. */
+export function noticeSave({
+  mined,
+  lastSeen,
+  mountain = {},
+  workshop = {},
+}: {
+  readonly mined: number;
+  readonly lastSeen: number;
+  readonly mountain?: Partial<SeedMountain>;
+  readonly workshop?: Partial<SeedWorkshop>;
+}): SeedV6 {
+  return {
+    version: 6,
+    lastSeen,
+    mountain: {
+      remaining: 240_000_000 - mined,
+      pocket: 20,
+      helpers: 0,
+      carts: 0,
+      staffed: 2,
+      ...mountain,
+    },
+    workshop: {
+      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
+      ...workshop,
+    },
+  };
+}
+
+export function crewSave(pocket: number): SeedV6 {
+  return {
+    version: 6,
+    lastSeen: Date.now(),
+    mountain: {
+      remaining: 240_000_000 - 12_000_000,
+      pocket,
+      helpers: 18,
+      carts: 7,
+      drills: 2,
+      staffed: 2,
+    },
+    workshop: {
+      materials: { clay: 10, iron: 0, crystal: 0, heartstone: 0 },
+      recipes: ["iron-rails", "sturdy-props", "blasting-charge", "reinforce"],
+    },
+  };
+}
+
+/** The running countdowns: how many are on screen decides what the save holds (0, 1, 2, 3, 12). */
+export function effectSave(count: number): SeedV6 {
+  const now = Date.now();
+  // 0, 1, and 3 are that many chips. 12 is both boosts, four craft clocks, the bench, and five trips.
+  const names: readonly EngineerName[] = ["Ada", "Nils", "Ruth", "Otto", "Mae"];
+  const full = count >= 12;
+  const tripCount = full ? 5 : count >= 3 ? 1 : 0;
+  const expeditions = Array.from(
+    { length: tripCount },
+    (_, index): Expedition => ({
+      engineer: names[index] as EngineerName,
+      tunnel: "side-seam",
+      sentAt: now - 60_000,
+      // Longer than the boosts, so a clock stays on screen when the row is full.
+      returnsAt: now + (40 + index) * 60_000,
+      home: "camp",
+      find: { kind: "quiet" },
+    }),
+  );
+  const boosts =
+    count >= 2
+      ? { sharper: now + 10 * 60_000, overtime: now + 20 * 60_000 }
+      : count >= 1
+        ? { sharper: now + 10 * 60_000 }
+        : {};
+  const engineers = names
+    .slice(0, Math.max(1, tripCount))
+    .map((name, index): Engineer => ({
+      name,
+      rank: 0,
+      trips: 0,
+      post: index < tripCount ? "tunnel" : "camp",
+    }));
+  return {
+    version: 6,
+    lastSeen: now,
+    mountain: {
+      remaining: 240_000_000 - 12_000_000,
+      pocket: 5_000_000,
+      helpers: 20,
+      carts: 2,
+      borers: 1,
+      staffed: 2,
+      engineers,
+      expeditions,
+      boosts,
+    },
+    workshop: {
+      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
+      ...(full
+        ? {
+            chargeUntil: now + 8 * 60_000,
+            axleUntil: now + 12 * 60_000,
+            flareUntil: now + 50 * 60_000,
+            emberUntil: now + 15 * 60_000,
+            bench: {
+              recipe: "iron-rails",
+              startedAt: now - 1_000,
+              endsAt: now + 9 * 60_000,
+            },
+          }
+        : {}),
+    },
+  };
+}
+
+export function guardSave(
+  lastSeen: number,
+  remaining: number = 200_000_000,
+): SeedV6 {
+  return {
+    version: 6,
+    lastSeen,
+    mountain: {
+      remaining,
+      pocket: 3_250_000,
+      helpers: 34,
+      carts: 12,
+      drills: 4,
+      borers: 1,
+      staffed: 2,
+      engineers: [{ name: "Ada", rank: 1, trips: 3, post: "camp" }],
+      boosts: { sharper: lastSeen + 3_600_000 },
+    },
+    workshop: {
+      materials: { clay: 12, iron: 6, crystal: 2, heartstone: 0 },
+      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
+    },
+  };
+}
+
+export function overtimeSave(): SeedV6 {
+  const save = openMountain();
+  return {
+    ...save,
+    mountain: {
+      ...save.mountain,
+      boosts: { overtime: Date.now() + 20 * 60_000 },
+    },
+  };
+}
+
+/** The mid save with hands and stones for the borer: the borer is the pick, Ada on it. */
+export function borerPickMountain(): SeedV6 {
+  const open = openMountain();
+  return {
+    ...open,
+    mountain: { ...open.mountain, helpers: 28, pocket: 6_000_000 },
+  };
+}
+
+// The inline literals the visual check wrote where it used them.
+
+/** The crew with both boosts running, as a v4 save. */
+export function crewV4Save(): LegacySeed {
+  return { version: 4, mountain: CREW, lastSeen: Date.now() };
+}
+
+/** The Buys drawer's fit check: the crew's tiers on a big pocket and a long mountain. */
+export function buysFitSave(
+  crew: Omit<SeedMountain, "remaining" | "pocket"> & { pocket?: number },
+): LegacySeed {
+  return {
+    version: 4,
+    mountain: { remaining: 50_000_000, pocket: 49_999_999, ...crew },
+    lastSeen: Date.now(),
+  };
+}
+
+/** A save from before staffing: the one-time "Your crew grew" card. */
+export function staffingNoteSave(): LegacySeed {
+  return {
+    legacy: true,
+    version: 4,
+    mountain: { ...CREW, helpers: 3 },
+    lastSeen: Date.now(),
+  };
+}
+
+// One stone short of the Lantern of Guidance, away for ten minutes.
+const BEFORE_LANTERN: SeedMountain = {
+  remaining: 99_000_001,
+  pocket: 180,
+  helpers: 0,
+  carts: 0,
+};
+
+/** The welcome-back card, then the relic it uncovered. */
+export function welcomeBackSave(): LegacySeed {
+  return {
+    version: 4,
+    mountain: { ...BEFORE_LANTERN, helpers: 5 },
+    lastSeen: Date.now() - 10 * 60 * 1000,
+  };
+}
+
+const FOUND_BELOW: SeedMountain = {
+  remaining: 74_000_000,
+  pocket: 100,
+  helpers: 12,
+  carts: 2,
+  drills: 1,
+  borers: 1,
+  machines: 0,
+  kids: 0,
+  finds: [
+    "pick",
+    "lamp",
+    "map",
+    "boots",
+    "drawing",
+    "watch",
+    "whistle",
+    "pebble",
+    "ribbon",
+  ],
+};
+
+/** Every tool and keepsake found: the found sheets must fit. */
+export function foundBelowSave(): LegacySeed {
+  return { version: 4, mountain: FOUND_BELOW, lastSeen: Date.now() };
+}
+
+/** Every relic found: the shelf scrolls inside itself. */
+export function fullShelfSave(): LegacySeed {
+  return {
+    version: 5,
+    mountain: {
+      remaining: 0,
+      pocket: 0,
+      helpers: 40,
+      carts: 10,
+      drills: 0,
+      borers: 0,
+      machines: 0,
+      kids: 0,
+      staffed: 2,
+    },
+    lastSeen: Date.now(),
+  };
+}
+
+/** One stone left on the 240M mountain, so the tap finds the Mantle. */
+export function mantleSave(): LegacySeed {
+  return {
+    version: 5,
+    mountain: {
+      remaining: 1,
+      pocket: 0,
+      helpers: 999,
+      carts: 999,
+      drills: 999,
+      borers: 999,
+      machines: 999,
+      kids: 999,
+      staffed: 2,
+    },
+    lastSeen: Date.now(),
+  };
+}
+
+/** An engineer out on a trip: the Running now note shows its clock. */
+export function awayTripSave(now: number): LegacySeed {
+  return {
+    version: 4,
+    mountain: {
+      remaining: 90_700_000,
+      pocket: 9_765,
+      helpers: 51,
+      carts: 24,
+      drills: 6,
+      borers: 2,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
+      expeditions: [
+        {
+          engineer: "Ada",
+          tunnel: "old-shaft",
+          sentAt: now,
+          returnsAt: now + 40 * 60_000,
+          home: "borer",
+          find: { kind: "quiet" },
+        },
+      ],
+    },
+    lastSeen: now,
+  };
+}
+
+/** Five engineers on their posts and one trip out. */
+export function campPostsSave(now: number): LegacySeed {
+  return {
+    version: 4,
+    mountain: {
+      remaining: 90_700_000,
+      pocket: 9_765,
+      helpers: 51,
+      carts: 24,
+      drills: 6,
+      borers: 2,
+      engineers: [
+        { name: "Ada", rank: 1, trips: 3, post: "borer" },
+        { name: "Nils", rank: 0, trips: 0, post: "camp" },
+        { name: "Ruth", rank: 2, trips: 9, post: "drill" },
+        { name: "Otto", rank: 0, trips: 0, post: "tunnel" },
+        { name: "Mae", rank: 0, trips: 0, post: "cart" },
+      ],
+      expeditions: [
+        {
+          engineer: "Otto",
+          tunnel: "old-shaft",
+          sentAt: now,
+          returnsAt: now + 40 * 60_000,
+          home: "camp",
+          find: { kind: "quiet" },
+        },
+      ],
+      finds: ["drawing", "watch"],
+    },
+    lastSeen: now,
+  };
+}
+
+/** A trip back with a tool, two hours after the player left. */
+export function toolHomeSave(now: number): LegacySeed {
+  return {
+    version: 4,
+    mountain: {
+      remaining: 90_700_000,
+      pocket: 9_765,
+      helpers: 20,
+      carts: 1,
+      drills: 1,
+      borers: 1,
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
+      expeditions: [
+        {
+          engineer: "Ada",
+          tunnel: "old-shaft",
+          sentAt: now - 90 * 60_000,
+          returnsAt: now - 30 * 60_000,
+          home: "borer",
+          find: { kind: "tool", id: "pick" },
+        },
+      ],
+    },
+    lastSeen: now - 2 * 60 * 60_000,
+  };
+}
+
+/** The workshop before the first clay: a locked silhouette. */
+export function lockedWorkshopSave(now: number): SeedV6 {
+  return {
+    version: 6,
+    lastSeen: now,
+    mountain: {
+      remaining: 239_500_000,
+      pocket: 100,
+      helpers: 1,
+      staffed: 2,
+      startedAt: now - 1_000,
+    },
+    workshop: {
+      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
+    },
+  };
+}
+
+/** One stone left and a legacy: the Legend finale. */
+export function legendSave(): LegacySeed {
+  return {
+    version: 5,
+    mountain: {
+      remaining: 1,
+      pocket: 0,
+      helpers: 999,
+      kids: 999,
+      staffed: 2,
+      legacy: 1,
+    },
+    lastSeen: Date.now(),
   };
 }
