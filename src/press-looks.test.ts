@@ -332,6 +332,21 @@ describe("press looks: the Ready plate guard", () => {
       ]
     `);
   });
+  it("a leave or cancel with no press before it leaves the frame as it is", () => {
+    const { made, look } = build(readyCart, true);
+    const seen: string[] = [look()];
+    send(made.button, "leave", 0);
+    seen.push(look());
+    send(made.button, "cancel", 0);
+    seen.push(look());
+    expect(seen).toMatchInlineSnapshot(`
+      [
+        "0px",
+        "0px",
+        "0px",
+      ]
+    `);
+  });
   it("a press while a Done hold is up shows no pressed frame", () => {
     const { made, look, now } = build(readyCart, true);
     const seen: string[] = [];
@@ -422,6 +437,25 @@ describe("press looks: the dig button", () => {
         "down later: -112px",
         "up: 0px",
         "up later: 0px",
+      ]
+    `);
+  });
+  it("a leave, cancel or up with no press before it leaves the frame as it is", () => {
+    const { made, look } = build(true);
+    const seen: string[] = [look()];
+    for (const step of ["leave", "cancel", "up"] as const) {
+      send(made.button, step, 0);
+      seen.push(look());
+    }
+    vi.advanceTimersByTime(100);
+    seen.push(look());
+    expect(seen).toMatchInlineSnapshot(`
+      [
+        "0px",
+        "0px",
+        "0px",
+        "0px",
+        "0px",
       ]
     `);
   });

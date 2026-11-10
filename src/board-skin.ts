@@ -241,14 +241,14 @@ function loadImage(src: SkinSource): Promise<HTMLImageElement | null> {
 
 /**
  * Puts one canvas.board-skin behind the host's content, painted at floor(host size / 2)
- * art px and shown at 2x. `pressed` swaps the kind while the host has .down; whoever toggles
- * .down calls the returned repaint. Never throws: with no 2D context or no image the canvas
+ * art px and shown at 2x. `pressed` swaps the kind while its `down()` is true; every paint, the
+ * resize repaint too, asks it, and whoever changes it calls the returned repaint. Never throws: with no 2D context or no image the canvas
  * stays blank.
  */
 export function skin(
   host: HTMLElement,
   kind: SkinKind,
-  pressed?: SkinKind,
+  pressed?: { readonly kind: SkinKind; readonly down: () => boolean },
 ): () => void {
   const canvas = document.createElement("canvas");
   canvas.className = "board-skin";
@@ -265,7 +265,7 @@ export function skin(
       const w = host.offsetWidth;
       const h = host.offsetHeight;
       if (!w || !h) return;
-      const want = pressed && host.classList.contains("down") ? pressed : kind;
+      const want = pressed?.down() ? pressed.kind : kind;
       const spec = SKINS[want];
       const { width, height } = skinArtSize(want, w, h);
       const g = canvas.getContext("2d");
