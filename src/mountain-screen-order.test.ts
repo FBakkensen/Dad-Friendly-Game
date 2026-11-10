@@ -10,6 +10,29 @@ import { mountScreen, stopScreens } from "./mountain-screen.harness";
  */
 const log: string[] = [];
 
+/**
+ * The base name (no extension, no line number) of the first stack frame outside this file and
+ * node_modules: the module that made the call.
+ */
+function caller(): string {
+  const frames = (new Error().stack ?? "").split("\n").slice(1);
+  for (const frame of frames) {
+    const match = /([^/\\()]+)\.tsx?(?::\d+){0,2}\)?\s*$/.exec(frame.trim());
+    if (
+      match !== null &&
+      !frame.includes("node_modules") &&
+      !frame.includes("mountain-screen-order.test")
+    ) {
+      return match[1] ?? "unknown";
+    }
+  }
+  return "unknown";
+}
+
+const record = (entry: string): void => {
+  log.push(`${entry}@${caller()}`);
+};
+
 vi.mock("./board-host", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./board-host")>();
   return {
@@ -19,7 +42,7 @@ vi.mock("./board-host", async (importOriginal) => {
       return {
         ...host,
         subscribe: (paint: () => void) => {
-          log.push("host");
+          record("host");
           return host.subscribe(paint);
         },
       };
@@ -38,7 +61,7 @@ vi.mock("./progress-store", async (importOriginal) => {
       return {
         ...store,
         subscribe: (listener: Parameters<typeof store.subscribe>[0]) => {
-          log.push("store");
+          record("store");
           return store.subscribe(listener);
         },
       };
@@ -59,13 +82,13 @@ function mountLogged() {
   const addToWindow = window.addEventListener.bind(window);
   vi.spyOn(document, "addEventListener").mockImplementation(
     (type: string, listener: unknown, options?: unknown) => {
-      log.push(`doc:${type}:${String(isCapture(options))}`);
+      record(`doc:${type}:${String(isCapture(options))}`);
       addToDocument(type, listener as EventListener, options as never);
     },
   );
   vi.spyOn(window, "addEventListener").mockImplementation(
     (type: string, listener: unknown, options?: unknown) => {
-      log.push(`win:${type}:${String(isCapture(options))}`);
+      record(`win:${type}:${String(isCapture(options))}`);
       addToWindow(type, listener as EventListener, options as never);
     },
   );
@@ -73,7 +96,7 @@ function mountLogged() {
   const auth: AuthController = {
     ...inner,
     subscribe: (listener) => {
-      log.push("auth");
+      record("auth");
       return inner.subscribe(listener);
     },
   };
@@ -81,7 +104,7 @@ function mountLogged() {
   const sequence = [0.31, 0.77, 0.12, 0.58, 0.93, 0.44];
   let next = 0;
   const random = (): number => {
-    log.push("random");
+    record("random");
     const value = sequence[next % sequence.length] ?? 0.5;
     next += 1;
     return value;
@@ -100,31 +123,37 @@ afterEach(async () => {
 describe("the screen's build order", () => {
   it("the screen registers its listeners in today's order", () => {
     const { seen } = mountLogged();
+    // Entries, in order: the store's own auth watch, the vein's first draw, Buys rows and drawer (with
+    // its Escape capture), the Ready plate, the board note, the save line, the menu, Upgrades rows
+    // and drawer (Escape capture), saveOnLeave, the bays, the vein's hide and pagehide, the New
+    // sign's pointerdown and Escape, then the store subscription.
+    // When a task moves a registration into a screen-* file, it changes only the name after "@";
+    // the position must not change.
     expect(seen).toEqual([
-      "auth",
-      "random",
-      "host",
-      "host",
-      "doc:keydown:true",
-      "host",
-      "doc:pointerdown:false",
-      "doc:keydown:false",
-      "doc:keydown:false",
-      "doc:pointerdown:false",
-      "auth",
-      "auth",
-      "host",
-      "host",
-      "doc:keydown:true",
-      "doc:visibilitychange:false",
-      "win:pagehide:false",
-      "host",
-      "host",
-      "doc:visibilitychange:false",
-      "win:pagehide:false",
-      "doc:pointerdown:false",
-      "doc:keydown:false",
-      "store",
+      "auth@progress-store",
+      "random@veins",
+      "host@board-row",
+      "host@board-drawer",
+      "doc:keydown:true@board-drawer",
+      "host@board-ready",
+      "doc:pointerdown:false@board-note",
+      "doc:keydown:false@board-note",
+      "doc:keydown:false@board-save",
+      "doc:pointerdown:false@board-save",
+      "auth@board-save",
+      "auth@menu-panel",
+      "host@board-row",
+      "host@board-drawer",
+      "doc:keydown:true@board-drawer",
+      "doc:visibilitychange:false@mountain-screen",
+      "win:pagehide:false@mountain-screen",
+      "host@board-bays",
+      "host@board-drawer",
+      "doc:visibilitychange:false@mountain-screen",
+      "win:pagehide:false@mountain-screen",
+      "doc:pointerdown:false@mountain-screen",
+      "doc:keydown:false@mountain-screen",
+      "store@mountain-screen",
     ]);
   });
 
