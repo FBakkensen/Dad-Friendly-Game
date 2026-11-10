@@ -1,3 +1,4 @@
+import { showCard } from "./card-state";
 import { minedOut } from "./mountain";
 import type {
   ProgressStore,
@@ -101,7 +102,7 @@ export function createSaveConflictPanel({
     elsewhere: boolean,
   ): void => {
     const show = conflict !== undefined && !elsewhere;
-    root.hidden = !show;
+    showCard(root, show);
     if (conflict === undefined) {
       seen = "";
       confirming = false;

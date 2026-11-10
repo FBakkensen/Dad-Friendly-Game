@@ -1,3 +1,4 @@
+import { cardUp, showCard } from "./card-state";
 import { shownStones } from "./scale";
 import { KEEPSAKES } from "./expeditions";
 import {
@@ -347,9 +348,9 @@ export function createRelicPanels({
       row.hint.hidden = words.hint === undefined;
       row.hint.textContent = words.hint ?? "";
     }
-    const detailWasOpen = !detail.hidden;
-    detail.hidden = !shelfOpen || detailRelic === undefined;
-    if (detailRelic !== undefined && !detail.hidden) {
+    const detailWasOpen = cardUp(detail);
+    showCard(detail, shelfOpen && detailRelic !== undefined);
+    if (detailRelic !== undefined && cardUp(detail)) {
       detailArt.src = relicArt[detailRelic.id];
       detailTitle.textContent = detailRelic.name;
       detailVirtue.textContent = `The virtue of ${detailRelic.virtue}.`;
@@ -366,8 +367,8 @@ export function createRelicPanels({
         detailBack.focus();
       }
     }
-    const wasOpen = !shelf.hidden;
-    shelf.hidden = !shelfOpen;
+    const wasOpen = cardUp(shelf);
+    showCard(shelf, shelfOpen);
     if (shelfOpen && !wasOpen) {
       shelfClose.focus({ preventScroll: true });
     }
@@ -375,8 +376,8 @@ export function createRelicPanels({
 
   const renderReveal = (): void => {
     const relic = getView().away === undefined ? getView().revealed : undefined;
-    const wasOpen = !reveal.hidden;
-    reveal.hidden = relic === undefined;
+    const wasOpen = cardUp(reveal);
+    showCard(reveal, relic !== undefined);
     if (relic === undefined) {
       return;
     }
@@ -391,9 +392,9 @@ export function createRelicPanels({
   };
 
   const renderLegend = (): void => {
-    const wasOpen = !legend.hidden;
-    legend.hidden = !legendOpen || getView().revealed !== undefined;
-    if (legend.hidden) {
+    const wasOpen = cardUp(legend);
+    showCard(legend, legendOpen && getView().revealed === undefined);
+    if (!cardUp(legend)) {
       return;
     }
     const crewSize = TIERS.reduce(

@@ -1,3 +1,4 @@
+import { showCard } from "./card-state";
 import type { ArchivedCopy } from "./cloud-save";
 import { runStartedAt } from "./mountain";
 import type { ProgressStore } from "./progress-store";
@@ -74,7 +75,7 @@ export function createSavedCopiesPanel({
   });
 
   const render = (): void => {
-    root.hidden = !open;
+    showCard(root, open);
     empty.hidden = copies.length > 0;
     error.hidden = note === "";
     error.textContent = note;

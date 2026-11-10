@@ -1,3 +1,4 @@
+import { cardUp, showCard } from "./card-state";
 import stoneIconUrl from "./assets/stone.png";
 import { buyOnTap } from "./card-tap";
 import { HOW_IT_WORKS } from "./how-it-works";
@@ -556,8 +557,8 @@ export function createWorkshopPanel({
     if (!unlocked) {
       open = false;
     }
-    const wasOpen = !sheet.hidden;
-    sheet.hidden = !open;
+    const wasOpen = cardUp(sheet);
+    showCard(sheet, open);
     if (!open) {
       return;
     }

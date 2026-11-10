@@ -1,3 +1,4 @@
+import { cardUp, showCard } from "./card-state";
 import oreArt from "./assets/ore-lump.png";
 import { formatCount, formatDuration } from "./format";
 import { layerOf } from "./layers";
@@ -135,12 +136,9 @@ export function createWelcomePanel({
       }),
     );
     welcomeCrafts.hidden = craftLines.length === 0;
-    const wasOpen = !welcome.hidden;
-    welcome.hidden =
-      report === undefined &&
-      joined === undefined &&
-      !steppedUp &&
-      lines.length === 0;
+    const wasOpen = cardUp(welcome);
+    const news = joined !== undefined || steppedUp || lines.length > 0;
+    showCard(welcome, report !== undefined || news);
     welcomeCrew.hidden = joined === undefined;
     welcomeCrew.textContent =
       joined === undefined
@@ -169,7 +167,7 @@ export function createWelcomePanel({
     welcomeOre.hidden = oreLine === undefined;
     welcomeOreLine.textContent = oreLine ?? "";
     if (report === undefined) {
-      if ((joined !== undefined || steppedUp || lines.length > 0) && !wasOpen) {
+      if (news && !wasOpen) {
         welcomeContinue.focus();
       }
       return;

@@ -1,3 +1,4 @@
+import { showCard } from "./card-state";
 import { shownStones, stonesLeft } from "./scale";
 import pickUrl from "./assets/pick.png";
 import { noteFor } from "./teach";
@@ -744,7 +745,7 @@ export function mountMountainScreen({
     remaining.title = `${left.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`;
     mine.dig.disabled = !view.playing || left === 0;
     const showElsewhere = view.elsewhere;
-    otherTab.hidden = !showElsewhere;
+    showCard(otherTab, showElsewhere);
     if (showElsewhere && otherTab.dataset["shown"] !== "1") {
       otherTab.dataset["shown"] = "1";
       playHere.focus();
@@ -1252,6 +1253,6 @@ export function showAppUpdate(root: ParentNode): void {
   if (prompt === null) {
     return;
   }
-  prompt.hidden = false;
+  showCard(prompt, true);
   prompt.dispatchEvent(new Event(UPDATE_SHOWN));
 }
