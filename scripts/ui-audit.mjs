@@ -32,7 +32,7 @@ import {
   seedJson,
   shortMountain,
   toolsMountain,
-} from "./fixtures.mjs";
+} from "../tools/browser/fixtures.ts";
 
 const OUT = "docs/ui-audit";
 /** The phone: the board's 424x924 stage at scale 1 (#370). */
@@ -213,7 +213,7 @@ const KEY = (id) => `.board-key[data-key="${id}"]`;
 /** An open drawer (#373): buys or upgrades. */
 const OPEN_SHEET = (name) => `.board-sheet[data-sheet="${name}"].is-open`;
 
-/** A play save from scripts/fixtures.mjs, as the browser's storage holds it. */
+/** A play save from tools/browser/fixtures.ts, as the browser's storage holds it. */
 const seeded = (save) => JSON.parse(seedJson(save));
 
 /**

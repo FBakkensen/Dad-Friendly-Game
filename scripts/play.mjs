@@ -35,7 +35,7 @@ import {
   shortMountain,
   toolsMountain,
   workshopSave,
-} from "./fixtures.mjs";
+} from "../tools/browser/fixtures.ts";
 
 const HOUR = 60 * 60 * 1000;
 

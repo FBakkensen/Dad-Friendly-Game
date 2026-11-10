@@ -64,7 +64,7 @@ export async function newWindow(
   return { page, close: () => context.close() };
 }
 
-/** The localStorage key the game keeps its save under; scripts/fixtures.mjs re-exports it. */
+/** The localStorage key the game keeps its save under; tools/browser/fixtures.ts re-exports it. */
 export const SAVE_KEY = "dad-friendly-session";
 
 /** How a page's save is put in localStorage before the game boots. */

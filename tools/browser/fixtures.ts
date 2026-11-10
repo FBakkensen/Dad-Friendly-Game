@@ -4,10 +4,52 @@
  * Each is what a tab finds in localStorage on its first load.
  */
 
-export { SAVE_KEY } from "../tools/browser/harness.ts";
+import type { Mountain } from "../../src/mountain.ts";
+import type { MountainSaveV6, MountainSaveV7 } from "../../src/persist.ts";
+
+export { SAVE_KEY } from "./harness.ts";
+
+/**
+ * A mountain as a seed writes it. The scripts leave out the tiers they do not
+ * need (the game fills them in when it loads), so only the first three fields
+ * are required here; the rest are exactly `Mountain`'s.
+ */
+export type SeedMountain = Pick<Mountain, "remaining" | "pocket" | "helpers"> &
+  Partial<Omit<Mountain, "remaining" | "pocket" | "helpers">>;
+
+/** The workshop half of a v6 save, as persist.ts writes it. */
+export type SeedWorkshop = MountainSaveV6["workshop"];
+
+/** A v6 save whose mountain may leave out tiers. Every v6 builder here returns one. */
+export type SeedV6 = Omit<MountainSaveV6, "mountain"> & {
+  readonly mountain: SeedMountain;
+};
+
+/**
+ * The v4 and v5 saves the fixtures build: the game migrates them on load, so
+ * these have no `workshop`. `legacy` set here keeps seedJson from adding
+ * the staffing grant.
+ */
+export type LegacySeed = {
+  readonly version: 4 | 5;
+  readonly lastSeen: number;
+  readonly mountain: SeedMountain;
+  readonly legacy?: boolean;
+};
+
+/** A seed with no mountain at all: seedJson stores it as it is. */
+export type MountainlessSeed = {
+  readonly version: number;
+  readonly lastSeen: number;
+  readonly mountain?: undefined;
+};
+
+/** Anything seedJson stores. */
+export type SeedSave =
+  LegacySeed | SeedV6 | MountainSaveV6 | MountainSaveV7 | MountainlessSeed;
 
 // Every tier so far on screen: the compact, three-to-a-row grid.
-export const CREW = {
+export const CREW: SeedMountain = {
   remaining: 90_700_000,
   pocket: 9_765,
   helpers: 51,
@@ -19,7 +61,7 @@ export const CREW = {
 };
 
 /** A current save that owns a borer already has its first engineer. */
-function withCurrentEngineer(mountain) {
+function withCurrentEngineer(mountain: SeedMountain): SeedMountain {
   if ((mountain.borers ?? 0) < 1 || mountain.engineers !== undefined) {
     return mountain;
   }
@@ -30,7 +72,9 @@ function withCurrentEngineer(mountain) {
 }
 
 /** The stored JSON for a seed save. */
-export function seedJson(save) {
+export function seedJson(
+  save: SeedSave & { readonly legacy?: boolean },
+): string {
   // Seeds are current saves (M7 staffing grant already done) unless they say `legacy`.
   return JSON.stringify(
     save.legacy || save.mountain === undefined
@@ -42,7 +86,7 @@ export function seedJson(save) {
   );
 }
 
-export function workshopSave(now, busy) {
+export function workshopSave(now: number, busy: boolean): SeedV6 {
   return {
     version: 6,
     lastSeen: now,
@@ -82,13 +126,13 @@ export function workshopSave(now, busy) {
   };
 }
 
-const EMPTY_WORKSHOP = {
+const EMPTY_WORKSHOP: SeedWorkshop = {
   materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
   recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
 };
 
 /** A v6 save. lastSeen is now so the welcome card stays shut. */
-export function freshMountain() {
+export function freshMountain(): SeedV6 {
   return {
     version: 6,
     lastSeen: Date.now(),
@@ -99,7 +143,7 @@ export function freshMountain() {
 
 // Hammer depth, so three relics glow. Granite is open and a borer is owned,
 // so Workshop and Engineers open too.
-export function openMountain() {
+export function openMountain(): SeedV6 {
   return {
     version: 6,
     lastSeen: Date.now(),
@@ -126,7 +170,7 @@ export function openMountain() {
 }
 
 /** A crewed Topsoil, so both lists are long and the crew line is on screen. */
-export function crewMountain() {
+export function crewMountain(): SeedV6 {
   return {
     version: 6,
     lastSeen: Date.now(),
@@ -142,7 +186,7 @@ export function crewMountain() {
 }
 
 /** The last stone of a run: one tap finds the legend and offers to pass the mine. */
-export function lastStoneSave() {
+export function lastStoneSave(): LegacySeed {
   return {
     version: 5,
     mountain: {
@@ -158,7 +202,7 @@ export function lastStoneSave() {
 }
 
 /** The Crystal Caves (#371): drills and borers at work, the window's third view. */
-export function crystalMountain() {
+export function crystalMountain(): SeedV6 {
   const open = openMountain();
   return {
     ...open,
@@ -178,7 +222,7 @@ export function crystalMountain() {
  * The Deep Heart on a kid's run (#371): the Great Machine on the surface, a
  * kid by the lamp, and the Legacy plate on the window's frame.
  */
-export function heartMountain() {
+export function heartMountain(): SeedV6 {
   const open = openMountain();
   return {
     ...open,
@@ -201,7 +245,7 @@ export function heartMountain() {
  * Granite with a hand free and nothing affordable (#372): the Ready now plate
  * saves for a cart, with the time.
  */
-export function savingMountain() {
+export function savingMountain(): SeedV6 {
   const open = openMountain();
   return {
     ...open,
@@ -217,7 +261,7 @@ export function savingMountain() {
 }
 
 /** A big Granite fleet (#372): 120 carts, so the cart bay shows three flaps. */
-export function fleetMountain() {
+export function fleetMountain(): SeedV6 {
   const open = openMountain();
   return {
     ...open,
@@ -238,7 +282,7 @@ export function fleetMountain() {
  * beside 6 carts, 4 drills and the borer, and a pocket over the next borer's
  * price. The borer row reads "Needs 8 workers".
  */
-export function shortMountain() {
+export function shortMountain(): SeedV6 {
   const open = openMountain();
   return {
     ...open,
@@ -258,7 +302,7 @@ export function shortMountain() {
  * Carts standing idle on a crewed Topsoil (#373): 6 carts and 3 workers, and
  * staffing never taught, so Buys shows the staffing New row.
  */
-export function idleMountain() {
+export function idleMountain(): SeedV6 {
   return {
     version: 6,
     lastSeen: Date.now(),
@@ -278,7 +322,7 @@ export function idleMountain() {
  * The mid save with upgrades owned and levelled (#373): Better boots bought,
  * Strong arms at level 2, and Grandfather's pick and the old lamp found.
  */
-export function toolsMountain() {
+export function toolsMountain(): SeedV6 {
   const open = openMountain();
   return {
     ...open,
@@ -297,7 +341,7 @@ export function toolsMountain() {
  * With ?trouble=cave-in the cart, which has no bay beside the machine, lights
  * the Buys key's red lamp (C3).
  */
-export function machineMountain() {
+export function machineMountain(): SeedV6 {
   const open = openMountain();
   return {
     ...open,
@@ -316,7 +360,7 @@ export function machineMountain() {
 }
 
 /** A kid's run after one pass (#338): the crewed Topsoil, Grandpa on the carts. */
-export function heirMountain() {
+export function heirMountain(): SeedV6 {
   const crew = crewMountain();
   return { ...crew, mountain: { ...crew.mountain, legacy: 1 } };
 }
@@ -326,7 +370,7 @@ export function heirMountain() {
  * drills and borers, with two engineers, that the Buys crew chips take two
  * rows. Mid-game Buys still fits its drawer.
  */
-export function fullGraniteMountain() {
+export function fullGraniteMountain(): SeedV6 {
   const open = openMountain();
   return {
     ...open,
@@ -351,7 +395,7 @@ export function fullGraniteMountain() {
  * The Great Machine era with the Great Machine the Ready now pick and Ada
  * tending it (#373): its row's flag gives way on the name's line.
  */
-export function machinePickMountain() {
+export function machinePickMountain(): SeedV6 {
   const machine = machineMountain();
   return {
     ...machine,

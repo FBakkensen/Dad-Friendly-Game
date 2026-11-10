@@ -44,7 +44,7 @@ import {
   shortMountain,
   toolsMountain,
   workshopSave,
-} from "./fixtures.mjs";
+} from "../tools/browser/fixtures.ts";
 
 // Serves the app itself unless VISUAL_URL points at a running one.
 const server = await startServer({ port: 4174, url: process.env.VISUAL_URL });
