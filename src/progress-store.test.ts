@@ -1396,7 +1396,11 @@ describe("field log", () => {
       pocket: upgradeCost(upgradeById("tap"), 0) ?? Number.NaN,
     }));
     const from = progress.fieldLog().events.length;
-    progress.dispatch({ kind: "buyUpgrade", id: "tap" });
+    progress.dispatch({
+      kind: "buyUpgrade",
+      id: "tap",
+      price: upgradeCost(upgradeById("tap"), 0) ?? Number.NaN,
+    });
     progress.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
     progress.dispatch({ kind: "buyBoost", id: "sharper" });
 
@@ -1574,7 +1578,10 @@ describe("field log events for the deep (#150)", () => {
       // Exactly the second engineer's Granite price.
       return { ...ready, pocket: promoteCost(ready) };
     });
-    progress.dispatch({ kind: "promote" });
+    progress.dispatch({
+      kind: "promote",
+      price: promoteCost(progress.getSnapshot().mountain),
+    });
     progress.dispatch({ kind: "station", index: 1, post: "drill" });
     progress.dispatch({ kind: "station", index: 1, post: "camp" });
     progress.dispatch({ kind: "station", index: 1, post: "camp" });

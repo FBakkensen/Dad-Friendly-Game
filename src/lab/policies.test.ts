@@ -466,18 +466,18 @@ describe("policy shape", () => {
       sticker(mountain, { kind: "buyTier", id: "helper" }),
     ).toBeGreaterThan(0);
     expect(
-      sticker(mountain, { kind: "buyUpgrade", id: "tap" }),
+      sticker(mountain, { kind: "buyUpgrade", id: "tap", price: 0 }),
     ).toBeGreaterThan(0);
     expect(
       sticker(
         { ...mountain, upgrades: { tap: 10 } },
-        { kind: "buyUpgrade", id: "tap" },
+        { kind: "buyUpgrade", id: "tap", price: 0 },
       ),
     ).toBe(Number.POSITIVE_INFINITY);
     expect(
       sticker(mountain, { kind: "buyBoost", id: "sharper" }),
     ).toBeGreaterThan(0);
-    expect(sticker(mountain, { kind: "promote" })).toBe(nilsPrice);
+    expect(sticker(mountain, { kind: "promote", price: 0 })).toBe(nilsPrice);
     expect(sticker(mountain, { kind: "station", index: 0, post: "camp" })).toBe(
       0,
     );
@@ -566,7 +566,11 @@ describe("policy shape", () => {
       promote: "never",
       explore: "never",
       tend: "never",
-      decide: () => ({ kind: "promote" }),
+      // At its real price: the only thing missing is a worker to step up.
+      decide: ({ mountain }) => ({
+        kind: "promote",
+        price: promoteCost(mountain),
+      }),
     });
     const missed = runPolicy({
       policy: stuck,

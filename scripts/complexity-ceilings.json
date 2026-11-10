@@ -1,7 +1,7 @@
 {
   "src/board-relics.ts#createRelicPlate>render": 19,
   "src/device-label.ts#deviceLabelFromAgent": 26,
-  "src/engineers-panel.ts#createEngineersPanel>render": 60,
+  "src/engineers-panel.ts#createEngineersPanel>render": 51,
   "src/engineers-panel.ts#paintEngineer": 23,
   "src/expeditions.ts#parseFind": 16,
   "src/expeditions.ts#rolledKind": 18,

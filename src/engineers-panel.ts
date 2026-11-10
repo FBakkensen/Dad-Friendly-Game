@@ -132,6 +132,9 @@ export function createEngineersPanel({
   const button = door;
   let open = false;
   let confirming = false;
+  // The Promote price at the last paint, and when he tapped it: Step up pays that (#367).
+  let paintedPromote = Number.NaN;
+  let quotedPromote = Number.NaN;
   /** Row whose recall confirm is open. */
   let recalling: number | undefined;
   /** Which card is the big one. The rest are one line. */
@@ -646,6 +649,7 @@ export function createEngineersPanel({
       return;
     }
     confirming = true;
+    quotedPromote = paintedPromote;
     recalling = undefined;
     menu = undefined;
     requestRender();
@@ -679,9 +683,10 @@ export function createEngineersPanel({
     confirming = false;
     menu = undefined;
     const beforeCount = view.mountain.engineers?.length ?? 0;
-    // Price and a free worker can change while the confirm sits open.
+    // Price and a free worker can change while the confirm sits open. A dearer price is refused.
     const promoted =
-      promotable(view) && dispatch({ kind: "promote" }).kind === "applied";
+      promotable(view) &&
+      dispatch({ kind: "promote", price: quotedPromote }).kind === "applied";
     // The new engineer joins at the end of the crew.
     const name = getView().mountain.engineers?.[beforeCount]?.name;
     if (promoted && name !== undefined) {
@@ -895,6 +900,7 @@ export function createEngineersPanel({
     const next = nextEngineerName(engineers);
     const affordable = promotable(view);
     const cost = promoteCost(current);
+    paintedPromote = cost;
     if (!affordable) {
       confirming = false;
     }
@@ -915,13 +921,7 @@ export function createEngineersPanel({
     }
     promoteWhy.textContent = promoting
       ? promotionPayoff(payoff.name, payoff.post, stonesPerSecond(payoff.gain))
-      : next === undefined
-        ? PROMOTE_CREW_FULL
-        : current.helpers < 1
-          ? PROMOTE_NEEDS_WORKER
-          : current.pocket < cost
-            ? promoteNeeds(cost)
-            : PROMOTE_WHY;
+      : promoteWhyLine(current, next !== undefined, cost);
     modal.hidden = !confirming && recalling === undefined;
     confirm.hidden = !confirming;
     if (confirming && next !== undefined) {
@@ -945,6 +945,21 @@ export function createEngineersPanel({
   };
 
   return { button, sheet, render };
+}
+
+/** Why a promotion waits (a full crew, no free worker, a light pocket), or why it is worth it. */
+function promoteWhyLine(
+  current: Mountain,
+  nameFree: boolean,
+  cost: number,
+): string {
+  if (!nameFree) {
+    return PROMOTE_CREW_FULL;
+  }
+  if (current.helpers < 1) {
+    return PROMOTE_NEEDS_WORKER;
+  }
+  return current.pocket < cost ? promoteNeeds(cost) : PROMOTE_WHY;
 }
 
 /** The panel offers a promotion only once the save is in. */
