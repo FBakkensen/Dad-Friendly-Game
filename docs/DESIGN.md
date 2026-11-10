@@ -68,7 +68,7 @@ The tended Great Machine's 5 is `TENDED_MACHINE_STAFF` in `src/engineers.ts`.
 
 **Growth** (`tierCost` in `src/tiers.ts`): a machine costs `ceil(firstPrice × 1.15^owned)` (`MACHINE_COST_GROWTH`). A worker or a kid costs `ceil(firstPrice × 1.06^owned)` (`HELPER_COST_GROWTH`). So the 2nd cart costs 690 and the 13th 3,211. Machines and workers scale with the kid-run stretch k only, never with the band.
 
-**Bands** (`src/scale.ts`): `BAND_STARTS` is 0 / 10M / 45M / 120M, in run-1 stones of depth (the Topsoil, the Granite, the Crystal Caves, the Deep Heart; 240M in all). `BAND_SCALE` is 1 / 2.625 / 6.3 / 32.4: the stones a band takes per stone of depth, at stretch 1. Upgrades and promotions are priced with `oneOffStretch` = k × the scale of the band the run stands in.
+**Bands** (`src/scale.ts`): `BAND_STARTS` is 0 / 10M / 45M / 120M, in run-1 stones of depth (the Topsoil, the Granite, the Crystal Caves, the Deep Heart; 240M in all). `BAND_SCALE` is 1 / 2.625 / 6.3 / 32.4: the stones a band takes per stone of depth, at stretch 1. Upgrades and promotions are priced with `oneOffStretch` = k × the scale of the band the run stands in. A Buy or Promote pays the price it showed: if a band is crossed at the tap, it buys nothing and shows the new price (#367).
 
 **Milestone marks** (`MILESTONES` in `src/milestones.ts`): owning this many of a tier makes every one of them twice as fast, and marks stack.
 

@@ -16,7 +16,10 @@ page is the map, plus the rules that keep it that way.
    `applyMove` is the one place the UI changes the mountain, and the lab's
    `applyAction` too (#409). The lab's runner and the pacing sim still call some
    rule functions directly (`promote`, `buyBoost`, `send`, `tendBestTier`),
-   which R1 (#420) folds in. It says `applied` (with what the move took from the
+   which R1 (#420) folds in. A lasting upgrade's buy and a promotion carry the
+   price the player was shown (`price`), and a different price today refuses
+   the move: a band crossed while the tap settles the crew cannot charge more
+   (#367). `listActions` quotes today's price. It says `applied` (with what the move took from the
    pocket and put in) or `refused`, and it holds the UI's rules too: a worker bought beside an idle
    machine marks staffing taught, a real station marks tending taught and first
    calls a party back, and a recall with no expedition sends the hand to camp. A craft's
@@ -613,8 +616,9 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   one-line rows, Tend and Send exploring choice lists, a cheer toast, and the
   walk-home state. A tend choice calls `station(recall(...))`, so a party is
   never left without its engineer. Call back confirms, then `recall`. Promote
-  confirms, Step up checks the price again, and the cheer waits until that hand
-  is actually on the crew. The button shows the price ("Promote: 2M stones"; a
+  confirms, Step up checks the price again and pays only the price the button
+  showed when he tapped it (#367), and the cheer waits until that hand is
+  actually on the crew. The button shows the price ("Promote: 2M stones"; a
   light pocket says "Needs 2M stones"). Tending choices, the open sentence, the
   cheer, and the lamp show the live stones/sec from `tendingGain`. Keepsakes
   already on `finds` are listed on the open card at reading size (`Brought

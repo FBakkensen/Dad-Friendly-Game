@@ -81,6 +81,7 @@ import {
   upgradeById,
   upgradeCost,
   upgradeLevel,
+  upgradePrice,
   upgradeUnlocked,
   type UpgradeId,
 } from "../upgrades";
@@ -91,9 +92,18 @@ import {
  */
 export type Action =
   | { readonly kind: "buyTier"; readonly id: TierId }
-  | { readonly kind: "buyUpgrade"; readonly id: UpgradeId }
+  | {
+      readonly kind: "buyUpgrade";
+      readonly id: UpgradeId;
+      /** The price the player was shown: a different price today refuses the buy (#367). */
+      readonly price: number;
+    }
   | { readonly kind: "buyBoost"; readonly id: BoostId }
-  | { readonly kind: "promote" }
+  | {
+      readonly kind: "promote";
+      /** The price the player was shown: a different price today refuses it (#367). */
+      readonly price: number;
+    }
   | {
       readonly kind: "station";
       readonly index: number;
@@ -165,13 +175,19 @@ function tierActions(mountain: Mountain): readonly Action[] {
   ).map((tier) => ({ kind: "buyTier", id: tier.id }));
 }
 
-/** Only rows the sheet shows (#245): opened by owned count, seen, or bought (#250). */
+/**
+ * Only rows the sheet shows (#245): opened by owned count, seen, or bought (#250). Each at
+ * today's price, as the sheet shows it.
+ */
 function upgradeActions(mountain: Mountain): readonly Action[] {
-  return UPGRADES.filter(
-    (upgrade) =>
-      upgradeShown(mountain, upgrade) &&
-      upgradeCost(upgrade, upgradeLevel(mountain, upgrade.id)) !== undefined,
-  ).map((upgrade) => ({ kind: "buyUpgrade", id: upgrade.id }));
+  return UPGRADES.filter((upgrade) => upgradeShown(mountain, upgrade)).flatMap(
+    (upgrade): Action[] => {
+      const price = upgradePrice(mountain, upgrade.id);
+      return price === undefined
+        ? []
+        : [{ kind: "buyUpgrade", id: upgrade.id, price }];
+    },
+  );
 }
 
 function boostActions(mountain: Mountain, now: number): readonly Action[] {
@@ -184,7 +200,7 @@ function boostActions(mountain: Mountain, now: number): readonly Action[] {
 function promoteActions(mountain: Mountain): readonly Action[] {
   return (mountain.engineers?.length ?? 0) < MAX_ENGINEERS &&
     mountain.helpers >= 1
-    ? [{ kind: "promote" }]
+    ? [{ kind: "promote", price: promoteCost(mountain) }]
     : [];
 }
 
@@ -355,7 +371,10 @@ function actionApplied(
     case "buyTier":
       return buyWithTeach(mountain, action.id);
     case "buyUpgrade":
-      return buyUpgrade(mountain, action.id);
+      // The price moved since it was shown (a band crossed at the tap): no buy (#367).
+      return action.price === upgradePrice(mountain, action.id)
+        ? buyUpgrade(mountain, action.id)
+        : mountain;
     case "buyBoost":
       return buyBoost({
         mountain,
@@ -364,7 +383,9 @@ function actionApplied(
         pricing: effectiveRates(mountain),
       });
     case "promote":
-      return promote(mountain);
+      return action.price === promoteCost(mountain)
+        ? promote(mountain)
+        : mountain;
     case "station": {
       // From a tunnel, the post calls the party back first (no find, no trip), so no
       // expedition is left without its engineer. A real station is the first tend (#246).
