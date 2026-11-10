@@ -151,8 +151,8 @@ describe("the screen's build order", () => {
       "host@board-drawer",
       "doc:visibilitychange:false@screen-vein",
       "win:pagehide:false@screen-vein",
-      "doc:pointerdown:false@mountain-screen",
-      "doc:keydown:false@mountain-screen",
+      "doc:pointerdown:false@screen-overlays",
+      "doc:keydown:false@screen-overlays",
       "store@mountain-screen",
     ]);
   });

@@ -10,14 +10,12 @@ import {
   createReadyRow,
 } from "./screen-dig";
 import { createOtherTab, createUpdatePrompt } from "./screen-prompts";
-import { coverFor, wantedSign, type Cover } from "./screen-cover";
-import { drawerOpen } from "./board-interaction";
+import { createOverlays } from "./screen-overlays";
+import { wireKeys } from "./screen-keys";
 import { createBoardNote } from "./board-note";
 import { DRAWER_SETTLE_MS, createSheetScrim } from "./board-drawer";
 import { type BoardHost } from "./board-host";
-import { keyViews, type KeyId } from "./key-rail";
 import { createKeyRail } from "./board-keys";
-import { createBoardSign } from "./board-sign";
 import { setAttr } from "./board-dom";
 import { readyNow, type ReadyPick } from "./ready-now";
 import { runBoardLoop } from "./board-window";
@@ -36,7 +34,6 @@ import { createLegacyPanel } from "./legacy-panel";
 import { createCrewPanel } from "./crew-panel";
 import { createEngineersPanel } from "./engineers-panel";
 import { createUpgradesPanel } from "./upgrades-panel";
-import { workshopUnlocked } from "./workshop";
 import { createWorkshopPanel } from "./workshop-panel";
 import { type ProgressSnapshot, type ProgressStore } from "./progress-store";
 
@@ -98,9 +95,6 @@ export function mountMountainScreen(options: ScreenOptions): void {
     },
   });
 
-  // The New sign stands in the band over its key (#373): a sign, not a button.
-  const sign = createBoardSign();
-
   /**
    * The key rail: Buys, Workshop and Upgrades open from here; Engineers and the Ledger key open
    * through their panels' own click listeners. Every key first puts the board's popups away.
@@ -108,24 +102,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
   const rail = createKeyRail({
     board,
     onKey: (id, key) => {
-      closeBoardPopups();
-      // A key pressed from the keyboard puts the New sign away too.
-      putSignAway();
-      switch (id) {
-        case "buys":
-          openBuys(key);
-          return;
-        case "workshop":
-          openWorkshopSheet();
-          return;
-        case "upgrades":
-          crewPanel.sheet.close({ restoreFocus: false, by: "program" });
-          upgrades.open(key);
-          return;
-        case "engineers":
-        case "ledger":
-          return;
-      }
+      keys.onKey(id, key);
     },
   });
   /** The Ready now pick last painted on the plate: the Buys rows light the same one. */
@@ -182,7 +159,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     dig: gaugeRow.dig,
     mine: gaugeRow.mine,
     openBuys: (from) => {
-      openBuys(from);
+      keys.openBuys(from);
     },
   });
 
@@ -251,9 +228,8 @@ export function mountMountainScreen(options: ScreenOptions): void {
     stoneUrl,
     hammerUrl: relicArt.hammer,
     onOpen: closeMenu,
-    // Back to the door it opened from; the Ledger key while a re-load holds the Workshop's.
     onClose: () => {
-      (rail.locked(doorKey) ? rail.keys.ledger : workshopDoor).focus();
+      keys.workshopClosed();
     },
     requestRender: ctx.paint,
   });
@@ -357,15 +333,6 @@ export function mountMountainScreen(options: ScreenOptions): void {
     conflictSheet.render(ctx.view().saveConflict, ctx.view().elsewhere);
     saveLine.render();
   };
-  /** The panels painted first, so a card opened in this paint holds the sign back. */
-  const paintOverlays = (): void => {
-    renderTeach();
-    coverDrawers();
-    coverNote();
-    // Locks, lit caps, red dot lamps and timers, by the key rail's rules (#373),
-    // with the New sign's words on its key's label.
-    renderRail();
-  };
   /**
    * The screen's one repaint: the store's updates, a panel's own change and
    * the 1s tick all come here, so every clock on the board moves each second.
@@ -375,7 +342,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     paintPanels();
     runningNow.paint();
     paintRest();
-    paintOverlays();
+    overlays.paint();
   };
 
   /** The cards, in the order they stand in the root. */
@@ -398,146 +365,27 @@ export function mountMountainScreen(options: ScreenOptions): void {
     savedCopies.root,
     conflictSheet.root,
   ];
-  /** Read fresh at each use: closing the drawers changes the stack. */
-  const cover = (): Cover =>
-    coverFor({
-      cardUp: cards.some(cardUp),
-      drawerOpen: drawerOpen(board.view()),
-      noteOn: boardNote.isOn(),
-    });
-  /**
-   * A card that opens by itself (a relic, a layer, a craft done, a save
-   * conflict, an update) stands under the drawers' clip. It closes an open
-   * drawer, so it is never covered, and keeps the focus it took: the key
-   * the drawer opened from is under the card.
-   */
-  const coverDrawers = (): void => {
-    if (!cover().closeDrawers) {
-      return;
-    }
-    for (const sheet of [crewPanel.sheet, upgrades.sheet]) {
-      sheet.close({ restoreFocus: false, by: "program" });
-    }
-  };
-  /** The New sign last shown: each shows once a launch. */
-  let teachShown: string | undefined;
-  /**
-   * A card that opens by itself (a relic, a layer, a craft done, a save
-   * conflict, an update) never closes the board's popups, and the board note
-   * stands above it. So any note goes once such a card is up, and so does the
-   * New sign. A sign it covered was never really seen: it shows once more after
-   * the card.
-   */
-  const coverNote = (): void => {
-    if (!cover().putAway) {
-      return;
-    }
-    if (sign.shown() !== undefined) {
-      teachShown = undefined;
-      sign.hide();
-    }
-    if (boardNote.isOn()) {
-      boardNote.hide();
-    }
-  };
-  /** Any tap or Escape puts the New sign away; it never comes back this launch. */
-  const putSignAway = (): void => {
-    if (sign.shown() !== undefined) {
-      sign.hide();
-      renderRail();
-    }
-  };
-  /**
-   * One New sign at a time, in the order teach.ts lists them (#372, #373). It
-   * stands in the band over its key until any tap or Escape puts it away. A
-   * note or sheet already up waits it out, and a sign put away never comes back
-   * this launch; the dot stays. Opening the sheet by its key counts as seen.
-   */
-  const renderTeach = (): void => {
-    const want = wantedSign(ctx.view());
-    const up = sign.shown();
-    if (want === undefined || (up !== undefined && up.key !== want.key)) {
-      sign.hide();
-    }
-    if (want === undefined) {
-      return;
-    }
-    if (sign.shown() !== undefined) {
-      sign.show(want.key, want.words);
-      return;
-    }
-    // Another note, or a sheet over the board, holds it back until a later
-    // render or tick: the sign would stand under the sheet.
-    if (want.id === teachShown || cover().holdSign) {
-      return;
-    }
-    teachShown = want.id;
-    sign.show(want.key, want.words);
-  };
-
-  /** The keys read the save once it is in; before, only their caps and icons show (#373). */
-  const renderRail = (): void => {
-    if (!ctx.view().ready) {
-      rail.render(undefined);
-      return;
-    }
-    const views = keyViews(ctx.view().mountain, now(), ctx.view().trouble);
-    // The New sign is quiet for readers: its words join its key's label.
-    const up = sign.shown();
-    rail.render(
-      up === undefined
-        ? views
-        : {
-            ...views,
-            [up.key]: {
-              ...views[up.key],
-              aria: `${views[up.key].aria}. ${up.words}`,
-            },
-          },
-    );
-  };
-
   saveOnLeave(progress, listening);
 
-  /**
-   * Opens the Buys drawer: the Buys key, a bay and Saving for (#372, #373). Only an opening starts
-   * the settle: a tap on an open drawer's door does not.
-   */
-  const openBuys = (from?: HTMLElement): void => {
-    closeBoardPopups();
-    upgrades.sheet.close({ restoreFocus: false, by: "program" });
-    crewPanel.open(from);
-  };
-
-  const bays = createBays(ctx, { note: boardNote, openBuys });
-
-  const openWorkshop = workshop.openButton;
-  /** The id of the key `workshopDoor` is, so the rail can say whether it is locked. */
-  let doorKey: KeyId = "workshop";
-  /** The key the Workshop sheet opened from: its own, or the Ledger key that opened the menu. */
-  let workshopDoor: HTMLButtonElement = rail.keys.workshop;
-  let openingFromKey = false;
-  // Opening the sheet by any door counts as seen: the sign goes, the dot stays.
-  const openWorkshopSheet = (): void => {
-    if (ctx.view().ready && workshopUnlocked(ctx.view().mountain)) {
-      dispatch({ kind: "markSeen", id: "workshop" });
-      workshopDoor = rail.keys.workshop;
-      doorKey = "workshop";
-      openingFromKey = true;
-      try {
-        openWorkshop.click();
-      } finally {
-        openingFromKey = false;
-      }
-    }
-  };
-  // The menu's own Workshop row also puts the board's popups away.
-  openWorkshop.addEventListener("click", () => {
-    closeBoardPopups();
-    if (!openingFromKey) {
-      workshopDoor = rail.keys.ledger;
-      doorKey = "ledger";
-    }
+  const bays = createBays(ctx, {
+    note: boardNote,
+    openBuys: (from) => {
+      keys.openBuys(from);
+    },
+  });
+  const overlays = createOverlays(ctx, {
+    note: boardNote,
+    rail,
+    cards,
+    drawers: [crewPanel.sheet, upgrades.sheet],
+  });
+  const keys = wireKeys(ctx, {
+    rail,
+    crewPanel,
+    upgrades,
+    workshop,
+    closeBoardPopups,
+    putSignAway: overlays.putSignAway,
   });
 
   // The board's top: the relic plate and the stock row (#370).
@@ -574,7 +422,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     bays.root,
     readyRow.root,
     rail.root,
-    sign.root,
+    overlays.sign.root,
     sheetClip,
     drawerClip,
     saveLine.line,
@@ -597,17 +445,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     bays.tick(dt);
   }, signal);
   vein.listen();
-  // Any tap or Escape puts the New sign away (#373).
-  document.addEventListener("pointerdown", putSignAway, listening);
-  document.addEventListener(
-    "keydown",
-    (event) => {
-      if (event.key === "Escape") {
-        putSignAway();
-      }
-    },
-    listening,
-  );
+  overlays.listen();
 
   const unsubscribe = progress.subscribe((next) => {
     setView(nextView(board, ctx.view(), next));

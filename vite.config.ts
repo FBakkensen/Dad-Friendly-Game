@@ -243,6 +243,18 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/screen-keys.ts": {
+          statements: 100,
+          branches: 92,
+          functions: 100,
+          lines: 100,
+        },
+        "src/screen-overlays.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/screen-prompts.ts": {
           statements: 100,
           branches: 100,
