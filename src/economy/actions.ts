@@ -418,7 +418,7 @@ export function applyMove(
     mountain: next,
     spent: Math.max(0, -gained),
     gained: Math.max(0, gained),
-    events: moveEvents(mountain, next, move, now),
+    events: moveEvents(mountain, next, move),
   };
 }
 
@@ -433,6 +433,25 @@ function engineerAt(mountain: Mountain, index: number): Engineer {
     throw new Error(`No engineer at ${String(index)}`);
   }
   return hand;
+}
+
+/** The crew an applied promote made, so a missing one means the move and the mountain disagree. */
+function crewOf(mountain: Mountain): readonly Engineer[] {
+  /* v8 ignore next 3 -- an applied promote left a crew, unreachable */
+  if (mountain.engineers === undefined) {
+    throw new Error("No crew");
+  }
+  return mountain.engineers;
+}
+
+/** When the boost an applied buy started ends, as `buyBoost` wrote it. */
+function boostEnd(mountain: Mountain, id: BoostId): number {
+  const endsAt = mountain.boosts?.[id];
+  /* v8 ignore next 3 -- an applied buy wrote an end time, unreachable */
+  if (endsAt === undefined) {
+    throw new Error(`No end time for ${id}`);
+  }
+  return endsAt;
 }
 
 /**
@@ -464,7 +483,6 @@ function actionEvents(
   before: Mountain,
   next: Mountain,
   action: Action,
-  now: number,
 ): readonly MoveEvent[] {
   switch (action.kind) {
     case "buyTier":
@@ -488,13 +506,13 @@ function actionEvents(
         {
           kind: "boostStarted",
           id: action.id,
-          endsAt: now + boostById(action.id).durationMs,
+          endsAt: boostEnd(next, action.id),
         },
       ];
     case "craft":
       return [{ kind: "craftStarted", recipe: action.recipe }];
     case "promote": {
-      const crew = (before.engineers?.length ?? 0) + 1;
+      const crew = crewOf(next).length;
       return [
         {
           kind: "promoted",
@@ -530,7 +548,6 @@ function moveEvents(
   before: Mountain,
   next: Mountain,
   move: Move,
-  now: number,
 ): readonly MoveEvent[] {
   switch (move.kind) {
     case "tapVein":
@@ -540,7 +557,7 @@ function moveEvents(
     case "markAllSeen":
       return [];
     default:
-      return actionEvents(before, next, move, now);
+      return actionEvents(before, next, move);
   }
 }
 
