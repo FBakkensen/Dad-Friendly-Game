@@ -1,4 +1,4 @@
-/* global console, process, document, getComputedStyle, innerWidth, innerHeight, HTMLElement, Element, navigator, localStorage, setTimeout, URL */
+/* global console, process, document, getComputedStyle, innerWidth, innerHeight, HTMLElement, Element, navigator, setTimeout */
 /**
  * Screen audit capture. Not part of `npm run check`.
  *
@@ -9,11 +9,15 @@
  * the save screens.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import puppeteer from "puppeteer-core";
-import { createServer } from "vite";
+import {
+  launchChrome,
+  open as openHarness,
+  openPair,
+  startServer,
+} from "../tools/browser/harness.ts";
 import {
   contrastRatio,
   isLargeText,
@@ -31,7 +35,6 @@ import {
 } from "./fixtures.mjs";
 
 const OUT = "docs/ui-audit";
-const SAVE_KEY = "dad-friendly-session";
 /** The phone: the board's 424x924 stage at scale 1 (#370). */
 const PHONE_SIZE = "424x924";
 const VIEWPORTS = [[424, 924]];
@@ -50,20 +53,10 @@ const RECIPES = [
 ];
 const MOUNTAIN = 240_000_000;
 
-const server = await createServer({
-  server: { host: "127.0.0.1", port: 4175, strictPort: false },
-  logLevel: "error",
-}).then((dev) => dev.listen());
-const BASE = server.resolvedUrls?.local[0] ?? "http://127.0.0.1:4175/";
-const CHROME =
-  process.env.CHROME_PATH ??
-  ["/usr/bin/google-chrome", "/usr/local/bin/google-chrome"].find((path) =>
-    existsSync(path),
-  ) ??
-  "/usr/bin/google-chrome";
+const server = await startServer({ port: 4175, url: undefined });
+const BASE = server.base;
 
-const browser = await puppeteer.launch({
-  executablePath: CHROME,
+const browser = await launchChrome({
   args: ["--no-sandbox", "--hide-scrollbars", "--font-render-hinting=none"],
 });
 
@@ -135,42 +128,31 @@ function quietCrew(extra = {}) {
  * @param {{ search?: string }} [options]
  */
 async function open(viewport, save, { search = "" } = {}) {
-  const context = await browser.createBrowserContext();
-  const page = await context.newPage();
   const errors = [];
-  page.on("pageerror", (error) => {
-    errors.push(String(error));
-  });
-  await page.setViewport({
-    width: viewport[0],
-    height: viewport[1],
-    deviceScaleFactor: 2,
-    isMobile: true,
-    hasTouch: true,
-  });
-  await page.evaluateOnNewDocument(() => {
-    const realNow = Date.now.bind(Date);
-    globalThis.__skewMs = 0;
-    Date.now = () => realNow() + globalThis.__skewMs;
-  });
-  await page.evaluateOnNewDocument(
-    (key, value) => {
-      if (value === null) {
-        localStorage.removeItem(key);
-        return;
-      }
-      localStorage.setItem(key, value);
+  const { page, close } = await openHarness(browser, BASE, {
+    viewport: {
+      width: viewport[0],
+      height: viewport[1],
+      deviceScaleFactor: 2,
+      isMobile: true,
+      hasTouch: true,
     },
-    SAVE_KEY,
-    save === undefined ? null : JSON.stringify(save),
-  );
-  await page.goto(new URL(search, BASE).href, { waitUntil: "networkidle0" });
+    seed:
+      save === undefined
+        ? { kind: "remove" }
+        : { kind: "everyLoad", json: JSON.stringify(save) },
+    clock: { date: "skewable", tap: "real" },
+    search,
+    onPageError: (error) => {
+      errors.push(String(error));
+    },
+  });
   await page.waitForSelector(".board-window", { timeout: 8_000 });
   await page.evaluate(() => document.fonts.ready);
   return {
     page,
     errors,
-    close: () => context.close(),
+    close,
   };
 }
 
@@ -1421,32 +1403,23 @@ async function main() {
     return opened;
   });
   await capture("other-tab-playing", async (viewport) => {
-    const context = await browser.createBrowserContext();
     const [width, height] = viewport;
-    const first = await context.newPage();
-    const second = await context.newPage();
     const errors = [];
-    for (const page of [first, second]) {
-      page.on("pageerror", (error) => {
-        errors.push(String(error));
-      });
-      await page.setViewport({
+    const { pages, close } = await openPair(browser, BASE, {
+      viewport: {
         width,
         height,
         deviceScaleFactor: 2,
         isMobile: true,
         hasTouch: true,
-      });
-      await page.evaluateOnNewDocument(
-        (key, value) => {
-          localStorage.setItem(key, value);
-        },
-        SAVE_KEY,
-        JSON.stringify(rest()),
-      );
-    }
-    await first.goto(BASE, { waitUntil: "networkidle0" });
-    await second.goto(BASE, { waitUntil: "networkidle0" });
+      },
+      seed: { kind: "everyLoad", json: JSON.stringify(rest()) },
+      clock: { date: "skewable", tap: "real" },
+      onPageError: (error) => {
+        errors.push(String(error));
+      },
+    });
+    const second = pages[1];
     await second.waitForSelector(".other-tab:not([hidden])", {
       timeout: 8_000,
     });
@@ -1454,7 +1427,7 @@ async function main() {
     return {
       page: second,
       errors,
-      close: () => context.close(),
+      close,
     };
   });
   await capture("update-available", async (viewport) => {
