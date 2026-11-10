@@ -135,6 +135,47 @@ export function pressOnBoard(
   return tracker;
 }
 
+export type PressLift =
+  "pointerup" | "pointerleave" | "pointercancel" | "click";
+
+/**
+ * The down look of a control held by a finger. A pointerdown that `enabled` allows paints down,
+ * even when it is already down (a second press before the repaint shows again). Each lift event,
+ * and `lift()` from code, paints up once; a lift when not down paints nothing. Listeners go on
+ * `target` in the order given, at the moment this is called.
+ */
+export function pressLook(
+  target: HTMLElement,
+  options: {
+    /** Whether this pointerdown shows the down look; rows also check the primary button here. */
+    readonly enabled: (event: PointerEvent) => boolean;
+    /** The events that lift the look, registered in this order. */
+    readonly lifts: readonly PressLift[];
+    /** The control paints its own look. */
+    readonly paint: (down: boolean) => void;
+  },
+): { readonly isDown: () => boolean; readonly lift: () => void } {
+  let down = false;
+  const lift = (): void => {
+    if (!down) {
+      return;
+    }
+    down = false;
+    options.paint(false);
+  };
+  target.addEventListener("pointerdown", (event) => {
+    if (!options.enabled(event)) {
+      return;
+    }
+    down = true;
+    options.paint(true);
+  });
+  for (const type of options.lifts) {
+    target.addEventListener(type, lift);
+  }
+  return { isDown: () => down, lift };
+}
+
 /**
  * `buy` runs for a tap or a key press, with how it came and its click. A finger that moves, or
  * a list that scrolls under the finger, does not buy. Pressed state covers `card`. The press is
@@ -172,9 +213,11 @@ export function buyOnTap(
     x = event.clientX;
     y = event.clientY;
     top = scroller(card)?.scrollTop ?? 0;
-    if (!button.disabled) {
-      card.classList.add("is-pressed");
-    }
+  });
+  const look = pressLook(card, {
+    enabled: (event) => event.button === 0 && !button.disabled,
+    lifts: ["pointercancel", "pointerleave", "pointerup"],
+    paint: (down) => card.classList.toggle("is-pressed", down),
   });
   card.addEventListener("pointermove", (event) => {
     if (!armed) {
@@ -182,22 +225,14 @@ export function buyOnTap(
     }
     if (Math.hypot(event.clientX - x, event.clientY - y) > SLOP_PX) {
       moved = true;
-      card.classList.remove("is-pressed");
+      look.lift();
     }
   });
-  const release = (): void => {
-    card.classList.remove("is-pressed");
-  };
   card.addEventListener("pointercancel", () => {
     blocked = gesture;
     armed = false;
-    release();
-  });
-  card.addEventListener("pointerleave", () => {
-    release();
   });
   card.addEventListener("pointerup", (event) => {
-    release();
     if (!armed || button.disabled) {
       armed = false;
       return;

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createBoardHost } from "./board-host";
-import { buyOnTap, pressOnBoard, trackPress } from "./card-tap";
+import { buyOnTap, pressLook, pressOnBoard, trackPress } from "./card-tap";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -357,5 +357,84 @@ describe("pressOnBoard", () => {
     troubled = false;
     fingerClick(target);
     expect(seen).toEqual(["act", "ignore-early"]);
+  });
+});
+
+describe("pressLook", () => {
+  const look = (
+    options: {
+      enabled?: (event: PointerEvent) => boolean;
+      lifts?: Parameters<typeof pressLook>[1]["lifts"];
+    } = {},
+  ) => {
+    const target = document.createElement("button");
+    document.body.append(target);
+    const paint = vi.fn<(down: boolean) => void>();
+    const handle = pressLook(target, {
+      enabled: options.enabled ?? (() => true),
+      lifts: options.lifts ?? ["pointerup", "pointerleave", "pointercancel"],
+      paint,
+    });
+    return { target, paint, handle };
+  };
+
+  it("an enabled press paints down, and each lift event paints up once", () => {
+    for (const type of ["pointerup", "pointerleave", "pointercancel"]) {
+      const { target, paint, handle } = look();
+      pointer(target, "pointerdown");
+      expect(paint.mock.calls).toEqual([[true]]);
+      expect(handle.isDown()).toBe(true);
+      pointer(target, type);
+      pointer(target, type);
+      expect(paint.mock.calls).toEqual([[true], [false]]);
+      expect(handle.isDown()).toBe(false);
+    }
+  });
+
+  it("a press that is not enabled paints nothing", () => {
+    const { target, paint, handle } = look({ enabled: () => false });
+    pointer(target, "pointerdown");
+    expect(paint).not.toHaveBeenCalled();
+    expect(handle.isDown()).toBe(false);
+  });
+
+  it("a lift when not down paints nothing", () => {
+    const { target, paint, handle } = look();
+    pointer(target, "pointerup");
+    handle.lift();
+    expect(paint).not.toHaveBeenCalled();
+  });
+
+  it("a second press while down paints down again", () => {
+    const { target, paint } = look();
+    pointer(target, "pointerdown");
+    pointer(target, "pointerdown");
+    expect(paint.mock.calls).toEqual([[true], [true]]);
+  });
+
+  it("lift() lifts from code, as the rows' slop does", () => {
+    const { target, paint, handle } = look();
+    pointer(target, "pointerdown");
+    handle.lift();
+    expect(paint.mock.calls).toEqual([[true], [false]]);
+    expect(handle.isDown()).toBe(false);
+  });
+
+  it("only the listed events lift", () => {
+    const { target, paint, handle } = look({ lifts: ["pointercancel"] });
+    pointer(target, "pointerdown");
+    pointer(target, "pointerup");
+    pointer(target, "pointerleave");
+    target.click();
+    expect(handle.isDown()).toBe(true);
+    expect(paint.mock.calls).toEqual([[true]]);
+    pointer(target, "pointercancel");
+    expect(paint.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("passes the pointerdown to enabled", () => {
+    const { target, paint } = look({ enabled: (event) => event.button === 0 });
+    target.dispatchEvent(new PointerEvent("pointerdown", { button: 2 }));
+    expect(paint).not.toHaveBeenCalled();
   });
 });

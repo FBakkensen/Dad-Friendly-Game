@@ -13,7 +13,7 @@ import {
 } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { controlKey, type ControlRef } from "./board-interaction";
-import { pressOnBoard } from "./card-tap";
+import { pressLook, pressOnBoard } from "./card-tap";
 import { onFontsSettled } from "./fit-cache";
 import { reducedMotion } from "./float-text";
 import { etaShort, formatCompact, formatCount } from "./format";
@@ -338,13 +338,15 @@ export function createReadyPlate({
   wirePlatePress(button, board, onTap, (done) => {
     bought = done;
   });
-  button.addEventListener("pointerdown", () => {
-    if (holding() === undefined && !button.disabled && pick?.kind === "ready") {
-      frameX(guard, GUARD_FRAME.pressed, GUARD_PX);
-    }
+  pressLook(button, {
+    enabled: () =>
+      holding() === undefined && !button.disabled && pick?.kind === "ready",
+    lifts: ["pointerleave", "pointercancel"],
+    paint: (down) => {
+      if (down) frameX(guard, GUARD_FRAME.pressed, GUARD_PX);
+      else paint();
+    },
   });
-  button.addEventListener("pointerleave", paint);
-  button.addEventListener("pointercancel", paint);
 
   board.subscribe(paint);
   // Lines fitted with fallback metrics may not fit in the board's own fonts. A Done hold keeps
@@ -430,25 +432,19 @@ export function createDigButton({
     }, next[0]);
   };
 
-  button.addEventListener("pointerdown", () => {
+  pressLook(button, {
     // A disabled button never clicks, so it never pops back up: no down frame.
-    if (!button.disabled) {
-      run(DIG_DOWN, []);
-    }
+    enabled: () => !button.disabled,
+    lifts: ["pointerup", "pointercancel", "pointerleave"],
+    paint: (down) => {
+      if (down) run(DIG_DOWN, []);
+      else if (pressTimer === undefined) frame(DIG_REST);
+    },
   });
   button.addEventListener("click", () => {
     onPress();
     run(DIG_UP, [[DIG_UP_MS, DIG_REST]]);
   });
-  const lift = (): void => {
-    if (pressTimer === undefined) {
-      frame(DIG_REST);
-    }
-  };
-  button.addEventListener("pointerup", lift);
-  button.addEventListener("pointercancel", lift);
-  button.addEventListener("pointerleave", lift);
-
   const set = (
     yieldNow: number | undefined,
     enabled: boolean,

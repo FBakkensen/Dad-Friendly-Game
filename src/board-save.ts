@@ -1,5 +1,6 @@
 import type { AuthController, AuthState } from "./auth";
 import { skin } from "./board-skin";
+import { pressLook } from "./card-tap";
 import { formatCompact } from "./format";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 
@@ -54,18 +55,18 @@ export function plateButton(label: string): HTMLButtonElement {
   const b = el("button", "board-platebtn");
   b.type = "button";
   b.append(el("span", "board-platebtn-text", label));
-  const repaint = skin(b, "key", "keyp");
-  const up = (): void => {
-    b.classList.remove("down");
-    repaint();
-  };
-  b.addEventListener("pointerdown", () => {
-    b.classList.add("down");
-    repaint();
+  // The look paints through `repaint`, which only exists once the skin does; the skin's own
+  // first paint asks the look, so the look comes first.
+  let repaint = (): void => undefined;
+  const look = pressLook(b, {
+    enabled: () => true,
+    lifts: ["pointerup", "pointerleave", "pointercancel"],
+    paint: (down) => {
+      b.classList.toggle("down", down);
+      repaint();
+    },
   });
-  b.addEventListener("pointerup", up);
-  b.addEventListener("pointerleave", up);
-  b.addEventListener("pointercancel", up);
+  repaint = skin(b, "key", { kind: "keyp", down: () => look.isDown() });
   return b;
 }
 
