@@ -9,7 +9,7 @@ import dotUrl from "./assets/board/key-dot.png";
 import { el, frameX, hide, mark, setAttr, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import type { ControlRef } from "./board-interaction";
-import { pressOnBoard } from "./card-tap";
+import { pressLook, pressOnBoard } from "./card-tap";
 import { KEY_IDS, type KeyCap, type KeyId, type KeyView } from "./key-rail";
 
 /*
@@ -122,29 +122,17 @@ export function createKeyRail({
 
     /** The cap's frame when not held down: the last view's. */
     let base = FRAME.rest;
-    let down = false;
     let disabled = key.disabled;
-    const up = (): void => {
-      if (!down) {
-        return;
-      }
-      down = false;
-      key.classList.remove("is-down");
-      frameX(cap, base, CELL_PX);
-    };
-    key.addEventListener("pointerdown", () => {
-      if (disabled) {
-        return;
-      }
-      down = true;
-      key.classList.add("is-down");
-      frameX(cap, DOWN, CELL_PX);
+    const look = pressLook(key, {
+      enabled: () => !disabled,
+      lifts: ["pointerup", "pointerleave", "pointercancel"],
+      paint: (down) => {
+        key.classList.toggle("is-down", down);
+        frameX(cap, down ? DOWN : base, CELL_PX);
+      },
     });
-    for (const type of ["pointerup", "pointerleave", "pointercancel"]) {
-      key.addEventListener(type, up);
-    }
     key.addEventListener("click", () => {
-      up();
+      look.lift();
       onKey(id, key);
     });
 
@@ -152,7 +140,7 @@ export function createKeyRail({
       const locked = view?.cap === "locked";
       const lit = view?.cap === "lit";
       base = FRAME[view?.cap ?? "rest"];
-      if (!down) {
+      if (!look.isDown()) {
         frameX(cap, base, CELL_PX);
       }
       setAttr(icon, "src", locked ? ICON[id].dim : ICON[id].bright);
@@ -161,7 +149,7 @@ export function createKeyRail({
         key.disabled = disabled;
       }
       if (disabled) {
-        up();
+        look.lift();
       }
       mark(key, "is-locked", locked);
       mark(key, "is-lit", lit);
