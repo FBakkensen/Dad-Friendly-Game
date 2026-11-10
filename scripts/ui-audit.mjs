@@ -2,8 +2,8 @@
 /**
  * Screen audit capture. Not part of `npm run check`.
  *
- * Same browser setup as scripts/visual-check.mjs: Vite, puppeteer-core, and
- * a localStorage save planted before boot. Shots are 424×924, the installed app
+ * Opens its pages through the browser harness (tools/browser/harness.ts): Vite,
+ * Chrome, and a localStorage save planted before boot. Shots are 424×924, the installed app
  * and the board's own size (#370), at device scale 2. Dev-only preview params (`?saves=two`,
  * `?save=loading`, `?save=error`, `?copies=shelf`, `?trouble=cave-in`) seed
  * the save screens.
@@ -1427,7 +1427,7 @@ async function main() {
         hasTouch: true,
       },
       seed: { kind: "everyLoad", json: JSON.stringify(rest()) },
-      clock: { date: "skewable", tap: "real" },
+      clock: { date: "real", tap: "real" },
       onPageError: (error) => {
         errors.push(String(error));
       },
