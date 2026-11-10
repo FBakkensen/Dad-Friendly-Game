@@ -237,6 +237,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/screen-dig.ts": {
+          statements: 100,
+          branches: 97,
+          functions: 100,
+          lines: 100,
+        },
         "src/screen-prompts.ts": {
           statements: 100,
           branches: 100,
@@ -246,6 +252,12 @@ export default defineConfig({
         "src/screen-running.ts": {
           statements: 100,
           branches: 75,
+          functions: 100,
+          lines: 100,
+        },
+        "src/screen-vein.ts": {
+          statements: 100,
+          branches: 89,
           functions: 100,
           lines: 100,
         },

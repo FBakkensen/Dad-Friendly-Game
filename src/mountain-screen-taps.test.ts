@@ -1,10 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createMemoryCloudSave,
-  type CloudLoadResult,
-  type CloudSave,
-} from "./cloud-save";
+import { createMemoryCloudSave, type CloudSave } from "./cloud-save";
 import { createMountain, type Mountain } from "./mountain";
 import {
   createMemoryStorage,
@@ -49,15 +45,9 @@ const seeded = (mountain: Mountain) => {
 
 describe("taps that do nothing", () => {
   it("a tap on the plate or the window before the save is in buys and digs nothing", () => {
-    let finishLoad: (result: CloudLoadResult) => void = () => {
-      throw new Error("load was not pending");
-    };
     const cloudSave: CloudSave = {
       ...createMemoryCloudSave(),
-      watch: ({ onChange }) => {
-        finishLoad = onChange;
-        return () => undefined;
-      },
+      watch: () => () => undefined,
     };
     const screen = mountScreen({ auth: signedIn(), cloudSave });
     const dispatch = vi.spyOn(screen.progress, "dispatch");
@@ -67,7 +57,11 @@ describe("taps that do nothing", () => {
     );
     tapAnyway(screen.dig);
     expect(dispatch).not.toHaveBeenCalled();
-    expect(finishLoad).toBeTypeOf("function");
+    expect(
+      screen.root
+        .querySelector<HTMLButtonElement>(".board-dig-button")
+        ?.getAttribute("aria-label"),
+    ).toBe("Loading your save...");
   });
 
   it("a tap on the plate of a mined-out mountain buys nothing", () => {

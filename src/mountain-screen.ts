@@ -2,14 +2,16 @@ import { cardUp } from "./card-state";
 import { createScreenCtx, type ScreenOptions } from "./screen-context";
 import { createLedger } from "./screen-ledger";
 import { createRunningNow } from "./screen-running";
+import { QUIET_NOTE_MS, createVein } from "./screen-vein";
+import {
+  SPEND_KICK,
+  createBays,
+  createGaugeRow,
+  createReadyRow,
+} from "./screen-dig";
 import { createOtherTab, createUpdatePrompt } from "./screen-prompts";
-import { stonesLeft } from "./scale";
 import { coverFor, wantedSign, type Cover } from "./screen-cover";
 import { drawerOpen } from "./board-interaction";
-import { formatCount } from "./format";
-import { stonesPerSecond } from "./mountain";
-import { owned, tierById } from "./tiers";
-import { hasRelic } from "./relics";
 import { createBoardNote } from "./board-note";
 import { DRAWER_SETTLE_MS, createSheetScrim } from "./board-drawer";
 import { type BoardHost } from "./board-host";
@@ -17,23 +19,13 @@ import { keyViews, type KeyId } from "./key-rail";
 import { createKeyRail } from "./board-keys";
 import { createBoardSign } from "./board-sign";
 import { setAttr } from "./board-dom";
-import { bandWords, createMachineBays } from "./board-bays";
-import { bayViews } from "./machine-bays";
 import { readyNow, type ReadyPick } from "./ready-now";
-import {
-  createDigButton,
-  createReadyPlate,
-  type ReadyTap,
-} from "./board-ready";
-import { createCrewPlate, createOutputGauge } from "./board-gauge";
-import { crewCounts } from "./crew-count";
-import { createMineWindow, runBoardLoop } from "./board-window";
-import { veinSpot, windowScene } from "./mine-window";
+import { runBoardLoop } from "./board-window";
 import { createBoostDial, createOdometer } from "./board-stock";
+import { quietAwayWords } from "./screen-words";
 import { createRelicPlate } from "./board-relics";
 import { createSaveLine } from "./board-save";
 import { liveCrewBoost } from "./crew-boost";
-import { effectiveRates } from "./rates";
 import { createRelicPanels } from "./relic-panels";
 import { createArrivalPanel } from "./arrival-panel";
 import { createWelcomePanel } from "./welcome-panel";
@@ -46,22 +38,9 @@ import { createEngineersPanel } from "./engineers-panel";
 import { createUpgradesPanel } from "./upgrades-panel";
 import { workshopUnlocked } from "./workshop";
 import { createWorkshopPanel } from "./workshop-panel";
-import { tapWords, quietAwayWords } from "./screen-words";
-import {
-  veinGapScale,
-  advanceVein,
-  pauseVein,
-  resumeVein,
-  veinGlintMs,
-  veinWaitLeft,
-  waitForVein,
-  type VeinState,
-} from "./veins";
 import { type ProgressSnapshot, type ProgressStore } from "./progress-store";
 
 export { showAppUpdate } from "./screen-prompts";
-
-const MINED_OUT = "The mountain is mined out";
 
 /**
  * A tap on Saving for or on a bay opens Buys over the board, so the second tap
@@ -98,132 +77,29 @@ export function mountMountainScreen(options: ScreenOptions): void {
     },
     spent: (stones) => {
       odometer.spend(stones);
-      gauge.kick(SPEND_KICK);
+      gaugeRow.kick(SPEND_KICK);
     },
   });
-  const {
-    root,
-    progress,
-    auth,
-    dispatch,
-    now,
-    random,
-    board,
-    signal,
-    listening,
-  } = ctx;
+  const { root, progress, auth, dispatch, now, board, signal, listening } = ctx;
   const { lanternUrl, mountainUrl, stoneUrl, veinUrl, tierArt, relicArt } =
     ctx.art;
-  const { veinStorage } = ctx;
 
   const ledger = createLedger(ctx);
   const runningNow = createRunningNow(ctx);
   const { veinNote, effectRow, chipFor } = runningNow;
 
-  const gapForVeins = (): number =>
-    veinGapScale(
-      ctx.view().mountain,
-      hasRelic(ctx.view().mountain, "lantern"),
-      now(),
-    );
+  const vein = createVein(ctx, {
+    veinNote,
+    showVein: (spot) => {
+      gaugeRow.mine.showVein(spot);
+    },
+    showIn: (body, ms) => {
+      boardNote.show(gaugeRow.mine.root, body, { ms });
+    },
+  });
 
   // The New sign stands in the band over its key (#373): a sign, not a button.
   const sign = createBoardSign();
-
-  // The wait for the next vein counts play time only, and survives the phone
-  // locking or the PWA being closed, so short sessions still add up to a vein.
-  const VEIN_WAIT_KEY = "dad-friendly-vein-wait";
-  const storedWait = (): unknown => {
-    try {
-      const raw = (veinStorage ?? localStorage).getItem(VEIN_WAIT_KEY);
-      return raw === null ? undefined : Number(raw);
-    } catch {
-      return undefined;
-    }
-  };
-  const storeWait = (): void => {
-    try {
-      (veinStorage ?? localStorage).setItem(
-        VEIN_WAIT_KEY,
-        String(Math.round(veinWaitLeft(veinState, now()))),
-      );
-    } catch {
-      // Private mode or full storage: the next session just starts a fresh wait.
-    }
-  };
-  let veinState: VeinState = resumeVein({
-    waitLeft: storedWait(),
-    now: now(),
-    random,
-    gapScale: gapForVeins(),
-  });
-  let hiddenAt: number | undefined;
-  let veinNoteUntil = 0;
-  /** How long the short-absence note stays (#334). */
-  const QUIET_NOTE_MS = 6000;
-  /** How long the vein's payout note stays. */
-  const VEIN_NOTE_MS = 4000;
-  /** How far a dig and a local spend kick the output needle, in degrees (#371). */
-  const DIG_KICK = 150;
-  const SPEND_KICK = 120;
-
-  const renderVein = (): void => {
-    mine.showVein(
-      veinState.kind === "glinting" &&
-        ctx.view().ready &&
-        ctx.view().mountain.remaining > 0
-        ? veinSpot(veinState.x, veinState.y)
-        : undefined,
-    );
-    if (now() >= veinNoteUntil) {
-      veinNote.textContent = "";
-    }
-  };
-
-  const stepVein = (): void => {
-    if (!ctx.view().ready || ctx.view().mountain.remaining === 0) {
-      return;
-    }
-    veinState = advanceVein({
-      vein: veinState,
-      now: now(),
-      random,
-      gapScale: gapForVeins(),
-      glintMs: veinGlintMs(ctx.view().mountain),
-    });
-    renderVein();
-  };
-
-  /**
-   * A tap on the window: today's rock handler. Returns the stones the tap
-   * itself dug: the store settles the crew before the tap, and the crew's
-   * stones are the gauge's to show, not the dig's "+N" (#371).
-   */
-  const dig = (): number => {
-    if (!ctx.view().ready) {
-      return 0;
-    }
-    const result = dispatch({ kind: "dig" });
-    const mined = result.kind === "applied" ? result.gained : 0;
-    if (mined > 0) {
-      gauge.kick(DIG_KICK);
-    }
-    return mined;
-  };
-
-  const tapVein = (): void => {
-    if (veinState.kind !== "glinting" || !ctx.view().ready) {
-      return;
-    }
-    const result = dispatch({ kind: "tapVein" });
-    const reward = result.kind === "applied" ? result.gained : 0;
-    veinState = waitForVein({ now: now(), random, gapScale: gapForVeins() });
-    showVeinNote(
-      `Golden vein! +${formatCount(reward)} ${reward === 1 ? "stone" : "stones"}`,
-      VEIN_NOTE_MS,
-    );
-    renderVein();
-  };
 
   /**
    * The key rail: Buys, Workshop and Upgrades open from here; Engineers and the Ledger key open
@@ -281,113 +157,34 @@ export function mountMountainScreen(options: ScreenOptions): void {
     tierArt,
   });
 
-  const resetVein = (): void => {
-    veinState = waitForVein({ now: now(), random, gapScale: gapForVeins() });
-    renderVein();
-  };
-
   // A panel's own change repaints the whole screen: its `requestRender` is `ctx.paint`, which
   // reads `paint` (set up below) when called.
   // Pass the mine to your kid (M6): offered from the Legend card and the menu.
   const legacy = createLegacyPanel({
     progress,
     getView: ctx.view,
-    onPassed: resetVein,
+    onPassed: vein.reset,
     beforeOpen: () => {
       menuPanel.close();
     },
     requestRender: ctx.paint,
   });
 
-  // The gauge row (#371): the output gauge, the mine window down No. 2
-  // Shaft with the vein and the Legacy plate on it, and the crew plate.
-  const gauge = createOutputGauge();
-  const crewPlate = createCrewPlate();
-  /** The gauge shows what is earned: nothing once the mountain is mined out. */
-  const renderGaugeRow = (): void => {
-    const { mountain, trouble } = ctx.view();
-    gauge.set(
-      mountain.remaining > 0 ? stonesPerSecond(mountain, now(), trouble) : 0,
-    );
-    crewPlate.set(crewCounts(mountain, now(), trouble));
-  };
-  const mine = createMineWindow({
-    // A window tap counts by hand on the red button, which echoes the press.
-    onDig: () => {
-      const mined = dig();
-      if (mined > 0) {
-        digButton.dug(mined);
-        digButton.echo();
-      }
-      return mined;
-    },
-    onVein: tapVein,
+  const gaugeRow = createGaugeRow(ctx, {
+    vein,
     legacyBadge: legacy.badge,
-    random,
-  });
-  const gaugeRow = document.createElement("div");
-  gaugeRow.className = "board-gauge-row";
-  gaugeRow.append(gauge.root, mine.root, crewPlate.root);
-
-  // The Ready row (#372): the Ready now plate and the red DIG button.
-  /**
-   * A tap on the plate reads the rule again from the store, never the painted
-   * pick: a pocket that fell since the last frame buys nothing. A ready pick
-   * buys exactly one through the store; a pick being saved for opens Buys.
-   */
-  const tapReady = (): ReadyTap => {
-    const latest = progress.getSnapshot();
-    if (!latest.ready || !latest.playing) {
-      return { kind: "nothing" };
-    }
-    const pick = readyNow(latest.mountain, now(), latest.trouble);
-    if (pick.kind === "saving") {
-      openBuys(readyPlate.button);
-      return { kind: "opened" };
-    }
-    if (pick.kind !== "ready") {
-      return { kind: "nothing" };
-    }
-    if (dispatch({ kind: "buyTier", id: pick.tier }).kind !== "applied") {
-      return { kind: "nothing" };
-    }
-    const count = owned(progress.getSnapshot().mountain, tierById(pick.tier));
-    return { kind: "bought", tier: pick.tier, count, gain: pick.gain };
-  };
-  const readyPlate = createReadyPlate({ board, onTap: tapReady });
-  // The red button digs exactly as a window tap does, and the window shows it.
-  const digButton = createDigButton({
-    onPress: () => {
-      const mined = dig();
-      if (mined > 0) {
-        mine.dug(mined);
-        digButton.dug(mined);
-      }
+    onDug: (mined) => {
+      readyRow.digButton.dug(mined);
+      readyRow.digButton.echo();
     },
   });
-  readyPlate.root.append(digButton.root);
-  /** Until the save is in, nothing from it shows on the plate or the button. */
-  const renderReadyRow = (pick: ReadyPick): void => {
-    readyPlate.render(
-      ctx.view().ready ? pick : undefined,
-      ctx.view().playing && ctx.view().ready,
-    );
-    // A sign-in or another account loads a save again: back to loading.
-    if (!ctx.view().ready) {
-      digButton.loading();
-      return;
-    }
-    const tapYield = effectiveRates(ctx.view().mountain, now()).tapYield;
-    if (ctx.view().mountain.remaining === 0) {
-      digButton.set(undefined, false, MINED_OUT);
-      return;
-    }
-    digButton.set(
-      tapYield,
-      ctx.view().playing,
-      `Dig: tap to mine ${tapWords(tapYield)}`,
-    );
-  };
+  const readyRow = createReadyRow(ctx, {
+    dig: gaugeRow.dig,
+    mine: gaugeRow.mine,
+    openBuys: (from) => {
+      openBuys(from);
+    },
+  });
 
   /** The socket whose note opened the shelf: focus goes back there. */
   let shelfDoor: HTMLElement | undefined;
@@ -409,12 +206,6 @@ export function mountMountainScreen(options: ScreenOptions): void {
   // The board (#370): the note, the relic plate, the odometer, the boost dial
   // and the save line. The note is placed in board coordinates inside root.
   const boardNote = createBoardNote(root, signal, runningNow.park);
-  /** The vein's payout or the quiet away line, in the board note under the window. */
-  const showVeinNote = (words: string, ms: number): void => {
-    veinNote.textContent = words;
-    veinNoteUntil = now() + ms;
-    boardNote.show(mine.root, veinNote, { ms });
-  };
   const saveLine = createSaveLine({
     progress,
     auth,
@@ -482,7 +273,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     progress,
     getView: ctx.view,
     auth,
-    onStartOver: resetVein,
+    onStartOver: vein.reset,
     extras: [
       ledger.root,
       workshop.menuEntry,
@@ -529,38 +320,18 @@ export function mountMountainScreen(options: ScreenOptions): void {
   });
   const otherTab = createOtherTab(progress);
 
-  /** Whether the window shows a save, so a second load clears it once. */
-  let windowDrawn = false;
   /** The board under the cards: stones, window, gauges, bays, Ready row and guide. */
   const paintBoard = (): void => {
     ledger.paintStones();
-    const left = Math.ceil(stonesLeft(ctx.view().mountain));
     otherTab.paint(ctx.view().elsewhere);
-    mine.dig.disabled = !ctx.view().playing || left === 0;
-    mine.dig.setAttribute(
-      "aria-label",
-      left === 0
-        ? MINED_OUT
-        : `Mine window: tap to mine ${tapWords(effectiveRates(ctx.view().mountain, now()).tapYield)}`,
-    );
-    // The window draws the save once it has loaded, so the first scene it
-    // sees is the save itself and nothing beats for it (#371). A save that
-    // loads again (a sign-in, another account) puts it back to its frame.
-    if (ctx.view().ready) {
-      mine.render(windowScene(ctx.view().mountain, ctx.view().trouble));
-      windowDrawn = true;
-    } else if (windowDrawn) {
-      mine.loading();
-      windowDrawn = false;
-    }
-    renderGaugeRow();
+    gaugeRow.paint();
     // The Ready now pick, once per paint: the bays light theirs (#372).
     const pick = readyNow(ctx.view().mountain, now(), ctx.view().trouble);
     shownPick = pick;
-    renderBays(pick);
-    renderReadyRow(pick);
+    bays.paint(pick);
+    readyRow.paint(pick);
     crewPanel.render();
-    renderVein();
+    vein.render();
     ledger.paintGuide();
   };
   const paintPanels = (): void => {
@@ -726,16 +497,6 @@ export function mountMountainScreen(options: ScreenOptions): void {
     );
   };
 
-  /** The bays read the save once it is in; before, only their art shows (#372). */
-  const renderBays = (pick: ReadyPick): void => {
-    bays.render(
-      ctx.view().ready
-        ? bayViews(ctx.view().mountain, now(), ctx.view().trouble, pick)
-        : undefined,
-      ctx.view().ready ? bandWords(ctx.view().mountain) : "",
-    );
-  };
-
   saveOnLeave(progress, listening);
 
   /**
@@ -748,20 +509,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     crewPanel.open(from);
   };
 
-  /**
-   * The machine bays (#372). A tap opens Buys; on a troubled bay it presses or
-   * holds the fix through the store, as a Buys card does, and the bay thanks
-   * the crew once the trouble is gone.
-   */
-  const bays = createMachineBays({
-    board,
-    note: boardNote,
-    onOpen: openBuys,
-    onTrouble: (tier, how) => {
-      (how === "hold" ? progress.fixTrouble : progress.pressTrouble)(tier);
-      return progress.getSnapshot().trouble === undefined;
-    },
-  });
+  const bays = createBays(ctx, { note: boardNote, openBuys });
 
   const openWorkshop = workshop.openButton;
   /** The id of the key `workshopDoor` is, so the rail can say whether it is locked. */
@@ -822,9 +570,9 @@ export function mountMountainScreen(options: ScreenOptions): void {
 
   root.replaceChildren(
     boardTop,
-    gaugeRow,
+    gaugeRow.root,
     bays.root,
-    readyPlate.root,
+    readyRow.root,
     rail.root,
     sign.root,
     sheetClip,
@@ -837,7 +585,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
 
   const ticking = setInterval(() => {
     progress.tick();
-    stepVein();
+    vein.step();
     paint();
   }, 1000);
   signal?.addEventListener("abort", () => {
@@ -845,26 +593,10 @@ export function mountMountainScreen(options: ScreenOptions): void {
   });
   // The window's machines and the needle move on hard steps, once a frame.
   runBoardLoop((dt) => {
-    mine.tick(dt);
-    gauge.tick(dt);
+    gaugeRow.tick(dt);
     bays.tick(dt);
   }, signal);
-  document.addEventListener(
-    "visibilitychange",
-    () => {
-      if (document.visibilityState === "hidden") {
-        hiddenAt ??= now();
-        storeWait();
-      } else if (hiddenAt !== undefined) {
-        // Veins are for active play: time away is skipped, time played is kept.
-        veinState = pauseVein(veinState, now() - hiddenAt);
-        hiddenAt = undefined;
-        renderVein();
-      }
-    },
-    listening,
-  );
-  window.addEventListener("pagehide", storeWait, listening);
+  vein.listen();
   // Any tap or Escape puts the New sign away (#373).
   document.addEventListener("pointerdown", putSignAway, listening);
   document.addEventListener(
@@ -882,7 +614,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     // A short absence pays with a small note, not the welcome card (#334).
     const { quietAway } = ctx.view();
     if (quietAway !== undefined) {
-      showVeinNote(quietAwayWords(quietAway), QUIET_NOTE_MS);
+      vein.showNote(quietAwayWords(quietAway), QUIET_NOTE_MS);
       queueMicrotask(() => {
         progress.dismissQuietAway();
       });
