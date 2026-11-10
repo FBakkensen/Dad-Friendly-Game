@@ -1,4 +1,4 @@
-/* global console, process, sessionStorage, localStorage, setTimeout, URL, document, getComputedStyle */
+/* global console, process, setTimeout, document, getComputedStyle */
 /**
  * Quick play-test in a real browser: open the game on a named save, run a
  * few taps, and keep a shot after each step plus the console and page errors.
@@ -8,16 +8,8 @@
  * Shots and log.txt land in play-shots/ (git-ignored), replaced on each run.
  * Exits non-zero on any page error or an action that could not run.
  */
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import puppeteer from "puppeteer-core";
-import { createServer } from "vite";
 import {
   PLAY_USAGE,
   isPlayOutput,
@@ -26,9 +18,9 @@ import {
   shotName,
   targetQuery,
 } from "../src/play-plan.ts";
+import { launchChrome, open, startServer } from "../tools/browser/harness.ts";
 import {
   CREW,
-  SAVE_KEY,
   crewMountain,
   crystalMountain,
   fleetMountain,
@@ -153,13 +145,6 @@ const SCREENS = {
   desktop: { width: 1366, height: 768, deviceScaleFactor: 2 },
 };
 
-const CHROME =
-  process.env.CHROME_PATH ??
-  ["/usr/bin/google-chrome", "/usr/local/bin/google-chrome"].find((path) =>
-    existsSync(path),
-  ) ??
-  "/usr/bin/google-chrome";
-
 // Clear only what an earlier run wrote, so --out never deletes anything else.
 mkdirSync(plan.out, { recursive: true });
 for (const file of readdirSync(plan.out)) {
@@ -168,15 +153,8 @@ for (const file of readdirSync(plan.out)) {
   }
 }
 
-const server =
-  plan.url === undefined
-    ? await createServer({
-        server: { host: "127.0.0.1", port: 4175, strictPort: false },
-        logLevel: "error",
-      }).then((dev) => dev.listen())
-    : undefined;
-const BASE =
-  plan.url ?? server?.resolvedUrls?.local[0] ?? "http://127.0.0.1:4175/";
+const server = await startServer({ port: 4175, url: plan.url });
+const BASE = server.base;
 
 const log = [];
 let pageErrors = 0;
@@ -187,10 +165,7 @@ const note = (line) => {
   console.log(line);
 };
 
-const browser = await puppeteer.launch({
-  executablePath: CHROME,
-  args: ["--no-sandbox"],
-});
+const browser = await launchChrome();
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -279,43 +254,37 @@ const save = SAVES[plan.save].save();
 note(`play: save ${plan.save}, ${BASE}`);
 try {
   for (const screen of plan.screens) {
-    const context = await browser.createBrowserContext();
-    const page = await context.newPage();
-    page.on("console", (message) => {
-      note(`[${screen}] console.${message.type()}: ${message.text()}`);
-    });
-    // Failed loads throw no page error, so list them (offline Firebase is expected).
-    page.on("requestfailed", (request) => {
-      note(
-        `[${screen}] request failed: ${request.method()} ${request.url()} (${request.failure()?.errorText ?? "unknown"})`,
-      );
-    });
-    page.on("response", (response) => {
-      if (response.status() >= 400) {
-        note(
-          `[${screen}] HTTP ${String(response.status())}: ${response.request().method()} ${response.url()}`,
-        );
-      }
-    });
-    page.on("pageerror", (error) => {
-      pageErrors += 1;
-      note(`[${screen}] PAGE ERROR: ${String(error)}`);
-    });
-    await page.setViewport(SCREENS[screen]);
-    if (save !== undefined) {
-      await page.evaluateOnNewDocument(
-        (key, value) => {
-          if (sessionStorage.getItem("play-seeded") === null) {
-            sessionStorage.setItem("play-seeded", "1");
-            localStorage.setItem(key, value);
+    const { page, context } = await open(browser, BASE, {
+      viewport: SCREENS[screen],
+      seed:
+        save === undefined
+          ? { kind: "none" }
+          : { kind: "once", guard: "play-seeded", json: seedJson(save) },
+      clock: { date: "real", tap: "real" },
+      search: plan.search,
+      onPageError: (error) => {
+        pageErrors += 1;
+        note(`[${screen}] PAGE ERROR: ${String(error)}`);
+      },
+      beforeLoad: (target) => {
+        target.on("console", (message) => {
+          note(`[${screen}] console.${message.type()}: ${message.text()}`);
+        });
+        // Failed loads throw no page error, so list them (offline Firebase is expected).
+        target.on("requestfailed", (request) => {
+          note(
+            `[${screen}] request failed: ${request.method()} ${request.url()} (${request.failure()?.errorText ?? "unknown"})`,
+          );
+        });
+        target.on("response", (response) => {
+          if (response.status() >= 400) {
+            note(
+              `[${screen}] HTTP ${String(response.status())}: ${response.request().method()} ${response.url()}`,
+            );
           }
-        },
-        SAVE_KEY,
-        seedJson(save),
-      );
-    }
-    await page.goto(new URL(plan.search, BASE).href, {
-      waitUntil: "networkidle0",
+        });
+        return Promise.resolve();
+      },
     });
     const shots = [shotName(screen, 0, undefined)];
     await page.screenshot({ path: join(plan.out, shots[0]) });
@@ -350,7 +319,7 @@ try {
   note(`play: stopped early: ${String(error)}`);
 } finally {
   await browser.close();
-  await server?.close();
+  await server.close();
   writeFileSync(join(plan.out, "log.txt"), `${log.join("\n")}\n`);
 }
 
