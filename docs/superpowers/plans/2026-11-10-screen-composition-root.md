@@ -194,7 +194,7 @@ The exact grouping of the panels between `screen-panels` factories is the implem
   - `showAppUpdate(root: ParentNode): void`, with `UPDATE_SHOWN`.
 
 - [ ] **Step 1:** Move the four clusters. The root calls them, and `mountain-screen` re-exports `showAppUpdate`.
-- [ ] **Step 2:** Run `npx vitest run src/mountain-screen*.test.ts src/mountain-screen-order.test.ts src/main.test.ts` and expect PASS unchanged. If `main` has no test file, include the file that imports `showAppUpdate`.
+- [ ] **Step 2:** Run `npx vitest run src/mountain-screen*.test.ts src/mountain-screen-order.test.ts` and expect PASS unchanged. `mountain-screen.test.ts` and `mountain-screen-crew.test.ts` cover `showAppUpdate`.
 - [ ] **Step 3:** Measure each new file's coverage and add its floor. Set the screen's exact line ceiling. Run the per-task checks in Global Constraints.
 - [ ] **Step 4: Commit** "The screen's context, ledger, Running now list and prompts move to their own modules (#431)".
 
@@ -225,7 +225,7 @@ The exact grouping of the panels between `screen-panels` factories is the implem
   }
   ```
 
-  `VeinSpot` is whatever `veinSpot` returns. Use its existing type, or `ReturnType<typeof veinSpot>`. `QUIET_NOTE_MS` and `VEIN_NOTE_MS` move with the vein. The root's quiet-away one-shot calls `vein.showNote(words, QUIET_NOTE_MS)`, imported.
+  `VeinSpot` is `ReturnType<typeof veinSpot>` (`src/mine-window.ts:116`). `QUIET_NOTE_MS` and `VEIN_NOTE_MS` move with the vein. The root's quiet-away one-shot calls `vein.showNote(words, QUIET_NOTE_MS)`, imported.
 
 - Produces from `screen-dig`:
   - `createGaugeRow(ctx, { vein, legacyBadge: HTMLElement, onDug: (mined: number) => void /* late: the dig button */ }): { root; mine; dig(): number; kick(degrees: number): void; paint(): void; tick(dt: number): void }`.
