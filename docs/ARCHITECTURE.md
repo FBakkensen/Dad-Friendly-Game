@@ -436,7 +436,9 @@ page is the map, plus the rules that keep it that way.
   once a tab and can stop `Date.now` and hold the tap clock, the UI audit
   seeds on every load, `play` seeds once, and the mockup check seeds nothing.
   `visual-check`, `ui-audit`, `play`, `mockup-check` and `env-report` all use
-  it.
+  it. The saves they seed come from `tools/browser/fixtures.ts` (#439), typed
+  as `SeedSave`; no script builds a save literal of its own, and
+  `fixtures.test.ts` pins every save's value.
 - Signoff (#397): a green `npm run check` on a clean, committed HEAD writes `.gate/passed`. `npm run gate -- signoff` (`scripts/signoff.mjs`, rules in `src/signoff.ts`) starts `.github/workflows/signoff.yml`, which posts the `signoff` commit status; the ruleset on `main` requires it and an up-to-date branch. The relay exists because cloud sessions may not post statuses. `deploy-hosting` runs `npm run check` on the merged commit before it deploys, so a red `main` deploys nothing.
 
 ## M7 sketch
