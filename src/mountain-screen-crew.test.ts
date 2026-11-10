@@ -58,11 +58,7 @@ function upgradePrice(id: UpgradeId, level = 0): number {
 beforeEach(() => {
   setReducedMotion(true);
 });
-// Stop the screen, then put back every store spy so nothing holds the screen past its test.
-afterEach(async () => {
-  await stopScreens();
-  vi.restoreAllMocks();
-});
+afterEach(stopScreens);
 
 // One depth short of the bottom: the Heart band's stones, so one strong tap digs the rest.
 const LAST_STONE = MOUNTAIN_STONES - 1;

@@ -115,10 +115,7 @@ function mountLogged() {
   return { screen, seen };
 }
 
-afterEach(async () => {
-  vi.restoreAllMocks();
-  await stopScreens();
-});
+afterEach(stopScreens);
 
 describe("the screen's build order", () => {
   it("the screen registers its listeners in today's order", () => {

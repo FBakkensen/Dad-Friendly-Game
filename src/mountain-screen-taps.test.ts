@@ -20,10 +20,7 @@ beforeEach(() => {
   setReducedMotion(true);
 });
 
-afterEach(async () => {
-  vi.restoreAllMocks();
-  await stopScreens();
-});
+afterEach(stopScreens);
 
 /** A tap that lands before the next paint disables the button again: the handler must still hold. */
 const tapAnyway = (button: HTMLButtonElement | null): void => {

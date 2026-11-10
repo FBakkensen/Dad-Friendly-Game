@@ -58,11 +58,7 @@ vi.mock("./mine-window", async (importOriginal) => {
 beforeEach(() => {
   setReducedMotion(true);
 });
-// Stop the screen, then put back every store spy so nothing holds the screen past its test.
-afterEach(async () => {
-  await stopScreens();
-  vi.restoreAllMocks();
-});
+afterEach(stopScreens);
 
 /**
  * A fake frame clock for the board loop: frames asked for wait until `next`
