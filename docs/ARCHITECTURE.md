@@ -98,7 +98,22 @@ page is the map, plus the rules that keep it that way.
    with `persistentMultipleTabManager` is a second copy of the server doc in
    IndexedDB, not a second save: a cached or pending snapshot does not move
    `rev`, and a fresh read still asks the server. The screen only calls its methods.
-4. **Screen:** `mountain-screen` builds the page and wires panels; panels are
+4. **Screen:** `mountMountainScreen` (`mountain-screen`) is the composition
+   root (#431): it builds the parts in order, holds `paint()`, and starts the
+   screen running. Each part is a `screen-*` module with one job:
+   `screen-context` (the store, the clocks, the board host, `dispatch` and the
+   view), `screen-ledger` (the Ledger: stones left, materials, the guide),
+   `screen-running` (the Running now list, its chips, the vein's note),
+   `screen-vein` (the golden vein), `screen-dig` (the gauge row, the Ready
+   row, the bays and the Ready now pick), `screen-panels` (Buys, the cards,
+   the note and save line with the board's top, the sheets), `screen-prompts`
+   (the update prompt and the other tab card), `screen-overlays` (the New
+   sign, the covers and the rail's paint), `screen-keys` (the key rail and
+   what its keys do), `screen-layout` (the board's children and the scrim)
+   and `screen-run` (the tick, the frame loop, the vein's and the sign's page
+   listeners, the store subscription and the fonts re-measure).
+   `mountain-screen-order.test.ts` pins the order the parts register their
+   listeners, the effect row's chips and the root's children. Panels are
    their own modules with a `create…Panel` factory returning their elements
    and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `menu-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). Shared player-facing
    wording lives in `screen-words`. The screen's optional `signal` (tests
@@ -170,7 +185,8 @@ page is the map, plus the rules that keep it that way.
    model's hold (judged by when the finger came down), so a double tap buys
    one. `trouble-tap` is the 600ms
    hold-to-fix the Buys rows and the bays share. `mountain-screen` computes
-   `readyNow(view.mountain, now(), view.trouble)` once per paint and hands
+   `readyNow(view.mountain, now(), view.trouble)` (`readyPick` in
+   `screen-dig`) once per paint and hands
    it to the plate and the bays; a tap on the plate reads the rule again
    from the store's snapshot, never the painted pick, and buys through
    `buyWithTeach` (in `crew-panel`), the Buys row's mutation, so a buy from
@@ -278,9 +294,11 @@ page is the map, plus the rules that keep it that way.
   and vein taps, the guide bar, save status, and wiring the panels. It has since
   regrown to about 1,240 lines, with `mountMountainScreen` at 1,112 (its ceiling
   in `scripts/function-ceilings.json`). #411 moves its interaction rules out.
+  #431 split the rest into `screen-*` modules: `mountMountainScreen` is a
+  composition root within 150 lines, off the ceilings list.
 
 - **Local spends (#370, #409):** the odometer shows a spend only for the
-  player's own moves. `mountain-screen` hands every panel one `Dispatch`
+  player's own moves. `screen-context` hands every panel one `Dispatch`
   wrapper around `progress.dispatch`: a move that applied with `spent >= 1`
   rolls the spend mark and kicks the needle. A cloud copy, a chosen or
   restored copy, Start over or Pass the mine never comes through it, so
