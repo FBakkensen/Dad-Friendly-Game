@@ -12,7 +12,7 @@ import { TIERS, owned, type TierId } from "./tiers";
 /** Closed list of warm names. At most one engineer per name. */
 export const ENGINEER_NAMES = ["Ada", "Nils", "Ruth", "Otto", "Mae"] as const;
 
-type EngineerName = (typeof ENGINEER_NAMES)[number];
+export type EngineerName = (typeof ENGINEER_NAMES)[number];
 
 /** Machine tiers an engineer can tend, plus waiting at camp or away in a tunnel. */
 const MACHINE_POSTS = [

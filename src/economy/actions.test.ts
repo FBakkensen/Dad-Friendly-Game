@@ -50,6 +50,7 @@ import {
   sinkRecipes,
   valueOf,
   type Action,
+  type Move,
   type ValueContext,
 } from "./actions";
 
@@ -1328,6 +1329,119 @@ describe("applyMove (#409)", () => {
       "workshop",
       "engineers",
     ]);
+  });
+
+  const eventsOf = (mountain: Mountain, move: Move) => {
+    const result = applyMove(mountain, move, NOW, calm);
+    return result.kind === "applied" ? result.events : undefined;
+  };
+
+  it("says what a buy, an upgrade, a boost and a craft did", () => {
+    expect(eventsOf(rich, { kind: "buyTier", id: "cart" })).toEqual([
+      { kind: "tierBought", id: "cart", count: rich.carts + 1 },
+    ]);
+    expect(eventsOf(rich, { kind: "buyUpgrade", id: "tap" })).toEqual([
+      { kind: "upgradeBought", id: "tap", level: 1 },
+    ]);
+    const boosted = applyMove(
+      rich,
+      { kind: "buyBoost", id: "sharper" },
+      NOW,
+      calm,
+    );
+    expect(boosted.kind === "applied" && boosted.events).toEqual([
+      {
+        kind: "boostStarted",
+        id: "sharper",
+        endsAt:
+          boosted.kind === "applied" ? boosted.mountain.boosts?.sharper : 0,
+      },
+    ]);
+    expect(eventsOf(rich, { kind: "craft", recipe: "sturdy-props" })).toEqual([
+      { kind: "craftStarted", recipe: "sturdy-props" },
+    ]);
+  });
+
+  it("names the promoted engineer and the crew size", () => {
+    expect(eventsOf(rich, { kind: "promote" })).toEqual([
+      { kind: "promoted", name: "Nils", crew: 2 },
+    ]);
+  });
+
+  it("says who left for which tunnel", () => {
+    expect(
+      eventsOf(rich, { kind: "send", index: 0, tunnel: "old-shaft" }),
+    ).toEqual([{ kind: "sent", name: "Ada", tunnel: "old-shaft" }]);
+  });
+
+  it("recalls a party without stationing them, and a station from a tunnel recalls first", () => {
+    expect(eventsOf(travelling, { kind: "recall", index: 0 })).toEqual([
+      { kind: "recalled", name: "Ada", tunnel: "old-shaft" },
+    ]);
+    expect(
+      eventsOf(travelling, { kind: "station", index: 0, post: "camp" }),
+    ).toEqual([
+      { kind: "recalled", name: "Ada", tunnel: "old-shaft" },
+      { kind: "stationed", name: "Ada", post: "camp" },
+    ]);
+    // Ada's home is the borer: stationing there is the recall alone.
+    expect(
+      eventsOf(travelling, { kind: "station", index: 0, post: "borer" }),
+    ).toEqual([{ kind: "recalled", name: "Ada", tunnel: "old-shaft" }]);
+  });
+
+  it("stations a tunnel post with no trip back at camp", () => {
+    const stranded: Mountain = {
+      ...rich,
+      engineers: [{ ...ada, post: "tunnel" }],
+    };
+    expect(eventsOf(stranded, { kind: "recall", index: 0 })).toEqual([
+      { kind: "stationed", name: "Ada", post: "camp" },
+    ]);
+  });
+
+  it("says what a vein tap gave, and nothing for a dig, a seen mark or a cancelled craft", () => {
+    const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
+    expect(vein.kind === "applied" && vein.events).toEqual([
+      {
+        kind: "veinTapped",
+        stones: vein.kind === "applied" ? vein.gained : -1,
+      },
+    ]);
+    expect(eventsOf(fresh, { kind: "dig" })).toEqual([]);
+    expect(eventsOf(fresh, { kind: "markSeen", id: "workshop" })).toEqual([]);
+    const crafting = applyMove(
+      rich,
+      { kind: "craft", recipe: "sturdy-props" },
+      NOW,
+      calm,
+    );
+    if (crafting.kind !== "applied") throw new Error("craft refused");
+    expect(eventsOf(crafting.mountain, { kind: "cancelCraft" })).toEqual([]);
+  });
+
+  it("buys a boost again once it has run out, with the new end", () => {
+    const first = applyMove(
+      rich,
+      { kind: "buyBoost", id: "sharper" },
+      NOW,
+      calm,
+    );
+    if (first.kind !== "applied") throw new Error("boost refused");
+    const topped = { ...first.mountain, pocket: 1e15 };
+    const later = NOW + boostById("sharper").durationMs + 1;
+    const again = applyMove(
+      topped,
+      { kind: "buyBoost", id: "sharper" },
+      later,
+      calm,
+    );
+    if (again.kind !== "applied") throw new Error("boost not bought again");
+    const endsAt = again.mountain.boosts?.sharper;
+    expect(again.events).toEqual([
+      { kind: "boostStarted", id: "sharper", endsAt },
+    ]);
+    expect(endsAt).toBeGreaterThan(first.mountain.boosts?.sharper ?? Infinity);
   });
 
   it("gives the lab's applyAction the same mountain for every listed move", () => {

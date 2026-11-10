@@ -9,6 +9,7 @@ import {
 import { buyCrew, tierLocked } from "../crew";
 import {
   ENGINEER_POSTS,
+  nextEngineerName,
   MAX_ENGINEERS,
   promote,
   promoteCost,
@@ -16,6 +17,7 @@ import {
   staffNeeded,
   station,
   type Engineer,
+  type EngineerName,
   type EngineerPost,
 } from "../engineers";
 import {
@@ -269,6 +271,42 @@ type ScreenMove =
 /** Every move the player can make (#409). The lab plans the `Action` half. */
 export type Move = Action | ScreenMove;
 
+/** What one applied move did, in the words the field log keeps (#413). */
+export type MoveEvent =
+  | { readonly kind: "tierBought"; readonly id: TierId; readonly count: number }
+  | {
+      readonly kind: "upgradeBought";
+      readonly id: UpgradeId;
+      readonly level: number;
+    }
+  | {
+      readonly kind: "boostStarted";
+      readonly id: BoostId;
+      readonly endsAt: number;
+    }
+  | { readonly kind: "craftStarted"; readonly recipe: RecipeId }
+  | {
+      readonly kind: "promoted";
+      readonly name: EngineerName;
+      readonly crew: number;
+    }
+  | {
+      readonly kind: "sent";
+      readonly name: EngineerName;
+      readonly tunnel: TunnelId;
+    }
+  | {
+      readonly kind: "recalled";
+      readonly name: EngineerName;
+      readonly tunnel: TunnelId;
+    }
+  | {
+      readonly kind: "stationed";
+      readonly name: EngineerName;
+      readonly post: EngineerPost;
+    }
+  | { readonly kind: "veinTapped"; readonly stones: number };
+
 /**
  * What a move did: applied, with what it took from the pocket and what it put in (each at
  * least 0: a dig's or a vein's stones, a cancelled craft's refund), or refused because it
@@ -280,6 +318,7 @@ export type MoveResult =
       readonly mountain: Mountain;
       readonly spent: number;
       readonly gained: number;
+      readonly events: readonly MoveEvent[];
     }
   | { readonly kind: "refused" };
 
@@ -380,7 +419,117 @@ export function applyMove(
     mountain: next,
     spent: Math.max(0, -gained),
     gained: Math.max(0, gained),
+    events: moveEvents(mountain, next, move),
   };
+}
+
+/**
+ * Who left a trip and where they stand now, for `recall` and `station` on one engineer.
+ * A trip ends with `recalled`; a post other than the one they left, and not the tunnel,
+ * adds `stationed`. The rule the field log keeps (#413).
+ */
+function crewEvents(
+  before: Mountain,
+  next: Mountain,
+  index: number,
+): readonly MoveEvent[] {
+  const hand = before.engineers?.[index];
+  const landed = next.engineers?.[index];
+  if (hand === undefined || landed === undefined) {
+    return [];
+  }
+  const trip = (before.expeditions ?? []).find(
+    (candidate) => candidate.engineer === hand.name,
+  );
+  const events: MoveEvent[] = [];
+  if (trip !== undefined) {
+    events.push({ kind: "recalled", name: hand.name, tunnel: trip.tunnel });
+  }
+  if (landed.post !== (trip?.home ?? hand.post) && landed.post !== "tunnel") {
+    events.push({ kind: "stationed", name: hand.name, post: landed.post });
+  }
+  return events;
+}
+
+function actionEvents(
+  before: Mountain,
+  next: Mountain,
+  action: Action,
+): readonly MoveEvent[] {
+  switch (action.kind) {
+    case "buyTier":
+      return [
+        {
+          kind: "tierBought",
+          id: action.id,
+          count: owned(next, tierById(action.id)),
+        },
+      ];
+    case "buyUpgrade":
+      return [
+        {
+          kind: "upgradeBought",
+          id: action.id,
+          level: upgradeLevel(next, action.id),
+        },
+      ];
+    case "buyBoost":
+      return [
+        {
+          kind: "boostStarted",
+          id: action.id,
+          endsAt: next.boosts?.[action.id] ?? 0,
+        },
+      ];
+    case "craft":
+      return [{ kind: "craftStarted", recipe: action.recipe }];
+    case "promote": {
+      const name = nextEngineerName(before.engineers ?? []);
+      return name === undefined
+        ? []
+        : [{ kind: "promoted", name, crew: next.engineers?.length ?? 0 }];
+    }
+    case "send": {
+      const hand = before.engineers?.[action.index];
+      return hand === undefined
+        ? []
+        : [{ kind: "sent", name: hand.name, tunnel: action.tunnel }];
+    }
+    case "recall":
+    case "station":
+      return crewEvents(before, next, action.index);
+    case "cancelCraft":
+    case "fixTrouble":
+      return [];
+    /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
+    default: {
+      const unexpected: never = action;
+      return unexpected;
+    }
+  }
+}
+
+/** What an applied move did, read from the mountain it saw and the one it made (#413). */
+function moveEvents(
+  before: Mountain,
+  next: Mountain,
+  move: Move,
+): readonly MoveEvent[] {
+  switch (move.kind) {
+    case "tapVein":
+      return [
+        {
+          kind: "veinTapped",
+          stones: Math.max(0, next.pocket - before.pocket),
+        },
+      ];
+    case "dig":
+    case "markSeen":
+    case "markAllSeen":
+      return [];
+    default:
+      return actionEvents(before, next, move);
+  }
 }
 
 /** The lab's move: the same rules as the game, with no trouble passed in. */
