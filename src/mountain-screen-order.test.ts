@@ -153,7 +153,7 @@ describe("the screen's build order", () => {
       "win:pagehide:false@screen-vein",
       "doc:pointerdown:false@screen-overlays",
       "doc:keydown:false@screen-overlays",
-      "store@mountain-screen",
+      "store@screen-run",
     ]);
   });
 

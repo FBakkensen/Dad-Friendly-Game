@@ -1,32 +1,23 @@
 import { createScreenCtx, type ScreenOptions } from "./screen-context";
 import { createLedger } from "./screen-ledger";
 import { createRunningNow } from "./screen-running";
-import { QUIET_NOTE_MS, createVein } from "./screen-vein";
-import {
-  SPEND_KICK,
-  createBays,
-  createGaugeRow,
-  createReadyRow,
-} from "./screen-dig";
+import { createVein } from "./screen-vein";
+import { SPEND_KICK, createBays, createDigRows, readyPick } from "./screen-dig";
 import { createOtherTab, createUpdatePrompt } from "./screen-prompts";
 import { createOverlays } from "./screen-overlays";
-import { wireKeys } from "./screen-keys";
+import { createRail, wireKeys } from "./screen-keys";
 import {
   cardsFrom,
-  createBoardTop,
+  createBoardFace,
   createBuysPanel,
   createEarlyCards,
   createSheetPanels,
 } from "./screen-panels";
-import { createBoardNote } from "./board-note";
-import { DRAWER_SETTLE_MS, createSheetScrim } from "./board-drawer";
-import { type BoardHost } from "./board-host";
-import { createKeyRail } from "./board-keys";
-import { readyNow, type ReadyPick } from "./ready-now";
-import { runBoardLoop } from "./board-window";
-import { quietAwayWords } from "./screen-words";
-import { createSaveLine } from "./board-save";
-import { type ProgressSnapshot, type ProgressStore } from "./progress-store";
+import { DRAWER_SETTLE_MS } from "./board-drawer";
+import { layOutBoard } from "./screen-layout";
+import { runScreen } from "./screen-run";
+import { type ReadyPick } from "./ready-now";
+import { type ProgressStore } from "./progress-store";
 
 export { showAppUpdate } from "./screen-prompts";
 
@@ -43,21 +34,6 @@ export { showAppUpdate } from "./screen-prompts";
  */
 export const BUYS_SETTLE_MS = DRAWER_SETTLE_MS;
 
-/**
- * The screen's next view. A save that loads again (ready, then not) tells the board's model,
- * whose holds and blinks spoke of the old save.
- */
-function nextView(
-  board: BoardHost,
-  view: ProgressSnapshot,
-  next: ProgressSnapshot,
-): ProgressSnapshot {
-  if (view.ready && !next.ready) {
-    board.send({ kind: "unloaded" });
-  }
-  return next;
-}
-
 export function mountMountainScreen(options: ScreenOptions): void {
   const { ctx, setView } = createScreenCtx(options, {
     paint: () => {
@@ -68,14 +44,13 @@ export function mountMountainScreen(options: ScreenOptions): void {
       gaugeRow.kick(SPEND_KICK);
     },
   });
-  const { root, progress, auth, now, board, signal, listening } = ctx;
+  const { root, progress, board, listening } = ctx;
 
   const ledger = createLedger(ctx);
   const runningNow = createRunningNow(ctx);
-  const { veinNote } = runningNow;
 
   const vein = createVein(ctx, {
-    veinNote,
+    veinNote: runningNow.veinNote,
     showVein: (spot) => {
       gaugeRow.mine.showVein(spot);
     },
@@ -84,22 +59,11 @@ export function mountMountainScreen(options: ScreenOptions): void {
     },
   });
 
-  /**
-   * The key rail: Buys, Workshop and Upgrades open from here; Engineers and the Ledger key open
-   * through their panels' own click listeners. Every key first puts the board's popups away.
-   */
-  const rail = createKeyRail({
-    board,
-    onKey: (id, key) => {
-      keys.onKey(id, key);
-    },
+  const rail = createRail(ctx, (id, key) => {
+    keys.onKey(id, key);
   });
   /** The Ready now pick last painted on the plate: the Buys rows light the same one. */
-  let shownPick: ReadyPick = readyNow(
-    ctx.view().mountain,
-    now(),
-    ctx.view().trouble,
-  );
+  let shownPick: ReadyPick = readyPick(ctx);
   const crewPanel = createBuysPanel(ctx, {
     rail,
     pick: () => shownPick,
@@ -111,44 +75,17 @@ export function mountMountainScreen(options: ScreenOptions): void {
   const early = createEarlyCards(ctx, { onPassed: vein.reset, closeMenu });
   const { legacy } = early;
 
-  const gaugeRow = createGaugeRow(ctx, {
+  const { gaugeRow, readyRow } = createDigRows(ctx, {
     vein,
     legacyBadge: legacy.badge,
-    onDug: (mined) => {
-      readyRow.digButton.dug(mined);
-      readyRow.digButton.echo();
-    },
-  });
-  const readyRow = createReadyRow(ctx, {
-    dig: gaugeRow.dig,
-    mine: gaugeRow.mine,
     openBuys: (from) => {
       keys.openBuys(from);
     },
   });
-
-  // The board (#370): the note, the relic plate, the odometer, the boost dial
-  // and the save line. The note is placed in board coordinates inside root.
-  const boardNote = createBoardNote(root, signal, runningNow.park);
-  const saveLine = createSaveLine({
-    progress,
-    auth,
-    getView: ctx.view,
-    now,
-    signal,
-  });
-  // Opening a sheet, the shelf or the menu puts the board's popups away.
-  const closeBoardPopups = (): void => {
-    saveLine.close();
-    boardNote.hide();
-  };
-  const top = createBoardTop(ctx, {
-    note: boardNote,
+  const { boardNote, saveLine, closeBoardPopups, top } = createBoardFace(ctx, {
     runningNow,
     legacy,
-    closeBoardPopups,
   });
-  const { relicPlate } = top;
   const sheets = createSheetPanels(ctx, {
     rail,
     ledgerRoot: ledger.root,
@@ -163,9 +100,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
   });
   const { upgrades, workshop } = sheets;
 
-  const updatePrompt = createUpdatePrompt(() => {
-    paint();
-  });
+  const updatePrompt = createUpdatePrompt(ctx.paint);
   const otherTab = createOtherTab(progress);
 
   /** The board under the cards: stones, window, gauges, bays, Ready row and guide. */
@@ -174,7 +109,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     otherTab.paint(ctx.view().elsewhere);
     gaugeRow.paint();
     // The Ready now pick, once per paint: the bays light theirs (#372).
-    const pick = readyNow(ctx.view().mountain, now(), ctx.view().trouble);
+    const pick = readyPick(ctx);
     shownPick = pick;
     bays.paint(pick);
     readyRow.paint(pick);
@@ -227,86 +162,23 @@ export function mountMountainScreen(options: ScreenOptions): void {
     putSignAway: overlays.putSignAway,
   });
 
-  // The board's top: the relic plate and the stock row (#370).
-  const stockRow = document.createElement("div");
-  stockRow.className = "board-stock";
-  stockRow.append(top.stock.odometer.root, top.stock.dial.root);
-  const boardTop = document.createElement("div");
-  boardTop.className = "board-top";
-  boardTop.append(relicPlate.root, stockRow);
-  // The closed drawer waits below the save line. This box clips it there, so
-  // the board never gains scroll height from it.
-  const drawerClip = document.createElement("div");
-  drawerClip.className = "board-drawer-clip";
-  drawerClip.append(saveLine.drawer);
-  // The drawers slide up inside the board above the save line; the scrim over
-  // the board's top closes them, and hands a tap on a relic to its socket (#373).
-  const sheetClip = document.createElement("div");
-  sheetClip.className = "board-sheet-clip";
-  sheetClip.append(
-    crewPanel.sheet.root,
-    upgrades.sheet.root,
-    createSheetScrim({
-      board,
-      sheets: [crewPanel.sheet, upgrades.sheet],
-      sockets: () => [
-        ...relicPlate.root.querySelectorAll<HTMLElement>(".board-socket"),
-      ],
-    }),
-  );
-
-  root.replaceChildren(
-    boardTop,
-    gaugeRow.root,
-    bays.root,
-    readyRow.root,
-    rail.root,
-    overlays.sign.root,
-    sheetClip,
-    drawerClip,
-    saveLine.line,
-    boardNote.note,
-    runningNow.parkRoot,
-    ...cards,
-  );
-
-  const ticking = setInterval(() => {
-    progress.tick();
-    vein.step();
-    paint();
-  }, 1000);
-  signal?.addEventListener("abort", () => {
-    clearInterval(ticking);
+  layOutBoard(root, {
+    board,
+    top,
+    gaugeRow,
+    bays,
+    readyRow,
+    rail,
+    sign: overlays.sign,
+    crewSheet: crewPanel.sheet,
+    upgradesSheet: upgrades.sheet,
+    saveLine,
+    note: boardNote.note,
+    park: runningNow.parkRoot,
+    cards,
   });
-  // The window's machines and the needle move on hard steps, once a frame.
-  runBoardLoop((dt) => {
-    gaugeRow.tick(dt);
-    bays.tick(dt);
-  }, signal);
-  vein.listen();
-  overlays.listen();
 
-  const unsubscribe = progress.subscribe((next) => {
-    setView(nextView(board, ctx.view(), next));
-    // A short absence pays with a small note, not the welcome card (#334).
-    const { quietAway } = ctx.view();
-    if (quietAway !== undefined) {
-      vein.showNote(quietAwayWords(quietAway), QUIET_NOTE_MS);
-      queueMicrotask(() => {
-        progress.dismissQuietAway();
-      });
-    }
-    paint();
-  });
-  signal?.addEventListener("abort", unsubscribe);
-  // The save line fits its words by measuring; measure again once the board's
-  // fonts have loaded (happy-dom has no FontFaceSet).
-  const fonts = (document as { fonts?: FontFaceSet }).fonts;
-  void fonts?.ready.then(() => {
-    if (signal?.aborted !== true) {
-      saveLine.render();
-    }
-  });
+  runScreen(ctx, { paint, setView, vein, gaugeRow, bays, overlays, saveLine });
 }
 
 /**

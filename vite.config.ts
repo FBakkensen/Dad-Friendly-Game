@@ -249,6 +249,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/screen-layout.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/screen-overlays.ts": {
           statements: 100,
           branches: 100,
@@ -270,6 +276,12 @@ export default defineConfig({
         "src/screen-running.ts": {
           statements: 100,
           branches: 75,
+          functions: 100,
+          lines: 100,
+        },
+        "src/screen-run.ts": {
+          statements: 100,
+          branches: 87,
           functions: 100,
           lines: 100,
         },

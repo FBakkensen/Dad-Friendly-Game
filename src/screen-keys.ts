@@ -1,9 +1,27 @@
-import type { KeyRail } from "./board-keys";
+import { createKeyRail, type KeyRail } from "./board-keys";
 import type { KeyId } from "./key-rail";
 import type { ScreenCtx } from "./screen-context";
 import type { createCrewPanel } from "./crew-panel";
 import type { createUpgradesPanel } from "./upgrades-panel";
 import { workshopUnlocked } from "./workshop";
+
+/**
+ * The key rail: Buys, Workshop and Upgrades open from here; Engineers and the Ledger key open
+ * through their panels' own click listeners. Every key first puts the board's popups away.
+ * `onKey` is late: what the keys do is wired once the drawers exist.
+ */
+export function createRail(
+  ctx: ScreenCtx,
+  onKey: (id: KeyId, key: HTMLButtonElement) => void,
+): KeyRail {
+  const { board } = ctx;
+  return createKeyRail({
+    board,
+    onKey: (id, key) => {
+      onKey(id, key);
+    },
+  });
+}
 
 /**
  * What the keys do: Buys, Workshop and Upgrades open from the rail, and the Workshop sheet

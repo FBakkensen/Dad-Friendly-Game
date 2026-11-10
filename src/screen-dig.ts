@@ -29,7 +29,7 @@ export const SPEND_KICK = 120;
  * the Legacy plate on it, and the crew plate. The dig button is made after it, so a window
  * tap reaches it through the late `onDug`.
  */
-export function createGaugeRow(
+function createGaugeRow(
   ctx: ScreenCtx,
   deps: {
     readonly vein: { readonly tap: () => void };
@@ -136,7 +136,7 @@ export function createGaugeRow(
  * The Ready row (#372): the Ready now plate and the red DIG button. The red button digs exactly
  * as a window tap does, and the window shows it.
  */
-export function createReadyRow(
+function createReadyRow(
   ctx: ScreenCtx,
   deps: {
     readonly dig: () => number;
@@ -213,6 +213,43 @@ export function createReadyRow(
 
   return { root: readyPlate.root, digButton, paint };
 }
+
+/**
+ * The gauge row, then the Ready row under it. The gauge row reaches the dig button through
+ * the late `onDug`; the Ready row reaches the Buys drawer through the late `openBuys`.
+ */
+export function createDigRows(
+  ctx: ScreenCtx,
+  deps: {
+    readonly vein: { readonly tap: () => void };
+    readonly legacyBadge: HTMLElement;
+    /** Late: the Buys drawer. */
+    readonly openBuys: (from?: HTMLElement) => void;
+  },
+): {
+  gaugeRow: ReturnType<typeof createGaugeRow>;
+  readyRow: ReturnType<typeof createReadyRow>;
+} {
+  const { vein, legacyBadge, openBuys } = deps;
+  const gaugeRow = createGaugeRow(ctx, {
+    vein,
+    legacyBadge,
+    onDug: (mined) => {
+      readyRow.digButton.dug(mined);
+      readyRow.digButton.echo();
+    },
+  });
+  const readyRow = createReadyRow(ctx, {
+    dig: gaugeRow.dig,
+    mine: gaugeRow.mine,
+    openBuys,
+  });
+  return { gaugeRow, readyRow };
+}
+
+/** The Ready now pick for the view as it stands: the plate, the bays and Buys light it. */
+export const readyPick = (ctx: ScreenCtx): ReadyPick =>
+  readyNow(ctx.view().mountain, ctx.now(), ctx.view().trouble);
 
 /**
  * The machine bays (#372). A tap opens Buys; on a troubled bay it presses or

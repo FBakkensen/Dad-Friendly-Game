@@ -1,12 +1,12 @@
 import { cardUp } from "./card-state";
 import type { ScreenCtx } from "./screen-context";
 import type { createRunningNow } from "./screen-running";
-import type { BoardNote } from "./board-note";
+import { createBoardNote, type BoardNote } from "./board-note";
 import type { KeyRail } from "./board-keys";
 import { setAttr } from "./board-dom";
 import { createBoostDial, createOdometer } from "./board-stock";
 import { createRelicPlate } from "./board-relics";
-import type { createSaveLine } from "./board-save";
+import { createSaveLine } from "./board-save";
 import { liveCrewBoost } from "./crew-boost";
 import { createRelicPanels } from "./relic-panels";
 import { createArrivalPanel } from "./arrival-panel";
@@ -91,8 +91,50 @@ export function createEarlyCards(
   };
 }
 
+/**
+ * The board: the note, the save line, what puts them away, then the board's top. Built after
+ * the Ready row, before the sheets that take the save line.
+ */
+export function createBoardFace(
+  ctx: ScreenCtx,
+  deps: {
+    readonly runningNow: ReturnType<typeof createRunningNow>;
+    readonly legacy: ReturnType<typeof createLegacyPanel>;
+  },
+): {
+  boardNote: BoardNote;
+  saveLine: ReturnType<typeof createSaveLine>;
+  closeBoardPopups: () => void;
+  top: ReturnType<typeof createBoardTop>;
+} {
+  const { root, progress, auth, now, signal } = ctx;
+  const { runningNow, legacy } = deps;
+  // The board (#370): the note, the relic plate, the odometer, the boost dial
+  // and the save line. The note is placed in board coordinates inside root.
+  const boardNote = createBoardNote(root, signal, runningNow.park);
+  const saveLine = createSaveLine({
+    progress,
+    auth,
+    getView: ctx.view,
+    now,
+    signal,
+  });
+  // Opening a sheet, the shelf or the menu puts the board's popups away.
+  const closeBoardPopups = (): void => {
+    saveLine.close();
+    boardNote.hide();
+  };
+  const top = createBoardTop(ctx, {
+    note: boardNote,
+    runningNow,
+    legacy,
+    closeBoardPopups,
+  });
+  return { boardNote, saveLine, closeBoardPopups, top };
+}
+
 /** The relic shelf and cards, then the board's top: the relic plate, the odometer and the dial. */
-export function createBoardTop(
+function createBoardTop(
   ctx: ScreenCtx,
   deps: {
     readonly note: BoardNote;
