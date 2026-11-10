@@ -97,13 +97,19 @@ The controller worked it out from every statement's references, following them t
 
 ### Task 1: Baselines and the order test (controller, before any change)
 
-- [ ] **Step 1:** On main (dbe99e0), run with `VISUAL_JOBS=6`:
+**Done on dbe99e0, `VISUAL_JOBS=6`, 4 cores:**
+
+- **Order test:** 3 of 3 green, 0 FAIL (38 s, 28 s and 27 s). The split-loop ruling stands.
+- **Full runs:** 3 of 3 green, each with 2,172 ok lines, 221 timing labels and 632 ok labels. The three runs and H1b's final set agree.
+- **Wall time:** 331.8 s, 313.6 s and 309.6 s, a median of **313.6 s** and a spread of 7%. Logs are in the scratchpad's `h2-baseline/`.
+
+- [x] **Step 1:** On main (dbe99e0), run with `VISUAL_JOBS=6`:
   ```bash
   VISUAL_ONLY='keys and drawers .* taps|press looks' node scripts/visual-check.mjs
   ```
   Run it three times. This puts the six heaviest tap sections together, as the split order does. All three runs must be green for the split-loop ruling to stand.
-- [ ] **Step 2:** Run three full `VISUAL_JOBS=6 VISUAL_TIMINGS=1 node scripts/visual-check.mjs` runs. Store each log and its wall time under the scratchpad `h2-baseline/`.
-- [ ] **Step 3:** From those logs, derive:
+- [x] **Step 2:** Run three full `VISUAL_JOBS=6 VISUAL_TIMINGS=1 node scripts/visual-check.mjs` runs. Store each log and its wall time under the scratchpad `h2-baseline/`.
+- [x] **Step 3:** From those logs, derive:
   - the `VISUAL_TIMINGS` label set;
   - the ok-label set, with `sed 's/[0-9]//g; s/(-ms)/(ms)/' | sort -u`;
   - the median wall time.
