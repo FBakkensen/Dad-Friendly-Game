@@ -132,9 +132,8 @@ export function createEngineersPanel({
   const button = door;
   let open = false;
   let confirming = false;
-  /** The price on the Promote button at the last paint (#367). */
+  // The Promote price at the last paint, and when he tapped it: Step up pays that (#367).
   let paintedPromote = Number.NaN;
-  /** The price on the button when he tapped it: Step up pays that or nothing (#367). */
   let quotedPromote = Number.NaN;
   /** Row whose recall confirm is open. */
   let recalling: number | undefined;
@@ -684,8 +683,7 @@ export function createEngineersPanel({
     confirming = false;
     menu = undefined;
     const beforeCount = view.mountain.engineers?.length ?? 0;
-    // Price and a free worker can change while the confirm sits open. A price that rose
-    // is turned down, and the render shows the new one on the button (#367).
+    // Price and a free worker can change while the confirm sits open. A dearer price is refused.
     const promoted =
       promotable(view) &&
       dispatch({ kind: "promote", price: quotedPromote }).kind === "applied";
@@ -923,13 +921,7 @@ export function createEngineersPanel({
     }
     promoteWhy.textContent = promoting
       ? promotionPayoff(payoff.name, payoff.post, stonesPerSecond(payoff.gain))
-      : next === undefined
-        ? PROMOTE_CREW_FULL
-        : current.helpers < 1
-          ? PROMOTE_NEEDS_WORKER
-          : current.pocket < cost
-            ? promoteNeeds(cost)
-            : PROMOTE_WHY;
+      : promoteWhyLine(current, next !== undefined, cost);
     modal.hidden = !confirming && recalling === undefined;
     confirm.hidden = !confirming;
     if (confirming && next !== undefined) {
@@ -956,6 +948,21 @@ export function createEngineersPanel({
 }
 
 /** The panel offers a promotion only once the save is in. */
+/** Why a promotion waits (a full crew, no free worker, a light pocket), or why it is worth it. */
+function promoteWhyLine(
+  current: Mountain,
+  nameFree: boolean,
+  cost: number,
+): string {
+  if (!nameFree) {
+    return PROMOTE_CREW_FULL;
+  }
+  if (current.helpers < 1) {
+    return PROMOTE_NEEDS_WORKER;
+  }
+  return current.pocket < cost ? promoteNeeds(cost) : PROMOTE_WHY;
+}
+
 function promotable(view: ProgressSnapshot): boolean {
   return view.ready && canPromote(view.mountain);
 }
