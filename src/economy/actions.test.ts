@@ -11,7 +11,7 @@ import {
   type Engineer,
 } from "../engineers";
 import { recall, send } from "../expeditions";
-import { markTaught } from "../teach";
+import { markTaught, showsDot } from "../teach";
 import type { Trouble } from "../hazards";
 import { createMountain, mineByHand, type Mountain } from "../mountain";
 import { minedMountain } from "../test-fixtures";
@@ -1255,6 +1255,15 @@ describe("applyMove (#409)", () => {
     expect(applyMove(broke, cart, NOW, calm)).toEqual({ kind: "refused" });
   });
 
+  it("marks staffing taught when the first worker is hired beside an idle machine", () => {
+    const idle: Mountain = { ...rich, helpers: 0, engineers: [] };
+    expect(showsDot(idle, "staffing")).toBe(true);
+    const hired = applyMove(idle, { kind: "buyTier", id: "helper" }, NOW, calm);
+    expect(hired.kind === "applied" && hired.mountain.taught).toContain(
+      "staffing",
+    );
+  });
+
   it("marks tending taught on a real station, and refuses a station that changes nothing", () => {
     const moved = applyMove(
       rich,
@@ -1365,6 +1374,14 @@ describe("applyMove (#409)", () => {
   it("names the promoted engineer and the crew size", () => {
     expect(eventsOf(rich, { kind: "promote" })).toEqual([
       { kind: "promoted", name: "Nils", crew: 2 },
+    ]);
+  });
+
+  it("promotes the first engineer from a mountain with no crew yet", () => {
+    const bare: Mountain = { ...fresh, helpers: 1, pocket: 1e15 };
+    expect(bare.engineers).toBeUndefined();
+    expect(eventsOf(bare, { kind: "promote" })).toEqual([
+      { kind: "promoted", name: "Ada", crew: 1 },
     ]);
   });
 

@@ -9,7 +9,6 @@ import {
 import { buyCrew, tierLocked } from "../crew";
 import {
   ENGINEER_POSTS,
-  nextEngineerName,
   MAX_ENGINEERS,
   promote,
   promoteCost,
@@ -419,8 +418,21 @@ export function applyMove(
     mountain: next,
     spent: Math.max(0, -gained),
     gained: Math.max(0, gained),
-    events: moveEvents(mountain, next, move),
+    events: moveEvents(mountain, next, move, now),
   };
+}
+
+/**
+ * The engineer a move named. An applied recall, station, send or promote changed a real
+ * engineer, so a missing one means the move and the mountain disagree.
+ */
+function engineerAt(mountain: Mountain, index: number): Engineer {
+  const hand = mountain.engineers?.[index];
+  /* v8 ignore next 3 -- an applied move named a real engineer, unreachable */
+  if (hand === undefined) {
+    throw new Error(`No engineer at ${String(index)}`);
+  }
+  return hand;
 }
 
 /**
@@ -433,11 +445,8 @@ function crewEvents(
   next: Mountain,
   index: number,
 ): readonly MoveEvent[] {
-  const hand = before.engineers?.[index];
-  const landed = next.engineers?.[index];
-  if (hand === undefined || landed === undefined) {
-    return [];
-  }
+  const hand = engineerAt(before, index);
+  const landed = engineerAt(next, index);
   const trip = (before.expeditions ?? []).find(
     (candidate) => candidate.engineer === hand.name,
   );
@@ -455,6 +464,7 @@ function actionEvents(
   before: Mountain,
   next: Mountain,
   action: Action,
+  now: number,
 ): readonly MoveEvent[] {
   switch (action.kind) {
     case "buyTier":
@@ -478,23 +488,29 @@ function actionEvents(
         {
           kind: "boostStarted",
           id: action.id,
-          endsAt: next.boosts?.[action.id] ?? 0,
+          endsAt: now + boostById(action.id).durationMs,
         },
       ];
     case "craft":
       return [{ kind: "craftStarted", recipe: action.recipe }];
     case "promote": {
-      const name = nextEngineerName(before.engineers ?? []);
-      return name === undefined
-        ? []
-        : [{ kind: "promoted", name, crew: next.engineers?.length ?? 0 }];
+      const crew = (before.engineers?.length ?? 0) + 1;
+      return [
+        {
+          kind: "promoted",
+          name: engineerAt(next, crew - 1).name,
+          crew,
+        },
+      ];
     }
-    case "send": {
-      const hand = before.engineers?.[action.index];
-      return hand === undefined
-        ? []
-        : [{ kind: "sent", name: hand.name, tunnel: action.tunnel }];
-    }
+    case "send":
+      return [
+        {
+          kind: "sent",
+          name: engineerAt(before, action.index).name,
+          tunnel: action.tunnel,
+        },
+      ];
     case "recall":
     case "station":
       return crewEvents(before, next, action.index);
@@ -514,21 +530,17 @@ function moveEvents(
   before: Mountain,
   next: Mountain,
   move: Move,
+  now: number,
 ): readonly MoveEvent[] {
   switch (move.kind) {
     case "tapVein":
-      return [
-        {
-          kind: "veinTapped",
-          stones: Math.max(0, next.pocket - before.pocket),
-        },
-      ];
+      return [{ kind: "veinTapped", stones: next.pocket - before.pocket }];
     case "dig":
     case "markSeen":
     case "markAllSeen":
       return [];
     default:
-      return actionEvents(before, next, move);
+      return actionEvents(before, next, move, now);
   }
 }
 
