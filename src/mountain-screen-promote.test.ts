@@ -27,7 +27,7 @@ describe("a promotion on screen", () => {
   const CLOCK = 1_700_000_000_000;
 
   it("a price that rose while the confirm sat open steps nobody up, and the button shows the new price", () => {
-    // A stone short of the Crystal Caves, with a crew that digs it in the next breath. The
+    // A stone short of the Granite, with a crew that digs it in the next breath. The
     // pocket covers either price, so only the shown price can stop the dearer promotion.
     const mountain: Mountain = {
       ...minedMountain(9_999_999),
@@ -56,7 +56,7 @@ describe("a promotion on screen", () => {
 
     button.click();
     // Two seconds on, unpainted, while the confirm sits open: Step up's settle crosses into
-    // the Caves.
+    // the Granite.
     at += 2_000;
     sheet.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
 

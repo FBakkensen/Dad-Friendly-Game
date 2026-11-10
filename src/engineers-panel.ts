@@ -947,7 +947,6 @@ export function createEngineersPanel({
   return { button, sheet, render };
 }
 
-/** The panel offers a promotion only once the save is in. */
 /** Why a promotion waits (a full crew, no free worker, a light pocket), or why it is worth it. */
 function promoteWhyLine(
   current: Mountain,
@@ -963,6 +962,7 @@ function promoteWhyLine(
   return current.pocket < cost ? promoteNeeds(cost) : PROMOTE_WHY;
 }
 
+/** The panel offers a promotion only once the save is in. */
 function promotable(view: ProgressSnapshot): boolean {
   return view.ready && canPromote(view.mountain);
 }

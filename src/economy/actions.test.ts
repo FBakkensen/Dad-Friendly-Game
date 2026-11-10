@@ -1421,27 +1421,27 @@ describe("applyMove (#409)", () => {
   });
 
   it("charges an upgrade and a promotion only at the price that was shown (#367)", () => {
-    // A crew a stone short of the Crystal Caves: the shown prices are the Granite ones.
-    const granite: Mountain = {
+    // A crew a stone short of the Granite: the shown prices are the Topsoil ones.
+    const topsoil: Mountain = {
       ...rich,
       remaining: minedMountain(9_999_999).remaining,
     };
-    const caves: Mountain = {
+    const granite: Mountain = {
       ...rich,
       remaining: minedMountain(10_000_000).remaining,
     };
-    const armsShown = upgradePrice(granite, "tap") ?? Number.NaN;
-    const promoteShown = promoteCost(granite);
-    expect(oneOffStretch(caves)).toBeGreaterThan(oneOffStretch(granite));
+    const armsShown = upgradePrice(topsoil, "tap") ?? Number.NaN;
+    const promoteShown = promoteCost(topsoil);
+    expect(oneOffStretch(granite)).toBeGreaterThan(oneOffStretch(topsoil));
     const arms = { kind: "buyUpgrade", id: "tap", price: armsShown } as const;
     const stepUp = { kind: "promote", price: promoteShown } as const;
     // The band crossed between the paint and the tap: the dearer price is refused.
-    expect(applyMove(caves, arms, NOW, calm)).toEqual({ kind: "refused" });
-    expect(applyMove(caves, stepUp, NOW, calm)).toEqual({ kind: "refused" });
+    expect(applyMove(granite, arms, NOW, calm)).toEqual({ kind: "refused" });
+    expect(applyMove(granite, stepUp, NOW, calm)).toEqual({ kind: "refused" });
     // At the price he saw, it buys, and that is what it takes.
-    const bought = applyMove(granite, arms, NOW, calm);
+    const bought = applyMove(topsoil, arms, NOW, calm);
     expect(bought.kind === "applied" && bought.spent).toBe(armsShown);
-    const promoted = applyMove(granite, stepUp, NOW, calm);
+    const promoted = applyMove(topsoil, stepUp, NOW, calm);
     expect(promoted.kind === "applied" && promoted.spent).toBe(promoteShown);
   });
 

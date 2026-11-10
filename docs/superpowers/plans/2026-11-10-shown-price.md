@@ -21,7 +21,7 @@ A small change: short design, plan and build in one sitting (`.claude/rules/supe
 ## Proof
 
 - `src/economy/actions.test.ts`: a `buyUpgrade` and a `promote` whose price is not today's are refused and the mountain is the same; the listed actions carry today's price.
-- `src/mountain-screen-upgrades.test.ts`: a crew a few stones short of the Crystal Caves band (10M mined), a painted upgrade row, the clock moved so the tap's settle crosses the band: the tap spends nothing, the row reads refused, and the row then shows the new price. The same tap without the crossing still buys.
+- `src/mountain-screen-upgrades.test.ts`: a crew a few stones short of the Granite band (10M mined), a painted upgrade row, the clock moved so the tap's settle crosses the band: the tap spends nothing, the row reads refused, and the row then shows the new price. The same tap without the crossing still buys.
 - `src/mountain-screen-crew.test.ts` (or `promotion-teach.test.ts`, whichever holds the promote confirm): a band crossed while the confirm is open: Step up spends nothing and the button shows the new price.
 - `npm run play` on a save with an affordable upgrade and promotion: Buy and Promote still apply in the browser, the shots show the price, no page errors. A band crossing inside one tap cannot be timed from the play script, so the crossing itself is proven in the screen tests. No new visual-check section (H is moving that file).
 

@@ -93,8 +93,9 @@ interface BuyTaps {
  * A buy row's tap. A second sleepy tap inside the Done hold, or the tap that opened the
  * drawer, does nothing. The store is read again at the tap: a pocket that fell under the
  * price since the last paint blinks and buys nothing. So does a move the game turns down,
- * such as an upgrade whose price rose since it was shown (#367); the drawer then paints
- * again, so the new price is on the row.
+ * such as an upgrade whose price rose since it was shown (#367). The store's settle
+ * repaints the drawer with the new price; the drawer paints again on a refusal too, in
+ * case nothing was emitted.
  */
 function wireBuy(
   { progress, dispatch, now, onBoard, repaint }: BuyTaps,

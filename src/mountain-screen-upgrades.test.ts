@@ -50,7 +50,7 @@ describe("an Upgrades buy on screen", () => {
 
   it("a price that rose between the paint and the tap buys nothing, blinks, and shows the new price (#367)", () => {
     setReducedMotion(false);
-    // A stone short of the Crystal Caves, with a crew that digs it in the next breath. The
+    // A stone short of the Granite, with a crew that digs it in the next breath. The
     // pocket covers either price, so only the shown price can stop the dearer buy.
     const mountain: Mountain = {
       ...minedMountain(9_999_999),
@@ -80,7 +80,7 @@ describe("an Upgrades buy on screen", () => {
     const shown = upgradePrice(before, "tap") ?? Number.NaN;
     expect(priceOf()).toBe(formatCompact(shown));
 
-    // Two seconds on, unpainted: the tap's settle crosses into the Caves.
+    // Two seconds on, unpainted: the tap's settle crosses into the Granite.
     at += 2_000;
     fingerTap(row);
 
