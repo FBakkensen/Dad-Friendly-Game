@@ -29,29 +29,18 @@ import {
 } from "../src/ui-audit-measure.ts";
 import {
   crewMountain,
+  late,
+  MOUNTAIN,
+  quietCrew,
   seedJson,
   shortMountain,
   toolsMountain,
-} from "./fixtures.mjs";
+} from "../tools/browser/fixtures.ts";
 
 const OUT = "docs/ui-audit";
 /** The phone: the board's 424x924 stage at scale 1 (#370). */
 const PHONE_SIZE = "424x924";
 const VIEWPORTS = [[424, 924]];
-const RECIPES = [
-  "iron-rails",
-  "sturdy-props",
-  "blasting-charge",
-  "reinforce",
-  "axle-grease",
-  "diamond-bits",
-  "crystal-flare",
-  "crystal-lamp",
-  "engineers-kit",
-  "heartstone-core",
-  "heartstone-ember",
-];
-const MOUNTAIN = 240_000_000;
 
 const server = await startServer({ port: 4175, url: undefined });
 const BASE = server.base;
@@ -64,63 +53,6 @@ const browser = await launchChrome({
 const shots = [];
 
 mkdirSync(OUT, { recursive: true });
-
-/**
- * A late-game save. Real pocket, crew and materials. Spread `mountain` /
- * `workshop` over the defaults when a shot needs a different moment.
- */
-function late(now, mined, mountain = {}, workshop = {}) {
-  const deep = mined >= 70_000_000;
-  const built = mined >= 25_000_000;
-  return {
-    version: 6,
-    lastSeen: now,
-    mountain: {
-      remaining: MOUNTAIN - mined,
-      pocket: 80_000_000,
-      helpers: 80,
-      kids: deep ? 4 : 0,
-      carts: 24,
-      drills: 8,
-      borers: 3,
-      machines: built ? 2 : 0,
-      staffed: 2,
-      startedAt: now - 86_400_000,
-      engineers: [
-        {
-          name: "Ada",
-          rank: 0,
-          trips: 0,
-          post: built ? "machine" : "borer",
-        },
-        { name: "Nils", rank: 0, trips: 0, post: "drill" },
-      ],
-      upgrades: { tap: 3, boots: 1, steady: 1, cartSyn: 1 },
-      finds: ["pick", "lamp", "drawing"],
-      ...mountain,
-    },
-    workshop: {
-      materials: { clay: 40, iron: 28, crystal: 12, heartstone: 3 },
-      recipes: RECIPES,
-      ...workshop,
-    },
-  };
-}
-
-function quietCrew(extra = {}) {
-  return {
-    helpers: 8,
-    kids: 0,
-    carts: 2,
-    drills: 0,
-    borers: 0,
-    machines: 0,
-    engineers: undefined,
-    finds: undefined,
-    upgrades: undefined,
-    ...extra,
-  };
-}
 
 // Adapts the audit's (viewport, save, options) call shape onto the harness open.
 /**
@@ -213,7 +145,7 @@ const KEY = (id) => `.board-key[data-key="${id}"]`;
 /** An open drawer (#373): buys or upgrades. */
 const OPEN_SHEET = (name) => `.board-sheet[data-sheet="${name}"].is-open`;
 
-/** A play save from scripts/fixtures.mjs, as the browser's storage holds it. */
+/** A play save from tools/browser/fixtures.ts, as the browser's storage holds it. */
 const seeded = (save) => JSON.parse(seedJson(save));
 
 /**
