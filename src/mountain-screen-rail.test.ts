@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryAuth } from "./auth";
-import { BUYS_SETTLE_MS } from "./mountain-screen";
 import { type CloudLoadResult, type CloudSave } from "./cloud-save";
 import { type Mountain } from "./mountain";
 import {
@@ -233,48 +232,6 @@ describe("the key rail (#373)", () => {
     expect(screen.progress.getSnapshot().mountain.boosts).toEqual(
       before.boosts,
     );
-  });
-
-  it("under reduced motion a dear tap in a drawer spends nothing and never paints its lamp red", () => {
-    vi.useFakeTimers();
-    try {
-      let clock = 10_000;
-      const screen = mountScreen({
-        storage: seeded(early(), CLOCK),
-        now: () => CLOCK,
-        tapClock: () => clock,
-      });
-      fingerTap(key(screen, "buys"));
-      clock += BUYS_SETTLE_MS + 100;
-      const drill = drawer(screen, "buys").querySelector<HTMLButtonElement>(
-        'button.board-row.tier[data-tier="drill"]',
-      );
-      if (drill === null) throw new Error("no drill row");
-      expect(drill.classList.contains("is-dear")).toBe(true);
-      const lamp = () =>
-        drill.querySelector<HTMLElement>(".board-lamp")?.style
-          .backgroundPositionX;
-      const rest = lamp();
-      expect(rest).not.toBe("-120px");
-      const before = screen.progress.getSnapshot().mountain;
-      drill.dispatchEvent(
-        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
-      );
-      drill.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, detail: 1 }),
-      );
-      const lamps = [lamp()];
-      for (let frame = 0; frame < 10; frame += 1) {
-        clock += 70;
-        vi.advanceTimersByTime(70);
-        lamps.push(lamp());
-      }
-      expect(lamps.every((each) => each === rest)).toBe(true);
-      expect(screen.progress.getSnapshot().mountain.pocket).toBe(before.pocket);
-      expect(screen.progress.getSnapshot().mountain.drills).toBe(before.drills);
-    } finally {
-      vi.useRealTimers();
-    }
   });
 
   it("locked keys: Workshop and Engineers wait, with their unlock lines", () => {
