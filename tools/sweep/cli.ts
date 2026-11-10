@@ -5,7 +5,7 @@ import { parseMeasureExport } from "../../src/lab/measure";
 import { parsePolicyExport } from "../../src/lab/policy";
 import { discover } from "../../src/lab/registry";
 import { CASUAL_REFERENCE_ID, DEFAULT_MAX_DAYS } from "../../src/lab/targets";
-import { KNOBS } from "./knobs";
+import { KNOBS, type Knob } from "./knobs";
 import { scorePolicy } from "./play";
 import { renderSweep } from "./report";
 import {
@@ -156,11 +156,19 @@ export function parseSweepArgs(
 
 export async function executeSweep(
   args: Extract<SweepArgs, { kind: "run" }>,
-  dirs?: { readonly policies: string; readonly measures: string },
+  overrides?: {
+    readonly policies?: string;
+    readonly measures?: string;
+    /** Tests sweep a few knobs. The command always sweeps every knob. */
+    readonly knobs?: readonly Knob[];
+  },
 ): Promise<{ readonly markdown: string; readonly elapsedMs: number }> {
   const root = repoRoot();
-  const policiesDir = dirs?.policies ?? path.join(root, "src/lab/policies");
-  const measuresDir = dirs?.measures ?? path.join(root, "src/lab/measures");
+  const policiesDir =
+    overrides?.policies ?? path.join(root, "src/lab/policies");
+  const measuresDir =
+    overrides?.measures ?? path.join(root, "src/lab/measures");
+  const knobs = overrides?.knobs ?? KNOBS;
   const policies = await discover(policiesDir, parsePolicyExport);
   const policy = policies.find((candidate) => candidate.id === args.policyId);
   if (policy === undefined) {
@@ -187,7 +195,7 @@ export async function executeSweep(
   }));
   const started = performance.now();
   const result = sweepModel({
-    knobs: KNOBS,
+    knobs,
     outputs,
     seed: args.seed,
     trajectories: args.trajectories,
@@ -206,7 +214,7 @@ export async function executeSweep(
   const markdown = renderSweep({
     policyId: policy.id,
     days: args.days,
-    knobs: KNOBS,
+    knobs,
     result,
   });
   const outDir = path.resolve(args.outDir);
