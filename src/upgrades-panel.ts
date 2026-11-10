@@ -42,7 +42,12 @@ import {
   upgradeRowId,
   type RevealRowId,
 } from "./upgrade-reveal";
-import { UPGRADES, type Upgrade } from "./upgrades";
+import {
+  UPGRADES,
+  upgradePrice,
+  type Upgrade,
+  type UpgradeId,
+} from "./upgrades";
 
 /*
  * The Upgrades drawer (#373): Quick boosts, Lasting upgrades and Brought home as board rows,
@@ -78,19 +83,25 @@ interface BuyTaps {
   /** The game's clock: prices and timers. */
   readonly now: () => number;
   readonly onBoard: RowsOnBoard;
+  /** Each lasting upgrade's exact price as the last ready paint showed it (#367). */
+  readonly shownPrices: Map<UpgradeId, number | undefined>;
+  /** Paints the drawer again from the store. */
+  readonly repaint: () => void;
 }
 
 /**
  * A buy row's tap. A second sleepy tap inside the Done hold, or the tap that opened the
  * drawer, does nothing. The store is read again at the tap: a pocket that fell under the
- * price since the last paint blinks and buys nothing.
+ * price since the last paint blinks and buys nothing. So does a move the game turns down,
+ * such as an upgrade whose price rose since it was shown (#367); the drawer then paints
+ * again, so the new price is on the row.
  */
 function wireBuy(
-  { progress, dispatch, now, onBoard }: BuyTaps,
+  { progress, dispatch, now, onBoard, repaint }: BuyTaps,
   id: RevealRowId,
   row: BoardRow,
   viewOf: (mountain: Mountain, at: number) => RowView,
-  move: Extract<Move, { kind: "buyUpgrade" | "buyBoost" }>,
+  move: () => Extract<Move, { kind: "buyUpgrade" | "buyBoost" }>,
 ): void {
   const root = row.root;
   if (!(root instanceof HTMLButtonElement)) {
@@ -107,10 +118,11 @@ function wireBuy(
     }
     // The rows he had in front of him when he tapped are seen, whatever the buy shows next.
     const shown = shownRows(snapshot.mountain);
-    const bought = dispatch(move).kind === "applied";
+    const bought = dispatch(move()).kind === "applied";
     dispatch({ kind: "markAllSeen", ids: shown });
-    if (bought) {
-      onBoard.result(id, "applied");
+    onBoard.result(id, bought ? "applied" : "refused");
+    if (!bought) {
+      repaint();
     }
   });
 }
@@ -175,7 +187,7 @@ function buildRows(taps: BuyTaps): UpgradesRows {
       id,
       row,
       (mountain, at) => boostRowView(mountain, at, boost, false),
-      { kind: "buyBoost", id: boost.id },
+      () => ({ kind: "buyBoost", id: boost.id }),
     );
     return { boost, id, row };
   });
@@ -187,7 +199,12 @@ function buildRows(taps: BuyTaps): UpgradesRows {
       id,
       row,
       (mountain, at) => upgradeRowView(mountain, at, upgrade, false),
-      { kind: "buyUpgrade", id: upgrade.id },
+      // The price he was shown: a dearer one at the tap is turned down (#367).
+      () => ({
+        kind: "buyUpgrade",
+        id: upgrade.id,
+        price: taps.shownPrices.get(upgrade.id) ?? Number.NaN,
+      }),
     );
     return { upgrade, id, row };
   });
@@ -381,11 +398,13 @@ function paintReady(
     at,
     newId,
     onBoard,
+    shownPrices,
   }: {
     current: Mountain;
     at: number;
     newId: RevealRowId | undefined;
     onBoard: RowsOnBoard;
+    shownPrices: Map<UpgradeId, number | undefined>;
   },
 ): void {
   const boostsShowing = paintBuyRows(
@@ -396,7 +415,10 @@ function paintReady(
   );
   const upgradesShowing = paintBuyRows(
     upgrades,
-    ({ upgrade }, fresh) => upgradeRowView(current, at, upgrade, fresh),
+    ({ upgrade }, fresh) => {
+      shownPrices.set(upgrade.id, upgradePrice(current, upgrade.id));
+      return upgradeRowView(current, at, upgrade, fresh);
+    },
     newId,
     onBoard,
   );
@@ -493,7 +515,17 @@ export function createUpgradesPanel({
   });
   sheet.kick(UPGRADES_KICK);
 
-  const rows = buildRows({ progress, dispatch, now, onBoard });
+  const shownPrices = new Map<UpgradeId, number | undefined>();
+  const rows = buildRows({
+    progress,
+    dispatch,
+    now,
+    onBoard,
+    shownPrices,
+    repaint: () => {
+      render();
+    },
+  });
   const { parts, byId } = placeParts(sheet, rows);
   const layout = createUpgradesLayout(board, sheet, byId);
   const priceHow = createHowPricer(sheet.how);
@@ -506,7 +538,7 @@ export function createUpgradesPanel({
     renderChips(chipFor, current, at);
     if (view.ready) {
       const newId = newRowId(current, at);
-      paintReady(rows, parts, { current, at, newId, onBoard });
+      paintReady(rows, parts, { current, at, newId, onBoard, shownPrices });
       // "Right on top" only while the New row is the one the list was ordered for: that row
       // leads the first section.
       const orderedFor = layout.paint(newId);

@@ -160,10 +160,22 @@ export function upgradeCost(
       );
 }
 
+/** The next level's price at this mountain's band, or undefined once maxed: the one the Buy shows. */
+export function upgradePrice(
+  mountain: Mountain,
+  id: UpgradeId,
+): number | undefined {
+  return upgradeCost(
+    upgradeById(id),
+    upgradeLevel(mountain, id),
+    oneOffStretch(mountain),
+  );
+}
+
 /** Buys the next level if affordable; otherwise the same mountain. */
 export function buyUpgrade(mountain: Mountain, id: UpgradeId): Mountain {
   const level = upgradeLevel(mountain, id);
-  const cost = upgradeCost(upgradeById(id), level, oneOffStretch(mountain));
+  const cost = upgradePrice(mountain, id);
   if (
     cost === undefined ||
     mountain.pocket < cost ||

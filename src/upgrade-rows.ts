@@ -10,7 +10,7 @@ import { hasLostTool, type LostToolId } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import type { RowView } from "./row-view";
-import { oneOffStretch, stretch } from "./scale";
+import { stretch } from "./scale";
 import {
   FOUND_LABEL,
   boostOutcome,
@@ -27,7 +27,7 @@ import {
   upgradeShown,
   type RevealRowId,
 } from "./upgrade-reveal";
-import { UPGRADES, upgradeCost, upgradeLevel, type Upgrade } from "./upgrades";
+import { UPGRADES, upgradeLevel, upgradePrice, type Upgrade } from "./upgrades";
 
 /** An Upgrades row (#373), and whether it shows. */
 export type UpgradeRowView = RowView & { readonly shown: boolean };
@@ -41,18 +41,6 @@ export const BOOST_WHY: Readonly<Record<BoostId, string>> = {
 /** Priced from the unboosted crew, as `buyBoost` prices it. */
 function boostPrice(mountain: Mountain, boost: Boost): number {
   return boostCost(boost, effectiveRates(mountain), stretch(mountain));
-}
-
-/** The next level's price, or undefined once every level is bought. */
-function upgradePrice(
-  mountain: Mountain,
-  upgrade: Upgrade,
-): number | undefined {
-  return upgradeCost(
-    upgrade,
-    upgradeLevel(mountain, upgrade.id),
-    oneOffStretch(mountain),
-  );
 }
 
 /**
@@ -166,7 +154,7 @@ export function upgradeRowView(
   isNew: boolean,
 ): UpgradeRowView {
   const level = upgradeLevel(mountain, upgrade.id);
-  const cost = upgradePrice(mountain, upgrade);
+  const cost = upgradePrice(mountain, upgrade.id);
   const info = upgradeEffectLine(upgrade, mountain, now);
   const face =
     cost === undefined
@@ -245,7 +233,7 @@ function priced(
         mountain.pocket >= boostPrice(mountain, boost),
     })),
     ...UPGRADES.map((upgrade) => {
-      const cost = upgradePrice(mountain, upgrade);
+      const cost = upgradePrice(mountain, upgrade.id);
       return {
         id: upgradeRowId(upgrade),
         shown: upgradeShown(mountain, upgrade),

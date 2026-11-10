@@ -132,6 +132,10 @@ export function createEngineersPanel({
   const button = door;
   let open = false;
   let confirming = false;
+  /** The price on the Promote button at the last paint (#367). */
+  let paintedPromote = Number.NaN;
+  /** The price on the button when he tapped it: Step up pays that or nothing (#367). */
+  let quotedPromote = Number.NaN;
   /** Row whose recall confirm is open. */
   let recalling: number | undefined;
   /** Which card is the big one. The rest are one line. */
@@ -646,6 +650,7 @@ export function createEngineersPanel({
       return;
     }
     confirming = true;
+    quotedPromote = paintedPromote;
     recalling = undefined;
     menu = undefined;
     requestRender();
@@ -679,9 +684,11 @@ export function createEngineersPanel({
     confirming = false;
     menu = undefined;
     const beforeCount = view.mountain.engineers?.length ?? 0;
-    // Price and a free worker can change while the confirm sits open.
+    // Price and a free worker can change while the confirm sits open. A price that rose
+    // is turned down, and the render shows the new one on the button (#367).
     const promoted =
-      promotable(view) && dispatch({ kind: "promote" }).kind === "applied";
+      promotable(view) &&
+      dispatch({ kind: "promote", price: quotedPromote }).kind === "applied";
     // The new engineer joins at the end of the crew.
     const name = getView().mountain.engineers?.[beforeCount]?.name;
     if (promoted && name !== undefined) {
@@ -895,6 +902,7 @@ export function createEngineersPanel({
     const next = nextEngineerName(engineers);
     const affordable = promotable(view);
     const cost = promoteCost(current);
+    paintedPromote = cost;
     if (!affordable) {
       confirming = false;
     }
