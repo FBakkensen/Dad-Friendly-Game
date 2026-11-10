@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { createMountain } from "./mountain";
 import { CRAFT_IDS, runningLabels } from "./screen-chips";
-import { recipeById } from "./workshop";
+import {
+  axleCrewMultiplier,
+  emberMachineMultiplier,
+  recipeById,
+} from "./workshop";
 
 const AT = 1_000_000;
 
 describe("runningLabels", () => {
   it("a hot craft gets its short name, multiplier and time left", () => {
     const mountain = { ...createMountain(), flareUntil: AT + 60_000 };
-    const flare = runningLabels(mountain, AT).crafts.get("crystal-flare");
+    const flare = runningLabels(mountain, AT).crafts["crystal-flare"];
     expect(flare).toEqual({
       short: "Flare",
       full: recipeById("crystal-flare").name,
@@ -19,10 +23,24 @@ describe("runningLabels", () => {
     });
   });
 
+  it("a hot axle grease chip carries the crew multiplier", () => {
+    const mountain = { ...createMountain(), axleUntil: AT + 60_000 };
+    const axle = runningLabels(mountain, AT).crafts["axle-grease"];
+    expect(axle.active).toBe(true);
+    expect(axle.multiplier).toBe(axleCrewMultiplier(mountain, AT));
+  });
+
+  it("a hot heartstone ember chip carries the machine multiplier", () => {
+    const mountain = { ...createMountain(), emberUntil: AT + 60_000 };
+    const ember = runningLabels(mountain, AT).crafts["heartstone-ember"];
+    expect(ember.active).toBe(true);
+    expect(ember.multiplier).toBe(emberMachineMultiplier(mountain, AT));
+  });
+
   it("a cold craft is inactive", () => {
     const { crafts } = runningLabels(createMountain(), AT);
-    expect([...crafts.keys()]).toEqual([...CRAFT_IDS]);
-    for (const label of crafts.values()) {
+    expect(Object.keys(crafts)).toEqual([...CRAFT_IDS]);
+    for (const label of Object.values(crafts)) {
       expect(label).toEqual({ short: "", full: "", leftMs: 0, active: false });
     }
   });
@@ -50,7 +68,7 @@ describe("runningLabels", () => {
       },
     } as const;
     const labels = runningLabels(mountain, AT);
-    expect(labels.crafts.get("blasting-charge")?.active).toBe(true);
+    expect(labels.crafts["blasting-charge"].active).toBe(true);
     expect(labels.bench.active).toBe(false);
   });
 

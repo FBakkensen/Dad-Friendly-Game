@@ -10,7 +10,7 @@ import { owned, tierById, type TierId } from "./tiers";
 import { hasRelic, relicGoal, type RelicId } from "./relics";
 import { BOOSTS } from "./boosts";
 import { anyChipActive, createEffectChip, writeChip } from "./effect-row";
-import { CRAFT_IDS, INACTIVE_CHIP, runningLabels } from "./screen-chips";
+import { CRAFT_IDS, runningLabels } from "./screen-chips";
 import { createBoardNote } from "./board-note";
 import { DRAWER_SETTLE_MS, createSheetScrim } from "./board-drawer";
 import { createBoardHost, type BoardHost } from "./board-host";
@@ -647,9 +647,7 @@ export function mountMountainScreen({
   updatePrompt.hidden = true;
   // showAppUpdate opens the prompt from outside the screen: it covers the drawers at once.
   updatePrompt.addEventListener(UPDATE_SHOWN, () => {
-    coverDrawers();
-    coverNote();
-    renderRail();
+    paint();
   });
   updatePrompt.setAttribute("role", "dialog");
   updatePrompt.setAttribute("aria-modal", "true");
@@ -756,7 +754,7 @@ export function mountMountainScreen({
   const paintRunning = (): void => {
     const labels = runningLabels(view.mountain, now());
     for (const [id, chip] of craftChips) {
-      writeChip(chip, labels.crafts.get(id) ?? INACTIVE_CHIP);
+      writeChip(chip, labels.crafts[id]);
     }
     writeChip(benchChip, labels.bench);
     // After every chip above and the engineers' trips have been written.

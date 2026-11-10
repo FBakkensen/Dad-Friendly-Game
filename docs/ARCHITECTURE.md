@@ -115,7 +115,8 @@ page is the map, plus the rules that keep it that way.
    and the rest, then the overlays (the New sign, the covers and the key rail).
    The panels paint before the New sign, so a card opened in that paint holds
    the sign back. Each paint is safe to repeat: a card takes focus only when
-   it opens, and the materials line is rebuilt only when its chips change.
+   it opens, and the materials line is rebuilt only when its chips change, and the saved
+   copies sheet rebuilds its rows only when what they show changes.
    Three small modules carry the screen's decisions: `card-state` is the cards'
    shown state (`showCard` writes it, `cardUp` reads it), `screen-cover`
    decides from the screen's `cards`, the board's drawers and the note whether

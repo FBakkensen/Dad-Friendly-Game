@@ -18,14 +18,20 @@ export const CRAFT_IDS = [
   "heartstone-ember",
 ] as const satisfies readonly RecipeId[];
 
-export type CraftId = (typeof CRAFT_IDS)[number];
+type CraftId = (typeof CRAFT_IDS)[number];
 
-export const INACTIVE_CHIP: EffectLabel = {
+const INACTIVE_CHIP: EffectLabel = {
   short: "",
   full: "",
   leftMs: 0,
   active: false,
 };
+
+/** The flare recipe's effect is always a flare, so it is narrowed once here. */
+function flareOften(): number {
+  const effect = recipeById("crystal-flare").effect;
+  return (effect as Extract<typeof effect, { kind: "flare" }>).often;
+}
 
 function craftMultiplier(mountain: Mountain, id: CraftId, at: number): number {
   switch (id) {
@@ -35,10 +41,8 @@ function craftMultiplier(mountain: Mountain, id: CraftId, at: number): number {
       return axleCrewMultiplier(mountain, at);
     case "heartstone-ember":
       return emberMachineMultiplier(mountain, at);
-    case "crystal-flare": {
-      const effect = recipeById(id).effect;
-      return effect.kind === "flare" ? 1 + effect.often : 1;
-    }
+    case "crystal-flare":
+      return 1 + flareOften();
   }
 }
 
@@ -50,26 +54,30 @@ export function runningLabels(
   mountain: Mountain,
   at: number,
 ): {
-  readonly crafts: ReadonlyMap<RecipeId, EffectLabel>;
+  readonly crafts: Readonly<Record<CraftId, EffectLabel>>;
   readonly bench: EffectLabel;
 } {
   const hot = hotTimers(mountain, at);
-  const crafts = new Map<RecipeId, EffectLabel>();
-  for (const id of CRAFT_IDS) {
+  const craftLabel = (id: CraftId): EffectLabel => {
     const timer = hot.find((item) => item.id === id);
     if (timer === undefined) {
-      crafts.set(id, INACTIVE_CHIP);
-      continue;
+      return INACTIVE_CHIP;
     }
     const recipe = recipeById(id);
-    crafts.set(id, {
+    return {
       short: shortEffectName(recipe.name),
       full: recipe.name,
       multiplier: craftMultiplier(mountain, id, at),
       leftMs: timer.until - at,
       active: true,
-    });
-  }
+    };
+  };
+  const crafts = {
+    "blasting-charge": craftLabel("blasting-charge"),
+    "axle-grease": craftLabel("axle-grease"),
+    "crystal-flare": craftLabel("crystal-flare"),
+    "heartstone-ember": craftLabel("heartstone-ember"),
+  };
   const bench = mountain.bench;
   // A bench that is also a hot timer already shows as that craft's chip.
   const benchIsTimer =
