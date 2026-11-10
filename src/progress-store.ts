@@ -1,6 +1,5 @@
 import type { AuthController } from "./auth";
 import { recordFirstUse } from "./teach";
-import { BOOSTS } from "./boosts";
 import {
   applySignedInSave,
   createNoopCloudSave,
@@ -39,6 +38,7 @@ import {
   EventRing,
   FIELD_LOG_COPY_COUNT,
   FIELD_LOG_WRITE_GAP_MS,
+  fieldEntry,
   fieldErrorId,
   fieldLogFingerprint,
   shouldWriteFieldLog,
@@ -69,8 +69,6 @@ import { readPhoneBackup, saveEchoKey, writePhoneBackup } from "./phone-backup";
 import type { TabWriter } from "./tab-writer";
 import { compareSaveProgress, type SaveMoment } from "./save-progress";
 import { craftFittedWords, SAVE_CONFLICT_ERROR } from "./screen-words";
-import { TIERS, owned } from "./tiers";
-import { UPGRADES, upgradeLevel } from "./upgrades";
 import {
   RECIPE_IDS,
   craftedLevel,
@@ -80,7 +78,12 @@ import {
   type RecipeId,
 } from "./workshop";
 import { fittedEffect } from "./workshop-sheet";
-import { applyMove, type Move, type MoveResult } from "./economy/actions";
+import {
+  applyMove,
+  type Move,
+  type MoveEvent,
+  type MoveResult,
+} from "./economy/actions";
 import {
   clearSessionSave,
   readSessionSave,
@@ -166,13 +169,11 @@ export type ProgressStore = {
    */
   readonly dispatch: Dispatch;
   /**
-   * A test seam: applies any change to the latest mountain, as `dispatch` does. Production
+   * A test seam: applies any change to the latest mountain, as `dispatch` does, but records
+   * no move events in the field log (#413). Production
    * code changes the game only through `dispatch` (an ESLint rule holds it to that).
    */
-  readonly applyMutation: (
-    update: (mountain: Mountain) => Mountain,
-    note?: "vein.tap",
-  ) => void;
+  readonly applyMutation: (update: (mountain: Mountain) => Mountain) => void;
   /** Snapshot plus the newest events the menu copies. Not part of the mountain save. */
   readonly fieldLog: () => FieldLog;
   /** Settles helpers' work up to now for display. A signed-in phone backup follows a change; cloud writes stay on actions, hide, and pagehide. */
@@ -277,26 +278,28 @@ export type Dispatch = (move: StoreMove) => DispatchResult;
  */
 type StoreMove = Exclude<Move, { readonly kind: "fixTrouble" }>;
 
+/** A change to commit, and what the move did, for the field log (#413). */
+type MountainChange = {
+  readonly mountain: Mountain;
+  readonly events: readonly MoveEvent[];
+};
+
 /** A move through the store's one commit path; the rules are `applyMove`'s. */
 function dispatchMove(
   move: StoreMove,
-  commit: (
-    update: (mountain: Mountain) => Mountain,
-    note?: "vein.tap",
-  ) => boolean,
+  commit: (update: (mountain: Mountain) => MountainChange) => boolean,
   now: () => number,
   trouble: () => Trouble | undefined,
 ): DispatchResult {
   // The update runs inside commit, after the crew's work is settled: the clock and the
   // trouble are read there, so a trouble that settle starts or clears is the one the move sees.
   const box: { result: MoveResult } = { result: { kind: "refused" } };
-  const playing = commit(
-    (mountain) => {
-      box.result = applyMove(mountain, move, now(), { trouble: trouble() });
-      return box.result.kind === "applied" ? box.result.mountain : mountain;
-    },
-    move.kind === "tapVein" ? "vein.tap" : undefined,
-  );
+  const playing = commit((mountain) => {
+    box.result = applyMove(mountain, move, now(), { trouble: trouble() });
+    return box.result.kind === "applied"
+      ? { mountain: box.result.mountain, events: box.result.events }
+      : { mountain, events: [] };
+  });
   const { result } = box;
   if (!playing) {
     return { kind: "refused", reason: "not-playing" };
@@ -448,40 +451,6 @@ export function createProgressStore({
   const pendingEchoes: string[] = [];
   let lastFieldLogAt: number | undefined;
   let lastFieldLogFingerprint: string | undefined;
-  const noteChanges = (before: Mountain, after: Mountain): void => {
-    for (const tier of TIERS) {
-      const count = owned(after, tier);
-      if (count > owned(before, tier)) {
-        record("tier.buy", { id: tier.id, count });
-      }
-    }
-    for (const upgrade of UPGRADES) {
-      const count = upgradeLevel(after, upgrade.id);
-      if (count > upgradeLevel(before, upgrade.id)) {
-        record("upgrade.buy", { id: upgrade.id, count });
-      }
-    }
-    for (const boost of BOOSTS) {
-      const endsAt = after.boosts?.[boost.id];
-      if (endsAt !== undefined && endsAt !== before.boosts?.[boost.id]) {
-        record("boost.start", {
-          id: boost.id,
-          endsAt: new Date(endsAt).toISOString(),
-        });
-      }
-    }
-    const nextBench = after.bench;
-    const prevBench = before.bench;
-    if (
-      nextBench !== undefined &&
-      (prevBench === undefined ||
-        prevBench.recipe !== nextBench.recipe ||
-        prevBench.startedAt !== nextBench.startedAt)
-    ) {
-      record("craft.start", { id: nextBench.recipe });
-    }
-  };
-
   /** The band and the crafted levels, before away pay moves them. */
   const primeArrivals = (): void => {
     layerBaseline = minedOut(mountain);
@@ -491,66 +460,6 @@ export function createProgressStore({
   const clearArrivals = (): void => {
     layersArrived.length = 0;
     craftsFitted.length = 0;
-  };
-
-  /**
-   * Promotion, a new post, and expeditions leaving or coming back empty.
-   * A return is recorded from the homecoming, which carries the find.
-   */
-  const noteCrew = (before: Mountain, after: Mountain): void => {
-    const beforeCrew = before.engineers ?? [];
-    const afterCrew = after.engineers ?? [];
-    const beforeByName = new Map(
-      beforeCrew.map((engineer) => [engineer.name, engineer]),
-    );
-    const beforeTrips = new Map(
-      (before.expeditions ?? []).map((trip) => [trip.engineer, trip]),
-    );
-    const afterTrips = new Map(
-      (after.expeditions ?? []).map((trip) => [trip.engineer, trip]),
-    );
-    if (after.helpers < before.helpers) {
-      for (const engineer of afterCrew) {
-        if (!beforeByName.has(engineer.name)) {
-          record("engineer.promote", {
-            id: engineer.name,
-            count: afterCrew.length,
-          });
-        }
-      }
-    }
-    for (const [name, trip] of afterTrips) {
-      if (!beforeTrips.has(name)) {
-        record("expedition.send", { id: name, source: trip.tunnel });
-      }
-    }
-    for (const [name, trip] of beforeTrips) {
-      if (afterTrips.has(name)) {
-        continue;
-      }
-      record("expedition.recall", { id: name, source: trip.tunnel });
-      const landed = afterCrew.find((engineer) => engineer.name === name);
-      if (
-        landed !== undefined &&
-        landed.post !== trip.home &&
-        landed.post !== "tunnel"
-      ) {
-        record("engineer.station", { id: name, source: landed.post });
-      }
-    }
-    for (const engineer of afterCrew) {
-      const previous = beforeByName.get(engineer.name);
-      if (previous === undefined || previous.post === engineer.post) {
-        continue;
-      }
-      if (beforeTrips.has(engineer.name) || afterTrips.has(engineer.name)) {
-        continue;
-      }
-      record("engineer.station", {
-        id: engineer.name,
-        source: engineer.post,
-      });
-    }
   };
 
   /**
@@ -2111,17 +2020,15 @@ export function createProgressStore({
   };
 
   /** Commits one change: false when the session is not playing (#409). */
-  const commit = (
-    update: (mountain: Mountain) => Mountain,
-    note?: "vein.tap",
-  ): boolean => {
+  const commit = (update: (mountain: Mountain) => MountainChange): boolean => {
     if (!canPlay()) {
       return false;
     }
     const beforeTrouble = troubleMark();
     const mined = settle();
     const before = mountain;
-    const next = recordFirstUse(update(mountain));
+    const change = update(mountain);
+    const next = recordFirstUse(change.mountain);
     if (next === before) {
       if (mined > 0 || troubleMark() !== beforeTrouble || newsPending) {
         persistPhoneBackup();
@@ -2131,10 +2038,9 @@ export function createProgressStore({
     }
     mountain = next;
     phoneDirty = true;
-    noteChanges(before, next);
-    noteCrew(before, next);
-    if (note === "vein.tap") {
-      record("vein.tap", { stones: next.pocket - before.pocket });
+    for (const event of change.events) {
+      const entry = fieldEntry(event);
+      record(entry.code, entry.data);
     }
     persistCloudSoon();
     persistFieldLog("interval");
@@ -2154,8 +2060,8 @@ export function createProgressStore({
       };
     },
     dispatch: (move) => dispatchMove(move, commit, now, activeTrouble),
-    applyMutation: (update, note) => {
-      commit(update, note);
+    applyMutation: (update) => {
+      commit((mountain) => ({ mountain: update(mountain), events: [] }));
     },
     dismissReveal: () => {
       if (reveals.length === 0) {

@@ -8,7 +8,7 @@
   "src/how-it-works.ts#howItWorks": 286,
   "src/menu-panel.ts#createMenuPanel": 292,
   "src/pacing.ts#simulateDadRun": 164,
-  "src/progress-store.ts#createProgressStore": 2196,
+  "src/progress-store.ts#createProgressStore": 2099,
   "src/relic-panels.ts#createRelicPanels": 363,
   "src/tab-writer.ts#createTabWriter": 348,
   "src/welcome-panel.ts#createWelcomePanel": 175,

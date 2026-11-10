@@ -1414,6 +1414,15 @@ describe("field log", () => {
     });
   });
 
+  it("records no move events for the applyMutation seam", () => {
+    const progress = guest();
+    progress.applyMutation((mountain) =>
+      buyTier({ ...mountain, pocket: firstWorker }, "helper"),
+    );
+    expect(progress.getSnapshot().mountain.helpers).toBe(1);
+    expect(progress.fieldLog().events).toEqual([]);
+  });
+
   it("records nothing for a refused move", () => {
     const progress = guest(() => 5_000);
     progress.applyMutation((mountain) => ({

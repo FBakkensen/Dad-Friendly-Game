@@ -1,4 +1,5 @@
 import { BOOSTS, type BoostId } from "./boosts";
+import type { MoveEvent } from "./economy/actions";
 import { ENGINEER_NAMES } from "./engineers";
 import type { Mountain } from "./mountain";
 import type { Rates } from "./rates";
@@ -182,6 +183,53 @@ export function snapshot(
     engineers,
     expeditions,
   };
+}
+
+/** The ring entry for one thing a dispatched move did (#413). The store adds `at`. */
+export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
+  switch (event.kind) {
+    case "tierBought":
+      return { code: "tier.buy", data: { id: event.id, count: event.count } };
+    case "upgradeBought":
+      return {
+        code: "upgrade.buy",
+        data: { id: event.id, count: event.level },
+      };
+    case "boostStarted":
+      return {
+        code: "boost.start",
+        data: { id: event.id, endsAt: new Date(event.endsAt).toISOString() },
+      };
+    case "craftStarted":
+      return { code: "craft.start", data: { id: event.recipe } };
+    case "promoted":
+      return {
+        code: "engineer.promote",
+        data: { id: event.name, count: event.crew },
+      };
+    case "sent":
+      return {
+        code: "expedition.send",
+        data: { id: event.name, source: event.tunnel },
+      };
+    case "recalled":
+      return {
+        code: "expedition.recall",
+        data: { id: event.name, source: event.tunnel },
+      };
+    case "stationed":
+      return {
+        code: "engineer.station",
+        data: { id: event.name, source: event.post },
+      };
+    case "veinTapped":
+      return { code: "vein.tap", data: { stones: event.stones } };
+    /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
+    default: {
+      const unexpected: never = event;
+      return unexpected;
+    }
+  }
 }
 
 /** Pretty JSON of a snapshot plus the events the menu copies. */
