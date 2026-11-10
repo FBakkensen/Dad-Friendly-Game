@@ -14,7 +14,6 @@
   "src/lab/run.ts#playSecond": 17,
   "src/lab/tournament.ts#stretchesFor": 20,
   "src/mine-window.ts#machinesStep": 19,
-  "src/mountain-screen.ts#mountMountainScreen>render": 18,
   "src/mountain.ts#parseMountain": 36,
   "src/pacing.ts#simulateDadRun": 61,
   "src/persist.ts#parseSaveValue": 44,

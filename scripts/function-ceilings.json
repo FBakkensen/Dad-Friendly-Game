@@ -7,7 +7,7 @@
   "src/firebase-save.ts#createFirebaseCloudSave": 166,
   "src/how-it-works.ts#howItWorks": 286,
   "src/menu-panel.ts#createMenuPanel": 292,
-  "src/mountain-screen.ts#mountMountainScreen": 1077,
+  "src/mountain-screen.ts#mountMountainScreen": 1038,
   "src/pacing.ts#simulateDadRun": 164,
   "src/progress-store.ts#createProgressStore": 2196,
   "src/relic-panels.ts#createRelicPanels": 363,

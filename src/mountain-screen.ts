@@ -4,11 +4,12 @@ import pickUrl from "./assets/pick.png";
 import { noteFor } from "./teach";
 import { createUnconfiguredAuth, type AuthController } from "./auth";
 import { formatCount } from "./format";
-import { MOUNTAIN_STONES, stonesPerSecond, type Mountain } from "./mountain";
+import { MOUNTAIN_STONES, stonesPerSecond } from "./mountain";
 import { owned, tierById, type TierId } from "./tiers";
 import { hasRelic, relicGoal, type RelicId } from "./relics";
 import { BOOSTS } from "./boosts";
-import { createEffectChip, shortEffectName, writeChip } from "./effect-row";
+import { anyChipActive, createEffectChip, writeChip } from "./effect-row";
+import { CRAFT_IDS, INACTIVE_CHIP, runningLabels } from "./screen-chips";
 import { createBoardNote } from "./board-note";
 import { DRAWER_SETTLE_MS, createSheetScrim } from "./board-drawer";
 import { createBoardHost, type BoardHost } from "./board-host";
@@ -45,14 +46,6 @@ import { legacyBonus } from "./legacy";
 import { createCrewPanel } from "./crew-panel";
 import { createEngineersPanel } from "./engineers-panel";
 import { createUpgradesPanel } from "./upgrades-panel";
-import {
-  axleCrewMultiplier,
-  chargeCrewMultiplier,
-  emberMachineMultiplier,
-  hotTimers,
-  isRecipeId,
-  recipeById,
-} from "./workshop";
 import { createWorkshopPanel } from "./workshop-panel";
 import {
   OTHER_TAB_BODY,
@@ -81,25 +74,6 @@ import {
   type ProgressSnapshot,
   type ProgressStore,
 } from "./progress-store";
-
-function craftMultiplier(
-  mountain: Mountain,
-  id: "blasting-charge" | "axle-grease" | "crystal-flare" | "heartstone-ember",
-  now: number,
-): number {
-  switch (id) {
-    case "blasting-charge":
-      return chargeCrewMultiplier(mountain, now);
-    case "axle-grease":
-      return axleCrewMultiplier(mountain, now);
-    case "heartstone-ember":
-      return emberMachineMultiplier(mountain, now);
-    case "crystal-flare": {
-      const effect = recipeById(id).effect;
-      return effect.kind === "flare" ? 1 + effect.often : 1;
-    }
-  }
-}
 
 const MINED_OUT = "The mountain is mined out";
 
@@ -266,14 +240,8 @@ export function mountMountainScreen({
       return [boost.id, chip] as const;
     }),
   );
-  const craftIds = [
-    "blasting-charge",
-    "axle-grease",
-    "crystal-flare",
-    "heartstone-ember",
-  ] as const;
   const craftChips = new Map(
-    craftIds.map((id) => {
+    CRAFT_IDS.map((id) => {
       const chip = createEffectChip("craft-chip", relicArt.hammer);
       chip.dataset["craft"] = id;
       effectRow.append(chip);
@@ -794,46 +762,13 @@ export function mountMountainScreen({
     );
     renderTeach();
     const at = now();
-    const hot = hotTimers(view.mountain, at);
+    const labels = runningLabels(view.mountain, at);
     for (const [id, chip] of craftChips) {
-      const timer = hot.find((item) => item.id === id);
-      if (timer === undefined) {
-        writeChip(chip, { short: "", full: "", leftMs: 0, active: false });
-        continue;
-      }
-      const left = timer.until - at;
-      const recipe = recipeById(id);
-      writeChip(chip, {
-        short: shortEffectName(recipe.name),
-        full: recipe.name,
-        multiplier: craftMultiplier(view.mountain, id, at),
-        leftMs: left,
-        active: true,
-      });
+      writeChip(chip, labels.crafts.get(id) ?? INACTIVE_CHIP);
     }
-    const bench = view.mountain.bench;
-    const benchIsTimer =
-      bench !== undefined && hot.some((item) => item.id === bench.recipe);
-    if (
-      bench !== undefined &&
-      isRecipeId(bench.recipe) &&
-      at < bench.endsAt &&
-      !benchIsTimer
-    ) {
-      const left = bench.endsAt - at;
-      const recipe = recipeById(bench.recipe);
-      writeChip(benchChip, {
-        short: shortEffectName(recipe.name),
-        full: recipe.name,
-        leftMs: left,
-        active: true,
-      });
-    } else {
-      writeChip(benchChip, { short: "", full: "", leftMs: 0, active: false });
-    }
+    writeChip(benchChip, labels.bench);
     // After every chip above and the engineers' trips have been written.
-    const anyRunning =
-      effectRow.querySelector(".effect-chip:not([hidden])") !== null;
+    const anyRunning = anyChipActive(effectRow);
     effectRow.hidden = !anyRunning;
     runningNone.hidden = anyRunning;
     runningNone.textContent = anyRunning ? "" : "Nothing running";

@@ -89,7 +89,23 @@ function spoken(label: EffectLabel): string {
   return `${multiplierMark(label.multiplier)} ${clock}`;
 }
 
+// Which chips were last written active. The Running list asks this instead of
+// reading the page back for chips that are not hidden.
+const activeChips = new WeakSet<HTMLElement>();
+
+/** Whether any element child of `host` was last written active. */
+export function anyChipActive(host: ParentNode): boolean {
+  return Array.from(host.children).some(
+    (child) => child instanceof HTMLElement && activeChips.has(child),
+  );
+}
+
 export function writeChip(chip: HTMLElement, label: EffectLabel): void {
+  if (label.active) {
+    activeChips.add(chip);
+  } else {
+    activeChips.delete(chip);
+  }
   const name = chip.querySelector(".effect-name");
   const mult = chip.querySelector(".effect-mult");
   const time = chip.querySelector(".effect-time");
