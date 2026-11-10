@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { nineSlicePlan, SKINS, skin, skinArtSize } from "./board-skin";
 
 describe("nineSlicePlan", () => {
@@ -105,5 +105,36 @@ describe("skin", () => {
       (canvas as HTMLCanvasElement).width,
       (canvas as HTMLCanvasElement).height,
     ]).toEqual([0, 0]);
+  });
+});
+
+describe("skin: a pressed kind", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("a pressed skin asks its getter on every paint, the resize repaint included", () => {
+    let resized: (() => void) | undefined;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: () => void) {
+          resized = callback;
+        }
+        observe(): void {}
+        disconnect(): void {}
+      },
+    );
+    const div = document.createElement("div");
+    Object.defineProperty(div, "offsetWidth", { value: 100 });
+    Object.defineProperty(div, "offsetHeight", { value: 40 });
+    document.body.append(div);
+    const down = vi.fn(() => false);
+    const repaint = skin(div, "key", { kind: "keyp", down });
+    expect(down).toHaveBeenCalledTimes(1);
+    repaint();
+    expect(down).toHaveBeenCalledTimes(2);
+    resized?.();
+    expect(down).toHaveBeenCalledTimes(3);
   });
 });

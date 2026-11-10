@@ -146,7 +146,7 @@ page is the map, plus the rules that keep it that way.
    window and its `env(safe-area-inset-*)`, read back through a hidden
    probe; 1 at 424×924 with no insets, so the art stays at exactly 2×),
    `board-skin` (the 9-slice plan that draws a frame, tag or key skin on a
-   canvas behind its element; a plate key's press repaints its pressed skin), `odometer` (the five drum faces for a
+   canvas behind its element; `skin` is told whether its host is down, so a plate key's press repaints its pressed skin), `odometer` (the five drum faces for a
    pocket) and `crew-boost` (the crew timer the crew is running at, and the
    dial frame). DOM parts take `getView` and callbacks like a panel:
    `board-note` (the floating framed note, placed in board coordinates; a
@@ -312,7 +312,7 @@ page is the map, plus the rules that keep it that way.
   Upgrades drawers, their shell and their rows, the key rail, the Ready now
   plate and the machine bays are painters of its view: they send it inputs
   and presses and read `boardView`; none holds a settle, a hold, a timer or
-  a freeze of its own. `pressOnBoard` (in `card-tap`) is the one board
+  a freeze of its own. Every board control's "is down" look goes through `pressLook` (in `card-tap`), and each part paints its own look; Engineers' timed `is-pressed` flash stays its own until B6 (#374) rebuilds Engineers on the shared rows. `pressOnBoard` (in `card-tap`) is the one board
   press: it tracks a control's finger-down time, sends the model the press
   (the control, who pressed, the finger's `downAt` and the click) and hands
   back its decision. Its `control` is a `ControlRef` or a function of the
