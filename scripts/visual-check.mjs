@@ -3891,16 +3891,22 @@ async function boardArtAt2x(page, partsOf = BOARD_PARTS, artOf = BOARD_ART) {
           art.src = url;
         });
       // Art still loading is not art drawn wrong: an img whose source just
-      // changed (the tub filling) is decoded, and a skin is given a few
-      // frames to paint once its art has loaded (src/board-skin.ts), before
-      // either is measured. Under the full gate's load both can lag.
-      await Promise.all(
-        parts.flatMap((part) =>
-          [...part.querySelectorAll("img")].map((img) =>
-            img.decode().catch(() => undefined),
-          ),
-        ),
-      );
+      // changed is decoded, and a skin is given a few frames to paint once
+      // its art has loaded (src/board-skin.ts), before either is measured.
+      // The window keeps running while this waits, so the tub can swap to
+      // its other picture inside the wait (#445): every frame decodes again
+      // any img that is not loaded, and the measure below runs in the same
+      // task as the last check, with no frame between.
+      const images = () =>
+        parts.flatMap((part) => [...part.querySelectorAll("img")]);
+      // Only drawn art is measured, so only drawn art is waited for.
+      const loading = () =>
+        images().filter(
+          (img) =>
+            drawn(img) &&
+            img.getAttribute("src") &&
+            (!img.complete || img.naturalWidth === 0),
+        );
       const unpainted = () =>
         parts.some((part) =>
           [...part.querySelectorAll("canvas.board-skin")].some(
@@ -3910,8 +3916,18 @@ async function boardArtAt2x(page, partsOf = BOARD_PARTS, artOf = BOARD_ART) {
               drawn(canvas.parentElement),
           ),
         );
-      for (let frame = 0; frame < 60 && unpainted(); frame += 1) {
-        await new Promise((resolve) => requestAnimationFrame(resolve));
+      await Promise.all(
+        images().map((img) => img.decode().catch(() => undefined)),
+      );
+      for (
+        let frame = 0;
+        frame < 60 && (unpainted() || loading().length > 0);
+        frame += 1
+      ) {
+        await Promise.all([
+          new Promise((resolve) => requestAnimationFrame(resolve)),
+          ...loading().map((img) => img.decode().catch(() => undefined)),
+        ]);
       }
       for (const part of parts) {
         const imgs = part.matches(artOf)
