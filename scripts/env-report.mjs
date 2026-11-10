@@ -4,6 +4,7 @@
 // Node major differs from .nvmrc (the single source of truth for Node).
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
+import { chromePath } from "../tools/browser/harness.ts";
 
 const run = (cmd, args) => {
   try {
@@ -24,11 +25,11 @@ const run = (cmd, args) => {
 };
 const javaHome = process.env.JAVA_HOME_21_X64 ?? process.env.JAVA_HOME;
 const java = javaHome ? `${javaHome}/bin/java` : "java";
+const chromeGuess = chromePath();
 const chrome =
-  process.env.CHROME_PATH ??
-  ["/usr/bin/google-chrome", "/usr/local/bin/google-chrome"].find((path) =>
-    existsSync(path),
-  );
+  process.env.CHROME_PATH !== undefined || existsSync(chromeGuess)
+    ? chromeGuess
+    : undefined;
 const javaRun = spawnSync(java, ["-version"], { encoding: "utf8" });
 const javaVersion = javaRun.error
   ? "missing"

@@ -4,7 +4,7 @@
  * Each is what a tab finds in localStorage on its first load.
  */
 
-export const SAVE_KEY = "dad-friendly-session";
+export { SAVE_KEY } from "../tools/browser/harness.ts";
 
 // Every tier so far on screen: the compact, three-to-a-row grid.
 export const CREW = {

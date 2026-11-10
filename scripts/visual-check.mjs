@@ -1,4 +1,4 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, sessionStorage, localStorage, getComputedStyle, setTimeout, URL, HTMLButtonElement, HTMLElement, HTMLImageElement, Image, requestAnimationFrame */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, localStorage, getComputedStyle, setTimeout, HTMLButtonElement, HTMLElement, HTMLImageElement, Image, requestAnimationFrame */
 /**
  * Real-browser layout guard (jsdom can't see CSS). Run it with:
  *   npm run visual   (starts its own dev server; part of npm run check)
@@ -6,11 +6,18 @@
  * overlay isn't laid over the board, or if the board's own parts miss their
  * bars (targets, type, contrast, exact 2x art) (#370).
  */
-import { existsSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { performance } from "node:perf_hooks";
-import puppeteer from "puppeteer-core";
-import { createServer } from "vite";
+import {
+  holdThrough as holdThroughOn,
+  launchChrome,
+  open as openHarness,
+  openPair,
+  press as pressOn,
+  startServer,
+  stepTapClock,
+} from "../tools/browser/harness.ts";
 import {
   contrastRatio,
   targetsCloserThan,
@@ -40,23 +47,8 @@ import {
 } from "./fixtures.mjs";
 
 // Serves the app itself unless VISUAL_URL points at a running one.
-const server =
-  process.env.VISUAL_URL === undefined
-    ? await createServer({
-        server: { host: "127.0.0.1", port: 4174, strictPort: false },
-        logLevel: "error",
-      }).then((dev) => dev.listen())
-    : undefined;
-const BASE =
-  process.env.VISUAL_URL ??
-  server?.resolvedUrls?.local[0] ??
-  "http://127.0.0.1:4174/";
-const CHROME =
-  process.env.CHROME_PATH ??
-  ["/usr/bin/google-chrome", "/usr/local/bin/google-chrome"].find((path) =>
-    existsSync(path),
-  ) ??
-  "/usr/bin/google-chrome";
+const server = await startServer({ port: 4174, url: process.env.VISUAL_URL });
+const BASE = server.base;
 /** The phone: the installed app on the OnePlus 15, the board at scale 1 (#370). */
 const PHONE = [424, 924];
 /** The PC sizes: the same board, scaled to fit on the desk. */
@@ -108,21 +100,14 @@ const section = (label, run) => {
   }
 };
 
-const browser = await puppeteer.launch({
-  executablePath: CHROME,
-  args: ["--no-sandbox"],
-});
+const browser = await launchChrome();
 
 /** Pages opened at a PC size: they take clicks, the phone takes taps. */
 const desks = new WeakMap();
 
 /** A tap on the phone, a click on a PC. */
 async function press(page, selector) {
-  if (desks.get(page) === true) {
-    await page.click(selector);
-  } else {
-    await page.tap(selector);
-  }
+  await pressOn(page, selector, { desk: desks.get(page) === true });
 }
 
 /** A key on the rail (#373): buys, workshop, engineers, upgrades or ledger. */
@@ -412,20 +397,11 @@ async function boardProbe(page) {
   });
 }
 
-/** Where a held tap clock starts: far past any event's stamp, which counts from the page's load. */
-const HELD_TAP_START = 1_000_000_000;
-
 /** A step of a held tap clock past a drawer's 400ms settle (board-interaction's DRAWER_SETTLE_MS). */
 const PAST_SETTLE_MS = 500;
 
-/** Moves a held tap clock on by `ms`, as if that long had passed for the board's model. */
-async function stepTapClock(page, ms) {
-  await page.evaluate((by) => {
-    globalThis.__tapNow += by;
-  }, ms);
-}
-
-async function open(
+// Adapts visual's (size, save, options) call shape onto the harness open.
+async function openScreen(
   [width, height],
   save,
   {
@@ -436,68 +412,41 @@ async function open(
     tapClock = "real",
   } = {},
 ) {
-  const context = await browser.createBrowserContext();
-  const page = await context.newPage();
-  if (standalone) {
-    const cdp = await page.createCDPSession();
-    await cdp.send("Emulation.setSafeAreaInsetsOverride", {
-      insets: STANDALONE_INSETS,
-    });
-    await cdp
-      .send("Emulation.setEmulatedMedia", {
-        features: [{ name: "display-mode", value: "standalone" }],
-      })
-      .catch(() => undefined);
-  }
-  page.on("pageerror", (error) => {
-    failures.push(
-      `page error at ${String(width)}x${String(height)}: ${String(error)}`,
-    );
-  });
   const desk = isDesk([width, height]);
-  desks.set(page, desk);
-  await page.setViewport({ width, height, isMobile: !desk, hasTouch: !desk });
-  // A clock the check can push forward, for veins and other timed things.
-  await page.evaluateOnNewDocument(() => {
-    const realNow = Date.now.bind(Date);
-    globalThis.__skewMs = 0;
-    Date.now = () => realNow() + globalThis.__skewMs;
-  });
-  if (stopClock) {
-    // A crew of thousands digs millions a second. With the clock stopped it
-    // cannot reach a relic mid-check, so no reveal lands on a tap.
-    await page.evaluateOnNewDocument(() => {
-      const stopped = Date.now();
-      Date.now = () => stopped;
-    });
-  }
-  if (tapClock === "held") {
-    // The board's tap clock stands still until the check steps it (stepTapClock), so the
-    // drawer's settle and the Done hold end when the check says, never by load. It starts far
-    // past any event's stamp: every press is too old to trust and is judged when it is handled.
-    await page.evaluateOnNewDocument((start) => {
-      globalThis.__tapNow = start;
-      globalThis.performance.now = () => globalThis.__tapNow;
-    }, HELD_TAP_START);
-  }
-  await boardProbe(page);
-  await page.evaluateOnNewDocument(
-    (key, value) => {
-      if (sessionStorage.getItem("visual-seeded") === null) {
-        sessionStorage.setItem("visual-seeded", "1");
-        localStorage.setItem(key, value);
+  const { page, close } = await openHarness(browser, BASE, {
+    viewport: { width, height, isMobile: !desk, hasTouch: !desk },
+    seed: { kind: "once", guard: "visual-seeded", json: seedJson(save) },
+    // A clock the check can push forward, for veins and other timed things; stopped, a crew of
+    // thousands cannot reach a relic mid-check. A held tap clock moves only by stepTapClock.
+    clock: { date: stopClock ? "stopped" : "skewable", tap: tapClock },
+    search,
+    onPageError: (error) => {
+      failures.push(
+        `page error at ${String(width)}x${String(height)}: ${String(error)}`,
+      );
+    },
+    beforeLoad: async (page) => {
+      if (standalone) {
+        const cdp = await page.createCDPSession();
+        await cdp.send("Emulation.setSafeAreaInsetsOverride", {
+          insets: STANDALONE_INSETS,
+        });
+        await cdp
+          .send("Emulation.setEmulatedMedia", {
+            features: [{ name: "display-mode", value: "standalone" }],
+          })
+          .catch(() => undefined);
+      }
+      await boardProbe(page);
+      if (reducedMotion) {
+        await page.emulateMediaFeatures([
+          { name: "prefers-reduced-motion", value: "reduce" },
+        ]);
       }
     },
-    SAVE_KEY,
-    seedJson(save),
-  );
-  if (reducedMotion) {
-    await page.emulateMediaFeatures([
-      { name: "prefers-reduced-motion", value: "reduce" },
-    ]);
-  }
-  await page.goto(new URL(search, BASE).href, { waitUntil: "networkidle0" });
-  return { page, close: () => context.close() };
+  });
+  desks.set(page, desk);
+  return { page, close };
 }
 
 /**
@@ -760,7 +709,7 @@ async function veinInView(page) {
 for (const viewport of SCREENS) {
   section(`section 1 (main screen) ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await open(viewport, {
+    const { page, close } = await openScreen(viewport, {
       version: 4,
       mountain: CREW,
       lastSeen: Date.now(),
@@ -1126,7 +1075,7 @@ for (const viewport of [PHONE]) {
         "DejaVu Sans",
       ],
     ]) {
-      const { page, close } = await open(
+      const { page, close } = await openScreen(
         viewport,
         {
           version: 4,
@@ -1259,7 +1208,7 @@ for (const viewport of [PHONE]) {
 for (const viewport of [PHONE]) {
   section(`section 3 (standalone) ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await open(
+    const { page, close } = await openScreen(
       viewport,
       { version: 4, mountain: CREW, lastSeen: Date.now() },
       { standalone: true },
@@ -1324,7 +1273,7 @@ for (const standalone of [false, true]) {
   section(`section 4 (line 816) ${JSON.stringify(standalone)}`, async () => {
     const viewport = PHONE;
     const label = `424x924${standalone ? " standalone" : ""}`;
-    const { page, close } = await open(
+    const { page, close } = await openScreen(
       viewport,
       {
         legacy: true,
@@ -1365,7 +1314,7 @@ for (const standalone of [false, true]) {
 section("section 5 (line 856)", async () => {
   {
     const viewport = PHONE;
-    const { page, close } = await open(viewport, {
+    const { page, close } = await openScreen(viewport, {
       version: 4,
       mountain: { ...BEFORE_LANTERN, helpers: 5 },
       lastSeen: Date.now() - 10 * 60 * 1000,
@@ -1496,7 +1445,7 @@ for (const standalone of [false, true]) {
   section(`section 6 (line 977) ${JSON.stringify(standalone)}`, async () => {
     const viewport = PHONE;
     const label = `424x924${standalone ? " standalone" : ""}`;
-    const { page, close } = await open(
+    const { page, close } = await openScreen(
       viewport,
       { version: 4, mountain: FOUND_BELOW, lastSeen: Date.now() },
       { standalone },
@@ -1517,7 +1466,7 @@ for (const standalone of [false, true]) {
 for (const viewport of [[424, 924]]) {
   section(`section 7 (line 997) ${JSON.stringify(viewport)}`, async () => {
     const label = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await open(viewport, {
+    const { page, close } = await openScreen(viewport, {
       version: 5,
       mountain: {
         remaining: 0,
@@ -1564,7 +1513,7 @@ for (const viewport of [[424, 924]]) {
 for (const viewport of [[424, 924]]) {
   section(`section 8 (line 1045) ${JSON.stringify(viewport)}`, async () => {
     const label = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await open(viewport, {
+    const { page, close } = await openScreen(viewport, {
       version: 5,
       mountain: {
         remaining: 1,
@@ -1605,7 +1554,7 @@ for (const viewport of [[424, 924]]) {
 for (const viewport of [[424, 924]]) {
   section(`section 9 (line 1087) ${JSON.stringify(viewport)}`, async () => {
     const label = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await open(viewport, lastStoneSave());
+    const { page, close } = await openScreen(viewport, lastStoneSave());
     await page.tap(".board-window");
     await page.waitForSelector(".relic-reveal:not([hidden])");
     await page.tap(".relic-reveal:not(.legend) .reveal-continue");
@@ -1679,7 +1628,7 @@ for (const standalone of [false, true]) {
   section(`section 10 (line 1138) ${JSON.stringify(standalone)}`, async () => {
     const viewport = PHONE;
     const label = `424x924${standalone ? " standalone" : ""}`;
-    const { page, close } = await open(
+    const { page, close } = await openScreen(
       viewport,
       { version: 4, mountain: CREW, lastSeen: Date.now() },
       { standalone, search: "?trouble=cave-in" },
@@ -1739,7 +1688,7 @@ for (const standalone of [false, true]) {
     const viewport = PHONE;
     const label = `424x924${standalone ? " standalone" : ""}`;
     const now = Date.now();
-    const { page, close } = await open(
+    const { page, close } = await openScreen(
       viewport,
       {
         version: 4,
@@ -1876,7 +1825,7 @@ for (const viewport of [PHONE]) {
     for (const standalone of [false, true]) {
       const label = `${String(viewport[0])}x${String(viewport[1])}${standalone ? " standalone" : ""}`;
       const now = Date.now();
-      const { page, close } = await open(
+      const { page, close } = await openScreen(
         viewport,
         {
           version: 4,
@@ -1986,7 +1935,7 @@ for (const standalone of [false, true]) {
     const viewport = PHONE;
     const label = `424x924${standalone ? " standalone" : ""}`;
     const now = Date.now();
-    const { page, close } = await open(
+    const { page, close } = await openScreen(
       viewport,
       {
         version: 4,
@@ -2086,7 +2035,7 @@ for (const viewport of WORKSHOP_SIZES) {
   section(`section 14 (line 1531) ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     const now = Date.now();
-    const { page, close } = await open(viewport, workshopSave(now, true));
+    const { page, close } = await openScreen(viewport, workshopSave(now, true));
     await press(page, KEY("ledger"));
     await press(page, ".workshop-open");
     const laid = await coversBoard(page, ".workshop-dialog");
@@ -2264,7 +2213,7 @@ for (const viewport of WORKSHOP_SIZES) {
 section("section 15 (line 1703)", async () => {
   {
     const now = Date.now();
-    const { page, close } = await open(PHONE, {
+    const { page, close } = await openScreen(PHONE, {
       version: 6,
       lastSeen: now,
       mountain: {
@@ -2393,7 +2342,7 @@ for (const viewport of NOTICE_SIZES) {
     const now = Date.now();
 
     {
-      const { page, close } = await open(
+      const { page, close } = await openScreen(
         viewport,
         noticeSave({ mined: 9_999_999, lastSeen: now }),
       );
@@ -2428,7 +2377,7 @@ for (const viewport of NOTICE_SIZES) {
     }
 
     {
-      const { page, close } = await open(
+      const { page, close } = await openScreen(
         viewport,
         noticeSave({
           mined: 9_990_000,
@@ -2475,7 +2424,7 @@ for (const viewport of NOTICE_SIZES) {
     }
 
     {
-      const { page, close } = await open(
+      const { page, close } = await openScreen(
         viewport,
         noticeSave({
           mined: 12_000_000,
@@ -2520,7 +2469,7 @@ for (const viewport of NOTICE_SIZES) {
     }
 
     {
-      const { page, close } = await open(
+      const { page, close } = await openScreen(
         viewport,
         noticeSave({
           mined: 130_000_000,
@@ -2572,7 +2521,7 @@ for (const viewport of NOTICE_SIZES) {
     }
 
     {
-      const { page, close } = await open(
+      const { page, close } = await openScreen(
         viewport,
         noticeSave({
           mined: 4_500_000,
@@ -2705,19 +2654,19 @@ for (const viewport of NOTICE_SIZES) {
 // One writer tab. The other shows a card and does not scroll in Chrome on the phone.
 section("section 17 (line 2085)", async () => {
   {
-    const context = await browser.createBrowserContext();
     const [width, height] = PHONE;
-    const first = await context.newPage();
-    const second = await context.newPage();
-    for (const page of [first, second]) {
-      await boardProbe(page);
-      page.on("pageerror", (error) => {
+    const {
+      pages: [first, second],
+      close,
+    } = await openPair(browser, BASE, {
+      viewport: { width, height, isMobile: true, hasTouch: true },
+      seed: { kind: "none" },
+      clock: { date: "real", tap: "real" },
+      onPageError: (error) => {
         failures.push(`other tab: ${String(error)}`);
-      });
-      await page.setViewport({ width, height, isMobile: true, hasTouch: true });
-    }
-    await first.goto(BASE, { waitUntil: "networkidle0" });
-    await second.goto(BASE, { waitUntil: "networkidle0" });
+      },
+      beforeLoad: boardProbe,
+    });
     await second.waitForSelector(".other-tab:not([hidden])", {
       timeout: 5_000,
     });
@@ -2771,14 +2720,18 @@ section("section 17 (line 2085)", async () => {
     );
     await shot(first, "other-tab-stepped-aside-424x924");
     await shot(second, "other-tab-playing-here-424x924");
-    await context.close();
+    await close();
   }
 });
 
 // Two saves found. The real sheet, no scrollbar in Chrome on the phone.
 section("section 18 (line 2148)", async () => {
   {
-    const { page, close } = await open(PHONE, {}, { search: "?saves=two" });
+    const { page, close } = await openScreen(
+      PHONE,
+      {},
+      { search: "?saves=two" },
+    );
     await page.waitForSelector(".save-conflict:not([hidden])", {
       timeout: 5_000,
     });
@@ -3047,7 +3000,7 @@ for (const viewport of SHELF_VIEWS) {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     const shotThis = PHONE_SHOTS.has(size);
     {
-      const { page, close } = await open(viewport, freshMountain());
+      const { page, close } = await openScreen(viewport, freshMountain());
       await page.waitForSelector(".board-relics");
       const centre = await shelfCentre(page);
       check(
@@ -3079,7 +3032,7 @@ for (const viewport of SHELF_VIEWS) {
       await close();
     }
     {
-      const { page, close } = await open(viewport, openMountain());
+      const { page, close } = await openScreen(viewport, openMountain());
       await page.waitForSelector(".board-relics");
       const centre = await shelfCentre(page);
       check(
@@ -3125,7 +3078,7 @@ for (const viewport of SCREENS) {
   section(`section 20 (long sheets) ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     const shotThis = SHEET_SHOTS.has(size);
-    const { page, close } = await open(viewport, crewMountain());
+    const { page, close } = await openScreen(viewport, crewMountain());
     await page.waitForSelector(".board-relics");
     for (const name of ["buys", "upgrades"]) {
       await openSheet(page, name);
@@ -3242,7 +3195,7 @@ for (const viewport of PILL_VIEWS) {
   section(`section 21 (odometer) ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     for (const pocket of [32_500, 999_900_000_000_000, 1_000_000_000_000_000]) {
-      const { page, close } = await open(viewport, crewSave(pocket));
+      const { page, close } = await openScreen(viewport, crewSave(pocket));
       await page.waitForSelector(".board-odo");
       const clear = await pillClear(page);
       check(
@@ -3272,7 +3225,7 @@ for (const viewport of PILL_VIEWS) {
 for (const viewport of [PHONE]) {
   section(`section 22 (line 2613) ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await open(viewport, crewSave(32_500));
+    const { page, close } = await openScreen(viewport, crewSave(32_500));
     await openSheet(page, "buys");
     const buys = await page.evaluate(() => {
       const card = (tier) =>
@@ -3461,7 +3414,7 @@ for (const viewport of EFFECT_VIEWS) {
   section(`section 23 (Running now) ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     for (const count of [0, 1, 3, 12]) {
-      const { page, close } = await open(viewport, effectSave(count));
+      const { page, close } = await openScreen(viewport, effectSave(count));
       await page.waitForSelector(".board-dial");
       await press(page, ".board-dial");
       await page
@@ -3631,7 +3584,7 @@ for (const viewport of GUARD_SIZES) {
       async () => {
         const size = `${String(viewport[0])}x${String(viewport[1])}`;
         {
-          const { page, close } = await open(viewport, save());
+          const { page, close } = await openScreen(viewport, save());
           let opened = true;
           for (const selector of taps) {
             opened = await page
@@ -4163,7 +4116,7 @@ for (const viewport of SCREENS) {
       const size = `${String(viewport[0])}x${String(viewport[1])}`;
       const label = `${size} board, ${name}:`;
       const desk = isDesk(viewport);
-      const { page, close } = await open(viewport, save(), { search });
+      const { page, close } = await openScreen(viewport, save(), { search });
       await page.waitForSelector(".board-relics");
       await page.evaluate(() => document.fonts.ready.then(() => true));
       check(await noScroll(page), `${label} no page scroll`);
@@ -4541,7 +4494,7 @@ for (const viewport of SCREENS) {
     section(`gauge row ${JSON.stringify(viewport)} ${name}`, async () => {
       const size = `${String(viewport[0])}x${String(viewport[1])}`;
       const label = `${size} gauge row, ${name}:`;
-      const { page, close } = await open(viewport, save());
+      const { page, close } = await openScreen(viewport, save());
       await page.waitForSelector(".board-mine[data-band]");
       const fonts = await boardFontsLoaded(page);
       check(fonts, `${label} the bundled faces are loaded`);
@@ -4759,7 +4712,7 @@ for (const viewport of SCREENS) {
     // no view, machine, kid, tub or miner from a save it has not read yet.
     // The Deep Heart save owns every machine and the kid, so any leak shows.
     {
-      const { page, close } = await open(viewport, heartMountain(), {
+      const { page, close } = await openScreen(viewport, heartMountain(), {
         search: "?save=loading",
       });
       const loading = await page
@@ -4802,7 +4755,7 @@ for (const viewport of SCREENS) {
 
     // A cave-in shows in the window (the dev boot previews one).
     {
-      const { page, close } = await open(viewport, openMountain(), {
+      const { page, close } = await openScreen(viewport, openMountain(), {
         search: "?trouble=cave-in",
       });
       await page.waitForSelector(".board-mine[data-band]");
@@ -4824,7 +4777,7 @@ for (const viewport of SCREENS) {
     // the odometer reads it. The clock is stopped, so the crew adds nothing.
     {
       const start = heartMountain();
-      const { page, close } = await open(
+      const { page, close } = await openScreen(
         viewport,
         { ...start, mountain: { ...start.mountain, pocket: 0 } },
         { stopClock: true },
@@ -4874,7 +4827,7 @@ for (const viewport of SCREENS) {
     // Reduced motion: the window and the needle hold still; a tap still
     // shows "+N", without rising.
     {
-      const { page, close } = await open(viewport, heartMountain(), {
+      const { page, close } = await openScreen(viewport, heartMountain(), {
         reducedMotion: true,
       });
       await page.waitForSelector(".board-mine[data-band]");
@@ -4931,7 +4884,7 @@ for (const viewport of SCREENS) {
         }),
       ],
     ]) {
-      const { page, close } = await open(viewport, crewSave(), {
+      const { page, close } = await openScreen(viewport, crewSave(), {
         stopClock: true,
       });
       await page.waitForSelector(".board-crew");
@@ -5157,29 +5110,9 @@ async function storedMountain(page) {
  * holds in the page. True when it held before the timeout.
  */
 async function holdThrough(page, selector, done) {
-  const at = await page.$eval(selector, (el) => {
-    const b = el.getBoundingClientRect();
-    return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+  return holdThroughOn(page, selector, done, {
+    desk: desks.get(page) === true,
   });
-  const desk = desks.get(page) === true;
-  if (desk) {
-    await page.mouse.move(at.x, at.y);
-    await page.mouse.down();
-  } else {
-    await page.touchscreen.touchStart(at.x, at.y);
-  }
-  const held = await page
-    .waitForFunction(done, { timeout: 3_000 }, selector)
-    .then(
-      () => true,
-      () => false,
-    );
-  if (desk) {
-    await page.mouse.up();
-  } else {
-    await page.touchscreen.touchEnd();
-  }
-  return held;
 }
 
 /** Waits for the page to paint `count` more frames: what a press set off has painted. */
@@ -5252,7 +5185,9 @@ for (const viewport of SCREENS) {
       const size = `${String(viewport[0])}x${String(viewport[1])}`;
       const label = `${size} bays and ready, ${name}:`;
       const seed = save();
-      const { page, close } = await open(viewport, seed, { stopClock: true });
+      const { page, close } = await openScreen(viewport, seed, {
+        stopClock: true,
+      });
       const drawn = await baysDrawn(page);
       const fonts = await boardFontsLoaded(page);
       check(drawn && fonts, `${label} the bays are drawn in the bundled faces`);
@@ -5388,7 +5323,7 @@ for (const viewport of SCREENS) {
 
     // Ready now: a tap buys exactly one cart for one price and paints Done.
     {
-      const { page, close } = await open(viewport, crewMountain(), {
+      const { page, close } = await openScreen(viewport, crewMountain(), {
         stopClock: true,
         tapClock: "held",
       });
@@ -5455,7 +5390,7 @@ for (const viewport of SCREENS) {
 
     // Saving for: the time shows, and a tap opens Buys and spends nothing.
     {
-      const { page, close } = await open(viewport, savingMountain(), {
+      const { page, close } = await openScreen(viewport, savingMountain(), {
         stopClock: true,
         tapClock: "held",
       });
@@ -5487,7 +5422,7 @@ for (const viewport of SCREENS) {
 
     // An open bay: a tap opens Buys and spends nothing.
     {
-      const { page, close } = await open(viewport, openMountain(), {
+      const { page, close } = await openScreen(viewport, openMountain(), {
         stopClock: true,
         tapClock: "held",
       });
@@ -5525,7 +5460,7 @@ for (const viewport of SCREENS) {
     // under it. On a fresh page a hold fixes it too.
     {
       const troubled = '.board-bay[data-tier="cart"][data-trouble="cave-in"]';
-      const { page, close } = await open(viewport, openMountain(), {
+      const { page, close } = await openScreen(viewport, openMountain(), {
         search: "?trouble=cave-in",
         stopClock: true,
         tapClock: "held",
@@ -5597,7 +5532,7 @@ for (const viewport of SCREENS) {
     }
     {
       const bay = '.board-bay[data-tier="cart"]';
-      const { page, close } = await open(viewport, openMountain(), {
+      const { page, close } = await openScreen(viewport, openMountain(), {
         search: "?trouble=cave-in",
         stopClock: true,
         tapClock: "held",
@@ -5624,7 +5559,7 @@ for (const viewport of SCREENS) {
     // The red button digs exactly the tap's yield, and the window shows it.
     {
       const start = heartMountain();
-      const { page, close } = await open(
+      const { page, close } = await openScreen(
         viewport,
         { ...start, mountain: { ...start.mountain, pocket: 0 } },
         { stopClock: true },
@@ -5672,7 +5607,7 @@ for (const viewport of SCREENS) {
     // the drill's 0.18s steps apart, are the same. As a control, without it
     // the drill bay's icon steps.
     for (const reducedMotion of [false, true]) {
-      const { page, close } = await open(viewport, heartMountain(), {
+      const { page, close } = await openScreen(viewport, heartMountain(), {
         reducedMotion,
         stopClock: true,
       });
@@ -5737,7 +5672,7 @@ for (const viewport of SCREENS) {
     // with no legend.
     {
       const start = openMountain();
-      const { page, close } = await open(
+      const { page, close } = await openScreen(
         viewport,
         { ...start, mountain: { ...start.mountain, remaining: 0 } },
         { stopClock: true },
@@ -5774,7 +5709,7 @@ for (const viewport of SCREENS) {
     // While a save loads, the bays, the plate and the red button are their
     // frames and art alone: no words or numbers from a save not yet read.
     {
-      const { page, close } = await open(viewport, heartMountain(), {
+      const { page, close } = await openScreen(viewport, heartMountain(), {
         search: "?save=loading",
       });
       const loading = await page
@@ -6097,7 +6032,7 @@ for (const viewport of SCREENS) {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     for (const [name, save] of RAIL_SAVES) {
       const label = `${size} key rail, ${name}:`;
-      const { page, close } = await open(viewport, save());
+      const { page, close } = await openScreen(viewport, save());
       const drawn = await keysDrawn(page);
       // The rail's faces and images are in before it is measured.
       await page.waitForFunction(
@@ -6203,7 +6138,7 @@ for (const viewport of SCREENS) {
       `keys and drawers ${JSON.stringify(viewport)} ${saveName}`,
       async () => {
         const size = `${String(viewport[0])}x${String(viewport[1])}`;
-        const { page, close } = await open(viewport, save(), {
+        const { page, close } = await openScreen(viewport, save(), {
           stopClock: true,
         });
         await keysDrawn(page);
@@ -6455,7 +6390,10 @@ for (const viewport of SCREENS) {
         ),
       );
     const visit = async (save, name, search = "") => {
-      const opened = await open(viewport, save(), { search, stopClock: true });
+      const opened = await openScreen(viewport, save(), {
+        search,
+        stopClock: true,
+      });
       await keysDrawn(opened.page);
       await noteAway(opened.page);
       await openSheet(opened.page, name);
@@ -6667,7 +6605,7 @@ for (const viewport of SCREENS) {
     // Rows: a finger tap on the cart row after the settle buys one and shows
     // Done. The "i" shows the how cards; their Back brings the list back.
     {
-      const { page, close } = await open(viewport, crewMountain(), {
+      const { page, close } = await openScreen(viewport, crewMountain(), {
         stopClock: true,
         tapClock: "held",
       });
@@ -6765,7 +6703,7 @@ for (const viewport of SCREENS) {
     // reads red within 200ms. Timed on the browser's own stamps (the click's
     // and each frame's), since the tap clock is held.
     {
-      const { page, close } = await open(viewport, savingMountain(), {
+      const { page, close } = await openScreen(viewport, savingMountain(), {
         stopClock: true,
         tapClock: "held",
       });
@@ -6823,7 +6761,7 @@ for (const viewport of SCREENS) {
     // The ways out: a scrim tap, a scrim tap over a relic socket (which then
     // shows the relic's note), and Escape.
     {
-      const { page, close } = await open(viewport, openMountain(), {
+      const { page, close } = await openScreen(viewport, openMountain(), {
         stopClock: true,
         tapClock: "held",
       });
@@ -6882,7 +6820,7 @@ for (const viewport of SCREENS) {
     // same spot, meets the key under Back, which waits out the settle the
     // close started; past it, a tap there opens that key.
     {
-      const { page, close } = await open(viewport, openMountain(), {
+      const { page, close } = await openScreen(viewport, openMountain(), {
         stopClock: true,
         tapClock: "held",
       });
@@ -6956,7 +6894,7 @@ for (const viewport of SCREENS) {
     // Reduced motion: a drawer is all the way open in the first frame after
     // the tap. Without it, the drawer is still sliding in that frame.
     for (const reducedMotion of [false, true]) {
-      const { page, close } = await open(viewport, savingMountain(), {
+      const { page, close } = await openScreen(viewport, savingMountain(), {
         reducedMotion,
         stopClock: true,
       });
@@ -7018,7 +6956,7 @@ for (const viewport of PRESS_SIZES) {
 
     // A rail key: is-down and its cap's down frame while held, back to its rest frame after.
     {
-      const { page, close } = await open(viewport, openMountain(), {
+      const { page, close } = await openScreen(viewport, openMountain(), {
         stopClock: true,
         tapClock: "held",
       });
@@ -7045,7 +6983,7 @@ for (const viewport of PRESS_SIZES) {
       await close();
     }
     {
-      const { page, close } = await open(viewport, openMountain(), {
+      const { page, close } = await openScreen(viewport, openMountain(), {
         stopClock: true,
         tapClock: "held",
       });
@@ -7075,7 +7013,7 @@ for (const viewport of PRESS_SIZES) {
 
     // A plate button (the Buys drawer's Back plate): down, with its canvas painted differently.
     {
-      const { page, close } = await open(viewport, openMountain(), {
+      const { page, close } = await openScreen(viewport, openMountain(), {
         stopClock: true,
         tapClock: "held",
       });
@@ -7107,7 +7045,7 @@ for (const viewport of PRESS_SIZES) {
 
     // The Ready plate: the guard's pressed frame while held (a tap buys, so it ends in Done).
     {
-      const { page, close } = await open(viewport, crewMountain(), {
+      const { page, close } = await openScreen(viewport, crewMountain(), {
         stopClock: true,
         tapClock: "held",
       });
@@ -7133,7 +7071,7 @@ for (const viewport of PRESS_SIZES) {
 
     // The dig sprite: the down frame while held, the rest frame after the click's up frame.
     {
-      const { page, close } = await open(viewport, openMountain(), {
+      const { page, close } = await openScreen(viewport, openMountain(), {
         stopClock: true,
         tapClock: "held",
       });
@@ -7158,7 +7096,7 @@ for (const viewport of PRESS_SIZES) {
 
     // A Buys row: is-pressed while held, off after the lift.
     {
-      const { page, close } = await open(viewport, openMountain(), {
+      const { page, close } = await openScreen(viewport, openMountain(), {
         stopClock: true,
         tapClock: "held",
       });
@@ -7192,7 +7130,7 @@ if (only !== undefined && sections.length === 0) {
     `VISUAL_ONLY=${String(process.env.VISUAL_ONLY)} matches no section; nothing was checked.`,
   );
   await browser.close();
-  await server?.close();
+  await server.close();
   process.exit(1);
 }
 const jobs = Math.max(
@@ -7223,7 +7161,7 @@ if (process.env.VISUAL_TIMINGS) {
 }
 
 await browser.close();
-await server?.close();
+await server.close();
 if (failures.length > 0) {
   console.error(
     `\n${String(failures.length)} visual check(s) failed:\n- ${failures.join("\n- ")}`,

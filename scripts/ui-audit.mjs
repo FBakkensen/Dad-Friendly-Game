@@ -1,19 +1,23 @@
-/* global console, process, document, getComputedStyle, innerWidth, innerHeight, HTMLElement, Element, navigator, localStorage, setTimeout, URL */
+/* global console, process, document, getComputedStyle, innerWidth, innerHeight, HTMLElement, Element, navigator, setTimeout */
 /**
  * Screen audit capture. Not part of `npm run check`.
  *
- * Same browser setup as scripts/visual-check.mjs: Vite, puppeteer-core, and
- * a localStorage save planted before boot. Shots are 424×924, the installed app
+ * Opens its pages through the browser harness (tools/browser/harness.ts): Vite,
+ * Chrome, and a localStorage save planted before boot. Shots are 424×924, the installed app
  * and the board's own size (#370), at device scale 2. Dev-only preview params (`?saves=two`,
  * `?save=loading`, `?save=error`, `?copies=shelf`, `?trouble=cave-in`) seed
  * the save screens.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import puppeteer from "puppeteer-core";
-import { createServer } from "vite";
+import {
+  launchChrome,
+  open as openHarness,
+  openPair,
+  startServer,
+} from "../tools/browser/harness.ts";
 import {
   contrastRatio,
   isLargeText,
@@ -31,7 +35,6 @@ import {
 } from "./fixtures.mjs";
 
 const OUT = "docs/ui-audit";
-const SAVE_KEY = "dad-friendly-session";
 /** The phone: the board's 424x924 stage at scale 1 (#370). */
 const PHONE_SIZE = "424x924";
 const VIEWPORTS = [[424, 924]];
@@ -50,20 +53,10 @@ const RECIPES = [
 ];
 const MOUNTAIN = 240_000_000;
 
-const server = await createServer({
-  server: { host: "127.0.0.1", port: 4175, strictPort: false },
-  logLevel: "error",
-}).then((dev) => dev.listen());
-const BASE = server.resolvedUrls?.local[0] ?? "http://127.0.0.1:4175/";
-const CHROME =
-  process.env.CHROME_PATH ??
-  ["/usr/bin/google-chrome", "/usr/local/bin/google-chrome"].find((path) =>
-    existsSync(path),
-  ) ??
-  "/usr/bin/google-chrome";
+const server = await startServer({ port: 4175, url: undefined });
+const BASE = server.base;
 
-const browser = await puppeteer.launch({
-  executablePath: CHROME,
+const browser = await launchChrome({
   args: ["--no-sandbox", "--hide-scrollbars", "--font-render-hinting=none"],
 });
 
@@ -129,48 +122,38 @@ function quietCrew(extra = {}) {
   };
 }
 
+// Adapts the audit's (viewport, save, options) call shape onto the harness open.
 /**
  * @param {[number, number]} viewport
  * @param {object | undefined} save
  * @param {{ search?: string }} [options]
  */
-async function open(viewport, save, { search = "" } = {}) {
-  const context = await browser.createBrowserContext();
-  const page = await context.newPage();
+async function openAuditPage(viewport, save, { search = "" } = {}) {
   const errors = [];
-  page.on("pageerror", (error) => {
-    errors.push(String(error));
-  });
-  await page.setViewport({
-    width: viewport[0],
-    height: viewport[1],
-    deviceScaleFactor: 2,
-    isMobile: true,
-    hasTouch: true,
-  });
-  await page.evaluateOnNewDocument(() => {
-    const realNow = Date.now.bind(Date);
-    globalThis.__skewMs = 0;
-    Date.now = () => realNow() + globalThis.__skewMs;
-  });
-  await page.evaluateOnNewDocument(
-    (key, value) => {
-      if (value === null) {
-        localStorage.removeItem(key);
-        return;
-      }
-      localStorage.setItem(key, value);
+  const { page, close } = await openHarness(browser, BASE, {
+    viewport: {
+      width: viewport[0],
+      height: viewport[1],
+      deviceScaleFactor: 2,
+      isMobile: true,
+      hasTouch: true,
     },
-    SAVE_KEY,
-    save === undefined ? null : JSON.stringify(save),
-  );
-  await page.goto(new URL(search, BASE).href, { waitUntil: "networkidle0" });
+    seed:
+      save === undefined
+        ? { kind: "remove" }
+        : { kind: "everyLoad", json: JSON.stringify(save) },
+    clock: { date: "skewable", tap: "real" },
+    search,
+    onPageError: (error) => {
+      errors.push(String(error));
+    },
+  });
   await page.waitForSelector(".board-window", { timeout: 8_000 });
   await page.evaluate(() => document.fonts.ready);
   return {
     page,
     errors,
-    close: () => context.close(),
+    close,
   };
 }
 
@@ -842,9 +825,9 @@ async function main() {
       pocket: 12_000_000,
     });
 
-  await capture("mountain-rest", (viewport) => open(viewport, rest()));
+  await capture("mountain-rest", (viewport) => openAuditPage(viewport, rest()));
   await capture("mountain-vein", async (viewport) => {
-    const opened = await open(viewport, rest());
+    const opened = await openAuditPage(viewport, rest());
     await opened.page.evaluate(() => {
       globalThis.__skewMs = 7 * 60 * 1000;
     });
@@ -865,7 +848,7 @@ async function main() {
   // borer, so the cart's cave-in lights a bay (#372).
   const hazard = () => late(Date.now(), 30_000_000, { machines: 0, kids: 0 });
   await capture("mountain-hazard", async (viewport) => {
-    const opened = await open(viewport, hazard(), {
+    const opened = await openAuditPage(viewport, hazard(), {
       search: "?trouble=cave-in",
     });
     // The cave-in comes down in the mine window, on the board (#371).
@@ -888,7 +871,7 @@ async function main() {
     return opened;
   });
   await capture("buys-hazard", async (viewport) => {
-    const opened = await open(viewport, hazard(), {
+    const opened = await openAuditPage(viewport, hazard(), {
       search: "?trouble=cave-in",
     });
     // The bay shows the trouble first; the shout lives on the troubled
@@ -904,7 +887,7 @@ async function main() {
     return opened;
   });
   await capture("mountain-layer-hint", async (viewport) => {
-    const opened = await open(
+    const opened = await openAuditPage(
       viewport,
       late(Date.now(), 30_000_000, { machines: 0, kids: 0 }),
     );
@@ -920,7 +903,7 @@ async function main() {
   await capture("crew-needs-workers", async (viewport) => {
     // Three hands free: the borer, which the pocket covers, is short of
     // workers, and the Great Machine is dear (#373).
-    const opened = await open(
+    const opened = await openAuditPage(
       viewport,
       late(Date.now(), 130_000_000, { helpers: 65 }),
     );
@@ -944,7 +927,7 @@ async function main() {
     return opened;
   });
   await capture("material-chips", async (viewport) => {
-    const opened = await open(viewport, rest());
+    const opened = await openAuditPage(viewport, rest());
     // The material line lives in the ☰ menu's ledger now.
     await openMenu(opened.page);
     await expectText(opened.page, /Clay/, "chips");
@@ -954,7 +937,7 @@ async function main() {
     return opened;
   });
   await capture("upgrades-boosts-timer", async (viewport) => {
-    const opened = await open(viewport, withBoosts());
+    const opened = await openAuditPage(viewport, withBoosts());
     await openDrawer(opened.page, "upgrades");
     // A running boost's row says Running, with its clock on the tag (#373).
     const running = await opened.page.$$eval(
@@ -979,7 +962,7 @@ async function main() {
   // locked with their unlock lines, and Upgrades shows its lit cap and its
   // red dot lamp.
   await capture("key-rail", async (viewport) => {
-    const opened = await open(viewport, seeded(crewMountain()));
+    const opened = await openAuditPage(viewport, seeded(crewMountain()));
     await opened.page.waitForSelector(".board-key.is-lit", { timeout: 8_000 });
     const keys = await opened.page.$$eval(".board-rail .board-key", (els) =>
       els.map((key) => ({
@@ -1007,7 +990,7 @@ async function main() {
   // The Buys drawer (#373): a borer he can afford but not staff, beside the
   // amber pick, dear and locked rows.
   await capture("buys-drawer", async (viewport) => {
-    const opened = await open(viewport, seeded(shortMountain()));
+    const opened = await openAuditPage(viewport, seeded(shortMountain()));
     await openDrawer(opened.page, "buys");
     await opened.page.waitForSelector(
       `${OPEN_SHEET("buys")} .tier.is-short[data-tier="borer"]`,
@@ -1017,7 +1000,7 @@ async function main() {
   });
   // Its "i": the Staffing and Layers cards in the drawer's place, one Back.
   await capture("buys-how", async (viewport) => {
-    const opened = await open(viewport, seeded(shortMountain()));
+    const opened = await openAuditPage(viewport, seeded(shortMountain()));
     await openDrawer(opened.page, "buys");
     await press(opened.page, `${OPEN_SHEET("buys")} .board-sheet-info`);
     await opened.page.waitForSelector(`${OPEN_SHEET("buys")} .teach-how`, {
@@ -1029,7 +1012,7 @@ async function main() {
   // The Upgrades drawer (#373): a levelled upgrade, an owned one, and found
   // tools under Brought home.
   await capture("upgrades-drawer", async (viewport) => {
-    const opened = await open(viewport, seeded(toolsMountain()));
+    const opened = await openAuditPage(viewport, seeded(toolsMountain()));
     await openDrawer(opened.page, "upgrades");
     const words = await opened.page.$eval(OPEN_SHEET("upgrades"), (sheet) => ({
       badge:
@@ -1053,7 +1036,7 @@ async function main() {
     return opened;
   });
   await capture("workshop-idle", async (viewport) => {
-    const opened = await open(viewport, rest());
+    const opened = await openAuditPage(viewport, rest());
     await openWorkshop(opened.page);
     await expectText(
       opened.page,
@@ -1063,35 +1046,35 @@ async function main() {
     return opened;
   });
   await capture("workshop-crafting", async (viewport) => {
-    const opened = await open(viewport, crafting());
+    const opened = await openAuditPage(viewport, crafting());
     await openWorkshop(opened.page);
     await expectText(opened.page, /On the bench/, "crafting");
     await expectText(opened.page, /\d:\d\d/, "crafting timer");
     return opened;
   });
   await capture("workshop-cancel", async (viewport) => {
-    const opened = await open(viewport, crafting());
+    const opened = await openAuditPage(viewport, crafting());
     await openWorkshop(opened.page);
     await press(opened.page, ".workshop-cancel");
     await expectText(opened.page, /Tap again to cancel/, "cancel");
     return opened;
   });
   await capture("workshop-reinforce", async (viewport) => {
-    const opened = await open(viewport, rest());
+    const opened = await openAuditPage(viewport, rest());
     await openWorkshop(opened.page);
     await showRecipe(opened.page, "Reinforce");
     await expectText(opened.page, /Reinforce/, "reinforce");
     return opened;
   });
   await capture("workshop-axle-grease", async (viewport) => {
-    const opened = await open(viewport, rest());
+    const opened = await openAuditPage(viewport, rest());
     await openWorkshop(opened.page);
     await showRecipe(opened.page, "Axle grease");
     await expectText(opened.page, /Axle grease/, "axle");
     return opened;
   });
   await capture("workshop-need-more", async (viewport) => {
-    const opened = await open(
+    const opened = await openAuditPage(
       viewport,
       late(
         Date.now(),
@@ -1107,7 +1090,7 @@ async function main() {
   });
   await capture("workshop-craft-done", async (viewport) => {
     const at = Date.now();
-    const opened = await open(
+    const opened = await openAuditPage(
       viewport,
       late(at, 20_000_000, quietCrew({ pocket: 2_000_000 }), {
         bench: {
@@ -1127,7 +1110,7 @@ async function main() {
     return opened;
   });
   await capture("engineers-promote", async (viewport) => {
-    const opened = await open(
+    const opened = await openAuditPage(
       viewport,
       late(Date.now(), 40_000_000, {
         pocket: 8_000_000,
@@ -1144,7 +1127,7 @@ async function main() {
   });
   await capture("engineers-expedition", async (viewport) => {
     const at = Date.now();
-    const opened = await open(
+    const opened = await openAuditPage(
       viewport,
       late(at, 40_000_000, {
         machines: 0,
@@ -1169,7 +1152,7 @@ async function main() {
   });
   await capture("engineers-homecoming", async (viewport) => {
     const at = Date.now();
-    const opened = await open(
+    const opened = await openAuditPage(
       viewport,
       late(at, 40_000_000, {
         machines: 0,
@@ -1194,14 +1177,14 @@ async function main() {
     return opened;
   });
   await capture("relic-tease", async (viewport) => {
-    const opened = await open(viewport, late(Date.now(), 223_000_000));
+    const opened = await openAuditPage(viewport, late(Date.now(), 223_000_000));
     // The relic goal line lives in the ☰ menu's ledger now.
     await openMenu(opened.page);
     await expectText(opened.page, /Next: .+Almost there/, "relic tease");
     return opened;
   });
   await capture("relic-reveal", async (viewport) => {
-    const opened = await open(
+    const opened = await openAuditPage(
       viewport,
       late(
         Date.now(),
@@ -1217,7 +1200,7 @@ async function main() {
     return opened;
   });
   await capture("relic-shelf", async (viewport) => {
-    const opened = await open(viewport, rest());
+    const opened = await openAuditPage(viewport, rest());
     // A socket's note holds the Relic shelf key; the tag is a label (#370).
     await press(opened.page, ".board-socket");
     await press(opened.page, ".board-note.on .board-platebtn");
@@ -1226,7 +1209,7 @@ async function main() {
     return opened;
   });
   await capture("legacy-badge", async (viewport) => {
-    const opened = await open(
+    const opened = await openAuditPage(
       viewport,
       late(Date.now(), 130_000_000, { legacy: 2 }),
     );
@@ -1235,13 +1218,13 @@ async function main() {
     return opened;
   });
   await capture("legacy-pass", async (viewport) => {
-    const opened = await open(viewport, finished());
+    const opened = await openAuditPage(viewport, finished());
     await openMenu(opened.page);
     await expectText(opened.page, /Pass the mine to your kid/, "pass");
     return opened;
   });
   await capture("legacy-confirm", async (viewport) => {
-    const opened = await open(viewport, finished());
+    const opened = await openAuditPage(viewport, finished());
     await openMenu(opened.page);
     await press(opened.page, ".menu-pass");
     await opened.page.waitForSelector(".legacy-dialog:not([hidden])");
@@ -1251,7 +1234,7 @@ async function main() {
   await capture("welcome-back", async (viewport) => {
     // Past the five-minute quiet note (#334), so the card opens.
     const away = Date.now() - 30 * 60_000;
-    const opened = await open(
+    const opened = await openAuditPage(
       viewport,
       late(away, 20_000_000, quietCrew({ pocket: 40_000 })),
     );
@@ -1262,7 +1245,7 @@ async function main() {
     return opened;
   });
   await capture("layer-arrival", async (viewport) => {
-    const opened = await open(
+    const opened = await openAuditPage(
       viewport,
       late(
         Date.now(),
@@ -1282,13 +1265,13 @@ async function main() {
     return opened;
   });
   await capture("menu-game", async (viewport) => {
-    const opened = await open(viewport, rest());
+    const opened = await openAuditPage(viewport, rest());
     await openMenu(opened.page);
     await expectText(opened.page, /Sign in with Google/, "menu");
     return opened;
   });
   await capture("field-log", async (viewport) => {
-    const opened = await open(viewport, rest());
+    const opened = await openAuditPage(viewport, rest());
     await opened.page.evaluate(() => {
       Object.defineProperty(navigator, "clipboard", {
         configurable: true,
@@ -1306,7 +1289,7 @@ async function main() {
     return opened;
   });
   await capture("start-over-confirm", async (viewport) => {
-    const opened = await open(viewport, rest());
+    const opened = await openAuditPage(viewport, rest());
     await openMenu(opened.page);
     await press(opened.page, ".start-over-link");
     await opened.page.waitForSelector(".start-over:not([hidden])");
@@ -1314,17 +1297,19 @@ async function main() {
     return opened;
   });
   await capture("save-status-unsigned", async (viewport) => {
-    const opened = await open(viewport, undefined);
+    const opened = await openAuditPage(viewport, undefined);
     await expectText(opened.page, /Sign in to save/, "unsigned");
     return opened;
   });
   await capture("save-status-session", async (viewport) => {
-    const opened = await open(viewport, rest());
+    const opened = await openAuditPage(viewport, rest());
     await expectText(opened.page, /Saved on this device/, "session");
     return opened;
   });
   await capture("save-status-loading", async (viewport) => {
-    const opened = await open(viewport, rest(), { search: "?save=loading" });
+    const opened = await openAuditPage(viewport, rest(), {
+      search: "?save=loading",
+    });
     await expectText(opened.page, /Loading your save/, "loading");
     // Until the save is in, the window is its frame and glass: nothing drawn
     // from a save it has not read yet (#371).
@@ -1343,7 +1328,9 @@ async function main() {
     return opened;
   });
   await capture("save-status-account", async (viewport) => {
-    const opened = await open(viewport, rest(), { search: "?memorySave=1" });
+    const opened = await openAuditPage(viewport, rest(), {
+      search: "?memorySave=1",
+    });
     await opened.page.waitForFunction(
       () =>
         (document.querySelector(".save-status")?.textContent ?? "").includes(
@@ -1354,13 +1341,17 @@ async function main() {
     return opened;
   });
   await capture("save-status-error", async (viewport) => {
-    const opened = await open(viewport, rest(), { search: "?save=error" });
+    const opened = await openAuditPage(viewport, rest(), {
+      search: "?save=error",
+    });
     await expectText(opened.page, /Couldn't reach your save/, "error");
     return opened;
   });
   await capture("save-drawer-error", async (viewport) => {
     // The save line opens its drawer: the facts, Close, and Try again (#370).
-    const opened = await open(viewport, rest(), { search: "?save=error" });
+    const opened = await openAuditPage(viewport, rest(), {
+      search: "?save=error",
+    });
     await press(opened.page, ".save-status");
     await opened.page.waitForSelector(".board-save-drawer.is-open");
     // The drawer slides in steps(6) over 240ms.
@@ -1370,14 +1361,16 @@ async function main() {
   });
   await capture("running-now", async (viewport) => {
     // The boost dial opens the Running now note: one line per countdown.
-    const opened = await open(viewport, withBoosts());
+    const opened = await openAuditPage(viewport, withBoosts());
     await press(opened.page, ".board-dial");
     await opened.page.waitForSelector(".board-note.on");
     await expectText(opened.page, /Running now/i, "running now");
     return opened;
   });
   await capture("save-conflict-rest", async (viewport) => {
-    const opened = await open(viewport, undefined, { search: "?saves=two" });
+    const opened = await openAuditPage(viewport, undefined, {
+      search: "?saves=two",
+    });
     await opened.page.waitForSelector(".save-conflict:not([hidden])");
     await expectText(opened.page, /Two saves found/, "conflict");
     const pressed = await opened.page.$eval(
@@ -1390,7 +1383,9 @@ async function main() {
     return opened;
   });
   await capture("save-conflict-selected", async (viewport) => {
-    const opened = await open(viewport, undefined, { search: "?saves=two" });
+    const opened = await openAuditPage(viewport, undefined, {
+      search: "?saves=two",
+    });
     await opened.page.waitForSelector(".save-conflict:not([hidden])");
     await press(opened.page, ".save-card[data-side='other']");
     const pressed = await opened.page.$eval(
@@ -1403,7 +1398,7 @@ async function main() {
     return opened;
   });
   await capture("saved-copies-earlier", async (viewport) => {
-    const opened = await open(viewport, late(Date.now(), 80_000_000), {
+    const opened = await openAuditPage(viewport, late(Date.now(), 80_000_000), {
       search: "?memorySave=1&copies=shelf",
     });
     await opened.page.waitForFunction(
@@ -1421,32 +1416,23 @@ async function main() {
     return opened;
   });
   await capture("other-tab-playing", async (viewport) => {
-    const context = await browser.createBrowserContext();
     const [width, height] = viewport;
-    const first = await context.newPage();
-    const second = await context.newPage();
     const errors = [];
-    for (const page of [first, second]) {
-      page.on("pageerror", (error) => {
-        errors.push(String(error));
-      });
-      await page.setViewport({
+    const { pages, close } = await openPair(browser, BASE, {
+      viewport: {
         width,
         height,
         deviceScaleFactor: 2,
         isMobile: true,
         hasTouch: true,
-      });
-      await page.evaluateOnNewDocument(
-        (key, value) => {
-          localStorage.setItem(key, value);
-        },
-        SAVE_KEY,
-        JSON.stringify(rest()),
-      );
-    }
-    await first.goto(BASE, { waitUntil: "networkidle0" });
-    await second.goto(BASE, { waitUntil: "networkidle0" });
+      },
+      seed: { kind: "everyLoad", json: JSON.stringify(rest()) },
+      clock: { date: "real", tap: "real" },
+      onPageError: (error) => {
+        errors.push(String(error));
+      },
+    });
+    const second = pages[1];
     await second.waitForSelector(".other-tab:not([hidden])", {
       timeout: 8_000,
     });
@@ -1454,11 +1440,11 @@ async function main() {
     return {
       page: second,
       errors,
-      close: () => context.close(),
+      close,
     };
   });
   await capture("update-available", async (viewport) => {
-    const opened = await open(viewport, rest());
+    const opened = await openAuditPage(viewport, rest());
     await opened.page.evaluate(() => {
       const prompt = document.querySelector(".update-prompt");
       if (prompt instanceof HTMLElement) {

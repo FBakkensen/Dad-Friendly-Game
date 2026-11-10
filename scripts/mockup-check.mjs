@@ -7,31 +7,28 @@
  *
  *   npm run mockups
  */
-import { existsSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { join } from "node:path";
-import puppeteer from "puppeteer-core";
-import { createServer } from "vite";
+import {
+  launchChrome,
+  newWindow,
+  startServer,
+} from "../tools/browser/harness.ts";
 
-const server =
-  process.env.MOCKUP_URL === undefined
-    ? await createServer({
-        server: { host: "127.0.0.1", port: 4175, strictPort: false },
-        logLevel: "error",
-      }).then((dev) => dev.listen())
-    : undefined;
-const BASE =
-  process.env.MOCKUP_URL ??
-  server?.resolvedUrls?.local[0] ??
-  "http://127.0.0.1:4175/";
-const CHROME =
-  process.env.CHROME_PATH ??
-  ["/usr/bin/google-chrome", "/usr/local/bin/google-chrome"].find((path) =>
-    existsSync(path),
-  ) ??
-  "/usr/bin/google-chrome";
+const server = await startServer({ port: 4175, url: process.env.MOCKUP_URL });
+const BASE = server.base;
 const OUT = process.env.MOCKUP_OUT ?? "mockups/shots";
 mkdirSync(OUT, { recursive: true });
+
+/** The page a worker starts on; every shot sets its own size. */
+const MOBILE_VIEWPORT = {
+  width: 424,
+  height: 924,
+  deviceScaleFactor: 1,
+  isMobile: true,
+  hasTouch: true,
+};
 
 const SIZES = [
   [424, 924],
@@ -128,10 +125,7 @@ const check = (ok, label) => {
   if (!ok) failures.push(label);
 };
 
-const browser = await puppeteer.launch({
-  executablePath: CHROME,
-  args: ["--no-sandbox"],
-});
+const browser = await launchChrome();
 
 function shotName(scene, phase, control, width, height) {
   const who = control === "" ? phase : `${phase}-${control}`;
@@ -499,10 +493,8 @@ const jobs = Math.max(
 let next = 0;
 await Promise.all(
   Array.from({ length: Math.min(jobs, queue.length) }, async () => {
-    // Its own context, so its own window: a background tab in a shared
-    // window gets no animation frames, and the frame-polled waits stall.
-    const context = await browser.createBrowserContext();
-    const page = await context.newPage();
+    // Its own context, so its own window (see newWindow).
+    const { page, close } = await newWindow(browser, MOBILE_VIEWPORT);
     page.on("pageerror", (error) => {
       failures.push(`page error: ${String(error)}`);
     });
@@ -517,12 +509,12 @@ await Promise.all(
         );
       }
     }
-    await context.close();
+    await close();
   }),
 );
 
 await browser.close();
-await server?.close();
+await server.close();
 if (failures.length > 0) {
   console.error(
     `\n${String(failures.length)} mockup check(s) failed:\n- ${failures.join("\n- ")}`,

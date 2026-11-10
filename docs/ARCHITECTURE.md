@@ -426,6 +426,17 @@ page is the map, plus the rules that keep it that way.
   ceiling may sit on an anonymous function. Rules in `src/function-ratchet.ts`;
   every function-like node counts, nested and anonymous ones included.
 - `scripts/token-check.mjs` (part of `npm run check`): CSS added since `origin/main` uses `src/tokens.css`. A raw colour, a raw px size, or a tap target under 48px fails. CSS already on main is the allow-list. Mockups are not part of the check.
+- The browser harness (#438): `tools/browser/harness.ts` is the one home for
+  driving Chrome. It starts the Vite server (`startServer`, skipped when a URL
+  is given), finds and launches Chrome (`chromePath`, `launchChrome`), and
+  opens pages (`open`, `openPair` for two tabs, `newWindow` for a bare page).
+  It also seeds a save and controls the page clocks, and presses and holds a
+  control as a phone tap or a desk click (`press`, `holdThrough`,
+  `stepTapClock`). Each script chooses its own options: the visual check seeds
+  once a tab and can stop `Date.now` and hold the tap clock, the UI audit
+  seeds on every load, `play` seeds once, and the mockup check seeds nothing.
+  `visual-check`, `ui-audit`, `play`, `mockup-check` and `env-report` all use
+  it.
 - Signoff (#397): a green `npm run check` on a clean, committed HEAD writes `.gate/passed`. `npm run gate -- signoff` (`scripts/signoff.mjs`, rules in `src/signoff.ts`) starts `.github/workflows/signoff.yml`, which posts the `signoff` commit status; the ruleset on `main` requires it and an up-to-date branch. The relay exists because cloud sessions may not post statuses. `deploy-hosting` runs `npm run check` on the merged commit before it deploys, so a red `main` deploys nothing.
 
 ## M7 sketch
