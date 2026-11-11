@@ -1,6 +1,13 @@
 import type { Trouble } from "./hazards";
 import { effectiveRates, heartBonus, paidAwayMs } from "./rates";
 import { parseBoosts, type Boosts } from "./boosts";
+import {
+  QUICK_VEIN_AWAY_MS,
+  holdForRush,
+  payRush,
+  resumeRush,
+  rushPerSecond,
+} from "./gold-rush";
 import { parseEngineers, type Engineer } from "./engineers";
 import {
   clampExpeditions,
@@ -116,6 +123,10 @@ export type Mountain = {
   readonly emberUntil?: number;
   /** When axle grease stops speeding carts. Live play only. */
   readonly axleUntil?: number;
+  /** When the Gold rush stops speeding the crew (src/gold-rush.ts). Live play only. */
+  readonly rushUntil?: number;
+  /** Stones of an away haul held for the Gold rush, paid as it runs (src/gold-rush.ts). */
+  readonly rushBank?: number;
   /** Systems whose "New" note has been opened (M11, src/teach.ts). */
   readonly seen?: readonly string[];
   /** Systems used at least once; their dot is gone (M11, src/teach.ts). */
@@ -242,7 +253,7 @@ export function accrue({
   // A craft that finished before this window is on the crew for the whole of it.
   // One that finishes during the window is fitted at the end, once.
   const ready = settleBench(mountain, from);
-  const worked = accrueCrew({
+  const crew = accrueCrew({
     mountain: ready,
     from,
     to,
@@ -250,8 +261,17 @@ export function accrue({
     live,
     ...(trouble === undefined ? {} : { trouble }),
   });
+  const worked = live ? withRushPay(crew, from, to) : crew;
   const fitted = settleBench(worked.mountain, to);
   return fitted === worked.mountain ? worked : { ...worked, mountain: fitted };
+}
+
+/** The Gold rush's held stones paid over the same whole seconds as the crew. */
+function withRushPay(crew: Accrual, from: number, to: number): Accrual {
+  const rush = payRush(crew.mountain, from, Math.floor((to - from) / 1000));
+  return rush.paid === 0 && rush.mountain === crew.mountain
+    ? crew
+    : { ...crew, mountain: rush.mountain, mined: crew.mined + rush.paid };
 }
 
 function accrueCrew({
@@ -269,11 +289,13 @@ function accrueCrew({
   live?: boolean;
   trouble?: Trouble;
 }): Accrual {
-  const rate = stonesPerSecond(
-    mountain,
-    live ? from : undefined,
-    live ? trouble : undefined,
-  );
+  // The rush's share of the crew line is held stones, already dug (#468).
+  const rate =
+    stonesPerSecond(
+      mountain,
+      live ? from : undefined,
+      live ? trouble : undefined,
+    ) - (live ? Math.floor(rushPerSecond(mountain, from) + 1e-9) : 0);
   if (rate === 0 || mountain.remaining === 0) {
     return { mountain, mined: 0, settledAt: to };
   }
@@ -295,6 +317,8 @@ export type AwayReport = {
   readonly mined: number;
   /** Real time away, before the cap. */
   readonly awayMs: number;
+  /** Stones of `mined` held back for the Gold rush (#468); 0 when none. */
+  readonly heldForRush: number;
   /** Time that actually paid. */
   readonly paidMs: number;
   readonly capped: boolean;
@@ -306,7 +330,7 @@ export type AwayReport = {
 
 /** The crew's work while the game was closed: away pay of their speed, up to the away cap (see effectiveRates). */
 export function accrueAway({
-  mountain,
+  mountain: closed,
   lastSeen,
   now,
 }: {
@@ -318,6 +342,9 @@ export function accrueAway({
   readonly homecomings: readonly Homecoming[];
 } {
   const awayMs = Math.max(0, now - lastSeen);
+  // Close is pause for a Gold rush, over a short break (src/gold-rush.ts).
+  const mountain = resumeRush(closed, lastSeen, now);
+  const long = awayMs >= QUICK_VEIN_AWAY_MS;
   const rates = effectiveRates(mountain);
   const paidMs = paidAwayMs(mountain, awayMs);
   const capped = awayMs > paidMs;
@@ -332,10 +359,16 @@ export function accrueAway({
     to: now,
     pay,
   });
+  // After an hour away, part of the haul waits for the Gold rush (#468).
+  const held = long
+    ? holdForRush(walked.mountain, walked.mined, rates.exactCrewPerSecond)
+    : walked.mountain;
   return {
     ...walked,
+    mountain: held,
     report: {
       mined: walked.mined,
+      heldForRush: held.rushBank === undefined || !long ? 0 : held.rushBank,
       awayMs,
       paidMs,
       capped,

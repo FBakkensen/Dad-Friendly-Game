@@ -1,7 +1,7 @@
 {
   "src/mountain.ts#parseMountain": 36,
-  "src/persist.ts#parseSaveValue": 44,
-  "src/persist.ts#serializeSave": 20,
+  "src/persist.ts#parseSaveValue": 36,
+  "src/persist.ts#serializeSave": 16,
   "src/phone-backup.ts#writePhoneBackup": 20,
   "src/progress-store.ts#createProgressStore>applyAuthoritative": 29,
   "src/progress-store.ts#createProgressStore>applyMerged": 18,

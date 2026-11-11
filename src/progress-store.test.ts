@@ -531,6 +531,7 @@ describe("away earnings", () => {
     expect(progress.getSnapshot().mountain.pocket).toBe(5 + 540);
     expect(progress.getSnapshot().away).toEqual({
       mined: 540,
+      heldForRush: 0,
       awayMs: 600_000,
       paidMs: 600_000,
       capped: false,
@@ -627,6 +628,33 @@ describe("away earnings", () => {
     clock += 5 * 60_000;
     progress.tick();
     expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3 + 270);
+  });
+
+  it("reports each settled time away, so a long one can bring a quick vein (#468)", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: crew, lastSeen: 0 });
+    let clock = 2 * 60 * 60_000;
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    expect(progress.getSnapshot().awayGap).toEqual({
+      ms: 2 * 60 * 60_000,
+      at: clock,
+    });
+    const opened = progress.getSnapshot().awayGap;
+    // Live ticks are not time away.
+    clock += 1_000;
+    progress.tick();
+    expect(progress.getSnapshot().awayGap).toBe(opened);
+    // The phone locked for fifteen minutes.
+    clock += 15 * 60_000;
+    progress.tick();
+    expect(progress.getSnapshot().awayGap).toEqual({
+      ms: 15 * 60_000,
+      at: clock,
+    });
   });
 
   it("keeps the crew mining after the clock is set back (#116)", () => {

@@ -868,6 +868,12 @@ body {
   image-rendering: pixelated;
 }
 
+/* The Gold rush's icon is the middle of the sparkle strip's first frame. */
+.board-running .rush-chip img {
+  object-fit: cover;
+  object-position: calc(var(--art) * -3) 0;
+}
+
 .board-running .effect-name {
   position: static;
   display: inline;
@@ -920,13 +926,6 @@ body {
 .board-drawer-clip > .board-save-drawer {
   bottom: calc(var(--art) * 2);
   pointer-events: auto;
-}
-
-/* Every sheet and card stops at the save line, so the line is never covered
-   and the sheets' own buttons sit above it (#370). */
-.start-over,
-.saved-copies {
-  bottom: var(--save-h);
 }
 
 /* Closed, the drawer waits just under the clip's edge, so every step of the
@@ -1278,6 +1277,15 @@ body {
   background-size: calc(var(--art) * 184) calc(var(--art) * 24);
 }
 
+/* The Gold rush's sparkles over the face (#468): four 48px frames. */
+.board-window-view > .board-window-rush {
+  left: calc(var(--art) * 40);
+  top: calc(var(--art) * 20);
+  width: calc(var(--art) * 48);
+  height: calc(var(--art) * 32);
+  background-size: calc(var(--art) * 192) calc(var(--art) * 32);
+}
+
 .board-dig-plus {
   font-size: var(--board-type-14);
   line-height: var(--board-type-14);
@@ -1341,12 +1349,13 @@ body {
 
 /* The vein's payout and the quiet away line, in the board note under the
    window: one line in the Legacy plate's condensed face, so the note ends
-   well above the key rail and never covers a key (#371, #373). */
+   well above the key rail and never covers a key (#371, #373). A quick
+   vein's Gold rush takes a second line of its own (#468). */
 .vein-note {
   margin: 0;
   font-family: "Barlow Condensed", sans-serif;
   font-weight: 700;
-  white-space: nowrap;
+  white-space: pre;
   color: var(--board-amber-bare);
 }
 
@@ -3074,9 +3083,80 @@ button.board-row:focus-visible {
   gap: calc(var(--art) * 4);
 }
 
-/* Scoped: Saved copies' error line carries the same name (style.css). */
+/* The conflict's error line, and Saved copies' (#466), which carries its name. */
 .board-card .save-conflict-error {
   color: var(--board-rust);
+}
+
+/* Saved copies (#466): each copy an inset, as the conflict's sides are, in a
+   list that scrolls inside the face when the copies outgrow it. The face
+   itself never scrolls. */
+.saved-copies .board-card-body {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.saved-copies-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 4);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.saved-copy {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: calc(var(--art) * 1);
+  margin: 0;
+  /* Clear of the inset's edges: 11 art px top and left, 9 right and bottom. */
+  padding: calc(var(--art) * 11) calc(var(--art) * 9) calc(var(--art) * 9)
+    calc(var(--art) * 11);
+}
+
+.saved-copy > .board-card-line {
+  font-size: var(--board-type-13);
+}
+
+.saved-copy > .saved-copy-device {
+  font-weight: 700;
+  color: var(--board-amber);
+}
+
+.saved-copy.is-earlier-run > .board-card-line {
+  color: var(--board-ink-2);
+}
+
+.saved-copy > .board-card-plate {
+  margin-top: calc(var(--art) * 3);
+}
+
+/* Pass the mine (#466): the Legacy step in amber, the real numbers, then what
+   carries over and what starts fresh; Not yet and Pass it on side by side. */
+.legacy-lead {
+  font-size: var(--board-type-20);
+  font-weight: 700;
+  color: var(--board-amber);
+}
+
+.legacy-rates {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legacy-rates > .board-card-line {
+  font-weight: 700;
+}
+
+.legacy-legend {
+  font-style: italic;
 }
 
 /* ---------- the relics drawer (#465) ---------- */

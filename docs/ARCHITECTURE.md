@@ -113,7 +113,9 @@ page is the map, plus the rules that keep it that way.
    screen running. Each part is a `screen-*` module with one job:
    `screen-context` (the store, the clocks, the board host, `dispatch` and the
    view), `screen-running` (the Running now list, its chips, the vein's note),
-   `screen-vein` (the golden vein), `screen-dig` (the gauge row, the Ready
+   `screen-vein` (the golden vein, and the quick vein after an hour away,
+   held while `screen-overlays` says a card or drawer covers the board,
+   #468), `screen-dig` (the gauge row, the Ready
    row, the bays and the Ready now pick), `screen-panels` (Buys, the cards,
    the note and save line with the board's top, the sheets), `screen-prompts`
    (the update card and the other-tab card, on `board-card`), `screen-overlays` (the New
@@ -124,10 +126,13 @@ page is the map, plus the rules that keep it that way.
    `mountain-screen-order.test.ts` pins the order the parts register their
    listeners, the effect row's chips and the root's children. Panels are
    their own modules with a `create…Panel` factory returning their elements
-   and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `ledger-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). The six board cards (#464) are built
+   and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `ledger-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). The eight board cards (#464, #466) are built
    on one shell, `board-card`: `welcome-panel` (welcome back), `arrival-panel`
-   (the layer card and craft done), `save-conflict-panel` (the save conflict)
-   and `screen-prompts` (the other tab and the update). What the welcome,
+   (the layer card and craft done), `save-conflict-panel` (the save conflict),
+   `screen-prompts` (the other tab and the update), `saved-copies-panel`
+   (Saved copies: an inset per copy, built once per copy and rewritten line
+   by line, in a list that scrolls inside the face) and `legacy-panel` (Pass
+   the mine, an alert dialog; Escape is Not yet). What the welcome,
    layer and craft-done cards show comes from `card-views`, pure and with no
    DOM: `welcomeView`, `welcomeNews` (the one rule for when the welcome has
    news, which `arrivalCard` also reads) and `arrivalCard` (the layer card,
@@ -137,7 +142,11 @@ page is the map, plus the rules that keep it that way.
    that press through `pressOnBoard` on the card's own layer, `show(on,
 focus)` (`showCard`, the model's open or close, and the focus once as it
    opens) and `page()` (a new screen that settles again: the conflict's
-   confirm, and the next band or craft on a card that is already up). The
+   confirm, and the next band or craft on a card that is already up). A card
+   the player opened (Saved copies, Pass the mine, #466) passes `dismiss`,
+   which Escape runs, and `from(opener)`: hidden while the focus is on it,
+   the card gives the focus back there. `cardLines` rebuilds a box of lines
+   only when its words change (the welcome's news, the Legacy's rates). The
    cards and today's sheets stand at one z-index in the root's order
    (`screen-panels#cardsFrom`); only the save conflict stands higher. Every drawer, the relics drawer (#465) too, sits in the drawers'
    clips above the cards: a card that comes up closes any open drawer by
@@ -157,7 +166,7 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    The panels paint before the New sign, so a card opened in that paint holds
    the sign back. Each paint is safe to repeat: a card takes focus only when
    it opens, and the materials line is rebuilt only when its chips change, and the saved
-   copies sheet rebuilds its rows only when what they show changes.
+   copies card builds each copy's inset once and rewrites only the lines that changed.
    Three small modules carry the screen's decisions: `card-state` is the cards'
    shown state (`showCard` writes it, for the board cards through
    `board-card`'s `show`; `cardUp` reads it), `screen-cover`
@@ -172,7 +181,7 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    `board-skin` (the 9-slice plan that draws a frame, tag or key skin on a
    canvas behind its element; `skin` is told whether its host is down, so a plate key's press repaints its pressed skin), `odometer` (the five drum faces for a
    pocket) and `crew-boost` (the crew timer the crew is running at, and the
-   dial frame). DOM parts take `getView` and callbacks like a panel:
+   dial frame; a running Gold rush comes first, #468). DOM parts take `getView` and callbacks like a panel:
    `board-note` (the floating framed note, placed in board coordinates; a
    note that holds a key stays up until the key, an outside pointerdown, or
    Escape; a show with no `ms` and no key has no timer and stays until
@@ -195,7 +204,8 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    the run on hard steps, the dig's puff and "+N", the vein over the view,
    and the Legacy plate; `runBoardLoop` steps it and the needle once a frame,
    capped at 0.1s; the bays' drill icon steps on it too). The window's only input is a `WindowScene` built by
-   `windowScene(mountain, trouble)`; it calls `onDig` and `onVein` and never
+   `windowScene(mountain, trouble, now)` (`now` lights the Gold rush's
+   sparkle, #468); it calls `onDig` and `onVein` and never
    writes the mountain. Until its first render (a signed-in save still
    loading) the window is its frame and glass on the dark: no view, machine,
    kid or run. `reducedMotion()` in `float-text` holds the window and the
@@ -321,7 +331,8 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    key); the field log shows on the other when `writeClipboard` says no.
    Copy field log's `Copied` is the board model's `result` and hold, as a
    row's Done. Saved copies and Pass the mine close the drawer without
-   moving focus and open today's cards until B7c (#465). Tonight
+   moving focus and open their board cards (#466), which give the focus
+   back to the Ledger key when they close. Tonight
    reads `progress.tonightEvents()` only while the drawer is open: the
    ring's events since its mark, which a run's start clears and a copy from
    elsewhere taking the mountain's place (a restore, the cloud's or another
@@ -757,7 +768,18 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   tier speed in `effectiveRates`. A blasting charge doubles the live crew until
   `chargeUntil`. Axle grease doubles the live crew until `axleUntil`, including
   while it is still on the bench. Axle grease, a blasting charge, and Overtime
-  meet in `effectiveRates`, and the crew runs at the strongest of them. A
+  meet in `effectiveRates`, and the crew runs at the strongest of them. A Gold
+  rush (`src/gold-rush.ts`, #468) is paid out of the away haul: after an hour
+  away `accrueAway` holds part of it back (`holdForRush`, `rushBank`), and the
+  rush adds `rushPerSecond` of those held stones on top of the crew until
+  `rushUntil`, both saved in the workshop map beside `axleUntil`. Live `accrue`
+  pays them (`payRush`) and digs only the crew's own share from the mountain.
+  `resumeRush` runs first on every open: a break under an hour shifts the rush
+  later (close is pause), and an hour away or an ended rush lands what is held
+  (`releaseRush`), as does a missed glint (the `missQuickVein` move). The store's snapshot reports each settled
+  time away as `awayGap` (`ms`, and the `at` that names it), and a long one
+  arms the quick vein. `incomePerSecond` reads the crew without the rush
+  (`withoutRush`): 90 seconds are not the crew's speed over a schedule. A
   heartstone ember multiplies the Great Machine by 1.25 until `emberUntil`. A
   crystal flare makes veins 25% more often until `flareUntil`. Crafting a flare,
   an ember, or another grease refreshes that clock and does not stack. None of

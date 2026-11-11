@@ -2556,6 +2556,30 @@ describe("quick boosts on screen", () => {
     expect(none?.textContent).toBe("Running nowNothing running");
   });
 
+  it("lists a Gold rush in Running now with its ×10 and clock (#468)", () => {
+    const now = 5_000_000;
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(12_000_000),
+        helpers: 20,
+        rushUntil: now + 75_000,
+        rushBank: 7_500,
+      },
+      lastSeen: now,
+    });
+    const screen = mountScreen({ storage, now: () => now });
+    const chip = screen.root.querySelector<HTMLElement>(
+      ".board-running .rush-chip",
+    );
+    screen.progress.dispose();
+    expect(chip?.hidden).toBe(false);
+    expect(chip?.querySelector(".effect-name")?.textContent).toBe("Gold rush");
+    expect(chip?.querySelector(".effect-mult")?.textContent.trim()).toBe("×10");
+    expect(chip?.querySelector(".effect-time")?.textContent).toBe("1:15");
+  });
+
   it("keeps every countdown in Running now", () => {
     const now = 5_000_000;
     const names = ["Ada", "Nils", "Ruth", "Otto", "Mae"] as const;

@@ -1,4 +1,4 @@
-import { el } from "./board-dom";
+import { el, hide } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import type { CardId } from "./board-interaction";
 import { plateButton } from "./board-save";
@@ -22,6 +22,11 @@ export interface BoardCardOptions {
   /** Today's title id, kept: "welcome-back-title", "craft-notice-line", … */
   readonly titleId: string;
   readonly board: BoardHost;
+  /**
+   * A card the player opened (Saved copies, Pass the mine, #466) closes the way a dialog does:
+   * Escape runs this. The cards that open by themselves leave it out and have no Escape.
+   */
+  readonly dismiss?: () => void;
 }
 
 export interface BoardCard {
@@ -44,8 +49,13 @@ export interface BoardCard {
    * card's layer as a plate is, and forgotten with the plates' presses.
    */
   press(target: HTMLElement, id: string, act: () => void): void;
-  /** Shows or hides: showCard, the model's open/close, and focus on `focus` once as it opens. */
+  /**
+   * Shows or hides: showCard, the model's open/close, and focus on `focus` once as it opens.
+   * Hidden while the focus is on it, the focus goes back to the opener `from` gave.
+   */
   show(on: boolean, focus?: HTMLElement): void;
+  /** What opened the card, or none: its close gives the focus back there. */
+  from(opener: HTMLElement | undefined): void;
   /** A new screen on the card (the conflict's confirm): forgets presses, settles again. */
   page(): void;
 }
@@ -55,6 +65,7 @@ export function createBoardCard({
   hook,
   titleId,
   board,
+  dismiss,
 }: BoardCardOptions): BoardCard {
   const root = el("div", `board-card ${hook}`);
   root.dataset["card"] = name;
@@ -73,6 +84,14 @@ export function createBoardCard({
 
   const trackers: PressTracker[] = [];
   const forget = forgetAll(trackers);
+  let opener: HTMLElement | undefined;
+  if (dismiss !== undefined) {
+    root.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        dismiss();
+      }
+    });
+  }
   const press = (target: HTMLElement, id: string, act: () => void): void => {
     trackers.push(
       pressOnBoard(target, board, { layer: name, id }, (decision) => {
@@ -100,6 +119,7 @@ export function createBoardCard({
       if (on === cardUp(root)) {
         return;
       }
+      const focused = root.contains(root.ownerDocument.activeElement);
       showCard(root, on);
       forget();
       if (on) {
@@ -113,6 +133,12 @@ export function createBoardCard({
         at: board.clock(),
         by: "program",
       });
+      if (focused) {
+        opener?.focus({ preventScroll: true });
+      }
+    },
+    from(next) {
+      opener = next;
     },
     page() {
       forget();
@@ -124,6 +150,25 @@ export function createBoardCard({
 /** A line on a card: p.board-card-line.<hook>. Write it with `board-dom#write`, only on a change. */
 export function cardLine(hook: string): HTMLElement {
   return el("p", `board-card-line ${hook}`);
+}
+
+/**
+ * A box of lines (`p`, or `li` in a list), rebuilt only when its words change; hidden while it
+ * has none.
+ */
+export function cardLines(
+  box: HTMLElement,
+  hook: string,
+  lines: readonly string[],
+  tag: "p" | "li" = "p",
+): void {
+  const now = [...box.children].map((line) => line.textContent);
+  if (now.length !== lines.length || now.some((line, i) => line !== lines[i])) {
+    box.replaceChildren(
+      ...lines.map((line) => el(tag, `board-card-line ${hook}`, line)),
+    );
+  }
+  hide(box, lines.length === 0);
 }
 
 /** Art on a card at exactly 2x: img.board-card-art, alt "", not draggable. */

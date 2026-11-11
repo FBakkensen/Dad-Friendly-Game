@@ -1,6 +1,8 @@
 /* global console, innerWidth, innerHeight, getComputedStyle, document */
 /** Notice and save sections: the welcome fold and craft notice, the other-tab card and the two-saves conflict sheet. */
 import {
+  late,
+  lastStoneSave,
   noticeSave,
   playAwaySave,
   playCraftSave,
@@ -648,6 +650,44 @@ const CARD_SCENARIOS = [
     focus: "update-reload",
     seed: () => ({}),
     search: "?update=shown",
+  },
+  // The two the Ledger and the Legend open (#466): Pass the mine, through the last stone's
+  // Mantle and the Legend, and Saved copies, signed in with two copies (a dev hook).
+  {
+    name: "pass the mine",
+    card: "legacy",
+    focus: "legacy-cancel",
+    seed: lastStoneSave,
+    enter: async (page) => {
+      await press(page, ".board-window");
+      await pressPage(page, "reveal", "carry");
+      await pressPage(page, "legend", "pass");
+    },
+  },
+  {
+    name: "saved copies",
+    card: "copies",
+    focus: "saved-copies-close",
+    seed: () => late(Date.now(), 80_000_000),
+    search: "?memorySave=1&copies=shelf",
+    enter: async (page) => {
+      await page.waitForFunction(
+        () =>
+          (document.querySelector(".save-status")?.textContent ?? "").includes(
+            "account",
+          ),
+        { timeout: 8_000 },
+      );
+      await openSheet(page, "ledger");
+      // A keyboard press is never early: the drawer's settle does not keep it.
+      await page.$eval(".ledger-saved-copies", (button) => {
+        button.click();
+      });
+      await page.waitForSelector(".saved-copy .save-conflict-play", {
+        visible: true,
+        timeout: 5_000,
+      });
+    },
   },
 ];
 

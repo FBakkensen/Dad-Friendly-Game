@@ -1,4 +1,4 @@
-import { cardArt, cardLine, createBoardCard } from "./board-card";
+import { cardArt, cardLine, cardLines, createBoardCard } from "./board-card";
 import { el, hide, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { welcomeView, type WelcomeAway, type WelcomeView } from "./card-views";
@@ -12,6 +12,7 @@ interface WelcomeParts {
   readonly minedCount: HTMLElement;
   readonly minedUnit: HTMLElement;
   readonly detail: HTMLElement;
+  readonly rush: HTMLElement;
   readonly ore: HTMLElement;
   readonly oreArt: HTMLImageElement;
   readonly oreLine: HTMLElement;
@@ -44,6 +45,7 @@ function welcomeParts(): WelcomeParts {
     minedCount,
     minedUnit,
     detail: cardLine("welcome-detail"),
+    rush: cardLine("welcome-rush"),
     ore,
     oreArt,
     oreLine,
@@ -69,6 +71,7 @@ function paintAway(parts: WelcomeParts, away: WelcomeAway | undefined): void {
   write(parts.minedUnit, away?.mined.unit ?? "");
   hide(parts.mined, away === undefined);
   paintLine(parts.detail, away?.gone);
+  paintLine(parts.rush, away?.rush);
   paintLine(parts.cheer, away?.cheer);
   const materials = away?.materials;
   hide(parts.ore, materials === undefined);
@@ -81,28 +84,13 @@ function paintAway(parts: WelcomeParts, away: WelcomeAway | undefined): void {
   }
 }
 
-/** A box of lines, rebuilt only when its words change; hidden while it has none. */
-function paintLines(
-  box: HTMLElement,
-  hook: string,
-  lines: readonly string[],
-): void {
-  const now = [...box.children].map((line) => line.textContent);
-  if (now.length !== lines.length || now.some((line, i) => line !== lines[i])) {
-    box.replaceChildren(
-      ...lines.map((line) => el("p", `board-card-line ${hook}`, line)),
-    );
-  }
-  hide(box, lines.length === 0);
-}
-
 /** The crew, the engineer, who came home, the bands and the crafts. */
 function paintNews(parts: WelcomeParts, view: WelcomeView): void {
   paintLine(parts.crew, view.crew);
   paintLine(parts.engineer, view.engineer);
-  paintLines(parts.returns, "welcome-return", view.returns);
-  paintLines(parts.layers, "welcome-layer", view.layers);
-  paintLines(parts.crafts, "welcome-craft", view.crafts);
+  cardLines(parts.returns, "welcome-return", view.returns);
+  cardLines(parts.layers, "welcome-layer", view.layers);
+  cardLines(parts.crafts, "welcome-craft", view.crafts);
 }
 
 /** The welcome-back card: what the crew mined while you were away, and helpers who joined. */
@@ -125,6 +113,7 @@ export function createWelcomePanel({
   card.body.append(
     parts.mined,
     parts.detail,
+    parts.rush,
     parts.ore,
     parts.cheer,
     parts.crew,

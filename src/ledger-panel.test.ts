@@ -90,6 +90,12 @@ const part = (screen: Screen, selector: string): HTMLElement => {
   if (!(found instanceof HTMLElement)) throw new Error(`no ${selector}`);
   return found;
 };
+/** A plate on one of the board cards the Ledger opens. */
+const cardPlate = (screen: Screen, selector: string): HTMLButtonElement => {
+  const found = screen.root.querySelector(selector);
+  if (!(found instanceof HTMLButtonElement)) throw new Error(`no ${selector}`);
+  return found;
+};
 const button = (screen: Screen, selector: string): HTMLButtonElement => {
   const found = part(screen, selector);
   if (!(found instanceof HTMLButtonElement)) throw new Error(`${selector}?`);
@@ -403,7 +409,7 @@ describe("the Ledger drawer (#375)", () => {
     }
   });
 
-  it("saved copies and pass the mine open today's cards", () => {
+  it("saved copies and pass the mine open their board cards, which close onto the Ledger key (#466)", () => {
     const screen = mount(granite());
     keyOf(screen).click();
     expect(part(screen, ".ledger-pass").hidden).toBe(true);
@@ -412,6 +418,13 @@ describe("the Ledger drawer (#375)", () => {
     expect(
       screen.root.querySelector<HTMLElement>(".saved-copies")?.hidden,
     ).toBe(false);
+    const back = cardPlate(screen, ".saved-copies-close");
+    back.focus();
+    back.click();
+    expect(
+      screen.root.querySelector<HTMLElement>(".saved-copies")?.hidden,
+    ).toBe(true);
+    expect(document.activeElement).toBe(keyOf(screen));
 
     const done = mount(minedMountain(MOUNTAIN_STONES));
     keyOf(done).click();
@@ -421,6 +434,12 @@ describe("the Ledger drawer (#375)", () => {
     expect(done.root.querySelector<HTMLElement>(".legacy-dialog")?.hidden).toBe(
       false,
     );
+    expect(document.activeElement).toBe(cardPlate(done, ".legacy-cancel"));
+    cardPlate(done, ".legacy-cancel").click();
+    expect(done.root.querySelector<HTMLElement>(".legacy-dialog")?.hidden).toBe(
+      true,
+    );
+    expect(document.activeElement).toBe(keyOf(done));
   });
 
   it("one drawer at a time", () => {

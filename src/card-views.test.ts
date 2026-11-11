@@ -39,6 +39,7 @@ const snap = (over: Partial<ProgressSnapshot>): ProgressSnapshot => ({
 
 const report = (over: Partial<AwayReport> = {}): AwayReport => ({
   mined: 1_200_000,
+  heldForRush: 0,
   awayMs: HOUR,
   paidMs: HOUR,
   capped: false,
@@ -113,6 +114,13 @@ describe("welcomeView", () => {
       count: "+1.2 million",
       unit: "stones",
     });
+  });
+
+  it("names the stones held for the Gold rush, only when some were (#468)", () => {
+    expect(welcomeView(snap({ away: report() }))?.away?.rush).toBeUndefined();
+    expect(
+      welcomeView(snap({ away: report({ heldForRush: 3_240 }) }))?.away?.rush,
+    ).toBe("3,240 of them wait for your Gold rush: watch for the golden vein.");
   });
 
   it("says how long you were gone, with and without the Heart", () => {
