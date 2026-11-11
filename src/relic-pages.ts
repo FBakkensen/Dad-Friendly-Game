@@ -33,13 +33,13 @@ export const KEEPSAKE_ART: Readonly<Record<KeepsakeId, string>> = {
 
 const RELIC_KICKER = "A Legendary Relic of Fatherhood";
 export const SHELF_BACK = "Back to the shelf";
-export const CARRY = "Carry it with pride";
+const CARRY = "Carry it with pride";
 const LEGEND_KICKER = "The bottom of the mountain";
 const LEGEND_TITLE = "You became a Legend";
 const LEGEND_CHEER =
   "Guidance, Protection, Building, Patience, Wisdom and Heroism: every relic of fatherhood is yours. Now you can pass the mine to your kid.";
-export const STAND_PROUD = "Stand proud";
-export const PASS_TO_KID = "Pass to your kid";
+const STAND_PROUD = "Stand proud";
+const PASS_TO_KID = "Pass to your kid";
 
 /** A page's plate act: how the press came, so a finger's close settles. */
 type PageAct = (by: Pointer) => void;

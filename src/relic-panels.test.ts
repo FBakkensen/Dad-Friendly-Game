@@ -164,6 +164,37 @@ describe("the relics drawer's shelf (#465)", () => {
     expect(page(fixture, "detail")).toBeNull();
     expect(fixture.panel.sheet.isOpen()).toBe(true);
   });
+
+  it("a render repaints the open detail: a keepsake brought home shows at once", () => {
+    const fixture = mount(minedMountain(relic("shield").depth));
+    fixture.panel.open();
+    advance(DRAWER_SETTLE_MS + 50);
+    press(rows(fixture)[0]);
+    const shown = (): string[] =>
+      [
+        ...(page(fixture, "detail")?.querySelectorAll<HTMLElement>(
+          "[data-keepsake]",
+        ) ?? []),
+      ]
+        .filter((item) => !item.hidden)
+        .map((item) => item.dataset["keepsake"] ?? "");
+    expect(shown()).toEqual([]);
+    fixture.view.mountain = { ...fixture.view.mountain, finds: ["watch"] };
+    fixture.panel.render();
+    expect(shown()).toEqual(["watch"]);
+  });
+
+  it("opening it again while it is up goes back to the shelf", () => {
+    const fixture = mount(minedMountain(relic("shield").depth));
+    fixture.panel.open();
+    advance(DRAWER_SETTLE_MS + 50);
+    press(rows(fixture)[0]);
+    expect(page(fixture, "detail")).not.toBeNull();
+    fixture.panel.open();
+    expect(page(fixture, "detail")).toBeNull();
+    expect(fixture.panel.sheet.isOpen()).toBe(true);
+    expect(fixture.beforeOpen).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("the reveal opens the drawer itself (#465)", () => {

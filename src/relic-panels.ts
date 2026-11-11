@@ -28,7 +28,7 @@ import { RELICS, hasRelic, type Relic } from "./relics";
  * the pages from relic-pages.ts.
  */
 
-export const RELICS_TITLE = "Relics of Fatherhood";
+const RELICS_TITLE = "Relics of Fatherhood";
 
 /** What the drawer shows in its list's place: the shelf itself, or one of its pages. */
 type Screen =
@@ -39,10 +39,17 @@ type Screen =
 
 const SHELF: Screen = { kind: "shelf" };
 
+/** A shelf row and the relic it shows. */
+interface ShelfRow {
+  readonly relic: Relic;
+  readonly row: BoardRow;
+}
+
 /** The six shelf rows, in the relics' order: each a button, its relic's art at 24 art px. */
-function buildShelf(sheet: BoardSheet): readonly BoardRow[] {
-  const rows = RELICS.map((relic) =>
-    createBoardRow({
+function buildShelf(sheet: BoardSheet): readonly ShelfRow[] {
+  const shelf = RELICS.map((relic) => ({
+    relic,
+    row: createBoardRow({
       tag: "button",
       className: "relic-row",
       data: { relic: relic.id },
@@ -50,9 +57,9 @@ function buildShelf(sheet: BoardSheet): readonly BoardRow[] {
       icon: true,
       iconPx: 48,
     }),
-  );
-  sheet.place(rows.map((row) => row.root));
-  return rows;
+  }));
+  sheet.place(shelf.map(({ row }) => row.root));
+  return shelf;
 }
 
 /** The drawer's shell: no key of its own, and its "i" opens the Relics card. */
@@ -243,16 +250,16 @@ export function createRelicPanels(deps: RelicPanelDeps): {
 
 /** Each shelf row's tap: a found relic opens its detail; one not found yet blinks. */
 function wireShelf(
-  rows: readonly BoardRow[],
+  shelf: readonly ShelfRow[],
   onBoard: ReturnType<typeof rowsOnBoard>,
   on: {
     found(relic: Relic): boolean;
     showDetail(relic: Relic): void;
   },
 ): void {
-  for (const [index, row] of rows.entries()) {
-    const relic = RELICS[index];
-    if (relic === undefined || !(row.root instanceof HTMLButtonElement)) {
+  for (const { relic, row } of shelf) {
+    /* v8 ignore next 3 -- buildShelf makes every row a button */
+    if (!(row.root instanceof HTMLButtonElement)) {
       continue;
     }
     onBoard.tap(row.root, (press, event) => {
@@ -270,15 +277,11 @@ function wireShelf(
 
 /** The rows from a ready save, lit once found and dark until then; dark and blank before. */
 function paintShelf(
-  rows: readonly BoardRow[],
+  shelf: readonly ShelfRow[],
   onBoard: ReturnType<typeof rowsOnBoard>,
   view: ProgressSnapshot,
 ): void {
-  for (const [index, row] of rows.entries()) {
-    const relic = RELICS[index];
-    if (relic === undefined) {
-      continue;
-    }
+  for (const { relic, row } of shelf) {
     if (!view.ready) {
       onBoard.paint(relic.id, row, undefined);
       row.setIcon(RELIC_DARK[relic.id]);
