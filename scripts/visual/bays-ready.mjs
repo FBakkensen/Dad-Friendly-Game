@@ -1,5 +1,5 @@
-/* global console, document, localStorage */
-/** Bays and Ready sections: the bays, the machine tiers and the Ready plate, per save, and their taps. */
+/* global console, document */
+/** Bays and Ready sections: the bays, the machine tiers and the Ready plate, per save and in three scenarios. */
 import {
   crewMountain,
   openMountain,
@@ -7,26 +7,18 @@ import {
   heartMountain,
   fleetMountain,
   savingMountain,
-  SAVE_KEY,
 } from "../../tools/browser/fixtures.ts";
 import { undersizedTargets } from "../../src/ui-audit-measure.ts";
-import { check, section } from "./registry.mjs";
+import { check, section, table } from "./registry.mjs";
 import {
   PHONE,
   SCREENS,
-  press,
-  OPEN_SHEET,
   openScreen,
   noScroll,
   baysDrawn,
   railFoot,
-  storedMountain,
-  holdThrough,
   framesPainted,
-  framesSpanning,
   noteAway,
-  buysOpen,
-  odometer,
 } from "./kit.mjs";
 import {
   BAY_LEGENDS,
@@ -44,24 +36,27 @@ import {
 // words and the bays are C2's tiers; every bay's words, flaps and price stay
 // in its button; the bars are the board's (48px targets 8px apart, 13px text,
 // art at exactly 2x, 4.5:1 contrast at p10/p90); the page never scrolls and
-// the key rail ends at least 8px above the save line. Then each control wired
-// once: a tap on Ready now buys exactly one, Saving for and an open bay open
-// Buys, a troubled bay fixes with five taps or a hold, and the red button digs
-// exactly the tap's yield.
+// the key rail ends at least 8px above the save line. Then three scenarios:
+// reduced motion holds the bays still, a mined-out mountain says so, and a
+// loading save shows art and no save words. The bays' taps are in controls.mjs.
 const BAYS_UI = "/src/board-bays.ts";
 const EARLY_TIERS = ["cart", "drill", "borer"];
 const MACHINE_TIERS = ["drill", "borer", "machine"];
+/** The bays' saves and the tiers each shows; fleet also has 120 carts. */
 const BAY_SAVES = [
-  ["early", () => crewMountain(), EARLY_TIERS],
-  ["mid", () => openMountain(), EARLY_TIERS],
-  ["crystal", () => crystalMountain(), EARLY_TIERS],
-  ["heart", () => heartMountain(), MACHINE_TIERS],
-  ["fleet", () => fleetMountain(), EARLY_TIERS],
-  ["saving", () => savingMountain(), EARLY_TIERS],
+  { name: "early", save: () => crewMountain(), tiers: EARLY_TIERS },
+  { name: "mid", save: () => openMountain(), tiers: EARLY_TIERS },
+  { name: "crystal", save: () => crystalMountain(), tiers: EARLY_TIERS },
+  { name: "heart", save: () => heartMountain(), tiers: MACHINE_TIERS },
+  {
+    name: "fleet",
+    save: () => fleetMountain(),
+    tiers: EARLY_TIERS,
+    flaps: true,
+  },
+  { name: "saving", save: () => savingMountain(), tiers: EARLY_TIERS },
 ];
 const BAYS_AND_READY = ".board-bays, .board-ready-row";
-/** One lamp frame is 20 art px: red, the fourth frame, sits at -120 CSS px. */
-const LAMP_RED_X = "-120px";
 
 /**
  * The band tag and each bay's parts. Words are measured by their glyph runs
@@ -175,57 +170,73 @@ async function baysLayout(page) {
   });
 }
 
-/** The words a bay, the plate or the red button shows, by selector. */
-async function textOf(page, selector) {
-  return page
-    .$eval(selector, (el) => (el.textContent ?? "").replace(/\s+/g, " ").trim())
-    .catch(() => undefined);
+/** Opens the save with the clock held, and reads the bays' tag and layout. */
+async function openBays(viewport, { save }) {
+  const seed = save();
+  const { page, close } = await openScreen(viewport, seed, {
+    stopClock: true,
+  });
+  try {
+    const drawn = await baysDrawn(page);
+    const fonts = await boardFontsLoaded(page);
+    // The tag reads the band's words, and the bays are C2's tiers.
+    const expectedBand = await page.evaluate(
+      async (ui, remaining) => (await import(ui)).bandWords({ remaining }),
+      BAYS_UI,
+      seed.mountain.remaining,
+    );
+    const layout = await baysLayout(page);
+    return { page, close, drawn, fonts, expectedBand, layout };
+  } catch (error) {
+    await close();
+    throw error;
+  }
 }
 
-for (const viewport of SCREENS) {
-  for (const [name, save, tiers] of BAY_SAVES) {
-    section(`bays and ready ${JSON.stringify(viewport)} ${name}`, async () => {
-      const size = `${String(viewport[0])}x${String(viewport[1])}`;
-      const label = `${size} bays and ready, ${name}:`;
-      const seed = save();
-      const { page, close } = await openScreen(viewport, seed, {
-        stopClock: true,
-      });
-      const drawn = await baysDrawn(page);
-      const fonts = await boardFontsLoaded(page);
-      check(drawn && fonts, `${label} the bays are drawn in the bundled faces`);
-
-      // The tag reads the band's words, and the bays are C2's tiers.
-      const expectedBand = await page.evaluate(
-        async (ui, remaining) => (await import(ui)).bandWords({ remaining }),
-        BAYS_UI,
-        seed.mountain.remaining,
-      );
-      const layout = await baysLayout(page);
-      check(
-        layout.band === expectedBand &&
-          layout.tiers.join(",") === tiers.join(","),
-        `${label} the tag reads "${expectedBand}" over the ${tiers.join(", ")} bays`,
-      );
-      check(
-        layout.ok,
-        `${label} each bay's name, sub-line, flaps and price lie inside it and apart, and the tag sits on the bays`,
-      );
+/** What the bays and the Ready row show on each save. */
+const BAYS_EXPECT = [
+  {
+    run: ({ drawn, fonts }) => [
+      [drawn && fonts, "the bays are drawn in the bundled faces"],
+    ],
+  },
+  {
+    run: ({ layout, expectedBand, size, scenario }) => {
+      const { tiers } = scenario;
       if (
         !layout.ok ||
         layout.band !== expectedBand ||
         layout.tiers.join(",") !== tiers.join(",")
       ) {
-        console.log("bays layout", size, name, JSON.stringify(layout));
+        console.log("bays layout", size, scenario.name, JSON.stringify(layout));
       }
-      if (name === "fleet") {
-        const cart = layout.bays.find((bay) => bay.tier === "cart");
-        check(
+      return [
+        [
+          layout.band === expectedBand &&
+            layout.tiers.join(",") === tiers.join(","),
+          `the tag reads "${expectedBand}" over the ${tiers.join(", ")} bays`,
+        ],
+        [
+          layout.ok,
+          "each bay's name, sub-line, flaps and price lie inside it and apart, and the tag sits on the bays",
+        ],
+      ];
+    },
+  },
+  {
+    when: ({ scenario }) => scenario.flaps === true,
+    run: ({ layout }) => {
+      const cart = layout.bays.find((bay) => bay.tier === "cart");
+      return [
+        [
           cart?.flaps.join("") === "120" && cart.flaps.length === 3,
-          `${label} 120 carts show on three flaps`,
-        );
-      }
-
+          "120 carts show on three flaps",
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page, size, scenario }) => {
       // Targets and gaps: the three bays, the plate and the red button. A
       // note may show over the Ready row; put it away first, so what it
       // covers is measured too.
@@ -236,15 +247,11 @@ for (const viewport of SCREENS) {
       );
       const under = undersizedTargets(targets.own);
       const close8 = boardGaps(targets);
-      check(
-        mine.length === 5 && under.length === 0 && close8.length === 0,
-        `${label} the bays, the plate and the red button are 48x48 board px, 8px from the next`,
-      );
       if (mine.length !== 5 || under.length > 0 || close8.length > 0) {
         console.log(
           "bays targets",
           size,
-          name,
+          scenario.name,
           JSON.stringify({
             mine: mine.map((target) => [
               target.selector,
@@ -256,7 +263,16 @@ for (const viewport of SCREENS) {
           }),
         );
       }
-
+      return [
+        [
+          mine.length === 5 && under.length === 0 && close8.length === 0,
+          "the bays, the plate and the red button are 48x48 board px, 8px from the next",
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page, layout, size, scenario }) => {
       // Contrast at rest: the tag, the sub-lines, the price legends, the
       // plate and the red button's legend.
       const contrast = await boardContrast(page, BAY_LEGENDS.join(", "));
@@ -268,409 +284,150 @@ for (const viewport of SCREENS) {
         [...subs, ...legends].every((words) =>
           contrast.some((row) => row.text === words),
         );
-      check(
-        read && dim.length === 0,
-        `${label} ${String(contrast.length)} legends at 4.5:1 or more, sub-lines and price legends among them (lowest ${String(Math.min(...contrast.map((row) => row.pct)))}:1 at p10/p90)`,
-      );
       if (!read || dim.length > 0) {
-        console.log("bays contrast", size, name, JSON.stringify(contrast));
-      }
-
-      const text = await boardTextSizes(page, BAYS_AND_READY);
-      check(
-        text.small.length === 0 && text.count >= 14,
-        `${label} the bays' and the plate's text is 13px or more (${String(text.count)} runs)`,
-      );
-      if (text.small.length > 0) {
-        console.log("bays text", size, name, JSON.stringify(text.small));
-      }
-
-      // Art is measured at the phone, where the board is drawn at scale 1.
-      if (PHONE === viewport) {
-        const art = await boardArtAt2x(page, BAYS_AND_READY, BAYS_AND_READY);
-        check(
-          art.misses.length === 0 && art.count >= 20,
-          `${label} ${String(art.count)} images, sprites and skins at exactly 2x`,
+        console.log(
+          "bays contrast",
+          size,
+          scenario.name,
+          JSON.stringify(contrast),
         );
-        if (art.misses.length > 0) {
-          console.log("bays 2x", size, name, JSON.stringify(art.misses));
-        }
       }
-
-      check(await noScroll(page), `${label} no page scroll`);
+      return [
+        [
+          read && dim.length === 0,
+          `${String(contrast.length)} legends at 4.5:1 or more, sub-lines and price legends among them (lowest ${String(Math.min(...contrast.map((row) => row.pct)))}:1 at p10/p90)`,
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page, size, scenario }) => {
+      const text = await boardTextSizes(page, BAYS_AND_READY);
+      if (text.small.length > 0) {
+        console.log(
+          "bays text",
+          size,
+          scenario.name,
+          JSON.stringify(text.small),
+        );
+      }
+      return [
+        [
+          text.small.length === 0 && text.count >= 14,
+          `the bays' and the plate's text is 13px or more (${String(text.count)} runs)`,
+        ],
+      ];
+    },
+  },
+  {
+    // Art is measured at the phone, where the board is drawn at scale 1.
+    when: ({ viewport }) => viewport === PHONE,
+    run: async ({ page, size, scenario }) => {
+      const art = await boardArtAt2x(page, BAYS_AND_READY, BAYS_AND_READY);
+      if (art.misses.length > 0) {
+        console.log("bays 2x", size, scenario.name, JSON.stringify(art.misses));
+      }
+      return [
+        [
+          art.misses.length === 0 && art.count >= 20,
+          `${String(art.count)} images, sprites and skins at exactly 2x`,
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page }) => {
+      const noPageScroll = await noScroll(page);
       const foot = await railFoot(page);
-      check(
-        foot.ok,
-        `${label} the rail ends at least 8px above the save line (${String(foot.gap)})`,
-      );
-      await close();
-    });
-  }
+      return [
+        [noPageScroll, "no page scroll"],
+        [
+          foot.ok,
+          `the rail ends at least 8px above the save line (${String(foot.gap)})`,
+        ],
+      ];
+    },
+  },
+];
 
-  section(`bays and ready ${JSON.stringify(viewport)} taps`, async () => {
+const registerReducedMotion = (viewport) => {
+  section(
+    `bays and ready ${JSON.stringify(viewport)} reduced motion`,
+    async () => {
+      const size = `${String(viewport[0])}x${String(viewport[1])}`;
+      const label = `${size} bays and ready:`;
+      // Reduced motion: two shots of the bays, painted frames covering four of
+      // the drill's 0.18s steps apart, are the same. As a control, without it
+      // the drill bay's icon steps.
+      for (const reducedMotion of [false, true]) {
+        const { page, close } = await openScreen(viewport, heartMountain(), {
+          reducedMotion,
+          stopClock: true,
+        });
+        await baysDrawn(page);
+        const icon = '.board-bay[data-tier="drill"] .board-bay-icon';
+        if (reducedMotion) {
+          const clip = await page.$eval(".board-bays", (bays) => {
+            const box = bays.getBoundingClientRect();
+            return {
+              x: Math.ceil(box.left),
+              y: Math.ceil(box.top),
+              width: Math.floor(box.width),
+              height: Math.floor(box.height),
+            };
+          });
+          // Still art first: the faces, the images and the skins are in.
+          await boardFontsLoaded(page);
+          await page.waitForFunction(
+            () =>
+              [...document.querySelectorAll(".board-bays img")].every(
+                (img) => img.complete,
+              ) &&
+              [
+                ...document.querySelectorAll(".board-bays canvas.board-skin"),
+              ].every((canvas) => canvas.style.width !== ""),
+            { timeout: 5_000 },
+          );
+          const first = await page.screenshot({ clip, encoding: "base64" });
+          await framesPainted(page, 44);
+          const later = await page.screenshot({ clip, encoding: "base64" });
+          check(
+            later === first,
+            `${label} under reduced motion the bays hold still`,
+          );
+        } else {
+          const from = await page.$eval(
+            icon,
+            (el) => el.style.backgroundPositionX,
+          );
+          const stepped = await page
+            .waitForFunction(
+              (selector, was) =>
+                document.querySelector(selector)?.style.backgroundPositionX !==
+                was,
+              { timeout: 3_000 },
+              icon,
+              from,
+            )
+            .then(
+              () => true,
+              () => false,
+            );
+          check(
+            stepped,
+            `${label} without reduced motion the drill bay's icon steps`,
+          );
+        }
+        await close();
+      }
+    },
+  );
+};
+
+const registerMinedOut = (viewport) => {
+  section(`bays and ready ${JSON.stringify(viewport)} mined out`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     const label = `${size} bays and ready:`;
-    const cartFlaps = (page) =>
-      page.$eval('.board-bay[data-tier="cart"]', (bay) =>
-        Number(
-          [...bay.querySelectorAll(".board-flap-d")]
-            .map((digit) => digit.textContent ?? "")
-            .join(""),
-        ),
-      );
-
-    // The tap rules (a double tap on the plate, a bay or Saving for, the Done
-    // hold, a tap inside a drawer's settle) are unit tests on the board's model
-    // and the mounted screen. Here each family of controls is wired once, in
-    // Chrome, with the board's tap clock held so no press is early by load.
-
-    // Ready now: a tap buys exactly one cart for one price and paints Done.
-    {
-      const { page, close } = await openScreen(viewport, crewMountain(), {
-        stopClock: true,
-        tapClock: "held",
-      });
-      await baysDrawn(page);
-      await page.waitForSelector(".board-ready:not(:disabled)");
-      await noteAway(page);
-      const kickBefore = await textOf(page, ".board-ready-kick");
-      const mainBefore = (await textOf(page, ".board-ready-main")) ?? "";
-      // "Buy a cart · 5,868": the price the plate offers, in whole stones.
-      const price = Number(
-        (mainBefore.split(" · ")[1] ?? "").replaceAll(",", ""),
-      );
-      const flapsBefore = await cartFlaps(page);
-      const storedBefore = await storedMountain(page);
-      await press(page, ".board-ready");
-      const done = await page
-        .waitForFunction(
-          () =>
-            (
-              document.querySelector(".board-ready-kick")?.textContent ?? ""
-            ).trim() === "Done",
-          { timeout: 2_000 },
-        )
-        .then(
-          () => true,
-          () => false,
-        );
-      await page
-        .waitForFunction(
-          (key, carts) =>
-            JSON.parse(localStorage.getItem(key) ?? "{}").mountain?.carts ===
-            carts,
-          { timeout: 2_000 },
-          SAVE_KEY,
-          storedBefore.carts + 1,
-        )
-        .catch(() => undefined);
-      const flapsAfter = await cartFlaps(page);
-      const storedAfter = await storedMountain(page);
-      const spent = storedBefore.pocket - storedAfter.pocket;
-      check(
-        kickBefore === "Ready now" &&
-          flapsAfter - flapsBefore === 1 &&
-          storedAfter.carts - storedBefore.carts === 1 &&
-          Number.isFinite(price) &&
-          price > 0 &&
-          spent === price &&
-          done,
-        `${label} a tap on Ready now buys exactly one cart for one price (${String(spent)} of ${String(price)}) and shows Done`,
-      );
-      if (flapsAfter - flapsBefore !== 1 || !done || spent !== price) {
-        console.log("plate tap", size, {
-          kickBefore,
-          mainBefore,
-          flapsBefore,
-          flapsAfter,
-          storedBefore,
-          storedAfter,
-          done,
-        });
-      }
-      await close();
-    }
-
-    // Saving for: the time shows, and a tap opens Buys and spends nothing.
-    {
-      const { page, close } = await openScreen(viewport, savingMountain(), {
-        stopClock: true,
-        tapClock: "held",
-      });
-      await baysDrawn(page);
-      await page.waitForSelector(".board-ready:not(:disabled)");
-      await noteAway(page);
-      const main = await textOf(page, ".board-ready-main");
-      const odoBefore = await odometer(page);
-      const storedBefore = await storedMountain(page);
-      await press(page, ".board-ready");
-      const opened = await page
-        .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
-        .then(
-          () => true,
-          () => false,
-        );
-      const odoAfter = await odometer(page);
-      const storedAfter = await storedMountain(page);
-      check(
-        (main ?? "").startsWith("Saving for a cart · in ") &&
-          opened &&
-          odoAfter === odoBefore &&
-          storedAfter.pocket === storedBefore.pocket &&
-          storedAfter.helpers === storedBefore.helpers,
-        `${label} Saving for reads "${String(main)}", and a tap opens Buys with the pocket and odometer unchanged`,
-      );
-      await close();
-    }
-
-    // An open bay: a tap opens Buys and spends nothing.
-    {
-      const { page, close } = await openScreen(viewport, openMountain(), {
-        stopClock: true,
-        tapClock: "held",
-      });
-      await baysDrawn(page);
-      await page.waitForSelector(".board-ready:not(:disabled)");
-      await noteAway(page);
-      const storedBefore = await storedMountain(page);
-      await press(page, '.board-bay[data-tier="cart"]');
-      const opened = await page
-        .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
-        .then(
-          () => true,
-          () => false,
-        );
-      const storedAfter = await storedMountain(page);
-      const kept = ["pocket", "carts", "drills", "borers", "helpers"].every(
-        (field) => storedAfter[field] === storedBefore[field],
-      );
-      check(
-        opened && kept,
-        `${label} a tap on an open bay opens Buys and spends nothing`,
-      );
-      if (!opened || !kept) {
-        console.log(
-          "bay tap",
-          size,
-          JSON.stringify({ opened, storedBefore, storedAfter }),
-        );
-      }
-      await close();
-    }
-
-    // Trouble on the cart bay: a red lamp and Hold to fix. Five taps fix it
-    // with Buys shut, and the thanks note lets taps through to the bay
-    // under it. On a fresh page a hold fixes it too.
-    {
-      const troubled = '.board-bay[data-tier="cart"][data-trouble="cave-in"]';
-      const { page, close } = await openScreen(viewport, openMountain(), {
-        search: "?trouble=cave-in",
-        stopClock: true,
-        tapClock: "held",
-      });
-      await baysDrawn(page);
-      const shown = await page
-        .waitForSelector(troubled, { timeout: 3_000 })
-        .then(
-          () => true,
-          () => false,
-        );
-      const lamp = await page
-        .$eval(`${troubled} .board-lamp`, (el) => el.style.backgroundPositionX)
-        .catch(() => "");
-      const sub = await textOf(page, `${troubled} .board-bay-sub`);
-      check(
-        shown && lamp === LAMP_RED_X && (sub ?? "").endsWith("Hold to fix"),
-        `${label} the troubled cart bay shows its red lamp and Hold to fix`,
-      );
-      for (let tap = 0; tap < 5; tap += 1) {
-        await press(page, '.board-bay[data-tier="cart"]');
-      }
-      const fixed = await page
-        .waitForFunction(
-          () =>
-            document
-              .querySelector('.board-bay[data-tier="cart"]')
-              ?.hasAttribute("data-trouble") === false,
-          { timeout: 2_000 },
-        )
-        .then(
-          () => true,
-          () => false,
-        );
-      await framesPainted(page, 2);
-      const shut = !(await buysOpen(page));
-      check(
-        fixed && shut,
-        `${label} five taps fix the troubled bay with Buys shut`,
-      );
-      // The thanks note is up; the bays under it are still what a finger meets.
-      const thanks = await page.evaluate(() => {
-        const note = document.querySelector(".board-note.on");
-        const thanked = note?.querySelector(".board-thanks") !== null;
-        const reach = [...document.querySelectorAll(".board-bay")].map(
-          (bay) => {
-            const b = bay.getBoundingClientRect();
-            const hit = document.elementFromPoint(
-              (b.left + b.right) / 2,
-              (b.top + b.bottom) / 2,
-            );
-            return hit !== null && bay.contains(hit);
-          },
-        );
-        return { thanked: note !== null && thanked, reach };
-      });
-      const underThanks = await boardTargets(page);
-      const baysMeasured = underThanks.own.filter((target) =>
-        target.selector.startsWith(".board-bay "),
-      ).length;
-      check(
-        thanks.thanked && thanks.reach.every(Boolean) && baysMeasured === 3,
-        `${label} under the thanks note every bay is still in reach and measured`,
-      );
-      if (!thanks.thanked || baysMeasured !== 3) {
-        console.log("thanks note", size, { ...thanks, baysMeasured });
-      }
-      await close();
-    }
-    {
-      const bay = '.board-bay[data-tier="cart"]';
-      const { page, close } = await openScreen(viewport, openMountain(), {
-        search: "?trouble=cave-in",
-        stopClock: true,
-        tapClock: "held",
-      });
-      await baysDrawn(page);
-      await page
-        .waitForSelector(`${bay}[data-trouble]`, { timeout: 3_000 })
-        .catch(() => undefined);
-      const cleared = await holdThrough(
-        page,
-        bay,
-        (selector) =>
-          document.querySelector(selector)?.hasAttribute("data-trouble") ===
-          false,
-      );
-      await framesPainted(page, 2);
-      check(
-        cleared && !(await buysOpen(page)),
-        `${label} a hold fixes the troubled bay with Buys shut`,
-      );
-      await close();
-    }
-
-    // The red button digs exactly the tap's yield, and the window shows it.
-    {
-      const start = heartMountain();
-      const { page, close } = await openScreen(
-        viewport,
-        { ...start, mountain: { ...start.mountain, pocket: 0 } },
-        { stopClock: true },
-      );
-      await page.waitForSelector(".board-dig-button:not(:disabled)");
-      const before = (await storedMountain(page)).pocket;
-      const yieldWords = await page.$eval(
-        ".board-dig-button",
-        (button) => button.getAttribute("aria-label") ?? "",
-      );
-      const match = /tap to mine (one stone|([\d,.]+) stones)$/.exec(
-        yieldWords,
-      );
-      const each =
-        match === null
-          ? NaN
-          : match[2] === undefined
-            ? 1
-            : Number(match[2].replace(/,/g, ""));
-      await press(page, ".board-dig-button");
-      const after = (await storedMountain(page)).pocket;
-      const shown = await page.evaluate(() => ({
-        odo: document.querySelector(".board-odo")?.getAttribute("aria-label"),
-        legend: (document.querySelector(".board-dig-lg")?.textContent ?? "")
-          .replace(/\s+/g, " ")
-          .trim(),
-        plus: document.querySelector(".board-dig-plus")?.textContent,
-      }));
-      const plus = `+${match?.[2] ?? "1"}`;
-      check(
-        Number.isFinite(each) &&
-          after - before === each &&
-          shown.odo === `Stones ${Math.floor(after).toLocaleString("en-US")}` &&
-          shown.legend === `By hand · ${plus}` &&
-          shown.plus === plus,
-        `${label} the red button digs the tap's ${String(each)}, reads By hand · ${plus}, and the window shows ${plus}`,
-      );
-      if (after - before !== each || shown.plus !== plus) {
-        console.log("red button", size, { yieldWords, before, after, shown });
-      }
-      await close();
-    }
-
-    // Reduced motion: two shots of the bays, painted frames covering four of
-    // the drill's 0.18s steps apart, are the same. As a control, without it
-    // the drill bay's icon steps.
-    for (const reducedMotion of [false, true]) {
-      const { page, close } = await openScreen(viewport, heartMountain(), {
-        reducedMotion,
-        stopClock: true,
-      });
-      await baysDrawn(page);
-      const icon = '.board-bay[data-tier="drill"] .board-bay-icon';
-      if (reducedMotion) {
-        const clip = await page.$eval(".board-bays", (bays) => {
-          const box = bays.getBoundingClientRect();
-          return {
-            x: Math.ceil(box.left),
-            y: Math.ceil(box.top),
-            width: Math.floor(box.width),
-            height: Math.floor(box.height),
-          };
-        });
-        // Still art first: the faces, the images and the skins are in.
-        await boardFontsLoaded(page);
-        await page.waitForFunction(
-          () =>
-            [...document.querySelectorAll(".board-bays img")].every(
-              (img) => img.complete,
-            ) &&
-            [
-              ...document.querySelectorAll(".board-bays canvas.board-skin"),
-            ].every((canvas) => canvas.style.width !== ""),
-          { timeout: 5_000 },
-        );
-        const first = await page.screenshot({ clip, encoding: "base64" });
-        await framesSpanning(page, 720);
-        const later = await page.screenshot({ clip, encoding: "base64" });
-        check(
-          later === first,
-          `${label} under reduced motion the bays hold still`,
-        );
-      } else {
-        const from = await page.$eval(
-          icon,
-          (el) => el.style.backgroundPositionX,
-        );
-        const stepped = await page
-          .waitForFunction(
-            (selector, was) =>
-              document.querySelector(selector)?.style.backgroundPositionX !==
-              was,
-            { timeout: 3_000 },
-            icon,
-            from,
-          )
-          .then(
-            () => true,
-            () => false,
-          );
-        check(
-          stepped,
-          `${label} without reduced motion the drill bay's icon steps`,
-        );
-      }
-      await close();
-    }
-
     // Mined out: the plate says so and buys nothing; the red button rests,
     // with no legend.
     {
@@ -708,7 +465,13 @@ for (const viewport of SCREENS) {
       check(await noScroll(page), `${label} mined out does not scroll`);
       await close();
     }
+  });
+};
 
+const registerLoading = (viewport) => {
+  section(`bays and ready ${JSON.stringify(viewport)} loading`, async () => {
+    const size = `${String(viewport[0])}x${String(viewport[1])}`;
+    const label = `${size} bays and ready:`;
     // While a save loads, the bays, the plate and the red button are their
     // frames and art alone: no words or numbers from a save not yet read.
     {
@@ -785,4 +548,19 @@ for (const viewport of SCREENS) {
       await close();
     }
   });
-}
+};
+
+table({
+  screens: SCREENS,
+  scenarios: BAY_SAVES,
+  section: (viewport, scenario) =>
+    `bays and ready ${JSON.stringify(viewport)} ${scenario.name}`,
+  prefix: ({ size, scenario }) => `${size} bays and ready, ${scenario.name}:`,
+  open: openBays,
+  expect: BAYS_EXPECT,
+  after: (viewport) => {
+    registerReducedMotion(viewport);
+    registerMinedOut(viewport);
+    registerLoading(viewport);
+  },
+});
