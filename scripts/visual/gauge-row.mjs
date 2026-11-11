@@ -1,4 +1,4 @@
-/* global console, document, localStorage, getComputedStyle, HTMLImageElement */
+/* global console, document, localStorage, getComputedStyle, HTMLImageElement, MutationObserver */
 /** Gauge row sections: the gauge row and the vein, per save and band, and its moving parts. */
 import {
   crewMountain,
