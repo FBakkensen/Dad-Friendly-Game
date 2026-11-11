@@ -28,8 +28,6 @@ import { forgetArrivals } from "./session";
 import { clearSessionSave, readSessionSave } from "./session-save";
 import {
   cancelRetry,
-  canPlay,
-  holding,
   isWriter,
   LISTEN_BACKOFF_START_MS,
   localSide,
@@ -39,7 +37,7 @@ import {
   uidOf,
   type StoreContext,
 } from "./store-context";
-import { emit, runStep } from "./store-session";
+import { emit, settleIfPlaying } from "./store-session";
 
 /** Stops following the cloud: late answers from the old watch are dropped. */
 function stopWatch(ctx: StoreContext): void {
@@ -180,12 +178,7 @@ function prepareLocal(ctx: StoreContext, uid: string): void {
 }
 
 /** Signed in: bring the phone's copies up, then watch the cloud document. */
-function startCloudWatch(ctx: StoreContext): void {
-  const uid = uidOf(ctx);
-  if (uid === undefined) {
-    resumeFromSession(ctx);
-    return;
-  }
+function startCloudWatch(ctx: StoreContext, uid: string): void {
   ctx.rev = 0;
   ctx.syncedRev = 0;
   ctx.phoneDirty = false;
@@ -209,12 +202,14 @@ function startCloudWatch(ctx: StoreContext): void {
 
 /** The account changed: watch the new one, or go back to the guest save. */
 export function onAuthChange(ctx: StoreContext): void {
+  /* v8 ignore next 3 -- dispose unsubscribes from the account before anything else can call */
   if (ctx.disposed) {
     return;
   }
-  if (uidOf(ctx) !== undefined) {
+  const uid = uidOf(ctx);
+  if (uid !== undefined) {
     ctx.watchingCloud = true;
-    startCloudWatch(ctx);
+    startCloudWatch(ctx, uid);
     return;
   }
   const leaveAccount = ctx.watchingCloud;
@@ -287,19 +282,12 @@ export function onSeatChange(
   void onBecameWriter(ctx);
 }
 
-/** Settles the crew's work, unless a fresh read holds it. */
-export function settleNow(ctx: StoreContext): void {
-  if (canPlay(ctx) && !holding(ctx)) {
-    runStep(ctx, { kind: "tick" });
-  }
-}
-
 /** Another tab asked for the seat: save everything before it goes. */
 export function onYield(ctx: StoreContext): void {
   if (ctx.disposed || !isWriter(ctx)) {
     return;
   }
-  settleNow(ctx);
+  settleIfPlaying(ctx);
   persistPhoneBackup(ctx);
   persistSession(ctx);
   if (serverSeen(ctx) && ctx.hydrated) {

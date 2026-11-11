@@ -101,10 +101,10 @@ page is the map, plus the rules that keep it that way.
    `flying` with a newer change `waiting` or not), and what the device knows
    of the server is another, `ServerRead` (`unseen`, `seen`, or `holding`
    for a fresh read). None of them imports a screen module.
-   `applyMutation` and `preview` (the layout check's trouble and conflict
+   `applyMutation` and `layoutPreview` (the layout check's trouble and conflict
    sheet, `?trouble=cave-in` and `?saves=two`, with the sheet's mountains in
    `save-preview`) are test seams: ESLint (`no-restricted-properties`) bans
-   them in non-test `src`, except `preview` in `boot`. The store owns settling time, away
+   them in non-test `src`, except `layoutPreview` in `boot`. The store owns settling time, away
    pay, reveals, migrations, and when/where to save. A rejected cloud write
    keeps that mountain, shows the save error, retries once, and records the
    server error on `save.error`. A snapshot is adopted only when it is strictly

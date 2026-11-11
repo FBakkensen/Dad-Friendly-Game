@@ -46,7 +46,7 @@ export default tseslint.config(
           message: "Change the game with dispatch(move) (#409).",
         },
         {
-          property: "preview",
+          property: "layoutPreview",
           message: "Store previews are for the dev boot and tests (#414).",
         },
       ],

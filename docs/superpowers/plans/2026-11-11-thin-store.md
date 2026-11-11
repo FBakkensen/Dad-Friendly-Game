@@ -8,7 +8,7 @@
 
 - `src/session-time.ts` (new, pure) owns the time step: `advance(world, input)` moves a mountain and its hazards through live, away or clock-back time. `src/session.ts` (new, pure) owns the session: `step(session, input, now) → { session, effects }` covers everything that changes the session (ticks, away pay, moves, trouble presses, news, dismissals, a new run). Effects are data (`record`, `log`, `remember`, `granted`, `moved`).
 - `src/lab/world.ts` calls `advance`, so the lab plays the same order as the game: expeditions settle, the crew accrues, then hazards step.
-- The sync service is split by job, each a set of module functions over one shared `StoreContext` (`src/store-context.ts`): running a step and emitting (`src/store-session.ts`), the store's actions (`src/store-actions.ts`), the device's own copies (`src/local-saves.ts`), the cloud write pipeline (`src/cloud-writer.ts`), adopting a copy (`src/save-adopt.ts`), the fresh server read (`src/server-read.ts`), each cloud snapshot (`src/save-load.ts`), the account and the seat (`src/save-watch.ts`), and picking a copy (`src/save-choice.ts`). Upward calls (emit, reconcile) go through the context's `hooks`, so there is no import cycle.
+- The sync service is split by job, each a set of module functions over one shared `StoreContext` (`src/store-context.ts`): running a step and emitting (`src/store-session.ts`), the store's actions (`src/store-actions.ts`), the device's own copies (`src/local-saves.ts`), the cloud write pipeline (`src/cloud-writer.ts`), adopting a copy (`src/save-adopt.ts`), the fresh server read (`src/server-read.ts`), each cloud snapshot (`src/save-load.ts`), the account and the seat (`src/save-watch.ts`), and picking a copy (`src/save-choice.ts`). The cloud writer calls back up (emit, reconcile a refused rev) through the context's `hooks`, so there is no import cycle; every other module imports what it calls.
 - `src/progress-store.ts` keeps its public types and API and composes the pieces.
 
 **Tech Stack:** TypeScript, Vitest.
@@ -31,7 +31,7 @@
 
 1. `CraftNotice` carries data, not words: `{ id, level, mountain, at }`. `card-views` makes the line (`craftFittedWords(name, fittedEffect(mountain, id, at))`), the same words as today.
 2. `SaveConflictView.error` is the closed `"archive-failed"`; `save-conflict-panel` shows `SAVE_CONFLICT_ERROR` for it, the same words as today.
-3. The preview hooks leave the store's public surface: `ProgressStore.preview` (`trouble(tier)`, `conflict(view)`) is a test seam, banned outside `boot.ts` and tests by the same ESLint rule as `applyMutation`. The conflict fixture mountains move to `src/save-preview.ts`.
+3. The preview hooks leave the store's public surface: `ProgressStore.layoutPreview` (`trouble(tier)`, `conflict()`) is a test seam, banned outside `boot.ts` and tests by the same ESLint rule as `applyMutation`. The conflict fixture mountains move to `src/save-preview.ts`.
 
 ## Review Focus
 

@@ -20,18 +20,16 @@ import {
   type SessionInput,
   type Stepped,
 } from "./session";
-import { settleNow } from "./save-watch";
 import {
   canPlay,
   cancelRetry,
-  holding,
   isWriter,
   log,
   record,
   signedIn,
   type StoreContext,
 } from "./store-context";
-import { emit, runStep } from "./store-session";
+import { emit, runStep, settleCrew, settleIfPlaying } from "./store-session";
 import type { TroubleTier } from "./hazards";
 
 /** What a dispatched move did (#409): applied, with what it spent and gained, or why not. */
@@ -45,11 +43,6 @@ export type DispatchResult =
 
 type Change = Extract<SessionInput, { kind: "move" } | { kind: "change" }>;
 
-/** The crew's work up to now, unless a fresh read holds it. Returns stones mined. */
-function settle(ctx: StoreContext): number {
-  return holding(ctx) ? 0 : runStep(ctx, { kind: "tick" }).mined;
-}
-
 /**
  * Commits one change after settling the crew's work. Undefined when the
  * session is not playing (#409).
@@ -59,7 +52,7 @@ export function commit(ctx: StoreContext, input: Change): Stepped | undefined {
     return undefined;
   }
   const beforeTrouble = troubleMark(ctx.session);
-  const mined = settle(ctx);
+  const mined = settleCrew(ctx);
   const settled = ctx.session.mountain;
   const stepped = runStep(ctx, input);
   if (ctx.session.mountain === settled) {
@@ -107,7 +100,7 @@ export function tickStore(ctx: StoreContext): void {
   }
   const before = ctx.session;
   const beforeTrouble = troubleMark(before);
-  const mined = settle(ctx);
+  const mined = settleCrew(ctx);
   const moved = ctx.session.mountain !== before.mountain;
   if (moved || ctx.session.lastSeen !== before.lastSeen) {
     persistPhoneBackup(ctx);
@@ -132,7 +125,7 @@ export function troubleTap(
     return;
   }
   const before = troubleMark(ctx.session);
-  settle(ctx);
+  settleCrew(ctx);
   if (activeTrouble(ctx.session)?.tier !== tier) {
     if (troubleMark(ctx.session) !== before) {
       emit(ctx);
@@ -192,7 +185,7 @@ export function flushStore(ctx: StoreContext): void {
   if (ctx.disposed) {
     return;
   }
-  settleNow(ctx);
+  settleIfPlaying(ctx);
   persistPhoneBackup(ctx);
   persistCloudSoon(ctx, false, true);
   persistFieldLog(ctx, "hide");

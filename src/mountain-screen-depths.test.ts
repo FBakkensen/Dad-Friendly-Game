@@ -762,7 +762,7 @@ describe("layer card, material line, and craft-done notice", () => {
   it("shows the conflict sheet and saved copies from the Ledger", async () => {
     const cloud = createMemoryCloudSave();
     const screen = mountScreen({ auth: signedIn(), cloudSave: cloud });
-    screen.progress.preview.conflict();
+    screen.progress.layoutPreview.conflict();
     const sheet = screen.root.querySelector<HTMLElement>(".save-conflict");
     expect(sheet?.hidden).toBe(false);
     expect(

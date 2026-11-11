@@ -726,7 +726,7 @@ describe("the Buys drawer (#373)", () => {
         now: () => CLOCK,
         tapClock: () => clock,
       });
-      screen.progress.preview.trouble("cart");
+      screen.progress.layoutPreview.trouble("cart");
       const cart = rowOf(screen, "cart");
       expect(cart.dataset["trouble"]).toBe("cave-in");
       expect(cart.classList.contains("is-trouble")).toBe(true);
@@ -755,7 +755,7 @@ describe("the Buys drawer (#373)", () => {
       expect(cart.dataset["trouble"]).toBeUndefined();
       // A hold fixes it, and the click that ends the hold does nothing.
       clock += 1_000;
-      screen.progress.preview.trouble("cart");
+      screen.progress.layoutPreview.trouble("cart");
       cart.dispatchEvent(
         new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
       );
@@ -1210,7 +1210,7 @@ describe("the Buys drawer (#373)", () => {
       cart.click();
       expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
       vi.advanceTimersByTime(1_500);
-      screen.progress.preview.trouble("cart");
+      screen.progress.layoutPreview.trouble("cart");
       for (let tap = 0; tap < 5; tap += 1) cart.click();
       expect(screen.progress.getSnapshot().trouble).toBeUndefined();
       // The first hold would have ended here; the fix's hold has not.
@@ -1374,7 +1374,7 @@ describe("the Buys drawer (#373)", () => {
     const cart = rowOf(screen, "cart");
     cart.click();
     expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
-    screen.progress.preview.trouble("cart");
+    screen.progress.layoutPreview.trouble("cart");
     for (let tap = 0; tap < 5; tap += 1) cart.click();
     expect(screen.progress.getSnapshot().trouble).toBeUndefined();
     expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
@@ -1387,7 +1387,7 @@ describe("the Buys drawer (#373)", () => {
         storage: seededWith(early({ pocket: 1_000_000 })),
         now: () => CLOCK,
       });
-      screen.progress.preview.trouble("cart");
+      screen.progress.layoutPreview.trouble("cart");
       const cart = rowOf(screen, "cart");
       for (let tap = 0; tap < 5; tap += 1) cart.click();
       expect(screen.progress.getSnapshot().trouble).toBeUndefined();
@@ -1408,7 +1408,7 @@ describe("the Buys drawer (#373)", () => {
         storage: seededWith(early({ pocket: 1_000_000 })),
         now: () => CLOCK,
       });
-      screen.progress.preview.trouble("cart");
+      screen.progress.layoutPreview.trouble("cart");
       const cart = rowOf(screen, "cart");
       cart.dispatchEvent(
         new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
@@ -2088,7 +2088,7 @@ describe("upgrades on screen", () => {
     document.body.append(screen.root);
     openUpgrades(screen);
     expect(drawerOf(screen)?.classList.contains("is-open")).toBe(true);
-    screen.progress.preview.conflict();
+    screen.progress.layoutPreview.conflict();
     expect(
       screen.root.querySelector<HTMLElement>(".save-conflict")?.hidden,
     ).toBe(false);
@@ -3805,7 +3805,7 @@ describe("trouble on a tier row (#149)", () => {
     expect(screen.text(".crew-status")).toBe(
       "Your crew mines 339 stones a second",
     );
-    screen.progress.preview.trouble("cart");
+    screen.progress.layoutPreview.trouble("cart");
     expect(cart.dataset["trouble"]).toBe("cave-in");
     expect(screen.text('.tier[data-tier="cart"] .board-row-info')).toBe(
       "Cave-in! · Hold to fix",
@@ -3839,17 +3839,17 @@ describe("trouble on a tier row (#149)", () => {
   it("names a flood, a jam, and the Great Machine without numbers", () => {
     const screen = mountScreen();
     screen.progress.applyMutation(() => crew());
-    screen.progress.preview.trouble("drill");
+    screen.progress.layoutPreview.trouble("drill");
     const drill = card(screen, "drill");
     expect(screen.text('.tier[data-tier="drill"] .board-row-info')).toBe(
       "Flood! · Hold to fix",
     );
     expect(drill.getAttribute("aria-label")).not.toMatch(/\d|\?/);
-    screen.progress.preview.trouble("borer");
+    screen.progress.layoutPreview.trouble("borer");
     expect(screen.text('.tier[data-tier="borer"] .board-row-info')).toBe(
       "Jam! · Hold to fix",
     );
-    screen.progress.preview.trouble("machine");
+    screen.progress.layoutPreview.trouble("machine");
     const machine = card(screen, "machine");
     expect(screen.text('.tier[data-tier="machine"] .board-row-info')).toBe(
       "Jam! · Hold to fix",
@@ -3866,7 +3866,7 @@ describe("trouble on a tier row (#149)", () => {
     try {
       const screen = mountScreen();
       screen.progress.applyMutation(() => crew());
-      screen.progress.preview.trouble("cart");
+      screen.progress.layoutPreview.trouble("cart");
       const cart = card(screen, "cart");
       cart.dispatchEvent(
         new PointerEvent("pointerdown", { bubbles: true, button: 0 }),

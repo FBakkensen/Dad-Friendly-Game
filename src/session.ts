@@ -475,7 +475,10 @@ function noteHazards(
   }
 }
 
-/** The clock and the trouble the move sees are the settled ones. */
+/**
+ * The clock and the trouble the move sees are the settled ones. A refused
+ * move changes nothing, but a first use the settle revealed is still marked.
+ */
 function applyPlayerMove(
   settled: Session,
   move: Move,
@@ -486,13 +489,14 @@ function applyPlayerMove(
     trouble: activeTrouble(settled),
   });
   out.push({ kind: "moved", result });
-  return result.kind === "applied"
-    ? commitChange(
-        settled,
-        () => ({ mountain: result.mountain, events: result.events }),
-        out,
-      )
-    : settled;
+  return commitChange(
+    settled,
+    (mountain) =>
+      result.kind === "applied"
+        ? { mountain: result.mountain, events: result.events }
+        : { mountain, events: [] },
+    out,
+  );
 }
 
 /** A first use teaches its mark, and each event goes to the field log. */

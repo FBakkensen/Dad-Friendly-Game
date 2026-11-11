@@ -209,10 +209,10 @@ export default defineConfig({
           lines: 98,
         },
         "src/local-saves.ts": {
-          statements: 92,
+          statements: 95,
           branches: 94,
           functions: 100,
-          lines: 92,
+          lines: 95,
         },
         "src/save-adopt.ts": {
           statements: 95,

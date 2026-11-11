@@ -133,7 +133,7 @@ export type ProgressStore = {
   /** A short hold on a troubled card fixes it. */
   readonly fixTrouble: (tier: TroubleTier) => void;
   /** A test seam, like `applyMutation`: an ESLint rule keeps it to the dev boot and tests. */
-  readonly preview: StorePreview;
+  readonly layoutPreview: StorePreview;
   /** Archive the other copy, then play the chosen one. */
   readonly chooseSave: (side: "local" | "remote") => Promise<"saved" | "kept">;
   /** Up to three copies still inside their seven days. */
@@ -262,7 +262,7 @@ function storeApi(ctx: StoreContext, unsubscribe: () => void): ProgressStore {
     fixTrouble: (tier) => {
       troubleTap(ctx, "fix", tier);
     },
-    preview: storePreview(ctx),
+    layoutPreview: storePreview(ctx),
     chooseSave: (side) => chooseSave(ctx, side),
     savedCopies: () => savedCopies(ctx),
     restoreCopy: (id) => restoreCopy(ctx, id),

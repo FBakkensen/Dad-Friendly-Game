@@ -13,6 +13,8 @@ import {
   type Stepped,
 } from "./session";
 import {
+  canPlay,
+  holding,
   isWriter,
   log,
   ready,
@@ -48,6 +50,18 @@ function applyEffect(ctx: StoreContext, effect: SessionEffect): void {
       return;
     case "moved":
       return;
+  }
+}
+
+/** The crew's work up to now, unless a fresh read holds it. Returns stones mined. */
+export function settleCrew(ctx: StoreContext): number {
+  return holding(ctx) ? 0 : runStep(ctx, { kind: "tick" }).mined;
+}
+
+/** Settles the crew's work if this tab is playing (hide, a yield). */
+export function settleIfPlaying(ctx: StoreContext): void {
+  if (canPlay(ctx)) {
+    settleCrew(ctx);
   }
 }
 

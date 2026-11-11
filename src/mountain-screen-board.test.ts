@@ -185,7 +185,7 @@ describe("the bays on the board's model", () => {
         clock.value += ms;
         vi.advanceTimersByTime(ms);
       };
-      screen.progress.preview.trouble("cart");
+      screen.progress.layoutPreview.trouble("cart");
       expect(cartBay(screen).dataset["trouble"]).toBe("cave-in");
       // Tapped while the trouble lasts: how many taps it takes depends on the layer.
       for (let tap = 0; tap < 10; tap += 1) {
