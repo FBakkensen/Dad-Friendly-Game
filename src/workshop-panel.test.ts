@@ -691,7 +691,7 @@ describe("the Workshop drawer (#374)", () => {
     await Promise.resolve();
     expect(keyOf(screen, "workshop").disabled).toBe(true);
     expect(isOpen(screen)).toBe(true);
-    screen.progress.previewConflict();
+    screen.progress.layoutPreview.conflict();
     expect(isOpen(screen)).toBe(false);
     const card = screen.root.querySelector<HTMLElement>(".save-conflict");
     expect(card?.hidden).toBe(false);

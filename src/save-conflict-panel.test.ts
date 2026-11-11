@@ -182,7 +182,7 @@ describe("the save conflict card (#464)", () => {
   it("shows the error line, and hides while another tab plays", () => {
     const { panel, find, set } = mount();
     expect(find(".save-conflict-error").hidden).toBe(true);
-    set({ ...SPLIT, error: "Couldn't store the other save yet – try again" });
+    set({ ...SPLIT, error: "archive-failed" });
     expect(find(".save-conflict-error").hidden).toBe(false);
     expect(find(".save-conflict-error").textContent).toContain("try again");
     set(SPLIT, true);

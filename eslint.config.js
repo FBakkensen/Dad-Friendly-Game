@@ -34,5 +34,23 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // The layout check's previews are a test seam too: the dev boot and tests only.
+    files: ["src/**/*.ts"],
+    ignores: ["src/**/*.test.ts", "src/**/*.harness.ts", "src/boot.ts"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        {
+          property: "applyMutation",
+          message: "Change the game with dispatch(move) (#409).",
+        },
+        {
+          property: "layoutPreview",
+          message: "Store previews are for the dev boot and tests (#414).",
+        },
+      ],
+    },
+  },
   prettier,
 );

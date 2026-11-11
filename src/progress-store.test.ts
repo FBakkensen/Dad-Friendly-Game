@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
+import { craftLine } from "./card-views";
 import { kidStretch } from "./scale";
 import { EMPTY_MATERIALS } from "./layers";
 import { createMemoryAuth } from "./auth";
@@ -1337,6 +1338,40 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     );
   });
 
+  it("logs a phone backup the device refuses, and keeps the cloud copy", async () => {
+    const docs = new Map([["test-dad", minedMountain(3)]]);
+    const auth = createMemoryAuth();
+    const refusing = createMemoryStorage();
+    const setItem = refusing.setItem.bind(refusing);
+    refusing.setItem = (key, value) => {
+      if (key.startsWith("dad-friendly-phone-backup:")) {
+        throw new Error("QuotaExceededError");
+      }
+      setItem(key, value);
+    };
+    const progress = createProgressStore({
+      auth,
+      cloudSave: createMemoryCloudSave({ docs }),
+      sessionStorage: refusing,
+    });
+    await auth.signIn();
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("account");
+    });
+    progress.applyMutation(() => minedMountain(4));
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "save.error",
+        data: { source: "phone" },
+      }),
+    );
+    expect(progress.getSnapshot().log).toContain("save.phone failed");
+    await vi.waitFor(() => {
+      expect(docs.get("test-dad")).toEqual(minedMountain(4));
+    });
+    progress.dispose();
+  });
+
   it("ignores a cloud snapshot from a watch that was already replaced", async () => {
     const callbacks: ((remote: CloudLoadResult) => void)[] = [];
     const cloud: CloudSave = {
@@ -1849,7 +1884,7 @@ describe("field log events for the deep (#150)", () => {
       borers: 1,
       carts: 1,
     }));
-    progress.previewTrouble("cart");
+    progress.layoutPreview.trouble("cart");
     for (let tap = 0; tap < 5; tap += 1) {
       progress.pressTrouble("cart");
     }
@@ -1867,7 +1902,7 @@ describe("field log events for the deep (#150)", () => {
       }),
     );
 
-    progress.previewTrouble("drill");
+    progress.layoutPreview.trouble("drill");
     progress.fixTrouble("drill");
     expect(progress.fieldLog().events).toContainEqual(
       expect.objectContaining({
@@ -1886,7 +1921,7 @@ describe("field log events for the deep (#150)", () => {
       ...mountain,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
     }));
-    progress.previewTrouble("cart");
+    progress.layoutPreview.trouble("cart");
     for (let step = 0; step < ENGINEER_FIX_MS / 1000; step += 1) {
       advance(1_000);
       progress.tick();
@@ -1950,14 +1985,14 @@ describe("field log events for the deep (#150)", () => {
   it("does not call closing the game, or losing the borer, a fix", () => {
     const { progress, advance } = guest();
     progress.applyMutation((mountain) => ({ ...mountain, borers: 1 }));
-    progress.previewTrouble("cart");
+    progress.layoutPreview.trouble("cart");
     advance(60_000);
     progress.tick();
     expect(progress.getSnapshot().trouble).toBeUndefined();
     expect(codes(progress)).not.toContain("trouble.fix");
 
     progress.applyMutation((mountain) => ({ ...mountain, borers: 1 }));
-    progress.previewTrouble("borer");
+    progress.layoutPreview.trouble("borer");
     progress.applyMutation((mountain) => ({ ...mountain, borers: 0 }));
     advance(1_000);
     progress.tick();
@@ -2202,7 +2237,7 @@ describe("trouble at the machines (#149)", () => {
   it("slows live mining and leaves away pay alone, then clears on a break", () => {
     const slowed = open();
     const plain = open();
-    slowed.progress.previewTrouble("cart");
+    slowed.progress.layoutPreview.trouble("cart");
     slowed.advance(1_000);
     plain.advance(1_000);
     slowed.progress.tick();
@@ -2213,7 +2248,7 @@ describe("trouble at the machines (#149)", () => {
 
     const awaySlow = open();
     const awayPlain = open();
-    awaySlow.progress.previewTrouble("cart");
+    awaySlow.progress.layoutPreview.trouble("cart");
     awaySlow.advance(60_000);
     awayPlain.advance(60_000);
     awaySlow.progress.tick();
@@ -2226,7 +2261,7 @@ describe("trouble at the machines (#149)", () => {
 
   it("is not in the save, and a reload starts clear", () => {
     const { progress, storage } = open();
-    progress.previewTrouble("cart");
+    progress.layoutPreview.trouble("cart");
     progress.flush();
     expect(JSON.stringify(readSessionSave({ storage }))).not.toContain(
       "cave-in",
@@ -2239,7 +2274,7 @@ describe("trouble at the machines (#149)", () => {
       hazardSeed: 2,
     });
     expect(again.getSnapshot().trouble).toBeUndefined();
-    again.previewTrouble("drill");
+    again.layoutPreview.trouble("drill");
     again.startOver();
     expect(again.getSnapshot().trouble).toBeUndefined();
     again.dispose();
@@ -2275,7 +2310,7 @@ describe("trouble at the machines (#149)", () => {
       ...mountain,
       engineers: [{ name: "Ada", rank: 2, trips: 9, post: "cart" }],
     }));
-    mastered.progress.previewTrouble("cart");
+    mastered.progress.layoutPreview.trouble("cart");
     mastered.advance(1_000);
     mastered.progress.tick();
     expect(mastered.progress.getSnapshot().trouble).toBeUndefined();
@@ -2285,7 +2320,7 @@ describe("trouble at the machines (#149)", () => {
       ...mountain,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
     }));
-    apprentice.progress.previewTrouble("cart");
+    apprentice.progress.layoutPreview.trouble("cart");
     apprentice.advance(1_000);
     apprentice.progress.tick();
     expect(apprentice.progress.getSnapshot().trouble?.kind).toBe("cave-in");
@@ -2306,7 +2341,7 @@ describe("trouble at the machines (#149)", () => {
       sessionStorage: createMemoryStorage(),
       now: () => 0,
     });
-    progress.previewTrouble("cart");
+    progress.layoutPreview.trouble("cart");
     progress.pressTrouble("cart");
     progress.fixTrouble("cart");
     expect(progress.getSnapshot().trouble).toBeUndefined();
@@ -2778,12 +2813,12 @@ describe("layer card and craft-done notice", () => {
       clock = Math.min(endsAt, clock + 9_000);
       progress.tick();
     }
-    expect(progress.getSnapshot().craftsFitted).toEqual([
-      {
-        id: "iron-rails",
-        level: 1,
-        line: "Your Iron rails are fitted. Carts now 7.5/s.",
-      },
+    const fitted = progress.getSnapshot().craftsFitted;
+    expect(fitted.map(({ id, level }) => ({ id, level }))).toEqual([
+      { id: "iron-rails", level: 1 },
+    ]);
+    expect(fitted.map(craftLine)).toEqual([
+      "Your Iron rails are fitted. Carts now 7.5/s.",
     ]);
     expect(progress.fieldLog().events).toContainEqual(
       expect.objectContaining({
@@ -2815,9 +2850,9 @@ describe("layer card and craft-done notice", () => {
     });
     const away = guest(awayStore, () => 120_000);
     expect(away.getSnapshot().quietAway).toBeDefined();
-    expect(away.getSnapshot().craftsFitted[0]?.line).toBe(
+    expect(away.getSnapshot().craftsFitted.map(craftLine)).toEqual([
       "Your Iron rails are fitted. Carts now 7.5/s.",
-    );
+    ]);
     // Two minutes is a quiet absence (#334): the fit is the craft-done notice.
     away.dismissCraft();
     expect(away.getSnapshot().craftsFitted).toEqual([]);
@@ -4988,9 +5023,7 @@ describe("two saves found (#226)", () => {
     const sheet = progress.getSnapshot().saveConflict ? progress : other;
     const before = sheet.getSnapshot().mountain;
     await expect(sheet.chooseSave("local")).resolves.toBe("kept");
-    expect(sheet.getSnapshot().saveConflict?.error).toBe(
-      "Couldn't store the other save yet – try again",
-    );
+    expect(sheet.getSnapshot().saveConflict?.error).toBe("archive-failed");
     expect(sheet.getSnapshot().mountain).toBe(before);
     const server = await cloud.load({ uid: user.uid });
     expect(server.kind === "found" && server.rev).toBe(2);
@@ -5050,7 +5083,7 @@ describe("two saves found (#226)", () => {
       sessionStorage: createMemoryStorage(),
       now: () => clock,
     });
-    progress.previewConflict();
+    progress.layoutPreview.conflict();
     const conflict = progress.getSnapshot().saveConflict;
     expect(conflict?.local.deviceLabel).toBe("Chrome on Android");
     expect(conflict?.remote.deviceLabel).toBe("Safari on iPhone");

@@ -25,9 +25,11 @@ page is the map, plus the rules that keep it that way.
    pocket and put in) or `refused`, and it holds the UI's rules too: a worker bought beside an idle
    machine marks staffing taught, a real station marks tending taught and first
    calls a party back, and a recall with no expedition sends the hand to camp. A craft's
-   payback adds the bench time. `lab/world` steps one seeded clock (live
-   accrue, away pay, hazards, expedition settle) for the pacing sim and the
-   strategy lab. `lab/targets` is the only place a lab threshold lives.
+   payback adds the bench time. `lab/world` steps one seeded clock for the
+   pacing sim and the strategy lab through the game's own time step
+   (`session-time`'s `advance`: parties due come home, the crew is paid, then
+   the hazards step; away time pays the capped gap and clears trouble), so the
+   lab and the game advance the world identically (#414). `lab/targets` is the only place a lab threshold lives.
    `lab/measures` is one file per decision measure. `lab/policies` is one
    file per player type. `lab/registry` discovers both folders; the world
    never reads the filesystem. `lab/run` plays a policy on that clock.
@@ -71,15 +73,38 @@ page is the map, plus the rules that keep it that way.
    `firebase-save` (the SDK adapter; mountain save plus `fieldLogs/{uid}`),
    `firestore.rules` (server-side mirror of the parser and the field log,
    guarded by `rules-drift.test.ts` and the emulator tests).
-3. **State:** `progress-store` owns the live mountain, and the UI changes it
+3. **State:** `progress-store` composes a pure session core and a sync
+   service (#414), and is the store's public surface. The UI changes the game
    only with `dispatch(move)`, which settles the crew, runs `applyMove` with the
    clock and the trouble as that settle left them, and commits, and says
    `applied` (spent, gained) or `refused` (`not-playing` or `no-change`) (#409).
    `applyMove` also returns the move's typed events (`MoveEvent`), and `dispatch`
    records them in the field log; a refused move has none (#413).
-   A trouble press or fix is still a store method (S1, #414). `applyMutation` is a test seam that
-   records no move events: ESLint
-   (`no-restricted-properties`) bans it in non-test `src`. The store owns settling time, away
+   `session` is the core: `step(session, input, now)` returns the next session
+   and its effects as data (record, log, remember the homecomings, save a
+   band's recipe grant, the move's result). It covers ticks, away pay, moves,
+   trouble presses and fixes, the news (relics, bands, crafts, homecomings,
+   the welcome-back card) and a new run. `session-time`'s `advance` is the
+   one time step it and the lab share: live, away (a gap over ten seconds), or
+   a clock that went back (`timeInput`). A craft notice keeps the mountain at
+   the moment it was fitted, and `card-views` words it. The sync service runs
+   the effects through the ports, as functions over one `StoreContext`
+   (`store-context`): `store-session` (run a step, emit one snapshot),
+   `store-actions` (tick, moves, trouble taps, a new run, hide, dispose),
+   `local-saves` (the guest session save, the phone backup, the homecomings
+   key), `cloud-writer` (the write pipeline and the field log copy),
+   `save-adopt` (fast-forward or open the conflict sheet, recover a refused
+   rev), `server-read` (the fresh read on resume), `save-load` (each cloud
+   snapshot as it arrives), `save-watch` (the account and the writer seat) and
+   `save-choice` (choose a side, restore a copy). The cloud write state is one
+   union, `CloudWrite` (`clean`, `dirty`, `queued` to wait out the gap,
+   `flying` with a newer change `waiting` or not), and what the device knows
+   of the server is another, `ServerRead` (`unseen`, `seen`, or `holding`
+   for a fresh read). None of them imports a screen module.
+   `applyMutation` and `layoutPreview` (the layout check's trouble and conflict
+   sheet, `?trouble=cave-in` and `?saves=two`, with the sheet's mountains in
+   `save-preview`) are test seams: ESLint (`no-restricted-properties`) bans
+   them in non-test `src`, except `layoutPreview` in `boot`. The store owns settling time, away
    pay, reveals, migrations, and when/where to save. A rejected cloud write
    keeps that mountain, shows the save error, retries once, and records the
    server error on `save.error`. A snapshot is adopted only when it is strictly
@@ -677,12 +702,12 @@ returnsAt, home, find }[]` (≤5, `returnsAt > sentAt`, no longer than the deep
   bottom on day 5.5, upgrade and boost dads on day 5.0, a second run on day 4.
   Nils walks the old shaft at the start of every session and, once a journeyman,
   the deep dark each night. Finds apply.
-- `hazards` (rules layer, pure): `nextTrouble(seed, now, mountain)`, `fix`, `pressTrouble`, `slowedSpeed`. One trouble at a time, every 3–6 minutes of live play, only once a borer is owned. Cave-in on carts, flood on drills, jam on borers or the Great Machine. The tier keeps three quarters of its speed at first and eases to half over two minutes. Five taps or a 600ms hold fixes it. An engineer tending that tier fixes it after 30 seconds; a Master fixes it at once. Steel-toe boots double the gap when `wearsSteelToes(mountain)` is true (or the caller passes `boots: true`). Built (#148). Session state lives in `progress-store`, never in the save, and clears on close, reload, and away time. Built (#149).
+- `hazards` (rules layer, pure): `nextTrouble(seed, now, mountain)`, `fix`, `pressTrouble`, `slowedSpeed`. One trouble at a time, every 3–6 minutes of live play, only once a borer is owned. Cave-in on carts, flood on drills, jam on borers or the Great Machine. The tier keeps three quarters of its speed at first and eases to half over two minutes. Five taps or a 600ms hold fixes it. An engineer tending that tier fixes it after 30 seconds; a Master fixes it at once. Steel-toe boots double the gap when `wearsSteelToes(mountain)` is true (or the caller passes `boots: true`). Built (#148). Session state lives in the store's session (`session`), never in the save, and clears on close, reload, and away time. Built (#149).
 - `field-log` (rules layer, pure): `snapshot(mountain, rates, now, version)` and
   `EventRing` (last 200) are built (#141). The ring's move entries (tier and
   upgrade purchases, boosts started, vein tapped, craft started, promotions,
   posts, sends, and recalls) come from the events a dispatched move returns,
-  through `fieldEntry`; nothing diffs the mountain (#413). `progress-store` also
+  through `fieldEntry`; nothing diffs the mountain (#413). The session core also
   records relic found, away report, Start over, pass the mine, and save errors. The ring is not a mountain save
   field. The Ledger's Copy field log plate copies `{ snapshot, events: last 50 }` as pretty JSON, with a
   read-only page of the drawer when the clipboard is missing. No email or display name.
