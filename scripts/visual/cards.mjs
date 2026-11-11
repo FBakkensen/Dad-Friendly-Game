@@ -1,0 +1,437 @@
+/* global console, document, innerHeight, setTimeout */
+/** Card sections: the found, relic and sheet cards and the sheets that open from them. */
+import {
+  staffingNoteSave,
+  welcomeBackSave,
+  foundBelowSave,
+  fullShelfSave,
+  mantleSave,
+  lastStoneSave,
+  crewV4Save,
+  toolHomeSave,
+} from "../../tools/browser/fixtures.ts";
+import { check, section } from "./registry.mjs";
+import {
+  PHONE,
+  OPEN_SHEET,
+  openSheet,
+  closeSheet,
+  openShelf,
+  STANDALONE_INSETS,
+  openScreen,
+  coversBoard,
+  noScroll,
+} from "./kit.mjs";
+
+// A save from before staffing: the one-time "Your crew grew" card, at the
+// smallest phone, over the game and dismissable, with no scroll.
+for (const standalone of [false, true]) {
+  section(`section 4 (line 816) ${JSON.stringify(standalone)}`, async () => {
+    const viewport = PHONE;
+    const label = `424x924${standalone ? " standalone" : ""}`;
+    const { page, close } = await openScreen(viewport, staffingNoteSave(), {
+      standalone,
+    });
+    const crewText = await page.$eval(".welcome-crew", (el) => el.textContent);
+    check(
+      crewText?.endsWith("joined to run your machines.") === true,
+      `${label} crew-grew note shows for an old save`,
+    );
+    const engineerText = await page.$eval(
+      ".welcome-engineer",
+      (el) => el.textContent,
+    );
+    check(
+      engineerText === "Your best worker steps up as engineer.",
+      `${label} engineer note shows for an old save that owns a borer`,
+    );
+    check(
+      await coversBoard(page, ".welcome-back"),
+      `${label} crew-grew card is laid over the game`,
+    );
+    check(await noScroll(page), `${label} crew-grew card has no scroll`);
+    await page.tap(".welcome-continue");
+    check(
+      await page.$eval(".welcome-back", (el) => el.hidden),
+      `${label} crew-grew card closes`,
+    );
+    await close();
+  });
+}
+
+// Welcome-back, then the relic it uncovered.
+section("section 5 (line 856)", async () => {
+  {
+    const viewport = PHONE;
+    const { page, close } = await openScreen(viewport, welcomeBackSave());
+    check(
+      await coversBoard(page, ".welcome-back"),
+      "welcome-back is laid over the game",
+    );
+    await page.tap(".welcome-continue");
+    check(
+      await coversBoard(page, ".relic-reveal"),
+      "relic reveal is laid over the game",
+    );
+    await close();
+  }
+});
+
+// Found tools on the Upgrades sheet, and keepsakes on a relic's detail (#148).
+async function foundSheetsFit(page, { top = 0, bottom = 0 } = {}) {
+  await openSheet(page, "upgrades");
+  const tools = await page.$eval(
+    OPEN_SHEET("upgrades"),
+    (sheet, insets) => {
+      const rows = [...sheet.querySelectorAll(".found-tool")].filter(
+        (row) => row.closest("[hidden]") === null,
+      );
+      const text = rows.map((row) => row.textContent ?? "").join(" ");
+      const list = sheet.querySelector(".board-sheet-list");
+      if (list !== null) {
+        list.scrollTop = 0;
+      }
+      const titleTop =
+        sheet.querySelector("h2")?.getBoundingClientRect().top ?? -1;
+      if (list !== null) {
+        list.scrollTop = list.scrollHeight;
+      }
+      const close = sheet
+        .querySelector(".board-sheet-back")
+        ?.getBoundingClientRect();
+      if (list !== null) {
+        list.scrollTop = 0;
+      }
+      return {
+        count: rows.length,
+        found: text.includes("Found") && text.includes("Grandfather's pick"),
+        clean: !text.includes("?") && !/\d/.test(text),
+        titleOk: titleTop >= insets.top,
+        closeOk:
+          close !== undefined &&
+          close.height >= 44 &&
+          close.bottom <= innerHeight - insets.bottom,
+      };
+    },
+    { top, bottom },
+  );
+  const toolsStill = await noScroll(page);
+  await closeSheet(page, "upgrades");
+  await openShelf(page);
+  await page.evaluate(() => {
+    document.querySelectorAll(".shelf-list li")[2]?.scrollIntoView();
+  });
+  await page.$$eval(".shelf-list li", (rows) => {
+    rows[2]?.click();
+  });
+  const detail = await page.$eval(
+    ".relic-detail .reveal-card",
+    (card, insets) => {
+      const box = card.getBoundingClientRect();
+      const back = card
+        .querySelector(".reveal-continue")
+        ?.getBoundingClientRect();
+      const stories = [...card.querySelectorAll(".keepsake-story")].filter(
+        (row) => row.closest("li")?.hidden !== true,
+      );
+      const text = stories.map((row) => row.textContent ?? "").join(" ");
+      return {
+        fits: box.top >= 0 && box.bottom <= innerHeight,
+        backOk:
+          back !== undefined &&
+          back.height >= 44 &&
+          back.top >= insets.top &&
+          back.bottom <= innerHeight - insets.bottom,
+        stories: stories.length,
+        clean: text.length > 0 && !text.includes("?") && !/\d/.test(text),
+      };
+    },
+    { top, bottom },
+  );
+  const detailStill = await noScroll(page);
+  const ok =
+    tools.count === 4 &&
+    tools.found &&
+    tools.clean &&
+    tools.titleOk &&
+    tools.closeOk &&
+    toolsStill &&
+    detail.fits &&
+    detail.backOk &&
+    detail.stories === 5 &&
+    detail.clean &&
+    detailStill;
+  return ok;
+}
+
+for (const standalone of [false, true]) {
+  section(`section 6 (line 977) ${JSON.stringify(standalone)}`, async () => {
+    const viewport = PHONE;
+    const label = `424x924${standalone ? " standalone" : ""}`;
+    const { page, close } = await openScreen(viewport, foundBelowSave(), {
+      standalone,
+    });
+    check(
+      await foundSheetsFit(
+        page,
+        standalone ? STANDALONE_INSETS : { top: 0, bottom: 0 },
+      ),
+      `${label} found tools and keepsakes fit`,
+    );
+    await close();
+  });
+}
+
+// Every relic found: the shelf scrolls inside itself, and a tapped relic's
+// detail card (art, virtue, "Your power") sits over the game and fits.
+for (const viewport of [[424, 924]]) {
+  section(`section 7 (line 997) ${JSON.stringify(viewport)}`, async () => {
+    const label = `${String(viewport[0])}x${String(viewport[1])}`;
+    const { page, close } = await openScreen(viewport, fullShelfSave());
+    await openShelf(page);
+    check(await noScroll(page), `${label} full shelf has no page scroll`);
+    await page.evaluate(() => {
+      document.querySelectorAll(".shelf-list li")[4]?.scrollIntoView();
+    });
+    await page.$$eval(".shelf-list li", (rows) => {
+      rows[4]?.click();
+    });
+    check(
+      await coversBoard(page, ".relic-detail"),
+      `${label} relic detail is laid over the game`,
+    );
+    check(await noScroll(page), `${label} relic detail has no scroll`);
+    const fits = await page.$eval(".relic-detail .reveal-card", (card) => {
+      const box = card.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= innerHeight;
+    });
+    check(fits, `${label} relic detail card fits the screen`);
+    await page.tap(".relic-detail .reveal-continue");
+    check(
+      await page.$eval(".relic-detail", (el) => el.hidden),
+      `${label} relic detail closes back to the shelf`,
+    );
+    await close();
+  });
+}
+
+// Mantle of the Hero: reveal, then the Legend finale over the game (#103).
+// Version 5: one stone left on the 240M mountain, so the tap finds the Mantle.
+for (const viewport of [[424, 924]]) {
+  section(`section 8 (line 1045) ${JSON.stringify(viewport)}`, async () => {
+    const label = `${String(viewport[0])}x${String(viewport[1])}`;
+    const { page, close } = await openScreen(viewport, mantleSave());
+    await page.tap(".board-window");
+    await page.waitForSelector(".relic-reveal:not([hidden])");
+    await page.tap(".relic-reveal:not(.legend) .reveal-continue");
+    check(
+      await coversBoard(page, ".legend"),
+      `${label} Legend finale is laid over the game`,
+    );
+    check(await noScroll(page), `${label} Legend finale has no scroll`);
+    const fits = await page.$eval(".legend-card", (card) => {
+      const box = card.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= innerHeight;
+    });
+    check(fits, `${label} Legend card fits the screen`);
+    await page.tap(".legend .reveal-continue");
+    check(
+      await page.$eval(".legend", (el) => el.hidden),
+      `${label} Legend finale closes`,
+    );
+    await close();
+  });
+}
+
+// Pass the mine to your kid (#131): the confirm, then the new run's header.
+for (const viewport of [[424, 924]]) {
+  section(`section 9 (line 1087) ${JSON.stringify(viewport)}`, async () => {
+    const label = `${String(viewport[0])}x${String(viewport[1])}`;
+    const { page, close } = await openScreen(viewport, lastStoneSave());
+    await page.tap(".board-window");
+    await page.waitForSelector(".relic-reveal:not([hidden])");
+    await page.tap(".relic-reveal:not(.legend) .reveal-continue");
+    await page.tap(".legend .legend-pass");
+    check(
+      await coversBoard(page, ".legacy-dialog"),
+      `${label} pass-the-mine confirm is laid over the game`,
+    );
+    check(await noScroll(page), `${label} pass-the-mine confirm has no scroll`);
+    const fits = await page.$eval(".legacy-card", (card) => {
+      const box = card.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= innerHeight;
+    });
+    check(fits, `${label} pass-the-mine card fits the screen`);
+    await page.tap(".legacy-confirm");
+    check(
+      await page.$eval(".legacy-dialog", (el) => el.hidden),
+      `${label} pass-the-mine confirm closes`,
+    );
+    check(
+      await page.$eval(
+        ".legacy-badge",
+        (el) => !el.hidden && el.textContent === "Legacy ×2",
+      ),
+      `${label} Legacy badge shows ×2`,
+    );
+    // Let the last tap's float finish drifting first.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    check(await noScroll(page), `${label} new run has no scroll`);
+    // The badge's words sit on the Legacy plate, inside the window and
+    // above the crew plate (#371).
+    const badgeFits = await page.$eval(".legacy-badge", (badge) => {
+      const box = badge.getBoundingClientRect();
+      const mine = document.querySelector(".board-mine");
+      const crew = document.querySelector(".board-crew");
+      if (mine === null || crew === null) {
+        return { ok: false };
+      }
+      const inside = mine.getBoundingClientRect();
+      const below = crew.getBoundingClientRect();
+      return {
+        ok:
+          box.width > 0 &&
+          badge.closest(".board-legacy") !== null &&
+          box.left >= inside.left &&
+          box.right <= inside.right &&
+          box.top >= inside.top &&
+          box.bottom <= inside.bottom &&
+          box.bottom <= below.top,
+        badge: [box.left, box.top, box.right, box.bottom].map(Math.round),
+        mine: [inside.left, inside.top, inside.right, inside.bottom].map(
+          Math.round,
+        ),
+        crewTop: Math.round(below.top),
+      };
+    });
+    check(
+      badgeFits.ok,
+      `${label} Legacy badge sits inside the window, above the crew plate`,
+    );
+    if (!badgeFits.ok) {
+      console.log("legacy badge", label, JSON.stringify(badgeFits));
+    }
+    await close();
+  });
+}
+
+// Trouble is never saved, so the dev boot previews a cave-in. The card must
+// stay on screen at the smallest phone, including the installed PWA.
+for (const standalone of [false, true]) {
+  section(`section 10 (line 1138) ${JSON.stringify(standalone)}`, async () => {
+    const viewport = PHONE;
+    const label = `424x924${standalone ? " standalone" : ""}`;
+    const { page, close } = await openScreen(viewport, crewV4Save(), {
+      standalone,
+      search: "?trouble=cave-in",
+    });
+    await openSheet(page, "buys");
+    const card = await page
+      .$eval('.tier[data-tier="cart"]', (el) => {
+        const box = el.getBoundingClientRect();
+        return {
+          kind: el.dataset.trouble ?? "",
+          rate: el.querySelector(".board-row-info")?.textContent ?? "",
+          label: el.getAttribute("aria-label") ?? "",
+          height: box.height,
+          width: box.width,
+          top: box.top,
+          bottom: box.bottom,
+        };
+      })
+      .catch(() => undefined);
+    check(card?.kind === "cave-in", `${label} trouble card is a cave-in`);
+    // The shout leads the row's info line: "Cave-in! · Hold to fix" (#373).
+    check(
+      card?.rate.split(" · ")[0] === "Cave-in!",
+      `${label} trouble card says Cave-in!`,
+    );
+    check(
+      card !== undefined &&
+        !/\d|\?/.test(card.label) &&
+        card.label.includes("Cave-in"),
+      `${label} trouble card label has no numbers`,
+    );
+    check(
+      (card?.height ?? 0) >= 44 && (card?.width ?? 0) >= 44,
+      `${label} trouble card is a fat target`,
+    );
+    const fits = await page.evaluate(
+      (bottomInset) => {
+        const el = document.querySelector('.tier[data-tier="cart"]');
+        if (el === null) {
+          return false;
+        }
+        const box = el.getBoundingClientRect();
+        return box.top >= 0 && box.bottom <= innerHeight - bottomInset;
+      },
+      standalone ? STANDALONE_INSETS.bottom : 0,
+    );
+    check(fits, `${label} trouble card sits on screen`);
+    check(await noScroll(page), `${label} trouble card has no scroll`);
+    await close();
+  });
+}
+
+// Welcome card naming a find, over the game, at the short phone and the PWA.
+for (const standalone of [false, true]) {
+  section(`section 13 (line 1430) ${JSON.stringify(standalone)}`, async () => {
+    const viewport = PHONE;
+    const label = `424x924${standalone ? " standalone" : ""}`;
+    const now = Date.now();
+    const { page, close } = await openScreen(viewport, toolHomeSave(now), {
+      standalone,
+    });
+    const bottom = standalone ? STANDALONE_INSETS.bottom : 0;
+    const card = await page.$eval(
+      ".welcome-back",
+      (dialog, inset) => {
+        const line = dialog.querySelector(".welcome-return")?.textContent ?? "";
+        const closeBox = dialog
+          .querySelector(".welcome-continue")
+          ?.getBoundingClientRect();
+        const title =
+          dialog.querySelector("h2")?.getBoundingClientRect().top ?? -1;
+        return {
+          hidden: dialog.hidden,
+          line,
+          title: dialog.querySelector("h2")?.textContent ?? "",
+          titleOk: title >= 0,
+          closeOk:
+            closeBox !== undefined &&
+            closeBox.height >= 44 &&
+            closeBox.top >= 0 &&
+            closeBox.bottom <= innerHeight - inset,
+        };
+      },
+      bottom,
+    );
+    check(
+      !card.hidden &&
+        card.title === "While you were away" &&
+        card.line ===
+          "Ada came back from the old shaft with Grandfather's pick. Taps bite deeper." &&
+        !/\d|\?/.test(card.line) &&
+        card.titleOk &&
+        card.closeOk,
+      `${label} welcome card names the find`,
+    );
+    if (card.hidden || !card.closeOk) {
+      console.log("welcome find", card);
+    }
+    check(
+      await coversBoard(page, ".welcome-back"),
+      `${label} welcome card with a find is laid over the game`,
+    );
+    check(
+      await noScroll(page),
+      `${label} welcome card with a find has no scroll`,
+    );
+    await page.tap(".welcome-continue");
+    check(
+      await page.$eval(".welcome-back", (el) => el.hidden),
+      `${label} welcome card with a find closes`,
+    );
+    await close();
+  });
+}
