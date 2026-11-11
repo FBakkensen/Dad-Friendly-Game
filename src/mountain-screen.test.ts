@@ -275,6 +275,8 @@ describe("mountMountainScreen", () => {
     const second = mountScreen({ storage, tabWriter: other });
     const card = second.root.querySelector<HTMLElement>(".other-tab");
     expect(card?.hidden).toBe(false);
+    expect(card?.matches(".board-card[data-card=other-tab]")).toBe(true);
+    expect(card?.querySelector(".board-card-face")).not.toBeNull();
     expect(second.text("#other-tab-title")).toBe(OTHER_TAB_TITLE);
     expect(second.text(".other-tab-body")).toBe(OTHER_TAB_BODY);
     expect(second.text(".other-tab-play")).toBe(OTHER_TAB_PLAY);

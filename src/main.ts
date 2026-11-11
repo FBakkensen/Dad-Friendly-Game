@@ -11,7 +11,7 @@ import relicHeart from "./assets/relics/heart.png";
 import relicLantern from "./assets/relics/lantern.png";
 import relicMantle from "./assets/relics/mantle.png";
 import relicShield from "./assets/relics/shield.png";
-import { createAppServices } from "./boot";
+import { createAppServices, parseBootOptions } from "./boot";
 import { mountMountainScreen, showAppUpdate } from "./mountain-screen";
 import { registerServiceWorker } from "./pwa";
 import { trackBoardFit } from "./board-fit";
@@ -56,6 +56,13 @@ try {
     auth,
     progress,
   });
+  // Dev-only: the update card, so play and the checks can see it (#464).
+  if (
+    import.meta.env.DEV &&
+    parseBootOptions(window.location.search).previewUpdate
+  ) {
+    showAppUpdate(root);
+  }
   // Reload fires pagehide. A back/forward-cache restore fires pageshow.
   bindWriterPageHide(tabWriter);
   trackBoardFit();

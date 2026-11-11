@@ -40,6 +40,11 @@ export interface BoardCard {
     act: () => void,
     into?: HTMLElement,
   ): HTMLButtonElement;
+  /**
+   * Any other control on the card (the conflict's sides), pressed through the board on this
+   * card's layer as a plate is, and forgotten with the plates' presses.
+   */
+  press(target: HTMLElement, id: string, act: () => void): void;
   /** Shows or hides: showCard, the model's open/close, and focus on `focus` once as it opens. */
   show(on: boolean, focus?: HTMLElement): void;
   /** A new screen on the card (the conflict's confirm): forgets presses, settles again. */
@@ -70,6 +75,15 @@ export function createBoardCard({
 
   const trackers: PressTracker[] = [];
   const forget = forgetAll(trackers);
+  const press = (target: HTMLElement, id: string, act: () => void): void => {
+    trackers.push(
+      pressOnBoard(target, board, { layer: name, id }, (decision) => {
+        if (decision === "act") {
+          act();
+        }
+      }),
+    );
+  };
 
   return {
     root,
@@ -80,16 +94,11 @@ export function createBoardCard({
     plate(label, id, plateHook, act, into = foot) {
       const button = plateButton(label);
       button.classList.add("board-card-plate", plateHook);
-      trackers.push(
-        pressOnBoard(button, board, { layer: name, id }, (decision) => {
-          if (decision === "act") {
-            act();
-          }
-        }),
-      );
+      press(button, id, act);
       into.append(button);
       return button;
     },
+    press,
     show(on, focus) {
       if (on === cardUp(root)) {
         return;

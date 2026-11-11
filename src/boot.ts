@@ -36,6 +36,8 @@ export function parseBootOptions(search: string): {
   previewSave: PreviewSave | undefined;
   /** Dev-only layout hook: two archived copies, one from an earlier run. */
   previewCopies: boolean;
+  /** Dev-only layout hook: the update card, as a newer service worker opens it. */
+  previewUpdate: boolean;
 } {
   const params = new URLSearchParams(search);
   const save = params.get("save");
@@ -45,6 +47,7 @@ export function parseBootOptions(search: string): {
     previewConflict: params.get("saves") === "two",
     previewSave: save === "loading" || save === "error" ? save : undefined,
     previewCopies: params.get("copies") === "shelf",
+    previewUpdate: params.get("update") === "shown",
   };
 }
 

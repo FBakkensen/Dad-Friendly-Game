@@ -34,7 +34,13 @@ describe("parseBootOptions", () => {
       previewConflict: false,
       previewSave: undefined,
       previewCopies: false,
+      previewUpdate: false,
     });
+  });
+
+  it("reads update=shown, so play can see the update card", () => {
+    expect(parseBootOptions("?update=shown").previewUpdate).toBe(true);
+    expect(parseBootOptions("?update=1").previewUpdate).toBe(false);
   });
 
   it("reads memorySave=1", () => {

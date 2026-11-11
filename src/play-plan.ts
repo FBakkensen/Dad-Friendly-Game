@@ -38,6 +38,8 @@ type PlayPlan = {
   readonly phone: PhoneSize;
   /** Appended to the page URL, e.g. ?trouble=cave-in for the dev preview. */
   readonly search: string;
+  /** 2 opens the save in two tabs and plays the second: the other-tab card. */
+  readonly tabs: 1 | 2;
 };
 
 type PlayError = { readonly kind: "error"; readonly message: string };
@@ -54,6 +56,8 @@ Options:
   --viewport <WxH>   the phone's size (default: 424x924, the board);
                      the desktop shot is 1366x768
   --search <query>   added to the page URL, e.g. ?trouble=cave-in
+  --tabs <1|2>       2 opens the save in two tabs and plays the second,
+                     which shows the other-tab card (default: 1)
   --help             this text
 
 Actions run in order; a shot is taken after opening and after each one:
@@ -191,6 +195,13 @@ const FLAGS: Readonly<Record<string, FlagSetter>> = {
     draft.search = value;
     return undefined;
   },
+  "--tabs": (draft, value) => {
+    if (value !== "1" && value !== "2") {
+      return playError(`--tabs is 1 or 2, not "${value}".`);
+    }
+    draft.tabs = value === "2" ? 2 : 1;
+    return undefined;
+  },
   "--viewport": (draft, value) => {
     const size = parsePhone(value);
     if (size === undefined) {
@@ -235,6 +246,7 @@ export function parsePlayArgs(
     url: undefined,
     phone: DEFAULT_PHONE,
     search: "",
+    tabs: 1,
   };
   const actions: PlayAction[] = [];
   const rest = [...argv];
@@ -252,8 +264,7 @@ export function parsePlayArgs(
       actions.push(read);
     }
   }
-  const { save, screens, out, url, phone, search } = draft;
-  return { kind: "plan", save, screens, actions, out, url, phone, search };
+  return { kind: "plan", ...draft, actions };
 }
 
 /** What puppeteer queries for a selector target. */

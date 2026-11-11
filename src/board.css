@@ -928,9 +928,6 @@ body {
 .shelf-dialog,
 .start-over,
 .engineers-dialog,
-.update-prompt,
-.other-tab,
-.save-conflict,
 .saved-copies {
   bottom: var(--save-h);
 }
@@ -2913,10 +2910,69 @@ button.board-row:focus-visible {
   gap: calc(var(--art) * 2);
 }
 
+/* The save conflict stands over every other card, as today's sheet did: a
+   split is the one card that must be answered first. */
+.board-card.save-conflict {
+  z-index: 12;
+}
+
+/* One side of the split: an inset plate, its lamp top-left (green when it is
+   the one picked), then its heading and six short lines that ellipsize. */
+.save-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--art) * 1);
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  /* The inset's bottom edge is 9 art px: the last line stands clear of it. */
+  padding: calc(var(--art) * 4) calc(var(--art) * 4) calc(var(--art) * 9);
+  border: 0;
+  background: none;
+  color: var(--board-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.save-card > .board-card-line {
+  display: block;
+  font-size: var(--board-type-13);
+  line-height: var(--board-note-lead);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+}
+
+.save-card > .title {
+  font-weight: 700;
+  color: var(--board-amber);
+}
+
+.save-card:focus-visible {
+  outline: var(--board-hair) solid var(--board-amber);
+  outline-offset: calc(var(--art) * 1);
+}
+
+.save-conflict-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 4);
+}
+
+.save-conflict-error {
+  color: var(--board-rust);
+}
+
 /* Last, so a hidden part hides over its own display. */
 .board-card-face > [hidden],
 .board-card-body > [hidden],
 .board-card-foot > [hidden],
+.save-conflict-confirm > [hidden],
 .board-sheet > [hidden],
 .board-sheet-list > [hidden],
 .board-sheet-how [hidden] {

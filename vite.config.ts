@@ -225,6 +225,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/save-conflict-panel.ts": {
+          statements: 100,
+          branches: 95,
+          functions: 100,
+          lines: 100,
+        },
         "src/ledger-panel.ts": {
           statements: 99,
           branches: 87,

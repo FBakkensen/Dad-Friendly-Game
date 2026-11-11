@@ -477,7 +477,7 @@ async function collect(page) {
     remember(document.documentElement, "html");
     remember(document.querySelector("#app"), "#app");
     for (const el of document.querySelectorAll(
-      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .engineers-card, .menu-card, .shelf-card, .save-conflict-sheet, .board-card-face",
+      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .engineers-card, .menu-card, .shelf-card, .board-card-face",
     )) {
       if (visible(el)) {
         remember(el, selectorOf(el));
@@ -556,8 +556,8 @@ async function collect(page) {
         ".reveal-card",
         ".layer-arrival .board-card-face",
         ".craft-notice .board-card-face",
-        ".other-tab-card",
-        ".update-card",
+        ".other-tab .board-card-face",
+        ".update-prompt .board-card-face",
         ".start-over-card",
         ".engineer",
         ".shelf-card",
@@ -1369,7 +1369,10 @@ async function main() {
     const opened = await openAuditPage(viewport, undefined, {
       search: "?saves=two",
     });
-    await opened.page.waitForSelector(".save-conflict:not([hidden])");
+    await opened.page.waitForSelector(
+      '.board-card[data-card="conflict"]:not([hidden])',
+    );
+    await cardRisen(opened.page, "conflict");
     await expectText(opened.page, /Two saves found/, "conflict");
     const pressed = await opened.page.$eval(
       ".save-card[data-side='phone']",
@@ -1384,7 +1387,12 @@ async function main() {
     const opened = await openAuditPage(viewport, undefined, {
       search: "?saves=two",
     });
-    await opened.page.waitForSelector(".save-conflict:not([hidden])");
+    await opened.page.waitForSelector(
+      '.board-card[data-card="conflict"]:not([hidden])',
+    );
+    await cardRisen(opened.page, "conflict");
+    // Past the card's settle: a finger in its first 400ms does nothing (#464).
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await press(opened.page, ".save-card[data-side='other']");
     const pressed = await opened.page.$eval(
       ".save-card[data-side='other']",
@@ -1432,9 +1440,11 @@ async function main() {
       },
     });
     const second = pages[1];
-    await second.waitForSelector(".other-tab:not([hidden])", {
-      timeout: 8_000,
-    });
+    await second.waitForSelector(
+      '.board-card[data-card="other-tab"]:not([hidden])',
+      { timeout: 8_000 },
+    );
+    await cardRisen(second, "other-tab");
     await expectText(second, /Playing in another tab/, "other tab");
     return {
       page: second,
@@ -1443,13 +1453,15 @@ async function main() {
     };
   });
   await capture("update-available", async (viewport) => {
-    const opened = await openAuditPage(viewport, rest());
-    await opened.page.evaluate(() => {
-      const prompt = document.querySelector(".update-prompt");
-      if (prompt instanceof HTMLElement) {
-        prompt.hidden = false;
-      }
+    // The dev hook opens the card as a newer service worker would (#464).
+    const opened = await openAuditPage(viewport, rest(), {
+      search: "?update=shown",
     });
+    await opened.page.waitForSelector(
+      '.board-card[data-card="update"]:not([hidden])',
+      { timeout: 8_000 },
+    );
+    await cardRisen(opened.page, "update");
     await expectText(opened.page, /Update available/, "update");
     return opened;
   });

@@ -18,7 +18,12 @@ import {
   shotName,
   targetQuery,
 } from "../src/play-plan.ts";
-import { launchChrome, open, startServer } from "../tools/browser/harness.ts";
+import {
+  launchChrome,
+  open,
+  openPair,
+  startServer,
+} from "../tools/browser/harness.ts";
 import {
   chargePayoffSave,
   crewMountain,
@@ -263,11 +268,23 @@ async function step(page, screen, action) {
   }
 }
 
+/**
+ * One tab, or with --tabs 2 two tabs in one context, played on the second: the first keeps the
+ * mountain, so the second shows the other-tab card.
+ */
+async function openTabs(options) {
+  if (plan.tabs === 1) {
+    return open(browser, BASE, options);
+  }
+  const { pages, context } = await openPair(browser, BASE, options);
+  return { page: pages[1], context };
+}
+
 const save = SAVES[plan.save].save();
-note(`play: save ${plan.save}, ${BASE}`);
+note(`play: save ${plan.save}${plan.tabs === 2 ? ", two tabs" : ""}, ${BASE}`);
 try {
   for (const screen of plan.screens) {
-    const { page, context } = await open(browser, BASE, {
+    const { page, context } = await openTabs({
       viewport: SCREENS[screen],
       seed:
         save === undefined

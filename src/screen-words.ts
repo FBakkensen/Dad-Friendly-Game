@@ -1195,6 +1195,9 @@ export const OTHER_TAB_TITLE = "Playing in another tab";
 export const OTHER_TAB_BODY =
   "The other one has the mountain. Nothing here is lost.";
 export const OTHER_TAB_PLAY = "Play here";
+/** A newer build is waiting: the card that reloads into it. */
+export const UPDATE_TITLE = "Update available";
+export const UPDATE_RELOAD = "Reload";
 /** Spelled-out tap for the mock. The live button does the same handoff. */
 export const OTHER_TAB_TAP =
   "Presses in. This tab takes the mountain, after the other one saves. Stones already mined stay. Silent until unmuted.";

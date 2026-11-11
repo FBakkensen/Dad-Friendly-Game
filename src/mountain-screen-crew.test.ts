@@ -2115,17 +2115,24 @@ describe("upgrades on screen", () => {
     screen.root.remove();
   });
 
-  it("the update prompt closes the drawer at once", () => {
+  it("showAppUpdate opens the update card on top, and closes an open drawer", () => {
     const screen = mountScreen({
       storage: seededWith(boostsOpen(0), CLOCK),
       now: () => CLOCK,
     });
+    document.body.append(screen.root);
     openUpgrades(screen);
     showAppUpdate(screen.root);
     expect(
-      screen.root.querySelector<HTMLElement>(".update-prompt")?.hidden,
+      screen.root.querySelector<HTMLElement>(
+        ".board-card.update-prompt[data-card=update]",
+      )?.hidden,
     ).toBe(false);
     expect(drawerOf(screen)?.classList.contains("is-open")).toBe(false);
+    expect(document.activeElement).toBe(
+      screen.root.querySelector(".update-reload"),
+    );
+    screen.root.remove();
   });
 
   /** The first row showing in the list, top to bottom. */

@@ -249,6 +249,7 @@ export function createSheetPanels(
   const conflictSheet = createSaveConflictPanel({
     progress,
     now,
+    board,
     requestRender: ctx.paint,
   });
   const ledger = createLedgerPanel({

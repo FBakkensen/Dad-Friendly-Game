@@ -210,10 +210,10 @@ describe("the screen's build order", () => {
       "relic-reveal relic-detail",
       "start-over legacy-dialog",
       "engineers-dialog",
-      "update-prompt",
-      "other-tab",
+      "board-card update-prompt",
+      "board-card other-tab",
       "saved-copies",
-      "save-conflict",
+      "board-card save-conflict",
     ]);
   });
 });

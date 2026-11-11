@@ -86,6 +86,7 @@ describe("parsePlayArgs", () => {
       url: undefined,
       phone: { width: 424, height: 924 },
       search: "",
+      tabs: 1,
     });
   });
 
@@ -100,6 +101,20 @@ describe("parsePlayArgs", () => {
     expect(search(["--search"])).toBe("error");
     expect(search(["--search="])).toBe("error");
     expect(search(["--search", "--save", "mid"])).toBe("error");
+  });
+
+  it("opens the save in two tabs, for the other-tab card (#464)", () => {
+    const tabs = (argv: readonly string[]) => {
+      const plan = parsePlayArgs(argv, SAVES);
+      return plan.kind === "error"
+        ? plan.message
+        : plan.kind === "plan" && plan.tabs;
+    };
+    expect(tabs([])).toBe(1);
+    expect(tabs(["--tabs", "2"])).toBe(2);
+    expect(tabs(["--tabs=1"])).toBe(1);
+    expect(tabs(["--tabs", "3"])).toContain("1 or 2");
+    expect(PLAY_USAGE).toContain("--tabs <1|2>");
   });
 
   it("names --search and taps the mine window in the help (#371)", () => {
@@ -152,6 +167,7 @@ describe("parsePlayArgs", () => {
       url: "http://127.0.0.1:5173/",
       phone: { width: 424, height: 924 },
       search: "",
+      tabs: 1,
     });
   });
 

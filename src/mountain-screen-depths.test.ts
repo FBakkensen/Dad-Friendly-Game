@@ -749,6 +749,9 @@ describe("layer card, material line, and craft-done notice", () => {
     screen.progress.previewConflict();
     const sheet = screen.root.querySelector<HTMLElement>(".save-conflict");
     expect(sheet?.hidden).toBe(false);
+    expect(
+      screen.root.querySelector(".save-conflict .board-card-face"),
+    ).not.toBeNull();
     expect(screen.text("#save-conflict-title")).toBe("Two saves found");
     expect(screen.text(".save-conflict-body")).toContain("nothing is lost");
     screen.root

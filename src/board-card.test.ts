@@ -120,6 +120,21 @@ describe("the board card", () => {
     expect(box.contains(plate)).toBe(true);
   });
 
+  it("another control presses through the board on the card's layer", () => {
+    const card = make();
+    const act = vi.fn();
+    const side = document.createElement("button");
+    card.body.append(side);
+    card.press(side, "phone", act);
+    card.show(true);
+    time += 100;
+    fingerTap(side);
+    expect(act).not.toHaveBeenCalled();
+    time += 350;
+    fingerTap(side);
+    expect(act).toHaveBeenCalledTimes(1);
+  });
+
   it("page starts the settle again", () => {
     const card = make();
     const act = vi.fn();

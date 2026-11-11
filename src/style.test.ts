@@ -17,12 +17,6 @@ const REQUIRED_SELECTORS = [
   ".shelf-card",
   ".keepsakes",
   ".keepsake-story",
-  ".update-prompt",
-  ".update-reload",
-  ".other-tab",
-  ".other-tab-play",
-  ".save-conflict",
-  ".save-conflict-play",
   ".saved-copies",
 ];
 
@@ -94,6 +88,9 @@ const BOARD_SELECTORS = [
   ".welcome-returns",
   ".welcome-layers",
   ".welcome-crafts",
+  ".save-card",
+  ".save-conflict-confirm",
+  ".save-conflict-error",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
@@ -102,9 +99,6 @@ const OVERLAYS = [
   ".shelf-dialog",
   ".start-over",
   ".engineers-dialog",
-  ".update-prompt",
-  ".other-tab",
-  ".save-conflict",
   ".saved-copies",
 ];
 
@@ -147,6 +141,10 @@ describe("board.css", () => {
     expect(boardZ(".board-drawer-clip")).toBeGreaterThan(highest);
     // The board cards stand under the drawers' clips and the save line (#464).
     expect(boardZ(".board-card")).toBe(10);
+    expect(boardZ(".board-card.save-conflict")).toBe(12);
+    expect(boardZ(".board-sheet-clip")).toBeGreaterThan(
+      boardZ(".board-card.save-conflict"),
+    );
     expect(boardZ(".board-saveline")).toBeGreaterThan(boardZ(".board-card"));
     expect(boardZ(".board-sheet-clip")).toBeGreaterThan(boardZ(".board-card"));
   });
@@ -352,6 +350,24 @@ describe("style.css", () => {
     ).toEqual([]);
   });
 
+  it("keeps no rule for today's conflict, other tab and update cards (#464)", () => {
+    // Their hooks stay on the board cards. Saved copies still names two of the conflict's
+    // classes for its own error line and buttons, under .saved-copies only.
+    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
+      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+    );
+    expect(
+      selectors.filter(
+        (one) =>
+          /\.(update-|other-tab|save-pair|save-card|save-conflict)/.test(one) &&
+          !one.startsWith(".saved-copies "),
+      ),
+    ).toEqual([]);
+    expect(css).not.toMatch(
+      /\.(update-card|other-tab-card|save-conflict-sheet|save-pair)\b/,
+    );
+  });
+
   it("keeps no lit crew chip: the crew plate holds the free count (#371)", () => {
     expect(css).not.toMatch(/teach-point/);
   });
@@ -398,9 +414,6 @@ describe("style.css", () => {
     ".shelf-dialog",
     ".start-over",
     ".engineers-dialog",
-    ".update-prompt",
-    ".other-tab",
-    ".save-conflict",
     ".saved-copies",
   ])("lays %s over the game", (selector) => {
     const group = /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
