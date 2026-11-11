@@ -150,7 +150,7 @@ export function engineerFixDelay(
   tier: TroubleTier,
 ): number | undefined {
   let best: number | undefined;
-  for (const engineer of mountain.engineers ?? []) {
+  for (const engineer of mountain.engineers) {
     if (engineer.post !== tier) {
       continue;
     }

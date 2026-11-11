@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { conflictIsReal, mergeSaves, type SaveCopy } from "./save-merge";
 import { createMountain, minedOut, type Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
+import { NOTHING_CRAFTED } from "./workshop";
+import { NO_UPGRADES } from "./upgrades";
 
 function copy(mountain: Mountain, rev: number, lastSeen = 1): SaveCopy {
   return { mountain, lastSeen, rev };
@@ -23,11 +25,19 @@ describe("mergeSaves", () => {
 
   it("keeps the later run whole", () => {
     const local = copy(
-      { ...minedMountain(10), startedAt: 50, upgrades: { tap: 3 } },
+      {
+        ...minedMountain(10),
+        startedAt: 50,
+        upgrades: { ...NO_UPGRADES, tap: 3 },
+      },
       2,
     );
     const remote = copy(
-      { ...minedMountain(90), startedAt: 10, upgrades: { boots: 1 } },
+      {
+        ...minedMountain(90),
+        startedAt: 10,
+        upgrades: { ...NO_UPGRADES, boots: 1 },
+      },
       4,
     );
     const merged = mergeSaves(local, remote);
@@ -37,7 +47,7 @@ describe("mergeSaves", () => {
     }
     expect(merged.mountain).toBe(local.mountain);
     expect(merged.rev).toBe(4);
-    expect(merged.mountain.upgrades).toEqual({ tap: 3 });
+    expect(merged.mountain.upgrades).toEqual({ ...NO_UPGRADES, tap: 3 });
     expect(minedOut(merged.mountain)).toBe(10);
   });
 
@@ -59,7 +69,7 @@ describe("mergeSaves", () => {
     const local = copy(
       {
         ...minedMountain(10),
-        upgrades: { tap: 1 },
+        upgrades: { ...NO_UPGRADES, tap: 1 },
         recipes: ["iron-rails"],
       },
       2,
@@ -67,9 +77,9 @@ describe("mergeSaves", () => {
     const remote = copy(
       {
         ...minedMountain(30),
-        upgrades: { tap: 2 },
+        upgrades: { ...NO_UPGRADES, tap: 2 },
         recipes: ["iron-rails", "sturdy-props"],
-        crafted: { "iron-rails": 1 },
+        crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 },
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
         finds: ["pick"],
         carts: 2,
@@ -91,9 +101,9 @@ describe("mergeSaves", () => {
     const local = copy(
       {
         ...minedMountain(100),
-        upgrades: { tap: 2 },
+        upgrades: { ...NO_UPGRADES, tap: 2 },
         recipes: ["iron-rails"],
-        crafted: { "iron-rails": 1 },
+        crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 },
         engineers: [{ name: "Ada", rank: 1, trips: 4, post: "drill" }],
       },
       6,
@@ -102,9 +112,9 @@ describe("mergeSaves", () => {
     const remote = copy(
       {
         ...minedMountain(40),
-        upgrades: { boots: 1 },
+        upgrades: { ...NO_UPGRADES, boots: 1 },
         recipes: ["iron-rails", "diamond-bits"],
-        crafted: { "sturdy-props": 2 },
+        crafted: { ...NOTHING_CRAFTED, "sturdy-props": 2 },
         engineers: [
           { name: "Ada", rank: 0, trips: 1, post: "cart" },
           { name: "Nils", rank: 0, trips: 0, post: "camp" },
@@ -122,8 +132,11 @@ describe("mergeSaves", () => {
     expect(merged.local).toBe(local);
     expect(merged.remote).toBe(remote);
     expect(minedOut(merged.local.mountain)).toBe(100);
-    expect(merged.local.mountain.upgrades).toEqual({ tap: 2 });
-    expect(merged.remote.mountain.upgrades).toEqual({ boots: 1 });
+    expect(merged.local.mountain.upgrades).toEqual({ ...NO_UPGRADES, tap: 2 });
+    expect(merged.remote.mountain.upgrades).toEqual({
+      ...NO_UPGRADES,
+      boots: 1,
+    });
     expect(merged.remote.mountain.finds).toEqual(["lamp"]);
   });
 
@@ -147,8 +160,14 @@ describe("mergeSaves", () => {
   });
 
   it("does not add the other copy's stones or take the higher upgrade", () => {
-    const local = copy({ ...minedMountain(100), upgrades: { tap: 2 } }, 6);
-    const remote = copy({ ...minedMountain(40), upgrades: { boots: 1 } }, 7);
+    const local = copy(
+      { ...minedMountain(100), upgrades: { ...NO_UPGRADES, tap: 2 } },
+      6,
+    );
+    const remote = copy(
+      { ...minedMountain(40), upgrades: { ...NO_UPGRADES, boots: 1 } },
+      7,
+    );
     const merged = mergeSaves(local, remote);
     expect(merged.kind).toBe("conflict");
     if (merged.kind !== "conflict") {

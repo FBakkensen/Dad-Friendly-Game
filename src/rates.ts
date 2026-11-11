@@ -79,7 +79,7 @@ export const LEGACY_STEP = 0.5;
 
 /** ×1, ×1.5, ×2, …: the kid's crew and taps. Never away pay's share. */
 export function legacyBonus(mountain: Mountain): number {
-  return 1 + LEGACY_STEP * (mountain.legacy ?? 0);
+  return 1 + LEGACY_STEP * mountain.legacy;
 }
 
 /** Crown of Wisdom: each kid helper makes every helper and kid this much faster. */
@@ -322,12 +322,7 @@ function addExtraPosts(
 ): void {
   const plainTotal = outputOf(plain, running);
   const seen = new Set<TierId>();
-  const crew = mountain.engineers;
-  /* v8 ignore next 3 -- a posted tender means the crew is present */
-  if (crew === undefined) {
-    return;
-  }
-  for (const engineer of crew) {
+  for (const engineer of mountain.engineers) {
     const post = engineer.post;
     if (
       post === "camp" ||
@@ -391,7 +386,7 @@ function primaryTender(
         readonly plain: number;
       }
     | undefined;
-  for (const engineer of mountain.engineers ?? []) {
+  for (const engineer of mountain.engineers) {
     if (engineer.post === "camp" || engineer.post === "tunnel") {
       continue;
     }
@@ -467,7 +462,7 @@ export function firstTend(
   now?: number,
   trouble?: Trouble,
 ): { readonly index: number; readonly post: TendTier } | undefined {
-  const engineers = mountain.engineers ?? [];
+  const engineers = mountain.engineers;
   for (const [index, engineer] of engineers.entries()) {
     if (engineer.post === "tunnel") {
       continue;
@@ -539,7 +534,7 @@ export function promotePayoff(
   const before = effectiveRates(mountain, now, trouble).crewPerSecond;
   // The new hand waits at camp, so the posts taken are the old crew's.
   for (const post of GUIDED_POSTS) {
-    if ((mountain.engineers ?? []).some((other) => other.post === post)) {
+    if (mountain.engineers.some((other) => other.post === post)) {
       continue;
     }
     const gain =

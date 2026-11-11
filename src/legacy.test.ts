@@ -1,15 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { kidStretch } from "./scale";
 import { LEGACY_STEP, legacyBonus, passTheMine } from "./legacy";
-import {
-  MOUNTAIN_STONES,
-  createMountain,
-  parseMountain,
-  type Mountain,
-} from "./mountain";
+import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
+import { parseMountain } from "./save-format";
 import { effectiveRates } from "./rates";
 import { hasRelic } from "./relics";
 import { minedMountain } from "./test-fixtures";
+import { NOTHING_CRAFTED, NOTHING_KEPT, COLD_CLOCKS } from "./workshop";
+import { NO_BOOSTS } from "./boosts";
+import { NO_UPGRADES } from "./upgrades";
 
 const bottom: Mountain = {
   ...minedMountain(MOUNTAIN_STONES),
@@ -20,8 +19,8 @@ const bottom: Mountain = {
   borers: 5,
   machines: 2,
   kids: 7,
-  upgrades: { tap: 3, boots: 1 },
-  boosts: { overtime: 9_999_999 },
+  upgrades: { ...NO_UPGRADES, tap: 3, boots: 1 },
+  boosts: { ...NO_BOOSTS, overtime: 9_999_999 },
   startedAt: 1_000,
   staffed: true,
 };
@@ -40,7 +39,7 @@ describe("legacy bonus", () => {
       helpers: 100,
       // No machines: Grandpa (#338) has nothing to tend, so this compares
       // the Legacy alone. A cart's own speed still shows the Legacy.
-      upgrades: { tap: 5 },
+      upgrades: { ...NO_UPGRADES, tap: 5 },
     };
     const plain = effectiveRates(crew);
     const heir = effectiveRates({ ...crew, legacy: 2 });
@@ -93,10 +92,13 @@ describe("passing the mine to your kid", () => {
         startedAt: 1,
         endsAt: 2,
       },
-      crafted: { "diamond-bits": 2 },
-      chargeUntil: 9_000,
-      flareUntil: 9_001,
-      emberUntil: 9_002,
+      crafted: { ...NOTHING_CRAFTED, "diamond-bits": 2 },
+      clocks: {
+        ...COLD_CLOCKS,
+        "blasting-charge": 9_000,
+        "crystal-flare": 9_001,
+        "heartstone-ember": 9_002,
+      },
       recipes: [
         "iron-rails",
         "sturdy-props",
@@ -111,6 +113,7 @@ describe("passing the mine to your kid", () => {
     const withKept = {
       ...parent,
       kept: {
+        ...NOTHING_KEPT,
         recipes: ["future-bit"],
         bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
         crafted: { "future-bit": 4 },
@@ -118,21 +121,27 @@ describe("passing the mine to your kid", () => {
     };
     const heir = passTheMine(withKept, 5_000);
     expect(heir?.recipes).toEqual([...parent.recipes]);
-    expect(heir?.kept).toEqual({ recipes: ["future-bit"] });
+    expect(heir?.kept).toEqual({ ...NOTHING_KEPT, recipes: ["future-bit"] });
     expect(heir?.bench).toBeUndefined();
-    expect(heir?.crafted).toBeUndefined();
+    expect(heir?.crafted).toEqual(NOTHING_CRAFTED);
     expect(
-      passTheMine({ ...parent, kept: { recipes: [] } }, 5_000)?.kept,
-    ).toBeUndefined();
+      passTheMine({ ...parent, kept: { ...NOTHING_KEPT, recipes: [] } }, 5_000)
+        ?.kept,
+    ).toEqual(NOTHING_KEPT);
     expect(
       passTheMine(
         {
           ...parent,
-          kept: { bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 } },
+          kept: {
+            ...NOTHING_KEPT,
+            ...NOTHING_KEPT,
+            ...NOTHING_KEPT,
+            bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
+          },
         },
         5_000,
       )?.kept,
-    ).toBeUndefined();
+    ).toEqual(NOTHING_KEPT);
     expect(next?.materials).toEqual({
       clay: 0,
       iron: 0,
@@ -140,22 +149,15 @@ describe("passing the mine to your kid", () => {
       heartstone: 0,
     });
     expect(next?.bench).toBeUndefined();
-    expect(next?.crafted).toBeUndefined();
-    expect(next?.chargeUntil).toBeUndefined();
-    expect(next?.flareUntil).toBeUndefined();
-    expect(next?.emberUntil).toBeUndefined();
+    expect(next?.crafted).toEqual(NOTHING_CRAFTED);
+    expect(next?.clocks).toEqual(COLD_CLOCKS);
     expect(next?.legacy).toBe(1);
-    const { recipes, ...bare } = bottom;
-    expect(passTheMine(bare, 5_000)?.recipes).toEqual(
-      passTheMine(bottom, 5_000)?.recipes,
-    );
-    expect(recipes).toEqual(passTheMine(bare, 5_000)?.recipes);
   });
 });
 
 describe("legacy in the save", () => {
   it("reads old saves as no Legacy and keeps a saved one", () => {
-    expect(parseMountain(createMountain())?.legacy).toBeUndefined();
+    expect(parseMountain(createMountain())?.legacy).toBe(0);
     expect(
       legacyBonus(parseMountain(createMountain()) ?? createMountain()),
     ).toBe(1);
@@ -169,8 +171,9 @@ describe("legacy in the save", () => {
   });
 
   it("doesn't write legacy: 0", () => {
-    expect(
-      parseMountain({ ...createMountain(), legacy: 0 }),
-    ).not.toHaveProperty("legacy");
+    expect(parseMountain({ ...createMountain(), legacy: 0 })).toHaveProperty(
+      "legacy",
+      0,
+    );
   });
 });

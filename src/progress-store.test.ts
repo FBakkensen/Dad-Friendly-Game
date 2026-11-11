@@ -25,6 +25,7 @@ import {
   minedOut,
   accrueAway,
   type Mountain,
+  BARE_MOUNTAIN,
 } from "./mountain";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { readDeviceId } from "./device-id";
@@ -41,7 +42,7 @@ import {
 } from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { buyTier, tierById, tierCost } from "./tiers";
-import { upgradeById, upgradeCost } from "./upgrades";
+import { upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
 import { recipesForMined } from "./workshop";
 import { promoteCost } from "./engineers";
 import { send, type Expedition } from "./expeditions";
@@ -424,6 +425,8 @@ describe("helpers mining live", () => {
       now: () => clock,
     });
     progress.applyMutation(() => ({
+      ...BARE_MOUNTAIN,
+      recipes: recipesForMined(500),
       remaining: MOUNTAIN_STONES - 500,
       pocket: 0,
       helpers: 3,
@@ -442,6 +445,7 @@ describe("helpers mining live", () => {
     progress.flush();
     expect(readSessionSave({ storage })).toEqual({
       mountain: {
+        ...BARE_MOUNTAIN,
         remaining: MOUNTAIN_STONES - 506,
         pocket: 6,
         helpers: 3,
@@ -465,6 +469,7 @@ describe("helpers mining live", () => {
       now: () => clock,
     });
     progress.applyMutation(() => ({
+      ...BARE_MOUNTAIN,
       remaining: 500,
       pocket: 0,
       helpers: 1,
@@ -509,6 +514,8 @@ describe("helpers mining live", () => {
 
 describe("away earnings", () => {
   const crew = {
+    ...BARE_MOUNTAIN,
+    recipes: recipesForMined(0),
     remaining: MOUNTAIN_STONES,
     pocket: 5,
     helpers: 3,
@@ -541,6 +548,7 @@ describe("away earnings", () => {
     });
     expect(readSessionSave({ storage })).toEqual({
       mountain: {
+        ...BARE_MOUNTAIN,
         remaining: MOUNTAIN_STONES - 540,
         pocket: 545,
         helpers: 3,
@@ -1743,7 +1751,7 @@ describe("field log events for the deep (#150)", () => {
       advance(1_000);
       progress.tick();
     }
-    expect(progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    expect(progress.getSnapshot().mountain.expeditions).toEqual([]);
     expect(progress.fieldLog().events).toContainEqual(
       expect.objectContaining({
         code: "expedition.return",
@@ -2205,6 +2213,7 @@ describe("field log cloud copy", () => {
 
 describe("trouble at the machines (#149)", () => {
   const crew = {
+    ...BARE_MOUNTAIN,
     remaining: 50_000_000,
     pocket: 0,
     helpers: 9,
@@ -2372,7 +2381,7 @@ describe("expeditions through the save", () => {
     const away = accrueAway({ mountain: sent, lastSeen: 0, now: 20 * 60_000 });
     expect(progress.getSnapshot().mountain).toEqual(away.mountain);
     expect(progress.getSnapshot().mountain.engineers?.[0]?.post).toBe("borer");
-    expect(progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    expect(progress.getSnapshot().mountain.expeditions).toEqual([]);
     progress.dispose();
   });
 
@@ -2411,7 +2420,7 @@ describe("expeditions through the save", () => {
       post: "camp",
       trips: 1,
     });
-    expect(progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    expect(progress.getSnapshot().mountain.expeditions).toEqual([]);
     progress.dispose();
   });
 
@@ -3198,7 +3207,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
     server = {
       mountain: {
         ...minedMountain(4),
-        upgrades: { boots: 1 },
+        upgrades: { ...NO_UPGRADES, boots: 1 },
       },
       rev: 6,
       lastSeen: 2,
@@ -3209,12 +3218,10 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
     });
     expect(server.rev).toBe(6);
     expect(minedOut(progress.getSnapshot().mountain)).toBe(30);
-    expect(progress.getSnapshot().mountain.upgrades).toBeUndefined();
+    expect(progress.getSnapshot().mountain.upgrades).toEqual(NO_UPGRADES);
     expect(
       progress.getSnapshot().saveConflict?.remote.mountain.upgrades,
-    ).toEqual({
-      boots: 1,
-    });
+    ).toEqual({ ...NO_UPGRADES, boots: 1 });
     expect(progress.fieldLog().events.map((event) => event.code)).toContain(
       "save.conflict",
     );
@@ -4808,9 +4815,12 @@ describe("two saves found (#226)", () => {
       expect(second.getSnapshot().ready).toBe(true);
     });
     holdEcho.held = true;
-    first.applyMutation((mountain) => ({ ...mountain, upgrades: { tap: 1 } }));
+    first.applyMutation((mountain) => ({
+      ...mountain,
+      upgrades: { ...NO_UPGRADES, tap: 1 },
+    }));
     await vi.waitFor(() => {
-      expect(docs.get(user.uid)?.upgrades).toEqual({ tap: 1 });
+      expect(docs.get(user.uid)?.upgrades).toEqual({ ...NO_UPGRADES, tap: 1 });
     });
     expect(first.getSnapshot().saveConflict).toBeUndefined();
     const otherMaterials = { clay: 9, iron: 4, crystal: 0, heartstone: 0 };
@@ -4829,7 +4839,10 @@ describe("two saves found (#226)", () => {
     expect(conflict?.local.mountain.carts).toBe(2);
     expect(conflict?.local.mountain.pocket).toBe(80);
     expect(conflict?.local.mountain.materials).toEqual(otherMaterials);
-    expect(conflict?.remote.mountain.upgrades).toEqual({ tap: 1 });
+    expect(conflict?.remote.mountain.upgrades).toEqual({
+      ...NO_UPGRADES,
+      tap: 1,
+    });
     expect(conflict?.remote.mountain.carts).toBe(0);
     expect(first.getSnapshot().saveConflict).toBeUndefined();
     const server = await cloud.load({ uid: user.uid });
@@ -4851,9 +4864,7 @@ describe("two saves found (#226)", () => {
     });
     expect(
       reloaded.getSnapshot().saveConflict?.remote.mountain.upgrades,
-    ).toEqual({
-      tap: 1,
-    });
+    ).toEqual({ ...NO_UPGRADES, tap: 1 });
     expect(reloaded.getSnapshot().away).toBeUndefined();
     const phone = readPhoneBackup({ storage: storageB, uid: user.uid });
     expect(phone.kind).toBe("present");
@@ -4873,10 +4884,10 @@ describe("two saves found (#226)", () => {
     expect(reloaded.getSnapshot().mountain.helpers).toBe(4);
     expect(reloaded.getSnapshot().mountain.pocket).toBe(80);
     expect(reloaded.getSnapshot().mountain.materials).toEqual(otherMaterials);
-    expect(reloaded.getSnapshot().mountain.upgrades).toBeUndefined();
+    expect(reloaded.getSnapshot().mountain.upgrades).toEqual(NO_UPGRADES);
     const copies = await reloaded.savedCopies();
     expect(copies).toHaveLength(1);
-    expect(copies[0]?.mountain.upgrades).toEqual({ tap: 1 });
+    expect(copies[0]?.mountain.upgrades).toEqual({ ...NO_UPGRADES, tap: 1 });
     expect(copies[0]?.mountain.carts).toBe(0);
     const events = reloaded.fieldLog().events.map((event) => event.code);
     expect(events).toContain("save.conflict");
@@ -4899,7 +4910,10 @@ describe("two saves found (#226)", () => {
     }
     await expect(reloaded.restoreCopy(id)).resolves.toBe("saved");
     await vi.waitFor(() => {
-      expect(reloaded.getSnapshot().mountain.upgrades).toEqual({ tap: 1 });
+      expect(reloaded.getSnapshot().mountain.upgrades).toEqual({
+        ...NO_UPGRADES,
+        tap: 1,
+      });
     });
     expect(reloaded.getSnapshot().mountain.carts).toBe(0);
     expect(reloaded.getSnapshot().mountain.pocket).toBe(500);
@@ -5012,7 +5026,7 @@ describe("two saves found (#226)", () => {
     });
     progress.applyMutation((mountain) => ({
       ...mountain,
-      upgrades: { tap: 1 },
+      upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
     other.applyMutation((mountain) => ({ ...mountain, carts: 1 }));
     await vi.waitFor(() => {
@@ -5161,7 +5175,7 @@ describe("two saves found (#226)", () => {
 
     progress.applyMutation((mountain) => ({
       ...mountain,
-      upgrades: { tap: 1 },
+      upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
     expect(writes).toBe(1);
     server = {
@@ -5178,9 +5192,7 @@ describe("two saves found (#226)", () => {
     }
     expect(
       progress.getSnapshot().saveConflict?.local.mountain.upgrades,
-    ).toEqual({
-      tap: 1,
-    });
+    ).toEqual({ ...NO_UPGRADES, tap: 1 });
     expect(progress.getSnapshot().saveConflict?.remote.mountain.drills).toBe(1);
     const writesAtSheet = writes;
     progress.flush();
@@ -5192,15 +5204,16 @@ describe("two saves found (#226)", () => {
       deviceId: "other-device",
       deviceLabel: "Safari on iPhone",
     });
-    expect(progress.getSnapshot().mountain.upgrades).toEqual({ tap: 1 });
+    expect(progress.getSnapshot().mountain.upgrades).toEqual({
+      ...NO_UPGRADES,
+      tap: 1,
+    });
     expect(progress.getSnapshot().mountain.borers).toBe(0);
     expect(writes).toBe(writesAtSheet);
     deliver({ kind: "unavailable" });
     expect(
       progress.getSnapshot().saveConflict?.local.mountain.upgrades,
-    ).toEqual({
-      tap: 1,
-    });
+    ).toEqual({ ...NO_UPGRADES, tap: 1 });
     progress.dispose();
   });
 
@@ -5242,7 +5255,7 @@ describe("two saves found (#226)", () => {
     });
     progress.applyMutation((mountain) => ({
       ...mountain,
-      upgrades: { boots: 1 },
+      upgrades: { ...NO_UPGRADES, boots: 1 },
     }));
     deliver({
       kind: "found",
@@ -5253,9 +5266,7 @@ describe("two saves found (#226)", () => {
     });
     expect(
       progress.getSnapshot().saveConflict?.local.mountain.upgrades,
-    ).toEqual({
-      boots: 1,
-    });
+    ).toEqual({ ...NO_UPGRADES, boots: 1 });
     expect(progress.getSnapshot().saveConflict?.remote.mountain.carts).toBe(3);
     expect(progress.getSnapshot().saveKind).toBe("account");
     progress.dispose();
@@ -5580,7 +5591,7 @@ describe("dispatch (#409)", () => {
         drills: 4,
         borers: 2,
         // A tap takes a share of the crew's speed, so a slowed machine digs less.
-        upgrades: { tap: 5 },
+        upgrades: { ...NO_UPGRADES, tap: 5 },
       }));
       return {
         progress,

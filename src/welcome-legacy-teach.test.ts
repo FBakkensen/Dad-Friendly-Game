@@ -110,8 +110,7 @@ describe("pass-to-kid card (#247)", () => {
   });
 
   it("counts the starting recipes on a mountain without a list, and stays plain", () => {
-    const bare: Mountain = { ...createMountain() };
-    delete (bare as { recipes?: unknown }).recipes;
+    const bare: Mountain = createMountain();
     const words = legacyCardWords(bare);
     expect(words.keeps).toBe(
       `A bigger mountain for your kid, with the Legacy and ${String(recipesForMined(0).length)} recipes.`,

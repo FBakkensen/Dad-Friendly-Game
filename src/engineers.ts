@@ -75,7 +75,7 @@ export function promoteCost(mountain: Mountain): number {
       (
         PROMOTE_BASE_COST *
         oneOffStretch(mountain) *
-        2 ** (mountain.engineers?.length ?? 0)
+        2 ** mountain.engineers.length
       ).toPrecision(12),
     ),
   );
@@ -96,7 +96,7 @@ export function nextEngineerName(
  */
 export function canPromote(mountain: Mountain): boolean {
   return (
-    nextEngineerName(mountain.engineers ?? []) !== undefined &&
+    nextEngineerName(mountain.engineers) !== undefined &&
     mountain.helpers >= 1 &&
     mountain.pocket >= promoteCost(mountain)
   );
@@ -107,7 +107,7 @@ export function canPromote(mountain: Mountain): boolean {
  * full, no worker is free to step up, or the pocket can't cover the price.
  */
 export function promote(mountain: Mountain): Mountain {
-  const engineers = mountain.engineers ?? [];
+  const engineers = mountain.engineers;
   const name = nextEngineerName(engineers);
   if (
     name === undefined ||
@@ -133,7 +133,7 @@ export function grantFirstEngineer(mountain: Mountain): {
   readonly mountain: Mountain;
   readonly joined: boolean;
 } {
-  if (mountain.borers < 1 || (mountain.engineers?.length ?? 0) > 0) {
+  if (mountain.borers < 1 || mountain.engineers.length > 0) {
     return { mountain, joined: false };
   }
   return {
@@ -154,12 +154,8 @@ export function station(
   post: EngineerPost,
 ): Mountain {
   const engineers = mountain.engineers;
-  const engineer = engineers?.[index];
-  if (
-    engineers === undefined ||
-    engineer === undefined ||
-    engineer.post === post
-  ) {
+  const engineer = engineers[index];
+  if (engineer === undefined || engineer.post === post) {
     return mountain;
   }
   const next = engineers.slice();
@@ -173,12 +169,8 @@ export function station(
  */
 export function addTrip(mountain: Mountain, index: number): Mountain {
   const engineers = mountain.engineers;
-  const engineer = engineers?.[index];
-  if (
-    engineers === undefined ||
-    engineer === undefined ||
-    engineer.trips >= MAX_ENGINEER_TRIPS
-  ) {
+  const engineer = engineers[index];
+  if (engineer === undefined || engineer.trips >= MAX_ENGINEER_TRIPS) {
     return mountain;
   }
   const trips = engineer.trips + 1;
@@ -225,7 +217,7 @@ export function staffForBuy(
  * in a tunnel stays there.
  */
 export function tendBestTier(mountain: Mountain): Mountain {
-  const engineers = mountain.engineers ?? [];
+  const engineers = mountain.engineers;
   if (engineers.length === 0) {
     return mountain;
   }
@@ -249,15 +241,11 @@ export function tendBestTier(mountain: Mountain): Mountain {
 }
 
 function machineTended(mountain: Mountain): boolean {
-  return (mountain.engineers ?? []).some(
-    (engineer) => engineer.post === "machine",
-  );
+  return mountain.engineers.some((engineer) => engineer.post === "machine");
 }
 
 function hasEngineerOutOfTunnel(mountain: Mountain): boolean {
-  return (mountain.engineers ?? []).some(
-    (engineer) => engineer.post !== "tunnel",
-  );
+  return mountain.engineers.some((engineer) => engineer.post !== "tunnel");
 }
 
 /** M12 retune (#252): tending counts a quarter more, at every rank. */
@@ -281,11 +269,11 @@ export const GRANDPA_RANK: EngineerRank = 0;
  * big group of drills, so buying a machine never slows the crew (#356).
  */
 export function grandpaPost(mountain: Mountain): TierId | undefined {
-  if ((mountain.legacy ?? 0) < 1) {
+  if (mountain.legacy < 1) {
     return undefined;
   }
   const tended = new Set<TierId | EngineerPost>(
-    (mountain.engineers ?? []).map((one) => one.post),
+    mountain.engineers.map((one) => one.post),
   );
   let free = mountain.helpers + mountain.kids;
   let best: TierId | undefined;
@@ -318,11 +306,7 @@ export function tendingTenths(mountain: Mountain, tierId: TierId): number {
   // Grandpa tends at his rank on his post (#338).
   let best =
     grandpaPost(mountain) === tierId ? TENDING_TENTHS[GRANDPA_RANK] * scale : 0;
-  const engineers = mountain.engineers;
-  if (engineers === undefined) {
-    return best;
-  }
-  for (const engineer of engineers) {
+  for (const engineer of mountain.engineers) {
     if (engineer.post === tierId) {
       best = Math.max(best, TENDING_TENTHS[engineer.rank] * scale);
     }

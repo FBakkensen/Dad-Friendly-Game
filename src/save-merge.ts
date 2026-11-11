@@ -163,21 +163,21 @@ function facts(mountain: Mountain): Facts {
       crafts[id] = level;
     }
   }
-  for (const [id, level] of Object.entries(mountain.kept?.crafted ?? {})) {
+  for (const [id, level] of Object.entries(mountain.kept.crafted)) {
     if (typeof level === "number" && level > (crafts[id] ?? 0)) {
       crafts[id] = level;
     }
   }
   const engineers: Record<string, number> = {};
-  for (const engineer of mountain.engineers ?? []) {
+  for (const engineer of mountain.engineers) {
     engineers[engineer.name] = engineer.trips;
   }
   return {
     mined: minedOut(mountain),
     upgrades,
     crafts,
-    recipes: [...(mountain.recipes ?? []), ...(mountain.kept?.recipes ?? [])],
-    finds: [...(mountain.finds ?? [])],
+    recipes: [...mountain.recipes, ...mountain.kept.recipes],
+    finds: [...mountain.finds],
     engineers,
     crew: mountain.helpers,
     carts: mountain.carts,

@@ -18,6 +18,7 @@ import {
 } from "../src/screen-words.ts";
 import { owned, tierById, tierCost, TIERS, type TierId } from "../src/tiers.ts";
 import {
+  NO_UPGRADES,
   upgradeById,
   upgradeCost,
   upgradeLevel,
@@ -190,7 +191,7 @@ export function boardB(): Mountain {
     machines: 0,
     kids: 0,
     staffed: 2,
-    upgrades: { tap: 2, boots: 1 },
+    upgrades: { ...NO_UPGRADES, tap: 2, boots: 1 },
   };
 }
 

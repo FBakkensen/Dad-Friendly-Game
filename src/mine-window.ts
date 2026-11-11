@@ -71,7 +71,7 @@ export function windowScene(
     drills: mountain.drills,
     borers: mountain.borers,
     trouble: trouble?.tier,
-    legacy: (mountain.legacy ?? 0) > 0,
+    legacy: mountain.legacy > 0,
     rush: now !== undefined && rushLeft(mountain, now) > 0,
   };
 }

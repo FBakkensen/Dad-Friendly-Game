@@ -12,13 +12,21 @@ import {
   type RecipeCard,
   type WorkshopCard,
 } from "./workshop-sheet";
-import { RECIPE_IDS, recipesForMined, type RecipeId } from "./workshop";
+import {
+  RECIPE_IDS,
+  recipesForMined,
+  type RecipeId,
+  NOTHING_CRAFTED,
+  NOTHING_KEPT,
+  COLD_CLOCKS,
+} from "./workshop";
 import { effectiveRates } from "./rates";
 import {
   craftSpeedPair,
   formatCraftSpeed,
   formatCrewSpeed,
 } from "./screen-words";
+import { NO_BOOSTS } from "./boosts";
 
 const FULL = {
   clay: 40,
@@ -225,6 +233,7 @@ describe("workshop sheet (#199)", () => {
     expect(benchLeftMs(started, 600_000)).toBeUndefined();
     const held = shed({
       kept: {
+        ...NOTHING_KEPT,
         bench: { recipe: "future-bit", startedAt: 0, endsAt: 600_000 },
       },
     });
@@ -248,7 +257,7 @@ describe("workshop sheet (#199)", () => {
     const greased = shed({
       helpers: 0,
       carts: 0,
-      axleUntil: 20 * 60_000,
+      clocks: { ...COLD_CLOCKS, "axle-grease": 20 * 60_000 },
       bench: {
         recipe: "axle-grease",
         startedAt: 0,
@@ -261,7 +270,11 @@ describe("workshop sheet (#199)", () => {
         ? benchView(greased, 9 * 60_000)
         : undefined,
     ).toMatchObject({ cancel: "Cancel · nothing comes back" });
-    const hot = shed({ chargeUntil: 30 * 60_000, helpers: 4, carts: 1 });
+    const hot = shed({
+      clocks: { ...COLD_CLOCKS, "blasting-charge": 30 * 60_000 },
+      helpers: 4,
+      carts: 1,
+    });
     // The card and the timer chip read the same clock while it runs.
     expect(recipe(workshopCards(hot, 1_000), "blasting-charge").effect).toBe(
       "Crew 2× now · 29:59 left",
@@ -271,13 +284,17 @@ describe("workshop sheet (#199)", () => {
     expect(recipe(workshopCards(cold, 1_000), "blasting-charge").effect).toBe(
       "The crew digs at 2× for 20 min.",
     );
-    const charged = shed({ chargeUntil: 30 * 60_000, helpers: 4, carts: 1 });
+    const charged = shed({
+      clocks: { ...COLD_CLOCKS, "blasting-charge": 30 * 60_000 },
+      helpers: 4,
+      carts: 1,
+    });
     const grease = recipe(workshopCards(charged, 1_000), "axle-grease");
     expect(grease.effect).toBe("Crew already at ×2.");
     const overtime = shed({
       helpers: 4,
       carts: 1,
-      boosts: { overtime: 30 * 60_000 },
+      boosts: { ...NO_BOOSTS, overtime: 30 * 60_000 },
     });
     expect(
       recipe(workshopCards(overtime, 1_000), "blasting-charge").effect,
@@ -333,7 +350,9 @@ describe("workshop sheet (#199)", () => {
     expect(recipe(workshopCards(deep, 0), "engineers-kit").effect).toBe(
       "Long trips 4 h to 3 h 12 min.",
     );
-    const done = shed({ crafted: { "iron-rails": 2, "sturdy-props": 1 } });
+    const done = shed({
+      crafted: { ...NOTHING_CRAFTED, "iron-rails": 2, "sturdy-props": 1 },
+    });
     const names = workshopCards(done, 0).map((card) =>
       card.kind === "recipe" ? card.id : card.kind,
     );
@@ -359,8 +378,11 @@ describe("workshop sheet (#199)", () => {
     const flareHot = shed({
       recipes: [...RECIPE_IDS],
       materials: { ...FULL },
-      flareUntil: 2 * 60 * 60_000,
-      emberUntil: 30 * 60_000,
+      clocks: {
+        ...COLD_CLOCKS,
+        "crystal-flare": 2 * 60 * 60_000,
+        "heartstone-ember": 30 * 60_000,
+      },
       machines: 1,
       helpers: 25,
     });
@@ -390,6 +412,7 @@ describe("the drawer's bench clock, stones tag and pages (#374)", () => {
   it("gives an unknown bench its clock", () => {
     const held = shed({
       kept: {
+        ...NOTHING_KEPT,
         bench: { recipe: "future-bit", startedAt: 0, endsAt: 600_000 },
       },
     });
@@ -421,7 +444,7 @@ describe("fitted effect", () => {
       ...createMountain(),
       helpers: 1,
       carts: 1,
-      crafted: { "iron-rails": 1 },
+      crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 },
     };
     expect(fittedEffect(soft, "iron-rails", now)).toBe("Carts now 7.5/s.");
     expect(
@@ -437,7 +460,7 @@ describe("fitted effect", () => {
           ...createMountain(),
           drills: 1,
           helpers: 3,
-          crafted: { "diamond-bits": 1 },
+          crafted: { ...NOTHING_CRAFTED, "diamond-bits": 1 },
         },
         "diamond-bits",
         now,
@@ -449,7 +472,7 @@ describe("fitted effect", () => {
           ...createMountain(),
           machines: 1,
           helpers: 25,
-          crafted: { "heartstone-core": 1 },
+          crafted: { ...NOTHING_CRAFTED, "heartstone-core": 1 },
         },
         "heartstone-core",
         now,
@@ -463,7 +486,10 @@ describe("fitted effect", () => {
     );
     expect(
       fittedEffect(
-        { ...createMountain(), crafted: { "sturdy-props": 1 } },
+        {
+          ...createMountain(),
+          crafted: { ...NOTHING_CRAFTED, "sturdy-props": 1 },
+        },
         "sturdy-props",
         now,
       ),
@@ -473,7 +499,10 @@ describe("fitted effect", () => {
     );
     expect(
       fittedEffect(
-        { ...createMountain(), crafted: { "crystal-lamp": 1 } },
+        {
+          ...createMountain(),
+          crafted: { ...NOTHING_CRAFTED, "crystal-lamp": 1 },
+        },
         "crystal-lamp",
         now,
       ),
@@ -486,14 +515,21 @@ describe("fitted effect", () => {
   it("states a live crew timer, including when another is already that strong", () => {
     expect(
       fittedEffect(
-        { ...createMountain(), chargeUntil: 20 * minute },
+        {
+          ...createMountain(),
+          clocks: { ...COLD_CLOCKS, "blasting-charge": 20 * minute },
+        },
         "blasting-charge",
         now,
       ),
     ).toBe("The crew digs at 2× for 20 min.");
     expect(
       fittedEffect(
-        { ...createMountain(), helpers: 4, chargeUntil: 20 * minute },
+        {
+          ...createMountain(),
+          helpers: 4,
+          clocks: { ...COLD_CLOCKS, "blasting-charge": 20 * minute },
+        },
         "blasting-charge",
         now,
       ),
@@ -503,8 +539,8 @@ describe("fitted effect", () => {
         {
           ...createMountain(),
           helpers: 4,
-          chargeUntil: 20 * minute,
-          boosts: { overtime: minute },
+          clocks: { ...COLD_CLOCKS, "blasting-charge": 20 * minute },
+          boosts: { ...NO_BOOSTS, overtime: minute },
         },
         "blasting-charge",
         now,
@@ -512,7 +548,11 @@ describe("fitted effect", () => {
     ).toBe("Crew already at ×2.");
     expect(
       fittedEffect(
-        { ...createMountain(), helpers: 4, axleUntil: 20 * minute },
+        {
+          ...createMountain(),
+          helpers: 4,
+          clocks: { ...COLD_CLOCKS, "axle-grease": 20 * minute },
+        },
         "axle-grease",
         now,
       ),
@@ -525,7 +565,10 @@ describe("fitted effect", () => {
     );
     expect(
       fittedEffect(
-        { ...createMountain(), flareUntil: 60 * minute },
+        {
+          ...createMountain(),
+          clocks: { ...COLD_CLOCKS, "crystal-flare": 60 * minute },
+        },
         "crystal-flare",
         now,
       ),
@@ -539,7 +582,7 @@ describe("fitted effect", () => {
           ...createMountain(),
           machines: 1,
           helpers: 25,
-          emberUntil: 20 * minute,
+          clocks: { ...COLD_CLOCKS, "heartstone-ember": 20 * minute },
         },
         "heartstone-ember",
         now,

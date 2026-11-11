@@ -114,8 +114,7 @@ describe("tending teach (#246)", () => {
       post: "borer",
     });
     // A save with no crew at all has no first tend.
-    const noCrew = { ...crew() };
-    delete noCrew.engineers;
+    const noCrew = { ...crew(), engineers: [] };
     expect(firstTend(noCrew)).toBeUndefined();
   });
 

@@ -5,6 +5,7 @@ import { DAD_SCHEDULE } from "../pacing";
 import { singleShareOf } from "./measures/singleShare";
 import { scoreDecision } from "./score";
 import { BORER_SOURCE, CRAFTED_SOURCE, TENDING_SOURCE } from "./targets";
+import { NOTHING_CRAFTED } from "../workshop";
 
 const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
 
@@ -79,7 +80,7 @@ describe("scoreDecision", () => {
       ...createMountain(),
       helpers: 4,
       carts: 2,
-      crafted: { "iron-rails": 1 as const },
+      crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 as const },
     };
     const sample = scoreDecision({
       mountain,

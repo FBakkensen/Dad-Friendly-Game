@@ -9,7 +9,6 @@ import {
 } from "../economy/actions";
 import { promoteCost, staffNeeded } from "../engineers";
 import type { TunnelId } from "../expeditions";
-import { EMPTY_MATERIALS } from "../layers";
 import type { Mountain } from "../mountain";
 import { minedOut } from "../scale";
 import { effectiveRates } from "../rates";
@@ -403,7 +402,7 @@ function recipeKnown(mountain: Mountain, id: RecipeId): boolean {
   if (recipesForMined(minedOut(mountain)).includes(id)) {
     return true;
   }
-  return mountain.recipes?.includes(id) ?? false;
+  return mountain.recipes.includes(id);
 }
 
 function craftHasRoom(mountain: Mountain, id: RecipeId): boolean {
@@ -417,7 +416,7 @@ function craftHasRoom(mountain: Mountain, id: RecipeId): boolean {
 
 function materialsCover(mountain: Mountain, id: RecipeId): boolean {
   const cost = recipeCost(id, stretch(mountain)).materials;
-  const have = mountain.materials ?? EMPTY_MATERIALS;
+  const have = mountain.materials;
   return (
     have.clay >= cost.clay &&
     have.iron >= cost.iron &&

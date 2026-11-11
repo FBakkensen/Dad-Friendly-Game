@@ -102,7 +102,7 @@ function toolStones(
 ): number {
   const withTool: Mountain = {
     ...mountain,
-    finds: [...(mountain.finds ?? []), id],
+    finds: [...mountain.finds, id],
   };
   const current = rateOf(mountain);
   const delta = rateOf(withTool) - current;

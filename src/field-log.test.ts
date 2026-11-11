@@ -25,6 +25,7 @@ import {
 } from "./field-log";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
+import { NO_UPGRADES } from "./upgrades";
 
 const AT = Date.UTC(2026, 0, 2, 3, 4, 5);
 
@@ -105,7 +106,7 @@ describe("snapshot", () => {
       carts: 1,
       drills: 2,
       kids: 2,
-      upgrades: { tap: 2 },
+      upgrades: { ...NO_UPGRADES, tap: 2 },
       boosts: { sharper: AT + 60_000, overtime: AT - 1 },
       legacy: 3,
       engineers: [{ name: "Ada", rank: 1, trips: 3, post: "borer" }],

@@ -623,7 +623,7 @@ describe("Brought home (#455)", () => {
       can: true,
       aria: "Brought home. A child's drawing, A pocket watch",
     });
-    expect(broughtRowView(undefined)).toBeUndefined();
+    expect(broughtRowView([])).toBeUndefined();
     expect(broughtRowView(["pick"])).toBeUndefined();
   });
 

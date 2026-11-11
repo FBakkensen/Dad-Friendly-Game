@@ -164,7 +164,7 @@ describe("world step", () => {
     const endsAt = started.bench?.endsAt ?? 0;
     const early = step(createWorld(1, started), endsAt - 1, "live");
     expect(early.mountain.bench?.recipe).toBe("iron-rails");
-    expect(early.mountain.crafted?.["iron-rails"]).toBeUndefined();
+    expect(early.mountain.crafted?.["iron-rails"]).toBe(0);
     const done = step(createWorld(1, started), endsAt, "live");
     expect(done.mountain.bench).toBeUndefined();
     expect(done.mountain.crafted?.["iron-rails"]).toBe(1);

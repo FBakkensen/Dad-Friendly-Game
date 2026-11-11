@@ -1,7 +1,7 @@
 import { milestoneMultiplier } from "../milestones";
 import { RUSH_MS } from "../gold-rush";
 import { describe, expect, it } from "vitest";
-import { BOOSTS, boostById, buyBoost, boostLeft } from "../boosts";
+import { BOOSTS, boostById, buyBoost, boostLeft, NO_BOOSTS } from "../boosts";
 import { buyCrew } from "../crew";
 import {
   promote,
@@ -41,8 +41,9 @@ import {
   upgradeLevel,
   upgradePrice,
   type UpgradeId,
+  NO_UPGRADES,
 } from "../upgrades";
-import { MATERIAL_EVERY } from "../layers";
+import { MATERIAL_EVERY, EMPTY_MATERIALS } from "../layers";
 import { BAND_SCALE, minedOut, oneOffStretch } from "../scale";
 import {
   MAX_CRAFTED_LEVEL,
@@ -51,6 +52,8 @@ import {
   recipeCost,
   recipesForMined,
   startCraft,
+  NOTHING_CRAFTED,
+  NOTHING_KEPT,
 } from "../workshop";
 import {
   applyAction,
@@ -383,7 +386,7 @@ describe("listActions", () => {
     const offers = listActions(broke, NOW);
     expect(offers.some((action) => action.kind === "buyTier")).toBe(true);
     expect(offers.some((action) => action.kind === "promote")).toBe(true);
-    const maxed: Mountain = { ...rich, upgrades: { tap: 10 } };
+    const maxed: Mountain = { ...rich, upgrades: { ...NO_UPGRADES, tap: 10 } };
     expect(
       listActions(maxed, NOW).some(
         (action) => action.kind === "buyUpgrade" && action.id === "tap",
@@ -850,7 +853,7 @@ describe("valueOf", () => {
   it("does not let a running boost change a tier's score", () => {
     const plain = score(withHelper, { kind: "buyTier", id: "helper" }, HORIZON);
     const boosted = score(
-      { ...withHelper, boosts: { overtime: NOW + 60_000 } },
+      { ...withHelper, boosts: { ...NO_BOOSTS, overtime: NOW + 60_000 } },
       { kind: "buyTier", id: "helper" },
       HORIZON,
     );
@@ -977,7 +980,7 @@ describe("valueOf", () => {
     expect(machine.gainPerSec).toBe(0);
     expect(machine.paybackSec).toBe(Number.POSITIVE_INFINITY);
     const maxed = score(
-      { ...rich, upgrades: { tap: 10 } },
+      { ...rich, upgrades: { ...NO_UPGRADES, tap: 10 } },
       { kind: "buyUpgrade", id: "tap", price: 0 },
       HORIZON,
     );
@@ -1103,6 +1106,7 @@ describe("valueOf", () => {
     ).toBe(true);
     const held = shed({
       kept: {
+        ...NOTHING_KEPT,
         bench: {
           recipe: "future-bit",
           startedAt: NOW,
@@ -1118,11 +1122,15 @@ describe("valueOf", () => {
     expect(
       listActions(held, NOW + 60_000).some((action) => action.kind === "craft"),
     ).toBe(true);
-    expect(sinkRecipes(shed({ crafted: { "iron-rails": 3 } }))).not.toContain(
-      "iron-rails",
-    );
     expect(
-      sinkRecipes(shed({ crafted: { "blasting-charge": MAX_CRAFTED_LEVEL } })),
+      sinkRecipes(shed({ crafted: { ...NOTHING_CRAFTED, "iron-rails": 3 } })),
+    ).not.toContain("iron-rails");
+    expect(
+      sinkRecipes(
+        shed({
+          crafted: { ...NOTHING_CRAFTED, "blasting-charge": MAX_CRAFTED_LEVEL },
+        }),
+      ),
     ).not.toContain("blasting-charge");
 
     const yard = shed({ drills: 0, borers: 0, engineers: [] });
@@ -1141,8 +1149,7 @@ describe("valueOf", () => {
     expect(
       score(fresh, { kind: "craft", recipe: "iron-rails" }).paybackSec,
     ).toBe(Number.POSITIVE_INFINITY);
-    const noPocket = { ...yard };
-    Reflect.deleteProperty(noPocket, "materials");
+    const noPocket = { ...yard, materials: EMPTY_MATERIALS };
     expect(
       score(noPocket, { kind: "craft", recipe: "iron-rails" }).gainPerSec,
     ).toBeGreaterThan(0);
@@ -1154,7 +1161,7 @@ describe("valueOf", () => {
     ).toBeGreaterThan(0);
     expect(
       score(
-        { ...yard, crafted: { "iron-rails": 3 } },
+        { ...yard, crafted: { ...NOTHING_CRAFTED, "iron-rails": 3 } },
         { kind: "craft", recipe: "iron-rails" },
       ).gainPerSec,
     ).toBe(0);
@@ -1241,13 +1248,11 @@ describe("valueOf", () => {
     const kitOnly = shed({
       recipes: [...(shed().recipes ?? []), "engineers-kit"],
     });
-    const noCrew = { ...kitOnly };
-    Reflect.deleteProperty(noCrew, "engineers");
+    const noCrew = { ...kitOnly, engineers: [] };
     expect(
       score(noCrew, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
     ).toBe(0);
-    const unwritten = { ...armed };
-    Reflect.deleteProperty(unwritten, "recipes");
+    const unwritten = { ...armed, recipes: [] };
     expect(
       score(unwritten, { kind: "craft", recipe: "reinforce" }).gainPerSec,
     ).toBeGreaterThan(0);
@@ -1381,7 +1386,7 @@ describe("applyMove (#409)", () => {
   });
 
   it("digs with the trouble it is given: a slowed machine gives a tap less, never nothing", () => {
-    const tapper: Mountain = { ...rich, upgrades: { tap: 5 } };
+    const tapper: Mountain = { ...rich, upgrades: { ...NO_UPGRADES, tap: 5 } };
     const calmDig = applyMove(tapper, { kind: "dig" }, NOW, calm);
     const caveIn = applyMove(tapper, { kind: "dig" }, NOW, { trouble });
     const gained = (result: typeof calmDig) =>
@@ -1543,7 +1548,7 @@ describe("applyMove (#409)", () => {
 
   it("promotes the first engineer from a mountain with no crew yet", () => {
     const bare: Mountain = { ...fresh, helpers: 1, pocket: 1e15 };
-    expect(bare.engineers).toBeUndefined();
+    expect(bare.engineers).toEqual([]);
     expect(eventsOf(bare, promoteAt(bare))).toEqual([
       { kind: "promoted", name: "Ada", crew: 1 },
     ]);
@@ -1662,7 +1667,7 @@ describe("buyEveryBoost", () => {
     const running = {
       ...createMountain(),
       pocket: 0,
-      boosts: { sharper: NOW + 1_000 },
+      boosts: { ...NO_BOOSTS, sharper: NOW + 1_000 },
     };
     expect(buyEveryBoost(running, NOW)).toBe(running);
   });

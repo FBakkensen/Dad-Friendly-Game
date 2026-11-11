@@ -352,7 +352,7 @@ describe("the Engineers drawer (#455)", () => {
     postRow(screen, "camp").click();
     expect(kick(screen)).toBe("Ada puts the kettle on at camp.");
     const mountain = readSessionSave({ storage })?.mountain;
-    expect(mountain?.expeditions).toBeUndefined();
+    expect(mountain?.expeditions).toEqual([]);
     expect(mountain?.engineers?.[0]).toEqual({
       name: "Ada",
       rank: 0,

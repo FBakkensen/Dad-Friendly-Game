@@ -31,6 +31,7 @@ import {
   HOUR_MS,
   TENDING_SOURCE,
 } from "./targets";
+import { NOTHING_CRAFTED } from "../workshop";
 
 function decision(
   over: {
@@ -439,7 +440,7 @@ describe("measures", () => {
       "crystal-lamp",
       "engineers-kit",
     ] as const;
-    const ironCap = materialDemand("iron", ironRecipes, {}, []);
+    const ironCap = materialDemand("iron", ironRecipes, NOTHING_CRAFTED, []);
     expect(ironCap).toBe(4 * 2 + 4 + 5 * 5 + 4 + 4);
     const pocket = { clay: 0, iron: ironCap, crystal: 0, heartstone: 0 };
     const atCap = decision({

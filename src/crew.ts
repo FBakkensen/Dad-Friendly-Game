@@ -27,9 +27,8 @@ export type TierLock =
  * so a once-a-day dad gets a full sitting with it on sale (M13, #253).
  */
 function kidOpens(mountain: Mountain, tier: Tier): number {
-  return tier.id === "machine" && mountain.stretch !== undefined
-    ? KID_MACHINE_OPENS
-    : 1;
+  // Only a kid's run is stretched: a stretch is always above 1.
+  return tier.id === "machine" && mountain.stretch > 1 ? KID_MACHINE_OPENS : 1;
 }
 
 /** Why this tier is not for sale yet, or undefined when it is. */

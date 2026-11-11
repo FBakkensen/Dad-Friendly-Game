@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { BOOSTS, boostById, boostCost } from "./boosts";
+import { BOOSTS, boostById, boostCost, NO_BOOSTS } from "./boosts";
 import {
   BAND_STARTS,
   kidStretch,
@@ -28,7 +28,13 @@ import { BUYS_SETTLE_MS, showAppUpdate } from "./mountain-screen";
 import { shownRows, upgradeRowId } from "./upgrade-reveal";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { tierById, tierCost, tierQuote } from "./tiers";
-import { UPGRADES, upgradeById, upgradeCost, type UpgradeId } from "./upgrades";
+import {
+  UPGRADES,
+  upgradeById,
+  upgradeCost,
+  type UpgradeId,
+  NO_UPGRADES,
+} from "./upgrades";
 import { upgradesOrder } from "./upgrades-panel";
 import { LOST_TOOLS } from "./lost-tools";
 import {
@@ -50,6 +56,7 @@ import {
 } from "./mountain-screen.harness";
 import { RELIC_LIT } from "./board-relics";
 import { KEEPSAKE_ART } from "./relic-pages";
+import { COLD_CLOCKS } from "./workshop";
 
 /** An upgrade level's stone price on a Topsoil first run (k = 1). */
 function upgradePrice(id: UpgradeId, level = 0): number {
@@ -179,7 +186,7 @@ describe("what the crew gives", () => {
       ...minedMountain(BAND_STARTS[2] + 1_000),
       helpers: 400,
       carts: 300,
-      upgrades: { tap: 1 },
+      upgrades: { ...NO_UPGRADES, tap: 1 },
     };
     storage.setItem(
       SESSION_SAVE_KEY,
@@ -1699,9 +1706,7 @@ describe("upgrades on screen", () => {
       frames.push(lamp?.style.backgroundPositionX ?? "");
       expect(frames).toEqual(["-120px", "0px"]);
       expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
-      expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
-        undefined,
-      );
+      expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(0);
       screen.root.remove();
     } finally {
       vi.useRealTimers();
@@ -1729,9 +1734,7 @@ describe("upgrades on screen", () => {
     fingerTap(sharper);
     expect(apply).not.toHaveBeenCalled();
     read.mockRestore();
-    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
-      undefined,
-    );
+    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(0);
   });
 
   it("the settle", () => {
@@ -1748,9 +1751,7 @@ describe("upgrades on screen", () => {
     const sharper = rowOf(screen, '[data-boost="sharper"]');
     fingerTap(sharper);
     expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
-    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
-      undefined,
-    );
+    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(0);
     // Back shares the settle: the double tap does not close it either.
     const back =
       drawerOf(screen)?.querySelector<HTMLElement>(".board-sheet-back");
@@ -1768,7 +1769,7 @@ describe("upgrades on screen", () => {
     const m: Mountain = {
       ...boostsOpen(0),
       helpers: 20,
-      upgrades: { tap: 2, boots: 1 },
+      upgrades: { ...NO_UPGRADES, tap: 2, boots: 1 },
     };
     const screen = mountScreen({
       storage: seededWith(m, CLOCK),
@@ -2218,9 +2219,7 @@ describe("upgrades on screen", () => {
     expect(rowOrder(screen)).toEqual(order);
     clock += 150;
     fingerTap(topRow(screen));
-    expect(screen.progress.getSnapshot().mountain.upgrades?.tap).toBe(
-      undefined,
-    );
+    expect(screen.progress.getSnapshot().mountain.upgrades?.tap).toBe(0);
     // The next opening leads with the New row's section.
     drawerOf(screen)
       ?.querySelector<HTMLButtonElement>(".board-sheet-back")
@@ -2239,7 +2238,7 @@ describe("upgrades on screen", () => {
         drills: 1,
         staffed: 2,
         // Sharper picks was used: Overtime and the upgrades carry the dots.
-        boosts: { sharper: CLOCK - 1 },
+        boosts: { ...NO_BOOSTS, sharper: CLOCK - 1 },
         pocket: 0,
       };
       const overtimePrice = boostCost(
@@ -2283,7 +2282,7 @@ describe("upgrades on screen", () => {
       carts: 3,
       drills: 1,
       staffed: 2,
-      boosts: { sharper: CLOCK - 1 },
+      boosts: { ...NO_BOOSTS, sharper: CLOCK - 1 },
       pocket: 0,
     };
     let landWith: (result: CloudLoadResult) => void = () => {
@@ -2366,9 +2365,7 @@ describe("upgrades on screen", () => {
     const pocket = screen.progress.getSnapshot().mountain.pocket;
     fingerTap(rowOf(screen, '[data-boost="sharper"]'));
     expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
-    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
-      undefined,
-    );
+    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(0);
   });
 });
 
@@ -2499,7 +2496,7 @@ describe("quick boosts on screen", () => {
       mountain: {
         ...minedMountain(0),
         helpers: 3,
-        boosts: { overtime: clock + 20 * 60_000 },
+        boosts: { ...NO_BOOSTS, overtime: clock + 20 * 60_000 },
       },
       lastSeen: clock,
     });
@@ -2550,7 +2547,7 @@ describe("quick boosts on screen", () => {
     expect(two?.querySelector<HTMLElement>(".effect-row")?.hidden).toBe(false);
     expect(two?.textContent).not.toContain("Nothing running");
     // Nothing running says so, with no empty list.
-    const none = row({});
+    const none = row(NO_BOOSTS);
     expect(shown(none)).toBe(0);
     expect(none?.querySelector<HTMLElement>(".effect-row")?.hidden).toBe(true);
     expect(none?.textContent).toBe("Running nowNothing running");
@@ -2594,10 +2591,13 @@ describe("quick boosts on screen", () => {
         borers: 1,
         staffed: 2,
         boosts: { sharper: now + 10 * 60_000, overtime: now + 20 * 60_000 },
-        chargeUntil: now + 8 * 60_000,
-        axleUntil: now + 12 * 60_000,
-        flareUntil: now + 30 * 60_000,
-        emberUntil: now + 15 * 60_000,
+        clocks: {
+          ...COLD_CLOCKS,
+          "blasting-charge": now + 8 * 60_000,
+          "axle-grease": now + 12 * 60_000,
+          "crystal-flare": now + 30 * 60_000,
+          "heartstone-ember": now + 15 * 60_000,
+        },
         engineers: names.map((name) => ({
           name,
           rank: 0 as const,
@@ -2659,8 +2659,11 @@ describe("quick boosts on screen", () => {
       mountain: {
         ...minedMountain(0),
         helpers: 10,
-        chargeUntil: until,
-        axleUntil: until,
+        clocks: {
+          ...COLD_CLOCKS,
+          "blasting-charge": until,
+          "axle-grease": until,
+        },
       },
       lastSeen: clock,
     });
@@ -2736,7 +2739,11 @@ describe("lasting upgrades on screen", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(0), helpers: 4, upgrades: { steady: 1 } },
+      mountain: {
+        ...minedMountain(0),
+        helpers: 4,
+        upgrades: { ...NO_UPGRADES, steady: 1 },
+      },
       lastSeen: Date.now() - (2 * 60 + 5) * 60_000,
     });
     const screen = mountScreen({ storage });
@@ -2988,7 +2995,7 @@ describe("Flemming's cart (#216)", () => {
         helpers: 18,
         carts: 13,
         drills: 5,
-        upgrades: { boots: 1, cartSyn: 1 },
+        upgrades: { ...NO_UPGRADES, boots: 1, cartSyn: 1 },
       },
       lastSeen: Date.now(),
     });
@@ -3347,7 +3354,7 @@ describe("Mantle of the Hero finale (#103)", () => {
       storage: seeded({
         ...minedMountain(LAST_STONE),
         helpers: 1_000,
-        upgrades: { tap: 3 },
+        upgrades: { ...NO_UPGRADES, tap: 3 },
       }),
     });
     document.body.append(screen.root);
@@ -3533,7 +3540,7 @@ describe("pass the mine to your kid (#131)", () => {
     const storage = seeded({
       ...minedMountain(LAST_STONE),
       helpers: 1_000,
-      upgrades: { tap: 3 },
+      upgrades: { ...NO_UPGRADES, tap: 3 },
     });
     const screen = mountScreen({ storage });
     document.body.append(screen.root);
@@ -3659,7 +3666,7 @@ describe("player-facing workers (#139)", () => {
         borers: 10,
         machines: 20,
         kids: 10,
-        upgrades: { boots: 1, steady: 1, cartSyn: 1, tap: 2 },
+        upgrades: { ...NO_UPGRADES, boots: 1, steady: 1, cartSyn: 1, tap: 2 },
       },
       lastSeen: Date.now() - 23.5 * 3_600_000,
     });

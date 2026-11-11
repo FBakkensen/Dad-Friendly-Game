@@ -13,6 +13,7 @@ import {
 import { engineersNote } from "./screen-words";
 import { writeSessionSave } from "./session-save";
 import { minedMountain } from "./test-fixtures";
+import { COLD_CLOCKS } from "./workshop";
 
 /*
  * The key rail on the mounted screen (#373): its doors, locks, lamps, timers and the New sign.
@@ -59,7 +60,7 @@ describe("the key rail (#373)", () => {
       startedAt: at - 60_000,
       endsAt: at + 9 * 60_000,
     },
-    axleUntil: at + 12 * 60_000,
+    clocks: { ...COLD_CLOCKS, "axle-grease": at + 12 * 60_000 },
     seen: ["workshop"],
     taught: ["workshop"],
   });
@@ -75,6 +76,11 @@ describe("the key rail (#373)", () => {
     seen: ["workshop", "engineers"],
     taught: ["workshop", "engineers", "staffing", "tending"],
     ...over,
+  });
+  /** The workshop save with the crew's engineer. */
+  const busyCrew = (at: number): Mountain => ({
+    ...benchBusy(at),
+    engineers: crewed().engineers,
   });
   const key = (screen: ReturnType<typeof mountScreen>, id: string) => {
     const found = screen.root.querySelector(`.board-key[data-key="${id}"]`);
@@ -128,7 +134,7 @@ describe("the key rail (#373)", () => {
 
   it("each key opens its door, and closing gives the key its focus back", () => {
     const screen = mountScreen({
-      storage: seeded(crewed(benchBusy(CLOCK)), CLOCK),
+      storage: seeded(busyCrew(CLOCK), CLOCK),
       now: () => CLOCK,
     });
     document.body.append(screen.root);
@@ -388,7 +394,7 @@ describe("the key rail (#373)", () => {
 
   it("the Workshop drawer gives focus back to the door it opened from", () => {
     const screen = mountScreen({
-      storage: seeded(crewed(benchBusy(CLOCK)), CLOCK),
+      storage: seeded(busyCrew(CLOCK), CLOCK),
       now: () => CLOCK,
     });
     document.body.append(screen.root);
@@ -434,7 +440,7 @@ describe("the key rail (#373)", () => {
     const screen = mountScreen({
       auth,
       cloudSave,
-      storage: seeded(crewed(benchBusy(CLOCK)), CLOCK),
+      storage: seeded(busyCrew(CLOCK), CLOCK),
       now: () => CLOCK,
     });
     document.body.append(screen.root);
@@ -459,7 +465,7 @@ describe("the key rail (#373)", () => {
 
   it("every key says whether its sheet or drawer is open", () => {
     const screen = mountScreen({
-      storage: seeded(crewed(benchBusy(CLOCK)), CLOCK),
+      storage: seeded(busyCrew(CLOCK), CLOCK),
       now: () => CLOCK,
     });
     const expanded = () =>
@@ -645,7 +651,7 @@ describe("the key rail (#373)", () => {
     const screen = mountScreen({
       auth,
       cloudSave,
-      storage: seeded(crewed(benchBusy(CLOCK)), CLOCK),
+      storage: seeded(busyCrew(CLOCK), CLOCK),
       now: () => CLOCK,
     });
     document.body.append(screen.root);
@@ -694,7 +700,7 @@ describe("the key rail (#373)", () => {
     expect(key(screen, "engineers").disabled).toBe(true);
     finishLoad({
       kind: "found",
-      mountain: crewed(benchBusy(Date.now())),
+      mountain: busyCrew(Date.now()),
       rev: 1,
     });
     await Promise.resolve();

@@ -216,7 +216,7 @@ function primeArrivals(session: Session): Session {
     baselines: {
       ...session.baselines,
       layer: minedOut(session.mountain),
-      craft: { ...(session.mountain.crafted ?? {}) },
+      craft: { ...session.mountain.crafted },
     },
   };
 }
@@ -649,7 +649,7 @@ function noteCrafts(session: Session, now: number, out: Effects): Session {
           },
     baselines: {
       ...session.baselines,
-      craft: { ...(session.mountain.crafted ?? {}) },
+      craft: { ...session.mountain.crafted },
     },
   };
 }

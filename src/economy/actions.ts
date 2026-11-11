@@ -36,12 +36,18 @@ import {
   type Trouble,
   type TroubleTier,
 } from "../hazards";
-import { EMPTY_MATERIALS, LAYERS } from "../layers";
+import { LAYERS } from "../layers";
 import { boostShown, upgradeShown } from "../upgrade-reveal";
 import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
 import { minedOut, oneOffStretch, stretch } from "../scale";
-import { markAllSeen, markSeen, markTaught, showsDot } from "../teach";
+import {
+  markAllSeen,
+  markSeen,
+  markTaught,
+  showsDot,
+  type TeachId,
+} from "../teach";
 import { releaseRush, rushOwed, startRush, withoutRush } from "../gold-rush";
 import {
   VEIN_MAX_GAP_MS,
@@ -162,7 +168,7 @@ export function listActions(
     ...upgradeActions(mountain),
     ...boostActions(mountain, now),
     ...promoteActions(mountain),
-    ...(mountain.engineers ?? []).flatMap((hand, index) =>
+    ...mountain.engineers.flatMap((hand, index) =>
       handActions(mountain, hand, index, now),
     ),
     ...workshopActions(mountain, now),
@@ -199,8 +205,7 @@ function boostActions(mountain: Mountain, now: number): readonly Action[] {
 }
 
 function promoteActions(mountain: Mountain): readonly Action[] {
-  return (mountain.engineers?.length ?? 0) < MAX_ENGINEERS &&
-    mountain.helpers >= 1
+  return mountain.engineers.length < MAX_ENGINEERS && mountain.helpers >= 1
     ? [{ kind: "promote", price: promoteCost(mountain) }]
     : [];
 }
@@ -307,8 +312,8 @@ type ScreenMove =
   | { readonly kind: "tapQuickVein" }
   /** The quick vein's glint went by: the stones held for the rush land now. */
   | { readonly kind: "missQuickVein" }
-  | { readonly kind: "markSeen"; readonly id: string }
-  | { readonly kind: "markAllSeen"; readonly ids: readonly string[] };
+  | { readonly kind: "markSeen"; readonly id: TeachId }
+  | { readonly kind: "markAllSeen"; readonly ids: readonly TeachId[] };
 
 /** Every move the player can make (#409). The lab plans the `Action` half. */
 export type Move = Action | ScreenMove;
@@ -501,7 +506,7 @@ export function applyMove(
  * engineer, so a missing one means the move and the mountain disagree.
  */
 function engineerAt(mountain: Mountain, index: number): Engineer {
-  const hand = mountain.engineers?.[index];
+  const hand = mountain.engineers[index];
   /* v8 ignore next 3 -- an applied move named a real engineer, unreachable */
   if (hand === undefined) {
     throw new Error(`No engineer at ${String(index)}`);
@@ -511,21 +516,12 @@ function engineerAt(mountain: Mountain, index: number): Engineer {
 
 /** The crew an applied promote made, so a missing one means the move and the mountain disagree. */
 function crewOf(mountain: Mountain): readonly Engineer[] {
-  /* v8 ignore next 3 -- an applied promote left a crew, unreachable */
-  if (mountain.engineers === undefined) {
-    throw new Error("No crew");
-  }
   return mountain.engineers;
 }
 
 /** When the boost an applied buy started ends, as `buyBoost` wrote it. */
 function boostEnd(mountain: Mountain, id: BoostId): number {
-  const endsAt = mountain.boosts?.[id];
-  /* v8 ignore next 3 -- an applied buy wrote an end time, unreachable */
-  if (endsAt === undefined) {
-    throw new Error(`No end time for ${id}`);
-  }
-  return endsAt;
+  return mountain.boosts[id];
 }
 
 /**
@@ -540,7 +536,7 @@ function crewEvents(
 ): readonly MoveEvent[] {
   const hand = engineerAt(before, index);
   const landed = engineerAt(next, index);
-  const trip = (before.expeditions ?? []).find(
+  const trip = before.expeditions.find(
     (candidate) => candidate.engineer === hand.name,
   );
   const events: MoveEvent[] = [];
@@ -931,10 +927,10 @@ function valuePromote(
   context: ValueContext,
 ): ActionValue {
   const cost = promoteCost(mountain);
-  const before = mountain.engineers?.length ?? 0;
+  const before = mountain.engineers.length;
   const hired = promote(funded(mountain, cost));
   const crew = hired.engineers;
-  if (crew === undefined || crew.length === before) {
+  if (crew.length === before) {
     return rateValue(mountain, 0, cost, horizon, context);
   }
   const index = crew.length - 1;
@@ -992,8 +988,8 @@ function valueRecall(
     context,
   );
   const crew = mountain.engineers;
-  const engineer = crew?.[index];
-  const trip = mountain.expeditions?.find(
+  const engineer = crew[index];
+  const trip = mountain.expeditions.find(
     (candidate) => candidate.engineer === engineer?.name,
   );
   const tunnel = trip?.tunnel ?? "old-shaft";
@@ -1043,7 +1039,7 @@ function findStones(
 ): number {
   return expectedFindStones(
     mountain,
-    mountain.engineers ?? [],
+    mountain.engineers,
     tunnel,
     horizon,
     (next) => incomePerSecond(next, context),
@@ -1126,7 +1122,7 @@ function valueCraft(
           mountain,
           fitted,
           endsAt,
-          settledSec(fitted.emberUntil, endsAt),
+          settledSec(fitted.clocks["heartstone-ember"], endsAt),
           stones,
           horizon,
           context,
@@ -1157,7 +1153,11 @@ function valueCraft(
           stones,
           horizon,
           context,
-          timedSpread(context, settledSec(fitted.flareUntil, endsAt), horizon),
+          timedSpread(
+            context,
+            settledSec(fitted.clocks["crystal-flare"], endsAt),
+            horizon,
+          ),
         ),
         benchSec,
       );
@@ -1291,7 +1291,7 @@ function materialsPrice(
 
 function fundCraft(mountain: Mountain, id: RecipeId): Mountain {
   const cost = recipeCost(id, stretch(mountain));
-  const have = mountain.materials ?? EMPTY_MATERIALS;
+  const have = mountain.materials;
   return {
     ...grantDepthRecipe(mountain, id),
     pocket: mountain.pocket + cost.stones,
@@ -1309,7 +1309,7 @@ function fundCraft(mountain: Mountain, id: RecipeId): Mountain {
  * has not written it yet. A found recipe stays found only.
  */
 function grantDepthRecipe(mountain: Mountain, id: RecipeId): Mountain {
-  const known = mountain.recipes ?? [];
+  const known = mountain.recipes;
   if (known.includes(id) || !recipesForMined(minedOut(mountain)).includes(id)) {
     return mountain;
   }
@@ -1318,7 +1318,7 @@ function grantDepthRecipe(mountain: Mountain, id: RecipeId): Mountain {
 
 export function knownRecipeIds(mountain: Mountain): readonly RecipeId[] {
   const depth = recipesForMined(minedOut(mountain));
-  const found = (mountain.recipes ?? []).filter((id) => !depth.includes(id));
+  const found = mountain.recipes.filter((id) => !depth.includes(id));
   return [...depth, ...found];
 }
 
@@ -1367,9 +1367,9 @@ function timedSpread(
 }
 
 /** Seconds the settled timer runs. Settle writes the clock past `endsAt`. */
-function settledSec(until: number | undefined, endsAt: number): number {
-  /* v8 ignore next -- settleBench writes flareUntil and emberUntil */
-  if (until === undefined || until <= endsAt) {
+function settledSec(until: number, endsAt: number): number {
+  /* v8 ignore next -- settleBench writes the flare and ember clocks */
+  if (until <= endsAt) {
     return 0;
   }
   return (until - endsAt) / 1000;
@@ -1439,7 +1439,7 @@ function kitGain(
   after: Mountain,
   context: ValueContext,
 ): number {
-  const crew = before.engineers ?? [];
+  const crew = before.engineers;
   if (crew.length === 0) {
     return 0;
   }
@@ -1478,7 +1478,7 @@ function funded(mountain: Mountain, price: number): Mountain {
 
 function clockAfterBoosts(mountain: Mountain): number {
   let latest = 0;
-  for (const endsAt of Object.values(mountain.boosts ?? {})) {
+  for (const endsAt of Object.values(mountain.boosts)) {
     if (endsAt > latest) {
       latest = endsAt;
     }
@@ -1541,7 +1541,7 @@ function payback(
 }
 
 function onTrip(mountain: Mountain, name: string): boolean {
-  return (mountain.expeditions ?? []).some((trip) => trip.engineer === name);
+  return mountain.expeditions.some((trip) => trip.engineer === name);
 }
 
 function canSend(
@@ -1557,6 +1557,6 @@ function canSend(
     hand.rank >= spec.minRank &&
     Number.isSafeInteger(now) &&
     Number.isSafeInteger(now + expeditionAwayMs(spec.awayMs, mountain)) &&
-    (mountain.expeditions?.length ?? 0) < MAX_EXPEDITIONS
+    mountain.expeditions.length < MAX_EXPEDITIONS
   );
 }

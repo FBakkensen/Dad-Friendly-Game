@@ -13,11 +13,13 @@ import {
 } from "./expeditions";
 import { ENGINEER_NAMES, type Engineer } from "./engineers";
 import { knownRecipeIds } from "./economy/actions";
-import { accrueAway, createMountain, parseMountain } from "./mountain";
+import { accrueAway, createMountain } from "./mountain";
+import { parseMountain } from "./save-format";
 import { parseSaveValue, serializeSave } from "./persist";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { RELICS } from "./relics";
 import { MOUNTAIN_STONES } from "./scale";
+import { recipesForMined } from "./workshop";
 
 const SEAM = 10 * 60_000;
 const HOUR = 60 * 60_000;
@@ -136,8 +138,8 @@ describe("send and recall", () => {
     const sent = send(crew(), 0, "old-shaft", 80);
     const back = recall(sent, 0);
     expect(back.engineers?.[0]).toEqual(ada);
-    expect(back.expeditions).toBeUndefined();
-    expect(back.finds).toBeUndefined();
+    expect(back.expeditions).toEqual([]);
+    expect(back.finds).toEqual([]);
     expect(back.pocket).toBe(sent.pocket);
     expect(recall(back, 0)).toBe(back);
     const idle = crew();
@@ -405,7 +407,7 @@ describe("finds", () => {
       trips: 1,
       rank: 0,
     });
-    expect(home.mountain.expeditions).toBeUndefined();
+    expect(home.mountain.expeditions).toEqual([]);
     const find = sent.expeditions?.[0]?.find;
     if (find?.kind === "tool" || find?.kind === "keepsake") {
       expect(home.mountain.finds).toEqual(["drawing", find.id]);
@@ -442,7 +444,7 @@ describe("finds", () => {
     expect(midway.mountain.engineers?.[1]?.post).toBe("tunnel");
     const both = settle(sent, HOUR);
     expect(both.finds).toHaveLength(2);
-    expect(both.mountain.expeditions).toBeUndefined();
+    expect(both.mountain.expeditions).toEqual([]);
     const together = send(send(two, 0, "side-seam", 4), 1, "side-seam", 4);
     expect(settle(together, 4 + SEAM).finds).toHaveLength(2);
   });
@@ -472,8 +474,7 @@ describe("finds", () => {
     expect(settle(home.mountain, seed + HOUR).finds).toEqual([]);
     const known = send(home.mountain, 0, "old-shaft", seed);
     expect(known.expeditions?.[0]?.find.kind).not.toBe("recipe");
-    const { recipes: listed, ...unlisted } = crew();
-    expect(listed).toBeDefined();
+    const unlisted = { ...crew(), recipes: recipesForMined(0) };
     expect(send(unlisted, 0, "old-shaft", seed).expeditions?.[0]?.find).toEqual(
       {
         kind: "recipe",
@@ -621,7 +622,7 @@ describe("away pay", () => {
     expect(away.mountain.engineers?.[0]?.post).toBe("borer");
     expect(away.mountain.engineers?.[1]?.post).toBe("drill");
     expect(away.mountain.engineers?.[0]?.trips).toBe(1);
-    expect(away.mountain.expeditions).toBeUndefined();
+    expect(away.mountain.expeditions).toEqual([]);
     expect(away.homecomings.map((home) => home.engineer)).toEqual([
       "Ada",
       "Nils",
@@ -757,11 +758,11 @@ describe("parse", () => {
       finds: ["pick", "whistle"],
     });
     const older = parseMountain(base);
-    expect(older?.expeditions).toBeUndefined();
-    expect(older?.finds).toBeUndefined();
+    expect(older?.expeditions).toEqual([]);
+    expect(older?.finds).toEqual([]);
     expect(
       parseMountain({ ...base, expeditions: [], finds: [] })?.expeditions,
-    ).toBeUndefined();
+    ).toEqual([]);
     expect(
       parseMountain({
         ...base,
@@ -839,7 +840,7 @@ describe("parse", () => {
     expect(
       parseMountain({ ...base, finds: ["turbo", "pick", "pick"] })?.finds,
     ).toEqual(["pick"]);
-    expect(parseMountain({ ...base, finds: ["turbo"] })?.finds).toBeUndefined();
+    expect(parseMountain({ ...base, finds: ["turbo"] })?.finds).toEqual([]);
     expect(
       parseMountain({ ...base, finds: new Array(10).fill("pick") })?.finds,
     ).toEqual(["pick"]);
@@ -847,10 +848,9 @@ describe("parse", () => {
 
   it("drops a trip whose leader is gone and still comes home", () => {
     const sent = send(crew(), 0, "side-seam", 0);
-    const orphan = { ...sent };
-    delete orphan.engineers;
+    const orphan = { ...sent, engineers: [] };
     const home = settle(orphan, SEAM);
-    expect(home.mountain.expeditions).toBeUndefined();
+    expect(home.mountain.expeditions).toEqual([]);
     expect(home.finds[0]).toMatchObject({ kind: "quiet" });
     const stranger = settle(
       {
@@ -860,7 +860,7 @@ describe("parse", () => {
       SEAM,
     );
     expect(stranger.finds[0]).toMatchObject({ kind: "quiet" });
-    expect(stranger.mountain.expeditions).toBeUndefined();
+    expect(stranger.mountain.expeditions).toEqual([]);
     expect(stranger.mountain.engineers?.[0]?.name).toBe("Nils");
   });
 });

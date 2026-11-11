@@ -148,11 +148,11 @@ export type JudgedInput = TournamentInput & {
  */
 function ownedCount(mountain: Mountain): number {
   const crew = TIERS.reduce((total, tier) => total + owned(mountain, tier), 0);
-  const levels = Object.values(mountain.upgrades ?? {}).reduce(
+  const levels = Object.values(mountain.upgrades).reduce(
     (total: number, level) => total + level,
     0,
   );
-  const engineers = mountain.engineers?.length ?? 0;
+  const engineers = mountain.engineers.length;
   return crew + engineers + engineers + levels;
 }
 

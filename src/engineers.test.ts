@@ -28,8 +28,8 @@ import {
   accrue,
   accrueAway,
   createMountain,
-  parseMountain,
 } from "./mountain";
+import { parseMountain } from "./save-format";
 import { parseSaveValue, serializeSave } from "./persist";
 import { BAND_SCALE, kidStretch, oneOffStretch } from "./scale";
 import { effectiveRates } from "./rates";
@@ -381,10 +381,8 @@ describe("parseEngineers", () => {
     expect(parseEngineers(engineers)).toEqual(engineers);
     expect(parseMountain({ ...base, engineers })?.engineers).toEqual(engineers);
     expect(parseEngineers([])).toEqual([]);
-    expect(
-      parseMountain({ ...base, engineers: [] })?.engineers,
-    ).toBeUndefined();
-    expect(parseMountain(base)?.engineers).toBeUndefined();
+    expect(parseMountain({ ...base, engineers: [] })?.engineers).toEqual([]);
+    expect(parseMountain(base)?.engineers).toEqual([]);
   });
 
   it("rejects a bad shape, a stranger, a duplicate, and a rank that lies about trips", () => {

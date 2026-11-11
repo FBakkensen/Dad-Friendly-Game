@@ -248,7 +248,7 @@ function tendingOf(
   if (!isMachine(tier)) {
     return undefined;
   }
-  const engineers = mountain.engineers ?? [];
+  const engineers = mountain.engineers;
   const who = tendingEngineer(engineers, tier.id);
   return who === undefined
     ? undefined

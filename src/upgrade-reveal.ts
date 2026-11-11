@@ -1,4 +1,4 @@
-import { BOOSTS, type Boost } from "./boosts";
+import { BOOSTS, type Boost, type BoostId } from "./boosts";
 import type { Mountain } from "./mountain";
 import { owned, tierById } from "./tiers";
 import {
@@ -7,6 +7,7 @@ import {
   upgradeLevel,
   upgradeUnlocked,
   type Upgrade,
+  type UpgradeId,
 } from "./upgrades";
 
 /**
@@ -22,14 +23,14 @@ import {
  * had it in front of him (its id is in `seen`). The sheet never shows how
  * long the wait is; this is only whether the row is there.
  */
-export type RevealRowId = `upgrade:${string}` | `boost:${string}`;
+export type RevealRowId = `upgrade:${UpgradeId}` | `boost:${BoostId}`;
 
 export const upgradeRowId = (upgrade: Upgrade): RevealRowId =>
   `upgrade:${upgrade.id}`;
 export const boostRowId = (boost: Boost): RevealRowId => `boost:${boost.id}`;
 
 function seen(mountain: Mountain, id: RevealRowId): boolean {
-  return mountain.seen?.includes(id) ?? false;
+  return mountain.seen.includes(id);
 }
 
 export function upgradeUsed(mountain: Mountain, upgrade: Upgrade): boolean {
@@ -37,7 +38,8 @@ export function upgradeUsed(mountain: Mountain, upgrade: Upgrade): boolean {
 }
 
 export function boostUsed(mountain: Mountain, boost: Boost): boolean {
-  return mountain.boosts?.[boost.id] !== undefined;
+  // A boost that has run keeps its last end time.
+  return mountain.boosts[boost.id] > 0;
 }
 
 /** The row shows: open to this crew, or already bought or seen. */

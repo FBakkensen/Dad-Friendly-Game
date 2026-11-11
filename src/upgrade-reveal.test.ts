@@ -75,8 +75,8 @@ import {
   shownRows,
   upgradeShown,
 } from "./upgrade-reveal";
-import { boostById } from "./boosts";
-import { upgradeById, upgradeCost } from "./upgrades";
+import { boostById, NO_BOOSTS } from "./boosts";
+import { upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
 import { BAND_SCALE } from "./scale";
 import { UPGRADES_INTRO, UPGRADES_MORE } from "./screen-words";
 import { formatCompact } from "./format";
@@ -120,12 +120,14 @@ describe("rows open at a fixed point in the climb (#250)", () => {
     const start = createMountain();
     expect(upgradeShown(start, arms)).toBe(false);
     expect(upgradeShown({ ...start, seen: ["upgrade:tap"] }, arms)).toBe(true);
-    expect(upgradeShown({ ...start, upgrades: { tap: 1 } }, arms)).toBe(true);
+    expect(
+      upgradeShown({ ...start, upgrades: { ...NO_UPGRADES, tap: 1 } }, arms),
+    ).toBe(true);
     const sharper = boostById("sharper");
     expect(boostShown(start, sharper)).toBe(false);
-    expect(boostShown({ ...start, boosts: { sharper: 0 } }, sharper)).toBe(
-      true,
-    );
+    expect(
+      boostShown({ ...start, boosts: { ...NO_BOOSTS, sharper: 1 } }, sharper),
+    ).toBe(true);
     expect(boostShown({ ...start, seen: ["boost:sharper"] }, sharper)).toBe(
       true,
     );
@@ -157,7 +159,7 @@ describe("rows open at a fixed point in the climb (#250)", () => {
         borerSyn: 1,
         machineSyn: 1,
       },
-      boosts: { sharper: 0, overtime: 0 },
+      boosts: { sharper: 1, overtime: 1 },
     };
     expect(anyHiddenRow(maxed)).toBe(false);
   });
@@ -166,9 +168,12 @@ describe("rows open at a fixed point in the climb (#250)", () => {
     const open = { ...createMountain(), carts: 3 };
     expect(showsDot(open, "upgrade:tap")).toBe(true);
     expect(showsDot(createMountain(), "upgrade:tap")).toBe(false);
-    expect(showsDot({ ...open, upgrades: { tap: 1 } }, "upgrade:tap")).toBe(
-      false,
-    );
+    expect(
+      showsDot(
+        { ...open, upgrades: { ...NO_UPGRADES, tap: 1 } },
+        "upgrade:tap",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -270,8 +275,8 @@ describe("upgrades drawer reveal (#245)", () => {
       carts: 3,
       // Short of the first level, so the button is greyed.
       pocket: Math.floor(mustPrice(upgradeCost(arms, 0)) * 0.65),
-      upgrades: { steady: 1 },
-      boosts: { sharper: 0, overtime: 0 },
+      upgrades: { ...NO_UPGRADES, steady: 1 },
+      boosts: { sharper: 1, overtime: 1 },
     }));
     const button = screen.root.querySelector<HTMLElement>(
       ".board-key[data-key=upgrades]",
@@ -317,7 +322,7 @@ describe("upgrades drawer reveal (#245)", () => {
       ...createMountain(),
       carts: 1,
       pocket: 400,
-      upgrades: { tap: 1 },
+      upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
     screen.root
       .querySelector<HTMLElement>(".board-key[data-key=upgrades]")
@@ -339,7 +344,7 @@ describe("upgrades drawer reveal (#245)", () => {
       ...createMountain(),
       carts: 1,
       pocket: 400,
-      upgrades: { tap: 1 },
+      upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
     screen.root
       .querySelector<HTMLElement>(".board-key[data-key=upgrades]")
@@ -365,7 +370,7 @@ describe("upgrades drawer reveal (#245)", () => {
       ...createMountain(),
       carts: 1,
       pocket: 400,
-      upgrades: { tap: 1 },
+      upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
     const key = screen.root.querySelector<HTMLElement>(
       ".board-key[data-key=upgrades]",
@@ -441,8 +446,8 @@ describe("upgrades drawer reveal (#245)", () => {
     screen.progress.applyMutation(() => ({
       ...createMountain(),
       carts: 3,
-      upgrades: { steady: 1 },
-      boosts: { sharper: 0 },
+      upgrades: { ...NO_UPGRADES, steady: 1 },
+      boosts: { ...NO_BOOSTS, sharper: 1 },
       pocket: 0,
     }));
     expect(key("buys")?.classList.contains("is-lit")).toBe(false);

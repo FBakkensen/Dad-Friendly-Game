@@ -131,8 +131,8 @@ export function promoteAsap(
   const hired: Hired[] = [];
   let next = mountain;
   const limit = 1 + params.promoteCap;
-  while ((next.engineers?.length ?? 0) < limit) {
-    const count = next.engineers?.length ?? 0;
+  while (next.engineers.length < limit) {
+    const count = next.engineers.length;
     if (count < 1 || next.borers < 1) {
       break;
     }
@@ -141,7 +141,7 @@ export function promoteAsap(
     if (promoted === next) {
       break;
     }
-    const engineer = promoted.engineers?.[count];
+    const engineer = promoted.engineers[count];
     if (engineer !== undefined) {
       hired.push({ name: engineer.name, price });
     }
@@ -262,7 +262,7 @@ function playGap(
     isNightGap(session, params.sessionsPerDay)
   ) {
     const gapEnd = world.clock + gap;
-    const due = (world.mountain.expeditions ?? [])
+    const due = world.mountain.expeditions
       .map((trip) => trip.returnsAt)
       .filter((returnsAt) => returnsAt > world.clock && returnsAt < gapEnd);
     const back = due.length === 0 ? world.clock : Math.min(...due);
@@ -296,7 +296,7 @@ function sendExplorers(
     return mountain;
   }
   let next = mountain;
-  for (const [index, engineer] of (mountain.engineers ?? []).entries()) {
+  for (const [index, engineer] of mountain.engineers.entries()) {
     if (keepsPost(engineer.post) || engineer.rank < spec.minRank) {
       continue;
     }
@@ -342,7 +342,7 @@ function remember(
   if (action.kind !== "promote") {
     return;
   }
-  const hired = after.engineers?.[before.engineers?.length ?? 0];
+  const hired = after.engineers[before.engineers.length];
   // apply no-ops when the hire does not happen, so this loop already stopped.
   /* v8 ignore next 3 -- promote added the engineer */
   if (hired === undefined) {

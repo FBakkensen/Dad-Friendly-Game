@@ -62,11 +62,7 @@ const SIM_FIX_MS = 3_000;
  */
 function promoteScout(mountain: Mountain): Mountain {
   const engineers = mountain.engineers;
-  if (
-    engineers === undefined ||
-    engineers.length !== 1 ||
-    mountain.borers < 1
-  ) {
+  if (engineers.length !== 1 || mountain.borers < 1) {
     return mountain;
   }
   return promote(mountain);
@@ -81,7 +77,7 @@ function sendScouts(
   now: number,
   tunnel: TunnelId,
 ): Mountain {
-  const engineers = mountain.engineers ?? [];
+  const engineers = mountain.engineers;
   let next = mountain;
   for (const [index, engineer] of engineers.entries()) {
     if (
@@ -312,7 +308,7 @@ function promoteAndRecord(world: World, promotions: DadPromotion[]): World {
   const beforeScout = world.mountain;
   const promoted = promoteScout(beforeScout);
   const next = { ...world, mountain: promoted };
-  const hired = promoted.engineers?.[beforeScout.engineers?.length ?? 0];
+  const hired = promoted.engineers[beforeScout.engineers.length];
   if (hired !== undefined) {
     promotions.push({
       day: dayOf(next),
@@ -373,7 +369,7 @@ function liveSecond(
  * Settles the first trip due inside the gap, then sends the scouts.
  */
 function nightTrips(world: World, gapEnd: number): World {
-  const due = (world.mountain.expeditions ?? [])
+  const due = world.mountain.expeditions
     .map((trip) => trip.returnsAt)
     .filter((returnsAt) => returnsAt > world.clock && returnsAt < gapEnd);
   const back = due.length === 0 ? world.clock : Math.min(...due);

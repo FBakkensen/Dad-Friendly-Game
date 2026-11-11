@@ -177,7 +177,7 @@ export function promoteWhyLine(
 
 /** The crew now, in its order: none before the first borer. */
 export function crewOf(mountain: Mountain): readonly Engineer[] {
-  return mountain.engineers ?? [];
+  return mountain.engineers;
 }
 
 /** The engineer of that name in the crew now, and her place in it; none for no name. */
@@ -212,9 +212,7 @@ function tripOf(
   ctx: EngineerCtx,
   name: EngineerName,
 ): { readonly tunnel: Tunnel["id"]; readonly leftMs: number } | undefined {
-  const trip = (ctx.mountain.expeditions ?? []).find(
-    (each) => each.engineer === name,
-  );
+  const trip = ctx.mountain.expeditions.find((each) => each.engineer === name);
   return trip === undefined
     ? undefined
     : { tunnel: trip.tunnel, leftMs: trip.returnsAt - ctx.now };
@@ -286,7 +284,7 @@ function tendTeach(ctx: EngineerCtx): EngineerTeach | undefined {
     ? firstTend(mountain, now, trouble)
     : undefined;
   const tender =
-    step === undefined ? undefined : mountain.engineers?.[step.index];
+    step === undefined ? undefined : mountain.engineers[step.index];
   return step === undefined || tender === undefined
     ? undefined
     : { kind: "tend", name: tender.name, index: step.index, post: step.post };
@@ -313,7 +311,7 @@ function promoteTeach(ctx: EngineerCtx): EngineerTeach | undefined {
  * else the first tend, else the promotion, else none.
  */
 export function engineerTeach(ctx: EngineerCtx): EngineerTeach {
-  const first = ctx.mountain.engineers?.[0];
+  const first = ctx.mountain.engineers[0];
   if (
     first !== undefined &&
     first.post !== "tunnel" &&

@@ -12,6 +12,7 @@ import {
   upgradeCost,
   upgradeLevel,
   upgradeUnlocked,
+  NO_UPGRADES,
 } from "./upgrades";
 
 /** A price that must exist: the upgrade is not maxed. */
@@ -55,39 +56,55 @@ describe("Strong arms (tap power)", () => {
     const two = buyUpgrade(one, "tap");
     expect(upgradeLevel(two, "tap")).toBe(2);
     expect(two.pocket).toBe(0);
-    const maxed = { ...crew, pocket: 1e15, upgrades: { tap: 10 } };
+    const maxed = {
+      ...crew,
+      pocket: 1e15,
+      upgrades: { ...NO_UPGRADES, tap: 10 },
+    };
     expect(buyUpgrade(maxed, "tap")).toBe(maxed);
   });
 
   it("adds 1% of crew speed per level to every tap, rounded down", () => {
     expect(effectiveRates(crew).tapYield).toBe(1);
-    expect(effectiveRates({ ...crew, upgrades: { tap: 1 } }).tapYield).toBe(67);
-    expect(effectiveRates({ ...crew, upgrades: { tap: 3 } }).tapYield).toBe(
-      199,
-    );
-    const tapped = mineByHand({ ...crew, upgrades: { tap: 3 } });
+    expect(
+      effectiveRates({ ...crew, upgrades: { ...NO_UPGRADES, tap: 1 } })
+        .tapYield,
+    ).toBe(67);
+    expect(
+      effectiveRates({ ...crew, upgrades: { ...NO_UPGRADES, tap: 3 } })
+        .tapYield,
+    ).toBe(199);
+    const tapped = mineByHand({
+      ...crew,
+      upgrades: { ...NO_UPGRADES, tap: 3 },
+    });
     expect(tapped.pocket).toBe(199);
     expect(tapped.remaining).toBe(crew.remaining - 199);
     // A tap never digs past the bottom.
     // One depth left in the Heart band is BAND_SCALE[3] stones, rounded up to
     // whole stones (#357: 32.4, so 33); a strong tap clears it whole.
-    const last = mineByHand({ ...crew, remaining: 1, upgrades: { tap: 5 } });
+    const last = mineByHand({
+      ...crew,
+      remaining: 1,
+      upgrades: { ...NO_UPGRADES, tap: 5 },
+    });
     expect(
-      effectiveRates({ ...crew, upgrades: { tap: 5 } }).tapYield,
+      effectiveRates({ ...crew, upgrades: { ...NO_UPGRADES, tap: 5 } })
+        .tapYield,
     ).toBeGreaterThanOrEqual(Math.ceil(BAND_SCALE[3]));
     expect(last.remaining).toBe(0);
     expect(last.pocket).toBe(crew.pocket + Math.ceil(BAND_SCALE[3]));
   });
 
   it("doesn't change the crew's own speed or away pay", () => {
-    const strong = { ...crew, upgrades: { tap: 5 } };
+    const strong = { ...crew, upgrades: { ...NO_UPGRADES, tap: 5 } };
     expect(stonesPerSecond(strong)).toBe(4_000);
     expect(effectiveRates(strong).awayPay).toBe(effectiveRates(crew).awayPay);
   });
 
   it("reads saved levels and rejects anything odd", () => {
-    expect(parseUpgrades({})).toEqual({});
-    expect(parseUpgrades({ tap: 3 })).toEqual({ tap: 3 });
+    expect(parseUpgrades({})).toEqual(NO_UPGRADES);
+    expect(parseUpgrades({ tap: 3 })).toEqual({ ...NO_UPGRADES, tap: 3 });
     for (const bad of [
       null,
       [],
@@ -119,7 +136,7 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
 
   it("are one-time buys", () => {
     const once = buyUpgrade({ ...base, helpers: 10 }, "boots");
-    expect(once.upgrades).toEqual({ boots: 1 });
+    expect(once.upgrades).toEqual({ ...NO_UPGRADES, boots: 1 });
     expect(once.pocket).toBe(
       20_000_000 - mustCost(upgradeCost(upgradeById("boots"), 0)),
     );
@@ -128,7 +145,12 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
   });
 
   it("Better boots makes helpers 10% faster, in whole stones a second", () => {
-    const crew = { ...base, helpers: 15, carts: 2, upgrades: { boots: 1 } };
+    const crew = {
+      ...base,
+      helpers: 15,
+      carts: 2,
+      upgrades: { ...NO_UPGRADES, boots: 1 },
+    };
     const rates = effectiveRates(crew);
     expect(rates.tierSpeed.helper).toBeCloseTo(2.36);
     expect(rates.tierSpeed.cart).toBe(effectiveRates(base).tierSpeed.cart);
@@ -141,7 +163,7 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
 
   it("Steady hands pays time away 25% more, and live play is untouched", () => {
     const crew = { ...base, helpers: 100 };
-    const steady = { ...crew, upgrades: { steady: 1 } };
+    const steady = { ...crew, upgrades: { ...NO_UPGRADES, steady: 1 } };
     expect(effectiveRates(steady).awayPay).toBeCloseTo(AWAY_PAY_RATE * 1.25);
     expect(
       accrueAway({ mountain: crew, lastSeen: 0, now: 100_000 }).mined,
@@ -156,6 +178,7 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
 
   it("saves and reads all three, and rejects levels past the top", () => {
     expect(parseUpgrades({ tap: 3, boots: 1, steady: 1 })).toEqual({
+      ...NO_UPGRADES,
       tap: 3,
       boots: 1,
       steady: 1,
@@ -172,11 +195,11 @@ describe("crew synergies", () => {
     const helping = upgradeById("cartSyn");
     expect(helping.name).toBe("Helping hands");
     expect(upgradeUnlocked({ ...rich, carts: 4 }, helping)).toBe(false);
-    expect(
-      buyUpgrade({ ...rich, carts: 4 }, "cartSyn").upgrades,
-    ).toBeUndefined();
+    expect(buyUpgrade({ ...rich, carts: 4 }, "cartSyn").upgrades).toEqual(
+      NO_UPGRADES,
+    );
     const bought = buyUpgrade({ ...rich, carts: 5 }, "cartSyn");
-    expect(bought.upgrades).toEqual({ cartSyn: 1 });
+    expect(bought.upgrades).toEqual({ ...NO_UPGRADES, cartSyn: 1 });
     expect(bought.pocket).toBe(
       90_000_000 - mustCost(upgradeCost(upgradeById("cartSyn"), 0)),
     );
@@ -207,7 +230,7 @@ describe("crew synergies", () => {
     const crew = { ...rich, helpers: 20, carts: 10, drills: 4 };
     expect(synergyBonus(crew, upgradeById("cartSyn"))).toBeCloseTo(0.2);
     expect(tierSynergy(crew, "cart")).toBe(0);
-    const boosted = { ...crew, upgrades: { cartSyn: 1 } };
+    const boosted = { ...crew, upgrades: { ...NO_UPGRADES, cartSyn: 1 } };
     expect(tierSynergy(boosted, "cart")).toBeCloseTo(0.2);
     const rates = effectiveRates(boosted);
     // Ten carts is the first mark, so the carts run twice as fast: 7.2 × 2.
@@ -227,7 +250,7 @@ describe("crew synergies", () => {
       helpers: 40, // staffs 10 carts (10) and 10 drills (10), 20 spare
       carts: 10,
       drills: 10,
-      upgrades: { boots: 1, cartSyn: 1, drillSyn: 1 },
+      upgrades: { ...NO_UPGRADES, boots: 1, cartSyn: 1, drillSyn: 1 },
     };
     const rates = effectiveRates(crew);
     // 40 workers, 10 carts and 10 drills each hold one ×2 mark.
@@ -239,6 +262,7 @@ describe("crew synergies", () => {
 
   it("save and load", () => {
     expect(parseUpgrades({ cartSyn: 1, machineSyn: 1 })).toEqual({
+      ...NO_UPGRADES,
       cartSyn: 1,
       machineSyn: 1,
     });

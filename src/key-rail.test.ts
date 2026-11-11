@@ -212,9 +212,9 @@ describe("the key rail (#373)", () => {
     expect(keyViews(tend, NOW, undefined).engineers.dot).toBe(true);
 
     // Promotion, with tending already used.
-    const promo = {
+    const promo: Mountain = {
       ...crew(),
-      taught: [...(crew().taught ?? []), "tending"],
+      taught: [...crew().taught, "tending"],
     };
     expect(showsDot(promo, "tending")).toBe(false);
     expect(showsDot(promo, "promotion")).toBe(true);
@@ -229,14 +229,14 @@ describe("the key rail (#373)", () => {
     expect(showsDot(cart, "upgrade:steady")).toBe(true);
     expect(keyViews(cart, NOW, undefined).upgrades.dot).toBe(true);
     // A boost row alone lights it too.
-    const boostOnly = {
+    const boostOnly: Mountain = {
       ...cart,
       taught: ["upgrade:steady", "upgrade:cartSyn"],
     };
     expect(showsDot(boostOnly, "upgrade:steady")).toBe(false);
     expect(showsDot(boostOnly, "boost:sharper")).toBe(true);
     expect(keyViews(boostOnly, NOW, undefined).upgrades.dot).toBe(true);
-    const none = {
+    const none: Mountain = {
       ...boostOnly,
       taught: [...boostOnly.taught, "boost:sharper"],
     };
@@ -321,8 +321,7 @@ describe("the key rail (#373)", () => {
     // Every trip home: no sub-line.
     expect(keyViews(away, NOW + 31 * MINUTE, undefined).engineers.sub).toBe("");
     // Locked keeps its unlock line over any timer.
-    const { engineers: _gone, ...noHands } = away;
-    void _gone;
+    const noHands = { ...away, engineers: [] };
     expect(keyViews(noHands, NOW, undefined).engineers.sub).toBe(
       "With 1st borer",
     );

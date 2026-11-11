@@ -65,7 +65,7 @@ export function machineLine(mountain: Mountain): string {
 }
 
 export function crewLine(mountain: Mountain): string {
-  const engineers = mountain.engineers?.length ?? 0;
+  const engineers = mountain.engineers.length;
   return `${count(mountain.helpers, "worker", "workers")} · ${count(engineers, "engineer", "engineers")}`;
 }
 

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { grantFirstEngineer } from "../../src/engineers.ts";
-import type { Mountain } from "../../src/mountain.ts";
+import { BARE_MOUNTAIN, type Mountain } from "../../src/mountain.ts";
 import { MOUNTAIN_STONES } from "../../src/scale.ts";
 
 /**
@@ -607,7 +607,12 @@ describe("the first engineer", () => {
     "agrees with grantFirstEngineer: %s",
     (label) => {
       const raw = inputs[label] ?? {};
-      const mountain = { ...base, borers: 0, ...raw } as unknown as Mountain;
+      const mountain = {
+        ...BARE_MOUNTAIN,
+        ...base,
+        borers: 0,
+        ...raw,
+      } as unknown as Mountain;
       const fromSrc = grantFirstEngineer(mountain).mountain;
       const seeded = JSON.parse(
         f.seedJson({
@@ -620,7 +625,7 @@ describe("the first engineer", () => {
           },
         }),
       ) as { mountain: { engineers?: unknown } };
-      expect(seeded.mountain.engineers).toEqual(fromSrc.engineers);
+      expect(seeded.mountain.engineers ?? []).toEqual(fromSrc.engineers);
     },
   );
 });

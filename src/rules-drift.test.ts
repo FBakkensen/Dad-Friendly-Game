@@ -22,8 +22,9 @@ import {
   snapshot,
   type FieldLogDocument,
 } from "./field-log";
-import { createMountain, type Mountain } from "./mountain";
+import { createMountain } from "./mountain";
 import { effectiveRates } from "./rates";
+import type { SavedMountain } from "./save-format";
 import { UPGRADES } from "./upgrades";
 
 /**
@@ -59,9 +60,11 @@ describe("firestore.rules match the game", () => {
   });
 
   it("allows exactly the mountain's save fields (#118)", () => {
-    // Required<Mountain>: a new save field fails typecheck here until it's
-    // listed, and then this test fails until firestore.rules allows it.
-    const everyField: Required<Mountain> = {
+    // Required<SavedMountain>: a new mountain save field fails typecheck
+    // here until it's listed, and then this test fails until firestore.rules
+    // allows it. Materials, the bench, crafted gear, recipes and the clocks
+    // sit beside the mountain in the workshop map: this list cannot grow (#195).
+    const everyField: Required<SavedMountain> = {
       remaining: 0,
       pocket: 0,
       helpers: 0,
@@ -70,11 +73,11 @@ describe("firestore.rules match the game", () => {
       borers: 0,
       machines: 0,
       kids: 0,
-      upgrades: {},
-      boosts: {},
-      startedAt: 0,
+      upgrades: { tap: 1 },
+      boosts: { sharper: 1 },
+      startedAt: 1,
       staffed: 2,
-      legacy: 0,
+      legacy: 1,
       engineers: [{ name: "Ada", rank: 1, trips: 3, post: "tunnel" }],
       expeditions: [
         {
@@ -87,52 +90,12 @@ describe("firestore.rules match the game", () => {
         },
       ],
       finds: ["pick"],
-      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-      bench: {
-        recipe: "iron-rails",
-        startedAt: 1,
-        endsAt: 1 + 60_000,
-      },
-      crafted: { "iron-rails": 1 },
-      recipes: ["iron-rails"],
-      chargeUntil: 1,
-      flareUntil: 2,
-      emberUntil: 3,
-      axleUntil: 4,
-      rushUntil: 5,
-      rushBank: 6,
-      stretch: 1.75,
-      seen: ["workshop"],
-      taught: ["workshop"],
-      kept: { recipes: ["future-bit"] },
     };
     const match = /mountain\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/.exec(rules);
     const allowed = (match?.[1] ?? "")
       .split(",")
       .map((key) => key.trim().replace(/'/g, ""));
-    // Materials, the bench, crafted gear, and recipes sit beside the mountain
-    // in a v6 document. The mountain key list cannot grow (#195).
-    const beside = [
-      "materials",
-      "bench",
-      "crafted",
-      "recipes",
-      "chargeUntil",
-      "flareUntil",
-      "emberUntil",
-      "axleUntil",
-      "rushUntil",
-      "rushBank",
-      "stretch",
-      "seen",
-      "taught",
-      "kept",
-    ];
-    expect(allowed.sort()).toEqual(
-      Object.keys(everyField)
-        .filter((key) => !beside.includes(key))
-        .sort(),
-    );
+    expect(allowed.sort()).toEqual(Object.keys(everyField).sort());
     expect(rules).toContain(
       "hasOnlyAllowedFields(['version', 'mountain', 'lastSeen', 'workshop'])",
     );

@@ -31,7 +31,13 @@ import {
 import { minedMountain } from "./test-fixtures";
 import { TIERS, tierById, tierCost } from "./tiers";
 import { lockBodyLine } from "./tier-lock-words";
-import { UPGRADES, buyUpgrade, upgradeById, upgradeCost } from "./upgrades";
+import {
+  UPGRADES,
+  buyUpgrade,
+  upgradeById,
+  upgradeCost,
+  NO_UPGRADES,
+} from "./upgrades";
 import { veinReward } from "./veins";
 import {
   RECIPE_IDS,
@@ -121,7 +127,7 @@ describe("kid-run stretch (M13, #253)", () => {
     expect(saved.mountain.remaining).toBe(MOUNTAIN_STONES);
     expect(parseSaveValue(saved)?.mountain.stretch).toBe(1.75);
     const old = serializeSave({ mountain: createMountain(), lastSeen: 1 });
-    expect(parseSaveValue(old)?.mountain.stretch).toBeUndefined();
+    expect(parseSaveValue(old)?.mountain.stretch).toBe(1);
     for (const bad of [0.5, 1e9, "2"]) {
       expect(
         parseSaveValue({
@@ -226,7 +232,11 @@ describe("band scales (#356)", () => {
       for (let step = 0; step < 5_000 && m.remaining > 0; step += 1) {
         const turn = step % 3;
         if (turn === 0) {
-          m = mineByHand({ ...m, upgrades: { tap: 5 }, helpers: 500 });
+          m = mineByHand({
+            ...m,
+            upgrades: { ...NO_UPGRADES, tap: 5 },
+            helpers: 500,
+          });
         } else if (turn === 1) {
           m = accrueAway({
             mountain: { ...m, helpers: haul },
@@ -460,7 +470,7 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
       stretch: MAX_STRETCH,
       helpers: 10,
       carts: 3,
-      upgrades: { tap: 9 },
+      upgrades: { ...NO_UPGRADES, tap: 9 },
     };
     // The most a pocket can hold: every stone of this run.
     const full = {
@@ -472,7 +482,7 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
     expect(buyUpgrade(full, "tap")).toBe(full);
     // The same pocket still buys a level it can afford, so only the price
     // stops the one above.
-    const cheap = { ...full, upgrades: { tap: 0 } };
+    const cheap = { ...full, upgrades: { ...NO_UPGRADES, tap: 0 } };
     expect(buyUpgrade(cheap, "tap").upgrades?.tap).toBe(1);
   });
 });

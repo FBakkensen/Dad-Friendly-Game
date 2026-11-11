@@ -49,19 +49,16 @@ export function firstCraftLabel(id: RecipeId, mountain: Mountain): string {
 }
 
 function firstCharge(mountain: Mountain): boolean {
-  const made = mountain.crafted?.[FIRST_CRAFT] ?? 0;
+  const made = mountain.crafted[FIRST_CRAFT];
   return mountain.bench?.recipe === FIRST_CRAFT ? made === 0 : made === 1;
 }
 
 function withoutCharge(mountain: Mountain): Mountain {
-  const rest = Object.fromEntries(
-    Object.entries(mountain).filter(
-      ([key]) =>
-        key !== "chargeUntil" &&
-        !(key === "bench" && mountain.bench?.recipe === FIRST_CRAFT),
-    ),
-  ) as Mountain;
-  return rest;
+  return {
+    ...mountain,
+    clocks: { ...mountain.clocks, "blasting-charge": 0 },
+    bench: mountain.bench?.recipe === FIRST_CRAFT ? undefined : mountain.bench,
+  };
 }
 
 export function workshopTeach(mountain: Mountain, now: number): WorkshopTeach {

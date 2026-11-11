@@ -41,9 +41,9 @@ export function veinGapScale(
 }
 
 /** How long the next glint lasts. The old miner's lamp lets it linger. */
-export function veinGlintMs(mountain: {
-  readonly finds?: readonly string[];
-}): number {
+export function veinGlintMs(
+  mountain: Pick<Mountain, "finds" | "crafted">,
+): number {
   return VEIN_GLINT_MS * glintScale(mountain);
 }
 

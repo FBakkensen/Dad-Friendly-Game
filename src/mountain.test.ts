@@ -13,13 +13,15 @@ import {
   digStones,
   mineByHand,
   minedOut,
-  parseMountain,
+  BARE_MOUNTAIN,
 } from "./mountain";
+import { parseMountain } from "./save-format";
 import { STARTING_RECIPE_IDS } from "./workshop";
 
 describe("mountain", () => {
   it("starts with a million stones, an empty pocket, and no helpers", () => {
     expect(createMountain()).toEqual({
+      ...BARE_MOUNTAIN,
       remaining: MOUNTAIN_STONES,
       pocket: 0,
       helpers: 0,
@@ -50,6 +52,7 @@ describe("mountain", () => {
 
   it("stops at zero and returns the same mountain", () => {
     const empty = {
+      ...BARE_MOUNTAIN,
       remaining: 0,
       pocket: 5,
       helpers: 0,
@@ -75,6 +78,7 @@ describe("mountain", () => {
         kids: 0,
       }),
     ).toEqual({
+      ...BARE_MOUNTAIN,
       remaining: 10,
       pocket: 2,
       helpers: 1,
@@ -145,6 +149,7 @@ describe("mountain", () => {
 
   it("accepts staffing marks true, 1 and 2, and rejects anything else", () => {
     const base = {
+      ...BARE_MOUNTAIN,
       remaining: 10,
       pocket: 0,
       helpers: 0,
@@ -163,7 +168,7 @@ describe("mountain", () => {
     }
   });
 
-  it("reads materials, recipes, a bench, and crafted gear, and rejects a bad shape", () => {
+  it("checks old workshop fields on the mountain map, and rejects a bad shape", () => {
     const base = {
       remaining: 10,
       pocket: 0,
@@ -182,17 +187,13 @@ describe("mountain", () => {
       endsAt: 10 + 60_000,
     };
     const crafted = { "sturdy-props": 1 };
+    // The workshop map (v6) or the stones (v1 to v5) fill these in later.
+    const parsed = { ...BARE_MOUNTAIN, ...base };
     expect(
       parseMountain({ ...base, materials, recipes, bench, crafted }),
-    ).toEqual({
-      ...base,
-      materials,
-      recipes,
-      bench,
-      crafted,
-    });
-    expect(parseMountain({ ...base, bench: null })).toEqual(base);
-    expect(parseMountain({ ...base, crafted: {} })).toEqual(base);
+    ).toEqual(parsed);
+    expect(parseMountain({ ...base, bench: null })).toEqual(parsed);
+    expect(parseMountain({ ...base, crafted: {} })).toEqual(parsed);
     expect(
       parseMountain({ ...base, materials: { ...materials, clay: 1.5 } }),
     ).toBeUndefined();
@@ -289,6 +290,7 @@ describe("materials from digging", () => {
 describe("accrue", () => {
   // Shallow, in the Topsoil, so a stone is a stone of depth.
   const crew = {
+    ...BARE_MOUNTAIN,
     remaining: MOUNTAIN_STONES - 1000,
     pocket: 0,
     helpers: 2,
@@ -302,6 +304,7 @@ describe("accrue", () => {
   it("mines whole seconds and keeps the leftover part-second unspent", () => {
     expect(accrue({ mountain: crew, from: 0, to: 2_750 })).toEqual({
       mountain: {
+        ...crew,
         remaining: MOUNTAIN_STONES - 1_004,
         pocket: 4,
         helpers: 2,
@@ -335,6 +338,7 @@ describe("accrue", () => {
     // up to whole stones (#357: 3 x 32.4 is 97.2, so 98).
     const left = Math.ceil(3 * BAND_SCALE[3]);
     const almost = {
+      ...BARE_MOUNTAIN,
       remaining: 3,
       pocket: 0,
       helpers: 2,
@@ -348,6 +352,7 @@ describe("accrue", () => {
       accrue({ mountain: almost, from: 0, to: (left / 2 + 0.5) * 1_000 }),
     ).toEqual({
       mountain: {
+        ...almost,
         remaining: 0,
         pocket: left,
         helpers: 2,
@@ -365,6 +370,7 @@ describe("accrue", () => {
 
   it("does nothing without helpers or when the clock goes backwards", () => {
     const idle = {
+      ...BARE_MOUNTAIN,
       remaining: 10,
       pocket: 0,
       helpers: 0,
@@ -389,6 +395,7 @@ describe("accrue", () => {
 
 describe("accrueAway", () => {
   const crew = {
+    ...BARE_MOUNTAIN,
     remaining: MOUNTAIN_STONES,
     pocket: 0,
     helpers: 2,

@@ -43,6 +43,7 @@ import {
   startCraft,
   workshopUnlocked,
   type RecipeId,
+  NOTHING_CRAFTED,
 } from "../workshop";
 import { promoteAsap, runPolicy } from "./run";
 import {
@@ -51,6 +52,8 @@ import {
   FIX_SLOW_MS,
   LOOKAHEAD_SESSIONS,
 } from "./targets";
+import { NO_UPGRADES } from "../upgrades";
+import { EMPTY_MATERIALS } from "../layers";
 
 const ada = {
   name: "Ada",
@@ -470,7 +473,7 @@ describe("policy shape", () => {
     ).toBeGreaterThan(0);
     expect(
       sticker(
-        { ...mountain, upgrades: { tap: 10 } },
+        { ...mountain, upgrades: { ...NO_UPGRADES, tap: 10 } },
         { kind: "buyUpgrade", id: "tap", price: 0 },
       ),
     ).toBe(Number.POSITIVE_INFINITY);
@@ -805,11 +808,9 @@ describe("crafting", () => {
       ),
     ).toBe(false);
     expect(canPay(open, lamp, 1)).toBe(false);
-    const noMaterials = { ...open };
-    Reflect.deleteProperty(noMaterials, "materials");
+    const noMaterials = { ...open, materials: EMPTY_MATERIALS };
     expect(canPay(noMaterials, charge, 1)).toBe(false);
-    const unlisted = { ...open };
-    Reflect.deleteProperty(unlisted, "recipes");
+    const unlisted = { ...open, recipes: [] };
     expect(canPay(unlisted, lamp, 1)).toBe(false);
     const found = withRecipes(open, ["crystal-lamp"]);
     expect(canPay(found, lamp, 1)).toBe(true);
@@ -819,12 +820,19 @@ describe("crafting", () => {
     const busy = startCraft(open, "iron-rails", 0);
     expect(canPay(busy, charge, 1)).toBe(false);
     expect(canPay(createMountain(), charge, 1)).toBe(false);
-    expect(canPay({ ...open, crafted: { "iron-rails": 3 } }, rails, 1)).toBe(
-      false,
-    );
     expect(
       canPay(
-        { ...open, crafted: { "blasting-charge": MAX_CRAFTED_LEVEL } },
+        { ...open, crafted: { ...NOTHING_CRAFTED, "iron-rails": 3 } },
+        rails,
+        1,
+      ),
+    ).toBe(false);
+    expect(
+      canPay(
+        {
+          ...open,
+          crafted: { ...NOTHING_CRAFTED, "blasting-charge": MAX_CRAFTED_LEVEL },
+        },
         charge,
         1,
       ),

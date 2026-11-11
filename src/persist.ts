@@ -1,26 +1,19 @@
-import { MAX_STRETCH } from "./scale";
-import { materialsFromMined, type Materials } from "./layers";
-import { parseTeachIds } from "./teach";
+import { materialsFromMined } from "./layers";
 import {
   MOUNTAIN_STONES,
   createMountain,
   minedOut,
-  parseMountain,
   type Mountain,
 } from "./mountain";
 import {
-  MAX_CRAFTED_LEVEL,
-  isRecipeId,
-  parseBench,
-  parseMaterials,
-  parseChargeUntil,
-  recipesForMined,
-  type Bench,
-  type Crafted,
-  type KeptBench,
-  type KeptWorkshop,
-  type RecipeId,
-} from "./workshop";
+  parseMountain,
+  savedMountain,
+  savedWorkshop,
+  withWorkshop,
+  type SavedMountain,
+  type WorkshopSave,
+} from "./save-format";
+import { NOTHING_CRAFTED, recipesForMined } from "./workshop";
 
 /** v3 saves were a 1,000,000-stone mountain. v4 placed that on 100,000,000. */
 const V3_MOUNTAIN_STONES = 1_000_000;
@@ -28,33 +21,9 @@ const V4_MOUNTAIN_STONES = 100_000_000;
 /** Frozen at the v4 depth so a v3 dad is not stretched again when the bottom moves. */
 const V3_SCALE = V4_MOUNTAIN_STONES / V3_MOUNTAIN_STONES;
 
-type WorkshopSave = {
-  readonly materials: Materials;
-  readonly recipes: readonly string[];
-  readonly bench?: Bench | KeptBench;
-  readonly crafted?: Crafted | Readonly<Record<string, number>>;
-  /** When a blasting charge cools. Missing means none is hot. */
-  readonly chargeUntil?: number;
-  /** When a crystal flare cools. Missing means none is hot. */
-  readonly flareUntil?: number;
-  /** When a heartstone ember cools. Missing means none is hot. */
-  readonly emberUntil?: number;
-  readonly axleUntil?: number;
-  /** When a Gold rush ends (src/gold-rush.ts). Missing means none runs. */
-  readonly rushUntil?: number;
-  /** Stones held for the Gold rush. Missing means none. */
-  readonly rushBank?: number;
-  /** The run's stretch (M13). Missing means 1. */
-  readonly stretch?: number;
-  /** Notes opened (src/teach.ts). Missing means none. */
-  readonly seen?: readonly string[];
-  /** Systems used once (src/teach.ts). Missing means none written down. */
-  readonly taught?: readonly string[];
-};
-
 export type MountainSaveV6 = {
   readonly version: 6;
-  readonly mountain: Mountain;
+  readonly mountain: SavedMountain;
   readonly workshop: WorkshopSave;
   readonly lastSeen: number;
 };
@@ -81,6 +50,28 @@ export type ParsedSave = {
   readonly deviceLabel?: string;
 };
 
+function validDeviceId(deviceId: unknown): deviceId is string {
+  return (
+    typeof deviceId === "string" &&
+    deviceId.length >= SAVE_DEVICE_ID_MIN &&
+    deviceId.length <= SAVE_DEVICE_ID_MAX
+  );
+}
+
+function validRev(rev: unknown): rev is number {
+  return typeof rev === "number" && Number.isInteger(rev) && rev >= 1;
+}
+
+/** A label the rules accept, or none. */
+function validLabel(label: unknown): string | undefined {
+  return typeof label === "string" &&
+    label.length >= 1 &&
+    label.length <= 40 &&
+    !label.includes("?")
+    ? label
+    : undefined;
+}
+
 export function serializeSave({
   mountain,
   lastSeen,
@@ -97,83 +88,21 @@ export function serializeSave({
 }): MountainSaveV6 | MountainSaveV7 {
   const saved: MountainSaveV6 = {
     version: 6,
-    mountain: {
-      // A stretched run digs in fractions of a depth stone. The cloud keeps
-      // whole numbers, so round up: at most one stone of depth comes back.
-      remaining: Math.ceil(mountain.remaining),
-      pocket: mountain.pocket,
-      helpers: mountain.helpers,
-      carts: mountain.carts,
-      drills: mountain.drills,
-      borers: mountain.borers,
-      machines: mountain.machines,
-      kids: mountain.kids,
-      ...(mountain.upgrades === undefined ||
-      Object.keys(mountain.upgrades).length === 0
-        ? {}
-        : { upgrades: mountain.upgrades }),
-      ...(mountain.boosts === undefined ||
-      Object.keys(mountain.boosts).length === 0
-        ? {}
-        : { boosts: mountain.boosts }),
-      ...(mountain.startedAt === undefined
-        ? {}
-        : { startedAt: mountain.startedAt }),
-      ...(mountain.staffed === undefined ? {} : { staffed: mountain.staffed }),
-      ...(mountain.legacy === undefined || mountain.legacy === 0
-        ? {}
-        : { legacy: mountain.legacy }),
-      ...(mountain.engineers === undefined || mountain.engineers.length === 0
-        ? {}
-        : { engineers: mountain.engineers }),
-      ...(mountain.expeditions === undefined ||
-      mountain.expeditions.length === 0
-        ? {}
-        : { expeditions: mountain.expeditions }),
-      ...(mountain.finds === undefined || mountain.finds.length === 0
-        ? {}
-        : { finds: mountain.finds }),
-    },
-    // One sibling of the mountain. Four extra document keys, or four extra
-    // mountain keys, push a full crew past the Firestore expression budget.
-    workshop: {
-      materials: mountain.materials ?? materialsFromMined(minedOut(mountain)),
-      ...workshopBench(mountain),
-      ...workshopCrafted(mountain),
-      recipes: workshopRecipes(mountain),
-      ...workshopClocks(mountain),
-      ...(mountain.stretch === undefined ? {} : { stretch: mountain.stretch }),
-      ...(mountain.seen === undefined || mountain.seen.length === 0
-        ? {}
-        : { seen: mountain.seen }),
-      ...(mountain.taught === undefined || mountain.taught.length === 0
-        ? {}
-        : { taught: mountain.taught }),
-    },
+    mountain: savedMountain(mountain),
+    workshop: savedWorkshop(mountain),
     lastSeen,
   };
-  if (
-    rev !== undefined &&
-    Number.isInteger(rev) &&
-    rev >= 1 &&
-    deviceId !== undefined &&
-    deviceId.length >= SAVE_DEVICE_ID_MIN &&
-    deviceId.length <= SAVE_DEVICE_ID_MAX
-  ) {
-    return {
-      ...saved,
-      version: 7,
-      rev,
-      deviceId,
-      ...(deviceLabel !== undefined &&
-      deviceLabel.length >= 1 &&
-      deviceLabel.length <= 40 &&
-      !deviceLabel.includes("?")
-        ? { deviceLabel }
-        : {}),
-    };
+  if (!validRev(rev) || !validDeviceId(deviceId)) {
+    return saved;
   }
-  return saved;
+  const label = validLabel(deviceLabel);
+  return {
+    ...saved,
+    version: 7,
+    rev,
+    deviceId,
+    ...(label === undefined ? {} : { deviceLabel: label }),
+  };
 }
 
 /**
@@ -198,98 +127,50 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
     case 2:
     case 3:
     case 4:
-    case 5: {
-      const loaded = loadOlderMountain(record);
-      return loaded === undefined
-        ? undefined
-        : {
-            mountain: grantFromStones(loaded.mountain),
-            lastSeen: loaded.lastSeen,
-          };
-    }
+    case 5:
+      return loadOlderSave(record);
     case 6:
-    case 7: {
-      const lastSeen = record["lastSeen"];
-      if (typeof lastSeen !== "number" || !Number.isFinite(lastSeen)) {
-        return undefined;
-      }
-      const identity =
-        record["version"] === 7 ? readV7Identity(record) : undefined;
-      if (record["version"] === 7 && identity === undefined) {
-        return undefined;
-      }
-      const base = parseMountain(record["mountain"]);
-      const workshop = record["workshop"];
-      if (typeof workshop !== "object" || workshop === null) {
-        return undefined;
-      }
-      const sheet = workshop as Record<string, unknown>;
-      const materials = parseMaterials(sheet["materials"]);
-      const recipes = readRecipes(sheet["recipes"]);
-      const bench = readBench(sheet["bench"]);
-      const crafted = readCrafted(sheet["crafted"]);
-      const clocks = readClocks(sheet);
-      const stretch = readStretch(sheet["stretch"]);
-      const seen = parseTeachIds(sheet["seen"]);
-      const taught = parseTeachIds(sheet["taught"]);
-      if (
-        base === undefined ||
-        materials === undefined ||
-        recipes === "bad" ||
-        bench === "bad" ||
-        crafted === "bad" ||
-        clocks === "bad" ||
-        stretch === "bad" ||
-        seen === "bad" ||
-        taught === "bad"
-      ) {
-        return undefined;
-      }
-      const kept = keptWorkshop(recipes.kept, bench.kept, crafted.kept);
-      const deviceLabel = record["deviceLabel"];
-      const label =
-        typeof deviceLabel === "string" &&
-        deviceLabel.length >= 1 &&
-        deviceLabel.length <= 40 &&
-        !deviceLabel.includes("?")
-          ? deviceLabel
-          : undefined;
-      return {
-        mountain: {
-          ...base,
-          materials,
-          recipes: recipes.known,
-          ...(bench.bench === undefined ? {} : { bench: bench.bench }),
-          ...(crafted.crafted === undefined ||
-          Object.keys(crafted.crafted).length === 0
-            ? {}
-            : { crafted: crafted.crafted }),
-          ...(kept === undefined ? {} : { kept }),
-          ...clocks,
-          ...(stretch === undefined ? {} : { stretch }),
-          ...(seen.length === 0 ? {} : { seen }),
-          ...(taught.length === 0 ? {} : { taught }),
-        },
-        lastSeen,
-        ...(identity === undefined ? {} : identity),
-        ...(label === undefined ? {} : { deviceLabel: label }),
-      };
-    }
+    case 7:
+      return loadCurrentSave(record);
     default:
       return undefined;
   }
 }
 
-/** Builds before #366 wrote stretches up to this. They load at MAX_STRETCH. */
-const OLD_MAX_STRETCH = 100_000_000;
+function loadOlderSave(
+  record: Record<string, unknown>,
+): ParsedSave | undefined {
+  const loaded = loadOlderMountain(record);
+  return loaded === undefined
+    ? undefined
+    : { mountain: grantFromStones(loaded.mountain), lastSeen: loaded.lastSeen };
+}
 
-function readStretch(value: unknown): number | undefined | "bad" {
-  if (value === undefined) {
+/** v6 and v7: the mountain map, its workshop sibling, and v7's identity. */
+function loadCurrentSave(
+  record: Record<string, unknown>,
+): ParsedSave | undefined {
+  const lastSeen = record["lastSeen"];
+  if (typeof lastSeen !== "number" || !Number.isFinite(lastSeen)) {
     return undefined;
   }
-  return typeof value === "number" && value >= 1 && value <= OLD_MAX_STRETCH
-    ? Math.min(value, MAX_STRETCH)
-    : "bad";
+  const identity = record["version"] === 7 ? readV7Identity(record) : "none";
+  if (identity === undefined) {
+    return undefined;
+  }
+  const base = parseMountain(record["mountain"]);
+  const mountain =
+    base === undefined ? undefined : withWorkshop(base, record["workshop"]);
+  if (mountain === undefined) {
+    return undefined;
+  }
+  const label = validLabel(record["deviceLabel"]);
+  return {
+    mountain,
+    lastSeen,
+    ...(identity === "none" ? {} : identity),
+    ...(label === undefined ? {} : { deviceLabel: label }),
+  };
 }
 
 function readV7Identity(
@@ -297,248 +178,9 @@ function readV7Identity(
 ): { readonly rev: number; readonly deviceId: string } | undefined {
   const rev = record["rev"];
   const deviceId = record["deviceId"];
-  if (
-    typeof rev !== "number" ||
-    !Number.isInteger(rev) ||
-    rev < 1 ||
-    typeof deviceId !== "string" ||
-    deviceId.length < SAVE_DEVICE_ID_MIN ||
-    deviceId.length > SAVE_DEVICE_ID_MAX
-  ) {
-    return undefined;
-  }
-  return { rev, deviceId };
-}
-
-/** An id this build can write back without treating it as a recipe it knows. */
-const MAX_KEPT_ID = 40;
-const MAX_KEPT_RECIPES = 8;
-/** Wider than today's longest craft, so a newer timer still comes home. */
-const MAX_KEPT_BENCH_MS = 7 * 24 * 60 * 60 * 1000;
-
-function keptId(value: string): boolean {
-  return value.length >= 1 && value.length <= MAX_KEPT_ID;
-}
-
-function workshopRecipes(mountain: Mountain): readonly string[] {
-  const known = [...(mountain.recipes ?? recipesForMined(minedOut(mountain)))];
-  const seen = new Set<string>(known);
-  const all: string[] = [...known];
-  for (const id of mountain.kept?.recipes ?? []) {
-    if (seen.has(id)) {
-      continue;
-    }
-    seen.add(id);
-    all.push(id);
-  }
-  return all;
-}
-
-function workshopBench(mountain: Mountain): { bench?: Bench | KeptBench } {
-  const bench = mountain.bench ?? mountain.kept?.bench;
-  return bench === undefined ? {} : { bench };
-}
-
-function workshopCrafted(mountain: Mountain): {
-  crafted?: Readonly<Record<string, number>>;
-} {
-  const crafted = {
-    ...(mountain.kept?.crafted ?? {}),
-    ...(mountain.crafted ?? {}),
-  };
-  return Object.keys(crafted).length === 0 ? {} : { crafted };
-}
-
-function keptWorkshop(
-  recipes: readonly string[],
-  bench: KeptBench | undefined,
-  crafted: Readonly<Record<string, number>> | undefined,
-): KeptWorkshop | undefined {
-  const kept: {
-    recipes?: readonly string[];
-    bench?: KeptBench;
-    crafted?: Readonly<Record<string, number>>;
-  } = {};
-  if (recipes.length > 0) {
-    kept.recipes = recipes;
-  }
-  if (bench !== undefined) {
-    kept.bench = bench;
-  }
-  if (crafted !== undefined && Object.keys(crafted).length > 0) {
-    kept.crafted = crafted;
-  }
-  return kept.recipes === undefined &&
-    kept.bench === undefined &&
-    kept.crafted === undefined
-    ? undefined
-    : kept;
-}
-
-/**
- * Known ids stay playable. An id this build has never heard of is kept,
- * so the next write does not forget a newer recipe.
- */
-function readRecipes(
-  value: unknown,
-):
-  | { readonly known: readonly RecipeId[]; readonly kept: readonly string[] }
-  | "bad" {
-  if (!Array.isArray(value)) {
-    return "bad";
-  }
-  const known: RecipeId[] = [];
-  const kept: string[] = [];
-  for (const item of value) {
-    if (typeof item !== "string") {
-      continue;
-    }
-    if (isRecipeId(item)) {
-      if (!known.includes(item)) {
-        known.push(item);
-      }
-      continue;
-    }
-    if (
-      !keptId(item) ||
-      kept.length >= MAX_KEPT_RECIPES ||
-      kept.includes(item)
-    ) {
-      continue;
-    }
-    kept.push(item);
-  }
-  return { known, kept };
-}
-
-/**
- * `null` is an empty bench. A recipe this client does not know stays on
- * the bench until its clock ends, and the next write puts it back.
- */
-function readBench(
-  value: unknown,
-): { readonly bench?: Bench; readonly kept?: KeptBench } | "bad" {
-  if (value === undefined || value === null) {
-    return {};
-  }
-  if (typeof value !== "object" || Array.isArray(value)) {
-    return "bad";
-  }
-  const record = value as Record<string, unknown>;
-  const recipe = record["recipe"];
-  if (typeof recipe === "string" && !isRecipeId(recipe)) {
-    const startedAt = record["startedAt"];
-    const endsAt = record["endsAt"];
-    if (
-      !keptId(recipe) ||
-      !isWhole(startedAt) ||
-      !isWhole(endsAt) ||
-      endsAt <= startedAt ||
-      endsAt - startedAt > MAX_KEPT_BENCH_MS
-    ) {
-      return {};
-    }
-    return { kept: { recipe, startedAt, endsAt } };
-  }
-  const bench = parseBench(value);
-  return bench === undefined ? "bad" : { bench };
-}
-
-function isWhole(value: unknown): value is number {
-  return Number.isSafeInteger(value) && (value as number) >= 0;
-}
-
-/** Missing means that buff is cold. Anything else must be a whole time. */
-function readClock(value: unknown): number | undefined | "bad" {
-  if (value === undefined) {
-    return undefined;
-  }
-  const parsed = parseChargeUntil(value);
-  return parsed === undefined ? "bad" : parsed;
-}
-
-/**
- * The live timers' end times, written in the workshop map beside the
- * mountain, and the Gold rush's held stones: a whole count, read the same way.
- */
-const CLOCKS = [
-  "chargeUntil",
-  "flareUntil",
-  "emberUntil",
-  "axleUntil",
-  "rushUntil",
-  "rushBank",
-] as const;
-
-type Clocks = Partial<Record<(typeof CLOCKS)[number], number>>;
-
-function workshopClocks(mountain: Mountain): Clocks {
-  const clocks: Clocks = {};
-  for (const key of CLOCKS) {
-    const at = mountain[key];
-    if (at !== undefined) {
-      clocks[key] = at;
-    }
-  }
-  return clocks;
-}
-
-/** Every clock the workshop map holds; one bad clock rejects the save. */
-function readClocks(sheet: Readonly<Record<string, unknown>>): Clocks | "bad" {
-  const clocks: Clocks = {};
-  for (const key of CLOCKS) {
-    const at = readClock(sheet[key]);
-    if (at === "bad") {
-      return "bad";
-    }
-    if (at !== undefined) {
-      clocks[key] = at;
-    }
-  }
-  return clocks;
-}
-
-/**
- * Missing means nothing crafted. A level this build knows is playable.
- * A level it does not know is written back. A bad level on a known id
- * rejects the save; a bad level on an unknown id is skipped.
- */
-function readCrafted(value: unknown):
-  | {
-      readonly crafted?: Crafted;
-      readonly kept?: Readonly<Record<string, number>>;
-    }
-  | "bad" {
-  if (value === undefined) {
-    return {};
-  }
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return "bad";
-  }
-  const crafted: Partial<Record<RecipeId, number>> = {};
-  const kept: Record<string, number> = {};
-  for (const [key, level] of Object.entries(value)) {
-    const whole = isWhole(level) && level <= MAX_CRAFTED_LEVEL;
-    if (isRecipeId(key)) {
-      if (!whole) {
-        return "bad";
-      }
-      crafted[key] = level;
-      continue;
-    }
-    if (
-      !whole ||
-      !keptId(key) ||
-      Object.keys(kept).length >= MAX_KEPT_RECIPES
-    ) {
-      continue;
-    }
-    kept[key] = level;
-  }
-  return {
-    ...(Object.keys(crafted).length === 0 ? {} : { crafted }),
-    ...(Object.keys(kept).length === 0 ? {} : { kept }),
-  };
+  return validRev(rev) && validDeviceId(deviceId)
+    ? { rev, deviceId }
+    : undefined;
 }
 
 function loadOlderMountain(
@@ -570,17 +212,10 @@ function loadOlderMountain(
  * have one.
  */
 function grantFromStones(mountain: Mountain): Mountain {
-  const kept = Object.fromEntries(
-    Object.entries(mountain).filter(
-      ([key]) =>
-        key !== "bench" &&
-        key !== "crafted" &&
-        key !== "materials" &&
-        key !== "recipes",
-    ),
-  ) as Mountain;
   return {
-    ...kept,
+    ...mountain,
+    bench: undefined,
+    crafted: NOTHING_CRAFTED,
     materials: materialsFromMined(minedOut(mountain)),
     recipes: recipesForMined(minedOut(mountain)),
   };

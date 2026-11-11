@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boostById, boostCost } from "./boosts";
+import { boostById, boostCost, NO_BOOSTS } from "./boosts";
 import { formatCompact, formatCount } from "./format";
 import { LOST_TOOLS } from "./lost-tools";
 import { createMountain, type Mountain } from "./mountain";
@@ -22,7 +22,8 @@ import {
   toolRowView,
   upgradeRowView,
 } from "./upgrade-rows";
-import { UPGRADES, upgradeById, upgradeCost } from "./upgrades";
+import { UPGRADES, upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
+import { COLD_CLOCKS } from "./workshop";
 
 const NOW = 1_700_000_000_000;
 const sharper = boostById("sharper");
@@ -110,7 +111,7 @@ describe("boost rows", () => {
       {
         ...base,
         pocket: cost * 10,
-        boosts: { sharper: NOW + (4 * 60 + 12) * 1000 },
+        boosts: { ...NO_BOOSTS, sharper: NOW + (4 * 60 + 12) * 1000 },
       },
       NOW,
       sharper,
@@ -134,7 +135,10 @@ describe("boost rows", () => {
         "sharper",
         sharper.effect,
         sharper.multiplier,
-        effectiveRates({ ...base, boosts: { sharper: NOW + 252_000 } }, NOW),
+        effectiveRates(
+          { ...base, boosts: { ...NO_BOOSTS, sharper: NOW + 252_000 } },
+          NOW,
+        ),
         true,
       ),
     ]);
@@ -158,12 +162,12 @@ describe("boost rows", () => {
       helpers: 4,
       carts: 3,
       drills: 1,
-      axleUntil: NOW + 12 * 60_000,
+      clocks: { ...COLD_CLOCKS, "axle-grease": NOW + 12 * 60_000 },
     });
     const would = effectiveRates(
       {
         ...greased,
-        boosts: { overtime: NOW + overtime.durationMs },
+        boosts: { ...NO_BOOSTS, overtime: NOW + overtime.durationMs },
       },
       NOW,
     );
@@ -186,7 +190,10 @@ describe("boost rows", () => {
     );
 
     // While it runs, the line reads the crew as it is.
-    const running = { ...greased, boosts: { overtime: NOW + 60_000 } };
+    const running = {
+      ...greased,
+      boosts: { ...NO_BOOSTS, overtime: NOW + 60_000 },
+    };
     expect(boostRowView(running, NOW, overtime, false).info).toEqual([
       boostOutcome(
         "overtime",
@@ -201,7 +208,10 @@ describe("boost rows", () => {
 
 describe("lasting upgrade rows", () => {
   it("a lasting upgrade", () => {
-    const climbing = mountainWith({ carts: 3, upgrades: { tap: 2 } });
+    const climbing = mountainWith({
+      carts: 3,
+      upgrades: { ...NO_UPGRADES, tap: 2 },
+    });
     const cost = upgradePrice(climbing, "tap", 2);
     const view = upgradeRowView(
       { ...climbing, pocket: cost },
@@ -249,7 +259,11 @@ describe("lasting upgrade rows", () => {
     });
 
     const bought = upgradeRowView(
-      mountainWith({ helpers: 10, upgrades: { boots: 1 }, pocket: 1e15 }),
+      mountainWith({
+        helpers: 10,
+        upgrades: { ...NO_UPGRADES, boots: 1 },
+        pocket: 1e15,
+      }),
       NOW,
       boots,
       false,
@@ -270,7 +284,7 @@ describe("lasting upgrade rows", () => {
 
   it("every level bought still reads Owned, with its badge", () => {
     const maxed = upgradeRowView(
-      mountainWith({ carts: 3, upgrades: { tap: 10 } }),
+      mountainWith({ carts: 3, upgrades: { ...NO_UPGRADES, tap: 10 } }),
       NOW,
       arms,
       false,
@@ -325,8 +339,8 @@ describe("the New row", () => {
     const open = mountainWith({
       helpers: 10,
       carts: 5,
-      upgrades: { tap: 1, boots: 1 },
-      boosts: { sharper: 0 },
+      upgrades: { ...NO_UPGRADES, tap: 1, boots: 1 },
+      boosts: { ...NO_BOOSTS, sharper: 1 },
     });
     const steady = upgradePrice(open, "steady");
     const helping = upgradePrice(open, "cartSyn");
@@ -360,7 +374,11 @@ describe("the Upgrades key's glow", () => {
     // Sharper picks is running; nothing else is open or affordable.
     expect(
       anyUpgradeAffordable(
-        { ...base, pocket: cost, boosts: { sharper: NOW + 60_000 } },
+        {
+          ...base,
+          pocket: cost,
+          boosts: { ...NO_BOOSTS, sharper: NOW + 60_000 },
+        },
         NOW,
       ),
     ).toBe(false);
@@ -371,7 +389,7 @@ describe("the Upgrades key's glow", () => {
     // An affordable shown upgrade counts.
     const arms3 = mountainWith({
       carts: 3,
-      boosts: { sharper: NOW + 60_000 },
+      boosts: { ...NO_BOOSTS, sharper: NOW + 60_000 },
     });
     expect(
       anyUpgradeAffordable(
@@ -399,11 +417,11 @@ describe("display only", () => {
       carts: 5,
       drills: 1,
       pocket: 5_000_000,
-      upgrades: { tap: 2, boots: 1 },
-      boosts: { overtime: NOW + 60_000 },
+      upgrades: { ...NO_UPGRADES, tap: 2, boots: 1 },
+      boosts: { ...NO_BOOSTS, overtime: NOW + 60_000 },
       finds: ["pick", "map"],
       seen: ["upgrade:tap"],
-      axleUntil: NOW + 60_000,
+      clocks: { ...COLD_CLOCKS, "axle-grease": NOW + 60_000 },
     };
     const mountain = deepFreeze(mountainWith(fields));
     const copy = structuredClone(mountainWith(fields));

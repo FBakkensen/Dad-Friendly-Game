@@ -102,7 +102,7 @@ describe("side tunnels (#147)", () => {
     );
     expect(deep.classList.contains("is-locked")).toBe(true);
     deep.click();
-    expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    expect(screen.progress.getSnapshot().mountain.expeditions).toEqual([]);
 
     inSheet(screen, '.engineer-tunnel-row[data-tunnel="old-shaft"]').click();
     expect(kick(screen)).toBe("Ada lights a lamp and heads in!");
@@ -173,11 +173,11 @@ describe("side tunnels (#147)", () => {
     inSheet(screen, ".engineer-recall").click();
     inSheet(screen, ".recall-yes").click();
     expect(kick(screen)).toBe("Ada is home, empty-handed.");
-    expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    expect(screen.progress.getSnapshot().mountain.expeditions).toEqual([]);
     expect(screen.progress.getSnapshot().mountain.engineers?.[0]).toMatchObject(
       { trips: 0, post: "borer" },
     );
-    expect(screen.progress.getSnapshot().mountain.finds).toBeUndefined();
+    expect(screen.progress.getSnapshot().mountain.finds).toEqual([]);
     expect(
       screen.root.querySelector<HTMLElement>(".expedition-chip")?.hidden,
     ).toBe(true);
@@ -187,7 +187,7 @@ describe("side tunnels (#147)", () => {
     // A post chosen while she is out calls the party back first.
     inSheet(screen, '.engineer-post[data-post="camp"]').click();
     expect(kick(screen)).toBe("Ada puts the kettle on at camp.");
-    expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    expect(screen.progress.getSnapshot().mountain.expeditions).toEqual([]);
     expect(screen.progress.getSnapshot().mountain.engineers?.[0]).toMatchObject(
       { trips: 0, post: "camp" },
     );
@@ -1062,7 +1062,7 @@ describe("sheet buys", () => {
     screen.progress.applyMutation((mountain) => ({
       ...mountain,
       pocket: 999_900_000_000_000,
-      chargeUntil: Date.now() + 60_000,
+      clocks: { ...mountain.clocks, "blasting-charge": Date.now() + 60_000 },
       bench: {
         recipe: "iron-rails",
         startedAt: Date.now() - 1_000,

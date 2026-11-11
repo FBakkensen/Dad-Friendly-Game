@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { tierLocked } from "./crew";
 import { minedMountain } from "./test-fixtures";
-import { accrue, accrueAway, stonesPerSecond, type Mountain } from "./mountain";
+import {
+  accrue,
+  accrueAway,
+  stonesPerSecond,
+  type Mountain,
+  BARE_MOUNTAIN,
+} from "./mountain";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { MOUNTAIN_STONES, stonesLeft } from "./scale";
 import { parseSaveValue, serializeSave } from "./persist";
@@ -22,6 +28,7 @@ import {
 const at = (
   fields: Partial<Omit<Mountain, "remaining" | "startedAt">>,
 ): Mountain => ({
+  ...BARE_MOUNTAIN,
   remaining: 240_000_000,
   pocket: 0,
   helpers: 0,

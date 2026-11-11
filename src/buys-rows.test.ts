@@ -33,7 +33,7 @@ import {
   type BuyAmount,
   type TierId,
 } from "./tiers";
-import { tierSynergy } from "./upgrades";
+import { tierSynergy, NO_UPGRADES } from "./upgrades";
 
 const NOW = 1_700_000_000_000;
 
@@ -409,7 +409,7 @@ describe("buyRowView", () => {
       helpers: 12,
       carts: 6,
       pocket: 6_854,
-      upgrades: { cartSyn: 1 },
+      upgrades: { ...NO_UPGRADES, cartSyn: 1 },
     });
     const share = tierSynergy(synergy, "cart");
     expect(share).toBeGreaterThan(0);
@@ -445,7 +445,7 @@ describe("buyRowView", () => {
       borers: 1,
       pocket: 5_000_000,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
-      upgrades: { cartSyn: 1 },
+      upgrades: { ...NO_UPGRADES, cartSyn: 1 },
     });
     const before = structuredClone(mountain);
     const frozen = Object.freeze({

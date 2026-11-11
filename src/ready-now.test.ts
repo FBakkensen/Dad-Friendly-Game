@@ -6,6 +6,7 @@ import { effectiveRates } from "./rates";
 import { readyNow } from "./ready-now";
 import { MOUNTAIN_STONES } from "./scale";
 import { tierById, tierCost, type TierId } from "./tiers";
+import { NO_BOOSTS } from "./boosts";
 
 const NOW = 1_700_000_000_000;
 
@@ -333,7 +334,7 @@ describe("readyNow", () => {
       helpers: 18,
       carts: 6,
       pocket: 100,
-      boosts: { overtime: overtimeEnds },
+      boosts: { ...NO_BOOSTS, overtime: overtimeEnds },
     });
     const price = priceOf(mountain, "cart", 6);
     const later = overtimeEnds + 1;

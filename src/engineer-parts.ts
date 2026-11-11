@@ -544,7 +544,7 @@ export function createExpeditionChips(
   });
   return {
     paint(mountain, now) {
-      const trips = mountain.expeditions ?? [];
+      const trips = mountain.expeditions;
       for (const [index, chip] of chips.entries()) {
         const trip = trips[index];
         if (trip === undefined) {

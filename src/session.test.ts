@@ -16,6 +16,7 @@ import {
   type Session,
   type SessionEffect,
 } from "./session";
+import { NOTHING_CRAFTED } from "./workshop";
 
 const codes = (effects: readonly SessionEffect[]): string[] =>
   effects.flatMap((effect) => (effect.kind === "record" ? [effect.code] : []));
@@ -64,7 +65,10 @@ describe("session step", () => {
     const session = playing();
     const fitted = {
       ...session,
-      mountain: { ...session.mountain, crafted: { "iron-rails": 1 } },
+      mountain: {
+        ...session.mountain,
+        crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 },
+      },
     };
     const noticed = step(fitted, { kind: "notice" }, 42_000);
     expect(noticed.session.news.craftsFitted).toEqual([

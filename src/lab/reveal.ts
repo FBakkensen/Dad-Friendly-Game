@@ -39,7 +39,7 @@ export type RevealGap = {
 const SECONDS_PER_HOUR = HOUR_MS / MS_PER_SECOND;
 
 function knownRecipes(mountain: Mountain): readonly RecipeId[] {
-  return (mountain.recipes ?? []).filter((id) => recipeOpen(mountain, id));
+  return mountain.recipes.filter((id) => recipeOpen(mountain, id));
 }
 
 /** The pocket and the materials cover one craft of this recipe. */
@@ -48,7 +48,6 @@ function recipeAffordable(mountain: Mountain, id: RecipeId): boolean {
   const have = mountain.materials;
   return (
     mountain.pocket >= cost.stones &&
-    have !== undefined &&
     have.clay >= cost.materials.clay &&
     have.iron >= cost.materials.iron &&
     have.crystal >= cost.materials.crystal &&
@@ -80,7 +79,7 @@ function materialUsed(mountain: Mountain, material: MaterialId): boolean {
 function anyCraft(mountain: Mountain): boolean {
   return (
     mountain.bench !== undefined ||
-    Object.values(mountain.crafted ?? {}).some((level) => level > 0)
+    Object.values(mountain.crafted).some((level) => level > 0)
   );
 }
 
@@ -114,7 +113,7 @@ const WATCHES: readonly Watch[] = [
   ...BOOSTS.map((boost) => ({
     id: `boost:${boost.id}`,
     shown: (mountain: Mountain) => boostShown(mountain, boost),
-    used: (mountain: Mountain) => mountain.boosts?.[boost.id] !== undefined,
+    used: (mountain: Mountain) => mountain.boosts[boost.id] > 0,
   })),
   ...LAYERS.map((layer) => ({
     id: `material:${layer.material}`,
@@ -128,23 +127,23 @@ const WATCHES: readonly Watch[] = [
   },
   {
     id: "system:expeditions",
-    shown: (mountain: Mountain) => (mountain.engineers?.length ?? 0) > 0,
+    shown: (mountain: Mountain) => mountain.engineers.length > 0,
     used: (mountain: Mountain) =>
-      (mountain.expeditions?.length ?? 0) > 0 ||
-      (mountain.engineers ?? []).some((engineer) => engineer.trips > 0),
+      mountain.expeditions.length > 0 ||
+      mountain.engineers.some((engineer) => engineer.trips > 0),
   },
   {
     id: "system:tending",
-    shown: (mountain: Mountain) => (mountain.engineers?.length ?? 0) > 0,
+    shown: (mountain: Mountain) => mountain.engineers.length > 0,
     used: (mountain: Mountain) =>
-      (mountain.engineers ?? []).some(
+      mountain.engineers.some(
         (engineer) => engineer.post !== "camp" && engineer.post !== "tunnel",
       ),
   },
   {
     id: "system:promote",
-    shown: (mountain: Mountain) => (mountain.engineers?.length ?? 0) > 0,
-    used: (mountain: Mountain) => (mountain.engineers?.length ?? 0) > 1,
+    shown: (mountain: Mountain) => mountain.engineers.length > 0,
+    used: (mountain: Mountain) => mountain.engineers.length > 1,
   },
 ];
 

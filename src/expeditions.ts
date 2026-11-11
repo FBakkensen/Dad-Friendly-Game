@@ -162,10 +162,10 @@ function isExpeditionRecipe(value: string): value is ExpeditionRecipeId {
 /** Still out there: not in the book, and not already in someone's pocket. */
 function recipeOpen(mountain: Mountain, tunnel: TunnelId): boolean {
   const id = tunnelRecipe(tunnel);
-  if (id === undefined || (mountain.recipes?.includes(id) ?? false)) {
+  if (id === undefined || mountain.recipes.includes(id)) {
     return false;
   }
-  return !(mountain.expeditions ?? []).some(
+  return !mountain.expeditions.some(
     (trip) => trip.find.kind === "recipe" && trip.find.id === id,
   );
 }
@@ -181,18 +181,17 @@ export function send(
   now: number,
 ): Mountain {
   const engineers = mountain.engineers;
-  const hand = engineers?.[engineer];
+  const hand = engineers[engineer];
   const spec = TUNNELS.find((candidate) => candidate.id === tunnel);
   if (
-    engineers === undefined ||
     hand === undefined ||
     spec === undefined ||
     hand.post === "tunnel" ||
     hand.rank < spec.minRank ||
     !Number.isSafeInteger(now) ||
     !Number.isSafeInteger(now + expeditionAwayMs(spec.awayMs, mountain)) ||
-    (mountain.expeditions?.length ?? 0) >= MAX_EXPEDITIONS ||
-    (mountain.expeditions ?? []).some((trip) => trip.engineer === hand.name)
+    mountain.expeditions.length >= MAX_EXPEDITIONS ||
+    mountain.expeditions.some((trip) => trip.engineer === hand.name)
   ) {
     return mountain;
   }
@@ -207,17 +206,17 @@ export function send(
   const stationed = station(mountain, engineer, "tunnel");
   return {
     ...stationed,
-    expeditions: [...(stationed.expeditions ?? []), trip],
+    expeditions: [...stationed.expeditions, trip],
   };
 }
 
 /** Back at the post they left. No find, no trip, no cost. */
 export function recall(mountain: Mountain, engineer: number): Mountain {
-  const hand = mountain.engineers?.[engineer];
+  const hand = mountain.engineers[engineer];
   if (hand === undefined) {
     return mountain;
   }
-  const trips = mountain.expeditions ?? [];
+  const trips = mountain.expeditions;
   const trip = trips.find((candidate) => candidate.engineer === hand.name);
   if (trip === undefined) {
     // A tunnel post with no trip has no home post to restore: back to camp (#409).
@@ -255,9 +254,6 @@ export function settle(
  */
 export function clampExpeditions(mountain: Mountain, now: number): Mountain {
   const expeditions = mountain.expeditions;
-  if (expeditions === undefined) {
-    return mountain;
-  }
   const next: Expedition[] = [];
   let changed = false;
   for (const trip of expeditions) {
@@ -285,9 +281,6 @@ export function completeDue(
   readonly homecomings: readonly Homecoming[];
 } {
   const trips = mountain.expeditions;
-  if (trips === undefined) {
-    return { mountain, finds: [], homecomings: [] };
-  }
   const due = trips.filter((trip) => trip.returnsAt <= now);
   if (due.length === 0) {
     return { mountain, finds: [], homecomings: [] };
@@ -420,7 +413,7 @@ function findOfKind(
   if (tunnel !== "deep-dark") {
     return undefined;
   }
-  const name = nextEngineerName(engineers, mountain.expeditions ?? []);
+  const name = nextEngineerName(engineers, mountain.expeditions);
   return name === undefined ? undefined : { kind: "engineer", id: name };
 }
 
@@ -497,7 +490,7 @@ function taken(
   kind: "tool" | "keepsake",
 ): ReadonlySet<string> {
   const ids = new Set<string>();
-  for (const id of mountain.finds ?? []) {
+  for (const id of mountain.finds) {
     if (
       (kind === "tool" && isToolId(id)) ||
       (kind === "keepsake" && isKeepsakeId(id))
@@ -505,7 +498,7 @@ function taken(
       ids.add(id);
     }
   }
-  for (const trip of mountain.expeditions ?? []) {
+  for (const trip of mountain.expeditions) {
     if (trip.find.kind === kind) {
       ids.add(trip.find.id);
     }
@@ -545,9 +538,6 @@ function bringHome(
   trip: Expedition,
 ): { readonly mountain: Mountain; readonly settled: SettledFind } {
   const engineers = mountain.engineers;
-  if (engineers === undefined) {
-    return { mountain, settled: { kind: "quiet", text: QUIET_TEXT } };
-  }
   const index = engineers.findIndex(
     (engineer) => engineer.name === trip.engineer,
   );
@@ -555,19 +545,7 @@ function bringHome(
     return { mountain, settled: { kind: "quiet", text: QUIET_TEXT } };
   }
   const stationed = station(addTrip(mountain, index), index, trip.home);
-  return applyFind(stationed, keptCrew(stationed, engineers), trip.find);
-}
-
-/** addTrip and station copy the crew. The fallback only satisfies the type. */
-function keptCrew(
-  mountain: Mountain,
-  fallback: readonly Engineer[],
-): readonly Engineer[] {
-  /* v8 ignore next 3 -- the crew was copied through addTrip and station */
-  if (mountain.engineers === undefined) {
-    return fallback;
-  }
-  return mountain.engineers;
+  return applyFind(stationed, stationed.engineers, trip.find);
 }
 
 function applyFind(
@@ -613,7 +591,7 @@ function applyFind(
 }
 
 function addShelf(mountain: Mountain, id: FindId): Mountain {
-  const finds = mountain.finds ?? [];
+  const finds = mountain.finds;
   if (finds.includes(id)) {
     return mountain;
   }
@@ -641,11 +619,6 @@ function withoutTrips(
   mountain: Mountain,
   expeditions: readonly Expedition[],
 ): Mountain {
-  if (expeditions.length === 0) {
-    const rest = { ...mountain };
-    delete rest.expeditions;
-    return rest;
-  }
   return { ...mountain, expeditions };
 }
 

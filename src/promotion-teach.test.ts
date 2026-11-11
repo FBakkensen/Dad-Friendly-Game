@@ -100,9 +100,7 @@ function crew(): Mountain {
 }
 
 function withoutEngineers(): Mountain {
-  const { engineers: _gone, ...rest } = crew();
-  void _gone;
-  return rest;
+  return { ...crew(), engineers: [] };
 }
 
 describe("promotion teach (#246)", () => {

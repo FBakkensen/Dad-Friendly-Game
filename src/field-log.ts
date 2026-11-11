@@ -147,18 +147,18 @@ export function snapshot(
   ) as Record<UpgradeId, number>;
   const boosts: { id: BoostId; endsAt: string }[] = [];
   for (const boost of BOOSTS) {
-    const endsAt = mountain.boosts?.[boost.id];
-    if (endsAt === undefined || endsAt <= now) {
+    const endsAt = mountain.boosts[boost.id];
+    if (endsAt === 0 || endsAt <= now) {
       continue;
     }
     boosts.push({ id: boost.id, endsAt: new Date(endsAt).toISOString() });
   }
-  const engineers = (mountain.engineers ?? []).map((engineer) => ({
+  const engineers = mountain.engineers.map((engineer) => ({
     name: engineer.name,
     rank: engineer.rank,
     post: engineer.post,
   }));
-  const expeditions = (mountain.expeditions ?? []).map((trip) => ({
+  const expeditions = mountain.expeditions.map((trip) => ({
     engineer: trip.engineer,
     tunnel: trip.tunnel,
     returnsAt: new Date(trip.returnsAt).toISOString(),
@@ -179,7 +179,7 @@ export function snapshot(
     relics: foundRelics(mountain).map((relic) => relic.id),
     upgrades,
     boosts,
-    legacy: mountain.legacy ?? 0,
+    legacy: mountain.legacy,
     engineers,
     expeditions,
   };

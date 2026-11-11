@@ -7,6 +7,8 @@ import { holdForRush, startRush } from "./gold-rush";
 import { AWAY_PAY_RATE, effectiveRates, tendingGain } from "./rates";
 import { minedMountain } from "./test-fixtures";
 import { TIERS } from "./tiers";
+import { NO_BOOSTS } from "./boosts";
+import { NO_UPGRADES } from "./upgrades";
 
 describe("effectiveRates", () => {
   it("reads one mountain once when no clock is passed", () => {
@@ -50,7 +52,7 @@ describe("effectiveRates", () => {
       ...minedMountain(0),
       helpers: 11,
       kids: 0,
-      upgrades: { boots: 1 },
+      upgrades: { ...NO_UPGRADES, boots: 1 },
     });
     expect(rates.exactCrewPerSecond).toBeCloseTo(11 * 2.36, 10);
     expect(rates.crewPerSecond).toBe(25);
@@ -317,7 +319,7 @@ describe("the Gold rush in the rates", () => {
       plain.crewPerSecond * 10,
     );
     const both = effectiveRates(
-      { ...rushed, boosts: { overtime: T + 60_000 } },
+      { ...rushed, boosts: { ...NO_BOOSTS, overtime: T + 60_000 } },
       T,
     );
     // Overtime's ×2 of the crew, plus the rush's nine crews of held stones

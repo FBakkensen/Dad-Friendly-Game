@@ -18,6 +18,6 @@ describe("the lab's quick vein (#468)", () => {
     expect(tapped.mountain.rushUntil).toBe(5_000 + RUSH_MS);
     // nothing held, no rush
     const none = { ...createWorld(1, minedMountain(0)), clock: 5_000 };
-    expect(tapQuickVein(none).mountain).not.toHaveProperty("rushUntil");
+    expect(tapQuickVein(none).mountain).toHaveProperty("rushUntil", 0);
   });
 });
