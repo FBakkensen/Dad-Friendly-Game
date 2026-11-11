@@ -543,24 +543,41 @@ for (const viewport of SCREENS) {
         clip !== undefined && first === second,
         `${label} under reduced motion the window and the needle hold still`,
       );
+      // The page records each state "+N" shows in, as it changes, so a load
+      // that lets the 0.7s hold run out before a read cannot fail the check.
+      await page.evaluate(() => {
+        const plus = document.querySelector(".board-dig-plus");
+        globalThis.__plusSeen = [];
+        if (plus === null) return;
+        new MutationObserver(() => {
+          globalThis.__plusSeen.push({
+            shown: !plus.hidden && plus.getClientRects().length > 0,
+            top: plus.style.top,
+            text: plus.textContent,
+          });
+        }).observe(plus, {
+          attributes: true,
+          childList: true,
+          characterData: true,
+          subtree: true,
+        });
+      });
       await press(page, ".board-window");
-      const plusAt = () =>
-        page.$eval(".board-dig-plus", (plus) => ({
-          shown: !plus.hidden && plus.getClientRects().length > 0,
-          top: plus.style.top,
-          text: plus.textContent,
-        }));
-      const up = await plusAt();
-      // Six frames: at least one 70ms rise step at 60 Hz, and under the
-      // 0.7s hide even at the loop's capped frame time.
+      // Six frames: at least one 70ms rise step at 60 Hz.
       await framesPainted(page, 6);
-      const later = await plusAt();
+      const seen = await page.evaluate(() =>
+        globalThis.__plusSeen.filter((state) => state.shown),
+      );
       check(
-        up.shown && later.shown && up.top === later.top && up.text !== "",
+        seen.length > 0 &&
+          seen.every((state) => state.top === seen[0].top && state.text !== ""),
         `${label} under reduced motion a tap shows +N without rising`,
       );
-      if (!up.shown || up.top !== later.top) {
-        console.log("reduced plus", size, up, later);
+      if (
+        seen.length === 0 ||
+        seen.some((state) => state.top !== seen[0].top)
+      ) {
+        console.log("reduced plus", size, seen);
       }
       await close();
     }
