@@ -22,6 +22,7 @@ import {
   MAX_STRETCH,
   depthAfterStones,
   kidStretch,
+  minedOut,
   oneOffStretch,
   shownStones,
   stonesLeft,
@@ -199,13 +200,6 @@ describe("band scales (#356)", () => {
     expect(depthAfterStones(m, stonesLeft(m) * 2)).toBe(MOUNTAIN_STONES);
   });
 
-  it("lets the lab scale one band", () => {
-    const granite = 35 * M * BAND_SCALE[1];
-    expect(
-      withFactors({ "band.2.scale": 2 }, () => shownStones(fresh, 45 * M)),
-    ).toBe(at10 + 2 * granite);
-  });
-
   const whole = (m: { pocket: number; remaining: number }) => {
     expect(Number.isInteger(m.pocket)).toBe(true);
   };
@@ -246,6 +240,76 @@ describe("band scales (#356)", () => {
         roundTrips(m);
       }
       expect(m.remaining).toBe(0);
+    },
+  );
+});
+
+describe("band scale knobs (#365)", () => {
+  const M = 1_000_000;
+  const ENDS = [
+    BAND_STARTS[1],
+    BAND_STARTS[2],
+    BAND_STARTS[3],
+    MOUNTAIN_STONES,
+  ] as const;
+  const fresh = createMountain();
+
+  const BANDS = [0, 1, 2, 3] as const;
+  type Band = (typeof BANDS)[number];
+
+  /** Stones still to dig inside one band, as the run shows them. */
+  const bandLeft = (m: Mountain, band: Band): number => {
+    const end = ENDS[band];
+    const from = Math.min(end, Math.max(BAND_STARTS[band], minedOut(m)));
+    return shownStones(m, end) - shownStones(m, from);
+  };
+  const doubled = <T>(id: string, body: () => T): T =>
+    withFactors({ [id]: 2 }, body);
+
+  it("band.2.scale moves the Granite's stones left and not the Topsoil's", () => {
+    const inTopsoil = minedMountain(4 * M);
+    const inGranite = minedMountain(20 * M);
+    const topsoil = bandLeft(inTopsoil, 0);
+    const granite = bandLeft(inGranite, 1);
+    expect(topsoil).toBe(6 * M * BAND_SCALE[0]);
+    expect(granite).toBe(25 * M * BAND_SCALE[1]);
+
+    expect(doubled("band.2.scale", () => bandLeft(inTopsoil, 0))).toBe(topsoil);
+    expect(doubled("band.2.scale", () => bandLeft(inGranite, 1))).toBe(
+      2 * granite,
+    );
+    // The whole mountain's count grows by just the Granite's extra stones.
+    expect(doubled("band.2.scale", () => stonesLeft(inGranite))).toBe(
+      stonesLeft(inGranite) + granite,
+    );
+  });
+
+  it.each(BANDS.map((b) => [b + 1, b] as const))(
+    "band.%s.scale scales only that band",
+    (knob, band) => {
+      const id = `band.${String(knob)}.scale`;
+      const counts = () => BANDS.map((b) => bandLeft(fresh, b));
+      const plain = counts();
+      const knobbed = doubled(id, counts);
+      expect(knobbed).toEqual(
+        plain.map((stones, b) => (b === band ? 2 * stones : stones)),
+      );
+
+      // One-off buys follow the knob only while the run stands in that band.
+      const standing = BAND_STARTS.map((start) => minedMountain(start));
+      expect(doubled(id, () => standing.map(oneOffStretch))).toEqual(
+        standing.map((m, b) =>
+          b === band ? 2 * oneOffStretch(m) : oneOffStretch(m),
+        ),
+      );
+
+      // Digging follows the knob too: half the knobbed band lands mid-band.
+      const above = knobbed.slice(0, band).reduce((a, b) => a + b, 0);
+      const half = (knobbed[band] ?? Number.NaN) / 2;
+      const middle = (BAND_STARTS[band] + ENDS[band]) / 2;
+      expect(
+        doubled(id, () => depthAfterStones(fresh, above + half)),
+      ).toBeCloseTo(middle, 0);
     },
   );
 });
