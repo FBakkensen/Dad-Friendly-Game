@@ -103,7 +103,7 @@ page is the map, plus the rules that keep it that way.
    found the seat taken re-checks every half lease; an expired lease, or a
    Web Lock it actually holds, makes it the writer without Play here. A
    stale lease does not override a held lock.
-   The others show "Playing in another tab" and do not write. Play here asks
+   The others show the other-tab board card, "Playing in another tab", and do not write. Play here asks
    the writer to flush, then takes the seat. Firestore's `persistentLocalCache`
    with `persistentMultipleTabManager` is a second copy of the server doc in
    IndexedDB, not a second save: a cached or pending snapshot does not move
@@ -116,7 +116,7 @@ page is the map, plus the rules that keep it that way.
    `screen-vein` (the golden vein), `screen-dig` (the gauge row, the Ready
    row, the bays and the Ready now pick), `screen-panels` (Buys, the cards,
    the note and save line with the board's top, the sheets), `screen-prompts`
-   (the update prompt and the other tab card), `screen-overlays` (the New
+   (the update card and the other-tab card, on `board-card`), `screen-overlays` (the New
    sign, the covers and the rail's paint), `screen-keys` (the key rail and
    what its keys do), `screen-layout` (the board's children and the scrim)
    and `screen-run` (the tick, the frame loop, the vein's and the sign's page
@@ -124,8 +124,20 @@ page is the map, plus the rules that keep it that way.
    `mountain-screen-order.test.ts` pins the order the parts register their
    listeners, the effect row's chips and the root's children. Panels are
    their own modules with a `create…Panel` factory returning their elements
-   and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `ledger-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). Shared player-facing
-   wording lives in `screen-words`. The screen's optional `signal` (tests
+   and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `ledger-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). The six board cards (#464) are built
+   on one shell, `board-card`: `welcome-panel` (welcome back), `arrival-panel`
+   (the layer card and craft done), `save-conflict-panel` (the save conflict)
+   and `screen-prompts` (the other tab and the update). What the welcome,
+   layer and craft-done cards show comes from `card-views`, pure and with no
+   DOM: `welcomeView`, `welcomeNews` (the one rule for when the welcome has
+   news, which `arrivalCard` also reads) and `arrivalCard` (the layer card,
+   else craft done, else none). The shell is a shaded `div.board-card` with
+   today's hook class, title id and `data-card`, a framed face, `cardLine`
+   and `cardArt` (2x), big plates (`plate`) and other controls (`press`)
+   that press through `pressOnBoard` on the card's own layer, `show(on,
+focus)` (`showCard`, the model's open or close, and the focus once as it
+   opens) and `page()` (a new screen that settles again: the conflict's
+   confirm). Shared player-facing wording lives in `screen-words`. The screen's optional `signal` (tests
    pass one; the app never unmounts) takes off everything it hangs outside
    its own elements: the tick, the frame loop, its document and window
    listeners (the note's, the save line's and the drawers' too), and its
@@ -142,7 +154,8 @@ page is the map, plus the rules that keep it that way.
    it opens, and the materials line is rebuilt only when its chips change, and the saved
    copies sheet rebuilds its rows only when what they show changes.
    Three small modules carry the screen's decisions: `card-state` is the cards'
-   shown state (`showCard` writes it, `cardUp` reads it), `screen-cover`
+   shown state (`showCard` writes it, for the board cards through
+   `board-card`'s `show`; `cardUp` reads it), `screen-cover`
    decides from the screen's `cards`, the board's drawers and the note whether
    to close the drawers, put the note and sign away, or hold the sign
    (`coverFor`), and which New sign is wanted (`wantedSign`), and
@@ -239,7 +252,7 @@ page is the map, plus the rules that keep it that way.
    amount key, the Workshop's sound key) carries `board-sheet-key`. Each
    close says what closed it: `finger` (Back, the "i"'s way back),
    `keyboard` (Escape), `tap-through` (the scrim, which hands its tap on) or
-   `program` (a timer, the update prompt). A close that restores focus gives
+   `program` (a timer, a card that covers the drawer). A close that restores focus gives
    it to the key the drawer opened from, or to the shell's `fallbackFocus`
    while that key is disabled; a `restoreFocus: false` close never moves it,
    so a card that covered the drawer keeps its own. Escape listens in the capture
@@ -303,8 +316,7 @@ page is the map, plus the rules that keep it that way.
    key); the field log shows on the other when `writeClipboard` says no.
    Copy field log's `Copied` is the board model's `result` and hold, as a
    row's Done. Saved copies and Pass the mine close the drawer without
-   moving focus and open today's cards until B7c (#465); the welcome-back,
-   craft-done and save cards are still today's until B7b (#464). Tonight
+   moving focus and open today's cards until B7c (#465). Tonight
    reads `progress.tonightEvents()` only while the drawer is open: the
    ring's events since its mark, which a run's start clears and a copy from
    elsewhere taking the mountain's place (a restore, the cloud's or another
@@ -353,7 +365,8 @@ page is the map, plus the rules that keep it that way.
   1. Upgrades sheet + boost chips' text → `upgrades-panel` (#121).
   2. Shelf, relic detail, relic reveal and Legend finale → `relic-panels`
      (#122, #123).
-  3. Welcome-back card → `welcome-panel` (#124).
+  3. Welcome-back card → `welcome-panel` (#124); on `board-card` since #464,
+     with its views in `card-views`.
   4. Menu, account and Start over confirm → `menu-panel` (#125); since #375
      the Ledger drawer, `ledger-panel`.
   5. Tier grid and crew line → `crew-panel`; the purchase float moved to
@@ -405,7 +418,15 @@ page is the map, plus the rules that keep it that way.
   - the 1.6s thanks after a fix: the bays' "Fixed!" note is painted from the
     model's `fixed`, not from a timer of their own;
   - the overlay stack: a drawer stands alone, and the save drawer and a
-    note go on top.
+    note go on top;
+  - the board cards (#464, `CardId`: welcome, layer, craft, conflict,
+    other-tab, update): a card's open and close are model events. A card
+    settles for `DRAWER_SETTLE_MS` after it opens or pages, as a drawer does,
+    goes on top of the stack, and its close takes only its own entry off,
+    never what stands above it (conflict and update up together, the
+    conflict resolves, the update stays and still settles). A card is not a
+    drawer (`drawerOpen` stays false), and a drawer closed under a card
+    leaves the card on the stack.
 
   Inputs carry their own times (`pressedAt` for when the finger came down,
   `at` for when the handler ran), and `boardView(state, at)` derives what is
@@ -497,6 +518,13 @@ page is the map, plus the rules that keep it that way.
   `stepTapClock`). Each script chooses its own options: the visual check seeds
   once a tab and can stop `Date.now` and hold the tap clock, the UI audit
   seeds on every load, `play` seeds once, and the mockup check seeds nothing.
+  `play -- --tabs 2` opens the save with `openPair` and plays the second
+  tab, which shows the other-tab card (#464). The dev-only boot hooks
+  (`parseBootOptions` in `boot`) let the scripts see what a save cannot
+  hold: `?saves=two` (the save conflict), `?trouble=cave-in`,
+  `?save=loading` or `error`, `?copies=shelf`, `?memorySave=1`, and
+  `?update=shown` (the update card, as a newer service worker opens it).
+  Outside dev they are ignored.
   `visual-check`, `ui-audit`, `play`, `mockup-check` and `env-report` all use
   it. The saves they seed come from `tools/browser/fixtures.ts` (#439), typed
   as `SeedSave`; no script writes a versioned save literal, and
@@ -507,7 +535,8 @@ page is the map, plus the rules that keep it that way.
   shared: `registry.mjs` (`section`, `check` and the failures), `kit.mjs` (the
   browser plumbing: the server, Chrome, the sizes, `openScreen`, `press`, the
   drawer and shelf openers, and the waits) and `measure.mjs` (the board's
-  targets, type, contrast, 2x art and drawer facts). A fact the sections read
+  targets, type, contrast, 2x art, drawer facts and `cardFacts`, a board
+  card's face box, inner scroll, plates and focus). A fact the sections read
   off the page goes in `measure.mjs`, even when two modules share it. Each
   other module checks one part of the board or one group of screens, registers
   its sections when imported, and imports no other section module. Every
@@ -522,7 +551,7 @@ page is the map, plus the rules that keep it that way.
   are tables (#442). The rest stay plain sections: the main screen and tier
   cards, the gauge's moving parts, the one-walk flows (the welcome-back
   reveal, the Mantle, passing the mine, the drawer states), and the
-  Workshop, Engineers and notice checks. An expectation that needs a measure
+  Workshop, Engineers and section 16's arrival-card checks. An expectation that needs a measure
   an earlier one took reads it off the page's `seen`. The no-scroll guard's
   rows each say what their taps open, and wait for it. Page code places the
   golden vein with `__showVein` (set up beside `__board`), and
@@ -536,7 +565,13 @@ page is the map, plus the rules that keep it that way.
   cards, the Workshop bench's arm-then-confirm cancel, the Ledger's page that asks (Start over), Ready now, an open bay, the trouble fix, the red button and a press
   look), on the held tap clock except the red button and the drawer's
   reduced-motion pages. What a tap decides is proven by unit tests, not
-  there; a new family gets one wiring check. These modules wait on page
+  there; a new family gets one wiring check. The six board cards (#464) are the
+  `board cards` table in `notices-saves.mjs`: every card at the phone and the
+  three PCs (the other tab at the phone, through `openPair`), each checked
+  for the shade down to the save line, no scroll, `cardFacts`, fat plates,
+  13px text, 2x art, contrast and the focus as it opens. `coversBoard` (in
+  `kit.mjs`) takes an overlay that is fixed or absolute in the board. A
+  check that taps a card's plate waits past its settle first (`pastSettle`). These modules wait on page
   state, page events or a count of painted frames, never on a fixed sleep.
 - Signoff (#397): a green `npm run check` on a clean, committed HEAD writes `.gate/passed`. `npm run gate -- signoff` (`scripts/signoff.mjs`, rules in `src/signoff.ts`) starts `.github/workflows/signoff.yml`, which posts the `signoff` commit status; the ruleset on `main` requires it and an up-to-date branch. The relay exists because cloud sessions may not post statuses. `deploy-hosting` runs `npm run check` on the merged commit before it deploys, so a red `main` deploys nothing.
 
@@ -632,7 +667,7 @@ field-log` lists every log; `--uid` or a positional uid reads one. The default
   `trouble.fix` (`hand` or `engineer`), `crew.staff` (workers granted by the
   one-time top-up), `layer.enter` (the band id), `craft.start` (the recipe id),
   `craft.done` (the recipe id and the new level). A layer card and a craft-done
-  notice are session news, like a relic reveal: the baseline is the loaded save,
+  card (`card-views#arrivalCard` picks which) are session news, like a relic reveal: the baseline is the loaded save,
   so a band you already sit in, or a craft already fitted, is not announced
   again after a reload or another absence. An absence that does break into a
   band, or finish a craft, folds that line into the welcome card. A compact
@@ -738,11 +773,12 @@ home`); a full crew on a short phone keeps that to one line and a toast tells
   the stories. No new save field. A countdown chip still sits in the mountain's
   corner (words, not a clock). `progress-store` keeps `homecomings` until the
   welcome card closes, and writes them under `dad-friendly-homecomings` so a
-  reload after a hidden settle still shows the notice. The card names who came
+  reload after a hidden settle still shows the card. The card names who came
   back and what they found, sits above the other sheets, and a live return uses
   it with no away report. Becoming visible settles at once. The layout check
   covers the sheet with an expedition out, five engineers plus a keepsake at
-  424×924 (browser and installed PWA), and the welcome card with a find. Trouble
+  424×924 (browser and installed PWA), and the welcome card with a find (the
+  `board cards` table's `welcome find`). Trouble
   is shown on the machine's bay and on its row in the Buys drawer (`crew-panel`,
   #373): a warm shout ("Cave-in! · Hold to fix"), five taps or a short hold,
   then "Fixed! The crew cheers." in the drawer's kick. A tier with no bay lights

@@ -1093,7 +1093,7 @@ async function main() {
       { timeout: 8_000 },
     );
     await cardRisen(opened.page, "craft");
-    await expectText(opened.page, /fitted/, "craft done");
+    await expectText(opened.page, /fitted/i, "craft done");
     return opened;
   });
   await capture("engineers-promote", async (viewport) => {
@@ -1162,7 +1162,7 @@ async function main() {
       { timeout: 8_000 },
     );
     await cardRisen(opened.page, "welcome");
-    await expectText(opened.page, /Welcome home/, "homecoming");
+    await expectText(opened.page, /Welcome home/i, "homecoming");
     return opened;
   });
   await capture("relic-tease", async (viewport) => {
@@ -1234,7 +1234,7 @@ async function main() {
       { timeout: 8_000 },
     );
     await cardRisen(opened.page, "welcome");
-    await expectText(opened.page, /While you were away/, "welcome");
+    await expectText(opened.page, /While you were away/i, "welcome");
     return opened;
   });
   await capture("layer-arrival", async (viewport) => {
@@ -1256,7 +1256,7 @@ async function main() {
       { timeout: 8_000 },
     );
     await cardRisen(opened.page, "layer");
-    await expectText(opened.page, /broke into the Granite/, "layer");
+    await expectText(opened.page, /broke into the Granite/i, "layer");
     return opened;
   });
   await capture("ledger", async (viewport) => {
@@ -1373,7 +1373,7 @@ async function main() {
       '.board-card[data-card="conflict"]:not([hidden])',
     );
     await cardRisen(opened.page, "conflict");
-    await expectText(opened.page, /Two saves found/, "conflict");
+    await expectText(opened.page, /Two saves found/i, "conflict");
     const pressed = await opened.page.$eval(
       ".save-card[data-side='phone']",
       (el) => el.getAttribute("aria-pressed"),
@@ -1445,7 +1445,7 @@ async function main() {
       { timeout: 8_000 },
     );
     await cardRisen(second, "other-tab");
-    await expectText(second, /Playing in another tab/, "other tab");
+    await expectText(second, /Playing in another tab/i, "other tab");
     return {
       page: second,
       errors,
@@ -1462,7 +1462,7 @@ async function main() {
       { timeout: 8_000 },
     );
     await cardRisen(opened.page, "update");
-    await expectText(opened.page, /Update available/, "update");
+    await expectText(opened.page, /Update available/i, "update");
     return opened;
   });
 
