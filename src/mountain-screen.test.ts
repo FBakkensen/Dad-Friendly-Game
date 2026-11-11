@@ -281,6 +281,8 @@ describe("mountMountainScreen", () => {
     const second = mountScreen({ storage, tabWriter: other });
     const card = second.root.querySelector<HTMLElement>(".other-tab");
     expect(card?.hidden).toBe(false);
+    expect(card?.matches(".board-card[data-card=other-tab]")).toBe(true);
+    expect(card?.querySelector(".board-card-face")).not.toBeNull();
     expect(second.text("#other-tab-title")).toBe(OTHER_TAB_TITLE);
     expect(second.text(".other-tab-body")).toBe(OTHER_TAB_BODY);
     expect(second.text(".other-tab-play")).toBe(OTHER_TAB_PLAY);
@@ -801,6 +803,9 @@ describe("crew tiers on screen", () => {
     expect(card.hidden).toBe(false);
     expect(card.getAttribute("role")).toBe("dialog");
     expect(screen.text(".welcome-mined")).toBe("+9,000 stones");
+    // The number stays whole; its unit is set smaller beside it.
+    expect(screen.text(".welcome-mined-count")).toBe("+9,000");
+    expect(screen.text(".welcome-mined-unit")).toBe("stones");
     expect(screen.text(".welcome-detail")).toBe(
       "You were gone 2 hours 5 minutes. Your crew kept digging the whole time.",
     );

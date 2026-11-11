@@ -23,8 +23,10 @@ import {
   STANDALONE_INSETS,
   openScreen,
   coversBoard,
+  PAST_SETTLE_MS,
   noScroll,
 } from "./kit.mjs";
+import { stepTapClock } from "../../tools/browser/harness.ts";
 
 /**
  * The relics drawer is open on `name`'s page, and everything on it sits inside the drawer,
@@ -101,7 +103,7 @@ table({
     `section 4 (line 816) ${JSON.stringify(standalone)}`,
   prefix: standaloneLabel,
   open: (viewport, { standalone }) =>
-    openScreen(viewport, staffingNoteSave(), { standalone }),
+    openScreen(viewport, staffingNoteSave(), { standalone, tapClock: "held" }),
   expect: [
     {
       run: async ({ page }) => {
@@ -132,6 +134,7 @@ table({
     },
     {
       run: async ({ page }) => {
+        await stepTapClock(page, PAST_SETTLE_MS);
         await page.tap(".welcome-continue");
         return [
           [
@@ -148,11 +151,14 @@ table({
 section("section 5 (line 856)", async () => {
   {
     const viewport = PHONE;
-    const { page, close } = await openScreen(viewport, welcomeBackSave());
+    const { page, close } = await openScreen(viewport, welcomeBackSave(), {
+      tapClock: "held",
+    });
     check(
       await coversBoard(page, ".welcome-back"),
       "welcome-back is laid over the game",
     );
+    await stepTapClock(page, PAST_SETTLE_MS);
     await page.tap(".welcome-continue");
     check(
       await relicPageFits(page, "reveal"),
@@ -515,7 +521,7 @@ async function welcomeCard(page, bottomInset) {
         titleOk: title >= 0,
         closeOk:
           closeBox !== undefined &&
-          closeBox.height >= 44 &&
+          closeBox.height >= 48 &&
           closeBox.top >= 0 &&
           closeBox.bottom <= innerHeight - inset,
       };
@@ -531,7 +537,10 @@ table({
     `section 13 (line 1430) ${JSON.stringify(standalone)}`,
   prefix: standaloneLabel,
   open: (viewport, { standalone }) =>
-    openScreen(viewport, toolHomeSave(Date.now()), { standalone }),
+    openScreen(viewport, toolHomeSave(Date.now()), {
+      standalone,
+      tapClock: "held",
+    }),
   expect: [
     {
       run: async ({ page, scenario }) => {
@@ -560,6 +569,7 @@ table({
     },
     {
       run: async ({ page }) => {
+        await stepTapClock(page, PAST_SETTLE_MS);
         await page.tap(".welcome-continue");
         return [
           [

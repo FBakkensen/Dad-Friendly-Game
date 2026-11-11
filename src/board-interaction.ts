@@ -5,7 +5,7 @@
  * caller gives, and `nextWake` says when to read it again.
  */
 
-/** How long an overlay settles after opening: B4's double-tap guard, for every drawer. */
+/** How long an overlay settles after opening: B4's double-tap guard, for every drawer and card. */
 export const DRAWER_SETTLE_MS = 400;
 /** How long Done holds after a buy: a second sleepy tap in it buys nothing. */
 export const READY_HOLD_MS = 1900;
@@ -19,7 +19,13 @@ export const PRESS_AGE_LIMIT_MS = 10_000;
 /** Drawers replace one another. The save drawer and a board note open on top. */
 export type DrawerId =
   "buys" | "upgrades" | "workshop" | "engineers" | "ledger" | "relics";
-export type OverlayId = DrawerId | "save" | "note";
+/**
+ * The cards that open over the board by themselves or when something happens (#464). A card
+ * goes on top of what is open, and its close takes off only itself.
+ */
+export type CardId =
+  "welcome" | "layer" | "craft" | "conflict" | "other-tab" | "update";
+export type OverlayId = DrawerId | CardId | "save" | "note";
 /** Where a control sits: on an overlay, or on the board under them all. */
 export type Layer = OverlayId | "board";
 export interface ControlRef {
@@ -158,6 +164,19 @@ function isDrawer(overlay: Layer): overlay is DrawerId {
   return (DRAWER_IDS as readonly Layer[]).includes(overlay);
 }
 
+const CARD_IDS: readonly CardId[] = [
+  "welcome",
+  "layer",
+  "craft",
+  "conflict",
+  "other-tab",
+  "update",
+];
+
+function isCard(overlay: Layer): overlay is CardId {
+  return (CARD_IDS as readonly Layer[]).includes(overlay);
+}
+
 /** Whether a drawer is on the stack. A note or the save drawer alone is not a drawer. */
 export function drawerOpen(view: BoardView): boolean {
   return view.stack.some(isDrawer);
@@ -287,7 +306,10 @@ export function controlKey(control: ControlRef): string {
   return `${control.layer}/${control.id}`;
 }
 
-/** The stack once `overlay` opens: a drawer stands alone; the save drawer and a note go on top. */
+/**
+ * The stack once `overlay` opens: a drawer takes the place of every other drawer, the save drawer
+ * and a note, but never of a card, which closes only itself; anything else goes on top.
+ */
 function stackWith(
   stack: readonly Opened[],
   overlay: OverlayId,
@@ -295,7 +317,7 @@ function stackWith(
 ): readonly Opened[] {
   const opened: Opened = { overlay, settleFrom: at };
   if (isDrawer(overlay)) {
-    return [opened];
+    return [...stack.filter((each) => isCard(each.overlay)), opened];
   }
   return [...stack, opened];
 }
@@ -357,7 +379,14 @@ function closed(
   if (index === -1) {
     return state;
   }
-  const stack = state.stack.slice(0, index);
+  // A card closes only itself. Anything else takes what stands on it, but never a card: a
+  // card is its own, and a drawer closed under one (a card covering the drawers) leaves it up.
+  const stack = isCard(overlay)
+    ? state.stack.filter((each) => each.overlay !== overlay)
+    : [
+        ...state.stack.slice(0, index),
+        ...state.stack.slice(index + 1).filter((each) => isCard(each.overlay)),
+      ];
   return {
     ...state,
     stack,
@@ -420,16 +449,17 @@ function judgedAt(input: Press): number {
   return age > 0 && age < PRESS_AGE_LIMIT_MS ? input.pressedAt : input.at;
 }
 
-/** A finger act press that came down while its drawer settled, or what a drawer's close showed. */
+/** A finger act press that came down while its drawer or card settled, or what a drawer's close showed. */
 function early(state: BoardState, input: Press, at: number): boolean {
   if (input.by !== "finger" || input.intent !== "act") {
     return false;
   }
   const { layer } = input.control;
-  // Drawers settle as they open; the save drawer and the board notes never did.
-  const settling = isDrawer(layer)
-    ? state.stack.find((each) => each.overlay === layer)
-    : undefined;
+  // Drawers and cards settle as they open; the save drawer and the board notes never did.
+  const settling =
+    isDrawer(layer) || isCard(layer)
+      ? state.stack.find((each) => each.overlay === layer)
+      : undefined;
   if (settling !== undefined && at < settling.settleFrom + DRAWER_SETTLE_MS) {
     return true;
   }

@@ -56,9 +56,6 @@ function mount(now: () => number) {
   });
   mountMountainScreen({
     root,
-    lanternUrl: tile,
-    mountainUrl: tile,
-    stoneUrl: tile,
     veinUrl: tile,
     tierArt: {
       helper: tile,

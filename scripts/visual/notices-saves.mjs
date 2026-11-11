@@ -1,11 +1,21 @@
-/* global console, innerWidth, innerHeight, getComputedStyle */
+/* global console, innerWidth, innerHeight, getComputedStyle, document */
 /** Notice and save sections: the welcome fold and craft notice, the other-tab card and the two-saves conflict sheet. */
-import { noticeSave } from "../../tools/browser/fixtures.ts";
-import { openPair } from "../../tools/browser/harness.ts";
-import { failures, check, section } from "./registry.mjs";
+import {
+  noticeSave,
+  playAwaySave,
+  playCraftSave,
+  toolHomeSave,
+} from "../../tools/browser/fixtures.ts";
+import { openPair, stepTapClock } from "../../tools/browser/harness.ts";
+import { undersizedTargets } from "../../src/ui-audit-measure.ts";
+import { failures, check, section, table } from "./registry.mjs";
 import {
   BASE,
   PHONE,
+  PCS,
+  press,
+  cardRisen,
+  PAST_SETTLE_MS,
   browser,
   OPEN_SHEET,
   openSheet,
@@ -16,12 +26,47 @@ import {
   noScroll,
   shot,
 } from "./kit.mjs";
+import {
+  CARD_LEGENDS,
+  boardArtAt2x,
+  boardContrast,
+  boardGaps,
+  boardTargets,
+  boardTextSizes,
+  cardFacts,
+} from "./measure.mjs";
 
 /**
  * Layer card, folded welcome, craft-done notice, and the four-chip line (#200).
  * Same sizes as the workshop check.
  */
 const NOTICE_SIZES = [[424, 924]];
+
+/**
+ * Section 16's fold: a band crossed and a craft fitted while away, both on the welcome card.
+ */
+function foldSave(now) {
+  return noticeSave({
+    mined: 9_990_000,
+    lastSeen: now - 30 * 60 * 1000,
+    mountain: { helpers: 20, carts: 1, pocket: 5_000_000 },
+    workshop: {
+      materials: { clay: 9, iron: 4, crystal: 0, heartstone: 0 },
+      recipes: [
+        "iron-rails",
+        "sturdy-props",
+        "blasting-charge",
+        "reinforce",
+        "axle-grease",
+      ],
+      bench: {
+        recipe: "iron-rails",
+        startedAt: now - 20 * 60 * 1000,
+        endsAt: now - 10 * 60 * 1000,
+      },
+    },
+  });
+}
 
 /** Visible buttons and reading-size labels inside one root. */
 async function fitOf(page, selector, labelSelector) {
@@ -58,17 +103,18 @@ async function fitOf(page, selector, labelSelector) {
       const labels = [...root.querySelectorAll(labelsOf)].filter(
         (node) => shown(node) && (node.textContent ?? "").trim() !== "",
       );
+      // The board's floors (#464): text 13px or more, targets 48 tall.
       const typeOk =
         labels.length > 0 &&
         labels.every(
-          (node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 14.4,
+          (node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 13,
         );
       return {
         boxesOk:
           boxes.length > 0 &&
           boxes.every(
             (box) =>
-              box.height >= 44 &&
+              box.height >= 48 &&
               box.top >= 0 &&
               box.bottom <= innerHeight &&
               box.left >= 0 &&
@@ -96,10 +142,12 @@ for (const viewport of NOTICE_SIZES) {
       await page.tap(".board-window");
       // The relic's reveal is a page of the relics drawer (#465).
       await pressPage(page, "reveal", "carry");
-      await page.waitForSelector(".layer-arrival:not([hidden])", {
-        timeout: 3_000,
-      });
-      const fit = await fitOf(page, ".layer-card", "h2, p, button");
+      await cardRisen(page, "layer");
+      const fit = await fitOf(
+        page,
+        ".layer-arrival .board-card-face",
+        "h2, p, button",
+      );
       const still = await noScroll(page);
       check(
         still &&
@@ -122,32 +170,15 @@ for (const viewport of NOTICE_SIZES) {
     }
 
     {
-      const { page, close } = await openScreen(
-        viewport,
-        noticeSave({
-          mined: 9_990_000,
-          lastSeen: now - 30 * 60 * 1000,
-          mountain: { helpers: 20, carts: 1, pocket: 5_000_000 },
-          workshop: {
-            materials: { clay: 9, iron: 4, crystal: 0, heartstone: 0 },
-            recipes: [
-              "iron-rails",
-              "sturdy-props",
-              "blasting-charge",
-              "reinforce",
-              "axle-grease",
-            ],
-            bench: {
-              recipe: "iron-rails",
-              startedAt: now - 20 * 60 * 1000,
-              endsAt: now - 10 * 60 * 1000,
-            },
-          },
-        }),
-      );
+      const { page, close } = await openScreen(viewport, foldSave(now));
       await page.waitForSelector(".welcome-layer", { timeout: 3_000 });
       await page.waitForSelector(".welcome-craft", { timeout: 3_000 });
-      const fit = await fitOf(page, ".welcome-card", "h2, p, button");
+      await cardRisen(page, "welcome");
+      const fit = await fitOf(
+        page,
+        ".welcome-back .board-card-face",
+        "h2, p, button",
+      );
       const still = await noScroll(page);
       check(
         still &&
@@ -192,10 +223,12 @@ for (const viewport of NOTICE_SIZES) {
           },
         }),
       );
-      await page.waitForSelector(".craft-notice:not([hidden])", {
-        timeout: 5_000,
-      });
-      const fit = await fitOf(page, ".notice-card", "p, button");
+      await cardRisen(page, "craft");
+      const fit = await fitOf(
+        page,
+        ".craft-notice .board-card-face",
+        "h2, button",
+      );
       const still = await noScroll(page);
       check(
         still &&
@@ -420,7 +453,7 @@ section("section 17 (line 2085)", async () => {
     } = await openPair(browser, BASE, {
       viewport: { width, height, isMobile: true, hasTouch: true },
       seed: { kind: "none" },
-      clock: { date: "real", tap: "real" },
+      clock: { date: "real", tap: "held" },
       onPageError: (error) => {
         failures.push(`other tab: ${String(error)}`);
       },
@@ -429,6 +462,7 @@ section("section 17 (line 2085)", async () => {
     await second.waitForSelector(".other-tab:not([hidden])", {
       timeout: 5_000,
     });
+    await cardRisen(second, "other-tab");
     const title = await second.$eval(
       "#other-tab-title",
       (element) => element.textContent,
@@ -461,10 +495,13 @@ section("section 17 (line 2085)", async () => {
       element.getAttribute("aria-label"),
     );
     await second.bringToFront();
+    // Past the card's settle: a finger in its first 400ms is the tap that opened it (#464).
+    await stepTapClock(second, PAST_SETTLE_MS);
     await second.tap(".other-tab-play");
     await second.waitForSelector(".other-tab[hidden]", { timeout: 5_000 });
     await first.bringToFront();
     await first.waitForSelector(".other-tab:not([hidden])", { timeout: 5_000 });
+    await cardRisen(first, "other-tab");
     const moved = await second.$eval(".board-odo", (element) =>
       element.getAttribute("aria-label"),
     );
@@ -489,11 +526,12 @@ section("section 18 (line 2148)", async () => {
     const { page, close } = await openScreen(
       PHONE,
       {},
-      { search: "?saves=two" },
+      { search: "?saves=two", tapClock: "held" },
     );
     await page.waitForSelector(".save-conflict:not([hidden])", {
       timeout: 5_000,
     });
+    await cardRisen(page, "conflict");
     const title = await page.$eval(
       "#save-conflict-title",
       (element) => element.textContent,
@@ -510,7 +548,7 @@ section("section 18 (line 2148)", async () => {
       elements.map((element) => element.textContent ?? ""),
     );
     const sheetFits = await page.$eval(
-      ".save-conflict",
+      ".save-conflict .board-card-face",
       (element) => element.scrollHeight <= element.clientHeight + 1,
     );
     check(title === "Two saves found", "424x924 conflict sheet is titled");
@@ -536,7 +574,15 @@ section("section 18 (line 2148)", async () => {
     );
     check(await noScroll(page), "424x924 conflict sheet has no scroll");
     await shot(page, "save-conflict-real-424x924");
+    await stepTapClock(page, PAST_SETTLE_MS);
     await page.click(".save-conflict-play");
+    // The confirm is a new screen that settles again: a click on it at once commits nothing.
+    await page.click(".save-conflict-commit");
+    const stays = await page.$eval(
+      ".save-conflict",
+      (element) => element.hidden !== true,
+    );
+    check(stays, "424x924 a click on the confirm at once keeps the card up");
     const confirm = await page.$eval(
       ".save-conflict-confirm",
       (element) => element.hidden !== true && (element.textContent ?? ""),
@@ -550,3 +596,281 @@ section("section 18 (line 2148)", async () => {
     await close();
   }
 });
+
+/**
+ * The board cards (#464): each card that opens by itself, on the board card shell. The face
+ * sits in the drawer's box and never scrolls, its plates are fat and focused as it opens, and
+ * its words, art and contrast meet the board's floors.
+ */
+const CARD_SCENARIOS = [
+  {
+    name: "welcome",
+    card: "welcome",
+    focus: "welcome-continue",
+    seed: playAwaySave,
+  },
+  {
+    name: "welcome fold",
+    card: "welcome",
+    focus: "welcome-continue",
+    seed: () => foldSave(Date.now()),
+  },
+  {
+    name: "welcome find",
+    card: "welcome",
+    focus: "welcome-continue",
+    seed: () => toolHomeSave(Date.now()),
+  },
+  {
+    name: "layer",
+    card: "layer",
+    focus: "layer-dig",
+    seed: () => noticeSave({ mined: 9_999_999, lastSeen: Date.now() }),
+    // Through the dig that breaks into the Granite and the relic it uncovers.
+    enter: async (page) => {
+      await press(page, ".board-window");
+      // The relic's reveal is a page of the relics drawer (#465).
+      await pressPage(page, "reveal", "carry");
+    },
+  },
+  { name: "craft", card: "craft", focus: "craft-accept", seed: playCraftSave },
+  // The cards that open when something happens: two saves, and a newer build (dev hooks).
+  {
+    name: "conflict",
+    card: "conflict",
+    focus: "save-conflict-play",
+    seed: () => ({}),
+    search: "?saves=two",
+  },
+  {
+    name: "update",
+    card: "update",
+    focus: "update-reload",
+    seed: () => ({}),
+    search: "?update=shown",
+  },
+];
+
+/** The other tab, at the phone only: a pair of tabs, the second shows the card (as section 17). */
+const OTHER_TAB_SCENARIOS = [
+  { name: "other tab", card: "other-tab", focus: "other-tab-play", pair: true },
+];
+
+/** Opens the pair and hands back the second tab, which waits on the first. */
+async function openSecondTab([width, height]) {
+  const {
+    pages: [, second],
+    close,
+  } = await openPair(browser, BASE, {
+    viewport: { width, height, isMobile: true, hasTouch: true },
+    seed: { kind: "none" },
+    clock: { date: "real", tap: "real" },
+    onPageError: (error) => {
+      failures.push(`other tab card: ${String(error)}`);
+    },
+    beforeLoad: boardProbe,
+  });
+  return { page: second, close };
+}
+
+/** The conflict's two sides: inside the face, 8px apart, fat, and no line spills. */
+async function conflictSides(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const face = document.querySelector(
+      ".board-card[data-card=conflict]:not([hidden]) .board-card-face",
+    );
+    const sides = [
+      ...document.querySelectorAll(
+        ".board-card[data-card=conflict]:not([hidden]) .save-card",
+      ),
+    ];
+    if (face === null || sides.length !== 2) {
+      return { ok: false, count: sides.length };
+    }
+    const px = (rect) => ({
+      l: (rect.left - board.left) / board.scale,
+      t: (rect.top - board.top) / board.scale,
+      r: (rect.right - board.left) / board.scale,
+      b: (rect.bottom - board.top) / board.scale,
+    });
+    const box = px(face.getBoundingClientRect());
+    const [a, b] = sides.map((side) => px(side.getBoundingClientRect()));
+    const inside = [a, b].every(
+      (side) =>
+        side.l >= box.l - 0.5 &&
+        side.r <= box.r + 0.5 &&
+        side.t >= box.t - 0.5 &&
+        side.b <= box.b + 0.5,
+    );
+    const spills = sides.flatMap((side) =>
+      [...side.querySelectorAll(".board-card-line")]
+        .filter((line) => line.scrollWidth > line.clientWidth + 1)
+        .map((line) => line.textContent),
+    );
+    return {
+      ok: true,
+      inside,
+      gap: Math.round((b.l - a.r) * 10) / 10,
+      heights: [a, b].map((side) => Math.round(side.b - side.t)),
+      spills,
+    };
+  });
+}
+const OPEN_CARD = (card) => `.board-card[data-card="${card}"]:not([hidden])`;
+const slug = (name) => name.replace(/\s+/g, "-");
+
+const cardTable = (screens, scenarios) =>
+  table({
+    screens,
+    scenarios,
+    section: (viewport, scenario) =>
+      `board cards ${JSON.stringify(viewport)} ${scenario.name}`,
+    prefix: ({ size, scenario }) => `${size} ${scenario.name} card:`,
+    open: async (viewport, scenario) => {
+      const opened = scenario.pair
+        ? await openSecondTab(viewport)
+        : await openScreen(viewport, scenario.seed(), {
+            search: scenario.search ?? "",
+          });
+      await scenario.enter?.(opened.page);
+      await cardRisen(opened.page, scenario.card);
+      return opened;
+    },
+    expect: [
+      {
+        run: async ({ page, size, scenario }) => {
+          const facts = await cardFacts(page, scenario.card);
+          if (!facts.ok || !facts.placed || !facts.fits || !facts.platesOk) {
+            console.log(
+              "card facts",
+              size,
+              scenario.name,
+              JSON.stringify(facts),
+            );
+          }
+          await shot(page, `card-${slug(scenario.name)}-${size}`);
+          return [
+            [
+              await coversBoard(page, OPEN_CARD(scenario.card)),
+              "shades the board down to the save line, the line on top",
+            ],
+            [await noScroll(page), "has no page scroll"],
+            [
+              facts.ok === true && facts.placed && facts.fits,
+              `face sits in the drawer's box and does not scroll inside (${JSON.stringify(facts.box)})`,
+            ],
+            [
+              facts.ok === true && facts.plates.length > 0 && facts.platesOk,
+              "plates are 48 tall, inside the face",
+            ],
+            [
+              facts.ok === true &&
+                facts.focus.split(" ").includes(scenario.focus),
+              `focuses .${scenario.focus} as it opens`,
+            ],
+          ];
+        },
+      },
+      {
+        run: async ({ page, size, scenario }) => {
+          const targets = await boardTargets(page);
+          // The plates, and the conflict's two sides.
+          const own = targets.own.filter(
+            (target) =>
+              target.selector.startsWith(".board-platebtn ") ||
+              target.selector.startsWith(".save-card "),
+          );
+          const under = undersizedTargets(own, 47.9);
+          const close8 = boardGaps(targets);
+          if (under.length > 0 || close8.length > 0) {
+            console.log(
+              "card targets",
+              size,
+              scenario.name,
+              JSON.stringify({
+                under: under.map((target) => target.selector),
+                close: close8.map((pair) => [pair.a, pair.b, pair.gap]),
+              }),
+            );
+          }
+          return [
+            [
+              own.length >= 1 && under.length === 0 && close8.length === 0,
+              `${String(own.length)} targets are 48x48 board px, 8px from the next`,
+            ],
+          ];
+        },
+      },
+      {
+        run: async ({ page, size, scenario }) => {
+          const text = await boardTextSizes(page, OPEN_CARD(scenario.card));
+          const art = await boardArtAt2x(
+            page,
+            OPEN_CARD(scenario.card),
+            OPEN_CARD(scenario.card),
+          );
+          if (text.small.length > 0 || art.misses.length > 0) {
+            console.log(
+              "card text and art",
+              size,
+              scenario.name,
+              JSON.stringify({ small: text.small, misses: art.misses }),
+            );
+          }
+          return [
+            [
+              text.small.length === 0 && text.count >= 2,
+              `text is 13px or more (${String(text.count)} runs)`,
+            ],
+            [
+              art.misses.length === 0 && art.count >= 2,
+              `${String(art.count)} images and skins at exactly 2x`,
+            ],
+          ];
+        },
+      },
+      {
+        run: async ({ page, size, scenario }) => {
+          const contrast = await boardContrast(page, CARD_LEGENDS.join(", "));
+          const dim = contrast.filter((one) => one.pct < 4.5);
+          if (dim.length > 0) {
+            console.log(
+              "card contrast",
+              size,
+              scenario.name,
+              JSON.stringify(dim),
+            );
+          }
+          return [
+            [
+              contrast.length >= 2 && dim.length === 0,
+              `${String(contrast.length)} legends at 4.5:1 or more (lowest ${String(contrast.length === 0 ? "-" : Math.min(...contrast.map((one) => one.pct)))}:1 at p10/p90)`,
+            ],
+          ];
+        },
+      },
+      {
+        when: (at) => at.scenario.card === "conflict",
+        run: async ({ page, size }) => {
+          const sides = await conflictSides(page);
+          if (!sides.ok || sides.spills.length > 0) {
+            console.log("conflict sides", size, JSON.stringify(sides));
+          }
+          return [
+            [
+              sides.ok === true &&
+                sides.inside &&
+                Math.abs(sides.gap - 8) <= 0.5 &&
+                sides.heights.every((height) => height >= 48) &&
+                sides.spills.length === 0,
+              `both sides sit inside the face, 8px apart, 48 tall, no line spilling (${JSON.stringify(sides.ok ? { gap: sides.gap, heights: sides.heights } : sides)})`,
+            ],
+          ];
+        },
+      },
+    ],
+  });
+
+cardTable([PHONE, ...PCS], CARD_SCENARIOS);
+cardTable([PHONE], OTHER_TAB_SCENARIOS);

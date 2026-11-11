@@ -775,6 +775,10 @@ body {
   .board-flap-d.is-flipping {
     animation: none;
   }
+  /* Over the rise's own rule, which stands later in this file. */
+  .board-card .board-card-face {
+    animation: none;
+  }
 }
 
 /* The save line's spoken separator: in the text, not drawn. */
@@ -920,14 +924,8 @@ body {
 
 /* Every sheet and card stops at the save line, so the line is never covered
    and the sheets' own buttons sit above it (#370). */
-.welcome-back,
-.layer-arrival,
-.craft-notice,
 .start-over,
 .engineers-dialog,
-.update-prompt,
-.other-tab,
-.save-conflict,
 .saved-copies {
   bottom: var(--save-h);
 }
@@ -2744,6 +2742,241 @@ button.board-row:focus-visible {
   display: none;
 }
 
+/* ---------- the board card shell (#464) ----------
+   A card that opens by itself or when something happens: a shade over the
+   board down to the save line, under the drawers' clips and the save line,
+   and a riveted face rising from the save line into the drawer's box. The
+   face takes its height from its content and never rises above the drawer's
+   top. The shade takes every tap and does nothing with it. */
+.board-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  width: var(--board-w);
+  height: calc(var(--board-h) - var(--save-h));
+  background: var(--board-shade);
+  pointer-events: auto;
+  /* Clip, as the drawers' clip does: the rising face never adds scroll height (#373). */
+  overflow: clip;
+}
+
+.board-card[hidden] {
+  display: none;
+}
+
+.board-card-face,
+.board-card-face.board-skinned {
+  position: absolute;
+  left: calc(var(--art) * 4);
+  right: calc(var(--art) * 4);
+  bottom: calc(var(--art) * 2);
+  max-height: calc(
+    var(--board-h) - var(--save-h) - var(--sheet-top) - var(--art) * 2
+  );
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 4);
+  padding: calc(var(--art) * 7);
+  overflow: hidden;
+  font-family: "Barlow Condensed", sans-serif;
+  color: var(--board-ink);
+}
+
+/* The drawer's 6 hard steps, as a keyframe: a card comes from display none. */
+.board-card-face {
+  animation: board-card-rise 0.24s steps(6);
+}
+
+@keyframes board-card-rise {
+  from {
+    transform: translateY(calc(100% + var(--art) * 2));
+  }
+  to {
+    transform: none;
+  }
+}
+
+.board-card-title {
+  margin: 0;
+  font-size: var(--board-type-22);
+  line-height: var(--board-title-lead);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--board-ink);
+}
+
+/* The body never shrinks under its words: a body too tall for the face
+   overflows the face, where the visual check sees it, never onto the foot. */
+.board-card-body {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: calc(var(--art) * 4);
+}
+
+.board-card-line {
+  margin: 0;
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+  color: var(--board-ink);
+  overflow-wrap: anywhere;
+}
+
+.board-card-line.is-quiet {
+  color: var(--board-ink-2);
+}
+
+.board-card-big {
+  margin: 0;
+  font-family: "Share Tech Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--board-type-40);
+  line-height: 1.2;
+  color: var(--board-amber);
+}
+
+.board-card-art {
+  display: block;
+  align-self: center;
+  image-rendering: pixelated;
+}
+
+.board-card-foot {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 4);
+}
+
+.board-card-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: calc(var(--art) * 4);
+}
+
+.board-card-plate {
+  flex: none;
+  width: 100%;
+}
+
+/* ---------- the board cards (#464) ---------- */
+
+/* The cards stand at the board card's z-index, in the root's order
+   (screen-panels#cardsFrom): the Engineers sheet, today's sheet at the same
+   z-index, comes first, so a homecoming's welcome paints over it. */
+
+/* The haul's number never breaks; its unit stands smaller beside it, and
+   drops to the next line only when the two do not fit. */
+.welcome-mined-count,
+.welcome-mined-unit {
+  white-space: nowrap;
+}
+
+.welcome-mined-unit {
+  font-size: var(--board-type-22);
+}
+
+/* The ore that came up while away (#247): its icon, then the line and what it
+   is for. */
+.welcome-ore {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 4);
+}
+
+.welcome-ore > .board-card-art {
+  flex: none;
+}
+
+.welcome-ore-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.welcome-ore-line,
+.welcome-ore-use {
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+}
+
+.welcome-ore-line {
+  font-weight: var(--board-weight-semi);
+  color: var(--board-amber);
+}
+
+.welcome-ore-use {
+  color: var(--board-ink-2);
+}
+
+.welcome-returns,
+.welcome-layers,
+.welcome-crafts {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 2);
+}
+
+/* The save conflict stands over every other card, as today's sheet did: a
+   split is the one card that must be answered first. */
+.board-card.save-conflict {
+  z-index: 12;
+}
+
+/* One side of the split: an inset plate, its lamp top-left (green when it is
+   the one picked), then its heading and six short lines that ellipsize. */
+.save-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--art) * 1);
+  min-width: 0;
+  min-height: var(--target-min);
+  margin: 0;
+  /* The inset's bottom edge is 9 art px: the last line stands clear of it. */
+  padding: calc(var(--art) * 4) calc(var(--art) * 4) calc(var(--art) * 9);
+  border: 0;
+  background: none;
+  color: var(--board-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.save-card > .board-card-line {
+  display: block;
+  font-size: var(--board-type-13);
+  line-height: var(--board-note-lead);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+}
+
+.save-card > .title {
+  font-weight: 700;
+  color: var(--board-amber);
+}
+
+.save-card:focus-visible {
+  outline: var(--board-hair) solid var(--board-amber);
+  outline-offset: calc(var(--art) * 1);
+}
+
+.save-conflict-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 4);
+}
+
+/* Scoped: Saved copies' error line carries the same name (style.css). */
+.board-card .save-conflict-error {
+  color: var(--board-rust);
+}
+
 /* ---------- the relics drawer (#465) ---------- */
 
 /* A page of the relics drawer: a found relic's detail, the reveal, or the Legend. Centred, as
@@ -2903,6 +3136,10 @@ button.board-row:focus-visible {
 }
 
 /* Last, so a hidden part hides over its own display. */
+.board-card-face > [hidden],
+.board-card-body > [hidden],
+.board-card-foot > [hidden],
+.save-conflict-confirm > [hidden],
 .board-sheet > [hidden],
 .board-sheet-head > [hidden],
 .board-sheet-list > [hidden],

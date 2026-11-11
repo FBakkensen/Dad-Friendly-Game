@@ -98,8 +98,8 @@ export function mountMountainScreen(options: ScreenOptions): void {
   });
   const { upgrades, workshop, ledger } = sheets;
 
-  const updatePrompt = createUpdatePrompt(ctx.paint);
-  const otherTab = createOtherTab(progress);
+  const updatePrompt = createUpdatePrompt(board, ctx.paint);
+  const otherTab = createOtherTab(progress, board);
 
   /** The board under the cards: window, gauges, bays and Ready row. */
   const paintBoard = (): void => {

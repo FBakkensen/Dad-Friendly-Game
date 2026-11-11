@@ -2121,17 +2121,48 @@ describe("upgrades on screen", () => {
     screen.root.remove();
   });
 
-  it("the update prompt closes the drawer at once", () => {
+  it("a card that comes up over the relic reveal closes the relics drawer and leaves the relic to come back (#464, #465)", () => {
+    const screen = mountScreen({
+      storage: seededWith(minedMountain(999_999), CLOCK),
+      now: () => CLOCK,
+    });
+    document.body.append(screen.root);
+    screen.dig.click();
+    expect(relicPage(screen.root, REVEAL_PAGE)).not.toBeNull();
+    showAppUpdate(screen.root);
+    expect(
+      screen.root.querySelector<HTMLElement>(".board-card.update-prompt")
+        ?.hidden,
+    ).toBe(false);
+    // The card stands over the drawer by closing it, as for any drawer; the relic is not carried.
+    expect(
+      screen.root.querySelector(RELICS_SHEET)?.classList.contains("is-open"),
+    ).toBe(false);
+    expect(screen.progress.getSnapshot().revealed).toBeDefined();
+    expect(document.activeElement).toBe(
+      screen.root.querySelector(".update-reload"),
+    );
+    screen.root.remove();
+  });
+
+  it("showAppUpdate opens the update card on top, and closes an open drawer", () => {
     const screen = mountScreen({
       storage: seededWith(boostsOpen(0), CLOCK),
       now: () => CLOCK,
     });
+    document.body.append(screen.root);
     openUpgrades(screen);
     showAppUpdate(screen.root);
     expect(
-      screen.root.querySelector<HTMLElement>(".update-prompt")?.hidden,
+      screen.root.querySelector<HTMLElement>(
+        ".board-card.update-prompt[data-card=update]",
+      )?.hidden,
     ).toBe(false);
     expect(drawerOf(screen)?.classList.contains("is-open")).toBe(false);
+    expect(document.activeElement).toBe(
+      screen.root.querySelector(".update-reload"),
+    );
+    screen.root.remove();
   });
 
   /** The first row showing in the list, top to bottom. */

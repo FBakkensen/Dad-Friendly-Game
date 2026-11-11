@@ -31,6 +31,7 @@ import {
   buysOpen,
   LAMP_X,
   keysDrawn,
+  PAST_SETTLE_MS,
 } from "./kit.mjs";
 import { boardTargets } from "./measure.mjs";
 
@@ -43,8 +44,6 @@ import { boardTargets } from "./measure.mjs";
 // press look (#432): a held rail key shows is-down, and its rest frame after
 // the lift, at the phone and one PC size.
 
-/** A step of a held tap clock past a drawer's 400ms settle (board-interaction's DRAWER_SETTLE_MS). */
-const PAST_SETTLE_MS = 500;
 const PRESS_SIZES = [PHONE, PCS[0]];
 const KEY_CAP = `${KEY("buys")} .board-key-cap`;
 

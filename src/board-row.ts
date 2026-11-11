@@ -43,8 +43,8 @@ export interface BoardRow {
 }
 
 /** One lamp frame in CSS px: 20 art px at 2 px each. */
-const LAMP_PX = 40;
-const LAMP_FRAME: Readonly<Record<RowLamp, number>> = {
+export const LAMP_PX = 40;
+export const LAMP_FRAME: Readonly<Record<RowLamp, number>> = {
   off: 0,
   amber: 1,
   green: 2,

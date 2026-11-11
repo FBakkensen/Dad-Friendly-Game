@@ -169,3 +169,10 @@
   --board-sheet-title-lead: 26px;
   --board-kick-lead: 16px;
 }
+
+/* The board cards (#464): the haul's big number, and the shade over the board
+   behind a card (the plate ink at 62%). */
+:root {
+  --board-type-40: 40px;
+  --board-shade: rgba(5, 6, 7, 0.62);
+}

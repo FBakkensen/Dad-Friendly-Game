@@ -13,6 +13,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  cardRisen,
   launchChrome,
   open as openHarness,
   openPair,
@@ -504,7 +505,7 @@ async function collect(page) {
     remember(document.documentElement, "html");
     remember(document.querySelector("#app"), "#app");
     for (const el of document.querySelectorAll(
-      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .engineers-card, .menu-card, .relic-page, .save-conflict-sheet",
+      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .engineers-card, .menu-card, .relic-page, .board-card-face",
     )) {
       if (visible(el)) {
         remember(el, selectorOf(el));
@@ -578,13 +579,13 @@ async function collect(page) {
         ".workshop-recipe",
         ".save-card",
         ".saved-copy",
-        ".welcome-card",
+        ".welcome-back .board-card-face",
         ".menu-card",
         ".relic-page",
-        ".layer-card",
-        ".notice-card",
-        ".other-tab-card",
-        ".update-card",
+        ".layer-arrival .board-card-face",
+        ".craft-notice .board-card-face",
+        ".other-tab .board-card-face",
+        ".update-prompt .board-card-face",
         ".start-over-card",
         ".engineer",
         ".legacy-card",
@@ -1114,10 +1115,12 @@ async function main() {
     await opened.page.evaluate(() => {
       globalThis.__skewMs = 120_000;
     });
-    await opened.page.waitForSelector(".craft-notice:not([hidden])", {
-      timeout: 8_000,
-    });
-    await expectText(opened.page, /fitted/, "craft done");
+    await opened.page.waitForSelector(
+      '.board-card[data-card="craft"]:not([hidden])',
+      { timeout: 8_000 },
+    );
+    await cardRisen(opened.page, "craft");
+    await expectText(opened.page, /fitted/i, "craft done");
     return opened;
   });
   await capture("engineers-promote", async (viewport) => {
@@ -1181,10 +1184,12 @@ async function main() {
         ],
       }),
     );
-    await opened.page.waitForSelector(".welcome-back:not([hidden])", {
-      timeout: 8_000,
-    });
-    await expectText(opened.page, /Welcome home/, "homecoming");
+    await opened.page.waitForSelector(
+      '.board-card[data-card="welcome"]:not([hidden])',
+      { timeout: 8_000 },
+    );
+    await cardRisen(opened.page, "welcome");
+    await expectText(opened.page, /Welcome home/i, "homecoming");
     return opened;
   });
   await capture("relic-tease", async (viewport) => {
@@ -1272,10 +1277,12 @@ async function main() {
       viewport,
       late(away, 20_000_000, quietCrew({ pocket: 40_000 })),
     );
-    await opened.page.waitForSelector(".welcome-back:not([hidden])", {
-      timeout: 8_000,
-    });
-    await expectText(opened.page, /While you were away/, "welcome");
+    await opened.page.waitForSelector(
+      '.board-card[data-card="welcome"]:not([hidden])',
+      { timeout: 8_000 },
+    );
+    await cardRisen(opened.page, "welcome");
+    await expectText(opened.page, /While you were away/i, "welcome");
     return opened;
   });
   await capture("layer-arrival", async (viewport) => {
@@ -1291,10 +1298,12 @@ async function main() {
     await relicPageUp(opened.page, "reveal");
     await pressQuietly(opened.page, ".relic-page-carry");
     await drawerGone(opened.page, "relics");
-    await opened.page.waitForSelector(".layer-arrival:not([hidden])", {
-      timeout: 8_000,
-    });
-    await expectText(opened.page, /broke into the Granite/, "layer");
+    await opened.page.waitForSelector(
+      '.board-card[data-card="layer"]:not([hidden])',
+      { timeout: 8_000 },
+    );
+    await cardRisen(opened.page, "layer");
+    await expectText(opened.page, /broke into the Granite/i, "layer");
     return opened;
   });
   await capture("ledger", async (viewport) => {
@@ -1407,8 +1416,11 @@ async function main() {
     const opened = await openAuditPage(viewport, undefined, {
       search: "?saves=two",
     });
-    await opened.page.waitForSelector(".save-conflict:not([hidden])");
-    await expectText(opened.page, /Two saves found/, "conflict");
+    await opened.page.waitForSelector(
+      '.board-card[data-card="conflict"]:not([hidden])',
+    );
+    await cardRisen(opened.page, "conflict");
+    await expectText(opened.page, /Two saves found/i, "conflict");
     const pressed = await opened.page.$eval(
       ".save-card[data-side='phone']",
       (el) => el.getAttribute("aria-pressed"),
@@ -1422,7 +1434,12 @@ async function main() {
     const opened = await openAuditPage(viewport, undefined, {
       search: "?saves=two",
     });
-    await opened.page.waitForSelector(".save-conflict:not([hidden])");
+    await opened.page.waitForSelector(
+      '.board-card[data-card="conflict"]:not([hidden])',
+    );
+    await cardRisen(opened.page, "conflict");
+    // Past the card's settle: a finger in its first 400ms does nothing (#464).
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await press(opened.page, ".save-card[data-side='other']");
     const pressed = await opened.page.$eval(
       ".save-card[data-side='other']",
@@ -1470,10 +1487,12 @@ async function main() {
       },
     });
     const second = pages[1];
-    await second.waitForSelector(".other-tab:not([hidden])", {
-      timeout: 8_000,
-    });
-    await expectText(second, /Playing in another tab/, "other tab");
+    await second.waitForSelector(
+      '.board-card[data-card="other-tab"]:not([hidden])',
+      { timeout: 8_000 },
+    );
+    await cardRisen(second, "other-tab");
+    await expectText(second, /Playing in another tab/i, "other tab");
     return {
       page: second,
       errors,
@@ -1481,14 +1500,16 @@ async function main() {
     };
   });
   await capture("update-available", async (viewport) => {
-    const opened = await openAuditPage(viewport, rest());
-    await opened.page.evaluate(() => {
-      const prompt = document.querySelector(".update-prompt");
-      if (prompt instanceof HTMLElement) {
-        prompt.hidden = false;
-      }
+    // The dev hook opens the card as a newer service worker would (#464).
+    const opened = await openAuditPage(viewport, rest(), {
+      search: "?update=shown",
     });
-    await expectText(opened.page, /Update available/, "update");
+    await opened.page.waitForSelector(
+      '.board-card[data-card="update"]:not([hidden])',
+      { timeout: 8_000 },
+    );
+    await cardRisen(opened.page, "update");
+    await expectText(opened.page, /Update available/i, "update");
     return opened;
   });
 

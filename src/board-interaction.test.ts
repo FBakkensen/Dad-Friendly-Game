@@ -158,6 +158,35 @@ describe("the settle", () => {
     expect(decide(late, finger("buys", "cart", 1, 20_500))).toBe("act");
   });
 
+  it("settles a card for 400ms after it opens", () => {
+    const card = after({ kind: "open", overlay: "welcome", at: 1000 });
+    expect(decide(card, finger("welcome", "go", 1100))).toBe("ignore-early");
+    expect(decide(card, finger("welcome", "go", 1450))).toBe("act");
+    expect(
+      decide(card, { ...finger("welcome", "go", 1100), by: "keyboard" }),
+    ).toBe("act");
+  });
+
+  it("a card's page settles it again", () => {
+    const paged = after(
+      { kind: "open", overlay: "conflict", at: 1000 },
+      { kind: "page", overlay: "conflict", at: 2000 },
+    );
+    expect(decide(paged, finger("conflict", "commit", 2100))).toBe(
+      "ignore-early",
+    );
+    expect(decide(paged, finger("conflict", "commit", 2400))).toBe("act");
+  });
+
+  it("a finger's close of a card reveals nothing", () => {
+    const closed = after(
+      { kind: "open", overlay: "welcome", at: 0 },
+      { kind: "close", overlay: "welcome", at: 1000, by: "finger" },
+    );
+    expect(closed.revealed).toBeUndefined();
+    expect(decide(closed, finger("board", "key:buys", 1100))).toBe("act");
+  });
+
   it("acts on a board press with nothing settling", () => {
     expect(decide(initialBoard(), finger("board", "plate", 0))).toBe("act");
   });
@@ -194,6 +223,48 @@ describe("the overlay stack", () => {
       { kind: "close", overlay: "buys", at: 0, by: "keyboard" },
     );
     expect(stack(under)).toEqual([]);
+  });
+
+  it("a card opens on top and closes only itself", () => {
+    const state = after(
+      { kind: "open", overlay: "buys", at: 0 },
+      { kind: "open", overlay: "conflict", at: 1000 },
+      { kind: "open", overlay: "update", at: 2000 },
+      { kind: "close", overlay: "conflict", at: 2100, by: "program" },
+    );
+    expect(stack(state)).toEqual(["buys", "update"]);
+    expect(decide(state, finger("update", "reload", 2300))).toBe(
+      "ignore-early",
+    );
+    expect(decide(state, finger("update", "reload", 2400))).toBe("act");
+  });
+
+  it("keeps the cards up when a drawer opens over them (#464)", () => {
+    const state = after(
+      { kind: "open", overlay: "buys", at: 0 },
+      { kind: "open", overlay: "welcome", at: 100 },
+      { kind: "open", overlay: "save", at: 150 },
+      { kind: "open", overlay: "ledger", at: 200 },
+    );
+    expect(stack(state)).toEqual(["welcome", "ledger"]);
+    expect(decide(state, finger("welcome", "go", 1000))).toBe("act");
+  });
+
+  it("keeps a card up when what it opened over closes", () => {
+    // A card that opens by itself closes the open drawer after it is on the stack.
+    const state = after(
+      { kind: "open", overlay: "buys", at: 0 },
+      { kind: "open", overlay: "layer", at: 1000 },
+      { kind: "open", overlay: "save", at: 1100 },
+      { kind: "close", overlay: "buys", at: 1200, by: "program" },
+    );
+    expect(stack(state)).toEqual(["layer"]);
+    const under = after(
+      { kind: "open", overlay: "welcome", at: 0 },
+      { kind: "open", overlay: "save", at: 100 },
+      { kind: "close", overlay: "welcome", at: 200, by: "keyboard" },
+    );
+    expect(stack(under)).toEqual(["save"]);
   });
 
   it("opens a note on the board alone", () => {
@@ -634,6 +705,10 @@ describe("drawerOpen", () => {
     expect(open()).toBe(false);
     expect(open("note")).toBe(false);
     expect(open("save")).toBe(false);
+  });
+
+  it("a card is not a drawer", () => {
+    expect(open("welcome", "update")).toBe(false);
   });
 
   it("is true while a drawer is on the stack, with or without a note over it", () => {

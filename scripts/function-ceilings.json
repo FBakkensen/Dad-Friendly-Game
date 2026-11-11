@@ -4,6 +4,5 @@
   "src/engineers-panel.ts#createEngineersPanel>render": 174,
   "src/firebase-save.ts#createFirebaseCloudSave": 166,
   "src/progress-store.ts#createProgressStore": 2085,
-  "src/tab-writer.ts#createTabWriter": 348,
-  "src/welcome-panel.ts#createWelcomePanel": 175
+  "src/tab-writer.ts#createTabWriter": 348
 }

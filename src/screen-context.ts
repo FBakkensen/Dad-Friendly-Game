@@ -12,9 +12,6 @@ import type { TierId } from "./tiers";
 /** What the app and the tests hand the screen. */
 export type ScreenOptions = {
   root: HTMLElement;
-  lanternUrl: string;
-  mountainUrl: string;
-  stoneUrl: string;
   veinUrl: string;
   tierArt: Readonly<Record<TierId, string>>;
   relicArt: Readonly<Record<RelicId, string>>;
@@ -47,15 +44,7 @@ export type ScreenCtx = {
   readonly board: BoardHost;
   readonly signal: AbortSignal | undefined;
   readonly listening: { readonly signal?: AbortSignal };
-  readonly art: Pick<
-    ScreenOptions,
-    | "lanternUrl"
-    | "mountainUrl"
-    | "stoneUrl"
-    | "veinUrl"
-    | "tierArt"
-    | "relicArt"
-  >;
+  readonly art: Pick<ScreenOptions, "veinUrl" | "tierArt" | "relicArt">;
   readonly deviceStorage: ScreenOptions["deviceStorage"];
   readonly paint: () => void;
 };
@@ -67,9 +56,6 @@ export type ScreenCtx = {
 export function createScreenCtx(
   {
     root,
-    lanternUrl,
-    mountainUrl,
-    stoneUrl,
     veinUrl,
     tierArt,
     relicArt,
@@ -115,7 +101,7 @@ export function createScreenCtx(
       board,
       signal,
       listening,
-      art: { lanternUrl, mountainUrl, stoneUrl, veinUrl, tierArt, relicArt },
+      art: { veinUrl, tierArt, relicArt },
       deviceStorage,
       paint: late.paint,
     },

@@ -56,18 +56,14 @@ export function createEarlyCards(
   legacy: ReturnType<typeof createLegacyPanel>;
   paint(): void;
 } {
-  const { progress } = ctx;
-  const { mountainUrl, stoneUrl, lanternUrl, tierArt } = ctx.art;
-  const welcomePanel = createWelcomePanel({ progress, getView: ctx.view });
-  const { welcome } = welcomePanel;
-  const arrival = createArrivalPanel({
+  const { progress, board } = ctx;
+  const welcomePanel = createWelcomePanel({
     progress,
     getView: ctx.view,
-    mountainUrl,
-    oreUrl: stoneUrl,
-    lanternUrl,
-    tierArt,
+    board,
   });
+  const { welcome } = welcomePanel;
+  const arrival = createArrivalPanel({ progress, getView: ctx.view, board });
 
   // A panel's own change repaints the whole screen: its `requestRender` is `ctx.paint`, which
   // reads `paint` (set up below) when called.
@@ -257,6 +253,7 @@ export function createSheetPanels(
   const conflictSheet = createSaveConflictPanel({
     progress,
     now,
+    board,
     requestRender: ctx.paint,
   });
   const ledger = createLedgerPanel({
@@ -322,7 +319,11 @@ export function createSheetPanels(
   };
 }
 
-/** The cards, in the order they stand in the root. */
+/**
+ * The cards, in the order they stand in the root: at one z-index, a later one paints over an
+ * earlier one, and only the save conflict stands higher. The Engineers sheet comes first, so a
+ * homecoming's welcome paints over it while it is open.
+ */
 export function cardsFrom(
   early: ReturnType<typeof createEarlyCards>,
   sheets: ReturnType<typeof createSheetPanels>,
@@ -330,11 +331,11 @@ export function cardsFrom(
 ): HTMLElement[] {
   const { arrival, legacy } = early;
   return [
+    sheets.engineers.sheet,
     early.welcome,
     arrival.layer,
     arrival.notice,
     legacy.dialog,
-    sheets.engineers.sheet,
     extra.updatePrompt,
     extra.otherTab,
     sheets.savedCopies.root,

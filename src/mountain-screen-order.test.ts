@@ -205,15 +205,15 @@ describe("the screen's build order", () => {
       "board-saveline",
       "board-note board-skinned",
       "board-running-park",
-      "welcome-back",
-      "layer-arrival",
-      "craft-notice",
-      "start-over legacy-dialog",
       "engineers-dialog",
-      "update-prompt",
-      "other-tab",
+      "board-card welcome-back",
+      "board-card layer-arrival",
+      "board-card craft-notice",
+      "start-over legacy-dialog",
+      "board-card update-prompt",
+      "board-card other-tab",
       "saved-copies",
-      "save-conflict",
+      "board-card save-conflict",
     ]);
   });
 });

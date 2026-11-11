@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { createBoardHost } from "./board-host";
 import { describe, expect, it } from "vitest";
 import { legacyCardWords } from "./legacy-panel";
 import { EMPTY_MATERIALS, materialsGained } from "./layers";
@@ -62,6 +63,7 @@ describe("welcome-back ore (#247)", () => {
     const panel = createWelcomePanel({
       progress: { dismissAway: () => undefined } as never,
       getView: () => current,
+      board: createBoardHost({ clock: () => 0 }),
     });
     panel.render();
     const ore = panel.welcome.querySelector<HTMLElement>(".welcome-ore");

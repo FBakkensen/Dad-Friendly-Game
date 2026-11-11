@@ -63,37 +63,6 @@ body {
   display: none;
 }
 
-.other-tab-body {
-  margin: 0;
-  max-width: 28ch;
-  font-size: 1.05rem;
-  line-height: 1.35;
-  color: #e8d4b8;
-}
-
-.update-reload,
-.other-tab-play {
-  appearance: none;
-  min-height: 64px;
-  min-width: min(320px, 100%);
-  padding: 16px 24px;
-  border: 0;
-  border-radius: 12px;
-  background: #e8a84a;
-  color: #120c0a;
-  font: inherit;
-  font-size: 1.25rem;
-  font-weight: 650;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.update-reload:focus-visible,
-.other-tab-play:focus-visible {
-  outline: 4px solid #e8d4b8;
-  outline-offset: 4px;
-}
-
 .menu-card {
   position: relative;
 }
@@ -109,14 +78,8 @@ body {
   }
 }
 
-.welcome-back,
-.layer-arrival,
-.craft-notice,
 .start-over,
 .engineers-dialog,
-.update-prompt,
-.other-tab,
-.save-conflict,
 .saved-copies {
   position: fixed;
   inset: 0;
@@ -133,26 +96,14 @@ body {
   );
 }
 
-.welcome-back[hidden],
-.update-prompt[hidden],
-.layer-arrival[hidden],
-.craft-notice[hidden],
 .start-over[hidden],
 .engineers-dialog[hidden],
-.other-tab[hidden],
-.save-conflict[hidden],
 .saved-copies[hidden] {
   display: none;
 }
 
-.welcome-card,
-.layer-card,
-.notice-card,
 .start-over-card,
 .menu-card,
-.update-card,
-.other-tab-card,
-.save-conflict-sheet,
 .saved-copies-card,
 .saved-copy {
   display: flex;
@@ -168,41 +119,13 @@ body {
   text-align: center;
 }
 
-.welcome-card h2,
 .start-over-card h2,
-.menu-card h2,
-.update-card h2,
-.other-tab-card h2 {
+.menu-card h2 {
   margin: 0;
   font-size: 1.5rem;
   color: #e8d4b8;
 }
 
-.other-tab-card h2 {
-  font-size: 1.25rem;
-}
-
-.welcome-mined {
-  margin: 0;
-  font-size: 3.2rem;
-  font-weight: 800;
-  color: #f2c46d;
-  text-shadow: 0 0 24px rgba(232, 168, 74, 0.6);
-  font-variant-numeric: tabular-nums;
-}
-
-.welcome-detail,
-.welcome-cheer {
-  margin: 0;
-  font-size: 1.1rem;
-}
-
-.welcome-cheer {
-  color: #c9b391;
-  font-style: italic;
-}
-
-.welcome-continue,
 .menu-close,
 .engineers-close {
   appearance: none;
@@ -218,7 +141,6 @@ body {
   cursor: pointer;
 }
 
-.welcome-continue:focus-visible,
 .menu-close:focus-visible,
 .engineers-close:focus-visible,
 .engineer-tunnel:focus-visible,
@@ -286,155 +208,6 @@ body {
 
 .engineers-card {
   margin-block: auto;
-}
-
-.welcome-crew,
-.welcome-engineer,
-.welcome-return,
-.welcome-layer,
-.welcome-craft {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 650;
-  color: #ffe08a;
-}
-
-.welcome-returns {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-
-.welcome-returns[hidden],
-.welcome-layers[hidden],
-.welcome-crafts[hidden] {
-  display: none;
-}
-
-.welcome-layers,
-.welcome-crafts {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-}
-
-.layer-card,
-.notice-card {
-  gap: 8px;
-  width: min(340px, 100%);
-  padding: 16px 14px;
-}
-
-.layer-art {
-  width: 7rem;
-  height: auto;
-  aspect-ratio: 1;
-  object-fit: contain;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 0 12px rgba(232, 168, 74, 0.45));
-}
-
-.notice-art {
-  width: 64px;
-  height: 64px;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-.layer-card h2,
-.notice-card p {
-  margin: 0;
-}
-
-.layer-card h2 {
-  font-size: 1.15rem;
-  color: #f2c46d;
-}
-
-.layer-evocative,
-.layer-advice,
-.layer-sketch,
-#craft-notice-line {
-  margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.25;
-}
-
-.layer-advice {
-  color: #ffe08a;
-  font-weight: 650;
-}
-
-.layer-sketch {
-  color: #f3e2c4;
-}
-
-.layer-dig,
-.craft-accept {
-  appearance: none;
-  width: 100%;
-  min-height: 52px;
-  border: 0;
-  border-radius: 12px;
-  background: #e8a84a;
-  color: #120c0a;
-  font: inherit;
-  font-size: 1.15rem;
-  font-weight: 650;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Clear of the focus ring (4px outline at 4px offset), so the last line never touches it. */
-.layer-dig {
-  margin-top: var(--space-8);
-}
-
-.layer-dig:active,
-.craft-accept:active,
-.welcome-continue:active {
-  transform: scale(0.97);
-}
-
-.layer-dig:focus-visible,
-.craft-accept:focus-visible {
-  outline: 4px solid #e8d4b8;
-  outline-offset: 4px;
-}
-
-/* A find line joins the away report. Keep the way back above the gesture bar.
-   The engineers sheet shares z-index 10 and is later in the page, so a return
-   while that sheet is open would paint underneath it. The notice stays on top. */
-.welcome-back {
-  z-index: 30;
-  padding: max(12px, env(safe-area-inset-top)) 16px
-    max(12px, env(safe-area-inset-bottom));
-}
-
-.welcome-back.is-homecoming .welcome-card {
-  gap: 4px;
-  padding: 8px 16px;
-  border-color: #ffe08a;
-  box-shadow: 0 0 64px rgba(255, 224, 138, 0.55);
-}
-
-.welcome-back.is-homecoming .welcome-mined {
-  font-size: 2.9rem;
-}
-
-.welcome-card {
-  gap: 6px;
-  padding: 12px 16px;
-}
-
-.welcome-card .welcome-continue {
-  min-height: 52px;
-}
-
-.welcome-card [hidden] {
-  display: none;
 }
 
 .found-tool[hidden] {
@@ -1297,76 +1070,14 @@ body {
   }
 }
 
-/* Two saves found. Bottom sheet, shrunk to the phone, no scroller. */
-.save-conflict {
-  align-items: flex-end;
-  justify-content: stretch;
-  overflow: hidden;
-  padding: 0;
-  z-index: 12;
-  background: rgba(18, 12, 10, 0.72);
-}
-
-.save-conflict-sheet {
-  align-items: stretch;
-  gap: var(--target-gap);
-  width: 100%;
-  max-height: 100%;
-  margin: 0;
-  padding: 8px 8px 10px;
-  border-width: 2px 2px 0;
-  border-radius: 16px 16px 0 0;
-  text-align: left;
-}
-
-.save-conflict-sheet h2,
-.save-conflict-body,
-.save-conflict-error {
+/* Saved copies' error line and play buttons, named for the conflict they
+   came from. The conflict itself is a board card now (#464). */
+.saved-copies .save-conflict-error {
   margin: 0;
   text-align: center;
 }
 
-.save-pair {
-  display: flex;
-  gap: var(--target-gap);
-  min-width: 0;
-}
-
-.save-card {
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 48px;
-  align-items: stretch;
-  gap: 1px;
-  padding: 6px;
-  border: 2px solid #6b4a2a;
-  border-radius: 12px;
-  background-color: #2a1a10;
-  color: #e8d4b8;
-  text-align: left;
-  font: inherit;
-  font-size: 0.9rem;
-}
-
-.save-card.is-selected {
-  border-color: #e8a84a;
-  box-shadow: inset 0 0 0 1px #e8a84a;
-}
-
-.save-card .label {
-  display: block;
-  overflow-wrap: anywhere;
-  font-size: 0.9rem;
-  line-height: 1.15;
-}
-
-.save-card .title {
-  color: #f2c46d;
-  font-weight: 700;
-}
-
-.save-conflict-play,
-.save-conflict-commit {
+.saved-copies .save-conflict-play {
   appearance: none;
   min-height: 48px;
   width: 100%;
@@ -1380,9 +1091,7 @@ body {
   cursor: pointer;
 }
 
-.save-conflict-play:active,
-.save-conflict-commit:active,
-.save-card:active {
+.saved-copies .save-conflict-play:active {
   transform: translateY(2px);
 }
 
@@ -1540,8 +1249,7 @@ body {
 
 /* M10-6: relics, legacy, welcome and the menu on the shared parts. */
 .menu-card,
-.start-over-card,
-.welcome-card {
+.start-over-card {
   border: var(--line) solid var(--color-edge);
   border-radius: var(--radius-sheet);
   background: var(--color-card);
@@ -1556,7 +1264,6 @@ body {
 }
 
 /* The one main move on a card: primary. */
-.welcome-continue,
 .legacy-confirm {
   min-height: var(--target-min);
   border: var(--line) solid var(--color-gold);
@@ -1801,49 +1508,6 @@ body {
   opacity: 0.5;
 }
 
-/* #247: the ore that came up while you were away, and what it is for. */
-.welcome-ore {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  width: 100%;
-  padding: var(--space-8);
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-control);
-  text-align: left;
-}
-
-.welcome-ore[hidden] {
-  display: none;
-}
-
-.welcome-ore-art {
-  flex: none;
-  width: calc(var(--space-24) + var(--space-8));
-  height: calc(var(--space-24) + var(--space-8));
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-.welcome-ore-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.welcome-ore-line {
-  color: var(--color-gold);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-  line-height: var(--leading);
-}
-
-.welcome-ore-use {
-  color: var(--color-ink);
-  font-size: var(--type-14);
-  line-height: var(--leading);
-}
-
 /* #247: the pass-to-kid card reads as the Legacy, its real numbers, then what stays. */
 .legacy-detail {
   display: flex;
@@ -1890,7 +1554,6 @@ body {
 }
 
 /* Clear of the focus ring, so the last line never touches the first button. */
-.welcome-card .welcome-continue,
 .legacy-card .start-over-actions {
   margin-top: var(--space-8);
 }

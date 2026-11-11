@@ -1,4 +1,4 @@
-/* global document, getComputedStyle, Image, requestAnimationFrame */
+/* global document, getComputedStyle, HTMLElement, Image, requestAnimationFrame */
 /** The board's measures: what the board, bay and drawer sections read off the page. */
 import {
   targetsCloserThan,
@@ -213,6 +213,9 @@ const BOARD_TARGETS = [
   ".board-sheet.is-open button.board-row:not([hidden])",
   ".board-sheet.is-open .board-platebtn",
   ".board-sheet.is-open .board-sheet-info",
+  // A board card's plates (#464), and the conflict's two sides.
+  ".board-card:not([hidden]) .board-card-plate",
+  ".board-card:not([hidden]) .save-card",
 ].join(", ");
 /** Every other control a finger can reach on the board at that moment. */
 const NEIGHBOURS = "#app button, #app [role='button']";
@@ -234,6 +237,15 @@ const BAY_LEGENDS = [
   ".board-dig-lg",
   ".board-dig-lg b",
 ];
+/** A board card's words (#464): its title, lines, big number and plates. */
+const CARD_LEGENDS = [
+  ".board-card .board-card-title",
+  ".board-card .board-card-line",
+  ".board-card .board-card-big",
+  ".board-card .welcome-ore-line",
+  ".board-card .welcome-ore-use",
+  ".board-card .board-platebtn-text",
+];
 /** Board text read against the board's art: the bars ask 4.5:1 of these. */
 const BOARD_LEGENDS = [
   ".board-odo-legend .board-lg:not(.board-spend)",
@@ -254,13 +266,15 @@ const BOARD_LEGENDS = [
   // The key rail (#373): each key's name and its unlock line or clock.
   ".board-key-name",
   ".board-key-sub",
+  // A board card's words (#464).
+  ...CARD_LEGENDS,
 ].join(", ");
 /** The board's parts whose text and art the bars measure. */
 const BOARD_PARTS =
-  ".board-top, .board-gauge-row, .board-bays, .board-ready-row, .board-rail, .board-saveline, .board-save-drawer.is-open, .board-note.on, .board-sheet.is-open";
+  ".board-top, .board-gauge-row, .board-bays, .board-ready-row, .board-rail, .board-saveline, .board-save-drawer.is-open, .board-note.on, .board-sheet.is-open, .board-card:not([hidden])";
 /** Parts whose every img and sprite is measured; a note's art is its skins. */
 const BOARD_ART =
-  ".board-top, .board-gauge-row, .board-bays, .board-ready-row, .board-rail, .board-saveline, .board-sheet.is-open";
+  ".board-top, .board-gauge-row, .board-bays, .board-ready-row, .board-rail, .board-saveline, .board-sheet.is-open, .board-card:not([hidden])";
 
 /**
  * Visible controls in board px (rendered size / --board-scale): the board's
@@ -312,7 +326,7 @@ async function boardTargets(page, { vein } = {}) {
       // is still in reach and still measured.
       const popupEls = [
         ...document.querySelectorAll(
-          ".board-note.on, .board-save-drawer.is-open, .board-sheet.is-open",
+          ".board-note.on, .board-save-drawer.is-open, .board-sheet.is-open, .board-card:not([hidden])",
         ),
       ].filter((popup) => getComputedStyle(popup).pointerEvents !== "none");
       const popups = popupEls.map((popup) => popup.getBoundingClientRect());
@@ -679,6 +693,75 @@ async function boardContrast(page, legends = BOARD_LEGENDS) {
   return rows;
 }
 
+/**
+ * The open board card `name` measured in board px (#464): its face sits in the drawer's box
+ * (top no higher than 178, bottom 4 over the save line, 8..416 at 424 wide) and never
+ * scrolls; each plate is at least 48 tall and inside the face. Its title, its body's words
+ * and the focused element's classes come back for the words checks.
+ */
+async function cardFacts(page, name) {
+  return page.evaluate((card) => {
+    const board = globalThis.__board();
+    const root = document.querySelector(
+      `.board-card[data-card="${card}"]:not([hidden])`,
+    );
+    const face = root?.querySelector(".board-card-face");
+    if (root === null || face === null || face === undefined) {
+      return { ok: false, missing: card };
+    }
+    const px = (rect) => ({
+      l: (rect.left - board.left) / board.scale,
+      t: (rect.top - board.top) / board.scale,
+      r: (rect.right - board.left) / board.scale,
+      b: (rect.bottom - board.top) / board.scale,
+    });
+    const box = px(face.getBoundingClientRect());
+    const saveTop = (board.saveTop - board.top) / board.scale;
+    const near = (a, b) => Math.abs(a - b) <= 0.5;
+    const placed =
+      box.t >= 178 - 0.5 &&
+      near(box.b, saveTop - 4) &&
+      near(box.l, 8) &&
+      near(box.r, 416);
+    const fits = face.scrollHeight <= face.clientHeight + 1;
+    const plates = [...root.querySelectorAll(".board-card-plate, .save-card")]
+      .filter((el) => el.closest("[hidden]") === null)
+      .map((el) => {
+        const b = px(el.getBoundingClientRect());
+        return {
+          words: (el.textContent ?? "").trim().slice(0, 28),
+          height: Math.round((b.b - b.t) * 10) / 10,
+          inside:
+            b.l >= box.l - 0.5 &&
+            b.r <= box.r + 0.5 &&
+            b.t >= box.t - 0.5 &&
+            b.b <= box.b + 0.5,
+        };
+      });
+    const focused = document.activeElement;
+    return {
+      ok: true,
+      box: [box.l, box.t, box.r, box.b].map(
+        (side) => Math.round(side * 10) / 10,
+      ),
+      placed,
+      fits,
+      plates,
+      platesOk: plates.every((plate) => plate.height >= 48 && plate.inside),
+      title: (
+        root.querySelector(".board-card-title")?.textContent ?? ""
+      ).trim(),
+      body: (root.querySelector(".board-card-body")?.textContent ?? "")
+        .replace(/\s+/g, " ")
+        .trim(),
+      focus:
+        focused instanceof HTMLElement && root.contains(focused)
+          ? focused.className
+          : "",
+    };
+  }, name);
+}
+
 /** The bundled faces are loaded, so the plate is measured as it ships. */
 async function boardFontsLoaded(page) {
   return page.evaluate(async () => {
@@ -705,6 +788,8 @@ async function boardFontsLoaded(page) {
 }
 
 export {
+  cardFacts,
+  CARD_LEGENDS,
   drawerFacts,
   BAY_LEGENDS,
   boardTargets,
