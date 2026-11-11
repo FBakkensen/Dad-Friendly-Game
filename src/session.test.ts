@@ -97,7 +97,7 @@ describe("session step", () => {
     const refused = step(session, move, 0);
     expect(refused.effects).toContainEqual({
       kind: "moved",
-      result: expect.objectContaining({ kind: "refused" }),
+      result: { kind: "refused" },
     });
     expect(codes(refused.effects)).toEqual([]);
     expect(refused.session.mountain.taught).toContain("engineers");
