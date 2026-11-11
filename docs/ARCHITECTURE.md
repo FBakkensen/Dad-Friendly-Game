@@ -463,14 +463,17 @@ page is the map, plus the rules that keep it that way.
   each label built from data. The rail, the drawers per save, the bays per
   save, the board per save, the gauge row per save, the cards, the relic
   plate, the long sheets, the odometer, Running now and the no-scroll guard
-  are tables (#442); a few one-walk flows (the welcome-back reveal, the
-  Mantle, passing the mine, the drawer states) stay as sections. An
-  expectation that needs a measure an earlier one took reads it off the
-  page's `seen`. The no-scroll guard's rows each say what their taps open,
-  and wait for it. `boardTargets(page, { vein })` shows the golden vein at a
-  spot and measures in the same page task, so the screen's second tick
-  cannot hide it in between. The drawer list is `DRAWERS` in `drawers.mjs`: a new drawer
-  is a row there, with its own scroll rule. `controls.mjs` wires each control
+  are tables (#442). The rest stay plain sections: the main screen and tier
+  cards, the gauge's moving parts, the one-walk flows (the welcome-back
+  reveal, the Mantle, passing the mine, the drawer states), and the
+  Workshop, Engineers and notice checks. An expectation that needs a measure
+  an earlier one took reads it off the page's `seen`. The no-scroll guard's
+  rows each say what their taps open, and wait for it. Page code places the
+  golden vein with `__showVein` (set up beside `__board`), and
+  `boardTargets(page, { vein })` shows it and measures in one page task, so
+  the screen's second tick cannot hide it in between. The drawer list is
+  `DRAWERS` in `drawers.mjs`: a new drawer is a row there, with its own
+  scroll rule. `controls.mjs` wires each control
   family once in Chrome (the rail key, a row buy, Back and the scrim, the "i"
   cards, Ready now, an open bay, the trouble fix, the red button and a press
   look), on the held tap clock except the red button and the drawer's

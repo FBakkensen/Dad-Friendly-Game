@@ -325,7 +325,9 @@ for (const viewport of [[424, 924]]) {
         () => document.querySelector(".board-dig-plus")?.hidden !== false,
         { timeout: 2_000 },
       )
-      .catch(() => undefined);
+      .catch(() => {
+        console.log("pass the mine: the tap's +N still shows after 2 s");
+      });
     check(await noScroll(page), `${label} new run has no scroll`);
     // The badge's words sit on the Legacy plate, inside the window and
     // above the crew plate (#371).

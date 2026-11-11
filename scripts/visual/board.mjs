@@ -18,6 +18,7 @@ import {
   noScroll,
   keysDrawn,
   noteAway,
+  saveDrawerSettled,
 } from "./kit.mjs";
 import {
   boardTargets,
@@ -43,8 +44,6 @@ const BOARD_SAVES = [
  * the five key names on the rail (#373).
  */
 const LEGENDS_AT_REST = 9 + 14 + 5;
-/** The drawer slides in steps(6) over 240ms. */
-const DRAWER_MS = 400;
 
 /**
  * A note's skins paint once their art has loaded (src/board-skin.ts), a frame
@@ -74,30 +73,19 @@ async function openBoard(viewport, scenario) {
   await page.waitForSelector(".board-relics");
   await page.evaluate(() => document.fonts.ready.then(() => true));
   const still = await noScroll(page);
-  await keysDrawn(page);
+  const loaded = await keysDrawn(page);
   await noteAway(page);
   const rest = await boardTargets(page);
-  return { page, close, seen: { still, rest } };
+  return { page, close, seen: { still: still && loaded, rest } };
 }
 
 /** The save drawer slides up over the board; the save line stays. */
 async function saveDrawerFacts(page) {
   await press(page, ".save-status");
   // Wait for the slide to end, not a fixed time: under the full gate's
-  // load a fixed wait caught the drawer mid-slide.
-  await page
-    .waitForFunction(
-      () => {
-        const sheet = document.querySelector(".board-save-drawer");
-        return (
-          sheet !== null &&
-          sheet.classList.contains("is-open") &&
-          sheet.getAnimations().length === 0
-        );
-      },
-      { timeout: DRAWER_MS * 10 },
-    )
-    .catch(() => undefined);
+  // load a fixed wait caught the drawer mid-slide. A drawer that never opens
+  // fails the facts below.
+  await saveDrawerSettled(page);
   return page.evaluate(() => {
     const board = globalThis.__board();
     const sheet = document.querySelector(".board-save-drawer");

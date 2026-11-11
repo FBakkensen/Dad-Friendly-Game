@@ -144,9 +144,7 @@ async function veinInView(page) {
       [0.35, 0.8],
       [0.65, 0.8],
     ]) {
-      const spot = veinSpot(x, y);
-      vein.style.left = `${String((7 + spot.left) * 2)}px`;
-      vein.style.top = `${String((7 + spot.top) * 2)}px`;
+      globalThis.__showVein(veinSpot(x, y));
       const v = vein.getBoundingClientRect();
       const w = view.getBoundingClientRect();
       const hit = document.elementFromPoint(
@@ -705,13 +703,16 @@ table({
       standalone: true,
     });
     // The save is in before the page is measured.
-    await keysDrawn(opened.page);
-    return { ...opened, seen: {} };
+    const loaded = await keysDrawn(opened.page);
+    return { ...opened, seen: { loaded } };
   },
   expect: [
     {
-      run: async ({ page }) => [
-        [await noScroll(page), "PWA with insets has no scroll"],
+      run: async ({ page, seen }) => [
+        [
+          seen.loaded && (await noScroll(page)),
+          "PWA with insets has no scroll",
+        ],
       ],
     },
     {

@@ -70,17 +70,7 @@ async function placeVein(page, corner) {
   const [spot] =
     corner === undefined ? [undefined] : await veinSpots(page, [corner]);
   await page.evaluate((at) => {
-    const vein = document.querySelector(".golden-vein");
-    if (vein === null) {
-      return;
-    }
-    if (at === null) {
-      vein.hidden = true;
-      return;
-    }
-    vein.style.left = `${String((7 + at.left) * 2)}px`;
-    vein.style.top = `${String((7 + at.top) * 2)}px`;
-    vein.hidden = false;
+    globalThis.__showVein(at);
   }, spot ?? null);
 }
 

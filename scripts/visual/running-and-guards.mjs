@@ -16,6 +16,7 @@ import {
   noScroll,
   shot,
   sheetSettled,
+  saveDrawerSettled,
   clickHandled,
 } from "./kit.mjs";
 
@@ -158,23 +159,6 @@ const shown = (selector) => (page) =>
       () => false,
     );
 const drawer = (name) => (page) => sheetSettled(page, name);
-const saveDrawerOpen = (page) =>
-  page
-    .waitForFunction(
-      () => {
-        const sheet = document.querySelector(".board-save-drawer");
-        return (
-          sheet !== null &&
-          sheet.classList.contains("is-open") &&
-          sheet.getAnimations().length === 0
-        );
-      },
-      { timeout: 5_000 },
-    )
-    .then(
-      () => true,
-      () => false,
-    );
 /**
  * Each screen, its save, the taps that open it, and what shows once it is
  * open. A row with no `shows` (Ready now buys and opens nothing) waits only
@@ -218,7 +202,7 @@ const GUARD_SCREENS = [
     name: "save drawer",
     save: () => guardSave(Date.now()),
     taps: [".save-status"],
-    shows: saveDrawerOpen,
+    shows: saveDrawerSettled,
   },
   {
     name: "menu",
@@ -238,6 +222,7 @@ const GUARD_SCREENS = [
     name: "welcome",
     save: () => guardSave(Date.now() - 3 * 3_600_000),
     taps: [],
+    shows: shown(".welcome-back"),
   },
   {
     name: "legacy",
@@ -273,7 +258,7 @@ async function tapThrough(page, { taps, shows }) {
       return false;
     }
   }
-  return taps.length === 0 || shows === undefined || shows(page);
+  return shows === undefined || shows(page);
 }
 
 table({

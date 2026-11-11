@@ -1,4 +1,4 @@
-/* global document, getComputedStyle, Image, requestAnimationFrame, HTMLElement */
+/* global document, getComputedStyle, Image, requestAnimationFrame */
 /** The board's measures: what the board, bay and drawer sections read off the page. */
 import {
   targetsCloserThan,
@@ -270,11 +270,8 @@ const BOARD_ART =
 async function boardTargets(page, { vein } = {}) {
   return page.evaluate(
     (own, neighbours, spot) => {
-      const shown = document.querySelector(".golden-vein");
-      if (spot !== null && shown instanceof HTMLElement) {
-        shown.style.left = `${String((7 + spot.left) * 2)}px`;
-        shown.style.top = `${String((7 + spot.top) * 2)}px`;
-        shown.hidden = false;
+      if (spot !== null) {
+        globalThis.__showVein(spot);
       }
       const board = globalThis.__board();
       const onScreen = (el) =>
