@@ -993,7 +993,8 @@ async function main() {
   await capture("workshop-crafting", async (viewport) => {
     const opened = await openAuditPage(viewport, crafting());
     await openWorkshop(opened.page);
-    await expectText(opened.page, /On the bench/, "crafting");
+    // The verb is uppercased on screen (.board-row-verb), and innerText reads it so.
+    await expectText(opened.page, /On the bench/i, "crafting");
     await expectText(opened.page, /\d:\d\d/, "crafting timer");
     return opened;
   });
