@@ -24,6 +24,7 @@ import {
   type BoardRow,
   type RowsOnBoard,
 } from "./board-row";
+import { createAmountKey } from "./buys-amount";
 import { BUY_SECTIONS, buyRowView, type BuyIcon } from "./buys-rows";
 import { buysTap } from "./buys-tap";
 import { createCrewChips, type ChipBit } from "./crew-chips";
@@ -34,6 +35,7 @@ import { reducedMotion } from "./float-text";
 import { formatCompact } from "./format";
 import type { TroubleTier } from "./hazards";
 import type { Mountain } from "./mountain";
+import type { Move } from "./economy/actions";
 import type {
   Dispatch,
   ProgressSnapshot,
@@ -51,7 +53,7 @@ import {
   workerWords,
 } from "./screen-words";
 import { showsDot } from "./teach";
-import { TIERS, owned, tierById, type TierId } from "./tiers";
+import { TIERS, owned, tierById, type BuyAmount, type TierId } from "./tiers";
 import { watchFixHold } from "./trouble-tap";
 
 /*
@@ -279,7 +281,12 @@ function sameChips(a: readonly ChipBit[], b: readonly ChipBit[]): boolean {
 function paintRows(
   rows: readonly TierRow[],
   { mountain, trouble }: Pick<ProgressSnapshot, "mountain" | "trouble">,
-  { at, pick, onBoard }: { at: number; pick: ReadyPick; onBoard: RowsOnBoard },
+  {
+    at,
+    pick,
+    onBoard,
+    amount,
+  }: { at: number; pick: ReadyPick; onBoard: RowsOnBoard; amount: BuyAmount },
 ): { readonly shown: readonly TierId[]; readonly fresh: TierId | undefined } {
   const guided = guidedOf(mountain, at, trouble);
   const shown: TierId[] = [];
@@ -292,6 +299,7 @@ function paintRows(
       tier: id,
       pick,
       guided,
+      amount,
     });
     if (view.shown) {
       shown.push(id);
@@ -326,8 +334,10 @@ interface RowWiring {
   readonly onBoard: RowsOnBoard;
   readonly now: () => number;
   readonly pick: () => ReadyPick;
-  /** Buys `what` from the row `id`: Done holds that row. */
-  readonly buy: (id: TierId, what: TierId) => void;
+  /** How many a tap buys now (#358). */
+  readonly amount: () => BuyAmount;
+  /** Buys `count` of `what` from the row `id`: Done holds that row. */
+  readonly buy: (id: TierId, what: TierId, count: number) => void;
 }
 
 function troubledHere(
@@ -345,7 +355,7 @@ function troubledHere(
 function wireTierRow(
   button: HTMLButtonElement,
   id: TierId,
-  { progress, onBoard, now, pick, buy }: RowWiring,
+  { progress, onBoard, now, pick, amount, buy }: RowWiring,
 ): void {
   // A fix holds the row again: the burst of presses that fixed it must not run on into a buy,
   // even inside the hold of an earlier buy.
@@ -375,22 +385,39 @@ function wireTierRow(
     }
     const at = now();
     const guided = guidedOf(snapshot.mountain, at, snapshot.trouble);
-    const tap = buysTap({ snapshot, tier: id, pick: pick(), now: at, guided });
+    const tap = buysTap({
+      snapshot,
+      tier: id,
+      pick: pick(),
+      now: at,
+      guided,
+      amount: amount(),
+    });
     switch (tap.kind) {
       case "blink":
         onBoard.result(id, "refused");
         return;
       case "hire":
-        buy(id, "helper");
+        buy(id, "helper", 1);
         return;
       case "trouble":
         progress.pressTrouble(tap.tier);
         fixed(tap.tier);
         return;
       case "buy":
-        buy(id, id);
+        buy(id, id, tap.count);
     }
   });
+}
+
+/** One of a tier is today's buy; ×10 and Max buy several in one move (#358). */
+function buyMove(
+  what: TierId,
+  count: number,
+): Extract<Move, { kind: "buyTier" | "buyTiers" }> {
+  return count === 1
+    ? { kind: "buyTier", id: what }
+    : { kind: "buyTiers", id: what, count };
 }
 
 /** A tier's row, built once, with its own art until the save is in. */
@@ -536,6 +563,7 @@ export function createCrewPanel({
   board,
   overSave,
   door,
+  storage,
   signal,
 }: {
   progress: ProgressStore;
@@ -550,6 +578,8 @@ export function createCrewPanel({
   overSave: () => boolean;
   /** The drawer's key on the rail: the shell writes its aria-expanded. */
   door?: HTMLElement;
+  /** Where this device keeps its Buys amount; localStorage when undefined. */
+  storage?: Pick<Storage, "getItem" | "setItem"> | undefined;
   /** Aborting it removes the drawer's document listeners. */
   signal?: AbortSignal;
 }): {
@@ -558,6 +588,14 @@ export function createCrewPanel({
   open: (from?: HTMLElement) => void;
 } {
   const onBoard = rowsOnBoard(board, "buys");
+  // ×1, ×10 or Max for every row (#358). A change repaints the rows in place.
+  const amountKey = createAmountKey({
+    board,
+    storage,
+    changed: () => {
+      render();
+    },
+  });
   const sheet = createBoardSheet({
     name: "buys",
     title: "Buys",
@@ -566,6 +604,7 @@ export function createCrewPanel({
     board,
     overSave,
     ...(door === undefined ? {} : { door }),
+    headKey: amountKey.root,
     onOpen: () => {
       layout.opening();
     },
@@ -574,6 +613,7 @@ export function createCrewPanel({
     },
     onForget: () => {
       onBoard.forget();
+      amountKey.forget();
     },
     ...(signal === undefined ? {} : { signal }),
   });
@@ -594,16 +634,17 @@ export function createCrewPanel({
   });
   const crewSpeed = (): number =>
     effectiveRates(getView().mountain, now(), getView().trouble).crewPerSecond;
-  const buy = (id: TierId, what: TierId): void => {
+  const buy = (id: TierId, what: TierId, count: number): void => {
     const before = crewSpeed();
-    if (dispatch({ kind: "buyTier", id: what }).kind === "applied") {
+    if (dispatch(buyMove(what, count)).kind === "applied") {
       onBoard.result(id, "applied");
       rate.count(before, crewSpeed());
     }
   };
 
+  const wiring = { progress, onBoard, now, pick, buy };
   const rows = [...BUY_SECTIONS.crew, ...BUY_SECTIONS.machines].map((id) =>
-    tierRow(id, { progress, onBoard, now, pick, buy }),
+    tierRow(id, { ...wiring, amount: amountKey.amount }),
   );
   const layout = createBuysLayout(
     board,
@@ -621,7 +662,12 @@ export function createCrewPanel({
     mark(parts.crewSec, "is-blank", !view.ready);
     if (view.ready) {
       const at = now();
-      const painted = paintRows(rows, view, { at, pick: pick(), onBoard });
+      const painted = paintRows(rows, view, {
+        at,
+        pick: pick(),
+        onBoard,
+        amount: amountKey.amount(),
+      });
       fresh = painted.fresh;
       const line = crewPosts(view.mountain, at, view.trouble);
       write(parts.postsWords, line.words);

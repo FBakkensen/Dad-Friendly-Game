@@ -296,12 +296,15 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
   }
 }
 
+/** Builds before #366 wrote stretches up to this. They load at MAX_STRETCH. */
+const OLD_MAX_STRETCH = 100_000_000;
+
 function readStretch(value: unknown): number | undefined | "bad" {
   if (value === undefined) {
     return undefined;
   }
-  return typeof value === "number" && value >= 1 && value <= MAX_STRETCH
-    ? value
+  return typeof value === "number" && value >= 1 && value <= OLD_MAX_STRETCH
+    ? Math.min(value, MAX_STRETCH)
     : "bad";
 }
 

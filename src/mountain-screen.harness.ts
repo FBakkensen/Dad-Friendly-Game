@@ -77,14 +77,14 @@ export function mountScreen({
   tapClock,
   pressAge = () => 0,
   random,
-  veinStorage = storage,
+  deviceStorage = storage,
   tabWriter,
   signal = unmount.signal,
 }: {
   auth?: AuthController;
   cloudSave?: CloudSave;
   storage?: Storage;
-  veinStorage?: Pick<Storage, "getItem" | "setItem">;
+  deviceStorage?: Pick<Storage, "getItem" | "setItem">;
   now?: () => number;
   tapClock?: () => number;
   /** Tests run on fake clocks whose stamps do not line up with an event's: 0 unless set. */
@@ -104,7 +104,7 @@ export function mountScreen({
   });
   mountMountainScreen({
     root,
-    veinStorage,
+    deviceStorage,
     lanternUrl: tileUrl,
     mountainUrl: tileUrl,
     stoneUrl: tileUrl,

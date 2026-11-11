@@ -32,7 +32,7 @@ import { type CloudLoadResult, type CloudSave } from "./cloud-save";
 import { BUYS_SETTLE_MS, showAppUpdate } from "./mountain-screen";
 import { shownRows, upgradeRowId } from "./upgrade-reveal";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
-import { tierById, tierCost } from "./tiers";
+import { tierById, tierCost, tierQuote } from "./tiers";
 import { UPGRADES, upgradeById, upgradeCost, type UpgradeId } from "./upgrades";
 import { upgradesOrder } from "./upgrades-panel";
 import { LOST_TOOLS } from "./lost-tools";
@@ -416,6 +416,131 @@ describe("the Buys drawer (#373)", () => {
     clock += 100;
     fingerTap(rowOf(screen, "cart"));
     expect(carts()).toBe(before + 1);
+  });
+
+  describe("×10 and Max (#358)", () => {
+    const amountKey = (screen: ReturnType<typeof mountScreen>) => {
+      const key = drawerOf(screen).querySelector(
+        ".board-sheet-head .buy-amount",
+      );
+      if (!(key instanceof HTMLButtonElement)) throw new Error("no amount key");
+      return key;
+    };
+    const carts = (screen: ReturnType<typeof mountScreen>) =>
+      screen.progress.getSnapshot().mountain.carts;
+
+    it("one key in the Buys header cycles ×1, ×10 and Max, and each row buys that many", () => {
+      let clock = 10_000;
+      const storage = seededWith(early({ pocket: 10_000_000 }));
+      const screen = mountScreen({
+        storage,
+        now: () => CLOCK,
+        tapClock: () => clock,
+      });
+      openBuys(screen);
+      const key = amountKey(screen);
+      expect(key.textContent).toBe("×1");
+      // The second tap of the double tap that opened Buys changes nothing.
+      fingerTap(key);
+      expect(key.textContent).toBe("×1");
+      clock += BUYS_SETTLE_MS + 100;
+
+      fingerTap(key);
+      expect(key.textContent).toBe("×10");
+      expect(key.getAttribute("aria-label")).toBe(
+        "Buys ten a tap. Tap for as many as you can afford.",
+      );
+      const cart = rowOf(screen, "cart");
+      const mountain = screen.progress.getSnapshot().mountain;
+      const ten = tierQuote(mountain, tierById("cart"), "ten");
+      expect(partOf(cart, "verb")).toBe("Buy 10");
+      expect(partOf(cart, "price")).toBe(formatCompact(ten.cost));
+      fingerTap(cart);
+      expect(carts(screen)).toBe(16);
+      expect(screen.progress.getSnapshot().mountain.pocket).toBe(
+        mountain.pocket - ten.cost,
+      );
+
+      clock += 2_000;
+      fingerTap(key);
+      expect(key.textContent).toBe("Max");
+      const worker = rowOf(screen, "helper");
+      const max = tierQuote(
+        screen.progress.getSnapshot().mountain,
+        tierById("helper"),
+        "max",
+      );
+      expect(max.count).toBeGreaterThan(1);
+      expect(partOf(worker, "verb")).toBe(`Hire ${String(max.count)}`);
+      fingerTap(worker);
+      expect(screen.progress.getSnapshot().mountain.helpers).toBe(
+        18 + max.count,
+      );
+
+      clock += 2_000;
+      fingerTap(key);
+      expect(key.textContent).toBe("×1");
+      expect(partOf(rowOf(screen, "cart"), "verb")).toBe("Buy");
+    });
+
+    it("a press on the key that never clicked is dropped when the drawer moves on", () => {
+      let clock = 10_000;
+      const screen = mountScreen({
+        storage: seededWith(early()),
+        now: () => CLOCK,
+        tapClock: () => clock,
+      });
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      // A finger lands on the key and slides off: no click. Escape shuts the drawer.
+      amountKey(screen).dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      clock += 1_000;
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      // A finger's click whose pointerdown landed elsewhere is judged by its own age, never by
+      // the old finger-down from before this open.
+      amountKey(screen).dispatchEvent(
+        new MouseEvent("click", { bubbles: true, detail: 1 }),
+      );
+      expect(amountKey(screen).textContent).toBe("×10");
+    });
+
+    it("the amount is remembered on this device", () => {
+      let clock = 10_000;
+      const storage = seededWith(early({ pocket: 10_000_000 }));
+      const first = mountScreen({
+        storage,
+        now: () => CLOCK,
+        tapClock: () => clock,
+      });
+      openBuys(first);
+      clock += BUYS_SETTLE_MS + 100;
+      fingerTap(amountKey(first));
+      expect(amountKey(first).textContent).toBe("×10");
+      const again = mountScreen({ storage, now: () => CLOCK });
+      expect(amountKey(again).textContent).toBe("×10");
+      expect(partOf(rowOf(again, "cart"), "verb")).toBe("Buy 10");
+    });
+
+    it("a store that throws starts at ×1 and still plays", () => {
+      const storage = seededWith(early());
+      const screen = mountScreen({
+        storage,
+        now: () => CLOCK,
+        deviceStorage: {
+          getItem: () => {
+            throw new Error("private mode");
+          },
+          setItem: () => {
+            throw new Error("private mode");
+          },
+        },
+      });
+      expect(amountKey(screen).textContent).toBe("×1");
+    });
   });
 
   it("Done holds the row", () => {

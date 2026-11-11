@@ -4,6 +4,7 @@ import {
   createSittingLog,
   longestBestWait,
   medianBuys,
+  medianTaps,
   placeSittings,
   sittingsOf,
   zeroBuyShare,
@@ -20,7 +21,7 @@ function sitting(
   buys: number,
   open: SittingOpen = AFFORDABLE,
 ): SittingEvent {
-  return { sitting: index, openedAtMs: index * 1000, buys, open };
+  return { sitting: index, openedAtMs: index * 1000, buys, taps: buys, open };
 }
 
 describe("createSittingLog", () => {
@@ -34,16 +35,18 @@ describe("createSittingLog", () => {
       return view;
     };
     // Sitting 0: two live seconds, one buy, then a second buy of two.
-    expect(log.observe({ clock: 1000, owned: 1, open })).toEqual([]);
-    expect(log.observe({ clock: 2000, owned: 3, open })).toEqual([]);
+    expect(log.observe({ clock: 1000, owned: 1, tiers: [], open })).toEqual([]);
+    expect(log.observe({ clock: 2000, owned: 3, tiers: [], open })).toEqual([]);
     // The gap: sitting 0 closes, sitting 1 opens before any buy.
-    const closed = log.observe({ clock: 60_000, owned: 3, open });
+    const closed = log.observe({ clock: 60_000, owned: 3, tiers: [], open });
     expect(closed).toEqual([
-      { sitting: 0, openedAtMs: 1000, buys: 2, open: WAITING },
+      { sitting: 0, openedAtMs: 1000, buys: 2, taps: 2, open: WAITING },
     ]);
-    expect(log.observe({ clock: 61_000, owned: 4, open })).toEqual([]);
+    expect(log.observe({ clock: 61_000, owned: 4, tiers: [], open })).toEqual(
+      [],
+    );
     expect(log.flush()).toEqual([
-      { sitting: 1, openedAtMs: 60_000, buys: 1, open: AFFORDABLE },
+      { sitting: 1, openedAtMs: 60_000, buys: 1, taps: 1, open: AFFORDABLE },
     ]);
     expect(asked).toBe(2);
     expect(log.flush()).toEqual([]);
@@ -52,21 +55,49 @@ describe("createSittingLog", () => {
   it("drops a sitting that opened after the last gap and was never played", () => {
     const log = createSittingLog();
     const open = (): SittingOpen => AFFORDABLE;
-    log.observe({ clock: 1000, owned: 1, open });
-    log.observe({ clock: 2000, owned: 2, open });
-    expect(log.observe({ clock: 90_000, owned: 2, open })).toHaveLength(1);
+    log.observe({ clock: 1000, owned: 1, tiers: [], open });
+    log.observe({ clock: 2000, owned: 2, tiers: [], open });
+    expect(
+      log.observe({ clock: 90_000, owned: 2, tiers: [], open }),
+    ).toHaveLength(1);
     expect(log.flush()).toEqual([]);
   });
 
   it("counts only rises in the owned count", () => {
     const log = createSittingLog();
     const open = (): SittingOpen => AFFORDABLE;
-    log.observe({ clock: 1000, owned: 5, open });
-    log.observe({ clock: 2000, owned: 4, open });
-    log.observe({ clock: 3000, owned: 6, open });
+    log.observe({ clock: 1000, owned: 5, tiers: [], open });
+    log.observe({ clock: 2000, owned: 4, tiers: [], open });
+    log.observe({ clock: 3000, owned: 6, tiers: [], open });
     expect(log.flush()).toEqual([
-      { sitting: 0, openedAtMs: 1000, buys: 2, open: AFFORDABLE },
+      { sitting: 0, openedAtMs: 1000, buys: 2, taps: 2, open: AFFORDABLE },
     ]);
+  });
+});
+
+describe("taps on Max (#358)", () => {
+  it("counts a tier bought once however many, and every other buy on its own", () => {
+    const log = createSittingLog();
+    const open = (): SittingOpen => AFFORDABLE;
+    log.observe({ clock: 1000, owned: 10, tiers: [8, 2], open });
+    // Three workers, then four carts, then two more workers: two tiers.
+    log.observe({ clock: 2000, owned: 13, tiers: [11, 2], open });
+    log.observe({ clock: 3000, owned: 17, tiers: [11, 6], open });
+    log.observe({ clock: 4000, owned: 19, tiers: [13, 6], open });
+    // An upgrade level: a buy that is no tier's.
+    log.observe({ clock: 5000, owned: 20, tiers: [13, 6], open });
+    expect(log.flush()).toEqual([
+      { sitting: 0, openedAtMs: 1000, buys: 10, taps: 3, open: AFFORDABLE },
+    ]);
+  });
+
+  it("reads the median taps per sitting", () => {
+    const tapped = (index: number, taps: number): SittingEvent => ({
+      ...sitting(index, 9),
+      taps,
+    });
+    expect(medianTaps([tapped(0, 2), tapped(1, 3), tapped(2, 7)])).toBe(3);
+    expect(medianTaps([])).toBeNaN();
   });
 });
 
@@ -85,12 +116,14 @@ describe("placeSittings", () => {
       sitting: 3,
       openedAtMs: 3600,
       buys: 8,
+      taps: 3,
       open: AFFORDABLE,
     };
     const inside: SittingEvent = {
       sitting: 4,
       openedAtMs: 4500,
       buys: 0,
+      taps: 0,
       open: WAITING,
     };
     placeSittings(samples, [before]);

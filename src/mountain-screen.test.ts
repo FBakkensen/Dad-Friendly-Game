@@ -119,7 +119,7 @@ describe("mountMountainScreen", () => {
       const screen = mountScreen({
         signal: stop.signal,
         storage,
-        veinStorage: {
+        deviceStorage: {
           getItem: () => null,
           setItem: (key) => writes.push(key),
         },
@@ -943,7 +943,7 @@ describe("golden vein on screen", () => {
       const screen = mountScreen({
         now: () => clock,
         random: () => 0,
-        veinStorage: {
+        deviceStorage: {
           getItem: () => {
             throw new Error("blocked");
           },

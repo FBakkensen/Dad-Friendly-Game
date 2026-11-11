@@ -941,6 +941,24 @@ async function main() {
     await expectText(opened.page, /How it works/i, "buys-how");
     return opened;
   });
+  // Buys on Max (#358): the head's amount key, and each row's real count and
+  // total price for as many as the pocket holds.
+  await capture("buys-max", async (viewport) => {
+    const opened = await openAuditPage(viewport, seeded(shortMountain()));
+    await openDrawer(opened.page, "buys");
+    const key = `${OPEN_SHEET("buys")} .board-sheet-head .buy-amount`;
+    for (let step = 0; step < 2; step += 1) {
+      await opened.page.$eval(key, (button) => {
+        button.click();
+      });
+    }
+    const face = await opened.page.$eval(key, (button) => button.textContent);
+    if (face !== "Max") {
+      throw new Error(`buys-max: the key reads ${String(face)}`);
+    }
+    await expectText(opened.page, /Hire \d+/i, "buys-max");
+    return opened;
+  });
   // The Upgrades drawer (#373): a levelled upgrade, an owned one, and found
   // tools under Brought home.
   await capture("upgrades-drawer", async (viewport) => {

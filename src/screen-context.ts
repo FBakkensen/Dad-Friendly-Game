@@ -29,8 +29,8 @@ export type ScreenOptions = {
   /** How long a press waited before its handler ran; a test on its own tap clock passes 0. */
   pressAge?: (event: Event) => number;
   random?: () => number;
-  /** Where the vein wait is carried between sessions; localStorage by default. */
-  veinStorage?: Pick<Storage, "getItem" | "setItem">;
+  /** Where this device's habits are carried between sessions (the vein wait, the Buys amount); localStorage by default. */
+  deviceStorage?: Pick<Storage, "getItem" | "setItem">;
   /** Stops the screen's tick, page listeners and watches. The app never unmounts; tests do. */
   signal?: AbortSignal;
 };
@@ -56,7 +56,7 @@ export type ScreenCtx = {
     | "tierArt"
     | "relicArt"
   >;
-  readonly veinStorage: ScreenOptions["veinStorage"];
+  readonly deviceStorage: ScreenOptions["deviceStorage"];
   readonly paint: () => void;
 };
 
@@ -79,7 +79,7 @@ export function createScreenCtx(
     tapClock = () => performance.now(),
     pressAge,
     random = Math.random,
-    veinStorage,
+    deviceStorage,
     signal,
   }: ScreenOptions,
   late: {
@@ -116,7 +116,7 @@ export function createScreenCtx(
       signal,
       listening,
       art: { lanternUrl, mountainUrl, stoneUrl, veinUrl, tierArt, relicArt },
-      veinStorage,
+      deviceStorage,
       paint: late.paint,
     },
     setView: (next) => {

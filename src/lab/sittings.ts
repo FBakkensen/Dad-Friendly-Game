@@ -20,12 +20,19 @@ export type SittingEvent = {
   readonly openedAtMs: number;
   /** Rises in the owned count (crew, kids, engineers, upgrade levels). */
   readonly buys: number;
+  /**
+   * Taps those buys take with the Buys drawer on Max (#358): one for every tier bought,
+   * however many, and one for every other buy (an upgrade level, an engineer).
+   */
+  readonly taps: number;
   readonly open: SittingOpen;
 };
 
 type Observation = {
   readonly clock: number;
   readonly owned: number;
+  /** Owned of each tier, in one fixed order. */
+  readonly tiers: readonly number[];
   /** Asked once per sitting, at its first observation. */
   readonly open: () => SittingOpen;
 };
@@ -36,6 +43,11 @@ type Current = {
   readonly open: SittingOpen;
   buys: number;
   owned: number;
+  tiers: readonly number[];
+  /** The tiers bought this sitting, by their place in `tiers`. */
+  readonly tiersBought: Set<number>;
+  /** Buys that are not a tier's. */
+  otherBuys: number;
   /** Seen again after the open: a sitting the run ended on is not one. */
   played: boolean;
 };
@@ -46,6 +58,23 @@ export type SittingLog = {
   /** Closes the sitting still open at the end of a run. */
   readonly flush: () => readonly SittingEvent[];
 };
+
+/** One live observation's buys, added to the open sitting. */
+function played(current: Current, observation: Observation): void {
+  const rise = Math.max(0, observation.owned - current.owned);
+  let tierRise = 0;
+  for (const [index, count] of observation.tiers.entries()) {
+    const gained = count - (current.tiers[index] ?? 0);
+    if (gained > 0) {
+      tierRise += gained;
+      current.tiersBought.add(index);
+    }
+  }
+  current.buys += rise;
+  current.otherBuys += Math.max(0, rise - tierRise);
+  current.owned = observation.owned;
+  current.tiers = observation.tiers;
+}
 
 /**
  * A clock step longer than one second is time away. The observation after
@@ -69,6 +98,7 @@ export function createSittingLog(): SittingLog {
       sitting: closing.sitting,
       openedAtMs: closing.openedAtMs,
       buys: closing.buys,
+      taps: closing.tiersBought.size + closing.otherBuys,
       open: closing.open,
     };
     return [event];
@@ -91,15 +121,15 @@ export function createSittingLog(): SittingLog {
           open: observation.open(),
           buys: 0,
           owned: observation.owned,
+          tiers: observation.tiers,
+          tiersBought: new Set(),
+          otherBuys: 0,
           played: false,
         };
         return closed;
       }
       current.played = true;
-      if (observation.owned > current.owned) {
-        current.buys += observation.owned - current.owned;
-      }
-      current.owned = observation.owned;
+      played(current, observation);
       return closed;
     },
     flush: close,
@@ -167,6 +197,14 @@ export function medianBuys(events: readonly SittingEvent[]): number {
     return Number.NaN;
   }
   return median(events.map((event) => event.buys));
+}
+
+/** Median taps a sitting's buys take on Max (#358). NaN with none. */
+export function medianTaps(events: readonly SittingEvent[]): number {
+  if (events.length === 0) {
+    return Number.NaN;
+  }
+  return median(events.map((event) => event.taps));
 }
 
 /** Share of sittings whose best buy is affordable at the open. Empty tables are left out. */

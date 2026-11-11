@@ -25,7 +25,14 @@ import {
   troubleAria,
 } from "./screen-words";
 import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
-import { TIERS, tierById, tierCost, type TierId } from "./tiers";
+import {
+  TIERS,
+  tierById,
+  tierCost,
+  tierQuote,
+  type BuyAmount,
+  type TierId,
+} from "./tiers";
 import { tierSynergy } from "./upgrades";
 
 const NOW = 1_700_000_000_000;
@@ -52,10 +59,12 @@ function row(
     trouble,
     pick,
     guided,
+    amount = "one",
   }: {
     trouble?: Trouble;
     pick?: ReadyPick;
     guided?: TierId;
+    amount?: BuyAmount;
   } = {},
 ): BuyRowView {
   return buyRowView({
@@ -65,6 +74,7 @@ function row(
     tier,
     pick: pick ?? readyNow(mountain, NOW, trouble),
     guided,
+    amount,
   });
 }
 
@@ -460,6 +470,114 @@ describe("BUY_SECTIONS", () => {
     });
     expect([...BUY_SECTIONS.crew, ...BUY_SECTIONS.machines].sort()).toEqual(
       TIERS.map((tier) => tier.id).sort(),
+    );
+  });
+});
+
+describe("buyRowView: ×10 and Max (#358)", () => {
+  /** What `amount` of a tier costs on this mountain, from the shared quote. */
+  const quote = (mountain: Mountain, id: TierId, amount: BuyAmount) =>
+    tierQuote(mountain, tierById(id), amount);
+
+  it("×10 shows ten's total, the count on the verb, and ten's output", () => {
+    const ten = quote(early, "cart", "ten");
+    const mountain = { ...early, pocket: ten.cost };
+    const cart = row(mountain, "cart", { amount: "ten" });
+    expect(cart).toMatchObject({
+      state: "ready",
+      price: formatCompact(ten.cost),
+      verb: "Buy 10",
+      gain: "+60/s",
+      can: true,
+      dimTag: false,
+    });
+    expect(cart.aria).toMatch(
+      new RegExp(
+        `^Buy 10 mine carts for ${formatCount(ten.cost)} stones, each mines `,
+      ),
+    );
+  });
+
+  it("×10 the pocket cannot pay is too dear, and still says ten", () => {
+    const ten = quote(early, "cart", "ten");
+    const mountain = { ...early, pocket: ten.cost - 1 };
+    expect(row(mountain, "cart", { amount: "ten" })).toMatchObject({
+      state: "dear",
+      price: formatCompact(ten.cost),
+      verb: "Buy 10",
+      dimTag: true,
+      can: false,
+    });
+  });
+
+  it("Max counts what the pocket holds, and hires on the workers' row", () => {
+    const rich = { ...early, pocket: 1_000_000 };
+    const max = quote(rich, "helper", "max");
+    expect(max.count).toBeGreaterThan(10);
+    expect(row(rich, "helper", { amount: "max" })).toMatchObject({
+      state: "ready",
+      price: formatCompact(max.cost),
+      verb: `Hire ${String(max.count)}`,
+      gain: `+${String(max.count)}/s`,
+    });
+  });
+
+  it("Max with nothing affordable shows one's price, dimmed", () => {
+    const broke = { ...early, pocket: 0 };
+    expect(row(broke, "cart", { amount: "max" })).toMatchObject({
+      state: "dear",
+      price: formatCompact(priceOf(broke, "cart", 6)),
+      verb: "Buy 1",
+      can: false,
+    });
+  });
+
+  it("short of hands for ten says ten's bill, and the verb still counts ten", () => {
+    // 18 workers on 15 carts leave 3 free, and ten drills take 10.
+    const base = mountainWith({ helpers: 18, carts: 6 });
+    const ten = quote(base, "drill", "ten");
+    const mountain = { ...base, carts: 15, pocket: ten.cost };
+    expect(crewCounts(mountain, NOW).free).toBe(3);
+    expect(row(mountain, "drill", { amount: "ten" })).toMatchObject({
+      state: "short",
+      need: "Needs 10 workers",
+      verb: "Buy 10",
+      can: true,
+      // Three of the ten can run: the gain counts those, never the idle seven.
+      gain: `+${formatSpeed(effectiveRates(mountain, NOW).tierSpeed.drill * 3)}/s`,
+    });
+  });
+
+  it("a ready pick whose ×10 is too dear is not offered on its row", () => {
+    const cart = row(early, "cart", { amount: "ten" });
+    expect(cart).toMatchObject({ state: "dear", lamp: "off", pick: false });
+    expect(cart.flag).toEqual([]);
+    const ten = quote(early, "cart", "ten");
+    expect(
+      row({ ...early, pocket: ten.cost }, "cart", { amount: "ten" }),
+    ).toMatchObject({ lamp: "amber", pick: true, flag: ["Ready now"] });
+  });
+
+  it("a ready pick the free hands cannot run ten of is not offered on its row", () => {
+    // 18 workers on 15 carts leave 3 free: the drill is the pick for one, not for ten.
+    const base = mountainWith({ helpers: 18, carts: 15 });
+    const mountain = { ...base, pocket: quote(base, "drill", "ten").cost };
+    expect(readyNow(mountain, NOW)).toMatchObject({
+      kind: "ready",
+      tier: "drill",
+    });
+    expect(row(mountain, "drill")).toMatchObject({ lamp: "amber", pick: true });
+    const ten = row(mountain, "drill", { amount: "ten" });
+    expect(ten).toMatchObject({ state: "short", lamp: "off", pick: false });
+    expect(ten.flag).toEqual([]);
+  });
+
+  it("the guided New row still hires one, whatever the amount", () => {
+    const idle = mountainWith({ helpers: 2, carts: 6 });
+    const mountain = { ...idle, pocket: 1e9 };
+    const one = row(mountain, "cart", { guided: "cart" });
+    expect(row(mountain, "cart", { guided: "cart", amount: "max" })).toEqual(
+      one,
     );
   });
 });
