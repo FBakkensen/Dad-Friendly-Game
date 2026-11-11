@@ -1,5 +1,5 @@
 /* global console, document, innerWidth, innerHeight, getComputedStyle */
-/** Engineers and Workshop sections: the sheets for the Engineers, the crew and the Workshop. */
+/** Engineers and Workshop sections: the expedition chip and sheet, the Engineers sheet and the Workshop. */
 import {
   awayTripSave,
   campPostsSave,

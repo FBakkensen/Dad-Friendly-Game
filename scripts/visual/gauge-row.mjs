@@ -1,5 +1,5 @@
 /* global console, document, localStorage, getComputedStyle, setTimeout, HTMLImageElement */
-/** Gauge row sections: the gauge row and the vein, per save and band. */
+/** Gauge row sections: the gauge row and the vein, per save and band, and its moving parts. */
 import {
   crewMountain,
   openMountain,

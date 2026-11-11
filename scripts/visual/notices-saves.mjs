@@ -1,5 +1,5 @@
 /* global console, innerWidth, innerHeight, getComputedStyle */
-/** Notice and save sections: the notices, the save line and welcome-back. */
+/** Notice and save sections: the welcome fold and craft notice, the other-tab card and the two-saves conflict sheet. */
 import { noticeSave } from "../../tools/browser/fixtures.ts";
 import { openPair } from "../../tools/browser/harness.ts";
 import { failures, check, section } from "./registry.mjs";

@@ -1,5 +1,5 @@
 /* global console, document, setTimeout */
-/** Running-now effects and the guards on each screen. */
+/** Running-now and no-scroll sections: the countdowns in the Running now note, and no screen scrolling the page. */
 import {
   effectSave,
   freshMountain,

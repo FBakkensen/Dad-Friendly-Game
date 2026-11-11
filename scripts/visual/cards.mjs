@@ -1,5 +1,5 @@
 /* global console, document, innerHeight, setTimeout */
-/** Card sections: the found, relic and sheet cards and the sheets that open from them. */
+/** Card sections: the one-time cards (crew grew, welcome-back, the Mantle, the heir, trouble), found tools and the relic shelf. */
 import {
   staffingNoteSave,
   welcomeBackSave,

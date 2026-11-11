@@ -1,5 +1,5 @@
 /* global console, document, localStorage */
-/** Bays and Ready sections: the bays, the machine tiers and the Ready plate. */
+/** Bays and Ready sections: the bays, the machine tiers and the Ready plate, per save, and their taps. */
 import {
   crewMountain,
   openMountain,
