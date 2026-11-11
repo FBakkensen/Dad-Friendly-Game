@@ -12,7 +12,12 @@ import {
   tileUrl,
 } from "./mountain-screen.harness";
 import { writeSessionSave } from "./session-save";
-import { recipesForMined, type RecipeId } from "./workshop";
+import {
+  recipesForMined,
+  type RecipeId,
+  NOTHING_KEPT,
+  COLD_CLOCKS,
+} from "./workshop";
 
 /*
  * The Workshop drawer on the mounted screen (#374): its doors, its rows' taps through the
@@ -269,8 +274,8 @@ describe("the Workshop drawer (#374)", () => {
       const mountain = screen.progress.getSnapshot().mountain;
       expect(mountain.bench).toBeUndefined();
       expect(mountain.pocket).toBe(250_000);
-      expect(mountain.materials?.clay).toBe(10);
-      expect(mountain.materials?.iron).toBe(4);
+      expect(mountain.materials.clay).toBe(10);
+      expect(mountain.materials.iron).toBe(4);
       expect(partOf(bench, "verb")).toBe("Done");
 
       // Armed and left alone, it disarms after four seconds.
@@ -368,10 +373,13 @@ describe("the Workshop drawer (#374)", () => {
 
   it("the timers line keeps its room, so no row moves when the last timer ends", () => {
     let clock = CLOCK;
-    const screen = mount(rich({ axleUntil: CLOCK + 60_000 }), {
-      now: () => clock,
-      tapClock: () => clock,
-    });
+    const screen = mount(
+      rich({ clocks: { ...COLD_CLOCKS, "axle-grease": CLOCK + 60_000 } }),
+      {
+        now: () => clock,
+        tapClock: () => clock,
+      },
+    );
     keyOf(screen, "workshop").click();
     expect(timersLine(screen).textContent).toMatch(/^Axle grease · /);
     const above = partsAbove(screen);
@@ -492,6 +500,7 @@ describe("the Workshop drawer (#374)", () => {
     const screen = mount(
       rich({
         kept: {
+          ...NOTHING_KEPT,
           bench: {
             recipe: "future-bit",
             startedAt: CLOCK,
@@ -517,7 +526,7 @@ describe("the Workshop drawer (#374)", () => {
     row?.click();
     bench.click();
     expect(screen.progress.getSnapshot().mountain.bench).toBeUndefined();
-    expect(screen.progress.getSnapshot().mountain.kept?.bench?.recipe).toBe(
+    expect(screen.progress.getSnapshot().mountain.kept.bench?.recipe).toBe(
       "future-bit",
     );
   });

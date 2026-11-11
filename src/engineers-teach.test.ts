@@ -160,7 +160,7 @@ describe("engineers teach (#246)", () => {
     );
     trip?.click();
     const after = screen.progress.getSnapshot().mountain;
-    expect(after.expeditions?.[0]?.tunnel).toBe("side-seam");
+    expect(after.expeditions[0]?.tunnel).toBe("side-seam");
     expect(after.taught).toContain("engineers");
     // Its own dot goes. The next step (the second engineer) may light it.
     expect(showsDot(screen.progress.getSnapshot().mountain, "engineers")).toBe(

@@ -36,7 +36,7 @@ export function holdForRush(
 
 /** Stones held for a rush that has not started: a quick vein is owed. */
 export function rushOwed(mountain: Mountain): boolean {
-  return (mountain.rushBank ?? 0) > 0 && mountain.rushUntil === undefined;
+  return mountain.rushBank > 0 && mountain.rushUntil === 0;
 }
 
 /** Starts the owed Gold rush now. With nothing held there is no rush. */
@@ -49,11 +49,7 @@ export function startRush(mountain: Mountain, now: number): Mountain {
 /** Milliseconds left on the rush; 0 when none runs or the mountain is dug out. */
 export function rushLeft(mountain: Mountain, now: number): number {
   const until = mountain.rushUntil;
-  if (
-    until === undefined ||
-    (mountain.rushBank ?? 0) <= 0 ||
-    mountain.remaining === 0
-  ) {
+  if (until === 0 || mountain.rushBank <= 0 || mountain.remaining === 0) {
     return 0;
   }
   // Capped at the full length, so a clock set back can't stretch a rush.
@@ -74,21 +70,20 @@ export function rushPerSecond(
   const left = rushLeft(mountain, now);
   return left === 0
     ? 0
-    : (mountain.rushBank ?? 0) / Math.max(1, Math.floor(left / 1000));
+    : mountain.rushBank / Math.max(1, Math.floor(left / 1000));
 }
 
 /** Pays every held stone at once and ends the rush: nothing held is ever lost. */
 export function releaseRush(mountain: Mountain): Mountain {
-  if (mountain.rushBank === undefined && mountain.rushUntil === undefined) {
+  if (mountain.rushBank === 0 && mountain.rushUntil === 0) {
     return mountain;
   }
-  const next = {
+  return {
     ...mountain,
-    pocket: mountain.pocket + (mountain.rushBank ?? 0),
+    pocket: mountain.pocket + mountain.rushBank,
+    rushBank: 0,
+    rushUntil: 0,
   };
-  Reflect.deleteProperty(next, "rushBank");
-  Reflect.deleteProperty(next, "rushUntil");
-  return next;
 }
 
 /**
@@ -100,12 +95,12 @@ export function payRush(
   from: number,
   seconds: number,
 ): { readonly mountain: Mountain; readonly paid: number } {
-  const bank = mountain.rushBank ?? 0;
+  const bank = mountain.rushBank;
   // At the bottom no vein comes again, so whatever is held lands now.
-  if (mountain.remaining === 0 && mountain.rushBank !== undefined) {
+  if (mountain.remaining === 0) {
     return { mountain: releaseRush(mountain), paid: bank };
   }
-  if (mountain.rushUntil === undefined) {
+  if (mountain.rushUntil === 0) {
     return { mountain, paid: 0 };
   }
   const to = from + seconds * 1000;
@@ -142,7 +137,7 @@ export function resumeRush(
   if (gap >= QUICK_VEIN_AWAY_MS) {
     return releaseRush(mountain);
   }
-  if (mountain.rushUntil === undefined) {
+  if (mountain.rushUntil === 0) {
     return mountain;
   }
   if (rushLeft(mountain, from) === 0) {
@@ -158,10 +153,5 @@ export function resumeRush(
  * speed over hours, so what a buy is worth reads the crew without it.
  */
 export function withoutRush(mountain: Mountain): Mountain {
-  if (mountain.rushUntil === undefined) {
-    return mountain;
-  }
-  const next = { ...mountain };
-  Reflect.deleteProperty(next, "rushUntil");
-  return next;
+  return mountain.rushUntil === 0 ? mountain : { ...mountain, rushUntil: 0 };
 }

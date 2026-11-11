@@ -1,6 +1,6 @@
 import type { Trouble } from "./hazards";
 import { effectiveRates, heartBonus, paidAwayMs } from "./rates";
-import { parseBoosts, type Boosts } from "./boosts";
+import { NO_BOOSTS, type Boosts } from "./boosts";
 import {
   QUICK_VEIN_AWAY_MS,
   holdForRush,
@@ -8,27 +8,26 @@ import {
   resumeRush,
   rushPerSecond,
 } from "./gold-rush";
-import { parseEngineers, type Engineer } from "./engineers";
+import type { Engineer } from "./engineers";
 import {
   clampExpeditions,
   completeDue,
-  parseExpeditions,
-  parseFinds,
   type Expedition,
   type FindId,
   type Homecoming,
 } from "./expeditions";
-import { parseUpgrades, type Upgrades } from "./upgrades";
-import { addMaterials, materialsGained } from "./layers";
+import { NO_UPGRADES, type Upgrades } from "./upgrades";
+import { EMPTY_MATERIALS, addMaterials, materialsGained } from "./layers";
+import type { TeachId } from "./teach";
 import type { Materials } from "./layers";
 import {
-  parseBench,
-  parseCrafted,
-  parseMaterials,
-  parseRecipes,
+  COLD_CLOCKS,
+  NOTHING_CRAFTED,
+  NOTHING_KEPT,
   recipesForMined,
   settleBench,
   type Bench,
+  type Clocks,
   type Crafted,
   type KeptWorkshop,
   type RecipeId,
@@ -61,85 +60,76 @@ export type Mountain = {
   readonly drills: number;
   readonly borers: number;
   readonly machines: number;
-  /** Crown of Wisdom kid helpers; saved only once there are some. */
+  /** Crown of Wisdom kid helpers. */
   readonly kids: number;
-  /** Permanent upgrade levels (src/upgrades.ts); missing means none. */
-  readonly upgrades?: Upgrades;
-  /** Running quick boosts as end times (src/boosts.ts); missing means none. */
-  readonly boosts?: Boosts;
+  /** Permanent upgrade levels (src/upgrades.ts); 0 is none. */
+  readonly upgrades: Upgrades;
   /**
-   * When this run began (epoch ms), set by "Start over". Missing means the
-   * first run. A save from an older run never replaces a newer one.
+   * Quick boosts as end times (src/boosts.ts). 0 means never run; a boost
+   * that has run keeps its last end time, so its row stays shown.
    */
-  readonly startedAt?: number;
+  readonly boosts: Boosts;
+  /**
+   * When this run began (epoch ms), set by "Start over". 0 is the first run.
+   * A save from an older run never replaces a newer one.
+   */
+  readonly startedAt: number;
   /**
    * How far the one-time staffing grants have run (see staffExisting).
    * `true` and `1` are the first grant (#89). `2` is the M7 top-up (#140).
-   * New mountains start at 2. Old clients still write `true`.
+   * 0 is a save from before them. New mountains start at 2. Old clients
+   * still write `true`.
    */
-  readonly staffed?: StaffedMark;
-  /** Mountains passed to your kid (M6); missing means none. */
-  readonly legacy?: number;
+  readonly staffed: StaffedMark | 0;
+  /** Mountains passed to your kid (M6). */
+  readonly legacy: number;
   /**
    * How much bigger this run is (M13, src/scale.ts). Set when the mine passes
-   * to the kid; missing means 1, so a run already under way keeps its numbers.
-   * Written in the workshop map, beside the mountain.
+   * to the kid; 1 is unstretched, so a run already under way keeps its numbers.
    */
-  readonly stretch?: number;
+  readonly stretch: number;
+  /** Named engineers (M7), at most five. See src/engineers.ts. */
+  readonly engineers: readonly Engineer[];
   /**
-   * Named engineers (M7). Missing until the first borer; at most five.
-   * See src/engineers.ts.
+   * Parties still out (M7). An engineer on one of these is away: their post
+   * is the one they come home to. See src/expeditions.ts.
    */
-  readonly engineers?: readonly Engineer[];
+  readonly expeditions: readonly Expedition[];
   /**
-   * Parties still out (M7). Missing when nobody is in a tunnel.
-   * See src/expeditions.ts.
-   */
-  readonly expeditions?: readonly Expedition[];
-  /**
-   * Lost tools and keepsakes already brought home. Missing until the first.
+   * Lost tools and keepsakes already brought home.
    * Glimmers are not stored; they are a line, not a thing on the shelf.
    */
-  readonly finds?: readonly FindId[];
+  readonly finds: readonly FindId[];
+  /** Clay, iron, crystal, and heartstone dug with the stones (M9). */
+  readonly materials: Materials;
+  /** The craft on the one bench. A required key: undefined is a free bench. */
+  readonly bench: Bench | undefined;
+  /** Levels already crafted; 0 is not made. */
+  readonly crafted: Crafted;
+  /** Recipes found. */
+  readonly recipes: readonly RecipeId[];
   /**
-   * Clay, iron, crystal, and heartstone dug with the stones (M9). Missing
-   * on a mountain built in a test; a real save always has it.
+   * When each craft's live timer stops (epoch ms); 0 is cold. Saved as four
+   * fields in the workshop map.
    */
-  readonly materials?: Materials;
-  /** The craft on the one bench. Missing means the bench is free. */
-  readonly bench?: Bench;
-  /** Levels already crafted. Missing means nothing is made. */
-  readonly crafted?: Crafted;
-  /** Recipes found. Missing on a hand-built mountain; a save always has it. */
-  readonly recipes?: readonly RecipeId[];
-  /**
-   * When a blasting charge stops doubling the crew (epoch ms). Missing means
-   * none is hot. Written in the workshop map, beside the mountain.
-   */
-  readonly chargeUntil?: number;
-  /** When a crystal flare stops drawing veins. Live play only. */
-  readonly flareUntil?: number;
-  /** When a heartstone ember stops lifting the Great Machine. Live play only. */
-  readonly emberUntil?: number;
-  /** When axle grease stops speeding carts. Live play only. */
-  readonly axleUntil?: number;
-  /** When the Gold rush stops speeding the crew (src/gold-rush.ts). Live play only. */
-  readonly rushUntil?: number;
+  readonly clocks: Clocks;
+  /** When the Gold rush stops speeding the crew (src/gold-rush.ts); 0 is none. */
+  readonly rushUntil: number;
   /** Stones of an away haul held for the Gold rush, paid as it runs (src/gold-rush.ts). */
-  readonly rushBank?: number;
+  readonly rushBank: number;
   /** Systems whose "New" note has been opened (M11, src/teach.ts). */
-  readonly seen?: readonly string[];
+  readonly seen: readonly TeachId[];
   /** Systems used at least once; their dot is gone (M11, src/teach.ts). */
-  readonly taught?: readonly string[];
+  readonly taught: readonly TeachId[];
   /**
-   * Recipe ids, a bench, and crafted levels this build does not know.
-   * Written back inside the workshop map. Not a mountain document key.
+   * Recipe ids, a bench, crafted levels and teach ids this build does not
+   * know, from a newer build. Written back as they came.
    */
-  readonly kept?: KeptWorkshop;
+  readonly kept: KeptWorkshop;
 };
 
 /** A sanity cap for saves; no dad gets near it. Mirrored in firestore.rules. */
-const MAX_LEGACY = 1000;
+export const MAX_LEGACY = 1000;
 
 /** `true` and `1`: the #89 grant. `2`: the M7 top-up. Mirrored in firestore.rules. */
 export type StaffedMark = true | 1 | 2;
@@ -147,25 +137,49 @@ export type StaffedMark = true | 1 | 2;
 /** Saves at this mark have had every staffing top-up. New mountains start here. */
 export const STAFF_GRANT = 2 satisfies StaffedMark;
 
-function isStaffedMark(value: unknown): value is StaffedMark {
+export function isStaffedMark(value: unknown): value is StaffedMark {
   return value === true || value === 1 || value === 2;
 }
 
 /** 0 for a first run that was never started over. */
 export function runStartedAt(mountain: Mountain): number {
-  return mountain.startedAt ?? 0;
+  return mountain.startedAt;
 }
+
+/** A mountain with nothing dug and nothing owned, before the staffing grant. */
+export const BARE_MOUNTAIN: Mountain = {
+  remaining: MOUNTAIN_STONES,
+  pocket: 0,
+  helpers: 0,
+  carts: 0,
+  drills: 0,
+  borers: 0,
+  machines: 0,
+  kids: 0,
+  upgrades: NO_UPGRADES,
+  boosts: NO_BOOSTS,
+  startedAt: 0,
+  staffed: 0,
+  legacy: 0,
+  stretch: 1,
+  engineers: [],
+  expeditions: [],
+  finds: [],
+  materials: EMPTY_MATERIALS,
+  bench: undefined,
+  crafted: NOTHING_CRAFTED,
+  recipes: [],
+  clocks: COLD_CLOCKS,
+  rushUntil: 0,
+  rushBank: 0,
+  seen: [],
+  taught: [],
+  kept: NOTHING_KEPT,
+};
 
 export function createMountain(): Mountain {
   return {
-    remaining: MOUNTAIN_STONES,
-    pocket: 0,
-    helpers: 0,
-    carts: 0,
-    drills: 0,
-    borers: 0,
-    machines: 0,
-    kids: 0,
+    ...BARE_MOUNTAIN,
     staffed: STAFF_GRANT,
     materials: materialsGained(0, 0),
     recipes: recipesForMined(0),
@@ -368,7 +382,7 @@ export function accrueAway({
     mountain: held,
     report: {
       mined: walked.mined,
-      heldForRush: held.rushBank === undefined || !long ? 0 : held.rushBank,
+      heldForRush: long ? held.rushBank : 0,
       awayMs,
       paidMs,
       capped,
@@ -400,7 +414,7 @@ function accrueAcrossExpeditions({
   const homecomings = [...opened.homecomings];
   const marks = [
     ...new Set(
-      (state.expeditions ?? [])
+      state.expeditions
         .map((trip) => trip.returnsAt)
         .filter((returnsAt) => returnsAt > from && returnsAt < to),
     ),
@@ -424,123 +438,4 @@ function accrueAcrossExpeditions({
     settledAt: tail.settledAt,
     homecomings,
   };
-}
-
-/** Builds a mountain from untrusted data; every field must be a sane whole number. */
-export function parseMountain(
-  value: unknown,
-  total: number = MOUNTAIN_STONES,
-): Mountain | undefined {
-  if (typeof value !== "object" || value === null) {
-    return undefined;
-  }
-  const {
-    remaining,
-    pocket,
-    helpers,
-    carts = 0,
-    drills = 0,
-    borers = 0,
-    machines = 0,
-    kids = 0,
-    upgrades,
-    boosts,
-    startedAt,
-    staffed,
-    legacy,
-    engineers,
-    expeditions,
-    finds,
-    materials,
-    bench,
-    crafted,
-    recipes,
-  } = value as Record<string, unknown>;
-  if (
-    !isCount(remaining) ||
-    remaining > total ||
-    !isCount(pocket) ||
-    !isCount(helpers) ||
-    !isCount(carts) ||
-    !isCount(drills) ||
-    !isCount(borers) ||
-    !isCount(machines) ||
-    !isCount(kids) ||
-    (startedAt !== undefined && !isCount(startedAt)) ||
-    (staffed !== undefined && !isStaffedMark(staffed)) ||
-    (legacy !== undefined && (!isCount(legacy) || legacy > MAX_LEGACY)) ||
-    (upgrades !== undefined && parseUpgrades(upgrades) === undefined) ||
-    (boosts !== undefined && parseBoosts(boosts) === undefined) ||
-    (engineers !== undefined && parseEngineers(engineers) === undefined) ||
-    (expeditions !== undefined &&
-      parseExpeditions(expeditions, parseEngineers(engineers)) === undefined) ||
-    (finds !== undefined && parseFinds(finds) === undefined) ||
-    (materials !== undefined && parseMaterials(materials) === undefined) ||
-    (recipes !== undefined && parseRecipes(recipes) === undefined) ||
-    (bench !== undefined &&
-      bench !== null &&
-      parseBench(bench) === undefined) ||
-    (crafted !== undefined && parseCrafted(crafted) === undefined)
-  ) {
-    return undefined;
-  }
-  const mountain = {
-    remaining,
-    pocket,
-    helpers,
-    carts,
-    drills,
-    borers,
-    machines,
-    kids,
-  };
-  const parsedBoosts = boosts === undefined ? undefined : parseBoosts(boosts);
-  const parsedUpgrades =
-    upgrades === undefined ? undefined : parseUpgrades(upgrades);
-  const parsedEngineers =
-    engineers === undefined ? undefined : parseEngineers(engineers);
-  const parsedExpeditions =
-    expeditions === undefined
-      ? undefined
-      : parseExpeditions(expeditions, parsedEngineers);
-  const parsedFinds = finds === undefined ? undefined : parseFinds(finds);
-  const parsedMaterials =
-    materials === undefined ? undefined : parseMaterials(materials);
-  const parsedRecipes =
-    recipes === undefined ? undefined : parseRecipes(recipes);
-  const parsedBench =
-    bench === undefined || bench === null ? undefined : parseBench(bench);
-  const parsedCrafted =
-    crafted === undefined ? undefined : parseCrafted(crafted);
-  return {
-    ...mountain,
-    ...(parsedUpgrades === undefined || Object.keys(parsedUpgrades).length === 0
-      ? {}
-      : { upgrades: parsedUpgrades }),
-    ...(parsedBoosts === undefined || Object.keys(parsedBoosts).length === 0
-      ? {}
-      : { boosts: parsedBoosts }),
-    ...(startedAt === undefined ? {} : { startedAt }),
-    ...(isStaffedMark(staffed) ? { staffed } : {}),
-    ...(typeof legacy === "number" && legacy > 0 ? { legacy } : {}),
-    ...(parsedEngineers === undefined || parsedEngineers.length === 0
-      ? {}
-      : { engineers: parsedEngineers }),
-    ...(parsedExpeditions === undefined || parsedExpeditions.length === 0
-      ? {}
-      : { expeditions: parsedExpeditions }),
-    ...(parsedFinds === undefined || parsedFinds.length === 0
-      ? {}
-      : { finds: parsedFinds }),
-    ...(parsedMaterials === undefined ? {} : { materials: parsedMaterials }),
-    ...(parsedRecipes === undefined ? {} : { recipes: parsedRecipes }),
-    ...(parsedBench === undefined ? {} : { bench: parsedBench }),
-    ...(parsedCrafted === undefined || Object.keys(parsedCrafted).length === 0
-      ? {}
-      : { crafted: parsedCrafted }),
-  };
-}
-
-function isCount(value: unknown): value is number {
-  return Number.isSafeInteger(value) && (value as number) >= 0;
 }

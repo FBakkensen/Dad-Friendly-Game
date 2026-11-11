@@ -2,6 +2,7 @@
 import { etaShort, formatCompact, formatCount } from "./format";
 import { shownStones, stonesLeft } from "./scale";
 import { RELICS } from "./relics";
+import { savedMountain } from "./save-format";
 import { RELIC_DARK, RELIC_LIT } from "./board-relics";
 import { writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,6 +19,7 @@ import {
   createMountain,
   stonesPerSecond,
   type Mountain,
+  BARE_MOUNTAIN,
 } from "./mountain";
 import { BUYS_SETTLE_MS, showAppUpdate } from "./mountain-screen";
 import { effectiveRates } from "./rates";
@@ -59,6 +61,9 @@ import {
   signedIn,
   stopScreens,
 } from "./mountain-screen.harness";
+import { NO_BOOSTS } from "./boosts";
+import { NO_UPGRADES } from "./upgrades";
+import { firstNotice } from "./session";
 
 // The window's beats are counted where the window takes them (#371).
 vi.mock("./mine-window", async (importOriginal) => {
@@ -385,6 +390,7 @@ describe("mountMountainScreen", () => {
   it("disables the mountain once it is mined out", () => {
     const storage = createMemoryStorage();
     const done: Mountain = {
+      ...BARE_MOUNTAIN,
       remaining: 0,
       pocket: MOUNTAIN_STONES,
       helpers: 0,
@@ -396,7 +402,11 @@ describe("mountMountainScreen", () => {
     };
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({ version: 5, mountain: done, lastSeen: 1 }),
+      JSON.stringify({
+        version: 5,
+        mountain: savedMountain(done),
+        lastSeen: 1,
+      }),
     );
 
     const screen = mountScreen({ storage });
@@ -961,7 +971,7 @@ describe("golden vein on screen", () => {
           expect(now.rushBank).toBe(3_240);
           await tick(90_000);
           const after = screen.progress.getSnapshot().mountain;
-          expect(after.rushBank).toBeUndefined();
+          expect(after.rushBank).toBe(0);
           expect(after.pocket - now.pocket).toBe(3_240 + 90 * 4);
         } finally {
           vi.useRealTimers();
@@ -1029,18 +1039,14 @@ describe("golden vein on screen", () => {
           await tick(1_000);
           // another device's save landed the held stones
           screen.progress.applyMutation((mountain) => {
-            const landed = { ...mountain };
-            delete landed.rushBank;
-            return landed;
+            return { ...mountain, rushBank: 0 };
           });
           // no rush to keep for him: the vein stops waiting behind the card
           await tick(20_000);
           expect(vein.hidden).toBe(false);
           vein.click();
           expect(screen.text(".vein-note")).not.toContain("Gold rush");
-          expect(
-            screen.progress.getSnapshot().mountain.rushUntil,
-          ).toBeUndefined();
+          expect(screen.progress.getSnapshot().mountain.rushUntil).toBe(0);
         } finally {
           vi.useRealTimers();
         }
@@ -1069,9 +1075,9 @@ describe("golden vein on screen", () => {
           await tick(2 * 60_000);
           expect(vein.hidden).toBe(true);
           const missed = screen.progress.getSnapshot().mountain;
-          expect(missed.rushUntil).toBeUndefined();
+          expect(missed.rushUntil).toBe(0);
           // nothing held is lost: the stones landed when the glint went by
-          expect(missed.rushBank).toBeUndefined();
+          expect(missed.rushBank).toBe(0);
         } finally {
           vi.useRealTimers();
         }
@@ -1316,7 +1322,7 @@ describe("Lantern of Guidance on screen", () => {
       /^\+[\d,]+ stones while you were away$/,
     );
     await Promise.resolve();
-    expect(screen.progress.getSnapshot().quietAway).toBeUndefined();
+    expect(firstNotice(screen.progress.getSnapshot(), "quiet")).toBeUndefined();
   });
 
   it("fills the guide bar between relics", () => {
@@ -1957,7 +1963,7 @@ describe("the control board (#370)", () => {
         {
           ...minedMountain(0),
           helpers: 3,
-          boosts: { overtime: clock + 20 * 60_000 },
+          boosts: { ...NO_BOOSTS, overtime: clock + 20 * 60_000 },
         },
         clock,
       ),
@@ -2000,7 +2006,7 @@ describe("the control board (#370)", () => {
             helpers: 0,
             carts: 0,
             drills: 0,
-            boosts: { overtime: at + 90_000 },
+            boosts: { ...NO_BOOSTS, overtime: at + 90_000 },
           },
           at,
         ),
@@ -2558,7 +2564,7 @@ describe("the control board (#370)", () => {
       ...minedMountain(30_000),
       helpers: 500,
       carts: 3,
-      upgrades: { tap: 1 },
+      upgrades: { ...NO_UPGRADES, tap: 1 },
     };
     const screen = mountScreen({ storage: seeded(m, clock), now: () => clock });
     const tapYield = effectiveRates(m, clock).tapYield;
@@ -3388,7 +3394,7 @@ describe("the control board (#370)", () => {
         ...minedMountain(30_000),
         helpers: 500,
         carts: 3,
-        upgrades: { tap: 1 },
+        upgrades: { ...NO_UPGRADES, tap: 1 },
       };
       const screen = readyAt(m);
       const tapYield = effectiveRates(m, CLOCK).tapYield;
@@ -3423,7 +3429,10 @@ describe("the control board (#370)", () => {
     vi.useFakeTimers();
     try {
       setReducedMotion(false);
-      const m: Mountain = { ...minedMountain(30_000), upgrades: { tap: 1 } };
+      const m: Mountain = {
+        ...minedMountain(30_000),
+        upgrades: { ...NO_UPGRADES, tap: 1 },
+      };
       const screen = readyAt(m);
       const tapYield = effectiveRates(m, CLOCK).tapYield;
       const sprite =
@@ -3445,7 +3454,10 @@ describe("the control board (#370)", () => {
   });
 
   it("under reduced motion a window tap still counts by hand, with no echo", () => {
-    const m: Mountain = { ...minedMountain(30_000), upgrades: { tap: 1 } };
+    const m: Mountain = {
+      ...minedMountain(30_000),
+      upgrades: { ...NO_UPGRADES, tap: 1 },
+    };
     const screen = readyAt(m);
     const tapYield = effectiveRates(m, CLOCK).tapYield;
     tap(screen.dig);

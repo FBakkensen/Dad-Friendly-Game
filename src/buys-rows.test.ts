@@ -33,7 +33,7 @@ import {
   type BuyAmount,
   type TierId,
 } from "./tiers";
-import { tierSynergy } from "./upgrades";
+import { tierSynergy, NO_UPGRADES } from "./upgrades";
 
 const NOW = 1_700_000_000_000;
 
@@ -48,7 +48,7 @@ function at(depth: number): Pick<Mountain, "remaining"> {
 
 /** What the next one of a tier costs on this mountain. */
 function priceOf(mountain: Mountain, id: TierId, owned: number): number {
-  return tierCost(tierById(id), owned, mountain.stretch ?? 1);
+  return tierCost(tierById(id), owned, mountain.stretch);
 }
 
 /** One row, read as the drawer would: with this frame's Ready pick. */
@@ -409,7 +409,7 @@ describe("buyRowView", () => {
       helpers: 12,
       carts: 6,
       pocket: 6_854,
-      upgrades: { cartSyn: 1 },
+      upgrades: { ...NO_UPGRADES, cartSyn: 1 },
     });
     const share = tierSynergy(synergy, "cart");
     expect(share).toBeGreaterThan(0);
@@ -445,13 +445,13 @@ describe("buyRowView", () => {
       borers: 1,
       pocket: 5_000_000,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
-      upgrades: { cartSyn: 1 },
+      upgrades: { ...NO_UPGRADES, cartSyn: 1 },
     });
     const before = structuredClone(mountain);
     const frozen = Object.freeze({
       ...mountain,
       engineers: Object.freeze(
-        (mountain.engineers ?? []).map((one) => Object.freeze({ ...one })),
+        mountain.engineers.map((one) => Object.freeze({ ...one })),
       ),
       upgrades: Object.freeze({ ...mountain.upgrades }),
     });

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { withFactors } from "../../src/economy/factors";
 import { tendingTenths } from "../../src/engineers";
 import { LAYERS } from "../../src/layers";
-import { createMountain } from "../../src/mountain";
+import { BARE_MOUNTAIN, createMountain } from "../../src/mountain";
 import { effectiveRates } from "../../src/rates";
 import { MOUNTAIN_STONES } from "../../src/scale";
 import { tierById, tierCost, TIERS, type TierId } from "../../src/tiers";
@@ -16,11 +16,15 @@ import {
   recipeCost,
   troubleGapScale,
   veinOftenScale,
+  COLD_CLOCKS,
+  NOTHING_CRAFTED,
+  withClock,
   type RecipeId,
 } from "../../src/workshop";
 import { KNOBS } from "./knobs";
 
 const posted = {
+  ...BARE_MOUNTAIN,
   remaining: 1_000,
   pocket: 0,
   helpers: 0,
@@ -79,10 +83,13 @@ function reading(factorId: string): number {
       drills: 1,
       borers: 1,
       machines: 1,
-      crafted: { [id]: 1 },
-      chargeUntil: 10_000,
-      flareUntil: 10_000,
-      emberUntil: 10_000,
+      crafted: { ...NOTHING_CRAFTED, [id]: 1 },
+      clocks: {
+        ...COLD_CLOCKS,
+        "blasting-charge": 10_000,
+        "crystal-flare": 10_000,
+        "heartstone-ember": 10_000,
+      },
     };
     const effect = recipeById(id).effect;
     switch (effect.kind) {
@@ -103,7 +110,7 @@ function reading(factorId: string): number {
       case "reinforce":
         return gearMultiplier(geared, "machine");
       case "axle":
-        return axleCrewMultiplier({ ...geared, axleUntil: 10_000 }, 0);
+        return axleCrewMultiplier(withClock(geared, "axle-grease", 10_000), 0);
     }
   }
   if (factorId.startsWith("layer.")) {

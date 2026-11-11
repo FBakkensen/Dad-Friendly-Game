@@ -102,7 +102,7 @@ function toolStones(
 ): number {
   const withTool: Mountain = {
     ...mountain,
-    finds: [...(mountain.finds ?? []), id],
+    finds: [...mountain.finds, id],
   };
   const current = rateOf(mountain);
   const delta = rateOf(withTool) - current;
@@ -124,7 +124,7 @@ function engineerStones(
   const index = engineers.length;
   let best = rateOf(hired);
   for (const post of ENGINEER_POSTS) {
-    if (post === "camp" || post === "tunnel") {
+    if (post === "camp") {
       continue;
     }
     best = Math.max(best, rateOf(station(hired, index, post)));

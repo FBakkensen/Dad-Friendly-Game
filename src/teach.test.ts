@@ -7,7 +7,7 @@ import {
   recordFirstUse,
   showsDot,
 } from "./teach";
-import { workshopUnlocked } from "./workshop";
+import { workshopUnlocked, NOTHING_CRAFTED } from "./workshop";
 
 function granite(): Mountain {
   // Mine until the Workshop opens, without using it.
@@ -47,7 +47,7 @@ describe("teach", () => {
   it("drops the dot and writes taught at the first craft", () => {
     const used = recordFirstUse({
       ...granite(),
-      crafted: { "blasting-charge": 1 },
+      crafted: { ...NOTHING_CRAFTED, "blasting-charge": 1 },
     });
     expect(used.taught).toEqual(["workshop"]);
     expect(used.seen).toEqual(["workshop"]);
@@ -65,19 +65,20 @@ describe("teach", () => {
 
   it("counts an old save that already crafted as taught", () => {
     const old = { ...granite(), crafted: { "blasting-charge": 2 } } as Mountain;
-    expect(old.taught).toBeUndefined();
+    expect(old.taught).toEqual([]);
     expect(showsDot(old, "workshop")).toBe(false);
     expect(noteFor(old)).toBeUndefined();
   });
 
   it("reads saved ids leniently and keeps unknown ones", () => {
-    expect(parseTeachIds(undefined)).toEqual([]);
+    expect(parseTeachIds(undefined)).toEqual({ known: [], kept: [] });
     expect(parseTeachIds("workshop")).toBe("bad");
     expect(
       parseTeachIds(["workshop", "workshop", 3, "", "x".repeat(41), "future"]),
-    ).toEqual(["workshop", "future"]);
-    expect(
-      parseTeachIds(Array.from({ length: 50 }, (_, i) => `id${String(i)}`)),
-    ).toHaveLength(32);
+    ).toEqual({ known: ["workshop"], kept: ["future"] });
+    const many = parseTeachIds(
+      Array.from({ length: 50 }, (_, i) => `id${String(i)}`),
+    );
+    expect(many === "bad" ? [] : many.kept).toHaveLength(32);
   });
 });

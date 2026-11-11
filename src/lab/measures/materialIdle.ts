@@ -1,7 +1,7 @@
 import type { MaterialId, Materials } from "../../layers";
 import { LAYERS } from "../../layers";
 import type { CraftRule } from "../policy";
-import type { Crafted, RecipeId } from "../../workshop";
+import { NOTHING_CRAFTED, type Crafted, type RecipeId } from "../../workshop";
 import { recipeById, recipeCost } from "../../workshop";
 import { defineMeasure, type DecisionSample } from "../measure";
 import { DAY_MS } from "../targets";
@@ -43,7 +43,7 @@ function levelsLeft(
   if (recipe.maxLevel === undefined) {
     return unlimited.has(id) ? Number.POSITIVE_INFINITY : 0;
   }
-  const done = crafted[id] ?? 0;
+  const done = crafted[id];
   return recipe.maxLevel > done ? recipe.maxLevel - done : 0;
 }
 
@@ -84,7 +84,7 @@ export function materialIsIdle(sample: DecisionSample): boolean {
     return false;
   }
   const known = sample.knownRecipes ?? [];
-  const crafted = sample.crafted ?? {};
+  const crafted = sample.crafted ?? NOTHING_CRAFTED;
   const unlimited = sample.unlimitedSinks ?? [];
   for (const layer of LAYERS) {
     if (overDemand(have, layer.material, known, crafted, unlimited)) {

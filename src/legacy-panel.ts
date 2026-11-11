@@ -12,7 +12,6 @@ import {
   PASS_TITLE,
   formatCraftSpeed as speed,
 } from "./screen-words";
-import { recipesForMined } from "./workshop";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 
 /** "×1.5", "×2": the Legacy bonus as people read it. */
@@ -33,12 +32,12 @@ export type LegacyCardWords = {
  * (exactly what passTheMine keeps).
  */
 export function legacyCardWords(mountain: Mountain): LegacyCardWords {
-  const legacy = mountain.legacy ?? 0;
+  const legacy = mountain.legacy;
   const now = effectiveRates({ ...createMountain(), legacy });
   const kid = effectiveRates({ ...createMountain(), legacy: legacy + 1 });
   const before = legacyWords(legacyBonus(mountain));
   const after = legacyWords(legacyBonus({ ...mountain, legacy: legacy + 1 }));
-  const recipes = (mountain.recipes ?? recipesForMined(0)).length;
+  const recipes = mountain.recipes.length;
   return {
     lead:
       legacy === 0
@@ -170,7 +169,7 @@ export function createLegacyPanel({
   const render = (): void => {
     const { mountain } = getView();
     const bonus = legacyBonus(mountain);
-    const legacy = mountain.legacy ?? 0;
+    const legacy = mountain.legacy;
     hide(badge, legacy === 0);
     write(badge, `Legacy ${legacyWords(bonus)}`);
     setAttr(

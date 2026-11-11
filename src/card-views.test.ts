@@ -3,7 +3,7 @@ import { arrivalCard, craftLine, welcomeNews, welcomeView } from "./card-views";
 import type { Homecoming } from "./expeditions";
 import { LAYERS, type Layer } from "./layers";
 import { createMountain, type AwayReport } from "./mountain";
-import type { CraftNotice } from "./session";
+import type { CraftNotice, Notice } from "./session";
 import type { ProgressSnapshot } from "./progress-store";
 import { RELICS } from "./relics";
 import {
@@ -24,19 +24,17 @@ const HOUR = 3_600_000;
 /** A plain snapshot: nothing to tell. */
 const plain = {
   mountain: minedMountain(10),
-  away: undefined,
-  crewJoined: undefined,
-  engineerJoined: undefined,
+  notices: [],
   homecomings: [],
-  layersArrived: [],
-  craftsFitted: [],
-  revealed: undefined,
 } as unknown as ProgressSnapshot;
 
 const snap = (over: Partial<ProgressSnapshot>): ProgressSnapshot => ({
   ...plain,
   ...over,
 });
+
+/** A snapshot with these notices, in order. */
+const news = (...notices: Notice[]): ProgressSnapshot => snap({ notices });
 
 const report = (over: Partial<AwayReport> = {}): AwayReport => ({
   mined: 1_200_000,
@@ -49,6 +47,13 @@ const report = (over: Partial<AwayReport> = {}): AwayReport => ({
   ...over,
 });
 
+const away = (over: Partial<AwayReport> = {}): Notice => ({
+  kind: "away",
+  report: report(over),
+});
+const crew = (helpers: number): Notice => ({ kind: "crew-joined", helpers });
+const ENGINEER: Notice = { kind: "engineer-joined" };
+
 const home = (engineer: "Ada" | "Nils", text: string): Homecoming => ({
   engineer,
   tunnel: "side-seam",
@@ -56,12 +61,12 @@ const home = (engineer: "Ada" | "Nils", text: string): Homecoming => ({
   sentAt: 0,
 });
 
-const band = (id: Layer["id"]): Layer => {
+const band = (id: Layer["id"]): Notice => {
   const found = LAYERS.find((layer) => layer.id === id);
   if (found === undefined) {
     throw new Error(id);
   }
-  return found;
+  return { kind: "layer", layer: found };
 };
 
 const fitted = (id: "iron-rails" | "axle-grease"): CraftNotice => ({
@@ -70,6 +75,10 @@ const fitted = (id: "iron-rails" | "axle-grease"): CraftNotice => ({
   mountain: createMountain(),
   at: 0,
 });
+const craft = (id: "iron-rails" | "axle-grease"): Notice => ({
+  kind: "craft",
+  craft: fitted(id),
+});
 
 describe("welcomeNews", () => {
   it("is false on a plain snapshot", () => {
@@ -77,9 +86,9 @@ describe("welcomeNews", () => {
   });
 
   it("is true for an away haul, the crew, the engineer and a homecoming", () => {
-    expect(welcomeNews(snap({ away: report() }))).toBe(true);
-    expect(welcomeNews(snap({ crewJoined: 2 }))).toBe(true);
-    expect(welcomeNews(snap({ engineerJoined: true }))).toBe(true);
+    expect(welcomeNews(news(away()))).toBe(true);
+    expect(welcomeNews(news(crew(2)))).toBe(true);
+    expect(welcomeNews(news(ENGINEER))).toBe(true);
     expect(welcomeNews(snap({ homecomings: [home("Ada", "Quiet.")] }))).toBe(
       true,
     );
@@ -88,74 +97,67 @@ describe("welcomeNews", () => {
 
 describe("welcomeView", () => {
   it("is undefined with no news", () => {
-    expect(
-      welcomeView(snap({ layersArrived: [band("granite")] })),
-    ).toBeUndefined();
+    expect(welcomeView(news(band("granite")))).toBeUndefined();
   });
 
   it("follows today's title chain", () => {
-    const title = (over: Partial<ProgressSnapshot>) =>
-      welcomeView(snap(over))?.title;
-    expect(title({ away: report(), crewJoined: 2 })).toBe(WELCOME_AWAY_TITLE);
-    expect(title({ crewJoined: 2, engineerJoined: true })).toBe(
-      CREW_GREW_TITLE,
+    const title = (view: ProgressSnapshot) => welcomeView(view)?.title;
+    const homes = [home("Ada", "Q.")];
+    expect(title(news(away(), crew(2)))).toBe(WELCOME_AWAY_TITLE);
+    expect(title(news(crew(2), ENGINEER))).toBe(CREW_GREW_TITLE);
+    expect(title(snap({ notices: [ENGINEER], homecomings: homes }))).toBe(
+      ENGINEER_WELCOME,
     );
-    expect(
-      title({ engineerJoined: true, homecomings: [home("Ada", "Q.")] }),
-    ).toBe(ENGINEER_WELCOME);
-    expect(title({ homecomings: [home("Ada", "Q.")] })).toBe(
-      WELCOME_HOME_TITLE,
-    );
+    expect(title(snap({ homecomings: homes }))).toBe(WELCOME_HOME_TITLE);
   });
 
   it("writes the haul in stones", () => {
-    expect(
-      welcomeView(snap({ away: report({ mined: 1 }) }))?.away?.mined,
-    ).toEqual({ count: "+1", unit: "stone" });
-    expect(welcomeView(snap({ away: report() }))?.away?.mined).toEqual({
+    expect(welcomeView(news(away({ mined: 1 })))?.away?.mined).toEqual({
+      count: "+1",
+      unit: "stone",
+    });
+    expect(welcomeView(news(away()))?.away?.mined).toEqual({
       count: "+1.2 million",
       unit: "stones",
     });
   });
 
   it("names the stones held for the Gold rush, only when some were (#468)", () => {
-    expect(welcomeView(snap({ away: report() }))?.away?.rush).toBeUndefined();
-    expect(
-      welcomeView(snap({ away: report({ heldForRush: 3_240 }) }))?.away?.rush,
-    ).toBe("3,240 of them wait for your Gold rush: watch for the golden vein.");
+    expect(welcomeView(news(away()))?.away?.rush).toBeUndefined();
+    expect(welcomeView(news(away({ heldForRush: 3_240 })))?.away?.rush).toBe(
+      "3,240 of them wait for your Gold rush: watch for the golden vein.",
+    );
   });
 
   it("says how long you were gone, with and without the Heart", () => {
     const gone = (heart: number) =>
-      welcomeView(snap({ away: report({ heart }) }))?.away?.gone;
+      welcomeView(news(away({ heart })))?.away?.gone;
     expect(gone(1)).toBe(
       "You were gone 1 hour. Your crew kept digging the whole time.",
     );
     expect(gone(1.25)).toMatch(/The Heart of Patience made it ×1\.25\.$/);
     expect(gone(1.5)).toMatch(/The Heart of Patience made it ×1\.5\.$/);
-    expect(welcomeView(snap({ away: report() }))?.away?.cheer).toBe(AWAY_CHEER);
+    expect(welcomeView(news(away()))?.away?.cheer).toBe(AWAY_CHEER);
   });
 
   it("names the crew alone, and under an away haul with the title's words", () => {
-    const alone = welcomeView(snap({ crewJoined: 1 }));
+    const alone = welcomeView(news(crew(1)));
     expect(alone?.crew).toBe("1 worker joined to run your machines.");
     expect(alone?.away).toBeUndefined();
-    expect(welcomeView(snap({ crewJoined: 3, away: report() }))?.crew).toBe(
+    expect(welcomeView(news(crew(3), away()))?.crew).toBe(
       "Your crew grew: 3 workers joined to run your machines.",
     );
-    expect(welcomeView(snap({ away: report() }))?.crew).toBeUndefined();
+    expect(welcomeView(news(away()))?.crew).toBeUndefined();
   });
 
   it("speaks of the engineer only under an away or crew line", () => {
-    expect(
-      welcomeView(snap({ engineerJoined: true }))?.engineer,
-    ).toBeUndefined();
-    expect(
-      welcomeView(snap({ engineerJoined: true, away: report() }))?.engineer,
-    ).toBe(ENGINEER_WELCOME);
-    expect(
-      welcomeView(snap({ engineerJoined: true, crewJoined: 1 }))?.engineer,
-    ).toBe(ENGINEER_WELCOME);
+    expect(welcomeView(news(ENGINEER))?.engineer).toBeUndefined();
+    expect(welcomeView(news(ENGINEER, away()))?.engineer).toBe(
+      ENGINEER_WELCOME,
+    );
+    expect(welcomeView(news(ENGINEER, crew(1)))?.engineer).toBe(
+      ENGINEER_WELCOME,
+    );
   });
 
   it("lists two returns in order", () => {
@@ -170,11 +172,13 @@ describe("welcomeView", () => {
 
   it("skips a layer with no welcome words, and lists two crafts", () => {
     const view = welcomeView(
-      snap({
-        away: report(),
-        layersArrived: [band("topsoil"), band("granite")],
-        craftsFitted: [fitted("iron-rails"), fitted("axle-grease")],
-      }),
+      news(
+        away(),
+        band("topsoil"),
+        band("granite"),
+        craft("iron-rails"),
+        craft("axle-grease"),
+      ),
     );
     expect(view?.layers).toEqual([layerWelcomeWords("granite")]);
     expect(view?.crafts).toEqual([
@@ -184,34 +188,33 @@ describe("welcomeView", () => {
   });
 
   it("names the first material the ore line names", () => {
-    expect(
-      welcomeView(snap({ away: report() }))?.away?.materials,
-    ).toBeUndefined();
+    expect(welcomeView(news(away()))?.away?.materials).toBeUndefined();
     const materials = { clay: 0, iron: 3, crystal: 2, heartstone: 0 };
-    expect(
-      welcomeView(snap({ away: report({ materials }) }))?.away?.materials,
-    ).toEqual({ words: awayMaterialsWords(materials), first: "iron" });
+    expect(welcomeView(news(away({ materials })))?.away?.materials).toEqual({
+      words: awayMaterialsWords(materials),
+      first: "iron",
+    });
   });
 });
 
 describe("arrivalCard", () => {
-  const granite = { layersArrived: [band("granite")] };
-  const rails = { craftsFitted: [fitted("iron-rails")] };
+  const granite = band("granite");
+  const rails = craft("iron-rails");
 
   it("waits while the welcome has news or a relic is revealed", () => {
-    expect(arrivalCard(snap({ ...granite, away: report() }))).toBeUndefined();
-    expect(arrivalCard(snap({ ...granite, crewJoined: 1 }))).toBeUndefined();
+    expect(arrivalCard(news(granite, away()))).toBeUndefined();
+    expect(arrivalCard(news(granite, crew(1)))).toBeUndefined();
+    const relic = RELICS[0];
+    if (relic === undefined) {
+      throw new Error("no relics");
+    }
     expect(
-      arrivalCard(snap({ ...granite, revealed: RELICS[0] })),
+      arrivalCard(news(granite, { kind: "reveal", relic })),
     ).toBeUndefined();
   });
 
   it("shows the first arrived layer's words", () => {
-    expect(
-      arrivalCard(
-        snap({ layersArrived: [band("granite"), band("crystal")], ...rails }),
-      ),
-    ).toEqual({
+    expect(arrivalCard(news(granite, band("crystal"), rails))).toEqual({
       kind: "layer",
       band: "granite",
       words: layerCardWords("granite"),
@@ -219,15 +222,13 @@ describe("arrivalCard", () => {
   });
 
   it("shows craft done only with no layer to tell", () => {
-    const craft = {
+    const done = {
       kind: "craft",
       recipe: "iron-rails",
       line: craftLine(fitted("iron-rails")),
     };
-    expect(arrivalCard(snap(rails))).toEqual(craft);
-    expect(
-      arrivalCard(snap({ layersArrived: [band("topsoil")], ...rails })),
-    ).toEqual(craft);
+    expect(arrivalCard(news(rails))).toEqual(done);
+    expect(arrivalCard(news(band("topsoil"), rails))).toEqual(done);
   });
 
   it("is undefined when neither", () => {

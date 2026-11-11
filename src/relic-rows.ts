@@ -97,7 +97,7 @@ export function relicsKick(mountain: Mountain): string {
 
 /** The keepsakes brought home, in the shelf's order. Lost tools stay on Upgrades. */
 export function shelfKeepsakes(mountain: Mountain): readonly KeepsakeId[] {
-  const finds: readonly string[] = mountain.finds ?? [];
+  const finds: readonly string[] = mountain.finds;
   return KEEPSAKES.filter((id) => finds.includes(id));
 }
 

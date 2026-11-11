@@ -114,8 +114,7 @@ describe("tending teach (#246)", () => {
       post: "borer",
     });
     // A save with no crew at all has no first tend.
-    const noCrew = { ...crew() };
-    delete noCrew.engineers;
+    const noCrew = { ...crew(), engineers: [] };
     expect(firstTend(noCrew)).toBeUndefined();
   });
 
@@ -173,7 +172,7 @@ describe("tending teach (#246)", () => {
       `Ada heads to the Great Machine! ${stonesPerSecond(gain)}`,
     );
     const mountain = screen.progress.getSnapshot().mountain;
-    expect(mountain.engineers?.[0]?.post).toBe("machine");
+    expect(mountain.engineers[0]?.post).toBe("machine");
     expect(mountain.taught).toContain("tending");
     // Its own dot goes. The next step (the second engineer) may light it.
     expect(showsDot(screen.progress.getSnapshot().mountain, "tending")).toBe(
@@ -198,7 +197,7 @@ describe("tending teach (#246)", () => {
       .querySelector<HTMLButtonElement>('.engineer-post[data-post="borer"]')
       ?.click();
     const mountain = screen.progress.getSnapshot().mountain;
-    expect(mountain.engineers?.[0]?.post).toBe("borer");
+    expect(mountain.engineers[0]?.post).toBe("borer");
     expect(mountain.taught).toContain("tending");
   });
 });

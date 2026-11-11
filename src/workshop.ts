@@ -285,12 +285,27 @@ export type KeptBench = {
  * along on the next write and are not shown.
  */
 export type KeptWorkshop = {
-  readonly recipes?: readonly string[];
-  readonly bench?: KeptBench;
-  readonly crafted?: Readonly<Record<string, number>>;
+  readonly recipes: readonly string[];
+  readonly bench: KeptBench | undefined;
+  readonly crafted: Readonly<Record<string, number>>;
+  /** Teach ids (src/teach.ts) from a newer build. */
+  readonly seen: readonly string[];
+  readonly taught: readonly string[];
 };
 
-export type Crafted = Readonly<Partial<Record<RecipeId, number>>>;
+export const NOTHING_KEPT: KeptWorkshop = {
+  recipes: [],
+  bench: undefined,
+  crafted: {},
+  seen: [],
+  taught: [],
+};
+
+export type Crafted = Readonly<Record<RecipeId, number>>;
+
+export const NOTHING_CRAFTED: Crafted = Object.fromEntries(
+  RECIPE_IDS.map((id) => [id, 0]),
+) as Record<RecipeId, number>;
 
 export type RecipeCost = {
   readonly stones: number;
@@ -390,7 +405,7 @@ export function grantRecipes(
   mountain: Mountain,
   ids: readonly RecipeId[],
 ): { readonly mountain: Mountain; readonly found: readonly RecipeId[] } {
-  const known = mountain.recipes ?? [...STARTING_RECIPE_IDS];
+  const known = mountain.recipes;
   const found = ids.filter((id) => !known.includes(id));
   if (found.length === 0) {
     return { mountain, found };
@@ -407,10 +422,10 @@ export function grantRecipes(
  * until a new craft takes its place.
  */
 export function unknownBench(
-  mountain: { readonly kept?: KeptWorkshop },
+  mountain: Pick<Mountain, "kept">,
   now: number,
 ): KeptBench | undefined {
-  const bench = mountain.kept?.bench;
+  const bench = mountain.kept.bench;
   if (bench === undefined || !isWhole(now) || now >= bench.endsAt) {
     return undefined;
   }
@@ -420,17 +435,10 @@ export function unknownBench(
 /** A finished unknown craft can leave. One still running stays. */
 function releaseKeptBench(mountain: Mountain): Mountain {
   const kept = mountain.kept;
-  if (kept?.bench === undefined) {
+  if (kept.bench === undefined) {
     return mountain;
   }
-  const next = { ...mountain };
-  if (kept.recipes === undefined && kept.crafted === undefined) {
-    Reflect.deleteProperty(next, "kept");
-    return next;
-  }
-  const rest = { ...kept };
-  Reflect.deleteProperty(rest, "bench");
-  return { ...next, kept: rest };
+  return { ...mountain, kept: { ...kept, bench: undefined } };
 }
 
 export function isRecipeId(value: unknown): value is RecipeId {
@@ -480,15 +488,15 @@ export function recipeCost(id: RecipeId, k = 1): RecipeCost {
 }
 
 export function craftedLevel(
-  mountain: { readonly crafted?: Crafted },
+  mountain: Pick<Mountain, "crafted">,
   id: RecipeId,
 ): number {
-  return mountain.crafted?.[id] ?? 0;
+  return mountain.crafted[id];
 }
 
 function effectLevel(
   recipe: Recipe,
-  mountain: { readonly crafted?: Crafted },
+  mountain: Pick<Mountain, "crafted">,
 ): number {
   const level = craftedLevel(mountain, recipe.id);
   return Math.min(level, recipe.maxLevel ?? MAX_CRAFTED_LEVEL);
@@ -504,7 +512,7 @@ function tuned(base: number, id: RecipeId): number {
 }
 
 function materialsOf(mountain: Mountain): Materials {
-  return mountain.materials ?? EMPTY_MATERIALS;
+  return mountain.materials;
 }
 
 function canAfford(have: Materials, cost: Materials): boolean {
@@ -547,7 +555,7 @@ export function startCraft(
     return mountain;
   }
   if (
-    !(mountain.recipes?.includes(id) ?? false) ||
+    !mountain.recipes.includes(id) ||
     mountain.bench !== undefined ||
     unknownBench(mountain, now) !== undefined
   ) {
@@ -575,9 +583,7 @@ export function startCraft(
 }
 
 function dropBench(mountain: Mountain): Mountain {
-  const rest = { ...mountain };
-  Reflect.deleteProperty(rest, "bench");
-  return rest;
+  return { ...mountain, bench: undefined };
 }
 
 /**
@@ -586,12 +592,13 @@ function dropBench(mountain: Mountain): Mountain {
  * starts when the craft goes on the bench, so the sitting that started it
  * is the sitting that feels it.
  */
-function timerFrom(
-  bench: Bench,
-  previous: number | undefined,
-  extend: boolean,
-): number {
-  if (extend && previous !== undefined && previous > bench.startedAt) {
+/** A clock still running at `now`. 0 is a cold clock, whatever the clock says. */
+function hotAt(until: number, now: number): boolean {
+  return until !== 0 && until > now;
+}
+
+function timerFrom(bench: Bench, previous: number, extend: boolean): number {
+  if (extend && previous > bench.startedAt) {
     return previous;
   }
   return bench.startedAt;
@@ -622,32 +629,23 @@ export function settleBench(mountain: Mountain, now: number): Mountain {
     crafted: { ...mountain.crafted, [recipe.id]: level },
   });
   if (recipe.effect.kind === "charge") {
-    const from = timerFrom(bench, mountain.chargeUntil, true);
-    return { ...fitted, chargeUntil: from + recipe.effect.durationMs };
+    const from = timerFrom(bench, mountain.clocks["blasting-charge"], true);
+    return withClock(
+      fitted,
+      "blasting-charge",
+      from + recipe.effect.durationMs,
+    );
   }
-  if (recipe.effect.kind === "flare") {
-    return {
-      ...fitted,
-      flareUntil:
-        timerFrom(bench, undefined, false) +
-        Math.round(tuned(recipe.effect.durationMs, recipe.id)),
-    };
-  }
-  if (recipe.effect.kind === "ember") {
-    return {
-      ...fitted,
-      emberUntil:
-        timerFrom(bench, undefined, false) +
-        Math.round(tuned(recipe.effect.durationMs, recipe.id)),
-    };
-  }
-  if (recipe.effect.kind === "axle") {
-    return {
-      ...fitted,
-      axleUntil:
-        timerFrom(bench, undefined, false) +
-        Math.round(tuned(recipe.effect.durationMs, recipe.id)),
-    };
+  if (
+    recipe.effect.kind === "flare" ||
+    recipe.effect.kind === "ember" ||
+    recipe.effect.kind === "axle"
+  ) {
+    return withClock(
+      fitted,
+      recipe.id as TimerId,
+      bench.startedAt + Math.round(tuned(recipe.effect.durationMs, recipe.id)),
+    );
   }
   return fitted;
 }
@@ -763,6 +761,25 @@ const TIMER_IDS = [
 
 export type TimerId = (typeof TIMER_IDS)[number];
 
+/** When each live timer stops (epoch ms). 0 is cold. */
+export type Clocks = Readonly<Record<TimerId, number>>;
+
+export const COLD_CLOCKS: Clocks = {
+  "blasting-charge": 0,
+  "axle-grease": 0,
+  "crystal-flare": 0,
+  "heartstone-ember": 0,
+};
+
+/** The same mountain with one live timer set to stop at `until`. */
+export function withClock(
+  mountain: Mountain,
+  id: TimerId,
+  until: number,
+): Mountain {
+  return { ...mountain, clocks: { ...mountain.clocks, [id]: until } };
+}
+
 export type HotTimer = {
   readonly id: TimerId;
   readonly until: number;
@@ -783,19 +800,6 @@ export function timerDurationMs(id: TimerId): number {
   }
 }
 
-function storedUntil(mountain: Mountain, id: TimerId): number | undefined {
-  switch (id) {
-    case "blasting-charge":
-      return mountain.chargeUntil;
-    case "axle-grease":
-      return mountain.axleUntil;
-    case "crystal-flare":
-      return mountain.flareUntil;
-    case "heartstone-ember":
-      return mountain.emberUntil;
-  }
-}
-
 /**
  * Buffs that are still hot at `now`, including the minutes a timer is on
  * the bench. The later end wins when a stored clock and the bench overlap.
@@ -810,9 +814,9 @@ export function hotTimers(
   const hot: HotTimer[] = [];
   for (const id of TIMER_IDS) {
     const duration = timerDurationMs(id);
-    const stored = storedUntil(mountain, id);
+    const stored = mountain.clocks[id];
     const ends: number[] = [];
-    if (stored !== undefined && stored > now) {
+    if (hotAt(stored, now)) {
       ends.push(stored);
     }
     const bench = mountain.bench;
@@ -878,9 +882,7 @@ export function reinforceTier(mountain: Mountain): TierId | undefined {
 }
 
 /** How much longer the gap between troubles is. 1 without sturdy props. */
-export function troubleGapScale(mountain: {
-  readonly crafted?: Crafted;
-}): number {
+export function troubleGapScale(mountain: Pick<Mountain, "crafted">): number {
   let scale = 1;
   for (const recipe of RECIPES) {
     if (recipe.effect.kind !== "trouble") {
@@ -901,7 +903,7 @@ export function troubleGapScale(mountain: {
  * that began when the craft started. Away pay passes no `now`.
  */
 function benchWindow(
-  mountain: { readonly bench?: Bench },
+  mountain: Pick<Mountain, "bench">,
   id: "blasting-charge" | "crystal-flare" | "heartstone-ember" | "axle-grease",
   durationMs: number,
   now: number | undefined,
@@ -925,11 +927,7 @@ function benchWindow(
  * as away pay does, and the flare stays dark.
  */
 export function veinOftenScale(
-  mountain: {
-    readonly crafted?: Crafted;
-    readonly flareUntil?: number;
-    readonly bench?: Bench;
-  },
+  mountain: Pick<Mountain, "crafted" | "clocks" | "bench">,
   now?: number,
 ): number {
   let scale = 1;
@@ -944,9 +942,7 @@ export function veinOftenScale(
     scale *= leveled(recipe.effect.often, level, strengthOf(recipe.id));
   }
   const flareHot =
-    (now !== undefined &&
-      mountain.flareUntil !== undefined &&
-      mountain.flareUntil > now) ||
+    (now !== undefined && hotAt(mountain.clocks["crystal-flare"], now)) ||
     benchWindow(
       mountain,
       "crystal-flare",
@@ -966,13 +962,11 @@ export function veinOftenScale(
  * multiply it.
  */
 export function emberMachineMultiplier(
-  mountain: { readonly emberUntil?: number; readonly bench?: Bench },
+  mountain: Pick<Mountain, "clocks" | "bench">,
   now?: number,
 ): number {
   const hot =
-    (now !== undefined &&
-      mountain.emberUntil !== undefined &&
-      mountain.emberUntil > now) ||
+    (now !== undefined && hotAt(mountain.clocks["heartstone-ember"], now)) ||
     benchWindow(
       mountain,
       "heartstone-ember",
@@ -993,13 +987,11 @@ export function emberMachineMultiplier(
  * crew timer wins in `effectiveRates`.
  */
 export function axleCrewMultiplier(
-  mountain: { readonly axleUntil?: number; readonly bench?: Bench },
+  mountain: Pick<Mountain, "clocks" | "bench">,
   now?: number,
 ): number {
   const hot =
-    (now !== undefined &&
-      mountain.axleUntil !== undefined &&
-      mountain.axleUntil > now) ||
+    (now !== undefined && hotAt(mountain.clocks["axle-grease"], now)) ||
     benchWindow(
       mountain,
       "axle-grease",
@@ -1013,9 +1005,9 @@ export function axleCrewMultiplier(
 }
 
 /** How much of the tunnel time is left. 1 without the engineer's kit. */
-export function expeditionCraftScale(mountain: {
-  readonly crafted?: Crafted;
-}): number {
+export function expeditionCraftScale(
+  mountain: Pick<Mountain, "crafted">,
+): number {
   let scale = 1;
   for (const recipe of RECIPES) {
     if (recipe.effect.kind !== "trip") {
@@ -1045,9 +1037,7 @@ export function chargeCrewMultiplier(
   now: number | undefined,
 ): number {
   const hot =
-    (now !== undefined &&
-      mountain.chargeUntil !== undefined &&
-      mountain.chargeUntil > now) ||
+    (now !== undefined && hotAt(mountain.clocks["blasting-charge"], now)) ||
     benchWindow(mountain, "blasting-charge", CHARGE_MS, now);
   if (!hot) {
     return 1;
@@ -1099,7 +1089,7 @@ export function parseCrafted(value: unknown): Crafted | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return undefined;
   }
-  const parsed: Partial<Record<RecipeId, number>> = {};
+  const parsed: Record<RecipeId, number> = { ...NOTHING_CRAFTED };
   for (const [key, level] of Object.entries(value)) {
     if (!isRecipeId(key)) {
       continue;

@@ -18,7 +18,7 @@ import {
   rushHeldWords,
   type LayerCardWords,
 } from "./screen-words";
-import type { CraftNotice } from "./session";
+import { firstNotice, noticesOf, type CraftNotice } from "./session";
 import { recipeById, type RecipeId } from "./workshop";
 import { fittedEffect } from "./workshop-sheet";
 
@@ -31,9 +31,9 @@ import { fittedEffect } from "./workshop-sheet";
 /** The welcome card has news: an away haul, the crew grew, an engineer stepped up, or someone came home. */
 export function welcomeNews(view: ProgressSnapshot): boolean {
   return (
-    view.away !== undefined ||
-    view.crewJoined !== undefined ||
-    view.engineerJoined === true ||
+    firstNotice(view, "away") !== undefined ||
+    firstNotice(view, "crew-joined") !== undefined ||
+    firstNotice(view, "engineer-joined") !== undefined ||
     view.homecomings.length > 0
   );
 }
@@ -64,7 +64,7 @@ export interface WelcomeView {
 }
 
 function awayOf(view: ProgressSnapshot): WelcomeAway | undefined {
-  const report = view.away;
+  const report = firstNotice(view, "away")?.report;
   if (report === undefined) {
     return undefined;
   }
@@ -86,13 +86,13 @@ function awayOf(view: ProgressSnapshot): WelcomeAway | undefined {
  * welcome has news, so with none of the first three someone came home.
  */
 function titleOf(view: ProgressSnapshot): string {
-  if (view.away !== undefined) {
+  if (firstNotice(view, "away") !== undefined) {
     return WELCOME_AWAY_TITLE;
   }
-  if (view.crewJoined !== undefined) {
+  if (firstNotice(view, "crew-joined") !== undefined) {
     return CREW_GREW_TITLE;
   }
-  if (view.engineerJoined === true) {
+  if (firstNotice(view, "engineer-joined") !== undefined) {
     return ENGINEER_WELCOME;
   }
   return WELCOME_HOME_TITLE;
@@ -103,27 +103,27 @@ export function welcomeView(view: ProgressSnapshot): WelcomeView | undefined {
   if (!welcomeNews(view)) {
     return undefined;
   }
-  const joined = view.crewJoined;
+  const joined = firstNotice(view, "crew-joined")?.helpers;
+  const away = firstNotice(view, "away") !== undefined;
   const returns = view.homecomings.map((home) =>
     cameBack(home.engineer, home.tunnel, home.find),
   );
-  const underLine = view.away !== undefined || joined !== undefined;
+  const underLine = away || joined !== undefined;
   return {
     title: titleOf(view),
     away: awayOf(view),
     // Alone, the title already says "Your crew grew".
-    crew:
-      joined === undefined
-        ? undefined
-        : crewGrewWords(joined, view.away === undefined),
+    crew: joined === undefined ? undefined : crewGrewWords(joined, !away),
     engineer:
-      view.engineerJoined === true && underLine ? ENGINEER_WELCOME : undefined,
+      firstNotice(view, "engineer-joined") !== undefined && underLine
+        ? ENGINEER_WELCOME
+        : undefined,
     returns,
-    layers: view.layersArrived.flatMap((layer) => {
+    layers: noticesOf(view, "layer").flatMap(({ layer }) => {
       const line = layerWelcomeWords(layer.id);
       return line === undefined ? [] : [line];
     }),
-    crafts: view.craftsFitted.map(craftLine),
+    crafts: noticesOf(view, "craft").map(({ craft }) => craftLine(craft)),
   };
 }
 
@@ -141,15 +141,15 @@ export type ArrivalCard =
 
 /** The layer card, else craft done; neither while the welcome has news or a relic is revealed. */
 export function arrivalCard(view: ProgressSnapshot): ArrivalCard | undefined {
-  if (welcomeNews(view) || view.revealed !== undefined) {
+  if (welcomeNews(view) || firstNotice(view, "reveal") !== undefined) {
     return undefined;
   }
-  const band = view.layersArrived[0]?.id;
+  const band = firstNotice(view, "layer")?.layer.id;
   const words = band === undefined ? undefined : layerCardWords(band);
   if (band !== undefined && words !== undefined) {
     return { kind: "layer", band, words };
   }
-  const fitted = view.craftsFitted[0];
+  const fitted = firstNotice(view, "craft")?.craft;
   return fitted === undefined
     ? undefined
     : { kind: "craft", recipe: fitted.id, line: craftLine(fitted) };

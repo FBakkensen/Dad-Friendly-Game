@@ -1,7 +1,9 @@
 import type { Mountain } from "./mountain";
+import { atHome } from "./engineers";
 import { BOOSTS } from "./boosts";
 import { firstIdleTier, firstTend, promotePayoff } from "./rates";
 import {
+  type RevealRowId,
   boostRowId,
   boostShown,
   boostUsed,
@@ -27,8 +29,12 @@ import { workshopUnlocked } from "./workshop";
 
 type TeachSize = "big" | "small";
 
+/** Every system the game teaches: its big notes, its small dots, and each boost and upgrade row. */
+export type TeachId =
+  "workshop" | "engineers" | "tending" | "promotion" | "staffing" | RevealRowId;
+
 type TeachSpec = {
-  readonly id: string;
+  readonly id: TeachId;
   readonly size: TeachSize;
   /** The system is open to this dad. */
   readonly unlocked: (mountain: Mountain) => boolean;
@@ -44,17 +50,17 @@ const TEACH_SPECS: readonly TeachSpec[] = [
     unlocked: workshopUnlocked,
     used: (mountain) =>
       mountain.bench !== undefined ||
-      Object.values(mountain.crafted ?? {}).some((level) => level > 0),
+      Object.values(mountain.crafted).some((level) => level > 0),
   },
   // Big system (#246): the first engineer arrives with the first borer.
   // The first trip is the first use.
   {
     id: "engineers",
     size: "big",
-    unlocked: (mountain) => (mountain.engineers?.length ?? 0) > 0,
+    unlocked: (mountain) => mountain.engineers.length > 0,
     used: (mountain) =>
-      (mountain.expeditions?.length ?? 0) > 0 ||
-      (mountain.engineers ?? []).some((engineer) => engineer.trips > 0),
+      mountain.expeditions.length > 0 ||
+      mountain.engineers.some((engineer) => engineer.trips > 0),
   },
   // Small system (#246): after the first trip, once there is a machine to
   // step up to. The dot only. A move off the starting borers is a use.
@@ -64,7 +70,7 @@ const TEACH_SPECS: readonly TeachSpec[] = [
     unlocked: (mountain) =>
       isTaught(mountain, "engineers") && firstTend(mountain) !== undefined,
     used: (mountain) =>
-      (mountain.engineers ?? []).some(
+      atHome(mountain).some(
         (engineer) =>
           engineer.post === "cart" ||
           engineer.post === "drill" ||
@@ -78,9 +84,9 @@ const TEACH_SPECS: readonly TeachSpec[] = [
     size: "small",
     unlocked: (mountain) =>
       isTaught(mountain, "engineers") &&
-      (mountain.engineers?.length ?? 0) === 1 &&
+      mountain.engineers.length === 1 &&
       promotePayoff(mountain) !== undefined,
-    used: (mountain) => (mountain.engineers?.length ?? 0) >= 2,
+    used: (mountain) => mountain.engineers.length >= 2,
   },
   // Small system (#246): the first machine standing idle for want of crew.
   // The dot only. The first worker hired while one stands idle is the use.
@@ -109,22 +115,22 @@ const TEACH_SPECS: readonly TeachSpec[] = [
 const MAX_TEACH_ID = 40;
 const MAX_TEACH_IDS = 32;
 
-function has(list: readonly string[] | undefined, id: string): boolean {
-  return list?.includes(id) ?? false;
-}
-
-function specOf(id: string): TeachSpec | undefined {
+function specOf(id: TeachId): TeachSpec | undefined {
   return TEACH_SPECS.find((spec) => spec.id === id);
 }
 
+function isTeachId(value: string): value is TeachId {
+  return TEACH_SPECS.some((spec) => spec.id === value);
+}
+
 /** Used now or before. */
-function isTaught(mountain: Mountain, id: string): boolean {
+function isTaught(mountain: Mountain, id: TeachId): boolean {
   const spec = specOf(id);
-  return has(mountain.taught, id) || (spec?.used(mountain) ?? false);
+  return mountain.taught.includes(id) || (spec?.used(mountain) ?? false);
 }
 
 /** The red dot: open, and not yet used. */
-export function showsDot(mountain: Mountain, id: string): boolean {
+export function showsDot(mountain: Mountain, id: TeachId): boolean {
   const spec = specOf(id);
   return (
     spec !== undefined && spec.unlocked(mountain) && !isTaught(mountain, id)
@@ -132,50 +138,45 @@ export function showsDot(mountain: Mountain, id: string): boolean {
 }
 
 /** The one big system whose note shows now, if any. */
-export function noteFor(mountain: Mountain): string | undefined {
+export function noteFor(mountain: Mountain): TeachId | undefined {
   return TEACH_SPECS.find(
     (spec) =>
       spec.size === "big" &&
       spec.unlocked(mountain) &&
-      !has(mountain.seen, spec.id) &&
+      !mountain.seen.includes(spec.id) &&
       !isTaught(mountain, spec.id),
   )?.id;
 }
 
-function added(
-  list: readonly string[] | undefined,
-  id: string,
-): readonly string[] {
-  return [...(list ?? []), id];
+function added(list: readonly TeachId[], id: TeachId): readonly TeachId[] {
+  return list.includes(id) ? list : [...list, id];
 }
 
 /** The sheet was opened: its note goes. The dot stays. */
-export function markSeen(mountain: Mountain, id: string): Mountain {
-  if (has(mountain.seen, id) || specOf(id) === undefined) {
+export function markSeen(mountain: Mountain, id: TeachId): Mountain {
+  if (mountain.seen.includes(id)) {
     return mountain;
   }
-  return { ...mountain, seen: added(mountain.seen, id) };
+  return { ...mountain, seen: [...mountain.seen, id] };
 }
 
 /** Marks each id seen. The same mountain comes back when none is new. */
 export function markAllSeen(
   mountain: Mountain,
-  ids: readonly string[],
+  ids: readonly TeachId[],
 ): Mountain {
   return ids.reduce(markSeen, mountain);
 }
 
 /** A first use the mountain cannot show by itself, such as a first tend. */
-export function markTaught(mountain: Mountain, id: string): Mountain {
-  if (has(mountain.taught, id) || specOf(id) === undefined) {
+export function markTaught(mountain: Mountain, id: TeachId): Mountain {
+  if (mountain.taught.includes(id)) {
     return mountain;
   }
   return {
     ...mountain,
-    taught: added(mountain.taught, id),
-    seen: has(mountain.seen, id)
-      ? (mountain.seen ?? [])
-      : added(mountain.seen, id),
+    taught: [...mountain.taught, id],
+    seen: added(mountain.seen, id),
   };
 }
 
@@ -186,25 +187,29 @@ export function markTaught(mountain: Mountain, id: string): Mountain {
 export function recordFirstUse(mountain: Mountain): Mountain {
   let next = mountain;
   for (const spec of TEACH_SPECS) {
-    if (!has(next.taught, spec.id) && spec.used(next)) {
+    if (!next.taught.includes(spec.id) && spec.used(next)) {
       next = {
         ...next,
-        taught: added(next.taught, spec.id),
-        seen: has(next.seen, spec.id) ? next.seen : added(next.seen, spec.id),
-      } as Mountain;
+        taught: [...next.taught, spec.id],
+        seen: added(next.seen, spec.id),
+      };
     }
   }
   return next;
 }
 
 /**
- * Reads a saved id list. Missing is empty. Ids from a newer build are kept
- * so the next write does not forget them. Anything that is not a list of
- * short strings is "bad".
+ * Reads a saved id list. Missing is empty. Ids this build knows are
+ * `known`; ids from a newer build are `kept`, so the next write does not
+ * forget them. Anything that is not a list of short strings is "bad".
  */
-export function parseTeachIds(value: unknown): readonly string[] | "bad" {
+export function parseTeachIds(
+  value: unknown,
+):
+  | { readonly known: readonly TeachId[]; readonly kept: readonly string[] }
+  | "bad" {
   if (value === undefined) {
-    return [];
+    return { known: [], kept: [] };
   }
   if (!Array.isArray(value)) {
     return "bad";
@@ -222,5 +227,8 @@ export function parseTeachIds(value: unknown): readonly string[] | "bad" {
     }
     ids.push(item);
   }
-  return ids;
+  return {
+    known: ids.filter(isTeachId),
+    kept: ids.filter((id) => !isTeachId(id)),
+  };
 }

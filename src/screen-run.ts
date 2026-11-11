@@ -4,6 +4,7 @@ import type { ProgressSnapshot } from "./progress-store";
 import type { ScreenCtx } from "./screen-context";
 import { QUIET_NOTE_MS } from "./screen-vein";
 import { quietAwayWords } from "./screen-words";
+import { firstNotice } from "./session";
 
 type Ticks = { readonly tick: (dt: number) => void };
 
@@ -64,11 +65,11 @@ export function runScreen(
   const unsubscribe = progress.subscribe((next) => {
     setView(nextView(board, ctx.view(), next));
     // A short absence pays with a small note, not the welcome card (#334).
-    const { quietAway } = ctx.view();
-    if (quietAway !== undefined) {
-      vein.showNote(quietAwayWords(quietAway), QUIET_NOTE_MS);
+    const quiet = firstNotice(ctx.view(), "quiet");
+    if (quiet !== undefined) {
+      vein.showNote(quietAwayWords(quiet.stones), QUIET_NOTE_MS);
       queueMicrotask(() => {
-        progress.dismissQuietAway();
+        progress.dismiss("quiet");
       });
     }
     paint();

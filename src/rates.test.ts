@@ -4,9 +4,12 @@ import { TENDING_GAIN, TENDING_TENTHS, station } from "./engineers";
 import type { Trouble } from "./hazards";
 import { milestoneMultiplier } from "./milestones";
 import { holdForRush, startRush } from "./gold-rush";
-import { AWAY_PAY_RATE, effectiveRates, tendingGain } from "./rates";
+import { AWAY_PAY_RATE, effectiveRates, moveGain, tendingGain } from "./rates";
+import { send } from "./expeditions";
 import { minedMountain } from "./test-fixtures";
 import { TIERS } from "./tiers";
+import { NO_BOOSTS } from "./boosts";
+import { NO_UPGRADES } from "./upgrades";
 
 describe("effectiveRates", () => {
   it("reads one mountain once when no clock is passed", () => {
@@ -50,7 +53,7 @@ describe("effectiveRates", () => {
       ...minedMountain(0),
       helpers: 11,
       kids: 0,
-      upgrades: { boots: 1 },
+      upgrades: { ...NO_UPGRADES, boots: 1 },
     });
     expect(rates.exactCrewPerSecond).toBeCloseTo(11 * 2.36, 10);
     expect(rates.crewPerSecond).toBe(25);
@@ -127,6 +130,20 @@ describe("tendingGain", () => {
     const two = { ...staffed, helpers: 16, borers: 2 };
     expect(tendingGain(two, 0, "borer")).toBe(156);
     expect(tendingGain(staffed, 9, "borer")).toBe(0);
+  });
+
+  it("prices a post the same while she is out on a trip: the tap calls her back (#415)", () => {
+    const home = {
+      ...minedMountain(0),
+      helpers: 80,
+      borers: 10,
+      engineers: [ada],
+    };
+    const away = send(home, 0, "side-seam", 0);
+    expect(away.expeditions).toHaveLength(1);
+    expect(tendingGain(home, 0, "borer")).toBeGreaterThan(0);
+    expect(tendingGain(away, 0, "borer")).toBe(tendingGain(home, 0, "borer"));
+    expect(moveGain(away, 0, "borer")).toBe(moveGain(home, 0, "borer"));
   });
 
   it("counts a Great Machine she starts, and not a rank already covered", () => {
@@ -317,7 +334,7 @@ describe("the Gold rush in the rates", () => {
       plain.crewPerSecond * 10,
     );
     const both = effectiveRates(
-      { ...rushed, boosts: { overtime: T + 60_000 } },
+      { ...rushed, boosts: { ...NO_BOOSTS, overtime: T + 60_000 } },
       T,
     );
     // Overtime's ×2 of the crew, plus the rush's nine crews of held stones

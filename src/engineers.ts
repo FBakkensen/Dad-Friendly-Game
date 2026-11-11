@@ -14,7 +14,7 @@ export const ENGINEER_NAMES = ["Ada", "Nils", "Ruth", "Otto", "Mae"] as const;
 
 export type EngineerName = (typeof ENGINEER_NAMES)[number];
 
-/** Machine tiers an engineer can tend, plus waiting at camp or away in a tunnel. */
+/** Machine tiers an engineer can tend, plus waiting at camp. */
 const MACHINE_POSTS = [
   "cart",
   "drill",
@@ -22,9 +22,18 @@ const MACHINE_POSTS = [
   "machine",
 ] as const satisfies readonly TierId[];
 
-export const ENGINEER_POSTS = [...MACHINE_POSTS, "camp", "tunnel"] as const;
+/**
+ * Where an engineer works when at home. A trip does not change it: away is
+ * read from the expeditions (`onTrip`), and the post is where they come back to.
+ */
+export const ENGINEER_POSTS = [...MACHINE_POSTS, "camp"] as const;
 
 export type EngineerPost = (typeof ENGINEER_POSTS)[number];
+
+/** Where an engineer is now: their post, or "tunnel" while away. The save writes this. */
+const DUTIES = [...ENGINEER_POSTS, "tunnel"] as const;
+
+export type Duty = (typeof DUTIES)[number];
 
 /** Apprentice, Journeyman, Master. */
 export type EngineerRank = 0 | 1 | 2;
@@ -35,6 +44,41 @@ export type Engineer = {
   readonly trips: number;
   readonly post: EngineerPost;
 };
+
+/** An engineer as the save and the screen show them: away reads "tunnel". */
+export type DutyEngineer = Omit<Engineer, "post"> & {
+  readonly post: Duty;
+};
+
+/** Away on an expedition: the one test for it. */
+export function onTrip(
+  mountain: Pick<Mountain, "expeditions">,
+  name: EngineerName,
+): boolean {
+  return mountain.expeditions.some((trip) => trip.engineer === name);
+}
+
+/** The crew as the save and the screen show them, derived from the trips. */
+export function onDuty(
+  mountain: Pick<Mountain, "engineers" | "expeditions">,
+): readonly DutyEngineer[] {
+  return mountain.expeditions.length === 0
+    ? mountain.engineers
+    : mountain.engineers.map((engineer) =>
+        onTrip(mountain, engineer.name)
+          ? { ...engineer, post: "tunnel" }
+          : engineer,
+      );
+}
+
+/** The engineers at home, who tend their posts. */
+export function atHome(
+  mountain: Pick<Mountain, "engineers" | "expeditions">,
+): readonly Engineer[] {
+  return mountain.expeditions.length === 0
+    ? mountain.engineers
+    : mountain.engineers.filter((engineer) => !onTrip(mountain, engineer.name));
+}
 
 /** Never more than five. Mirrored in firestore.rules. */
 export const MAX_ENGINEERS = 5;
@@ -75,7 +119,7 @@ export function promoteCost(mountain: Mountain): number {
       (
         PROMOTE_BASE_COST *
         oneOffStretch(mountain) *
-        2 ** (mountain.engineers?.length ?? 0)
+        2 ** mountain.engineers.length
       ).toPrecision(12),
     ),
   );
@@ -96,7 +140,7 @@ export function nextEngineerName(
  */
 export function canPromote(mountain: Mountain): boolean {
   return (
-    nextEngineerName(mountain.engineers ?? []) !== undefined &&
+    nextEngineerName(mountain.engineers) !== undefined &&
     mountain.helpers >= 1 &&
     mountain.pocket >= promoteCost(mountain)
   );
@@ -107,7 +151,7 @@ export function canPromote(mountain: Mountain): boolean {
  * full, no worker is free to step up, or the pocket can't cover the price.
  */
 export function promote(mountain: Mountain): Mountain {
-  const engineers = mountain.engineers ?? [];
+  const engineers = mountain.engineers;
   const name = nextEngineerName(engineers);
   if (
     name === undefined ||
@@ -133,7 +177,7 @@ export function grantFirstEngineer(mountain: Mountain): {
   readonly mountain: Mountain;
   readonly joined: boolean;
 } {
-  if (mountain.borers < 1 || (mountain.engineers?.length ?? 0) > 0) {
+  if (mountain.borers < 1 || mountain.engineers.length > 0) {
     return { mountain, joined: false };
   }
   return {
@@ -154,12 +198,8 @@ export function station(
   post: EngineerPost,
 ): Mountain {
   const engineers = mountain.engineers;
-  const engineer = engineers?.[index];
-  if (
-    engineers === undefined ||
-    engineer === undefined ||
-    engineer.post === post
-  ) {
+  const engineer = engineers[index];
+  if (engineer === undefined || engineer.post === post) {
     return mountain;
   }
   const next = engineers.slice();
@@ -173,12 +213,8 @@ export function station(
  */
 export function addTrip(mountain: Mountain, index: number): Mountain {
   const engineers = mountain.engineers;
-  const engineer = engineers?.[index];
-  if (
-    engineers === undefined ||
-    engineer === undefined ||
-    engineer.trips >= MAX_ENGINEER_TRIPS
-  ) {
+  const engineer = engineers[index];
+  if (engineer === undefined || engineer.trips >= MAX_ENGINEER_TRIPS) {
     return mountain;
   }
   const trips = engineer.trips + 1;
@@ -225,7 +261,7 @@ export function staffForBuy(
  * in a tunnel stays there.
  */
 export function tendBestTier(mountain: Mountain): Mountain {
-  const engineers = mountain.engineers ?? [];
+  const engineers = mountain.engineers;
   if (engineers.length === 0) {
     return mountain;
   }
@@ -237,11 +273,13 @@ export function tendBestTier(mountain: Mountain): Mountain {
         : undefined;
   if (
     wanted === undefined ||
-    engineers.some((engineer) => engineer.post === wanted)
+    atHome(mountain).some((engineer) => engineer.post === wanted)
   ) {
     return mountain;
   }
-  const index = engineers.findIndex((engineer) => engineer.post !== "tunnel");
+  const index = engineers.findIndex(
+    (engineer) => !onTrip(mountain, engineer.name),
+  );
   if (index < 0) {
     return mountain;
   }
@@ -249,15 +287,11 @@ export function tendBestTier(mountain: Mountain): Mountain {
 }
 
 function machineTended(mountain: Mountain): boolean {
-  return (mountain.engineers ?? []).some(
-    (engineer) => engineer.post === "machine",
-  );
+  return atHome(mountain).some((engineer) => engineer.post === "machine");
 }
 
 function hasEngineerOutOfTunnel(mountain: Mountain): boolean {
-  return (mountain.engineers ?? []).some(
-    (engineer) => engineer.post !== "tunnel",
-  );
+  return atHome(mountain).length > 0;
 }
 
 /** M12 retune (#252): tending counts a quarter more, at every rank. */
@@ -281,11 +315,11 @@ export const GRANDPA_RANK: EngineerRank = 0;
  * big group of drills, so buying a machine never slows the crew (#356).
  */
 export function grandpaPost(mountain: Mountain): TierId | undefined {
-  if ((mountain.legacy ?? 0) < 1) {
+  if (mountain.legacy < 1) {
     return undefined;
   }
   const tended = new Set<TierId | EngineerPost>(
-    (mountain.engineers ?? []).map((one) => one.post),
+    atHome(mountain).map((one) => one.post),
   );
   let free = mountain.helpers + mountain.kids;
   let best: TierId | undefined;
@@ -318,11 +352,7 @@ export function tendingTenths(mountain: Mountain, tierId: TierId): number {
   // Grandpa tends at his rank on his post (#338).
   let best =
     grandpaPost(mountain) === tierId ? TENDING_TENTHS[GRANDPA_RANK] * scale : 0;
-  const engineers = mountain.engineers;
-  if (engineers === undefined) {
-    return best;
-  }
-  for (const engineer of engineers) {
+  for (const engineer of atHome(mountain)) {
     if (engineer.post === tierId) {
       best = Math.max(best, TENDING_TENTHS[engineer.rank] * scale);
     }
@@ -333,11 +363,11 @@ export function tendingTenths(mountain: Mountain, tierId: TierId): number {
 /** Untrusted save data: closed names and posts, rank matching trips, at most five. */
 export function parseEngineers(
   value: unknown,
-): readonly Engineer[] | undefined {
+): readonly DutyEngineer[] | undefined {
   if (!Array.isArray(value) || value.length > MAX_ENGINEERS) {
     return undefined;
   }
-  const parsed: Engineer[] = [];
+  const parsed: DutyEngineer[] = [];
   const seen = new Set<string>();
   for (const item of value) {
     const engineer = parseEngineer(item);
@@ -350,7 +380,7 @@ export function parseEngineers(
   return parsed;
 }
 
-function parseEngineer(value: unknown): Engineer | undefined {
+function parseEngineer(value: unknown): DutyEngineer | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return undefined;
   }
@@ -373,7 +403,7 @@ function parseEngineer(value: unknown): Engineer | undefined {
     !isEngineerName(name) ||
     !isCount(trips) ||
     trips > MAX_ENGINEER_TRIPS ||
-    !isEngineerPost(post) ||
+    !isDuty(post) ||
     rank !== rankOf(trips)
   ) {
     return undefined;
@@ -388,10 +418,9 @@ function isEngineerName(value: unknown): value is EngineerName {
   );
 }
 
-function isEngineerPost(value: unknown): value is EngineerPost {
+function isDuty(value: unknown): value is Duty {
   return (
-    typeof value === "string" &&
-    (ENGINEER_POSTS as readonly string[]).includes(value)
+    typeof value === "string" && (DUTIES as readonly string[]).includes(value)
   );
 }
 

@@ -1,5 +1,5 @@
 import { formatCompact } from "./format";
-import { EMPTY_MATERIALS, type MaterialId } from "./layers";
+import type { MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
 import type { RowView } from "./row-view";
 import {
@@ -254,7 +254,7 @@ export function benchRowView(bench: BenchView, armed: boolean): BenchRowView {
 
 /** A plate for each material met, in the pocket line's order (`metMaterialChips`). */
 export function materialPlates(mountain: Mountain): readonly MaterialPlate[] {
-  const have = mountain.materials ?? EMPTY_MATERIALS;
+  const have = mountain.materials;
   return metMaterialChips(mountain).map((chip) => ({
     id: chip.id,
     count: formatCompact(have[chip.id]),

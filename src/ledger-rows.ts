@@ -256,7 +256,7 @@ function goalWords(mountain: Mountain): string {
   const goal = relicGoal(mountain);
   switch (goal.kind) {
     case "unguided":
-      return (mountain.legacy ?? 0) > 0
+      return mountain.legacy > 0
         ? kidMineWords(legacyWords(legacyBonus(mountain)))
         : RELICS_UNGUIDED;
     case "done":

@@ -5,10 +5,10 @@
  * Each is what a tab finds in localStorage on its first load.
  */
 
-import type { Engineer, EngineerName } from "../../src/engineers.ts";
-import type { Expedition } from "../../src/expeditions.ts";
-import type { Mountain } from "../../src/mountain.ts";
+import type { DutyEngineer, EngineerName } from "../../src/engineers.ts";
+import type { SavedExpedition } from "../../src/expeditions.ts";
 import type { MountainSaveV6, MountainSaveV7 } from "../../src/persist.ts";
+import type { SavedMountain } from "../../src/save-format.ts";
 
 export { SAVE_KEY } from "./harness.ts";
 
@@ -17,8 +17,11 @@ export { SAVE_KEY } from "./harness.ts";
  * need (the game fills them in when it loads), so only the first three fields
  * are required here; the rest are exactly `Mountain`'s.
  */
-export type SeedMountain = Pick<Mountain, "remaining" | "pocket" | "helpers"> &
-  Partial<Omit<Mountain, "remaining" | "pocket" | "helpers">>;
+export type SeedMountain = Pick<
+  SavedMountain,
+  "remaining" | "pocket" | "helpers"
+> &
+  Partial<Omit<SavedMountain, "remaining" | "pocket" | "helpers">>;
 
 /** The workshop half of a v6 save, as persist.ts writes it. */
 export type SeedWorkshop = MountainSaveV6["workshop"];
@@ -358,7 +361,6 @@ export function idleMountain(): SeedV6 {
       helpers: 3,
       carts: 6,
       staffed: 2,
-      taught: [],
     },
     workshop: EMPTY_WORKSHOP,
   };
@@ -517,7 +519,7 @@ export function effectSave(count: number): SeedV6 {
   const tripCount = full ? 5 : count >= 3 ? 1 : 0;
   const expeditions = Array.from(
     { length: tripCount },
-    (_, index): Expedition => ({
+    (_, index): SavedExpedition => ({
       engineer: names[index] as EngineerName,
       tunnel: "side-seam",
       sentAt: now - 60_000,
@@ -535,7 +537,7 @@ export function effectSave(count: number): SeedV6 {
         : {};
   const engineers = names
     .slice(0, Math.max(1, tripCount))
-    .map((name, index): Engineer => ({
+    .map((name, index): DutyEngineer => ({
       name,
       rank: 0,
       trips: 0,

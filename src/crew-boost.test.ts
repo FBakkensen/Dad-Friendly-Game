@@ -1,10 +1,10 @@
 import { RUSH_MS, startRush } from "./gold-rush";
 import { describe, expect, it } from "vitest";
 import { dialFrame, liveCrewBoost, type CrewBoost } from "./crew-boost";
-import { boostById } from "./boosts";
+import { boostById, NO_BOOSTS } from "./boosts";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
-import { chargeCrewMultiplier, timerDurationMs } from "./workshop";
+import { chargeCrewMultiplier, timerDurationMs, COLD_CLOCKS } from "./workshop";
 import type { Mountain } from "./mountain";
 
 const NOW = 1_000_000_000_000;
@@ -18,7 +18,10 @@ const crew = (): Mountain => ({
 });
 const withOvertime = (m: Mountain, startedAgo: number): Mountain => ({
   ...m,
-  boosts: { overtime: NOW - startedAgo + boostById("overtime").durationMs },
+  boosts: {
+    ...NO_BOOSTS,
+    overtime: NOW - startedAgo + boostById("overtime").durationMs,
+  },
 });
 
 const agrees = (m: Mountain): void => {
@@ -52,7 +55,7 @@ describe("liveCrewBoost", () => {
   it("the strongest wins", () => {
     const m: Mountain = {
       ...withOvertime(crew(), MIN),
-      chargeUntil: NOW + 5 * MIN,
+      clocks: { ...COLD_CLOCKS, "blasting-charge": NOW + 5 * MIN },
     };
     const charge = chargeCrewMultiplier(m, NOW);
     const overtime = boostById("overtime").multiplier;
@@ -71,7 +74,7 @@ describe("liveCrewBoost", () => {
     // Blasting charge and Overtime both read ×2 today; make Overtime shorter.
     const base: Mountain = {
       ...withOvertime(crew(), 29 * MIN),
-      chargeUntil: NOW + 10 * MIN,
+      clocks: { ...COLD_CLOCKS, "blasting-charge": NOW + 10 * MIN },
     };
     expect(chargeCrewMultiplier(base, NOW)).toBe(
       boostById("overtime").multiplier,
@@ -81,7 +84,10 @@ describe("liveCrewBoost", () => {
       source: "blasting-charge",
       leftMs: 10 * MIN,
     });
-    const longer: Mountain = { ...base, chargeUntil: NOW + 30_000 };
+    const longer: Mountain = {
+      ...base,
+      clocks: { ...COLD_CLOCKS, "blasting-charge": NOW + 30_000 },
+    };
     expect(liveCrewBoost(longer, NOW)).toMatchObject({
       source: "overtime",
       leftMs: MIN,
@@ -92,7 +98,10 @@ describe("liveCrewBoost", () => {
   });
 
   it("an axle grease on the clock runs the crew", () => {
-    const m: Mountain = { ...crew(), axleUntil: NOW + 5 * MIN };
+    const m: Mountain = {
+      ...crew(),
+      clocks: { ...COLD_CLOCKS, "axle-grease": NOW + 5 * MIN },
+    };
     const boost = liveCrewBoost(m, NOW);
     expect(boost).toMatchObject({
       source: "axle-grease",
@@ -108,7 +117,7 @@ describe("the Gold rush on the dial (#468)", () => {
   it("shows the rush over Overtime, and the crew runs at both", () => {
     const m: Mountain = {
       ...startRush({ ...crew(), rushBank: 9_000 }, NOW),
-      boosts: { overtime: NOW + 10 * MIN },
+      boosts: { ...NO_BOOSTS, overtime: NOW + 10 * MIN },
     };
     expect(liveCrewBoost(m, NOW)).toEqual({
       kind: "running",
@@ -127,7 +136,7 @@ describe("the Gold rush on the dial (#468)", () => {
   it("goes back to Overtime when the rush ends", () => {
     const m: Mountain = {
       ...startRush({ ...crew(), rushBank: 9_000 }, NOW),
-      boosts: { overtime: NOW + 10 * MIN },
+      boosts: { ...NO_BOOSTS, overtime: NOW + 10 * MIN },
     };
     expect(liveCrewBoost(m, NOW + RUSH_MS)).toMatchObject({
       source: "overtime",

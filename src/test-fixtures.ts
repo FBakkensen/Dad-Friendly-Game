@@ -11,7 +11,5 @@ export function minedMountain(count: number): Mountain {
 
 /** A save from before machines needed helpers (#89): no `staffed` mark. */
 export function unstaffedSave(mountain: Mountain): Mountain {
-  return Object.fromEntries(
-    Object.entries(mountain).filter(([key]) => key !== "staffed"),
-  ) as Mountain;
+  return { ...mountain, staffed: 0 };
 }

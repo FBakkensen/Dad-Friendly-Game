@@ -39,7 +39,7 @@ export function wantedSign(view: ProgressSnapshot): SignWant | undefined {
   if (id === "workshop") {
     return { id, key: "workshop", words: WORKSHOP_NOTE };
   }
-  const first = view.mountain.engineers?.[0]?.name;
+  const first = view.mountain.engineers[0]?.name;
   if (id === "engineers" && first !== undefined) {
     return { id, key: "engineers", words: engineersNote(first) };
   }

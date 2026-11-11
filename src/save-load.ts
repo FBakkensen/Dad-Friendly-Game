@@ -54,7 +54,7 @@ function anyProgress(mountain: Mountain): boolean {
       mountain.borers,
       mountain.machines,
       mountain.kids,
-      mountain.legacy ?? 0,
+      mountain.legacy,
     ].some((count) => count > 0)
   );
 }

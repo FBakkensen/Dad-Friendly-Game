@@ -20,7 +20,7 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { BOOSTS } from "../src/boosts";
+import { BOOSTS, NO_BOOSTS, type Boosts } from "../src/boosts";
 import {
   ENGINEER_NAMES,
   ENGINEER_POSTS,
@@ -46,11 +46,18 @@ import {
   type Mountain,
 } from "../src/mountain";
 import { MAX_MATERIAL } from "../src/layers";
-import { MAX_CRAFTED_LEVEL, MAX_CRAFT_MS, RECIPE_IDS } from "../src/workshop";
+import {
+  COLD_CLOCKS,
+  MAX_CRAFTED_LEVEL,
+  MAX_CRAFT_MS,
+  NOTHING_CRAFTED,
+  RECIPE_IDS,
+  type Crafted,
+} from "../src/workshop";
 import { parseSaveValue, serializeSave } from "../src/persist";
 import { effectiveRates } from "../src/rates";
 import { MAX_STRETCH, kidStretch, stonesLeft } from "../src/scale";
-import { UPGRADES } from "../src/upgrades";
+import { NO_UPGRADES, UPGRADES, type Upgrades } from "../src/upgrades";
 
 const [host = "127.0.0.1", port = "8080"] = (
   process.env["FIRESTORE_EMULATOR_HOST"] ?? "127.0.0.1:8080"
@@ -120,7 +127,10 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     "upgrade %s at every level up to %i",
     async (id, maxLevel) => {
       for (let level = 0; level <= maxLevel; level += 1) {
-        const mountain = { ...createMountain(), upgrades: { [id]: level } };
+        const mountain = {
+          ...createMountain(),
+          upgrades: { ...NO_UPGRADES, [id]: level } as Upgrades,
+        };
         expect(await roundTrip(mountain)).toEqual(mountain);
       }
     },
@@ -131,7 +141,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
       ...createMountain(),
       upgrades: Object.fromEntries(
         UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
-      ),
+      ) as Upgrades,
     };
     expect(await roundTrip(mountain)).toEqual(mountain);
   });
@@ -139,7 +149,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
   it.each(BOOSTS.map((boost) => boost.id))("boost %s", async (id) => {
     const mountain = {
       ...createMountain(),
-      boosts: { [id]: 1_800_000_000_000 },
+      boosts: { ...NO_BOOSTS, [id]: 1_800_000_000_000 } as Boosts,
     };
     expect(await roundTrip(mountain)).toEqual(mountain);
   });
@@ -267,7 +277,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
       name,
       rank: index === 0 ? 0 : 1,
       trips: index === 0 ? 0 : 3,
-      post: "tunnel",
+      post: "camp",
     }));
     const expeditions: Expedition[] = engineers.map((engineer, index) => ({
       engineer: engineer.name,
@@ -275,7 +285,6 @@ describe("firestore.rules: every save the game writes is accepted", () => {
         index === 2 ? "deep-dark" : index % 2 === 0 ? "side-seam" : "old-shaft",
       sentAt: 1_000 + index,
       returnsAt: 1_000 + index + (index === 2 ? 4 * 60 * 60_000 : 60_000),
-      home: "camp",
       find:
         index === 0
           ? { kind: "keepsake", id: "drawing" }
@@ -304,7 +313,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
           name: "Ada" as const,
           rank: 1 as const,
           trips: 3,
-          post: "tunnel" as const,
+          post: "borer" as const,
         },
       ],
       expeditions: [
@@ -313,7 +322,6 @@ describe("firestore.rules: every save the game writes is accepted", () => {
           tunnel: "deep-dark" as const,
           sentAt: 2,
           returnsAt: 2 + 4 * 60 * 60_000,
-          home: "borer" as const,
           find: { kind: "engineer" as const, id: "Nils" as const },
         },
       ],
@@ -380,8 +388,8 @@ describe("firestore.rules: every save the game writes is accepted", () => {
         startedAt: 1_000,
         endsAt: 1_000 + MAX_CRAFT_MS,
       },
-      crafted: { "iron-rails": 3, "crystal-lamp": 1 },
-      chargeUntil: 50_000,
+      crafted: { ...NOTHING_CRAFTED, "iron-rails": 3, "crystal-lamp": 1 },
+      clocks: { ...COLD_CLOCKS, "blasting-charge": 50_000 },
     };
     expect(await roundTrip(mountain)).toEqual(mountain);
 
@@ -431,11 +439,16 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     const loadedNewer = parseSaveValue(newer.data());
     expect(loadedNewer?.mountain.recipes).toEqual(["iron-rails"]);
     expect(loadedNewer?.mountain.bench).toBeUndefined();
-    expect(loadedNewer?.mountain.crafted).toEqual({ "iron-rails": 1 });
+    expect(loadedNewer?.mountain.crafted).toEqual({
+      ...NOTHING_CRAFTED,
+      "iron-rails": 1,
+    });
     expect(loadedNewer?.mountain.kept).toEqual({
       recipes: ["future-bit"],
       bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
       crafted: { "future-bit": 3 },
+      seen: [],
+      taught: [],
     });
     const kept = serializeSave({
       mountain: loadedNewer?.mountain ?? createMountain(),
@@ -508,7 +521,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
       await expect(
         save({
           ...createMountain(),
-          upgrades: { [upgrade.id]: upgrade.maxLevel + 1 },
+          upgrades: { ...NO_UPGRADES, [upgrade.id]: upgrade.maxLevel + 1 },
         }),
       ).rejects.toThrow(/permission/i);
     }
@@ -660,7 +673,7 @@ function maximalMountain(): Mountain {
     name,
     rank: index === 0 ? 0 : 1,
     trips: index === 0 ? 0 : 3,
-    post: "tunnel",
+    post: "camp",
   }));
   const expeditions: Expedition[] = engineers.map((engineer, index) => ({
     engineer: engineer.name,
@@ -668,7 +681,6 @@ function maximalMountain(): Mountain {
       index === 2 ? "deep-dark" : index % 2 === 0 ? "side-seam" : "old-shaft",
     sentAt: 1_000 + index,
     returnsAt: 1_000 + index + (index === 2 ? MAX_EXPEDITION_MS : 60_000),
-    home: "camp",
     find:
       index === 0
         ? { kind: "keepsake", id: "drawing" }
@@ -692,10 +704,10 @@ function maximalMountain(): Mountain {
     kids: 6,
     upgrades: Object.fromEntries(
       UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
-    ),
+    ) as Upgrades,
     boosts: Object.fromEntries(
       BOOSTS.map((boost) => [boost.id, 1_800_000_000_000]),
-    ),
+    ) as Boosts,
     startedAt: 0,
     legacy: 1,
     engineers,
@@ -713,11 +725,13 @@ function maximalMountain(): Mountain {
       startedAt: 1_000,
       endsAt: 1_000 + MAX_CRAFT_MS,
     },
-    crafted: Object.fromEntries(RECIPE_IDS.map((id) => [id, 1])),
-    chargeUntil: 50_000,
-    flareUntil: 60_000,
-    emberUntil: 70_000,
-    axleUntil: 80_000,
+    crafted: Object.fromEntries(RECIPE_IDS.map((id) => [id, 1])) as Crafted,
+    clocks: {
+      "blasting-charge": 50_000,
+      "crystal-flare": 60_000,
+      "heartstone-ember": 70_000,
+      "axle-grease": 80_000,
+    },
   };
 }
 

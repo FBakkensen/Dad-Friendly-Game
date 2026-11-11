@@ -87,7 +87,7 @@ export function createArrivalPanel({
   const sketch = cardLine("layer-sketch is-quiet");
   layer.body.append(layerArt, evocative, advice, sketch);
   const dig = layer.plate(LAYER_DIG, "dig", "layer-dig", () => {
-    progress.dismissLayer();
+    progress.dismiss("layer");
   });
 
   // Its fitted line is its heading, as today's dialog is labelled by it.
@@ -104,7 +104,7 @@ export function createArrivalPanel({
     "accept",
     "craft-accept",
     () => {
-      progress.dismissCraft();
+      progress.dismiss("craft");
     },
   );
 

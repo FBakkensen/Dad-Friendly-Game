@@ -65,6 +65,18 @@ interface Fixture {
   panel: ReturnType<typeof createRelicPanels>;
 }
 
+/** The store's view of the fixture: its away and its relic as notices. */
+function viewOf(fixture: Fixture): ProgressSnapshot {
+  const { away, revealed, ...rest } = fixture.view;
+  return {
+    ...rest,
+    notices: [
+      ...(away === undefined ? [] : [{ kind: "away", report: away }]),
+      ...(revealed === undefined ? [] : [{ kind: "reveal", relic: revealed }]),
+    ],
+  } as unknown as ProgressSnapshot;
+}
+
 function mount(mountain: Mountain, revealed?: Relic): Fixture {
   const fixture = {
     view: { ready: true, away: undefined, revealed, mountain },
@@ -79,9 +91,13 @@ function mount(mountain: Mountain, revealed?: Relic): Fixture {
   });
   fixture.panel = createRelicPanels({
     progress: {
-      dismissReveal: fixture.dismissReveal,
+      dismiss: (what: string) => {
+        if (what === "reveal") {
+          fixture.dismissReveal();
+        }
+      },
     } as unknown as ProgressStore,
-    getView: () => fixture.view as unknown as ProgressSnapshot,
+    getView: () => viewOf(fixture),
     board,
     overSave: () => false,
     cardUp: () => fixture.card,

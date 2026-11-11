@@ -1,4 +1,5 @@
-import { expeditionCraftScale, type Crafted } from "./workshop";
+import type { Mountain } from "./mountain";
+import { expeditionCraftScale } from "./workshop";
 
 /**
  * Lost tools (M7 §4). One of each, brought home from below and kept on
@@ -13,10 +14,7 @@ export const LOST_TOOLS = ["pick", "lamp", "map", "boots"] as const;
 
 export type LostToolId = (typeof LOST_TOOLS)[number];
 
-type Shelf = {
-  readonly finds?: readonly string[];
-  readonly crafted?: Crafted;
-};
+type Shelf = Pick<Mountain, "finds" | "crafted">;
 
 /** Grandfather's pick: five fourths of the bare tap, rounded up. */
 export const PICK_TAP_NUMERATOR = 5;
@@ -30,7 +28,7 @@ export const MAP_RETURN_NUMERATOR = 3;
 export const MAP_RETURN_DENOMINATOR = 4;
 
 export function hasLostTool(mountain: Shelf, id: LostToolId): boolean {
-  return mountain.finds?.includes(id) ?? false;
+  return mountain.finds.includes(id);
 }
 
 /**

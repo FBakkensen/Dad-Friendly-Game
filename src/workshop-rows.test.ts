@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LAYERS, materialsFromMined } from "./layers";
+import { LAYERS, materialsFromMined, EMPTY_MATERIALS } from "./layers";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import {
   BENCH_FREE,
@@ -14,7 +14,12 @@ import {
 } from "./screen-words";
 import { markSeen, recordFirstUse } from "./teach";
 import { minedMountain } from "./test-fixtures";
-import { recipesForMined, startCraft, type RecipeId } from "./workshop";
+import {
+  recipesForMined,
+  startCraft,
+  type RecipeId,
+  NOTHING_KEPT,
+} from "./workshop";
 import {
   benchView,
   workshopCards,
@@ -311,6 +316,7 @@ describe("the bench row (#374)", () => {
     const held: Mountain = {
       ...granite(),
       kept: {
+        ...NOTHING_KEPT,
         bench: { recipe: "future-bit", startedAt: NOW, endsAt: NOW + 600_000 },
       },
     };
@@ -396,8 +402,8 @@ describe("the material plates (#374)", () => {
     const old: Mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 1_000_000,
+      materials: EMPTY_MATERIALS,
     };
-    Reflect.deleteProperty(old, "materials");
     expect(materialPlates(old)).toEqual([
       {
         id: "clay",

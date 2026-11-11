@@ -6,6 +6,7 @@ import { effectiveRates } from "./rates";
 import { readyNow } from "./ready-now";
 import { MOUNTAIN_STONES } from "./scale";
 import { tierById, tierCost, type TierId } from "./tiers";
+import { NO_BOOSTS } from "./boosts";
 
 const NOW = 1_700_000_000_000;
 
@@ -15,7 +16,7 @@ function mountainWith(fields: Partial<Mountain>): Mountain {
 
 /** What the next one of a tier costs on this mountain. */
 function priceOf(mountain: Mountain, id: TierId, owned: number): number {
-  return tierCost(tierById(id), owned, mountain.stretch ?? 1);
+  return tierCost(tierById(id), owned, mountain.stretch);
 }
 
 /** Stones mined out so far: this deep. */
@@ -274,7 +275,16 @@ describe("readyNow", () => {
     const away = readyNow(
       mountainWith({
         ...onSale,
-        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "machine" }],
+        expeditions: [
+          {
+            engineer: "Ada",
+            tunnel: "side-seam",
+            sentAt: NOW,
+            returnsAt: NOW + 60_000,
+            find: { kind: "quiet" },
+          },
+        ],
       }),
       NOW,
     );
@@ -318,7 +328,7 @@ describe("readyNow", () => {
       const frozen = Object.freeze({
         ...mountain,
         materials: Object.freeze({ ...mountain.materials }),
-        recipes: Object.freeze([...(mountain.recipes ?? [])]),
+        recipes: Object.freeze([...mountain.recipes]),
       }) as Mountain;
 
       readyNow(frozen, NOW);
@@ -333,7 +343,7 @@ describe("readyNow", () => {
       helpers: 18,
       carts: 6,
       pocket: 100,
-      boosts: { overtime: overtimeEnds },
+      boosts: { ...NO_BOOSTS, overtime: overtimeEnds },
     });
     const price = priceOf(mountain, "cart", 6);
     const later = overtimeEnds + 1;

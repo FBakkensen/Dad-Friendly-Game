@@ -11,13 +11,11 @@ import { EventRing, type FieldEvent } from "./field-log";
 import type { LogEvent, Logger } from "./log";
 import type { Homecoming } from "./expeditions";
 import type { Trouble } from "./hazards";
-import type { Layer } from "./layers";
-import type { AwayReport, Mountain } from "./mountain";
-import type { Relic } from "./relics";
+import type { Mountain } from "./mountain";
 import {
   saveCounts,
   type AwayGap,
-  type CraftNotice,
+  type Notice,
   type FieldData,
   type Session,
 } from "./session";
@@ -30,36 +28,21 @@ export type ProgressSnapshot = {
   readonly saveKind: SaveKind;
   readonly ready: boolean;
   readonly log: string | undefined;
-  /** Set once per open when helpers mined while the game was closed. */
-  readonly away: AwayReport | undefined;
-  /** Stones a short absence paid: a small note, not the card (#334). */
-  readonly quietAway: number | undefined;
+  /**
+   * News this open has not shown yet, in arrival order. Not a save field.
+   * Read it with `firstNotice` and `noticesOf`.
+   */
+  readonly notices: readonly Notice[];
   /**
    * The last time away this open settled, and when (#468). A gap of an hour
    * or more makes the next golden vein a quick one. Not a save field.
    */
   readonly awayGap: AwayGap | undefined;
-  /** The next relic uncovered during this open and not yet celebrated. */
-  readonly revealed: Relic | undefined;
-  /** Free helpers hired on load so an older save's machines run (#89), once. */
-  readonly crewJoined: number | undefined;
-  /** Set once when an older save's first borer brings their first engineer. */
-  readonly engineerJoined: true | undefined;
   /**
    * Parties who came home this session and have not been read yet.
    * Not a save field: the expedition already remembered the find.
    */
   readonly homecomings: readonly Homecoming[];
-  /**
-   * Bands broken into this session and not yet read. A loaded save that
-   * already sits in a band does not announce it again. Not a save field.
-   */
-  readonly layersArrived: readonly Layer[];
-  /**
-   * Crafts fitted this session and not yet read, each with the mountain at
-   * the moment it finished. Not a save field.
-   */
-  readonly craftsFitted: readonly CraftNotice[];
   /** Trouble at one machine this session. Never saved, gone after a reload. */
   readonly trouble: Trouble | undefined;
   /** This tab holds the one writer seat on the device. */

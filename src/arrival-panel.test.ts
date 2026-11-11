@@ -3,23 +3,30 @@ import { describe, expect, it, vi } from "vitest";
 import { createArrivalPanel } from "./arrival-panel";
 import { createBoardHost } from "./board-host";
 import { craftLine } from "./card-views";
-import { LAYERS } from "./layers";
+import { LAYERS, type Layer } from "./layers";
 import { mineView } from "./mine-window";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { layerCardWords } from "./screen-words";
+import type { CraftNotice, DismissTarget, Notice } from "./session";
 import { minedMountain } from "./test-fixtures";
 import { RECIPE_IDS, type RecipeId } from "./workshop";
 
 const plain = {
   mountain: minedMountain(12_000_000),
-  away: undefined,
-  crewJoined: undefined,
-  engineerJoined: undefined,
   homecomings: [],
-  layersArrived: [],
-  craftsFitted: [],
-  revealed: undefined,
+  notices: [],
 } as unknown as ProgressSnapshot;
+
+/** How many times the panel dismissed this kind. */
+const dismissed = (
+  dismiss: { mock: { calls: readonly (readonly [DismissTarget])[] } },
+  what: DismissTarget,
+): number => dismiss.mock.calls.filter(([kind]) => kind === what).length;
+
+const layers = (list: readonly Layer[]): Notice[] =>
+  list.map((layer) => ({ kind: "layer", layer }));
+const crafts = (list: readonly CraftNotice[]): Notice[] =>
+  list.map((craft) => ({ kind: "craft", craft }));
 
 let time = 1000;
 
@@ -37,8 +44,7 @@ const mount = (first: ProgressSnapshot) => {
   time = 1000;
   let view = first;
   const progress = {
-    dismissLayer: vi.fn(),
-    dismissCraft: vi.fn(),
+    dismiss: vi.fn<(what: DismissTarget) => void>(),
   };
   const panel = createArrivalPanel({
     progress: progress as unknown as ProgressStore,
@@ -86,7 +92,7 @@ describe("the arrival cards (#464)", () => {
     const granite = LAYERS.find((layer) => layer.id === "granite");
     const { panel, progress } = mount({
       ...plain,
-      layersArrived: granite === undefined ? [] : [granite],
+      notices: layers(granite === undefined ? [] : [granite]),
     });
     expect(panel.layer.hidden).toBe(false);
     expect(panel.layer.dataset["card"]).toBe("layer");
@@ -101,13 +107,13 @@ describe("the arrival cards (#464)", () => {
       words?.sketch,
     );
     panel.layer.querySelector<HTMLButtonElement>(".layer-dig")?.click();
-    expect(progress.dismissLayer).toHaveBeenCalledTimes(1);
+    expect(dismissed(progress.dismiss, "layer")).toBe(1);
   });
 
   it.each(RECIPE_IDS)("shows the board art for %s on craft done", (id) => {
     const { panel, progress } = mount({
       ...plain,
-      craftsFitted: [{ id, level: 1, mountain: minedMountain(0), at: 0 }],
+      notices: crafts([{ id, level: 1, mountain: minedMountain(0), at: 0 }]),
     });
     expect(panel.notice.hidden).toBe(false);
     expect(panel.layer.hidden).toBe(true);
@@ -119,30 +125,30 @@ describe("the arrival cards (#464)", () => {
       craftLine({ id, level: 1, mountain: minedMountain(0), at: 0 }),
     );
     panel.notice.querySelector<HTMLButtonElement>(".craft-accept")?.click();
-    expect(progress.dismissCraft).toHaveBeenCalledTimes(1);
+    expect(dismissed(progress.dismiss, "craft")).toBe(1);
   });
 
   it("moves from one craft to the next without painting what stayed", () => {
     const { panel, show } = mount({
       ...plain,
-      craftsFitted: [
+      notices: crafts([
         { id: "iron-rails", level: 1, mountain: minedMountain(0), at: 0 },
-      ],
+      ]),
     });
     const art = panel.notice.querySelector<HTMLImageElement>(".board-card-art");
     show({
       ...plain,
-      craftsFitted: [
+      notices: crafts([
         { id: "diamond-bits", level: 1, mountain: minedMountain(0), at: 0 },
-      ],
+      ]),
     });
     expect(art?.getAttribute("src")).toContain("mach-drill.png");
     expect(art?.width).toBe(64);
     show({
       ...plain,
-      craftsFitted: [
+      notices: crafts([
         { id: "diamond-bits", level: 1, mountain: minedMountain(0), at: 0 },
-      ],
+      ]),
     });
     expect(art?.getAttribute("src")).toContain("mach-drill.png");
     show(plain);
@@ -151,8 +157,8 @@ describe("the arrival cards (#464)", () => {
 
   it("keeps the band's view through a repaint", () => {
     const granite = LAYERS.filter((layer) => layer.id === "granite");
-    const { panel, show } = mount({ ...plain, layersArrived: granite });
-    show({ ...plain, layersArrived: granite });
+    const { panel, show } = mount({ ...plain, notices: layers(granite) });
+    show({ ...plain, notices: layers(granite) });
     expect(
       panel.layer.querySelector(".board-card-art")?.getAttribute("src"),
     ).toBe(mineView("granite"));
@@ -173,39 +179,39 @@ describe("the arrival cards (#464)", () => {
     } as const;
     const { panel, progress, show } = mount({
       ...plain,
-      craftsFitted: [rails, bits],
+      notices: crafts([rails, bits]),
     });
     const accept = panel.notice.querySelector<HTMLElement>(".craft-accept");
     time += 1000;
     fingerTap(accept);
-    expect(progress.dismissCraft).toHaveBeenCalledTimes(1);
-    show({ ...plain, craftsFitted: [bits] });
+    expect(dismissed(progress.dismiss, "craft")).toBe(1);
+    show({ ...plain, notices: crafts([bits]) });
     time += 100;
     fingerTap(accept);
-    expect(progress.dismissCraft).toHaveBeenCalledTimes(1);
+    expect(dismissed(progress.dismiss, "craft")).toBe(1);
     time += 350;
     fingerTap(accept);
-    expect(progress.dismissCraft).toHaveBeenCalledTimes(2);
+    expect(dismissed(progress.dismiss, "craft")).toBe(2);
   });
 
   it("settles again when the next band takes the card", () => {
     const bands = LAYERS.slice(1, 3);
     const { panel, progress, show } = mount({
       ...plain,
-      layersArrived: bands,
+      notices: layers(bands),
     });
     expect(panel.layer.hidden).toBe(false);
     const dig = panel.layer.querySelector<HTMLElement>(".layer-dig");
     time += 1000;
     fingerTap(dig);
-    expect(progress.dismissLayer).toHaveBeenCalledTimes(1);
-    show({ ...plain, layersArrived: bands.slice(1) });
+    expect(dismissed(progress.dismiss, "layer")).toBe(1);
+    show({ ...plain, notices: layers(bands.slice(1)) });
     time += 100;
     fingerTap(dig);
-    expect(progress.dismissLayer).toHaveBeenCalledTimes(1);
+    expect(dismissed(progress.dismiss, "layer")).toBe(1);
     time += 350;
     fingerTap(dig);
-    expect(progress.dismissLayer).toHaveBeenCalledTimes(2);
+    expect(dismissed(progress.dismiss, "layer")).toBe(2);
   });
 
   it("does not settle again on a repaint of the same card", () => {
@@ -217,11 +223,11 @@ describe("the arrival cards (#464)", () => {
     } as const;
     const { panel, progress, show } = mount({
       ...plain,
-      craftsFitted: [rails],
+      notices: crafts([rails]),
     });
     time += 1000;
-    show({ ...plain, craftsFitted: [rails] });
+    show({ ...plain, notices: crafts([rails]) });
     fingerTap(panel.notice.querySelector<HTMLElement>(".craft-accept"));
-    expect(progress.dismissCraft).toHaveBeenCalledTimes(1);
+    expect(dismissed(progress.dismiss, "craft")).toBe(1);
   });
 });

@@ -43,6 +43,7 @@ import {
   startCraft,
   workshopUnlocked,
   type RecipeId,
+  NOTHING_CRAFTED,
 } from "../workshop";
 import { promoteAsap, runPolicy } from "./run";
 import {
@@ -51,6 +52,8 @@ import {
   FIX_SLOW_MS,
   LOOKAHEAD_SESSIONS,
 } from "./targets";
+import { NO_UPGRADES } from "../upgrades";
+import { EMPTY_MATERIALS } from "../layers";
 
 const ada = {
   name: "Ada",
@@ -109,11 +112,11 @@ describe("casual-2x10", () => {
       seed: 1,
       until: (world) =>
         world.mountain.bench !== undefined ||
-        world.mountain.crafted !== undefined,
+        Object.values(world.mountain.crafted).some((level) => level > 0),
     });
     const made =
       run.world.mountain.bench !== undefined ||
-      run.world.mountain.crafted !== undefined;
+      Object.values(run.world.mountain.crafted).some((level) => level > 0);
     expect(made).toBe(true);
     expect(casual.params.craft).toBe("idle");
   }, 120_000);
@@ -203,7 +206,7 @@ describe("extremes", () => {
     });
     expect(run.buys).toEqual([]);
     expect(run.promotions).toEqual([]);
-    expect(run.world.mountain.expeditions ?? []).toEqual([]);
+    expect(run.world.mountain.expeditions).toEqual([]);
   });
 
   it("buys machines, and workers only for those machines", () => {
@@ -273,7 +276,7 @@ describe("extremes", () => {
     });
     expect(run.promotions).toEqual([]);
     expect(run.world.mountain.engineers).toEqual([ada]);
-    expect(run.world.mountain.expeditions ?? []).toEqual([]);
+    expect(run.world.mountain.expeditions).toEqual([]);
   });
 
   it("promotes until the crew is full as soon as each price can be paid", () => {
@@ -343,8 +346,8 @@ describe("extremes", () => {
       mountain: withPocket(10_000, { helpers: 4 }),
       maxLiveSeconds: 1,
     });
-    expect(run.world.mountain.boosts?.sharper).toBeGreaterThan(0);
-    expect(run.world.mountain.boosts?.overtime).toBeGreaterThan(0);
+    expect(run.world.mountain.boosts.sharper).toBeGreaterThan(0);
+    expect(run.world.mountain.boosts.overtime).toBeGreaterThan(0);
   });
 });
 
@@ -470,7 +473,7 @@ describe("policy shape", () => {
     ).toBeGreaterThan(0);
     expect(
       sticker(
-        { ...mountain, upgrades: { tap: 10 } },
+        { ...mountain, upgrades: { ...NO_UPGRADES, tap: 10 } },
         { kind: "buyUpgrade", id: "tap", price: 0 },
       ),
     ).toBe(Number.POSITIVE_INFINITY);
@@ -579,7 +582,7 @@ describe("policy shape", () => {
       maxLiveSeconds: 1,
     });
     expect(missed.promotions).toEqual([]);
-    expect(missed.world.mountain.engineers ?? []).toEqual([]);
+    expect(missed.world.mountain.engineers).toEqual([]);
     const boosting = plainPolicy({
       id: "buys-a-boost",
       label: "One boost",
@@ -598,7 +601,7 @@ describe("policy shape", () => {
       mountain: withPocket(1_000),
       maxLiveSeconds: 1,
     });
-    expect(boosted.world.mountain.boosts?.sharper).toBeGreaterThan(0);
+    expect(boosted.world.mountain.boosts.sharper).toBeGreaterThan(0);
   });
 
   it("sends a scout when the expected find beats the post they leave", () => {
@@ -623,7 +626,7 @@ describe("policy shape", () => {
       mountain,
       maxLiveSeconds: 1,
     });
-    expect(run.world.mountain.expeditions?.[0]?.engineer).toBe("Nils");
+    expect(run.world.mountain.expeditions[0]?.engineer).toBe("Nils");
     curious.decide({ mountain, now: 0, params: curious.params });
     expect(promoteAsap(mountain, curious.params).hired).toEqual([]);
   });
@@ -637,7 +640,7 @@ const POCKET = {
 };
 
 function withRecipes(mountain: Mountain, extra: readonly RecipeId[]): Mountain {
-  return { ...mountain, recipes: [...(mountain.recipes ?? []), ...extra] };
+  return { ...mountain, recipes: [...mountain.recipes, ...extra] };
 }
 
 function workshop(extra: Partial<Mountain> = {}): Mountain {
@@ -805,11 +808,9 @@ describe("crafting", () => {
       ),
     ).toBe(false);
     expect(canPay(open, lamp, 1)).toBe(false);
-    const noMaterials = { ...open };
-    Reflect.deleteProperty(noMaterials, "materials");
+    const noMaterials = { ...open, materials: EMPTY_MATERIALS };
     expect(canPay(noMaterials, charge, 1)).toBe(false);
-    const unlisted = { ...open };
-    Reflect.deleteProperty(unlisted, "recipes");
+    const unlisted = { ...open, recipes: [] };
     expect(canPay(unlisted, lamp, 1)).toBe(false);
     const found = withRecipes(open, ["crystal-lamp"]);
     expect(canPay(found, lamp, 1)).toBe(true);
@@ -819,12 +820,19 @@ describe("crafting", () => {
     const busy = startCraft(open, "iron-rails", 0);
     expect(canPay(busy, charge, 1)).toBe(false);
     expect(canPay(createMountain(), charge, 1)).toBe(false);
-    expect(canPay({ ...open, crafted: { "iron-rails": 3 } }, rails, 1)).toBe(
-      false,
-    );
     expect(
       canPay(
-        { ...open, crafted: { "blasting-charge": MAX_CRAFTED_LEVEL } },
+        { ...open, crafted: { ...NOTHING_CRAFTED, "iron-rails": 3 } },
+        rails,
+        1,
+      ),
+    ).toBe(false);
+    expect(
+      canPay(
+        {
+          ...open,
+          crafted: { ...NOTHING_CRAFTED, "blasting-charge": MAX_CRAFTED_LEVEL },
+        },
         charge,
         1,
       ),
@@ -886,12 +894,12 @@ describe("crafting", () => {
       until: (world) =>
         workshopUnlocked(world.mountain) &&
         (world.mountain.bench !== undefined ||
-          world.mountain.crafted !== undefined),
+          Object.values(world.mountain.crafted).some((level) => level > 0)),
     });
     expect(workshopUnlocked(run.world.mountain)).toBe(true);
     const made =
       run.world.mountain.bench !== undefined ||
-      run.world.mountain.crafted !== undefined;
+      Object.values(run.world.mountain.crafted).some((level) => level > 0);
     expect(made).toBe(true);
   }, 120_000);
 });

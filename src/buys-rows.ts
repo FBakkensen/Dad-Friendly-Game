@@ -1,6 +1,6 @@
 import { tierLock, type TierLock } from "./crew";
 import { crewCounts } from "./crew-count";
-import { staffForBuy, staffNeeded } from "./engineers";
+import { atHome, staffForBuy, staffNeeded } from "./engineers";
 import { formatCompact, formatCount } from "./format";
 import type { Trouble } from "./hazards";
 import { REACHED_LINE, milestoneLine } from "./milestones";
@@ -248,15 +248,14 @@ function tendingOf(
   if (!isMachine(tier)) {
     return undefined;
   }
-  const engineers = mountain.engineers ?? [];
-  const who = tendingEngineer(engineers, tier.id);
+  const who = tendingEngineer(atHome(mountain), tier.id);
   return who === undefined
     ? undefined
     : {
         name: who.name,
         gain: tendingGain(
           mountain,
-          engineers.indexOf(who),
+          mountain.engineers.indexOf(who),
           tier.id,
           now,
           trouble,

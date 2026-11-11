@@ -28,8 +28,8 @@ describe("welcome-back ore (#247)", () => {
       materialsGained(12_000_000, minedOut(result.mountain)),
     );
     expect(result.report.materials.iron).toBeGreaterThan(0);
-    expect(result.mountain.materials?.iron).toBe(
-      (mountain.materials?.iron ?? 0) + result.report.materials.iron,
+    expect(result.mountain.materials.iron).toBe(
+      mountain.materials.iron + result.report.materials.iron,
     );
   });
 
@@ -44,24 +44,25 @@ describe("welcome-back ore (#247)", () => {
   it("shows the ore row on the card only when ore came up", () => {
     const view = (materials = EMPTY_MATERIALS) =>
       ({
-        away: {
-          mined: 6_400_000,
-          awayMs: 3 * 3_600_000,
-          paidMs: 3 * 3_600_000,
-          capped: false,
-          heart: 1,
-          materials,
-        },
-        layersArrived: [],
-        craftsFitted: [],
-        crewJoined: undefined,
-        engineerJoined: undefined,
+        notices: [
+          {
+            kind: "away",
+            report: {
+              mined: 6_400_000,
+              awayMs: 3 * 3_600_000,
+              paidMs: 3 * 3_600_000,
+              capped: false,
+              heart: 1,
+              materials,
+            },
+          },
+        ],
         homecomings: [],
         mountain: granite(),
       }) as unknown as ProgressSnapshot;
     let current = view({ ...EMPTY_MATERIALS, iron: 6 });
     const panel = createWelcomePanel({
-      progress: { dismissAway: () => undefined } as never,
+      progress: { dismiss: () => undefined } as never,
       getView: () => current,
       board: createBoardHost({ clock: () => 0 }),
     });
@@ -110,8 +111,7 @@ describe("pass-to-kid card (#247)", () => {
   });
 
   it("counts the starting recipes on a mountain without a list, and stays plain", () => {
-    const bare: Mountain = { ...createMountain() };
-    delete (bare as { recipes?: unknown }).recipes;
+    const bare: Mountain = createMountain();
     const words = legacyCardWords(bare);
     expect(words.keeps).toBe(
       `A bigger mountain for your kid, with the Legacy and ${String(recipesForMined(0).length)} recipes.`,

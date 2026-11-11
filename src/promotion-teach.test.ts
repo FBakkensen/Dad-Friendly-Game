@@ -100,9 +100,7 @@ function crew(): Mountain {
 }
 
 function withoutEngineers(): Mountain {
-  const { engineers: _gone, ...rest } = crew();
-  void _gone;
-  return rest;
+  return { ...crew(), engineers: [] };
 }
 
 describe("promotion teach (#246)", () => {
@@ -192,7 +190,7 @@ describe("promotion teach (#246)", () => {
     ).not.toBeNull();
     sheet?.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
     const mountain = screen.progress.getSnapshot().mountain;
-    expect(mountain.engineers?.map((hand) => hand.name)).toEqual([
+    expect(mountain.engineers.map((hand) => hand.name)).toEqual([
       "Ada",
       "Nils",
     ]);

@@ -1,5 +1,7 @@
 import { activeFactors, factor } from "./economy/factors";
 import {
+  atHome,
+  onTrip,
   promote,
   staffNeeded,
   station,
@@ -17,6 +19,7 @@ import {
   emberMachineMultiplier,
   gearMultiplier,
 } from "./workshop";
+import { callTo } from "./expeditions";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import { TIERS, owned, tierById, type TierId } from "./tiers";
@@ -79,7 +82,7 @@ export const LEGACY_STEP = 0.5;
 
 /** ×1, ×1.5, ×2, …: the kid's crew and taps. Never away pay's share. */
 export function legacyBonus(mountain: Mountain): number {
-  return 1 + LEGACY_STEP * (mountain.legacy ?? 0);
+  return 1 + LEGACY_STEP * mountain.legacy;
 }
 
 /** Crown of Wisdom: each kid helper makes every helper and kid this much faster. */
@@ -322,16 +325,10 @@ function addExtraPosts(
 ): void {
   const plainTotal = outputOf(plain, running);
   const seen = new Set<TierId>();
-  const crew = mountain.engineers;
-  /* v8 ignore next 3 -- a posted tender means the crew is present */
-  if (crew === undefined) {
-    return;
-  }
-  for (const engineer of crew) {
+  for (const engineer of atHome(mountain)) {
     const post = engineer.post;
     if (
       post === "camp" ||
-      post === "tunnel" ||
       post === primaryPost ||
       seen.has(post) ||
       running[post] <= 0
@@ -391,8 +388,8 @@ function primaryTender(
         readonly plain: number;
       }
     | undefined;
-  for (const engineer of mountain.engineers ?? []) {
-    if (engineer.post === "camp" || engineer.post === "tunnel") {
+  for (const engineer of atHome(mountain)) {
+    if (engineer.post === "camp") {
       continue;
     }
     const post = engineer.post;
@@ -411,8 +408,8 @@ function primaryTender(
   return best === undefined ? undefined : { post: best.post, rank: best.rank };
 }
 
-/** A machine post. Camp and a tunnel tend nothing. */
-export type TendTier = Exclude<EngineerPost, "camp" | "tunnel">;
+/** A machine post. Camp and a trip tend nothing. */
+export type TendTier = Exclude<EngineerPost, "camp">;
 
 /**
  * Extra stones a second if this engineer tends `post`, from staffed machines
@@ -428,7 +425,7 @@ export function tendingGain(
   trouble?: Trouble,
 ): number {
   const tended = effectiveRates(
-    station(mountain, index, post),
+    callTo(mountain, index, post),
     now,
     trouble,
   ).crewPerSecond;
@@ -449,7 +446,7 @@ export function moveGain(
   trouble?: Trouble,
 ): number {
   return (
-    effectiveRates(station(mountain, index, post), now, trouble).crewPerSecond -
+    effectiveRates(callTo(mountain, index, post), now, trouble).crewPerSecond -
     effectiveRates(mountain, now, trouble).crewPerSecond
   );
 }
@@ -467,14 +464,15 @@ export function firstTend(
   now?: number,
   trouble?: Trouble,
 ): { readonly index: number; readonly post: TendTier } | undefined {
-  const engineers = mountain.engineers ?? [];
+  const engineers = mountain.engineers;
+  const home = atHome(mountain);
   for (const [index, engineer] of engineers.entries()) {
-    if (engineer.post === "tunnel") {
+    if (onTrip(mountain, engineer.name)) {
       continue;
     }
     const post = GUIDED_POSTS.find(
       (tier) =>
-        engineers.every((other) => other.post !== tier) &&
+        home.every((other) => other.post !== tier) &&
         moveGain(mountain, index, tier, now, trouble) >= 1,
     );
     if (post !== undefined) {
@@ -539,7 +537,7 @@ export function promotePayoff(
   const before = effectiveRates(mountain, now, trouble).crewPerSecond;
   // The new hand waits at camp, so the posts taken are the old crew's.
   for (const post of GUIDED_POSTS) {
-    if ((mountain.engineers ?? []).some((other) => other.post === post)) {
+    if (atHome(mountain).some((other) => other.post === post)) {
       continue;
     }
     const gain =

@@ -28,8 +28,9 @@ import {
   accrue,
   accrueAway,
   createMountain,
-  parseMountain,
+  type Mountain,
 } from "./mountain";
+import { parseMountain } from "./save-format";
 import { parseSaveValue, serializeSave } from "./persist";
 import { BAND_SCALE, kidStretch, oneOffStretch } from "./scale";
 import { effectiveRates } from "./rates";
@@ -48,6 +49,24 @@ const crew = (
   engineers,
 });
 
+/** Ada away in the side seam: she keeps her post and tends nothing. */
+function outOn(mountain: Mountain): Mountain {
+  const crew = mountain.engineers.length > 0 ? mountain.engineers : [ada];
+  return {
+    ...mountain,
+    engineers: crew,
+    expeditions: [
+      {
+        engineer: "Ada",
+        tunnel: "side-seam",
+        sentAt: 0,
+        returnsAt: 60_000,
+        find: { kind: "quiet" },
+      },
+    ],
+  };
+}
+
 describe("ranks", () => {
   it("stays apprentice until 3 trips, journeyman until 9, then master", () => {
     expect(JOURNEYMAN_TRIPS).toBe(3);
@@ -65,14 +84,14 @@ describe("ranks", () => {
     for (let trip = 0; trip < JOURNEYMAN_TRIPS; trip += 1) {
       mountain = addTrip(mountain, 0);
     }
-    expect(mountain.engineers?.[0]).toMatchObject({ trips: 3, rank: 1 });
+    expect(mountain.engineers[0]).toMatchObject({ trips: 3, rank: 1 });
     for (let trip = 0; trip < MASTER_TRIPS - JOURNEYMAN_TRIPS; trip += 1) {
       mountain = addTrip(mountain, 0);
     }
-    expect(mountain.engineers?.[0]).toMatchObject({ trips: 9, rank: 2 });
+    expect(mountain.engineers[0]).toMatchObject({ trips: 9, rank: 2 });
     mountain = addTrip(mountain, 0);
-    expect(mountain.engineers?.[0]?.trips).toBe(10);
-    expect(mountain.engineers?.[0]?.rank).toBe(2);
+    expect(mountain.engineers[0]?.trips).toBe(10);
+    expect(mountain.engineers[0]?.rank).toBe(2);
 
     const capped = crew([{ ...ada, trips: MAX_ENGINEER_TRIPS, rank: 2 }]);
     expect(addTrip(capped, 0)).toBe(capped);
@@ -106,7 +125,7 @@ describe("the first engineer", () => {
 describe("promote", () => {
   it("spends a doubling stone price and one worker, and names the next hand", () => {
     const hired = promote(crew([ada]));
-    expect(hired.engineers?.[1]).toEqual({
+    expect(hired.engineers[1]).toEqual({
       name: "Nils",
       rank: 0,
       trips: 0,
@@ -126,7 +145,7 @@ describe("promote", () => {
     };
     expect(promoteCost(mountain)).toBe(PROMOTE_BASE_COST);
     mountain = promote(mountain);
-    expect(mountain.engineers?.[0]?.name).toBe("Ada");
+    expect(mountain.engineers[0]?.name).toBe("Ada");
     expect(mountain.helpers).toBe(0);
     expect(mountain.pocket).toBe(0);
   });
@@ -170,7 +189,7 @@ describe("promote", () => {
     expect(nextEngineerName([])).toBe("Ada");
     expect(nextEngineerName([ada])).toBe("Nils");
     expect(nextEngineerName([{ ...ada, name: "Nils" }])).toBe("Ada");
-    expect(nextEngineerName(full.engineers ?? [])).toBe(undefined);
+    expect(nextEngineerName(full.engineers)).toBe(undefined);
   });
 
   // #356: k × s × 2^n is not whole on kid runs (k has a denominator of 128,
@@ -221,7 +240,7 @@ describe("promote", () => {
 describe("station", () => {
   it("moves an engineer, and leaves a bad index or the same post alone", () => {
     const mountain = crew([ada]);
-    expect(station(mountain, 0, "drill").engineers?.[0]?.post).toBe("drill");
+    expect(station(mountain, 0, "drill").engineers[0]?.post).toBe("drill");
     expect(station(mountain, 0, "borer")).toBe(mountain);
     expect(station(mountain, 2, "camp")).toBe(mountain);
     const fresh = createMountain();
@@ -246,15 +265,7 @@ describe("Great Machine crew", () => {
     expect(effectiveRates(tended).running.machine).toBe(0);
     expect(staffForBuy(tended, machine)).toBe(5);
     expect(staffForBuy(createMountain(), machine)).toBe(10);
-    expect(
-      staffForBuy(
-        {
-          ...createMountain(),
-          engineers: [{ ...ada, post: "tunnel" }],
-        },
-        machine,
-      ),
-    ).toBe(10);
+    expect(staffForBuy(outOn(createMountain()), machine)).toBe(10);
     expect(staffForBuy(posted, tierById("cart"))).toBe(1);
   });
 
@@ -264,17 +275,14 @@ describe("Great Machine crew", () => {
     const onBorer = { ...fresh, borers: 1, engineers: [ada] };
     expect(tendBestTier(onBorer)).toBe(onBorer);
     const atCamp = station(onBorer, 0, "camp");
-    expect(tendBestTier(atCamp).engineers?.[0]?.post).toBe("borer");
+    expect(tendBestTier(atCamp).engineers[0]?.post).toBe("borer");
     const withMachine = { ...onBorer, machines: 1 };
-    expect(tendBestTier(withMachine).engineers?.[0]?.post).toBe("machine");
+    expect(tendBestTier(withMachine).engineers[0]?.post).toBe("machine");
     const already = tendBestTier(withMachine);
     expect(tendBestTier(already)).toBe(already);
     const waiting = { ...fresh, engineers: [ada] };
     expect(tendBestTier(waiting)).toBe(waiting);
-    const away = {
-      ...withMachine,
-      engineers: [{ ...ada, post: "tunnel" as const }],
-    };
+    const away = outOn({ ...withMachine, engineers: [ada] });
     expect(tendBestTier(away)).toBe(away);
   });
 });
@@ -329,10 +337,7 @@ describe("tending", () => {
         .mined,
     ).toBe(apprentice.crewPerSecond);
 
-    const tunnel = effectiveRates({
-      ...base,
-      engineers: [{ ...ada, post: "tunnel" }],
-    });
+    const tunnel = effectiveRates(outOn({ ...base, engineers: [ada] }));
     expect(tunnel.crewPerSecond).toBe(plain.crewPerSecond);
     expect(tendingTenths(base, "borer")).toBe(0);
     expect(tendingTenths({ ...base, engineers: [ada] }, "helper")).toBe(0);
@@ -381,10 +386,8 @@ describe("parseEngineers", () => {
     expect(parseEngineers(engineers)).toEqual(engineers);
     expect(parseMountain({ ...base, engineers })?.engineers).toEqual(engineers);
     expect(parseEngineers([])).toEqual([]);
-    expect(
-      parseMountain({ ...base, engineers: [] })?.engineers,
-    ).toBeUndefined();
-    expect(parseMountain(base)?.engineers).toBeUndefined();
+    expect(parseMountain({ ...base, engineers: [] })?.engineers).toEqual([]);
+    expect(parseMountain(base)?.engineers).toEqual([]);
   });
 
   it("rejects a bad shape, a stranger, a duplicate, and a rank that lies about trips", () => {

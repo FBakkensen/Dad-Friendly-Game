@@ -8,6 +8,7 @@ import {
   createMountain,
   mineByHand,
   minedOut,
+  BARE_MOUNTAIN,
 } from "./mountain";
 import {
   LANTERN_VEIN_GAP_SCALE,
@@ -24,6 +25,7 @@ import {
   QUICK_VEIN_WAIT_MS,
   quickVein,
 } from "./veins";
+import { NOTHING_CRAFTED } from "./workshop";
 
 const MINUTE = 60_000;
 
@@ -70,6 +72,7 @@ describe("golden veins", () => {
   it("pays a minute of crew output, at least 50, capped by the mountain", () => {
     expect(
       veinReward({
+        ...BARE_MOUNTAIN,
         remaining: 1_000,
         pocket: 0,
         helpers: 0,
@@ -82,6 +85,7 @@ describe("golden veins", () => {
     ).toBe(50);
     expect(
       veinReward({
+        ...BARE_MOUNTAIN,
         remaining: 1_000,
         pocket: 0,
         helpers: 3,
@@ -94,6 +98,7 @@ describe("golden veins", () => {
     ).toBe(180);
     expect(
       veinReward({
+        ...BARE_MOUNTAIN,
         remaining: 1,
         pocket: 0,
         helpers: 3,
@@ -107,6 +112,7 @@ describe("golden veins", () => {
     ).toBe(Math.ceil(BAND_SCALE[3]));
     expect(
       mineVein({
+        ...BARE_MOUNTAIN,
         remaining: MOUNTAIN_STONES - 1_000,
         pocket: 7,
         helpers: 3,
@@ -117,6 +123,7 @@ describe("golden veins", () => {
         kids: 0,
       }),
     ).toEqual({
+      ...BARE_MOUNTAIN,
       remaining: MOUNTAIN_STONES - 1_180,
       pocket: 187,
       helpers: 3,
@@ -128,6 +135,7 @@ describe("golden veins", () => {
       materials: EMPTY_MATERIALS,
     });
     const empty = {
+      ...BARE_MOUNTAIN,
       remaining: 0,
       pocket: 7,
       helpers: 3,
@@ -174,9 +182,11 @@ describe("golden veins", () => {
   });
 
   it("lets a golden vein linger longer once the old miner's lamp is home", () => {
-    expect(veinGlintMs({})).toBe(VEIN_GLINT_MS);
-    expect(veinGlintMs({ finds: ["pick"] })).toBe(VEIN_GLINT_MS);
-    const lingered = veinGlintMs({ finds: ["lamp"] });
+    expect(veinGlintMs(BARE_MOUNTAIN)).toBe(VEIN_GLINT_MS);
+    expect(veinGlintMs({ ...BARE_MOUNTAIN, finds: ["pick"] })).toBe(
+      VEIN_GLINT_MS,
+    );
+    const lingered = veinGlintMs({ ...BARE_MOUNTAIN, finds: ["lamp"] });
     expect(lingered).toBe(VEIN_GLINT_MS * 2);
 
     const waiting = waitForVein({ now: 0, random: () => 0 });
@@ -193,14 +203,26 @@ describe("golden veins", () => {
   });
 
   it("shortens the wait when a lamp is fitted, and keeps the lantern's share", () => {
-    expect(veinGapScale({}, false)).toBe(1);
-    expect(veinGapScale({}, true)).toBe(LANTERN_VEIN_GAP_SCALE);
-    expect(veinGapScale({ crafted: { "crystal-lamp": 1 } }, false)).toBeCloseTo(
-      1 / 1.25,
-    );
-    expect(veinGapScale({ crafted: { "crystal-lamp": 1 } }, true)).toBeCloseTo(
-      LANTERN_VEIN_GAP_SCALE / 1.25,
-    );
+    expect(veinGapScale(BARE_MOUNTAIN, false)).toBe(1);
+    expect(veinGapScale(BARE_MOUNTAIN, true)).toBe(LANTERN_VEIN_GAP_SCALE);
+    expect(
+      veinGapScale(
+        {
+          ...BARE_MOUNTAIN,
+          crafted: { ...NOTHING_CRAFTED, "crystal-lamp": 1 },
+        },
+        false,
+      ),
+    ).toBeCloseTo(1 / 1.25);
+    expect(
+      veinGapScale(
+        {
+          ...BARE_MOUNTAIN,
+          crafted: { ...NOTHING_CRAFTED, "crystal-lamp": 1 },
+        },
+        true,
+      ),
+    ).toBeCloseTo(LANTERN_VEIN_GAP_SCALE / 1.25);
   });
 
   it("waits 40% less once the Lantern of Guidance is found", () => {

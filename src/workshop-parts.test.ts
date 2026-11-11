@@ -8,7 +8,7 @@ import {
 import { createBoardHost, type BoardHost } from "./board-host";
 import { rowsOnBoard, type RowsOnBoard } from "./board-row";
 import { createMountain, MOUNTAIN_STONES, type Mountain } from "./mountain";
-import { recipesForMined } from "./workshop";
+import { recipesForMined, NOTHING_KEPT } from "./workshop";
 import { benchView } from "./workshop-sheet";
 import {
   benchRowView,
@@ -369,6 +369,7 @@ describe("the bench row (#374)", () => {
     mountBench({
       ...shed({ clay: 10, iron: 4, crystal: 0, heartstone: 0 }),
       kept: {
+        ...NOTHING_KEPT,
         bench: { recipe: "future-bit", startedAt: NOW, endsAt: NOW + 600_000 },
       },
     });

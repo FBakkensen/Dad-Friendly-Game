@@ -2,7 +2,7 @@ import { stretch } from "../scale";
 import type { Trouble } from "../hazards";
 import { mineByHand, type Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
-import { station } from "../engineers";
+import { onTrip, station } from "../engineers";
 import { layerOf } from "../layers";
 import { TIERS } from "../tiers";
 import {
@@ -13,8 +13,12 @@ import {
   type Action,
   type ValueContext,
 } from "../economy/actions";
-import { recipeCost, workshopUnlocked } from "../workshop";
-import { EMPTY_MATERIALS } from "../layers";
+import {
+  COLD_CLOCKS,
+  NOTHING_CRAFTED,
+  recipeCost,
+  workshopUnlocked,
+} from "../workshop";
 import { MOVE_KINDS, type DecisionSample } from "./measure";
 import { unlimitedSinks } from "./measures/materialIdle";
 import type { CraftRule } from "./policy";
@@ -120,7 +124,7 @@ function craftIsReady(mountain: Mountain, action: Action): boolean {
     return false;
   }
   const cost = recipeCost(action.recipe, stretch(mountain));
-  const have = mountain.materials ?? EMPTY_MATERIALS;
+  const have = mountain.materials;
   return (
     mountain.pocket >= cost.stones &&
     have.clay >= cost.materials.clay &&
@@ -259,8 +263,8 @@ function byValue(moves: readonly Priced[]): Summary {
 
 function rested(mountain: Mountain): Mountain {
   let next = mountain;
-  for (const [index, engineer] of (mountain.engineers ?? []).entries()) {
-    if (engineer.post !== "camp" && engineer.post !== "tunnel") {
+  for (const [index, engineer] of mountain.engineers.entries()) {
+    if (engineer.post !== "camp" && !onTrip(mountain, engineer.name)) {
       next = station(next, index, "camp");
     }
   }
@@ -276,16 +280,14 @@ function tapStones(
 }
 
 function withoutGear(mountain: Mountain): Mountain {
-  const next = { ...mountain };
   // The bench is where a live timer is already paying. Leaving it on the
   // bare copy hid that share for the whole sitting.
-  Reflect.deleteProperty(next, "crafted");
-  Reflect.deleteProperty(next, "chargeUntil");
-  Reflect.deleteProperty(next, "flareUntil");
-  Reflect.deleteProperty(next, "emberUntil");
-  Reflect.deleteProperty(next, "axleUntil");
-  Reflect.deleteProperty(next, "bench");
-  return next;
+  return {
+    ...mountain,
+    crafted: NOTHING_CRAFTED,
+    clocks: COLD_CLOCKS,
+    bench: undefined,
+  };
 }
 
 function outputShare(
@@ -394,14 +396,10 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     layer: layerOf(input.mountain).id,
     workshopOpen: workshopUnlocked(input.mountain),
     benchFree: input.mountain.bench === undefined,
-    ...(input.mountain.materials === undefined
-      ? {}
-      : { materials: input.mountain.materials }),
+    materials: input.mountain.materials,
     openRecipes: sinkRecipes(input.mountain),
     knownRecipes: knownRecipeIds(input.mountain),
-    ...(input.mountain.crafted === undefined
-      ? {}
-      : { crafted: input.mountain.crafted }),
+    crafted: input.mountain.crafted,
     unlimitedSinks: unlimitedSinks(input.craft, input.mountain.crafted),
     optionKinds: optionKinds(actions),
     byValue: {

@@ -5,8 +5,10 @@ import type { TierId } from "./tiers";
 /** Quick, timed boosts. See docs/DESIGN.md "M3: Strategy". */
 export type BoostId = "sharper" | "overtime";
 
-/** Saved as absolute end times (epoch ms), so a reload keeps the countdown. */
-export type Boosts = Readonly<Partial<Record<BoostId, number>>>;
+/** Saved as absolute end times (epoch ms), so a reload keeps the countdown. 0 is never run. */
+export type Boosts = Readonly<Record<BoostId, number>>;
+
+export const NO_BOOSTS: Boosts = { sharper: 0, overtime: 0 };
 
 export type Boost = {
   readonly id: BoostId;
@@ -68,8 +70,8 @@ export function boostLeft(
   id: BoostId,
   now: number,
 ): number {
-  const endsAt = mountain.boosts?.[id];
-  if (endsAt === undefined) {
+  const endsAt = mountain.boosts[id];
+  if (endsAt === 0) {
     return 0;
   }
   // Capped at the full length, so a clock set back can't stretch a boost.
@@ -121,7 +123,7 @@ export function parseBoosts(value: unknown): Boosts | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return undefined;
   }
-  const parsed: Partial<Record<BoostId, number>> = {};
+  const parsed: Record<BoostId, number> = { ...NO_BOOSTS };
   for (const [key, endsAt] of Object.entries(value)) {
     if (
       !(key in BY_ID) ||

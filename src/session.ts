@@ -34,6 +34,7 @@ import {
   RECIPE_IDS,
   craftedLevel,
   grantRecipes,
+  type Crafted,
   layerRecipeIds,
   type RecipeId,
 } from "./workshop";
@@ -66,18 +67,62 @@ export type CraftNotice = {
   readonly at: number;
 };
 
+/** One piece of news this open has not shown yet. */
+export type Notice =
+  /** Helpers mined while the game was closed: the welcome-back card. */
+  | { readonly kind: "away"; readonly report: AwayReport }
+  /** Stones a short absence paid: a small note, not the card (#334). */
+  | { readonly kind: "quiet"; readonly stones: number }
+  /** A relic uncovered and not yet celebrated. */
+  | { readonly kind: "reveal"; readonly relic: Relic }
+  /** A band broken into. A loaded save already in a band does not announce it again. */
+  | { readonly kind: "layer"; readonly layer: Layer }
+  /** A craft fitted, with the mountain at the moment it finished. */
+  | { readonly kind: "craft"; readonly craft: CraftNotice }
+  /** Free helpers hired on load so an older save's machines run (#89). */
+  | { readonly kind: "crew-joined"; readonly helpers: number }
+  /** An older save's first borer brought their first engineer. */
+  | { readonly kind: "engineer-joined" };
+
+export type NoticeKind = Notice["kind"];
+export type NoticeOf<K extends NoticeKind> = Extract<Notice, { kind: K }>;
+
+/** Anything that carries the notice queue: the session's news, or a snapshot. */
+type HasNotices = { readonly notices: readonly Notice[] };
+
+/** The notices of one kind, in the order they arrived. */
+export function noticesOf<K extends NoticeKind>(
+  from: HasNotices,
+  kind: K,
+): readonly NoticeOf<K>[] {
+  return from.notices.filter(
+    (notice): notice is NoticeOf<K> => notice.kind === kind,
+  );
+}
+
+/** The oldest notice of one kind, if any. */
+export function firstNotice<K extends NoticeKind>(
+  from: HasNotices,
+  kind: K,
+): NoticeOf<K> | undefined {
+  return noticesOf(from, kind)[0];
+}
+
+/** The welcome-back card's own news. Closing the card also clears bands and crafts it listed. */
+const WELCOME_KINDS: readonly NoticeKind[] = [
+  "away",
+  "crew-joined",
+  "engineer-joined",
+];
+const CARD_KINDS: readonly NoticeKind[] = [...WELCOME_KINDS, "layer", "craft"];
+
 /** What this open has to tell, and has not shown yet. None of it is saved. */
 type SessionNews = {
-  readonly away: AwayReport | undefined;
-  readonly quietAway: number | undefined;
+  /** Every notice not yet shown, in arrival order. */
+  readonly notices: readonly Notice[];
   readonly awayGap: AwayGap | undefined;
   /** The welcome-back card has had its chance this open. */
   readonly welcomed: boolean;
-  readonly reveals: readonly Relic[];
-  readonly layersArrived: readonly Layer[];
-  readonly craftsFitted: readonly CraftNotice[];
-  readonly crewJoined: number | undefined;
-  readonly engineerJoined: true | undefined;
   readonly homecomings: readonly Homecoming[];
   /** Someone came home since the screen was last told. */
   readonly pending: boolean;
@@ -90,7 +135,7 @@ type SessionNews = {
 type Baselines = {
   readonly reveal: number | undefined;
   readonly layer: number | undefined;
-  readonly craft: Readonly<Partial<Record<RecipeId, number>>> | undefined;
+  readonly craft: Crafted | undefined;
 };
 
 export type Session = {
@@ -107,7 +152,14 @@ type MountainChange = {
   readonly events: readonly MoveEvent[];
 };
 
-export type DismissTarget = "reveal" | "away" | "quiet" | "layer" | "craft";
+/**
+ * What a tap closes: the oldest notice of that kind, or for `"away"` the
+ * whole welcome-back card (its crew news, homecomings, bands and crafts).
+ */
+export type DismissTarget = Exclude<
+  NoticeKind,
+  "crew-joined" | "engineer-joined"
+>;
 
 export type SessionInput =
   /** Helpers' work up to now, live or away by the gap. */
@@ -158,15 +210,9 @@ export type Stepped = {
 };
 
 const NO_NEWS: SessionNews = {
-  away: undefined,
-  quietAway: undefined,
+  notices: [],
   awayGap: undefined,
   welcomed: false,
-  reveals: [],
-  layersArrived: [],
-  craftsFitted: [],
-  crewJoined: undefined,
-  engineerJoined: undefined,
   homecomings: [],
   pending: false,
 };
@@ -216,7 +262,7 @@ function primeArrivals(session: Session): Session {
     baselines: {
       ...session.baselines,
       layer: minedOut(session.mountain),
-      craft: { ...(session.mountain.crafted ?? {}) },
+      craft: { ...session.mountain.crafted },
     },
   };
 }
@@ -226,8 +272,29 @@ export function forgetArrivals(session: Session): Session {
   return {
     ...session,
     baselines: NO_BASELINES,
-    news: { ...session.news, layersArrived: [], craftsFitted: [] },
+    news: dropNotices(session.news, ["layer", "craft"]),
   };
+}
+
+function addNotices(news: SessionNews, added: readonly Notice[]): SessionNews {
+  return added.length === 0
+    ? news
+    : { ...news, notices: [...news.notices, ...added] };
+}
+
+function dropNotices(
+  news: SessionNews,
+  kinds: readonly NoticeKind[],
+): SessionNews {
+  return {
+    ...news,
+    notices: news.notices.filter((notice) => !kinds.includes(notice.kind)),
+  };
+}
+
+/** The one notice of its kind: a newer one takes the older one's place. */
+function setNotice(news: SessionNews, notice: Notice): SessionNews {
+  return addNotices(dropNotices(news, [notice.kind]), [notice]);
 }
 
 /** A builder of one step's effects, so each rule reads as a list of what it did. */
@@ -378,9 +445,12 @@ function welcome(session: Session, report: AwayReport, mined: number): Session {
   }
   return {
     ...session,
-    news: isQuietAway(report)
-      ? { ...session.news, quietAway: mined }
-      : { ...session.news, away: report },
+    news: setNotice(
+      session.news,
+      isQuietAway(report)
+        ? { kind: "quiet", stones: mined }
+        : { kind: "away", report },
+    ),
   };
 }
 
@@ -579,10 +649,10 @@ function noteReveals(session: Session, out: Effects): Session {
   }
   return {
     ...session,
-    news:
-      found.length === 0
-        ? session.news
-        : { ...session.news, reveals: [...session.news.reveals, ...found] },
+    news: addNotices(
+      session.news,
+      found.map((relic) => ({ kind: "reveal", relic })),
+    ),
     baselines: { ...session.baselines, reveal: mined },
   };
 }
@@ -615,41 +685,46 @@ function noteLayers(session: Session, out: Effects): Session {
   return {
     ...session,
     mountain,
-    news:
-      entered.length === 0
-        ? session.news
-        : {
-            ...session.news,
-            layersArrived: [...session.news.layersArrived, ...entered],
-          },
+    news: addNotices(
+      session.news,
+      entered.map((layer) => ({ kind: "layer", layer })),
+    ),
     baselines: { ...session.baselines, layer: mined },
   };
+}
+
+/** The crafts whose level rose past the baseline, each recorded once. */
+function craftsSince(
+  mountain: Mountain,
+  noted: Crafted,
+  now: number,
+  out: Effects,
+): CraftNotice[] {
+  const fitted: CraftNotice[] = [];
+  for (const id of RECIPE_IDS) {
+    const level = craftedLevel(mountain, id);
+    if (level > noted[id]) {
+      out.record("craft.done", { id, count: level });
+      fitted.push({ id, level, mountain, at: now });
+    }
+  }
+  return fitted;
 }
 
 /** A craft whose level rose since the baseline, with the mountain the screen words it from. */
 function noteCrafts(session: Session, now: number, out: Effects): Session {
   const noted = session.baselines.craft;
-  const fitted: CraftNotice[] = [];
-  for (const id of noted === undefined ? [] : RECIPE_IDS) {
-    const level = craftedLevel(session.mountain, id);
-    if (level <= (noted?.[id] ?? 0)) {
-      continue;
-    }
-    out.record("craft.done", { id, count: level });
-    fitted.push({ id, level, mountain: session.mountain, at: now });
-  }
+  const fitted =
+    noted === undefined ? [] : craftsSince(session.mountain, noted, now, out);
   return {
     ...session,
-    news:
-      fitted.length === 0
-        ? session.news
-        : {
-            ...session.news,
-            craftsFitted: [...session.news.craftsFitted, ...fitted],
-          },
+    news: addNotices(
+      session.news,
+      fitted.map((craft) => ({ kind: "craft", craft })),
+    ),
     baselines: {
       ...session.baselines,
-      craft: { ...(session.mountain.crafted ?? {}) },
+      craft: { ...session.mountain.crafted },
     },
   };
 }
@@ -663,10 +738,12 @@ function loaded(session: Session, out: Effects): Session {
     if (staffed.joined > 0) {
       next = {
         ...next,
-        news: {
-          ...next.news,
-          crewJoined: (next.news.crewJoined ?? 0) + staffed.joined,
-        },
+        news: setNotice(next.news, {
+          kind: "crew-joined",
+          helpers:
+            (firstNotice(next.news, "crew-joined")?.helpers ?? 0) +
+            staffed.joined,
+        }),
       };
       out.record("crew.staff", { count: staffed.joined });
       out.log({
@@ -690,7 +767,7 @@ function loaded(session: Session, out: Effects): Session {
   return {
     ...next,
     mountain: engineer.mountain,
-    news: { ...next.news, engineerJoined: true },
+    news: setNotice(next.news, { kind: "engineer-joined" }),
   };
 }
 
@@ -706,13 +783,14 @@ function beginRun(
     hazards: freshHazards(now),
     lastSeen: runStartedAt(mountain),
     news: {
-      ...session.news,
-      away: undefined,
-      quietAway: undefined,
+      ...dropNotices(session.news, [
+        "away",
+        "quiet",
+        "reveal",
+        "layer",
+        "craft",
+      ]),
       homecomings: [],
-      reveals: [],
-      layersArrived: [],
-      craftsFitted: [],
     },
     baselines: { ...session.baselines, reveal: 0 },
   });
@@ -730,58 +808,35 @@ function recall(session: Session, homecomings: readonly Homecoming[]): Session {
 
 function dismiss(session: Session, what: DismissTarget, out: Effects): Session {
   const news = session.news;
-  switch (what) {
-    case "reveal":
-      return { ...session, news: { ...news, reveals: news.reveals.slice(1) } };
-    case "quiet":
-      return { ...session, news: { ...news, quietAway: undefined } };
-    case "layer":
-      return {
-        ...session,
-        news: { ...news, layersArrived: news.layersArrived.slice(1) },
-      };
-    case "craft":
-      return {
-        ...session,
-        news: { ...news, craftsFitted: news.craftsFitted.slice(1) },
-      };
-    case "away":
-      out.push({ kind: "remember" });
-      return {
+  if (what === "away") {
+    out.push({ kind: "remember" });
+    return {
+      ...session,
+      news: { ...dropNotices(news, CARD_KINDS), homecomings: [] },
+    };
+  }
+  const first = news.notices.findIndex((notice) => notice.kind === what);
+  return first === -1
+    ? session
+    : {
         ...session,
         news: {
           ...news,
-          away: undefined,
-          crewJoined: undefined,
-          engineerJoined: undefined,
-          homecomings: [],
-          layersArrived: [],
-          craftsFitted: [],
+          notices: news.notices.filter((_, index) => index !== first),
         },
       };
-  }
 }
 
 /** True when there is something for `dismiss` to close. */
 export function hasNews(session: Session, what: DismissTarget): boolean {
   const news = session.news;
-  switch (what) {
-    case "reveal":
-      return news.reveals.length > 0;
-    case "quiet":
-      return news.quietAway !== undefined;
-    case "layer":
-      return news.layersArrived.length > 0;
-    case "craft":
-      return news.craftsFitted.length > 0;
-    case "away":
-      return (
-        news.away !== undefined ||
-        news.crewJoined !== undefined ||
-        news.engineerJoined !== undefined ||
-        news.homecomings.length > 0
-      );
+  if (what === "away") {
+    return (
+      news.homecomings.length > 0 ||
+      news.notices.some((notice) => WELCOME_KINDS.includes(notice.kind))
+    );
   }
+  return firstNotice(news, what) !== undefined;
 }
 
 /**

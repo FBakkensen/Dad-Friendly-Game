@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { KEEPSAKES } from "./expeditions";
 import { LOST_TOOLS } from "./lost-tools";
-import { JOURNEYMAN_TRIPS, MASTER_TRIPS, type Engineer } from "./engineers";
+import {
+  JOURNEYMAN_TRIPS,
+  MASTER_TRIPS,
+  type DutyEngineer,
+  type Engineer,
+} from "./engineers";
 import { glimmerText } from "./expeditions";
 import { RELICS } from "./relics";
 import type { Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
-import { UPGRADES, upgradeById, type UpgradeId } from "./upgrades";
+import { UPGRADES, upgradeById, type UpgradeId, NO_UPGRADES } from "./upgrades";
 import {
   awayGoneWords,
   awayMinedWords,
@@ -141,8 +146,17 @@ import {
   PROMOTE_NOT_YET,
   PROMOTE_STEP_UP,
 } from "./screen-words";
+import { NO_BOOSTS } from "./boosts";
 
-const ada = (patch: Partial<Engineer> = {}): Engineer => ({
+const hand = (patch: Partial<Engineer> = {}): Engineer => ({
+  name: "Ada",
+  rank: 0,
+  trips: 0,
+  post: "borer",
+  ...patch,
+});
+
+const ada = (patch: Partial<DutyEngineer> = {}): DutyEngineer => ({
   name: "Ada",
   rank: 0,
   trips: 0,
@@ -329,15 +343,15 @@ describe("engineer words", () => {
   });
 
   it("picks the highest rank tending a tier", () => {
-    const nils = ada({ name: "Nils", rank: 1, trips: 3, post: "borer" });
-    const otto = ada({ name: "Otto", rank: 2, trips: 9, post: "borer" });
-    expect(tendingEngineer(undefined, "borer")).toBeUndefined();
-    expect(tendingEngineer([ada()], "cart")).toBeUndefined();
-    expect(tendingEngineer([ada(), nils], "borer")).toBe(nils);
+    const nils = hand({ name: "Nils", rank: 1, trips: 3, post: "borer" });
+    const otto = hand({ name: "Otto", rank: 2, trips: 9, post: "borer" });
+    expect(tendingEngineer([], "borer")).toBeUndefined();
+    expect(tendingEngineer([hand()], "cart")).toBeUndefined();
+    expect(tendingEngineer([hand(), nils], "borer")).toBe(nils);
     expect(tendingEngineer([nils, otto], "borer")).toBe(otto);
-    expect(tendingEngineer([ada(), ada({ name: "Mae" })], "borer")?.name).toBe(
-      "Ada",
-    );
+    expect(
+      tendingEngineer([hand(), hand({ name: "Mae" })], "borer")?.name,
+    ).toBe("Ada");
     expect(tendsNote("Ada", "borer")).toBe("Ada tends them.");
     expect(tendsNote("Ada", "machine")).toBe("Ada tends it.");
   });
@@ -808,22 +822,26 @@ describe("upgrade card before and after (#324)", () => {
 
   it("Strong arms with every level bought says only what taps are now", () => {
     expect(
-      line("tap", { ...crew, helpers: 500, upgrades: { tap: 10 } }),
+      line("tap", {
+        ...crew,
+        helpers: 500,
+        upgrades: { ...NO_UPGRADES, tap: 10 },
+      }),
     ).toMatch(/^Taps now \d+\.$/);
   });
 
   it("Steady hands says away pay before and after, bought or not", () => {
     expect(line("steady", crew)).toBe("Away pay 30% to 37.5%.");
-    expect(line("steady", { ...crew, upgrades: { steady: 1 } })).toBe(
-      "Away pay 30% to 37.5%.",
-    );
+    expect(
+      line("steady", { ...crew, upgrades: { ...NO_UPGRADES, steady: 1 } }),
+    ).toBe("Away pay 30% to 37.5%.");
   });
 
   it("a synergy says one boosted machine's speed before and after, bought or not", () => {
     expect(line("cartSyn", crew)).toBe("Carts 6/s to 6.7/s.");
-    expect(line("cartSyn", { ...crew, upgrades: { cartSyn: 1 } })).toBe(
-      "Carts 6/s to 6.7/s.",
-    );
+    expect(
+      line("cartSyn", { ...crew, upgrades: { ...NO_UPGRADES, cartSyn: 1 } }),
+    ).toBe("Carts 6/s to 6.7/s.");
   });
 
   it("a synergy with none of its source tier says the rule", () => {
@@ -859,7 +877,7 @@ describe("upgrade card before and after (#324)", () => {
     const big = { ...crew, helpers: 500 };
     const bare = /^Taps (\d+) to (\d+)\.$/.exec(line("tap", big));
     const sharp = /^Taps (\d+) to (\d+)\.$/.exec(
-      line("tap", { ...big, boosts: { sharper: at + 60_000 } }),
+      line("tap", { ...big, boosts: { ...NO_BOOSTS, sharper: at + 60_000 } }),
     );
     expect(Number(sharp?.[1])).toBe(2 * Number(bare?.[1]));
     expect(Number(sharp?.[2])).toBe(2 * Number(bare?.[2]));
@@ -873,7 +891,7 @@ describe("upgrade card before and after (#324)", () => {
       }
       const maxed = {
         ...deep,
-        upgrades: { [upgrade.id]: upgrade.maxLevel },
+        upgrades: { ...NO_UPGRADES, [upgrade.id]: upgrade.maxLevel },
       };
       expect(upgradeEffectLine(upgrade, maxed, at)).not.toMatch(/Taps/);
     }
@@ -926,7 +944,11 @@ describe("upgrade card why line (#342)", () => {
     expect(
       upgradeWhyLine(upgradeById("tap"), { ...crew, helpers: 500 }, at),
     ).toBe("Each tap takes a little more.");
-    const maxed = { ...crew, helpers: 500, upgrades: { tap: 10 } };
+    const maxed = {
+      ...crew,
+      helpers: 500,
+      upgrades: { ...NO_UPGRADES, tap: 10 },
+    };
     expect(upgradeEffectLine(upgradeById("tap"), maxed, at)).toMatch(
       /^Taps now \d+\.$/,
     );

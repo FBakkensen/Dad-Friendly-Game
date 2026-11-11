@@ -68,8 +68,8 @@ describe("the Gold rush", () => {
     const after = play(rushed, T, 90);
     // the crew's own 10/s, plus every held stone
     expect(after.pocket - held.pocket).toBe(90 * 10 + 8_100);
-    expect(after).not.toHaveProperty("rushBank");
-    expect(after).not.toHaveProperty("rushUntil");
+    expect(after).toHaveProperty("rushBank", 0);
+    expect(after).toHaveProperty("rushUntil", 0);
     // the mountain only gave the crew's own stones: the held ones were dug away
     expect(held.remaining - after.remaining).toBe(900);
   });
@@ -94,13 +94,14 @@ describe("the Gold rush", () => {
   });
 
   it("holds nothing on a dug-out mountain, and lands an owed hold at the bottom", () => {
-    expect(
-      holdForRush({ ...crew(), remaining: 0 }, 50_000, 10),
-    ).not.toHaveProperty("rushBank");
+    expect(holdForRush({ ...crew(), remaining: 0 }, 50_000, 10)).toHaveProperty(
+      "rushBank",
+      0,
+    );
     const owed = { ...holdForRush(crew(), 50_000, 10), remaining: 0 };
     const landed = payRush(owed, T, 1);
     expect(landed.paid).toBe(8_100);
-    expect(landed.mountain).not.toHaveProperty("rushBank");
+    expect(landed.mountain).toHaveProperty("rushBank", 0);
   });
 
   it("keeps its time left on a device whose clock is behind", () => {
@@ -119,7 +120,7 @@ describe("the Gold rush", () => {
     const held = holdForRush({ ...crew(), pocket: 1_000 }, 50_000, 10);
     const missed = releaseRush(held);
     expect(missed.pocket).toBe(1_000);
-    expect(missed).not.toHaveProperty("rushBank");
+    expect(missed).toHaveProperty("rushBank", 0);
   });
 
   it("keeps its time left over a short break, and lands after an hour away", () => {
@@ -127,11 +128,11 @@ describe("the Gold rush", () => {
     const back = resumeRush(rushed, T + 30_000, T + 30_000 + 5 * 60_000);
     expect(rushLeft(back, T + 30_000 + 5 * 60_000)).toBe(60_000);
     const gone = resumeRush(rushed, T + 1_000, T + 1_000 + QUICK_VEIN_AWAY_MS);
-    expect(gone).not.toHaveProperty("rushUntil");
-    expect(gone).not.toHaveProperty("rushBank");
+    expect(gone).toHaveProperty("rushUntil", 0);
+    expect(gone).toHaveProperty("rushBank", 0);
     expect(gone.pocket).toBe(rushed.pocket + 8_100);
     const ended = resumeRush(rushed, T + RUSH_MS, T + RUSH_MS + 1_000);
-    expect(ended).not.toHaveProperty("rushBank");
+    expect(ended).toHaveProperty("rushBank", 0);
     const plain = crew();
     expect(resumeRush(plain, T, T + 1_000)).toBe(plain);
   });
@@ -149,7 +150,7 @@ describe("the Gold rush", () => {
       now: T + 600_000,
     });
     expect(brief.report.heldForRush).toBe(0);
-    expect(brief.mountain).not.toHaveProperty("rushBank");
+    expect(brief.mountain).toHaveProperty("rushBank", 0);
     // played or missed, the pocket ends the same
     const at = T + HOUR;
     const played = play(startRush(away.mountain, at), at, 90);

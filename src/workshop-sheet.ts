@@ -3,12 +3,7 @@ import { boostById, boostLeft } from "./boosts";
 import { factor } from "./economy/factors";
 import { TUNNELS } from "./expeditions";
 import { formatCompact } from "./format";
-import {
-  LAYERS,
-  EMPTY_MATERIALS,
-  materialsFromMined,
-  type MaterialId,
-} from "./layers";
+import { LAYERS, materialsFromMined, type MaterialId } from "./layers";
 import { expeditionAwayMs } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import { minedOut, stretch } from "./scale";
@@ -57,6 +52,7 @@ import {
   troubleGapScale,
   unknownBench,
   veinOftenScale,
+  withClock,
   type Recipe,
   type RecipeId,
   recipeOpen,
@@ -153,7 +149,7 @@ const TIER_WORD: Readonly<
  * zero still shows). A later band, and a band with only a remainder, stay off.
  */
 export function metMaterialChips(mountain: Mountain): readonly MaterialChip[] {
-  const have = mountain.materials ?? EMPTY_MATERIALS;
+  const have = mountain.materials;
   const earned = materialsFromMined(minedOut(mountain));
   return LAYERS.filter((layer) => {
     const id = layer.material;
@@ -170,7 +166,7 @@ export function craftShortfall(
   id: RecipeId,
 ): { readonly missing: number; readonly material: string } | undefined {
   const cost = recipeCost(id, stretch(mountain));
-  const have = mountain.materials ?? EMPTY_MATERIALS;
+  const have = mountain.materials;
   for (const material of MATERIAL_ORDER) {
     const need = cost.materials[material];
     if (have[material] < need) {
@@ -290,8 +286,8 @@ function crewBuffLine(
   const before = effectiveRates(mountain, now).exactCrewPerSecond;
   const afterMountain =
     kind === "charge"
-      ? { ...mountain, chargeUntil: now + durationMs }
-      : { ...mountain, axleUntil: now + durationMs };
+      ? withClock(mountain, "blasting-charge", now + durationMs)
+      : withClock(mountain, "axle-grease", now + durationMs);
   const after = effectiveRates(afterMountain, now).exactCrewPerSecond;
   const scale =
     kind === "charge"
@@ -324,7 +320,7 @@ function flareLine(mountain: Mountain, now: number): string {
   const time = craftTimeWords(duration);
   const before = veinOftenScale(mountain, now);
   const after = veinOftenScale(
-    { ...mountain, flareUntil: now + duration },
+    withClock(mountain, "crystal-flare", now + duration),
     now,
   );
   if (after <= before) {
@@ -337,8 +333,10 @@ function emberLine(mountain: Mountain, now: number): string {
   const duration = recipeWindowMs("heartstone-ember") ?? 0;
   const time = craftTimeWords(duration);
   const before = effectiveRates(mountain, now).tierSpeed.machine;
-  const after = effectiveRates({ ...mountain, emberUntil: now + duration }, now)
-    .tierSpeed.machine;
+  const after = effectiveRates(
+    withClock(mountain, "heartstone-ember", now + duration),
+    now,
+  ).tierSpeed.machine;
   if (after <= before) {
     return `The Great Machine keeps this lift for another ${time}.`;
   }
@@ -458,20 +456,15 @@ function crewFitted(
 
 function withoutClock(
   mountain: Mountain,
-  key: "flareUntil" | "emberUntil",
+  id: "crystal-flare" | "heartstone-ember",
 ): Mountain {
-  if (mountain[key] === undefined) {
-    return mountain;
-  }
-  const rest = { ...mountain };
-  Reflect.deleteProperty(rest, key);
-  return rest;
+  return mountain.clocks[id] === 0 ? mountain : withClock(mountain, id, 0);
 }
 
 function flareFitted(mountain: Mountain, now: number): string {
-  const until = mountain.flareUntil ?? now;
+  const until = mountain.clocks["crystal-flare"];
   const time = craftTimeWords(Math.max(0, until - now));
-  const before = veinOftenScale(withoutClock(mountain, "flareUntil"), now);
+  const before = veinOftenScale(withoutClock(mountain, "crystal-flare"), now);
   const after = veinOftenScale(mountain, now);
   if (after <= before) {
     return `Veins stay lively for ${time}.`;
@@ -480,9 +473,9 @@ function flareFitted(mountain: Mountain, now: number): string {
 }
 
 function emberFitted(mountain: Mountain, now: number): string {
-  const until = mountain.emberUntil ?? now;
+  const until = mountain.clocks["heartstone-ember"];
   const time = craftTimeWords(Math.max(0, until - now));
-  const before = effectiveRates(withoutClock(mountain, "emberUntil"), now)
+  const before = effectiveRates(withoutClock(mountain, "heartstone-ember"), now)
     .tierSpeed.machine;
   const after = effectiveRates(mountain, now).tierSpeed.machine;
   if (after <= before) {
@@ -628,7 +621,7 @@ export function benchLeftMs(
 }
 
 function hiddenHint(mountain: Mountain): string | undefined {
-  const known = new Set(mountain.recipes ?? []);
+  const known = new Set(mountain.recipes);
   // In the Topsoil the deeper recipes stay a sketch, known or not.
   const unknown = RECIPES.filter(
     (recipe) => !known.has(recipe.id) || !recipeOpen(mountain, recipe.id),
@@ -703,7 +696,7 @@ export function workshopCards(
   mountain: Mountain,
   now: number,
 ): readonly WorkshopCard[] {
-  const known = new Set(mountain.recipes ?? []);
+  const known = new Set(mountain.recipes);
   const open = RECIPES.filter(
     (recipe) =>
       known.has(recipe.id) &&

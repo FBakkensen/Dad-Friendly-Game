@@ -12,6 +12,7 @@ import {
   revealGaps,
   type RevealEvent,
 } from "./reveal";
+import { NO_BOOSTS } from "../boosts";
 
 const HOUR = 3600;
 
@@ -84,7 +85,10 @@ describe("createRevealLog", () => {
   it("logs an appearance with a use that had none before it", () => {
     const log = createRevealLog();
     log(createMountain(), 0);
-    const events = log({ ...createMountain(), boosts: { sharper: 10 } }, 5);
+    const events = log(
+      { ...createMountain(), boosts: { ...NO_BOOSTS, sharper: 10 } },
+      5,
+    );
     expect(events).toContainEqual({
       kind: "firstUse",
       id: "boost:sharper",

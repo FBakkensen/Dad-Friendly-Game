@@ -1,10 +1,11 @@
 import {
   canPromote,
   nextEngineerName,
+  onDuty,
   promoteCost,
-  type Engineer,
+  type Duty,
+  type DutyEngineer,
   type EngineerName,
-  type EngineerPost,
 } from "./engineers";
 import { TUNNELS } from "./expeditions";
 import { formatCompact } from "./format";
@@ -147,7 +148,7 @@ const QUIET_ROW = {
 } as const satisfies Partial<RowView>;
 
 /** The machine an engineer's post tends, or undefined at camp or in a tunnel. */
-export function machinePost(post: EngineerPost): MachinePost | undefined {
+export function machinePost(post: Duty): MachinePost | undefined {
   switch (post) {
     case "cart":
     case "drill":
@@ -175,16 +176,16 @@ export function promoteWhyLine(
   return current.pocket < cost ? promoteNeeds(cost) : PROMOTE_WHY;
 }
 
-/** The crew now, in its order: none before the first borer. */
-export function crewOf(mountain: Mountain): readonly Engineer[] {
-  return mountain.engineers ?? [];
+/** The crew now, in its order: none before the first borer. Away reads "tunnel". */
+export function crewOf(mountain: Mountain): readonly DutyEngineer[] {
+  return onDuty(mountain);
 }
 
 /** The engineer of that name in the crew now, and her place in it; none for no name. */
 export function findHer(
   mountain: Mountain,
   name: EngineerName | undefined,
-): { readonly engineer: Engineer; readonly index: number } | undefined {
+): { readonly engineer: DutyEngineer; readonly index: number } | undefined {
   const engineers = crewOf(mountain);
   const index = engineers.findIndex((each) => each.name === name);
   const engineer = engineers[index];
@@ -203,7 +204,7 @@ export function askedPrice(page: EngineerPage): number {
 
 /** The promote ask's line: who steps up, or nothing for a full crew. */
 export function promoteAskLine(mountain: Mountain): string {
-  const next = nextEngineerName(crewOf(mountain));
+  const next = nextEngineerName(mountain.engineers);
   return next === undefined ? "" : promoteConfirm(next);
 }
 
@@ -212,9 +213,7 @@ function tripOf(
   ctx: EngineerCtx,
   name: EngineerName,
 ): { readonly tunnel: Tunnel["id"]; readonly leftMs: number } | undefined {
-  const trip = (ctx.mountain.expeditions ?? []).find(
-    (each) => each.engineer === name,
-  );
+  const trip = ctx.mountain.expeditions.find((each) => each.engineer === name);
   return trip === undefined
     ? undefined
     : { tunnel: trip.tunnel, leftMs: trip.returnsAt - ctx.now };
@@ -285,8 +284,7 @@ function tendTeach(ctx: EngineerCtx): EngineerTeach | undefined {
   const step = showsDot(mountain, "tending")
     ? firstTend(mountain, now, trouble)
     : undefined;
-  const tender =
-    step === undefined ? undefined : mountain.engineers?.[step.index];
+  const tender = step === undefined ? undefined : crewOf(mountain)[step.index];
   return step === undefined || tender === undefined
     ? undefined
     : { kind: "tend", name: tender.name, index: step.index, post: step.post };
@@ -313,7 +311,7 @@ function promoteTeach(ctx: EngineerCtx): EngineerTeach | undefined {
  * else the first tend, else the promotion, else none.
  */
 export function engineerTeach(ctx: EngineerCtx): EngineerTeach {
-  const first = ctx.mountain.engineers?.[0];
+  const first = crewOf(ctx.mountain)[0];
   if (
     first !== undefined &&
     first.post !== "tunnel" &&
@@ -339,12 +337,14 @@ export function listKick(teach: EngineerTeach): string {
 }
 
 /** Her page's kick: her duty with its live gain at home, the trip in words while out. */
-function herKick(ctx: EngineerCtx, engineer: Engineer, index: number): string {
-  if (engineer.post === "tunnel") {
-    const trip = tripOf(ctx, engineer.name);
-    return trip === undefined
-      ? dutySentence(engineer)
-      : tripDetail(engineer.name, trip.leftMs);
+function herKick(
+  ctx: EngineerCtx,
+  engineer: DutyEngineer,
+  index: number,
+): string {
+  const trip = tripOf(ctx, engineer.name);
+  if (trip !== undefined) {
+    return tripDetail(engineer.name, trip.leftMs);
   }
   const machine = machinePost(engineer.post);
   return dutySentence(
@@ -381,7 +381,7 @@ function teachNames(teach: EngineerTeach, name: EngineerName): boolean {
 }
 
 /** Green while tending or out, off at camp. */
-function dutyLook(post: EngineerPost): {
+function dutyLook(post: Duty): {
   readonly lamp: RowLamp;
   readonly state: RowState;
 } {
@@ -393,7 +393,7 @@ function dutyLook(post: EngineerPost): {
 
 /** One engineer's row on the list: her name, her rank in words, and her duty. */
 export function engineerRowView(
-  engineer: Engineer,
+  engineer: DutyEngineer,
   ctx: EngineerCtx,
   teach: EngineerTeach,
 ): EngineerRowView {
@@ -417,7 +417,7 @@ export function engineerRowView(
 
 /** One post on her page: here now, or what tending it would make. */
 export function postRowView(
-  engineer: Engineer,
+  engineer: DutyEngineer,
   index: number,
   post: TendPost,
   ctx: EngineerCtx,
@@ -454,7 +454,7 @@ export function postRowView(
 
 /** One tunnel on the tunnels page: what it brings, or why her rank cannot lead it. */
 export function tunnelRowView(
-  engineer: Engineer,
+  engineer: DutyEngineer,
   tunnel: Tunnel,
   teach: EngineerTeach,
 ): RowView {
@@ -499,7 +499,7 @@ export function promoteRowView(
 ): PromoteRowView {
   const { mountain } = ctx;
   const cost = promoteCost(mountain);
-  if (nextEngineerName(crewOf(mountain)) === undefined) {
+  if (nextEngineerName(mountain.engineers) === undefined) {
     return fullCrewRow(cost);
   }
   const promotable = canPromote(mountain);
@@ -553,7 +553,10 @@ export function broughtStories(finds: Mountain["finds"]): readonly string[] {
  * Her page's plates: Send exploring or Call her back, and the way back. The guided first trip,
  * New, takes the whole plate row under its teach; the shell's own Back stays.
  */
-export function herPlates(engineer: Engineer, teach: EngineerTeach): HerPlates {
+export function herPlates(
+  engineer: DutyEngineer,
+  teach: EngineerTeach,
+): HerPlates {
   const right: PlateView = {
     id: "back",
     label: [ENGINEERS_BACK],

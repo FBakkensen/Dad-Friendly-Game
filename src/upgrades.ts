@@ -12,7 +12,17 @@ export type UpgradeId =
   | "borerSyn"
   | "machineSyn";
 
-export type Upgrades = Readonly<Partial<Record<UpgradeId, number>>>;
+export type Upgrades = Readonly<Record<UpgradeId, number>>;
+
+export const NO_UPGRADES: Upgrades = {
+  tap: 0,
+  boots: 0,
+  steady: 0,
+  cartSyn: 0,
+  drillSyn: 0,
+  borerSyn: 0,
+  machineSyn: 0,
+};
 
 export type Upgrade = {
   readonly id: UpgradeId;
@@ -142,7 +152,7 @@ export function upgradeById(id: UpgradeId): Upgrade {
 }
 
 export function upgradeLevel(mountain: Mountain, id: UpgradeId): number {
-  return mountain.upgrades?.[id] ?? 0;
+  return mountain.upgrades[id];
 }
 
 /** Price of the next level, or undefined once maxed. */
@@ -195,7 +205,7 @@ export function parseUpgrades(value: unknown): Upgrades | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return undefined;
   }
-  const parsed: Partial<Record<UpgradeId, number>> = {};
+  const parsed: Record<UpgradeId, number> = { ...NO_UPGRADES };
   for (const [key, level] of Object.entries(value)) {
     const upgrade = UPGRADES.find((candidate) => candidate.id === key);
     if (

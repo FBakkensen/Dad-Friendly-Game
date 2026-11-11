@@ -163,7 +163,7 @@ describe.each([
       expect(machine?.day).toBeLessThan(bottom);
       expect(run.mountain.machines).toBe(machines);
       expect(effectiveRates(run.mountain).running.machine).toBe(machines);
-      expect(run.mountain.engineers?.[0]).toEqual({
+      expect(run.mountain.engineers[0]).toEqual({
         name: ENGINEER_NAMES[0],
         rank: 0,
         trips: 0,
@@ -184,13 +184,13 @@ describe("pacing: lost tools (#148)", () => {
   });
 
   it("keeps Ada tending and sends the others on the old shaft and the deep dark", () => {
-    expect(run.mountain.engineers?.[0]).toEqual({
+    expect(run.mountain.engineers[0]).toEqual({
       name: "Ada",
       rank: 0,
       trips: 0,
       post: "machine",
     });
-    const scouts = (run.mountain.engineers ?? []).slice(1);
+    const scouts = run.mountain.engineers.slice(1);
     expect(scouts.length).toBeGreaterThan(0);
     // On the #357 retune Nils joins on day 2 of a 3.5-day run, so he walks
     // the tunnels twice and brings two finds home, but has no time to rank up.
@@ -198,7 +198,7 @@ describe("pacing: lost tools (#148)", () => {
       2,
     );
     expect(scouts.every((engineer) => engineer.rank === 0)).toBe(true);
-    expect(run.mountain.finds ?? []).toHaveLength(2);
+    expect(run.mountain.finds).toHaveLength(2);
   });
 });
 

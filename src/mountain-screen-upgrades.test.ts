@@ -86,7 +86,7 @@ describe("an Upgrades buy on screen", () => {
 
     const after = screen.progress.getSnapshot().mountain;
     expect(oneOffStretch(after)).toBeGreaterThan(oneOffStretch(before));
-    expect(after.upgrades?.tap ?? 0).toBe(0);
+    expect(after.upgrades.tap).toBe(0);
     expect(after.pocket).toBeGreaterThanOrEqual(before.pocket);
     expect(
       row.querySelector<HTMLElement>(".board-lamp")?.style.backgroundPositionX,
@@ -100,7 +100,7 @@ describe("an Upgrades buy on screen", () => {
     const pocket = after.pocket;
     fingerTap(row);
     const bought = screen.progress.getSnapshot().mountain;
-    expect(bought.upgrades?.tap).toBe(1);
+    expect(bought.upgrades.tap).toBe(1);
     expect(bought.pocket).toBe(pocket - dearer);
     screen.root.remove();
     setReducedMotion(true);

@@ -25,6 +25,7 @@ import {
   minedOut,
   accrueAway,
   type Mountain,
+  BARE_MOUNTAIN,
 } from "./mountain";
 import { minedMountain, unstaffedSave } from "./test-fixtures";
 import { readDeviceId } from "./device-id";
@@ -41,11 +42,12 @@ import {
 } from "./progress-store";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { buyTier, tierById, tierCost } from "./tiers";
-import { upgradeById, upgradeCost } from "./upgrades";
+import { upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
 import { recipesForMined } from "./workshop";
-import { promoteCost } from "./engineers";
+import { onTrip, promoteCost } from "./engineers";
 import { send, type Expedition } from "./expeditions";
 import { ENGINEER_FIX_MS, nextTrouble } from "./hazards";
+import { firstNotice, noticesOf } from "./session";
 
 /** The first worker's price, so a buy below always goes through. */
 const firstWorker = tierCost(tierById("helper"), 0);
@@ -424,6 +426,8 @@ describe("helpers mining live", () => {
       now: () => clock,
     });
     progress.applyMutation(() => ({
+      ...BARE_MOUNTAIN,
+      recipes: recipesForMined(500),
       remaining: MOUNTAIN_STONES - 500,
       pocket: 0,
       helpers: 3,
@@ -442,6 +446,7 @@ describe("helpers mining live", () => {
     progress.flush();
     expect(readSessionSave({ storage })).toEqual({
       mountain: {
+        ...BARE_MOUNTAIN,
         remaining: MOUNTAIN_STONES - 506,
         pocket: 6,
         helpers: 3,
@@ -465,6 +470,7 @@ describe("helpers mining live", () => {
       now: () => clock,
     });
     progress.applyMutation(() => ({
+      ...BARE_MOUNTAIN,
       remaining: 500,
       pocket: 0,
       helpers: 1,
@@ -509,6 +515,8 @@ describe("helpers mining live", () => {
 
 describe("away earnings", () => {
   const crew = {
+    ...BARE_MOUNTAIN,
+    recipes: recipesForMined(0),
     remaining: MOUNTAIN_STONES,
     pocket: 5,
     helpers: 3,
@@ -530,7 +538,7 @@ describe("away earnings", () => {
       now: () => clock,
     });
     expect(progress.getSnapshot().mountain.pocket).toBe(5 + 540);
-    expect(progress.getSnapshot().away).toEqual({
+    expect(firstNotice(progress.getSnapshot(), "away")?.report).toEqual({
       mined: 540,
       heldForRush: 0,
       awayMs: 600_000,
@@ -541,6 +549,7 @@ describe("away earnings", () => {
     });
     expect(readSessionSave({ storage })).toEqual({
       mountain: {
+        ...BARE_MOUNTAIN,
         remaining: MOUNTAIN_STONES - 540,
         pocket: 545,
         helpers: 3,
@@ -556,8 +565,8 @@ describe("away earnings", () => {
       lastSeen: 600_000,
     });
 
-    progress.dismissAway();
-    expect(progress.getSnapshot().away).toBeUndefined();
+    progress.dismiss("away");
+    expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
     progress.dispose();
 
     clock += 500;
@@ -566,7 +575,7 @@ describe("away earnings", () => {
       sessionStorage: storage,
       now: () => clock,
     });
-    expect(reopened.getSnapshot().away).toBeUndefined();
+    expect(firstNotice(reopened.getSnapshot(), "away")?.report).toBeUndefined();
     expect(reopened.getSnapshot().mountain.pocket).toBe(545);
   });
 
@@ -582,7 +591,7 @@ describe("away earnings", () => {
       sessionStorage: storage,
       now: () => 3_600_000,
     });
-    expect(progress.getSnapshot().away).toBeUndefined();
+    expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
     expect(progress.getSnapshot().mountain.pocket).toBe(5);
   });
 
@@ -608,7 +617,7 @@ describe("away earnings", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    expect(progress.getSnapshot().quietAway).toBe(72);
+    expect(firstNotice(progress.getSnapshot(), "quiet")?.stones).toBe(72);
     expect(docs.get("test-dad")?.pocket).toBe(77);
     expect(progress.getSnapshot().mountain.pocket).toBe(77);
   });
@@ -703,7 +712,7 @@ describe("away earnings", () => {
       sessionStorage: storage,
       now: () => WELCOME_MIN_AWAY_MS - 1_000,
     });
-    expect(progress.getSnapshot().away).toBeUndefined();
+    expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
     expect(progress.getSnapshot().mountain.pocket).toBe(5 + 53);
   });
 
@@ -716,11 +725,15 @@ describe("away earnings", () => {
       now: () => 2 * 60_000,
     });
     const snapshot = progress.getSnapshot();
-    expect(snapshot.away).toBeUndefined();
-    expect(snapshot.quietAway).toBe(snapshot.mountain.pocket - 5);
-    expect(snapshot.quietAway).toBeGreaterThan(0);
-    progress.dismissQuietAway();
-    expect(progress.getSnapshot().quietAway).toBeUndefined();
+    expect(firstNotice(snapshot, "away")?.report).toBeUndefined();
+    expect(firstNotice(snapshot, "quiet")?.stones).toBe(
+      snapshot.mountain.pocket - 5,
+    );
+    expect(firstNotice(snapshot, "quiet")?.stones).toBeGreaterThan(0);
+    progress.dismiss("quiet");
+    expect(
+      firstNotice(progress.getSnapshot(), "quiet")?.stones,
+    ).toBeUndefined();
   });
 
   it("keeps the full card for a real absence, and no note under a minute", () => {
@@ -735,11 +748,11 @@ describe("away earnings", () => {
       }).getSnapshot();
     };
     const real = open(QUIET_AWAY_MS);
-    expect(real.away).toBeDefined();
-    expect(real.quietAway).toBeUndefined();
+    expect(firstNotice(real, "away")?.report).toBeDefined();
+    expect(firstNotice(real, "quiet")?.stones).toBeUndefined();
     const reload = open(WELCOME_MIN_AWAY_MS - 1_000);
-    expect(reload.away).toBeUndefined();
-    expect(reload.quietAway).toBeUndefined();
+    expect(firstNotice(reload, "away")?.report).toBeUndefined();
+    expect(firstNotice(reload, "quiet")?.stones).toBeUndefined();
   });
 
   it("pays another device's save silently after the first load", async () => {
@@ -766,7 +779,7 @@ describe("away earnings", () => {
       sessionStorage: createMemoryStorage(),
       now: () => 50_000,
     });
-    expect(progress.getSnapshot().away).toBeUndefined();
+    expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
 
     await Promise.resolve();
     push({ kind: "found", mountain: crew, lastSeen: 40_000, rev: 1 });
@@ -780,7 +793,7 @@ describe("away earnings", () => {
       rev: 2,
     });
     expect(progress.getSnapshot().mountain.pocket).toBe(44);
-    expect(progress.getSnapshot().away).toBeUndefined();
+    expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
   });
 });
 
@@ -797,16 +810,24 @@ describe("relic reveals", () => {
       sessionStorage: storage,
       now: () => 0,
     });
-    expect(progress.getSnapshot().revealed).toBeUndefined();
+    expect(
+      firstNotice(progress.getSnapshot(), "reveal")?.relic,
+    ).toBeUndefined();
 
     progress.applyMutation(() => minedMountain(1_000_000));
-    expect(progress.getSnapshot().revealed?.id).toBe("lantern");
+    expect(firstNotice(progress.getSnapshot(), "reveal")?.relic.id).toBe(
+      "lantern",
+    );
     expect(progress.getSnapshot().log).toContain("relic.found lantern");
 
-    progress.dismissReveal();
-    expect(progress.getSnapshot().revealed).toBeUndefined();
+    progress.dismiss("reveal");
+    expect(
+      firstNotice(progress.getSnapshot(), "reveal")?.relic,
+    ).toBeUndefined();
     progress.applyMutation(() => minedMountain(1_000_001));
-    expect(progress.getSnapshot().revealed).toBeUndefined();
+    expect(
+      firstNotice(progress.getSnapshot(), "reveal")?.relic,
+    ).toBeUndefined();
   });
 
   it("does not celebrate relics already in a loaded save", () => {
@@ -821,7 +842,9 @@ describe("relic reveals", () => {
       sessionStorage: storage,
       now: () => 0,
     });
-    expect(progress.getSnapshot().revealed).toBeUndefined();
+    expect(
+      firstNotice(progress.getSnapshot(), "reveal")?.relic,
+    ).toBeUndefined();
   });
 
   it("celebrates a relic the crew uncovered while away", () => {
@@ -836,8 +859,12 @@ describe("relic reveals", () => {
       sessionStorage: storage,
       now: () => 400_000,
     });
-    expect(progress.getSnapshot().away?.mined).toBe(1_200);
-    expect(progress.getSnapshot().revealed?.id).toBe("lantern");
+    expect(firstNotice(progress.getSnapshot(), "away")?.report.mined).toBe(
+      1_200,
+    );
+    expect(firstNotice(progress.getSnapshot(), "reveal")?.relic.id).toBe(
+      "lantern",
+    );
   });
 
   it("does not celebrate relics in a signed-in dad's cloud save", async () => {
@@ -851,7 +878,9 @@ describe("relic reveals", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    expect(progress.getSnapshot().revealed).toBeUndefined();
+    expect(
+      firstNotice(progress.getSnapshot(), "reveal")?.relic,
+    ).toBeUndefined();
   });
 
   it("queues several relics found at once, shallowest first", () => {
@@ -861,11 +890,17 @@ describe("relic reveals", () => {
       now: () => 0,
     });
     progress.applyMutation(() => minedMountain(12_000_000));
-    expect(progress.getSnapshot().revealed?.id).toBe("lantern");
-    progress.dismissReveal();
-    expect(progress.getSnapshot().revealed?.id).toBe("shield");
-    progress.dismissReveal();
-    expect(progress.getSnapshot().revealed).toBeUndefined();
+    expect(firstNotice(progress.getSnapshot(), "reveal")?.relic.id).toBe(
+      "lantern",
+    );
+    progress.dismiss("reveal");
+    expect(firstNotice(progress.getSnapshot(), "reveal")?.relic.id).toBe(
+      "shield",
+    );
+    progress.dismiss("reveal");
+    expect(
+      firstNotice(progress.getSnapshot(), "reveal")?.relic,
+    ).toBeUndefined();
   });
 });
 
@@ -917,15 +952,19 @@ describe("start over", () => {
       sessionStorage: storage,
       now: () => 60_000,
     });
-    expect(progress.getSnapshot().quietAway).toBeDefined();
+    expect(firstNotice(progress.getSnapshot(), "quiet")?.stones).toBeDefined();
 
     progress.startOver();
 
     const fresh = { ...createMountain(), startedAt: 60_000 };
     expect(progress.getSnapshot().mountain).toEqual(fresh);
-    expect(progress.getSnapshot().away).toBeUndefined();
-    expect(progress.getSnapshot().quietAway).toBeUndefined();
-    expect(progress.getSnapshot().revealed).toBeUndefined();
+    expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
+    expect(
+      firstNotice(progress.getSnapshot(), "quiet")?.stones,
+    ).toBeUndefined();
+    expect(
+      firstNotice(progress.getSnapshot(), "reveal")?.relic,
+    ).toBeUndefined();
     expect(readSessionSave({ storage })).toEqual({
       mountain: fresh,
       lastSeen: 60_000,
@@ -995,7 +1034,9 @@ describe("start over", () => {
       ] as const,
     };
     expect(progress.getSnapshot().mountain).toEqual(fresh);
-    expect(progress.getSnapshot().revealed).toBeUndefined();
+    expect(
+      firstNotice(progress.getSnapshot(), "reveal")?.relic,
+    ).toBeUndefined();
     expect(cloud.writes.at(-1)).toEqual(fresh);
     // A late snapshot of the finished run can't bring it back.
     cloud.push({
@@ -1030,7 +1071,9 @@ describe("start over", () => {
       expect(progress.getSnapshot().mountain.remaining).toBe(
         createMountain().remaining,
       );
-      expect(progress.getSnapshot().revealed).toBeUndefined();
+      expect(
+        firstNotice(progress.getSnapshot(), "reveal")?.relic,
+      ).toBeUndefined();
       expect(cloud.writes.length).toBe(writesAfterReset + 1);
       expect(cloud.writes.at(-1)?.startedAt).toBeDefined();
     } finally {
@@ -1072,7 +1115,7 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       sessionStorage: storage,
       now: () => 0,
     });
-    expect(first.getSnapshot().crewJoined).toBe(2);
+    expect(firstNotice(first.getSnapshot(), "crew-joined")?.helpers).toBe(2);
     expect(first.fieldLog().events).toContainEqual({
       at: new Date(0).toISOString(),
       code: "crew.staff",
@@ -1084,8 +1127,10 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       helpers: 4,
       staffed: 2,
     });
-    first.dismissAway();
-    expect(first.getSnapshot().crewJoined).toBeUndefined();
+    first.dismiss("away");
+    expect(
+      firstNotice(first.getSnapshot(), "crew-joined")?.helpers,
+    ).toBeUndefined();
     first.dispose();
 
     const again = createProgressStore({
@@ -1093,7 +1138,9 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       sessionStorage: storage,
       now: () => 0,
     });
-    expect(again.getSnapshot().crewJoined).toBeUndefined();
+    expect(
+      firstNotice(again.getSnapshot(), "crew-joined")?.helpers,
+    ).toBeUndefined();
     expect(again.getSnapshot().mountain.helpers).toBe(4);
     expect(again.fieldLog().events.map((event) => event.code)).not.toContain(
       "crew.staff",
@@ -1114,8 +1161,10 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
     });
     // 10 helpers + 10 carts at their first mark (6 × 2 each) = 130/s,
     // 100 s away at 30%.
-    expect(progress.getSnapshot().quietAway).toBe(3_900);
-    expect(progress.getSnapshot().crewJoined).toBe(10);
+    expect(firstNotice(progress.getSnapshot(), "quiet")?.stones).toBe(3_900);
+    expect(firstNotice(progress.getSnapshot(), "crew-joined")?.helpers).toBe(
+      10,
+    );
   });
 
   it("staffs a cloud save on load and writes it back marked", async () => {
@@ -1130,8 +1179,12 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    expect(progress.getSnapshot().crewJoined).toBe(15);
-    expect(progress.getSnapshot().engineerJoined).toBe(true);
+    expect(firstNotice(progress.getSnapshot(), "crew-joined")?.helpers).toBe(
+      15,
+    );
+    expect(
+      firstNotice(progress.getSnapshot(), "engineer-joined"),
+    ).toBeDefined();
     progress.flush();
     await vi.waitFor(() => {
       expect(docs.get("test-dad")).toMatchObject({
@@ -1154,7 +1207,7 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       sessionStorage: storage,
       now: () => 0,
     });
-    expect(first.getSnapshot().engineerJoined).toBe(true);
+    expect(firstNotice(first.getSnapshot(), "engineer-joined")).toBeDefined();
     expect(first.getSnapshot().mountain.helpers).toBe(8);
     expect(first.getSnapshot().mountain.engineers).toEqual([
       { name: "Ada", rank: 0, trips: 0, post: "borer" },
@@ -1162,8 +1215,8 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
     expect(readSessionSave({ storage })?.mountain.engineers).toEqual(
       first.getSnapshot().mountain.engineers,
     );
-    first.dismissAway();
-    expect(first.getSnapshot().engineerJoined).toBeUndefined();
+    first.dismiss("away");
+    expect(firstNotice(first.getSnapshot(), "engineer-joined")).toBeUndefined();
     first.dispose();
 
     const again = createProgressStore({
@@ -1171,7 +1224,7 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       sessionStorage: storage,
       now: () => 0,
     });
-    expect(again.getSnapshot().engineerJoined).toBeUndefined();
+    expect(firstNotice(again.getSnapshot(), "engineer-joined")).toBeUndefined();
     expect(again.getSnapshot().mountain.engineers).toHaveLength(1);
   });
 
@@ -1188,8 +1241,12 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       now: () => 100_000,
     });
     // 8 workers + a borer at +21.875% (435/s floored) for 100s at 30%.
-    expect(progress.getSnapshot().quietAway).toBe(Math.floor(100 * 443 * 0.3));
-    expect(progress.getSnapshot().engineerJoined).toBe(true);
+    expect(firstNotice(progress.getSnapshot(), "quiet")?.stones).toBe(
+      Math.floor(100 * 443 * 0.3),
+    );
+    expect(
+      firstNotice(progress.getSnapshot(), "engineer-joined"),
+    ).toBeDefined();
   });
 
   it("leaves Start over alone: a fresh mountain is already marked", () => {
@@ -1200,7 +1257,9 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
       sessionStorage: storage,
       now: () => 0,
     });
-    expect(progress.getSnapshot().crewJoined).toBeUndefined();
+    expect(
+      firstNotice(progress.getSnapshot(), "crew-joined")?.helpers,
+    ).toBeUndefined();
     progress.startOver();
     expect(progress.getSnapshot().mountain).toMatchObject({
       helpers: 0,
@@ -1411,8 +1470,8 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     });
     progress.applyMutation(() => minedMountain(3));
     const before = progress.getSnapshot();
-    progress.dismissReveal();
-    progress.dismissAway();
+    progress.dismiss("reveal");
+    progress.dismiss("away");
     expect(progress.getSnapshot()).toEqual(before);
     progress.dispose();
     progress.startOver();
@@ -1473,11 +1532,11 @@ describe("field log", () => {
       "boost.start",
     ]);
     expect(moves[0]?.data).toEqual({ id: "tap", count: 1 });
-    const endsAt = progress.getSnapshot().mountain.boosts?.sharper;
+    const endsAt = progress.getSnapshot().mountain.boosts.sharper;
     expect(endsAt).toBeTypeOf("number");
     expect(moves[1]?.data).toEqual({
       id: "sharper",
-      endsAt: new Date(endsAt ?? 0).toISOString(),
+      endsAt: new Date(endsAt).toISOString(),
     });
   });
 
@@ -1689,7 +1748,7 @@ describe("field log events for the deep (#150)", () => {
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     }));
     progress.dispatch({ kind: "send", index: 0, tunnel: "side-seam" });
-    const trip = progress.getSnapshot().mountain.expeditions?.[0];
+    const trip = progress.getSnapshot().mountain.expeditions[0];
     if (trip === undefined) {
       throw new Error("expected a trip");
     }
@@ -1721,11 +1780,11 @@ describe("field log events for the deep (#150)", () => {
       }),
     );
 
-    const sentAt = progress.getSnapshot().mountain.engineers?.[0]?.post;
+    const sentAt = progress.getSnapshot().mountain.engineers[0]?.post;
     expect(sentAt).toBe("cart");
     progress.applyMutation((mountain) => {
       const sent = send(mountain, 0, "side-seam", 10_000);
-      const next = sent.expeditions?.[0];
+      const next = sent.expeditions[0];
       if (next === undefined) {
         return mountain;
       }
@@ -1734,7 +1793,7 @@ describe("field log events for the deep (#150)", () => {
         expeditions: [{ ...next, returnsAt: 15_000 }],
       };
     });
-    const find = progress.getSnapshot().mountain.expeditions?.[0]?.find;
+    const find = progress.getSnapshot().mountain.expeditions[0]?.find;
     if (find === undefined) {
       throw new Error("expected a find");
     }
@@ -1743,7 +1802,7 @@ describe("field log events for the deep (#150)", () => {
       advance(1_000);
       progress.tick();
     }
-    expect(progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    expect(progress.getSnapshot().mountain.expeditions).toEqual([]);
     expect(progress.fieldLog().events).toContainEqual(
       expect.objectContaining({
         code: "expedition.return",
@@ -1761,13 +1820,13 @@ describe("field log events for the deep (#150)", () => {
     }));
     progress.applyMutation((mountain) => {
       const sent = send(mountain, 0, "old-shaft", 10_000);
-      const next = sent.expeditions?.[0];
+      const next = sent.expeditions[0];
       if (next === undefined) {
         return mountain;
       }
       return { ...sent, expeditions: [{ ...next, returnsAt: 20_000 }] };
     });
-    const find = progress.getSnapshot().mountain.expeditions?.[0]?.find;
+    const find = progress.getSnapshot().mountain.expeditions[0]?.find;
     if (find === undefined) {
       throw new Error("expected a find");
     }
@@ -1809,7 +1868,7 @@ describe("field log events for the deep (#150)", () => {
       const sentAt = at();
       progress.applyMutation((mountain) => {
         const sent = send(mountain, 0, "side-seam", sentAt);
-        const next = sent.expeditions?.[0];
+        const next = sent.expeditions[0];
         if (next === undefined) {
           return mountain;
         }
@@ -1832,7 +1891,7 @@ describe("field log events for the deep (#150)", () => {
       );
     }
     expect(
-      progress.getSnapshot().mountain.engineers?.map((hand) => hand.name),
+      progress.getSnapshot().mountain.engineers.map((hand) => hand.name),
     ).toEqual(["Ada", "Ruth"]);
   });
 
@@ -1846,7 +1905,7 @@ describe("field log events for the deep (#150)", () => {
     const sentAt = at();
     progress.applyMutation((mountain) => {
       const sent = send(mountain, 0, "old-shaft", sentAt);
-      const next = sent.expeditions?.[0];
+      const next = sent.expeditions[0];
       if (next === undefined) {
         return mountain;
       }
@@ -2205,6 +2264,7 @@ describe("field log cloud copy", () => {
 
 describe("trouble at the machines (#149)", () => {
   const crew = {
+    ...BARE_MOUNTAIN,
     remaining: 50_000_000,
     pocket: 0,
     helpers: 9,
@@ -2371,8 +2431,8 @@ describe("expeditions through the save", () => {
     });
     const away = accrueAway({ mountain: sent, lastSeen: 0, now: 20 * 60_000 });
     expect(progress.getSnapshot().mountain).toEqual(away.mountain);
-    expect(progress.getSnapshot().mountain.engineers?.[0]?.post).toBe("borer");
-    expect(progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    expect(progress.getSnapshot().mountain.engineers[0]?.post).toBe("borer");
+    expect(progress.getSnapshot().mountain.expeditions).toEqual([]);
     progress.dispose();
   });
 
@@ -2386,7 +2446,7 @@ describe("expeditions through the save", () => {
       "side-seam",
       0,
     );
-    const trip = sent.expeditions?.[0];
+    const trip = sent.expeditions[0];
     if (trip === undefined) {
       throw new Error("expected a trip");
     }
@@ -2403,15 +2463,15 @@ describe("expeditions through the save", () => {
     progress.subscribe(() => {
       seen += 1;
     });
-    expect(progress.getSnapshot().mountain.engineers?.[0]?.post).toBe("tunnel");
+    expect(onTrip(progress.getSnapshot().mountain, "Ada")).toBe(true);
     clock = 5_000;
     progress.tick();
     expect(seen).toBeGreaterThan(1);
-    expect(progress.getSnapshot().mountain.engineers?.[0]).toMatchObject({
+    expect(progress.getSnapshot().mountain.engineers[0]).toMatchObject({
       post: "camp",
       trips: 1,
     });
-    expect(progress.getSnapshot().mountain.expeditions).toBeUndefined();
+    expect(progress.getSnapshot().mountain.expeditions).toEqual([]);
     progress.dispose();
   });
 
@@ -2427,7 +2487,7 @@ describe("expeditions through the save", () => {
       "side-seam",
       1_000_000,
     );
-    const find = sent.expeditions?.[0]?.find;
+    const find = sent.expeditions[0]?.find;
     const storage = createMemoryStorage();
     writeSessionSave({ storage, mountain: sent, lastSeen: 1_000_000 });
     let clock = 1_000_000;
@@ -2436,18 +2496,16 @@ describe("expeditions through the save", () => {
       sessionStorage: storage,
       now: () => clock,
     });
-    expect(progress.getSnapshot().mountain.engineers?.[0]?.post).toBe("tunnel");
+    expect(onTrip(progress.getSnapshot().mountain, "Ada")).toBe(true);
     clock = -60 * 60_000;
     progress.tick();
     progress.flush();
     const saved = readSessionSave({ storage });
     expect(saved?.lastSeen).toBeLessThanOrEqual(clock);
-    expect(saved?.mountain.expeditions?.[0]?.sentAt).toBe(clock);
-    expect(saved?.mountain.expeditions?.[0]?.returnsAt).toBe(
-      clock + 10 * 60_000,
-    );
-    expect(saved?.mountain.expeditions?.[0]?.find).toEqual(find);
-    expect(saved?.mountain.engineers?.[0]?.trips).toBe(0);
+    expect(saved?.mountain.expeditions[0]?.sentAt).toBe(clock);
+    expect(saved?.mountain.expeditions[0]?.returnsAt).toBe(clock + 10 * 60_000);
+    expect(saved?.mountain.expeditions[0]?.find).toEqual(find);
+    expect(saved?.mountain.engineers[0]?.trips).toBe(0);
     progress.dispose();
   });
 
@@ -2469,16 +2527,16 @@ describe("expeditions through the save", () => {
       sessionStorage: awayStorage,
       now: () => 20 * 60_000,
     });
-    expect(away.getSnapshot().away).toBeDefined();
+    expect(firstNotice(away.getSnapshot(), "away")?.report).toBeDefined();
     expect(away.getSnapshot().homecomings).toHaveLength(1);
     expect(away.getSnapshot().homecomings[0]).toMatchObject({
       engineer: "Ada",
       tunnel: "side-seam",
     });
-    away.dismissAway();
+    away.dismiss("away");
     expect(away.getSnapshot().homecomings).toEqual([]);
-    expect(away.getSnapshot().away).toBeUndefined();
-    away.dismissAway();
+    expect(firstNotice(away.getSnapshot(), "away")?.report).toBeUndefined();
+    away.dismiss("away");
     away.dispose();
 
     const idle = send(
@@ -2497,10 +2555,10 @@ describe("expeditions through the save", () => {
       sessionStorage: idleStorage,
       now: () => 2 * 60 * 60_000,
     });
-    expect(quiet.getSnapshot().away).toBeUndefined();
+    expect(firstNotice(quiet.getSnapshot(), "away")?.report).toBeUndefined();
     expect(quiet.getSnapshot().homecomings).toHaveLength(1);
     expect(quiet.getSnapshot().homecomings[0]?.tunnel).toBe("old-shaft");
-    quiet.dismissAway();
+    quiet.dismiss("away");
     expect(quiet.getSnapshot().homecomings).toEqual([]);
     quiet.dispose();
 
@@ -2513,7 +2571,7 @@ describe("expeditions through the save", () => {
       "side-seam",
       0,
     );
-    const trip = waiting.expeditions?.[0];
+    const trip = waiting.expeditions[0];
     if (trip === undefined) {
       throw new Error("expected a trip");
     }
@@ -2537,7 +2595,7 @@ describe("expeditions through the save", () => {
     });
     live.applyMutation((mountain) => mountain);
     expect(seen).toBeGreaterThan(1);
-    expect(live.getSnapshot().away).toBeUndefined();
+    expect(firstNotice(live.getSnapshot(), "away")?.report).toBeUndefined();
     expect(live.getSnapshot().homecomings).toHaveLength(1);
     expect(live.getSnapshot().homecomings[0]?.engineer).toBe("Nils");
     live.dispose();
@@ -2553,7 +2611,7 @@ describe("expeditions through the save", () => {
       "side-seam",
       0,
     );
-    const trip = sent.expeditions?.[0];
+    const trip = sent.expeditions[0];
     if (trip === undefined) {
       throw new Error("expected a trip");
     }
@@ -2584,7 +2642,7 @@ describe("expeditions through the save", () => {
     expect(second.getSnapshot().homecomings[0]?.sentAt).toBe(sentAt);
     second.tick();
     expect(second.getSnapshot().homecomings).toHaveLength(1);
-    second.dismissAway();
+    second.dismiss("away");
     expect(storage.getItem("dad-friendly-homecomings")).toBeNull();
     second.dispose();
 
@@ -2685,13 +2743,17 @@ describe("layer card and craft-done notice", () => {
       lastSeen: 0,
     });
     const progress = guest(storage, () => 0);
-    expect(progress.getSnapshot().layersArrived).toEqual([]);
-    progress.dismissLayer();
-    progress.dismissCraft();
+    expect(
+      noticesOf(progress.getSnapshot(), "layer").map(({ layer }) => layer),
+    ).toEqual([]);
+    progress.dismiss("layer");
+    progress.dismiss("craft");
 
     progress.applyMutation(() => minedMountain(10_000_000));
     expect(
-      progress.getSnapshot().layersArrived.map((layer) => layer.id),
+      noticesOf(progress.getSnapshot(), "layer")
+        .map(({ layer }) => layer)
+        .map((layer) => layer.id),
     ).toEqual(["granite"]);
     expect(progress.fieldLog().events).toContainEqual(
       expect.objectContaining({
@@ -2714,12 +2776,16 @@ describe("layer card and craft-done notice", () => {
         data: { id: "axle-grease", source: "granite" },
       }),
     );
-    progress.dismissLayer();
-    expect(progress.getSnapshot().layersArrived).toEqual([]);
+    progress.dismiss("layer");
+    expect(
+      noticesOf(progress.getSnapshot(), "layer").map(({ layer }) => layer),
+    ).toEqual([]);
     progress.dispose();
 
     const again = guest(storage, () => 0);
-    expect(again.getSnapshot().layersArrived).toEqual([]);
+    expect(
+      noticesOf(again.getSnapshot(), "layer").map(({ layer }) => layer),
+    ).toEqual([]);
     expect(again.fieldLog().events.map((event) => event.code)).not.toContain(
       "layer.enter",
     );
@@ -2732,7 +2798,9 @@ describe("layer card and craft-done notice", () => {
       lastSeen: 0,
     });
     const sitting = guest(deep, () => 0);
-    expect(sitting.getSnapshot().layersArrived).toEqual([]);
+    expect(
+      noticesOf(sitting.getSnapshot(), "layer").map(({ layer }) => layer),
+    ).toEqual([]);
     expect(sitting.getSnapshot().mountain.recipes).toEqual(
       expect.arrayContaining(["reinforce", "axle-grease"]),
     );
@@ -2763,17 +2831,23 @@ describe("layer card and craft-done notice", () => {
       lastSeen: 0,
     });
     const progress = guest(storage, () => 1_800_000);
-    expect(progress.getSnapshot().away).toBeDefined();
+    expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeDefined();
     expect(
-      progress.getSnapshot().layersArrived.map((layer) => layer.id),
+      noticesOf(progress.getSnapshot(), "layer")
+        .map(({ layer }) => layer)
+        .map((layer) => layer.id),
     ).toEqual(["granite"]);
-    progress.dismissAway();
-    expect(progress.getSnapshot().layersArrived).toEqual([]);
-    expect(progress.getSnapshot().away).toBeUndefined();
+    progress.dismiss("away");
+    expect(
+      noticesOf(progress.getSnapshot(), "layer").map(({ layer }) => layer),
+    ).toEqual([]);
+    expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
     progress.dispose();
 
     const later = guest(storage, () => 1_800_000);
-    expect(later.getSnapshot().layersArrived).toEqual([]);
+    expect(
+      noticesOf(later.getSnapshot(), "layer").map(({ layer }) => layer),
+    ).toEqual([]);
     later.dispose();
   });
 
@@ -2781,17 +2855,21 @@ describe("layer card and craft-done notice", () => {
     const progress = guest(createMemoryStorage(), () => 0);
     progress.applyMutation(() => minedMountain(120_000_000));
     expect(
-      progress.getSnapshot().layersArrived.map((layer) => layer.id),
+      noticesOf(progress.getSnapshot(), "layer")
+        .map(({ layer }) => layer)
+        .map((layer) => layer.id),
     ).toEqual(["granite", "crystal", "heart"]);
     const enters = progress
       .fieldLog()
       .events.filter((event) => event.code === "layer.enter")
       .map((event) => event.data.id);
     expect(enters).toEqual(["granite", "crystal", "heart"]);
-    progress.dismissLayer();
-    progress.dismissLayer();
-    progress.dismissLayer();
-    expect(progress.getSnapshot().layersArrived).toEqual([]);
+    progress.dismiss("layer");
+    progress.dismiss("layer");
+    progress.dismiss("layer");
+    expect(
+      noticesOf(progress.getSnapshot(), "layer").map(({ layer }) => layer),
+    ).toEqual([]);
     progress.dispose();
   });
 
@@ -2807,13 +2885,17 @@ describe("layer card and craft-done notice", () => {
         data: { id: "iron-rails" },
       }),
     );
-    expect(progress.getSnapshot().craftsFitted).toEqual([]);
+    expect(
+      noticesOf(progress.getSnapshot(), "craft").map(({ craft }) => craft),
+    ).toEqual([]);
     const endsAt = progress.getSnapshot().mountain.bench?.endsAt ?? 0;
     while (clock < endsAt) {
       clock = Math.min(endsAt, clock + 9_000);
       progress.tick();
     }
-    const fitted = progress.getSnapshot().craftsFitted;
+    const fitted = noticesOf(progress.getSnapshot(), "craft").map(
+      ({ craft }) => craft,
+    );
     expect(fitted.map(({ id, level }) => ({ id, level }))).toEqual([
       { id: "iron-rails", level: 1 },
     ]);
@@ -2826,13 +2908,17 @@ describe("layer card and craft-done notice", () => {
         data: { id: "iron-rails", count: 1 },
       }),
     );
-    progress.dismissCraft();
-    expect(progress.getSnapshot().craftsFitted).toEqual([]);
+    progress.dismiss("craft");
+    expect(
+      noticesOf(progress.getSnapshot(), "craft").map(({ craft }) => craft),
+    ).toEqual([]);
     progress.flush();
     progress.dispose();
 
     const reloaded = guest(storage, () => clock);
-    expect(reloaded.getSnapshot().craftsFitted).toEqual([]);
+    expect(
+      noticesOf(reloaded.getSnapshot(), "craft").map(({ craft }) => craft),
+    ).toEqual([]);
     expect(reloaded.fieldLog().events.map((event) => event.code)).not.toContain(
       "craft.done",
     );
@@ -2849,13 +2935,17 @@ describe("layer card and craft-done notice", () => {
       lastSeen: 0,
     });
     const away = guest(awayStore, () => 120_000);
-    expect(away.getSnapshot().quietAway).toBeDefined();
-    expect(away.getSnapshot().craftsFitted.map(craftLine)).toEqual([
-      "Your Iron rails are fitted. Carts now 7.5/s.",
-    ]);
+    expect(firstNotice(away.getSnapshot(), "quiet")?.stones).toBeDefined();
+    expect(
+      noticesOf(away.getSnapshot(), "craft")
+        .map(({ craft }) => craft)
+        .map(craftLine),
+    ).toEqual(["Your Iron rails are fitted. Carts now 7.5/s."]);
     // Two minutes is a quiet absence (#334): the fit is the craft-done notice.
-    away.dismissCraft();
-    expect(away.getSnapshot().craftsFitted).toEqual([]);
+    away.dismiss("craft");
+    expect(
+      noticesOf(away.getSnapshot(), "craft").map(({ craft }) => craft),
+    ).toEqual([]);
     away.dispose();
   });
 });
@@ -3198,7 +3288,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
     server = {
       mountain: {
         ...minedMountain(4),
-        upgrades: { boots: 1 },
+        upgrades: { ...NO_UPGRADES, boots: 1 },
       },
       rev: 6,
       lastSeen: 2,
@@ -3209,12 +3299,10 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
     });
     expect(server.rev).toBe(6);
     expect(minedOut(progress.getSnapshot().mountain)).toBe(30);
-    expect(progress.getSnapshot().mountain.upgrades).toBeUndefined();
+    expect(progress.getSnapshot().mountain.upgrades).toEqual(NO_UPGRADES);
     expect(
       progress.getSnapshot().saveConflict?.remote.mountain.upgrades,
-    ).toEqual({
-      boots: 1,
-    });
+    ).toEqual({ ...NO_UPGRADES, boots: 1 });
     expect(progress.fieldLog().events.map((event) => event.code)).toContain(
       "save.conflict",
     );
@@ -4808,9 +4896,12 @@ describe("two saves found (#226)", () => {
       expect(second.getSnapshot().ready).toBe(true);
     });
     holdEcho.held = true;
-    first.applyMutation((mountain) => ({ ...mountain, upgrades: { tap: 1 } }));
+    first.applyMutation((mountain) => ({
+      ...mountain,
+      upgrades: { ...NO_UPGRADES, tap: 1 },
+    }));
     await vi.waitFor(() => {
-      expect(docs.get(user.uid)?.upgrades).toEqual({ tap: 1 });
+      expect(docs.get(user.uid)?.upgrades).toEqual({ ...NO_UPGRADES, tap: 1 });
     });
     expect(first.getSnapshot().saveConflict).toBeUndefined();
     const otherMaterials = { clay: 9, iron: 4, crystal: 0, heartstone: 0 };
@@ -4829,7 +4920,10 @@ describe("two saves found (#226)", () => {
     expect(conflict?.local.mountain.carts).toBe(2);
     expect(conflict?.local.mountain.pocket).toBe(80);
     expect(conflict?.local.mountain.materials).toEqual(otherMaterials);
-    expect(conflict?.remote.mountain.upgrades).toEqual({ tap: 1 });
+    expect(conflict?.remote.mountain.upgrades).toEqual({
+      ...NO_UPGRADES,
+      tap: 1,
+    });
     expect(conflict?.remote.mountain.carts).toBe(0);
     expect(first.getSnapshot().saveConflict).toBeUndefined();
     const server = await cloud.load({ uid: user.uid });
@@ -4839,7 +4933,7 @@ describe("two saves found (#226)", () => {
     second.tick();
     expect(second.getSnapshot().mountain.pocket).toBe(80);
     expect(second.getSnapshot().mountain.carts).toBe(2);
-    expect(second.getSnapshot().away).toBeUndefined();
+    expect(firstNotice(second.getSnapshot(), "away")?.report).toBeUndefined();
     expect((await cloud.load({ uid: user.uid })).kind === "found").toBe(true);
     const still = await cloud.load({ uid: user.uid });
     expect(still.kind === "found" && still.rev).toBe(2);
@@ -4851,10 +4945,8 @@ describe("two saves found (#226)", () => {
     });
     expect(
       reloaded.getSnapshot().saveConflict?.remote.mountain.upgrades,
-    ).toEqual({
-      tap: 1,
-    });
-    expect(reloaded.getSnapshot().away).toBeUndefined();
+    ).toEqual({ ...NO_UPGRADES, tap: 1 });
+    expect(firstNotice(reloaded.getSnapshot(), "away")?.report).toBeUndefined();
     const phone = readPhoneBackup({ storage: storageB, uid: user.uid });
     expect(phone.kind).toBe("present");
     if (phone.kind === "present") {
@@ -4873,10 +4965,10 @@ describe("two saves found (#226)", () => {
     expect(reloaded.getSnapshot().mountain.helpers).toBe(4);
     expect(reloaded.getSnapshot().mountain.pocket).toBe(80);
     expect(reloaded.getSnapshot().mountain.materials).toEqual(otherMaterials);
-    expect(reloaded.getSnapshot().mountain.upgrades).toBeUndefined();
+    expect(reloaded.getSnapshot().mountain.upgrades).toEqual(NO_UPGRADES);
     const copies = await reloaded.savedCopies();
     expect(copies).toHaveLength(1);
-    expect(copies[0]?.mountain.upgrades).toEqual({ tap: 1 });
+    expect(copies[0]?.mountain.upgrades).toEqual({ ...NO_UPGRADES, tap: 1 });
     expect(copies[0]?.mountain.carts).toBe(0);
     const events = reloaded.fieldLog().events.map((event) => event.code);
     expect(events).toContain("save.conflict");
@@ -4899,7 +4991,10 @@ describe("two saves found (#226)", () => {
     }
     await expect(reloaded.restoreCopy(id)).resolves.toBe("saved");
     await vi.waitFor(() => {
-      expect(reloaded.getSnapshot().mountain.upgrades).toEqual({ tap: 1 });
+      expect(reloaded.getSnapshot().mountain.upgrades).toEqual({
+        ...NO_UPGRADES,
+        tap: 1,
+      });
     });
     expect(reloaded.getSnapshot().mountain.carts).toBe(0);
     expect(reloaded.getSnapshot().mountain.pocket).toBe(500);
@@ -4977,7 +5072,7 @@ describe("two saves found (#226)", () => {
         (copy) =>
           copy.mountain.drills === 2 &&
           copy.mountain.pocket === 70 &&
-          copy.mountain.materials?.crystal === 1,
+          copy.mountain.materials.crystal === 1,
       ),
     ).toBe(true);
     const choice = there
@@ -5012,7 +5107,7 @@ describe("two saves found (#226)", () => {
     });
     progress.applyMutation((mountain) => ({
       ...mountain,
-      upgrades: { tap: 1 },
+      upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
     other.applyMutation((mountain) => ({ ...mountain, carts: 1 }));
     await vi.waitFor(() => {
@@ -5092,7 +5187,7 @@ describe("two saves found (#226)", () => {
     progress.applyMutation(() => minedMountain(3));
     progress.tick();
     expect(progress.getSnapshot().mountain.carts).toBe(6);
-    expect(progress.getSnapshot().away).toBeUndefined();
+    expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
     progress.dispose();
   });
 
@@ -5161,7 +5256,7 @@ describe("two saves found (#226)", () => {
 
     progress.applyMutation((mountain) => ({
       ...mountain,
-      upgrades: { tap: 1 },
+      upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
     expect(writes).toBe(1);
     server = {
@@ -5178,9 +5273,7 @@ describe("two saves found (#226)", () => {
     }
     expect(
       progress.getSnapshot().saveConflict?.local.mountain.upgrades,
-    ).toEqual({
-      tap: 1,
-    });
+    ).toEqual({ ...NO_UPGRADES, tap: 1 });
     expect(progress.getSnapshot().saveConflict?.remote.mountain.drills).toBe(1);
     const writesAtSheet = writes;
     progress.flush();
@@ -5192,15 +5285,16 @@ describe("two saves found (#226)", () => {
       deviceId: "other-device",
       deviceLabel: "Safari on iPhone",
     });
-    expect(progress.getSnapshot().mountain.upgrades).toEqual({ tap: 1 });
+    expect(progress.getSnapshot().mountain.upgrades).toEqual({
+      ...NO_UPGRADES,
+      tap: 1,
+    });
     expect(progress.getSnapshot().mountain.borers).toBe(0);
     expect(writes).toBe(writesAtSheet);
     deliver({ kind: "unavailable" });
     expect(
       progress.getSnapshot().saveConflict?.local.mountain.upgrades,
-    ).toEqual({
-      tap: 1,
-    });
+    ).toEqual({ ...NO_UPGRADES, tap: 1 });
     progress.dispose();
   });
 
@@ -5242,7 +5336,7 @@ describe("two saves found (#226)", () => {
     });
     progress.applyMutation((mountain) => ({
       ...mountain,
-      upgrades: { boots: 1 },
+      upgrades: { ...NO_UPGRADES, boots: 1 },
     }));
     deliver({
       kind: "found",
@@ -5253,9 +5347,7 @@ describe("two saves found (#226)", () => {
     });
     expect(
       progress.getSnapshot().saveConflict?.local.mountain.upgrades,
-    ).toEqual({
-      boots: 1,
-    });
+    ).toEqual({ ...NO_UPGRADES, boots: 1 });
     expect(progress.getSnapshot().saveConflict?.remote.mountain.carts).toBe(3);
     expect(progress.getSnapshot().saveKind).toBe("account");
     progress.dispose();
@@ -5580,7 +5672,7 @@ describe("dispatch (#409)", () => {
         drills: 4,
         borers: 2,
         // A tap takes a share of the crew's speed, so a slowed machine digs less.
-        upgrades: { tap: 5 },
+        upgrades: { ...NO_UPGRADES, tap: 5 },
       }));
       return {
         progress,

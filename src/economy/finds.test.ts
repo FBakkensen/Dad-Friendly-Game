@@ -27,7 +27,7 @@ describe("expectedFindStones", () => {
       [ada],
       "old-shaft",
       100,
-      (next) => (next.finds?.includes("pick") ? 5 : 1),
+      (next) => (next.finds.includes("pick") ? 5 : 1),
     );
     expect(boosted).toBeGreaterThan(flat);
   });
@@ -52,7 +52,7 @@ describe("expectedFindStones", () => {
       "deep-dark",
       100,
       (next) => {
-        const hand = next.engineers?.[1];
+        const hand = next.engineers[1];
         return hand !== undefined && hand.post === "borer" ? 4 : 0;
       },
     );

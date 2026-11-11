@@ -6,13 +6,14 @@ import {
   axleCrewMultiplier,
   emberMachineMultiplier,
   recipeById,
+  withClock,
 } from "./workshop";
 
 const AT = 1_000_000;
 
 describe("runningLabels", () => {
   it("a hot craft gets its short name, multiplier and time left", () => {
-    const mountain = { ...createMountain(), flareUntil: AT + 60_000 };
+    const mountain = withClock(createMountain(), "crystal-flare", AT + 60_000);
     const flare = runningLabels(mountain, AT).crafts["crystal-flare"];
     expect(flare).toEqual({
       short: "Flare",
@@ -25,14 +26,18 @@ describe("runningLabels", () => {
   });
 
   it("a hot axle grease chip carries the crew multiplier", () => {
-    const mountain = { ...createMountain(), axleUntil: AT + 60_000 };
+    const mountain = withClock(createMountain(), "axle-grease", AT + 60_000);
     const axle = runningLabels(mountain, AT).crafts["axle-grease"];
     expect(axle.active).toBe(true);
     expect(axle.multiplier).toBe(axleCrewMultiplier(mountain, AT));
   });
 
   it("a hot heartstone ember chip carries the machine multiplier", () => {
-    const mountain = { ...createMountain(), emberUntil: AT + 60_000 };
+    const mountain = withClock(
+      createMountain(),
+      "heartstone-ember",
+      AT + 60_000,
+    );
     const ember = runningLabels(mountain, AT).crafts["heartstone-ember"];
     expect(ember.active).toBe(true);
     expect(ember.multiplier).toBe(emberMachineMultiplier(mountain, AT));

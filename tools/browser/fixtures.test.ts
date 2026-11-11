@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { grantFirstEngineer } from "../../src/engineers.ts";
-import type { Mountain } from "../../src/mountain.ts";
+import { BARE_MOUNTAIN, type Mountain } from "../../src/mountain.ts";
 import { MOUNTAIN_STONES } from "../../src/scale.ts";
 
 /**
@@ -257,7 +257,6 @@ const EXPECTED = {
       helpers: 3,
       carts: 6,
       staffed: 2,
-      taught: [],
     },
     workshop: {
       materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
@@ -404,7 +403,7 @@ const EXPECTED = {
     shortMountain:
       '{"version":6,"lastSeen":1700000000000,"mountain":{"staffed":2,"remaining":215000000,"pocket":6000000,"helpers":21,"carts":6,"drills":4,"borers":1,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"borer"}]},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease"]}}',
     idleMountain:
-      '{"version":6,"lastSeen":1700000000000,"mountain":{"staffed":2,"remaining":239500000,"pocket":6854,"helpers":3,"carts":6,"taught":[]},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
+      '{"version":6,"lastSeen":1700000000000,"mountain":{"staffed":2,"remaining":239500000,"pocket":6854,"helpers":3,"carts":6},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
     toolsMountain:
       '{"version":6,"lastSeen":1700000000000,"mountain":{"staffed":2,"remaining":215000000,"pocket":5000000,"helpers":20,"carts":5,"drills":2,"borers":1,"upgrades":{"boots":1,"tap":2},"finds":["pick","lamp"],"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"borer"}]},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease"]}}',
     machineMountain:
@@ -607,7 +606,12 @@ describe("the first engineer", () => {
     "agrees with grantFirstEngineer: %s",
     (label) => {
       const raw = inputs[label] ?? {};
-      const mountain = { ...base, borers: 0, ...raw } as unknown as Mountain;
+      const mountain = {
+        ...BARE_MOUNTAIN,
+        ...base,
+        borers: 0,
+        ...raw,
+      } as unknown as Mountain;
       const fromSrc = grantFirstEngineer(mountain).mountain;
       const seeded = JSON.parse(
         f.seedJson({
@@ -620,7 +624,7 @@ describe("the first engineer", () => {
           },
         }),
       ) as { mountain: { engineers?: unknown } };
-      expect(seeded.mountain.engineers).toEqual(fromSrc.engineers);
+      expect(seeded.mountain.engineers ?? []).toEqual(fromSrc.engineers);
     },
   );
 });

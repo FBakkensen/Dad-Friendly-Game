@@ -127,7 +127,7 @@ export function createWelcomePanel({
     "go",
     "welcome-continue",
     () => {
-      progress.dismissAway();
+      progress.dismiss("away");
     },
   );
 

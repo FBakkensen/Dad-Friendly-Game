@@ -5,10 +5,12 @@ import {
   boostLeft,
   buyBoost,
   parseBoosts,
+  NO_BOOSTS,
 } from "./boosts";
 import { accrue, accrueAway, mineByHand, stonesPerSecond } from "./mountain";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
+import { NO_UPGRADES } from "./upgrades";
 
 const MIN = 60_000;
 const crew = { ...minedMountain(0), helpers: 500, pocket: 1_000_000 }; // 500 workers, x8 at the 100 mark: 4,000/s
@@ -39,7 +41,15 @@ describe("quick boosts", () => {
   it.each([
     ["a first helper", { helpers: 1 }],
     ["a small crew", { helpers: 40, carts: 10 }],
-    ["mid game", { helpers: 120, carts: 40, drills: 15, upgrades: { tap: 3 } }],
+    [
+      "mid game",
+      {
+        helpers: 120,
+        carts: 40,
+        drills: 15,
+        upgrades: { ...NO_UPGRADES, tap: 3 },
+      },
+    ],
     [
       "late game",
       {
@@ -48,7 +58,7 @@ describe("quick boosts", () => {
         drills: 30,
         borers: 10,
         machines: 4,
-        upgrades: { tap: 10 },
+        upgrades: { ...NO_UPGRADES, tap: 10 },
       },
     ],
   ])("pay back more than they cost with %s", (_, fields) => {
@@ -107,7 +117,7 @@ describe("quick boosts", () => {
     expect(sharp.pocket).toBe(
       crew.pocket - boostById("sharper").priceUnits * 500,
     );
-    expect(sharp.boosts).toEqual({ sharper: 1_000 + 10 * MIN });
+    expect(sharp.boosts).toEqual({ ...NO_BOOSTS, sharper: 1_000 + 10 * MIN });
     expect(boostLeft(sharp, "sharper", 1_000 + 4 * MIN)).toBe(6 * MIN);
     // Already running: can't stack or restart.
     expect(
@@ -138,7 +148,7 @@ describe("quick boosts", () => {
         id: "sharper",
         now: later,
         pricing: { crewPerSecond: 500, tapYield: 500 },
-      }).boosts?.sharper,
+      }).boosts.sharper,
     ).toBe(later + 10 * MIN);
     // Too poor: nothing happens.
     const poor = { ...crew, pocket: 99 };
@@ -155,8 +165,8 @@ describe("quick boosts", () => {
   it("Sharper picks doubles taps (tap power included) only while it runs", () => {
     const strong = {
       ...crew,
-      upgrades: { tap: 2 },
-      boosts: { sharper: 10 * MIN },
+      upgrades: { ...NO_UPGRADES, tap: 2 },
+      boosts: { ...NO_BOOSTS, sharper: 10 * MIN },
     };
     expect(effectiveRates(strong).tapYield).toBe(133);
     expect(effectiveRates(strong, 5 * MIN).tapYield).toBe(266);
@@ -165,12 +175,13 @@ describe("quick boosts", () => {
   });
 
   it("Overtime doubles the crew while playing, but never away earnings", () => {
-    const over = { ...crew, boosts: { overtime: 30 * MIN } };
+    const over = { ...crew, boosts: { ...NO_BOOSTS, overtime: 30 * MIN } };
     expect(stonesPerSecond(over)).toBe(4_000);
     expect(stonesPerSecond(over, MIN)).toBe(8_000);
     // Tap power takes its share of the crew's own speed, not the doubled one.
     expect(
-      effectiveRates({ ...over, upgrades: { tap: 1 } }, MIN).tapYield,
+      effectiveRates({ ...over, upgrades: { ...NO_UPGRADES, tap: 1 } }, MIN)
+        .tapYield,
     ).toBe(67);
     expect(
       accrue({ mountain: over, from: 0, to: 10_000, live: true }).mined,

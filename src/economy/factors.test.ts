@@ -8,8 +8,10 @@ import {
   tierById,
   tierCost,
 } from "../tiers";
+import { BARE_MOUNTAIN } from "../mountain";
 
 const posted = {
+  ...BARE_MOUNTAIN,
   remaining: 1_000,
   pocket: 0,
   helpers: 8,

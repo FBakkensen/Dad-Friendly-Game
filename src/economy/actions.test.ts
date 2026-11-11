@@ -1,7 +1,7 @@
 import { milestoneMultiplier } from "../milestones";
 import { RUSH_MS } from "../gold-rush";
 import { describe, expect, it } from "vitest";
-import { BOOSTS, boostById, buyBoost, boostLeft } from "../boosts";
+import { BOOSTS, boostById, buyBoost, boostLeft, NO_BOOSTS } from "../boosts";
 import { buyCrew } from "../crew";
 import {
   promote,
@@ -41,8 +41,9 @@ import {
   upgradeLevel,
   upgradePrice,
   type UpgradeId,
+  NO_UPGRADES,
 } from "../upgrades";
-import { MATERIAL_EVERY } from "../layers";
+import { MATERIAL_EVERY, EMPTY_MATERIALS } from "../layers";
 import { BAND_SCALE, minedOut, oneOffStretch } from "../scale";
 import {
   MAX_CRAFTED_LEVEL,
@@ -51,6 +52,8 @@ import {
   recipeCost,
   recipesForMined,
   startCraft,
+  NOTHING_CRAFTED,
+  NOTHING_KEPT,
 } from "../workshop";
 import {
   applyAction,
@@ -172,7 +175,7 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
     case "fixTrouble":
       return mountain;
     case "craft": {
-      const known = mountain.recipes ?? [];
+      const known = mountain.recipes;
       const depth = recipesForMined(minedOut(mountain));
       const prepared =
         known.includes(action.recipe) || !depth.includes(action.recipe)
@@ -312,7 +315,7 @@ function fullCrew(): Mountain {
     pocket: 1e15,
     engineers: [ada],
   };
-  while ((mountain.engineers?.length ?? 0) < 5) {
+  while (mountain.engineers.length < 5) {
     mountain = promote({ ...mountain, pocket: promoteCost(mountain) });
   }
   return mountain;
@@ -383,7 +386,7 @@ describe("listActions", () => {
     const offers = listActions(broke, NOW);
     expect(offers.some((action) => action.kind === "buyTier")).toBe(true);
     expect(offers.some((action) => action.kind === "promote")).toBe(true);
-    const maxed: Mountain = { ...rich, upgrades: { tap: 10 } };
+    const maxed: Mountain = { ...rich, upgrades: { ...NO_UPGRADES, tap: 10 } };
     expect(
       listActions(maxed, NOW).some(
         (action) => action.kind === "buyUpgrade" && action.id === "tap",
@@ -441,7 +444,7 @@ describe("listActions", () => {
       listActions(party, Number.NaN).some((action) => action.kind === "send"),
     ).toBe(false);
     const seed = send(party, 0, "old-shaft", NOW);
-    const trip = seed.expeditions?.[0];
+    const trip = seed.expeditions[0];
     expect(trip).toBeDefined();
     if (trip === undefined) {
       return;
@@ -461,20 +464,6 @@ describe("listActions", () => {
     ).toBe(false);
     expect(
       listActions(fullCrew(), NOW).some((action) => action.kind === "promote"),
-    ).toBe(false);
-  });
-
-  it("repairs a tunnel post that has no expedition, and does not send them", () => {
-    const stuck: Mountain = {
-      ...rich,
-      engineers: [{ ...ada, post: "tunnel" }],
-    };
-    const offers = listActions(stuck, NOW);
-    expect(offers.some((action) => action.kind === "station")).toBe(true);
-    expect(
-      offers.some(
-        (action) => action.kind === "send" || action.kind === "recall",
-      ),
     ).toBe(false);
   });
 
@@ -601,8 +590,8 @@ describe("applyAction", () => {
     };
     const bought = applyAction(funded, { kind: "buyTier", id: "borer" }, NOW);
     expect(bought.borers).toBe(1);
-    expect(bought.engineers?.[0]?.name).toBe("Ada");
-    expect(bought.engineers?.[0]?.post).toBe("borer");
+    expect(bought.engineers[0]?.name).toBe("Ada");
+    expect(bought.engineers[0]?.post).toBe("borer");
     expect(bought).toEqual(buyCrew(funded, "borer"));
   });
 });
@@ -850,7 +839,7 @@ describe("valueOf", () => {
   it("does not let a running boost change a tier's score", () => {
     const plain = score(withHelper, { kind: "buyTier", id: "helper" }, HORIZON);
     const boosted = score(
-      { ...withHelper, boosts: { overtime: NOW + 60_000 } },
+      { ...withHelper, boosts: { ...NO_BOOSTS, overtime: NOW + 60_000 } },
       { kind: "buyTier", id: "helper" },
       HORIZON,
     );
@@ -977,7 +966,7 @@ describe("valueOf", () => {
     expect(machine.gainPerSec).toBe(0);
     expect(machine.paybackSec).toBe(Number.POSITIVE_INFINITY);
     const maxed = score(
-      { ...rich, upgrades: { tap: 10 } },
+      { ...rich, upgrades: { ...NO_UPGRADES, tap: 10 } },
       { kind: "buyUpgrade", id: "tap", price: 0 },
       HORIZON,
     );
@@ -1094,7 +1083,7 @@ describe("valueOf", () => {
     expect(sinkRecipes(shed())).toContain("reinforce");
     expect(sinkRecipes(shed()).includes("crystal-lamp")).toBe(false);
     const withLamp = shed({
-      recipes: [...(shed().recipes ?? []), "crystal-lamp", "engineers-kit"],
+      recipes: [...shed().recipes, "crystal-lamp", "engineers-kit"],
     });
     expect(
       listActions(withLamp, NOW).some(
@@ -1103,6 +1092,7 @@ describe("valueOf", () => {
     ).toBe(true);
     const held = shed({
       kept: {
+        ...NOTHING_KEPT,
         bench: {
           recipe: "future-bit",
           startedAt: NOW,
@@ -1118,11 +1108,15 @@ describe("valueOf", () => {
     expect(
       listActions(held, NOW + 60_000).some((action) => action.kind === "craft"),
     ).toBe(true);
-    expect(sinkRecipes(shed({ crafted: { "iron-rails": 3 } }))).not.toContain(
-      "iron-rails",
-    );
     expect(
-      sinkRecipes(shed({ crafted: { "blasting-charge": MAX_CRAFTED_LEVEL } })),
+      sinkRecipes(shed({ crafted: { ...NOTHING_CRAFTED, "iron-rails": 3 } })),
+    ).not.toContain("iron-rails");
+    expect(
+      sinkRecipes(
+        shed({
+          crafted: { ...NOTHING_CRAFTED, "blasting-charge": MAX_CRAFTED_LEVEL },
+        }),
+      ),
     ).not.toContain("blasting-charge");
 
     const yard = shed({ drills: 0, borers: 0, engineers: [] });
@@ -1141,8 +1135,7 @@ describe("valueOf", () => {
     expect(
       score(fresh, { kind: "craft", recipe: "iron-rails" }).paybackSec,
     ).toBe(Number.POSITIVE_INFINITY);
-    const noPocket = { ...yard };
-    Reflect.deleteProperty(noPocket, "materials");
+    const noPocket = { ...yard, materials: EMPTY_MATERIALS };
     expect(
       score(noPocket, { kind: "craft", recipe: "iron-rails" }).gainPerSec,
     ).toBeGreaterThan(0);
@@ -1154,7 +1147,7 @@ describe("valueOf", () => {
     ).toBeGreaterThan(0);
     expect(
       score(
-        { ...yard, crafted: { "iron-rails": 3 } },
+        { ...yard, crafted: { ...NOTHING_CRAFTED, "iron-rails": 3 } },
         { kind: "craft", recipe: "iron-rails" },
       ).gainPerSec,
     ).toBe(0);
@@ -1209,7 +1202,7 @@ describe("valueOf", () => {
       machines: 1,
       helpers: 40,
       recipes: [
-        ...(shed().recipes ?? []),
+        ...shed().recipes,
         "diamond-bits",
         "crystal-flare",
         "crystal-lamp",
@@ -1238,16 +1231,20 @@ describe("valueOf", () => {
     expect(
       score(deep, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
     ).toBeGreaterThan(0);
+    // Her kit is worth the same while she is out: the post calls her back (#415).
+    const deepAway = send(deep, 0, "side-seam", 0);
+    expect(deepAway.expeditions).toHaveLength(1);
+    expect(
+      score(deepAway, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
+    ).toBe(score(deep, { kind: "craft", recipe: "engineers-kit" }).gainPerSec);
     const kitOnly = shed({
-      recipes: [...(shed().recipes ?? []), "engineers-kit"],
+      recipes: [...shed().recipes, "engineers-kit"],
     });
-    const noCrew = { ...kitOnly };
-    Reflect.deleteProperty(noCrew, "engineers");
+    const noCrew = { ...kitOnly, engineers: [] };
     expect(
       score(noCrew, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
     ).toBe(0);
-    const unwritten = { ...armed };
-    Reflect.deleteProperty(unwritten, "recipes");
+    const unwritten = { ...armed, recipes: [] };
     expect(
       score(unwritten, { kind: "craft", recipe: "reinforce" }).gainPerSec,
     ).toBeGreaterThan(0);
@@ -1375,13 +1372,13 @@ describe("applyMove (#409)", () => {
     );
     expect(moved.kind).toBe("applied");
     if (moved.kind !== "applied") return;
-    expect(moved.mountain.expeditions ?? []).toEqual([]);
-    expect(moved.mountain.engineers?.[0]?.post).toBe("camp");
+    expect(moved.mountain.expeditions).toEqual([]);
+    expect(moved.mountain.engineers[0]?.post).toBe("camp");
     expect(moved.mountain.taught).toContain("tending");
   });
 
   it("digs with the trouble it is given: a slowed machine gives a tap less, never nothing", () => {
-    const tapper: Mountain = { ...rich, upgrades: { tap: 5 } };
+    const tapper: Mountain = { ...rich, upgrades: { ...NO_UPGRADES, tap: 5 } };
     const calmDig = applyMove(tapper, { kind: "dig" }, NOW, calm);
     const caveIn = applyMove(tapper, { kind: "dig" }, NOW, { trouble });
     const gained = (result: typeof calmDig) =>
@@ -1484,7 +1481,7 @@ describe("applyMove (#409)", () => {
         kind: "boostStarted",
         id: "sharper",
         endsAt:
-          boosted.kind === "applied" ? boosted.mountain.boosts?.sharper : 0,
+          boosted.kind === "applied" ? boosted.mountain.boosts.sharper : 0,
       },
     ]);
     expect(eventsOf(rich, { kind: "craft", recipe: "sturdy-props" })).toEqual([
@@ -1543,7 +1540,7 @@ describe("applyMove (#409)", () => {
 
   it("promotes the first engineer from a mountain with no crew yet", () => {
     const bare: Mountain = { ...fresh, helpers: 1, pocket: 1e15 };
-    expect(bare.engineers).toBeUndefined();
+    expect(bare.engineers).toEqual([]);
     expect(eventsOf(bare, promoteAt(bare))).toEqual([
       { kind: "promoted", name: "Ada", crew: 1 },
     ]);
@@ -1569,16 +1566,6 @@ describe("applyMove (#409)", () => {
     expect(
       eventsOf(travelling, { kind: "station", index: 0, post: "borer" }),
     ).toEqual([{ kind: "recalled", name: "Ada", tunnel: "old-shaft" }]);
-  });
-
-  it("stations a tunnel post with no trip back at camp", () => {
-    const stranded: Mountain = {
-      ...rich,
-      engineers: [{ ...ada, post: "tunnel" }],
-    };
-    expect(eventsOf(stranded, { kind: "recall", index: 0 })).toEqual([
-      { kind: "stationed", name: "Ada", post: "camp" },
-    ]);
   });
 
   it("says what a vein tap gave, and nothing for a dig, a seen mark or a cancelled craft", () => {
@@ -1618,11 +1605,11 @@ describe("applyMove (#409)", () => {
       calm,
     );
     if (again.kind !== "applied") throw new Error("boost not bought again");
-    const endsAt = again.mountain.boosts?.sharper;
+    const endsAt = again.mountain.boosts.sharper;
     expect(again.events).toEqual([
       { kind: "boostStarted", id: "sharper", endsAt },
     ]);
-    expect(endsAt).toBeGreaterThan(first.mountain.boosts?.sharper ?? Infinity);
+    expect(endsAt).toBeGreaterThan(first.mountain.boosts.sharper);
   });
 
   it("gives the lab's applyAction the same mountain for every listed move", () => {
@@ -1662,7 +1649,7 @@ describe("buyEveryBoost", () => {
     const running = {
       ...createMountain(),
       pocket: 0,
-      boosts: { sharper: NOW + 1_000 },
+      boosts: { ...NO_BOOSTS, sharper: NOW + 1_000 },
     };
     expect(buyEveryBoost(running, NOW)).toBe(running);
   });

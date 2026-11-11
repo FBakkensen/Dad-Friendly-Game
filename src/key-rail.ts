@@ -7,7 +7,7 @@ import type { Mountain } from "./mountain";
 import { formatClock, troubleAria } from "./screen-words";
 import { showsDot } from "./teach";
 import { tierById } from "./tiers";
-import { boostRowId, upgradeRowId } from "./upgrade-reveal";
+import { boostRowId, upgradeRowId, type RevealRowId } from "./upgrade-reveal";
 import { anyUpgradeAffordable } from "./upgrade-rows";
 import { UPGRADES } from "./upgrades";
 import { workshopUnlocked } from "./workshop";
@@ -48,7 +48,7 @@ export interface KeyView {
 }
 
 /** Every boost and lasting upgrade row, for the Upgrades key's dot. */
-const UPGRADE_ROW_IDS: readonly string[] = [
+const UPGRADE_ROW_IDS: readonly RevealRowId[] = [
   ...BOOSTS.map(boostRowId),
   ...UPGRADES.map(upgradeRowId),
 ];
@@ -93,14 +93,14 @@ function workshopKey(mountain: Mountain, now: number): KeyView {
 
 /** The soonest trip still out, as a clock, or "" with every hand home. */
 function soonestBack(mountain: Mountain, now: number): string {
-  const out = (mountain.expeditions ?? [])
+  const out = mountain.expeditions
     .map((trip) => trip.returnsAt - now)
     .filter((left) => left > 0);
   return out.length === 0 ? "" : formatClock(Math.min(...out));
 }
 
 function engineersKey(mountain: Mountain, now: number): KeyView {
-  if ((mountain.engineers?.length ?? 0) === 0) {
+  if (mountain.engineers.length === 0) {
     return {
       cap: "locked",
       sub: "With 1st borer",
