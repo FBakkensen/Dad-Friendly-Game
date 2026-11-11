@@ -21,6 +21,7 @@ import {
   foundRelics,
   hasRelic,
   nextRelic,
+  type Relic,
   type RelicId,
 } from "./relics";
 
@@ -43,6 +44,50 @@ const DARK: Readonly<Record<RelicId, string>> = {
 
 /** Socket left edge in art px: 15 + 66i CSS px. board.css multiplies by --art. */
 const socketAt = (i: number): number => 7.5 + 33 * i;
+
+/** A socket's button, its relic art, and the art it shows now ("" for none). */
+interface Socket {
+  readonly button: HTMLButtonElement;
+  readonly art: HTMLImageElement;
+  shown: string;
+}
+
+/** Where a relic stands on the plate. */
+interface SocketState {
+  readonly has: boolean;
+  readonly isNext: boolean;
+  /** "N of 6 found", read after every socket's name. */
+  readonly count: string;
+}
+
+/** Lit once found, dark while it is the next relic, else empty. */
+const socketArt = (id: RelicId, { has, isNext }: SocketState): string => {
+  if (has) return LIT[id];
+  return isNext ? DARK[id] : "";
+};
+
+const socketWords = ({ has, isNext }: SocketState): string => {
+  if (has) return "found";
+  return isNext ? "next relic" : "not found yet";
+};
+
+/** One socket's art and label. The art changes only when the socket's state does (#370). */
+function paintSocket(socket: Socket, relic: Relic, state: SocketState): void {
+  const { button, art } = socket;
+  const shown = socketArt(relic.id, state);
+  if (shown !== socket.shown) {
+    socket.shown = shown;
+    if (shown === "") art.remove();
+    else {
+      art.src = shown;
+      button.append(art);
+    }
+  }
+  button.setAttribute(
+    "aria-label",
+    `${relic.name}, ${socketWords(state)}. ${state.count}`,
+  );
+}
 
 /**
  * The framed row of six relic sockets and the tag, a label. Each socket's
@@ -101,7 +146,8 @@ export function createRelicPlate({
     art.alt = "";
     art.draggable = false;
     root.append(button);
-    return { button, art, shown: "" };
+    const socket: Socket = { button, art, shown: "" };
+    return socket;
   });
 
   // The tag is a label: too small for a finger between the sockets and the
@@ -123,21 +169,11 @@ export function createRelicPlate({
     for (const [i, relic] of RELICS.entries()) {
       const socket = sockets[i];
       if (socket === undefined) continue;
-      const { button, art } = socket;
-      const has = hasRelic(mountain, relic.id);
-      const isNext = relic === next;
-      // The art changes only when the socket's state does (#370).
-      const shown = has ? LIT[relic.id] : isNext ? DARK[relic.id] : "";
-      if (shown !== socket.shown) {
-        socket.shown = shown;
-        if (shown === "") art.remove();
-        else {
-          art.src = shown;
-          button.append(art);
-        }
-      }
-      const state = has ? "found" : isNext ? "next relic" : "not found yet";
-      button.setAttribute("aria-label", `${relic.name}, ${state}. ${count}`);
+      paintSocket(socket, relic, {
+        has: hasRelic(mountain, relic.id),
+        isNext: relic === next,
+        count,
+      });
     }
   };
 
