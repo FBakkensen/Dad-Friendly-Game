@@ -17,16 +17,14 @@ import {
   openSheet,
   closeSheet,
   openShelf,
+  RELIC_PAGE,
+  pressPage,
   sheetSettled,
   STANDALONE_INSETS,
   openScreen,
   coversBoard,
   noScroll,
 } from "./kit.mjs";
-
-/** A page of the open relics drawer (#465): detail, reveal or legend. */
-const RELIC_PAGE = (name) =>
-  `${OPEN_SHEET("relics")} .board-sheet-page:not([hidden]) > .relic-${name}-page`;
 
 /**
  * The relics drawer is open on `name`'s page, and everything on it sits inside the drawer,
@@ -85,13 +83,6 @@ async function relicPageFits(page, name, { bottom = 0 } = {}) {
     console.log(`relics drawer ${name} page`, result.detail);
   }
   return result.ok;
-}
-
-/** A keyboard press on the open relics page's plate: never early, so the settle keeps it. */
-async function pressPage(page, name, plate) {
-  await page.$eval(`${RELIC_PAGE(name)} .relic-page-${plate}`, (button) => {
-    button.click();
-  });
 }
 
 /** The phone's cards, in the browser and as the installed PWA with its insets. */
@@ -246,6 +237,7 @@ async function foundSheetsFit(page, { top = 0, bottom = 0 } = {}) {
     tools.closeOk &&
     toolsStill &&
     fits &&
+    detail.whole &&
     detail.stories === 5 &&
     detail.icons &&
     detail.clean &&

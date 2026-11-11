@@ -1,3 +1,4 @@
+import { hide } from "./board-dom";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
 import type { BoardHost } from "./board-host";
 import type { CloseBy, Pointer } from "./board-interaction";
@@ -115,6 +116,8 @@ export function createRelicPanels(deps: RelicPanelDeps): {
   const onBoard = rowsOnBoard(board, "relics");
   const show = (next: Screen, page: HTMLElement | undefined): void => {
     screen = next;
+    // A reveal or the Legend is not left for the "i": its cards' Back goes to the shelf.
+    hide(sheet.info, next.kind === "reveal" || next.kind === "legend");
     sheet.showPage(page);
   };
   const detail = createDetailPage({
@@ -237,10 +240,7 @@ export function createRelicPanels(deps: RelicPanelDeps): {
   return {
     sheet,
     open: (from) => {
-      if (sheet.isOpen()) {
-        show(SHELF, undefined);
-      }
-      screen = SHELF;
+      show(SHELF, undefined);
       openDrawer(from);
       render();
     },

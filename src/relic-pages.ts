@@ -7,9 +7,9 @@ import { el, hide, setAttr, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import type { Pointer } from "./board-interaction";
 import { RELIC_LIT } from "./board-relics";
-import { plateButton } from "./board-save";
+import { drawerPlate } from "./board-save";
 import { skin } from "./board-skin";
-import { forgetAll, pressOnBoard, type PressTracker } from "./card-tap";
+import { forgetAll, type PressTracker } from "./card-tap";
 import { KEEPSAKES, type KeepsakeId } from "./expeditions";
 import { RELICS, type Relic } from "./relics";
 import { KEEPSAKES_TITLE, keepsakeWords } from "./screen-words";
@@ -51,16 +51,14 @@ function pagePlate(
   [label, id]: readonly [label: string, id: string],
   act: PageAct,
 ): HTMLButtonElement {
-  const plate = plateButton(label);
-  plate.classList.add(`relic-page-${id}`);
-  trackers.push(
-    pressOnBoard(plate, board, { layer: "relics", id }, (decision, by) => {
-      if (decision === "act") {
-        act(by);
-      }
-    }),
+  return drawerPlate(
+    board,
+    trackers,
+    { label, className: `relic-page-${id}`, control: { layer: "relics", id } },
+    (_plate, by) => {
+      act(by);
+    },
   );
-  return plate;
 }
 
 /** A relic's 24 art px icon, at 2×. */

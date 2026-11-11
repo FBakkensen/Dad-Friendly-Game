@@ -75,7 +75,7 @@ export interface BoardSheet {
   showHow(on: boolean): void;
   /**
    * One panel page in the list's place, under the head and over Back (the Ledger's Start over
-   * and field log, #375), or the list back for undefined. Either way is a new screen under the
+   * and field log, #375), or the list back for undefined; the "i" cards go if they were up. Either way is a new screen under the
    * finger, so the settle starts again. Focus goes to the page's first control, else its host;
    * back on the list, to the title.
    */
@@ -137,14 +137,14 @@ function spareCard(): HTMLElement {
   return spare;
 }
 
-/** The "i" cards, one Back under the last: the first card's Back stays hidden. */
+/** The "i" cards, one Back under the last: of two, the first card's Back stays hidden. */
 function howCards(
   { systems, backLabel }: BoardHow,
   back: () => void,
 ): HTMLElement[] {
   const cards = systems.map((system) => boardHowCard(system, backLabel, back));
   const first = cards[0]?.querySelector<HTMLElement>(".teach-how-back");
-  if (first) {
+  if (first && cards.length > 1) {
     first.hidden = true;
   }
   return cards;
@@ -441,6 +441,8 @@ export function createBoardSheet({
   };
 
   const showPage = (shownPage: HTMLElement | undefined): void => {
+    // A page that opens itself (the relics drawer's reveal, #465) puts the "i" cards away.
+    setHow(parts, false);
     setPage(parts, shownPage);
     // A page is a new screen under the finger, and so is the list it gives back (#375).
     page();

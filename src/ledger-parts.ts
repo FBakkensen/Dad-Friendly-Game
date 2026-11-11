@@ -1,9 +1,9 @@
 import { el, hide, setAttr, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { controlKey, type ControlRef, type Pointer } from "./board-interaction";
-import { plateButton } from "./board-save";
+import { drawerPlate } from "./board-save";
 import { skin } from "./board-skin";
-import { forgetAll, pressOnBoard, type PressTracker } from "./card-tap";
+import { forgetAll, type PressTracker } from "./card-tap";
 import { TONIGHT_LINES, type TonightLine } from "./ledger-rows";
 import {
   PASS_FULL,
@@ -57,16 +57,12 @@ function ledgerPlate(
   [label, id]: readonly [label: string, id: string],
   act: PlateAct,
 ): HTMLButtonElement {
-  const plate = plateButton(label);
-  plate.classList.add(`ledger-${id}`);
-  trackers.push(
-    pressOnBoard(plate, board, { layer: "ledger", id }, (decision, by) => {
-      if (decision === "act") {
-        act(plate, by);
-      }
-    }),
+  return drawerPlate(
+    board,
+    trackers,
+    { label, className: `ledger-${id}`, control: { layer: "ledger", id } },
+    act,
   );
-  return plate;
 }
 
 /** Tonight: this run's newest lines, each with its time, in an inset box. */

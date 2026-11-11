@@ -923,8 +923,6 @@ body {
 .welcome-back,
 .layer-arrival,
 .craft-notice,
-.relic-reveal,
-.shelf-dialog,
 .start-over,
 .engineers-dialog,
 .update-prompt,
@@ -2906,6 +2904,7 @@ button.board-row:focus-visible {
 
 /* Last, so a hidden part hides over its own display. */
 .board-sheet > [hidden],
+.board-sheet-head > [hidden],
 .board-sheet-list > [hidden],
 .board-sheet-how [hidden] {
   display: none;

@@ -9,6 +9,7 @@ import {
   browser,
   OPEN_SHEET,
   openSheet,
+  pressPage,
   boardProbe,
   openScreen,
   coversBoard,
@@ -93,10 +94,8 @@ for (const viewport of NOTICE_SIZES) {
         noticeSave({ mined: 9_999_999, lastSeen: now }),
       );
       await page.tap(".board-window");
-      await page.waitForSelector(".relic-reveal:not([hidden])", {
-        timeout: 3_000,
-      });
-      await page.tap(".reveal-continue");
+      // The relic's reveal is a page of the relics drawer (#465).
+      await pressPage(page, "reveal", "carry");
       await page.waitForSelector(".layer-arrival:not([hidden])", {
         timeout: 3_000,
       });

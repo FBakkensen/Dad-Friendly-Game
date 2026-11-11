@@ -15,6 +15,7 @@ import {
   openScreen,
   noScroll,
   shot,
+  pressPage,
   sheetSettled,
   saveDrawerSettled,
   clickHandled,
@@ -196,7 +197,7 @@ const GUARD_SCREENS = [
     name: "relic shelf",
     save: () => guardSave(Date.now()),
     taps: [".board-socket", SHELF_KEY],
-    shows: shown(".shelf-dialog"),
+    shows: drawer("relics"),
   },
   {
     name: "save drawer",
@@ -228,10 +229,11 @@ const GUARD_SCREENS = [
   {
     name: "legacy",
     save: () => lastStoneSave(),
+    // The reveal and the Legend are pages of the relics drawer (#465).
     taps: [
       ".board-window",
-      ".relic-reveal:not(.legend) .reveal-continue",
-      ".legend .legend-pass",
+      (page) => pressPage(page, "reveal", "carry"),
+      (page) => pressPage(page, "legend", "pass"),
     ],
     shows: shown(".legacy-dialog"),
   },
@@ -239,10 +241,17 @@ const GUARD_SCREENS = [
 
 /**
  * Taps through to a screen: each tap waits for its target, the last for the
- * tap to be handled and for what it opens. False when any of it never comes.
+ * tap to be handled and for what it opens. A step that is a function presses
+ * itself and says whether it could. False when any of it never comes.
  */
 async function tapThrough(page, { taps, shows }) {
   for (const [index, selector] of taps.entries()) {
+    if (typeof selector === "function") {
+      if (!(await selector(page))) {
+        return false;
+      }
+      continue;
+    }
     const found = await page
       .waitForSelector(selector, { visible: true, timeout: 5_000 })
       .then(

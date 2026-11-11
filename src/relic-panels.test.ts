@@ -214,6 +214,29 @@ describe("the reveal opens the drawer itself (#465)", () => {
     expect(fixture.beforeOpen).toHaveBeenCalledTimes(1);
   });
 
+  it("hides the i while the reveal is up, and gives it back on the shelf", () => {
+    const fixture = mount(
+      minedMountain(relic("lantern").depth),
+      relic("lantern"),
+    );
+    fixture.panel.render();
+    expect(fixture.panel.sheet.info.hidden).toBe(true);
+    advance(DRAWER_SETTLE_MS + 50);
+    press(page(fixture, "reveal")?.querySelector(".relic-page-carry"));
+    fixture.panel.open();
+    expect(fixture.panel.sheet.info.hidden).toBe(false);
+  });
+
+  it("opening over the i cards puts them away", () => {
+    const fixture = mount(minedMountain(relic("lantern").depth));
+    fixture.panel.open();
+    fixture.panel.sheet.showHow(true);
+    fixture.view.revealed = relic("lantern");
+    fixture.panel.render();
+    expect(fixture.panel.sheet.how.hidden).toBe(true);
+    expect(page(fixture, "reveal")).not.toBeNull();
+  });
+
   it("waits while welcome back or another card is up", () => {
     const fixture = mount(
       minedMountain(relic("lantern").depth),
@@ -302,6 +325,7 @@ describe("the Legend (#465)", () => {
     advance(DRAWER_SETTLE_MS + 50);
     press(page(fixture, "reveal")?.querySelector(".relic-page-carry"));
     const legend = page(fixture, "legend");
+    expect(fixture.panel.sheet.info.hidden).toBe(true);
     expect(legend?.querySelector("h3")?.textContent).toBe(
       "You became a Legend",
     );
