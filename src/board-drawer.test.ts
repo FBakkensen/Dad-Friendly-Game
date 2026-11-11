@@ -155,13 +155,18 @@ describe("the drawer shell", () => {
         "header",
         "div",
         "div",
+        "div",
         "footer",
       ]);
       expect(kids[0]?.classList.contains("board-sheet-head")).toBe(true);
       expect(kids[1]).toBe(sheet.how);
       expect(sheet.how.classList.contains("board-sheet-how")).toBe(true);
       expect(sheet.how.hidden).toBe(true);
-      expect(kids[2]).toBe(sheet.list);
+      const pageHost = kids[2] as HTMLElement;
+      expect(pageHost.classList.contains("board-sheet-page")).toBe(true);
+      expect(pageHost.hidden).toBe(true);
+      expect(pageHost.getAttribute("tabindex")).toBe("-1");
+      expect(kids[3]).toBe(sheet.list);
       expect(sheet.list.classList.contains("board-sheet-list")).toBe(true);
 
       const title = part(sheet, ".board-sheet-head > h2.board-sheet-title");
@@ -773,6 +778,135 @@ describe("the drawer shell", () => {
       expect(sheet.list.hidden).toBe(false);
       expect(footer.hidden).toBe(false);
       expect(document.activeElement).toBe(key);
+    });
+  });
+
+  describe("a panel's own page (#375)", () => {
+    /** A page with a title and two plates, as the Ledger's Start over page is. */
+    const panelPage = (): {
+      page: HTMLElement;
+      first: HTMLButtonElement;
+      second: HTMLButtonElement;
+    } => {
+      const page = document.createElement("div");
+      page.className = "test-page";
+      const title = document.createElement("h3");
+      title.textContent = "Start over?";
+      const first = document.createElement("button");
+      first.type = "button";
+      first.textContent = "Keep";
+      const second = document.createElement("button");
+      second.type = "button";
+      second.textContent = "Yes";
+      page.append(title, first, second);
+      return { page, first, second };
+    };
+    const host = (sheet: BoardSheet): HTMLElement =>
+      part(sheet, ":scope > .board-sheet-page");
+
+    it("showPage shows a panel page under the head, over Back", () => {
+      const sheet = make();
+      const head = part(sheet, ".board-sheet-head");
+      const { page, first } = panelPage();
+      sheet.open();
+      sheet.showPage(page);
+      expect(sheet.list.hidden).toBe(true);
+      expect(host(sheet).hidden).toBe(false);
+      expect([...host(sheet).children]).toEqual([page]);
+      expect(head.hidden).toBe(false);
+      expect(sheet.footer.hidden).toBe(false);
+      expect(sheet.back.hidden).toBe(false);
+      expect(sheet.how.hidden).toBe(true);
+      expect(document.activeElement).toBe(first);
+    });
+
+    it("showPage focuses the host when the page has no control", () => {
+      const sheet = make();
+      const page = document.createElement("div");
+      page.textContent = "Just words";
+      sheet.open();
+      sheet.showPage(page);
+      expect(document.activeElement).toBe(host(sheet));
+    });
+
+    it("showPage starts the settle again", () => {
+      const onForget = vi.fn();
+      const sheet = make({ onForget });
+      const { page, second } = panelPage();
+      const went = vi.fn();
+      const ref: ControlRef = { layer: "buys", id: "yes" };
+      sheet.open();
+      time += DRAWER_SETTLE_MS + 100;
+      onForget.mockClear();
+      sheet.showPage(page);
+      expect(onForget).toHaveBeenCalledTimes(1);
+      const pressYes = (): string =>
+        board.press({
+          control: ref,
+          by: "finger",
+          intent: "act",
+          downAt: undefined,
+          event: new Event("click"),
+        });
+      const decisions: string[] = [];
+      second.addEventListener("click", () => {
+        const decision = pressYes();
+        decisions.push(decision);
+        if (decision === "act") {
+          went();
+        }
+      });
+      time += 100;
+      fingerClick(second);
+      expect(went).not.toHaveBeenCalled();
+      time += 350;
+      fingerClick(second);
+      expect(went).toHaveBeenCalledTimes(1);
+      expect(decisions).toEqual(["ignore-early", "act"]);
+    });
+
+    it("showPage(undefined) and close bring the list back", () => {
+      const sheet = make();
+      const key = keyButton();
+      const heading = part(sheet, ".board-sheet-title");
+      sheet.open(key);
+      sheet.showPage(panelPage().page);
+      sheet.showPage(undefined);
+      expect(host(sheet).hidden).toBe(true);
+      expect(host(sheet).childElementCount).toBe(0);
+      expect(sheet.list.hidden).toBe(false);
+      expect(document.activeElement).toBe(heading);
+
+      sheet.showPage(panelPage().page);
+      sheet.close({ by: "program" });
+      expect(host(sheet).hidden).toBe(true);
+      expect(host(sheet).childElementCount).toBe(0);
+      expect(sheet.list.hidden).toBe(false);
+      expect(document.activeElement).toBe(key);
+    });
+
+    it("a second page takes the first one's place", () => {
+      const sheet = make();
+      const one = panelPage().page;
+      const two = panelPage().page;
+      sheet.open();
+      sheet.showPage(one);
+      sheet.showPage(two);
+      expect([...host(sheet).children]).toEqual([two]);
+    });
+
+    it("the i over a page hides the page too, and its Back returns to the list", () => {
+      const sheet = make();
+      sheet.open();
+      sheet.showPage(panelPage().page);
+      sheet.showHow(true);
+      expect(host(sheet).hidden).toBe(true);
+      expect(sheet.list.hidden).toBe(true);
+      expect(sheet.how.hidden).toBe(false);
+      sheet.showHow(false);
+      expect(host(sheet).hidden).toBe(true);
+      expect(host(sheet).childElementCount).toBe(0);
+      expect(sheet.list.hidden).toBe(false);
     });
   });
 

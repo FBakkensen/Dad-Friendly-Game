@@ -142,6 +142,8 @@ async function drawerFacts(page, name) {
             row.dataset.upgrade ??
             row.dataset.tool ??
             row.dataset.recipe ??
+            // The Ledger's stones, relics and account rows (#375).
+            row.dataset.ledger ??
             (row.dataset.bench === undefined ? "" : "bench"),
           classes: [...row.classList].filter((cls) => cls.startsWith("is-")),
           top: r.t,

@@ -36,7 +36,8 @@ import { boardTargets } from "./measure.mjs";
 
 // One wiring check per control family (#441), each pressed by a real finger
 // (or the mouse) in Chrome: a rail key, a drawer row's buy, the ways out of a
-// drawer, the "i" cards, the Workshop bench's arm-then-confirm (#374), Ready now, an open bay, a troubled bay's fix and the
+// drawer, the "i" cards, the Workshop bench's arm-then-confirm (#374), the
+// Ledger's page that asks (Start over, #375), Ready now, an open bay, a troubled bay's fix and the
 // red button, and the drawer's first frame under reduced motion. The decisions
 // behind them (double taps, holds, settles, blinks) are unit tests. Then the
 // press look (#432): a held rail key shows is-down, and its rest frame after
@@ -375,6 +376,78 @@ for (const viewport of SCREENS) {
       );
       if (!armed || !kept || !cancelled) {
         console.log("workshop cancel", size, { armed, kept, cancelled });
+      }
+      await close();
+    }
+
+    // A drawer page that asks (#375): past the settle, Start over shows its
+    // page in the Ledger; a tap on Yes at once (the second tap of the one that
+    // opened the page) throws nothing away, and one past the page's settle
+    // starts over and shuts the drawer.
+    {
+      const { page, close } = await openScreen(viewport, openMountain(), {
+        stopClock: true,
+        tapClock: "held",
+      });
+      await keysDrawn(page);
+      await noteAway(page);
+      await openSheet(page, "ledger");
+      await stepTapClock(page, PAST_SETTLE_MS);
+      const before = await storedMountain(page);
+      await press(page, `${OPEN_SHEET("ledger")} .ledger-start-over`);
+      const asked = await page
+        .waitForSelector(`${OPEN_SHEET("ledger")} .ledger-start-over-page`, {
+          visible: true,
+          timeout: 2_000,
+        })
+        .then(
+          () => true,
+          () => false,
+        );
+      const yes = `${OPEN_SHEET("ledger")} .ledger-yes`;
+      const handled = await clickHandled(page);
+      await press(page, yes);
+      await handled();
+      await framesPainted(page, 1);
+      const early = await storedMountain(page);
+      const kept =
+        early.remaining === before.remaining &&
+        early.helpers === before.helpers &&
+        early.startedAt === before.startedAt;
+      await stepTapClock(page, PAST_SETTLE_MS);
+      await press(page, yes);
+      const fresh = await page
+        .waitForFunction(
+          (key, sheet) => {
+            const mountain = JSON.parse(
+              localStorage.getItem(key) ?? "{}",
+            ).mountain;
+            return (
+              mountain?.remaining === 240_000_000 &&
+              (mountain.helpers ?? 0) === 0 &&
+              document.querySelector(sheet) === null
+            );
+          },
+          { timeout: 2_000 },
+          SAVE_KEY,
+          OPEN_SHEET("ledger"),
+        )
+        .then(
+          () => true,
+          () => false,
+        );
+      check(
+        asked && kept && fresh,
+        `${label} ledger: past the settle Start over shows its page, a tap on Yes at once throws nothing away, and one past the settle starts over`,
+      );
+      if (!asked || !kept || !fresh) {
+        console.log("ledger start over", size, {
+          asked,
+          kept,
+          fresh,
+          before,
+          early,
+        });
       }
       await close();
     }

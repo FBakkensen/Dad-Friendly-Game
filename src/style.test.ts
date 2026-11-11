@@ -11,8 +11,6 @@ const REQUIRED_SELECTORS = [
   ".relic-reveal",
   ".shelf-dialog",
   ".start-over",
-  ".game-menu",
-  ".field-log-sheet",
   ".engineers-dialog",
   ".engineer-tunnel",
   ".expedition-chip",
@@ -22,12 +20,8 @@ const REQUIRED_SELECTORS = [
   ".shelf-card",
   ".keepsakes",
   ".keepsake-story",
-  ".workshop-open",
-  ".workshop-locked",
   ".layer-arrival",
   ".craft-notice",
-  ".material-line",
-  ".layer-hint",
   ".update-prompt",
   ".update-reload",
   ".other-tab",
@@ -79,7 +73,18 @@ const BOARD_SELECTORS = [
   ".workshop-mats",
   ".workshop-mat",
   ".workshop-bench",
-  ".workshop-bar",
+  ".board-row-bar",
+  ".ledger-log",
+  ".ledger-log-line",
+  ".ledger-log-time",
+  ".ledger-log-text",
+  ".ledger-doors",
+  ".ledger-page",
+  ".ledger-page-title",
+  ".ledger-page-line",
+  ".ledger-page-answers",
+  ".ledger-field-log-well",
+  ".ledger-field-log-text",
   ".workshop-timers",
   ".workshop-pager",
   ".workshop-sound",
@@ -93,8 +98,6 @@ const OVERLAYS = [
   ".relic-reveal",
   ".shelf-dialog",
   ".start-over",
-  ".game-menu",
-  ".field-log-sheet",
   ".engineers-dialog",
   ".update-prompt",
   ".other-tab",
@@ -348,6 +351,10 @@ describe("style.css", () => {
       ),
     ).toEqual([]);
     expect(css).not.toMatch(/afford-glow-on|teach-note|teach-pulse/);
+    // The menu card went with the Ledger drawer (#375).
+    expect(css + boardCss).not.toMatch(
+      /game-menu|copied-float|field-log-sheet|stones-left|auth-action|workshop-open/,
+    );
     expect(boardCss).not.toMatch(/thumb-bar|menu-button/);
   });
 
@@ -363,8 +370,6 @@ describe("style.css", () => {
     ".relic-reveal",
     ".shelf-dialog",
     ".start-over",
-    ".game-menu",
-    ".field-log-sheet",
     ".engineers-dialog",
     ".update-prompt",
     ".other-tab",

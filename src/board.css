@@ -926,8 +926,6 @@ body {
 .relic-reveal,
 .shelf-dialog,
 .start-over,
-.game-menu,
-.field-log-sheet,
 .engineers-dialog,
 .update-prompt,
 .other-tab,
@@ -1878,6 +1876,43 @@ button.board-row:focus-visible {
   image-rendering: pixelated;
 }
 
+/* A smaller icon sits centred in the 64 column: a relic is 24 art px (48 shown),
+   a small icon 16 (32 shown) (#375). */
+.board-row.is-icon-48 > .board-row-icon {
+  width: calc(var(--art) * 24);
+  height: calc(var(--art) * 24);
+  margin: calc(var(--art) * 4);
+}
+
+.board-row.is-icon-32 > .board-row-icon {
+  width: calc(var(--art) * 16);
+  height: calc(var(--art) * 16);
+  margin: calc(var(--art) * 8);
+}
+
+/* A row's bar, at its foot under the middle and right columns (the Workshop bench, #374):
+   whole art px from --fill (board-row.ts, BAR_ART), and no transition. */
+.board-row-bar {
+  position: absolute;
+  left: calc(var(--art) * 28);
+  bottom: calc(var(--art) * 3);
+  width: calc(var(--art) * 156);
+  height: calc(var(--art) * 2);
+  margin: 0;
+  border-radius: 0;
+  background: var(--board-night);
+  overflow: hidden;
+}
+
+.board-row-bar > span {
+  display: block;
+  width: calc(var(--art) * var(--fill, 0));
+  height: 100%;
+  border-radius: 0;
+  background: var(--board-amber);
+  transition: none;
+}
+
 .board-row-mid {
   position: relative;
   display: flex;
@@ -2082,7 +2117,8 @@ button.board-row:focus-visible {
 }
 
 .board-sheet-title:focus,
-.board-sheet-how:focus {
+.board-sheet-how:focus,
+.board-sheet-page:focus {
   outline: none;
 }
 
@@ -2139,6 +2175,17 @@ button.board-row:focus-visible {
 }
 
 .board-sheet-how {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 5);
+  overflow: hidden;
+}
+
+/* A panel's own page in the list's place, under the head and over Back (#375). */
+.board-sheet-page {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
@@ -2509,32 +2556,9 @@ button.board-row:focus-visible {
   color: var(--board-ink-2);
 }
 
-/* The bench's bar, at its row's foot under the middle and right columns: whole art px from
-   --fill (workshop-parts.ts, BAR_ART), and no transition. */
-/* The bench row holds its bar. */
+/* The bench row holds its bar (.board-row-bar). */
 .workshop-bench {
   position: relative;
-}
-
-.workshop-bar {
-  position: absolute;
-  left: calc(var(--art) * 28);
-  bottom: calc(var(--art) * 3);
-  width: calc(var(--art) * 156);
-  height: calc(var(--art) * 2);
-  margin: 0;
-  border-radius: 0;
-  background: var(--board-night);
-  overflow: hidden;
-}
-
-.workshop-bar > span {
-  display: block;
-  width: calc(var(--art) * var(--fill, 0));
-  height: 100%;
-  border-radius: 0;
-  background: var(--board-amber);
-  transition: none;
 }
 
 /* The live timers under the bench: one line, fitted with an ellipsis, never two. */
@@ -2588,6 +2612,137 @@ button.board-row:focus-visible {
 
 .workshop-mats > [hidden],
 .workshop-pager > [hidden] {
+  display: none;
+}
+
+/* ---------- the Ledger (#375) ---------- */
+
+/* Tonight: three lines in an inset box, each one line with an ellipsis, never two. The lines
+   sit in the inset's dark well, inside its rim (board-skin.ts), so the box is 46 art px tall:
+   9 + three lines of 9 + 10. */
+.ledger-log {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  height: calc(var(--art) * 46);
+  padding: calc(var(--art) * 9) calc(var(--art) * 10) calc(var(--art) * 10)
+    calc(var(--art) * 13);
+  overflow: hidden;
+}
+
+.ledger-log-line {
+  position: relative;
+  display: flex;
+  gap: calc(var(--art) * 4);
+  margin: 0;
+  font-size: var(--board-type-13);
+  line-height: calc(var(--art) * 9);
+  height: calc(var(--art) * 9);
+  white-space: nowrap;
+  color: var(--board-ink);
+}
+
+.ledger-log-time {
+  flex: none;
+  color: var(--board-ink-2);
+}
+
+.ledger-log-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The four plates, two by two. Each keeps its own cell, so a hidden Pass moves nothing. */
+.ledger-doors {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: calc(var(--art) * 4);
+}
+
+.ledger-doors > .ledger-saved-copies {
+  grid-area: 1 / 1;
+}
+
+.ledger-doors > .ledger-field-log {
+  grid-area: 1 / 2;
+}
+
+.ledger-doors > .ledger-start-over {
+  grid-area: 2 / 1;
+}
+
+.ledger-doors > .ledger-pass {
+  grid-area: 2 / 2;
+}
+
+/* A page of the drawer: the Start over confirm, or the field log to copy by hand. */
+.ledger-page {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 5);
+  padding: calc(var(--art) * 8);
+}
+
+.ledger-page-title {
+  position: relative;
+  margin: 0;
+  font-size: var(--board-type-20);
+  line-height: var(--board-title-lead);
+  font-weight: 700;
+  color: var(--board-ink);
+}
+
+.ledger-page-line {
+  position: relative;
+  margin: 0;
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--board-ink-2);
+}
+
+.ledger-page-answers {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: calc(var(--art) * 4);
+}
+
+/* The field log fills what is left of its page, in an inset well. */
+.ledger-field-log-well {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.ledger-field-log-text {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  /* Inside the inset's rim (board-skin.ts): 11 art px top and left, 9 right and bottom. */
+  padding: calc(var(--art) * 11) calc(var(--art) * 9) calc(var(--art) * 9)
+    calc(var(--art) * 11);
+  border: 0;
+  background: none;
+  resize: none;
+  font-size: var(--board-type-13);
+  color: var(--board-ink);
+}
+
+.ledger-log > [hidden],
+.ledger-doors > [hidden] {
   display: none;
 }
 

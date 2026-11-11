@@ -239,7 +239,7 @@ describe("the bench row (#374)", () => {
     bench.root.querySelector(".board-row-why")?.textContent ?? "";
   const bar = (): HTMLElement => {
     const found = bench.root.querySelector<HTMLElement>(
-      "i.workshop-bar[role=progressbar]",
+      "i.board-row-bar.workshop-bar[role=progressbar]",
     );
     if (found === null) {
       throw new Error("no bar");

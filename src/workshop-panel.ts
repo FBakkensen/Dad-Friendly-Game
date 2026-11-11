@@ -14,9 +14,7 @@ import {
   RECIPES_LEGEND,
   SKETCH_NAME,
   WORKSHOP_KICK,
-  WORKSHOP_LOCKED,
   WORKSHOP_TITLE,
-  workshopMenuWords,
 } from "./screen-words";
 import {
   RECIPE_IDS,
@@ -43,7 +41,6 @@ import {
   type WorkshopPartId,
 } from "./workshop-rows";
 import {
-  benchLeftMs,
   benchView,
   timerLines,
   workshopCards,
@@ -265,38 +262,6 @@ function createPageArranger(
   };
 }
 
-/** The menu's Workshop row, a second door into the drawer until B7, and its locked silhouette. */
-function createMenuEntry(
-  hammerUrl: string,
-  onOpen: () => void,
-): {
-  readonly root: HTMLElement;
-  paint(mountain: Mountain, at: number): void;
-} {
-  const root = el("div", "workshop-menu");
-  const openButton = el("button", "workshop-open", WORKSHOP_TITLE);
-  openButton.type = "button";
-  openButton.addEventListener("click", onOpen);
-  const locked = el("p", "workshop-locked");
-  const lockedArt = el("img", "");
-  lockedArt.src = hammerUrl;
-  lockedArt.alt = "";
-  lockedArt.width = 36;
-  lockedArt.height = 36;
-  lockedArt.draggable = false;
-  locked.append(lockedArt, el("span", "", WORKSHOP_LOCKED));
-  root.append(openButton, locked);
-  return {
-    root,
-    paint: (mountain, at) => {
-      const unlocked = workshopUnlocked(mountain);
-      hide(openButton, !unlocked);
-      hide(locked, unlocked);
-      write(openButton, workshopMenuWords(benchLeftMs(mountain, at)));
-    },
-  };
-}
-
 /** The list's order for these cards, to the board's model: an open drawer keeps the one it froze. */
 function sendLayout(board: BoardHost, cards: readonly WorkshopCard[]): void {
   board.send({
@@ -387,8 +352,6 @@ export function createWorkshopPanel({
   overSave,
   door,
   fallbackDoor,
-  hammerUrl,
-  onMenuOpen,
   signal,
 }: {
   dispatch: Dispatch;
@@ -401,17 +364,12 @@ export function createWorkshopPanel({
   overSave: () => boolean;
   /** The Workshop key on the rail: the shell writes its aria-expanded. */
   door: HTMLButtonElement;
-  /** The Ledger key, which opens the menu: the menu's Workshop row opens from it. */
+  /** The Ledger key: Back focuses it while a re-load holds the Workshop key. */
   fallbackDoor: HTMLButtonElement;
-  /** The hammer on the menu's locked silhouette. */
-  hammerUrl: string;
-  /** The menu's Workshop row was pressed: the menu and the other drawers go. */
-  onMenuOpen: () => void;
   /** Aborting it removes the drawer's document listeners. */
   signal?: AbortSignal;
 }): {
   sheet: BoardSheet;
-  menuEntry: HTMLElement;
   render: () => void;
   open: (from?: HTMLElement) => void;
 } {
@@ -488,15 +446,9 @@ export function createWorkshopPanel({
   placeParts(sheet, parts, rows);
   const arrange = createPageArranger(rows, onBoard, parts.pager);
 
-  const menu = createMenuEntry(hammerUrl, () => {
-    onMenuOpen();
-    open(fallbackDoor);
-  });
-
   const render = (): void => {
     const view = getView();
     const at = now();
-    menu.paint(view.mountain, at);
     sound.paint(soundOn);
     if (view.ready && !workshopUnlocked(view.mountain)) {
       sheet.close({ restoreFocus: false, by: "program" });
@@ -527,5 +479,5 @@ export function createWorkshopPanel({
     render();
   };
 
-  return { sheet, menuEntry: menu.root, render, open };
+  return { sheet, render, open };
 }

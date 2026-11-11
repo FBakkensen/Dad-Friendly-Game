@@ -140,13 +140,38 @@ export function mountScreen({
     }
     return el;
   };
+  /** A keyboard click: never early, so it acts through the drawer's settle. */
+  const keyClick = (selector: string): void => {
+    find(selector, HTMLButtonElement).click();
+  };
   return {
     root,
     progress,
     dig: find(".board-window", HTMLButtonElement),
-    authButton: find(".auth-action", HTMLButtonElement),
+    /** The Ledger's account row: sign in or out. */
+    account: find(".ledger-account", HTMLButtonElement),
+    /** Opens the Ledger drawer from its key. */
+    openLedger: () => {
+      keyClick(".board-key[data-key=ledger]");
+    },
+    /** Starts over from the Ledger: its Start over plate, then Yes on its page. */
+    startOver: () => {
+      keyClick(".board-key[data-key=ledger]");
+      keyClick(".ledger-start-over");
+      keyClick(".ledger-yes");
+    },
     text: (selector: string) => root.querySelector(selector)?.textContent,
     /** What the board's odometer reads, e.g. "Stones 41,380". */
     pocket: () => root.querySelector(".board-odo")?.getAttribute("aria-label"),
   };
 }
+
+/** The Ledger drawer's rows (#375), as the screen tests read them. */
+export const STONES_ROW = ".ledger-stones";
+export const STONES_NAME = ".ledger-stones .board-row-name";
+export const STONES_INFO = ".ledger-stones .board-row-info";
+export const RELICS_GOAL = ".ledger-relics .board-row-info";
+export const RELICS_HINT = ".ledger-relics .board-row-why";
+export const RELICS_BAR = ".ledger-relics .board-row-bar";
+export const ACCOUNT_INFO = ".ledger-account .board-row-info";
+export const LEDGER_SHEET = ".board-sheet[data-sheet=ledger]";

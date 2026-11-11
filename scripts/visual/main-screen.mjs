@@ -238,38 +238,6 @@ for (const viewport of SCREENS) {
       `${size} relic shelf is laid over the game`,
     );
     await press(page, ".shelf-close");
-    await press(page, KEY("ledger"));
-    check(
-      await coversBoard(page, ".game-menu"),
-      `${size} menu is laid over the game`,
-    );
-    const fieldLogRow = await page.$eval(".game-menu", (menu) => {
-      const copy = [...menu.querySelectorAll("button")].find(
-        (button) => button.textContent === "Copy field log",
-      );
-      if (copy === undefined) {
-        return false;
-      }
-      const board = globalThis.__board();
-      const box = copy.getBoundingClientRect();
-      const fat =
-        box.height / board.scale >= 44 &&
-        box.left >= board.left &&
-        box.right <= board.right;
-      menu.scrollTop = menu.scrollHeight;
-      const closeBottom =
-        menu.querySelector(".menu-close")?.getBoundingClientRect().bottom ??
-        Infinity;
-      menu.scrollTop = 0;
-      return fat && closeBottom <= board.saveTop;
-    });
-    check(fieldLogRow, `${size} field log menu row is tappable`);
-    await press(page, ".start-over-link");
-    check(
-      await coversBoard(page, ".start-over"),
-      `${size} start-over confirm is laid over the game`,
-    );
-    await press(page, ".start-over-cancel");
     // Upgrades is a drawer now (#373): it slides up under the odometer to the
     // save line, and the save line stays on top of the board.
     const upgradesUp = await openSheet(page, "upgrades");

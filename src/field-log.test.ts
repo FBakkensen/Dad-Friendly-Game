@@ -227,6 +227,28 @@ describe("EventRing", () => {
     ring.push({ at: "b", code: "two", data: {} });
     expect(ring.last(10).map((event) => event.code)).toEqual(["two"]);
   });
+
+  it("keeps a mark: the events since it, while the whole ring stays", () => {
+    const ring = new EventRing(3);
+    const codes = (events: readonly { code: string }[]) =>
+      events.map((event) => event.code);
+    ring.push({ at: "a", code: "one", data: {} });
+    expect(codes(ring.sinceMark())).toEqual(["one"]);
+    ring.mark();
+    expect(ring.sinceMark()).toEqual([]);
+    ring.push({ at: "b", code: "two", data: {} });
+    ring.push({ at: "c", code: "three", data: {} });
+    expect(codes(ring.sinceMark())).toEqual(["two", "three"]);
+    expect(codes(ring.last(3))).toEqual(["one", "two", "three"]);
+    // The oldest falls off: the mark moves with the events, not their places.
+    ring.push({ at: "d", code: "four", data: {} });
+    ring.push({ at: "e", code: "five", data: {} });
+    expect(codes(ring.sinceMark())).toEqual(["three", "four", "five"]);
+    ring.mark();
+    ring.clear();
+    ring.push({ at: "f", code: "six", data: {} });
+    expect(codes(ring.sinceMark())).toEqual(["six"]);
+  });
 });
 
 describe("formatFieldLog", () => {

@@ -112,8 +112,7 @@ page is the map, plus the rules that keep it that way.
    root (#431): it builds the parts in order, holds `paint()`, and starts the
    screen running. Each part is a `screen-*` module with one job:
    `screen-context` (the store, the clocks, the board host, `dispatch` and the
-   view), `screen-ledger` (the Ledger: stones left, materials, the guide),
-   `screen-running` (the Running now list, its chips, the vein's note),
+   view), `screen-running` (the Running now list, its chips, the vein's note),
    `screen-vein` (the golden vein), `screen-dig` (the gauge row, the Ready
    row, the bays and the Ready now pick), `screen-panels` (Buys, the cards,
    the note and save line with the board's top, the sheets), `screen-prompts`
@@ -125,7 +124,7 @@ page is the map, plus the rules that keep it that way.
    `mountain-screen-order.test.ts` pins the order the parts register their
    listeners, the effect row's chips and the root's children. Panels are
    their own modules with a `create…Panel` factory returning their elements
-   and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `menu-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). Shared player-facing
+   and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `ledger-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). Shared player-facing
    wording lives in `screen-words`. The screen's optional `signal` (tests
    pass one; the app never unmounts) takes off everything it hangs outside
    its own elements: the tick, the frame loop, its document and window
@@ -214,7 +213,9 @@ page is the map, plus the rules that keep it that way.
    fit option that fits, keeps the fit only once measured on a laid-out box,
    and drops it when fonts settle. `board-row` is one drawer row (lamp,
    icon, name and badge, info, need, why, flag, gain, price tag and verb),
-   built once and reused, writing only what changed. It is a painter of the
+   built once and reused, writing only what changed; its icon is 64, 48 or
+   32px (`iconPx`), and `rowBar` / `paintRowBar` are the one thin bar at a
+   row's foot, the Workshop bench's and the Ledger relics row's (#375). It is a painter of the
    board model's view (#425): `rowsOnBoard(board, layer)` takes a drawer's
    rows on a `BoardHost`, subscribes once for all of them, and paints "Done"
    and the red blink frames from the view. It sends the model each press with
@@ -283,17 +284,44 @@ page is the map, plus the rules that keep it that way.
    `signal` aborts. The timers line keeps its room when empty (`is-empty`,
    hidden by visibility), so no row moves as a timer starts or ends. Turning a page
    calls `page()` too. Every craft and cancel is today's move (`craft`,
-   `cancelCraft`) through `dispatch`. It has two doors: the Workshop key, and
-   the menu's Workshop row until B7, which opens it from the Ledger key. Back
-   returns focus to the door it came from, or to the Ledger key (the shell's
+   `cancelCraft`) through `dispatch`. Its one door is the Workshop key (the
+   menu's Workshop row went with the menu, #375). Back
+   returns focus to the Workshop key, or to the Ledger key (the shell's
    `fallbackFocus`) while a re-load holds the Workshop key disabled. A save that turns out locked
-   closes it. The three drawers
+   closes it. `ledger-panel` builds the Ledger drawer (#375) the same way,
+   from `ledger-rows`' pure views (`tonightLines`: this run's field log
+   since the last Start over or pass, newest three, each code worded by one
+   table or skipped; `stonesRowView`, `relicsRowView`, `accountRowView`) and
+   `ledger-parts` (the Tonight box, the four plates and the two pages; only
+   the Ledger has a log box, a plate grid or a page that asks). Its parts
+   never reorder, so it sends no `layout`. A page goes in the list's place
+   through `BoardSheet.showPage(page)` (#375): the head and Back stay, it
+   calls `page()` so the settle starts again, and it focuses the page's
+   first control; `showPage(undefined)` and `close` bring the list back.
+   Start over asks on one page (Keep first, so it takes the focus; Yes calls
+   `progress.startOver()` and `onStartOver`, then closes onto the Ledger
+   key); the field log shows on the other when `writeClipboard` says no.
+   Copy field log's `Copied` is the board model's `result` and hold, as a
+   row's Done. Saved copies and Pass the mine close the drawer without
+   moving focus and open today's cards until B7c (#465); the welcome-back,
+   craft-done and save cards are still today's until B7b (#464). Tonight
+   reads `progress.tonightEvents()` only while the drawer is open: the
+   ring's events since its mark, which a run's start clears and a copy from
+   elsewhere taking the mountain's place (a restore, the cloud's or another
+   device's copy) moves up, while the field log keeps them all. A save that
+   loads again leaves the drawer open with the mine rows dark and Copy field
+   log, Start over and Yes disabled; the account row stays live. Once that
+   save is in again, or the account changes, the Start over page gives the
+   list back, and a clipboard answer that comes after the drawer shut shows
+   nothing. The four drawers
    and the scrim sit in `.board-sheet-clip` at z 29, under the board note
    (30) and the save drawer (31). The clip is `overflow: clip`, so nothing
-   (not even script) can scroll it. Opening one drawer closes the other two
-   (`wireKeys` in `screen-keys`). `engineers-panel` and `menu-panel` take
-   a `door` (the Engineers and Ledger keys) instead of building their own
-   buttons. `DRAWER_SETTLE_MS` (400ms, from `board-interaction`) is every
+   (not even script) can scroll it. Opening one drawer closes the others
+   (`wireKeys` in `screen-keys` closes every other drawer in one record, so
+   B6b's Engineers drawer is one more entry). `engineers-panel` takes a
+   `door` (the Engineers key) instead of building its own button; the
+   Ledger is a drawer whose shell writes its key's `aria-expanded`, as the
+   others' do. `DRAWER_SETTLE_MS` (400ms, from `board-interaction`) is every
    drawer's guard, B4's Buys settle carried into the model, judged for the
    whole drawer. The rows (through `buyOnTap`) and Back, the "i" and the how
    cards' Back (in the shell) each keep their own press with `card-tap`'s one
@@ -326,7 +354,8 @@ page is the map, plus the rules that keep it that way.
   2. Shelf, relic detail, relic reveal and Legend finale → `relic-panels`
      (#122, #123).
   3. Welcome-back card → `welcome-panel` (#124).
-  4. Menu, account and Start over confirm → `menu-panel` (#125).
+  4. Menu, account and Start over confirm → `menu-panel` (#125); since #375
+     the Ledger drawer, `ledger-panel`.
   5. Tier grid and crew line → `crew-panel`; the purchase float moved to
      `float-text` (#126).
 
@@ -403,7 +432,7 @@ page is the map, plus the rules that keep it that way.
   stock row) and the save line are absolute children of it, and the
   panels' column flows between them through `#app`'s padding. The relic
   shelf opens from a socket note's Relic shelf key; opening a sheet, the
-  shelf or the menu closes the board note and the save drawer. The gauge
+  shelf or a drawer closes the board note and the save drawer. The gauge
   row (`.board-gauge-row`, `--gauge-row-h`, 176 to 414px) is another
   absolute child, under the board's top: the output gauge, the mine window
   (`.board-mine`, its `.board-window` button and the `.golden-vein`) and
@@ -416,11 +445,11 @@ page is the map, plus the rules that keep it that way.
   and `aria-haspopup`, ending at least 8px above the save line. The column
   starts at `--column-top`, which is `--rail-top`. The New teach note is a
   slim sign (`board-sign`) over its key, with `pointer-events: none`; its
-  words go on the key's label. The Buys, Upgrades and Workshop drawers
+  words go on the key's label. The Buys, Upgrades, Workshop and Ledger drawers
   (`.board-drawer.board-sheet[data-sheet]`, open with `.is-open`) stand
   at `--sheet-top` (178px) down to the save line, so they cover the bays,
   the plate and the rail and leave the odometer in view. Today's Engineers
-  and menu sheets keep B2's `--board-top` (176px) until B6b (#455) and B7. The crew line (`crew-panel`'s `section.crew`: sentence, chips and
+  sheet keeps B2's `--board-top` (176px) until B6b (#455). The crew line (`crew-panel`'s `section.crew`: sentence, chips and
   Grandpa) is the "Crew" section at the top of the Buys drawer; Buys calls
   `layoutChips()` as it opens, so its chips are measured at the drawer's
   width, and while it is open the chip rows never wrap. A drawer's list
@@ -431,8 +460,8 @@ page is the map, plus the rules that keep it that way.
   A locked row says Locked. Tapping the row buys. A drag that scrolls the
   list does not. Boost, expedition, craft, and bench countdowns
   share the effect row, which is the body of the boost dial's Running now
-  note, one per line. Every active one stays visible. The menu, behind the
-  Ledger key until B7, holds the ledger: stones left, materials, and the next-relic goal, read from
+  note, one per line. Every active one stays visible. The Ledger drawer, behind the
+  Ledger key, holds the mine: stones left, materials, and the next-relic goal, read from
   `relicGoal()` in `relics` (#336). The band shows in the mine window's
   view (`mineView(band)`); there is no tint module (`mountain-tint` went
   with the rock in #371), and no `tap-float`: a dig's "+N" is the window's
@@ -501,9 +530,10 @@ page is the map, plus the rules that keep it that way.
   the screen's second tick cannot hide it in between. The drawer list is
   `DRAWERS` in `drawers.mjs`: a new drawer is a row there, with its own
   scroll rule; the Workshop's row (#374) skips the saves whose Workshop key
-  is locked. `controls.mjs` wires each control
+  is locked. The Ledger (#375) is a row that never scrolls, plus one states
+  flow (Tonight's lines, the mine rows, the plates and both pages). `controls.mjs` wires each control
   family once in Chrome (the rail key, a row buy, Back and the scrim, the "i"
-  cards, the Workshop bench's arm-then-confirm cancel, Ready now, an open bay, the trouble fix, the red button and a press
+  cards, the Workshop bench's arm-then-confirm cancel, the Ledger's page that asks (Start over), Ready now, an open bay, the trouble fix, the red button and a press
   look), on the held tap clock except the red button and the drawer's
   reduced-motion pages. What a tap decides is proven by unit tests, not
   there; a new family gets one wiring check. These modules wait on page
@@ -574,8 +604,8 @@ returnsAt, home, find }[]` (≤5, `returnsAt > sentAt`, no longer than the deep
   posts, sends, and recalls) come from the events a dispatched move returns,
   through `fieldEntry`; nothing diffs the mountain (#413). `progress-store` also
   records relic found, away report, Start over, pass the mine, and save errors. The ring is not a mountain save
-  field. The menu copies `{ snapshot, events: last 50 }` as pretty JSON, with a
-  read-only sheet when the clipboard is missing. No email or display name.
+  field. The Ledger's Copy field log plate copies `{ snapshot, events: last 50 }` as pretty JSON, with a
+  read-only page of the drawer when the clipboard is missing. No email or display name.
   Signed-in games write `fieldLogs/{uid}` = `{ snapshot, events (≤200),
 updatedAt }` at most every 5 minutes, and immediately on hide, Start over, and
   passing the mine (#142). Those two resets clear the ring first. Guests write
@@ -635,7 +665,7 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   is written at the server rev plus one. A failed archive leaves both copies and
   the sheet. `syncedRev` on the phone backup is the last confirmed rev.
   `save.conflict` logs the revs, device ids, stones mined, and the choice. Saved
-  copies in the menu restore one the same way and log `save.restore`. A copy
+  copies, opened from the Ledger, restore one the same way and log `save.restore`. A copy
   from an earlier run is not restored: the current game, the phone backup, and
   the cloud stay as they are, and nothing new is archived. The field log
   snapshot includes `deviceId` and `rev`. A newer service worker shows "Update
@@ -686,8 +716,7 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   `recipe.<id>.cost`) default to 1; strength also scales a timed buff's length.
   Built (#196, #198, #210). The Workshop is `workshop-panel` (#199; a board
   drawer since #374, above): opened from the Workshop key on the rail (locked
-  until the Granite's clay, #373) or the menu the Ledger key opens, which shows
-  "Workshop · opens as the clay comes in" before that. Three recipes a page, so
+  until the Granite's clay, #373), its one door. Three recipes a page, so
   the list fits the drawer with no scroll (the #347 measure-then-page went),
   real costs and effects, a red blink when a craft cannot start, a quiet hammer
   until Sound is on, and a cancel on the bench row that names the refund. A

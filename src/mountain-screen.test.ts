@@ -41,6 +41,12 @@ import {
 } from "./tab-writer";
 import { tierById, tierCost } from "./tiers";
 import {
+  ACCOUNT_INFO,
+  LEDGER_SHEET,
+  RELICS_BAR,
+  RELICS_GOAL,
+  STONES_NAME,
+  STONES_ROW,
   createMemoryStorage,
   mountScreen,
   setReducedMotion,
@@ -164,18 +170,18 @@ describe("mountMountainScreen", () => {
   it("shows a hundred million stones and mines one per tap", () => {
     const screen = mountScreen();
 
-    expect(screen.text(".stones-left")).toBe(
-      `${formatCount(stonesLeft(createMountain()))} stones left`,
+    expect(screen.text(STONES_NAME)).toBe(
+      `${formatCompact(stonesLeft(createMountain()))} stones left`,
     );
     expect(screen.pocket()).toBe("Stones 0");
-    expect(screen.text(".goal")).toContain("Legendary Relics of Fatherhood");
+    expect(screen.text(RELICS_GOAL)).toContain(
+      "Legendary Relics of Fatherhood",
+    );
     expect(screen.text(".save-status")).toBe("Sign in to save");
 
     const whole = stonesLeft(createMountain());
     screen.dig.click();
-    expect(
-      screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe(
+    expect(screen.root.querySelector(STONES_ROW)?.getAttribute("title")).toBe(
       `${(whole - 1).toLocaleString("en-US")} of ${whole.toLocaleString("en-US")}`,
     );
     expect(screen.pocket()).toBe("Stones 1");
@@ -186,9 +192,7 @@ describe("mountMountainScreen", () => {
 
     screen.dig.click();
     expect(screen.pocket()).toBe("Stones 2");
-    expect(
-      screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe(
+    expect(screen.root.querySelector(STONES_ROW)?.getAttribute("title")).toBe(
       `${(whole - 2).toLocaleString("en-US")} of ${whole.toLocaleString("en-US")}`,
     );
   });
@@ -365,9 +369,7 @@ describe("mountMountainScreen", () => {
     const allStones = stonesLeft(createMountain());
     const screen = mountScreen({ storage });
     expect(screen.pocket()).toBe("Stones 3");
-    expect(
-      screen.root.querySelector(".stones-left")?.getAttribute("title"),
-    ).toBe(
+    expect(screen.root.querySelector(STONES_ROW)?.getAttribute("title")).toBe(
       `${(allStones - 3).toLocaleString("en-US")} of ${allStones.toLocaleString("en-US")}`,
     );
   });
@@ -390,7 +392,7 @@ describe("mountMountainScreen", () => {
     );
 
     const screen = mountScreen({ storage });
-    expect(screen.text(".stones-left")).toBe("0 stones left");
+    expect(screen.text(STONES_NAME)).toBe("0 stones left");
     expect(screen.dig.disabled).toBe(true);
     expect(screen.dig.getAttribute("aria-label")).toBe(
       "The mountain is mined out",
@@ -431,30 +433,37 @@ describe("mountMountainScreen", () => {
       auth: createMemoryAuth(),
       cloudSave: createMemoryCloudSave({ docs }),
     });
-    expect(screen.authButton.textContent).toBe("Sign in with Google");
+    expect(screen.account.getAttribute("aria-label")).toBe(
+      "Sign in with Google",
+    );
 
-    screen.authButton.click();
+    screen.openLedger();
+    screen.account.click();
 
     await vi.waitFor(() => {
       expect(screen.text(".save-status")).toBe("Saved to your account");
     });
     expect(screen.pocket()).toBe("Stones 12,345");
-    expect(screen.text(".auth-status")).toBe("Signed in as Test Dad");
+    expect(screen.text(ACCOUNT_INFO)).toBe("Signed in as Test Dad");
     expect(
       screen.root.querySelector(".save-status")?.getAttribute("data-log"),
     ).toContain("save.remote found");
 
-    screen.authButton.click();
-    expect(screen.authButton.textContent).toBe("Sign in with Google");
+    screen.account.click();
+    expect(screen.account.getAttribute("aria-label")).toBe(
+      "Sign in with Google",
+    );
   });
 
-  it("shows sign-in in progress with a disabled button", () => {
-    const screen = mountScreen({
-      auth: createMemoryAuth({ state: { kind: "signing-in" } }),
-    });
-    expect(screen.authButton.textContent).toBe("Signing in...");
-    expect(screen.authButton.disabled).toBe(true);
-    expect(screen.text(".auth-status")).toBe("");
+  it("shows sign-in in progress on the account row, which a tap leaves alone", () => {
+    const auth = createMemoryAuth({ state: { kind: "signing-in" } });
+    const signIn = vi.spyOn(auth, "signIn");
+    const screen = mountScreen({ auth });
+    expect(screen.text(ACCOUNT_INFO)).toBe("Signing in...");
+    expect(screen.account.getAttribute("aria-label")).toBe("Signing in...");
+    screen.openLedger();
+    screen.account.click();
+    expect(signIn).not.toHaveBeenCalled();
   });
 
   it("says it couldn't reach the save when cloud writes fail", async () => {
@@ -1021,10 +1030,10 @@ describe("Lantern of Guidance on screen", () => {
 
   it("shows the goal and no guide bar before the Lantern", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(100)) });
-    expect(screen.text(".goal")).toContain(
+    expect(screen.text(RELICS_GOAL)).toContain(
       "Six Legendary Relics of Fatherhood",
     );
-    expect(screen.root.querySelector<HTMLElement>(".guide-bar")?.hidden).toBe(
+    expect(screen.root.querySelector<HTMLElement>(RELICS_BAR)?.hidden).toBe(
       true,
     );
   });
@@ -1053,8 +1062,10 @@ describe("Lantern of Guidance on screen", () => {
 
     screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
     expect(reveal?.hidden).toBe(true);
-    expect(screen.text(".goal")).toBe("Next: Shield of Protection · Far below");
-    const bar = screen.root.querySelector<HTMLElement>(".guide-bar");
+    expect(screen.text(RELICS_GOAL)).toBe(
+      "Next: Shield of Protection · Far below",
+    );
+    const bar = screen.root.querySelector<HTMLElement>(RELICS_BAR);
     expect(bar?.hidden).toBe(false);
     expect(bar?.getAttribute("aria-valuenow")).toBe("0");
     screen.root.remove();
@@ -1080,7 +1091,7 @@ describe("Lantern of Guidance on screen", () => {
     ).toBe("Shield of Protection, next relic. 1 of 6 found");
     const hint = socketNote(after, 1)?.querySelector(".board-note-q");
     expect(hint?.textContent).toBe(
-      `Next · ${String(after.text(".goal")).split(" · ")[1] ?? ""}`,
+      `Next · ${String(after.text(RELICS_GOAL)).split(" · ")[1] ?? ""}`,
     );
     expect(hint?.textContent).not.toMatch(/\d/);
     const done = mountScreen({
@@ -1114,7 +1125,7 @@ describe("Lantern of Guidance on screen", () => {
   it("fills the guide bar between relics", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(5_500_000)) });
     expect(
-      screen.root.querySelector(".guide-bar")?.getAttribute("aria-valuenow"),
+      screen.root.querySelector(RELICS_BAR)?.getAttribute("aria-valuenow"),
     ).toBe("50");
   });
 
@@ -1254,37 +1265,46 @@ describe("start over", () => {
     return storage;
   };
 
-  it("asks first, in a danger dialog that defaults to keeping the mountain", () => {
+  it("asks first, on the Ledger's own page, which defaults to keeping the mountain", () => {
     const storage = seededDad();
     const screen = mountScreen({ storage });
     document.body.append(screen.root);
     try {
-      const dialog = screen.root.querySelector<HTMLElement>(".start-over");
-      expect(dialog?.hidden).toBe(true);
-      expect(dialog?.getAttribute("role")).toBe("alertdialog");
+      const sheet = screen.root.querySelector<HTMLElement>(LEDGER_SHEET);
+      const pageHost = sheet?.querySelector<HTMLElement>(".board-sheet-page");
+      const list = sheet?.querySelector<HTMLElement>(".board-sheet-list");
+      const click = (selector: string): void => {
+        screen.root.querySelector<HTMLButtonElement>(selector)?.click();
+      };
+      screen.openLedger();
+      expect(pageHost?.hidden).toBe(true);
 
-      screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();
-      expect(dialog?.hidden).toBe(false);
-      expect(screen.text("#start-over-detail")).toContain(
-        "every relic you found",
+      click(".ledger-start-over");
+      expect(pageHost?.hidden).toBe(false);
+      expect(list?.hidden).toBe(true);
+      expect(screen.text(".ledger-start-over-page .ledger-page-title")).toBe(
+        "Start over?",
       );
+      expect(
+        screen.text(".ledger-start-over-page .ledger-page-line"),
+      ).toContain("every relic you found");
       expect(document.activeElement).toBe(
-        screen.root.querySelector(".start-over-cancel"),
+        screen.root.querySelector(".ledger-keep"),
       );
 
-      screen.root
-        .querySelector<HTMLButtonElement>(".start-over-cancel")
-        ?.click();
-      expect(dialog?.hidden).toBe(true);
+      click(".ledger-keep");
+      expect(pageHost?.hidden).toBe(true);
+      expect(list?.hidden).toBe(false);
+      expect(sheet?.classList.contains("is-open")).toBe(true);
+
+      click(".ledger-start-over");
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      expect(sheet?.classList.contains("is-open")).toBe(false);
       expect(document.activeElement).toBe(
         screen.root.querySelector(".board-key[data-key=ledger]"),
       );
-
-      screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();
-      dialog?.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
-      );
-      expect(dialog?.hidden).toBe(true);
 
       expect(screen.text(".board-tag")).toBe("Relics of Fatherhood · 2 of 6");
       expect(
@@ -1299,16 +1319,13 @@ describe("start over", () => {
     const storage = seededDad();
     const screen = mountScreen({ storage });
 
-    screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();
-    screen.root
-      .querySelector<HTMLButtonElement>(".start-over-confirm")
-      ?.click();
+    screen.startOver();
 
-    expect(screen.root.querySelector<HTMLElement>(".start-over")?.hidden).toBe(
-      true,
-    );
-    expect(screen.text(".stones-left")).toBe(
-      `${formatCount(stonesLeft(createMountain()))} stones left`,
+    expect(
+      screen.root.querySelector(LEDGER_SHEET)?.classList.contains("is-open"),
+    ).toBe(false);
+    expect(screen.text(STONES_NAME)).toBe(
+      `${formatCompact(stonesLeft(createMountain()))} stones left`,
     );
     expect(screen.pocket()).toBe("Stones 0");
     expect(screen.text(".crew-status")).toBe(
@@ -1338,38 +1355,28 @@ describe("start over", () => {
   });
 });
 
-describe("menu", () => {
-  it("tucks account and Start over away behind the Ledger key", () => {
+describe("the Ledger key (#375)", () => {
+  it("focuses the drawer's title, and Back returns focus to the key", () => {
     const screen = mountScreen();
     document.body.append(screen.root);
     try {
-      const menu = screen.root.querySelector<HTMLElement>(".game-menu");
-      const button = screen.root.querySelector<HTMLButtonElement>(
-        ".board-key[data-key=ledger]",
+      const sheet = screen.root.querySelector<HTMLElement>(LEDGER_SHEET);
+      const key = screen.root.querySelector<HTMLButtonElement>(
+        ".board-rail > .board-key[data-key=ledger]",
       );
-      expect(
-        screen.root.querySelector(".board-rail > .board-key[data-key=ledger]"),
-      ).toBe(button);
-      expect(menu?.hidden).toBe(true);
-      expect(menu?.querySelector(".auth-action")).not.toBeNull();
-      expect(menu?.querySelector(".auth-status")).not.toBeNull();
-      expect(menu?.querySelector(".start-over-link")).not.toBeNull();
+      expect(sheet?.classList.contains("is-open")).toBe(false);
+      expect(screen.root.querySelector(".game-menu")).toBeNull();
+      expect(key?.getAttribute("aria-expanded")).toBe("false");
 
-      button?.click();
-      expect(menu?.hidden).toBe(false);
-      expect(document.activeElement).toBe(menu?.querySelector(".menu-close"));
-      menu?.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      screen.openLedger();
+      expect(sheet?.classList.contains("is-open")).toBe(true);
+      expect(key?.getAttribute("aria-expanded")).toBe("true");
+      expect(document.activeElement).toBe(
+        sheet?.querySelector(".board-sheet-title"),
       );
-      expect(menu?.hidden).toBe(true);
-      expect(document.activeElement).toBe(button);
-
-      button?.click();
-      menu?.querySelector<HTMLButtonElement>(".start-over-link")?.click();
-      expect(menu?.hidden).toBe(true);
-      expect(
-        screen.root.querySelector<HTMLElement>(".start-over")?.hidden,
-      ).toBe(false);
+      sheet?.querySelector<HTMLButtonElement>(".board-sheet-back")?.click();
+      expect(sheet?.classList.contains("is-open")).toBe(false);
+      expect(document.activeElement).toBe(key);
     } finally {
       screen.root.remove();
     }
@@ -1390,7 +1397,7 @@ describe("menu", () => {
     };
   };
 
-  it("copies the field log for a guest and floats Copied", async () => {
+  it("copies the field log for a guest, and its plate reads Copied", async () => {
     const writeText = vi.fn<(text: string) => Promise<void>>(() =>
       Promise.resolve(),
     );
@@ -1403,18 +1410,14 @@ describe("menu", () => {
         pocket: tierCost(tierById("helper"), 0),
       }));
       screen.progress.dispatch({ kind: "buyTier", id: "helper" });
-      screen.root
-        .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
-        ?.click();
+      screen.openLedger();
       const copy =
-        screen.root.querySelector<HTMLButtonElement>(".field-log-copy");
+        screen.root.querySelector<HTMLButtonElement>(".ledger-field-log");
       expect(copy?.textContent).toBe("Copy field log");
       expect(copy?.disabled).toBe(false);
       copy?.click();
       await vi.waitFor(() => {
-        expect(screen.root.querySelector(".copied-float")?.textContent).toBe(
-          "Copied",
-        );
+        expect(copy?.textContent).toBe("Copied");
       });
       const text = String(writeText.mock.calls[0]?.[0]);
       expect(text).toContain('\n  "snapshot"');
@@ -1430,29 +1433,6 @@ describe("menu", () => {
           data: { id: "helper", count: 1 },
         }),
       ]);
-      copy?.click();
-      await vi.waitFor(() => {
-        expect(writeText).toHaveBeenCalledTimes(2);
-      });
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(screen.root.querySelectorAll(".copied-float")).toHaveLength(1);
-      screen.root
-        .querySelector(".game-menu")
-        ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-      expect(screen.root.querySelector(".copied-float")).toBeNull();
-
-      screen.root
-        .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
-        ?.click();
-      copy?.click();
-      await vi.waitFor(() => {
-        expect(screen.root.querySelector(".copied-float")?.textContent).toBe(
-          "Copied",
-        );
-      });
-      screen.root
-        .querySelector(".copied-float")
-        ?.dispatchEvent(new Event("animationend"));
       expect(screen.root.querySelector(".copied-float")).toBeNull();
     } finally {
       restore();
@@ -1460,37 +1440,34 @@ describe("menu", () => {
     }
   });
 
-  it("shows a selectable log when the clipboard is missing or refuses", async () => {
+  it("shows a selectable log on its own page when the clipboard is missing or refuses", async () => {
     const restore = clipboard(undefined);
     const screen = mountScreen();
     document.body.append(screen.root);
     try {
+      const sheet = screen.root.querySelector<HTMLElement>(LEDGER_SHEET);
+      const page = (): HTMLElement | null | undefined =>
+        sheet?.querySelector<HTMLElement>(
+          ".board-sheet-page:not([hidden]) .ledger-field-log-page",
+        );
       const openCopy = (): void => {
+        screen.openLedger();
         screen.root
-          .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
-          ?.click();
-        screen.root
-          .querySelector<HTMLButtonElement>(".field-log-copy")
+          .querySelector<HTMLButtonElement>(".ledger-field-log")
           ?.click();
       };
       openCopy();
-      const sheet = (): HTMLElement => {
-        const element = screen.root.querySelector(".field-log-sheet");
-        if (!(element instanceof HTMLElement)) {
-          throw new Error("field log sheet did not render");
-        }
-        return element;
-      };
       await vi.waitFor(() => {
-        expect(sheet().hidden).toBe(false);
+        expect(page()).toBeTruthy();
       });
-      const box = sheet().querySelector("textarea");
+      const box = page()?.querySelector("textarea");
       expect(box?.readOnly).toBe(true);
       expect(box?.disabled).toBe(false);
       expect(box?.value).toContain(`"version": "${APP_VERSION}"`);
       expect(document.activeElement).toBe(box);
-      sheet().querySelector<HTMLButtonElement>(".field-log-close")?.click();
-      expect(sheet().hidden).toBe(true);
+      sheet?.querySelector<HTMLButtonElement>(".board-sheet-back")?.click();
+      expect(sheet?.classList.contains("is-open")).toBe(false);
+      expect(page()).toBeFalsy();
       expect(document.activeElement).toBe(
         screen.root.querySelector(".board-key[data-key=ledger]"),
       );
@@ -1500,9 +1477,9 @@ describe("menu", () => {
       try {
         openCopy();
         await vi.waitFor(() => {
-          expect(sheet().hidden).toBe(false);
+          expect(page()).toBeTruthy();
         });
-        sheet().querySelector<HTMLButtonElement>(".field-log-close")?.click();
+        sheet?.querySelector<HTMLButtonElement>(".board-sheet-back")?.click();
       } finally {
         bare();
       }
@@ -1513,11 +1490,12 @@ describe("menu", () => {
       try {
         openCopy();
         await vi.waitFor(() => {
-          expect(sheet().hidden).toBe(false);
+          expect(page()).toBeTruthy();
         });
-        sheet().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-        expect(sheet().hidden).toBe(true);
-        expect(screen.root.querySelector(".copied-float")).toBeNull();
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
+        expect(sheet?.classList.contains("is-open")).toBe(false);
       } finally {
         refuse();
       }
@@ -1544,11 +1522,11 @@ describe("menu", () => {
       await vi.waitFor(() => {
         expect(screen.progress.getSnapshot().ready).toBe(true);
       });
-      expect(screen.text(".auth-status")).toContain("dad@example.com");
+      expect(screen.text(ACCOUNT_INFO)).toContain("dad@example.com");
+      screen.openLedger();
       screen.root
-        .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
+        .querySelector<HTMLButtonElement>(".ledger-field-log")
         ?.click();
-      screen.root.querySelector<HTMLButtonElement>(".field-log-copy")?.click();
       await vi.waitFor(() => {
         expect(writeText).toHaveBeenCalled();
       });
@@ -1753,10 +1731,7 @@ describe("the control board (#370)", () => {
 
   it("starting over is not a spend", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(5_000)) });
-    screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();
-    screen.root
-      .querySelector<HTMLButtonElement>(".start-over-confirm")
-      ?.click();
+    screen.startOver();
     expect(screen.pocket()).toBe("Stones 0");
     expect(screen.text(".board-spend")).toBe("");
   });
@@ -2590,10 +2565,7 @@ describe("the control board (#370)", () => {
       screen.root.querySelector<HTMLElement>(`.board-window-${name}`);
     expect(part("borer")?.hidden).toBe(false);
     expect(part("tarp")?.hidden).toBe(true);
-    screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();
-    screen.root
-      .querySelector<HTMLButtonElement>(".start-over-confirm")
-      ?.click();
+    screen.startOver();
     expect(part("borer")?.hidden).toBe(true);
     expect(part("tarp")?.hidden).toBe(false);
   });
@@ -2639,10 +2611,7 @@ describe("the control board (#370)", () => {
     });
     await Promise.resolve();
     expect(screen.progress.getSnapshot().mountain.carts).toBe(3);
-    screen.root.querySelector<HTMLButtonElement>(".start-over-link")?.click();
-    screen.root
-      .querySelector<HTMLButtonElement>(".start-over-confirm")
-      ?.click();
+    screen.startOver();
     expect(screen.progress.getSnapshot().mountain.carts).toBe(0);
     expect(beats).not.toHaveBeenCalled();
   });
@@ -2661,7 +2630,8 @@ describe("the control board (#370)", () => {
       }),
     });
     expect(beats).not.toHaveBeenCalled();
-    screen.root.querySelector<HTMLButtonElement>(".menu-pass")?.click();
+    screen.openLedger();
+    screen.root.querySelector<HTMLButtonElement>(".ledger-pass")?.click();
     screen.root.querySelector<HTMLButtonElement>(".legacy-confirm")?.click();
     expect(screen.progress.getSnapshot().mountain.legacy).toBe(1);
     expect(beats).not.toHaveBeenCalled();

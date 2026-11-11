@@ -4,10 +4,15 @@ import heartUrl from "./assets/board/res-heart.png";
 import ironUrl from "./assets/board/res-iron.png";
 import { el, hide, mark, setAttr, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
-import { createBoardRow, type RowsOnBoard } from "./board-row";
+import {
+  createBoardRow,
+  paintRowBar,
+  rowBar,
+  type RowsOnBoard,
+} from "./board-row";
 import { plateButton } from "./board-save";
 import { skin } from "./board-skin";
-import { pressOnBoard, type PressTracker } from "./card-tap";
+import { forgetAll, pressOnBoard, type PressTracker } from "./card-tap";
 import type { MaterialId } from "./layers";
 import {
   BENCH_FREE,
@@ -38,9 +43,6 @@ const MATERIALS = Object.keys(PLATE_ART) as readonly MaterialId[];
 
 /** From three plates on, the word goes and the count shrinks, to fit 89px plates. */
 const PACKED_FROM = 3;
-
-/** The bench bar's length in art px: the row's middle and right columns (board.css). */
-const BAR_ART = 156;
 
 /** An armed cancel that gets no second tap disarms after this long. */
 const DISARM_MS = 4_000;
@@ -80,14 +82,6 @@ export function playHammer(soundOn: boolean): void {
 interface Pressed {
   forget(): void;
 }
-
-const forgetAll =
-  (trackers: readonly PressTracker[]): (() => void) =>
-  () => {
-    for (const tracker of trackers) {
-      tracker.forget();
-    }
-  };
 
 interface PlateParts {
   readonly button: HTMLButtonElement;
@@ -174,36 +168,6 @@ export interface BenchRow {
   keep(craft: string): void;
 }
 
-/** The bar at the bench row's foot: whole art px, no transition. */
-function benchBar(): { readonly bar: HTMLElement; readonly fill: HTMLElement } {
-  const bar = el("i", "workshop-bar");
-  bar.setAttribute("role", "progressbar");
-  bar.setAttribute("aria-valuemin", "0");
-  bar.setAttribute("aria-valuemax", "100");
-  bar.hidden = true;
-  const fill = el("span", "workshop-bar-fill");
-  bar.append(fill);
-  return { bar, fill };
-}
-
-function paintBar(
-  bar: HTMLElement,
-  fill: HTMLElement,
-  view: BenchRowView | undefined,
-): void {
-  const progress = view?.progress;
-  hide(bar, progress === undefined);
-  if (view === undefined || progress === undefined) {
-    return;
-  }
-  setAttr(bar, "aria-valuenow", String(Math.round(progress * 100)));
-  setAttr(bar, "aria-label", view.aria);
-  const art = String(Math.round(progress * BAR_ART));
-  if (fill.style.getPropertyValue("--fill") !== art) {
-    fill.style.setProperty("--fill", art);
-  }
-}
-
 /**
  * The bench as a drawer row, which is also the cancel plate. A tap on a busy bench arms the
  * cancel and pages the drawer, so the second tap of a double tap lands on nothing; a tap past
@@ -237,7 +201,9 @@ export function createBenchRow({
     icon: false,
   });
   const root = row.root as HTMLButtonElement;
-  const { bar, fill } = benchBar();
+  const { bar, fill } = rowBar();
+  // The Workshop's checks find the bench's bar by its old name.
+  bar.classList.add("workshop-bar");
   root.append(bar);
   let view: BenchRowView | undefined;
   let timer: number | undefined;
@@ -275,7 +241,7 @@ export function createBenchRow({
     paint: (next) => {
       view = next;
       onBoard.paint("bench", row, next);
-      paintBar(bar, fill, next);
+      paintRowBar(bar, fill, next?.progress, next?.aria ?? "");
     },
     armed: () => timer !== undefined,
     disarm,

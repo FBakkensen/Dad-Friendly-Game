@@ -7,8 +7,6 @@ import {
   BASE,
   PHONE,
   browser,
-  press,
-  KEY,
   OPEN_SHEET,
   openSheet,
   boardProbe,
@@ -239,20 +237,34 @@ for (const viewport of NOTICE_SIZES) {
           },
         }),
       );
-      const line = await page.$eval(
-        ".material-line",
-        (row) => row.textContent ?? "",
+      // The material line is the Ledger's stones row (#375): its chips are read where he
+      // sees them, in the open drawer, one line inside the row at 13px or more.
+      await openSheet(page, "ledger");
+      const fit = await page.$eval(
+        `${OPEN_SHEET("ledger")} .ledger-stones`,
+        (row) => {
+          const info = row.querySelector(".board-row-info");
+          if (info === null) {
+            return { line: "", boxesOk: false, typeOk: false };
+          }
+          const box = info.getBoundingClientRect();
+          const outer = row.getBoundingClientRect();
+          const style = getComputedStyle(info);
+          return {
+            line: info.textContent ?? "",
+            boxesOk:
+              box.left >= outer.left - 0.5 &&
+              box.right <= outer.right + 0.5 &&
+              box.top >= outer.top - 0.5 &&
+              box.bottom <= outer.bottom + 0.5 &&
+              (info.scrollWidth <= info.clientWidth + 1 ||
+                style.textOverflow === "ellipsis"),
+            // In board px, as the board's own text check reads it.
+            typeOk: Number.parseFloat(style.fontSize) >= 13,
+          };
+        },
       );
-      // The material line is in the ledger, which the Ledger key opens until
-      // B7 (#373): its chips are read where he sees them, in the open menu.
-      await press(page, KEY("ledger"));
-      await page
-        .waitForSelector(".game-menu:not([hidden]) .material-bit", {
-          visible: true,
-          timeout: 3_000,
-        })
-        .catch(() => undefined);
-      const fit = await fitOf(page, ".game-menu", ".material-bit");
+      const { line } = fit;
       const still = await noScroll(page);
       const chipsOk = ["Clay", "Iron", "Crystal", "Heartstone"].every((name) =>
         line.includes(name),
