@@ -11,7 +11,7 @@ import {
 } from "./teach-ui";
 import { setAttr } from "./board-dom";
 import { buyOnTap } from "./card-tap";
-import { createEffectChip, writeChip } from "./effect-row";
+import { createExpeditionChips } from "./engineer-parts";
 import { machinePost, promoteWhyLine } from "./engineer-rows";
 import {
   MAX_ENGINEERS,
@@ -45,7 +45,6 @@ import {
   callBackLabel,
   dutyLine,
   dutySentence,
-  expeditionChip,
   exploreAside,
   exploreBenefit,
   exploreCheer,
@@ -149,11 +148,7 @@ export function createEngineersPanel({
   let glowTimer: ReturnType<typeof setTimeout> | undefined;
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const chips = Array.from({ length: MAX_ENGINEERS }, () => {
-    const chip = createEffectChip("expedition-chip", iconUrl);
-    chipHost.append(chip);
-    return chip;
-  });
+  const chips = createExpeditionChips(chipHost, iconUrl);
 
   button.addEventListener("click", () => {
     open = true;
@@ -881,21 +876,7 @@ export function createEngineersPanel({
     howHost.hidden = !howOpen;
     list.hidden = howOpen;
     promoteRow.hidden = howOpen;
-    const trips = current.expeditions ?? [];
-    for (const [index, chip] of chips.entries()) {
-      const trip = trips[index];
-      if (trip === undefined) {
-        writeChip(chip, { short: "", full: "", leftMs: 0, active: false });
-        continue;
-      }
-      const left = trip.returnsAt - now();
-      writeChip(chip, {
-        short: trip.engineer,
-        full: expeditionChip(trip.engineer, left),
-        leftMs: left,
-        active: true,
-      });
-    }
+    chips.paint(current, now());
     const next = nextEngineerName(engineers);
     const affordable = promotable(view);
     const cost = promoteCost(current);

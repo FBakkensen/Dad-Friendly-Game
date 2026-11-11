@@ -2714,6 +2714,96 @@ button.board-row:focus-visible {
   gap: calc(var(--art) * 4);
 }
 
+/* ---------- the Engineers drawer's pages (#455) ----------
+   Her page of posts and the tunnels page hold board rows, 10 apart as on the list, with no
+   frame of their own; the plates sit two by two under them. Scoped to the drawer's parts:
+   today's sheet in style.css shares some class names until it goes. */
+.board-page.engineer-page,
+.board-page.engineer-tunnels-page {
+  padding: 0;
+}
+
+.engineer-page-plates {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: calc(var(--art) * 4);
+}
+
+.engineer-page-plates > [hidden] {
+  display: none;
+}
+
+.engineer-brought-page > .engineer-brought-story {
+  position: relative;
+  margin: 0;
+  font-size: var(--board-type-16);
+  line-height: var(--board-note-lead);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--board-ink);
+}
+
+.engineer-brought-page > .engineer-brought-story[hidden] {
+  display: none;
+}
+
+/* The walk home in an out engineer's icon cell: the board's miner (frames 4-7, walk east)
+   crossing an inset tunnel mouth one art px at a time, in hard steps. */
+.engineer-walk {
+  position: relative;
+  display: block;
+  width: calc(var(--art) * 32);
+  height: calc(var(--art) * 28);
+  overflow: hidden;
+}
+
+.engineer-walk > .engineer-walker {
+  position: absolute;
+  z-index: 1;
+  left: calc(var(--art) * 10);
+  bottom: calc(var(--art) * 3);
+  width: calc(var(--art) * 12);
+  height: calc(var(--art) * 21);
+  background-repeat: no-repeat;
+  background-size: calc(var(--art) * 216) calc(var(--art) * 21);
+  background-position: calc(var(--art) * -48) 0;
+  image-rendering: pixelated;
+  animation:
+    engineer-walker-step 0.6s steps(4) infinite,
+    engineer-walker-cross 3.2s steps(32) infinite;
+}
+
+.engineer-walk.is-paused > .engineer-walker {
+  animation-play-state: paused;
+}
+
+@keyframes engineer-walker-step {
+  from {
+    background-position-x: calc(var(--art) * -48);
+  }
+  to {
+    background-position-x: calc(var(--art) * -96);
+  }
+}
+
+@keyframes engineer-walker-cross {
+  from {
+    left: calc(var(--art) * -12);
+  }
+  to {
+    left: calc(var(--art) * 20);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* He stands still in the tunnel mouth, on frame 4. */
+  .engineer-walk > .engineer-walker {
+    animation: none;
+  }
+}
+
 /* The field log fills what is left of its page, in an inset well. */
 .ledger-field-log-well {
   position: relative;
