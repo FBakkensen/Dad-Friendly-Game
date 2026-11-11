@@ -42,6 +42,14 @@ const OUT = "docs/ui-audit";
 /** The phone: the board's 424x924 stage at scale 1 (#370). */
 const PHONE_SIZE = "424x924";
 const VIEWPORTS = [[424, 924]];
+/** The PCs (#376): the board in its housing on the desk. Shots only, no census (C4). */
+const DESKS = [
+  [1280, 800],
+  [1366, 768],
+  [1440, 900],
+];
+/** Narrower than this is a phone, with touch; wider is a desk (src/board-fit.ts). */
+const DESK_MIN_WIDTH = 600;
 
 const server = await startServer({ port: 4175, url: undefined });
 const BASE = server.base;
@@ -68,8 +76,8 @@ async function openAuditPage(viewport, save, { search = "" } = {}) {
       width: viewport[0],
       height: viewport[1],
       deviceScaleFactor: 2,
-      isMobile: true,
-      hasTouch: true,
+      isMobile: viewport[0] < DESK_MIN_WIDTH,
+      hasTouch: viewport[0] < DESK_MIN_WIDTH,
     },
     seed:
       save === undefined
@@ -738,9 +746,17 @@ function analyse(sample, id, size) {
   };
 }
 
-/** @param {string} id */
-async function capture(id, prepare) {
-  for (const viewport of VIEWPORTS) {
+/**
+ * Shoots one view at each size. With measure: false it only shoots: the desk's targets are
+ * drawn under 48px by design (C4), and the census is the phone's.
+ * @param {string} id
+ */
+async function capture(
+  id,
+  prepare,
+  { sizes = VIEWPORTS, measure = true } = {},
+) {
+  for (const viewport of sizes) {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     console.log(`shot ${id} ${size}`);
     const opened = await prepare(viewport);
@@ -753,11 +769,13 @@ async function capture(id, prepare) {
       await opened.page.addStyleTag({
         content: ":active { transform: none !important; }",
       });
-      const sample = await collect(opened.page);
+      const sample = measure ? await collect(opened.page) : undefined;
       const file = `${OUT}/${id}-${size}.png`;
       await opened.page.screenshot({ path: file });
       compress(file);
-      shots.push(analyse(sample, id, size));
+      if (sample !== undefined) {
+        shots.push(analyse(sample, id, size));
+      }
     } finally {
       await opened.close();
     }
@@ -796,6 +814,10 @@ async function main() {
     });
 
   await capture("mountain-rest", (viewport) => openAuditPage(viewport, rest()));
+  await capture("desk-rest", (viewport) => openAuditPage(viewport, rest()), {
+    sizes: DESKS,
+    measure: false,
+  });
   await capture("mountain-vein", async (viewport) => {
     const opened = await openAuditPage(viewport, rest());
     await opened.page.evaluate(() => {
