@@ -146,6 +146,11 @@ type BuyFacts = {
   readonly pickHere: boolean;
   readonly isPick: boolean;
   readonly buyVerb: string;
+  /**
+   * The verb on a row too dear or short of hands: the hands one more needs, or, on ×10 and Max,
+   * the counted verb, so the row still says how many (#358).
+   */
+  readonly handsVerb: string;
   readonly staff: number;
   /** The workers one more of this tier still needs, in words, when there are too few spare. */
   readonly shortOf: string | undefined;
@@ -182,6 +187,8 @@ function buyFacts({
   const staff = staffForBuy(mountain, tier) * buying;
   const bill = staffBillWords(staff, spare);
   const worker = tierById("helper");
+  // Workers (helper, kid) are hired; machines are bought. ×10 and Max say how many.
+  const buyVerb = `${tier.staff === 0 ? "Hire" : "Buy"}${amount === "one" ? "" : ` ${formatCompact(buying)}`}`;
   // The plate's pick is one. A ready pick whose ×10 the pocket cannot pay is not
   // offered on this row (#358).
   const pickHere =
@@ -204,8 +211,8 @@ function buyFacts({
     workerPrice: tierCost(worker, owned(mountain, worker), stretch(mountain)),
     pickHere,
     isPick: pick.kind === "ready" && pickHere,
-    // Workers (helper, kid) are hired; machines are bought. ×10 and Max say how many.
-    buyVerb: `${tier.staff === 0 ? "Hire" : "Buy"}${amount === "one" ? "" : ` ${formatCompact(buying)}`}`,
+    buyVerb,
+    handsVerb: amount === "one" && staff > 0 ? workersVerb(staff) : buyVerb,
     staff,
     shortOf: lock === undefined && spare < staff ? bill : undefined,
     dear:
@@ -282,7 +289,7 @@ function lockedFace(tier: Tier, lock: TierLock): Face {
 
 /** An unlocked tier: too dear, short of workers, or ready. */
 function pricedFace(facts: BuyFacts): Face {
-  const { id, count, price, staff, shortOf, dear, buyVerb, isPick } = facts;
+  const { id, count, price, shortOf, dear, buyVerb, handsVerb, isPick } = facts;
   const info = milestoneOptions(id, count);
   const shown = formatCompact(price);
   if (dear) {
@@ -292,7 +299,7 @@ function pricedFace(facts: BuyFacts): Face {
       need: "",
       price: shown,
       dimTag: true,
-      verb: staff > 0 ? workersVerb(staff) : buyVerb,
+      verb: handsVerb,
       lamp: "off",
       can: false,
     };
@@ -304,7 +311,7 @@ function pricedFace(facts: BuyFacts): Face {
       need: shortOf,
       price: shown,
       dimTag: false,
-      verb: workersVerb(staff),
+      verb: handsVerb,
       lamp: "off",
       can: true,
     };

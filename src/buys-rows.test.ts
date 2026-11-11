@@ -498,13 +498,13 @@ describe("buyRowView: ×10 and Max (#358)", () => {
     );
   });
 
-  it("×10 the pocket cannot pay is too dear, with ten's worker bill", () => {
+  it("×10 the pocket cannot pay is too dear, and still says ten", () => {
     const ten = quote(early, "cart", "ten");
     const mountain = { ...early, pocket: ten.cost - 1 };
     expect(row(mountain, "cart", { amount: "ten" })).toMatchObject({
       state: "dear",
       price: formatCompact(ten.cost),
-      verb: "10 workers",
+      verb: "Buy 10",
       dimTag: true,
       can: false,
     });
@@ -527,12 +527,12 @@ describe("buyRowView: ×10 and Max (#358)", () => {
     expect(row(broke, "cart", { amount: "max" })).toMatchObject({
       state: "dear",
       price: formatCompact(priceOf(broke, "cart", 6)),
-      verb: "1 worker",
+      verb: "Buy 1",
       can: false,
     });
   });
 
-  it("short of hands for ten says ten's bill", () => {
+  it("short of hands for ten says ten's bill, and the verb still counts ten", () => {
     // 18 workers on 15 carts leave 3 free, and ten drills take 10.
     const base = mountainWith({ helpers: 18, carts: 6 });
     const ten = quote(base, "drill", "ten");
@@ -541,7 +541,7 @@ describe("buyRowView: ×10 and Max (#358)", () => {
     expect(row(mountain, "drill", { amount: "ten" })).toMatchObject({
       state: "short",
       need: "Needs 10 workers",
-      verb: "10 workers",
+      verb: "Buy 10",
       can: true,
     });
   });

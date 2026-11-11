@@ -956,7 +956,7 @@ async function main() {
     if (face !== "Max") {
       throw new Error(`buys-max: the key reads ${String(face)}`);
     }
-    await expectText(opened.page, /Hire \d+/, "buys-max");
+    await expectText(opened.page, /Hire \d+/i, "buys-max");
     return opened;
   });
   // The Upgrades drawer (#373): a levelled upgrade, an owned one, and found
