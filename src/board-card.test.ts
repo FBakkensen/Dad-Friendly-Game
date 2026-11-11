@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cardArt,
   cardLine,
+  cardLines,
   createBoardCard,
   type BoardCard,
 } from "./board-card";
@@ -44,6 +45,76 @@ const fingerTap = (target: HTMLElement): void => {
     new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
   );
 };
+
+describe("a card the player opened (#466)", () => {
+  const opened = (dismiss: () => void): BoardCard => {
+    const card = createBoardCard({
+      name: "copies",
+      hook: "saved-copies",
+      titleId: "saved-copies-title",
+      board,
+      dismiss,
+    });
+    document.body.append(card.root);
+    return card;
+  };
+  const opener = (): HTMLButtonElement => {
+    const key = document.createElement("button");
+    document.body.append(key);
+    return key;
+  };
+
+  it("Escape runs its dismiss; a card that opens itself has none", () => {
+    const dismiss = vi.fn();
+    const card = opened(dismiss);
+    card.show(true);
+    card.body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    card.body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+    expect(dismiss).toHaveBeenCalledTimes(1);
+    const own = make();
+    own.show(true);
+    own.body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    expect(cardUp(own.root)).toBe(true);
+  });
+
+  it("gives the focus back to its opener as it hides with the focus on it", () => {
+    const card = opened(() => undefined);
+    const key = opener();
+    const plate = card.plate(
+      "Back to the mountain",
+      "close",
+      "x",
+      () => undefined,
+    );
+    card.from(key);
+    card.show(true, plate);
+    expect(document.activeElement).toBe(plate);
+    card.show(false);
+    expect(document.activeElement).toBe(key);
+  });
+
+  it("leaves the focus alone when it was elsewhere, or there is no opener", () => {
+    const card = opened(() => undefined);
+    const key = opener();
+    const other = opener();
+    const plate = card.plate("Back", "close", "x", () => undefined);
+    card.from(key);
+    card.show(true, plate);
+    other.focus();
+    card.show(false);
+    expect(document.activeElement).toBe(other);
+    card.from(undefined);
+    card.show(true, plate);
+    card.show(false);
+    expect(document.activeElement).not.toBe(key);
+  });
+});
 
 describe("the board card", () => {
   it("builds a shaded dialog with a framed face", () => {
@@ -180,6 +251,21 @@ describe("the board card", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     observer.disconnect();
     expect(changes).toHaveLength(1);
+  });
+
+  it("cardLines rebuilds a box only when its words change, and hides it empty", () => {
+    const box = document.createElement("ul");
+    cardLines(box, "legacy-rate", ["Workers 1/s to 2/s"], "li");
+    const first = box.firstElementChild;
+    expect(first?.matches("li.board-card-line.legacy-rate")).toBe(true);
+    cardLines(box, "legacy-rate", ["Workers 1/s to 2/s"], "li");
+    expect(box.firstElementChild).toBe(first);
+    expect(box.hidden).toBe(false);
+    cardLines(box, "legacy-rate", []);
+    expect(box.childElementCount).toBe(0);
+    expect(box.hidden).toBe(true);
+    cardLines(box, "welcome-return", ["Home."]);
+    expect(box.firstElementChild?.tagName).toBe("P");
   });
 
   it("cardArt draws at the asked size", () => {

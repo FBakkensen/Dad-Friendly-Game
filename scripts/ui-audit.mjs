@@ -588,7 +588,6 @@ async function collect(page) {
         ".legacy-dialog .board-card-face",
         ".saved-copies .board-card-face",
         ".engineer",
-        ".legacy-card",
       ],
       chip: [".boost-chip", ".expedition-chip"],
       timer: [".workshop-timers", ".workshop-bar", ".boost"],

@@ -25,13 +25,16 @@
    - Not yet has the focus.
    - Not yet and Escape close it and give the focus back to what opened it.
    - Pass it on presses through the board, so the second tap of the tap that opened the card never passes the mine.
-4. **Saved copies gets Escape too**, as Pass the mine has, and it gives the focus back to the Ledger key. A card that the player opened closes the way a dialog does. The cards that open by themselves still have no Escape.
+4. **Saved copies gets Escape too**, as Pass the mine has, and it gives the focus back to the Ledger key. A card that the player opened closes the way a dialog does. The cards that open by themselves still have no Escape. Both live in the shell (review): `createBoardCard({ dismiss })` wires Escape, and `card.from(opener)` gives the focus back when the card hides with the focus on it, a played copy too.
 5. **Each copy is an inset**, as the conflict's sides are. Its lines sit clear of the inset's edges: 11 art px top and left, 9 right and bottom.
    - Each inset is built once per copy (and per earlier-run state), then rewritten line by line. A tick never rebuilds a plate, the focus stays put, and the presses do not pile up.
    - Each copy's Play this one is its own control (`play-<id>`).
    - A second press while a restore is running does nothing.
 6. **The list scrolls inside the face** when the copies outgrow it. This is the one card body that may shrink (`.saved-copies .board-card-body`). Every other card body still never shrinks, so an overflow shows in the face.
 7. **Words move to `screen-words.ts`:** `PASS_TITLE`, `PASS_NOT_YET`, `PASS_IT_ON`, `SAVED_COPIES_EMPTY` and `SAVED_COPY_GONE`. They are today's words, with no new copy.
+
+8. **The lines repaint is shared** (review): welcome's private `paintLines` becomes `board-card.ts#cardLines`, which the Legacy's rates use as `li`s.
+9. **Pass the mine's "start fresh" line is full ink**, not quiet: it is the loss warning on a step that cannot be undone.
 
 ## Modules
 

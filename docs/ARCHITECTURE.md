@@ -140,7 +140,11 @@ page is the map, plus the rules that keep it that way.
    that press through `pressOnBoard` on the card's own layer, `show(on,
 focus)` (`showCard`, the model's open or close, and the focus once as it
    opens) and `page()` (a new screen that settles again: the conflict's
-   confirm, and the next band or craft on a card that is already up). The
+   confirm, and the next band or craft on a card that is already up). A card
+   the player opened (Saved copies, Pass the mine, #466) passes `dismiss`,
+   which Escape runs, and `from(opener)`: hidden while the focus is on it,
+   the card gives the focus back there. `cardLines` rebuilds a box of lines
+   only when its words change (the welcome's news, the Legacy's rates). The
    cards and today's sheets stand at one z-index in the root's order
    (`screen-panels#cardsFrom`), with the Engineers sheet first so a
    homecoming's welcome paints over it; only the save conflict stands
@@ -162,7 +166,7 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    The panels paint before the New sign, so a card opened in that paint holds
    the sign back. Each paint is safe to repeat: a card takes focus only when
    it opens, and the materials line is rebuilt only when its chips change, and the saved
-   copies sheet rebuilds its rows only when what they show changes.
+   copies card builds each copy's inset once and rewrites only the lines that changed.
    Three small modules carry the screen's decisions: `card-state` is the cards'
    shown state (`showCard` writes it, for the board cards through
    `board-card`'s `show`; `cardUp` reads it), `screen-cover`

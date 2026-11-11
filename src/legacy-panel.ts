@@ -1,4 +1,4 @@
-import { cardLine, createBoardCard } from "./board-card";
+import { cardLine, cardLines, createBoardCard } from "./board-card";
 import { el, hide, setAttr, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { kidStretch, stretch } from "./scale";
@@ -74,7 +74,7 @@ function legacyLines() {
     lead: cardLine("legacy-lead"),
     rates,
     keeps: cardLine("legacy-keeps"),
-    fresh: cardLine("legacy-fresh is-quiet"),
+    fresh: cardLine("legacy-fresh"),
     legend: cardLine("legacy-legend"),
   };
 }
@@ -104,7 +104,6 @@ export function createLegacyPanel({
   requestRender: () => void;
 }) {
   let open = false;
-  let returnFocus: HTMLElement | undefined;
 
   const badge = el("span", "legacy-badge");
   badge.setAttribute("role", "img");
@@ -115,6 +114,9 @@ export function createLegacyPanel({
     hook: "legacy-dialog",
     titleId: "legacy-title",
     board,
+    dismiss: () => {
+      close();
+    },
   });
   const dialog = card.root;
   // A confirm that ends the run: an alert dialog, described by what passing does.
@@ -132,10 +134,10 @@ export function createLegacyPanel({
     lines.legend,
   );
 
+  /** Not yet, or Escape: the card's close gives the focus back to what opened it. */
   const close = (): void => {
     open = false;
     requestRender();
-    returnFocus?.focus({ preventScroll: true });
   };
   const answers = el("div", "board-card-pair legacy-answers");
   card.foot.append(answers);
@@ -159,12 +161,6 @@ export function createLegacyPanel({
     },
     answers,
   );
-  dialog.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      close();
-    }
-  });
-
   /** Whether passing the mine is offered now: the save is in and the mountain is finished. */
   const offered = (): boolean => {
     const { mountain, ready } = getView();
@@ -191,7 +187,7 @@ export function createLegacyPanel({
     dialog,
     open: (from: HTMLElement | undefined): void => {
       beforeOpen();
-      returnFocus = from;
+      card.from(from);
       open = true;
       requestRender();
     },
@@ -200,18 +196,13 @@ export function createLegacyPanel({
   };
 }
 
-/** The card's words, each written only on a change; the rates list only when one changes. */
+/** The card's words, each written only on a change. */
 function paintLines(
   lines: ReturnType<typeof legacyLines>,
   words: LegacyCardWords,
 ): void {
   write(lines.lead, words.lead);
-  const shown = [...lines.rates.children].map((item) => item.textContent);
-  if (JSON.stringify(shown) !== JSON.stringify(words.rates)) {
-    lines.rates.replaceChildren(
-      ...words.rates.map((rate) => el("li", "board-card-line", rate)),
-    );
-  }
+  cardLines(lines.rates, "legacy-rate", words.rates, "li");
   write(lines.keeps, words.keeps);
   write(lines.fresh, words.fresh);
   write(lines.legend, words.legend);

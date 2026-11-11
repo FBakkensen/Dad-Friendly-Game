@@ -52,6 +52,9 @@ export function createSavedCopiesPanel({
     hook: "saved-copies",
     titleId: "saved-copies-title",
     board,
+    dismiss: () => {
+      close();
+    },
   });
   write(card.title, SAVED_COPIES_TITLE);
   const empty = cardLine("saved-copies-empty is-quiet");
@@ -64,13 +67,12 @@ export function createSavedCopiesPanel({
   let open = false;
   let copies: readonly ArchivedCopy[] = [];
   let note = "";
-  let returnFocus: HTMLElement | undefined;
 
+  /** Back to the mountain, Escape, or a copy now in play: the focus goes back to the opener. */
   const close = (): void => {
     open = false;
     note = "";
     requestRender();
-    returnFocus?.focus({ preventScroll: true });
   };
   const back = card.plate(
     BACK_TO_THE_MOUNTAIN,
@@ -78,11 +80,6 @@ export function createSavedCopiesPanel({
     "saved-copies-close",
     close,
   );
-  card.root.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      close();
-    }
-  });
 
   // One copy at a time: a second press while the first restores never switches again.
   let restoring = false;
@@ -95,11 +92,10 @@ export function createSavedCopiesPanel({
       .restoreCopy(copy.id)
       .then((result) => {
         if (result === "saved") {
-          open = false;
-          note = "";
-        } else {
-          note = result === "missing" ? SAVED_COPY_GONE : SAVE_CONFLICT_ERROR;
+          close();
+          return;
         }
+        note = result === "missing" ? SAVED_COPY_GONE : SAVE_CONFLICT_ERROR;
         requestRender();
       })
       .finally(() => {
@@ -109,8 +105,19 @@ export function createSavedCopiesPanel({
 
   /** Each copy's inset by its id and whether it is an earlier run's: built once each. */
   const built = new Map<string, CopyParts>();
+  const keyOf = (row: CopyRow): string =>
+    `${row.copy.id}:${String(row.earlier)}`;
+  /** An inset whose copy left the list (played, expired) is not kept. */
+  const forgetGone = (rows: readonly CopyRow[]): void => {
+    const keep = new Set(rows.map(keyOf));
+    for (const key of [...built.keys()]) {
+      if (!keep.has(key)) {
+        built.delete(key);
+      }
+    }
+  };
   const partsFor = (row: CopyRow): CopyParts => {
-    const key = `${row.copy.id}:${String(row.earlier)}`;
+    const key = keyOf(row);
     const known = built.get(key);
     if (known !== undefined) {
       return known;
@@ -145,8 +152,9 @@ export function createSavedCopiesPanel({
       hide(error, note === "");
       write(error, note);
       const clock = now();
-      const shown = copies.map((copy) => {
-        const row = rowOf(copy, clock);
+      const rows = copies.map((copy) => rowOf(copy, clock));
+      forgetGone(rows);
+      const shown = rows.map((row) => {
         const parts = partsFor(row);
         paintCopy(parts, row);
         return parts.root;
@@ -164,7 +172,7 @@ export function createSavedCopiesPanel({
     open: (from?: HTMLElement): void => {
       open = true;
       note = "";
-      returnFocus = from;
+      card.from(from);
       void progress.savedCopies().then((next) => {
         copies = next;
         requestRender();
