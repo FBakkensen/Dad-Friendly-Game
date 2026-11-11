@@ -49,6 +49,7 @@ import { MAX_MATERIAL } from "../src/layers";
 import { MAX_CRAFTED_LEVEL, MAX_CRAFT_MS, RECIPE_IDS } from "../src/workshop";
 import { parseSaveValue, serializeSave } from "../src/persist";
 import { effectiveRates } from "../src/rates";
+import { MAX_STRETCH, kidStretch, stonesLeft } from "../src/scale";
 import { UPGRADES } from "../src/upgrades";
 
 const [host = "127.0.0.1", port = "8080"] = (
@@ -178,6 +179,18 @@ describe("firestore.rules: every save the game writes is accepted", () => {
         }),
       ).rejects.toThrow(/permission/i);
     }
+  });
+
+  it("a kid run at the stretch cap with every stone in the pocket (#366)", async () => {
+    const kid = {
+      ...createMountain(),
+      legacy: 1000,
+      stretch: kidStretch(1000),
+    };
+    const mountain = { ...kid, remaining: 0, pocket: stonesLeft(kid) };
+    expect(mountain.stretch).toBe(MAX_STRETCH);
+    expect(Number.isSafeInteger(mountain.pocket)).toBe(true);
+    expect(await roundTrip(mountain)).toEqual(mountain);
   });
 
   it("Crown of Wisdom kid helpers (#102)", async () => {

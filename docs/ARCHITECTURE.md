@@ -12,7 +12,9 @@ page is the map, plus the rules that keep it that way.
    is the crew speed before the whole-stone floor. `economy/actions` lists
    every legal move, including a craft and a cancel, applies the existing
    functions, and values income from that speed, taps, and away pay. A `Move`
-   is an `Action` or a screen-only move (a dig, a vein tap, a seen mark), and
+   is an `Action` or a screen-only move (a dig, a vein tap, a seen mark, or
+   Buys' ×10 and Max, `buyTiers`: several card buys in one move, all or
+   nothing, logged as one `tier.buy` with the final count, #358), and
    `applyMove` is the one place the UI changes the mountain, and the lab's
    `applyAction` too (#409). The lab's runner and the pacing sim still call some
    rule functions directly (`promote`, `buyBoost`, `send`, `tendBestTier`),
@@ -248,7 +250,11 @@ page is the map, plus the rules that keep it that way.
    (in `upgrades-panel`) works the order out, every part in it shown or not,
    and the panel sends it as the drawer opens. Row visibility can still
    change on a re-load. The Buys parts are small modules:
-   `buys-rows` (each row's view), `buys-tap` (`buysTap`: what a tap on a
+   `buys-amount` (`createAmountKey`, #358: the head's ×1 / ×10 / Max key,
+   pressed through the board's model like the "i" and kept in the device
+   storage beside the vein wait, never in the save; the shell places it with
+   `createBoardSheet`'s `headKey`), `buys-rows` (each row's view, for the
+   amount: the quote's count and total), `buys-tap` (`buysTap`: what a tap on a
    row does once the model lets it act, read again from the store at the
    tap), `crew-chips` (the crew line's chips: laid out in the fewest even
    rows that fit, then frozen with only their words changing) and
@@ -470,7 +476,7 @@ Staffing (#140), the workers' name (#139), the field log (#141–#143), engineer
 
 - **Names:** player text says "worker"; `helpers`, `TierId "helper"` and the rules keep their names (no save migration). All copy comes from `screen-words`. Built (#139).
 - `scale` (leaf, #356; retuned #357): `MOUNTAIN_STONES`, the kid-run stretch (`KID_RUN_GROWTH`, `kidStretch`, `MAX_STRETCH`) and the band scales. `BAND_STARTS` and `BAND_SCALE` say how many stones a band takes per stone of depth, times k. Their values are in [Numbers now](DESIGN.md#numbers-now). Depth stays in run-1 units, so `remaining` and the save format do not change. The pure functions `shownStones(depth)`, `stonesLeft`, `depthAfterStones(stones)` and `minedOut` convert between depth and the stones a run shows; `oneOffStretch` = k × the current band's scale prices upgrades and promotions. Machines and workers use k only (`tierCost`).
-- `tiers`: each tier's first price, speed, `staff` and opening depth, and the two growth curves (`MACHINE_COST_GROWTH`, `HELPER_COST_GROWTH`) that `tierCost` applies. The values are in [Numbers now](DESIGN.md#numbers-now). The `milestones` module (#357) doubles a tier's output at owned-count marks, stacking; the marks are in [Numbers now](DESIGN.md#numbers-now) too. `crew.staffExisting` grants once more (`staffed: 2`; `true` and `1` are the #89 grant). Built (#140). History (#140): the Great Machine's staff was 25, as staff 15 never ran one in the sim then and reopened a 2.5-day gap with no purchase.
+- `tiers`: each tier's first price, speed, `staff` and opening depth, and the two growth curves (`MACHINE_COST_GROWTH`, `HELPER_COST_GROWTH`) that `tierCost` applies. `tierQuote` (#358) prices ×1, ×10 or Max of a tier as the sum of `tierCost` unit by unit, the price `buyTier` charges for each in turn. The values are in [Numbers now](DESIGN.md#numbers-now). The `milestones` module (#357) doubles a tier's output at owned-count marks, stacking; the marks are in [Numbers now](DESIGN.md#numbers-now) too. `crew.staffExisting` grants once more (`staffed: 2`; `true` and `1` are the #89 grant). Built (#140). History (#140): the Great Machine's staff was 25, as staff 15 never ran one in the sim then and reopened a 2.5-day gap with no purchase.
 - Grandpa (#338, in `engineers`): `grandpaPost(mountain)` is the biggest running machine no engineer tends, once the Legacy is at least 1, staffed the same way `effectiveRates` staffs. `tendingTenths` counts him at `GRANDPA_RANK` (apprentice) on that post. Nothing is saved.
 - `engineers` (rules layer, pure): `Engineer = { name, rank: 0 | 1 | 2, trips, post: TierId | "tunnel" | "camp" }`; `promote(mountain)`, `station(mountain, i, post)`, `rankOf`, `addTrip`. `promote` takes no `now`: the price does not depend on the clock. Save: `engineers?: Engineer[]` (max 5, names Ada, Nils, Ruth, Otto, Mae). The first engineer arrives with the first borer, already tending it, without spending a worker; `grantFirstEngineer` does that once for an older save. Rules check the first two hands. A later hand, and a duplicate name, are rejected by the parser: checking them beside a full v6 save crosses the 1000-expression budget (#219). Rules + drift guard + emulator tests. Built (#144). Buying a machine does not call `tendBestTier` (#145); the sheet's post sticks. The pacing sim still calls it.
 - `expeditions` (rules layer, pure): `TUNNELS` (a side seam, 10 min; the old

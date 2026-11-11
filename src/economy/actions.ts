@@ -276,9 +276,31 @@ export function buyWithTeach(mountain: Mountain, id: TierId): Mountain {
     : next;
 }
 
+/**
+ * The Buys drawer's ×10 or Max (#358): `count` card buys, one after another at each one's own
+ * price. All or nothing, so a pocket short of the last one buys none.
+ */
+function buyMany(mountain: Mountain, id: TierId, count: number): Mountain {
+  let next = mountain;
+  for (let bought = 0; bought < count; bought += 1) {
+    const after = buyWithTeach(next, id);
+    if (after === next) {
+      return mountain;
+    }
+    next = after;
+  }
+  return next;
+}
+
 /** A move only the screen makes: the lab plays taps and marks through its value model. */
 type ScreenMove =
   | { readonly kind: "dig" }
+  | {
+      /** Several of a tier in one tap (#358). The lab plans single buys. */
+      readonly kind: "buyTiers";
+      readonly id: TierId;
+      readonly count: number;
+    }
   | { readonly kind: "tapVein" }
   | { readonly kind: "markSeen"; readonly id: string }
   | { readonly kind: "markAllSeen"; readonly ids: readonly string[] };
@@ -353,6 +375,8 @@ function moved(
       return mineByHand(mountain, now, context.trouble);
     case "tapVein":
       return mineVein(mountain);
+    case "buyTiers":
+      return buyMany(mountain, move.id, move.count);
     case "markSeen":
       return markSeen(mountain, move.id);
     case "markAllSeen":
@@ -573,6 +597,8 @@ function moveEvents(
   switch (move.kind) {
     case "tapVein":
       return [{ kind: "veinTapped", stones: next.pocket - before.pocket }];
+    case "buyTiers":
+      return actionEvents(before, next, { kind: "buyTier", id: move.id });
     case "dig":
     case "markSeen":
     case "markAllSeen":

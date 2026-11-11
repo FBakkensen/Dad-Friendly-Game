@@ -40,6 +40,7 @@ export function createBuysPanel(
     board,
     overSave: deps.overSave,
     door: deps.rail.keys.buys,
+    storage: ctx.deviceStorage,
     ...(signal === undefined ? {} : { signal }),
   });
 }

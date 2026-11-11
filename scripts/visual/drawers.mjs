@@ -1,4 +1,4 @@
-/* global console, document */
+/* global console, document, requestAnimationFrame */
 /** Drawer sections: each drawer's rows and legends, per save, and the drawer states. */
 import {
   freshMountain,
@@ -135,12 +135,14 @@ async function howFacts(page, name) {
  * B6 (#374) adds a row each for Workshop and Engineers. Each needs a `when`
  * that skips the saves where its key is locked (openSheet waits 30 s on a
  * disabled key), and a `how: false` flag, with the "i" expectation skipped on
- * it, if that drawer has no "i".
+ * it, if that drawer has no "i". `amount: true` marks the drawer with the
+ * ×1/×10/Max key (#358).
  * @public
  */
 export const DRAWERS = [
   {
     name: "buys",
+    amount: true,
     mayScroll: ({ scenario }) => LONG_BUYS.has(scenario.name),
     mustScroll: ({ scenario }) => LONG_BUYS.has(scenario.name),
   },
@@ -360,6 +362,56 @@ const DRAWER_EXPECT = [
           `${String(contrast.length)} row legends at 4.5:1 or more (lowest ${String(contrast.length === 0 ? "-" : Math.min(...contrast.map((one) => one.pct)))}:1 at p10/p90)`,
         ],
       ];
+    },
+  },
+  {
+    // Buys on ×10 and on Max (#358): the key's face changes, and every row's
+    // counted verb and total price still lie inside it, with no page scroll. A
+    // keyboard press is never early. The third press goes back to ×1, so the
+    // next section opens as this one did.
+    when: ({ row }) => row.amount === true,
+    run: async ({ page, size, scenario }) => {
+      const key = `${OPEN_SHEET("buys")} .board-sheet-head .buy-amount`;
+      const results = [];
+      for (const face of ["×10", "Max", "×1"]) {
+        await page.$eval(key, (button) => {
+          button.click();
+        });
+        // A tag's skin repaints on its ResizeObserver, before the next paint:
+        // measure what the player sees, a frame on.
+        await page.evaluate(
+          () =>
+            new Promise((resolve) => {
+              requestAnimationFrame(() => requestAnimationFrame(resolve));
+            }),
+        );
+        const shown = await page.$eval(key, (button) => button.textContent);
+        if (face === "×1") {
+          results.push([shown === face, "the amount key goes back to ×1"]);
+          continue;
+        }
+        const facts = await drawerFacts(page, "buys");
+        const crowded = facts.rows.filter(
+          (row) =>
+            !row.inside || row.overlaps.length > 0 || row.spills.length > 0,
+        );
+        results.push([
+          shown === face &&
+            crowded.length === 0 &&
+            facts.rows.every((row) => Math.abs(row.height - 76) <= 0.5) &&
+            (await noScroll(page)),
+          `on ${face}, every row's count and total lie inside it, 76 tall, with no page scroll`,
+        ]);
+        if (crowded.length > 0) {
+          console.log(
+            "drawer amount",
+            `${size} buys drawer, ${scenario.name}:`,
+            face,
+            JSON.stringify(crowded),
+          );
+        }
+      }
+      return results;
     },
   },
   {

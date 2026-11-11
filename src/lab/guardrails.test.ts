@@ -179,12 +179,17 @@ describe("targets", () => {
     }
   });
 
-  it("keeps only the finish days and every-tier-bought report only (#357)", () => {
+  it("keeps only the finish days, every-tier-bought and taps-per-sitting report only (#357, #358)", () => {
     const reportOnly = TARGETS.filter((target) => target.reportOnly === true)
       .map((target) => target.id)
       .sort();
     expect(reportOnly).toEqual(
-      ["casual-finish", "every-tier-bought", "thin-habit-finish"].sort(),
+      [
+        "casual-finish",
+        "every-tier-bought",
+        "taps-per-sitting",
+        "thin-habit-finish",
+      ].sort(),
     );
     for (const id of [
       "zero-buy-sittings",
