@@ -36,6 +36,11 @@ export interface BoardRow {
   readonly root: HTMLElement;
   setIcon(url: string | undefined): void;
   /**
+   * A part in the icon cell in the img's place (#455: the walk home), or the img back for
+   * undefined. Only on a row built with an icon.
+   */
+  setIconArt(part: HTMLElement | undefined): void;
+  /**
    * An undefined view, until the save is in, shows the name and icon only, dark and disabled,
    * whatever the model holds. Done keeps the row's words as they were but for info and gain.
    */
@@ -276,9 +281,23 @@ function paintRow(
 
 const STILL: RowLive = { held: false, blink: undefined };
 
+/** The icon cell's part: `part` in the img's place, or the img back for none. */
+function iconArt(
+  img: HTMLImageElement | undefined,
+  shown: HTMLElement | undefined,
+  part: HTMLElement | undefined,
+): HTMLElement | undefined {
+  if (img === undefined || part === shown) {
+    return shown;
+  }
+  (shown ?? img).replaceWith(part ?? img);
+  return part;
+}
+
 /** A drawer row, built once and reused. Before the first render it shows the name and icon only. */
 export function createBoardRow(options: RowOptions): BoardRow {
   const parts = buildRowParts(options);
+  let art: HTMLElement | undefined;
   let last: RowView | undefined;
   let lastLive = STILL;
 
@@ -306,6 +325,9 @@ export function createBoardRow(options: RowOptions): BoardRow {
         setAttr(img, "src", url);
       }
       hide(img, url === undefined);
+    },
+    setIconArt: (part) => {
+      art = iconArt(parts.img, art, part);
     },
     render,
   };

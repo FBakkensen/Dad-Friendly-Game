@@ -2675,8 +2675,9 @@ button.board-row:focus-visible {
   grid-area: 2 / 2;
 }
 
-/* A page of the drawer: the Start over confirm, or the field log to copy by hand. */
-.ledger-page {
+/* A page of a drawer (board-page.ts, #455): the Ledger's Start over and field log, the
+   Engineers' asks. */
+.board-page {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
@@ -2686,7 +2687,7 @@ button.board-row:focus-visible {
   padding: calc(var(--art) * 8);
 }
 
-.ledger-page-title {
+.board-page-title {
   position: relative;
   margin: 0;
   font-size: var(--board-type-20);
@@ -2695,7 +2696,7 @@ button.board-row:focus-visible {
   color: var(--board-ink);
 }
 
-.ledger-page-line {
+.board-page-line {
   position: relative;
   margin: 0;
   font-size: var(--board-type-14);
@@ -2705,7 +2706,7 @@ button.board-row:focus-visible {
   color: var(--board-ink-2);
 }
 
-.ledger-page-answers {
+.board-page-answers {
   position: relative;
   flex: none;
   display: grid;

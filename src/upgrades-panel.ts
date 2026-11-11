@@ -1,6 +1,6 @@
-import { oneOffStretch, stretch } from "./scale";
 import { el, hide, legend, mark } from "./board-dom";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
+import { createHowPricer } from "./board-how-art";
 import type { BoardHost } from "./board-host";
 import type { Layout } from "./board-interaction";
 import {
@@ -9,7 +9,6 @@ import {
   type BoardRow,
   type RowsOnBoard,
 } from "./board-row";
-import { howItWorks } from "./how-it-works";
 import { BOOSTS, boostLeft, type Boost, type BoostId } from "./boosts";
 import type { Move } from "./economy/actions";
 import { shortEffectName, writeChip } from "./effect-row";
@@ -27,7 +26,6 @@ import {
   UPGRADES_MORE,
   lostToolWords,
 } from "./screen-words";
-import { setHowSteps } from "./teach-ui";
 import {
   boostRowView,
   newRowId,
@@ -351,25 +349,6 @@ function renderChips(
   }
 }
 
-/** The "i" cards' steps, priced for the save's stretch: written again only when it changes. */
-function createHowPricer(how: HTMLElement): (current: Mountain) => void {
-  let priced = "1:1";
-  return (current) => {
-    const key = `${String(stretch(current))}:${String(oneOffStretch(current))}`;
-    if (key === priced) {
-      return;
-    }
-    priced = key;
-    const copy = howItWorks(stretch(current), oneOffStretch(current));
-    for (const card of how.querySelectorAll<HTMLElement>("[data-how]")) {
-      const system = card.dataset["how"];
-      if (system === "upgrades" || system === "boosts") {
-        setHowSteps(card, copy[system].steps);
-      }
-    }
-  };
-}
-
 /** Paints a section's buy rows, the New row marked. Returns whether any row shows. */
 function paintBuyRows<
   Row extends { readonly id: RevealRowId; readonly row: BoardRow },
@@ -529,7 +508,7 @@ export function createUpgradesPanel({
   });
   const { parts, byId } = placeParts(sheet, rows);
   const layout = createUpgradesLayout(board, sheet, byId);
-  const priceHow = createHowPricer(sheet.how);
+  const priceHow = createHowPricer(sheet.how, ["upgrades", "boosts"]);
 
   const render = (): void => {
     const view = getView();

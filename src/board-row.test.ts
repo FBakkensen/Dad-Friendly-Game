@@ -183,6 +183,40 @@ describe("the drawer row", () => {
       row.setIcon(undefined);
       expect(icon.hidden).toBe(true);
     });
+
+    it("setIconArt puts a part in the icon cell, and undefined brings the icon back (#455)", () => {
+      const row = make();
+      const icon = part(row, ".board-row-icon") as HTMLImageElement;
+      row.setIcon("worker.png");
+      const lamp = part(row, ".board-lamp");
+      /** The cell after the lamp: the icon's. */
+      const cell = (): Element | null => lamp.nextElementSibling;
+      const walk = document.createElement("span");
+      walk.className = "engineer-walk";
+      row.setIconArt(walk);
+      expect(row.root.querySelector("img.board-row-icon")).toBeNull();
+      // The part takes the img's place: after the lamp, before the middle.
+      expect(cell()).toBe(walk);
+      row.setIconArt(walk);
+      expect(row.root.querySelectorAll(".engineer-walk")).toHaveLength(1);
+      const other = document.createElement("span");
+      row.setIconArt(other);
+      expect(walk.isConnected).toBe(false);
+      expect(cell()).toBe(other);
+      row.setIconArt(undefined);
+      expect(other.isConnected).toBe(false);
+      expect(cell()).toBe(icon);
+      expect(icon.getAttribute("src")).toBe("worker.png");
+      row.setIconArt(undefined);
+      expect(cell()).toBe(icon);
+    });
+
+    it("setIconArt does nothing on a row with no icon (#455)", () => {
+      const row = make({ icon: false });
+      const walk = document.createElement("span");
+      row.setIconArt(walk);
+      expect(walk.isConnected).toBe(false);
+    });
   });
 
   describe("render", () => {

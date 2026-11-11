@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  CHEER_MS,
   DRAWER_SETTLE_MS,
   createBoardSheet,
   createSheetScrim,
@@ -987,6 +988,84 @@ describe("the drawer shell", () => {
       expect(kick.textContent).toBe(TROUBLE_FIXED);
       advance(100);
       expect(kick.textContent).toBe("New");
+    });
+
+    it("cheer stands in the kick, then gives way (#455)", () => {
+      const sheet = make({ name: "engineers", title: "Your engineers" });
+      const kick = part(sheet, ".board-sheet-kick");
+      sheet.kick("Send them exploring, or set them to tend a machine.");
+      sheet.open();
+      sheet.cheer("Ada heads to the drills!");
+      expect(kick.textContent).toBe("Ada heads to the drills!");
+      expect(kick.classList.contains("is-done")).toBe(true);
+      advance(CHEER_MS - 1);
+      expect(kick.textContent).toBe("Ada heads to the drills!");
+      advance(1);
+      expect(kick.textContent).toBe(
+        "Send them exploring, or set them to tend a machine.",
+      );
+      expect(kick.classList.contains("is-done")).toBe(false);
+      expect(CHEER_MS).toBe(2_200);
+    });
+
+    it("a second cheer replaces the first, and close drops it (#455)", () => {
+      const sheet = make({ name: "engineers", title: "Your engineers" });
+      const kick = part(sheet, ".board-sheet-kick");
+      sheet.kick("Resting");
+      sheet.open();
+      sheet.cheer("First");
+      advance(1_000);
+      sheet.cheer("Second");
+      expect(kick.textContent).toBe("Second");
+      advance(CHEER_MS - 1);
+      expect(kick.textContent).toBe("Second");
+      advance(1);
+      expect(kick.textContent).toBe("Resting");
+      sheet.cheer("Third");
+      sheet.close({ by: "program" });
+      expect(kick.textContent).toBe("Resting");
+      expect(kick.classList.contains("is-done")).toBe(false);
+      advance(CHEER_MS);
+      expect(kick.textContent).toBe("Resting");
+    });
+
+    it("kick() under a cheer changes only the resting line (#455)", () => {
+      const sheet = make({ name: "engineers", title: "Your engineers" });
+      const kick = part(sheet, ".board-sheet-kick");
+      sheet.kick("Old");
+      sheet.open();
+      sheet.cheer("Hooray");
+      sheet.kick("New");
+      expect(kick.textContent).toBe("Hooray");
+      advance(CHEER_MS);
+      expect(kick.textContent).toBe("New");
+    });
+
+    it("a fix's thanks wins over a cheer while it lasts (#455)", () => {
+      const sheet = make();
+      const kick = part(sheet, ".board-sheet-kick");
+      sheet.kick("Resting");
+      sheet.open();
+      sheet.cheer("Hooray");
+      fixed();
+      expect(kick.textContent).toBe(TROUBLE_FIXED);
+      advance(1_600);
+      expect(kick.textContent).toBe("Hooray");
+      advance(CHEER_MS - 1_600);
+      expect(kick.textContent).toBe("Resting");
+    });
+
+    it("an aborted signal takes the cheer's timer away (#455)", () => {
+      const abort = new AbortController();
+      const sheet = make({ signal: abort.signal });
+      const kick = part(sheet, ".board-sheet-kick");
+      sheet.kick("Resting");
+      sheet.open();
+      sheet.cheer("Hooray");
+      const timers = vi.getTimerCount();
+      abort.abort();
+      expect(vi.getTimerCount()).toBe(timers - 1);
+      expect(kick.textContent).toBe("Hooray");
     });
 
     it("thanks only the drawer the fix was in", () => {

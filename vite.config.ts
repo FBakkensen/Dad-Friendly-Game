@@ -399,6 +399,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/board-page.ts": {
+          statements: 100,
+          branches: 95,
+          functions: 100,
+          lines: 100,
+        },
         "src/ledger-parts.ts": {
           statements: 95,
           branches: 90,
