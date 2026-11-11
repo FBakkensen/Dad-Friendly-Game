@@ -1,21 +1,29 @@
 /* global console, document, innerWidth, innerHeight, getComputedStyle */
-/** Engineers and Workshop sections: the expedition chip and sheet, the Engineers sheet and the Workshop. */
+/** Engineers and Workshop sections: the expedition chip and sheet, the Engineers sheet, the Workshop drawer's states and its menu row. */
 import {
   awayTripSave,
   campPostsSave,
-  workshopSave,
+  chargePayoffSave,
+  firstCraftSave,
+  heartMountain,
   lockedWorkshopSave,
+  openMountain,
+  unknownBenchSave,
+  workshopSave,
 } from "../../tools/browser/fixtures.ts";
 import { check, section } from "./registry.mjs";
 import {
   PHONE,
   SCREENS,
-  press,
   KEY,
+  OPEN_SHEET,
   STANDALONE_INSETS,
   openScreen,
-  coversBoard,
+  openSheet,
   noScroll,
+  noteAway,
+  keysDrawn,
+  LAMP_X,
   shot,
 } from "./kit.mjs";
 
@@ -212,186 +220,239 @@ for (const viewport of [PHONE]) {
   });
 }
 
-/** Workshop sheet (#199): real numbers, no scroll, a dark sketch, a named refund. */
-const WORKSHOP_SIZES = SCREENS;
-
-for (const viewport of WORKSHOP_SIZES) {
-  section(`section 14 (line 1531) ${JSON.stringify(viewport)}`, async () => {
-    const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    const now = Date.now();
-    const { page, close } = await openScreen(viewport, workshopSave(now, true));
-    await press(page, KEY("ledger"));
-    await press(page, ".workshop-open");
-    const laid = await coversBoard(page, ".workshop-dialog");
-    const fit = await page.$eval(".workshop-dialog", (sheet) => {
-      const board = globalThis.__board();
-      // Crafts sit in a list that may scroll. Every other button stays on screen.
-      const buttons = [...sheet.querySelectorAll("button")].filter(
-        (button) =>
-          !button.hidden &&
-          button.getClientRects().length > 0 &&
-          button.closest(".workshop-recipes") === null,
-      );
-      const boxes = buttons.map((button) => {
-        const box = button.getBoundingClientRect();
+/** The open Workshop drawer as the dad reads it: bench, rows on the page, plates, kick (#374). */
+function workshopFacts(page) {
+  return page.$eval(OPEN_SHEET("workshop"), (sheet) => {
+    const text = (root, selector) =>
+      root.querySelector(selector)?.textContent ?? "";
+    const lamp = (root) =>
+      root.querySelector(".board-lamp")?.style.backgroundPositionX ?? "";
+    const shown = (el) => el.closest("[hidden]") === null;
+    const bench = sheet.querySelector(".workshop-bench");
+    const bar = bench?.querySelector(".workshop-bar");
+    const rows = [
+      ...sheet.querySelectorAll(".workshop-recipe, .workshop-sketch"),
+    ]
+      .filter(shown)
+      .map((row) => ({
+        id: row.dataset.recipe ?? "sketch",
+        classes: [...row.classList],
+        name: text(row, ".board-row-name"),
+        badge: text(row, ".board-row-badge"),
+        need: text(row, ".board-row-need"),
+        flag: text(row, ".board-row-flag"),
+        verb: text(row, ".board-row-verb"),
+        lamp: lamp(row),
+      }));
+    const box = sheet.getBoundingClientRect();
+    const plates = [...sheet.querySelectorAll(".workshop-mat")]
+      .filter(shown)
+      .map((plate) => {
+        const b = plate.getBoundingClientRect();
+        const word = plate.querySelector(".workshop-mat-word");
         return {
-          height: box.height / board.scale,
-          top: box.top,
-          bottom: box.bottom,
-          left: box.left,
-          right: box.right,
-          clipped: button.scrollWidth > button.clientWidth + 1,
-          text: button.textContent ?? "",
+          id: plate.dataset.material,
+          count: text(plate, ".workshop-mat-count"),
+          word: word !== null && shown(word) ? (word.textContent ?? "") : "",
+          inside:
+            b.left >= box.left - 0.5 &&
+            b.right <= box.right + 0.5 &&
+            b.top >= box.top - 0.5 &&
+            b.bottom <= box.bottom + 0.5,
         };
       });
-      const text = sheet.textContent ?? "";
-      const sketch = sheet.querySelector(".workshop-card.is-hidden");
-      const labels = [
-        ...sheet.querySelectorAll(".label, .workshop-craft, .workshop-cancel"),
-      ];
-      const typeOk = labels.every(
-        (node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 14.4,
-      );
-      const misses = boxes.filter(
-        (box) =>
-          !(
-            box.height >= 44 &&
-            box.top >= board.top &&
-            box.bottom <= board.saveTop &&
-            box.left >= board.left &&
-            box.right <= board.right &&
-            !box.clipped
-          ),
-      );
-      return {
-        boxesOk: misses.length === 0,
-        misses,
-        count: boxes.length,
-        text,
-        sketch: sketch?.textContent ?? "",
-        typeOk,
-        cancel: sheet.querySelector(".workshop-cancel")?.textContent ?? "",
-      };
-    });
-    const still = await noScroll(page);
-    check(
-      laid &&
-        still &&
-        fit.boxesOk &&
-        fit.count >= 3 &&
-        fit.typeOk &&
-        fit.text.includes("On the bench: Sturdy props") &&
-        fit.text.includes("left") &&
-        fit.text.includes("Lv 0/2") &&
-        fit.text.includes("500K stones") &&
-        fit.text.includes("Bench busy") &&
-        fit.cancel.includes("250K") &&
-        fit.cancel.includes("clay") &&
-        fit.cancel.includes("iron") &&
-        fit.text.includes("Axle grease") &&
-        fit.sketch === "A folded sketch, still in the dark." &&
-        !/[?]/.test(fit.text) &&
-        !/\d/.test(fit.sketch),
-      `${size} workshop sheet fits with real numbers`,
-    );
-    if (!fit.boxesOk || !still || !fit.typeOk) {
-      console.log("workshop fit", size, JSON.stringify(fit.misses), fit);
-    }
-    const timerSplit = await page.$eval(".workshop-dialog", (sheet) => {
-      const bench = sheet.querySelector(".workshop-bench");
-      const timers = sheet.querySelector(".workshop-timers");
-      return (
-        bench !== null &&
-        timers !== null &&
-        !bench.contains(timers) &&
-        !timers.hidden
-      );
-    });
-    check(timerSplit, `${size} the live timer sits apart from the bench`);
-    await shot(page, `workshop-busy-${size}`);
-    if (viewport[0] === 390) {
-      await page.tap(".workshop-cancel");
-      const armed = await page.$eval(
-        ".workshop-cancel",
-        (button) => button.textContent ?? "",
-      );
-      const stillBusy = await page.$eval(
-        ".workshop-bench",
-        (bench) => bench.textContent ?? "",
-      );
-      check(
-        armed === "Tap again to cancel" && stillBusy.includes("On the bench"),
-        `${size} cancel asks for a second tap`,
-      );
-      await shot(page, "workshop-cancel-confirm-424x924");
-      await page.tap(".workshop-cancel");
-      const freed = await page.$eval(
-        ".workshop-bench",
-        (bench) => bench.textContent ?? "",
-      );
-      check(
-        freed.includes("The bench is free"),
-        `${size} cancel clears the bench`,
-      );
-      await shot(page, "workshop-free-424x924");
-      if ((await page.$(".workshop-craft.is-short")) === null) {
-        const more = await page.$(".workshop-more:not([hidden])");
-        if (more !== null) {
-          await more.tap();
-        }
-      }
-      const short = await page.$(".workshop-craft.is-short");
-      const shortText = await page.$eval(".workshop-dialog", (sheet) =>
-        [...sheet.querySelectorAll(".workshop-need")].map(
-          (line) => line.textContent ?? "",
-        ),
-      );
-      check(
-        shortText.some(
-          (text) => text.startsWith("Need ") && text.includes(" more "),
-        ),
-        `${size} a short craft says what is missing`,
-      );
-      if (short !== null) {
-        await short.tap();
-      }
-      const shaking = await page.$eval(
-        ".workshop-dialog",
-        (sheet) => sheet.querySelector(".is-shaking") !== null,
-      );
-      check(shaking, `${size} a short craft shakes`);
-      await shot(page, "workshop-shake-424x924");
-      if (
-        (await page.$(
-          "[data-recipe='axle-grease'] .workshop-craft:not(.is-short)",
-        )) === null
-      ) {
-        const earlier = await page.$(".workshop-earlier:not([hidden])");
-        if (earlier !== null) {
-          await earlier.tap();
-        }
-      }
-      const ready = await page.$(
-        "[data-recipe='axle-grease'] .workshop-craft:not(.is-short)",
-      );
-      if (ready !== null) {
-        await ready.tap();
-      }
-      const hammer = await page.$eval(".workshop-bench", (bench) =>
-        bench.classList.contains("is-hammer"),
-      );
-      const floated = await page.$eval(
-        ".workshop-floats",
-        (host) => host.querySelectorAll(".float-chip").length,
-      );
-      check(
-        hammer && floated > 0,
-        `${size} a craft floats materials and taps the hammer`,
-      );
-      await shot(page, "workshop-hammer-424x924");
-    }
-    await close();
+    return {
+      kick: text(sheet, ".board-sheet-kick"),
+      bench: {
+        name: bench === null ? "" : text(bench, ".board-row-name"),
+        gain: bench === null ? "" : text(bench, ".board-row-gain"),
+        info: bench === null ? "" : text(bench, ".board-row-info"),
+        lamp: bench === null ? "" : lamp(bench),
+        bar:
+          bar === null || bar === undefined || !shown(bar)
+            ? -1
+            : Number(bar.getAttribute("aria-valuenow") ?? "-1"),
+      },
+      timers: (() => {
+        const line = sheet.querySelector(".workshop-timers");
+        return line === null || !shown(line) ? "" : (line.textContent ?? "");
+      })(),
+      rows,
+      more: (() => {
+        const more = sheet.querySelector(".workshop-more");
+        return more !== null && shown(more);
+      })(),
+      packed:
+        sheet
+          .querySelector(".workshop-mats")
+          ?.classList.contains("is-packed") === true,
+      plates,
+    };
   });
+}
+
+/** The next page, as a keyboard press does it (never early). */
+async function nextWorkshopPage(page) {
+  await page.$eval(`${OPEN_SHEET("workshop")} .workshop-more`, (more) => {
+    more.click();
+  });
+}
+
+/** Opens the save on held clocks, then the Workshop drawer by its key. */
+async function openWorkshop(viewport, save) {
+  const opened = await openScreen(viewport, save, {
+    stopClock: true,
+    tapClock: "held",
+  });
+  await keysDrawn(opened.page);
+  await noteAway(opened.page);
+  await openSheet(opened.page, "workshop");
+  return opened;
+}
+
+/** A row on the shown page, by its recipe. */
+const rowOf = (facts, id) => facts.rows.find((row) => row.id === id);
+
+// The Workshop drawer's states (#374), each on its own save with the clocks held: busy, free,
+// the first craft's New row, the first charge's payoff, a craft this build cannot name, and
+// the plates on two and four materials. Its rows, fit and art are the DRAWERS row's checks.
+for (const viewport of SCREENS) {
+  section(
+    `keys and drawers ${JSON.stringify(viewport)} workshop states`,
+    async () => {
+      const size = `${String(viewport[0])}x${String(viewport[1])}`;
+      const now = Date.now();
+      {
+        const { page, close } = await openWorkshop(
+          viewport,
+          workshopSave(now, true),
+        );
+        const busy = await workshopFacts(page);
+        const onBench = rowOf(busy, "sturdy-props");
+        const others = busy.rows.filter(
+          (row) => row.id !== "sturdy-props" && row.id !== "sketch",
+        );
+        await shot(page, `workshop-busy-${size}`);
+        await nextWorkshopPage(page);
+        const second = await workshopFacts(page);
+        const reinforce =
+          rowOf(busy, "reinforce") ?? rowOf(second, "reinforce");
+        check(
+          busy.bench.name === "Sturdy props" &&
+            /^\d+:\d\d$/.test(busy.bench.gain) &&
+            busy.bench.info.startsWith("Cancel · ") &&
+            busy.bench.lamp === LAMP_X.amber &&
+            busy.bench.bar > 0 &&
+            onBench?.verb === "On the bench" &&
+            onBench.lamp === LAMP_X.amber &&
+            others.length >= 1 &&
+            others.every((row) => row.verb === "Bench busy") &&
+            busy.timers.startsWith("Axle grease · ") &&
+            /^Lv \d+\/\d+$/.test(reinforce?.badge ?? ""),
+          `${size} workshop busy: the bench row names Sturdy props with its clock, refund and bar, its row is On the bench, the others Bench busy, the timers line and Reinforce's level`,
+        );
+        if (busy.bench.name !== "Sturdy props" || busy.bench.bar <= 0) {
+          console.log("workshop busy", size, JSON.stringify(busy));
+        }
+        await close();
+      }
+      {
+        const { page, close } = await openWorkshop(
+          viewport,
+          workshopSave(now, false),
+        );
+        const free = await workshopFacts(page);
+        await shot(page, `workshop-free-${size}`);
+        const axle = rowOf(free, "axle-grease");
+        const charge = rowOf(free, "blasting-charge");
+        await nextWorkshopPage(page);
+        const second = await workshopFacts(page);
+        check(
+          free.bench.name === "The bench is free" &&
+            free.bench.lamp === LAMP_X.green &&
+            free.bench.bar === -1 &&
+            axle?.classes.includes("is-ready") === true &&
+            axle.verb === "Craft" &&
+            charge?.classes.includes("is-short") === true &&
+            charge.need === "Need 2 more clay" &&
+            free.more &&
+            second.rows.some((row) => row.id === "sketch") &&
+            free.kick === "Turn your clay into gear for the crew.",
+          `${size} workshop free: a green free bench, axle grease to craft, the charge short by 2 clay, More to make with the sketch on page 2, and the teach intro`,
+        );
+        if (!free.more || axle === undefined || charge === undefined) {
+          console.log("workshop free", size, JSON.stringify(free));
+        }
+        await close();
+      }
+      {
+        const { page, close } = await openWorkshop(
+          viewport,
+          firstCraftSave(now),
+        );
+        const first = await workshopFacts(page);
+        check(
+          first.rows[0]?.id === "blasting-charge" &&
+            first.rows[0].classes.includes("teach-new") &&
+            first.rows[0].flag === "New",
+          `${size} workshop first craft: the blasting charge leads, flagged New`,
+        );
+        await close();
+      }
+      {
+        const { page, close } = await openWorkshop(
+          viewport,
+          chargePayoffSave(now),
+        );
+        const payoff = await workshopFacts(page);
+        const flag = rowOf(payoff, "blasting-charge")?.flag ?? "";
+        check(
+          /\/s now$/.test(flag) || flag === "Your crew feels it now",
+          `${size} workshop payoff: the charge's row shows what it pays (${flag})`,
+        );
+        await close();
+      }
+      {
+        const { page, close } = await openWorkshop(
+          viewport,
+          unknownBenchSave(now),
+        );
+        const unknown = await workshopFacts(page);
+        const recipes = unknown.rows.filter((row) => row.id !== "sketch");
+        check(
+          unknown.bench.name === "Something is on the bench" &&
+            !unknown.bench.info.includes("Cancel ·") &&
+            recipes.length >= 1 &&
+            recipes.every((row) => row.verb === "Bench busy"),
+          `${size} workshop unknown: something is on the bench, with no cancel, and every recipe waits`,
+        );
+        await close();
+      }
+      for (const [name, save, want] of [
+        ["mid", openMountain(), 2],
+        ["heart", heartMountain(), 4],
+      ]) {
+        const { page, close } = await openWorkshop(viewport, save);
+        const plates = await workshopFacts(page);
+        const packed = want > 2;
+        check(
+          plates.plates.length === want &&
+            plates.packed === packed &&
+            plates.plates.every(
+              (plate) =>
+                plate.inside &&
+                plate.count !== "" &&
+                (packed ? plate.word === "" : plate.word === plate.id),
+            ) &&
+            (packed ||
+              plates.plates.map((plate) => plate.id).join() === "clay,iron") &&
+            (await noScroll(page)),
+          `${size} workshop plates on ${name}: ${String(want)} plates${packed ? ", packed with no word" : ", clay and iron with their words"}, inside the drawer, no page scroll`,
+        );
+        await close();
+      }
+    },
+  );
 }
 
 section("section 15 (line 1703)", async () => {

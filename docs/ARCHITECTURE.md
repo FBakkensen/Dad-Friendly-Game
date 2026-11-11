@@ -54,13 +54,15 @@ page is the map, plus the rules that keep it that way.
    covers, else the cheapest one to save for with its time at the current
    speed, else a worker, or mined out) and `machine-bays` (C2's three bay
    tiers, each bay's view and lamp, and the flap digits). The key rail and
-   the drawers (#373) read four more, none of which imports art:
+   the drawers (#373, #374) read five more, none of which imports art:
    `row-view` (types only: one `RowView` for every drawer row: its words
    as fit options, lamp, state, and whether a tap acts), `buys-rows`
    (`buyRowView`: each Buys row's state, words, lamp and icon key, lifted
    out of `crew-panel`'s old render), `upgrade-rows` (the boost, lasting
    upgrade and found-tool rows, and `anyUpgradeAffordable` for the
-   Upgrades key's lit cap) and `key-rail` (`keyViews`: each key's cap
+   Upgrades key's lit cap), `workshop-rows` (#374: the Workshop's recipe,
+   sketch and bench rows and its material plates, from `workshop-sheet`'s
+   cards, bench and pages) and `key-rail` (`keyViews`: each key's cap
    (rest, locked or lit), sub-line (an unlock line, the bench clock or the
    soonest trip), red dot and label).
 2. **Saves:** `persist` (versioned save format and parser; an unknown recipe, bench, or crafted level is written back instead of dropped), `session-save`
@@ -229,13 +231,21 @@ page is the map, plus the rules that keep it that way.
    plate, Back, the slide, Escape and the thanks) and `createSheetScrim`
    (the board above the drawers: a tap closes them, and over a relic socket
    also shows its note). The shell holds no timer and no judge: it sends the
-   model `open`, `close`, `page` and `layout` and paints the view. Each
+   model `open`, `close`, `page` and `layout` and paints the view.
+   `BoardSheet.page()` (#374) is the one way a panel says "a new screen under
+   the finger": it starts the settle as the "i" does, so the next finger is
+   the second tap of the one that changed the screen. Each head key (Buys'
+   amount key, the Workshop's sound key) carries `board-sheet-key`. Each
    close says what closed it: `finger` (Back, the "i"'s way back),
    `keyboard` (Escape), `tap-through` (the scrim, which hands its tap on) or
-   `program` (a timer, the update prompt). Escape listens in the capture
+   `program` (a timer, the update prompt). A close that restores focus gives
+   it to the key the drawer opened from, or to the shell's `fallbackFocus`
+   while that key is disabled; a `restoreFocus: false` close never moves it,
+   so a card that covered the drawer keeps its own. Escape listens in the capture
    phase, so with the save drawer over a drawer it closes only the save
    drawer. `board-how-art` draws the How it works cards in the
-   drawer skin with the board's icons at 2x. `board-keys` is
+   drawer skin with the board's icons at 2x (the Workshop's hammer, a
+   24-art-px relic, at 48). `board-keys` is
    `createKeyRail`: five keys that draw `keyViews` and pass taps to
    `onKey`. The rail root has one capture-phase `pressOnBoard` listener
    that reads which key a click pressed; the model's decision (a press in
@@ -260,10 +270,28 @@ page is the map, plus the rules that keep it that way.
    rows that fit, then frozen with only their words changing) and
    `crew-rate` (`createRateCounter`: the crew line's rate counting up to its
    new value after a buy, 8 steps of 60ms, or at once under reduced motion).
-   The two drawers
+   `workshop-panel` builds the Workshop drawer (#374) the same way, from
+   `workshop-rows`' views and `workshop-parts` (the material plates, the bench
+   row with its bar and its cancel confirm, the Earlier / More to make pager
+   and the head's sound key; only the Workshop has them, so `board-row` and
+   `board-drawer` stay generic). It sends its order, the recipes as
+   `workshopOrder` ranks them, as the board model's `layout` for "workshop",
+   frozen as the drawer opens; pages slice that order, three recipes a page.
+   A tap on a busy bench arms the cancel and calls `page()`, so only a tap
+   past the settle cancels; left alone it disarms after 4s, at once when the
+   craft it was armed on (its recipe and start) goes, and when the screen's
+   `signal` aborts. The timers line keeps its room when empty (`is-empty`,
+   hidden by visibility), so no row moves as a timer starts or ends. Turning a page
+   calls `page()` too. Every craft and cancel is today's move (`craft`,
+   `cancelCraft`) through `dispatch`. It has two doors: the Workshop key, and
+   the menu's Workshop row until B7, which opens it from the Ledger key. Back
+   returns focus to the door it came from, or to the Ledger key (the shell's
+   `fallbackFocus`) while a re-load holds the Workshop key disabled. A save that turns out locked
+   closes it. The three drawers
    and the scrim sit in `.board-sheet-clip` at z 29, under the board note
    (30) and the save drawer (31). The clip is `overflow: clip`, so nothing
-   (not even script) can scroll it. `engineers-panel` and `menu-panel` take
+   (not even script) can scroll it. Opening one drawer closes the other two
+   (`wireKeys` in `screen-keys`). `engineers-panel` and `menu-panel` take
    a `door` (the Engineers and Ledger keys) instead of building their own
    buttons. `DRAWER_SETTLE_MS` (400ms, from `board-interaction`) is every
    drawer's guard, B4's Buys settle carried into the model, judged for the
@@ -317,11 +345,11 @@ page is the map, plus the rules that keep it that way.
   `renderStock` only sets the drums and the dial.
 
 - **Board tap rules (#410, #425, #426):** `board-interaction` is a pure reducer that
-  holds the board's tap rules once, run through `board-host`. The Buys and
-  Upgrades drawers, their shell and their rows, the key rail, the Ready now
+  holds the board's tap rules once, run through `board-host`. The Buys,
+  Upgrades and Workshop drawers, their shell and their rows, the key rail, the Ready now
   plate and the machine bays are painters of its view: they send it inputs
   and presses and read `boardView`; none holds a settle, a hold, a timer or
-  a freeze of its own. Every board control's "is down" look goes through `pressLook` (in `card-tap`), and each part paints its own look; Engineers' timed `is-pressed` flash stays its own until B6 (#374) rebuilds Engineers on the shared rows. `pressOnBoard` (in `card-tap`) is the one board
+  a freeze of its own. Every board control's "is down" look goes through `pressLook` (in `card-tap`), and each part paints its own look; Engineers' timed `is-pressed` flash stays its own until B6b (#455) rebuilds Engineers on the shared rows. `pressOnBoard` (in `card-tap`) is the one board
   press: it tracks a control's finger-down time, sends the model the press
   (the control, who pressed, the finger's `downAt` and the click) and hands
   back its decision. Its `control` is a `ControlRef` or a function of the
@@ -388,12 +416,11 @@ page is the map, plus the rules that keep it that way.
   and `aria-haspopup`, ending at least 8px above the save line. The column
   starts at `--column-top`, which is `--rail-top`. The New teach note is a
   slim sign (`board-sign`) over its key, with `pointer-events: none`; its
-  words go on the key's label. The Buys and Upgrades drawers
+  words go on the key's label. The Buys, Upgrades and Workshop drawers
   (`.board-drawer.board-sheet[data-sheet]`, open with `.is-open`) stand
   at `--sheet-top` (178px) down to the save line, so they cover the bays,
-  the plate and the rail and leave the odometer in view. Today's Workshop,
-  Engineers and menu sheets keep B2's `--board-top` (176px) until B6 and
-  B7. The crew line (`crew-panel`'s `section.crew`: sentence, chips and
+  the plate and the rail and leave the odometer in view. Today's Engineers
+  and menu sheets keep B2's `--board-top` (176px) until B6b (#455) and B7. The crew line (`crew-panel`'s `section.crew`: sentence, chips and
   Grandpa) is the "Crew" section at the top of the Buys drawer; Buys calls
   `layoutChips()` as it opens, so its chips are measured at the drawer's
   width, and while it is open the chip rows never wrap. A drawer's list
@@ -462,9 +489,10 @@ page is the map, plus the rules that keep it that way.
   screens × scenarios × rows × expectations into sections and checks, with
   each label built from data. The rail, the drawers per save and the bays per
   save are tables. The drawer list is `DRAWERS` in `drawers.mjs`: a new drawer
-  is a row there, with its own scroll rule. `controls.mjs` wires each control
+  is a row there, with its own scroll rule; the Workshop's row (#374) skips
+  the saves whose Workshop key is locked. `controls.mjs` wires each control
   family once in Chrome (the rail key, a row buy, Back and the scrim, the "i"
-  cards, Ready now, an open bay, the trouble fix, the red button and a press
+  cards, the Workshop bench's arm-then-confirm cancel, Ready now, an open bay, the trouble fix, the red button and a press
   look), on the held tap clock except the red button and the drawer's
   reduced-motion pages. What a tap decides is proven by unit tests, not
   there; a new family gets one wiring check. These modules wait on page
@@ -573,8 +601,8 @@ field-log` lists every log; `--uid` or a positional uid reads one. The default
   in [Numbers now](DESIGN.md#numbers-now)). Short hands read `Needs N workers ·
 M free`. The crew line, in the Crew section at the top of Buys, names where
   the workers are in its chips; a line that does not fit splits into even rows,
-  and the crew plate on the board is the only free count (#371). The Workshop's
-  Quiet/Sound toggle is the only sound control. Trouble stays out of the
+  and the crew plate on the board is the only free count (#371). The Workshop
+  drawer's Quiet/Sound head key is the only sound control. Trouble stays out of the
   snapshot: it is never saved. Choosing a post while a party is out records the
   recall and, when the new post is not the one they left, the station.
 - `lost-tools` (rules layer, pure): `hasLostTool`, `tapWithPick`, `glintScale`, `expeditionAwayMs`, `wearsSteelToes`. The old miner's lamp doubles a golden vein's glint (`veinGlintMs`). Keepsake stories live in `screen-words`. No new save field: the shelf is still `finds`. Built (#148).
@@ -624,7 +652,7 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   clears materials, the bench, crafted gear, and a hot charge. Built (#195,
   #196).
 - `workshop` (rules layer, pure): one bench. A recipe this build cannot name
-  still occupies it until its clock ends (`unknownBench`): the sheet counts it
+  still occupies it until its clock ends (`unknownBench`): the drawer counts it
   down, offers no refund, and a new craft waits. Once that clock has rung, a
   known craft may take the bench. `startCraft` spends stones and materials when
   the Granite is open, the recipe is known, and the pocket can pay.
@@ -633,7 +661,7 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   its effect has not started, and only the unused share of a live timer (axle
   grease, a blasting charge, a crystal flare, a heartstone ember). A craft whose
   clock has already rung is fitted instead. `cancelRefund` and `hotTimers` are
-  what the sheet reads. Rails, bits, the core, and Reinforce (max 5) multiply
+  what the drawer reads. Rails, bits, the core, and Reinforce (max 5) multiply
   tier speed in `effectiveRates`. A blasting charge doubles the live crew until
   `chargeUntil`. Axle grease doubles the live crew until `axleUntil`, including
   while it is still on the bench. Axle grease, a blasting charge, and Overtime
@@ -645,15 +673,16 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   makes golden veins more often for good. The engineer's kit shortens the next
   expedition. Strength and cost factors (`recipe.<id>.strength`,
   `recipe.<id>.cost`) default to 1; strength also scales a timed buff's length.
-  Built (#196, #198, #210). The sheet is `workshop-panel` (#199): opened from
-  the Workshop key on the rail (locked until the Granite's clay, #373) or the
-  menu the Ledger key opens, which shows "Workshop · opens as the clay comes in"
-  before that, four cards to a page so a short phone does not scroll, real costs
-  and effects, a shake when the pocket is short, materials that float to the
-  bench, a quiet hammer until Sound is on, and a cancel that names the refund. A
-  grease or charge card says "Crew already at ×2" when another crew timer is
+  Built (#196, #198, #210). The Workshop is `workshop-panel` (#199; a board
+  drawer since #374, above): opened from the Workshop key on the rail (locked
+  until the Granite's clay, #373) or the menu the Ledger key opens, which shows
+  "Workshop · opens as the clay comes in" before that. Three recipes a page, so
+  the list fits the drawer with no scroll (the #347 measure-then-page went),
+  real costs and effects, a red blink when a craft cannot start, a quiet hammer
+  until Sound is on, and a cancel on the bench row that names the refund. A
+  grease or charge row says "Crew already at ×2" when another crew timer is
   already that strong, and otherwise names the crew in whole stones like the
-  header (`formatCrewSpeed`, #332). The countdown keeps running while the sheet
+  header (`formatCrewSpeed`, #332). The countdown keeps running while the drawer
   is shut.
 - Panels: `engineers-panel` is the Engineers sheet (#161): one open card and
   one-line rows, Tend and Send exploring choice lists, a cheer toast, and the

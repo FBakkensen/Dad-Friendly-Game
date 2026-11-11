@@ -129,6 +129,49 @@ export function workshopSave(now: number, busy: boolean): SeedV6 {
   };
 }
 
+/** The free bench with 10 clay: the charge can be crafted, and the Workshop is not taught (#374). */
+export function firstCraftSave(now: number): SeedV6 {
+  const save = workshopSave(now, false);
+  return {
+    ...save,
+    workshop: {
+      ...save.workshop,
+      materials: { ...save.workshop.materials, clay: 10 },
+    },
+  };
+}
+
+/** The first charge working: its row shows the payoff (#374). */
+export function chargePayoffSave(now: number): SeedV6 {
+  const save = workshopSave(now, false);
+  return {
+    ...save,
+    workshop: {
+      ...save.workshop,
+      crafted: { "blasting-charge": 1 },
+      chargeUntil: now + 20 * 60_000,
+      seen: ["workshop"],
+      taught: ["workshop"],
+    },
+  };
+}
+
+/** A craft this build cannot name on the bench, as a newer build writes it (#374). */
+export function unknownBenchSave(now: number): SeedV6 {
+  const save = workshopSave(now, false);
+  return {
+    ...save,
+    workshop: {
+      ...save.workshop,
+      bench: {
+        recipe: "steam-whistle",
+        startedAt: now - 60_000,
+        endsAt: now + 9 * 60_000,
+      },
+    },
+  };
+}
+
 const EMPTY_WORKSHOP: SeedWorkshop = {
   materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
   recipes: ["iron-rails", "sturdy-props", "blasting-charge"],

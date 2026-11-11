@@ -9,7 +9,6 @@ import {
   timerLines,
   workshopCards,
   workshopPages,
-  SHORT_WORKSHOP_PAGE,
   type RecipeCard,
   type WorkshopCard,
 } from "./workshop-sheet";
@@ -136,11 +135,9 @@ describe("workshop sheet (#199)", () => {
       "A folded sketch, still in the dark.",
     );
     expect(hidden?.kind === "hidden" ? hidden.hint : "x").not.toMatch(/[0-9?]/);
-    expect(workshopPages(cards)).toHaveLength(2);
-    expect(workshopPages(cards)[0]).toHaveLength(4);
-    // A short phone whose four cards overflow takes three a page (#347).
-    expect(workshopPages(cards, SHORT_WORKSHOP_PAGE)[0]).toHaveLength(3);
-    expect(workshopPages(cards, SHORT_WORKSHOP_PAGE).flat()).toEqual(cards);
+    // Three a page, always (#374).
+    expect(workshopPages(cards)[0]).toHaveLength(3);
+    expect(workshopPages(cards).flat()).toEqual(cards);
   });
 
   it("names a big machine's speed in whole stones, a small one to a tenth (#347)", () => {
@@ -237,6 +234,7 @@ describe("workshop sheet (#199)", () => {
       title: "Something is on the bench · 9:00 left",
       aside: "It keeps working while you rest.",
       progress: 0.1,
+      clock: "9:00",
     });
     expect(benchLeftMs(held, 60_000)).toBe(540_000);
     expect(recipe(workshopCards(held, 60_000), "iron-rails").action.kind).toBe(
@@ -373,6 +371,44 @@ describe("workshop sheet (#199)", () => {
       recipe(workshopCards(flareHot, 1_000), "heartstone-ember").effect,
     ).toMatch(/keeps this lift/);
     expect(timerLines(shed(), 0)).toEqual([]);
+  });
+});
+
+describe("the drawer's bench clock, stones tag and pages (#374)", () => {
+  const started = (): Mountain => ({
+    ...shed({ materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 } }),
+    bench: { recipe: "sturdy-props", startedAt: 0, endsAt: 600_000 },
+  });
+
+  it("gives a busy bench its clock, or ready once it has rung", () => {
+    const busy = benchView(started(), 600_000 - 492_000);
+    expect(busy.kind === "busy" && busy.clock).toBe("8:12");
+    const rung = benchView(started(), 600_000);
+    expect(rung.kind === "busy" && rung.clock).toBe("ready");
+  });
+
+  it("gives an unknown bench its clock", () => {
+    const held = shed({
+      kept: {
+        bench: { recipe: "future-bit", startedAt: 0, endsAt: 600_000 },
+      },
+    });
+    const unknown = benchView(held, 108_000);
+    expect(unknown.kind === "unknown" && unknown.clock).toBe("8:12");
+  });
+
+  it("tags a craft that spends stones with the stones, and one that does not with nothing", () => {
+    const cards = workshopCards(shed(), 1_000);
+    expect(recipe(cards, "iron-rails").stonesTag).toBe("500K");
+    expect(recipe(cards, "reinforce").stonesTag).toBeUndefined();
+  });
+
+  it("pages any list, not only cards", () => {
+    expect(workshopPages(["a", "b", "c", "d", "e"], 3)).toEqual([
+      ["a", "b", "c"],
+      ["d", "e"],
+    ]);
+    expect(workshopPages([] as readonly string[], 3)).toEqual([[]]);
   });
 });
 

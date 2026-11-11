@@ -11,6 +11,5 @@
   "src/progress-store.ts#createProgressStore>applyRemote": 23,
   "src/progress-store.ts#createProgressStore>prepareLocal": 18,
   "src/save-merge.ts#mergeSaves": 16,
-  "src/welcome-panel.ts#createWelcomePanel>renderWelcome": 23,
-  "src/workshop-panel.ts#createWorkshopPanel>render": 28
+  "src/welcome-panel.ts#createWelcomePanel>renderWelcome": 23
 }

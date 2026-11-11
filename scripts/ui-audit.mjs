@@ -122,8 +122,13 @@ async function expectText(page, pattern, label) {
 async function showRecipe(page, name) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const has = await page.$eval(
-      ".workshop-recipes",
-      (el, wanted) => (el.textContent ?? "").includes(wanted),
+      `${OPEN_SHEET("workshop")} .board-sheet-list`,
+      (list, wanted) =>
+        [
+          ...list.querySelectorAll(
+            ".workshop-recipe:not([hidden]), .workshop-sketch:not([hidden])",
+          ),
+        ].some((row) => (row.textContent ?? "").includes(wanted)),
       name,
     );
     if (has) {
@@ -136,13 +141,15 @@ async function showRecipe(page, name) {
     await more.tap().catch(async () => {
       await more.click();
     });
+    // Each page settles as the drawer did (#374): the next tap comes after it.
+    await new Promise((resolve) => setTimeout(resolve, 450));
   }
   throw new Error(`recipe not visible: ${name}`);
 }
 
 /** A key on the rail (#373): buys, workshop, engineers, upgrades or ledger. */
 const KEY = (id) => `.board-key[data-key="${id}"]`;
-/** An open drawer (#373): buys or upgrades. */
+/** An open drawer (#373, #374): buys, upgrades or workshop. */
 const OPEN_SHEET = (name) => `.board-sheet[data-sheet="${name}"].is-open`;
 
 /** A play save from tools/browser/fixtures.ts, as the browser's storage holds it. */
@@ -152,7 +159,7 @@ const seeded = (save) => JSON.parse(seedJson(save));
  * Opens a drawer by its key and waits for its slide to end, so the shot and
  * the measures see it where it rests.
  * @param {import("puppeteer-core").Page} page
- * @param {"buys" | "upgrades"} name
+ * @param {"buys" | "upgrades" | "workshop"} name
  */
 async function openDrawer(page, name) {
   await press(page, KEY(name));
@@ -177,11 +184,7 @@ async function openMenu(page) {
 
 /** @param {import("puppeteer-core").Page} page */
 async function openWorkshop(page) {
-  await openMenu(page);
-  await press(page, ".workshop-open");
-  await page.waitForSelector(".workshop-dialog:not([hidden])", {
-    timeout: 8_000,
-  });
+  await openDrawer(page, "workshop");
 }
 
 /** @param {string} file */
@@ -471,7 +474,7 @@ async function collect(page) {
       ".board-dig-button",
       ".go",
       ".board-row.upgrade",
-      ".workshop-craft",
+      ".workshop-recipe",
       ".welcome-continue",
       ".layer-dig",
       ".reveal-continue",
@@ -529,7 +532,7 @@ async function collect(page) {
       card: [
         ".tier",
         ".upgrade",
-        ".workshop-card",
+        ".workshop-recipe",
         ".save-card",
         ".saved-copy",
         ".welcome-card",
@@ -544,13 +547,7 @@ async function collect(page) {
         ".shelf-card",
         ".legacy-card",
       ],
-      chip: [
-        ".boost-chip",
-        ".material-bit",
-        ".expedition-chip",
-        ".float-chip",
-        ".cost-bit",
-      ],
+      chip: [".boost-chip", ".material-bit", ".expedition-chip"],
       timer: [".workshop-timers", ".workshop-bar", ".boost"],
       notice: [
         ".craft-notice",
@@ -998,14 +995,15 @@ async function main() {
   await capture("workshop-crafting", async (viewport) => {
     const opened = await openAuditPage(viewport, crafting());
     await openWorkshop(opened.page);
-    await expectText(opened.page, /On the bench/, "crafting");
+    // The verb is uppercased on screen (.board-row-verb), and innerText reads it so.
+    await expectText(opened.page, /On the bench/i, "crafting");
     await expectText(opened.page, /\d:\d\d/, "crafting timer");
     return opened;
   });
   await capture("workshop-cancel", async (viewport) => {
     const opened = await openAuditPage(viewport, crafting());
     await openWorkshop(opened.page);
-    await press(opened.page, ".workshop-cancel");
+    await press(opened.page, ".workshop-bench");
     await expectText(opened.page, /Tap again to cancel/, "cancel");
     return opened;
   });
@@ -1016,11 +1014,32 @@ async function main() {
     await expectText(opened.page, /Reinforce/, "reinforce");
     return opened;
   });
-  await capture("workshop-axle-grease", async (viewport) => {
-    const opened = await openAuditPage(viewport, rest());
+  await capture("workshop-sketch", async (viewport) => {
+    // The lamp and the kit not found yet: the one dark Sketch row on the last page.
+    const opened = await openAuditPage(
+      viewport,
+      late(
+        Date.now(),
+        130_000_000,
+        {},
+        {
+          recipes: [
+            "iron-rails",
+            "sturdy-props",
+            "blasting-charge",
+            "reinforce",
+            "axle-grease",
+            "diamond-bits",
+            "crystal-flare",
+            "heartstone-core",
+            "heartstone-ember",
+          ],
+        },
+      ),
+    );
     await openWorkshop(opened.page);
-    await showRecipe(opened.page, "Axle grease");
-    await expectText(opened.page, /Axle grease/, "axle");
+    await showRecipe(opened.page, "Sketch");
+    await expectText(opened.page, /Sketch/, "sketch");
     return opened;
   });
   await capture("workshop-need-more", async (viewport) => {

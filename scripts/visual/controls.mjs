@@ -5,6 +5,7 @@ import {
   openMountain,
   heartMountain,
   savingMountain,
+  workshopSave,
   SAVE_KEY,
 } from "../../tools/browser/fixtures.ts";
 import { stepTapClock } from "../../tools/browser/harness.ts";
@@ -35,7 +36,7 @@ import { boardTargets } from "./measure.mjs";
 
 // One wiring check per control family (#441), each pressed by a real finger
 // (or the mouse) in Chrome: a rail key, a drawer row's buy, the ways out of a
-// drawer, the "i" cards, Ready now, an open bay, a troubled bay's fix and the
+// drawer, the "i" cards, the Workshop bench's arm-then-confirm (#374), Ready now, an open bay, a troubled bay's fix and the
 // red button, and the drawer's first frame under reduced motion. The decisions
 // behind them (double taps, holds, settles, blinks) are unit tests. Then the
 // press look (#432): a held rail key shows is-down, and its rest frame after
@@ -312,6 +313,68 @@ for (const viewport of SCREENS) {
           early,
           opened,
         });
+      }
+      await close();
+    }
+
+    // Arm, then confirm (#374): past the settle a tap on the busy bench asks
+    // for a second, which counts only past the settle the arming started.
+    {
+      const { page, close } = await openScreen(
+        viewport,
+        workshopSave(Date.now(), true),
+        { stopClock: true, tapClock: "held" },
+      );
+      await keysDrawn(page);
+      await noteAway(page);
+      await openSheet(page, "workshop");
+      await stepTapClock(page, PAST_SETTLE_MS);
+      const bench = `${OPEN_SHEET("workshop")} .workshop-bench`;
+      const storedBench = () =>
+        page.evaluate(
+          (key) =>
+            JSON.parse(localStorage.getItem(key) ?? "{}").workshop?.bench ??
+            null,
+          SAVE_KEY,
+        );
+      await press(page, bench);
+      const armed = await page
+        .waitForFunction(
+          (selector) =>
+            document.querySelector(`${selector} .board-row-why`)
+              ?.textContent === "Tap again to cancel",
+          { timeout: 2_000 },
+          bench,
+        )
+        .then(
+          () => true,
+          () => false,
+        );
+      const handled = await clickHandled(page);
+      await press(page, bench);
+      await handled();
+      await framesPainted(page, 1);
+      const kept = (await storedBench()) !== null;
+      await stepTapClock(page, PAST_SETTLE_MS);
+      await press(page, bench);
+      const cancelled = await page
+        .waitForFunction(
+          (key) =>
+            JSON.parse(localStorage.getItem(key) ?? "{}").workshop?.bench ===
+            undefined,
+          { timeout: 2_000 },
+          SAVE_KEY,
+        )
+        .then(
+          () => true,
+          () => false,
+        );
+      check(
+        armed && kept && cancelled,
+        `${label} workshop: past the settle a tap on the busy bench asks "Tap again to cancel", a second tap at once cancels nothing, and one past the settle cancels the craft`,
+      );
+      if (!armed || !kept || !cancelled) {
+        console.log("workshop cancel", size, { armed, kept, cancelled });
       }
       await close();
     }

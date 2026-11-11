@@ -9,7 +9,7 @@ import type { ScreenCtx } from "./screen-context";
 
 /**
  * The New sign, what a card does to the drawers and the note, and the key rail's paint. The
- * root hands in the board note, the rail, the cards and the two drawers.
+ * root hands in the board note, the rail, the cards and the drawers.
  */
 export function createOverlays(
   ctx: ScreenCtx,

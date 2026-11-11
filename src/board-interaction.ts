@@ -53,7 +53,10 @@ export type BoardInput =
       readonly at: number;
       readonly by: CloseBy;
     }
-  /** The "i" cards in or out: a new screen under the finger, so the settle starts again. */
+  /**
+   * A new screen under the finger (the "i" cards, a Workshop page, an armed cancel), so the
+   * settle starts again.
+   */
   | { readonly kind: "page"; readonly overlay: OverlayId; readonly at: number }
   /** What a drawer should show now; an open drawer keeps what it froze. */
   | {
