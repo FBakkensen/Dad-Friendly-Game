@@ -42,7 +42,7 @@ import {
 import { emit, runStep } from "./store-session";
 
 /** Stops following the cloud: late answers from the old watch are dropped. */
-export function stopWatch(ctx: StoreContext): void {
+function stopWatch(ctx: StoreContext): void {
   resetWrite(ctx);
   cancelRetry(ctx.listenRetry);
   ctx.hydrateGeneration += 1;
@@ -54,7 +54,7 @@ export function stopWatch(ctx: StoreContext): void {
 }
 
 /** Signed out: play the guest's session save on this device, if there is one. */
-export function resumeFromSession(ctx: StoreContext): void {
+function resumeFromSession(ctx: StoreContext): void {
   stopWatch(ctx);
   const storage = ctx.ports.storage;
   const stored =
@@ -180,7 +180,7 @@ function prepareLocal(ctx: StoreContext, uid: string): void {
 }
 
 /** Signed in: bring the phone's copies up, then watch the cloud document. */
-export function startCloudWatch(ctx: StoreContext): void {
+function startCloudWatch(ctx: StoreContext): void {
   const uid = uidOf(ctx);
   if (uid === undefined) {
     resumeFromSession(ctx);

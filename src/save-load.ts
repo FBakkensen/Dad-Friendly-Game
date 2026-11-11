@@ -221,7 +221,7 @@ function provisional(ctx: StoreContext, remote: CloudLoadResult): boolean {
   return false;
 }
 
-export function applyRemote(ctx: StoreContext, remote: CloudLoadResult): void {
+function applyRemote(ctx: StoreContext, remote: CloudLoadResult): void {
   if (ctx.saveConflict !== undefined) {
     remoteUnderConflict(ctx, remote);
     return;

@@ -67,7 +67,7 @@ export type CraftNotice = {
 };
 
 /** What this open has to tell, and has not shown yet. None of it is saved. */
-export type SessionNews = {
+type SessionNews = {
   readonly away: AwayReport | undefined;
   readonly quietAway: number | undefined;
   readonly awayGap: AwayGap | undefined;
@@ -87,7 +87,7 @@ export type SessionNews = {
  * Where news was last checked. Unset until a save is loaded, so relics,
  * bands and crafts already in a loaded save are never announced again.
  */
-export type Baselines = {
+type Baselines = {
   readonly reveal: number | undefined;
   readonly layer: number | undefined;
   readonly craft: Readonly<Partial<Record<RecipeId, number>>> | undefined;
@@ -102,7 +102,7 @@ export type Session = {
 };
 
 /** A change to commit, and what the move did, for the field log. */
-export type MountainChange = {
+type MountainChange = {
   readonly mountain: Mountain;
   readonly events: readonly MoveEvent[];
 };
@@ -210,7 +210,7 @@ export function troubleMark(session: Session): string {
 }
 
 /** The band and the crafted levels, before away pay moves them. */
-export function primeArrivals(session: Session): Session {
+function primeArrivals(session: Session): Session {
   return {
     ...session,
     baselines: {

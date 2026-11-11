@@ -82,7 +82,7 @@ export function resetWrite(ctx: StoreContext): void {
 }
 
 /** A write is queued or in flight. */
-export function writeUnderway(ctx: StoreContext): boolean {
+function writeUnderway(ctx: StoreContext): boolean {
   return ctx.write.kind === "queued" || ctx.write.kind === "flying";
 }
 

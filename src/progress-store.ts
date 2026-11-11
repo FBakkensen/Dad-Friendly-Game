@@ -78,7 +78,7 @@ export type Dispatch = (move: StoreMove) => DispatchResult;
 type StoreMove = Exclude<Move, { readonly kind: "fixTrouble" }>;
 
 /** The layout check's previews: the dev boot (`?trouble=cave-in`, `?saves=two`) and tests only. */
-export type StorePreview = {
+type StorePreview = {
   /** Shows trouble immediately, because trouble is never part of a save. */
   readonly trouble: (tier: TroubleTier) => void;
   /** Shows the conflict sheet without a second device. */

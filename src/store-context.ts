@@ -23,7 +23,7 @@ import {
 } from "./session";
 import type { TabWriter } from "./tab-writer";
 
-export type SaveKind = "unsigned" | "session" | "loading" | "account" | "error";
+type SaveKind = "unsigned" | "session" | "loading" | "account" | "error";
 
 export type ProgressSnapshot = {
   readonly mountain: Mountain;
@@ -93,7 +93,7 @@ type Timer = ReturnType<typeof setTimeout>;
  * waits out the gap between writes. `expedite` sends the next write as soon
  * as nothing is in flight (hide, a new run, a fresh read's result).
  */
-export type CloudWrite =
+type CloudWrite =
   | { readonly kind: "clean"; readonly expedite: boolean }
   | { readonly kind: "dirty"; readonly expedite: boolean }
   | {
@@ -112,7 +112,7 @@ export type CloudWrite =
  * count as seeing it. While a fresh read is in flight (`holding`), cloud
  * writes and the crew's pay wait; the phone backup does not.
  */
-export type ServerRead =
+type ServerRead =
   | { readonly kind: "unseen" }
   | { readonly kind: "seen" }
   | { readonly kind: "holding"; readonly wasSeen: boolean };
@@ -132,7 +132,7 @@ export type StorePorts = {
 };
 
 /** Calls that point back up the module stack, wired by `createProgressStore`. */
-export type StoreHooks = {
+type StoreHooks = {
   readonly emit: () => void;
   /** A rev the rules refused: read the server copy, merge, write one higher. */
   readonly reconcile: (
@@ -187,7 +187,7 @@ export type StoreContext = {
 
 /** First wait after a listener error, then double, capped. */
 export const LISTEN_BACKOFF_START_MS = 1_000;
-export const LISTEN_BACKOFF_MAX_MS = 30_000;
+const LISTEN_BACKOFF_MAX_MS = 30_000;
 
 export function createStoreContext(
   ports: StorePorts,

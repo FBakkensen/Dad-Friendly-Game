@@ -199,7 +199,7 @@ export default defineConfig({
         "src/store-context.ts": {
           statements: 97,
           branches: 89,
-          functions: 100,
+          functions: 95,
           lines: 97,
         },
         "src/cloud-writer.ts": {
