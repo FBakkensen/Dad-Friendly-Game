@@ -36,7 +36,8 @@ const section = (label, run) => {
  * A table of scenario x screen x expectation (#441), turned into section()
  * and check() calls. `open(viewport, scenario)` gives `{ close, ...page }`;
  * each row (default: one empty row) may `enter` before its expectations and
- * `leave` after; a row or expectation whose `when` is false is skipped. Each
+ * `leave` after; a row whose `when(scenario, viewport)` or an expectation
+ * whose `when(at)` is false is skipped. Each
  * expectation's `run(at)` returns `[[ok, tail], ...]`, recorded as
  * `${prefix(at)} ${tail}`. `per: "scenario"` registers a section per screen
  * and scenario, `per: "screen"` one per screen that runs every scenario in

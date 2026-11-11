@@ -376,7 +376,7 @@ for (const viewport of SCREENS) {
           () => false,
         );
       // Let the board's loop step a few frames over the empty window.
-      await framesPainted(page, 3);
+      await framesPainted(page, 12);
       const seen = await page.evaluate(
         (parts) => ({
           parts: parts.filter((part) =>

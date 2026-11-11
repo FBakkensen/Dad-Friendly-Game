@@ -418,7 +418,7 @@ async function framesPainted(page, count) {
 
 /**
  * Arms a capture click listener on the window before a tap. The function it gives waits for
- * that click and the frame painted after it: true when the tap was handled within 2 s. A
+ * that click and the next animation frame after it: true when the tap was handled within 2 s. A
  * check that nothing opened needs it, so it cannot pass on a tap that never landed.
  */
 async function clickHandled(page) {

@@ -282,11 +282,12 @@ for (const viewport of SCREENS) {
       }, back);
       const engineersShown = () =>
         page.$eval(".engineers-dialog", (dialog) => !dialog.hidden);
-      // The tap is handled (its click dispatched, a frame painted) before
-      // nothing having opened counts.
+      // The tap is handled (its click dispatched, the next frame reached, one
+      // more painted) before nothing having opened counts.
       const handled = await clickHandled(page);
       await tapBoard(page, back.x, back.y);
       const landed = await handled();
+      await framesPainted(page, 1);
       const early =
         landed &&
         (await page.$(".board-sheet.is-open")) === null &&
