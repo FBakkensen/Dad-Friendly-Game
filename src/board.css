@@ -868,6 +868,12 @@ body {
   image-rendering: pixelated;
 }
 
+/* The Gold rush's icon is the middle of the sparkle strip's first frame. */
+.board-running .rush-chip img {
+  object-fit: cover;
+  object-position: calc(var(--art) * -3) 0;
+}
+
 .board-running .effect-name {
   position: static;
   display: inline;
@@ -1279,6 +1285,15 @@ body {
   background-size: calc(var(--art) * 184) calc(var(--art) * 24);
 }
 
+/* The Gold rush's sparkles over the face (#468): four 48px frames. */
+.board-window-view > .board-window-rush {
+  left: calc(var(--art) * 40);
+  top: calc(var(--art) * 20);
+  width: calc(var(--art) * 48);
+  height: calc(var(--art) * 32);
+  background-size: calc(var(--art) * 192) calc(var(--art) * 32);
+}
+
 .board-dig-plus {
   font-size: var(--board-type-14);
   line-height: var(--board-type-14);
@@ -1342,12 +1357,13 @@ body {
 
 /* The vein's payout and the quiet away line, in the board note under the
    window: one line in the Legacy plate's condensed face, so the note ends
-   well above the key rail and never covers a key (#371, #373). */
+   well above the key rail and never covers a key (#371, #373). A quick
+   vein's Gold rush takes a second line of its own (#468). */
 .vein-note {
   margin: 0;
   font-family: "Barlow Condensed", sans-serif;
   font-weight: 700;
-  white-space: nowrap;
+  white-space: pre;
   color: var(--board-amber-bare);
 }
 

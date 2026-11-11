@@ -39,6 +39,7 @@ const SCENE: WindowScene = {
   borers: 0,
   trouble: undefined,
   legacy: false,
+  rush: false,
 };
 
 const scene = (over: Partial<WindowScene>): WindowScene => ({
@@ -251,6 +252,7 @@ describe("createMineWindow", () => {
     expect(shown(win, ".board-window-machine")).toBe(false);
     expect(shown(win, ".board-window-kid")).toBe(false);
     expect(shown(win, ".board-window-cave-in")).toBe(false);
+    expect(shown(win, ".board-window-rush")).toBe(false);
     expect(shown(win, ".board-legacy")).toBe(false);
 
     win.render(
@@ -263,6 +265,7 @@ describe("createMineWindow", () => {
         kid: true,
         trouble: "cart",
         legacy: true,
+        rush: true,
       }),
     );
     expect(shown(win, ".board-window-drill")).toBe(true);
@@ -271,10 +274,12 @@ describe("createMineWindow", () => {
     expect(shown(win, ".board-window-machine")).toBe(true);
     expect(shown(win, ".board-window-kid")).toBe(true);
     expect(shown(win, ".board-window-cave-in")).toBe(true);
+    expect(shown(win, ".board-window-rush")).toBe(true);
     expect(shown(win, ".board-legacy")).toBe(true);
 
     win.render(scene({ drill: true, drills: 1, trouble: "drill" }));
     expect(shown(win, ".board-window-cave-in")).toBe(false);
+    expect(shown(win, ".board-window-rush")).toBe(false);
   });
 
   it("a dig shows +N over the default spot, rising a pixel each 70ms, then goes", () => {
@@ -406,6 +411,14 @@ describe("createMineWindow", () => {
     expect(el(win, ".board-window-cave-in").style.backgroundPositionX).toBe(
       "-276px",
     );
+  });
+
+  it("under reduced motion the Gold rush holds its first sparkle", () => {
+    motion(true);
+    const { win } = make();
+    win.render(scene({ rush: true }));
+    win.tick(0.3);
+    expect(el(win, ".board-window-rush").style.backgroundPositionX).toBe("0px");
   });
 
   it("under reduced motion the first borer is simply uncovered", () => {
@@ -575,12 +588,13 @@ describe("the window's stacking", () => {
     expect(zIndex(win, ".board-window-tub")).toBe("1");
     expect(zIndex(win, ".board-window-miner")).toBe("2");
 
-    // after it, in the spec's order and none raised above it: cave-in, fill, puff, +N, glass
+    // after it, in the spec's order and none raised above it: cave-in, rush, fill, puff, +N, glass
     const view = el(win, ".board-window-view");
     const layers = [...view.children].map((c) => c.className.split(" ")[0]);
     expect(layers.slice(layers.indexOf("board-window-run"))).toEqual([
       "board-window-run",
       "board-window-cave-in",
+      "board-window-rush",
       "board-window-fill",
       "board-dig-dust",
       "board-dig-plus",
@@ -588,6 +602,7 @@ describe("the window's stacking", () => {
     ]);
     for (const later of [
       ".board-window-cave-in",
+      ".board-window-rush",
       ".board-window-fill",
       ".board-dig-dust",
       ".board-dig-plus",

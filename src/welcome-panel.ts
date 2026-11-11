@@ -12,6 +12,7 @@ interface WelcomeParts {
   readonly minedCount: HTMLElement;
   readonly minedUnit: HTMLElement;
   readonly detail: HTMLElement;
+  readonly rush: HTMLElement;
   readonly ore: HTMLElement;
   readonly oreArt: HTMLImageElement;
   readonly oreLine: HTMLElement;
@@ -44,6 +45,7 @@ function welcomeParts(): WelcomeParts {
     minedCount,
     minedUnit,
     detail: cardLine("welcome-detail"),
+    rush: cardLine("welcome-rush"),
     ore,
     oreArt,
     oreLine,
@@ -69,6 +71,7 @@ function paintAway(parts: WelcomeParts, away: WelcomeAway | undefined): void {
   write(parts.minedUnit, away?.mined.unit ?? "");
   hide(parts.mined, away === undefined);
   paintLine(parts.detail, away?.gone);
+  paintLine(parts.rush, away?.rush);
   paintLine(parts.cheer, away?.cheer);
   const materials = away?.materials;
   hide(parts.ore, materials === undefined);
@@ -125,6 +128,7 @@ export function createWelcomePanel({
   card.body.append(
     parts.mined,
     parts.detail,
+    parts.rush,
     parts.ore,
     parts.cheer,
     parts.crew,

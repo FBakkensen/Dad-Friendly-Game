@@ -12,6 +12,7 @@ import {
   type HaulageEvent,
   type HaulagePose,
 } from "./haulage";
+import { rushLeft } from "./gold-rush";
 import { layerOf, type LayerId } from "./layers";
 import type { Mountain } from "./mountain";
 
@@ -50,11 +51,14 @@ export type WindowScene = {
   readonly borers: number;
   readonly trouble: TroubleTier | undefined;
   readonly legacy: boolean;
+  /** A Gold rush is running: gold sparkles over the face (#468). */
+  readonly rush: boolean;
 };
 
 export function windowScene(
   mountain: Mountain,
   trouble: Trouble | undefined,
+  now?: number,
 ): WindowScene {
   return {
     band: layerOf(mountain).id,
@@ -68,6 +72,7 @@ export function windowScene(
     borers: mountain.borers,
     trouble: trouble?.tier,
     legacy: (mountain.legacy ?? 0) > 0,
+    rush: now !== undefined && rushLeft(mountain, now) > 0,
   };
 }
 
@@ -175,6 +180,8 @@ const TARP_DRAG = 0.06;
 const TARP_GONE = -27;
 const CAVE_IN_STEP = 0.12;
 const VEIN_STEP = 0.18;
+/** The Gold rush's sparkle loop: four frames, a little quicker than the vein. */
+const RUSH_STEP = 0.16;
 const FRAMES = 4;
 /** The drill beat's dust puff, at the drill's bit (the mockup's puff(69, 53)). */
 const DRILL_PUFF: HaulageEvent = { kind: "fill", x: 69, y: 53 };
@@ -211,6 +218,8 @@ type State = {
   /** The cave-in falling while a cart trouble lasts. */
   readonly caveIn: Loop | null;
   readonly vein: Loop;
+  /** The Gold rush's sparkles; null when no rush runs. */
+  readonly rush: Loop | null;
   readonly run: Haulage;
   /** Events a beat made, given out by the next step. */
   readonly pending: readonly HaulageEvent[];
@@ -233,6 +242,8 @@ export type MachinesView = {
   /** The cave-in strip's frame during a cart trouble, else undefined. */
   readonly caveIn: number | undefined;
   readonly vein: number;
+  /** The Gold rush strip's frame while a rush runs, else undefined. */
+  readonly rush: number | undefined;
   readonly run: HaulagePose;
 };
 
@@ -264,6 +275,7 @@ export function machinesRest(): Machines {
     tarp: null,
     caveIn: null,
     vein: LOOP_REST,
+    rush: null,
     run: haulageRest(),
     pending: [],
   });
@@ -419,6 +431,7 @@ export function machinesStep(
     tarp,
     caveIn,
     vein: loopTick(s.vein, step, VEIN_STEP),
+    rush: scene.rush ? loopTick(s.rush ?? LOOP_REST, step, RUSH_STEP) : null,
     run,
     pending: [],
   };
@@ -501,6 +514,7 @@ export function machinesView(m: Machines, scene: WindowScene): MachinesView {
     tarp,
     caveIn,
     vein: s.vein.f,
+    rush: scene.rush ? (s.rush?.f ?? 0) : undefined,
     run: haulagePose(scene.run ? s.run : haulageRest()),
   };
 }

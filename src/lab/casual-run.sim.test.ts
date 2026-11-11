@@ -17,8 +17,9 @@ describe("casual run", { timeout: 120_000 }, () => {
     // day 1.5. The value-per-stone score waits out the night before the
     // Deep Heart's next Great Machine (11.95 h from day 3.5). That is the
     // report-only value-per-stone score. It passes the half-day limit with
-    // about 3 minutes to spare (0.498 of a day); the payback score waits
-    // about a minute.
+    // about 3 minutes to spare (0.498 of a day). The payback score waited
+    // about a minute until the Gold rush (#468); now he taps the quick vein
+    // and the held stones come in with no dead minute.
     expect(run.finishDay).toBe(4.5);
     expect(readFinishDay(run.samples)).toBe(4.5);
     expect(report.value.singleShare).toBeCloseTo(0.343, 3);
@@ -26,8 +27,8 @@ describe("casual run", { timeout: 120_000 }, () => {
     expect(report.value.deadHours / HOURS_PER_DAY).toBeLessThanOrEqual(0.5);
     expect(report.value.deadStartDay).toBeCloseTo(3.5, 1);
     expect(report.payback.singleShare).toBeCloseTo(0.114, 3);
-    expect(report.payback.deadHours).toBeCloseTo(0.017, 2);
-    expect(report.payback.deadStartDay).toBeCloseTo(1.5, 1);
+    expect(report.payback.deadHours).toBe(0);
+    expect(report.payback.deadStartDay).toBeUndefined();
   });
 
   it("keeps the payback wait to half a day at most after the first borer", () => {

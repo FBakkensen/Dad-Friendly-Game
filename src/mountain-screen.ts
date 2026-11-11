@@ -56,6 +56,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     showIn: (body, ms) => {
       boardNote.show(gaugeRow.mine.root, body, { ms });
     },
+    covered: () => overlays.boardCovered(),
   });
 
   const rail = createRail(ctx, (id, key) => {

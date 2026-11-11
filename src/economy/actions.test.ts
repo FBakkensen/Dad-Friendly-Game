@@ -1,4 +1,5 @@
 import { milestoneMultiplier } from "../milestones";
+import { RUSH_MS } from "../gold-rush";
 import { describe, expect, it } from "vitest";
 import { BOOSTS, boostById, buyBoost, boostLeft } from "../boosts";
 import { buyCrew } from "../crew";
@@ -1398,6 +1399,41 @@ describe("applyMove (#409)", () => {
     expect(dug.kind === "applied" && dug.spent).toBe(0);
     const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
     expect(vein.kind === "applied" && vein.gained).toBeGreaterThan(0);
+  });
+
+  it("pays a quick vein like a vein, then starts a Gold rush", () => {
+    const owed = { ...rich, rushBank: 8_100 };
+    const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
+    const quick = applyMove(owed, { kind: "tapQuickVein" }, NOW, calm);
+    expect(quick.kind === "applied" && quick.gained).toBe(
+      vein.kind === "applied" ? vein.gained : -1,
+    );
+    expect(quick.kind === "applied" && quick.mountain.rushUntil).toBe(
+      NOW + RUSH_MS,
+    );
+    expect(quick.kind === "applied" && quick.events).toEqual([
+      {
+        kind: "quickVeinTapped",
+        stones: quick.kind === "applied" ? quick.gained : -1,
+      },
+    ]);
+  });
+
+  it("lands the held stones when the quick vein is missed, once", () => {
+    const owed = { ...rich, rushBank: 8_100 };
+    const missed = applyMove(owed, { kind: "missQuickVein" }, NOW, calm);
+    expect(missed.kind === "applied" && missed.gained).toBe(8_100);
+    expect(missed.kind === "applied" && missed.events).toEqual([
+      { kind: "rushLanded", stones: 8_100 },
+    ]);
+    expect(applyMove(rich, { kind: "missQuickVein" }, NOW, calm).kind).toBe(
+      "refused",
+    );
+    // a rush that has started is not landed early
+    const rushed = { ...owed, rushUntil: NOW + RUSH_MS };
+    expect(applyMove(rushed, { kind: "missQuickVein" }, NOW, calm).kind).toBe(
+      "refused",
+    );
   });
 
   it("marks a sheet seen, and refuses a mark already made", () => {

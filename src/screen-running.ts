@@ -1,13 +1,14 @@
 import pickUrl from "./assets/pick.png";
+import rushUrl from "./assets/board/window-rush-4f.png";
 import { BOOSTS, type BoostId } from "./boosts";
 import { anyChipActive, createEffectChip, writeChip } from "./effect-row";
-import { CRAFT_IDS, runningLabels } from "./screen-chips";
+import { CRAFT_IDS, runningLabels, rushLabel } from "./screen-chips";
 import type { ScreenCtx } from "./screen-context";
 
 /**
  * The Running now list and the vein's note, with the park they wait in while another note shows.
- * The boost, craft and bench chips go into the effect row here, in that order; the engineers'
- * trips land there after.
+ * The boost, Gold rush, craft and bench chips go into the effect row here, in that order; the
+ * engineers' trips land there after.
  */
 export function createRunningNow(ctx: ScreenCtx): {
   running: HTMLElement;
@@ -57,6 +58,10 @@ export function createRunningNow(ctx: ScreenCtx): {
       return [boost.id, chip] as const;
     }),
   );
+  // The Gold rush (#468): its icon is the sparkle's first frame.
+  const rushChip = createEffectChip("rush-chip", rushUrl);
+  rushChip.dataset["rush"] = "gold-rush";
+  effectRow.append(rushChip);
   const craftChips = new Map(
     CRAFT_IDS.map((id) => {
       const chip = createEffectChip("craft-chip", relicArt.hammer);
@@ -72,6 +77,7 @@ export function createRunningNow(ctx: ScreenCtx): {
   /** The Running now list: each clock counts down on every paint. */
   const paint = (): void => {
     const labels = runningLabels(ctx.view().mountain, ctx.now());
+    writeChip(rushChip, rushLabel(ctx.view().mountain, ctx.now()));
     for (const [id, chip] of craftChips) {
       writeChip(chip, labels.crafts[id]);
     }

@@ -21,6 +21,8 @@ import {
   pauseVein,
   resumeVein,
   veinWaitLeft,
+  QUICK_VEIN_WAIT_MS,
+  quickVein,
 } from "./veins";
 
 const MINUTE = 60_000;
@@ -242,5 +244,15 @@ describe("vein pause and resume", () => {
         appearsAt: 3 * 60_000,
       });
     }
+  });
+});
+
+describe("the quick vein (#468)", () => {
+  it("waits 20 seconds, whatever the lantern or the vein crafts say", () => {
+    expect(quickVein(1_000)).toEqual({
+      kind: "waiting",
+      appearsAt: 1_000 + QUICK_VEIN_WAIT_MS,
+    });
+    expect(QUICK_VEIN_WAIT_MS).toBe(20_000);
   });
 });

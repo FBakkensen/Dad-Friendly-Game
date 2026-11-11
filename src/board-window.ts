@@ -14,6 +14,7 @@ import glassUrl from "./assets/board/window-glass.png";
 import machineUrl from "./assets/board/window-great-machine.png";
 import kidUrl from "./assets/board/window-kid.png";
 import veinUrl from "./assets/board/window-vein-4f.png";
+import rushUrl from "./assets/board/window-rush-4f.png";
 import { skin } from "./board-skin";
 import { reducedMotion } from "./float-text";
 import { formatCount } from "./format";
@@ -73,6 +74,7 @@ const W = {
   miner: 12,
   caveIn: 46,
   vein: 25,
+  rush: 48,
 } as const;
 const PUFF_FRAMES = 4;
 const PUFF_STEP = 0.07;
@@ -161,6 +163,7 @@ interface ViewParts {
   readonly miner: HTMLElement;
   readonly cage: HTMLImageElement;
   readonly caveIn: HTMLElement;
+  readonly rush: HTMLElement;
   readonly fill: HTMLElement;
   readonly dust: HTMLElement;
   readonly plus: HTMLElement;
@@ -199,6 +202,7 @@ function buildView(): ViewParts {
   const cage = picture("board-window-cage", cageUrl);
   run.append(tub, miner, cage);
   const caveIn = sprite("board-window-cave-in", caveInUrl);
+  const rush = sprite("board-window-rush", rushUrl);
   const fill = sprite("board-window-fill", dustUrl);
   const dust = sprite("board-dig-dust", dustUrl);
   const plus = document.createElement("span");
@@ -217,6 +221,7 @@ function buildView(): ViewParts {
     kid,
     run,
     caveIn,
+    rush,
     fill,
     dust,
     plus,
@@ -238,6 +243,7 @@ function buildView(): ViewParts {
     miner,
     cage,
     caveIn,
+    rush,
     fill,
     dust,
     plus,
@@ -319,6 +325,9 @@ function paintMachines(p: Parts, v: MachinesView, scene: WindowScene): void {
     frameX(p.caveIn, reducedMotion() ? CAVE_IN_DOWN : v.caveIn, W.caveIn);
   }
   frameX(p.glint, v.vein, W.vein);
+  // Under reduced motion the sparkles hold still on their first frame.
+  show(p.rush, v.rush !== undefined);
+  frameX(p.rush, reducedMotion() ? 0 : (v.rush ?? 0), W.rush);
 }
 
 /**

@@ -71,6 +71,8 @@ describe("serializeSave and parseSaveValue", () => {
       flareUntil: 90_000,
       emberUntil: 100_000,
       axleUntil: 110_000,
+      rushUntil: 120_000,
+      rushBank: 8_100,
       stretch: 1.75,
       seen: ["workshop", "future-bit"],
       taught: ["workshop"],
@@ -507,6 +509,18 @@ describe("v6 materials back-grant (#195)", () => {
         workshop: { ...saved.workshop, flareUntil: 41, emberUntil: 42 },
       })?.mountain,
     ).toMatchObject({ flareUntil: 41, emberUntil: 42 });
+    expect(
+      parseSaveValue({
+        ...saved,
+        workshop: { ...saved.workshop, rushUntil: 43 },
+      })?.mountain.rushUntil,
+    ).toBe(43);
+    expect(
+      parseSaveValue({
+        ...saved,
+        workshop: { ...saved.workshop, rushBank: 810 },
+      })?.mountain.rushBank,
+    ).toBe(810);
     for (const workshop of [
       null,
       { materials: saved.workshop.materials },
@@ -522,6 +536,11 @@ describe("v6 materials back-grant (#195)", () => {
       { ...saved.workshop, chargeUntil: "soon" },
       { ...saved.workshop, flareUntil: -1 },
       { ...saved.workshop, emberUntil: 1.2 },
+      { ...saved.workshop, rushUntil: -1 },
+      { ...saved.workshop, rushUntil: 1.5 },
+      { ...saved.workshop, rushUntil: "soon" },
+      { ...saved.workshop, rushBank: -5 },
+      { ...saved.workshop, rushBank: 2.5 },
     ]) {
       expect(parseSaveValue({ ...saved, workshop })).toBeUndefined();
     }

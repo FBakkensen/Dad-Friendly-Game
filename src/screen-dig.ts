@@ -107,7 +107,9 @@ function createGaugeRow(
     // sees is the save itself and nothing beats for it (#371). A save that
     // loads again (a sign-in, another account) puts it back to its frame.
     if (ctx.view().ready) {
-      mine.render(windowScene(ctx.view().mountain, ctx.view().trouble));
+      mine.render(
+        windowScene(ctx.view().mountain, ctx.view().trouble, ctx.now()),
+      );
       windowDrawn = true;
     } else if (windowDrawn) {
       mine.loading();
