@@ -190,7 +190,7 @@ describe("promotion teach (#246)", () => {
     ).not.toBeNull();
     sheet?.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
     const mountain = screen.progress.getSnapshot().mountain;
-    expect(mountain.engineers?.map((hand) => hand.name)).toEqual([
+    expect(mountain.engineers.map((hand) => hand.name)).toEqual([
       "Ada",
       "Nils",
     ]);

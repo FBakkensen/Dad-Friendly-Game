@@ -48,7 +48,7 @@ function at(depth: number): Pick<Mountain, "remaining"> {
 
 /** What the next one of a tier costs on this mountain. */
 function priceOf(mountain: Mountain, id: TierId, owned: number): number {
-  return tierCost(tierById(id), owned, mountain.stretch ?? 1);
+  return tierCost(tierById(id), owned, mountain.stretch);
 }
 
 /** One row, read as the drawer would: with this frame's Ready pick. */
@@ -451,7 +451,7 @@ describe("buyRowView", () => {
     const frozen = Object.freeze({
       ...mountain,
       engineers: Object.freeze(
-        (mountain.engineers ?? []).map((one) => Object.freeze({ ...one })),
+        mountain.engineers.map((one) => Object.freeze({ ...one })),
       ),
       upgrades: Object.freeze({ ...mountain.upgrades }),
     });

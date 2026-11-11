@@ -307,7 +307,7 @@ describe("upgrades drawer reveal (#245)", () => {
       pocket: mustPrice(upgradeCost(arms, 0)),
     }));
     row(screen.root, "tap")?.click();
-    expect(screen.progress.getSnapshot().mountain.upgrades?.tap).toBe(1);
+    expect(screen.progress.getSnapshot().mountain.upgrades.tap).toBe(1);
     expect(row(screen.root, "tap")?.classList.contains("teach-new")).toBe(
       false,
     );

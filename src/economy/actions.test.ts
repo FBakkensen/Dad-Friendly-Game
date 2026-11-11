@@ -175,7 +175,7 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
     case "fixTrouble":
       return mountain;
     case "craft": {
-      const known = mountain.recipes ?? [];
+      const known = mountain.recipes;
       const depth = recipesForMined(minedOut(mountain));
       const prepared =
         known.includes(action.recipe) || !depth.includes(action.recipe)
@@ -315,7 +315,7 @@ function fullCrew(): Mountain {
     pocket: 1e15,
     engineers: [ada],
   };
-  while ((mountain.engineers?.length ?? 0) < 5) {
+  while (mountain.engineers.length < 5) {
     mountain = promote({ ...mountain, pocket: promoteCost(mountain) });
   }
   return mountain;
@@ -444,7 +444,7 @@ describe("listActions", () => {
       listActions(party, Number.NaN).some((action) => action.kind === "send"),
     ).toBe(false);
     const seed = send(party, 0, "old-shaft", NOW);
-    const trip = seed.expeditions?.[0];
+    const trip = seed.expeditions[0];
     expect(trip).toBeDefined();
     if (trip === undefined) {
       return;
@@ -604,8 +604,8 @@ describe("applyAction", () => {
     };
     const bought = applyAction(funded, { kind: "buyTier", id: "borer" }, NOW);
     expect(bought.borers).toBe(1);
-    expect(bought.engineers?.[0]?.name).toBe("Ada");
-    expect(bought.engineers?.[0]?.post).toBe("borer");
+    expect(bought.engineers[0]?.name).toBe("Ada");
+    expect(bought.engineers[0]?.post).toBe("borer");
     expect(bought).toEqual(buyCrew(funded, "borer"));
   });
 });
@@ -1097,7 +1097,7 @@ describe("valueOf", () => {
     expect(sinkRecipes(shed())).toContain("reinforce");
     expect(sinkRecipes(shed()).includes("crystal-lamp")).toBe(false);
     const withLamp = shed({
-      recipes: [...(shed().recipes ?? []), "crystal-lamp", "engineers-kit"],
+      recipes: [...shed().recipes, "crystal-lamp", "engineers-kit"],
     });
     expect(
       listActions(withLamp, NOW).some(
@@ -1216,7 +1216,7 @@ describe("valueOf", () => {
       machines: 1,
       helpers: 40,
       recipes: [
-        ...(shed().recipes ?? []),
+        ...shed().recipes,
         "diamond-bits",
         "crystal-flare",
         "crystal-lamp",
@@ -1246,7 +1246,7 @@ describe("valueOf", () => {
       score(deep, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
     ).toBeGreaterThan(0);
     const kitOnly = shed({
-      recipes: [...(shed().recipes ?? []), "engineers-kit"],
+      recipes: [...shed().recipes, "engineers-kit"],
     });
     const noCrew = { ...kitOnly, engineers: [] };
     expect(
@@ -1380,8 +1380,8 @@ describe("applyMove (#409)", () => {
     );
     expect(moved.kind).toBe("applied");
     if (moved.kind !== "applied") return;
-    expect(moved.mountain.expeditions ?? []).toEqual([]);
-    expect(moved.mountain.engineers?.[0]?.post).toBe("camp");
+    expect(moved.mountain.expeditions).toEqual([]);
+    expect(moved.mountain.engineers[0]?.post).toBe("camp");
     expect(moved.mountain.taught).toContain("tending");
   });
 
@@ -1489,7 +1489,7 @@ describe("applyMove (#409)", () => {
         kind: "boostStarted",
         id: "sharper",
         endsAt:
-          boosted.kind === "applied" ? boosted.mountain.boosts?.sharper : 0,
+          boosted.kind === "applied" ? boosted.mountain.boosts.sharper : 0,
       },
     ]);
     expect(eventsOf(rich, { kind: "craft", recipe: "sturdy-props" })).toEqual([
@@ -1623,11 +1623,11 @@ describe("applyMove (#409)", () => {
       calm,
     );
     if (again.kind !== "applied") throw new Error("boost not bought again");
-    const endsAt = again.mountain.boosts?.sharper;
+    const endsAt = again.mountain.boosts.sharper;
     expect(again.events).toEqual([
       { kind: "boostStarted", id: "sharper", endsAt },
     ]);
-    expect(endsAt).toBeGreaterThan(first.mountain.boosts?.sharper ?? Infinity);
+    expect(endsAt).toBeGreaterThan(first.mountain.boosts.sharper);
   });
 
   it("gives the lab's applyAction the same mountain for every listed move", () => {

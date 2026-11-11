@@ -650,7 +650,7 @@ describe("v6 materials back-grant (#195)", () => {
     });
     expect(brokenBench?.mountain.recipes).toEqual(saved.workshop.recipes);
     expect(brokenBench?.mountain.bench).toBeUndefined();
-    expect(brokenBench?.mountain.kept?.bench).toBeUndefined();
+    expect(brokenBench?.mountain.kept.bench).toBeUndefined();
     const junk = parseSaveValue({
       ...saved,
       workshop: {
@@ -677,9 +677,9 @@ describe("v6 materials back-grant (#195)", () => {
       ...NOTHING_CRAFTED,
       "sturdy-props": 1,
     });
-    expect(junk?.mountain.kept?.recipes).toHaveLength(8);
-    expect(junk?.mountain.kept?.recipes).toContain("future-bit");
-    expect(junk?.mountain.kept?.crafted).toEqual({ "kept-bit": 3 });
+    expect(junk?.mountain.kept.recipes).toHaveLength(8);
+    expect(junk?.mountain.kept.recipes).toContain("future-bit");
+    expect(junk?.mountain.kept.crafted).toEqual({ "kept-bit": 3 });
     expect(
       parseSaveValue({
         ...saved,

@@ -256,7 +256,7 @@ function openShed(extra: Partial<Mountain> = {}): Mountain {
     materials: FULL,
     recipes: [...RECIPE_IDS],
     ...extra,
-  } as Mountain;
+  };
 }
 
 describe("workshop rules", () => {
@@ -438,7 +438,7 @@ describe("workshop rules", () => {
     expect(back.crafted).toEqual(NOTHING_CRAFTED);
     expect(cancelCraft(shed, 1)).toBe(shed);
     const late = cancelCraft(started, started.bench?.endsAt ?? 0);
-    expect(late.crafted?.["sturdy-props"]).toBe(1);
+    expect(late.crafted["sturdy-props"]).toBe(1);
     expect(late.pocket).toBe(started.pocket);
     expect(late.materials).toEqual(started.materials);
     expect(late.bench).toBeUndefined();
@@ -453,7 +453,7 @@ describe("workshop rules", () => {
       lastSeen: 1_000,
       now: endsAt + 5_000,
     });
-    expect(away.mountain.crafted?.["iron-rails"]).toBe(1);
+    expect(away.mountain.crafted["iron-rails"]).toBe(1);
     expect(away.mountain.bench).toBeUndefined();
     const saved = serializeSave({
       mountain: away.mountain,
@@ -465,9 +465,9 @@ describe("workshop rules", () => {
       lastSeen: endsAt,
       now: endsAt + 60_000,
     });
-    expect(again.mountain.crafted?.["iron-rails"]).toBe(1);
+    expect(again.mountain.crafted["iron-rails"]).toBe(1);
     expect(
-      settleBench(again.mountain, endsAt + 60_000).crafted?.["iron-rails"],
+      settleBench(again.mountain, endsAt + 60_000).crafted["iron-rails"],
     ).toBe(1);
     const backwards = accrue({
       mountain: started,
@@ -490,7 +490,7 @@ describe("workshop rules", () => {
       },
     };
     const fitted = accrue({ mountain: due, from: 0, to: 10_000 });
-    expect(fitted.mountain.crafted?.["iron-rails"]).toBe(1);
+    expect(fitted.mountain.crafted["iron-rails"]).toBe(1);
     expect(fitted.mined).toBe(80);
     const working = startCraft(
       { ...openShed(), helpers: 1, carts: 1 },
@@ -503,7 +503,7 @@ describe("workshop rules", () => {
       to: working.bench?.endsAt ?? 0,
     });
     expect(during.mined).toBe(7 * 600);
-    expect(during.mountain.crafted?.["iron-rails"]).toBe(1);
+    expect(during.mountain.crafted["iron-rails"]).toBe(1);
     const idle = startCraft(openShed(), "blasting-charge", 0);
     const done = accrue({
       mountain: idle,
@@ -525,9 +525,9 @@ describe("workshop rules", () => {
     expect(first.clocks["blasting-charge"]).toBe(CHARGE_MS);
     const next = startCraft(first, "blasting-charge", 600_000);
     const second = settleBench(next, next.bench?.endsAt ?? 0);
-    expect(second.crafted?.["blasting-charge"]).toBe(2);
+    expect(second.crafted["blasting-charge"]).toBe(2);
     expect(second.clocks["blasting-charge"]).toBe(
-      (first.clocks["blasting-charge"] ?? 0) + CHARGE_MS,
+      first.clocks["blasting-charge"] + CHARGE_MS,
     );
     const cooled = withClock(first, "blasting-charge", 1);
     const restarted = startCraft(cooled, "blasting-charge", 100);
@@ -543,7 +543,7 @@ describe("workshop rules", () => {
       },
     };
     const held = settleBench(full, 1);
-    expect(held.crafted?.["blasting-charge"]).toBe(MAX_CRAFTED_LEVEL);
+    expect(held.crafted["blasting-charge"]).toBe(MAX_CRAFTED_LEVEL);
     expect(held.bench).toBeUndefined();
     expect(held.clocks["blasting-charge"]).toBe(CHARGE_MS);
   });
@@ -695,7 +695,7 @@ describe("workshop rules", () => {
     });
     const cancelled = cancelCraft(mid.mountain, halfway);
     expect(axleCrewMultiplier(cancelled, halfway + 1)).toBe(1);
-    expect(cancelled.materials?.iron ?? 0).toBeLessThan(40);
+    expect(cancelled.materials.iron).toBeLessThan(40);
     const restarted = startCraft(cancelled, "axle-grease", halfway);
     const again = accrue({
       mountain: restarted,
@@ -706,8 +706,8 @@ describe("workshop rules", () => {
     const keptWorth = kept.mined + kept.mountain.pocket;
     const againWorth = mid.mined + again.mined + again.mountain.pocket;
     expect(againWorth).toBeLessThanOrEqual(keptWorth);
-    expect(again.mountain.materials?.iron ?? 0).toBeLessThanOrEqual(
-      kept.mountain.materials?.iron ?? 0,
+    expect(again.mountain.materials.iron).toBeLessThanOrEqual(
+      kept.mountain.materials.iron,
     );
   });
 
@@ -725,8 +725,8 @@ describe("workshop rules", () => {
     expect(cancelled.bench).toBeUndefined();
     expect(cancelled.pocket).toBeGreaterThan(crew.pocket - 100_000);
     expect(cancelled.pocket).toBeLessThan(crew.pocket);
-    expect(cancelled.materials?.clay ?? 0).toBeGreaterThan(16);
-    expect(cancelled.materials?.clay ?? 0).toBeLessThan(20);
+    expect(cancelled.materials.clay).toBeGreaterThan(16);
+    expect(cancelled.materials.clay).toBeLessThan(20);
   });
 
   it("refunds the unused share of a flare and an ember", () => {
@@ -737,8 +737,8 @@ describe("workshop rules", () => {
     );
     const flareBack = cancelCraft(flare, 60_000);
     expect(flareBack.bench).toBeUndefined();
-    expect(flareBack.materials?.crystal ?? 0).toBeGreaterThan(6);
-    expect(flareBack.materials?.crystal ?? 0).toBeLessThan(10);
+    expect(flareBack.materials.crystal).toBeGreaterThan(6);
+    expect(flareBack.materials.crystal).toBeLessThan(10);
     const ember = startCraft(
       {
         ...openShed(),
@@ -751,8 +751,8 @@ describe("workshop rules", () => {
     );
     const emberBack = cancelCraft(ember, 60_000);
     expect(emberBack.bench).toBeUndefined();
-    expect(emberBack.materials?.heartstone ?? 0).toBeGreaterThan(8);
-    expect(emberBack.materials?.heartstone ?? 0).toBeLessThan(10);
+    expect(emberBack.materials.heartstone).toBeGreaterThan(8);
+    expect(emberBack.materials.heartstone).toBeLessThan(10);
   });
 
   it("changes the crew the gear names, and stays quiet when nothing is fitted", () => {
@@ -923,12 +923,9 @@ describe("workshop rules", () => {
     const flareAgain = startCraft(flare, "crystal-flare", 600_000);
     const flareSecond = settleBench(flareAgain, flareAgain.bench?.endsAt ?? 0);
     expect(flareSecond.clocks["crystal-flare"]).toBe(600_000 + 3_600_000);
-    expect(flareSecond.crafted?.["crystal-flare"]).toBe(2);
+    expect(flareSecond.crafted["crystal-flare"]).toBe(2);
     expect(
-      veinOftenScale(
-        flareSecond,
-        (flareSecond.clocks["crystal-flare"] ?? 1) - 1,
-      ),
+      veinOftenScale(flareSecond, flareSecond.clocks["crystal-flare"] - 1),
     ).toBeCloseTo(1.25);
     expect(
       veinOftenScale(
@@ -944,7 +941,7 @@ describe("workshop rules", () => {
     const emberSecond = settleBench(emberAgain, emberAgain.bench?.endsAt ?? 0);
     expect(emberSecond.clocks["heartstone-ember"]).toBe(600_000 + CHARGE_MS);
     expect(emberSecond.clocks["heartstone-ember"]).not.toBe(
-      (ember.clocks["heartstone-ember"] ?? 0) + CHARGE_MS,
+      ember.clocks["heartstone-ember"] + CHARGE_MS,
     );
     const stretched = withFactors(
       { "recipe.crystal-flare.strength": 2 },
@@ -953,7 +950,7 @@ describe("workshop rules", () => {
         const done = settleBench(started, started.bench?.endsAt ?? 0);
         return {
           until: done.clocks["crystal-flare"],
-          veins: veinOftenScale(done, (done.clocks["crystal-flare"] ?? 1) - 1),
+          veins: veinOftenScale(done, done.clocks["crystal-flare"] - 1),
         };
       },
     );

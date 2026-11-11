@@ -50,11 +50,11 @@ describe("world step", () => {
   it("gives the same world for the same seed", () => {
     expect(play(1)).toEqual(play(1));
     const again = play(1);
-    expect(again.mountain.engineers?.[0]).toMatchObject({
+    expect(again.mountain.engineers[0]).toMatchObject({
       post: "borer",
       trips: 1,
     });
-    expect(again.mountain.expeditions ?? []).toEqual([]);
+    expect(again.mountain.expeditions).toEqual([]);
   });
 
   it("gives a different wait when the seed changes", () => {
@@ -134,8 +134,8 @@ describe("world step", () => {
   it("brings a party home when the clock reaches the return", () => {
     const sent = send(withBorer(), 0, "side-seam", 0);
     const live = step(createWorld(1, sent), 10 * 60_000, "live");
-    expect(live.mountain.expeditions ?? []).toEqual([]);
-    expect(live.mountain.engineers?.[0]).toMatchObject({
+    expect(live.mountain.expeditions).toEqual([]);
+    expect(live.mountain.engineers[0]).toMatchObject({
       post: "borer",
       trips: 1,
     });
@@ -147,7 +147,7 @@ describe("world step", () => {
       now: 10 * 60_000,
     });
     expect(away.mountain).toEqual(paid.mountain);
-    expect(away.mountain.engineers?.[0]?.post).toBe("borer");
+    expect(away.mountain.engineers[0]?.post).toBe("borer");
     expect(away.hazards.phase).toBe("waiting");
   });
 
@@ -164,12 +164,12 @@ describe("world step", () => {
     const endsAt = started.bench?.endsAt ?? 0;
     const early = step(createWorld(1, started), endsAt - 1, "live");
     expect(early.mountain.bench?.recipe).toBe("iron-rails");
-    expect(early.mountain.crafted?.["iron-rails"]).toBe(0);
+    expect(early.mountain.crafted["iron-rails"]).toBe(0);
     const done = step(createWorld(1, started), endsAt, "live");
     expect(done.mountain.bench).toBeUndefined();
-    expect(done.mountain.crafted?.["iron-rails"]).toBe(1);
+    expect(done.mountain.crafted["iron-rails"]).toBe(1);
     const away = step(createWorld(1, started), endsAt, "away");
-    expect(away.mountain.crafted?.["iron-rails"]).toBe(1);
+    expect(away.mountain.crafted["iron-rails"]).toBe(1);
     expect(away.mountain.bench).toBeUndefined();
   });
 });

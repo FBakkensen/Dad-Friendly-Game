@@ -1630,7 +1630,7 @@ describe("upgrades on screen", () => {
       clock += 100;
       fingerTap(sharper);
       const after = screen.progress.getSnapshot().mountain;
-      expect(after.boosts?.sharper).toBe(
+      expect(after.boosts.sharper).toBe(
         CLOCK + boostById("sharper").durationMs,
       );
       expect(after.pocket).toBe(pocket - price);
@@ -1671,12 +1671,12 @@ describe("upgrades on screen", () => {
     clock += BUYS_SETTLE_MS + 100;
     fingerTap(rowOf(screen, '[data-boost="sharper"]'));
     const after = screen.progress.getSnapshot().mountain;
-    expect(after.boosts?.sharper).toBeDefined();
+    expect(after.boosts.sharper).toBeDefined();
     expect(screen.text(".board-spend")).toBe(
       `−${price.toLocaleString("en-US")}`,
     );
     // The buy marks every row he had in front of him, the new one too.
-    expect([...(after.seen ?? [])].sort()).toEqual([...atTap].sort());
+    expect([...after.seen].sort()).toEqual([...atTap].sort());
     screen.root.remove();
   });
 
@@ -1706,7 +1706,7 @@ describe("upgrades on screen", () => {
       frames.push(lamp?.style.backgroundPositionX ?? "");
       expect(frames).toEqual(["-120px", "0px"]);
       expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
-      expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(0);
+      expect(screen.progress.getSnapshot().mountain.boosts.sharper).toBe(0);
       screen.root.remove();
     } finally {
       vi.useRealTimers();
@@ -1734,7 +1734,7 @@ describe("upgrades on screen", () => {
     fingerTap(sharper);
     expect(apply).not.toHaveBeenCalled();
     read.mockRestore();
-    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(0);
+    expect(screen.progress.getSnapshot().mountain.boosts.sharper).toBe(0);
   });
 
   it("the settle", () => {
@@ -1751,7 +1751,7 @@ describe("upgrades on screen", () => {
     const sharper = rowOf(screen, '[data-boost="sharper"]');
     fingerTap(sharper);
     expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
-    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(0);
+    expect(screen.progress.getSnapshot().mountain.boosts.sharper).toBe(0);
     // Back shares the settle: the double tap does not close it either.
     const back =
       drawerOf(screen)?.querySelector<HTMLElement>(".board-sheet-back");
@@ -1760,7 +1760,7 @@ describe("upgrades on screen", () => {
     // A deliberate tap once it has settled buys.
     clock += BUYS_SETTLE_MS;
     fingerTap(sharper);
-    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
+    expect(screen.progress.getSnapshot().mountain.boosts.sharper).toBe(
       CLOCK + boostById("sharper").durationMs,
     );
   });
@@ -1835,7 +1835,7 @@ describe("upgrades on screen", () => {
         formatCompact(upgradePrice("tap", 0)),
       );
       arms.click();
-      expect(screen.progress.getSnapshot().mountain.upgrades?.tap).toBe(1);
+      expect(screen.progress.getSnapshot().mountain.upgrades.tap).toBe(1);
       expect(partOf(arms, "info")?.textContent).toBe("Taps 67 to 133.");
       await vi.advanceTimersByTimeAsync(1_900);
       expect(partOf(arms, "badge")?.textContent).toBe("Lv 1/10");
@@ -1884,12 +1884,10 @@ describe("upgrades on screen", () => {
       storage: seededWith(m, CLOCK),
       now: () => CLOCK,
     });
-    expect(screen.progress.getSnapshot().mountain.seen ?? []).toEqual([]);
+    expect(screen.progress.getSnapshot().mountain.seen).toEqual([]);
     openUpgrades(screen);
     const after = screen.progress.getSnapshot().mountain;
-    expect([...(after.seen ?? [])].sort()).toEqual(
-      [...shownRows(after)].sort(),
-    );
+    expect([...after.seen].sort()).toEqual([...shownRows(after)].sort());
     expect(after.seen).toEqual(
       expect.arrayContaining([
         "boost:sharper",
@@ -2209,7 +2207,7 @@ describe("upgrades on screen", () => {
     expect(first.dataset["boost"]).toBe("sharper");
     const order = rowOrder(screen);
     fingerTap(first);
-    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(
+    expect(screen.progress.getSnapshot().mountain.boosts.sharper).toBe(
       CLOCK + boostById("sharper").durationMs,
     );
     // The New flag moves to Strong arms in place; no row moves.
@@ -2219,7 +2217,7 @@ describe("upgrades on screen", () => {
     expect(rowOrder(screen)).toEqual(order);
     clock += 150;
     fingerTap(topRow(screen));
-    expect(screen.progress.getSnapshot().mountain.upgrades?.tap).toBe(0);
+    expect(screen.progress.getSnapshot().mountain.upgrades.tap).toBe(0);
     // The next opening leads with the New row's section.
     drawerOf(screen)
       ?.querySelector<HTMLButtonElement>(".board-sheet-back")
@@ -2365,7 +2363,7 @@ describe("upgrades on screen", () => {
     const pocket = screen.progress.getSnapshot().mountain.pocket;
     fingerTap(rowOf(screen, '[data-boost="sharper"]'));
     expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
-    expect(screen.progress.getSnapshot().mountain.boosts?.sharper).toBe(0);
+    expect(screen.progress.getSnapshot().mountain.boosts.sharper).toBe(0);
   });
 });
 

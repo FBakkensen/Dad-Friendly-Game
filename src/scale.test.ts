@@ -483,6 +483,6 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
     // The same pocket still buys a level it can afford, so only the price
     // stops the one above.
     const cheap = { ...full, upgrades: { ...NO_UPGRADES, tap: 0 } };
-    expect(buyUpgrade(cheap, "tap").upgrades?.tap).toBe(1);
+    expect(buyUpgrade(cheap, "tap").upgrades.tap).toBe(1);
   });
 });

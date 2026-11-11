@@ -148,7 +148,7 @@ describe("quick boosts", () => {
         id: "sharper",
         now: later,
         pricing: { crewPerSecond: 500, tapYield: 500 },
-      }).boosts?.sharper,
+      }).boosts.sharper,
     ).toBe(later + 10 * MIN);
     // Too poor: nothing happens.
     const poor = { ...crew, pocket: 99 };

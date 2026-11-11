@@ -179,10 +179,10 @@ describe("the Engineers drawer (#455)", () => {
     fingerTap(herRow(screen, "Ada"));
     clock += 100;
     fingerTap(postRow(screen, "drill"));
-    expect(saved(screen).engineers?.[0]?.post).toBe("borer");
+    expect(saved(screen).engineers[0]?.post).toBe("borer");
     clock += 400;
     fingerTap(postRow(screen, "drill"));
-    expect(saved(screen).engineers?.[0]?.post).toBe("drill");
+    expect(saved(screen).engineers[0]?.post).toBe("drill");
     expect(postRow(screen, "drill").classList).toContain("is-held");
     // The page stays, with her at her new post.
     expect(screen.engineersPage()?.classList).toContain("engineer-page");
@@ -279,7 +279,7 @@ describe("the Engineers drawer (#455)", () => {
       const start = 1_000_000_000;
       vi.setSystemTime(start);
       const one = send(withAda(), 0, "old-shaft", start);
-      const trip = one.expeditions?.[0];
+      const trip = one.expeditions[0];
       if (trip === undefined) throw new Error("expected a trip");
       const waiting: Mountain = {
         ...one,
@@ -353,7 +353,7 @@ describe("the Engineers drawer (#455)", () => {
     expect(kick(screen)).toBe("Ada puts the kettle on at camp.");
     const mountain = readSessionSave({ storage })?.mountain;
     expect(mountain?.expeditions).toEqual([]);
-    expect(mountain?.engineers?.[0]).toEqual({
+    expect(mountain?.engineers[0]).toEqual({
       name: "Ada",
       rank: 0,
       trips: 0,
@@ -387,21 +387,21 @@ describe("the Engineers drawer (#455)", () => {
     postRow(screen, "cart").click();
     expect(kick(screen)).toBe("Ada heads to the carts! +1 stones/sec");
     expect(postRow(screen, "cart").classList).toContain("is-held");
-    expect(readSessionSave({ storage })?.mountain.engineers?.[0]?.post).toBe(
+    expect(readSessionSave({ storage })?.mountain.engineers[0]?.post).toBe(
       "cart",
     );
 
     postRow(screen, "camp").click();
-    expect(saved(screen).engineers?.[0]?.post).toBe("camp");
+    expect(saved(screen).engineers[0]?.post).toBe("camp");
     // The carts row still holds Done: a second tap sends nothing.
     postRow(screen, "cart").click();
-    expect(saved(screen).engineers?.[0]?.post).toBe("camp");
+    expect(saved(screen).engineers[0]?.post).toBe("camp");
     vi.advanceTimersByTime(READY_HOLD_MS + 100);
     postRow(screen, "cart").click();
-    expect(saved(screen).engineers?.[0]?.post).toBe("cart");
+    expect(saved(screen).engineers[0]?.post).toBe("cart");
     cart?.click();
     expect(saved(screen).carts).toBe(3);
-    expect(readSessionSave({ storage })?.mountain.engineers?.[0]?.post).toBe(
+    expect(readSessionSave({ storage })?.mountain.engineers[0]?.post).toBe(
       "cart",
     );
   });
@@ -430,12 +430,12 @@ describe("the Engineers drawer (#455)", () => {
     // Keep exploring goes back to her page and calls nobody.
     part(screen, ".recall-no").click();
     expect(screen.engineersPage()?.classList).toContain("engineer-page");
-    expect(saved(screen).engineers?.[0]?.post).toBe("tunnel");
+    expect(saved(screen).engineers[0]?.post).toBe("tunnel");
     part(screen, ".engineer-recall").click();
     part(screen, ".recall-yes").click();
     expect(kick(screen)).toBe("Ada is home, empty-handed.");
     expect(screen.engineersPage()?.classList).toContain("engineer-page");
-    expect(readSessionSave({ storage })?.mountain.engineers?.[0]?.post).toBe(
+    expect(readSessionSave({ storage })?.mountain.engineers[0]?.post).toBe(
       "camp",
     );
   });
@@ -726,7 +726,7 @@ describe("the Engineers drawer (#455)", () => {
     expect(deep.classList).toContain("is-locked");
     expect(rowPart(deep, "info")).toBe("The deep dark waits for a Journeyman.");
     deep.click();
-    expect(saved(screen).expeditions ?? []).toHaveLength(0);
+    expect(saved(screen).expeditions).toHaveLength(0);
     expect(lampX(deep)).toBe("-120px");
     // Tend a machine goes back to her page.
     part(screen, ".engineer-tend").click();
@@ -734,7 +734,7 @@ describe("the Engineers drawer (#455)", () => {
     part(screen, ".engineer-explore").click();
     part(screen, '.engineer-tunnel-row[data-tunnel="old-shaft"]').click();
     expect(kick(screen)).toBe("Ada lights a lamp and heads in!");
-    expect(saved(screen).expeditions?.[0]?.tunnel).toBe("old-shaft");
+    expect(saved(screen).expeditions[0]?.tunnel).toBe("old-shaft");
     expect(screen.engineersPage()?.classList).toContain("engineer-page");
     expect(part(screen, ".engineer-recall").hidden).toBe(false);
     part(screen, ".engineer-list-back").click();

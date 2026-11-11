@@ -283,7 +283,7 @@ describe("materials from digging", () => {
     expect(away.mined).toBe(300);
     expect(stepped.materials).toEqual(once.mountain.materials);
     expect(away.mountain.materials).toEqual(once.mountain.materials);
-    expect(once.mountain.materials?.clay).toBe(1);
+    expect(once.mountain.materials.clay).toBe(1);
   });
 });
 
@@ -558,7 +558,7 @@ describe("digging through band scales (#356)", () => {
     expect(minedOut(dug)).toBe(BAND_STARTS[2] + 5_000_000);
     expect(dug.pocket - start.pocket).toBe(stones);
     const gained = materialsGained(9_000_000, minedOut(dug));
-    const before = start.materials ?? EMPTY_MATERIALS;
+    const before = start.materials;
     expect(dug.materials).toEqual({
       ...before,
       clay: before.clay + gained.clay,

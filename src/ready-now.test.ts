@@ -16,7 +16,7 @@ function mountainWith(fields: Partial<Mountain>): Mountain {
 
 /** What the next one of a tier costs on this mountain. */
 function priceOf(mountain: Mountain, id: TierId, owned: number): number {
-  return tierCost(tierById(id), owned, mountain.stretch ?? 1);
+  return tierCost(tierById(id), owned, mountain.stretch);
 }
 
 /** Stones mined out so far: this deep. */
@@ -319,7 +319,7 @@ describe("readyNow", () => {
       const frozen = Object.freeze({
         ...mountain,
         materials: Object.freeze({ ...mountain.materials }),
-        recipes: Object.freeze([...(mountain.recipes ?? [])]),
+        recipes: Object.freeze([...mountain.recipes]),
       }) as Mountain;
 
       readyNow(frozen, NOW);

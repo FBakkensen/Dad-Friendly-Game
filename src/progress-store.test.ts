@@ -1481,11 +1481,11 @@ describe("field log", () => {
       "boost.start",
     ]);
     expect(moves[0]?.data).toEqual({ id: "tap", count: 1 });
-    const endsAt = progress.getSnapshot().mountain.boosts?.sharper;
+    const endsAt = progress.getSnapshot().mountain.boosts.sharper;
     expect(endsAt).toBeTypeOf("number");
     expect(moves[1]?.data).toEqual({
       id: "sharper",
-      endsAt: new Date(endsAt ?? 0).toISOString(),
+      endsAt: new Date(endsAt).toISOString(),
     });
   });
 
@@ -1697,7 +1697,7 @@ describe("field log events for the deep (#150)", () => {
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     }));
     progress.dispatch({ kind: "send", index: 0, tunnel: "side-seam" });
-    const trip = progress.getSnapshot().mountain.expeditions?.[0];
+    const trip = progress.getSnapshot().mountain.expeditions[0];
     if (trip === undefined) {
       throw new Error("expected a trip");
     }
@@ -1729,11 +1729,11 @@ describe("field log events for the deep (#150)", () => {
       }),
     );
 
-    const sentAt = progress.getSnapshot().mountain.engineers?.[0]?.post;
+    const sentAt = progress.getSnapshot().mountain.engineers[0]?.post;
     expect(sentAt).toBe("cart");
     progress.applyMutation((mountain) => {
       const sent = send(mountain, 0, "side-seam", 10_000);
-      const next = sent.expeditions?.[0];
+      const next = sent.expeditions[0];
       if (next === undefined) {
         return mountain;
       }
@@ -1742,7 +1742,7 @@ describe("field log events for the deep (#150)", () => {
         expeditions: [{ ...next, returnsAt: 15_000 }],
       };
     });
-    const find = progress.getSnapshot().mountain.expeditions?.[0]?.find;
+    const find = progress.getSnapshot().mountain.expeditions[0]?.find;
     if (find === undefined) {
       throw new Error("expected a find");
     }
@@ -1769,13 +1769,13 @@ describe("field log events for the deep (#150)", () => {
     }));
     progress.applyMutation((mountain) => {
       const sent = send(mountain, 0, "old-shaft", 10_000);
-      const next = sent.expeditions?.[0];
+      const next = sent.expeditions[0];
       if (next === undefined) {
         return mountain;
       }
       return { ...sent, expeditions: [{ ...next, returnsAt: 20_000 }] };
     });
-    const find = progress.getSnapshot().mountain.expeditions?.[0]?.find;
+    const find = progress.getSnapshot().mountain.expeditions[0]?.find;
     if (find === undefined) {
       throw new Error("expected a find");
     }
@@ -1817,7 +1817,7 @@ describe("field log events for the deep (#150)", () => {
       const sentAt = at();
       progress.applyMutation((mountain) => {
         const sent = send(mountain, 0, "side-seam", sentAt);
-        const next = sent.expeditions?.[0];
+        const next = sent.expeditions[0];
         if (next === undefined) {
           return mountain;
         }
@@ -1840,7 +1840,7 @@ describe("field log events for the deep (#150)", () => {
       );
     }
     expect(
-      progress.getSnapshot().mountain.engineers?.map((hand) => hand.name),
+      progress.getSnapshot().mountain.engineers.map((hand) => hand.name),
     ).toEqual(["Ada", "Ruth"]);
   });
 
@@ -1854,7 +1854,7 @@ describe("field log events for the deep (#150)", () => {
     const sentAt = at();
     progress.applyMutation((mountain) => {
       const sent = send(mountain, 0, "old-shaft", sentAt);
-      const next = sent.expeditions?.[0];
+      const next = sent.expeditions[0];
       if (next === undefined) {
         return mountain;
       }
@@ -2380,7 +2380,7 @@ describe("expeditions through the save", () => {
     });
     const away = accrueAway({ mountain: sent, lastSeen: 0, now: 20 * 60_000 });
     expect(progress.getSnapshot().mountain).toEqual(away.mountain);
-    expect(progress.getSnapshot().mountain.engineers?.[0]?.post).toBe("borer");
+    expect(progress.getSnapshot().mountain.engineers[0]?.post).toBe("borer");
     expect(progress.getSnapshot().mountain.expeditions).toEqual([]);
     progress.dispose();
   });
@@ -2395,7 +2395,7 @@ describe("expeditions through the save", () => {
       "side-seam",
       0,
     );
-    const trip = sent.expeditions?.[0];
+    const trip = sent.expeditions[0];
     if (trip === undefined) {
       throw new Error("expected a trip");
     }
@@ -2412,11 +2412,11 @@ describe("expeditions through the save", () => {
     progress.subscribe(() => {
       seen += 1;
     });
-    expect(progress.getSnapshot().mountain.engineers?.[0]?.post).toBe("tunnel");
+    expect(progress.getSnapshot().mountain.engineers[0]?.post).toBe("tunnel");
     clock = 5_000;
     progress.tick();
     expect(seen).toBeGreaterThan(1);
-    expect(progress.getSnapshot().mountain.engineers?.[0]).toMatchObject({
+    expect(progress.getSnapshot().mountain.engineers[0]).toMatchObject({
       post: "camp",
       trips: 1,
     });
@@ -2436,7 +2436,7 @@ describe("expeditions through the save", () => {
       "side-seam",
       1_000_000,
     );
-    const find = sent.expeditions?.[0]?.find;
+    const find = sent.expeditions[0]?.find;
     const storage = createMemoryStorage();
     writeSessionSave({ storage, mountain: sent, lastSeen: 1_000_000 });
     let clock = 1_000_000;
@@ -2445,18 +2445,16 @@ describe("expeditions through the save", () => {
       sessionStorage: storage,
       now: () => clock,
     });
-    expect(progress.getSnapshot().mountain.engineers?.[0]?.post).toBe("tunnel");
+    expect(progress.getSnapshot().mountain.engineers[0]?.post).toBe("tunnel");
     clock = -60 * 60_000;
     progress.tick();
     progress.flush();
     const saved = readSessionSave({ storage });
     expect(saved?.lastSeen).toBeLessThanOrEqual(clock);
-    expect(saved?.mountain.expeditions?.[0]?.sentAt).toBe(clock);
-    expect(saved?.mountain.expeditions?.[0]?.returnsAt).toBe(
-      clock + 10 * 60_000,
-    );
-    expect(saved?.mountain.expeditions?.[0]?.find).toEqual(find);
-    expect(saved?.mountain.engineers?.[0]?.trips).toBe(0);
+    expect(saved?.mountain.expeditions[0]?.sentAt).toBe(clock);
+    expect(saved?.mountain.expeditions[0]?.returnsAt).toBe(clock + 10 * 60_000);
+    expect(saved?.mountain.expeditions[0]?.find).toEqual(find);
+    expect(saved?.mountain.engineers[0]?.trips).toBe(0);
     progress.dispose();
   });
 
@@ -2522,7 +2520,7 @@ describe("expeditions through the save", () => {
       "side-seam",
       0,
     );
-    const trip = waiting.expeditions?.[0];
+    const trip = waiting.expeditions[0];
     if (trip === undefined) {
       throw new Error("expected a trip");
     }
@@ -2562,7 +2560,7 @@ describe("expeditions through the save", () => {
       "side-seam",
       0,
     );
-    const trip = sent.expeditions?.[0];
+    const trip = sent.expeditions[0];
     if (trip === undefined) {
       throw new Error("expected a trip");
     }
@@ -4991,7 +4989,7 @@ describe("two saves found (#226)", () => {
         (copy) =>
           copy.mountain.drills === 2 &&
           copy.mountain.pocket === 70 &&
-          copy.mountain.materials?.crystal === 1,
+          copy.mountain.materials.crystal === 1,
       ),
     ).toBe(true);
     const choice = there

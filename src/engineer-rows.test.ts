@@ -103,7 +103,7 @@ const NONE: EngineerTeach = { kind: "none" };
 
 /** The crew of the mountain, by index. */
 const crew = (mountain: Mountain, index = 0): Engineer => {
-  const found = mountain.engineers?.[index];
+  const found = mountain.engineers[index];
   if (found === undefined) {
     throw new Error(`no engineer ${String(index)}`);
   }

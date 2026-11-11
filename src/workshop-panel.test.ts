@@ -274,8 +274,8 @@ describe("the Workshop drawer (#374)", () => {
       const mountain = screen.progress.getSnapshot().mountain;
       expect(mountain.bench).toBeUndefined();
       expect(mountain.pocket).toBe(250_000);
-      expect(mountain.materials?.clay).toBe(10);
-      expect(mountain.materials?.iron).toBe(4);
+      expect(mountain.materials.clay).toBe(10);
+      expect(mountain.materials.iron).toBe(4);
       expect(partOf(bench, "verb")).toBe("Done");
 
       // Armed and left alone, it disarms after four seconds.
@@ -526,7 +526,7 @@ describe("the Workshop drawer (#374)", () => {
     row?.click();
     bench.click();
     expect(screen.progress.getSnapshot().mountain.bench).toBeUndefined();
-    expect(screen.progress.getSnapshot().mountain.kept?.bench?.recipe).toBe(
+    expect(screen.progress.getSnapshot().mountain.kept.bench?.recipe).toBe(
       "future-bit",
     );
   });

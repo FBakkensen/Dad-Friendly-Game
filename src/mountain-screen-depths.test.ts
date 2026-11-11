@@ -119,9 +119,9 @@ describe("side tunnels (#147)", () => {
       "Ada will be gone about an hour.",
     );
     const saved = readSessionSave({ storage })?.mountain;
-    expect(saved?.expeditions?.[0]?.tunnel).toBe("old-shaft");
-    expect(saved?.expeditions?.[0]?.engineer).toBe("Ada");
-    expect(saved?.engineers?.[0]?.post).toBe("tunnel");
+    expect(saved?.expeditions[0]?.tunnel).toBe("old-shaft");
+    expect(saved?.expeditions[0]?.engineer).toBe("Ada");
+    expect(saved?.engineers[0]?.post).toBe("tunnel");
     // Once the cheer gives way, the kick is the trip in words; her row says where she is.
     inSheet(screen, ".engineer-list-back").click();
     expect(
@@ -155,7 +155,7 @@ describe("side tunnels (#147)", () => {
     expect(screen.engineersPage()?.classList.contains("engineer-page")).toBe(
       true,
     );
-    expect(screen.progress.getSnapshot().mountain.engineers?.[0]?.post).toBe(
+    expect(screen.progress.getSnapshot().mountain.engineers[0]?.post).toBe(
       "tunnel",
     );
 
@@ -165,18 +165,19 @@ describe("side tunnels (#147)", () => {
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
     );
     expect(engineersOpen(screen.root)).toBe(false);
-    expect(
-      screen.progress.getSnapshot().mountain.expeditions?.[0]?.tunnel,
-    ).toBe("side-seam");
+    expect(screen.progress.getSnapshot().mountain.expeditions[0]?.tunnel).toBe(
+      "side-seam",
+    );
 
     screen.openEngineer("Ada");
     inSheet(screen, ".engineer-recall").click();
     inSheet(screen, ".recall-yes").click();
     expect(kick(screen)).toBe("Ada is home, empty-handed.");
     expect(screen.progress.getSnapshot().mountain.expeditions).toEqual([]);
-    expect(screen.progress.getSnapshot().mountain.engineers?.[0]).toMatchObject(
-      { trips: 0, post: "borer" },
-    );
+    expect(screen.progress.getSnapshot().mountain.engineers[0]).toMatchObject({
+      trips: 0,
+      post: "borer",
+    });
     expect(screen.progress.getSnapshot().mountain.finds).toEqual([]);
     expect(
       screen.root.querySelector<HTMLElement>(".expedition-chip")?.hidden,
@@ -188,9 +189,10 @@ describe("side tunnels (#147)", () => {
     inSheet(screen, '.engineer-post[data-post="camp"]').click();
     expect(kick(screen)).toBe("Ada puts the kettle on at camp.");
     expect(screen.progress.getSnapshot().mountain.expeditions).toEqual([]);
-    expect(screen.progress.getSnapshot().mountain.engineers?.[0]).toMatchObject(
-      { trips: 0, post: "camp" },
-    );
+    expect(screen.progress.getSnapshot().mountain.engineers[0]).toMatchObject({
+      trips: 0,
+      post: "camp",
+    });
     screen.root.remove();
   });
 
@@ -223,15 +225,15 @@ describe("side tunnels (#147)", () => {
     expect(
       screen.root.querySelector(".expedition-chip")?.getAttribute("aria-label"),
     ).toContain("Ada will be gone a long night.");
-    expect(
-      screen.progress.getSnapshot().mountain.expeditions?.[0]?.tunnel,
-    ).toBe("deep-dark");
+    expect(screen.progress.getSnapshot().mountain.expeditions[0]?.tunnel).toBe(
+      "deep-dark",
+    );
     screen.root.remove();
   });
 
   it("says who came back, on the welcome card and while you stay", () => {
     const sent = send(withAda(), 0, "old-shaft", 0);
-    const trip = sent.expeditions?.[0];
+    const trip = sent.expeditions[0];
     if (trip === undefined) {
       throw new Error("expected a trip");
     }
@@ -310,7 +312,7 @@ describe("side tunnels (#147)", () => {
         live.root.querySelector<HTMLElement>(".expedition-chip")?.hidden,
       ).toBe(true);
       expect(live.progress.getSnapshot().mountain.finds).toEqual(["pick"]);
-      expect(live.progress.getSnapshot().mountain.engineers?.[0]?.post).toBe(
+      expect(live.progress.getSnapshot().mountain.engineers[0]?.post).toBe(
         "borer",
       );
       live.progress.dispose();
@@ -383,7 +385,7 @@ describe("side tunnels (#147)", () => {
       "side-seam",
       0,
     );
-    const trips = sent.expeditions ?? [];
+    const trips = sent.expeditions;
     const found = {
       ...sent,
       expeditions: trips.map((trip) => ({
@@ -422,7 +424,7 @@ describe("side tunnels (#147)", () => {
       const start = 1_000_000_000;
       vi.setSystemTime(start);
       const one = send(withAda(), 0, "old-shaft", start);
-      const trip = one.expeditions?.[0];
+      const trip = one.expeditions[0];
       if (trip === undefined) {
         throw new Error("expected a trip");
       }
@@ -1177,7 +1179,7 @@ describe("sheet buys", () => {
       throw new Error("upgrade why did not render");
     }
     tap(why);
-    expect(screen.progress.getSnapshot().mountain.upgrades?.tap).toBe(1);
+    expect(screen.progress.getSnapshot().mountain.upgrades.tap).toBe(1);
     screen.root
       .querySelector<HTMLButtonElement>(
         '[data-sheet="upgrades"] .board-sheet-back',
