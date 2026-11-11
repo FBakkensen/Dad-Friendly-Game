@@ -7,6 +7,8 @@ import { veinOftenScale } from "./workshop";
 export const VEIN_MIN_GAP_MS = 3 * 60 * 1000;
 export const VEIN_MAX_GAP_MS = 6 * 60 * 1000;
 export const VEIN_GLINT_MS = 12 * 1000;
+/** The quick vein after an hour away glints this soon, in board time (#468). */
+export const QUICK_VEIN_WAIT_MS = 20 * 1000;
 const VEIN_HELPER_SECONDS = 60;
 const VEIN_MIN_REWARD = 50;
 
@@ -56,6 +58,14 @@ export function waitForVein({
 }): VeinState {
   const gap = VEIN_MIN_GAP_MS + random() * (VEIN_MAX_GAP_MS - VEIN_MIN_GAP_MS);
   return { kind: "waiting", appearsAt: now + gap * gapScale };
+}
+
+/**
+ * The first vein after an hour away (#468): it glints in 20 seconds of board
+ * time. The lantern and the vein crafts do not shorten it.
+ */
+export function quickVein(now: number): VeinState {
+  return { kind: "waiting", appearsAt: now + QUICK_VEIN_WAIT_MS };
 }
 
 /** Moves the vein along in time: waiting → glinting → (missed) waiting again. */

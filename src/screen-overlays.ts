@@ -25,6 +25,8 @@ export function createOverlays(
   readonly sign: BoardSign;
   readonly paint: () => void;
   readonly putSignAway: () => void;
+  /** A card or a drawer is over the board, so the mine window is out of sight. */
+  readonly boardCovered: () => boolean;
   readonly listen: () => void;
 } {
   const { board, now, listening } = ctx;
@@ -143,6 +145,7 @@ export function createOverlays(
       renderRail();
     },
     putSignAway,
+    boardCovered: () => cover().putAway,
     listen: () => {
       // Any tap or Escape puts the New sign away (#373).
       document.addEventListener("pointerdown", putSignAway, listening);

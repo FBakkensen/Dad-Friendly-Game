@@ -888,6 +888,115 @@ describe("golden vein on screen", () => {
     }
   });
 
+  describe("the quick vein after an hour away (#468)", () => {
+    const HOUR = 60 * 60_000;
+    const crew = { ...minedMountain(0), helpers: 4, kids: 0 };
+    const opened = (awayMs: number) => {
+      const storage = createMemoryStorage();
+      const start = 10 * HOUR;
+      writeSessionSave({ storage, mountain: crew, lastSeen: start - awayMs });
+      const clock = { at: start };
+      const screen = mountScreen({
+        storage,
+        now: () => clock.at,
+        random: () => 0,
+      });
+      const vein = screen.root.querySelector(".golden-vein") as HTMLElement;
+      // The board ticks once a second, so the clock moves a second a tick.
+      const tick = async (ms: number) => {
+        for (let left = ms; left > 0; left -= 1_000) {
+          clock.at += 1_000;
+          await vi.advanceTimersByTimeAsync(1_000);
+        }
+      };
+      return { screen, vein, tick };
+    };
+    const closeWelcome = (screen: ReturnType<typeof mountScreen>) => {
+      screen.root
+        .querySelector<HTMLButtonElement>(".welcome-continue")
+        ?.click();
+    };
+
+    it("glints 20 seconds after the welcome card, and a tap starts the Gold rush", async () => {
+      vi.useFakeTimers();
+      try {
+        const { screen, vein, tick } = opened(2 * HOUR);
+        // The welcome card covers the board: the quick vein waits.
+        await tick(60_000);
+        expect(vein.hidden).toBe(true);
+        closeWelcome(screen);
+        await tick(19_000);
+        expect(vein.hidden).toBe(true);
+        await tick(1_000);
+        expect(vein.hidden).toBe(false);
+        vein.click();
+        const reward = veinReward(crew);
+        expect(screen.text(".vein-note")).toBe(
+          `Golden vein! +${formatCount(reward)} stones. Gold rush: the crew digs ×10 for 90 seconds.`,
+        );
+        const now = screen.progress.getSnapshot().mountain;
+        expect(now.rushUntil).toBeGreaterThan(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("holds while a drawer covers the mine window", async () => {
+      vi.useFakeTimers();
+      try {
+        const { screen, vein, tick } = opened(2 * HOUR);
+        await tick(1_000);
+        closeWelcome(screen);
+        await tick(10_000);
+        screen.root
+          .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+          ?.click();
+        await tick(30_000);
+        screen.root
+          .querySelector<HTMLButtonElement>(
+            '.board-sheet[data-sheet="buys"] .board-sheet-back',
+          )
+          ?.click();
+        await tick(9_000);
+        expect(vein.hidden).toBe(true);
+        await tick(1_000);
+        expect(vein.hidden).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not come after less than an hour away, or twice", async () => {
+      vi.useFakeTimers();
+      try {
+        const { screen, vein, tick } = opened(30 * 60_000);
+        closeWelcome(screen);
+        await tick(60_000);
+        expect(vein.hidden).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+      vi.useFakeTimers();
+      try {
+        const { screen, vein, tick } = opened(2 * HOUR);
+        await tick(1_000);
+        closeWelcome(screen);
+        await tick(20_000);
+        expect(vein.hidden).toBe(false);
+        // Missed: it glints out, and the next one is an ordinary wait.
+        await tick(12_000);
+        expect(vein.hidden).toBe(true);
+        await tick(2 * 60_000);
+        expect(vein.hidden).toBe(true);
+        expect(
+          screen.progress.getSnapshot().mountain.rushUntil,
+        ).toBeUndefined();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   it("keeps play time across the phone locking: time away is skipped, not a reset", async () => {
     vi.useFakeTimers();
     const setVisibility = (state: DocumentVisibilityState) => {

@@ -15,6 +15,7 @@ import {
 } from "./expeditions";
 import type { BoostId } from "./boosts";
 import { formatCompact, formatCount } from "./format";
+import { RUSH_MS, RUSH_MULTIPLIER } from "./gold-rush";
 import type { TroubleKind } from "./hazards";
 import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
@@ -1457,3 +1458,11 @@ export const veinGaveLine = (stones: number): string =>
 
 /** "Ada came home." */
 export const cameHomeLine = (name: string): string => `${name} came home.`;
+
+/** The vein's payout note. A quick vein's also names the Gold rush (Flemming, 11 Nov 2026). */
+export function veinWords(reward: number, rush: boolean): string {
+  const paid = `Golden vein! +${formatCount(reward)} ${reward === 1 ? "stone" : "stones"}`;
+  return rush
+    ? `${paid}. Gold rush: the crew digs ×${String(RUSH_MULTIPLIER)} for ${String(RUSH_MS / 1000)} seconds.`
+    : paid;
+}
