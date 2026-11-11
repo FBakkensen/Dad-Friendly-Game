@@ -1,4 +1,4 @@
-/* global document, getComputedStyle, Image, requestAnimationFrame */
+/* global document, getComputedStyle, Image, requestAnimationFrame, HTMLElement */
 /** The board's measures: what the board, bay and drawer sections read off the page. */
 import {
   targetsCloserThan,
@@ -263,10 +263,19 @@ const BOARD_ART =
  * Visible controls in board px (rendered size / --board-scale): the board's
  * own, and the neighbours they must stand 8px from. A closed sheet, the
  * closed drawer and the parked note are not on screen, so they do not count.
+ * With `vein` (a spot in the window's px, as veinSpot gives it) the golden
+ * vein is shown there first, in the same page task as the measuring, so the
+ * screen's second tick cannot hide it in between.
  */
-async function boardTargets(page) {
+async function boardTargets(page, { vein } = {}) {
   return page.evaluate(
-    (own, neighbours) => {
+    (own, neighbours, spot) => {
+      const shown = document.querySelector(".golden-vein");
+      if (spot !== null && shown instanceof HTMLElement) {
+        shown.style.left = `${String((7 + spot.left) * 2)}px`;
+        shown.style.top = `${String((7 + spot.top) * 2)}px`;
+        shown.hidden = false;
+      }
       const board = globalThis.__board();
       const onScreen = (el) =>
         el.getClientRects().length > 0 &&
@@ -346,6 +355,7 @@ async function boardTargets(page) {
     },
     BOARD_TARGETS,
     NEIGHBOURS,
+    vein ?? null,
   );
 }
 

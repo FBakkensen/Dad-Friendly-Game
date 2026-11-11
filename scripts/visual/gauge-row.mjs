@@ -12,7 +12,7 @@ import {
   undersizedTargets,
   WINDOW_SCENE_PARTS,
 } from "../../src/ui-audit-measure.ts";
-import { check, section } from "./registry.mjs";
+import { check, section, table } from "./registry.mjs";
 import {
   PHONE,
   SCREENS,
@@ -40,10 +40,10 @@ import {
 // Share Tech Mono): the plate is sized for them, and the check proves they
 // loaded rather than measuring a fallback face.
 const GAUGE_SAVES = [
-  ["early", () => crewMountain(), "topsoil"],
-  ["mid", () => openMountain(), "granite"],
-  ["crystal", () => crystalMountain(), "crystal"],
-  ["heart", () => heartMountain(), "heart"],
+  { name: "early", save: () => crewMountain(), band: "topsoil" },
+  { name: "mid", save: () => openMountain(), band: "granite" },
+  { name: "crystal", save: () => crystalMountain(), band: "crystal" },
+  { name: "heart", save: () => heartMountain(), band: "heart" },
 ];
 /** The vein's range: veinSpot at x 0.35/0.65 and y 0.4/0.8. */
 const VEIN_CORNERS = [
@@ -53,45 +53,35 @@ const VEIN_CORNERS = [
   [0.65, 0.8],
 ];
 
-/** Shows the vein at a corner of its range, as board-window.ts places it; undefined hides it. */
-async function placeVein(page, corner) {
-  await page.evaluate(
+/** Each corner's spot in the window, from the game's own veinSpot. */
+async function veinSpots(page, corners) {
+  return page.evaluate(
     async (at, rules) => {
-      const vein = document.querySelector(".golden-vein");
-      if (vein === null) {
-        return;
-      }
-      if (at === undefined) {
-        vein.hidden = true;
-        return;
-      }
       const { veinSpot } = await import(rules);
-      const spot = veinSpot(at[0], at[1]);
-      vein.style.left = `${String((7 + spot.left) * 2)}px`;
-      vein.style.top = `${String((7 + spot.top) * 2)}px`;
-      vein.hidden = false;
+      return at.map(([x, y]) => veinSpot(x, y));
     },
-    corner,
+    corners,
     MINE_WINDOW_RULES,
   );
 }
 
-/**
- * The board's targets with the vein placed at a corner of its range. The
- * screen's own second tick hides a vein that is not really glinting, and under
- * the full gate's load that tick can land between placing and measuring, so
- * place and measure again until the vein is in the measurement.
- */
-async function targetsWithVein(page, corner) {
-  let set = { own: [] };
-  for (let tries = 0; tries < 5; tries += 1) {
-    await placeVein(page, corner);
-    set = await boardTargets(page);
-    if (set.own.some((target) => target.selector.startsWith(".golden-vein "))) {
-      return set;
+/** Shows the vein at a corner of its range, as board-window.ts places it; undefined hides it. */
+async function placeVein(page, corner) {
+  const [spot] =
+    corner === undefined ? [undefined] : await veinSpots(page, [corner]);
+  await page.evaluate((at) => {
+    const vein = document.querySelector(".golden-vein");
+    if (vein === null) {
+      return;
     }
-  }
-  return set;
+    if (at === null) {
+      vein.hidden = true;
+      return;
+    }
+    vein.style.left = `${String((7 + at.left) * 2)}px`;
+    vein.style.top = `${String((7 + at.top) * 2)}px`;
+    vein.hidden = false;
+  }, spot ?? null);
 }
 
 /**
@@ -137,69 +127,129 @@ async function crewPlateWords(page) {
   });
 }
 
-for (const viewport of SCREENS) {
-  for (const [name, save, band] of GAUGE_SAVES) {
-    section(`gauge row ${JSON.stringify(viewport)} ${name}`, async () => {
-      const size = `${String(viewport[0])}x${String(viewport[1])}`;
-      const label = `${size} gauge row, ${name}:`;
-      const { page, close } = await openScreen(viewport, save());
-      await page.waitForSelector(".board-mine[data-band]");
-      const fonts = await boardFontsLoaded(page);
-      check(fonts, `${label} the bundled faces are loaded`);
-      check(await noScroll(page), `${label} no page scroll`);
+/** The band's view behind the glass, and what the save owns in it. */
+async function windowScene(page) {
+  return page.evaluate(async () => {
+    const mine = document.querySelector(".board-mine");
+    const art = document.querySelector(".board-window-art");
+    if (art instanceof HTMLImageElement && !art.complete) {
+      await art.decode().catch(() => undefined);
+    }
+    const shown = (selector) => {
+      const el = document.querySelector(selector);
+      return (
+        el !== null &&
+        el.closest("[hidden]") === null &&
+        el.getClientRects().length > 0
+      );
+    };
+    return {
+      band: mine?.getAttribute("data-band") ?? "",
+      art: art?.getAttribute("src") ?? "",
+      artWidth: art?.naturalWidth ?? 0,
+      machine: shown(".board-window-machine"),
+      kid: shown(".board-window-kid"),
+      plate: shown(".board-legacy"),
+      badge: document.querySelector(".board-legacy .legacy-badge")?.textContent,
+    };
+  });
+}
 
-      // The band's view behind the glass, and what the save owns in it.
-      const scene = await page.evaluate(async () => {
-        const mine = document.querySelector(".board-mine");
-        const art = document.querySelector(".board-window-art");
-        if (art instanceof HTMLImageElement && !art.complete) {
-          await art.decode().catch(() => undefined);
-        }
-        const shown = (selector) => {
-          const el = document.querySelector(selector);
-          return (
-            el !== null &&
-            el.closest("[hidden]") === null &&
-            el.getClientRects().length > 0
-          );
-        };
-        return {
-          band: mine?.getAttribute("data-band") ?? "",
-          art: art?.getAttribute("src") ?? "",
-          artWidth: art?.naturalWidth ?? 0,
-          machine: shown(".board-window-machine"),
-          kid: shown(".board-window-kid"),
-          plate: shown(".board-legacy"),
-          badge: document.querySelector(".board-legacy .legacy-badge")
-            ?.textContent,
-        };
-      });
-      check(
-        scene.band === band &&
-          scene.art.includes(`mine-view-${band}`) &&
-          scene.artWidth === 92,
-        `${label} the window shows the ${band} view`,
-      );
+/**
+ * The New sign (#373): in the band between the plate's words and the key
+ * rail, clear of the DIG legend, and a tap at its middle goes through.
+ */
+async function newSign(page) {
+  return page.evaluate(() => {
+    const slot = document.querySelector(".board-sign-slot:not([hidden])");
+    const face = slot?.querySelector(".board-sign");
+    if (face === null || face === undefined) {
+      return { shown: false };
+    }
+    const r = face.getBoundingClientRect();
+    const box = (selector) =>
+      document.querySelector(selector)?.getBoundingClientRect();
+    const apart = (b) =>
+      b === undefined ||
+      r.right <= b.left + 0.5 ||
+      r.left >= b.right - 0.5 ||
+      r.bottom <= b.top + 0.5 ||
+      r.top >= b.bottom - 0.5;
+    const words = box(".board-ready-text");
+    const legend = box(".board-dig-lg");
+    const rail = box(".board-rail");
+    const hit = document.elementFromPoint(
+      (r.left + r.right) / 2,
+      (r.top + r.bottom) / 2,
+    );
+    return {
+      shown: true,
+      key: slot?.getAttribute("data-key") ?? "",
+      text: face.textContent ?? "",
+      clearOfWords: apart(words),
+      clearOfLegend: apart(legend),
+      aboveRail: rail !== undefined && r.bottom <= rail.top + 0.5,
+      passes: hit !== null && !face.contains(hit) && hit !== slot,
+      size: Number.parseFloat(
+        getComputedStyle(face.querySelector(".board-sign-text") ?? face)
+          .fontSize,
+      ),
+      rect: [r.left, r.top, r.right, r.bottom].map(Math.round),
+    };
+  });
+}
+
+async function openGauge(viewport, scenario) {
+  const opened = await openScreen(viewport, scenario.save());
+  await opened.page.waitForSelector(".board-mine[data-band]");
+  const fonts = await boardFontsLoaded(opened.page);
+  return { ...opened, fonts };
+}
+
+const GAUGE_EXPECT = [
+  {
+    run: async ({ page, fonts }) => [
+      [fonts, "the bundled faces are loaded"],
+      [await noScroll(page), "no page scroll"],
+    ],
+  },
+  {
+    run: async ({ page, size, scenario }) => {
+      const { name, band } = scenario;
+      const scene = await windowScene(page);
       const heart = name === "heart";
-      check(
-        heart
-          ? scene.machine &&
-              scene.kid &&
-              scene.plate &&
-              (scene.badge ?? "").startsWith("Legacy ×")
-          : !scene.machine && !scene.kid && !scene.plate,
-        heart
-          ? `${label} the Great Machine, the kid and the Legacy plate show`
-          : `${label} no Great Machine, kid or Legacy plate before they are earned`,
-      );
       if (scene.band !== band || (heart && !scene.plate)) {
         console.log("gauge row scene", size, name, JSON.stringify(scene));
       }
-
-      // Targets at rest, then with the vein at each end of its range.
+      return [
+        [
+          scene.band === band &&
+            scene.art.includes(`mine-view-${band}`) &&
+            scene.artWidth === 92,
+          `the window shows the ${band} view`,
+        ],
+        heart
+          ? [
+              scene.machine &&
+                scene.kid &&
+                scene.plate &&
+                (scene.badge ?? "").startsWith("Legacy ×"),
+              "the Great Machine, the kid and the Legacy plate show",
+            ]
+          : [
+              !scene.machine && !scene.kid && !scene.plate,
+              "no Great Machine, kid or Legacy plate before they are earned",
+            ],
+      ];
+    },
+  },
+  {
+    // Targets at rest, then with the vein at each end of its range, each
+    // placed in the same page task that measures it.
+    run: async ({ page, size, scenario }) => {
       const sets = [await boardTargets(page)];
-      for (const corner of VEIN_CORNERS) {
-        sets.push(await targetsWithVein(page, corner));
+      for (const vein of await veinSpots(page, VEIN_CORNERS)) {
+        sets.push(await boardTargets(page, { vein }));
       }
       await placeVein(page, undefined);
       const own = sets.flatMap((set) => set.own);
@@ -214,26 +264,31 @@ for (const viewport of SCREENS) {
       const veins = own.filter((target) =>
         target.selector.startsWith(".golden-vein "),
       ).length;
-      check(
-        own.some((target) => target.selector.startsWith(".board-window ")) &&
-          veins === VEIN_CORNERS.length &&
-          under.length === 0 &&
-          close8.length === 0,
-        `${label} the window and the vein are 48x48 board px, 8px from the next`,
-      );
       if (under.length > 0 || close8.length > 0) {
         console.log(
           "gauge row targets",
           size,
-          name,
+          scenario.name,
           JSON.stringify({
             under: under.map((target) => target.selector),
             close: close8.map((pair) => [pair.a, pair.b, pair.gap]),
           }),
         );
       }
-
-      // Contrast first, before a tap puts "+N" over the view.
+      return [
+        [
+          own.some((target) => target.selector.startsWith(".board-window ")) &&
+            veins === VEIN_CORNERS.length &&
+            under.length === 0 &&
+            close8.length === 0,
+          "the window and the vein are 48x48 board px, 8px from the next",
+        ],
+      ];
+    },
+  },
+  {
+    // Contrast first, before a tap puts "+N" over the view.
+    run: async ({ page, size, scenario }) => {
       const contrast = await boardContrast(page);
       const dim = contrast.filter((row) => row.pct < 4.5);
       const want = [
@@ -241,117 +296,107 @@ for (const viewport of SCREENS) {
         "Crew",
         "free",
         "No. 2 Shaft",
-        ...(heart ? ["Legacy ×"] : []),
+        ...(scenario.name === "heart" ? ["Legacy ×"] : []),
       ];
       const read = want.every((words) =>
         contrast.some((row) => row.text.includes(words)),
       );
-      check(
-        read && dim.length === 0,
-        `${label} ${String(contrast.length)} legends at 4.5:1 or more (lowest ${String(Math.min(...contrast.map((row) => row.pct)))}:1 at p10/p90)`,
-      );
       if (!read || dim.length > 0) {
-        console.log("gauge row contrast", size, name, JSON.stringify(contrast));
-      }
-
-      // The New sign (#373): in the band between the plate's words and the
-      // key rail, clear of the DIG legend, and a tap at its middle goes through.
-      const sign = await page.evaluate(() => {
-        const slot = document.querySelector(".board-sign-slot:not([hidden])");
-        const face = slot?.querySelector(".board-sign");
-        if (face === null || face === undefined) {
-          return { shown: false };
-        }
-        const r = face.getBoundingClientRect();
-        const box = (selector) =>
-          document.querySelector(selector)?.getBoundingClientRect();
-        const apart = (b) =>
-          b === undefined ||
-          r.right <= b.left + 0.5 ||
-          r.left >= b.right - 0.5 ||
-          r.bottom <= b.top + 0.5 ||
-          r.top >= b.bottom - 0.5;
-        const words = box(".board-ready-text");
-        const legend = box(".board-dig-lg");
-        const rail = box(".board-rail");
-        const hit = document.elementFromPoint(
-          (r.left + r.right) / 2,
-          (r.top + r.bottom) / 2,
+        console.log(
+          "gauge row contrast",
+          size,
+          scenario.name,
+          JSON.stringify(contrast),
         );
-        return {
-          shown: true,
-          key: slot?.getAttribute("data-key") ?? "",
-          text: face.textContent ?? "",
-          clearOfWords: apart(words),
-          clearOfLegend: apart(legend),
-          aboveRail: rail !== undefined && r.bottom <= rail.top + 0.5,
-          passes: hit !== null && !face.contains(hit) && hit !== slot,
-          size: Number.parseFloat(
-            getComputedStyle(face.querySelector(".board-sign-text") ?? face)
-              .fontSize,
-          ),
-          rect: [r.left, r.top, r.right, r.bottom].map(Math.round),
-        };
-      });
-      if (name === "mid" || sign.shown) {
-        check(
-          sign.shown &&
-            sign.clearOfWords &&
-            sign.clearOfLegend &&
-            sign.aboveRail &&
-            sign.passes &&
-            sign.size >= 14,
-          `${label} the New sign stands between the plate's words and the rail, clear of the DIG legend, at 14px, and taps go through it`,
-        );
-        if (
-          !sign.shown ||
-          !sign.clearOfWords ||
-          !sign.clearOfLegend ||
-          !sign.aboveRail ||
-          !sign.passes ||
-          sign.size < 14
-        ) {
-          console.log("new sign", size, name, JSON.stringify(sign));
-        }
       }
-
-      // A dig shows "+N"; its text joins the 13px count.
+      return [
+        [
+          read && dim.length === 0,
+          `${String(contrast.length)} legends at 4.5:1 or more (lowest ${String(Math.min(...contrast.map((row) => row.pct)))}:1 at p10/p90)`,
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page, size, scenario }) => {
+      const sign = await newSign(page);
+      if (scenario.name !== "mid" && !sign.shown) {
+        return [];
+      }
+      const ok =
+        sign.shown &&
+        sign.clearOfWords &&
+        sign.clearOfLegend &&
+        sign.aboveRail &&
+        sign.passes &&
+        sign.size >= 14;
+      if (!ok) {
+        console.log("new sign", size, scenario.name, JSON.stringify(sign));
+      }
+      return [
+        [
+          ok,
+          "the New sign stands between the plate's words and the rail, clear of the DIG legend, at 14px, and taps go through it",
+        ],
+      ];
+    },
+  },
+  {
+    // A dig shows "+N"; its text joins the 13px count.
+    run: async ({ page, size, scenario }) => {
       await press(page, ".board-window");
       const text = await boardTextSizes(page);
-      check(
-        text.small.length === 0 && text.count >= 20,
-        `${label} board text is 13px or more (${String(text.count)} runs)`,
-      );
       if (text.small.length > 0) {
-        console.log("gauge row text", size, name, JSON.stringify(text.small));
-      }
-
-      // Art is measured at the phone, where the board is drawn at scale 1.
-      if (PHONE === viewport) {
-        await placeVein(page, VEIN_CORNERS[0]);
-        const art = await boardArtAt2x(page);
-        await placeVein(page, undefined);
-        check(
-          art.misses.length === 0 && art.count >= 20,
-          `${label} ${String(art.count)} images, sprites and skins at exactly 2x`,
+        console.log(
+          "gauge row text",
+          size,
+          scenario.name,
+          JSON.stringify(text.small),
         );
-        if (art.misses.length > 0) {
-          console.log("gauge row 2x", size, name, JSON.stringify(art.misses));
-        }
       }
-
+      return [
+        [
+          text.small.length === 0 && text.count >= 20,
+          `board text is 13px or more (${String(text.count)} runs)`,
+        ],
+      ];
+    },
+  },
+  {
+    // Art is measured at the phone, where the board is drawn at scale 1.
+    when: ({ viewport }) => PHONE === viewport,
+    run: async ({ page, size, scenario }) => {
+      await placeVein(page, VEIN_CORNERS[0]);
+      const art = await boardArtAt2x(page);
+      await placeVein(page, undefined);
+      if (art.misses.length > 0) {
+        console.log(
+          "gauge row 2x",
+          size,
+          scenario.name,
+          JSON.stringify(art.misses),
+        );
+      }
+      return [
+        [
+          art.misses.length === 0 && art.count >= 20,
+          `${String(art.count)} images, sprites and skins at exactly 2x`,
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page, fonts, size, scenario }) => {
       const words = await crewPlateWords(page);
-      check(
-        fonts && words.ok,
-        `${label} the crew plate's words stay on the plate`,
-      );
       if (!words.ok) {
-        console.log("crew plate", size, name, JSON.stringify(words));
+        console.log("crew plate", size, scenario.name, JSON.stringify(words));
       }
-      await close();
-    });
-  }
+      return [[fonts && words.ok, "the crew plate's words stay on the plate"]];
+    },
+  },
+];
 
+function movingParts(viewport) {
   section(`gauge row ${JSON.stringify(viewport)} moving parts`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     const label = `${size} gauge row:`;
@@ -617,3 +662,14 @@ for (const viewport of SCREENS) {
     }
   });
 }
+
+table({
+  screens: SCREENS,
+  scenarios: GAUGE_SAVES,
+  section: (viewport, scenario) =>
+    `gauge row ${JSON.stringify(viewport)} ${scenario.name}`,
+  prefix: ({ size, scenario }) => `${size} gauge row, ${scenario.name}:`,
+  open: openGauge,
+  expect: GAUGE_EXPECT,
+  after: movingParts,
+});
