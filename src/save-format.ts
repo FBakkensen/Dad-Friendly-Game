@@ -106,13 +106,8 @@ const CLOCK_FIELDS = {
   "axle-grease": "axleUntil",
 } as const satisfies Record<TimerId, keyof WorkshopSave>;
 
-/** In the order the workshop map has always written them. */
-const CLOCK_ORDER: readonly TimerId[] = [
-  "blasting-charge",
-  "crystal-flare",
-  "heartstone-ember",
-  "axle-grease",
-];
+/** In the order the workshop map has always written them (`CLOCK_FIELDS`' key order). */
+const CLOCK_ORDER = Object.keys(CLOCK_FIELDS) as readonly TimerId[];
 
 function only<K extends string, V>(
   key: K,

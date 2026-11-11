@@ -1231,6 +1231,12 @@ describe("valueOf", () => {
     expect(
       score(deep, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
     ).toBeGreaterThan(0);
+    // Her kit is worth the same while she is out: the post calls her back (#415).
+    const deepAway = send(deep, 0, "side-seam", 0);
+    expect(deepAway.expeditions).toHaveLength(1);
+    expect(
+      score(deepAway, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
+    ).toBe(score(deep, { kind: "craft", recipe: "engineers-kit" }).gainPerSec);
     const kitOnly = shed({
       recipes: [...shed().recipes, "engineers-kit"],
     });

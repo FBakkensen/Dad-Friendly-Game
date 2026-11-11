@@ -3,7 +3,9 @@ import {
   MAX_ENGINEERS,
   addTrip,
   onTrip,
+  station,
   type Engineer,
+  type EngineerPost,
   type DutyEngineer,
 } from "./engineers";
 import { LOST_TOOLS, expeditionAwayMs, type LostToolId } from "./lost-tools";
@@ -209,6 +211,19 @@ export function send(
 }
 
 /** Back at the post they left. No find, no trip, no cost. */
+/**
+ * The player's choice of a post: an engineer out on a trip is called back
+ * first (no find, no trip), then stationed. The one way a post is priced or
+ * applied, so a page that shows a post while she is away shows what the tap does.
+ */
+export function callTo(
+  mountain: Mountain,
+  engineer: number,
+  post: EngineerPost,
+): Mountain {
+  return station(recall(mountain, engineer), engineer, post);
+}
+
 export function recall(mountain: Mountain, engineer: number): Mountain {
   const hand = mountain.engineers[engineer];
   if (hand === undefined) {

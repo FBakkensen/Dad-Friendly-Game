@@ -1,6 +1,6 @@
 import { BOOSTS, type BoostId } from "./boosts";
 import type { MoveEvent } from "./economy/actions";
-import { ENGINEER_NAMES, onTrip } from "./engineers";
+import { ENGINEER_NAMES, onDuty } from "./engineers";
 import type { Mountain } from "./mountain";
 import type { Rates } from "./rates";
 import { foundRelics, type RelicId } from "./relics";
@@ -153,11 +153,11 @@ export function snapshot(
     }
     boosts.push({ id: boost.id, endsAt: new Date(endsAt).toISOString() });
   }
-  const engineers = mountain.engineers.map((engineer) => ({
+  // The log keeps the saved post: "tunnel" while away.
+  const engineers = onDuty(mountain).map((engineer) => ({
     name: engineer.name,
     rank: engineer.rank,
-    // The log keeps the saved post: "tunnel" while away.
-    post: onTrip(mountain, engineer.name) ? "tunnel" : engineer.post,
+    post: engineer.post,
   }));
   const expeditions = mountain.expeditions.map((trip) => ({
     engineer: trip.engineer,

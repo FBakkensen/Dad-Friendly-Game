@@ -19,6 +19,7 @@ import {
   emberMachineMultiplier,
   gearMultiplier,
 } from "./workshop";
+import { callTo } from "./expeditions";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import { TIERS, owned, tierById, type TierId } from "./tiers";
@@ -424,7 +425,7 @@ export function tendingGain(
   trouble?: Trouble,
 ): number {
   const tended = effectiveRates(
-    station(mountain, index, post),
+    callTo(mountain, index, post),
     now,
     trouble,
   ).crewPerSecond;
@@ -445,7 +446,7 @@ export function moveGain(
   trouble?: Trouble,
 ): number {
   return (
-    effectiveRates(station(mountain, index, post), now, trouble).crewPerSecond -
+    effectiveRates(callTo(mountain, index, post), now, trouble).crewPerSecond -
     effectiveRates(mountain, now, trouble).crewPerSecond
   );
 }

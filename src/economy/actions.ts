@@ -23,6 +23,7 @@ import {
 import {
   MAX_EXPEDITIONS,
   TUNNELS,
+  callTo,
   recall,
   send,
   type TunnelId,
@@ -448,11 +449,7 @@ function actionApplied(
     case "station": {
       // From a tunnel, the post calls the party back first (no find, no trip), so no
       // expedition is left without its engineer. A real station is the first tend (#246).
-      const next = station(
-        recall(mountain, action.index),
-        action.index,
-        action.post,
-      );
+      const next = callTo(mountain, action.index, action.post);
       return next === mountain ? mountain : markTaught(next, "tending");
     }
     case "send":
@@ -677,7 +674,7 @@ export function valueOf(
         mountain,
         incomeGain(
           mountain,
-          station(mountain, action.index, action.post),
+          callTo(mountain, action.index, action.post),
           context,
         ),
         0,
@@ -1022,7 +1019,7 @@ function bestPost(
     if (post === "camp") {
       continue;
     }
-    const stationed = station(mountain, index, post);
+    const stationed = callTo(mountain, index, post);
     const rate = incomePerSecond(stationed, context);
     if (rate > bestRate) {
       best = stationed;

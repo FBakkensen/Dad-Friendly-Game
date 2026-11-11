@@ -10,6 +10,7 @@ import {
   recipeById,
   recipeCost,
   type RecipeId,
+  withClock,
 } from "./workshop";
 
 /**
@@ -54,10 +55,10 @@ function firstCharge(mountain: Mountain): boolean {
 }
 
 function withoutCharge(mountain: Mountain): Mountain {
+  const cold = withClock(mountain, "blasting-charge", 0);
   return {
-    ...mountain,
-    clocks: { ...mountain.clocks, "blasting-charge": 0 },
-    bench: mountain.bench?.recipe === FIRST_CRAFT ? undefined : mountain.bench,
+    ...cold,
+    bench: cold.bench?.recipe === FIRST_CRAFT ? undefined : cold.bench,
   };
 }
 

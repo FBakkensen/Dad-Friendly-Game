@@ -793,9 +793,11 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   (Firestore persistent cache) does not count as that read. One writer tab per
   device; Play here flushes the phone backup first. Offline writes stay in that
   cache until the next open, and a stale queued rev is rejected like any other.
-- Save v6 keeps `materials`, `bench`, `crafted`, `recipes`, and optional
-  `chargeUntil` on the mountain in memory, and writes them as one `workshop` map
-  beside the mountain. The mountain key list in `firestore.rules` cannot grow,
+- Save v6 keeps `materials`, `bench`, `crafted`, `recipes`, and the craft
+  clocks (`mountain.clocks`, keyed by recipe id; 0 is cold) on the mountain in
+  memory, and writes them as one `workshop` map beside the mountain, each hot
+  clock under its saved name (`chargeUntil`, `flareUntil`, `emberUntil`,
+  `axleUntil`). The mountain key list in `firestore.rules` cannot grow,
   and a full crew is already at the expression budget, so the rules only require
   that map. The parser checks the four material ints (each capped at that band's
   width), the bench times, crafted levels, and a whole `chargeUntil`. An unknown
