@@ -175,6 +175,28 @@ async function openDrawer(page, name) {
   await new Promise((resolve) => setTimeout(resolve, 450));
 }
 
+/**
+ * A plate that hands off to a card closes its drawer first (#375): wait out
+ * the drawer's slide, so the shot shows the card and not the drawer going.
+ * @param {import("puppeteer-core").Page} page
+ * @param {string} name
+ */
+async function drawerGone(page, name) {
+  const sheet = `.board-sheet[data-sheet="${name}"]`;
+  await page.waitForFunction(
+    (selector) => {
+      const el = document.querySelector(selector);
+      return (
+        el !== null &&
+        !el.classList.contains("is-open") &&
+        el.getAnimations().length === 0
+      );
+    },
+    { timeout: 8_000 },
+    sheet,
+  );
+}
+
 /** @param {import("puppeteer-core").Page} page */
 async function openWorkshop(page) {
   await openDrawer(page, "workshop");
@@ -1183,7 +1205,7 @@ async function main() {
     const opened = await openAuditPage(viewport, finished());
     // The Ledger's Pass plate reads the short words; its label is the full ones.
     await openDrawer(opened.page, "ledger");
-    await expectText(opened.page, /Pass the mine/, "pass");
+    await expectText(opened.page, /Pass the mine/i, "pass");
     return opened;
   });
   await capture("legacy-confirm", async (viewport) => {
@@ -1191,6 +1213,7 @@ async function main() {
     await openDrawer(opened.page, "ledger");
     await press(opened.page, ".ledger-pass");
     await opened.page.waitForSelector(".legacy-dialog:not([hidden])");
+    await drawerGone(opened.page, "ledger");
     await expectText(opened.page, /Pass it on/, "legacy confirm");
     return opened;
   });
@@ -1377,6 +1400,7 @@ async function main() {
     await openDrawer(opened.page, "ledger");
     await press(opened.page, ".ledger-saved-copies");
     await opened.page.waitForSelector(".saved-copies:not([hidden])");
+    await drawerGone(opened.page, "ledger");
     await opened.page.waitForSelector(".is-earlier-run");
     await expectText(opened.page, /earlier run/, "saved copies");
     return opened;
