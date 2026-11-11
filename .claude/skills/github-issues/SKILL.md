@@ -45,7 +45,7 @@ Flemming writes every issue that gets built. Triage sorts open issues by readine
 - **`needs-you`:** it waits for Flemming: a design or product call, a line of copy, art or PixelLab spend, or a guardrail limit. The label goes with a comment that asks the question in one sentence.
 - **`agent-working`:** a thread has claimed it and is building it now.
 
-A leaf carries at most one of the three. A blocked issue and a parent carry none: the graph already says why they wait. A hill-climb `maybe` issue carries none until Flemming promotes it. An issue an agent filed is `needs-you` with a one-line "Build this?" comment, so nothing gets built that Flemming has not seen. An issue that may hit a stop partway (say, art only if a measured trigger fires) is still `ready-for-agent`; the thread asks at the stop.
+A leaf carries at most one of the three. A blocked issue and a parent carry none: the graph already says why they wait. A hill-climb `maybe` issue carries none until Flemming promotes it. An issue an agent filed without Flemming's yes is `needs-you` with a one-line "Build this?" comment, so nothing gets built that Flemming has not seen. An issue that may hit a stop partway (say, art only if a measured trigger fires) is still `ready-for-agent`; the thread asks at the stop.
 
 The thread that merges triages the issues its merge unblocked (its `blocking` list), and the scheduled triage pass catches the rest.
 
@@ -59,17 +59,18 @@ gh api -X DELETE repos/FBakkensen/Dad-Friendly-Game/issues/<n>/labels/ready-for-
 
 **Claim** before the branch. Every thread writes as the same GitHub user, so the claim is a comment as well as a label:
 
-1. Add `agent-working`, remove `ready-for-agent`, and comment `Claimed by <thread link>, branch <branch>`.
-2. Read the comments. If an earlier claim comment has no `Released` comment after it, the other thread holds the issue: remove nothing, comment `Released`, and pick again.
+1. Read the labels. Self-chosen work goes on only if the issue is still `ready-for-agent`.
+2. Add `agent-working`, remove the other triage label, and comment `Claimed by <thread link>, branch <branch>`.
+3. Read the comments. A claim is live until a `Released <same thread link>` comment follows it. If another thread's claim is live and came first, it holds the issue: comment `Released <your thread link>`, leave the labels, and pick again.
 
-A thread Flemming started on an issue takes it whatever its label (his start is the answer) and claims it. Picking again applies only to work an agent chose itself. An agent claims self-chosen work only while fewer than two open issues carry `agent-working`.
+A thread Flemming started on an issue takes it whatever its label (his start is the answer). If another thread's claim is live, it tells him which thread holds it and waits. A thread an agent started on an issue that loses the claim stops and says so. An agent claims self-chosen work only while fewer than two open issues carry `agent-working`; the check races, so about two.
 
 **Release:**
 
 - **Merged:** the merge closes the issue (`Fixes #N`). Remove `agent-working` from it.
-- **At a stop:** the thread swaps `agent-working` for `needs-you`, comments the question, and keeps its branch. When Flemming answers, the same thread swaps it back and goes on.
-- **Given up, or the PR closed unmerged:** comment `Released` and set `ready-for-agent` again (or `needs-you` with the question).
-- **Stale:** the triage pass releases a claim whose thread has stopped or failed, or whose branch and PR have been quiet for a day, with a `Released` comment that says why. It moves `needs-you` back to `ready-for-agent` only when no thread or branch still holds the issue.
+- **At a stop:** the thread swaps `agent-working` for `needs-you`, asks the question on the issue and in its own conversation, where Flemming's answer reaches it, and keeps its branch. When Flemming answers, the same thread swaps it back and goes on.
+- **Given up, or the PR closed unmerged:** comment `Released <thread link>` and swap `agent-working` for `ready-for-agent` (or `needs-you` with the question).
+- **Stale:** the triage pass releases a claim whose thread has stopped or failed, or whose branch and PR have been quiet for a day, with a `Released <that thread link>` comment that says why. It moves `needs-you` back to `ready-for-agent` only when no thread or branch still holds the issue.
 
 ## One issue is one sliver
 
