@@ -177,7 +177,7 @@ export function overLimit(
   }
   return [...highest]
     .filter(([, value]) => value > measure.limit)
-    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .sort(([a], [b]) => a.localeCompare(b))
     .map(([id, value]) => ({ id, value }));
 }
 
