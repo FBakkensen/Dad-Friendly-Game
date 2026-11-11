@@ -363,8 +363,8 @@ export function gateSteps(
       tsc("tools/tsconfig.json", "tools"),
       both,
     ),
-    // No function grows past 150 lines, and the large ones only shrink (#408).
-    step("functions", "node", ["scripts/function-ratchet.mjs"], both),
+    // No function passes 150 lines or complexity 15, with no exceptions (#408, #422).
+    step("functions", "node", ["scripts/function-limits.mjs"], both),
     ...onChanges,
     ...formatChanged,
     step(
