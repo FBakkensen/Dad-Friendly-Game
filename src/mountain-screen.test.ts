@@ -1017,6 +1017,30 @@ describe("golden vein on screen", () => {
       }
     });
 
+    it("lets the quick vein go when the held stones went another way", async () => {
+      vi.useFakeTimers();
+      try {
+        const { screen, vein, tick } = opened(2 * HOUR);
+        await tick(1_000);
+        // another device's save landed the held stones
+        screen.progress.applyMutation((mountain) => {
+          const landed = { ...mountain };
+          delete landed.rushBank;
+          return landed;
+        });
+        // no rush to keep for him: the vein stops waiting behind the card
+        await tick(20_000);
+        expect(vein.hidden).toBe(false);
+        vein.click();
+        expect(screen.text(".vein-note")).not.toContain("Gold rush");
+        expect(
+          screen.progress.getSnapshot().mountain.rushUntil,
+        ).toBeUndefined();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("does not come after less than an hour away, or twice", async () => {
       vi.useFakeTimers();
       try {
