@@ -202,6 +202,17 @@ describe("the drawer shell", () => {
       expect(sheet.back.parentElement?.tagName).toBe("FOOTER");
     });
 
+    it("a head key gets board-sheet-key, before the i (#374)", () => {
+      const key = document.createElement("button");
+      const sheet = make({ headKey: key });
+      expect(
+        sheet.root.querySelector(
+          ".board-sheet-head.has-key > .board-sheet-key",
+        ),
+      ).toBe(key);
+      expect(key.nextElementSibling).toBe(sheet.info);
+    });
+
     it("names its title after the sheet, so two drawers never share an id", () => {
       const buys = make();
       const upgrades = make({ name: "upgrades", title: "Upgrades" });
@@ -692,6 +703,39 @@ describe("the drawer shell", () => {
       time += DRAWER_SETTLE_MS;
       press(sheet.back);
       expect(sheet.isOpen()).toBe(false);
+    });
+
+    it("page() starts the settle again and forgets the presses (#374)", () => {
+      const onForget = vi.fn();
+      const sheet = make({ onForget });
+      sheet.open();
+      time += DRAWER_SETTLE_MS + 100;
+      onForget.mockClear();
+      sheet.page();
+      expect(onForget).toHaveBeenCalledTimes(1);
+      time += 100;
+      expect(
+        board.press({
+          control: { layer: "buys", id: "back" },
+          by: "finger",
+          intent: "act",
+          downAt: undefined,
+          event: new Event("click"),
+        }),
+      ).toBe("ignore-early");
+      press(sheet.back);
+      expect(sheet.isOpen()).toBe(true);
+      time += 350;
+      press(sheet.back);
+      expect(sheet.isOpen()).toBe(false);
+    });
+
+    it("showHow pages through page(): a page while shut sends nothing", () => {
+      const onForget = vi.fn();
+      const sheet = make({ onForget });
+      sheet.page();
+      expect(onForget).not.toHaveBeenCalled();
+      expect(board.view().stack).toEqual([]);
     });
 
     it("a close while the how cards show restores the drawer for next time", () => {

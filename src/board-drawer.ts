@@ -72,6 +72,12 @@ export interface BoardSheet {
   /** The resting kick under the title. */
   kick(text: string): void;
   showHow(on: boolean): void;
+  /**
+   * A new screen under the finger (the "i" cards, a Workshop page, an armed cancel): forgets
+   * the presses and starts the settle again, so the second tap of a double tap lands on
+   * nothing. Does nothing while shut.
+   */
+  page(): void;
   /** Inserts the parts into the list, before the spare plate. */
   place(parts: readonly HTMLElement[]): void;
   fitSpare(): void;
@@ -162,6 +168,8 @@ function buildSheet(
   info.setAttribute("aria-label", `How it works: ${infoLabel}`);
   head.append(heading, kickLine, info);
   if (headKey !== undefined) {
+    // Every head key lays out by one rule (#374): Buys' amount, the Workshop's sound.
+    headKey.classList.add("board-sheet-key");
     info.before(headKey);
     head.classList.add("has-key");
   }
@@ -269,7 +277,7 @@ function wireSheetControls(
  * Drawers are built once; `signal` lets a test or a remount take this away.
  */
 function closeOnEscape(
-  close: () => void,
+  close: BoardSheet["close"],
   overSave: () => boolean,
   signal: AbortSignal | undefined,
 ): void {
@@ -277,7 +285,7 @@ function closeOnEscape(
     "keydown",
     (event) => {
       if (event.key === "Escape" && !overSave()) {
-        close();
+        close({ by: "keyboard" });
       }
     },
     signal === undefined ? { capture: true } : { capture: true, signal },
@@ -349,15 +357,19 @@ export function createBoardSheet({
     paintKick(kickLine, resting, board.view().thanks.has(name));
   };
 
+  const page = (): void => {
+    if (shown) {
+      forget();
+      board.send({ kind: "page", overlay: name, at: board.clock() });
+    }
+  };
+
   const showHow = (on: boolean): void => {
     setHow(parts, on);
     // Each way is a new screen under the finger: the second tap of a double tap on the "i"
     // must not take the cards' Back, nor one on the cards' Back buy the row under it, so the
     // settle starts again (#373).
-    if (shown) {
-      forget();
-      board.send({ kind: "page", overlay: name, at: board.clock() });
-    }
+    page();
     // The "i" hides under the cards, so focus moves with them, and back to it.
     focusQuietly(on ? how : info);
   };
@@ -405,13 +417,7 @@ export function createBoardSheet({
   trackers = wireSheetControls(parts, board, name, { close, showHow });
   board.subscribe(paintThanks);
 
-  closeOnEscape(
-    () => {
-      close({ by: "keyboard" });
-    },
-    overSave,
-    signal,
-  );
+  closeOnEscape(close, overSave, signal);
 
   return {
     root,
@@ -428,6 +434,7 @@ export function createBoardSheet({
       paintThanks();
     },
     showHow,
+    page,
     place: (parts) => {
       spare.before(...parts);
     },

@@ -2124,11 +2124,15 @@ button.board-row:focus-visible {
   grid-column: 3;
 }
 
-.board-sheet-head > .buy-amount {
+/* Every head key lays out by one rule: Buys' amount, the Workshop's sound (#374). */
+.board-sheet-head > .board-sheet-key {
   grid-column: 2;
   grid-row: 1 / span 2;
   align-self: center;
   flex: none;
+}
+
+.board-sheet-head > .buy-amount {
   width: calc(var(--art) * 36);
   height: calc(var(--art) * 24);
   font-size: var(--board-type-20);
@@ -2415,6 +2419,13 @@ button.board-row:focus-visible {
 .board-sheet .teach-how-steps img[width="64"] {
   width: calc(var(--art) * 32);
   height: calc(var(--art) * 32);
+}
+
+/* A relic is 24 art px (48 shown), centred in the 64 column (#374). */
+.board-sheet .teach-how-steps img[width="48"] {
+  width: calc(var(--art) * 24);
+  height: calc(var(--art) * 24);
+  margin: 0 calc(var(--art) * 4);
 }
 
 .board-sheet .teach-how-steps img[width="32"] {

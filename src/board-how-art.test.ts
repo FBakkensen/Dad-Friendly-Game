@@ -9,14 +9,18 @@ const widths = (card: HTMLElement): string[] =>
   );
 
 describe("the board's How it works art (#373)", () => {
-  it.each(["staffing", "layers", "upgrades", "boosts"] as const)(
-    "maps every step of %s to board art",
-    (system) => {
-      for (const [art] of HOW_IT_WORKS[system].steps) {
-        expect(BOARD_HOW_ART[art], art).toBeDefined();
-      }
-    },
-  );
+  it.each([
+    "staffing",
+    "layers",
+    "upgrades",
+    "boosts",
+    "workshop",
+    "materials",
+  ] as const)("maps every step of %s to board art", (system) => {
+    for (const [art] of HOW_IT_WORKS[system].steps) {
+      expect(BOARD_HOW_ART[art], art).toBeDefined();
+    }
+  });
 
   it("shows machines and the worker at 64 and the small icons at 32", () => {
     expect(BOARD_HOW_ART["mine-cart"]?.px).toBe(64);
@@ -62,14 +66,62 @@ describe("the board's How it works art (#373)", () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it("draws the board's own art, not today's", () => {
+  it.each(["layers", "workshop", "materials"] as const)(
+    "draws the board's own art for %s, not today's",
+    (system) => {
+      const card = boardHowCard(system, "Back", () => undefined);
+      const sources = [...card.querySelectorAll("img")].map(
+        (img) => img.getAttribute("src") ?? "",
+      );
+      expect(sources).toEqual(
+        HOW_IT_WORKS[system].steps.map(([art]) => BOARD_HOW_ART[art]?.src),
+      );
+    },
+  );
+
+  it("renders layers at 32, 64, 64 and 32", () => {
     const card = boardHowCard("layers", "Back to Buys", () => undefined);
+    expect(widths(card)).toEqual(["32", "64", "64", "32"]);
+  });
+
+  it("renders the Workshop's four steps: the hammer at 48, clay at 32, the cart at 64 (#374)", () => {
+    const card = boardHowCard(
+      "workshop",
+      "Back to the Workshop",
+      () => undefined,
+    );
+    expect(card.dataset["how"]).toBe("workshop");
+    const imgs = [...card.querySelectorAll("img")];
+    expect(imgs).toHaveLength(4);
+    expect(HOW_IT_WORKS.workshop.steps.map(([art]) => art)).toEqual([
+      "relics/hammer",
+      "ore-lump",
+      "upgrades-icon",
+      "mine-cart",
+    ]);
+    expect(imgs[0]?.getAttribute("src")).toContain("relic-hammer");
+    expect(imgs[1]?.getAttribute("src")).toContain("res-clay");
+    expect(widths(card)).toEqual(["48", "32", "32", "64"]);
+    expect(imgs.map((img) => img.getAttribute("height"))).toEqual([
+      "48",
+      "32",
+      "32",
+      "64",
+    ]);
+  });
+
+  it("renders Materials' three steps with no fallback stone where real art is mapped (#374)", () => {
+    const card = boardHowCard(
+      "materials",
+      "Back to the Workshop",
+      () => undefined,
+    );
     const sources = [...card.querySelectorAll("img")].map(
       (img) => img.getAttribute("src") ?? "",
     );
-    expect(sources).toEqual(
-      HOW_IT_WORKS.layers.steps.map(([art]) => BOARD_HOW_ART[art]?.src),
-    );
-    expect(widths(card)).toEqual(["32", "64", "64", "32"]);
+    expect(sources).toHaveLength(3);
+    expect(sources[0]).toContain("res-clay");
+    expect(sources[2]).toContain("relic-hammer");
+    expect(widths(card)).toEqual(["32", "32", "48"]);
   });
 });
