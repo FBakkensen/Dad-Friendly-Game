@@ -80,6 +80,7 @@ Retuning prices alone only trades long waits for weak buys (the frontier in the 
 - After A–C, if a band still lacks a mid-price option (`bestOpenShare` < 0.6 in one band, or one tier is the best buy in more than 40% of a band's samples), add one machine there.
 - **A new tier cannot be a mountain key.** The rules pin the mountain's key list, and a full crew is already at the expression budget (#195). Its count lives in the workshop map, which the client parses, like the run stretch.
 - New machine art comes from PixelLab, and Flemming is asked first (pixellab skill).
+- **Checked after S3 and S4 (#359, 11 Nov 2026): the trigger does not fire.** No machine is added. The numbers are under Decided.
 
 ### F. Guardrails
 
@@ -113,7 +114,7 @@ Each sliver is one issue (under #354), one sitting and one PR, in this order:
 | S2 (#356) | **Built (7 Nov 2026).** The new curve: A and B together, with first prices re-anchored by the lab | S1         | The four check-in rows pass at 20 seeds for every casual type. Every existing strict row and the generations lab pass. Run 1's finish day is reported, not graded. The field log cap is raised and the rules test passes. Docs (DESIGN, ARCHITECTURE, design-intent) are updated |
 | S3 (#357) | **Built (8 Nov 2026).** Milestones on every tier (C), then the check-in rows go strict            | S2         | The four rows are strict and green. Every machine tier is bought at least 5 times per run (report row). Copy is approved                                                                                                                                                         |
 | S4 (#358) | **Built (11 Nov 2026).** Buy ×10 / Max on buy cards (D)                                           | S2         | A two-minute check-in needs at most about 5 taps to spend a normal return. The phone layout still never scrolls. Verified with `npm run play`                                                                                                                                    |
-| S5 (#359) | Ladder machine, only if E's trigger fires after S3                                                | S3         | The trigger measure passes in every band. Art is from PixelLab after asking. The count is stored in the workshop map                                                                                                                                                             |
+| S5 (#359) | **Not needed (11 Nov 2026).** Ladder machine, only if E's trigger fires after S3                  | S3         | The trigger measure passes in every band. Art is from PixelLab after asking. The count is stored in the workshop map                                                                                                                                                             |
 | S6 (#360) | A live-play lever (a strong short boost, Frenzy-style) and the extreme-win decision               | S3         | Its own short spec. It is out of scope here                                                                                                                                                                                                                                      |
 
 S2 is the big one. A alone still misses the check-in rows (28% of check-ins buy nothing) and keeps income within about two orders of magnitude, because a fixed mountain caps the whole run's spending. B alone does nothing for dead tiers. So they ship together, and the probes show they work together.
@@ -149,6 +150,8 @@ S2 is the big one. A alone still misses the check-in rows (28% of check-ins buy 
   - ×10 is exactly ten, all or nothing; Max is as many as the pocket holds, and one's price, dimmed, when it holds none. The staffing New row and the Ready now plate buy one.
   - The amount is kept on the device, not in the save.
   - The lab's report-only `taps-per-sitting` row reads 2 to 4 taps for casual types at 3 seeds (the check-in dad 2), against 9 to 63 buys. It is a floor: a tier bought twice in one sitting, with another between, counts once.
+
+- **S5 not needed (#359).** E's trigger was read after S3 and S4, at 20 seeds, for every casual type, with the casual guardrails' scope (after day one), band by band. `bestOpenShare` is 0.99 to 1.0 in every band a dad reaches after day one. No machine tier is the best buy in more than 21% of a band's samples (the borer in the Crystal, for the check-in dad); the Granite and the Deep Heart samples never name a tier, because an upgrade, a trip or a station move is best there. So the ladder has no hole, and #359 closed as not planned. Day one's Topsoil would trip both lines (best-open 0 to 0.52, workers best in 56% to 83% of samples), but that is the first open on an empty pocket with workers as the cheapest buy, which a ladder machine would not change, and the guardrails leave day one out for the same reason.
 
 ## Open decisions for Flemming
 
