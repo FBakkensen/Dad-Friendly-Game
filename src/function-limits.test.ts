@@ -2,14 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   COMPLEXITY,
   LINES,
-  baseFromShow,
+  complexityLinter,
   complexityValues,
   isMeasured,
-  judgeCeilings,
   measureFunctions,
-  parseCeilings,
-  problemLine,
-} from "./function-ratchet";
+  overLimit,
+  overLine,
+} from "./function-limits";
 
 const ids = (source: string): readonly string[] =>
   measureFunctions("p.ts", source).map((span) => span.id);
@@ -93,156 +92,81 @@ describe("measureFunctions", () => {
   });
 });
 
-describe("judgeCeilings", () => {
-  const span = (id: string, value: number) => ({ id, value });
-  const lines = (
-    values: readonly { id: string; value: number }[],
-    ceilings: Readonly<Record<string, number>>,
-    base?: Readonly<Record<string, number>>,
-  ) =>
-    judgeCeilings({ values, ceilings, base, measure: LINES }).map((problem) =>
-      problemLine(problem, LINES),
+describe("overLimit", () => {
+  /** A function of exactly `lines` lines, as source. */
+  const longFunction = (name: string, lines: number): string =>
+    [
+      `export function ${name}(): number {`,
+      ...Array.from({ length: lines - 3 }, (_, i) => `  void ${String(i)};`),
+      "  return 0;",
+      "}",
+    ].join("\n");
+
+  it("fails a 151-line function and passes a 150-line one, with no exceptions (#422)", () => {
+    const spans = measureFunctions(
+      "src/a.ts",
+      `${longFunction("long", 151)}\n${longFunction("fits", 150)}`,
     );
-
-  it("passes a function of exactly 150 lines, and one at its ceiling", () => {
+    const values = spans.map((span) => ({ id: span.id, value: span.lines }));
+    expect(values).toEqual([
+      { id: "src/a.ts#long", value: 151 },
+      { id: "src/a.ts#fits", value: 150 },
+    ]);
     expect(
-      lines([span("src/a.ts#f", 150), span("src/a.ts#g", 200)], {
-        "src/a.ts#g": 200,
-      }),
-    ).toEqual([]);
-  });
-
-  it("fails a function over 150 lines with no ceiling", () => {
-    expect(lines([span("src/a.ts#f", 151)], {})).toEqual([
-      "src/a.ts#f is 151 lines; the limit is 150 lines. Split it.",
-    ]);
-  });
-
-  it("fails a function that grew past its ceiling", () => {
-    expect(lines([span("src/a.ts#f", 210)], { "src/a.ts#f": 200 })).toEqual([
-      "src/a.ts#f grew to 210 lines; its ceiling is 200 lines. Split it.",
-    ]);
-  });
-
-  it("asks for a ceiling above the function's length to come down", () => {
-    expect(lines([span("src/a.ts#f", 180)], { "src/a.ts#f": 200 })).toEqual([
-      "src/a.ts#f is 180 lines; lower its ceiling from 200 to 180.",
-    ]);
-  });
-
-  it("asks for the ceiling of a function now gone or under the limit to go", () => {
-    expect(
-      lines([span("src/a.ts#g", 120)], {
-        "src/a.ts#f": 200,
-        "src/a.ts#g": 160,
-      }),
+      overLimit(values, LINES).map((over) => overLine(over, LINES)),
     ).toEqual([
-      "src/a.ts#f is gone or within the limit; remove its ceiling.",
-      "src/a.ts#g is gone or within the limit; remove its ceiling.",
+      "src/a.ts#long is 151 lines; the limit is 150 lines. Split it.",
     ]);
   });
 
-  it("refuses a ceiling that rose, or one that is new, against the base", () => {
-    expect(
-      lines(
-        [span("src/a.ts#f", 210), span("src/a.ts#n", 170)],
-        { "src/a.ts#f": 210, "src/a.ts#n": 170 },
-        { "src/a.ts#f": 200 },
+  /** A function whose cognitive complexity is `ifs`: one point per top-level if. */
+  const branchy = (name: string, ifs: number): string =>
+    [
+      `export function ${name}(x: number): number {`,
+      ...Array.from(
+        { length: ifs },
+        (_, i) => `  if (x === ${String(i)}) return ${String(i)};`,
       ),
-    ).toEqual([
-      "src/a.ts#f's ceiling rose from 200 to 210; ceilings only go down.",
-      "src/a.ts#n has a new ceiling; new functions stay within the limit.",
-    ]);
-  });
+      "  return -1;",
+      "}",
+    ].join("\n");
 
-  it("a renamed long function fails as too long, and its old ceiling must go", () => {
-    expect(
-      lines(
-        [span("src/a.ts#renamed", 200)],
-        { "src/a.ts#f": 200 },
-        {
-          "src/a.ts#f": 200,
-        },
-      ),
-    ).toEqual([
-      "src/a.ts#f is gone or within the limit; remove its ceiling.",
-      "src/a.ts#renamed is 200 lines; the limit is 150 lines. Split it.",
-    ]);
-  });
-
-  it("counts two functions with one id as the longer", () => {
-    expect(
-      lines([span("src/a.ts#f", 200), span("src/a.ts#f", 160)], {
-        "src/a.ts#f": 200,
-      }),
-    ).toEqual([]);
-  });
-
-  it("lists every problem of one id, the length first", () => {
-    expect(
-      lines(
-        [span("src/a.ts#f", 100)],
-        { "src/a.ts#f": 210 },
-        { "src/a.ts#f": 200 },
-      ),
-    ).toEqual([
-      "src/a.ts#f is gone or within the limit; remove its ceiling.",
-      "src/a.ts#f's ceiling rose from 200 to 210; ceilings only go down.",
-    ]);
-  });
-
-  it("refuses a ceiling for an anonymous function, whose id moves when code around it changes", () => {
-    expect(
-      lines([span("src/a.ts#f>(anonymous 5)", 351)], {
-        "src/a.ts#f>(anonymous 5)": 351,
-      }),
-    ).toEqual([
-      "src/a.ts#f>(anonymous 5) has no name to hold a ceiling; name it, or bring it within the limit.",
-    ]);
-  });
-
-  it("with no base, ceilings are not compared", () => {
-    expect(lines([span("src/a.ts#f", 210)], { "src/a.ts#f": 210 })).toEqual([]);
-  });
-});
-
-describe("the complexity measure", () => {
-  it("judges complexity by the same rules, with its own limit and words", () => {
-    const problems = judgeCeilings({
-      values: [
-        { id: "src/a.ts#f", value: 20 },
-        { id: "src/a.ts#g", value: 15 },
-      ],
-      ceilings: {},
-      base: undefined,
-      measure: COMPLEXITY,
+  it("fails a complexity-16 function and passes a complexity-15 one, scored as the gate scores (#422)", async () => {
+    const source = `${branchy("tangled", 16)}\n${branchy("fits", 15)}`;
+    const [result] = await complexityLinter().lintText(source, {
+      filePath: "src/b.ts",
     });
-    expect(problems.map((problem) => problemLine(problem, COMPLEXITY))).toEqual(
-      ["src/a.ts#f is complexity 20; the limit is complexity 15. Simplify it."],
+    const values = complexityValues(
+      measureFunctions("src/b.ts", source),
+      result?.messages ?? [],
     );
-  });
-});
-
-describe("two measures on one function", () => {
-  it("judges a function over both limits by two ceilings that move apart", () => {
-    const judge = (lines: number, complexity: number) => [
-      ...judgeCeilings({
-        values: [{ id: "src/a.ts#f", value: lines }],
-        ceilings: { "src/a.ts#f": 160 },
-        base: undefined,
-        measure: LINES,
-      }).map((problem) => problemLine(problem, LINES)),
-      ...judgeCeilings({
-        values: [{ id: "src/a.ts#f", value: complexity }],
-        ceilings: { "src/a.ts#f": 20 },
-        base: undefined,
-        measure: COMPLEXITY,
-      }).map((problem) => problemLine(problem, COMPLEXITY)),
-    ];
-    expect(judge(160, 20)).toEqual([]);
-    expect(judge(160, 18)).toEqual([
-      "src/a.ts#f is complexity 18; lower its ceiling from 20 to 18.",
+    expect(values).toEqual([
+      { id: "src/b.ts#tangled", value: 16 },
+      { id: "src/b.ts#fits", value: 15 },
     ]);
+    expect(
+      overLimit(values, COMPLEXITY).map((over) => overLine(over, COMPLEXITY)),
+    ).toEqual([
+      "src/b.ts#tangled is complexity 16; the limit is complexity 15. Simplify it.",
+    ]);
+  });
+
+  it("names a function once, at its highest value, sorted by id", () => {
+    expect(
+      overLimit(
+        [
+          { id: "src/b.ts#f", value: 160 },
+          { id: "src/a.ts#g", value: 151 },
+          { id: "src/b.ts#f", value: 170 },
+          { id: "src/a.ts#h", value: 20 },
+        ],
+        LINES,
+      ),
+    ).toEqual([
+      { id: "src/a.ts#g", value: 151 },
+      { id: "src/b.ts#f", value: 170 },
+    ]);
+    expect(overLimit([], LINES)).toEqual([]);
   });
 });
 
@@ -281,54 +205,6 @@ describe("isMeasured", () => {
       "src/a.css",
     ].filter(isMeasured);
     expect(measured).toEqual(["src/a.ts", "src/lab/x.ts", "src/latest.ts"]);
-  });
-});
-
-describe("parseCeilings", () => {
-  it("reads an object of positive whole line counts", () => {
-    expect(parseCeilings('{"src/a.ts#f": 200}')).toEqual({ "src/a.ts#f": 200 });
-  });
-
-  it("throws on anything else, so a broken list never lets a function through", () => {
-    for (const text of [
-      "[]",
-      "null",
-      '{"a":0}',
-      '{"a":1.5}',
-      '{"a":"2"}',
-      "nope",
-    ]) {
-      expect(() => parseCeilings(text)).toThrow();
-    }
-  });
-});
-
-describe("baseFromShow", () => {
-  it("reads the base's list when git showed it", () => {
-    expect(
-      baseFromShow({ kind: "shown", text: '{"src/a.ts#f": 200}' }),
-    ).toEqual({
-      "src/a.ts#f": 200,
-    });
-  });
-
-  it("has no base when the base has no list yet", () => {
-    for (const message of [
-      "fatal: path 'scripts/function-ceilings.json' does not exist in 'origin/main'",
-      "fatal: path 'scripts/function-ceilings.json' exists on disk, but not in 'HEAD'",
-    ]) {
-      expect(baseFromShow({ kind: "failed", message })).toBeUndefined();
-    }
-  });
-
-  it("throws on any other git failure or a corrupt list, so nothing slips through", () => {
-    expect(() =>
-      baseFromShow({
-        kind: "failed",
-        message: "fatal: invalid object name 'origin/main'.",
-      }),
-    ).toThrow(/invalid object name/);
-    expect(() => baseFromShow({ kind: "shown", text: "{not json" })).toThrow();
   });
 });
 

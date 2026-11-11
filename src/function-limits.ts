@@ -1,12 +1,14 @@
 /**
- * The function ratchet (#408, #418): no function in non-test src passes a measure's limit
- * (150 lines, or a cognitive complexity of 15), and the ones that already did may only come
- * down. scripts/function-ratchet.mjs feeds this module the files, the complexity reports and
- * the ceiling lists.
+ * The function limits (#408, #418, #422): no function in non-test src passes a measure's
+ * limit (150 lines, or a cognitive complexity of 15). There are no exceptions.
+ * scripts/function-limits.mjs feeds this module the files and the complexity reports.
  */
+import { ESLint } from "eslint";
+import sonarjs from "eslint-plugin-sonarjs";
+import tseslint from "typescript-eslint";
 import ts from "typescript";
 
-/** What the ratchet holds functions to: a limit, how to name a value, and what to do. */
+/** What a function is held to: a limit, how to name a value, and what to do. */
 export interface Measure {
   readonly limit: number;
   readonly unit: (value: number) => string;
@@ -155,160 +157,34 @@ export function measureFunctions(
   return spans;
 }
 
-/** A ceiling list: a function id and the most of a measure it may have. */
-export type Ceilings = Readonly<Record<string, number>>;
-
 /** One function's value under a measure. */
 export interface MeasuredValue {
   readonly id: string;
   readonly value: number;
 }
 
-/** One way the measured values and a ceiling list disagree. */
-export type CeilingProblem =
-  | { readonly kind: "over"; readonly id: string; readonly value: number }
-  | {
-      readonly kind: "grew";
-      readonly id: string;
-      readonly value: number;
-      readonly ceiling: number;
-    }
-  | {
-      readonly kind: "lower";
-      readonly id: string;
-      readonly value: number;
-      readonly ceiling: number;
-    }
-  | { readonly kind: "remove"; readonly id: string; readonly ceiling: number }
-  | {
-      readonly kind: "raised";
-      readonly id: string;
-      readonly ceiling: number;
-      readonly was: number;
-    }
-  | { readonly kind: "added"; readonly id: string; readonly ceiling: number }
-  | {
-      readonly kind: "anonymous";
-      readonly id: string;
-      readonly ceiling: number;
-    };
-
-const KIND_ORDER: readonly CeilingProblem["kind"][] = [
-  "over",
-  "grew",
-  "lower",
-  "remove",
-  "raised",
-  "added",
-  "anonymous",
-];
-
 /**
- * Every disagreement between the measured values and a ceiling list, sorted by id then kind.
- * A ceiling must match its function's value exactly, so the list only ever comes down.
- * Against `base` (the list on origin/main), a ceiling may not rise and none may be added.
- * Two functions with one id (the same name in sibling blocks) count as the higher.
+ * Every function over the measure's limit, sorted by id. Two functions with one id (the same
+ * name in sibling blocks) count once, at the higher value.
  */
-export function judgeCeilings({
-  values,
-  ceilings,
-  base,
-  measure,
-}: {
-  readonly values: readonly MeasuredValue[];
-  readonly ceilings: Ceilings;
-  readonly base: Ceilings | undefined;
-  readonly measure: Measure;
-}): readonly CeilingProblem[] {
+export function overLimit(
+  values: readonly MeasuredValue[],
+  measure: Measure,
+): readonly MeasuredValue[] {
   const highest = new Map<string, number>();
   for (const { id, value } of values) {
     highest.set(id, Math.max(value, highest.get(id) ?? 0));
   }
-  const problems = [
-    ...[...highest].flatMap(([id, value]) =>
-      valueProblems(id, value, ceilings[id], measure.limit),
-    ),
-    ...Object.entries(ceilings).flatMap(([id, ceiling]) =>
-      ceilingProblems(id, ceiling, highest.get(id) ?? 0, base, measure.limit),
-    ),
-  ];
-  return problems.sort(byIdThenKind);
+  return [...highest]
+    .filter(([, value]) => value > measure.limit)
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([id, value]) => ({ id, value }));
 }
 
-/** A measured function over the limit, against its ceiling. */
-function valueProblems(
-  id: string,
-  value: number,
-  ceiling: number | undefined,
-  limit: number,
-): readonly CeilingProblem[] {
-  if (value <= limit) {
-    return [];
-  }
-  if (ceiling === undefined) {
-    return [{ kind: "over", id, value }];
-  }
-  if (value > ceiling) {
-    return [{ kind: "grew", id, value, ceiling }];
-  }
-  return value < ceiling ? [{ kind: "lower", id, value, ceiling }] : [];
-}
-
-/** A listed ceiling: named, still needed, and no higher than on the base. */
-function ceilingProblems(
-  id: string,
-  ceiling: number,
-  value: number,
-  base: Ceilings | undefined,
-  limit: number,
-): readonly CeilingProblem[] {
-  const problems: CeilingProblem[] = [];
-  // "(anonymous N)" is a position, not a name: it moves when a sibling callback is added.
-  if (id.includes("(anonymous ")) {
-    problems.push({ kind: "anonymous", id, ceiling });
-  }
-  if (value <= limit) {
-    problems.push({ kind: "remove", id, ceiling });
-  }
-  if (base === undefined) {
-    return problems;
-  }
-  const was = base[id];
-  if (was === undefined) {
-    problems.push({ kind: "added", id, ceiling });
-  } else if (ceiling > was) {
-    problems.push({ kind: "raised", id, ceiling, was });
-  }
-  return problems;
-}
-
-function byIdThenKind(a: CeilingProblem, b: CeilingProblem): number {
-  if (a.id === b.id) {
-    return KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind);
-  }
-  return a.id < b.id ? -1 : 1;
-}
-
-/** One line telling the author what to do about a problem. */
-export function problemLine(problem: CeilingProblem, measure: Measure): string {
-  const { id } = problem;
+/** One line telling the author what to do about a function over the limit. */
+export function overLine(over: MeasuredValue, measure: Measure): string {
   const { unit, limit, fix } = measure;
-  switch (problem.kind) {
-    case "over":
-      return `${id} is ${unit(problem.value)}; the limit is ${unit(limit)}. ${fix}`;
-    case "grew":
-      return `${id} grew to ${unit(problem.value)}; its ceiling is ${unit(problem.ceiling)}. ${fix}`;
-    case "lower":
-      return `${id} is ${unit(problem.value)}; lower its ceiling from ${String(problem.ceiling)} to ${String(problem.value)}.`;
-    case "remove":
-      return `${id} is gone or within the limit; remove its ceiling.`;
-    case "raised":
-      return `${id}'s ceiling rose from ${String(problem.was)} to ${String(problem.ceiling)}; ceilings only go down.`;
-    case "added":
-      return `${id} has a new ceiling; new functions stay within the limit.`;
-    case "anonymous":
-      return `${id} has no name to hold a ceiling; name it, or bring it within the limit.`;
-  }
+  return `${over.id} is ${unit(over.value)}; the limit is ${unit(limit)}. ${fix}`;
 }
 
 /** One ESLint report: where it points, and its message. */
@@ -377,40 +253,23 @@ export function isMeasured(path: string): boolean {
   );
 }
 
-/** The ceiling list's text. Throws on anything but ids mapped to positive whole numbers. */
-export function parseCeilings(text: string): Ceilings {
-  const value: unknown = JSON.parse(text);
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("The ceiling list must be an object of function ids.");
-  }
-  const ceilings: Record<string, number> = {};
-  for (const [id, lines] of Object.entries(value)) {
-    if (typeof lines !== "number" || !Number.isInteger(lines) || lines < 1) {
-      throw new Error(`The ceiling for ${id} must be a positive whole number.`);
-    }
-    ceilings[id] = lines;
-  }
-  return ceilings;
-}
-
-/** What `git show <base>:<list>` gave: the list's text, or git's error message. */
-export type ShowOutcome =
-  | { readonly kind: "shown"; readonly text: string }
-  | { readonly kind: "failed"; readonly message: string };
-
 /**
- * The base's ceiling list, or undefined when the base has no list yet (the PR that adds it).
- * Any other git failure, or a list that does not parse, throws: a check that could not read
- * its base must fail, never compare nothing. Run git with LC_ALL=C so the messages match.
+ * The ESLint run that scores cognitive complexity: the plugin with a limit of 0, so every
+ * function reports its score. No type information is needed, so it takes seconds, not a full
+ * lint. The scored code's own eslint-disable comments can neither hide a score nor name rules
+ * this run does not load.
  */
-export function baseFromShow(outcome: ShowOutcome): Ceilings | undefined {
-  if (outcome.kind === "shown") {
-    return parseCeilings(outcome.text);
-  }
-  if (
-    /does not exist in '|exists on disk, but not in '/.test(outcome.message)
-  ) {
-    return undefined;
-  }
-  throw new Error(`Cannot read the base's ceiling list: ${outcome.message}`);
+export function complexityLinter(): ESLint {
+  return new ESLint({
+    overrideConfigFile: true,
+    allowInlineConfig: false,
+    overrideConfig: [
+      {
+        files: ["**/*.ts"],
+        languageOptions: { parser: tseslint.parser },
+        plugins: { sonarjs },
+        rules: { "sonarjs/cognitive-complexity": ["error", 0] },
+      },
+    ],
+  });
 }

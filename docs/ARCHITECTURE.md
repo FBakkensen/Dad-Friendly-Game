@@ -443,10 +443,9 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
 
   That split brought `mountain-screen.ts` to about 460 lines: layout, the dig
   and vein taps, the guide bar, save status, and wiring the panels. It has since
-  regrown to about 1,240 lines, with `mountMountainScreen` at 1,112 (its ceiling
-  in `scripts/function-ceilings.json`). #411 moves its interaction rules out.
-  #431 split the rest into `screen-*` modules: `mountMountainScreen` is a
-  composition root within 150 lines, off the ceilings list.
+  regrown to about 1,240 lines, with `mountMountainScreen` at 1,112. #411 moves
+  its interaction rules out. #431 split the rest into `screen-*` modules:
+  `mountMountainScreen` is a composition root within 150 lines.
 
 - **Local spends (#370, #409):** the odometer shows a spend only for the
   player's own moves. `screen-context` hands every panel one `Dispatch`
@@ -566,17 +565,14 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
 - `knip` (strict): no unused files, exports or dependencies.
 - `prettier --check .` covers docs too; coverage floors per critical module. The fast tier runs `prettier --check` on every file changed since `origin/main` (`format:changed`).
 - Scheduling (#403): independent steps run in parallel, but the heavy lane (`visual`, `lab`, `lab:generations`, each filling every core) runs one at a time, visual first, so the timing checks never run under the labs' load. The labs are seeded, so a green run records the sha256 of its inputs (the lab's import closure, `package-lock.json`, the Node version, and the step's command, args and env) in `.gate/reuse/<step>.json`. A later run with the same inputs prints `reused (same inputs passed on <sha>)` instead of running, and counts as green for signoff. A red run deletes its record, and CI starts with none.
-- `scripts/function-ratchet.mjs` (`npm run functions`, both gate tiers, #408,
-  #418): every function in non-test `src` is held to two measures, 150 lines and
-  a cognitive complexity of 15 (`sonarjs/cognitive-complexity` from
+- `scripts/function-limits.mjs` (`npm run functions`, both gate tiers, #408,
+  #418, #422): every function in non-test `src` is held to two measures, 150
+  lines and a cognitive complexity of 15 (`sonarjs/cognitive-complexity` from
   `eslint-plugin-sonarjs`, run through the ESLint Node API without type
-  information and mapped to functions by their heads). A function over a limit
-  needs a ceiling in `scripts/function-ceilings.json` or
-  `scripts/complexity-ceilings.json`, and may not rise past it. Each list must
-  be exact (a function that comes down lowers its ceiling; a gone one loses it),
-  against `origin/main` a ceiling may not rise and none may be added, and no
-  ceiling may sit on an anonymous function. Rules in `src/function-ratchet.ts`;
-  every function-like node counts, nested and anonymous ones included.
+  information by `complexityLinter`, and mapped to functions by their heads).
+  Any function over a limit fails the step. There is no allow-list. Rules in
+  `src/function-limits.ts`; every function-like node counts, nested and
+  anonymous ones included.
 - `scripts/token-check.mjs` (part of `npm run check`): CSS added since `origin/main` uses `src/tokens.css`. A raw colour, a raw px size, or a tap target under 48px fails. CSS already on main is the allow-list. Mockups are not part of the check.
 - The browser harness (#438): `tools/browser/harness.ts` is the one home for
   driving Chrome. It starts the Vite server (`startServer`, skipped when a URL

@@ -364,7 +364,7 @@ export function gateSteps(
       both,
     ),
     // No function grows past 150 lines, and the large ones only shrink (#408).
-    step("functions", "node", ["scripts/function-ratchet.mjs"], both),
+    step("functions", "node", ["scripts/function-limits.mjs"], both),
     ...onChanges,
     ...formatChanged,
     step(
