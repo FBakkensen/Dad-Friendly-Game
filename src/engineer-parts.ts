@@ -14,7 +14,7 @@ import { skin } from "./board-skin";
 import { forgetAll, type PressTracker } from "./card-tap";
 import { createEffectChip, writeChip } from "./effect-row";
 import type { EngineerRowView, HerPlates } from "./engineer-rows";
-import { ENGINEER_NAMES, MAX_ENGINEERS } from "./engineers";
+import { ENGINEER_NAMES, MAX_ENGINEERS, type EngineerName } from "./engineers";
 import { KEEPSAKES, TUNNELS, type TunnelId } from "./expeditions";
 import type { Mountain } from "./mountain";
 import type { RowView } from "./row-view";
@@ -117,7 +117,7 @@ export function createEngineerRows({
   onOpen,
 }: {
   onBoard: RowsOnBoard;
-  onOpen: (name: string) => void;
+  onOpen: (name: EngineerName) => void;
 }): {
   readonly roots: readonly HTMLElement[];
   /** The crew's views in its order; before the save is in, the rows are dark. */
@@ -194,8 +194,11 @@ function platesRow(...plates: readonly HTMLElement[]): HTMLElement {
   return row;
 }
 
-/** A row on a page: painted on the model, its press past the settle refused or acted on. */
-function pageRow(
+/**
+ * A row on a page or the list: painted on the model with the New look from its flag, its press
+ * past the settle refused (a red blink) or acted on.
+ */
+export function pageRow(
   onBoard: RowsOnBoard,
   options: {
     className: string;
@@ -222,6 +225,7 @@ function pageRow(
     paint(view) {
       painted = view;
       onBoard.paint(options.id, row, view);
+      mark(row.root, "teach-new", (view?.flag.length ?? 0) > 0);
     },
   };
 }

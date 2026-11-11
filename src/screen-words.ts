@@ -458,22 +458,9 @@ export function promotionPayoff(
   return `${name} could tend ${TEND_TITLE[post].replace(/^The/, "the")}: ${gain}`;
 }
 
-/** The one big button on the guided second engineer. */
-export function promotionAction(name: string, cost: number): string {
-  return `Promote ${name} · ${formatCompact(cost)}`;
-}
-
 /** The intro line on the guided first tend. */
 export function tendingIntro(name: string): string {
   return `${name} can tend a machine so it digs faster.`;
-}
-
-/** The one big button on the guided first tend, with its real payoff. */
-export function firstTendWords(
-  post: Exclude<TendPost, "camp">,
-  gain: string,
-): string {
-  return `Tend ${TEND_TITLE[post].replace(/^The/, "the")} · ${gain}`;
 }
 
 /** The one big button on the guided first trip. */
@@ -725,10 +712,6 @@ export function callBackLabel(name: Engineer["name"]): string {
   return `Call ${voice(name).object} back`;
 }
 
-export function tripTitle(name: string, tunnel: TunnelId): string {
-  return `${name} is exploring ${TUNNEL_PLACE[tunnel]}.`;
-}
-
 /** Words-only countdown under the walker, plus what they hope to carry home. */
 export function tripDetail(name: Engineer["name"], leftMs: number): string {
   const { subject } = voice(name);
@@ -845,16 +828,6 @@ export function keepsakesBroughtHome(
 /** Names on the card row. The stories stay whole, at reading size. */
 export function broughtHomeNames(ids: readonly KeepsakeId[]): string {
   return ids.map((id) => keepsakeWords(id).name).join(", ");
-}
-
-/** Every story, in a toast. Normal sentences, no counts. */
-export function broughtHomeToast(ids: readonly KeepsakeId[]): string {
-  return ids
-    .map((id) => {
-      const words = keepsakeWords(id);
-      return `${words.name}. ${words.story}`;
-    })
-    .join(" ");
 }
 
 /** Warm confirm. The name is whoever is about to step up. */

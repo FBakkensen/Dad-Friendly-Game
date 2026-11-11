@@ -1,28 +1,10 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import {
-  clearNewCard,
-  createHowCard,
-  createInfoButton,
-  markNewCard,
-  setPayoff,
-} from "./teach-ui";
+import { createHowCard, setPayoff } from "./teach-ui";
 
 describe("teach parts", () => {
-  it("tags the New card and turns its own button into the big action", () => {
+  it("writes the payoff line once, and takes it off again", () => {
     const card = document.createElement("div");
-    const button = document.createElement("button");
-    card.append(button);
-    markNewCard(card, button, "Craft Blasting charge");
-    markNewCard(card, button, "Craft Blasting charge");
-    expect(card.querySelectorAll(".teach-tag")).toHaveLength(1);
-    expect(card.querySelectorAll("button")).toHaveLength(1);
-    expect(button.textContent).toBe("Craft Blasting charge");
-    expect(button.classList.contains("teach-action")).toBe(true);
-    clearNewCard(card);
-    expect(card.classList.contains("teach-new")).toBe(false);
-    expect(card.querySelector(".teach-tag")).toBeNull();
-    button.remove();
     setPayoff(card, "+1,762/s now");
     setPayoff(card, "+1,800/s now");
     expect(card.querySelectorAll(".teach-payoff")).toHaveLength(1);
@@ -31,12 +13,7 @@ describe("teach parts", () => {
     expect(card.querySelector(".teach-payoff")).toBeNull();
   });
 
-  it("opens How it works from the i and goes back", () => {
-    const open = vi.fn();
-    const info = createInfoButton("Workshop", open);
-    info.click();
-    expect(open).toHaveBeenCalledOnce();
-    expect(info.getAttribute("aria-label")).toBe("How it works: Workshop");
+  it("builds How it works, and its Back goes back", () => {
     const back = vi.fn();
     const how = createHowCard(
       "How it works",

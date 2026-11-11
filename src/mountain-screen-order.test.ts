@@ -123,7 +123,7 @@ describe("the screen's build order", () => {
     // Entries, in order: the store's own auth watch, the vein's first draw, Buys rows and drawer
     // (with its Escape capture), the Ready plate, the board note, the save line, the Workshop
     // rows and drawer (Escape capture, #374), the menu, Upgrades rows and drawer (Escape
-    // capture), saveOnLeave, the bays, the vein's hide and pagehide, the New
+    // capture), the Engineers rows and drawer (Escape capture, #455), saveOnLeave, the bays, the vein's hide and pagehide, the New
     // sign's pointerdown and Escape, then the store subscription.
     // When a task moves a registration into a screen-* file, it changes only the name after "@";
     // the position must not change.
@@ -152,6 +152,10 @@ describe("the screen's build order", () => {
       "host@board-drawer",
       "doc:keydown:true@board-drawer",
       "auth@ledger-panel",
+      "host@board-row",
+      "host@board-drawer",
+      "doc:keydown:true@board-drawer",
+      // The Engineers drawer (#455): its rows, then its shell.
       "host@board-row",
       "host@board-drawer",
       "doc:keydown:true@board-drawer",
@@ -205,7 +209,6 @@ describe("the screen's build order", () => {
       "board-saveline",
       "board-note board-skinned",
       "board-running-park",
-      "engineers-dialog",
       "board-card welcome-back",
       "board-card layer-arrival",
       "board-card craft-notice",

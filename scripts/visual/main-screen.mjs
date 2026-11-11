@@ -13,113 +13,11 @@ import {
   openShelf,
   sheetSettled,
   openScreen,
-  coversBoard,
   noScroll,
   MINE_WINDOW_RULES,
   keysDrawn,
 } from "./kit.mjs";
 import { drawerFacts } from "./measure.mjs";
-
-/**
- * The seeded crew has one engineer. The sheet's title and the way back both
- * sit on screen, and the page itself does not scroll.
- */
-async function engineersSheetFits(page, { top = 0, bottom = 0 } = {}) {
-  await press(page, KEY("engineers"));
-  const covered = await coversBoard(page, ".engineers-dialog");
-  const detail = await page.$eval(
-    ".engineers-dialog",
-    (sheet, insets) => {
-      // The board's box: the sheet's buttons sit above the save line.
-      const board = globalThis.__board();
-      const floor = Math.min(board.saveTop, board.bottom - insets.bottom);
-      const buttons = [...sheet.querySelectorAll("button")].filter(
-        (button) => !button.hidden && button.getClientRects().length > 0,
-      );
-      const boxes = buttons.map((button) => {
-        const box = button.getBoundingClientRect();
-        return {
-          height: box.height / board.scale,
-          left: box.left,
-          right: box.right,
-          top: box.top,
-          bottom: box.bottom,
-          clipped: button.scrollWidth > button.clientWidth + 1,
-          text: button.textContent,
-        };
-      });
-      const title =
-        sheet.querySelector("h2")?.getBoundingClientRect().top ?? -1;
-      const close =
-        sheet.querySelector(".engineers-close")?.getBoundingClientRect()
-          .bottom ?? Infinity;
-      // Only what shows: How it works cards stay hidden until "i" (#246).
-      const text = sheet.innerText;
-      // A first visit swaps the act buttons for one guided button: the
-      // first trip, or later the first tend.
-      const guided =
-        sheet.querySelector(".engineer-first-trip:not([hidden])") !== null;
-      const promote = sheet.querySelector(".engineer-promote");
-      const promoteLines = (() => {
-        if (promote === null || promote.hidden) {
-          return 0;
-        }
-        const range = document.createRange();
-        range.selectNodeContents(promote);
-        return range.getClientRects().length;
-      })();
-      return {
-        boxesOk: boxes.every(
-          (box) =>
-            box.height >= 44 &&
-            box.left >= board.left &&
-            box.right <= board.right &&
-            box.top >= board.top + insets.top &&
-            box.bottom <= floor &&
-            !box.clipped,
-        ),
-        count: boxes.length,
-        title,
-        close,
-        titleOk: title >= board.top + insets.top,
-        closeOk: close <= floor,
-        words:
-          (text.includes("Tend a machine") ||
-            (guided &&
-              (text.includes("exploring") || text.includes("Tend the")))) &&
-          text.includes("stones/sec") &&
-          text.includes("Promote:") &&
-          text.includes("Promote a worker") &&
-          promoteLines >= 1 &&
-          promoteLines <= 2 &&
-          !text.includes("?") &&
-          !text.includes("%"),
-      };
-    },
-    { top, bottom },
-  );
-  const pageStill = await noScroll(page);
-  await page.$eval(".engineers-close", (button) => {
-    button.click();
-  });
-  const closed = await page.$eval(
-    ".engineers-dialog",
-    (element) => element.hidden,
-  );
-  const ok =
-    covered &&
-    detail.boxesOk &&
-    detail.count >= 4 &&
-    detail.titleOk &&
-    detail.closeOk &&
-    detail.words &&
-    pageStill &&
-    closed;
-  if (!ok) {
-    console.log("engineers sheet", { covered, detail, pageStill, closed });
-  }
-  return ok;
-}
 
 /**
  * The vein at each corner of its range (veinSpot at x 0.35/0.65, y 0.4/0.8),
@@ -417,9 +315,10 @@ for (const viewport of SCREENS) {
     });
     check(engineersFat, `${size} engineers key is tappable`);
     check(
-      await engineersSheetFits(page),
-      `${size} engineers sheet fits with no scroll`,
+      (await openSheet(page, "engineers")) && (await noScroll(page)),
+      `${size} engineers drawer opens by its key with no page scroll`,
     );
+    await closeSheet(page, "engineers");
     await close();
   });
 }
@@ -621,10 +520,19 @@ for (const viewport of [PHONE]) {
         crew.upgrades === undefined
       ) {
         await closeSheet(page, "buys");
-        check(
-          await engineersSheetFits(page),
-          `${label} engineers sheet fits with no scroll`,
+        const up = await openSheet(page, "engineers");
+        const facts = await drawerFacts(page, "engineers");
+        const crowded = facts.rows.filter(
+          (row) =>
+            !row.inside || row.overlaps.length > 0 || row.spills.length > 0,
         );
+        check(
+          up && facts.rows.length >= 2 && crowded.length === 0,
+          `${label} engineers drawer rows fit at a 999 crew`,
+        );
+        if (crowded.length > 0) {
+          console.log("engineers 999", label, JSON.stringify(crowded));
+        }
       }
       await close();
     }

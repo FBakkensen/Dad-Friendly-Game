@@ -25,6 +25,8 @@ import {
   startServer,
 } from "../tools/browser/harness.ts";
 import {
+  awayTripSave,
+  campPostsSave,
   chargePayoffSave,
   crewMountain,
   crewV4Save,
@@ -45,6 +47,7 @@ import {
   savingMountain,
   seedJson,
   shortMountain,
+  toolHomeSave,
   toolsMountain,
   unknownBenchSave,
   workshopSave,
@@ -141,6 +144,18 @@ const SAVES = {
   machine: {
     note: "the Great Machine with the Kid row locked; add ?trouble=cave-in for the Buys key's red lamp",
     save: machineMountain,
+  },
+  trip: {
+    note: "Ada out in the old shaft: her walk home on the Engineers row, Call her back on her page",
+    save: () => awayTripSave(Date.now()),
+  },
+  posts: {
+    note: "five engineers on their posts, one out, two finds: Promote and Brought home in Engineers",
+    save: () => campPostsSave(Date.now()),
+  },
+  home: {
+    note: "Ada came home with a pick while away: the welcome card, then Brought home",
+    save: () => toolHomeSave(Date.now()),
   },
 };
 

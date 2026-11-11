@@ -191,7 +191,7 @@ const GUARD_SCREENS = [
     name: "engineers",
     save: () => guardSave(Date.now()),
     taps: [KEY("engineers")],
-    shows: shown(".engineers-dialog"),
+    shows: drawer("engineers"),
   },
   {
     name: "relic shelf",

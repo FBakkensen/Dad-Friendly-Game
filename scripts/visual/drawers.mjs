@@ -17,6 +17,8 @@ import {
   workshopSave,
   heartMountain,
   playAwaySave,
+  campPostsSave,
+  awayTripSave,
 } from "../../tools/browser/fixtures.ts";
 import { stepTapClock } from "../../tools/browser/harness.ts";
 import { undersizedTargets } from "../../src/ui-audit-measure.ts";
@@ -66,12 +68,32 @@ const DRAWER_SAVES = [
   // The Workshop's bench busy, with axle grease running, and free (#374).
   { name: "workshop", save: () => workshopSave(Date.now(), true) },
   { name: "workshop, free", save: () => workshopSave(Date.now(), false) },
+  // Five engineers with two keepsakes home, Otto out; and Ada out alone (#455).
+  { name: "engineers, five", save: () => campPostsSave(Date.now()) },
+  { name: "engineers, out", save: () => awayTripSave(Date.now()) },
 ];
 /**
  * The DRAWER_SAVES whose Workshop key is locked (`workshopUnlocked` false; checked on each
  * fixture): its drawer is skipped there, as openSheet would wait on a disabled key.
  */
 const WORKSHOP_LOCKED = new Set(["fresh", "early", "idle", "heir"]);
+/**
+ * The DRAWER_SAVES with no borer, so no engineer (checked on each fixture): the Engineers key is
+ * locked there, and its drawer is skipped (#455).
+ */
+const ENGINEERS_LOCKED = new Set([
+  "fresh",
+  "early",
+  "idle",
+  "heir",
+  "workshop",
+  "workshop, free",
+]);
+/**
+ * A full Engineers crew with keepsakes home scrolls inside its drawer (C1, the spec's "a full
+ * Engineers crew"): five engineers, Brought home and Promote are seven rows (#455).
+ */
+const FULL_ENGINEERS_ROWS = 7;
 /**
  * Late-game Buys runs longer than the drawer and scrolls inside it (C1): the
  * Great Machine's era, with the Kid row. Up to the borer it fits, its
@@ -154,11 +176,10 @@ async function howFacts(page, name) {
  * `mayScroll` lets the list scroll inside the drawer, `mustScroll` fails it
  * for fitting.
  *
- * Workshop (#374) has a `when` that skips the saves where its key is locked
- * (openSheet waits 30 s on a disabled key). B6b's Engineers row needs the
- * same, and a `how: false` flag, with the "i" expectation skipped on it, if
- * that drawer has no "i". `amount: true` marks the drawer with the
- * ×1/×10/Max key (#358).
+ * Workshop (#374) and Engineers (#455) have a `when` that skips the saves
+ * where their key is locked (openSheet waits 30 s on a disabled key). A
+ * `how: false` flag skips the "i" expectation on a drawer with no "i".
+ * `amount: true` marks the drawer with the ×1/×10/Max key (#358).
  * @public
  */
 export const DRAWERS = [
@@ -178,6 +199,12 @@ export const DRAWERS = [
     when: ({ name }) => !WORKSHOP_LOCKED.has(name),
     mayScroll: () => false,
     mustScroll: () => false,
+  },
+  {
+    name: "engineers",
+    when: ({ name }) => !ENGINEERS_LOCKED.has(name),
+    mayScroll: ({ facts }) => facts.rows.length >= FULL_ENGINEERS_ROWS,
+    mustScroll: ({ facts }) => facts.rows.length >= FULL_ENGINEERS_ROWS,
   },
   // The Ledger (#375): its key is never locked, and its list always fits.
   { name: "ledger", mayScroll: () => false, mustScroll: () => false },

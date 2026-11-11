@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  askedPrice,
   broughtRowView,
   broughtStories,
+  crewOf,
+  findHer,
+  pageEngineer,
+  promoteAskLine,
   engineerRowView,
   engineerTeach,
   herPlates,
@@ -417,14 +422,15 @@ describe("an engineer's row (#455)", () => {
 });
 
 describe("a post row on her page (#455)", () => {
-  it("her own post is here, green, with its real gain", () => {
+  // Her own post's gain is the page's kick, so its right column stays clear for the name.
+  it("her own post is here, green, with its real gain in the line, not the column", () => {
     const mountain = withAda({ taught: ["engineers", "tending"] });
     const ctx = ctxOf(mountain);
     const gain = stonesPerSecond(tendingGain(mountain, 0, "borer", NOW));
     const view = postRowView(crew(mountain), 0, "borer", ctx, NONE);
     expect(view).toMatchObject({
       name: "The borers · here now",
-      gain,
+      gain: "",
       lamp: "green",
       state: "owned",
       can: true,
@@ -652,5 +658,59 @@ describe("moved from the panel (#455)", () => {
       promoteNeeds(9_000_000),
     );
     expect(promoteWhyLine(mountain, true, 1)).toBe(PROMOTE_WHY);
+  });
+});
+
+/** A mountain before its first borer: no crew at all. */
+const noCrew = (): Mountain => ({
+  ...minedMountain(0),
+  pocket: 5_000_000,
+  helpers: 20,
+});
+
+describe("what a press reads (#455)", () => {
+  it("finds her by name, with her place in the crew", () => {
+    const five = fiveCrew();
+    expect(findHer(five, "Ruth")).toEqual({
+      engineer: crew(five, 2),
+      index: 2,
+    });
+    expect(findHer(withAda(), "Nils")).toBeUndefined();
+    expect(findHer(five, undefined)).toBeUndefined();
+    expect(findHer(noCrew(), "Ada")).toBeUndefined();
+  });
+
+  it("reads the crew, or none", () => {
+    expect(crewOf(fiveCrew()).map((each) => each.name)).toEqual([
+      "Ada",
+      "Nils",
+      "Ruth",
+      "Otto",
+      "Mae",
+    ]);
+    expect(crewOf(noCrew())).toEqual([]);
+  });
+
+  it("names the engineer a page is about", () => {
+    expect(pageEngineer({ kind: "engineer", name: "Ada" })).toBe("Ada");
+    expect(pageEngineer({ kind: "tunnels", name: "Nils" })).toBe("Nils");
+    expect(pageEngineer({ kind: "recall", name: "Otto" })).toBe("Otto");
+    expect(pageEngineer({ kind: "list" })).toBeUndefined();
+    expect(pageEngineer({ kind: "promote", price: 5 })).toBeUndefined();
+  });
+
+  it("the price the promote ask was opened at, and none on another page", () => {
+    expect(askedPrice({ kind: "promote", price: 2_000_000 })).toBe(2_000_000);
+    expect(askedPrice({ kind: "list" })).toBeNaN();
+  });
+
+  it("the promote ask names the next hand, and a full crew asks nothing", () => {
+    expect(promoteAskLine(withAda())).toBe(
+      "Nils steps up as engineer. One worker fewer at the machines.",
+    );
+    expect(promoteAskLine(fiveCrew())).toBe("");
+    expect(promoteAskLine(noCrew())).toBe(
+      "Ada steps up as engineer. One worker fewer at the machines.",
+    );
   });
 });

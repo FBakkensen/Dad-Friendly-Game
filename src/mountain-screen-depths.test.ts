@@ -15,6 +15,9 @@ import { createProgressStore } from "./progress-store";
 import { minedMountain } from "./test-fixtures";
 import { recipesForMined, startCraft } from "./workshop";
 import {
+  ENGINEERS_KICK,
+  ENGINEERS_SHEET,
+  engineersOpen,
   RELICS_BAR,
   RELICS_HINT,
   STONES_INFO,
@@ -44,67 +47,71 @@ describe("side tunnels (#147)", () => {
     engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     ...patch,
   });
+  /** Past the first trip's lesson: Send exploring opens the tunnels page. */
+  const taughtAda = (patch: Partial<Mountain> = {}): Mountain =>
+    withAda({ seen: ["engineers"], taught: ["engineers"], ...patch });
 
-  const openSheet = (root: HTMLElement): HTMLElement => {
-    const button = root.querySelector<HTMLButtonElement>(
-      ".board-key[data-key=engineers]",
+  type Screen = ReturnType<typeof mountScreen>;
+  /** A control on the Engineers drawer's shown page, or on its list. */
+  const inSheet = (screen: Screen, selector: string): HTMLButtonElement => {
+    const found = screen.root.querySelector<HTMLButtonElement>(
+      `${ENGINEERS_SHEET} ${selector}`,
     );
-    button?.click();
-    const sheet = root.querySelector<HTMLElement>(".engineers-dialog");
-    if (sheet === null) {
-      throw new Error("engineers sheet did not render");
+    if (found === null) {
+      throw new Error(`${selector} did not render`);
     }
-    return sheet;
+    return found;
+  };
+  const kick = (screen: Screen) => screen.text(ENGINEERS_KICK);
+  /** Her page, then Send exploring: the tunnels page. */
+  const openTunnels = (screen: Screen): HTMLElement => {
+    screen.openEngineer("Ada");
+    inSheet(screen, ".engineer-explore").click();
+    const page = screen.engineersPage();
+    if (page === undefined) {
+      throw new Error("the tunnels page did not show");
+    }
+    return page;
   };
 
   it("sends Ada down a tunnel, and an Apprentice cannot take the deep dark", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: withAda(),
+      mountain: taughtAda(),
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
-    const sheet = openSheet(screen.root);
-    const ada = sheet.querySelector('[data-name="Ada"]');
-    ada?.querySelector<HTMLButtonElement>(".engineer-explore")?.click();
-    expect(ada?.textContent).toContain("Quick look");
-    expect(ada?.textContent).toContain(
+    const page = openTunnels(screen);
+    expect(page.textContent).toContain("Quick look");
+    expect(page.textContent).toContain(
       "Back in a few minutes with a small find.",
     );
-    expect(ada?.textContent).toContain("Old shaft");
-    expect(ada?.textContent).toContain(
+    expect(page.textContent).toContain("Old shaft");
+    expect(page.textContent).toContain(
       "About an hour, often a lost tool or keepsake.",
     );
-    expect(ada?.textContent).toContain("The deep dark");
-    expect(ada?.textContent).toContain("The deep dark waits for a Journeyman.");
-    expect(ada?.textContent).toContain(
+    expect(page.textContent).toContain("The deep dark");
+    expect(page.textContent).toContain("The deep dark waits for a Journeyman.");
+    expect(kick(screen)).toBe(
       "While she explores, her machine works without her.",
     );
-    const deep = ada?.querySelector<HTMLButtonElement>(
-      '[data-tunnel="deep-dark"]',
+    const deep = inSheet(
+      screen,
+      '.engineer-tunnel-row[data-tunnel="deep-dark"]',
     );
-    expect(deep?.disabled).toBe(true);
-    deep?.click();
+    expect(deep.classList.contains("is-locked")).toBe(true);
+    deep.click();
     expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
 
-    ada?.querySelector<HTMLButtonElement>('[data-tunnel="old-shaft"]')?.click();
-    expect(screen.text(".engineer-trip-title")).toBe(
-      "Ada is exploring the old shaft.",
-    );
-    expect(screen.text(".engineer-trip-detail")).toBe(
-      "Ada will be gone about an hour. She'll bring home whatever is found.",
-    );
-    expect(screen.text(".engineer-toast")).toBe(
-      "Ada lights a lamp and heads in!",
-    );
-    expect(ada?.classList.contains("is-lit")).toBe(true);
-    expect(ada?.querySelector<HTMLElement>(".engineer-recall")?.hidden).toBe(
-      false,
-    );
-    expect(ada?.querySelector<HTMLElement>(".engineer-explore")?.hidden).toBe(
+    inSheet(screen, '.engineer-tunnel-row[data-tunnel="old-shaft"]').click();
+    expect(kick(screen)).toBe("Ada lights a lamp and heads in!");
+    // Her page again: she is out, so Call her back stands where Send exploring was.
+    expect(screen.engineersPage()?.classList.contains("engineer-page")).toBe(
       true,
     );
+    expect(inSheet(screen, ".engineer-recall").hidden).toBe(false);
+    expect(inSheet(screen, ".engineer-explore").hidden).toBe(true);
     const chip = screen.root.querySelector<HTMLElement>(".expedition-chip");
     expect(chip?.hidden).toBe(false);
     expect(chip?.textContent).toBe("Ada1h 0m");
@@ -115,6 +122,12 @@ describe("side tunnels (#147)", () => {
     expect(saved?.expeditions?.[0]?.tunnel).toBe("old-shaft");
     expect(saved?.expeditions?.[0]?.engineer).toBe("Ada");
     expect(saved?.engineers?.[0]?.post).toBe("tunnel");
+    // Once the cheer gives way, the kick is the trip in words; her row says where she is.
+    inSheet(screen, ".engineer-list-back").click();
+    expect(
+      inSheet(screen, '.engineer-row[data-engineer="Ada"] .board-row-info')
+        .textContent,
+    ).toBe("Exploring the old shaft · gone about an hour");
     screen.root.remove();
   });
 
@@ -122,42 +135,44 @@ describe("side tunnels (#147)", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: withAda(),
+      mountain: taughtAda(),
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
-    const sheet = openSheet(screen.root);
-    sheet
-      .querySelector<HTMLButtonElement>('[data-tunnel="side-seam"]')
-      ?.click();
-    const recall = sheet.querySelector<HTMLButtonElement>(".engineer-recall");
-    expect(recall?.hidden).toBe(false);
-    recall?.click();
-    expect(screen.text(".recall-line")).toBe("Ada comes home empty-handed.");
-    expect(screen.text(".recall-line")).not.toMatch(/\d|\?/);
-    expect(screen.text(".recall-no")).toBe("Keep exploring");
-    expect(screen.text(".recall-yes")).toBe("Call back");
-    sheet.querySelector<HTMLButtonElement>(".recall-no")?.click();
-    expect(screen.text(".engineer-trip-title")).toBe(
-      "Ada is exploring a side seam.",
+    openTunnels(screen);
+    inSheet(screen, '.engineer-tunnel-row[data-tunnel="side-seam"]').click();
+    inSheet(screen, ".engineer-recall").click();
+    const ask = screen.engineersPage();
+    expect(ask?.querySelector(".board-page-line")?.textContent).toBe(
+      "Ada comes home empty-handed.",
     );
-    expect(sheet.querySelector<HTMLElement>(".recall-confirm")?.hidden).toBe(
+    expect(ask?.querySelector(".board-page-line")?.textContent).not.toMatch(
+      /\d|\?/,
+    );
+    expect(inSheet(screen, ".recall-no").textContent).toBe("Keep exploring");
+    expect(inSheet(screen, ".recall-yes").textContent).toBe("Call back");
+    inSheet(screen, ".recall-no").click();
+    expect(screen.engineersPage()?.classList.contains("engineer-page")).toBe(
       true,
     );
-
-    recall?.click();
-    sheet.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-    expect(sheet.hidden).toBe(false);
-    expect(screen.text(".engineer-trip-title")).toBe(
-      "Ada is exploring a side seam.",
+    expect(screen.progress.getSnapshot().mountain.engineers?.[0]?.post).toBe(
+      "tunnel",
     );
 
-    recall?.click();
-    sheet.querySelector<HTMLButtonElement>(".recall-yes")?.click();
-    expect(screen.text(".engineer-doing")).toBe(
-      "Ada is tending the borers: +78 stones/sec.",
+    // Escape closes the whole drawer, and the trip goes on.
+    inSheet(screen, ".engineer-recall").click();
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
     );
-    expect(screen.text(".engineer-toast")).toBe("Ada is home, empty-handed.");
+    expect(engineersOpen(screen.root)).toBe(false);
+    expect(
+      screen.progress.getSnapshot().mountain.expeditions?.[0]?.tunnel,
+    ).toBe("side-seam");
+
+    screen.openEngineer("Ada");
+    inSheet(screen, ".engineer-recall").click();
+    inSheet(screen, ".recall-yes").click();
+    expect(kick(screen)).toBe("Ada is home, empty-handed.");
     expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
     expect(screen.progress.getSnapshot().mountain.engineers?.[0]).toMatchObject(
       { trips: 0, post: "borer" },
@@ -167,20 +182,14 @@ describe("side tunnels (#147)", () => {
       screen.root.querySelector<HTMLElement>(".expedition-chip")?.hidden,
     ).toBe(true);
 
-    sheet
-      .querySelector<HTMLButtonElement>('[data-tunnel="side-seam"]')
-      ?.click();
-    sheet.querySelector<HTMLButtonElement>(".engineer-recall")?.click();
-    sheet.querySelector<HTMLButtonElement>('[data-post="camp"]')?.click();
-    expect(screen.text(".engineer-doing")).toBe(
-      "Ada is resting at camp. Give her a job below.",
-    );
-    expect(sheet.querySelector<HTMLElement>(".recall-confirm")?.hidden).toBe(
-      true,
-    );
+    inSheet(screen, ".engineer-explore").click();
+    inSheet(screen, '.engineer-tunnel-row[data-tunnel="side-seam"]').click();
+    // A post chosen while she is out calls the party back first.
+    inSheet(screen, '.engineer-post[data-post="camp"]').click();
+    expect(kick(screen)).toBe("Ada puts the kettle on at camp.");
     expect(screen.progress.getSnapshot().mountain.expeditions).toBeUndefined();
-    expect(screen.progress.getSnapshot().mountain.engineers?.[0]?.trips).toBe(
-      0,
+    expect(screen.progress.getSnapshot().mountain.engineers?.[0]).toMatchObject(
+      { trips: 0, post: "camp" },
     );
     screen.root.remove();
   });
@@ -189,29 +198,27 @@ describe("side tunnels (#147)", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: withAda({
+      mountain: taughtAda({
         engineers: [{ name: "Ada", rank: 1, trips: 3, post: "camp" }],
       }),
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
-    const sheet = openSheet(screen.root);
-    const ada = sheet.querySelector('[data-name="Ada"]');
-    expect(ada?.querySelector(".engineer-doing")?.textContent).toBe(
-      "Ada is resting at camp. Give her a job below.",
-    );
-    ada?.querySelector<HTMLButtonElement>(".engineer-explore")?.click();
-    expect(ada?.textContent).not.toContain(
+    screen.openEngineer("Ada");
+    expect(kick(screen)).toBe("Ada is resting at camp. Give her a job below.");
+    const page = openTunnels(screen);
+    expect(page.textContent).not.toContain(
       "The deep dark waits for a Journeyman.",
     );
-    expect(ada?.textContent).toContain(
+    expect(page.textContent).toContain(
       "All night, the best chance of a relic hint or a new engineer.",
     );
-    const deep = ada?.querySelector<HTMLButtonElement>(
-      '[data-tunnel="deep-dark"]',
+    const deep = inSheet(
+      screen,
+      '.engineer-tunnel-row[data-tunnel="deep-dark"]',
     );
-    expect(deep?.disabled).toBe(false);
-    deep?.click();
+    expect(deep.classList.contains("is-locked")).toBe(false);
+    deep.click();
     expect(screen.text(".expedition-chip")).toBe("Ada4h 0m");
     expect(
       screen.root.querySelector(".expedition-chip")?.getAttribute("aria-label"),
@@ -330,13 +337,13 @@ describe("side tunnels (#147)", () => {
         .querySelector('.tier[data-tier="borer"]')
         ?.getAttribute("aria-label"),
     ).toContain("+78 stones/sec");
-    const sheet = openSheet(screen.root);
-    sheet.querySelector<HTMLButtonElement>(".engineer-tend")?.click();
-    expect(sheet.textContent).toContain(
+    screen.openEngineer("Ada");
+    const page = screen.engineersPage();
+    expect(page?.textContent).toContain(
       "+78 stones/sec. They dig faster, and she clears any jam herself.",
     );
-    expect(sheet.textContent).toContain("None built yet. ");
-    expect(sheet.textContent).not.toContain("+0 stones/sec");
+    expect(page?.textContent).toContain("None built yet. ");
+    expect(page?.textContent).not.toContain("+0 stones/sec");
     screen.root
       .querySelector<HTMLButtonElement>('.tier[data-tier="borer"]')
       ?.click();
@@ -346,7 +353,7 @@ describe("side tunnels (#147)", () => {
     expect(screen.text('.tier[data-tier="borer"] .board-row-flag')).toMatch(
       /Ada tends · \+156\/s$/,
     );
-    expect(sheet.textContent).toContain("+156 stones/sec");
+    expect(page?.textContent).toContain("+156 stones/sec");
     screen.root
       .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
       ?.click();
@@ -432,7 +439,8 @@ describe("side tunnels (#147)", () => {
       const storage = createMemoryStorage();
       writeSessionSave({ storage, mountain: waiting, lastSeen: start });
       const live = mountScreen({ storage });
-      openSheet(live.root);
+      live.openEngineers();
+      expect(engineersOpen(live.root)).toBe(true);
       expect(
         live.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
       ).toBe(true);
@@ -445,11 +453,18 @@ describe("side tunnels (#147)", () => {
       expect(live.text(".welcome-return")).toBe(
         "Ada came back from the old shaft with Grandfather's pick. Taps bite deeper.",
       );
-      expect(
-        live.root.querySelector<HTMLElement>(".engineers-dialog")?.hidden,
-      ).toBe(false);
+      // The welcome closes the drawer, as every card that opens itself does.
+      expect(engineersOpen(live.root)).toBe(false);
       live.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
       expect(notice?.hidden).toBe(true);
+      // Continue gives the board back; the key opens the drawer on her, home.
+      expect(engineersOpen(live.root)).toBe(false);
+      live.openEngineers();
+      expect(
+        live.root.querySelector(
+          `${ENGINEERS_SHEET} .engineer-row[data-engineer="Ada"] .board-row-info`,
+        )?.textContent,
+      ).toBe("Tending the borers");
       live.progress.dispose();
       live.root.remove();
 
@@ -1255,8 +1270,12 @@ describe("sheet buys", () => {
         ?.classList.contains("is-open"),
     ).toBe(true);
     keyOf(later.root, ".board-key[data-key=engineers]")?.click();
+    expect(engineersOpen(later.root)).toBe(true);
+    // One drawer at a time: the Engineers key closed the Workshop.
     expect(
-      later.root.querySelector(".engineers-dialog")?.hasAttribute("hidden"),
+      later.root
+        .querySelector(".board-sheet[data-sheet=workshop]")
+        ?.classList.contains("is-open"),
     ).toBe(false);
     later.progress.dispose();
   });

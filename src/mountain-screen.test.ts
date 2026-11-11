@@ -2132,14 +2132,16 @@ describe("the control board (#370)", () => {
     expect(signOf(quiet)).toBeUndefined();
     quiet.root.remove();
 
-    // Its key opens the sheet, and that counts as seen.
+    // Its key opens the drawer, and that counts as seen.
     const again = mountScreen({ storage: seeded(firstEngineer()) });
     again.root
       .querySelector<HTMLButtonElement>(".board-key[data-key=engineers]")
       ?.click();
     expect(
-      again.root.querySelector<HTMLElement>(".engineers-dialog")?.hidden,
-    ).toBe(false);
+      again.root
+        .querySelector(".board-sheet[data-sheet=engineers]")
+        ?.classList.contains("is-open"),
+    ).toBe(true);
     expect(again.progress.getSnapshot().mountain.seen).toContain("engineers");
     expect(signOf(again)).toBeUndefined();
   });
@@ -2156,8 +2158,10 @@ describe("the control board (#370)", () => {
     const plateLabel = plate?.getAttribute("aria-label");
     screen.root.querySelector<HTMLElement>(".board-sign")?.click();
     expect(
-      screen.root.querySelector<HTMLElement>(".engineers-dialog")?.hidden,
-    ).toBe(true);
+      screen.root
+        .querySelector(".board-sheet[data-sheet=engineers]")
+        ?.classList.contains("is-open"),
+    ).toBe(false);
     expect(screen.progress.getSnapshot().mountain.seen).not.toContain(
       "engineers",
     );

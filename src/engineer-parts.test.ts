@@ -336,7 +336,7 @@ describe("her page of posts (#455)", () => {
     ...root.querySelectorAll<HTMLButtonElement>(".engineer-post"),
   ];
 
-  it("five posts with their machines' art, her own pressed, with its gain", () => {
+  it("five posts with their machines' art, her own pressed, the others with their gain", () => {
     const { page } = mount();
     const mountain = withAda();
     page.paint(postViews(mountain), herPlates(ada(mountain), NONE));
@@ -352,9 +352,12 @@ describe("her page of posts (#455)", () => {
     }
     const borer = find(page.root, '.engineer-post[data-post="borer"]');
     expect(borer.getAttribute("aria-pressed")).toBe("true");
-    expect(find(borer, ".board-row-gain").textContent).toMatch(
-      /^\+[\d.,]+[KMBT]? stones\/sec$/,
-    );
+    // Her own post's gain is the page's kick, so its column is empty.
+    expect(find(borer, ".board-row-gain").textContent).toBe("");
+    expect(
+      find(page.root, '.engineer-post[data-post="cart"] .board-row-gain')
+        .textContent,
+    ).toMatch(/^\+[\d.,]+[KMBT]? stones\/sec$/);
     expect(
       find(page.root, '.engineer-post[data-post="drill"]').getAttribute(
         "aria-pressed",

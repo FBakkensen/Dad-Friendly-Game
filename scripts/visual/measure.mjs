@@ -144,6 +144,11 @@ async function drawerFacts(page, name) {
             row.dataset.recipe ??
             // The Ledger's stones, relics and account rows (#375).
             row.dataset.ledger ??
+            // The Engineers' rows, Brought home and Promote, posts and tunnels (#455).
+            row.dataset.engineer ??
+            row.dataset.engineers ??
+            row.dataset.post ??
+            row.dataset.tunnel ??
             (row.dataset.bench === undefined ? "" : "bench"),
           classes: [...row.classList].filter((cls) => cls.startsWith("is-")),
           top: r.t,

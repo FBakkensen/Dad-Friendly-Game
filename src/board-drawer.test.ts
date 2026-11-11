@@ -680,6 +680,20 @@ describe("the drawer shell", () => {
       expect(sheet.how.hidden).toBe(true);
     });
 
+    it("three cards keep one Back, under the last (#455)", () => {
+      const sheet = make({
+        name: "engineers",
+        how: {
+          systems: ["engineers", "expeditions", "tending"],
+          backLabel: "Back to your engineers",
+        },
+      });
+      const backs = [
+        ...sheet.how.querySelectorAll<HTMLElement>(".teach-how-back"),
+      ];
+      expect(backs.map((back) => back.hidden)).toEqual([true, true, false]);
+    });
+
     it("one card keeps its Back: it is the only way back (#465)", () => {
       const sheet = make({
         how: { systems: ["relics"], backLabel: "Back to the shelf" },

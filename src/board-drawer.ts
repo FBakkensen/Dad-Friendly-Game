@@ -151,9 +151,12 @@ function howCards(
   back: () => void,
 ): HTMLElement[] {
   const cards = systems.map((system) => boardHowCard(system, backLabel, back));
-  const first = cards[0]?.querySelector<HTMLElement>(".teach-how-back");
-  if (first && cards.length > 1) {
-    first.hidden = true;
+  // One Back, under the last card.
+  for (const card of cards.slice(0, -1)) {
+    const back = card.querySelector<HTMLElement>(".teach-how-back");
+    if (back !== null) {
+      back.hidden = true;
+    }
   }
   return cards;
 }

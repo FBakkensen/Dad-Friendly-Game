@@ -1,1126 +1,593 @@
-import { cardUp, showCard } from "./card-state";
-import { oneOffStretch, stretch } from "./scale";
-import { HOW_IT_WORKS, howItWorks, type HowSystem } from "./how-it-works";
-import { showsDot } from "./teach";
+import { hide } from "./board-dom";
+import { createBoardSheet, type BoardSheet } from "./board-drawer";
+import type { BoardHost } from "./board-host";
+import { createHowPricer } from "./board-how-art";
+import { createAskPage, type AskPage } from "./board-page";
+import { rowsOnBoard, type RowsOnBoard } from "./board-row";
 import {
-  clearNewCard,
-  createHowCard,
-  setHowSteps,
-  createInfoButton,
-  markNewCard,
-} from "./teach-ui";
-import { setAttr } from "./board-dom";
-import { buyOnTap } from "./card-tap";
-import { createExpeditionChips } from "./engineer-parts";
-import { machinePost, promoteWhyLine } from "./engineer-rows";
+  createBroughtPage,
+  createEngineerRows,
+  createExpeditionChips,
+  createPostsPage,
+  createTunnelsPage,
+  pageRow,
+} from "./engineer-parts";
 import {
-  MAX_ENGINEERS,
-  canPromote,
-  nextEngineerName,
-  promoteCost,
-  type Engineer,
-} from "./engineers";
-import { KEEPSAKES, TUNNELS, type TunnelId } from "./expeditions";
-import type { Mountain } from "./mountain";
+  askedPrice,
+  broughtRowView,
+  crewOf,
+  findHer,
+  pageEngineer,
+  promoteAskLine,
+  broughtStories,
+  engineerRowView,
+  engineerTeach,
+  herPlates,
+  listKick,
+  pageKick,
+  postRowView,
+  promoteRowView,
+  settlePage,
+  tunnelRowView,
+  type EngineerCtx,
+  type EngineerPage,
+  type EngineerTeach,
+} from "./engineer-rows";
+import { canPromote } from "./engineers";
+import { TUNNELS, type TunnelId } from "./expeditions";
 import type { Dispatch, ProgressSnapshot } from "./progress-store";
-import { firstTend, moveGain, promotePayoff, tendingGain } from "./rates";
-import { owned, tierById } from "./tiers";
 import {
-  NONE_BUILT,
-  BROUGHT_HOME,
   CALL_BACK,
+  ENGINEERS_BACK,
   ENGINEER_SHEET_SUB,
   ENGINEER_SHEET_TITLE,
-  ENGINEERS_BACK,
   KEEP_EXPLORING,
-  PROMOTE_BUTTON,
   PROMOTE_NOT_YET,
   PROMOTE_STEP_UP,
   PROMOTE_TITLE,
-  SEND_EXPLORING,
-  TEND_MACHINE,
   TEND_POSTS,
-  broughtHomeNames,
-  broughtHomeToast,
   callBackLabel,
-  dutyLine,
-  dutySentence,
-  exploreAside,
-  exploreBenefit,
   exploreCheer,
-  exploreTitle,
   homeCheer,
   promoteCheer,
-  promoteConfirm,
-  promoteOffer,
-  stonesPerSecond,
-  keepsakeWords,
-  keepsakesBroughtHome,
-  rankHint,
-  rankLabel,
   recallConfirm,
   stationCheer,
-  promotionAction,
-  PROMOTION_INTRO,
-  promotionPayoff,
-  firstTendWords,
-  tendingIntro,
-  tendBenefit,
-  tendTitle,
-  tripDetail,
-  tripTitle,
-  tunnelLock,
   type TendPost,
-  engineersIntro,
-  firstTripWords,
 } from "./screen-words";
 
-const PRESS_MS = 160;
+/*
+ * The Engineers drawer (#455), behind the Engineers key: a row per engineer (the walk home in
+ * her icon cell while she is out), Brought home once there are keepsakes, and Promote at the
+ * end. Her row opens her page of posts with Send exploring or Call her back; the tunnels, the
+ * recall and promote asks and Brought home's stories are pages too. engineer-rows.ts says what
+ * each shows and engineer-parts.ts builds it. Every press goes through the board's model, and
+ * every page change is the shell's showPage, so the second tap of a double tap lands on
+ * nothing. Every move is today's, through the screen's dispatch.
+ */
 
-/** The guided first trip takes the shortest tunnel. */
-const FIRST_TUNNEL = TUNNELS[0];
+/** The drawer's pages, built once. */
+interface EngineerPages {
+  readonly posts: ReturnType<typeof createPostsPage>;
+  readonly tunnels: ReturnType<typeof createTunnelsPage>;
+  readonly recall: AskPage;
+  readonly promote: AskPage;
+  readonly brought: ReturnType<typeof createBroughtPage>;
+}
 
-/** Every picture under src/assets, by path without ".png", for How it works. */
-const HOW_ART: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(
-    import.meta.glob<string>("./assets/**/*.png", {
-      eager: true,
-      query: "?url",
-      import: "default",
-    }),
-  ).map(([path, url]) => [path.slice("./assets/".length, -".png".length), url]),
-);
-const GLOW_MS = 900;
-const TOAST_MS = 2200;
+/** The list's parts, built once and placed in this order. */
+interface EngineersList {
+  readonly rows: ReturnType<typeof createEngineerRows>;
+  readonly brought: ReturnType<typeof pageRow>;
+  readonly promote: ReturnType<typeof pageRow>;
+}
+
+/** What a press reads and moves. */
+interface EngineerTaps {
+  readonly dispatch: Dispatch;
+  readonly getView: () => ProgressSnapshot;
+  readonly now: () => number;
+  readonly onBoard: RowsOnBoard;
+  readonly sheet: () => BoardSheet;
+  /** The page shown now. */
+  readonly page: () => EngineerPage;
+  /** Shows a page, a new screen under the finger. */
+  readonly go: (page: EngineerPage) => void;
+  /** The Promote price on the row at its last paint (#367). */
+  readonly quoted: () => number;
+}
+
+/** What a view reads now, from the save. */
+function ctxOf(view: ProgressSnapshot, at: number): EngineerCtx {
+  return {
+    mountain: view.mountain,
+    trouble: view.trouble,
+    now: at,
+    ready: view.ready,
+  };
+}
+
+/** She, in the crew now. */
+type Her = NonNullable<ReturnType<typeof findHer>>;
+
+/** Runs `act` for the engineer the page shown names, while she is still in the crew. */
+function withHer(taps: EngineerTaps, act: (her: Her) => void): void {
+  const her = findHer(taps.getView().mountain, pageEngineer(taps.page()));
+  if (her !== undefined) {
+    act(her);
+  }
+}
+
+/** The page root a page shows, or undefined for the list. */
+function rootOf(
+  pages: EngineerPages,
+  page: EngineerPage,
+): HTMLElement | undefined {
+  switch (page.kind) {
+    case "list":
+      return undefined;
+    case "engineer":
+      return pages.posts.root;
+    case "tunnels":
+      return pages.tunnels.root;
+    case "recall":
+      return pages.recall.root;
+    case "promote":
+      return pages.promote.root;
+    case "brought":
+      return pages.brought.root;
+  }
+}
 
 /**
- * Engineers sheet. One open card (portrait, rank, a sentence) and, once the
- * crew grows, one-line rows for the rest. Tend and Send exploring open a
- * choice list. A tunnel shows the walk home, and a post still calls the
- * party back first.
+ * A post on her page. Her own post sends nothing; another cheers with its gain and moves her
+ * there (a post chosen while out calls the party back first). One that lands holds Done.
+ */
+function onPost(taps: EngineerTaps, her: Her, post: TendPost): void {
+  if (her.engineer.post === post) {
+    return;
+  }
+  const { gain } = postRowView(
+    her.engineer,
+    her.index,
+    post,
+    ctxOf(taps.getView(), taps.now()),
+    { kind: "none" },
+  );
+  taps
+    .sheet()
+    .cheer(
+      stationCheer(her.engineer.name, post, gain === "" ? undefined : gain),
+    );
+  const moved = taps.dispatch({ kind: "station", index: her.index, post });
+  if (moved.kind === "applied") {
+    taps.onBoard.result(`post:${post}`, "applied");
+  }
+}
+
+/** Sends her down a tunnel, cheering, and shows her page: she is out now. */
+function sendHer(taps: EngineerTaps, her: Her, tunnel: TunnelId): void {
+  taps.sheet().cheer(exploreCheer(her.engineer.name));
+  taps.dispatch({ kind: "send", index: her.index, tunnel });
+  taps.go({ kind: "engineer", name: her.engineer.name });
+}
+
+/**
+ * Her page's left plate at home: the guided first trip sends the shortest tunnel at once, else
+ * the tunnels page.
+ */
+function onExplore(taps: EngineerTaps, her: Her): void {
+  const teach = engineerTeach(ctxOf(taps.getView(), taps.now()));
+  if (teach.kind === "trip" && teach.name === her.engineer.name) {
+    sendHer(taps, her, TUNNELS[0].id);
+    return;
+  }
+  taps.go({ kind: "tunnels", name: her.engineer.name });
+}
+
+/** Call back on the recall ask: she comes home, cheered, and her page shows her at home. */
+function callHome(taps: EngineerTaps, her: Her): void {
+  taps.sheet().cheer(homeCheer(her.engineer.name));
+  taps.dispatch({ kind: "recall", index: her.index });
+  taps.go({ kind: "engineer", name: her.engineer.name });
+}
+
+/**
+ * Step up: pays the price that was on the row when he tapped it (#367). A promotion that lands
+ * shows the list with the cheer, and the new engineer's row holds Done; one that cannot (a
+ * dearer price, no free worker) shows the list and no cheer.
+ */
+function stepUp(taps: EngineerTaps): void {
+  const view = taps.getView();
+  const before = crewOf(view.mountain).length;
+  const promoted =
+    canPromote(view.mountain) &&
+    taps.dispatch({ kind: "promote", price: askedPrice(taps.page()) }).kind ===
+      "applied";
+  taps.go({ kind: "list" });
+  // The new engineer joins at the end of the crew.
+  const name = crewOf(taps.getView().mountain)[before]?.name;
+  if (promoted && name !== undefined) {
+    taps.sheet().cheer(promoteCheer(name));
+    taps.onBoard.result(`engineer:${name}`, "applied");
+  }
+}
+
+/** Her page's and the tunnels page's plates, by what they lead to. */
+function onHerPlate(
+  taps: EngineerTaps,
+  id: "explore" | "recall" | "back" | "tend",
+): void {
+  if (id === "back") {
+    taps.go({ kind: "list" });
+    return;
+  }
+  withHer(taps, (her) => {
+    const { name } = her.engineer;
+    switch (id) {
+      case "explore":
+        onExplore(taps, her);
+        return;
+      case "recall":
+        taps.go({ kind: "recall", name });
+        return;
+      case "tend":
+        taps.go({ kind: "engineer", name });
+        return;
+    }
+  });
+}
+
+/** The ask that recalls her, and the one that promotes a worker: the safe answer first. */
+function buildAsks(
+  board: BoardHost,
+  taps: EngineerTaps,
+): Pick<EngineerPages, "recall" | "promote"> {
+  const herPage = (): void => {
+    withHer(taps, (her) => {
+      taps.go({ kind: "engineer", name: her.engineer.name });
+    });
+  };
+  const recall = createAskPage({
+    board,
+    layer: "engineers",
+    className: "engineer-recall-page",
+    title: CALL_BACK,
+    line: "",
+    answers: [
+      {
+        label: KEEP_EXPLORING,
+        id: "recall-no",
+        className: "recall-no",
+        act: herPage,
+      },
+      {
+        label: CALL_BACK,
+        id: "recall-yes",
+        className: "recall-yes",
+        act: () => {
+          withHer(taps, (her) => {
+            callHome(taps, her);
+          });
+        },
+        holdsReady: true,
+      },
+    ],
+  });
+  const promote = createAskPage({
+    board,
+    layer: "engineers",
+    className: "engineer-promote-page",
+    title: PROMOTE_TITLE,
+    line: "",
+    answers: [
+      {
+        label: PROMOTE_NOT_YET,
+        id: "promote-no",
+        className: "engineer-confirm-no",
+        act: () => {
+          taps.go({ kind: "list" });
+        },
+      },
+      {
+        label: PROMOTE_STEP_UP,
+        id: "promote-yes",
+        className: "engineer-confirm-yes",
+        act: () => {
+          stepUp(taps);
+        },
+        holdsReady: true,
+      },
+    ],
+  });
+  return { recall, promote };
+}
+
+/** Every page of the drawer, each wired to where its presses lead. */
+function buildPages(board: BoardHost, taps: EngineerTaps): EngineerPages {
+  const onPlate = (id: "explore" | "recall" | "back" | "tend"): void => {
+    onHerPlate(taps, id);
+  };
+  return {
+    posts: createPostsPage({
+      board,
+      onBoard: taps.onBoard,
+      onPost: (post) => {
+        withHer(taps, (her) => {
+          onPost(taps, her, post);
+        });
+      },
+      onPlate,
+    }),
+    tunnels: createTunnelsPage({
+      board,
+      onBoard: taps.onBoard,
+      onTunnel: (tunnel) => {
+        withHer(taps, (her) => {
+          sendHer(taps, her, tunnel);
+        });
+      },
+      onPlate,
+    }),
+    ...buildAsks(board, taps),
+    brought: createBroughtPage({
+      board,
+      onBack: () => {
+        taps.go({ kind: "list" });
+      },
+    }),
+  };
+}
+
+/** The list: a row per engineer, Brought home, then Promote. */
+function buildEngineersList(
+  sheet: BoardSheet,
+  taps: EngineerTaps,
+): EngineersList {
+  const { onBoard } = taps;
+  const rows = createEngineerRows({
+    onBoard,
+    onOpen: (name) => {
+      taps.go({ kind: "engineer", name });
+    },
+  });
+  const brought = pageRow(
+    onBoard,
+    {
+      className: "engineer-brought",
+      data: { engineers: "brought" },
+      icon: false,
+      id: "brought",
+    },
+    () => {
+      taps.go({ kind: "brought" });
+    },
+  );
+  hide(brought.row.root, true);
+  const promote = pageRow(
+    onBoard,
+    {
+      className: "engineer-promote",
+      data: { engineers: "promote" },
+      icon: false,
+      id: "promote",
+    },
+    () => {
+      taps.go({ kind: "promote", price: taps.quoted() });
+    },
+  );
+  sheet.place([...rows.roots, brought.row.root, promote.row.root]);
+  return { rows, brought, promote };
+}
+
+/** The list's rows from the save: dark until it is in. Returns the Promote row's price. */
+function paintList(
+  list: EngineersList,
+  ctx: EngineerCtx,
+  teach: EngineerTeach,
+): number {
+  const { mountain, ready } = ctx;
+  const views = crewOf(mountain).map((engineer) =>
+    engineerRowView(engineer, ctx, teach),
+  );
+  list.rows.paint(views, ready);
+  const brought = broughtRowView(mountain.finds);
+  hide(list.brought.row.root, brought === undefined);
+  list.brought.paint(ready ? brought : undefined);
+  const promote = promoteRowView(ctx, teach);
+  list.promote.paint(ready ? promote : undefined);
+  return promote.cost;
+}
+
+/** Her page or the tunnels page, painted for her now; dark until the save is in. */
+function paintHers(
+  pages: EngineerPages,
+  page: Extract<EngineerPage, { readonly kind: "engineer" | "tunnels" }>,
+  ctx: EngineerCtx,
+  teach: EngineerTeach,
+): void {
+  const her = findHer(ctx.mountain, page.name);
+  const shown = ctx.ready ? her : undefined;
+  if (page.kind === "tunnels") {
+    pages.tunnels.paint(
+      shown &&
+        TUNNELS.map((tunnel) => tunnelRowView(shown.engineer, tunnel, teach)),
+    );
+    return;
+  }
+  pages.posts.paint(
+    shown &&
+      TEND_POSTS.map((post) =>
+        postRowView(shown.engineer, shown.index, post, ctx, teach),
+      ),
+    shown && herPlates(shown.engineer, teach),
+  );
+}
+
+/** The page shown, painted from the save. */
+function paintPage(
+  pages: EngineerPages,
+  page: EngineerPage,
+  ctx: EngineerCtx,
+  teach: EngineerTeach,
+): void {
+  switch (page.kind) {
+    case "list":
+      return;
+    case "engineer":
+    case "tunnels":
+      paintHers(pages, page, ctx, teach);
+      return;
+    case "recall":
+      pages.recall.write(callBackLabel(page.name), recallConfirm(page.name));
+      pages.recall.paint(ctx.ready);
+      return;
+    case "promote":
+      pages.promote.write(PROMOTE_TITLE, promoteAskLine(ctx.mountain));
+      pages.promote.paint(ctx.ready);
+      return;
+    case "brought":
+      pages.brought.paint(broughtStories(ctx.mountain.finds));
+      return;
+  }
+}
+
+/**
+ * The page as the drawer shows it: the "i" cards and a close put the list back in a page's
+ * place, so a page whose root left the drawer is the list now.
+ */
+function onScreen(pages: EngineerPages, page: EngineerPage): EngineerPage {
+  return rootOf(pages, page)?.parentElement === null ? { kind: "list" } : page;
+}
+
+/** The drawer has an engineer to show: the save is in, and the crew is not empty. */
+function hasCrew(view: ProgressSnapshot): boolean {
+  return view.ready && crewOf(view.mountain).length > 0;
+}
+
+/**
+ * The Engineers drawer. `open` does nothing until the save is in and there is an engineer; it
+ * marks Engineers seen and opens on the list. A page whose subject changed under it gives way
+ * (settlePage), and a ready save with no engineers closes the drawer. Back returns focus to the
+ * key, or to `fallbackFocus` (the Ledger key) while a re-load holds the Engineers key.
  */
 export function createEngineersPanel({
   dispatch,
   getView,
-  requestRender,
-  iconUrl,
-  badgeUrl,
-  chipHost,
+  now,
+  board,
+  overSave,
   door,
-  fallbackDoor,
-  now = Date.now,
+  fallbackFocus,
+  chipHost,
+  chipIconUrl,
+  signal,
 }: {
   dispatch: Dispatch;
   getView: () => ProgressSnapshot;
-  requestRender: () => void;
-  /** Existing worker portrait. A badge uses the machine art. No new art. */
-  iconUrl: string;
-  badgeUrl: Readonly<Record<Exclude<TendPost, "camp">, string>>;
-  /** Mountain corner. Chips sit with the boost countdowns, out of the flow. */
-  chipHost: HTMLElement;
-  /**
-   * The key that opens the sheet (#373): the panel listens to its click, puts focus back on it
-   * at close and writes only its aria-expanded. The key rail draws it and decides its lock.
-   */
+  /** The game's clock: the trips, the gains and the teach. */
+  now: () => number;
+  /** The board's tap rules, shared by every drawer and the board. */
+  board: BoardHost;
+  /** The save drawer is open over the board: its Escape is its own. */
+  overSave: () => boolean;
+  /** The Engineers key on the rail: the shell writes its aria-expanded. */
   door: HTMLButtonElement;
-  /** Where focus goes at close while a re-load holds the door disabled. */
-  fallbackDoor: HTMLButtonElement;
-  now?: () => number;
-}): { button: HTMLButtonElement; sheet: HTMLDivElement; render: () => void } {
-  const button = door;
-  let open = false;
-  let confirming = false;
-  // The Promote price at the last paint, and when he tapped it: Step up pays that (#367).
-  let paintedPromote = Number.NaN;
-  let quotedPromote = Number.NaN;
-  /** Row whose recall confirm is open. */
-  let recalling: number | undefined;
-  /** Which card is the big one. The rest are one line. */
-  let expanded = 0;
-  let menu:
-    { readonly index: number; readonly kind: "tend" | "explore" } | undefined;
-  let lit: number | undefined;
-  let toastText = "";
-  let toastOn = false;
-  let toastStory = false;
-  let pressedKey = "";
-  let pressTimer: ReturnType<typeof setTimeout> | undefined;
-  let glowTimer: ReturnType<typeof setTimeout> | undefined;
-  let toastTimer: ReturnType<typeof setTimeout> | undefined;
-
-  const chips = createExpeditionChips(chipHost, iconUrl);
-
-  button.addEventListener("click", () => {
-    open = true;
-    // Opening the sheet counts as seen: the note goes, the dot stays.
-    dispatch({ kind: "markSeen", id: "engineers" });
-    confirming = false;
-    recalling = undefined;
-    menu = undefined;
-    expanded = 0;
-    requestRender();
-  });
-
-  const sheet = document.createElement("div");
-  sheet.className = "engineers-dialog";
-  sheet.setAttribute("role", "dialog");
-  sheet.setAttribute("aria-modal", "true");
-  sheet.setAttribute("aria-labelledby", "engineers-title");
-  sheet.hidden = true;
-
-  const card = document.createElement("div");
-  card.className = "engineers-card";
-  const head = document.createElement("header");
-  head.className = "engineers-head";
-  const titles = document.createElement("div");
-  const title = document.createElement("h2");
-  title.id = "engineers-title";
-  title.textContent = ENGINEER_SHEET_TITLE;
-  titles.append(title);
-  const close = document.createElement("button");
-  close.type = "button";
-  close.className = "engineers-close";
-  close.textContent = "Back to the mountain";
-  // The same head as the Workshop and Upgrades: title left, "i" right.
-  let howOpen = false;
-  const info = createInfoButton("Engineers", () => {
-    howOpen = true;
-    requestRender();
-  });
-  const headTools = document.createElement("div");
-  headTools.className = "workshop-head-tools";
-  headTools.append(info);
-  head.append(titles, headTools);
-  let howPriced = "1:1";
-  const howCards = (["engineers", "expeditions", "tending"] as const).map(
-    (system) => {
-      const copy = HOW_IT_WORKS[system];
-      const made = createHowCard(
-        `How it works · ${copy.title}`,
-        copy.steps.map(
-          ([art, text]) => [HOW_ART[art] ?? iconUrl, text] as const,
-        ),
-        ENGINEERS_BACK,
-        () => {
-          howOpen = false;
-          requestRender();
-          info.focus();
-        },
-      );
-      made.dataset["how"] = system;
-      return made;
+  /** The Ledger key: Back focuses it while a re-load holds the Engineers key. */
+  fallbackFocus: HTMLButtonElement;
+  /** The Running now note's chip row: the trips' chips stand there. */
+  chipHost: HTMLElement;
+  /** The helper art on a trip's chip. */
+  chipIconUrl: string;
+  /** Aborting it removes the drawer's document listeners. */
+  signal?: AbortSignal | undefined;
+}): {
+  sheet: BoardSheet;
+  render(): void;
+  open(from?: HTMLElement): void;
+} {
+  const onBoard = rowsOnBoard(board, "engineers");
+  let page: EngineerPage = { kind: "list" };
+  let quoted = Number.NaN;
+  const taps: EngineerTaps = {
+    dispatch,
+    getView,
+    now,
+    onBoard,
+    sheet: () => sheet,
+    page: () => page,
+    go: (next) => {
+      page = next;
+      sheet.showPage(rootOf(pages, next));
+      render();
     },
-  );
-  // One way back, under the last card.
-  for (const made of howCards.slice(0, -1)) {
-    const back = made.querySelector("button");
-    if (back !== null) {
-      back.hidden = true;
-    }
-  }
-  const howHost = document.createElement("div");
-  howHost.className = "engineers-how";
-  howHost.hidden = true;
-  howHost.append(...howCards);
-  // The first visit (#246): one line, then the first trip on the New card.
-  const intro = document.createElement("p");
-  intro.className = "teach-intro engineers-intro";
-  intro.hidden = true;
-
-  const list = document.createElement("ul");
-  list.className = "engineer-list";
-
-  const arm = (key: string, target: HTMLButtonElement): void => {
-    target.addEventListener("pointerdown", () => {
-      if (target.disabled) {
-        return;
-      }
-      pressedKey = key;
-      requestRender();
-      if (pressTimer !== undefined) {
-        clearTimeout(pressTimer);
-      }
-      pressTimer = setTimeout(() => {
-        pressedKey = "";
-        pressTimer = undefined;
-        requestRender();
-      }, PRESS_MS);
-    });
+    quoted: () => quoted,
   };
-
-  const cheer = (text: string, story = false): void => {
-    toastText = text;
-    toastOn = true;
-    toastStory = story;
-    if (toastTimer !== undefined) {
-      clearTimeout(toastTimer);
-    }
-    toastTimer = setTimeout(() => {
-      toastOn = false;
-      toastStory = false;
-      toastTimer = undefined;
-      requestRender();
-    }, TOAST_MS);
-  };
-
-  const glow = (index: number): void => {
-    lit = index;
-    if (glowTimer !== undefined) {
-      clearTimeout(glowTimer);
-    }
-    glowTimer = setTimeout(() => {
-      lit = undefined;
-      glowTimer = undefined;
-      requestRender();
-    }, GLOW_MS);
-  };
-
-  const buildRow = (_: unknown, index: number) => {
-    const item = document.createElement("li");
-    item.className = "engineer";
-    item.hidden = true;
-
-    const openCard = document.createElement("div");
-    openCard.className = "engineer-open";
-    const top = document.createElement("div");
-    top.className = "engineer-top";
-    const face = document.createElement("div");
-    face.className = "engineer-face";
-    const portrait = document.createElement("img");
-    portrait.className = "engineer-portrait";
-    portrait.src = iconUrl;
-    portrait.alt = "";
-    portrait.draggable = false;
-    const badge = document.createElement("img");
-    badge.className = "engineer-badge";
-    badge.alt = "";
-    badge.draggable = false;
-    const badgeLamp = document.createElement("span");
-    badgeLamp.className = "engineer-badge-lamp";
-    badgeLamp.setAttribute("aria-hidden", "true");
-    face.append(portrait, badge, badgeLamp);
-    const who = document.createElement("div");
-    const name = document.createElement("p");
-    name.className = "engineer-name";
-    const rank = document.createElement("p");
-    rank.className = "engineer-rank";
-    const lamps = document.createElement("span");
-    lamps.className = "engineer-lamps";
-    lamps.setAttribute("role", "img");
-    const lamp = [0, 1, 2].map(() => {
-      const one = document.createElement("span");
-      one.className = "lamp";
-      lamps.append(one);
-      return one;
-    });
-    const rankWord = document.createElement("span");
-    rankWord.className = "engineer-rank-word";
-    const hint = document.createElement("span");
-    hint.className = "engineer-hint";
-    rank.append(lamps, rankWord, hint);
-    who.append(name, rank);
-    top.append(face, who);
-
-    const doing = document.createElement("p");
-    doing.className = "engineer-doing";
-    const brought = document.createElement("button");
-    brought.type = "button";
-    brought.className = "engineer-brought";
-    brought.hidden = true;
-    const broughtTitle = document.createElement("span");
-    broughtTitle.className = "engineer-brought-title";
-    broughtTitle.textContent = BROUGHT_HOME;
-    const broughtNames = document.createElement("span");
-    broughtNames.className = "engineer-brought-names";
-    const broughtStories = document.createElement("span");
-    broughtStories.className = "engineer-brought-stories";
-    const broughtStory = KEEPSAKES.map(() => {
-      const slot = document.createElement("span");
-      slot.className = "engineer-brought-story";
-      slot.hidden = true;
-      broughtStories.append(slot);
-      return slot;
-    });
-    brought.append(broughtTitle, broughtNames, broughtStories);
-    brought.addEventListener("click", () => {
-      const ids = keepsakesBroughtHome(getView().mountain.finds);
-      if (ids.length === 0) {
-        return;
+  const sheet = createBoardSheet({
+    name: "engineers",
+    title: ENGINEER_SHEET_TITLE,
+    infoLabel: "Engineers",
+    how: {
+      // Tending's card is not here (#455): three ran past the drawer, and a post row says it.
+      systems: ["engineers", "expeditions"],
+      backLabel: ENGINEERS_BACK,
+    },
+    board,
+    overSave,
+    door,
+    fallbackFocus,
+    onClose: () => {
+      list.rows.walk(false);
+    },
+    onForget: () => {
+      onBoard.forget();
+      const { posts, tunnels, recall, promote, brought } = pages;
+      for (const each of [posts, tunnels, recall, promote, brought]) {
+        each.forget();
       }
-      cheer(broughtHomeToast(ids), true);
-      requestRender();
-    });
-    const trip = document.createElement("div");
-    trip.className = "engineer-trip";
-    const mouth = document.createElement("div");
-    mouth.className = "engineer-tunnel";
-    const walker = document.createElement("img");
-    walker.className = "engineer-walker";
-    walker.src = iconUrl;
-    walker.alt = "";
-    walker.draggable = false;
-    mouth.append(walker);
-    const tripWords = document.createElement("div");
-    const tripHeading = document.createElement("p");
-    tripHeading.className = "engineer-trip-title";
-    const tripWhen = document.createElement("p");
-    tripWhen.className = "engineer-trip-detail";
-    tripWords.append(tripHeading, tripWhen);
-    trip.append(mouth, tripWords);
-
-    const acts = document.createElement("div");
-    acts.className = "engineer-acts";
-    const tend = document.createElement("button");
-    tend.type = "button";
-    tend.className = "engineer-act engineer-tend";
-    tend.textContent = TEND_MACHINE;
-    const explore = document.createElement("button");
-    explore.type = "button";
-    explore.className = "engineer-act engineer-explore";
-    explore.textContent = SEND_EXPLORING;
-    const recallButton = document.createElement("button");
-    recallButton.type = "button";
-    recallButton.className = "engineer-act engineer-recall";
-    recallButton.textContent = CALL_BACK;
-    acts.append(tend, explore, recallButton);
-    // The guided first trip (#246): one big button, the shortest tunnel.
-    const firstTrip = document.createElement("button");
-    firstTrip.type = "button";
-    firstTrip.className = "engineer-first-trip";
-    firstTrip.hidden = true;
-    firstTrip.addEventListener("click", () => {
-      const view = getView();
-      const engineer = view.mountain.engineers?.[index];
-      if (!view.ready || engineer === undefined) {
-        return;
-      }
-      cheer(exploreCheer(engineer.name));
-      glow(index);
-      dispatch({ kind: "send", index, tunnel: FIRST_TUNNEL.id });
-    });
-    // The guided first tend (#246): one big button, one step up.
-    const firstTendButton = document.createElement("button");
-    firstTendButton.type = "button";
-    firstTendButton.className = "engineer-first-trip engineer-first-tend";
-    firstTendButton.hidden = true;
-    firstTendButton.addEventListener("click", () => {
-      const view = getView();
-      const engineer = view.mountain.engineers?.[index];
-      const step = firstTend(view.mountain, now(), view.trouble);
-      if (!view.ready || engineer === undefined || step?.index !== index) {
-        return;
-      }
-      const gain = stonesPerSecond(
-        moveGain(view.mountain, index, step.post, now(), view.trouble),
-      );
-      cheer(stationCheer(engineer.name, step.post, gain), true);
-      glow(index);
-      dispatch({ kind: "station", index, post: step.post });
-    });
-    arm(`${String(index)}:tend`, tend);
-    arm(`${String(index)}:explore`, explore);
-    arm(`${String(index)}:recall`, recallButton);
-
-    const choices = document.createElement("div");
-    choices.className = "engineer-choices";
-    const tendList = document.createElement("div");
-    tendList.className = "engineer-menu";
-    tendList.dataset["menu"] = "tend";
-    const stations = TEND_POSTS.map((post) => {
-      const choice = document.createElement("button");
-      choice.type = "button";
-      choice.className = "engineer-choice";
-      choice.dataset["post"] = post;
-      const mark = document.createElement("img");
-      mark.alt = "";
-      mark.draggable = false;
-      mark.src = post === "camp" ? iconUrl : badgeUrl[post];
-      const copy = document.createElement("span");
-      copy.className = "engineer-choice-copy";
-      const label = document.createElement("span");
-      label.className = "engineer-choice-title";
-      const benefit = document.createElement("span");
-      benefit.className = "engineer-choice-benefit";
-      copy.append(label, benefit);
-      choice.append(mark, copy);
-      arm(`${String(index)}:post:${post}`, choice);
-      choice.addEventListener("click", () => {
-        const view = getView();
-        const engineer = view.mountain.engineers?.[index];
-        if (!view.ready || engineer === undefined) {
-          return;
-        }
-        menu = undefined;
-        if (engineer.post === post) {
-          requestRender();
-          return;
-        }
-        const gain =
-          post === "camp"
-            ? undefined
-            : stonesPerSecond(
-                tendingGain(view.mountain, index, post, now(), view.trouble),
-              );
-        cheer(stationCheer(engineer.name, post, gain), gain !== undefined);
-        glow(index);
-        // From a tunnel, the station move calls the party back first (no find, no trip).
-        dispatch({ kind: "station", index, post });
-      });
-      tendList.append(choice);
-      return { choice, label, benefit, post };
-    });
-
-    const exploreList = document.createElement("div");
-    exploreList.className = "engineer-menu";
-    exploreList.dataset["menu"] = "explore";
-    const tunnelChoices = TUNNELS.map((spec) => {
-      const choice = document.createElement("button");
-      choice.type = "button";
-      choice.className = "engineer-choice engineer-tunnel-choice";
-      choice.dataset["tunnel"] = spec.id;
-      const mark = document.createElement("span");
-      mark.className = "engineer-choice-lamp";
-      mark.setAttribute("aria-hidden", "true");
-      const copy = document.createElement("span");
-      copy.className = "engineer-choice-copy";
-      const label = document.createElement("span");
-      label.className = "engineer-choice-title";
-      label.textContent = exploreTitle(spec.id);
-      const benefit = document.createElement("span");
-      benefit.className = "engineer-choice-benefit";
-      copy.append(label, benefit);
-      choice.append(mark, copy);
-      arm(`${String(index)}:tunnel:${spec.id}`, choice);
-      choice.addEventListener("click", () => {
-        const view = getView();
-        const engineer = view.mountain.engineers?.[index];
-        if (
-          !view.ready ||
-          engineer === undefined ||
-          tunnelLock(engineer.rank, spec.id) !== undefined
-        ) {
-          return;
-        }
-        menu = undefined;
-        cheer(exploreCheer(engineer.name));
-        glow(index);
-        dispatch({ kind: "send", index, tunnel: spec.id });
-      });
-      exploreList.append(choice);
-      return { choice, benefit, id: spec.id };
-    });
-    const aside = document.createElement("p");
-    aside.className = "engineer-aside";
-    exploreList.append(aside);
-    choices.append(tendList, exploreList);
-
-    tend.addEventListener("click", () => {
-      menu =
-        menu?.index === index && menu.kind === "tend"
-          ? undefined
-          : { index, kind: "tend" };
-      requestRender();
-    });
-    explore.addEventListener("click", () => {
-      menu =
-        menu?.index === index && menu.kind === "explore"
-          ? undefined
-          : { index, kind: "explore" };
-      requestRender();
-    });
-    recallButton.addEventListener("click", () => {
-      recalling = index;
-      confirming = false;
-      menu = undefined;
-      requestRender();
-    });
-
-    openCard.append(
-      top,
-      doing,
-      brought,
-      trip,
-      acts,
-      firstTrip,
-      firstTendButton,
-      choices,
-    );
-
-    const mini = document.createElement("button");
-    mini.type = "button";
-    mini.className = "engineer-mini";
-    const miniFace = document.createElement("img");
-    miniFace.className = "engineer-portrait";
-    miniFace.src = iconUrl;
-    miniFace.alt = "";
-    miniFace.draggable = false;
-    const miniName = document.createElement("span");
-    miniName.className = "engineer-name";
-    const miniLamps = document.createElement("span");
-    miniLamps.className = "engineer-lamps";
-    miniLamps.setAttribute("aria-hidden", "true");
-    const miniLamp = [0, 1, 2].map(() => {
-      const one = document.createElement("span");
-      one.className = "lamp";
-      miniLamps.append(one);
-      return one;
-    });
-    const duty = document.createElement("span");
-    duty.className = "engineer-duty";
-    const more = document.createElement("span");
-    more.className = "engineer-more";
-    more.textContent = "›";
-    more.setAttribute("aria-hidden", "true");
-    mini.append(miniFace, miniName, miniLamps, duty, more);
-    mini.addEventListener("click", () => {
-      expanded = index;
-      menu = undefined;
-      requestRender();
-    });
-
-    item.append(openCard, mini);
-    list.append(item);
-    return {
-      item,
-      openCard,
-      acts,
-      firstTrip,
-      firstTend: firstTendButton,
-      face,
-      name,
-      lamps,
-      lamp,
-      rankWord,
-      hint,
-      doing,
-      brought,
-      broughtNames,
-      broughtStories,
-      broughtStory,
-      trip,
-      tripHeading,
-      tripWhen,
-      tend,
-      explore,
-      recallButton,
-      choices,
-      tendList,
-      stations,
-      exploreList,
-      tunnelChoices,
-      aside,
-      badge,
-      badgeLamp,
-      mini,
-      miniName,
-      miniLamp,
-      duty,
-    };
-  };
-  const rows = Array.from({ length: MAX_ENGINEERS }, buildRow);
-
-  const promoteRow = document.createElement("div");
-  promoteRow.className = "engineer-promote-row";
-  const promoteMark = document.createElement("span");
-  promoteMark.className = "engineer-promote-mark";
-  promoteMark.textContent = "★";
-  promoteMark.setAttribute("aria-hidden", "true");
-  const promoteCopy = document.createElement("p");
-  promoteCopy.className = "engineer-promote-copy";
-  const promoteTitle = document.createElement("span");
-  promoteTitle.className = "engineer-promote-title";
-  promoteTitle.textContent = PROMOTE_TITLE;
-  const promoteWhy = document.createElement("span");
-  promoteWhy.className = "engineer-promote-why";
-  promoteCopy.append(promoteTitle, promoteWhy);
-  const promoteButton = document.createElement("button");
-  promoteButton.type = "button";
-  promoteButton.className = "engineer-act engineer-promote";
-  promoteButton.textContent = PROMOTE_BUTTON;
-  arm("promote", promoteButton);
-  buyOnTap(promoteRow, promoteButton, () => {
-    if (!promotable(getView())) {
-      return;
-    }
-    confirming = true;
-    quotedPromote = paintedPromote;
-    recalling = undefined;
-    menu = undefined;
-    requestRender();
+    },
+    ...(signal === undefined ? {} : { signal }),
   });
-  promoteRow.append(promoteMark, promoteCopy, promoteButton);
-
-  const modal = document.createElement("div");
-  modal.className = "engineer-modal";
-  modal.hidden = true;
-  const confirm = document.createElement("div");
-  confirm.className = "engineer-confirm";
-  confirm.hidden = true;
-  const confirmLine = document.createElement("p");
-  confirmLine.className = "engineer-confirm-line";
-  const confirmActions = document.createElement("div");
-  confirmActions.className = "engineer-confirm-actions";
-  const confirmNo = document.createElement("button");
-  confirmNo.type = "button";
-  confirmNo.className = "engineer-act engineer-confirm-no";
-  confirmNo.textContent = PROMOTE_NOT_YET;
-  const confirmYes = document.createElement("button");
-  confirmYes.type = "button";
-  confirmYes.className = "engineer-act engineer-confirm-yes";
-  confirmYes.textContent = PROMOTE_STEP_UP;
-  confirmNo.addEventListener("click", () => {
-    confirming = false;
-    requestRender();
-  });
-  confirmYes.addEventListener("click", () => {
-    const view = getView();
-    confirming = false;
-    menu = undefined;
-    const beforeCount = view.mountain.engineers?.length ?? 0;
-    // Price and a free worker can change while the confirm sits open. A dearer price is refused.
-    const promoted =
-      promotable(view) &&
-      dispatch({ kind: "promote", price: quotedPromote }).kind === "applied";
-    // The new engineer joins at the end of the crew.
-    const name = getView().mountain.engineers?.[beforeCount]?.name;
-    if (promoted && name !== undefined) {
-      expanded = beforeCount;
-      cheer(promoteCheer(name));
-      glow(beforeCount);
-    }
-    requestRender();
-  });
-  confirmActions.append(confirmNo, confirmYes);
-  confirm.append(confirmLine, confirmActions);
-
-  const recallBox = document.createElement("div");
-  recallBox.className = "recall-confirm";
-  recallBox.hidden = true;
-  const recallLine = document.createElement("p");
-  recallLine.className = "recall-line";
-  const recallActions = document.createElement("div");
-  recallActions.className = "recall-actions";
-  const recallNo = document.createElement("button");
-  recallNo.type = "button";
-  recallNo.className = "engineer-act recall-no";
-  recallNo.textContent = KEEP_EXPLORING;
-  const recallYes = document.createElement("button");
-  recallYes.type = "button";
-  recallYes.className = "engineer-act recall-yes";
-  recallYes.textContent = CALL_BACK;
-  recallNo.addEventListener("click", () => {
-    recalling = undefined;
-    requestRender();
-  });
-  recallYes.addEventListener("click", () => {
-    const index = recalling;
-    const view = getView();
-    const engineer =
-      index === undefined ? undefined : view.mountain.engineers?.[index];
-    recalling = undefined;
-    if (index === undefined || engineer === undefined || !view.ready) {
-      requestRender();
-      return;
-    }
-    cheer(homeCheer(engineer.name));
-    glow(index);
-    // A tunnel with no expedition has no home post to restore: the recall move sends them to camp.
-    dispatch({ kind: "recall", index });
-  });
-  recallActions.append(recallNo, recallYes);
-  recallBox.append(recallLine, recallActions);
-  modal.append(confirm, recallBox);
-
-  const toast = document.createElement("p");
-  toast.className = "engineer-toast";
-  toast.setAttribute("role", "status");
-  toast.setAttribute("aria-live", "polite");
-  toast.hidden = true;
-
-  const closeSheet = (): void => {
-    open = false;
-    howOpen = false;
-    confirming = false;
-    recalling = undefined;
-    menu = undefined;
-    requestRender();
-    (button.disabled ? fallbackDoor : button).focus();
-  };
-  close.addEventListener("click", closeSheet);
-  sheet.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") {
-      return;
-    }
-    if (confirming || recalling !== undefined) {
-      confirming = false;
-      recalling = undefined;
-      requestRender();
-      return;
-    }
-    closeSheet();
-  });
-
-  card.append(head, intro, howHost, list, promoteRow, close);
-  sheet.append(card, modal, toast);
+  sheet.kick(ENGINEER_SHEET_SUB);
+  const pages: EngineerPages = buildPages(board, taps);
+  const list = buildEngineersList(sheet, taps);
+  const chips = createExpeditionChips(chipHost, chipIconUrl);
+  const priceHow = createHowPricer(sheet.how, ["engineers", "expeditions"]);
 
   const render = (): void => {
     const view = getView();
-    const current = view.mountain;
-    const howKey = `${String(stretch(current))}:${String(oneOffStretch(current))}`;
-    if (howKey !== howPriced) {
-      howPriced = howKey;
-      const copy = howItWorks(stretch(current), oneOffStretch(current));
-      for (const made of howCards) {
-        setHowSteps(made, copy[made.dataset["how"] as HowSystem].steps);
-      }
+    const ctx = ctxOf(view, now());
+    if (view.ready && !hasCrew(view)) {
+      sheet.close({ restoreFocus: false, by: "program" });
     }
-    const engineers = current.engineers ?? [];
-    if (engineers.length === 0) {
-      open = false;
-      confirming = false;
-      recalling = undefined;
-      menu = undefined;
+    const shown = onScreen(pages, page);
+    page = settlePage(shown, view.mountain, view.ready);
+    if (page.kind !== shown.kind) {
+      sheet.showPage(rootOf(pages, page));
     }
-    if (expanded >= engineers.length) {
-      expanded = 0;
-    }
-    const recalled = recalling === undefined ? undefined : engineers[recalling];
-    if (recalled !== undefined && recalled.post !== "tunnel") {
-      recalling = undefined;
-    }
-    setAttr(button, "aria-expanded", open ? "true" : "false");
-    sheet.classList.toggle("is-choosing", menu !== undefined);
-    sheet.classList.toggle("is-packed", engineers.length >= 3);
-    for (const [index, row] of rows.entries()) {
-      const engineer = engineers[index];
-      row.item.hidden = engineer === undefined;
-      if (engineer === undefined) {
-        continue;
-      }
-      paintEngineer(row, engineer, index, view.ready, {
-        expanded: expanded === index,
-        menu: menu?.index === index ? menu.kind : undefined,
-        lit: lit === index,
-        pressedKey,
-        expeditions: current.expeditions,
-        now: now(),
-        badgeUrl,
-        keepsakes: keepsakesBroughtHome(current.finds),
-        mountain: current,
-        trouble: view.trouble,
-      });
-    }
-    // First visit (#246): the first engineer's card is the New card, with
-    // one big button for a first trip, until any trip has happened.
-    const first = engineers[0];
-    const teaching =
-      first !== undefined &&
-      first.post !== "tunnel" &&
-      expanded === 0 &&
-      menu === undefined &&
-      showsDot(current, "engineers");
-    // Then the first tend (#246): the dot only, the New card, one step up
-    // with its real payoff, until any tend.
-    const step = teaching ? undefined : firstTend(current, now(), view.trouble);
-    const tending =
-      step !== undefined &&
-      expanded === step.index &&
-      menu === undefined &&
-      showsDot(current, "tending");
-    const tender = step === undefined ? undefined : engineers[step.index];
-    for (const [index, row] of rows.entries()) {
-      const onTrip = teaching && index === 0;
-      const onTend = tending && index === step.index;
-      row.firstTrip.hidden = !onTrip;
-      row.firstTend.hidden = !onTend;
-      row.acts.hidden = onTrip || onTend;
-      if (onTrip) {
-        markNewCard(
-          row.openCard,
-          row.firstTrip,
-          firstTripWords(first.name, FIRST_TUNNEL.awayMs),
-        );
-        row.firstTrip.disabled = !view.ready;
-      } else if (onTend) {
-        markNewCard(
-          row.openCard,
-          row.firstTend,
-          firstTendWords(
-            step.post,
-            stonesPerSecond(
-              moveGain(current, index, step.post, now(), view.trouble),
-            ),
-          ),
-        );
-        row.firstTend.disabled = !view.ready;
-      } else {
-        clearNewCard(row.openCard);
-      }
-    }
-    // Then the second engineer (#246): the Promote row is the New card,
-    // with the real payoff, while it pays and he can afford it.
-    const payoff =
-      teaching || tending || !showsDot(current, "promotion")
-        ? undefined
-        : promotePayoff(current, now(), view.trouble);
-    const promoting = payoff !== undefined && !confirming;
-    // One intro line, Upgrades style: the first trip, then what they do.
-    intro.hidden = howOpen;
-    intro.textContent = teaching
-      ? engineersIntro(first.name)
-      : tending && tender !== undefined
-        ? tendingIntro(tender.name)
-        : promoting
-          ? PROMOTION_INTRO
-          : ENGINEER_SHEET_SUB;
-    howHost.hidden = !howOpen;
-    list.hidden = howOpen;
-    promoteRow.hidden = howOpen;
-    chips.paint(current, now());
-    const next = nextEngineerName(engineers);
-    const affordable = promotable(view);
-    const cost = promoteCost(current);
-    paintedPromote = cost;
-    if (!affordable) {
-      confirming = false;
-    }
-    promoteRow.classList.toggle("is-blocked", !affordable);
-    promoteButton.hidden = confirming;
-    promoteButton.disabled = !view.ready || !affordable;
-    promoteButton.classList.toggle("is-pressed", pressedKey === "promote");
-    promoteButton.textContent =
-      next === undefined ? PROMOTE_BUTTON : promoteOffer(cost);
-    if (promoting) {
-      markNewCard(
-        promoteRow,
-        promoteButton,
-        promotionAction(payoff.name, cost),
-      );
-    } else {
-      clearNewCard(promoteRow);
-    }
-    promoteWhy.textContent = promoting
-      ? promotionPayoff(payoff.name, payoff.post, stonesPerSecond(payoff.gain))
-      : promoteWhyLine(current, next !== undefined, cost);
-    modal.hidden = !confirming && recalling === undefined;
-    confirm.hidden = !confirming;
-    if (confirming && next !== undefined) {
-      confirmLine.textContent = promoteConfirm(next);
-    }
-    const recallEngineer =
-      recalling === undefined ? undefined : engineers[recalling];
-    recallBox.hidden = recallEngineer === undefined;
-    if (recallEngineer !== undefined) {
-      recallLine.textContent = recallConfirm(recallEngineer.name);
-    }
-    toast.hidden = !toastOn;
-    toast.classList.toggle("is-shown", toastOn);
-    toast.classList.toggle("is-story", toastOn && toastStory);
-    toast.textContent = toastOn ? toastText : "";
-    const wasOpen = cardUp(sheet);
-    showCard(sheet, open);
-    if (open && !wasOpen) {
-      close.focus();
-    }
+    const teach = engineerTeach(ctx);
+    sheet.kick(
+      page.kind === "list" ? listKick(teach) : pageKick(page, ctx, teach),
+    );
+    quoted = paintList(list, ctx, teach);
+    paintPage(pages, page, ctx, teach);
+    chips.paint(view.mountain, ctx.now);
+    list.rows.walk(sheet.isOpen());
+    priceHow(view.mountain);
   };
 
-  return { button, sheet, render };
-}
-
-/** The panel offers a promotion only once the save is in. */
-function promotable(view: ProgressSnapshot): boolean {
-  return view.ready && canPromote(view.mountain);
-}
-
-type EngineerRow = {
-  item: HTMLLIElement;
-  openCard: HTMLDivElement;
-  face: HTMLDivElement;
-  name: HTMLParagraphElement;
-  lamps: HTMLSpanElement;
-  lamp: readonly HTMLSpanElement[];
-  rankWord: HTMLSpanElement;
-  hint: HTMLSpanElement;
-  doing: HTMLParagraphElement;
-  brought: HTMLButtonElement;
-  broughtNames: HTMLSpanElement;
-  broughtStories: HTMLSpanElement;
-  broughtStory: readonly HTMLSpanElement[];
-  trip: HTMLDivElement;
-  tripHeading: HTMLParagraphElement;
-  tripWhen: HTMLParagraphElement;
-  tend: HTMLButtonElement;
-  explore: HTMLButtonElement;
-  recallButton: HTMLButtonElement;
-  choices: HTMLDivElement;
-  tendList: HTMLDivElement;
-  stations: readonly {
-    choice: HTMLButtonElement;
-    label: HTMLSpanElement;
-    benefit: HTMLSpanElement;
-    post: TendPost;
-  }[];
-  exploreList: HTMLDivElement;
-  tunnelChoices: readonly {
-    choice: HTMLButtonElement;
-    benefit: HTMLSpanElement;
-    id: TunnelId;
-  }[];
-  aside: HTMLParagraphElement;
-  badge: HTMLImageElement;
-  badgeLamp: HTMLSpanElement;
-  mini: HTMLButtonElement;
-  miniName: HTMLSpanElement;
-  miniLamp: readonly HTMLSpanElement[];
-  duty: HTMLSpanElement;
-};
-
-function paintEngineer(
-  row: EngineerRow,
-  engineer: Engineer,
-  index: number,
-  ready: boolean,
-  ui: {
-    expanded: boolean;
-    menu: "tend" | "explore" | undefined;
-    lit: boolean;
-    pressedKey: string;
-    expeditions: Mountain["expeditions"];
-    now: number;
-    badgeUrl: Readonly<Record<Exclude<TendPost, "camp">, string>>;
-    keepsakes: ReturnType<typeof keepsakesBroughtHome>;
-    mountain: Mountain;
-    trouble: ProgressSnapshot["trouble"];
-  },
-): void {
-  row.item.dataset["name"] = engineer.name;
-  row.item.classList.toggle("is-open", ui.expanded);
-  row.item.classList.toggle("is-mini", !ui.expanded);
-  row.item.classList.toggle("is-lit", ui.lit);
-  row.openCard.hidden = !ui.expanded;
-  row.mini.hidden = ui.expanded;
-  row.name.textContent = engineer.name;
-  row.miniName.textContent = engineer.name;
-  row.lamps.setAttribute("aria-label", rankLabel(engineer.rank));
-  for (const [lampIndex, lamp] of row.lamp.entries()) {
-    lamp.classList.toggle("on", lampIndex <= engineer.rank);
-  }
-  for (const [lampIndex, lamp] of row.miniLamp.entries()) {
-    lamp.classList.toggle("on", lampIndex <= engineer.rank);
-  }
-  row.rankWord.textContent = rankLabel(engineer.rank);
-  const hint = rankHint(engineer);
-  row.hint.hidden = hint === undefined;
-  row.hint.textContent = hint ?? "";
-  const away = (ui.expeditions ?? []).find(
-    (candidate) => candidate.engineer === engineer.name,
-  );
-  const inTunnel = engineer.post === "tunnel";
-  row.doing.hidden = inTunnel;
-  const gainText = (post: TendPost): string | undefined =>
-    post === "camp"
-      ? undefined
-      : owned(ui.mountain, tierById(post)) === 0
-        ? NONE_BUILT
-        : stonesPerSecond(
-            tendingGain(ui.mountain, index, post, ui.now, ui.trouble),
-          );
-  const posted = machinePost(engineer.post);
-  row.doing.textContent = dutySentence(
-    engineer,
-    posted === undefined ? undefined : gainText(posted),
-  );
-  const keepsakes = ui.keepsakes;
-  row.brought.hidden = !ui.expanded || keepsakes.length === 0;
-  if (keepsakes.length > 0) {
-    row.broughtNames.textContent = broughtHomeNames(keepsakes);
-  }
-  for (const [slotIndex, slot] of row.broughtStory.entries()) {
-    const id = keepsakes[slotIndex];
-    slot.hidden = id === undefined;
-    if (id !== undefined) {
-      const words = keepsakeWords(id);
-      slot.textContent = `${words.name}. ${words.story}`;
+  const open = (from?: HTMLElement): void => {
+    const view = getView();
+    if (!hasCrew(view)) {
+      return;
     }
-  }
-  row.trip.hidden = !inTunnel;
-  if (inTunnel) {
-    row.tripHeading.textContent =
-      away === undefined
-        ? dutySentence(engineer)
-        : tripTitle(engineer.name, away.tunnel);
-    row.tripWhen.textContent =
-      away === undefined
-        ? ""
-        : tripDetail(engineer.name, away.returnsAt - ui.now);
-  }
-  row.duty.textContent = dutyLine(
-    engineer,
-    away === undefined
-      ? undefined
-      : { tunnel: away.tunnel, leftMs: away.returnsAt - ui.now },
-  );
-  const machine = machinePost(engineer.post);
-  row.face.dataset["badge"] = engineer.post;
-  row.badge.hidden = machine === undefined;
-  row.badgeLamp.hidden = machine !== undefined;
-  if (machine !== undefined) {
-    row.badge.src = ui.badgeUrl[machine];
-  }
-  row.tend.classList.toggle(
-    "is-pressed",
-    ui.pressedKey === `${String(index)}:tend`,
-  );
-  row.tend.setAttribute("aria-pressed", ui.menu === "tend" ? "true" : "false");
-  row.tend.disabled = !ready;
-  row.explore.hidden = inTunnel;
-  row.explore.disabled = !ready;
-  row.explore.classList.toggle(
-    "is-pressed",
-    ui.pressedKey === `${String(index)}:explore`,
-  );
-  row.explore.setAttribute(
-    "aria-pressed",
-    ui.menu === "explore" ? "true" : "false",
-  );
-  row.recallButton.hidden = !inTunnel;
-  row.recallButton.disabled = !ready;
-  row.recallButton.textContent = callBackLabel(engineer.name);
-  row.recallButton.classList.toggle(
-    "is-pressed",
-    ui.pressedKey === `${String(index)}:recall`,
-  );
-  const showTend = ui.expanded && ui.menu === "tend";
-  const showExplore = ui.expanded && ui.menu === "explore" && !inTunnel;
-  row.choices.hidden = !showTend && !showExplore;
-  row.tendList.hidden = !showTend;
-  row.exploreList.hidden = !showExplore;
-  for (const station of row.stations) {
-    const here = engineer.post === station.post;
-    station.label.textContent = tendTitle(station.post, here);
-    station.benefit.textContent = tendBenefit(
-      station.post,
-      engineer.name,
-      gainText(station.post),
-    );
-    station.choice.classList.toggle("is-current", here);
-    station.choice.disabled = !ready;
-    station.choice.setAttribute("aria-pressed", here ? "true" : "false");
-    station.choice.classList.toggle(
-      "is-pressed",
-      ui.pressedKey === `${String(index)}:post:${station.post}`,
-    );
-  }
-  row.aside.textContent = exploreAside(engineer.name, engineer.post);
-  for (const choice of row.tunnelChoices) {
-    const reason = tunnelLock(engineer.rank, choice.id);
-    const locked = reason !== undefined;
-    choice.choice.disabled = !ready || locked;
-    choice.choice.classList.toggle("is-locked", locked);
-    choice.benefit.textContent = reason ?? exploreBenefit(choice.id);
-    choice.choice.classList.toggle(
-      "is-pressed",
-      ui.pressedKey === `${String(index)}:tunnel:${choice.id}`,
-    );
-  }
+    dispatch({ kind: "markSeen", id: "engineers" });
+    if (!sheet.isOpen()) {
+      page = { kind: "list" };
+      sheet.showPage(undefined);
+    }
+    sheet.open(from);
+    render();
+  };
+
+  return { sheet, render, open };
 }

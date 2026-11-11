@@ -37,6 +37,7 @@ import {
   firstTripWords,
   keepsakeWords,
   keepsakesBroughtHome,
+  promoteConfirm,
   promoteNeeds,
   promoteOffer,
   promotionPayoff,
@@ -165,12 +166,36 @@ export function promoteWhyLine(
   return current.pocket < cost ? promoteNeeds(cost) : PROMOTE_WHY;
 }
 
-/** The engineer of that name in the crew now. */
-function engineerNamed(
+/** The crew now, in its order: none before the first borer. */
+export function crewOf(mountain: Mountain): readonly Engineer[] {
+  return mountain.engineers ?? [];
+}
+
+/** The engineer of that name in the crew now, and her place in it; none for no name. */
+export function findHer(
   mountain: Mountain,
-  name: EngineerName,
-): Engineer | undefined {
-  return (mountain.engineers ?? []).find((each) => each.name === name);
+  name: EngineerName | undefined,
+): { readonly engineer: Engineer; readonly index: number } | undefined {
+  const engineers = crewOf(mountain);
+  const index = engineers.findIndex((each) => each.name === name);
+  const engineer = engineers[index];
+  return engineer === undefined ? undefined : { engineer, index };
+}
+
+/** The engineer a page is about: hers, her tunnels and her recall; none for the others. */
+export function pageEngineer(page: EngineerPage): EngineerName | undefined {
+  return "name" in page ? page.name : undefined;
+}
+
+/** The price the promote ask was opened at (#367); NaN on any other page, which buys nothing. */
+export function askedPrice(page: EngineerPage): number {
+  return page.kind === "promote" ? page.price : Number.NaN;
+}
+
+/** The promote ask's line: who steps up, or nothing for a full crew. */
+export function promoteAskLine(mountain: Mountain): string {
+  const next = nextEngineerName(crewOf(mountain));
+  return next === undefined ? "" : promoteConfirm(next);
 }
 
 /** Her trip on the books, as the duty line counts it: where, and how long is left. */
@@ -191,11 +216,11 @@ function settleHers(
   page: Extract<EngineerPage, { readonly name: EngineerName }>,
   mountain: Mountain,
 ): EngineerPage {
-  const her = engineerNamed(mountain, page.name);
+  const her = findHer(mountain, page.name);
   if (her === undefined) {
     return LIST;
   }
-  const out = her.post === "tunnel";
+  const out = her.engineer.post === "tunnel";
   const gone =
     (page.kind === "recall" && !out) || (page.kind === "tunnels" && out);
   return gone ? { kind: "engineer", name: page.name } : page;
@@ -322,7 +347,7 @@ export function pageKick(
   if (page.kind !== "engineer" && page.kind !== "tunnels") {
     return listKick(teach);
   }
-  const engineers = ctx.mountain.engineers ?? [];
+  const engineers = crewOf(ctx.mountain);
   const index = engineers.findIndex((each) => each.name === page.name);
   const engineer = engineers[index];
   if (engineer === undefined) {
@@ -396,7 +421,8 @@ export function postRowView(
     ...QUIET_ROW,
     name,
     info: [benefit, tendBenefit(post, engineer.name)],
-    gain: gain === undefined || gain === NONE_BUILT ? "" : gain,
+    // Her own post's gain is the page's kick (her duty), so the name keeps the row's width.
+    gain: here || gain === undefined || gain === NONE_BUILT ? "" : gain,
     flag: isNew ? NEW_FLAG : NO_FLAG,
     lamp: here ? "green" : isNew ? "amber" : "off",
     state: here ? "owned" : "ready",
@@ -451,7 +477,7 @@ export function promoteRowView(
 ): PromoteRowView {
   const { mountain } = ctx;
   const cost = promoteCost(mountain);
-  if (nextEngineerName(mountain.engineers ?? []) === undefined) {
+  if (nextEngineerName(crewOf(mountain)) === undefined) {
     return fullCrewRow(cost);
   }
   const promotable = canPromote(mountain);

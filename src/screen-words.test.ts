@@ -79,7 +79,6 @@ import {
   WORKSHOP_SOUND,
   WORKSHOP_TITLE,
   broughtHomeNames,
-  broughtHomeToast,
   benchBusyWords,
   benchUnknownWords,
   BENCH_UNKNOWN,
@@ -129,7 +128,6 @@ import {
   tendingEngineer,
   tendsNote,
   tripDetail,
-  tripTitle,
   tunnelLock,
   upgradeEffectLine,
   upgradeWhyLine,
@@ -318,9 +316,6 @@ describe("engineer words", () => {
     expect(tunnelLock(2, "deep-dark")).toBeUndefined();
     expect(callBackLabel("Ada")).toBe("Call her back");
     expect(callBackLabel("Nils")).toBe("Call him back");
-    expect(tripTitle("Ada", "old-shaft")).toBe(
-      "Ada is exploring the old shaft.",
-    );
     expect(tripDetail("Ada", 60 * 60_000)).toBe(
       "Ada will be gone about an hour. She'll bring home whatever is found.",
     );
@@ -558,13 +553,7 @@ describe("lost tools and keepsakes (#148)", () => {
     expect(broughtHomeNames(["drawing", "watch"])).toBe(
       "A child's drawing, A pocket watch",
     );
-    expect(broughtHomeToast(["drawing"])).toBe(
-      "A child's drawing. A little figure with a lamp, folded for a pocket.",
-    );
-    expect(broughtHomeToast(["pebble", "ribbon"])).toBe(
-      "A smooth pebble. Warm from a hand that held it. A faded ribbon. Tied until the ends went soft.",
-    );
-    expect(broughtHomeToast([...KEEPSAKES])).not.toMatch(/[0-9?]/);
+    expect(broughtHomeNames([...KEEPSAKES])).not.toMatch(/[0-9?]/);
   });
 });
 
