@@ -57,6 +57,7 @@ import {
 import { RELIC_LIT } from "./board-relics";
 import { KEEPSAKE_ART } from "./relic-pages";
 import { COLD_CLOCKS } from "./workshop";
+import { firstNotice } from "./session";
 
 /** An upgrade level's stone price on a Topsoil first run (k = 1). */
 function upgradePrice(id: UpgradeId, level = 0): number {
@@ -2132,7 +2133,7 @@ describe("upgrades on screen", () => {
     expect(
       screen.root.querySelector(RELICS_SHEET)?.classList.contains("is-open"),
     ).toBe(false);
-    expect(screen.progress.getSnapshot().revealed).toBeDefined();
+    expect(firstNotice(screen.progress.getSnapshot(), "reveal")).toBeDefined();
     expect(document.activeElement).toBe(
       screen.root.querySelector(".update-reload"),
     );

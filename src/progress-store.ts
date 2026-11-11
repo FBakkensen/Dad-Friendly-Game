@@ -28,7 +28,7 @@ import { reconcileRev } from "./save-adopt";
 import { chooseSave, restoreCopy, savedCopies } from "./save-choice";
 import { previewConflictView } from "./save-preview";
 import { onAuthChange, onSeatChange, onYield } from "./save-watch";
-import { createSession } from "./session";
+import { createSession, type DismissTarget } from "./session";
 import { tryGetGuestStorage } from "./session-save";
 import {
   beginRun,
@@ -111,8 +111,11 @@ export type ProgressStore = {
   readonly tonightEvents: () => readonly FieldEvent[];
   /** Settles helpers' work up to now for display. A signed-in phone backup follows a change; cloud writes stay on actions, hide, and pagehide. */
   readonly tick: () => void;
-  /** Closes the current relic reveal; the next one (if any) follows. */
-  readonly dismissReveal: () => void;
+  /**
+   * Closes the oldest notice of a kind; the next one (if any) follows.
+   * `"away"` closes the whole welcome-back card, with any band or craft folded into it.
+   */
+  readonly dismiss: (what: DismissTarget) => void;
   /**
    * Throws this player's single save away and starts a fresh mountain, on the
    * device and (signed in) in the cloud right away.
@@ -120,14 +123,6 @@ export type ProgressStore = {
   readonly startOver: () => void;
   /** Passes the finished mine to your kid (M6); false if it isn't finished. */
   readonly passTheMine: () => boolean;
-  /** Closes the welcome-back card, including any layer or craft folded into it. */
-  readonly dismissAway: () => void;
-  /** The short-absence note has been shown. */
-  readonly dismissQuietAway: () => void;
-  /** Closes the layer card. The next unread band, if any, follows. */
-  readonly dismissLayer: () => void;
-  /** Closes the craft-done notice. The next unread fitting, if any, follows. */
-  readonly dismissCraft: () => void;
   /** One tap on a troubled card. The fifth tap fixes it. */
   readonly pressTrouble: (tier: TroubleTier) => void;
   /** A short hold on a troubled card fixes it. */
@@ -233,8 +228,8 @@ function storeApi(ctx: StoreContext, unsubscribe: () => void): ProgressStore {
         update: (mountain) => ({ mountain: update(mountain), events: [] }),
       });
     },
-    dismissReveal: () => {
-      dismissNews(ctx, "reveal");
+    dismiss: (what) => {
+      dismissNews(ctx, what);
     },
     startOver: () => {
       beginRun(
@@ -266,18 +261,6 @@ function storeApi(ctx: StoreContext, unsubscribe: () => void): ProgressStore {
     chooseSave: (side) => chooseSave(ctx, side),
     savedCopies: () => savedCopies(ctx),
     restoreCopy: (id) => restoreCopy(ctx, id),
-    dismissQuietAway: () => {
-      dismissNews(ctx, "quiet");
-    },
-    dismissAway: () => {
-      dismissNews(ctx, "away");
-    },
-    dismissLayer: () => {
-      dismissNews(ctx, "layer");
-    },
-    dismissCraft: () => {
-      dismissNews(ctx, "craft");
-    },
     tick: () => {
       tickStore(ctx);
     },

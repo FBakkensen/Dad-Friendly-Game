@@ -44,24 +44,25 @@ describe("welcome-back ore (#247)", () => {
   it("shows the ore row on the card only when ore came up", () => {
     const view = (materials = EMPTY_MATERIALS) =>
       ({
-        away: {
-          mined: 6_400_000,
-          awayMs: 3 * 3_600_000,
-          paidMs: 3 * 3_600_000,
-          capped: false,
-          heart: 1,
-          materials,
-        },
-        layersArrived: [],
-        craftsFitted: [],
-        crewJoined: undefined,
-        engineerJoined: undefined,
+        notices: [
+          {
+            kind: "away",
+            report: {
+              mined: 6_400_000,
+              awayMs: 3 * 3_600_000,
+              paidMs: 3 * 3_600_000,
+              capped: false,
+              heart: 1,
+              materials,
+            },
+          },
+        ],
         homecomings: [],
         mountain: granite(),
       }) as unknown as ProgressSnapshot;
     let current = view({ ...EMPTY_MATERIALS, iron: 6 });
     const panel = createWelcomePanel({
-      progress: { dismissAway: () => undefined } as never,
+      progress: { dismiss: () => undefined } as never,
       getView: () => current,
       board: createBoardHost({ clock: () => 0 }),
     });

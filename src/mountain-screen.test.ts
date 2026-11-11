@@ -63,6 +63,7 @@ import {
 } from "./mountain-screen.harness";
 import { NO_BOOSTS } from "./boosts";
 import { NO_UPGRADES } from "./upgrades";
+import { firstNotice } from "./session";
 
 // The window's beats are counted where the window takes them (#371).
 vi.mock("./mine-window", async (importOriginal) => {
@@ -1321,7 +1322,7 @@ describe("Lantern of Guidance on screen", () => {
       /^\+[\d,]+ stones while you were away$/,
     );
     await Promise.resolve();
-    expect(screen.progress.getSnapshot().quietAway).toBeUndefined();
+    expect(firstNotice(screen.progress.getSnapshot(), "quiet")).toBeUndefined();
   });
 
   it("fills the guide bar between relics", () => {

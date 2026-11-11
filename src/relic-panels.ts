@@ -18,6 +18,7 @@ import {
 } from "./relic-rows";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { RELICS, hasRelic, type Relic } from "./relics";
+import { firstNotice } from "./session";
 
 /*
  * The relics drawer (#465): the relic shelf, a found relic's detail with its keepsakes, the
@@ -132,14 +133,14 @@ export function createRelicPanels(deps: RelicPanelDeps): {
   };
   /** Carries the relic: the Mantle's leads to the Legend, any other shuts a still open drawer. */
   const carry = (by: Pointer | "tap-through", stillOpen: boolean): void => {
-    legendDue ||= getView().revealed?.id === "mantle";
+    legendDue ||= firstNotice(getView(), "reveal")?.relic.id === "mantle";
     if (stillOpen && legendDue) {
       showLegend();
     } else if (stillOpen) {
       screen = SHELF;
       sheet.close({ by });
     }
-    progress.dismissReveal();
+    progress.dismiss("reveal");
   };
   const reveal = createRevealPage({
     board,
@@ -206,7 +207,9 @@ export function createRelicPanels(deps: RelicPanelDeps): {
     if (!view.ready || deps.cardUp()) {
       return;
     }
-    const found = view.away === undefined ? view.revealed : undefined;
+    const revealed = firstNotice(view, "reveal")?.relic;
+    const found =
+      firstNotice(view, "away") === undefined ? revealed : undefined;
     if (found !== undefined) {
       if (screen.kind !== "reveal" || screen.relic.id !== found.id) {
         openDrawer();
@@ -215,7 +218,7 @@ export function createRelicPanels(deps: RelicPanelDeps): {
       }
       return;
     }
-    if (legendDue && view.revealed === undefined && screen.kind !== "legend") {
+    if (legendDue && revealed === undefined && screen.kind !== "legend") {
       openDrawer();
       showLegend();
       return;

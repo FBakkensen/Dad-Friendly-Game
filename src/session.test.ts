@@ -9,10 +9,13 @@ import {
 import { RELICS } from "./relics";
 import {
   createSession,
+  firstNotice,
   hasNews,
+  noticesOf,
   openBaselines,
   step,
   troubleMark,
+  type Notice,
   type Session,
   type SessionEffect,
 } from "./session";
@@ -42,23 +45,22 @@ describe("session step", () => {
     const session = playing();
     const dug = { ...session, mountain: minedTo(deep) };
     const noticed = step(dug, { kind: "notice" }, 0);
-    expect(noticed.session.news.reveals[0]?.id).toBe(relic.id);
-    expect(noticed.session.news.layersArrived[0]?.id).toBe(band.id);
+    expect(firstNotice(noticed.session.news, "reveal")?.relic.id).toBe(
+      relic.id,
+    );
+    expect(firstNotice(noticed.session.news, "layer")?.layer.id).toBe(band.id);
     expect(codes(noticed.effects)).toEqual(
       expect.arrayContaining(["relic.found", "layer.enter"]),
     );
     const again = step(noticed.session, { kind: "notice" }, 0);
     expect(codes(again.effects)).not.toContain("layer.enter");
-    expect(again.session.news.reveals).toHaveLength(
-      noticed.session.news.reveals.length,
-    );
+    expect(again.session.news.notices).toEqual(noticed.session.news.notices);
   });
 
   it("does not announce what a loaded save already holds", () => {
     const loaded = playing(minedTo(50_000_000));
     const noticed = step(loaded, { kind: "notice" }, 0);
-    expect(noticed.session.news.reveals).toEqual([]);
-    expect(noticed.session.news.layersArrived).toEqual([]);
+    expect(noticed.session.news.notices).toEqual([]);
   });
 
   it("keeps the fitted mountain and the moment on a craft notice", () => {
@@ -71,8 +73,16 @@ describe("session step", () => {
       },
     };
     const noticed = step(fitted, { kind: "notice" }, 42_000);
-    expect(noticed.session.news.craftsFitted).toEqual([
-      { id: "iron-rails", level: 1, mountain: fitted.mountain, at: 42_000 },
+    expect(noticed.session.news.notices).toEqual([
+      {
+        kind: "craft",
+        craft: {
+          id: "iron-rails",
+          level: 1,
+          mountain: fitted.mountain,
+          at: 42_000,
+        },
+      },
     ]);
     expect(codes(noticed.effects)).toContain("craft.done");
   });
@@ -109,19 +119,21 @@ describe("session step", () => {
     expect(step(refused.session, move, 0).session).toBe(refused.session);
   });
 
-  it("starts a new run with no news, and remembers the cleared homecomings", () => {
+  it("starts a new run with no news but the crew's, and remembers the cleared homecomings", () => {
     const session = playing();
     const begun = step(
       {
         ...session,
-        news: { ...session.news, quietAway: 12, reveals: [...RELICS] },
+        news: {
+          ...session.news,
+          notices: [quiet(12), CREW, ...RELICS.map(reveal)],
+        },
       },
       { kind: "begin", mountain: { ...createMountain(), startedAt: 5_000 } },
       5_000,
     );
     expect(begun.session.lastSeen).toBe(5_000);
-    expect(begun.session.news.quietAway).toBeUndefined();
-    expect(begun.session.news.reveals).toEqual([]);
+    expect(begun.session.news.notices).toEqual([CREW]);
     expect(begun.session.baselines.reveal).toBe(0);
     expect(begun.effects).toEqual([{ kind: "remember" }]);
   });
@@ -130,16 +142,86 @@ describe("session step", () => {
     const session = playing();
     const news: Session = {
       ...session,
-      news: { ...session.news, reveals: RELICS.slice(0, 2), quietAway: 3 },
+      news: { ...session.news, notices: [reveal(RELICS[0]), quiet(3)] },
     };
     expect(hasNews(session, "reveal")).toBe(false);
     expect(hasNews(news, "reveal")).toBe(true);
-    const one = step(news, { kind: "dismiss", what: "reveal" }, 0).session;
-    expect(one.news.reveals).toHaveLength(1);
-    const quiet = step(news, { kind: "dismiss", what: "quiet" }, 0).session;
-    expect(hasNews(quiet, "quiet")).toBe(false);
-    const away = step(news, { kind: "dismiss", what: "away" }, 0);
-    expect(away.effects).toEqual([{ kind: "remember" }]);
-    expect(hasNews(away.session, "away")).toBe(false);
+    const quietClosed = step(news, { kind: "dismiss", what: "quiet" }, 0);
+    expect(hasNews(quietClosed.session, "quiet")).toBe(false);
+    expect(quietClosed.session.news.notices).toEqual([reveal(RELICS[0])]);
+    expect(step(session, { kind: "dismiss", what: "craft" }, 0).session).toBe(
+      session,
+    );
+  });
+
+  it("dismisses two notices of one kind one at a time, in order (#415)", () => {
+    const [first, second] = RELICS;
+    const session = playing();
+    const two: Session = {
+      ...session,
+      news: {
+        ...session.news,
+        notices: [reveal(first), quiet(3), reveal(second)],
+      },
+    };
+    const one = step(two, { kind: "dismiss", what: "reveal" }, 0).session;
+    expect(firstNotice(one.news, "reveal")?.relic).toBe(second);
+    expect(noticesOf(one.news, "quiet")).toEqual([quiet(3)]);
+    const none = step(one, { kind: "dismiss", what: "reveal" }, 0).session;
+    expect(hasNews(none, "reveal")).toBe(false);
+    expect(none.news.notices).toEqual([quiet(3)]);
+  });
+
+  it("closes the whole welcome card: its crew news, bands, crafts and homecomings", () => {
+    const session = playing();
+    const band: Notice = { kind: "layer", layer: LAYERS[1] };
+    const card: Session = {
+      ...session,
+      news: {
+        ...session.news,
+        notices: [CREW, { kind: "engineer-joined" }, band, reveal(RELICS[0])],
+        homecomings: [
+          {
+            engineer: "Ada",
+            tunnel: "side-seam",
+            find: { kind: "quiet", text: "Q." },
+            sentAt: 0,
+          },
+        ],
+      },
+    };
+    expect(hasNews(card, "away")).toBe(true);
+    const closed = step(card, { kind: "dismiss", what: "away" }, 0);
+    expect(closed.effects).toEqual([{ kind: "remember" }]);
+    expect(hasNews(closed.session, "away")).toBe(false);
+    expect(closed.session.news.notices).toEqual([reveal(RELICS[0])]);
+    expect(closed.session.news.homecomings).toEqual([]);
+  });
+
+  it("adds the crew who join on load to the crew already told", () => {
+    const session = playing({
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - 1_000,
+      drills: 3,
+      staffed: 0,
+    });
+    const told: Session = {
+      ...session,
+      news: { ...session.news, notices: [CREW] },
+    };
+    const loaded = step(told, { kind: "loaded" }, 0).session;
+    const joined = noticesOf(loaded.news, "crew-joined");
+    expect(joined).toHaveLength(1);
+    expect(joined[0]?.helpers).toBeGreaterThan(CREW_HELPERS);
   });
 });
+
+const CREW_HELPERS = 2;
+const CREW: Notice = { kind: "crew-joined", helpers: CREW_HELPERS };
+const quiet = (stones: number): Notice => ({ kind: "quiet", stones });
+const reveal = (relic: (typeof RELICS)[number] | undefined): Notice => {
+  if (relic === undefined) {
+    throw new Error("a relic");
+  }
+  return { kind: "reveal", relic };
+};

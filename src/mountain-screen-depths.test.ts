@@ -30,6 +30,7 @@ import {
   signedIn,
   stopScreens,
 } from "./mountain-screen.harness";
+import { firstNotice } from "./session";
 
 // Animations are opted into per test; most tests want instant numbers.
 beforeEach(() => {
@@ -729,22 +730,24 @@ describe("layer card, material line, and craft-done notice", () => {
     const root = document.createElement("div");
     const welcome = createWelcomePanel({
       progress: {
-        dismissAway: () => undefined,
+        dismiss: () => undefined,
       } as unknown as ReturnType<typeof createProgressStore>,
       getView: () =>
         ({
-          away: {
-            mined: 1,
-            awayMs: 120_000,
-            paidMs: 120_000,
-            capped: false,
-            heart: 1,
-            materials: EMPTY_MATERIALS,
-          },
-          layersArrived: [LAYERS[0]],
-          craftsFitted: [],
-          crewJoined: undefined,
-          engineerJoined: undefined,
+          notices: [
+            {
+              kind: "away",
+              report: {
+                mined: 1,
+                awayMs: 120_000,
+                paidMs: 120_000,
+                capped: false,
+                heart: 1,
+                materials: EMPTY_MATERIALS,
+              },
+            },
+            { kind: "layer", layer: LAYERS[0] },
+          ],
           homecomings: [],
           mountain: createMountain(),
         }) as unknown as ReturnType<
@@ -1327,11 +1330,15 @@ describe("the board cards (#464)", () => {
     const screen = awayScreen(() => tap);
     tap += 100;
     fingerTap(screen.root, ".welcome-continue");
-    expect(screen.progress.getSnapshot().away).toBeDefined();
+    expect(
+      firstNotice(screen.progress.getSnapshot(), "away")?.report,
+    ).toBeDefined();
     expect(shown(screen.root, ".welcome-back")).toBe(true);
     tap += 350;
     fingerTap(screen.root, ".welcome-continue");
-    expect(screen.progress.getSnapshot().away).toBeUndefined();
+    expect(
+      firstNotice(screen.progress.getSnapshot(), "away")?.report,
+    ).toBeUndefined();
     expect(shown(screen.root, ".welcome-back")).toBe(false);
     screen.progress.dispose();
   });
