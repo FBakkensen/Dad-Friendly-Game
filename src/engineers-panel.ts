@@ -12,13 +12,13 @@ import {
 import { setAttr } from "./board-dom";
 import { buyOnTap } from "./card-tap";
 import { createEffectChip, writeChip } from "./effect-row";
+import { machinePost, promoteWhyLine } from "./engineer-rows";
 import {
   MAX_ENGINEERS,
   canPromote,
   nextEngineerName,
   promoteCost,
   type Engineer,
-  type EngineerPost,
 } from "./engineers";
 import { KEEPSAKES, TUNNELS, type TunnelId } from "./expeditions";
 import type { Mountain } from "./mountain";
@@ -31,12 +31,12 @@ import {
   CALL_BACK,
   ENGINEER_SHEET_SUB,
   ENGINEER_SHEET_TITLE,
+  ENGINEERS_BACK,
   KEEP_EXPLORING,
   PROMOTE_BUTTON,
-  PROMOTE_CREW_FULL,
-  PROMOTE_NEEDS_WORKER,
+  PROMOTE_NOT_YET,
+  PROMOTE_STEP_UP,
   PROMOTE_TITLE,
-  PROMOTE_WHY,
   SEND_EXPLORING,
   TEND_MACHINE,
   TEND_POSTS,
@@ -53,7 +53,6 @@ import {
   homeCheer,
   promoteCheer,
   promoteConfirm,
-  promoteNeeds,
   promoteOffer,
   stonesPerSecond,
   keepsakeWords,
@@ -206,7 +205,7 @@ export function createEngineersPanel({
         copy.steps.map(
           ([art, text]) => [HOW_ART[art] ?? iconUrl, text] as const,
         ),
-        "Back to your engineers",
+        ENGINEERS_BACK,
         () => {
           howOpen = false;
           requestRender();
@@ -669,11 +668,11 @@ export function createEngineersPanel({
   const confirmNo = document.createElement("button");
   confirmNo.type = "button";
   confirmNo.className = "engineer-act engineer-confirm-no";
-  confirmNo.textContent = "Not yet";
+  confirmNo.textContent = PROMOTE_NOT_YET;
   const confirmYes = document.createElement("button");
   confirmYes.type = "button";
   confirmYes.className = "engineer-act engineer-confirm-yes";
-  confirmYes.textContent = "Step up";
+  confirmYes.textContent = PROMOTE_STEP_UP;
   confirmNo.addEventListener("click", () => {
     confirming = false;
     requestRender();
@@ -947,21 +946,6 @@ export function createEngineersPanel({
   return { button, sheet, render };
 }
 
-/** Why a promotion waits (a full crew, no free worker, a light pocket), or why it is worth it. */
-function promoteWhyLine(
-  current: Mountain,
-  nameFree: boolean,
-  cost: number,
-): string {
-  if (!nameFree) {
-    return PROMOTE_CREW_FULL;
-  }
-  if (current.helpers < 1) {
-    return PROMOTE_NEEDS_WORKER;
-  }
-  return current.pocket < cost ? promoteNeeds(cost) : PROMOTE_WHY;
-}
-
 /** The panel offers a promotion only once the save is in. */
 function promotable(view: ProgressSnapshot): boolean {
   return view.ready && canPromote(view.mountain);
@@ -1157,20 +1141,5 @@ function paintEngineer(
       "is-pressed",
       ui.pressedKey === `${String(index)}:tunnel:${choice.id}`,
     );
-  }
-}
-
-function machinePost(
-  post: EngineerPost,
-): Exclude<TendPost, "camp"> | undefined {
-  switch (post) {
-    case "cart":
-    case "drill":
-    case "borer":
-    case "machine":
-      return post;
-    case "camp":
-    case "tunnel":
-      return undefined;
   }
 }

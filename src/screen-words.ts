@@ -428,6 +428,10 @@ export const PROMOTE_TITLE = "Promote a worker";
 export const PROMOTE_WHY =
   "A new engineer can tend another machine or explore while the others work.";
 export const PROMOTE_BUTTON = "Promote";
+/** The promotion's two answers, and the Engineers pages' way back (#455): today's words. */
+export const PROMOTE_NOT_YET = "Not yet";
+export const PROMOTE_STEP_UP = "Step up";
+export const ENGINEERS_BACK = "Back to your engineers";
 
 /** Engineers first visit (#246): the line above the New card. */
 export function engineersIntro(name: string): string {

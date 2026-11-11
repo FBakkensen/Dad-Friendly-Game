@@ -139,6 +139,9 @@ import {
   grandpaSentence,
   AWAY_CHEER,
   DREAM_AWAY_MS,
+  ENGINEERS_BACK,
+  PROMOTE_NOT_YET,
+  PROMOTE_STEP_UP,
 } from "./screen-words";
 
 const ada = (patch: Partial<Engineer> = {}): Engineer => ({
@@ -363,6 +366,12 @@ describe("engineer words", () => {
     expect(
       `${PROMOTE_WHY} ${PROMOTE_NEEDS_WORKER} ${PROMOTE_CREW_FULL} ${promoteConfirm("Nils")}`,
     ).not.toMatch(/\d|\?/);
+  });
+
+  it("keeps today's Engineers literals as words: the way back, Not yet and Step up (#455)", () => {
+    expect(ENGINEERS_BACK).toBe("Back to your engineers");
+    expect(PROMOTE_NOT_YET).toBe("Not yet");
+    expect(PROMOTE_STEP_UP).toBe("Step up");
   });
 
   it("states a boost's output in stones", () => {

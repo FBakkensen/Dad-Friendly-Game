@@ -405,6 +405,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/engineer-rows.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/ledger-parts.ts": {
           statements: 95,
           branches: 90,
