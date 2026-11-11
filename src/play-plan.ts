@@ -3,6 +3,7 @@
  * into a plan of one starting save, the screens, and a list of actions.
  * The script owns the browser, the dev server, and the files.
  */
+import { DESK_MIN_WIDTH } from "./board-fit.ts";
 
 /** Something on the page to tap or wait for. */
 type PlayTarget =
@@ -20,11 +21,13 @@ export type PlayAction =
 
 export type PlayScreen = "phone" | "desktop";
 
-/** The phone viewport in CSS pixels. */
-type PhoneSize = { readonly width: number; readonly height: number };
+/** A viewport in CSS pixels: the phone's or the desktop's. */
+type ScreenSize = { readonly width: number; readonly height: number };
 
 /** The phone: the board's own 424x924 stage, the installed app (#370). */
-const DEFAULT_PHONE: PhoneSize = { width: 424, height: 924 };
+const DEFAULT_PHONE: ScreenSize = { width: 424, height: 924 };
+/** The desktop: a PC, where the board sits on the desk (#376). */
+const DEFAULT_DESK: ScreenSize = { width: 1366, height: 768 };
 const MAX_SIDE = 4096;
 
 type PlayPlan = {
@@ -35,7 +38,8 @@ type PlayPlan = {
   readonly out: string;
   /** A running app to drive instead of starting Vite. */
   readonly url: string | undefined;
-  readonly phone: PhoneSize;
+  readonly phone: ScreenSize;
+  readonly desk: ScreenSize;
   /** Appended to the page URL, e.g. ?trouble=cave-in for the dev preview. */
   readonly search: string;
   /** 2 opens the save in two tabs and plays the second: the other-tab card. */
@@ -53,8 +57,9 @@ Options:
   --screen <which>   phone, desktop, or both (default: both)
   --out <dir>        where shots and the log go (default: play-shots)
   --url <url>        drive a running app instead of starting Vite
-  --viewport <WxH>   the phone's size (default: 424x924, the board);
-                     the desktop shot is 1366x768
+  --viewport <WxH>   the phone's size (default: 424x924, the board)
+  --desk <WxH>       the desktop's size (default: 1366x768; the PCs are
+                     1280x800, 1366x768 and 1440x900)
   --search <query>   added to the page URL, e.g. ?trouble=cave-in
   --tabs <1|2>       2 opens the save in two tabs and plays the second,
                      which shows the other-tab card (default: 1)
@@ -129,7 +134,7 @@ function parseTap(
   return { kind: "tap", target, times };
 }
 
-function parsePhone(value: string): PhoneSize | undefined {
+function parseSize(value: string): ScreenSize | undefined {
   const match = /^(\d+)x(\d+)$/i.exec(value);
   if (match === null) {
     return undefined;
@@ -203,13 +208,23 @@ const FLAGS: Readonly<Record<string, FlagSetter>> = {
     return undefined;
   },
   "--viewport": (draft, value) => {
-    const size = parsePhone(value);
+    const size = parseSize(value);
     if (size === undefined) {
       return playError(
         `--viewport is WIDTHxHEIGHT, e.g. 424x924, not "${value}".`,
       );
     }
     draft.phone = size;
+    return undefined;
+  },
+  "--desk": (draft, value) => {
+    const size = parseSize(value);
+    if (size === undefined || size.width < DESK_MIN_WIDTH) {
+      return playError(
+        `--desk is a PC size, ${String(DESK_MIN_WIDTH)} wide or more, e.g. 1280x800, not "${value}".`,
+      );
+    }
+    draft.desk = size;
     return undefined;
   },
 };
@@ -245,6 +260,7 @@ export function parsePlayArgs(
     out: DEFAULT_OUT,
     url: undefined,
     phone: DEFAULT_PHONE,
+    desk: DEFAULT_DESK,
     search: "",
     tabs: 1,
   };

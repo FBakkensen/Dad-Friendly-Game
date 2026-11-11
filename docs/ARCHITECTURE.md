@@ -147,7 +147,7 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    which Escape runs, and `from(opener)`: hidden while the focus is on it,
    the card gives the focus back there. `cardLines` rebuilds a box of lines
    only when its words change (the welcome's news, the Legacy's rates). The
-   cards and today's sheets stand at one z-index in the root's order
+   cards stand at one z-index in the root's order
    (`screen-panels#cardsFrom`); only the save conflict stands higher. Every drawer, the relics drawer (#465) too, sits in the drawers'
    clips above the cards: a card that comes up closes any open drawer by
    program (`screen-overlays`), and the relic reveal waits while a card is
@@ -190,8 +190,19 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    boost dial), `board-relics` (the relic plate: six sockets, their notes
    with the Relic shelf key, and the tag) and `board-save` (the save line,
    which keeps `.save-status` with `data-kind` and `data-log`, and its save
-   drawer). `main` calls `trackBoardFit`, which keeps `--board-scale` on the
-   root and re-fits on resize.
+   drawer). `main` calls `mountHousing` (`board-housing`), which mounts the
+   PC's steel housing once, outside `#app`, skinned by `board-skin`, and
+   centred in the same safe area as `#app` (#376). It then calls
+   `trackBoardFit`, which keeps `--board-scale`, the desk's origin
+   (`--desk-x`, `--desk-y`, from `deskOrigin`: the desk pool centred on the
+   window on an even pixel) and `body.desk` (`DESK_MIN_WIDTH`, 600px wide or
+   more) in step on resize. `board-fit` imports nothing, so `npm run play`,
+   the UI audit and the visual check import `DESK_MIN_WIDTH` from it. On a desk the body shows the desk
+   tile and its pool at exactly 2× and the housing 8 board px round the
+   board, scaled with it; it takes no tap and no measure. The app's styles
+   are `src/tokens.css` and `src/board.css`: `style.css` is gone (#376), and
+   the page's base rules (the reset, `html, body` in the board's night and
+   ink, the body's font) open `board.css`.
    The gauge row (#371) adds three more. Pure rules: `output-gauge` (the
    unit step for a rate, the needle's angle, its damped spring on 5° frames
    and the five-character counter), `crew-count` (the crew plate's numbers:
@@ -540,7 +551,11 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   once a tab and can stop `Date.now` and hold the tap clock, the UI audit
   seeds on every load, `play` seeds once, and the mockup check seeds nothing.
   `play -- --tabs 2` opens the save with `openPair` and plays the second
-  tab, which shows the other-tab card (#464). The dev-only boot hooks
+  tab, which shows the other-tab card (#464). `play -- --desk <WxH>` sets
+  the desktop shot's size, 600 wide or more (default 1366×768), so the board
+  is seen on the desk at 1280×800, 1366×768 and 1440×900 (#376); the UI
+  audit shoots the same three as `desk-rest-*.png`, shots only, with no
+  census (`capture`'s `sizes` and `measure: false`). The dev-only boot hooks
   (`parseBootOptions` in `boot`) let the scripts see what a save cannot
   hold: `?saves=two` (the save conflict), `?trouble=cave-in`,
   `?save=loading` or `error`, `?copies=shelf`, `?memorySave=1`, and
@@ -556,8 +571,11 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   shared: `registry.mjs` (`section`, `check` and the failures), `kit.mjs` (the
   browser plumbing: the server, Chrome, the sizes, `openScreen`, `press`, the
   drawer and shelf openers, and the waits) and `measure.mjs` (the board's
-  targets, type, contrast, 2x art, drawer facts and `cardFacts`, a board
-  card's face box, inner scroll, plates and focus). A fact the sections read
+  targets, type, contrast, 2x art, drawer facts, `cardFacts`, a board
+  card's face box, inner scroll, plates and focus, and `deskFacts`, the PC
+  desk's housing and background, #376). The board table's desk row checks
+  the housing round the board and the desk at exactly 2× on every PC size,
+  and neither on the phone. A fact the sections read
   off the page goes in `measure.mjs`, even when two modules share it. Each
   other module checks one part of the board or one group of screens, registers
   its sections when imported, and imports no other section module. Every

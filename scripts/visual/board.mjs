@@ -27,6 +27,7 @@ import {
   boardTextSizes,
   boardArtAt2x,
   boardContrast,
+  deskFacts,
 } from "./measure.mjs";
 
 // The board itself (#370): the relic plate, the stock row, the save line and
@@ -196,6 +197,34 @@ function targetChecks({ seen, drawerTargets, desk }) {
   return { ok, rendered, under, close8 };
 }
 
+/** The phone: no body.desk, no housing shown, and nothing behind the board but the night. */
+function offTheDesk(facts) {
+  return (
+    !facts.desk && facts.housing.display === "none" && facts.bg.image === "none"
+  );
+}
+
+/**
+ * A PC: the housing shows, painted, the board's box grown by 8 board px a side (within 1px),
+ * and the body's background is the pool over the desk tile, both at exactly 2x.
+ */
+function onTheDesk(facts) {
+  const lip = 8 * facts.board.scale;
+  const sides = facts.lip === null ? [] : Object.values(facts.lip);
+  const layers = facts.bg.image.split(/,\s*(?=url\()/);
+  return (
+    facts.desk &&
+    facts.housing.display === "block" &&
+    facts.housing.skin > 0 &&
+    sides.length === 4 &&
+    sides.every((side) => Math.abs(side - lip) <= 1) &&
+    layers.length === 2 &&
+    /desk-pool[^/]*\.png/.test(layers[0] ?? "") &&
+    /\/desk(?!-pool)[^/]*\.png/.test(layers[1] ?? "") &&
+    facts.bg.size === "680px 960px, 256px 192px"
+  );
+}
+
 const BOARD_EXPECT = [
   {
     run: ({ seen }) => [[seen.still, "no page scroll"]],
@@ -348,6 +377,25 @@ const BOARD_EXPECT = [
         [
           misses.length === 0 && noteArt.count >= 8,
           `${String((keyArt?.count ?? 0) + noteArt.count + drawerArt.count)} images, sprites and skins at exactly 2x`,
+        ],
+      ];
+    },
+  },
+  {
+    // The PC desk (#376): on a PC the board sits in its housing, 8 board px round it, on the
+    // desk and its pool at exactly 2x; the phone has neither.
+    run: async ({ page, viewport, size, scenario }) => {
+      const facts = await deskFacts(page);
+      const ok = isDesk(viewport) ? onTheDesk(facts) : offTheDesk(facts);
+      if (!ok) {
+        console.log("board desk", size, scenario.name, JSON.stringify(facts));
+      }
+      return [
+        [
+          ok,
+          isDesk(viewport)
+            ? "the board sits in its housing on the desk, the desk at 2x"
+            : "no desk or housing on the phone",
         ],
       ];
     },

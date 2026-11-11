@@ -4,8 +4,29 @@
  * taps lined up. contain: layout keeps the fixed sheets inside the board.
  * Every row has its place: the board's top, the gauge row, the bays, the
  * Ready row and the key rail at 768..860 (#370-#373), above the save line.
+ * The page's base rules come first: this file and tokens.css are all the CSS (#376).
  */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* The page never scrolls or bounces (Android Chrome rubber-bands a page even 1px taller than
+   the viewport). Behind the board it is the board's night, as in the mockup (#376). */
+html,
 body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--board-night);
+  color: var(--board-ink);
+}
+
+body {
+  font-family: "Barlow Condensed", system-ui, sans-serif;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -34,11 +55,10 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
+  gap: calc(var(--art) * 2);
   width: var(--board-w);
   height: var(--board-h);
-  /* index.html's boot style sets min-height: 100dvh, which zoom would enlarge. */
-  min-height: 0;
-  padding: var(--space-4);
+  padding: calc(var(--art) * 2);
   /* The column starts at the rail slot, under the bays and the Ready row (#372). */
   padding-top: var(--column-top);
   /* The column stops 8px above the save line, so the bottom bar's buttons
@@ -47,9 +67,16 @@ body {
   overflow: hidden;
   contain: layout;
   zoom: var(--board-scale, 1);
+  color: var(--board-ink);
   background: var(--board-enamel) url("./assets/board/panel-face.png") no-repeat
     calc(var(--art) * -6) 0 / calc(var(--art) * 224) calc(var(--art) * 448);
   image-rendering: pixelated;
+}
+
+/* No child of the column is wider than the board. */
+#app > * {
+  max-width: 100%;
+  min-width: 0;
 }
 
 /* Skins (9-slice canvases from board-skin.ts), the board note and the bundled fonts. */
@@ -106,6 +133,38 @@ body {
   position: relative;
 }
 
+/* The PC desk (#376): the desk tile and its one dim pool of lamplight share an even-pixel
+   origin from board-fit.ts, at exactly 2x, outside the board's zoom. */
+body.desk {
+  background:
+    url("./assets/board/desk-pool.png") var(--desk-x) var(--desk-y) /
+      calc(var(--art) * 340) calc(var(--art) * 480) no-repeat,
+    var(--board-desk) url("./assets/board/desk.png") var(--desk-x)
+      var(--desk-y) / calc(var(--art) * 128) calc(var(--art) * 96) repeat;
+  image-rendering: pixelated;
+}
+
+/* The steel housing: the frame skin, 8 board px round the board, scaled with it. Outside
+   #app, so it takes no tap and no measure. The doubled selector outranks the skinned host's
+   position: relative just above, which would put it in the body's row beside #app. */
+.board-housing,
+.board-housing.board-skinned {
+  position: fixed;
+  /* Centres in the same safe area as #app inside body's padding. */
+  inset: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  display: none;
+  width: calc(var(--board-w) + var(--art) * 8);
+  height: calc(var(--board-h) + var(--art) * 8);
+  margin: auto;
+  zoom: var(--board-scale, 1);
+  pointer-events: none;
+}
+
+body.desk > .board-housing {
+  display: block;
+}
+
 .board-note {
   position: absolute;
   z-index: 30;
@@ -131,7 +190,7 @@ body {
   pointer-events: none;
 }
 
-/* The mockup's width: #app > * (style.css) would otherwise outrank it. */
+/* The mockup's width: #app > * (above) would otherwise outrank it. */
 #app > .board-note {
   max-width: calc(var(--art) * 150);
 }
@@ -201,7 +260,7 @@ body {
   height: calc(var(--art) * 24);
   line-height: calc(var(--art) * 24);
   text-align: center;
-  font-size: var(--type-32);
+  font-size: var(--board-type-32);
   color: var(--board-drum-ink);
 }
 
@@ -284,14 +343,14 @@ body {
 }
 
 .board-dial-mul {
-  font-size: var(--type-24);
+  font-size: var(--board-type-24);
   line-height: calc(var(--art) * 14.5);
   font-weight: 700;
   color: var(--board-amber-bare);
 }
 
 .board-dial-left {
-  font-size: var(--type-20);
+  font-size: var(--board-type-20);
   line-height: calc(var(--art) * 12);
   color: var(--board-ink-bare);
 }
@@ -2059,7 +2118,8 @@ button.board-row:focus-visible {
 
 /* Last, so an empty part hides over its own display. An icon not drawn yet
    keeps its column. */
-.board-row [hidden] {
+.board-row [hidden],
+.board-row[hidden] {
   display: none;
 }
 

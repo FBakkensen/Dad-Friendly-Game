@@ -85,6 +85,7 @@ describe("parsePlayArgs", () => {
       out: "play-shots",
       url: undefined,
       phone: { width: 424, height: 924 },
+      desk: { width: 1366, height: 768 },
       search: "",
       tabs: 1,
     });
@@ -137,6 +138,24 @@ describe("parsePlayArgs", () => {
     expect(phone("9000x924")).toBe("error");
   });
 
+  it("shoots the desktop at a chosen PC size, 600 wide or more (#376)", () => {
+    const desk = (value: string) => {
+      const plan = parsePlayArgs(["--desk", value], SAVES);
+      return plan.kind === "plan"
+        ? plan.desk
+        : plan.kind === "error"
+          ? plan.message
+          : plan.kind;
+    };
+    expect(desk("1280x800")).toEqual({ width: 1280, height: 800 });
+    expect(desk("1440x900")).toEqual({ width: 1440, height: 900 });
+    expect(desk("600x400")).toEqual({ width: 600, height: 400 });
+    expect(desk("424x924")).toContain("600 wide or more");
+    expect(desk("big")).toContain("600 wide or more");
+    expect(PLAY_USAGE).toContain("--desk <WxH>");
+    expect(PLAY_USAGE).toContain("1280x800, 1366x768 and 1440x900");
+  });
+
   it("reads options in either form, with actions in order", () => {
     const plan = parsePlayArgs(
       [
@@ -166,6 +185,7 @@ describe("parsePlayArgs", () => {
       out: "shots",
       url: "http://127.0.0.1:5173/",
       phone: { width: 424, height: 924 },
+      desk: { width: 1366, height: 768 },
       search: "",
       tabs: 1,
     });
@@ -191,7 +211,7 @@ describe("parsePlayArgs", () => {
   it("names the board's phone and the desktop shot in the help (#370)", () => {
     expect(PLAY_USAGE).toContain("424x924");
     expect(PLAY_USAGE).toContain("1366x768");
-    expect(PLAY_USAGE).not.toMatch(/424x830|412x|440x|375x/);
+    expect(PLAY_USAGE).not.toMatch(/424x830|\b412x|\b440x|\b375x/);
   });
 
   it("names the saves when one is unknown", () => {

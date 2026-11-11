@@ -1,23 +1,8 @@
 /**
  * The shared teach parts (M11, #241), the hybrid pattern from #240.
- * Every system uses these, so the payoff line and How it works look the
- * same everywhere. Copy comes from the caller; this file has none of its own.
+ * Every system uses these, so How it works looks the same everywhere.
+ * Copy comes from the caller; this file has none of its own.
  */
-
-/** After the first use, the same card says what it earned. */
-export function setPayoff(card: HTMLElement, text: string | undefined): void {
-  let line = card.querySelector<HTMLElement>(":scope .teach-payoff");
-  if (text === undefined) {
-    line?.remove();
-    return;
-  }
-  if (line === null) {
-    line = document.createElement("span");
-    line.className = "teach-payoff";
-    card.append(line);
-  }
-  line.textContent = text;
-}
 
 /**
  * One how card step: the icon's src, its words, and the icon's CSS px

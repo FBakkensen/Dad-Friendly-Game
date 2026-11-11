@@ -180,7 +180,7 @@ const SCREENS = {
     hasTouch: true,
     deviceScaleFactor: 2,
   },
-  desktop: { width: 1366, height: 768, deviceScaleFactor: 2 },
+  desktop: { ...plan.desk, deviceScaleFactor: 2 },
 };
 
 // Clear only what an earlier run wrote, so --out never deletes anything else.
