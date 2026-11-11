@@ -9,7 +9,13 @@ import {
   type BoardRow,
   type RowsOnBoard,
 } from "./board-row";
-import { BOOSTS, boostLeft, type Boost, type BoostId } from "./boosts";
+import {
+  BOOSTS,
+  boostById,
+  boostLeft,
+  type Boost,
+  type BoostId,
+} from "./boosts";
 import type { Move } from "./economy/actions";
 import { shortEffectName, writeChip } from "./effect-row";
 import type { Mountain } from "./mountain";
@@ -102,11 +108,8 @@ function wireBuy(
   viewOf: (mountain: Mountain, at: number) => RowView,
   move: () => Extract<Move, { kind: "buyUpgrade" | "buyBoost" }>,
 ): void {
-  const root = row.root;
-  if (!(root instanceof HTMLButtonElement)) {
-    return;
-  }
-  onBoard.tap(root, (press, event) => {
+  // Every buy row is built with tag "button".
+  onBoard.tap(row.root as HTMLButtonElement, (press, event) => {
     const snapshot = progress.getSnapshot();
     if (!snapshot.ready || onBoard.press(id, press, event, "act") !== "act") {
       return;
@@ -300,10 +303,8 @@ function createUpgradesLayout(
   };
   // The model keeps a layout as it was given, so the one it shows finds its note.
   const arrange = (): void => {
-    const layout = board.view().layouts.get("upgrades");
-    if (layout === undefined) {
-      return;
-    }
+    // send just gave the model this drawer's layout.
+    const layout = board.view().layouts.get("upgrades") as Layout;
     arrangedFor = madeFor.get(layout);
     if (!sameParts(layout.parts, arranged)) {
       arranged = layout.parts;
@@ -333,11 +334,8 @@ function renderChips(
   current: Mountain,
   at: number,
 ): void {
-  for (const boost of BOOSTS) {
-    const chip = chipFor.get(boost.id);
-    if (chip === undefined) {
-      continue;
-    }
+  for (const [id, chip] of chipFor) {
+    const boost = boostById(id);
     const left = boostLeft(current, boost.id, at);
     writeChip(chip, {
       short: shortEffectName(boost.name),

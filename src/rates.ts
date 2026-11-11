@@ -441,7 +441,7 @@ export function tendingGain(
 }
 
 /** Stones a second gained by moving one engineer to that post. */
-function moveGain(
+export function moveGain(
   mountain: Mountain,
   index: number,
   post: EngineerPost,

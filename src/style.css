@@ -162,8 +162,6 @@ body {
   text-align: center;
 }
 
-/* Workshop crafts sit in a one-column list. */
-
 /* ---- Teach parts (M11 #241, the hybrid pattern mocked on #240) ---- */
 
 .teach-payoff {
@@ -219,17 +217,3 @@ body {
   min-height: var(--target-min);
   font-size: var(--type-16);
 }
-
-/* Workshop first visit (M11 #243): the New tag sits on the card's top edge. */
-
-/* Top-right inside the card, where the price sits on the other cards. */
-
-/* The one big button runs the full width under the card's lines. */
-
-.teach-intro {
-  margin: 0;
-  color: var(--color-ink);
-  font-size: var(--type-16);
-}
-
-/* The material chips are a quiet button: tap for How it works (#244). */

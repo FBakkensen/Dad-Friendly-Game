@@ -18,7 +18,14 @@ import {
   stopScreens,
 } from "./mountain-screen.harness";
 import { odometerFace } from "./odometer";
-import { ENGINEER_SHEET_SUB, promoteNeeds, promoteOffer } from "./screen-words";
+import { firstTend, moveGain, tendingGain } from "./rates";
+import {
+  ENGINEER_SHEET_SUB,
+  promoteNeeds,
+  promoteOffer,
+  stationCheer,
+  stonesPerSecond,
+} from "./screen-words";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { minedMountain } from "./test-fixtures";
 
@@ -433,6 +440,59 @@ describe("the Engineers drawer (#455)", () => {
     );
   });
 
+  it("a recall that lands after she came home cheers nothing", () => {
+    const screen = mount(send(withAda(), 0, "old-shaft", CLOCK));
+    screen.openEngineer("Ada");
+    part(screen, ".engineer-recall").click();
+    expect(screen.engineersPage()?.classList).toContain("engineer-recall-page");
+    // She walks in as Call back lands: the recall finds no trip to end.
+    vi.spyOn(screen.progress, "dispatch").mockImplementation(() => {
+      screen.progress.applyMutation((current) => ({
+        ...current,
+        engineers: [{ name: "Ada", rank: 0, trips: 1, post: "borer" }],
+        expeditions: [],
+      }));
+      return { kind: "refused", reason: "no-change" };
+    });
+    part(screen, ".recall-yes").click();
+    expect(engineersOpen(screen.root)).toBe(true);
+    expect(screen.engineersPage()?.classList).toContain("engineer-page");
+    expect(kick(screen)).not.toBe("Ada is home, empty-handed.");
+    expect(kick(screen)).toMatch(/^Ada is tending the borers/);
+  });
+
+  it("the guided New post and its cheer read the move's net gain", () => {
+    // Ada tends the borers, and the first tend proposes the Great Machine.
+    const mountain = taughtAda({ carts: 10, drills: 6, machines: 1 });
+    expect(firstTend(mountain, CLOCK)).toEqual({ index: 0, post: "machine" });
+    const net = stonesPerSecond(moveGain(mountain, 0, "machine", CLOCK));
+    expect(net).not.toBe(
+      stonesPerSecond(tendingGain(mountain, 0, "machine", CLOCK)),
+    );
+    const screen = mount(mountain);
+    screen.openEngineer("Ada");
+    const machine = postRow(screen, "machine");
+    expect(rowPart(machine, "flag")).toBe("New");
+    expect(rowPart(machine, "gain")).toBe(net);
+    machine.click();
+    expect(kick(screen)).toBe(stationCheer("Ada", "machine", net));
+  });
+
+  it("a trip or a post that does not land cheers nothing", () => {
+    const screen = mount(taughtAda());
+    screen.openEngineer("Ada");
+    const resting = kick(screen);
+    vi.spyOn(screen.progress, "dispatch").mockReturnValue({
+      kind: "refused",
+      reason: "no-change",
+    });
+    postRow(screen, "cart").click();
+    expect(kick(screen)).toBe(resting);
+    part(screen, ".engineer-explore").click();
+    part(screen, '.engineer-tunnel-row[data-tunnel="old-shaft"]').click();
+    expect(kick(screen)).not.toBe("Ada lights a lamp and heads in!");
+  });
+
   it("confirms a promotion on its page, and Not yet spends nothing", () => {
     const storage = createMemoryStorage();
     const screen = mount(withAda(), { storage });
@@ -697,15 +757,15 @@ describe("the Engineers drawer (#455)", () => {
     expect(engineersOpen(screen.root)).toBe(false);
   });
 
-  // The Tending card left the "i" (#455): three cards ran past the drawer at 424x924, and
-  // its words are on every post row's gain and line.
+  // The "i" on the list tells Engineers and Expeditions; on her page, which is about
+  // tending, it tells Tending (#455).
   it("the i shows How it works for engineers and expeditions", () => {
     const screen = mount(taughtAda());
     keyOf(screen).click();
     part(screen, ".board-sheet-info").click();
     const how = part(screen, ".board-sheet-how");
     expect(
-      [...how.querySelectorAll<HTMLElement>("[data-how]")].map(
+      [...how.querySelectorAll<HTMLElement>("[data-how]:not([hidden])")].map(
         (card) => card.dataset["how"],
       ),
     ).toEqual(["engineers", "expeditions"]);
@@ -714,5 +774,32 @@ describe("the Engineers drawer (#455)", () => {
         !button.hidden && plateWords(button) === "Back to your engineers",
     );
     expect(backs).toHaveLength(1);
+  });
+
+  it("the i on her page shows How it works for tending, with its one Back", () => {
+    const screen = mount(taughtAda());
+    screen.openEngineer("Ada");
+    part(screen, ".board-sheet-info").click();
+    const how = part(screen, ".board-sheet-how");
+    expect(
+      [...how.querySelectorAll<HTMLElement>("[data-how]:not([hidden])")].map(
+        (card) => card.dataset["how"],
+      ),
+    ).toEqual(["tending"]);
+    const backs = () =>
+      [...how.querySelectorAll<HTMLElement>(".teach-how-back")].filter(
+        (button) => button.closest("[hidden]") === null,
+      );
+    expect(backs()).toHaveLength(1);
+    backs()[0]?.click();
+    // Back on the list, the "i" tells Engineers and Expeditions again.
+    expect(screen.engineersPage()).toBeUndefined();
+    part(screen, ".board-sheet-info").click();
+    expect(
+      [...how.querySelectorAll<HTMLElement>("[data-how]:not([hidden])")].map(
+        (card) => card.dataset["how"],
+      ),
+    ).toEqual(["engineers", "expeditions"]);
+    expect(backs()).toHaveLength(1);
   });
 });

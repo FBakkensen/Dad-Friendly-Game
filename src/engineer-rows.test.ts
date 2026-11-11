@@ -26,7 +26,7 @@ import {
 import { MAX_ENGINEERS, promoteCost, type Engineer } from "./engineers";
 import { TUNNELS, type Expedition } from "./expeditions";
 import type { Mountain } from "./mountain";
-import { firstTend, promotePayoff, tendingGain } from "./rates";
+import { firstTend, moveGain, promotePayoff, tendingGain } from "./rates";
 import {
   ENGINEER_SHEET_SUB,
   NONE_BUILT,
@@ -479,6 +479,32 @@ describe("a post row on her page (#455)", () => {
     const nils = { name: "Nils", rank: 0, trips: 0, post: "camp" } as const;
     expect(postRowView(nils, 1, "drill", ctx, teach).flag).toEqual([]);
   });
+
+  it("the guided New post reads the move's net gain, as today's guided button did", () => {
+    // Ada tends the borers, and the first tend proposes the Great Machine: the move gains the
+    // machine's tending less the borers' she leaves.
+    const mountain = withAda({
+      carts: 10,
+      drills: 6,
+      machines: 1,
+      taught: ["engineers"],
+    });
+    expect(firstTend(mountain, NOW)).toEqual({ index: 0, post: "machine" });
+    const ctx = ctxOf(mountain);
+    const teach = engineerTeach(ctx);
+    expect(teach).toMatchObject({ kind: "tend", name: "Ada", post: "machine" });
+    const net = stonesPerSecond(moveGain(mountain, 0, "machine", NOW));
+    const gross = stonesPerSecond(tendingGain(mountain, 0, "machine", NOW));
+    expect(net).not.toBe(gross);
+    const machine = postRowView(crew(mountain), 0, "machine", ctx, teach);
+    expect(machine.flag).toEqual(["New"]);
+    expect(machine.gain).toBe(net);
+    expect(machine.info[0]).toContain(net);
+    // Without the teach, the same row reads what tending it makes.
+    expect(postRowView(crew(mountain), 0, "machine", ctx, NONE).gain).toBe(
+      gross,
+    );
+  });
 });
 
 describe("a tunnel row (#455)", () => {
@@ -613,8 +639,8 @@ describe("Brought home (#455)", () => {
 describe("her page's plates (#455)", () => {
   it("at home: Send exploring, and the way back", () => {
     expect(herPlates(crew(withAda()), NONE)).toEqual({
-      left: { id: "explore", label: ["Send exploring"], newCard: false },
-      right: { id: "back", label: ["Back to your engineers"], newCard: false },
+      left: { id: "explore", label: ["Send exploring"], flag: [] },
+      right: { id: "back", label: ["Back to your engineers"], flag: [] },
     });
   });
 
@@ -622,19 +648,25 @@ describe("her page's plates (#455)", () => {
     expect(herPlates(crew(adaOut()), NONE).left).toEqual({
       id: "recall",
       label: ["Call her back"],
-      newCard: false,
+      flag: [],
     });
   });
 
-  it("under the trip teach, the guided first trip with its fallback", () => {
+  it("under the trip teach, the guided first trip takes the row, New, with its fallback", () => {
     const teach: EngineerTeach = { kind: "trip", name: "Ada" };
-    expect(herPlates(crew(withAda()), teach).left).toEqual({
-      id: "explore",
-      label: ["Send Ada exploring · 10 min", "Send exploring"],
-      newCard: true,
+    expect(herPlates(crew(withAda()), teach)).toEqual({
+      left: {
+        id: "explore",
+        label: ["Send Ada exploring · 10 min", "Send exploring"],
+        flag: ["New"],
+      },
+      // The guided plate is the row's one plate: the shell's own Back stays.
+      right: undefined,
     });
     const nils = { name: "Nils", rank: 0, trips: 0, post: "camp" } as const;
-    expect(herPlates(nils, teach).left.newCard).toBe(false);
+    const his = herPlates(nils, teach);
+    expect(his.left.flag).toEqual([]);
+    expect(his.right?.id).toBe("back");
   });
 });
 

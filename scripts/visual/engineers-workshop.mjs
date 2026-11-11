@@ -28,8 +28,20 @@ import {
 } from "./kit.mjs";
 import { boardArtAt2x } from "./measure.mjs";
 
+/** Every plate the states flow has read on a page, with the page it stood on. */
+let platesSeen = [];
+
 /** The open Engineers drawer as the dad reads it: the kick, the list or the page shown (#455). */
-function engineersFacts(page) {
+async function engineersFacts(page) {
+  const facts = await readEngineers(page);
+  platesSeen.push(
+    ...facts.plates.map((plate) => ({ ...plate, page: facts.page })),
+  );
+  return facts;
+}
+
+/** What engineersFacts reads, in the page. */
+function readEngineers(page) {
   return page.$eval(OPEN_SHEET("engineers"), (sheet) => {
     const text = (root, selector) =>
       root?.querySelector(selector)?.textContent ?? "";
@@ -73,13 +85,40 @@ function engineersFacts(page) {
     const pageEl = sheet.querySelector(
       ".board-sheet-page:not([hidden]) > .board-page",
     );
+    // A plate's words sit on the key skin's face: inside its 8 art px edge (#455).
+    const art =
+      Number.parseFloat(
+        getComputedStyle(sheet).getPropertyValue("--art") || "2",
+      ) * scale;
+    const onFace = (plate) => {
+      const b = plate.getBoundingClientRect();
+      const inset = art * 8;
+      return [
+        ...plate.querySelectorAll(".board-platebtn-text, .board-row-flag"),
+      ]
+        .filter(shown)
+        .every((part) => {
+          const r = part.getBoundingClientRect();
+          return (
+            r.left >= b.left + inset - 0.5 &&
+            r.right <= b.right - inset + 0.5 &&
+            r.top >= b.top - 0.5 &&
+            r.bottom <= b.bottom + 0.5
+          );
+        });
+    };
     const plates = [...(pageEl?.querySelectorAll(".board-platebtn") ?? [])]
       .filter(shown)
       .map((plate) => ({
         classes: [...plate.classList],
         words: text(plate, ".board-platebtn-text") || plate.textContent || "",
+        flag: plate.querySelector(".board-row-flag:not([hidden])")
+          ? text(plate, ".board-row-flag")
+          : "",
         label: plate.getAttribute("aria-label") ?? "",
         inside: inside(plate),
+        onFace: onFace(plate),
+        width: plate.getBoundingClientRect().width / scale,
         height: plate.getBoundingClientRect().height / scale,
       }));
     const stories = [
@@ -238,7 +277,7 @@ async function engineersFirstVisit(viewport, size) {
   const built = hers.pageRows.filter(
     (row) => row.id !== "camp" && row.gain !== "",
   );
-  const [left, right] = hers.plates;
+  const [left] = hers.plates;
   check(
     opened &&
       hers.pageRows.length === 5 &&
@@ -247,13 +286,15 @@ async function engineersFirstVisit(viewport, size) {
       borers.pressed === "true" &&
       built.length >= 1 &&
       built.every((row) => /^\+[\d.,]+[KMBT]? stones\/sec$/.test(row.gain)) &&
+      hers.plates.length === 1 &&
       left?.classes.includes("teach-new") === true &&
+      left.words === "Send Ada exploring · 10 min" &&
       left.label === "Send Ada exploring · 10 min" &&
-      right?.words === "Back to your engineers" &&
+      left.flag === "New" &&
       hers.pageInside &&
       hers.plates.every((plate) => plate.inside) &&
       (await noScroll(page)),
-    `${size} engineers her page: five posts inside the drawer, the borers here now (green, pressed), real gains, the guided first trip and the way back, no page scroll`,
+    `${size} engineers her page: five posts inside the drawer, the borers here now (green, pressed), real gains, and the guided first trip alone across the plate row in its full words, New; no page scroll`,
   );
   if (!opened || hers.pageRows.length !== 5 || left === undefined) {
     console.log("engineers her page", size, JSON.stringify(hers));
@@ -461,6 +502,7 @@ for (const viewport of SCREENS) {
     `keys and drawers ${JSON.stringify(viewport)} engineers states`,
     async () => {
       const size = `${String(viewport[0])}x${String(viewport[1])}`;
+      platesSeen = [];
       await engineersFirstVisit(viewport, size);
       await engineersTunnelsAndPromote(viewport, size);
       await engineersOut(viewport, size);
@@ -469,6 +511,18 @@ for (const viewport of SCREENS) {
         await engineersFive(viewport, `${size} standalone`, {
           standalone: true,
         });
+      }
+      const offFace = platesSeen.filter((plate) => !plate.onFace);
+      check(
+        platesSeen.length > 0 && offFace.length === 0,
+        `${size} engineers plates: every plate's words sit on its key face, inside the skin's 8 art px edge (${String(platesSeen.length)} plates)`,
+      );
+      if (offFace.length > 0) {
+        console.log(
+          "engineers plates off the face",
+          size,
+          JSON.stringify(offFace),
+        );
       }
     },
   );

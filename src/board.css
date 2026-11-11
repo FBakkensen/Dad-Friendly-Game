@@ -2744,11 +2744,36 @@ button.board-row:focus-visible {
   display: none;
 }
 
-/* A half-width plate keeps its words off its frame, so the guided first trip's words measure
-   too long here and fit to Send exploring. */
+/* A plate's words sit on the key skin's face: its 8 art px edge and 2 more each side, the
+   inset the plates fit against (engineer-parts#fitsPlate). */
 .engineer-page-plates > .board-platebtn {
-  padding: 0 calc(var(--art) * 5);
+  padding: 0 calc(var(--art) * 10);
   white-space: nowrap;
+}
+
+/* Words that would run onto the frame keep every word, a size smaller. */
+.engineer-page-plates > .board-platebtn.is-small {
+  font-size: var(--board-type-14);
+}
+
+/* The guided first trip (#455): the plate row's one plate, in its full words, with the board
+   rows' amber New flag beside them. The shell's own Back stays the way out. */
+.engineer-page-plates > .board-platebtn.teach-new {
+  grid-column: 1 / -1;
+  column-gap: calc(var(--art) * 6);
+}
+
+.board-platebtn.teach-new > .board-row-flag {
+  position: relative;
+  flex: none;
+}
+
+.board-platebtn > .board-row-flag[hidden] {
+  display: none;
+}
+
+.board-platebtn.teach-new.down > .board-row-flag {
+  top: var(--art);
 }
 
 .engineer-brought-page > .engineer-brought-story {

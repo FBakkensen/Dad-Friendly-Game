@@ -188,9 +188,10 @@ describe("engineers teach (#246)", () => {
     const how = sheet?.querySelector<HTMLElement>(".board-sheet-how");
     expect(how?.hidden).toBe(false);
     expect(
-      [...(how?.querySelectorAll<HTMLElement>("[data-how]") ?? [])].map(
-        (card) => card.dataset["how"],
-      ),
+      [
+        ...(how?.querySelectorAll<HTMLElement>("[data-how]:not([hidden])") ??
+          []),
+      ].map((card) => card.dataset["how"]),
     ).toEqual(["engineers", "expeditions"]);
     expect(sheet?.querySelector<HTMLElement>(".board-sheet-list")?.hidden).toBe(
       true,

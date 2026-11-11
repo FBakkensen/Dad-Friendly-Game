@@ -385,37 +385,120 @@ describe("her page of posts (#455)", () => {
     expect(words(recall)).toBe("Call her back");
   });
 
-  it("the guided first trip's words fit to Send exploring when the plate is too narrow", () => {
-    const { page } = mount();
-    const mountain = withAda();
-    const explore = find(page.root, ".engineer-explore");
-    // The words are measured against the plate: a centred overflow never scrolls the plate.
-    const text = find(explore, ".board-platebtn-text");
-    Object.defineProperty(explore, "clientWidth", { value: 160 });
-    Object.defineProperty(text, "scrollWidth", {
-      get: () => (words(explore).length > 16 ? 220 : 150),
+  /** A plate `width` wide with a 10px face inset each side, its words `measure(words)` wide. */
+  const sized = (
+    plate: HTMLElement,
+    width: number,
+    measure: (shown: string) => number,
+  ): void => {
+    plate.style.paddingLeft = "10px";
+    plate.style.paddingRight = "10px";
+    Object.defineProperty(plate, "clientWidth", {
+      configurable: true,
+      get: () => width,
     });
-    page.paint(postViews(mountain, TRIP), herPlates(ada(mountain), TRIP));
-    expect(words(explore)).toBe("Send exploring");
-    expect(explore.getAttribute("aria-label")).toBe(
-      "Send Ada exploring · 10 min",
-    );
-  });
+    const text = find(plate, ".board-platebtn-text");
+    // A flex item: laid out with a width, so a fit measured in it is kept.
+    Object.defineProperty(text, "clientWidth", {
+      configurable: true,
+      value: measure(text.textContent),
+    });
+    Object.defineProperty(text, "scrollWidth", {
+      configurable: true,
+      get: () => measure(text.textContent),
+    });
+  };
 
-  it("under the trip teach, the left plate is the guided first trip", () => {
+  it("under the trip teach, the guided first trip takes the plate row, New, in its full words", () => {
     const { page } = mount();
     const mountain = withAda();
     page.paint(postViews(mountain, TRIP), herPlates(ada(mountain), TRIP));
     const explore = find(page.root, ".engineer-explore");
-    expect(["Send Ada exploring · 10 min", "Send exploring"]).toContain(
-      words(explore),
-    );
+    const back = find(page.root, ".engineer-list-back");
+    expect(back.hidden).toBe(true);
+    expect(explore.hidden).toBe(false);
+    expect(words(explore)).toBe("Send Ada exploring · 10 min");
     expect(explore.getAttribute("aria-label")).toBe(
       "Send Ada exploring · 10 min",
     );
     expect(explore.classList.contains("teach-new")).toBe(true);
+    // The New look is the board rows' amber New flag.
+    const flag = find(explore, ".board-row-flag");
+    expect(flag.hidden).toBe(false);
+    expect(flag.textContent).toBe("New");
     page.paint(postViews(mountain), herPlates(ada(mountain), NONE));
     expect(explore.classList.contains("teach-new")).toBe(false);
+    expect(flag.hidden).toBe(true);
+    expect(back.hidden).toBe(false);
+  });
+
+  it("the guided words fit inside the face, beside the New flag, else fall back to Send exploring", () => {
+    const { page } = mount();
+    const mountain = withAda();
+    document.body.append(page.root);
+    const explore = find(page.root, ".engineer-explore");
+    const flag = find(explore, ".board-row-flag");
+    Object.defineProperty(flag, "scrollWidth", { value: 40 });
+    // 300 of words and 40 of flag fit a 360 face (380 less 2 x 10), but not a 330 one.
+    sized(explore, 380, (shown) => (shown.length > 16 ? 300 : 150));
+    page.paint(postViews(mountain, TRIP), herPlates(ada(mountain), TRIP));
+    expect(words(explore)).toBe("Send Ada exploring · 10 min");
+    page.paint(postViews(mountain), herPlates(ada(mountain), NONE));
+    sized(explore, 350, (shown) => (shown.length > 16 ? 300 : 150));
+    page.paint(postViews(mountain, TRIP), herPlates(ada(mountain), TRIP));
+    expect(words(explore)).toBe("Send exploring");
+    // The name begins with the words it shows (label in name), then says the full trip.
+    expect(explore.getAttribute("aria-label")).toBe(
+      "Send exploring. Send Ada exploring · 10 min",
+    );
+  });
+
+  it("Back keeps its words in a smaller type when they would run onto the frame", () => {
+    const { page } = mount();
+    const mountain = withAda();
+    const back = find(page.root, ".engineer-list-back");
+    sized(back, 180, () => 200);
+    page.paint(postViews(mountain), herPlates(ada(mountain), NONE));
+    expect(words(back)).toBe("Back to your engineers");
+    expect(back.classList.contains("is-small")).toBe(true);
+    sized(back, 240, () => 200);
+    page.paint(postViews(mountain), herPlates(ada(mountain), NONE));
+    expect(back.classList.contains("is-small")).toBe(false);
+  });
+
+  it("fits the plates again when the page shows, and when the fonts settle", () => {
+    const fonts = Object.assign(new EventTarget(), {
+      ready: Promise.resolve(),
+    });
+    Object.defineProperty(document, "fonts", {
+      value: fonts,
+      configurable: true,
+    });
+    try {
+      const { page } = mount();
+      const mountain = withAda();
+      const explore = find(page.root, ".engineer-explore");
+      let wide = 300;
+      sized(explore, 380, (shown) => (shown.length > 16 ? wide : 150));
+      openPast();
+      sheet.showPage(page.root);
+      page.paint(postViews(mountain, TRIP), herPlates(ada(mountain), TRIP));
+      expect(words(explore)).toBe("Send Ada exploring · 10 min");
+      // Kept: the same words again measure nothing.
+      wide = 400;
+      page.paint(postViews(mountain, TRIP), herPlates(ada(mountain), TRIP));
+      expect(words(explore)).toBe("Send Ada exploring · 10 min");
+      // The page shown again measures again.
+      sheet.showPage(page.root);
+      page.paint(postViews(mountain, TRIP), herPlates(ada(mountain), TRIP));
+      expect(words(explore)).toBe("Send exploring");
+      // The fonts settling measures again, and repaints.
+      wide = 300;
+      fonts.dispatchEvent(new Event("loadingdone"));
+      expect(words(explore)).toBe("Send Ada exploring · 10 min");
+    } finally {
+      Reflect.deleteProperty(document, "fonts");
+    }
   });
 
   it("a post press inside the settle sends nothing; past it, it posts", () => {

@@ -10,7 +10,13 @@ import { TUNNELS } from "./expeditions";
 import { formatCompact } from "./format";
 import type { Trouble } from "./hazards";
 import type { Mountain } from "./mountain";
-import { firstTend, promotePayoff, tendingGain } from "./rates";
+import {
+  firstTend,
+  moveGain,
+  promotePayoff,
+  tendingGain,
+  type TendTier,
+} from "./rates";
 import type { RowLamp, RowState, RowView } from "./row-view";
 import { showsDot } from "./teach";
 import { owned, tierById } from "./tiers";
@@ -110,13 +116,16 @@ export type PromoteRowView = RowView & { readonly cost: number };
 /** One plate on her page: its control id, its words longest first, and the New look. */
 interface PlateView {
   readonly id: "explore" | "recall" | "back";
+  /** Its words, longest first: the first that fits the plate shows. */
   readonly label: readonly string[];
-  readonly newCard: boolean;
+  /** The New flag of the guided first trip, else none. */
+  readonly flag: readonly string[];
 }
 
 export interface HerPlates {
   readonly left: PlateView;
-  readonly right: PlateView;
+  /** The way back, or none while the guided first trip takes the plate row. */
+  readonly right: PlateView | undefined;
 }
 
 const NEW_FLAG: readonly string[] = ["New"];
@@ -264,6 +273,12 @@ export function postGain(
     : stonesPerSecond(tendingGain(mountain, index, post, now, trouble));
 }
 
+/** What moving her to that machine gains the crew, in words: what she makes there less what she leaves. */
+function netGain(ctx: EngineerCtx, index: number, post: TendTier): string {
+  const { mountain, now, trouble } = ctx;
+  return stonesPerSecond(moveGain(mountain, index, post, now, trouble));
+}
+
 /** The first tend's lesson, once the trip is taught. */
 function tendTeach(ctx: EngineerCtx): EngineerTeach | undefined {
   const { mountain, now, trouble } = ctx;
@@ -409,14 +424,21 @@ export function postRowView(
   teach: EngineerTeach,
 ): RowView {
   const here = engineer.post === post;
-  const gain = postGain(ctx, index, post);
-  const name = tendTitle(post, here);
-  const benefit = tendBenefit(post, engineer.name, gain);
-  const isNew =
+  const guided =
     !here &&
     teach.kind === "tend" &&
     teach.name === engineer.name &&
-    teach.post === post;
+    teach.post === post
+      ? teach.post
+      : undefined;
+  const isNew = guided !== undefined;
+  // The guided tend reads the move's net gain, as today's guided button did (#246).
+  const gain =
+    guided === undefined
+      ? postGain(ctx, index, post)
+      : netGain(ctx, index, guided);
+  const name = tendTitle(post, here);
+  const benefit = tendBenefit(post, engineer.name, gain);
   return {
     ...QUIET_ROW,
     name,
@@ -527,26 +549,41 @@ export function broughtStories(finds: Mountain["finds"]): readonly string[] {
   });
 }
 
-/** Her page's two plates: Send exploring (the guided first trip under its teach) or Call her back, and the way back. */
+/**
+ * Her page's plates: Send exploring or Call her back, and the way back. The guided first trip,
+ * New, takes the whole plate row under its teach; the shell's own Back stays.
+ */
 export function herPlates(engineer: Engineer, teach: EngineerTeach): HerPlates {
   const right: PlateView = {
     id: "back",
     label: [ENGINEERS_BACK],
-    newCard: false,
+    flag: NO_FLAG,
   };
   if (engineer.post === "tunnel") {
     return {
       left: {
         id: "recall",
         label: [callBackLabel(engineer.name)],
-        newCard: false,
+        flag: NO_FLAG,
       },
       right,
     };
   }
-  const guided = teach.kind === "trip" && teach.name === engineer.name;
-  const label = guided
-    ? [firstTripWords(engineer.name, TUNNELS[0].awayMs), SEND_EXPLORING]
-    : [SEND_EXPLORING];
-  return { left: { id: "explore", label, newCard: guided }, right };
+  if (teach.kind === "trip" && teach.name === engineer.name) {
+    return {
+      left: {
+        id: "explore",
+        label: [
+          firstTripWords(engineer.name, TUNNELS[0].awayMs),
+          SEND_EXPLORING,
+        ],
+        flag: NEW_FLAG,
+      },
+      right: undefined,
+    };
+  }
+  return {
+    left: { id: "explore", label: [SEND_EXPLORING], flag: NO_FLAG },
+    right,
+  };
 }

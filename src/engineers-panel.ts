@@ -1,7 +1,7 @@
 import { hide } from "./board-dom";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
 import type { BoardHost } from "./board-host";
-import { createHowPricer } from "./board-how-art";
+import { createHowPricer, type BoardHowSystem } from "./board-how-art";
 import { createAskPage, type AskPage } from "./board-page";
 import { rowsOnBoard, type RowsOnBoard } from "./board-row";
 import {
@@ -64,6 +64,10 @@ import {
  * every page change is the shell's showPage, so the second tap of a double tap lands on
  * nothing. Every move is today's, through the screen's dispatch.
  */
+
+/** The "i" cards: the list's two, and Tending for her page. */
+const LIST_HOW: readonly BoardHowSystem[] = ["engineers", "expeditions"];
+const HOW_SYSTEMS: readonly BoardHowSystem[] = [...LIST_HOW, "tending"];
 
 /** The drawer's pages, built once. */
 interface EngineerPages {
@@ -146,29 +150,34 @@ function onPost(taps: EngineerTaps, her: Her, post: TendPost): void {
   if (her.engineer.post === post) {
     return;
   }
+  // The gain the row showed: a guided tend's is the move's net gain.
+  const ctx = ctxOf(taps.getView(), taps.now());
   const { gain } = postRowView(
     her.engineer,
     her.index,
     post,
-    ctxOf(taps.getView(), taps.now()),
-    { kind: "none" },
+    ctx,
+    engineerTeach(ctx),
   );
+  const moved = taps.dispatch({ kind: "station", index: her.index, post });
+  if (moved.kind !== "applied") {
+    return;
+  }
   taps
     .sheet()
     .cheer(
       stationCheer(her.engineer.name, post, gain === "" ? undefined : gain),
     );
-  const moved = taps.dispatch({ kind: "station", index: her.index, post });
-  if (moved.kind === "applied") {
-    taps.onBoard.result(`post:${post}`, "applied");
-  }
+  taps.onBoard.result(`post:${post}`, "applied");
 }
 
-/** Sends her down a tunnel, cheering, and shows her page: she is out now. */
+/** Sends her down a tunnel and shows her page: she is out now, cheered if the trip went. */
 function sendHer(taps: EngineerTaps, her: Her, tunnel: TunnelId): void {
-  taps.sheet().cheer(exploreCheer(her.engineer.name));
-  taps.dispatch({ kind: "send", index: her.index, tunnel });
+  const sent = taps.dispatch({ kind: "send", index: her.index, tunnel });
   taps.go({ kind: "engineer", name: her.engineer.name });
+  if (sent.kind === "applied") {
+    taps.sheet().cheer(exploreCheer(her.engineer.name));
+  }
 }
 
 /**
@@ -184,11 +193,13 @@ function onExplore(taps: EngineerTaps, her: Her): void {
   taps.go({ kind: "tunnels", name: her.engineer.name });
 }
 
-/** Call back on the recall ask: she comes home, cheered, and her page shows her at home. */
+/** Call back on the recall ask: her page shows her at home, cheered if the recall landed. */
 function callHome(taps: EngineerTaps, her: Her): void {
-  taps.sheet().cheer(homeCheer(her.engineer.name));
-  taps.dispatch({ kind: "recall", index: her.index });
+  const recalled = taps.dispatch({ kind: "recall", index: her.index });
   taps.go({ kind: "engineer", name: her.engineer.name });
+  if (recalled.kind === "applied") {
+    taps.sheet().cheer(homeCheer(her.engineer.name));
+  }
 }
 
 /**
@@ -527,9 +538,11 @@ export function createEngineersPanel({
     title: ENGINEER_SHEET_TITLE,
     infoLabel: "Engineers",
     how: {
-      // Tending's card is not here (#455): three ran past the drawer, and a post row says it.
-      systems: ["engineers", "expeditions"],
+      systems: HOW_SYSTEMS,
       backLabel: ENGINEERS_BACK,
+      // Her page is about tending, so its "i" tells Tending; the list's, the crew and trips.
+      shows: () =>
+        onScreen(pages, page).kind === "engineer" ? ["tending"] : LIST_HOW,
     },
     board,
     overSave,
@@ -551,7 +564,7 @@ export function createEngineersPanel({
   const pages: EngineerPages = buildPages(board, taps);
   const list = buildEngineersList(sheet, taps);
   const chips = createExpeditionChips(chipHost, chipIconUrl);
-  const priceHow = createHowPricer(sheet.how, ["engineers", "expeditions"]);
+  const priceHow = createHowPricer(sheet.how, HOW_SYSTEMS);
 
   const render = (): void => {
     const view = getView();

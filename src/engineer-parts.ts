@@ -4,7 +4,16 @@ import drillUrl from "./assets/board/mach-drill.png";
 import machineUrl from "./assets/board/mach-machine.png";
 import workerUrl from "./assets/board/mach-worker.png";
 import minerUrl from "./assets/board/miner-18f.png";
-import { el, fitFirst, hide, mark, setAttr, write } from "./board-dom";
+import {
+  el,
+  fitFirst,
+  fitKept,
+  hide,
+  mark,
+  refitAll,
+  setAttr,
+  write,
+} from "./board-dom";
 import type { BoardHost } from "./board-host";
 import type { Pointer } from "./board-interaction";
 import type { PlateAct } from "./board-page";
@@ -14,6 +23,7 @@ import { skin } from "./board-skin";
 import { forgetAll, type PressTracker } from "./card-tap";
 import { createEffectChip, writeChip } from "./effect-row";
 import type { EngineerRowView, HerPlates } from "./engineer-rows";
+import { onFontsSettled } from "./fit-cache";
 import { ENGINEER_NAMES, MAX_ENGINEERS, type EngineerName } from "./engineers";
 import { KEEPSAKES, TUNNELS, type TunnelId } from "./expeditions";
 import type { Mountain } from "./mountain";
@@ -230,24 +240,67 @@ export function pageRow(
   };
 }
 
-/** The words fit inside the plate's padding, off its frame (a centred overflow never scrolls). */
-function fitsPlate(plate: HTMLElement, text: HTMLElement): boolean {
+/** A length in px from a computed style, 0 when there is none. */
+const px = (value: string): number => Number.parseFloat(value) || 0;
+
+/**
+ * The words, and a flag shown beside them, fit inside the plate's padding: the key skin's edge
+ * and 2 art px, so they sit on the face, off the frame (a centred overflow never scrolls).
+ */
+function fitsPlate(
+  plate: HTMLElement,
+  text: HTMLElement,
+  flag?: HTMLElement,
+): boolean {
   const style = getComputedStyle(plate);
-  const pad =
-    (Number.parseFloat(style.paddingLeft) || 0) +
-    (Number.parseFloat(style.paddingRight) || 0);
-  return text.scrollWidth <= plate.clientWidth - pad + 1;
+  const pad = px(style.paddingLeft) + px(style.paddingRight);
+  const beside =
+    flag === undefined || flag.hidden
+      ? 0
+      : flag.scrollWidth + px(style.columnGap);
+  return text.scrollWidth + beside <= plate.clientWidth - pad + 1;
 }
 
-/** The left plate's words: the first option that fits the plate, and the full words for a reader. */
-function paintLeft(plate: HTMLButtonElement, label: readonly string[]): void {
-  const text =
-    plate.querySelector<HTMLElement>(".board-platebtn-text") ?? plate;
-  fitFirst(text, label, () => fitsPlate(plate, text));
-  setAttr(plate, "aria-label", label[0] ?? "");
+/** A plate's words in the line they sit in. */
+const plateText = (plate: HTMLElement): HTMLElement =>
+  plate.querySelector<HTMLElement>(".board-platebtn-text") ?? plate;
+
+/**
+ * A plate of fixed words that keep them all: a size smaller when they would run onto the
+ * frame, never shorter words.
+ */
+function fitType(plate: HTMLElement): void {
+  const text = plateText(plate);
+  fitKept(text, "type", () => {
+    mark(plate, "is-small", false);
+    mark(plate, "is-small", !fitsPlate(plate, text));
+  });
 }
 
-/** Her plates now: Send exploring or Call her back on the left, the way back on the right. */
+/**
+ * The left plate's words: its New flag, then the first option that fits beside it. Its name
+ * begins with the words it shows (label in name), then the full words when they are cut.
+ */
+function paintLeft(
+  plate: HTMLButtonElement,
+  { label, flag: flagWords }: HerPlates["left"],
+): void {
+  const text = plateText(plate);
+  const flag = plate.querySelector<HTMLElement>(".board-row-flag") ?? undefined;
+  if (flag !== undefined) {
+    write(flag, flagWords[0] ?? "");
+    hide(flag, flagWords.length === 0);
+  }
+  fitFirst(text, label, () => fitsPlate(plate, text, flag));
+  const full = label[0] ?? "";
+  const shown = text.textContent;
+  setAttr(plate, "aria-label", shown === full ? full : `${shown}. ${full}`);
+}
+
+/**
+ * Her plates now: Send exploring or Call her back on the left, the way back on the right. The
+ * guided first trip, New, takes the row alone.
+ */
 function paintPlates(
   plates: {
     readonly explore: HTMLButtonElement;
@@ -259,14 +312,28 @@ function paintPlates(
   const out = view?.left.id === "recall";
   hide(plates.explore, out);
   hide(plates.recall, !out);
+  hide(plates.back, view !== undefined && view.right === undefined);
   const left = out ? plates.recall : plates.explore;
   if (view !== undefined) {
-    paintLeft(left, view.left.label);
+    paintLeft(left, view.left);
   }
-  mark(plates.explore, "teach-new", view?.left.newCard ?? false);
+  mark(plates.explore, "teach-new", (view?.left.flag.length ?? 0) > 0);
+  fitType(plates.back);
   for (const plate of Object.values(plates)) {
     plate.disabled = view === undefined;
   }
+}
+
+/** Her page of posts, built once. */
+interface PostsPage {
+  readonly root: HTMLElement;
+  /** The posts in TEND_POSTS' order and her plates; undefined until the save is in. */
+  paint(
+    views: readonly RowView[] | undefined,
+    plates: HerPlates | undefined,
+  ): void;
+  /** The page moved on: no plate's finger-down time carries over. */
+  forget(): void;
 }
 
 /** Her page: the five posts with their machines, then Send exploring or Call her back, and the way back. */
@@ -280,16 +347,7 @@ export function createPostsPage({
   onBoard: RowsOnBoard;
   onPost: (post: TendPost) => void;
   onPlate: OnPlate;
-}): {
-  readonly root: HTMLElement;
-  /** The posts in TEND_POSTS' order and her plates; undefined until the save is in. */
-  paint(
-    views: readonly RowView[] | undefined,
-    plates: HerPlates | undefined,
-  ): void;
-  /** The page moved on: no plate's finger-down time carries over. */
-  forget(): void;
-} {
+}): PostsPage {
   const root = el("div", "board-page engineer-page");
   const posts = TEND_POSTS.map((post) => {
     const made = pageRow(
@@ -323,23 +381,31 @@ export function createPostsPage({
     recall: plate(CALL_BACK, "engineer-recall", "recall"),
     back: plate(ENGINEERS_BACK, "engineer-list-back", "back"),
   };
+  // The guided first trip's New flag, the board rows' own, beside its words.
+  const flag = el("span", "board-row-flag");
+  flag.hidden = true;
+  plates.explore.append(flag);
   root.append(platesRow(plates.explore, plates.recall, plates.back));
-  return {
-    root,
-    paint(views, herPlates) {
-      for (const [index, made] of posts.entries()) {
-        const view = views?.[index];
-        made.paint(view);
-        setAttr(
-          made.row.root,
-          "aria-pressed",
-          view?.state === "owned" ? "true" : "false",
-        );
-      }
-      paintPlates(plates, herPlates);
-    },
-    forget: forgetAll(trackers),
+  let last: Parameters<PostsPage["paint"]> = [undefined, undefined];
+  const paint: PostsPage["paint"] = (views, herPlates) => {
+    last = [views, herPlates];
+    for (const [index, made] of posts.entries()) {
+      const view = views?.[index];
+      made.paint(view);
+      setAttr(
+        made.row.root,
+        "aria-pressed",
+        view?.state === "owned" ? "true" : "false",
+      );
+    }
+    paintPlates(plates, herPlates);
   };
+  // Words fitted with fallback metrics may not fit in the board's own fonts.
+  onFontsSettled(() => {
+    refitAll(root);
+    paint(...last);
+  });
+  return { root, paint, forget: forgetAll(trackers) };
 }
 
 /** The tunnels page: three tunnels, then Tend a machine and the way back. */
@@ -394,14 +460,26 @@ export function createTunnelsPage({
     },
   );
   root.append(platesRow(tend, back));
+  const paintPlates = (dark: boolean): void => {
+    for (const plate of [tend, back]) {
+      fitType(plate);
+      plate.disabled = dark;
+    }
+  };
+  let dark = true;
+  // Words fitted with fallback metrics may not fit in the board's own fonts.
+  onFontsSettled(() => {
+    refitAll(root);
+    paintPlates(dark);
+  });
   return {
     root,
     paint(views) {
       for (const [index, made] of tunnels.entries()) {
         made.paint(views?.[index]);
       }
-      tend.disabled = views === undefined;
-      back.disabled = views === undefined;
+      dark = views === undefined;
+      paintPlates(dark);
     },
     forget: forgetAll(trackers),
   };

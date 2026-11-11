@@ -332,6 +332,25 @@ describe("board.css", () => {
     expect(rule).toMatch(/pointer-events:\s*none/);
   });
 
+  it("sits her page's plate words on the key face, and the guided first trip across the row (#455)", () => {
+    const rule = (selector: string): string => {
+      const escaped = selector.replace(/[.>]/g, "\\$&");
+      return (
+        new RegExp(`^${escaped} \\{([^}]*)\\}`, "m").exec(boardCss)?.[1] ?? ""
+      );
+    };
+    // The key skin's 8 art px edge and 2 more: the inset engineer-parts#fitsPlate fits against.
+    expect(rule(".engineer-page-plates > .board-platebtn")).toMatch(
+      /padding:\s*0 calc\(var\(--art\) \* 10\)/,
+    );
+    expect(rule(".engineer-page-plates > .board-platebtn.is-small")).toMatch(
+      /font-size:\s*var\(--board-type-14\)/,
+    );
+    expect(rule(".engineer-page-plates > .board-platebtn.teach-new")).toMatch(
+      /grid-column:\s*1 \/ -1/,
+    );
+  });
+
   it.each(BOARD_SELECTORS)("styles %s", (selector) => {
     const escaped = selector.replace(".", "\\.");
     expect(boardCss).toMatch(new RegExp(`^${escaped}[\\s,{\\[:.]`, "m"));

@@ -122,6 +122,8 @@ function focusBackTo(
 interface BoardHow {
   readonly systems: readonly BoardHowSystem[];
   readonly backLabel: string;
+  /** The cards the "i" shows now, in `systems`' order; all of them when left out (#455). */
+  readonly shows?: () => readonly BoardHowSystem[];
 }
 
 /** The spare plate under a short list: the makers' plate with its strip. */
@@ -159,6 +161,24 @@ function howCards(
     }
   }
   return cards;
+}
+
+/** Shows the cards `systems` names, with one Back, under the last shown. */
+function pickHowCards(
+  how: HTMLElement,
+  systems: readonly BoardHowSystem[],
+): void {
+  const cards = [...how.querySelectorAll<HTMLElement>(":scope > [data-how]")];
+  const shown = cards.filter((card) =>
+    systems.some((system) => system === card.dataset["how"]),
+  );
+  for (const card of cards) {
+    hide(card, !shown.includes(card));
+    const back = card.querySelector<HTMLElement>(".teach-how-back");
+    if (back !== null) {
+      back.hidden = card !== shown.at(-1);
+    }
+  }
 }
 
 /** The shell's parts, built once. */
@@ -483,6 +503,9 @@ export function createBoardSheet({
   };
 
   const showHow = (on: boolean): void => {
+    if (on && howOf.shows !== undefined) {
+      pickHowCards(how, howOf.shows());
+    }
     setHow(parts, on);
     // Each way is a new screen under the finger: the second tap of a double tap on the "i"
     // must not take the cards' Back, nor one on the cards' Back buy the row under it, so the
@@ -496,6 +519,10 @@ export function createBoardSheet({
     // A page that opens itself (the relics drawer's reveal, #465) puts the "i" cards away.
     setHow(parts, false);
     setPage(parts, shownPage);
+    // A page shown again is measured again: its plates fit on the drawer as it is now.
+    if (shownPage !== undefined) {
+      refitAll(shownPage);
+    }
     // A page is a new screen under the finger, and so is the list it gives back (#375).
     page();
     focusQuietly(shownPage === undefined ? heading : pageFocus(parts.pageHost));
