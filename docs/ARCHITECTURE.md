@@ -67,7 +67,12 @@ page is the map, plus the rules that keep it that way.
    cards, bench and pages) and `key-rail` (`keyViews`: each key's cap
    (rest, locked or lit), sub-line (an unlock line, the bench clock or the
    soonest trip), red dot and label).
-2. **Saves:** `persist` (versioned save format and parser; an unknown recipe, bench, or crafted level is written back instead of dropped), `session-save`
+2. **Saves:** `persist` (the save versions and their migrations), `save-format`
+   (#415: the saved shape, `SavedMountain` and `WorkshopSave`, and the one
+   place it meets the complete mountain: `savedMountain` and `savedWorkshop`
+   leave out what is empty, zero or unset, and `parseMountain` and
+   `withWorkshop` fill it back in; an unknown recipe, bench, crafted level or
+   teach id is kept in `kept` and written back instead of dropped), `session-save`
    (guest storage), `phone-backup` (signed-in on-phone copy, never deleted),
    `save-progress` (which copy is ahead), `cloud-save` (interface + memory fake),
    `firebase-save` (the SDK adapter; mountain save plus `fieldLogs/{uid}`),
@@ -83,8 +88,15 @@ page is the map, plus the rules that keep it that way.
    `session` is the core: `step(session, input, now)` returns the next session
    and its effects as data (record, log, remember the homecomings, save a
    band's recipe grant, the move's result). It covers ticks, away pay, moves,
-   trouble presses and fixes, the news (relics, bands, crafts, homecomings,
-   the welcome-back card) and a new run. `session-time`'s `advance` is the
+   trouble presses and fixes, the news and a new run. The `Mountain` it holds
+   is complete (#415): every field is present, with 0 for a cold clock or a
+   boost that never ran, `staffed: 0` for a save never granted its crew, and
+   `undefined` only for a free bench. The news is one queue of typed
+   `Notice`s (away, quiet, reveal, layer, craft, crew-joined,
+   engineer-joined), in arrival order; screens read it with `firstNotice` and
+   `noticesOf`, and `dismiss(kind)` closes the oldest of a kind (`"away"`
+   closes the whole welcome card). Homecomings stay their own list, since the
+   device remembers them across a reload. `session-time`'s `advance` is the
    one time step it and the lab share: live, away (a gap over ten seconds), or
    a clock that went back (`timeInput`). A craft notice keeps the mountain at
    the moment it was fitted, and `card-views` words it. The sync service runs
@@ -653,15 +665,17 @@ Staffing (#140), the workers' name (#139), the field log (#141–#143), engineer
 - `scale` (leaf, #356; retuned #357): `MOUNTAIN_STONES`, the kid-run stretch (`KID_RUN_GROWTH`, `kidStretch`, `MAX_STRETCH`) and the band scales. `BAND_STARTS` and `BAND_SCALE` say how many stones a band takes per stone of depth, times k. Their values are in [Numbers now](DESIGN.md#numbers-now). Depth stays in run-1 units, so `remaining` and the save format do not change. The pure functions `shownStones(depth)`, `stonesLeft`, `depthAfterStones(stones)` and `minedOut` convert between depth and the stones a run shows; `oneOffStretch` = k × the current band's scale prices upgrades and promotions. Machines and workers use k only (`tierCost`).
 - `tiers`: each tier's first price, speed, `staff` and opening depth, and the two growth curves (`MACHINE_COST_GROWTH`, `HELPER_COST_GROWTH`) that `tierCost` applies. `tierQuote` (#358) prices ×1, ×10 or Max of a tier as the sum of `tierCost` unit by unit, the price `buyTier` charges for each in turn. The values are in [Numbers now](DESIGN.md#numbers-now). The `milestones` module (#357) doubles a tier's output at owned-count marks, stacking; the marks are in [Numbers now](DESIGN.md#numbers-now) too. `crew.staffExisting` grants once more (`staffed: 2`; `true` and `1` are the #89 grant). Built (#140). History (#140): the Great Machine's staff was 25, as staff 15 never ran one in the sim then and reopened a 2.5-day gap with no purchase.
 - Grandpa (#338, in `engineers`): `grandpaPost(mountain)` is the biggest running machine no engineer tends, once the Legacy is at least 1, staffed the same way `effectiveRates` staffs. `tendingTenths` counts him at `GRANDPA_RANK` (apprentice) on that post. Nothing is saved.
-- `engineers` (rules layer, pure): `Engineer = { name, rank: 0 | 1 | 2, trips, post: TierId | "tunnel" | "camp" }`; `promote(mountain)`, `station(mountain, i, post)`, `rankOf`, `addTrip`. `promote` takes no `now`: the price does not depend on the clock. Save: `engineers?: Engineer[]` (max 5, names Ada, Nils, Ruth, Otto, Mae). The first engineer arrives with the first borer, already tending it, without spending a worker; `grantFirstEngineer` does that once for an older save. Rules check the first two hands. A later hand, and a duplicate name, are rejected by the parser: checking them beside a full v6 save crosses the 1000-expression budget (#219). Rules + drift guard + emulator tests. Built (#144). Buying a machine does not call `tendBestTier` (#145); the sheet's post sticks. The pacing sim still calls it.
+- `engineers` (rules layer, pure): `Engineer = { name, rank: 0 | 1 | 2, trips, post: TierId | "camp" }`. In memory an engineer on a trip keeps the post they left, and `onTrip(mountain, name)` is the one test for "away" (#415). `onDuty` gives the crew as the save and the screens see it, with post `"tunnel"` for the ones away; `promote(mountain)`, `station(mountain, i, post)`, `rankOf`, `addTrip`. `promote` takes no `now`: the price does not depend on the clock. Save: `engineers?: Engineer[]` (max 5, names Ada, Nils, Ruth, Otto, Mae). The first engineer arrives with the first borer, already tending it, without spending a worker; `grantFirstEngineer` does that once for an older save. Rules check the first two hands. A later hand, and a duplicate name, are rejected by the parser: checking them beside a full v6 save crosses the 1000-expression budget (#219). Rules + drift guard + emulator tests. Built (#144). Buying a machine does not call `tendBestTier` (#145); the sheet's post sticks. The pacing sim still calls it.
 - `expeditions` (rules layer, pure): `TUNNELS` (a side seam, 10 min; the old
   shaft, 1 h; the deep dark, 4 h, Journeyman+). `send(mountain, engineer,
-tunnel, now)` stores the find, seeded from `sentAt`, and the post they left
-  (`home`), then moves that engineer to `"tunnel"`. `recall` puts them back at
-  `home` with no trip and no find. `settle(mountain, now)` clamps a future
+tunnel, now)` stores the trip and its find, seeded from `sentAt`. The engineer
+  keeps their post, so the trip is what makes them away. `recall` drops the
+  trip and its find. The save writes the away engineer at post `"tunnel"` and
+  the trip's `home` (the post they left), and a load reads them back; a saved
+  `"tunnel"` with no trip loads at camp. `settle(mountain, now)` clamps a future
   `sentAt` to now (the wait and the find stay, the same idea as a future
   `lastSeen`) and returns `{ mountain, finds, homecomings }` for every
-  expedition past `returnsAt`, adding a trip and restoring `home`. `homecomings`
+  expedition past `returnsAt`, adding a trip. `homecomings`
   (who, which tunnel, the settled find) is session news for the welcome card,
   not a save field. `accrueAway` returns the same list for parties who came home
   while the game was closed. Save: `expeditions?: { engineer, tunnel, sentAt,

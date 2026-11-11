@@ -28,7 +28,7 @@
 ## The in-memory shape
 
 ```ts
-export type TimerId = "charge" | "flare" | "ember" | "axle" | "rush";
+export type TimerId = "blasting-charge" | "crystal-flare" | "heartstone-ember" | "axle-grease";
 export type Mountain = {
   readonly remaining: number;
   readonly pocket: number;
@@ -78,6 +78,14 @@ export type Notice =
 ```
 
 `ProgressSnapshot.notices` replaces `away`, `quietAway`, `revealed`, `crewJoined`, `engineerJoined`, `layersArrived` and `craftsFitted`. `ProgressStore.dismiss(kind)` replaces the five dismiss methods. Readers use `firstNotice(snapshot, kind)` and `noticesOf(snapshot, kind)` from `src/session.ts`. `homecomings` stays a list, because the device remembers it across reloads.
+
+## Rulings while building
+
+- `TimerId` is the four craft clocks' recipe ids (`"blasting-charge"`, `"crystal-flare"`, `"heartstone-ember"`, `"axle-grease"`), so `clocks` is keyed like `crafted`. `rushUntil` stays its own field, beside `rushBank`.
+- The away engineers' post: `EngineerPost` loses `"tunnel"`, and `Duty = EngineerPost | "tunnel"` is the saved and shown post. `onTrip` lives in `src/engineers.ts` (beside `onDuty` and `atHome`), since `src/expeditions.ts` imports the engineers.
+- Byte for byte is relaxed to "the same keys and values": a fresh mountain still writes the same bytes (`save-format.test.ts`), but two orders moved, and both read back the same: level maps (`upgrades`, `boosts`, `crafted`) are written in their id order, and `seen` and `taught` write the known ids, then the kept ones.
+- `parseMountain` no longer reads the workshop fields an old mountain map carried. It still rejects a bad one. The workshop comes from the workshop map (v6, v7) or the stones grant (v1 to v5), as it always did.
+- A 0 boost end or clock is always cold, even at a negative `now` in a test.
 
 ## Review Focus
 
