@@ -31,6 +31,7 @@ import {
   crystalMountain,
   firstCraftSave,
   fleetMountain,
+  foundBelowSave,
   heartMountain,
   heirMountain,
   idleMountain,
@@ -132,6 +133,10 @@ const SAVES = {
   tools: {
     note: "upgrades owned and levelled, and found tools under Brought home",
     save: toolsMountain,
+  },
+  keepsakes: {
+    note: "every tool and keepsake found: a relic's detail shows all five keepsakes",
+    save: foundBelowSave,
   },
   machine: {
     note: "the Great Machine with the Kid row locked; add ?trouble=cave-in for the Buys key's red lamp",

@@ -368,7 +368,12 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   move (they are the characterization tests, 97% line coverage):
   1. Upgrades sheet + boost chips' text → `upgrades-panel` (#121).
   2. Shelf, relic detail, relic reveal and Legend finale → `relic-panels`
-     (#122, #123).
+     (#122, #123); since #465 one board drawer, `relics`, with its words in
+     `relic-rows` and its detail, reveal and Legend pages in `relic-pages`.
+     It has no key: the Relic shelf key in a socket's note opens the shelf,
+     and the reveal and the Legend open it themselves once no card is up. A
+     player's close of the reveal carries the relic; a program close (a card
+     came up over it) does not, so it comes back after the card.
   3. Welcome-back card → `welcome-panel` (#124); on `board-card` since #464,
      with its views in `card-views`.
   4. Menu, account and Start over confirm → `menu-panel` (#125); since #375
@@ -456,9 +461,9 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   borer. Buys, Upgrades and Ledger open from the first screen. The board's parts sit round the
   panels: `#app` is the 424×924 stage, the board's top (relic plate and
   stock row) and the save line are absolute children of it, and the
-  panels' column flows between them through `#app`'s padding. The relic
-  shelf opens from a socket note's Relic shelf key; opening a sheet, the
-  shelf or a drawer closes the board note and the save drawer. The gauge
+  panels' column flows between them through `#app`'s padding. The relics
+  drawer opens from a socket note's Relic shelf key; opening a sheet, the
+  relics drawer or another drawer closes the board note and the save drawer. The gauge
   row (`.board-gauge-row`, `--gauge-row-h`, 176 to 414px) is another
   absolute child, under the board's top: the output gauge, the mine window
   (`.board-mine`, its `.board-window` button and the `.golden-vein`) and

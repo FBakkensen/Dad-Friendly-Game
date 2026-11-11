@@ -15,7 +15,7 @@ import { plateButton } from "./board-save";
 import { skin } from "./board-skin";
 import type { BoardNote } from "./board-note";
 import type { ProgressSnapshot } from "./progress-store";
-import { relicNote } from "./relic-panels";
+import { relicNote } from "./relic-rows";
 import {
   RELICS,
   foundRelics,

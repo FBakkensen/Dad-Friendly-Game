@@ -7,16 +7,10 @@ const boardCss = readFileSync("src/board.css", "utf8");
 
 /** Rules whose loss breaks the game silently: jsdom tests don't apply CSS. */
 const REQUIRED_SELECTORS = [
-  ".relic-reveal",
-  ".shelf-dialog",
   ".start-over",
   ".engineers-dialog",
   ".engineer-tunnel",
   ".expedition-chip",
-  ".reveal-card",
-  ".shelf-card",
-  ".keepsakes",
-  ".keepsake-story",
   ".saved-copies",
 ];
 
@@ -74,6 +68,16 @@ const BOARD_SELECTORS = [
   ".ledger-page-answers",
   ".ledger-field-log-well",
   ".ledger-field-log-text",
+  ".relic-page",
+  ".relic-page-kicker",
+  ".relic-page-title",
+  ".relic-page-line",
+  ".relic-page-boost",
+  ".relic-page-answers",
+  ".relic-legend-shelf",
+  ".relic-keepsakes",
+  ".relic-keepsake-list",
+  ".relic-keepsake-story",
   ".workshop-timers",
   ".workshop-pager",
   ".workshop-sound",
@@ -95,13 +99,7 @@ const BOARD_SELECTORS = [
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
-const OVERLAYS = [
-  ".relic-reveal",
-  ".shelf-dialog",
-  ".start-over",
-  ".engineers-dialog",
-  ".saved-copies",
-];
+const OVERLAYS = [".start-over", ".engineers-dialog", ".saved-copies"];
 
 /** WCAG 2 contrast ratio of two #rrggbb colours. */
 function contrast(a: string, b: string): number {
@@ -153,9 +151,11 @@ describe("board.css", () => {
   it("stacks the cards in the root's order, the conflict over them all (#464)", () => {
     // Every card and today's sheets stand at one z-index, so the root's order stacks them
     // (screen-panels#cardsFrom): the Engineers sheet first, under the welcome; the update,
-    // the other tab and saved copies over the welcome, the layer card and the relic cards.
+    // the other tab and saved copies over the welcome and the layer card. The relics drawer
+    // (#465) is a drawer in the drawers' clip, above every card: a card that comes up closes
+    // it (screen-overlays#coverDrawers), and its reveal waits while a card is up.
     const sheets =
-      /^\.relic-reveal,\n\.shelf-dialog,\n\.start-over,\n\.engineers-dialog,\n\.saved-copies \{[^}]*z-index:\s*(\d+)/m.exec(
+      /^\.start-over,\n\.engineers-dialog,\n\.saved-copies \{[^}]*z-index:\s*(\d+)/m.exec(
         css,
       );
     expect(Number(sheets?.[1])).toBe(boardZ(".board-card"));
@@ -437,16 +437,14 @@ describe("style.css", () => {
     expect(css).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));
   });
 
-  it.each([
-    ".relic-reveal",
-    ".shelf-dialog",
-    ".start-over",
-    ".engineers-dialog",
-    ".saved-copies",
-  ])("lays %s over the game", (selector) => {
-    const group = /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
-      css.slice(css.indexOf(".relic-reveal,")),
-    );
-    expect(group?.[1]?.split(",\n")).toContain(selector);
-  });
+  it.each([".start-over", ".engineers-dialog", ".saved-copies"])(
+    "lays %s over the game",
+    (selector) => {
+      const group =
+        /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
+          css.slice(css.indexOf(".start-over,\n.engineers-dialog,")),
+        );
+      expect(group?.[1]?.split(",\n")).toContain(selector);
+    },
+  );
 });

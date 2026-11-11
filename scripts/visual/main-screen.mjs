@@ -11,6 +11,7 @@ import {
   openSheet,
   closeSheet,
   openShelf,
+  sheetSettled,
   openScreen,
   coversBoard,
   noScroll,
@@ -231,13 +232,14 @@ for (const viewport of SCREENS) {
       console.log("vein in view", size, JSON.stringify(veinInside));
     }
 
-    // A socket's note holds the shelf's key; the tag is a label (#370).
+    // A socket's note holds the shelf's key; the tag is a label (#370). The
+    // shelf is the relics drawer (#465).
     await openShelf(page);
     check(
-      await coversBoard(page, ".shelf-dialog"),
-      `${size} relic shelf is laid over the game`,
+      await sheetSettled(page, "relics"),
+      `${size} relic shelf slides up over the game`,
     );
-    await press(page, ".shelf-close");
+    await closeSheet(page, "relics");
     // Upgrades is a drawer now (#373): it slides up under the odometer to the
     // save line, and the save line stays on top of the board.
     const upgradesUp = await openSheet(page, "upgrades");

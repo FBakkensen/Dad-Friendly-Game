@@ -172,3 +172,31 @@ export const RELICS_HINT = ".ledger-relics .board-row-why";
 export const RELICS_BAR = ".ledger-relics .board-row-bar";
 export const ACCOUNT_INFO = ".ledger-account .board-row-info";
 export const LEDGER_SHEET = ".board-sheet[data-sheet=ledger]";
+
+/** The relics drawer (#465) and its three pages, as the screen tests read them. */
+export const RELICS_SHEET = ".board-sheet[data-sheet=relics]";
+export const REVEAL_PAGE = ".relic-reveal-page";
+export const DETAIL_PAGE = ".relic-detail-page";
+export const LEGEND_PAGE = ".relic-legend-page";
+/** The shelf's rows, in the relics' order. */
+export const SHELF_ROWS = `${RELICS_SHEET} .relic-row`;
+
+/** The relics drawer is open on its shelf, with no page over the list. */
+export function shelfShown(root: HTMLElement): boolean {
+  const sheet = root.querySelector(RELICS_SHEET);
+  return (
+    sheet?.classList.contains("is-open") === true &&
+    sheet.querySelector(".board-sheet-list")?.hasAttribute("hidden") === false
+  );
+}
+
+/** The page `page` names, while the relics drawer is open on it; else null. */
+export function relicPage(root: HTMLElement, page: string): HTMLElement | null {
+  const sheet = root.querySelector(RELICS_SHEET);
+  if (sheet?.classList.contains("is-open") !== true) {
+    return null;
+  }
+  return sheet.querySelector<HTMLElement>(
+    `.board-sheet-page:not([hidden]) > ${page}`,
+  );
+}

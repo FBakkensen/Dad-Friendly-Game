@@ -18,6 +18,8 @@ import {
   RELICS_BAR,
   RELICS_HINT,
   STONES_INFO,
+  REVEAL_PAGE,
+  relicPage,
   createMemoryStorage,
   mountScreen,
   setReducedMotion,
@@ -498,7 +500,7 @@ describe("layer card, material line, and craft-done notice", () => {
     for (let step = 0; step < 12; step += 1) {
       const button =
         visible(".welcome-continue") ??
-        visible(".reveal-continue") ??
+        visible(".relic-page-carry") ??
         visible(".layer-dig") ??
         visible(".craft-accept");
       if (button === undefined) {
@@ -548,13 +550,13 @@ describe("layer card, material line, and craft-done notice", () => {
     expect(
       screen.root.querySelector<HTMLElement>(".layer-arrival")?.hidden,
     ).toBe(true);
-    expect(
-      screen.root.querySelector<HTMLElement>(".relic-reveal")?.hidden,
-    ).toBe(false);
+    // The relics drawer opens itself on each reveal (#465).
+    expect(relicPage(screen.root, REVEAL_PAGE)).not.toBeNull();
     const reveal =
-      screen.root.querySelector<HTMLButtonElement>(".reveal-continue");
+      screen.root.querySelector<HTMLButtonElement>(".relic-page-carry");
     reveal?.click();
     reveal?.click();
+    expect(relicPage(screen.root, REVEAL_PAGE)).toBeNull();
     const card = screen.root.querySelector<HTMLElement>(".layer-arrival");
     expect(card?.hidden).toBe(false);
     expect(screen.text(".layer-arrival .board-card-face")).toContain(
@@ -1319,8 +1321,8 @@ describe("the board cards (#464)", () => {
     const screen = mountScreen({ tapClock: () => tap });
     screen.progress.applyMutation(() => minedMountain(10_000_000));
     // Two relics come up first; each is dismissed by keyboard.
-    screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
-    screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".relic-page-carry")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".relic-page-carry")?.click();
     expect(shown(screen.root, ".layer-arrival")).toBe(true);
     tap += 100;
     fingerTap(screen.root, ".layer-dig");
@@ -1334,8 +1336,8 @@ describe("the board cards (#464)", () => {
   it("the layer card shows the band's view", () => {
     const screen = mountScreen();
     screen.progress.applyMutation(() => minedMountain(10_000_000));
-    screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
-    screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".relic-page-carry")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".relic-page-carry")?.click();
     const art = screen.root.querySelector<HTMLImageElement>(
       ".layer-arrival .board-card-art",
     );

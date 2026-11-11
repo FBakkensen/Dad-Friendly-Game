@@ -176,6 +176,34 @@ async function openDrawer(page, name) {
   await new Promise((resolve) => setTimeout(resolve, 450));
 }
 
+/** A drawer opened some other way than its key, its slide done and its settle waited out. */
+async function settled(page, name) {
+  await page.waitForSelector(OPEN_SHEET(name), { timeout: 8_000 });
+  await page.waitForFunction(
+    (selector) =>
+      document.querySelector(selector)?.getAnimations().length === 0,
+    { timeout: 8_000 },
+    OPEN_SHEET(name),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 450));
+}
+
+/** The relics drawer is open on `name`'s page (#465), past its settle. */
+async function relicPageUp(page, name) {
+  await page.waitForSelector(
+    `${OPEN_SHEET("relics")} .board-sheet-page:not([hidden]) > .relic-${name}-page`,
+    { visible: true, timeout: 8_000 },
+  );
+  await settled(page, "relics");
+}
+
+/** A keyboard press (a click with no pointer): never early for the drawer's settle. */
+async function pressQuietly(page, selector) {
+  await page.$eval(selector, (button) => {
+    button.click();
+  });
+}
+
 /**
  * A plate that hands off to a card closes its drawer first (#375): wait out
  * the drawer's slide, so the shot shows the card and not the drawer going.
@@ -477,7 +505,7 @@ async function collect(page) {
     remember(document.documentElement, "html");
     remember(document.querySelector("#app"), "#app");
     for (const el of document.querySelectorAll(
-      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .engineers-card, .menu-card, .shelf-card, .board-card-face",
+      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .engineers-card, .menu-card, .relic-page, .board-card-face",
     )) {
       if (visible(el)) {
         remember(el, selectorOf(el));
@@ -493,7 +521,7 @@ async function collect(page) {
       ".workshop-recipe",
       ".welcome-continue",
       ".layer-dig",
-      ".reveal-continue",
+      ".relic-page-carry",
       ".craft-accept",
       ".legacy-confirm",
       ".other-tab-play",
@@ -553,14 +581,13 @@ async function collect(page) {
         ".saved-copy",
         ".welcome-back .board-card-face",
         ".menu-card",
-        ".reveal-card",
+        ".relic-page",
         ".layer-arrival .board-card-face",
         ".craft-notice .board-card-face",
         ".other-tab .board-card-face",
         ".update-prompt .board-card-face",
         ".start-over-card",
         ".engineer",
-        ".shelf-card",
         ".legacy-card",
       ],
       chip: [".boost-chip", ".expedition-chip"],
@@ -1182,9 +1209,8 @@ async function main() {
       ),
     );
     await press(opened.page, ".board-window");
-    await opened.page.waitForSelector(".relic-reveal:not([hidden])", {
-      timeout: 8_000,
-    });
+    // The reveal opens the relics drawer itself (#465).
+    await relicPageUp(opened.page, "reveal");
     await expectText(opened.page, /Shield of Protection/, "reveal");
     return opened;
   });
@@ -1193,8 +1219,30 @@ async function main() {
     // A socket's note holds the Relic shelf key; the tag is a label (#370).
     await press(opened.page, ".board-socket");
     await press(opened.page, ".board-note.on .board-platebtn");
-    await opened.page.waitForSelector(".shelf-dialog:not([hidden])");
-    await expectText(opened.page, /A warm light waits|virtue of/, "shelf");
+    await settled(opened.page, "relics");
+    await expectText(opened.page, /A warm light waits|Your power/, "shelf");
+    return opened;
+  });
+  await capture("relic-detail", async (viewport) => {
+    const opened = await openAuditPage(viewport, rest());
+    await press(opened.page, ".board-socket");
+    await press(opened.page, ".board-note.on .board-platebtn");
+    await settled(opened.page, "relics");
+    await press(opened.page, `${OPEN_SHEET("relics")} .relic-row.is-found`);
+    await relicPageUp(opened.page, "detail");
+    await expectText(opened.page, /Keepsakes/i, "relic detail");
+    return opened;
+  });
+  await capture("relic-legend", async (viewport) => {
+    const opened = await openAuditPage(
+      viewport,
+      late(Date.now(), MOUNTAIN - 1, quietCrew({ pocket: 20 })),
+    );
+    await press(opened.page, ".board-window");
+    await relicPageUp(opened.page, "reveal");
+    await pressQuietly(opened.page, ".relic-page-carry");
+    await relicPageUp(opened.page, "legend");
+    await expectText(opened.page, /You became a Legend/, "legend");
     return opened;
   });
   await capture("legacy-badge", async (viewport) => {
@@ -1247,10 +1295,9 @@ async function main() {
       ),
     );
     await press(opened.page, ".board-window");
-    await opened.page.waitForSelector(".relic-reveal:not([hidden])", {
-      timeout: 8_000,
-    });
-    await press(opened.page, ".reveal-continue");
+    await relicPageUp(opened.page, "reveal");
+    await pressQuietly(opened.page, ".relic-page-carry");
+    await drawerGone(opened.page, "relics");
     await opened.page.waitForSelector(
       '.board-card[data-card="layer"]:not([hidden])',
       { timeout: 8_000 },
