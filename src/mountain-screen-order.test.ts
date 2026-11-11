@@ -163,7 +163,7 @@ describe("the screen's build order", () => {
     ]);
   });
 
-  it("the effect row holds boosts, crafts, bench, then the engineers' trips", () => {
+  it("the effect row holds boosts, the Gold rush, crafts, bench, then the engineers' trips", () => {
     const { screen } = mountLogged();
     const row = screen.root.querySelector(".effect-row");
     const chips = [...(row?.children ?? [])].map((chip) => [
@@ -174,6 +174,7 @@ describe("the screen's build order", () => {
     expect(chips).toEqual([
       ["sharper", null, "effect-chip boost-chip"],
       ["overtime", null, "effect-chip boost-chip"],
+      [null, null, "effect-chip rush-chip"],
       [null, "blasting-charge", "effect-chip craft-chip"],
       [null, "axle-grease", "effect-chip craft-chip"],
       [null, "crystal-flare", "effect-chip craft-chip"],

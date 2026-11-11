@@ -864,6 +864,12 @@ body {
   image-rendering: pixelated;
 }
 
+/* The Gold rush's icon is the middle of the sparkle strip's first frame. */
+.board-running .rush-chip img {
+  object-fit: cover;
+  object-position: calc(var(--art) * -3) 0;
+}
+
 .board-running .effect-name {
   position: static;
   display: inline;
