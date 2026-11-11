@@ -44,7 +44,7 @@ import { readSessionSave, writeSessionSave } from "./session-save";
 import { buyTier, tierById, tierCost } from "./tiers";
 import { upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
 import { recipesForMined } from "./workshop";
-import { promoteCost } from "./engineers";
+import { onTrip, promoteCost } from "./engineers";
 import { send, type Expedition } from "./expeditions";
 import { ENGINEER_FIX_MS, nextTrouble } from "./hazards";
 
@@ -2412,7 +2412,7 @@ describe("expeditions through the save", () => {
     progress.subscribe(() => {
       seen += 1;
     });
-    expect(progress.getSnapshot().mountain.engineers[0]?.post).toBe("tunnel");
+    expect(onTrip(progress.getSnapshot().mountain, "Ada")).toBe(true);
     clock = 5_000;
     progress.tick();
     expect(seen).toBeGreaterThan(1);
@@ -2445,7 +2445,7 @@ describe("expeditions through the save", () => {
       sessionStorage: storage,
       now: () => clock,
     });
-    expect(progress.getSnapshot().mountain.engineers[0]?.post).toBe("tunnel");
+    expect(onTrip(progress.getSnapshot().mountain, "Ada")).toBe(true);
     clock = -60 * 60_000;
     progress.tick();
     progress.flush();

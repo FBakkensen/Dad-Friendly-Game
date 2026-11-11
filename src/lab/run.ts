@@ -1,6 +1,7 @@
 import { applyAction, buyEveryBoost, type Action } from "../economy/actions";
 import { QUICK_VEIN_AWAY_MS, startRush } from "../gold-rush";
 import {
+  onTrip,
   promote,
   promoteCost,
   tendBestTier,
@@ -297,7 +298,11 @@ function sendExplorers(
   }
   let next = mountain;
   for (const [index, engineer] of mountain.engineers.entries()) {
-    if (keepsPost(engineer.post) || engineer.rank < spec.minRank) {
+    if (
+      onTrip(mountain, engineer.name) ||
+      keepsPost(engineer.post) ||
+      engineer.rank < spec.minRank
+    ) {
       continue;
     }
     if (
@@ -314,7 +319,6 @@ function sendExplorers(
 /** Tending and travelling engineers stay. Camp is free to walk. */
 function keepsPost(post: EngineerPost): boolean {
   return (
-    post === "tunnel" ||
     post === "cart" ||
     post === "drill" ||
     post === "borer" ||

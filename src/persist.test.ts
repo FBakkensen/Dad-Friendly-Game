@@ -50,7 +50,7 @@ describe("serializeSave and parseSaveValue", () => {
       staffed: 2,
       legacy: 2,
       engineers: [
-        { name: "Ada", rank: 1, trips: 3, post: "tunnel" },
+        { name: "Ada", rank: 1, trips: 3, post: "borer" },
       ] satisfies Engineer[],
       expeditions: [
         {
@@ -58,7 +58,6 @@ describe("serializeSave and parseSaveValue", () => {
           tunnel: "old-shaft",
           sentAt: 10,
           returnsAt: 10 + 60 * 60_000,
-          home: "borer",
           find: { kind: "keepsake", id: "whistle" },
         },
       ],
@@ -150,7 +149,7 @@ describe("serializeSave and parseSaveValue", () => {
           name: "Ada" as const,
           rank: 0 as const,
           trips: 0,
-          post: "tunnel" as const,
+          post: "camp" as const,
         },
       ],
       expeditions: [
@@ -159,13 +158,22 @@ describe("serializeSave and parseSaveValue", () => {
           tunnel: "side-seam" as const,
           sentAt: 4,
           returnsAt: 4 + 10 * 60_000,
-          home: "camp" as const,
           find: { kind: "glimmer" as const, id: "lantern" as const },
         },
       ],
       finds: ["boots" as const, "ribbon" as const],
     };
     const saved = serializeSave({ mountain, lastSeen: 4 });
+    // Away is written as before: the tunnel post, and the post left as home.
+    expect(saved.mountain.engineers?.[0]?.post).toBe("tunnel");
+    expect(saved.mountain.expeditions?.[0]).toEqual({
+      engineer: "Ada",
+      tunnel: "side-seam",
+      sentAt: 4,
+      returnsAt: 4 + 10 * 60_000,
+      home: "camp",
+      find: { kind: "glimmer", id: "lantern" },
+    });
     expect(parseSaveValue(JSON.parse(JSON.stringify(saved)))?.mountain).toEqual(
       mountain,
     );

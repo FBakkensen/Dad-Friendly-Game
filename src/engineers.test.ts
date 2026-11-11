@@ -28,6 +28,7 @@ import {
   accrue,
   accrueAway,
   createMountain,
+  type Mountain,
 } from "./mountain";
 import { parseMountain } from "./save-format";
 import { parseSaveValue, serializeSave } from "./persist";
@@ -47,6 +48,24 @@ const crew = (
   borers: 1,
   engineers,
 });
+
+/** Ada away in the side seam: she keeps her post and tends nothing. */
+function outOn(mountain: Mountain): Mountain {
+  const crew = mountain.engineers.length > 0 ? mountain.engineers : [ada];
+  return {
+    ...mountain,
+    engineers: crew,
+    expeditions: [
+      {
+        engineer: "Ada",
+        tunnel: "side-seam",
+        sentAt: 0,
+        returnsAt: 60_000,
+        find: { kind: "quiet" },
+      },
+    ],
+  };
+}
 
 describe("ranks", () => {
   it("stays apprentice until 3 trips, journeyman until 9, then master", () => {
@@ -246,15 +265,7 @@ describe("Great Machine crew", () => {
     expect(effectiveRates(tended).running.machine).toBe(0);
     expect(staffForBuy(tended, machine)).toBe(5);
     expect(staffForBuy(createMountain(), machine)).toBe(10);
-    expect(
-      staffForBuy(
-        {
-          ...createMountain(),
-          engineers: [{ ...ada, post: "tunnel" }],
-        },
-        machine,
-      ),
-    ).toBe(10);
+    expect(staffForBuy(outOn(createMountain()), machine)).toBe(10);
     expect(staffForBuy(posted, tierById("cart"))).toBe(1);
   });
 
@@ -271,10 +282,7 @@ describe("Great Machine crew", () => {
     expect(tendBestTier(already)).toBe(already);
     const waiting = { ...fresh, engineers: [ada] };
     expect(tendBestTier(waiting)).toBe(waiting);
-    const away = {
-      ...withMachine,
-      engineers: [{ ...ada, post: "tunnel" as const }],
-    };
+    const away = outOn({ ...withMachine, engineers: [ada] });
     expect(tendBestTier(away)).toBe(away);
   });
 });
@@ -329,10 +337,7 @@ describe("tending", () => {
         .mined,
     ).toBe(apprentice.crewPerSecond);
 
-    const tunnel = effectiveRates({
-      ...base,
-      engineers: [{ ...ada, post: "tunnel" }],
-    });
+    const tunnel = effectiveRates(outOn({ ...base, engineers: [ada] }));
     expect(tunnel.crewPerSecond).toBe(plain.crewPerSecond);
     expect(tendingTenths(base, "borer")).toBe(0);
     expect(tendingTenths({ ...base, engineers: [ada] }, "helper")).toBe(0);

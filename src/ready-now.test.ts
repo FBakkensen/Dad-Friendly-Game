@@ -275,7 +275,16 @@ describe("readyNow", () => {
     const away = readyNow(
       mountainWith({
         ...onSale,
-        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "machine" }],
+        expeditions: [
+          {
+            engineer: "Ada",
+            tunnel: "side-seam",
+            sentAt: NOW,
+            returnsAt: NOW + 60_000,
+            find: { kind: "quiet" },
+          },
+        ],
       }),
       NOW,
     );

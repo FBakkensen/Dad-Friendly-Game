@@ -1,5 +1,7 @@
 import { activeFactors, factor } from "./economy/factors";
 import {
+  atHome,
+  onTrip,
   promote,
   staffNeeded,
   station,
@@ -322,11 +324,10 @@ function addExtraPosts(
 ): void {
   const plainTotal = outputOf(plain, running);
   const seen = new Set<TierId>();
-  for (const engineer of mountain.engineers) {
+  for (const engineer of atHome(mountain)) {
     const post = engineer.post;
     if (
       post === "camp" ||
-      post === "tunnel" ||
       post === primaryPost ||
       seen.has(post) ||
       running[post] <= 0
@@ -386,8 +387,8 @@ function primaryTender(
         readonly plain: number;
       }
     | undefined;
-  for (const engineer of mountain.engineers) {
-    if (engineer.post === "camp" || engineer.post === "tunnel") {
+  for (const engineer of atHome(mountain)) {
+    if (engineer.post === "camp") {
       continue;
     }
     const post = engineer.post;
@@ -406,8 +407,8 @@ function primaryTender(
   return best === undefined ? undefined : { post: best.post, rank: best.rank };
 }
 
-/** A machine post. Camp and a tunnel tend nothing. */
-export type TendTier = Exclude<EngineerPost, "camp" | "tunnel">;
+/** A machine post. Camp and a trip tend nothing. */
+export type TendTier = Exclude<EngineerPost, "camp">;
 
 /**
  * Extra stones a second if this engineer tends `post`, from staffed machines
@@ -463,13 +464,14 @@ export function firstTend(
   trouble?: Trouble,
 ): { readonly index: number; readonly post: TendTier } | undefined {
   const engineers = mountain.engineers;
+  const home = atHome(mountain);
   for (const [index, engineer] of engineers.entries()) {
-    if (engineer.post === "tunnel") {
+    if (onTrip(mountain, engineer.name)) {
       continue;
     }
     const post = GUIDED_POSTS.find(
       (tier) =>
-        engineers.every((other) => other.post !== tier) &&
+        home.every((other) => other.post !== tier) &&
         moveGain(mountain, index, tier, now, trouble) >= 1,
     );
     if (post !== undefined) {
@@ -534,7 +536,7 @@ export function promotePayoff(
   const before = effectiveRates(mountain, now, trouble).crewPerSecond;
   // The new hand waits at camp, so the posts taken are the old crew's.
   for (const post of GUIDED_POSTS) {
-    if (mountain.engineers.some((other) => other.post === post)) {
+    if (atHome(mountain).some((other) => other.post === post)) {
       continue;
     }
     const gain =

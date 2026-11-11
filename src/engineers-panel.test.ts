@@ -4,7 +4,7 @@ import { createMemoryAuth } from "./auth";
 import { CHEER_MS, DRAWER_SETTLE_MS } from "./board-drawer";
 import { READY_HOLD_MS } from "./board-interaction";
 import { type CloudSave } from "./cloud-save";
-import { promoteCost } from "./engineers";
+import { onTrip, promoteCost } from "./engineers";
 import { send } from "./expeditions";
 import { formatCompact } from "./format";
 import { type Mountain } from "./mountain";
@@ -408,14 +408,9 @@ describe("the Engineers drawer (#455)", () => {
 
   it("calls an engineer home from a tunnel", () => {
     const storage = createMemoryStorage();
-    const screen = mount(
-      withAda({
-        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
-      }),
-      { storage },
-    );
+    const screen = mount(send(withAda(), 0, "old-shaft", CLOCK), { storage });
     screen.openEngineer("Ada");
-    expect(kick(screen)).toBe("Ada is out exploring.");
+    expect(kick(screen)).toMatch(/^Ada /);
     part(screen, ".engineer-recall").click();
     const ask = screen.engineersPage();
     expect(ask?.classList).toContain("engineer-recall-page");
@@ -430,14 +425,14 @@ describe("the Engineers drawer (#455)", () => {
     // Keep exploring goes back to her page and calls nobody.
     part(screen, ".recall-no").click();
     expect(screen.engineersPage()?.classList).toContain("engineer-page");
-    expect(saved(screen).engineers[0]?.post).toBe("tunnel");
+    expect(onTrip(saved(screen), "Ada")).toBe(true);
     part(screen, ".engineer-recall").click();
     part(screen, ".recall-yes").click();
     expect(kick(screen)).toBe("Ada is home, empty-handed.");
     expect(screen.engineersPage()?.classList).toContain("engineer-page");
-    expect(readSessionSave({ storage })?.mountain.engineers[0]?.post).toBe(
-      "camp",
-    );
+    const home = readSessionSave({ storage })?.mountain;
+    expect(home?.engineers[0]?.post).toBe("borer");
+    expect(home?.expeditions).toEqual([]);
   });
 
   it("a recall that lands after she came home cheers nothing", () => {

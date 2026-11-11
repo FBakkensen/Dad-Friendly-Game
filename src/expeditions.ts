@@ -2,8 +2,9 @@ import {
   ENGINEER_NAMES,
   MAX_ENGINEERS,
   addTrip,
-  station,
+  onTrip,
   type Engineer,
+  type DutyEngineer,
 } from "./engineers";
 import { LOST_TOOLS, expeditionAwayMs, type LostToolId } from "./lost-tools";
 import type { Mountain } from "./mountain";
@@ -88,14 +89,17 @@ export type StoredFind =
   | { readonly kind: "recipe"; readonly id: ExpeditionRecipeId }
   | { readonly kind: "quiet" };
 
+/** A trip out. The engineer's own post is where they come back to. */
 export type Expedition = {
   readonly engineer: EngineerName;
   readonly tunnel: TunnelId;
   readonly sentAt: number;
   readonly returnsAt: number;
-  readonly home: HomePost;
   readonly find: StoredFind;
 };
+
+/** A trip as the save holds it: with the post the engineer left. */
+export type SavedExpedition = Expedition & { readonly home: HomePost };
 
 export type SettledFind =
   | { readonly kind: "glimmer"; readonly relic: RelicId; readonly text: string }
@@ -186,7 +190,6 @@ export function send(
   if (
     hand === undefined ||
     spec === undefined ||
-    hand.post === "tunnel" ||
     hand.rank < spec.minRank ||
     !Number.isSafeInteger(now) ||
     !Number.isSafeInteger(now + expeditionAwayMs(spec.awayMs, mountain)) ||
@@ -200,14 +203,9 @@ export function send(
     tunnel,
     sentAt: now,
     returnsAt: now + expeditionAwayMs(spec.awayMs, mountain),
-    home: hand.post,
     find: decideFind(mountain, engineers, tunnel, now),
   };
-  const stationed = station(mountain, engineer, "tunnel");
-  return {
-    ...stationed,
-    expeditions: [...stationed.expeditions, trip],
-  };
+  return { ...mountain, expeditions: [...mountain.expeditions, trip] };
 }
 
 /** Back at the post they left. No find, no trip, no cost. */
@@ -217,18 +215,13 @@ export function recall(mountain: Mountain, engineer: number): Mountain {
     return mountain;
   }
   const trips = mountain.expeditions;
-  const trip = trips.find((candidate) => candidate.engineer === hand.name);
-  if (trip === undefined) {
-    // A tunnel post with no trip has no home post to restore: back to camp (#409).
-    return hand.post === "tunnel"
-      ? station(mountain, engineer, "camp")
-      : mountain;
+  if (!onTrip(mountain, hand.name)) {
+    return mountain;
   }
-  const stationed = station(mountain, engineer, trip.home);
   const remaining = trips.filter(
     (candidate) => candidate.engineer !== hand.name,
   );
-  return withoutTrips(stationed, remaining);
+  return withoutTrips(mountain, remaining);
 }
 
 /**
@@ -310,12 +303,12 @@ export function completeDue(
 /** Untrusted save data. The leader has to be in the tunnel, and the deep dark needs a Journeyman. */
 export function parseExpeditions(
   value: unknown,
-  engineers: readonly Engineer[] | undefined,
-): readonly Expedition[] | undefined {
+  engineers: readonly DutyEngineer[] | undefined,
+): readonly SavedExpedition[] | undefined {
   if (!Array.isArray(value) || value.length > MAX_EXPEDITIONS) {
     return undefined;
   }
-  const parsed: Expedition[] = [];
+  const parsed: SavedExpedition[] = [];
   const seen = new Set<string>();
   for (const item of value) {
     const trip = parseExpedition(item, engineers);
@@ -544,8 +537,8 @@ function bringHome(
   if (index < 0) {
     return { mountain, settled: { kind: "quiet", text: QUIET_TEXT } };
   }
-  const stationed = station(addTrip(mountain, index), index, trip.home);
-  return applyFind(stationed, stationed.engineers, trip.find);
+  const back = addTrip(mountain, index);
+  return applyFind(back, back.engineers, trip.find);
 }
 
 function applyFind(
@@ -624,8 +617,8 @@ function withoutTrips(
 
 function parseExpedition(
   value: unknown,
-  engineers: readonly Engineer[] | undefined,
-): Expedition | undefined {
+  engineers: readonly DutyEngineer[] | undefined,
+): SavedExpedition | undefined {
   if (engineers === undefined) {
     return undefined;
   }

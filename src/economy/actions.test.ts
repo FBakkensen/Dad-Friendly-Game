@@ -467,20 +467,6 @@ describe("listActions", () => {
     ).toBe(false);
   });
 
-  it("repairs a tunnel post that has no expedition, and does not send them", () => {
-    const stuck: Mountain = {
-      ...rich,
-      engineers: [{ ...ada, post: "tunnel" }],
-    };
-    const offers = listActions(stuck, NOW);
-    expect(offers.some((action) => action.kind === "station")).toBe(true);
-    expect(
-      offers.some(
-        (action) => action.kind === "send" || action.kind === "recall",
-      ),
-    ).toBe(false);
-  });
-
   it("adds the fix only while trouble is passed in", () => {
     expect(
       listActions(rich, NOW).some((action) => action.kind === "fixTrouble"),
@@ -1574,16 +1560,6 @@ describe("applyMove (#409)", () => {
     expect(
       eventsOf(travelling, { kind: "station", index: 0, post: "borer" }),
     ).toEqual([{ kind: "recalled", name: "Ada", tunnel: "old-shaft" }]);
-  });
-
-  it("stations a tunnel post with no trip back at camp", () => {
-    const stranded: Mountain = {
-      ...rich,
-      engineers: [{ ...ada, post: "tunnel" }],
-    };
-    expect(eventsOf(stranded, { kind: "recall", index: 0 })).toEqual([
-      { kind: "stationed", name: "Ada", post: "camp" },
-    ]);
   });
 
   it("says what a vein tap gave, and nothing for a dig, a seen mark or a cancelled craft", () => {

@@ -277,7 +277,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
       name,
       rank: index === 0 ? 0 : 1,
       trips: index === 0 ? 0 : 3,
-      post: "tunnel",
+      post: "camp",
     }));
     const expeditions: Expedition[] = engineers.map((engineer, index) => ({
       engineer: engineer.name,
@@ -285,7 +285,6 @@ describe("firestore.rules: every save the game writes is accepted", () => {
         index === 2 ? "deep-dark" : index % 2 === 0 ? "side-seam" : "old-shaft",
       sentAt: 1_000 + index,
       returnsAt: 1_000 + index + (index === 2 ? 4 * 60 * 60_000 : 60_000),
-      home: "camp",
       find:
         index === 0
           ? { kind: "keepsake", id: "drawing" }
@@ -314,7 +313,7 @@ describe("firestore.rules: every save the game writes is accepted", () => {
           name: "Ada" as const,
           rank: 1 as const,
           trips: 3,
-          post: "tunnel" as const,
+          post: "borer" as const,
         },
       ],
       expeditions: [
@@ -323,7 +322,6 @@ describe("firestore.rules: every save the game writes is accepted", () => {
           tunnel: "deep-dark" as const,
           sentAt: 2,
           returnsAt: 2 + 4 * 60 * 60_000,
-          home: "borer" as const,
           find: { kind: "engineer" as const, id: "Nils" as const },
         },
       ],
@@ -670,7 +668,7 @@ function maximalMountain(): Mountain {
     name,
     rank: index === 0 ? 0 : 1,
     trips: index === 0 ? 0 : 3,
-    post: "tunnel",
+    post: "camp",
   }));
   const expeditions: Expedition[] = engineers.map((engineer, index) => ({
     engineer: engineer.name,
@@ -678,7 +676,6 @@ function maximalMountain(): Mountain {
       index === 2 ? "deep-dark" : index % 2 === 0 ? "side-seam" : "old-shaft",
     sentAt: 1_000 + index,
     returnsAt: 1_000 + index + (index === 2 ? MAX_EXPEDITION_MS : 60_000),
-    home: "camp",
     find:
       index === 0
         ? { kind: "keepsake", id: "drawing" }

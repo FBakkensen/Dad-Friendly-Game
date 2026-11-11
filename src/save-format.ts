@@ -5,12 +5,18 @@
  * have. `toSaved` drops those defaults; the readers fill them back in.
  */
 import { NO_BOOSTS, parseBoosts, type BoostId } from "./boosts";
-import { parseEngineers, type Engineer } from "./engineers";
+import {
+  onDuty,
+  parseEngineers,
+  type DutyEngineer,
+  type Engineer,
+} from "./engineers";
 import {
   parseExpeditions,
   parseFinds,
   type Expedition,
   type FindId,
+  type SavedExpedition,
 } from "./expeditions";
 import type { Materials } from "./layers";
 import {
@@ -56,8 +62,10 @@ export type SavedMountain = {
   readonly startedAt?: number;
   readonly staffed?: StaffedMark;
   readonly legacy?: number;
-  readonly engineers?: readonly Engineer[];
-  readonly expeditions?: readonly Expedition[];
+  /** An engineer away on a trip is saved at post "tunnel". */
+  readonly engineers?: readonly DutyEngineer[];
+  /** Each trip keeps the post its engineer left, as `home`. */
+  readonly expeditions?: readonly SavedExpedition[];
   readonly finds?: readonly FindId[];
 };
 
@@ -146,14 +154,46 @@ export function savedMountain(mountain: Mountain): SavedMountain {
     ...only("startedAt", mountain.startedAt, mountain.startedAt !== 0),
     ...(mountain.staffed === 0 ? {} : { staffed: mountain.staffed }),
     ...only("legacy", mountain.legacy, mountain.legacy !== 0),
-    ...only("engineers", mountain.engineers, mountain.engineers.length > 0),
+    ...only("engineers", onDuty(mountain), mountain.engineers.length > 0),
     ...only(
       "expeditions",
-      mountain.expeditions,
+      mountain.expeditions.map((trip) => savedTrip(mountain, trip)),
       mountain.expeditions.length > 0,
     ),
     ...only("finds", mountain.finds, mountain.finds.length > 0),
   };
+}
+
+/** A trip with the post its engineer will come back to, in the saved key order. */
+function savedTrip(mountain: Mountain, trip: Expedition): SavedExpedition {
+  const hand = mountain.engineers.find((one) => one.name === trip.engineer);
+  return {
+    engineer: trip.engineer,
+    tunnel: trip.tunnel,
+    sentAt: trip.sentAt,
+    returnsAt: trip.returnsAt,
+    home: hand?.post ?? "camp",
+    find: trip.find,
+  };
+}
+
+/**
+ * The crew in memory: an engineer saved in the tunnel stands on the post
+ * their trip left, or at camp when no trip holds them (#409).
+ */
+function crewAtHome(
+  saved: readonly DutyEngineer[],
+  trips: readonly SavedExpedition[],
+): Pick<Mountain, "engineers" | "expeditions"> {
+  const engineers = saved.map((one): Engineer => {
+    if (one.post !== "tunnel") {
+      return { ...one, post: one.post };
+    }
+    const trip = trips.find((each) => each.engineer === one.name);
+    return { ...one, post: trip?.home ?? "camp" };
+  });
+  const expeditions = trips.map(({ home: _home, ...trip }): Expedition => trip);
+  return { engineers, expeditions };
 }
 
 /** The workshop map this mountain writes, with a newer build's ids put back. */
@@ -347,8 +387,7 @@ function readOwned(
     startedAt,
     staffed,
     legacy,
-    engineers,
-    expeditions,
+    ...crewAtHome(engineers, expeditions),
     finds,
   };
 }

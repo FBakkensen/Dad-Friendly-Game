@@ -23,7 +23,13 @@ import {
   type EngineerPage,
   type EngineerTeach,
 } from "./engineer-rows";
-import { MAX_ENGINEERS, promoteCost, type Engineer } from "./engineers";
+import {
+  MAX_ENGINEERS,
+  onDuty,
+  promoteCost,
+  type DutyEngineer,
+  type Engineer,
+} from "./engineers";
 import { TUNNELS, type Expedition } from "./expeditions";
 import type { Mountain } from "./mountain";
 import { firstTend, moveGain, promotePayoff, tendingGain } from "./rates";
@@ -64,7 +70,6 @@ const trip = (
   tunnel: "old-shaft",
   sentAt: NOW,
   returnsAt: NOW + 40 * MINUTE,
-  home: "borer",
   find: { kind: "quiet" },
   ...patch,
 });
@@ -72,7 +77,7 @@ const trip = (
 /** Ada out in the old shaft, as the trip save has her. */
 const adaOut = (patch: Partial<Mountain> = {}): Mountain =>
   withAda({
-    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
+    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     expeditions: [trip("Ada")],
     ...patch,
   });
@@ -84,10 +89,10 @@ const fiveCrew = (patch: Partial<Mountain> = {}): Mountain =>
       { name: "Ada", rank: 1, trips: 3, post: "borer" },
       { name: "Nils", rank: 0, trips: 0, post: "camp" },
       { name: "Ruth", rank: 2, trips: 9, post: "drill" },
-      { name: "Otto", rank: 0, trips: 0, post: "tunnel" },
+      { name: "Otto", rank: 0, trips: 0, post: "camp" },
       { name: "Mae", rank: 0, trips: 0, post: "cart" },
     ],
-    expeditions: [trip("Otto", { home: "camp" })],
+    expeditions: [trip("Otto")],
     finds: ["drawing", "watch"],
     ...patch,
   });
@@ -102,8 +107,8 @@ const ctxOf = (mountain: Mountain, ready = true): EngineerCtx => ({
 const NONE: EngineerTeach = { kind: "none" };
 
 /** The crew of the mountain, by index. */
-const crew = (mountain: Mountain, index = 0): Engineer => {
-  const found = mountain.engineers[index];
+const crew = (mountain: Mountain, index = 0): DutyEngineer => {
+  const found = onDuty(mountain)[index];
   if (found === undefined) {
     throw new Error(`no engineer ${String(index)}`);
   }
@@ -119,8 +124,7 @@ describe("the Engineers' teach (#455)", () => {
   });
 
   it("not while she is already out", () => {
-    const out = adaOut({ expeditions: [] });
-    expect(engineerTeach(ctxOf(out)).kind).not.toBe("trip");
+    expect(engineerTeach(ctxOf(adaOut())).kind).not.toBe("trip");
   });
 
   it("after a trip, the tend that firstTend names", () => {
@@ -209,16 +213,6 @@ describe("the kicks (#455)", () => {
       "Ada will be gone about an hour. She'll bring home whatever is found.",
     );
     expect(kick).not.toMatch(/\d|\?/);
-  });
-
-  it("out with no trip on the books, her page says she is out", () => {
-    expect(
-      pageKick(
-        { kind: "engineer", name: "Ada" },
-        ctxOf(adaOut({ expeditions: [] })),
-        NONE,
-      ),
-    ).toBe("Ada is out exploring.");
   });
 
   it("the tunnels page says the aside", () => {

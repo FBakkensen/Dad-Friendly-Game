@@ -5,8 +5,8 @@
  * Each is what a tab finds in localStorage on its first load.
  */
 
-import type { Engineer, EngineerName } from "../../src/engineers.ts";
-import type { Expedition } from "../../src/expeditions.ts";
+import type { DutyEngineer, EngineerName } from "../../src/engineers.ts";
+import type { SavedExpedition } from "../../src/expeditions.ts";
 import type { MountainSaveV6, MountainSaveV7 } from "../../src/persist.ts";
 import type { SavedMountain } from "../../src/save-format.ts";
 
@@ -519,7 +519,7 @@ export function effectSave(count: number): SeedV6 {
   const tripCount = full ? 5 : count >= 3 ? 1 : 0;
   const expeditions = Array.from(
     { length: tripCount },
-    (_, index): Expedition => ({
+    (_, index): SavedExpedition => ({
       engineer: names[index] as EngineerName,
       tunnel: "side-seam",
       sentAt: now - 60_000,
@@ -537,7 +537,7 @@ export function effectSave(count: number): SeedV6 {
         : {};
   const engineers = names
     .slice(0, Math.max(1, tripCount))
-    .map((name, index): Engineer => ({
+    .map((name, index): DutyEngineer => ({
       name,
       rank: 0,
       trips: 0,

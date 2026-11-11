@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { onTrip } from "./engineers";
 import { createBoardHost } from "./board-host";
 import { send } from "./expeditions";
 import { readSessionSave, writeSessionSave } from "./session-save";
@@ -121,7 +122,7 @@ describe("side tunnels (#147)", () => {
     const saved = readSessionSave({ storage })?.mountain;
     expect(saved?.expeditions[0]?.tunnel).toBe("old-shaft");
     expect(saved?.expeditions[0]?.engineer).toBe("Ada");
-    expect(saved?.engineers[0]?.post).toBe("tunnel");
+    expect(saved?.engineers[0]?.post).toBe("borer");
     // Once the cheer gives way, the kick is the trip in words; her row says where she is.
     inSheet(screen, ".engineer-list-back").click();
     expect(
@@ -155,9 +156,7 @@ describe("side tunnels (#147)", () => {
     expect(screen.engineersPage()?.classList.contains("engineer-page")).toBe(
       true,
     );
-    expect(screen.progress.getSnapshot().mountain.engineers[0]?.post).toBe(
-      "tunnel",
-    );
+    expect(onTrip(screen.progress.getSnapshot().mountain, "Ada")).toBe(true);
 
     // Escape closes the whole drawer, and the trip goes on.
     inSheet(screen, ".engineer-recall").click();

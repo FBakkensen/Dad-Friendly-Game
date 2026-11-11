@@ -1,6 +1,8 @@
 import {
   JOURNEYMAN_TRIPS,
   MASTER_TRIPS,
+  type Duty,
+  type DutyEngineer,
   type Engineer,
   type EngineerPost,
   type EngineerRank,
@@ -416,7 +418,7 @@ export const TEND_POSTS = [
   "borer",
   "machine",
   "camp",
-] as const satisfies readonly Exclude<EngineerPost, "tunnel">[];
+] as const satisfies readonly EngineerPost[];
 
 export type TendPost = (typeof TEND_POSTS)[number];
 
@@ -555,7 +557,7 @@ export function stonesPerSecond(gain: number): string {
  * The open card's one sentence. A tended machine names the live gain.
  * Camp and a tunnel tend nothing.
  */
-export function dutySentence(engineer: Engineer, gain?: string): string {
+export function dutySentence(engineer: DutyEngineer, gain?: string): string {
   const { name, post } = engineer;
   const { object } = voice(name);
   const pace = gain ?? stonesPerSecond(0);
@@ -577,7 +579,7 @@ export function dutySentence(engineer: Engineer, gain?: string): string {
 
 /** One line on a collapsed card. The countdown uses the same words as the chip. */
 export function dutyLine(
-  engineer: Engineer,
+  engineer: DutyEngineer,
   trip?: { readonly tunnel: TunnelId; readonly leftMs: number },
 ): string {
   switch (engineer.post) {
@@ -694,10 +696,7 @@ export const exploreTitle = (tunnel: TunnelId): string => TUNNEL_TITLE[tunnel];
 export const exploreBenefit = (tunnel: TunnelId): string =>
   TUNNEL_BENEFIT[tunnel];
 
-export function exploreAside(
-  name: Engineer["name"],
-  post: Engineer["post"],
-): string {
+export function exploreAside(name: Engineer["name"], post: Duty): string {
   const { subject, possessive, object } = voice(name);
   if (post === "camp" || post === "tunnel") {
     return `No machine slows while ${subject} explores.`;
@@ -728,13 +727,13 @@ export function promoteCheer(name: string): string {
   return `${name} steps up. The crew cheers.`;
 }
 
-/** Best-ranked engineer posted on this tier, if someone is. */
+/** Best-ranked engineer posted on this tier, if someone is. Pass the crew at home. */
 export const tendingEngineer = (
-  engineers: readonly Engineer[] | undefined,
+  engineers: readonly Engineer[],
   tierId: TierId,
 ): Engineer | undefined => {
   let best: Engineer | undefined;
-  for (const engineer of engineers ?? []) {
+  for (const engineer of engineers) {
     if (engineer.post !== tierId) {
       continue;
     }

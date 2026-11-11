@@ -11,6 +11,7 @@ import {
   ENGINEER_POSTS,
   MAX_ENGINEERS,
   promote,
+  onTrip,
   promoteCost,
   staffForBuy,
   staffNeeded,
@@ -227,7 +228,7 @@ function handActions(
     canSend(mountain, hand, spec, now),
   ).map((spec) => ({ kind: "send", index, tunnel: spec.id }));
   const posts: Action[] = ENGINEER_POSTS.filter(
-    (post) => post !== "tunnel" && post !== hand.post,
+    (post) => post !== hand.post,
   ).map((post) => ({ kind: "station", index, post }));
   return [...sends, ...posts];
 }
@@ -526,7 +527,7 @@ function boostEnd(mountain: Mountain, id: BoostId): number {
 
 /**
  * Who left a trip and where they stand now, for `recall` and `station` on one engineer.
- * A trip ends with `recalled`; a post other than the one they left, and not the tunnel,
+ * A trip ends with `recalled`; a post other than the one they left
  * adds `stationed`. The rule the field log keeps (#413).
  */
 function crewEvents(
@@ -543,7 +544,7 @@ function crewEvents(
   if (trip !== undefined) {
     events.push({ kind: "recalled", name: hand.name, tunnel: trip.tunnel });
   }
-  if (landed.post !== (trip?.home ?? hand.post) && landed.post !== "tunnel") {
+  if (landed.post !== hand.post) {
     events.push({ kind: "stationed", name: hand.name, post: landed.post });
   }
   return events;
@@ -1018,7 +1019,7 @@ function bestPost(
   let best = mountain;
   let bestRate = incomePerSecond(mountain, context);
   for (const post of ENGINEER_POSTS) {
-    if (post === "camp" || post === "tunnel") {
+    if (post === "camp") {
       continue;
     }
     const stationed = station(mountain, index, post);
@@ -1540,10 +1541,6 @@ function payback(
   return afford + cost / gain;
 }
 
-function onTrip(mountain: Mountain, name: string): boolean {
-  return mountain.expeditions.some((trip) => trip.engineer === name);
-}
-
 function canSend(
   mountain: Mountain,
   hand: Engineer,
@@ -1553,7 +1550,7 @@ function canSend(
   // `send` also refuses a full expedition list. Someone still at home
   // usually means there is room; the length check covers a bad save.
   return (
-    hand.post !== "tunnel" &&
+    !onTrip(mountain, hand.name) &&
     hand.rank >= spec.minRank &&
     Number.isSafeInteger(now) &&
     Number.isSafeInteger(now + expeditionAwayMs(spec.awayMs, mountain)) &&

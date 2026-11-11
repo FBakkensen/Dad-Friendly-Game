@@ -2600,14 +2600,13 @@ describe("quick boosts on screen", () => {
           name,
           rank: 0 as const,
           trips: 0,
-          post: "tunnel" as const,
+          post: "camp" as const,
         })),
         expeditions: names.map((name, index) => ({
           engineer: name,
           tunnel: "side-seam" as const,
           sentAt: now - 60_000,
           returnsAt: now + (40 + index) * 60_000,
-          home: "camp" as const,
           find: { kind: "quiet" as const },
         })),
         bench: {

@@ -1,6 +1,7 @@
 import { stretch } from "../scale";
 import { BOOSTS } from "../boosts";
 import { tierLocked } from "../crew";
+import { atHome } from "../engineers";
 import { LAYERS, type MaterialId } from "../layers";
 import type { Mountain } from "../mountain";
 import { owned, tierShown, TIERS } from "../tiers";
@@ -136,9 +137,7 @@ const WATCHES: readonly Watch[] = [
     id: "system:tending",
     shown: (mountain: Mountain) => mountain.engineers.length > 0,
     used: (mountain: Mountain) =>
-      mountain.engineers.some(
-        (engineer) => engineer.post !== "camp" && engineer.post !== "tunnel",
-      ),
+      atHome(mountain).some((engineer) => engineer.post !== "camp"),
   },
   {
     id: "system:promote",

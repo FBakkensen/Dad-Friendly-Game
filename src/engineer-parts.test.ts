@@ -25,7 +25,7 @@ import {
   type EngineerCtx,
   type EngineerTeach,
 } from "./engineer-rows";
-import type { Engineer } from "./engineers";
+import { onDuty, type DutyEngineer, type Engineer } from "./engineers";
 import { TUNNELS, type Expedition } from "./expeditions";
 import type { Mountain } from "./mountain";
 import { TEND_POSTS } from "./screen-words";
@@ -86,7 +86,6 @@ const trip = (
   tunnel: "old-shaft",
   sentAt: NOW,
   returnsAt: NOW + 40 * MINUTE,
-  home: "borer",
   find: { kind: "quiet" },
   ...patch,
 });
@@ -104,7 +103,7 @@ const withAda = (patch: Partial<Mountain> = {}): Mountain => ({
 
 const adaOut = (): Mountain =>
   withAda({
-    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
+    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     expeditions: [trip("Ada")],
   });
 
@@ -114,10 +113,10 @@ const fiveCrew = (): Mountain =>
       { name: "Ada", rank: 1, trips: 3, post: "borer" },
       { name: "Nils", rank: 0, trips: 0, post: "camp" },
       { name: "Ruth", rank: 2, trips: 9, post: "drill" },
-      { name: "Otto", rank: 0, trips: 0, post: "tunnel" },
+      { name: "Otto", rank: 0, trips: 0, post: "camp" },
       { name: "Mae", rank: 0, trips: 0, post: "cart" },
     ],
-    expeditions: [trip("Otto", { home: "camp" })],
+    expeditions: [trip("Otto")],
     finds: ["drawing", "watch"],
   });
 
@@ -131,15 +130,15 @@ const ctxOf = (mountain: Mountain): EngineerCtx => ({
 const NONE: EngineerTeach = { kind: "none" };
 const TRIP: EngineerTeach = { kind: "trip", name: "Ada" };
 
-const crewOf = (mountain: Mountain): readonly Engineer[] =>
-  mountain.engineers ?? [];
+const crewOf = (mountain: Mountain): readonly DutyEngineer[] =>
+  onDuty(mountain);
 
 const rowViews = (mountain: Mountain, teach: EngineerTeach = NONE) =>
   crewOf(mountain).map((engineer) =>
     engineerRowView(engineer, ctxOf(mountain), teach),
   );
 
-const ada = (mountain: Mountain): Engineer => {
+const ada = (mountain: Mountain): DutyEngineer => {
   const found = crewOf(mountain)[0];
   if (found === undefined) {
     throw new Error("no Ada");
@@ -740,7 +739,7 @@ describe("the expedition chips (#455)", () => {
     expect(host.querySelectorAll(".expedition-chip")).toHaveLength(5);
     chips.paint(
       withAda({
-        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
         expeditions: [trip("Ada", { returnsAt: NOW + 60 * MINUTE })],
       }),
       NOW,

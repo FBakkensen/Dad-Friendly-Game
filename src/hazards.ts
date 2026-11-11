@@ -1,4 +1,5 @@
 import { wearsSteelToes } from "./lost-tools";
+import { atHome } from "./engineers";
 import type { Mountain } from "./mountain";
 import { troubleGapScale } from "./workshop";
 
@@ -150,7 +151,7 @@ export function engineerFixDelay(
   tier: TroubleTier,
 ): number | undefined {
   let best: number | undefined;
-  for (const engineer of mountain.engineers) {
+  for (const engineer of atHome(mountain)) {
     if (engineer.post !== tier) {
       continue;
     }

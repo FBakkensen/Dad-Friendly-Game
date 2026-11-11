@@ -72,7 +72,6 @@ function trip(engineer: "Ada" | "Nils", returnsAt: number): Expedition {
     tunnel: "side-seam",
     sentAt: NOW - MINUTE,
     returnsAt,
-    home: "borer",
     find: { kind: "quiet" },
   };
 }

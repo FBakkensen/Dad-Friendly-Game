@@ -116,7 +116,6 @@ describe("snapshot", () => {
           tunnel: "old-shaft",
           sentAt: AT,
           returnsAt: AT + 60_000,
-          home: "borer",
           find: { kind: "quiet" },
         },
       ],
@@ -147,7 +146,8 @@ describe("snapshot", () => {
       { id: "sharper", endsAt: new Date(AT + 60_000).toISOString() },
     ]);
     expect(shot.legacy).toBe(3);
-    expect(shot.engineers).toEqual([{ name: "Ada", rank: 1, post: "borer" }]);
+    // Away on the trip below, so the log reads the saved post.
+    expect(shot.engineers).toEqual([{ name: "Ada", rank: 1, post: "tunnel" }]);
     expect(shot.expeditions).toEqual([
       {
         engineer: "Ada",

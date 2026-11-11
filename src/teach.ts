@@ -1,4 +1,5 @@
 import type { Mountain } from "./mountain";
+import { atHome } from "./engineers";
 import { BOOSTS } from "./boosts";
 import { firstIdleTier, firstTend, promotePayoff } from "./rates";
 import {
@@ -69,7 +70,7 @@ const TEACH_SPECS: readonly TeachSpec[] = [
     unlocked: (mountain) =>
       isTaught(mountain, "engineers") && firstTend(mountain) !== undefined,
     used: (mountain) =>
-      mountain.engineers.some(
+      atHome(mountain).some(
         (engineer) =>
           engineer.post === "cart" ||
           engineer.post === "drill" ||

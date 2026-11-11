@@ -11,10 +11,15 @@ import {
   recall,
   type TunnelId,
 } from "./expeditions";
-import { ENGINEER_NAMES, type Engineer } from "./engineers";
+import {
+  ENGINEER_NAMES,
+  onTrip,
+  type DutyEngineer,
+  type Engineer,
+} from "./engineers";
 import { knownRecipeIds } from "./economy/actions";
 import { accrueAway, createMountain } from "./mountain";
-import { parseMountain } from "./save-format";
+import { parseMountain, savedMountain } from "./save-format";
 import { parseSaveValue, serializeSave } from "./persist";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { RELICS } from "./relics";
@@ -67,7 +72,8 @@ describe("send and recall", () => {
   it("moves the engineer into the tunnel and remembers the post they left", () => {
     const before = crew();
     const sent = send(before, 0, "side-seam", 5_000);
-    expect(sent.engineers[0]).toMatchObject({ post: "tunnel", trips: 0 });
+    expect(sent.engineers[0]).toMatchObject({ post: "borer", trips: 0 });
+    expect(onTrip(sent, "Ada")).toBe(true);
     expect(sent.pocket).toBe(before.pocket);
     expect(sent.helpers).toBe(before.helpers);
     expect(sent.expeditions).toEqual([
@@ -76,7 +82,6 @@ describe("send and recall", () => {
         tunnel: "side-seam",
         sentAt: 5_000,
         returnsAt: 5_000 + SEAM,
-        home: "borer",
         find: sent.expeditions[0]?.find,
       },
     ]);
@@ -122,16 +127,18 @@ describe("send and recall", () => {
         tunnel: "side-seam" as const,
         sentAt: 0,
         returnsAt: SEAM,
-        home: "camp" as const,
         find: { kind: "quiet" as const },
       })),
     };
     expect(send(packed, 0, "side-seam", 0)).toBe(packed);
   });
 
-  it("calls a tunnel post with no expedition back to camp (#409)", () => {
-    const stuck = crew([{ ...ada, post: "tunnel" }]);
-    expect(recall(stuck, 0).engineers[0]?.post).toBe("camp");
+  it("loads a saved tunnel post with no expedition at camp (#409)", () => {
+    const saved = {
+      ...savedMountain(crew()),
+      engineers: [{ ...ada, post: "tunnel" }],
+    };
+    expect(parseMountain(saved)?.engineers[0]?.post).toBe("camp");
   });
 
   it("recalls empty-handed, back at the old post, with no trip and no find", () => {
@@ -321,7 +328,7 @@ describe("finds", () => {
           name,
           rank: index === 0 ? 1 : 0,
           trips: index === 0 ? 3 : 0,
-          post: index === 0 ? "tunnel" : "camp",
+          post: index === 0 ? "borer" : "camp",
         })),
       },
       seed + 4 * HOUR,
@@ -355,7 +362,6 @@ describe("finds", () => {
             tunnel: "deep-dark" as const,
             sentAt: 1,
             returnsAt: 1 + 4 * HOUR,
-            home: "camp" as const,
             find: { kind: "engineer" as const, id: "Mae" as const },
           },
         ],
@@ -380,7 +386,6 @@ describe("finds", () => {
             tunnel: "old-shaft" as const,
             sentAt: 1,
             returnsAt: 1 + HOUR,
-            home: "camp" as const,
             find: { kind: "tool" as const, id: "pick" as const },
           },
         ],
@@ -419,7 +424,6 @@ describe("finds", () => {
             tunnel: "side-seam" as const,
             sentAt: 11,
             returnsAt: 11 + SEAM,
-            home: "borer" as const,
             find: { kind: "tool" as const, id: "pick" as const },
           },
         ],
@@ -437,7 +441,7 @@ describe("finds", () => {
     expect(midway.finds).toHaveLength(1);
     expect(midway.mountain.expeditions).toHaveLength(1);
     expect(midway.mountain.engineers[0]?.post).toBe("borer");
-    expect(midway.mountain.engineers[1]?.post).toBe("tunnel");
+    expect(onTrip(midway.mountain, "Nils")).toBe(true);
     const both = settle(sent, HOUR);
     expect(both.finds).toHaveLength(2);
     expect(both.mountain.expeditions).toEqual([]);
@@ -527,16 +531,16 @@ describe("clock skew", () => {
     const clamped = settle(sent, 1_000);
     expect(clamped.finds).toEqual([]);
     expect(clamped.mountain.engineers[0]).toMatchObject({
-      post: "tunnel",
+      post: "borer",
       trips: 0,
     });
+    expect(onTrip(clamped.mountain, "Ada")).toBe(true);
     expect(clamped.mountain.expeditions).toEqual([
       {
         engineer: "Ada",
         tunnel: "side-seam",
         sentAt: 1_000,
         returnsAt: 1_000 + SEAM,
-        home: "borer",
         find,
       },
     ]);
@@ -552,7 +556,6 @@ describe("clock skew", () => {
             tunnel: "side-seam" as const,
             sentAt: Number.MAX_SAFE_INTEGER - 1_000,
             returnsAt: Number.MAX_SAFE_INTEGER - 1,
-            home: "borer" as const,
             find: { kind: "quiet" as const },
           },
         ],
@@ -586,20 +589,9 @@ describe("away pay", () => {
     const sent = send(send(base, 0, "side-seam", 0), 1, "old-shaft", 0);
     const adaHome = {
       ...sent,
-      engineers: [{ ...ada, post: "borer" as const }, sent.engineers[1] ?? ada],
+      expeditions: sent.expeditions.filter((trip) => trip.engineer !== "Ada"),
     };
-    const bothHome = {
-      ...adaHome,
-      engineers: [
-        adaHome.engineers[0] ?? ada,
-        {
-          name: "Nils" as const,
-          rank: 0 as const,
-          trips: 0,
-          post: "drill" as const,
-        },
-      ],
-    };
+    const bothHome = { ...sent, expeditions: [] };
     const pay = payOf();
     const away = accrueAway({ mountain: sent, lastSeen: 0, now: 2 * HOUR });
     expect(away.mined).toBe(
@@ -634,7 +626,7 @@ describe("away pay", () => {
       lastSeen: 0,
       now: 5 * 60_000,
     });
-    expect(early.mountain.engineers[0]?.post).toBe("tunnel");
+    expect(onTrip(early.mountain, "Ada")).toBe(true);
     expect(early.homecomings).toEqual([]);
     expect(early.mined).toBe(
       Math.floor(300 * effectiveRates(stillOut).crewPerSecond * pay),
@@ -659,10 +651,7 @@ describe("away pay", () => {
       lastSeen: 0,
       now: 10 * HOUR,
     });
-    const tended = {
-      ...stillOut,
-      engineers: [{ ...journeyman, post: "borer" as const }],
-    };
+    const tended = { ...stillOut, expeditions: [] };
     expect(capped.report.capped).toBe(true);
     expect(capped.mined).toBe(
       Math.floor(1.6 * 3_600 * effectiveRates(stillOut).crewPerSecond * pay) +
@@ -671,7 +660,7 @@ describe("away pay", () => {
 
     const seam = send(crew(), 0, "side-seam", 0);
     const long = accrueAway({ mountain: seam, lastSeen: 0, now: 20 * HOUR });
-    const home = { ...seam, engineers: [{ ...ada }] };
+    const home = { ...seam, expeditions: [] };
     expect(long.mined).toBe(
       Math.floor(11.6 * 3_600 * effectiveRates(home).crewPerSecond * pay),
     );
@@ -702,7 +691,7 @@ describe("away pay", () => {
       remaining: MOUNTAIN_STONES - 45_000_000,
     };
     const sent = send(hearty, 0, "side-seam", 0);
-    const home = { ...sent, engineers: [{ ...ada }] };
+    const home = { ...sent, expeditions: [] };
     const pay = payOf(1.25);
     const away = accrueAway({ mountain: sent, lastSeen: 0, now: 6 * HOUR });
     expect(away.report.heart).toBe(1.25);
@@ -716,7 +705,7 @@ describe("away pay", () => {
 });
 
 describe("parse", () => {
-  const leader: Engineer = { ...journeyman, post: "tunnel" };
+  const leader: DutyEngineer = { ...journeyman, post: "tunnel" };
   const trip = {
     engineer: "Ada" as const,
     tunnel: "deep-dark" as const,
@@ -745,7 +734,16 @@ describe("parse", () => {
         finds: ["pick", "whistle"],
       }),
     ).toMatchObject({
-      expeditions: [trip],
+      engineers: [{ ...leader, post: "borer" }],
+      expeditions: [
+        {
+          engineer: trip.engineer,
+          tunnel: trip.tunnel,
+          sentAt: trip.sentAt,
+          returnsAt: trip.returnsAt,
+          find: trip.find,
+        },
+      ],
       finds: ["pick", "whistle"],
     });
     const older = parseMountain(base);
@@ -846,7 +844,7 @@ describe("parse", () => {
     const stranger = settle(
       {
         ...sent,
-        engineers: [{ name: "Nils", rank: 0, trips: 0, post: "tunnel" }],
+        engineers: [{ name: "Nils", rank: 0, trips: 0, post: "camp" }],
       },
       SEAM,
     );

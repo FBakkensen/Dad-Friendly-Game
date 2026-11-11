@@ -541,14 +541,13 @@ describe("the key rail (#373)", () => {
       const screen = mountScreen({
         storage: seeded(
           crewed({
-            engineers: [{ name: "Ada", rank: 0, trips: 1, post: "tunnel" }],
+            engineers: [{ name: "Ada", rank: 0, trips: 1, post: "borer" }],
             expeditions: [
               {
                 engineer: "Ada",
                 tunnel: "side-seam",
                 sentAt: CLOCK - 60_000,
                 returnsAt: CLOCK + 12 * 60_000 + 3_000,
-                home: "borer",
                 find: { kind: "quiet" },
               },
             ],

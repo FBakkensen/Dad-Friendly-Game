@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { KEEPSAKES } from "./expeditions";
 import { LOST_TOOLS } from "./lost-tools";
-import { JOURNEYMAN_TRIPS, MASTER_TRIPS, type Engineer } from "./engineers";
+import {
+  JOURNEYMAN_TRIPS,
+  MASTER_TRIPS,
+  type DutyEngineer,
+  type Engineer,
+} from "./engineers";
 import { glimmerText } from "./expeditions";
 import { RELICS } from "./relics";
 import type { Mountain } from "./mountain";
@@ -143,7 +148,15 @@ import {
 } from "./screen-words";
 import { NO_BOOSTS } from "./boosts";
 
-const ada = (patch: Partial<Engineer> = {}): Engineer => ({
+const hand = (patch: Partial<Engineer> = {}): Engineer => ({
+  name: "Ada",
+  rank: 0,
+  trips: 0,
+  post: "borer",
+  ...patch,
+});
+
+const ada = (patch: Partial<DutyEngineer> = {}): DutyEngineer => ({
   name: "Ada",
   rank: 0,
   trips: 0,
@@ -330,15 +343,15 @@ describe("engineer words", () => {
   });
 
   it("picks the highest rank tending a tier", () => {
-    const nils = ada({ name: "Nils", rank: 1, trips: 3, post: "borer" });
-    const otto = ada({ name: "Otto", rank: 2, trips: 9, post: "borer" });
-    expect(tendingEngineer(undefined, "borer")).toBeUndefined();
-    expect(tendingEngineer([ada()], "cart")).toBeUndefined();
-    expect(tendingEngineer([ada(), nils], "borer")).toBe(nils);
+    const nils = hand({ name: "Nils", rank: 1, trips: 3, post: "borer" });
+    const otto = hand({ name: "Otto", rank: 2, trips: 9, post: "borer" });
+    expect(tendingEngineer([], "borer")).toBeUndefined();
+    expect(tendingEngineer([hand()], "cart")).toBeUndefined();
+    expect(tendingEngineer([hand(), nils], "borer")).toBe(nils);
     expect(tendingEngineer([nils, otto], "borer")).toBe(otto);
-    expect(tendingEngineer([ada(), ada({ name: "Mae" })], "borer")?.name).toBe(
-      "Ada",
-    );
+    expect(
+      tendingEngineer([hand(), hand({ name: "Mae" })], "borer")?.name,
+    ).toBe("Ada");
     expect(tendsNote("Ada", "borer")).toBe("Ada tends them.");
     expect(tendsNote("Ada", "machine")).toBe("Ada tends it.");
   });

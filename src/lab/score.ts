@@ -2,7 +2,7 @@ import { stretch } from "../scale";
 import type { Trouble } from "../hazards";
 import { mineByHand, type Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
-import { station } from "../engineers";
+import { onTrip, station } from "../engineers";
 import { layerOf } from "../layers";
 import { TIERS } from "../tiers";
 import {
@@ -264,7 +264,7 @@ function byValue(moves: readonly Priced[]): Summary {
 function rested(mountain: Mountain): Mountain {
   let next = mountain;
   for (const [index, engineer] of mountain.engineers.entries()) {
-    if (engineer.post !== "camp" && engineer.post !== "tunnel") {
+    if (engineer.post !== "camp" && !onTrip(mountain, engineer.name)) {
       next = station(next, index, "camp");
     }
   }

@@ -1,5 +1,11 @@
 import { oneOffStretch, stretch } from "./scale";
-import { promote, promoteCost, staffForBuy, tendBestTier } from "./engineers";
+import {
+  onTrip,
+  promote,
+  promoteCost,
+  staffForBuy,
+  tendBestTier,
+} from "./engineers";
 import {
   send,
   settle as settleExpeditions,
@@ -80,13 +86,7 @@ function sendScouts(
   const engineers = mountain.engineers;
   let next = mountain;
   for (const [index, engineer] of engineers.entries()) {
-    if (
-      engineer.post === "tunnel" ||
-      engineer.post === "cart" ||
-      engineer.post === "drill" ||
-      engineer.post === "borer" ||
-      engineer.post === "machine"
-    ) {
+    if (onTrip(mountain, engineer.name) || engineer.post !== "camp") {
       continue;
     }
     if (tunnel === "deep-dark" && engineer.rank < 1) {
