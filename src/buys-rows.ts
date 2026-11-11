@@ -29,7 +29,9 @@ import {
   owned,
   tierById,
   tierCost,
+  tierQuote,
   tierShown,
+  type BuyAmount,
   type Tier,
   type TierId,
 } from "./tiers";
@@ -54,6 +56,8 @@ export interface BuyRowView extends RowView {
   readonly icon: BuyIcon;
   /** The staffing New row: a tap hires a worker, never another machine. */
   readonly guided: boolean;
+  /** How many a tap buys, with the price for all of them (#358). */
+  readonly buying: number;
 }
 
 /** The Buys drawer's two sections, in row order. */
@@ -120,6 +124,8 @@ type BuyInput = {
   tier: TierId;
   pick: ReadyPick;
   guided: TierId | undefined;
+  /** How many a tap buys (#358). The staffing New row hires one whatever it says. */
+  amount: BuyAmount;
 };
 
 type BuyFacts = {
@@ -127,6 +133,8 @@ type BuyFacts = {
   readonly id: TierId;
   readonly tier: Tier;
   readonly count: number;
+  /** How many a tap buys now, and `price` is all of them together (#358). */
+  readonly buying: number;
   readonly price: number;
   readonly lock: TierLock | undefined;
   readonly troubled: Trouble | undefined;
@@ -154,17 +162,24 @@ function buyFacts({
   tier: id,
   pick,
   guided,
+  amount,
 }: BuyInput): BuyFacts {
   const tier = tierById(id);
   const count = owned(mountain, tier);
-  const price = tierCost(tier, count, stretch(mountain));
   const lock = tierLock(mountain, tier);
   const troubled = trouble?.tier === id ? trouble : undefined;
+  const isGuided = guided === id && troubled === undefined;
+  // The staffing New row hires one worker, whatever the amount.
+  const { count: buying, cost: price } = tierQuote(
+    mountain,
+    tier,
+    isGuided ? "one" : amount,
+  );
   const rates = effectiveRates(mountain, now, trouble);
   const { spare } = crewCounts(mountain, now, trouble);
-  // One more of this tier. The Great Machine's bill drops when an engineer
+  // What the buy needs. The Great Machine's bill drops when an engineer
   // would tend it.
-  const staff = staffForBuy(mountain, tier);
+  const staff = staffForBuy(mountain, tier) * buying;
   const bill = staffBillWords(staff, spare);
   const worker = tierById("helper");
   const pickHere = pick.kind !== "mined-out" && pick.tier === id;
@@ -173,18 +188,19 @@ function buyFacts({
     id,
     tier,
     count,
+    buying,
     price,
     lock,
     troubled,
     speed: rates.tierSpeed[id],
     idle: count - rates.running[id],
     crewEach: staffNeeded(mountain, tier),
-    isGuided: guided === id && troubled === undefined,
+    isGuided,
     workerPrice: tierCost(worker, owned(mountain, worker), stretch(mountain)),
     pickHere,
     isPick: pick.kind === "ready" && pickHere,
-    // Workers (helper, kid) are hired; machines are bought.
-    buyVerb: tier.staff === 0 ? "Hire" : "Buy",
+    // Workers (helper, kid) are hired; machines are bought. ×10 and Max say how many.
+    buyVerb: `${tier.staff === 0 ? "Hire" : "Buy"}${amount === "one" ? "" : ` ${formatCompact(buying)}`}`,
     staff,
     shortOf: lock === undefined && spare < staff ? bill : undefined,
     dear:
@@ -332,9 +348,15 @@ function buyFlag(facts: BuyFacts, tending: Tending | undefined): string[] {
     : flagWords;
 }
 
+/** "Buy a mine cart", "Buy 10 mine carts, each": what the tap buys. */
+function buyingWhat(tier: Tier, buying: number): string {
+  const name = tier.name.toLowerCase();
+  return buying === 1 ? `Buy a ${name}` : `Buy ${formatCount(buying)} ${name}s`;
+}
+
 /** The buy sentence: price, output, synergy, what you have and who is idle. */
 function buyingAria(facts: BuyFacts, synergy: number): string {
-  const { tier, price, speed, count, idle, crewEach, shortOf } = facts;
+  const { tier, buying, price, speed, count, idle, crewEach, shortOf } = facts;
   const faster =
     synergy > 0 ? `, ${percent(synergy)} faster from crew synergy` : "";
   const idleWords =
@@ -342,7 +364,8 @@ function buyingAria(facts: BuyFacts, synergy: number): string {
       ? `, ${formatCount(idle)} idle: each needs ${String(crewEach)} ${workerWords(crewEach)} to run`
       : "";
   const more = shortOf !== undefined ? `. ${NEEDS_MORE_WORKERS}` : "";
-  return `Buy a ${tier.name.toLowerCase()} for ${formatCount(price)} stones, mines ${stonesASecond(speed)}${faster}. You have ${formatCount(count)}${idleWords}${more}.`;
+  const mines = buying === 1 ? "mines" : "each mines";
+  return `${buyingWhat(tier, buying)} for ${formatCount(price)} stones, ${mines} ${stonesASecond(speed)}${faster}. You have ${formatCount(count)}${idleWords}${more}.`;
 }
 
 function buyAria(
@@ -375,13 +398,14 @@ function buyAria(
 export function buyRowView(input: BuyInput): BuyRowView {
   const { mountain, now, trouble } = input;
   const facts = buyFacts(input);
-  const { id, tier, lock, troubled, isGuided, count, speed } = facts;
+  const { id, tier, lock, troubled, isGuided, count, speed, buying } = facts;
   const tending = tendingOf(mountain, tier, now, trouble);
   return {
     tier: id,
     shown: tierShown(mountain, tier),
     icon: buyIcon(id, count, lock !== undefined),
     guided: isGuided,
+    buying,
     name: tier.name,
     badge: "",
     ...buyFace(facts),
@@ -390,7 +414,7 @@ export function buyRowView(input: BuyInput): BuyRowView {
     gain:
       lock !== undefined || troubled !== undefined
         ? ""
-        : `+${formatSpeed(speed)}/s`,
+        : `+${formatSpeed(speed * buying)}/s`,
     pick: facts.isPick,
     aria: buyAria(facts, tending, tierSynergy(mountain, id)),
   };
