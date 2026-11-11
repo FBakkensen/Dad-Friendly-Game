@@ -177,7 +177,7 @@ export function overLimit(
   }
   return [...highest]
     .filter(([, value]) => value > measure.limit)
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([id, value]) => ({ id, value }));
 }
 
@@ -243,7 +243,7 @@ export function complexityValues(
   });
 }
 
-/** The files the ratchet measures: TypeScript under src/, but no tests or test harnesses. */
+/** The files the limits measure: TypeScript under src/, but no tests or test harnesses. */
 export function isMeasured(path: string): boolean {
   return (
     path.startsWith("src/") &&

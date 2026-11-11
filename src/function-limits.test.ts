@@ -159,12 +159,14 @@ describe("overLimit", () => {
           { id: "src/a.ts#g", value: 151 },
           { id: "src/b.ts#f", value: 170 },
           { id: "src/a.ts#h", value: 20 },
+          { id: "src/c.ts#k", value: 152 },
         ],
         LINES,
       ),
     ).toEqual([
       { id: "src/a.ts#g", value: 151 },
       { id: "src/b.ts#f", value: 170 },
+      { id: "src/c.ts#k", value: 152 },
     ]);
     expect(overLimit([], LINES)).toEqual([]);
   });
