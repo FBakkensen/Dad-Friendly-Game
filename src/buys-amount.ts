@@ -26,12 +26,12 @@ const AMOUNT_WORDS: Readonly<
 };
 
 /** The amount after this one: ×1, ×10, Max, then ×1 again. */
-export function nextAmount(amount: BuyAmount): BuyAmount {
+function nextAmount(amount: BuyAmount): BuyAmount {
   return AMOUNTS[(AMOUNTS.indexOf(amount) + 1) % AMOUNTS.length] ?? "one";
 }
 
 /** "Buys ten a tap. Tap for as many as you can afford." */
-export function amountAria(amount: BuyAmount): string {
+function amountAria(amount: BuyAmount): string {
   const now = AMOUNT_WORDS[amount].spoken;
   const next = AMOUNT_WORDS[nextAmount(amount)].spoken;
   return `Buys ${now} a tap. Tap for ${next}.`;
