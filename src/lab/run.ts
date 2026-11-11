@@ -1,4 +1,10 @@
-import { applyAction, buyEveryBoost, type Action } from "../economy/actions";
+import {
+  applyAction,
+  applyMove,
+  buyEveryBoost,
+  type Action,
+} from "../economy/actions";
+import { QUICK_VEIN_AWAY_MS } from "../gold-rush";
 import {
   promote,
   promoteCost,
@@ -194,6 +200,24 @@ function tendsAfter(params: Policy["params"], action: Action): boolean {
   );
 }
 
+/**
+ * A dad who is there sees the quick vein and taps it: it pays the vein and
+ * starts the Gold rush, through the same move the screen makes (#468).
+ */
+export function tapQuickVein(world: World): World {
+  const trouble =
+    world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
+  const tapped = applyMove(
+    world.mountain,
+    { kind: "tapQuickVein" },
+    world.clock,
+    { trouble },
+  );
+  return tapped.kind === "applied"
+    ? { ...world, mountain: tapped.mountain }
+    : world;
+}
+
 function playSecond(
   world: World,
   policy: Policy,
@@ -267,7 +291,9 @@ function playGap(
     );
     world = { ...world, mountain };
   }
-  return step(world, gap, "away");
+  const back = step(world, gap, "away");
+  // He opens after an hour away and taps the quick vein (#468).
+  return gap >= QUICK_VEIN_AWAY_MS ? tapQuickVein(back) : back;
 }
 
 function sendExplorers(
