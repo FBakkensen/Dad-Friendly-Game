@@ -107,3 +107,11 @@ export function etaShort(ms: number): string {
   }
   return `${String(hours)}h ${String(minutes % 60)}m`;
 }
+
+/** "22:13": the 24-hour clock in local time, to the minute (rounded down). */
+export function formatTimeOfDay(ms: number): string {
+  const at = new Date(ms);
+  const hours = String(at.getHours()).padStart(2, "0");
+  const minutes = String(at.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}

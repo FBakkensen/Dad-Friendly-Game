@@ -61,8 +61,10 @@ const STATE_CLASS: Readonly<Record<RowState, string>> = {
   found: "is-found",
 };
 const DONE = "Done";
-/** One art px is 2 CSS px: the icon is 32 art px square. */
-const ICON_PX = "64";
+/** An icon's CSS px: 32 art px (a machine), 24 (a relic) or 16 (a small icon), at 2 px each. */
+type IconPx = 32 | 48 | 64;
+/** The row bar's length in art px: the row's middle and right columns (board.css). */
+const BAR_ART = 156;
 
 /** Text that hides its box when empty. */
 function line(target: HTMLElement, text: string): void {
@@ -94,16 +96,18 @@ interface RowOptions {
   data: Readonly<Record<string, string>>;
   name: string;
   icon: boolean;
+  /** The icon's CSS px, centred in the 64 column; 64 when left out. */
+  iconPx?: IconPx;
   /** How a line is measured; undefined is board-dom's `fitsWidth`. */
   fits?: (box: HTMLElement) => boolean;
 }
 
 /** The icon, hidden until its art is set. */
-function rowIcon(): HTMLImageElement {
+function rowIcon(px: IconPx): HTMLImageElement {
   const img = el("img", "board-row-icon");
   img.alt = "";
-  img.width = Number(ICON_PX);
-  img.height = Number(ICON_PX);
+  img.width = px;
+  img.height = px;
   img.draggable = false;
   img.hidden = true;
   return img;
@@ -118,19 +122,21 @@ function buildRowParts({
   data,
   name,
   icon,
+  iconPx = 64,
 }: RowOptions): RowParts {
   const root = el(tag, `board-row ${className}`);
   if (root instanceof HTMLButtonElement) {
     root.type = "button";
   }
   mark(root, "no-icon", !icon);
+  mark(root, `is-icon-${String(iconPx)}`, icon);
   for (const [key, value] of Object.entries(data)) {
     root.dataset[key] = value;
   }
 
   const lamp = el("i", "board-lamp");
   lamp.setAttribute("aria-hidden", "true");
-  const img = icon ? rowIcon() : undefined;
+  const img = icon ? rowIcon(iconPx) : undefined;
 
   const mid = el("span", "board-row-mid");
   const nameBox = el("span", "board-row-name");
@@ -303,6 +309,43 @@ export function createBoardRow(options: RowOptions): BoardRow {
     },
     render,
   };
+}
+
+/** The bar at a row's foot, under its middle and right columns: hidden until it has progress. */
+export function rowBar(): {
+  readonly bar: HTMLElement;
+  readonly fill: HTMLElement;
+} {
+  const bar = el("i", "board-row-bar");
+  bar.setAttribute("role", "progressbar");
+  bar.setAttribute("aria-valuemin", "0");
+  bar.setAttribute("aria-valuemax", "100");
+  bar.hidden = true;
+  const fill = el("span", "board-row-bar-fill");
+  bar.append(fill);
+  return { bar, fill };
+}
+
+/**
+ * Paints the bar at `progress` (0..1) in whole art px, with no transition, or hides it for
+ * none. Writes only what changed.
+ */
+export function paintRowBar(
+  bar: HTMLElement,
+  fill: HTMLElement,
+  progress: number | undefined,
+  label: string,
+): void {
+  hide(bar, progress === undefined);
+  if (progress === undefined) {
+    return;
+  }
+  setAttr(bar, "aria-valuenow", String(Math.round(progress * 100)));
+  setAttr(bar, "aria-label", label);
+  const art = String(Math.round(progress * BAR_ART));
+  if (fill.style.getPropertyValue("--fill") !== art) {
+    fill.style.setProperty("--fill", art);
+  }
 }
 
 /** A drawer's rows on the board's model: their taps, what those led to, and their Done and blink. */

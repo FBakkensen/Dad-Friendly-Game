@@ -71,7 +71,15 @@ export interface BoardSheet {
   }): void;
   /** The resting kick under the title. */
   kick(text: string): void;
+  /** The "i" cards in the drawer's place; off returns to the list, from a page too. */
   showHow(on: boolean): void;
+  /**
+   * One panel page in the list's place, under the head and over Back (the Ledger's Start over
+   * and field log, #375), or the list back for undefined. Either way is a new screen under the
+   * finger, so the settle starts again. Focus goes to the page's first control, else its host;
+   * back on the list, to the title.
+   */
+  showPage(page: HTMLElement | undefined): void;
   /**
    * A new screen under the finger (the "i" cards, a Workshop page, an armed cancel): forgets
    * the presses and starts the settle again, so the second tap of a double tap lands on
@@ -150,6 +158,8 @@ interface SheetParts {
   readonly kickLine: HTMLElement;
   readonly info: HTMLButtonElement;
   readonly how: HTMLElement;
+  /** A panel's own page, shown in the list's place. */
+  readonly pageHost: HTMLElement;
   readonly list: HTMLElement;
   readonly spare: HTMLElement;
   readonly footer: HTMLElement;
@@ -191,6 +201,9 @@ function buildSheet(
   const how = el("div", "board-sheet-how");
   how.tabIndex = -1;
   how.hidden = true;
+  const pageHost = el("div", "board-sheet-page");
+  pageHost.tabIndex = -1;
+  pageHost.hidden = true;
   const list = el("div", "board-sheet-list");
   const spare = spareCard();
   list.append(spare);
@@ -200,7 +213,7 @@ function buildSheet(
   back.classList.add("board-sheet-back");
   footer.append(back);
 
-  root.append(head, how, list, footer);
+  root.append(head, how, pageHost, list, footer);
   skin(root, "frame");
   return {
     root,
@@ -209,6 +222,7 @@ function buildSheet(
     kickLine,
     info,
     how,
+    pageHost,
     list,
     spare,
     footer,
@@ -244,12 +258,41 @@ function fitSpareTier(
   return next;
 }
 
-/** The "i" cards in the drawer's place, or the drawer back. */
-function setHow({ how, head, list, footer }: SheetParts, on: boolean): void {
+/** A panel's page in the list's place, or the list back for none. */
+function setPage(
+  { pageHost, list }: SheetParts,
+  page: HTMLElement | undefined,
+): void {
+  if (page === undefined) {
+    pageHost.replaceChildren();
+  } else {
+    pageHost.replaceChildren(page);
+  }
+  hide(pageHost, page === undefined);
+  hide(list, page !== undefined);
+}
+
+/** The "i" cards in the drawer's place, or the drawer back on its list: a page goes. */
+function setHow(parts: SheetParts, on: boolean): void {
+  const { how, head, footer } = parts;
+  if (on) {
+    hide(parts.pageHost, true);
+    hide(parts.list, true);
+  } else {
+    setPage(parts, undefined);
+  }
   hide(how, !on);
   hide(head, on);
-  hide(list, on);
   hide(footer, on);
+}
+
+/** Where focus goes on a page: its first control, else the page's host. */
+function pageFocus(pageHost: HTMLElement): HTMLElement {
+  return (
+    pageHost.querySelector<HTMLElement>(
+      "button:not(:disabled), textarea, input, select, a[href], [tabindex]:not([tabindex='-1'])",
+    ) ?? pageHost
+  );
 }
 
 /** Back, the "i" and the cards' Backs: each acts only when the board says it may. */
@@ -398,6 +441,13 @@ export function createBoardSheet({
     focusQuietly(on ? how : info);
   };
 
+  const showPage = (shownPage: HTMLElement | undefined): void => {
+    setPage(parts, shownPage);
+    // A page is a new screen under the finger, and so is the list it gives back (#375).
+    page();
+    focusQuietly(shownPage === undefined ? heading : pageFocus(parts.pageHost));
+  };
+
   const openSheet = (opener?: HTMLElement): void => {
     if (shown) {
       return;
@@ -459,6 +509,7 @@ export function createBoardSheet({
       paintThanks();
     },
     showHow,
+    showPage,
     page,
     place: (parts) => {
       spare.before(...parts);

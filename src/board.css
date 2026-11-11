@@ -1878,6 +1878,43 @@ button.board-row:focus-visible {
   image-rendering: pixelated;
 }
 
+/* A smaller icon sits centred in the 64 column: a relic is 24 art px (48 shown),
+   a small icon 16 (32 shown) (#375). */
+.board-row.is-icon-48 > .board-row-icon {
+  width: calc(var(--art) * 24);
+  height: calc(var(--art) * 24);
+  margin: calc(var(--art) * 4);
+}
+
+.board-row.is-icon-32 > .board-row-icon {
+  width: calc(var(--art) * 16);
+  height: calc(var(--art) * 16);
+  margin: calc(var(--art) * 8);
+}
+
+/* A row's bar, at its foot under the middle and right columns (the Workshop bench, #374):
+   whole art px from --fill (board-row.ts, BAR_ART), and no transition. */
+.board-row-bar {
+  position: absolute;
+  left: calc(var(--art) * 28);
+  bottom: calc(var(--art) * 3);
+  width: calc(var(--art) * 156);
+  height: calc(var(--art) * 2);
+  margin: 0;
+  border-radius: 0;
+  background: var(--board-night);
+  overflow: hidden;
+}
+
+.board-row-bar > span {
+  display: block;
+  width: calc(var(--art) * var(--fill, 0));
+  height: 100%;
+  border-radius: 0;
+  background: var(--board-amber);
+  transition: none;
+}
+
 .board-row-mid {
   position: relative;
   display: flex;
@@ -2082,7 +2119,8 @@ button.board-row:focus-visible {
 }
 
 .board-sheet-title:focus,
-.board-sheet-how:focus {
+.board-sheet-how:focus,
+.board-sheet-page:focus {
   outline: none;
 }
 
@@ -2139,6 +2177,17 @@ button.board-row:focus-visible {
 }
 
 .board-sheet-how {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 5);
+  overflow: hidden;
+}
+
+/* A panel's own page in the list's place, under the head and over Back (#375). */
+.board-sheet-page {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
@@ -2509,32 +2558,9 @@ button.board-row:focus-visible {
   color: var(--board-ink-2);
 }
 
-/* The bench's bar, at its row's foot under the middle and right columns: whole art px from
-   --fill (workshop-parts.ts, BAR_ART), and no transition. */
-/* The bench row holds its bar. */
+/* The bench row holds its bar (.board-row-bar). */
 .workshop-bench {
   position: relative;
-}
-
-.workshop-bar {
-  position: absolute;
-  left: calc(var(--art) * 28);
-  bottom: calc(var(--art) * 3);
-  width: calc(var(--art) * 156);
-  height: calc(var(--art) * 2);
-  margin: 0;
-  border-radius: 0;
-  background: var(--board-night);
-  overflow: hidden;
-}
-
-.workshop-bar > span {
-  display: block;
-  width: calc(var(--art) * var(--fill, 0));
-  height: 100%;
-  border-radius: 0;
-  background: var(--board-amber);
-  transition: none;
 }
 
 /* The live timers under the bench: one line, fitted with an ellipsis, never two. */

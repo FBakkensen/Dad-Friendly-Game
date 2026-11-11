@@ -16,6 +16,8 @@ describe("the board's How it works art (#373)", () => {
     "boosts",
     "workshop",
     "materials",
+    "away",
+    "relics",
   ] as const)("maps every step of %s to board art", (system) => {
     for (const [art] of HOW_IT_WORKS[system].steps) {
       expect(BOARD_HOW_ART[art], art).toBeDefined();
@@ -123,5 +125,35 @@ describe("the board's How it works art (#373)", () => {
     expect(sources[0]).toContain("res-clay");
     expect(sources[2]).toContain("relic-hammer");
     expect(widths(card)).toEqual(["32", "32", "48"]);
+  });
+
+  it("renders the Relics card's three steps with the lit relic art at 48 (#375)", () => {
+    const card = boardHowCard("relics", "Back to the Ledger", () => undefined);
+    expect(card.dataset["how"]).toBe("relics");
+    const imgs = [...card.querySelectorAll("img")];
+    expect(imgs).toHaveLength(3);
+    expect(imgs.map((img) => img.getAttribute("src"))).toEqual([
+      BOARD_HOW_ART["relics/lantern"]?.src,
+      BOARD_HOW_ART["relics/shield"]?.src,
+      BOARD_HOW_ART["relics/crown"]?.src,
+    ]);
+    expect(imgs[0]?.getAttribute("src")).toContain("relic-lantern");
+    expect(imgs[0]?.getAttribute("src")).not.toContain("dark");
+    expect(imgs[1]?.getAttribute("src")).toContain("relic-shield");
+    expect(imgs[2]?.getAttribute("src")).toContain("relic-crown");
+    expect(widths(card)).toEqual(["48", "48", "48"]);
+  });
+
+  it("renders the Time away card: the worker at 64, the stone and upgrades at 32 (#375)", () => {
+    const card = boardHowCard("away", "Back to the Ledger", () => undefined);
+    expect(card.dataset["how"]).toBe("away");
+    const sources = [...card.querySelectorAll("img")].map(
+      (img) => img.getAttribute("src") ?? "",
+    );
+    expect(sources).toHaveLength(3);
+    expect(sources[0]).toContain("mach-worker");
+    expect(sources[1]).toContain("res-stone");
+    expect(sources[2]).toContain("icon-upgrades");
+    expect(widths(card)).toEqual(["64", "32", "32"]);
   });
 });

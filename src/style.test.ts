@@ -79,7 +79,7 @@ const BOARD_SELECTORS = [
   ".workshop-mats",
   ".workshop-mat",
   ".workshop-bench",
-  ".workshop-bar",
+  ".board-row-bar",
   ".workshop-timers",
   ".workshop-pager",
   ".workshop-sound",

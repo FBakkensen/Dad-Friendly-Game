@@ -4,11 +4,11 @@ import cartUrl from "./assets/board/mach-cart.png";
 import drillUrl from "./assets/board/mach-drill.png";
 import machineUrl from "./assets/board/mach-machine.png";
 import workerUrl from "./assets/board/mach-worker.png";
-import relicHammerUrl from "./assets/board/relic-hammer.png";
 import clayUrl from "./assets/board/res-clay.png";
 import mountainUrl from "./assets/board/res-mountain.png";
 import pickUrl from "./assets/board/res-pick.png";
 import stoneUrl from "./assets/board/res-stone.png";
+import { RELIC_LIT } from "./board-relics";
 import { plateButton } from "./board-save";
 import { HOW_IT_WORKS, type HowArt } from "./how-it-works";
 import { createHowCard, type HowCardStep } from "./teach-ui";
@@ -36,13 +36,23 @@ export const BOARD_HOW_ART: Readonly<Partial<Record<HowArt, BoardHowArt>>> = {
   "upgrades-icon": { src: upgradesIconUrl, px: 32 },
   pick: { src: pickUrl, px: 32 },
   mountain: { src: mountainUrl, px: 32 },
-  "relics/hammer": { src: relicHammerUrl, px: 48 },
+  "relics/lantern": { src: RELIC_LIT.lantern, px: 48 },
+  "relics/shield": { src: RELIC_LIT.shield, px: 48 },
+  "relics/hammer": { src: RELIC_LIT.hammer, px: 48 },
+  "relics/crown": { src: RELIC_LIT.crown, px: 48 },
   "ore-lump": { src: clayUrl, px: 32 },
 };
 
 /** The systems whose cards open from a drawer's "i". */
 export type BoardHowSystem =
-  "staffing" | "layers" | "upgrades" | "boosts" | "workshop" | "materials";
+  | "staffing"
+  | "layers"
+  | "upgrades"
+  | "boosts"
+  | "workshop"
+  | "materials"
+  | "away"
+  | "relics";
 
 /** Every art these cards use is mapped (board-how-art.test.ts); stone is the fallback. */
 const FALLBACK: BoardHowArt = { src: stoneUrl, px: 32 };

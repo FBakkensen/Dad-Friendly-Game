@@ -1,7 +1,7 @@
 import type { AuthController, AuthState } from "./auth";
 import { skin } from "./board-skin";
 import { pressLook } from "./card-tap";
-import { formatCompact } from "./format";
+import { formatCompact, formatTimeOfDay } from "./format";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 
 type SaveKind = ProgressSnapshot["saveKind"];
@@ -33,11 +33,6 @@ const SAFE_FORMS = [
 ];
 const NOTHING_LOST =
   "Every stone is kept on this phone and goes up when the cloud answers. Nothing is lost.";
-
-const hhmm = (ms: number): string => {
-  const d = new Date(ms);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-};
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -264,7 +259,7 @@ export function createSaveLine({
     account.textContent =
       state.kind === "signed-in" ? state.user.label : "Not signed in";
     phone.textContent = formatCompact(view.mountain.pocket);
-    last.textContent = lastTry === undefined ? "—" : hhmm(lastTry);
+    last.textContent = lastTry === undefined ? "—" : formatTimeOfDay(lastTry);
     const label = state.kind === "signed-in" ? "Try again" : "Sign in";
     const span = actBtn.querySelector(".board-platebtn-text");
     if (span) span.textContent = label;
