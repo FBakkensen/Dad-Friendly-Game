@@ -1283,6 +1283,15 @@ body {
   background-size: calc(var(--art) * 184) calc(var(--art) * 24);
 }
 
+/* The Gold rush's sparkles over the face (#468): four 48px frames. */
+.board-window-view > .board-window-rush {
+  left: calc(var(--art) * 40);
+  top: calc(var(--art) * 20);
+  width: calc(var(--art) * 48);
+  height: calc(var(--art) * 32);
+  background-size: calc(var(--art) * 192) calc(var(--art) * 32);
+}
+
 .board-dig-plus {
   font-size: var(--board-type-14);
   line-height: var(--board-type-14);
