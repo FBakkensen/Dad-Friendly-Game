@@ -1,186 +1,150 @@
-import { showCard } from "./card-state";
+import cartUrl from "./assets/board/mach-cart.png";
+import drillUrl from "./assets/board/mach-drill.png";
+import machineUrl from "./assets/board/mach-machine.png";
+import workerUrl from "./assets/board/mach-worker.png";
+import lanternUrl from "./assets/board/relic-lantern.png";
+import stoneUrl from "./assets/board/res-stone.png";
+import { cardArt, cardLine, createBoardCard } from "./board-card";
+import { write } from "./board-dom";
+import type { BoardHost } from "./board-host";
+import { arrivalCard, type ArrivalCard } from "./card-views";
+import { mineView } from "./mine-window";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
-import {
-  CRAFT_DONE_BUTTON,
-  LAYER_DIG,
-  layerCardWords,
-  type LayerCardWords,
-} from "./screen-words";
+import { CRAFT_DONE_BUTTON, LAYER_DIG } from "./screen-words";
 import type { RecipeId } from "./workshop";
 
 /**
- * The layer card and the craft-done notice. Both sit over the mountain.
- * A welcome card or a relic reveal goes first; these wait, then one at a time.
+ * The layer card and the craft-done card (#464), on the board card shell. Both wait behind the
+ * welcome card and a relic reveal, then show one at a time: `card-views#arrivalCard` picks.
  */
 
-export function createArrivalPanel({
-  progress,
-  getView,
-  mountainUrl,
-  oreUrl,
-  lanternUrl,
-  tierArt,
-}: {
-  progress: ProgressStore;
-  getView: () => ProgressSnapshot;
-  mountainUrl: string;
-  oreUrl: string;
-  lanternUrl: string;
-  tierArt: {
-    readonly helper: string;
-    readonly cart: string;
-    readonly drill: string;
-    readonly machine: string;
-  };
-}) {
-  const layer = document.createElement("div");
-  layer.className = "layer-arrival";
-  layer.setAttribute("role", "dialog");
-  layer.setAttribute("aria-modal", "true");
-  layer.setAttribute("aria-labelledby", "layer-arrival-title");
-  layer.hidden = true;
-  const layerCard = document.createElement("div");
-  layerCard.className = "layer-card";
-  const layerArt = document.createElement("img");
-  layerArt.className = "layer-art";
-  layerArt.src = mountainUrl;
-  layerArt.alt = "";
-  layerArt.width = 112;
-  layerArt.height = 112;
-  layerArt.draggable = false;
-  const layerTitle = document.createElement("h2");
-  layerTitle.id = "layer-arrival-title";
-  const layerEvocative = document.createElement("p");
-  layerEvocative.className = "layer-evocative";
-  const layerAdvice = document.createElement("p");
-  layerAdvice.className = "layer-advice";
-  const layerSketch = document.createElement("p");
-  layerSketch.className = "layer-sketch";
-  const layerGo = document.createElement("button");
-  layerGo.type = "button";
-  layerGo.className = "layer-dig";
-  layerGo.textContent = LAYER_DIG;
-  layerGo.addEventListener("click", () => {
-    progress.dismissLayer();
-  });
-  layerCard.append(
-    layerArt,
-    layerTitle,
-    layerEvocative,
-    layerAdvice,
-    layerSketch,
-    layerGo,
-  );
-  layer.append(layerCard);
-
-  const notice = document.createElement("div");
-  notice.className = "craft-notice";
-  notice.setAttribute("role", "dialog");
-  notice.setAttribute("aria-modal", "true");
-  notice.setAttribute("aria-labelledby", "craft-notice-line");
-  notice.hidden = true;
-  const noticeCard = document.createElement("div");
-  noticeCard.className = "notice-card";
-  const noticeArt = document.createElement("img");
-  noticeArt.className = "notice-art";
-  noticeArt.alt = "";
-  noticeArt.width = 64;
-  noticeArt.height = 64;
-  noticeArt.draggable = false;
-  const noticeLine = document.createElement("p");
-  noticeLine.id = "craft-notice-line";
-  const noticeGo = document.createElement("button");
-  noticeGo.type = "button";
-  noticeGo.className = "craft-accept";
-  noticeGo.textContent = CRAFT_DONE_BUTTON;
-  noticeGo.addEventListener("click", () => {
-    progress.dismissCraft();
-  });
-  noticeCard.append(noticeArt, noticeLine, noticeGo);
-  notice.append(noticeCard);
-
-  let layerWasOpen = false;
-  let noticeWasOpen = false;
-
-  const render = (): void => {
-    const view = getView();
-    const waiting =
-      view.away !== undefined ||
-      view.crewJoined !== undefined ||
-      view.engineerJoined === true ||
-      view.homecomings.length > 0 ||
-      view.revealed !== undefined;
-    const arrived = view.layersArrived[0];
-    const words =
-      arrived === undefined ? undefined : layerCardWords(arrived.id);
-    const showLayer = !waiting && words !== undefined;
-    paintLayer(words);
-    showCard(layer, showLayer);
-    if (showLayer && !layerWasOpen) {
-      layerGo.focus();
-    }
-    layerWasOpen = showLayer;
-
-    const fitted = view.craftsFitted[0];
-    const showNotice = !waiting && !showLayer && fitted !== undefined;
-    if (fitted !== undefined) {
-      noticeArt.src = noticeArtFor(fitted.id, { oreUrl, lanternUrl, tierArt });
-      noticeLine.textContent = fitted.line;
-    }
-    showCard(notice, showNotice);
-    if (showNotice && !noticeWasOpen) {
-      noticeGo.focus();
-    }
-    noticeWasOpen = showNotice;
-  };
-
-  const paintLayer = (words: LayerCardWords | undefined): void => {
-    if (words === undefined) {
-      return;
-    }
-    layerTitle.textContent = words.arrival;
-    layerEvocative.textContent = words.evocative;
-    layerAdvice.textContent = words.advice;
-    layerSketch.textContent = words.sketch;
-  };
-
-  return { layer, notice, render };
-}
-
-function noticeArtFor(
-  id: RecipeId,
-  art: {
-    readonly oreUrl: string;
-    readonly lanternUrl: string;
-    readonly tierArt: {
-      readonly helper: string;
-      readonly cart: string;
-      readonly drill: string;
-      readonly machine: string;
-    };
-  },
-): string {
+/** Craft done's picture: the board's machine, lantern or stone icon for what was fitted. */
+function craftArt(id: RecipeId): {
+  readonly src: string;
+  readonly px: 32 | 48 | 64;
+} {
   switch (id) {
     case "iron-rails":
-      return art.tierArt.cart;
+      return { src: cartUrl, px: 64 };
     case "diamond-bits":
-      return art.tierArt.drill;
+      return { src: drillUrl, px: 64 };
     case "heartstone-core":
     case "heartstone-ember":
-      return art.tierArt.machine;
+      return { src: machineUrl, px: 64 };
+    case "engineers-kit":
+      return { src: workerUrl, px: 64 };
     case "crystal-lamp":
     case "crystal-flare":
-      return art.lanternUrl;
-    case "engineers-kit":
-      return art.tierArt.helper;
+      return { src: lanternUrl, px: 48 };
     case "sturdy-props":
     case "blasting-charge":
     case "reinforce":
     case "axle-grease":
-      return art.oreUrl;
-    default: {
-      const never: never = id;
-      return never;
-    }
+      return { src: stoneUrl, px: 32 };
   }
+}
+
+/** An image's source and size, written only when they change. */
+function paintArt(art: HTMLImageElement, src: string, px: number): void {
+  if (art.getAttribute("src") !== src) {
+    art.src = src;
+  }
+  if (art.width !== px) {
+    art.width = px;
+    art.height = px;
+  }
+}
+
+/** What a card tells, as one key: its kind, then the band or the recipe and its line. */
+function arrivalKey(shown: ArrivalCard | undefined): string | undefined {
+  if (shown === undefined) {
+    return undefined;
+  }
+  return shown.kind === "layer"
+    ? `layer ${shown.band}`
+    : `craft ${shown.recipe} ${shown.line}`;
+}
+
+export function createArrivalPanel({
+  progress,
+  getView,
+  board,
+}: {
+  progress: ProgressStore;
+  getView: () => ProgressSnapshot;
+  board: BoardHost;
+}) {
+  const layer = createBoardCard({
+    name: "layer",
+    hook: "layer-arrival",
+    titleId: "layer-arrival-title",
+    board,
+  });
+  // The new band's own window view, at 2x (92 x 76 art).
+  const layerArt = cardArt(184, 152);
+  const evocative = cardLine("layer-evocative");
+  const advice = cardLine("layer-advice");
+  const sketch = cardLine("layer-sketch is-quiet");
+  layer.body.append(layerArt, evocative, advice, sketch);
+  const dig = layer.plate(LAYER_DIG, "dig", "layer-dig", () => {
+    progress.dismissLayer();
+  });
+
+  // Its fitted line is its heading, as today's dialog is labelled by it.
+  const craft = createBoardCard({
+    name: "craft",
+    hook: "craft-notice",
+    titleId: "craft-notice-line",
+    board,
+  });
+  const craftPicture = cardArt(64);
+  craft.body.append(craftPicture);
+  const accept = craft.plate(
+    CRAFT_DONE_BUTTON,
+    "accept",
+    "craft-accept",
+    () => {
+      progress.dismissCraft();
+    },
+  );
+
+  const paint = (shown: ArrivalCard): void => {
+    if (shown.kind === "layer") {
+      const { words } = shown;
+      if (layerArt.getAttribute("src") !== mineView(shown.band)) {
+        layerArt.src = mineView(shown.band);
+      }
+      write(layer.title, words.arrival);
+      write(evocative, words.evocative);
+      write(advice, words.advice);
+      write(sketch, words.sketch);
+      return;
+    }
+    const art = craftArt(shown.recipe);
+    paintArt(craftPicture, art.src, art.px);
+    write(craft.title, shown.line);
+  };
+
+  // The card on show, by what it tells: the next band or craft on a card that is already up
+  // is a new page, so it settles under the finger again.
+  let shownKey: string | undefined;
+  const render = (): void => {
+    const shown = arrivalCard(getView());
+    if (shown !== undefined) {
+      paint(shown);
+    }
+    const key = arrivalKey(shown);
+    if (shownKey !== undefined && key !== shownKey) {
+      if (shown?.kind === "layer" && shownKey.startsWith("layer ")) {
+        layer.page();
+      } else if (shown?.kind === "craft" && shownKey.startsWith("craft ")) {
+        craft.page();
+      }
+    }
+    shownKey = key;
+    layer.show(shown?.kind === "layer", dig);
+    craft.show(shown?.kind === "craft", accept);
+  };
+
+  return { layer: layer.root, notice: craft.root, render };
 }

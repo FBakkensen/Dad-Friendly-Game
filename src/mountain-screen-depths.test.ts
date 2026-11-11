@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { createBoardHost } from "./board-host";
 import { send } from "./expeditions";
 import { readSessionSave, writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +10,7 @@ import { formatCompact } from "./format";
 import { shownStones } from "./scale";
 import { BUYS_SETTLE_MS } from "./mountain-screen";
 import { createWelcomePanel } from "./welcome-panel";
+import { mineView } from "./mine-window";
 import { createProgressStore } from "./progress-store";
 import { minedMountain } from "./test-fixtures";
 import { recipesForMined, startCraft } from "./workshop";
@@ -16,6 +18,8 @@ import {
   RELICS_BAR,
   RELICS_HINT,
   STONES_INFO,
+  REVEAL_PAGE,
+  relicPage,
   createMemoryStorage,
   mountScreen,
   setReducedMotion,
@@ -437,7 +441,6 @@ describe("side tunnels (#147)", () => {
       setVisibility("visible");
       const notice = live.root.querySelector<HTMLElement>(".welcome-back");
       expect(notice?.hidden).toBe(false);
-      expect(notice?.classList.contains("is-homecoming")).toBe(true);
       expect(live.text("#welcome-back-title")).toBe("Welcome home");
       expect(live.text(".welcome-return")).toBe(
         "Ada came back from the old shaft with Grandfather's pick. Taps bite deeper.",
@@ -497,7 +500,7 @@ describe("layer card, material line, and craft-done notice", () => {
     for (let step = 0; step < 12; step += 1) {
       const button =
         visible(".welcome-continue") ??
-        visible(".reveal-continue") ??
+        visible(".relic-page-carry") ??
         visible(".layer-dig") ??
         visible(".craft-accept");
       if (button === undefined) {
@@ -547,20 +550,22 @@ describe("layer card, material line, and craft-done notice", () => {
     expect(
       screen.root.querySelector<HTMLElement>(".layer-arrival")?.hidden,
     ).toBe(true);
-    expect(
-      screen.root.querySelector<HTMLElement>(".relic-reveal")?.hidden,
-    ).toBe(false);
+    // The relics drawer opens itself on each reveal (#465).
+    expect(relicPage(screen.root, REVEAL_PAGE)).not.toBeNull();
     const reveal =
-      screen.root.querySelector<HTMLButtonElement>(".reveal-continue");
+      screen.root.querySelector<HTMLButtonElement>(".relic-page-carry");
     reveal?.click();
     reveal?.click();
+    expect(relicPage(screen.root, REVEAL_PAGE)).toBeNull();
     const card = screen.root.querySelector<HTMLElement>(".layer-arrival");
     expect(card?.hidden).toBe(false);
-    expect(screen.text(".layer-card")).toContain("You broke into the Granite!");
-    expect(screen.text(".layer-card")).toContain(
+    expect(screen.text(".layer-arrival .board-card-face")).toContain(
+      "You broke into the Granite!",
+    );
+    expect(screen.text(".layer-arrival .board-card-face")).toContain(
       "The grey rock rings under every pick.",
     );
-    expect(screen.text(".layer-card")).toContain(
+    expect(screen.text(".layer-arrival .board-card-face")).toContain(
       "The Granite suits borers. Tough on drills.",
     );
     expect(screen.text(".layer-sketch")).toBe(
@@ -570,7 +575,7 @@ describe("layer card, material line, and craft-done notice", () => {
     expect(screen.progress.getSnapshot().mountain.recipes).toEqual(
       expect.arrayContaining(["reinforce", "axle-grease"]),
     );
-    expect(screen.text(".layer-card")).not.toMatch(/\?/);
+    expect(screen.text(".layer-arrival .board-card-face")).not.toMatch(/\?/);
     expect(screen.text(".layer-dig")).toBe("Dig on");
     screen.root.querySelector<HTMLButtonElement>(".layer-dig")?.click();
     expect(
@@ -729,6 +734,7 @@ describe("layer card, material line, and craft-done notice", () => {
         }) as unknown as ReturnType<
           ReturnType<typeof createProgressStore>["getSnapshot"]
         >,
+      board: createBoardHost({ clock: () => 0 }),
     });
     root.append(welcome.welcome);
     welcome.render();
@@ -744,6 +750,9 @@ describe("layer card, material line, and craft-done notice", () => {
     screen.progress.previewConflict();
     const sheet = screen.root.querySelector<HTMLElement>(".save-conflict");
     expect(sheet?.hidden).toBe(false);
+    expect(
+      screen.root.querySelector(".save-conflict .board-card-face"),
+    ).not.toBeNull();
     expect(screen.text("#save-conflict-title")).toBe("Two saves found");
     expect(screen.text(".save-conflict-body")).toContain("nothing is lost");
     screen.root
@@ -1250,5 +1259,144 @@ describe("sheet buys", () => {
       later.root.querySelector(".engineers-dialog")?.hasAttribute("hidden"),
     ).toBe(false);
     later.progress.dispose();
+  });
+});
+
+describe("the board cards (#464)", () => {
+  /** A finger's tap: pointerdown, then a click that counts its taps (detail 1). */
+  const fingerTap = (root: HTMLElement, selector: string): void => {
+    const target = root.querySelector<HTMLElement>(selector);
+    if (target === null) {
+      throw new Error(`no ${selector}`);
+    }
+    target.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+    );
+    target.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
+    );
+  };
+  const shown = (root: HTMLElement, selector: string): boolean =>
+    root.querySelector<HTMLElement>(selector)?.hidden === false;
+
+  const awayScreen = (tapClock: () => number) => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(2_000_000), helpers: 4 },
+      lastSeen: 0,
+    });
+    return mountScreen({ storage, now: () => 30 * 60_000, tapClock });
+  };
+
+  it("the welcome card is a board card", () => {
+    const screen = awayScreen(() => 1000);
+    const card = screen.root.querySelector<HTMLElement>(
+      ".board-card.welcome-back[data-card=welcome]",
+    );
+    expect(card?.hidden).toBe(false);
+    expect(card?.querySelector(".board-card-face")).not.toBeNull();
+    expect(
+      card?.querySelector(".board-card-plate.welcome-continue")?.textContent,
+    ).toBe("Back to the mountain");
+    screen.progress.dispose();
+  });
+
+  it("a finger on Back to the mountain in the first 400ms does nothing", () => {
+    let tap = 1000;
+    const screen = awayScreen(() => tap);
+    tap += 100;
+    fingerTap(screen.root, ".welcome-continue");
+    expect(screen.progress.getSnapshot().away).toBeDefined();
+    expect(shown(screen.root, ".welcome-back")).toBe(true);
+    tap += 350;
+    fingerTap(screen.root, ".welcome-continue");
+    expect(screen.progress.getSnapshot().away).toBeUndefined();
+    expect(shown(screen.root, ".welcome-back")).toBe(false);
+    screen.progress.dispose();
+  });
+
+  it("the relic reveal, then the layer card, which settles on its own", () => {
+    let tap = 1000;
+    const screen = mountScreen({ tapClock: () => tap });
+    screen.progress.applyMutation(() => minedMountain(10_000_000));
+    // Two relics come up first; each is dismissed by keyboard.
+    screen.root.querySelector<HTMLButtonElement>(".relic-page-carry")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".relic-page-carry")?.click();
+    expect(shown(screen.root, ".layer-arrival")).toBe(true);
+    tap += 100;
+    fingerTap(screen.root, ".layer-dig");
+    expect(shown(screen.root, ".layer-arrival")).toBe(true);
+    tap += 350;
+    fingerTap(screen.root, ".layer-dig");
+    expect(shown(screen.root, ".layer-arrival")).toBe(false);
+    screen.progress.dispose();
+  });
+
+  it("the layer card shows the band's view", () => {
+    const screen = mountScreen();
+    screen.progress.applyMutation(() => minedMountain(10_000_000));
+    screen.root.querySelector<HTMLButtonElement>(".relic-page-carry")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".relic-page-carry")?.click();
+    const art = screen.root.querySelector<HTMLImageElement>(
+      ".layer-arrival .board-card-art",
+    );
+    expect(art?.getAttribute("src")).toBe(mineView("granite"));
+    expect([art?.width, art?.height]).toEqual([184, 152]);
+    screen.progress.dispose();
+  });
+
+  it("an open drawer closes when craft done opens, and the card settles", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: {
+        ...minedMountain(12_000_000),
+        helpers: 1,
+        carts: 1,
+        pocket: 5_000_000,
+        materials: { clay: 20, iron: 20, crystal: 0, heartstone: 0 },
+        recipes: recipesForMined(12_000_000),
+      },
+      lastSeen: 0,
+    });
+    let clock = 0;
+    let tap = 1000;
+    const screen = mountScreen({
+      storage,
+      now: () => clock,
+      tapClock: () => tap,
+    });
+    screen.progress.applyMutation((mountain) =>
+      startCraft(mountain, "iron-rails", clock),
+    );
+    screen.root
+      .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+      ?.click();
+    const buys = screen.root.querySelector<HTMLElement>(
+      ".board-sheet[data-sheet=buys]",
+    );
+    expect(buys?.classList.contains("is-open")).toBe(true);
+    const endsAt = screen.progress.getSnapshot().mountain.bench?.endsAt ?? 0;
+    tap += 5000;
+    while (clock < endsAt) {
+      clock = Math.min(endsAt, clock + 9_000);
+      screen.progress.tick();
+    }
+    expect(shown(screen.root, ".craft-notice")).toBe(true);
+    expect(buys?.classList.contains("is-open")).toBe(false);
+    expect(
+      screen.root
+        .querySelector<HTMLImageElement>(".craft-notice .board-card-art")
+        ?.getAttribute("src"),
+    ).toContain("mach-cart.png");
+    // The card stays on the board's stack: a finger in its first 400ms is its opening's tap.
+    tap += 100;
+    fingerTap(screen.root, ".craft-accept");
+    expect(shown(screen.root, ".craft-notice")).toBe(true);
+    tap += 350;
+    fingerTap(screen.root, ".craft-accept");
+    expect(shown(screen.root, ".craft-notice")).toBe(false);
+    screen.progress.dispose();
   });
 });

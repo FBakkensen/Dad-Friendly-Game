@@ -728,6 +728,8 @@ describe("the audit's and play's saves", () => {
       '{"version":6,"lastSeen":1699967600000,"mountain":{"remaining":215000000,"pocket":5000000,"helpers":20,"carts":5,"drills":2,"borers":1,"staffed":2},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease"]}}',
     playBriefSave:
       '{"version":6,"lastSeen":1699999880000,"mountain":{"remaining":215000000,"pocket":5000000,"helpers":20,"carts":5,"drills":2,"borers":1,"staffed":2},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease"]}}',
+    playCraftSave:
+      '{"version":6,"lastSeen":1700000000000,"mountain":{"remaining":228000000,"pocket":5000000,"helpers":1,"carts":1,"staffed":2},"workshop":{"materials":{"clay":10,"iron":6,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease"],"bench":{"recipe":"iron-rails","startedAt":1699999400000,"endsAt":1700000003000}}}',
   };
 
   /** Each builder, called as the audit and play call them. */
@@ -767,6 +769,7 @@ describe("the audit's and play's saves", () => {
       playEdgeSave: () => f.playEdgeSave(),
       playAwaySave: () => f.playAwaySave(),
       playBriefSave: () => f.playBriefSave(),
+      playCraftSave: () => f.playCraftSave(),
     };
   }
 

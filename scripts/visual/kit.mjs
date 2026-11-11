@@ -1,6 +1,7 @@
 /* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, localStorage, getComputedStyle, HTMLButtonElement, requestAnimationFrame */
 /** The visual check's shared kit: the server, Chrome, the sizes and the helpers more than one module uses. */
 import {
+  cardRisen,
   startServer,
   launchChrome,
   press as pressOn,
@@ -117,6 +118,30 @@ async function closeSheet(page, name) {
     .catch(() => undefined);
 }
 
+/** A page of the open relics drawer (#465): detail, reveal or legend. */
+const RELIC_PAGE = (name) =>
+  `${OPEN_SHEET("relics")} .board-sheet-page:not([hidden]) > .relic-${name}-page`;
+
+/**
+ * Presses a plate on the open relics page, once the page is up. A keyboard press
+ * (a click with no pointer) is never early, so the page's settle keeps it.
+ */
+async function pressPage(page, name, plate) {
+  const selector = `${RELIC_PAGE(name)} .relic-page-${plate}`;
+  const found = await page
+    .waitForSelector(selector, { visible: true, timeout: 5_000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  if (found) {
+    await page.$eval(selector, (button) => {
+      button.click();
+    });
+  }
+  return found;
+}
+
 /** The note's key on the board: a socket's note ends in "Relic shelf" (#370). */
 const SHELF_KEY = ".board-note.on .board-platebtn";
 
@@ -220,8 +245,16 @@ async function openScreen(
 }
 
 /**
- * The overlay is fixed and covers the board down to the save line, and the
- * save line stays on top of it (#370). On a PC the board is a box on the desk.
+ * A held tap clock's step (stepTapClock) past a drawer's or a board card's 400ms settle
+ * (board-interaction's DRAWER_SETTLE_MS): a finger on a card's plate in its first 400ms is the
+ * second tap of the one that opened it, and does nothing (#464).
+ */
+const PAST_SETTLE_MS = 500;
+
+/**
+ * The overlay (fixed, or a board card absolute in the board, #464) covers the
+ * board down to the save line, and the save line stays on top of it (#370). On
+ * a PC the board is a box on the desk.
  */
 async function coversBoard(page, selector) {
   // A tap's click lands a frame later on a slow runner; let the overlay open first.
@@ -243,7 +276,7 @@ async function coversBoard(page, selector) {
     const lineOnTop = line !== null && hit !== null && line.contains(hit);
     const ok =
       !element.hidden &&
-      getComputedStyle(element).position === "fixed" &&
+      ["fixed", "absolute"].includes(getComputedStyle(element).position) &&
       rect.top <= board.top + 0.5 &&
       rect.left <= board.left + 0.5 &&
       rect.right >= board.right - 0.5 &&
@@ -537,10 +570,14 @@ export {
   closeSheet,
   SHELF_KEY,
   openShelf,
+  RELIC_PAGE,
+  pressPage,
   STANDALONE_INSETS,
   boardProbe,
   openScreen,
   coversBoard,
+  PAST_SETTLE_MS,
+  cardRisen,
   noScroll,
   MINE_WINDOW_RULES,
   shot,

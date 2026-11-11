@@ -8,6 +8,9 @@ import type { Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
 import { UPGRADES, upgradeById, type UpgradeId } from "./upgrades";
 import {
+  awayGoneWords,
+  awayMinedWords,
+  crewGrewWords,
   ACCOUNT,
   LEDGER_BACK,
   LEDGER_KICK,
@@ -1050,5 +1053,38 @@ describe("the Ledger's words (#375)", () => {
       "Ada came home.",
     ]);
     expect(lines.join(" ")).not.toMatch(/\?/);
+  });
+});
+
+describe("the welcome card's words (#464)", () => {
+  it("says who joined the crew, with the title's words only under a haul", () => {
+    expect(crewGrewWords(1, true)).toBe(
+      "1 worker joined to run your machines.",
+    );
+    expect(crewGrewWords(3, false)).toBe(
+      "Your crew grew: 3 workers joined to run your machines.",
+    );
+  });
+
+  it("writes the haul as one big number", () => {
+    // The number and its unit, so the card sets the unit smaller beside the number.
+    expect(awayMinedWords(1)).toEqual({ count: "+1", unit: "stone" });
+    expect(awayMinedWords(1_200_000)).toEqual({
+      count: "+1.2 million",
+      unit: "stones",
+    });
+  });
+
+  it("says how long you were gone, and the Heart's share", () => {
+    const report = { awayMs: 9 * 3_600_000, paidMs: 9 * 3_600_000, heart: 1 };
+    expect(awayGoneWords(report)).toBe(
+      "You were gone 9 hours. Your crew kept digging the whole time.",
+    );
+    expect(awayGoneWords({ ...report, heart: 1.25 })).toBe(
+      "You were gone 9 hours. Your crew kept digging the whole time. The Heart of Patience made it ×1.25.",
+    );
+    expect(awayGoneWords({ ...report, heart: 1.5 })).toMatch(
+      /made it ×1\.5\.$/,
+    );
   });
 });

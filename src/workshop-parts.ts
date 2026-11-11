@@ -32,14 +32,14 @@ import type { BenchRowView, MaterialPlate } from "./workshop-rows";
  */
 
 /** Each material's 16 art px icon, shown at 32. */
-const PLATE_ART: Readonly<Record<MaterialId, string>> = {
+export const MATERIAL_ART: Readonly<Record<MaterialId, string>> = {
   clay: clayUrl,
   iron: ironUrl,
   crystal: crystalUrl,
   heartstone: heartUrl,
 };
 
-const MATERIALS = Object.keys(PLATE_ART) as readonly MaterialId[];
+const MATERIALS = Object.keys(MATERIAL_ART) as readonly MaterialId[];
 
 /** From three plates on, the word goes and the count shrinks, to fit 89px plates. */
 const PACKED_FROM = 3;
@@ -95,7 +95,7 @@ function plateParts(id: MaterialId): PlateParts {
   button.dataset["material"] = id;
   button.hidden = true;
   const icon = el("img", "workshop-mat-icon");
-  icon.src = PLATE_ART[id];
+  icon.src = MATERIAL_ART[id];
   icon.width = 32;
   icon.height = 32;
   icon.alt = "";

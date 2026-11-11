@@ -13,6 +13,7 @@ import {
   createSheetPanels,
 } from "./screen-panels";
 import { DRAWER_SETTLE_MS } from "./board-drawer";
+import { cardUp } from "./card-state";
 import { layOutBoard } from "./screen-layout";
 import { runScreen } from "./screen-run";
 import { type ReadyPick } from "./ready-now";
@@ -84,6 +85,10 @@ export function mountMountainScreen(options: ScreenOptions): void {
   const { boardNote, saveLine, closeBoardPopups, top } = createBoardFace(ctx, {
     runningNow,
     legacy,
+    cardUp: () => cards.some(cardUp),
+    closeOtherDrawers: () => {
+      keys.closeOthers("relics");
+    },
   });
   const sheets = createSheetPanels(ctx, {
     rail,
@@ -94,8 +99,8 @@ export function mountMountainScreen(options: ScreenOptions): void {
   });
   const { upgrades, workshop, ledger } = sheets;
 
-  const updatePrompt = createUpdatePrompt(ctx.paint);
-  const otherTab = createOtherTab(progress);
+  const updatePrompt = createUpdatePrompt(board, ctx.paint);
+  const otherTab = createOtherTab(progress, board);
 
   /** The board under the cards: window, gauges, bays and Ready row. */
   const paintBoard = (): void => {
@@ -127,7 +132,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     overlays.paint();
   };
 
-  const cards = cardsFrom(early, top, sheets, {
+  const cards = cardsFrom(early, sheets, {
     updatePrompt,
     otherTab: otherTab.root,
   });
@@ -139,12 +144,9 @@ export function mountMountainScreen(options: ScreenOptions): void {
       keys.openBuys(from);
     },
   });
-  const drawers = [
-    crewPanel.sheet,
-    upgrades.sheet,
-    workshop.sheet,
-    ledger.sheet,
-  ];
+  const drawers = [crewPanel, upgrades, workshop, ledger, top.relics].map(
+    (drawer) => drawer.sheet,
+  );
   const overlays = createOverlays(ctx, {
     note: boardNote,
     rail,
@@ -152,7 +154,13 @@ export function mountMountainScreen(options: ScreenOptions): void {
     drawers,
   });
   const keys = wireKeys({
-    drawers: { buys: crewPanel, upgrades, workshop, ledger },
+    drawers: {
+      buys: crewPanel,
+      upgrades,
+      workshop,
+      ledger,
+      relics: top.relics,
+    },
     closeBoardPopups,
     putSignAway: overlays.putSignAway,
   });

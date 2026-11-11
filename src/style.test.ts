@@ -7,27 +7,10 @@ const boardCss = readFileSync("src/board.css", "utf8");
 
 /** Rules whose loss breaks the game silently: jsdom tests don't apply CSS. */
 const REQUIRED_SELECTORS = [
-  ".welcome-back",
-  ".relic-reveal",
-  ".shelf-dialog",
   ".start-over",
   ".engineers-dialog",
   ".engineer-tunnel",
   ".expedition-chip",
-  ".welcome-return",
-  ".welcome-card",
-  ".reveal-card",
-  ".shelf-card",
-  ".keepsakes",
-  ".keepsake-story",
-  ".layer-arrival",
-  ".craft-notice",
-  ".update-prompt",
-  ".update-reload",
-  ".other-tab",
-  ".other-tab-play",
-  ".save-conflict",
-  ".save-conflict-play",
   ".saved-copies",
 ];
 
@@ -85,25 +68,38 @@ const BOARD_SELECTORS = [
   ".ledger-page-answers",
   ".ledger-field-log-well",
   ".ledger-field-log-text",
+  ".relic-page",
+  ".relic-page-kicker",
+  ".relic-page-title",
+  ".relic-page-line",
+  ".relic-page-boost",
+  ".relic-page-answers",
+  ".relic-legend-shelf",
+  ".relic-keepsakes",
+  ".relic-keepsake-list",
+  ".relic-keepsake-story",
   ".workshop-timers",
   ".workshop-pager",
   ".workshop-sound",
+  ".board-card",
+  ".board-card-face",
+  ".board-card-title",
+  ".board-card-line",
+  ".board-card-big",
+  ".board-card-foot",
+  ".board-card-plate",
+  ".welcome-mined-unit",
+  ".welcome-ore",
+  ".welcome-returns",
+  ".welcome-layers",
+  ".welcome-crafts",
+  ".save-card",
+  ".save-conflict-confirm",
+  ".board-card .save-conflict-error",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
-const OVERLAYS = [
-  ".welcome-back",
-  ".layer-arrival",
-  ".craft-notice",
-  ".relic-reveal",
-  ".shelf-dialog",
-  ".start-over",
-  ".engineers-dialog",
-  ".update-prompt",
-  ".other-tab",
-  ".save-conflict",
-  ".saved-copies",
-];
+const OVERLAYS = [".start-over", ".engineers-dialog", ".saved-copies"];
 
 /** WCAG 2 contrast ratio of two #rrggbb colours. */
 function contrast(a: string, b: string): number {
@@ -142,6 +138,51 @@ describe("board.css", () => {
     );
     expect(boardZ(".board-saveline")).toBeGreaterThan(highest);
     expect(boardZ(".board-drawer-clip")).toBeGreaterThan(highest);
+    // The board cards stand under the drawers' clips and the save line (#464).
+    expect(boardZ(".board-card")).toBe(10);
+    expect(boardZ(".board-card.save-conflict")).toBe(12);
+    expect(boardZ(".board-sheet-clip")).toBeGreaterThan(
+      boardZ(".board-card.save-conflict"),
+    );
+    expect(boardZ(".board-saveline")).toBeGreaterThan(boardZ(".board-card"));
+    expect(boardZ(".board-sheet-clip")).toBeGreaterThan(boardZ(".board-card"));
+  });
+
+  it("stacks the cards in the root's order, the conflict over them all (#464)", () => {
+    // Every card and today's sheets stand at one z-index, so the root's order stacks them
+    // (screen-panels#cardsFrom): the Engineers sheet first, under the welcome; the update,
+    // the other tab and saved copies over the welcome and the layer card. The relics drawer
+    // (#465) is a drawer in the drawers' clip, above every card: a card that comes up closes
+    // it (screen-overlays#coverDrawers), and its reveal waits while a card is up.
+    const sheets =
+      /^\.start-over,\n\.engineers-dialog,\n\.saved-copies \{[^}]*z-index:\s*(\d+)/m.exec(
+        css,
+      );
+    expect(Number(sheets?.[1])).toBe(boardZ(".board-card"));
+    const raised = [
+      ...boardCss.matchAll(/^(\.board-card\.[\w-]+) \{[^}]*z-index/gm),
+    ].map((m) => m[1]);
+    expect(raised).toEqual([".board-card.save-conflict"]);
+  });
+
+  it("lets no card body shrink under its words, so an overflow shows in the face (#464)", () => {
+    const rule = /^\.board-card-body \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    expect(rule).toMatch(/flex-shrink:\s*0/);
+  });
+
+  it("keeps the conflict card's rules off Saved copies (#464)", () => {
+    // Saved copies' error line and plays carry the conflict's names.
+    for (const name of ["save-conflict-error", "save-conflict-play"]) {
+      expect(boardCss).not.toMatch(new RegExp(`^\\.${name}\\b`, "m"));
+    }
+  });
+
+  it("stops a board card at the save line (#464)", () => {
+    const rule = /^\.board-card \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    expect(rule).toMatch(/position:\s*absolute/);
+    expect(rule).toMatch(
+      /height:\s*calc\(var\(--board-h\) - var\(--save-h\)\)/,
+    );
   });
 
   it("writes the plate buttons' words at 4.5:1 on the key skin", () => {
@@ -322,6 +363,39 @@ describe("style.css", () => {
     ).toEqual([]);
   });
 
+  it("keeps no rule for today's welcome, layer and craft cards: they are board cards now (#464)", () => {
+    // The board cards keep today's hooks (.welcome-back, .layer-dig, …): an old rule would
+    // restyle them, so none may name a hook of theirs.
+    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
+      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+    );
+    expect(
+      selectors.filter((one) =>
+        /\.(welcome-|layer-card|layer-art|layer-arrival|layer-dig|layer-evocative|layer-advice|layer-sketch|notice-card|notice-art|craft-notice|craft-accept)|#craft-notice-line/.test(
+          one,
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps no rule for today's conflict, other tab and update cards (#464)", () => {
+    // Their hooks stay on the board cards. Saved copies still names two of the conflict's
+    // classes for its own error line and buttons, under .saved-copies only.
+    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
+      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+    );
+    expect(
+      selectors.filter(
+        (one) =>
+          /\.(update-|other-tab|save-pair|save-card|save-conflict)/.test(one) &&
+          !one.startsWith(".saved-copies "),
+      ),
+    ).toEqual([]);
+    expect(css).not.toMatch(
+      /\.(update-card|other-tab-card|save-conflict-sheet|save-pair)\b/,
+    );
+  });
+
   it("keeps no lit crew chip: the crew plate holds the free count (#371)", () => {
     expect(css).not.toMatch(/teach-point/);
   });
@@ -363,22 +437,14 @@ describe("style.css", () => {
     expect(css).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));
   });
 
-  it.each([
-    ".welcome-back",
-    ".layer-arrival",
-    ".craft-notice",
-    ".relic-reveal",
-    ".shelf-dialog",
-    ".start-over",
-    ".engineers-dialog",
-    ".update-prompt",
-    ".other-tab",
-    ".save-conflict",
-    ".saved-copies",
-  ])("lays %s over the game", (selector) => {
-    const group = /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
-      css.slice(css.indexOf(".welcome-back,")),
-    );
-    expect(group?.[1]?.split(",\n")).toContain(selector);
-  });
+  it.each([".start-over", ".engineers-dialog", ".saved-copies"])(
+    "lays %s over the game",
+    (selector) => {
+      const group =
+        /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
+          css.slice(css.indexOf(".start-over,\n.engineers-dialog,")),
+        );
+      expect(group?.[1]?.split(",\n")).toContain(selector);
+    },
+  );
 });

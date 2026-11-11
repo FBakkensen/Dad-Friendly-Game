@@ -18,7 +18,12 @@ import {
   shotName,
   targetQuery,
 } from "../src/play-plan.ts";
-import { launchChrome, open, startServer } from "../tools/browser/harness.ts";
+import {
+  launchChrome,
+  open,
+  openPair,
+  startServer,
+} from "../tools/browser/harness.ts";
 import {
   chargePayoffSave,
   crewMountain,
@@ -26,6 +31,7 @@ import {
   crystalMountain,
   firstCraftSave,
   fleetMountain,
+  foundBelowSave,
   heartMountain,
   heirMountain,
   idleMountain,
@@ -33,6 +39,7 @@ import {
   machineMountain,
   openMountain,
   playAwaySave,
+  playCraftSave,
   playBriefSave,
   playEdgeSave,
   savingMountain,
@@ -99,6 +106,10 @@ const SAVES = {
     note: "13 carts, four stones above the Granite: tap across, open Buys",
     save: playEdgeSave,
   },
+  crafted: {
+    note: "a craft finishing three seconds after opening: the craft-done card",
+    save: playCraftSave,
+  },
   brief: {
     note: "the mid save, last seen 2 minutes ago: the quiet away note",
     save: playBriefSave,
@@ -122,6 +133,10 @@ const SAVES = {
   tools: {
     note: "upgrades owned and levelled, and found tools under Brought home",
     save: toolsMountain,
+  },
+  keepsakes: {
+    note: "every tool and keepsake found: a relic's detail shows all five keepsakes",
+    save: foundBelowSave,
   },
   machine: {
     note: "the Great Machine with the Kid row locked; add ?trouble=cave-in for the Buys key's red lamp",
@@ -258,11 +273,23 @@ async function step(page, screen, action) {
   }
 }
 
+/**
+ * One tab, or with --tabs 2 two tabs in one context, played on the second: the first keeps the
+ * mountain, so the second shows the other-tab card.
+ */
+async function openTabs(options) {
+  if (plan.tabs === 1) {
+    return open(browser, BASE, options);
+  }
+  const { pages, context } = await openPair(browser, BASE, options);
+  return { page: pages[1], context };
+}
+
 const save = SAVES[plan.save].save();
-note(`play: save ${plan.save}, ${BASE}`);
+note(`play: save ${plan.save}${plan.tabs === 2 ? ", two tabs" : ""}, ${BASE}`);
 try {
   for (const screen of plan.screens) {
-    const { page, context } = await open(browser, BASE, {
+    const { page, context } = await openTabs({
       viewport: SCREENS[screen],
       seed:
         save === undefined

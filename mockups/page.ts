@@ -33,7 +33,7 @@ import {
   WORKSHOP_TITLE,
   craftPriceWords,
   crewPostsWords,
-  fieldLogClose,
+  BACK_TO_THE_MOUNTAIN,
   needMoreWords,
   OTHER_TAB_BODY,
   OTHER_TAB_PLAY,
@@ -309,7 +309,7 @@ function renderWorkshop(view: MockView): string {
         <p class="label hint">${escapeHtml(UNFOUND_HINT)}</p>
       </article>
     </div>
-    <button type="button" class="back${pressClass(view, "back", false)}" data-tap="${escapeHtml(BACK_TAP)}">${escapeHtml(fieldLogClose)}</button>
+    <button type="button" class="back${pressClass(view, "back", false)}" data-tap="${escapeHtml(BACK_TAP)}">${escapeHtml(BACK_TO_THE_MOUNTAIN)}</button>
     <div class="floats">${chips}</div>
   </section>`;
 }

@@ -933,6 +933,34 @@ export function playAwaySave(): SeedV6 {
   return { ...openMountain(), lastSeen: Date.now() - 9 * HOUR };
 }
 
+/**
+ * play's `crafted` save (#464): section 16's craft save, Iron rails on the bench, done three
+ * seconds after it opens, so the craft-done card opens on the board.
+ */
+export function playCraftSave(): SeedV6 {
+  const now = Date.now();
+  return noticeSave({
+    mined: 12_000_000,
+    lastSeen: now,
+    mountain: { helpers: 1, carts: 1, pocket: 5_000_000 },
+    workshop: {
+      materials: { clay: 10, iron: 6, crystal: 0, heartstone: 0 },
+      recipes: [
+        "iron-rails",
+        "sturdy-props",
+        "blasting-charge",
+        "reinforce",
+        "axle-grease",
+      ],
+      bench: {
+        recipe: "iron-rails",
+        startedAt: now - 600_000,
+        endsAt: now + 3_000,
+      },
+    },
+  });
+}
+
 /** play's `brief` save: the mid save, last seen 2 minutes ago. */
 export function playBriefSave(): SeedV6 {
   return { ...openMountain(), lastSeen: Date.now() - HOUR / 30 };

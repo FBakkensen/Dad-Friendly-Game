@@ -34,6 +34,7 @@ import {
   keysDrawn,
   press,
   shot,
+  PAST_SETTLE_MS,
 } from "./kit.mjs";
 import {
   drawerFacts,
@@ -739,9 +740,6 @@ const registerStates = (viewport) => {
     }
   });
 };
-
-/** A held tap clock's step past a drawer's 400ms settle (board-interaction's DRAWER_SETTLE_MS). */
-const PAST_SETTLE_MS = 500;
 
 /** What the open Ledger shows: its rows' words, Tonight's lines, its plates and its page. */
 async function ledgerFacts(page) {

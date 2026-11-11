@@ -94,7 +94,7 @@ import {
 type SaveKind = "unsigned" | "session" | "loading" | "account" | "error";
 
 /** One settled stretch away: how long, and the moment it was settled. */
-export type AwayGap = { readonly ms: number; readonly at: number };
+type AwayGap = { readonly ms: number; readonly at: number };
 
 export type ProgressSnapshot = {
   readonly mountain: Mountain;
