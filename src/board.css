@@ -2933,7 +2933,7 @@ button.board-row:focus-visible {
   align-items: stretch;
   gap: calc(var(--art) * 1);
   min-width: 0;
-  min-height: 48px;
+  min-height: var(--target-min);
   margin: 0;
   /* The inset's bottom edge is 9 art px: the last line stands clear of it. */
   padding: calc(var(--art) * 4) calc(var(--art) * 4) calc(var(--art) * 9);
