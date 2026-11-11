@@ -182,7 +182,7 @@ interface LedgerDoorDeps {
   readonly sheet: () => BoardSheet;
   readonly door: HTMLButtonElement;
   readonly legacy: { open(from: HTMLElement | undefined): void };
-  readonly savedCopies: { open(): void };
+  readonly savedCopies: { open(from?: HTMLElement): void };
   readonly onStartOver: () => void;
 }
 
@@ -214,7 +214,8 @@ function wireDoors(deps: LedgerDoorDeps): {
     on: {
       savedCopies: () => {
         handOff();
-        deps.savedCopies.open();
+        // The card's Back to the mountain gives focus back to the Ledger key.
+        deps.savedCopies.open(door);
       },
       fieldLog: () => {
         const text = formatFieldLog(progress.fieldLog());
@@ -274,7 +275,7 @@ export function createLedgerPanel({
   /** Pass the mine: offered on a finished mountain, and today's card. */
   legacy: { offered(): boolean; open(from: HTMLElement | undefined): void };
   /** Today's Saved copies card. */
-  savedCopies: { open(): void };
+  savedCopies: { open(from?: HTMLElement): void };
   /** After a Start over (the screen resets its vein wait). */
   onStartOver: () => void;
   /** Stops the drawer watching the account, and its document listeners. */

@@ -787,7 +787,7 @@ describe("layer card, material line, and craft-done notice", () => {
       expect(screen.text(".saved-copies")).toContain("Chrome on Android");
     });
     screen.root
-      .querySelector<HTMLButtonElement>(".saved-copies .menu-close")
+      .querySelector<HTMLButtonElement>(".saved-copies .saved-copies-close")
       ?.click();
     expect(
       screen.root.querySelector<HTMLElement>(".saved-copies")?.hidden,

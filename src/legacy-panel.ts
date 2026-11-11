@@ -1,10 +1,17 @@
-import { cardUp, showCard } from "./card-state";
+import { cardLine, createBoardCard } from "./board-card";
+import { el, hide, setAttr, write } from "./board-dom";
+import type { BoardHost } from "./board-host";
 import { kidStretch, stretch } from "./scale";
 import { formatCount } from "./format";
 import { legacyBonus, passTheMine } from "./legacy";
 import { createMountain, type Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
-import { formatCraftSpeed as speed } from "./screen-words";
+import {
+  PASS_IT_ON,
+  PASS_NOT_YET,
+  PASS_TITLE,
+  formatCraftSpeed as speed,
+} from "./screen-words";
 import { recipesForMined } from "./workshop";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 
@@ -60,20 +67,36 @@ export function legacyCardWords(mountain: Mountain): LegacyCardWords {
 const canPass = (mountain: Mountain): boolean =>
   passTheMine(mountain, 0) !== undefined;
 
+/** The confirm card's lines, in today's order: the lead, the rates, then what carries over. */
+function legacyLines() {
+  const rates = el("ul", "legacy-rates");
+  return {
+    lead: cardLine("legacy-lead"),
+    rates,
+    keeps: cardLine("legacy-keeps"),
+    fresh: cardLine("legacy-fresh is-quiet"),
+    legend: cardLine("legacy-legend"),
+  };
+}
+
 /**
- * Pass the mine to your kid (M6): whether it is offered (the Ledger's Pass
- * plate shows then), the confirm card, and the Legacy badge, which sits on the mine window's brass plate (#371). Offered
- * only once the mountain is finished.
+ * Pass the mine to your kid (M6): whether it is offered (the Ledger's Pass plate shows then), the
+ * confirm card on the board card shell (#466), and the Legacy badge, which sits on the mine
+ * window's brass plate (#371). Offered only once the mountain is finished. Not yet and Escape
+ * give focus back to what opened it; Pass it on presses through the board, so the second tap of
+ * the tap that opened the card never passes the mine.
  */
 export function createLegacyPanel({
   progress,
   getView,
+  board,
   onPassed,
   beforeOpen,
   requestRender,
 }: {
   progress: ProgressStore;
   getView: () => ProgressSnapshot;
+  board: BoardHost;
   /** After a new run starts (the screen resets its vein wait). */
   onPassed: () => void;
   /** Closes whatever offered it (the Ledger or the Legend card). */
@@ -83,105 +106,64 @@ export function createLegacyPanel({
   let open = false;
   let returnFocus: HTMLElement | undefined;
 
-  const badge = document.createElement("span");
-  badge.className = "legacy-badge";
+  const badge = el("span", "legacy-badge");
   badge.setAttribute("role", "img");
   badge.hidden = true;
 
-  const dialog = document.createElement("div");
-  dialog.className = "start-over legacy-dialog";
+  const card = createBoardCard({
+    name: "legacy",
+    hook: "legacy-dialog",
+    titleId: "legacy-title",
+    board,
+  });
+  const dialog = card.root;
+  // A confirm that ends the run: an alert dialog, described by what passing does.
   dialog.setAttribute("role", "alertdialog");
-  dialog.setAttribute("aria-modal", "true");
-  dialog.setAttribute("aria-labelledby", "legacy-title");
   dialog.setAttribute("aria-describedby", "legacy-detail");
-  dialog.hidden = true;
-  const card = document.createElement("div");
-  card.className = "start-over-card legacy-card";
-  const title = document.createElement("h2");
-  title.id = "legacy-title";
-  title.textContent = "Pass the mine to your kid.";
-  const detail = document.createElement("div");
-  detail.id = "legacy-detail";
-  detail.className = "legacy-detail";
-  const line = (className: string): HTMLParagraphElement => {
-    const paragraph = document.createElement("p");
-    paragraph.className = className;
-    return paragraph;
-  };
-  const lead = line("legacy-lead");
-  const rates = document.createElement("ul");
-  rates.className = "legacy-rates";
-  const keeps = line("legacy-keeps");
-  const fresh = line("legacy-fresh");
-  const legend = line("legacy-legend");
-  detail.append(lead, rates, keeps, fresh, legend);
-  const cancel = document.createElement("button");
-  cancel.type = "button";
-  cancel.className = "start-over-cancel legacy-cancel";
-  cancel.textContent = "Not yet";
-  const yes = document.createElement("button");
-  yes.type = "button";
-  yes.className = "legacy-confirm";
-  yes.textContent = "Pass it on";
-  const actions = document.createElement("div");
-  actions.className = "start-over-actions";
-  actions.append(cancel, yes);
-  card.append(title, detail, actions);
-  dialog.append(card);
+  write(card.title, PASS_TITLE);
+  const lines = legacyLines();
+  card.body.id = "legacy-detail";
+  card.body.classList.add("legacy-detail");
+  card.body.append(
+    lines.lead,
+    lines.rates,
+    lines.keeps,
+    lines.fresh,
+    lines.legend,
+  );
 
-  const show = (from: HTMLElement | undefined): void => {
-    beforeOpen();
-    returnFocus = from;
-    open = true;
-    requestRender();
-  };
   const close = (): void => {
     open = false;
     requestRender();
-    returnFocus?.focus();
+    returnFocus?.focus({ preventScroll: true });
   };
-  cancel.addEventListener("click", close);
+  const answers = el("div", "board-card-pair legacy-answers");
+  card.foot.append(answers);
+  const cancel = card.plate(
+    PASS_NOT_YET,
+    "cancel",
+    "legacy-cancel",
+    close,
+    answers,
+  );
+  card.plate(
+    PASS_IT_ON,
+    "confirm",
+    "legacy-confirm",
+    () => {
+      open = false;
+      if (progress.passTheMine()) {
+        onPassed();
+      }
+      requestRender();
+    },
+    answers,
+  );
   dialog.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       close();
     }
   });
-  yes.addEventListener("click", () => {
-    open = false;
-    if (progress.passTheMine()) {
-      onPassed();
-    }
-    requestRender();
-  });
-
-  const render = (): void => {
-    const { mountain } = getView();
-    const bonus = legacyBonus(mountain);
-    const legacy = mountain.legacy ?? 0;
-    badge.hidden = legacy === 0;
-    badge.textContent = `Legacy ${legacyWords(bonus)}`;
-    badge.setAttribute(
-      "aria-label",
-      `Legacy ${formatCount(legacy)}: your crew and taps are ${legacyWords(bonus)}`,
-    );
-    const words = legacyCardWords(mountain);
-    lead.textContent = words.lead;
-    rates.replaceChildren(
-      ...words.rates.map((rate) => {
-        const item = document.createElement("li");
-        item.textContent = rate;
-        return item;
-      }),
-    );
-    keeps.textContent = words.keeps;
-    fresh.textContent = words.fresh;
-    legend.textContent = words.legend;
-    const wasOpen = cardUp(dialog);
-    showCard(dialog, open && offered());
-    if (cardUp(dialog) && !wasOpen) {
-      cancel.focus();
-    }
-  };
 
   /** Whether passing the mine is offered now: the save is in and the mountain is finished. */
   const offered = (): boolean => {
@@ -189,5 +171,48 @@ export function createLegacyPanel({
     return ready && canPass(mountain);
   };
 
-  return { badge, dialog, open: show, offered, render };
+  const render = (): void => {
+    const { mountain } = getView();
+    const bonus = legacyBonus(mountain);
+    const legacy = mountain.legacy ?? 0;
+    hide(badge, legacy === 0);
+    write(badge, `Legacy ${legacyWords(bonus)}`);
+    setAttr(
+      badge,
+      "aria-label",
+      `Legacy ${formatCount(legacy)}: your crew and taps are ${legacyWords(bonus)}`,
+    );
+    paintLines(lines, legacyCardWords(mountain));
+    card.show(open && offered(), cancel);
+  };
+
+  return {
+    badge,
+    dialog,
+    open: (from: HTMLElement | undefined): void => {
+      beforeOpen();
+      returnFocus = from;
+      open = true;
+      requestRender();
+    },
+    offered,
+    render,
+  };
+}
+
+/** The card's words, each written only on a change; the rates list only when one changes. */
+function paintLines(
+  lines: ReturnType<typeof legacyLines>,
+  words: LegacyCardWords,
+): void {
+  write(lines.lead, words.lead);
+  const shown = [...lines.rates.children].map((item) => item.textContent);
+  if (JSON.stringify(shown) !== JSON.stringify(words.rates)) {
+    lines.rates.replaceChildren(
+      ...words.rates.map((rate) => el("li", "board-card-line", rate)),
+    );
+  }
+  write(lines.keeps, words.keeps);
+  write(lines.fresh, words.fresh);
+  write(lines.legend, words.legend);
 }

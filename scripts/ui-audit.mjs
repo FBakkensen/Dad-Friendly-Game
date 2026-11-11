@@ -505,7 +505,7 @@ async function collect(page) {
     remember(document.documentElement, "html");
     remember(document.querySelector("#app"), "#app");
     for (const el of document.querySelectorAll(
-      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .engineers-card, .menu-card, .relic-page, .board-card-face",
+      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .engineers-card, .relic-page, .board-card-face",
     )) {
       if (visible(el)) {
         remember(el, selectorOf(el));
@@ -580,13 +580,13 @@ async function collect(page) {
         ".save-card",
         ".saved-copy",
         ".welcome-back .board-card-face",
-        ".menu-card",
         ".relic-page",
         ".layer-arrival .board-card-face",
         ".craft-notice .board-card-face",
         ".other-tab .board-card-face",
         ".update-prompt .board-card-face",
-        ".start-over-card",
+        ".legacy-dialog .board-card-face",
+        ".saved-copies .board-card-face",
         ".engineer",
         ".legacy-card",
       ],
@@ -1267,6 +1267,7 @@ async function main() {
     await press(opened.page, ".ledger-pass");
     await opened.page.waitForSelector(".legacy-dialog:not([hidden])");
     await drawerGone(opened.page, "ledger");
+    await cardRisen(opened.page, "legacy");
     await expectText(opened.page, /Pass it on/, "legacy confirm");
     return opened;
   });
@@ -1465,6 +1466,7 @@ async function main() {
     await press(opened.page, ".ledger-saved-copies");
     await opened.page.waitForSelector(".saved-copies:not([hidden])");
     await drawerGone(opened.page, "ledger");
+    await cardRisen(opened.page, "copies");
     await opened.page.waitForSelector(".is-earlier-run");
     await expectText(opened.page, /earlier run/, "saved copies");
     return opened;

@@ -1194,8 +1194,15 @@ export const SAVE_CONFLICT_CONFIRM =
 export const SAVE_CONFLICT_ERROR =
   "Couldn't store the other save yet – try again";
 export const SAVED_COPIES_TITLE = "Saved copies";
+export const SAVED_COPIES_EMPTY = "No saved copies yet.";
+export const SAVED_COPY_GONE = "That copy is no longer here.";
 export const SAVED_COPY_EARLIER_RUN =
   "From an earlier run – can't be played now";
+
+/** Pass the mine to your kid (M6): the confirm card's title and its two answers. */
+export const PASS_TITLE = "Pass the mine to your kid.";
+export const PASS_NOT_YET = "Not yet";
+export const PASS_IT_ON = "Pass it on";
 
 /** One mountain, one tab. The other tabs wait. */
 export const OTHER_TAB_TITLE = "Playing in another tab";

@@ -24,7 +24,14 @@ export type DrawerId =
  * goes on top of what is open, and its close takes off only itself.
  */
 export type CardId =
-  "welcome" | "layer" | "craft" | "conflict" | "other-tab" | "update";
+  | "welcome"
+  | "layer"
+  | "craft"
+  | "conflict"
+  | "other-tab"
+  | "update"
+  | "copies"
+  | "legacy";
 export type OverlayId = DrawerId | CardId | "save" | "note";
 /** Where a control sits: on an overlay, or on the board under them all. */
 export type Layer = OverlayId | "board";
@@ -171,6 +178,8 @@ const CARD_IDS: readonly CardId[] = [
   "conflict",
   "other-tab",
   "update",
+  "copies",
+  "legacy",
 ];
 
 function isCard(overlay: Layer): overlay is CardId {
