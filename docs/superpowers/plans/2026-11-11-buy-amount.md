@@ -11,11 +11,14 @@ Spec: `docs/economy-overhaul.md`, section D. One sliver, one PR.
 - **One key for the whole drawer, in the Buys header beside the "i"** (the issue says "on each buy card"). Rows are whole buttons with no spare width on a phone, and one mode key is the genre's standard. Every card still shows its own count and total. Flemming was asked on a decision card; this is the recommended option.
 - **×10 is exactly ten**, all or nothing: the row shows ten's total, and is too dear until the pocket holds it. **Max is as many as the pocket holds**, at least one: with none affordable it shows one's price, dimmed, like ×1.
 - **The amount is remembered on this device** (localStorage, like the vein wait), not in the save: it is a habit of the hand, not progress. A broken store starts at ×1.
-- **A row's gain is the tier's speed × the count.** A milestone that the buy would reach is not added in, as today's ×1 row does not add it.
+- **A row's gain on ×10 and Max is the tier's speed × the units the free hands can run** (review). Max counts stones, not hands, so a Max of carts can buy machines that stand idle; the row says so in rust ("Needs 46 workers") and its gain counts only those that run. ×1 still shows what one more adds. A milestone that the buy would reach is not added in, as today's ×1 row does not add it.
+- **A row too dear or short of hands keeps the counted verb** ("Buy 46"), where ×1 names the hands, so it still says how many.
+- **A ready pick whose ×10 or Max the pocket cannot pay loses its amber lamp and flag on its row.** A Saving for pick keeps its flag beside the total.
+- **Max is read again at the tap**, as ×1 is, so income that lands between the paint and the tap can buy one more than the row showed.
 - **A machine's worker bill is one machine's bill × the count.**
 - **The staffing New row hires one worker** in any amount: it teaches staffing one hand at a time. A troubled or locked row is unchanged.
 - **The bulk buy is a screen move (`buyTiers`), not an `Action`.** The lab plans single buys, and a new `Action` kind would need a value model it does not use. The move buys through `buyWithTeach` once per unit, all or nothing, and logs one `tier.buy` with the final count.
-- **Lab evidence: `tapsPerSitting`**, a report-only row (≤ 5 after day one, casual types): a sitting's taps with Max, where every tier bought counts one tap and every other buy (upgrade level, engineer) counts one each.
+- **Lab evidence: `tapsPerSitting`**, a report-only row (≤ 5 after day one, casual types): a sitting's taps with Max, where every tier bought counts one tap and every other buy (upgrade level, engineer) counts one each. It is a floor: a tier bought, then another, then the first again, counts once.
 
 ## Tasks
 

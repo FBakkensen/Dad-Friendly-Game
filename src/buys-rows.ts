@@ -135,6 +135,8 @@ type BuyFacts = {
   readonly count: number;
   /** How many a tap buys now, and `price` is all of them together (#358). */
   readonly buying: number;
+  /** How many the row's gain counts: one on ×1, else those the free hands can run. */
+  readonly gaining: number;
   readonly price: number;
   readonly lock: TierLock | undefined;
   readonly troubled: Trouble | undefined;
@@ -175,11 +177,8 @@ function buyFacts({
   const troubled = trouble?.tier === id ? trouble : undefined;
   const isGuided = guided === id && troubled === undefined;
   // The staffing New row hires one worker, whatever the amount.
-  const { count: buying, cost: price } = tierQuote(
-    mountain,
-    tier,
-    isGuided ? "one" : amount,
-  );
+  const asked = isGuided ? "one" : amount;
+  const { count: buying, cost: price } = tierQuote(mountain, tier, asked);
   const rates = effectiveRates(mountain, now, trouble);
   const { spare } = crewCounts(mountain, now, trouble);
   // What the buy needs. The Great Machine's bill drops when an engineer
@@ -188,7 +187,7 @@ function buyFacts({
   const bill = staffBillWords(staff, spare);
   const worker = tierById("helper");
   // Workers (helper, kid) are hired; machines are bought. ×10 and Max say how many.
-  const buyVerb = `${tier.staff === 0 ? "Hire" : "Buy"}${amount === "one" ? "" : ` ${formatCompact(buying)}`}`;
+  const buyVerb = `${tier.staff === 0 ? "Hire" : "Buy"}${asked === "one" ? "" : ` ${formatCompact(buying)}`}`;
   // The plate's pick is one. A ready pick whose ×10 the pocket cannot pay is not
   // offered on this row (#358).
   const pickHere =
@@ -201,6 +200,7 @@ function buyFacts({
     tier,
     count,
     buying,
+    gaining: gainingCount(asked, buying, staff / buying, spare),
     price,
     lock,
     troubled,
@@ -212,12 +212,29 @@ function buyFacts({
     pickHere,
     isPick: pick.kind === "ready" && pickHere,
     buyVerb,
-    handsVerb: amount === "one" && staff > 0 ? workersVerb(staff) : buyVerb,
+    handsVerb: asked === "one" && staff > 0 ? workersVerb(staff) : buyVerb,
     staff,
     shortOf: lock === undefined && spare < staff ? bill : undefined,
     dear:
       lock === undefined && troubled === undefined && mountain.pocket < price,
   };
+}
+
+/**
+ * How many of a buy the row's gain counts (#358). ×1 shows what one more adds, as it always has.
+ * ×10 and Max count only those the free hands can run, so a Max of idle carts never promises
+ * their output.
+ */
+function gainingCount(
+  amount: BuyAmount,
+  buying: number,
+  staffEach: number,
+  spare: number,
+): number {
+  if (amount === "one" || staffEach === 0) {
+    return amount === "one" ? 1 : buying;
+  }
+  return Math.min(buying, Math.floor(Math.max(0, spare) / staffEach));
 }
 
 /** The best-ranked engineer on this machine, and what she adds. */
@@ -360,7 +377,7 @@ function buyFlag(facts: BuyFacts, tending: Tending | undefined): string[] {
     : flagWords;
 }
 
-/** "Buy a mine cart", "Buy 10 mine carts, each": what the tap buys. */
+/** "Buy a mine cart", "Buy 10 mine carts": what the tap buys. */
 function buyingWhat(tier: Tier, buying: number): string {
   const name = tier.name.toLowerCase();
   return buying === 1 ? `Buy a ${name}` : `Buy ${formatCount(buying)} ${name}s`;
@@ -410,7 +427,8 @@ function buyAria(
 export function buyRowView(input: BuyInput): BuyRowView {
   const { mountain, now, trouble } = input;
   const facts = buyFacts(input);
-  const { id, tier, lock, troubled, isGuided, count, speed, buying } = facts;
+  const { id, tier, lock, troubled, isGuided, count, speed, buying, gaining } =
+    facts;
   const tending = tendingOf(mountain, tier, now, trouble);
   return {
     tier: id,
@@ -426,7 +444,7 @@ export function buyRowView(input: BuyInput): BuyRowView {
     gain:
       lock !== undefined || troubled !== undefined
         ? ""
-        : `+${formatSpeed(speed * buying)}/s`,
+        : `+${formatSpeed(speed * gaining)}/s`,
     pick: facts.isPick,
     aria: buyAria(facts, tending, tierSynergy(mountain, id)),
   };

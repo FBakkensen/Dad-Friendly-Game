@@ -613,6 +613,7 @@ export function createCrewPanel({
     },
     onForget: () => {
       onBoard.forget();
+      amountKey.forget();
     },
     ...(signal === undefined ? {} : { signal }),
   });

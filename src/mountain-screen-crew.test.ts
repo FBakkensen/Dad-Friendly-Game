@@ -483,6 +483,31 @@ describe("the Buys drawer (#373)", () => {
       expect(partOf(rowOf(screen, "cart"), "verb")).toBe("Buy");
     });
 
+    it("a press on the key that never clicked is dropped when the drawer moves on", () => {
+      let clock = 10_000;
+      const screen = mountScreen({
+        storage: seededWith(early()),
+        now: () => CLOCK,
+        tapClock: () => clock,
+      });
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      // A finger lands on the key and slides off: no click. Escape shuts the drawer.
+      amountKey(screen).dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      clock += 1_000;
+      openBuys(screen);
+      clock += BUYS_SETTLE_MS + 100;
+      // A finger's click whose pointerdown landed elsewhere is judged by its own age, never by
+      // the old finger-down from before this open.
+      amountKey(screen).dispatchEvent(
+        new MouseEvent("click", { bubbles: true, detail: 1 }),
+      );
+      expect(amountKey(screen).textContent).toBe("×10");
+    });
+
     it("the amount is remembered on this device", () => {
       let clock = 10_000;
       const storage = seededWith(early({ pocket: 10_000_000 }));

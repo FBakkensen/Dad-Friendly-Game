@@ -148,7 +148,7 @@ S2 is the big one. A alone still misses the check-in rows (28% of check-ins buy 
   - **One key for the drawer, not one per card.** Rows are whole buttons with no spare width on a phone. Every card still shows its own count and total.
   - ×10 is exactly ten, all or nothing; Max is as many as the pocket holds, and one's price, dimmed, when it holds none. The staffing New row and the Ready now plate buy one.
   - The amount is kept on the device, not in the save.
-  - The lab's report-only `taps-per-sitting` row reads 2 to 4 taps for casual types at 3 seeds (the check-in dad 2), against 9 to 63 buys.
+  - The lab's report-only `taps-per-sitting` row reads 2 to 4 taps for casual types at 3 seeds (the check-in dad 2), against 9 to 63 buys. It is a floor: a tier bought twice in one sitting, with another between, counts once.
 
 ## Open decisions for Flemming
 

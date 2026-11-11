@@ -543,6 +543,8 @@ describe("buyRowView: ×10 and Max (#358)", () => {
       need: "Needs 10 workers",
       verb: "Buy 10",
       can: true,
+      // Three of the ten can run: the gain counts those, never the idle seven.
+      gain: `+${formatSpeed(effectiveRates(mountain, NOW).tierSpeed.drill * 3)}/s`,
     });
   });
 

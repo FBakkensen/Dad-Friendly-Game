@@ -63,6 +63,8 @@ export interface AmountKey {
   readonly root: HTMLButtonElement;
   /** How many a row's tap buys now. */
   readonly amount: () => BuyAmount;
+  /** The drawer moved on: a press that never reached its click is dropped, as the rows' are. */
+  readonly forget: () => void;
 }
 
 /**
@@ -90,14 +92,25 @@ export function createAmountKey({
     root.setAttribute("aria-label", amountAria(amount));
   };
   paint();
-  pressOnBoard(root, board, { layer: "buys", id: "amount" }, (decision) => {
-    if (decision !== "act") {
-      return;
-    }
-    amount = nextAmount(amount);
-    storeAmount(storage, amount);
-    paint();
-    changed();
-  });
-  return { root, amount: () => amount };
+  const tracker = pressOnBoard(
+    root,
+    board,
+    { layer: "buys", id: "amount" },
+    (decision) => {
+      if (decision !== "act") {
+        return;
+      }
+      amount = nextAmount(amount);
+      storeAmount(storage, amount);
+      paint();
+      changed();
+    },
+  );
+  return {
+    root,
+    amount: () => amount,
+    forget: () => {
+      tracker.forget();
+    },
+  };
 }
