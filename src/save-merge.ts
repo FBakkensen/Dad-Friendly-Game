@@ -56,32 +56,55 @@ export function mergeSaves(local: SaveCopy, remote: SaveCopy): MergeResult {
   }
   const rev = Math.max(local.rev, remote.rev);
   if (runStartedAt(local.mountain) !== runStartedAt(remote.mountain)) {
-    const newer =
-      runStartedAt(local.mountain) > runStartedAt(remote.mountain)
-        ? local
-        : remote;
-    return forward(newer, remote, rev);
+    return forward(laterRun(local, remote), remote, rev);
   }
+  const winner = sameRunWinner(local, remote);
+  return winner === undefined
+    ? { kind: "conflict", local, remote }
+    : forward(winner, remote, rev);
+}
+
+function laterRun(local: SaveCopy, remote: SaveCopy): SaveCopy {
+  return runStartedAt(local.mountain) > runStartedAt(remote.mountain)
+    ? local
+    : remote;
+}
+
+/**
+ * The copy of one run that fast-forwards, or undefined for a conflict. A copy
+ * that alone leads on progress wins. When each covers the other, the one
+ * further along wins, and a tie keeps the local copy only if both mountains
+ * are the same.
+ */
+function sameRunWinner(
+  local: SaveCopy,
+  remote: SaveCopy,
+): SaveCopy | undefined {
   const left = facts(local.mountain);
   const right = facts(remote.mountain);
-  const localLeads = covers(left, right) && aheadOnProgress(left, right);
-  const remoteLeads = covers(right, left) && aheadOnProgress(right, left);
-  if (localLeads && !remoteLeads) {
-    return forward(local, remote, rev);
+  const localCovers = covers(left, right);
+  const remoteCovers = covers(right, left);
+  const localLeads = localCovers && aheadOnProgress(left, right);
+  const remoteLeads = remoteCovers && aheadOnProgress(right, left);
+  if (localLeads !== remoteLeads) {
+    return localLeads ? local : remote;
   }
-  if (remoteLeads && !localLeads) {
-    return forward(remote, remote, rev);
+  if (!localCovers || !remoteCovers) {
+    return undefined;
   }
-  if (covers(left, right) && covers(right, left)) {
-    const verdict = compareSaveProgress(local, remote);
-    if (verdict < 0) {
-      return forward(remote, remote, rev);
-    }
-    if (verdict > 0 || sameMountain(local.mountain, remote.mountain)) {
-      return forward(local, remote, rev);
-    }
+  return evenWinner(local, remote);
+}
+
+/** Two copies that each cover the other. */
+function evenWinner(local: SaveCopy, remote: SaveCopy): SaveCopy | undefined {
+  const verdict = compareSaveProgress(local, remote);
+  if (verdict < 0) {
+    return remote;
   }
-  return { kind: "conflict", local, remote };
+  if (verdict > 0 || sameMountain(local.mountain, remote.mountain)) {
+    return local;
+  }
+  return undefined;
 }
 
 /**

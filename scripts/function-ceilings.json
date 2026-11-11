@@ -1,5 +1,3 @@
 {
-  "src/firebase-save.ts#createFirebaseCloudSave": 166,
-  "src/progress-store.ts#createProgressStore": 2084,
-  "src/tab-writer.ts#createTabWriter": 348
+  "src/progress-store.ts#createProgressStore": 2084
 }

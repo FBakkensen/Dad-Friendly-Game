@@ -120,6 +120,341 @@ function createBroadcastBus(name = WRITER_CHANNEL): NoteBus | undefined {
   };
 }
 
+/** The fixed settings of one tab's writer. */
+type WriterConfig = {
+  readonly tabId: string;
+  readonly storage: Storage;
+  readonly now: () => number;
+  readonly leaseMs: number;
+  readonly yieldWaitMs: number;
+  readonly handoffMs: number;
+  readonly locks: LockBroker | undefined;
+  readonly bus: NoteBus | undefined;
+};
+
+/** What one tab's writer knows and holds while it runs. */
+type WriterState = {
+  readonly config: WriterConfig;
+  readonly listeners: Set<(next: TabSeat) => void>;
+  seat: TabSeat;
+  grant: LockGrant | undefined;
+  flush: (() => void) | undefined;
+  disposed: boolean;
+  takeover: Promise<void> | undefined;
+  pulse: ReturnType<typeof setInterval> | undefined;
+  reclaim: ReturnType<typeof setInterval> | undefined;
+  reclaiming: boolean;
+};
+
+/**
+ * Whether the writer was disposed. A call, not a field read, so a check after
+ * an await is not narrowed away by the check before it.
+ */
+function ended(state: WriterState): boolean {
+  return state.disposed;
+}
+
+/** How often the writer renews its lease, and another tab checks for a free seat. */
+function pollInterval(config: WriterConfig): number {
+  return Math.max(250, Math.floor(config.leaseMs / 2));
+}
+
+function readLease(config: WriterConfig): WriterLease | undefined {
+  try {
+    return parseWriterLease(config.storage.getItem(WRITER_LEASE_KEY));
+  } catch {
+    return undefined;
+  }
+}
+
+function writeLease(config: WriterConfig): void {
+  try {
+    config.storage.setItem(
+      WRITER_LEASE_KEY,
+      JSON.stringify({
+        tabId: config.tabId,
+        until: config.now() + config.leaseMs,
+      }),
+    );
+  } catch {
+    return;
+  }
+}
+
+/** Removes the lease, unless another tab's lease has replaced ours. */
+function clearLease(config: WriterConfig): void {
+  const current = readLease(config);
+  if (current !== undefined && current.tabId !== config.tabId) {
+    return;
+  }
+  try {
+    config.storage.removeItem(WRITER_LEASE_KEY);
+  } catch {
+    return;
+  }
+}
+
+function leaseBlocked(config: WriterConfig): boolean {
+  return leaseBlocks(readLease(config), config.tabId, config.now());
+}
+
+function setSeat(state: WriterState, next: TabSeat): void {
+  if (state.seat === next) {
+    return;
+  }
+  state.seat = next;
+  for (const listener of [...state.listeners]) {
+    listener(state.seat);
+  }
+}
+
+function stopHeartbeat(state: WriterState): void {
+  if (state.pulse === undefined) {
+    return;
+  }
+  clearInterval(state.pulse);
+  state.pulse = undefined;
+}
+
+function stopReclaim(state: WriterState): void {
+  if (state.reclaim === undefined) {
+    return;
+  }
+  clearInterval(state.reclaim);
+  state.reclaim = undefined;
+}
+
+function startHeartbeat(state: WriterState): void {
+  if (state.pulse !== undefined) {
+    return;
+  }
+  state.pulse = setInterval(() => {
+    confirmSeat(state);
+  }, pollInterval(state.config));
+}
+
+function startReclaim(state: WriterState): void {
+  if (state.reclaim !== undefined || ended(state)) {
+    return;
+  }
+  state.reclaim = setInterval(() => {
+    tryReclaim(state);
+  }, pollInterval(state.config));
+}
+
+function becomeWriter(state: WriterState, next?: LockGrant): void {
+  if (ended(state)) {
+    next?.release();
+    return;
+  }
+  state.grant = next;
+  writeLease(state.config);
+  stopReclaim(state);
+  setSeat(state, "writer");
+  startHeartbeat(state);
+}
+
+function dropWriter(state: WriterState): void {
+  if (state.seat !== "writer") {
+    return;
+  }
+  state.flush?.();
+  state.grant?.release();
+  state.grant = undefined;
+  stopHeartbeat(state);
+  setSeat(state, "other");
+  startReclaim(state);
+}
+
+function confirmSeat(state: WriterState): void {
+  if (ended(state) || state.seat !== "writer") {
+    return;
+  }
+  // A held Web Lock is the seat. A leftover lease must not push us off.
+  if (state.grant !== undefined) {
+    writeLease(state.config);
+    return;
+  }
+  if (leaseBlocked(state.config)) {
+    dropWriter(state);
+    return;
+  }
+  writeLease(state.config);
+}
+
+function tryReclaim(state: WriterState): void {
+  if (ended(state) || state.seat === "writer") {
+    stopReclaim(state);
+    return;
+  }
+  const { locks } = state.config;
+  if (locks === undefined) {
+    if (!leaseBlocked(state.config)) {
+      becomeWriter(state);
+    }
+    return;
+  }
+  if (state.reclaiming) {
+    return;
+  }
+  state.reclaiming = true;
+  void locks.tryHold().then((got) => {
+    state.reclaiming = false;
+    if (ended(state) || state.seat === "writer") {
+      got?.release();
+      return;
+    }
+    if (got !== undefined) {
+      becomeWriter(state, got);
+    }
+  });
+}
+
+async function finishTake(state: WriterState, steal: boolean): Promise<void> {
+  if (ended(state)) {
+    return;
+  }
+  const { locks } = state.config;
+  if (locks !== undefined) {
+    const next = await locks.take(steal);
+    if (ended(state)) {
+      next?.release();
+      return;
+    }
+    if (next === undefined) {
+      setSeat(state, "other");
+      return;
+    }
+    state.grant = next;
+  }
+  stopReclaim(state);
+  writeLease(state.config);
+  setSeat(state, "writer");
+  startHeartbeat(state);
+}
+
+function playHere(state: WriterState): Promise<void> {
+  if (state.seat === "writer") {
+    return Promise.resolve();
+  }
+  if (state.takeover !== undefined) {
+    return state.takeover;
+  }
+  const takeover = take(state).finally(() => {
+    state.takeover = undefined;
+  });
+  state.takeover = takeover;
+  return takeover;
+}
+
+/** Asks the writer to yield. True when it answered before the wait ran out. */
+function askToYield(
+  bus: NoteBus,
+  tabId: string,
+  yieldWaitMs: number,
+): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const timer = setTimeout(() => {
+      stop();
+      resolve(false);
+    }, yieldWaitMs);
+    const stop = bus.listen((note) => {
+      if (note.type !== "taken" || note.tabId !== tabId) {
+        return;
+      }
+      clearTimeout(timer);
+      stop();
+      resolve(true);
+    });
+    bus.post({ type: "yield", tabId });
+  });
+}
+
+async function take(state: WriterState): Promise<void> {
+  const { bus, tabId, yieldWaitMs, handoffMs } = state.config;
+  if (bus === undefined) {
+    await finishTake(state, true);
+    return;
+  }
+  const polite = await askToYield(bus, tabId, yieldWaitMs);
+  if (ended(state)) {
+    return;
+  }
+  if (!polite) {
+    bus.post({ type: "taken", tabId });
+    if (handoffMs > 0) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, handoffMs);
+      });
+    }
+  }
+  if (ended(state)) {
+    return;
+  }
+  await finishTake(state, !polite);
+}
+
+/** Another tab's yield or taken note drops this tab's seat. */
+function listenForNotes(state: WriterState): (() => void) | undefined {
+  const { bus, tabId } = state.config;
+  if (bus === undefined) {
+    return undefined;
+  }
+  return bus.listen((note) => {
+    if (note.tabId === tabId) {
+      return;
+    }
+    if (note.type === "yield") {
+      dropWriter(state);
+      clearLease(state.config);
+      bus.post({ type: "taken", tabId: note.tabId });
+      return;
+    }
+    dropWriter(state);
+  });
+}
+
+function claim(state: WriterState): void {
+  const { locks } = state.config;
+  if (!leaseBlocked(state.config)) {
+    // Free lease: play now. The lock, if any, confirms on the next turn.
+    writeLease(state.config);
+    setSeat(state, "writer");
+    startHeartbeat(state);
+  } else {
+    // With a lock, a stale lease must not decide while the lock might still be free.
+    setSeat(state, "other");
+    startReclaim(state);
+  }
+  if (locks === undefined) {
+    return;
+  }
+  void locks.tryHold().then((got) => {
+    if (ended(state)) {
+      got?.release();
+      return;
+    }
+    if (got !== undefined) {
+      becomeWriter(state, got);
+      return;
+    }
+    if (state.seat === "writer") {
+      stopHeartbeat(state);
+      setSeat(state, "other");
+      startReclaim(state);
+    }
+  });
+}
+
+/** Lets go of the lock, the heartbeat, the reclaim poll, and our lease. */
+function letGo(state: WriterState): void {
+  stopHeartbeat(state);
+  stopReclaim(state);
+  state.grant?.release();
+  state.grant = undefined;
+  clearLease(state.config);
+}
+
 /**
  * One writer on this device. Web Locks when the browser has them, otherwise
  * a localStorage lease plus the channel. A crashed tab drops the lock; the
@@ -145,331 +480,66 @@ export function createTabWriter({
   locks?: LockBroker | undefined;
   bus?: NoteBus | undefined;
 }): TabWriter {
-  let seat: TabSeat = "pending";
-  let grant: LockGrant | undefined;
-  let flush: (() => void) | undefined;
-  let disposed = false;
-  const ended = (): boolean => disposed;
-  let takeover: Promise<void> | undefined;
-  let pulse: ReturnType<typeof setInterval> | undefined;
-  let reclaim: ReturnType<typeof setInterval> | undefined;
-  let reclaiming = false;
-  const listeners = new Set<(next: TabSeat) => void>();
-  const pollMs = Math.max(250, Math.floor(leaseMs / 2));
-
-  const readLease = (): WriterLease | undefined => {
-    try {
-      return parseWriterLease(storage.getItem(WRITER_LEASE_KEY));
-    } catch {
-      return undefined;
-    }
+  const state: WriterState = {
+    config: {
+      tabId,
+      storage,
+      now,
+      leaseMs,
+      yieldWaitMs,
+      handoffMs,
+      locks,
+      bus,
+    },
+    listeners: new Set(),
+    seat: "pending",
+    grant: undefined,
+    flush: undefined,
+    disposed: false,
+    takeover: undefined,
+    pulse: undefined,
+    reclaim: undefined,
+    reclaiming: false,
   };
-
-  const writeLease = (): void => {
-    try {
-      storage.setItem(
-        WRITER_LEASE_KEY,
-        JSON.stringify({ tabId, until: now() + leaseMs }),
-      );
-    } catch {
-      return;
-    }
-  };
-
-  const clearLease = (): void => {
-    const current = readLease();
-    if (current !== undefined && current.tabId !== tabId) {
-      return;
-    }
-    try {
-      storage.removeItem(WRITER_LEASE_KEY);
-    } catch {
-      return;
-    }
-  };
-
-  const setSeat = (next: TabSeat): void => {
-    if (seat === next) {
-      return;
-    }
-    seat = next;
-    for (const listener of [...listeners]) {
-      listener(seat);
-    }
-  };
-
-  const stopHeartbeat = (): void => {
-    if (pulse === undefined) {
-      return;
-    }
-    clearInterval(pulse);
-    pulse = undefined;
-  };
-
-  const stopReclaim = (): void => {
-    if (reclaim === undefined) {
-      return;
-    }
-    clearInterval(reclaim);
-    reclaim = undefined;
-  };
-
-  const becomeWriter = (next?: LockGrant): void => {
-    if (ended()) {
-      next?.release();
-      return;
-    }
-    grant = next;
-    writeLease();
-    stopReclaim();
-    setSeat("writer");
-    startHeartbeat();
-  };
-
-  const dropWriter = (): void => {
-    if (seat !== "writer") {
-      return;
-    }
-    flush?.();
-    grant?.release();
-    grant = undefined;
-    stopHeartbeat();
-    setSeat("other");
-    startReclaim();
-  };
-
-  const confirm = (): void => {
-    if (disposed || seat !== "writer") {
-      return;
-    }
-    // A held Web Lock is the seat. A leftover lease must not push us off.
-    if (grant !== undefined) {
-      writeLease();
-      return;
-    }
-    if (leaseBlocks(readLease(), tabId, now())) {
-      dropWriter();
-      return;
-    }
-    writeLease();
-  };
-
-  const tryReclaim = (): void => {
-    if (ended() || seat === "writer") {
-      stopReclaim();
-      return;
-    }
-    if (locks !== undefined) {
-      if (reclaiming) {
-        return;
-      }
-      reclaiming = true;
-      void locks.tryHold().then((got) => {
-        reclaiming = false;
-        if (ended() || seat === "writer") {
-          got?.release();
-          return;
-        }
-        if (got !== undefined) {
-          becomeWriter(got);
-        }
-      });
-      return;
-    }
-    if (!leaseBlocks(readLease(), tabId, now())) {
-      becomeWriter();
-    }
-  };
-
-  const startReclaim = (): void => {
-    if (reclaim !== undefined || ended()) {
-      return;
-    }
-    reclaim = setInterval(() => {
-      tryReclaim();
-    }, pollMs);
-  };
-
-  const startHeartbeat = (): void => {
-    if (pulse !== undefined) {
-      return;
-    }
-    pulse = setInterval(
-      () => {
-        confirm();
-      },
-      Math.max(250, Math.floor(leaseMs / 2)),
-    );
-  };
-
-  const finishTake = async (steal: boolean): Promise<void> => {
-    if (ended()) {
-      return;
-    }
-    if (locks !== undefined) {
-      const next = await locks.take(steal);
-      if (ended()) {
-        next?.release();
-        return;
-      }
-      if (next === undefined) {
-        setSeat("other");
-        return;
-      }
-      grant = next;
-    }
-    stopReclaim();
-    writeLease();
-    setSeat("writer");
-    startHeartbeat();
-  };
-
-  const playHere = (): Promise<void> => {
-    if (seat === "writer") {
-      return Promise.resolve();
-    }
-    if (takeover !== undefined) {
-      return takeover;
-    }
-    takeover = take().finally(() => {
-      takeover = undefined;
-    });
-    return takeover;
-  };
-
-  const take = async (): Promise<void> => {
-    if (bus === undefined) {
-      await finishTake(true);
-      return;
-    }
-    const polite = await new Promise<boolean>((resolve) => {
-      const timer = setTimeout(() => {
-        stop();
-        resolve(false);
-      }, yieldWaitMs);
-      const stop = bus.listen((note) => {
-        if (note.type !== "taken" || note.tabId !== tabId) {
-          return;
-        }
-        clearTimeout(timer);
-        stop();
-        resolve(true);
-      });
-      bus.post({ type: "yield", tabId });
-    });
-    if (ended()) {
-      return;
-    }
-    if (!polite) {
-      bus.post({ type: "taken", tabId });
-      if (handoffMs > 0) {
-        await new Promise<void>((resolve) => {
-          setTimeout(resolve, handoffMs);
-        });
-      }
-    }
-    if (ended()) {
-      return;
-    }
-    await finishTake(!polite);
-  };
-
-  let unlisten: (() => void) | undefined;
-  if (bus !== undefined) {
-    const notes = bus;
-    unlisten = notes.listen((note) => {
-      if (note.tabId === tabId) {
-        return;
-      }
-      if (note.type === "yield") {
-        dropWriter();
-        clearLease();
-        notes.post({ type: "taken", tabId: note.tabId });
-        return;
-      }
-      dropWriter();
-    });
-  }
-
-  const claim = (): void => {
-    const blocked = leaseBlocks(readLease(), tabId, now());
-    if (!blocked) {
-      // Free lease: play now. The lock, if any, confirms on the next turn.
-      writeLease();
-      setSeat("writer");
-      startHeartbeat();
-    } else if (locks === undefined) {
-      setSeat("other");
-      startReclaim();
-    } else {
-      // A stale lease must not decide while a lock might still be free.
-      setSeat("other");
-      startReclaim();
-    }
-    if (locks === undefined) {
-      return;
-    }
-    void locks.tryHold().then((got) => {
-      if (ended()) {
-        got?.release();
-        return;
-      }
-      if (got !== undefined) {
-        becomeWriter(got);
-        return;
-      }
-      if (seat === "writer") {
-        stopHeartbeat();
-        setSeat("other");
-        startReclaim();
-      }
-    });
-  };
-
-  claim();
+  const unlisten = listenForNotes(state);
+  claim(state);
 
   return {
-    seat: () => seat,
+    seat: () => state.seat,
     subscribe(listener) {
-      listeners.add(listener);
+      state.listeners.add(listener);
       return () => {
-        listeners.delete(listener);
+        state.listeners.delete(listener);
       };
     },
-    playHere,
+    playHere: () => playHere(state),
     onYield(next) {
-      flush = next;
+      state.flush = next;
     },
-    confirm,
+    confirm: () => {
+      confirmSeat(state);
+    },
     release() {
-      if (disposed) {
+      if (state.disposed) {
         return;
       }
       // Save while this tab is still the writer. A later pagehide listener
       // must not be what the phone backup and the cloud write depend on.
-      flush?.();
-      stopHeartbeat();
-      stopReclaim();
-      grant?.release();
-      grant = undefined;
-      clearLease();
-      setSeat("other");
+      state.flush?.();
+      letGo(state);
+      setSeat(state, "other");
     },
     restore() {
-      if (disposed) {
+      if (state.disposed) {
         return;
       }
-      claim();
+      claim(state);
     },
     dispose() {
-      disposed = true;
-      stopHeartbeat();
-      stopReclaim();
-      grant?.release();
-      grant = undefined;
-      clearLease();
+      state.disposed = true;
+      letGo(state);
       unlisten?.();
-      listeners.clear();
+      state.listeners.clear();
     },
   };
 }

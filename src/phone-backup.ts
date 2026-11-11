@@ -118,21 +118,7 @@ export function readPhoneBackup({
   }
 }
 
-/**
- * Writes the full save for this account. A backup that is already ahead, or
- * one this build cannot read, is left byte for byte. The key is never removed.
- */
-export function writePhoneBackup({
-  storage,
-  uid,
-  mountain,
-  lastSeen,
-  rev,
-  deviceId,
-  syncedRev,
-  dirty,
-  conflict,
-}: {
+type PhoneBackupInput = {
   storage: Storage;
   uid: string;
   mountain: Mountain;
@@ -142,68 +128,111 @@ export function writePhoneBackup({
   syncedRev?: number | undefined;
   dirty?: boolean | undefined;
   conflict?: PhoneConflict | undefined;
-}): PhoneBackupWrite {
+};
+
+/**
+ * Writes the full save for this account. A backup that is already ahead, or
+ * one this build cannot read, is left byte for byte. The key is never removed.
+ */
+export function writePhoneBackup(input: PhoneBackupInput): PhoneBackupWrite {
+  const { storage, uid } = input;
   const key = backupKey(uid);
   let raw: string;
   try {
-    raw = JSON.stringify({
-      uid,
-      save: serializeSave({
-        mountain,
-        lastSeen,
-        ...(rev === undefined ? {} : { rev }),
-        ...(deviceId === undefined ? {} : { deviceId }),
-      }),
-      ...(syncedRev === undefined ? {} : { syncedRev }),
-      ...(dirty === true ? { dirty: true } : {}),
-      ...(conflict === undefined
-        ? {}
-        : {
-            conflict: {
-              remote: serializeSave({
-                mountain: conflict.remote.mountain,
-                lastSeen: conflict.remote.lastSeen ?? 0,
-                ...(conflict.remote.rev === undefined
-                  ? {}
-                  : { rev: conflict.remote.rev }),
-                ...(conflict.remote.deviceId === undefined
-                  ? {}
-                  : { deviceId: conflict.remote.deviceId }),
-              }),
-              deviceLabel: conflict.deviceLabel,
-            },
-          }),
-    });
+    raw = JSON.stringify(backupRecord(input));
   } catch {
     return "failed";
   }
   try {
     const existing = storage.getItem(key);
-    if (existing === raw) {
+    if (existing !== null && keepsExisting(existing, raw, input)) {
       return "kept";
-    }
-    if (existing !== null) {
-      const parsed = parseStored(existing, uid);
-      if (parsed.kind !== "present") {
-        return "kept";
-      }
-      const existingRev = parsed.save.rev ?? 0;
-      const incomingRev = rev ?? 0;
-      if (existingRev > incomingRev) {
-        return "kept";
-      }
-      if (
-        existingRev === incomingRev &&
-        compareSaveProgress(parsed.save, { mountain, lastSeen }) > 0
-      ) {
-        return "kept";
-      }
     }
     storage.setItem(key, raw);
     return "wrote";
   } catch {
     return "failed";
   }
+}
+
+type SerializedSave = ReturnType<typeof serializeSave>;
+
+type StoredConflict = {
+  readonly remote: SerializedSave;
+  readonly deviceLabel: string;
+};
+
+/** The JSON record under the backup key. */
+type StoredBackup = {
+  readonly uid: string;
+  readonly save: SerializedSave;
+  readonly syncedRev?: number;
+  readonly dirty?: true;
+  readonly conflict?: StoredConflict;
+};
+
+/** The stored record: the save, plus its sync state and any open conflict. */
+function backupRecord({
+  uid,
+  mountain,
+  lastSeen,
+  rev,
+  deviceId,
+  syncedRev,
+  dirty,
+  conflict,
+}: PhoneBackupInput): StoredBackup {
+  return {
+    uid,
+    save: serializeSave({
+      mountain,
+      lastSeen,
+      ...(rev === undefined ? {} : { rev }),
+      ...(deviceId === undefined ? {} : { deviceId }),
+    }),
+    ...(syncedRev === undefined ? {} : { syncedRev }),
+    ...(dirty === true ? { dirty: true } : {}),
+    ...(conflict === undefined
+      ? {}
+      : { conflict: serializeConflict(conflict) }),
+  };
+}
+
+function serializeConflict(conflict: PhoneConflict): StoredConflict {
+  const { remote } = conflict;
+  return {
+    remote: serializeSave({
+      mountain: remote.mountain,
+      lastSeen: remote.lastSeen ?? 0,
+      ...(remote.rev === undefined ? {} : { rev: remote.rev }),
+      ...(remote.deviceId === undefined ? {} : { deviceId: remote.deviceId }),
+    }),
+    deviceLabel: conflict.deviceLabel,
+  };
+}
+
+/**
+ * The stored backup stays when it already holds these bytes, cannot be read
+ * by this build, has a higher rev, or is ahead at the same rev.
+ */
+function keepsExisting(
+  existing: string,
+  raw: string,
+  { uid, mountain, lastSeen, rev }: PhoneBackupInput,
+): boolean {
+  if (existing === raw) {
+    return true;
+  }
+  const parsed = parseStored(existing, uid);
+  if (parsed.kind !== "present") {
+    return true;
+  }
+  const existingRev = parsed.save.rev ?? 0;
+  const incomingRev = rev ?? 0;
+  if (existingRev !== incomingRev) {
+    return existingRev > incomingRev;
+  }
+  return compareSaveProgress(parsed.save, { mountain, lastSeen }) > 0;
 }
 
 /** Identity of a write, so its own snapshot can be skipped. */
