@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
 import { createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
+import { closeArrivals } from "./mountain-screen.harness";
 import { createProgressStore } from "./progress-store";
 import { effectiveRates, firstTend } from "./rates";
-import { firstTendWords, stonesPerSecond, tendingIntro } from "./screen-words";
+import { stonesPerSecond, tendingIntro } from "./screen-words";
 import { noteFor, showsDot } from "./teach";
 
 beforeEach(() => {
@@ -112,16 +113,17 @@ describe("tending teach (#246)", () => {
       index: 0,
       post: "borer",
     });
+    // A save with no crew at all has no first tend.
+    const noCrew = { ...crew() };
+    delete noCrew.engineers;
+    expect(firstTend(noCrew)).toBeUndefined();
   });
 
-  it("words the intro and button with a real payoff and no question", () => {
-    expect(firstTendWords("machine", "+12 stones/sec")).toBe(
-      "Tend the Great Machine · +12 stones/sec",
-    );
+  it("words the intro with no question", () => {
     expect(tendingIntro("Ada")).not.toContain("?");
   });
 
-  it("the New card's one big button tends, shows the real gain, and the dot goes", () => {
+  it("the New post row tends, shows the real gain in its row and the cheer, and the dot goes", () => {
     const clock = 1_700_000_000_000;
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => crew());
@@ -134,17 +136,25 @@ describe("tending teach (#246)", () => {
     expect(
       screen.root.querySelector<HTMLElement>(".board-sign-slot")?.hidden,
     ).toBe(true);
+    closeArrivals(screen.root);
     button?.click();
-    const sheet = screen.root.querySelector<HTMLElement>(".engineers-dialog");
-    expect(
-      sheet?.querySelector<HTMLElement>(".engineers-intro")?.textContent,
-    ).toBe(tendingIntro("Ada"));
-    const card = sheet?.querySelector(".engineer-open");
-    expect(card?.classList.contains("teach-new")).toBe(true);
-    const tend = sheet?.querySelector<HTMLButtonElement>(
-      ".engineer-first-tend",
+    const sheet = screen.root.querySelector<HTMLElement>(
+      ".board-sheet[data-sheet=engineers]",
     );
-    expect(tend?.hidden).toBe(false);
+    expect(sheet?.querySelector(".board-sheet-kick")?.textContent).toBe(
+      tendingIntro("Ada"),
+    );
+    // Her row is the New one; her page's New row is the Great Machine.
+    const row = sheet?.querySelector<HTMLButtonElement>(
+      '.engineer-row[data-engineer="Ada"]',
+    );
+    expect(row?.classList.contains("teach-new")).toBe(true);
+    row?.click();
+    const tend = sheet?.querySelector<HTMLButtonElement>(
+      '.engineer-post[data-post="machine"]',
+    );
+    expect(tend?.classList.contains("teach-new")).toBe(true);
+    expect(tend?.querySelector(".board-row-flag")?.textContent).toBe("New");
     const before = screen.progress.getSnapshot();
     const after = {
       ...before.mountain,
@@ -154,10 +164,14 @@ describe("tending teach (#246)", () => {
       effectiveRates(after, clock, before.trouble).crewPerSecond -
       effectiveRates(before.mountain, clock, before.trouble).crewPerSecond;
     expect(gain).toBeGreaterThan(0);
-    expect(tend?.textContent).toBe(
-      firstTendWords("machine", stonesPerSecond(gain)),
+    // The real gain, in the row and in the cheer.
+    expect(tend?.querySelector(".board-row-gain")?.textContent).toBe(
+      stonesPerSecond(gain),
     );
     tend?.click();
+    expect(sheet?.querySelector(".board-sheet-kick")?.textContent).toBe(
+      `Ada heads to the Great Machine! ${stonesPerSecond(gain)}`,
+    );
     const mountain = screen.progress.getSnapshot().mountain;
     expect(mountain.engineers?.[0]?.post).toBe("machine");
     expect(mountain.taught).toContain("tending");
@@ -165,21 +179,24 @@ describe("tending teach (#246)", () => {
     expect(showsDot(screen.progress.getSnapshot().mountain, "tending")).toBe(
       false,
     );
-    expect(tend?.hidden).toBe(true);
-    expect(card?.classList.contains("teach-new")).toBe(false);
+    expect(tend?.classList.contains("teach-new")).toBe(false);
+    expect(sheet?.querySelector(".engineer-row.teach-new")).toBeNull();
   });
 
-  it("a tend from the menu also counts as the first tend", () => {
+  it("a tend from any post row also counts as the first tend", () => {
     const clock = 1_700_000_000_000;
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => crew());
+    closeArrivals(screen.root);
     screen.root
       .querySelector<HTMLButtonElement>(".board-key[data-key=engineers]")
       ?.click();
-    const choice = screen.root.querySelector<HTMLButtonElement>(
-      '.engineer-choice[data-post="borer"]',
-    );
-    choice?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>('.engineer-row[data-engineer="Ada"]')
+      ?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>('.engineer-post[data-post="borer"]')
+      ?.click();
     const mountain = screen.progress.getSnapshot().mountain;
     expect(mountain.engineers?.[0]?.post).toBe("borer");
     expect(mountain.taught).toContain("tending");

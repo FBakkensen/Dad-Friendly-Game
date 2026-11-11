@@ -6,11 +6,7 @@ const css = readFileSync("src/style.css", "utf8");
 const boardCss = readFileSync("src/board.css", "utf8");
 
 /** Rules whose loss breaks the game silently: jsdom tests don't apply CSS. */
-const REQUIRED_SELECTORS = [
-  ".engineers-dialog",
-  ".engineer-tunnel",
-  ".expedition-chip",
-];
+const REQUIRED_SELECTORS = [".expedition-chip"];
 
 /**
  * The board's parts that took over from the pocket pill and the relic shelf
@@ -60,10 +56,10 @@ const BOARD_SELECTORS = [
   ".ledger-log-time",
   ".ledger-log-text",
   ".ledger-doors",
-  ".ledger-page",
-  ".ledger-page-title",
-  ".ledger-page-line",
-  ".ledger-page-answers",
+  ".board-page",
+  ".board-page-title",
+  ".board-page-line",
+  ".board-page-answers",
   ".ledger-field-log-well",
   ".ledger-field-log-text",
   ".relic-page",
@@ -98,10 +94,10 @@ const BOARD_SELECTORS = [
   ".saved-copy",
   ".legacy-lead",
   ".legacy-rates",
+  ".engineer-walk",
+  ".engineer-page-plates",
+  ".engineer-brought-page",
 ];
-
-/** The last of today's sheets laid over the game (fixed, inset 0 in style.css). */
-const OVERLAYS = [".engineers-dialog"];
 
 /** WCAG 2 contrast ratio of two #rrggbb colours. */
 function contrast(a: string, b: string): number {
@@ -126,14 +122,6 @@ function boardZ(selector: string): number {
 }
 
 describe("board.css", () => {
-  it.each(OVERLAYS)("stops %s at the save line", (selector) => {
-    const group =
-      /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*bottom:\s*var\(--save-h\)/m.exec(
-        boardCss,
-      );
-    expect(group?.[1]?.split(",\n")).toContain(selector);
-  });
-
   it("keeps the save line and its drawer above every overlay", () => {
     const highest = Math.max(
       ...[...css.matchAll(/z-index:\s*(\d+)/g)].map((m) => Number(m[1])),
@@ -151,13 +139,11 @@ describe("board.css", () => {
   });
 
   it("stacks the cards in the root's order, the conflict over them all (#464)", () => {
-    // Every card and today's sheets stand at one z-index, so the root's order stacks them
-    // (screen-panels#cardsFrom): the Engineers sheet first, under the welcome; Pass the mine,
-    // the update, the other tab and saved copies over the welcome and the layer card. The relics drawer
-    // (#465) is a drawer in the drawers' clip, above every card: a card that comes up closes
-    // it (screen-overlays#coverDrawers), and its reveal waits while a card is up.
-    const sheets = /^\.engineers-dialog \{[^}]*z-index:\s*(\d+)/m.exec(css);
-    expect(Number(sheets?.[1])).toBe(boardZ(".board-card"));
+    // Every card stands at one z-index, so the root's order stacks them
+    // (screen-panels#cardsFrom): Pass the mine, the update, the other tab and saved copies
+    // over the welcome and the layer card. The relics and Engineers drawers (#465, #455)
+    // are drawers in the drawers' clip, above every card: a card that comes up closes them
+    // (screen-overlays#coverDrawers), and the relics' reveal waits while a card is up.
     const raised = [
       ...boardCss.matchAll(/^(\.board-card\.[\w-]+) \{[^}]*z-index/gm),
     ].map((m) => m[1]);
@@ -329,9 +315,40 @@ describe("board.css", () => {
     expect(boardCss).toMatch(/^\.crew-bit,\n\.crew-bit\.board-skinned \{/m);
   });
 
+  it("the walk home holds still under reduced motion (#455)", () => {
+    const reduced = [
+      ...boardCss.matchAll(
+        /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/g,
+      ),
+    ]
+      .map((m) => m[1] ?? "")
+      .find((body) => body.includes(".engineer-walker"));
+    expect(reduced).toBeDefined();
+    expect(reduced).toMatch(/\.engineer-walker[^{]*\{[^}]*animation:\s*none/);
+  });
+
   it("the New sign takes no taps: they go through to the plate or the key (#373)", () => {
     const rule = /^\.board-sign-slot \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
     expect(rule).toMatch(/pointer-events:\s*none/);
+  });
+
+  it("sits her page's plate words on the key face, and the guided first trip across the row (#455)", () => {
+    const rule = (selector: string): string => {
+      const escaped = selector.replace(/[.>]/g, "\\$&");
+      return (
+        new RegExp(`^${escaped} \\{([^}]*)\\}`, "m").exec(boardCss)?.[1] ?? ""
+      );
+    };
+    // The key skin's 8 art px edge and 2 more: the inset engineer-parts#fitsPlate fits against.
+    expect(rule(".engineer-page-plates > .board-platebtn")).toMatch(
+      /padding:\s*0 calc\(var\(--art\) \* 10\)/,
+    );
+    expect(rule(".engineer-page-plates > .board-platebtn.is-small")).toMatch(
+      /font-size:\s*var\(--board-type-14\)/,
+    );
+    expect(rule(".engineer-page-plates > .board-platebtn.teach-new")).toMatch(
+      /grid-column:\s*1 \/ -1/,
+    );
   });
 
   it.each(BOARD_SELECTORS)("styles %s", (selector) => {
@@ -401,6 +418,18 @@ describe("style.css", () => {
     );
   });
 
+  it("keeps no rule for today's Engineers sheet (#455)", () => {
+    // The drawer keeps today's hooks (.engineer-promote, .engineer-explore, .recall-yes, …):
+    // an old rule would restyle them. Only the expedition chip stays, in the Running now note.
+    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
+      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+    );
+    expect(
+      selectors.filter((one) => /\.(engineers-|engineer-|recall-)/.test(one)),
+    ).toEqual([]);
+    expect(css).not.toMatch(/@keyframes engineer-/);
+  });
+
   it("keeps no lit crew chip: the crew plate holds the free count (#371)", () => {
     expect(css).not.toMatch(/teach-point/);
   });
@@ -440,10 +469,6 @@ describe("style.css", () => {
   it.each(REQUIRED_SELECTORS)("styles %s", (selector) => {
     const escaped = selector.replace(".", "\\.");
     expect(css).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));
-  });
-
-  it("lays .engineers-dialog over the game", () => {
-    expect(css).toMatch(/^\.engineers-dialog \{[^}]*position:\s*fixed/m);
   });
 
   it("keeps no rule for today's Saved copies, Pass the mine, Start over and menu cards (#466)", () => {

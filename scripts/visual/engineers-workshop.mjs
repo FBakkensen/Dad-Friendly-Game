@@ -1,5 +1,5 @@
-/* global console, document, innerWidth, innerHeight, getComputedStyle */
-/** Engineers and Workshop sections: the expedition chip and sheet, the Engineers sheet and the Workshop drawer's states. */
+/* global console, document, getComputedStyle */
+/** Engineers and Workshop sections: the Engineers drawer's states (the expedition chip with them) and the Workshop drawer's. */
 import {
   awayTripSave,
   campPostsSave,
@@ -10,213 +10,522 @@ import {
   unknownBenchSave,
   workshopSave,
 } from "../../tools/browser/fixtures.ts";
+import { stepTapClock } from "../../tools/browser/harness.ts";
 import { check, section } from "./registry.mjs";
 import {
   PHONE,
   SCREENS,
-  KEY,
   OPEN_SHEET,
-  STANDALONE_INSETS,
+  PAST_SETTLE_MS,
   openScreen,
   openSheet,
   noScroll,
   noteAway,
   keysDrawn,
   LAMP_X,
+  press,
   shot,
 } from "./kit.mjs";
+import { boardArtAt2x } from "./measure.mjs";
 
-// An expedition still out: the chip shows in the Running now note, and the
-// sheet (Recall, posts, the way back) fits the phone, including the PWA.
-for (const standalone of [false, true]) {
-  section(`section 11 (line 1191) ${JSON.stringify(standalone)}`, async () => {
-    const viewport = PHONE;
-    const label = `424x924${standalone ? " standalone" : ""}`;
-    const now = Date.now();
-    const { page, close } = await openScreen(viewport, awayTripSave(now), {
-      standalone,
-    });
-    const insets = standalone ? STANDALONE_INSETS : { top: 0, bottom: 0 };
-    // The trip's clock lives in the Running now note the dial opens (#370).
-    await page.tap(".board-dial");
-    await page
-      .waitForSelector(".board-note.on .effect-row", { timeout: 2_000 })
-      .catch(() => undefined);
-    const chip = await page.evaluate(() => {
-      const board = globalThis.__board();
-      const note = document.querySelector(".board-note.on");
-      const row = note?.querySelector(".board-running .effect-row");
-      const shown = [...(row?.querySelectorAll(".expedition-chip") ?? [])].find(
-        (el) => !el.hidden,
+/** Every plate the states flow has read on a page, with the page it stood on. */
+let platesSeen = [];
+
+/** The open Engineers drawer as the dad reads it: the kick, the list or the page shown (#455). */
+async function engineersFacts(page) {
+  const facts = await readEngineers(page);
+  platesSeen.push(
+    ...facts.plates.map((plate) => ({ ...plate, page: facts.page })),
+  );
+  return facts;
+}
+
+/** What engineersFacts reads, in the page. */
+function readEngineers(page) {
+  return page.$eval(OPEN_SHEET("engineers"), (sheet) => {
+    const text = (root, selector) =>
+      root?.querySelector(selector)?.textContent ?? "";
+    const lamp = (root) =>
+      root.querySelector(".board-lamp")?.style.backgroundPositionX ?? "";
+    const shown = (el) => el.closest("[hidden]") === null;
+    // Heights in board px: a standalone phone scales the board.
+    const { scale } = globalThis.__board();
+    const box = sheet.getBoundingClientRect();
+    const inside = (el) => {
+      const b = el.getBoundingClientRect();
+      return (
+        b.left >= box.left - 0.5 &&
+        b.right <= box.right + 0.5 &&
+        b.top >= box.top - 0.5 &&
+        b.bottom <= box.bottom + 0.5
       );
-      if (note === null || shown === undefined) {
-        return { ok: false, text: "" };
-      }
-      const box = shown.getBoundingClientRect();
-      const host = note.getBoundingClientRect();
-      const text = shown.textContent ?? "";
-      return {
-        ok:
-          box.width > 0 &&
-          box.top >= host.top - 1 &&
-          box.bottom <= host.bottom + 1 &&
-          box.left >= host.left - 1 &&
-          box.right <= host.right + 1 &&
-          host.left >= board.left &&
-          host.right <= board.right &&
-          host.top >= board.top &&
-          host.bottom <= board.saveTop &&
-          text.includes("Ada") &&
-          /\d+:\d{2}|\dh\d{2}/.test(text),
-        text,
-      };
+    };
+    const rowFacts = (row) => ({
+      id:
+        row.dataset.engineer ??
+        row.dataset.engineers ??
+        row.dataset.post ??
+        row.dataset.tunnel ??
+        "",
+      classes: [...row.classList],
+      name: text(row, ".board-row-name"),
+      badge: text(row, ".board-row-badge"),
+      info: text(row, ".board-row-info"),
+      why: text(row, ".board-row-why"),
+      flag: text(row, ".board-row-flag"),
+      gain: text(row, ".board-row-gain"),
+      price: text(row, ".board-row-price"),
+      verb: text(row, ".board-row-verb"),
+      lamp: lamp(row),
+      pressed: row.getAttribute("aria-pressed"),
+      height: row.getBoundingClientRect().height / scale,
+      walk: row.querySelector(".engineer-walk") !== null,
     });
-    check(
-      chip.ok,
-      `${label} expedition chip sits in the Running now note (${chip.text})`,
+    const list = sheet.querySelector(".board-sheet-list");
+    const pageEl = sheet.querySelector(
+      ".board-sheet-page:not([hidden]) > .board-page",
     );
-    check(await noScroll(page), `${label} expedition chip has no scroll`);
-    await page.tap(KEY("engineers"));
-    const sheet = await page.$eval(
-      ".engineers-dialog",
-      (dialog, pad) => {
-        const buttons = [...dialog.querySelectorAll("button")].filter(
-          (button) => !button.hidden && button.getClientRects().length > 0,
-        );
-        const boxesOk = buttons.every((button) => {
-          const box = button.getBoundingClientRect();
+    // A plate's words sit on the key skin's face: inside its 8 art px edge (#455).
+    const art =
+      Number.parseFloat(
+        getComputedStyle(sheet).getPropertyValue("--art") || "2",
+      ) * scale;
+    const onFace = (plate) => {
+      const b = plate.getBoundingClientRect();
+      const inset = art * 8;
+      return [
+        ...plate.querySelectorAll(".board-platebtn-text, .board-row-flag"),
+      ]
+        .filter(shown)
+        .every((part) => {
+          const r = part.getBoundingClientRect();
           return (
-            box.height >= 44 &&
-            box.left >= 0 &&
-            box.right <= innerWidth &&
-            box.top >= pad.top &&
-            box.bottom <= innerHeight - pad.bottom &&
-            button.scrollWidth <= button.clientWidth + 1
+            r.left >= b.left + inset - 0.5 &&
+            r.right <= b.right - inset + 0.5 &&
+            r.top >= b.top - 0.5 &&
+            r.bottom <= b.bottom + 0.5
           );
         });
-        const close =
-          dialog.querySelector(".engineers-close")?.getBoundingClientRect()
-            .bottom ?? Infinity;
-        const title =
-          dialog.querySelector("h2")?.getBoundingClientRect().top ?? -1;
-        // Only what shows: How it works cards stay hidden until "i" (#246).
-        const text = dialog.innerText;
-        const recall = dialog.querySelector(".engineer-recall");
-        return {
-          boxesOk,
-          count: buttons.length,
-          titleOk: title >= pad.top,
-          closeOk: close <= innerHeight - pad.bottom,
-          recall: recall !== null && !recall.hidden,
-          words:
-            text.includes("Call her back") &&
-            text.includes("exploring the old shaft") &&
-            !text.includes("?") &&
-            !text.includes("%"),
-          discovery: [...dialog.querySelectorAll(".engineer-trip")]
-            .filter((node) => !node.hidden && node.closest("[hidden]") === null)
-            .map((node) => node.textContent ?? "")
-            .every((line) => line.length > 0 && !/\d|\?/.test(line)),
-        };
-      },
-      insets,
-    );
-    check(
-      sheet.boxesOk &&
-        sheet.count >= 3 &&
-        sheet.titleOk &&
-        sheet.closeOk &&
-        sheet.recall &&
-        sheet.words &&
-        sheet.discovery,
-      `${label} engineers sheet fits with an expedition out`,
-    );
-    if (!(sheet.boxesOk && sheet.closeOk && sheet.recall)) {
-      console.log("expedition sheet", sheet);
-    }
-    check(await noScroll(page), `${label} expedition sheet has no scroll`);
-    await close();
+    };
+    const plates = [...(pageEl?.querySelectorAll(".board-platebtn") ?? [])]
+      .filter(shown)
+      .map((plate) => ({
+        classes: [...plate.classList],
+        words: text(plate, ".board-platebtn-text") || plate.textContent || "",
+        flag: plate.querySelector(".board-row-flag:not([hidden])")
+          ? text(plate, ".board-row-flag")
+          : "",
+        label: plate.getAttribute("aria-label") ?? "",
+        inside: inside(plate),
+        onFace: onFace(plate),
+        width: plate.getBoundingClientRect().width / scale,
+        height: plate.getBoundingClientRect().height / scale,
+      }));
+    const stories = [
+      ...(pageEl?.querySelectorAll(".engineer-brought-story") ?? []),
+    ]
+      .filter(shown)
+      .map((story) => ({
+        text: story.textContent ?? "",
+        px: Number.parseFloat(getComputedStyle(story).fontSize),
+        inside: inside(story),
+      }));
+    return {
+      kick: text(sheet, ".board-sheet-kick"),
+      listShown: list !== null && !list.hidden,
+      listScroll:
+        list === null ? [0, 0] : [list.scrollHeight, list.clientHeight],
+      rows: [...(list?.querySelectorAll(":scope > .board-row") ?? [])]
+        .filter(shown)
+        .map(rowFacts),
+      page: pageEl === null ? "" : pageEl.className,
+      pageInside: pageEl !== null && inside(pageEl),
+      pageRows: [...(pageEl?.querySelectorAll(".board-row") ?? [])]
+        .filter(shown)
+        .map(rowFacts),
+      title: text(pageEl, ".board-page-title"),
+      line: text(pageEl, ".board-page-line"),
+      plates,
+      stories,
+    };
   });
 }
 
-// Five engineers, one open card and four rows, plus a keepsake they brought
-// home. Short phones and the installed PWA, with no scroll.
-for (const viewport of [PHONE]) {
-  section(`section 12 (line 1322) ${JSON.stringify(viewport)}`, async () => {
-    for (const standalone of [false, true]) {
-      const label = `${String(viewport[0])}x${String(viewport[1])}${standalone ? " standalone" : ""}`;
-      const now = Date.now();
-      const { page, close } = await openScreen(viewport, campPostsSave(now), {
-        standalone,
-      });
-      const insets = standalone ? STANDALONE_INSETS : { top: 0, bottom: 0 };
-      await page.tap(KEY("engineers"));
-      const crew = await page.$eval(
-        ".engineers-dialog",
-        (dialog, pad) => {
-          const buttons = [...dialog.querySelectorAll("button")].filter(
-            (button) => !button.hidden && button.getClientRects().length > 0,
-          );
-          const boxesOk = buttons.every((button) => {
-            const box = button.getBoundingClientRect();
-            return (
-              box.height >= 44 &&
-              box.left >= 0 &&
-              box.right <= innerWidth &&
-              box.top >= pad.top &&
-              box.bottom <= innerHeight - pad.bottom &&
-              button.scrollWidth <= button.clientWidth + 1
-            );
-          });
-          const promote = dialog.querySelector(".engineer-promote");
-          const promoteBottom =
-            promote?.getBoundingClientRect().bottom ?? Infinity;
-          const brought = dialog.querySelector(".engineer-brought");
-          const broughtSize = brought
-            ? Number.parseFloat(getComputedStyle(brought).fontSize)
-            : 0;
-          const text = dialog.textContent ?? "";
-          return {
-            boxesOk,
-            open: dialog.querySelectorAll(".engineer.is-open").length,
-            mini: dialog.querySelectorAll(".engineer.is-mini").length,
-            promoteOk: promoteBottom <= innerHeight - pad.bottom,
-            brought: brought !== null && !brought.hidden,
-            broughtSize,
-            story: text.includes("A child's drawing"),
-            sheetScroll: dialog.scrollHeight <= dialog.clientHeight + 1,
-            words: !text.includes("?"),
-            discovery: [
-              ...dialog.querySelectorAll(
-                ".engineer-trip, .engineer-brought-story, .keepsake-story",
-              ),
-            ]
-              .map((node) => node.textContent ?? "")
-              .every((line) => line.length === 0 || !/\d|\?/.test(line)),
-          };
-        },
-        insets,
-      );
-      check(
-        crew.boxesOk &&
-          crew.open === 1 &&
-          crew.mini === 4 &&
-          crew.promoteOk &&
-          crew.brought &&
-          crew.broughtSize >= 16 &&
-          crew.story &&
-          crew.sheetScroll &&
-          crew.words &&
-          crew.discovery &&
-          (await noScroll(page)),
-        `${label} five engineers and a keepsake fit with no scroll`,
-      );
-      if (!crew.boxesOk || !crew.sheetScroll || !crew.promoteOk) {
-        console.log("five engineers", label, crew);
-      }
-      await close();
-    }
+/** Opens the save on held clocks, then the Engineers drawer by its key, past its settle. */
+async function openEngineers(viewport, save, { standalone = false } = {}) {
+  const opened = await openScreen(viewport, save, {
+    stopClock: true,
+    tapClock: "held",
+    standalone,
   });
+  await keysDrawn(opened.page);
+  await noteAway(opened.page);
+  await openSheet(opened.page, "engineers");
+  await stepTapClock(opened.page, PAST_SETTLE_MS);
+  return opened;
+}
+
+/** A tap on the open drawer, then past the new screen's settle; true once `want` shows. */
+async function pressThen(page, selector, want) {
+  await press(page, `${OPEN_SHEET("engineers")} ${selector}`);
+  const shown = await page
+    .waitForSelector(`${OPEN_SHEET("engineers")} ${want}`, {
+      visible: true,
+      timeout: 2_000,
+    })
+    .then(
+      () => true,
+      () => false,
+    );
+  await stepTapClock(page, PAST_SETTLE_MS);
+  return shown;
+}
+
+/** A page of the drawer, by its class. */
+const ENGINEERS_PAGE = (name) => `.board-sheet-page:not([hidden]) > .${name}`;
+
+/**
+ * openMountain past the first trip's lesson (a v6 save keeps `seen` and `taught` on its
+ * workshop): Send exploring opens the tunnels page. The pocket pays for Promote.
+ */
+function pastFirstTrip() {
+  const save = openMountain();
+  return {
+    ...save,
+    mountain: { ...save.mountain, pocket: 20_000_000 },
+    workshop: {
+      ...save.workshop,
+      seen: [...(save.workshop.seen ?? []), "engineers"],
+      taught: [...(save.workshop.taught ?? []), "engineers"],
+    },
+  };
+}
+
+/** The Running now note's expedition chip, with the trip's engineer and clock (#370). */
+async function expeditionChip(page) {
+  await page.tap(".board-dial");
+  await page
+    .waitForSelector(".board-note.on .effect-row", { timeout: 2_000 })
+    .catch(() => undefined);
+  const chip = await page.evaluate(() => {
+    const board = globalThis.__board();
+    const note = document.querySelector(".board-note.on");
+    const row = note?.querySelector(".board-running .effect-row");
+    const shown = [...(row?.querySelectorAll(".expedition-chip") ?? [])].find(
+      (el) => !el.hidden,
+    );
+    if (note === null || shown === undefined) {
+      return { ok: false, text: "" };
+    }
+    const box = shown.getBoundingClientRect();
+    const host = note.getBoundingClientRect();
+    const text = shown.textContent ?? "";
+    return {
+      ok:
+        box.width > 0 &&
+        box.top >= host.top - 1 &&
+        box.bottom <= host.bottom + 1 &&
+        box.left >= host.left - 1 &&
+        box.right <= host.right + 1 &&
+        host.left >= board.left &&
+        host.right <= board.right &&
+        host.top >= board.top &&
+        host.bottom <= board.saveTop &&
+        text.includes("Ada") &&
+        /\d+:\d{2}|\dh\d{2}/.test(text),
+      text,
+    };
+  });
+  await noteAway(page);
+  return chip;
+}
+
+/** No digit and no question in a line that tells a discovery. */
+const vague = (line) => line.length > 0 && !/\d|\?/.test(line);
+
+/** The first visit and her page, on the mid save (#455). */
+async function engineersFirstVisit(viewport, size) {
+  const { page, close } = await openEngineers(viewport, openMountain());
+  const list = await engineersFacts(page);
+  await shot(page, `engineers-list-${size}`);
+  const ada = list.rows.find((row) => row.id === "Ada");
+  const promote = list.rows.find((row) => row.id === "promote");
+  check(
+    ada !== undefined &&
+      ada.lamp === LAMP_X.amber &&
+      ada.flag === "New" &&
+      ada.badge === "Apprentice" &&
+      ada.info === "Tending the borers" &&
+      list.kick === "Ada can explore a side tunnel and bring home a find." &&
+      promote !== undefined &&
+      /^[\d.]+[KMBT]?$/.test(promote.price) &&
+      promote.verb === "Promote" &&
+      list.rows.at(-1)?.id === "promote",
+    `${size} engineers first visit: Ada's row is the New one (amber, Apprentice, Tending the borers) under the intro kick, and Promote ends the list with its price`,
+  );
+  if (ada?.flag !== "New" || promote === undefined) {
+    console.log("engineers list", size, JSON.stringify(list));
+  }
+  const opened = await pressThen(
+    page,
+    '.engineer-row[data-engineer="Ada"]',
+    ENGINEERS_PAGE("engineer-page"),
+  );
+  const hers = await engineersFacts(page);
+  await shot(page, `engineers-her-page-${size}`);
+  const borers = hers.pageRows.find((row) => row.id === "borer");
+  const built = hers.pageRows.filter(
+    (row) => row.id !== "camp" && row.gain !== "",
+  );
+  const [left] = hers.plates;
+  check(
+    opened &&
+      hers.pageRows.length === 5 &&
+      borers?.name === "The borers · here now" &&
+      borers.lamp === LAMP_X.green &&
+      borers.pressed === "true" &&
+      built.length >= 1 &&
+      built.every((row) => /^\+[\d.,]+[KMBT]? stones\/sec$/.test(row.gain)) &&
+      hers.plates.length === 1 &&
+      left?.classes.includes("teach-new") === true &&
+      left.words === "Send Ada exploring · 10 min" &&
+      left.label === "Send Ada exploring · 10 min" &&
+      left.flag === "New" &&
+      hers.pageInside &&
+      hers.plates.every((plate) => plate.inside) &&
+      (await noScroll(page)),
+    `${size} engineers her page: five posts inside the drawer, the borers here now (green, pressed), real gains, and the guided first trip alone across the plate row in its full words, New; no page scroll`,
+  );
+  if (!opened || hers.pageRows.length !== 5 || left === undefined) {
+    console.log("engineers her page", size, JSON.stringify(hers));
+  }
+  await close();
+}
+
+/** The tunnels page, past the first trip; then Promote's ask (#455). */
+async function engineersTunnelsAndPromote(viewport, size) {
+  {
+    const { page, close } = await openEngineers(viewport, pastFirstTrip());
+    await pressThen(
+      page,
+      '.engineer-row[data-engineer="Ada"]',
+      ENGINEERS_PAGE("engineer-page"),
+    );
+    const opened = await pressThen(
+      page,
+      ".engineer-explore",
+      ENGINEERS_PAGE("engineer-tunnels-page"),
+    );
+    const tunnels = await engineersFacts(page);
+    await shot(page, `engineers-tunnels-${size}`);
+    const deep = tunnels.pageRows.find((row) => row.id === "deep-dark");
+    check(
+      opened &&
+        tunnels.pageRows.length === 3 &&
+        deep?.classes.includes("is-locked") === true &&
+        deep.info === "The deep dark waits for a Journeyman." &&
+        tunnels.kick === "While she explores, her machine works without her." &&
+        tunnels.pageInside &&
+        (await noScroll(page)),
+      `${size} engineers tunnels: three tunnels inside the drawer, the deep dark locked for a Journeyman, the aside in the kick`,
+    );
+    if (!opened || deep === undefined) {
+      console.log("engineers tunnels", size, JSON.stringify(tunnels));
+    }
+    await close();
+  }
+  {
+    const { page, close } = await openEngineers(viewport, pastFirstTrip());
+    const opened = await pressThen(
+      page,
+      ".engineer-promote",
+      ENGINEERS_PAGE("engineer-promote-page"),
+    );
+    const ask = await engineersFacts(page);
+    await shot(page, `engineers-promote-${size}`);
+    check(
+      opened &&
+        !ask.listShown &&
+        ask.title === "Promote a worker" &&
+        / steps up as engineer\. One worker fewer at the machines\.$/.test(
+          ask.line,
+        ) &&
+        ask.plates.map((plate) => plate.words).join() === "Not yet,Step up" &&
+        ask.pageInside &&
+        (await noScroll(page)),
+      `${size} engineers promote: the ask names who steps up, with Not yet and Step up, inside the drawer`,
+    );
+    if (!opened) {
+      console.log("engineers promote", size, JSON.stringify(ask));
+    }
+    await close();
+  }
+}
+
+/** Ada out: the chip, her row walking home, her page, and the recall's ask (#455). */
+async function engineersOut(viewport, size) {
+  const now = Date.now();
+  const opened = await openScreen(viewport, awayTripSave(now), {
+    stopClock: true,
+    tapClock: "held",
+  });
+  const { page, close } = opened;
+  await keysDrawn(page);
+  await noteAway(page);
+  // s11's chip check, as it was: the trip's clock in the Running now note.
+  const chip = await expeditionChip(page);
+  check(
+    chip.ok,
+    `${size} engineers out: the expedition chip sits in the Running now note (${chip.text})`,
+  );
+  await openSheet(page, "engineers");
+  await stepTapClock(page, PAST_SETTLE_MS);
+  await page.evaluate(() =>
+    Promise.all(
+      [...document.querySelectorAll(".board-sheet.is-open img")].map((img) =>
+        img.decode().catch(() => undefined),
+      ),
+    ),
+  );
+  const list = await engineersFacts(page);
+  const art = await boardArtAt2x(
+    page,
+    `${OPEN_SHEET("engineers")} .engineer-walk`,
+    OPEN_SHEET("engineers"),
+  );
+  await shot(page, `engineers-out-${size}`);
+  const ada = list.rows.find((row) => row.id === "Ada");
+  check(
+    ada?.walk === true &&
+      ada.info === "Exploring the old shaft · gone about an hour" &&
+      art.misses.length === 0 &&
+      art.count >= 1,
+    `${size} engineers out: Ada's row walks home in its icon cell, art at 2x, and says where she is`,
+  );
+  if (ada?.walk !== true || art.misses.length > 0) {
+    console.log("engineers out", size, JSON.stringify({ list, art }));
+  }
+  await pressThen(
+    page,
+    '.engineer-row[data-engineer="Ada"]',
+    ENGINEERS_PAGE("engineer-page"),
+  );
+  const hers = await engineersFacts(page);
+  check(
+    vague(hers.kick) && hers.plates[0]?.words === "Call her back",
+    `${size} engineers out: her page's kick tells the trip with no number (${hers.kick}), and its left plate is Call her back`,
+  );
+  const asked = await pressThen(
+    page,
+    ".engineer-recall",
+    ENGINEERS_PAGE("engineer-recall-page"),
+  );
+  const ask = await engineersFacts(page);
+  await shot(page, `engineers-recall-${size}`);
+  check(
+    asked &&
+      ask.title === "Call her back" &&
+      ask.line === "Ada comes home empty-handed." &&
+      ask.plates.map((plate) => plate.words).join() ===
+        "Keep exploring,Call back" &&
+      ask.pageInside &&
+      (await noScroll(page)),
+    `${size} engineers recall: the ask reads Call her back / Ada comes home empty-handed., with Keep exploring and Call back, inside the drawer`,
+  );
+  await close();
+}
+
+/** Five engineers and two keepsakes: the full crew scrolls inside the drawer; the stories (#455). */
+async function engineersFive(viewport, label, { standalone = false } = {}) {
+  const { page, close } = await openEngineers(
+    viewport,
+    campPostsSave(Date.now()),
+    {
+      standalone,
+    },
+  );
+  const list = await engineersFacts(page);
+  await shot(page, `engineers-five-${label}`);
+  const ids = list.rows.map((row) => row.id);
+  const brought = list.rows.find((row) => row.id === "brought");
+  const promote = list.rows.find((row) => row.id === "promote");
+  const otto = list.rows.find((row) => row.id === "Otto");
+  const pageStill = await noScroll(page);
+  const five =
+    ids.join() === "Ada,Nils,Ruth,Otto,Mae,brought,promote" &&
+    brought?.info === "A child's drawing, A pocket watch" &&
+    promote?.info === "Every named hand is already an engineer." &&
+    list.listScroll[0] > list.listScroll[1] + 1 &&
+    list.rows.every((row) => Math.abs(row.height - 76) <= 0.5) &&
+    otto?.walk === true &&
+    pageStill;
+  check(
+    five,
+    `${label} engineers five: five rows, Brought home and a full crew's Promote, 76 tall, the list scrolls inside the drawer and the page does not, and Otto's row walks`,
+  );
+  if (!five) {
+    console.log("engineers five", label, pageStill, JSON.stringify(list));
+  }
+  if (!standalone) {
+    const opened = await pressThen(
+      page,
+      ".engineer-brought",
+      ENGINEERS_PAGE("engineer-brought-page"),
+    );
+    const stories = await engineersFacts(page);
+    await shot(page, `engineers-brought-${label}`);
+    check(
+      opened &&
+        stories.stories.length === 2 &&
+        stories.stories.every(
+          (story) => story.px >= 16 && story.inside && vague(story.text),
+        ) &&
+        stories.plates.length === 1 &&
+        Math.abs((stories.plates[0]?.height ?? 0) - 54) <= 0.5 &&
+        (await noScroll(page)),
+      `${label} engineers brought home: two stories at 16px or more with no number, inside the drawer, and one Back at a plate's 54`,
+    );
+    if (!opened || stories.stories.length !== 2) {
+      console.log("engineers brought", label, JSON.stringify(stories));
+    }
+  }
+  await close();
+}
+
+// The Engineers drawer's states (#455), on held clocks that step past each settle: the first
+// visit and her page, the tunnels, Promote's ask, Ada out with the walk home and the recall's
+// ask, and the full crew with its stories (on the phone, and as the installed PWA). Its rows,
+// fit, targets and art on each save are the DRAWERS row's checks. Sections 11 and 12, and
+// main-screen's engineersSheetFits, checked today's sheet: this flow replaced them.
+for (const viewport of SCREENS) {
+  section(
+    `keys and drawers ${JSON.stringify(viewport)} engineers states`,
+    async () => {
+      const size = `${String(viewport[0])}x${String(viewport[1])}`;
+      platesSeen = [];
+      await engineersFirstVisit(viewport, size);
+      await engineersTunnelsAndPromote(viewport, size);
+      await engineersOut(viewport, size);
+      await engineersFive(viewport, size);
+      if (viewport === PHONE) {
+        await engineersFive(viewport, `${size} standalone`, {
+          standalone: true,
+        });
+      }
+      const offFace = platesSeen.filter((plate) => !plate.onFace);
+      check(
+        platesSeen.length > 0 && offFace.length === 0,
+        `${size} engineers plates: every plate's words sit on its key face, inside the skin's 8 art px edge (${String(platesSeen.length)} plates)`,
+      );
+      if (offFace.length > 0) {
+        console.log(
+          "engineers plates off the face",
+          size,
+          JSON.stringify(offFace),
+        );
+      }
+    },
+  );
 }
 
 /** The open Workshop drawer as the dad reads it: bench, rows on the page, plates, kick (#374). */

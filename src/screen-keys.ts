@@ -4,8 +4,8 @@ import type { ScreenCtx } from "./screen-context";
 import type { BoardSheet } from "./board-drawer";
 
 /**
- * The key rail: Buys, Workshop, Upgrades and the Ledger open their drawers from here; Engineers
- * opens through its panel's own click listener. Every key first puts the board's popups away.
+ * The key rail: Buys, Workshop, Upgrades, Engineers and the Ledger open their drawers from
+ * here. Every key first puts the board's popups away.
  * `onKey` is late: what the keys do is wired once the drawers exist.
  */
 export function createRail(
@@ -28,15 +28,19 @@ interface KeyDrawer {
 }
 
 /**
- * The drawers one at a time: the four the rail's keys open, and the relics drawer, which the
- * relic plate and a reveal open (#465). Engineers opens through its own panel until B6b.
+ * The drawers one at a time: the five the rail's keys open, and the relics drawer, which the
+ * relic plate and a reveal open (#465).
  */
 type KeyDrawers = Readonly<
-  Record<"buys" | "upgrades" | "workshop" | "ledger" | "relics", KeyDrawer>
+  Record<
+    "buys" | "upgrades" | "workshop" | "engineers" | "ledger" | "relics",
+    KeyDrawer
+  >
 >;
 
 /**
- * What the keys do: Buys, Workshop, Upgrades and the Ledger open their drawers from the rail,
+ * What the keys do: Buys, Workshop, Upgrades, Engineers and the Ledger open their drawers from
+ * the rail,
  * and each first closes every other drawer in the record, so one drawer is up at a time.
  */
 export function wireKeys(deps: {
@@ -77,10 +81,6 @@ export function wireKeys(deps: {
       closeBoardPopups();
       // A key pressed from the keyboard puts the New sign away too.
       putSignAway();
-      if (id === "engineers") {
-        // Its panel listens to its key itself until B6b.
-        return;
-      }
       openOnly(id, key);
     },
     openBuys,

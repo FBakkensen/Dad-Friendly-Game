@@ -79,7 +79,6 @@ import {
   WORKSHOP_SOUND,
   WORKSHOP_TITLE,
   broughtHomeNames,
-  broughtHomeToast,
   benchBusyWords,
   benchUnknownWords,
   BENCH_UNKNOWN,
@@ -129,7 +128,6 @@ import {
   tendingEngineer,
   tendsNote,
   tripDetail,
-  tripTitle,
   tunnelLock,
   upgradeEffectLine,
   upgradeWhyLine,
@@ -139,6 +137,9 @@ import {
   grandpaSentence,
   AWAY_CHEER,
   DREAM_AWAY_MS,
+  ENGINEERS_BACK,
+  PROMOTE_NOT_YET,
+  PROMOTE_STEP_UP,
 } from "./screen-words";
 
 const ada = (patch: Partial<Engineer> = {}): Engineer => ({
@@ -315,9 +316,6 @@ describe("engineer words", () => {
     expect(tunnelLock(2, "deep-dark")).toBeUndefined();
     expect(callBackLabel("Ada")).toBe("Call her back");
     expect(callBackLabel("Nils")).toBe("Call him back");
-    expect(tripTitle("Ada", "old-shaft")).toBe(
-      "Ada is exploring the old shaft.",
-    );
     expect(tripDetail("Ada", 60 * 60_000)).toBe(
       "Ada will be gone about an hour. She'll bring home whatever is found.",
     );
@@ -363,6 +361,12 @@ describe("engineer words", () => {
     expect(
       `${PROMOTE_WHY} ${PROMOTE_NEEDS_WORKER} ${PROMOTE_CREW_FULL} ${promoteConfirm("Nils")}`,
     ).not.toMatch(/\d|\?/);
+  });
+
+  it("keeps today's Engineers literals as words: the way back, Not yet and Step up (#455)", () => {
+    expect(ENGINEERS_BACK).toBe("Back to your engineers");
+    expect(PROMOTE_NOT_YET).toBe("Not yet");
+    expect(PROMOTE_STEP_UP).toBe("Step up");
   });
 
   it("states a boost's output in stones", () => {
@@ -549,13 +553,7 @@ describe("lost tools and keepsakes (#148)", () => {
     expect(broughtHomeNames(["drawing", "watch"])).toBe(
       "A child's drawing, A pocket watch",
     );
-    expect(broughtHomeToast(["drawing"])).toBe(
-      "A child's drawing. A little figure with a lamp, folded for a pocket.",
-    );
-    expect(broughtHomeToast(["pebble", "ribbon"])).toBe(
-      "A smooth pebble. Warm from a hand that held it. A faded ribbon. Tied until the ends went soft.",
-    );
-    expect(broughtHomeToast([...KEEPSAKES])).not.toMatch(/[0-9?]/);
+    expect(broughtHomeNames([...KEEPSAKES])).not.toMatch(/[0-9?]/);
   });
 });
 

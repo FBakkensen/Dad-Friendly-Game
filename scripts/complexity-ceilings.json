@@ -1,6 +1,4 @@
 {
-  "src/engineers-panel.ts#createEngineersPanel>render": 51,
-  "src/engineers-panel.ts#paintEngineer": 23,
   "src/mountain.ts#parseMountain": 36,
   "src/persist.ts#parseSaveValue": 36,
   "src/persist.ts#serializeSave": 16,

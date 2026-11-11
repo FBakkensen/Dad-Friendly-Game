@@ -94,20 +94,33 @@ export function fitFirst(
   options: readonly string[],
   fits: (box: HTMLElement) => boolean = fitsWidth,
 ): void {
-  const key = options.join("\n");
+  fitKept(target, options.join("\n"), () => {
+    let chosen = options[options.length - 1] ?? "";
+    for (const option of options) {
+      write(target, option);
+      if (fits(target)) {
+        chosen = option;
+        break;
+      }
+    }
+    write(target, chosen);
+  });
+}
+
+/**
+ * Runs `fit` on `target` unless it last ran for the same `key` measured while laid out; a
+ * refit (refitAll) measures again. fitFirst's cache, for a fit that is not a choice of words.
+ */
+export function fitKept(
+  target: HTMLElement,
+  key: string,
+  fit: () => void,
+): void {
   if (fitted.get(target) === key) {
     return;
   }
   fitted.delete(target);
-  let chosen = options[options.length - 1] ?? "";
-  for (const option of options) {
-    write(target, option);
-    if (fits(target)) {
-      chosen = option;
-      break;
-    }
-  }
-  write(target, chosen);
+  fit();
   if (measurable(target)) {
     fitted.set(target, key);
   }

@@ -5,7 +5,7 @@ const SLOP_PX = 10;
 
 /** The list that scrolls under a card, if this tap started in one. */
 function scroller(card: HTMLElement): HTMLElement | null {
-  const found = card.closest(".engineers-dialog, .board-sheet-list");
+  const found = card.closest(".board-sheet-list");
   return found instanceof HTMLElement ? found : null;
 }
 

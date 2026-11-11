@@ -25,6 +25,9 @@ import { TROUBLE_FIXED } from "./screen-words";
 // The settle lives with the board's tap rules.
 export { DRAWER_SETTLE_MS } from "./board-interaction";
 
+/** How long a cheer stands in the kick (#455): today's Engineers toast. */
+export const CHEER_MS = 2_200;
+
 /** What the spare plate under a short list shows, by its height. */
 export type SpareTier = "tall" | "mid" | "short" | "off";
 
@@ -71,6 +74,11 @@ export interface BoardSheet {
   }): void;
   /** The resting kick under the title. */
   kick(text: string): void;
+  /**
+   * A line that stands in the kick, as done, for CHEER_MS, then gives the resting kick back
+   * (#455). A second cheer replaces the first; a fix's thanks wins while it lasts; close drops it.
+   */
+  cheer(text: string): void;
   /** The "i" cards in the drawer's place; off returns to the list, from a page too. */
   showHow(on: boolean): void;
   /**
@@ -114,6 +122,8 @@ function focusBackTo(
 interface BoardHow {
   readonly systems: readonly BoardHowSystem[];
   readonly backLabel: string;
+  /** The cards the "i" shows now, in `systems`' order; all of them when left out (#455). */
+  readonly shows?: () => readonly BoardHowSystem[];
 }
 
 /** The spare plate under a short list: the makers' plate with its strip. */
@@ -143,11 +153,32 @@ function howCards(
   back: () => void,
 ): HTMLElement[] {
   const cards = systems.map((system) => boardHowCard(system, backLabel, back));
-  const first = cards[0]?.querySelector<HTMLElement>(".teach-how-back");
-  if (first && cards.length > 1) {
-    first.hidden = true;
+  // One Back, under the last card.
+  for (const card of cards.slice(0, -1)) {
+    const back = card.querySelector<HTMLElement>(".teach-how-back");
+    if (back !== null) {
+      back.hidden = true;
+    }
   }
   return cards;
+}
+
+/** Shows the cards `systems` names, with one Back, under the last shown. */
+function pickHowCards(
+  how: HTMLElement,
+  systems: readonly BoardHowSystem[],
+): void {
+  const cards = [...how.querySelectorAll<HTMLElement>(":scope > [data-how]")];
+  const shown = cards.filter((card) =>
+    systems.some((system) => system === card.dataset["how"]),
+  );
+  for (const card of cards) {
+    hide(card, !shown.includes(card));
+    const back = card.querySelector<HTMLElement>(".teach-how-back");
+    if (back !== null) {
+      back.hidden = card !== shown.at(-1);
+    }
+  }
 }
 
 /** The shell's parts, built once. */
@@ -230,14 +261,54 @@ function buildSheet(
   };
 }
 
-/** The kick line: the thanks for a fix while it lasts, as done, else the resting kick. */
+/**
+ * The kick line: the thanks for a fix while it lasts, then a cheer while it stands, both as
+ * done, else the resting kick.
+ */
 function paintKick(
   kickLine: HTMLElement,
   resting: string,
   thanked: boolean,
+  cheer: string | undefined,
 ): void {
-  write(kickLine, thanked ? TROUBLE_FIXED : resting);
-  mark(kickLine, "is-done", thanked);
+  write(kickLine, thanked ? TROUBLE_FIXED : (cheer ?? resting));
+  mark(kickLine, "is-done", thanked || cheer !== undefined);
+}
+
+/** The cheer in the kick: one line on one timer, cleared at close and when `signal` aborts. */
+function cheerLine(
+  paint: () => void,
+  signal: AbortSignal | undefined,
+): {
+  readonly text: () => string | undefined;
+  readonly say: (text: string) => void;
+  readonly drop: () => void;
+} {
+  let shown: string | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const stop = (): void => {
+    clearTimeout(timer);
+    timer = undefined;
+  };
+  signal?.addEventListener("abort", stop);
+  return {
+    text: () => shown,
+    say: (text) => {
+      stop();
+      shown = text;
+      timer = setTimeout(() => {
+        timer = undefined;
+        shown = undefined;
+        paint();
+      }, CHEER_MS);
+      paint();
+    },
+    drop: () => {
+      stop();
+      shown = undefined;
+      paint();
+    },
+  };
 }
 
 /** The spare plate's tier now: written to its class only when it changes. */
@@ -420,8 +491,9 @@ export function createBoardSheet({
     tier = fitSpareTier(parts, tier);
   };
   const paintThanks = (): void => {
-    paintKick(kickLine, resting, board.view().thanks.has(name));
+    paintKick(kickLine, resting, board.view().thanks.has(name), cheer.text());
   };
+  const cheer = cheerLine(paintThanks, signal);
 
   const page = (): void => {
     if (shown) {
@@ -431,6 +503,9 @@ export function createBoardSheet({
   };
 
   const showHow = (on: boolean): void => {
+    if (on && howOf.shows !== undefined) {
+      pickHowCards(how, howOf.shows());
+    }
     setHow(parts, on);
     // Each way is a new screen under the finger: the second tap of a double tap on the "i"
     // must not take the cards' Back, nor one on the cards' Back buy the row under it, so the
@@ -444,6 +519,10 @@ export function createBoardSheet({
     // A page that opens itself (the relics drawer's reveal, #465) puts the "i" cards away.
     setHow(parts, false);
     setPage(parts, shownPage);
+    // A page shown again is measured again: its plates fit on the drawer as it is now.
+    if (shownPage !== undefined) {
+      refitAll(shownPage);
+    }
     // A page is a new screen under the finger, and so is the list it gives back (#375).
     page();
     focusQuietly(shownPage === undefined ? heading : pageFocus(parts.pageHost));
@@ -478,6 +557,7 @@ export function createBoardSheet({
     root.classList.remove("is-open");
     door?.setAttribute("aria-expanded", "false");
     setHow(parts, false);
+    cheer.drop();
     onClose?.(by);
     const target = restoreFocus ? focusBackTo(from, fallbackFocus) : undefined;
     if (target !== undefined) {
@@ -509,6 +589,7 @@ export function createBoardSheet({
       resting = text;
       paintThanks();
     },
+    cheer: cheer.say,
     showHow,
     showPage,
     page,

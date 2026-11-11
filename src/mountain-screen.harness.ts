@@ -157,6 +157,19 @@ export function mountScreen({
       keyClick(".ledger-start-over");
       keyClick(".ledger-yes");
     },
+    /** Opens the Engineers drawer from its key. */
+    openEngineers: () => {
+      keyClick(".board-key[data-key=engineers]");
+    },
+    /** Opens the Engineers drawer, then her page from her row (a keyboard click). */
+    openEngineer: (name: string) => {
+      if (root.querySelector(`${ENGINEERS_SHEET}.is-open`) === null) {
+        keyClick(".board-key[data-key=engineers]");
+      }
+      keyClick(`${ENGINEERS_SHEET} .engineer-row[data-engineer="${name}"]`);
+    },
+    /** The Engineers drawer's page shown now, or undefined on the list or while shut. */
+    engineersPage: () => engineersPage(root),
     text: (selector: string) => root.querySelector(selector)?.textContent,
     /** What the board's odometer reads, e.g. "Stones 41,380". */
     pocket: () => root.querySelector(".board-odo")?.getAttribute("aria-label"),
@@ -172,6 +185,30 @@ export const RELICS_HINT = ".ledger-relics .board-row-why";
 export const RELICS_BAR = ".ledger-relics .board-row-bar";
 export const ACCOUNT_INFO = ".ledger-account .board-row-info";
 export const LEDGER_SHEET = ".board-sheet[data-sheet=ledger]";
+
+/** The Engineers drawer (#455), as the screen tests read it. */
+export const ENGINEERS_SHEET = ".board-sheet[data-sheet=engineers]";
+/** Its kick: the resting line, or a cheer standing in it. */
+export const ENGINEERS_KICK = `${ENGINEERS_SHEET} .board-sheet-kick`;
+
+/** The Engineers drawer is open. */
+export function engineersOpen(root: HTMLElement): boolean {
+  return (
+    root.querySelector(ENGINEERS_SHEET)?.classList.contains("is-open") === true
+  );
+}
+
+/** The Engineers drawer's shown page, while it is open on one; else undefined. */
+function engineersPage(root: HTMLElement): HTMLElement | undefined {
+  if (!engineersOpen(root)) {
+    return undefined;
+  }
+  return (
+    root.querySelector<HTMLElement>(
+      `${ENGINEERS_SHEET} .board-sheet-page:not([hidden]) > .board-page`,
+    ) ?? undefined
+  );
+}
 
 /** The relics drawer (#465) and its three pages, as the screen tests read them. */
 export const RELICS_SHEET = ".board-sheet[data-sheet=relics]";
@@ -199,4 +236,18 @@ export function relicPage(root: HTMLElement, page: string): HTMLElement | null {
   return sheet.querySelector<HTMLElement>(
     `.board-sheet-page:not([hidden]) > ${page}`,
   );
+}
+
+/**
+ * Puts away the relic reveals and layer cards a jump in depth opened, as a dad's Carry on and
+ * Dig in would: they open by themselves, and a card that opens itself closes any drawer.
+ */
+export function closeArrivals(root: HTMLElement): void {
+  for (let i = 0; i < 20; i += 1) {
+    const go = root.querySelector<HTMLButtonElement>(
+      ".board-sheet[data-sheet=relics].is-open .board-sheet-page:not([hidden]) .relic-page-carry, .layer-arrival:not([hidden]) .layer-dig",
+    );
+    if (go === null) return;
+    go.click();
+  }
 }

@@ -227,6 +227,13 @@ export function createSheetPanels(
   ledger: ReturnType<typeof createLedgerPanel>;
   upgrades: ReturnType<typeof createUpgradesPanel>;
   engineers: ReturnType<typeof createEngineersPanel>;
+  /** The drawers the rail's keys open after Buys, in the drawers' order. */
+  keyed: {
+    readonly upgrades: ReturnType<typeof createUpgradesPanel>;
+    readonly workshop: ReturnType<typeof createWorkshopPanel>;
+    readonly engineers: ReturnType<typeof createEngineersPanel>;
+    readonly ledger: ReturnType<typeof createLedgerPanel>;
+  };
   paintLedger(): void;
   paintLater(): void;
   paintCopies(): void;
@@ -286,18 +293,14 @@ export function createSheetPanels(
   const engineers = createEngineersPanel({
     dispatch,
     getView: ctx.view,
-    iconUrl: tierArt.helper,
-    badgeUrl: {
-      cart: tierArt.cart,
-      drill: tierArt.drill,
-      borer: tierArt.borer,
-      machine: tierArt.machine,
-    },
-    chipHost: runningNow.effectRow,
-    door: rail.keys.engineers,
-    fallbackDoor: rail.keys.ledger,
     now,
-    requestRender: ctx.paint,
+    board,
+    overSave,
+    door: rail.keys.engineers,
+    fallbackFocus: rail.keys.ledger,
+    chipHost: runningNow.effectRow,
+    chipIconUrl: tierArt.helper,
+    signal,
   });
   return {
     workshop,
@@ -306,6 +309,7 @@ export function createSheetPanels(
     ledger,
     upgrades,
     engineers,
+    keyed: { upgrades, workshop, engineers, ledger },
     paintLedger: () => {
       ledger.render();
     },
@@ -323,8 +327,7 @@ export function createSheetPanels(
 
 /**
  * The cards, in the order they stand in the root: at one z-index, a later one paints over an
- * earlier one, and only the save conflict stands higher. The Engineers sheet comes first, so a
- * homecoming's welcome paints over it while it is open.
+ * earlier one, and only the save conflict stands higher.
  */
 export function cardsFrom(
   early: ReturnType<typeof createEarlyCards>,
@@ -333,7 +336,6 @@ export function cardsFrom(
 ): HTMLElement[] {
   const { arrival, legacy } = early;
   return [
-    sheets.engineers.sheet,
     early.welcome,
     arrival.layer,
     arrival.notice,

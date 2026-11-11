@@ -97,7 +97,6 @@ export function mountMountainScreen(options: ScreenOptions): void {
     saveLine,
     onStartOver: vein.reset,
   });
-  const { upgrades, workshop, ledger } = sheets;
 
   const updatePrompt = createUpdatePrompt(board, ctx.paint);
   const otherTab = createOtherTab(progress, board);
@@ -144,9 +143,9 @@ export function mountMountainScreen(options: ScreenOptions): void {
       keys.openBuys(from);
     },
   });
-  const drawers = [crewPanel, upgrades, workshop, ledger, top.relics].map(
-    (drawer) => drawer.sheet,
-  );
+  // One drawer at a time, in this order: the keys' five, then the relics drawer.
+  const byKey = { buys: crewPanel, ...sheets.keyed, relics: top.relics };
+  const drawers = Object.values(byKey).map((drawer) => drawer.sheet);
   const overlays = createOverlays(ctx, {
     note: boardNote,
     rail,
@@ -154,13 +153,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     drawers,
   });
   const keys = wireKeys({
-    drawers: {
-      buys: crewPanel,
-      upgrades,
-      workshop,
-      ledger,
-      relics: top.relics,
-    },
+    drawers: byKey,
     closeBoardPopups,
     putSignAway: overlays.putSignAway,
   });

@@ -150,7 +150,7 @@ async function showRecipe(page, name) {
 
 /** A key on the rail (#373): buys, workshop, engineers, upgrades or ledger. */
 const KEY = (id) => `.board-key[data-key="${id}"]`;
-/** An open drawer (#373, #374, #375): buys, upgrades, workshop or ledger. */
+/** An open drawer (#373, #374, #375, #455): buys, upgrades, workshop, engineers or ledger. */
 const OPEN_SHEET = (name) => `.board-sheet[data-sheet="${name}"].is-open`;
 
 /** A play save from tools/browser/fixtures.ts, as the browser's storage holds it. */
@@ -160,7 +160,7 @@ const seeded = (save) => JSON.parse(seedJson(save));
  * Opens a drawer by its key and waits for its slide to end, so the shot and
  * the measures see it where it rests.
  * @param {import("puppeteer-core").Page} page
- * @param {"buys" | "upgrades" | "workshop" | "ledger"} name
+ * @param {"buys" | "upgrades" | "workshop" | "engineers" | "ledger"} name
  */
 async function openDrawer(page, name) {
   await press(page, KEY(name));
@@ -505,7 +505,7 @@ async function collect(page) {
     remember(document.documentElement, "html");
     remember(document.querySelector("#app"), "#app");
     for (const el of document.querySelectorAll(
-      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .engineers-card, .relic-page, .board-card-face",
+      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .relic-page, .board-card-face",
     )) {
       if (visible(el)) {
         remember(el, selectorOf(el));
@@ -587,7 +587,7 @@ async function collect(page) {
         ".update-prompt .board-card-face",
         ".legacy-dialog .board-card-face",
         ".saved-copies .board-card-face",
-        ".engineer",
+        ".engineer-row",
       ],
       chip: [".boost-chip", ".expedition-chip"],
       timer: [".workshop-timers", ".workshop-bar", ".boost"],
@@ -603,7 +603,6 @@ async function collect(page) {
         ".board-row-badge",
         ".board-row-flag",
         ".board-key-dot",
-        ".engineer-badge",
       ],
     };
     const components = {};
@@ -1133,9 +1132,34 @@ async function main() {
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       }),
     );
-    await press(opened.page, KEY("engineers"));
-    await opened.page.waitForSelector(".engineers-dialog:not([hidden])");
-    await expectText(opened.page, /Promote/, "promote");
+    await openDrawer(opened.page, "engineers");
+    await expectText(opened.page, /Promote a worker/, "promote");
+    return opened;
+  });
+  await capture("engineers-page", async (viewport) => {
+    const opened = await openAuditPage(
+      viewport,
+      late(Date.now(), 40_000_000, {
+        pocket: 8_000_000,
+        helpers: 20,
+        machines: 0,
+        kids: 0,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+      }),
+    );
+    await openDrawer(opened.page, "engineers");
+    // Her row opens her page of posts (#455), which settles as the drawer did. On a first visit
+    // its one plate is the guided first trip.
+    await press(opened.page, '.engineer-row[data-engineer="Ada"]');
+    await opened.page.waitForSelector(
+      `${OPEN_SHEET("engineers")} .engineer-page`,
+      {
+        visible: true,
+        timeout: 8_000,
+      },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    await expectText(opened.page, /Send Ada exploring/i, "her page");
     return opened;
   });
   await capture("engineers-expedition", async (viewport) => {
@@ -1158,9 +1182,8 @@ async function main() {
         ],
       }),
     );
-    await press(opened.page, KEY("engineers"));
-    await opened.page.waitForSelector(".engineers-dialog:not([hidden])");
-    await expectText(opened.page, /exploring|will be gone/, "expedition");
+    await openDrawer(opened.page, "engineers");
+    await expectText(opened.page, /Exploring the old shaft/, "expedition");
     return opened;
   });
   await capture("engineers-homecoming", async (viewport) => {

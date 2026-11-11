@@ -1,6 +1,12 @@
 import { el, hide, setAttr, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { controlKey, type ControlRef, type Pointer } from "./board-interaction";
+import {
+  createAskPage,
+  pageFrame,
+  type PageFrame,
+  type PlateAct,
+} from "./board-page";
 import { drawerPlate } from "./board-save";
 import { skin } from "./board-skin";
 import { forgetAll, type PressTracker } from "./card-tap";
@@ -23,9 +29,9 @@ import {
 /*
  * The Ledger drawer's own controls (#375): the Tonight box, the four plates, and the two pages
  * the drawer shows in its list's place (the Start over confirm and the field log's
- * copy-it-yourself box). Built on the shared plate button, skin and board presses; no other
- * drawer has a log box, a plate grid or a page that asks, so the shared row and shell stay
- * generic. Every press goes through the board's model, so a finger that lands while the drawer
+ * copy-it-yourself box). Built on the shared plate button, skin, board presses and drawer page
+ * (board-page.ts); no other drawer has a log box or a plate grid, so the shared row and shell
+ * stay generic. Every press goes through the board's model, so a finger that lands while the drawer
  * or its page settles is the second tap of the one that opened it.
  */
 
@@ -43,9 +49,6 @@ export async function writeClipboard(text: string): Promise<boolean> {
     return false;
   }
 }
-
-/** What a plate's press runs: the plate, and how the press came (a finger's close settles). */
-type PlateAct = (plate: HTMLButtonElement, by: Pointer) => void;
 
 /**
  * A Ledger plate whose press, past the settle and any hold, runs `act` with the plate. Its
@@ -192,22 +195,14 @@ export function createLedgerDoors({
   };
 }
 
-/** A drawer page's frame: its title and its one line, which name and describe it. */
-function pageFrame(
-  className: string,
-  title: string,
-  line: string,
-): HTMLElement {
-  const root = el("div", `ledger-page ${className}`);
-  const heading = el("h3", "ledger-page-title", title);
-  const said = el("p", "ledger-page-line", line);
-  heading.id = `${className}-title`;
-  said.id = `${className}-line`;
-  setAttr(root, "role", "group");
-  setAttr(root, "aria-labelledby", heading.id);
-  setAttr(root, "aria-describedby", said.id);
-  root.append(heading, said);
-  return root;
+/**
+ * A Ledger page's frame on the drawer's page: its title and line keep the Ledger's hook classes,
+ * which the checks find them by.
+ */
+function ledgerFrame(frame: PageFrame): PageFrame {
+  frame.heading.classList.add("ledger-page-title");
+  frame.said.classList.add("ledger-page-line");
+  return frame;
 }
 
 /** Start over, asked on a page of the drawer: Keep first, so it takes the focus. */
@@ -225,25 +220,30 @@ export function createStartOverPage({
   /** The drawer moved on: no answer's finger-down time carries over. */
   forget(): void;
 } {
-  const root = pageFrame(
-    "ledger-start-over-page",
-    START_OVER_TITLE,
-    START_OVER_DETAIL,
-  );
-  const trackers: PressTracker[] = [];
-  const keep = ledgerPlate(board, trackers, [START_OVER_KEEP, "keep"], onKeep);
-  const yes = ledgerPlate(board, trackers, [START_OVER_YES, "yes"], onYes);
-  const answers = el("div", "ledger-page-answers");
-  answers.append(keep, yes);
-  root.append(answers);
-  skin(root, "frame");
-  return {
-    root,
-    paint(ready) {
-      yes.disabled = !ready;
-    },
-    forget: forgetAll(trackers),
-  };
+  const page = createAskPage({
+    board,
+    layer: "ledger",
+    className: "ledger-page ledger-start-over-page",
+    title: START_OVER_TITLE,
+    line: START_OVER_DETAIL,
+    answers: [
+      {
+        label: START_OVER_KEEP,
+        id: "keep",
+        className: "ledger-keep",
+        act: onKeep,
+      },
+      {
+        label: START_OVER_YES,
+        id: "yes",
+        className: "ledger-yes",
+        act: onYes,
+        holdsReady: true,
+      },
+    ],
+  });
+  ledgerFrame(page);
+  return page;
 }
 
 /** Where the browser refuses the clipboard: the log in a read-only box, to copy by hand. */
@@ -251,10 +251,12 @@ export function createFieldLogPage(): {
   readonly root: HTMLElement;
   show(text: string): void;
 } {
-  const root = pageFrame(
-    "ledger-field-log-page",
-    fieldLogTitle,
-    fieldLogFallback,
+  const { root } = ledgerFrame(
+    pageFrame({
+      className: "ledger-page ledger-field-log-page",
+      title: fieldLogTitle,
+      line: fieldLogFallback,
+    }),
   );
   // The inset skin's canvas needs a box to sit in: a textarea holds only text.
   const well = el("div", "ledger-field-log-well");

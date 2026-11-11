@@ -154,16 +154,16 @@ describe("the key rail (#373)", () => {
       expect(isOpen(screen, "workshop")).toBe(false);
       expect(document.activeElement).toBe(key(screen, "workshop"));
 
-      // Engineers opens today's sheet, from its own key.
-      const engineers =
-        screen.root.querySelector<HTMLElement>(".engineers-dialog");
+      // Engineers opens its drawer (#455).
       key(screen, "engineers").click();
-      expect(engineers?.hidden).toBe(false);
+      expect(isOpen(screen, "engineers")).toBe(true);
       expect(key(screen, "engineers").getAttribute("aria-expanded")).toBe(
         "true",
       );
-      engineers?.querySelector<HTMLButtonElement>(".engineers-close")?.click();
-      expect(engineers?.hidden).toBe(true);
+      drawer(screen, "engineers")
+        .querySelector<HTMLButtonElement>(".board-sheet-back")
+        ?.click();
+      expect(isOpen(screen, "engineers")).toBe(false);
       expect(document.activeElement).toBe(key(screen, "engineers"));
       expect(key(screen, "engineers").getAttribute("aria-expanded")).toBe(
         "false",
@@ -255,9 +255,7 @@ describe("the key rail (#373)", () => {
     key(screen, "workshop").click();
     key(screen, "engineers").click();
     expect(isOpen(screen, "workshop")).toBe(false);
-    expect(
-      screen.root.querySelector<HTMLElement>(".engineers-dialog")?.hidden,
-    ).toBe(true);
+    expect(isOpen(screen, "engineers")).toBe(false);
   });
 
   it("red lamps: staffing teaching, and trouble on a tier with no bay", () => {
@@ -636,22 +634,31 @@ describe("the key rail (#373)", () => {
     }
   });
 
-  it("an Engineers sheet that closes while its key is held gives focus to the Ledger key", () => {
+  it("an Engineers drawer that closes while its key is held gives focus to the Ledger key", async () => {
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: () => () => undefined,
+    };
+    const auth = createMemoryAuth();
     const screen = mountScreen({
+      auth,
+      cloudSave,
       storage: seeded(crewed(benchBusy(CLOCK)), CLOCK),
       now: () => CLOCK,
     });
     document.body.append(screen.root);
     try {
       key(screen, "engineers").click();
-      // A re-load takes the borer: the Engineers key is held again.
-      screen.progress.applyMutation((current) => ({
-        ...current,
-        borers: 0,
-        engineers: [],
-      }));
+      // A re-load holds the Engineers key while the drawer stays open.
+      await auth.signIn();
+      await Promise.resolve();
       expect(key(screen, "engineers").disabled).toBe(true);
-      screen.root.querySelector<HTMLButtonElement>(".engineers-close")?.click();
+      expect(isOpen(screen, "engineers")).toBe(true);
+      drawer(screen, "engineers")
+        .querySelector<HTMLButtonElement>(".board-sheet-back")
+        ?.click();
       expect(document.activeElement).toBe(key(screen, "ledger"));
     } finally {
       screen.root.remove();
@@ -730,8 +737,7 @@ describe("the key rail (#373)", () => {
       return { clock, screen };
     };
     const engineersShown = (screen: ReturnType<typeof mountScreen>) =>
-      screen.root.querySelector<HTMLElement>(".engineers-dialog")?.hidden ===
-      false;
+      isOpen(screen, "engineers");
 
     it("a double tap on a drawer's Back opens no key under it", () => {
       const { clock, screen } = buysOpen();

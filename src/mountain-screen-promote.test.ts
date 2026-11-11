@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { promoteCost } from "./engineers";
+import { formatCompact } from "./format";
 import { type Mountain } from "./mountain";
 import {
   createMemoryStorage,
@@ -14,7 +15,7 @@ import { writeSessionSave } from "./session-save";
 import { minedMountain } from "./test-fixtures";
 
 /*
- * The Promote button charges the price it showed (#367), beside the crew suite (which is at
+ * The Promote row charges the price it showed (#367), beside the crew suite (which is at
  * its worker's heap limit).
  */
 
@@ -26,7 +27,7 @@ afterEach(stopScreens);
 describe("a promotion on screen", () => {
   const CLOCK = 1_700_000_000_000;
 
-  it("a price that rose while the confirm sat open steps nobody up, and the button shows the new price", () => {
+  it("a price that rose while the confirm sat open steps nobody up, and the row's tag shows the new price", () => {
     // A stone short of the Granite, with a crew that digs it in the next breath. The
     // pocket covers either price, so only the shown price can stop the dearer promotion.
     const mountain: Mountain = {
@@ -43,19 +44,21 @@ describe("a promotion on screen", () => {
     let at = CLOCK;
     const screen = mountScreen({ storage, now: () => at });
     document.body.append(screen.root);
-    screen.root
-      .querySelector<HTMLButtonElement>(".board-key[data-key=engineers]")
-      ?.click();
-    const sheet = screen.root.querySelector<HTMLElement>(".engineers-dialog");
-    if (sheet === null) throw new Error("no engineers sheet");
-    const button = sheet.querySelector<HTMLButtonElement>(".engineer-promote");
-    if (button === null) throw new Error("no Promote button");
+    screen.openEngineers();
+    const sheet = screen.root.querySelector<HTMLElement>(
+      ".board-sheet[data-sheet=engineers]",
+    );
+    if (sheet === null) throw new Error("no Engineers drawer");
+    const row = sheet.querySelector<HTMLButtonElement>(".engineer-promote");
+    if (row === null) throw new Error("no Promote row");
+    const tag = () => row.querySelector(".board-row-price")?.textContent;
     const before = screen.progress.getSnapshot().mountain;
     const shown = promoteCost(before);
-    expect(button.textContent).toBe(promoteOffer(shown));
+    expect(tag()).toBe(formatCompact(shown));
+    expect(row.getAttribute("aria-label")).toContain(promoteOffer(shown));
 
-    button.click();
-    // Two seconds on, unpainted, while the confirm sits open: Step up's settle crosses into
+    row.click();
+    // Two seconds on, unpainted, while the ask sits open: Step up's settle crosses into
     // the Granite.
     at += 2_000;
     sheet.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
@@ -68,12 +71,15 @@ describe("a promotion on screen", () => {
     const dearer = promoteCost(after);
     expect(dearer).toBeGreaterThan(shown);
     expect(after.pocket).toBeGreaterThanOrEqual(dearer);
-    expect(button.hidden).toBe(false);
-    expect(button.textContent).toBe(promoteOffer(dearer));
+    // Back on the list, with no cheer, and the row's tag at the new price.
+    expect(screen.engineersPage()).toBeUndefined();
+    expect(row.hidden).toBe(false);
+    expect(tag()).toBe(formatCompact(dearer));
+    expect(row.getAttribute("aria-label")).toContain(promoteOffer(dearer));
 
-    // Stepped up again at the price now on the button, Nils joins at that price.
+    // Stepped up again at the price now on the row, Nils joins at that price.
     const pocket = after.pocket;
-    button.click();
+    row.click();
     sheet.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
     const promoted = screen.progress.getSnapshot().mountain;
     expect(promoted.engineers).toHaveLength(2);

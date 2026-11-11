@@ -148,9 +148,7 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    the card gives the focus back there. `cardLines` rebuilds a box of lines
    only when its words change (the welcome's news, the Legacy's rates). The
    cards and today's sheets stand at one z-index in the root's order
-   (`screen-panels#cardsFrom`), with the Engineers sheet first so a
-   homecoming's welcome paints over it; only the save conflict stands
-   higher. Every drawer, the relics drawer (#465) too, sits in the drawers'
+   (`screen-panels#cardsFrom`); only the save conflict stands higher. Every drawer, the relics drawer (#465) too, sits in the drawers'
    clips above the cards: a card that comes up closes any open drawer by
    program (`screen-overlays`), and the relic reveal waits while a card is
    up, so a card is never under a drawer. Shared player-facing wording lives in `screen-words`. The screen's optional `signal` (tests
@@ -343,14 +341,14 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    log, Start over and Yes disabled; the account row stays live. Once that
    save is in again, or the account changes, the Start over page gives the
    list back, and a clipboard answer that comes after the drawer shut shows
-   nothing. The four drawers
+   nothing. The five drawers
    and the scrim sit in `.board-sheet-clip` at z 29, under the board note
    (30) and the save drawer (31). The clip is `overflow: clip`, so nothing
    (not even script) can scroll it. Opening one drawer closes the others
-   (`wireKeys` in `screen-keys` closes every other drawer in one record, so
-   B6b's Engineers drawer is one more entry). `engineers-panel` takes a
-   `door` (the Engineers key) instead of building its own button; the
-   Ledger is a drawer whose shell writes its key's `aria-expanded`, as the
+   (`wireKeys` in `screen-keys` closes every other drawer in one record,
+   Engineers too since #455). `engineers-panel` takes a `door` (the
+   Engineers key) instead of building its own button; it and the Ledger
+   are drawers whose shell writes their key's `aria-expanded`, as the
    others' do. `DRAWER_SETTLE_MS` (400ms, from `board-interaction`) is every
    drawer's guard, B4's Buys settle carried into the model, judged for the
    whole drawer. The rows (through `buyOnTap`) and Back, the "i" and the how
@@ -414,7 +412,7 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   Upgrades and Workshop drawers, their shell and their rows, the key rail, the Ready now
   plate and the machine bays are painters of its view: they send it inputs
   and presses and read `boardView`; none holds a settle, a hold, a timer or
-  a freeze of its own. Every board control's "is down" look goes through `pressLook` (in `card-tap`), and each part paints its own look; Engineers' timed `is-pressed` flash stays its own until B6b (#455) rebuilds Engineers on the shared rows. `pressOnBoard` (in `card-tap`) is the one board
+  a freeze of its own. Every board control's "is down" look goes through `pressLook` (in `card-tap`), and each part paints its own look; the Engineers rows and plates use it too since #455, so its old timed `is-pressed` flash is gone. `pressOnBoard` (in `card-tap`) is the one board
   press: it tracks a control's finger-down time, sends the model the press
   (the control, who pressed, the finger's `downAt` and the click) and hands
   back its decision. Its `control` is a `ControlRef` or a function of the
@@ -490,11 +488,10 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   and `aria-haspopup`, ending at least 8px above the save line. The column
   starts at `--column-top`, which is `--rail-top`. The New teach note is a
   slim sign (`board-sign`) over its key, with `pointer-events: none`; its
-  words go on the key's label. The Buys, Upgrades, Workshop and Ledger drawers
+  words go on the key's label. The Buys, Upgrades, Workshop, Engineers and Ledger drawers
   (`.board-drawer.board-sheet[data-sheet]`, open with `.is-open`) stand
   at `--sheet-top` (178px) down to the save line, so they cover the bays,
-  the plate and the rail and leave the odometer in view. Today's Engineers
-  sheet keeps B2's `--board-top` (176px) until B6b (#455). The crew line (`crew-panel`'s `section.crew`: sentence, chips and
+  the plate and the rail and leave the odometer in view. The crew line (`crew-panel`'s `section.crew`: sentence, chips and
   Grandpa) is the "Crew" section at the top of the Buys drawer; Buys calls
   `layoutChips()` as it opens, so its chips are measured at the drawer's
   width, and while it is open the chip rows never wrap. A drawer's list
@@ -582,11 +579,16 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   `boardTargets(page, { vein })` shows it and measures in one page task, so
   the screen's second tick cannot hide it in between. The drawer list is
   `DRAWERS` in `drawers.mjs`: a new drawer is a row there, with its own
-  scroll rule; the Workshop's row (#374) skips the saves whose Workshop key
-  is locked. The Ledger (#375) is a row that never scrolls, plus one states
+  scroll rule; the Workshop's row (#374) and the Engineers' (#455) skip the
+  saves whose key is locked. Engineers' row scrolls only at seven rows (a
+  full crew with keepsakes), and its states flow (`engineers states` in
+  `engineers-workshop.mjs`) walks the first visit, her page, the tunnels,
+  the promote and recall asks, a trip out with the walk home, and the full
+  crew (also as the installed PWA) with Brought home's stories. It replaced
+  sections 11 and 12 and main-screen's `engineersSheetFits`. The Ledger (#375) is a row that never scrolls, plus one states
   flow (Tonight's lines, the mine rows, the plates and both pages). `controls.mjs` wires each control
   family once in Chrome (the rail key, a row buy, Back and the scrim, the "i"
-  cards, the Workshop bench's arm-then-confirm cancel, the Ledger's page that asks (Start over), Ready now, an open bay, the trouble fix, the red button and a press
+  cards, the Workshop bench's arm-then-confirm cancel, the Ledger's page that asks (Start over), a row that opens a page (an engineer's row, then a post past the page's settle), Ready now, an open bay, the trouble fix, the red button and a press
   look), on the held tap clock except the red button and the drawer's
   reduced-motion pages. What a tap decides is proven by unit tests, not
   there; a new family gets one wiring check. The six board cards (#464) are the
@@ -795,25 +797,33 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   already that strong, and otherwise names the crew in whole stones like the
   header (`formatCrewSpeed`, #332). The countdown keeps running while the drawer
   is shut.
-- Panels: `engineers-panel` is the Engineers sheet (#161): one open card and
-  one-line rows, Tend and Send exploring choice lists, a cheer toast, and the
-  walk-home state. A tend choice calls `station(recall(...))`, so a party is
-  never left without its engineer. Call back confirms, then `recall`. Promote
-  confirms, Step up checks the price again and pays only the price the button
-  showed when he tapped it (#367), and the cheer waits until that hand is
-  actually on the crew. The button shows the price ("Promote: 2M stones"; a
-  light pocket says "Needs 2M stones"). Tending choices, the open sentence, the
-  cheer, and the lamp show the live stones/sec from `tendingGain`. Keepsakes
-  already on `finds` are listed on the open card at reading size (`Brought
-home`); a full crew on a short phone keeps that to one line and a toast tells
-  the stories. No new save field. A countdown chip still sits in the mountain's
-  corner (words, not a clock). `progress-store` keeps `homecomings` until the
+- Panels: `engineers-panel` is the Engineers drawer (#161, a board drawer
+  since #455) on `createBoardSheet`: its list (a row per engineer from
+  `engineer-parts#createEngineerRows`, with the walk home in her icon cell
+  while she is out, Brought home, and Promote as a buy row) and its pages,
+  swapped with `showPage` (her page of posts with its two plates, the
+  tunnels, Brought home's stories, and the recall and promote asks on
+  `board-page`, the page that asks shared with the Ledger). The pure views
+  are `engineer-rows`: each row's and page's view, the teach chain
+  (`engineerTeach`), the kicks (`listKick`, `pageKick`), `settlePage` (a page
+  whose engineer has gone, or a trip that has ended, falls back to her page
+  or the list) and the lookups a press reads (`findHer`, `askedPrice`). A
+  page names its engineer, never her index. Presses go through the board
+  model's `rowsOnBoard` and its settle; a post that lands and a new engineer
+  hold their row's Done, and a cheer stands in the drawer's kick for 2.2s
+  (`BoardSheet.cheer`). A post calls `station(recall(...))`, so a party is
+  never left without its engineer. Step up checks the price again and pays
+  only the price the row showed when he tapped it (#367). Back, the scrim and
+  Escape close the whole drawer from any page. The gains on posts, the duty
+  kick and the cheer show the live stones/sec from `tendingGain`. No new save
+  field. The expedition chips (`engineer-parts#createExpeditionChips`) stay
+  in the Running now note. `progress-store` keeps `homecomings` until the
   welcome card closes, and writes them under `dad-friendly-homecomings` so a
   reload after a hidden settle still shows the card. The card names who came
-  back and what they found, sits above the other sheets, and a live return uses
-  it with no away report. Becoming visible settles at once. The layout check
-  covers the sheet with an expedition out, five engineers plus a keepsake at
-  424×924 (browser and installed PWA), and the welcome card with a find (the
+  back and what they found, closes any open drawer as every self-opening
+  card does (`coverDrawers`), and a live return uses it with no away report.
+  Becoming visible settles at once. The layout check covers the drawer's
+  states (above) and the welcome card with a find (the
   `board cards` table's `welcome find`). Trouble
   is shown on the machine's bay and on its row in the Buys drawer (`crew-panel`,
   #373): a warm shout ("Cave-in! · Hold to fix"), five taps or a short hold,

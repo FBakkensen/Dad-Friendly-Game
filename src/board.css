@@ -928,12 +928,6 @@ body {
   pointer-events: auto;
 }
 
-/* Every sheet and card stops at the save line, so the line is never covered
-   and the sheets' own buttons sit above it (#370). */
-.engineers-dialog {
-  bottom: var(--save-h);
-}
-
 /* Closed, the drawer waits just under the clip's edge, so every step of the
    slide shows more of it. */
 .board-drawer-clip > .board-save-drawer:not(.is-open) {
@@ -1963,6 +1957,13 @@ button.board-row:focus-visible {
   min-width: 0;
 }
 
+/* A post's name on her page (#455) ends in an ellipsis rather than run under its gain: the
+   Great Machine with a New flag is the longest. Its full words are on the row's label. */
+.engineer-post .board-row-line > .board-row-name {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
 .board-row-name {
   font-size: var(--board-type-17);
   line-height: var(--board-row-name-lead);
@@ -2054,11 +2055,6 @@ button.board-row:focus-visible {
 
 .board-row.is-held .board-row-verb {
   color: var(--board-green);
-}
-
-/* The New row speaks through its lamp and its New flag, not today's gold glow. */
-.board-row.teach-new {
-  box-shadow: none;
 }
 
 /* Last, so an empty part hides over its own display. An icon not drawn yet
@@ -2689,8 +2685,9 @@ button.board-row:focus-visible {
   grid-area: 2 / 2;
 }
 
-/* A page of the drawer: the Start over confirm, or the field log to copy by hand. */
-.ledger-page {
+/* A page of a drawer (board-page.ts, #455): the Ledger's Start over and field log, the
+   Engineers' asks. */
+.board-page {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
@@ -2700,7 +2697,7 @@ button.board-row:focus-visible {
   padding: calc(var(--art) * 8);
 }
 
-.ledger-page-title {
+.board-page-title {
   position: relative;
   margin: 0;
   font-size: var(--board-type-20);
@@ -2709,7 +2706,7 @@ button.board-row:focus-visible {
   color: var(--board-ink);
 }
 
-.ledger-page-line {
+.board-page-line {
   position: relative;
   margin: 0;
   font-size: var(--board-type-14);
@@ -2719,12 +2716,138 @@ button.board-row:focus-visible {
   color: var(--board-ink-2);
 }
 
-.ledger-page-answers {
+.board-page-answers {
   position: relative;
   flex: none;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: calc(var(--art) * 4);
+}
+
+/* ---------- the Engineers drawer's pages (#455) ----------
+   Her page of posts and the tunnels page hold board rows, 10 apart as on the list, with no
+   frame of their own; the plates sit two by two under them. */
+.board-page.engineer-page,
+.board-page.engineer-tunnels-page {
+  padding: 0;
+}
+
+.engineer-page-plates {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: calc(var(--art) * 4);
+}
+
+.engineer-page-plates > [hidden] {
+  display: none;
+}
+
+/* A plate's words sit on the key skin's face: its 8 art px edge and 2 more each side, the
+   inset the plates fit against (engineer-parts#fitsPlate). */
+.engineer-page-plates > .board-platebtn {
+  padding: 0 calc(var(--art) * 10);
+  white-space: nowrap;
+}
+
+/* Words that would run onto the frame keep every word, a size smaller. */
+.engineer-page-plates > .board-platebtn.is-small {
+  font-size: var(--board-type-14);
+}
+
+/* The guided first trip (#455): the plate row's one plate, in its full words, with the board
+   rows' amber New flag beside them. The shell's own Back stays the way out. */
+.engineer-page-plates > .board-platebtn.teach-new {
+  grid-column: 1 / -1;
+  column-gap: calc(var(--art) * 6);
+}
+
+.board-platebtn.teach-new > .board-row-flag {
+  position: relative;
+  flex: none;
+}
+
+.board-platebtn > .board-row-flag[hidden] {
+  display: none;
+}
+
+.board-platebtn.teach-new.down > .board-row-flag {
+  top: var(--art);
+}
+
+.engineer-brought-page > .engineer-brought-story {
+  position: relative;
+  margin: 0;
+  font-size: var(--board-type-16);
+  line-height: var(--board-note-lead);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--board-ink);
+}
+
+.engineer-brought-page > .engineer-brought-story[hidden] {
+  display: none;
+}
+
+/* Brought home's Back is one plate under the stories, at a plate's height, not the page's rest. */
+.engineer-brought-page > .board-platebtn {
+  flex: none;
+}
+
+/* The walk home in an out engineer's icon cell: the board's miner (frames 4-7, walk east)
+   crossing an inset tunnel mouth one art px at a time, in hard steps. */
+.engineer-walk {
+  position: relative;
+  display: block;
+  width: calc(var(--art) * 32);
+  height: calc(var(--art) * 28);
+  overflow: hidden;
+}
+
+.engineer-walk > .engineer-walker {
+  position: absolute;
+  z-index: 1;
+  left: calc(var(--art) * 10);
+  bottom: calc(var(--art) * 3);
+  width: calc(var(--art) * 12);
+  height: calc(var(--art) * 21);
+  background-repeat: no-repeat;
+  background-size: calc(var(--art) * 216) calc(var(--art) * 21);
+  background-position: calc(var(--art) * -48) 0;
+  image-rendering: pixelated;
+  animation:
+    engineer-walker-step 0.6s steps(4) infinite,
+    engineer-walker-cross 3.2s steps(32) infinite;
+}
+
+.engineer-walk.is-paused > .engineer-walker {
+  animation-play-state: paused;
+}
+
+@keyframes engineer-walker-step {
+  from {
+    background-position-x: calc(var(--art) * -48);
+  }
+  to {
+    background-position-x: calc(var(--art) * -96);
+  }
+}
+
+@keyframes engineer-walker-cross {
+  from {
+    left: calc(var(--art) * -12);
+  }
+  to {
+    left: calc(var(--art) * 20);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* He stands still in the tunnel mouth, on frame 4. */
+  .engineer-walk > .engineer-walker {
+    animation: none;
+  }
 }
 
 /* The field log fills what is left of its page, in an inset well. */
@@ -2877,8 +3000,7 @@ button.board-row:focus-visible {
 /* ---------- the board cards (#464) ---------- */
 
 /* The cards stand at the board card's z-index, in the root's order
-   (screen-panels#cardsFrom): the Engineers sheet, today's sheet at the same
-   z-index, comes first, so a homecoming's welcome paints over it. */
+   (screen-panels#cardsFrom). */
 
 /* The haul's number never breaks; its unit stands smaller beside it, and
    drops to the next line only when the two do not fit. */

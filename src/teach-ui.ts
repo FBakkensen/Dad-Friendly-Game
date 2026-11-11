@@ -1,36 +1,8 @@
 /**
  * The shared teach parts (M11, #241), the hybrid pattern from #240.
- * Every system uses these, so the New card, the payoff
- * line and How it works look the same everywhere. Copy comes from the
- * caller; this file has none of its own beyond the New tag.
+ * Every system uses these, so the payoff line and How it works look the
+ * same everywhere. Copy comes from the caller; this file has none of its own.
  */
-
-/**
- * Marks a shared sheet card as the new one: lit, tagged New, and its own
- * action button turned into the one big first-action button. The caller
- * keeps the button's click, so the whole card still taps the same way.
- * `clearNewCard` takes the tag and the light off again.
- */
-export function markNewCard(
-  card: HTMLElement,
-  button: HTMLElement,
-  action: string,
-): void {
-  clearNewCard(card);
-  card.classList.add("teach-new");
-  const tag = document.createElement("span");
-  tag.className = "teach-tag";
-  tag.textContent = "New";
-  card.prepend(tag);
-  button.classList.add("teach-action");
-  button.textContent = action;
-}
-
-export function clearNewCard(card: HTMLElement): void {
-  card.classList.remove("teach-new");
-  card.querySelector(":scope .teach-tag")?.remove();
-  card.querySelector(":scope .teach-action")?.classList.remove("teach-action");
-}
 
 /** After the first use, the same card says what it earned. */
 export function setPayoff(card: HTMLElement, text: string | undefined): void {
@@ -45,20 +17,6 @@ export function setPayoff(card: HTMLElement, text: string | undefined): void {
     card.append(line);
   }
   line.textContent = text;
-}
-
-/** The "i" in the sheet's corner. */
-export function createInfoButton(
-  label: string,
-  open: () => void,
-): HTMLButtonElement {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "teach-info";
-  button.textContent = "i";
-  button.setAttribute("aria-label", `How it works: ${label}`);
-  button.addEventListener("click", open);
-  return button;
 }
 
 /**

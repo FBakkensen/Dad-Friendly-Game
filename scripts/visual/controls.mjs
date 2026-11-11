@@ -38,7 +38,8 @@ import { boardTargets } from "./measure.mjs";
 // One wiring check per control family (#441), each pressed by a real finger
 // (or the mouse) in Chrome: a rail key, a drawer row's buy, the ways out of a
 // drawer, the "i" cards, the Workshop bench's arm-then-confirm (#374), the
-// Ledger's page that asks (Start over, #375), Ready now, an open bay, a troubled bay's fix and the
+// Ledger's page that asks (Start over, #375), a row that opens a page (the
+// Engineers' row and her posts, #455), Ready now, an open bay, a troubled bay's fix and the
 // red button, and the drawer's first frame under reduced motion. The decisions
 // behind them (double taps, holds, settles, blinks) are unit tests. Then the
 // press look (#432): a held rail key shows is-down, and its rest frame after
@@ -281,8 +282,8 @@ for (const viewport of SCREENS) {
             ?.getAttribute("data-key") ?? "nothing"
         );
       }, back);
-      const engineersShown = () =>
-        page.$eval(".engineers-dialog", (dialog) => !dialog.hidden);
+      const engineersShown = async () =>
+        (await page.$(OPEN_SHEET("engineers"))) !== null;
       // The tap is handled (its click dispatched, the next frame reached, one
       // more painted) before nothing having opened counts.
       const handled = await clickHandled(page);
@@ -296,7 +297,7 @@ for (const viewport of SCREENS) {
       await stepTapClock(page, PAST_SETTLE_MS);
       await tapBoard(page, back.x, back.y);
       const opened = await page
-        .waitForSelector(".engineers-dialog:not([hidden])", { timeout: 2_000 })
+        .waitForSelector(OPEN_SHEET("engineers"), { timeout: 2_000 })
         .then(
           () => true,
           () => false,
@@ -447,6 +448,74 @@ for (const viewport of SCREENS) {
           before,
           early,
         });
+      }
+      await close();
+    }
+
+    // A row that opens a page (#455): past the settle, Ada's row opens her
+    // page of posts in the Engineers drawer; a tap on the drills row at once
+    // (the second tap of the one that opened the page) posts nobody, and one
+    // past the page's settle posts her there.
+    {
+      const save = openMountain();
+      const { page, close } = await openScreen(
+        viewport,
+        {
+          ...save,
+          workshop: {
+            ...save.workshop,
+            seen: [...(save.workshop.seen ?? []), "engineers"],
+            taught: [...(save.workshop.taught ?? []), "engineers"],
+          },
+        },
+        { stopClock: true, tapClock: "held" },
+      );
+      await keysDrawn(page);
+      await noteAway(page);
+      await openSheet(page, "engineers");
+      await stepTapClock(page, PAST_SETTLE_MS);
+      await press(
+        page,
+        `${OPEN_SHEET("engineers")} .engineer-row[data-engineer="Ada"]`,
+      );
+      const drills = `${OPEN_SHEET("engineers")} .engineer-page .engineer-post[data-post="drill"]`;
+      const opened = await page
+        .waitForSelector(drills, { visible: true, timeout: 2_000 })
+        .then(
+          () => true,
+          () => false,
+        );
+      const handled = await clickHandled(page);
+      await press(page, drills);
+      await handled();
+      await framesPainted(page, 1);
+      const early = await page.$eval(
+        `${OPEN_SHEET("engineers")} .engineer-post[data-post="borer"]`,
+        (row) => row.getAttribute("aria-pressed"),
+      );
+      const stayed =
+        early === "true" &&
+        (await storedMountain(page)).engineers?.[0]?.post !== "drill";
+      await stepTapClock(page, PAST_SETTLE_MS);
+      await press(page, drills);
+      const posted = await page
+        .waitForFunction(
+          (key) =>
+            JSON.parse(localStorage.getItem(key) ?? "{}").mountain
+              ?.engineers?.[0]?.post === "drill",
+          { timeout: 2_000 },
+          SAVE_KEY,
+        )
+        .then(
+          () => true,
+          () => false,
+        );
+      check(
+        opened && stayed && posted,
+        `${label} engineers: past the settle her row opens her page, a tap on a post at once sends nothing, and one past the settle posts her`,
+      );
+      if (!opened || !stayed || !posted) {
+        console.log("engineers page", size, { opened, stayed, posted, early });
       }
       await close();
     }

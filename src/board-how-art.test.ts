@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import { BOARD_HOW_ART, boardHowCard } from "./board-how-art";
-import { HOW_IT_WORKS } from "./how-it-works";
+import { BOARD_HOW_ART, boardHowCard, createHowPricer } from "./board-how-art";
+import { HOW_IT_WORKS, howItWorks } from "./how-it-works";
+import { createMountain } from "./mountain";
 
 const widths = (card: HTMLElement): string[] =>
   [...card.querySelectorAll("img")].map(
@@ -18,6 +19,9 @@ describe("the board's How it works art (#373)", () => {
     "materials",
     "away",
     "relics",
+    "engineers",
+    "expeditions",
+    "tending",
   ] as const)("maps every step of %s to board art", (system) => {
     for (const [art] of HOW_IT_WORKS[system].steps) {
       expect(BOARD_HOW_ART[art], art).toBeDefined();
@@ -155,5 +159,90 @@ describe("the board's How it works art (#373)", () => {
     expect(sources[1]).toContain("res-stone");
     expect(sources[2]).toContain("icon-upgrades");
     expect(widths(card)).toEqual(["64", "32", "32"]);
+  });
+
+  it("renders the Engineers card's four steps: the worker at 64, the crown at 48, the map and the boot at 32 (#455)", () => {
+    const card = boardHowCard(
+      "engineers",
+      "Back to your engineers",
+      () => undefined,
+    );
+    expect(card.dataset["how"]).toBe("engineers");
+    const sources = [...card.querySelectorAll("img")].map(
+      (img) => img.getAttribute("src") ?? "",
+    );
+    expect(sources).toHaveLength(4);
+    expect(sources[0]).toContain("mach-worker");
+    expect(sources[1]).toContain("relic-crown");
+    expect(sources[2]).toContain("res-map");
+    expect(sources[3]).toContain("res-boot");
+    expect(widths(card)).toEqual(["64", "48", "32", "32"]);
+  });
+
+  it("renders the Expeditions card with the map, the nugget and the worker, and Tending with the board's machines (#455)", () => {
+    const trips = boardHowCard("expeditions", "Back", () => undefined);
+    const tripArt = [...trips.querySelectorAll("img")].map(
+      (img) => img.getAttribute("src") ?? "",
+    );
+    expect(tripArt[0]).toContain("res-map");
+    expect(tripArt[1]).toContain("res-nugget");
+    expect(tripArt[2]).toContain("mach-worker");
+    expect(widths(trips)).toEqual(["32", "32", "64"]);
+    const tending = boardHowCard("tending", "Back", () => undefined);
+    expect(widths(tending)).toEqual(["64", "64", "64"]);
+  });
+});
+
+describe("createHowPricer (#455)", () => {
+  const steps = (card: HTMLElement): string[] =>
+    [...card.querySelectorAll(".teach-how-steps li span")].map(
+      (span) => span.textContent,
+    );
+
+  const cards = (): HTMLElement => {
+    const how = document.createElement("div");
+    how.append(
+      boardHowCard("engineers", "Back", () => undefined),
+      boardHowCard("upgrades", "Back", () => undefined),
+    );
+    return how;
+  };
+
+  const card = (how: HTMLElement, system: string): HTMLElement => {
+    const found = how.querySelector<HTMLElement>(`[data-how="${system}"]`);
+    if (found === null) {
+      throw new Error(`no ${system} card`);
+    }
+    return found;
+  };
+
+  it("reprices the cards it lists when the stretch changes, and leaves the others", () => {
+    const how = cards();
+    const price = createHowPricer(how, ["engineers"]);
+    const upgrades = steps(card(how, "upgrades"));
+    const stretched = { ...createMountain(), stretch: 4 };
+    price(stretched);
+    const copy = howItWorks(4, 4);
+    expect(steps(card(how, "engineers"))).toEqual(
+      copy.engineers.steps.map(([, words]) => words),
+    );
+    expect(steps(card(how, "engineers"))).not.toEqual(
+      HOW_IT_WORKS.engineers.steps.map(([, words]) => words),
+    );
+    expect(steps(card(how, "upgrades"))).toEqual(upgrades);
+  });
+
+  it("writes nothing while the stretch holds", () => {
+    const how = cards();
+    const price = createHowPricer(how, ["engineers"]);
+    price(createMountain());
+    const engineers = card(how, "engineers");
+    const first = engineers.querySelector(".teach-how-steps li span");
+    if (first === null) {
+      throw new Error("no step");
+    }
+    first.textContent = "kept";
+    price(createMountain());
+    expect(first.textContent).toBe("kept");
   });
 });

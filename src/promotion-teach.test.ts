@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
 import { createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
+import { closeArrivals } from "./mountain-screen.harness";
 import { createProgressStore } from "./progress-store";
 import { effectiveRates, promotePayoff } from "./rates";
 import { PROMOTE_BASE_COST, promote, promoteCost, station } from "./engineers";
@@ -11,7 +12,6 @@ import { BAND_SCALE } from "./scale";
 import {
   PROMOTION_INTRO,
   promoteOffer,
-  promotionAction,
   promotionPayoff,
   stonesPerSecond,
 } from "./screen-words";
@@ -142,14 +142,13 @@ describe("promotion teach (#246)", () => {
     // With no engineer yet, the first hand is Ada, and any post is free.
     expect(promotePayoff(withoutEngineers(), 0)?.name).toBe("Ada");
     expect(promotePayoff({ ...crew(), pocket: 0 }, 0)).toBe(undefined);
-    expect(promotionAction("Nils", 6_000_000)).toBe("Promote Nils · 6M");
     expect(promotionPayoff("Nils", "drill", "+217 stones/sec")).toBe(
       "Nils could tend the drills: +217 stones/sec",
     );
     expect(PROMOTION_INTRO).not.toContain("?");
   });
 
-  it("the Promote row is the New card; its button confirms, then the dot goes", () => {
+  it("the Promote row is the New row: its payoff line, then its page confirms, then the dot goes", () => {
     const clock = 1_700_000_000_000;
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => crew());
@@ -159,31 +158,38 @@ describe("promotion teach (#246)", () => {
     expect(
       button?.querySelector(".board-key-dot:not([hidden])"),
     ).not.toBeNull();
+    closeArrivals(screen.root);
     button?.click();
-    const sheet = screen.root.querySelector<HTMLElement>(".engineers-dialog");
-    expect(sheet?.querySelector(".engineers-intro")?.textContent).toBe(
+    const sheet = screen.root.querySelector<HTMLElement>(
+      ".board-sheet[data-sheet=engineers]",
+    );
+    expect(sheet?.querySelector(".board-sheet-kick")?.textContent).toBe(
       PROMOTION_INTRO,
     );
-    const row = sheet?.querySelector(".engineer-promote-row");
+    const row = sheet?.querySelector<HTMLButtonElement>(".engineer-promote");
     expect(row?.classList.contains("teach-new")).toBe(true);
+    expect(row?.querySelector(".board-row-flag")?.textContent).toBe("New");
     const payoff = promotePayoff(
       screen.progress.getSnapshot().mountain,
       clock,
       screen.progress.getSnapshot().trouble,
     );
     expect(payoff).toBeDefined();
-    expect(row?.querySelector(".engineer-promote-why")?.textContent).toBe(
+    expect(row?.querySelector(".board-row-info")?.textContent).toBe(
       promotionPayoff("Nils", "drill", stonesPerSecond(payoff?.gain ?? 0)),
     );
-    const promoteButton =
-      sheet?.querySelector<HTMLButtonElement>(".engineer-promote");
-    expect(promoteButton?.textContent).toBe(
-      promotionAction(
-        "Nils",
-        promoteCost(screen.progress.getSnapshot().mountain),
-      ),
+    const cost = promoteCost(screen.progress.getSnapshot().mountain);
+    expect(row?.querySelector(".board-row-price")?.textContent).toBe(
+      formatCompact(cost),
     );
-    promoteButton?.click();
+    expect(row?.getAttribute("aria-label")).toContain(promoteOffer(cost));
+    // Its page confirms.
+    row?.click();
+    expect(
+      sheet?.querySelector(
+        ".board-sheet-page:not([hidden]) .engineer-promote-page",
+      ),
+    ).not.toBeNull();
     sheet?.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
     const mountain = screen.progress.getSnapshot().mountain;
     expect(mountain.engineers?.map((hand) => hand.name)).toEqual([
@@ -192,26 +198,33 @@ describe("promotion teach (#246)", () => {
     ]);
     expect(showsDot(mountain, "promotion")).toBe(false);
     expect(row?.classList.contains("teach-new")).toBe(false);
-    // Next, the guided first tend puts Nils to work.
+    // Next, the guided first tend puts Nils to work: his row is the New one.
     expect(
-      sheet?.querySelector<HTMLElement>(".engineer-first-tend:not([hidden])"),
-    ).not.toBeNull();
+      sheet
+        ?.querySelector('.engineer-row[data-engineer="Nils"]')
+        ?.classList.contains("teach-new"),
+    ).toBe(true);
   });
 
-  it("quotes the band's promotion price on the how card, as the button does (#356)", () => {
+  it("quotes the band's promotion price on the how card, as the row does (#356)", () => {
     const screen = mount(() => 1_700_000_000_000);
     // 45M mined is the Crystal Caves: one-offs cost 6.3 times as much (#357).
     const caves = { ...crew(), remaining: 195_000_000, pocket: 0 };
     screen.progress.applyMutation(() => caves);
+    closeArrivals(screen.root);
     screen.root
       .querySelector<HTMLButtonElement>(".board-key[data-key=engineers]")
       ?.click();
-    const sheet = screen.root.querySelector<HTMLElement>(".engineers-dialog");
+    const sheet = screen.root.querySelector<HTMLElement>(
+      ".board-sheet[data-sheet=engineers]",
+    );
     const first = PROMOTE_BASE_COST * BAND_SCALE[2];
     expect(promoteCost(caves)).toBe(first * 2);
     expect(
-      sheet?.querySelector<HTMLButtonElement>(".engineer-promote")?.textContent,
-    ).toBe(promoteOffer(promoteCost(caves)));
+      sheet
+        ?.querySelector<HTMLButtonElement>(".engineer-promote")
+        ?.getAttribute("aria-label"),
+    ).toContain(promoteOffer(promoteCost(caves)));
     const card = sheet?.querySelector<HTMLElement>(
       '[data-how="engineers"] .teach-how-steps li span',
     );

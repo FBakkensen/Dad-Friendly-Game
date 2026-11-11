@@ -4,14 +4,19 @@ import cartUrl from "./assets/board/mach-cart.png";
 import drillUrl from "./assets/board/mach-drill.png";
 import machineUrl from "./assets/board/mach-machine.png";
 import workerUrl from "./assets/board/mach-worker.png";
+import bootUrl from "./assets/board/res-boot.png";
 import clayUrl from "./assets/board/res-clay.png";
+import mapUrl from "./assets/board/res-map.png";
 import mountainUrl from "./assets/board/res-mountain.png";
+import nuggetUrl from "./assets/board/res-nugget.png";
 import pickUrl from "./assets/board/res-pick.png";
 import stoneUrl from "./assets/board/res-stone.png";
 import { RELIC_LIT } from "./board-relics";
 import { plateButton } from "./board-save";
-import { HOW_IT_WORKS, type HowArt } from "./how-it-works";
-import { createHowCard, type HowCardStep } from "./teach-ui";
+import { HOW_IT_WORKS, howItWorks, type HowArt } from "./how-it-works";
+import type { Mountain } from "./mountain";
+import { oneOffStretch, stretch } from "./scale";
+import { createHowCard, setHowSteps, type HowCardStep } from "./teach-ui";
 
 /*
  * How it works in the drawer skin (#373): the same cards and words, drawn with the board's own
@@ -41,6 +46,10 @@ export const BOARD_HOW_ART: Readonly<Partial<Record<HowArt, BoardHowArt>>> = {
   "relics/hammer": { src: RELIC_LIT.hammer, px: 48 },
   "relics/crown": { src: RELIC_LIT.crown, px: 48 },
   "ore-lump": { src: clayUrl, px: 32 },
+  // The Engineers and Expeditions cards' own (PixelLab, #455).
+  "worn-map": { src: mapUrl, px: 32 },
+  "boot-tile": { src: bootUrl, px: 32 },
+  "gold-nugget": { src: nuggetUrl, px: 32 },
 };
 
 /** The systems whose cards open from a drawer's "i". */
@@ -52,7 +61,10 @@ export type BoardHowSystem =
   | "workshop"
   | "materials"
   | "away"
-  | "relics";
+  | "relics"
+  | "engineers"
+  | "expeditions"
+  | "tending";
 
 /** Every art these cards use is mapped (board-how-art.test.ts); stone is the fallback. */
 const FALLBACK: BoardHowArt = { src: stoneUrl, px: 32 };
@@ -83,4 +95,29 @@ export function boardHowCard(
   plate.addEventListener("click", onBack);
   card.querySelector(".teach-how-back")?.replaceWith(plate);
   return card;
+}
+
+/**
+ * Reprices the cards of `systems` under `how` by the mountain's stretch: their numbers are the
+ * run's real prices. Writes only when the stretch changed.
+ */
+export function createHowPricer(
+  how: HTMLElement,
+  systems: readonly BoardHowSystem[],
+): (current: Mountain) => void {
+  let priced = "1:1";
+  return (current) => {
+    const key = `${String(stretch(current))}:${String(oneOffStretch(current))}`;
+    if (key === priced) {
+      return;
+    }
+    priced = key;
+    const copy = howItWorks(stretch(current), oneOffStretch(current));
+    for (const card of how.querySelectorAll<HTMLElement>("[data-how]")) {
+      const system = systems.find((each) => each === card.dataset["how"]);
+      if (system !== undefined) {
+        setHowSteps(card, copy[system].steps);
+      }
+    }
+  };
 }

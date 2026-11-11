@@ -1,7 +1,4 @@
 {
-  "src/engineers-panel.ts#createEngineersPanel": 845,
-  "src/engineers-panel.ts#createEngineersPanel>buildRow": 342,
-  "src/engineers-panel.ts#createEngineersPanel>render": 174,
   "src/firebase-save.ts#createFirebaseCloudSave": 166,
   "src/progress-store.ts#createProgressStore": 2084,
   "src/tab-writer.ts#createTabWriter": 348
