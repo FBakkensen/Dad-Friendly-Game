@@ -42,7 +42,7 @@ import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
 import { minedOut, oneOffStretch, stretch } from "../scale";
 import { markAllSeen, markSeen, markTaught, showsDot } from "../teach";
-import { startRush } from "../gold-rush";
+import { startRush, withoutRush } from "../gold-rush";
 import {
   VEIN_MAX_GAP_MS,
   VEIN_MIN_GAP_MS,
@@ -879,7 +879,12 @@ export function incomePerSecond(
   context: ValueContext,
   clock?: ValueClock,
 ): number {
-  const liveRates = effectiveRates(mountain, clock?.now, clock?.trouble);
+  // A Gold rush lasts 90 seconds, not the schedule: it is left out (#468).
+  const liveRates = effectiveRates(
+    withoutRush(mountain),
+    clock?.now,
+    clock?.trouble,
+  );
   const awayRates = effectiveRates(mountain);
   const tap = oneTap(mountain, clock?.now, clock?.trouble);
   const liveIncome = liveRates.exactCrewPerSecond + context.tapsPerSecond * tap;

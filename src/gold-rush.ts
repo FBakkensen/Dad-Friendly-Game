@@ -53,9 +53,20 @@ export function resumeRush(
   const gap = Math.max(0, to - from);
   const left = rushLeft(mountain, from);
   if (left === 0 || gap >= QUICK_VEIN_AWAY_MS) {
-    const rest: Mountain = { ...mountain };
-    delete (rest as { rushUntil?: number }).rushUntil;
-    return rest;
+    return withoutRush(mountain);
   }
   return { ...mountain, rushUntil: mountain.rushUntil + gap };
+}
+
+/**
+ * The mountain with no rush. A 90-second burst is not the crew's speed over
+ * hours, so what a buy is worth reads the crew without it.
+ */
+export function withoutRush(mountain: Mountain): Mountain {
+  if (mountain.rushUntil === undefined) {
+    return mountain;
+  }
+  const next = { ...mountain };
+  Reflect.deleteProperty(next, "rushUntil");
+  return next;
 }

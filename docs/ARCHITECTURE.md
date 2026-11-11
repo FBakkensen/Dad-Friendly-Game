@@ -113,7 +113,9 @@ page is the map, plus the rules that keep it that way.
    screen running. Each part is a `screen-*` module with one job:
    `screen-context` (the store, the clocks, the board host, `dispatch` and the
    view), `screen-running` (the Running now list, its chips, the vein's note),
-   `screen-vein` (the golden vein), `screen-dig` (the gauge row, the Ready
+   `screen-vein` (the golden vein, and the quick vein after an hour away,
+   held while `screen-overlays` says a card or drawer covers the board,
+   #468), `screen-dig` (the gauge row, the Ready
    row, the bays and the Ready now pick), `screen-panels` (Buys, the cards,
    the note and save line with the board's top, the sheets), `screen-prompts`
    (the update prompt and the other tab card), `screen-overlays` (the New
@@ -154,7 +156,7 @@ page is the map, plus the rules that keep it that way.
    `board-skin` (the 9-slice plan that draws a frame, tag or key skin on a
    canvas behind its element; `skin` is told whether its host is down, so a plate key's press repaints its pressed skin), `odometer` (the five drum faces for a
    pocket) and `crew-boost` (the crew timer the crew is running at, and the
-   dial frame). DOM parts take `getView` and callbacks like a panel:
+   dial frame; a running Gold rush comes first, #468). DOM parts take `getView` and callbacks like a panel:
    `board-note` (the floating framed note, placed in board coordinates; a
    note that holds a key stays up until the key, an outside pointerdown, or
    Escape; a show with no `ms` and no key has no timer and stays until
@@ -177,7 +179,8 @@ page is the map, plus the rules that keep it that way.
    the run on hard steps, the dig's puff and "+N", the vein over the view,
    and the Legacy plate; `runBoardLoop` steps it and the needle once a frame,
    capped at 0.1s; the bays' drill icon steps on it too). The window's only input is a `WindowScene` built by
-   `windowScene(mountain, trouble)`; it calls `onDig` and `onVein` and never
+   `windowScene(mountain, trouble, now)` (`now` lights the Gold rush's
+   sparkle, #468); it calls `onDig` and `onVein` and never
    writes the mountain. Until its first render (a signed-in save still
    loading) the window is its frame and glass on the dark: no view, machine,
    kid or run. `reducedMotion()` in `float-text` holds the window and the
@@ -706,7 +709,14 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   tier speed in `effectiveRates`. A blasting charge doubles the live crew until
   `chargeUntil`. Axle grease doubles the live crew until `axleUntil`, including
   while it is still on the bench. Axle grease, a blasting charge, and Overtime
-  meet in `effectiveRates`, and the crew runs at the strongest of them. A
+  meet in `effectiveRates`, and the crew runs at the strongest of them. A Gold
+  rush (`src/gold-rush.ts`, #468) multiplies on top of that strongest timer
+  until `rushUntil`, saved in the workshop map beside `axleUntil`; `accrueAway`
+  runs `resumeRush` first, so a break under an hour shifts it later (close is
+  pause) and a longer one drops it. The store's snapshot reports each settled
+  time away as `awayGap` (`ms`, and the `at` that names it), and a long one
+  arms the quick vein. `incomePerSecond` reads the crew without the rush
+  (`withoutRush`): 90 seconds are not the crew's speed over a schedule. A
   heartstone ember multiplies the Great Machine by 1.25 until `emberUntil`. A
   crystal flare makes veins 25% more often until `flareUntil`. Crafting a flare,
   an ember, or another grease refreshes that clock and does not stack. None of
