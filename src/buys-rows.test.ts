@@ -558,6 +558,20 @@ describe("buyRowView: ×10 and Max (#358)", () => {
     ).toMatchObject({ lamp: "amber", pick: true, flag: ["Ready now"] });
   });
 
+  it("a ready pick the free hands cannot run ten of is not offered on its row", () => {
+    // 18 workers on 15 carts leave 3 free: the drill is the pick for one, not for ten.
+    const base = mountainWith({ helpers: 18, carts: 15 });
+    const mountain = { ...base, pocket: quote(base, "drill", "ten").cost };
+    expect(readyNow(mountain, NOW)).toMatchObject({
+      kind: "ready",
+      tier: "drill",
+    });
+    expect(row(mountain, "drill")).toMatchObject({ lamp: "amber", pick: true });
+    const ten = row(mountain, "drill", { amount: "ten" });
+    expect(ten).toMatchObject({ state: "short", lamp: "off", pick: false });
+    expect(ten.flag).toEqual([]);
+  });
+
   it("the guided New row still hires one, whatever the amount", () => {
     const idle = mountainWith({ helpers: 2, carts: 6 });
     const mountain = { ...idle, pocket: 1e9 };

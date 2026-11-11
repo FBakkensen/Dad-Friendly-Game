@@ -188,19 +188,20 @@ function buyFacts({
   const worker = tierById("helper");
   // Workers (helper, kid) are hired; machines are bought. ×10 and Max say how many.
   const buyVerb = `${tier.staff === 0 ? "Hire" : "Buy"}${asked === "one" ? "" : ` ${formatCompact(buying)}`}`;
-  // The plate's pick is one. A ready pick whose ×10 the pocket cannot pay is not
-  // offered on this row (#358).
+  const gaining = gainingCount(asked, buying, staff / buying, spare);
+  // The plate's pick is one machine the free hands can run. A ready pick whose ×10 or Max the
+  // pocket cannot pay, or the free hands cannot all run, is not offered on this row (#358).
   const pickHere =
     pick.kind !== "mined-out" &&
     pick.tier === id &&
-    !(pick.kind === "ready" && mountain.pocket < price);
+    !(pick.kind === "ready" && (mountain.pocket < price || gaining < buying));
   return {
     mountain,
     id,
     tier,
     count,
     buying,
-    gaining: gainingCount(asked, buying, staff / buying, spare),
+    gaining,
     price,
     lock,
     troubled,

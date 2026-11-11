@@ -13,7 +13,7 @@ Spec: `docs/economy-overhaul.md`, section D. One sliver, one PR.
 - **The amount is remembered on this device** (localStorage, like the vein wait), not in the save: it is a habit of the hand, not progress. A broken store starts at ×1.
 - **A row's gain on ×10 and Max is the tier's speed × the units the free hands can run** (review). Max counts stones, not hands, so a Max of carts can buy machines that stand idle; the row says so in rust ("Needs 46 workers") and its gain counts only those that run. ×1 still shows what one more adds. A milestone that the buy would reach is not added in, as today's ×1 row does not add it.
 - **A row too dear or short of hands keeps the counted verb** ("Buy 46"), where ×1 names the hands, so it still says how many.
-- **A ready pick whose ×10 or Max the pocket cannot pay loses its amber lamp and flag on its row.** A Saving for pick keeps its flag beside the total.
+- **A ready pick whose ×10 or Max the pocket cannot pay, or the free hands cannot all run, loses its amber lamp and flag on its row** (review). The plate's pick is one machine the free hands can run. A Saving for pick keeps its flag beside the total. So a Max of one idle machine reads +0/s where ×1 reads one's output: ×10 and Max count only what runs.
 - **Max is read again at the tap**, as ×1 is, so income that lands between the paint and the tap can buy one more than the row showed.
 - **A machine's worker bill is one machine's bill × the count.**
 - **The staffing New row hires one worker** in any amount: it teaches staffing one hand at a time. A troubled or locked row is unchanged.
