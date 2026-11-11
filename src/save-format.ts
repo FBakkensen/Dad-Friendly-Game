@@ -192,7 +192,13 @@ function crewAtHome(
     const trip = trips.find((each) => each.engineer === one.name);
     return { ...one, post: trip?.home ?? "camp" };
   });
-  const expeditions = trips.map(({ home: _home, ...trip }): Expedition => trip);
+  const expeditions = trips.map((trip): Expedition => ({
+    engineer: trip.engineer,
+    tunnel: trip.tunnel,
+    sentAt: trip.sentAt,
+    returnsAt: trip.returnsAt,
+    find: trip.find,
+  }));
   return { engineers, expeditions };
 }
 
