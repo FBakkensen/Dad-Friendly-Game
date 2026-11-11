@@ -710,10 +710,14 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   `chargeUntil`. Axle grease doubles the live crew until `axleUntil`, including
   while it is still on the bench. Axle grease, a blasting charge, and Overtime
   meet in `effectiveRates`, and the crew runs at the strongest of them. A Gold
-  rush (`src/gold-rush.ts`, #468) multiplies on top of that strongest timer
-  until `rushUntil`, saved in the workshop map beside `axleUntil`; `accrueAway`
-  runs `resumeRush` first, so a break under an hour shifts it later (close is
-  pause) and a longer one drops it. The store's snapshot reports each settled
+  rush (`src/gold-rush.ts`, #468) is paid out of the away haul: after an hour
+  away `accrueAway` holds part of it back (`holdForRush`, `rushBank`), and the
+  rush adds `rushPerSecond` of those held stones on top of the crew until
+  `rushUntil`, both saved in the workshop map beside `axleUntil`. Live `accrue`
+  pays them (`payRush`) and digs only the crew's own share from the mountain.
+  `resumeRush` runs first on every open: a break under an hour shifts the rush
+  later (close is pause), and an hour away or an ended rush lands what is held
+  (`releaseRush`), as does a missed glint (the `missQuickVein` move). The store's snapshot reports each settled
   time away as `awayGap` (`ms`, and the `at` that names it), and a long one
   arms the quick vein. `incomePerSecond` reads the crew without the rush
   (`withoutRush`): 90 seconds are not the crew's speed over a schedule. A

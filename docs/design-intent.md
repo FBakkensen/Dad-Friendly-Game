@@ -8,7 +8,7 @@ A dad starts with bare hands in front of a mountain far too big to dig. He build
 
 Two sessions, two feelings:
 
-- **2 minutes, a check-in:** "My crew kept going without me." See what was dug, spend the return on a few good buys, maybe tap a vein, leave feeling ahead. Leaving is never punished. After an hour or more away, the first vein comes within about 20 seconds and its Gold rush (#468) runs the crew fast for a minute and a half: a reason to stay the two minutes and watch it dig, with nothing lost by leaving sooner. Buys' ×10 and Max key (#358) keeps that shopping to a handful of taps: a check-in buys 9 to 63 things, which one at a time would be a chore.
+- **2 minutes, a check-in:** "My crew kept going without me." See what was dug, spend the return on a few good buys, maybe tap a vein, leave feeling ahead. Leaving is never punished. After an hour or more away, the first vein comes within about 20 seconds and its Gold rush (#468) brings in part of the away haul while the crew digs ×10 for a minute and a half: a reason to stay the two minutes and watch it dig. It is the same stones either way, so leaving sooner loses nothing. Buys' ×10 and Max key (#358) keeps that shopping to a handful of taps: a check-in buys 9 to 63 things, which one at a time would be a chore.
 - **30 minutes, a sitting:** "I'm running a dig site." Staff the machines, craft at the workshop, send engineers exploring, pick upgrades and boosts, get ready for the next rock band.
 
 ```mermaid
