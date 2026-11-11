@@ -109,25 +109,34 @@ function contrast(a: string, b: string): number {
   return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05);
 }
 
+/** A selector escaped for a RegExp that matches its rule's head. */
+function ruleHead(selector: string): string {
+  return `^${selector.replace(/[.]/g, "\\.")} \\{`;
+}
+
 /** The z-index a rule for exactly this selector sets in board.css. */
 function boardZ(selector: string): number {
-  const escaped = selector.replace(/[.]/g, "\\.");
-  const rule = new RegExp(`^${escaped} \\{[^}]*z-index:\\s*(\\d+)`, "m").exec(
+  const rule = new RegExp(
+    `${ruleHead(selector)}[^}]*z-index:\\s*(\\d+)`,
+    "m",
+  ).exec(boardCss);
+  return Number(rule?.[1] ?? Number.NaN);
+}
+
+/** board.css without the rules for exactly these selectors. */
+function boardCssWithout(...selectors: string[]): string {
+  return selectors.reduce(
+    (css, selector) =>
+      css.replace(new RegExp(`${ruleHead(selector)}[^}]*\\}`, "gm"), ""),
     boardCss,
   );
-  return Number(rule?.[1] ?? Number.NaN);
 }
 
 describe("board.css", () => {
   it("keeps the save line and its drawer above every overlay", () => {
+    const others = boardCssWithout(".board-saveline", ".board-drawer-clip");
     const highest = Math.max(
-      ...[...boardCss.matchAll(/z-index:\s*(\d+)/g)]
-        .map((m) => Number(m[1]))
-        .filter(
-          (z) =>
-            z !== boardZ(".board-saveline") &&
-            z !== boardZ(".board-drawer-clip"),
-        ),
+      ...[...others.matchAll(/z-index:\s*(\d+)/g)].map((m) => Number(m[1])),
     );
     expect(boardZ(".board-saveline")).toBeGreaterThan(highest);
     expect(boardZ(".board-drawer-clip")).toBeGreaterThan(highest);
@@ -431,6 +440,12 @@ describe("the PC desk (#376)", () => {
     // Same specificity as .board-skinned:not(.board-note), so it must come after it.
     expect(boardCss.indexOf(".board-housing,\n")).toBeGreaterThan(
       boardCss.indexOf(".board-skinned:not(.board-note) {"),
+    );
+  });
+
+  it("the housing centres in the body's safe area, as #app does", () => {
+    expect(boardCss).toMatch(
+      /^\.board-housing,\n\.board-housing\.board-skinned \{[^}]*inset:\s*env\(safe-area-inset-top\)\s+env\(safe-area-inset-right\)\s+env\(safe-area-inset-bottom\)\s+env\(safe-area-inset-left\);/m,
     );
   });
 

@@ -3,6 +3,7 @@
  * into a plan of one starting save, the screens, and a list of actions.
  * The script owns the browser, the dev server, and the files.
  */
+import { DESK_MIN_WIDTH } from "./board-fit.ts";
 
 /** Something on the page to tap or wait for. */
 type PlayTarget =
@@ -27,8 +28,6 @@ type ScreenSize = { readonly width: number; readonly height: number };
 const DEFAULT_PHONE: ScreenSize = { width: 424, height: 924 };
 /** The desktop: a PC, where the board sits on the desk (#376). */
 const DEFAULT_DESK: ScreenSize = { width: 1366, height: 768 };
-/** Narrower than this is a phone, not a desk (src/board-fit.ts). */
-const DESK_MIN_WIDTH = 600;
 const MAX_SIDE = 4096;
 
 type PlayPlan = {

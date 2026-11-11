@@ -28,6 +28,7 @@ import {
   undersizedTargets,
   WINDOW_SCENE_PARTS,
 } from "../src/ui-audit-measure.ts";
+import { DESK_MIN_WIDTH } from "../src/board-fit.ts";
 import {
   crewMountain,
   late,
@@ -48,8 +49,6 @@ const DESKS = [
   [1366, 768],
   [1440, 900],
 ];
-/** Narrower than this is a phone, with touch; wider is a desk (src/board-fit.ts). */
-const DESK_MIN_WIDTH = 600;
 
 const server = await startServer({ port: 4175, url: undefined });
 const BASE = server.base;
@@ -76,6 +75,7 @@ async function openAuditPage(viewport, save, { search = "" } = {}) {
       width: viewport[0],
       height: viewport[1],
       deviceScaleFactor: 2,
+      // Narrower than a desk is a phone, with touch.
       isMobile: viewport[0] < DESK_MIN_WIDTH,
       hasTouch: viewport[0] < DESK_MIN_WIDTH,
     },

@@ -159,30 +159,6 @@ describe("trackBoardFit's desk (#376)", () => {
     document.body.replaceChildren();
   });
 
-  it("mounts one skinned housing before #app, hidden from readers, however often it runs", () => {
-    const app = document.createElement("div");
-    app.id = "app";
-    document.body.append(document.createElement("p"), app);
-    trackBoardFit(fakeWindow(1280, 800), none);
-    trackBoardFit(fakeWindow(1366, 768), none);
-    const housings = document.querySelectorAll(".board-housing");
-    expect(housings).toHaveLength(1);
-    const housing = housings[0];
-    expect(housing?.getAttribute("aria-hidden")).toBe("true");
-    expect(housing?.nextElementSibling).toBe(app);
-    expect(
-      housing?.querySelectorAll(":scope > canvas.board-skin"),
-    ).toHaveLength(1);
-  });
-
-  it("mounts the housing first in the body when there is no #app", () => {
-    document.body.append(document.createElement("p"));
-    trackBoardFit(fakeWindow(1280, 800), none);
-    expect(document.body.firstElementChild?.className).toContain(
-      "board-housing",
-    );
-  });
-
   it("writes the desk's origin, and a resize moves it", () => {
     const fake = fakeWindow(1280, 800);
     trackBoardFit(fake, none);

@@ -190,11 +190,14 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    boost dial), `board-relics` (the relic plate: six sockets, their notes
    with the Relic shelf key, and the tag) and `board-save` (the save line,
    which keeps `.save-status` with `data-kind` and `data-log`, and its save
-   drawer). `main` calls `trackBoardFit`, which keeps `--board-scale`, the
-   desk's origin (`--desk-x`, `--desk-y`, from `deskOrigin`: the desk pool
-   centred on the window on an even pixel) and `body.desk` (600px wide or
-   more) in step on resize, and mounts the PC's steel housing once, outside
-   `#app`, skinned by `board-skin` (#376). On a desk the body shows the desk
+   drawer). `main` calls `mountHousing` (`board-housing`), which mounts the
+   PC's steel housing once, outside `#app`, skinned by `board-skin`, and
+   centred in the same safe area as `#app` (#376). It then calls
+   `trackBoardFit`, which keeps `--board-scale`, the desk's origin
+   (`--desk-x`, `--desk-y`, from `deskOrigin`: the desk pool centred on the
+   window on an even pixel) and `body.desk` (`DESK_MIN_WIDTH`, 600px wide or
+   more) in step on resize. `board-fit` imports nothing, so `npm run play`,
+   the UI audit and the visual check import `DESK_MIN_WIDTH` from it. On a desk the body shows the desk
    tile and its pool at exactly 2× and the housing 8 board px round the
    board, scaled with it; it takes no tap and no measure. The app's styles
    are `src/tokens.css` and `src/board.css`: `style.css` is gone (#376), and

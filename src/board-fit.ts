@@ -1,10 +1,11 @@
-import { skin } from "./board-skin";
-
 /** The board stage, in CSS px (212 x 462 art pixels at 2x). */
 export const BOARD_WIDTH = 424;
 export const BOARD_HEIGHT = 924;
-/** Wider than any supported phone (412-440): only a PC or tablet is a desk. */
-const DESK_MIN_WIDTH = 600;
+/**
+ * Wider than any supported phone (412-440): only a PC or tablet is a desk. The scripts
+ * (play, ui-audit, the visual check) import it too, so this module imports nothing.
+ */
+export const DESK_MIN_WIDTH = 600;
 /** The empty margin kept round the board on a desk. */
 const DESK_LIP = 8;
 /** Half the desk pool's CSS size (340x480 art px at 2x): its centre is the window's (#376). */
@@ -89,30 +90,15 @@ export function readSafeInsets(doc: Document = document): SafeInsets {
 }
 
 /**
- * The PC's steel housing (#376): the frame skin, outside #app so it takes no tap and no
- * measure. board.css shows it on a desk only. Mounted once, however often the fit is tracked.
- */
-function mountHousing(doc: Document): void {
-  if (doc.querySelector(".board-housing") !== null) return;
-  const housing = doc.createElement("div");
-  housing.className = "board-housing";
-  housing.setAttribute("aria-hidden", "true");
-  const app = doc.getElementById("app");
-  if (app === null) doc.body.prepend(housing);
-  else app.before(housing);
-  skin(housing, "frame");
-}
-
-/**
  * Keeps --board-scale, the desk's origin (--desk-x, --desk-y) and body.desk on the root in
- * step with the window size and its safe area, and mounts the housing the desk shows.
+ * step with the window size and its safe area. board-housing.ts mounts the housing body.desk
+ * shows.
  */
 export function trackBoardFit(
   win: Window = window,
   insets: () => SafeInsets = () => readSafeInsets(win.document),
 ): void {
   const doc = win.document;
-  mountHousing(doc);
   const apply = () => {
     const { scale, desk } = boardFit(win.innerWidth, win.innerHeight, insets());
     const origin = deskOrigin(win.innerWidth, win.innerHeight);

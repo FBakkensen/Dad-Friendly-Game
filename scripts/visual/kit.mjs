@@ -9,6 +9,7 @@ import {
   holdThrough as holdThroughOn,
 } from "../../tools/browser/harness.ts";
 import { seedJson, SAVE_KEY } from "../../tools/browser/fixtures.ts";
+import { DESK_MIN_WIDTH } from "../../src/board-fit.ts";
 import { mkdirSync } from "node:fs";
 import { failures } from "./registry.mjs";
 
@@ -24,8 +25,8 @@ const PCS = [
   [1440, 900],
 ];
 const SCREENS = [PHONE, ...PCS];
-/** A PC is a desk from 600px wide (src/board-fit.ts): mouse, not touch. */
-const isDesk = ([width]) => width >= 600;
+/** A PC is a desk from DESK_MIN_WIDTH wide: mouse, not touch. */
+const isDesk = ([width]) => width >= DESK_MIN_WIDTH;
 
 const browser = await launchChrome();
 
