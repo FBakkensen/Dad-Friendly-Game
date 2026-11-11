@@ -29,6 +29,7 @@ import {
   windowBeats,
   type Machines,
   type MachinesView,
+  type VeinSpot,
   type WindowScene,
 } from "./mine-window";
 
@@ -56,7 +57,6 @@ export interface MineWindow {
 }
 
 type Spot = { readonly x: number; readonly y: number };
-type VeinSpot = { readonly left: number; readonly top: number };
 
 /** CSS px per art px. */
 const ART = 2;
@@ -348,11 +348,12 @@ function paintRun(
   return pose.full;
 }
 
-const startPuff = (el: HTMLElement, at: Spot): Puff => {
+/** Puts a strip at its spot on its first frame. */
+function startPuff(el: HTMLElement, at: Spot): Puff {
   place(el, at.x, at.y);
   el.hidden = false;
   return { f: 0, acc: 0 };
-};
+}
 
 /** Plays a strip's four frames, one each `per` seconds; null once it is done. */
 function stepPuff(

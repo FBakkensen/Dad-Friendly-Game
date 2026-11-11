@@ -1,5 +1,5 @@
 import { formatCount } from "./format";
-import { veinSpot } from "./mine-window";
+import { veinSpot, type VeinSpot } from "./mine-window";
 import type { ScreenCtx } from "./screen-context";
 import {
   advanceVein,
@@ -19,8 +19,6 @@ export const QUIET_NOTE_MS = 6000;
 const VEIN_NOTE_MS = 4000;
 /** The wait for the next vein counts play time only, and survives the phone locking. */
 const VEIN_WAIT_KEY = "dad-friendly-vein-wait";
-
-type VeinSpot = ReturnType<typeof veinSpot>;
 
 /**
  * The golden vein: its wait, its glint on the mine window, its payout note, and the pause while
