@@ -1,11 +1,8 @@
 {
-  "src/board-save.ts#createSaveLine": 158,
-  "src/board-window.ts#createMineWindow": 326,
   "src/engineers-panel.ts#createEngineersPanel": 845,
   "src/engineers-panel.ts#createEngineersPanel>buildRow": 342,
   "src/engineers-panel.ts#createEngineersPanel>render": 174,
   "src/firebase-save.ts#createFirebaseCloudSave": 166,
-  "src/how-it-works.ts#howItWorks": 286,
   "src/menu-panel.ts#createMenuPanel": 292,
   "src/progress-store.ts#createProgressStore": 2099,
   "src/relic-panels.ts#createRelicPanels": 363,

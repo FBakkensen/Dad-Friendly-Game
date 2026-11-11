@@ -109,14 +109,14 @@ function clamp(value: number, lo: number, hi: number, fallback = lo): number {
 const VEIN_X = { from: 0.35, to: 0.65, left: 8, right: 64 } as const;
 const VEIN_Y = { from: 0.4, to: 0.8, top: 26, bottom: 48 } as const;
 
+/** Where the vein's glint sits on the view, in view art px. */
+export type VeinSpot = { readonly left: number; readonly top: number };
+
 /**
  * Where the vein's glint (25x26) sits: today's vein place (x 0.35..0.65, y 0.4..0.8, clamped)
  * mapped linearly onto the galleries' rock, left 8..64 and top 26..48 view art px.
  */
-export function veinSpot(
-  x: number,
-  y: number,
-): { readonly left: number; readonly top: number } {
+export function veinSpot(x: number, y: number): VeinSpot {
   const mid = (lo: number, hi: number) => (lo + hi) / 2;
   const cx = clamp(x, VEIN_X.from, VEIN_X.to, mid(VEIN_X.from, VEIN_X.to));
   const cy = clamp(y, VEIN_Y.from, VEIN_Y.to, mid(VEIN_Y.from, VEIN_Y.to));

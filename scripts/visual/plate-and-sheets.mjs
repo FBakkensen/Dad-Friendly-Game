@@ -6,7 +6,7 @@ import {
   crewMountain,
   crewSave,
 } from "../../tools/browser/fixtures.ts";
-import { check, section } from "./registry.mjs";
+import { table } from "./registry.mjs";
 import {
   PHONE,
   SCREENS,
@@ -177,118 +177,169 @@ async function sheetEdges(page, name) {
   }, OPEN_SHEET(name));
 }
 
-for (const viewport of SHELF_VIEWS) {
-  section(`section 19 (relic plate) ${JSON.stringify(viewport)}`, async () => {
-    const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    const shotThis = PHONE_SHOTS.has(size);
+/** The rail on a fresh save: Buys, Upgrades and Ledger open, the two others locked. */
+const freshKeys = (keys) =>
+  keys.ok &&
+  keyOpen(keys.buys) &&
+  keyOpen(keys.upgrades) &&
+  keyOpen(keys.ledger) &&
+  [keys.workshop, keys.engineers].every(
+    (key) => key.disabled && key.locked && key.dim,
+  );
+
+const PLATE_SAVES = [
+  {
+    name: "fresh",
+    save: () => freshMountain(),
+    shot: "mountain-fresh",
+    centred: "relic plate is centred and the screen does not scroll",
+  },
+  {
+    name: "relics",
+    save: () => openMountain(),
+    shot: "mountain-relics",
+    centred: "relic plate with finds is centred and the screen does not scroll",
+  },
+];
+
+table({
+  per: "screen",
+  screens: SHELF_VIEWS,
+  scenarios: PLATE_SAVES,
+  section: (viewport) => `section 19 (relic plate) ${JSON.stringify(viewport)}`,
+  prefix: ({ size }) => size,
+  open: async (viewport, scenario) => {
+    const opened = await openScreen(viewport, scenario.save());
+    await opened.page.waitForSelector(".board-relics");
+    return opened;
+  },
+  expect: [
     {
-      const { page, close } = await openScreen(viewport, freshMountain());
-      await page.waitForSelector(".board-relics");
-      const centre = await shelfCentre(page);
-      check(
-        centre.ok && (await noScroll(page)),
-        `${size} relic plate is centred and the screen does not scroll`,
-      );
-      if (!centre.ok) {
-        console.log("shelf", size, centre);
-      }
-      const keys = await keyState(page);
-      const freshPaint =
-        keys.ok &&
-        keyOpen(keys.buys) &&
-        keyOpen(keys.upgrades) &&
-        keyOpen(keys.ledger) &&
-        [keys.workshop, keys.engineers].every(
-          (key) => key.disabled && key.locked && key.dim,
+      run: async ({ page, size, scenario }) => {
+        const centre = await shelfCentre(page);
+        if (!centre.ok) {
+          console.log(
+            `shelf${scenario.name === "fresh" ? "" : " relics"}`,
+            size,
+            centre,
+          );
+        }
+        return [[centre.ok && (await noScroll(page)), scenario.centred]];
+      },
+    },
+    {
+      when: ({ scenario }) => scenario.name === "fresh",
+      run: async ({ page, size }) => {
+        const keys = await keyState(page);
+        const ok = freshKeys(keys);
+        if (!ok) {
+          console.log("keys fresh", size, keys);
+        }
+        return [
+          [
+            ok,
+            "fresh key rail: Buys, Upgrades and Ledger open, Workshop and Engineers locked",
+          ],
+        ];
+      },
+    },
+    {
+      when: ({ scenario }) => scenario.name === "relics",
+      run: async ({ page, size }) => {
+        const keys = await keyState(page);
+        const ok =
+          keys.ok &&
+          [
+            keys.buys,
+            keys.workshop,
+            keys.engineers,
+            keys.upgrades,
+            keys.ledger,
+          ].every(keyOpen);
+        if (!ok) {
+          console.log("keys open", size, keys);
+        }
+        // A found relic is lit in its socket; the next one is dark (#370).
+        const lit = await page.$$eval(
+          ".board-socket .board-relic",
+          (relics) =>
+            relics.filter((relic) => !relic.src.includes("-dark")).length,
         );
-      check(
-        freshPaint,
-        `${size} fresh key rail: Buys, Upgrades and Ledger open, Workshop and Engineers locked`,
-      );
-      if (!freshPaint) {
-        console.log("keys fresh", size, keys);
-      }
-      if (shotThis) {
-        await shot(page, `mountain-fresh-${size}`);
-      }
-      await close();
-    }
+        return [
+          [ok, "unlocked key rail is all open"],
+          [lit >= 3, "save with relics lights their sockets"],
+        ];
+      },
+    },
     {
-      const { page, close } = await openScreen(viewport, openMountain());
-      await page.waitForSelector(".board-relics");
-      const centre = await shelfCentre(page);
-      check(
-        centre.ok && (await noScroll(page)),
-        `${size} relic plate with finds is centred and the screen does not scroll`,
-      );
-      if (!centre.ok) {
-        console.log("shelf relics", size, centre);
-      }
-      const keys = await keyState(page);
-      const openPaint =
-        keys.ok &&
-        [
-          keys.buys,
-          keys.workshop,
-          keys.engineers,
-          keys.upgrades,
-          keys.ledger,
-        ].every(keyOpen);
-      check(openPaint, `${size} unlocked key rail is all open`);
-      if (!openPaint) {
-        console.log("keys open", size, keys);
-      }
-      // A found relic is lit in its socket; the next one is dark (#370).
-      const lit = await page.$$eval(
-        ".board-socket .board-relic",
-        (relics) =>
-          relics.filter((relic) => !relic.src.includes("-dark")).length,
-      );
-      check(lit >= 3, `${size} save with relics lights their sockets`);
-      if (shotThis) {
-        await shot(page, `mountain-relics-${size}`);
-      }
-      await close();
-    }
-  });
-}
+      when: ({ size }) => PHONE_SHOTS.has(size),
+      run: async ({ page, size, scenario }) => {
+        await shot(page, `${scenario.shot}-${size}`);
+        return [];
+      },
+    },
+  ],
+});
 
 // Long Buys and Upgrades lists. The first card clears the header, the last
 // card clears the footer, and the sheet stays below the odometer.
 const SHEET_SHOTS = new Set(["424x924", "1366x768"]);
-for (const viewport of SCREENS) {
-  section(`section 20 (long sheets) ${JSON.stringify(viewport)}`, async () => {
-    const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    const shotThis = SHEET_SHOTS.has(size);
-    const { page, close } = await openScreen(viewport, crewMountain());
-    await page.waitForSelector(".board-relics");
-    for (const name of ["buys", "upgrades"]) {
+/** Each long drawer, scrolled to both ends; then the page after both. */
+const SHEET_ROWS = [
+  ...["buys", "upgrades"].map((name) => ({
+    name,
+    enter: async ({ page, size }) => {
       await openSheet(page, name);
       await scrollSheet(page, name, "start");
-      if (shotThis) {
+      if (SHEET_SHOTS.has(size)) {
         await shot(page, `${name}-top-${size}`);
       }
       await scrollSheet(page, name, "end");
-      if (shotThis) {
+      if (SHEET_SHOTS.has(size)) {
         await shot(page, `${name}-end-${size}`);
       }
-      const edges = await sheetEdges(page, name);
-      check(
-        edges.ok,
-        `${size} ${name} first card clears the header and last card clears the footer`,
-      );
-      if (!edges.ok) {
-        console.log(name, size, edges);
-      }
-      await closeSheet(page, name);
-    }
-    check(
-      await noScroll(page),
-      `${size} main screen has no scroll after the sheets`,
-    );
-    await close();
-  });
-}
+    },
+    leave: ({ page }) => closeSheet(page, name),
+  })),
+  { name: "after" },
+];
+
+table({
+  per: "screen",
+  screens: SCREENS,
+  scenarios: [{}],
+  rows: SHEET_ROWS,
+  section: (viewport) => `section 20 (long sheets) ${JSON.stringify(viewport)}`,
+  prefix: ({ size }) => size,
+  open: async (viewport) => {
+    const opened = await openScreen(viewport, crewMountain());
+    await opened.page.waitForSelector(".board-relics");
+    return opened;
+  },
+  expect: [
+    {
+      when: ({ row }) => row.name !== "after",
+      run: async ({ page, size, row }) => {
+        const edges = await sheetEdges(page, row.name);
+        if (!edges.ok) {
+          console.log(row.name, size, edges);
+        }
+        return [
+          [
+            edges.ok,
+            `${row.name} first card clears the header and last card clears the footer`,
+          ],
+        ];
+      },
+    },
+    {
+      when: ({ row }) => row.name === "after",
+      run: async ({ page }) => [
+        [await noScroll(page), "main screen has no scroll after the sheets"],
+      ],
+    },
+  ],
+});
 
 // The pocket's odometer stays in its housing and clear of the dial and the
 // menu at every length (#370), and a four-part crew line must not leave one
@@ -355,154 +406,184 @@ async function crewRowsBalanced(page) {
   };
 }
 
-for (const viewport of PILL_VIEWS) {
-  section(`section 21 (odometer) ${JSON.stringify(viewport)}`, async () => {
-    const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    for (const pocket of [32_500, 999_900_000_000_000, 1_000_000_000_000_000]) {
-      const { page, close } = await openScreen(viewport, crewSave(pocket));
-      await page.waitForSelector(".board-odo");
-      const clear = await pillClear(page);
-      check(
-        clear.ok,
-        `${size} pocket ${String(pocket)} stays in the odometer, clear of the dial and the menu`,
+table({
+  per: "screen",
+  screens: PILL_VIEWS,
+  scenarios: [32_500, 999_900_000_000_000, 1_000_000_000_000_000],
+  section: (viewport) => `section 21 (odometer) ${JSON.stringify(viewport)}`,
+  prefix: ({ size }) => size,
+  open: async (viewport, pocket) => {
+    const opened = await openScreen(viewport, crewSave(pocket));
+    await opened.page.waitForSelector(".board-odo");
+    return opened;
+  },
+  expect: [
+    {
+      run: async ({ page, size, scenario: pocket }) => {
+        const clear = await pillClear(page);
+        if (!clear.ok) {
+          console.log("pill", size, pocket, clear);
+        }
+        const rows = await crewRowsBalanced(page);
+        if (!rows.ok) {
+          console.log("crew rows", size, pocket, rows);
+        }
+        if (pocket === 32_500) {
+          await shot(page, `pocket-crew-${size}`);
+        }
+        return [
+          [
+            clear.ok,
+            `pocket ${String(pocket)} stays in the odometer, clear of the dial and the menu`,
+          ],
+          [
+            rows.ok,
+            `pocket ${String(pocket)}: Buys' crew chips sit in even rows`,
+          ],
+        ];
+      },
+    },
+  ],
+});
+
+/** Buys' cards: a ready row, the dear drill with its lines, the locked machine's where. */
+async function buysMix(page) {
+  return page.evaluate(() => {
+    const card = (tier) => document.querySelector(`.tier[data-tier="${tier}"]`);
+    const shown = (tier, selector) => {
+      const node = card(tier)?.querySelector(selector);
+      return (
+        node !== null &&
+        node !== undefined &&
+        !node.hidden &&
+        node.textContent !== ""
       );
-      if (!clear.ok) {
-        console.log("pill", size, pocket, clear);
-      }
-      const rows = await crewRowsBalanced(page);
-      check(
-        rows.ok,
-        `${size} pocket ${String(pocket)}: Buys' crew chips sit in even rows`,
+    };
+    const drill = card("drill");
+    const machine = card("machine");
+    // The Deep Heart's 120M of depth in stones: 10M + 35M x 2.625 + 75M x 6.3
+    // is 574.375M, shown as 574.3M (#357). The row shows the long line, or
+    // its short form where the long one does not fit (#373).
+    const machineLines = [
+      "The Great Machine joins your crew at 574.3M stones. Keep digging, Dad!",
+      "Machine · 574.3M",
+    ];
+    return {
+      // A row a tap buys now: the worker or the cart.
+      readyRow: ["helper", "cart"].some(
+        (tier) => card(tier)?.classList.contains("is-ready") === true,
+      ),
+      drillName:
+        drill?.querySelector(".board-row-name")?.firstChild?.textContent,
+      drillDear: drill?.classList.contains("is-dear") === true,
+      drillGain: shown("drill", ".board-row-gain"),
+      drillWhy: shown("drill", ".board-row-info"),
+      machineLocked:
+        machine?.classList.contains("is-locked") === true &&
+        machine.querySelector(".board-row-price")?.textContent === "Locked",
+      machineGain: shown("machine", ".board-row-gain"),
+      machineWhy: machineLines.includes(
+        machine?.querySelector(".board-row-info")?.textContent ?? "",
+      ),
+    };
+  });
+}
+
+/** Upgrades' cards: the dear arms with their lines, and a locked row hidden. */
+async function upgradesMix(page) {
+  return page.evaluate(() => {
+    const card = (id) => document.querySelector(`[data-upgrade="${id}"]`);
+    const shown = (id, selector) => {
+      const node = card(id)?.querySelector(selector);
+      return (
+        node !== null &&
+        node !== undefined &&
+        !node.hidden &&
+        node.textContent !== ""
       );
-      if (!rows.ok) {
-        console.log("crew rows", size, pocket, rows);
-      }
-      if (pocket === 32_500) {
-        await shot(page, `pocket-crew-${size}`);
-      }
-      await close();
+    };
+    return {
+      armsDear: card("tap")?.classList.contains("is-dear") === true,
+      armsEffect: shown("tap", ".board-row-info"),
+      armsWhy: shown("tap", ".board-row-why"),
+      // A locked row is hidden until open and nearly affordable (#245).
+      roadsLocked: card("drillSyn")?.hidden === true,
+    };
+  });
+}
+
+/** Scrolls an open drawer's list so the card is in its middle, for the shot. */
+async function centreCard(page, selector) {
+  await page.$eval(selector, (card) => {
+    const list = card.closest(".board-sheet-list");
+    if (list !== null) {
+      list.scrollTop +=
+        card.getBoundingClientRect().top -
+        list.getBoundingClientRect().top -
+        (list.clientHeight - card.offsetHeight) / 2;
     }
   });
 }
 
 // Buys, Workshop, and Upgrades: affordable, too expensive, and locked.
-for (const viewport of [PHONE]) {
-  section(`section 22 (line 2613) ${JSON.stringify(viewport)}`, async () => {
-    const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await openScreen(viewport, crewSave(32_500));
-    await openSheet(page, "buys");
-    const buys = await page.evaluate(() => {
-      const card = (tier) =>
-        document.querySelector(`.tier[data-tier="${tier}"]`);
-      const shown = (tier, selector) => {
-        const node = card(tier)?.querySelector(selector);
-        return (
-          node !== null &&
-          node !== undefined &&
-          !node.hidden &&
-          node.textContent !== ""
-        );
-      };
-      const drill = card("drill");
-      const machine = card("machine");
-      // The Deep Heart's 120M of depth in stones: 10M + 35M x 2.625 + 75M x 6.3
-      // is 574.375M, shown as 574.3M (#357). The row shows the long line, or
-      // its short form where the long one does not fit (#373).
-      const machineLines = [
-        "The Great Machine joins your crew at 574.3M stones. Keep digging, Dad!",
-        "Machine · 574.3M",
-      ];
-      return {
-        // A row a tap buys now: the worker or the cart.
-        readyRow: ["helper", "cart"].some(
-          (tier) => card(tier)?.classList.contains("is-ready") === true,
-        ),
-        drillName:
-          drill?.querySelector(".board-row-name")?.firstChild?.textContent,
-        drillDear: drill?.classList.contains("is-dear") === true,
-        drillGain: shown("drill", ".board-row-gain"),
-        drillWhy: shown("drill", ".board-row-info"),
-        machineLocked:
-          machine?.classList.contains("is-locked") === true &&
-          machine.querySelector(".board-row-price")?.textContent === "Locked",
-        machineGain: shown("machine", ".board-row-gain"),
-        machineWhy: machineLines.includes(
-          machine?.querySelector(".board-row-info")?.textContent ?? "",
-        ),
-      };
-    });
-    check(
-      buys.readyRow &&
-        buys.drillName === "Steam drill" &&
-        buys.drillDear &&
-        buys.drillGain &&
-        buys.drillWhy &&
-        buys.machineLocked &&
-        !buys.machineGain &&
-        buys.machineWhy,
-      `${size} unaffordable drill keeps its lines and the locked machine says where it opens`,
-    );
-    if (
-      buys.drillName !== "Steam drill" ||
-      !buys.drillGain ||
-      !buys.machineWhy
-    ) {
-      console.log("buys mix", size, buys);
-    }
-    await page.$eval('.tier[data-tier="drill"]', (card) => {
-      const list = card.closest(".board-sheet-list");
-      if (list !== null) {
-        list.scrollTop +=
-          card.getBoundingClientRect().top -
-          list.getBoundingClientRect().top -
-          (list.clientHeight - card.offsetHeight) / 2;
-      }
-    });
-    await shot(page, `buys-mix-${size}`);
-    await closeSheet(page, "buys");
-    await openSheet(page, "workshop");
-    await shot(page, `workshop-mix-${size}`);
-    await closeSheet(page, "workshop");
-    await openSheet(page, "upgrades");
-    const upgrades = await page.evaluate(() => {
-      const card = (id) => document.querySelector(`[data-upgrade="${id}"]`);
-      const shown = (id, selector) => {
-        const node = card(id)?.querySelector(selector);
-        return (
-          node !== null &&
-          node !== undefined &&
-          !node.hidden &&
-          node.textContent !== ""
-        );
-      };
-      return {
-        armsDear: card("tap")?.classList.contains("is-dear") === true,
-        armsEffect: shown("tap", ".board-row-info"),
-        armsWhy: shown("tap", ".board-row-why"),
-        // A locked row is hidden until open and nearly affordable (#245).
-        roadsLocked: card("drillSyn")?.hidden === true,
-      };
-    });
-    check(
-      upgrades.armsDear &&
-        upgrades.armsEffect &&
-        upgrades.armsWhy &&
-        upgrades.roadsLocked,
-      `${size} unaffordable upgrade keeps its lines and a locked one does not`,
-    );
-    if (!upgrades.armsEffect || !upgrades.armsWhy) {
-      console.log("upgrades mix", size, upgrades);
-    }
-    await page.$eval('[data-upgrade="tap"]', (card) => {
-      const list = card.closest(".board-sheet-list");
-      if (list !== null) {
-        list.scrollTop +=
-          card.getBoundingClientRect().top -
-          list.getBoundingClientRect().top -
-          (list.clientHeight - card.offsetHeight) / 2;
-      }
-    });
-    await shot(page, `upgrades-mix-${size}`);
-    await close();
-  });
-}
+table({
+  screens: [PHONE],
+  scenarios: [{}],
+  section: (viewport) => `section 22 (line 2613) ${JSON.stringify(viewport)}`,
+  prefix: ({ size }) => size,
+  open: (viewport) => openScreen(viewport, crewSave(32_500)),
+  expect: [
+    {
+      run: async ({ page, size }) => {
+        await openSheet(page, "buys");
+        const buys = await buysMix(page);
+        if (
+          buys.drillName !== "Steam drill" ||
+          !buys.drillGain ||
+          !buys.machineWhy
+        ) {
+          console.log("buys mix", size, buys);
+        }
+        await centreCard(page, '.tier[data-tier="drill"]');
+        await shot(page, `buys-mix-${size}`);
+        await closeSheet(page, "buys");
+        return [
+          [
+            buys.readyRow &&
+              buys.drillName === "Steam drill" &&
+              buys.drillDear &&
+              buys.drillGain &&
+              buys.drillWhy &&
+              buys.machineLocked &&
+              !buys.machineGain &&
+              buys.machineWhy,
+            "unaffordable drill keeps its lines and the locked machine says where it opens",
+          ],
+        ];
+      },
+    },
+    {
+      run: async ({ page, size }) => {
+        await openSheet(page, "workshop");
+        await shot(page, `workshop-mix-${size}`);
+        await closeSheet(page, "workshop");
+        await openSheet(page, "upgrades");
+        const upgrades = await upgradesMix(page);
+        if (!upgrades.armsEffect || !upgrades.armsWhy) {
+          console.log("upgrades mix", size, upgrades);
+        }
+        await centreCard(page, '[data-upgrade="tap"]');
+        await shot(page, `upgrades-mix-${size}`);
+        return [
+          [
+            upgrades.armsDear &&
+              upgrades.armsEffect &&
+              upgrades.armsWhy &&
+              upgrades.roadsLocked,
+            "unaffordable upgrade keeps its lines and a locked one does not",
+          ],
+        ];
+      },
+    },
+  ],
+});

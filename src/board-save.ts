@@ -116,24 +116,17 @@ function closeFromPage({
   );
 }
 
-/**
- * The save line at the foot of the board and the drawer it opens (#370).
- * The line keeps today's `.save-status` words, data-kind and data-log.
- */
-export function createSaveLine({
-  progress,
-  auth,
-  getView,
-  now,
-  signal,
-}: {
-  progress: ProgressStore;
-  auth: AuthController;
-  getView: () => ProgressSnapshot;
-  now: () => number;
-  /** Takes the save line's page listeners and auth watch off; the app never unmounts. */
-  signal?: AbortSignal | undefined;
-}): SaveLine {
+/** The save line: its button, the lamp, today's words and the Details slot. */
+function buildStatus(): {
+  line: HTMLElement;
+  status: HTMLButtonElement;
+  lamp: HTMLElement;
+  text: HTMLSpanElement;
+  words: HTMLSpanElement;
+  safe: HTMLSpanElement;
+  why: HTMLSpanElement;
+  sep: HTMLSpanElement;
+} {
   const line = el("div", "board-saveline");
   const status = el("button", "save-status");
   status.type = "button";
@@ -153,7 +146,21 @@ export function createSaveLine({
   status.append(lamp, text, sep, why);
   skin(status, "frame");
   line.append(status);
+  return { line, status, lamp, text, words, safe, why, sep };
+}
 
+/** The save drawer: its lamp, title, the three facts and the two keys. */
+function buildDrawer(): {
+  drawer: HTMLElement;
+  topLamp: HTMLElement;
+  title: HTMLHeadingElement;
+  lost: HTMLParagraphElement;
+  account: HTMLSpanElement;
+  phone: HTMLSpanElement;
+  last: HTMLSpanElement;
+  closeBtn: HTMLButtonElement;
+  actBtn: HTMLButtonElement;
+} {
   const drawer = el("section", "board-drawer board-save-drawer");
   drawer.id = "board-save-drawer";
   drawer.setAttribute("role", "dialog");
@@ -182,6 +189,49 @@ export function createSaveLine({
   row.append(closeBtn, actBtn);
   drawer.append(top, title, facts, row);
   skin(drawer, "frame");
+  return {
+    drawer,
+    topLamp,
+    title,
+    lost,
+    account,
+    phone,
+    last,
+    closeBtn,
+    actBtn,
+  };
+}
+
+/**
+ * The save line at the foot of the board and the drawer it opens (#370).
+ * The line keeps today's `.save-status` words, data-kind and data-log.
+ */
+export function createSaveLine({
+  progress,
+  auth,
+  getView,
+  now,
+  signal,
+}: {
+  progress: ProgressStore;
+  auth: AuthController;
+  getView: () => ProgressSnapshot;
+  now: () => number;
+  /** Takes the save line's page listeners and auth watch off; the app never unmounts. */
+  signal?: AbortSignal | undefined;
+}): SaveLine {
+  const { line, status, lamp, text, words, safe, why, sep } = buildStatus();
+  const {
+    drawer,
+    topLamp,
+    title,
+    lost,
+    account,
+    phone,
+    last,
+    closeBtn,
+    actBtn,
+  } = buildDrawer();
 
   let isOpen = false;
   let lastLog: string | undefined;

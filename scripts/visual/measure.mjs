@@ -264,10 +264,16 @@ const BOARD_ART =
  * Visible controls in board px (rendered size / --board-scale): the board's
  * own, and the neighbours they must stand 8px from. A closed sheet, the
  * closed drawer and the parked note are not on screen, so they do not count.
+ * With `vein` (a spot in the window's px, as veinSpot gives it) the golden
+ * vein is shown there first, in the same page task as the measuring, so the
+ * screen's second tick cannot hide it in between.
  */
-async function boardTargets(page) {
+async function boardTargets(page, { vein } = {}) {
   return page.evaluate(
-    (own, neighbours) => {
+    (own, neighbours, spot) => {
+      if (spot !== null) {
+        globalThis.__showVein(spot);
+      }
       const board = globalThis.__board();
       const onScreen = (el) =>
         el.getClientRects().length > 0 &&
@@ -347,6 +353,7 @@ async function boardTargets(page) {
     },
     BOARD_TARGETS,
     NEIGHBOURS,
+    vein ?? null,
   );
 }
 
