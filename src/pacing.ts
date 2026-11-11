@@ -1,12 +1,5 @@
 import { oneOffStretch, stretch } from "./scale";
-import { BOOSTS, buyBoost } from "./boosts";
-import {
-  promote,
-  promoteCost,
-  staffForBuy,
-  staffNeeded,
-  tendBestTier,
-} from "./engineers";
+import { promote, promoteCost, staffForBuy, tendBestTier } from "./engineers";
 import {
   send,
   settle as settleExpeditions,
@@ -14,6 +7,9 @@ import {
 } from "./expeditions";
 import {
   applyAction,
+  buyEveryBoost,
+  freeHelpers,
+  helperBill,
   listActions,
   valueOf,
   type Action,
@@ -26,8 +22,7 @@ import {
   minedOut,
   type Mountain,
 } from "./mountain";
-import { effectiveRates } from "./rates";
-import { TIERS, owned, tierById, tierCost } from "./tiers";
+import { owned, tierById, tierCost } from "./tiers";
 import { upgradeById, upgradeCost, upgradeLevel } from "./upgrades";
 
 /** How a typical dad plays: see docs/DESIGN.md "Pacing". */
@@ -211,27 +206,12 @@ function bestValue(
 }
 
 /** Milestone days only. `simulateDadRun` also returns the purchases. */
-export function simulateDad(
-  options: Parameters<typeof simulateDadRun>[0],
-): Map<number, number> {
+export function simulateDad(options: DadRunOptions): Map<number, number> {
   return simulateDadRun(options).reached;
 }
 
-/**
- * Plays the game second by second through each session, and pays capped idle
- * time between them, until the mountain is empty or `maxDays` pass.
- * Returns the day (1-based, fractional) each stone count was first reached,
- * plus every purchase, so pacing tests can see a dead zone.
- */
-export function simulateDadRun({
-  milestones,
-  maxDays = 30,
-  buysUpgrades = false,
-  buysBoosts = false,
-  legacy = 0,
-  fixesTrouble = true,
-  onDecision,
-}: {
+/** What `simulateDadRun` takes. */
+type DadRunOptions = {
   /** Mountains already passed down: a second run starts with legacy 1. */
   legacy?: number;
   /**
@@ -250,140 +230,207 @@ export function simulateDadRun({
    * it. The callback must not change the world.
    */
   onDecision?: (world: World, secondInSession: number) => void;
-}): DadRun {
-  const reached = new Map<number, number>();
-  const buys: DadPurchase[] = [];
-  const promotions: DadPromotion[] = [];
+};
+
+/** The options with their defaults filled in. */
+type LiveOptions = Readonly<
+  Required<Omit<DadRunOptions, "onDecision">> & {
+    onDecision: DadRunOptions["onDecision"];
+  }
+>;
+
+/** The run's record, filled as it plays. */
+type DadLog = {
+  readonly reached: Map<number, number>;
+  readonly buys: DadPurchase[];
+  readonly promotions: DadPromotion[];
+};
+
+/** The 1-based fractional day of `world`'s clock. */
+function dayOf(world: World): number {
+  return world.clock / DAY_MS + 1;
+}
+
+/** Notes each milestone the mountain has passed for the first time. */
+function noteMilestones(
+  world: World,
+  milestones: readonly number[],
+  reached: Map<number, number>,
+): void {
+  for (const mark of milestones) {
+    if (!reached.has(mark) && minedOut(world.mountain) >= mark) {
+      reached.set(mark, dayOf(world));
+    }
+  }
+}
+
+/** Pays for `pick`, has a staffed machine tended, and records the buy. */
+function buyPick(world: World, pick: Pick, buys: DadPurchase[]): World {
+  const mountain = world.mountain;
+  const spare = freeHelpers(mountain);
+  const tier =
+    pick.action.kind === "buyTier" ? tierById(pick.action.id) : undefined;
+  const staffed = tier !== undefined && tier.staff > 0;
+  const short = staffed ? Math.max(0, staffForBuy(mountain, tier) - spare) : 0;
+  let next = applyAction(mountain, pick.action, world.clock);
+  if (staffed) {
+    next = tendBestTier(next);
+  }
+  const bought = { ...world, mountain: next };
+  buys.push({
+    day: dayOf(bought),
+    id: pick.action.id,
+    count: tier === undefined ? 0 : owned(bought.mountain, tier),
+    price: pick.cost,
+    spare,
+    short,
+    shortCost: helperBill(mountain, short),
+  });
+  return bought;
+}
+
+/** Buys the best value, again and again, while the pocket can pay it. */
+function buyBestValues(
+  world: World,
+  buysUpgrades: boolean,
+  buys: DadPurchase[],
+): World {
+  let next = world;
+  for (
+    let pick = bestValue(next.mountain, next.clock, buysUpgrades);
+    pick !== undefined && pick.cost <= next.mountain.pocket;
+    pick = bestValue(next.mountain, next.clock, buysUpgrades)
+  ) {
+    next = buyPick(next, pick, buys);
+  }
+  return next;
+}
+
+/** Promotes Nils when the pocket can pay, and records the promotion. */
+function promoteAndRecord(world: World, promotions: DadPromotion[]): World {
+  const beforeScout = world.mountain;
+  const promoted = promoteScout(beforeScout);
+  const next = { ...world, mountain: promoted };
+  const hired = promoted.engineers?.[beforeScout.engineers?.length ?? 0];
+  if (hired !== undefined) {
+    promotions.push({
+      day: dayOf(next),
+      name: hired.name,
+      price: promoteCost(beforeScout),
+      helpersBefore: beforeScout.helpers,
+      helpersAfter: promoted.helpers,
+      pocketBefore: beforeScout.pocket,
+      pocketAfter: promoted.pocket,
+    });
+  }
+  return next;
+}
+
+/** The dad's hand taps for one second. */
+function tapSecond(world: World): Mountain {
+  const trouble =
+    world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
+  let tapped = world.mountain;
+  for (let tap = 0; tap < DAD.tapsPerSecond; tap += 1) {
+    tapped = mineByHand(tapped, world.clock, trouble);
+  }
+  return tapped;
+}
+
+/** One live second: boosts, tending, scouts, taps, income, buys, Nils. */
+function liveSecond(
+  start: World,
+  second: number,
+  options: LiveOptions,
+  log: DadLog,
+): World {
+  let world = options.buysBoosts
+    ? { ...start, mountain: buyEveryBoost(start.mountain, start.clock) }
+    : start;
+  world = { ...world, mountain: tendBestTier(world.mountain) };
+  if (second === 0) {
+    world = {
+      ...world,
+      mountain: sendScouts(world.mountain, world.clock, "old-shaft"),
+    };
+  }
+  world = step(
+    { ...world, mountain: tapSecond(world) },
+    1_000,
+    "live",
+    options.fixesTrouble ? { playerFixMs: SIM_FIX_MS } : undefined,
+  );
+  options.onDecision?.(world, second);
+  world = buyBestValues(world, options.buysUpgrades, log.buys);
+  world = promoteAndRecord(world, log.promotions);
+  noteMilestones(world, options.milestones, log.reached);
+  return world;
+}
+
+/**
+ * Each night the old shaft comes home, then a journeyman walks the deep dark.
+ * Settles the first trip due inside the gap, then sends the scouts.
+ */
+function nightTrips(world: World, gapEnd: number): World {
+  const due = (world.mountain.expeditions ?? [])
+    .map((trip) => trip.returnsAt)
+    .filter((returnsAt) => returnsAt > world.clock && returnsAt < gapEnd);
+  const back = due.length === 0 ? world.clock : Math.min(...due);
+  const settled =
+    back > world.clock
+      ? {
+          ...world,
+          mountain: settleExpeditions(world.mountain, back).mountain,
+        }
+      : world;
+  return {
+    ...settled,
+    mountain: sendScouts(settled.mountain, back, "deep-dark"),
+  };
+}
+
+/**
+ * Plays the game second by second through each session, and pays capped idle
+ * time between them, until the mountain is empty or `maxDays` pass.
+ * Returns the day (1-based, fractional) each stone count was first reached,
+ * plus every purchase, so pacing tests can see a dead zone.
+ */
+export function simulateDadRun({
+  milestones,
+  maxDays = 30,
+  buysUpgrades = false,
+  buysBoosts = false,
+  legacy = 0,
+  fixesTrouble = true,
+  onDecision,
+}: DadRunOptions): DadRun {
+  const log: DadLog = { reached: new Map(), buys: [], promotions: [] };
+  const options: LiveOptions = {
+    milestones,
+    maxDays,
+    buysUpgrades,
+    buysBoosts,
+    legacy,
+    fixesTrouble,
+    onDecision,
+  };
   let world: World = createWorld(
     1,
     legacy > 0 ? { ...createMountain(), legacy } : createMountain(),
   );
-  const note = () => {
-    for (const mark of milestones) {
-      if (!reached.has(mark) && minedOut(world.mountain) >= mark) {
-        reached.set(mark, world.clock / DAY_MS + 1);
-      }
-    }
-  };
   for (let session = 0; session < maxDays * DAD.sessionsPerDay; session += 1) {
     for (let second = 0; second < DAD.sessionSeconds; second += 1) {
-      const trouble =
-        world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
-      if (buysBoosts) {
-        let mountain = world.mountain;
-        for (const boost of BOOSTS) {
-          mountain = buyBoost({
-            mountain,
-            id: boost.id,
-            now: world.clock,
-            pricing: effectiveRates(mountain),
-          });
-        }
-        world = { ...world, mountain };
-      }
-      world = { ...world, mountain: tendBestTier(world.mountain) };
-      if (second === 0) {
-        world = {
-          ...world,
-          mountain: sendScouts(world.mountain, world.clock, "old-shaft"),
-        };
-      }
-      let tapped = world.mountain;
-      for (let tap = 0; tap < DAD.tapsPerSecond; tap += 1) {
-        tapped = mineByHand(tapped, world.clock, trouble);
-      }
-      world = step(
-        { ...world, mountain: tapped },
-        1_000,
-        "live",
-        fixesTrouble ? { playerFixMs: SIM_FIX_MS } : undefined,
-      );
-      onDecision?.(world, second);
-      for (
-        let pick = bestValue(world.mountain, world.clock, buysUpgrades);
-        pick !== undefined && pick.cost <= world.mountain.pocket;
-        pick = bestValue(world.mountain, world.clock, buysUpgrades)
-      ) {
-        const mountain = world.mountain;
-        const ratesNow = effectiveRates(mountain);
-        const spare =
-          mountain.helpers +
-          mountain.kids -
-          TIERS.reduce(
-            (used, tier) =>
-              used + ratesNow.running[tier.id] * staffNeeded(mountain, tier),
-            0,
-          );
-        const tier =
-          pick.action.kind === "buyTier" ? tierById(pick.action.id) : undefined;
-        const short =
-          tier === undefined || tier.staff === 0
-            ? 0
-            : Math.max(0, staffForBuy(mountain, tier) - spare);
-        let shortCost = 0;
-        for (let extra = 0; extra < short; extra += 1) {
-          shortCost += tierCost(
-            tierById("helper"),
-            mountain.helpers + extra,
-            stretch(mountain),
-          );
-        }
-        let next = applyAction(mountain, pick.action, world.clock);
-        if (tier !== undefined && tier.staff > 0) {
-          next = tendBestTier(next);
-        }
-        world = { ...world, mountain: next };
-        buys.push({
-          day: world.clock / DAY_MS + 1,
-          id: pick.action.id,
-          count: tier === undefined ? 0 : owned(world.mountain, tier),
-          price: pick.cost,
-          spare,
-          short,
-          shortCost,
-        });
-      }
-      const beforeScout = world.mountain;
-      const promoted = promoteScout(beforeScout);
-      world = { ...world, mountain: promoted };
-      const hired = promoted.engineers?.[beforeScout.engineers?.length ?? 0];
-      if (hired !== undefined) {
-        promotions.push({
-          day: world.clock / DAY_MS + 1,
-          name: hired.name,
-          price: promoteCost(beforeScout),
-          helpersBefore: beforeScout.helpers,
-          helpersAfter: promoted.helpers,
-          pocketBefore: beforeScout.pocket,
-          pocketAfter: promoted.pocket,
-        });
-      }
-      note();
+      world = liveSecond(world, second, options, log);
     }
-    const gapEnd = world.clock + GAP_MS;
-    // Each night the old shaft comes home, then a journeyman walks the deep dark.
     // One away payment for the whole gap, so the cap is not paid twice.
     if (session % 2 === 1) {
-      const due = (world.mountain.expeditions ?? [])
-        .map((trip) => trip.returnsAt)
-        .filter((returnsAt) => returnsAt > world.clock && returnsAt < gapEnd);
-      const back = due.length === 0 ? world.clock : Math.min(...due);
-      if (back > world.clock) {
-        world = {
-          ...world,
-          mountain: settleExpeditions(world.mountain, back).mountain,
-        };
-      }
-      world = {
-        ...world,
-        mountain: sendScouts(world.mountain, back, "deep-dark"),
-      };
+      world = nightTrips(world, world.clock + GAP_MS);
     }
     world = step(world, GAP_MS, "away");
-    note();
+    noteMilestones(world, milestones, log.reached);
     if (world.mountain.remaining === 0) {
       break;
     }
   }
-  return { reached, mountain: world.mountain, buys, promotions };
+  return { ...log, mountain: world.mountain };
 }
