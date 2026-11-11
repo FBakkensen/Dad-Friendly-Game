@@ -28,7 +28,8 @@
 ## The in-memory shape
 
 ```ts
-export type TimerId = "blasting-charge" | "crystal-flare" | "heartstone-ember" | "axle-grease";
+export type TimerId =
+  "blasting-charge" | "crystal-flare" | "heartstone-ember" | "axle-grease";
 export type Mountain = {
   readonly remaining: number;
   readonly pocket: number;

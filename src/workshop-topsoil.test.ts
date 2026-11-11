@@ -30,7 +30,7 @@ describe("Blasting charge from clay in the Topsoil (#244)", () => {
     const open = topsoil(TOPSOIL_BENCH_FROM);
     expect(workshopUnlocked(open)).toBe(true);
     expect(fullWorkshop(open)).toBe(false);
-    expect(open.materials?.clay).toBe(4);
+    expect(open.materials.clay).toBe(4);
   });
 
   it("crafts the charge in the Topsoil, and nothing that needs iron", () => {

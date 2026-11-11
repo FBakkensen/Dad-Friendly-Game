@@ -102,10 +102,10 @@ describe("crew unlocks", () => {
       },
       "borer",
     );
-    expect(withBorer.engineers?.[0]?.post).toBe("borer");
+    expect(withBorer.engineers[0]?.post).toBe("borer");
     const withMachine = buyCrew(withBorer, "machine");
     expect(withMachine.machines).toBe(1);
-    expect(withMachine.engineers?.[0]?.post).toBe("borer");
+    expect(withMachine.engineers[0]?.post).toBe("borer");
     expect(effectiveRates(withMachine).running.machine).toBe(0);
   });
 });

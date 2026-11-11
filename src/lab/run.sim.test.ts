@@ -19,7 +19,7 @@ describe("the lab's quick vein (#468)", { timeout: 30_000 }, () => {
         seed: 1,
         maxDays: 1,
         observe: (world) => {
-          if (world.mountain.rushUntil !== undefined) {
+          if (world.mountain.rushUntil !== 0) {
             starts.add(world.mountain.rushUntil);
           }
         },

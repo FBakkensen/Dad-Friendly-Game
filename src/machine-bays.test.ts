@@ -40,7 +40,7 @@ function at(depth: number): Pick<Mountain, "remaining"> {
 }
 
 function priceOf(mountain: Mountain, id: MachineId, owned: number): number {
-  return tierCost(tierById(id), owned, mountain.stretch ?? 1);
+  return tierCost(tierById(id), owned, mountain.stretch);
 }
 
 /** The three bays, read as the board would: with this frame's Ready pick. */

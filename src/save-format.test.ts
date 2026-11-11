@@ -102,11 +102,14 @@ describe("save format", () => {
   });
 
   it("loads a v5 save as a complete mountain that still gets its free crew", () => {
-    const { staffed: _staffed, ...older } = savedMountain({
+    // An older save never wrote `staffed`.
+    const older = savedMountain({
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 1_000,
       drills: 3,
+      staffed: 0,
     });
+    expect(older).not.toHaveProperty("staffed");
     const loaded = parseSaveValue({
       version: 5,
       mountain: older,

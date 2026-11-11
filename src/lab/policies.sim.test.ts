@@ -12,6 +12,7 @@ import { longestMaterialIdleDays } from "./measures/materialIdle";
 import { valueContext } from "./policy";
 import { scoreDecision } from "./score";
 import { runPolicy, type PolicyRun } from "./run";
+import { NOTHING_CRAFTED } from "../workshop";
 
 const mantle = RELICS.find((relic) => relic.id === "mantle")?.depth ?? 0;
 
@@ -33,7 +34,7 @@ describe("casual-2x10", () => {
     expect(run.promotions).toEqual(
       dad.promotions.map(({ day, name, price }) => ({ day, name, price })),
     );
-    expect(run.world.mountain.crafted).toBeUndefined();
+    expect(run.world.mountain.crafted).toEqual(NOTHING_CRAFTED);
     expect(run.world.mountain.bench).toBeUndefined();
   }, 120_000);
 });
@@ -86,7 +87,7 @@ describe("crafting", () => {
               craft: casual.params.craft,
             }),
           );
-          iron = Math.max(iron, world.mountain.materials?.iron ?? 0);
+          iron = Math.max(iron, world.mountain.materials.iron);
         }
         live += 1;
       },

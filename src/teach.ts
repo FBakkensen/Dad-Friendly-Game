@@ -119,7 +119,7 @@ function specOf(id: TeachId): TeachSpec | undefined {
   return TEACH_SPECS.find((spec) => spec.id === id);
 }
 
-export function isTeachId(value: string): value is TeachId {
+function isTeachId(value: string): value is TeachId {
   return TEACH_SPECS.some((spec) => spec.id === value);
 }
 
