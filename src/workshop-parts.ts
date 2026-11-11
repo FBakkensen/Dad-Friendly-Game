@@ -12,7 +12,7 @@ import {
 } from "./board-row";
 import { plateButton } from "./board-save";
 import { skin } from "./board-skin";
-import { pressOnBoard, type PressTracker } from "./card-tap";
+import { forgetAll, pressOnBoard, type PressTracker } from "./card-tap";
 import type { MaterialId } from "./layers";
 import {
   BENCH_FREE,
@@ -82,14 +82,6 @@ export function playHammer(soundOn: boolean): void {
 interface Pressed {
   forget(): void;
 }
-
-const forgetAll =
-  (trackers: readonly PressTracker[]): (() => void) =>
-  () => {
-    for (const tracker of trackers) {
-      tracker.forget();
-    }
-  };
 
 interface PlateParts {
   readonly button: HTMLButtonElement;

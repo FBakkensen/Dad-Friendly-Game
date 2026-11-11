@@ -1,7 +1,13 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createBoardHost } from "./board-host";
-import { buyOnTap, pressLook, pressOnBoard, trackPress } from "./card-tap";
+import {
+  buyOnTap,
+  forgetAll,
+  pressLook,
+  pressOnBoard,
+  trackPress,
+} from "./card-tap";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -240,6 +246,36 @@ describe("trackPress", () => {
     pointer(inner, "pointerdown");
     fingerClick(inner);
     expect(seen).toEqual([{ by: "finger", downAt: 1_000 }]);
+  });
+});
+
+describe("forgetAll", () => {
+  it("drops every tracker's finger-down time, so no later click carries it", () => {
+    const made = [0, 1].map(() => {
+      const target = document.createElement("button");
+      document.body.append(target);
+      const tracker = trackPress(target, {
+        clock: () => 1_000,
+        pressAge: () => 0,
+      });
+      const seen: unknown[] = [];
+      target.addEventListener("click", (event) => {
+        seen.push(tracker.press(event));
+      });
+      return { target, tracker, seen };
+    });
+    const forget = forgetAll(made.map((each) => each.tracker));
+    for (const each of made) {
+      pointer(each.target, "pointerdown");
+    }
+    forget();
+    for (const each of made) {
+      fingerClick(each.target);
+    }
+    expect(made.map((each) => each.seen)).toEqual([
+      [{ by: "finger", downAt: undefined }],
+      [{ by: "finger", downAt: undefined }],
+    ]);
   });
 });
 

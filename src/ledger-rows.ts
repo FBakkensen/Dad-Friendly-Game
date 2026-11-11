@@ -29,13 +29,18 @@ import {
   benchStartedLine,
   boostStartedLine,
   cameHomeLine,
-  craftFittedWords,
+  craftFittedLine,
   exploreCheer,
+  kidMineWords,
   layerCardWords,
   nextLayerHint,
+  nextRelicWords,
   promoteCheer,
   recallConfirm,
   relicFoundLine,
+  relicProgressLabel,
+  RELICS_ALL_FOUND,
+  RELICS_UNGUIDED,
   relicsFoundWords,
   signedInWords,
   stationCheer,
@@ -170,8 +175,7 @@ const WORDING: Readonly<
     ),
   "boost.start": boostLine,
   "craft.start": ({ data }) => recipe(data, benchStartedLine),
-  "craft.done": ({ data }) =>
-    recipe(data, (name) => craftFittedWords(name, "").trim()),
+  "craft.done": ({ data }) => recipe(data, craftFittedLine),
   "relic.found": ({ data }) => {
     const relic = RELICS.find((each) => each.id === data.id);
     return relic === undefined ? undefined : relicFoundLine(relic.name);
@@ -253,12 +257,12 @@ function goalWords(mountain: Mountain): string {
   switch (goal.kind) {
     case "unguided":
       return (mountain.legacy ?? 0) > 0
-        ? `Your kid's mine: six relics wait inside. Legacy ${legacyWords(legacyBonus(mountain))}.`
-        : "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.";
+        ? kidMineWords(legacyWords(legacyBonus(mountain)))
+        : RELICS_UNGUIDED;
     case "done":
-      return "Every relic is yours. You are a legend.";
+      return RELICS_ALL_FOUND;
     case "next":
-      return `Next: ${goal.name} · ${goal.hint}`;
+      return nextRelicWords(goal.name, goal.hint);
   }
 }
 
@@ -275,11 +279,7 @@ export function relicsRowView(mountain: Mountain): RelicsRowView {
   const why = hint ?? "";
   const done = goal.kind === "done";
   const barLabel =
-    goal.kind !== "next"
-      ? ""
-      : hint === undefined
-        ? `Progress to the ${goal.name}`
-        : `Progress to the ${goal.name}. ${hint}`;
+    goal.kind === "next" ? relicProgressLabel(goal.name, hint) : "";
   const state: RowState = done ? "found" : "owned";
   return {
     ...QUIET_ROW,

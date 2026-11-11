@@ -5,7 +5,7 @@ import type { BoardHost } from "./board-host";
 import { boardHowCard, type BoardHowSystem } from "./board-how-art";
 import { type CloseBy, type DrawerId } from "./board-interaction";
 import { plateButton } from "./board-save";
-import { pressOnBoard, type PressTracker } from "./card-tap";
+import { forgetAll, pressOnBoard, type PressTracker } from "./card-tap";
 import { skin } from "./board-skin";
 import { TROUBLE_FIXED } from "./screen-words";
 
@@ -412,9 +412,7 @@ export function createBoardSheet({
   let trackers: readonly PressTracker[] = [];
 
   const forget = (): void => {
-    for (const tracker of trackers) {
-      tracker.forget();
-    }
+    forgetAll(trackers)();
     onForget?.();
   };
   const fitSpare = (): void => {

@@ -1,5 +1,5 @@
 import stoneUrl from "./assets/board/res-stone.png";
-import type { AuthController } from "./auth";
+import type { AuthController, AuthState } from "./auth";
 import { hide, legend, setAttr } from "./board-dom";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
 import type { BoardHost } from "./board-host";
@@ -91,6 +91,10 @@ function buildLedgerRows(): Pick<
     name: ACCOUNT,
     icon: false,
   });
+  // Signing in and out is told as it lands.
+  account.root
+    .querySelector(".board-row-info")
+    ?.setAttribute("aria-live", "polite");
   return { stones, relics, bar, account };
 }
 
@@ -166,6 +170,11 @@ function wireAccount(
   });
 }
 
+/** Whose save it is: the signed-in account, or none. */
+function accountOf(state: AuthState): string | undefined {
+  return state.kind === "signed-in" ? state.user.uid : undefined;
+}
+
 /** What the plates and the two pages lead to. */
 interface LedgerDoorDeps {
   readonly board: BoardHost;
@@ -210,6 +219,10 @@ function wireDoors(deps: LedgerDoorDeps): {
       fieldLog: () => {
         const text = formatFieldLog(progress.fieldLog());
         void writeClipboard(text).then((copied) => {
+          // The drawer shut while the browser answered: nothing shows in a shut drawer.
+          if (!sheet().isOpen()) {
+            return;
+          }
           if (copied) {
             doors.copied();
             return;
@@ -304,7 +317,7 @@ export function createLedgerPanel({
     if (!sheet.isOpen()) {
       return;
     }
-    const lines = tonightLines(progress.fieldLog().events);
+    const lines = tonightLines(progress.tonightEvents());
     parts.tonight.paint(lines);
     const empty = lines.length === 0;
     if (parts.tonight.root.hidden !== empty) {
@@ -315,8 +328,24 @@ export function createLedgerPanel({
     }
   };
 
+  /** The save the Start over page asked about: ready or not, and whose. */
+  let asked = { ready: getView().ready, account: accountOf(auth.getState()) };
+  /**
+   * A save that came in again, or another account's, puts the list back: the Start over page
+   * asked about another save.
+   */
+  const leaveStaleAsk = (ready: boolean): void => {
+    const now = { ready, account: accountOf(auth.getState()) };
+    const stale = (now.ready && !asked.ready) || now.account !== asked.account;
+    asked = now;
+    if (stale && wired.startOverPage.root.parentElement !== null) {
+      sheet.showPage(undefined);
+    }
+  };
+
   const render = (): void => {
     const view = getView();
+    leaveStaleAsk(view.ready);
     if (view.ready) {
       paintReady(parts, onBoard, view);
     } else {

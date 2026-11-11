@@ -176,6 +176,12 @@ export type ProgressStore = {
   readonly applyMutation: (update: (mountain: Mountain) => Mountain) => void;
   /** Snapshot plus the newest events the menu copies. Not part of the mountain save. */
   readonly fieldLog: () => FieldLog;
+  /**
+   * The events since the mountain in play came into play, oldest first: since this run began,
+   * or since a copy from elsewhere (a restore, the cloud's or another device's copy) took its
+   * place. The Ledger's Tonight reads them.
+   */
+  readonly tonightEvents: () => readonly FieldEvent[];
   /** Settles helpers' work up to now for display. A signed-in phone backup follows a change; cloud writes stay on actions, hide, and pagehide. */
   readonly tick: () => void;
   /** Closes the current relic reveal; the next one (if any) follows. */
@@ -309,6 +315,38 @@ function dispatchMove(
     : { kind: "refused", reason: "no-change" };
 }
 
+/** The two mountains the conflict sheet's preview shows: a long night here, a short one there. */
+function previewConflictMountains(): {
+  readonly localMountain: Mountain;
+  readonly remoteMountain: Mountain;
+} {
+  const localMountain: Mountain = {
+    ...createMountain(),
+    remaining: MOUNTAIN_STONES - 12_400_000,
+    pocket: 1_200_000,
+    carts: 6,
+    drills: 4,
+    borers: 1,
+    helpers: 28,
+    engineers: [
+      { name: "Ada", rank: 1, trips: 2, post: "drill" },
+      { name: "Nils", rank: 0, trips: 1, post: "cart" },
+      { name: "Ruth", rank: 0, trips: 0, post: "camp" },
+      { name: "Otto", rank: 0, trips: 0, post: "borer" },
+    ],
+  };
+  const remoteMountain: Mountain = {
+    ...createMountain(),
+    remaining: MOUNTAIN_STONES - 800_000,
+    pocket: 40_000,
+    carts: 2,
+    drills: 1,
+    helpers: 8,
+    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
+  };
+  return { localMountain, remoteMountain };
+}
+
 /** Longer than this between ticks and the game was not on screen. */
 const LIVE_GAP_MS = 10 * 1000;
 
@@ -407,6 +445,13 @@ export function createProgressStore({
     data: Readonly<Record<string, string | number>>,
   ): void => {
     ring.push({ at: new Date(now()).toISOString(), code, data });
+  };
+  /** A copy from elsewhere comes into play: Tonight starts fresh, unless it is this mountain. */
+  const adopt = (next: Mountain): void => {
+    if (next !== mountain) {
+      ring.mark();
+    }
+    mountain = next;
   };
   /** Hires the one-time free staff for a loaded save; true if it changed. */
   const staffLoaded = (): boolean => {
@@ -801,7 +846,7 @@ export function createProgressStore({
         return "conflict";
       }
       if (!cloudDirty && !phoneDirty) {
-        mountain = remote.mountain;
+        adopt(remote.mountain);
         if (remote.lastSeen !== undefined) {
           lastSeen = remote.lastSeen;
         }
@@ -822,7 +867,7 @@ export function createProgressStore({
       next = digStones(next, tapped);
     }
     const keptTap = next !== merged.mountain;
-    mountain = next;
+    adopt(next);
     if (merged.lastSeen !== undefined) {
       lastSeen = merged.lastSeen;
     }
@@ -1455,7 +1500,7 @@ export function createProgressStore({
     if (remote.kind === "found" && (remote.rev ?? 0) > rev) {
       const serverRev = remote.rev ?? 0;
       if (!hasLocalProgress()) {
-        mountain = remote.mountain;
+        adopt(remote.mountain);
         rev = serverRev;
         syncedRev = serverRev;
         phoneDirty = false;
@@ -1481,14 +1526,14 @@ export function createProgressStore({
       remote,
     });
     if (remote.kind === "found" && next.mountain !== mountain) {
-      mountain = remote.mountain;
+      adopt(remote.mountain);
       openFresh(remote.lastSeen, false, "found");
       return;
     }
     // A blank phone is not a copy. A cloud document that ties it on the
     // progress stamp (same run, no stones mined, same clock) is still the save.
     if (!hydrated && remote.kind === "found" && !hasLocalProgress()) {
-      mountain = remote.mountain;
+      adopt(remote.mountain);
       openFresh(remote.lastSeen, false, "found");
       return;
     }
@@ -2084,6 +2129,7 @@ export function createProgressStore({
       }
       return beginRun(next, "passed to the kid", "run.pass");
     },
+    tonightEvents: () => ring.sinceMark(),
     fieldLog: () => {
       const events: readonly FieldEvent[] = ring.last(FIELD_LOG_COPY_COUNT);
       return {
@@ -2143,30 +2189,7 @@ export function createProgressStore({
       emit();
     },
     previewConflict: () => {
-      const localMountain: Mountain = {
-        ...createMountain(),
-        remaining: MOUNTAIN_STONES - 12_400_000,
-        pocket: 1_200_000,
-        carts: 6,
-        drills: 4,
-        borers: 1,
-        helpers: 28,
-        engineers: [
-          { name: "Ada", rank: 1, trips: 2, post: "drill" },
-          { name: "Nils", rank: 0, trips: 1, post: "cart" },
-          { name: "Ruth", rank: 0, trips: 0, post: "camp" },
-          { name: "Otto", rank: 0, trips: 0, post: "borer" },
-        ],
-      };
-      const remoteMountain: Mountain = {
-        ...createMountain(),
-        remaining: MOUNTAIN_STONES - 800_000,
-        pocket: 40_000,
-        carts: 2,
-        drills: 1,
-        helpers: 8,
-        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
-      };
+      const { localMountain, remoteMountain } = previewConflictMountains();
       mountain = localMountain;
       lastSeen = now();
       hydrated = true;
@@ -2218,7 +2241,8 @@ export function createProgressStore({
         return "kept";
       }
       const confirmed = syncedRev;
-      mountain = chosen.mountain;
+      // This phone's copy is the mountain in play, so only the other one starts Tonight afresh.
+      adopt(chosen.mountain);
       lastSeen = chosen.lastSeen;
       rev = Math.max(rev, conflict.remote.rev);
       syncedRev = conflict.remote.rev;
@@ -2287,7 +2311,7 @@ export function createProgressStore({
       if (archived.kind !== "ok") {
         return "kept";
       }
-      mountain = found.mountain;
+      adopt(found.mountain);
       lastSeen = found.lastSeen;
       phoneDirty = false;
       cloudDirty = true;

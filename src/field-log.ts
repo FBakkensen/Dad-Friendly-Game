@@ -241,6 +241,8 @@ export function formatFieldLog(log: FieldLog): string {
 export class EventRing {
   readonly #events: FieldEvent[] = [];
   readonly #limit: number;
+  /** Where the events since the last `mark` begin. */
+  #from = 0;
 
   constructor(limit = EVENT_RING_LIMIT) {
     this.#limit = limit;
@@ -257,12 +259,24 @@ export class EventRing {
     const extra = this.#events.length - this.#limit;
     if (extra > 0) {
       this.#events.splice(0, extra);
+      this.#from = Math.max(0, this.#from - extra);
     }
   }
 
   /** Drops every event. Start over and passing the mine begin from empty. */
   clear(): void {
     this.#events.length = 0;
+    this.#from = 0;
+  }
+
+  /** Marks the end of the ring: `sinceMark` gives only the events pushed after this. */
+  mark(): void {
+    this.#from = this.#events.length;
+  }
+
+  /** The events pushed since the last `mark` (or the clear), oldest first. */
+  sinceMark(): readonly FieldEvent[] {
+    return this.#events.slice(this.#from);
   }
 
   /** Oldest first. Fewer than `count` returns everything. Non-positive returns none. */

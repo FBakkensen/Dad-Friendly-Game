@@ -53,7 +53,11 @@ import {
   LAYER_ARRIVAL,
   LAYER_DIG,
   LAYER_EVOCATIVE,
+  craftFittedLine,
   craftFittedWords,
+  kidMineWords,
+  nextRelicWords,
+  relicProgressLabel,
   layerCardWords,
   layerWelcomeWords,
   nextLayerHint,
@@ -740,6 +744,28 @@ describe("layer card and craft-done copy", () => {
     expect(
       craftFittedWords("Blasting charge", "Crew now 8/s for 20 min."),
     ).toBe("Your Blasting charge is fitted. Crew now 8/s for 20 min.");
+  });
+
+  it("says a fitted craft on its own line", () => {
+    expect(craftFittedLine("Iron rails")).toBe("Your Iron rails are fitted.");
+    expect(craftFittedLine("Blasting charge")).toBe(
+      "Your Blasting charge is fitted.",
+    );
+  });
+
+  it("words the Ledger's relic goal and its bar", () => {
+    expect(kidMineWords("+10%")).toBe(
+      "Your kid's mine: six relics wait inside. Legacy +10%.",
+    );
+    expect(nextRelicWords("Lantern", "Somewhere in the clay.")).toBe(
+      "Next: Lantern · Somewhere in the clay.",
+    );
+    expect(relicProgressLabel("Lantern", undefined)).toBe(
+      "Progress to the Lantern",
+    );
+    expect(relicProgressLabel("Lantern", "Iron below.")).toBe(
+      "Progress to the Lantern. Iron below.",
+    );
   });
 });
 

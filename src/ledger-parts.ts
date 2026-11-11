@@ -3,7 +3,7 @@ import type { BoardHost } from "./board-host";
 import { controlKey, type ControlRef, type Pointer } from "./board-interaction";
 import { plateButton } from "./board-save";
 import { skin } from "./board-skin";
-import { pressOnBoard, type PressTracker } from "./card-tap";
+import { forgetAll, pressOnBoard, type PressTracker } from "./card-tap";
 import { TONIGHT_LINES, type TonightLine } from "./ledger-rows";
 import {
   PASS_FULL,
@@ -67,15 +67,6 @@ function ledgerPlate(
     }),
   );
   return plate;
-}
-
-/** Drops every tracker's finger-down time: the drawer moved on. */
-function forgetAll(trackers: readonly PressTracker[]): () => void {
-  return () => {
-    for (const tracker of trackers) {
-      tracker.forget();
-    }
-  };
 }
 
 /** Tonight: this run's newest lines, each with its time, in an inset box. */
@@ -205,17 +196,21 @@ export function createLedgerDoors({
   };
 }
 
-/** A drawer page's frame: its title and its one line. */
+/** A drawer page's frame: its title and its one line, which name and describe it. */
 function pageFrame(
   className: string,
   title: string,
   line: string,
 ): HTMLElement {
   const root = el("div", `ledger-page ${className}`);
-  root.append(
-    el("h3", "ledger-page-title", title),
-    el("p", "ledger-page-line", line),
-  );
+  const heading = el("h3", "ledger-page-title", title);
+  const said = el("p", "ledger-page-line", line);
+  heading.id = `${className}-title`;
+  said.id = `${className}-line`;
+  setAttr(root, "role", "group");
+  setAttr(root, "aria-labelledby", heading.id);
+  setAttr(root, "aria-describedby", said.id);
+  root.append(heading, said);
   return root;
 }
 

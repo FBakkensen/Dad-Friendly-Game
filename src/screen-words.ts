@@ -1285,9 +1285,14 @@ export function layerWelcomeWords(id: LayerId): string | undefined {
  * "Your Iron rails are fitted. Carts now 12.5/s."
  * A name that ends in s takes "are".
  */
-export function craftFittedWords(name: string, effect: string): string {
+/** "Your Iron rails are fitted.": a finished craft, on its own (Tonight's line). */
+export function craftFittedLine(name: string): string {
   const fitted = name.endsWith("s") ? "are" : "is";
-  return `Your ${name} ${fitted} fitted. ${effect}`;
+  return `Your ${name} ${fitted} fitted.`;
+}
+
+export function craftFittedWords(name: string, effect: string): string {
+  return `${craftFittedLine(name)} ${effect}`;
 }
 
 /** Unfound recipe. No name, no count, no question mark. */
@@ -1369,6 +1374,26 @@ export const PASS_FULL = "Pass the mine to your kid";
 /** "2 of 6 relics found": the Ledger's relics row. */
 export const relicsFoundWords = (found: number): string =>
   `${String(found)} of ${String(RELICS.length)} relics found`;
+
+/** The relics row's goal before the Lantern lights the way, on a first mountain. */
+export const RELICS_UNGUIDED =
+  "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.";
+/** The relics row's goal before the Lantern, on a mine passed down: `legacy` is its bonus. */
+export const kidMineWords = (legacy: string): string =>
+  `Your kid's mine: six relics wait inside. Legacy ${legacy}.`;
+/** The relics row's goal once every relic is found. */
+export const RELICS_ALL_FOUND = "Every relic is yours. You are a legend.";
+/** The relics row's goal: the next relic and its vague hint. */
+export const nextRelicWords = (name: string, hint: string): string =>
+  `Next: ${name} · ${hint}`;
+/** The relics bar's label: the relic it fills toward, and the next layer's hint if any. */
+export const relicProgressLabel = (
+  name: string,
+  hint: string | undefined,
+): string =>
+  hint === undefined
+    ? `Progress to the ${name}`
+    : `Progress to the ${name}. ${hint}`;
 
 /** Start over, and its confirm page (moved from the menu, #375). */
 export const START_OVER = "Start over";

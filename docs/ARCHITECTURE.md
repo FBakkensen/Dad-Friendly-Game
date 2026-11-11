@@ -305,9 +305,15 @@ page is the map, plus the rules that keep it that way.
    row's Done. Saved copies and Pass the mine close the drawer without
    moving focus and open today's cards until B7c (#465); the welcome-back,
    craft-done and save cards are still today's until B7b (#464). Tonight
-   reads the ring only while the drawer is open. A save that loads again
-   leaves the drawer open with the mine rows dark and Copy field log, Start
-   over and Yes disabled; the account row stays live. The four drawers
+   reads `progress.tonightEvents()` only while the drawer is open: the
+   ring's events since its mark, which a run's start clears and a copy from
+   elsewhere taking the mountain's place (a restore, the cloud's or another
+   device's copy) moves up, while the field log keeps them all. A save that
+   loads again leaves the drawer open with the mine rows dark and Copy field
+   log, Start over and Yes disabled; the account row stays live. Once that
+   save is in again, or the account changes, the Start over page gives the
+   list back, and a clipboard answer that comes after the drawer shut shows
+   nothing. The four drawers
    and the scrim sit in `.board-sheet-clip` at z 29, under the board note
    (30) and the save drawer (31). The clip is `overflow: clip`, so nothing
    (not even script) can scroll it. Opening one drawer closes the others

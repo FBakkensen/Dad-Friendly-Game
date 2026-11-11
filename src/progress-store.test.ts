@@ -5200,6 +5200,95 @@ describe("two saves found (#226)", () => {
     progress.dispose();
   });
 
+  describe("Tonight's events (#375)", () => {
+    const codes = (events: readonly { code: string }[]) =>
+      events.map((event) => event.code);
+
+    /** A signed-in store on a seeded cloud, with one worded buy recorded and saved. */
+    const boughtTonight = async (holdEcho = { held: false }) => {
+      const cloud = createMemoryCloudSave({ holdEcho });
+      await cloud.write({
+        uid: user.uid,
+        mountain: base(),
+        rev: 1,
+        deviceId: "seed-device",
+        lastSeen: clock,
+      });
+      const progress = open(cloud, createMemoryStorage());
+      await vi.waitFor(() => {
+        expect(progress.getSnapshot().ready).toBe(true);
+      });
+      progress.applyMutation((mountain) => ({
+        ...mountain,
+        pocket: firstWorker,
+      }));
+      progress.dispatch({ kind: "buyTier", id: "helper" });
+      await vi.waitFor(async () => {
+        const saved = await cloud.load({ uid: user.uid });
+        expect(saved.kind === "found" && saved.mountain.helpers).toBe(1);
+      });
+      expect(codes(progress.tonightEvents())).toContain("tier.buy");
+      return { cloud, progress };
+    };
+
+    it("start fresh at a restore, while the field log keeps them", async () => {
+      const { cloud, progress } = await boughtTonight();
+      await cloud.archiveCopy?.({
+        uid: user.uid,
+        mountain: { ...base(), carts: 1 },
+        lastSeen: clock,
+        rev: 1,
+        deviceId: "other-device",
+        deviceLabel: "Safari on iPhone",
+      });
+      const copies = await progress.savedCopies();
+      await expect(progress.restoreCopy(copies[0]?.id ?? "")).resolves.toBe(
+        "saved",
+      );
+      expect(codes(progress.tonightEvents())).not.toContain("tier.buy");
+      expect(codes(progress.fieldLog().events)).toEqual(
+        expect.arrayContaining(["tier.buy", "save.restore"]),
+      );
+      progress.dispose();
+    });
+
+    it("start fresh when a resume takes another device's newer copy", async () => {
+      const holdEcho = { held: false };
+      const { cloud, progress } = await boughtTonight(holdEcho);
+      const here = progress.getSnapshot().mountain;
+      const saved = await cloud.load({ uid: user.uid });
+      holdEcho.held = true;
+      await cloud.write({
+        uid: user.uid,
+        mountain: { ...here, remaining: here.remaining - 5_000 },
+        rev: (saved.kind === "found" ? (saved.rev ?? 0) : 0) + 1,
+        deviceId: "other-device",
+        lastSeen: clock,
+      });
+      const resume = progress.resume();
+      if (resume.kind === "reading") {
+        await resume.done;
+      }
+      expect(progress.getSnapshot().mountain.remaining).toBe(
+        here.remaining - 5_000,
+      );
+      expect(codes(progress.tonightEvents())).not.toContain("tier.buy");
+      expect(codes(progress.fieldLog().events)).toContain("tier.buy");
+      progress.dispose();
+    });
+
+    it("keep going through a resume that finds this phone's own copy", async () => {
+      const { progress } = await boughtTonight();
+      const resume = progress.resume();
+      if (resume.kind === "reading") {
+        await resume.done;
+      }
+      expect(codes(progress.fieldLog().events)).toContain("save.resume");
+      expect(codes(progress.tonightEvents())).toContain("tier.buy");
+      progress.dispose();
+    });
+  });
+
   it("refuses a choice or a restore when there is nothing to switch", async () => {
     const archiveGate = { fail: true };
     const cloud = createMemoryCloudSave({ archiveGate });

@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryAuth, type AuthController } from "./auth";
 import { DRAWER_SETTLE_MS } from "./board-drawer";
 import { READY_HOLD_MS } from "./board-interaction";
+import { createBoardHost } from "./board-host";
 import { RELIC_DARK, RELIC_LIT } from "./board-relics";
 import { type CloudSave } from "./cloud-save";
+import { createLedgerPanel } from "./ledger-panel";
 import { relicsRowView, stonesRowView } from "./ledger-rows";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import {
@@ -13,6 +15,7 @@ import {
   setReducedMotion,
   stopScreens,
 } from "./mountain-screen.harness";
+import { createProgressStore } from "./progress-store";
 import { writeSessionSave } from "./session-save";
 import { minedMountain } from "./test-fixtures";
 
@@ -330,6 +333,25 @@ describe("the Ledger drawer (#375)", () => {
     expect(document.activeElement).toBe(keyOf(screen));
   });
 
+  it("the Start over page is a group named by its title and described by its warning", () => {
+    const screen = mount(granite());
+    keyOf(screen).click();
+    // The account row tells a sign-in or sign-out as it lands.
+    expect(
+      part(screen, ".ledger-account .board-row-info").getAttribute("aria-live"),
+    ).toBe("polite");
+    part(screen, ".ledger-start-over").click();
+    const page = shownPage(screen);
+    expect(page?.getAttribute("role")).toBe("group");
+    const named = (attr: string) =>
+      document.getElementById(page?.getAttribute(attr) ?? "")?.textContent;
+    expect(named("aria-labelledby")).toBe("Start over?");
+    expect(named("aria-describedby")).toBe(
+      page?.querySelector(".ledger-page-line")?.textContent,
+    );
+    expect(named("aria-describedby")).toMatch(/undone/);
+  });
+
   it("copy field log holds Copied", async () => {
     vi.useFakeTimers();
     const writeText = vi.fn<(text: string) => Promise<void>>(() =>
@@ -416,21 +438,58 @@ describe("the Ledger drawer (#375)", () => {
     expect(isOpen(screen, "upgrades")).toBe(false);
   });
 
-  it("while the save loads again", async () => {
+  /** A signed-in screen whose cloud reads wait while `held`, until `release`. */
+  const reloading = () => {
+    const gate = { held: false };
+    const waiting: (() => void)[] = [];
     const cloudSave: CloudSave = {
-      load: () => Promise.resolve({ kind: "missing" }),
+      load: () =>
+        gate.held
+          ? new Promise((resolve) => {
+              waiting.push(() => {
+                resolve({ kind: "missing" });
+              });
+            })
+          : Promise.resolve({ kind: "missing" }),
       write: () => Promise.resolve({ kind: "ok" }),
       writeFieldLog: () => Promise.resolve({ kind: "ok" }),
-      watch: () => () => undefined,
+      // The save is in once the watch hears the cloud.
+      watch: ({ onChange }) => {
+        const hear = (): void => {
+          onChange({ kind: "missing" });
+        };
+        if (gate.held) {
+          waiting.push(hear);
+        } else {
+          queueMicrotask(hear);
+        }
+        return () => undefined;
+      },
     };
-    const auth = createMemoryAuth();
-    const storage = createMemoryStorage();
-    writeSessionSave({ storage, mountain: granite(), lastSeen: CLOCK });
-    const screen = mountScreen({ auth, cloudSave, storage, now: () => CLOCK });
+    const auth = createMemoryAuth({
+      state: { kind: "signed-in", user: { uid: "test-dad", label: "Dad" } },
+    });
+    const screen = mountScreen({ auth, cloudSave, now: () => CLOCK });
     document.body.append(screen.root);
+    const release = (): void => {
+      gate.held = false;
+      for (const each of waiting.splice(0)) {
+        each();
+      }
+    };
+    return { screen, auth, gate, release };
+  };
+
+  it("while the save loads again", async () => {
+    const { screen, auth, gate } = reloading();
+    await vi.waitFor(() => {
+      expect(screen.progress.getSnapshot().ready).toBe(true);
+    });
     keyOf(screen).click();
     part(screen, ".ledger-start-over").click();
     expect(button(screen, ".ledger-yes").disabled).toBe(false);
+    // The same account comes in again: its save loads again.
+    gate.held = true;
     await auth.signIn();
     await Promise.resolve();
     expect(screen.progress.getSnapshot().ready).toBe(false);
@@ -450,6 +509,77 @@ describe("the Ledger drawer (#375)", () => {
     const signOut = vi.spyOn(auth, "signOut");
     account.click();
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("the Start over page gives the list back once the save is in again", async () => {
+    const { screen, auth, gate, release } = reloading();
+    await vi.waitFor(() => {
+      expect(screen.progress.getSnapshot().ready).toBe(true);
+    });
+    keyOf(screen).click();
+    part(screen, ".ledger-start-over").click();
+    gate.held = true;
+    await auth.signIn();
+    await Promise.resolve();
+    expect(shownPage(screen)?.classList).toContain("ledger-start-over-page");
+    release();
+    await vi.waitFor(() => {
+      expect(screen.progress.getSnapshot().ready).toBe(true);
+    });
+    expect(shownPage(screen)).toBeNull();
+    expect(part(screen, ".board-sheet-list").hidden).toBe(false);
+    expect(isOpen(screen)).toBe(true);
+  });
+
+  it("the Start over page gives the list back when the account changes", async () => {
+    const auth = createMemoryAuth();
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: () => () => undefined,
+    };
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: granite(), lastSeen: CLOCK });
+    const screen = mountScreen({ auth, cloudSave, storage, now: () => CLOCK });
+    document.body.append(screen.root);
+    keyOf(screen).click();
+    part(screen, ".ledger-start-over").click();
+    expect(shownPage(screen)?.classList).toContain("ledger-start-over-page");
+    await auth.signIn();
+    expect(shownPage(screen)).toBeNull();
+    expect(part(screen, ".board-sheet-list").hidden).toBe(false);
+    expect(isOpen(screen)).toBe(true);
+  });
+
+  it("a clipboard that answers after the drawer shut shows nothing and leaves focus", async () => {
+    let refuse: (() => void) | undefined;
+    const restore = clipboard({
+      writeText: () =>
+        new Promise<void>((_resolve, reject) => {
+          refuse = () => {
+            reject(new Error("refused"));
+          };
+        }),
+    });
+    try {
+      const screen = mount(granite());
+      keyOf(screen).click();
+      part(screen, ".ledger-field-log").click();
+      escape();
+      expect(isOpen(screen)).toBe(false);
+      expect(document.activeElement).toBe(keyOf(screen));
+      refuse?.();
+      await vi.waitFor(() => {
+        expect(refuse).toBeDefined();
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(shownPage(screen)).toBeNull();
+      expect(part(screen, ".board-sheet-list").hidden).toBe(false);
+      expect(document.activeElement).toBe(keyOf(screen));
+    } finally {
+      restore();
+    }
   });
 
   it("Escape and the scrim close it, on the list and on the Start over page", () => {
@@ -474,5 +604,39 @@ describe("the Ledger drawer (#375)", () => {
     screen.root.querySelector<HTMLElement>(".board-scrim")?.click();
     expect(isOpen(screen)).toBe(false);
     expect(screen.progress.getSnapshot().mountain.helpers).toBe(4);
+  });
+});
+
+describe("the Ledger panel on its own", () => {
+  it("stops following the account once its signal aborts", async () => {
+    const stop = new AbortController();
+    const auth = createMemoryAuth();
+    const progress = createProgressStore({
+      auth,
+      sessionStorage: createMemoryStorage(),
+      now: () => CLOCK,
+    });
+    const door = document.createElement("button");
+    const ledger = createLedgerPanel({
+      progress,
+      getView: progress.getSnapshot,
+      auth,
+      board: createBoardHost({ clock: () => 0, reduced: () => true }),
+      overSave: () => false,
+      door,
+      legacy: { offered: () => false, open: () => undefined },
+      savedCopies: { open: () => undefined },
+      onStartOver: () => undefined,
+      signal: stop.signal,
+    });
+    document.body.append(ledger.sheet.root);
+    const accountWords = () =>
+      ledger.sheet.root.querySelector(".ledger-account")?.textContent;
+    const before = accountWords();
+    expect(before).toContain("Sign in");
+    stop.abort();
+    await auth.signIn();
+    expect(accountWords()).toBe(before);
+    progress.dispose();
   });
 });
