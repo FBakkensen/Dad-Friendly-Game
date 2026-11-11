@@ -2757,6 +2757,7 @@ button.board-row:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: calc(var(--art) * 4);
   padding: calc(var(--art) * 8);
   text-align: center;
@@ -2845,8 +2846,8 @@ button.board-row:focus-visible {
   display: flex;
   flex-direction: column;
   gap: calc(var(--art) * 2);
-  padding: calc(var(--art) * 9) calc(var(--art) * 9) calc(var(--art) * 9)
-    calc(var(--art) * 11);
+  padding: calc(var(--art) * 10) calc(var(--art) * 10) calc(var(--art) * 10)
+    calc(var(--art) * 13);
   text-align: left;
 }
 
