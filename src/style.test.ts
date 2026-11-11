@@ -369,7 +369,7 @@ describe("style.css", () => {
     ".welcome-back",
     ".layer-arrival",
     ".craft-notice",
-        ".start-over",
+    ".start-over",
     ".engineers-dialog",
     ".update-prompt",
     ".other-tab",

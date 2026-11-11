@@ -55,6 +55,25 @@ function buildShelf(sheet: BoardSheet): readonly BoardRow[] {
   return rows;
 }
 
+/** The drawer's shell: no key of its own, and its "i" opens the Relics card. */
+function relicsSheet(
+  deps: RelicPanelDeps,
+  onClose: (by: CloseBy) => void,
+  onForget: () => void,
+): BoardSheet {
+  return createBoardSheet({
+    name: "relics",
+    title: RELICS_TITLE,
+    infoLabel: "Relics",
+    how: { systems: ["relics"], backLabel: SHELF_BACK },
+    board: deps.board,
+    overSave: deps.overSave,
+    onClose,
+    onForget,
+    ...(deps.signal === undefined ? {} : { signal: deps.signal }),
+  });
+}
+
 /** What the relics drawer is built from. */
 interface RelicPanelDeps {
   progress: ProgressStore;
@@ -149,21 +168,11 @@ export function createRelicPanels(deps: RelicPanelDeps): {
     }
   };
 
-  const sheet: BoardSheet = createBoardSheet({
-    name: "relics",
-    title: RELICS_TITLE,
-    infoLabel: "Relics",
-    how: { systems: ["relics"], backLabel: SHELF_BACK },
-    board,
-    overSave: deps.overSave,
-    onClose: closed,
-    onForget: () => {
-      onBoard.forget();
-      detail.forget();
-      reveal.forget();
-      legend.forget();
-    },
-    ...(deps.signal === undefined ? {} : { signal: deps.signal }),
+  const sheet = relicsSheet(deps, closed, () => {
+    onBoard.forget();
+    detail.forget();
+    reveal.forget();
+    legend.forget();
   });
   const rows = buildShelf(sheet);
   wireShelf(rows, onBoard, {

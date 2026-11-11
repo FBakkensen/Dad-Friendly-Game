@@ -12,12 +12,12 @@
 
 One drawer, `relics`, with no key on the rail. It holds one of four screens:
 
-| Screen         | Opens from                                            | Holds                                                                                                                                      | Leaves by                                                                                    |
-| -------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| Shelf (list)   | the Relic shelf key in a socket's note                | six rows: lamp, the relic at 24 art px (lit once found, dark until then), name, today's line, the guided next relic's hint                 | Back, the scrim, Escape; a found row opens its detail                                        |
-| Detail (page)  | a found row                                           | kicker, the relic at 24 art px, name, virtue, power, and the keepsakes brought home, each with its 16 art px icon, name and story          | Back to the shelf (the list), or the drawer's Back                                           |
-| Reveal (page)  | itself, when a relic is found and no card is up       | kicker, art, "You found the …", virtue, power, boost, Carry it with pride                                                                  | Carry it with pride. Back, the scrim and Escape carry it too. The Mantle's leads to the Legend |
-| Legend (page)  | itself, once per run, after the Mantle's reveal       | kicker, "You became a Legend", the six relics lit, the stats, the cheer, Stand proud and Pass to your kid                                  | Stand proud or any close; Pass to your kid closes it and opens today's Pass the mine card    |
+| Screen        | Opens from                                      | Holds                                                                                                                             | Leaves by                                                                                      |
+| ------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Shelf (list)  | the Relic shelf key in a socket's note          | six rows: lamp, the relic at 24 art px (lit once found, dark until then), name, today's line, the guided next relic's hint        | Back, the scrim, Escape; a found row opens its detail                                          |
+| Detail (page) | a found row                                     | kicker, the relic at 24 art px, name, virtue, power, and the keepsakes brought home, each with its 16 art px icon, name and story | Back to the shelf (the list), or the drawer's Back                                             |
+| Reveal (page) | itself, when a relic is found and no card is up | kicker, art, "You found the …", virtue, power, boost, Carry it with pride                                                         | Carry it with pride. Back, the scrim and Escape carry it too. The Mantle's leads to the Legend |
+| Legend (page) | itself, once per run, after the Mantle's reveal | kicker, "You became a Legend", the six relics lit, the stats, the cheer, Stand proud and Pass to your kid                         | Stand proud or any close; Pass to your kid closes it and opens today's Pass the mine card      |
 
 ## Rulings
 

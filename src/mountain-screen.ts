@@ -143,13 +143,9 @@ export function mountMountainScreen(options: ScreenOptions): void {
       keys.openBuys(from);
     },
   });
-  const drawers = [
-    crewPanel.sheet,
-    upgrades.sheet,
-    workshop.sheet,
-    ledger.sheet,
-    top.relics.sheet,
-  ];
+  const drawers = [crewPanel, upgrades, workshop, ledger, top.relics].map(
+    (drawer) => drawer.sheet,
+  );
   const overlays = createOverlays(ctx, {
     note: boardNote,
     rail,
@@ -157,7 +153,13 @@ export function mountMountainScreen(options: ScreenOptions): void {
     drawers,
   });
   const keys = wireKeys({
-    drawers: { buys: crewPanel, upgrades, workshop, ledger, relics: top.relics },
+    drawers: {
+      buys: crewPanel,
+      upgrades,
+      workshop,
+      ledger,
+      relics: top.relics,
+    },
     closeBoardPopups,
     putSignAway: overlays.putSignAway,
   });

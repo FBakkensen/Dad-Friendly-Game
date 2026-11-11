@@ -1236,21 +1236,21 @@ describe("relic shelf", () => {
       "Lantern of Guidance",
     );
     expect(
-      rows.every((row) =>
-        row.querySelector<HTMLImageElement>(".board-row-icon")?.src,
+      rows.every(
+        (row) => row.querySelector<HTMLImageElement>(".board-row-icon")?.src,
       ),
     ).toBeTruthy();
     expect(rows[0]?.classList.contains("is-found")).toBe(true);
     expect(rows[2]?.classList.contains("is-locked")).toBe(true);
     expect(
-      rows[0]?.querySelector<HTMLImageElement>(".board-row-icon")?.getAttribute(
-        "src",
-      ),
+      rows[0]
+        ?.querySelector<HTMLImageElement>(".board-row-icon")
+        ?.getAttribute("src"),
     ).toBe(RELIC_LIT.lantern);
     expect(
-      rows[2]?.querySelector<HTMLImageElement>(".board-row-icon")?.getAttribute(
-        "src",
-      ),
+      rows[2]
+        ?.querySelector<HTMLImageElement>(".board-row-icon")
+        ?.getAttribute("src"),
     ).toBe(RELIC_DARK.hammer);
     expect(rows[1]?.getAttribute("aria-label")).toBe(
       "Shield of Protection: see your power",
@@ -1265,9 +1265,9 @@ describe("relic shelf", () => {
     expect(rows[2]?.querySelector(".board-row-why")?.textContent).toBe(
       "Next · Far below",
     );
-    expect(
-      rows[3]?.querySelector<HTMLElement>(".board-row-why")?.hidden,
-    ).toBe(true);
+    expect(rows[3]?.querySelector<HTMLElement>(".board-row-why")?.hidden).toBe(
+      true,
+    );
     for (const row of rows.slice(2)) {
       expect(row.textContent).not.toMatch(/\d|\?/);
     }
@@ -2210,7 +2210,7 @@ describe("the control board (#370)", () => {
           screen.root.querySelector<HTMLButtonElement>(
             ".layer-arrival:not([hidden]) .layer-dig",
           );
-        if (go === null || go === undefined) break;
+        if (go === null) break;
         go.click();
         vi.advanceTimersByTime(0);
       }

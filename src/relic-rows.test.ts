@@ -81,9 +81,7 @@ describe("relicNote: the socket note's words, the shelf's too", () => {
     expect(relicNote(mountain, relic("lantern")).line).toBe(
       `The virtue of Guidance. Your power: ${relic("lantern").boost}`,
     );
-    expect(relicNote(mountain, relic("crown")).line).toBe(
-      relic("crown").tease,
-    );
+    expect(relicNote(mountain, relic("crown")).line).toBe(relic("crown").tease);
     expect(relicNote(mountain, relic("crown")).hint).toBeUndefined();
   });
 });
@@ -103,7 +101,7 @@ describe("shelfKeepsakes: the keepsakes on a found relic's detail", () => {
       shelfKeepsakes({
         ...minedMountain(0),
         finds: ["ribbon", "drawing", "boots"],
-      } as Mountain),
+      }),
     ).toEqual(["drawing", "ribbon"]);
   });
 });

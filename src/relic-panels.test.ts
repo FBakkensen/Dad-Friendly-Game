@@ -1,5 +1,13 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type Mock,
+} from "vitest";
 import { DRAWER_SETTLE_MS } from "./board-drawer";
 import { createBoardHost, type BoardHost } from "./board-host";
 import { MOUNTAIN_STONES, type Mountain } from "./mountain";
@@ -51,9 +59,9 @@ interface Fixture {
   /** Relics still to reveal after the one shown. */
   queue: Relic[];
   card: boolean;
-  dismissReveal: ReturnType<typeof vi.fn>;
-  beforeOpen: ReturnType<typeof vi.fn>;
-  legacyOpen: ReturnType<typeof vi.fn>;
+  dismissReveal: Mock<() => void>;
+  beforeOpen: Mock<() => void>;
+  legacyOpen: Mock<(from: HTMLElement | undefined) => void>;
   panel: ReturnType<typeof createRelicPanels>;
 }
 
@@ -62,10 +70,10 @@ function mount(mountain: Mountain, revealed?: Relic): Fixture {
     view: { ready: true, away: undefined, revealed, mountain },
     queue: [],
     card: false,
-    beforeOpen: vi.fn(),
-    legacyOpen: vi.fn(),
+    beforeOpen: vi.fn<() => void>(),
+    legacyOpen: vi.fn<(from: HTMLElement | undefined) => void>(),
   } as unknown as Fixture;
-  fixture.dismissReveal = vi.fn(() => {
+  fixture.dismissReveal = vi.fn<() => void>(() => {
     fixture.view.revealed = fixture.queue.shift();
     fixture.panel.render();
   });
@@ -92,9 +100,7 @@ const page = (fixture: Fixture, name: string): HTMLElement | null =>
     : null;
 
 const rows = (fixture: Fixture): HTMLButtonElement[] => [
-  ...fixture.panel.sheet.root.querySelectorAll<HTMLButtonElement>(
-    ".relic-row",
-  ),
+  ...fixture.panel.sheet.root.querySelectorAll<HTMLButtonElement>(".relic-row"),
 ];
 
 const escape = (): void => {

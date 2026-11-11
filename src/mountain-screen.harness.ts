@@ -194,10 +194,7 @@ export function shelfShown(root: HTMLElement): boolean {
 }
 
 /** The page `page` names, while the relics drawer is open on it; else null. */
-export function relicPage(
-  root: HTMLElement,
-  page: string,
-): HTMLElement | null {
+export function relicPage(root: HTMLElement, page: string): HTMLElement | null {
   const sheet = root.querySelector(RELICS_SHEET);
   if (sheet?.classList.contains("is-open") !== true) {
     return null;

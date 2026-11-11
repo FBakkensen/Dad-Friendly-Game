@@ -46,11 +46,11 @@ function find(root: HTMLElement, selector: string): HTMLElement {
 }
 
 const text = (root: HTMLElement, selector: string): string =>
-  find(root, selector).textContent ?? "";
+  find(root, selector).textContent;
 
 const plates = (root: HTMLElement): string[] =>
   [...root.querySelectorAll(".board-platebtn-text")].map(
-    (each) => each.textContent ?? "",
+    (each) => each.textContent,
   );
 
 const relic = (index: number): Relic => {
@@ -98,9 +98,7 @@ describe("a found relic's detail page (#465)", () => {
     const art = find(page.root, ".relic-page-art") as HTMLImageElement;
     expect(art.getAttribute("src")).toBe(RELIC_LIT.lantern);
     expect(art.width).toBe(48);
-    expect(text(page.root, ".relic-page-line")).toBe(
-      "The virtue of Guidance.",
-    );
+    expect(text(page.root, ".relic-page-line")).toBe("The virtue of Guidance.");
     expect(text(page.root, ".relic-page-boost")).toBe(
       `Your power: ${lantern.boost}`,
     );

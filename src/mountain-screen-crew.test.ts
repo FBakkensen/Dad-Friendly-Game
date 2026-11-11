@@ -3422,9 +3422,9 @@ describe("relic powers on the cards (shelf detail)", () => {
       ?.click();
     screen.root.querySelectorAll<HTMLButtonElement>(SHELF_ROWS)[2]?.click();
     const detail = relicPage(screen.root, DETAIL_PAGE);
-    expect(
-      detail?.querySelector<HTMLElement>(".relic-keepsakes")?.hidden,
-    ).toBe(false);
+    expect(detail?.querySelector<HTMLElement>(".relic-keepsakes")?.hidden).toBe(
+      false,
+    );
     expect(screen.text(".relic-keepsakes-title")).toBe("Keepsakes");
     const shown = [
       ...screen.root.querySelectorAll<HTMLElement>("[data-keepsake]"),
@@ -3433,12 +3433,12 @@ describe("relic powers on the cards (shelf detail)", () => {
       "drawing",
       "whistle",
     ]);
-    expect(
-      screen.text('[data-keepsake="drawing"] .relic-keepsake-name'),
-    ).toBe("A child's drawing");
-    expect(
-      screen.text('[data-keepsake="drawing"] .relic-keepsake-story'),
-    ).toBe("A little figure with a lamp, folded for a pocket.");
+    expect(screen.text('[data-keepsake="drawing"] .relic-keepsake-name')).toBe(
+      "A child's drawing",
+    );
+    expect(screen.text('[data-keepsake="drawing"] .relic-keepsake-story')).toBe(
+      "A little figure with a lamp, folded for a pocket.",
+    );
     // Each keepsake has its own PixelLab icon now, not the old nugget (#465).
     expect(shown[0]?.querySelector("img")?.getAttribute("src")).toBe(
       KEEPSAKE_ART.drawing,
