@@ -77,6 +77,26 @@ async function sheetSettled(page, name) {
     );
 }
 
+/** The save drawer is open and its slide has ended: true when it did within 4 s. */
+async function saveDrawerSettled(page) {
+  return page
+    .waitForFunction(
+      () => {
+        const sheet = document.querySelector(".board-save-drawer");
+        return (
+          sheet !== null &&
+          sheet.classList.contains("is-open") &&
+          sheet.getAnimations().length === 0
+        );
+      },
+      { timeout: 4_000 },
+    )
+    .then(
+      () => true,
+      () => false,
+    );
+}
+
 /** Opens a drawer by its key, the way a dad does, and waits for the slide. */
 async function openSheet(page, name) {
   await page.waitForSelector(`${KEY(name)}:not(:disabled)`, { visible: true });
@@ -114,10 +134,22 @@ const STANDALONE_INSETS = { top: 24, bottom: 48, left: 0, right: 0 };
 /**
  * The board in viewport px: #app's box, its scale on a PC, and the top of the
  * save line, where every sheet stops (#370). In-page code calls
- * globalThis.__board().
+ * globalThis.__board(). globalThis.__showVein(spot) shows the golden vein at a
+ * veinSpot spot (window art px) as board-window.ts places it, and null hides it.
  */
 async function boardProbe(page) {
   await page.evaluateOnNewDocument(() => {
+    globalThis.__showVein = (spot) => {
+      const vein = document.querySelector(".golden-vein");
+      if (vein === null) {
+        return;
+      }
+      if (spot !== null) {
+        vein.style.left = `${String((7 + spot.left) * 2)}px`;
+        vein.style.top = `${String((7 + spot.top) * 2)}px`;
+      }
+      vein.hidden = spot === null;
+    };
     globalThis.__board = () => {
       const app = document.querySelector("#app")?.getBoundingClientRect();
       const line = document
@@ -499,6 +531,8 @@ export {
   SHEET,
   OPEN_SHEET,
   SHEET_BACK,
+  sheetSettled,
+  saveDrawerSettled,
   openSheet,
   closeSheet,
   SHELF_KEY,
