@@ -386,6 +386,24 @@ function moved(
   }
 }
 
+/**
+ * Starts every boost that is idle and that the pocket can pay, in catalogue
+ * order, each priced from the mountain as the one before it left it. The
+ * sim dad and the lab's always-boost players do this every second.
+ */
+export function buyEveryBoost(mountain: Mountain, now: number): Mountain {
+  let next = mountain;
+  for (const boost of BOOSTS) {
+    next = buyBoost({
+      mountain: next,
+      id: boost.id,
+      now,
+      pricing: effectiveRates(next),
+    });
+  }
+  return next;
+}
+
 function actionApplied(
   mountain: Mountain,
   action: Action,

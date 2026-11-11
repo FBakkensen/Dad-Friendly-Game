@@ -1,5 +1,4 @@
-import { BOOSTS, buyBoost } from "../boosts";
-import { applyAction, type Action } from "../economy/actions";
+import { applyAction, buyEveryBoost, type Action } from "../economy/actions";
 import {
   promote,
   promoteCost,
@@ -8,7 +7,6 @@ import {
 } from "../engineers";
 import { send, settle, TUNNELS, type TunnelId } from "../expeditions";
 import { mineByHand, type Mountain } from "../mountain";
-import { effectiveRates } from "../rates";
 import { tierById } from "../tiers";
 import { createWorld, step, type World } from "./world";
 import { canPay, sendWorthIt, sticker } from "./decide";
@@ -156,6 +154,46 @@ type Hired = {
   readonly price: number;
 };
 
+/**
+ * The policy's buys after this second's income, one after another while the
+ * pocket can pay the next. A buy that changes nothing ends the run of buys.
+ */
+function buyWhileAffordable(
+  start: World,
+  policy: Policy,
+  buys: PolicyPurchase[],
+  promotions: PolicyPromotion[],
+): World {
+  const params = policy.params;
+  let world = start;
+  const decide = () =>
+    policy.decide({ mountain: world.mountain, now: world.clock, params });
+  for (
+    let action = decide();
+    action !== undefined && canPay(world.mountain, action, params.hoardK);
+    action = decide()
+  ) {
+    const before = world.mountain;
+    const next = applyAction(before, action, world.clock);
+    if (next === before) {
+      break;
+    }
+    const tended = tendsAfter(params, action) ? tendBestTier(next) : next;
+    remember(world, before, action, tended, buys, promotions);
+    world = { ...world, mountain: tended };
+  }
+  return world;
+}
+
+/** A best-tending player re-tends after buying a staffed machine. */
+function tendsAfter(params: Policy["params"], action: Action): boolean {
+  return (
+    params.tend === "best" &&
+    action.kind === "buyTier" &&
+    tierById(action.id).staff > 0
+  );
+}
+
 function playSecond(
   world: World,
   policy: Policy,
@@ -164,17 +202,10 @@ function playSecond(
   promotions: PolicyPromotion[],
 ): World {
   const params = policy.params;
-  let mountain = world.mountain;
-  if (params.boosts === "always") {
-    for (const boost of BOOSTS) {
-      mountain = buyBoost({
-        mountain,
-        id: boost.id,
-        now: world.clock,
-        pricing: effectiveRates(mountain),
-      });
-    }
-  }
+  let mountain =
+    params.boosts === "always"
+      ? buyEveryBoost(world.mountain, world.clock)
+      : world.mountain;
   if (params.tend === "best") {
     mountain = tendBestTier(mountain);
   }
@@ -198,34 +229,7 @@ function playSecond(
     "live",
     fix === undefined ? undefined : { playerFixMs: fix },
   );
-  for (
-    let action = policy.decide({
-      mountain: world.mountain,
-      now: world.clock,
-      params,
-    });
-    action !== undefined && canPay(world.mountain, action, params.hoardK);
-    action = policy.decide({
-      mountain: world.mountain,
-      now: world.clock,
-      params,
-    })
-  ) {
-    const before = world.mountain;
-    let next = applyAction(before, action, world.clock);
-    if (next === before) {
-      break;
-    }
-    if (
-      params.tend === "best" &&
-      action.kind === "buyTier" &&
-      tierById(action.id).staff > 0
-    ) {
-      next = tendBestTier(next);
-    }
-    remember(world, before, action, next, buys, promotions);
-    world = { ...world, mountain: next };
-  }
+  world = buyWhileAffordable(world, policy, buys, promotions);
   const scouted = promoteAsap(world.mountain, params);
   const day = world.clock / DAY_MS + 1;
   for (const hire of scouted.hired) {

@@ -1,6 +1,6 @@
 import { milestoneMultiplier } from "../milestones";
 import { describe, expect, it } from "vitest";
-import { boostById, buyBoost, boostLeft } from "../boosts";
+import { BOOSTS, boostById, buyBoost, boostLeft } from "../boosts";
 import { buyCrew } from "../crew";
 import {
   promote,
@@ -54,6 +54,7 @@ import {
 import {
   applyAction,
   applyMove,
+  buyEveryBoost,
   buyWithTeach,
   listActions,
   sinkRecipes,
@@ -1595,5 +1596,38 @@ describe("applyMove (#409)", () => {
         moved.kind === "applied" ? moved.mountain : rich,
       );
     }
+  });
+});
+
+describe("buyEveryBoost", () => {
+  const NOW = 1_000_000;
+
+  it("starts every boost the pocket can pay, in catalogue order", () => {
+    const rich = { ...createMountain(), pocket: 1_000_000 };
+    const one = buyBoost({
+      mountain: rich,
+      id: "sharper",
+      now: NOW,
+      pricing: effectiveRates(rich),
+    });
+    const both = buyBoost({
+      mountain: one,
+      id: "overtime",
+      now: NOW,
+      pricing: effectiveRates(one),
+    });
+    expect(BOOSTS.map((boost) => boost.id)).toEqual(["sharper", "overtime"]);
+    expect(buyEveryBoost(rich, NOW)).toEqual(both);
+    expect(boostLeft(both, "sharper", NOW)).toBeGreaterThan(0);
+    expect(boostLeft(both, "overtime", NOW)).toBeGreaterThan(0);
+  });
+
+  it("leaves a running boost, and one the pocket cannot pay", () => {
+    const running = {
+      ...createMountain(),
+      pocket: 0,
+      boosts: { sharper: NOW + 1_000 },
+    };
+    expect(buyEveryBoost(running, NOW)).toBe(running);
   });
 });

@@ -26,7 +26,7 @@ import { TIERS, owned } from "../tiers";
 import { runPolicy } from "./run";
 import { scoreDecision } from "./score";
 import { mean, median } from "./stats";
-import { deadStretches } from "./stretch";
+import { deadStretches, type Stretch } from "./stretch";
 import { applyScope } from "./scope";
 import {
   CASUAL_REFERENCE_ID,
@@ -564,35 +564,40 @@ function stretchesFor(
   input: JudgedInput,
   grouped: ReadonlyMap<string, readonly PolicySeedRun[]>,
 ): readonly DeadStretchNote[] {
-  const notes: DeadStretchNote[] = [];
-  for (const policy of input.policies) {
-    for (const run of grouped.get(policy.id) ?? []) {
-      for (const score of ["payback", "value"] as const) {
-        for (const stretch of deadStretches(run.samples, score)) {
-          if (!(stretch.hours > REPORT_DEAD_HOURS)) {
-            continue;
-          }
-          const opening = [...run.samples]
-            .sort((left, right) => left.atMs - right.atMs)
-            .find((sample) => sample.atMs >= stretch.startMs);
-          const saving =
-            score === "value"
-              ? opening?.stretch.value.bestId
-              : opening?.stretch.payback.bestId;
-          notes.push({
-            policyId: policy.id,
-            label: policy.label,
-            seed: run.seed,
-            score,
-            startDay: dayNumber(stretch.startMs),
-            hours: stretch.hours,
-            savingFor: saving ?? "",
-            nextPaybackRatio:
-              opening?.stretch.nextPaybackRatio ?? Number.POSITIVE_INFINITY,
-          });
-        }
-      }
-    }
-  }
-  return notes;
+  return input.policies.flatMap((policy) =>
+    (grouped.get(policy.id) ?? []).flatMap((run) =>
+      (["payback", "value"] as const).flatMap((score) =>
+        deadStretches(run.samples, score)
+          .filter((stretch) => stretch.hours > REPORT_DEAD_HOURS)
+          .map((stretch) => stretchNote(policy, run, score, stretch)),
+      ),
+    ),
+  );
+}
+
+/** One dead stretch long enough to report, with what the run was saving for. */
+function stretchNote(
+  policy: Policy,
+  run: PolicySeedRun,
+  score: "payback" | "value",
+  stretch: Stretch,
+): DeadStretchNote {
+  const opening = [...run.samples]
+    .sort((left, right) => left.atMs - right.atMs)
+    .find((sample) => sample.atMs >= stretch.startMs);
+  const saving =
+    score === "value"
+      ? opening?.stretch.value.bestId
+      : opening?.stretch.payback.bestId;
+  return {
+    policyId: policy.id,
+    label: policy.label,
+    seed: run.seed,
+    score,
+    startDay: dayNumber(stretch.startMs),
+    hours: stretch.hours,
+    savingFor: saving ?? "",
+    nextPaybackRatio:
+      opening?.stretch.nextPaybackRatio ?? Number.POSITIVE_INFINITY,
+  };
 }

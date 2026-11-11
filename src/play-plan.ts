@@ -76,50 +76,50 @@ function parseTarget(kind: "tap" | "label", body: string): PlayTarget {
     : { by: "label", label: body };
 }
 
+type PlayError = { readonly kind: "error"; readonly message: string };
+
+const playError = (message: string): PlayError => ({ kind: "error", message });
+
 /** One action word, or why it is not one. */
-export function parseAction(
-  word: string,
-): PlayAction | { readonly kind: "error"; readonly message: string } {
+export function parseAction(word: string): PlayAction | PlayError {
   const colon = word.indexOf(":");
   const kind = colon === -1 ? word : word.slice(0, colon);
   const body = colon === -1 ? "" : word.slice(colon + 1).trim();
   if (kind !== "tap" && kind !== "label" && kind !== "wait") {
-    return {
-      kind: "error",
-      message: `Unknown action "${word}". Use tap:, label:, or wait:.`,
-    };
+    return playError(`Unknown action "${word}". Use tap:, label:, or wait:.`);
   }
   if (body === "") {
-    return {
-      kind: "error",
-      message: `"${word}" needs something after the colon.`,
-    };
+    return playError(`"${word}" needs something after the colon.`);
   }
-  if (kind === "wait") {
-    if (/^\d+$/.test(body)) {
-      const ms = Number(body);
-      return ms <= MAX_WAIT_MS
-        ? { kind: "wait", ms }
-        : {
-            kind: "error",
-            message: `"${word}" waits longer than ${String(MAX_WAIT_MS)} ms.`,
-          };
-    }
-    if (/^\d/.test(body)) {
-      return {
-        kind: "error",
-        message: `"${word}" is not whole milliseconds or a selector.`,
-      };
-    }
-    return { kind: "waitFor", target: { by: "selector", selector: body } };
+  return kind === "wait" ? parseWait(word, body) : parseTap(kind, word, body);
+}
+
+/** wait:<ms> or wait:<css>. */
+function parseWait(word: string, body: string): PlayAction | PlayError {
+  if (/^\d+$/.test(body)) {
+    const ms = Number(body);
+    return ms <= MAX_WAIT_MS
+      ? { kind: "wait", ms }
+      : playError(`"${word}" waits longer than ${String(MAX_WAIT_MS)} ms.`);
   }
+  if (/^\d/.test(body)) {
+    return playError(`"${word}" is not whole milliseconds or a selector.`);
+  }
+  return { kind: "waitFor", target: { by: "selector", selector: body } };
+}
+
+/** tap:<css> or label:<name>, with an optional *N. */
+function parseTap(
+  kind: "tap" | "label",
+  word: string,
+  body: string,
+): PlayAction | PlayError {
   const repeat = /^(.*\S)\s*\*(\d+)$/.exec(body);
   const times = repeat === null ? 1 : Number(repeat[2]);
   if (times < 1 || times > MAX_TAPS) {
-    return {
-      kind: "error",
-      message: `"${word}" repeats ${String(times)} times; use 1 to ${String(MAX_TAPS)}.`,
-    };
+    return playError(
+      `"${word}" repeats ${String(times)} times; use 1 to ${String(MAX_TAPS)}.`,
+    );
   }
   const target = parseTarget(
     kind,
@@ -152,83 +152,110 @@ function parseScreens(value: string): readonly PlayScreen[] | undefined {
   }
 }
 
+/** The plan as the flags fill it in. */
+type Draft = {
+  -readonly [K in keyof Omit<PlayPlan, "kind" | "actions">]: PlayPlan[K];
+};
+
+/** Sets one flag's value on the draft, or says why it cannot. */
+type FlagSetter = (
+  draft: Draft,
+  value: string,
+  saveNames: readonly string[],
+) => PlayError | undefined;
+
+const FLAGS: Readonly<Record<string, FlagSetter>> = {
+  "--save": (draft, value, saveNames) => {
+    if (!saveNames.includes(value)) {
+      return playError(
+        `Unknown save "${value}". Saves: ${saveNames.join(", ")}.`,
+      );
+    }
+    draft.save = value;
+    return undefined;
+  },
+  "--screen": (draft, value) => {
+    const chosen = parseScreens(value);
+    if (chosen === undefined) {
+      return playError(`--screen is phone, desktop, or both, not "${value}".`);
+    }
+    draft.screens = chosen;
+    return undefined;
+  },
+  "--out": (draft, value) => {
+    draft.out = value;
+    return undefined;
+  },
+  "--url": (draft, value) => {
+    draft.url = value;
+    return undefined;
+  },
+  "--search": (draft, value) => {
+    draft.search = value;
+    return undefined;
+  },
+  "--viewport": (draft, value) => {
+    const size = parsePhone(value);
+    if (size === undefined) {
+      return playError(
+        `--viewport is WIDTHxHEIGHT, e.g. 424x924, not "${value}".`,
+      );
+    }
+    draft.phone = size;
+    return undefined;
+  },
+};
+
+/** Reads one --flag (and its value, inline or the next word) onto the draft. */
+function applyFlag(
+  word: string,
+  rest: string[],
+  draft: Draft,
+  saveNames: readonly string[],
+): PlayError | undefined {
+  const eq = word.indexOf("=");
+  const flag = eq === -1 ? word : word.slice(0, eq);
+  const inline = eq === -1 ? undefined : word.slice(eq + 1);
+  const value = inline ?? rest.shift();
+  if (value === undefined || value === "" || value.startsWith("--")) {
+    return playError(`${flag} needs a value.`);
+  }
+  const setter = Object.hasOwn(FLAGS, flag) ? FLAGS[flag] : undefined;
+  return setter === undefined
+    ? playError(`Unknown option ${flag}.`)
+    : setter(draft, value, saveNames);
+}
+
 /** Reads `npm run play -- ...` arguments against the known save names. */
 export function parsePlayArgs(
   argv: readonly string[],
   saveNames: readonly string[],
 ): PlayArgs {
-  let save = "fresh";
-  let screens: readonly PlayScreen[] = ["phone", "desktop"];
-  let out = DEFAULT_OUT;
-  let url: string | undefined;
-  let phone = DEFAULT_PHONE;
-  let search = "";
+  const draft: Draft = {
+    save: "fresh",
+    screens: ["phone", "desktop"],
+    out: DEFAULT_OUT,
+    url: undefined,
+    phone: DEFAULT_PHONE,
+    search: "",
+  };
   const actions: PlayAction[] = [];
   const rest = [...argv];
   for (let word = rest.shift(); word !== undefined; word = rest.shift()) {
     if (word === "--help" || word === "-h") {
       return { kind: "help" };
     }
-    if (word.startsWith("--")) {
-      const eq = word.indexOf("=");
-      const flag = eq === -1 ? word : word.slice(0, eq);
-      const inline = eq === -1 ? undefined : word.slice(eq + 1);
-      const value = inline ?? rest.shift();
-      if (value === undefined || value === "" || value.startsWith("--")) {
-        return { kind: "error", message: `${flag} needs a value.` };
-      }
-      switch (flag) {
-        case "--save":
-          if (!saveNames.includes(value)) {
-            return {
-              kind: "error",
-              message: `Unknown save "${value}". Saves: ${saveNames.join(", ")}.`,
-            };
-          }
-          save = value;
-          break;
-        case "--screen": {
-          const chosen = parseScreens(value);
-          if (chosen === undefined) {
-            return {
-              kind: "error",
-              message: `--screen is phone, desktop, or both, not "${value}".`,
-            };
-          }
-          screens = chosen;
-          break;
-        }
-        case "--out":
-          out = value;
-          break;
-        case "--url":
-          url = value;
-          break;
-        case "--search":
-          search = value;
-          break;
-        case "--viewport": {
-          const size = parsePhone(value);
-          if (size === undefined) {
-            return {
-              kind: "error",
-              message: `--viewport is WIDTHxHEIGHT, e.g. 424x924, not "${value}".`,
-            };
-          }
-          phone = size;
-          break;
-        }
-        default:
-          return { kind: "error", message: `Unknown option ${flag}.` };
-      }
-      continue;
+    const read = word.startsWith("--")
+      ? applyFlag(word, rest, draft, saveNames)
+      : parseAction(word);
+    if (read?.kind === "error") {
+      return read;
     }
-    const action = parseAction(word);
-    if (action.kind === "error") {
-      return action;
+    if (read !== undefined) {
+      actions.push(read);
     }
-    actions.push(action);
   }
+  const { save, screens, out, url, phone, search } = draft;
   return { kind: "plan", save, screens, actions, out, url, phone, search };
 }
 

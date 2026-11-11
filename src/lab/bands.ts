@@ -390,6 +390,28 @@ export function fewestMachineBuys(samples: readonly DecisionSample[]): number {
  * and the band that suits them brings them back.
  */
 export function scopedRule3Misses(samples: readonly DecisionSample[]): number {
+  const { opened, affordable, bought } = bandLedger(samples);
+  let misses = 0;
+  for (const id of MACHINE_IDS) {
+    for (const layer of scopedBands(id, opened)) {
+      const key = `${layer}:${id}`;
+      if (affordable.has(key) && !bought.has(key)) {
+        misses += 1;
+      }
+    }
+  }
+  return misses;
+}
+
+/**
+ * Where each machine first showed, and the `layer:tier` keys where the pocket
+ * reached its price and where one was bought.
+ */
+function bandLedger(samples: readonly DecisionSample[]): {
+  readonly opened: ReadonlyMap<MachineId, LayerId>;
+  readonly affordable: ReadonlySet<string>;
+  readonly bought: ReadonlySet<string>;
+} {
   const opened = new Map<MachineId, LayerId>();
   const affordable = new Set<string>();
   const bought = new Set<string>();
@@ -407,26 +429,25 @@ export function scopedRule3Misses(samples: readonly DecisionSample[]): number {
       bought.add(key);
     }
   }
-  let misses = 0;
-  for (const id of MACHINE_IDS) {
-    const bands = new Set<LayerId>();
-    const open = opened.get(id);
-    if (open !== undefined) {
-      bands.add(open);
-    }
-    for (const layer of FAVOURED_LAYERS) {
-      if (favouredOf(layer) === id) {
-        bands.add(layer);
-      }
-    }
-    for (const layer of bands) {
-      const key = `${layer}:${id}`;
-      if (affordable.has(key) && !bought.has(key)) {
-        misses += 1;
-      }
+  return { opened, affordable, bought };
+}
+
+/** The bands rule 3 checks for a machine: where it opened, and where it is favoured. */
+function scopedBands(
+  id: MachineId,
+  opened: ReadonlyMap<MachineId, LayerId>,
+): ReadonlySet<LayerId> {
+  const bands = new Set<LayerId>();
+  const open = opened.get(id);
+  if (open !== undefined) {
+    bands.add(open);
+  }
+  for (const layer of FAVOURED_LAYERS) {
+    if (favouredOf(layer) === id) {
+      bands.add(layer);
     }
   }
-  return misses;
+  return bands;
 }
 
 /** Worst sittings from a machine showing to its first buy. NaN with none. */

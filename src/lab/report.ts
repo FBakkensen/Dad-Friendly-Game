@@ -53,24 +53,37 @@ type Miss = {
 
 /** What missed, grouped by guardrail. A clean run says the guardrails hold. */
 export function labSuggestions(result: TournamentResult): readonly string[] {
-  const notes: string[] = [];
+  const notes = [
+    ...[...missesByTarget(result).values()].map(missText),
+    ...listNotes(result),
+    ...result.deadStretches.map(stretchText),
+  ];
+  if (notes.length === 0) {
+    return [`Every guardrail in this run holds. ${SUGGESTION}`];
+  }
+  return notes;
+}
+
+/** Every failed judgement, grouped by guardrail in the order they first miss. */
+function missesByTarget(
+  result: TournamentResult,
+): ReadonlyMap<string, readonly Miss[]> {
   const misses = new Map<string, Miss[]>();
   for (const row of result.rows) {
     for (const cell of row.cells) {
-      for (const judgement of cell.judgements) {
-        if (judgement.pass) {
-          continue;
-        }
+      for (const judgement of cell.judgements.filter((each) => !each.pass)) {
         const group = misses.get(judgement.targetId) ?? [];
         group.push({ row, cell, judgement });
         misses.set(judgement.targetId, group);
       }
     }
   }
-  for (const group of misses.values()) {
-    notes.push(missText(group));
-  }
-  for (const column of result.columns) {
+  return misses;
+}
+
+/** One note per list measure that named something in any row. */
+function listNotes(result: TournamentResult): readonly string[] {
+  return result.columns.flatMap((column) => {
     const named = result.rows.filter((row) => {
       const cell = row.cells.find((item) => item.measureId === column.id);
       return (
@@ -78,18 +91,10 @@ export function labSuggestions(result: TournamentResult): readonly string[] {
       );
     });
     const sample = named[0]?.cells.find((item) => item.measureId === column.id);
-    if (sample === undefined) {
-      continue;
-    }
-    notes.push(listText(column.label, sample.unit, sample.why, named.length));
-  }
-  for (const stretch of result.deadStretches) {
-    notes.push(stretchText(stretch));
-  }
-  if (notes.length === 0) {
-    return [`Every guardrail in this run holds. ${SUGGESTION}`];
-  }
-  return notes;
+    return sample === undefined
+      ? []
+      : [listText(column.label, sample.unit, sample.why, named.length)];
+  });
 }
 
 /** Markdown a person can read. Numbers come from the result; the shape does not. */

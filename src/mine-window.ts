@@ -405,41 +405,12 @@ export function machinesStep(
   const s = open(m);
   const step = Math.min(dt, MAX_DT);
   const events: HaulageEvent[] = [...s.pending];
-
-  let sheave = sheaveTick(s.sheave, step);
-  let run = haulageRest();
-  if (scene.run) {
-    const hauled = haulageStep(s.run, step, scene.trouble === "cart");
-    run = hauled.next;
-    for (const event of hauled.events) {
-      if (event.kind === "sheave") {
-        sheave = { ...sheave, fast: Math.max(sheave.fast, event.seconds) };
-      } else {
-        events.push(event);
-      }
-    }
-  }
-
-  let drill = DRILL_REST_STATE;
-  if (scene.drills > 0) {
-    drill = scene.trouble === "drill" ? s.drill : drillTick(s.drill, step);
-  }
-
-  let borer = BORER_REST;
-  let tarp: Tarp | null = null;
-  if (scene.borers > 0) {
-    if (s.tarp) {
-      borer = s.borer;
-      tarp = tarpTick(s.tarp, step);
-    } else {
-      borer =
-        scene.trouble === "borer" ? s.borer : borerTick(s.borer, step, random);
-    }
-  }
-
+  const { sheave, run } = haulTick(s, step, scene, events);
+  const drill =
+    scene.drills > 0 ? drillStep(s.drill, step, scene) : DRILL_REST_STATE;
+  const { borer, tarp } = borerStep(s, step, scene, random);
   const caveIn =
     scene.trouble === "cart" ? caveInTick(s.caveIn ?? LOOP_REST, step) : null;
-
   const next: State = {
     sheave,
     steam: loopTick(s.steam, step, STEAM_STEP),
@@ -452,6 +423,54 @@ export function machinesStep(
     pending: [],
   };
   return { next: seal(next), events };
+}
+
+/**
+ * The sheave and the haulage run. A run's sheave event speeds the sheave;
+ * its other events go out with this step's.
+ */
+function haulTick(
+  s: State,
+  step: number,
+  scene: WindowScene,
+  events: HaulageEvent[],
+): { readonly sheave: Sheave; readonly run: Haulage } {
+  let sheave = sheaveTick(s.sheave, step);
+  if (!scene.run) {
+    return { sheave, run: haulageRest() };
+  }
+  const hauled = haulageStep(s.run, step, scene.trouble === "cart");
+  for (const event of hauled.events) {
+    if (event.kind === "sheave") {
+      sheave = { ...sheave, fast: Math.max(sheave.fast, event.seconds) };
+    } else {
+      events.push(event);
+    }
+  }
+  return { sheave, run: hauled.next };
+}
+
+/** The drill turns, unless it is in trouble. */
+function drillStep(drill: Drill, step: number, scene: WindowScene): Drill {
+  return scene.trouble === "drill" ? drill : drillTick(drill, step);
+}
+
+/** The borer cuts, unless its tarp is still coming off or it is in trouble. */
+function borerStep(
+  s: State,
+  step: number,
+  scene: WindowScene,
+  random: () => number,
+): { readonly borer: Borer; readonly tarp: Tarp | null } {
+  if (scene.borers <= 0) {
+    return { borer: BORER_REST, tarp: null };
+  }
+  if (s.tarp) {
+    return { borer: s.borer, tarp: tarpTick(s.tarp, step) };
+  }
+  const borer =
+    scene.trouble === "borer" ? s.borer : borerTick(s.borer, step, random);
+  return { borer, tarp: null };
 }
 
 /** What to draw. A trouble holds its machine on frame 0 at once, before the next step. */
