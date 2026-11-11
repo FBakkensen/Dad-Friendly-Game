@@ -27,7 +27,8 @@ export function holdForRush(
     mined,
     Math.floor((RUSH_MULTIPLIER - 1) * crewPerSecond * (RUSH_MS / 1000) + 1e-9),
   );
-  if (bank <= 0) {
+  // A mountain dug out has no vein left to bring the rush.
+  if (bank <= 0 || mountain.remaining === 0) {
     return mountain;
   }
   return { ...mountain, pocket: mountain.pocket - bank, rushBank: bank };
@@ -99,10 +100,14 @@ export function payRush(
   from: number,
   seconds: number,
 ): { readonly mountain: Mountain; readonly paid: number } {
+  const bank = mountain.rushBank ?? 0;
+  // At the bottom no vein comes again, so whatever is held lands now.
+  if (mountain.remaining === 0 && mountain.rushBank !== undefined) {
+    return { mountain: releaseRush(mountain), paid: bank };
+  }
   if (mountain.rushUntil === undefined) {
     return { mountain, paid: 0 };
   }
-  const bank = mountain.rushBank ?? 0;
   const to = from + seconds * 1000;
   if (rushLeft(mountain, to) === 0) {
     return { mountain: releaseRush(mountain), paid: bank };
@@ -143,7 +148,9 @@ export function resumeRush(
   if (rushLeft(mountain, from) === 0) {
     return releaseRush(mountain);
   }
-  return { ...mountain, rushUntil: mountain.rushUntil + gap };
+  // Read on the new clock: what was left at `from` is left at `to`, so a
+  // device whose clock is behind cannot freeze the rush.
+  return { ...mountain, rushUntil: to + rushLeft(mountain, from) };
 }
 
 /**

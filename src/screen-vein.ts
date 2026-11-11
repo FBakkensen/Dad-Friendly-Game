@@ -102,7 +102,13 @@ export function createVein(
   };
 
   const step = (): void => {
-    if (!ctx.view().ready || ctx.view().mountain.remaining === 0) {
+    // A hidden tab still ticks for a while; its time is skipped on the
+    // way back (`listen`), so the vein, quick or not, never glints unseen.
+    if (
+      !ctx.view().ready ||
+      ctx.view().mountain.remaining === 0 ||
+      document.visibilityState === "hidden"
+    ) {
       return;
     }
     const at = now();
@@ -200,6 +206,11 @@ function createQuickVein(
           return quickVein(at);
         }
       }
+      // Stones that went another way (another device's save, an hour away
+      // that landed them) leave no Gold rush to bring.
+      if (quick && vein.kind === "waiting" && !rushOwed(ctx.view().mountain)) {
+        quick = false;
+      }
       return quick && covered()
         ? pauseVein(vein, Math.min(since, STEP_MAX_MS))
         : vein;
@@ -211,7 +222,7 @@ function createQuickVein(
       }
     },
     take: () => {
-      const was = quick;
+      const was = quick && rushOwed(ctx.view().mountain);
       quick = false;
       return was;
     },

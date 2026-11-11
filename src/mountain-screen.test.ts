@@ -963,6 +963,35 @@ describe("golden vein on screen", () => {
       }
     });
 
+    it("holds while the tab is hidden", async () => {
+      vi.useFakeTimers();
+      const setVisibility = (state: DocumentVisibilityState) => {
+        Object.defineProperty(document, "visibilityState", {
+          configurable: true,
+          get: () => state,
+        });
+        document.dispatchEvent(new Event("visibilitychange"));
+      };
+      try {
+        const { screen, vein, tick } = opened(2 * HOUR);
+        await tick(1_000);
+        closeWelcome(screen);
+        await tick(10_000);
+        setVisibility("hidden");
+        // a desktop tab keeps ticking for a while, unseen
+        await tick(40_000);
+        setVisibility("visible");
+        await tick(9_000);
+        expect(vein.hidden).toBe(true);
+        await tick(1_000);
+        expect(vein.hidden).toBe(false);
+        expect(screen.progress.getSnapshot().mountain.rushBank).toBe(3_240);
+      } finally {
+        setVisibility("visible");
+        vi.useRealTimers();
+      }
+    });
+
     it("holds while a drawer covers the mine window", async () => {
       vi.useFakeTimers();
       try {

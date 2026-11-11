@@ -81,13 +81,33 @@ describe("the Gold rush", () => {
 
   it("pays what is left at once when the mountain bottoms out", () => {
     const rushed = startRush(
-      holdForRush({ ...crew(), pocket: 50_000, remaining: 0 }, 50_000, 10),
+      {
+        ...holdForRush({ ...crew(), pocket: 50_000 }, 50_000, 10),
+        remaining: 0,
+      },
       T,
     );
     expect(rushLeft(rushed, T)).toBe(0);
     const paid = payRush(rushed, T, 1);
     expect(paid.paid).toBe(8_100);
     expect(paid.mountain.pocket).toBe(50_000);
+  });
+
+  it("holds nothing on a dug-out mountain, and lands an owed hold at the bottom", () => {
+    expect(
+      holdForRush({ ...crew(), remaining: 0 }, 50_000, 10),
+    ).not.toHaveProperty("rushBank");
+    const owed = { ...holdForRush(crew(), 50_000, 10), remaining: 0 };
+    const landed = payRush(owed, T, 1);
+    expect(landed.paid).toBe(8_100);
+    expect(landed.mountain).not.toHaveProperty("rushBank");
+  });
+
+  it("keeps its time left on a device whose clock is behind", () => {
+    const rushed = startRush(holdForRush(crew(), 50_000, 10), T);
+    // the other device stopped 30 s in; this one reads five minutes earlier
+    const back = resumeRush(rushed, T + 30_000, T + 30_000 - 5 * 60_000);
+    expect(rushLeft(back, T + 30_000 - 5 * 60_000)).toBe(60_000);
   });
 
   it("cannot be stretched by a clock set back", () => {

@@ -1,3 +1,4 @@
+import { withoutRush } from "./gold-rush";
 import { crewCounts } from "./crew-count";
 import { tierLocked } from "./crew";
 import { staffForBuy } from "./engineers";
@@ -81,7 +82,8 @@ export function readyNow(
   if (mountain.pocket >= pick.price) {
     return { kind: "ready", tier: pick.tier, price: pick.price, gain, free };
   }
-  const speed = stonesPerSecond(mountain, now, trouble);
+  // The wait reads the crew without a Gold rush: 90 seconds are not its pace (#468).
+  const speed = stonesPerSecond(withoutRush(mountain), now, trouble);
   const etaMs = ((pick.price - mountain.pocket) / speed) * 1000;
   return {
     kind: "saving",
