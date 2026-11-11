@@ -1268,7 +1268,8 @@ async function main() {
     await opened.page.waitForSelector(".legacy-dialog:not([hidden])");
     await drawerGone(opened.page, "ledger");
     await cardRisen(opened.page, "legacy");
-    await expectText(opened.page, /Pass it on/, "legacy confirm");
+    // The plates set their words in capitals.
+    await expectText(opened.page, /Pass it on/i, "legacy confirm");
     return opened;
   });
   await capture("welcome-back", async (viewport) => {

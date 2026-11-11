@@ -2999,8 +2999,9 @@ button.board-row:focus-visible {
   flex-direction: column;
   gap: calc(var(--art) * 1);
   margin: 0;
-  /* The inset's bottom edge is 9 art px: the last line stands clear of it. */
-  padding: calc(var(--art) * 4) calc(var(--art) * 4) calc(var(--art) * 9);
+  /* Clear of the inset's edges: 11 art px top and left, 9 right and bottom. */
+  padding: calc(var(--art) * 11) calc(var(--art) * 9) calc(var(--art) * 9)
+    calc(var(--art) * 11);
 }
 
 .saved-copy > .board-card-line {

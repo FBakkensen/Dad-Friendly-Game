@@ -124,10 +124,13 @@ page is the map, plus the rules that keep it that way.
    `mountain-screen-order.test.ts` pins the order the parts register their
    listeners, the effect row's chips and the root's children. Panels are
    their own modules with a `create…Panel` factory returning their elements
-   and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `ledger-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). The six board cards (#464) are built
+   and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `ledger-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). The eight board cards (#464, #466) are built
    on one shell, `board-card`: `welcome-panel` (welcome back), `arrival-panel`
-   (the layer card and craft done), `save-conflict-panel` (the save conflict)
-   and `screen-prompts` (the other tab and the update). What the welcome,
+   (the layer card and craft done), `save-conflict-panel` (the save conflict),
+   `screen-prompts` (the other tab and the update), `saved-copies-panel`
+   (Saved copies: an inset per copy, built once per copy and rewritten line
+   by line, in a list that scrolls inside the face) and `legacy-panel` (Pass
+   the mine, an alert dialog; Escape is Not yet). What the welcome,
    layer and craft-done cards show comes from `card-views`, pure and with no
    DOM: `welcomeView`, `welcomeNews` (the one rule for when the welcome has
    news, which `arrivalCard` also reads) and `arrivalCard` (the layer card,
@@ -323,7 +326,8 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    key); the field log shows on the other when `writeClipboard` says no.
    Copy field log's `Copied` is the board model's `result` and hold, as a
    row's Done. Saved copies and Pass the mine close the drawer without
-   moving focus and open today's cards until B7c (#465). Tonight
+   moving focus and open their board cards (#466), which give the focus
+   back to the Ledger key when they close. Tonight
    reads `progress.tonightEvents()` only while the drawer is open: the
    ring's events since its mark, which a run's start clears and a copy from
    elsewhere taking the mountain's place (a restore, the cloud's or another
