@@ -39,15 +39,17 @@ Do not fake links in markdown instead.
 
 ## Triage
 
-Flemming writes every new issue, so triage only sorts open issues by readiness and claims. Three labels say where a leaf issue stands. A leaf is an open issue with no open sub-issues.
+Flemming writes every issue that gets built. Triage sorts open issues by readiness and keeps claims truthful. It never rewrites an issue. Three labels say where a leaf issue stands. A leaf is an open issue with no open sub-issues.
 
 - **`ready-for-agent`:** no open `blocked-by`, a **Done when** line, and none of the three stops in `superpowers.md` up front, nor a design call that is Flemming's. Any thread may claim it.
 - **`needs-you`:** it waits for Flemming: a design or product call, a line of copy, art or PixelLab spend, or a guardrail limit. The label goes with a comment that asks the question in one sentence.
 - **`agent-working`:** a thread has claimed it and is building it now.
 
-A leaf carries at most one of the three. A blocked issue and a parent carry none: the graph already says why they wait. When a blocker closes, the issue it blocked gets triaged. An issue that may hit a stop partway (say, art only if a measured trigger fires) is still `ready-for-agent`; the thread asks at the stop.
+A leaf carries at most one of the three. A blocked issue and a parent carry none: the graph already says why they wait. A hill-climb `maybe` issue carries none until Flemming promotes it. An issue an agent filed is `needs-you` with a one-line "Build this?" comment, so nothing gets built that Flemming has not seen. An issue that may hit a stop partway (say, art only if a measured trigger fires) is still `ready-for-agent`; the thread asks at the stop.
 
-Read and set labels with the REST API (or the MCP `issue_write` tool):
+The thread that merges triages the issues its merge unblocked (its `blocking` list), and the scheduled triage pass catches the rest.
+
+Read and set labels one at a time with the REST API. The MCP `issue_write` tool replaces the whole label list, so two writers can drop each other's labels. A DELETE of a label that is already gone returns 404.
 
 ```bash
 gh api repos/FBakkensen/Dad-Friendly-Game/issues/<n>/labels --jq '.[].name'
@@ -55,9 +57,19 @@ gh api -X POST repos/FBakkensen/Dad-Friendly-Game/issues/<n>/labels -f 'labels[]
 gh api -X DELETE repos/FBakkensen/Dad-Friendly-Game/issues/<n>/labels/ready-for-agent
 ```
 
-**Claim** before the branch: read the labels again, and if the issue is not still `ready-for-agent`, pick another. Otherwise add `agent-working`, then remove `ready-for-agent`.
+**Claim** before the branch. Every thread writes as the same GitHub user, so the claim is a comment as well as a label:
 
-**Release:** the merge closes the issue (`Fixes #N`), and the label stays on the closed issue. A thread that stops at one of the three stops, or is given up, swaps `agent-working` for `needs-you` (with the question) or back to `ready-for-agent`.
+1. Add `agent-working`, remove `ready-for-agent`, and comment `Claimed by <thread link>, branch <branch>`.
+2. Read the comments. If an earlier claim comment has no `Released` comment after it, the other thread holds the issue: remove nothing, comment `Released`, and pick again.
+
+A thread Flemming started on an issue takes it whatever its label (his start is the answer) and claims it. Picking again applies only to work an agent chose itself. An agent claims self-chosen work only while fewer than two open issues carry `agent-working`.
+
+**Release:**
+
+- **Merged:** the merge closes the issue (`Fixes #N`). Remove `agent-working` from it.
+- **At a stop:** the thread swaps `agent-working` for `needs-you`, comments the question, and keeps its branch. When Flemming answers, the same thread swaps it back and goes on.
+- **Given up, or the PR closed unmerged:** comment `Released` and set `ready-for-agent` again (or `needs-you` with the question).
+- **Stale:** the triage pass releases a claim whose thread has stopped or failed, or whose branch and PR have been quiet for a day, with a `Released` comment that says why. It moves `needs-you` back to `ready-for-agent` only when no thread or branch still holds the issue.
 
 ## One issue is one sliver
 
@@ -67,7 +79,7 @@ If the human (or the agent) wants more:
 
 1. Stop enlarging the current issue.
 2. Suggest a **new** issue. Show title, parent, `blocked-by` / `blocking`.
-3. Create it only after they say yes. In an agent-run sitting (no one to ask), file it yourself with its links and triage label, and name it in the PR body.
+3. Create it only after they say yes. In an agent-run sitting (no one to ask), file it yourself with its links, `blocked-by` this issue when it builds on this branch, labelled `needs-you` with "Build this?" (Triage), and name it in the PR body.
 4. Do not start that issue. Do not branch, implement, or open a PR for it until this sitting's PR is done and they pick it.
 
 A new idea worth its own sitting follows the same path. A nit or small follow-up does not (see Create). Neither sneaks into the current PR.
@@ -96,7 +108,7 @@ Not every idea is an issue. A review nit or small follow-up goes in the PR body 
 ## Work and PRs
 
 - No issue, no implementation. File it, then code.
-- Do not start an issue that is still blocked, or one labelled `agent-working` or `needs-you`. Claim it first (Triage).
+- Do not start an issue that is still blocked, or one labelled `agent-working` or `needs-you` unless Flemming started the thread on it. Claim it first (Triage).
 - One branch and one PR per sitting. Never a second branch or a stacked PR for the same sitting. Several sittings may run at once, each on its own claimed issue.
 - One PR closes one issue (`Fixes #N`).
 - If the diff grows a second sliver, stop. File the second issue. Do not start it. Keep this PR on `#N`.

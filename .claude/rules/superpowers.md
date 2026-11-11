@@ -24,5 +24,6 @@ The superpowers plugin (`superpowers@claude-plugins-official`, enabled in `.clau
 
   Ask it as one question with three options and one recommended. Everything else is a ruling, as superpowers says: decide, record it in the ledger, and keep going. That includes prices, growth rates, and band scales inside the levers the plan agreed on. Rulings also go in the PR body (ship-sitting).
 
+- **Agent-run sittings.** A thread on a claimed issue with no one in the conversation answers brainstorming's questions as rulings, approves its own design, and records both in the ledger and the PR body. A product or design call that is Flemming's, or one of the three stops, swaps the issue to `needs-you` (github-issues, Triage) and waits.
 - **Worktrees.** None. Work in place on the sitting's branch. That is the declared preference `superpowers:using-git-worktrees` asks for.
 - **Style.** The three-option question is for picking work (what-next) and the three stops. Brainstorming asks its own way. Commit messages follow the repo's style (`M13-5: ...` or a plain sentence), not `feat:` prefixes.

@@ -48,7 +48,7 @@ No checks run on GitHub for a PR. The proof is the gate, run by hand, and the `s
 
 Use `superpowers:requesting-code-review` on the branch diff that would merge (`origin/main...HEAD`). If a superpowers plan just ended with a final whole-branch review by a fresh reviewer (and its scoped re-review, if any) and nothing has been committed since, that review counts. A self-review never counts. The review brief asks the reviewer to search the codebase, not only the diff, for an existing mechanism the change copies or should have used: a copy is an Important finding.
 
-Do not open the PR until the review returns only Minor findings, or none. Every Critical or Important finding still open is a non-nit, including one a plan parked with a ruling. Fix it, commit, and review again. If you judge a finding wrong, dismiss it and say why under Rulings. If it turns on a product or design call, ask the human as one question with three options and one recommended. Minor findings are nits and may ship. If a non-nit is still there after two fix rounds, stop and ask.
+Do not open the PR until the review returns only Minor findings, or none. Every Critical or Important finding still open is a non-nit, including one a plan parked with a ruling. Fix it, commit, and review again. If you judge a finding wrong, give the reviewer your reason in the scoped re-review. Dismiss it, with the reason under Rulings, only if the reviewer agrees. If it turns on a product or design call, ask the human as one question with three options and one recommended. Minor findings are nits and may ship. If a non-nit is still there after two fix rounds, stop and ask.
 
 ## Open the PR
 
@@ -79,7 +79,7 @@ In a cloud session, subscribe to the PR (`subscribe_pr_activity`) and let events
 3. Handle review comments with `superpowers:receiving-code-review`. Fix real in-scope issues. Dismiss invalid ones with a reason. Ask the human on auth, secrets, security, or a real product question. Nits do not block merge.
 4. Run the fast gate on every fix, commit, and push. Before merging, after any push (a fix, or `main` merged into the branch with `update_pull_request_branch` and pulled), run `npm run gate -- full`, then `npm run gate -- signoff`. Never force-push.
 
-When the PR is mergeable, its head commit has a green `signoff` (`gh api repos/{owner}/{repo}/commits/<sha>/status`), and every non-nit comment is fixed or dismissed, it is ready. Squash-merge it. Do not wait for Flemming's "merge": he made Claude responsible for reviews and merges (2026-11-11). Wait only when a product or design call is still open on the PR.
+When the PR is mergeable, its head commit has a green `signoff` (`gh api repos/{owner}/{repo}/commits/<sha>/status`), and every non-nit comment is fixed or dismissed, it is ready. Squash-merge it. Do not wait for Flemming's "merge": he made Claude responsible for reviews and merges (2026-11-11). Wait only when a product or design call is still open on the PR: then swap the issue's `agent-working` for `needs-you` and ask (github-issues, Triage).
 
 Merge with the GitHub MCP `merge_pull_request` tool (squash) in a cloud session, or `gh pr merge --squash` elsewhere. Then:
 
@@ -88,4 +88,4 @@ git checkout main
 git pull
 ```
 
-Do not delete the local feature branch unless asked. The sitting ends here: return the PR URL.
+Remove `agent-working` from the closed issue, and triage the issues it was blocking (github-issues, Triage). Do not delete the local feature branch unless asked. The sitting ends here: return the PR URL.
