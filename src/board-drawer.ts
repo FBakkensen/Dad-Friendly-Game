@@ -364,7 +364,8 @@ interface BoardSheetOptions {
    * measures here, and sends the layout the open then freezes.
    */
   onOpen?: () => void;
-  onClose?: () => void;
+  /** The drawer shut, and how: a player's close, or the program's (#465). */
+  onClose?: (by: CloseBy) => void;
   /** The drawer moved on (opened, paged or closed): the panel forgets its rows' presses. */
   onForget?: () => void;
   /**
@@ -475,7 +476,7 @@ export function createBoardSheet({
     root.classList.remove("is-open");
     door?.setAttribute("aria-expanded", "false");
     setHow(parts, false);
-    onClose?.();
+    onClose?.(by);
     const target = restoreFocus ? focusBackTo(from, fallbackFocus) : undefined;
     if (target !== undefined) {
       focusQuietly(target);

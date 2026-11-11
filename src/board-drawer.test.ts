@@ -250,6 +250,20 @@ describe("the drawer shell", () => {
       expect(document.activeElement).toBe(key);
       expect(onOpen).toHaveBeenCalledTimes(1);
       expect(onClose).toHaveBeenCalledTimes(1);
+      expect(onClose).toHaveBeenCalledWith("program");
+    });
+
+    it("tells onClose how it closed: Back by finger, Escape by keyboard (#465)", () => {
+      const onClose = vi.fn();
+      const sheet = make({ onClose });
+      sheet.open();
+      time += 1000;
+      press(sheet.back);
+      expect(onClose).toHaveBeenLastCalledWith("finger");
+      sheet.open();
+      time += 1000;
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      expect(onClose).toHaveBeenLastCalledWith("keyboard");
     });
 
     it("calls onOpen on the open drawer, before the board's model hears the open", () => {

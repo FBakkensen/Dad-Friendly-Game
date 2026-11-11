@@ -99,6 +99,10 @@ export function createBoardFace(
   deps: {
     readonly runningNow: ReturnType<typeof createRunningNow>;
     readonly legacy: ReturnType<typeof createLegacyPanel>;
+    /** A card that opens itself is up: the relic reveal waits for it (#465). */
+    readonly cardUp: () => boolean;
+    /** Shuts every drawer but the relics drawer, as a key does (#465). */
+    readonly closeOtherDrawers: () => void;
   },
 ): {
   boardNote: BoardNote;
@@ -107,7 +111,7 @@ export function createBoardFace(
   top: ReturnType<typeof createBoardTop>;
 } {
   const { root, progress, auth, now, signal } = ctx;
-  const { runningNow, legacy } = deps;
+  const { runningNow, legacy, cardUp, closeOtherDrawers } = deps;
   // The board (#370): the note, the relic plate, the odometer, the boost dial
   // and the save line. The note is placed in board coordinates inside root.
   const boardNote = createBoardNote(root, signal, runningNow.park);
@@ -127,19 +131,26 @@ export function createBoardFace(
     note: boardNote,
     runningNow,
     legacy,
-    closeBoardPopups,
+    overSave: () => saveLine.isOpen(),
+    cardUp,
+    beforeOpen: () => {
+      closeBoardPopups();
+      closeOtherDrawers();
+    },
   });
   return { boardNote, saveLine, closeBoardPopups, top };
 }
 
-/** The relic shelf and cards, then the board's top: the relic plate, the odometer and the dial. */
+/** The relics drawer, then the board's top: the relic plate, the odometer and the dial. */
 function createBoardTop(
   ctx: ScreenCtx,
   deps: {
     readonly note: BoardNote;
     readonly runningNow: ReturnType<typeof createRunningNow>;
     readonly legacy: ReturnType<typeof createLegacyPanel>;
-    readonly closeBoardPopups: () => void;
+    readonly overSave: () => boolean;
+    readonly cardUp: () => boolean;
+    readonly beforeOpen: () => void;
   },
 ): {
   relics: ReturnType<typeof createRelicPanels>;
@@ -152,31 +163,24 @@ function createBoardTop(
   paintRelics(): void;
   paintPlate(): void;
 } {
-  const { progress, now } = ctx;
-  const { veinUrl, relicArt } = ctx.art;
-  const { note, runningNow, legacy, closeBoardPopups } = deps;
-  /** The socket whose note opened the shelf: focus goes back there. */
-  let shelfDoor: HTMLElement | undefined;
+  const { progress, now, board, signal } = ctx;
+  const { note, runningNow, legacy } = deps;
   const relics = createRelicPanels({
     progress,
     getView: ctx.view,
-    relicArt,
-    keepsakeUrl: veinUrl,
-    onPassTheMine: () => {
-      legacy.open(undefined);
-    },
-    onShelfClosed: () => {
-      shelfDoor?.focus();
-    },
-    requestRender: ctx.paint,
+    board,
+    overSave: deps.overSave,
+    cardUp: deps.cardUp,
+    beforeOpen: deps.beforeOpen,
+    legacy,
+    signal,
   });
+  // A close gives focus back to the socket whose note held the Relic shelf key.
   const relicPlate = createRelicPlate({
     getView: ctx.view,
     note,
     onShelf: (from) => {
-      shelfDoor = from;
-      closeBoardPopups();
-      relics.openShelf();
+      relics.open(from);
     },
   });
   /** The Running now note stays a little longer than a relic's: it is a list. */
@@ -321,20 +325,14 @@ export function createSheetPanels(
 /** The cards, in the order they stand in the root. */
 export function cardsFrom(
   early: ReturnType<typeof createEarlyCards>,
-  top: ReturnType<typeof createBoardTop>,
   sheets: ReturnType<typeof createSheetPanels>,
   extra: { readonly updatePrompt: HTMLElement; readonly otherTab: HTMLElement },
 ): HTMLElement[] {
   const { arrival, legacy } = early;
-  const { reveal, legend, shelf, detail } = top.relics;
   return [
     early.welcome,
     arrival.layer,
     arrival.notice,
-    reveal,
-    legend,
-    shelf,
-    detail,
     legacy.dialog,
     sheets.engineers.sheet,
     extra.updatePrompt,

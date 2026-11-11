@@ -22,7 +22,7 @@ One drawer, `relics`, with no key on the rail. It holds one of four screens:
 ## Rulings
 
 1. **Pages, not cards.** The relic family lives in one drawer, as the spec's table reads, and not on B7b's card shell. B7a's plan had put B7c on that shell; the drawer needs no shell of its own, so B7c can ship alongside B7b.
-2. **The reveal waits for the cards that open themselves** (welcome back, a layer's arrival, craft done, the conflict, other tab, update), as it waits for welcome back today. A card that comes up over it closes the drawer by program; that close does not carry the relic, so the reveal comes back once the card goes. Today the reveal stood over the arrival card; now the arrival goes first.
+2. **The reveal waits for any card that is up** (welcome back, the conflict, other tab, update, Pass the mine), as it waits for welcome back today. A card that comes up over it closes the drawer by program; that close does not carry the relic, so the reveal comes back once the card goes. The layer arrival and craft done cards already wait for the reveal, as today.
 3. **Any close of the reveal carries the relic**, except a program close (rule 2). Closing it is the player saying "seen". A close of the Mantle's reveal opens the Legend.
 4. **A not-yet-found row blinks** when tapped, as any drawer row that cannot act does. Today those rows ignored the tap.
 5. **The drawer's title is "Relics of Fatherhood"**, the plate tag's words, and its kick "2 of 6 found", the sockets' count words. No new copy. Every other line is today's.

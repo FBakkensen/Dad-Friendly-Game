@@ -2746,6 +2746,163 @@ button.board-row:focus-visible {
   display: none;
 }
 
+/* ---------- the relics drawer (#465) ---------- */
+
+/* A page of the relics drawer: a found relic's detail, the reveal, or the Legend. Centred, as
+   the old cards were, with the relic at 24 art px. */
+.relic-page {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--art) * 4);
+  padding: calc(var(--art) * 8);
+  text-align: center;
+}
+
+.relic-page > .board-platebtn,
+.relic-page-answers {
+  align-self: stretch;
+  flex: none;
+}
+
+.relic-page-kicker {
+  position: relative;
+  margin: 0;
+  font-size: var(--board-type-13);
+  line-height: var(--board-kick-lead);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--board-ink-2);
+}
+
+.relic-page-art,
+.relic-legend-art,
+.relic-keepsake-art {
+  position: relative;
+  flex: none;
+  image-rendering: pixelated;
+}
+
+.relic-page-title {
+  position: relative;
+  margin: 0;
+  font-size: var(--board-type-20);
+  line-height: var(--board-title-lead);
+  font-weight: 700;
+  color: var(--board-ink);
+}
+
+.relic-page-line,
+.relic-page-power,
+.relic-page-boost {
+  position: relative;
+  margin: 0;
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.relic-page-line,
+.relic-page-power {
+  color: var(--board-ink-2);
+}
+
+.relic-page-line {
+  font-weight: 700;
+}
+
+.relic-page-boost {
+  color: var(--board-ink);
+  font-weight: 700;
+}
+
+.relic-legend-shelf {
+  position: relative;
+  flex: none;
+  display: flex;
+  gap: calc(var(--art) * 3);
+  justify-content: center;
+}
+
+.relic-page-answers {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: calc(var(--art) * 4);
+}
+
+/* The keepsakes brought home: an inset well under the power, its list scrolling inside it when
+   five stories outgrow a short drawer (call C1). */
+.relic-keepsakes {
+  position: relative;
+  flex: 0 1 auto;
+  min-height: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 2);
+  padding: calc(var(--art) * 9) calc(var(--art) * 9) calc(var(--art) * 9)
+    calc(var(--art) * 11);
+  text-align: left;
+}
+
+.relic-keepsakes-title {
+  position: relative;
+  margin: 0;
+  font-size: var(--board-type-13);
+  line-height: var(--board-kick-lead);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--board-ink-2);
+}
+
+.relic-keepsake-list {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.relic-keepsake {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 4);
+}
+
+.relic-keepsake-words {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.relic-keepsake-name {
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+  font-weight: 700;
+  color: var(--board-ink);
+}
+
+.relic-keepsake-story {
+  font-size: var(--board-type-13);
+  line-height: var(--board-note-lead);
+  color: var(--board-ink-2);
+}
+
+.relic-keepsakes[hidden],
+.relic-keepsake-list > [hidden] {
+  display: none;
+}
+
 /* Last, so a hidden part hides over its own display. */
 .board-sheet > [hidden],
 .board-sheet-list > [hidden],

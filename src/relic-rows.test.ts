@@ -115,7 +115,7 @@ describe("legendStats: the finale's one line", () => {
       helpers: 3,
     } as Mountain;
     expect(legendStats(mountain)).toMatch(
-      /^[\d,.]+ stones moved\. Six relics found\. A crew of \d[\d,]* beside you\.$/,
+      /^[\d,.]+( billion)? stones moved\. Six relics found\. A crew of \d[\d,]* beside you\.$/,
     );
   });
 });
