@@ -1,6 +1,6 @@
 # Gold rush: a reason to stay the two minutes (#360)
 
-Status: draft, waiting for Flemming's pick. This is sliver S6 of the economy overhaul (`docs/economy-overhaul.md`, #354). It is a short spec for one build sliver.
+Status: approved (Flemming, 11 Nov 2026: the Gold rush vein, of three options). This is sliver S6 of the economy overhaul (`docs/economy-overhaul.md`, #354). It is a short spec for one build sliver.
 
 ## Why
 
@@ -31,7 +31,15 @@ Rough effect, per sitting, from today's rates: the check-in dad (four 2-minute s
 
 ## The extreme-win call
 
-Today `extreme-win` reads 0 at 3 seeds (the Marathon finishes on day 4, with the casual dad). _Recommended: keep the bound at 0.17._ The lever leans toward short sittings, so it should not move the Marathon ahead.
+**Decided (Flemming, 11 Nov 2026): the bound stays at 0.17.** Today `extreme-win` reads 0 at 3 seeds (the Marathon finishes on day 4, with the casual dad). The lever leans toward short sittings, so it should not move the Marathon ahead.
+
+## Options weighed
+
+Flemming picked the first of three. The other two are kept here so a later sitting does not reopen them.
+
+1. **The Gold rush vein (picked).** One tap of play, built on the vein he already knows, over inside two minutes.
+2. **A fresh shift, no tap.** After an hour away, the crew digs ×5 for the first two minutes. Simplest, but there is nothing to do: it only rewards leaving the app open.
+3. **A shift bell.** One ring per few hours away, up to three held, each ×10 for 90 seconds. A real choice of when, but one more thing to manage, and a long sitting could ring all three at once.
 
 ## Lab
 
@@ -48,4 +56,4 @@ The rush needs a short gold sparkle loop on the mine window, from PixelLab (appr
 
 ## Build sliver
 
-One issue, one PR: the quick vein, the Gold rush, the sim and lab, the sparkle art, and docs (DESIGN, design-intent, ARCHITECTURE, ui-audit) updated. Done when the strict lab and the generations lab pass at 20 seeds, and `npm run play` shows the quick vein, the rush countdown and the crew line on phone and desktop.
+#468, one PR: the quick vein, the Gold rush, the sim and lab, the sparkle art, and docs (DESIGN, design-intent, ARCHITECTURE, ui-audit) updated. Done when the strict lab and the generations lab pass at 20 seeds, and `npm run play` shows the quick vein, the rush countdown and the crew line on phone and desktop.
