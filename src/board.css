@@ -2547,7 +2547,13 @@ button.board-row:focus-visible {
   white-space: nowrap;
   font-size: var(--board-type-13);
   line-height: var(--board-kick-lead);
+  min-height: var(--board-kick-lead);
   color: var(--board-ink-2);
+}
+
+/* With no timer the line keeps its room, so the rows under it never move under a finger. */
+.workshop-timers.is-empty {
+  visibility: hidden;
 }
 
 .workshop-pager {

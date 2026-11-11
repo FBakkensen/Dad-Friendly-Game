@@ -170,6 +170,8 @@ export interface BenchRow {
   paint(view: BenchRowView | undefined): void;
   armed(): boolean;
   disarm(): void;
+  /** Disarms unless the cancel was armed on this craft ("" is none it can cancel). */
+  keep(craft: string): void;
 }
 
 /** The bar at the bench row's foot: whole art px, no transition. */
@@ -205,13 +207,16 @@ function paintBar(
 /**
  * The bench as a drawer row, which is also the cancel plate. A tap on a busy bench arms the
  * cancel and pages the drawer, so the second tap of a double tap lands on nothing; a tap past
- * the settle cancels. Left alone, it disarms after 4s. A free or unknown bench takes no tap.
+ * the settle cancels. Left alone, it disarms after 4s, and at once when the craft it was armed
+ * on goes. A free or unknown bench takes no tap.
  */
 export function createBenchRow({
   onBoard,
   page,
   onCancel,
   repaint,
+  craft,
+  signal,
 }: {
   onBoard: RowsOnBoard;
   /** The drawer's `page()`: the confirm is a new screen under the finger. */
@@ -219,6 +224,10 @@ export function createBenchRow({
   onCancel: () => void;
   /** Paint the bench again: the panel builds its view with `armed()`. */
   repaint: () => void;
+  /** The craft on the bench now, read as the cancel arms: its recipe and start. */
+  craft: () => string;
+  /** The screen's: its abort clears the disarm timer. */
+  signal?: AbortSignal;
 }): BenchRow {
   const row = createBoardRow({
     tag: "button",
@@ -232,6 +241,7 @@ export function createBenchRow({
   root.append(bar);
   let view: BenchRowView | undefined;
   let timer: number | undefined;
+  let armedOn = "";
 
   const disarm = (): void => {
     if (timer !== undefined) {
@@ -239,6 +249,7 @@ export function createBenchRow({
       timer = undefined;
     }
   };
+  signal?.addEventListener("abort", disarm, { once: true });
 
   onBoard.tap(root, (press, event) => {
     const decision = onBoard.press("bench", press, event, "act");
@@ -250,6 +261,7 @@ export function createBenchRow({
       onCancel();
       return;
     }
+    armedOn = craft();
     timer = window.setTimeout(() => {
       timer = undefined;
       repaint();
@@ -267,6 +279,11 @@ export function createBenchRow({
     },
     armed: () => timer !== undefined,
     disarm,
+    keep: (now) => {
+      if (now === "" || now !== armedOn) {
+        disarm();
+      }
+    },
   };
 }
 

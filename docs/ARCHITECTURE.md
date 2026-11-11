@@ -238,7 +238,10 @@ page is the map, plus the rules that keep it that way.
    amount key, the Workshop's sound key) carries `board-sheet-key`. Each
    close says what closed it: `finger` (Back, the "i"'s way back),
    `keyboard` (Escape), `tap-through` (the scrim, which hands its tap on) or
-   `program` (a timer, the update prompt). Escape listens in the capture
+   `program` (a timer, the update prompt). A close that restores focus gives
+   it to the key the drawer opened from, or to the shell's `fallbackFocus`
+   while that key is disabled; a `restoreFocus: false` close never moves it,
+   so a card that covered the drawer keeps its own. Escape listens in the capture
    phase, so with the save drawer over a drawer it closes only the save
    drawer. `board-how-art` draws the How it works cards in the
    drawer skin with the board's icons at 2x (the Workshop's hammer, a
@@ -275,12 +278,15 @@ page is the map, plus the rules that keep it that way.
    `workshopOrder` ranks them, as the board model's `layout` for "workshop",
    frozen as the drawer opens; pages slice that order, three recipes a page.
    A tap on a busy bench arms the cancel and calls `page()`, so only a tap
-   past the settle cancels; left alone it disarms after 4s. Turning a page
+   past the settle cancels; left alone it disarms after 4s, at once when the
+   craft it was armed on (its recipe and start) goes, and when the screen's
+   `signal` aborts. The timers line keeps its room when empty (`is-empty`,
+   hidden by visibility), so no row moves as a timer starts or ends. Turning a page
    calls `page()` too. Every craft and cancel is today's move (`craft`,
    `cancelCraft`) through `dispatch`. It has two doors: the Workshop key, and
    the menu's Workshop row until B7, which opens it from the Ledger key. Back
-   returns focus to the door it came from, or to the Ledger key while a
-   re-load holds the Workshop key disabled. A save that turns out locked
+   returns focus to the door it came from, or to the Ledger key (the shell's
+   `fallbackFocus`) while a re-load holds the Workshop key disabled. A save that turns out locked
    closes it. The three drawers
    and the scrim sit in `.board-sheet-clip` at z 29, under the board note
    (30) and the save drawer (31). The clip is `overflow: clip`, so nothing

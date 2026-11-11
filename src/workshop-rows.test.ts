@@ -202,11 +202,14 @@ describe("a recipe row (#374)", () => {
     const teach = workshopTeach(first, 0);
     const card = recipe(workshopCards(first, 0), FIRST_CRAFT);
     expect(recipeRowView(card, teach).flag).toEqual(["New"]);
+    expect(recipeRowView(card, teach).isNew).toBe(true);
     const short = recipe(workshopCards(granite(), NOW), FIRST_CRAFT);
     expect(recipeRowView(short, teach).flag).toEqual([]);
+    expect(recipeRowView(short, teach).isNew).toBe(false);
     const other = recipe(workshopCards(granite(), NOW), "axle-grease");
     expect(other.action.kind).toBe("craft");
     expect(recipeRowView(other, teach).flag).toEqual([]);
+    expect(recipeRowView(other, teach).isNew).toBe(false);
   });
 
   it("flags the payoff on the first charge while it works", () => {
@@ -214,6 +217,7 @@ describe("a recipe row (#374)", () => {
     const teach = workshopTeach(crafted, 2_000);
     const card = recipe(workshopCards(crafted, 2_000), FIRST_CRAFT);
     const flag = recipeRowView(card, teach).flag;
+    expect(recipeRowView(card, teach).isNew).toBe(false);
     expect(flag).toHaveLength(1);
     expect(flag[0]).toMatch(/^\+[\d,]+\/s now$/);
   });
@@ -340,8 +344,18 @@ describe("the material plates (#374)", () => {
     expect(
       materialPlates(shed({ clay: 10, iron: 4, crystal: 0, heartstone: 0 })),
     ).toEqual([
-      { id: "clay", count: "10", word: "clay", aria: "Clay 10" },
-      { id: "iron", count: "4", word: "iron", aria: "Iron 4" },
+      {
+        id: "clay",
+        count: "10",
+        word: "clay",
+        aria: "Clay 10. How materials work",
+      },
+      {
+        id: "iron",
+        count: "4",
+        word: "iron",
+        aria: "Iron 4. How materials work",
+      },
     ]);
   });
 
@@ -364,7 +378,7 @@ describe("the material plates (#374)", () => {
       id: "heartstone",
       count: "1.5M",
       word: "heartstone",
-      aria: "Heartstone 1.5M",
+      aria: "Heartstone 1.5M. How materials work",
     });
   });
 
@@ -385,7 +399,12 @@ describe("the material plates (#374)", () => {
     };
     Reflect.deleteProperty(old, "materials");
     expect(materialPlates(old)).toEqual([
-      { id: "clay", count: "0", word: "clay", aria: "Clay 0" },
+      {
+        id: "clay",
+        count: "0",
+        word: "clay",
+        aria: "Clay 0. How materials work",
+      },
     ]);
   });
 

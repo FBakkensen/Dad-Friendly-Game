@@ -317,6 +317,28 @@ describe("the drawer shell", () => {
       expect(document.activeElement).toBe(card);
     });
 
+    it("Back focuses the fallback while the key it opened from is disabled, and a program close does not", () => {
+      const fallback = keyButton();
+      const sheet = make({ fallbackFocus: fallback });
+      const key = keyButton();
+      sheet.open(key);
+      key.disabled = true;
+      sheet.close({ by: "keyboard" });
+      expect(document.activeElement).toBe(fallback);
+
+      sheet.open(key);
+      const card = document.createElement("button");
+      document.body.append(card);
+      card.focus();
+      sheet.close({ restoreFocus: false, by: "program" });
+      expect(document.activeElement).toBe(card);
+
+      key.disabled = false;
+      sheet.open(key);
+      sheet.close({ by: "keyboard" });
+      expect(document.activeElement).toBe(key);
+    });
+
     it("does not focus a key that left the page", () => {
       const sheet = make();
       const key = keyButton();

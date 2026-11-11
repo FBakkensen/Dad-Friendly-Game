@@ -9,6 +9,7 @@ import {
 } from "./board-row";
 import type { Mountain } from "./mountain";
 import type { Dispatch, ProgressSnapshot } from "./progress-store";
+import type { RowView } from "./row-view";
 import {
   RECIPES_LEGEND,
   SKETCH_NAME,
@@ -63,9 +64,6 @@ import {
  * a craft, a cancel or the tick never moves a row under a finger; pages slice that order.
  * Every craft and cancel is today's move, through the screen's dispatch.
  */
-
-/** The flag on the taught craft's row (workshop-rows.ts). */
-const NEW_FLAG = "New";
 
 /** A recipe's row, or the sketch's, by its part id in the board's layout. */
 interface RecipeRows {
@@ -156,7 +154,7 @@ function placeParts(
   for (const root of recipeRoots) {
     root.hidden = true;
   }
-  parts.timers.hidden = true;
+  parts.timers.classList.add("is-empty");
   sheet.place([
     parts.plates.root,
     parts.bench.root,
@@ -175,18 +173,28 @@ interface ReadyPaint {
   readonly teach: WorkshopTeach;
 }
 
-/** The plates, the bench and the timers line, from a ready save. */
+/** The craft on the bench, by its recipe and start: an armed cancel is for this one only. */
+function benchCraft(mountain: Mountain): string {
+  const bench = mountain.bench;
+  return bench === undefined
+    ? ""
+    : `${bench.recipe}@${String(bench.startedAt)}`;
+}
+
+/**
+ * The plates, the bench and the timers line, from a ready save. The line keeps its room when
+ * empty (board.css), so the rows under it never move as a timer starts or ends.
+ */
 function paintReady(parts: WorkshopParts, ready: ReadyPaint): void {
   const { mountain, at } = ready;
   parts.plates.paint(materialPlates(mountain));
   const bench = benchView(mountain, at);
-  if (bench.kind !== "busy" || bench.cancel === "") {
-    parts.bench.disarm();
-  }
+  const cancellable = bench.kind === "busy" && bench.cancel !== "";
+  parts.bench.keep(cancellable ? benchCraft(mountain) : "");
   parts.bench.paint(benchRowView(bench, parts.bench.armed()));
   const lines = timerLines(mountain, at);
   write(parts.timers, lines.join(" · "));
-  hide(parts.timers, lines.length === 0);
+  mark(parts.timers, "is-empty", lines.length === 0);
 }
 
 /** Until the save is in, the plates and the bench go dark and blank. */
@@ -200,14 +208,16 @@ function paintLoading(parts: WorkshopParts): void {
 function partView(
   partId: string,
   ready: ReadyPaint | undefined,
-): Parameters<RowsOnBoard["paint"]>[2] {
+): { readonly view: RowView | undefined; readonly isNew: boolean } {
   const card = ready?.cards.find((each) => partIdOf(each) === partId);
   if (ready === undefined || card === undefined) {
-    return undefined;
+    return { view: undefined, isNew: false };
   }
-  return card.kind === "hidden"
-    ? sketchRowView(card)
-    : recipeRowView(card, ready.teach);
+  if (card.kind === "hidden") {
+    return { view: sketchRowView(card), isNew: false };
+  }
+  const view = recipeRowView(card, ready.teach);
+  return { view, isNew: view.isNew };
 }
 
 /** Lays out one page of the list. */
@@ -236,9 +246,9 @@ function createPageArranger(
       const onPage = shown.includes(partId);
       hide(row.root, !onPage);
       if (onPage) {
-        const view = partView(partId, ready);
+        const { view, isNew } = partView(partId, ready);
         onBoard.paint(partId, row, view);
-        mark(row.root, "teach-new", view?.flag[0] === NEW_FLAG);
+        mark(row.root, "teach-new", isNew);
       }
     }
     const key = shown.join(" ");
@@ -307,6 +317,8 @@ function buildParts({
   onCancel,
   onPage,
   repaint,
+  getView,
+  signal,
 }: {
   board: BoardHost;
   onBoard: RowsOnBoard;
@@ -314,6 +326,8 @@ function buildParts({
   onCancel: () => void;
   onPage: (step: -1 | 1) => void;
   repaint: () => void;
+  getView: () => ProgressSnapshot;
+  signal: AbortSignal | undefined;
 }): WorkshopParts {
   return {
     plates: createMaterialPlates({
@@ -329,6 +343,11 @@ function buildParts({
       },
       onCancel,
       repaint,
+      craft: () => {
+        const view = getView();
+        return view.ready ? benchCraft(view.mountain) : "";
+      },
+      ...(signal === undefined ? {} : { signal }),
     }),
     timers: el("p", "workshop-timers board-num"),
     recipesSec: legend(RECIPES_LEGEND, "recipes"),
@@ -422,6 +441,7 @@ export function createWorkshopPanel({
     overSave,
     headKey: sound.root,
     door,
+    fallbackFocus: fallbackDoor,
     // The order the open freezes.
     onOpen: () => {
       const view = getView();
@@ -431,9 +451,6 @@ export function createWorkshopPanel({
     },
     onClose: () => {
       parts.bench.disarm();
-      if (door.disabled) {
-        fallbackDoor.focus({ preventScroll: true });
-      }
     },
     onForget: () => {
       onBoard.forget();
@@ -458,6 +475,8 @@ export function createWorkshopPanel({
       page += step;
     },
     repaint,
+    getView,
+    signal,
   });
   const rows = buildRecipeRows({
     dispatch,

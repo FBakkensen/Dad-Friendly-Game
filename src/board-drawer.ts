@@ -61,9 +61,9 @@ export interface BoardSheet {
   isOpen(): boolean;
   open(from?: HTMLElement): void;
   /**
-   * Shuts the drawer and focuses the key it opened from. `restoreFocus: false` leaves focus
-   * where it is: a card that covered the drawer has already taken it. `by` tells the model
-   * what closed it.
+   * Shuts the drawer and focuses the key it opened from, or `fallbackFocus` while that key is
+   * disabled. `restoreFocus: false` leaves focus where it is: a card that covered the drawer
+   * has already taken it. `by` tells the model what closed it.
    */
   close(options: {
     readonly restoreFocus?: boolean;
@@ -88,8 +88,22 @@ function focusQuietly(target: HTMLElement): void {
   target.focus({ preventScroll: true });
 }
 
+/**
+ * Where a close gives focus back: the key the drawer opened from, or the fallback while that
+ * key is disabled (a re-load holds it). Nothing for a key that left the page.
+ */
+function focusBackTo(
+  from: HTMLElement | undefined,
+  fallback: HTMLElement | undefined,
+): HTMLElement | undefined {
+  if (from?.isConnected !== true) {
+    return undefined;
+  }
+  return from.matches(":disabled") ? fallback : from;
+}
+
 /** The cards the "i" opens in a drawer's place. */
-export interface BoardHow {
+interface BoardHow {
   readonly systems: readonly BoardHowSystem[];
   readonly backLabel: string;
 }
@@ -292,21 +306,8 @@ function closeOnEscape(
   );
 }
 
-/** A drawer, built once and reused, open and shut through the board's model. */
-export function createBoardSheet({
-  name,
-  title,
-  infoLabel,
-  how: howOf,
-  board,
-  overSave,
-  onOpen,
-  onClose,
-  onForget,
-  door,
-  headKey,
-  signal,
-}: {
+/** What a drawer is built from. */
+interface BoardSheetOptions {
   name: DrawerId;
   title: string;
   infoLabel: string;
@@ -328,11 +329,34 @@ export function createBoardSheet({
    * door (the key, a bay, Saving for) opened the drawer.
    */
   door?: HTMLElement;
+  /**
+   * Back and Escape focus this instead while the key the drawer opened from is disabled: the
+   * Workshop's Ledger key while a re-load holds its own (#374). A close that keeps focus never
+   * moves it.
+   */
+  fallbackFocus?: HTMLElement;
   /** A key of the panel's own in the head, before the "i": Buys' amount (#358). */
   headKey?: HTMLElement;
   /** Aborting it removes the sheet's document listeners. */
   signal?: AbortSignal;
-}): BoardSheet {
+}
+
+/** A drawer, built once and reused, open and shut through the board's model. */
+export function createBoardSheet({
+  name,
+  title,
+  infoLabel,
+  how: howOf,
+  board,
+  overSave,
+  onOpen,
+  onClose,
+  onForget,
+  door,
+  fallbackFocus,
+  headKey,
+  signal,
+}: BoardSheetOptions): BoardSheet {
   const parts = buildSheet(name, title, infoLabel, headKey);
   const { root, heading, kickLine, info, how, list, spare, footer, back } =
     parts;
@@ -404,8 +428,9 @@ export function createBoardSheet({
     door?.setAttribute("aria-expanded", "false");
     setHow(parts, false);
     onClose?.();
-    if (restoreFocus && from?.isConnected === true) {
-      focusQuietly(from);
+    const target = restoreFocus ? focusBackTo(from, fallbackFocus) : undefined;
+    if (target !== undefined) {
+      focusQuietly(target);
     }
   };
 

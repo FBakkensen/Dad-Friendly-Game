@@ -136,7 +136,9 @@ describe("the material plates (#374)", () => {
     const word = clay?.querySelector<HTMLElement>(".workshop-mat-word");
     expect(word?.textContent).toBe("clay");
     expect(word?.hidden).toBe(false);
-    expect(clay?.getAttribute("aria-label")).toBe("Clay 10");
+    expect(clay?.getAttribute("aria-label")).toBe(
+      "Clay 10. How materials work",
+    );
     expect(clay?.disabled).toBe(false);
   });
 
@@ -156,7 +158,9 @@ describe("the material plates (#374)", () => {
         plate.querySelector("img.workshop-mat-icon")?.getAttribute("src"),
       ).toMatch(/src\/assets\/board\/res-/);
     }
-    expect(each[3]?.getAttribute("aria-label")).toBe("Heartstone 4");
+    expect(each[3]?.getAttribute("aria-label")).toBe(
+      "Heartstone 4. How materials work",
+    );
   });
 
   it("three plates are packed too", () => {
@@ -213,8 +217,10 @@ describe("the bench row (#374)", () => {
 
   const view = (): BenchRowView =>
     benchRowView(benchView(mountain, NOW + 60_000), bench.armed());
-  const mountBench = (start: Mountain): void => {
+  let craft = "sturdy-props@" + String(NOW);
+  const mountBench = (start: Mountain, signal?: AbortSignal): void => {
     mountain = start;
+    craft = "sturdy-props@" + String(NOW);
     onBoard = rowsOnBoard(board, "workshop");
     bench = createBenchRow({
       onBoard,
@@ -223,6 +229,8 @@ describe("the bench row (#374)", () => {
       repaint: () => {
         bench.paint(view());
       },
+      craft: () => craft,
+      ...(signal === undefined ? {} : { signal }),
     });
     sheet.place([bench.root]);
     bench.paint(view());
@@ -307,6 +315,36 @@ describe("the bench row (#374)", () => {
     press(bench.root);
     const repaints = vi.spyOn(bench, "paint");
     bench.disarm();
+    expect(bench.armed()).toBe(false);
+    advance(5_000);
+    expect(repaints).not.toHaveBeenCalled();
+  });
+
+  it("keeps the armed cancel only while the same craft is on the bench", () => {
+    mountBench(busy());
+    openSheet();
+    advance(DRAWER_SETTLE_MS + 100);
+    press(bench.root);
+    bench.keep(craft);
+    expect(bench.armed()).toBe(true);
+    // The craft under it finished and another started: the confirm was for the old one.
+    bench.keep("sturdy-props@" + String(NOW + 600_000));
+    expect(bench.armed()).toBe(false);
+    advance(DRAWER_SETTLE_MS + 100);
+    press(bench.root);
+    expect(bench.armed()).toBe(true);
+    bench.keep("");
+    expect(bench.armed()).toBe(false);
+  });
+
+  it("the screen going clears the disarm timer", () => {
+    const screen = new AbortController();
+    mountBench(busy(), screen.signal);
+    openSheet();
+    advance(DRAWER_SETTLE_MS + 100);
+    press(bench.root);
+    const repaints = vi.spyOn(bench, "paint");
+    screen.abort();
     expect(bench.armed()).toBe(false);
     advance(5_000);
     expect(repaints).not.toHaveBeenCalled();

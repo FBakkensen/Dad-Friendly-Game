@@ -39,17 +39,24 @@ export interface BenchRowView extends RowView {
   readonly canCancel: boolean;
 }
 
+/** A recipe's row, and whether it is the craft the first visit teaches (its row glows). */
+export interface RecipeRowView extends RowView {
+  readonly isNew: boolean;
+}
+
 /** One material's plate in the drawer's head row. */
 export interface MaterialPlate {
   readonly id: MaterialId;
   readonly count: string;
   /** The material's own word, "clay"; it hides on packed plates and stays in `aria`. */
   readonly word: string;
-  /** The pocket chip's words, "Clay 10". */
+  /** The pocket chip's words and what a tap opens, "Clay 10. How materials work". */
   readonly aria: string;
 }
 
 const NEW_FLAG: readonly string[] = ["New"];
+/** A plate's tap opens the "i" cards: screen-reader words only. */
+const PLATE_HINT = "How materials work";
 const NO_FLAG: readonly string[] = [];
 
 /** What a row says when it says nothing more: no badge, need, why, flag, gain, tag or verb. */
@@ -133,19 +140,28 @@ function recipeFace(card: RecipeCard): RecipeFace {
   }
 }
 
+/** The craft the first visit teaches, while he can make it and its payoff is not showing. */
+function isNewCraft(card: RecipeCard, teach: WorkshopTeach): boolean {
+  return (
+    teach.payoff?.id !== card.id &&
+    teach.newCard === card.id &&
+    card.action.kind === "craft"
+  );
+}
+
 /** The New flag on the taught craft while he can make it, or the first charge's payoff. */
 function recipeFlag(card: RecipeCard, teach: WorkshopTeach): readonly string[] {
   if (teach.payoff?.id === card.id) {
     return [teach.payoff.text];
   }
-  if (teach.newCard === card.id && card.action.kind === "craft") {
-    return NEW_FLAG;
-  }
-  return NO_FLAG;
+  return isNewCraft(card, teach) ? NEW_FLAG : NO_FLAG;
 }
 
 /** A recipe's row: its name, level, effect and time, and the face its action gives it. */
-export function recipeRowView(card: RecipeCard, teach: WorkshopTeach): RowView {
+export function recipeRowView(
+  card: RecipeCard,
+  teach: WorkshopTeach,
+): RecipeRowView {
   const face = recipeFace(card);
   const costs = [
     ...(card.stones === undefined ? [] : [card.stones]),
@@ -162,6 +178,7 @@ export function recipeRowView(card: RecipeCard, teach: WorkshopTeach): RowView {
     gain: card.time,
     pick: false,
     aria: `${card.name}. ${sentence(card.effect)} ${tail}`,
+    isNew: isNewCraft(card, teach),
   };
 }
 
@@ -242,6 +259,6 @@ export function materialPlates(mountain: Mountain): readonly MaterialPlate[] {
     id: chip.id,
     count: formatCompact(have[chip.id]),
     word: chip.id,
-    aria: chip.text,
+    aria: `${chip.text}. ${PLATE_HINT}`,
   }));
 }

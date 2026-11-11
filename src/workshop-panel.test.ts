@@ -154,12 +154,14 @@ describe("the Workshop drawer (#374)", () => {
     const order = [...(list?.children ?? [])]
       .filter((part) => !(part as HTMLElement).hidden)
       .map((part) => part.className.split(" ")[0]);
-    expect(order.slice(0, 3)).toEqual([
+    // The timers line keeps its room even with no timer, so no row moves when one starts.
+    expect(order.slice(0, 4)).toEqual([
       "workshop-mats",
       "board-row",
+      "workshop-timers",
       "board-sec",
     ]);
-    expect(order.slice(3, 6)).toEqual(["board-row", "board-row", "board-row"]);
+    expect(order.slice(4, 7)).toEqual(["board-row", "board-row", "board-row"]);
     expect(drawerOf(screen).querySelector(".board-sec")?.textContent).toBe(
       "Recipes",
     );
@@ -340,6 +342,68 @@ describe("the Workshop drawer (#374)", () => {
       ?.click();
     keyOf(screen, "workshop").click();
     expect(shownRows(screen)[0]).toBe(last);
+  });
+
+  /** The list's parts that take room, top to bottom, up to the first recipe row shown. */
+  const partsAbove = (screen: Screen): string[] => {
+    const list = drawerOf(screen).querySelector(".board-sheet-list");
+    const shown = [...(list?.children ?? [])].filter(
+      (part) => !(part as HTMLElement).hidden,
+    );
+    const first = shown.findIndex(
+      (part) =>
+        part.classList.contains("workshop-recipe") ||
+        part.classList.contains("workshop-sketch"),
+    );
+    return shown
+      .slice(0, first)
+      .map((part) => part.className.split(" ")[0] ?? "");
+  };
+  const timersLine = (screen: Screen): HTMLElement => {
+    const found =
+      drawerOf(screen).querySelector<HTMLElement>(".workshop-timers");
+    if (found === null) throw new Error("no timers line");
+    return found;
+  };
+
+  it("the timers line keeps its room, so no row moves when the last timer ends", () => {
+    let clock = CLOCK;
+    const screen = mount(rich({ axleUntil: CLOCK + 60_000 }), {
+      now: () => clock,
+      tapClock: () => clock,
+    });
+    keyOf(screen, "workshop").click();
+    expect(timersLine(screen).textContent).toMatch(/^Axle grease · /);
+    const above = partsAbove(screen);
+    const rows = shownRows(screen);
+    clock += 61_000;
+    screen.progress.applyMutation((current) => current);
+    expect(timersLine(screen).textContent).toBe("");
+    expect(timersLine(screen).hidden).toBe(false);
+    expect(timersLine(screen).classList.contains("is-empty")).toBe(true);
+    expect(partsAbove(screen)).toEqual(above);
+    expect(shownRows(screen)).toEqual(rows);
+  });
+
+  it("the timers line keeps its room, so no row moves when a craft starts the first timer", () => {
+    let clock = CLOCK;
+    const screen = mount(rich(), { now: () => clock, tapClock: () => clock });
+    keyOf(screen, "workshop").click();
+    clock += PAST_SETTLE;
+    const row = pageTo(screen, "axle-grease");
+    expect(timersLine(screen).textContent).toBe("");
+    expect(timersLine(screen).classList.contains("is-empty")).toBe(true);
+    const above = partsAbove(screen);
+    const rows = shownRows(screen);
+    clock += PAST_SETTLE;
+    row.click();
+    expect(screen.progress.getSnapshot().mountain.bench?.recipe).toBe(
+      "axle-grease",
+    );
+    expect(timersLine(screen).textContent).toMatch(/^Axle grease · /);
+    expect(timersLine(screen).classList.contains("is-empty")).toBe(false);
+    expect(partsAbove(screen)).toEqual(above);
+    expect(shownRows(screen)).toEqual(rows);
   });
 
   it("the plates open the cards", () => {
@@ -626,6 +690,31 @@ describe("the Workshop drawer (#374)", () => {
     escape();
     expect(isOpen(screen)).toBe(false);
     expect(document.activeElement).toBe(keyOf(screen, "ledger"));
+  });
+
+  it("a card that opens over the drawer during a re-load keeps its focus", async () => {
+    const cloudSave: CloudSave = {
+      load: () => Promise.resolve({ kind: "missing" }),
+      write: () => Promise.resolve({ kind: "ok" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: () => () => undefined,
+    };
+    const auth = createMemoryAuth();
+    const storage = createMemoryStorage();
+    writeSessionSave({ storage, mountain: busy(CLOCK), lastSeen: CLOCK });
+    const screen = mountScreen({ auth, cloudSave, storage, now: () => CLOCK });
+    document.body.append(screen.root);
+    keyOf(screen, "workshop").click();
+    await auth.signIn();
+    await Promise.resolve();
+    expect(keyOf(screen, "workshop").disabled).toBe(true);
+    expect(isOpen(screen)).toBe(true);
+    screen.progress.previewConflict();
+    expect(isOpen(screen)).toBe(false);
+    const card = screen.root.querySelector<HTMLElement>(".save-conflict");
+    expect(card?.hidden).toBe(false);
+    expect(card?.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(keyOf(screen, "ledger"));
   });
 
   it("closes when the save it was open on starts over", () => {
