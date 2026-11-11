@@ -166,7 +166,7 @@ The stretch now lives in the game, in `src/scale.ts`: `kidStretch(legacy)` (see 
 
 ## Longer every run, forever (M13-4 rework, 4 Nov 2026)
 
-Flemming rejected the 7.5-day ceiling: "the whole idea is they take longer and longer". The rule is now one strict rule for every player type: run N+1 finishes later than run N, every run, with every machine bought. The ceiling and the once-a-day spread are gone.
+Flemming rejected the 7.5-day ceiling: "the whole idea is they take longer and longer". The rule is now one strict rule for every player type: run N+1 finishes later than run N, every run, with every machine bought. Since #366 that holds until `MAX_STRETCH`, at about Legacy 240, years past any real run. The ceiling and the once-a-day spread are gone.
 
 **Formula** (`src/scale.ts`, the lab reads it): k = bonus × (1 + g·L)², with bonus = 1 + 0.5·L, L = the Legacy of the new run and g = `KID_RUN_GROWTH` = 1/8. The square root fit says a run lasts about run 1 × (1 + g·L); measured runs grow a bit faster than that, about 15% per run early and 11% by run 8. There is no table that ends, so runs keep growing until `MAX_STRETCH` (1M since #366) holds k at about Legacy 240, where the whole mountain is still a safe integer count of stones.
 

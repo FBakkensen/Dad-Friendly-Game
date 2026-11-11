@@ -297,7 +297,7 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
   it("stops growing at MAX_STRETCH, where the whole mountain is still a safe count", () => {
     const whole = shownStones({ stretch: MAX_STRETCH }, MOUNTAIN_STONES);
     expect(Number.isSafeInteger(whole)).toBe(true);
-    // Room for a craft refund or a band retune on top of a full pocket.
+    // Half the limit: room for a band retune before the cap has to move.
     expect(2 * whole).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER);
     // Runs keep growing far past any real evening (run 200 is years away)...
     expect(kidStretch(200)).toBeLessThan(MAX_STRETCH);
@@ -373,25 +373,37 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
   }
 
   it.each(cases)(
-    "at k %d in band %d, every price is whole, and safe wherever a pocket can reach it",
+    "at k %d in band %d, every price is a whole number of stones",
     (k, _band, start) => {
       const m: Mountain = {
         ...createMountain(),
         remaining: MOUNTAIN_STONES - start,
         stretch: k,
       };
-      // The most a pocket can hold: every stone of this run.
-      const whole = stonesLeft({ ...m, remaining: MOUNTAIN_STONES });
+      // A price under the whole mountain is then a safe count, since the
+      // cap keeps the whole mountain safe. One above it is never paid (below).
       for (const price of prices(m)) {
         expect(Number.isInteger(price)).toBe(true);
         expect(price).toBeGreaterThanOrEqual(0);
-        // A price above the whole mountain is never paid, so the pocket
-        // never meets it. Any price at or below it must be a safe count.
-        if (price <= whole) {
-          expect(Number.isSafeInteger(price)).toBe(true);
-          expect(Number.isSafeInteger(whole - price)).toBe(true);
-        }
       }
     },
   );
+
+  it("never pays a price above every stone of the run, so the pocket stays safe", () => {
+    const deep: Mountain = {
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - BAND_STARTS[3],
+      stretch: MAX_STRETCH,
+      helpers: 10,
+      upgrades: { tap: 9 },
+    };
+    // The most a pocket can hold: every stone of this run.
+    const full = {
+      ...deep,
+      pocket: stonesLeft({ ...deep, remaining: MOUNTAIN_STONES }),
+    };
+    const tap = upgradeCost(upgradeById("tap"), 9, oneOffStretch(deep)) ?? 0;
+    expect(tap).toBeGreaterThan(Number.MAX_SAFE_INTEGER);
+    expect(buyUpgrade(full, "tap")).toBe(full);
+  });
 });

@@ -5,8 +5,9 @@ export const MOUNTAIN_STONES = 240_000_000;
 
 /**
  * How much longer each kid's run should feel (M13, #253): about this share
- * of run 1 added per generation, forever (Flemming, 4 Nov 2026: "the whole
- * idea is they take longer and longer"). The lab sweeps it as
+ * of run 1 added per generation (Flemming, 4 Nov 2026: "the whole idea is
+ * they take longer and longer"), until MAX_STRETCH at about Legacy 240
+ * (#366). The lab sweeps it as
  * `stretch.growth`; the game reads 1. #356 raised it from 1/8 so the
  * marathon dad's second run still finishes a day later on the new curve.
  */
