@@ -1374,6 +1374,8 @@ export const MINE_LEGEND = "The mine";
 export const LEDGER_BACK = "Back to the Ledger";
 /** The Pass the mine plate's short fit; the full words stay on its label. */
 export const PASS_SHORT = "Pass the mine";
+/** Passing the mine, in full: the Pass plate's label and the legacy panel's door. */
+export const PASS_FULL = "Pass the mine to your kid";
 
 /** "2 of 6 relics found": the Ledger's relics row. */
 export const relicsFoundWords = (found: number): string =>

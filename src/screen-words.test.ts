@@ -13,6 +13,7 @@ import {
   LEDGER_KICK,
   MINE_LEGEND,
   NOT_SIGNED_IN,
+  PASS_FULL,
   PASS_SHORT,
   SIGN_IN,
   SIGN_IN_GOOGLE,
@@ -967,6 +968,7 @@ describe("the Ledger's words (#375)", () => {
     expect(MINE_LEGEND).toBe("The mine");
     expect(LEDGER_BACK).toBe("Back to the Ledger");
     expect(PASS_SHORT).toBe("Pass the mine");
+    expect(PASS_FULL).toBe("Pass the mine to your kid");
     expect(relicsFoundWords(2)).toBe("2 of 6 relics found");
     expect(relicsFoundWords(0)).toBe("0 of 6 relics found");
   });

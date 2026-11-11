@@ -4,7 +4,7 @@ import { formatCount } from "./format";
 import { legacyBonus, passTheMine } from "./legacy";
 import { createMountain, type Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
-import { formatCraftSpeed as speed } from "./screen-words";
+import { PASS_FULL, formatCraftSpeed as speed } from "./screen-words";
 import { recipesForMined } from "./workshop";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 
@@ -91,7 +91,7 @@ export function createLegacyPanel({
   const menuPass = document.createElement("button");
   menuPass.type = "button";
   menuPass.className = "menu-pass";
-  menuPass.textContent = "Pass the mine to your kid";
+  menuPass.textContent = PASS_FULL;
 
   const dialog = document.createElement("div");
   dialog.className = "start-over legacy-dialog";

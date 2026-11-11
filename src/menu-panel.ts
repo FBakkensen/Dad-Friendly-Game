@@ -2,6 +2,7 @@ import { cardUp, showCard } from "./card-state";
 import type { AuthController, AuthState } from "./auth";
 import { setAttr } from "./board-dom";
 import { formatFieldLog } from "./field-log";
+import { writeClipboard } from "./ledger-parts";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
   fieldLogClose,
@@ -19,21 +20,6 @@ import {
   START_OVER_YES,
   signedInWords,
 } from "./screen-words";
-
-/** Copies the field log; false when the browser has no clipboard or refuses it. */
-async function writeClipboard(text: string): Promise<boolean> {
-  const clipboard = Reflect.get(navigator, "clipboard") as
-    { readonly writeText?: (value: string) => Promise<void> } | undefined;
-  if (clipboard === undefined || typeof clipboard.writeText !== "function") {
-    return false;
-  }
-  try {
-    await clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /** The tucked-away menu (account, sign in/out, Start over) and the Start over confirm. */
 export function createMenuPanel({
