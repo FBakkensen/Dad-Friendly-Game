@@ -2735,6 +2735,13 @@ button.board-row:focus-visible {
   display: none;
 }
 
+/* A half-width plate keeps its words off its frame, so the guided first trip's words measure
+   too long here and fit to Send exploring. */
+.engineer-page-plates > .board-platebtn {
+  padding: 0 calc(var(--art) * 5);
+  white-space: nowrap;
+}
+
 .engineer-brought-page > .engineer-brought-story {
   position: relative;
   margin: 0;

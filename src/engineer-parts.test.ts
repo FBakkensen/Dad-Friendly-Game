@@ -385,6 +385,23 @@ describe("her page of posts (#455)", () => {
     expect(words(recall)).toBe("Call her back");
   });
 
+  it("the guided first trip's words fit to Send exploring when the plate is too narrow", () => {
+    const { page } = mount();
+    const mountain = withAda();
+    const explore = find(page.root, ".engineer-explore");
+    // The words are measured against the plate: a centred overflow never scrolls the plate.
+    const text = find(explore, ".board-platebtn-text");
+    Object.defineProperty(explore, "clientWidth", { value: 160 });
+    Object.defineProperty(text, "scrollWidth", {
+      get: () => (words(explore).length > 16 ? 220 : 150),
+    });
+    page.paint(postViews(mountain, TRIP), herPlates(ada(mountain), TRIP));
+    expect(words(explore)).toBe("Send exploring");
+    expect(explore.getAttribute("aria-label")).toBe(
+      "Send Ada exploring · 10 min",
+    );
+  });
+
   it("under the trip teach, the left plate is the guided first trip", () => {
     const { page } = mount();
     const mountain = withAda();

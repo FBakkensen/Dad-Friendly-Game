@@ -1159,7 +1159,7 @@ async function main() {
       },
     );
     await new Promise((resolve) => setTimeout(resolve, 450));
-    await expectText(opened.page, /Back to your engineers/, "her page");
+    await expectText(opened.page, /Back to your engineers/i, "her page");
     return opened;
   });
   await capture("engineers-expedition", async (viewport) => {

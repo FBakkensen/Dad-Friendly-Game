@@ -230,11 +230,20 @@ export function pageRow(
   };
 }
 
-/** The left plate's words: the first option that fits, and the full words for a reader. */
+/** The words fit inside the plate's padding, off its frame (a centred overflow never scrolls). */
+function fitsPlate(plate: HTMLElement, text: HTMLElement): boolean {
+  const style = getComputedStyle(plate);
+  const pad =
+    (Number.parseFloat(style.paddingLeft) || 0) +
+    (Number.parseFloat(style.paddingRight) || 0);
+  return text.scrollWidth <= plate.clientWidth - pad + 1;
+}
+
+/** The left plate's words: the first option that fits the plate, and the full words for a reader. */
 function paintLeft(plate: HTMLButtonElement, label: readonly string[]): void {
   const text =
     plate.querySelector<HTMLElement>(".board-platebtn-text") ?? plate;
-  fitFirst(text, label);
+  fitFirst(text, label, () => fitsPlate(plate, text));
   setAttr(plate, "aria-label", label[0] ?? "");
 }
 
