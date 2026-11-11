@@ -305,9 +305,10 @@ describe("band scale knobs (#365)", () => {
 
       // Digging follows the knob too: half the knobbed band lands mid-band.
       const above = knobbed.slice(0, band).reduce((a, b) => a + b, 0);
+      const half = (knobbed[band] ?? Number.NaN) / 2;
       const middle = (BAND_STARTS[band] + ENDS[band]) / 2;
       expect(
-        doubled(id, () => depthAfterStones(fresh, above + knobbed[band] / 2)),
+        doubled(id, () => depthAfterStones(fresh, above + half)),
       ).toBeCloseTo(middle, 0);
     },
   );
