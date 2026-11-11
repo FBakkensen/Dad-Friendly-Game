@@ -106,12 +106,13 @@ describe("welcomeView", () => {
   });
 
   it("writes the haul in stones", () => {
-    expect(welcomeView(snap({ away: report({ mined: 1 }) }))?.away?.mined).toBe(
-      "+1 stone",
-    );
-    expect(welcomeView(snap({ away: report() }))?.away?.mined).toBe(
-      "+1.2 million stones",
-    );
+    expect(
+      welcomeView(snap({ away: report({ mined: 1 }) }))?.away?.mined,
+    ).toEqual({ count: "+1", unit: "stone" });
+    expect(welcomeView(snap({ away: report() }))?.away?.mined).toEqual({
+      count: "+1.2 million",
+      unit: "stones",
+    });
   });
 
   it("says how long you were gone, with and without the Heart", () => {
@@ -147,7 +148,7 @@ describe("welcomeView", () => {
     ).toBe(ENGINEER_WELCOME);
   });
 
-  it("lists two returns in order, and marks a homecoming", () => {
+  it("lists two returns in order", () => {
     const ada = home("Ada", "First.");
     const nils = home("Nils", "Second.");
     const view = welcomeView(snap({ homecomings: [ada, nils] }));
@@ -155,8 +156,6 @@ describe("welcomeView", () => {
       cameBack(ada.engineer, ada.tunnel, ada.find),
       cameBack(nils.engineer, nils.tunnel, nils.find),
     ]);
-    expect(view?.homecoming).toBe(true);
-    expect(welcomeView(snap({ away: report() }))?.homecoming).toBe(false);
   });
 
   it("skips a layer with no welcome words, and lists two crafts", () => {

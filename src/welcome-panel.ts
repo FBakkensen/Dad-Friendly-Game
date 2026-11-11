@@ -1,5 +1,5 @@
 import { cardArt, cardLine, createBoardCard } from "./board-card";
-import { el, hide, mark, write } from "./board-dom";
+import { el, hide, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { welcomeView, type WelcomeAway, type WelcomeView } from "./card-views";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
@@ -9,6 +9,8 @@ import { MATERIAL_ART } from "./workshop-parts";
 /** The welcome card's lines, built once in today's order. */
 interface WelcomeParts {
   readonly mined: HTMLElement;
+  readonly minedCount: HTMLElement;
+  readonly minedUnit: HTMLElement;
   readonly detail: HTMLElement;
   readonly ore: HTMLElement;
   readonly oreArt: HTMLImageElement;
@@ -32,8 +34,15 @@ function welcomeParts(): WelcomeParts {
     el("span", "welcome-ore-use is-quiet", AWAY_MATERIALS_USE),
   );
   ore.append(oreArt, oreText);
+  // The haul: the number kept whole, then its unit, smaller, on the same line when it fits.
+  const mined = el("p", "board-card-big welcome-mined");
+  const minedCount = el("span", "welcome-mined-count");
+  const minedUnit = el("span", "welcome-mined-unit");
+  mined.append(minedCount, " ", minedUnit);
   return {
-    mined: el("p", "board-card-big welcome-mined"),
+    mined,
+    minedCount,
+    minedUnit,
     detail: cardLine("welcome-detail"),
     ore,
     oreArt,
@@ -56,7 +65,9 @@ function paintLine(line: HTMLElement, words: string | undefined): void {
 
 /** The away haul: the big number, how long, the ore line with its icon, and the cheer. */
 function paintAway(parts: WelcomeParts, away: WelcomeAway | undefined): void {
-  paintLine(parts.mined, away?.mined);
+  write(parts.minedCount, away?.mined.count ?? "");
+  write(parts.minedUnit, away?.mined.unit ?? "");
+  hide(parts.mined, away === undefined);
   paintLine(parts.detail, away?.gone);
   paintLine(parts.cheer, away?.cheer);
   const materials = away?.materials;
@@ -138,7 +149,6 @@ export function createWelcomePanel({
       paintAway(parts, view.away);
       paintNews(parts, view);
     }
-    mark(card.root, "is-homecoming", view?.homecoming === true);
     card.show(view !== undefined, plate);
   };
 

@@ -134,6 +134,39 @@ describe("the save conflict card (#464)", () => {
     expect(chooseSave).toHaveBeenCalledWith("remote");
   });
 
+  it("a second press on the commit plate while the choice is saving does nothing", async () => {
+    const { find, chooseSave } = mount();
+    let settle: (value: "saved" | "kept") => void = () => undefined;
+    chooseSave.mockImplementation(
+      () =>
+        new Promise<"saved" | "kept">((resolve) => {
+          settle = resolve;
+        }) as Promise<"saved">,
+    );
+    find(".save-conflict-play").click();
+    const commit = find(".save-conflict-commit");
+    commit.click();
+    commit.click();
+    time += 1000;
+    fingerTap(commit);
+    expect(chooseSave).toHaveBeenCalledTimes(1);
+    // A choice that kept the split (the error line) can be tried again.
+    settle("kept");
+    await Promise.resolve();
+    await Promise.resolve();
+    commit.click();
+    expect(chooseSave).toHaveBeenCalledTimes(2);
+  });
+
+  it("moves the keyboard's focus to the commit plate as Play this one hides", () => {
+    const { find } = mount();
+    const play = find(".save-conflict-play");
+    play.focus();
+    play.click();
+    expect(play.hidden).toBe(true);
+    expect(document.activeElement).toBe(find(".save-conflict-commit"));
+  });
+
   it("a side picked from the confirm goes back to Play this one", () => {
     const { find } = mount();
     find(".save-conflict-play").click();
@@ -160,6 +193,27 @@ describe("the save conflict card (#464)", () => {
   it("pre-selects this phone when it mined more", () => {
     const { find, set } = mount();
     set({ local: SPLIT.remote, remote: SPLIT.local });
+    expect(
+      find(".save-card[data-side=phone]").getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("a new split while the card stays up pre-selects again and leaves the confirm", () => {
+    const { panel, find, set } = mount();
+    find(".save-card[data-side=phone]").click();
+    find(".save-conflict-play").click();
+    expect(find(".save-conflict-confirm").hidden).toBe(false);
+    set({ local: SPLIT.local, remote: { ...SPLIT.remote, rev: 5 } });
+    expect(panel.root.hidden).toBe(false);
+    expect(board.view().stack).toEqual(["conflict"]);
+    expect(find(".save-conflict-confirm").hidden).toBe(true);
+    expect(find(".save-conflict-play").hidden).toBe(false);
+    expect(
+      find(".save-card[data-side=other]").getAttribute("aria-pressed"),
+    ).toBe("true");
+    // The same split again keeps a side the player picked.
+    find(".save-card[data-side=phone]").click();
+    set({ local: SPLIT.local, remote: { ...SPLIT.remote, rev: 5 } });
     expect(
       find(".save-card[data-side=phone]").getAttribute("aria-pressed"),
     ).toBe("true");

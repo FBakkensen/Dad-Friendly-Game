@@ -439,7 +439,6 @@ describe("side tunnels (#147)", () => {
       setVisibility("visible");
       const notice = live.root.querySelector<HTMLElement>(".welcome-back");
       expect(notice?.hidden).toBe(false);
-      expect(notice?.classList.contains("is-homecoming")).toBe(true);
       expect(live.text("#welcome-back-title")).toBe("Welcome home");
       expect(live.text(".welcome-return")).toBe(
         "Ada came back from the old shaft with Grandfather's pick. Taps bite deeper.",

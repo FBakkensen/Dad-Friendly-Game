@@ -20,9 +20,10 @@ import {
   STANDALONE_INSETS,
   openScreen,
   coversBoard,
-  pastSettle,
+  PAST_SETTLE_MS,
   noScroll,
 } from "./kit.mjs";
+import { stepTapClock } from "../../tools/browser/harness.ts";
 
 /** The phone's cards, in the browser and as the installed PWA with its insets. */
 const STANDALONE = [{ standalone: false }, { standalone: true }];
@@ -40,7 +41,7 @@ table({
     `section 4 (line 816) ${JSON.stringify(standalone)}`,
   prefix: standaloneLabel,
   open: (viewport, { standalone }) =>
-    openScreen(viewport, staffingNoteSave(), { standalone }),
+    openScreen(viewport, staffingNoteSave(), { standalone, tapClock: "held" }),
   expect: [
     {
       run: async ({ page }) => {
@@ -71,7 +72,7 @@ table({
     },
     {
       run: async ({ page }) => {
-        await pastSettle();
+        await stepTapClock(page, PAST_SETTLE_MS);
         await page.tap(".welcome-continue");
         return [
           [
@@ -88,12 +89,14 @@ table({
 section("section 5 (line 856)", async () => {
   {
     const viewport = PHONE;
-    const { page, close } = await openScreen(viewport, welcomeBackSave());
+    const { page, close } = await openScreen(viewport, welcomeBackSave(), {
+      tapClock: "held",
+    });
     check(
       await coversBoard(page, ".welcome-back"),
       "welcome-back is laid over the game",
     );
-    await pastSettle();
+    await stepTapClock(page, PAST_SETTLE_MS);
     await page.tap(".welcome-continue");
     check(
       await coversBoard(page, ".relic-reveal"),
@@ -476,7 +479,10 @@ table({
     `section 13 (line 1430) ${JSON.stringify(standalone)}`,
   prefix: standaloneLabel,
   open: (viewport, { standalone }) =>
-    openScreen(viewport, toolHomeSave(Date.now()), { standalone }),
+    openScreen(viewport, toolHomeSave(Date.now()), {
+      standalone,
+      tapClock: "held",
+    }),
   expect: [
     {
       run: async ({ page, scenario }) => {
@@ -505,7 +511,7 @@ table({
     },
     {
       run: async ({ page }) => {
-        await pastSettle();
+        await stepTapClock(page, PAST_SETTLE_MS);
         await page.tap(".welcome-continue");
         return [
           [

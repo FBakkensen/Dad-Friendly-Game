@@ -1,4 +1,4 @@
-/* global console, process, setTimeout, document, innerWidth, innerHeight, scrollBy, scrollY, localStorage, getComputedStyle, HTMLButtonElement, requestAnimationFrame */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, localStorage, getComputedStyle, HTMLButtonElement, requestAnimationFrame */
 /** The visual check's shared kit: the server, Chrome, the sizes and the helpers more than one module uses. */
 import {
   cardRisen,
@@ -221,13 +221,11 @@ async function openScreen(
 }
 
 /**
- * Waits past a board card's settle (#464) on a real tap clock: a finger on its plate in the
- * first 400ms after it opens is the second tap of the one that opened it, and does nothing.
+ * A held tap clock's step (stepTapClock) past a drawer's or a board card's 400ms settle
+ * (board-interaction's DRAWER_SETTLE_MS): a finger on a card's plate in its first 400ms is the
+ * second tap of the one that opened it, and does nothing (#464).
  */
-const pastSettle = () =>
-  new Promise((resolve) => {
-    setTimeout(resolve, 500);
-  });
+const PAST_SETTLE_MS = 500;
 
 /**
  * The overlay (fixed, or a board card absolute in the board, #464) covers the
@@ -552,7 +550,7 @@ export {
   boardProbe,
   openScreen,
   coversBoard,
-  pastSettle,
+  PAST_SETTLE_MS,
   cardRisen,
   noScroll,
   MINE_WINDOW_RULES,

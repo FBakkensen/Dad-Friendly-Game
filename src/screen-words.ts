@@ -313,9 +313,16 @@ export const WELCOME_HOME_TITLE = "Welcome home";
 export const crewGrewWords = (joined: number, alone: boolean): string =>
   `${alone ? "" : "Your crew grew: "}${formatCount(joined)} ${workerWords(joined)} joined to run your machines.`;
 
-/** The welcome card's big number: "+1.2M stones", "+1 stone". */
-export const awayMinedWords = (mined: number): string =>
-  `+${formatCount(mined)} ${mined === 1 ? "stone" : "stones"}`;
+/**
+ * The welcome card's big number and its unit, read together: "+1.2 million stones", "+1 stone".
+ * The card sets the unit smaller beside the number.
+ */
+export const awayMinedWords = (
+  mined: number,
+): { readonly count: string; readonly unit: "stone" | "stones" } => ({
+  count: `+${formatCount(mined)}`,
+  unit: mined === 1 ? "stone" : "stones",
+});
 
 /** How long you were gone, how the crew dug, and the Heart of Patience's share. */
 export function awayGoneWords(report: {

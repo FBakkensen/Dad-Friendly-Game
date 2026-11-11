@@ -6,7 +6,7 @@ import {
   playCraftSave,
   toolHomeSave,
 } from "../../tools/browser/fixtures.ts";
-import { openPair } from "../../tools/browser/harness.ts";
+import { openPair, stepTapClock } from "../../tools/browser/harness.ts";
 import { undersizedTargets } from "../../src/ui-audit-measure.ts";
 import { failures, check, section, table } from "./registry.mjs";
 import {
@@ -15,7 +15,7 @@ import {
   PCS,
   press,
   cardRisen,
-  pastSettle,
+  PAST_SETTLE_MS,
   browser,
   OPEN_SHEET,
   openSheet,
@@ -454,7 +454,7 @@ section("section 17 (line 2085)", async () => {
     } = await openPair(browser, BASE, {
       viewport: { width, height, isMobile: true, hasTouch: true },
       seed: { kind: "none" },
-      clock: { date: "real", tap: "real" },
+      clock: { date: "real", tap: "held" },
       onPageError: (error) => {
         failures.push(`other tab: ${String(error)}`);
       },
@@ -497,7 +497,7 @@ section("section 17 (line 2085)", async () => {
     );
     await second.bringToFront();
     // Past the card's settle: a finger in its first 400ms is the tap that opened it (#464).
-    await pastSettle();
+    await stepTapClock(second, PAST_SETTLE_MS);
     await second.tap(".other-tab-play");
     await second.waitForSelector(".other-tab[hidden]", { timeout: 5_000 });
     await first.bringToFront();
@@ -527,7 +527,7 @@ section("section 18 (line 2148)", async () => {
     const { page, close } = await openScreen(
       PHONE,
       {},
-      { search: "?saves=two" },
+      { search: "?saves=two", tapClock: "held" },
     );
     await page.waitForSelector(".save-conflict:not([hidden])", {
       timeout: 5_000,
@@ -575,7 +575,7 @@ section("section 18 (line 2148)", async () => {
     );
     check(await noScroll(page), "424x924 conflict sheet has no scroll");
     await shot(page, "save-conflict-real-424x924");
-    await pastSettle();
+    await stepTapClock(page, PAST_SETTLE_MS);
     await page.click(".save-conflict-play");
     // The confirm is a new screen that settles again: a click on it at once commits nothing.
     await page.click(".save-conflict-commit");

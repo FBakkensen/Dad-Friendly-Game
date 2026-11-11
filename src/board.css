@@ -2809,11 +2809,13 @@ button.board-row:focus-visible {
   color: var(--board-ink);
 }
 
+/* The body never shrinks under its words: a body too tall for the face
+   overflows the face, where the visual check sees it, never onto the foot. */
 .board-card-body {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   gap: calc(var(--art) * 4);
-  min-height: 0;
 }
 
 .board-card-line {
@@ -2862,11 +2864,19 @@ button.board-row:focus-visible {
 
 /* ---------- the board cards (#464) ---------- */
 
-/* A find line joins the away report. The Engineers sheet is a card of today's
-   (z-index 10, later in the page), so a homecoming while it is open would
-   paint under it: the welcome stands just above, still under the clips. */
-.board-card.welcome-back {
-  z-index: 11;
+/* The cards stand at the board card's z-index, in the root's order
+   (screen-panels#cardsFrom): the Engineers sheet, today's sheet at the same
+   z-index, comes first, so a homecoming's welcome paints over it. */
+
+/* The haul's number never breaks; its unit stands smaller beside it, and
+   drops to the next line only when the two do not fit. */
+.welcome-mined-count,
+.welcome-mined-unit {
+  white-space: nowrap;
+}
+
+.welcome-mined-unit {
+  font-size: var(--board-type-22);
 }
 
 /* The ore that came up while away (#247): its icon, then the line and what it
@@ -2964,7 +2974,8 @@ button.board-row:focus-visible {
   gap: calc(var(--art) * 4);
 }
 
-.save-conflict-error {
+/* Scoped: Saved copies' error line carries the same name (style.css). */
+.board-card .save-conflict-error {
   color: var(--board-rust);
 }
 

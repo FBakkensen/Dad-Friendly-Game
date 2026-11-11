@@ -797,6 +797,9 @@ describe("crew tiers on screen", () => {
     expect(card.hidden).toBe(false);
     expect(card.getAttribute("role")).toBe("dialog");
     expect(screen.text(".welcome-mined")).toBe("+9,000 stones");
+    // The number stays whole; its unit is set smaller beside it.
+    expect(screen.text(".welcome-mined-count")).toBe("+9,000");
+    expect(screen.text(".welcome-mined-unit")).toBe("stones");
     expect(screen.text(".welcome-detail")).toBe(
       "You were gone 2 hours 5 minutes. Your crew kept digging the whole time.",
     );

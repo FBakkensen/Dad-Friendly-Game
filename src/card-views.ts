@@ -35,8 +35,8 @@ export function welcomeNews(view: ProgressSnapshot): boolean {
 }
 
 export interface WelcomeAway {
-  /** "+1.2 million stones" */
-  readonly mined: string;
+  /** "+1.2 million" and "stones" */
+  readonly mined: ReturnType<typeof awayMinedWords>;
   /** "You were gone 9 hours. … ×1.25." */
   readonly gone: string;
   readonly cheer: string;
@@ -55,8 +55,6 @@ export interface WelcomeView {
   readonly returns: readonly string[];
   readonly layers: readonly string[];
   readonly crafts: readonly string[];
-  /** Someone came home. */
-  readonly homecoming: boolean;
 }
 
 function awayOf(view: ProgressSnapshot): WelcomeAway | undefined {
@@ -118,7 +116,6 @@ export function welcomeView(view: ProgressSnapshot): WelcomeView | undefined {
       return line === undefined ? [] : [line];
     }),
     crafts: view.craftsFitted.map((fitted) => fitted.line),
-    homecoming: returns.length > 0,
   };
 }
 

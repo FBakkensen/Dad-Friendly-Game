@@ -27,8 +27,7 @@ export interface BoardCardOptions {
 export interface BoardCard {
   /** div.board-card.<hook>[data-card=name]: the shade over the board, role dialog, aria-modal. */
   readonly root: HTMLElement;
-  /** section.board-card-face, frame skin: the title, the body, then the foot. */
-  readonly face: HTMLElement;
+  /** In section.board-card-face, frame skin: the title, the body, then the foot. */
   readonly title: HTMLElement;
   readonly body: HTMLElement;
   readonly foot: HTMLElement;
@@ -49,7 +48,6 @@ export interface BoardCard {
   show(on: boolean, focus?: HTMLElement): void;
   /** A new screen on the card (the conflict's confirm): forgets presses, settles again. */
   page(): void;
-  isUp(): boolean;
 }
 
 export function createBoardCard({
@@ -87,7 +85,6 @@ export function createBoardCard({
 
   return {
     root,
-    face,
     title,
     body,
     foot,
@@ -121,7 +118,6 @@ export function createBoardCard({
       forget();
       board.send({ kind: "page", overlay: name, at: board.clock() });
     },
-    isUp: () => cardUp(root),
   };
 }
 

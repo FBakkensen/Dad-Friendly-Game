@@ -105,15 +105,32 @@ export function createSaveConflictPanel({
   write(ask, SAVE_CONFLICT_CONFIRM);
   confirm.append(ask);
   card.foot.append(confirm);
-  card.plate(
+  // One choice at a time: a second press while the first saves never chooses again.
+  let committing = false;
+  const commit = card.plate(
     SAVE_CONFLICT_PLAY,
     "commit",
     "save-conflict-commit",
     () => {
-      void progress.chooseSave(selected);
+      if (committing) {
+        return;
+      }
+      committing = true;
+      void progress.chooseSave(selected).finally(() => {
+        committing = false;
+      });
     },
     confirm,
   );
+  /** The confirm shows or hides; the keyboard's focus on Play this one moves to its commit. */
+  const showConfirm = (on: boolean): void => {
+    const focused = play.ownerDocument.activeElement === play;
+    hide(play, on);
+    hide(confirm, !on);
+    if (on && focused) {
+      commit.focus({ preventScroll: true });
+    }
+  };
 
   const render = (
     conflict: SaveConflictView | undefined,
@@ -133,8 +150,7 @@ export function createSaveConflictPanel({
       fill(other, conflict.remote, selected === "remote", now());
       hide(error, conflict.error === undefined);
       write(error, conflict.error ?? "");
-      hide(play, confirming);
-      hide(confirm, !confirming);
+      showConfirm(confirming);
     }
     card.show(conflict !== undefined && !elsewhere, play);
   };

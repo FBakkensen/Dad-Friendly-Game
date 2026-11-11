@@ -315,7 +315,11 @@ export function createSheetPanels(
   };
 }
 
-/** The cards, in the order they stand in the root. */
+/**
+ * The cards, in the order they stand in the root: at one z-index, a later one paints over an
+ * earlier one, and only the save conflict stands higher. The Engineers sheet comes first, so a
+ * homecoming's welcome paints over it while it is open.
+ */
 export function cardsFrom(
   early: ReturnType<typeof createEarlyCards>,
   top: ReturnType<typeof createBoardTop>,
@@ -325,6 +329,7 @@ export function cardsFrom(
   const { arrival, legacy } = early;
   const { reveal, legend, shelf, detail } = top.relics;
   return [
+    sheets.engineers.sheet,
     early.welcome,
     arrival.layer,
     arrival.notice,
@@ -333,7 +338,6 @@ export function cardsFrom(
     shelf,
     detail,
     legacy.dialog,
-    sheets.engineers.sheet,
     extra.updatePrompt,
     extra.otherTab,
     sheets.savedCopies.root,

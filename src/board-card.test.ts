@@ -56,14 +56,13 @@ describe("the board card", () => {
       "welcome-back-title",
     );
     expect(card.root.hidden).toBe(true);
-    expect(card.face.matches("section.board-card-face.board-skinned")).toBe(
-      true,
-    );
+    const face = card.root.querySelector(":scope > section.board-card-face");
+    expect(face?.classList.contains("board-skinned")).toBe(true);
     expect(card.title.matches("h2.board-card-title#welcome-back-title")).toBe(
       true,
     );
     expect(
-      [...card.face.children].filter((child) => child.tagName !== "CANVAS"),
+      [...(face?.children ?? [])].filter((child) => child.tagName !== "CANVAS"),
     ).toEqual([card.title, card.body, card.foot]);
     expect(card.body.className).toBe("board-card-body");
     expect(card.foot.className).toBe("board-card-foot");
@@ -76,7 +75,6 @@ describe("the board card", () => {
     card.show(true, plate);
     expect(board.view().stack).toEqual(["welcome"]);
     expect(document.activeElement).toBe(plate);
-    expect(card.isUp()).toBe(true);
     expect(cardUp(card.root)).toBe(true);
     expect(card.root.hidden).toBe(false);
     plate.blur();
@@ -87,7 +85,6 @@ describe("the board card", () => {
     expect(board.view().stack).toEqual([]);
     expect(card.root.hidden).toBe(true);
     expect(cardUp(card.root)).toBe(false);
-    expect(card.isUp()).toBe(false);
     card.show(false);
     expect(send).toHaveBeenCalledTimes(2);
   });

@@ -20,7 +20,20 @@ const plain = {
   revealed: undefined,
 } as unknown as ProgressSnapshot;
 
+let time = 1000;
+
+/** A finger's tap: pointerdown, then a click that counts its taps (detail 1). */
+const fingerTap = (target: HTMLElement | null | undefined): void => {
+  target?.dispatchEvent(
+    new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+  );
+  target?.dispatchEvent(
+    new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
+  );
+};
+
 const mount = (first: ProgressSnapshot) => {
+  time = 1000;
   let view = first;
   const progress = {
     dismissLayer: vi.fn(),
@@ -29,7 +42,11 @@ const mount = (first: ProgressSnapshot) => {
   const panel = createArrivalPanel({
     progress: progress as unknown as ProgressStore,
     getView: () => view,
-    board: createBoardHost({ clock: () => 0 }),
+    board: createBoardHost({
+      clock: () => time,
+      pressAge: () => 0,
+      reduced: () => false,
+    }),
   });
   panel.render();
   return {
@@ -132,5 +149,57 @@ describe("the arrival cards (#464)", () => {
     expect(
       panel.layer.querySelector(".board-card-art")?.getAttribute("src"),
     ).toBe(mineView("granite"));
+  });
+
+  it("settles again when the next craft takes the card: a double tap never dismisses it unseen", () => {
+    const rails = { id: "iron-rails", level: 1, line: "Rails." } as const;
+    const bits = { id: "diamond-bits", level: 1, line: "Bits." } as const;
+    const { panel, progress, show } = mount({
+      ...plain,
+      craftsFitted: [rails, bits],
+    });
+    const accept = panel.notice.querySelector<HTMLElement>(".craft-accept");
+    time += 1000;
+    fingerTap(accept);
+    expect(progress.dismissCraft).toHaveBeenCalledTimes(1);
+    show({ ...plain, craftsFitted: [bits] });
+    time += 100;
+    fingerTap(accept);
+    expect(progress.dismissCraft).toHaveBeenCalledTimes(1);
+    time += 350;
+    fingerTap(accept);
+    expect(progress.dismissCraft).toHaveBeenCalledTimes(2);
+  });
+
+  it("settles again when the next band takes the card", () => {
+    const bands = LAYERS.slice(1, 3);
+    const { panel, progress, show } = mount({
+      ...plain,
+      layersArrived: bands,
+    });
+    expect(panel.layer.hidden).toBe(false);
+    const dig = panel.layer.querySelector<HTMLElement>(".layer-dig");
+    time += 1000;
+    fingerTap(dig);
+    expect(progress.dismissLayer).toHaveBeenCalledTimes(1);
+    show({ ...plain, layersArrived: bands.slice(1) });
+    time += 100;
+    fingerTap(dig);
+    expect(progress.dismissLayer).toHaveBeenCalledTimes(1);
+    time += 350;
+    fingerTap(dig);
+    expect(progress.dismissLayer).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not settle again on a repaint of the same card", () => {
+    const rails = { id: "iron-rails", level: 1, line: "Rails." } as const;
+    const { panel, progress, show } = mount({
+      ...plain,
+      craftsFitted: [rails],
+    });
+    time += 1000;
+    show({ ...plain, craftsFitted: [rails] });
+    fingerTap(panel.notice.querySelector<HTMLElement>(".craft-accept"));
+    expect(progress.dismissCraft).toHaveBeenCalledTimes(1);
   });
 });

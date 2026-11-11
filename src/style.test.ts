@@ -84,13 +84,14 @@ const BOARD_SELECTORS = [
   ".board-card-big",
   ".board-card-foot",
   ".board-card-plate",
+  ".welcome-mined-unit",
   ".welcome-ore",
   ".welcome-returns",
   ".welcome-layers",
   ".welcome-crafts",
   ".save-card",
   ".save-conflict-confirm",
-  ".save-conflict-error",
+  ".board-card .save-conflict-error",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
@@ -147,6 +148,33 @@ describe("board.css", () => {
     );
     expect(boardZ(".board-saveline")).toBeGreaterThan(boardZ(".board-card"));
     expect(boardZ(".board-sheet-clip")).toBeGreaterThan(boardZ(".board-card"));
+  });
+
+  it("stacks the cards in the root's order, the conflict over them all (#464)", () => {
+    // Every card and today's sheets stand at one z-index, so the root's order stacks them
+    // (screen-panels#cardsFrom): the Engineers sheet first, under the welcome; the update,
+    // the other tab and saved copies over the welcome, the layer card and the relic cards.
+    const sheets =
+      /^\.relic-reveal,\n\.shelf-dialog,\n\.start-over,\n\.engineers-dialog,\n\.saved-copies \{[^}]*z-index:\s*(\d+)/m.exec(
+        css,
+      );
+    expect(Number(sheets?.[1])).toBe(boardZ(".board-card"));
+    const raised = [
+      ...boardCss.matchAll(/^(\.board-card\.[\w-]+) \{[^}]*z-index/gm),
+    ].map((m) => m[1]);
+    expect(raised).toEqual([".board-card.save-conflict"]);
+  });
+
+  it("lets no card body shrink under its words, so an overflow shows in the face (#464)", () => {
+    const rule = /^\.board-card-body \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    expect(rule).toMatch(/flex-shrink:\s*0/);
+  });
+
+  it("keeps the conflict card's rules off Saved copies (#464)", () => {
+    // Saved copies' error line and plays carry the conflict's names.
+    for (const name of ["save-conflict-error", "save-conflict-play"]) {
+      expect(boardCss).not.toMatch(new RegExp(`^\\.${name}\\b`, "m"));
+    }
   });
 
   it("stops a board card at the save line (#464)", () => {

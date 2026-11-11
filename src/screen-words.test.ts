@@ -1067,8 +1067,12 @@ describe("the welcome card's words (#464)", () => {
   });
 
   it("writes the haul as one big number", () => {
-    expect(awayMinedWords(1)).toBe("+1 stone");
-    expect(awayMinedWords(1_200_000)).toBe("+1.2 million stones");
+    // The number and its unit, so the card sets the unit smaller beside the number.
+    expect(awayMinedWords(1)).toEqual({ count: "+1", unit: "stone" });
+    expect(awayMinedWords(1_200_000)).toEqual({
+      count: "+1.2 million",
+      unit: "stones",
+    });
   });
 
   it("says how long you were gone, and the Heart's share", () => {

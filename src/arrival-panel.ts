@@ -55,6 +55,16 @@ function paintArt(art: HTMLImageElement, src: string, px: number): void {
   }
 }
 
+/** What a card tells, as one key: its kind, then the band or the recipe and its line. */
+function arrivalKey(shown: ArrivalCard | undefined): string | undefined {
+  if (shown === undefined) {
+    return undefined;
+  }
+  return shown.kind === "layer"
+    ? `layer ${shown.band}`
+    : `craft ${shown.recipe} ${shown.line}`;
+}
+
 export function createArrivalPanel({
   progress,
   getView,
@@ -115,11 +125,23 @@ export function createArrivalPanel({
     write(craft.title, shown.line);
   };
 
+  // The card on show, by what it tells: the next band or craft on a card that is already up
+  // is a new page, so it settles under the finger again.
+  let shownKey: string | undefined;
   const render = (): void => {
     const shown = arrivalCard(getView());
     if (shown !== undefined) {
       paint(shown);
     }
+    const key = arrivalKey(shown);
+    if (shownKey !== undefined && key !== shownKey) {
+      if (shown?.kind === "layer" && shownKey.startsWith("layer ")) {
+        layer.page();
+      } else if (shown?.kind === "craft" && shownKey.startsWith("craft ")) {
+        craft.page();
+      }
+    }
+    shownKey = key;
     layer.show(shown?.kind === "layer", dig);
     craft.show(shown?.kind === "craft", accept);
   };

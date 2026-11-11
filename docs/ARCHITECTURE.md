@@ -137,7 +137,11 @@ page is the map, plus the rules that keep it that way.
    that press through `pressOnBoard` on the card's own layer, `show(on,
 focus)` (`showCard`, the model's open or close, and the focus once as it
    opens) and `page()` (a new screen that settles again: the conflict's
-   confirm). Shared player-facing wording lives in `screen-words`. The screen's optional `signal` (tests
+   confirm, and the next band or craft on a card that is already up). The
+   cards and today's sheets stand at one z-index in the root's order
+   (`screen-panels#cardsFrom`), with the Engineers sheet first so a
+   homecoming's welcome paints over it; only the save conflict stands
+   higher. Shared player-facing wording lives in `screen-words`. The screen's optional `signal` (tests
    pass one; the app never unmounts) takes off everything it hangs outside
    its own elements: the tick, the frame loop, its document and window
    listeners (the note's, the save line's and the drawers' too), and its
@@ -417,8 +421,9 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
     again), which also ends every Done hold, as a reload always has;
   - the 1.6s thanks after a fix: the bays' "Fixed!" note is painted from the
     model's `fixed`, not from a timer of their own;
-  - the overlay stack: a drawer stands alone, and the save drawer and a
-    note go on top;
+  - the overlay stack: a drawer takes the place of every other drawer, the
+    save drawer and a note, but keeps the cards up under it; the save drawer
+    and a note go on top;
   - the board cards (#464, `CardId`: welcome, layer, craft, conflict,
     other-tab, update): a card's open and close are model events. A card
     settles for `DRAWER_SETTLE_MS` after it opens or pages, as a drawer does,
@@ -571,7 +576,8 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   for the shade down to the save line, no scroll, `cardFacts`, fat plates,
   13px text, 2x art, contrast and the focus as it opens. `coversBoard` (in
   `kit.mjs`) takes an overlay that is fixed or absolute in the board. A
-  check that taps a card's plate waits past its settle first (`pastSettle`). These modules wait on page
+  check that taps a card's plate opens on a held tap clock and steps it past
+  the settle first (`stepTapClock(page, PAST_SETTLE_MS)`). These modules wait on page
   state, page events or a count of painted frames, never on a fixed sleep.
 - Signoff (#397): a green `npm run check` on a clean, committed HEAD writes `.gate/passed`. `npm run gate -- signoff` (`scripts/signoff.mjs`, rules in `src/signoff.ts`) starts `.github/workflows/signoff.yml`, which posts the `signoff` commit status; the ruleset on `main` requires it and an up-to-date branch. The relay exists because cloud sessions may not post statuses. `deploy-hosting` runs `npm run check` on the merged commit before it deploys, so a red `main` deploys nothing.
 

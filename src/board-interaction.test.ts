@@ -239,6 +239,17 @@ describe("the overlay stack", () => {
     expect(decide(state, finger("update", "reload", 2400))).toBe("act");
   });
 
+  it("keeps the cards up when a drawer opens over them (#464)", () => {
+    const state = after(
+      { kind: "open", overlay: "buys", at: 0 },
+      { kind: "open", overlay: "welcome", at: 100 },
+      { kind: "open", overlay: "save", at: 150 },
+      { kind: "open", overlay: "ledger", at: 200 },
+    );
+    expect(stack(state)).toEqual(["welcome", "ledger"]);
+    expect(decide(state, finger("welcome", "go", 1000))).toBe("act");
+  });
+
   it("keeps a card up when what it opened over closes", () => {
     // A card that opens by itself closes the open drawer after it is on the stack.
     const state = after(

@@ -305,7 +305,10 @@ export function controlKey(control: ControlRef): string {
   return `${control.layer}/${control.id}`;
 }
 
-/** The stack once `overlay` opens: a drawer stands alone; the save drawer and a note go on top. */
+/**
+ * The stack once `overlay` opens: a drawer takes the place of every other drawer, the save drawer
+ * and a note, but never of a card, which closes only itself; anything else goes on top.
+ */
 function stackWith(
   stack: readonly Opened[],
   overlay: OverlayId,
@@ -313,7 +316,7 @@ function stackWith(
 ): readonly Opened[] {
   const opened: Opened = { overlay, settleFrom: at };
   if (isDrawer(overlay)) {
-    return [opened];
+    return [...stack.filter((each) => isCard(each.overlay)), opened];
   }
   return [...stack, opened];
 }
