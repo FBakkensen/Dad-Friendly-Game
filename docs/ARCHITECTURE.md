@@ -452,6 +452,16 @@ page is the map, plus the rules that keep it that way.
   section module imports `kit.mjs`, even when it uses no kit name: kit's
   top-level await is what keeps the sections registering in the runner's
   import order. A new check goes in the module of the part it checks.
+- Tables and controls (#441): `registry.mjs` also has `table()`, which turns
+  screens × scenarios × rows × expectations into sections and checks, with
+  each label built from data. The rail, the drawers per save and the bays per
+  save are tables. The drawer list is `DRAWERS` in `drawers.mjs`: a new drawer
+  is a row there, with its own scroll rule. `controls.mjs` wires each control
+  family once in Chrome (the rail key, a row buy, Back and the scrim, the "i"
+  cards, Ready now, an open bay, the trouble fix, the red button and a press
+  look), on the held tap clock. What a tap decides is proven by unit tests,
+  not there; a new family gets one wiring check. These modules wait on page
+  state, page events or a count of painted frames, never on a fixed sleep.
 - Signoff (#397): a green `npm run check` on a clean, committed HEAD writes `.gate/passed`. `npm run gate -- signoff` (`scripts/signoff.mjs`, rules in `src/signoff.ts`) starts `.github/workflows/signoff.yml`, which posts the `signoff` commit status; the ruleset on `main` requires it and an up-to-date branch. The relay exists because cloud sessions may not post statuses. `deploy-hosting` runs `npm run check` on the merged commit before it deploys, so a red `main` deploys nothing.
 
 ## M7 sketch
