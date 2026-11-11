@@ -16,7 +16,7 @@ import {
   savingMountain,
 } from "../../tools/browser/fixtures.ts";
 import { undersizedTargets } from "../../src/ui-audit-measure.ts";
-import { check, section } from "./registry.mjs";
+import { check, section, table } from "./registry.mjs";
 import {
   SCREENS,
   KEY,
@@ -39,20 +39,23 @@ import {
 } from "./measure.mjs";
 
 const DRAWER_SAVES = [
-  ["fresh", () => freshMountain()],
-  ["early", () => crewMountain()],
-  ["mid", () => openMountain()],
-  ["short", () => shortMountain()],
-  ["idle", () => idleMountain()],
-  ["tools", () => toolsMountain()],
-  ["machine", () => machineMountain()],
-  ["heir", () => heirMountain()],
-  ["crew", () => crewV4Save()],
-  ["mid, the borer the pick", () => borerPickMountain()],
+  { name: "fresh", save: () => freshMountain() },
+  { name: "early", save: () => crewMountain() },
+  { name: "mid", save: () => openMountain() },
+  { name: "short", save: () => shortMountain() },
+  { name: "idle", save: () => idleMountain() },
+  { name: "tools", save: () => toolsMountain() },
+  { name: "machine", save: () => machineMountain() },
+  { name: "heir", save: () => heirMountain() },
+  { name: "crew", save: () => crewV4Save() },
+  { name: "mid, the borer the pick", save: () => borerPickMountain() },
   // A full Granite: two rows of crew chips, and Buys still fits (#373).
-  ["mid, two chip rows", () => fullGraniteMountain()],
+  { name: "mid, two chip rows", save: () => fullGraniteMountain() },
   // The Great Machine the pick, with Ada tending it: the flag gives way.
-  ["machine, the Great Machine the pick", () => machinePickMountain()],
+  {
+    name: "machine, the Great Machine the pick",
+    save: () => machinePickMountain(),
+  },
 ];
 /**
  * Late-game Buys runs longer than the drawer and scrolls inside it (C1): the
@@ -124,232 +127,303 @@ async function howFacts(page, name) {
   });
 }
 
-for (const viewport of SCREENS) {
-  for (const [saveName, save] of DRAWER_SAVES) {
-    section(
-      `keys and drawers ${JSON.stringify(viewport)} ${saveName}`,
-      async () => {
-        const size = `${String(viewport[0])}x${String(viewport[1])}`;
-        const { page, close } = await openScreen(viewport, save(), {
-          stopClock: true,
-        });
-        await keysDrawn(page);
-        await page.evaluate(() => document.fonts.ready.then(() => true));
-        await noteAway(page);
-        for (const name of ["buys", "upgrades"]) {
-          const label = `${size} ${name} drawer, ${saveName}:`;
-          const up = await openSheet(page, name);
-          // Every row's art has loaded before it is measured.
-          await page.evaluate(() =>
-            Promise.all(
-              [...document.querySelectorAll(".board-sheet.is-open img")].map(
-                (img) => img.decode().catch(() => undefined),
-              ),
-            ),
-          );
-          const facts = await drawerFacts(page, name);
-          check(
-            up && facts.placed && facts.odometerClear && facts.saveLineClear,
-            `${label} stands at 178..864 by 8..416, with the odometer and the save line in view`,
-          );
-          if (!facts.placed || !facts.odometerClear || !facts.saveLineClear) {
-            const clip = await page.$eval(
-              ".board-sheet-clip",
-              (el) => el.scrollTop,
-            );
-            console.log(
-              "drawer box",
-              size,
-              saveName,
-              name,
-              JSON.stringify({ box: facts.box, clipScrollTop: clip }),
-            );
-          }
-          check(await noScroll(page), `${label} no page scroll`);
-          const mayScroll =
-            name === "buys"
-              ? LONG_BUYS.has(saveName)
-              : facts.rows.length >= FULL_UPGRADES_ROWS;
-          const mustScroll = name === "buys" && LONG_BUYS.has(saveName);
-          check(
-            facts.scrolls
-              ? mayScroll && facts.spareClass === "is-off"
-              : !mustScroll,
-            `${label} its list ${facts.scrolls ? "scrolls inside the drawer (C1) with the spare off" : "fits with no scroll"}`,
-          );
-          if (facts.scrolls !== mustScroll && !(facts.scrolls && mayScroll)) {
-            const sizes = await page.$eval(
-              `${OPEN_SHEET(name)} .board-sheet-list`,
-              (list) => [list.scrollHeight, list.clientHeight],
-            );
-            console.log("drawer scroll", size, saveName, name, sizes);
-          }
-          check(
-            facts.spareClass === facts.spareWant,
-            `${label} the spare plate is ${facts.spareClass}, as its height asks (${facts.spareWant})`,
-          );
-          const rowsOk =
-            facts.rows.every((row) => Math.abs(row.height - 76) <= 0.5) &&
-            facts.gaps.every((gap) => Math.abs(gap - 10) <= 0.5);
-          check(
-            rowsOk,
-            `${label} ${String(facts.rows.length)} rows are 76 tall and 10 apart`,
-          );
-          const crowded = facts.rows.filter(
-            (row) =>
-              !row.inside || row.overlaps.length > 0 || row.spills.length > 0,
-          );
-          check(
-            crowded.length === 0,
-            `${label} every row's name, info, need, flag, gain, tag and verb lie inside it and apart`,
-          );
-          if (!rowsOk || crowded.length > 0) {
-            console.log(
-              "drawer rows",
-              size,
-              saveName,
-              name,
-              JSON.stringify({
-                gaps: facts.gaps,
-                crowded,
-                rows: facts.rows.map((row) => [row.id, row.height]),
-              }),
-            );
-          }
-          const targets = await boardTargets(page);
-          const inSheet = (target) =>
-            /^\.(board-row|board-platebtn|board-sheet-info) /.test(
-              target.selector,
-            );
-          const own = targets.own.filter(inSheet);
-          // A scaled board snaps boxes to device pixels: allow a tenth of a pixel.
-          const under = undersizedTargets(own, 47.9);
-          const close8 = boardGaps(targets);
-          check(
-            own.length >= 2 && under.length === 0 && close8.length === 0,
-            `${label} ${String(own.length)} targets are 48x48 board px, 8px from the next`,
-          );
-          if (under.length > 0 || close8.length > 0) {
-            console.log(
-              "drawer targets",
-              size,
-              saveName,
-              name,
-              JSON.stringify({
-                under: under.map((target) => target.selector),
-                close: close8.map((pair) => [pair.a, pair.b, pair.gap]),
-              }),
-            );
-          }
-          const text = await boardTextSizes(page, OPEN_SHEET(name));
-          check(
-            text.small.length === 0 && text.count >= 3,
-            `${label} text is 13px or more (${String(text.count)} runs)`,
-          );
-          if (text.small.length > 0) {
-            console.log(
-              "drawer text",
-              size,
-              saveName,
-              name,
-              JSON.stringify(text.small),
-            );
-          }
-          const art = await boardArtAt2x(
-            page,
-            OPEN_SHEET(name),
-            OPEN_SHEET(name),
-          );
-          check(
-            art.misses.length === 0 && art.count >= 3,
-            `${label} ${String(art.count)} images, sprites and skins at exactly 2x`,
-          );
-          if (art.misses.length > 0) {
-            console.log(
-              "drawer 2x",
-              size,
-              saveName,
-              name,
-              JSON.stringify(art.misses),
-            );
-          }
-          const contrast = await boardContrast(page, ROW_LEGENDS(name));
-          const dim = contrast.filter((row) => row.pct < 4.5);
-          check(
-            dim.length === 0,
-            `${label} ${String(contrast.length)} row legends at 4.5:1 or more (lowest ${String(contrast.length === 0 ? "-" : Math.min(...contrast.map((row) => row.pct)))}:1 at p10/p90)`,
-          );
-          if (dim.length > 0) {
-            console.log(
-              "drawer contrast",
-              size,
-              saveName,
-              name,
-              JSON.stringify(dim),
-            );
-          }
-          // The "i": its cards take the list's place, fit, and go back. A
-          // keyboard press is never early, so the drawer's settle does not
-          // swallow it (the finger's "i" is wired in the taps section).
-          await page.$eval(`${OPEN_SHEET(name)} .board-sheet-info`, (info) => {
-            info.click();
-          });
-          await page
-            .waitForSelector(
-              `${OPEN_SHEET(name)} .board-sheet-how:not([hidden])`,
-              {
-                timeout: 2_000,
-              },
-            )
-            .catch(() => undefined);
-          // The cards' art and any face the list did not use load as they
-          // show: wait for both before measuring. (The 708/660 overflow once
-          // blamed on fonts was a skin canvas at its default size, #403.)
-          await page.evaluate(() =>
-            Promise.all([
-              ...[
-                ...document.querySelectorAll(
-                  ".board-sheet.is-open .teach-how img",
-                ),
-              ].map((img) => img.decode().catch(() => undefined)),
-              document.fonts.ready,
-            ]),
-          );
-          const how = await howFacts(page, name);
-          const howArt = await boardArtAt2x(
-            page,
-            OPEN_SHEET(name),
-            OPEN_SHEET(name),
-          );
-          const howText = await boardTextSizes(page, OPEN_SHEET(name));
-          check(
-            how.ok && howArt.misses.length === 0 && howText.small.length === 0,
-            `${label} the "i" cards fit the drawer with no scroll, one Back, art at 2x and 13px text`,
-          );
-          if (!how.ok || howArt.misses.length > 0 || howText.small.length > 0) {
-            console.log(
-              "drawer how",
-              size,
-              saveName,
-              name,
-              JSON.stringify({ how, art: howArt.misses, text: howText.small }),
-            );
-          }
-          await page
-            .$eval(
-              `${OPEN_SHEET(name)} .board-sheet-how .teach-how-back:not([hidden])`,
-              (back) => {
-                back.click();
-              },
-            )
-            .catch(() => undefined);
-          await closeSheet(page, name);
-        }
-        await close();
-      },
+/**
+ * The drawers each save opens, one row each, with its own scroll rule:
+ * `mayScroll` lets the list scroll inside the drawer, `mustScroll` fails it
+ * for fitting.
+ *
+ * B6 (#374) adds a row each for Workshop and Engineers. Each needs a `when`
+ * that skips the saves where its key is locked (openSheet waits 30 s on a
+ * disabled key), and a `how: false` flag, with the "i" expectation skipped on
+ * it, if that drawer has no "i".
+ * @public
+ */
+export const DRAWERS = [
+  {
+    name: "buys",
+    mayScroll: ({ scenario }) => LONG_BUYS.has(scenario.name),
+    mustScroll: ({ scenario }) => LONG_BUYS.has(scenario.name),
+  },
+  {
+    name: "upgrades",
+    mayScroll: ({ facts }) => facts.rows.length >= FULL_UPGRADES_ROWS,
+    mustScroll: () => false,
+  },
+].map((drawer) => ({
+  ...drawer,
+  // Opens the drawer by its key; every row's art has loaded before it is
+  // measured. `up` and `facts` ride on `at` for the expectations.
+  enter: async (at) => {
+    at.up = await openSheet(at.page, drawer.name);
+    await at.page.evaluate(() =>
+      Promise.all(
+        [...document.querySelectorAll(".board-sheet.is-open img")].map((img) =>
+          img.decode().catch(() => undefined),
+        ),
+      ),
     );
-  }
+    at.facts = await drawerFacts(at.page, drawer.name);
+  },
+  leave: (at) => closeSheet(at.page, drawer.name),
+}));
 
+/** Opens a save with the clock held, the keys drawn and the note away. */
+async function openDrawerSave(viewport, { save }) {
+  const opened = await openScreen(viewport, save(), { stopClock: true });
+  try {
+    await keysDrawn(opened.page);
+    await opened.page.evaluate(() => document.fonts.ready.then(() => true));
+    await noteAway(opened.page);
+    return opened;
+  } catch (error) {
+    await opened.close();
+    throw error;
+  }
+}
+
+/** What each drawer shows on each save, measured with the drawer open. */
+const DRAWER_EXPECT = [
+  {
+    run: async ({ page, up, facts, size, scenario, row }) => {
+      if (!facts.placed || !facts.odometerClear || !facts.saveLineClear) {
+        const clip = await page.$eval(
+          ".board-sheet-clip",
+          (el) => el.scrollTop,
+        );
+        console.log(
+          "drawer box",
+          size,
+          scenario.name,
+          row.name,
+          JSON.stringify({ box: facts.box, clipScrollTop: clip }),
+        );
+      }
+      return [
+        [
+          up && facts.placed && facts.odometerClear && facts.saveLineClear,
+          "stands at 178..864 by 8..416, with the odometer and the save line in view",
+        ],
+      ];
+    },
+  },
+  { run: async ({ page }) => [[await noScroll(page), "no page scroll"]] },
+  {
+    run: async (at) => {
+      const { page, facts, size, scenario, row } = at;
+      const mayScroll = row.mayScroll(at);
+      const mustScroll = row.mustScroll(at);
+      if (facts.scrolls !== mustScroll && !(facts.scrolls && mayScroll)) {
+        const sizes = await page.$eval(
+          `${OPEN_SHEET(row.name)} .board-sheet-list`,
+          (list) => [list.scrollHeight, list.clientHeight],
+        );
+        console.log("drawer scroll", size, scenario.name, row.name, sizes);
+      }
+      return [
+        [
+          facts.scrolls
+            ? mayScroll && facts.spareClass === "is-off"
+            : !mustScroll,
+          `its list ${facts.scrolls ? "scrolls inside the drawer (C1) with the spare off" : "fits with no scroll"}`,
+        ],
+      ];
+    },
+  },
+  {
+    run: ({ facts }) => [
+      [
+        facts.spareClass === facts.spareWant,
+        `the spare plate is ${facts.spareClass}, as its height asks (${facts.spareWant})`,
+      ],
+    ],
+  },
+  {
+    run: ({ facts, size, scenario, row }) => {
+      const rowsOk =
+        facts.rows.every((one) => Math.abs(one.height - 76) <= 0.5) &&
+        facts.gaps.every((gap) => Math.abs(gap - 10) <= 0.5);
+      const crowded = facts.rows.filter(
+        (one) =>
+          !one.inside || one.overlaps.length > 0 || one.spills.length > 0,
+      );
+      if (!rowsOk || crowded.length > 0) {
+        console.log(
+          "drawer rows",
+          size,
+          scenario.name,
+          row.name,
+          JSON.stringify({
+            gaps: facts.gaps,
+            crowded,
+            rows: facts.rows.map((one) => [one.id, one.height]),
+          }),
+        );
+      }
+      return [
+        [rowsOk, `${String(facts.rows.length)} rows are 76 tall and 10 apart`],
+        [
+          crowded.length === 0,
+          "every row's name, info, need, flag, gain, tag and verb lie inside it and apart",
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page, size, scenario, row }) => {
+      const targets = await boardTargets(page);
+      const inSheet = (target) =>
+        /^\.(board-row|board-platebtn|board-sheet-info) /.test(target.selector);
+      const own = targets.own.filter(inSheet);
+      // A scaled board snaps boxes to device pixels: allow a tenth of a pixel.
+      const under = undersizedTargets(own, 47.9);
+      const close8 = boardGaps(targets);
+      if (under.length > 0 || close8.length > 0) {
+        console.log(
+          "drawer targets",
+          size,
+          scenario.name,
+          row.name,
+          JSON.stringify({
+            under: under.map((target) => target.selector),
+            close: close8.map((pair) => [pair.a, pair.b, pair.gap]),
+          }),
+        );
+      }
+      return [
+        [
+          own.length >= 2 && under.length === 0 && close8.length === 0,
+          `${String(own.length)} targets are 48x48 board px, 8px from the next`,
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page, size, scenario, row }) => {
+      const text = await boardTextSizes(page, OPEN_SHEET(row.name));
+      if (text.small.length > 0) {
+        console.log(
+          "drawer text",
+          size,
+          scenario.name,
+          row.name,
+          JSON.stringify(text.small),
+        );
+      }
+      return [
+        [
+          text.small.length === 0 && text.count >= 3,
+          `text is 13px or more (${String(text.count)} runs)`,
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page, size, scenario, row }) => {
+      const art = await boardArtAt2x(
+        page,
+        OPEN_SHEET(row.name),
+        OPEN_SHEET(row.name),
+      );
+      if (art.misses.length > 0) {
+        console.log(
+          "drawer 2x",
+          size,
+          scenario.name,
+          row.name,
+          JSON.stringify(art.misses),
+        );
+      }
+      return [
+        [
+          art.misses.length === 0 && art.count >= 3,
+          `${String(art.count)} images, sprites and skins at exactly 2x`,
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page, size, scenario, row }) => {
+      const contrast = await boardContrast(page, ROW_LEGENDS(row.name));
+      const dim = contrast.filter((one) => one.pct < 4.5);
+      if (dim.length > 0) {
+        console.log(
+          "drawer contrast",
+          size,
+          scenario.name,
+          row.name,
+          JSON.stringify(dim),
+        );
+      }
+      return [
+        [
+          dim.length === 0,
+          `${String(contrast.length)} row legends at 4.5:1 or more (lowest ${String(contrast.length === 0 ? "-" : Math.min(...contrast.map((one) => one.pct)))}:1 at p10/p90)`,
+        ],
+      ];
+    },
+  },
+  {
+    // The "i": its cards take the list's place, fit, and go back. A
+    // keyboard press is never early, so the drawer's settle does not
+    // swallow it (the finger's "i" is wired in the taps section).
+    when: ({ row }) => row.how !== false,
+    run: async ({ page, size, scenario, row }) => {
+      const name = row.name;
+      await page.$eval(`${OPEN_SHEET(name)} .board-sheet-info`, (info) => {
+        info.click();
+      });
+      await page
+        .waitForSelector(`${OPEN_SHEET(name)} .board-sheet-how:not([hidden])`, {
+          timeout: 2_000,
+        })
+        .catch(() => undefined);
+      // The cards' art and any face the list did not use load as they
+      // show: wait for both before measuring. (The 708/660 overflow once
+      // blamed on fonts was a skin canvas at its default size, #403.)
+      await page.evaluate(() =>
+        Promise.all([
+          ...[
+            ...document.querySelectorAll(".board-sheet.is-open .teach-how img"),
+          ].map((img) => img.decode().catch(() => undefined)),
+          document.fonts.ready,
+        ]),
+      );
+      const how = await howFacts(page, name);
+      const howArt = await boardArtAt2x(
+        page,
+        OPEN_SHEET(name),
+        OPEN_SHEET(name),
+      );
+      const howText = await boardTextSizes(page, OPEN_SHEET(name));
+      if (!how.ok || howArt.misses.length > 0 || howText.small.length > 0) {
+        console.log(
+          "drawer how",
+          size,
+          scenario.name,
+          name,
+          JSON.stringify({ how, art: howArt.misses, text: howText.small }),
+        );
+      }
+      await page
+        .$eval(
+          `${OPEN_SHEET(name)} .board-sheet-how .teach-how-back:not([hidden])`,
+          (back) => {
+            back.click();
+          },
+        )
+        .catch(() => undefined);
+      return [
+        [
+          how.ok && howArt.misses.length === 0 && howText.small.length === 0,
+          `the "i" cards fit the drawer with no scroll, one Back, art at 2x and 13px text`,
+        ],
+      ];
+    },
+  },
+];
+
+/** The drawer states: each visit's expectation is bespoke, so they stay a flow. */
+const registerStates = (viewport) => {
   section(`keys and drawers ${JSON.stringify(viewport)} states`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     const rows = (page, name) =>
@@ -581,4 +655,17 @@ for (const viewport of SCREENS) {
       await close();
     }
   });
-}
+};
+
+table({
+  screens: SCREENS,
+  scenarios: DRAWER_SAVES,
+  rows: DRAWERS,
+  section: (viewport, scenario) =>
+    `keys and drawers ${JSON.stringify(viewport)} ${scenario.name}`,
+  prefix: ({ size, scenario, row }) =>
+    `${size} ${row.name} drawer, ${scenario.name}:`,
+  open: openDrawerSave,
+  expect: DRAWER_EXPECT,
+  after: registerStates,
+});
