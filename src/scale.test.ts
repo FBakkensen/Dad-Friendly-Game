@@ -22,6 +22,7 @@ import {
   MAX_STRETCH,
   depthAfterStones,
   kidStretch,
+  minedOut,
   oneOffStretch,
   shownStones,
   stonesLeft,
@@ -245,14 +246,21 @@ describe("band scales (#356)", () => {
 
 describe("band scale knobs (#365)", () => {
   const M = 1_000_000;
-  const ENDS = [...BAND_STARTS.slice(1), MOUNTAIN_STONES];
+  const ENDS = [
+    BAND_STARTS[1],
+    BAND_STARTS[2],
+    BAND_STARTS[3],
+    MOUNTAIN_STONES,
+  ] as const;
   const fresh = createMountain();
 
-  /** Stones still to dig inside one band (0 to 3), as the run shows them. */
-  const bandLeft = (m: Mountain, band: number): number => {
-    const start = BAND_STARTS[band] ?? 0;
-    const end = ENDS[band] ?? MOUNTAIN_STONES;
-    const from = Math.min(end, Math.max(start, MOUNTAIN_STONES - m.remaining));
+  const BANDS = [0, 1, 2, 3] as const;
+  type Band = (typeof BANDS)[number];
+
+  /** Stones still to dig inside one band, as the run shows them. */
+  const bandLeft = (m: Mountain, band: Band): number => {
+    const end = ENDS[band];
+    const from = Math.min(end, Math.max(BAND_STARTS[band], minedOut(m)));
     return shownStones(m, end) - shownStones(m, from);
   };
   const doubled = <T>(id: string, body: () => T): T =>
@@ -276,25 +284,33 @@ describe("band scale knobs (#365)", () => {
     );
   });
 
-  it.each([1, 2, 3, 4])("band.%s.scale scales only that band", (knob) => {
-    const band = knob - 1;
-    const id = `band.${String(knob)}.scale`;
-    const plain = [0, 1, 2, 3].map((b) => bandLeft(fresh, b));
-    const knobbed = doubled(id, () =>
-      [0, 1, 2, 3].map((b) => bandLeft(fresh, b)),
-    );
-    expect(knobbed).toEqual(
-      plain.map((stones, b) => (b === band ? 2 * stones : stones)),
-    );
+  it.each(BANDS.map((b) => [b + 1, b] as const))(
+    "band.%s.scale scales only that band",
+    (knob, band) => {
+      const id = `band.${String(knob)}.scale`;
+      const counts = () => BANDS.map((b) => bandLeft(fresh, b));
+      const plain = counts();
+      const knobbed = doubled(id, counts);
+      expect(knobbed).toEqual(
+        plain.map((stones, b) => (b === band ? 2 * stones : stones)),
+      );
 
-    // One-off buys follow the knob only while the run stands in that band.
-    const standing = BAND_STARTS.map((start) => minedMountain(start));
-    expect(doubled(id, () => standing.map(oneOffStretch))).toEqual(
-      standing.map((m, b) =>
-        b === band ? 2 * oneOffStretch(m) : oneOffStretch(m),
-      ),
-    );
-  });
+      // One-off buys follow the knob only while the run stands in that band.
+      const standing = BAND_STARTS.map((start) => minedMountain(start));
+      expect(doubled(id, () => standing.map(oneOffStretch))).toEqual(
+        standing.map((m, b) =>
+          b === band ? 2 * oneOffStretch(m) : oneOffStretch(m),
+        ),
+      );
+
+      // Digging follows the knob too: half the knobbed band lands mid-band.
+      const above = knobbed.slice(0, band).reduce((a, b) => a + b, 0);
+      const middle = (BAND_STARTS[band] + ENDS[band]) / 2;
+      expect(
+        doubled(id, () => depthAfterStones(fresh, above + knobbed[band] / 2)),
+      ).toBeCloseTo(middle, 0);
+    },
+  );
 });
 
 describe("one-off stretch (#356)", () => {
