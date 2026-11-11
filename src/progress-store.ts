@@ -93,6 +93,9 @@ import {
 
 type SaveKind = "unsigned" | "session" | "loading" | "account" | "error";
 
+/** One settled stretch away: how long, and the moment it was settled. */
+export type AwayGap = { readonly ms: number; readonly at: number };
+
 export type ProgressSnapshot = {
   readonly mountain: Mountain;
   readonly saveKind: SaveKind;
@@ -102,6 +105,11 @@ export type ProgressSnapshot = {
   readonly away: AwayReport | undefined;
   /** Stones a short absence paid: a small note, not the card (#334). */
   readonly quietAway: number | undefined;
+  /**
+   * The last time away this open settled, and when (#468). A gap of an hour
+   * or more makes the next golden vein a quick one. Not a save field.
+   */
+  readonly awayGap: AwayGap | undefined;
   /** The next relic uncovered during this open and not yet celebrated. */
   readonly revealed: Relic | undefined;
   /** Free helpers hired on load so an older save's machines run (#89), once. */
@@ -243,6 +251,14 @@ export const WELCOME_MIN_AWAY_MS = 60 * 1000;
  * "+N while you were away" note instead of the full card (#334).
  */
 export const QUIET_AWAY_MS = 5 * 60 * 1000;
+
+/** A short break with plain stones only: a small note, not the card (#334). Ore needs its line. */
+function isQuietAway(report: AwayReport): boolean {
+  return (
+    report.awayMs < QUIET_AWAY_MS &&
+    Object.values(report.materials).every((count) => count === 0)
+  );
+}
 /** A loaded cloud copy as one side of a save conflict. */
 function remoteSide(loaded: {
   mountain: Mountain;
@@ -408,6 +424,7 @@ export function createProgressStore({
   let disposed = false;
   let away: AwayReport | undefined;
   let quietAway: number | undefined;
+  let awayGap: AwayGap | undefined;
   const reveals: Relic[] = [];
   /**
    * Stones mined when relics were last checked. Unset until a save is loaded,
@@ -553,6 +570,7 @@ export function createProgressStore({
       log: latest === undefined ? undefined : formatLogEvent(latest),
       away,
       quietAway,
+      awayGap,
       revealed: reveals[0],
       crewJoined,
       engineerJoined,
@@ -1156,6 +1174,7 @@ export function createProgressStore({
       return 0;
     }
     const result = accrueAway({ mountain, lastSeen: savedLastSeen, now: at });
+    awayGap = { ms: result.report.awayMs, at };
     mountain = result.mountain;
     noteHomecomings(result.homecomings);
     lastSeen = result.settledAt;
@@ -1166,11 +1185,7 @@ export function createProgressStore({
     }
     // A reload or a quick app switch isn't "away": only greet after a real break.
     if (!welcomed && result.report.awayMs >= WELCOME_MIN_AWAY_MS) {
-      // Ore needs its line on the card, so only plain stones go quiet.
-      const quiet =
-        result.report.awayMs < QUIET_AWAY_MS &&
-        Object.values(result.report.materials).every((count) => count === 0);
-      if (quiet) {
+      if (isQuietAway(result.report)) {
         quietAway = result.mined;
       } else {
         away = result.report;

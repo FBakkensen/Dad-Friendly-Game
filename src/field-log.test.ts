@@ -483,5 +483,9 @@ describe("fieldEntry", () => {
       code: "vein.tap",
       data: { stones: 60 },
     });
+    expect(fieldEntry({ kind: "quickVeinTapped", stones: 60 })).toEqual({
+      code: "vein.tap",
+      data: { stones: 60, source: "rush" },
+    });
   });
 });

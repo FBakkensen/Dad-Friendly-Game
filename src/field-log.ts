@@ -224,6 +224,11 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
       };
     case "veinTapped":
       return { code: "vein.tap", data: { stones: event.stones } };
+    case "quickVeinTapped":
+      return {
+        code: "vein.tap",
+        data: { stones: event.stones, source: "rush" },
+      };
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = event;

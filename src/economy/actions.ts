@@ -42,6 +42,7 @@ import { expeditionAwayMs } from "../lost-tools";
 import { mineByHand, type Mountain } from "../mountain";
 import { minedOut, oneOffStretch, stretch } from "../scale";
 import { markAllSeen, markSeen, markTaught, showsDot } from "../teach";
+import { startRush } from "../gold-rush";
 import {
   VEIN_MAX_GAP_MS,
   VEIN_MIN_GAP_MS,
@@ -302,6 +303,8 @@ type ScreenMove =
       readonly count: number;
     }
   | { readonly kind: "tapVein" }
+  /** The first vein after an hour away: it pays, then starts a Gold rush (#468). */
+  | { readonly kind: "tapQuickVein" }
   | { readonly kind: "markSeen"; readonly id: string }
   | { readonly kind: "markAllSeen"; readonly ids: readonly string[] };
 
@@ -342,7 +345,8 @@ export type MoveEvent =
       readonly name: EngineerName;
       readonly post: EngineerPost;
     }
-  | { readonly kind: "veinTapped"; readonly stones: number };
+  | { readonly kind: "veinTapped"; readonly stones: number }
+  | { readonly kind: "quickVeinTapped"; readonly stones: number };
 
 /**
  * What a move did: applied, with what it took from the pocket and what it put in (each at
@@ -375,6 +379,8 @@ function moved(
       return mineByHand(mountain, now, context.trouble);
     case "tapVein":
       return mineVein(mountain);
+    case "tapQuickVein":
+      return startRush(mineVein(mountain), now);
     case "buyTiers":
       return buyMany(mountain, move.id, move.count);
     case "markSeen":
@@ -615,6 +621,8 @@ function moveEvents(
   switch (move.kind) {
     case "tapVein":
       return [{ kind: "veinTapped", stones: next.pocket - before.pocket }];
+    case "tapQuickVein":
+      return [{ kind: "quickVeinTapped", stones: next.pocket - before.pocket }];
     case "buyTiers":
       return actionEvents(before, next, { kind: "buyTier", id: move.id });
     case "dig":
