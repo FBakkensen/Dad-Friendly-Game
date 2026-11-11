@@ -2441,6 +2441,133 @@ button.board-row:focus-visible {
   font-size: var(--board-type-16);
 }
 
+/* The Workshop drawer (#374): a plate for each material met, the bench row with its bar, the
+   pager and the sound key. */
+.workshop-mats {
+  position: relative;
+  flex: none;
+  display: flex;
+  gap: calc(var(--art) * 4);
+  height: calc(var(--art) * 24);
+}
+
+.workshop-mat {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+  padding: 0 calc(var(--art) * 6);
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--board-ink);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.workshop-mats.is-packed .workshop-mat {
+  padding: 0 calc(var(--art) * 2);
+}
+
+.workshop-mat:disabled {
+  cursor: default;
+}
+
+.workshop-mat:focus-visible {
+  outline: calc(var(--art) * 1) solid var(--board-amber);
+  outline-offset: calc(var(--art) * 1);
+}
+
+.workshop-mat-icon {
+  position: relative;
+  flex: none;
+  width: calc(var(--art) * 16);
+  height: calc(var(--art) * 16);
+  image-rendering: pixelated;
+}
+
+.workshop-mat-count {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--board-type-20);
+  line-height: var(--board-row-name-lead);
+}
+
+.workshop-mats.is-packed .workshop-mat-count {
+  font-size: var(--board-type-17);
+}
+
+.workshop-mat-word {
+  position: relative;
+  font-size: var(--board-type-13);
+  line-height: var(--board-row-line-lead);
+  color: var(--board-ink-2);
+}
+
+/* The bench's bar, at its row's foot under the middle and right columns: whole art px from
+   --fill (workshop-parts.ts, BAR_ART), and no transition. */
+.workshop-bench .workshop-bar {
+  position: absolute;
+  left: calc(var(--art) * 28);
+  bottom: calc(var(--art) * 3);
+  width: calc(var(--art) * 156);
+  height: calc(var(--art) * 2);
+  margin: 0;
+  border-radius: 0;
+  background: var(--board-night);
+  overflow: hidden;
+}
+
+.workshop-bench .workshop-bar > span {
+  display: block;
+  width: calc(var(--art) * var(--fill, 0));
+  height: 100%;
+  border-radius: 0;
+  background: var(--board-amber);
+  transition: none;
+}
+
+.workshop-pager {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: calc(var(--art) * 4);
+}
+
+/* Each plate keeps its column, so the other never moves when one hides. */
+.workshop-pager > .workshop-earlier,
+.workshop-pager > .workshop-more {
+  grid-row: 1;
+  height: calc(var(--art) * 24);
+}
+
+.workshop-pager > .workshop-earlier {
+  grid-column: 1;
+}
+
+.workshop-pager > .workshop-more {
+  grid-column: 2;
+}
+
+.board-sheet-head > .workshop-sound {
+  width: calc(var(--art) * 36);
+  height: calc(var(--art) * 24);
+  font-size: var(--board-type-16);
+  text-transform: none;
+}
+
+.workshop-mats > [hidden],
+.workshop-pager > [hidden] {
+  display: none;
+}
+
 /* Last, so a hidden part hides over its own display. */
 .board-sheet > [hidden],
 .board-sheet-list > [hidden],

@@ -9,6 +9,7 @@ import {
   setPayoff,
 } from "./teach-ui";
 import { teachFirst, workshopTeach } from "./workshop-teach";
+import { playHammer } from "./workshop-parts";
 import { reducedMotion } from "./float-text";
 import cartUrl from "./assets/mine-cart.png";
 import drillUrl from "./assets/steam-drill.png";
@@ -102,36 +103,6 @@ function cardIcon(src: string): HTMLImageElement {
 const HAMMER_MS = 960;
 const FLOAT_MS = 700;
 const SHAKE_MS = 960;
-
-function playHammer(soundOn: boolean): void {
-  if (!soundOn) {
-    return;
-  }
-  const Context = (window as Window & { AudioContext?: typeof AudioContext })
-    .AudioContext;
-  if (Context === undefined) {
-    return;
-  }
-  const audio = new Context();
-  const seconds = 0.09;
-  const length = Math.max(1, Math.floor(audio.sampleRate * seconds));
-  const buffer = audio.createBuffer(1, length, audio.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let index = 0; index < length; index += 1) {
-    const fade = 1 - index / length;
-    data[index] = (Math.random() * 2 - 1) * fade * fade;
-  }
-  const source = audio.createBufferSource();
-  source.buffer = buffer;
-  const gain = audio.createGain();
-  gain.gain.value = 0.12;
-  source.connect(gain);
-  gain.connect(audio.destination);
-  source.onended = () => {
-    void audio.close();
-  };
-  source.start();
-}
 
 function materialIcon(id: MaterialId, stoneUrl: string): HTMLImageElement {
   const icon = document.createElement("img");
