@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { EMPTY_MATERIALS, LAYERS } from "../layers";
+import { createMountain, type Mountain } from "../mountain";
+import { MOUNTAIN_STONES } from "../scale";
+import { actionsOnTable } from "./decide";
 import {
   defineMeasure,
   type DecisionSample,
@@ -10,7 +14,7 @@ import { neverBest } from "./measures/typeEverBest";
 import liveMedian from "./measures/liveMedian";
 import { readFinishDay } from "./measures/finishDay";
 import { plainPolicy, type PlainSpec } from "./plain";
-import { type Policy } from "./policy";
+import { valueContext, type Policy } from "./policy";
 import {
   formatMeasure,
   labSuggestions,
@@ -21,8 +25,10 @@ import dominantShare from "./measures/dominantShare";
 import extremeWinMeasure from "./measures/extremeWin";
 import featureShare from "./measures/featureShare";
 import singleShare from "./measures/singleShare";
+import { scoreDecision } from "./score";
 import {
   judgeTournament,
+  openingView,
   type PolicySeedRun,
   type TournamentResult,
 } from "./tournament";
@@ -711,5 +717,78 @@ describe("tournament", () => {
       expect(source.includes('"finishDay"')).toBe(false);
       expect(source.includes("node:fs")).toBe(false);
     }
+  });
+});
+
+describe("openingView", () => {
+  /** A dad at the top of the Granite with iron for axle grease and an empty pocket. */
+  const granite: Mountain = {
+    ...createMountain(),
+    remaining: MOUNTAIN_STONES - LAYERS[1].from,
+    helpers: 10,
+    carts: 3,
+    pocket: 0,
+    materials: { ...EMPTY_MATERIALS, iron: 5 },
+  };
+
+  function crafter(spend?: PlainSpec["spend"]): Policy {
+    return plainPolicy({
+      id: "crafter",
+      label: "Crafter",
+      kind: "casual",
+      sessionsPerDay: 1,
+      minutesPerSession: 1,
+      craft: "always",
+      boosts: "always",
+      ...(spend === undefined ? {} : { spend }),
+    });
+  }
+
+  it("keeps a ready craft from making the open affordable", () => {
+    const policy = crafter();
+    const context = valueContext(policy.params);
+    const table = actionsOnTable(granite, 0, policy.params);
+    // On the whole table, the free axle grease is the best buy and needs no wait.
+    const whole = scoreDecision({
+      mountain: granite,
+      now: 0,
+      context,
+      atMs: 0,
+      actions: table,
+      stretchActions: table,
+      craft: policy.params.craft,
+    }).stretch.value;
+    expect(whole.bestId).toBe("craft:axle-grease");
+    expect(whole.waitToAffordSec).toBe(0);
+    // The Buys sheet leaves it off, so the dad is still saving for crew.
+    const open = openingView(granite, 0, policy, context);
+    expect(open.kind).toBe("waiting");
+    expect(open.kind === "waiting" && open.waitSec > 0).toBe(true);
+    // With the stones for a helper in the pocket, the same open is affordable.
+    expect(
+      openingView({ ...granite, pocket: 100 }, 0, policy, context),
+    ).toEqual({ kind: "affordable" });
+  });
+
+  it("says nothing when the dad weighs no crew, machine, or upgrade", () => {
+    const policy = crafter({
+      worker: 0,
+      machine: 0,
+      upgrade: 0,
+      boost: 1,
+      promote: 0,
+    });
+    const rich = { ...granite, pocket: 1_000_000 };
+    const kinds = actionsOnTable(rich, 0, policy.params).map(
+      (action) => action.kind,
+    );
+    // Boosts and crafts are on his table, but none of them is on the Buys sheet.
+    expect(kinds).toContain("buyBoost");
+    expect(kinds).toContain("craft");
+    expect(kinds).not.toContain("buyTier");
+    expect(kinds).not.toContain("buyUpgrade");
+    expect(openingView(rich, 0, policy, valueContext(policy.params))).toEqual({
+      kind: "nothing",
+    });
   });
 });

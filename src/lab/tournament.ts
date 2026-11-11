@@ -264,7 +264,7 @@ function attach(
  * boosts stay off it; a cheap axle grease would otherwise hide the machine
  * he is saving for. Away time has cleared any trouble, so none is passed.
  */
-function openingView(
+export function openingView(
   mountain: Mountain,
   now: number,
   policy: Policy,
