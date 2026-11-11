@@ -14,7 +14,7 @@ import {
   type TunnelId,
 } from "./expeditions";
 import type { BoostId } from "./boosts";
-import { formatCompact, formatCount } from "./format";
+import { formatCompact, formatCount, formatDuration } from "./format";
 import type { TroubleKind } from "./hazards";
 import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
@@ -303,6 +303,32 @@ export const grandpaSentence = (post: TierId): string =>
 /** The small note a short absence leaves on the mountain (#334). */
 export const quietAwayWords = (stones: number): string =>
   `+${formatCount(stones)} ${stones === 1 ? "stone" : "stones"} while you were away`;
+
+/** The welcome card's titles: an away haul, the crew grew alone, someone came home (#464). */
+export const WELCOME_AWAY_TITLE = "While you were away";
+export const CREW_GREW_TITLE = "Your crew grew";
+export const WELCOME_HOME_TITLE = "Welcome home";
+
+/** Helpers who joined an older save's machines (#89); alone, the title already says the crew grew. */
+export const crewGrewWords = (joined: number, alone: boolean): string =>
+  `${alone ? "" : "Your crew grew: "}${formatCount(joined)} ${workerWords(joined)} joined to run your machines.`;
+
+/** The welcome card's big number: "+1.2M stones", "+1 stone". */
+export const awayMinedWords = (mined: number): string =>
+  `+${formatCount(mined)} ${mined === 1 ? "stone" : "stones"}`;
+
+/** How long you were gone, how the crew dug, and the Heart of Patience's share. */
+export function awayGoneWords(report: {
+  readonly awayMs: number;
+  readonly paidMs: number;
+  readonly heart: number;
+}): string {
+  const heart =
+    report.heart > 1
+      ? ` The Heart of Patience made it ×${report.heart.toFixed(2).replace(/0$/, "")}.`
+      : "";
+  return `You were gone ${formatDuration(report.awayMs)}. ${awayStretchWords(report)}${heart}`;
+}
 
 /** The welcome card's quote line, under the haul. */
 export const AWAY_CHEER =
@@ -1336,7 +1362,7 @@ export const MOCK_RECIPES = [
 ] as const;
 
 /** Pocket order: the shallow ore first. */
-const AWAY_ORE: readonly MaterialId[] = [
+export const AWAY_ORE: readonly MaterialId[] = [
   "clay",
   "iron",
   "crystal",
