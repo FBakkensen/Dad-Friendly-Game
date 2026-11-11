@@ -1,4 +1,4 @@
-/* global console, document, innerHeight, setTimeout */
+/* global console, document, innerHeight */
 /** Card sections: the one-time cards (crew grew, welcome-back, the Mantle, the heir, trouble), found tools and the relic shelf. */
 import {
   staffingNoteSave,
@@ -10,7 +10,7 @@ import {
   crewV4Save,
   toolHomeSave,
 } from "../../tools/browser/fixtures.ts";
-import { check, section } from "./registry.mjs";
+import { check, section, table } from "./registry.mjs";
 import {
   PHONE,
   OPEN_SHEET,
@@ -23,41 +23,64 @@ import {
   noScroll,
 } from "./kit.mjs";
 
+/** The phone's cards, in the browser and as the installed PWA with its insets. */
+const STANDALONE = [{ standalone: false }, { standalone: true }];
+const standaloneLabel = ({ size, scenario }) =>
+  `${size}${scenario.standalone ? " standalone" : ""}`;
+const insetsOf = ({ standalone }) =>
+  standalone ? STANDALONE_INSETS : { top: 0, bottom: 0 };
+
 // A save from before staffing: the one-time "Your crew grew" card, at the
 // smallest phone, over the game and dismissable, with no scroll.
-for (const standalone of [false, true]) {
-  section(`section 4 (line 816) ${JSON.stringify(standalone)}`, async () => {
-    const viewport = PHONE;
-    const label = `424x924${standalone ? " standalone" : ""}`;
-    const { page, close } = await openScreen(viewport, staffingNoteSave(), {
-      standalone,
-    });
-    const crewText = await page.$eval(".welcome-crew", (el) => el.textContent);
-    check(
-      crewText?.endsWith("joined to run your machines.") === true,
-      `${label} crew-grew note shows for an old save`,
-    );
-    const engineerText = await page.$eval(
-      ".welcome-engineer",
-      (el) => el.textContent,
-    );
-    check(
-      engineerText === "Your best worker steps up as engineer.",
-      `${label} engineer note shows for an old save that owns a borer`,
-    );
-    check(
-      await coversBoard(page, ".welcome-back"),
-      `${label} crew-grew card is laid over the game`,
-    );
-    check(await noScroll(page), `${label} crew-grew card has no scroll`);
-    await page.tap(".welcome-continue");
-    check(
-      await page.$eval(".welcome-back", (el) => el.hidden),
-      `${label} crew-grew card closes`,
-    );
-    await close();
-  });
-}
+table({
+  screens: [PHONE],
+  scenarios: STANDALONE,
+  section: (_viewport, { standalone }) =>
+    `section 4 (line 816) ${JSON.stringify(standalone)}`,
+  prefix: standaloneLabel,
+  open: (viewport, { standalone }) =>
+    openScreen(viewport, staffingNoteSave(), { standalone }),
+  expect: [
+    {
+      run: async ({ page }) => {
+        const crewText = await page.$eval(
+          ".welcome-crew",
+          (el) => el.textContent,
+        );
+        const engineerText = await page.$eval(
+          ".welcome-engineer",
+          (el) => el.textContent,
+        );
+        return [
+          [
+            crewText?.endsWith("joined to run your machines.") === true,
+            "crew-grew note shows for an old save",
+          ],
+          [
+            engineerText === "Your best worker steps up as engineer.",
+            "engineer note shows for an old save that owns a borer",
+          ],
+          [
+            await coversBoard(page, ".welcome-back"),
+            "crew-grew card is laid over the game",
+          ],
+          [await noScroll(page), "crew-grew card has no scroll"],
+        ];
+      },
+    },
+    {
+      run: async ({ page }) => {
+        await page.tap(".welcome-continue");
+        return [
+          [
+            await page.$eval(".welcome-back", (el) => el.hidden),
+            "crew-grew card closes",
+          ],
+        ];
+      },
+    },
+  ],
+});
 
 // Welcome-back, then the relic it uncovered.
 section("section 5 (line 856)", async () => {
@@ -164,56 +187,78 @@ async function foundSheetsFit(page, { top = 0, bottom = 0 } = {}) {
   return ok;
 }
 
-for (const standalone of [false, true]) {
-  section(`section 6 (line 977) ${JSON.stringify(standalone)}`, async () => {
-    const viewport = PHONE;
-    const label = `424x924${standalone ? " standalone" : ""}`;
-    const { page, close } = await openScreen(viewport, foundBelowSave(), {
-      standalone,
-    });
-    check(
-      await foundSheetsFit(
-        page,
-        standalone ? STANDALONE_INSETS : { top: 0, bottom: 0 },
-      ),
-      `${label} found tools and keepsakes fit`,
-    );
-    await close();
-  });
-}
+table({
+  screens: [PHONE],
+  scenarios: STANDALONE,
+  section: (_viewport, { standalone }) =>
+    `section 6 (line 977) ${JSON.stringify(standalone)}`,
+  prefix: standaloneLabel,
+  open: (viewport, { standalone }) =>
+    openScreen(viewport, foundBelowSave(), { standalone }),
+  expect: [
+    {
+      run: async ({ page, scenario }) => [
+        [
+          await foundSheetsFit(page, insetsOf(scenario)),
+          "found tools and keepsakes fit",
+        ],
+      ],
+    },
+  ],
+});
 
 // Every relic found: the shelf scrolls inside itself, and a tapped relic's
 // detail card (art, virtue, "Your power") sits over the game and fits.
-for (const viewport of [[424, 924]]) {
-  section(`section 7 (line 997) ${JSON.stringify(viewport)}`, async () => {
-    const label = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await openScreen(viewport, fullShelfSave());
-    await openShelf(page);
-    check(await noScroll(page), `${label} full shelf has no page scroll`);
-    await page.evaluate(() => {
-      document.querySelectorAll(".shelf-list li")[4]?.scrollIntoView();
-    });
-    await page.$$eval(".shelf-list li", (rows) => {
-      rows[4]?.click();
-    });
-    check(
-      await coversBoard(page, ".relic-detail"),
-      `${label} relic detail is laid over the game`,
-    );
-    check(await noScroll(page), `${label} relic detail has no scroll`);
-    const fits = await page.$eval(".relic-detail .reveal-card", (card) => {
-      const box = card.getBoundingClientRect();
-      return box.top >= 0 && box.bottom <= innerHeight;
-    });
-    check(fits, `${label} relic detail card fits the screen`);
-    await page.tap(".relic-detail .reveal-continue");
-    check(
-      await page.$eval(".relic-detail", (el) => el.hidden),
-      `${label} relic detail closes back to the shelf`,
-    );
-    await close();
-  });
-}
+table({
+  screens: [PHONE],
+  scenarios: [{}],
+  section: (viewport) => `section 7 (line 997) ${JSON.stringify(viewport)}`,
+  prefix: ({ size }) => size,
+  open: async (viewport) => {
+    const opened = await openScreen(viewport, fullShelfSave());
+    await openShelf(opened.page);
+    return opened;
+  },
+  expect: [
+    {
+      run: async ({ page }) => [
+        [await noScroll(page), "full shelf has no page scroll"],
+      ],
+    },
+    {
+      run: async ({ page }) => {
+        await page.evaluate(() => {
+          document.querySelectorAll(".shelf-list li")[4]?.scrollIntoView();
+        });
+        await page.$$eval(".shelf-list li", (rows) => {
+          rows[4]?.click();
+        });
+        const covered = await coversBoard(page, ".relic-detail");
+        const still = await noScroll(page);
+        const fits = await page.$eval(".relic-detail .reveal-card", (card) => {
+          const box = card.getBoundingClientRect();
+          return box.top >= 0 && box.bottom <= innerHeight;
+        });
+        return [
+          [covered, "relic detail is laid over the game"],
+          [still, "relic detail has no scroll"],
+          [fits, "relic detail card fits the screen"],
+        ];
+      },
+    },
+    {
+      run: async ({ page }) => {
+        await page.tap(".relic-detail .reveal-continue");
+        return [
+          [
+            await page.$eval(".relic-detail", (el) => el.hidden),
+            "relic detail closes back to the shelf",
+          ],
+        ];
+      },
+    },
+  ],
+});
 
 // Mantle of the Hero: reveal, then the Legend finale over the game (#103).
 // Version 5: one stone left on the 240M mountain, so the tap finds the Mantle.
@@ -274,8 +319,13 @@ for (const viewport of [[424, 924]]) {
       ),
       `${label} Legacy badge shows ×2`,
     );
-    // Let the last tap's float finish drifting first.
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    // Let the window tap's "+N" finish rising first.
+    await page
+      .waitForFunction(
+        () => document.querySelector(".board-dig-plus")?.hidden !== false,
+        { timeout: 2_000 },
+      )
+      .catch(() => undefined);
     check(await noScroll(page), `${label} new run has no scroll`);
     // The badge's words sit on the Legacy plate, inside the window and
     // above the crew plate (#371).
@@ -317,121 +367,147 @@ for (const viewport of [[424, 924]]) {
 
 // Trouble is never saved, so the dev boot previews a cave-in. The card must
 // stay on screen at the smallest phone, including the installed PWA.
-for (const standalone of [false, true]) {
-  section(`section 10 (line 1138) ${JSON.stringify(standalone)}`, async () => {
-    const viewport = PHONE;
-    const label = `424x924${standalone ? " standalone" : ""}`;
-    const { page, close } = await openScreen(viewport, crewV4Save(), {
-      standalone,
-      search: "?trouble=cave-in",
-    });
-    await openSheet(page, "buys");
-    const card = await page
-      .$eval('.tier[data-tier="cart"]', (el) => {
-        const box = el.getBoundingClientRect();
-        return {
-          kind: el.dataset.trouble ?? "",
-          rate: el.querySelector(".board-row-info")?.textContent ?? "",
-          label: el.getAttribute("aria-label") ?? "",
-          height: box.height,
-          width: box.width,
-          top: box.top,
-          bottom: box.bottom,
-        };
-      })
-      .catch(() => undefined);
-    check(card?.kind === "cave-in", `${label} trouble card is a cave-in`);
-    // The shout leads the row's info line: "Cave-in! · Hold to fix" (#373).
-    check(
-      card?.rate.split(" · ")[0] === "Cave-in!",
-      `${label} trouble card says Cave-in!`,
-    );
-    check(
-      card !== undefined &&
-        !/\d|\?/.test(card.label) &&
-        card.label.includes("Cave-in"),
-      `${label} trouble card label has no numbers`,
-    );
-    check(
-      (card?.height ?? 0) >= 44 && (card?.width ?? 0) >= 44,
-      `${label} trouble card is a fat target`,
-    );
-    const fits = await page.evaluate(
-      (bottomInset) => {
-        const el = document.querySelector('.tier[data-tier="cart"]');
-        if (el === null) {
-          return false;
-        }
-        const box = el.getBoundingClientRect();
-        return box.top >= 0 && box.bottom <= innerHeight - bottomInset;
-      },
-      standalone ? STANDALONE_INSETS.bottom : 0,
-    );
-    check(fits, `${label} trouble card sits on screen`);
-    check(await noScroll(page), `${label} trouble card has no scroll`);
-    await close();
-  });
+/** The cart row in Buys, with the trouble the dev boot previews. */
+async function troubleCard(page, bottomInset) {
+  await openSheet(page, "buys");
+  const card = await page
+    .$eval('.tier[data-tier="cart"]', (el) => {
+      const box = el.getBoundingClientRect();
+      return {
+        kind: el.dataset.trouble ?? "",
+        rate: el.querySelector(".board-row-info")?.textContent ?? "",
+        label: el.getAttribute("aria-label") ?? "",
+        height: box.height,
+        width: box.width,
+      };
+    })
+    .catch(() => undefined);
+  const fits = await page.evaluate((inset) => {
+    const el = document.querySelector('.tier[data-tier="cart"]');
+    if (el === null) {
+      return false;
+    }
+    const box = el.getBoundingClientRect();
+    return box.top >= 0 && box.bottom <= innerHeight - inset;
+  }, bottomInset);
+  return { card, fits };
 }
 
-// Welcome card naming a find, over the game, at the short phone and the PWA.
-for (const standalone of [false, true]) {
-  section(`section 13 (line 1430) ${JSON.stringify(standalone)}`, async () => {
-    const viewport = PHONE;
-    const label = `424x924${standalone ? " standalone" : ""}`;
-    const now = Date.now();
-    const { page, close } = await openScreen(viewport, toolHomeSave(now), {
+table({
+  screens: [PHONE],
+  scenarios: STANDALONE,
+  section: (_viewport, { standalone }) =>
+    `section 10 (line 1138) ${JSON.stringify(standalone)}`,
+  prefix: standaloneLabel,
+  open: (viewport, { standalone }) =>
+    openScreen(viewport, crewV4Save(), {
       standalone,
-    });
-    const bottom = standalone ? STANDALONE_INSETS.bottom : 0;
-    const card = await page.$eval(
-      ".welcome-back",
-      (dialog, inset) => {
-        const line = dialog.querySelector(".welcome-return")?.textContent ?? "";
-        const closeBox = dialog
-          .querySelector(".welcome-continue")
-          ?.getBoundingClientRect();
-        const title =
-          dialog.querySelector("h2")?.getBoundingClientRect().top ?? -1;
-        return {
-          hidden: dialog.hidden,
-          line,
-          title: dialog.querySelector("h2")?.textContent ?? "",
-          titleOk: title >= 0,
-          closeOk:
-            closeBox !== undefined &&
-            closeBox.height >= 44 &&
-            closeBox.top >= 0 &&
-            closeBox.bottom <= innerHeight - inset,
-        };
+      search: "?trouble=cave-in",
+    }),
+  expect: [
+    {
+      run: async ({ page, scenario }) => {
+        const { card, fits } = await troubleCard(
+          page,
+          insetsOf(scenario).bottom,
+        );
+        return [
+          [card?.kind === "cave-in", "trouble card is a cave-in"],
+          // The shout leads the row's info line: "Cave-in! · Hold to fix" (#373).
+          [
+            card?.rate.split(" · ")[0] === "Cave-in!",
+            "trouble card says Cave-in!",
+          ],
+          [
+            card !== undefined &&
+              !/\d|\?/.test(card.label) &&
+              card.label.includes("Cave-in"),
+            "trouble card label has no numbers",
+          ],
+          [
+            (card?.height ?? 0) >= 44 && (card?.width ?? 0) >= 44,
+            "trouble card is a fat target",
+          ],
+          [fits, "trouble card sits on screen"],
+          [await noScroll(page), "trouble card has no scroll"],
+        ];
       },
-      bottom,
-    );
-    check(
-      !card.hidden &&
-        card.title === "While you were away" &&
-        card.line ===
-          "Ada came back from the old shaft with Grandfather's pick. Taps bite deeper." &&
-        !/\d|\?/.test(card.line) &&
-        card.titleOk &&
-        card.closeOk,
-      `${label} welcome card names the find`,
-    );
-    if (card.hidden || !card.closeOk) {
-      console.log("welcome find", card);
-    }
-    check(
-      await coversBoard(page, ".welcome-back"),
-      `${label} welcome card with a find is laid over the game`,
-    );
-    check(
-      await noScroll(page),
-      `${label} welcome card with a find has no scroll`,
-    );
-    await page.tap(".welcome-continue");
-    check(
-      await page.$eval(".welcome-back", (el) => el.hidden),
-      `${label} welcome card with a find closes`,
-    );
-    await close();
-  });
+    },
+  ],
+});
+
+// Welcome card naming a find, over the game, at the short phone and the PWA.
+/** The welcome card's words and where its title and Continue sit. */
+async function welcomeCard(page, bottomInset) {
+  return page.$eval(
+    ".welcome-back",
+    (dialog, inset) => {
+      const line = dialog.querySelector(".welcome-return")?.textContent ?? "";
+      const closeBox = dialog
+        .querySelector(".welcome-continue")
+        ?.getBoundingClientRect();
+      const title =
+        dialog.querySelector("h2")?.getBoundingClientRect().top ?? -1;
+      return {
+        hidden: dialog.hidden,
+        line,
+        title: dialog.querySelector("h2")?.textContent ?? "",
+        titleOk: title >= 0,
+        closeOk:
+          closeBox !== undefined &&
+          closeBox.height >= 44 &&
+          closeBox.top >= 0 &&
+          closeBox.bottom <= innerHeight - inset,
+      };
+    },
+    bottomInset,
+  );
 }
+
+table({
+  screens: [PHONE],
+  scenarios: STANDALONE,
+  section: (_viewport, { standalone }) =>
+    `section 13 (line 1430) ${JSON.stringify(standalone)}`,
+  prefix: standaloneLabel,
+  open: (viewport, { standalone }) =>
+    openScreen(viewport, toolHomeSave(Date.now()), { standalone }),
+  expect: [
+    {
+      run: async ({ page, scenario }) => {
+        const card = await welcomeCard(page, insetsOf(scenario).bottom);
+        if (card.hidden || !card.closeOk) {
+          console.log("welcome find", card);
+        }
+        return [
+          [
+            !card.hidden &&
+              card.title === "While you were away" &&
+              card.line ===
+                "Ada came back from the old shaft with Grandfather's pick. Taps bite deeper." &&
+              !/\d|\?/.test(card.line) &&
+              card.titleOk &&
+              card.closeOk,
+            "welcome card names the find",
+          ],
+          [
+            await coversBoard(page, ".welcome-back"),
+            "welcome card with a find is laid over the game",
+          ],
+          [await noScroll(page), "welcome card with a find has no scroll"],
+        ];
+      },
+    },
+    {
+      run: async ({ page }) => {
+        await page.tap(".welcome-continue");
+        return [
+          [
+            await page.$eval(".welcome-back", (el) => el.hidden),
+            "welcome card with a find closes",
+          ],
+        ];
+      },
+    },
+  ],
+});
