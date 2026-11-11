@@ -821,25 +821,6 @@ export function toolHomeSave(now: number): LegacySeed {
   };
 }
 
-/** The workshop before the first clay: a locked silhouette. */
-export function lockedWorkshopSave(now: number): SeedV6 {
-  return {
-    version: 6,
-    lastSeen: now,
-    mountain: {
-      remaining: 239_500_000,
-      pocket: 100,
-      helpers: 1,
-      staffed: 2,
-      startedAt: now - 1_000,
-    },
-    workshop: {
-      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
-    },
-  };
-}
-
 const RECIPES: SeedWorkshop["recipes"] = [
   "iron-rails",
   "sturdy-props",

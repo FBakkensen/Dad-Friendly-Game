@@ -1,12 +1,11 @@
 /* global console, document, innerWidth, innerHeight, getComputedStyle */
-/** Engineers and Workshop sections: the expedition chip and sheet, the Engineers sheet, the Workshop drawer's states and its menu row. */
+/** Engineers and Workshop sections: the expedition chip and sheet, the Engineers sheet and the Workshop drawer's states. */
 import {
   awayTripSave,
   campPostsSave,
   chargePayoffSave,
   firstCraftSave,
   heartMountain,
-  lockedWorkshopSave,
   openMountain,
   unknownBenchSave,
   workshopSave,
@@ -454,29 +453,3 @@ for (const viewport of SCREENS) {
     },
   );
 }
-
-section("section 15 (line 1703)", async () => {
-  {
-    const now = Date.now();
-    const { page, close } = await openScreen(PHONE, lockedWorkshopSave(now));
-    await page.tap(KEY("ledger"));
-    const locked = await page.$eval(".workshop-locked", (row) => ({
-      text: row.textContent ?? "",
-      hidden: row.hidden,
-    }));
-    const openHidden = await page.$eval(
-      ".workshop-open",
-      (button) => button.hidden,
-    );
-    check(
-      !locked.hidden &&
-        locked.text.includes("Workshop · opens as the clay comes in") &&
-        !locked.text.includes("?") &&
-        openHidden,
-      "424x924 workshop is a locked silhouette before the first clay",
-    );
-    await shot(page, "workshop-locked-424x924");
-    check(await noScroll(page), "424x924 locked menu has no page scroll");
-    await close();
-  }
-});

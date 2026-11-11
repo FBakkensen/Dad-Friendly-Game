@@ -2617,13 +2617,16 @@ button.board-row:focus-visible {
 
 /* ---------- the Ledger (#375) ---------- */
 
-/* Tonight: three lines in an inset box, each one line with an ellipsis, never two. */
+/* Tonight: three lines in an inset box, each one line with an ellipsis, never two. The lines
+   sit in the inset's dark well, inside its rim (board-skin.ts), so the box is 46 art px tall:
+   9 + three lines of 9 + 10. */
 .ledger-log {
   position: relative;
   flex: none;
   box-sizing: border-box;
-  height: calc(var(--art) * 38);
-  padding: calc(var(--art) * 4) calc(var(--art) * 6);
+  height: calc(var(--art) * 46);
+  padding: calc(var(--art) * 9) calc(var(--art) * 10) calc(var(--art) * 10)
+    calc(var(--art) * 13);
   overflow: hidden;
 }
 
@@ -2633,8 +2636,8 @@ button.board-row:focus-visible {
   gap: calc(var(--art) * 4);
   margin: 0;
   font-size: var(--board-type-13);
-  line-height: calc(var(--art) * 10);
-  height: calc(var(--art) * 10);
+  line-height: calc(var(--art) * 9);
+  height: calc(var(--art) * 9);
   white-space: nowrap;
   color: var(--board-ink);
 }
@@ -2728,7 +2731,9 @@ button.board-row:focus-visible {
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
-  padding: calc(var(--art) * 4);
+  /* Inside the inset's rim (board-skin.ts): 11 art px top and left, 9 right and bottom. */
+  padding: calc(var(--art) * 11) calc(var(--art) * 9) calc(var(--art) * 9)
+    calc(var(--art) * 11);
   border: 0;
   background: none;
   resize: none;
