@@ -1,4 +1,4 @@
-/* global console, document */
+/* global console, document, requestAnimationFrame */
 /** Drawer sections: each drawer's rows and legends, per save, and the drawer states. */
 import {
   freshMountain,
