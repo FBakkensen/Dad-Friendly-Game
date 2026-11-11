@@ -22,6 +22,7 @@ import type { Mountain } from "./mountain";
 import { TIERS, owned, tierById, type TierId } from "./tiers";
 import { hasRelic } from "./relics";
 import { boostById, boostLeft } from "./boosts";
+import { rushMultiplier } from "./gold-rush";
 import {
   BOOTS_SPEED_PER_LEVEL,
   STEADY_AWAY_PER_LEVEL,
@@ -245,7 +246,8 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   const bareTap = Math.floor(
     (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
   );
-  const timer = liveCrewTimer(mountain, now);
+  // The Gold rush multiplies on top of the strongest crew timer (#468).
+  const timer = liveCrewTimer(mountain, now) * rushMultiplier(mountain, now);
   return {
     tapYield: tapWithPick(bareTap, mountain) * sharper,
     tierSpeed,

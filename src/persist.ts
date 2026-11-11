@@ -40,6 +40,8 @@ type WorkshopSave = {
   /** When a heartstone ember cools. Missing means none is hot. */
   readonly emberUntil?: number;
   readonly axleUntil?: number;
+  /** When a Gold rush ends (src/gold-rush.ts). Missing means none runs. */
+  readonly rushUntil?: number;
   /** The run's stretch (M13). Missing means 1. */
   readonly stretch?: number;
   /** Notes opened (src/teach.ts). Missing means none. */
@@ -137,18 +139,7 @@ export function serializeSave({
       ...workshopBench(mountain),
       ...workshopCrafted(mountain),
       recipes: workshopRecipes(mountain),
-      ...(mountain.chargeUntil === undefined
-        ? {}
-        : { chargeUntil: mountain.chargeUntil }),
-      ...(mountain.flareUntil === undefined
-        ? {}
-        : { flareUntil: mountain.flareUntil }),
-      ...(mountain.emberUntil === undefined
-        ? {}
-        : { emberUntil: mountain.emberUntil }),
-      ...(mountain.axleUntil === undefined
-        ? {}
-        : { axleUntil: mountain.axleUntil }),
+      ...workshopClocks(mountain),
       ...(mountain.stretch === undefined ? {} : { stretch: mountain.stretch }),
       ...(mountain.seen === undefined || mountain.seen.length === 0
         ? {}
@@ -235,10 +226,7 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
       const recipes = readRecipes(sheet["recipes"]);
       const bench = readBench(sheet["bench"]);
       const crafted = readCrafted(sheet["crafted"]);
-      const chargeUntil = readClock(sheet["chargeUntil"]);
-      const flareUntil = readClock(sheet["flareUntil"]);
-      const emberUntil = readClock(sheet["emberUntil"]);
-      const axleUntil = readClock(sheet["axleUntil"]);
+      const clocks = readClocks(sheet);
       const stretch = readStretch(sheet["stretch"]);
       const seen = parseTeachIds(sheet["seen"]);
       const taught = parseTeachIds(sheet["taught"]);
@@ -248,10 +236,7 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
         recipes === "bad" ||
         bench === "bad" ||
         crafted === "bad" ||
-        chargeUntil === "bad" ||
-        flareUntil === "bad" ||
-        emberUntil === "bad" ||
-        axleUntil === "bad" ||
+        clocks === "bad" ||
         stretch === "bad" ||
         seen === "bad" ||
         taught === "bad"
@@ -278,10 +263,7 @@ export function parseSaveValue(value: unknown): ParsedSave | undefined {
             ? {}
             : { crafted: crafted.crafted }),
           ...(kept === undefined ? {} : { kept }),
-          ...(chargeUntil === undefined ? {} : { chargeUntil }),
-          ...(flareUntil === undefined ? {} : { flareUntil }),
-          ...(emberUntil === undefined ? {} : { emberUntil }),
-          ...(axleUntil === undefined ? {} : { axleUntil }),
+          ...clocks,
           ...(stretch === undefined ? {} : { stretch }),
           ...(seen.length === 0 ? {} : { seen }),
           ...(taught.length === 0 ? {} : { taught }),
@@ -471,6 +453,43 @@ function readClock(value: unknown): number | undefined | "bad" {
   }
   const parsed = parseChargeUntil(value);
   return parsed === undefined ? "bad" : parsed;
+}
+
+/** The live timers' end times, written in the workshop map beside the mountain. */
+const CLOCKS = [
+  "chargeUntil",
+  "flareUntil",
+  "emberUntil",
+  "axleUntil",
+  "rushUntil",
+] as const;
+
+type Clocks = Partial<Record<(typeof CLOCKS)[number], number>>;
+
+function workshopClocks(mountain: Mountain): Clocks {
+  const clocks: Clocks = {};
+  for (const key of CLOCKS) {
+    const at = mountain[key];
+    if (at !== undefined) {
+      clocks[key] = at;
+    }
+  }
+  return clocks;
+}
+
+/** Every clock the workshop map holds; one bad clock rejects the save. */
+function readClocks(sheet: Readonly<Record<string, unknown>>): Clocks | "bad" {
+  const clocks: Clocks = {};
+  for (const key of CLOCKS) {
+    const at = readClock(sheet[key]);
+    if (at === "bad") {
+      return "bad";
+    }
+    if (at !== undefined) {
+      clocks[key] = at;
+    }
+  }
+  return clocks;
 }
 
 /**

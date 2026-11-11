@@ -1,6 +1,7 @@
 import type { Trouble } from "./hazards";
 import { effectiveRates, heartBonus, paidAwayMs } from "./rates";
 import { parseBoosts, type Boosts } from "./boosts";
+import { resumeRush } from "./gold-rush";
 import { parseEngineers, type Engineer } from "./engineers";
 import {
   clampExpeditions,
@@ -116,6 +117,8 @@ export type Mountain = {
   readonly emberUntil?: number;
   /** When axle grease stops speeding carts. Live play only. */
   readonly axleUntil?: number;
+  /** When the Gold rush stops speeding the crew (src/gold-rush.ts). Live play only. */
+  readonly rushUntil?: number;
   /** Systems whose "New" note has been opened (M11, src/teach.ts). */
   readonly seen?: readonly string[];
   /** Systems used at least once; their dot is gone (M11, src/teach.ts). */
@@ -306,7 +309,7 @@ export type AwayReport = {
 
 /** The crew's work while the game was closed: away pay of their speed, up to the away cap (see effectiveRates). */
 export function accrueAway({
-  mountain,
+  mountain: closed,
   lastSeen,
   now,
 }: {
@@ -318,6 +321,8 @@ export function accrueAway({
   readonly homecomings: readonly Homecoming[];
 } {
   const awayMs = Math.max(0, now - lastSeen);
+  // Close is pause for a Gold rush, over a short break (src/gold-rush.ts).
+  const mountain = resumeRush(closed, lastSeen, now);
   const rates = effectiveRates(mountain);
   const paidMs = paidAwayMs(mountain, awayMs);
   const capped = awayMs > paidMs;
