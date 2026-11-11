@@ -937,7 +937,7 @@ describe("golden vein on screen", () => {
         vein.click();
         const reward = veinReward(crew);
         expect(screen.text(".vein-note")).toBe(
-          `Golden vein! +${formatCount(reward)} stones. Gold rush: the crew digs ×10 for 90 seconds.`,
+          `Golden vein! +${formatCount(reward)} stones.\nGold rush: the crew digs ×10 for 90 seconds.`,
         );
         const now = screen.progress.getSnapshot().mountain;
         expect(now.rushUntil).toBeGreaterThan(0);
