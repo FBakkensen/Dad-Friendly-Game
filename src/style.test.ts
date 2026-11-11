@@ -1,12 +1,8 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 // Vitest runs from the repo root.
-const css = readFileSync("src/style.css", "utf8");
 const boardCss = readFileSync("src/board.css", "utf8");
-
-/** Rules whose loss breaks the game silently: jsdom tests don't apply CSS. */
-const REQUIRED_SELECTORS = [".expedition-chip"];
 
 /**
  * The board's parts that took over from the pocket pill and the relic shelf
@@ -124,7 +120,13 @@ function boardZ(selector: string): number {
 describe("board.css", () => {
   it("keeps the save line and its drawer above every overlay", () => {
     const highest = Math.max(
-      ...[...css.matchAll(/z-index:\s*(\d+)/g)].map((m) => Number(m[1])),
+      ...[...boardCss.matchAll(/z-index:\s*(\d+)/g)]
+        .map((m) => Number(m[1]))
+        .filter(
+          (z) =>
+            z !== boardZ(".board-saveline") &&
+            z !== boardZ(".board-drawer-clip"),
+        ),
     );
     expect(boardZ(".board-saveline")).toBeGreaterThan(highest);
     expect(boardZ(".board-drawer-clip")).toBeGreaterThan(highest);
@@ -227,6 +229,7 @@ describe("board.css", () => {
   });
 
   it("caps the note at the mockup's width inside #app, over #app > *", () => {
+    expect(boardCss).toMatch(/^#app > \* \{/m);
     expect(boardCss).toMatch(
       /^#app > \.board-note \{[^}]*max-width:\s*calc\(var\(--art\) \* 150\)/m,
     );
@@ -357,123 +360,47 @@ describe("board.css", () => {
   });
 });
 
-describe("style.css", () => {
-  it("keeps no rule for today's Upgrades sheet: its rows are board rows now (#373)", () => {
-    // A board row carries .upgrade and .is-ready, .is-dear: an old .upgrade
-    // rule would restyle it.
-    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
-      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+describe("today's CSS", () => {
+  /** Every selector of a top-level rule in board.css, one per comma. */
+  const selectors = [
+    ...boardCss.matchAll(/^([^{}@/\s][^{}@/]*?)\s*\{/gm),
+  ].flatMap(([, group = ""]) => group.split(",").map((one) => one.trim()));
+
+  it("src/style.css is gone (#376)", () => {
+    expect(existsSync("src/style.css")).toBe(false);
+  });
+
+  it("main.ts loads only the tokens and the board (#376)", () => {
+    const main = readFileSync("src/main.ts", "utf8");
+    const sheets = [...main.matchAll(/^import "(\.\/[\w-]+\.css)";$/gm)].map(
+      (m) => m[1],
     );
+    expect(sheets).toEqual(["./tokens.css", "./board.css"]);
+  });
+
+  it("the board carries none of today's sheet hooks (#376)", () => {
+    // The old sheet, pill and teach rules went with style.css; a rule of theirs here would
+    // restyle a board part that still carries the hook.
     expect(
       selectors.filter((one) =>
-        /\.(upgrade\b|upgrade-|upgrades-|boost-list|found-(heading|list))/.test(
+        /^\.(sheet-|boost-chips|teach-payoff|teach-intro|effect-chip\.is-named)/.test(
           one,
         ),
       ),
     ).toEqual([]);
-  });
-
-  it("keeps no rule for today's Workshop sheet: its parts are board parts now (#374)", () => {
-    // The drawer's bench, bar, timers, pager and sound key share today's class names: an old
-    // rule would restyle them. Only the menu's row and its silhouette stay (until B7).
-    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
-      ([, group = ""]) => group.split(",").map((one) => one.trim()),
-    );
-    expect(
-      selectors.filter(
-        (one) =>
-          /\.(workshop-|float-chip|cost-bit|mat-stones)/.test(one) &&
-          !/^\.workshop-(open|locked|menu)\b/.test(one),
-      ),
-    ).toEqual([]);
-  });
-
-  it("keeps no rule for today's welcome, layer and craft cards: they are board cards now (#464)", () => {
-    // The board cards keep today's hooks (.welcome-back, .layer-dig, …): an old rule would
-    // restyle them, so none may name a hook of theirs.
-    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
-      ([, group = ""]) => group.split(",").map((one) => one.trim()),
-    );
-    expect(
-      selectors.filter((one) =>
-        /\.(welcome-|layer-card|layer-art|layer-arrival|layer-dig|layer-evocative|layer-advice|layer-sketch|notice-card|notice-art|craft-notice|craft-accept)|#craft-notice-line/.test(
-          one,
-        ),
-      ),
-    ).toEqual([]);
-  });
-
-  it("keeps no rule for today's conflict, other tab and update cards (#464)", () => {
-    // Their hooks stay on the board cards, as Saved copies' error line and plays do (#466).
-    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
-      ([, group = ""]) => group.split(",").map((one) => one.trim()),
-    );
-    expect(
-      selectors.filter((one) =>
-        /\.(update-|other-tab|save-pair|save-card|save-conflict)/.test(one),
-      ),
-    ).toEqual([]);
-    expect(css).not.toMatch(
-      /\.(update-card|other-tab-card|save-conflict-sheet|save-pair)\b/,
+    expect(boardCss).not.toMatch(
+      /game-menu|copied-float|field-log-sheet|stones-left|auth-action|workshop-open|thumb-bar|menu-button|@keyframes float-up/,
     );
   });
 
-  it("keeps no rule for today's Engineers sheet (#455)", () => {
-    // The drawer keeps today's hooks (.engineer-promote, .engineer-explore, .recall-yes, …):
-    // an old rule would restyle them. Only the expedition chip stays, in the Running now note.
-    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
-      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+  it("the page is the board's night (#376)", () => {
+    expect(boardCss).toMatch(
+      /^html,\nbody \{[^}]*background:\s*var\(--board-night\)/m,
     );
-    expect(
-      selectors.filter((one) => /\.(engineers-|engineer-|recall-)/.test(one)),
-    ).toEqual([]);
-    expect(css).not.toMatch(/@keyframes engineer-/);
+    expect(boardCss).toMatch(/^html,\nbody \{[^}]*overflow:\s*hidden/m);
   });
 
-  it("keeps no lit crew chip: the crew plate holds the free count (#371)", () => {
-    expect(css).not.toMatch(/teach-point/);
-  });
-
-  it("keeps no rule for today's Buys sheet: its rows are board rows now (#373)", () => {
-    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
-      ([, group = ""]) => group.split(",").map((one) => one.trim()),
-    );
-    expect(
-      selectors.filter((one) =>
-        /\.(buys-|tier\b|tier-|crew\b|crew-|engineer-(mark|gain)|trouble-(thanks|burst)|float-gain)/.test(
-          one,
-        ),
-      ),
-    ).toEqual([]);
-  });
-
-  it("keeps no thumb bar, menu button, afford glow or teach dot: the key rail took over (#373)", () => {
-    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
-      ([, group = ""]) => group.split(",").map((one) => one.trim()),
-    );
-    expect(
-      selectors.filter((one) =>
-        /\.(thumb-|buys-button|upgrades-button|engineers-button|menu-button|afford-glow|teach-dot|has-teach-dot)/.test(
-          one,
-        ),
-      ),
-    ).toEqual([]);
-    expect(css).not.toMatch(/afford-glow-on|teach-note|teach-pulse/);
-    // The menu card went with the Ledger drawer (#375).
-    expect(css + boardCss).not.toMatch(
-      /game-menu|copied-float|field-log-sheet|stones-left|auth-action|workshop-open/,
-    );
-    expect(boardCss).not.toMatch(/thumb-bar|menu-button/);
-  });
-
-  it.each(REQUIRED_SELECTORS)("styles %s", (selector) => {
-    const escaped = selector.replace(".", "\\.");
-    expect(css).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));
-  });
-
-  it("keeps no rule for today's Saved copies, Pass the mine, Start over and menu cards (#466)", () => {
-    expect(css).not.toMatch(
-      /\.(start-over|menu-|saved-cop|legacy-(card|detail|lead|rates|keeps|fresh|legend|cancel|confirm)|earlier-run)/,
-    );
+  it("a hidden board row takes no room (#376)", () => {
+    expect(boardCss).toMatch(/^\.board-row\[hidden\] \{[^}]*display:\s*none/m);
   });
 });

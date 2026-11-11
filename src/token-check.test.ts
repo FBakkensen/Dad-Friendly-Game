@@ -62,37 +62,19 @@ describe("token lengths", () => {
     expect(lengths.has("--weight-bold")).toBe(false);
   });
 
-  it("reads the game tokens that match the approved mocks", () => {
+  it("keeps only the tap target from the approved mocks' scale (#376)", () => {
     const mock = properties(readFileSync("mockups/tokens.css", "utf8"));
     const game = properties(readFileSync("src/tokens.css", "utf8"));
     expect(mock.get("--target-min")).toBe("48px");
-    expect(mock.get("--type-14")).toBe("14px");
-    expect(mock.get("--space-4")).toBe("4px");
-    expect(mock.get("--radius-control")).toBe("12px");
-    expect(mock.get("--color-ink-on-gold")).toBe(mock.get("--color-page"));
-    for (const [name, value] of mock) {
-      expect(game.get(name), name).toBe(value);
-    }
-    for (const [name, value] of game) {
-      if (mock.has(name) || BOARD_TOKEN.test(name)) {
-        continue;
-      }
-      if (name === "--line") {
-        expect(value).toBe("2px");
-        continue;
-      }
-      const alias = /^var\((--[\w-]+)\)$/.exec(value);
-      expect(alias?.[1], name).toBeDefined();
-      expect(mock.has(alias?.[1] ?? "")).toBe(true);
+    const kept = [...game.keys()].filter((name) => !BOARD_TOKEN.test(name));
+    expect(kept).toEqual(["--target-min", "--target-gap"]);
+    for (const name of kept) {
+      expect(game.get(name), name).toBe(mock.get(name));
     }
     const lengths = tokenLengths(readFileSync("src/tokens.css", "utf8"));
-    expect(lengths.get("--type-32")).toBe(32);
     expect(lengths.get("--target-min")).toBe(48);
     expect(lengths.get("--target-gap")).toBe(8);
-    expect(lengths.get("--radius-pill")).toBe(999);
-    expect(lengths.get("--sheet-price")).toBe(20);
-    expect(lengths.has("--color-ink")).toBe(false);
-    expect(lengths.has("--leading")).toBe(false);
+    expect(lengths.get("--board-type-32")).toBe(32);
   });
 
   it("reads the board tokens that match the control board mockup (#370)", () => {

@@ -17,7 +17,6 @@ import { registerServiceWorker } from "./pwa";
 import { trackBoardFit } from "./board-fit";
 import { bindWriterPageHide } from "./tab-writer";
 import "./tokens.css";
-import "./style.css";
 import "./board.css";
 
 const root = document.getElementById("app");
