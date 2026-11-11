@@ -16,6 +16,7 @@ import { parseSaveValue, serializeSave } from "./persist";
 import { withFactors } from "./economy/factors";
 import {
   BAND_SCALE,
+  BAND_STARTS,
   KID_MACHINE_OPENS,
   KID_RUN_GROWTH,
   MAX_STRETCH,
@@ -195,13 +196,6 @@ describe("band scales (#356)", () => {
     expect(depthAfterStones(m, stonesLeft(m) * 2)).toBe(MOUNTAIN_STONES);
   });
 
-  it("lets the lab scale one band", () => {
-    const granite = 35 * M * BAND_SCALE[1];
-    expect(
-      withFactors({ "band.2.scale": 2 }, () => shownStones(fresh, 45 * M)),
-    ).toBe(at10 + 2 * granite);
-  });
-
   const whole = (m: { pocket: number; remaining: number }) => {
     expect(Number.isInteger(m.pocket)).toBe(true);
   };
@@ -244,6 +238,60 @@ describe("band scales (#356)", () => {
       expect(m.remaining).toBe(0);
     },
   );
+});
+
+describe("band scale knobs (#365)", () => {
+  const M = 1_000_000;
+  const ENDS = [...BAND_STARTS.slice(1), MOUNTAIN_STONES];
+  const fresh = createMountain();
+
+  /** Stones still to dig inside one band (0 to 3), as the run shows them. */
+  const bandLeft = (m: Mountain, band: number): number => {
+    const start = BAND_STARTS[band] ?? 0;
+    const end = ENDS[band] ?? MOUNTAIN_STONES;
+    const from = Math.min(end, Math.max(start, MOUNTAIN_STONES - m.remaining));
+    return shownStones(m, end) - shownStones(m, from);
+  };
+  const doubled = <T>(id: string, body: () => T): T =>
+    withFactors({ [id]: 2 }, body);
+
+  it("band.2.scale moves the Granite's stones left and not the Topsoil's", () => {
+    const inTopsoil = minedMountain(4 * M);
+    const inGranite = minedMountain(20 * M);
+    const topsoil = bandLeft(inTopsoil, 0);
+    const granite = bandLeft(inGranite, 1);
+    expect(topsoil).toBe(6 * M * BAND_SCALE[0]);
+    expect(granite).toBe(25 * M * BAND_SCALE[1]);
+
+    expect(doubled("band.2.scale", () => bandLeft(inTopsoil, 0))).toBe(topsoil);
+    expect(doubled("band.2.scale", () => bandLeft(inGranite, 1))).toBe(
+      2 * granite,
+    );
+    // The whole mountain's count grows by just the Granite's extra stones.
+    expect(doubled("band.2.scale", () => stonesLeft(inGranite))).toBe(
+      stonesLeft(inGranite) + granite,
+    );
+  });
+
+  it.each([1, 2, 3, 4])("band.%s.scale scales only that band", (knob) => {
+    const band = knob - 1;
+    const id = `band.${String(knob)}.scale`;
+    const plain = [0, 1, 2, 3].map((b) => bandLeft(fresh, b));
+    const knobbed = doubled(id, () =>
+      [0, 1, 2, 3].map((b) => bandLeft(fresh, b)),
+    );
+    expect(knobbed).toEqual(
+      plain.map((stones, b) => (b === band ? 2 * stones : stones)),
+    );
+
+    // One-off buys follow the knob only while the run stands in that band.
+    const standing = BAND_STARTS.map((start) => minedMountain(start));
+    expect(doubled(id, () => standing.map(oneOffStretch))).toEqual(
+      standing.map((m, b) =>
+        b === band ? 2 * oneOffStretch(m) : oneOffStretch(m),
+      ),
+    );
+  });
 });
 
 describe("one-off stretch (#356)", () => {
