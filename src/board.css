@@ -2547,7 +2547,7 @@ button.board-row:focus-visible {
   white-space: nowrap;
   font-size: var(--board-type-13);
   line-height: var(--board-kick-lead);
-  min-height: var(--board-kick-lead);
+  height: var(--board-kick-lead);
   color: var(--board-ink-2);
 }
 
