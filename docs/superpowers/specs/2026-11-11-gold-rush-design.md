@@ -35,6 +35,23 @@ These follow the review of this spec. Each names the mechanism to extend, so the
 - **Ends.** A rush ends when the mountain bottoms out, and on Pass to your kid or Start over (`vein.reset`).
 - **Valuation.** The quick vein is not bought, so it does not enter `valueOf`'s vein gain.
 
+## Paid from the away haul (Flemming, 11 Nov 2026, during the build)
+
+A rush on top of away pay failed the strict lab at every size in the band, and below it. Main has no headroom: `optimizer-regret` already reads exactly 1.25 (the evening dad on day 5, the optimizer on day 4), so any rush that moves the optimizer one sitting earlier breaks it. At ×10 for 90 seconds the Marathon also finished a day sooner (`extreme-win` 0.22). Flemming picked the first of three options:
+
+1. **Pay the rush out of the away haul (picked).** After an hour or more away, the open holds back what the rush digs on top of the crew (`rushBank`: nine crews for 90 seconds, never more than the haul). The welcome card still shows the whole haul, with one line for the held part. Tapping the quick vein pays the held stones over the rush, so the crew digs ×10. A glint that goes by, an hour away, or the mountain bottoming out lands every held stone at once. The total never changes, so no finish day moves.
+2. Keep the rush as a true bonus and loosen `optimizer-regret`, `dominant-share` and `extreme-win`.
+3. Park it.
+
+These build rulings follow from it, and replace the matching ones above:
+
+- **Where the rush lives.** In the save: `rushUntil` and `rushBank` in the workshop map, beside `axleUntil`. That reuses the timers' save path. A rush paused on the phone goes on on the PC.
+- **Stacking.** The rush adds its held stones a second (`rushPerSecond`) on top of the crew in `effectiveRates`, so the crew line, the dial, live mining and the lab agree. It does not multiply Overtime: Overtime and a rush dig ×11, not ×20, because the held stones are a fixed amount.
+- **Arming.** The quick vein comes when held stones wait (`rushOwed`), on each settled time away, so a reload in its 20-second wait still brings it.
+- **Valuation.** What a buy is worth reads the crew without the rush (`withoutRush`).
+- **Single-share moves to 0.27 (Flemming, 11 Nov 2026).** With the rush paid from the haul every finish day matches main at 3 and 20 seeds, and `optimizer-regret`, `extreme-win` and `dominant-share` read as on main. Only `single-share` rose (casual 0.246 to 0.262, the checker 0.259 to 0.267, at 20 seeds): at the open a big buy waits about a minute for the rush to bring in the held stones. No rush size in the band changed it. He picked moving the bound over letting buys spend held stones, or parking the rush.
+- **The lab** plays the rush only. It has always left golden veins out, and the quick vein is a vein come early, so its own pay is not played.
+
 ## Numbers (starting values, the lab tunes them)
 
 - Quick vein after at least 60 minutes away; it glints about 20 seconds after the welcome-back card closes.

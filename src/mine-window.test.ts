@@ -101,6 +101,7 @@ describe("mine window", () => {
       borers: 0,
       trouble: undefined,
       legacy: false,
+      rush: false,
     });
     const crew = scene({ helpers: 18, carts: 6 });
     expect(crew.run).toBe(true);
@@ -124,6 +125,11 @@ describe("mine window", () => {
     expect(machines.borer).toBe(true);
     expect(machines.borers).toBe(1);
     expect(scene({ carts: 6 }, trouble("cart")).trouble).toBe("cart");
+    // the Gold rush shows only with a clock, while it runs (#468)
+    const rushing = { ...createMountain(), rushUntil: 90_000, rushBank: 900 };
+    expect(windowScene(rushing, undefined).rush).toBe(false);
+    expect(windowScene(rushing, undefined, 10_000).rush).toBe(true);
+    expect(windowScene(rushing, undefined, 90_000).rush).toBe(false);
 
     const mountain = deepFreeze({
       ...mined(130_000_000),
@@ -319,6 +325,22 @@ describe("mine window", () => {
     expect(machinesView(cleared, crew).caveIn).toBeUndefined();
     // the next cave-in falls from the top again
     expect(viewsAt(cleared, caveIn, [0.06]).views[0]?.caveIn).toBe(0);
+  });
+
+  it("the Gold rush sparkles loop while it runs, and start over at the next (#468)", () => {
+    const calm = scene({});
+    const rush: WindowScene = { ...calm, rush: true };
+    expect(machinesView(machinesRest(), calm).rush).toBeUndefined();
+    expect(machinesView(machinesRest(), rush).rush).toBe(0);
+    const sparkling = viewsAt(
+      machinesRest(),
+      rush,
+      [0.08, 0.24, 0.4, 0.56, 0.72],
+    );
+    expect(sparkling.views.map((v) => v.rush)).toEqual([0, 1, 2, 3, 0]);
+    const over = machinesStep(sparkling.end, 0.01, calm, () => 0.5).next;
+    expect(machinesView(over, calm).rush).toBeUndefined();
+    expect(viewsAt(over, rush, [0.08]).views[0]?.rush).toBe(0);
   });
 
   it("the tarp comes off the first borer", () => {

@@ -14,6 +14,7 @@ import {
   crewGrewWords,
   layerCardWords,
   layerWelcomeWords,
+  rushHeldWords,
   type LayerCardWords,
 } from "./screen-words";
 import type { RecipeId } from "./workshop";
@@ -40,6 +41,8 @@ export interface WelcomeAway {
   /** "You were gone 9 hours. … ×1.25." */
   readonly gone: string;
   readonly cheer: string;
+  /** The stones held for the Gold rush (#468), when an hour away held some. */
+  readonly rush: string | undefined;
   /** The ore line, and the first material it names for its icon. */
   readonly materials:
     { readonly words: string; readonly first: MaterialId } | undefined;
@@ -68,6 +71,8 @@ function awayOf(view: ProgressSnapshot): WelcomeAway | undefined {
     mined: awayMinedWords(report.mined),
     gone: awayGoneWords(report),
     cheer: awayCheerWords(report.awayMs, layerOf(view.mountain).id),
+    rush:
+      report.heldForRush > 0 ? rushHeldWords(report.heldForRush) : undefined,
     materials:
       words === undefined || first === undefined ? undefined : { words, first },
   };

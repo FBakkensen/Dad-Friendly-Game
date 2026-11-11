@@ -1,4 +1,5 @@
 import { boostById, boostLeft } from "./boosts";
+import { RUSH_MS, RUSH_MULTIPLIER, rushLeft } from "./gold-rush";
 import type { Mountain } from "./mountain";
 import {
   axleCrewMultiplier,
@@ -13,7 +14,8 @@ export type CrewBoost =
   | { readonly kind: "rested" }
   | {
       readonly kind: "running";
-      readonly source: "overtime" | "axle-grease" | "blasting-charge";
+      readonly source:
+        "overtime" | "axle-grease" | "blasting-charge" | "gold-rush";
       readonly name: string;
       readonly multiplier: number;
       readonly leftMs: number;
@@ -21,6 +23,9 @@ export type CrewBoost =
     };
 
 type Running = Extract<CrewBoost, { kind: "running" }>;
+
+/** The rush's name on the dial and its chip (Flemming, 11 Nov 2026). */
+export const GOLD_RUSH_NAME = "Gold rush";
 
 function timerBoost(
   mountain: Mountain,
@@ -49,9 +54,22 @@ function timerBoost(
 /**
  * The crew timer the crew is running at: the strongest of Overtime, axle
  * grease and a blasting charge, the same rule as `effectiveRates`. A tie
- * goes to the one with the most time left.
+ * goes to the one with the most time left. A Gold rush, which multiplies on
+ * top of them, shows first.
  */
 export function liveCrewBoost(mountain: Mountain, now: number): CrewBoost {
+  // The Gold rush multiplies on top of the others, so the dial shows it (#468).
+  const rush = rushLeft(mountain, now);
+  if (rush > 0) {
+    return {
+      kind: "running",
+      source: "gold-rush",
+      name: GOLD_RUSH_NAME,
+      multiplier: RUSH_MULTIPLIER,
+      leftMs: rush,
+      fullMs: RUSH_MS,
+    };
+  }
   const overtime = boostById("overtime");
   const left = boostLeft(mountain, "overtime", now);
   const candidates: Running[] = [];

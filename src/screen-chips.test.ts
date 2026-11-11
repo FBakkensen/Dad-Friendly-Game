@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createMountain } from "./mountain";
-import { CRAFT_IDS, runningLabels } from "./screen-chips";
+import { RUSH_MS, startRush } from "./gold-rush";
+import { CRAFT_IDS, runningLabels, rushLabel } from "./screen-chips";
 import {
   axleCrewMultiplier,
   emberMachineMultiplier,
@@ -86,5 +87,20 @@ describe("runningLabels", () => {
       bench: { recipe: "mystery", startedAt: AT, endsAt: AT + 1_000 },
     } as never;
     expect(runningLabels(mountain, AT).bench.active).toBe(false);
+  });
+});
+
+describe("rushLabel (#468)", () => {
+  it("names the Gold rush with its ×10 and its clock, and is off when none runs", () => {
+    const rushed = startRush({ ...createMountain(), rushBank: 900 }, AT);
+    expect(rushLabel(rushed, AT + 30_000)).toEqual({
+      short: "Gold rush",
+      full: "Gold rush",
+      multiplier: 10,
+      leftMs: RUSH_MS - 30_000,
+      active: true,
+    });
+    expect(rushLabel(rushed, AT + RUSH_MS).active).toBe(false);
+    expect(rushLabel(createMountain(), AT).active).toBe(false);
   });
 });
