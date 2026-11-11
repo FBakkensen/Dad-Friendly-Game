@@ -1,6 +1,8 @@
 import type { AuthController, AuthState } from "./auth";
 import { skin } from "./board-skin";
-import { pressLook } from "./card-tap";
+import type { BoardHost } from "./board-host";
+import type { ControlRef, Pointer } from "./board-interaction";
+import { pressLook, pressOnBoard, type PressTracker } from "./card-tap";
 import { formatCompact, formatTimeOfDay } from "./format";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { ACCOUNT, NOT_SIGNED_IN, SIGN_IN } from "./screen-words";
@@ -64,6 +66,36 @@ export function plateButton(label: string): HTMLButtonElement {
   });
   repaint = skin(b, "key", { kind: "keyp", down: () => look.isDown() });
   return b;
+}
+
+/**
+ * A plate on a drawer's page (the Ledger's, the relics drawer's) whose press, past the settle
+ * and any hold, runs `act` with the plate and how the press came. Its tracker goes in
+ * `trackers`, so the drawer can drop a finger-down time left over.
+ */
+export function drawerPlate(
+  board: BoardHost,
+  trackers: PressTracker[],
+  { label, className, control }: DrawerPlate,
+  act: (plate: HTMLButtonElement, by: Pointer) => void,
+): HTMLButtonElement {
+  const plate = plateButton(label);
+  plate.classList.add(className);
+  trackers.push(
+    pressOnBoard(plate, board, control, (decision, by) => {
+      if (decision === "act") {
+        act(plate, by);
+      }
+    }),
+  );
+  return plate;
+}
+
+/** What a drawer plate says, its class, and the control it presses as. */
+interface DrawerPlate {
+  readonly label: string;
+  readonly className: string;
+  readonly control: ControlRef;
 }
 
 interface SaveLine {

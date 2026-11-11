@@ -112,8 +112,6 @@ body {
 .welcome-back,
 .layer-arrival,
 .craft-notice,
-.relic-reveal,
-.shelf-dialog,
 .start-over,
 .engineers-dialog,
 .update-prompt,
@@ -139,8 +137,6 @@ body {
 .update-prompt[hidden],
 .layer-arrival[hidden],
 .craft-notice[hidden],
-.relic-reveal[hidden],
-.shelf-dialog[hidden],
 .start-over[hidden],
 .engineers-dialog[hidden],
 .other-tab[hidden],
@@ -152,8 +148,6 @@ body {
 .welcome-card,
 .layer-card,
 .notice-card,
-.reveal-card,
-.shelf-card,
 .start-over-card,
 .menu-card,
 .update-card,
@@ -175,8 +169,6 @@ body {
 }
 
 .welcome-card h2,
-.reveal-card h2,
-.shelf-card h2,
 .start-over-card h2,
 .menu-card h2,
 .update-card h2,
@@ -188,25 +180,6 @@ body {
 
 .other-tab-card h2 {
   font-size: 1.25rem;
-}
-
-.legend-shelf {
-  display: flex;
-  gap: 6px;
-  justify-content: center;
-}
-
-.legend-shelf img {
-  width: 2.5rem;
-  height: 2.5rem;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 0 6px rgba(255, 214, 102, 0.8));
-}
-
-.legend-stats {
-  margin: 0;
-  color: #f2c46d;
-  font-weight: 700;
 }
 
 .welcome-mined {
@@ -230,8 +203,6 @@ body {
 }
 
 .welcome-continue,
-.reveal-continue,
-.shelf-close,
 .menu-close,
 .engineers-close {
   appearance: none;
@@ -248,8 +219,6 @@ body {
 }
 
 .welcome-continue:focus-visible,
-.reveal-continue:focus-visible,
-.shelf-close:focus-visible,
 .menu-close:focus-visible,
 .engineers-close:focus-visible,
 .engineer-tunnel:focus-visible,
@@ -266,116 +235,6 @@ body {
 .engineer-confirm-yes:focus-visible {
   outline: 4px solid #e8d4b8;
   outline-offset: 4px;
-}
-
-.reveal-kicker {
-  margin: 0;
-  font-size: 0.95rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #c9b391;
-}
-
-.reveal-art {
-  width: 10rem;
-  height: auto;
-  aspect-ratio: 1;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 0 24px rgba(255, 214, 102, 0.7));
-}
-
-.reveal-virtue {
-  margin: 0;
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #f2c46d;
-}
-
-.reveal-power {
-  margin: 0;
-  font-size: 1.05rem;
-}
-
-/* Undiscovered relics: dark silhouettes with a soft warm glow. */
-.shelf-list li[data-found="false"] img {
-  filter: brightness(0) drop-shadow(0 0 5px rgba(255, 196, 92, 0.55))
-    drop-shadow(0 0 12px rgba(255, 170, 60, 0.25));
-  opacity: 0.85;
-}
-
-.shelf-list li[data-found="false"] .shelf-detail {
-  font-style: italic;
-  color: #c9ae86;
-}
-
-.shelf-hint {
-  margin: 2px 0 0;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #f2b85b;
-}
-
-.shelf-hint[hidden] {
-  display: none;
-}
-
-.shelf-list li[data-found="true"] img {
-  filter: drop-shadow(0 0 6px rgba(255, 214, 102, 0.8));
-}
-
-.shelf-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  text-align: left;
-}
-
-.shelf-list li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.shelf-list img {
-  flex: none;
-  width: 44px;
-  height: 44px;
-  image-rendering: pixelated;
-}
-
-.shelf-name {
-  margin: 0;
-  font-weight: 700;
-  color: #f2c46d;
-}
-
-.shelf-list li[data-found="false"] .shelf-name {
-  color: #a88a62;
-}
-
-.shelf-detail {
-  margin: 0;
-  font-size: 0.9rem;
-  color: #c9b391;
-}
-
-.shelf-card {
-  gap: 12px;
-  padding: 20px 16px;
-}
-
-.shelf-list {
-  gap: var(--space-8);
-}
-
-.shelf-card h2 {
-  font-size: 1.25rem;
 }
 
 .start-over-cancel:focus-visible {
@@ -578,115 +437,8 @@ body {
   display: none;
 }
 
-.found-tool[hidden],
-.keepsakes[hidden],
-.keepsake-list li[hidden] {
+.found-tool[hidden] {
   display: none;
-}
-
-.keepsakes {
-  width: 100%;
-  text-align: left;
-}
-
-.keepsakes-title {
-  margin: 0 0 4px;
-  font-weight: 700;
-  color: #e8d4b8;
-  text-align: center;
-}
-
-.keepsake-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.keepsake-list li {
-  display: grid;
-  grid-template-columns: 28px 1fr;
-  column-gap: 8px;
-  align-items: center;
-}
-
-.keepsake-list img {
-  width: 28px;
-  height: 28px;
-  grid-row: span 2;
-  image-rendering: pixelated;
-}
-
-.keepsake-name {
-  margin: 0;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #f2c46d;
-}
-
-.keepsake-story {
-  margin: 0;
-  font-size: 0.72rem;
-  line-height: 1.15;
-  color: #c9b391;
-}
-
-/* Five stories still have to sit inside a short phone, with the way back. */
-.relic-detail:has(.keepsakes:not([hidden])) {
-  align-items: flex-start;
-  padding-top: max(8px, env(safe-area-inset-top, 0px));
-  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
-}
-
-.relic-detail .reveal-card:has(.keepsakes:not([hidden])) {
-  gap: 4px;
-  padding: 8px 12px;
-}
-
-.relic-detail .reveal-card:has(.keepsakes:not([hidden])) .reveal-art {
-  width: 40px;
-  height: 40px;
-}
-
-.relic-detail .reveal-card:has(.keepsakes:not([hidden])) .reveal-kicker,
-.relic-detail .reveal-card:has(.keepsakes:not([hidden])) .reveal-virtue {
-  font-size: 0.9rem;
-}
-
-.relic-detail .reveal-card:has(.keepsakes:not([hidden])) h2 {
-  font-size: 1.2rem;
-}
-
-.relic-detail .reveal-card:has(.keepsakes:not([hidden])) .relic-boost {
-  padding: 6px 10px;
-}
-
-.relic-detail .reveal-card:has(.keepsakes:not([hidden])) .reveal-continue {
-  min-height: var(--target-min);
-  font-size: 1rem;
-}
-
-/* The plain "Your power" line on relic cards (#relic powers). */
-.relic-boost {
-  margin: 0;
-  padding: 10px 14px;
-  border: 1px solid rgba(242, 196, 109, 0.5);
-  border-radius: 12px;
-  background: rgba(232, 168, 74, 0.12);
-  color: #f2c46d;
-  font-weight: 700;
-}
-
-.shelf-list li[role="button"] {
-  cursor: pointer;
-  border-radius: 10px;
-}
-
-.shelf-list li[role="button"]:focus-visible {
-  outline: 3px solid #f2c46d;
-  outline-offset: 2px;
 }
 
 /* M6: pass the mine to your kid. Warm gold, not the red of Start over. */
@@ -720,42 +472,9 @@ body {
   cursor: pointer;
 }
 
-.legend-pass {
-  appearance: none;
-  width: 100%;
-  min-height: 52px;
-  border: 2px solid #f2c46d;
-  border-radius: 12px;
-  background: transparent;
-  color: #f2c46d;
-  font: inherit;
-  font-size: 1.1rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.legend-pass[hidden] {
-  display: none;
-}
-
-.legacy-confirm:focus-visible,
-.legend-pass:focus-visible {
+.legacy-confirm:focus-visible {
   outline: 4px solid #e8d4b8;
   outline-offset: 3px;
-}
-
-.legend-actions {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-}
-
-.legend-actions > button {
-  flex: 1 1 0;
-  width: auto;
-  min-height: 56px;
-  padding: 8px 10px;
-  font-size: 1.15rem;
 }
 
 /* Engineers sheet. Full-bleed, and it must not scroll on a short phone. */
@@ -1760,77 +1479,6 @@ body {
   transform: translateY(var(--space-4));
 }
 
-/* Workshop and the relic shelf share one card; Buys and Upgrades are board drawers (#373). Lists may scroll. The page does not. */
-.shelf-dialog .shelf-row.sheet-card {
-  display: grid;
-  grid-template-columns: var(--sheet-icon) minmax(0, 1fr);
-  column-gap: var(--space-8);
-  row-gap: 0;
-  align-items: center;
-  height: auto;
-  min-height: var(--target-min);
-  padding: var(--sheet-pad-y) var(--sheet-pad-x);
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  box-shadow: none;
-  color: var(--color-ink);
-  text-align: left;
-}
-
-/* The card's display beats the user-agent [hidden] rule. Keep hidden cards out of the list. */
-.shelf-dialog .shelf-row.sheet-card[hidden] {
-  display: none;
-}
-
-.shelf-dialog .shelf-row.sheet-card.sheet-ready {
-  border-color: var(--color-state-ready);
-}
-
-.shelf-dialog .shelf-row.sheet-card.sheet-dear,
-.shelf-dialog .shelf-row.sheet-card.sheet-locked {
-  background: var(--color-state-dear);
-  border-color: var(--color-edge);
-}
-
-.shelf-dialog .shelf-row.sheet-card .sheet-card-icon {
-  grid-column: 1;
-  grid-row: 1;
-  width: var(--sheet-icon);
-  height: var(--sheet-icon);
-  align-self: start;
-  margin-top: var(--space-4);
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-.shelf-dialog .shelf-row.sheet-card .sheet-card-body {
-  display: grid;
-  grid-column: 2;
-  grid-row: 1;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: var(--space-8);
-  row-gap: 0;
-  align-items: start;
-  min-width: 0;
-}
-
-.shelf-dialog .shelf-row.sheet-card .sheet-card-heading {
-  grid-column: 1;
-  grid-row: 1;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  min-height: var(--target-min);
-  margin: 0;
-  overflow: visible;
-  color: var(--color-ink);
-  font-size: var(--sheet-title);
-  font-weight: var(--weight-bold);
-  line-height: 1;
-  white-space: nowrap;
-}
-
 .sheet-level {
   flex: none;
   margin-left: var(--space-4);
@@ -1856,22 +1504,6 @@ body {
   font-weight: var(--weight-bold);
   line-height: var(--leading);
   text-align: center;
-}
-
-.shelf-dialog .shelf-row.sheet-card .sheet-card-line {
-  grid-column: 1 / -1;
-  margin: 0;
-  overflow: visible;
-  color: var(--color-gold);
-  font-size: var(--sheet-line);
-  font-weight: var(--weight-bold);
-  line-height: var(--leading);
-  white-space: normal;
-}
-
-.shelf-dialog .shelf-row.sheet-card .sheet-card-quiet {
-  color: var(--color-quiet);
-  font-weight: var(--weight-regular);
 }
 
 /* Workshop crafts sit in a one-column list. */
@@ -1907,10 +1539,8 @@ body {
 }
 
 /* M10-6: relics, legacy, welcome and the menu on the shared parts. */
-.shelf-card,
 .menu-card,
 .start-over-card,
-.reveal-card,
 .welcome-card {
   border: var(--line) solid var(--color-edge);
   border-radius: var(--radius-sheet);
@@ -1919,51 +1549,14 @@ body {
   color: var(--color-ink);
 }
 
-.shelf-card h2,
 .menu-card h2 {
   color: var(--color-ink);
   font-size: var(--type-16);
   font-weight: var(--weight-bold);
 }
 
-.shelf-dialog .shelf-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--target-gap);
-}
-
-.shelf-dialog .shelf-row.sheet-card {
-  flex: none;
-  margin: 0;
-}
-
-.shelf-dialog .shelf-row.sheet-card .sheet-card-title {
-  color: var(--color-ink);
-}
-
-.shelf-dialog .shelf-row.sheet-card .shelf-detail {
-  color: var(--color-ink);
-  font-size: var(--type-14);
-  font-weight: var(--weight-regular);
-}
-
-.shelf-dialog .shelf-row.sheet-card .shelf-hint {
-  color: var(--color-gold);
-  font-size: var(--type-14);
-}
-
-.shelf-dialog .shelf-row.sheet-locked {
-  border-style: dashed;
-}
-
-.shelf-dialog .shelf-row.sheet-locked .shelf-detail {
-  color: var(--color-quiet);
-  font-style: italic;
-}
-
 /* The one main move on a card: primary. */
 .welcome-continue,
-.reveal-continue,
 .legacy-confirm {
   min-height: var(--target-min);
   border: var(--line) solid var(--color-gold);
@@ -1976,7 +1569,6 @@ body {
 }
 
 /* Going back, quietly: the same Back as Buys and Upgrades. */
-.shelf-close,
 .menu-close,
 .legacy-cancel,
 .start-over-cancel {
@@ -1988,18 +1580,6 @@ body {
   color: var(--color-ink);
   font-size: var(--type-16);
   font-weight: var(--weight-bold);
-}
-
-/* Relics keep their big glowing art: the mock's 48px card icon. */
-.shelf-dialog .shelf-row.sheet-card {
-  grid-template-columns: var(--target-min) minmax(0, 1fr);
-}
-
-.shelf-dialog .shelf-row.sheet-card .sheet-card-icon {
-  width: var(--target-min);
-  height: var(--target-min);
-  margin-top: 0;
-  align-self: center;
 }
 
 /* ---- Teach parts (M11 #241, the hybrid pattern mocked on #240) ---- */

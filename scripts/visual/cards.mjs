@@ -1,5 +1,5 @@
 /* global console, document, innerHeight */
-/** Card sections: the one-time cards (crew grew, welcome-back, the Mantle, the heir, trouble), found tools and the relic shelf. */
+/** Card sections: the one-time cards (crew grew, welcome-back, the heir, trouble), found tools, and the relics drawer's shelf, detail, reveal and Legend (#465). */
 import {
   staffingNoteSave,
   welcomeBackSave,
@@ -17,11 +17,73 @@ import {
   openSheet,
   closeSheet,
   openShelf,
+  RELIC_PAGE,
+  pressPage,
+  sheetSettled,
   STANDALONE_INSETS,
   openScreen,
   coversBoard,
   noScroll,
 } from "./kit.mjs";
+
+/**
+ * The relics drawer is open on `name`'s page, and everything on it sits inside the drawer,
+ * above the save line and the bottom inset, with every button at least 44px tall.
+ */
+async function relicPageFits(page, name, { bottom = 0 } = {}) {
+  const shown = await page
+    .waitForSelector(RELIC_PAGE(name), { visible: true, timeout: 3_000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  const settled = shown && (await sheetSettled(page, "relics"));
+  if (!settled) {
+    console.log(`relics drawer: the ${name} page did not open`);
+    return false;
+  }
+  const result = await page.$eval(
+    RELIC_PAGE(name),
+    (pageEl, inset) => {
+      const sheet = pageEl.closest(".board-sheet")?.getBoundingClientRect();
+      const line = document
+        .querySelector(".board-saveline")
+        ?.getBoundingClientRect();
+      if (sheet === undefined || line === undefined) {
+        return { ok: false, detail: "no drawer or save line" };
+      }
+      const floor = Math.min(sheet.bottom, line.top, innerHeight - inset);
+      const parts = [...pageEl.querySelectorAll("*")].filter(
+        (el) => el.closest("[hidden]") === null && el.getClientRects().length,
+      );
+      const outside = parts
+        .filter((el) => el.closest(".relic-keepsake-list") === null)
+        .filter((el) => {
+          const b = el.getBoundingClientRect();
+          return (
+            b.width > 0 &&
+            (b.top < sheet.top - 0.5 ||
+              b.bottom > floor + 0.5 ||
+              b.left < sheet.left - 0.5 ||
+              b.right > sheet.right + 0.5)
+          );
+        })
+        .map((el) => el.className);
+      const buttons = [...pageEl.querySelectorAll("button")].map(
+        (button) => button.getBoundingClientRect().height,
+      );
+      return {
+        ok: outside.length === 0 && buttons.every((h) => h >= 44),
+        detail: JSON.stringify({ outside, buttons }),
+      };
+    },
+    bottom,
+  );
+  if (!result.ok) {
+    console.log(`relics drawer ${name} page`, result.detail);
+  }
+  return result.ok;
+}
 
 /** The phone's cards, in the browser and as the installed PWA with its insets. */
 const STANDALONE = [{ standalone: false }, { standalone: true }];
@@ -93,8 +155,8 @@ section("section 5 (line 856)", async () => {
     );
     await page.tap(".welcome-continue");
     check(
-      await coversBoard(page, ".relic-reveal"),
-      "relic reveal is laid over the game",
+      await relicPageFits(page, "reveal"),
+      "the relic's reveal opens the relics drawer, and fits it",
     );
     await close();
   }
@@ -141,36 +203,31 @@ async function foundSheetsFit(page, { top = 0, bottom = 0 } = {}) {
   const toolsStill = await noScroll(page);
   await closeSheet(page, "upgrades");
   await openShelf(page);
-  await page.evaluate(() => {
-    document.querySelectorAll(".shelf-list li")[2]?.scrollIntoView();
-  });
-  await page.$$eval(".shelf-list li", (rows) => {
+  await sheetSettled(page, "relics");
+  await page.$$eval(`${OPEN_SHEET("relics")} .relic-row`, (rows) => {
     rows[2]?.click();
   });
-  const detail = await page.$eval(
-    ".relic-detail .reveal-card",
-    (card, insets) => {
-      const box = card.getBoundingClientRect();
-      const back = card
-        .querySelector(".reveal-continue")
-        ?.getBoundingClientRect();
-      const stories = [...card.querySelectorAll(".keepsake-story")].filter(
-        (row) => row.closest("li")?.hidden !== true,
-      );
-      const text = stories.map((row) => row.textContent ?? "").join(" ");
-      return {
-        fits: box.top >= 0 && box.bottom <= innerHeight,
-        backOk:
-          back !== undefined &&
-          back.height >= 44 &&
-          back.top >= insets.top &&
-          back.bottom <= innerHeight - insets.bottom,
-        stories: stories.length,
-        clean: text.length > 0 && !text.includes("?") && !/\d/.test(text),
-      };
-    },
-    { top, bottom },
-  );
+  const fits = await relicPageFits(page, "detail", { bottom });
+  const detail = await page.$eval(RELIC_PAGE("detail"), (card) => {
+    const list = card.querySelector(".relic-keepsake-list");
+    const stories = [...card.querySelectorAll(".relic-keepsake-story")].filter(
+      (row) => row.closest("li")?.hidden !== true,
+    );
+    const text = stories.map((row) => row.textContent ?? "").join(" ");
+    const icons = [...card.querySelectorAll(".relic-keepsake-art")].filter(
+      (img) => img.closest("li")?.hidden !== true,
+    );
+    return {
+      // Five stories fit without the list scrolling inside its well.
+      whole: list !== null && list.scrollHeight <= list.clientHeight + 1,
+      stories: stories.length,
+      icons: icons.every((img) => img.complete && img.naturalWidth === 16),
+      clean: text.length > 0 && !text.includes("?") && !/\d/.test(text),
+    };
+  });
+  if (!detail.whole) {
+    console.log("keepsakes: the five stories scroll inside their well");
+  }
   const detailStill = await noScroll(page);
   const ok =
     tools.count === 4 &&
@@ -179,9 +236,10 @@ async function foundSheetsFit(page, { top = 0, bottom = 0 } = {}) {
     tools.titleOk &&
     tools.closeOk &&
     toolsStill &&
-    detail.fits &&
-    detail.backOk &&
+    fits &&
+    detail.whole &&
     detail.stories === 5 &&
+    detail.icons &&
     detail.clean &&
     detailStill;
   return ok;
@@ -208,7 +266,7 @@ table({
 });
 
 // Every relic found: the shelf scrolls inside itself, and a tapped relic's
-// detail card (art, virtue, "Your power") sits over the game and fits.
+// detail page (art, virtue, "Your power") fits the relics drawer (#465).
 table({
   screens: [PHONE],
   scenarios: [{}],
@@ -217,6 +275,7 @@ table({
   open: async (viewport) => {
     const opened = await openScreen(viewport, fullShelfSave());
     await openShelf(opened.page);
+    await sheetSettled(opened.page, "relics");
     return opened;
   },
   expect: [
@@ -227,34 +286,27 @@ table({
     },
     {
       run: async ({ page }) => {
-        await page.evaluate(() => {
-          document.querySelectorAll(".shelf-list li")[4]?.scrollIntoView();
-        });
-        await page.$$eval(".shelf-list li", (rows) => {
+        await page.$$eval(`${OPEN_SHEET("relics")} .relic-row`, (rows) => {
           rows[4]?.click();
         });
-        const covered = await coversBoard(page, ".relic-detail");
+        const fits = await relicPageFits(page, "detail");
         const still = await noScroll(page);
-        const fits = await page.$eval(".relic-detail .reveal-card", (card) => {
-          const box = card.getBoundingClientRect();
-          return box.top >= 0 && box.bottom <= innerHeight;
-        });
         return [
-          [covered, "relic detail is laid over the game"],
+          [fits, "relic detail fits the relics drawer"],
           [still, "relic detail has no scroll"],
-          [fits, "relic detail card fits the screen"],
         ];
       },
     },
     {
       run: async ({ page }) => {
-        await page.tap(".relic-detail .reveal-continue");
-        return [
-          [
-            await page.$eval(".relic-detail", (el) => el.hidden),
-            "relic detail closes back to the shelf",
-          ],
-        ];
+        await pressPage(page, "detail", "shelf");
+        const back = await page.$eval(
+          OPEN_SHEET("relics"),
+          (sheet) =>
+            sheet.querySelector(".relic-detail-page") === null &&
+            sheet.querySelector(".board-sheet-list")?.hidden === false,
+        );
+        return [[back, "relic detail goes back to the shelf"]];
       },
     },
   ],
@@ -267,21 +319,26 @@ for (const viewport of [[424, 924]]) {
     const label = `${String(viewport[0])}x${String(viewport[1])}`;
     const { page, close } = await openScreen(viewport, mantleSave());
     await page.tap(".board-window");
-    await page.waitForSelector(".relic-reveal:not([hidden])");
-    await page.tap(".relic-reveal:not(.legend) .reveal-continue");
     check(
-      await coversBoard(page, ".legend"),
-      `${label} Legend finale is laid over the game`,
+      await relicPageFits(page, "reveal"),
+      `${label} the Mantle's reveal fits the relics drawer`,
+    );
+    await pressPage(page, "reveal", "carry");
+    check(
+      await relicPageFits(page, "legend"),
+      `${label} Legend finale fits the relics drawer`,
     );
     check(await noScroll(page), `${label} Legend finale has no scroll`);
-    const fits = await page.$eval(".legend-card", (card) => {
-      const box = card.getBoundingClientRect();
-      return box.top >= 0 && box.bottom <= innerHeight;
-    });
-    check(fits, `${label} Legend card fits the screen`);
-    await page.tap(".legend .reveal-continue");
+    await pressPage(page, "legend", "stand");
     check(
-      await page.$eval(".legend", (el) => el.hidden),
+      await page
+        .waitForSelector(`.board-sheet[data-sheet="relics"]:not(.is-open)`, {
+          timeout: 2_000,
+        })
+        .then(
+          () => true,
+          () => false,
+        ),
       `${label} Legend finale closes`,
     );
     await close();
@@ -294,9 +351,10 @@ for (const viewport of [[424, 924]]) {
     const label = `${String(viewport[0])}x${String(viewport[1])}`;
     const { page, close } = await openScreen(viewport, lastStoneSave());
     await page.tap(".board-window");
-    await page.waitForSelector(".relic-reveal:not([hidden])");
-    await page.tap(".relic-reveal:not(.legend) .reveal-continue");
-    await page.tap(".legend .legend-pass");
+    await page.waitForSelector(RELIC_PAGE("reveal"), { visible: true });
+    await pressPage(page, "reveal", "carry");
+    await page.waitForSelector(RELIC_PAGE("legend"), { visible: true });
+    await pressPage(page, "legend", "pass");
     check(
       await coversBoard(page, ".legacy-dialog"),
       `${label} pass-the-mine confirm is laid over the game`,

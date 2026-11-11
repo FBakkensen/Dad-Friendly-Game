@@ -18,7 +18,7 @@ export const PRESS_AGE_LIMIT_MS = 10_000;
 
 /** Drawers replace one another. The save drawer and a board note open on top. */
 export type DrawerId =
-  "buys" | "upgrades" | "workshop" | "engineers" | "ledger";
+  "buys" | "upgrades" | "workshop" | "engineers" | "ledger" | "relics";
 export type OverlayId = DrawerId | "save" | "note";
 /** Where a control sits: on an overlay, or on the board under them all. */
 export type Layer = OverlayId | "board";
@@ -151,6 +151,7 @@ const DRAWER_IDS: readonly DrawerId[] = [
   "workshop",
   "engineers",
   "ledger",
+  "relics",
 ];
 
 function isDrawer(overlay: Layer): overlay is DrawerId {

@@ -79,7 +79,7 @@ import { engineersIntro, engineersNote, firstTripWords } from "./screen-words";
 function closeArrivals(root: HTMLElement): void {
   for (let i = 0; i < 20; i += 1) {
     const go = root.querySelector<HTMLButtonElement>(
-      ".relic-reveal:not([hidden]) .reveal-continue, .layer-arrival:not([hidden]) .layer-dig",
+      ".board-sheet[data-sheet=relics].is-open .board-sheet-page:not([hidden]) .relic-page-carry, .layer-arrival:not([hidden]) .layer-dig",
     );
     if (go === null) return;
     go.click();

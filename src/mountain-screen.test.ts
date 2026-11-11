@@ -2,6 +2,7 @@
 import { etaShort, formatCompact, formatCount } from "./format";
 import { shownStones, stonesLeft } from "./scale";
 import { RELICS } from "./relics";
+import { RELIC_DARK, RELIC_LIT } from "./board-relics";
 import { writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryAuth } from "./auth";
@@ -45,6 +46,11 @@ import {
   LEDGER_SHEET,
   RELICS_BAR,
   RELICS_GOAL,
+  RELICS_SHEET,
+  REVEAL_PAGE,
+  SHELF_ROWS,
+  relicPage,
+  shelfShown,
   STONES_NAME,
   STONES_ROW,
   createMemoryStorage,
@@ -1041,27 +1047,33 @@ describe("Lantern of Guidance on screen", () => {
   it("reveals the Lantern on the tap that uncovers it, then guides to the Shield", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(999_999)) });
     document.body.append(screen.root);
-    const reveal = screen.root.querySelector<HTMLElement>(".relic-reveal");
-    expect(reveal?.hidden).toBe(true);
+    expect(relicPage(screen.root, REVEAL_PAGE)).toBeNull();
 
     screen.dig.click();
 
-    expect(reveal?.hidden).toBe(false);
+    // The relics drawer opens itself on the reveal (#465).
+    const reveal = relicPage(screen.root, REVEAL_PAGE);
+    expect(reveal).not.toBeNull();
     expect(screen.text("#relic-reveal-title")).toBe(
       "You found the Lantern of Guidance",
     );
-    expect(screen.text(".reveal-virtue")).toBe("The virtue of Guidance.");
+    expect(reveal?.querySelector(".relic-page-line")?.textContent).toBe(
+      "The virtue of Guidance.",
+    );
     expect(
-      screen.root
-        .querySelector<HTMLImageElement>(".reveal-art")
+      reveal
+        ?.querySelector<HTMLImageElement>(".relic-page-art")
         ?.getAttribute("src"),
-    ).toBe("lantern.png");
+    ).toBe(RELIC_LIT.lantern);
     expect(document.activeElement).toBe(
-      screen.root.querySelector(".reveal-continue"),
+      reveal?.querySelector(".relic-page-carry"),
     );
 
-    screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
-    expect(reveal?.hidden).toBe(true);
+    reveal?.querySelector<HTMLButtonElement>(".relic-page-carry")?.click();
+    expect(relicPage(screen.root, REVEAL_PAGE)).toBeNull();
+    expect(
+      screen.root.querySelector(RELICS_SHEET)?.classList.contains("is-open"),
+    ).toBe(false);
     expect(screen.text(RELICS_GOAL)).toBe(
       "Next: Shield of Protection · Far below",
     );
@@ -1135,14 +1147,13 @@ describe("Lantern of Guidance on screen", () => {
       Date.now() - 400_000,
     );
     const screen = mountScreen({ storage });
-    const reveal = screen.root.querySelector<HTMLElement>(".relic-reveal");
     expect(
       screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
     ).toBe(false);
-    expect(reveal?.hidden).toBe(true);
+    expect(relicPage(screen.root, REVEAL_PAGE)).toBeNull();
 
     screen.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
-    expect(reveal?.hidden).toBe(false);
+    expect(relicPage(screen.root, REVEAL_PAGE)).not.toBeNull();
   });
 });
 
@@ -1170,29 +1181,39 @@ describe("relic shelf", () => {
       ),
     );
 
-    const dialog = screen.root.querySelector<HTMLElement>(".shelf-dialog");
-    expect(dialog?.hidden).toBe(true);
+    expect(shelfShown(screen.root)).toBe(false);
     // The tag is a label; the shelf opens from a socket note's key (#370).
     tag?.click();
-    expect(dialog?.hidden).toBe(true);
+    expect(shelfShown(screen.root)).toBe(false);
     openShelfFromSocket(screen.root, sockets[0]);
-    expect(dialog?.hidden).toBe(false);
-    const names = [...screen.root.querySelectorAll(".shelf-name")].map(
-      (el) => el.textContent,
+    // The relics drawer, on its shelf (#465).
+    expect(shelfShown(screen.root)).toBe(true);
+    expect(screen.text(`${RELICS_SHEET} .board-sheet-title`)).toBe(
+      "Relics of Fatherhood",
     );
+    expect(screen.text(`${RELICS_SHEET} .board-sheet-kick`)).toBe(
+      "0 of 6 found",
+    );
+    const names = [
+      ...screen.root.querySelectorAll(`${SHELF_ROWS} .board-row-name`),
+    ].map((el) => el.textContent);
     expect(names).toEqual(RELICS.map((relic) => relic.name));
-    expect(screen.text(".shelf-detail")).toBe(
+    expect(screen.text(`${SHELF_ROWS} .board-row-info`)).toBe(
       "A warm light waits in the dark below.",
     );
     expect(screen.root.textContent).not.toContain("???");
     expect(
-      [...screen.root.querySelectorAll<HTMLElement>(".shelf-hint")].every(
-        (hint) => hint.hidden,
-      ),
+      [
+        ...screen.root.querySelectorAll<HTMLElement>(
+          `${SHELF_ROWS} .board-row-why`,
+        ),
+      ].every((hint) => hint.hidden),
     ).toBe(true);
 
-    screen.root.querySelector<HTMLButtonElement>(".shelf-close")?.click();
-    expect(dialog?.hidden).toBe(true);
+    screen.root
+      .querySelector<HTMLButtonElement>(`${RELICS_SHEET} .board-sheet-back`)
+      ?.click();
+    expect(shelfShown(screen.root)).toBe(false);
   });
 
   it("lights up found relics, teases the rest, and hints only how near the next one is", () => {
@@ -1209,32 +1230,42 @@ describe("relic shelf", () => {
       screen.root,
       screen.root.querySelector<HTMLButtonElement>(".board-socket"),
     );
-    const rows = [...screen.root.querySelectorAll(".shelf-list li")];
-    expect(rows[0]?.querySelector(".shelf-name")?.textContent).toBe(
+    const rows = [...screen.root.querySelectorAll(SHELF_ROWS)];
+    expect(rows).toHaveLength(6);
+    expect(rows[0]?.querySelector(".board-row-name")?.textContent).toBe(
       "Lantern of Guidance",
     );
-    expect(rows.every((row) => row.classList.contains("sheet-card"))).toBe(
-      true,
+    expect(
+      rows.every(
+        (row) => row.querySelector<HTMLImageElement>(".board-row-icon")?.src,
+      ),
+    ).toBeTruthy();
+    expect(rows[0]?.classList.contains("is-found")).toBe(true);
+    expect(rows[2]?.classList.contains("is-locked")).toBe(true);
+    expect(
+      rows[0]
+        ?.querySelector<HTMLImageElement>(".board-row-icon")
+        ?.getAttribute("src"),
+    ).toBe(RELIC_LIT.lantern);
+    expect(
+      rows[2]
+        ?.querySelector<HTMLImageElement>(".board-row-icon")
+        ?.getAttribute("src"),
+    ).toBe(RELIC_DARK.hammer);
+    expect(rows[1]?.getAttribute("aria-label")).toBe(
+      "Shield of Protection: see your power",
     );
-    expect(rows.every((row) => row.querySelector(".sheet-card-icon"))).toBe(
-      true,
-    );
-    expect(rows[0]?.classList.contains("sheet-ready")).toBe(true);
-    expect(rows[2]?.classList.contains("sheet-locked")).toBe(true);
-    expect(rows[1]?.querySelector(".shelf-detail")?.textContent).toContain(
-      "The virtue of Protection.",
-    );
-    expect(rows[2]?.querySelector(".shelf-name")?.textContent).toBe(
+    expect(rows[2]?.querySelector(".board-row-name")?.textContent).toBe(
       "Hammer of the Builder",
     );
-    expect(rows[2]?.querySelector(".shelf-detail")?.textContent).toBe(
+    expect(rows[2]?.querySelector(".board-row-info")?.textContent).toBe(
       "Somewhere down there lies the hammer that built great things.",
     );
     // 12M is 2M into the 15M stretch to the Hammer: still far below.
-    expect(rows[2]?.querySelector(".shelf-hint")?.textContent).toBe(
+    expect(rows[2]?.querySelector(".board-row-why")?.textContent).toBe(
       "Next · Far below",
     );
-    expect(rows[3]?.querySelector<HTMLElement>(".shelf-hint")?.hidden).toBe(
+    expect(rows[3]?.querySelector<HTMLElement>(".board-row-why")?.hidden).toBe(
       true,
     );
     for (const row of rows.slice(2)) {
@@ -1332,9 +1363,7 @@ describe("start over", () => {
       "No crew yet. Hire a worker to mine for you.",
     );
     expect(screen.text(".board-tag")).toBe("Relics of Fatherhood · 0 of 6");
-    expect(
-      screen.root.querySelector<HTMLElement>(".relic-reveal")?.hidden,
-    ).toBe(true);
+    expect(relicPage(screen.root, REVEAL_PAGE)).toBeNull();
     const saved = JSON.parse(storage.getItem(SESSION_SAVE_KEY) ?? "{}") as {
       mountain: { startedAt?: unknown };
     };
@@ -1876,16 +1905,17 @@ describe("the control board (#370)", () => {
       screen.root.querySelectorAll(".board-top .board-relics .board-socket"),
     ).toHaveLength(6);
     expect(screen.text(".board-tag")).toBe("Relics of Fatherhood · 2 of 6");
-    const shelf = screen.root.querySelector<HTMLElement>(".shelf-dialog");
-    expect(shelf?.hidden).toBe(true);
+    expect(shelfShown(screen.root)).toBe(false);
     document.body.append(screen.root);
     try {
       const socket =
         screen.root.querySelectorAll<HTMLButtonElement>(".board-socket")[2];
       openShelfFromSocket(screen.root, socket);
-      expect(shelf?.hidden).toBe(false);
-      screen.root.querySelector<HTMLButtonElement>(".shelf-close")?.click();
-      expect(shelf?.hidden).toBe(true);
+      expect(shelfShown(screen.root)).toBe(true);
+      screen.root
+        .querySelector<HTMLButtonElement>(`${RELICS_SHEET} .board-sheet-back`)
+        ?.click();
+      expect(shelfShown(screen.root)).toBe(false);
       // Focus goes back to the socket whose note opened the shelf.
       expect(document.activeElement).toBe(socket);
     } finally {
@@ -2166,19 +2196,23 @@ describe("the control board (#370)", () => {
         ...m,
         remaining: MOUNTAIN_STONES - 46_000_000,
       }));
-      expect(
-        screen.root.querySelector<HTMLElement>(".relic-reveal")?.hidden,
-      ).toBe(false);
+      // The reveal opens the relics drawer itself (#465); the layer card waits for it.
+      expect(relicPage(screen.root, REVEAL_PAGE)).not.toBeNull();
       expect(signOf(screen)).toBeUndefined();
       vi.advanceTimersByTime(1_000);
       expect(signOf(screen)).toBeUndefined();
-      // Once the cards are shut, the sign it never got to show comes back once.
+      // Once the cards and the reveal are shut, the sign it never got to show comes back once.
       for (let i = 0; i < 20; i += 1) {
-        const go = screen.root.querySelector<HTMLButtonElement>(
-          ".relic-reveal:not([hidden]) .reveal-continue, .layer-arrival:not([hidden]) .layer-dig",
-        );
+        const go =
+          relicPage(screen.root, REVEAL_PAGE)?.querySelector<HTMLButtonElement>(
+            ".relic-page-carry",
+          ) ??
+          screen.root.querySelector<HTMLButtonElement>(
+            ".layer-arrival:not([hidden]) .layer-dig",
+          );
         if (go === null) break;
         go.click();
+        vi.advanceTimersByTime(0);
       }
       vi.advanceTimersByTime(1_000);
       expect(signOf(screen)).toBe(engineersNote("Ada"));
@@ -2314,9 +2348,7 @@ describe("the control board (#370)", () => {
       );
       expect(drawer?.classList.contains("is-open")).toBe(false);
       expect(note?.classList.contains("on")).toBe(false);
-      expect(
-        screen.root.querySelector<HTMLElement>(".shelf-dialog")?.hidden,
-      ).toBe(false);
+      expect(shelfShown(screen.root)).toBe(true);
     } finally {
       screen.root.remove();
     }

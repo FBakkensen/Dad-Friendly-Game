@@ -14,7 +14,8 @@ import {
   press,
   SHELF_KEY,
   openScreen,
-  coversBoard,
+  sheetSettled,
+  closeSheet,
   noScroll,
   keysDrawn,
   noteAway,
@@ -224,7 +225,7 @@ const BOARD_EXPECT = [
   },
   {
     // A socket's note ends in the Relic shelf key, and the key opens the
-    // shelf over the board (#370).
+    // relics drawer on its shelf (#370, #465).
     run: async ({ page, viewport, seen }) => {
       await press(page, ".board-socket");
       await page
@@ -240,11 +241,8 @@ const BOARD_EXPECT = [
       if (seen.keyShown) {
         await press(page, SHELF_KEY);
       }
-      const ok = seen.keyShown && (await coversBoard(page, ".shelf-dialog"));
-      await press(page, ".shelf-close");
-      await page
-        .waitForSelector(".shelf-dialog[hidden]", { timeout: 2_000 })
-        .catch(() => undefined);
+      const ok = seen.keyShown && (await sheetSettled(page, "relics"));
+      await closeSheet(page, "relics");
       return [[ok, "a socket's note opens the shelf from its Relic shelf key"]];
     },
   },

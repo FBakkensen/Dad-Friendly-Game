@@ -117,6 +117,30 @@ async function closeSheet(page, name) {
     .catch(() => undefined);
 }
 
+/** A page of the open relics drawer (#465): detail, reveal or legend. */
+const RELIC_PAGE = (name) =>
+  `${OPEN_SHEET("relics")} .board-sheet-page:not([hidden]) > .relic-${name}-page`;
+
+/**
+ * Presses a plate on the open relics page, once the page is up. A keyboard press
+ * (a click with no pointer) is never early, so the page's settle keeps it.
+ */
+async function pressPage(page, name, plate) {
+  const selector = `${RELIC_PAGE(name)} .relic-page-${plate}`;
+  const found = await page
+    .waitForSelector(selector, { visible: true, timeout: 5_000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  if (found) {
+    await page.$eval(selector, (button) => {
+      button.click();
+    });
+  }
+  return found;
+}
+
 /** The note's key on the board: a socket's note ends in "Relic shelf" (#370). */
 const SHELF_KEY = ".board-note.on .board-platebtn";
 
@@ -537,6 +561,8 @@ export {
   closeSheet,
   SHELF_KEY,
   openShelf,
+  RELIC_PAGE,
+  pressPage,
   STANDALONE_INSETS,
   boardProbe,
   openScreen,

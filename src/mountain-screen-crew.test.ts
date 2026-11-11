@@ -37,16 +37,24 @@ import { UPGRADES, upgradeById, upgradeCost, type UpgradeId } from "./upgrades";
 import { upgradesOrder } from "./upgrades-panel";
 import { LOST_TOOLS } from "./lost-tools";
 import {
+  DETAIL_PAGE,
   LEDGER_SHEET,
+  LEGEND_PAGE,
   RELICS_GOAL,
+  RELICS_SHEET,
+  REVEAL_PAGE,
+  SHELF_ROWS,
   STONES_NAME,
   createMemoryStorage,
   mountScreen,
+  relicPage,
   setReducedMotion,
+  shelfShown,
   signedIn,
   stopScreens,
-  tileUrl,
 } from "./mountain-screen.harness";
+import { RELIC_LIT } from "./board-relics";
+import { KEEPSAKE_ART } from "./relic-pages";
 
 /** An upgrade level's stone price on a Topsoil first run (k = 1). */
 function upgradePrice(id: UpgradeId, level = 0): number {
@@ -2097,7 +2105,7 @@ describe("upgrades on screen", () => {
     screen.root.remove();
   });
 
-  it("a relic found while the drawer is open keeps its Continue focused", () => {
+  it("a relic found while the drawer is open opens the relics drawer in its place, Carry focused (#465)", () => {
     const screen = mountScreen({
       storage: seededWith(minedMountain(999_999), CLOCK),
       now: () => CLOCK,
@@ -2105,12 +2113,10 @@ describe("upgrades on screen", () => {
     document.body.append(screen.root);
     openUpgrades(screen);
     screen.dig.click();
-    expect(
-      screen.root.querySelector<HTMLElement>(".relic-reveal")?.hidden,
-    ).toBe(false);
+    expect(relicPage(screen.root, REVEAL_PAGE)).not.toBeNull();
     expect(drawerOf(screen)?.classList.contains("is-open")).toBe(false);
     expect(document.activeElement).toBe(
-      screen.root.querySelector(".reveal-continue"),
+      screen.root.querySelector(".relic-page-carry"),
     );
     screen.root.remove();
   });
@@ -3295,37 +3301,42 @@ describe("Mantle of the Hero finale (#103)", () => {
       }),
     });
     document.body.append(screen.root);
-    const legend = screen.root.querySelector<HTMLElement>(".legend");
-    expect(legend?.hidden).toBe(true);
+    expect(relicPage(screen.root, LEGEND_PAGE)).toBeNull();
 
     screen.dig.click();
     expect(screen.text("#relic-reveal-title")).toBe(
       "You found the Mantle of the Hero",
     );
-    expect(legend?.hidden).toBe(true);
-    screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
+    expect(relicPage(screen.root, LEGEND_PAGE)).toBeNull();
+    screen.root.querySelector<HTMLButtonElement>(".relic-page-carry")?.click();
 
-    expect(legend?.hidden).toBe(false);
-    expect(screen.text("#legend-title")).toBe("You became a Legend");
-    expect(screen.text(".legend-stats")).toBe(
+    // The drawer stays open, on its Legend page (#465).
+    const legend = relicPage(screen.root, LEGEND_PAGE);
+    expect(legend).not.toBeNull();
+    expect(screen.text("#relic-legend-title")).toBe("You became a Legend");
+    expect(screen.text(".relic-legend-stats")).toBe(
       `${formatCount(shownStones(createMountain(), MOUNTAIN_STONES))} stones moved. Six relics found. A crew of 1,000 beside you.`,
     );
-    expect(legend?.querySelectorAll(".legend-shelf img")).toHaveLength(6);
+    expect(legend?.querySelectorAll(".relic-legend-shelf img")).toHaveLength(6);
     expect(document.activeElement).toBe(
-      legend?.querySelector(".reveal-continue"),
+      legend?.querySelector(".relic-page-stand"),
     );
-    legend?.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
-    expect(legend?.hidden).toBe(true);
+    legend?.querySelector<HTMLButtonElement>(".relic-page-stand")?.click();
+    expect(relicPage(screen.root, LEGEND_PAGE)).toBeNull();
+    expect(
+      screen.root.querySelector(RELICS_SHEET)?.classList.contains("is-open"),
+    ).toBe(false);
     screen.root.remove();
   });
 
   it("does not open for other relics", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(999_999)) });
     screen.dig.click();
-    screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
-    expect(screen.root.querySelector<HTMLElement>(".legend")?.hidden).toBe(
-      true,
-    );
+    screen.root.querySelector<HTMLButtonElement>(".relic-page-carry")?.click();
+    expect(relicPage(screen.root, LEGEND_PAGE)).toBeNull();
+    expect(
+      screen.root.querySelector(RELICS_SHEET)?.classList.contains("is-open"),
+    ).toBe(false);
   });
 });
 
@@ -3342,7 +3353,7 @@ describe("relic powers on the cards (shelf detail)", () => {
   it("says 'Your power' on the relic-found card", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(9_999_999)) });
     screen.dig.click();
-    expect(screen.text(".relic-reveal .relic-boost")).toBe(
+    expect(screen.text(`${REVEAL_PAGE} .relic-page-boost`)).toBe(
       "Your power: Your crew keeps mining up to 24 hours while you're away.",
     );
   });
@@ -3355,41 +3366,43 @@ describe("relic powers on the cards (shelf detail)", () => {
     screen.root
       .querySelector<HTMLButtonElement>(".board-note .board-platebtn")
       ?.click();
-    const rows = [
-      ...screen.root.querySelectorAll<HTMLElement>(".shelf-list li"),
-    ];
-    const detail = screen.root.querySelector<HTMLElement>(".relic-detail");
-    expect(rows[2]?.getAttribute("role")).toBe("button");
-    expect(rows[3]?.hasAttribute("role")).toBe(false);
+    const rows = [...screen.root.querySelectorAll<HTMLElement>(SHELF_ROWS)];
+    expect(rows[2]?.getAttribute("aria-label")).toBe(
+      "Hammer of the Builder: see your power",
+    );
+    expect(rows[3]?.classList.contains("is-locked")).toBe(true);
 
+    // A relic not found yet opens nothing (#465: its row blinks, as a row that cannot act).
     rows[3]?.click();
-    expect(detail?.hidden).toBe(true);
+    expect(relicPage(screen.root, DETAIL_PAGE)).toBeNull();
+    expect(shelfShown(screen.root)).toBe(true);
 
     rows[2]?.click();
-    expect(detail?.hidden).toBe(false);
+    const detail = relicPage(screen.root, DETAIL_PAGE);
+    expect(detail).not.toBeNull();
     expect(screen.text("#relic-detail-title")).toBe("Hammer of the Builder");
-    expect(screen.text(".relic-detail .reveal-virtue")).toBe(
+    expect(detail?.querySelector(".relic-page-line")?.textContent).toBe(
       "The virtue of Building.",
     );
-    expect(screen.text(".relic-detail .relic-boost")).toBe(
+    expect(detail?.querySelector(".relic-page-boost")?.textContent).toBe(
       "Your power: Unlocks the Great Machine.",
     );
-    expect(detail?.querySelector<HTMLElement>(".keepsakes")?.hidden).toBe(true);
+    expect(detail?.querySelector<HTMLElement>(".relic-keepsakes")?.hidden).toBe(
+      true,
+    );
     expect(
       detail
-        ?.querySelector<HTMLImageElement>(".reveal-art")
+        ?.querySelector<HTMLImageElement>(".relic-page-art")
         ?.getAttribute("src"),
-    ).toBe("hammer.png");
+    ).toBe(RELIC_LIT.hammer);
     expect(document.activeElement).toBe(
-      detail?.querySelector(".reveal-continue"),
+      detail?.querySelector(".relic-page-shelf"),
     );
-    detail?.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
-    expect(detail?.hidden).toBe(true);
-    expect(
-      screen.root.querySelector<HTMLElement>(".shelf-dialog")?.hidden,
-    ).toBe(false);
+    detail?.querySelector<HTMLButtonElement>(".relic-page-shelf")?.click();
+    expect(relicPage(screen.root, DETAIL_PAGE)).toBeNull();
+    expect(shelfShown(screen.root)).toBe(true);
 
-    rows[0]?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    rows[0]?.click();
     expect(screen.text("#relic-detail-title")).toBe("Lantern of Guidance");
     screen.root.remove();
   });
@@ -3407,14 +3420,12 @@ describe("relic powers on the cards (shelf detail)", () => {
     screen.root
       .querySelector<HTMLButtonElement>(".board-note .board-platebtn")
       ?.click();
-    screen.root
-      .querySelectorAll(".shelf-list li")[2]
-      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    const detail = screen.root.querySelector<HTMLElement>(".relic-detail");
-    expect(detail?.querySelector<HTMLElement>(".keepsakes")?.hidden).toBe(
+    screen.root.querySelectorAll<HTMLButtonElement>(SHELF_ROWS)[2]?.click();
+    const detail = relicPage(screen.root, DETAIL_PAGE);
+    expect(detail?.querySelector<HTMLElement>(".relic-keepsakes")?.hidden).toBe(
       false,
     );
-    expect(screen.text(".keepsakes-title")).toBe("Keepsakes");
+    expect(screen.text(".relic-keepsakes-title")).toBe("Keepsakes");
     const shown = [
       ...screen.root.querySelectorAll<HTMLElement>("[data-keepsake]"),
     ].filter((row) => !row.hidden);
@@ -3422,13 +3433,16 @@ describe("relic powers on the cards (shelf detail)", () => {
       "drawing",
       "whistle",
     ]);
-    expect(screen.text('[data-keepsake="drawing"] .keepsake-name')).toBe(
+    expect(screen.text('[data-keepsake="drawing"] .relic-keepsake-name')).toBe(
       "A child's drawing",
     );
-    expect(screen.text('[data-keepsake="drawing"] .keepsake-story')).toBe(
+    expect(screen.text('[data-keepsake="drawing"] .relic-keepsake-story')).toBe(
       "A little figure with a lamp, folded for a pocket.",
     );
-    expect(shown[0]?.querySelector("img")?.getAttribute("src")).toBe(tileUrl);
+    // Each keepsake has its own PixelLab icon now, not the old nugget (#465).
+    expect(shown[0]?.querySelector("img")?.getAttribute("src")).toBe(
+      KEEPSAKE_ART.drawing,
+    );
     expect(
       screen.root.querySelector<HTMLElement>('[data-keepsake="watch"]')?.hidden,
     ).toBe(true);
@@ -3477,11 +3491,12 @@ describe("pass the mine to your kid (#131)", () => {
       screen.root.querySelector<HTMLElement>(".legacy-badge")?.hidden,
     ).toBe(true);
     screen.dig.click();
-    screen.root.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
-    const legend = screen.root.querySelector<HTMLElement>(".legend");
-    legend?.querySelector<HTMLButtonElement>(".legend-pass")?.click();
+    screen.root.querySelector<HTMLButtonElement>(".relic-page-carry")?.click();
+    relicPage(screen.root, LEGEND_PAGE)
+      ?.querySelector<HTMLButtonElement>(".relic-page-pass")
+      ?.click();
 
-    expect(legend?.hidden).toBe(true);
+    expect(relicPage(screen.root, LEGEND_PAGE)).toBeNull();
     expect(dialog(screen)?.hidden).toBe(false);
     expect(screen.text("#legacy-title")).toBe("Pass the mine to your kid.");
     expect(screen.text(".legacy-lead")).toBe("Legacy ×1.5, for good");
@@ -3653,26 +3668,24 @@ describe("player-facing workers (#139)", () => {
       screen.root
         .querySelector<HTMLButtonElement>(".board-note .board-platebtn")
         ?.click();
-      const crown = [...screen.root.querySelectorAll(".shelf-list li")][4];
+      const crown = [...screen.root.querySelectorAll(SHELF_ROWS)][4];
       if (!(crown instanceof HTMLElement)) {
         throw new Error("crown row did not render");
       }
       crown.click();
-      expect(
-        screen.root.querySelector<HTMLElement>(".relic-detail")?.hidden,
-      ).toBe(false);
-      expect(screen.text(".relic-detail .relic-boost")).toMatch(
+      expect(relicPage(screen.root, DETAIL_PAGE)).not.toBeNull();
+      expect(screen.text(`${DETAIL_PAGE} .relic-page-boost`)).toMatch(
         /count as workers/,
       );
       screen.root
-        .querySelector<HTMLButtonElement>(".relic-detail .reveal-continue")
+        .querySelector<HTMLButtonElement>(`${DETAIL_PAGE} .relic-page-shelf`)
         ?.click();
-      screen.root.querySelector<HTMLButtonElement>(".shelf-close")?.click();
+      screen.root
+        .querySelector<HTMLButtonElement>(`${RELICS_SHEET} .board-sheet-back`)
+        ?.click();
 
-      const revealCard = (): HTMLElement => {
-        const reveal = screen.root.querySelector<HTMLElement>(
-          ".relic-reveal:not(.relic-detail):not(.legend)",
-        );
+      const revealPage = (): HTMLElement => {
+        const reveal = relicPage(screen.root, REVEAL_PAGE);
         if (reveal === null) {
           throw new Error("relic reveal did not render");
         }
@@ -3681,26 +3694,26 @@ describe("player-facing workers (#139)", () => {
       screen.root
         .querySelector<HTMLButtonElement>(".welcome-continue")
         ?.click();
-      const crownReveal = revealCard();
-      expect(crownReveal.hidden).toBe(false);
+      const crownReveal = revealPage();
       expect(
         crownReveal.querySelector("#relic-reveal-title")?.textContent,
       ).toBe("You found the Crown of Wisdom");
-      expect(crownReveal.querySelector(".reveal-power")?.textContent).toMatch(
-        /count as workers/,
-      );
+      expect(
+        crownReveal.querySelector(".relic-page-power")?.textContent,
+      ).toMatch(/count as workers/);
       expect(mentionsHelper(screen.root)).toEqual([]);
-      crownReveal.querySelector<HTMLButtonElement>(".reveal-continue")?.click();
-      const mantleReveal = revealCard();
+      crownReveal
+        .querySelector<HTMLButtonElement>(".relic-page-carry")
+        ?.click();
+      const mantleReveal = revealPage();
       expect(
         mantleReveal.querySelector("#relic-reveal-title")?.textContent,
       ).toBe("You found the Mantle of the Hero");
       mantleReveal
-        .querySelector<HTMLButtonElement>(".reveal-continue")
+        .querySelector<HTMLButtonElement>(".relic-page-carry")
         ?.click();
-      const legend = screen.root.querySelector<HTMLElement>(".legend");
-      expect(legend?.hidden).toBe(false);
-      expect(screen.text(".legend-stats")).toMatch(/Six relics found/);
+      expect(relicPage(screen.root, LEGEND_PAGE)).not.toBeNull();
+      expect(screen.text(".relic-legend-stats")).toMatch(/Six relics found/);
 
       expect(mentionsHelper(screen.root)).toEqual([]);
     } finally {

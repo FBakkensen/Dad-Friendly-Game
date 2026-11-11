@@ -27,9 +27,12 @@ interface KeyDrawer {
   readonly sheet: BoardSheet;
 }
 
-/** The drawers the rail's keys open, by key. Engineers opens through its own panel until B6b. */
+/**
+ * The drawers one at a time: the four the rail's keys open, and the relics drawer, which the
+ * relic plate and a reveal open (#465). Engineers opens through its own panel until B6b.
+ */
 type KeyDrawers = Readonly<
-  Record<"buys" | "upgrades" | "workshop" | "ledger", KeyDrawer>
+  Record<"buys" | "upgrades" | "workshop" | "ledger" | "relics", KeyDrawer>
 >;
 
 /**
@@ -43,16 +46,21 @@ export function wireKeys(deps: {
 }): {
   onKey(id: KeyId, key: HTMLButtonElement): void;
   openBuys(from?: HTMLElement): void;
+  /** Shuts every drawer but `id`'s: the relics drawer opens itself (#465). */
+  closeOthers(id: keyof KeyDrawers): void;
 } {
   const { drawers, closeBoardPopups, putSignAway } = deps;
   const program = { restoreFocus: false, by: "program" } as const;
-  /** Closes every drawer but `id`'s, then opens it. Only an opening starts the settle. */
-  const openOnly = (id: keyof KeyDrawers, from?: HTMLElement): void => {
+  const closeOthers = (id: keyof KeyDrawers): void => {
     for (const [each, drawer] of Object.entries(drawers)) {
       if (each !== id) {
         drawer.sheet.close(program);
       }
     }
+  };
+  /** Closes every drawer but `id`'s, then opens it. Only an opening starts the settle. */
+  const openOnly = (id: keyof KeyDrawers, from?: HTMLElement): void => {
+    closeOthers(id);
     drawers[id].open(from);
   };
   /**
@@ -76,5 +84,6 @@ export function wireKeys(deps: {
       openOnly(id, key);
     },
     openBuys,
+    closeOthers,
   };
 }

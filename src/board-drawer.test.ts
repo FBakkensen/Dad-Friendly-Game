@@ -250,6 +250,20 @@ describe("the drawer shell", () => {
       expect(document.activeElement).toBe(key);
       expect(onOpen).toHaveBeenCalledTimes(1);
       expect(onClose).toHaveBeenCalledTimes(1);
+      expect(onClose).toHaveBeenCalledWith("program");
+    });
+
+    it("tells onClose how it closed: Back by finger, Escape by keyboard (#465)", () => {
+      const onClose = vi.fn();
+      const sheet = make({ onClose });
+      sheet.open();
+      time += 1000;
+      press(sheet.back);
+      expect(onClose).toHaveBeenLastCalledWith("finger");
+      sheet.open();
+      time += 1000;
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      expect(onClose).toHaveBeenLastCalledWith("keyboard");
     });
 
     it("calls onOpen on the open drawer, before the board's model hears the open", () => {
@@ -665,6 +679,16 @@ describe("the drawer shell", () => {
       expect(sheet.how.hidden).toBe(true);
     });
 
+    it("one card keeps its Back: it is the only way back (#465)", () => {
+      const sheet = make({
+        how: { systems: ["relics"], backLabel: "Back to the shelf" },
+      });
+      const backs = [
+        ...sheet.how.querySelectorAll<HTMLElement>(".teach-how-back"),
+      ];
+      expect(backs.map((back) => back.hidden)).toEqual([false]);
+    });
+
     it("place inserts the parts before the spare plate", () => {
       const sheet = make();
       const a = document.createElement("div");
@@ -893,6 +917,21 @@ describe("the drawer shell", () => {
       sheet.showPage(one);
       sheet.showPage(two);
       expect([...host(sheet).children]).toEqual([two]);
+    });
+
+    it("a page shown while the i cards are up puts the cards away (#465)", () => {
+      const sheet = make();
+      const head = part(sheet, ".board-sheet-head");
+      const { page, first } = panelPage();
+      sheet.open();
+      sheet.showHow(true);
+      sheet.showPage(page);
+      expect(sheet.how.hidden).toBe(true);
+      expect(head.hidden).toBe(false);
+      expect(sheet.footer.hidden).toBe(false);
+      expect(host(sheet).hidden).toBe(false);
+      expect(sheet.list.hidden).toBe(true);
+      expect(document.activeElement).toBe(first);
     });
 
     it("the i over a page hides the page too, and its Back returns to the list", () => {
