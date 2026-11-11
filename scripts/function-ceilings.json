@@ -6,5 +6,5 @@
   "src/progress-store.ts#createProgressStore": 2084,
   "src/relic-panels.ts#createRelicPanels": 363,
   "src/tab-writer.ts#createTabWriter": 348,
-  "src/welcome-panel.ts#createWelcomePanel": 175
+  "src/welcome-panel.ts#createWelcomePanel": 160
 }

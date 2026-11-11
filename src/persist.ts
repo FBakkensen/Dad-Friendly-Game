@@ -42,6 +42,8 @@ type WorkshopSave = {
   readonly axleUntil?: number;
   /** When a Gold rush ends (src/gold-rush.ts). Missing means none runs. */
   readonly rushUntil?: number;
+  /** Stones held for the Gold rush. Missing means none. */
+  readonly rushBank?: number;
   /** The run's stretch (M13). Missing means 1. */
   readonly stretch?: number;
   /** Notes opened (src/teach.ts). Missing means none. */
@@ -455,13 +457,17 @@ function readClock(value: unknown): number | undefined | "bad" {
   return parsed === undefined ? "bad" : parsed;
 }
 
-/** The live timers' end times, written in the workshop map beside the mountain. */
+/**
+ * The live timers' end times, written in the workshop map beside the
+ * mountain, and the Gold rush's held stones: a whole count, read the same way.
+ */
 const CLOCKS = [
   "chargeUntil",
   "flareUntil",
   "emberUntil",
   "axleUntil",
   "rushUntil",
+  "rushBank",
 ] as const;
 
 type Clocks = Partial<Record<(typeof CLOCKS)[number], number>>;

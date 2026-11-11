@@ -1402,8 +1402,9 @@ describe("applyMove (#409)", () => {
   });
 
   it("pays a quick vein like a vein, then starts a Gold rush", () => {
+    const owed = { ...rich, rushBank: 8_100 };
     const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
-    const quick = applyMove(rich, { kind: "tapQuickVein" }, NOW, calm);
+    const quick = applyMove(owed, { kind: "tapQuickVein" }, NOW, calm);
     expect(quick.kind === "applied" && quick.gained).toBe(
       vein.kind === "applied" ? vein.gained : -1,
     );
@@ -1416,6 +1417,23 @@ describe("applyMove (#409)", () => {
         stones: quick.kind === "applied" ? quick.gained : -1,
       },
     ]);
+  });
+
+  it("lands the held stones when the quick vein is missed, once", () => {
+    const owed = { ...rich, rushBank: 8_100 };
+    const missed = applyMove(owed, { kind: "missQuickVein" }, NOW, calm);
+    expect(missed.kind === "applied" && missed.gained).toBe(8_100);
+    expect(missed.kind === "applied" && missed.events).toEqual([
+      { kind: "rushLanded", stones: 8_100 },
+    ]);
+    expect(applyMove(rich, { kind: "missQuickVein" }, NOW, calm).kind).toBe(
+      "refused",
+    );
+    // a rush that has started is not landed early
+    const rushed = { ...owed, rushUntil: NOW + RUSH_MS };
+    expect(applyMove(rushed, { kind: "missQuickVein" }, NOW, calm).kind).toBe(
+      "refused",
+    );
   });
 
   it("marks a sheet seen, and refuses a mark already made", () => {

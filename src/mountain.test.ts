@@ -406,6 +406,7 @@ describe("accrueAway", () => {
     expect(result.settledAt).toBe(90_000);
     expect(result.report).toEqual({
       mined: 54,
+      heldForRush: 0,
       awayMs: 90_500,
       paidMs: 90_500,
       capped: false,
@@ -449,6 +450,7 @@ describe("accrueAway", () => {
       accrueAway({ mountain: crew, lastSeen: 5_000, now: 1_000 }).report,
     ).toEqual({
       mined: 0,
+      heldForRush: 0,
       awayMs: 0,
       paidMs: 0,
       capped: false,

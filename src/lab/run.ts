@@ -1,10 +1,5 @@
-import {
-  applyAction,
-  applyMove,
-  buyEveryBoost,
-  type Action,
-} from "../economy/actions";
-import { QUICK_VEIN_AWAY_MS } from "../gold-rush";
+import { applyAction, buyEveryBoost, type Action } from "../economy/actions";
+import { QUICK_VEIN_AWAY_MS, startRush } from "../gold-rush";
 import {
   promote,
   promoteCost,
@@ -201,21 +196,13 @@ function tendsAfter(params: Policy["params"], action: Action): boolean {
 }
 
 /**
- * A dad who is there sees the quick vein and taps it: it pays the vein and
- * starts the Gold rush, through the same move the screen makes (#468).
+ * A dad who is there sees the quick vein and taps it: the Gold rush starts and
+ * pays the stones the open held back (#468). The lab leaves golden veins out,
+ * as it always has: the quick vein is a vein come early, so only its rush is
+ * played.
  */
 export function tapQuickVein(world: World): World {
-  const trouble =
-    world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
-  const tapped = applyMove(
-    world.mountain,
-    { kind: "tapQuickVein" },
-    world.clock,
-    { trouble },
-  );
-  return tapped.kind === "applied"
-    ? { ...world, mountain: tapped.mountain }
-    : world;
+  return { ...world, mountain: startRush(world.mountain, world.clock) };
 }
 
 function playSecond(

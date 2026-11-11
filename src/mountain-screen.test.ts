@@ -799,9 +799,14 @@ describe("crew tiers on screen", () => {
       "You were gone 2 hours 5 minutes. Your crew kept digging the whole time.",
     );
 
+    // 9 × 4 workers × 90 s of it waits for the Gold rush (#468)
+    expect(screen.text(".welcome-rush")).toBe(
+      "3,240 of them wait for your Gold rush: watch for the golden vein.",
+    );
+
     close.click();
     expect(card.hidden).toBe(true);
-    expect(screen.pocket()).toBe("Stones 9,000");
+    expect(screen.pocket()).toBe("Stones 5,760");
   });
 
   it("says the crew eased off on a long day away (#278)", () => {
@@ -936,6 +941,12 @@ describe("golden vein on screen", () => {
         );
         const now = screen.progress.getSnapshot().mountain;
         expect(now.rushUntil).toBeGreaterThan(0);
+        // 9 × 4 workers × 90 s held from the haul come in as the crew digs
+        expect(now.rushBank).toBe(3_240);
+        await tick(90_000);
+        const after = screen.progress.getSnapshot().mountain;
+        expect(after.rushBank).toBeUndefined();
+        expect(after.pocket - now.pocket).toBe(3_240 + 90 * 4);
       } finally {
         vi.useRealTimers();
       }
@@ -988,9 +999,10 @@ describe("golden vein on screen", () => {
         expect(vein.hidden).toBe(true);
         await tick(2 * 60_000);
         expect(vein.hidden).toBe(true);
-        expect(
-          screen.progress.getSnapshot().mountain.rushUntil,
-        ).toBeUndefined();
+        const missed = screen.progress.getSnapshot().mountain;
+        expect(missed.rushUntil).toBeUndefined();
+        // nothing held is lost: the stones landed when the glint went by
+        expect(missed.rushBank).toBeUndefined();
       } finally {
         vi.useRealTimers();
       }

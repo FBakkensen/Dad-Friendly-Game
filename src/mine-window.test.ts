@@ -126,7 +126,7 @@ describe("mine window", () => {
     expect(machines.borers).toBe(1);
     expect(scene({ carts: 6 }, trouble("cart")).trouble).toBe("cart");
     // the Gold rush shows only with a clock, while it runs (#468)
-    const rushing = { ...createMountain(), rushUntil: 90_000 };
+    const rushing = { ...createMountain(), rushUntil: 90_000, rushBank: 900 };
     expect(windowScene(rushing, undefined).rush).toBe(false);
     expect(windowScene(rushing, undefined, 10_000).rush).toBe(true);
     expect(windowScene(rushing, undefined, 90_000).rush).toBe(false);

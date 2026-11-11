@@ -1,4 +1,4 @@
-import { QUICK_VEIN_AWAY_MS } from "./gold-rush";
+import { rushOwed } from "./gold-rush";
 import { veinWords } from "./screen-words";
 import { veinSpot, type VeinSpot } from "./mine-window";
 import type { ScreenCtx } from "./screen-context";
@@ -167,9 +167,12 @@ export function createVein(
 }
 
 /**
- * The quick vein (#468): a time away of an hour or more makes the next vein
- * glint in 20 seconds, once. It waits, and glints, only while he can see the
- * mine window, so the welcome card or a drawer never costs him the rush.
+ * The quick vein (#468): a time away of an hour or more holds stones for a
+ * Gold rush, and the next vein glints in 20 seconds, once. It waits, and
+ * glints, only while he can see the mine window, so the welcome card or a
+ * drawer never costs him the rush. A glint that goes by lands the held stones.
+ * Each settled time away re-arms it while stones are held, so a reload in the
+ * wait still brings it.
  */
 function createQuickVein(
   ctx: ScreenCtx,
@@ -192,7 +195,7 @@ function createQuickVein(
       const gap = ctx.view().awayGap;
       if (gap !== undefined && gap.at !== armedFor) {
         armedFor = gap.at;
-        if (gap.ms >= QUICK_VEIN_AWAY_MS) {
+        if (rushOwed(ctx.view().mountain)) {
           quick = true;
           return quickVein(at);
         }
@@ -202,8 +205,10 @@ function createQuickVein(
         : vein;
     },
     moved: (before, after) => {
-      quick =
-        quick && !(before.kind === "glinting" && after.kind === "waiting");
+      if (quick && before.kind === "glinting" && after.kind === "waiting") {
+        quick = false;
+        ctx.dispatch({ kind: "missQuickVein" });
+      }
     },
     take: () => {
       const was = quick;

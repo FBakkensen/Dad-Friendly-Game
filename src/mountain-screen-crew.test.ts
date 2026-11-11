@@ -2533,6 +2533,7 @@ describe("quick boosts on screen", () => {
         ...minedMountain(12_000_000),
         helpers: 20,
         rushUntil: now + 75_000,
+        rushBank: 7_500,
       },
       lastSeen: now,
     });
@@ -2543,9 +2544,7 @@ describe("quick boosts on screen", () => {
     screen.progress.dispose();
     expect(chip?.hidden).toBe(false);
     expect(chip?.querySelector(".effect-name")?.textContent).toBe("Gold rush");
-    expect(chip?.querySelector(".effect-mult")?.textContent?.trim()).toBe(
-      "×10",
-    );
+    expect(chip?.querySelector(".effect-mult")?.textContent.trim()).toBe("×10");
     expect(chip?.querySelector(".effect-time")?.textContent).toBe("1:15");
   });
 

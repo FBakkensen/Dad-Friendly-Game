@@ -531,6 +531,7 @@ describe("away earnings", () => {
     expect(progress.getSnapshot().mountain.pocket).toBe(5 + 540);
     expect(progress.getSnapshot().away).toEqual({
       mined: 540,
+      heldForRush: 0,
       awayMs: 600_000,
       paidMs: 600_000,
       capped: false,

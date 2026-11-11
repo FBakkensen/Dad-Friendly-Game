@@ -12,6 +12,7 @@ import {
   awayStretchWords,
   cameBack,
   layerWelcomeWords,
+  rushHeldWords,
   workerWords,
 } from "./screen-words";
 
@@ -38,6 +39,10 @@ export function createWelcomePanel({
   welcomeMined.className = "welcome-mined";
   const welcomeDetail = document.createElement("p");
   welcomeDetail.className = "welcome-detail";
+  // The stones an hour away held for the Gold rush (#468).
+  const welcomeRush = document.createElement("p");
+  welcomeRush.className = "welcome-rush";
+  welcomeRush.hidden = true;
   // Ore that came up while away (#247), and what it is for.
   const welcomeOre = document.createElement("div");
   welcomeOre.className = "welcome-ore";
@@ -84,6 +89,7 @@ export function createWelcomePanel({
     welcomeTitle,
     welcomeMined,
     welcomeDetail,
+    welcomeRush,
     welcomeOre,
     welcomeCheer,
     welcomeCrew,
@@ -103,39 +109,18 @@ export function createWelcomePanel({
     const lines = view.homecomings.map((home) =>
       cameBack(home.engineer, home.tunnel, home.find),
     );
-    welcomeReturns.replaceChildren(
-      ...lines.map((line) => {
-        const paragraph = document.createElement("p");
-        paragraph.className = "welcome-return";
-        paragraph.textContent = line;
-        return paragraph;
-      }),
-    );
-    welcomeReturns.hidden = lines.length === 0;
+    fillLines(welcomeReturns, "welcome-return", lines);
     welcome.classList.toggle("is-homecoming", lines.length > 0);
     const layerLines = view.layersArrived.flatMap((layer) => {
       const line = layerWelcomeWords(layer.id);
       return line === undefined ? [] : [line];
     });
-    welcomeLayers.replaceChildren(
-      ...layerLines.map((line) => {
-        const paragraph = document.createElement("p");
-        paragraph.className = "welcome-layer";
-        paragraph.textContent = line;
-        return paragraph;
-      }),
+    fillLines(welcomeLayers, "welcome-layer", layerLines);
+    fillLines(
+      welcomeCrafts,
+      "welcome-craft",
+      view.craftsFitted.map((fitted) => fitted.line),
     );
-    welcomeLayers.hidden = layerLines.length === 0;
-    const craftLines = view.craftsFitted.map((fitted) => fitted.line);
-    welcomeCrafts.replaceChildren(
-      ...craftLines.map((line) => {
-        const paragraph = document.createElement("p");
-        paragraph.className = "welcome-craft";
-        paragraph.textContent = line;
-        return paragraph;
-      }),
-    );
-    welcomeCrafts.hidden = craftLines.length === 0;
     const wasOpen = cardUp(welcome);
     const news = joined !== undefined || steppedUp || lines.length > 0;
     showCard(welcome, report !== undefined || news);
@@ -159,6 +144,7 @@ export function createWelcomePanel({
             : lines.length > 0
               ? "Welcome home"
               : "While you were away";
+    writeRushLine(welcomeRush, report?.heldForRush ?? 0);
     welcomeMined.hidden = report === undefined;
     welcomeDetail.hidden = report === undefined;
     welcomeCheer.hidden = report === undefined;
@@ -190,4 +176,27 @@ export function createWelcomePanel({
   const render = renderWelcome;
 
   return { welcome, render };
+}
+
+/** One paragraph per line in `box`, which hides with none. */
+function fillLines(
+  box: HTMLElement,
+  className: string,
+  lines: readonly string[],
+): void {
+  box.replaceChildren(
+    ...lines.map((line) => {
+      const paragraph = document.createElement("p");
+      paragraph.className = className;
+      paragraph.textContent = line;
+      return paragraph;
+    }),
+  );
+  box.hidden = lines.length === 0;
+}
+
+/** The stones held for the Gold rush (#468); hidden when none were. */
+function writeRushLine(line: HTMLElement, held: number): void {
+  line.hidden = held === 0;
+  line.textContent = held === 0 ? "" : rushHeldWords(held);
 }

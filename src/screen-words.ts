@@ -1466,3 +1466,11 @@ export function veinWords(reward: number, rush: boolean): string {
     ? `${paid}. Gold rush: the crew digs ×${String(RUSH_MULTIPLIER)} for ${String(RUSH_MS / 1000)} seconds.`
     : paid;
 }
+
+/**
+ * The welcome card's line for the stones an hour away held for the Gold rush
+ * (#468): they come in as the crew digs ×10. Flemming, 11 Nov 2026.
+ */
+export function rushHeldWords(held: number): string {
+  return `${formatCount(held)} of them wait for your Gold rush: watch for the golden vein.`;
+}
