@@ -1,4 +1,6 @@
 import type { Mountain } from "./mountain";
+import { GOLD_RUSH_NAME } from "./crew-boost";
+import { RUSH_MULTIPLIER, rushLeft } from "./gold-rush";
 import { shortEffectName, type EffectLabel } from "./effect-row";
 import {
   axleCrewMultiplier,
@@ -100,4 +102,18 @@ export function runningLabels(
       active: true,
     },
   };
+}
+
+/** The Gold rush's chip in Running now (#468): its ×10 and its clock. */
+export function rushLabel(mountain: Mountain, at: number): EffectLabel {
+  const left = rushLeft(mountain, at);
+  return left === 0
+    ? INACTIVE_CHIP
+    : {
+        short: GOLD_RUSH_NAME,
+        full: GOLD_RUSH_NAME,
+        multiplier: RUSH_MULTIPLIER,
+        leftMs: left,
+        active: true,
+      };
 }

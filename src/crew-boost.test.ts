@@ -1,3 +1,4 @@
+import { RUSH_MS, startRush } from "./gold-rush";
 import { describe, expect, it } from "vitest";
 import { dialFrame, liveCrewBoost, type CrewBoost } from "./crew-boost";
 import { boostById } from "./boosts";
@@ -100,6 +101,36 @@ describe("liveCrewBoost", () => {
       fullMs: timerDurationMs("axle-grease"),
     });
     agrees(m);
+  });
+});
+
+describe("the Gold rush on the dial (#468)", () => {
+  it("shows the rush over Overtime, and the crew runs at both", () => {
+    const m: Mountain = {
+      ...startRush(crew(), NOW),
+      boosts: { overtime: NOW + 10 * MIN },
+    };
+    expect(liveCrewBoost(m, NOW)).toEqual({
+      kind: "running",
+      source: "gold-rush",
+      name: "Gold rush",
+      multiplier: 10,
+      leftMs: RUSH_MS,
+      fullMs: RUSH_MS,
+    });
+    expect(effectiveRates(m, NOW).crewPerSecond).toBe(
+      effectiveRates(crew()).crewPerSecond * 20,
+    );
+  });
+
+  it("goes back to Overtime when the rush ends", () => {
+    const m: Mountain = {
+      ...startRush(crew(), NOW),
+      boosts: { overtime: NOW + 10 * MIN },
+    };
+    expect(liveCrewBoost(m, NOW + RUSH_MS)).toMatchObject({
+      source: "overtime",
+    });
   });
 });
 
