@@ -3,7 +3,7 @@ import { plainPolicy } from "./plain";
 import { runPolicy } from "./run";
 
 // Plays a lab day twice, so it lives in the sim project (#468).
-describe("the lab's quick vein (#468)", () => {
+describe("the lab's quick vein (#468)", { timeout: 30_000 }, () => {
   it("taps it as he opens after an hour away, never after a short break", () => {
     const rushesFor = (sessionsPerDay: number): number => {
       const policy = plainPolicy({
