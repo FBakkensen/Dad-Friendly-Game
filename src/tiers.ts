@@ -160,6 +160,41 @@ export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
   return Math.ceil(Number((first * growth ** ownedCount).toPrecision(12)));
 }
 
+/** How many a Buys tap buys (#358): one, exactly ten, or as many as the pocket holds. */
+export type BuyAmount = "one" | "ten" | "max";
+
+/** A count of one tier and what they cost together. */
+export type TierQuote = { readonly count: number; readonly cost: number };
+
+/**
+ * What `amount` of a tier costs now: the sum of `tierCost` unit by unit, the price `buyTier`
+ * charges for each in turn. ×10 is ten, affordable or not. Max is as many as the pocket holds,
+ * and one, at its price, when it holds none.
+ */
+export function tierQuote(
+  mountain: Mountain,
+  tier: Tier,
+  amount: BuyAmount,
+): TierQuote {
+  const count = owned(mountain, tier);
+  const k = stretch(mountain);
+  const first = tierCost(tier, count, k);
+  if (amount === "one") {
+    return { count: 1, cost: first };
+  }
+  let bought = 1;
+  let cost = first;
+  const enough =
+    amount === "ten"
+      ? () => bought >= 10
+      : () => cost + tierCost(tier, count + bought, k) > mountain.pocket;
+  while (!enough()) {
+    cost += tierCost(tier, count + bought, k);
+    bought += 1;
+  }
+  return { count: bought, cost };
+}
+
 /** Pays for one of the tier from the pocket; unaffordable returns the same mountain. */
 export function buyTier(mountain: Mountain, id: TierId): Mountain {
   const tier = tierById(id);

@@ -21,7 +21,14 @@ import {
   effectiveRates,
   paidAwayMs,
 } from "../rates";
-import { TIERS, owned, tierById, tierCost, type TierId } from "../tiers";
+import {
+  TIERS,
+  owned,
+  tierById,
+  tierCost,
+  tierQuote,
+  type TierId,
+} from "../tiers";
 import {
   BOOTS_SPEED_PER_LEVEL,
   STEADY_AWAY_PER_LEVEL,
@@ -1296,6 +1303,40 @@ describe("applyMove (#409)", () => {
     expect(bought.spent).toBe(rich.pocket - bought.mountain.pocket);
     expect(bought.gained).toBe(0);
     expect(applyMove(broke, cart, NOW, calm)).toEqual({ kind: "refused" });
+  });
+
+  it("buys several of a tier as one move, all or nothing (#358)", () => {
+    const tenCarts = { kind: "buyTiers", id: "cart", count: 10 } as const;
+    const quote = tierQuote(rich, tierById("cart"), "ten");
+    const bought = applyMove(rich, tenCarts, NOW, calm);
+    expect(bought).toEqual({
+      kind: "applied",
+      mountain: {
+        ...rich,
+        carts: rich.carts + 10,
+        pocket: rich.pocket - quote.cost,
+      },
+      spent: quote.cost,
+      gained: 0,
+      events: [{ kind: "tierBought", id: "cart", count: rich.carts + 10 }],
+    });
+    // Nine affordable is not ten: nothing is bought.
+    const short: Mountain = { ...rich, pocket: quote.cost - 1 };
+    expect(applyMove(short, tenCarts, NOW, calm)).toEqual({ kind: "refused" });
+  });
+
+  it("several workers beside an idle machine still mark staffing taught (#358)", () => {
+    const idle: Mountain = { ...rich, helpers: 0, engineers: [] };
+    const hired = applyMove(
+      idle,
+      { kind: "buyTiers", id: "helper", count: 3 },
+      NOW,
+      calm,
+    );
+    expect(hired.kind === "applied" && hired.mountain.helpers).toBe(3);
+    expect(hired.kind === "applied" && hired.mountain.taught).toContain(
+      "staffing",
+    );
   });
 
   it("marks staffing taught when the first worker is hired beside an idle machine", () => {

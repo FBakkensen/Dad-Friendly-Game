@@ -14,6 +14,7 @@ import {
   buyTier,
   tierById,
   tierCost,
+  tierQuote,
   tierShown,
   type TierId,
 } from "./tiers";
@@ -259,5 +260,56 @@ describe("cost curves (#356)", () => {
       expect(cost).toBeGreaterThan(0);
     }
     expect(stonesLeft(m)).toBeGreaterThan(MOUNTAIN_STONES - 12_000_000);
+  });
+});
+
+describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
+  const cart = tierById("cart");
+  /** Ten carts after the six owned, unit by unit, as buyTier charges them. */
+  const tenFrom6 = Array.from({ length: 10 }, (_, i) =>
+    tierCost(cart, 6 + i, 2),
+  ).reduce((sum, price) => sum + price, 0);
+
+  it("×1 is one at today's price", () => {
+    const m = at({ carts: 6, pocket: 0, stretch: 2 });
+    expect(tierQuote(m, cart, "one")).toEqual({
+      count: 1,
+      cost: tierCost(cart, 6, 2),
+    });
+  });
+
+  it("×10 is exactly ten, the sum buyTier would charge, affordable or not", () => {
+    const m = at({ carts: 6, pocket: 0, stretch: 2 });
+    expect(tierQuote(m, cart, "ten")).toEqual({ count: 10, cost: tenFrom6 });
+    let bought = { ...m, pocket: tenFrom6 };
+    for (let i = 0; i < 10; i += 1) {
+      bought = buyTier(bought, "cart");
+    }
+    expect(bought).toMatchObject({ carts: 16, pocket: 0 });
+  });
+
+  it("Max is as many as the pocket holds", () => {
+    const m = at({
+      carts: 6,
+      pocket: tenFrom6 + tierCost(cart, 16, 2) - 1,
+      stretch: 2,
+    });
+    expect(tierQuote(m, cart, "max")).toEqual({ count: 10, cost: tenFrom6 });
+  });
+
+  it("Max with nothing affordable quotes one, at its price", () => {
+    const m = at({ carts: 6, pocket: 5, stretch: 2 });
+    expect(tierQuote(m, cart, "max")).toEqual({
+      count: 1,
+      cost: tierCost(cart, 6, 2),
+    });
+  });
+
+  it("Max on the workers' gentle curve counts every hand the pocket holds", () => {
+    const worker = tierById("helper");
+    const m = at({ helpers: 40, pocket: 1e12 });
+    const { count, cost } = tierQuote(m, worker, "max");
+    expect(cost).toBeLessThanOrEqual(1e12);
+    expect(cost + tierCost(worker, 40 + count)).toBeGreaterThan(1e12);
   });
 });

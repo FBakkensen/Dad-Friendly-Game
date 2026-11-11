@@ -4,7 +4,7 @@ import type { Trouble } from "./hazards";
 import type { Mountain } from "./mountain";
 import { readyNow } from "./ready-now";
 import { minedMountain } from "./test-fixtures";
-import type { TierId } from "./tiers";
+import { tierById, tierQuote, type BuyAmount, type TierId } from "./tiers";
 
 const NOW = 1_700_000_000_000;
 
@@ -22,7 +22,15 @@ function crewed(over: Partial<Mountain> = {}): Mountain {
 function tap(
   mountain: Mountain,
   tier: TierId,
-  { trouble, guided }: { trouble?: Trouble; guided?: TierId | undefined } = {},
+  {
+    trouble,
+    guided,
+    amount = "one",
+  }: {
+    trouble?: Trouble;
+    guided?: TierId | undefined;
+    amount?: BuyAmount;
+  } = {},
 ) {
   return buysTap({
     snapshot: { mountain, trouble },
@@ -30,12 +38,36 @@ function tap(
     pick: readyNow(mountain, NOW, trouble),
     now: NOW,
     guided,
+    amount,
   });
 }
 
 describe("buysTap", () => {
   it("a row that can buy buys", () => {
-    expect(tap(crewed(), "cart")).toEqual({ kind: "buy" });
+    expect(tap(crewed(), "cart")).toEqual({ kind: "buy", count: 1 });
+  });
+
+  it("×10 buys ten, and Max as many as the pocket holds, read at the tap (#358)", () => {
+    expect(tap(crewed(), "cart", { amount: "ten" })).toEqual({
+      kind: "buy",
+      count: 10,
+    });
+    const max = tierQuote(crewed(), tierById("cart"), "max").count;
+    expect(max).toBeGreaterThan(10);
+    expect(tap(crewed(), "cart", { amount: "max" })).toEqual({
+      kind: "buy",
+      count: max,
+    });
+    expect(tap(crewed({ pocket: 0 }), "cart", { amount: "ten" })).toEqual({
+      kind: "blink",
+    });
+  });
+
+  it("the staffing New row hires one worker in any amount (#358)", () => {
+    const idle = crewed({ helpers: 2 });
+    expect(tap(idle, "cart", { guided: "cart", amount: "max" })).toEqual({
+      kind: "hire",
+    });
   });
 
   it("a row too dear blinks", () => {
@@ -65,6 +97,9 @@ describe("buysTap", () => {
       tier: "cart",
     });
     // The drill beside it buys as usual.
-    expect(tap(crewed(), "drill", { trouble })).toEqual({ kind: "buy" });
+    expect(tap(crewed(), "drill", { trouble })).toEqual({
+      kind: "buy",
+      count: 1,
+    });
   });
 });

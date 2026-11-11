@@ -198,6 +198,7 @@ function samplePolicy(
         sittingLog.observe({
           clock: world.clock,
           owned: ownedCount(world.mountain),
+          tiers: TIERS.map((tier) => owned(world.mountain, tier)),
           open: () => openingView(world.mountain, world.clock, policy, context),
         }),
       );

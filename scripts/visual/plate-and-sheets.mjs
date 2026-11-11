@@ -83,11 +83,11 @@ async function sheetEdges(page, name) {
   return page.evaluate((selector) => {
     const sheet = document.querySelector(selector);
     const element = sheet?.querySelector(".board-sheet-list");
-    // The head holds the title, the kick and the 48px "i"; the items clear
-    // all three, not just the title text.
+    // The head holds the title, the kick, the 48px "i" and Buys' amount key
+    // (#358); the items clear them all, not just the title text.
     const headParts = [
       ...(sheet?.querySelectorAll(
-        ".board-sheet-title, .board-sheet-kick, .board-sheet-info",
+        ".board-sheet-title, .board-sheet-kick, .board-sheet-info, .buy-amount",
       ) ?? []),
     ].filter((node) => node.getClientRects().length > 0);
     // What stands under the list: Buys' footnote when it shows, else Back.

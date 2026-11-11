@@ -308,6 +308,15 @@ export const TARGETS: readonly Target[] = [
     why: "After day one, a typical check-in should buy at least three things.",
   },
   {
+    id: "taps-per-sitting",
+    measure: "tapsPerSitting",
+    scope: { kind: "afterHour", hour: HOURS_PER_DAY, kinds: ["casual"] },
+    op: "lte",
+    value: 5,
+    why: "After day one, a typical check-in spends its return in about five taps on Max (#358).",
+    reportOnly: true,
+  },
+  {
     id: "best-open-share",
     measure: "bestOpenShare",
     scope: { kind: "afterHour", hour: HOURS_PER_DAY, kinds: ["casual"] },

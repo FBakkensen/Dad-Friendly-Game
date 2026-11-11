@@ -1,4 +1,4 @@
-/* global console, document */
+/* global console, document, requestAnimationFrame */
 /** Drawer sections: each drawer's rows and legends, per save, and the drawer states. */
 import {
   freshMountain,
@@ -122,6 +122,48 @@ async function howFacts(page, name) {
       scroll: [how.scrollHeight, how.clientHeight],
     };
   });
+}
+
+/**
+ * Buys on ×10 and on Max (#358): the key's face changes, and every row's
+ * counted verb and total price still lie inside it, with no page scroll. A
+ * keyboard press is never early. The third press goes back to ×1, so the
+ * next section opens as this one did.
+ */
+async function amountChecks(page, label) {
+  const key = `${OPEN_SHEET("buys")} .board-sheet-head .buy-amount`;
+  for (const face of ["×10", "Max", "×1"]) {
+    await page.$eval(key, (button) => {
+      button.click();
+    });
+    // A tag's skin repaints on its ResizeObserver, before the next paint:
+    // measure what the player sees, a frame on.
+    await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(resolve));
+        }),
+    );
+    const shown = await page.$eval(key, (button) => button.textContent);
+    if (face === "×1") {
+      check(shown === face, `${label} the amount key goes back to ×1`);
+      continue;
+    }
+    const facts = await drawerFacts(page, "buys");
+    const crowded = facts.rows.filter(
+      (row) => !row.inside || row.overlaps.length > 0 || row.spills.length > 0,
+    );
+    check(
+      shown === face &&
+        crowded.length === 0 &&
+        facts.rows.every((row) => Math.abs(row.height - 76) <= 0.5) &&
+        (await noScroll(page)),
+      `${label} on ${face}, every row's count and total lie inside it, 76 tall, with no page scroll`,
+    );
+    if (crowded.length > 0) {
+      console.log("drawer amount", label, face, JSON.stringify(crowded));
+    }
+  }
 }
 
 for (const viewport of SCREENS) {
@@ -287,6 +329,9 @@ for (const viewport of SCREENS) {
               name,
               JSON.stringify(dim),
             );
+          }
+          if (name === "buys") {
+            await amountChecks(page, label);
           }
           // The "i": its cards take the list's place, fit, and go back. A
           // keyboard press is never early, so the drawer's settle does not

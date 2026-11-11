@@ -144,6 +144,7 @@ function buildSheet(
   name: DrawerId,
   title: string,
   infoLabel: string,
+  headKey: HTMLElement | undefined,
 ): SheetParts {
   const root = el("section", "board-drawer board-sheet");
   root.dataset.sheet = name;
@@ -160,6 +161,10 @@ function buildSheet(
   info.classList.add("board-sheet-info", "teach-info");
   info.setAttribute("aria-label", `How it works: ${infoLabel}`);
   head.append(heading, kickLine, info);
+  if (headKey !== undefined) {
+    info.before(headKey);
+    head.classList.add("has-key");
+  }
 
   const how = el("div", "board-sheet-how");
   how.tabIndex = -1;
@@ -291,6 +296,7 @@ export function createBoardSheet({
   onClose,
   onForget,
   door,
+  headKey,
   signal,
 }: {
   name: DrawerId;
@@ -314,10 +320,12 @@ export function createBoardSheet({
    * door (the key, a bay, Saving for) opened the drawer.
    */
   door?: HTMLElement;
+  /** A key of the panel's own in the head, before the "i": Buys' amount (#358). */
+  headKey?: HTMLElement;
   /** Aborting it removes the sheet's document listeners. */
   signal?: AbortSignal;
 }): BoardSheet {
-  const parts = buildSheet(name, title, infoLabel);
+  const parts = buildSheet(name, title, infoLabel, headKey);
   const { root, heading, kickLine, info, how, list, spare, footer, back } =
     parts;
   /** What the page shows; the model says whether the drawer is open. */

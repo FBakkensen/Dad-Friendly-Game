@@ -148,6 +148,7 @@ describe("measures", () => {
       "scopedRule3Misses",
       "singleShare",
       "smallRevealSittings",
+      "tapsPerSitting",
       "typeEverBest",
       "zeroBuySittings",
     ]);
