@@ -11,13 +11,16 @@ import {
   awayMaterialsWords,
   awayMinedWords,
   cameBack,
+  craftFittedWords,
   crewGrewWords,
   layerCardWords,
   layerWelcomeWords,
   rushHeldWords,
   type LayerCardWords,
 } from "./screen-words";
-import type { RecipeId } from "./workshop";
+import type { CraftNotice } from "./session";
+import { recipeById, type RecipeId } from "./workshop";
+import { fittedEffect } from "./workshop-sheet";
 
 /*
  * What the self-opening board cards show (#464), made from the store's view: the welcome card,
@@ -120,7 +123,7 @@ export function welcomeView(view: ProgressSnapshot): WelcomeView | undefined {
       const line = layerWelcomeWords(layer.id);
       return line === undefined ? [] : [line];
     }),
-    crafts: view.craftsFitted.map((fitted) => fitted.line),
+    crafts: view.craftsFitted.map(craftLine),
   };
 }
 
@@ -149,5 +152,13 @@ export function arrivalCard(view: ProgressSnapshot): ArrivalCard | undefined {
   const fitted = view.craftsFitted[0];
   return fitted === undefined
     ? undefined
-    : { kind: "craft", recipe: fitted.id, line: fitted.line };
+    : { kind: "craft", recipe: fitted.id, line: craftLine(fitted) };
+}
+
+/** A fitted craft in words, with the real effect at the moment it finished. */
+export function craftLine(fitted: CraftNotice): string {
+  return craftFittedWords(
+    recipeById(fitted.id).name,
+    fittedEffect(fitted.mountain, fitted.id, fitted.at),
+  );
 }

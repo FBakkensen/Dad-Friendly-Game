@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { arrivalCard, welcomeNews, welcomeView } from "./card-views";
+import { arrivalCard, craftLine, welcomeNews, welcomeView } from "./card-views";
 import type { Homecoming } from "./expeditions";
 import { LAYERS, type Layer } from "./layers";
-import type { AwayReport } from "./mountain";
+import { createMountain, type AwayReport } from "./mountain";
+import type { CraftNotice } from "./session";
 import type { ProgressSnapshot } from "./progress-store";
 import { RELICS } from "./relics";
 import {
@@ -63,10 +64,11 @@ const band = (id: Layer["id"]): Layer => {
   return found;
 };
 
-const fitted = (id: "iron-rails" | "axle-grease", line: string) => ({
+const fitted = (id: "iron-rails" | "axle-grease"): CraftNotice => ({
   id,
   level: 1,
-  line,
+  mountain: createMountain(),
+  at: 0,
 });
 
 describe("welcomeNews", () => {
@@ -171,14 +173,14 @@ describe("welcomeView", () => {
       snap({
         away: report(),
         layersArrived: [band("topsoil"), band("granite")],
-        craftsFitted: [
-          fitted("iron-rails", "Rails fitted."),
-          fitted("axle-grease", "Grease fitted."),
-        ],
+        craftsFitted: [fitted("iron-rails"), fitted("axle-grease")],
       }),
     );
     expect(view?.layers).toEqual([layerWelcomeWords("granite")]);
-    expect(view?.crafts).toEqual(["Rails fitted.", "Grease fitted."]);
+    expect(view?.crafts).toEqual([
+      craftLine(fitted("iron-rails")),
+      craftLine(fitted("axle-grease")),
+    ]);
   });
 
   it("names the first material the ore line names", () => {
@@ -194,7 +196,7 @@ describe("welcomeView", () => {
 
 describe("arrivalCard", () => {
   const granite = { layersArrived: [band("granite")] };
-  const rails = { craftsFitted: [fitted("iron-rails", "Rails fitted.")] };
+  const rails = { craftsFitted: [fitted("iron-rails")] };
 
   it("waits while the welcome has news or a relic is revealed", () => {
     expect(arrivalCard(snap({ ...granite, away: report() }))).toBeUndefined();
@@ -220,7 +222,7 @@ describe("arrivalCard", () => {
     const craft = {
       kind: "craft",
       recipe: "iron-rails",
-      line: "Rails fitted.",
+      line: craftLine(fitted("iron-rails")),
     };
     expect(arrivalCard(snap(rails))).toEqual(craft);
     expect(

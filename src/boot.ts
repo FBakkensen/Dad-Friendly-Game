@@ -90,10 +90,10 @@ export async function createAppServices({
     tabWriter,
   });
   if (devMode && options.previewTrouble) {
-    progress.previewTrouble("cart");
+    progress.preview.trouble("cart");
   }
   if (devMode && options.previewConflict) {
-    progress.previewConflict();
+    progress.preview.conflict();
   }
   return { auth: services.auth, progress, tabWriter };
 }

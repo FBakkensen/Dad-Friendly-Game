@@ -286,7 +286,7 @@ describe("the key rail (#373)", () => {
       }),
     });
     expect(dotOn(screen, "buys")).toBe(false);
-    screen.progress.previewTrouble("cart");
+    screen.progress.preview.trouble("cart");
     expect(screen.progress.getSnapshot().trouble?.kind).toBe("cave-in");
     expect(dotOn(screen, "buys")).toBe(true);
     expect(key(screen, "buys").getAttribute("aria-label")).toMatch(/^Buys\. /);

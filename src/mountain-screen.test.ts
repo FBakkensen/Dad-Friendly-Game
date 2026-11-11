@@ -2191,7 +2191,7 @@ describe("the control board (#370)", () => {
       if (found === null) throw new Error("no cart bay");
       return found;
     };
-    screen.progress.previewTrouble("cart");
+    screen.progress.preview.trouble("cart");
     expect(bay().dataset["trouble"]).toBe("cave-in");
     expect(bay().querySelector(".board-bay-sub")?.textContent).toBe(
       "Cave-in! · Hold to fix",
@@ -2211,7 +2211,7 @@ describe("the control board (#370)", () => {
     // A hold fixes it too, and the click that ends the hold opens nothing.
     vi.useFakeTimers();
     try {
-      screen.progress.previewTrouble("cart");
+      screen.progress.preview.trouble("cart");
       note?.classList.remove("on");
       bay().dispatchEvent(
         new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
@@ -2238,7 +2238,7 @@ describe("the control board (#370)", () => {
         machines: 1,
       }),
     });
-    screen.progress.previewTrouble("cart");
+    screen.progress.preview.trouble("cart");
     expect(bayTiersOf(screen)).toEqual(["drill", "borer", "machine"]);
     expect(screen.root.querySelector(".board-bay[data-trouble]")).toBeNull();
     const card = screen.root.querySelector<HTMLButtonElement>(
@@ -2409,7 +2409,7 @@ describe("the control board (#370)", () => {
       expect(
         screen.root.querySelector(".board-note.on .board-running"),
       ).not.toBeNull();
-      screen.progress.previewConflict();
+      screen.progress.preview.conflict();
       expect(
         screen.root.querySelector<HTMLElement>(".save-conflict")?.hidden,
       ).toBe(false);

@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createArrivalPanel } from "./arrival-panel";
 import { createBoardHost } from "./board-host";
+import { craftLine } from "./card-views";
 import { LAYERS } from "./layers";
 import { mineView } from "./mine-window";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
@@ -106,7 +107,7 @@ describe("the arrival cards (#464)", () => {
   it.each(RECIPE_IDS)("shows the board art for %s on craft done", (id) => {
     const { panel, progress } = mount({
       ...plain,
-      craftsFitted: [{ id, level: 1, line: "Fitted." }],
+      craftsFitted: [{ id, level: 1, mountain: minedMountain(0), at: 0 }],
     });
     expect(panel.notice.hidden).toBe(false);
     expect(panel.layer.hidden).toBe(true);
@@ -115,7 +116,7 @@ describe("the arrival cards (#464)", () => {
     expect(art?.getAttribute("src")).toContain(file);
     expect([art?.width, art?.height]).toEqual([px, px]);
     expect(panel.notice.querySelector("#craft-notice-line")?.textContent).toBe(
-      "Fitted.",
+      craftLine({ id, level: 1, mountain: minedMountain(0), at: 0 }),
     );
     panel.notice.querySelector<HTMLButtonElement>(".craft-accept")?.click();
     expect(progress.dismissCraft).toHaveBeenCalledTimes(1);
@@ -124,18 +125,24 @@ describe("the arrival cards (#464)", () => {
   it("moves from one craft to the next without painting what stayed", () => {
     const { panel, show } = mount({
       ...plain,
-      craftsFitted: [{ id: "iron-rails", level: 1, line: "Rails." }],
+      craftsFitted: [
+        { id: "iron-rails", level: 1, mountain: minedMountain(0), at: 0 },
+      ],
     });
     const art = panel.notice.querySelector<HTMLImageElement>(".board-card-art");
     show({
       ...plain,
-      craftsFitted: [{ id: "diamond-bits", level: 1, line: "Bits." }],
+      craftsFitted: [
+        { id: "diamond-bits", level: 1, mountain: minedMountain(0), at: 0 },
+      ],
     });
     expect(art?.getAttribute("src")).toContain("mach-drill.png");
     expect(art?.width).toBe(64);
     show({
       ...plain,
-      craftsFitted: [{ id: "diamond-bits", level: 1, line: "Bits." }],
+      craftsFitted: [
+        { id: "diamond-bits", level: 1, mountain: minedMountain(0), at: 0 },
+      ],
     });
     expect(art?.getAttribute("src")).toContain("mach-drill.png");
     show(plain);
@@ -152,8 +159,18 @@ describe("the arrival cards (#464)", () => {
   });
 
   it("settles again when the next craft takes the card: a double tap never dismisses it unseen", () => {
-    const rails = { id: "iron-rails", level: 1, line: "Rails." } as const;
-    const bits = { id: "diamond-bits", level: 1, line: "Bits." } as const;
+    const rails = {
+      id: "iron-rails",
+      level: 1,
+      mountain: minedMountain(0),
+      at: 0,
+    } as const;
+    const bits = {
+      id: "diamond-bits",
+      level: 1,
+      mountain: minedMountain(0),
+      at: 0,
+    } as const;
     const { panel, progress, show } = mount({
       ...plain,
       craftsFitted: [rails, bits],
@@ -192,7 +209,12 @@ describe("the arrival cards (#464)", () => {
   });
 
   it("does not settle again on a repaint of the same card", () => {
-    const rails = { id: "iron-rails", level: 1, line: "Rails." } as const;
+    const rails = {
+      id: "iron-rails",
+      level: 1,
+      mountain: minedMountain(0),
+      at: 0,
+    } as const;
     const { panel, progress, show } = mount({
       ...plain,
       craftsFitted: [rails],

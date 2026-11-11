@@ -1,9 +1,5 @@
 {
   "src/mountain.ts#parseMountain": 36,
   "src/persist.ts#parseSaveValue": 36,
-  "src/persist.ts#serializeSave": 16,
-  "src/progress-store.ts#createProgressStore>applyAuthoritative": 29,
-  "src/progress-store.ts#createProgressStore>applyMerged": 18,
-  "src/progress-store.ts#createProgressStore>applyRemote": 23,
-  "src/progress-store.ts#createProgressStore>prepareLocal": 18
+  "src/persist.ts#serializeSave": 16
 }

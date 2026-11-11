@@ -1,11 +1,6 @@
-import { settle } from "../expeditions";
-import {
-  closeHazards,
-  freshHazards,
-  stepHazards,
-  type HazardState,
-} from "../hazards";
-import { accrue, accrueAway, createMountain, type Mountain } from "../mountain";
+import { freshHazards, type HazardState } from "../hazards";
+import { createMountain, type Mountain } from "../mountain";
+import { advance } from "../session-time";
 
 /** Live play ticks the crew. Away time pays the cap and clears trouble. */
 export type PlayMode = "live" | "away";
@@ -29,10 +24,10 @@ export function createWorld(
 }
 
 /**
- * Moves the clock by `ms`. Live play accrues, steps hazards, then brings
- * home any party whose return has passed. Away time pays the capped gap
- * (parties come home as they arrive) and clears trouble, the same as
- * closing the game. No time returns the same world.
+ * Moves the clock by `ms` through the game's own time step (`advance`), so
+ * the lab plays the same order as the game: parties due come home, the crew
+ * is paid, then the hazards step. Away time pays the capped gap and clears
+ * trouble, the same as closing the game. No time returns the same world.
  */
 export function step(
   world: World,
@@ -43,53 +38,18 @@ export function step(
   if (!(ms > 0)) {
     return world;
   }
-  if (mode === "away") {
-    return stepAway(world, ms);
-  }
-  return stepLive(world, ms, options?.playerFixMs);
-}
-
-function stepLive(
-  world: World,
-  ms: number,
-  playerFixMs: number | undefined,
-): World {
-  const trouble =
-    world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
-  const accrued = accrue({
-    mountain: world.mountain,
-    from: world.clock,
-    to: world.clock + ms,
-    live: true,
-    ...(trouble === undefined ? {} : { trouble }),
-  });
   const clock = world.clock + ms;
-  const hazards = stepHazards(world.hazards, {
-    now: clock,
-    liveMs: ms,
-    mountain: accrued.mountain,
-    ...(playerFixMs === undefined ? {} : { playerFixMs }),
-  });
-  return {
-    mountain: settle(accrued.mountain, clock).mountain,
-    hazards,
-    clock,
-  };
-}
-
-function stepAway(world: World, ms: number): World {
-  const clock = world.clock + ms;
-  const accrued = accrueAway({
-    mountain: world.mountain,
-    lastSeen: world.clock,
-    now: clock,
-  });
-  // Away pay already walks parties home. Settle again so a return exactly
-  // at this clock is home even if that walk changes.
-  const mountain = settle(accrued.mountain, clock).mountain;
-  return {
-    mountain,
-    hazards: closeHazards(world.hazards, mountain),
-    clock,
-  };
+  const playerFixMs = options?.playerFixMs;
+  const next = advance(
+    world,
+    mode === "away"
+      ? { kind: "away", from: world.clock, to: clock }
+      : {
+          kind: "live",
+          from: world.clock,
+          to: clock,
+          ...(playerFixMs === undefined ? {} : { playerFixMs }),
+        },
+  );
+  return { mountain: next.mountain, hazards: next.hazards, clock };
 }

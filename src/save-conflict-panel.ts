@@ -13,6 +13,7 @@ import { saveCardLines } from "./save-sheet-copy";
 import {
   SAVE_CONFLICT_BODY,
   SAVE_CONFLICT_CONFIRM,
+  SAVE_CONFLICT_ERROR,
   SAVE_CONFLICT_OTHER,
   SAVE_CONFLICT_PHONE,
   SAVE_CONFLICT_PLAY,
@@ -149,7 +150,7 @@ export function createSaveConflictPanel({
       fill(phone, conflict.local, selected === "local", now());
       fill(other, conflict.remote, selected === "remote", now());
       hide(error, conflict.error === undefined);
-      write(error, conflict.error ?? "");
+      write(error, conflict.error === undefined ? "" : SAVE_CONFLICT_ERROR);
       showConfirm(confirming);
     }
     card.show(conflict !== undefined && !elsewhere, play);
