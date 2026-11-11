@@ -182,7 +182,12 @@ function buyFacts({
   const staff = staffForBuy(mountain, tier) * buying;
   const bill = staffBillWords(staff, spare);
   const worker = tierById("helper");
-  const pickHere = pick.kind !== "mined-out" && pick.tier === id;
+  // The plate's pick is one. A ready pick whose ×10 the pocket cannot pay is not
+  // offered on this row (#358).
+  const pickHere =
+    pick.kind !== "mined-out" &&
+    pick.tier === id &&
+    !(pick.kind === "ready" && mountain.pocket < price);
   return {
     mountain,
     id,

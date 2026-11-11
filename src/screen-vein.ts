@@ -44,7 +44,7 @@ export function createVein(
   showNote: (words: string, ms: number) => void;
   listen: () => void;
 } {
-  const { dispatch, now, random, veinStorage, listening } = ctx;
+  const { dispatch, now, random, deviceStorage, listening } = ctx;
   const { veinNote } = deps;
 
   const gapForVeins = (): number =>
@@ -58,7 +58,7 @@ export function createVein(
   // locking or the PWA being closed, so short sessions still add up to a vein.
   const storedWait = (): unknown => {
     try {
-      const raw = (veinStorage ?? localStorage).getItem(VEIN_WAIT_KEY);
+      const raw = (deviceStorage ?? localStorage).getItem(VEIN_WAIT_KEY);
       return raw === null ? undefined : Number(raw);
     } catch {
       return undefined;
@@ -66,7 +66,7 @@ export function createVein(
   };
   const storeWait = (): void => {
     try {
-      (veinStorage ?? localStorage).setItem(
+      (deviceStorage ?? localStorage).setItem(
         VEIN_WAIT_KEY,
         String(Math.round(veinWaitLeft(veinState, now()))),
       );

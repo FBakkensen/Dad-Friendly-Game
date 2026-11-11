@@ -2115,6 +2115,26 @@ button.board-row:focus-visible {
   color: var(--board-ink);
 }
 
+/* A panel's own key beside the "i" (#358: Buys' ×1 / ×10 / Max). */
+.board-sheet-head.has-key {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.board-sheet-head.has-key > .board-sheet-info.teach-info {
+  grid-column: 3;
+}
+
+.board-sheet-head > .buy-amount {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  flex: none;
+  width: calc(var(--art) * 36);
+  height: calc(var(--art) * 24);
+  font-size: var(--board-type-20);
+  text-transform: none;
+}
+
 .board-sheet-how {
   position: relative;
   flex: 1 1 auto;

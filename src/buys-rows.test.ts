@@ -546,6 +546,16 @@ describe("buyRowView: ×10 and Max (#358)", () => {
     });
   });
 
+  it("a ready pick whose ×10 is too dear is not offered on its row", () => {
+    const cart = row(early, "cart", { amount: "ten" });
+    expect(cart).toMatchObject({ state: "dear", lamp: "off", pick: false });
+    expect(cart.flag).toEqual([]);
+    const ten = quote(early, "cart", "ten");
+    expect(
+      row({ ...early, pocket: ten.cost }, "cart", { amount: "ten" }),
+    ).toMatchObject({ lamp: "amber", pick: true, flag: ["Ready now"] });
+  });
+
   it("the guided New row still hires one, whatever the amount", () => {
     const idle = mountainWith({ helpers: 2, carts: 6 });
     const mountain = { ...idle, pocket: 1e9 };
