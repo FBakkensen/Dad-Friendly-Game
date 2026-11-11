@@ -1,5 +1,5 @@
 /* global document */
-/** Press looks sections: each board control's pressed look and its rest look (#432). */
+/** Press looks sections: each board control's pressed look and its rest look. */
 import { openMountain, crewMountain } from "../../tools/browser/fixtures.ts";
 import { check, section } from "./registry.mjs";
 import {
