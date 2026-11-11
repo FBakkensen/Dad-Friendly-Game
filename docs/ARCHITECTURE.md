@@ -460,8 +460,16 @@ page is the map, plus the rules that keep it that way.
   import order. A new check goes in the module of the part it checks.
 - Tables and controls (#441): `registry.mjs` also has `table()`, which turns
   screens × scenarios × rows × expectations into sections and checks, with
-  each label built from data. The rail, the drawers per save and the bays per
-  save are tables. The drawer list is `DRAWERS` in `drawers.mjs`: a new drawer
+  each label built from data. The rail, the drawers per save, the bays per
+  save, the board per save, the gauge row per save, the cards, the relic
+  plate, the long sheets, the odometer, Running now and the no-scroll guard
+  are tables (#442); a few one-walk flows (the welcome-back reveal, the
+  Mantle, passing the mine, the drawer states) stay as sections. An
+  expectation that needs a measure an earlier one took reads it off the
+  page's `seen`. The no-scroll guard's rows each say what their taps open,
+  and wait for it. `boardTargets(page, { vein })` shows the golden vein at a
+  spot and measures in the same page task, so the screen's second tick
+  cannot hide it in between. The drawer list is `DRAWERS` in `drawers.mjs`: a new drawer
   is a row there, with its own scroll rule. `controls.mjs` wires each control
   family once in Chrome (the rail key, a row buy, Back and the scrim, the "i"
   cards, Ready now, an open bay, the trouble fix, the red button and a press

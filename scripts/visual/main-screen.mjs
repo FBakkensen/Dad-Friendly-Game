@@ -1,7 +1,7 @@
-/* global console, document, innerWidth, innerHeight, getComputedStyle, setTimeout */
+/* global console, document, innerWidth, innerHeight, getComputedStyle */
 /** Main screen sections: the board fits, the tier cards and the standalone shell. */
 import { crewV4Save, buysFitSave } from "../../tools/browser/fixtures.ts";
-import { check, section } from "./registry.mjs";
+import { check, section, table } from "./registry.mjs";
 import {
   PHONE,
   SCREENS,
@@ -15,6 +15,7 @@ import {
   coversBoard,
   noScroll,
   MINE_WINDOW_RULES,
+  keysDrawn,
 } from "./kit.mjs";
 import { drawerFacts } from "./measure.mjs";
 
@@ -662,65 +663,81 @@ for (const viewport of [PHONE]) {
   });
 }
 
+/** A real vein after minutes of play: shown, on top at its middle, and in the viewport. */
+async function veinOnTop(page) {
+  await page.evaluate(() => {
+    globalThis.__skewMs = 7 * 60 * 1000;
+  });
+  await page
+    .waitForSelector(".golden-vein:not([hidden])", { timeout: 3_000 })
+    .catch(() => undefined);
+  return page.evaluate(() => {
+    const vein = document.querySelector(".golden-vein");
+    if (vein === null || vein.hidden) {
+      return false;
+    }
+    const box = vein.getBoundingClientRect();
+    const x = box.left + box.width / 2;
+    const y = box.top + box.height / 2;
+    const hit = document.elementFromPoint(x, y);
+    return (
+      box.width > 0 &&
+      y > 0 &&
+      y < innerHeight &&
+      x > 0 &&
+      x < innerWidth &&
+      hit !== null &&
+      vein.contains(hit)
+    );
+  });
+}
+
 // Installed PWA (standalone), with status and gesture bar insets. The board
 // is the measured 424x924 installed-app viewport and pads no insets (#370,
 // Task 1 ruling), so only the page staying still and the vein are checked.
-for (const viewport of [PHONE]) {
-  section(`section 3 (standalone) ${JSON.stringify(viewport)}`, async () => {
-    const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await openScreen(viewport, crewV4Save(), {
+table({
+  screens: [PHONE],
+  scenarios: [{}],
+  section: (viewport) => `section 3 (standalone) ${JSON.stringify(viewport)}`,
+  prefix: ({ size }) => `${size} standalone`,
+  open: async (viewport) => {
+    const opened = await openScreen(viewport, crewV4Save(), {
       standalone: true,
     });
-    await new Promise((resolve) => setTimeout(resolve, 1_100));
-    check(
-      await noScroll(page),
-      `${size} standalone PWA with insets has no scroll`,
-    );
-
-    // A real vein after minutes of play: on screen, on top, and tappable.
-    await page.evaluate(() => {
-      globalThis.__skewMs = 7 * 60 * 1000;
-    });
-    await page
-      .waitForSelector(".golden-vein:not([hidden])", { timeout: 3_000 })
-      .catch(() => undefined);
-    const veinOnTop = await page.evaluate(() => {
-      const vein = document.querySelector(".golden-vein");
-      if (vein === null || vein.hidden) {
-        return false;
-      }
-      const box = vein.getBoundingClientRect();
-      const x = box.left + box.width / 2;
-      const y = box.top + box.height / 2;
-      const hit = document.elementFromPoint(x, y);
-      return (
-        box.width > 0 &&
-        y > 0 &&
-        y < innerHeight &&
-        x > 0 &&
-        x < innerWidth &&
-        hit !== null &&
-        vein.contains(hit)
-      );
-    });
-    check(
-      veinOnTop,
-      `${size} standalone golden vein appears on top of the window`,
-    );
-    if (veinOnTop) {
-      await page.tap(".golden-vein");
-      // The payout shows in the board note under the window (#371).
-      await page
-        .waitForSelector(".board-note.on .vein-note", { timeout: 2_000 })
-        .catch(() => undefined);
-      const note = await page
-        .$eval(".board-note.on .vein-note", (element) => element.textContent)
-        .catch(() => undefined);
-      check(
-        note?.startsWith("Golden vein!") === true,
-        `${size} standalone golden vein pays when tapped`,
-      );
-    }
-    await close();
-  });
-}
+    // The save is in before the page is measured.
+    await keysDrawn(opened.page);
+    return { ...opened, seen: {} };
+  },
+  expect: [
+    {
+      run: async ({ page }) => [
+        [await noScroll(page), "PWA with insets has no scroll"],
+      ],
+    },
+    {
+      run: async ({ page, seen }) => {
+        seen.veinOnTop = await veinOnTop(page);
+        return [[seen.veinOnTop, "golden vein appears on top of the window"]];
+      },
+    },
+    {
+      when: ({ seen }) => seen.veinOnTop,
+      run: async ({ page }) => {
+        await page.tap(".golden-vein");
+        // The payout shows in the board note under the window (#371).
+        await page
+          .waitForSelector(".board-note.on .vein-note", { timeout: 2_000 })
+          .catch(() => undefined);
+        const note = await page
+          .$eval(".board-note.on .vein-note", (element) => element.textContent)
+          .catch(() => undefined);
+        return [
+          [
+            note?.startsWith("Golden vein!") === true,
+            "golden vein pays when tapped",
+          ],
+        ];
+      },
+    },
+  ],
+});
