@@ -1148,7 +1148,8 @@ async function main() {
       }),
     );
     await openDrawer(opened.page, "engineers");
-    // Her row opens her page of posts (#455), which settles as the drawer did.
+    // Her row opens her page of posts (#455), which settles as the drawer did. On a first visit
+    // its one plate is the guided first trip.
     await press(opened.page, '.engineer-row[data-engineer="Ada"]');
     await opened.page.waitForSelector(
       `${OPEN_SHEET("engineers")} .engineer-page`,
@@ -1158,7 +1159,7 @@ async function main() {
       },
     );
     await new Promise((resolve) => setTimeout(resolve, 450));
-    await expectText(opened.page, /Back to your engineers/i, "her page");
+    await expectText(opened.page, /Send Ada exploring/i, "her page");
     return opened;
   });
   await capture("engineers-expedition", async (viewport) => {
