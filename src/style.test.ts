@@ -22,11 +22,8 @@ const REQUIRED_SELECTORS = [
   ".shelf-card",
   ".keepsakes",
   ".keepsake-story",
-  ".workshop-dialog",
   ".workshop-open",
   ".workshop-locked",
-  ".workshop-card",
-  ".workshop-cancel",
   ".layer-arrival",
   ".craft-notice",
   ".material-line",
@@ -79,6 +76,13 @@ const BOARD_SELECTORS = [
   ".board-key-dot",
   ".board-sign-slot",
   ".board-sign",
+  ".workshop-mats",
+  ".workshop-mat",
+  ".workshop-bench",
+  ".workshop-bar",
+  ".workshop-timers",
+  ".workshop-pager",
+  ".workshop-sound",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
@@ -96,7 +100,6 @@ const OVERLAYS = [
   ".other-tab",
   ".save-conflict",
   ".saved-copies",
-  ".workshop-dialog",
 ];
 
 /** WCAG 2 contrast ratio of two #rrggbb colours. */
@@ -281,7 +284,7 @@ describe("board.css", () => {
 
   it.each(BOARD_SELECTORS)("styles %s", (selector) => {
     const escaped = selector.replace(".", "\\.");
-    expect(boardCss).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));
+    expect(boardCss).toMatch(new RegExp(`^${escaped}[\\s,{\\[:.]`, "m"));
   });
 });
 
@@ -297,6 +300,21 @@ describe("style.css", () => {
         /\.(upgrade\b|upgrade-|upgrades-|boost-list|found-(heading|list))/.test(
           one,
         ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps no rule for today's Workshop sheet: its parts are board parts now (#374)", () => {
+    // The drawer's bench, bar, timers, pager and sound key share today's class names: an old
+    // rule would restyle them. Only the menu's row and its silhouette stay (until B7).
+    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
+      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+    );
+    expect(
+      selectors.filter(
+        (one) =>
+          /\.(workshop-|float-chip|cost-bit|mat-stones)/.test(one) &&
+          !/^\.workshop-(open|locked|menu)\b/.test(one),
       ),
     ).toEqual([]);
   });

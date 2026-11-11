@@ -9,7 +9,6 @@ import {
   timerLines,
   workshopCards,
   workshopPages,
-  SHORT_WORKSHOP_PAGE,
   type RecipeCard,
   type WorkshopCard,
 } from "./workshop-sheet";
@@ -136,11 +135,9 @@ describe("workshop sheet (#199)", () => {
       "A folded sketch, still in the dark.",
     );
     expect(hidden?.kind === "hidden" ? hidden.hint : "x").not.toMatch(/[0-9?]/);
-    expect(workshopPages(cards)).toHaveLength(2);
-    expect(workshopPages(cards)[0]).toHaveLength(4);
-    // A short phone whose four cards overflow takes three a page (#347).
-    expect(workshopPages(cards, SHORT_WORKSHOP_PAGE)[0]).toHaveLength(3);
-    expect(workshopPages(cards, SHORT_WORKSHOP_PAGE).flat()).toEqual(cards);
+    // Three a page, always (#374).
+    expect(workshopPages(cards)[0]).toHaveLength(3);
+    expect(workshopPages(cards).flat()).toEqual(cards);
   });
 
   it("names a big machine's speed in whole stones, a small one to a tenth (#347)", () => {

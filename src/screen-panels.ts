@@ -1,9 +1,8 @@
-import { cardUp } from "./card-state";
 import type { ScreenCtx } from "./screen-context";
 import type { createRunningNow } from "./screen-running";
 import { createBoardNote, type BoardNote } from "./board-note";
 import type { KeyRail } from "./board-keys";
-import { setAttr } from "./board-dom";
+import type { BoardSheet } from "./board-drawer";
 import { createBoostDial, createOdometer } from "./board-stock";
 import { createRelicPlate } from "./board-relics";
 import { createSaveLine } from "./board-save";
@@ -222,7 +221,8 @@ export function createSheetPanels(
     readonly saveLine: ReturnType<typeof createSaveLine>;
     readonly onStartOver: () => void;
     readonly closeMenu: () => void;
-    readonly workshopClosed: () => void;
+    /** The Buys drawer: the menu's Workshop row closes it. */
+    readonly buys: BoardSheet;
   },
 ): {
   workshop: ReturnType<typeof createWorkshopPanel>;
@@ -236,17 +236,26 @@ export function createSheetPanels(
   paintCopies(): void;
 } {
   const { progress, dispatch, auth, now, board, signal } = ctx;
-  const { stoneUrl, tierArt, relicArt } = ctx.art;
+  const { tierArt, relicArt } = ctx.art;
   const { rail, legacy, runningNow, saveLine, closeMenu } = deps;
+  const program = { restoreFocus: false, by: "program" } as const;
   const workshop = createWorkshopPanel({
     dispatch,
     getView: ctx.view,
     now,
-    stoneUrl,
+    board,
+    overSave: () => saveLine.isOpen(),
+    door: rail.keys.workshop,
+    fallbackDoor: rail.keys.ledger,
     hammerUrl: relicArt.hammer,
-    onOpen: closeMenu,
-    onClose: deps.workshopClosed,
-    requestRender: ctx.paint,
+    // The menu's Workshop row, a second door until B7: the menu and the other drawers go.
+    onMenuOpen: () => {
+      closeMenu();
+      deps.buys.close(program);
+      upgrades.sheet.close(program);
+      ctx.paint();
+    },
+    ...(signal === undefined ? {} : { signal }),
   });
 
   const savedCopies = createSavedCopiesPanel({
@@ -318,12 +327,6 @@ export function createSheetPanels(
       upgrades.render();
       engineers.render();
       workshop.render();
-      // Today's Workshop sheet knows no key: the screen says whether it is open (#373).
-      setAttr(
-        rail.keys.workshop,
-        "aria-expanded",
-        cardUp(workshop.sheet) ? "true" : "false",
-      );
     },
     paintCopies: () => {
       savedCopies.render();
@@ -355,7 +358,6 @@ export function cardsFrom(
     menu,
     fieldLogSheet,
     sheets.engineers.sheet,
-    sheets.workshop.sheet,
     extra.updatePrompt,
     extra.otherTab,
     sheets.savedCopies.root,

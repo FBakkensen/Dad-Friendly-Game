@@ -73,15 +73,15 @@ const MATERIAL_ORDER = [
   "heartstone",
 ] as const satisfies readonly MaterialId[];
 
-/** Four cards, two columns, the shape that fits a short phone. */
-const WORKSHOP_PAGE = 4;
+/** Three recipe rows a page, always: the fixed board needs no measuring (#374). */
+export const RECIPES_A_PAGE = 3;
 
 export type MaterialChip = {
   readonly id: MaterialId;
   readonly text: string;
 };
 
-export type CostChip = {
+type CostChip = {
   readonly id: MaterialId;
   readonly text: string;
 };
@@ -732,13 +732,10 @@ export function workshopCards(
   return cards;
 }
 
-/** A short phone whose four cards would overflow takes three a page (#347). */
-export const SHORT_WORKSHOP_PAGE = 3;
-
-/** Pages of four (or `size`), of cards or of the drawer's parts. One page when the shed is small. */
+/** Pages of three (or `size`), of cards or of the drawer's parts. One page when the shed is small. */
 export function workshopPages<T>(
   items: readonly T[],
-  size: number = WORKSHOP_PAGE,
+  size: number = RECIPES_A_PAGE,
 ): readonly (readonly T[])[] {
   if (items.length === 0) {
     return [[]];

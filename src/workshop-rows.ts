@@ -30,8 +30,8 @@ import type { WorkshopTeach } from "./workshop-teach";
 /** A part of the drawer's recipe list: a recipe's row, or the one dark sketch. */
 export type WorkshopPartId = `recipe:${RecipeId}` | "sketch";
 
-/** Three recipe rows a page, always: the fixed board needs no measuring. */
-export const RECIPES_A_PAGE = 3;
+// Three recipe rows a page: the rules keep the size, the drawer pages by it.
+export { RECIPES_A_PAGE } from "./workshop-sheet";
 
 /** The bench row: its bar's share done, and whether a tap may arm the cancel. */
 export interface BenchRowView extends RowView {

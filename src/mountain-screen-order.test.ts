@@ -120,9 +120,10 @@ afterEach(stopScreens);
 describe("the screen's build order", () => {
   it("the screen registers its listeners in today's order", () => {
     const { seen } = mountLogged();
-    // Entries, in order: the store's own auth watch, the vein's first draw, Buys rows and drawer (with
-    // its Escape capture), the Ready plate, the board note, the save line, the menu, Upgrades rows
-    // and drawer (Escape capture), saveOnLeave, the bays, the vein's hide and pagehide, the New
+    // Entries, in order: the store's own auth watch, the vein's first draw, Buys rows and drawer
+    // (with its Escape capture), the Ready plate, the board note, the save line, the Workshop
+    // rows and drawer (Escape capture, #374), the menu, Upgrades rows and drawer (Escape
+    // capture), saveOnLeave, the bays, the vein's hide and pagehide, the New
     // sign's pointerdown and Escape, then the store subscription.
     // When a task moves a registration into a screen-* file, it changes only the name after "@";
     // the position must not change.
@@ -138,6 +139,9 @@ describe("the screen's build order", () => {
       "doc:keydown:false@board-save",
       "doc:pointerdown:false@board-save",
       "auth@board-save",
+      "host@board-row",
+      "host@board-drawer",
+      "doc:keydown:true@board-drawer",
       "auth@menu-panel",
       "host@board-row",
       "host@board-drawer",
@@ -204,7 +208,6 @@ describe("the screen's build order", () => {
       "game-menu",
       "field-log-sheet",
       "engineers-dialog",
-      "workshop-dialog",
       "update-prompt",
       "other-tab",
       "saved-copies",

@@ -21,8 +21,8 @@ export function layOutBoard(
     readonly readyRow: Part;
     readonly rail: Part;
     readonly sign: Part;
-    readonly crewSheet: BoardSheet;
-    readonly upgradesSheet: BoardSheet;
+    /** The board's drawers, in the clip's order: Buys, Upgrades, Workshop. */
+    readonly drawers: readonly BoardSheet[];
     readonly saveLine: {
       readonly line: HTMLElement;
       readonly drawer: HTMLElement;
@@ -32,7 +32,7 @@ export function layOutBoard(
     readonly cards: readonly HTMLElement[];
   },
 ): void {
-  const { board, top, crewSheet, upgradesSheet, saveLine } = parts;
+  const { board, top, drawers, saveLine } = parts;
   const { relicPlate } = top;
   // The board's top: the relic plate and the stock row (#370).
   const stockRow = document.createElement("div");
@@ -51,11 +51,10 @@ export function layOutBoard(
   const sheetClip = document.createElement("div");
   sheetClip.className = "board-sheet-clip";
   sheetClip.append(
-    crewSheet.root,
-    upgradesSheet.root,
+    ...drawers.map((sheet) => sheet.root),
     createSheetScrim({
       board,
-      sheets: [crewSheet, upgradesSheet],
+      sheets: drawers,
       sockets: () => [
         ...relicPlate.root.querySelectorAll<HTMLElement>(".board-socket"),
       ],

@@ -20,9 +20,11 @@ import {
 } from "../src/play-plan.ts";
 import { launchChrome, open, startServer } from "../tools/browser/harness.ts";
 import {
+  chargePayoffSave,
   crewMountain,
   crewV4Save,
   crystalMountain,
+  firstCraftSave,
   fleetMountain,
   heartMountain,
   heirMountain,
@@ -37,6 +39,7 @@ import {
   seedJson,
   shortMountain,
   toolsMountain,
+  unknownBenchSave,
   workshopSave,
 } from "../tools/browser/fixtures.ts";
 
@@ -59,6 +62,22 @@ const SAVES = {
   workshop: {
     note: "a craft on the bench and axle grease running",
     save: () => workshopSave(Date.now(), true),
+  },
+  "workshop-free": {
+    note: "a free bench: grease to craft, a short charge, two pages",
+    save: () => workshopSave(Date.now(), false),
+  },
+  "first-craft": {
+    note: "the Workshop not yet taught, 10 clay: the charge's New row",
+    save: () => firstCraftSave(Date.now()),
+  },
+  payoff: {
+    note: "the first blasting charge working: its row shows the payoff",
+    save: () => chargePayoffSave(Date.now()),
+  },
+  "bench-unknown": {
+    note: "a craft this build cannot name on the bench",
+    save: () => unknownBenchSave(Date.now()),
   },
   crew: {
     note: "every tier so far and both boosts, in the Deep Heart",

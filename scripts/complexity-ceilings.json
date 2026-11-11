@@ -28,6 +28,5 @@
   "src/save-merge.ts#mergeSaves": 16,
   "src/token-check.ts#consumeLine": 17,
   "src/token-check.ts#takeChar": 17,
-  "src/welcome-panel.ts#createWelcomePanel>renderWelcome": 23,
-  "src/workshop-panel.ts#createWorkshopPanel>render": 28
+  "src/welcome-panel.ts#createWelcomePanel>renderWelcome": 23
 }

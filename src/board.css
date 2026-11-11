@@ -932,8 +932,7 @@ body {
 .update-prompt,
 .other-tab,
 .save-conflict,
-.saved-copies,
-.workshop-dialog {
+.saved-copies {
   bottom: var(--save-h);
 }
 
@@ -2512,7 +2511,12 @@ button.board-row:focus-visible {
 
 /* The bench's bar, at its row's foot under the middle and right columns: whole art px from
    --fill (workshop-parts.ts, BAR_ART), and no transition. */
-.workshop-bench .workshop-bar {
+/* The bench row holds its bar. */
+.workshop-bench {
+  position: relative;
+}
+
+.workshop-bar {
   position: absolute;
   left: calc(var(--art) * 28);
   bottom: calc(var(--art) * 3);
@@ -2524,13 +2528,26 @@ button.board-row:focus-visible {
   overflow: hidden;
 }
 
-.workshop-bench .workshop-bar > span {
+.workshop-bar > span {
   display: block;
   width: calc(var(--art) * var(--fill, 0));
   height: 100%;
   border-radius: 0;
   background: var(--board-amber);
   transition: none;
+}
+
+/* The live timers under the bench: one line, fitted with an ellipsis, never two. */
+.workshop-timers {
+  position: relative;
+  flex: none;
+  margin: 0 calc(var(--art) * 3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--board-type-13);
+  line-height: var(--board-kick-lead);
+  color: var(--board-ink-2);
 }
 
 .workshop-pager {
@@ -2556,7 +2573,7 @@ button.board-row:focus-visible {
   grid-column: 2;
 }
 
-.board-sheet-head > .workshop-sound {
+.workshop-sound.board-sheet-key {
   width: calc(var(--art) * 36);
   height: calc(var(--art) * 24);
   font-size: var(--board-type-16);

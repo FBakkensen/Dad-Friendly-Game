@@ -141,7 +141,8 @@ async function drawerFacts(page, name) {
             row.dataset.boost ??
             row.dataset.upgrade ??
             row.dataset.tool ??
-            "",
+            row.dataset.recipe ??
+            (row.dataset.bench === undefined ? "" : "bench"),
           classes: [...row.classList].filter((cls) => cls.startsWith("is-")),
           top: r.t,
           bottom: r.b,

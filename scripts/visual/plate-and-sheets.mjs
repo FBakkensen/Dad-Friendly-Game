@@ -10,7 +10,6 @@ import { check, section } from "./registry.mjs";
 import {
   PHONE,
   SCREENS,
-  KEY,
   OPEN_SHEET,
   openSheet,
   closeSheet,
@@ -461,10 +460,9 @@ for (const viewport of [PHONE]) {
     });
     await shot(page, `buys-mix-${size}`);
     await closeSheet(page, "buys");
-    await page.tap(KEY("workshop"));
-    await page.waitForSelector(".workshop-dialog:not([hidden])");
+    await openSheet(page, "workshop");
     await shot(page, `workshop-mix-${size}`);
-    await page.click(".workshop-close");
+    await closeSheet(page, "workshop");
     await openSheet(page, "upgrades");
     const upgrades = await page.evaluate(() => {
       const card = (id) => document.querySelector(`[data-upgrade="${id}"]`);
