@@ -124,9 +124,11 @@ async function showRecipe(page, name) {
     const has = await page.$eval(
       `${OPEN_SHEET("workshop")} .board-sheet-list`,
       (list, wanted) =>
-        [...list.querySelectorAll(".workshop-recipe:not([hidden])")].some(
-          (row) => (row.textContent ?? "").includes(wanted),
-        ),
+        [
+          ...list.querySelectorAll(
+            ".workshop-recipe:not([hidden]), .workshop-sketch:not([hidden])",
+          ),
+        ].some((row) => (row.textContent ?? "").includes(wanted)),
       name,
     );
     if (has) {
@@ -1012,11 +1014,32 @@ async function main() {
     await expectText(opened.page, /Reinforce/, "reinforce");
     return opened;
   });
-  await capture("workshop-axle-grease", async (viewport) => {
-    const opened = await openAuditPage(viewport, rest());
+  await capture("workshop-sketch", async (viewport) => {
+    // The lamp and the kit not found yet: the one dark Sketch row on the last page.
+    const opened = await openAuditPage(
+      viewport,
+      late(
+        Date.now(),
+        130_000_000,
+        {},
+        {
+          recipes: [
+            "iron-rails",
+            "sturdy-props",
+            "blasting-charge",
+            "reinforce",
+            "axle-grease",
+            "diamond-bits",
+            "crystal-flare",
+            "heartstone-core",
+            "heartstone-ember",
+          ],
+        },
+      ),
+    );
     await openWorkshop(opened.page);
-    await showRecipe(opened.page, "Axle grease");
-    await expectText(opened.page, /Axle grease/, "axle");
+    await showRecipe(opened.page, "Sketch");
+    await expectText(opened.page, /Sketch/, "sketch");
     return opened;
   });
   await capture("workshop-need-more", async (viewport) => {
