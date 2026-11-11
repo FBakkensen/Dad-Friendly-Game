@@ -141,7 +141,10 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    cards and today's sheets stand at one z-index in the root's order
    (`screen-panels#cardsFrom`), with the Engineers sheet first so a
    homecoming's welcome paints over it; only the save conflict stands
-   higher. Shared player-facing wording lives in `screen-words`. The screen's optional `signal` (tests
+   higher. Every drawer, the relics drawer (#465) too, sits in the drawers'
+   clips above the cards: a card that comes up closes any open drawer by
+   program (`screen-overlays`), and the relic reveal waits while a card is
+   up, so a card is never under a drawer. Shared player-facing wording lives in `screen-words`. The screen's optional `signal` (tests
    pass one; the app never unmounts) takes off everything it hangs outside
    its own elements: the tick, the frame loop, its document and window
    listeners (the note's, the save line's and the drawers' too), and its
