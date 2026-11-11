@@ -197,10 +197,10 @@ export default defineConfig({
           lines: 100,
         },
         "src/store-context.ts": {
-          statements: 97,
+          statements: 100,
           branches: 89,
           functions: 95,
-          lines: 97,
+          lines: 100,
         },
         "src/cloud-writer.ts": {
           statements: 98,
@@ -209,10 +209,10 @@ export default defineConfig({
           lines: 98,
         },
         "src/local-saves.ts": {
-          statements: 95,
+          statements: 97,
           branches: 94,
           functions: 100,
-          lines: 95,
+          lines: 97,
         },
         "src/save-adopt.ts": {
           statements: 95,
@@ -233,10 +233,10 @@ export default defineConfig({
           lines: 97,
         },
         "src/save-watch.ts": {
-          statements: 93,
-          branches: 87,
+          statements: 95,
+          branches: 88,
           functions: 100,
-          lines: 93,
+          lines: 95,
         },
         "src/server-read.ts": {
           statements: 98,

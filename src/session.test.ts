@@ -87,6 +87,24 @@ describe("session step", () => {
     expect(troubleMark(session)).toBe("");
   });
 
+  it("marks a first use taught on a refused move, and records nothing", () => {
+    const ada = { name: "Ada", rank: 0, trips: 1, post: "borer" } as const;
+    const session = playing({ ...createMountain(), engineers: [ada] });
+    const move = {
+      kind: "move",
+      move: { kind: "buyTier", id: "drill" },
+    } as const;
+    const refused = step(session, move, 0);
+    expect(refused.effects).toContainEqual({
+      kind: "moved",
+      result: expect.objectContaining({ kind: "refused" }),
+    });
+    expect(codes(refused.effects)).toEqual([]);
+    expect(refused.session.mountain.taught).toContain("engineers");
+    expect(refused.session.mountain.pocket).toBe(session.mountain.pocket);
+    expect(step(refused.session, move, 0).session).toBe(refused.session);
+  });
+
   it("starts a new run with no news, and remembers the cleared homecomings", () => {
     const session = playing();
     const begun = step(

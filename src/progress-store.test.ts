@@ -1365,7 +1365,10 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
         data: { source: "phone" },
       }),
     );
-    expect(progress.getSnapshot().mountain).toEqual(minedMountain(4));
+    expect(progress.getSnapshot().log).toContain("save.phone failed");
+    await vi.waitFor(() => {
+      expect(docs.get("test-dad")).toEqual(minedMountain(4));
+    });
     progress.dispose();
   });
 
