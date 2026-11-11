@@ -1,3 +1,5 @@
+import { skin } from "./board-skin";
+
 /** The board stage, in CSS px (212 x 462 art pixels at 2x). */
 export const BOARD_WIDTH = 424;
 export const BOARD_HEIGHT = 924;
@@ -5,6 +7,9 @@ export const BOARD_HEIGHT = 924;
 const DESK_MIN_WIDTH = 600;
 /** The empty margin kept round the board on a desk. */
 const DESK_LIP = 8;
+/** Half the desk pool's CSS size (340x480 art px at 2x): its centre is the window's (#376). */
+const POOL_HALF_W = 340;
+const POOL_HALF_H = 480;
 
 export interface BoardFit {
   readonly scale: number;
@@ -42,6 +47,20 @@ export function boardFit(
 }
 
 /**
+ * Where the desk's pool and tile start (#376): the pool centred on the window, on an even
+ * pixel, so the 2x art never lands on a half pixel and the tile's seams line up under it.
+ */
+export function deskOrigin(
+  width: number,
+  height: number,
+): { readonly x: number; readonly y: number } {
+  return {
+    x: 2 * Math.round((width / 2 - POOL_HALF_W) / 2),
+    y: 2 * Math.round((height / 2 - POOL_HALF_H) / 2),
+  };
+}
+
+/**
  * Script cannot read env() directly, so a hidden probe takes the insets as
  * padding (board.css) and its computed style reads them back. The probe is
  * removed again.
@@ -69,18 +88,39 @@ export function readSafeInsets(doc: Document = document): SafeInsets {
   return insets;
 }
 
-/** Keeps --board-scale on the root and body.desk in step with the window size and its safe area. */
+/**
+ * The PC's steel housing (#376): the frame skin, outside #app so it takes no tap and no
+ * measure. board.css shows it on a desk only. Mounted once, however often the fit is tracked.
+ */
+function mountHousing(doc: Document): void {
+  if (doc.querySelector(".board-housing") !== null) return;
+  const housing = doc.createElement("div");
+  housing.className = "board-housing";
+  housing.setAttribute("aria-hidden", "true");
+  const app = doc.getElementById("app");
+  if (app === null) doc.body.prepend(housing);
+  else app.before(housing);
+  skin(housing, "frame");
+}
+
+/**
+ * Keeps --board-scale, the desk's origin (--desk-x, --desk-y) and body.desk on the root in
+ * step with the window size and its safe area, and mounts the housing the desk shows.
+ */
 export function trackBoardFit(
   win: Window = window,
   insets: () => SafeInsets = () => readSafeInsets(win.document),
 ): void {
+  const doc = win.document;
+  mountHousing(doc);
   const apply = () => {
     const { scale, desk } = boardFit(win.innerWidth, win.innerHeight, insets());
-    win.document.documentElement.style.setProperty(
-      "--board-scale",
-      String(scale),
-    );
-    win.document.body.classList.toggle("desk", desk);
+    const origin = deskOrigin(win.innerWidth, win.innerHeight);
+    const root = doc.documentElement.style;
+    root.setProperty("--board-scale", String(scale));
+    root.setProperty("--desk-x", `${String(origin.x)}px`);
+    root.setProperty("--desk-y", `${String(origin.y)}px`);
+    doc.body.classList.toggle("desk", desk);
   };
   apply();
   win.addEventListener("resize", apply);

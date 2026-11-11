@@ -93,6 +93,7 @@ const BOARD_SELECTORS = [
   ".engineer-walk",
   ".engineer-page-plates",
   ".engineer-brought-page",
+  ".board-housing",
 ];
 
 /** WCAG 2 contrast ratio of two #rrggbb colours. */
@@ -402,5 +403,40 @@ describe("today's CSS", () => {
 
   it("a hidden board row takes no room (#376)", () => {
     expect(boardCss).toMatch(/^\.board-row\[hidden\] \{[^}]*display:\s*none/m);
+  });
+});
+
+describe("the PC desk (#376)", () => {
+  it("the desk is on body.desk only: the pool over the tile, both at 2x", () => {
+    const rule = /^body\.desk \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    const pool = rule.indexOf("desk-pool.png");
+    const tile = rule.indexOf("desk.png");
+    expect(pool).toBeGreaterThan(-1);
+    expect(tile).toBeGreaterThan(pool);
+    expect(rule).toMatch(
+      /desk-pool\.png"\) var\(--desk-x\) var\(--desk-y\) \/\s*calc\(var\(--art\) \* 340\) calc\(var\(--art\) \* 480\)/,
+    );
+    expect(rule).toMatch(
+      /desk\.png"\) var\(--desk-x\)\s*var\(--desk-y\) \/ calc\(var\(--art\) \* 128\) calc\(var\(--art\) \* 96\)/,
+    );
+  });
+
+  it("the housing stays fixed over the skin's relative position", () => {
+    expect(boardCss).toMatch(
+      /^\.board-housing,\n\.board-housing\.board-skinned \{[^}]*position:\s*fixed/m,
+    );
+    expect(boardCss).toMatch(
+      /^\.board-housing,\n\.board-housing\.board-skinned \{[^}]*pointer-events:\s*none/m,
+    );
+    // Same specificity as .board-skinned:not(.board-note), so it must come after it.
+    expect(boardCss.indexOf(".board-housing,\n")).toBeGreaterThan(
+      boardCss.indexOf(".board-skinned:not(.board-note) {"),
+    );
+  });
+
+  it("the housing shows on the desk only", () => {
+    expect(boardCss).toMatch(
+      /^body\.desk > \.board-housing \{[^}]*display:\s*block/m,
+    );
   });
 });
