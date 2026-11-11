@@ -126,10 +126,13 @@ page is the map, plus the rules that keep it that way.
    `mountain-screen-order.test.ts` pins the order the parts register their
    listeners, the effect row's chips and the root's children. Panels are
    their own modules with a `create…Panel` factory returning their elements
-   and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `ledger-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). The six board cards (#464) are built
+   and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `ledger-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). The eight board cards (#464, #466) are built
    on one shell, `board-card`: `welcome-panel` (welcome back), `arrival-panel`
-   (the layer card and craft done), `save-conflict-panel` (the save conflict)
-   and `screen-prompts` (the other tab and the update). What the welcome,
+   (the layer card and craft done), `save-conflict-panel` (the save conflict),
+   `screen-prompts` (the other tab and the update), `saved-copies-panel`
+   (Saved copies: an inset per copy, built once per copy and rewritten line
+   by line, in a list that scrolls inside the face) and `legacy-panel` (Pass
+   the mine, an alert dialog; Escape is Not yet). What the welcome,
    layer and craft-done cards show comes from `card-views`, pure and with no
    DOM: `welcomeView`, `welcomeNews` (the one rule for when the welcome has
    news, which `arrivalCard` also reads) and `arrivalCard` (the layer card,
@@ -139,7 +142,11 @@ page is the map, plus the rules that keep it that way.
    that press through `pressOnBoard` on the card's own layer, `show(on,
 focus)` (`showCard`, the model's open or close, and the focus once as it
    opens) and `page()` (a new screen that settles again: the conflict's
-   confirm, and the next band or craft on a card that is already up). The
+   confirm, and the next band or craft on a card that is already up). A card
+   the player opened (Saved copies, Pass the mine, #466) passes `dismiss`,
+   which Escape runs, and `from(opener)`: hidden while the focus is on it,
+   the card gives the focus back there. `cardLines` rebuilds a box of lines
+   only when its words change (the welcome's news, the Legacy's rates). The
    cards and today's sheets stand at one z-index in the root's order
    (`screen-panels#cardsFrom`), with the Engineers sheet first so a
    homecoming's welcome paints over it; only the save conflict stands
@@ -161,7 +168,7 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    The panels paint before the New sign, so a card opened in that paint holds
    the sign back. Each paint is safe to repeat: a card takes focus only when
    it opens, and the materials line is rebuilt only when its chips change, and the saved
-   copies sheet rebuilds its rows only when what they show changes.
+   copies card builds each copy's inset once and rewrites only the lines that changed.
    Three small modules carry the screen's decisions: `card-state` is the cards'
    shown state (`showCard` writes it, for the board cards through
    `board-card`'s `show`; `cardUp` reads it), `screen-cover`
@@ -326,7 +333,8 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    key); the field log shows on the other when `writeClipboard` says no.
    Copy field log's `Copied` is the board model's `result` and hold, as a
    row's Done. Saved copies and Pass the mine close the drawer without
-   moving focus and open today's cards until B7c (#465). Tonight
+   moving focus and open their board cards (#466), which give the focus
+   back to the Ledger key when they close. Tonight
    reads `progress.tonightEvents()` only while the drawer is open: the
    ring's events since its mark, which a run's start clears and a copy from
    elsewhere taking the mountain's place (a restore, the cloud's or another

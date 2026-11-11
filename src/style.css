@@ -63,10 +63,6 @@ body {
   display: none;
 }
 
-.menu-card {
-  position: relative;
-}
-
 @keyframes float-up {
   from {
     opacity: 1;
@@ -78,9 +74,7 @@ body {
   }
 }
 
-.start-over,
-.engineers-dialog,
-.saved-copies {
+.engineers-dialog {
   position: fixed;
   inset: 0;
   overflow-y: auto;
@@ -96,37 +90,10 @@ body {
   );
 }
 
-.start-over[hidden],
-.engineers-dialog[hidden],
-.saved-copies[hidden] {
+.engineers-dialog[hidden] {
   display: none;
 }
 
-.start-over-card,
-.menu-card,
-.saved-copies-card,
-.saved-copy {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  width: min(360px, 100%);
-  padding: 32px 24px;
-  border: 2px solid #e8a84a;
-  border-radius: 20px;
-  background: #1e130d;
-  box-shadow: 0 0 48px rgba(232, 168, 74, 0.35);
-  text-align: center;
-}
-
-.start-over-card h2,
-.menu-card h2 {
-  margin: 0;
-  font-size: 1.5rem;
-  color: #e8d4b8;
-}
-
-.menu-close,
 .engineers-close {
   appearance: none;
   width: 100%;
@@ -141,7 +108,6 @@ body {
   cursor: pointer;
 }
 
-.menu-close:focus-visible,
 .engineers-close:focus-visible,
 .engineer-tunnel:focus-visible,
 .engineer-choice:focus-visible,
@@ -159,48 +125,6 @@ body {
   outline-offset: 4px;
 }
 
-.start-over-cancel:focus-visible {
-  outline: 4px solid #e8d4b8;
-  outline-offset: 3px;
-}
-
-.start-over-card {
-  border-color: #c0392b;
-  box-shadow: 0 0 40px rgba(192, 57, 43, 0.35);
-}
-
-.start-over-card h2 {
-  color: #ff8a7a;
-}
-
-.start-over-card p {
-  margin: 0;
-}
-
-.start-over-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-}
-
-.start-over-cancel {
-  appearance: none;
-  min-height: 52px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  font: inherit;
-  font-size: 1.1rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.start-over-cancel {
-  border: 2px solid #f2c46d;
-  background: linear-gradient(#f2c46d, #c98a32);
-  color: #1e130d;
-}
-
 /* Engineers may scroll on a very short phone. */
 .engineers-dialog {
   align-items: flex-start;
@@ -212,42 +136,6 @@ body {
 
 .found-tool[hidden] {
   display: none;
-}
-
-/* M6: pass the mine to your kid. Warm gold, not the red of Start over. */
-.legacy-card {
-  border-color: #f2c46d;
-  box-shadow: 0 0 40px rgba(232, 168, 74, 0.35);
-}
-
-.legacy-card h2 {
-  color: #f2c46d;
-}
-
-/* "Not yet" is the quiet choice here; "Pass it on" is the proud one. */
-.legacy-card .legacy-cancel {
-  border: 2px solid #8a6a45;
-  background: transparent;
-  color: #e8d4b8;
-}
-
-.legacy-confirm {
-  appearance: none;
-  min-height: 52px;
-  padding: 12px 16px;
-  border: 2px solid #f2c46d;
-  border-radius: 12px;
-  background: linear-gradient(#f2c46d, #c98a32);
-  color: #1e130d;
-  font: inherit;
-  font-size: 1.1rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.legacy-confirm:focus-visible {
-  outline: 4px solid #e8d4b8;
-  outline-offset: 3px;
 }
 
 /* Engineers sheet. Full-bleed, and it must not scroll on a short phone. */
@@ -1070,63 +958,6 @@ body {
   }
 }
 
-/* Saved copies' error line and play buttons, named for the conflict they
-   came from. The conflict itself is a board card now (#464). */
-.saved-copies .save-conflict-error {
-  margin: 0;
-  text-align: center;
-}
-
-.saved-copies .save-conflict-play {
-  appearance: none;
-  min-height: 48px;
-  width: 100%;
-  border: 0;
-  border-radius: 12px;
-  background: #e8a84a;
-  color: #120c0a;
-  font: inherit;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.saved-copies .save-conflict-play:active {
-  transform: translateY(2px);
-}
-
-.saved-copies-card {
-  width: min(420px, 100%);
-  max-height: 100%;
-  overflow: hidden;
-}
-
-.saved-copies-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.saved-copy {
-  align-items: stretch;
-  gap: 2px;
-  width: 100%;
-  padding: 8px;
-  text-align: left;
-}
-
-.saved-copy .label {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.15;
-}
-
-.saved-copy.is-earlier-run {
-  opacity: 0.55;
-}
-
 /* Sheet layout. Spacing and colour come from tokens.css. */
 #app {
   gap: var(--space-4);
@@ -1245,48 +1076,6 @@ body {
 
 .engineers-dialog h2 {
   font-size: var(--type-20);
-}
-
-/* M10-6: relics, legacy, welcome and the menu on the shared parts. */
-.menu-card,
-.start-over-card {
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-sheet);
-  background: var(--color-card);
-  box-shadow: none;
-  color: var(--color-ink);
-}
-
-.menu-card h2 {
-  color: var(--color-ink);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-}
-
-/* The one main move on a card: primary. */
-.legacy-confirm {
-  min-height: var(--target-min);
-  border: var(--line) solid var(--color-gold);
-  border-radius: var(--radius-control);
-  background: var(--color-gold);
-  box-shadow: none;
-  color: var(--color-ink-on-gold);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-}
-
-/* Going back, quietly: the same Back as Buys and Upgrades. */
-.menu-close,
-.legacy-cancel,
-.start-over-cancel {
-  min-height: var(--target-min);
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  box-shadow: none;
-  color: var(--color-ink);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
 }
 
 /* ---- Teach parts (M11 #241, the hybrid pattern mocked on #240) ---- */
@@ -1506,54 +1295,4 @@ body {
   .engineer-promote-row
   .engineer-promote.teach-action:disabled {
   opacity: 0.5;
-}
-
-/* #247: the pass-to-kid card reads as the Legacy, its real numbers, then what stays. */
-.legacy-detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
-  width: 100%;
-}
-
-.legacy-detail p {
-  margin: 0;
-  line-height: var(--leading);
-}
-
-.legacy-lead {
-  color: var(--color-gold);
-  font-size: var(--type-20);
-  font-weight: var(--weight-bold);
-}
-
-.legacy-rates {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  margin: 0;
-  padding: var(--space-8);
-  list-style: none;
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-control);
-  color: var(--color-ink);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-}
-
-.legacy-keeps,
-.legacy-fresh {
-  color: var(--color-ink);
-  font-size: var(--type-16);
-}
-
-.legacy-legend {
-  color: var(--color-quiet);
-  font-size: var(--type-16);
-  font-style: italic;
-}
-
-/* Clear of the focus ring, so the last line never touches the first button. */
-.legacy-card .start-over-actions {
-  margin-top: var(--space-8);
 }

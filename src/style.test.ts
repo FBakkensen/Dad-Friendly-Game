@@ -7,11 +7,9 @@ const boardCss = readFileSync("src/board.css", "utf8");
 
 /** Rules whose loss breaks the game silently: jsdom tests don't apply CSS. */
 const REQUIRED_SELECTORS = [
-  ".start-over",
   ".engineers-dialog",
   ".engineer-tunnel",
   ".expedition-chip",
-  ".saved-copies",
 ];
 
 /**
@@ -96,10 +94,14 @@ const BOARD_SELECTORS = [
   ".save-card",
   ".save-conflict-confirm",
   ".board-card .save-conflict-error",
+  ".saved-copies-list",
+  ".saved-copy",
+  ".legacy-lead",
+  ".legacy-rates",
 ];
 
-/** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
-const OVERLAYS = [".start-over", ".engineers-dialog", ".saved-copies"];
+/** The last of today's sheets laid over the game (fixed, inset 0 in style.css). */
+const OVERLAYS = [".engineers-dialog"];
 
 /** WCAG 2 contrast ratio of two #rrggbb colours. */
 function contrast(a: string, b: string): number {
@@ -150,14 +152,11 @@ describe("board.css", () => {
 
   it("stacks the cards in the root's order, the conflict over them all (#464)", () => {
     // Every card and today's sheets stand at one z-index, so the root's order stacks them
-    // (screen-panels#cardsFrom): the Engineers sheet first, under the welcome; the update,
-    // the other tab and saved copies over the welcome and the layer card. The relics drawer
+    // (screen-panels#cardsFrom): the Engineers sheet first, under the welcome; Pass the mine,
+    // the update, the other tab and saved copies over the welcome and the layer card. The relics drawer
     // (#465) is a drawer in the drawers' clip, above every card: a card that comes up closes
     // it (screen-overlays#coverDrawers), and its reveal waits while a card is up.
-    const sheets =
-      /^\.start-over,\n\.engineers-dialog,\n\.saved-copies \{[^}]*z-index:\s*(\d+)/m.exec(
-        css,
-      );
+    const sheets = /^\.engineers-dialog \{[^}]*z-index:\s*(\d+)/m.exec(css);
     expect(Number(sheets?.[1])).toBe(boardZ(".board-card"));
     const raised = [
       ...boardCss.matchAll(/^(\.board-card\.[\w-]+) \{[^}]*z-index/gm),
@@ -168,6 +167,15 @@ describe("board.css", () => {
   it("lets no card body shrink under its words, so an overflow shows in the face (#464)", () => {
     const rule = /^\.board-card-body \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
     expect(rule).toMatch(/flex-shrink:\s*0/);
+    // But Saved copies' (#466): its list of copies scrolls inside the face instead.
+    const shrinks = [
+      ...boardCss.matchAll(
+        /^([^{}\n]*\.board-card-body) \{[^}]*flex-shrink:\s*1/gm,
+      ),
+    ].map((m) => m[1]);
+    expect(shrinks).toEqual([".saved-copies .board-card-body"]);
+    const list = /^\.saved-copies-list \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    expect(list).toMatch(/overflow-y:\s*auto/);
   });
 
   it("keeps the conflict card's rules off Saved copies (#464)", () => {
@@ -379,16 +387,13 @@ describe("style.css", () => {
   });
 
   it("keeps no rule for today's conflict, other tab and update cards (#464)", () => {
-    // Their hooks stay on the board cards. Saved copies still names two of the conflict's
-    // classes for its own error line and buttons, under .saved-copies only.
+    // Their hooks stay on the board cards, as Saved copies' error line and plays do (#466).
     const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
       ([, group = ""]) => group.split(",").map((one) => one.trim()),
     );
     expect(
-      selectors.filter(
-        (one) =>
-          /\.(update-|other-tab|save-pair|save-card|save-conflict)/.test(one) &&
-          !one.startsWith(".saved-copies "),
+      selectors.filter((one) =>
+        /\.(update-|other-tab|save-pair|save-card|save-conflict)/.test(one),
       ),
     ).toEqual([]);
     expect(css).not.toMatch(
@@ -437,14 +442,13 @@ describe("style.css", () => {
     expect(css).toMatch(new RegExp(`^${escaped}[\\s,{\\[:]`, "m"));
   });
 
-  it.each([".start-over", ".engineers-dialog", ".saved-copies"])(
-    "lays %s over the game",
-    (selector) => {
-      const group =
-        /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
-          css.slice(css.indexOf(".start-over,\n.engineers-dialog,")),
-        );
-      expect(group?.[1]?.split(",\n")).toContain(selector);
-    },
-  );
+  it("lays .engineers-dialog over the game", () => {
+    expect(css).toMatch(/^\.engineers-dialog \{[^}]*position:\s*fixed/m);
+  });
+
+  it("keeps no rule for today's Saved copies, Pass the mine, Start over and menu cards (#466)", () => {
+    expect(css).not.toMatch(
+      /\.(start-over|menu-|saved-cop|legacy-(card|detail|lead|rates|keeps|fresh|legend|cancel|confirm)|earlier-run)/,
+    );
+  });
 });

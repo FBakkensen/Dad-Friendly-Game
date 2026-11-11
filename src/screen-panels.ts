@@ -71,6 +71,7 @@ export function createEarlyCards(
   const legacy = createLegacyPanel({
     progress,
     getView: ctx.view,
+    board,
     onPassed: deps.onPassed,
     beforeOpen: deps.closeLedger,
     requestRender: ctx.paint,
@@ -248,6 +249,7 @@ export function createSheetPanels(
   const savedCopies = createSavedCopiesPanel({
     progress,
     now,
+    board,
     requestRender: ctx.paint,
   });
   const conflictSheet = createSaveConflictPanel({

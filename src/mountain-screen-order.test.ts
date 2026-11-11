@@ -210,10 +210,10 @@ describe("the screen's build order", () => {
       "board-card welcome-back",
       "board-card layer-arrival",
       "board-card craft-notice",
-      "start-over legacy-dialog",
+      "board-card legacy-dialog",
       "board-card update-prompt",
       "board-card other-tab",
-      "saved-copies",
+      "board-card saved-copies",
       "board-card save-conflict",
     ]);
   });

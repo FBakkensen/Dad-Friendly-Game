@@ -25,6 +25,7 @@ import {
   coversBoard,
   PAST_SETTLE_MS,
   noScroll,
+  cardRisen,
 } from "./kit.mjs";
 import { stepTapClock } from "../../tools/browser/harness.ts";
 
@@ -366,12 +367,17 @@ for (const viewport of [[424, 924]]) {
       `${label} pass-the-mine confirm is laid over the game`,
     );
     check(await noScroll(page), `${label} pass-the-mine confirm has no scroll`);
-    const fits = await page.$eval(".legacy-card", (card) => {
+    // The card is a board card (#466): its face, risen, inside the screen.
+    await cardRisen(page, "legacy");
+    const fits = await page.$eval(".legacy-dialog .board-card-face", (card) => {
       const box = card.getBoundingClientRect();
       return box.top >= 0 && box.bottom <= innerHeight;
     });
     check(fits, `${label} pass-the-mine card fits the screen`);
-    await page.tap(".legacy-confirm");
+    // A keyboard press is never early: the card's settle does not keep it.
+    await page.$eval(".legacy-confirm", (button) => {
+      button.click();
+    });
     check(
       await page.$eval(".legacy-dialog", (el) => el.hidden),
       `${label} pass-the-mine confirm closes`,
