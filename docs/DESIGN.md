@@ -78,7 +78,7 @@ The tended Great Machine's 5 is `TENDED_MACHINE_STAFF` in `src/engineers.ts`.
 - Workers: 25, 50, 100.
 - Kids: none.
 
-**Kid runs** (`src/scale.ts`): `KID_RUN_GROWTH` is 3/8, so each run lasts about that share of run 1 longer than the last, with no cap. `MAX_STRETCH` is 100,000,000, the biggest stretch a save may carry (above `kidStretch(1000)`, about 70.8M).
+**Kid runs** (`src/scale.ts`): `KID_RUN_GROWTH` is 3/8, so each run lasts about that share of run 1 longer than the last. `MAX_STRETCH` is 1,000,000 (#366): `kidStretch` stops there, at about Legacy 240, years of play past any real run. At that stretch the whole mountain is about 4.5e15 stones, half of JavaScript's safe-integer limit, so the pocket and the save stay exact whole numbers. A save from an older build with a bigger stretch (up to 100,000,000) loads at the cap.
 
 ## What happens to the 3×3 grid
 

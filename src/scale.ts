@@ -13,10 +13,12 @@ export const MOUNTAIN_STONES = 240_000_000;
 export const KID_RUN_GROWTH = 3 / 8;
 
 /**
- * The biggest stretch a save may carry. Above kidStretch(1000), the rules' Legacy cap, so runs never stop growing.
- * #356 raised it with KID_RUN_GROWTH: kidStretch(1000) is now about 70.8M.
+ * The biggest stretch a run reaches (#366). At this k the whole mountain is
+ * about 4.5e15 stones, half of JavaScript's safe-integer limit, so the pocket
+ * and the save stay exact whole numbers. kidStretch reaches it at about
+ * Legacy 240, years of play past any real run; until then runs keep growing.
  */
-export const MAX_STRETCH = 100_000_000;
+export const MAX_STRETCH = 1_000_000;
 
 /** The kid bonus per Legacy (mirrors LEGACY_STEP in rates.ts, a leaf here). */
 const BONUS_STEP = 0.5;
@@ -25,12 +27,12 @@ const BONUS_STEP = 0.5;
  * The stretch for the run after `legacy` passes to the kid:
  * k = bonus × (1 + g·legacy)². A run lasts about run 1 × √(k / bonus)
  * (the lab fit), so run N lasts about run 1 × (1 + g·(N-1)): a steady step
- * longer every run, with no cap.
+ * longer every run, until MAX_STRETCH holds it (#366).
  */
 export function kidStretch(legacy: number): number {
   const g = KID_RUN_GROWTH * factor("stretch.growth");
   const bonus = 1 + BONUS_STEP * legacy;
-  return bonus * (1 + g * legacy) ** 2;
+  return Math.min(MAX_STRETCH, bonus * (1 + g * legacy) ** 2);
 }
 
 /** From run 2 on, the Great Machine opens at this share of its depth. */
