@@ -439,11 +439,16 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     const loadedNewer = parseSaveValue(newer.data());
     expect(loadedNewer?.mountain.recipes).toEqual(["iron-rails"]);
     expect(loadedNewer?.mountain.bench).toBeUndefined();
-    expect(loadedNewer?.mountain.crafted).toEqual({ "iron-rails": 1 });
+    expect(loadedNewer?.mountain.crafted).toEqual({
+      ...NOTHING_CRAFTED,
+      "iron-rails": 1,
+    });
     expect(loadedNewer?.mountain.kept).toEqual({
       recipes: ["future-bit"],
       bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
       crafted: { "future-bit": 3 },
+      seen: [],
+      taught: [],
     });
     const kept = serializeSave({
       mountain: loadedNewer?.mountain ?? createMountain(),

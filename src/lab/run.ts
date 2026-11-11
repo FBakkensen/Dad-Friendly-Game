@@ -142,8 +142,7 @@ export function promoteAsap(
     if (promoted === next) {
       break;
     }
-    const engineer = promoted.engineers[count];
-    if (engineer !== undefined) {
+    for (const engineer of promoted.engineers.slice(count)) {
       hired.push({ name: engineer.name, price });
     }
     next = promoted;
