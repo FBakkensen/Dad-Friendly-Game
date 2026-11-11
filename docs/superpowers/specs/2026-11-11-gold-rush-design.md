@@ -27,13 +27,20 @@ The lever should reward being there without punishing absence (`.claude/rules/da
 These follow the review of this spec. Each names the mechanism to extend, so there is no second home for a multiplier or a countdown.
 
 - **Where the rush lives.** It is session state, like `Trouble`: never saved, carried into moves through the same context, and read by `effectiveRates(mountain, now, …)`, so the crew line, the Buys cards, live mining and the lab agree. Only its time left is kept on the device.
-- **Stacking.** The rush multiplies the live crew on top of the strongest crew timer (`liveCrewTimer`: Overtime, axle grease, a blasting charge). It does not join the strongest-wins rule, because that would shadow a running Overtime while its clock burns, a hidden cost. A boosted crew in a rush digs ×20. The lab grades it.
-- **The countdown.** `CrewBoost`'s `source` (`src/crew-boost.ts`) gains the Gold rush, so the dial and Running now show it with no new countdown home.
+- **Stacking.** The rush multiplies the live crew on top of the strongest crew timer (`liveCrewTimer`: Overtime, axle grease, a blasting charge). It does not join the strongest-wins rule, because that would shadow a running Overtime while its clock burns, a hidden cost. A boosted crew in a rush digs ×20. The lab grades it. DESIGN.md's strongest-timer lines name the rush as the one exception.
+- **The countdown.** `CrewBoost`'s `source` (`src/crew-boost.ts`) gains the Gold rush, so the dial and Running now show it with no new countdown home. While the rush and another crew timer both run, the dial shows the rush, Running now lists both, and the crew line shows the product.
 - **An hour away** is the open's `AwayReport.awayMs`, the same away time that gates the welcome card and the quiet note. It reads the save's `lastSeen`, so an hour on the PC counts as being there for the phone too.
 - **Where he can see it.** The quick vein's 20 seconds start once the welcome-back card is closed. While a drawer or sheet covers the mine window, the quick vein's wait and glint hold, and they go on when the board shows again. Shopping first never costs him the rush.
 - **Vein effects.** The Lantern, a crystal flare and the crystal lamp do not shorten the 20 seconds. The old miner's lamp's longer glint does apply.
 - **Ends.** A rush ends when the mountain bottoms out, and on Pass to your kid or Start over (`vein.reset`).
 - **Valuation.** The quick vein is not bought, so it does not enter `valueOf`'s vein gain.
+
+## Numbers (starting values, the lab tunes them)
+
+- Quick vein after at least 60 minutes away; it glints about 20 seconds after the welcome-back card closes.
+- Gold rush ×10 crew for 90 seconds.
+
+Rough effect, per sitting, from today's rates: the check-in dad (four 2-minute sittings) gains about 12%, the casual dad (two 10-minute sittings) about 9%, and the Marathon (one 3-hour sitting) about 3%. One rush per sitting means the long sitting gains least. The lab tunes the multiplier and length inside ×5–×15 and 60–120 seconds by feel: a check-in should feel the rush, and every strict guardrail stays green.
 
 ## The extreme-win call
 
