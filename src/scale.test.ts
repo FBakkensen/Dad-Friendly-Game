@@ -395,6 +395,7 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
       remaining: MOUNTAIN_STONES - BAND_STARTS[3],
       stretch: MAX_STRETCH,
       helpers: 10,
+      carts: 3,
       upgrades: { tap: 9 },
     };
     // The most a pocket can hold: every stone of this run.
@@ -405,5 +406,9 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
     const tap = upgradeCost(upgradeById("tap"), 9, oneOffStretch(deep)) ?? 0;
     expect(tap).toBeGreaterThan(Number.MAX_SAFE_INTEGER);
     expect(buyUpgrade(full, "tap")).toBe(full);
+    // The same pocket still buys a level it can afford, so only the price
+    // stops the one above.
+    const cheap = { ...full, upgrades: { tap: 0 } };
+    expect(buyUpgrade(cheap, "tap").upgrades?.tap).toBe(1);
   });
 });
