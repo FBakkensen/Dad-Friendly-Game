@@ -775,6 +775,10 @@ body {
   .board-flap-d.is-flipping {
     animation: none;
   }
+  /* Over the rise's own rule, which stands later in this file. */
+  .board-card .board-card-face {
+    animation: none;
+  }
 }
 
 /* The save line's spoken separator: in the text, not drawn. */
@@ -2746,7 +2750,124 @@ button.board-row:focus-visible {
   display: none;
 }
 
+/* ---------- the board card shell (#464) ----------
+   A card that opens by itself or when something happens: a shade over the
+   board down to the save line, under the drawers' clips and the save line,
+   and a riveted face rising from the save line into the drawer's box. The
+   face takes its height from its content and never rises above the drawer's
+   top. The shade takes every tap and does nothing with it. */
+.board-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  width: var(--board-w);
+  height: calc(var(--board-h) - var(--save-h));
+  background: var(--board-shade);
+  pointer-events: auto;
+}
+
+.board-card[hidden] {
+  display: none;
+}
+
+.board-card-face,
+.board-card-face.board-skinned {
+  position: absolute;
+  left: calc(var(--art) * 4);
+  right: calc(var(--art) * 4);
+  bottom: calc(var(--art) * 2);
+  max-height: calc(
+    var(--board-h) - var(--save-h) - var(--sheet-top) - var(--art) * 2
+  );
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 4);
+  padding: calc(var(--art) * 7);
+  overflow: hidden;
+  font-family: "Barlow Condensed", sans-serif;
+  color: var(--board-ink);
+}
+
+/* The drawer's 6 hard steps, as a keyframe: a card comes from display none. */
+.board-card-face {
+  animation: board-card-rise 0.24s steps(6);
+}
+
+@keyframes board-card-rise {
+  from {
+    transform: translateY(calc(100% + var(--art) * 2));
+  }
+  to {
+    transform: none;
+  }
+}
+
+.board-card-title {
+  margin: 0;
+  font-size: var(--board-type-22);
+  line-height: var(--board-title-lead);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--board-ink);
+}
+
+.board-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 4);
+  min-height: 0;
+}
+
+.board-card-line {
+  margin: 0;
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+  color: var(--board-ink);
+  overflow-wrap: anywhere;
+}
+
+.board-card-line.is-quiet {
+  color: var(--board-ink-2);
+}
+
+.board-card-big {
+  margin: 0;
+  font-family: "Share Tech Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--board-type-40);
+  line-height: 1.2;
+  color: var(--board-amber);
+}
+
+.board-card-art {
+  display: block;
+  align-self: center;
+  image-rendering: pixelated;
+}
+
+.board-card-foot {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 4);
+}
+
+.board-card-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: calc(var(--art) * 4);
+}
+
+.board-card-plate {
+  flex: none;
+  width: 100%;
+}
+
 /* Last, so a hidden part hides over its own display. */
+.board-card-face > [hidden],
+.board-card-body > [hidden],
+.board-card-foot > [hidden],
 .board-sheet > [hidden],
 .board-sheet-list > [hidden],
 .board-sheet-how [hidden] {

@@ -88,6 +88,13 @@ const BOARD_SELECTORS = [
   ".workshop-timers",
   ".workshop-pager",
   ".workshop-sound",
+  ".board-card",
+  ".board-card-face",
+  ".board-card-title",
+  ".board-card-line",
+  ".board-card-big",
+  ".board-card-foot",
+  ".board-card-plate",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
@@ -142,6 +149,18 @@ describe("board.css", () => {
     );
     expect(boardZ(".board-saveline")).toBeGreaterThan(highest);
     expect(boardZ(".board-drawer-clip")).toBeGreaterThan(highest);
+    // The board cards stand under the drawers' clips and the save line (#464).
+    expect(boardZ(".board-card")).toBe(10);
+    expect(boardZ(".board-saveline")).toBeGreaterThan(boardZ(".board-card"));
+    expect(boardZ(".board-sheet-clip")).toBeGreaterThan(boardZ(".board-card"));
+  });
+
+  it("stops a board card at the save line (#464)", () => {
+    const rule = /^\.board-card \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
+    expect(rule).toMatch(/position:\s*absolute/);
+    expect(rule).toMatch(
+      /height:\s*calc\(var\(--board-h\) - var\(--save-h\)\)/,
+    );
   });
 
   it("writes the plate buttons' words at 4.5:1 on the key skin", () => {
