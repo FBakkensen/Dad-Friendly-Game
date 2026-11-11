@@ -1118,6 +1118,15 @@ export function refundBackWords(parts: readonly string[]): string {
  * economy; these lines are not that tuning.
  */
 export const WORKSHOP_TITLE = "Workshop";
+
+/** The Workshop drawer's resting kick (#374), the mockup's. */
+export const WORKSHOP_KICK = "One bench. Crafts finish while you are away";
+
+/** The legend over the Workshop drawer's recipe rows (#374). */
+export const RECIPES_LEGEND = "Recipes";
+
+/** The dark row for recipes not found yet (#374); today's hint is its info. */
+export const SKETCH_NAME = "Sketch";
 /** The one-time note above the bar (M11 #241, mocked on #240). */
 export const WORKSHOP_NOTE = "New · The Workshop is open";
 

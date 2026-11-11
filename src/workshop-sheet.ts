@@ -25,6 +25,7 @@ import {
   craftPriceWords,
   craftTimeWords,
   craftSpeedPair,
+  formatClock,
   formatCraftSpeed,
   formatCrewSpeed,
   crewAlreadyWords,
@@ -102,12 +103,14 @@ export type RecipeCard = {
   readonly effect: string;
   /** Stones, when this craft spends any. Materials sit in `costs`. */
   readonly stones: string | undefined;
+  /** "500K" on the drawer row's tag, when this craft spends stones (#374). */
+  readonly stonesTag: string | undefined;
   readonly costs: readonly CostChip[];
   readonly time: string;
   readonly action: CraftAction;
 };
 
-type HiddenCard = {
+export type HiddenCard = {
   readonly kind: "hidden";
   readonly hint: string;
 };
@@ -121,6 +124,8 @@ export type BenchView =
       readonly title: string;
       readonly aside: string;
       readonly progress: number;
+      /** "8:12", or "ready" once the clock has rung (#374). */
+      readonly clock: string;
       readonly cancel: string;
       readonly recipe: RecipeId;
     }
@@ -129,6 +134,7 @@ export type BenchView =
       readonly title: string;
       readonly aside: string;
       readonly progress: number;
+      readonly clock: string;
     };
 
 const TIER_WORD: Readonly<
@@ -549,6 +555,11 @@ function refundParts(mountain: Mountain, now: number): readonly string[] {
   return parts;
 }
 
+/** The bench's clock on its drawer row: "8:12", or "ready" once it has rung. */
+function benchClock(leftMs: number): string {
+  return leftMs <= 0 ? "ready" : formatClock(leftMs);
+}
+
 function benchProgress(startedAt: number, endsAt: number, now: number): number {
   const span = endsAt - startedAt;
   return span <= 0 ? 1 : Math.min(1, Math.max(0, (now - startedAt) / span));
@@ -564,6 +575,7 @@ export function benchView(mountain: Mountain, now: number): BenchView {
       title: benchUnknownWords(held.endsAt - now),
       aside: BENCH_UNKNOWN_ASIDE,
       progress: benchProgress(held.startedAt, held.endsAt, now),
+      clock: benchClock(held.endsAt - now),
     };
   }
   if (bench === undefined) {
@@ -581,6 +593,7 @@ export function benchView(mountain: Mountain, now: number): BenchView {
     title: benchBusyWords(name, left),
     aside: BENCH_BUSY_ASIDE,
     progress,
+    clock: benchClock(left),
     cancel: left <= 0 ? "" : refundBackWords(refundParts(mountain, now)),
     recipe: bench.recipe,
   };
@@ -672,6 +685,7 @@ function recipeCard(
     level: levelLine(recipe, level),
     effect: craftEffect(recipe, mountain, now),
     stones: cost.stones > 0 ? stoneCostWords(cost.stones) : undefined,
+    stonesTag: cost.stones > 0 ? formatCompact(cost.stones) : undefined,
     costs,
     time: craftTimeWords(recipe.craftMs),
     action: actionFor(mountain, recipe.id, cost.stones, now),
@@ -721,17 +735,17 @@ export function workshopCards(
 /** A short phone whose four cards would overflow takes three a page (#347). */
 export const SHORT_WORKSHOP_PAGE = 3;
 
-/** Pages of four (or `size`). One page when the shed is still small. */
-export function workshopPages(
-  cards: readonly WorkshopCard[],
+/** Pages of four (or `size`), of cards or of the drawer's parts. One page when the shed is small. */
+export function workshopPages<T>(
+  items: readonly T[],
   size: number = WORKSHOP_PAGE,
-): readonly (readonly WorkshopCard[])[] {
-  if (cards.length === 0) {
+): readonly (readonly T[])[] {
+  if (items.length === 0) {
     return [[]];
   }
-  const pages: WorkshopCard[][] = [];
-  for (let index = 0; index < cards.length; index += size) {
-    pages.push(cards.slice(index, index + size));
+  const pages: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    pages.push(items.slice(index, index + size));
   }
   return pages;
 }
