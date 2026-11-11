@@ -49,6 +49,7 @@ These build rulings follow from it, and replace the matching ones above:
 - **Stacking.** The rush adds its held stones a second (`rushPerSecond`) on top of the crew in `effectiveRates`, so the crew line, the dial, live mining and the lab agree. It does not multiply Overtime: Overtime and a rush dig ×11, not ×20, because the held stones are a fixed amount.
 - **Arming.** The quick vein comes when held stones wait (`rushOwed`), on each settled time away, so a reload in its 20-second wait still brings it.
 - **Valuation.** What a buy is worth reads the crew without the rush (`withoutRush`).
+- **Single-share moves to 0.27 (Flemming, 11 Nov 2026).** With the rush paid from the haul every finish day matches main at 3 and 20 seeds, and `optimizer-regret`, `extreme-win` and `dominant-share` read as on main. Only `single-share` rose (casual 0.246 to 0.262, the checker 0.259 to 0.267, at 20 seeds): at the open a big buy waits about a minute for the rush to bring in the held stones. No rush size in the band changed it. He picked moving the bound over letting buys spend held stones, or parking the rush.
 - **The lab** plays the rush only. It has always left golden veins out, and the quick vein is a vein come early, so its own pay is not played.
 
 ## Numbers (starting values, the lab tunes them)

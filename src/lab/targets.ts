@@ -160,8 +160,10 @@ export const TARGETS: readonly Target[] = [
     op: "lte",
     // Flemming, 8 Nov 2026 (#357): 0.26 after the milestone marks; the
     // checker's opening Topsoil and deep Great Machine stretch are fixed
-    // one-buy moments.
-    value: 0.26,
+    // one-buy moments. Flemming, 11 Nov 2026 (#468): 0.27, because a big
+    // buy now waits about a minute at the open for the Gold rush to bring
+    // in the held stones.
+    value: 0.27,
     why: "Most moments should offer more than one live option.",
   },
   {
