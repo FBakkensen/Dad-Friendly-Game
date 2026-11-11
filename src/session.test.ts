@@ -101,6 +101,16 @@ describe("session step", () => {
     expect(troubleMark(session)).toBe("");
   });
 
+  it("records a previewed trouble once, not again for the same moment", () => {
+    const preview = { kind: "preview-trouble", tier: "cart" } as const;
+    const first = step(playing(), preview, 7_000);
+    expect(codes(first.effects)).toEqual(["trouble.start"]);
+    expect(codes(step(first.session, preview, 7_000).effects)).toEqual([]);
+    expect(codes(step(first.session, preview, 8_000).effects)).toEqual([
+      "trouble.start",
+    ]);
+  });
+
   it("marks a first use taught on a refused move, and records nothing", () => {
     const ada = { name: "Ada", rank: 0, trips: 1, post: "borer" } as const;
     const session = playing({ ...createMountain(), engineers: [ada] });

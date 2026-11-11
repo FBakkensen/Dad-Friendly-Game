@@ -166,6 +166,12 @@ export default defineConfig({
           lines: 100,
         },
         // The store's session core and sync service (#414), split out of progress-store.
+        "src/save-format.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/session.ts": {
           statements: 100,
           branches: 99,

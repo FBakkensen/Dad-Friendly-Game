@@ -342,11 +342,9 @@ function herKick(
   engineer: DutyEngineer,
   index: number,
 ): string {
-  if (engineer.post === "tunnel") {
-    const trip = tripOf(ctx, engineer.name);
-    return trip === undefined
-      ? dutySentence(engineer)
-      : tripDetail(engineer.name, trip.leftMs);
+  const trip = tripOf(ctx, engineer.name);
+  if (trip !== undefined) {
+    return tripDetail(engineer.name, trip.leftMs);
   }
   const machine = machinePost(engineer.post);
   return dutySentence(

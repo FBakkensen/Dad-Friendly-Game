@@ -34,6 +34,7 @@ import {
   RECIPE_IDS,
   craftedLevel,
   grantRecipes,
+  type Crafted,
   layerRecipeIds,
   type RecipeId,
 } from "./workshop";
@@ -134,7 +135,7 @@ type SessionNews = {
 type Baselines = {
   readonly reveal: number | undefined;
   readonly layer: number | undefined;
-  readonly craft: Readonly<Partial<Record<RecipeId, number>>> | undefined;
+  readonly craft: Crafted | undefined;
 };
 
 export type Session = {
@@ -692,18 +693,29 @@ function noteLayers(session: Session, out: Effects): Session {
   };
 }
 
+/** The crafts whose level rose past the baseline, each recorded once. */
+function craftsSince(
+  mountain: Mountain,
+  noted: Crafted,
+  now: number,
+  out: Effects,
+): CraftNotice[] {
+  const fitted: CraftNotice[] = [];
+  for (const id of RECIPE_IDS) {
+    const level = craftedLevel(mountain, id);
+    if (level > noted[id]) {
+      out.record("craft.done", { id, count: level });
+      fitted.push({ id, level, mountain, at: now });
+    }
+  }
+  return fitted;
+}
+
 /** A craft whose level rose since the baseline, with the mountain the screen words it from. */
 function noteCrafts(session: Session, now: number, out: Effects): Session {
   const noted = session.baselines.craft;
-  const fitted: CraftNotice[] = [];
-  for (const id of noted === undefined ? [] : RECIPE_IDS) {
-    const level = craftedLevel(session.mountain, id);
-    if (level <= (noted?.[id] ?? 0)) {
-      continue;
-    }
-    out.record("craft.done", { id, count: level });
-    fitted.push({ id, level, mountain: session.mountain, at: now });
-  }
+  const fitted =
+    noted === undefined ? [] : craftsSince(session.mountain, noted, now, out);
   return {
     ...session,
     news: addNotices(
