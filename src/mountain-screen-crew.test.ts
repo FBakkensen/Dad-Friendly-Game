@@ -37,6 +37,9 @@ import { UPGRADES, upgradeById, upgradeCost, type UpgradeId } from "./upgrades";
 import { upgradesOrder } from "./upgrades-panel";
 import { LOST_TOOLS } from "./lost-tools";
 import {
+  LEDGER_SHEET,
+  RELICS_GOAL,
+  STONES_NAME,
   createMemoryStorage,
   mountScreen,
   setReducedMotion,
@@ -3459,8 +3462,8 @@ describe("pass the mine to your kid (#131)", () => {
   };
   const dialog = (screen: ReturnType<typeof mountScreen>) =>
     screen.root.querySelector<HTMLElement>(".legacy-dialog");
-  const menuPass = (screen: ReturnType<typeof mountScreen>) =>
-    screen.root.querySelector<HTMLButtonElement>(".menu-pass");
+  const passPlate = (screen: ReturnType<typeof mountScreen>) =>
+    screen.root.querySelector<HTMLButtonElement>(".ledger-pass");
 
   it("is offered on the Legend card, asks first, and hands down a Legacy", () => {
     const storage = seeded({
@@ -3500,8 +3503,8 @@ describe("pass the mine to your kid (#131)", () => {
       ?.click();
 
     expect(dialog(screen)?.hidden).toBe(true);
-    expect(screen.text(".stones-left")).toBe(
-      `${formatCount(stonesLeft(createMountain()) * kidStretch(1))} stones left`,
+    expect(screen.text(STONES_NAME)).toBe(
+      `${formatCompact(stonesLeft(createMountain()) * kidStretch(1))} stones left`,
     );
     expect(screen.pocket()).toBe("Stones 0");
     // A new mountain is not a spend.
@@ -3512,31 +3515,39 @@ describe("pass the mine to your kid (#131)", () => {
     expect(badge?.getAttribute("aria-label")).toBe(
       "Legacy 1: your crew and taps are ×1.5",
     );
-    expect(screen.text(".goal")).toContain("Your kid's mine");
+    expect(screen.text(RELICS_GOAL)).toContain("Your kid's mine");
     expect(readSessionSave({ storage })?.mountain.legacy).toBe(1);
     screen.root.remove();
   });
 
-  it("waits in the menu at the bottom; 'Not yet' changes nothing", () => {
+  it("waits behind the Ledger's Pass plate at the bottom; 'Not yet' changes nothing", () => {
     const screen = mountScreen({
       storage: seeded(minedMountain(MOUNTAIN_STONES)),
     });
-    expect(menuPass(screen)?.hidden).toBe(false);
-    menuPass(screen)?.click();
+    document.body.append(screen.root);
+    const ledger = screen.root.querySelector<HTMLElement>(LEDGER_SHEET);
+    const key = screen.root.querySelector(".board-key[data-key=ledger]");
+    expect(passPlate(screen)?.hidden).toBe(false);
+    screen.openLedger();
+    passPlate(screen)?.click();
+    expect(ledger?.classList.contains("is-open")).toBe(false);
     expect(dialog(screen)?.hidden).toBe(false);
     dialog(screen)?.querySelector<HTMLButtonElement>(".legacy-cancel")?.click();
     expect(dialog(screen)?.hidden).toBe(true);
-    expect(screen.text(".stones-left")).toBe("0 stones left");
-    menuPass(screen)?.click();
+    expect(document.activeElement).toBe(key);
+    expect(screen.text(STONES_NAME)).toBe("0 stones left");
+    screen.openLedger();
+    passPlate(screen)?.click();
     dialog(screen)?.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
     );
     expect(dialog(screen)?.hidden).toBe(true);
+    screen.root.remove();
   });
 
   it("is never offered before the bottom", () => {
     const screen = mountScreen({ storage: seeded(minedMountain(99_000_000)) });
-    expect(menuPass(screen)?.hidden).toBe(true);
+    expect(passPlate(screen)?.hidden).toBe(true);
     expect(
       screen.root.querySelector<HTMLElement>(".legacy-badge")?.hidden,
     ).toBe(true);
@@ -3630,10 +3641,12 @@ describe("player-facing workers (#139)", () => {
       screen.root
         .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
         ?.click();
-      expect(screen.root.querySelector<HTMLElement>(".game-menu")?.hidden).toBe(
-        false,
-      );
-      screen.root.querySelector<HTMLButtonElement>(".menu-close")?.click();
+      expect(
+        screen.root.querySelector(LEDGER_SHEET)?.classList.contains("is-open"),
+      ).toBe(true);
+      screen.root
+        .querySelector<HTMLButtonElement>(`${LEDGER_SHEET} .board-sheet-back`)
+        ?.click();
 
       // The shelf opens from the Relic shelf key in a socket's note (#370).
       screen.root.querySelector<HTMLButtonElement>(".board-socket")?.click();

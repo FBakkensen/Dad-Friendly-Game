@@ -32,63 +32,6 @@ body {
   background-attachment: fixed;
 }
 
-.lantern {
-  display: block;
-  flex: none;
-  width: 2.75rem;
-  height: auto;
-  aspect-ratio: 1;
-  object-fit: contain;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-
-.stones-left {
-  text-align: center;
-  margin: 0;
-  font-size: var(--type-20);
-  white-space: nowrap;
-  font-weight: 700;
-  color: #f2c46d;
-  text-shadow: 0 0 18px rgba(232, 168, 74, 0.45);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Materials met so far. One or two lines, so the tier cards stay on screen. */
-.material-line {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 2px 6px;
-  width: 100%;
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 650;
-  line-height: 1.15;
-  color: #e8d4b8;
-}
-
-.material-line:empty {
-  display: none;
-}
-
-.material-bit {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  white-space: nowrap;
-}
-
-.material-line .dot {
-  color: #a88a62;
-}
-
-.material-line .mat {
-  width: 16px;
-  height: 16px;
-}
-
 /* Running boosts: small chips in the mountain's top corner, never in the flow. */
 .boost-chips {
   position: absolute;
@@ -118,39 +61,6 @@ body {
 .boost-chip[hidden],
 .expedition-chip[hidden] {
   display: none;
-}
-
-.goal,
-.auth-status {
-  margin: 0;
-  font-size: 1rem;
-  letter-spacing: 0.02em;
-}
-
-.auth-action {
-  appearance: none;
-  min-height: 64px;
-  min-width: min(320px, 100%);
-  padding: 16px 24px;
-  border: 0;
-  border-radius: 12px;
-  background: #e8a84a;
-  color: #120c0a;
-  font: inherit;
-  font-size: 1.25rem;
-  font-weight: 650;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.auth-action:disabled {
-  cursor: wait;
-  opacity: 0.7;
-}
-
-.auth-action:focus-visible {
-  outline: 4px solid #e8d4b8;
-  outline-offset: 4px;
 }
 
 .other-tab-body {
@@ -184,48 +94,8 @@ body {
   outline-offset: 4px;
 }
 
-.goal {
-  max-width: 34ch;
-  min-height: 0;
-  text-align: center;
-  font-size: 1.1rem;
-  color: #c9b391;
-}
-
-.layer-hint {
-  margin: 0;
-  max-width: 36ch;
-  text-align: center;
-  font-size: 0.9rem;
-  line-height: 1.2;
-  color: #c9b391;
-}
-
-.layer-hint[hidden] {
-  display: none;
-}
-
-.copied-float {
-  position: absolute;
-  pointer-events: none;
-  font-weight: 800;
-  color: #ffe08a;
-  text-shadow:
-    0 1px 0 #3a2410,
-    0 0 8px rgba(255, 214, 102, 0.8);
-  animation: float-up 1.2s ease-out forwards;
-}
-
 .menu-card {
   position: relative;
-}
-
-.copied-float {
-  left: 50%;
-  top: 42%;
-  z-index: 3;
-  font-size: 1.4rem;
-  transform: translate(-50%, -50%);
 }
 
 @keyframes float-up {
@@ -239,20 +109,12 @@ body {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .copied-float {
-    animation: none;
-  }
-}
-
 .welcome-back,
 .layer-arrival,
 .craft-notice,
 .relic-reveal,
 .shelf-dialog,
 .start-over,
-.game-menu,
-.field-log-sheet,
 .engineers-dialog,
 .update-prompt,
 .other-tab,
@@ -280,8 +142,6 @@ body {
 .relic-reveal[hidden],
 .shelf-dialog[hidden],
 .start-over[hidden],
-.game-menu[hidden],
-.field-log-sheet[hidden],
 .engineers-dialog[hidden],
 .other-tab[hidden],
 .save-conflict[hidden],
@@ -408,35 +268,6 @@ body {
   outline-offset: 4px;
 }
 
-.guide {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: min(320px, 100%);
-}
-
-.guide-bar {
-  width: 100%;
-  height: 8px;
-  overflow: hidden;
-  border: 1px solid #6b4a2a;
-  border-radius: 999px;
-  background: #1e130d;
-}
-
-.guide-bar[hidden] {
-  display: none;
-}
-
-.guide-bar span {
-  display: block;
-  height: 100%;
-  width: 0;
-  background: linear-gradient(90deg, #c98a32, #ffd666);
-  box-shadow: 0 0 8px rgba(255, 214, 102, 0.6);
-}
-
 .reveal-kicker {
   margin: 0;
   font-size: 0.95rem;
@@ -547,30 +378,7 @@ body {
   font-size: 1.25rem;
 }
 
-/* Tucked away: small and quiet, but still a full tap target. */
-.start-over-link,
-.saved-copies-link {
-  appearance: none;
-  min-height: var(--target-min);
-  padding: 8px 16px;
-  border: 0;
-  background: none;
-  color: #8a7258;
-  font: inherit;
-  font-size: 0.85rem;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.start-over-link:disabled,
-.saved-copies-link:disabled {
-  visibility: hidden;
-}
-
-.start-over-link:focus-visible,
-.saved-copies-link:focus-visible,
-.start-over-cancel:focus-visible,
-.start-over-confirm:focus-visible {
+.start-over-cancel:focus-visible {
   outline: 4px solid #e8d4b8;
   outline-offset: 3px;
 }
@@ -595,8 +403,7 @@ body {
   width: 100%;
 }
 
-.start-over-cancel,
-.start-over-confirm {
+.start-over-cancel {
   appearance: none;
   min-height: 52px;
   padding: 12px 16px;
@@ -611,20 +418,6 @@ body {
   border: 2px solid #f2c46d;
   background: linear-gradient(#f2c46d, #c98a32);
   color: #1e130d;
-}
-
-.start-over-confirm {
-  border: 2px solid #e74c3c;
-  background: #7b1e14;
-  color: #fff3f0;
-}
-
-.menu-card .auth-action {
-  width: 100%;
-}
-
-.menu-card .auth-status:empty {
-  display: none;
 }
 
 /* Engineers may scroll on a very short phone. */
@@ -927,9 +720,7 @@ body {
   cursor: pointer;
 }
 
-.legend-pass,
-.menu-pass,
-.field-log-copy {
+.legend-pass {
   appearance: none;
   width: 100%;
   min-height: 52px;
@@ -943,45 +734,14 @@ body {
   cursor: pointer;
 }
 
-.legend-pass[hidden],
-.menu-pass[hidden] {
+.legend-pass[hidden] {
   display: none;
 }
 
 .legacy-confirm:focus-visible,
-.legend-pass:focus-visible,
-.menu-pass:focus-visible,
-.field-log-copy:focus-visible {
+.legend-pass:focus-visible {
   outline: 4px solid #e8d4b8;
   outline-offset: 3px;
-}
-
-.field-log-copy:disabled {
-  opacity: 0.7;
-}
-
-.field-log-hint {
-  margin: 0;
-  color: #c9b391;
-}
-
-.field-log-text {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 8rem;
-  max-height: 40dvh;
-  margin: 0;
-  padding: 12px;
-  border: 2px solid #e8a84a;
-  border-radius: 12px;
-  background: #120c0a;
-  color: #e8d4b8;
-  font: inherit;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  text-align: left;
-  resize: none;
-  user-select: text;
 }
 
 .legend-actions {
@@ -1818,107 +1578,6 @@ body {
   }
 }
 
-/* Workshop sheet. Full viewport, two columns, no scroll on a short phone. */
-
-.workshop-open {
-  appearance: none;
-  border: 2px solid #f2c46d;
-  border-radius: 12px;
-  background: transparent;
-  color: #f2c46d;
-  font: inherit;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.workshop-open {
-  width: 100%;
-  min-height: 52px;
-  font-size: 1.1rem;
-}
-
-.workshop-open[hidden],
-.workshop-locked[hidden] {
-  display: none;
-}
-
-/* The menu's Workshop row spans the card like Copy field log. Locked, it wears
-   the bottom bar's dimmed look: disabled fill, quiet text, grey hammer. */
-.workshop-menu {
-  align-self: stretch;
-  width: 100%;
-}
-
-.workshop-locked {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-8);
-  width: 100%;
-  min-height: var(--target-min);
-  margin: 0;
-  padding: var(--space-4) var(--space-8);
-  border: var(--line) solid var(--color-disabled);
-  border-radius: 12px;
-  background: var(--color-disabled);
-  color: var(--color-quiet);
-  font-size: 1rem;
-  font-weight: 650;
-  text-align: center;
-}
-
-.workshop-locked img {
-  image-rendering: pixelated;
-}
-
-.workshop-locked img {
-  flex: none;
-  width: 1.5rem;
-  height: 1.5rem;
-  object-fit: contain;
-  opacity: 0.5;
-  filter: grayscale(1);
-}
-
-.mat {
-  width: 16px;
-  height: 16px;
-  flex: none;
-}
-
-.mat-clay {
-  filter: sepia(1) saturate(4) hue-rotate(-20deg) brightness(1.05);
-}
-
-.mat-iron {
-  filter: grayscale(1) contrast(1.5) brightness(0.8);
-}
-
-.mat-crystal {
-  filter: sepia(1) saturate(6) hue-rotate(140deg) brightness(1.15);
-}
-
-.mat-heartstone {
-  filter: sepia(1) saturate(8) hue-rotate(-40deg) brightness(0.9);
-}
-
-.material-bit {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.workshop-open:active {
-  transform: translateY(2px);
-  background-color: #8f5e22;
-  box-shadow: inset 0 4px 0 #3d260e;
-}
-
-.workshop-open:focus-visible {
-  outline: 4px solid #e8d4b8;
-  outline-offset: 3px;
-}
-
 /* Two saves found. Bottom sheet, shrunk to the phone, no scroller. */
 .save-conflict {
   align-items: flex-end;
@@ -2099,22 +1758,6 @@ body {
 
 .engineer-promote-row.is-pressed {
   transform: translateY(var(--space-4));
-}
-
-.ledger {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-8);
-  width: 100%;
-}
-
-.ledger .stones-left,
-.ledger .goal,
-.ledger .layer-hint,
-.ledger .material-line {
-  font-size: var(--type-16);
-  text-shadow: none;
 }
 
 /* Workshop and the relic shelf share one card; Buys and Upgrades are board drawers (#373). Lists may scroll. The page does not. */
@@ -2321,29 +1964,13 @@ body {
 /* The one main move on a card: primary. */
 .welcome-continue,
 .reveal-continue,
-.legacy-confirm,
-.start-over-confirm,
-.auth-action {
+.legacy-confirm {
   min-height: var(--target-min);
   border: var(--line) solid var(--color-gold);
   border-radius: var(--radius-control);
   background: var(--color-gold);
   box-shadow: none;
   color: var(--color-ink-on-gold);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-}
-
-/* Second moves: secondary. */
-.workshop-open,
-.field-log-copy,
-.menu-pass {
-  min-height: var(--target-min);
-  border: var(--line) solid var(--color-gold);
-  border-radius: var(--radius-control);
-  background: var(--color-card);
-  box-shadow: none;
-  color: var(--color-gold);
   font-size: var(--type-16);
   font-weight: var(--weight-bold);
 }

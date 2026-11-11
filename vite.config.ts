@@ -207,7 +207,7 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
-        "src/menu-panel.ts": {
+        "src/ledger-panel.ts": {
           statements: 99,
           branches: 87,
           functions: 100,
@@ -228,12 +228,6 @@ export default defineConfig({
         "src/screen-context.ts": {
           statements: 100,
           branches: 91,
-          functions: 100,
-          lines: 100,
-        },
-        "src/screen-ledger.ts": {
-          statements: 100,
-          branches: 100,
           functions: 100,
           lines: 100,
         },

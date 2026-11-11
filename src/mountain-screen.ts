@@ -1,5 +1,4 @@
 import { createScreenCtx, type ScreenOptions } from "./screen-context";
-import { createLedger } from "./screen-ledger";
 import { createRunningNow } from "./screen-running";
 import { createVein } from "./screen-vein";
 import { SPEND_KICK, createBays, createDigRows, readyPick } from "./screen-dig";
@@ -46,7 +45,6 @@ export function mountMountainScreen(options: ScreenOptions): void {
   });
   const { root, progress, board, listening } = ctx;
 
-  const ledger = createLedger(ctx);
   const runningNow = createRunningNow(ctx);
 
   const vein = createVein(ctx, {
@@ -69,10 +67,10 @@ export function mountMountainScreen(options: ScreenOptions): void {
     pick: () => shownPick,
     overSave: () => saveLine.isOpen(),
   });
-  const closeMenu = (): void => {
-    sheets.menuPanel.close();
+  const closeLedger = (): void => {
+    sheets.ledger.sheet.close({ restoreFocus: false, by: "program" });
   };
-  const early = createEarlyCards(ctx, { onPassed: vein.reset, closeMenu });
+  const early = createEarlyCards(ctx, { onPassed: vein.reset, closeLedger });
   const { legacy } = early;
 
   const { gaugeRow, readyRow } = createDigRows(ctx, {
@@ -88,22 +86,18 @@ export function mountMountainScreen(options: ScreenOptions): void {
   });
   const sheets = createSheetPanels(ctx, {
     rail,
-    ledgerRoot: ledger.root,
     legacy,
     runningNow,
     saveLine,
     onStartOver: vein.reset,
-    closeMenu,
-    buys: crewPanel.sheet,
   });
-  const { upgrades, workshop } = sheets;
+  const { upgrades, workshop, ledger } = sheets;
 
   const updatePrompt = createUpdatePrompt(ctx.paint);
   const otherTab = createOtherTab(progress);
 
-  /** The board under the cards: stones, window, gauges, bays, Ready row and guide. */
+  /** The board under the cards: window, gauges, bays and Ready row. */
   const paintBoard = (): void => {
-    ledger.paintStones();
     otherTab.paint(ctx.view().elsewhere);
     gaugeRow.paint();
     // The Ready now pick, once per paint: the bays light theirs (#372).
@@ -113,7 +107,6 @@ export function mountMountainScreen(options: ScreenOptions): void {
     readyRow.paint(pick);
     crewPanel.render();
     vein.render();
-    ledger.paintGuide();
   };
   /**
    * The screen's one repaint: the store's updates, a panel's own change and
@@ -123,7 +116,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     paintBoard();
     early.paint();
     top.paintRelics();
-    sheets.paintMenu();
+    sheets.paintLedger();
     legacy.render();
     sheets.paintLater();
     runningNow.paint();
@@ -145,7 +138,12 @@ export function mountMountainScreen(options: ScreenOptions): void {
       keys.openBuys(from);
     },
   });
-  const drawers = [crewPanel.sheet, upgrades.sheet, workshop.sheet];
+  const drawers = [
+    crewPanel.sheet,
+    upgrades.sheet,
+    workshop.sheet,
+    ledger.sheet,
+  ];
   const overlays = createOverlays(ctx, {
     note: boardNote,
     rail,
@@ -153,9 +151,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     drawers,
   });
   const keys = wireKeys({
-    crewPanel,
-    upgrades,
-    workshop,
+    drawers: { buys: crewPanel, upgrades, workshop, ledger },
     closeBoardPopups,
     putSignAway: overlays.putSignAway,
   });

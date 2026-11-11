@@ -67,7 +67,6 @@ import {
   UNFOUND_HINT,
   WORKSHOP_EARLIER,
   WORKSHOP_FREE_ASIDE,
-  WORKSHOP_LOCKED,
   WORKSHOP_MORE,
   WORKSHOP_QUIET,
   WORKSHOP_SOUND,
@@ -94,7 +93,6 @@ import {
   staffBillWords,
   refundBackWords,
   timerLeftWords,
-  workshopMenuWords,
   keepsakeWords,
   keepsakesBroughtHome,
   lostToolWords,
@@ -623,8 +621,6 @@ describe("workshop mock copy (#193)", () => {
 
 describe("workshop sheet copy (#199)", () => {
   it("states costs, clocks, and a calm refund", () => {
-    expect(workshopMenuWords(undefined)).toBe("Workshop");
-    expect(workshopMenuWords(9 * 60_000)).toBe("Workshop · 9:00");
     expect(benchBusyWords("Iron rails", 8 * 60_000 + 12_000)).toBe(
       "On the bench: Iron rails · 8:12 left",
     );
@@ -668,7 +664,6 @@ describe("workshop sheet copy (#199)", () => {
       "Cancel · 250K stones, 10 clay, and 4 iron back",
     );
     const lines = [
-      WORKSHOP_LOCKED,
       WORKSHOP_FREE_ASIDE,
       WORKSHOP_QUIET,
       WORKSHOP_SOUND,
@@ -680,7 +675,6 @@ describe("workshop sheet copy (#199)", () => {
       crewAlreadyWords(2),
       craftLevelWords(1, 5),
       stoneCostWords(1),
-      workshopMenuWords(60_000),
       benchBusyWords("Axle grease", 60_000),
       refundBackWords(["1 iron"]),
       refundBackWords([]),

@@ -919,9 +919,6 @@ export const cameBack = (
 export const recallConfirm = (name: string): string =>
   `${name} comes home empty-handed.`;
 
-/** Menu row before the Granite. No counts, no question. */
-export const WORKSHOP_LOCKED = "Workshop · opens as the clay comes in";
-
 /** The bench is free, and a thin pocket is still a fine pocket. */
 export const WORKSHOP_FREE_ASIDE = "A little at a time is plenty.";
 
@@ -941,14 +938,6 @@ export const CRAFT_WORD = "Craft";
 
 /** Unfound, and the sketch is still out on a trip. No name, no question. */
 export const UNFOUND_DEEPER = "Deeper rock keeps a quiet gift.";
-
-/** "Workshop" or "Workshop · 8:12" while something is on the bench. */
-export function workshopMenuWords(leftMs: number | undefined): string {
-  if (leftMs === undefined) {
-    return WORKSHOP_TITLE;
-  }
-  return `${WORKSHOP_TITLE} · ${formatClock(leftMs)}`;
-}
 
 /** A craft this build cannot name. The countdown is the only number. */
 export const BENCH_UNKNOWN = "Something is on the bench";

@@ -1,9 +1,9 @@
 import { el, hide, setAttr, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
-import { controlKey, type ControlRef } from "./board-interaction";
+import { controlKey, type ControlRef, type Pointer } from "./board-interaction";
 import { plateButton } from "./board-save";
 import { skin } from "./board-skin";
-import { pressOnBoard } from "./card-tap";
+import { pressOnBoard, type PressTracker } from "./card-tap";
 import { TONIGHT_LINES, type TonightLine } from "./ledger-rows";
 import {
   PASS_FULL,
@@ -44,21 +44,38 @@ export async function writeClipboard(text: string): Promise<boolean> {
   }
 }
 
-/** A Ledger plate whose press, past the settle and any hold, runs `act` with the plate. */
+/** What a plate's press runs: the plate, and how the press came (a finger's close settles). */
+type PlateAct = (plate: HTMLButtonElement, by: Pointer) => void;
+
+/**
+ * A Ledger plate whose press, past the settle and any hold, runs `act` with the plate. Its
+ * tracker goes in `trackers`, so the drawer can drop a finger-down time left over.
+ */
 function ledgerPlate(
   board: BoardHost,
-  label: string,
-  id: string,
-  act: (plate: HTMLButtonElement) => void,
+  trackers: PressTracker[],
+  [label, id]: readonly [label: string, id: string],
+  act: PlateAct,
 ): HTMLButtonElement {
   const plate = plateButton(label);
   plate.classList.add(`ledger-${id}`);
-  pressOnBoard(plate, board, { layer: "ledger", id }, (decision) => {
-    if (decision === "act") {
-      act(plate);
-    }
-  });
+  trackers.push(
+    pressOnBoard(plate, board, { layer: "ledger", id }, (decision, by) => {
+      if (decision === "act") {
+        act(plate, by);
+      }
+    }),
+  );
   return plate;
+}
+
+/** Drops every tracker's finger-down time: the drawer moved on. */
+function forgetAll(trackers: readonly PressTracker[]): () => void {
+  return () => {
+    for (const tracker of trackers) {
+      tracker.forget();
+    }
+  };
 }
 
 /** Tonight: this run's newest lines, each with its time, in an inset box. */
@@ -102,17 +119,19 @@ interface DoorsView {
   readonly passOffered: boolean;
 }
 
-/** Where each plate leads; each gets the plate it was pressed on. */
+/** Where each plate leads; each gets the plate it was pressed on, and how. */
 export interface LedgerDoorsOn {
-  savedCopies(from: HTMLButtonElement): void;
-  fieldLog(from: HTMLButtonElement): void;
-  startOver(from: HTMLButtonElement): void;
-  pass(from: HTMLButtonElement): void;
+  savedCopies(from: HTMLButtonElement, by: Pointer): void;
+  fieldLog(from: HTMLButtonElement, by: Pointer): void;
+  startOver(from: HTMLButtonElement, by: Pointer): void;
+  pass(from: HTMLButtonElement, by: Pointer): void;
 }
 
 export interface LedgerDoors {
   readonly root: HTMLElement;
   paint(view: DoorsView): void;
+  /** The drawer moved on: no plate's finger-down time carries over. */
+  forget(): void;
   /** The field log went to the clipboard: its plate holds Copied, as a row holds Done. */
   copied(): void;
 }
@@ -128,17 +147,33 @@ export function createLedgerDoors({
   on: LedgerDoorsOn;
 }): LedgerDoors {
   const root = el("div", "ledger-doors");
-  const saved = ledgerPlate(board, SAVED_COPIES_TITLE, "saved-copies", (p) => {
-    on.savedCopies(p);
-  });
-  const fieldLog = ledgerPlate(board, fieldLogCopy, FIELD_LOG.id, (p) => {
-    on.fieldLog(p);
-  });
-  const startOver = ledgerPlate(board, START_OVER, "start-over", (p) => {
-    on.startOver(p);
-  });
-  const pass = ledgerPlate(board, PASS_SHORT, "pass", (p) => {
-    on.pass(p);
+  const trackers: PressTracker[] = [];
+  const saved = ledgerPlate(
+    board,
+    trackers,
+    [SAVED_COPIES_TITLE, "saved-copies"],
+    (p, by) => {
+      on.savedCopies(p, by);
+    },
+  );
+  const fieldLog = ledgerPlate(
+    board,
+    trackers,
+    [fieldLogCopy, FIELD_LOG.id],
+    (p, by) => {
+      on.fieldLog(p, by);
+    },
+  );
+  const startOver = ledgerPlate(
+    board,
+    trackers,
+    [START_OVER, "start-over"],
+    (p, by) => {
+      on.startOver(p, by);
+    },
+  );
+  const pass = ledgerPlate(board, trackers, [PASS_SHORT, "pass"], (p, by) => {
+    on.pass(p, by);
   });
   pass.setAttribute("aria-label", PASS_FULL);
   root.append(saved, fieldLog, startOver, pass);
@@ -158,6 +193,7 @@ export function createLedgerDoors({
       startOver.disabled = !ready;
       hide(pass, !passOffered);
     },
+    forget: forgetAll(trackers),
     copied() {
       board.send({
         kind: "result",
@@ -190,16 +226,22 @@ export function createStartOverPage({
   onYes,
 }: {
   board: BoardHost;
-  onKeep: (from: HTMLButtonElement) => void;
-  onYes: (from: HTMLButtonElement) => void;
-}): { readonly root: HTMLElement; paint(ready: boolean): void } {
+  onKeep: PlateAct;
+  onYes: PlateAct;
+}): {
+  readonly root: HTMLElement;
+  paint(ready: boolean): void;
+  /** The drawer moved on: no answer's finger-down time carries over. */
+  forget(): void;
+} {
   const root = pageFrame(
     "ledger-start-over-page",
     START_OVER_TITLE,
     START_OVER_DETAIL,
   );
-  const keep = ledgerPlate(board, START_OVER_KEEP, "keep", onKeep);
-  const yes = ledgerPlate(board, START_OVER_YES, "yes", onYes);
+  const trackers: PressTracker[] = [];
+  const keep = ledgerPlate(board, trackers, [START_OVER_KEEP, "keep"], onKeep);
+  const yes = ledgerPlate(board, trackers, [START_OVER_YES, "yes"], onYes);
   const answers = el("div", "ledger-page-answers");
   answers.append(keep, yes);
   root.append(answers);
@@ -209,6 +251,7 @@ export function createStartOverPage({
     paint(ready) {
       yes.disabled = !ready;
     },
+    forget: forgetAll(trackers),
   };
 }
 

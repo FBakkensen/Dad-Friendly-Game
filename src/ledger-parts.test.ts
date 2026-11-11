@@ -202,10 +202,44 @@ describe("the Ledger's four plates (#375)", () => {
     press(plate("field-log"));
     press(plate("start-over"));
     press(plate("pass"));
-    expect(on.savedCopies).toHaveBeenCalledWith(plate("saved-copies"));
-    expect(on.fieldLog).toHaveBeenCalledWith(plate("field-log"));
-    expect(on.startOver).toHaveBeenCalledWith(plate("start-over"));
-    expect(on.pass).toHaveBeenCalledWith(plate("pass"));
+    expect(on.savedCopies).toHaveBeenCalledWith(
+      plate("saved-copies"),
+      "finger",
+    );
+    expect(on.fieldLog).toHaveBeenCalledWith(plate("field-log"), "finger");
+    expect(on.startOver).toHaveBeenCalledWith(plate("start-over"), "finger");
+    expect(on.pass).toHaveBeenCalledWith(plate("pass"), "finger");
+  });
+
+  it("forget drops a finger-down time the drawer moved on from", () => {
+    const { doors, on, plate } = mount();
+    const target = plate("start-over");
+    const down = (): void => {
+      target.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
+    };
+    const click = (): void => {
+      target.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
+      );
+    };
+    sheet.open();
+    advance(100);
+    down();
+    advance(DRAWER_SETTLE_MS);
+    click();
+    // Judged by when its finger came down: inside the settle.
+    expect(on.startOver).not.toHaveBeenCalled();
+    sheet.close({ by: "keyboard" });
+    sheet.open();
+    advance(100);
+    down();
+    doors.forget();
+    advance(DRAWER_SETTLE_MS);
+    click();
+    // No finger-down time left: judged by the click itself, past the settle.
+    expect(on.startOver).toHaveBeenCalledTimes(1);
   });
 
   it("a press inside the settle opens nothing", () => {

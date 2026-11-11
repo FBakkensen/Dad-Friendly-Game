@@ -4,7 +4,7 @@ import { formatCount } from "./format";
 import { legacyBonus, passTheMine } from "./legacy";
 import { createMountain, type Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
-import { PASS_FULL, formatCraftSpeed as speed } from "./screen-words";
+import { formatCraftSpeed as speed } from "./screen-words";
 import { recipesForMined } from "./workshop";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 
@@ -61,8 +61,8 @@ const canPass = (mountain: Mountain): boolean =>
   passTheMine(mountain, 0) !== undefined;
 
 /**
- * Pass the mine to your kid (M6): the menu entry, the confirm card, and the
- * Legacy badge, which sits on the mine window's brass plate (#371). Offered
+ * Pass the mine to your kid (M6): whether it is offered (the Ledger's Pass
+ * plate shows then), the confirm card, and the Legacy badge, which sits on the mine window's brass plate (#371). Offered
  * only once the mountain is finished.
  */
 export function createLegacyPanel({
@@ -76,7 +76,7 @@ export function createLegacyPanel({
   getView: () => ProgressSnapshot;
   /** After a new run starts (the screen resets its vein wait). */
   onPassed: () => void;
-  /** Closes whatever offered it (the menu or the Legend card). */
+  /** Closes whatever offered it (the Ledger or the Legend card). */
   beforeOpen: () => void;
   requestRender: () => void;
 }) {
@@ -87,11 +87,6 @@ export function createLegacyPanel({
   badge.className = "legacy-badge";
   badge.setAttribute("role", "img");
   badge.hidden = true;
-
-  const menuPass = document.createElement("button");
-  menuPass.type = "button";
-  menuPass.className = "menu-pass";
-  menuPass.textContent = PASS_FULL;
 
   const dialog = document.createElement("div");
   dialog.className = "start-over legacy-dialog";
@@ -145,9 +140,6 @@ export function createLegacyPanel({
     requestRender();
     returnFocus?.focus();
   };
-  menuPass.addEventListener("click", () => {
-    show(undefined);
-  });
   cancel.addEventListener("click", close);
   dialog.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
@@ -163,7 +155,7 @@ export function createLegacyPanel({
   });
 
   const render = (): void => {
-    const { mountain, ready } = getView();
+    const { mountain } = getView();
     const bonus = legacyBonus(mountain);
     const legacy = mountain.legacy ?? 0;
     badge.hidden = legacy === 0;
@@ -172,8 +164,6 @@ export function createLegacyPanel({
       "aria-label",
       `Legacy ${formatCount(legacy)}: your crew and taps are ${legacyWords(bonus)}`,
     );
-    const offered = ready && canPass(mountain);
-    menuPass.hidden = !offered;
     const words = legacyCardWords(mountain);
     lead.textContent = words.lead;
     rates.replaceChildren(
@@ -187,11 +177,17 @@ export function createLegacyPanel({
     fresh.textContent = words.fresh;
     legend.textContent = words.legend;
     const wasOpen = cardUp(dialog);
-    showCard(dialog, open && offered);
+    showCard(dialog, open && offered());
     if (cardUp(dialog) && !wasOpen) {
       cancel.focus();
     }
   };
 
-  return { badge, menuPass, dialog, open: show, render };
+  /** Whether passing the mine is offered now: the save is in and the mountain is finished. */
+  const offered = (): boolean => {
+    const { mountain, ready } = getView();
+    return ready && canPass(mountain);
+  };
+
+  return { badge, dialog, open: show, offered, render };
 }

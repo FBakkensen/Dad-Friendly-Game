@@ -169,13 +169,16 @@ describe("the key rail (#373)", () => {
         "false",
       );
 
-      // The Ledger key opens today's menu until B7.
-      const menu = screen.root.querySelector<HTMLElement>(".game-menu");
+      // The Ledger key opens its drawer (#375).
       key(screen, "ledger").click();
-      expect(menu?.hidden).toBe(false);
+      expect(isOpen(screen, "ledger")).toBe(true);
       expect(key(screen, "ledger").getAttribute("aria-expanded")).toBe("true");
-      menu?.querySelector<HTMLButtonElement>(".menu-close")?.click();
-      expect(menu?.hidden).toBe(true);
+      screen.root
+        .querySelector<HTMLButtonElement>(
+          ".board-sheet[data-sheet=ledger] .board-sheet-back",
+        )
+        ?.click();
+      expect(isOpen(screen, "ledger")).toBe(false);
       expect(document.activeElement).toBe(key(screen, "ledger"));
       expect(key(screen, "ledger").getAttribute("aria-expanded")).toBe("false");
     } finally {
@@ -402,13 +405,15 @@ describe("the key rail (#373)", () => {
       expect(isOpen(screen, "workshop")).toBe(true);
       escape();
       expect(document.activeElement).toBe(key(screen, "workshop"));
-      // From the menu's Workshop row: back to the Ledger key that opened the menu.
+      // The Ledger and the Workshop close each other (#375).
       key(screen, "ledger").click();
-      screen.root.querySelector<HTMLButtonElement>(".workshop-open")?.click();
+      expect(isOpen(screen, "ledger")).toBe(true);
+      key(screen, "workshop").click();
       expect(isOpen(screen, "workshop")).toBe(true);
-      expect(screen.root.querySelector<HTMLElement>(".game-menu")?.hidden).toBe(
-        true,
-      );
+      expect(isOpen(screen, "ledger")).toBe(false);
+      key(screen, "ledger").click();
+      expect(isOpen(screen, "workshop")).toBe(false);
+      expect(isOpen(screen, "ledger")).toBe(true);
       escape();
       expect(document.activeElement).toBe(key(screen, "ledger"));
       // From its key again: the key once more.

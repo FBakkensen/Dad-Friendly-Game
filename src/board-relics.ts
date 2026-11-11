@@ -34,8 +34,8 @@ export const RELIC_LIT: Readonly<Record<RelicId, string>> = {
   crown: crownUrl,
   mantle: mantleUrl,
 };
-/** Each relic's icon, dark: the next to find. Exported once the Ledger's relics row uses it (#375). */
-const RELIC_DARK: Readonly<Record<RelicId, string>> = {
+/** Each relic's icon, dark: the next to find (the Ledger's relics row shows it too, #375). */
+export const RELIC_DARK: Readonly<Record<RelicId, string>> = {
   lantern: lanternDarkUrl,
   shield: shieldDarkUrl,
   hammer: hammerDarkUrl,

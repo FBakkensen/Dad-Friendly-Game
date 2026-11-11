@@ -1,13 +1,11 @@
 import { createKeyRail, type KeyRail } from "./board-keys";
 import type { KeyId } from "./key-rail";
 import type { ScreenCtx } from "./screen-context";
-import type { createCrewPanel } from "./crew-panel";
-import type { createUpgradesPanel } from "./upgrades-panel";
 import type { BoardSheet } from "./board-drawer";
 
 /**
- * The key rail: Buys, Workshop and Upgrades open their drawers from here; Engineers and the
- * Ledger key open through their panels' own click listeners. Every key first puts the board's popups away.
+ * The key rail: Buys, Workshop, Upgrades and the Ledger open their drawers from here; Engineers
+ * opens through its panel's own click listener. Every key first puts the board's popups away.
  * `onKey` is late: what the keys do is wired once the drawers exist.
  */
 export function createRail(
@@ -23,34 +21,47 @@ export function createRail(
   });
 }
 
+/** A drawer a rail key opens: its panel's open, and its shell. */
+interface KeyDrawer {
+  open(from?: HTMLElement): void;
+  readonly sheet: BoardSheet;
+}
+
+/** The drawers the rail's keys open, by key. Engineers opens through its own panel until B6b. */
+type KeyDrawers = Readonly<
+  Record<"buys" | "upgrades" | "workshop" | "ledger", KeyDrawer>
+>;
+
 /**
- * What the keys do: Buys, Workshop and Upgrades open their drawers from the rail, and each
- * closes the other two, so one drawer is up at a time.
+ * What the keys do: Buys, Workshop, Upgrades and the Ledger open their drawers from the rail,
+ * and each first closes every other drawer in the record, so one drawer is up at a time.
  */
 export function wireKeys(deps: {
-  readonly crewPanel: ReturnType<typeof createCrewPanel>;
-  readonly upgrades: ReturnType<typeof createUpgradesPanel>;
-  readonly workshop: {
-    open(from?: HTMLElement): void;
-    readonly sheet: BoardSheet;
-  };
+  readonly drawers: KeyDrawers;
   readonly closeBoardPopups: () => void;
   readonly putSignAway: () => void;
 }): {
   onKey(id: KeyId, key: HTMLButtonElement): void;
   openBuys(from?: HTMLElement): void;
 } {
-  const { crewPanel, upgrades, workshop, closeBoardPopups, putSignAway } = deps;
+  const { drawers, closeBoardPopups, putSignAway } = deps;
   const program = { restoreFocus: false, by: "program" } as const;
+  /** Closes every drawer but `id`'s, then opens it. Only an opening starts the settle. */
+  const openOnly = (id: keyof KeyDrawers, from?: HTMLElement): void => {
+    for (const [each, drawer] of Object.entries(drawers)) {
+      if (each !== id) {
+        drawer.sheet.close(program);
+      }
+    }
+    drawers[id].open(from);
+  };
   /**
-   * Opens the Buys drawer: the Buys key, a bay and Saving for (#372, #373). Only an opening starts
-   * the settle: a tap on an open drawer's door does not.
+   * Opens the Buys drawer: the Buys key, a bay and Saving for (#372, #373). A tap on an open
+   * drawer's door does not start the settle again.
    */
   const openBuys = (from?: HTMLElement): void => {
     closeBoardPopups();
-    upgrades.sheet.close(program);
-    workshop.sheet.close(program);
-    crewPanel.open(from);
+    openOnly("buys", from);
   };
 
   return {
@@ -58,24 +69,11 @@ export function wireKeys(deps: {
       closeBoardPopups();
       // A key pressed from the keyboard puts the New sign away too.
       putSignAway();
-      switch (id) {
-        case "buys":
-          openBuys(key);
-          return;
-        case "workshop":
-          crewPanel.sheet.close(program);
-          upgrades.sheet.close(program);
-          workshop.open(key);
-          return;
-        case "upgrades":
-          crewPanel.sheet.close(program);
-          workshop.sheet.close(program);
-          upgrades.open(key);
-          return;
-        case "engineers":
-        case "ledger":
-          return;
+      if (id === "engineers") {
+        // Its panel listens to its key itself until B6b.
+        return;
       }
+      openOnly(id, key);
     },
     openBuys,
   };
