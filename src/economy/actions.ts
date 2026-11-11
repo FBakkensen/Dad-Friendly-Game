@@ -815,20 +815,25 @@ function staffBill(mountain: Mountain, tier: Tier): number {
   if (tier.staff === 0) {
     return 0;
   }
-  const helper = tierById("helper");
   const short = Math.max(
     0,
     staffForBuy(mountain, tier) - freeHelpers(mountain),
   );
+  return helperBill(mountain, short);
+}
+
+/** What the next `count` workers cost, hired one after another. */
+export function helperBill(mountain: Mountain, count: number): number {
+  const helper = tierById("helper");
   let cost = 0;
-  for (let extra = 0; extra < short; extra += 1) {
+  for (let extra = 0; extra < count; extra += 1) {
     cost += tierCost(helper, mountain.helpers + extra, stretch(mountain));
   }
   return cost;
 }
 
-/** Hands not already running a machine. Matches the sim's spare count. */
-function freeHelpers(mountain: Mountain): number {
+/** Hands not already running a machine. The sim dad's spare count too. */
+export function freeHelpers(mountain: Mountain): number {
   const rates = effectiveRates(mountain);
   const used = TIERS.reduce(
     (total, tier) =>

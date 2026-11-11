@@ -40,10 +40,9 @@ type PlayPlan = {
   readonly search: string;
 };
 
-export type PlayArgs =
-  | PlayPlan
-  | { readonly kind: "help" }
-  | { readonly kind: "error"; readonly message: string };
+type PlayError = { readonly kind: "error"; readonly message: string };
+
+export type PlayArgs = PlayPlan | { readonly kind: "help" } | PlayError;
 
 export const PLAY_USAGE = `Usage: npm run play -- [options] [action ...]
 
@@ -75,8 +74,6 @@ function parseTarget(kind: "tap" | "label", body: string): PlayTarget {
     ? { by: "selector", selector: body }
     : { by: "label", label: body };
 }
-
-type PlayError = { readonly kind: "error"; readonly message: string };
 
 const playError = (message: string): PlayError => ({ kind: "error", message });
 

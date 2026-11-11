@@ -1,11 +1,5 @@
 import { oneOffStretch, stretch } from "./scale";
-import {
-  promote,
-  promoteCost,
-  staffForBuy,
-  staffNeeded,
-  tendBestTier,
-} from "./engineers";
+import { promote, promoteCost, staffForBuy, tendBestTier } from "./engineers";
 import {
   send,
   settle as settleExpeditions,
@@ -14,6 +8,8 @@ import {
 import {
   applyAction,
   buyEveryBoost,
+  freeHelpers,
+  helperBill,
   listActions,
   valueOf,
   type Action,
@@ -26,8 +22,7 @@ import {
   minedOut,
   type Mountain,
 } from "./mountain";
-import { effectiveRates } from "./rates";
-import { TIERS, owned, tierById, tierCost } from "./tiers";
+import { owned, tierById, tierCost } from "./tiers";
 import { upgradeById, upgradeCost, upgradeLevel } from "./upgrades";
 
 /** How a typical dad plays: see docs/DESIGN.md "Pacing". */
@@ -238,9 +233,11 @@ type DadRunOptions = {
 };
 
 /** The options with their defaults filled in. */
-type LiveOptions = Required<Omit<DadRunOptions, "onDecision">> & {
-  readonly onDecision: DadRunOptions["onDecision"];
-};
+type LiveOptions = Readonly<
+  Required<Omit<DadRunOptions, "onDecision">> & {
+    onDecision: DadRunOptions["onDecision"];
+  }
+>;
 
 /** The run's record, filled as it plays. */
 type DadLog = {
@@ -267,37 +264,10 @@ function noteMilestones(
   }
 }
 
-/** Workers not running a machine. */
-function spareWorkers(mountain: Mountain): number {
-  const ratesNow = effectiveRates(mountain);
-  return (
-    mountain.helpers +
-    mountain.kids -
-    TIERS.reduce(
-      (used, tier) =>
-        used + ratesNow.running[tier.id] * staffNeeded(mountain, tier),
-      0,
-    )
-  );
-}
-
-/** What the helpers still to hire for `short` workers would cost. */
-function shortCostOf(mountain: Mountain, short: number): number {
-  let shortCost = 0;
-  for (let extra = 0; extra < short; extra += 1) {
-    shortCost += tierCost(
-      tierById("helper"),
-      mountain.helpers + extra,
-      stretch(mountain),
-    );
-  }
-  return shortCost;
-}
-
 /** Pays for `pick`, has a staffed machine tended, and records the buy. */
 function buyPick(world: World, pick: Pick, buys: DadPurchase[]): World {
   const mountain = world.mountain;
-  const spare = spareWorkers(mountain);
+  const spare = freeHelpers(mountain);
   const tier =
     pick.action.kind === "buyTier" ? tierById(pick.action.id) : undefined;
   const staffed = tier !== undefined && tier.staff > 0;
@@ -314,7 +284,7 @@ function buyPick(world: World, pick: Pick, buys: DadPurchase[]): World {
     price: pick.cost,
     spare,
     short,
-    shortCost: shortCostOf(mountain, short),
+    shortCost: helperBill(mountain, short),
   });
   return bought;
 }
@@ -435,7 +405,7 @@ export function simulateDadRun({
   onDecision,
 }: DadRunOptions): DadRun {
   const log: DadLog = { reached: new Map(), buys: [], promotions: [] };
-  const options = {
+  const options: LiveOptions = {
     milestones,
     maxDays,
     buysUpgrades,

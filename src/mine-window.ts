@@ -462,7 +462,7 @@ function borerStep(
   scene: WindowScene,
   random: () => number,
 ): { readonly borer: Borer; readonly tarp: Tarp | null } {
-  if (scene.borers <= 0) {
+  if (!(scene.borers > 0)) {
     return { borer: BORER_REST, tarp: null };
   }
   if (s.tarp) {

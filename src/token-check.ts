@@ -166,12 +166,12 @@ function consumeLine(
   const { state, added, file, findings } = input;
   const stripped = stripComments(input.codeLine, state.inComment);
   state.inComment = stripped.inComment;
-  const { preludeAdded, valueAdded } = scanCode(state, stripped.code, added, {
-    file,
-    lookup: input.lookup,
-    target: input.target,
-    findings,
-  });
+  const { preludeAdded, valueAdded } = scanCode(
+    state,
+    stripped.code,
+    added,
+    input,
+  );
   const text = input.codeLine.trim();
   if (!added || text.length === 0) {
     return;

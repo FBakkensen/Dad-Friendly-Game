@@ -183,7 +183,9 @@ function tubTick(t: Work, dt: number, events: HaulageEvent[]): void {
       t.round,
       dt,
       () => undefined,
-      () => turnOut(t),
+      () => {
+        turnOut(t);
+      },
     );
   }
   t.y = tubTop(t.full);
@@ -238,7 +240,9 @@ function cageTick(t: Work, dt: number, events: HaulageEvent[]): void {
       t.full = false;
       events.push({ kind: "fill", x: t.x - 4, y: 30 });
     },
-    () => turnOut(t),
+    () => {
+      turnOut(t);
+    },
   );
 }
 
