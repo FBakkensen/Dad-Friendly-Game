@@ -7,21 +7,16 @@ const boardCss = readFileSync("src/board.css", "utf8");
 
 /** Rules whose loss breaks the game silently: jsdom tests don't apply CSS. */
 const REQUIRED_SELECTORS = [
-  ".welcome-back",
   ".relic-reveal",
   ".shelf-dialog",
   ".start-over",
   ".engineers-dialog",
   ".engineer-tunnel",
   ".expedition-chip",
-  ".welcome-return",
-  ".welcome-card",
   ".reveal-card",
   ".shelf-card",
   ".keepsakes",
   ".keepsake-story",
-  ".layer-arrival",
-  ".craft-notice",
   ".update-prompt",
   ".update-reload",
   ".other-tab",
@@ -95,13 +90,14 @@ const BOARD_SELECTORS = [
   ".board-card-big",
   ".board-card-foot",
   ".board-card-plate",
+  ".welcome-ore",
+  ".welcome-returns",
+  ".welcome-layers",
+  ".welcome-crafts",
 ];
 
 /** Every sheet and card laid over the game (fixed, inset 0 in style.css). */
 const OVERLAYS = [
-  ".welcome-back",
-  ".layer-arrival",
-  ".craft-notice",
   ".relic-reveal",
   ".shelf-dialog",
   ".start-over",
@@ -341,6 +337,21 @@ describe("style.css", () => {
     ).toEqual([]);
   });
 
+  it("keeps no rule for today's welcome, layer and craft cards: they are board cards now (#464)", () => {
+    // The board cards keep today's hooks (.welcome-back, .layer-dig, …): an old rule would
+    // restyle them, so none may name a hook of theirs.
+    const selectors = [...css.matchAll(/^([^{}@/]+?)\s*\{/gm)].flatMap(
+      ([, group = ""]) => group.split(",").map((one) => one.trim()),
+    );
+    expect(
+      selectors.filter((one) =>
+        /\.(welcome-|layer-card|layer-art|layer-arrival|layer-dig|layer-evocative|layer-advice|layer-sketch|notice-card|notice-art|craft-notice|craft-accept)|#craft-notice-line/.test(
+          one,
+        ),
+      ),
+    ).toEqual([]);
+  });
+
   it("keeps no lit crew chip: the crew plate holds the free count (#371)", () => {
     expect(css).not.toMatch(/teach-point/);
   });
@@ -383,9 +394,6 @@ describe("style.css", () => {
   });
 
   it.each([
-    ".welcome-back",
-    ".layer-arrival",
-    ".craft-notice",
     ".relic-reveal",
     ".shelf-dialog",
     ".start-over",
@@ -396,7 +404,7 @@ describe("style.css", () => {
     ".saved-copies",
   ])("lays %s over the game", (selector) => {
     const group = /((?:^\.[\w-]+,\n)*^\.[\w-]+) \{[^}]*position:\s*fixed/m.exec(
-      css.slice(css.indexOf(".welcome-back,")),
+      css.slice(css.indexOf(".relic-reveal,")),
     );
     expect(group?.[1]?.split(",\n")).toContain(selector);
   });

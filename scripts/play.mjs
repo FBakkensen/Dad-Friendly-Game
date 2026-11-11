@@ -33,6 +33,7 @@ import {
   machineMountain,
   openMountain,
   playAwaySave,
+  playCraftSave,
   playBriefSave,
   playEdgeSave,
   savingMountain,
@@ -98,6 +99,10 @@ const SAVES = {
   edge: {
     note: "13 carts, four stones above the Granite: tap across, open Buys",
     save: playEdgeSave,
+  },
+  crafted: {
+    note: "a craft finishing three seconds after opening: the craft-done card",
+    save: playCraftSave,
   },
   brief: {
     note: "the mid save, last seen 2 minutes ago: the quiet away note",

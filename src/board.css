@@ -924,9 +924,6 @@ body {
 
 /* Every sheet and card stops at the save line, so the line is never covered
    and the sheets' own buttons sit above it (#370). */
-.welcome-back,
-.layer-arrival,
-.craft-notice,
 .relic-reveal,
 .shelf-dialog,
 .start-over,
@@ -2765,6 +2762,8 @@ button.board-row:focus-visible {
   height: calc(var(--board-h) - var(--save-h));
   background: var(--board-shade);
   pointer-events: auto;
+  /* Clip, as the drawers' clip does: the rising face never adds scroll height (#373). */
+  overflow: clip;
 }
 
 .board-card[hidden] {
@@ -2862,6 +2861,56 @@ button.board-row:focus-visible {
 .board-card-plate {
   flex: none;
   width: 100%;
+}
+
+/* ---------- the board cards (#464) ---------- */
+
+/* A find line joins the away report. The Engineers sheet is a card of today's
+   (z-index 10, later in the page), so a homecoming while it is open would
+   paint under it: the welcome stands just above, still under the clips. */
+.board-card.welcome-back {
+  z-index: 11;
+}
+
+/* The ore that came up while away (#247): its icon, then the line and what it
+   is for. */
+.welcome-ore {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 4);
+}
+
+.welcome-ore > .board-card-art {
+  flex: none;
+}
+
+.welcome-ore-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.welcome-ore-line,
+.welcome-ore-use {
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+}
+
+.welcome-ore-line {
+  font-weight: var(--board-weight-semi);
+  color: var(--board-amber);
+}
+
+.welcome-ore-use {
+  color: var(--board-ink-2);
+}
+
+.welcome-returns,
+.welcome-layers,
+.welcome-crafts {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 2);
 }
 
 /* Last, so a hidden part hides over its own display. */

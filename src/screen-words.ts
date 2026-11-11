@@ -280,7 +280,7 @@ export function upgradeWhyLine(
  * The welcome-back line for how long the crew dug (#278): the whole time,
  * then easing off on the slope, then a full day's haul once a day has passed.
  */
-export function awayStretchWords(report: {
+function awayStretchWords(report: {
   readonly awayMs: number;
   readonly paidMs: number;
 }): string {
@@ -393,7 +393,8 @@ export const fieldLogCopy = "Copy field log";
 export const fieldLogCopied = "Copied";
 export const fieldLogTitle = "Field log";
 export const fieldLogFallback = "Select the log and copy it from here.";
-export const fieldLogClose = "Back to the mountain";
+/** The welcome card's one plate (#464). */
+export const BACK_TO_THE_MOUNTAIN = "Back to the mountain";
 
 export const ENGINEER_SHEET_TITLE = "Your engineers";
 

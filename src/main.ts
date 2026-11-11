@@ -1,4 +1,3 @@
-import lanternUrl from "./assets/boot-tile.png";
 import helperUrl from "./assets/helper-miner.png";
 import kidUrl from "./assets/kid-helper.png";
 import cartUrl from "./assets/mine-cart.png";
@@ -6,8 +5,6 @@ import drillUrl from "./assets/steam-drill.png";
 import borerUrl from "./assets/tunnel-borer.png";
 import machineUrl from "./assets/great-machine.png";
 import veinUrl from "./assets/gold-nugget.png";
-import mountainUrl from "./assets/mountain.png";
-import stoneUrl from "./assets/ore-lump.png";
 import relicCrown from "./assets/relics/crown.png";
 import relicHammer from "./assets/relics/hammer.png";
 import relicHeart from "./assets/relics/heart.png";
@@ -39,9 +36,6 @@ try {
   });
   mountMountainScreen({
     root,
-    lanternUrl,
-    mountainUrl,
-    stoneUrl,
     veinUrl,
     tierArt: {
       helper: helperUrl,

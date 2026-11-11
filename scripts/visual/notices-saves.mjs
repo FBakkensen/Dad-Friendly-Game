@@ -1,11 +1,20 @@
 /* global console, innerWidth, innerHeight, getComputedStyle */
 /** Notice and save sections: the welcome fold and craft notice, the other-tab card and the two-saves conflict sheet. */
-import { noticeSave } from "../../tools/browser/fixtures.ts";
+import {
+  noticeSave,
+  playAwaySave,
+  playCraftSave,
+  toolHomeSave,
+} from "../../tools/browser/fixtures.ts";
 import { openPair } from "../../tools/browser/harness.ts";
-import { failures, check, section } from "./registry.mjs";
+import { undersizedTargets } from "../../src/ui-audit-measure.ts";
+import { failures, check, section, table } from "./registry.mjs";
 import {
   BASE,
   PHONE,
+  PCS,
+  press,
+  cardRisen,
   browser,
   OPEN_SHEET,
   openSheet,
@@ -15,12 +24,47 @@ import {
   noScroll,
   shot,
 } from "./kit.mjs";
+import {
+  CARD_LEGENDS,
+  boardArtAt2x,
+  boardContrast,
+  boardGaps,
+  boardTargets,
+  boardTextSizes,
+  cardFacts,
+} from "./measure.mjs";
 
 /**
  * Layer card, folded welcome, craft-done notice, and the four-chip line (#200).
  * Same sizes as the workshop check.
  */
 const NOTICE_SIZES = [[424, 924]];
+
+/**
+ * Section 16's fold: a band crossed and a craft fitted while away, both on the welcome card.
+ */
+function foldSave(now) {
+  return noticeSave({
+    mined: 9_990_000,
+    lastSeen: now - 30 * 60 * 1000,
+    mountain: { helpers: 20, carts: 1, pocket: 5_000_000 },
+    workshop: {
+      materials: { clay: 9, iron: 4, crystal: 0, heartstone: 0 },
+      recipes: [
+        "iron-rails",
+        "sturdy-props",
+        "blasting-charge",
+        "reinforce",
+        "axle-grease",
+      ],
+      bench: {
+        recipe: "iron-rails",
+        startedAt: now - 20 * 60 * 1000,
+        endsAt: now - 10 * 60 * 1000,
+      },
+    },
+  });
+}
 
 /** Visible buttons and reading-size labels inside one root. */
 async function fitOf(page, selector, labelSelector) {
@@ -57,17 +101,18 @@ async function fitOf(page, selector, labelSelector) {
       const labels = [...root.querySelectorAll(labelsOf)].filter(
         (node) => shown(node) && (node.textContent ?? "").trim() !== "",
       );
+      // The board's floors (#464): text 13px or more, targets 48 tall.
       const typeOk =
         labels.length > 0 &&
         labels.every(
-          (node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 14.4,
+          (node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 13,
         );
       return {
         boxesOk:
           boxes.length > 0 &&
           boxes.every(
             (box) =>
-              box.height >= 44 &&
+              box.height >= 48 &&
               box.top >= 0 &&
               box.bottom <= innerHeight &&
               box.left >= 0 &&
@@ -97,10 +142,12 @@ for (const viewport of NOTICE_SIZES) {
         timeout: 3_000,
       });
       await page.tap(".reveal-continue");
-      await page.waitForSelector(".layer-arrival:not([hidden])", {
-        timeout: 3_000,
-      });
-      const fit = await fitOf(page, ".layer-card", "h2, p, button");
+      await cardRisen(page, "layer");
+      const fit = await fitOf(
+        page,
+        ".layer-arrival .board-card-face",
+        "h2, p, button",
+      );
       const still = await noScroll(page);
       check(
         still &&
@@ -123,32 +170,15 @@ for (const viewport of NOTICE_SIZES) {
     }
 
     {
-      const { page, close } = await openScreen(
-        viewport,
-        noticeSave({
-          mined: 9_990_000,
-          lastSeen: now - 30 * 60 * 1000,
-          mountain: { helpers: 20, carts: 1, pocket: 5_000_000 },
-          workshop: {
-            materials: { clay: 9, iron: 4, crystal: 0, heartstone: 0 },
-            recipes: [
-              "iron-rails",
-              "sturdy-props",
-              "blasting-charge",
-              "reinforce",
-              "axle-grease",
-            ],
-            bench: {
-              recipe: "iron-rails",
-              startedAt: now - 20 * 60 * 1000,
-              endsAt: now - 10 * 60 * 1000,
-            },
-          },
-        }),
-      );
+      const { page, close } = await openScreen(viewport, foldSave(now));
       await page.waitForSelector(".welcome-layer", { timeout: 3_000 });
       await page.waitForSelector(".welcome-craft", { timeout: 3_000 });
-      const fit = await fitOf(page, ".welcome-card", "h2, p, button");
+      await cardRisen(page, "welcome");
+      const fit = await fitOf(
+        page,
+        ".welcome-back .board-card-face",
+        "h2, p, button",
+      );
       const still = await noScroll(page);
       check(
         still &&
@@ -193,10 +223,12 @@ for (const viewport of NOTICE_SIZES) {
           },
         }),
       );
-      await page.waitForSelector(".craft-notice:not([hidden])", {
-        timeout: 5_000,
-      });
-      const fit = await fitOf(page, ".notice-card", "p, button");
+      await cardRisen(page, "craft");
+      const fit = await fitOf(
+        page,
+        ".craft-notice .board-card-face",
+        "h2, button",
+      );
       const still = await noScroll(page);
       check(
         still &&
@@ -550,4 +582,167 @@ section("section 18 (line 2148)", async () => {
     await shot(page, "save-conflict-real-press-424x924");
     await close();
   }
+});
+
+/**
+ * The board cards (#464): each card that opens by itself, on the board card shell. The face
+ * sits in the drawer's box and never scrolls, its plates are fat and focused as it opens, and
+ * its words, art and contrast meet the board's floors.
+ */
+const CARD_SCENARIOS = [
+  {
+    name: "welcome",
+    card: "welcome",
+    focus: "welcome-continue",
+    seed: playAwaySave,
+  },
+  {
+    name: "welcome fold",
+    card: "welcome",
+    focus: "welcome-continue",
+    seed: () => foldSave(Date.now()),
+  },
+  {
+    name: "welcome find",
+    card: "welcome",
+    focus: "welcome-continue",
+    seed: () => toolHomeSave(Date.now()),
+  },
+  {
+    name: "layer",
+    card: "layer",
+    focus: "layer-dig",
+    seed: () => noticeSave({ mined: 9_999_999, lastSeen: Date.now() }),
+    // Through the dig that breaks into the Granite and the relic it uncovers.
+    enter: async (page) => {
+      await press(page, ".board-window");
+      await page.waitForSelector(".relic-reveal:not([hidden])", {
+        timeout: 3_000,
+      });
+      await press(page, ".reveal-continue");
+    },
+  },
+  { name: "craft", card: "craft", focus: "craft-accept", seed: playCraftSave },
+];
+const OPEN_CARD = (card) => `.board-card[data-card="${card}"]:not([hidden])`;
+const slug = (name) => name.replace(/\s+/g, "-");
+
+table({
+  screens: [PHONE, ...PCS],
+  scenarios: CARD_SCENARIOS,
+  section: (viewport, scenario) =>
+    `board cards ${JSON.stringify(viewport)} ${scenario.name}`,
+  prefix: ({ size, scenario }) => `${size} ${scenario.name} card:`,
+  open: async (viewport, scenario) => {
+    const opened = await openScreen(viewport, scenario.seed());
+    await scenario.enter?.(opened.page);
+    await cardRisen(opened.page, scenario.card);
+    return opened;
+  },
+  expect: [
+    {
+      run: async ({ page, size, scenario }) => {
+        const facts = await cardFacts(page, scenario.card);
+        if (!facts.ok || !facts.placed || !facts.fits || !facts.platesOk) {
+          console.log("card facts", size, scenario.name, JSON.stringify(facts));
+        }
+        await shot(page, `card-${slug(scenario.name)}-${size}`);
+        return [
+          [
+            await coversBoard(page, OPEN_CARD(scenario.card)),
+            "shades the board down to the save line, the line on top",
+          ],
+          [await noScroll(page), "has no page scroll"],
+          [
+            facts.ok === true && facts.placed && facts.fits,
+            `face sits in the drawer's box and does not scroll inside (${JSON.stringify(facts.box)})`,
+          ],
+          [
+            facts.ok === true && facts.plates.length > 0 && facts.platesOk,
+            "plates are 48 tall, inside the face",
+          ],
+          [
+            facts.ok === true &&
+              facts.focus.split(" ").includes(scenario.focus),
+            `focuses .${scenario.focus} as it opens`,
+          ],
+        ];
+      },
+    },
+    {
+      run: async ({ page, size, scenario }) => {
+        const targets = await boardTargets(page);
+        const own = targets.own.filter((target) =>
+          target.selector.startsWith(".board-platebtn "),
+        );
+        const under = undersizedTargets(own, 47.9);
+        const close8 = boardGaps(targets);
+        if (under.length > 0 || close8.length > 0) {
+          console.log(
+            "card targets",
+            size,
+            scenario.name,
+            JSON.stringify({
+              under: under.map((target) => target.selector),
+              close: close8.map((pair) => [pair.a, pair.b, pair.gap]),
+            }),
+          );
+        }
+        return [
+          [
+            own.length >= 1 && under.length === 0 && close8.length === 0,
+            `${String(own.length)} targets are 48x48 board px, 8px from the next`,
+          ],
+        ];
+      },
+    },
+    {
+      run: async ({ page, size, scenario }) => {
+        const text = await boardTextSizes(page, OPEN_CARD(scenario.card));
+        const art = await boardArtAt2x(
+          page,
+          OPEN_CARD(scenario.card),
+          OPEN_CARD(scenario.card),
+        );
+        if (text.small.length > 0 || art.misses.length > 0) {
+          console.log(
+            "card text and art",
+            size,
+            scenario.name,
+            JSON.stringify({ small: text.small, misses: art.misses }),
+          );
+        }
+        return [
+          [
+            text.small.length === 0 && text.count >= 2,
+            `text is 13px or more (${String(text.count)} runs)`,
+          ],
+          [
+            art.misses.length === 0 && art.count >= 2,
+            `${String(art.count)} images and skins at exactly 2x`,
+          ],
+        ];
+      },
+    },
+    {
+      run: async ({ page, size, scenario }) => {
+        const contrast = await boardContrast(page, CARD_LEGENDS.join(", "));
+        const dim = contrast.filter((one) => one.pct < 4.5);
+        if (dim.length > 0) {
+          console.log(
+            "card contrast",
+            size,
+            scenario.name,
+            JSON.stringify(dim),
+          );
+        }
+        return [
+          [
+            contrast.length >= 2 && dim.length === 0,
+            `${String(contrast.length)} legends at 4.5:1 or more (lowest ${String(contrast.length === 0 ? "-" : Math.min(...contrast.map((one) => one.pct)))}:1 at p10/p90)`,
+          ],
+        ];
+      },
+    },
+  ],
 });

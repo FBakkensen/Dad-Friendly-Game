@@ -109,9 +109,6 @@ body {
   }
 }
 
-.welcome-back,
-.layer-arrival,
-.craft-notice,
 .relic-reveal,
 .shelf-dialog,
 .start-over,
@@ -135,10 +132,7 @@ body {
   );
 }
 
-.welcome-back[hidden],
 .update-prompt[hidden],
-.layer-arrival[hidden],
-.craft-notice[hidden],
 .relic-reveal[hidden],
 .shelf-dialog[hidden],
 .start-over[hidden],
@@ -149,9 +143,6 @@ body {
   display: none;
 }
 
-.welcome-card,
-.layer-card,
-.notice-card,
 .reveal-card,
 .shelf-card,
 .start-over-card,
@@ -174,7 +165,6 @@ body {
   text-align: center;
 }
 
-.welcome-card h2,
 .reveal-card h2,
 .shelf-card h2,
 .start-over-card h2,
@@ -209,27 +199,6 @@ body {
   font-weight: 700;
 }
 
-.welcome-mined {
-  margin: 0;
-  font-size: 3.2rem;
-  font-weight: 800;
-  color: #f2c46d;
-  text-shadow: 0 0 24px rgba(232, 168, 74, 0.6);
-  font-variant-numeric: tabular-nums;
-}
-
-.welcome-detail,
-.welcome-cheer {
-  margin: 0;
-  font-size: 1.1rem;
-}
-
-.welcome-cheer {
-  color: #c9b391;
-  font-style: italic;
-}
-
-.welcome-continue,
 .reveal-continue,
 .shelf-close,
 .menu-close,
@@ -247,7 +216,6 @@ body {
   cursor: pointer;
 }
 
-.welcome-continue:focus-visible,
 .reveal-continue:focus-visible,
 .shelf-close:focus-visible,
 .menu-close:focus-visible,
@@ -427,155 +395,6 @@ body {
 
 .engineers-card {
   margin-block: auto;
-}
-
-.welcome-crew,
-.welcome-engineer,
-.welcome-return,
-.welcome-layer,
-.welcome-craft {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 650;
-  color: #ffe08a;
-}
-
-.welcome-returns {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-
-.welcome-returns[hidden],
-.welcome-layers[hidden],
-.welcome-crafts[hidden] {
-  display: none;
-}
-
-.welcome-layers,
-.welcome-crafts {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-}
-
-.layer-card,
-.notice-card {
-  gap: 8px;
-  width: min(340px, 100%);
-  padding: 16px 14px;
-}
-
-.layer-art {
-  width: 7rem;
-  height: auto;
-  aspect-ratio: 1;
-  object-fit: contain;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 0 12px rgba(232, 168, 74, 0.45));
-}
-
-.notice-art {
-  width: 64px;
-  height: 64px;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-.layer-card h2,
-.notice-card p {
-  margin: 0;
-}
-
-.layer-card h2 {
-  font-size: 1.15rem;
-  color: #f2c46d;
-}
-
-.layer-evocative,
-.layer-advice,
-.layer-sketch,
-#craft-notice-line {
-  margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.25;
-}
-
-.layer-advice {
-  color: #ffe08a;
-  font-weight: 650;
-}
-
-.layer-sketch {
-  color: #f3e2c4;
-}
-
-.layer-dig,
-.craft-accept {
-  appearance: none;
-  width: 100%;
-  min-height: 52px;
-  border: 0;
-  border-radius: 12px;
-  background: #e8a84a;
-  color: #120c0a;
-  font: inherit;
-  font-size: 1.15rem;
-  font-weight: 650;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Clear of the focus ring (4px outline at 4px offset), so the last line never touches it. */
-.layer-dig {
-  margin-top: var(--space-8);
-}
-
-.layer-dig:active,
-.craft-accept:active,
-.welcome-continue:active {
-  transform: scale(0.97);
-}
-
-.layer-dig:focus-visible,
-.craft-accept:focus-visible {
-  outline: 4px solid #e8d4b8;
-  outline-offset: 4px;
-}
-
-/* A find line joins the away report. Keep the way back above the gesture bar.
-   The engineers sheet shares z-index 10 and is later in the page, so a return
-   while that sheet is open would paint underneath it. The notice stays on top. */
-.welcome-back {
-  z-index: 30;
-  padding: max(12px, env(safe-area-inset-top)) 16px
-    max(12px, env(safe-area-inset-bottom));
-}
-
-.welcome-back.is-homecoming .welcome-card {
-  gap: 4px;
-  padding: 8px 16px;
-  border-color: #ffe08a;
-  box-shadow: 0 0 64px rgba(255, 224, 138, 0.55);
-}
-
-.welcome-back.is-homecoming .welcome-mined {
-  font-size: 2.9rem;
-}
-
-.welcome-card {
-  gap: 6px;
-  padding: 12px 16px;
-}
-
-.welcome-card .welcome-continue {
-  min-height: 52px;
-}
-
-.welcome-card [hidden] {
-  display: none;
 }
 
 .found-tool[hidden],
@@ -1910,8 +1729,7 @@ body {
 .shelf-card,
 .menu-card,
 .start-over-card,
-.reveal-card,
-.welcome-card {
+.reveal-card {
   border: var(--line) solid var(--color-edge);
   border-radius: var(--radius-sheet);
   background: var(--color-card);
@@ -1962,7 +1780,6 @@ body {
 }
 
 /* The one main move on a card: primary. */
-.welcome-continue,
 .reveal-continue,
 .legacy-confirm {
   min-height: var(--target-min);
@@ -2221,49 +2038,6 @@ body {
   opacity: 0.5;
 }
 
-/* #247: the ore that came up while you were away, and what it is for. */
-.welcome-ore {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  width: 100%;
-  padding: var(--space-8);
-  border: var(--line) solid var(--color-edge);
-  border-radius: var(--radius-control);
-  text-align: left;
-}
-
-.welcome-ore[hidden] {
-  display: none;
-}
-
-.welcome-ore-art {
-  flex: none;
-  width: calc(var(--space-24) + var(--space-8));
-  height: calc(var(--space-24) + var(--space-8));
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-.welcome-ore-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.welcome-ore-line {
-  color: var(--color-gold);
-  font-size: var(--type-16);
-  font-weight: var(--weight-bold);
-  line-height: var(--leading);
-}
-
-.welcome-ore-use {
-  color: var(--color-ink);
-  font-size: var(--type-14);
-  line-height: var(--leading);
-}
-
 /* #247: the pass-to-kid card reads as the Legacy, its real numbers, then what stays. */
 .legacy-detail {
   display: flex;
@@ -2310,7 +2084,6 @@ body {
 }
 
 /* Clear of the focus ring, so the last line never touches the first button. */
-.welcome-card .welcome-continue,
 .legacy-card .start-over-actions {
   margin-top: var(--space-8);
 }

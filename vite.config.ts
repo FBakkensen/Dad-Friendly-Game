@@ -207,6 +207,24 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/board-card.ts": {
+          statements: 100,
+          branches: 95,
+          functions: 100,
+          lines: 100,
+        },
+        "src/card-views.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/arrival-panel.ts": {
+          statements: 100,
+          branches: 95,
+          functions: 100,
+          lines: 100,
+        },
         "src/ledger-panel.ts": {
           statements: 99,
           branches: 87,

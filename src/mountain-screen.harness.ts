@@ -105,9 +105,6 @@ export function mountScreen({
   mountMountainScreen({
     root,
     deviceStorage,
-    lanternUrl: tileUrl,
-    mountainUrl: tileUrl,
-    stoneUrl: tileUrl,
     veinUrl: tileUrl,
     tierArt: {
       helper: "helper.png",

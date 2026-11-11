@@ -20,6 +20,7 @@ import {
   STANDALONE_INSETS,
   openScreen,
   coversBoard,
+  pastSettle,
   noScroll,
 } from "./kit.mjs";
 
@@ -70,6 +71,7 @@ table({
     },
     {
       run: async ({ page }) => {
+        await pastSettle();
         await page.tap(".welcome-continue");
         return [
           [
@@ -91,6 +93,7 @@ section("section 5 (line 856)", async () => {
       await coversBoard(page, ".welcome-back"),
       "welcome-back is laid over the game",
     );
+    await pastSettle();
     await page.tap(".welcome-continue");
     check(
       await coversBoard(page, ".relic-reveal"),
@@ -457,7 +460,7 @@ async function welcomeCard(page, bottomInset) {
         titleOk: title >= 0,
         closeOk:
           closeBox !== undefined &&
-          closeBox.height >= 44 &&
+          closeBox.height >= 48 &&
           closeBox.top >= 0 &&
           closeBox.bottom <= innerHeight - inset,
       };
@@ -502,6 +505,7 @@ table({
     },
     {
       run: async ({ page }) => {
+        await pastSettle();
         await page.tap(".welcome-continue");
         return [
           [

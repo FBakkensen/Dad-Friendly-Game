@@ -9,6 +9,5 @@
   "src/progress-store.ts#createProgressStore>applyMerged": 18,
   "src/progress-store.ts#createProgressStore>applyRemote": 23,
   "src/progress-store.ts#createProgressStore>prepareLocal": 18,
-  "src/save-merge.ts#mergeSaves": 16,
-  "src/welcome-panel.ts#createWelcomePanel>renderWelcome": 23
+  "src/save-merge.ts#mergeSaves": 16
 }

@@ -1,6 +1,7 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, localStorage, getComputedStyle, HTMLButtonElement, requestAnimationFrame */
+/* global console, process, setTimeout, document, innerWidth, innerHeight, scrollBy, scrollY, localStorage, getComputedStyle, HTMLButtonElement, requestAnimationFrame */
 /** The visual check's shared kit: the server, Chrome, the sizes and the helpers more than one module uses. */
 import {
+  cardRisen,
   startServer,
   launchChrome,
   press as pressOn,
@@ -220,8 +221,18 @@ async function openScreen(
 }
 
 /**
- * The overlay is fixed and covers the board down to the save line, and the
- * save line stays on top of it (#370). On a PC the board is a box on the desk.
+ * Waits past a board card's settle (#464) on a real tap clock: a finger on its plate in the
+ * first 400ms after it opens is the second tap of the one that opened it, and does nothing.
+ */
+const pastSettle = () =>
+  new Promise((resolve) => {
+    setTimeout(resolve, 500);
+  });
+
+/**
+ * The overlay (fixed, or a board card absolute in the board, #464) covers the
+ * board down to the save line, and the save line stays on top of it (#370). On
+ * a PC the board is a box on the desk.
  */
 async function coversBoard(page, selector) {
   // A tap's click lands a frame later on a slow runner; let the overlay open first.
@@ -243,7 +254,7 @@ async function coversBoard(page, selector) {
     const lineOnTop = line !== null && hit !== null && line.contains(hit);
     const ok =
       !element.hidden &&
-      getComputedStyle(element).position === "fixed" &&
+      ["fixed", "absolute"].includes(getComputedStyle(element).position) &&
       rect.top <= board.top + 0.5 &&
       rect.left <= board.left + 0.5 &&
       rect.right >= board.right - 0.5 &&
@@ -541,6 +552,8 @@ export {
   boardProbe,
   openScreen,
   coversBoard,
+  pastSettle,
+  cardRisen,
   noScroll,
   MINE_WINDOW_RULES,
   shot,

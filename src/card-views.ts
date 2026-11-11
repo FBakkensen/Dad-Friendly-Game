@@ -34,7 +34,7 @@ export function welcomeNews(view: ProgressSnapshot): boolean {
   );
 }
 
-interface WelcomeAway {
+export interface WelcomeAway {
   /** "+1.2 million stones" */
   readonly mined: string;
   /** "You were gone 9 hours. … ×1.25." */

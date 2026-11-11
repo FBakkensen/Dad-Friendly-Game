@@ -13,6 +13,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  cardRisen,
   launchChrome,
   open as openHarness,
   openPair,
@@ -476,7 +477,7 @@ async function collect(page) {
     remember(document.documentElement, "html");
     remember(document.querySelector("#app"), "#app");
     for (const el of document.querySelectorAll(
-      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .engineers-card, .menu-card, .shelf-card, .save-conflict-sheet",
+      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .engineers-card, .menu-card, .shelf-card, .save-conflict-sheet, .board-card-face",
     )) {
       if (visible(el)) {
         remember(el, selectorOf(el));
@@ -550,11 +551,11 @@ async function collect(page) {
         ".workshop-recipe",
         ".save-card",
         ".saved-copy",
-        ".welcome-card",
+        ".welcome-back .board-card-face",
         ".menu-card",
         ".reveal-card",
-        ".layer-card",
-        ".notice-card",
+        ".layer-arrival .board-card-face",
+        ".craft-notice .board-card-face",
         ".other-tab-card",
         ".update-card",
         ".start-over-card",
@@ -1087,9 +1088,11 @@ async function main() {
     await opened.page.evaluate(() => {
       globalThis.__skewMs = 120_000;
     });
-    await opened.page.waitForSelector(".craft-notice:not([hidden])", {
-      timeout: 8_000,
-    });
+    await opened.page.waitForSelector(
+      '.board-card[data-card="craft"]:not([hidden])',
+      { timeout: 8_000 },
+    );
+    await cardRisen(opened.page, "craft");
     await expectText(opened.page, /fitted/, "craft done");
     return opened;
   });
@@ -1154,9 +1157,11 @@ async function main() {
         ],
       }),
     );
-    await opened.page.waitForSelector(".welcome-back:not([hidden])", {
-      timeout: 8_000,
-    });
+    await opened.page.waitForSelector(
+      '.board-card[data-card="welcome"]:not([hidden])',
+      { timeout: 8_000 },
+    );
+    await cardRisen(opened.page, "welcome");
     await expectText(opened.page, /Welcome home/, "homecoming");
     return opened;
   });
@@ -1224,9 +1229,11 @@ async function main() {
       viewport,
       late(away, 20_000_000, quietCrew({ pocket: 40_000 })),
     );
-    await opened.page.waitForSelector(".welcome-back:not([hidden])", {
-      timeout: 8_000,
-    });
+    await opened.page.waitForSelector(
+      '.board-card[data-card="welcome"]:not([hidden])',
+      { timeout: 8_000 },
+    );
+    await cardRisen(opened.page, "welcome");
     await expectText(opened.page, /While you were away/, "welcome");
     return opened;
   });
@@ -1244,9 +1251,11 @@ async function main() {
       timeout: 8_000,
     });
     await press(opened.page, ".reveal-continue");
-    await opened.page.waitForSelector(".layer-arrival:not([hidden])", {
-      timeout: 8_000,
-    });
+    await opened.page.waitForSelector(
+      '.board-card[data-card="layer"]:not([hidden])',
+      { timeout: 8_000 },
+    );
+    await cardRisen(opened.page, "layer");
     await expectText(opened.page, /broke into the Granite/, "layer");
     return opened;
   });

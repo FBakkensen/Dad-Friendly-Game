@@ -122,6 +122,37 @@ export function clockPatches(
   ];
 }
 
+/**
+ * The board card `card` is open and its face has risen: its 6 steps are over (#464). True
+ * when it did within 6 s. Measured or shot mid-rise, the face sits below its box.
+ */
+export async function cardRisen(page: Page, card: string): Promise<boolean> {
+  return page
+    .waitForFunction(
+      (selector: string) => {
+        // The page's own document: this file is typed without the DOM.
+        const { document } = globalThis as unknown as {
+          document: {
+            querySelector(
+              query: string,
+            ): { getAnimations(): readonly unknown[] } | null;
+          };
+        };
+        return (
+          document
+            .querySelector(`${selector}:not([hidden]) .board-card-face`)
+            ?.getAnimations().length === 0
+        );
+      },
+      { timeout: 6_000 },
+      `.board-card[data-card="${card}"]`,
+    )
+    .then(
+      () => true,
+      () => false,
+    );
+}
+
 /** Moves a held tap clock on by `ms`, as if that long had passed for the board's model. */
 export async function stepTapClock(page: Page, ms: number): Promise<void> {
   await page.evaluate((by) => {

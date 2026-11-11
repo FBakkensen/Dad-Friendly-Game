@@ -56,18 +56,14 @@ export function createEarlyCards(
   legacy: ReturnType<typeof createLegacyPanel>;
   paint(): void;
 } {
-  const { progress } = ctx;
-  const { mountainUrl, stoneUrl, lanternUrl, tierArt } = ctx.art;
-  const welcomePanel = createWelcomePanel({ progress, getView: ctx.view });
-  const { welcome } = welcomePanel;
-  const arrival = createArrivalPanel({
+  const { progress, board } = ctx;
+  const welcomePanel = createWelcomePanel({
     progress,
     getView: ctx.view,
-    mountainUrl,
-    oreUrl: stoneUrl,
-    lanternUrl,
-    tierArt,
+    board,
   });
+  const { welcome } = welcomePanel;
+  const arrival = createArrivalPanel({ progress, getView: ctx.view, board });
 
   // A panel's own change repaints the whole screen: its `requestRender` is `ctx.paint`, which
   // reads `paint` (set up below) when called.
