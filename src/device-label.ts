@@ -11,28 +11,37 @@ export function isDeviceLabel(value: string): boolean {
   );
 }
 
+/** The first name whose pattern the agent matches, in order, else `fallback`. */
+function firstMatch(
+  ua: string,
+  names: readonly (readonly [RegExp, string])[],
+  fallback: string,
+): string {
+  return names.find(([pattern]) => pattern.test(ua))?.[1] ?? fallback;
+}
+
+/** Edge and Opera say Chrome too, and Chrome says Safari, so they go first. */
+const BROWSERS: readonly (readonly [RegExp, string])[] = [
+  [/Edg\//, "Edge"],
+  [/OPR\//, "Opera"],
+  [/Opera/, "Opera"],
+  [/Firefox\//, "Firefox"],
+  [/Chrome\//, "Chrome"],
+  [/Safari/, "Safari"],
+];
+
+/** An iPad or iPhone may say Mobile too, so they go first. */
+const PLACES: readonly (readonly [RegExp, string])[] = [
+  [/iPad/, "iPad"],
+  [/iPhone/, "iPhone"],
+  [/Android/, "Android"],
+  [/Mobile/, "a phone"],
+];
+
 /** A short name for this browser. Not the device id. */
 export function deviceLabelFromAgent(ua: string): string {
-  const browser = /Edg\//.test(ua)
-    ? "Edge"
-    : /OPR\//.test(ua) || /Opera/.test(ua)
-      ? "Opera"
-      : /Firefox\//.test(ua)
-        ? "Firefox"
-        : /Chrome\//.test(ua)
-          ? "Chrome"
-          : /Safari/.test(ua)
-            ? "Safari"
-            : "Browser";
-  const where = /iPad/.test(ua)
-    ? "iPad"
-    : /iPhone/.test(ua)
-      ? "iPhone"
-      : /Android/.test(ua)
-        ? "Android"
-        : /Mobile/.test(ua)
-          ? "a phone"
-          : "this computer";
+  const browser = firstMatch(ua, BROWSERS, "Browser");
+  const where = firstMatch(ua, PLACES, "this computer");
   const label = `${browser} on ${where}`;
   return label.length <= DEVICE_LABEL_MAX
     ? label

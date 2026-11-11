@@ -224,41 +224,69 @@ export function judgeCeilings({
   for (const { id, value } of values) {
     highest.set(id, Math.max(value, highest.get(id) ?? 0));
   }
+  const problems = [
+    ...[...highest].flatMap(([id, value]) =>
+      valueProblems(id, value, ceilings[id], measure.limit),
+    ),
+    ...Object.entries(ceilings).flatMap(([id, ceiling]) =>
+      ceilingProblems(id, ceiling, highest.get(id) ?? 0, base, measure.limit),
+    ),
+  ];
+  return problems.sort(byIdThenKind);
+}
+
+/** A measured function over the limit, against its ceiling. */
+function valueProblems(
+  id: string,
+  value: number,
+  ceiling: number | undefined,
+  limit: number,
+): readonly CeilingProblem[] {
+  if (value <= limit) {
+    return [];
+  }
+  if (ceiling === undefined) {
+    return [{ kind: "over", id, value }];
+  }
+  if (value > ceiling) {
+    return [{ kind: "grew", id, value, ceiling }];
+  }
+  return value < ceiling ? [{ kind: "lower", id, value, ceiling }] : [];
+}
+
+/** A listed ceiling: named, still needed, and no higher than on the base. */
+function ceilingProblems(
+  id: string,
+  ceiling: number,
+  value: number,
+  base: Ceilings | undefined,
+  limit: number,
+): readonly CeilingProblem[] {
   const problems: CeilingProblem[] = [];
-  for (const [id, value] of highest) {
-    const ceiling = ceilings[id];
-    if (value <= measure.limit) continue;
-    if (ceiling === undefined) {
-      problems.push({ kind: "over", id, value });
-    } else if (value > ceiling) {
-      problems.push({ kind: "grew", id, value, ceiling });
-    } else if (value < ceiling) {
-      problems.push({ kind: "lower", id, value, ceiling });
-    }
+  // "(anonymous N)" is a position, not a name: it moves when a sibling callback is added.
+  if (id.includes("(anonymous ")) {
+    problems.push({ kind: "anonymous", id, ceiling });
   }
-  for (const [id, ceiling] of Object.entries(ceilings)) {
-    // "(anonymous N)" is a position, not a name: it moves when a sibling callback is added.
-    if (id.includes("(anonymous ")) {
-      problems.push({ kind: "anonymous", id, ceiling });
-    }
-    if ((highest.get(id) ?? 0) <= measure.limit) {
-      problems.push({ kind: "remove", id, ceiling });
-    }
-    if (base === undefined) continue;
-    const was = base[id];
-    if (was === undefined) {
-      problems.push({ kind: "added", id, ceiling });
-    } else if (ceiling > was) {
-      problems.push({ kind: "raised", id, ceiling, was });
-    }
+  if (value <= limit) {
+    problems.push({ kind: "remove", id, ceiling });
   }
-  return problems.sort((a, b) =>
-    a.id === b.id
-      ? KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind)
-      : a.id < b.id
-        ? -1
-        : 1,
-  );
+  if (base === undefined) {
+    return problems;
+  }
+  const was = base[id];
+  if (was === undefined) {
+    problems.push({ kind: "added", id, ceiling });
+  } else if (ceiling > was) {
+    problems.push({ kind: "raised", id, ceiling, was });
+  }
+  return problems;
+}
+
+function byIdThenKind(a: CeilingProblem, b: CeilingProblem): number {
+  if (a.id === b.id) {
+    return KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind);
+  }
+  return a.id < b.id ? -1 : 1;
 }
 
 /** One line telling the author what to do about a problem. */

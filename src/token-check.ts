@@ -152,46 +152,28 @@ function freshState(): CssState {
   };
 }
 
-function consumeLine(input: {
-  state: CssState;
-  codeLine: string;
-  added: boolean;
+/** Where a finding goes, and how a declaration's lengths are judged. */
+type TokenReport = {
   file: string;
   lookup: (name: string) => number | undefined;
   target: number;
   findings: TokenFinding[];
-}): void {
-  const { state, added, file, lookup, target, findings } = input;
+};
+
+function consumeLine(
+  input: TokenReport & { state: CssState; codeLine: string; added: boolean },
+): void {
+  const { state, added, file, findings } = input;
   const stripped = stripComments(input.codeLine, state.inComment);
   state.inComment = stripped.inComment;
-  const code = stripped.code;
-  const continuing =
-    (state.mode === "prelude" ? state.prelude : state.decl).length > 0 &&
-    code.length > 0;
-  let preludeAdded = "";
-  let valueAdded = "";
-  const stream = `${continuing ? "\n" : ""}${code}`;
-  for (let index = 0; index < stream.length; index += 1) {
-    const ch = stream[index] ?? "";
-    const fromDiff = continuing ? index > 0 && added : added;
-    const bucket = takeChar(state, ch, fromDiff, {
-      file,
-      lookup,
-      target,
-      findings,
-    });
-    if (fromDiff && bucket === "prelude") {
-      preludeAdded += ch;
-    }
-    if (fromDiff && bucket === "value") {
-      valueAdded += ch;
-    }
-  }
-  if (!added) {
-    return;
-  }
+  const { preludeAdded, valueAdded } = scanCode(
+    state,
+    stripped.code,
+    added,
+    input,
+  );
   const text = input.codeLine.trim();
-  if (text.length === 0) {
+  if (!added || text.length === 0) {
     return;
   }
   if (RAW_PX.test(preludeAdded) || RAW_PX.test(valueAdded)) {
@@ -202,67 +184,106 @@ function consumeLine(input: {
   }
 }
 
+/**
+ * Feeds a line's code to the parser, one character at a time, and keeps the
+ * added characters that land in a prelude or a value. A line that continues a
+ * prelude or declaration starts with the line break, which the diff did not add.
+ */
+function scanCode(
+  state: CssState,
+  code: string,
+  added: boolean,
+  report: TokenReport,
+): { readonly preludeAdded: string; readonly valueAdded: string } {
+  const continuing =
+    (state.mode === "prelude" ? state.prelude : state.decl).length > 0 &&
+    code.length > 0;
+  let preludeAdded = "";
+  let valueAdded = "";
+  const stream = `${continuing ? "\n" : ""}${code}`;
+  for (let index = 0; index < stream.length; index += 1) {
+    const ch = stream[index] ?? "";
+    const fromDiff = added && (!continuing || index > 0);
+    const bucket = takeChar(state, ch, fromDiff, report);
+    if (fromDiff && bucket === "prelude") {
+      preludeAdded += ch;
+    }
+    if (fromDiff && bucket === "value") {
+      valueAdded += ch;
+    }
+  }
+  return { preludeAdded, valueAdded };
+}
+
 type Bucket = "prelude" | "value" | "other";
 
 function takeChar(
   state: CssState,
   ch: string,
   added: boolean,
-  report: {
-    file: string;
-    lookup: (name: string) => number | undefined;
-    target: number;
-    findings: TokenFinding[];
-  },
+  report: TokenReport,
 ): Bucket {
-  if (state.mode === "prelude") {
-    if (ch === "}") {
-      state.frames.pop();
-      state.prelude = "";
-      state.mode = modeAfterPop(state.frames);
-      return "other";
-    }
-    if (ch === "{") {
-      pushFrame(state, state.prelude.trim());
-      state.prelude = "";
-      return "other";
-    }
-    state.prelude += ch;
-    return "prelude";
+  return state.mode === "prelude"
+    ? takePreludeChar(state, ch)
+    : takeBodyChar(state, ch, added, report);
+}
+
+/** A selector or at-rule header, up to its brace. */
+function takePreludeChar(state: CssState, ch: string): Bucket {
+  if (ch === "}") {
+    state.frames.pop();
+    state.prelude = "";
+    state.mode = modeAfterPop(state.frames);
+    return "other";
   }
   if (ch === "{") {
+    pushFrame(state, state.prelude.trim());
+    state.prelude = "";
+    return "other";
+  }
+  state.prelude += ch;
+  return "prelude";
+}
+
+/** Inside a style rule: declarations, nested rules, and the closing brace. */
+function takeBodyChar(
+  state: CssState,
+  ch: string,
+  added: boolean,
+  report: TokenReport,
+): Bucket {
+  if (ch === "{") {
     pushFrame(state, state.decl.trim());
-    state.decl = "";
-    state.inValue = false;
-    state.declAdded = false;
+    clearDeclaration(state);
     return "other";
   }
   if (ch === "}" || ch === ";") {
     if (state.declAdded) {
       inspectDeclaration(state, report);
     }
-    state.decl = "";
-    state.inValue = false;
-    state.declAdded = false;
+    clearDeclaration(state);
     if (ch === "}") {
       state.frames.pop();
       state.mode = modeAfterPop(state.frames);
     }
     return "other";
   }
-  if (ch === ":" && !state.inValue) {
-    state.inValue = true;
-    state.decl += ch;
-    if (added) {
-      state.declAdded = true;
-    }
-    return "other";
-  }
+  const startsValue = ch === ":" && !state.inValue;
   state.decl += ch;
   if (added) {
     state.declAdded = true;
   }
+  if (startsValue) {
+    state.inValue = true;
+    return "other";
+  }
   return state.inValue ? "value" : "other";
+}
+
+function clearDeclaration(state: CssState): void {
+  state.decl = "";
+  state.inValue = false;
+  state.declAdded = false;
 }
 
 function pushFrame(state: CssState, header: string): void {
@@ -287,15 +308,7 @@ function opensRuleList(header: string): boolean {
   );
 }
 
-function inspectDeclaration(
-  state: CssState,
-  report: {
-    file: string;
-    lookup: (name: string) => number | undefined;
-    target: number;
-    findings: TokenFinding[];
-  },
-): void {
+function inspectDeclaration(state: CssState, report: TokenReport): void {
   const parsed = splitDeclaration(state.decl);
   if (parsed === undefined) {
     return;

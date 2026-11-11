@@ -424,36 +424,58 @@ function findOfKind(
   return name === undefined ? undefined : { kind: "engineer", id: name };
 }
 
+/** A tunnel's odds on a roll of 0..99: each kind below its bound, in order, else `rest`. */
+type FindOdds = {
+  /** The rolls, from and below, that bring the sketch home while it is still to find. */
+  readonly recipe: readonly [number, number] | null;
+  readonly bands: readonly (readonly [number, FindKind])[];
+  readonly rest: FindKind;
+};
+
+const FIND_ODDS: Readonly<Record<TunnelId, FindOdds>> = {
+  "side-seam": {
+    recipe: null,
+    bands: [
+      [60, "keepsake"],
+      [90, "glimmer"],
+    ],
+    rest: "tool",
+  },
+  "old-shaft": {
+    recipe: [90, Number.POSITIVE_INFINITY],
+    bands: [
+      [45, "tool"],
+      [75, "keepsake"],
+    ],
+    rest: "glimmer",
+  },
+  "deep-dark": {
+    recipe: [75, 80],
+    bands: [
+      [35, "tool"],
+      [60, "keepsake"],
+      [80, "glimmer"],
+    ],
+    rest: "engineer",
+  },
+};
+
 function rolledKind(
   tunnel: TunnelId,
   roll: number,
   recipeOpenNow: boolean,
 ): FindKind {
-  if (tunnel === "side-seam") {
-    if (roll < 60) {
-      return "keepsake";
-    }
-    return roll < 90 ? "glimmer" : "tool";
-  }
-  if (tunnel === "old-shaft") {
-    if (recipeOpenNow && roll >= 90) {
-      return "recipe";
-    }
-    if (roll < 45) {
-      return "tool";
-    }
-    return roll < 75 ? "keepsake" : "glimmer";
-  }
-  if (recipeOpenNow && roll >= 75 && roll < 80) {
+  const odds = FIND_ODDS[tunnel];
+  const recipe = odds.recipe;
+  if (
+    recipeOpenNow &&
+    recipe !== null &&
+    roll >= recipe[0] &&
+    roll < recipe[1]
+  ) {
     return "recipe";
   }
-  if (roll < 35) {
-    return "tool";
-  }
-  if (roll < 60) {
-    return "keepsake";
-  }
-  return roll < 80 ? "glimmer" : "engineer";
+  return odds.bands.find(([below]) => roll < below)?.[1] ?? odds.rest;
 }
 
 function rollOf(sentAt: number, tunnel: TunnelId): number {
@@ -694,6 +716,11 @@ function parseFind(value: unknown): StoredFind | undefined {
   if (typeof id !== "string") {
     return undefined;
   }
+  return namedFind(kind, id);
+}
+
+/** A find that names its relic, tool, keepsake, engineer or sketch. */
+function namedFind(kind: unknown, id: string): StoredFind | undefined {
   if (kind === "glimmer" && isRelicId(id)) {
     return { kind, id };
   }

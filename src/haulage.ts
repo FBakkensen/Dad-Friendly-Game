@@ -167,58 +167,15 @@ function go(t: Work, ph: Phase): void {
 function tubTick(t: Work, dt: number, events: HaulageEvent[]): void {
   t.acc += dt;
   if (t.ph === "out" || t.ph === "back") {
-    const out = t.ph === "out";
-    const dir = out ? 1 : -1;
-    const end = out ? RUN.face : RUN.cage;
-    t.walk = false;
-    t.face = dir > 0 ? "E" : "W";
-    let pushing = true;
-    while (pushing && t.acc >= PUSH_STEP) {
-      t.acc -= PUSH_STEP;
-      t.x += dir;
-      t.f = (t.f + 1) % 4;
-      if (t.x === end) {
-        pushing = false;
-        go(t, out ? "face" : "cage");
-      }
-    }
-    t.mx = pushX(t);
+    pushTick(t, t.ph === "out");
   } else if (t.ph === "face") {
-    t.round ??= freshRound(pushX(t), t.x + RUN.tw - 2, 1);
-    roundTick(
-      t,
-      t.round,
-      dt,
-      () => {
-        t.full = true;
-        events.push({ kind: "fill", x: t.x + 8, y: 29 });
-      },
-      () => {
-        t.face = "W";
-        t.round = null;
-        go(t, "back");
-      },
-    );
+    faceTick(t, dt, events);
   } else if (t.ph === "cage") {
     if ((t.nw && !t.round) || t.hoist) {
       hoistTick(t, dt, events);
       return;
     }
-    t.round ??= freshRound(pushX(t), t.x - 10, -1);
-    roundTick(
-      t,
-      t.round,
-      dt,
-      () => {
-        t.full = false;
-        events.push({ kind: "fill", x: t.x - 4, y: 30 });
-      },
-      () => {
-        t.face = "E";
-        t.round = null;
-        go(t, "out");
-      },
-    );
+    cageTick(t, dt, events);
   } else if (t.round) {
     // cage2: after a handover he walks round the new tub, without a tip
     roundTick(
@@ -227,13 +184,73 @@ function tubTick(t: Work, dt: number, events: HaulageEvent[]): void {
       dt,
       () => undefined,
       () => {
-        t.face = "E";
-        t.round = null;
-        go(t, "out");
+        turnOut(t);
       },
     );
   }
   t.y = tubTop(t.full);
+}
+
+/** He pushes the tub one art px a step, out to the face or back to the cage. */
+function pushTick(t: Work, out: boolean): void {
+  const dir = out ? 1 : -1;
+  const end = out ? RUN.face : RUN.cage;
+  t.walk = false;
+  t.face = out ? "E" : "W";
+  let pushing = true;
+  while (pushing && t.acc >= PUSH_STEP) {
+    t.acc -= PUSH_STEP;
+    t.x += dir;
+    t.f = (t.f + 1) % 4;
+    if (t.x === end) {
+      pushing = false;
+      go(t, out ? "face" : "cage");
+    }
+  }
+  t.mx = pushX(t);
+}
+
+/** At the face he walks round the tub while it is filled, then pushes it back. */
+function faceTick(t: Work, dt: number, events: HaulageEvent[]): void {
+  t.round ??= freshRound(pushX(t), t.x + RUN.tw - 2, 1);
+  roundTick(
+    t,
+    t.round,
+    dt,
+    () => {
+      t.full = true;
+      events.push({ kind: "fill", x: t.x + 8, y: 29 });
+    },
+    () => {
+      t.face = "W";
+      t.round = null;
+      go(t, "back");
+    },
+  );
+}
+
+/** At the cage he tips the tub as he walks round it, then pushes it out. */
+function cageTick(t: Work, dt: number, events: HaulageEvent[]): void {
+  t.round ??= freshRound(pushX(t), t.x - 10, -1);
+  roundTick(
+    t,
+    t.round,
+    dt,
+    () => {
+      t.full = false;
+      events.push({ kind: "fill", x: t.x - 4, y: 30 });
+    },
+    () => {
+      turnOut(t);
+    },
+  );
+}
+
+/** The round at the cage is done: he faces the face and sets off. */
+function turnOut(t: Work): void {
+  t.face = "E";
+  t.round = null;
+  go(t, "out");
 }
 
 function freshRound(from: number, to: number, dir: Dir): Mutable<Round> {
@@ -253,55 +270,15 @@ function roundTick(
 ): void {
   r.acc += dt;
   if (r.stage === 0) {
-    t.walk = false;
-    t.f = 0;
-    t.mx = r.from;
-    if (r.acc >= PAUSE) {
-      r.stage = 1;
-      r.acc = 0;
-      t.pose = null;
-    }
+    roundPause(t, r);
     return;
   }
   if (r.stage === 1) {
-    t.walk = true;
-    t.face = r.dir > 0 ? "E" : "W";
-    const half = r.from + (r.to - r.from) / 2;
-    while (r.acc >= WALK_STEP && r.stage === 1) {
-      r.acc -= WALK_STEP;
-      r.mx += r.dir;
-      r.f = (r.f + 1) % 4;
-      if (!r.midDone && (r.dir > 0 ? r.mx >= half : r.mx <= half)) {
-        r.midDone = true;
-        mid();
-      }
-      if (r.mx === r.to) {
-        r.stage = 3;
-        r.acc = 0;
-        r.f = 0;
-      }
-    }
-    t.mx = r.mx;
-    t.f = r.f;
-    if (r.stage === 3) {
-      // the step that arrives is the first turn frame
-      t.walk = false;
-      t.pose = r.dir > 0 ? 16 : 17;
-    }
+    roundWalk(t, r, mid);
     return;
   }
-  if (r.stage === 3) {
-    // he turns through two three-quarter frames, 0.1s each, towards the tub
-    t.walk = false;
-    t.mx = r.to;
-    if (r.acc < TURN) {
-      const first = r.acc < WALK_STEP;
-      t.pose = r.dir > 0 ? (first ? 16 : 17) : first ? 17 : 16;
-      return;
-    }
-    r.stage = 2;
-    r.acc = 0;
-    t.pose = null;
+  if (r.stage === 3 && roundTurning(t, r)) {
+    return;
   }
   // stage 2: he has turned to face the tub and takes hold
   t.walk = false;
@@ -314,20 +291,82 @@ function roundTick(
   }
 }
 
+/** Stage 0: he stands still a moment before the walk round. */
+function roundPause(t: Work, r: Mutable<Round>): void {
+  t.walk = false;
+  t.f = 0;
+  t.mx = r.from;
+  if (r.acc >= PAUSE) {
+    r.stage = 1;
+    r.acc = 0;
+    t.pose = null;
+  }
+}
+
+/** True once he has walked at least half way round, going `dir`. */
+const pastHalf = (r: Mutable<Round>, half: number): boolean =>
+  r.dir > 0 ? r.mx >= half : r.mx <= half;
+
+/** Stage 1: he walks round behind the tub; half way, the load changes. */
+function roundWalk(t: Work, r: Mutable<Round>, mid: () => void): void {
+  t.walk = true;
+  t.face = r.dir > 0 ? "E" : "W";
+  const half = r.from + (r.to - r.from) / 2;
+  while (r.acc >= WALK_STEP && r.stage === 1) {
+    r.acc -= WALK_STEP;
+    r.mx += r.dir;
+    r.f = (r.f + 1) % 4;
+    if (!r.midDone && pastHalf(r, half)) {
+      r.midDone = true;
+      mid();
+    }
+    if (r.mx === r.to) {
+      r.stage = 3;
+      r.acc = 0;
+      r.f = 0;
+    }
+  }
+  t.mx = r.mx;
+  t.f = r.f;
+  if (r.stage === 3) {
+    // the step that arrives is the first turn frame
+    t.walk = false;
+    t.pose = r.dir > 0 ? 16 : 17;
+  }
+}
+
+/** The turn frame `acc` seconds into the turn: 16 then 17 going east, 17 then 16 going west. */
+function turnPose(r: Mutable<Round>): 16 | 17 {
+  const first = r.acc < WALK_STEP;
+  if (r.dir > 0) {
+    return first ? 16 : 17;
+  }
+  return first ? 17 : 16;
+}
+
+/**
+ * Stage 3: he turns through two three-quarter frames, 0.1s each, towards the tub. True while
+ * he is still turning; once done, the round moves on to stage 2.
+ */
+function roundTurning(t: Work, r: Mutable<Round>): boolean {
+  t.walk = false;
+  t.mx = r.to;
+  if (r.acc < TURN) {
+    t.pose = turnPose(r);
+    return true;
+  }
+  r.stage = 2;
+  r.acc = 0;
+  t.pose = null;
+  return false;
+}
+
 /*
  * The handover for a new cart: the full tub goes up the cage behind the deck beam, the new empty
  * one comes down in its place, and the miner walks round to take it out.
  */
 function hoistTick(t: Work, dt: number, events: HaulageEvent[]): void {
-  if (!t.hoist) {
-    // he lets go and stands back a pixel, three-quarter to the cage, hands down, while it winds
-    t.hoist = { stage: 0, acc: 0, dy: 0 };
-    t.walk = false;
-    t.f = 0;
-    t.mx = pushX(t) + 1;
-    t.pose = 17;
-  }
-  const h = t.hoist;
+  const h = t.hoist ?? startHoist(t);
   h.acc += dt;
   if (h.stage === 0) {
     if (h.acc >= HOIST_WAIT) {
@@ -335,51 +374,64 @@ function hoistTick(t: Work, dt: number, events: HaulageEvent[]): void {
       h.acc = 0;
       events.push({ kind: "sheave", seconds: SHEAVE_FAST });
     }
-    return;
-  }
-  if (h.stage === 1) {
-    // the cage goes up with the full tub until its deck is behind the deck beam
-    while (h.acc >= HOIST_STEP && h.stage === 1) {
-      h.acc -= HOIST_STEP;
-      t.y -= 1;
-      h.dy -= 1;
-      if (h.dy <= -RUN.cageOff) {
-        h.stage = 2;
-        h.acc = 0;
-        t.full = false;
-      }
-    }
-    return;
-  }
-  if (h.stage === 2) {
+  } else if (h.stage === 1) {
+    hoistUp(t, h);
+  } else if (h.stage === 2) {
     if (h.acc >= HOIST_TOP) {
       h.stage = 3;
       h.acc = 0;
       h.dy = -RUN.cageOff;
       t.y = tubTop(false) - RUN.cageOff;
     }
-    return;
+  } else if (h.stage === 3) {
+    hoistDown(t, h);
+  } else {
+    // stage 4: settled; he walks round it as at every cage visit, without a tip
+    t.hoist = null;
+    t.round = freshRound(t.mx, t.x - 10, -1); // still standing (pose 17) until he sets off
+    t.ph = "cage2";
   }
-  if (h.stage === 3) {
-    // it comes back down with the new empty tub
-    while (h.acc >= HOIST_STEP && h.stage === 3) {
-      h.acc -= HOIST_STEP;
-      t.y += 1;
-      h.dy += 1;
-      if (h.dy >= 0) {
-        h.dy = 0;
-        t.y = tubTop(false);
-        h.stage = 4;
-        h.acc = 0;
-        t.nw = false;
-      }
+}
+
+/** He lets go and stands back a pixel, three-quarter to the cage, hands down, while it winds. */
+function startHoist(t: Work): Mutable<Hoist> {
+  const h: Mutable<Hoist> = { stage: 0, acc: 0, dy: 0 };
+  t.hoist = h;
+  t.walk = false;
+  t.f = 0;
+  t.mx = pushX(t) + 1;
+  t.pose = 17;
+  return h;
+}
+
+/** Stage 1: the cage goes up with the full tub until its deck is behind the deck beam. */
+function hoistUp(t: Work, h: Mutable<Hoist>): void {
+  while (h.acc >= HOIST_STEP && h.stage === 1) {
+    h.acc -= HOIST_STEP;
+    t.y -= 1;
+    h.dy -= 1;
+    if (h.dy <= -RUN.cageOff) {
+      h.stage = 2;
+      h.acc = 0;
+      t.full = false;
     }
-    return;
   }
-  // stage 4: settled; he walks round it as at every cage visit, without a tip
-  t.hoist = null;
-  t.round = freshRound(t.mx, t.x - 10, -1); // still standing (pose 17) until he sets off
-  t.ph = "cage2";
+}
+
+/** Stage 3: it comes back down with the new empty tub. */
+function hoistDown(t: Work, h: Mutable<Hoist>): void {
+  while (h.acc >= HOIST_STEP && h.stage === 3) {
+    h.acc -= HOIST_STEP;
+    t.y += 1;
+    h.dy += 1;
+    if (h.dy >= 0) {
+      h.dy = 0;
+      t.y = tubTop(false);
+      h.stage = 4;
+      h.acc = 0;
+      t.nw = false;
+    }
+  }
 }
 
 /** Where everything stands, in whole art px inside the run box. */

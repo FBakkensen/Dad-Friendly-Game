@@ -37,6 +37,41 @@ gh api -X DELETE repos/FBakkensen/Dad-Friendly-Game/issues/<n>/dependencies/bloc
 
 Do not fake links in markdown instead.
 
+## Triage
+
+Flemming writes every issue that gets built. Triage sorts open issues by readiness and keeps claims truthful. It never rewrites an issue. Three labels say where a leaf issue stands. A leaf is an open issue with no open sub-issues.
+
+- **`ready-for-agent`:** no open `blocked-by`, a **Done when** line, and none of the three stops in `superpowers.md` up front, nor a design call that is Flemming's. Any thread may claim it.
+- **`needs-you`:** it waits for Flemming: a design or product call, a line of copy, art or PixelLab spend, or a guardrail limit. The label goes with a comment that asks the question in one sentence.
+- **`agent-working`:** a thread has claimed it and is building it now.
+
+A leaf carries at most one of the three. A blocked issue and a parent carry none: the graph already says why they wait. A hill-climb `maybe` issue carries none until Flemming promotes it. An issue an agent filed without Flemming's yes is `needs-you` with a one-line "Build this?" comment, so nothing gets built that Flemming has not seen. An issue that may hit a stop partway (say, art only if a measured trigger fires) is still `ready-for-agent`; the thread asks at the stop.
+
+The thread that merges triages the issues its merge unblocked (its `blocking` list), and the scheduled triage pass catches the rest.
+
+Read and set labels one at a time with the REST API. The MCP `issue_write` tool replaces the whole label list, so two writers can drop each other's labels. A DELETE of a label that is already gone returns 404.
+
+```bash
+gh api repos/FBakkensen/Dad-Friendly-Game/issues/<n>/labels --jq '.[].name'
+gh api -X POST repos/FBakkensen/Dad-Friendly-Game/issues/<n>/labels -f 'labels[]=agent-working'
+gh api -X DELETE repos/FBakkensen/Dad-Friendly-Game/issues/<n>/labels/ready-for-agent
+```
+
+**Claim** before the branch. Every thread writes as the same GitHub user, so the claim is a comment as well as a label:
+
+1. Read the labels. Self-chosen work goes on only if the issue is still `ready-for-agent`.
+2. Add `agent-working`, remove the other triage label, and comment `Claimed by <thread link>, branch <branch>`.
+3. Read the comments. A claim is live until a `Released <same thread link>` comment follows it. If another thread's claim is live and came first, it holds the issue: comment `Released <your thread link>`, leave the labels, and pick again.
+
+A thread Flemming started on an issue takes it whatever its label (his start is the answer). If another thread's claim is live, it tells him which thread holds it and waits. A thread an agent started on an issue that loses the claim stops and says so. An agent claims self-chosen work only while fewer than two open issues carry `agent-working`; the check races, so about two.
+
+**Release:**
+
+- **Merged:** the merge closes the issue (`Fixes #N`). Remove `agent-working` from it.
+- **At a stop:** the thread swaps `agent-working` for `needs-you`, asks the question on the issue and in its own conversation, where Flemming's answer reaches it, and keeps its branch. When Flemming answers, the same thread swaps it back and goes on.
+- **Given up, or the PR closed unmerged:** comment `Released <thread link>` and swap `agent-working` for `ready-for-agent` (or `needs-you` with the question).
+- **Stale:** the triage pass releases a claim whose thread has stopped or failed, or whose branch and PR have been quiet for a day, with a `Released <that thread link>` comment that says why. It moves `needs-you` back to `ready-for-agent` only when no thread or branch still holds the issue.
+
 ## One issue is one sliver
 
 An issue is done in one sitting: one user-visible change, game still boots.
@@ -45,14 +80,14 @@ If the human (or the agent) wants more:
 
 1. Stop enlarging the current issue.
 2. Suggest a **new** issue. Show title, parent, `blocked-by` / `blocking`.
-3. Create it only after they say yes.
+3. Create it only after they say yes. In an agent-run sitting (no one to ask), file it yourself with its links, `blocked-by` this issue when it builds on this branch, labelled `needs-you` with "Build this?" (Triage), and name it in the PR body.
 4. Do not start that issue. Do not branch, implement, or open a PR for it until this sitting's PR is done and they pick it.
 
 A new idea worth its own sitting follows the same path. A nit or small follow-up does not (see Create). Neither sneaks into the current PR.
 
 ## Create
 
-Ask first with title and links. Then:
+When Flemming is in the conversation, ask first with title and links. In an agent-run sitting, file it and say so in the PR body. Then:
 
 ```bash
 gh issue create --title "..." --body "$(cat <<'EOF'
@@ -65,7 +100,7 @@ EOF
 )" --parent N --blocked-by N,M --blocking P
 ```
 
-In a cloud session, create it with the MCP `issue_write` tool (it takes `parent_issue_number`), then set `blocked-by` with `gh api` as above.
+In a cloud session, create it with the MCP `issue_write` tool (it takes `parent_issue_number`), then set `blocked-by` with `gh api` as above. Give it its triage label (Triage, above).
 
 Omit flags you do not need. Body stays that short. No design doc in the issue.
 
@@ -74,8 +109,8 @@ Not every idea is an issue. A review nit or small follow-up goes in the PR body 
 ## Work and PRs
 
 - No issue, no implementation. File it, then code.
-- Do not start an issue that is still blocked.
-- One branch and one PR at a time. Never a second branch, stacked PR, or parallel PR.
+- Do not start an issue that is still blocked, or one labelled `agent-working` or `needs-you` unless Flemming started the thread on it. Claim it first (Triage).
+- One branch and one PR per sitting. Never a second branch or a stacked PR for the same sitting. Several sittings may run at once, each on its own claimed issue.
 - One PR closes one issue (`Fixes #N`).
 - If the diff grows a second sliver, stop. File the second issue. Do not start it. Keep this PR on `#N`.
 - A ruling made while a plan runs (a price, growth rate, or band scale inside the plan's levers) is not a new issue and not a stop. It goes in the ledger and in the PR body under Rulings. A plan stops only for the three stops in `superpowers.md`.
