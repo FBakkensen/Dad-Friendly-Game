@@ -499,6 +499,7 @@ export {
   SHEET,
   OPEN_SHEET,
   SHEET_BACK,
+  sheetSettled,
   openSheet,
   closeSheet,
   SHELF_KEY,
