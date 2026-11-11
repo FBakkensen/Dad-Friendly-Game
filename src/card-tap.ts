@@ -40,6 +40,15 @@ export interface PressTracker {
   forget(): void;
 }
 
+/** A forget that drops every one of `trackers`' finger-down times: the drawer moved on. */
+export function forgetAll(trackers: readonly PressTracker[]): () => void {
+  return () => {
+    for (const tracker of trackers) {
+      tracker.forget();
+    }
+  };
+}
+
 /**
  * Keeps the finger-down time of the presses on `target`: a main-button pointerdown stores it
  * on the clock, less the press's age, so a press held long is judged by when it came down. A

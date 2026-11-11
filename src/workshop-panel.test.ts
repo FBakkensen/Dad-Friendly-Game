@@ -618,24 +618,6 @@ describe("the Workshop drawer (#374)", () => {
     expect(mountain.pocket).toBe(250_000);
   });
 
-  it("the menu's Workshop row is a second door", () => {
-    const screen = mount(granite());
-    keyOf(screen, "ledger").click();
-    expect(screen.root.querySelector<HTMLElement>(".game-menu")?.hidden).toBe(
-      false,
-    );
-    screen.root.querySelector<HTMLButtonElement>(".workshop-open")?.click();
-    expect(isOpen(screen)).toBe(true);
-    expect(screen.root.querySelector<HTMLElement>(".game-menu")?.hidden).toBe(
-      true,
-    );
-    drawerOf(screen)
-      .querySelector<HTMLButtonElement>(".board-sheet-back")
-      ?.click();
-    expect(isOpen(screen)).toBe(false);
-    expect(document.activeElement).toBe(keyOf(screen, "ledger"));
-  });
-
   it("one drawer at a time", () => {
     const screen = mount(granite());
     keyOf(screen, "workshop").click();

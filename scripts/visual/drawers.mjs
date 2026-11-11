@@ -1,4 +1,4 @@
-/* global console, document, requestAnimationFrame */
+/* global console, document, getComputedStyle, navigator, requestAnimationFrame */
 /** Drawer sections: each drawer's rows and legends, per save, and the drawer states. */
 import {
   freshMountain,
@@ -15,7 +15,10 @@ import {
   machinePickMountain,
   savingMountain,
   workshopSave,
+  heartMountain,
+  playAwaySave,
 } from "../../tools/browser/fixtures.ts";
+import { stepTapClock } from "../../tools/browser/harness.ts";
 import { undersizedTargets } from "../../src/ui-audit-measure.ts";
 import { check, section, table } from "./registry.mjs";
 import {
@@ -29,6 +32,8 @@ import {
   noteAway,
   LAMP_X,
   keysDrawn,
+  press,
+  shot,
 } from "./kit.mjs";
 import {
   drawerFacts,
@@ -94,6 +99,9 @@ const ROW_LEGENDS = (name) =>
     ".workshop-mat-count",
     ".workshop-mat-word",
     ".workshop-timers",
+    // The Ledger's Tonight lines (#375).
+    ".ledger-log-time",
+    ".ledger-log-text",
   ]
     .map((part) => `${OPEN_SHEET(name)} ${part}`)
     .join(", ");
@@ -170,6 +178,8 @@ export const DRAWERS = [
     mayScroll: () => false,
     mustScroll: () => false,
   },
+  // The Ledger (#375): its key is never locked, and its list always fits.
+  { name: "ledger", mayScroll: () => false, mustScroll: () => false },
 ].map((drawer) => ({
   ...drawer,
   // Opens the drawer by its key; every row's art has loaded before it is
@@ -730,6 +740,282 @@ const registerStates = (viewport) => {
   });
 };
 
+/** A held tap clock's step past a drawer's 400ms settle (board-interaction's DRAWER_SETTLE_MS). */
+const PAST_SETTLE_MS = 500;
+
+/** What the open Ledger shows: its rows' words, Tonight's lines, its plates and its page. */
+async function ledgerFacts(page) {
+  return page.$eval(OPEN_SHEET("ledger"), (sheet) => {
+    const shown = (el) =>
+      el !== null &&
+      el.closest("[hidden]") === null &&
+      el.getClientRects().length > 0;
+    const words = (el) =>
+      el === null || !shown(el) ? "" : (el.textContent ?? "");
+    const box = sheet.getBoundingClientRect();
+    const within = (el, outer) => {
+      const b = el.getBoundingClientRect();
+      const o = outer.getBoundingClientRect();
+      return (
+        b.top >= o.top - 0.5 &&
+        b.bottom <= o.bottom + 0.5 &&
+        b.left >= o.left - 0.5 &&
+        b.right <= o.right + 0.5
+      );
+    };
+    const row = (id) => {
+      const el = sheet.querySelector(`.board-row[data-ledger="${id}"]`);
+      const info = el?.querySelector(".board-row-info") ?? null;
+      return {
+        name: words(el?.querySelector(".board-row-name") ?? null),
+        info: words(info),
+        why: words(el?.querySelector(".board-row-why") ?? null),
+        verb: words(el?.querySelector(".board-row-verb") ?? null),
+        // One line, cut by an ellipsis if it must be, inside its row.
+        infoFits:
+          info === null ||
+          !shown(info) ||
+          (within(info, el) &&
+            info.getBoundingClientRect().height <=
+              Number.parseFloat(getComputedStyle(info).lineHeight) + 1 &&
+            (info.scrollWidth <= info.clientWidth + 1 ||
+              getComputedStyle(info).textOverflow === "ellipsis")),
+      };
+    };
+    const log = sheet.querySelector(".ledger-log");
+    const lines = [...sheet.querySelectorAll(".ledger-log-line")]
+      .filter(shown)
+      .map((line) => {
+        const text = line.querySelector(".ledger-log-text");
+        return {
+          time: line.querySelector(".ledger-log-time")?.textContent ?? "",
+          text: text?.textContent ?? "",
+          fits:
+            log !== null &&
+            within(line, log) &&
+            text !== null &&
+            (text.scrollWidth <= text.clientWidth + 1 ||
+              getComputedStyle(text).textOverflow === "ellipsis"),
+        };
+      });
+    const plates = [...sheet.querySelectorAll(".ledger-doors > button")].map(
+      (plate) => ({
+        id: [...plate.classList].find((cls) => cls.startsWith("ledger-")) ?? "",
+        shown: shown(plate),
+      }),
+    );
+    const pageEl = sheet.querySelector(
+      ".board-sheet-page:not([hidden]) > .ledger-page",
+    );
+    const pageParts =
+      pageEl === null
+        ? []
+        : [
+            ...pageEl.querySelectorAll(
+              ".ledger-page-title, .ledger-page-line, button, .ledger-field-log-well",
+            ),
+          ];
+    return {
+      stones: row("stones"),
+      relics: row("relics"),
+      account: row("account"),
+      tonightShown: log !== null && shown(log),
+      lines,
+      plates,
+      listShown: shown(sheet.querySelector(".board-sheet-list")),
+      page: pageEl === null ? "" : [...pageEl.classList].join(" "),
+      pageTitle: words(pageEl?.querySelector(".ledger-page-title") ?? null),
+      pageLine: words(pageEl?.querySelector(".ledger-page-line") ?? null),
+      pageButtons:
+        pageEl === null ? 0 : pageEl.querySelectorAll("button").length,
+      pageInside:
+        pageEl !== null &&
+        pageParts.length > 0 &&
+        pageParts.every((el) => {
+          const b = el.getBoundingClientRect();
+          return (
+            b.top >= box.top - 0.5 &&
+            b.bottom <= box.bottom + 0.5 &&
+            b.left >= box.left - 0.5 &&
+            b.right <= box.right + 0.5
+          );
+        }),
+      logValue: pageEl?.querySelector(".ledger-field-log-text")?.value ?? "",
+    };
+  });
+}
+
+/** Opens the save on held clocks, then the Ledger by its key, past its settle. */
+async function openLedger(viewport, save, before = async () => undefined) {
+  const opened = await openScreen(viewport, save, {
+    stopClock: true,
+    tapClock: "held",
+  });
+  await keysDrawn(opened.page);
+  await noteAway(opened.page);
+  await before(opened.page);
+  await openSheet(opened.page, "ledger");
+  await stepTapClock(opened.page, PAST_SETTLE_MS);
+  return opened;
+}
+
+/**
+ * The Ledger drawer's states (#375), on held clocks: the mine on a mid save, Tonight's away
+ * line, four materials on a kid's run, and the two pages. Its fit, targets, text and art are
+ * the DRAWERS row's checks.
+ */
+const registerLedgerStates = (viewport) => {
+  section(
+    `keys and drawers ${JSON.stringify(viewport)} ledger states`,
+    async () => {
+      const size = `${String(viewport[0])}x${String(viewport[1])}`;
+      {
+        const { page, close } = await openLedger(viewport, openMountain());
+        const mid = await ledgerFacts(page);
+        await shot(page, `ledger-mid-${size}`);
+        const shownPlates = mid.plates
+          .filter((plate) => plate.shown)
+          .map((plate) => plate.id);
+        check(
+          /^[\d.,]+[KMBT]? stones left$/.test(mid.stones.name) &&
+            mid.stones.info.includes("Clay") &&
+            mid.stones.info.includes("Iron") &&
+            /^\d of 6 relics found$/.test(mid.relics.name) &&
+            mid.relics.info.startsWith("Next: ") &&
+            mid.account.name === "Account" &&
+            mid.account.info === "Not signed in" &&
+            mid.account.verb === "Sign in" &&
+            !mid.tonightShown &&
+            mid.plates.length === 4 &&
+            JSON.stringify(shownPlates) ===
+              JSON.stringify([
+                "ledger-saved-copies",
+                "ledger-field-log",
+                "ledger-start-over",
+              ]),
+          `${size} ledger mid: the stones left with clay and iron, the relics found with the next one, Account not signed in, no Tonight, and three plates with Pass hidden`,
+        );
+        if (!mid.stones.info.includes("Clay") || mid.tonightShown) {
+          console.log("ledger mid", size, JSON.stringify(mid));
+        }
+        await close();
+      }
+      {
+        const { page, close } = await openLedger(
+          viewport,
+          playAwaySave(),
+          async (at) => {
+            await at.waitForSelector(".welcome-continue", { visible: true });
+            await at.$eval(".welcome-continue", (button) => {
+              button.click();
+            });
+          },
+        );
+        const away = await ledgerFacts(page);
+        await shot(page, `ledger-tonight-${size}`);
+        const first = away.lines[0];
+        check(
+          away.tonightShown &&
+            first !== undefined &&
+            first.text.startsWith("Came back. The crew dug ") &&
+            /^\d\d:\d\d$/.test(first.time) &&
+            away.lines.every((line) => line.fits),
+          `${size} ledger tonight: the first line is the away haul with its time, inside the box with no spill (${first?.time ?? "-"} ${first?.text ?? "-"})`,
+        );
+        await close();
+      }
+      {
+        const { page, close } = await openLedger(viewport, heartMountain());
+        const heart = await ledgerFacts(page);
+        const names = ["Clay", "Iron", "Crystal", "Heartstone"];
+        check(
+          names.every((name) => heart.stones.info.includes(name)) &&
+            heart.stones.infoFits &&
+            /^\d of 6 relics found$/.test(heart.relics.name) &&
+            heart.relics.info !== "",
+          `${size} ledger heart: four materials on one line inside the stones row (${heart.stones.info}), and the relics row reads "${heart.relics.info}"`,
+        );
+        await close();
+      }
+      {
+        const { page, close } = await openLedger(viewport, openMountain());
+        await press(page, `${OPEN_SHEET("ledger")} .ledger-start-over`);
+        await page
+          .waitForSelector(`${OPEN_SHEET("ledger")} .ledger-start-over-page`, {
+            visible: true,
+            timeout: 2_000,
+          })
+          .catch(() => undefined);
+        const asked = await ledgerFacts(page);
+        await shot(page, `ledger-start-over-${size}`);
+        check(
+          asked.page.includes("ledger-start-over-page") &&
+            !asked.listShown &&
+            asked.pageTitle === "Start over?" &&
+            asked.pageLine.includes("every relic you found") &&
+            asked.pageButtons === 2 &&
+            asked.pageInside &&
+            (await noScroll(page)),
+          `${size} ledger start over: the page asks "Start over?" with its detail and both plates inside the drawer, with no page scroll`,
+        );
+        await stepTapClock(page, PAST_SETTLE_MS);
+        await press(page, `${OPEN_SHEET("ledger")} .ledger-keep`);
+        const back = await page
+          .waitForFunction(
+            (selector) =>
+              document.querySelector(`${selector} .board-sheet-list`)
+                ?.hidden === false,
+            { timeout: 2_000 },
+            OPEN_SHEET("ledger"),
+          )
+          .then(
+            () => true,
+            () => false,
+          );
+        check(
+          back,
+          `${size} ledger start over: Keep past the settle brings the list back`,
+        );
+        await close();
+      }
+      {
+        // The browser refuses the clipboard: stubbed before the press reads it.
+        const { page, close } = await openLedger(
+          viewport,
+          openMountain(),
+          async (at) => {
+            await at.evaluate(() => {
+              Object.defineProperty(navigator, "clipboard", {
+                configurable: true,
+                value: {
+                  writeText: () => Promise.reject(new Error("refused")),
+                },
+              });
+            });
+          },
+        );
+        await press(page, `${OPEN_SHEET("ledger")} .ledger-field-log`);
+        await page
+          .waitForSelector(`${OPEN_SHEET("ledger")} .ledger-field-log-page`, {
+            visible: true,
+            timeout: 2_000,
+          })
+          .catch(() => undefined);
+        const fallback = await ledgerFacts(page);
+        await shot(page, `ledger-field-log-${size}`);
+        check(
+          fallback.page.includes("ledger-field-log-page") &&
+            fallback.logValue.startsWith("{") &&
+            fallback.pageInside &&
+            (await noScroll(page)),
+          `${size} ledger field log: where the browser refuses the clipboard, the page shows the log to copy, inside the drawer`,
+        );
+        await close();
+      }
+    },
+  );
+};
+
 table({
   screens: SCREENS,
   scenarios: DRAWER_SAVES,
@@ -740,5 +1026,8 @@ table({
     `${size} ${row.name} drawer, ${scenario.name}:`,
   open: openDrawerSave,
   expect: DRAWER_EXPECT,
-  after: registerStates,
+  after: (viewport) => {
+    registerStates(viewport);
+    registerLedgerStates(viewport);
+  },
 });

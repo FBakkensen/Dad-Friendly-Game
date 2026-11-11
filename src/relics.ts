@@ -142,7 +142,7 @@ export function depthHint(mountain: Mountain): string | undefined {
 /**
  * Where the dig is headed, once the Lantern lights the way: the next relic,
  * a vague hint, and how full the bar is. No depths or counts (discoveries
- * stay vague). The menu ledger and the mountain's goal line share it (#336).
+ * stay vague). The Ledger's relics row and its bar read it (#375).
  */
 export type RelicGoal =
   | { readonly kind: "unguided" }

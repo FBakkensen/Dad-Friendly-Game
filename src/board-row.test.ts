@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createBoardHost } from "./board-host";
 import {
   createBoardRow,
+  paintRowBar,
+  rowBar,
   rowsOnBoard,
   type BoardRow,
   type RowLive,
@@ -144,6 +146,32 @@ describe("the drawer row", () => {
       );
       row.render(ready(), still);
       expect(text(row, ".board-row-info")).toBe("12 owned");
+    });
+
+    it("an icon is 64 by default; iconPx 48 or 32 sizes it and marks the row (#375)", () => {
+      const big = make();
+      expect(part(big, "img.board-row-icon").getAttribute("width")).toBe("64");
+      expect(part(big, "img.board-row-icon").getAttribute("height")).toBe("64");
+      expect(big.root.classList.contains("is-icon-64")).toBe(true);
+      const relic = make({ iconPx: 48 });
+      expect(part(relic, "img.board-row-icon").getAttribute("width")).toBe(
+        "48",
+      );
+      expect(part(relic, "img.board-row-icon").getAttribute("height")).toBe(
+        "48",
+      );
+      expect(relic.root.classList.contains("is-icon-48")).toBe(true);
+      expect(relic.root.classList.contains("is-icon-64")).toBe(false);
+      const stone = make({ iconPx: 32 });
+      expect(part(stone, "img.board-row-icon").getAttribute("width")).toBe(
+        "32",
+      );
+      expect(stone.root.classList.contains("is-icon-32")).toBe(true);
+    });
+
+    it("a row with no icon takes no icon size", () => {
+      const row = make({ icon: false, iconPx: 48 });
+      expect(row.root.className).not.toMatch(/is-icon-/);
     });
 
     it("setIcon writes the icon and hides it for none", () => {
@@ -457,6 +485,50 @@ describe("the drawer row", () => {
         Reflect.deleteProperty(document, "fonts");
       }
     });
+  });
+});
+
+describe("the row bar (#375)", () => {
+  it("is a hidden progressbar from 0 to 100 with a fill", () => {
+    const { bar, fill } = rowBar();
+    expect(bar.tagName).toBe("I");
+    expect(bar.classList.contains("board-row-bar")).toBe(true);
+    expect(bar.getAttribute("role")).toBe("progressbar");
+    expect(bar.getAttribute("aria-valuemin")).toBe("0");
+    expect(bar.getAttribute("aria-valuemax")).toBe("100");
+    expect(bar.hidden).toBe(true);
+    expect(fill.parentElement).toBe(bar);
+    expect(fill.classList.contains("board-row-bar-fill")).toBe(true);
+  });
+
+  it("paints 0.4 as 40, labelled, in whole art px", () => {
+    const { bar, fill } = rowBar();
+    paintRowBar(bar, fill, 0.4, "Progress to the Lantern");
+    expect(bar.hidden).toBe(false);
+    expect(bar.getAttribute("aria-valuenow")).toBe("40");
+    expect(bar.getAttribute("aria-label")).toBe("Progress to the Lantern");
+    expect(fill.style.getPropertyValue("--fill")).toBe(
+      String(Math.round(0.4 * 156)),
+    );
+  });
+
+  it("hides for no progress, and keeps what it last said", () => {
+    const { bar, fill } = rowBar();
+    paintRowBar(bar, fill, 0.4, "Forty");
+    paintRowBar(bar, fill, undefined, "Gone");
+    expect(bar.hidden).toBe(true);
+    expect(bar.getAttribute("aria-valuenow")).toBe("40");
+    expect(bar.getAttribute("aria-label")).toBe("Forty");
+  });
+
+  it("writes the fill only when it changes", () => {
+    const { bar, fill } = rowBar();
+    paintRowBar(bar, fill, 0.5, "Half");
+    const set = vi.spyOn(fill.style, "setProperty");
+    paintRowBar(bar, fill, 0.5, "Half");
+    expect(set).not.toHaveBeenCalled();
+    paintRowBar(bar, fill, 1, "Full");
+    expect(set).toHaveBeenCalledWith("--fill", "156");
   });
 });
 

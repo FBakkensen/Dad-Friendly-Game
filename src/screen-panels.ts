@@ -2,7 +2,6 @@ import type { ScreenCtx } from "./screen-context";
 import type { createRunningNow } from "./screen-running";
 import { createBoardNote, type BoardNote } from "./board-note";
 import type { KeyRail } from "./board-keys";
-import type { BoardSheet } from "./board-drawer";
 import { createBoostDial, createOdometer } from "./board-stock";
 import { createRelicPlate } from "./board-relics";
 import { createSaveLine } from "./board-save";
@@ -10,7 +9,7 @@ import { liveCrewBoost } from "./crew-boost";
 import { createRelicPanels } from "./relic-panels";
 import { createArrivalPanel } from "./arrival-panel";
 import { createWelcomePanel } from "./welcome-panel";
-import { createMenuPanel } from "./menu-panel";
+import { createLedgerPanel } from "./ledger-panel";
 import { createSaveConflictPanel } from "./save-conflict-panel";
 import { createSavedCopiesPanel } from "./saved-copies-panel";
 import { createLegacyPanel } from "./legacy-panel";
@@ -49,7 +48,7 @@ export function createEarlyCards(
   ctx: ScreenCtx,
   deps: {
     readonly onPassed: () => void;
-    readonly closeMenu: () => void;
+    readonly closeLedger: () => void;
   },
 ): {
   welcome: ReturnType<typeof createWelcomePanel>["welcome"];
@@ -72,12 +71,12 @@ export function createEarlyCards(
 
   // A panel's own change repaints the whole screen: its `requestRender` is `ctx.paint`, which
   // reads `paint` (set up below) when called.
-  // Pass the mine to your kid (M6): offered from the Legend card and the menu.
+  // Pass the mine to your kid (M6): offered from the Legend card and the Ledger.
   const legacy = createLegacyPanel({
     progress,
     getView: ctx.view,
     onPassed: deps.onPassed,
-    beforeOpen: deps.closeMenu,
+    beforeOpen: deps.closeLedger,
     requestRender: ctx.paint,
   });
   return {
@@ -119,7 +118,7 @@ export function createBoardFace(
     now,
     signal,
   });
-  // Opening a sheet, the shelf or the menu puts the board's popups away.
+  // Opening a sheet or the shelf puts the board's popups away.
   const closeBoardPopups = (): void => {
     saveLine.close();
     boardNote.hide();
@@ -210,58 +209,45 @@ function createBoardTop(
   };
 }
 
-/** The Workshop, the saved copies, the conflict sheet, the menu, Upgrades and Engineers. */
+/** The Workshop, the saved copies, the conflict sheet, the Ledger, Upgrades and Engineers. */
 export function createSheetPanels(
   ctx: ScreenCtx,
   deps: {
     readonly rail: KeyRail;
-    readonly ledgerRoot: HTMLElement;
     readonly legacy: ReturnType<typeof createLegacyPanel>;
     readonly runningNow: ReturnType<typeof createRunningNow>;
     readonly saveLine: ReturnType<typeof createSaveLine>;
     readonly onStartOver: () => void;
-    readonly closeMenu: () => void;
-    /** The Buys drawer: the menu's Workshop row closes it. */
-    readonly buys: BoardSheet;
   },
 ): {
   workshop: ReturnType<typeof createWorkshopPanel>;
   savedCopies: ReturnType<typeof createSavedCopiesPanel>;
   conflictSheet: ReturnType<typeof createSaveConflictPanel>;
-  menuPanel: ReturnType<typeof createMenuPanel>;
+  ledger: ReturnType<typeof createLedgerPanel>;
   upgrades: ReturnType<typeof createUpgradesPanel>;
   engineers: ReturnType<typeof createEngineersPanel>;
-  paintMenu(): void;
+  paintLedger(): void;
   paintLater(): void;
   paintCopies(): void;
 } {
   const { progress, dispatch, auth, now, board, signal } = ctx;
-  const { tierArt, relicArt } = ctx.art;
-  const { rail, legacy, runningNow, saveLine, closeMenu } = deps;
-  const program = { restoreFocus: false, by: "program" } as const;
+  const { tierArt } = ctx.art;
+  const { rail, legacy, runningNow, saveLine } = deps;
+  const overSave = (): boolean => saveLine.isOpen();
   const workshop = createWorkshopPanel({
     dispatch,
     getView: ctx.view,
     now,
     board,
-    overSave: () => saveLine.isOpen(),
+    overSave,
     door: rail.keys.workshop,
     fallbackDoor: rail.keys.ledger,
-    hammerUrl: relicArt.hammer,
-    // The menu's Workshop row, a second door until B7: the menu and the other drawers go.
-    onMenuOpen: () => {
-      closeMenu();
-      deps.buys.close(program);
-      upgrades.sheet.close(program);
-      ctx.paint();
-    },
     ...(signal === undefined ? {} : { signal }),
   });
 
   const savedCopies = createSavedCopiesPanel({
     progress,
     now,
-    onOpen: closeMenu,
     requestRender: ctx.paint,
   });
   const conflictSheet = createSaveConflictPanel({
@@ -269,19 +255,16 @@ export function createSheetPanels(
     now,
     requestRender: ctx.paint,
   });
-  const menuPanel = createMenuPanel({
+  const ledger = createLedgerPanel({
     progress,
     getView: ctx.view,
     auth,
-    onStartOver: deps.onStartOver,
-    extras: [
-      deps.ledgerRoot,
-      workshop.menuEntry,
-      legacy.menuPass,
-      savedCopies.entry,
-    ],
+    board,
+    overSave,
     door: rail.keys.ledger,
-    requestRender: ctx.paint,
+    legacy,
+    savedCopies,
+    onStartOver: deps.onStartOver,
     signal,
   });
 
@@ -292,7 +275,7 @@ export function createSheetPanels(
     now,
     chipFor: runningNow.chipFor,
     board,
-    overSave: () => saveLine.isOpen(),
+    overSave,
     door: rail.keys.upgrades,
     ...(signal === undefined ? {} : { signal }),
   });
@@ -317,11 +300,11 @@ export function createSheetPanels(
     workshop,
     savedCopies,
     conflictSheet,
-    menuPanel,
+    ledger,
     upgrades,
     engineers,
-    paintMenu: () => {
-      menuPanel.render();
+    paintLedger: () => {
+      ledger.render();
     },
     paintLater: () => {
       upgrades.render();
@@ -344,7 +327,6 @@ export function cardsFrom(
 ): HTMLElement[] {
   const { arrival, legacy } = early;
   const { reveal, legend, shelf, detail } = top.relics;
-  const { menu, confirm, fieldLogSheet } = sheets.menuPanel;
   return [
     early.welcome,
     arrival.layer,
@@ -353,10 +335,7 @@ export function cardsFrom(
     legend,
     shelf,
     detail,
-    confirm,
     legacy.dialog,
-    menu,
-    fieldLogSheet,
     sheets.engineers.sheet,
     extra.updatePrompt,
     extra.otherTab,

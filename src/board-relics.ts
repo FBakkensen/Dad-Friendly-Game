@@ -25,7 +25,8 @@ import {
   type RelicId,
 } from "./relics";
 
-const LIT: Readonly<Record<RelicId, string>> = {
+/** Each relic's 24 art px icon, lit: found. */
+export const RELIC_LIT: Readonly<Record<RelicId, string>> = {
   lantern: lanternUrl,
   shield: shieldUrl,
   hammer: hammerUrl,
@@ -33,7 +34,8 @@ const LIT: Readonly<Record<RelicId, string>> = {
   crown: crownUrl,
   mantle: mantleUrl,
 };
-const DARK: Readonly<Record<RelicId, string>> = {
+/** Each relic's icon, dark: the next to find (the Ledger's relics row shows it too, #375). */
+export const RELIC_DARK: Readonly<Record<RelicId, string>> = {
   lantern: lanternDarkUrl,
   shield: shieldDarkUrl,
   hammer: hammerDarkUrl,
@@ -62,8 +64,8 @@ interface SocketState {
 
 /** Lit once found, dark while it is the next relic, else empty. */
 const socketArt = (id: RelicId, { has, isNext }: SocketState): string => {
-  if (has) return LIT[id];
-  return isNext ? DARK[id] : "";
+  if (has) return RELIC_LIT[id];
+  return isNext ? RELIC_DARK[id] : "";
 };
 
 const socketWords = ({ has, isNext }: SocketState): string => {

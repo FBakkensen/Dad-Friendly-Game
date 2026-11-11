@@ -19,6 +19,7 @@ import type { TroubleKind } from "./hazards";
 import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
 import { AWAY_END_MS, effectiveRates, type Rates } from "./rates";
+import { RELICS } from "./relics";
 import { owned, tierById, type TierId } from "./tiers";
 import { upgradeLevel, type Upgrade, type UpgradeId } from "./upgrades";
 
@@ -918,9 +919,6 @@ export const cameBack = (
 export const recallConfirm = (name: string): string =>
   `${name} comes home empty-handed.`;
 
-/** Menu row before the Granite. No counts, no question. */
-export const WORKSHOP_LOCKED = "Workshop · opens as the clay comes in";
-
 /** The bench is free, and a thin pocket is still a fine pocket. */
 export const WORKSHOP_FREE_ASIDE = "A little at a time is plenty.";
 
@@ -940,14 +938,6 @@ export const CRAFT_WORD = "Craft";
 
 /** Unfound, and the sketch is still out on a trip. No name, no question. */
 export const UNFOUND_DEEPER = "Deeper rock keeps a quiet gift.";
-
-/** "Workshop" or "Workshop · 8:12" while something is on the bench. */
-export function workshopMenuWords(leftMs: number | undefined): string {
-  if (leftMs === undefined) {
-    return WORKSHOP_TITLE;
-  }
-  return `${WORKSHOP_TITLE} · ${formatClock(leftMs)}`;
-}
 
 /** A craft this build cannot name. The countdown is the only number. */
 export const BENCH_UNKNOWN = "Something is on the bench";
@@ -1295,9 +1285,14 @@ export function layerWelcomeWords(id: LayerId): string | undefined {
  * "Your Iron rails are fitted. Carts now 12.5/s."
  * A name that ends in s takes "are".
  */
-export function craftFittedWords(name: string, effect: string): string {
+/** "Your Iron rails are fitted.": a finished craft, on its own (Tonight's line). */
+export function craftFittedLine(name: string): string {
   const fitted = name.endsWith("s") ? "are" : "is";
-  return `Your ${name} ${fitted} fitted. ${effect}`;
+  return `Your ${name} ${fitted} fitted.`;
+}
+
+export function craftFittedWords(name: string, effect: string): string {
+  return `${craftFittedLine(name)} ${effect}`;
 }
 
 /** Unfound recipe. No name, no count, no question mark. */
@@ -1363,3 +1358,102 @@ export function awayMaterialsWords(gained: Materials): string | undefined {
 
 /** Under the ore line: what the Workshop turns it into. */
 export const AWAY_MATERIALS_USE = "Craft it into gear for the crew.";
+
+/** The Ledger drawer's kick, under its title (#375). */
+export const LEDGER_KICK = "Tonight, and the mine so far";
+/** The Ledger's legends: this run's latest lines, then the mine itself. */
+export const TONIGHT_LEGEND = "Tonight";
+export const MINE_LEGEND = "The mine";
+/** The Ledger's "i" cards go back to the list under this. */
+export const LEDGER_BACK = "Back to the Ledger";
+/** The Pass the mine plate's short fit; the full words stay on its label. */
+export const PASS_SHORT = "Pass the mine";
+/** Passing the mine, in full: the Pass plate's label and the legacy panel's door. */
+export const PASS_FULL = "Pass the mine to your kid";
+
+/** "2 of 6 relics found": the Ledger's relics row. */
+export const relicsFoundWords = (found: number): string =>
+  `${String(found)} of ${String(RELICS.length)} relics found`;
+
+/** The relics row's goal before the Lantern lights the way, on a first mountain. */
+export const RELICS_UNGUIDED =
+  "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.";
+/** The relics row's goal before the Lantern, on a mine passed down: `legacy` is its bonus. */
+export const kidMineWords = (legacy: string): string =>
+  `Your kid's mine: six relics wait inside. Legacy ${legacy}.`;
+/** The relics row's goal once every relic is found. */
+export const RELICS_ALL_FOUND = "Every relic is yours. You are a legend.";
+/** The relics row's goal: the next relic and its vague hint. */
+export const nextRelicWords = (name: string, hint: string): string =>
+  `Next: ${name} · ${hint}`;
+/** The relics bar's label: the relic it fills toward, and the next layer's hint if any. */
+export const relicProgressLabel = (
+  name: string,
+  hint: string | undefined,
+): string =>
+  hint === undefined
+    ? `Progress to the ${name}`
+    : `Progress to the ${name}. ${hint}`;
+
+/** Start over, and its confirm page (moved from the menu, #375). */
+export const START_OVER = "Start over";
+export const START_OVER_TITLE = "Start over?";
+export const START_OVER_DETAIL =
+  "You will lose all your progress: every stone mined, your whole crew, and every relic you found. The mountain fills back up. This can't be undone.";
+export const START_OVER_KEEP = "Keep my mountain";
+export const START_OVER_YES = "Yes, start over";
+
+/** The account's words (moved from the menu and the save drawer, #375). */
+export const ACCOUNT = "Account";
+export const NOT_SIGNED_IN = "Not signed in";
+export const SIGN_IN = "Sign in";
+export const SIGN_IN_GOOGLE = "Sign in with Google";
+export const SIGNING_IN = "Signing in...";
+export const SIGN_OUT = "Sign out";
+export const signedInWords = (label: string): string => `Signed in as ${label}`;
+
+/*
+ * Tonight's lines (#375): one thing this run's field log saw, as one short sentence. Each
+ * names only what the event carries.
+ */
+
+/** "Hired worker 56.", "Hired kid worker 2.", "Bought mine cart 3.", "Bought Great Machine 1." */
+export function tierBuyLine(id: TierId, count: number): string {
+  const n = count.toLocaleString("en-US");
+  if (id === "helper") {
+    return `Hired worker ${n}.`;
+  }
+  if (id === "kid") {
+    return `Hired kid worker ${n}.`;
+  }
+  const { name } = tierById(id);
+  const shown =
+    id === "machine" ? name : `${name.charAt(0).toLowerCase()}${name.slice(1)}`;
+  return `Bought ${shown} ${n}.`;
+}
+
+/** "Strong arms, level 3." */
+export const upgradeLevelLine = (name: string, level: number): string =>
+  `${name}, level ${level.toLocaleString("en-US")}.`;
+
+/** "Overtime started for 30:00." */
+export const boostStartedLine = (name: string, ms: number): string =>
+  `${name} started for ${formatClock(ms)}.`;
+
+/** "Iron rails went on the bench." */
+export const benchStartedLine = (name: string): string =>
+  `${name} went on the bench.`;
+
+/** "Found the Hammer of the Builder." */
+export const relicFoundLine = (name: string): string => `Found the ${name}.`;
+
+/** "Came back. The crew dug 1.2M while you were away." */
+export const awayDugLine = (stones: number): string =>
+  `Came back. The crew dug ${formatCompact(stones)} while you were away.`;
+
+/** "A golden vein gave 4,200 stones." */
+export const veinGaveLine = (stones: number): string =>
+  `A golden vein gave ${tapWords(stones)}.`;
+
+/** "Ada came home." */
+export const cameHomeLine = (name: string): string => `${name} came home.`;

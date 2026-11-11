@@ -204,11 +204,12 @@ const GUARD_SCREENS = [
     taps: [".save-status"],
     shows: saveDrawerSettled,
   },
+  // The Ledger drawer (#375).
   {
-    name: "menu",
+    name: "ledger",
     save: () => guardSave(Date.now()),
     taps: [KEY("ledger")],
-    shows: shown(".game-menu"),
+    shows: drawer("ledger"),
   },
   // A bay opens Buys; the Ready now plate buys the pick (#372).
   {

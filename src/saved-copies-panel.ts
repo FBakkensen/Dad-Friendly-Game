@@ -16,23 +16,19 @@ interface CopyRow {
   readonly texts: readonly string[];
 }
 
-/** Menu list of archived copies. Play one through the same archive-then-switch path. */
+/**
+ * The list of archived copies, opened from the Ledger's Saved copies plate. Play one through the
+ * same archive-then-switch path.
+ */
 export function createSavedCopiesPanel({
   progress,
   now,
-  onOpen,
   requestRender,
 }: {
   progress: ProgressStore;
   now: () => number;
-  onOpen: () => void;
   requestRender: () => void;
 }) {
-  const entry = document.createElement("button");
-  entry.type = "button";
-  entry.className = "saved-copies-link";
-  entry.textContent = SAVED_COPIES_TITLE;
-
   const root = document.createElement("div");
   root.className = "saved-copies";
   root.hidden = true;
@@ -69,8 +65,8 @@ export function createSavedCopiesPanel({
     requestRender();
   };
   close.addEventListener("click", closeSheet);
-  entry.addEventListener("click", () => {
-    onOpen();
+  /** Opens the card and reads the copies again. */
+  const openSheet = (): void => {
     open = true;
     note = "";
     void progress.savedCopies().then((next) => {
@@ -78,7 +74,7 @@ export function createSavedCopiesPanel({
       requestRender();
     });
     requestRender();
-  });
+  };
 
   /** One row's words: an earlier run's copy cannot be played. */
   const rowLines = (copy: ArchivedCopy, clock: number): CopyRow => {
@@ -160,5 +156,5 @@ export function createSavedCopiesPanel({
     list.replaceChildren(...rows.map(paintRow));
   };
 
-  return { entry, root, render };
+  return { root, open: openSheet, render };
 }

@@ -488,8 +488,6 @@ const VISUAL_EXPECTED: Record<string, string> = {
     '{"version":4,"mountain":{"remaining":90700000,"pocket":9765,"helpers":51,"carts":24,"drills":6,"borers":2,"engineers":[{"name":"Ada","rank":1,"trips":3,"post":"borer"},{"name":"Nils","rank":0,"trips":0,"post":"camp"},{"name":"Ruth","rank":2,"trips":9,"post":"drill"},{"name":"Otto","rank":0,"trips":0,"post":"tunnel"},{"name":"Mae","rank":0,"trips":0,"post":"cart"}],"expeditions":[{"engineer":"Otto","tunnel":"old-shaft","sentAt":1700000000000,"returnsAt":1700002400000,"home":"camp","find":{"kind":"quiet"}}],"finds":["drawing","watch"]},"lastSeen":1700000000000}',
   toolHome:
     '{"version":4,"mountain":{"remaining":90700000,"pocket":9765,"helpers":20,"carts":1,"drills":1,"borers":1,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"tunnel"}],"expeditions":[{"engineer":"Ada","tunnel":"old-shaft","sentAt":1699994600000,"returnsAt":1699998200000,"home":"borer","find":{"kind":"tool","id":"pick"}}]},"lastSeen":1699992800000}',
-  locked:
-    '{"version":6,"lastSeen":1700000000000,"mountain":{"remaining":239500000,"pocket":100,"helpers":1,"staffed":2,"startedAt":1699999999000},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
   firstCraft:
     '{"version":6,"lastSeen":1700000000000,"mountain":{"remaining":228000000,"pocket":200000,"helpers":4,"carts":1,"staffed":2,"startedAt":1699999999000},"workshop":{"materials":{"clay":10,"iron":1,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease"]}}',
   chargePayoff:
@@ -681,7 +679,6 @@ describe("the visual check's builders", () => {
       away: () => f.awayTripSave(FIXED),
       posts: () => f.campPostsSave(FIXED),
       toolHome: () => f.toolHomeSave(FIXED),
-      locked: () => f.lockedWorkshopSave(FIXED),
       firstCraft: () => f.firstCraftSave(FIXED),
       chargePayoff: () => f.chargePayoffSave(FIXED),
       unknownBench: () => f.unknownBenchSave(FIXED),

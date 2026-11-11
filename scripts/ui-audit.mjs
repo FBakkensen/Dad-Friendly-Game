@@ -149,7 +149,7 @@ async function showRecipe(page, name) {
 
 /** A key on the rail (#373): buys, workshop, engineers, upgrades or ledger. */
 const KEY = (id) => `.board-key[data-key="${id}"]`;
-/** An open drawer (#373, #374): buys, upgrades or workshop. */
+/** An open drawer (#373, #374, #375): buys, upgrades, workshop or ledger. */
 const OPEN_SHEET = (name) => `.board-sheet[data-sheet="${name}"].is-open`;
 
 /** A play save from tools/browser/fixtures.ts, as the browser's storage holds it. */
@@ -159,7 +159,7 @@ const seeded = (save) => JSON.parse(seedJson(save));
  * Opens a drawer by its key and waits for its slide to end, so the shot and
  * the measures see it where it rests.
  * @param {import("puppeteer-core").Page} page
- * @param {"buys" | "upgrades" | "workshop"} name
+ * @param {"buys" | "upgrades" | "workshop" | "ledger"} name
  */
 async function openDrawer(page, name) {
   await press(page, KEY(name));
@@ -175,11 +175,26 @@ async function openDrawer(page, name) {
   await new Promise((resolve) => setTimeout(resolve, 450));
 }
 
-/** @param {import("puppeteer-core").Page} page */
-async function openMenu(page) {
-  // The ☰ menu's door is the Ledger key on the rail until B7 (#373).
-  await press(page, KEY("ledger"));
-  await page.waitForSelector(".game-menu:not([hidden])", { timeout: 8_000 });
+/**
+ * A plate that hands off to a card closes its drawer first (#375): wait out
+ * the drawer's slide, so the shot shows the card and not the drawer going.
+ * @param {import("puppeteer-core").Page} page
+ * @param {string} name
+ */
+async function drawerGone(page, name) {
+  const sheet = `.board-sheet[data-sheet="${name}"]`;
+  await page.waitForFunction(
+    (selector) => {
+      const el = document.querySelector(selector);
+      return (
+        el !== null &&
+        !el.classList.contains("is-open") &&
+        el.getAnimations().length === 0
+      );
+    },
+    { timeout: 8_000 },
+    sheet,
+  );
 }
 
 /** @param {import("puppeteer-core").Page} page */
@@ -483,8 +498,8 @@ async function collect(page) {
       ".other-tab-play",
       ".update-reload",
       ".engineer-promote",
-      ".menu-pass",
-      ".start-over-confirm",
+      ".ledger-pass",
+      ".ledger-yes",
       ".save-conflict-play",
       ".save-conflict-commit",
     ];
@@ -547,7 +562,7 @@ async function collect(page) {
         ".shelf-card",
         ".legacy-card",
       ],
-      chip: [".boost-chip", ".material-bit", ".expedition-chip"],
+      chip: [".boost-chip", ".expedition-chip"],
       timer: [".workshop-timers", ".workshop-bar", ".boost"],
       notice: [
         ".craft-notice",
@@ -820,8 +835,8 @@ async function main() {
       viewport,
       late(Date.now(), 30_000_000, { machines: 0, kids: 0 }),
     );
-    // The guide (goal, layer hint, bar) moved into the ☰ menu's ledger.
-    await openMenu(opened.page);
+    // The guide (goal, layer hint, bar) is the Ledger drawer's relics row (#375).
+    await openDrawer(opened.page, "ledger");
     await expectText(
       opened.page,
       /Deeper on, the walls start to glitter/,
@@ -857,8 +872,8 @@ async function main() {
   });
   await capture("material-chips", async (viewport) => {
     const opened = await openAuditPage(viewport, rest());
-    // The material line lives in the ☰ menu's ledger now.
-    await openMenu(opened.page);
+    // The material line is the Ledger drawer's stones row (#375).
+    await openDrawer(opened.page, "ledger");
     await expectText(opened.page, /Clay/, "chips");
     await expectText(opened.page, /Iron/, "chips");
     await expectText(opened.page, /Crystal/, "chips");
@@ -1147,8 +1162,8 @@ async function main() {
   });
   await capture("relic-tease", async (viewport) => {
     const opened = await openAuditPage(viewport, late(Date.now(), 223_000_000));
-    // The relic goal line lives in the ☰ menu's ledger now.
-    await openMenu(opened.page);
+    // The relic goal line is the Ledger drawer's relics row (#375).
+    await openDrawer(opened.page, "ledger");
     await expectText(opened.page, /Next: .+Almost there/, "relic tease");
     return opened;
   });
@@ -1188,15 +1203,17 @@ async function main() {
   });
   await capture("legacy-pass", async (viewport) => {
     const opened = await openAuditPage(viewport, finished());
-    await openMenu(opened.page);
-    await expectText(opened.page, /Pass the mine to your kid/, "pass");
+    // The Ledger's Pass plate reads the short words; its label is the full ones.
+    await openDrawer(opened.page, "ledger");
+    await expectText(opened.page, /Pass the mine/i, "pass");
     return opened;
   });
   await capture("legacy-confirm", async (viewport) => {
     const opened = await openAuditPage(viewport, finished());
-    await openMenu(opened.page);
-    await press(opened.page, ".menu-pass");
+    await openDrawer(opened.page, "ledger");
+    await press(opened.page, ".ledger-pass");
     await opened.page.waitForSelector(".legacy-dialog:not([hidden])");
+    await drawerGone(opened.page, "ledger");
     await expectText(opened.page, /Pass it on/, "legacy confirm");
     return opened;
   });
@@ -1233,13 +1250,13 @@ async function main() {
     await expectText(opened.page, /broke into the Granite/, "layer");
     return opened;
   });
-  await capture("menu-game", async (viewport) => {
+  await capture("ledger", async (viewport) => {
     const opened = await openAuditPage(viewport, rest());
-    await openMenu(opened.page);
-    await expectText(opened.page, /Sign in with Google/, "menu");
+    await openDrawer(opened.page, "ledger");
+    await expectText(opened.page, /Not signed in/, "ledger");
     return opened;
   });
-  await capture("field-log", async (viewport) => {
+  await capture("ledger-field-log", async (viewport) => {
     const opened = await openAuditPage(viewport, rest());
     await opened.page.evaluate(() => {
       Object.defineProperty(navigator, "clipboard", {
@@ -1249,19 +1266,22 @@ async function main() {
         }),
       });
     });
-    await openMenu(opened.page);
-    await press(opened.page, ".field-log-copy");
-    await opened.page.waitForSelector(".field-log-sheet:not([hidden])", {
+    await openDrawer(opened.page, "ledger");
+    await press(opened.page, ".ledger-field-log");
+    await opened.page.waitForSelector(".ledger-field-log-page", {
+      visible: true,
       timeout: 8_000,
     });
     await expectText(opened.page, /Field log/, "field log");
     return opened;
   });
-  await capture("start-over-confirm", async (viewport) => {
+  await capture("ledger-start-over", async (viewport) => {
     const opened = await openAuditPage(viewport, rest());
-    await openMenu(opened.page);
-    await press(opened.page, ".start-over-link");
-    await opened.page.waitForSelector(".start-over:not([hidden])");
+    await openDrawer(opened.page, "ledger");
+    await press(opened.page, ".ledger-start-over");
+    await opened.page.waitForSelector(".ledger-start-over-page", {
+      visible: true,
+    });
     await expectText(opened.page, /Start over\?/, "start over");
     return opened;
   });
@@ -1377,9 +1397,10 @@ async function main() {
         ),
       { timeout: 8_000 },
     );
-    await openMenu(opened.page);
-    await press(opened.page, ".saved-copies-link");
+    await openDrawer(opened.page, "ledger");
+    await press(opened.page, ".ledger-saved-copies");
     await opened.page.waitForSelector(".saved-copies:not([hidden])");
+    await drawerGone(opened.page, "ledger");
     await opened.page.waitForSelector(".is-earlier-run");
     await expectText(opened.page, /earlier run/, "saved copies");
     return opened;

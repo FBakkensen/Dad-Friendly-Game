@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { etaShort, formatCompact, formatCount, formatDuration } from "./format";
+import {
+  etaShort,
+  formatCompact,
+  formatCount,
+  formatDuration,
+  formatTimeOfDay,
+} from "./format";
 
 describe("formatCount", () => {
   it.each([
@@ -69,5 +75,16 @@ describe("etaShort", () => {
     [360_000_000, ">99h"],
   ])("reads %d ms as %s", (ms, text) => {
     expect(etaShort(ms)).toBe(text);
+  });
+});
+
+describe("formatTimeOfDay (#375)", () => {
+  it.each([
+    [22, 13, 59, "22:13"],
+    [7, 5, 0, "07:05"],
+    [0, 0, 0, "00:00"],
+  ])("%d:%d:%d local is %s", (hours, minutes, seconds, shown) => {
+    const at = new Date(2026, 10, 11, hours, minutes, seconds).getTime();
+    expect(formatTimeOfDay(at)).toBe(shown);
   });
 });

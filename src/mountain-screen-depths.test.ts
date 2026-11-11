@@ -13,6 +13,9 @@ import { createProgressStore } from "./progress-store";
 import { minedMountain } from "./test-fixtures";
 import { recipesForMined, startCraft } from "./workshop";
 import {
+  RELICS_BAR,
+  RELICS_HINT,
+  STONES_INFO,
   createMemoryStorage,
   mountScreen,
   setReducedMotion,
@@ -506,11 +509,11 @@ describe("layer card, material line, and craft-done notice", () => {
 
   it("shows only materials met, and a vague hint before the next band", () => {
     const screen = mountScreen();
-    expect(screen.text(".material-line")).toBe("");
-    expect(screen.text(".layer-hint")).toBe(
+    expect(screen.text(STONES_INFO)).toBe("");
+    expect(screen.text(RELICS_HINT)).toBe(
       "Below the topsoil, the rock turns hard and grey.",
     );
-    expect(screen.text(".layer-hint")).not.toMatch(
+    expect(screen.text(RELICS_HINT)).not.toMatch(
       /\b(clay|iron|crystal|heartstone)\b|\?/i,
     );
     expect(
@@ -525,14 +528,14 @@ describe("layer card, material line, and craft-done notice", () => {
       materials: { clay: 10, iron: 2, crystal: 0, heartstone: 0 },
     }));
     dismissOpen(screen.root);
-    expect(screen.text(".material-line")).toContain("Clay 10");
-    expect(screen.text(".material-line")).toContain("Iron 2");
-    expect(screen.text(".material-line")).not.toContain("Crystal");
-    expect(screen.text(".material-line")).not.toContain("Heartstone");
-    expect(screen.text(".layer-hint")).toBe(
+    expect(screen.text(STONES_INFO)).toContain("Clay 10");
+    expect(screen.text(STONES_INFO)).toContain("Iron 2");
+    expect(screen.text(STONES_INFO)).not.toContain("Crystal");
+    expect(screen.text(STONES_INFO)).not.toContain("Heartstone");
+    expect(screen.text(RELICS_HINT)).toBe(
       "Deeper on, the walls start to glitter.",
     );
-    expect(screen.text(".layer-hint")).not.toMatch(
+    expect(screen.text(RELICS_HINT)).not.toMatch(
       /\b(iron|crystal|heartstone)\b|\d|\?/i,
     );
     screen.progress.dispose();
@@ -580,12 +583,12 @@ describe("layer card, material line, and craft-done notice", () => {
     const screen = mountScreen();
     screen.progress.applyMutation(() => minedMountain(120_000_000));
     dismissOpen(screen.root);
-    expect(screen.root.querySelector<HTMLElement>(".layer-hint")?.hidden).toBe(
+    expect(screen.root.querySelector<HTMLElement>(RELICS_HINT)?.hidden).toBe(
       true,
     );
     expect(
       screen.root
-        .querySelector<HTMLElement>(".guide-bar")
+        .querySelector<HTMLElement>(RELICS_BAR)
         ?.getAttribute("aria-label"),
     ).toBe("Progress to the Mantle of the Hero");
     screen.progress.dispose();
@@ -735,7 +738,7 @@ describe("layer card, material line, and craft-done notice", () => {
     );
   });
 
-  it("shows the conflict sheet and saved copies from the menu", async () => {
+  it("shows the conflict sheet and saved copies from the Ledger", async () => {
     const cloud = createMemoryCloudSave();
     const screen = mountScreen({ auth: signedIn(), cloudSave: cloud });
     screen.progress.previewConflict();
@@ -768,7 +771,9 @@ describe("layer card, material line, and craft-done notice", () => {
     screen.root
       .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
       ?.click();
-    screen.root.querySelector<HTMLButtonElement>(".saved-copies-link")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".ledger-saved-copies")
+      ?.click();
     await vi.waitFor(() => {
       expect(screen.text(".saved-copies")).toContain("Chrome on Android");
     });
@@ -801,7 +806,7 @@ describe("layer card, material line, and craft-done notice", () => {
         .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
         ?.click();
       screen.root
-        .querySelector<HTMLButtonElement>(".saved-copies-link")
+        .querySelector<HTMLButtonElement>(".ledger-saved-copies")
         ?.click();
       await vi.advanceTimersByTimeAsync(0);
       const play = screen.root.querySelector<HTMLButtonElement>(
@@ -845,7 +850,9 @@ describe("layer card, material line, and craft-done notice", () => {
     screen.root
       .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
       ?.click();
-    screen.root.querySelector<HTMLButtonElement>(".saved-copies-link")?.click();
+    screen.root
+      .querySelector<HTMLButtonElement>(".ledger-saved-copies")
+      ?.click();
     await vi.waitFor(() => {
       expect(screen.text(".saved-copies")).toContain(
         "From an earlier run – can't be played now",
