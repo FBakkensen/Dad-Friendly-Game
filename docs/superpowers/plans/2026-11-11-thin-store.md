@@ -6,9 +6,9 @@
 
 **Architecture:**
 
-- `src/session.ts` (new, pure) owns the time step and the session: `advance(world, input)` moves a mountain and its hazards through live, away or clock-back time, and `step(session, input, now) → { session, effects }` covers everything that changes the session (ticks, away pay, moves, trouble presses, news, dismissals, a new run). Effects are data (`record`, `log`, `remember`, `granted`, `moved`).
+- `src/session-time.ts` (new, pure) owns the time step: `advance(world, input)` moves a mountain and its hazards through live, away or clock-back time. `src/session.ts` (new, pure) owns the session: `step(session, input, now) → { session, effects }` covers everything that changes the session (ticks, away pay, moves, trouble presses, news, dismissals, a new run). Effects are data (`record`, `log`, `remember`, `granted`, `moved`).
 - `src/lab/world.ts` calls `advance`, so the lab plays the same order as the game: expeditions settle, the crew accrues, then hazards step.
-- The sync service is split by job, each a set of module functions over one shared `StoreContext` (`src/store-context.ts`): the cloud write pipeline (`src/cloud-writer.ts`), loading and merging copies (`src/save-load.ts`), the fresh server read (`src/server-read.ts`), and picking a copy (`src/save-choice.ts`). Upward calls (emit, merge) go through the context's `hooks`, so there is no import cycle.
+- The sync service is split by job, each a set of module functions over one shared `StoreContext` (`src/store-context.ts`): running a step and emitting (`src/store-session.ts`), the store's actions (`src/store-actions.ts`), the device's own copies (`src/local-saves.ts`), the cloud write pipeline (`src/cloud-writer.ts`), adopting a copy (`src/save-adopt.ts`), the fresh server read (`src/server-read.ts`), each cloud snapshot (`src/save-load.ts`), the account and the seat (`src/save-watch.ts`), and picking a copy (`src/save-choice.ts`). Upward calls (emit, reconcile) go through the context's `hooks`, so there is no import cycle.
 - `src/progress-store.ts` keeps its public types and API and composes the pieces.
 
 **Tech Stack:** TypeScript, Vitest.
@@ -55,13 +55,18 @@ Each is pinned by an existing test in `src/progress-store.test.ts` (1–4) or a 
 
 ### Task 2: One time step for the game and the lab
 
-**Files:** Create `src/session.ts`, `src/session.test.ts`. Modify `src/lab/world.ts`.
+**Files:** Create `src/session-time.ts`, `src/session-time.test.ts`. Modify `src/lab/world.ts`.
 
 **Interfaces (produces):**
 
 ```ts
 export type TimeInput =
-  | { readonly kind: "live"; readonly from: number; readonly to: number; readonly playerFixMs?: number }
+  | {
+      readonly kind: "live";
+      readonly from: number;
+      readonly to: number;
+      readonly playerFixMs?: number;
+    }
   | { readonly kind: "away"; readonly from: number; readonly to: number }
   | { readonly kind: "clock-back"; readonly to: number };
 export type Advanced = {
@@ -72,7 +77,10 @@ export type Advanced = {
   readonly homecomings: readonly Homecoming[];
   readonly away: AwayReport | undefined; // set for "away"
 };
-export function advance(world: { mountain: Mountain; hazards: HazardState }, input: TimeInput): Advanced;
+export function advance(
+  world: { mountain: Mountain; hazards: HazardState },
+  input: TimeInput,
+): Advanced;
 /** Ticks come every second on screen; a gap over ten seconds is away time. */
 export function timeInput(lastSeen: number | undefined, now: number): TimeInput;
 ```
@@ -86,7 +94,7 @@ export function timeInput(lastSeen: number | undefined, now: number): TimeInput;
 
 **Files:** `src/session.ts`, `src/session.test.ts`, `src/card-views.ts` (+ tests), `src/save-conflict-panel.ts` (+ tests).
 
-**Interfaces (produces):** `Session`, `SessionInput`, `SessionEffect`, `step(session, input, now)`, `createSession(seed)`. Inputs: `tick`, `away` (`since`), `move`, `change` (the test seam), `press`, `fix`, `notice`, `loaded`, `begin`, `dismiss` (`reveal` | `away` | `quiet` | `layer` | `craft`), `preview-trouble`. Effects: `record`, `log`, `remember` (the homecoming news key), `granted` (a layer granted recipes), `moved` (the move's `MoveResult`).
+**Interfaces (produces):** `Session`, `SessionInput`, `SessionEffect`, `step(session, input, now)`, `createSession(mountain, seed)`. Inputs: `tick`, `away` (`since`), `move`, `change` (the test seam), `press`, `fix` (the store settles with a `tick` first, unless a fresh read holds time), `recall`, `notice`, `loaded`, `begin`, `dismiss` (`reveal` | `away` | `quiet` | `layer` | `craft`), `preview-trouble`. Effects: `record`, `log`, `remember` (the homecoming news key), `granted` (a layer granted recipes), `moved` (the move's `MoveResult`).
 
 - [ ] Move the store's game-side code into `step`, unchanged in order and in what it records: `settle`, `settleSince`, `noteHazards`, `noteHomecomings`, `noteReveals`, `noteLayers`, `noteCrafts`, `staffLoaded`, `grantEngineer`, `beginRun`'s session part, the trouble presses, the dismissals.
 - [ ] The store holds one `Session` and runs every game change through `step`, applying effects through its ports.
@@ -96,7 +104,7 @@ export function timeInput(lastSeen: number | undefined, now: number): TimeInput;
 
 ### Task 4: The sync service
 
-**Files:** Create `src/store-context.ts`, `src/cloud-writer.ts`, `src/save-load.ts`, `src/server-read.ts`, `src/save-choice.ts`, `src/save-preview.ts`. Modify `src/progress-store.ts`, `src/boot.ts`, `eslint.config.js`, the tests that call the preview hooks, `vite.config.ts`.
+**Files:** Create `src/store-context.ts`, `src/store-session.ts`, `src/store-actions.ts`, `src/local-saves.ts`, `src/cloud-writer.ts`, `src/save-adopt.ts`, `src/server-read.ts`, `src/save-load.ts`, `src/save-watch.ts`, `src/save-choice.ts`, `src/save-preview.ts`. Modify `src/progress-store.ts`, `src/boot.ts`, `eslint.config.js`, the tests that call the preview hooks, `vite.config.ts`.
 
 **Interfaces (produces):**
 
@@ -104,8 +112,16 @@ export function timeInput(lastSeen: number | undefined, now: number): TimeInput;
 export type CloudWrite =
   | { readonly kind: "clean"; readonly expedite: boolean }
   | { readonly kind: "dirty"; readonly expedite: boolean }
-  | { readonly kind: "queued"; readonly expedite: boolean; readonly timer: ReturnType<typeof setTimeout> }
-  | { readonly kind: "flying"; readonly next: "none" | "waiting"; readonly expedite: boolean };
+  | {
+      readonly kind: "queued";
+      readonly expedite: boolean;
+      readonly timer: ReturnType<typeof setTimeout>;
+    }
+  | {
+      readonly kind: "flying";
+      readonly next: "none" | "waiting";
+      readonly expedite: boolean;
+    };
 export type ServerRead =
   | { readonly kind: "unseen" }
   | { readonly kind: "seen" }
