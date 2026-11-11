@@ -294,10 +294,6 @@ export function logCounts(
   });
 }
 
-export function mountainOf(ctx: StoreContext): Mountain {
-  return ctx.session.mountain;
-}
-
 /** Puts a mountain and its clock in play, keeping the session's news. */
 export function setGame(
   ctx: StoreContext,
