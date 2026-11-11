@@ -439,6 +439,15 @@ page is the map, plus the rules that keep it that way.
   it. The saves they seed come from `tools/browser/fixtures.ts` (#439), typed
   as `SeedSave`; no script writes a versioned save literal, and
   `fixtures.test.ts` pins every save's value.
+- The visual check (#440): `scripts/visual-check.mjs` is only the runner. It
+  imports the section modules in `scripts/visual/` in queue order, then runs
+  the queue `VISUAL_JOBS` at a time and sets the exit code. Three modules are
+  shared: `registry.mjs` (`section`, `check` and the failures), `kit.mjs` (the
+  server, Chrome, the sizes, `openScreen`, `press` and every helper two
+  modules use) and `measure.mjs` (the board's targets, type, contrast, 2x art
+  and drawer facts). Each other module checks one board part or card group,
+  registers its sections when imported, and imports no other section module.
+  A new check goes in the module of the part it checks.
 - Signoff (#397): a green `npm run check` on a clean, committed HEAD writes `.gate/passed`. `npm run gate -- signoff` (`scripts/signoff.mjs`, rules in `src/signoff.ts`) starts `.github/workflows/signoff.yml`, which posts the `signoff` commit status; the ruleset on `main` requires it and an up-to-date branch. The relay exists because cloud sessions may not post statuses. `deploy-hosting` runs `npm run check` on the merged commit before it deploys, so a red `main` deploys nothing.
 
 ## M7 sketch
