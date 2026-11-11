@@ -313,11 +313,12 @@ function paintPlates(
   hide(plates.explore, out);
   hide(plates.recall, !out);
   hide(plates.back, view !== undefined && view.right === undefined);
+  // The New look first: the guided plate measures across the whole row.
+  mark(plates.explore, "teach-new", (view?.left.flag.length ?? 0) > 0);
   const left = out ? plates.recall : plates.explore;
   if (view !== undefined) {
     paintLeft(left, view.left);
   }
-  mark(plates.explore, "teach-new", (view?.left.flag.length ?? 0) > 0);
   fitType(plates.back);
   for (const plate of Object.values(plates)) {
     plate.disabled = view === undefined;

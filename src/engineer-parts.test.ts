@@ -453,6 +453,20 @@ describe("her page of posts (#455)", () => {
     );
   });
 
+  it("measures the guided words on the plate as wide as the row, New look and all", () => {
+    const { page } = mount();
+    const mountain = withAda();
+    const explore = find(page.root, ".engineer-explore");
+    // Half the row until the New look spans it.
+    sized(explore, 0, (shown) => (shown.length > 16 ? 300 : 150));
+    Object.defineProperty(explore, "clientWidth", {
+      configurable: true,
+      get: () => (explore.classList.contains("teach-new") ? 380 : 180),
+    });
+    page.paint(postViews(mountain, TRIP), herPlates(ada(mountain), TRIP));
+    expect(words(explore)).toBe("Send Ada exploring · 10 min");
+  });
+
   it("Back keeps its words in a smaller type when they would run onto the frame", () => {
     const { page } = mount();
     const mountain = withAda();
