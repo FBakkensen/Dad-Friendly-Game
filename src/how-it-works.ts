@@ -119,19 +119,18 @@ const boostLine =
     ? `A blasting charge or axle grease doubles the crew for ${formatDuration(chargeMs)}.`
     : `A blasting charge doubles the crew for ${formatDuration(chargeMs)}, axle grease for ${formatDuration(greaseMs)}.`;
 
-/**
- * The how-it-works copy for a run stretched by k (M13): every stone price
- * shows this run's number. Upgrades and promotions also scale with the band
- * (#356), so they take `oneOff` (oneOffStretch), the factor the buttons use.
- */
-export function howItWorks(
-  k: number,
-  oneOff = k,
-): Readonly<Record<HowSystem, HowItWorks>> {
-  const stones = (count: number): string =>
-    `${formatCompact(count * k)} stones`;
-  const oneOffStones = (count: number): string =>
-    `${formatCompact(count * oneOff)} stones`;
+/** Stone prices for this run: `stones` for k, `oneOffStones` for upgrades and promotions. */
+interface Prices {
+  readonly stones: (count: number) => string;
+  readonly oneOffStones: (count: number) => string;
+}
+
+type Cards<S extends HowSystem> = Readonly<Record<S, HowItWorks>>;
+
+/** The first cards: digging, the crew and its machines. */
+function crewCards({
+  stones,
+}: Prices): Cards<"tapping" | "workers" | "machines" | "staffing"> {
   return {
     tapping: {
       title: "Tapping",
@@ -201,6 +200,14 @@ export function howItWorks(
         ],
       ],
     },
+  };
+}
+
+/** What stones buy for good or for a while, and what the mountain gives back. */
+function spendCards({
+  oneOffStones,
+}: Prices): Cards<"upgrades" | "boosts" | "veins" | "relics"> {
+  return {
     upgrades: {
       title: "Upgrades",
       reveal: "Upgrades make the whole crew better, for good.",
@@ -255,6 +262,14 @@ export function howItWorks(
         ],
       ],
     },
+  };
+}
+
+/** The engineers: promotion, tending and expeditions. */
+function engineerCards({
+  oneOffStones,
+}: Prices): Cards<"engineers" | "tending" | "expeditions"> {
+  return {
     engineers: {
       title: "Engineers",
       reveal: "Your best worker can step up as engineer.",
@@ -313,6 +328,12 @@ export function howItWorks(
         ],
       ],
     },
+  };
+}
+
+/** Deeper rock: layers, ore, the Workshop and its recipes. */
+function depthCards(): Cards<"layers" | "materials" | "workshop" | "recipes"> {
+  return {
     layers: {
       title: "Layers and hardness",
       reveal: "Deeper rock is new rock. Each layer digs differently.",
@@ -375,6 +396,12 @@ export function howItWorks(
         ["ore-lump", "Some keep for good, even past the bottom."],
       ],
     },
+  };
+}
+
+/** Time away and the pass to your kid. */
+function endCards(): Cards<"away" | "legacy"> {
+  return {
     away: {
       title: "Time away",
       reveal: "Your crew keeps digging while you're gone.",
@@ -408,6 +435,29 @@ export function howItWorks(
         ],
       ],
     },
+  };
+}
+
+/**
+ * The how-it-works copy for a run stretched by k (M13): every stone price
+ * shows this run's number. Upgrades and promotions also scale with the band
+ * (#356), so they take `oneOff` (oneOffStretch), the factor the buttons use.
+ */
+export function howItWorks(
+  k: number,
+  oneOff = k,
+): Readonly<Record<HowSystem, HowItWorks>> {
+  const stones = (count: number): string =>
+    `${formatCompact(count * k)} stones`;
+  const oneOffStones = (count: number): string =>
+    `${formatCompact(count * oneOff)} stones`;
+  const prices: Prices = { stones, oneOffStones };
+  return {
+    ...crewCards(prices),
+    ...spendCards(prices),
+    ...engineerCards(prices),
+    ...depthCards(),
+    ...endCards(),
   };
 }
 
