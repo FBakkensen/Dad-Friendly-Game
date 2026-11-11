@@ -80,7 +80,7 @@ Retuning prices alone only trades long waits for weak buys (the frontier in the 
 - After A–C, if a band still lacks a mid-price option (`bestOpenShare` < 0.6 in one band, or one tier is the best buy in more than 40% of a band's samples), add one machine there.
 - **A new tier cannot be a mountain key.** The rules pin the mountain's key list, and a full crew is already at the expression budget (#195). Its count lives in the workshop map, which the client parses, like the run stretch.
 - New machine art comes from PixelLab, and Flemming is asked first (pixellab skill).
-- **Checked after S3 and S4 (#359, 11 Nov 2026): the ladder has no hole.** No machine is added (Flemming). The numbers are under Decided.
+- **Checked after S3 and S4 (#359, 11 Nov 2026).** The `bestOpenShare` line passes in every band. The 40% line fires in every band, because the newest machine wins its band. Flemming ruled that this is not a ladder hole, so no machine is added. The numbers are under Decided.
 
 ### F. Guardrails
 
@@ -151,7 +151,7 @@ S2 is the big one. A alone still misses the check-in rows (28% of check-ins buy 
   - The amount is kept on the device, not in the save.
   - The lab's report-only `taps-per-sitting` row reads 2 to 4 taps for casual types at 3 seeds (the check-in dad 2), against 9 to 63 buys. It is a floor: a tier bought twice in one sitting, with another between, counts once.
 
-- **S5 not needed (#359, Flemming, 11 Nov 2026).** E's trigger was read after S3 and S4, at 20 seeds, for every casual type, band by band, with the check-in guardrails' scope (after day one) and each dad's own table (`stretch.payback`, as `dominant-share` reads it). `bestOpenShare` is 0.99 to 1.0 in every band a dad reaches after day one, so every band opens with its best buy in reach. The 40% line trips in every band, but only because the newest machine wins its band: the borer is the best buy in 63% to 100% of the Granite and Crystal samples, and the Great Machine in 51% to 100% of the Deep Heart's. That is the ladder working, not a hole, and one added machine could not bring the Deep Heart under 40%. Day one's Topsoil opens on an empty pocket, with workers the best buy in 58% to 87% of samples; the guardrails leave day one out for the same reason.
+- **S5 not needed (#359, Flemming, 11 Nov 2026).** E's trigger was read after S3 and S4, at 20 seeds, for every casual type, band by band, with the check-in guardrails' scope (after day one) and each dad's own table (`stretch.payback`, as `dominant-share` reads it). `bestOpenShare` is 0.99 to 1.0 in every band a dad reaches after day one, so every band opens with its best buy in reach. The 40% line fires in every band, because one machine wins each band. In the Granite it is the borer (100% for the plain and check-in dads; the check-in dad has about one Granite sitting a seed), except for the evening dad, whose best is the drill in 95% of samples (the borer, by stones a second per stone). In the Crystal the borer wins 63% to 88% of samples, and in the Deep Heart the Great Machine wins 51% to 100%. Flemming ruled this is the ladder working, not a hole. One added machine could not pass the line anyway: the plain and evening dads' Deep Heart samples all name the Great Machine. Day one's Topsoil would fire both lines (best-open 0 to 0.52, workers best in 58% to 87% of samples), but it opens on an empty pocket, which is why the guardrails leave day one out.
 
 ## Open decisions for Flemming
 
