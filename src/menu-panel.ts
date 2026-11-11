@@ -9,6 +9,15 @@ import {
   fieldLogCopy,
   fieldLogFallback,
   fieldLogTitle,
+  SIGN_IN_GOOGLE,
+  SIGN_OUT,
+  SIGNING_IN,
+  START_OVER,
+  START_OVER_DETAIL,
+  START_OVER_KEEP,
+  START_OVER_TITLE,
+  START_OVER_YES,
+  signedInWords,
 } from "./screen-words";
 
 /** Copies the field log; false when the browser has no clipboard or refuses it. */
@@ -55,7 +64,7 @@ export function createMenuPanel({
   const startOverLink = document.createElement("button");
   startOverLink.type = "button";
   startOverLink.className = "start-over-link";
-  startOverLink.textContent = "Start over";
+  startOverLink.textContent = START_OVER;
   let confirmingStartOver = false;
   startOverLink.addEventListener("click", () => {
     menuOpen = false;
@@ -110,19 +119,18 @@ export function createMenuPanel({
   confirmCard.className = "start-over-card";
   const confirmTitle = document.createElement("h2");
   confirmTitle.id = "start-over-title";
-  confirmTitle.textContent = "Start over?";
+  confirmTitle.textContent = START_OVER_TITLE;
   const confirmDetail = document.createElement("p");
   confirmDetail.id = "start-over-detail";
-  confirmDetail.textContent =
-    "You will lose all your progress: every stone mined, your whole crew, and every relic you found. The mountain fills back up. This can't be undone.";
+  confirmDetail.textContent = START_OVER_DETAIL;
   const confirmCancel = document.createElement("button");
   confirmCancel.type = "button";
   confirmCancel.className = "start-over-cancel";
-  confirmCancel.textContent = "Keep my mountain";
+  confirmCancel.textContent = START_OVER_KEEP;
   const confirmYes = document.createElement("button");
   confirmYes.type = "button";
   confirmYes.className = "start-over-confirm";
-  confirmYes.textContent = "Yes, start over";
+  confirmYes.textContent = START_OVER_YES;
   const closeConfirm = (): void => {
     confirmingStartOver = false;
     requestRender();
@@ -175,19 +183,19 @@ export function createMenuPanel({
   const renderAuth = (state: AuthState): void => {
     switch (state.kind) {
       case "signed-out":
-        authButton.textContent = "Sign in with Google";
+        authButton.textContent = SIGN_IN_GOOGLE;
         authButton.disabled = false;
         authStatus.textContent = "";
         return;
       case "signing-in":
-        authButton.textContent = "Signing in...";
+        authButton.textContent = SIGNING_IN;
         authButton.disabled = true;
         authStatus.textContent = "";
         return;
       case "signed-in":
-        authButton.textContent = "Sign out";
+        authButton.textContent = SIGN_OUT;
         authButton.disabled = false;
-        authStatus.textContent = `Signed in as ${state.user.label}`;
+        authStatus.textContent = signedInWords(state.user.label);
         return;
       /* v8 ignore next 4 -- exhaustiveness guard, unreachable */
       default: {

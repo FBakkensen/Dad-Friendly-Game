@@ -8,6 +8,32 @@ import type { Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
 import { UPGRADES, upgradeById, type UpgradeId } from "./upgrades";
 import {
+  ACCOUNT,
+  LEDGER_BACK,
+  LEDGER_KICK,
+  MINE_LEGEND,
+  NOT_SIGNED_IN,
+  PASS_SHORT,
+  SIGN_IN,
+  SIGN_IN_GOOGLE,
+  SIGN_OUT,
+  SIGNING_IN,
+  START_OVER,
+  START_OVER_DETAIL,
+  START_OVER_KEEP,
+  START_OVER_TITLE,
+  START_OVER_YES,
+  TONIGHT_LEGEND,
+  awayDugLine,
+  benchStartedLine,
+  boostStartedLine,
+  cameHomeLine,
+  relicFoundLine,
+  relicsFoundWords,
+  signedInWords,
+  tierBuyLine,
+  upgradeLevelLine,
+  veinGaveLine,
   BROUGHT_HOME,
   FOUND_LABEL,
   KEEPSAKES_TITLE,
@@ -931,5 +957,76 @@ describe("grandpa words (#338)", () => {
     expect(grandpaSentence("borer")).toBe(
       "Grandpa tends the borers, slow and steady.",
     );
+  });
+});
+
+describe("the Ledger's words (#375)", () => {
+  it("names the drawer's kick, legends, Back and the short Pass plate", () => {
+    expect(LEDGER_KICK).toBe("Tonight, and the mine so far");
+    expect(TONIGHT_LEGEND).toBe("Tonight");
+    expect(MINE_LEGEND).toBe("The mine");
+    expect(LEDGER_BACK).toBe("Back to the Ledger");
+    expect(PASS_SHORT).toBe("Pass the mine");
+    expect(relicsFoundWords(2)).toBe("2 of 6 relics found");
+    expect(relicsFoundWords(0)).toBe("0 of 6 relics found");
+  });
+
+  it("keeps today's Start over and account words, with the one question on the title", () => {
+    expect(START_OVER).toBe("Start over");
+    expect(START_OVER_TITLE).toBe("Start over?");
+    expect(START_OVER_KEEP).toBe("Keep my mountain");
+    expect(START_OVER_YES).toBe("Yes, start over");
+    expect(START_OVER_DETAIL).toMatch(/^You will lose all your progress/);
+    expect(ACCOUNT).toBe("Account");
+    expect(NOT_SIGNED_IN).toBe("Not signed in");
+    expect(SIGN_IN).toBe("Sign in");
+    expect(SIGN_IN_GOOGLE).toBe("Sign in with Google");
+    expect(SIGNING_IN).toBe("Signing in...");
+    expect(SIGN_OUT).toBe("Sign out");
+    expect(signedInWords("dad@example.com")).toBe(
+      "Signed in as dad@example.com",
+    );
+    const others = [
+      LEDGER_KICK,
+      START_OVER,
+      START_OVER_DETAIL,
+      START_OVER_KEEP,
+      START_OVER_YES,
+    ].join(" ");
+    expect(others).not.toMatch(/\?/);
+  });
+
+  it("words Tonight's lines, with real numbers and no question", () => {
+    const lines = [
+      tierBuyLine("helper", 56),
+      tierBuyLine("kid", 2),
+      tierBuyLine("cart", 3),
+      tierBuyLine("machine", 1),
+      tierBuyLine("helper", 12_345),
+      upgradeLevelLine("Strong arms", 3),
+      boostStartedLine("Overtime", 30 * 60_000),
+      benchStartedLine("Iron rails"),
+      relicFoundLine("Hammer of the Builder"),
+      awayDugLine(1_234_567),
+      veinGaveLine(4_200),
+      veinGaveLine(1),
+      cameHomeLine("Ada"),
+    ];
+    expect(lines).toEqual([
+      "Hired worker 56.",
+      "Hired kid worker 2.",
+      "Bought mine cart 3.",
+      "Bought Great Machine 1.",
+      "Hired worker 12,345.",
+      "Strong arms, level 3.",
+      "Overtime started for 30:00.",
+      "Iron rails went on the bench.",
+      "Found the Hammer of the Builder.",
+      "Came back. The crew dug 1.2M while you were away.",
+      "A golden vein gave 4,200 stones.",
+      "A golden vein gave one stone.",
+      "Ada came home.",
+    ]);
+    expect(lines.join(" ")).not.toMatch(/\?/);
   });
 });

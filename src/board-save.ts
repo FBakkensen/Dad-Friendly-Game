@@ -3,6 +3,7 @@ import { skin } from "./board-skin";
 import { pressLook } from "./card-tap";
 import { formatCompact, formatTimeOfDay } from "./format";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
+import { ACCOUNT, NOT_SIGNED_IN, SIGN_IN } from "./screen-words";
 
 type SaveKind = ProgressSnapshot["saveKind"];
 
@@ -175,7 +176,7 @@ function buildDrawer(): {
     facts.append(row);
     return v;
   };
-  const account = fact("Account");
+  const account = fact(ACCOUNT);
   const phone = fact("On this phone");
   const last = fact("Last try");
   const row = el("div", "board-btnrow");
@@ -257,10 +258,10 @@ export function createSaveLine({
     else lost.remove();
     const state = authState();
     account.textContent =
-      state.kind === "signed-in" ? state.user.label : "Not signed in";
+      state.kind === "signed-in" ? state.user.label : NOT_SIGNED_IN;
     phone.textContent = formatCompact(view.mountain.pocket);
     last.textContent = lastTry === undefined ? "—" : formatTimeOfDay(lastTry);
-    const label = state.kind === "signed-in" ? "Try again" : "Sign in";
+    const label = state.kind === "signed-in" ? "Try again" : SIGN_IN;
     const span = actBtn.querySelector(".board-platebtn-text");
     if (span) span.textContent = label;
     actBtn.disabled = state.kind === "signing-in";
