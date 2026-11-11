@@ -23,8 +23,7 @@ import "./visual/gauge-row.mjs";
 import "./visual/bays-ready.mjs";
 import "./visual/rail.mjs";
 import "./visual/drawers.mjs";
-import "./visual/keys-taps.mjs";
-import "./visual/press-looks.mjs";
+import "./visual/controls.mjs";
 
 // Pages wait on the network as much as the CPU, so 1.5 per core beats 1
 // (measured on 4 cores: 70 s at 4 jobs, 63 s at 6, 62 s at 8).

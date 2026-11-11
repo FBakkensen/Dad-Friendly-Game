@@ -1,5 +1,5 @@
-/* global console, document, localStorage */
-/** Bays and Ready sections: the bays, the machine tiers and the Ready plate, per save, and their taps. */
+/* global console, document */
+/** Bays and Ready sections: the bays, the machine tiers and the Ready plate, per save and in three scenarios. */
 import {
   crewMountain,
   openMountain,
@@ -7,25 +7,18 @@ import {
   heartMountain,
   fleetMountain,
   savingMountain,
-  SAVE_KEY,
 } from "../../tools/browser/fixtures.ts";
 import { undersizedTargets } from "../../src/ui-audit-measure.ts";
 import { check, section, table } from "./registry.mjs";
 import {
   PHONE,
   SCREENS,
-  press,
-  OPEN_SHEET,
   openScreen,
   noScroll,
   baysDrawn,
   railFoot,
-  storedMountain,
-  holdThrough,
   framesPainted,
   noteAway,
-  buysOpen,
-  odometer,
 } from "./kit.mjs";
 import {
   BAY_LEGENDS,
@@ -43,10 +36,9 @@ import {
 // words and the bays are C2's tiers; every bay's words, flaps and price stay
 // in its button; the bars are the board's (48px targets 8px apart, 13px text,
 // art at exactly 2x, 4.5:1 contrast at p10/p90); the page never scrolls and
-// the key rail ends at least 8px above the save line. Then each control wired
-// once: a tap on Ready now buys exactly one, Saving for and an open bay open
-// Buys, a troubled bay fixes with five taps or a hold, and the red button digs
-// exactly the tap's yield.
+// the key rail ends at least 8px above the save line. Then three scenarios:
+// reduced motion holds the bays still, a mined-out mountain says so, and a
+// loading save shows art and no save words. The bays' taps are in controls.mjs.
 const BAYS_UI = "/src/board-bays.ts";
 const EARLY_TIERS = ["cart", "drill", "borer"];
 const MACHINE_TIERS = ["drill", "borer", "machine"];
@@ -65,8 +57,6 @@ const BAY_SAVES = [
   { name: "saving", save: () => savingMountain(), tiers: EARLY_TIERS },
 ];
 const BAYS_AND_READY = ".board-bays, .board-ready-row";
-/** One lamp frame is 20 art px: red, the fourth frame, sits at -120 CSS px. */
-const LAMP_RED_X = "-120px";
 
 /**
  * The band tag and each bay's parts. Words are measured by their glyph runs
@@ -178,13 +168,6 @@ async function baysLayout(page) {
       bays,
     };
   });
-}
-
-/** The words a bay, the plate or the red button shows, by selector. */
-async function textOf(page, selector) {
-  return page
-    .$eval(selector, (el) => (el.textContent ?? "").replace(/\s+/g, " ").trim())
-    .catch(() => undefined);
 }
 
 /** Opens the save with the clock held, and reads the bays' tag and layout. */
@@ -366,308 +349,6 @@ const BAYS_EXPECT = [
     },
   },
 ];
-
-const registerTaps = (viewport) => {
-  section(`bays and ready ${JSON.stringify(viewport)} taps`, async () => {
-    const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    const label = `${size} bays and ready:`;
-    const cartFlaps = (page) =>
-      page.$eval('.board-bay[data-tier="cart"]', (bay) =>
-        Number(
-          [...bay.querySelectorAll(".board-flap-d")]
-            .map((digit) => digit.textContent ?? "")
-            .join(""),
-        ),
-      );
-
-    // The tap rules (a double tap on the plate, a bay or Saving for, the Done
-    // hold, a tap inside a drawer's settle) are unit tests on the board's model
-    // and the mounted screen. Here each family of controls is wired once, in
-    // Chrome, with the board's tap clock held so no press is early by load.
-
-    // Ready now: a tap buys exactly one cart for one price and paints Done.
-    {
-      const { page, close } = await openScreen(viewport, crewMountain(), {
-        stopClock: true,
-        tapClock: "held",
-      });
-      await baysDrawn(page);
-      await page.waitForSelector(".board-ready:not(:disabled)");
-      await noteAway(page);
-      const kickBefore = await textOf(page, ".board-ready-kick");
-      const mainBefore = (await textOf(page, ".board-ready-main")) ?? "";
-      // "Buy a cart · 5,868": the price the plate offers, in whole stones.
-      const price = Number(
-        (mainBefore.split(" · ")[1] ?? "").replaceAll(",", ""),
-      );
-      const flapsBefore = await cartFlaps(page);
-      const storedBefore = await storedMountain(page);
-      await press(page, ".board-ready");
-      const done = await page
-        .waitForFunction(
-          () =>
-            (
-              document.querySelector(".board-ready-kick")?.textContent ?? ""
-            ).trim() === "Done",
-          { timeout: 2_000 },
-        )
-        .then(
-          () => true,
-          () => false,
-        );
-      await page
-        .waitForFunction(
-          (key, carts) =>
-            JSON.parse(localStorage.getItem(key) ?? "{}").mountain?.carts ===
-            carts,
-          { timeout: 2_000 },
-          SAVE_KEY,
-          storedBefore.carts + 1,
-        )
-        .catch(() => undefined);
-      const flapsAfter = await cartFlaps(page);
-      const storedAfter = await storedMountain(page);
-      const spent = storedBefore.pocket - storedAfter.pocket;
-      check(
-        kickBefore === "Ready now" &&
-          flapsAfter - flapsBefore === 1 &&
-          storedAfter.carts - storedBefore.carts === 1 &&
-          Number.isFinite(price) &&
-          price > 0 &&
-          spent === price &&
-          done,
-        `${label} a tap on Ready now buys exactly one cart for one price (${String(spent)} of ${String(price)}) and shows Done`,
-      );
-      if (flapsAfter - flapsBefore !== 1 || !done || spent !== price) {
-        console.log("plate tap", size, {
-          kickBefore,
-          mainBefore,
-          flapsBefore,
-          flapsAfter,
-          storedBefore,
-          storedAfter,
-          done,
-        });
-      }
-      await close();
-    }
-
-    // Saving for: the time shows, and a tap opens Buys and spends nothing.
-    {
-      const { page, close } = await openScreen(viewport, savingMountain(), {
-        stopClock: true,
-        tapClock: "held",
-      });
-      await baysDrawn(page);
-      await page.waitForSelector(".board-ready:not(:disabled)");
-      await noteAway(page);
-      const main = await textOf(page, ".board-ready-main");
-      const odoBefore = await odometer(page);
-      const storedBefore = await storedMountain(page);
-      await press(page, ".board-ready");
-      const opened = await page
-        .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
-        .then(
-          () => true,
-          () => false,
-        );
-      const odoAfter = await odometer(page);
-      const storedAfter = await storedMountain(page);
-      check(
-        (main ?? "").startsWith("Saving for a cart · in ") &&
-          opened &&
-          odoAfter === odoBefore &&
-          storedAfter.pocket === storedBefore.pocket &&
-          storedAfter.helpers === storedBefore.helpers,
-        `${label} Saving for reads "${String(main)}", and a tap opens Buys with the pocket and odometer unchanged`,
-      );
-      await close();
-    }
-
-    // An open bay: a tap opens Buys and spends nothing.
-    {
-      const { page, close } = await openScreen(viewport, openMountain(), {
-        stopClock: true,
-        tapClock: "held",
-      });
-      await baysDrawn(page);
-      await page.waitForSelector(".board-ready:not(:disabled)");
-      await noteAway(page);
-      const storedBefore = await storedMountain(page);
-      await press(page, '.board-bay[data-tier="cart"]');
-      const opened = await page
-        .waitForSelector(OPEN_SHEET("buys"), { timeout: 2_000 })
-        .then(
-          () => true,
-          () => false,
-        );
-      const storedAfter = await storedMountain(page);
-      const kept = ["pocket", "carts", "drills", "borers", "helpers"].every(
-        (field) => storedAfter[field] === storedBefore[field],
-      );
-      check(
-        opened && kept,
-        `${label} a tap on an open bay opens Buys and spends nothing`,
-      );
-      if (!opened || !kept) {
-        console.log(
-          "bay tap",
-          size,
-          JSON.stringify({ opened, storedBefore, storedAfter }),
-        );
-      }
-      await close();
-    }
-
-    // Trouble on the cart bay: a red lamp and Hold to fix. Five taps fix it
-    // with Buys shut, and the thanks note lets taps through to the bay
-    // under it. On a fresh page a hold fixes it too.
-    {
-      const troubled = '.board-bay[data-tier="cart"][data-trouble="cave-in"]';
-      const { page, close } = await openScreen(viewport, openMountain(), {
-        search: "?trouble=cave-in",
-        stopClock: true,
-        tapClock: "held",
-      });
-      await baysDrawn(page);
-      const shown = await page
-        .waitForSelector(troubled, { timeout: 3_000 })
-        .then(
-          () => true,
-          () => false,
-        );
-      const lamp = await page
-        .$eval(`${troubled} .board-lamp`, (el) => el.style.backgroundPositionX)
-        .catch(() => "");
-      const sub = await textOf(page, `${troubled} .board-bay-sub`);
-      check(
-        shown && lamp === LAMP_RED_X && (sub ?? "").endsWith("Hold to fix"),
-        `${label} the troubled cart bay shows its red lamp and Hold to fix`,
-      );
-      for (let tap = 0; tap < 5; tap += 1) {
-        await press(page, '.board-bay[data-tier="cart"]');
-      }
-      const fixed = await page
-        .waitForFunction(
-          () =>
-            document
-              .querySelector('.board-bay[data-tier="cart"]')
-              ?.hasAttribute("data-trouble") === false,
-          { timeout: 2_000 },
-        )
-        .then(
-          () => true,
-          () => false,
-        );
-      await framesPainted(page, 2);
-      const shut = !(await buysOpen(page));
-      check(
-        fixed && shut,
-        `${label} five taps fix the troubled bay with Buys shut`,
-      );
-      // The thanks note is up; the bays under it are still what a finger meets.
-      const thanks = await page.evaluate(() => {
-        const note = document.querySelector(".board-note.on");
-        const thanked = note?.querySelector(".board-thanks") !== null;
-        const reach = [...document.querySelectorAll(".board-bay")].map(
-          (bay) => {
-            const b = bay.getBoundingClientRect();
-            const hit = document.elementFromPoint(
-              (b.left + b.right) / 2,
-              (b.top + b.bottom) / 2,
-            );
-            return hit !== null && bay.contains(hit);
-          },
-        );
-        return { thanked: note !== null && thanked, reach };
-      });
-      const underThanks = await boardTargets(page);
-      const baysMeasured = underThanks.own.filter((target) =>
-        target.selector.startsWith(".board-bay "),
-      ).length;
-      check(
-        thanks.thanked && thanks.reach.every(Boolean) && baysMeasured === 3,
-        `${label} under the thanks note every bay is still in reach and measured`,
-      );
-      if (!thanks.thanked || baysMeasured !== 3) {
-        console.log("thanks note", size, { ...thanks, baysMeasured });
-      }
-      await close();
-    }
-    {
-      const bay = '.board-bay[data-tier="cart"]';
-      const { page, close } = await openScreen(viewport, openMountain(), {
-        search: "?trouble=cave-in",
-        stopClock: true,
-        tapClock: "held",
-      });
-      await baysDrawn(page);
-      await page
-        .waitForSelector(`${bay}[data-trouble]`, { timeout: 3_000 })
-        .catch(() => undefined);
-      const cleared = await holdThrough(
-        page,
-        bay,
-        (selector) =>
-          document.querySelector(selector)?.hasAttribute("data-trouble") ===
-          false,
-      );
-      await framesPainted(page, 2);
-      check(
-        cleared && !(await buysOpen(page)),
-        `${label} a hold fixes the troubled bay with Buys shut`,
-      );
-      await close();
-    }
-
-    // The red button digs exactly the tap's yield, and the window shows it.
-    {
-      const start = heartMountain();
-      const { page, close } = await openScreen(
-        viewport,
-        { ...start, mountain: { ...start.mountain, pocket: 0 } },
-        { stopClock: true },
-      );
-      await page.waitForSelector(".board-dig-button:not(:disabled)");
-      const before = (await storedMountain(page)).pocket;
-      const yieldWords = await page.$eval(
-        ".board-dig-button",
-        (button) => button.getAttribute("aria-label") ?? "",
-      );
-      const match = /tap to mine (one stone|([\d,.]+) stones)$/.exec(
-        yieldWords,
-      );
-      const each =
-        match === null
-          ? NaN
-          : match[2] === undefined
-            ? 1
-            : Number(match[2].replace(/,/g, ""));
-      await press(page, ".board-dig-button");
-      const after = (await storedMountain(page)).pocket;
-      const shown = await page.evaluate(() => ({
-        odo: document.querySelector(".board-odo")?.getAttribute("aria-label"),
-        legend: (document.querySelector(".board-dig-lg")?.textContent ?? "")
-          .replace(/\s+/g, " ")
-          .trim(),
-        plus: document.querySelector(".board-dig-plus")?.textContent,
-      }));
-      const plus = `+${match?.[2] ?? "1"}`;
-      check(
-        Number.isFinite(each) &&
-          after - before === each &&
-          shown.odo === `Stones ${Math.floor(after).toLocaleString("en-US")}` &&
-          shown.legend === `By hand · ${plus}` &&
-          shown.plus === plus,
-        `${label} the red button digs the tap's ${String(each)}, reads By hand · ${plus}, and the window shows ${plus}`,
-      );
-      if (after - before !== each || shown.plus !== plus) {
-        console.log("red button", size, { yieldWords, before, after, shown });
-      }
-      await close();
-    }
-  });
-};
 
 const registerReducedMotion = (viewport) => {
   section(
@@ -878,7 +559,6 @@ table({
   open: openBays,
   expect: BAYS_EXPECT,
   after: (viewport) => {
-    registerTaps(viewport);
     registerReducedMotion(viewport);
     registerMinedOut(viewport);
     registerLoading(viewport);
