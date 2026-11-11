@@ -416,24 +416,32 @@ async function framesPainted(page, count) {
   }, count);
 }
 
-/** Waits for the page to paint frames whose own stamps span at least `ms`. */
-async function framesSpanning(page, ms) {
-  await page.evaluate(
-    (span) =>
-      new Promise((resolve) => {
-        let first;
-        const look = (stamp) => {
-          first ??= stamp;
-          if (stamp - first >= span) {
-            resolve(undefined);
-            return;
-          }
-          requestAnimationFrame(look);
-        };
-        requestAnimationFrame(look);
-      }),
-    ms,
-  );
+/**
+ * Arms a capture click listener on the window before a tap. The function it gives waits for
+ * that click and the next animation frame after it: true when the tap was handled within 2 s. A
+ * check that nothing opened needs it, so it cannot pass on a tap that never landed.
+ */
+async function clickHandled(page) {
+  await page.evaluate(() => {
+    globalThis.__clickHandled = false;
+    globalThis.addEventListener(
+      "click",
+      () =>
+        requestAnimationFrame(() => {
+          globalThis.__clickHandled = true;
+        }),
+      { capture: true, once: true },
+    );
+  });
+  return () =>
+    page
+      .waitForFunction(() => globalThis.__clickHandled === true, {
+        timeout: 2_000,
+      })
+      .then(
+        () => true,
+        () => false,
+      );
 }
 
 /**
@@ -477,9 +485,6 @@ async function keysDrawn(page) {
     );
 }
 
-const odometer = (page) =>
-  page.$eval(".board-odo", (odo) => odo.getAttribute("aria-label"));
-
 export {
   server,
   BASE,
@@ -512,10 +517,9 @@ export {
   storedMountain,
   holdThrough,
   framesPainted,
-  framesSpanning,
+  clickHandled,
   noteAway,
   buysOpen,
   LAMP_X,
   keysDrawn,
-  odometer,
 };

@@ -1,4 +1,4 @@
-/* global console, document, localStorage, getComputedStyle, setTimeout, HTMLImageElement */
+/* global console, document, localStorage, getComputedStyle, HTMLImageElement, MutationObserver */
 /** Gauge row sections: the gauge row and the vein, per save and band, and its moving parts. */
 import {
   crewMountain,
@@ -20,6 +20,7 @@ import {
   openScreen,
   noScroll,
   MINE_WINDOW_RULES,
+  framesPainted,
 } from "./kit.mjs";
 import {
   boardTargets,
@@ -374,8 +375,8 @@ for (const viewport of SCREENS) {
           () => true,
           () => false,
         );
-      // let the board's loop step a few frames over the empty window
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      // Let the board's loop step a few frames over the empty window.
+      await framesPainted(page, 12);
       const seen = await page.evaluate(
         (parts) => ({
           parts: parts.filter((part) =>
@@ -453,6 +454,17 @@ for (const viewport of SCREENS) {
       for (let tap = 0; tap < 3; tap += 1) {
         await press(page, ".board-window");
       }
+      // The three digs are in the stored save before it is read.
+      await page
+        .waitForFunction(
+          (key, want) =>
+            JSON.parse(localStorage.getItem(key) ?? "{}").mountain?.pocket ===
+            want,
+          { timeout: 2_000 },
+          SAVE_KEY,
+          before + 3 * each,
+        )
+        .catch(() => undefined);
       const after = await pocket();
       const shown = await page.evaluate(() => ({
         odo: document.querySelector(".board-odo")?.getAttribute("aria-label"),
@@ -474,8 +486,11 @@ for (const viewport of SCREENS) {
     // Reduced motion: the window and the needle hold still; a tap still
     // shows "+N", without rising.
     {
+      // The clock is stopped, so the 1s tick cannot change the vein or the
+      // crew plate between the shots.
       const { page, close } = await openScreen(viewport, heartMountain(), {
         reducedMotion: true,
+        stopClock: true,
       });
       await page.waitForSelector(".board-mine[data-band]");
       const clip = await page.evaluate(() => {
@@ -490,31 +505,79 @@ for (const viewport of SCREENS) {
               height: Math.floor(box.height),
             };
       });
-      // Let the first frames land, then compare two shots 600ms apart.
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      // Still art first: the faces, every image decoded, every skin painted
+      // and the gauge's reading in. Then two shots 36 frames (600ms or more
+      // at 60 Hz) apart.
+      await boardFontsLoaded(page);
+      await page.evaluate(() =>
+        Promise.all(
+          [...document.querySelectorAll(".board-gauge-row img")].map((img) =>
+            img.decode().catch(() => undefined),
+          ),
+        ),
+      );
+      await page
+        .waitForFunction(
+          () =>
+            [...document.querySelectorAll(".board-gauge-row img")].every(
+              (img) => img.complete && img.naturalWidth > 0,
+            ) &&
+            [
+              ...document.querySelectorAll(
+                ".board-gauge-row canvas.board-skin",
+              ),
+            ].every((canvas) => canvas.style.width !== "") &&
+            (
+              document
+                .querySelector(".board-gauge")
+                ?.getAttribute("aria-label") ?? ""
+            ).startsWith("Output:"),
+          { timeout: 5_000 },
+        )
+        .catch(() => undefined);
+      await framesPainted(page, 2);
       const first = await page.screenshot({ clip, encoding: "base64" });
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      await framesPainted(page, 36);
       const second = await page.screenshot({ clip, encoding: "base64" });
       check(
         clip !== undefined && first === second,
         `${label} under reduced motion the window and the needle hold still`,
       );
+      // The page records each state "+N" shows in, as it changes, so a load
+      // that lets the 0.7s hold run out before a read cannot fail the check.
+      await page.evaluate(() => {
+        const plus = document.querySelector(".board-dig-plus");
+        globalThis.__plusSeen = [];
+        if (plus === null) return;
+        new MutationObserver(() => {
+          globalThis.__plusSeen.push({
+            shown: !plus.hidden && plus.getClientRects().length > 0,
+            top: plus.style.top,
+            text: plus.textContent,
+          });
+        }).observe(plus, {
+          attributes: true,
+          childList: true,
+          characterData: true,
+          subtree: true,
+        });
+      });
       await press(page, ".board-window");
-      const plusAt = () =>
-        page.$eval(".board-dig-plus", (plus) => ({
-          shown: !plus.hidden && plus.getClientRects().length > 0,
-          top: plus.style.top,
-          text: plus.textContent,
-        }));
-      const up = await plusAt();
-      await new Promise((resolve) => setTimeout(resolve, 250));
-      const later = await plusAt();
+      // Six frames: at least one 70ms rise step at 60 Hz.
+      await framesPainted(page, 6);
+      const seen = await page.evaluate(() =>
+        globalThis.__plusSeen.filter((state) => state.shown),
+      );
       check(
-        up.shown && later.shown && up.top === later.top && up.text !== "",
+        seen.length > 0 &&
+          seen.every((state) => state.top === seen[0].top && state.text !== ""),
         `${label} under reduced motion a tap shows +N without rising`,
       );
-      if (!up.shown || up.top !== later.top) {
-        console.log("reduced plus", size, up, later);
+      if (
+        seen.length === 0 ||
+        seen.some((state) => state.top !== seen[0].top)
+      ) {
+        console.log("reduced plus", size, seen);
       }
       await close();
     }
