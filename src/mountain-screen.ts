@@ -94,9 +94,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     saveLine,
     onStartOver: vein.reset,
     closeMenu,
-    workshopClosed: () => {
-      keys.workshopClosed();
-    },
+    buys: crewPanel.sheet,
   });
   const { upgrades, workshop } = sheets;
 
@@ -147,14 +145,14 @@ export function mountMountainScreen(options: ScreenOptions): void {
       keys.openBuys(from);
     },
   });
+  const drawers = [crewPanel.sheet, upgrades.sheet, workshop.sheet];
   const overlays = createOverlays(ctx, {
     note: boardNote,
     rail,
     cards,
-    drawers: [crewPanel.sheet, upgrades.sheet],
+    drawers,
   });
-  const keys = wireKeys(ctx, {
-    rail,
+  const keys = wireKeys({
     crewPanel,
     upgrades,
     workshop,
@@ -170,8 +168,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     readyRow,
     rail,
     sign: overlays.sign,
-    crewSheet: crewPanel.sheet,
-    upgradesSheet: upgrades.sheet,
+    drawers,
     saveLine,
     note: boardNote.note,
     park: runningNow.parkRoot,

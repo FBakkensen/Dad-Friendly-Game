@@ -145,15 +145,13 @@ describe("the key rail (#373)", () => {
         expect(document.activeElement).toBe(key(screen, name));
       }
 
-      // Workshop opens today's sheet; Escape puts focus back on its key.
-      const workshop =
-        screen.root.querySelector<HTMLElement>(".workshop-dialog");
+      // Workshop opens its drawer (#374); Escape puts focus back on its key.
       key(screen, "workshop").click();
-      expect(workshop?.hidden).toBe(false);
-      workshop?.dispatchEvent(
+      expect(isOpen(screen, "workshop")).toBe(true);
+      document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
       );
-      expect(workshop?.hidden).toBe(true);
+      expect(isOpen(screen, "workshop")).toBe(false);
       expect(document.activeElement).toBe(key(screen, "workshop"));
 
       // Engineers opens today's sheet, from its own key.
@@ -253,9 +251,7 @@ describe("the key rail (#373)", () => {
     // A locked key opens nothing.
     key(screen, "workshop").click();
     key(screen, "engineers").click();
-    expect(
-      screen.root.querySelector<HTMLElement>(".workshop-dialog")?.hidden,
-    ).toBe(true);
+    expect(isOpen(screen, "workshop")).toBe(false);
     expect(
       screen.root.querySelector<HTMLElement>(".engineers-dialog")?.hidden,
     ).toBe(true);
@@ -389,28 +385,27 @@ describe("the key rail (#373)", () => {
     }
   });
 
-  it("the Workshop sheet gives focus back to the door it opened from", () => {
+  it("the Workshop drawer gives focus back to the door it opened from", () => {
     const screen = mountScreen({
       storage: seeded(crewed(benchBusy(CLOCK)), CLOCK),
       now: () => CLOCK,
     });
     document.body.append(screen.root);
     try {
-      const sheet = screen.root.querySelector<HTMLElement>(".workshop-dialog");
       const escape = (): void => {
-        sheet?.dispatchEvent(
+        document.dispatchEvent(
           new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
         );
       };
       // From its key.
       key(screen, "workshop").click();
-      expect(sheet?.hidden).toBe(false);
+      expect(isOpen(screen, "workshop")).toBe(true);
       escape();
       expect(document.activeElement).toBe(key(screen, "workshop"));
       // From the menu's Workshop row: back to the Ledger key that opened the menu.
       key(screen, "ledger").click();
       screen.root.querySelector<HTMLButtonElement>(".workshop-open")?.click();
-      expect(sheet?.hidden).toBe(false);
+      expect(isOpen(screen, "workshop")).toBe(true);
       expect(screen.root.querySelector<HTMLElement>(".game-menu")?.hidden).toBe(
         true,
       );
@@ -425,7 +420,7 @@ describe("the key rail (#373)", () => {
     }
   });
 
-  it("the Workshop sheet falls back to the Ledger key when its key is held by a re-load", async () => {
+  it("the Workshop drawer falls back to the Ledger key when its key is held by a re-load", async () => {
     const cloudSave: CloudSave = {
       load: () => Promise.resolve({ kind: "missing" }),
       write: () => Promise.resolve({ kind: "ok" }),
@@ -441,19 +436,18 @@ describe("the key rail (#373)", () => {
     });
     document.body.append(screen.root);
     try {
-      const sheet = screen.root.querySelector<HTMLElement>(".workshop-dialog");
       key(screen, "workshop").click();
-      expect(sheet?.hidden).toBe(false);
+      expect(isOpen(screen, "workshop")).toBe(true);
       await auth.signIn();
       await Promise.resolve();
       expect(screen.progress.getSnapshot().ready).toBe(false);
       expect(key(screen, "workshop").disabled).toBe(true);
-      if (sheet?.hidden === false) {
-        sheet.dispatchEvent(
-          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
-        );
-      }
-      expect(sheet?.hidden).toBe(true);
+      // The drawer stays open while the save loads again; Escape closes it.
+      expect(isOpen(screen, "workshop")).toBe(true);
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      expect(isOpen(screen, "workshop")).toBe(false);
       expect(document.activeElement).toBe(key(screen, "ledger"));
     } finally {
       screen.root.remove();
@@ -487,11 +481,9 @@ describe("the key rail (#373)", () => {
       ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     key(screen, "workshop").click();
     expect(expanded()).toEqual(["false", "true", "false", "false", "false"]);
-    screen.root
-      .querySelector<HTMLElement>(".workshop-dialog")
-      ?.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
-      );
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
     expect(expanded()).toEqual(["false", "false", "false", "false", "false"]);
   });
 

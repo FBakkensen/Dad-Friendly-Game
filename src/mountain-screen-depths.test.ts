@@ -924,9 +924,15 @@ describe("sheet buys", () => {
       .querySelector<HTMLButtonElement>(".board-key[data-key=workshop]")
       ?.click();
     expect(
-      screen.root.querySelector(".workshop-dialog")?.hasAttribute("hidden"),
-    ).toBe(false);
-    screen.root.querySelector<HTMLButtonElement>(".workshop-close")?.click();
+      screen.root
+        .querySelector(".board-sheet[data-sheet=workshop]")
+        ?.classList.contains("is-open"),
+    ).toBe(true);
+    screen.root
+      .querySelector<HTMLButtonElement>(
+        ".board-sheet[data-sheet=workshop] .board-sheet-back",
+      )
+      ?.click();
     screen.progress.dispose();
   });
 
@@ -1149,7 +1155,9 @@ describe("sheet buys", () => {
     screen.root
       .querySelector<HTMLButtonElement>(".board-key[data-key=workshop]")
       ?.click();
-    const craftName = screen.root.querySelector(".workshop-card h3");
+    const craftName = screen.root.querySelector(
+      ".workshop-recipe:not([hidden]) .board-row-name",
+    );
     if (craftName === null) {
       throw new Error("craft name did not render");
     }
@@ -1164,8 +1172,10 @@ describe("sheet buys", () => {
       .querySelector<HTMLButtonElement>(".board-key[data-key=workshop]")
       ?.click();
     expect(
-      screen.root.querySelector(".workshop-dialog")?.hasAttribute("hidden"),
-    ).toBe(true);
+      screen.root
+        .querySelector(".board-sheet[data-sheet=workshop]")
+        ?.classList.contains("is-open"),
+    ).toBe(false);
     screen.progress.dispose();
   });
 
@@ -1224,8 +1234,10 @@ describe("sheet buys", () => {
     );
     keyOf(later.root, ".board-key[data-key=workshop]")?.click();
     expect(
-      later.root.querySelector(".workshop-dialog")?.hasAttribute("hidden"),
-    ).toBe(false);
+      later.root
+        .querySelector(".board-sheet[data-sheet=workshop]")
+        ?.classList.contains("is-open"),
+    ).toBe(true);
     keyOf(later.root, ".board-key[data-key=engineers]")?.click();
     expect(
       later.root.querySelector(".engineers-dialog")?.hasAttribute("hidden"),

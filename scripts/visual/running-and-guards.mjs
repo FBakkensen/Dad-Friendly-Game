@@ -184,7 +184,7 @@ const GUARD_SCREENS = [
     name: "workshop",
     save: () => guardSave(Date.now()),
     taps: [KEY("workshop")],
-    shows: shown(".workshop-dialog"),
+    shows: drawer("workshop"),
   },
   {
     name: "engineers",

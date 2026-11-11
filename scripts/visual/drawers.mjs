@@ -14,6 +14,7 @@ import {
   fullGraniteMountain,
   machinePickMountain,
   savingMountain,
+  workshopSave,
 } from "../../tools/browser/fixtures.ts";
 import { undersizedTargets } from "../../src/ui-audit-measure.ts";
 import { check, section, table } from "./registry.mjs";
@@ -56,7 +57,15 @@ const DRAWER_SAVES = [
     name: "machine, the Great Machine the pick",
     save: () => machinePickMountain(),
   },
+  // The Workshop's bench busy, with axle grease running, and free (#374).
+  { name: "workshop", save: () => workshopSave(Date.now(), true) },
+  { name: "workshop, free", save: () => workshopSave(Date.now(), false) },
 ];
+/**
+ * The DRAWER_SAVES whose Workshop key is locked (`workshopUnlocked` false; checked on each
+ * fixture): its drawer is skipped there, as openSheet would wait on a disabled key.
+ */
+const WORKSHOP_LOCKED = new Set(["fresh", "early", "idle", "heir"]);
 /**
  * Late-game Buys runs longer than the drawer and scrolls inside it (C1): the
  * Great Machine's era, with the Kid row. Up to the borer it fits, its
@@ -81,6 +90,10 @@ const ROW_LEGENDS = (name) =>
     ".board-row-verb",
     // Buys' footnote over Back, and Upgrades' at the list's end, when shown.
     ".board-sheet-foot",
+    // The Workshop's plates and its timers line (#374).
+    ".workshop-mat-count",
+    ".workshop-mat-word",
+    ".workshop-timers",
   ]
     .map((part) => `${OPEN_SHEET(name)} ${part}`)
     .join(", ");
@@ -132,10 +145,10 @@ async function howFacts(page, name) {
  * `mayScroll` lets the list scroll inside the drawer, `mustScroll` fails it
  * for fitting.
  *
- * B6 (#374) adds a row each for Workshop and Engineers. Each needs a `when`
- * that skips the saves where its key is locked (openSheet waits 30 s on a
- * disabled key), and a `how: false` flag, with the "i" expectation skipped on
- * it, if that drawer has no "i". `amount: true` marks the drawer with the
+ * Workshop (#374) has a `when` that skips the saves where its key is locked
+ * (openSheet waits 30 s on a disabled key). B6b's Engineers row needs the
+ * same, and a `how: false` flag, with the "i" expectation skipped on it, if
+ * that drawer has no "i". `amount: true` marks the drawer with the
  * ×1/×10/Max key (#358).
  * @public
  */
@@ -149,6 +162,12 @@ export const DRAWERS = [
   {
     name: "upgrades",
     mayScroll: ({ facts }) => facts.rows.length >= FULL_UPGRADES_ROWS,
+    mustScroll: () => false,
+  },
+  {
+    name: "workshop",
+    when: ({ name }) => !WORKSHOP_LOCKED.has(name),
+    mayScroll: () => false,
     mustScroll: () => false,
   },
 ].map((drawer) => ({
@@ -274,7 +293,9 @@ const DRAWER_EXPECT = [
     run: async ({ page, size, scenario, row }) => {
       const targets = await boardTargets(page);
       const inSheet = (target) =>
-        /^\.(board-row|board-platebtn|board-sheet-info) /.test(target.selector);
+        /^\.(board-row|board-platebtn|board-sheet-info|workshop-mat) /.test(
+          target.selector,
+        );
       const own = targets.own.filter(inSheet);
       // A scaled board snaps boxes to device pixels: allow a tenth of a pixel.
       const under = undersizedTargets(own, 47.9);

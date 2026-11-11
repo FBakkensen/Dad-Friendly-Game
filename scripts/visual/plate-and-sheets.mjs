@@ -10,7 +10,6 @@ import { table } from "./registry.mjs";
 import {
   PHONE,
   SCREENS,
-  KEY,
   OPEN_SHEET,
   openSheet,
   closeSheet,
@@ -565,10 +564,9 @@ table({
     },
     {
       run: async ({ page, size }) => {
-        await page.tap(KEY("workshop"));
-        await page.waitForSelector(".workshop-dialog:not([hidden])");
+        await openSheet(page, "workshop");
         await shot(page, `workshop-mix-${size}`);
-        await page.click(".workshop-close");
+        await closeSheet(page, "workshop");
         await openSheet(page, "upgrades");
         const upgrades = await upgradesMix(page);
         if (!upgrades.armsEffect || !upgrades.armsWhy) {

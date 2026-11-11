@@ -61,9 +61,9 @@ export interface BoardSheet {
   isOpen(): boolean;
   open(from?: HTMLElement): void;
   /**
-   * Shuts the drawer and focuses the key it opened from. `restoreFocus: false` leaves focus
-   * where it is: a card that covered the drawer has already taken it. `by` tells the model
-   * what closed it.
+   * Shuts the drawer and focuses the key it opened from, or `fallbackFocus` while that key is
+   * disabled. `restoreFocus: false` leaves focus where it is: a card that covered the drawer
+   * has already taken it. `by` tells the model what closed it.
    */
   close(options: {
     readonly restoreFocus?: boolean;
@@ -72,6 +72,12 @@ export interface BoardSheet {
   /** The resting kick under the title. */
   kick(text: string): void;
   showHow(on: boolean): void;
+  /**
+   * A new screen under the finger (the "i" cards, a Workshop page, an armed cancel): forgets
+   * the presses and starts the settle again, so the second tap of a double tap lands on
+   * nothing. Does nothing while shut.
+   */
+  page(): void;
   /** Inserts the parts into the list, before the spare plate. */
   place(parts: readonly HTMLElement[]): void;
   fitSpare(): void;
@@ -82,8 +88,22 @@ function focusQuietly(target: HTMLElement): void {
   target.focus({ preventScroll: true });
 }
 
+/**
+ * Where a close gives focus back: the key the drawer opened from, or the fallback while that
+ * key is disabled (a re-load holds it). Nothing for a key that left the page.
+ */
+function focusBackTo(
+  from: HTMLElement | undefined,
+  fallback: HTMLElement | undefined,
+): HTMLElement | undefined {
+  if (from?.isConnected !== true) {
+    return undefined;
+  }
+  return from.matches(":disabled") ? fallback : from;
+}
+
 /** The cards the "i" opens in a drawer's place. */
-export interface BoardHow {
+interface BoardHow {
   readonly systems: readonly BoardHowSystem[];
   readonly backLabel: string;
 }
@@ -162,6 +182,8 @@ function buildSheet(
   info.setAttribute("aria-label", `How it works: ${infoLabel}`);
   head.append(heading, kickLine, info);
   if (headKey !== undefined) {
+    // Every head key lays out by one rule (#374): Buys' amount, the Workshop's sound.
+    headKey.classList.add("board-sheet-key");
     info.before(headKey);
     head.classList.add("has-key");
   }
@@ -269,7 +291,7 @@ function wireSheetControls(
  * Drawers are built once; `signal` lets a test or a remount take this away.
  */
 function closeOnEscape(
-  close: () => void,
+  close: BoardSheet["close"],
   overSave: () => boolean,
   signal: AbortSignal | undefined,
 ): void {
@@ -277,28 +299,15 @@ function closeOnEscape(
     "keydown",
     (event) => {
       if (event.key === "Escape" && !overSave()) {
-        close();
+        close({ by: "keyboard" });
       }
     },
     signal === undefined ? { capture: true } : { capture: true, signal },
   );
 }
 
-/** A drawer, built once and reused, open and shut through the board's model. */
-export function createBoardSheet({
-  name,
-  title,
-  infoLabel,
-  how: howOf,
-  board,
-  overSave,
-  onOpen,
-  onClose,
-  onForget,
-  door,
-  headKey,
-  signal,
-}: {
+/** What a drawer is built from. */
+interface BoardSheetOptions {
   name: DrawerId;
   title: string;
   infoLabel: string;
@@ -320,11 +329,34 @@ export function createBoardSheet({
    * door (the key, a bay, Saving for) opened the drawer.
    */
   door?: HTMLElement;
+  /**
+   * Back and Escape focus this instead while the key the drawer opened from is disabled: the
+   * Workshop's Ledger key while a re-load holds its own (#374). A close that keeps focus never
+   * moves it.
+   */
+  fallbackFocus?: HTMLElement;
   /** A key of the panel's own in the head, before the "i": Buys' amount (#358). */
   headKey?: HTMLElement;
   /** Aborting it removes the sheet's document listeners. */
   signal?: AbortSignal;
-}): BoardSheet {
+}
+
+/** A drawer, built once and reused, open and shut through the board's model. */
+export function createBoardSheet({
+  name,
+  title,
+  infoLabel,
+  how: howOf,
+  board,
+  overSave,
+  onOpen,
+  onClose,
+  onForget,
+  door,
+  fallbackFocus,
+  headKey,
+  signal,
+}: BoardSheetOptions): BoardSheet {
   const parts = buildSheet(name, title, infoLabel, headKey);
   const { root, heading, kickLine, info, how, list, spare, footer, back } =
     parts;
@@ -349,15 +381,19 @@ export function createBoardSheet({
     paintKick(kickLine, resting, board.view().thanks.has(name));
   };
 
+  const page = (): void => {
+    if (shown) {
+      forget();
+      board.send({ kind: "page", overlay: name, at: board.clock() });
+    }
+  };
+
   const showHow = (on: boolean): void => {
     setHow(parts, on);
     // Each way is a new screen under the finger: the second tap of a double tap on the "i"
     // must not take the cards' Back, nor one on the cards' Back buy the row under it, so the
     // settle starts again (#373).
-    if (shown) {
-      forget();
-      board.send({ kind: "page", overlay: name, at: board.clock() });
-    }
+    page();
     // The "i" hides under the cards, so focus moves with them, and back to it.
     focusQuietly(on ? how : info);
   };
@@ -392,8 +428,9 @@ export function createBoardSheet({
     door?.setAttribute("aria-expanded", "false");
     setHow(parts, false);
     onClose?.();
-    if (restoreFocus && from?.isConnected === true) {
-      focusQuietly(from);
+    const target = restoreFocus ? focusBackTo(from, fallbackFocus) : undefined;
+    if (target !== undefined) {
+      focusQuietly(target);
     }
   };
 
@@ -405,13 +442,7 @@ export function createBoardSheet({
   trackers = wireSheetControls(parts, board, name, { close, showHow });
   board.subscribe(paintThanks);
 
-  closeOnEscape(
-    () => {
-      close({ by: "keyboard" });
-    },
-    overSave,
-    signal,
-  );
+  closeOnEscape(close, overSave, signal);
 
   return {
     root,
@@ -428,6 +459,7 @@ export function createBoardSheet({
       paintThanks();
     },
     showHow,
+    page,
     place: (parts) => {
       spare.before(...parts);
     },

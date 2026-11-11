@@ -4,6 +4,8 @@ import cartUrl from "./assets/board/mach-cart.png";
 import drillUrl from "./assets/board/mach-drill.png";
 import machineUrl from "./assets/board/mach-machine.png";
 import workerUrl from "./assets/board/mach-worker.png";
+import relicHammerUrl from "./assets/board/relic-hammer.png";
+import clayUrl from "./assets/board/res-clay.png";
 import mountainUrl from "./assets/board/res-mountain.png";
 import pickUrl from "./assets/board/res-pick.png";
 import stoneUrl from "./assets/board/res-stone.png";
@@ -13,13 +15,14 @@ import { createHowCard, type HowCardStep } from "./teach-ui";
 
 /*
  * How it works in the drawer skin (#373): the same cards and words, drawn with the board's own
- * icons at exactly 2x. Machines and the worker are 32 art px (64 shown), the small icons 16 (32).
+ * icons at exactly 2x. Machines and the worker are 32 art px (64 shown), a relic 24 (48), the
+ * small icons 16 (32).
  */
 
 /** One board icon for a How it works step, and its CSS px. */
 export interface BoardHowArt {
   readonly src: string;
-  readonly px: 32 | 64;
+  readonly px: 32 | 48 | 64;
 }
 
 /** The board's icon for each How it works art the drawers' cards use. */
@@ -33,10 +36,13 @@ export const BOARD_HOW_ART: Readonly<Partial<Record<HowArt, BoardHowArt>>> = {
   "upgrades-icon": { src: upgradesIconUrl, px: 32 },
   pick: { src: pickUrl, px: 32 },
   mountain: { src: mountainUrl, px: 32 },
+  "relics/hammer": { src: relicHammerUrl, px: 48 },
+  "ore-lump": { src: clayUrl, px: 32 },
 };
 
 /** The systems whose cards open from a drawer's "i". */
-export type BoardHowSystem = "staffing" | "layers" | "upgrades" | "boosts";
+export type BoardHowSystem =
+  "staffing" | "layers" | "upgrades" | "boosts" | "workshop" | "materials";
 
 /** Every art these cards use is mapped (board-how-art.test.ts); stone is the fallback. */
 const FALLBACK: BoardHowArt = { src: stoneUrl, px: 32 };

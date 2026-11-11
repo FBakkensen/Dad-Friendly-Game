@@ -1,704 +1,531 @@
-import { cardUp, showCard } from "./card-state";
-import stoneIconUrl from "./assets/stone.png";
-import { buyOnTap } from "./card-tap";
-import { HOW_IT_WORKS } from "./how-it-works";
+import { el, hide, legend, mark, write } from "./board-dom";
+import { createBoardSheet, type BoardSheet } from "./board-drawer";
+import type { BoardHost } from "./board-host";
 import {
-  createHowCard,
-  createInfoButton,
-  markNewCard,
-  setPayoff,
-} from "./teach-ui";
-import { teachFirst, workshopTeach } from "./workshop-teach";
-import { reducedMotion } from "./float-text";
-import cartUrl from "./assets/mine-cart.png";
-import drillUrl from "./assets/steam-drill.png";
-import mapUrl from "./assets/worn-map.png";
-import oreUrl from "./assets/ore-lump.png";
-import heartUrl from "./assets/relics/heart.png";
-import lanternUrl from "./assets/relics/lantern.png";
-import shieldUrl from "./assets/relics/shield.png";
-import {
-  SHEET_CARD,
-  SHEET_CARD_BODY,
-  SHEET_CARD_ICON,
-  SHEET_CARD_LINE,
-  SHEET_CARD_PRICE,
-  SHEET_CARD_QUIET,
-  SHEET_CARD_TITLE,
-  SHEET_DEAR,
-  SHEET_LOCKED,
-  SHEET_READY,
-} from "./sheet-card";
+  createBoardRow,
+  rowsOnBoard,
+  type BoardRow,
+  type RowsOnBoard,
+} from "./board-row";
+import type { Mountain } from "./mountain";
 import type { Dispatch, ProgressSnapshot } from "./progress-store";
+import type { RowView } from "./row-view";
 import {
-  RECIPE_ON_BENCH,
-  WORKSHOP_BENCH_BUSY,
-  WORKSHOP_CANCEL_CONFIRM,
-  WORKSHOP_EARLIER,
+  RECIPES_LEGEND,
+  SKETCH_NAME,
+  WORKSHOP_KICK,
   WORKSHOP_LOCKED,
-  WORKSHOP_MORE,
-  WORKSHOP_QUIET,
-  WORKSHOP_SOUND,
   WORKSHOP_TITLE,
-  fieldLogClose,
   workshopMenuWords,
 } from "./screen-words";
-import type { MaterialId } from "./layers";
+import {
+  RECIPE_IDS,
+  recipeById,
+  workshopUnlocked,
+  type RecipeId,
+} from "./workshop";
+import {
+  createBenchRow,
+  createMaterialPlates,
+  createPager,
+  createSoundKey,
+  playHammer,
+  type BenchRow,
+} from "./workshop-parts";
+import {
+  RECIPES_A_PAGE,
+  benchRowView,
+  materialPlates,
+  partIdOf,
+  recipeRowView,
+  sketchRowView,
+  workshopOrder,
+  type WorkshopPartId,
+} from "./workshop-rows";
 import {
   benchLeftMs,
   benchView,
-  metMaterialChips,
   timerLines,
   workshopCards,
   workshopPages,
-  SHORT_WORKSHOP_PAGE,
-  type CostChip,
-  type RecipeCard,
   type WorkshopCard,
 } from "./workshop-sheet";
-import { workshopUnlocked, type RecipeId } from "./workshop";
+import {
+  teachFirst,
+  workshopTeach,
+  type WorkshopTeach,
+} from "./workshop-teach";
 
-/**
- * The Workshop sheet (M9-8). One bench, real numbers, a dark sketch for
- * what is still unfound. The hammer is quiet until the dad taps Sound.
+/*
+ * The Workshop drawer (#374): the material plates, the bench row with its clock, bar and
+ * cancel confirm, the live timers, the recipes three a page, and the sound key in the head.
+ * Its rows and words come from workshop-rows.ts and its own controls from workshop-parts.ts.
+ * The list's order is the board model's layout for "workshop", frozen as the drawer opens, so
+ * a craft, a cancel or the tick never moves a row under a finger; pages slice that order.
+ * Every craft and cancel is today's move, through the screen's dispatch.
  */
 
-const RECIPE_ICON: Record<RecipeId, string> = {
-  "iron-rails": cartUrl,
-  "sturdy-props": shieldUrl,
-  "blasting-charge": oreUrl,
-  reinforce: shieldUrl,
-  "axle-grease": cartUrl,
-  "diamond-bits": drillUrl,
-  "crystal-flare": lanternUrl,
-  "crystal-lamp": lanternUrl,
-  "engineers-kit": mapUrl,
-  "heartstone-core": heartUrl,
-  "heartstone-ember": heartUrl,
-};
-
-/** Every picture under src/assets, by path without ".png", for How it works. */
-const ASSET_URLS: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(
-    import.meta.glob<string>("./assets/**/*.png", {
-      eager: true,
-      query: "?url",
-      import: "default",
-    }),
-  ).map(([path, url]) => [path.slice("./assets/".length, -".png".length), url]),
-);
-
-function cardIcon(src: string): HTMLImageElement {
-  const icon = document.createElement("img");
-  icon.className = SHEET_CARD_ICON;
-  icon.src = src;
-  icon.alt = "";
-  icon.width = 32;
-  icon.height = 32;
-  icon.draggable = false;
-  return icon;
+/** A recipe's row, or the sketch's, by its part id in the board's layout. */
+interface RecipeRows {
+  readonly byPart: ReadonlyMap<WorkshopPartId, BoardRow>;
 }
 
-const HAMMER_MS = 960;
-const FLOAT_MS = 700;
-const SHAKE_MS = 960;
-
-function playHammer(soundOn: boolean): void {
-  if (!soundOn) {
-    return;
-  }
-  const Context = (window as Window & { AudioContext?: typeof AudioContext })
-    .AudioContext;
-  if (Context === undefined) {
-    return;
-  }
-  const audio = new Context();
-  const seconds = 0.09;
-  const length = Math.max(1, Math.floor(audio.sampleRate * seconds));
-  const buffer = audio.createBuffer(1, length, audio.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let index = 0; index < length; index += 1) {
-    const fade = 1 - index / length;
-    data[index] = (Math.random() * 2 - 1) * fade * fade;
-  }
-  const source = audio.createBufferSource();
-  source.buffer = buffer;
-  const gain = audio.createGain();
-  gain.gain.value = 0.12;
-  source.connect(gain);
-  gain.connect(audio.destination);
-  source.onended = () => {
-    void audio.close();
-  };
-  source.start();
+/** What a recipe row's tap reads and moves. */
+interface CraftTaps {
+  readonly dispatch: Dispatch;
+  readonly getView: () => ProgressSnapshot;
+  readonly now: () => number;
+  readonly onBoard: RowsOnBoard;
+  readonly soundOn: () => boolean;
 }
 
-function materialIcon(id: MaterialId, stoneUrl: string): HTMLImageElement {
-  const icon = document.createElement("img");
-  icon.className = `mat mat-${id}`;
-  icon.src = stoneUrl;
-  icon.alt = "";
-  icon.width = 16;
-  icon.height = 16;
-  icon.draggable = false;
-  return icon;
-}
-
-interface WorkshopPanel {
-  menuEntry: HTMLElement;
-  /** The menu's Workshop row: the one door the screen opens the sheet through. */
-  openButton: HTMLButtonElement;
-  sheet: HTMLDivElement;
-  render: () => void;
-}
-
-export function createWorkshopPanel({
-  dispatch,
-  getView,
-  now,
-  stoneUrl,
-  hammerUrl,
-  onOpen,
-  onClose,
-  requestRender,
-}: {
-  dispatch: Dispatch;
-  getView: () => ProgressSnapshot;
-  now: () => number;
-  stoneUrl: string;
-  hammerUrl: string;
-  /** The menu closes as the sheet opens. */
-  onOpen: () => void;
-  /** Focus returns to the menu button. */
-  onClose: () => void;
-  requestRender: () => void;
-}): WorkshopPanel {
-  let open = false;
-  let page = 0;
-  /** Cards a page: four, or three once four overflow this screen (#347). */
-  let pageSize: number | undefined;
-  let soundOn = false;
-  let shaking: RecipeId | undefined;
-  let cancelArmed = false;
-  let cancelTimer: number | undefined;
-  let hammerUntil = 0;
-  let floatUntil = 0;
-  let floatBits: readonly CostChip[] = [];
-  let painted = "";
-  let howShown: "workshop" | "materials" | undefined;
-
-  const menuEntry = document.createElement("div");
-  menuEntry.className = "workshop-menu";
-
-  const openButton = document.createElement("button");
-  openButton.type = "button";
-  openButton.className = "workshop-open";
-  openButton.textContent = WORKSHOP_TITLE;
-  openButton.addEventListener("click", () => {
+/**
+ * A recipe row's tap. The card is read again at the tap: one he cannot craft now blinks red
+ * and moves nothing. A craft that lands holds its row ("Done") and knocks the hammer, if the
+ * sound is on.
+ */
+function wireCraft(taps: CraftTaps, id: RecipeId, row: BoardRow): void {
+  const { dispatch, getView, now, onBoard } = taps;
+  const partId: WorkshopPartId = `recipe:${id}`;
+  const root = row.root as HTMLButtonElement;
+  onBoard.tap(root, (press, event) => {
     const view = getView();
-    if (!view.ready || !workshopUnlocked(view.mountain)) {
+    if (!view.ready || onBoard.press(partId, press, event, "act") !== "act") {
       return;
     }
-    open = true;
-    page = 0;
-    pageSize = undefined;
-    howShown = undefined;
-    dispatch({ kind: "markSeen", id: "workshop" });
-    onOpen();
-    requestRender();
+    const card = workshopCards(view.mountain, now()).find(
+      (each) => each.kind === "recipe" && each.id === id,
+    );
+    if (card?.kind !== "recipe" || card.action.kind !== "craft") {
+      onBoard.result(partId, "refused");
+      return;
+    }
+    const crafted = dispatch({ kind: "craft", recipe: id }).kind === "applied";
+    onBoard.result(partId, crafted ? "applied" : "refused");
+    if (crafted) {
+      playHammer(taps.soundOn());
+    }
   });
+}
 
-  const locked = document.createElement("p");
-  locked.className = "workshop-locked";
-  const lockedArt = document.createElement("img");
+/** A row for every recipe, wired to craft, and the one dark sketch. */
+function buildRecipeRows(taps: CraftTaps): RecipeRows {
+  const byPart = new Map<WorkshopPartId, BoardRow>();
+  for (const id of RECIPE_IDS) {
+    const row = createBoardRow({
+      tag: "button",
+      className: "workshop-recipe",
+      data: { recipe: id },
+      name: recipeById(id).name,
+      icon: false,
+    });
+    wireCraft(taps, id, row);
+    byPart.set(`recipe:${id}`, row);
+  }
+  byPart.set(
+    "sketch",
+    createBoardRow({
+      tag: "div",
+      className: "workshop-sketch",
+      data: {},
+      name: SKETCH_NAME,
+      icon: false,
+    }),
+  );
+  return { byPart };
+}
+
+/** The drawer's parts that are not recipe rows, built once. */
+interface WorkshopParts {
+  readonly plates: ReturnType<typeof createMaterialPlates>;
+  readonly bench: BenchRow;
+  readonly timers: HTMLElement;
+  readonly recipesSec: HTMLElement;
+  readonly pager: ReturnType<typeof createPager>;
+}
+
+/** Puts every part in the list, in its order: plates, bench, timers, legend, rows, pager. */
+function placeParts(
+  sheet: BoardSheet,
+  parts: WorkshopParts,
+  rows: RecipeRows,
+): void {
+  const recipeRoots = [...rows.byPart.values()].map((row) => row.root);
+  for (const root of recipeRoots) {
+    root.hidden = true;
+  }
+  parts.timers.classList.add("is-empty");
+  sheet.place([
+    parts.plates.root,
+    parts.bench.root,
+    parts.timers,
+    parts.recipesSec,
+    ...recipeRoots,
+    parts.pager.root,
+  ]);
+}
+
+/** What one ready paint reads. */
+interface ReadyPaint {
+  readonly mountain: Mountain;
+  readonly at: number;
+  readonly cards: readonly WorkshopCard[];
+  readonly teach: WorkshopTeach;
+}
+
+/** The craft on the bench, by its recipe and start: an armed cancel is for this one only. */
+function benchCraft(mountain: Mountain): string {
+  const bench = mountain.bench;
+  return bench === undefined
+    ? ""
+    : `${bench.recipe}@${String(bench.startedAt)}`;
+}
+
+/**
+ * The plates, the bench and the timers line, from a ready save. The line keeps its room when
+ * empty (board.css), so the rows under it never move as a timer starts or ends.
+ */
+function paintReady(parts: WorkshopParts, ready: ReadyPaint): void {
+  const { mountain, at } = ready;
+  parts.plates.paint(materialPlates(mountain));
+  const bench = benchView(mountain, at);
+  const cancellable = bench.kind === "busy" && bench.cancel !== "";
+  parts.bench.keep(cancellable ? benchCraft(mountain) : "");
+  parts.bench.paint(benchRowView(bench, parts.bench.armed()));
+  const lines = timerLines(mountain, at);
+  write(parts.timers, lines.join(" · "));
+  mark(parts.timers, "is-empty", lines.length === 0);
+}
+
+/** Until the save is in, the plates and the bench go dark and blank. */
+function paintLoading(parts: WorkshopParts): void {
+  parts.plates.paint(undefined);
+  parts.bench.disarm();
+  parts.bench.paint(undefined);
+}
+
+/** A part's row view now, or undefined (dark) for a frozen part whose card is gone. */
+function partView(
+  partId: string,
+  ready: ReadyPaint | undefined,
+): { readonly view: RowView | undefined; readonly isNew: boolean } {
+  const card = ready?.cards.find((each) => partIdOf(each) === partId);
+  if (ready === undefined || card === undefined) {
+    return { view: undefined, isNew: false };
+  }
+  if (card.kind === "hidden") {
+    return { view: sketchRowView(card), isNew: false };
+  }
+  const view = recipeRowView(card, ready.teach);
+  return { view, isNew: view.isNew };
+}
+
+/** Lays out one page of the list. */
+type ArrangePage = (
+  order: readonly string[],
+  page: number,
+  ready: ReadyPaint | undefined,
+) => number;
+
+/**
+ * Shows the rows of a page in the order the board's model holds, every other row hidden, and
+ * returns the page index, clamped to the pages there are. The rows move in the list only when
+ * the page or the order changes.
+ */
+function createPageArranger(
+  rows: RecipeRows,
+  onBoard: RowsOnBoard,
+  pager: WorkshopParts["pager"],
+): ArrangePage {
+  let placedKey = "";
+  return (order, page, ready) => {
+    const pages = workshopPages(order, RECIPES_A_PAGE);
+    const at = Math.min(Math.max(0, page), pages.length - 1);
+    const shown = pages[at] ?? [];
+    for (const [partId, row] of rows.byPart) {
+      const onPage = shown.includes(partId);
+      hide(row.root, !onPage);
+      if (onPage) {
+        const { view, isNew } = partView(partId, ready);
+        onBoard.paint(partId, row, view);
+        mark(row.root, "teach-new", isNew);
+      }
+    }
+    const key = shown.join(" ");
+    if (key !== placedKey) {
+      placedKey = key;
+      pager.root.before(
+        ...shown.flatMap(
+          (id) => rows.byPart.get(id as WorkshopPartId)?.root ?? [],
+        ),
+      );
+    }
+    pager.paint(at, pages.length);
+    return at;
+  };
+}
+
+/** The menu's Workshop row, a second door into the drawer until B7, and its locked silhouette. */
+function createMenuEntry(
+  hammerUrl: string,
+  onOpen: () => void,
+): {
+  readonly root: HTMLElement;
+  paint(mountain: Mountain, at: number): void;
+} {
+  const root = el("div", "workshop-menu");
+  const openButton = el("button", "workshop-open", WORKSHOP_TITLE);
+  openButton.type = "button";
+  openButton.addEventListener("click", onOpen);
+  const locked = el("p", "workshop-locked");
+  const lockedArt = el("img", "");
   lockedArt.src = hammerUrl;
   lockedArt.alt = "";
   lockedArt.width = 36;
   lockedArt.height = 36;
   lockedArt.draggable = false;
-  const lockedText = document.createElement("span");
-  lockedText.textContent = WORKSHOP_LOCKED;
-  locked.append(lockedArt, lockedText);
-  menuEntry.append(openButton, locked);
+  locked.append(lockedArt, el("span", "", WORKSHOP_LOCKED));
+  root.append(openButton, locked);
+  return {
+    root,
+    paint: (mountain, at) => {
+      const unlocked = workshopUnlocked(mountain);
+      hide(openButton, !unlocked);
+      hide(locked, unlocked);
+      write(openButton, workshopMenuWords(benchLeftMs(mountain, at)));
+    },
+  };
+}
 
-  const sheet = document.createElement("div");
-  sheet.className = "workshop-dialog";
-  sheet.setAttribute("role", "dialog");
-  sheet.setAttribute("aria-modal", "true");
-  sheet.setAttribute("aria-labelledby", "workshop-title");
-  sheet.hidden = true;
-
-  const card = document.createElement("section");
-  card.className = "workshop-sheet";
-
-  const head = document.createElement("div");
-  head.className = "workshop-head";
-  const title = document.createElement("h2");
-  title.id = "workshop-title";
-  title.className = "label";
-  title.textContent = WORKSHOP_TITLE;
-  const soundButton = document.createElement("button");
-  soundButton.type = "button";
-  soundButton.className = "workshop-sound";
-  soundButton.textContent = WORKSHOP_QUIET;
-  soundButton.setAttribute("aria-pressed", "false");
-  soundButton.setAttribute("aria-label", "Sound is off");
-  soundButton.addEventListener("click", () => {
-    soundOn = !soundOn;
-    if (soundOn) {
-      playHammer(true);
-    }
-    requestRender();
+/** The list's order for these cards, to the board's model: an open drawer keeps the one it froze. */
+function sendLayout(board: BoardHost, cards: readonly WorkshopCard[]): void {
+  board.send({
+    kind: "layout",
+    overlay: "workshop",
+    layout: { parts: workshopOrder(cards), chipRows: 0 },
   });
-  const info = createInfoButton(WORKSHOP_TITLE, () => {
-    howShown = "workshop";
-    requestRender();
-  });
-  const headTools = document.createElement("div");
-  headTools.className = "workshop-head-tools";
-  headTools.append(info, soundButton);
-  head.append(title, headTools);
+}
 
-  const intro = document.createElement("p");
-  intro.className = "teach-intro";
-
-  const howCard = (system: "workshop" | "materials"): HTMLElement => {
-    const copy = HOW_IT_WORKS[system];
-    const made = createHowCard(
-      `How it works · ${copy.title}`,
-      copy.steps.map(
-        ([art, text]) => [ASSET_URLS[art] ?? stoneUrl, text] as const,
-      ),
-      "Back to the Workshop",
-      () => {
-        howShown = undefined;
-        requestRender();
-        (system === "workshop" ? info : materials).focus();
+/**
+ * The plates, the bench row, the timers line, the legend and the pager. A plate opens the
+ * "i" cards; arming the cancel and turning a page are new screens under the finger.
+ */
+function buildParts({
+  board,
+  onBoard,
+  sheet,
+  onCancel,
+  onPage,
+  repaint,
+  getView,
+  signal,
+}: {
+  board: BoardHost;
+  onBoard: RowsOnBoard;
+  sheet: () => BoardSheet;
+  onCancel: () => void;
+  onPage: (step: -1 | 1) => void;
+  repaint: () => void;
+  getView: () => ProgressSnapshot;
+  signal: AbortSignal | undefined;
+}): WorkshopParts {
+  return {
+    plates: createMaterialPlates({
+      board,
+      onShow: () => {
+        sheet().showHow(true);
       },
-    );
-    made.dataset["how"] = system;
-    return made;
+    }),
+    bench: createBenchRow({
+      onBoard,
+      page: () => {
+        sheet().page();
+      },
+      onCancel,
+      repaint,
+      craft: () => {
+        const view = getView();
+        return view.ready ? benchCraft(view.mountain) : "";
+      },
+      ...(signal === undefined ? {} : { signal }),
+    }),
+    timers: el("p", "workshop-timers board-num"),
+    recipesSec: legend(RECIPES_LEGEND, "recipes"),
+    pager: createPager({
+      board,
+      onPage: (step) => {
+        onPage(step);
+        sheet().page();
+        repaint();
+      },
+    }),
   };
-  const hows = {
-    workshop: howCard("workshop"),
-    materials: howCard("materials"),
+}
+
+/** The ready save's cards, ranked as the list shows them, and what it teaches. */
+function readyPaint(mountain: Mountain, at: number): ReadyPaint {
+  const teach = workshopTeach(mountain, at);
+  return {
+    mountain,
+    at,
+    teach,
+    cards: teachFirst(workshopCards(mountain, at), teach),
   };
+}
 
-  // The material chips open How it works for materials (#244).
-  const materials = document.createElement("button");
-  materials.type = "button";
-  materials.className = "workshop-materials label";
-  materials.setAttribute("aria-label", "Materials: how they work");
-  materials.addEventListener("click", () => {
-    howShown = "materials";
-    requestRender();
-  });
-
-  const bench = document.createElement("div");
-  bench.className = "workshop-bench";
-  const benchLine = document.createElement("p");
-  benchLine.className = "label";
-  const benchAside = document.createElement("p");
-  benchAside.className = "label aside";
-  const bar = document.createElement("div");
-  bar.className = "workshop-bar";
-  bar.setAttribute("role", "progressbar");
-  bar.setAttribute("aria-valuemin", "0");
-  bar.setAttribute("aria-valuemax", "100");
-  const barFill = document.createElement("span");
-  bar.append(barFill);
-  const timers = document.createElement("p");
-  timers.className = "workshop-timers label";
-  const cancel = document.createElement("button");
-  cancel.type = "button";
-  cancel.className = "workshop-cancel";
-  const disarmCancel = (): void => {
-    cancelArmed = false;
-    if (cancelTimer !== undefined) {
-      clearTimeout(cancelTimer);
-      cancelTimer = undefined;
-    }
+/**
+ * The Workshop drawer. `open` does nothing until the save is in and the Workshop is unlocked;
+ * it marks the Workshop seen, starts on the first page with the cancel disarmed, then opens.
+ * Back returns focus to the door it came from, or to `fallbackDoor` (the Ledger key) while a
+ * re-load holds the Workshop key.
+ */
+export function createWorkshopPanel({
+  dispatch,
+  getView,
+  now,
+  board,
+  overSave,
+  door,
+  fallbackDoor,
+  hammerUrl,
+  onMenuOpen,
+  signal,
+}: {
+  dispatch: Dispatch;
+  getView: () => ProgressSnapshot;
+  /** The game's clock: the bench, the timers and the teach. */
+  now: () => number;
+  /** The board's tap rules, shared by every drawer and the board. */
+  board: BoardHost;
+  /** The save drawer is open over the board: its Escape is its own. */
+  overSave: () => boolean;
+  /** The Workshop key on the rail: the shell writes its aria-expanded. */
+  door: HTMLButtonElement;
+  /** The Ledger key, which opens the menu: the menu's Workshop row opens from it. */
+  fallbackDoor: HTMLButtonElement;
+  /** The hammer on the menu's locked silhouette. */
+  hammerUrl: string;
+  /** The menu's Workshop row was pressed: the menu and the other drawers go. */
+  onMenuOpen: () => void;
+  /** Aborting it removes the drawer's document listeners. */
+  signal?: AbortSignal;
+}): {
+  sheet: BoardSheet;
+  menuEntry: HTMLElement;
+  render: () => void;
+  open: (from?: HTMLElement) => void;
+} {
+  let soundOn = false;
+  let page = 0;
+  const onBoard = rowsOnBoard(board, "workshop");
+  const repaint = (): void => {
+    render();
   };
-  cancel.addEventListener("click", () => {
-    if (!getView().ready) {
-      return;
-    }
-    if (!cancelArmed) {
-      cancelArmed = true;
-      cancelTimer = window.setTimeout(() => {
-        cancelArmed = false;
-        cancelTimer = undefined;
-        requestRender();
-      }, 4_000);
-      requestRender();
-      return;
-    }
-    disarmCancel();
-    dispatch({ kind: "cancelCraft" });
+  const sound = createSoundKey({
+    board,
+    onToggle: () => {
+      soundOn = !soundOn;
+      playHammer(soundOn);
+      repaint();
+    },
   });
-  const hammer = document.createElement("img");
-  hammer.className = "workshop-hammer";
-  hammer.src = hammerUrl;
-  hammer.alt = "";
-  hammer.width = 48;
-  hammer.height = 48;
-  hammer.draggable = false;
-  bench.append(benchLine, benchAside, bar, cancel, hammer);
-
-  const recipes = document.createElement("div");
-  recipes.className = "workshop-recipes";
-
-  const pager = document.createElement("div");
-  pager.className = "workshop-pager";
-  const earlier = document.createElement("button");
-  earlier.type = "button";
-  earlier.className = "workshop-earlier";
-  earlier.textContent = WORKSHOP_EARLIER;
-  earlier.addEventListener("click", () => {
-    page -= 1;
-    requestRender();
-  });
-  const more = document.createElement("button");
-  more.type = "button";
-  more.className = "workshop-more";
-  more.textContent = WORKSHOP_MORE;
-  more.addEventListener("click", () => {
-    page += 1;
-    requestRender();
-  });
-  pager.append(earlier, more);
-
-  const close = document.createElement("button");
-  close.type = "button";
-  close.className = "workshop-close";
-  close.textContent = fieldLogClose;
-  const shut = (): void => {
-    open = false;
-    requestRender();
-    onClose();
-  };
-  close.addEventListener("click", shut);
-  sheet.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      shut();
-    }
-  });
-
-  const floats = document.createElement("div");
-  floats.className = "workshop-floats";
-
-  card.append(
-    head,
-    intro,
-    materials,
-    bench,
-    timers,
-    recipes,
-    pager,
-    hows.workshop,
-    hows.materials,
-    close,
-    floats,
-  );
-  sheet.append(card);
-
-  const celebrate = (costs: readonly CostChip[]): void => {
-    const at = now();
-    hammerUntil = at + HAMMER_MS;
-    floatUntil = reducedMotion() ? at : at + FLOAT_MS;
-    floatBits = costs;
-    playHammer(soundOn);
-  };
-
-  const shake = (id: RecipeId): void => {
-    shaking = id;
-    window.setTimeout(() => {
-      if (shaking === id) {
-        shaking = undefined;
-        requestRender();
+  const sheet = createBoardSheet({
+    name: "workshop",
+    title: WORKSHOP_TITLE,
+    infoLabel: "Workshop and materials",
+    how: {
+      systems: ["workshop", "materials"],
+      backLabel: "Back to the Workshop",
+    },
+    board,
+    overSave,
+    headKey: sound.root,
+    door,
+    fallbackFocus: fallbackDoor,
+    // The order the open freezes.
+    onOpen: () => {
+      const view = getView();
+      if (view.ready) {
+        sendLayout(board, readyPaint(view.mountain, now()).cards);
       }
-    }, SHAKE_MS);
-    requestRender();
-  };
+    },
+    onClose: () => {
+      parts.bench.disarm();
+    },
+    onForget: () => {
+      onBoard.forget();
+      parts.plates.forget();
+      parts.pager.forget();
+      sound.forget();
+    },
+    ...(signal === undefined ? {} : { signal }),
+  });
+  sheet.kick(WORKSHOP_KICK);
 
-  const onCraft = (recipe: RecipeCard): void => {
-    const view = getView();
-    if (!view.ready) {
-      return;
-    }
-    if (recipe.action.kind === "short") {
-      shake(recipe.id);
-      return;
-    }
-    if (recipe.action.kind !== "craft") {
-      return;
-    }
-    celebrate(recipe.costs);
-    dispatch({ kind: "craft", recipe: recipe.id });
-  };
+  const parts = buildParts({
+    board,
+    onBoard,
+    sheet: () => sheet,
+    onCancel: () => {
+      if (dispatch({ kind: "cancelCraft" }).kind === "applied") {
+        onBoard.result("bench", "applied");
+      }
+    },
+    onPage: (step) => {
+      page += step;
+    },
+    repaint,
+    getView,
+    signal,
+  });
+  const rows = buildRecipeRows({
+    dispatch,
+    getView,
+    now,
+    onBoard,
+    soundOn: () => soundOn,
+  });
+  placeParts(sheet, parts, rows);
+  const arrange = createPageArranger(rows, onBoard, parts.pager);
 
-  let teach = workshopTeach(getView().mountain, now());
-
-  const paintCard = (item: WorkshopCard): HTMLElement => {
-    const article = document.createElement("article");
-    article.className = `workshop-card ${SHEET_CARD}`;
-    const body = document.createElement("div");
-    body.className = SHEET_CARD_BODY;
-    if (item.kind === "hidden") {
-      article.classList.add("is-hidden", SHEET_LOCKED);
-      const shade = cardIcon(stoneUrl);
-      shade.classList.add("shade");
-      const hint = document.createElement("p");
-      hint.className = `label hint ${SHEET_CARD_LINE} ${SHEET_CARD_QUIET}`;
-      hint.textContent = item.hint;
-      body.append(hint);
-      article.append(shade, body);
-      return article;
-    }
-    article.dataset["recipe"] = item.id;
-    const heading = document.createElement("div");
-    heading.className = "sheet-card-heading";
-    const name = document.createElement("h3");
-    name.className = `label ${SHEET_CARD_TITLE}`;
-    name.textContent = item.name;
-    const level = document.createElement("span");
-    level.className = "level sheet-level";
-    level.hidden = item.level === undefined;
-    level.textContent = item.level ?? "";
-    heading.append(name, level);
-    const effect = document.createElement("p");
-    effect.className = `label effect ${SHEET_CARD_LINE}`;
-    effect.textContent = item.effect;
-    const cost = document.createElement("p");
-    cost.className = `workshop-cost ${SHEET_CARD_LINE} ${SHEET_CARD_QUIET}`;
-    if (item.stones !== undefined) {
-      const stones = document.createElement("span");
-      stones.className = "cost-bit";
-      const icon = document.createElement("img");
-      icon.className = "mat mat-stones";
-      icon.src = stoneIconUrl;
-      icon.alt = "";
-      icon.width = 16;
-      icon.height = 16;
-      icon.draggable = false;
-      stones.append(icon, document.createTextNode(item.stones));
-      cost.append(stones);
-    }
-    for (const chip of item.costs) {
-      const bit = document.createElement("span");
-      bit.className = "cost-bit";
-      bit.append(
-        materialIcon(chip.id, stoneUrl),
-        document.createTextNode(chip.text),
-      );
-      cost.append(bit);
-    }
-    const time = document.createElement("span");
-    time.className = "label cost-time";
-    time.textContent = item.time;
-    cost.append(time);
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `workshop-craft ${SHEET_CARD_PRICE}`;
-    const action = item.action;
-    const lines: HTMLElement[] = [effect, cost];
-    if (action.kind === "craft") {
-      button.textContent = action.label;
-      article.classList.add(SHEET_READY);
-    } else if (action.kind === "short") {
-      button.textContent = item.price;
-      const need = document.createElement("p");
-      need.className = `workshop-need ${SHEET_CARD_LINE}`;
-      need.textContent = action.label;
-      lines.push(need);
-      button.classList.add("is-short");
-      button.setAttribute("aria-disabled", "true");
-      button.dataset["short"] = action.label;
-      article.classList.add(SHEET_DEAR);
-    } else if (action.kind === "waiting") {
-      button.textContent = WORKSHOP_BENCH_BUSY;
-      button.classList.add("is-waiting");
-      button.setAttribute("aria-disabled", "true");
-      article.classList.add(SHEET_DEAR);
-    } else {
-      button.textContent = RECIPE_ON_BENCH;
-      button.classList.add("is-on-bench");
-      button.setAttribute("aria-disabled", "true");
-      article.classList.add(SHEET_READY);
-    }
-    if (shaking === item.id) {
-      button.classList.add("is-shaking");
-    }
-    buyOnTap(article, button, () => {
-      onCraft(item);
-    });
-    body.append(heading, button, ...lines);
-    article.append(cardIcon(RECIPE_ICON[item.id]), body);
-    if (
-      teach.newCard === item.id &&
-      teach.action !== undefined &&
-      action.kind === "craft"
-    ) {
-      // The price button becomes the one big button; the whole card still taps.
-      markNewCard(article, button, teach.action);
-      body.append(button);
-    }
-    if (teach.payoff?.id === item.id) {
-      setPayoff(body, teach.payoff.text);
-    }
-    return article;
-  };
+  const menu = createMenuEntry(hammerUrl, () => {
+    onMenuOpen();
+    open(fallbackDoor);
+  });
 
   const render = (): void => {
     const view = getView();
-    const mountain = view.mountain;
-    const unlocked = workshopUnlocked(mountain);
-    openButton.hidden = !unlocked;
-    locked.hidden = unlocked;
-    openButton.textContent = workshopMenuWords(benchLeftMs(mountain, now()));
-    soundButton.textContent = soundOn ? WORKSHOP_SOUND : WORKSHOP_QUIET;
-    soundButton.setAttribute("aria-pressed", soundOn ? "true" : "false");
-    soundButton.setAttribute(
-      "aria-label",
-      soundOn ? "Sound is on" : "Sound is off",
-    );
-    if (!unlocked) {
-      open = false;
-    }
-    const wasOpen = cardUp(sheet);
-    showCard(sheet, open);
-    if (!open) {
-      return;
-    }
     const at = now();
-    teach = workshopTeach(mountain, at);
-    intro.textContent = teach.intro ?? "";
-    const howOpen = howShown !== undefined;
-    intro.hidden = howOpen || teach.intro === undefined;
-    hows.workshop.hidden = howShown !== "workshop";
-    hows.materials.hidden = howShown !== "materials";
-    for (const part of [materials, bench, recipes]) {
-      part.hidden = howOpen;
+    menu.paint(view.mountain, at);
+    sound.paint(soundOn);
+    if (view.ready && !workshopUnlocked(view.mountain)) {
+      sheet.close({ restoreFocus: false, by: "program" });
     }
-    materials.replaceChildren();
-    const chips = metMaterialChips(mountain);
-    chips.forEach((chip, index) => {
-      if (index > 0) {
-        const dot = document.createElement("span");
-        dot.className = "label dot";
-        dot.textContent = "·";
-        materials.append(dot);
-      }
-      const bit = document.createElement("span");
-      bit.className = "material-bit";
-      bit.append(
-        materialIcon(chip.id, stoneUrl),
-        document.createTextNode(chip.text),
-      );
-      materials.append(bit);
-    });
-    const benchState = benchView(mountain, at);
-    benchLine.textContent = benchState.title;
-    benchAside.textContent = benchState.aside;
-    const lines = timerLines(mountain, at);
-    timers.textContent = lines.join(" · ");
-    timers.hidden = howOpen || lines.length === 0;
-    if (benchState.kind === "busy" || benchState.kind === "unknown") {
-      bar.hidden = false;
-      const percent = Math.round(benchState.progress * 100);
-      barFill.style.width = `${String(percent)}%`;
-      bar.setAttribute("aria-valuenow", String(percent));
-      bar.setAttribute("aria-label", benchState.title);
-      if (benchState.kind === "busy") {
-        cancel.hidden = benchState.cancel === "";
-        cancel.classList.toggle("is-confirm", cancelArmed);
-        cancel.textContent = cancelArmed
-          ? WORKSHOP_CANCEL_CONFIRM
-          : benchState.cancel;
-      } else {
-        cancel.hidden = true;
-        if (cancelArmed) {
-          disarmCancel();
-        }
-      }
+    const ready = view.ready ? readyPaint(view.mountain, at) : undefined;
+    if (ready === undefined) {
+      paintLoading(parts);
     } else {
-      bar.hidden = true;
-      cancel.hidden = true;
-      if (cancelArmed) {
-        disarmCancel();
-      }
+      paintReady(parts, ready);
+      sendLayout(board, ready.cards);
     }
-    bench.classList.toggle("is-hammer", at < hammerUntil);
-    const cards = teachFirst(workshopCards(mountain, at), teach);
-    // Pager first, then the cards, so the list is measured at its real height.
-    const paintPage = (): void => {
-      const pages = workshopPages(cards, pageSize);
-      if (page > pages.length - 1) {
-        page = Math.max(0, pages.length - 1);
-      }
-      const several = pages.length > 1;
-      pager.hidden = howOpen || !several;
-      earlier.hidden = !several || page === 0;
-      more.hidden = !several || page >= pages.length - 1;
-      const shown = pages[page] ?? [];
-      const signature = JSON.stringify({
-        page,
-        pageSize,
-        shaking,
-        teach,
-        cards: shown.map((item) =>
-          item.kind === "hidden"
-            ? item.hint
-            : {
-                id: item.id,
-                name: item.name,
-                level: item.level,
-                effect: item.effect,
-                stones: item.stones,
-                action: item.action,
-                time: item.time,
-              },
-        ),
-      });
-      if (signature !== painted) {
-        recipes.replaceChildren(...shown.map(paintCard));
-        painted = signature;
-      }
-    };
-    paintPage();
-    // Four cards that overflow this phone become pages of three, so no card
-    // is cut off at the bottom (#347). Checked on every render until it
-    // trips, then held for this opening.
-    const showing = recipes.childElementCount;
-    if (
-      pageSize === undefined &&
-      showing > SHORT_WORKSHOP_PAGE &&
-      recipes.clientHeight > 0 &&
-      recipes.scrollHeight > recipes.clientHeight + 1
-    ) {
-      pageSize = SHORT_WORKSHOP_PAGE;
-      page = Math.floor((page * showing) / SHORT_WORKSHOP_PAGE);
-      paintPage();
-    }
-    if (at >= floatUntil) {
-      if (floats.childElementCount > 0) {
-        floats.replaceChildren();
-      }
-    } else if (floats.childElementCount === 0) {
-      for (const bit of floatBits) {
-        const chip = document.createElement("span");
-        chip.className = "float-chip";
-        chip.append(
-          materialIcon(bit.id, stoneUrl),
-          document.createTextNode(bit.text),
-        );
-        floats.append(chip);
-      }
-    }
-    if (!wasOpen) {
-      close.focus();
-    }
+    sheet.kick(ready?.teach.intro ?? WORKSHOP_KICK);
+    const order = board.view().layouts.get("workshop")?.parts ?? [];
+    page = arrange(order, page, ready);
   };
 
-  return { menuEntry, openButton, sheet, render };
+  const open = (from?: HTMLElement): void => {
+    const view = getView();
+    if (!view.ready || !workshopUnlocked(view.mountain)) {
+      return;
+    }
+    dispatch({ kind: "markSeen", id: "workshop" });
+    if (!sheet.isOpen()) {
+      page = 0;
+      parts.bench.disarm();
+    }
+    sheet.open(from);
+    render();
+  };
+
+  return { sheet, menuEntry: menu.root, render, open };
 }
