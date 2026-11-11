@@ -8,7 +8,7 @@ import {
   workshopSave,
   SAVE_KEY,
 } from "../../tools/browser/fixtures.ts";
-import { check, section } from "./registry.mjs";
+import { table } from "./registry.mjs";
 import {
   SCREENS,
   openScreen,
@@ -37,13 +37,17 @@ const KEY_RULES = "/src/key-rail.ts";
 const SAVE_RULES = "/src/persist.ts";
 /** One key cap frame is 32 art px: rest 0, down 1, locked 2, lit 3. */
 const CAP_X = { rest: "0px", locked: "-128px", lit: "-192px" };
+/**
+ * The rail's saves. The flags pick the save-only checks: Workshop and
+ * Engineers locked, every key open, the Upgrades cap lit, the bench clock.
+ */
 const RAIL_SAVES = [
-  ["fresh", () => freshMountain()],
-  ["early", () => crewMountain()],
-  ["mid", () => openMountain()],
-  ["heart", () => heartMountain()],
+  { name: "fresh", save: () => freshMountain(), locked: true },
+  { name: "early", save: () => crewMountain() },
+  { name: "mid", save: () => openMountain(), open: true, lit: true },
+  { name: "heart", save: () => heartMountain(), open: true },
   // The bench clock under the Workshop key.
-  ["workshop", () => workshopSave(Date.now(), true)],
+  { name: "workshop", save: () => workshopSave(Date.now(), true), bench: true },
 ];
 
 /** Each key's place, size and face, beside what key-rail.ts says it shows. */
@@ -114,73 +118,121 @@ async function railFacts(page) {
   );
 }
 
-for (const viewport of SCREENS) {
-  section(`keys and drawers ${JSON.stringify(viewport)} rail`, async () => {
-    const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    for (const [name, save] of RAIL_SAVES) {
-      const label = `${size} key rail, ${name}:`;
-      const { page, close } = await openScreen(viewport, save());
-      const drawn = await keysDrawn(page);
-      // The rail's faces and images are in before it is measured.
-      await page.waitForFunction(
-        () =>
-          document.fonts.status === "loaded" &&
-          [...document.querySelectorAll(".board-rail img")].every(
-            (img) => img.complete && img.naturalWidth > 0,
-          ),
-        { timeout: 5_000 },
-      );
-      const keys = await railFacts(page);
-      check(
-        drawn && keys.every((key) => key.ok),
-        `${label} five keys at x 16 + 80i and top 768, each cap, dot and sub-line as key-rail.ts says`,
-      );
+/** Opens the save and waits for the rail's faces and images. */
+async function openRail(viewport, { save }) {
+  const { page, close } = await openScreen(viewport, save());
+  try {
+    const drawn = await keysDrawn(page);
+    // The rail's faces and images are in before it is measured.
+    await page.waitForFunction(
+      () =>
+        document.fonts.status === "loaded" &&
+        [...document.querySelectorAll(".board-rail img")].every(
+          (img) => img.complete && img.naturalWidth > 0,
+        ),
+      { timeout: 5_000 },
+    );
+    return { page, close, drawn, keys: await railFacts(page) };
+  } catch (error) {
+    await close();
+    throw error;
+  }
+}
+
+const RAIL_EXPECT = [
+  {
+    run: ({ drawn, keys, size, scenario }) => {
       if (!keys.every((key) => key.ok)) {
-        console.log("rail keys", size, name, JSON.stringify(keys));
+        console.log("rail keys", size, scenario.name, JSON.stringify(keys));
       }
+      return [
+        [
+          drawn && keys.every((key) => key.ok),
+          "five keys at x 16 + 80i and top 768, each cap, dot and sub-line as key-rail.ts says",
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page, size, scenario }) => {
       const art = await boardArtAt2x(page, ".board-rail", ".board-rail");
-      check(
-        art.misses.length === 0 && art.count >= 10,
-        `${label} ${String(art.count)} caps, icons and dots at exactly 2x`,
-      );
       if (art.misses.length > 0) {
-        console.log("rail 2x", size, name, JSON.stringify(art.misses));
+        console.log("rail 2x", size, scenario.name, JSON.stringify(art.misses));
       }
+      return [
+        [
+          art.misses.length === 0 && art.count >= 10,
+          `${String(art.count)} caps, icons and dots at exactly 2x`,
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page, size, scenario }) => {
       const text = await boardTextSizes(page, ".board-rail");
-      check(
-        text.small.length === 0 && text.count >= 5,
-        `${label} names and sub-lines are 13px or more (${String(text.count)} runs)`,
-      );
       if (text.small.length > 0) {
-        console.log("rail text", size, name, JSON.stringify(text.small));
+        console.log(
+          "rail text",
+          size,
+          scenario.name,
+          JSON.stringify(text.small),
+        );
       }
+      return [
+        [
+          text.small.length === 0 && text.count >= 5,
+          `names and sub-lines are 13px or more (${String(text.count)} runs)`,
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page, size, scenario }) => {
       const contrast = await boardContrast(
         page,
         ".board-key-name, .board-key-sub",
       );
       const dim = contrast.filter((row) => row.pct < 4.5);
-      check(
-        contrast.length >= 5 && dim.length === 0,
-        `${label} ${String(contrast.length)} names and sub-lines at 4.5:1 or more (lowest ${String(Math.min(...contrast.map((row) => row.pct)))}:1 at p10/p90)`,
-      );
       if (dim.length > 0) {
-        console.log("rail contrast", size, name, JSON.stringify(contrast));
+        console.log(
+          "rail contrast",
+          size,
+          scenario.name,
+          JSON.stringify(contrast),
+        );
       }
+      return [
+        [
+          contrast.length >= 5 && dim.length === 0,
+          `${String(contrast.length)} names and sub-lines at 4.5:1 or more (lowest ${String(Math.min(...contrast.map((row) => row.pct)))}:1 at p10/p90)`,
+        ],
+      ];
+    },
+  },
+  {
+    when: ({ scenario }) => scenario.locked === true,
+    run: async ({ page, keys }) => {
       const state = await keyState(page);
-      if (name === "fresh") {
-        const subs = Object.fromEntries(keys.map((key) => [key.id, key.sub]));
-        check(
+      const subs = Object.fromEntries(keys.map((key) => [key.id, key.sub]));
+      return [
+        [
           state.ok &&
             [state.workshop, state.engineers].every(
               (key) => key.disabled && key.locked && key.dim,
             ) &&
             subs.workshop === "With the clay" &&
             subs.engineers === "With 1st borer",
-          `${label} Workshop and Engineers are locked, with their unlock lines`,
-        );
-      }
-      if (name === "mid" || name === "heart") {
-        check(
+          "Workshop and Engineers are locked, with their unlock lines",
+        ],
+      ];
+    },
+  },
+  {
+    when: ({ scenario }) => scenario.open === true,
+    run: async ({ page }) => {
+      const state = await keyState(page);
+      return [
+        [
           state.ok &&
             [
               state.buys,
@@ -189,34 +241,59 @@ for (const viewport of SCREENS) {
               state.upgrades,
               state.ledger,
             ].every(keyOpen),
-          `${label} every key is open`,
-        );
-      }
-      if (name === "mid") {
-        // Upgrades lights where today's glow was, and the red lamps sit on
-        // the keys whose systems are still to be taught.
-        const lit = keys.find((key) => key.id === "upgrades");
-        check(
+          "every key is open",
+        ],
+      ];
+    },
+  },
+  {
+    when: ({ scenario }) => scenario.lit === true,
+    run: ({ keys }) => {
+      // Upgrades lights where today's glow was, and the red lamps sit on
+      // the keys whose systems are still to be taught.
+      const lit = keys.find((key) => key.id === "upgrades");
+      return [
+        [
           lit?.lit === true &&
             lit.cap === CAP_X.lit &&
             keys.some((key) => key.dot),
-          `${label} the Upgrades cap is lit and the red lamps show`,
-        );
-      }
-      if (name === "workshop") {
-        const bench = keys.find((key) => key.id === "workshop");
-        check(
+          "the Upgrades cap is lit and the red lamps show",
+        ],
+      ];
+    },
+  },
+  {
+    when: ({ scenario }) => scenario.bench === true,
+    run: ({ keys }) => {
+      const bench = keys.find((key) => key.id === "workshop");
+      return [
+        [
           /^\d+:\d\d$/.test(bench?.sub ?? ""),
-          `${label} the bench clock reads under the Workshop key (${String(bench?.sub)})`,
-        );
-      }
+          `the bench clock reads under the Workshop key (${String(bench?.sub)})`,
+        ],
+      ];
+    },
+  },
+  {
+    run: async ({ page }) => {
       const foot = await railFoot(page);
-      check(
-        foot.ok,
-        `${label} the rail ends at least 8px above the save line (${String(foot.gap)})`,
-      );
-      check(await noScroll(page), `${label} no page scroll`);
-      await close();
-    }
-  });
-}
+      return [
+        [
+          foot.ok,
+          `the rail ends at least 8px above the save line (${String(foot.gap)})`,
+        ],
+        [await noScroll(page), "no page scroll"],
+      ];
+    },
+  },
+];
+
+table({
+  per: "screen",
+  screens: SCREENS,
+  scenarios: RAIL_SAVES,
+  section: (viewport) => `keys and drawers ${JSON.stringify(viewport)} rail`,
+  prefix: ({ size, scenario }) => `${size} key rail, ${scenario.name}:`,
+  open: openRail,
+  expect: RAIL_EXPECT,
+});
