@@ -400,9 +400,9 @@ describe("what more hands add (#490)", () => {
     }
   });
 
-  it("never reads below zero when the eighth hand leaves faster drills for a borer", () => {
-    // 15 hands: one borer (8) and 7 drills. The 16th starts the second borer,
-    // and the 7 drills he leaves are each worth more than it (200 drills, every mark).
+  it("never leaves faster drills for a borer, so a hand never slows the crew (#500)", () => {
+    // 15 hands on 200 drills (every mark) and 2 borers. Each drill beats an
+    // eighth of a borer, so the borers stay idle and the 16th hand runs a drill.
     const crew = {
       ...minedMountain(10_000_000),
       helpers: 15,
@@ -410,10 +410,17 @@ describe("what more hands add (#490)", () => {
       borers: 2,
     };
     const more = { ...crew, helpers: 16 };
-    expect(effectiveRates(more).running.borer).toBe(2);
-    expect(base(effectiveRates(more))).toBeLessThan(base(effectiveRates(crew)));
-    expect(startedTier(crew)).toBe("borer");
-    expect(handsGain(crew, "helper", 1)).toBe(0);
+    const rates = effectiveRates(crew);
+    expect(rates.running.borer).toBe(0);
+    expect(rates.running.drill).toBe(15);
+    expect(effectiveRates(more).running.borer).toBe(0);
+    expect(effectiveRates(more).running.drill).toBe(16);
+    expect(base(effectiveRates(more))).toBeGreaterThan(base(rates));
+    expect(startedTier(crew)).toBe("drill");
+    expect(handsGain(crew, "helper", 1)).toBeCloseTo(
+      rates.tierSpeed.drill + rates.tierSpeed.helper,
+      9,
+    );
   });
 
   it("one worker short of a borer's eight starts nothing yet", () => {

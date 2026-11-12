@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { Mountain } from "../mountain";
+import type { TierId } from "../tiers";
 import { activeFactors, factor, withFactors } from "./factors";
 import { tendingTenths } from "../engineers";
 import { effectiveRates } from "../rates";
@@ -9,6 +11,11 @@ import {
   tierCost,
 } from "../tiers";
 import { BARE_MOUNTAIN } from "../mountain";
+
+/** A tier's tending tenths as the crew is staffed now. */
+function tenthsOf(mountain: Mountain, tierId: TierId): number {
+  return tendingTenths(mountain, tierId, effectiveRates(mountain).running);
+}
 
 const posted = {
   ...BARE_MOUNTAIN,
@@ -93,9 +100,9 @@ describe("economy factors", () => {
         8,
       );
     });
-    expect(tendingTenths(posted, "borer")).toBe(1.25);
+    expect(tenthsOf(posted, "borer")).toBe(1.25);
     withFactors({ "tending.gain": 2 }, () => {
-      expect(tendingTenths(posted, "borer")).toBe(2.5);
+      expect(tenthsOf(posted, "borer")).toBe(2.5);
     });
     expect(() =>
       withFactors({ "price.cart": 4 }, () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { TierId } from "./tiers";
 import {
   ENGINEER_NAMES,
   ENGINEER_POSTS,
@@ -36,6 +37,11 @@ import { BAND_SCALE, kidStretch, oneOffStretch } from "./scale";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 import { tierById } from "./tiers";
+
+/** A tier's tending tenths as the crew is staffed now. */
+function tenthsOf(mountain: Mountain, tierId: TierId): number {
+  return tendingTenths(mountain, tierId, effectiveRates(mountain).running);
+}
 
 const ada: Engineer = { name: "Ada", rank: 0, trips: 0, post: "borer" };
 
@@ -339,8 +345,8 @@ describe("tending", () => {
 
     const tunnel = effectiveRates(outOn({ ...base, engineers: [ada] }));
     expect(tunnel.crewPerSecond).toBe(plain.crewPerSecond);
-    expect(tendingTenths(base, "borer")).toBe(0);
-    expect(tendingTenths({ ...base, engineers: [ada] }, "helper")).toBe(0);
+    expect(tenthsOf(base, "borer")).toBe(0);
+    expect(tenthsOf({ ...base, engineers: [ada] }, "helper")).toBe(0);
   });
 
   it("lets the best engineer at a tier set the pace", () => {
@@ -356,7 +362,7 @@ describe("tending", () => {
         },
       ],
     };
-    expect(tendingTenths(both, "borer")).toBe(3.75);
+    expect(tenthsOf(both, "borer")).toBe(3.75);
     expect(effectiveRates(both).tierSpeed.borer).toBeCloseTo(
       357 * 0.8 * 1.65625,
       8,

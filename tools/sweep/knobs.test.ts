@@ -58,7 +58,7 @@ function reading(factorId: string): number {
     return effectiveRates(posted).tierSpeed[id];
   }
   if (factorId === "tending.gain") {
-    return tendingTenths(posted, "borer");
+    return tendingTenths(posted, "borer", effectiveRates(posted).running);
   }
   if (factorId.startsWith("recipe.") && factorId.endsWith(".cost")) {
     const id = factorId.slice("recipe.".length, -".cost".length) as RecipeId;
