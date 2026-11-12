@@ -284,11 +284,13 @@ describe("board.css", () => {
       /^\.board-sheet \.crew\.is-blank,\n\.board-sheet \.board-sec\.is-blank \{[^}]*visibility:\s*hidden/m,
     );
     // The screen-reader-only pattern: 1px, clipped, never zero-sized; the save line's spoken
-    // separator too.
-    for (const selector of ["crew-posts-words", "board-save-sep"]) {
-      const rule =
-        new RegExp(`^\\.${selector} \\{([^}]*)\\}`, "m").exec(boardCss)?.[1] ??
-        "";
+    // separator and the Ready plate's live words (#517) too.
+    for (const selector of [
+      "crew-posts-words",
+      "board-save-sep",
+      "board-ready-live",
+    ]) {
+      const rule = declared(`.${selector}`);
       expect(rule).toMatch(/clip-path:\s*inset\(50%\)/);
       expect(rule).toMatch(/width:\s*var\(--board-hair\)/);
       expect(rule).toMatch(/height:\s*var\(--board-hair\)/);

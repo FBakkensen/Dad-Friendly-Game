@@ -64,7 +64,7 @@ export function readyNow(
   if (mountain.remaining === 0) {
     return { kind: "mined-out" };
   }
-  const { free } = crewCounts(mountain, now, trouble);
+  const { free, crew } = crewCounts(mountain, now, trouble);
   const k = stretch(mountain);
   const priceOf = (id: ReadyTier): number => {
     const tier = tierById(id);
@@ -84,7 +84,7 @@ export function readyNow(
   const pick: Priced = affordable ??
     cheapest ?? { tier: "helper", price: priceOf("helper") };
 
-  const { gain, started } = pickGain(mountain, pick.tier, now, trouble);
+  const { gain, started } = pickGain(mountain, pick.tier, now, trouble, crew);
   if (mountain.pocket >= pick.price) {
     return {
       kind: "ready",
@@ -118,6 +118,7 @@ function pickGain(
   tier: ReadyTier,
   now: number,
   trouble: Trouble | undefined,
+  crew: number,
 ): {
   readonly gain: number;
   readonly started:
@@ -134,6 +135,5 @@ function pickGain(
   if (starts !== undefined) {
     return { gain, started: { starts } };
   }
-  const noCrew = crewCounts(mountain, now, trouble).crew === 0;
-  return { gain, started: noCrew ? { firstWorker: true } : {} };
+  return { gain, started: crew === 0 ? { firstWorker: true } : {} };
 }

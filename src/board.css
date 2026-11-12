@@ -2388,8 +2388,10 @@ button.board-row:focus-visible {
 }
 
 /* The crew's full sentence, spoken but not drawn: the chips say it in short.
+   The Ready plate's live words, which leave out its countdown (#517).
    The screen-reader-only pattern: 1px and clipped, never zero-sized. */
-.crew-posts-words {
+.crew-posts-words,
+.board-ready-live {
   position: absolute;
   width: var(--board-hair);
   height: var(--board-hair);

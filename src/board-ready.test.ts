@@ -264,17 +264,47 @@ describe("createReadyPlate", () => {
     button.dispatchEvent(new MouseEvent("click", { detail: 1 }));
   };
 
-  it("builds the row: the guard, the plate and its lines in one live button", () => {
+  it("builds the row: the guard, the plate and its lines in one button, its live words beside it", () => {
     const { root, button } = plate(() => bought);
     expect(root.classList.contains("board-ready-row")).toBe(true);
     expect(button.classList.contains("board-ready")).toBe(true);
-    expect(button.getAttribute("aria-live")).toBe("polite");
+    // The countdown ticks every second, so the button itself is not live (#517).
+    expect(button.hasAttribute("aria-live")).toBe(false);
+    const live = root.querySelector(".board-ready-live");
+    expect(live?.getAttribute("aria-live")).toBe("polite");
+    expect(button.contains(live)).toBe(false);
     expect(button.type).toBe("button");
     expect(root.querySelector(".board-ready-kick.board-lg")).not.toBeNull();
     expect(root.querySelector("i.board-ready-guard")).not.toBeNull();
     expect(root.querySelector("img.board-ready-plate")).not.toBeNull();
     expect(root.querySelector(".board-ready-main")).not.toBeNull();
     expect(root.querySelector(".board-ready-why")).not.toBeNull();
+  });
+
+  it("keeps its live words still while the last minute counts down (#517)", () => {
+    const { root, render } = plate(() => bought);
+    render({ ...savingCart, etaMs: 40_000 }, true);
+    expect(text(root, ".board-ready-main")).toBe("Saving for a cart · in 40s");
+    const live = root.querySelector(".board-ready-live");
+    const before = live?.textContent;
+    expect(before).toBe("Saving for a cart. 5,868 · +12/s");
+    const changes: MutationRecord[] = [];
+    const watch = new MutationObserver((records) => changes.push(...records));
+    if (live !== null) {
+      watch.observe(live, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    }
+    render({ ...savingCart, etaMs: 39_000 }, true);
+    expect(text(root, ".board-ready-main")).toBe("Saving for a cart · in 39s");
+    expect(changes.concat(watch.takeRecords())).toEqual([]);
+    watch.disconnect();
+    render(readyCart, true);
+    expect(live?.textContent).toBe(
+      "Ready now: Buy a cart · 5,868, +12/s · your free worker can run it",
+    );
   });
 
   it("shows only its frames and art until the save is in", () => {

@@ -40,6 +40,11 @@ export type ReadyWords = {
   /** Fit options, longest first. */
   readonly why: readonly string[];
   readonly aria: string;
+  /**
+   * What the plate's live region says when it changes (#517): the aria words, but a
+   * Saving for plate leaves out its countdown, so the last minute is not read every second.
+   */
+  readonly live: string;
   readonly guard: "lit" | "dim" | "done" | "off";
 };
 
@@ -121,6 +126,7 @@ export function readyWords(pick: ReadyPick): ReadyWords {
       main: [MINED_OUT],
       why: [""],
       aria: MINED_OUT,
+      live: MINED_OUT,
       guard: "off",
     };
   }
@@ -132,13 +138,8 @@ export function readyWords(pick: ReadyPick): ReadyWords {
     const reason = readyReason(pick);
     const main = [`${verb} · ${p}`, verb];
     const why = [`${g} · ${reason}`, g];
-    return {
-      kick: "Ready now",
-      main,
-      why,
-      aria: `Ready now: ${main[0] ?? verb}, ${why[0] ?? g}`,
-      guard: "lit",
-    };
+    const aria = `Ready now: ${main[0] ?? verb}, ${why[0] ?? g}`;
+    return { kick: "Ready now", main, why, aria, live: aria, guard: "lit" };
   }
   // readyNow gives no time for a speed with none; a non-finite one would read "NaNm".
   const eta =
@@ -159,6 +160,7 @@ export function readyWords(pick: ReadyPick): ReadyWords {
     main,
     why: [why],
     aria: `${main[0] ?? ""}. ${why}. Opens Buys`,
+    live: `Saving for ${n}. ${why}`,
     guard: "dim",
   };
 }
@@ -171,11 +173,13 @@ export function doneWords(
 ): ReadyWords {
   const g = gainText(gain);
   const line = AT_WORK[tier](formatCount(count));
+  const aria = `Done. ${line}, ${g}`;
   return {
     kick: "Done",
     main: [`Done · ${g}`, "Done"],
     why: [line],
-    aria: `Done. ${line}, ${g}`,
+    aria,
+    live: aria,
     guard: "done",
   };
 }
@@ -211,6 +215,7 @@ interface PlateParts {
   readonly guard: HTMLElement;
   readonly main: HTMLElement;
   readonly why: HTMLElement;
+  readonly live: HTMLElement;
 }
 
 /** The buy a Done hold names. */
@@ -232,6 +237,7 @@ const NO_SAVE: ReadyWords = {
   main: [""],
   why: [""],
   aria: LOADING,
+  live: "",
   guard: "off",
 };
 
@@ -239,7 +245,9 @@ function buildPlate(): PlateParts {
   const root = el("div", "board-ready-row");
   const button = el("button", "board-ready");
   button.type = "button";
-  button.setAttribute("aria-live", "polite");
+  // The live words sit beside the button, not in it: its countdown ticks every second (#517).
+  const live = el("span", "board-ready-live");
+  live.setAttribute("aria-live", "polite");
   const kick = el("span", "board-ready-kick board-lg");
   const guard = strip("board-ready-guard", guardUrl);
   const plate = el("img", "board-ready-plate");
@@ -251,8 +259,8 @@ function buildPlate(): PlateParts {
   const why = el("span", "board-ready-why");
   lines.append(main, why);
   button.append(kick, guard, plate, lines);
-  root.append(button);
-  return { root, button, kick, guard, main, why };
+  root.append(live, button);
+  return { root, button, kick, guard, main, why, live };
 }
 
 /**
@@ -288,6 +296,7 @@ function paintPlate(
   fitFirst(parts.main, words.main, fits);
   fitFirst(parts.why, words.why, fits);
   setAttr(button, "aria-label", words.aria);
+  write(parts.live, words.live);
 }
 
 /**
