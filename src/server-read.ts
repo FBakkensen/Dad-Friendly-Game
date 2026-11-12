@@ -113,15 +113,17 @@ function loadOrGiveUp(ctx: StoreContext, uid: string): Promise<ReadOutcome> {
         return;
       }
       settled = true;
-      if (ctx.resumeTimer !== undefined) {
-        clearTimeout(ctx.resumeTimer);
+      clearTimeout(timer);
+      // A read from an account that has gone leaves the next one's timer.
+      if (ctx.resumeTimer === timer) {
         ctx.resumeTimer = undefined;
       }
       resolve(value);
     };
-    ctx.resumeTimer = setTimeout(() => {
+    const timer = setTimeout(() => {
       finish("timeout");
     }, ctx.ports.resumeReadTimeoutMs);
+    ctx.resumeTimer = timer;
     ctx.ports.cloudSave.load({ uid, fresh: true }).then(
       (loaded) => {
         finish(loaded);

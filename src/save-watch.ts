@@ -195,8 +195,8 @@ function startCloudWatch(ctx: StoreContext, uid: string): void {
   ctx.phoneDirty = false;
   ctx.saveConflict = undefined;
   ctx.consecutiveRevMerges = 0;
-  prepareLocal(ctx, uid);
   endCloudWork(ctx);
+  prepareLocal(ctx, uid);
   ctx.listenRetry.backoffMs = LISTEN_BACKOFF_START_MS;
   ctx.fieldLogAt = undefined;
   ctx.fieldLogFingerprint = undefined;

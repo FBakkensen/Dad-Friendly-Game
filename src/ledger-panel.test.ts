@@ -522,13 +522,12 @@ describe("the Ledger drawer (#375)", () => {
   });
 
   it("the same account reported again leaves the Start over page and Yes live (#481)", async () => {
-    const { screen, auth, gate } = reloading("test-dad");
+    const { screen, auth } = reloading("test-dad");
     await vi.waitFor(() => {
       expect(screen.progress.getSnapshot().ready).toBe(true);
     });
     keyOf(screen).click();
     part(screen, ".ledger-start-over").click();
-    gate.held = true;
     await auth.signIn();
     await Promise.resolve();
     expect(screen.progress.getSnapshot().ready).toBe(true);

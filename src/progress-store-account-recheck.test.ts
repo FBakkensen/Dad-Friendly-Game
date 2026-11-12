@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AuthController, AuthState, AuthUser } from "./auth";
 import {
   createMemoryCloudSave,
@@ -8,6 +8,9 @@ import {
 } from "./cloud-save";
 import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
+import type { TabWriter } from "./tab-writer";
+
+type TabSeat = ReturnType<TabWriter["seat"]>;
 
 function createMemoryStorage(): Storage {
   const data = new Map<string, string>();
@@ -120,6 +123,44 @@ function slowWriteCloud(): {
   };
 }
 
+/** A writer seat the test can hand to another tab. */
+function movableSeat(): {
+  tabWriter: TabWriter;
+  move: (next: TabSeat) => void;
+} {
+  let seat: TabSeat = "writer";
+  const listeners = new Set<(next: TabSeat) => void>();
+  return {
+    tabWriter: {
+      seat: () => seat,
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      playHere: () => Promise.resolve(),
+      onYield: () => undefined,
+      confirm: () => undefined,
+      release: () => undefined,
+      restore: () => undefined,
+      dispose: () => undefined,
+    },
+    move: (next) => {
+      seat = next;
+      for (const listener of [...listeners]) {
+        listener(next);
+      }
+    },
+  };
+}
+
+const resumeLines = (progress: {
+  fieldLog: () => { events: readonly { code: string }[] };
+}) =>
+  progress.fieldLog().events.filter((event) => event.code === "save.resume")
+    .length;
+
 const pocketIn = async (cloud: CloudSave, uid: string): Promise<number> => {
   const saved = await cloud.load({ uid });
   return saved.kind === "found" ? saved.mountain.pocket : -1;
@@ -230,5 +271,119 @@ describe("the account reported again (#481)", () => {
     await settle();
     expect(await pocketIn(base, mom.uid)).toBe(33);
     progress.dispose();
+  });
+
+  it("drops a read on resume that answers after another tab took the seat", async () => {
+    const docs = new Map<string, Mountain>([
+      [dad.uid, { ...createMountain(), pocket: 10 }],
+    ]);
+    const { cloud, releaseReads } = slowReadCloud(docs);
+    const { tabWriter, move } = movableSeat();
+    const progress = createProgressStore({
+      auth: reportingAuth(dad).auth,
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+      tabWriter,
+      now: () => 50_000,
+      resumeReadTimeoutMs: 60_000,
+    });
+    await settle();
+    void progress.resume();
+    move("other");
+    releaseReads();
+    await settle();
+    expect(resumeLines(progress)).toBe(0);
+    progress.dispose();
+  });
+
+  it("a retry after a read that gave up waits while another tab has the seat", async () => {
+    vi.useFakeTimers();
+    try {
+      const fresh = vi.fn();
+      const base = createMemoryCloudSave();
+      const cloud: CloudSave = {
+        ...base,
+        load: (args) => {
+          if (args.fresh === true) {
+            fresh();
+            return Promise.reject(new Error("offline"));
+          }
+          return base.load(args);
+        },
+      };
+      const { tabWriter, move } = movableSeat();
+      const progress = createProgressStore({
+        auth: reportingAuth(dad).auth,
+        cloudSave: cloud,
+        sessionStorage: createMemoryStorage(),
+        tabWriter,
+        now: () => 50_000,
+      });
+      await vi.advanceTimersByTimeAsync(10);
+      void progress.resume();
+      await vi.advanceTimersByTimeAsync(10);
+      expect(fresh).toHaveBeenCalledTimes(1);
+      move("other");
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(fresh).toHaveBeenCalledTimes(1);
+      progress.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a late read from the account that left keeps the new account's give-up timer", async () => {
+    vi.useFakeTimers();
+    try {
+      const base = createMemoryCloudSave({
+        docs: new Map<string, Mountain>([
+          [dad.uid, { ...createMountain(), pocket: 10 }],
+          [mom.uid, { ...createMountain(), startedAt: 40_000, pocket: 77 }],
+        ]),
+      });
+      let answerDad: (() => void) | undefined;
+      const momReads = vi.fn();
+      const cloud: CloudSave = {
+        ...base,
+        load: (args) => {
+          if (args.fresh !== true) {
+            return base.load(args);
+          }
+          if (args.uid === dad.uid) {
+            return new Promise<CloudLoadResult>((resolve) => {
+              answerDad = () => {
+                void base.load(args).then(resolve);
+              };
+            });
+          }
+          // Mom's read on resume never answers: only its give-up ends it.
+          momReads();
+          return new Promise<CloudLoadResult>(() => undefined);
+        },
+      };
+      const { auth, report } = reportingAuth(dad);
+      const progress = createProgressStore({
+        auth,
+        cloudSave: cloud,
+        sessionStorage: createMemoryStorage(),
+        now: () => 50_000,
+        resumeReadTimeoutMs: 1_000,
+      });
+      await vi.advanceTimersByTimeAsync(10);
+      void progress.resume();
+      report(mom);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(progress.getSnapshot().ready).toBe(true);
+      void progress.resume();
+      await vi.advanceTimersByTimeAsync(10);
+      expect(momReads).toHaveBeenCalledTimes(1);
+      answerDad?.();
+      // Mom's read gives up after a second, and the retry asks again.
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(momReads.mock.calls.length).toBeGreaterThan(1);
+      progress.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -14,7 +14,7 @@ import {
   persistSession,
 } from "./local-saves";
 import type { Mountain } from "./mountain";
-import { freshServerRead } from "./server-read";
+import { endResumeRead, freshServerRead } from "./server-read";
 import {
   activeTrouble,
   hasNews,
@@ -287,11 +287,7 @@ export function resumeStore(
 
 export function disposeStore(ctx: StoreContext, unsubscribe: () => void): void {
   ctx.disposed = true;
-  if (ctx.resumeTimer !== undefined) {
-    clearTimeout(ctx.resumeTimer);
-    ctx.resumeTimer = undefined;
-  }
-  cancelRetry(ctx.resumeRetry);
+  endResumeRead(ctx);
   unsubscribe();
   ctx.ports.tabWriter?.dispose();
   cancelQueuedWrite(ctx);
