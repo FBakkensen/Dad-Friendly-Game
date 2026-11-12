@@ -512,6 +512,28 @@ describe("today's CSS", () => {
     expect(boardCss).toMatch(/^html,\nbody \{[^}]*overflow:\s*hidden/m);
   });
 
+  it("draws the odometer's point four art pixels square (#507)", () => {
+    const dot = declared(".board-odo-dot");
+    expect(dot).toMatch(/width:\s*calc\(var\(--art\) \* 4\)/);
+    expect(dot).toMatch(/height:\s*calc\(var\(--art\) \* 4\)/);
+    // The file is its size in art pixels: the board shows art at exactly 2x.
+    const png = readFileSync("src/assets/board/odo-dot.png");
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([4, 4]);
+  });
+
+  it("reads the gauge's rate at 20px, its unit on a plate over the needle (#507)", () => {
+    expect(declared(".board-gauge-read")).toMatch(
+      /font-size:\s*var\(--board-type-20\)/,
+    );
+    const unit = declared(".board-gauge-unit");
+    expect(unit).toMatch(/background:\s*var\(--board-gauge-face\)/);
+    expect(unit).toMatch(/var\(--board-gauge-rim\)/);
+    // A skinned host is relative by default: the counter keeps its place on the face.
+    expect(declared(".board-gauge-counter.board-skinned")).toMatch(
+      /position:\s*absolute/,
+    );
+  });
+
   it("a hidden board row takes no room (#376)", () => {
     expect(boardCss).toMatch(/^\.board-row\[hidden\] \{[^}]*display:\s*none/m);
   });

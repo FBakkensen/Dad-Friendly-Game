@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createCrewPlate, createOutputGauge } from "./board-gauge";
+import { createCrewPlate, createOutputGauge, GAUGE_MARKS } from "./board-gauge";
 
 const motion = (reduce: boolean): void => {
   vi.stubGlobal(
@@ -122,10 +122,27 @@ describe("createOutputGauge", () => {
       ),
     ).toEqual(["0", "5", "10", "15"]);
     expect(text(gauge.root, ".board-gauge-legend")).toBe("Stones a second");
-    const counter = gauge.root.querySelector("img.board-gauge-counter");
-    expect(counter?.getAttribute("alt")).toBe("");
+    // The counter's window is the board's nine-slice of its art, so it can be wider than the file (#507).
+    const counter = gauge.root.querySelector(
+      "span.board-gauge-counter.board-skinned",
+    );
+    expect(counter?.querySelectorAll("canvas.board-skin")).toHaveLength(1);
     const sheet = gauge.root.querySelector<HTMLElement>(".board-gauge-face");
     expect(sheet?.style.backgroundImage).toContain("gauge-output-sheet");
+  });
+});
+
+describe("GAUGE_MARKS", () => {
+  it("keeps the 0 off the needle at rest, and the 15 level with it (#507)", () => {
+    const [zero, , , fifteen] = GAUGE_MARKS;
+    expect([zero?.[0], fifteen?.[0]]).toEqual(["0", "15"]);
+    // At rest the needle lies from the hub (52, 52) down and left at 45°. This is how far the
+    // mark's centre is from that line, on the side the needle rises to, in art px: a figure is
+    // under 4 across its corners and the needle 3 wide.
+    const clear =
+      (52 - (zero?.[1] ?? 0) - ((zero?.[2] ?? 0) - 52)) / Math.SQRT2;
+    expect(clear).toBeGreaterThanOrEqual(5);
+    expect(fifteen?.[2]).toBe(zero?.[2]);
   });
 });
 

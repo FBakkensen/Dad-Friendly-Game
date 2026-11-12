@@ -54,6 +54,43 @@ describe("nineSlicePlan", () => {
     ]);
   });
 
+  it("the gauge's counter stretches its middle and keeps each row (#507)", () => {
+    for (const width of [25, 30]) {
+      // The source art px each board px is drawn from: a later blit paints over an earlier one.
+      const from = new Map<string, readonly [number, number]>();
+      for (const b of nineSlicePlan("counter", width, 11)) {
+        for (let x = 0; x < b.w; x += 1) {
+          for (let y = 0; y < b.h; y += 1) {
+            from.set(`${String(b.dx + x)},${String(b.dy + y)}`, [
+              b.sx + x,
+              b.sy + y,
+            ]);
+          }
+        }
+      }
+      expect(from.size).toBe(width * 11);
+      for (const [at, [sx, sy]] of from) {
+        const [x, y] = at.split(",").map(Number) as [number, number];
+        // The window's top three rows and its lit foot differ, so each stays in its row; the
+        // six rows between are one row repeated.
+        if (y < 3 || y >= 9) {
+          expect(sy).toBe(y);
+        } else {
+          expect(sy).toBeGreaterThanOrEqual(3);
+          expect(sy).toBeLessThan(9);
+        }
+        if (x < 3) {
+          expect(sx).toBe(x);
+        } else if (x >= width - 3) {
+          expect(sx).toBe(x - (width - 25));
+        } else {
+          expect(sx).toBeGreaterThanOrEqual(3);
+          expect(sx).toBeLessThan(22);
+        }
+      }
+    }
+  });
+
   it("keyp reads the pressed half", () => {
     const plan = nineSlicePlan("keyp", 40, 40);
     expect(plan.length).toBeGreaterThan(0);
@@ -72,6 +109,10 @@ describe("skinArtSize", () => {
     expect(skinArtSize("frame", 212, 48)).toEqual({ width: 106, height: 24 });
     expect(skinArtSize("frame", 20, 20)).toEqual({ width: 18, height: 17 });
     expect(skinArtSize("tag", 88, 20)).toEqual({ width: 44, height: 10 });
+  });
+
+  it("the gauge's counter paints 11 art px tall (#507)", () => {
+    expect(skinArtSize("counter", 60, 22)).toEqual({ width: 30, height: 11 });
   });
 
   it("a brass plate 32px tall paints 16 art px, not the frame's 17", () => {

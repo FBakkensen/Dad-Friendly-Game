@@ -117,6 +117,87 @@ async function crewPlateWords(page) {
   });
 }
 
+/**
+ * The output gauge's words (#507): the readout is 20px and stays inside the counter's dark
+ * window, with today's rate and with the longest readings; the unit's plate holds its
+ * longest unit and stays clear of the marks. Glyph runs, not boxes, as the crew plate's.
+ */
+async function gaugeWords(page) {
+  return page.evaluate(() => {
+    const gauge = document.querySelector(".board-gauge");
+    const counter = gauge?.querySelector(".board-gauge-counter");
+    const read = gauge?.querySelector(".board-gauge-read");
+    const unit = gauge?.querySelector(".board-gauge-unit");
+    if (!counter || !read || !unit) {
+      return { ok: false };
+    }
+    const run = (el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return range.getBoundingClientRect();
+    };
+    const apart = (a, b) =>
+      a.right <= b.left + 0.5 ||
+      a.left >= b.right - 0.5 ||
+      a.bottom <= b.top + 0.5 ||
+      a.top >= b.bottom - 0.5;
+    const box = counter.getBoundingClientRect();
+    // One art px of the board as drawn: the counter is 30 wide, and its cream rim is one.
+    const art = box.width / 30;
+    const readBox = read.getBoundingClientRect();
+    const rate = read.textContent ?? "";
+    const readings = [rate, "12.3K", ">999T"].map((text) => {
+      read.textContent = text;
+      const r = run(read);
+      return {
+        text,
+        ok:
+          r.width > 0 &&
+          r.left >= box.left + art - 0.5 &&
+          r.right <= box.right - art + 0.5,
+        width: Math.round(r.width * 10) / 10,
+      };
+    });
+    read.textContent = rate;
+    const marks = [...gauge.querySelectorAll(".board-gauge-mark")].map(run);
+    const today = unit.textContent ?? "";
+    const units = [today, "×100T"].map((text) => {
+      unit.textContent = text;
+      const plate = unit.getBoundingClientRect();
+      const edge = {
+        left: plate.left - art,
+        right: plate.right + art,
+        top: plate.top - art,
+        bottom: plate.bottom + art,
+      };
+      const r = run(unit);
+      return {
+        text,
+        ok:
+          r.width > 0 &&
+          r.left >= plate.left - 0.5 &&
+          r.right <= plate.right + 0.5 &&
+          marks.every((mark) => apart(mark, edge)),
+      };
+    });
+    unit.textContent = today;
+    const size = Number.parseFloat(getComputedStyle(read).fontSize);
+    return {
+      ok:
+        size === 20 &&
+        readBox.top >= box.top - 0.5 &&
+        readBox.bottom <= box.bottom + 0.5 &&
+        marks.length === 4 &&
+        readings.every((one) => one.ok) &&
+        units.every((one) => one.ok),
+      size,
+      counter: Math.round(box.width * 10) / 10,
+      readings,
+      units,
+    };
+  });
+}
+
 /** The band's view behind the glass, and what the save owns in it. */
 async function windowScene(page) {
   return page.evaluate(async () => {
@@ -382,6 +463,20 @@ const GAUGE_EXPECT = [
         console.log("crew plate", size, scenario.name, JSON.stringify(words));
       }
       return [[fonts && words.ok, "the crew plate's words stay on the plate"]];
+    },
+  },
+  {
+    run: async ({ page, fonts, size, scenario }) => {
+      const words = await gaugeWords(page);
+      if (!words.ok) {
+        console.log("gauge words", size, scenario.name, JSON.stringify(words));
+      }
+      return [
+        [
+          fonts && words.ok,
+          "the gauge's readout is 20px inside its counter at five characters, and the unit's plate is clear of the marks",
+        ],
+      ];
     },
   },
 ];

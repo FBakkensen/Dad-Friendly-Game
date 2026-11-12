@@ -1,4 +1,3 @@
-import counterUrl from "./assets/board/gauge-counter.png";
 import sheetUrl from "./assets/board/gauge-output-sheet.png";
 import { skin } from "./board-skin";
 import type { CrewCounts } from "./crew-count";
@@ -39,12 +38,16 @@ const MAX_STEP_S = 0.1;
 const LAMP_PX = 40;
 const LAMP_AMBER = 1;
 
-/** The dial's marks and the unit, centred on these points in art px (the mockup's .sc). */
-const MARKS: readonly (readonly [string, number, number])[] = [
-  ["0", 33, 69.5],
+/**
+ * The dial's marks and the unit, centred on these points in art px. The 5 and the 10 are the
+ * mockup's. The 0 stands beside its tick, above the needle at rest, and the 15 level with it
+ * (#507): on the tick's own line the resting needle lay over the 0.
+ */
+export const GAUGE_MARKS: readonly (readonly [string, number, number])[] = [
+  ["0", 29.5, 65.5],
   ["5", 32.5, 32.5],
   ["10", 71.5, 32.5],
-  ["15", 71, 69.5],
+  ["15", 72, 65.5],
 ];
 const UNIT_AT = [52, 36] as const;
 
@@ -71,7 +74,7 @@ export function createOutputGauge(): OutputGauge {
   face.style.backgroundImage = `url(${sheetUrl})`;
   root.append(face);
 
-  for (const [mark, left, top] of MARKS) {
+  for (const [mark, left, top] of GAUGE_MARKS) {
     const el = span("board-gauge-mark board-num", mark);
     at(el, left, top);
     root.append(el);
@@ -79,10 +82,9 @@ export function createOutputGauge(): OutputGauge {
   const unit = span("board-gauge-unit board-num");
   at(unit, ...UNIT_AT);
 
-  const counter = document.createElement("img");
-  counter.src = counterUrl;
-  counter.alt = "";
-  counter.className = "board-gauge-counter";
+  // The counter's window, stretched from its art to hold five characters at 20px (#507).
+  const counter = span("board-gauge-counter");
+  skin(counter, "counter");
 
   const read = span("board-gauge-read board-num");
   const legend = span("board-gauge-legend", "Stones a second");
