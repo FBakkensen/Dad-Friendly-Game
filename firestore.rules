@@ -40,8 +40,9 @@ service cloud.firestore {
     //   - lastSeen: int (required iff version >= 2; epoch ms)
     //
     // Collection: fieldLogs
-    // Document ID: Firebase Auth uid
-    // Fields:
+    // Document ID: Firebase Auth uid (the account-wide log of builds before
+    // #485), and fieldLogs/{uid}/devices/{deviceId} (one per device since).
+    // Fields, the same in both:
     //   - snapshot: map (the field-log snapshot; no email or display name).
     //       Includes engineers (name, rank, post) and running expeditions
     //       (engineer, tunnel, returnsAt). Hazards are events only, never saved.
@@ -433,9 +434,22 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // The account-wide log builds before #485 wrote. Still writable, so a
+    // cached older build uploads without an error.
     match /fieldLogs/{userId} {
       allow read: if isOwner(userId);
       allow create, update: if isOwner(userId) && isFieldLog(request.resource.data);
+      allow delete: if false;
+    }
+
+    // One log per device (#485): the phone and the PC never overwrite each
+    // other. The id is the device id the save carries, 8 to 64 characters.
+    match /fieldLogs/{userId}/devices/{deviceId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) &&
+        deviceId.size() >= 8 &&
+        deviceId.size() <= 64 &&
+        isFieldLog(request.resource.data);
       allow delete: if false;
     }
 

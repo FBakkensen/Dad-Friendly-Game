@@ -70,9 +70,10 @@ export type CloudSave = {
     uid: string;
     now: number;
   }) => Promise<readonly ArchivedCopy[]>;
-  /** Overwrites `fieldLogs/{uid}`. The caller throttles. */
+  /** Overwrites this device's `fieldLogs/{uid}/devices/{deviceId}` (#485). The caller throttles. */
   readonly writeFieldLog: (args: {
     uid: string;
+    deviceId: string;
     log: FieldLogDocument;
   }) => Promise<CloudWriteResult>;
   readonly watch: (args: {
@@ -150,6 +151,23 @@ export function createNoopCloudSave(): CloudSave {
       };
     },
   };
+}
+
+/** Where the memory cloud keeps one device's field log: `uid/deviceId`, as the document path. */
+export function fieldLogKey(uid: string, deviceId: string): string {
+  return `${uid}/${deviceId}`;
+}
+
+/** The account's one device's field log, for tests with one device. Throws on a second. */
+export function fieldLogOf(
+  fieldLogs: ReadonlyMap<string, FieldLogDocument>,
+  uid: string,
+): FieldLogDocument | undefined {
+  const mine = [...fieldLogs].filter(([key]) => key.startsWith(`${uid}/`));
+  if (mine.length > 1) {
+    throw new Error(`${uid} has ${String(mine.length)} devices' field logs`);
+  }
+  return mine[0]?.[1];
 }
 
 export function createMemoryCloudSave({
@@ -241,8 +259,8 @@ export function createMemoryCloudSave({
       emit(uid);
       return Promise.resolve({ kind: "ok" });
     },
-    writeFieldLog: ({ uid, log }) => {
-      fieldLogs.set(uid, log);
+    writeFieldLog: ({ uid, deviceId, log }) => {
+      fieldLogs.set(fieldLogKey(uid, deviceId), log);
       return Promise.resolve({ kind: "ok" });
     },
     archiveCopy: ({

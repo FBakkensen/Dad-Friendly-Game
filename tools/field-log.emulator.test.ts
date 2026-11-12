@@ -40,6 +40,12 @@ const dad = {
   updatedAt: Date.parse(at),
 };
 
+const phoneEvent = {
+  at: "2026-01-02T03:02:00.000Z",
+  code: "vein.tap",
+  data: { stones: 60 },
+};
+
 const mom = {
   snapshot: {
     version: "0.0.0",
@@ -67,8 +73,17 @@ describe("field-log reader on the Firestore emulator", () => {
   beforeAll(async () => {
     const existing = await db.collection("fieldLogs").get();
     await Promise.all(existing.docs.map((doc) => doc.ref.delete()));
+    const devices = await db.collectionGroup("devices").get();
+    await Promise.all(devices.docs.map((doc) => doc.ref.delete()));
     await db.collection("fieldLogs").doc("dad").set(dad);
     await db.collection("fieldLogs").doc("mom").set(mom);
+    // Since #485 each device writes its own; kid has no account-wide log at all.
+    await db
+      .doc("fieldLogs/dad/devices/phone-device-01")
+      .set({ ...dad, events: [phoneEvent], updatedAt: Date.parse(at) + 1 });
+    await db
+      .doc("fieldLogs/kid/devices/tablet-device-1")
+      .set({ ...mom, events: [] });
   });
 
   afterAll(async () => {
@@ -93,34 +108,67 @@ describe("field-log reader on the Firestore emulator", () => {
     expect(positional.stdout).toBe(flagged.stdout);
   });
 
-  it("lists every field log in uid order", () => {
+  it("reads every device's log of a player together (#485)", () => {
+    const result = run(["dad"]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("fieldLogs/dad\nUpdated");
+    expect(result.stdout).toContain(
+      "fieldLogs/dad/devices/phone-device-01\nUpdated",
+    );
+    expect(result.stdout).toContain(
+      [
+        "fieldLogs/dad: together",
+        "Events",
+        "  2026-01-02 03:00:00  tier.buy  count=1 id=helper  [account]",
+        "  2026-01-02 03:02:00  vein.tap  stones=60  [phone-de]",
+      ].join("\n"),
+    );
+  });
+
+  it("lists every field log in uid order, devices too", () => {
     const result = run([]);
     expect(result.status).toBe(0);
     const dadAt = result.stdout.indexOf("fieldLogs/dad");
+    const phoneAt = result.stdout.indexOf(
+      "fieldLogs/dad/devices/phone-device-01",
+    );
+    const kidAt = result.stdout.indexOf(
+      "fieldLogs/kid/devices/tablet-device-1",
+    );
     const momAt = result.stdout.indexOf("fieldLogs/mom");
     expect(dadAt).toBeGreaterThanOrEqual(0);
-    expect(momAt).toBeGreaterThan(dadAt);
+    expect(phoneAt).toBeGreaterThan(dadAt);
+    expect(kidAt).toBeGreaterThan(phoneAt);
+    expect(momAt).toBeGreaterThan(kidAt);
   });
 
   it("prints the stored document as JSON", () => {
-    const one = run(["--uid", "dad", "--json"]);
+    const one = run(["--uid", "mom", "--json"]);
     expect(one.status).toBe(0);
-    const parsed = JSON.parse(one.stdout) as {
+    const [parsed] = JSON.parse(one.stdout) as {
       uid: string;
       updatedAt: number;
       snapshot: { at: string };
       events: { at: string; code: string }[];
-    };
-    expect(parsed.uid).toBe("dad");
-    expect(parsed.updatedAt).toBe(Date.parse(at));
-    expect(parsed.snapshot.at).toBe(at);
-    expect(parsed.events[0]?.code).toBe("tier.buy");
-    expect(parsed.events[0]?.at).toBe("2026-01-02T03:00:00.000Z");
+    }[];
+    // Always a list, even for a player with one log.
+    expect(parsed?.uid).toBe("mom");
+    expect(parsed?.updatedAt).toBe(Date.parse(at));
+    expect(parsed?.snapshot.at).toBe(at);
+    expect(parsed?.events).toEqual([]);
+
+    const several = JSON.parse(run(["dad", "--json"]).stdout) as {
+      device: string | null;
+      events: { at: string; code: string }[];
+    }[];
+    expect(several.map((row) => row.device)).toEqual([null, "phone-device-01"]);
+    expect(several[0]?.events[0]?.code).toBe("tier.buy");
+    expect(several[0]?.events[0]?.at).toBe("2026-01-02T03:00:00.000Z");
 
     const list = run(["--json"]);
     expect(list.status).toBe(0);
     const rows = JSON.parse(list.stdout) as { uid: string }[];
-    expect(rows.map((row) => row.uid)).toEqual(["dad", "mom"]);
+    expect(rows.map((row) => row.uid)).toEqual(["dad", "dad", "kid", "mom"]);
   });
 
   it("exits when that player has no field log", () => {

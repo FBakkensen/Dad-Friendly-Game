@@ -23,6 +23,7 @@ import {
   type FieldLogDocument,
 } from "./field-log";
 import { ARCHIVE_REASONS } from "./cloud-save";
+import { DEVICE_ID_MAX } from "./device-id";
 import { createMountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import type { SavedMountain } from "./save-format";
@@ -178,6 +179,14 @@ describe("firestore.rules match the game", () => {
     expect(block).toContain("allow read: if isOwner(userId)");
     expect(block).toContain("isFieldLog(request.resource.data)");
     expect(block).toContain("allow delete: if false");
+    const device =
+      /match \/fieldLogs\/\{userId\}\/devices\/\{deviceId\} \{([\s\S]*?)\n {4}\}/.exec(
+        rules,
+      )?.[1] ?? "";
+    expect(device).toContain("allow read: if isOwner(userId)");
+    expect(device).toContain("isFieldLog(request.resource.data)");
+    expect(device).toContain(`deviceId.size() <= ${String(DEVICE_ID_MAX)}`);
+    expect(device).toContain("allow delete: if false");
   });
 
   it("takes every reason a copy is archived for (#480)", () => {

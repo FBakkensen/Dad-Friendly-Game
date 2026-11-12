@@ -1,4 +1,5 @@
 import { BOOSTS, type BoostId } from "./boosts";
+import { DEVICE_ID_MAX } from "./device-id";
 import type { MoveEvent } from "./economy/actions";
 import { ENGINEER_NAMES, onDuty } from "./engineers";
 import type { Mountain } from "./mountain";
@@ -14,7 +15,7 @@ export const FIELD_STONES_CAP = 1_000_000_000_000_000;
 /**
  * A snapshot and a short event ring Flemming and Grok Bot can read without
  * screenshots. The ring is not a mountain save field. Signed-in games copy it
- * to `fieldLogs/{uid}`. Nothing here is personal (no email, display name, or uid).
+ * to this device's `fieldLogs/{uid}/devices/{deviceId}` (#485). Nothing here is personal (no email, display name, or uid).
  */
 
 /** Named in every snapshot. The package is not published, so this is the stamp. */
@@ -30,7 +31,7 @@ export const FIELD_LOG_COPY_COUNT = 50;
 export const FIELD_LOG_WRITE_GAP_MS = 5 * 60 * 1000;
 
 /**
- * Firestore document ceiling for `fieldLogs/{uid}`. Rules cap every string and
+ * Firestore document ceiling for a device's field log. Rules cap every string and
  * the event list so a document cannot reach this (see `maxFieldLogDocumentBytes`).
  */
 export const FIELD_LOG_MAX_BYTES = 50 * 1024;
@@ -115,7 +116,7 @@ export type FieldLog = {
   readonly events: readonly FieldEvent[];
 };
 
-/** The `fieldLogs/{uid}` document. `updatedAt` is epoch milliseconds. */
+/** A device's field log document (`fieldLogs/{uid}/devices/{deviceId}`). `updatedAt` is epoch milliseconds. */
 export type FieldLogDocument = {
   readonly snapshot: FieldSnapshot;
   readonly events: readonly FieldEvent[];
@@ -401,12 +402,21 @@ function valueSize(value: unknown): number {
   throw new Error("unsupported field log value");
 }
 
-/** Bytes `fieldLogs/{uid}` would use. The uid is padded to the Auth maximum. */
+/**
+ * Bytes this device's `fieldLogs/{uid}/devices/{deviceId}` would use (#485).
+ * The uid is padded to the Auth maximum, the device id to its own.
+ */
 export function fieldLogDocumentBytes(
   log: FieldLogDocument,
   uidLength = 128,
 ): number {
-  return storedDocumentBytes(["fieldLogs", "u".repeat(uidLength)], {
+  const path = [
+    "fieldLogs",
+    "u".repeat(uidLength),
+    "devices",
+    "d".repeat(DEVICE_ID_MAX),
+  ];
+  return storedDocumentBytes(path, {
     snapshot: log.snapshot,
     events: [...log.events],
     updatedAt: log.updatedAt,
