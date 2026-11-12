@@ -377,6 +377,22 @@ describe("createMachineBays", () => {
     );
   });
 
+  it("puts a sub-line's figures in b.board-fig, so the numbers lead (#506)", () => {
+    const { bays } = make();
+    bays.render(early(), "");
+    const figures = (i: number): (string | null)[] =>
+      [...bay(bays, i).querySelectorAll(".board-bay-sub b.board-fig")].map(
+        (b) => b.textContent,
+      );
+    expect(figures(0)).toEqual(["+12/s", "1"]);
+    expect(figures(2)).toEqual(["10M"]);
+    bays.render([troubled("cart"), drill(), lockedBorer], "");
+    expect(figures(0)).toEqual([]);
+    expect(q(bay(bays, 0), ".board-bay-sub").textContent).toBe(
+      "Cave-in! · Hold to fix",
+    );
+  });
+
   it("shortens a name that does not fit", () => {
     const bays = createMachineBays({
       ...wiring(),

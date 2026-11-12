@@ -391,33 +391,44 @@ describe("board.css", () => {
     ).toMatch(/font-size:\s*var\(--board-type-13\)/);
   });
 
-  it("keeps a relic-locked bay's line at 13px and the board's weight, so it is never cut (#505)", () => {
+  it("keeps a relic-locked bay's line at 13px, so it is never cut (#505)", () => {
     const line = declared('.board-bay[data-lock="relic"] .board-bay-sub');
     expect(line).toMatch(/font-size:\s*var\(--board-type-13\)/);
-    expect(line).toMatch(/font-weight:\s*inherit/);
   });
 
   it("keeps a post's sentence on an engineer's page the quiet 13px line (#505)", () => {
     const post = declared(".engineer-post .board-row-info");
     expect(post).toMatch(/font-size:\s*var\(--board-type-13\)/);
-    expect(post).toMatch(/font-weight:\s*inherit/);
-    expect(post).toMatch(/color:\s*var\(--board-ink-2\)/);
+    expect(post).toMatch(/line-height:\s*var\(--board-row-line-lead\)/);
   });
 
-  it("sets the rate and effect lines at 15px, semi-bold, in the bright ink (#505)", () => {
+  it("sets the rate and effect lines at 15px, their words quiet and their figures bright and bold (#505, #506)", () => {
     for (const line of [".board-bay-sub", ".board-row-info"]) {
       expect(declared(line)).toMatch(/font-size:\s*var\(--board-type-15\)/);
-      expect(declared(line)).toMatch(
+      expect(declared(line)).toMatch(/color:\s*var\(--board-ink-2\)/);
+      expect(declared(line)).not.toMatch(/font-weight/);
+    }
+    expect(declared(".board-fig")).toMatch(/font-weight:\s*700/);
+    expect(declared(".board-fig")).toMatch(/color:\s*var\(--board-ink-bare\)/);
+    // Trouble has no figure, so the whole shout stays bright and semi-bold.
+    for (const shout of [
+      ".board-bay[data-trouble] .board-bay-sub",
+      ".board-row.is-trouble .board-row-info",
+    ]) {
+      expect(declared(shout)).toMatch(
         /font-weight:\s*var\(--board-weight-semi\)/,
       );
-      expect(declared(line)).toMatch(/color:\s*var\(--board-ink\);/);
+      expect(declared(shout)).toMatch(/color:\s*var\(--board-ink\);/);
     }
-    // A shortfall keeps its rust, at the same size and weight.
+    // A shortfall keeps its rust, semi-bold at the same size.
     expect(declared(".board-row-need")).toMatch(
       /font-size:\s*var\(--board-type-15\)/,
     );
+    expect(declared(".board-row-need")).toMatch(
+      /font-weight:\s*var\(--board-weight-semi\)/,
+    );
     expect(declared(".board-row-need")).toMatch(/color:\s*var\(--board-rust\)/);
-    // The flavour line stays quiet, so the figures above it lead.
+    // The flavour line stays small, so the figures above it lead.
     expect(declared(".board-row-why")).toMatch(
       /font-size:\s*var\(--board-type-13\)/,
     );

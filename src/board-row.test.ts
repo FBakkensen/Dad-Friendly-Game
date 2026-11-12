@@ -239,6 +239,26 @@ describe("the drawer row", () => {
       expect((row.root as HTMLButtonElement).disabled).toBe(false);
     });
 
+    it("puts the info line's figures in b.board-fig, and no other line's (#506)", () => {
+      const row = make();
+      limit = 40;
+      row.render(
+        ready({ need: "Needs 8 workers", flag: ["Ada +86/s"], gain: "+12/s" }),
+        still,
+      );
+      expect(
+        [...row.root.querySelectorAll("b.board-fig")].map((b) => [
+          b.parentElement?.className,
+          b.textContent,
+        ]),
+      ).toEqual([
+        ["board-row-info", "12"],
+        ["board-row-info", "13"],
+        ["board-row-info", "2"],
+      ]);
+      expect(text(row, ".board-row-info")).toBe("12 owned · 13 more for x2");
+    });
+
     it("an amber pick lights amber and reads as the pick", () => {
       const row = make();
       row.render(

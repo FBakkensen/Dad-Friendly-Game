@@ -1,12 +1,14 @@
 import {
   el,
   fitFirst,
+  fitsBox,
   frameX,
   hide,
   mark,
   refitAll,
   setAttr,
   write,
+  writeFigures,
 } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import {
@@ -189,16 +191,20 @@ function buildRowParts({
 
 type Fits = ((box: HTMLElement) => boolean) | undefined;
 
-/** A line fitted to the first option that fits; hidden when every option is empty. */
+/**
+ * A line fitted to the first option that fits; hidden when every option is empty. `put` writes
+ * an option (the info line's figures, #506).
+ */
 function fitLine(
   target: HTMLElement,
   options: readonly string[],
   fits: Fits,
+  put?: (target: HTMLElement, text: string) => void,
 ): void {
   const empty = options.every((option) => option === "");
   // Shown before fitting, so a kept fit is measured on a laid-out box.
   hide(target, empty);
-  fitFirst(target, empty ? [] : options, fits);
+  fitFirst(target, empty ? [] : options, fits, put);
 }
 
 function setLabel(parts: RowParts, label: string): void {
@@ -268,7 +274,7 @@ function paintRow(
 ): void {
   const held = view !== undefined && live.held;
   const blink = view === undefined ? undefined : live.blink;
-  fitLine(parts.info, view?.info ?? [], fits);
+  fitLine(parts.info, view?.info ?? [], fits ?? fitsBox, writeFigures);
   line(parts.gain, view?.gain ?? "");
   if (held) {
     paintDone(parts, fits);

@@ -3,7 +3,16 @@ import tarpUrl from "./assets/board/mach-borer-tarp.png";
 import borerUrl from "./assets/board/mach-borer.png";
 import cartUrl from "./assets/board/mach-cart.png";
 import machineUrl from "./assets/board/mach-machine.png";
-import { el, fitsWidth, frameX, hide, mark, setAttr, write } from "./board-dom";
+import {
+  el,
+  fitsWidth,
+  frameX,
+  hide,
+  mark,
+  setAttr,
+  write,
+  writeFigures,
+} from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { controlKey, type ControlRef } from "./board-interaction";
 import type { BoardNote } from "./board-note";
@@ -532,11 +541,12 @@ function createBayFit(fits: (el: HTMLElement) => boolean): BayFit {
       if (sub === undefined) {
         return true;
       }
-      sub.textContent = text;
+      // Measured as it is drawn: the figures are bolder than the words (#506).
+      writeFigures(sub, text);
       return fits(sub);
     });
     drawn.forEach(([bay], b) => {
-      write(bay.sub, pattern[b] ?? "");
+      writeFigures(bay.sub, pattern[b] ?? "");
     });
     fittedSubs = drawn.every(([bay]) => measurable(bay.sub)) ? subKey : "";
   };
