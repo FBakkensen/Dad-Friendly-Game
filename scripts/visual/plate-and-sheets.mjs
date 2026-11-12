@@ -42,7 +42,7 @@ async function shelfCentre(page) {
     const winBox = win.getBoundingClientRect();
     const mid = (box.left + box.right) / 2;
     const view = (board.left + board.right) / 2;
-    // In board px, so a PC fit reads the same as the phone.
+    // In board px, so a scaled board reads the same as the phone.
     const delta = (mid - view) / board.scale;
     const spanLeft = (rowBox.left - board.left) / board.scale;
     const spanRight = (board.right - rowBox.right) / board.scale;
@@ -119,7 +119,7 @@ async function sheetEdges(page, name) {
       ...headParts.map((node) => node.getBoundingClientRect().bottom),
     );
     const portTop = element.getBoundingClientRect();
-    // Gaps in board px, so a PC fit reads the same as the phone.
+    // Gaps in board px, so a scaled board reads the same as the phone.
     const topGap = (firstBox.top - headBottom) / scale;
     const lastEl = cards().at(-1);
     element.scrollTop = element.scrollHeight;
@@ -283,7 +283,7 @@ table({
 
 // Long Buys and Upgrades lists. The first card clears the header, the last
 // card clears the footer, and the sheet stays below the odometer.
-const SHEET_SHOTS = new Set(["424x924", "1366x768"]);
+const SHEET_SHOTS = new Set(["424x924"]);
 /** Each long drawer, scrolled to both ends; then the page after both. */
 const SHEET_ROWS = [
   ...["buys", "upgrades"].map((name) => ({

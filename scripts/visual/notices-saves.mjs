@@ -14,7 +14,6 @@ import { failures, check, section, table } from "./registry.mjs";
 import {
   BASE,
   PHONE,
-  PCS,
   press,
   cardRisen,
   PAST_SETTLE_MS,
@@ -912,5 +911,5 @@ const cardTable = (screens, scenarios) =>
     ],
   });
 
-cardTable([PHONE, ...PCS], CARD_SCENARIOS);
+cardTable([PHONE], CARD_SCENARIOS);
 cardTable([PHONE], OTHER_TAB_SCENARIOS);

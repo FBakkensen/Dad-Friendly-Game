@@ -21,7 +21,7 @@ import {
 import { boardTextSizes, boardArtAt2x, boardContrast } from "./measure.mjs";
 
 // Keys and drawers (#373): the key rail and the Buys and Upgrades drawers, at
-// the phone and the three PC sizes. The rail: five keys at the mockup's x
+// the phone. The rail: five keys at the mockup's x
 // (16 + 80i) and top 768, caps, icons and dots at exactly 2x, names and
 // sub-lines at 13px and 4.5:1, each key's lock, lit cap, dot and timer as
 // key-rail.ts says, and the rail's foot 8px above the save line. Each drawer,

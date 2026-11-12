@@ -10,7 +10,6 @@ import { table } from "./registry.mjs";
 import {
   PHONE,
   SCREENS,
-  isDesk,
   press,
   SHELF_KEY,
   openScreen,
@@ -27,11 +26,10 @@ import {
   boardTextSizes,
   boardArtAt2x,
   boardContrast,
-  deskFacts,
 } from "./measure.mjs";
 
 // The board itself (#370): the relic plate, the stock row, the save line and
-// its drawer, at the phone and the three PC sizes, on a fresh save, a mid save,
+// its drawer, at the phone, on a fresh save, a mid save,
 // one with Overtime running, and the save line in its error words.
 const BOARD_SAVES = [
   { name: "fresh", save: () => freshMountain(), search: "" },
@@ -153,7 +151,7 @@ async function noteInside(page) {
 }
 
 /** The board's controls in every state it was read in, against the bars. */
-function targetChecks({ seen, drawerTargets, desk }) {
+function targetChecks({ seen, drawerTargets }) {
   const { rest, keyTargets, keyShown } = seen;
   const targets = [
     ...rest.own,
@@ -175,17 +173,6 @@ function targetChecks({ seen, drawerTargets, desk }) {
       ].map((pair) => [`${pair.a}|${pair.b}`, pair]),
     ).values(),
   ];
-  // On a PC, say how big the smallest control is drawn on the desk.
-  const smallest = targets.reduce(
-    (least, target) =>
-      Math.min(...target.rendered) < Math.min(...least.rendered)
-        ? target
-        : least,
-    targets[0] ?? { rendered: [0, 0] },
-  );
-  const rendered = desk
-    ? ` (smallest drawn ${smallest.rendered.map((side) => side.toFixed(1)).join("x")})`
-    : "";
   const ok =
     // The top's, the window, three bays, the plate and the red button.
     rest.own.length >= 14 &&
@@ -194,35 +181,7 @@ function targetChecks({ seen, drawerTargets, desk }) {
     drawerTargets.own.length >= 3 &&
     under.length === 0 &&
     close8.length === 0;
-  return { ok, rendered, under, close8 };
-}
-
-/** The phone: no body.desk, no housing shown, and nothing behind the board but the night. */
-function offTheDesk(facts) {
-  return (
-    !facts.desk && facts.housing.display === "none" && facts.bg.image === "none"
-  );
-}
-
-/**
- * A PC: the housing shows, painted, the board's box grown by 8 board px a side (within 1px),
- * and the body's background is the pool over the desk tile, both at exactly 2x.
- */
-function onTheDesk(facts) {
-  const lip = 8 * facts.board.scale;
-  const sides = facts.lip === null ? [] : Object.values(facts.lip);
-  const layers = facts.bg.image.split(/,\s*(?=url\()/);
-  return (
-    facts.desk &&
-    facts.housing.display === "block" &&
-    facts.housing.skin > 0 &&
-    sides.length === 4 &&
-    sides.every((side) => Math.abs(side - lip) <= 1) &&
-    layers.length === 2 &&
-    /desk-pool[^/]*\.png/.test(layers[0] ?? "") &&
-    /\/desk(?!-pool)[^/]*\.png/.test(layers[1] ?? "") &&
-    facts.bg.size === "680px 960px, 256px 192px"
-  );
+  return { ok, under, close8 };
 }
 
 const BOARD_EXPECT = [
@@ -293,7 +252,7 @@ const BOARD_EXPECT = [
     },
   },
   {
-    run: async ({ page, size, scenario, seen, viewport }) => {
+    run: async ({ page, size, scenario, seen }) => {
       const drawer = await saveDrawerFacts(page);
       if (!drawer.ok) {
         console.log(
@@ -306,11 +265,7 @@ const BOARD_EXPECT = [
       const still = await noScroll(page);
       // Targets with the drawer open: its buttons and the save line.
       const drawerTargets = await boardTargets(page);
-      const targets = targetChecks({
-        seen,
-        drawerTargets,
-        desk: isDesk(viewport),
-      });
+      const targets = targetChecks({ seen, drawerTargets });
       if (targets.under.length > 0 || targets.close8.length > 0) {
         console.log(
           "board targets",
@@ -333,10 +288,7 @@ const BOARD_EXPECT = [
       return [
         [drawer.ok, "the save drawer opens and leaves the save line visible"],
         [still, "no page scroll with the drawer open"],
-        [
-          targets.ok,
-          `controls are 48x48 board px, 8px from the next${targets.rendered}`,
-        ],
+        [targets.ok, "controls are 48x48 board px, 8px from the next"],
       ];
     },
   },
@@ -377,25 +329,6 @@ const BOARD_EXPECT = [
         [
           misses.length === 0 && noteArt.count >= 8,
           `${String((keyArt?.count ?? 0) + noteArt.count + drawerArt.count)} images, sprites and skins at exactly 2x`,
-        ],
-      ];
-    },
-  },
-  {
-    // The PC desk (#376): on a PC the board sits in its housing, 8 board px round it, on the
-    // desk and its pool at exactly 2x; the phone has neither.
-    run: async ({ page, viewport, size, scenario }) => {
-      const facts = await deskFacts(page);
-      const ok = isDesk(viewport) ? onTheDesk(facts) : offTheDesk(facts);
-      if (!ok) {
-        console.log("board desk", size, scenario.name, JSON.stringify(facts));
-      }
-      return [
-        [
-          ok,
-          isDesk(viewport)
-            ? "the board sits in its housing on the desk, the desk at 2x"
-            : "no desk or housing on the phone",
         ],
       ];
     },

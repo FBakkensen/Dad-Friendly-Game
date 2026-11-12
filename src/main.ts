@@ -15,7 +15,6 @@ import { createAppServices, parseBootOptions } from "./boot";
 import { mountMountainScreen, showAppUpdate } from "./mountain-screen";
 import { registerServiceWorker } from "./pwa";
 import { trackBoardFit } from "./board-fit";
-import { mountHousing } from "./board-housing";
 import { bindWriterPageHide } from "./tab-writer";
 import "./tokens.css";
 import "./board.css";
@@ -65,7 +64,6 @@ try {
   }
   // Reload fires pagehide. A back/forward-cache restore fires pageshow.
   bindWriterPageHide(tabWriter);
-  mountHousing();
   trackBoardFit();
   void registerServiceWorker({
     onUpdate: () => {

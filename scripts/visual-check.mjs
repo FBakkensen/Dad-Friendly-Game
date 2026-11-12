@@ -2,7 +2,7 @@
 /**
  * Real-browser layout guard (jsdom can't see CSS). Run it with:
  *   npm run visual   (starts its own dev server; part of npm run check)
- * Fails if the board scrolls at the phone (424x924) or a PC size, if an
+ * Fails if the board scrolls at the phone (424x924), if an
  * overlay isn't laid over the board, or if the board's own parts miss their
  * bars (targets, type, contrast, exact 2x art) (#370).
  * The sections live in scripts/visual/, one module per component of the board. Importing
