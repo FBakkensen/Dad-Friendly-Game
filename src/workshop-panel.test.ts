@@ -12,6 +12,7 @@ import {
   tileUrl,
 } from "./mountain-screen.harness";
 import { writeSessionSave } from "./session-save";
+import { SOUND_KEY } from "./sound";
 import {
   recipesForMined,
   type RecipeId,
@@ -73,10 +74,14 @@ function mount(
   {
     now = () => CLOCK,
     tapClock,
-  }: { now?: () => number; tapClock?: () => number } = {},
+    sound = false,
+  }: { now?: () => number; tapClock?: () => number; sound?: boolean } = {},
 ): Screen {
   const storage = createMemoryStorage();
   writeSessionSave({ storage, mountain, lastSeen: now() });
+  if (sound) {
+    storage.setItem(SOUND_KEY, "on");
+  }
   const screen = mountScreen({
     storage,
     now,
@@ -447,7 +452,7 @@ describe("the Workshop drawer (#374)", () => {
     ).toBe(false);
   });
 
-  it("sound: the key flips, and a craft knocks the hammer once it is on", () => {
+  it("sound: no key of its own; a craft knocks only while the Ledger's Sound is on (#491)", () => {
     const started: number[] = [];
     class FakeAudio {
       readonly sampleRate = 8_000;
@@ -476,21 +481,43 @@ describe("the Workshop drawer (#374)", () => {
     window.AudioContext = FakeAudio as unknown as typeof window.AudioContext;
     try {
       let clock = 10_000;
-      const screen = mount(rich(), { tapClock: () => clock });
-      keyOf(screen, "workshop").click();
+      const quiet = mount(rich(), { tapClock: () => clock });
+      keyOf(quiet, "workshop").click();
       clock += PAST_SETTLE;
-      const sound = drawerOf(screen).querySelector<HTMLButtonElement>(
-        ".board-sheet-head .workshop-sound",
+      expect(drawerOf(quiet).querySelector(".sound-key")).toBeNull();
+      pageTo(quiet, "axle-grease").click();
+      expect(quiet.progress.getSnapshot().mountain.bench?.recipe).toBe(
+        "axle-grease",
       );
-      expect(sound?.getAttribute("aria-pressed")).toBe("false");
-      expect(sound?.getAttribute("aria-label")).toBe("Sound is off");
-      sound?.click();
-      expect(sound?.getAttribute("aria-pressed")).toBe("true");
-      expect(sound?.getAttribute("aria-label")).toBe("Sound is on");
-      expect(sound?.textContent).toBe("Sound");
+      expect(started).toHaveLength(0);
+      quiet.root.remove();
+
+      const loud = mount(rich(), { tapClock: () => clock, sound: true });
+      keyOf(loud, "workshop").click();
+      clock += PAST_SETTLE;
+      pageTo(loud, "axle-grease").click();
       expect(started).toHaveLength(1);
-      pageTo(screen, "axle-grease").click();
+      loud.root.remove();
+
+      // One screen: the Ledger's key turns it on (one knock), and the Workshop's craft hears it.
+      const turned = mount(rich(), { tapClock: () => clock });
+      keyOf(turned, "ledger").click();
+      clock += PAST_SETTLE;
+      turned.root
+        .querySelector<HTMLButtonElement>(
+          '.board-sheet[data-sheet="ledger"] .sound-key',
+        )
+        ?.click();
       expect(started).toHaveLength(2);
+      escape();
+      clock += PAST_SETTLE;
+      keyOf(turned, "workshop").click();
+      clock += PAST_SETTLE;
+      pageTo(turned, "axle-grease").click();
+      expect(turned.progress.getSnapshot().mountain.bench?.recipe).toBe(
+        "axle-grease",
+      );
+      expect(started).toHaveLength(3);
     } finally {
       window.AudioContext = previous;
     }

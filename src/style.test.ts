@@ -70,7 +70,7 @@ const BOARD_SELECTORS = [
   ".relic-keepsake-story",
   ".workshop-timers",
   ".workshop-pager",
-  ".workshop-sound",
+  ".sound-key",
   ".board-card",
   ".board-card-face",
   ".board-card-title",

@@ -2193,7 +2193,7 @@ button.board-row:focus-visible {
   grid-column: 3;
 }
 
-/* Every head key lays out by one rule: Buys' amount, the Workshop's sound (#374). */
+/* Every head key lays out by one rule: Buys' amount, the Ledger's Sound (#374, #491). */
 .board-sheet-head > .board-sheet-key {
   grid-column: 2;
   grid-row: 1 / span 2;
@@ -2205,6 +2205,13 @@ button.board-row:focus-visible {
   width: calc(var(--art) * 36);
   height: calc(var(--art) * 24);
   font-size: var(--board-type-20);
+  text-transform: none;
+}
+
+.sound-key.board-sheet-key {
+  width: calc(var(--art) * 36);
+  height: calc(var(--art) * 24);
+  font-size: var(--board-type-16);
   text-transform: none;
 }
 
@@ -2635,13 +2642,6 @@ button.board-row:focus-visible {
 
 .workshop-pager > .workshop-more {
   grid-column: 2;
-}
-
-.workshop-sound.board-sheet-key {
-  width: calc(var(--art) * 36);
-  height: calc(var(--art) * 24);
-  font-size: var(--board-type-16);
-  text-transform: none;
 }
 
 .workshop-mats > [hidden],

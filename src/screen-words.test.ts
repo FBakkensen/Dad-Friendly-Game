@@ -80,8 +80,8 @@ import {
   WORKSHOP_EARLIER,
   WORKSHOP_FREE_ASIDE,
   WORKSHOP_MORE,
-  WORKSHOP_QUIET,
-  WORKSHOP_SOUND,
+  SOUND_QUIET,
+  SOUND_ON,
   WORKSHOP_TITLE,
   broughtHomeNames,
   benchBusyWords,
@@ -684,8 +684,8 @@ describe("workshop sheet copy (#199)", () => {
     );
     const lines = [
       WORKSHOP_FREE_ASIDE,
-      WORKSHOP_QUIET,
-      WORKSHOP_SOUND,
+      SOUND_QUIET,
+      SOUND_ON,
       WORKSHOP_EARLIER,
       WORKSHOP_MORE,
       UNFOUND_DEEPER,
