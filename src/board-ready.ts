@@ -17,6 +17,7 @@ import { pressLook, pressOnBoard } from "./card-tap";
 import { onFontsSettled } from "./fit-cache";
 import { reducedMotion } from "./float-text";
 import { etaShort, formatCompact, formatCount } from "./format";
+import type { TendTier } from "./rates";
 import type { ReadyPick, ReadyTier } from "./ready-now";
 import { formatSpeed } from "./screen-words";
 
@@ -85,9 +86,29 @@ const AT_WORK: Readonly<Record<ReadyTier, (count: string) => string>> = {
   helper: (n) => `Worker ${n} is on the crew`,
 };
 
+/** The idle machine a hired worker starts (#490). */
+const STARTS: Readonly<Record<TendTier, string>> = {
+  cart: "starts an idle cart",
+  drill: "starts an idle drill",
+  borer: "starts an idle borer",
+  machine: "starts an idle Great Machine",
+};
+
 const MINED_OUT = "The mountain is mined out";
 
 const gainText = (gain: number): string => `+${formatSpeed(gain)}/s`;
+
+/** Why the plate offers a ready pick: the free hands that can run it, or what a worker starts. */
+function readyReason(pick: Extract<ReadyPick, { kind: "ready" }>): string {
+  if (pick.tier === "helper") {
+    return pick.starts === undefined
+      ? "every hand is busy"
+      : STARTS[pick.starts];
+  }
+  return pick.free === 1
+    ? "your free worker can run it"
+    : `${formatCount(pick.free)} free workers can run it`;
+}
 
 /** The plate's words for a pick: buy it now, save for it, or nothing left to dig. */
 export function readyWords(pick: ReadyPick): ReadyWords {
@@ -105,12 +126,7 @@ export function readyWords(pick: ReadyPick): ReadyWords {
   const p = formatCompact(pick.price);
   if (pick.kind === "ready") {
     const verb = pick.tier === "helper" ? "Hire a worker" : `Buy ${n}`;
-    const reason =
-      pick.tier === "helper"
-        ? "every hand is busy"
-        : pick.free === 1
-          ? "your free worker can run it"
-          : `${formatCount(pick.free)} free workers can run it`;
+    const reason = readyReason(pick);
     const main = [`${verb} · ${p}`, verb];
     const why = [`${g} · ${reason}`, g];
     return {

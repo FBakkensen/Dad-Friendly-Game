@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import type { Trouble } from "./hazards";
 import { createMountain, stonesPerSecond, type Mountain } from "./mountain";
-import { effectiveRates } from "./rates";
+import { effectiveRates, handsGain } from "./rates";
 import { readyNow } from "./ready-now";
 import { MOUNTAIN_STONES } from "./scale";
 import { tierById, tierCost, type TierId } from "./tiers";
@@ -156,6 +156,32 @@ describe("readyNow", () => {
         gain: effectiveRates(mountain, NOW).tierSpeed.helper,
         free: 0,
         etaMs: ((price - 5) / stonesPerSecond(mountain, NOW)) * 1000,
+      });
+    });
+  });
+
+  describe("a worker who starts an idle machine (#490)", () => {
+    it("adds the machine he starts, and names it", () => {
+      // 3 workers on 6 carts: no hand free, and the next one starts a cart.
+      const mountain = mountainWith({ helpers: 3, carts: 6, pocket: 1_000 });
+      const rates = effectiveRates(mountain, NOW);
+      expect(readyNow(mountain, NOW)).toEqual({
+        kind: "ready",
+        tier: "helper",
+        price: priceOf(mountain, "helper", 3),
+        gain: rates.tierSpeed.helper + rates.tierSpeed.cart,
+        free: 0,
+        starts: "cart",
+      });
+    });
+
+    it("saving for him reads the same gain", () => {
+      const mountain = mountainWith({ helpers: 3, carts: 6, pocket: 1 });
+      expect(readyNow(mountain, NOW)).toMatchObject({
+        kind: "saving",
+        tier: "helper",
+        gain: handsGain(mountain, "helper", 1, NOW),
+        starts: "cart",
       });
     });
   });

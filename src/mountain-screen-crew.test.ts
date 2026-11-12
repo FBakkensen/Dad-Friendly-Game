@@ -2903,7 +2903,8 @@ describe("crew staffing on screen", () => {
     });
     const screen = mountScreen({ storage });
     // 3 workers: both drills (1 each), then one cart; two carts idle.
-    expect(screen.text('.tier[data-tier="cart"] .board-row-gain')).toBe("+6/s");
+    // The cart's staffing New row hires a worker: his hand and the cart he starts (#490).
+    expect(screen.text('.tier[data-tier="cart"] .board-row-gain')).toBe("+7/s");
     expect(
       screen.root
         .querySelector('.tier[data-tier="cart"]')
@@ -2998,8 +2999,10 @@ describe("Flemming's cart (#216)", () => {
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
+    // Better boots makes him 2.4/s, and Helping hands makes the 13 carts 1% faster
+    // for him: the crew's rise (#490).
     expect(screen.text('.tier[data-tier="helper"] .board-row-gain')).toBe(
-      "+2.4/s",
+      "+3.9/s",
     );
     expect(screen.text('.tier[data-tier="cart"] .board-row-gain')).toBe(
       "+14/s",

@@ -4,7 +4,15 @@ import { TENDING_GAIN, TENDING_TENTHS, station } from "./engineers";
 import type { Trouble } from "./hazards";
 import { milestoneMultiplier } from "./milestones";
 import { holdForRush, startRush } from "./gold-rush";
-import { AWAY_PAY_RATE, effectiveRates, moveGain, tendingGain } from "./rates";
+import {
+  AWAY_PAY_RATE,
+  effectiveRates,
+  firstIdleTier,
+  handsGain,
+  moveGain,
+  startedTier,
+  tendingGain,
+} from "./rates";
 import { send } from "./expeditions";
 import { minedMountain } from "./test-fixtures";
 import { TIERS } from "./tiers";
@@ -345,6 +353,75 @@ describe("the Gold rush in the rates", () => {
   it("is ignored with no clock", () => {
     expect(effectiveRates(rushed).crewPerSecond).toBe(
       effectiveRates(crew).crewPerSecond,
+    );
+  });
+});
+
+describe("what more hands add (#490)", () => {
+  const base = (rates: ReturnType<typeof effectiveRates>): number =>
+    TIERS.reduce(
+      (total, tier) =>
+        total + rates.running[tier.id] * rates.tierSpeed[tier.id],
+      0,
+    );
+
+  it("a worker with nothing idle adds his own hands", () => {
+    const crew = { ...minedMountain(0), helpers: 6, carts: 6 };
+    expect(handsGain(crew, "helper", 1)).toBe(
+      effectiveRates(crew).tierSpeed.helper,
+    );
+    expect(startedTier(crew)).toBe(undefined);
+  });
+
+  it("a worker who starts an idle cart adds the cart too", () => {
+    const crew = { ...minedMountain(0), helpers: 3, carts: 6 };
+    const rates = effectiveRates(crew);
+    expect(handsGain(crew, "helper", 1)).toBe(
+      rates.tierSpeed.helper + rates.tierSpeed.cart,
+    );
+    expect(startedTier(crew)).toBe("cart");
+    expect(firstIdleTier(crew)).toBe("cart");
+  });
+
+  it("is the crew's own rise, before timers, for many hands and for kids", () => {
+    const crew = { ...minedMountain(0), helpers: 20, carts: 30, kids: 2 };
+    const timed = { ...crew, boosts: { ...NO_BOOSTS, overtime: 9e15 } };
+    for (const [tier, count] of [
+      ["helper", 10],
+      ["kid", 1],
+    ] as const) {
+      const more =
+        tier === "helper"
+          ? { ...crew, helpers: crew.helpers + count }
+          : { ...crew, kids: crew.kids + count };
+      const rise = base(effectiveRates(more)) - base(effectiveRates(crew));
+      expect(handsGain(crew, tier, count)).toBeCloseTo(rise, 9);
+      expect(handsGain(timed, tier, count)).toBeCloseTo(rise, 9);
+    }
+  });
+
+  it("never reads below zero when the eighth hand leaves faster drills for a borer", () => {
+    // 15 hands: one borer (8) and 7 drills. The 16th starts the second borer,
+    // and the 7 drills he leaves are each worth more than it (200 drills, every mark).
+    const crew = {
+      ...minedMountain(10_000_000),
+      helpers: 15,
+      drills: 200,
+      borers: 2,
+    };
+    const more = { ...crew, helpers: 16 };
+    expect(effectiveRates(more).running.borer).toBe(2);
+    expect(base(effectiveRates(more))).toBeLessThan(base(effectiveRates(crew)));
+    expect(startedTier(crew)).toBe("borer");
+    expect(handsGain(crew, "helper", 1)).toBe(0);
+  });
+
+  it("one worker short of a borer's eight starts nothing yet", () => {
+    const crew = { ...minedMountain(10_000_000), helpers: 6, borers: 1 };
+    expect(startedTier(crew)).toBe(undefined);
+    expect(firstIdleTier(crew)).toBe("borer");
+    expect(handsGain(crew, "helper", 1)).toBe(
+      effectiveRates(crew).tierSpeed.helper,
     );
   });
 });

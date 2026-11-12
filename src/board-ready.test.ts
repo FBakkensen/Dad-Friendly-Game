@@ -94,6 +94,31 @@ describe("readyWords", () => {
     expect(words.why[0]).toBe("+1/s · every hand is busy");
   });
 
+  it("says which idle machine the worker starts (#490)", () => {
+    const hire = {
+      kind: "ready",
+      tier: "helper",
+      price: 660,
+      gain: 24.4,
+      free: 0,
+    } as const;
+    expect(readyWords({ ...hire, starts: "cart" }).why[0]).toBe(
+      "+24/s · starts an idle cart",
+    );
+    expect(readyWords({ ...hire, starts: "drill" }).why[0]).toBe(
+      "+24/s · starts an idle drill",
+    );
+    expect(readyWords({ ...hire, starts: "borer" }).why[0]).toBe(
+      "+24/s · starts an idle borer",
+    );
+    expect(readyWords({ ...hire, starts: "machine" }).why[0]).toBe(
+      "+24/s · starts an idle Great Machine",
+    );
+    expect(readyWords({ ...hire, starts: "cart" }).aria).toBe(
+      "Ready now: Hire a worker · 660, +24/s · starts an idle cart",
+    );
+  });
+
   it("names the Great Machine and prices it compactly", () => {
     const words = readyWords({
       kind: "ready",
