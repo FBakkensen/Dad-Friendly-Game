@@ -1756,10 +1756,17 @@ body {
   color: var(--board-ink);
 }
 
-/* Three flaps leave the words 100px, and the trouble shout has no shorter
-   wording to fall back to: it keeps the old 13px there, so it is never cut. */
-.board-bay.is-three[data-trouble] .board-bay-sub {
+/* Two lines have no shorter wording to fall back to, so they keep the old
+   13px and are never cut: the trouble shout in a three-flap bay's 100px, and
+   a relic's lock line (`With the Hammer at 49.3M`), which also keeps the
+   board's weight. */
+.board-bay.is-three[data-trouble] .board-bay-sub,
+.board-bay[data-lock="relic"] .board-bay-sub {
   font-size: var(--board-type-13);
+}
+
+.board-bay[data-lock="relic"] .board-bay-sub {
+  font-weight: inherit;
 }
 
 /* The flap counter: flip-counter.png's left cap (columns 0-5), a window

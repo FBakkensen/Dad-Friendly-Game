@@ -443,6 +443,7 @@ function paintLoading(bay: Bay, i: number, drill: Drill): void {
   setAttr(bay.button, "data-tier", tier);
   drill.place(bay, iconKey(tier, 0));
   setAttr(bay.button, "data-trouble", undefined);
+  setAttr(bay.button, "data-lock", undefined);
   if (!bay.button.disabled) {
     bay.button.disabled = true;
   }
@@ -466,6 +467,12 @@ function paintBay(bay: Bay, view: BayView, drill: Drill): void {
     bay.button,
     "data-trouble",
     view.kind === "trouble" ? view.trouble : undefined,
+  );
+  // What a locked bay waits for: a relic's line is longer and keeps the small type.
+  setAttr(
+    bay.button,
+    "data-lock",
+    view.kind === "locked" ? view.lock.kind : undefined,
   );
   if (bay.button.disabled) {
     bay.button.disabled = false;

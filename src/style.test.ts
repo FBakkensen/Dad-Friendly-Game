@@ -391,6 +391,12 @@ describe("board.css", () => {
     ).toMatch(/font-size:\s*var\(--board-type-13\)/);
   });
 
+  it("keeps a relic-locked bay's line at 13px and the board's weight, so it is never cut (#505)", () => {
+    const line = declared('.board-bay[data-lock="relic"] .board-bay-sub');
+    expect(line).toMatch(/font-size:\s*var\(--board-type-13\)/);
+    expect(line).toMatch(/font-weight:\s*inherit/);
+  });
+
   it("keeps a post's sentence on an engineer's page the quiet 13px line (#505)", () => {
     const post = declared(".engineer-post .board-row-info");
     expect(post).toMatch(/font-size:\s*var\(--board-type-13\)/);

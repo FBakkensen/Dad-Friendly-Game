@@ -771,8 +771,40 @@ for (const viewport of SCREENS) {
         sub !== null && sub.text.endsWith("Hold to fix") && !sub.cut,
         `${label} a troubled three-flap bay shows Hold to fix whole`,
       );
-      if (sub === null || sub.cut) {
+      if (sub === null || sub.cut || !sub.text.endsWith("Hold to fix")) {
         console.log("three-flap trouble", size, sub);
+      }
+      await close();
+    }
+    // A Great Machine owned before the Hammer (a forced save): its bay is
+    // locked on the relic, and that longer line has no shorter wording (#505).
+    {
+      const open = openMountain();
+      const forced = {
+        ...open,
+        mountain: {
+          ...open.mountain,
+          remaining: 240_000_000 - 20_000_000,
+          machines: 1,
+        },
+      };
+      const { page, close } = await openScreen(viewport, forced, {
+        stopClock: true,
+      });
+      await baysDrawn(page);
+      const subs = await page.$$eval(".board-bay .board-bay-sub", (lines) =>
+        lines.map((line) => ({
+          text: line.textContent,
+          cut: line.scrollWidth > line.clientWidth + 1,
+        })),
+      );
+      const lock = subs.find((line) => line.text.startsWith("With the Hammer"));
+      check(
+        lock !== undefined && subs.every((line) => !line.cut),
+        `${label} a bay locked on the Hammer shows its line whole`,
+      );
+      if (lock === undefined || subs.some((line) => line.cut)) {
+        console.log("relic-locked bay", size, subs);
       }
       await close();
     }
