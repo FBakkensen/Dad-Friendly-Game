@@ -332,7 +332,7 @@ describe("side tunnels (#147)", () => {
     });
     const screen = mountScreen({ storage });
     expect(screen.text('.tier[data-tier="borer"] .board-row-flag')).toMatch(
-      /Ada tends · \+78\/s$/,
+      /Ada \+78\/s$/,
     );
     expect(
       screen.root
@@ -353,7 +353,7 @@ describe("side tunnels (#147)", () => {
     vi.advanceTimersByTime(1_900);
     vi.useRealTimers();
     expect(screen.text('.tier[data-tier="borer"] .board-row-flag')).toMatch(
-      /Ada tends · \+156\/s$/,
+      /Ada \+156\/s$/,
     );
     expect(page?.textContent).toContain("+156 stones/sec");
     screen.root
@@ -948,7 +948,7 @@ describe("sheet buys", () => {
     );
     // The drill's first owned-count mark shows as a plain goal (#252).
     expect(screen.text('.tier[data-tier="drill"] .board-row-info')).toMatch(
-      /^\d+ of 10 · Ten drills/,
+      /^\d+ of 10 · Every drill mines/,
     );
     expect(screen.text('.tier[data-tier="borer"] .board-row-info')).toMatch(
       /^0 of 5 · /,
@@ -1030,7 +1030,7 @@ describe("sheet buys", () => {
     expect(line("drill", ".board-row-verb")?.textContent).toBe("1 worker");
     expect(line("drill", ".board-row-info")?.hidden).toBe(false);
     expect(line("drill", ".board-row-info")?.textContent).toMatch(
-      /^2 of 10 · Ten drills/,
+      /^2 of 10 · Every drill mines/,
     );
     expect(line("machine", ".board-row-name")?.textContent).toBe(
       "Great Machine",

@@ -259,6 +259,52 @@ describe("the drawer row", () => {
       expect(text(row, ".board-row-info")).toBe("12 owned · 13 more for x2");
     });
 
+    describe("the info line's room (#506)", () => {
+      const roomy = (row: BoardRow): boolean =>
+        part(row, ".board-row-info").classList.contains("is-roomy");
+      /** Two lines hold 40 characters, one holds 16. */
+      const byRoom = (box: HTMLElement): boolean =>
+        box.textContent.length <=
+        (box.classList.contains("is-roomy") ? 40 : 16);
+
+      it("takes two lines when the row has no need and no why under it", () => {
+        const row = make();
+        row.render(ready(), still);
+        expect(roomy(row)).toBe(true);
+        row.render(ready({ need: "Needs 8 workers" }), still);
+        expect(roomy(row)).toBe(false);
+        row.render(ready({ why: "Hauls what the crew cut." }), still);
+        expect(roomy(row)).toBe(false);
+        row.render(undefined, still);
+        expect(roomy(row)).toBe(true);
+      });
+
+      it("fits the line again when its room changes, with the same options", () => {
+        const row = make({ fits: byRoom });
+        laidOut(row);
+        row.render(ready({ need: "Needs 8 workers" }), still);
+        expect(text(row, ".board-row-info")).toBe("12 owned");
+        row.render(ready(), still);
+        expect(text(row, ".board-row-info")).toBe("12 owned · 13 more for x2");
+        row.render(ready({ need: "Needs 8 workers" }), still);
+        expect(text(row, ".board-row-info")).toBe("12 owned");
+      });
+
+      it("a Done hold reads the room from the lines the row still shows", () => {
+        const row = make({ fits: byRoom });
+        laidOut(row);
+        row.render(ready({ need: "Needs 8 workers" }), still);
+        // The buy landed: the new view has no need, but Done keeps the row's words.
+        row.render(ready(), held);
+        expect(text(row, ".board-row-need")).toBe("Needs 8 workers");
+        expect(roomy(row)).toBe(false);
+        expect(text(row, ".board-row-info")).toBe("12 owned");
+        row.render(ready(), still);
+        expect(roomy(row)).toBe(true);
+        expect(text(row, ".board-row-info")).toBe("12 owned · 13 more for x2");
+      });
+    });
+
     it("an amber pick lights amber and reads as the pick", () => {
       const row = make();
       row.render(

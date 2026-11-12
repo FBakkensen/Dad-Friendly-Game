@@ -238,17 +238,18 @@ describe("buyRowView", () => {
     expect(mined.pick).toBe(false);
   });
 
-  it("the milestone line, then without its lead", () => {
+  it("the next mark's payoff, then the short payoff, then the progress alone (#506)", () => {
     const carts = mountainWith({ helpers: 12, carts: 12, pocket: 1e9 });
-    const [full, bare, ...rest] = row(carts, "cart").info;
-    expect(rest).toEqual([]);
-    expect(full).toMatch(new RegExp(`^${REACHED_LINE} 12 of 25 · `));
-    expect(bare).toBe(full?.slice(REACHED_LINE.length + 1));
-    expect(bare).toMatch(/^12 of 25 · /);
-
-    // Before the first mark there is no lead to drop.
+    // Past a mark the row no longer leads with the reached line: "again" says it.
+    expect(row(carts, "cart").info).toEqual([
+      "12 of 25 · Twice as fast again.",
+      "12 of 25 · Twice as fast",
+      "12 of 25",
+    ]);
     expect(row(early, "cart").info).toEqual([
-      "6 of 10 · Ten carts on the rails. Every cart hauls twice as fast.",
+      "6 of 10 · Every cart hauls twice as fast.",
+      "6 of 10 · Twice as fast",
+      "6 of 10",
     ]);
     // Past the last mark, the reached line alone.
     expect(
@@ -364,7 +365,7 @@ describe("buyRowView", () => {
     const borer = row(mountain, "borer");
     expect(borer.pick).toBe(true);
     expect(borer.flag).toEqual([
-      `Ready now · Ada tends · +${formatSpeed(gain)}/s`,
+      `Ready now · Ada +${formatSpeed(gain)}/s`,
       "Ready now",
     ]);
     expect(borer.icon).toBe("borer");
@@ -372,9 +373,12 @@ describe("buyRowView", () => {
       new RegExp(`\\. Ada tends them\\. \\${stonesPerSecond(gain)}$`),
     );
 
-    // Not the pick: the tending word alone.
+    // Not the pick: who tends and what she adds, then the number alone (#506).
     const broke = row({ ...mountain, pocket: 0 }, "borer");
-    expect(broke.flag).toEqual([`Ada tends · +${formatSpeed(gain)}/s`]);
+    expect(broke.flag).toEqual([
+      `Ada +${formatSpeed(gain)}/s`,
+      `+${formatSpeed(gain)}/s`,
+    ]);
   });
 
   it("icons", () => {

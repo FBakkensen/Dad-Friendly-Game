@@ -173,3 +173,28 @@ export function milestoneLine(
   const goal = `${format(count)} of ${format(next.at)} · ${next.goal}`;
   return now === undefined ? goal : `${now} ${goal}`;
 }
+
+/** The short payoff, where a row has one line for it (#506): what every mark's goal ends on. */
+export const MARK_SHORT = "Twice as fast";
+
+/**
+ * The next mark for a Buys row (#506): the progress (`5 of 10`) and the goal's payoff, its last
+ * sentence (`Every cart hauls twice as fast.`). Undefined past the last mark and for a tier
+ * without marks.
+ */
+export function nextMark(
+  id: TierId,
+  count: number,
+  format: (value: number) => string,
+  table: MilestoneTable = MILESTONES,
+): { readonly progress: string; readonly payoff: string } | undefined {
+  const next = (table[id] ?? []).find((mark) => count < mark.at);
+  if (next === undefined) {
+    return undefined;
+  }
+  const scene = next.goal.lastIndexOf(". ");
+  return {
+    progress: `${format(count)} of ${format(next.at)}`,
+    payoff: scene === -1 ? next.goal : next.goal.slice(scene + 2),
+  };
+}

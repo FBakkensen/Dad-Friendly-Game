@@ -207,6 +207,24 @@ function fitLine(
   fitFirst(target, empty ? [] : options, fits, put);
 }
 
+/**
+ * The info line, with its figures (#506). A row has three lines at most, so the info takes two
+ * when no need and no why is shown under it. A change of room fits the same words again.
+ */
+function fitInfo(
+  parts: RowParts,
+  options: readonly string[],
+  fits: Fits,
+): void {
+  const { info, need, why } = parts;
+  const roomy = need.hidden !== false && why.hidden !== false;
+  if (info.classList.contains("is-roomy") !== roomy) {
+    info.classList.toggle("is-roomy", roomy);
+    refitAll(info);
+  }
+  fitLine(info, options, fits ?? fitsBox, writeFigures);
+}
+
 function setLabel(parts: RowParts, label: string): void {
   if (parts.button !== undefined) {
     setAttr(parts.button, "aria-label", label);
@@ -274,13 +292,14 @@ function paintRow(
 ): void {
   const held = view !== undefined && live.held;
   const blink = view === undefined ? undefined : live.blink;
-  fitLine(parts.info, view?.info ?? [], fits ?? fitsBox, writeFigures);
-  line(parts.gain, view?.gain ?? "");
   if (held) {
     paintDone(parts, fits);
   } else {
     paintWords(parts, view, name, fits);
   }
+  // After the words: the info line's room is what the row shows under it.
+  fitInfo(parts, view?.info ?? [], fits);
+  line(parts.gain, view?.gain ?? "");
   const lamp: RowLamp = blink ?? (held ? "green" : (view?.lamp ?? "off"));
   frameX(parts.lamp, LAMP_FRAME[lamp], LAMP_PX);
 }

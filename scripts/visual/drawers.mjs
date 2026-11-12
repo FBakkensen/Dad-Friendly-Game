@@ -3,6 +3,7 @@
 import {
   freshMountain,
   crewMountain,
+  fleetMountain,
   openMountain,
   shortMountain,
   idleMountain,
@@ -604,6 +605,41 @@ const registerStates = (viewport) => {
           short.borer.need === "Needs 8 workers",
         `${size} short Buys: the borer is short of hands and reads Needs 8 workers (${String(short.borer?.need)})`,
       );
+      await close();
+    }
+    // A Buys row's words read whole (#506): the milestone's payoff on two
+    // lines, or its short form beside a need line, and the engineer's flag
+    // with its number. No info line or flag is cut.
+    for (const [name, save, drill] of [
+      ["mid", openMountain, /^2 of 10 · Every drill mines twice as fast\.$/],
+      ["fleet", fleetMountain, /^30 of 50 · Twice as fast again\.$/],
+      ["heart", heartMountain, /^10 of 25 · Twice as fast/],
+      ["short", shortMountain, /^4 of 10 · Every drill mines twice as fast\.$/],
+    ]) {
+      const { page, close } = await visit(() => save(), "buys");
+      const lines = await page.$$eval(
+        `${OPEN_SHEET("buys")} .board-row:not([hidden]) :is(.board-row-info, .board-row-flag):not([hidden])`,
+        (els) =>
+          els.map((el) => ({
+            tier: el.closest(".board-row")?.dataset.tier ?? "",
+            line: el.classList.contains("board-row-flag") ? "flag" : "info",
+            text: el.textContent,
+            cut:
+              el.scrollWidth > el.clientWidth + 1 ||
+              el.scrollHeight > el.clientHeight + 1,
+          })),
+      );
+      const cut = lines.filter((line) => line.cut);
+      const drillInfo =
+        lines.find((line) => line.tier === "drill" && line.line === "info")
+          ?.text ?? "";
+      check(
+        lines.length >= 5 && cut.length === 0 && drill.test(drillInfo),
+        `${size} ${name} Buys: no info line or flag is cut, and the drill shows its payoff (${drillInfo})`,
+      );
+      if (cut.length > 0) {
+        console.log("cut Buys lines", size, name, cut);
+      }
       await close();
     }
     {

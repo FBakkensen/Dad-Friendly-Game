@@ -396,6 +396,16 @@ describe("board.css", () => {
     expect(line).toMatch(/font-size:\s*var\(--board-type-13\)/);
   });
 
+  it("lets a row's info line take two lines when it has the room, ending in an ellipsis past them (#506)", () => {
+    const roomy = declared(".board-row-info.is-roomy");
+    expect(roomy).toMatch(/white-space:\s*normal/);
+    expect(roomy).toMatch(/-webkit-line-clamp:\s*2/);
+    // A hidden line stays hidden: the row's [hidden] rule comes after it.
+    expect(boardCss.indexOf(".board-row-info.is-roomy {")).toBeLessThan(
+      boardCss.indexOf(".board-row [hidden],"),
+    );
+  });
+
   it("keeps a post's sentence on an engineer's page the quiet 13px line (#505)", () => {
     const post = declared(".engineer-post .board-row-info");
     expect(post).toMatch(/font-size:\s*var\(--board-type-13\)/);

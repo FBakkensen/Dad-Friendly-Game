@@ -609,7 +609,7 @@ describe("crew tiers on screen", () => {
       "8 workers",
     );
     expect(borer.querySelector(".board-row-flag")?.textContent).toMatch(
-      /^Ada tends · \+156\/s$/,
+      /^Ada \+156\/s$/,
     );
     expect(borer.getAttribute("aria-label")).toContain("tunnel borer");
   });

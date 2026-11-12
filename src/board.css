@@ -2049,6 +2049,16 @@ button.board-row:focus-visible {
   color: var(--board-rust);
 }
 
+/* A row has three lines at most. With no need and no why under it, the info
+   line takes two (#506, board-row's fitInfo): a milestone's payoff reads
+   whole. A line too long for both still ends in its ellipsis. */
+.board-row-info.is-roomy {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+}
+
 /* Trouble has no figure: the whole shout speaks. */
 .board-row.is-trouble .board-row-info {
   font-weight: var(--board-weight-semi);

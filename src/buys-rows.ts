@@ -3,7 +3,12 @@ import { crewCounts } from "./crew-count";
 import { atHome, staffForBuy, staffNeeded } from "./engineers";
 import { formatCompact, formatCount } from "./format";
 import type { Trouble } from "./hazards";
-import { REACHED_LINE, milestoneLine } from "./milestones";
+import {
+  MARK_SHORT,
+  REACHED_LINE,
+  milestonesReached,
+  nextMark,
+} from "./milestones";
 import type { Mountain } from "./mountain";
 import { effectiveRates, handsGain, tendingGain } from "./rates";
 import type { ReadyPick } from "./ready-now";
@@ -88,17 +93,24 @@ function workersVerb(staff: number): string {
 }
 
 /**
- * The next milestone line, then the same without its "Twice as fast now."
- * lead. A tier without marks shows its count and its quiet line.
+ * The next mark (#506): its progress with the goal's payoff, which may take the row's two
+ * lines, then with the short payoff, then the progress alone. Past the last mark, the reached
+ * line. A tier without marks shows its count and its quiet line.
  */
 function milestoneOptions(id: TierId, count: number): readonly string[] {
-  const line = milestoneLine(id, count, formatCompact);
-  if (line === undefined) {
-    const owns = `${formatCompact(count)} owned`;
-    return [`${owns} · ${TIER_WHY[id]}`, owns];
+  const next = nextMark(id, count, formatCompact);
+  if (next !== undefined) {
+    return [
+      `${next.progress} · ${next.payoff}`,
+      `${next.progress} · ${MARK_SHORT}`,
+      next.progress,
+    ];
   }
-  const bare = line.replace(`${REACHED_LINE} `, "");
-  return bare === line ? [line] : [line, bare];
+  if (milestonesReached(id, count) > 0) {
+    return [REACHED_LINE];
+  }
+  const owns = `${formatCompact(count)} owned`;
+  return [`${owns} · ${TIER_WHY[id]}`, owns];
 }
 
 function buyIcon(id: TierId, count: number, locked: boolean): BuyIcon {
@@ -357,6 +369,12 @@ function buyFace(facts: BuyFacts): Face {
   return lock === undefined ? pricedFace(facts) : lockedFace(tier, lock);
 }
 
+/** Who tends and what she adds, then the number alone (#506): it is what the flag is for. */
+function tendFlag(who: Tending): string[] {
+  const adds = `+${formatSpeed(who.gain)}/s`;
+  return [`${who.name} ${adds}`, adds];
+}
+
 function buyFlag(facts: BuyFacts, tending: Tending | undefined): string[] {
   if (facts.isGuided) {
     return ["New"];
@@ -366,16 +384,14 @@ function buyFlag(facts: BuyFacts, tending: Tending | undefined): string[] {
     : facts.isPick
       ? "Ready now"
       : "Saving for";
-  const tendWord =
-    tending === undefined
-      ? undefined
-      : `${tending.name} tends · +${formatSpeed(tending.gain)}/s`;
-  const flagWords = [pickWord, tendWord].filter(
-    (word): word is string => word !== undefined,
-  );
-  return flagWords.length === 2
-    ? [flagWords.join(" · "), ...flagWords.slice(0, 1)]
-    : flagWords;
+  const tends = tending === undefined ? [] : tendFlag(tending);
+  const [named] = tends;
+  if (pickWord === undefined) {
+    return tends;
+  }
+  return named === undefined
+    ? [pickWord]
+    : [`${pickWord} · ${named}`, pickWord];
 }
 
 /** "Buy a mine cart", "Buy 10 mine carts": what the tap buys. */
