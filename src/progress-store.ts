@@ -26,6 +26,7 @@ import { createLogger, type Logger } from "./log";
 import { createMountain, type Mountain } from "./mountain";
 import { reconcileRev } from "./save-adopt";
 import {
+  ARCHIVE_WAIT_MS,
   chooseSave,
   keepThenBegin,
   restoreCopy,
@@ -165,6 +166,7 @@ export function createProgressStore({
   hazardSeed,
   tabWriter,
   resumeReadTimeoutMs = RESUME_READ_TIMEOUT_MS,
+  archiveWaitMs = ARCHIVE_WAIT_MS,
 }: {
   auth: AuthController;
   cloudSave?: CloudSave;
@@ -179,6 +181,8 @@ export function createProgressStore({
   tabWriter?: TabWriter;
   /** How long a fresh server read may hold crew pay and cloud writes. */
   resumeReadTimeoutMs?: number;
+  /** How long a move waits for the mountain it leaves to reach Saved copies. */
+  archiveWaitMs?: number;
 }): ProgressStore {
   const storage = sessionStorage ?? tryGetGuestStorage();
   const ctx = createStoreContext(
@@ -192,6 +196,7 @@ export function createProgressStore({
       cloudWriteGapMs,
       fieldLogWriteGapMs,
       resumeReadTimeoutMs,
+      archiveWaitMs,
       deviceId: readDeviceId(storage),
     },
     createSession(createMountain(), hazardSeed ?? now()),

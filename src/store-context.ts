@@ -111,6 +111,8 @@ export type StorePorts = {
   readonly cloudWriteGapMs: number;
   readonly fieldLogWriteGapMs: number;
   readonly resumeReadTimeoutMs: number;
+  /** How long a move waits for the mountain it leaves to reach Saved copies (#480). */
+  readonly archiveWaitMs: number;
   readonly deviceId: string;
 };
 

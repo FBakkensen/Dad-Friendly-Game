@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createMemoryAuth } from "./auth";
 import {
   createMemoryCloudSave,
@@ -9,7 +9,6 @@ import {
 import { createLogger } from "./log";
 import { MOUNTAIN_STONES, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
-import { ARCHIVE_WAIT_MS } from "./save-choice";
 import { noticesOf } from "./session";
 import { minedMountain } from "./test-fixtures";
 
@@ -43,7 +42,12 @@ async function playing(
   {
     cloud = createMemoryCloudSave(),
     now = () => 1_000_000,
-  }: { cloud?: CloudSave; now?: () => number } = {},
+    auth = createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+  }: {
+    cloud?: CloudSave;
+    now?: () => number;
+    auth?: ReturnType<typeof createMemoryAuth>;
+  } = {},
 ) {
   await cloud.write({
     uid: user.uid,
@@ -54,12 +58,13 @@ async function playing(
   });
   const logger = createLogger({ limit: 20 });
   const progress = createProgressStore({
-    auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+    auth,
     cloudSave: cloud,
     sessionStorage: createMemoryStorage(),
     logger,
     now,
     cloudWriteGapMs: 0,
+    archiveWaitMs: 30,
   });
   await vi.waitFor(() => {
     expect(progress.getSnapshot().ready).toBe(true);
@@ -78,10 +83,6 @@ function archiveAnswers(answer: CloudWriteResult | undefined): CloudSave {
         : Promise.resolve(answer),
   };
 }
-
-afterEach(() => {
-  vi.useRealTimers();
-});
 
 describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
   it("Start over keeps it, and Play this one brings it back as a new run", async () => {
@@ -116,7 +117,8 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
       expect(saved.kind === "found" && saved.mountain.startedAt).toBe(clock);
     });
     const after = await progress.savedCopies();
-    expect(after.map((copy) => copy.reason)).toEqual(["restore", "start-over"]);
+    // The fresh run had nothing mined, so the restore kept no copy of it.
+    expect(after.map((copy) => copy.reason)).toEqual(["start-over"]);
     progress.dispose();
   });
 
@@ -251,15 +253,73 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     const { progress, logger } = await playing(left, {
       cloud: archiveAnswers(undefined),
     });
-    vi.useFakeTimers();
     const started = progress.startOver();
     // One run at a time: a second press while the first is keeping the mountain does nothing.
     await expect(progress.startOver()).resolves.toBe(false);
-    await vi.advanceTimersByTimeAsync(ARCHIVE_WAIT_MS);
+    expect(progress.fieldLog().events.at(-1)).toMatchObject({
+      code: "run.refused",
+      data: { id: "start-over", source: "keeping" },
+    });
     await expect(started).resolves.toBe(false);
     expect(progress.getSnapshot().mountain.helpers).toBe(3);
     expect(logger.latest()?.detail).toBe("start-over timeout");
     progress.dispose();
+  });
+
+  it("starts no run on the save he signed out of while the copy was on its way", async () => {
+    let land: (result: CloudWriteResult) => void = () => undefined;
+    const memory = createMemoryCloudSave();
+    const cloud: CloudSave = {
+      ...memory,
+      archiveCopy: () =>
+        new Promise<CloudWriteResult>((resolve) => {
+          land = resolve;
+        }),
+    };
+    const auth = createMemoryAuth({ state: { kind: "signed-in", user }, user });
+    const { progress } = await playing(
+      { ...minedMountain(40_000), startedAt: 500 },
+      { cloud, auth },
+    );
+    const started = progress.startOver();
+    await auth.signOut();
+    land({ kind: "ok" });
+    await expect(started).resolves.toBe(false);
+    expect(codes(progress.fieldLog().events)).not.toContain("run.start-over");
+    progress.dispose();
+  });
+
+  it("restores nothing when the save moved on while the old one was kept", async () => {
+    let land: (result: CloudWriteResult) => void = () => undefined;
+    const memory = createMemoryCloudSave();
+    await memory.archiveCopy?.({
+      uid: user.uid,
+      mountain: { ...minedMountain(9), startedAt: 500 },
+      lastSeen: 1,
+      rev: 1,
+      deviceId: "other-device",
+      deviceLabel: "Safari on iPhone",
+      reason: "conflict",
+    });
+    const cloud: CloudSave = {
+      ...memory,
+      archiveCopy: () =>
+        new Promise<CloudWriteResult>((resolve) => {
+          land = resolve;
+        }),
+    };
+    const { progress } = await playing(
+      { ...minedMountain(40_000), startedAt: 500 },
+      { cloud },
+    );
+    const [copy] = await progress.savedCopies();
+    const restored = progress.restoreCopy(copy?.id ?? "");
+    await vi.waitFor(() => {
+      expect(codes(progress.fieldLog().events)).not.toContain("save.restore");
+    });
+    progress.dispose();
+    land({ kind: "ok" });
+    await expect(restored).resolves.toBe("kept");
   });
 
   it("starts over at once when nothing has been mined, and keeps no copy", async () => {

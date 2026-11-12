@@ -183,17 +183,31 @@ describe("the Pass the mine card (#466)", () => {
     expect(fixture.panel.dialog.hidden).toBe(true);
   });
 
-  it("a pass the store refuses starts no new run", async () => {
+  it("a pass the store refuses keeps the card up, and says so (#480)", async () => {
     const fixture = mount(finished());
     fixture.passTheMine.mockResolvedValue(false);
     fixture.panel.open(undefined);
     advance(DRAWER_SETTLE_MS + 50);
     press(plate(fixture, "legacy-confirm"));
-    await Promise.resolve();
-    await Promise.resolve();
+    // A second press while the first waits does nothing.
+    press(plate(fixture, "legacy-confirm"));
     expect(fixture.passTheMine).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(
+        fixture.panel.dialog.querySelector<HTMLElement>(".save-conflict-error")
+          ?.hidden,
+      ).toBe(false);
+    });
     expect(fixture.onPassed).not.toHaveBeenCalled();
-    expect(fixture.panel.dialog.hidden).toBe(true);
+    expect(fixture.panel.dialog.hidden).toBe(false);
+    expect(
+      fixture.panel.dialog.querySelector(".save-conflict-error")?.textContent,
+    ).toBe("Couldn't store the other save yet – try again");
+    fixture.panel.open(undefined);
+    expect(
+      fixture.panel.dialog.querySelector<HTMLElement>(".save-conflict-error")
+        ?.hidden,
+    ).toBe(true);
   });
 
   it("the Legacy badge shows from the first pass, with what it does", () => {

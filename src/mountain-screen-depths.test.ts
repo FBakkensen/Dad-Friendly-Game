@@ -884,10 +884,12 @@ describe("layer card, material line, and craft-done notice", () => {
       expect(screen.text(".saved-copy")).toContain("2 carts");
     });
     expect(screen.text(".saved-copies")).not.toMatch(/earlier run|\?/);
+    const play = screen.root.querySelector<HTMLButtonElement>(
+      ".saved-copy .save-conflict-play",
+    );
+    expect(play).not.toBeNull();
+    play?.click();
     await vi.waitFor(() => {
-      screen.root
-        .querySelector<HTMLButtonElement>(".saved-copy .save-conflict-play")
-        ?.click();
       expect(screen.progress.getSnapshot().mountain.carts).toBe(2);
     });
     expect(screen.progress.getSnapshot().mountain.startedAt).toBe(clock);

@@ -197,20 +197,30 @@ function wireDoors(deps: LedgerDoorDeps): {
     sheet().close({ restoreFocus: false, by: "program" });
   };
   const fieldLogPage = createFieldLogPage();
+  let starting = false;
   const startOverPage = createStartOverPage({
     board,
     onKeep: () => {
       sheet().showPage(undefined);
     },
     onYes: (_from, by: Pointer) => {
-      // The mountain he leaves goes to Saved copies first (#480).
+      // One at a time. The mountain he leaves goes to Saved copies first (#480); the page waits.
+      if (starting) {
+        return;
+      }
+      starting = true;
       void progress.startOver().then((started) => {
-        if (started) {
-          deps.onStartOver();
+        starting = false;
+        if (!started) {
+          startOverPage.say(false);
+          return;
+        }
+        deps.onStartOver();
+        // Back on the Ledger key, as Back would leave it.
+        if (sheet().isOpen()) {
+          sheet().close({ by });
         }
       });
-      // Back on the Ledger key, as Back would leave it.
-      sheet().close({ by });
     },
   });
   const doors = createLedgerDoors({
@@ -237,6 +247,7 @@ function wireDoors(deps: LedgerDoorDeps): {
         });
       },
       startOver: () => {
+        startOverPage.say(true);
         sheet().showPage(startOverPage.root);
       },
       pass: () => {

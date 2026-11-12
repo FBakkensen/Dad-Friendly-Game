@@ -10,6 +10,7 @@ import {
   PASS_IT_ON,
   PASS_NOT_YET,
   PASS_TITLE,
+  SAVE_CONFLICT_ERROR,
   formatCraftSpeed as speed,
 } from "./screen-words";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
@@ -132,6 +133,13 @@ export function createLegacyPanel({
     lines.fresh,
     lines.legend,
   );
+  // A pass whose mine could not be kept in Saved copies first (#480): the card stays, and says so.
+  const error = cardLine("save-conflict-error");
+  write(error, SAVE_CONFLICT_ERROR);
+  error.hidden = true;
+  card.body.append(error);
+  let failed = false;
+  let passing = false;
 
   /** Not yet, or Escape: the card's close gives the focus back to what opened it. */
   const close = (): void => {
@@ -152,15 +160,20 @@ export function createLegacyPanel({
     "confirm",
     "legacy-confirm",
     () => {
-      open = false;
-      // The mine goes to Saved copies first (#480); the kid's mountain follows once it lands.
+      // One pass at a time. The mine goes to Saved copies first (#480); the card waits for it.
+      if (passing) {
+        return;
+      }
+      passing = true;
       void progress.passTheMine().then((passed) => {
+        passing = false;
+        failed = !passed;
         if (passed) {
+          open = false;
           onPassed();
         }
         requestRender();
       });
-      requestRender();
     },
     answers,
   );
@@ -182,6 +195,7 @@ export function createLegacyPanel({
       `Legacy ${formatCount(legacy)}: your crew and taps are ${legacyWords(bonus)}`,
     );
     paintLines(lines, legacyCardWords(mountain));
+    hide(error, !failed);
     card.show(open && offered(), cancel);
   };
 
@@ -192,6 +206,7 @@ export function createLegacyPanel({
       beforeOpen();
       card.from(from);
       open = true;
+      failed = false;
       requestRender();
     },
     offered,
