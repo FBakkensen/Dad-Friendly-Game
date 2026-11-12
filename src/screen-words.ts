@@ -933,9 +933,9 @@ export const recallConfirm = (name: string): string =>
 /** The bench is free, and a thin pocket is still a fine pocket. */
 export const WORKSHOP_FREE_ASIDE = "A little at a time is plenty.";
 
-/** Sound stays off until the dad asks. The house is asleep. */
-export const WORKSHOP_QUIET = "Quiet";
-export const WORKSHOP_SOUND = "Sound";
+/** The Ledger's one Sound key (#491). It stays off until the dad asks. The house is asleep. */
+export const SOUND_QUIET = "Quiet";
+export const SOUND_ON = "Sound";
 
 export const WORKSHOP_EARLIER = "Earlier";
 export const WORKSHOP_MORE = "More to make";

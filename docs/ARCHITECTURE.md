@@ -315,7 +315,7 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    `BoardSheet.page()` (#374) is the one way a panel says "a new screen under
    the finger": it starts the settle as the "i" does, so the next finger is
    the second tap of the one that changed the screen. Each head key (Buys'
-   amount key, the Workshop's sound key) carries `board-sheet-key`. Each
+   amount key, the Ledger's Sound key) carries `board-sheet-key`. Each
    close says what closed it: `finger` (Back, the "i"'s way back),
    `keyboard` (Escape), `tap-through` (the scrim, which hands its tap on) or
    `program` (a timer, a card that covers the drawer). A close that restores focus gives
@@ -352,8 +352,8 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    new value after a buy, 8 steps of 60ms, or at once under reduced motion).
    `workshop-panel` builds the Workshop drawer (#374) the same way, from
    `workshop-rows`' views and `workshop-parts` (the material plates, the bench
-   row with its bar and its cancel confirm, the Earlier / More to make pager
-   and the head's sound key; only the Workshop has them, so `board-row` and
+   row with its bar and its cancel confirm, the Earlier / More to make pager;
+   only the Workshop has them, so `board-row` and
    `board-drawer` stay generic). It sends its order, the recipes as
    `workshopOrder` ranks them, as the board model's `layout` for "workshop",
    frozen as the drawer opens; pages slice that order, three recipes a page.
@@ -372,8 +372,13 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    since the last Start over or pass, newest three, each code worded by one
    table or skipped; `stonesRowView`, `relicsRowView`, `accountRowView`) and
    `ledger-parts` (the Tonight box, the four plates and the two pages; only
-   the Ledger has a log box, a plate grid or a page that asks). Its parts
-   never reorder, so it sends no `layout`. A page goes in the list's place
+   the Ledger has a log box, a plate grid or a page that asks). Its head key
+   is `sound`'s (#491): `soundSetting` reads and keeps this device's choice
+   (`dad-friendly-sound`, beside the Buys amount, never in the save; Quiet
+   when the store throws), `createSoundKey` turns it through the board's
+   model, and `playHammer` is the knock. `screen-panels` makes the one
+   setting and hands it to the Ledger and to the Workshop, whose craft
+   knock reads it. Its parts never reorder, so it sends no `layout`. A page goes in the list's place
    through `BoardSheet.showPage(page)` (#375): the head and Back stay, it
    calls `page()` so the settle starts again, and it focuses the page's
    first control; `showPage(undefined)` and `close` bring the list back.
@@ -771,8 +776,8 @@ field-log` lists every log; `--uid` or a positional uid reads one. The default
   in [Numbers now](DESIGN.md#numbers-now)). Short hands read `Needs N workers ·
 M free`. The crew line, in the Crew section at the top of Buys, names where
   the workers are in its chips; a line that does not fit splits into even rows,
-  and the crew plate on the board is the only free count (#371). The Workshop
-  drawer's Quiet/Sound head key is the only sound control. Trouble stays out of the
+  and the crew plate on the board is the only free count (#371). The Ledger
+  drawer's Quiet/Sound head key is the only sound control (`sound`, #491). Trouble stays out of the
   snapshot: it is never saved. Choosing a post while a party is out records the
   recall and, when the new post is not the one they left, the station.
 - `lost-tools` (rules layer, pure): `hasLostTool`, `tapWithPick`, `glintScale`, `expeditionAwayMs`, `wearsSteelToes`. The old miner's lamp doubles a golden vein's glint (`veinGlintMs`). Keepsake stories live in `screen-words`. No new save field: the shelf is still `finds`. Built (#148).

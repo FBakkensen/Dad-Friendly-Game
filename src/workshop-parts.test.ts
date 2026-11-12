@@ -19,8 +19,6 @@ import {
   createBenchRow,
   createMaterialPlates,
   createPager,
-  createSoundKey,
-  playHammer,
   type BenchRow,
 } from "./workshop-parts";
 
@@ -453,91 +451,5 @@ describe("the pager (#374)", () => {
     press(plate(pager.root, "workshop-earlier"));
     expect(onPage).toHaveBeenLastCalledWith(-1);
     pager.forget();
-  });
-});
-
-describe("the sound key (#374)", () => {
-  it("flips aria-pressed and its label on paint", () => {
-    const sound = createSoundKey({ board, onToggle: vi.fn() });
-    expect(sound.root.classList.contains("workshop-sound")).toBe(true);
-    expect(sound.root.classList.contains("board-platebtn")).toBe(true);
-    sound.paint(false);
-    expect(sound.root.textContent).toBe("Quiet");
-    expect(sound.root.getAttribute("aria-pressed")).toBe("false");
-    expect(sound.root.getAttribute("aria-label")).toBe("Sound is off");
-    sound.paint(true);
-    expect(sound.root.textContent).toBe("Sound");
-    expect(sound.root.getAttribute("aria-pressed")).toBe("true");
-    expect(sound.root.getAttribute("aria-label")).toBe("Sound is on");
-  });
-
-  it("a tap past the settle toggles; one inside it does not", () => {
-    const onToggle = vi.fn();
-    const sound = createSoundKey({ board, onToggle });
-    sheet.root.append(sound.root);
-    openSheet();
-    time += 100;
-    press(sound.root);
-    expect(onToggle).not.toHaveBeenCalled();
-    time += DRAWER_SETTLE_MS;
-    press(sound.root);
-    expect(onToggle).toHaveBeenCalledTimes(1);
-    sound.forget();
-  });
-});
-
-describe("the hammer's sound (#374)", () => {
-  it("makes no AudioContext while quiet, and one when on", () => {
-    const made: number[] = [];
-    class FakeAudio {
-      sampleRate = 8000;
-      destination = {};
-      constructor() {
-        made.push(1);
-      }
-      createBuffer(_channels: number, length: number) {
-        const data = new Float32Array(length);
-        return { getChannelData: () => data };
-      }
-      createBufferSource() {
-        const source = {
-          buffer: null as unknown,
-          connect: () => undefined,
-          start: () => {
-            source.onended?.();
-          },
-          onended: null as (() => void) | null,
-        };
-        return source;
-      }
-      createGain() {
-        return { gain: { value: 0 }, connect: () => undefined };
-      }
-      close() {
-        return Promise.resolve();
-      }
-    }
-    const previous = window.AudioContext;
-    window.AudioContext = FakeAudio as unknown as typeof window.AudioContext;
-    try {
-      playHammer(false);
-      expect(made).toHaveLength(0);
-      playHammer(true);
-      expect(made).toHaveLength(1);
-    } finally {
-      window.AudioContext = previous;
-    }
-  });
-
-  it("stays quiet where there is no AudioContext", () => {
-    const previous = window.AudioContext;
-    Reflect.deleteProperty(window, "AudioContext");
-    try {
-      expect(() => {
-        playHammer(true);
-      }).not.toThrow();
-    } finally {
-      window.AudioContext = previous;
-    }
   });
 });
