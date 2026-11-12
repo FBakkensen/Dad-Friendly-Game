@@ -3,6 +3,7 @@
 import {
   staffingNoteSave,
   welcomeBackSave,
+  playAwaySave,
   foundBelowSave,
   fullShelfSave,
   mantleSave,
@@ -150,6 +151,34 @@ table({
 
 // Welcome-back, then the relic it uncovered.
 section("section 5 (line 856)", async () => {
+  {
+    // Nine hours away: a haul in the millions (#508).
+    const { page, close } = await openScreen(PHONE, playAwaySave());
+    // The haul is one line in the board's short figures, inside the card (#508).
+    const haul = await page.$eval(".welcome-back .welcome-mined", (el) => {
+      const box = el.getBoundingClientRect();
+      const face = (
+        el.closest(".board-card-face") ?? el.parentElement
+      )?.getBoundingClientRect();
+      const count = el.querySelector(".welcome-mined-count");
+      const unit = el.querySelector(".welcome-mined-unit");
+      const top = (node) => node?.getBoundingClientRect().top ?? 0;
+      const bottom = (node) => node?.getBoundingClientRect().bottom ?? 0;
+      return {
+        text: el.textContent ?? "",
+        oneLine: top(unit) < bottom(count) && top(count) < bottom(unit),
+        inside:
+          face !== undefined &&
+          box.left >= face.left - 0.5 &&
+          (unit?.getBoundingClientRect().right ?? 0) <= face.right + 0.5,
+      };
+    });
+    check(
+      haul.oneLine && haul.inside && !/thousand|million/.test(haul.text),
+      `the welcome haul reads on one line inside the card, in short figures (${haul.text})`,
+    );
+    await close();
+  }
   {
     const viewport = PHONE;
     const { page, close } = await openScreen(viewport, welcomeBackSave(), {

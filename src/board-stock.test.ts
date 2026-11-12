@@ -110,7 +110,7 @@ describe("createBoostDial", () => {
     const sprite = dial.root.querySelector<HTMLElement>(".board-dial-sprite");
     expect(sprite?.style.backgroundPositionX).toBe("-704px");
     expect(dial.root.getAttribute("aria-label")).toBe(
-      "Overtime, crew ×2, 7:08 left",
+      "Overtime, pace ×2, 7:08 left",
     );
   });
 

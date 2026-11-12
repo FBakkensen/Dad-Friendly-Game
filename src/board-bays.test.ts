@@ -557,7 +557,7 @@ describe("createMachineBays", () => {
     expect(q(b, ".board-bay-tag").hidden).toBe(true);
   });
 
-  it("reads an open bay's label with its count, price, gain and hands", () => {
+  it("reads an open bay's label with its count, price, gain and workers", () => {
     const { bays } = make();
     bays.render(early(), "");
     expect(bay(bays, 0).getAttribute("aria-label")).toBe(

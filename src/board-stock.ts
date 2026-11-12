@@ -216,7 +216,7 @@ export function createBoostDial({ onOpen }: { onOpen: () => void }): BoostDial {
     root.setAttribute(
       "aria-label",
       running
-        ? `${boost.name}, crew ${mark}, ${clock} left`
+        ? `${boost.name}, pace ${mark}, ${clock} left`
         : `Pace ${mark}, rested`,
     );
   };

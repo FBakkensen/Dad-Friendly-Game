@@ -1977,7 +1977,7 @@ describe("the control board (#370)", () => {
         ".board-stock .board-dial",
       );
       expect(dial?.getAttribute("aria-label")).toBe(
-        "Overtime, crew ×2, 20:00 left",
+        "Overtime, pace ×2, 20:00 left",
       );
       const note = screen.root.querySelector<HTMLElement>(".board-note");
       expect(note?.classList.contains("on")).toBe(false);

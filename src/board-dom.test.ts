@@ -226,14 +226,14 @@ describe("scrollIntoList (#373)", () => {
     expect(plain.className).toBe("board-sec");
     expect(plain.dataset["sec"]).toBe("machines");
     expect([...plain.children].map((c) => c.textContent)).toEqual(["Machines"]);
-    const column = legend("Crew", "crew", "per sec");
+    const column = legend("Crew", "crew", "per second");
     expect([...column.children].map((c) => c.className)).toEqual([
       "board-lg",
       "board-lg",
     ]);
     expect([...column.children].map((c) => c.textContent)).toEqual([
       "Crew",
-      "per sec",
+      "per second",
     ]);
   });
 });
