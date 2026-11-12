@@ -10,6 +10,7 @@ import {
 import type { Mountain } from "./mountain";
 import type { Dispatch, ProgressSnapshot } from "./progress-store";
 import type { RowView } from "./row-view";
+import { playHammer, type SoundSetting } from "./sound";
 import {
   RECIPES_LEGEND,
   SKETCH_NAME,
@@ -26,8 +27,6 @@ import {
   createBenchRow,
   createMaterialPlates,
   createPager,
-  createSoundKey,
-  playHammer,
   type BenchRow,
 } from "./workshop-parts";
 import {
@@ -55,7 +54,8 @@ import {
 
 /*
  * The Workshop drawer (#374): the material plates, the bench row with its clock, bar and
- * cancel confirm, the live timers, the recipes three a page, and the sound key in the head.
+ * cancel confirm, the live timers and the recipes three a page. Its knock follows the Ledger's
+ * Sound key (#491).
  * Its rows and words come from workshop-rows.ts and its own controls from workshop-parts.ts.
  * The list's order is the board model's layout for "workshop", frozen as the drawer opens, so
  * a craft, a cancel or the tick never moves a row under a finger; pages slice that order.
@@ -352,6 +352,7 @@ export function createWorkshopPanel({
   overSave,
   door,
   fallbackDoor,
+  sound,
   signal,
 }: {
   dispatch: Dispatch;
@@ -366,6 +367,8 @@ export function createWorkshopPanel({
   door: HTMLButtonElement;
   /** The Ledger key: Back focuses it while a re-load holds the Workshop key. */
   fallbackDoor: HTMLButtonElement;
+  /** The game's one sound, turned in the Ledger (#491): a craft that lands knocks while on. */
+  sound: Pick<SoundSetting, "on">;
   /** Aborting it removes the drawer's document listeners. */
   signal?: AbortSignal;
 }): {
@@ -373,20 +376,11 @@ export function createWorkshopPanel({
   render: () => void;
   open: (from?: HTMLElement) => void;
 } {
-  let soundOn = false;
   let page = 0;
   const onBoard = rowsOnBoard(board, "workshop");
   const repaint = (): void => {
     render();
   };
-  const sound = createSoundKey({
-    board,
-    onToggle: () => {
-      soundOn = !soundOn;
-      playHammer(soundOn);
-      repaint();
-    },
-  });
   const sheet = createBoardSheet({
     name: "workshop",
     title: WORKSHOP_TITLE,
@@ -397,7 +391,6 @@ export function createWorkshopPanel({
     },
     board,
     overSave,
-    headKey: sound.root,
     door,
     fallbackFocus: fallbackDoor,
     // The order the open freezes.
@@ -414,7 +407,6 @@ export function createWorkshopPanel({
       onBoard.forget();
       parts.plates.forget();
       parts.pager.forget();
-      sound.forget();
     },
     ...(signal === undefined ? {} : { signal }),
   });
@@ -441,7 +433,7 @@ export function createWorkshopPanel({
     getView,
     now,
     onBoard,
-    soundOn: () => soundOn,
+    soundOn: () => sound.on(),
   });
   placeParts(sheet, parts, rows);
   const arrange = createPageArranger(rows, onBoard, parts.pager);
@@ -449,7 +441,6 @@ export function createWorkshopPanel({
   const render = (): void => {
     const view = getView();
     const at = now();
-    sound.paint(soundOn);
     if (view.ready && !workshopUnlocked(view.mountain)) {
       sheet.close({ restoreFocus: false, by: "program" });
     }

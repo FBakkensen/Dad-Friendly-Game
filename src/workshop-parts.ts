@@ -14,21 +14,16 @@ import { plateButton } from "./board-save";
 import { skin } from "./board-skin";
 import { forgetAll, pressOnBoard, type PressTracker } from "./card-tap";
 import type { MaterialId } from "./layers";
-import {
-  BENCH_FREE,
-  WORKSHOP_EARLIER,
-  WORKSHOP_MORE,
-  WORKSHOP_QUIET,
-  WORKSHOP_SOUND,
-} from "./screen-words";
+import { BENCH_FREE, WORKSHOP_EARLIER, WORKSHOP_MORE } from "./screen-words";
 import type { BenchRowView, MaterialPlate } from "./workshop-rows";
 
 /*
  * The Workshop drawer's own controls (#374): the material plates, the bench row with its bar
- * and its cancel confirm, the pager and the sound key. Built on the shared row, plate button,
- * skin and board presses; only the Workshop has plates, a bench or a pager, so the shared row
- * and shell stay generic. Every press goes through the board's model, so a finger that lands
- * while the drawer settles is the second tap of the one that opened or paged it.
+ * and its cancel confirm, and the pager (the sound key and the knock are in sound.ts, #491).
+ * Built on the shared row, plate button, skin and board presses; only the Workshop has plates,
+ * a bench or a pager, so the shared row and shell stay generic. Every press goes through the
+ * board's model, so a finger that lands while the drawer settles is the second tap of the one
+ * that opened or paged it.
  */
 
 /** Each material's 16 art px icon, shown at 32. */
@@ -46,37 +41,6 @@ const PACKED_FROM = 3;
 
 /** An armed cancel that gets no second tap disarms after this long. */
 const DISARM_MS = 4_000;
-
-/** The hammer's tap: a short soft knock, only once the dad has turned the sound on. */
-export function playHammer(soundOn: boolean): void {
-  if (!soundOn) {
-    return;
-  }
-  const Context = (window as Window & { AudioContext?: typeof AudioContext })
-    .AudioContext;
-  if (Context === undefined) {
-    return;
-  }
-  const audio = new Context();
-  const seconds = 0.09;
-  const length = Math.max(1, Math.floor(audio.sampleRate * seconds));
-  const buffer = audio.createBuffer(1, length, audio.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let index = 0; index < length; index += 1) {
-    const fade = 1 - index / length;
-    data[index] = (Math.random() * 2 - 1) * fade * fade;
-  }
-  const source = audio.createBufferSource();
-  source.buffer = buffer;
-  const gain = audio.createGain();
-  gain.gain.value = 0.12;
-  source.connect(gain);
-  gain.connect(audio.destination);
-  source.onended = () => {
-    void audio.close();
-  };
-  source.start();
-}
 
 /** A part whose presses go through the board: `forget` drops a finger-down time left over. */
 interface Pressed {
@@ -291,37 +255,4 @@ export function createPager({
     },
     forget: forgetAll(trackers),
   };
-}
-
-/** The sound toggle, a head key beside the "i". Silent until he turns it on. */
-export function createSoundKey({
-  board,
-  onToggle,
-}: {
-  board: BoardHost;
-  onToggle: () => void;
-}): Pressed & {
-  readonly root: HTMLButtonElement;
-  paint(on: boolean): void;
-} {
-  const root = plateButton(WORKSHOP_QUIET);
-  root.classList.add("workshop-sound");
-  const text = root.querySelector<HTMLElement>(".board-platebtn-text") ?? root;
-  const tracker = pressOnBoard(
-    root,
-    board,
-    { layer: "workshop", id: "sound" },
-    (decision) => {
-      if (decision === "act") {
-        onToggle();
-      }
-    },
-  );
-  const paint = (on: boolean): void => {
-    write(text, on ? WORKSHOP_SOUND : WORKSHOP_QUIET);
-    setAttr(root, "aria-pressed", on ? "true" : "false");
-    setAttr(root, "aria-label", on ? "Sound is on" : "Sound is off");
-  };
-  paint(false);
-  return { root, paint, forget: forgetAll([tracker]) };
 }

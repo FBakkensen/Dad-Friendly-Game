@@ -16,6 +16,7 @@ import { createLegacyPanel } from "./legacy-panel";
 import { createCrewPanel } from "./crew-panel";
 import { createEngineersPanel } from "./engineers-panel";
 import { createUpgradesPanel } from "./upgrades-panel";
+import { soundSetting } from "./sound";
 import { createWorkshopPanel } from "./workshop-panel";
 import type { ReadyPick } from "./ready-now";
 
@@ -242,6 +243,8 @@ export function createSheetPanels(
   const { tierArt } = ctx.art;
   const { rail, legacy, runningNow, saveLine } = deps;
   const overSave = (): boolean => saveLine.isOpen();
+  // One sound for the whole game (#491): the Ledger turns it, the Workshop's knock reads it.
+  const sound = soundSetting(ctx.deviceStorage);
   const workshop = createWorkshopPanel({
     dispatch,
     getView: ctx.view,
@@ -250,6 +253,7 @@ export function createSheetPanels(
     overSave,
     door: rail.keys.workshop,
     fallbackDoor: rail.keys.ledger,
+    sound,
     ...(signal === undefined ? {} : { signal }),
   });
 
@@ -275,6 +279,7 @@ export function createSheetPanels(
     legacy,
     savedCopies,
     onStartOver: deps.onStartOver,
+    sound,
     signal,
   });
 

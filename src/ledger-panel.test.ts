@@ -16,6 +16,7 @@ import {
   stopScreens,
 } from "./mountain-screen.harness";
 import { createProgressStore } from "./progress-store";
+import { SOUND_KEY, soundSetting } from "./sound";
 import { writeSessionSave } from "./session-save";
 import { minedMountain } from "./test-fixtures";
 
@@ -716,6 +717,49 @@ describe("the Ledger drawer (#375)", () => {
   });
 });
 
+describe("the one Sound key, in the Ledger's head (#491)", () => {
+  it("is Quiet on a fresh save, turns on past the settle, and is still on after a reload", () => {
+    const storage = createMemoryStorage();
+    let clock = 10_000;
+    const first = mountScreen({
+      storage,
+      now: () => CLOCK,
+      tapClock: () => clock,
+    });
+    document.body.append(first.root);
+    keyOf(first).click();
+    const head = part(first, ".board-sheet-head");
+    const key = head.querySelector(".sound-key");
+    if (!(key instanceof HTMLButtonElement)) throw new Error("no Sound key");
+    expect(key.nextElementSibling?.classList.contains("board-sheet-info")).toBe(
+      true,
+    );
+    expect(key.textContent).toBe("Quiet");
+    expect(key.getAttribute("aria-pressed")).toBe("false");
+    // The second tap of the double tap that opened the drawer turns nothing.
+    fingerTap(key);
+    expect(key.textContent).toBe("Quiet");
+    clock += PAST_SETTLE;
+    fingerTap(key);
+    expect(key.textContent).toBe("Sound");
+    expect(key.getAttribute("aria-label")).toBe("Sound is on");
+    expect(storage.getItem(SOUND_KEY)).toBe("on");
+    first.root.remove();
+
+    const reloaded = mountScreen({
+      storage,
+      now: () => CLOCK,
+      tapClock: () => clock,
+    });
+    document.body.append(reloaded.root);
+    keyOf(reloaded).click();
+    expect(part(reloaded, ".sound-key").textContent).toBe("Sound");
+    expect(part(reloaded, ".sound-key").getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+  });
+});
+
 describe("the Ledger panel on its own", () => {
   it("stops following the account once its signal aborts", async () => {
     const stop = new AbortController();
@@ -736,6 +780,7 @@ describe("the Ledger panel on its own", () => {
       legacy: { offered: () => false, open: () => undefined },
       savedCopies: { open: () => undefined },
       onStartOver: () => undefined,
+      sound: soundSetting(createMemoryStorage()),
       signal: stop.signal,
     });
     document.body.append(ledger.sheet.root);
