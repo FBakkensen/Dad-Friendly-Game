@@ -113,6 +113,19 @@ function ruleHead(selector: string): string {
   return `^${selector.replace(/[.]/g, "\\.")} \\{`;
 }
 
+/** Every declaration of board.css's top-level rules that list this exact selector. */
+function declared(selector: string): string {
+  return [...boardCss.matchAll(/^([^{}@/\s][^{}@/]*?)\s*\{([^}]*)\}/gm)]
+    .filter((m) =>
+      (m[1] ?? "")
+        .split(",")
+        .map((one) => one.trim())
+        .includes(selector),
+    )
+    .map((m) => m[2] ?? "")
+    .join("\n");
+}
+
 /** The z-index a rule for exactly this selector sets in board.css. */
 function boardZ(selector: string): number {
   const rule = new RegExp(
@@ -345,35 +358,17 @@ describe("board.css", () => {
   });
 
   it("sits her page's plate words on the key face, and the guided first trip across the row (#455)", () => {
-    const rule = (selector: string): string => {
-      const escaped = selector.replace(/[.>]/g, "\\$&");
-      return (
-        new RegExp(`^${escaped} \\{([^}]*)\\}`, "m").exec(boardCss)?.[1] ?? ""
-      );
-    };
     // The key skin's 8 art px edge and 2 more: the inset engineer-parts#fitsPlate fits against.
-    expect(rule(".engineer-page-plates > .board-platebtn")).toMatch(
+    expect(declared(".engineer-page-plates > .board-platebtn")).toMatch(
       /padding:\s*0 calc\(var\(--art\) \* 10\)/,
     );
-    expect(rule(".engineer-page-plates > .board-platebtn.is-small")).toMatch(
-      /font-size:\s*var\(--board-type-14\)/,
-    );
-    expect(rule(".engineer-page-plates > .board-platebtn.teach-new")).toMatch(
-      /grid-column:\s*1 \/ -1/,
-    );
+    expect(
+      declared(".engineer-page-plates > .board-platebtn.is-small"),
+    ).toMatch(/font-size:\s*var\(--board-type-14\)/);
+    expect(
+      declared(".engineer-page-plates > .board-platebtn.teach-new"),
+    ).toMatch(/grid-column:\s*1 \/ -1/);
   });
-
-  /** Every declaration of the top-level rules that list this exact selector. */
-  const declared = (selector: string): string =>
-    [...boardCss.matchAll(/^([^{}@/\s][^{}@/]*?)\s*\{([^}]*)\}/gm)]
-      .filter((m) =>
-        (m[1] ?? "")
-          .split(",")
-          .map((one) => one.trim())
-          .includes(selector),
-      )
-      .map((m) => m[2] ?? "")
-      .join("\n");
 
   it.each([".board-bay-tag", ".board-row-tag"])(
     "prints %s's figure in bold 17px Barlow with tabular figures (#505)",
@@ -386,9 +381,21 @@ describe("board.css", () => {
     },
   );
 
-  it("keeps the plate's face on its figure, over the mono of .board-num (#505)", () => {
-    expect(declared(".board-bay-tag-text")).toMatch(/font-family:\s*inherit/);
+  it("keeps the plate's face on a row's price, over the mono of .board-num (#505)", () => {
     expect(declared(".board-row-price")).toMatch(/font-family:\s*inherit/);
+  });
+
+  it("keeps a three-flap bay's trouble shout at 13px, so it is never cut (#505)", () => {
+    expect(
+      declared(".board-bay.is-three[data-trouble] .board-bay-sub"),
+    ).toMatch(/font-size:\s*var\(--board-type-13\)/);
+  });
+
+  it("keeps a post's sentence on an engineer's page the quiet 13px line (#505)", () => {
+    const post = declared(".engineer-post .board-row-info");
+    expect(post).toMatch(/font-size:\s*var\(--board-type-13\)/);
+    expect(post).toMatch(/font-weight:\s*inherit/);
+    expect(post).toMatch(/color:\s*var\(--board-ink-2\)/);
   });
 
   it("sets the rate and effect lines at 15px, semi-bold, in the bright ink (#505)", () => {
@@ -424,6 +431,9 @@ describe("board.css", () => {
       /font-family:\s*"Barlow Condensed"/,
     );
     expect(declared(".board-row-gain")).toMatch(/font-weight:\s*700/);
+    expect(declared(".board-row-gain")).toMatch(
+      /font-variant-numeric:\s*tabular-nums/,
+    );
     expect(declared(".board-row-gain")).toMatch(
       /color:\s*var\(--board-ink-bare\)/,
     );

@@ -2,6 +2,7 @@
 /** Controls sections: each family of board controls wired once, in Chrome, and the press look. */
 import {
   crewMountain,
+  fleetMountain,
   openMountain,
   heartMountain,
   savingMountain,
@@ -744,6 +745,34 @@ for (const viewport of SCREENS) {
       );
       if (!thanks.thanked || baysMeasured !== 3) {
         console.log("thanks note", size, { ...thanks, baysMeasured });
+      }
+      await close();
+    }
+    // Trouble on a three-flap bay (120 carts): its text column is narrower,
+    // and the shout still fits whole (#505).
+    {
+      const troubled = '.board-bay.is-three[data-trouble="cave-in"]';
+      const { page, close } = await openScreen(viewport, fleetMountain(), {
+        search: "?trouble=cave-in",
+        stopClock: true,
+        tapClock: "held",
+      });
+      await baysDrawn(page);
+      const sub = await page
+        .waitForSelector(`${troubled} .board-bay-sub`, { timeout: 3_000 })
+        .then((el) =>
+          el.evaluate((line) => ({
+            text: line.textContent,
+            cut: line.scrollWidth > line.clientWidth + 1,
+          })),
+        )
+        .catch(() => null);
+      check(
+        sub !== null && sub.text.endsWith("Hold to fix") && !sub.cut,
+        `${label} a troubled three-flap bay shows Hold to fix whole`,
+      );
+      if (sub === null || sub.cut) {
+        console.log("three-flap trouble", size, sub);
       }
       await close();
     }

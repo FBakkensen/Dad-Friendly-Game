@@ -1756,6 +1756,12 @@ body {
   color: var(--board-ink);
 }
 
+/* Three flaps leave the words 100px, and the trouble shout has no shorter
+   wording to fall back to: it keeps the old 13px there, so it is never cut. */
+.board-bay.is-three[data-trouble] .board-bay-sub {
+  font-size: var(--board-type-13);
+}
+
 /* The flap counter: flip-counter.png's left cap (columns 0-5), a window
    (6-15) per flap after the first, and the right cap with the last window
    (16-31). Its right edge stays at 154 art of the row. */
@@ -1862,10 +1868,8 @@ body {
   display: none;
 }
 
-/* A price is bold Barlow on its plate (#505), not the thin mono of .board-num. */
 .board-bay-tag-text {
   position: relative;
-  font-family: inherit;
 }
 
 /* ---------- drawer rows (#373) ---------- */
@@ -2028,6 +2032,15 @@ button.board-row:focus-visible {
   color: var(--board-rust);
 }
 
+/* A post on an engineer's page is a sentence about her, not a figure: it
+   stays the quiet 13px line. */
+.engineer-post .board-row-info {
+  font-size: var(--board-type-13);
+  line-height: var(--board-row-line-lead);
+  font-weight: inherit;
+  color: var(--board-ink-2);
+}
+
 .board-row-why {
   font-size: var(--board-type-13);
   line-height: var(--board-row-line-lead);
@@ -2055,6 +2068,7 @@ button.board-row:focus-visible {
   font-family: "Barlow Condensed", sans-serif;
   font-size: var(--board-type-16);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   line-height: var(--board-row-gain-lead);
   color: var(--board-ink-bare);

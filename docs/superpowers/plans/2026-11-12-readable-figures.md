@@ -81,3 +81,6 @@ it("sets the rate and effect lines at 15px, semi-bold, in the bright ink (#505)"
 
 - A row's gain is 16px bold, not 17px: at 17px the Great Machine's name clipped by 4px in the fallback-font fit check (section 2, tier cards, `+134.4K/s`).
 - Ready now's second line stays 13px and turns bold in the plate's full ink. Its reason is worded to fit the 176px plate at 13px; at 15px every reason with a three-digit gain fell back to the gain alone.
+- After the review: a troubled three-flap bay keeps its shout at 13px (`Cave-in! · Hold to fix` has no shorter wording and was cut at 15px in the 100px column); the visual check now covers it.
+- After the review: a post's sentence on an engineer's page stays 13px and quiet. It is prose about her, not a figure, and at 15px it was cut sooner.
+- After the review: a row's gain takes tabular figures, and the no-op `font-family: inherit` on the bay's price text is gone.
