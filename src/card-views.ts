@@ -39,7 +39,7 @@ export function welcomeNews(view: ProgressSnapshot): boolean {
 }
 
 export interface WelcomeAway {
-  /** "+1.2 million" and "stones" */
+  /** "+1.2M" and "stones" */
   readonly mined: ReturnType<typeof awayMinedWords>;
   /** "You were gone 9 hours. … ×1.25." */
   readonly gone: string;

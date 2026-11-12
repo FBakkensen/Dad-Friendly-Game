@@ -141,7 +141,7 @@ describe("buyRowView", () => {
       state: "locked",
       price: "Locked",
       dimTag: true,
-      info: [lockBodyLine(borerTier, lock), lockRateLine(borerTier, lock)],
+      info: [lockBodyLine(borerTier, lock), lockRateLine(lock)],
       gain: "",
       verb: "",
       lamp: "off",

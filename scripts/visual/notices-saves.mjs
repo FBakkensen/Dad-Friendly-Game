@@ -345,7 +345,7 @@ for (const viewport of NOTICE_SIZES) {
       const cartRow = rows.find((row) => row.tier === "cart");
       const cart = cartRow?.gain;
       // Before the Granite (10M) the borer is a locked preview that names its
-      // depth (#250, #356): "Borer · 10M", or the longer line that says it.
+      // depth (#250, #356): "Opens at 10M stones" (#508), or the longer line that says it.
       const borerRow = rows.find((row) => row.tier === "borer");
       const borer =
         borerRow?.locked === true && /\b10M\b/.test(borerRow.info)

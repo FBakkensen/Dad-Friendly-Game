@@ -15,6 +15,7 @@ import { UPGRADES, upgradeById, type UpgradeId, NO_UPGRADES } from "./upgrades";
 import {
   awayGoneWords,
   awayMinedWords,
+  rushHeldWords,
   crewGrewWords,
   ACCOUNT,
   LEDGER_BACK,
@@ -1090,9 +1091,17 @@ describe("the welcome card's words (#464)", () => {
     // The number and its unit, so the card sets the unit smaller beside the number.
     expect(awayMinedWords(1)).toEqual({ count: "+1", unit: "stone" });
     expect(awayMinedWords(1_200_000)).toEqual({
-      count: "+1.2 million",
+      count: "+1.2M",
       unit: "stones",
     });
+    // The board's short figures, never "947.1 thousand" (#508).
+    expect(awayMinedWords(947_150).count).toBe("+947.1K");
+    expect(rushHeldWords(474_800)).toBe(
+      "474.8K of them wait for your Gold rush: watch for the golden vein.",
+    );
+    expect(rushHeldWords(3_240)).toBe(
+      "3,240 of them wait for your Gold rush: watch for the golden vein.",
+    );
   });
 
   it("says how long you were gone, and the Heart's share", () => {

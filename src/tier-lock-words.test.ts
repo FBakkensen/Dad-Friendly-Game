@@ -3,7 +3,12 @@ import { tierLock } from "./crew";
 import { createMountain } from "./mountain";
 import { shownStones } from "./scale";
 import { minedMountain } from "./test-fixtures";
-import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
+import {
+  lockAria,
+  lockBodyLine,
+  lockRateLine,
+  lockShortLine,
+} from "./tier-lock-words";
 import { tierById } from "./tiers";
 
 const lockOf = (id: Parameters<typeof tierById>[0]) => {
@@ -15,10 +20,11 @@ const lockOf = (id: Parameters<typeof tierById>[0]) => {
   return { tier, lock };
 };
 
-describe("locked tier card words (#250)", () => {
+describe("locked tier card words (#250, #508)", () => {
   it("names the borer's depth, short and in the dad's voice", () => {
     const { tier, lock } = lockOf("borer");
-    expect(lockRateLine(tier, lock)).toBe("Borer · 10M");
+    expect(lockRateLine(lock)).toBe("Opens at 10M stones");
+    expect(lockShortLine(lock)).toBe("Opens at 10M");
     expect(lockBodyLine(tier, lock)).toBe(
       "The Tunnel borer joins your crew at 10M stones. Keep digging, Dad!",
     );
@@ -33,7 +39,7 @@ describe("locked tier card words (#250)", () => {
     // Shown to one decimal, rounded down (the band scales are pinned in src/tuning.test.ts).
     const at =
       Math.floor(shownStones(createMountain(), 120_000_000) / 100_000) / 10;
-    expect(lockRateLine(tier, lock)).toBe(`Machine · ${String(at)}M`);
+    expect(lockRateLine(lock)).toBe(`Opens at ${String(at)}M stones`);
     expect(lockBodyLine(tier, lock)).toBe(
       `The Great Machine joins your crew at ${String(at)}M stones. Keep digging, Dad!`,
     );
@@ -48,14 +54,15 @@ describe("locked tier card words (#250)", () => {
     const at = String(
       Math.floor(shownStones(createMountain(), 70_000_000) / 100_000) / 10,
     );
-    expect(lockRateLine(tier, lock)).toMatch(new RegExp(`^\\S+ · ${at}M$`));
+    expect(lockRateLine(lock)).toMatch(new RegExp(`^With the \\S+ at ${at}M$`));
+    expect(lockShortLine(lock)).toBeUndefined();
     expect(lockBodyLine(tier, lock)).toMatch(
       new RegExp(
         `^.+s join with the \\S+ at ${at}M stones\\. Nearly there, Dad!$`,
       ),
     );
     for (const line of [
-      lockRateLine(tier, lock),
+      lockRateLine(lock),
       lockBodyLine(tier, lock),
       lockAria(tier, lock),
     ]) {

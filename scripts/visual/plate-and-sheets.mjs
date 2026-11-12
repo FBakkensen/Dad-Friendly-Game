@@ -466,7 +466,7 @@ async function buysMix(page) {
     // its short form where the long one does not fit (#373).
     const machineLines = [
       "The Great Machine joins your crew at 574.3M stones. Keep digging, Dad!",
-      "Machine · 574.3M",
+      "Opens at 574.3M stones",
     ];
     return {
       // A row a tap buys now: the worker or the cart.

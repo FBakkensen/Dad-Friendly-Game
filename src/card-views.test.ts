@@ -117,7 +117,7 @@ describe("welcomeView", () => {
       unit: "stone",
     });
     expect(welcomeView(news(away()))?.away?.mined).toEqual({
-      count: "+1.2 million",
+      count: "+1.2M",
       unit: "stones",
     });
   });

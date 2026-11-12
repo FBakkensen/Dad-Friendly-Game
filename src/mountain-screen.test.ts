@@ -863,7 +863,7 @@ describe("crew tiers on screen", () => {
       }),
     );
     const screen = mountScreen({ storage });
-    expect(screen.text(".welcome-mined")).toBe("+14.2 thousand stones");
+    expect(screen.text(".welcome-mined")).toBe("+14.2K stones");
     expect(screen.text(".welcome-detail")).toBe(
       "You were gone 1 day 2 hours. Your crew saved a full day's haul for you. Good to have you back.",
     );
@@ -1794,7 +1794,7 @@ describe("the control board (#370)", () => {
     const crew = drawer?.querySelector<HTMLElement>(".crew");
     const legend = drawer?.querySelector('.board-sec[data-sec="crew"]');
     expect(legend?.firstElementChild?.textContent).toBe("Crew");
-    expect(legend?.lastElementChild?.textContent).toBe("per sec");
+    expect(legend?.lastElementChild?.textContent).toBe("per second");
     // The legend stands right above the crew section.
     expect(legend?.nextElementSibling).toBe(crew);
     // How it works covers the list, and Back brings it back.
@@ -1977,7 +1977,7 @@ describe("the control board (#370)", () => {
         ".board-stock .board-dial",
       );
       expect(dial?.getAttribute("aria-label")).toBe(
-        "Overtime, crew ×2, 20:00 left",
+        "Overtime, pace ×2, 20:00 left",
       );
       const note = screen.root.querySelector<HTMLElement>(".board-note");
       expect(note?.classList.contains("on")).toBe(false);
