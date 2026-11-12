@@ -285,7 +285,12 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    scrolling the list alone, never the board's clip) and `fitFirst`, a
    measure-once line fitter: it writes the first
    fit option that fits, keeps the fit only once measured on a laid-out box,
-   and drops it when fonts settle. `board-row` is one drawer row (lamp,
+   and drops it when fonts settle. `writeFigures` (#506) writes a line with
+   each figure in a `b.board-fig`, bold and bright among quiet words; the
+   bays' sub-lines and a row's info line are fitted with it, so a line is
+   measured as it is drawn. A row's info line takes two lines (`is-roomy`,
+   measured with `fitsBox`) when no need and no why is under it, and its
+   info and flag are fitted again when the words beside them change. `board-row` is one drawer row (lamp,
    icon, name and badge, info, need, why, flag, gain, price tag and verb),
    built once and reused, writing only what changed; its icon is 64, 48 or
    32px (`iconPx`), and `rowBar` / `paintRowBar` are the one thin bar at a

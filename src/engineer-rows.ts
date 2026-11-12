@@ -439,12 +439,16 @@ export function postRowView(
       : netGain(ctx, index, guided);
   const name = tendTitle(post, here);
   const benefit = tendBenefit(post, engineer.name, gain);
+  const plain = tendBenefit(post, engineer.name);
+  // Her own post's gain is the page's kick (her duty), so the name keeps the row's width.
+  const shown = here || gain === undefined || gain === NONE_BUILT ? "" : gain;
   return {
     ...QUIET_ROW,
     name,
-    info: [benefit, tendBenefit(post, engineer.name)],
-    // Her own post's gain is the page's kick (her duty), so the name keeps the row's width.
-    gain: here || gain === undefined || gain === NONE_BUILT ? "" : gain,
+    // The gain leads the sentence only where the row shows none at its right: two lines hold
+    // the long form, and it would say the gain twice (#506).
+    info: shown === "" ? [benefit, plain] : [plain],
+    gain: shown,
     flag: isNew ? NEW_FLAG : NO_FLAG,
     // Her own post is running (camp is rest, so dark), and the teach's post is the pick: both amber (#509).
     lamp: isNew || (here && post !== "camp") ? "amber" : "off",

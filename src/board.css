@@ -2057,6 +2057,7 @@ button.board-row:focus-visible {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Trouble has no figure: the whole shout speaks. */

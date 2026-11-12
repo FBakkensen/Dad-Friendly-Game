@@ -478,6 +478,24 @@ for (const viewport of SCREENS) {
           () => true,
           () => false,
         );
+      // Her posts' sentences read whole on the row's two lines (#506).
+      const posts = await page.$$eval(
+        `${OPEN_SHEET("engineers")} .engineer-post .board-row-info:not([hidden])`,
+        (lines) =>
+          lines.map((line) => ({
+            text: line.textContent,
+            cut:
+              line.scrollWidth > line.clientWidth + 1 ||
+              line.scrollHeight > line.clientHeight + 1,
+          })),
+      );
+      check(
+        posts.length === 5 && posts.every((line) => !line.cut),
+        `${label} engineers: no post's sentence on her page is cut`,
+      );
+      if (posts.length !== 5 || posts.some((line) => line.cut)) {
+        console.log("engineer posts", size, posts);
+      }
       const handled = await clickHandled(page);
       await press(page, drills);
       await handled();

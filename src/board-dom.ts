@@ -27,10 +27,18 @@ export function write(target: HTMLElement, text: string): void {
 }
 
 /**
- * A figure in a line: a count, a rate, a percent or a time, such as `+28/s`, `1,207`, `×2`,
- * `574.3M`, `37.5%` and `8:58`. A full stop after it is the sentence's, not the figure's.
+ * A figure in a line: a count, a rate, a pace, a percent or a time, such as `+28/s`, `1,207`,
+ * `×2`, `1.5×`, `574.3M`, `12.3 thousand`, `37.5%`, `8:58` and `1h`. A full stop after it is
+ * the sentence's, not the figure's.
  */
-const FIGURE = /[+×]?\d+(?:[.,:]\d+)*(?:[KMBT]\b)?%?(?:\/s)?/g;
+const FIGURE =
+  /[+×>]?\d+(?:[.,:]\d+)*(?:[KMBT]\b|[hmds]\b|\+? (?:thousand|million|billion|trillion)\b)?[%×]?(?:\/s)?/g;
+const LETTER = /[A-Za-z]/;
+
+/** Digits inside a word (an account's name, `x2`) are not a figure. */
+function inWord(text: string, from: number, to: number): boolean {
+  return LETTER.test(text[from - 1] ?? "") || LETTER.test(text[to] ?? "");
+}
 
 /** A line cut into its figures and the words between them, in order. */
 export function figureRuns(
@@ -39,11 +47,15 @@ export function figureRuns(
   const runs: { text: string; figure: boolean }[] = [];
   let at = 0;
   for (const found of text.matchAll(FIGURE)) {
+    const end = found.index + found[0].length;
+    if (inWord(text, found.index, end)) {
+      continue;
+    }
     if (found.index > at) {
       runs.push({ text: text.slice(at, found.index), figure: false });
     }
     runs.push({ text: found[0], figure: true });
-    at = found.index + found[0].length;
+    at = end;
   }
   if (at < text.length) {
     runs.push({ text: text.slice(at), figure: false });

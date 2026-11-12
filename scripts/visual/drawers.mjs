@@ -832,13 +832,13 @@ async function ledgerFacts(page) {
         info: words(info),
         why: words(el?.querySelector(".board-row-why") ?? null),
         verb: words(el?.querySelector(".board-row-verb") ?? null),
-        // One line, cut by an ellipsis if it must be, inside its row.
+        // Two lines at most (#506), cut by an ellipsis if it must be, inside its row.
         infoFits:
           info === null ||
           !shown(info) ||
           (within(info, el) &&
             info.getBoundingClientRect().height <=
-              Number.parseFloat(getComputedStyle(info).lineHeight) + 1 &&
+              Number.parseFloat(getComputedStyle(info).lineHeight) * 2 + 1 &&
             (info.scrollWidth <= info.clientWidth + 1 ||
               getComputedStyle(info).textOverflow === "ellipsis")),
       };
@@ -994,7 +994,7 @@ const registerLedgerStates = (viewport) => {
             heart.stones.infoFits &&
             /^\d of 6 relics found$/.test(heart.relics.name) &&
             heart.relics.info !== "",
-          `${size} ledger heart: four materials on one line inside the stones row (${heart.stones.info}), and the relics row reads "${heart.relics.info}"`,
+          `${size} ledger heart: four materials inside the stones row (${heart.stones.info}), and the relics row reads "${heart.relics.info}"`,
         );
         await close();
       }

@@ -503,7 +503,11 @@ describe("a post row on her page (#455)", () => {
     const machine = postRowView(crew(mountain), 0, "machine", ctx, teach);
     expect(machine.flag).toEqual(["New"]);
     expect(machine.gain).toBe(net);
-    expect(machine.info[0]).toContain(net);
+    // The gain is at the row's right, so the sentence does not say it again (#506).
+    expect(machine.info).toEqual([
+      "It runs with far fewer workers, and she clears any jam herself.",
+    ]);
+    expect(machine.aria).toContain(net);
     // Without the teach, the same row reads what tending it makes.
     expect(postRowView(crew(mountain), 0, "machine", ctx, NONE).gain).toBe(
       gross,

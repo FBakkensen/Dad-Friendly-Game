@@ -148,6 +148,24 @@ describe("the drawer row", () => {
       expect(text(row, ".board-row-info")).toBe("12 owned");
     });
 
+    it("with no fits given, the info line is also no taller than its box (#506)", () => {
+      const row = createBoardRow({
+        tag: "button",
+        className: "board-buy-row",
+        data: {},
+        name: "Cart",
+        icon: true,
+      });
+      const info = part(row, ".board-row-info");
+      // Wide enough, but the first option wraps onto a third line.
+      vi.spyOn(info, "clientHeight", "get").mockReturnValue(34);
+      vi.spyOn(info, "scrollHeight", "get").mockImplementation(() =>
+        info.textContent.length > 10 ? 51 : 17,
+      );
+      row.render(ready(), still);
+      expect(text(row, ".board-row-info")).toBe("12 owned");
+    });
+
     it("an icon is 64 by default; iconPx 48 or 32 sizes it and marks the row (#375)", () => {
       const big = make();
       expect(part(big, "img.board-row-icon").getAttribute("width")).toBe("64");
@@ -254,7 +272,6 @@ describe("the drawer row", () => {
       ).toEqual([
         ["board-row-info", "12"],
         ["board-row-info", "13"],
-        ["board-row-info", "2"],
       ]);
       expect(text(row, ".board-row-info")).toBe("12 owned · 13 more for x2");
     });
@@ -287,6 +304,28 @@ describe("the drawer row", () => {
         row.render(ready(), still);
         expect(text(row, ".board-row-info")).toBe("12 owned · 13 more for x2");
         row.render(ready({ need: "Needs 8 workers" }), still);
+        expect(text(row, ".board-row-info")).toBe("12 owned");
+      });
+
+      it("fits the info and the flag beside the gain, and again when the right column's words change", () => {
+        // The right column takes its width from the words: a long gain leaves the lines less.
+        const beside = (box: HTMLElement): boolean => {
+          const gain =
+            box.closest(".board-row")?.querySelector(".board-row-gain")
+              ?.textContent ?? "";
+          return box.textContent.length <= (gain.length > 5 ? 10 : 40);
+        };
+        const row = make({ fits: beside });
+        laidOut(row);
+        const flag = ["Ready now · Ada +86/s", "Ready now"];
+        row.render(ready({ gain: "+12,345/s", flag }), still);
+        // Measured with the gain already on the row, not before it.
+        expect(text(row, ".board-row-info")).toBe("12 owned");
+        expect(text(row, ".board-row-flag")).toBe("Ready now");
+        row.render(ready({ gain: "+12/s", flag }), still);
+        expect(text(row, ".board-row-info")).toBe("12 owned · 13 more for x2");
+        expect(text(row, ".board-row-flag")).toBe("Ready now · Ada +86/s");
+        row.render(ready({ gain: "+12,345/s", flag }), still);
         expect(text(row, ".board-row-info")).toBe("12 owned");
       });
 

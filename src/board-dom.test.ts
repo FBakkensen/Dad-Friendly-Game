@@ -265,6 +265,21 @@ describe("figures in a line (#506)", () => {
     ["Opens at 574.3M stones", "Opens at [574.3M] stones"],
     ["Needs 1 worker each · 9 idle", "Needs [1] worker each · [9] idle"],
     ["8:58", "[8:58]"],
+    // The Workshop writes its pace with the × after: the sign is the figure's.
+    ["Crew 2× now · 8:58 left", "Crew [2×] now · [8:58] left"],
+    [
+      "The crew keeps digging at 1.5× for 20 min.",
+      "The crew keeps digging at [1.5×] for [20] min.",
+    ],
+    // A count's scale word is part of its figure.
+    ["Taps 9,999 to 12.3 thousand.", "Taps [9,999] to [12.3 thousand]."],
+    ["1,000+ trillion", "[1,000+ trillion]"],
+    [">999T", "[>999T]"],
+    ["1h 2m left", "[1h] [2m] left"],
+    // Digits inside a name are not a figure.
+    ["Signed in as dad1984@gmail.com", "Signed in as dad1984@gmail.com"],
+    ["Signed in as 1984dad@gmail.com", "Signed in as 1984dad@gmail.com"],
+    ["13 more for x2", "[13] more for x2"],
     ["Cave-in! · Hold to fix", "Cave-in! · Hold to fix"],
     ["", ""],
   ])("finds the figures of %j", (text, want) => {

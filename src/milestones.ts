@@ -154,8 +154,9 @@ export function milestoneMultiplier(
 }
 
 /**
- * The card line: the next goal with progress, or once every mark is
- * reached, the "twice as fast now" line. Undefined for a tier without marks.
+ * The whole line, a bay's longest option: the next goal with progress, or once every mark is
+ * reached, the "twice as fast now" line. Undefined for a tier without marks. A Buys row shows
+ * `nextMark` instead (#506).
  */
 export function milestoneLine(
   id: TierId,
@@ -163,15 +164,30 @@ export function milestoneLine(
   format: (value: number) => string,
   table: MilestoneTable = MILESTONES,
 ): string | undefined {
-  const marks = table[id] ?? [];
   const reached = milestonesReached(id, count, table);
   const now = reached === 0 ? undefined : REACHED_LINE;
-  const next = marks.find((mark) => count < mark.at);
+  const next = upcoming(id, count, format, table);
   if (next === undefined) {
     return now;
   }
-  const goal = `${format(count)} of ${format(next.at)} · ${next.goal}`;
+  const goal = `${next.progress} · ${next.goal}`;
   return now === undefined ? goal : `${now} ${goal}`;
+}
+
+/** The next mark's goal with the progress toward it (`5 of 10`), or undefined past the last. */
+function upcoming(
+  id: TierId,
+  count: number,
+  format: (value: number) => string,
+  table: MilestoneTable,
+): { readonly progress: string; readonly goal: string } | undefined {
+  const next = (table[id] ?? []).find((mark) => count < mark.at);
+  return next === undefined
+    ? undefined
+    : {
+        progress: `${format(count)} of ${format(next.at)}`,
+        goal: next.goal,
+      };
 }
 
 /** The short payoff, where a row has one line for it (#506): what every mark's goal ends on. */
@@ -188,13 +204,13 @@ export function nextMark(
   format: (value: number) => string,
   table: MilestoneTable = MILESTONES,
 ): { readonly progress: string; readonly payoff: string } | undefined {
-  const next = (table[id] ?? []).find((mark) => count < mark.at);
+  const next = upcoming(id, count, format, table);
   if (next === undefined) {
     return undefined;
   }
   const scene = next.goal.lastIndexOf(". ");
   return {
-    progress: `${format(count)} of ${format(next.at)}`,
+    progress: next.progress,
     payoff: scene === -1 ? next.goal : next.goal.slice(scene + 2),
   };
 }
