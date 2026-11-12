@@ -199,7 +199,7 @@ describe("workshop sheet (#199)", () => {
     expect(recipe(workshopCards(granite, 0), "blasting-charge").action).toEqual(
       { kind: "short", label: "No clay this deep" },
     );
-    // Gone outranks short: no iron fills a row that can never have its clay.
+    // Short of clay and iron, it names the clay: no iron fills a row that can never have its clay.
     expect(recipe(workshopCards(granite, 0), "sturdy-props").action).toEqual({
       kind: "short",
       label: "No clay this deep",

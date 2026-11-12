@@ -8,7 +8,7 @@
 
 1. **Words:** "No clay this deep" (Flemming, 12 Nov). The same pattern covers a deeper band's material once its band is dug ("No iron this deep" on the Deep Heart), which the issue's out-of-scope line leaves in.
 2. **Gone means none left:** the row says it only when the rest of the mountain holds none of that material. A shortfall near the end of the Topsoil, where one or two clay are still to come, keeps "Need 4 more clay".
-3. **Gone outranks short:** Sturdy props lacking both clay and iron in the Granite says "No clay this deep", since no iron would fill it.
+3. **Gone before short:** a material that is gone is named before the stones a craft still lacks. Bands are dug in the order recipes list their materials, so the first material lacking is the gone one: Sturdy props in the Granite says "No clay this deep".
 4. **Same row state:** the action stays `short`, so the dark lamp, the dim tag, the refused tap and the order rank are unchanged.
 
 ## Tasks

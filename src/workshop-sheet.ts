@@ -190,7 +190,7 @@ export function craftShortfall(
  * (#492): clay, once the Granite starts and the Topsoil's ten are spent. Such a row can never
  * fill this run, so it says so instead of "Need 4 more clay".
  */
-export function goneMaterial(
+function goneMaterial(
   mountain: Mountain,
   id: RecipeId,
 ): MaterialId | undefined {
