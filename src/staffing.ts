@@ -17,14 +17,18 @@ type Pick = {
 };
 
 /** Float dust between two equal crews never moves a hand. */
-const SAME_STONES = 1e-9;
+export function moreStones(stones: number, than: number): boolean {
+  return stones > than + 1e-9 * Math.max(1, Math.abs(than));
+}
 
 /**
  * How many of each machine the hands run (#500): the staffing that mines
  * the most stones a second. A machine runs only fully staffed. So a borer
  * or a Great Machine never takes hands that earn more on the machines
- * below it, and one more hand never makes the crew slower. On a tie the
- * bigger machines run, as they did before.
+ * below it, and one more hand never mines less. `slots` come biggest
+ * machine first; on a tie the bigger machines run, as they did before. A
+ * machine that takes one hand is filled fastest first; any other is tried
+ * count by count.
  */
 export function staffMachines(
   slots: readonly StaffSlot[],
@@ -33,9 +37,7 @@ export function staffMachines(
   const fillers = slots
     .filter((slot) => slot.staff === 1)
     .sort((a, b) => b.speed - a.speed);
-  const big = slots
-    .filter((slot) => slot.staff > 1)
-    .sort((a, b) => b.staff - a.staff);
+  const big = slots.filter((slot) => slot.staff > 1);
   const pick = bestFrom(big, 0, Math.max(0, hands), fillers);
   return new Map(
     slots.map((slot) => [slot.id, pick.running.get(slot.id) ?? 0]),
@@ -66,7 +68,7 @@ function bestFrom(
   for (const n of counts) {
     const rest = bestFrom(big, index + 1, hands - n * slot.staff, fillers);
     const stones = rest.stones + n * slot.speed;
-    if (best === undefined || stones > best.stones + SAME_STONES) {
+    if (best === undefined || moreStones(stones, best.stones)) {
       best = { stones, running: new Map(rest.running).set(slot.id, n) };
     }
   }
@@ -108,4 +110,59 @@ function fill(fillers: readonly StaffSlot[], hands: number): Pick {
     stones += n * filler.speed;
   }
   return { stones, running };
+}
+
+/**
+ * The old rule, biggest machine first (#89): each kind runs as many as the
+ * hands left can staff. `effectiveRates` weighs it with the others, so the
+ * crew is never slower than it was.
+ */
+export function biggestFirst(
+  slots: readonly StaffSlot[],
+  hands: number,
+): ReadonlyMap<TierId, number> {
+  const running = new Map<TierId, number>();
+  let free = Math.max(0, hands);
+  for (const slot of slots) {
+    const n = Math.min(slot.count, Math.floor(free / slot.staff));
+    running.set(slot.id, n);
+    free -= n * slot.staff;
+  }
+  return running;
+}
+
+/**
+ * The staffing with `big` machines running and the one-hand machines
+ * filled fastest first from the hands left, or undefined when the hands
+ * or the machines owned are too few.
+ */
+export function staffWith(
+  slots: readonly StaffSlot[],
+  hands: number,
+  big: ReadonlyMap<TierId, number>,
+): ReadonlyMap<TierId, number> | undefined {
+  let free = hands;
+  for (const slot of slots) {
+    const n = big.get(slot.id) ?? 0;
+    if (slot.staff === 1 || n === 0) {
+      continue;
+    }
+    if (n < 0 || n > slot.count) {
+      return undefined;
+    }
+    free -= n * slot.staff;
+  }
+  if (free < 0) {
+    return undefined;
+  }
+  const fillers = slots
+    .filter((slot) => slot.staff === 1)
+    .sort((a, b) => b.speed - a.speed);
+  const running = new Map(fill(fillers, free).running);
+  for (const slot of slots) {
+    if (slot.staff > 1) {
+      running.set(slot.id, big.get(slot.id) ?? 0);
+    }
+  }
+  return running;
 }

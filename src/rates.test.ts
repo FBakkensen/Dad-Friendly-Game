@@ -432,3 +432,54 @@ describe("what more hands add (#490)", () => {
     );
   });
 });
+
+describe("staffing never slows the crew (#500)", () => {
+  it("one more worker, drill, borer or machine never mines less, with Grandpa and the floor", () => {
+    const posts = ["borer", "machine", "camp"] as const;
+    let checked = 0;
+    for (const legacy of [0, 1]) {
+      for (const post of posts) {
+        for (const machines of [0, 1, 2]) {
+          for (const borers of [0, 1, 3]) {
+            for (const drills of [0, 10, 50]) {
+              for (let helpers = 0; helpers <= 60; helpers += 3) {
+                const crew = {
+                  ...minedMountain(10_000_000),
+                  helpers,
+                  drills,
+                  borers,
+                  machines,
+                  legacy,
+                  engineers:
+                    post === "camp"
+                      ? []
+                      : [
+                          {
+                            name: "Ada" as const,
+                            rank: 0 as const,
+                            trips: 0,
+                            post,
+                          },
+                        ],
+                };
+                const now = effectiveRates(crew).exactCrewPerSecond;
+                for (const more of [
+                  { ...crew, helpers: helpers + 1 },
+                  { ...crew, drills: drills + 1 },
+                  { ...crew, borers: borers + 1 },
+                  { ...crew, machines: machines + 1 },
+                ]) {
+                  expect(
+                    effectiveRates(more).exactCrewPerSecond,
+                  ).toBeGreaterThanOrEqual(now - 1e-6);
+                  checked += 1;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(checked).toBe(2 * 3 * 3 * 3 * 3 * 21 * 4);
+  });
+});

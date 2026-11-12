@@ -4,9 +4,11 @@ import {
   onTrip,
   promote,
   engineerTenths,
+  GRANDPA_RANK,
   staffNeeded,
   station,
   TENDING_GAIN,
+  TENDING_TENTHS,
   tendingTenths,
   type EngineerPost,
   type EngineerRank,
@@ -25,7 +27,13 @@ import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import { TIERS, owned, tierById, type TierId } from "./tiers";
 import { hasRelic } from "./relics";
-import { staffMachines } from "./staffing";
+import {
+  biggestFirst,
+  moreStones,
+  staffMachines,
+  staffWith,
+  type StaffSlot,
+} from "./staffing";
 import { boostById, boostLeft } from "./boosts";
 import { rushPerSecond } from "./gold-rush";
 import {
@@ -260,19 +268,100 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
 }
 
 /**
- * How many of each tier run (#500). The machines are staffed on their
- * steady speed with the engineers' tenths: live trouble does not move hands
- * for a few seconds, and Grandpa picks his post from what runs.
+ * How many of each tier run (#500): the staffing whose crew, tending and
+ * Grandpa included, mines the most. It starts from the best staffing for
+ * each guess of where the tending lands, and from the old biggest-first
+ * rule, so the crew is never slower than it was. Then it moves one big
+ * machine at a time while that mines more, so Grandpa or the floor moving
+ * with them is counted. Weighed on the steady speed, so live trouble does
+ * not move hands for a few seconds.
  */
 function staffCrew(
   mountain: Mountain,
   steady: Readonly<Record<TierId, number>>,
 ): Record<TierId, number> {
-  const running = {
-    helper: mountain.helpers,
-    kid: mountain.kids,
-  } as Record<TierId, number>;
-  const slots = TIERS.flatMap((tier) => {
+  const slots = staffSlots(mountain, steady);
+  const hands = mountain.helpers + mountain.kids;
+  const weigh = (staffing: ReadonlyMap<TierId, number>): Weighed => {
+    const running = runningOf(mountain, staffing);
+    return {
+      staffing,
+      running,
+      stones: tendedOutput(mountain, steady, running),
+    };
+  };
+  let best = weigh(biggestFirst(slots, hands));
+  for (const guess of slotGuesses(mountain, slots)) {
+    const next = weigh(staffMachines(guess, hands));
+    if (moreStones(next.stones, best.stones)) {
+      best = next;
+    }
+  }
+  return climb(slots, hands, best, weigh).running;
+}
+
+type Weighed = {
+  readonly staffing: ReadonlyMap<TierId, number>;
+  readonly running: Record<TierId, number>;
+  readonly stones: number;
+};
+
+/**
+ * One big machine more or fewer, or one kind traded for another, while that
+ * mines more.
+ */
+function climb(
+  slots: readonly StaffSlot[],
+  hands: number,
+  start: Weighed,
+  weigh: (staffing: ReadonlyMap<TierId, number>) => Weighed,
+): Weighed {
+  const steps = climbSteps(slots);
+  let best = start;
+  for (let moved = true; moved;) {
+    moved = false;
+    for (const step of steps) {
+      const counts = new Map(best.staffing);
+      for (const [id, by] of step) {
+        counts.set(id, (counts.get(id) ?? 0) + by);
+      }
+      const staffing = staffWith(slots, hands, counts);
+      const next = staffing === undefined ? undefined : weigh(staffing);
+      if (next !== undefined && moreStones(next.stones, best.stones)) {
+        best = next;
+        moved = true;
+      }
+    }
+  }
+  return best;
+}
+
+/** Each big machine ±1, and each pair of kinds traded one for one. */
+function climbSteps(
+  slots: readonly StaffSlot[],
+): readonly (readonly [TierId, number])[][] {
+  const big = slots.filter((slot) => slot.staff > 1).map((slot) => slot.id);
+  const steps: (readonly [TierId, number])[][] = [];
+  for (const id of big) {
+    steps.push([[id, 1]], [[id, -1]]);
+    for (const other of big) {
+      if (other !== id) {
+        steps.push([
+          [id, 1],
+          [other, -1],
+        ]);
+      }
+    }
+  }
+  return steps;
+}
+
+/** The machines biggest first, on their steady speed with the engineers' tenths. */
+function staffSlots(
+  mountain: Mountain,
+  steady: Readonly<Record<TierId, number>>,
+): StaffSlot[] {
+  return [...TIERS].reverse().flatMap((tier) => {
     const staff = staffNeeded(mountain, tier);
     if (staff === 0) {
       return [];
@@ -287,13 +376,76 @@ function staffCrew(
       },
     ];
   });
-  for (const [id, count] of staffMachines(
-    slots,
-    mountain.helpers + mountain.kids,
-  )) {
-    running[id] = count;
+}
+
+/**
+ * Where the tending may land, as machine speeds to staff on: the engineers'
+ * tenths alone; Grandpa's tenth on each machine he could take; and each
+ * engineer's post kept running, for the floor that tops it up (#178).
+ */
+function slotGuesses(
+  mountain: Mountain,
+  slots: readonly StaffSlot[],
+): StaffSlot[][] {
+  const guesses = [slots.slice()];
+  const posts = new Set<TierId>(
+    atHome(mountain).flatMap((one) => (one.post === "camp" ? [] : [one.post])),
+  );
+  const grandpa =
+    mountain.legacy >= 1
+      ? factor("tending.gain") * TENDING_GAIN * TENDING_TENTHS[GRANDPA_RANK]
+      : 0;
+  const all = slots.reduce((total, slot) => total + slot.count * slot.speed, 0);
+  for (const slot of slots) {
+    if (slot.count === 0) {
+      continue;
+    }
+    if (grandpa > 0 && !posts.has(slot.id)) {
+      const tenths = scaledTenths(slot.id, grandpa);
+      guesses.push(
+        withSpeed(slots, slot.id, (slot.speed * (10 + tenths)) / 10),
+      );
+    }
+    if (posts.has(slot.id) && mountain.machines >= 1) {
+      guesses.push(withSpeed(slots, slot.id, slot.speed + all));
+    }
+  }
+  return guesses;
+}
+
+function withSpeed(
+  slots: readonly StaffSlot[],
+  id: TierId,
+  speed: number,
+): StaffSlot[] {
+  return slots.map((slot) => (slot.id === id ? { ...slot, speed } : slot));
+}
+
+function runningOf(
+  mountain: Mountain,
+  staffing: ReadonlyMap<TierId, number>,
+): Record<TierId, number> {
+  const running = {
+    helper: mountain.helpers,
+    kid: mountain.kids,
+  } as Record<TierId, number>;
+  for (const tier of TIERS) {
+    if (staffNeeded(mountain, tier) > 0) {
+      running[tier.id] = staffing.get(tier.id) ?? 0;
+    }
   }
   return running;
+}
+
+/** What the machines and hands mine with this staffing, tending included. */
+function tendedOutput(
+  mountain: Mountain,
+  steady: Readonly<Record<TierId, number>>,
+  running: Readonly<Record<TierId, number>>,
+): number {
+  const speed = { ...steady };
+  applyTendingFloor(mountain, steady, speed, running);
+  return outputOf(speed, running);
 }
 
 /**
