@@ -220,13 +220,20 @@ describe("EventRing", () => {
     expect(ring.last(2).map((event) => event.code)).toEqual(["two", "three"]);
   });
 
-  it("clears back to empty", () => {
+  it("restores kept events behind the mark, capped at its length", () => {
     const ring = new EventRing(2);
     ring.push({ at: "a", code: "one", data: {} });
-    ring.clear();
-    expect(ring.last(10)).toEqual([]);
-    ring.push({ at: "b", code: "two", data: {} });
-    expect(ring.last(10).map((event) => event.code)).toEqual(["two"]);
+    const before = ring.pushes;
+    ring.restore([
+      { at: "b", code: "two", data: {} },
+      { at: "c", code: "three", data: {} },
+      { at: "d", code: "four", data: {} },
+    ]);
+    expect(ring.pushes).toBeGreaterThan(before);
+    expect(ring.last(10).map((event) => event.code)).toEqual(["three", "four"]);
+    expect(ring.sinceMark()).toEqual([]);
+    ring.push({ at: "e", code: "five", data: {} });
+    expect(ring.sinceMark().map((event) => event.code)).toEqual(["five"]);
   });
 
   it("keeps a mark: the events since it, while the whole ring stays", () => {
@@ -246,9 +253,9 @@ describe("EventRing", () => {
     ring.push({ at: "e", code: "five", data: {} });
     expect(codes(ring.sinceMark())).toEqual(["three", "four", "five"]);
     ring.mark();
-    ring.clear();
     ring.push({ at: "f", code: "six", data: {} });
     expect(codes(ring.sinceMark())).toEqual(["six"]);
+    expect(codes(ring.last(3))).toEqual(["four", "five", "six"]);
   });
 });
 

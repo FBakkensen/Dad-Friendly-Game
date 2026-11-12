@@ -99,7 +99,15 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     expect(copies).toHaveLength(1);
     expect(copies[0]?.reason).toBe("start-over");
     expect(copies[0]?.mountain.helpers).toBe(3);
-    expect(codes(progress.fieldLog().events)).toContain("run.start-over");
+    // The field log keeps the left run (#479): the copy, then the new run.
+    expect(codes(progress.fieldLog().events).slice(-2)).toEqual([
+      "save.archive",
+      "run.start-over",
+    ]);
+    expect(progress.fieldLog().events.at(-2)?.data).toEqual({
+      id: "start-over",
+      stones: 40_000,
+    });
 
     clock += 60_000;
     await expect(progress.restoreCopy(copies[0]?.id ?? "")).resolves.toBe(

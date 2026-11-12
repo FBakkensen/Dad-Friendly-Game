@@ -383,9 +383,9 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    moving focus and open their board cards (#466), which give the focus
    back to the Ledger key when they close. Tonight
    reads `progress.tonightEvents()` only while the drawer is open: the
-   ring's events since its mark, which a run's start clears and a copy from
+   ring's events since its mark. A run's start, a reload, and a copy from
    elsewhere taking the mountain's place (a restore, the cloud's or another
-   device's copy) moves up, while the field log keeps them all. A save that
+   device's copy) move the mark up, while the field log keeps them all. A save that
    loads again leaves the drawer open with the mine rows dark and Copy field
    log, Start over and Yes disabled; the account row stays live. Once that
    save is in again, or the account changes, the Start over page gives the
@@ -720,11 +720,17 @@ returnsAt, home, find }[]` (≤5, `returnsAt > sentAt`, no longer than the deep
   posts, sends, and recalls) come from the events a dispatched move returns,
   through `fieldEntry`; nothing diffs the mountain (#413). The session core also
   records relic found, away report, Start over, pass the mine, and save errors. The ring is not a mountain save
-  field. The Ledger's Copy field log plate copies `{ snapshot, events: last 50 }` as pretty JSON, with a
+  field. The device keeps a copy per account (`field-ring`, key `dad-friendly-field-log:<uid>` or
+  `:guest`, #479): `local-saves` restores it when the account is known or changes, and keeps it on
+  the cloud copy's throttle (`shouldWriteFieldLog`) with a 10 s gap, and at once on hide and a new
+  run. An event the field-log rules would refuse is dropped on the way back in. Each write folds in what another tab kept, so tabs never overwrite each other. A
+  Start over or a pass the store refuses records `run.refused` (`start-over` or `pass`, and why:
+  `loading`, `other-tab` or `conflict`), and a signed-in save still loading after 30 s records
+  `save.stuck` (the server read's state), then `save.loaded` when it lands; both reach the save line. The Ledger's Copy field log plate copies `{ snapshot, events: last 50 }` as pretty JSON, with a
   read-only page of the drawer when the clipboard is missing. No email or display name.
   Signed-in games write `fieldLogs/{uid}` = `{ snapshot, events (≤200),
 updatedAt }` at most every 5 minutes, and immediately on hide, Start over, and
-  passing the mine (#142). Those two resets clear the ring first. Guests write
+  passing the mine (#142). Those two keep the old run's events (#479). Guests write
   nothing. `shouldWriteFieldLog` is the throttle. Rules: owner-only read/write,
   snapshot shape, `events` length ≤ 200, the first event's shape, no delete. The
   rules engine allows 1000 expressions, which is not enough to type-check all

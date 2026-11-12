@@ -4,7 +4,11 @@
  */
 import { persistCloudSoon } from "./cloud-writer";
 import { formatLogEvent } from "./log";
-import { persistSession, rememberHomecomings } from "./local-saves";
+import {
+  keepFieldRing,
+  persistSession,
+  rememberHomecomings,
+} from "./local-saves";
 import {
   activeTrouble,
   step,
@@ -98,6 +102,7 @@ export function emit(ctx: StoreContext): void {
   if (ctx.saveConflict === undefined && ready(ctx)) {
     runStep(ctx, { kind: "notice" });
   }
+  keepFieldRing(ctx, "interval");
   const next = snapshot(ctx);
   for (const listener of [...ctx.listeners]) {
     listener(next);

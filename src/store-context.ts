@@ -7,6 +7,7 @@
 import type { AuthController } from "./auth";
 import type { CloudSave } from "./cloud-save";
 import { readDeviceLabel } from "./device-label";
+import type { RingScope } from "./field-ring";
 import { EventRing, type FieldEvent } from "./field-log";
 import type { LogEvent, Logger } from "./log";
 import type { Homecoming } from "./expeditions";
@@ -169,6 +170,16 @@ export type StoreContext = {
   readonly ring: EventRing;
   /** A Start over or a pass is keeping the left mountain in Saved copies (#480). */
   keepingLeft: boolean;
+  /** Whose kept events the ring holds (#479); undefined until the account is known. */
+  ringScope: RingScope | undefined;
+  /** The ring as last kept on this device: its push count, when, and whether that write failed. */
+  ringKept: {
+    readonly pushes: number;
+    readonly at: number | undefined;
+    readonly failed: boolean;
+  };
+  /** Since when play has been held back while the save loads, and whether that is logged (#479). */
+  loadingSince: { readonly at: number; readonly logged: boolean } | undefined;
   readonly listeners: Set<(snapshot: ProgressSnapshot) => void>;
 };
 
@@ -213,6 +224,9 @@ export function createStoreContext(
     fieldLogFingerprint: undefined,
     ring: new EventRing(),
     keepingLeft: false,
+    ringScope: undefined,
+    ringKept: { pushes: 0, at: undefined, failed: false },
+    loadingSince: undefined,
     listeners: new Set(),
   };
 }
@@ -237,13 +251,24 @@ export function ready(ctx: StoreContext): boolean {
   return !signedIn(ctx) || ctx.hydrated;
 }
 
+/** Why play is held back now, or undefined while it runs. */
+export type PlayBlock = "closed" | "conflict" | "other-tab" | "loading";
+
+export function playBlock(ctx: StoreContext): PlayBlock | undefined {
+  if (ctx.disposed) {
+    return "closed";
+  }
+  if (ctx.saveConflict !== undefined) {
+    return "conflict";
+  }
+  if (!isWriter(ctx)) {
+    return "other-tab";
+  }
+  return ready(ctx) ? undefined : "loading";
+}
+
 export function canPlay(ctx: StoreContext): boolean {
-  return (
-    !ctx.disposed &&
-    ctx.saveConflict === undefined &&
-    isWriter(ctx) &&
-    ready(ctx)
-  );
+  return playBlock(ctx) === undefined;
 }
 
 /** The server has answered (a hold keeps what was known before it). */

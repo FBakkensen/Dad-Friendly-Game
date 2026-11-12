@@ -8,6 +8,7 @@ import {
   persistPhoneBackup,
   persistSession,
   phoneConflict,
+  restoreFieldRing,
 } from "./local-saves";
 import { minedOut } from "./mountain";
 import {
@@ -206,6 +207,7 @@ export function onAuthChange(ctx: StoreContext): void {
   if (ctx.disposed) {
     return;
   }
+  restoreFieldRing(ctx);
   const uid = uidOf(ctx);
   if (uid !== undefined) {
     ctx.watchingCloud = true;
