@@ -249,7 +249,7 @@ function crewPosts(
           },
         ];
   });
-  const grandpa = grandpaPost(mountain);
+  const grandpa = grandpaPost(mountain, rates.running);
   const words = `${crewPostsWords(pool, free, stations)}${grandpa === undefined ? "" : `. ${grandpaSentence(grandpa)}`}`;
   if (pool <= 0) {
     return { words, bits: [] };
