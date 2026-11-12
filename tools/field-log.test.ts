@@ -206,17 +206,18 @@ describe("formatFieldLogSummary", () => {
     );
     expect(text).toBe(
       [
+        // Players print in uid order.
+        "fieldLogs/kid",
+        "Updated unknown",
+        "",
+        "Not a field log.",
+        "",
         "fieldLogs/mom",
         "Updated 2026-06-01 00:00:00",
         "",
         "No snapshot.",
         "Events",
         "  none",
-        "",
-        "fieldLogs/kid",
-        "Updated unknown",
-        "",
-        "Not a field log.",
       ].join("\n"),
     );
   });
@@ -250,12 +251,15 @@ describe("formatFieldLogSummary", () => {
 
 describe("formatFieldLogJson", () => {
   it("keeps stored timestamps and wraps a list", () => {
-    const one = JSON.parse(formatFieldLogJson([dad], "one")) as {
+    const [one] = JSON.parse(formatFieldLogJson([dad])) as {
       uid: string;
       updatedAt: number;
       snapshot: { at: string; engineers: { name: string }[] };
       events: { at: string; data: { note: string } }[];
-    };
+    }[];
+    if (one === undefined) {
+      throw new Error("no row");
+    }
     expect(one.uid).toBe("dad");
     expect(one.updatedAt).toBe(Date.parse(AT));
     expect(one.snapshot.at).toBe(AT);
@@ -266,10 +270,10 @@ describe("formatFieldLogJson", () => {
     expect(one.events[0]?.data.note).toBe("not sure");
 
     const list = JSON.parse(
-      formatFieldLogJson([dad, { uid: "mom", data: { updatedAt: 1 } }], "list"),
+      formatFieldLogJson([{ uid: "mom", data: { updatedAt: 1 } }, dad]),
     ) as { uid: string }[];
     expect(list.map((row) => row.uid)).toEqual(["dad", "mom"]);
-    expect(formatFieldLogJson([], "list")).toBe("[]");
+    expect(formatFieldLogJson([])).toBe("[]");
   });
 });
 
@@ -322,10 +326,45 @@ describe("each device's log, read together (#485)", () => {
     expect(
       formatFieldLogSummary([older, { uid: "dad", data: null }], "UTC"),
     ).toContain("fieldLogs/dad: together\nEvents\n  none");
+    // Out of order in, side by side out: one Together per player.
+    const shuffled = formatFieldLogSummary(
+      [phone, { uid: "abe", data: null }, pc],
+      "UTC",
+    );
+    expect(shuffled.split("fieldLogs/dad: together")).toHaveLength(2);
+  });
+
+  it("shows an event both logs hold once, and an unreadable time last", () => {
+    const shared = {
+      at: "2026-01-02T03:00:00.000Z",
+      code: "tier.buy",
+      data: {},
+    };
+    const text = formatFieldLogSummary(
+      [
+        { uid: "dad", data: { updatedAt: 0, events: [shared] } },
+        {
+          uid: "dad",
+          device: "phone-1234-abcd",
+          data: {
+            updatedAt: 1,
+            events: [{ at: "whenever", code: "save.write", data: {} }, shared],
+          },
+        },
+      ],
+      "UTC",
+    );
+    const together = text.slice(text.indexOf("fieldLogs/dad: together"));
+    expect(together.split("\n")).toEqual([
+      "fieldLogs/dad: together",
+      "Events",
+      "  2026-01-02 03:00:00  tier.buy  [account]",
+      "  whenever  save.write  [phone-12]",
+    ]);
   });
 
   it("keeps the uid and device in JSON, and lists a player's several logs", () => {
-    const rows = JSON.parse(formatFieldLogJson([older, phone], "one")) as {
+    const rows = JSON.parse(formatFieldLogJson([phone, older])) as {
       uid: string;
       device: string | null;
     }[];
@@ -333,10 +372,11 @@ describe("each device's log, read together (#485)", () => {
       ["dad", null],
       ["dad", "phone-1234-abcd"],
     ]);
-    const one = JSON.parse(formatFieldLogJson([phone], "one")) as {
+    // One device alone is still a list, so a script reads it the same way.
+    const alone = JSON.parse(formatFieldLogJson([phone])) as {
       device: string;
-    };
-    expect(one.device).toBe("phone-1234-abcd");
+    }[];
+    expect(alone.map((row) => row.device)).toEqual(["phone-1234-abcd"]);
   });
 
   it("names where each log lives, and orders a player's logs", () => {

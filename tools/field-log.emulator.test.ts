@@ -145,16 +145,17 @@ describe("field-log reader on the Firestore emulator", () => {
   it("prints the stored document as JSON", () => {
     const one = run(["--uid", "mom", "--json"]);
     expect(one.status).toBe(0);
-    const parsed = JSON.parse(one.stdout) as {
+    const [parsed] = JSON.parse(one.stdout) as {
       uid: string;
       updatedAt: number;
       snapshot: { at: string };
       events: { at: string; code: string }[];
-    };
-    expect(parsed.uid).toBe("mom");
-    expect(parsed.updatedAt).toBe(Date.parse(at));
-    expect(parsed.snapshot.at).toBe(at);
-    expect(parsed.events).toEqual([]);
+    }[];
+    // Always a list, even for a player with one log.
+    expect(parsed?.uid).toBe("mom");
+    expect(parsed?.updatedAt).toBe(Date.parse(at));
+    expect(parsed?.snapshot.at).toBe(at);
+    expect(parsed?.events).toEqual([]);
 
     const several = JSON.parse(run(["dad", "--json"]).stdout) as {
       device: string | null;

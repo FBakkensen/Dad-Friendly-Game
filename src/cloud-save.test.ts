@@ -139,8 +139,10 @@ describe("createMemoryCloudSave", () => {
     expect(fieldLogs.get(fieldLogKey("dad", "phone-0001"))).toEqual(next);
     expect(fieldLogs.get(fieldLogKey("dad", "pc-000001"))).toEqual(pc);
     expect(fieldLogs.size).toBe(2);
-    expect(fieldLogOf(fieldLogs, "dad")).toEqual(pc);
+    expect(() => fieldLogOf(fieldLogs, "dad")).toThrow(/2 devices/);
     expect(fieldLogOf(fieldLogs, "mom")).toBeUndefined();
+    fieldLogs.delete(fieldLogKey("dad", "pc-000001"));
+    expect(fieldLogOf(fieldLogs, "dad")).toEqual(next);
   });
 
   it("keeps three unexpired copies and can refuse the archive", async () => {

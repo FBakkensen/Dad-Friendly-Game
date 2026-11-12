@@ -158,18 +158,16 @@ export function fieldLogKey(uid: string, deviceId: string): string {
   return `${uid}/${deviceId}`;
 }
 
-/** The field log the account's newest-written device left, for tests with one device. */
+/** The account's one device's field log, for tests with one device. Throws on a second. */
 export function fieldLogOf(
   fieldLogs: ReadonlyMap<string, FieldLogDocument>,
   uid: string,
 ): FieldLogDocument | undefined {
-  let found: FieldLogDocument | undefined;
-  for (const [key, log] of fieldLogs) {
-    if (key.startsWith(`${uid}/`)) {
-      found = log;
-    }
+  const mine = [...fieldLogs].filter(([key]) => key.startsWith(`${uid}/`));
+  if (mine.length > 1) {
+    throw new Error(`${uid} has ${String(mine.length)} devices' field logs`);
   }
-  return found;
+  return mine[0]?.[1];
 }
 
 export function createMemoryCloudSave({

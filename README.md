@@ -65,8 +65,10 @@ npm run lab:sweep -- --morris 4 --sobol 16 --top 4 --days 30
 
 ## Field log reader
 
-Signed-in games copy a snapshot and the latest event ring to `fieldLogs/{uid}`.
-`tools/field-log.ts` reads those documents with the Firebase Admin SDK. It is
+Signed-in games copy a snapshot and the latest event ring to their device's
+`fieldLogs/{uid}/devices/{deviceId}` (#485), so the phone and the PC never
+overwrite each other. Builds before that wrote one account-wide
+`fieldLogs/{uid}`, which is still read. `tools/field-log.ts` reads those documents with the Firebase Admin SDK. It is
 not part of the game the player runs, and it is not bundled into the app.
 
 ### One-time sign-in
@@ -93,15 +95,19 @@ npm run field-log
 npm run field-log -- --uid <uid> --json
 ```
 
-With no uid, every `fieldLogs` document is listed. The default print is a short
-summary with times in this machine's local zone. `--json` prints the stored
-documents (ISO times, `updatedAt` as epoch milliseconds) with the uid, which
-lives in the document id.
+A player's logs print one by one (the account-wide one first, then each device),
+then **Together**: every event of every log in time order, each tagged with the
+device's first 8 characters (`account` for the account-wide log), with repeats
+shown once. With no uid, every player's logs are listed. The default print is a
+short summary with times in this machine's local zone. `--json` always prints an
+array of the stored documents (ISO times, `updatedAt` as epoch milliseconds),
+each with its `uid` and `device` (`null` for the account-wide log), which live in
+the document path.
 
 ### Privacy
 
 Only household players are read. The document holds the uid, the latest
 snapshot, and the latest event ring: stones, crew, relics, and recent events.
-No email and no display name. Start over and passing the mine clear the ring
-and overwrite the document. The Admin SDK bypasses the game's security rules,
+No email and no display name. The device keeps the ring through a reload, a
+Start over and a pass (#479), and those two write the document at once. The Admin SDK bypasses the game's security rules,
 so keep these credentials on a machine you trust.

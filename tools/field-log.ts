@@ -225,8 +225,7 @@ export function formatFieldLogSummary(
   if (records.length === 0) {
     return "No field logs.";
   }
-  // The loader gives one player's logs side by side (byPlayer).
-  const sorted = records;
+  const sorted = [...records].sort(byPlayer);
   const blocks: string[] = [];
   for (const [index, record] of sorted.entries()) {
     blocks.push(formatOne(record, timeZone));
@@ -241,16 +240,12 @@ export function formatFieldLogSummary(
   return blocks.join("\n\n");
 }
 
-/** Stored documents, plus the uid and device (document ids, not fields). One log alone prints bare. */
-export function formatFieldLogJson(
-  records: readonly FieldLogRecord[],
-  shape: "one" | "list",
-): string {
-  const rows = records.map(withUid);
-  if (shape === "list" || rows.length > 1) {
-    return JSON.stringify(rows, null, 2);
-  }
-  return JSON.stringify(rows[0] ?? {}, null, 2);
+/**
+ * Stored documents, plus the uid and device (document ids, not fields). Always
+ * an array, so a reader's script works the same with one device or several.
+ */
+export function formatFieldLogJson(records: readonly FieldLogRecord[]): string {
+  return JSON.stringify([...records].sort(byPlayer).map(withUid), null, 2);
 }
 
 /** Every event of one player's logs in time order, each tagged with its device. */
@@ -260,6 +255,8 @@ function togetherLines(
   timeZone: string,
 ): string[] {
   const tagged: { readonly at: number; readonly line: string }[] = [];
+  // Since #479 a device carries the events an older build last wrote account-wide: show each once.
+  const seen = new Set<string>();
   for (const record of records) {
     const tag =
       record.device === undefined
@@ -273,8 +270,14 @@ function togetherLines(
       if (!isRecord(item)) {
         continue;
       }
+      const key = jsonText(item);
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
       tagged.push({
-        at: coerceDate(item.at)?.getTime() ?? 0,
+        // A time that cannot be read goes last, after every known one.
+        at: coerceDate(item.at)?.getTime() ?? Number.POSITIVE_INFINITY,
         line: `  ${eventText(item, timeZone)}  [${tag}]`,
       });
     }
@@ -645,7 +648,7 @@ async function loadFieldLogs(
   }));
   for (const doc of devices.docs) {
     const owner = doc.ref.parent.parent;
-    if (owner?.parent.id === FIELD_LOGS) {
+    if (owner?.parent.id === FIELD_LOGS && owner.parent.parent === null) {
       records.push({ uid: owner.id, device: doc.id, data: doc.data() });
     }
   }
@@ -720,10 +723,7 @@ async function main(): Promise<number> {
     }
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const text = parsed.json
-      ? formatFieldLogJson(
-          loaded.records,
-          parsed.uid === undefined ? "list" : "one",
-        )
+      ? formatFieldLogJson(loaded.records)
       : formatFieldLogSummary(loaded.records, timeZone);
     console.log(text);
     return 0;
