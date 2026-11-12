@@ -45,7 +45,7 @@ export function stampServiceWorker(source: string, id: string): string {
 
 /**
  * The field log's version: the id `vite build` defined as `__APP_BUILD__`, or
- * `dev` where nothing did (dev, tests, `play`, and node tools that import src).
+ * `dev` where nothing did (the dev server, `play` and Vitest).
  */
 export function appVersion(): string {
   return typeof __APP_BUILD__ === "string" ? __APP_BUILD__ : UNSTAMPED;
