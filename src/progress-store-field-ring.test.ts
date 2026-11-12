@@ -415,7 +415,7 @@ describe("the field log kept on this device (#479)", () => {
       now: () => 2_000,
     });
     await Promise.resolve();
-    other.startOver();
+    expect(await other.startOver()).toBe(false);
     // Kept on the device at once, not at the next paced write.
     expect(codes(readKeptEvents(storage, dadScope))).toContain("run.refused");
     writer.flush();
