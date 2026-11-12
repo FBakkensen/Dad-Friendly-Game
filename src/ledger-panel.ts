@@ -190,6 +190,8 @@ interface LedgerDoorDeps {
 function wireDoors(deps: LedgerDoorDeps): {
   readonly doors: LedgerDoors;
   readonly startOverPage: ReturnType<typeof createStartOverPage>;
+  /** A Yes is waiting for the mountain to reach Saved copies (#480). */
+  readonly starting: () => boolean;
 } {
   const { board, progress, sheet, door } = deps;
   /** A card takes over from the drawer: it shuts without moving focus. */
@@ -197,16 +199,35 @@ function wireDoors(deps: LedgerDoorDeps): {
     sheet().close({ restoreFocus: false, by: "program" });
   };
   const fieldLogPage = createFieldLogPage();
+  let starting = false;
   const startOverPage = createStartOverPage({
     board,
     onKeep: () => {
       sheet().showPage(undefined);
     },
     onYes: (_from, by: Pointer) => {
-      progress.startOver();
-      deps.onStartOver();
-      // Back on the Ledger key, as Back would leave it.
-      sheet().close({ by });
+      // One at a time. The mountain he leaves goes to Saved copies first (#480); the page waits.
+      if (starting) {
+        return;
+      }
+      starting = true;
+      startOverPage.paint(false);
+      // Keep, Back or Escape while the copy is on its way backs out of the new run.
+      const stillAsked = (): boolean =>
+        sheet().isOpen() && startOverPage.root.parentElement !== null;
+      void progress.startOver(stillAsked).then((started) => {
+        starting = false;
+        if (!started) {
+          startOverPage.say(false);
+          startOverPage.paint(true);
+          return;
+        }
+        deps.onStartOver();
+        // Back on the Ledger key, as Back would leave it.
+        if (sheet().isOpen()) {
+          sheet().close({ by });
+        }
+      });
     },
   });
   const doors = createLedgerDoors({
@@ -233,6 +254,7 @@ function wireDoors(deps: LedgerDoorDeps): {
         });
       },
       startOver: () => {
+        startOverPage.say(true);
         sheet().showPage(startOverPage.root);
       },
       pass: () => {
@@ -242,7 +264,7 @@ function wireDoors(deps: LedgerDoorDeps): {
       },
     },
   });
-  return { doors, startOverPage };
+  return { doors, startOverPage, starting: () => starting };
 }
 
 /**
@@ -354,7 +376,7 @@ export function createLedgerPanel({
     }
     onBoard.paint("account", parts.account, accountRowView(auth.getState()));
     wired.doors.paint({ ready: view.ready, passOffered: legacy.offered() });
-    wired.startOverPage.paint(view.ready);
+    wired.startOverPage.paint(view.ready && !wired.starting());
     paintTonight();
   };
 

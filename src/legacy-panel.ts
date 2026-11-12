@@ -10,6 +10,7 @@ import {
   PASS_IT_ON,
   PASS_NOT_YET,
   PASS_TITLE,
+  SAVE_CONFLICT_ERROR,
   formatCraftSpeed as speed,
 } from "./screen-words";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
@@ -132,6 +133,13 @@ export function createLegacyPanel({
     lines.fresh,
     lines.legend,
   );
+  // A pass whose mine could not be kept in Saved copies first (#480): the card stays, and says so.
+  const error = cardLine("save-conflict-error");
+  write(error, SAVE_CONFLICT_ERROR);
+  error.hidden = true;
+  card.body.append(error);
+  let failed = false;
+  let passing = false;
 
   /** Not yet, or Escape: the card's close gives the focus back to what opened it. */
   const close = (): void => {
@@ -147,16 +155,28 @@ export function createLegacyPanel({
     close,
     answers,
   );
-  card.plate(
+  const confirm = card.plate(
     PASS_IT_ON,
     "confirm",
     "legacy-confirm",
     () => {
-      open = false;
-      if (progress.passTheMine()) {
-        onPassed();
-      }
+      // One pass at a time: the plate stays disabled while the mine goes to Saved copies first (#480).
+      passing = true;
+      failed = false;
+      confirm.disabled = true;
       requestRender();
+      // Not yet or Escape while the copy is on its way backs out of the pass.
+      void progress
+        .passTheMine(() => open)
+        .then((passed) => {
+          passing = false;
+          failed = !passed;
+          if (passed) {
+            open = false;
+            onPassed();
+          }
+          requestRender();
+        });
     },
     answers,
   );
@@ -178,6 +198,8 @@ export function createLegacyPanel({
       `Legacy ${formatCount(legacy)}: your crew and taps are ${legacyWords(bonus)}`,
     );
     paintLines(lines, legacyCardWords(mountain));
+    hide(error, !failed);
+    confirm.disabled = passing;
     card.show(open && offered(), cancel);
   };
 
@@ -188,6 +210,7 @@ export function createLegacyPanel({
       beforeOpen();
       card.from(from);
       open = true;
+      failed = false;
       requestRender();
     },
     offered,

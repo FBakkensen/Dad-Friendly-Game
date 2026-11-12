@@ -189,7 +189,7 @@ describe("the account reported again (#481)", () => {
     await settle();
     progress.tick();
     expect(progress.getSnapshot().ready).toBe(true);
-    expect(progress.passTheMine()).toBe(true);
+    await expect(progress.passTheMine()).resolves.toBe(true);
     expect(progress.getSnapshot().mountain.legacy).toBe(1);
     progress.dispose();
   });

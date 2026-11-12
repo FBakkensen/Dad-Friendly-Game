@@ -1537,15 +1537,17 @@ describe("start over", () => {
     }
   });
 
-  it("wipes stones, crew and relics on confirm, on screen and on the device", () => {
+  it("wipes stones, crew and relics on confirm, on screen and on the device", async () => {
     const storage = seededDad();
     const screen = mountScreen({ storage });
 
     screen.startOver();
 
-    expect(
-      screen.root.querySelector(LEDGER_SHEET)?.classList.contains("is-open"),
-    ).toBe(false);
+    await vi.waitFor(() => {
+      expect(
+        screen.root.querySelector(LEDGER_SHEET)?.classList.contains("is-open"),
+      ).toBe(false);
+    });
     expect(screen.text(STONES_NAME)).toBe(
       `${formatCompact(stonesLeft(createMountain()))} stones left`,
     );

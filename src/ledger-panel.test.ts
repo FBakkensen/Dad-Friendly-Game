@@ -5,7 +5,7 @@ import { DRAWER_SETTLE_MS } from "./board-drawer";
 import { READY_HOLD_MS } from "./board-interaction";
 import { createBoardHost } from "./board-host";
 import { RELIC_DARK, RELIC_LIT } from "./board-relics";
-import { type CloudSave } from "./cloud-save";
+import { createMemoryCloudSave, type CloudSave } from "./cloud-save";
 import { createLedgerPanel } from "./ledger-panel";
 import { relicsRowView, stonesRowView } from "./ledger-rows";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
@@ -305,7 +305,7 @@ describe("the Ledger drawer (#375)", () => {
     ).not.toBe("-120px");
   });
 
-  it("start over asks on its page, and only past the settle", () => {
+  it("start over asks on its page, and only past the settle", async () => {
     let clock = 10_000;
     const screen = mount(granite(), { tapClock: () => clock });
     const before = screen.progress.getSnapshot().mountain;
@@ -335,8 +335,113 @@ describe("the Ledger drawer (#375)", () => {
     expect(fresh.pocket).toBe(0);
     expect(fresh.helpers).toBe(0);
     expect(fresh.remaining).toBe(createMountain().remaining);
-    expect(isOpen(screen)).toBe(false);
+    // The page waits for the new run (#480), then closes onto the key.
+    await vi.waitFor(() => {
+      expect(isOpen(screen)).toBe(false);
+    });
     expect(document.activeElement).toBe(keyOf(screen));
+  });
+
+  it("keeps the Start over page up when the mountain could not be kept first (#480)", async () => {
+    let clock = 10_000;
+    const user = { uid: "test-dad", label: "Test Dad" };
+    const memory = createMemoryCloudSave();
+    await memory.write({
+      uid: user.uid,
+      mountain: granite(),
+      rev: 1,
+      deviceId: "seed-device",
+      lastSeen: CLOCK,
+    });
+    const screen = mountScreen({
+      storage: createMemoryStorage(),
+      now: () => CLOCK,
+      tapClock: () => clock,
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: {
+        ...memory,
+        archiveCopy: () =>
+          Promise.resolve({ kind: "failed", message: "unavailable" }),
+      },
+    });
+    document.body.append(screen.root);
+    await vi.waitFor(() => {
+      expect(screen.progress.getSnapshot().ready).toBe(true);
+    });
+    fingerTap(keyOf(screen));
+    clock += PAST_SETTLE;
+    fingerTap(part(screen, ".ledger-start-over"));
+    clock += PAST_SETTLE;
+    fingerTap(part(screen, ".ledger-yes"));
+    const line = () =>
+      shownPage(screen)?.querySelector(".ledger-page-line")?.textContent;
+    await vi.waitFor(() => {
+      expect(line()).toBe("Couldn't store the other save yet – try again");
+    });
+    expect(isOpen(screen)).toBe(true);
+    expect(screen.progress.getSnapshot().mountain.helpers).toBe(4);
+    // Back on the list and in again: the page asks its question afresh.
+    clock += PAST_SETTLE;
+    fingerTap(part(screen, ".ledger-keep"));
+    clock += PAST_SETTLE;
+    fingerTap(part(screen, ".ledger-start-over"));
+    expect(line()).not.toMatch(/Couldn't/);
+    screen.progress.dispose();
+  });
+
+  it("Keep while the copy is on its way keeps the mountain (#480)", async () => {
+    let clock = 10_000;
+    const user = { uid: "test-dad", label: "Test Dad" };
+    const memory = createMemoryCloudSave();
+    await memory.write({
+      uid: user.uid,
+      mountain: granite(),
+      rev: 1,
+      deviceId: "seed-device",
+      lastSeen: CLOCK,
+    });
+    let land: () => void = () => undefined;
+    const screen = mountScreen({
+      storage: createMemoryStorage(),
+      now: () => CLOCK,
+      tapClock: () => clock,
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: {
+        ...memory,
+        archiveCopy: () =>
+          new Promise((resolve) => {
+            land = () => {
+              resolve({ kind: "ok" });
+            };
+          }),
+      },
+    });
+    document.body.append(screen.root);
+    await vi.waitFor(() => {
+      expect(screen.progress.getSnapshot().ready).toBe(true);
+    });
+    fingerTap(keyOf(screen));
+    clock += PAST_SETTLE;
+    fingerTap(part(screen, ".ledger-start-over"));
+    clock += PAST_SETTLE;
+    fingerTap(part(screen, ".ledger-yes"));
+    // Yes waits for the copy: it does nothing more until then.
+    expect((part(screen, ".ledger-yes") as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    clock += PAST_SETTLE;
+    fingerTap(part(screen, ".ledger-keep"));
+    land();
+    await vi.waitFor(() => {
+      expect(
+        screen.progress
+          .fieldLog()
+          .events.some((event) => event.data.source === "backed-out"),
+      ).toBe(true);
+    });
+    expect(screen.progress.getSnapshot().mountain.helpers).toBe(4);
+    expect(isOpen(screen)).toBe(true);
+    screen.progress.dispose();
   });
 
   it("the Start over page is a group named by its title and described by its warning", () => {

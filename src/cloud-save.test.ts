@@ -161,6 +161,7 @@ describe("createMemoryCloudSave", () => {
         rev: 1,
         deviceId: "device-dad-1",
         deviceLabel: "Chrome on Android",
+        reason: "conflict",
       }),
     ).resolves.toEqual({ kind: "failed", message: "unavailable" });
     gate.fail = false;
@@ -172,6 +173,7 @@ describe("createMemoryCloudSave", () => {
         rev: index + 1,
         deviceId: "device-dad-1",
         deviceLabel: "Chrome on Android",
+        reason: "conflict",
       });
     }
     await cloud.archiveCopy?.({
@@ -181,6 +183,7 @@ describe("createMemoryCloudSave", () => {
       rev: 1,
       deviceId: "device-mom-1",
       deviceLabel: "Safari on iPhone",
+      reason: "conflict",
     });
     const now = Date.now();
     const listed = await cloud.listCopies?.({ uid: "dad", now });
@@ -263,6 +266,7 @@ describe("createNoopCloudSave", () => {
         rev: 1,
         deviceId: "device-dad-1",
         deviceLabel: "Chrome on Android",
+        reason: "conflict",
       }),
     ).resolves.toEqual({ kind: "ok" });
     await expect(cloud.listCopies?.({ uid: "dad", now: 1 })).resolves.toEqual(
@@ -293,6 +297,7 @@ describe("createUnavailableCloudSave", () => {
         rev: 1,
         deviceId: "device-123",
         deviceLabel: "Chrome on Android",
+        reason: "conflict",
       }),
     ).resolves.toEqual({ kind: "failed", message: "unavailable" });
     await expect(cloud.listCopies?.({ uid: "dad", now: 1 })).resolves.toEqual(

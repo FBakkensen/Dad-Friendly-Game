@@ -1173,8 +1173,6 @@ export const SAVE_CONFLICT_ERROR =
 export const SAVED_COPIES_TITLE = "Saved copies";
 export const SAVED_COPIES_EMPTY = "No saved copies yet.";
 export const SAVED_COPY_GONE = "That copy is no longer here.";
-export const SAVED_COPY_EARLIER_RUN =
-  "From an earlier run – can't be played now";
 
 /** Pass the mine to your kid (M6): the confirm card's title and its two answers. */
 export const PASS_TITLE = "Pass the mine to your kid.";

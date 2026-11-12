@@ -112,6 +112,8 @@ export type StorePorts = {
   readonly cloudWriteGapMs: number;
   readonly fieldLogWriteGapMs: number;
   readonly resumeReadTimeoutMs: number;
+  /** How long a move waits for the mountain it leaves to reach Saved copies (#480). */
+  readonly archiveWaitMs: number;
   readonly deviceId: string;
 };
 
@@ -167,6 +169,8 @@ export type StoreContext = {
   fieldLogAt: number | undefined;
   fieldLogFingerprint: string | undefined;
   readonly ring: EventRing;
+  /** A Start over or a pass is keeping the left mountain in Saved copies (#480). */
+  keepingLeft: boolean;
   /** Whose kept events the ring holds (#479); undefined until the account is known. */
   ringScope: RingScope | undefined;
   /** The ring as last kept on this device: its push count, when, and whether that write failed. */
@@ -220,6 +224,7 @@ export function createStoreContext(
     fieldLogAt: undefined,
     fieldLogFingerprint: undefined,
     ring: new EventRing(),
+    keepingLeft: false,
     ringScope: undefined,
     ringKept: { pushes: 0, at: undefined, failed: false },
     loadingSince: undefined,

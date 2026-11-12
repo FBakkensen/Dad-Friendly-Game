@@ -3211,10 +3211,6 @@ button.board-row:focus-visible {
   color: var(--board-amber);
 }
 
-.saved-copy.is-earlier-run > .board-card-line {
-  color: var(--board-ink-2);
-}
-
 .saved-copy > .board-card-plate {
   margin-top: calc(var(--art) * 3);
 }
