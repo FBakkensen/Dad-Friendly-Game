@@ -165,6 +165,10 @@ export type StoreContext = {
   fieldLogAt: number | undefined;
   fieldLogFingerprint: string | undefined;
   readonly ring: EventRing;
+  /** The ring as last kept on this device (#479): its push count, and when. */
+  ringKept: { readonly pushes: number; readonly at: number };
+  /** Since when play has been held back while the save loads, and whether that is logged (#479). */
+  loadingSince: { readonly at: number; readonly logged: boolean } | undefined;
   readonly listeners: Set<(snapshot: ProgressSnapshot) => void>;
 };
 
@@ -208,6 +212,8 @@ export function createStoreContext(
     fieldLogAt: undefined,
     fieldLogFingerprint: undefined,
     ring: new EventRing(),
+    ringKept: { pushes: 0, at: Number.NEGATIVE_INFINITY },
+    loadingSince: undefined,
     listeners: new Set(),
   };
 }
@@ -232,13 +238,24 @@ export function ready(ctx: StoreContext): boolean {
   return !signedIn(ctx) || ctx.hydrated;
 }
 
+/** Why play is held back now, or undefined while it runs. */
+export type PlayBlock = "closed" | "conflict" | "other-tab" | "loading";
+
+export function playBlock(ctx: StoreContext): PlayBlock | undefined {
+  if (ctx.disposed) {
+    return "closed";
+  }
+  if (ctx.saveConflict !== undefined) {
+    return "conflict";
+  }
+  if (!isWriter(ctx)) {
+    return "other-tab";
+  }
+  return ready(ctx) ? undefined : "loading";
+}
+
 export function canPlay(ctx: StoreContext): boolean {
-  return (
-    !ctx.disposed &&
-    ctx.saveConflict === undefined &&
-    isWriter(ctx) &&
-    ready(ctx)
-  );
+  return playBlock(ctx) === undefined;
 }
 
 /** The server has answered (a hold keeps what was known before it). */

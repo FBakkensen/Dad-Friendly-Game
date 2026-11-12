@@ -1593,19 +1593,28 @@ describe("field log", () => {
     expect(events[2]?.data).toEqual({ id: "lantern" });
   });
 
-  it("records Start over and passing the mine, each on a fresh ring", () => {
+  it("keeps the old run's events through Start over and a pass, and starts Tonight afresh", () => {
     const progress = guest(() => 8_000);
     progress.applyMutation((mountain) =>
       buyTier({ ...mountain, pocket: firstWorker }, "helper"),
     );
+    progress.dispatch({ kind: "buyTier", id: "helper" });
+    const before = progress.fieldLog().events.map((event) => event.code);
     progress.startOver();
-    expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
+    const codes = () => progress.fieldLog().events.map((event) => event.code);
+    expect(codes()).toEqual([...before, "run.start-over"]);
+    expect(progress.tonightEvents().map((event) => event.code)).toEqual([
       "run.start-over",
     ]);
     progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
     expect(progress.passTheMine()).toBe(true);
     expect(progress.passTheMine()).toBe(false);
-    expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
+    expect(codes().slice(0, before.length + 1)).toEqual([
+      ...before,
+      "run.start-over",
+    ]);
+    expect(codes().at(-1)).toBe("run.pass");
+    expect(progress.tonightEvents().map((event) => event.code)).toEqual([
       "run.pass",
     ]);
   });
@@ -2121,7 +2130,7 @@ describe("field log cloud copy", () => {
     progress.dispose();
   });
 
-  it("resets the ring and overwrites the doc on Start over and passing the mine", () => {
+  it("writes the doc at once on Start over and passing the mine, keeping the run before", () => {
     let clock = 8_000;
     const { fieldLogs, progress } = signedIn(() => clock, firstWorker);
     progress.dispatch({ kind: "buyTier", id: "helper" });
@@ -2132,20 +2141,29 @@ describe("field log cloud copy", () => {
     clock += 10;
     progress.startOver();
     expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
+      "tier.buy",
       "run.start-over",
     ]);
     expect(fieldLogs.get(user.uid)?.events.map((event) => event.code)).toEqual([
+      "tier.buy",
       "run.start-over",
     ]);
     expect(fieldLogs.get(user.uid)?.snapshot.crew.helper).toBe(0);
     const resetAt = fieldLogs.get(user.uid)?.updatedAt;
+    clock += 10;
     progress.startOver();
-    expect(fieldLogs.get(user.uid)?.updatedAt).toBe(resetAt);
+    expect(fieldLogs.get(user.uid)?.updatedAt).toBe((resetAt ?? 0) + 10);
 
     progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
     expect(progress.passTheMine()).toBe(true);
     const passed = fieldLogs.get(user.uid);
-    expect(passed?.events.map((event) => event.code)).toEqual(["run.pass"]);
+    const passedCodes = passed?.events.map((event) => event.code) ?? [];
+    expect(passedCodes.slice(0, 3)).toEqual([
+      "tier.buy",
+      "run.start-over",
+      "run.start-over",
+    ]);
+    expect(passedCodes.at(-1)).toBe("run.pass");
     expect(passed?.snapshot.legacy).toBe(1);
     expect(passed?.updatedAt).toBe(clock);
     progress.dispose();
@@ -2919,9 +2937,10 @@ describe("layer card and craft-done notice", () => {
     expect(
       noticesOf(reloaded.getSnapshot(), "craft").map(({ craft }) => craft),
     ).toEqual([]);
-    expect(reloaded.fieldLog().events.map((event) => event.code)).not.toContain(
-      "craft.done",
-    );
+    // The kept log comes back with the reload (#479), and names the craft no second time.
+    expect(
+      reloaded.fieldLog().events.filter((event) => event.code === "craft.done"),
+    ).toHaveLength(1);
     reloaded.dispose();
 
     const awayStore = createMemoryStorage();

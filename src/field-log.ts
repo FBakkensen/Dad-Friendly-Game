@@ -251,6 +251,7 @@ export class EventRing {
   readonly #limit: number;
   /** Where the events since the last `mark` begin. */
   #from = 0;
+  #pushes = 0;
 
   constructor(limit = EVENT_RING_LIMIT) {
     this.#limit = limit;
@@ -264,6 +265,7 @@ export class EventRing {
         ? event
         : { ...event, data: { ...event.data, stones: FIELD_STONES_CAP } },
     );
+    this.#pushes += 1;
     const extra = this.#events.length - this.#limit;
     if (extra > 0) {
       this.#events.splice(0, extra);
@@ -271,10 +273,22 @@ export class EventRing {
     }
   }
 
-  /** Drops every event. Start over and passing the mine begin from empty. */
-  clear(): void {
+  /**
+   * Puts back events kept on this device (#479): a reload goes on from them.
+   * Tonight starts after them, as it did from an empty ring.
+   */
+  restore(events: readonly FieldEvent[]): void {
     this.#events.length = 0;
-    this.#from = 0;
+    for (const event of events.slice(-this.#limit)) {
+      this.#events.push(event);
+    }
+    this.#pushes += 1;
+    this.mark();
+  }
+
+  /** Grows on every change, so a copy kept elsewhere knows when it is behind. */
+  get pushes(): number {
+    return this.#pushes;
   }
 
   /** Marks the end of the ring: `sinceMark` gives only the events pushed after this. */
@@ -282,7 +296,7 @@ export class EventRing {
     this.#from = this.#events.length;
   }
 
-  /** The events pushed since the last `mark` (or the clear), oldest first. */
+  /** The events pushed since the last `mark`, oldest first. */
   sinceMark(): readonly FieldEvent[] {
     return this.#events.slice(this.#from);
   }

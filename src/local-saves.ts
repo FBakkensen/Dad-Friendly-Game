@@ -1,8 +1,11 @@
 /**
  * The device's own copies: the guest's session save, the signed-in phone
- * backup, and the homecomings not yet read. Each failure is logged.
+ * backup, the homecomings not yet read, and the field log's events. Each
+ * failure is logged.
  */
 import { parseHomecomingNews, type Homecoming } from "./expeditions";
+import { EVENT_RING_LIMIT } from "./field-log";
+import { keepEvents, readKeptEvents } from "./field-ring";
 import { writePhoneBackup, type PhoneConflict } from "./phone-backup";
 import { saveCounts } from "./session";
 import { writeSessionSave } from "./session-save";
@@ -131,4 +134,47 @@ export function readHomecomings(ctx: StoreContext): readonly Homecoming[] {
     return [];
   }
   return parsed === undefined ? [] : parseHomecomingNews(parsed);
+}
+
+/** The field log's events go to the device at most this often, unless the page hides or a run starts. */
+export const FIELD_RING_GAP_MS = 10_000;
+
+/** Puts back the events this device kept (#479): a reload goes on from them. */
+export function restoreFieldRing(ctx: StoreContext): void {
+  const storage = ctx.ports.storage;
+  if (storage === undefined) {
+    return;
+  }
+  ctx.ring.restore(readKeptEvents(storage));
+  ctx.ringKept = { pushes: ctx.ring.pushes, at: ctx.ports.now() };
+}
+
+/**
+ * Keeps the field log's events on this device (#479), so a reload, a crash or
+ * a new run never empties it. `now` skips the gap (hide, a new run).
+ */
+export function keepFieldRing(ctx: StoreContext, now: boolean): void {
+  const storage = ctx.ports.storage;
+  if (storage === undefined || ctx.disposed) {
+    return;
+  }
+  const pushes = ctx.ring.pushes;
+  const at = ctx.ports.now();
+  if (pushes === ctx.ringKept.pushes) {
+    return;
+  }
+  if (!now && at - ctx.ringKept.at < FIELD_RING_GAP_MS) {
+    return;
+  }
+  ctx.ringKept = { pushes, at };
+  if (keepEvents(storage, ctx.ring.last(EVENT_RING_LIMIT))) {
+    return;
+  }
+  // Not an event: a refused copy would only grow the ring it could not keep.
+  log(ctx, {
+    level: "error",
+    code: "field-log.keep",
+    detail: "failed",
+    data: { events: ctx.ring.last(EVENT_RING_LIMIT).length },
+  });
 }
