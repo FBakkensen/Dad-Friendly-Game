@@ -193,6 +193,39 @@ describe("workshop sheet (#199)", () => {
     });
   });
 
+  it("says the clay is gone for the run once the Granite starts (#492)", () => {
+    const spent = { clay: 0, iron: 0, crystal: 0, heartstone: 0 };
+    const granite = shed({ materials: spent });
+    expect(recipe(workshopCards(granite, 0), "blasting-charge").action).toEqual(
+      { kind: "short", label: "No clay this deep" },
+    );
+    // Gone outranks short: no iron fills a row that can never have its clay.
+    expect(recipe(workshopCards(granite, 0), "sturdy-props").action).toEqual({
+      kind: "short",
+      label: "No clay this deep",
+    });
+    // Iron still comes in the Granite.
+    expect(recipe(workshopCards(granite, 0), "iron-rails").action).toEqual({
+      kind: "short",
+      label: "Need 4 more iron",
+    });
+    // Enough clay kept from the Topsoil still crafts.
+    const kept = shed({ materials: { ...spent, clay: 4 } });
+    expect(recipe(workshopCards(kept, 0), "blasting-charge").action).toEqual({
+      kind: "craft",
+      label: "Craft · 100K",
+    });
+    // Still in the Topsoil, more clay is on its way.
+    const topsoil = shed({
+      remaining: MOUNTAIN_STONES - 5_000_000,
+      materials: spent,
+      recipes: recipesForMined(5_000_000),
+    });
+    expect(recipe(workshopCards(topsoil, 0), "blasting-charge").action).toEqual(
+      { kind: "short", label: "Need 4 more clay" },
+    );
+  });
+
   it("keeps a free bench gentle and a busy one honest about the refund", () => {
     const free = benchView(shed(), 0);
     expect(free).toMatchObject({

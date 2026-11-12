@@ -16,6 +16,7 @@ import {
   materialsFromMined,
   nextLayer,
   materialsGained,
+  materialLeftToDig,
   type LayerId,
   type MaterialId,
 } from "./layers";
@@ -306,6 +307,35 @@ describe("materials", () => {
         { clay: 1, iron: 4, crystal: 0, heartstone: 0 },
       ),
     ).toEqual({ clay: 3, iron: 4, crystal: 0, heartstone: 0 });
+  });
+});
+
+describe("what the rest of the mountain still gives (#492)", () => {
+  it("counts the clay still in the Topsoil, and none once the Granite starts", () => {
+    expect(materialLeftToDig("clay", 0)).toBe(10);
+    expect(materialLeftToDig("clay", 4_000_000)).toBe(6);
+    expect(materialLeftToDig("clay", 9_500_000)).toBe(1);
+    expect(materialLeftToDig("clay", 9_999_999)).toBe(1);
+    expect(materialLeftToDig("clay", 10_000_000)).toBe(0);
+    expect(materialLeftToDig("clay", 50_000_000)).toBe(0);
+  });
+
+  it("keeps a deeper band's material whole until that band is dug", () => {
+    const all = materialsFromMined(MOUNTAIN_STONES);
+    for (const material of ["iron", "crystal", "heartstone"] as const) {
+      expect(materialLeftToDig(material, 0)).toBe(all[material]);
+      expect(materialLeftToDig(material, MOUNTAIN_STONES)).toBe(0);
+    }
+    expect(materialLeftToDig("iron", LAYERS[2].from)).toBe(0);
+    expect(materialLeftToDig("iron", LAYERS[2].from - 1)).toBe(1);
+    expect(materialLeftToDig("heartstone", LAYERS[3].from)).toBe(
+      all.heartstone,
+    );
+  });
+
+  it("never goes below none, past the bottom or before the top", () => {
+    expect(materialLeftToDig("heartstone", MOUNTAIN_STONES + 1)).toBe(0);
+    expect(materialLeftToDig("clay", -5)).toBe(10);
   });
 });
 
