@@ -14,11 +14,6 @@ export type StaffSlot = {
 /** How many of each machine run. */
 export type Staffing = Readonly<Record<MachineId, number>>;
 
-type Pick = {
-  readonly stones: number;
-  readonly running: Staffing;
-};
-
 const NONE_RUNNING: Staffing = { cart: 0, drill: 0, borer: 0, machine: 0 };
 
 /** Float dust between two equal crews never moves a hand. */
@@ -30,7 +25,7 @@ export function moreStones(stones: number, than: number): boolean {
  * How many of each machine the hands run (#500): the staffing that mines
  * the most stones a second. A machine runs only fully staffed. So a borer
  * or a Great Machine never takes hands that earn more on the machines
- * below it, and one more hand never mines less. `slots` come biggest
+ * below it, and for these speeds one more hand never mines less. `slots` come biggest
  * machine first; on a tie the bigger machines run, as they did before. A
  * machine that takes one hand is filled fastest first; any other is tried
  * count by count.
@@ -41,7 +36,14 @@ export function staffMachines(
 ): Staffing {
   const fillers = fastestFirst(slots);
   const big = slots.filter((slot) => slot.staff > 1);
-  return bestFrom(big, 0, Math.max(0, hands), fillers).running;
+  const running = { ...NONE_RUNNING };
+  let free = Math.max(0, hands);
+  big.forEach((slot, index) => {
+    const n = bestCount(big, index, slot, free, fillers);
+    running[slot.id] = n;
+    free -= n * slot.staff;
+  });
+  return fill(fillers, free, running);
 }
 
 function fastestFirst(slots: readonly StaffSlot[]): StaffSlot[] {
@@ -51,64 +53,93 @@ function fastestFirst(slots: readonly StaffSlot[]): StaffSlot[] {
 }
 
 /**
- * The best staffing of `big[index..]` and the one-hand machines under
- * them. Every count of a big machine is tried, except the last kind, where
- * only the counts at a bend of the one-hand machines can be best.
+ * The count of `big[index]` that mines the most, with the kinds after it
+ * and the one-hand machines at their best. Counts run most first, so a tie
+ * keeps the most.
  */
-function bestFrom(
+function bestCount(
+  big: readonly StaffSlot[],
+  index: number,
+  slot: StaffSlot,
+  hands: number,
+  fillers: readonly StaffSlot[],
+): number {
+  let bestN = -1;
+  let bestStones = 0;
+  eachCount(big, index, slot, hands, fillers, (n, stones) => {
+    if (bestN < 0 || moreStones(stones, bestStones)) {
+      bestN = n;
+      bestStones = stones;
+    }
+  });
+  return bestN;
+}
+
+/** The most `big[index..]` and the one-hand machines mine with `hands`. */
+function stonesFrom(
   big: readonly StaffSlot[],
   index: number,
   hands: number,
   fillers: readonly StaffSlot[],
-): Pick {
+): number {
   const slot = big[index];
   if (slot === undefined) {
-    return fill(fillers, hands, NONE_RUNNING);
+    return fillStones(fillers, hands);
   }
-  const most = Math.min(slot.count, Math.floor(hands / slot.staff));
-  const counts =
-    index === big.length - 1
-      ? bendCounts(slot, most, hands, fillers)
-      : Array.from({ length: most + 1 }, (_, n) => most - n);
-  const tryCount = (n: number): Pick => {
-    const rest = bestFrom(big, index + 1, hands - n * slot.staff, fillers);
-    return {
-      stones: rest.stones + n * slot.speed,
-      running: { ...rest.running, [slot.id]: n },
-    };
-  };
-  // The counts run most first, so a tie keeps the most.
-  let best = tryCount(most);
-  for (const n of counts) {
-    const next = tryCount(n);
-    if (moreStones(next.stones, best.stones)) {
-      best = next;
-    }
-  }
+  let best = 0;
+  eachCount(big, index, slot, hands, fillers, (_, stones) => {
+    best = Math.max(best, stones);
+  });
   return best;
 }
 
 /**
- * The counts of the last big machine worth trying, most first. What the
- * one-hand machines mine bends only where one kind of them runs out, so
- * the best count sits at a bend (rounded either way) or at an end.
+ * Each count of `big[index]` worth trying, most first, with what it mines
+ * alongside the best of the rest. Every count is tried, except for the last
+ * kind: what the one-hand machines mine bends only where one kind of them
+ * runs out, so its best count sits at a bend (rounded either way) or at an
+ * end.
  */
-function bendCounts(
+function eachCount(
+  big: readonly StaffSlot[],
+  index: number,
   slot: StaffSlot,
-  most: number,
   hands: number,
   fillers: readonly StaffSlot[],
-): readonly number[] {
-  const counts = new Set([most, 0]);
+  visit: (n: number, stones: number) => void,
+): void {
+  const most = Math.min(slot.count, Math.floor(hands / slot.staff));
+  const tryCount = (n: number): void => {
+    const at = Math.min(most, Math.max(0, n));
+    const rest = stonesFrom(big, index + 1, hands - at * slot.staff, fillers);
+    visit(at, at * slot.speed + rest);
+  };
+  if (index < big.length - 1) {
+    for (let n = most; n >= 0; n -= 1) {
+      tryCount(n);
+    }
+    return;
+  }
+  tryCount(most);
   let filled = 0;
   for (const bend of [0, ...fillers.map((filler) => filler.count)]) {
     filled += bend;
     const at = (hands - filled) / slot.staff;
-    for (const n of [Math.floor(at), Math.ceil(at)]) {
-      counts.add(Math.min(most, Math.max(0, n)));
-    }
+    tryCount(Math.ceil(at));
+    tryCount(Math.floor(at));
   }
-  return [...counts].sort((a, b) => b - a);
+  tryCount(0);
+}
+
+function fillStones(fillers: readonly StaffSlot[], hands: number): number {
+  let free = hands;
+  let stones = 0;
+  for (const filler of fillers) {
+    const n = Math.min(filler.count, free);
+    free -= n;
+    stones += n * filler.speed;
+  }
+  return stones;
 }
 
 /** One-hand machines, fastest first, as far as the hands go, on `running`. */
@@ -116,17 +147,15 @@ function fill(
   fillers: readonly StaffSlot[],
   hands: number,
   running: Staffing,
-): Pick {
+): Staffing {
   const filled = { ...running };
   let free = hands;
-  let stones = 0;
   for (const filler of fillers) {
     const n = Math.min(filler.count, free);
     filled[filler.id] = n;
     free -= n;
-    stones += n * filler.speed;
   }
-  return { stones, running: filled };
+  return filled;
 }
 
 /**
@@ -172,5 +201,5 @@ export function staffWith(
   if (free < 0) {
     return undefined;
   }
-  return fill(fastestFirst(slots), free, staffing).running;
+  return fill(fastestFirst(slots), free, staffing);
 }
