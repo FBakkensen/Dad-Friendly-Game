@@ -55,6 +55,12 @@
   --board-gauge-ink: #0b0b09;
 }
 
+/* The gauge's unit plate (#507): the dial's own cream, edged in the dial's shade. */
+:root {
+  --board-gauge-face: #b8ad8e;
+  --board-gauge-rim: #8e8670;
+}
+
 /* The mine window (#371): the view's night behind its art, and the "+N" outline's offset. */
 :root {
   --board-view-night: #0a0c0e;

@@ -247,11 +247,12 @@ body {
   width: calc(var(--art) * 15);
 }
 
+/* The point fills the gap between two drums, its foot on the figures' baseline (#507). */
 .board-odo-dot {
   left: calc(var(--art) * var(--at));
-  top: calc(var(--art) * 26);
-  width: calc(var(--art) * 2);
-  height: calc(var(--art) * 2);
+  top: calc(var(--art) * 22);
+  width: calc(var(--art) * 4);
+  height: calc(var(--art) * 4);
   z-index: 3;
 }
 
@@ -1022,23 +1023,34 @@ body {
   color: var(--board-gauge-ink);
 }
 
-.board-gauge-counter {
+/* The unit stands on a small plate over the needle, so the needle never hides it (#507).
+   Nowhere among the marks is clear of the needle's sweep, so the plate is as small as its
+   longest unit: it covers part of the needle's shaft while the needle points between 5 and 10. */
+.board-gauge-unit {
+  width: calc(var(--art) * 20);
+  text-align: center;
+  background: var(--board-gauge-face);
+  outline: calc(var(--art) * 1) solid var(--board-gauge-rim);
+}
+
+/* The counter fills the wedge the needle never enters: 30 art px hold five characters at
+   20px. Its top corner clips the lower edge of the needle at rest, as it always did (#507). */
+.board-gauge-counter.board-skinned {
   position: absolute;
-  left: calc(var(--art) * 39);
-  top: calc(var(--art) * 65);
-  width: calc(var(--art) * 25);
+  left: calc(var(--art) * 37);
+  top: calc(var(--art) * 66);
+  width: calc(var(--art) * 30);
   height: calc(var(--art) * 11);
-  image-rendering: pixelated;
 }
 
 .board-gauge-read {
   position: absolute;
-  left: calc(var(--art) * 41);
-  top: calc(var(--art) * 67);
-  width: calc(var(--art) * 22);
+  left: calc(var(--art) * 38);
+  top: calc(var(--art) * 68);
+  width: calc(var(--art) * 28);
   height: calc(var(--art) * 8);
   text-align: center;
-  font-size: var(--board-type-16);
+  font-size: var(--board-type-20);
   line-height: calc(var(--art) * 8);
   white-space: nowrap;
   color: var(--board-drum-dec-ink);
@@ -1048,7 +1060,7 @@ body {
   position: absolute;
   left: 0;
   right: 0;
-  top: calc(var(--art) * 77);
+  top: calc(var(--art) * 78);
   text-align: center;
   font-family: "Barlow Condensed", sans-serif;
   font-weight: 700;

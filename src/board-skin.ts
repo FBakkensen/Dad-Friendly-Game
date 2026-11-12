@@ -1,12 +1,14 @@
 import frameUrl from "./assets/board/frame.png";
+import counterUrl from "./assets/board/gauge-counter.png";
 import insetUrl from "./assets/board/inset.png";
 import keyUrl from "./assets/board/key.png";
 import brassUrl from "./assets/board/legacy-plate.png";
 import tagUrl from "./assets/board/tag.png";
 
-export type SkinKind = "frame" | "tag" | "key" | "keyp" | "inset" | "brass";
+export type SkinKind =
+  "frame" | "tag" | "key" | "keyp" | "inset" | "brass" | "counter";
 
-type SkinSource = "frame" | "tag" | "key" | "inset" | "brass";
+type SkinSource = "frame" | "tag" | "key" | "inset" | "brass" | "counter";
 
 interface SkinSpec {
   readonly src: SkinSource;
@@ -115,6 +117,21 @@ export const SKINS: Readonly<Record<SkinKind, SkinSpec>> = {
     row: 16,
     fill: [37, 8, 32, 16],
   },
+  /* The output gauge's counter window (#507): only its middle stretches. Its rows differ (a
+     shade under the top, a lit foot), so the top is 3 rows, the foot 2, and it is 11 tall. */
+  counter: {
+    src: "counter",
+    ox: 0,
+    sw: 25,
+    sh: 11,
+    l: 3,
+    t: 3,
+    r: 3,
+    b: 2,
+    col: 12,
+    row: 5,
+    fill: [3, 3, 19, 6],
+  },
 };
 
 /** One drawImage call, in art px: source rect then destination origin. */
@@ -193,7 +210,11 @@ export function nineSlicePlan(
 }
 
 /** The least height each kind paints at, in art px: a 16-high brass plate must not stretch to 17. */
-const MIN_HEIGHT: Partial<Record<SkinKind, number>> = { tag: 6, brass: 16 };
+const MIN_HEIGHT: Partial<Record<SkinKind, number>> = {
+  tag: 6,
+  brass: 16,
+  counter: 11,
+};
 
 /** The art size a host of w x h CSS px paints at: half of it, never below the kind's floor. */
 export function skinArtSize(
@@ -213,6 +234,7 @@ const URLS: Record<SkinSource, string> = {
   key: keyUrl,
   inset: insetUrl,
   brass: brassUrl,
+  counter: counterUrl,
 };
 
 const images = new Map<SkinSource, Promise<HTMLImageElement | null>>();
