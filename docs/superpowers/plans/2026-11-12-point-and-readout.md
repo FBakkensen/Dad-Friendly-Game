@@ -37,7 +37,7 @@
 
 - [ ] **Step 1: failing test.** `.board-odo-dot` is `calc(var(--art) * 4)` wide and tall, and `odo-dot.png` is a 4×4 PNG (read its IHDR).
 - [ ] **Step 2:** run it, see it fail.
-- [ ] **Step 3:** redraw the file, set the rule: 4×4 art px, its foot on the figures' baseline (top 23).
+- [ ] **Step 3:** redraw the file, set the rule: 4×4 art px, its foot on the figures' baseline (top 22).
 - [ ] **Step 4:** `npx vitest run src/style.test.ts`, then `npm run gate -- fast`.
 - [ ] **Step 5: see it.** `npm run play -- --save mid` and `--save heart`: the point fills the gap between two drums and reads at arm's length.
 - [ ] **Step 6:** commit `The odometer's point is four art pixels (#507)`.

@@ -15,7 +15,6 @@ export interface Odometer {
   spend(amount: number): void;
 }
 
-/** Drum left edge and width, in art px. */
 /** Each drum's left edge and width, in art px. */
 export const ODO_DRUMS: readonly (readonly [number, number])[] = [
   [13, 15],
