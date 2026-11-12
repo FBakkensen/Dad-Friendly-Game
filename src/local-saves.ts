@@ -4,8 +4,18 @@
  * failure is logged.
  */
 import { parseHomecomingNews, type Homecoming } from "./expeditions";
-import { EVENT_RING_LIMIT } from "./field-log";
-import { keepEvents, readKeptEvents } from "./field-ring";
+import {
+  EVENT_RING_LIMIT,
+  shouldWriteFieldLog,
+  type FieldLogWriteReason,
+} from "./field-log";
+import {
+  keepEvents,
+  mergeEvents,
+  readKeptEvents,
+  sameScope,
+  type RingScope,
+} from "./field-ring";
 import { writePhoneBackup, type PhoneConflict } from "./phone-backup";
 import { saveCounts } from "./session";
 import { writeSessionSave } from "./session-save";
@@ -139,42 +149,77 @@ export function readHomecomings(ctx: StoreContext): readonly Homecoming[] {
 /** The field log's events go to the device at most this often, unless the page hides or a run starts. */
 export const FIELD_RING_GAP_MS = 10_000;
 
-/** Puts back the events this device kept (#479): a reload goes on from them. */
-export function restoreFieldRing(ctx: StoreContext): void {
-  const storage = ctx.ports.storage;
-  if (storage === undefined) {
-    return;
-  }
-  ctx.ring.restore(readKeptEvents(storage));
-  ctx.ringKept = { pushes: ctx.ring.pushes, at: ctx.ports.now() };
+/** Whose events this page keeps now: the signed-in account, or the guest. */
+function ringScopeOf(ctx: StoreContext): RingScope {
+  const uid = uidOf(ctx);
+  return uid === undefined ? { kind: "guest" } : { kind: "account", uid };
 }
 
 /**
- * Keeps the field log's events on this device (#479), so a reload, a crash or
- * a new run never empties it. `now` skips the gap (hide, a new run).
+ * The account is known or changed (#479): the ring goes on from the events
+ * this device kept for it. Events from before the first answer stay with it;
+ * another account's never do.
  */
-export function keepFieldRing(ctx: StoreContext, now: boolean): void {
+export function restoreFieldRing(ctx: StoreContext): void {
+  const scope = ringScopeOf(ctx);
+  const before = ctx.ringScope;
+  if (before !== undefined && sameScope(before, scope)) {
+    return;
+  }
   const storage = ctx.ports.storage;
-  if (storage === undefined || ctx.disposed) {
+  const kept = storage === undefined ? [] : readKeptEvents(storage, scope);
+  ctx.ring.restore(
+    before === undefined
+      ? mergeEvents(kept, ctx.ring.last(EVENT_RING_LIMIT))
+      : kept,
+  );
+  ctx.ringScope = scope;
+  ctx.ringKept = {
+    pushes: ctx.ring.pushes,
+    at: ctx.ports.now(),
+    failed: false,
+  };
+}
+
+/**
+ * Keeps the field log's events on this device for the account in play, so a
+ * reload, a crash or a new run never empties it. Paced as the cloud copy is
+ * (`shouldWriteFieldLog`), on the device's shorter gap.
+ */
+export function keepFieldRing(
+  ctx: StoreContext,
+  reason: FieldLogWriteReason,
+): void {
+  const storage = ctx.ports.storage;
+  const scope = ctx.ringScope;
+  if (storage === undefined || scope === undefined || ctx.disposed) {
     return;
   }
   const pushes = ctx.ring.pushes;
   const at = ctx.ports.now();
-  if (pushes === ctx.ringKept.pushes) {
+  const due = shouldWriteFieldLog({
+    changed: pushes !== ctx.ringKept.pushes,
+    lastWrittenAt: ctx.ringKept.at,
+    now: at,
+    reason,
+    gapMs: FIELD_RING_GAP_MS,
+  });
+  if (!due) {
     return;
   }
-  if (!now && at - ctx.ringKept.at < FIELD_RING_GAP_MS) {
+  const events = ctx.ring.last(EVENT_RING_LIMIT);
+  const kept = keepEvents(storage, scope, events);
+  const failedBefore = ctx.ringKept.failed;
+  ctx.ringKept = { pushes, at, failed: !kept };
+  if (kept || failedBefore) {
     return;
   }
-  ctx.ringKept = { pushes, at };
-  if (keepEvents(storage, ctx.ring.last(EVENT_RING_LIMIT))) {
-    return;
-  }
-  // Not an event: a refused copy would only grow the ring it could not keep.
+  // Logged once until a write lands, and not an event: a refused copy would
+  // only grow the ring it could not keep.
   log(ctx, {
     level: "error",
     code: "field-log.keep",
     detail: "failed",
-    data: { events: ctx.ring.last(EVENT_RING_LIMIT).length },
+    data: { events: events.length },
   });
 }

@@ -23,7 +23,6 @@ import {
 import type { TroubleTier } from "./hazards";
 import { passTheMine } from "./legacy";
 import { createLogger, type Logger } from "./log";
-import { restoreFieldRing } from "./local-saves";
 import { createMountain, type Mountain } from "./mountain";
 import { reconcileRev } from "./save-adopt";
 import { chooseSave, restoreCopy, savedCopies } from "./save-choice";
@@ -189,7 +188,6 @@ export function createProgressStore({
     },
     createSession(createMountain(), hazardSeed ?? now()),
   );
-  restoreFieldRing(ctx);
   ctx.hooks = {
     emit: () => {
       emit(ctx);

@@ -7,6 +7,7 @@
 import type { AuthController } from "./auth";
 import type { CloudSave } from "./cloud-save";
 import { readDeviceLabel } from "./device-label";
+import type { RingScope } from "./field-ring";
 import { EventRing, type FieldEvent } from "./field-log";
 import type { LogEvent, Logger } from "./log";
 import type { Homecoming } from "./expeditions";
@@ -165,8 +166,14 @@ export type StoreContext = {
   fieldLogAt: number | undefined;
   fieldLogFingerprint: string | undefined;
   readonly ring: EventRing;
-  /** The ring as last kept on this device (#479): its push count, and when. */
-  ringKept: { readonly pushes: number; readonly at: number };
+  /** Whose kept events the ring holds (#479); undefined until the account is known. */
+  ringScope: RingScope | undefined;
+  /** The ring as last kept on this device: its push count, when, and whether that write failed. */
+  ringKept: {
+    readonly pushes: number;
+    readonly at: number | undefined;
+    readonly failed: boolean;
+  };
   /** Since when play has been held back while the save loads, and whether that is logged (#479). */
   loadingSince: { readonly at: number; readonly logged: boolean } | undefined;
   readonly listeners: Set<(snapshot: ProgressSnapshot) => void>;
@@ -212,7 +219,8 @@ export function createStoreContext(
     fieldLogAt: undefined,
     fieldLogFingerprint: undefined,
     ring: new EventRing(),
-    ringKept: { pushes: 0, at: Number.NEGATIVE_INFINITY },
+    ringScope: undefined,
+    ringKept: { pushes: 0, at: undefined, failed: false },
     loadingSince: undefined,
     listeners: new Set(),
   };

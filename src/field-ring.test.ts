@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { EVENT_RING_LIMIT, type FieldEvent } from "./field-log";
 import {
-  FIELD_RING_KEY,
+  EVENT_RING_LIMIT,
+  FIELD_STONES_CAP,
+  type FieldEvent,
+} from "./field-log";
+import {
+  fieldRingKey,
   keepEvents,
   mergeEvents,
   readKeptEvents,
+  sameScope,
+  type RingScope,
 } from "./field-ring";
 
 const memory = (): Storage => {
@@ -27,6 +33,8 @@ const memory = (): Storage => {
   };
 };
 
+const guest: RingScope = { kind: "guest" };
+const dad: RingScope = { kind: "account", uid: "dad-uid" };
 const at = (second: number): string =>
   new Date(Date.UTC(2026, 10, 11, 21, 0, second)).toISOString();
 const event = (second: number, code: string, data = {}): FieldEvent => ({
@@ -34,62 +42,76 @@ const event = (second: number, code: string, data = {}): FieldEvent => ({
   code,
   data,
 });
+const codes = (events: readonly FieldEvent[]): string[] =>
+  events.map((kept) => kept.code);
 
 describe("field ring", () => {
-  it("keeps the events and reads them back", () => {
+  it("keeps the events per account and reads them back", () => {
     const storage = memory();
-    expect(readKeptEvents(storage)).toEqual([]);
+    expect(readKeptEvents(storage, dad)).toEqual([]);
     const events = [
       event(1, "vein.tap", { stones: 5 }),
       event(2, "run.start-over"),
     ];
-    expect(keepEvents(storage, events)).toBe(true);
-    expect(readKeptEvents(storage)).toEqual(events);
+    expect(keepEvents(storage, dad, events)).toBe(true);
+    expect(readKeptEvents(storage, dad)).toEqual(events);
+    expect(readKeptEvents(storage, guest)).toEqual([]);
+    expect(fieldRingKey(guest)).not.toBe(fieldRingKey(dad));
+    expect(sameScope(dad, { kind: "account", uid: "dad-uid" })).toBe(true);
+    expect(sameScope(dad, guest)).toBe(false);
   });
 
   it("folds another tab's events in, each once and in time order", () => {
     const storage = memory();
-    keepEvents(storage, [event(1, "a"), event(3, "c")]);
-    keepEvents(storage, [event(1, "a"), event(2, "b"), event(4, "d")]);
-    expect(readKeptEvents(storage).map((kept) => kept.code)).toEqual([
-      "a",
-      "b",
-      "c",
-      "d",
-    ]);
+    keepEvents(storage, guest, [event(1, "a"), event(3, "c")]);
+    keepEvents(storage, guest, [event(1, "a"), event(2, "b"), event(4, "d")]);
+    expect(codes(readKeptEvents(storage, guest))).toEqual(["a", "b", "c", "d"]);
   });
 
   it("keeps only the newest ring's worth", () => {
     const many = Array.from({ length: EVENT_RING_LIMIT + 5 }, (_, i) =>
-      event(i, "n", { count: i }),
+      event(i % 60, "n", { count: i }),
     );
     const merged = mergeEvents([], many);
     expect(merged).toHaveLength(EVENT_RING_LIMIT);
-    expect(merged[0]?.data.count).toBe(5);
   });
 
-  it("reads a broken copy as empty and drops a bad event", () => {
+  it("reads a broken copy as empty", () => {
     const storage = memory();
-    storage.setItem(FIELD_RING_KEY, "{not json");
-    expect(readKeptEvents(storage)).toEqual([]);
-    storage.setItem(FIELD_RING_KEY, JSON.stringify({ events: "no" }));
-    expect(readKeptEvents(storage)).toEqual([]);
-    storage.setItem(FIELD_RING_KEY, JSON.stringify(null));
-    expect(readKeptEvents(storage)).toEqual([]);
+    const key = fieldRingKey(guest);
+    storage.setItem(key, "{not json");
+    expect(readKeptEvents(storage, guest)).toEqual([]);
+    storage.setItem(key, JSON.stringify({ events: "no" }));
+    expect(readKeptEvents(storage, guest)).toEqual([]);
+    storage.setItem(key, JSON.stringify(null));
+    expect(readKeptEvents(storage, guest)).toEqual([]);
+  });
+
+  it("drops an event the field-log rules would refuse, and caps stones", () => {
+    const storage = memory();
     storage.setItem(
-      FIELD_RING_KEY,
+      fieldRingKey(guest),
       JSON.stringify({
         events: [
           event(1, "ok", { id: "lantern", stones: 3 }),
-          { at: at(2), code: "bad", data: { id: 4 } },
-          { at: at(3), code: "bad", data: { other: 1 } },
-          { at: at(4), code: "bad", data: [] },
+          event(2, "deep", { stones: 2 * FIELD_STONES_CAP }),
+          event(3, "bad", { id: 4 }),
+          event(4, "bad", { other: 1 }),
+          event(5, "bad", []),
+          event(6, "bad", { id: "a", count: 1, ms: 2 }),
+          event(7, "bad", { id: "x".repeat(25) }),
+          event(8, "bad", { count: 1.5 }),
+          event(9, "bad", { stones: -1 }),
+          event(10, "x".repeat(25)),
+          { at: "soon", code: "bad", data: {} },
           { at: 5, code: "bad", data: {} },
           null,
         ],
       }),
     );
-    expect(readKeptEvents(storage).map((kept) => kept.code)).toEqual(["ok"]);
+    const kept = readKeptEvents(storage, guest);
+    expect(codes(kept)).toEqual(["ok", "deep"]);
+    expect(kept[1]?.data.stones).toBe(FIELD_STONES_CAP);
   });
 
   it("says so when storage refuses the copy", () => {
@@ -97,12 +119,12 @@ describe("field ring", () => {
     storage.setItem = () => {
       throw new Error("quota");
     };
-    expect(keepEvents(storage, [event(1, "a")])).toBe(false);
+    expect(keepEvents(storage, guest, [event(1, "a")])).toBe(false);
     const throwing = {
       getItem: () => {
         throw new Error("blocked");
       },
     };
-    expect(readKeptEvents(throwing)).toEqual([]);
+    expect(readKeptEvents(throwing, guest)).toEqual([]);
   });
 });

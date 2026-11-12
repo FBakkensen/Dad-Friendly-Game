@@ -102,7 +102,7 @@ export function emit(ctx: StoreContext): void {
   if (ctx.saveConflict === undefined && ready(ctx)) {
     runStep(ctx, { kind: "notice" });
   }
-  keepFieldRing(ctx, false);
+  keepFieldRing(ctx, "interval");
   const next = snapshot(ctx);
   for (const listener of [...ctx.listeners]) {
     listener(next);

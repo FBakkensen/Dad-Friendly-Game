@@ -279,8 +279,9 @@ export class EventRing {
    */
   restore(events: readonly FieldEvent[]): void {
     this.#events.length = 0;
+    this.#from = 0;
     for (const event of events.slice(-this.#limit)) {
-      this.#events.push(event);
+      this.push(event);
     }
     this.#pushes += 1;
     this.mark();

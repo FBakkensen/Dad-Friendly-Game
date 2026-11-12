@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createMemoryAuth } from "./auth";
 import { createMemoryCloudSave, type CloudSave } from "./cloud-save";
-import { FIELD_RING_KEY, readKeptEvents } from "./field-ring";
+import { fieldRingKey, readKeptEvents, type RingScope } from "./field-ring";
 import { FIELD_RING_GAP_MS } from "./local-saves";
 import { createLogger, type LogEvent } from "./log";
 import { createMountain } from "./mountain";
@@ -34,6 +34,8 @@ const codes = (events: readonly { code: string }[]): string[] =>
   events.map((event) => event.code);
 
 const user = { uid: "test-dad", label: "Test Dad" };
+const guestScope: RingScope = { kind: "guest" };
+const dadScope: RingScope = { kind: "account", uid: user.uid };
 
 /** A cloud that never answers: the signed-in save stays loading. */
 function silentCloud(): CloudSave {
@@ -60,7 +62,7 @@ describe("the field log kept on this device (#479)", () => {
     first.startOver();
     first.flush();
     first.dispose();
-    expect(codes(readKeptEvents(storage))).toEqual([
+    expect(codes(readKeptEvents(storage, guestScope))).toEqual([
       "tier.buy",
       "run.start-over",
     ]);
@@ -88,11 +90,14 @@ describe("the field log kept on this device (#479)", () => {
     });
     progress.applyMutation((mountain) => ({ ...mountain, pocket: 10_000 }));
     progress.dispatch({ kind: "buyTier", id: "helper" });
-    expect(storage.getItem(FIELD_RING_KEY)).toBeNull();
+    expect(storage.getItem(fieldRingKey(guestScope))).toBeNull();
     clock += FIELD_RING_GAP_MS;
     progress.dispatch({ kind: "buyTier", id: "helper" });
     // Killed here: no hide, no pagehide.
-    expect(codes(readKeptEvents(storage))).toEqual(["tier.buy", "tier.buy"]);
+    expect(codes(readKeptEvents(storage, guestScope))).toEqual([
+      "tier.buy",
+      "tier.buy",
+    ]);
     progress.dispose();
   });
 
@@ -121,7 +126,7 @@ describe("the field log kept on this device (#479)", () => {
       detail: "start-over loading",
     });
     progress.flush();
-    expect(codes(readKeptEvents(storage))).toContain("run.refused");
+    expect(codes(readKeptEvents(storage, dadScope))).toContain("run.refused");
     progress.dispose();
   });
 
@@ -208,7 +213,7 @@ describe("the field log kept on this device (#479)", () => {
     const storage = createMemoryStorage();
     const setItem = storage.setItem.bind(storage);
     storage.setItem = (key, value) => {
-      if (key === FIELD_RING_KEY) {
+      if (key === fieldRingKey(guestScope)) {
         throw new Error("quota");
       }
       setItem(key, value);
@@ -285,5 +290,74 @@ describe("the field log kept on this device (#479)", () => {
     expect(progress.getSnapshot().ready).toBe(true);
     progress.flush();
     progress.dispose();
+  });
+
+  it("never brings one account's events into another's log", async () => {
+    const storage = createMemoryStorage();
+    const cloud = createMemoryCloudSave();
+    const mom = { uid: "test-mom", label: "Test Mom" };
+    const asDad = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      now: () => 1_000,
+    });
+    await Promise.resolve();
+    asDad.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    asDad.dispatch({ kind: "buyTier", id: "helper" });
+    asDad.flush();
+    asDad.dispose();
+    expect(codes(readKeptEvents(storage, dadScope))).toContain("tier.buy");
+
+    const asMom = createProgressStore({
+      auth: createMemoryAuth({
+        state: { kind: "signed-in", user: mom },
+        user: mom,
+      }),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      now: () => 2_000,
+    });
+    await Promise.resolve();
+    expect(codes(asMom.fieldLog().events)).not.toContain("tier.buy");
+    asMom.flush();
+    expect(
+      codes(readKeptEvents(storage, { kind: "account", uid: mom.uid })),
+    ).not.toContain("tier.buy");
+    asMom.dispose();
+
+    const asGuest = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 3_000,
+    });
+    expect(codes(asGuest.fieldLog().events)).not.toContain("tier.buy");
+    asGuest.dispose();
+  });
+
+  it("starts a signed-out page on the guest's events, then the account's once signed in", async () => {
+    const storage = createMemoryStorage();
+    const guestPage = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 1_000,
+    });
+    guestPage.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    guestPage.dispatch({ kind: "buyTier", id: "helper" });
+    guestPage.flush();
+    guestPage.dispose();
+
+    const auth = createMemoryAuth();
+    const page = createProgressStore({
+      auth,
+      cloudSave: createMemoryCloudSave(),
+      sessionStorage: storage,
+      now: () => 2_000,
+    });
+    expect(codes(page.fieldLog().events)).toEqual(["tier.buy"]);
+    await auth.signIn();
+    await Promise.resolve();
+    expect(codes(page.fieldLog().events)).not.toContain("tier.buy");
+    page.dispose();
   });
 });

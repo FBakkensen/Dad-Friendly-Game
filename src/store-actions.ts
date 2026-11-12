@@ -241,7 +241,7 @@ export function beginRun(
   persistSession(ctx);
   persistCloudSoon(ctx, false, true);
   persistFieldLog(ctx, "reset");
-  keepFieldRing(ctx, true);
+  keepFieldRing(ctx, "reset");
   emit(ctx);
   return true;
 }
@@ -263,7 +263,7 @@ export function flushStore(ctx: StoreContext): void {
   persistPhoneBackup(ctx);
   persistCloudSoon(ctx, false, true);
   persistFieldLog(ctx, "hide");
-  keepFieldRing(ctx, true);
+  keepFieldRing(ctx, "hide");
   if (ctx.saveKind === "session") {
     persistSession(ctx);
   }
