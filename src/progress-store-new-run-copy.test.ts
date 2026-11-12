@@ -10,6 +10,7 @@ import { createLogger } from "./log";
 import { MOUNTAIN_STONES, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { ARCHIVE_WAIT_MS } from "./save-choice";
+import { noticesOf } from "./session";
 import { minedMountain } from "./test-fixtures";
 
 function createMemoryStorage(): Storage {
@@ -116,6 +117,23 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     });
     const after = await progress.savedCopies();
     expect(after.map((copy) => copy.reason)).toEqual(["restore", "start-over"]);
+    progress.dispose();
+  });
+
+  it("does not find its relics and layers again when it comes back", async () => {
+    const { progress } = await playing({
+      ...minedMountain(60_000_000),
+      startedAt: 500,
+    });
+    await expect(progress.startOver()).resolves.toBe(true);
+    const [copy] = await progress.savedCopies();
+    await expect(progress.restoreCopy(copy?.id ?? "")).resolves.toBe("saved");
+    expect(progress.getSnapshot().mountain.remaining).toBe(
+      copy?.mountain.remaining,
+    );
+    expect(noticesOf(progress.getSnapshot(), "reveal")).toEqual([]);
+    expect(noticesOf(progress.getSnapshot(), "layer")).toEqual([]);
+    expect(codes(progress.fieldLog().events)).not.toContain("relic.found");
     progress.dispose();
   });
 

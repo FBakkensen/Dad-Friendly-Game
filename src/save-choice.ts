@@ -13,7 +13,7 @@ import { persistPhoneBackup } from "./local-saves";
 import { minedOut, runStartedAt, type Mountain } from "./mountain";
 import { conflictFacts } from "./save-adopt";
 import { payAway } from "./save-load";
-import { markWelcomed } from "./session";
+import { markWelcomed, openBaselines } from "./session";
 import {
   adopt,
   canPlay,
@@ -140,6 +140,8 @@ export async function restoreCopy(
   }
   const { mountain, lastSeen } = comeBack(ctx, found);
   playChosen(ctx, mountain, lastSeen);
+  // Its relics and layers were found when it was played: news counts from here, as a watch's copy.
+  ctx.session = openBaselines(ctx.session, true);
   const data = { rev: ctx.syncedRev + 1, mined: minedOut(mountain) };
   record(ctx, "save.restore", data);
   log(ctx, { level: "info", code: "save.restore", detail: id, data });
