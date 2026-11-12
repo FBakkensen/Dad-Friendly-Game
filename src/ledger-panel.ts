@@ -203,8 +203,12 @@ function wireDoors(deps: LedgerDoorDeps): {
       sheet().showPage(undefined);
     },
     onYes: (_from, by: Pointer) => {
-      progress.startOver();
-      deps.onStartOver();
+      // The mountain he leaves goes to Saved copies first (#480).
+      void progress.startOver().then((started) => {
+        if (started) {
+          deps.onStartOver();
+        }
+      });
       // Back on the Ledger key, as Back would leave it.
       sheet().close({ by });
     },

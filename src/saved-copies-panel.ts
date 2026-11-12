@@ -1,9 +1,8 @@
 import { cardLine, createBoardCard, type BoardCard } from "./board-card";
-import { el, hide, mark, write } from "./board-dom";
+import { el, hide, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { skin } from "./board-skin";
 import type { ArchivedCopy } from "./cloud-save";
-import { runStartedAt } from "./mountain";
 import type { ProgressStore } from "./progress-store";
 import { keptUntilWords, saveCardLines } from "./save-sheet-copy";
 import {
@@ -12,18 +11,16 @@ import {
   SAVE_CONFLICT_PLAY,
   SAVED_COPIES_EMPTY,
   SAVED_COPIES_TITLE,
-  SAVED_COPY_EARLIER_RUN,
   SAVED_COPY_GONE,
 } from "./screen-words";
 
-/** One copy's words: an earlier run's copy cannot be played. */
+/** One copy's words. */
 interface CopyRow {
   readonly copy: ArchivedCopy;
-  readonly earlier: boolean;
   readonly texts: readonly string[];
 }
 
-/** A copy's inset on the card: its lines, then Play this one or the earlier-run line. */
+/** A copy's inset on the card: its lines, then Play this one. */
 interface CopyParts {
   readonly root: HTMLElement;
   readonly lines: readonly HTMLElement[];
@@ -32,7 +29,8 @@ interface CopyParts {
 /**
  * The archived copies (#466), on the board card shell, opened from the Ledger's Saved copies
  * plate. Each copy is an inset with its lines and Play this one, which plays it through the same
- * archive-then-switch path; an earlier run's copy says so instead. Back to the mountain and
+ * archive-then-switch path. A copy from an earlier run, such as the mountain a Start over or a
+ * pass left (#480), comes back as a new run. Back to the mountain and
  * Escape close it. A copy's inset is built once, and a repaint writes only the lines that
  * changed, so its plate and the keyboard's focus stay put.
  */
@@ -103,10 +101,9 @@ export function createSavedCopiesPanel({
       });
   };
 
-  /** Each copy's inset by its id and whether it is an earlier run's: built once each. */
+  /** Each copy's inset by its id: built once each. */
   const built = new Map<string, CopyParts>();
-  const keyOf = (row: CopyRow): string =>
-    `${row.copy.id}:${String(row.earlier)}`;
+  const keyOf = (row: CopyRow): string => row.copy.id;
   /** An inset whose copy left the list (played, expired) is not kept. */
   const forgetGone = (rows: readonly CopyRow[]): void => {
     const keep = new Set(rows.map(keyOf));
@@ -131,9 +128,6 @@ export function createSavedCopiesPanel({
 
   const rowOf = (copy: ArchivedCopy, clock: number): CopyRow => {
     const lines = saveCardLines(copy.mountain, copy.lastSeen, clock);
-    const earlier =
-      runStartedAt(copy.mountain) <
-      runStartedAt(progress.getSnapshot().mountain);
     const texts = [
       copy.deviceLabel,
       lines.depth,
@@ -143,7 +137,7 @@ export function createSavedCopiesPanel({
       lines.played,
       keptUntilWords(copy.expiresAt),
     ];
-    return { copy, earlier, texts };
+    return { copy, texts };
   };
 
   const render = (): void => {
@@ -183,27 +177,20 @@ export function createSavedCopiesPanel({
   };
 }
 
-/** A copy's inset: seven lines, then Play this one, or the line that says it cannot be played. */
+/** A copy's inset: seven lines, then Play this one. */
 function copyParts(card: BoardCard, row: CopyRow, play: () => void): CopyParts {
   const root = el("article", "saved-copy");
-  mark(root, "is-earlier-run", row.earlier);
   const lines = row.texts.map((_text, index) =>
     cardLine(index === 0 ? "saved-copy-device" : "saved-copy-line"),
   );
   root.append(...lines);
-  if (row.earlier) {
-    const blocked = cardLine("earlier-run is-quiet");
-    write(blocked, SAVED_COPY_EARLIER_RUN);
-    root.append(blocked);
-  } else {
-    card.plate(
-      SAVE_CONFLICT_PLAY,
-      `play-${row.copy.id}`,
-      "save-conflict-play",
-      play,
-      root,
-    );
-  }
+  card.plate(
+    SAVE_CONFLICT_PLAY,
+    `play-${row.copy.id}`,
+    "save-conflict-play",
+    play,
+    root,
+  );
   skin(root, "inset");
   return { root, lines };
 }

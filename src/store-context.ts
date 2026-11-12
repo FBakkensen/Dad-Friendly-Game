@@ -165,6 +165,8 @@ export type StoreContext = {
   fieldLogAt: number | undefined;
   fieldLogFingerprint: string | undefined;
   readonly ring: EventRing;
+  /** A Start over or a pass is keeping the left mountain in Saved copies (#480). */
+  keepingLeft: boolean;
   readonly listeners: Set<(snapshot: ProgressSnapshot) => void>;
 };
 
@@ -208,6 +210,7 @@ export function createStoreContext(
     fieldLogAt: undefined,
     fieldLogFingerprint: undefined,
     ring: new EventRing(),
+    keepingLeft: false,
     listeners: new Set(),
   };
 }

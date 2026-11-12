@@ -41,7 +41,7 @@ const press = (target: Element | null | undefined): void => {
 
 interface Fixture {
   view: { ready: boolean; mountain: Mountain };
-  passTheMine: Mock<() => boolean>;
+  passTheMine: Mock<() => Promise<boolean>>;
   onPassed: Mock<() => void>;
   beforeOpen: Mock<() => void>;
   panel: ReturnType<typeof createLegacyPanel>;
@@ -50,7 +50,7 @@ interface Fixture {
 function mount(mountain: Mountain): Fixture {
   const fixture = {
     view: { ready: true, mountain },
-    passTheMine: vi.fn<() => boolean>(() => true),
+    passTheMine: vi.fn<() => Promise<boolean>>(() => Promise.resolve(true)),
     onPassed: vi.fn<() => void>(),
     beforeOpen: vi.fn<() => void>(),
   } as unknown as Fixture;
@@ -167,7 +167,7 @@ describe("the Pass the mine card (#466)", () => {
     expect(fixture.passTheMine).not.toHaveBeenCalled();
   });
 
-  it("Pass it on passes past the settle only: the second tap of the one that opened it does nothing", () => {
+  it("Pass it on passes past the settle only: the second tap of the one that opened it does nothing", async () => {
     const fixture = mount(finished());
     fixture.panel.open(undefined);
     advance(100);
@@ -177,16 +177,21 @@ describe("the Pass the mine card (#466)", () => {
     advance(DRAWER_SETTLE_MS);
     press(plate(fixture, "legacy-confirm"));
     expect(fixture.passTheMine).toHaveBeenCalledTimes(1);
-    expect(fixture.onPassed).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(fixture.onPassed).toHaveBeenCalledTimes(1);
+    });
     expect(fixture.panel.dialog.hidden).toBe(true);
   });
 
-  it("a pass the store refuses starts no new run", () => {
+  it("a pass the store refuses starts no new run", async () => {
     const fixture = mount(finished());
-    fixture.passTheMine.mockReturnValue(false);
+    fixture.passTheMine.mockResolvedValue(false);
     fixture.panel.open(undefined);
     advance(DRAWER_SETTLE_MS + 50);
     press(plate(fixture, "legacy-confirm"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fixture.passTheMine).toHaveBeenCalledTimes(1);
     expect(fixture.onPassed).not.toHaveBeenCalled();
     expect(fixture.panel.dialog.hidden).toBe(true);
   });

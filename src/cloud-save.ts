@@ -27,6 +27,20 @@ export type CloudWriteResult =
   | { readonly kind: "rejected"; readonly message: string }
   | { readonly kind: "failed"; readonly message: string };
 
+/**
+ * Why a mountain went to Saved copies: the side not chosen in a conflict,
+ * the one in play when a copy was restored, or the one left by a Start over
+ * or a pass (#480).
+ */
+export const ARCHIVE_REASONS = [
+  "conflict",
+  "restore",
+  "start-over",
+  "pass",
+] as const;
+
+export type ArchiveReason = (typeof ARCHIVE_REASONS)[number];
+
 export type CloudSave = {
   readonly load: (args: {
     uid: string;
@@ -41,7 +55,7 @@ export type CloudSave = {
     deviceId: string;
     deviceLabel?: string;
   }) => Promise<CloudWriteResult>;
-  /** Keeps the copy that was not chosen. Owner create only. */
+  /** Keeps a mountain left behind for seven days. Owner create only. */
   readonly archiveCopy?: (args: {
     uid: string;
     mountain: Mountain;
@@ -49,6 +63,7 @@ export type CloudSave = {
     rev: number;
     deviceId: string;
     deviceLabel: string;
+    reason: ArchiveReason;
   }) => Promise<CloudWriteResult>;
   /** Up to three copies that have not reached their expiry. */
   readonly listCopies?: (args: {
@@ -73,9 +88,14 @@ export type ArchivedCopy = {
   readonly rev: number;
   readonly deviceId: string;
   readonly deviceLabel: string;
+  readonly reason: ArchiveReason;
   readonly archivedAt: number;
   readonly expiresAt: number;
 };
+
+export function isArchiveReason(value: unknown): value is ArchiveReason {
+  return ARCHIVE_REASONS.some((reason) => reason === value);
+}
 
 const ARCHIVE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -225,7 +245,15 @@ export function createMemoryCloudSave({
       fieldLogs.set(uid, log);
       return Promise.resolve({ kind: "ok" });
     },
-    archiveCopy: ({ uid, mountain, lastSeen, rev, deviceId, deviceLabel }) => {
+    archiveCopy: ({
+      uid,
+      mountain,
+      lastSeen,
+      rev,
+      deviceId,
+      deviceLabel,
+      reason,
+    }) => {
       if (archiveGate?.fail) {
         return Promise.resolve({ kind: "failed", message: "unavailable" });
       }
@@ -240,6 +268,7 @@ export function createMemoryCloudSave({
           rev,
           deviceId,
           deviceLabel,
+          reason,
           archivedAt,
           expiresAt: archivedAt + ARCHIVE_MS,
         },

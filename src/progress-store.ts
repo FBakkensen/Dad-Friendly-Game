@@ -25,13 +25,17 @@ import { passTheMine } from "./legacy";
 import { createLogger, type Logger } from "./log";
 import { createMountain, type Mountain } from "./mountain";
 import { reconcileRev } from "./save-adopt";
-import { chooseSave, restoreCopy, savedCopies } from "./save-choice";
+import {
+  chooseSave,
+  keepThenBegin,
+  restoreCopy,
+  savedCopies,
+} from "./save-choice";
 import { previewConflictView } from "./save-preview";
 import { onAuthChange, onSeatChange, onYield } from "./save-watch";
 import { createSession, type DismissTarget } from "./session";
 import { tryGetGuestStorage } from "./session-save";
 import {
-  beginRun,
   commit,
   disposeStore,
   dismissNews,
@@ -117,12 +121,16 @@ export type ProgressStore = {
    */
   readonly dismiss: (what: DismissTarget) => void;
   /**
-   * Throws this player's single save away and starts a fresh mountain, on the
-   * device and (signed in) in the cloud right away.
+   * Starts a fresh mountain, on the device and (signed in) in the cloud right
+   * away. Signed in, the mountain he leaves goes to Saved copies first (#480);
+   * false when it could not, and the mountain stays in play.
    */
-  readonly startOver: () => void;
-  /** Passes the finished mine to your kid (M6); false if it isn't finished. */
-  readonly passTheMine: () => boolean;
+  readonly startOver: () => Promise<boolean>;
+  /**
+   * Passes the finished mine to your kid (M6), after keeping it in Saved
+   * copies like a Start over; false if it isn't finished or was not kept.
+   */
+  readonly passTheMine: () => Promise<boolean>;
   /** One tap on a troubled card. The fifth tap fixes it. */
   readonly pressTrouble: (tier: TroubleTier) => void;
   /** A short hold on a troubled card fixes it. */
@@ -231,21 +239,16 @@ function storeApi(ctx: StoreContext, unsubscribe: () => void): ProgressStore {
     dismiss: (what) => {
       dismissNews(ctx, what);
     },
-    startOver: () => {
-      beginRun(
-        ctx,
-        { ...createMountain(), startedAt: now() },
-        "start over",
-        "run.start-over",
-      );
-    },
-    passTheMine: () => {
-      const next = passTheMine(ctx.session.mountain, now());
-      return (
-        next !== undefined &&
-        beginRun(ctx, next, "passed to the kid", "run.pass")
-      );
-    },
+    startOver: () =>
+      keepThenBegin(ctx, {
+        reason: "start-over",
+        next: () => ({ ...createMountain(), startedAt: now() }),
+      }),
+    passTheMine: () =>
+      keepThenBegin(ctx, {
+        reason: "pass",
+        next: (playing) => passTheMine(playing, now()),
+      }),
     tonightEvents: () => ctx.ring.sinceMark(),
     fieldLog: () => ({
       snapshot: fieldSnapshotNow(ctx),

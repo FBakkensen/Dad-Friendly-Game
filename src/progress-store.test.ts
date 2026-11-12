@@ -931,7 +931,7 @@ describe("start over", () => {
   };
   const user = { uid: "test-dad", label: "Test Dad" };
 
-  it("gives a guest a fresh mountain on the device, with no reveal or welcome", () => {
+  it("gives a guest a fresh mountain on the device, with no reveal or welcome", async () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -954,7 +954,7 @@ describe("start over", () => {
     });
     expect(firstNotice(progress.getSnapshot(), "quiet")?.stones).toBeDefined();
 
-    progress.startOver();
+    await progress.startOver();
 
     const fresh = { ...createMountain(), startedAt: 60_000 };
     expect(progress.getSnapshot().mountain).toEqual(fresh);
@@ -988,7 +988,7 @@ describe("start over", () => {
     await Promise.resolve();
     clock += 10;
 
-    progress.startOver();
+    await progress.startOver();
 
     expect(cloud.writes.at(-1)).toEqual({
       ...createMountain(),
@@ -1009,11 +1009,11 @@ describe("start over", () => {
       now: () => clock,
       cloudWriteGapMs: 60_000,
     });
-    expect(progress.passTheMine()).toBe(false);
+    await expect(progress.passTheMine()).resolves.toBe(false);
     progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
     clock += 10;
 
-    expect(progress.passTheMine()).toBe(true);
+    await expect(progress.passTheMine()).resolves.toBe(true);
     await Promise.resolve();
 
     const fresh = {
@@ -1058,7 +1058,7 @@ describe("start over", () => {
         now: () => Date.now(),
         cloudWriteGapMs: 0,
       });
-      progress.startOver();
+      await progress.startOver();
       await Promise.resolve();
       const writesAfterReset = cloud.writes.length;
 
@@ -1249,7 +1249,7 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
     ).toBeDefined();
   });
 
-  it("leaves Start over alone: a fresh mountain is already marked", () => {
+  it("leaves Start over alone: a fresh mountain is already marked", async () => {
     const storage = createMemoryStorage();
     writeSessionSave({ storage, mountain: minedMountain(5), lastSeen: 0 });
     const progress = createProgressStore({
@@ -1260,7 +1260,7 @@ describe("one-time free helpers for saves from before staffing (#89)", () => {
     expect(
       firstNotice(progress.getSnapshot(), "crew-joined")?.helpers,
     ).toBeUndefined();
-    progress.startOver();
+    await progress.startOver();
     expect(progress.getSnapshot().mountain).toMatchObject({
       helpers: 0,
       staffed: 2,
@@ -1463,7 +1463,7 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     expect(progress.getSnapshot().mountain.pocket).toBe(88);
   });
 
-  it("treats dismissing nothing, and starting over after dispose, as no-ops", () => {
+  it("treats dismissing nothing, and starting over after dispose, as no-ops", async () => {
     const progress = createProgressStore({
       auth: createMemoryAuth(),
       sessionStorage: createMemoryStorage(),
@@ -1474,7 +1474,7 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     progress.dismiss("away");
     expect(progress.getSnapshot()).toEqual(before);
     progress.dispose();
-    progress.startOver();
+    await progress.startOver();
     expect(progress.getSnapshot().mountain).toEqual(minedMountain(3));
   });
 });
@@ -1593,18 +1593,18 @@ describe("field log", () => {
     expect(events[2]?.data).toEqual({ id: "lantern" });
   });
 
-  it("records Start over and passing the mine, each on a fresh ring", () => {
+  it("records Start over and passing the mine, each on a fresh ring", async () => {
     const progress = guest(() => 8_000);
     progress.applyMutation((mountain) =>
       buyTier({ ...mountain, pocket: firstWorker }, "helper"),
     );
-    progress.startOver();
+    await progress.startOver();
     expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
       "run.start-over",
     ]);
     progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
-    expect(progress.passTheMine()).toBe(true);
-    expect(progress.passTheMine()).toBe(false);
+    await expect(progress.passTheMine()).resolves.toBe(true);
+    await expect(progress.passTheMine()).resolves.toBe(false);
     expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
       "run.pass",
     ]);
@@ -2078,7 +2078,7 @@ describe("field log cloud copy", () => {
     return { fieldLogs, progress };
   };
 
-  it("writes nothing for a guest", () => {
+  it("writes nothing for a guest", async () => {
     const fieldLogs = new Map<string, FieldLogDocument>();
     const progress = createProgressStore({
       auth: createMemoryAuth(),
@@ -2087,7 +2087,7 @@ describe("field log cloud copy", () => {
       now: () => 1,
     });
     progress.applyMutation((mountain) => ({ ...mountain, pocket: 1 }));
-    progress.startOver();
+    await progress.startOver();
     progress.flush();
     expect(fieldLogs.size).toBe(0);
     progress.dispose();
@@ -2121,7 +2121,7 @@ describe("field log cloud copy", () => {
     progress.dispose();
   });
 
-  it("resets the ring and overwrites the doc on Start over and passing the mine", () => {
+  it("resets the ring and overwrites the doc on Start over and passing the mine", async () => {
     let clock = 8_000;
     const { fieldLogs, progress } = signedIn(() => clock, firstWorker);
     progress.dispatch({ kind: "buyTier", id: "helper" });
@@ -2130,7 +2130,7 @@ describe("field log cloud copy", () => {
     ]);
 
     clock += 10;
-    progress.startOver();
+    await progress.startOver();
     expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
       "run.start-over",
     ]);
@@ -2139,11 +2139,11 @@ describe("field log cloud copy", () => {
     ]);
     expect(fieldLogs.get(user.uid)?.snapshot.crew.helper).toBe(0);
     const resetAt = fieldLogs.get(user.uid)?.updatedAt;
-    progress.startOver();
+    await progress.startOver();
     expect(fieldLogs.get(user.uid)?.updatedAt).toBe(resetAt);
 
     progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
-    expect(progress.passTheMine()).toBe(true);
+    await expect(progress.passTheMine()).resolves.toBe(true);
     const passed = fieldLogs.get(user.uid);
     expect(passed?.events.map((event) => event.code)).toEqual(["run.pass"]);
     expect(passed?.snapshot.legacy).toBe(1);
@@ -2319,7 +2319,7 @@ describe("trouble at the machines (#149)", () => {
     expect(awaySlow.progress.getSnapshot().trouble).toBeUndefined();
   });
 
-  it("is not in the save, and a reload starts clear", () => {
+  it("is not in the save, and a reload starts clear", async () => {
     const { progress, storage } = open();
     progress.layoutPreview.trouble("cart");
     progress.flush();
@@ -2335,7 +2335,7 @@ describe("trouble at the machines (#149)", () => {
     });
     expect(again.getSnapshot().trouble).toBeUndefined();
     again.layoutPreview.trouble("drill");
-    again.startOver();
+    await again.startOver();
     expect(again.getSnapshot().trouble).toBeUndefined();
     again.dispose();
   });
@@ -5393,6 +5393,7 @@ describe("two saves found (#226)", () => {
         rev: 1,
         deviceId: "other-device",
         deviceLabel: "Safari on iPhone",
+        reason: "conflict",
       });
       const copies = await progress.savedCopies();
       await expect(progress.restoreCopy(copies[0]?.id ?? "")).resolves.toBe(
@@ -5466,6 +5467,7 @@ describe("two saves found (#226)", () => {
       rev: 1,
       deviceId: "other-device",
       deviceLabel: "Safari on iPhone",
+      reason: "conflict",
     });
     archiveGate.fail = true;
     const copies = await progress.savedCopies();
@@ -5481,61 +5483,6 @@ describe("two saves found (#226)", () => {
     await expect(guest.savedCopies()).resolves.toEqual([]);
     await expect(guest.restoreCopy("x")).resolves.toBe("kept");
     guest.dispose();
-    progress.dispose();
-  });
-
-  it("does not restore a copy from an earlier run", async () => {
-    const cloud = createMemoryCloudSave();
-    const storage = createMemoryStorage();
-    const early = { ...base(), pocket: 40, startedAt: 1 };
-    await cloud.write({
-      uid: user.uid,
-      mountain: early,
-      rev: 1,
-      deviceId: "seed-device",
-      lastSeen: clock,
-    });
-    await cloud.archiveCopy?.({
-      uid: user.uid,
-      mountain: early,
-      lastSeen: clock,
-      rev: 1,
-      deviceId: "seed-device",
-      deviceLabel: "Safari on iPhone",
-    });
-    const progress = open(cloud, storage);
-    await vi.waitFor(() => {
-      expect(progress.getSnapshot().ready).toBe(true);
-      expect(progress.getSnapshot().mountain.startedAt).toBe(1);
-    });
-    progress.startOver();
-    await vi.waitFor(async () => {
-      const saved = await cloud.load({ uid: user.uid });
-      expect(saved.kind === "found" && saved.mountain.startedAt).toBe(clock);
-      expect(saved.kind === "found" && saved.rev).toBe(2);
-    });
-    const playing = {
-      startedAt: progress.getSnapshot().mountain.startedAt,
-      pocket: progress.getSnapshot().mountain.pocket,
-      remaining: progress.getSnapshot().mountain.remaining,
-    };
-    const phoneBefore = readPhoneBackup({ storage, uid: user.uid });
-    const cloudBefore = await cloud.load({ uid: user.uid });
-    const copiesBefore = await progress.savedCopies();
-    expect(copiesBefore).toHaveLength(1);
-    await expect(progress.restoreCopy(copiesBefore[0]?.id ?? "")).resolves.toBe(
-      "kept",
-    );
-    expect(progress.getSnapshot().mountain.startedAt).toBe(playing.startedAt);
-    expect(progress.getSnapshot().mountain.pocket).toBe(playing.pocket);
-    expect(progress.getSnapshot().mountain.remaining).toBe(playing.remaining);
-    expect(readPhoneBackup({ storage, uid: user.uid })).toEqual(phoneBefore);
-    expect(await cloud.load({ uid: user.uid })).toEqual(cloudBefore);
-    const copiesAfter = await progress.savedCopies();
-    expect(copiesAfter.map((copy) => copy.id)).toEqual(
-      copiesBefore.map((copy) => copy.id),
-    );
-    expect(copiesAfter[0]?.mountain.startedAt).toBe(1);
     progress.dispose();
   });
 
@@ -5564,6 +5511,7 @@ describe("two saves found (#226)", () => {
       rev: 1,
       deviceId: "other-device",
       deviceLabel: "Safari on iPhone",
+      reason: "conflict",
     });
     const progress = open(cloud, storage);
     await vi.waitFor(() => {

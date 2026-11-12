@@ -375,8 +375,8 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    calls `page()` so the settle starts again, and it focuses the page's
    first control; `showPage(undefined)` and `close` bring the list back.
    Start over asks on one page (Keep first, so it takes the focus; Yes calls
-   `progress.startOver()` and `onStartOver`, then closes onto the Ledger
-   key); the field log shows on the other when `writeClipboard` says no.
+   `progress.startOver()`, closes onto the Ledger key, and calls
+   `onStartOver` once the new run has started); the field log shows on the other when `writeClipboard` says no.
    Copy field log's `Copied` is the board model's `result` and hold, as a
    row's Done. Saved copies and Pass the mine close the drawer without
    moving focus and open their board cards (#466), which give the focus
@@ -781,8 +781,16 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   the sheet. `syncedRev` on the phone backup is the last confirmed rev.
   `save.conflict` logs the revs, device ids, stones mined, and the choice. Saved
   copies, opened from the Ledger, restore one the same way and log `save.restore`. A copy
-  from an earlier run is not restored: the current game, the phone backup, and
-  the cloud stay as they are, and nothing new is archived. The field log
+  from an earlier run comes back as a new run (#480): `startedAt` is
+  `max(now, playing + 1)`, so `notOlderRun` passes, and `lastSeen` is now, so no
+  time away is paid. Each copy stores its `reason` (`conflict`, `restore`,
+  `start-over`, `pass`; `firestore.rules` lists the same four). Signed in,
+  `startOver` and `passTheMine` go through `keepThenBegin` in `save-choice.ts`:
+  the mountain in play is archived, then `beginRun` starts the new run. A copy
+  refused or not answered within `ARCHIVE_WAIT_MS` (10 s) keeps the mountain in
+  play and logs `save.archive` as an error; a second press while one is in
+  flight, or a newer run arriving meanwhile, starts nothing. A mountain with no
+  stone mined, or a guest's, starts at once with no copy. The field log
   snapshot includes `deviceId` and `rev`. A newer service worker shows "Update
   available" and a reload button. Old cached builds cannot write once a rev
   exists. Coming back reads the server before writing. A cached snapshot

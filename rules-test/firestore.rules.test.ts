@@ -619,6 +619,20 @@ describe("firestore.rules: save archive (#226)", () => {
     ).rejects.toThrow(/permission|false for 'create'/i);
   });
 
+  it("takes a copy left by a restore, a Start over or a pass (#480)", async () => {
+    for (const reason of ["restore", "start-over", "pass"]) {
+      const ref = doc(db, "saveArchive", "dad", "copies", reason);
+      await setDoc(ref, archive({ reason }));
+      expect((await getDoc(ref)).data()?.["reason"]).toBe(reason);
+    }
+    await expect(
+      setDoc(
+        doc(db, "saveArchive", "dad", "copies", "odd"),
+        archive({ reason: "backup" }),
+      ),
+    ).rejects.toThrow(/permission/i);
+  });
+
   it("refuses update and delete", async () => {
     const ref = doc(db, "saveArchive", "dad", "copies", "locked");
     await setDoc(ref, archive());

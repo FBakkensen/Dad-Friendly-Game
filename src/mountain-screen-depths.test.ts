@@ -829,6 +829,7 @@ describe("layer card, material line, and craft-done notice", () => {
         rev: 1,
         deviceId: "other-device",
         deviceLabel: "Safari on iPhone",
+        reason: "conflict",
       });
       screen.root
         .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
@@ -852,29 +853,27 @@ describe("layer card, material line, and craft-done notice", () => {
     }
   });
 
-  it("greys out a saved copy from an earlier run", async () => {
+  it("brings back the mountain a Start over left, from Saved copies (#480)", async () => {
     const cloud = createMemoryCloudSave();
+    let clock = 80_000;
     const screen = mountScreen({
       auth: signedIn(),
       cloudSave: cloud,
-      now: () => 80_000,
+      now: () => clock,
     });
     await vi.waitFor(() => {
       expect(screen.progress.getSnapshot().ready).toBe(true);
     });
-    screen.progress.startOver();
-    await vi.waitFor(async () => {
-      const saved = await cloud.load({ uid: "test-dad" });
-      expect(saved.kind === "found" && saved.mountain.startedAt).toBe(80_000);
-    });
-    await cloud.archiveCopy?.({
-      uid: "test-dad",
-      mountain: { ...createMountain(), startedAt: 1, pocket: 12, carts: 2 },
-      lastSeen: 1,
-      rev: 1,
-      deviceId: "other-device",
-      deviceLabel: "Safari on iPhone",
-    });
+    screen.progress.applyMutation((mountain) => ({
+      ...mountain,
+      remaining: mountain.remaining - 12_000,
+      pocket: 12,
+      carts: 2,
+    }));
+    clock += 1_000;
+    await expect(screen.progress.startOver()).resolves.toBe(true);
+    expect(screen.progress.getSnapshot().mountain.carts).toBe(0);
+    clock += 1_000;
     screen.root
       .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
       ?.click();
@@ -882,16 +881,20 @@ describe("layer card, material line, and craft-done notice", () => {
       .querySelector<HTMLButtonElement>(".ledger-saved-copies")
       ?.click();
     await vi.waitFor(() => {
-      expect(screen.text(".saved-copies")).toContain(
-        "From an earlier run – can't be played now",
-      );
+      expect(screen.text(".saved-copy")).toContain("2 carts");
     });
-    expect(screen.text(".is-earlier-run")).toContain("2 carts");
-    expect(screen.text(".is-earlier-run")).toContain("12");
-    expect(
-      screen.root.querySelector(".is-earlier-run .save-conflict-play"),
-    ).toBeNull();
-    expect(screen.text(".saved-copies")).not.toMatch(/\?/);
+    expect(screen.text(".saved-copies")).not.toMatch(/earlier run|\?/);
+    await vi.waitFor(() => {
+      screen.root
+        .querySelector<HTMLButtonElement>(".saved-copy .save-conflict-play")
+        ?.click();
+      expect(screen.progress.getSnapshot().mountain.carts).toBe(2);
+    });
+    expect(screen.progress.getSnapshot().mountain.startedAt).toBe(clock);
+    await vi.waitFor(async () => {
+      const saved = await cloud.load({ uid: "test-dad" });
+      expect(saved.kind === "found" && saved.mountain.carts).toBe(2);
+    });
     screen.progress.dispose();
   });
 });

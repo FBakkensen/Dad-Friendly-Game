@@ -18,11 +18,12 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import type { FirebaseWebOptions } from "./auth";
-import type {
-  ArchivedCopy,
-  CloudLoadResult,
-  CloudSave,
-  CloudWriteResult,
+import {
+  isArchiveReason,
+  type ArchivedCopy,
+  type CloudLoadResult,
+  type CloudSave,
+  type CloudWriteResult,
 } from "./cloud-save";
 import { fieldLogWithinBudget } from "./field-log";
 import { parseSaveValue, serializeSave } from "./persist";
@@ -136,10 +137,18 @@ function readSnap(snap: SaveSnap): CloudLoadResult {
   };
 }
 
-/** Adds the copy that was not chosen to the archive. It expires after a week. */
+/** Adds a mountain left behind to the archive. It expires after a week. */
 async function archiveConflictCopy(
   db: Firestore,
-  { uid, mountain, lastSeen, rev, deviceId, deviceLabel }: ArchiveCopyArgs,
+  {
+    uid,
+    mountain,
+    lastSeen,
+    rev,
+    deviceId,
+    deviceLabel,
+    reason,
+  }: ArchiveCopyArgs,
 ): Promise<CloudWriteResult> {
   try {
     const saved = serializeSave({
@@ -156,7 +165,7 @@ async function archiveConflictCopy(
       deviceLabel,
       archivedAt: serverTimestamp(),
       expiresAt: Timestamp.fromMillis(Date.now() + ARCHIVE_MS),
-      reason: "conflict",
+      reason,
     });
     return { kind: "ok" };
   } catch (error: unknown) {
@@ -200,8 +209,10 @@ function readArchivedCopy(
   const archivedAt = timestampMillis(record["archivedAt"]);
   const expiresAt = timestampMillis(record["expiresAt"]);
   const deviceLabel = record["deviceLabel"];
+  const reason = record["reason"];
   if (
     parsed === undefined ||
+    !isArchiveReason(reason) ||
     parsed.rev === undefined ||
     parsed.deviceId === undefined ||
     typeof deviceLabel !== "string" ||
@@ -216,6 +227,7 @@ function readArchivedCopy(
     rev: parsed.rev,
     deviceId: parsed.deviceId,
     deviceLabel,
+    reason,
     archivedAt,
     expiresAt,
   };

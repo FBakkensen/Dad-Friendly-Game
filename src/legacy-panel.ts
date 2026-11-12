@@ -153,9 +153,13 @@ export function createLegacyPanel({
     "legacy-confirm",
     () => {
       open = false;
-      if (progress.passTheMine()) {
-        onPassed();
-      }
+      // The mine goes to Saved copies first (#480); the kid's mountain follows once it lands.
+      void progress.passTheMine().then((passed) => {
+        if (passed) {
+          onPassed();
+        }
+        requestRender();
+      });
       requestRender();
     },
     answers,
