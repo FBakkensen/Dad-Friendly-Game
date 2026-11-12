@@ -181,10 +181,6 @@ describe("press and holdThrough", () => {
   const fakePage = (held: boolean) => {
     const calls: string[] = [];
     const page = {
-      click: vi.fn((selector: string) => {
-        calls.push(`click ${selector}`);
-        return Promise.resolve();
-      }),
       tap: vi.fn((selector: string) => {
         calls.push(`tap ${selector}`);
         return Promise.resolve();
@@ -196,20 +192,6 @@ describe("press and holdThrough", () => {
           return held ? Promise.resolve() : Promise.reject(new Error("t/o"));
         },
       ),
-      mouse: {
-        move: vi.fn((x: number, y: number) => {
-          calls.push(`move ${String(x)},${String(y)}`);
-          return Promise.resolve();
-        }),
-        down: vi.fn(() => {
-          calls.push("down");
-          return Promise.resolve();
-        }),
-        up: vi.fn(() => {
-          calls.push("up");
-          return Promise.resolve();
-        }),
-      },
       touchscreen: {
         touchStart: vi.fn((x: number, y: number) => {
           calls.push(`touchStart ${String(x)},${String(y)}`);
@@ -224,29 +206,22 @@ describe("press and holdThrough", () => {
     return { page, calls };
   };
 
-  it("press clicks on a desk and taps on the phone", async () => {
-    const desk = fakePage(true);
-    await press(desk.page as never, ".a", { desk: true });
-    expect(desk.calls).toEqual(["click .a"]);
+  it("press taps", async () => {
     const phone = fakePage(true);
-    await press(phone.page as never, ".a", { desk: false });
+    await press(phone.page as never, ".a");
     expect(phone.calls).toEqual(["tap .a"]);
   });
 
-  it("holdThrough holds the mouse on a desk until done, then lifts", async () => {
+  it("holdThrough holds a finger until done, then lifts", async () => {
     const { page, calls } = fakePage(true);
-    const held = await holdThrough(page as never, ".k", () => true, {
-      desk: true,
-    });
+    const held = await holdThrough(page as never, ".k", () => true);
     expect(held).toBe(true);
-    expect(calls).toEqual(["move 10,20", "down", "wait .k 3000", "up"]);
+    expect(calls).toEqual(["touchStart 10,20", "wait .k 3000", "touchEnd"]);
   });
 
-  it("holdThrough holds a finger on the phone, and lifts after a timeout", async () => {
+  it("holdThrough lifts the finger after a timeout", async () => {
     const { page, calls } = fakePage(false);
-    const held = await holdThrough(page as never, ".k", () => true, {
-      desk: false,
-    });
+    const held = await holdThrough(page as never, ".k", () => true);
     expect(held).toBe(false);
     expect(calls).toEqual(["touchStart 10,20", "wait .k 3000", "touchEnd"]);
   });

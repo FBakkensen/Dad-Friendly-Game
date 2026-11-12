@@ -173,14 +173,12 @@ if (plan.kind === "error") {
   process.exit(2);
 }
 
-const SCREENS = {
-  phone: {
-    ...plan.phone,
-    isMobile: true,
-    hasTouch: true,
-    deviceScaleFactor: 2,
-  },
-  desktop: { ...plan.desk, deviceScaleFactor: 2 },
+/** The phone: the game is phone-only, and a PC shows the same board. */
+const PHONE = {
+  ...plan.phone,
+  isMobile: true,
+  hasTouch: true,
+  deviceScaleFactor: 2,
 };
 
 // Clear only what an earlier run wrote, so --out never deletes anything else.
@@ -262,7 +260,7 @@ async function findByLabel(page, label) {
   }
 }
 
-async function step(page, screen, action) {
+async function step(page, action) {
   if (action.kind === "wait") {
     await sleep(action.ms);
     return;
@@ -278,11 +276,7 @@ async function step(page, screen, action) {
     return;
   }
   for (let i = 0; i < action.times; i += 1) {
-    if (screen === "phone") {
-      await element.tap();
-    } else {
-      await element.click();
-    }
+    await element.tap();
     // A tap's effects (floats, sheets) land a frame or two later.
     await new Promise((resolve) => setTimeout(resolve, 120));
   }
@@ -303,66 +297,64 @@ async function openTabs(options) {
 const save = SAVES[plan.save].save();
 note(`play: save ${plan.save}${plan.tabs === 2 ? ", two tabs" : ""}, ${BASE}`);
 try {
-  for (const screen of plan.screens) {
-    const { page, context } = await openTabs({
-      viewport: SCREENS[screen],
-      seed:
-        save === undefined
-          ? { kind: "none" }
-          : { kind: "once", guard: "play-seeded", json: seedJson(save) },
-      clock: { date: "real", tap: "real" },
-      search: plan.search,
-      onPageError: (error) => {
-        pageErrors += 1;
-        note(`[${screen}] PAGE ERROR: ${String(error)}`);
-      },
-      beforeLoad: (target) => {
-        target.on("console", (message) => {
-          note(`[${screen}] console.${message.type()}: ${message.text()}`);
-        });
-        // Failed loads throw no page error, so list them (offline Firebase is expected).
-        target.on("requestfailed", (request) => {
+  const { page, context } = await openTabs({
+    viewport: PHONE,
+    seed:
+      save === undefined
+        ? { kind: "none" }
+        : { kind: "once", guard: "play-seeded", json: seedJson(save) },
+    clock: { date: "real", tap: "real" },
+    search: plan.search,
+    onPageError: (error) => {
+      pageErrors += 1;
+      note(`[phone] PAGE ERROR: ${String(error)}`);
+    },
+    beforeLoad: (target) => {
+      target.on("console", (message) => {
+        note(`[phone] console.${message.type()}: ${message.text()}`);
+      });
+      // Failed loads throw no page error, so list them (offline Firebase is expected).
+      target.on("requestfailed", (request) => {
+        note(
+          `[phone] request failed: ${request.method()} ${request.url()} (${request.failure()?.errorText ?? "unknown"})`,
+        );
+      });
+      target.on("response", (response) => {
+        if (response.status() >= 400) {
           note(
-            `[${screen}] request failed: ${request.method()} ${request.url()} (${request.failure()?.errorText ?? "unknown"})`,
+            `[phone] HTTP ${String(response.status())}: ${response.request().method()} ${response.url()}`,
           );
-        });
-        target.on("response", (response) => {
-          if (response.status() >= 400) {
-            note(
-              `[${screen}] HTTP ${String(response.status())}: ${response.request().method()} ${response.url()}`,
-            );
-          }
-        });
-        return Promise.resolve();
-      },
-    });
-    const shots = [shotName(screen, 0, undefined)];
-    await page.screenshot({ path: join(plan.out, shots[0]) });
-    for (const [index, action] of plan.actions.entries()) {
-      const name = shotName(screen, index + 1, action);
-      try {
-        await step(page, screen, action);
-      } catch (error) {
-        failedSteps += 1;
-        note(`[${screen}] STEP FAILED ${name}: ${String(error)}`);
-      }
-      await page.screenshot({ path: join(plan.out, name) });
-      shots.push(name);
+        }
+      });
+      return Promise.resolve();
+    },
+  });
+  const shots = [shotName(0, undefined)];
+  await page.screenshot({ path: join(plan.out, shots[0]) });
+  for (const [index, action] of plan.actions.entries()) {
+    const name = shotName(index + 1, action);
+    try {
+      await step(page, action);
+    } catch (error) {
+      failedSteps += 1;
+      note(`[phone] STEP FAILED ${name}: ${String(error)}`);
     }
-    const saveLine = await page
-      .$eval("[data-log]", (element) => ({
-        text: element.textContent.trim(),
-        log: element.getAttribute("data-log"),
-      }))
-      .catch(() => undefined);
-    note(
-      saveLine === undefined
-        ? `[${screen}] save line: not on screen`
-        : `[${screen}] save line: ${saveLine.text} (data-log: ${saveLine.log})`,
-    );
-    note(`[${screen}] shots: ${shots.join(", ")}`);
-    await context.close();
+    await page.screenshot({ path: join(plan.out, name) });
+    shots.push(name);
   }
+  const saveLine = await page
+    .$eval("[data-log]", (element) => ({
+      text: element.textContent.trim(),
+      log: element.getAttribute("data-log"),
+    }))
+    .catch(() => undefined);
+  note(
+    saveLine === undefined
+      ? `[phone] save line: not on screen`
+      : `[phone] save line: ${saveLine.text} (data-log: ${saveLine.log})`,
+  );
+  note(`[phone] shots: ${shots.join(", ")}`);
+  await context.close();
 } catch (error) {
   // A launch or navigation failure still leaves a log behind.
   stoppedEarly = true;

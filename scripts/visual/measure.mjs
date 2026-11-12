@@ -390,7 +390,7 @@ const veinOnWindow = (pair) =>
 function boardGaps({ own, others }) {
   const ownNames = new Set(own.map((target) => target.selector));
   // A scaled board snaps each box to device pixels, so an 8px gap can read
-  // 7.99 board px on a PC: allow a tenth of a pixel.
+  // 7.99 board px on a shorter phone: allow a tenth of a pixel.
   return targetsCloserThan([...own, ...others], 7.9).filter(
     (pair) =>
       (ownNames.has(pair.a) || ownNames.has(pair.b)) && !veinOnWindow(pair),
@@ -792,47 +792,6 @@ async function boardFontsLoaded(page) {
   });
 }
 
-/**
- * The PC desk (#376): body.desk, the housing's box and display, its skin's width, the board's
- * box, the body's background, and how far the housing stands out past the board on each side.
- */
-async function deskFacts(page) {
-  return page.evaluate(() => {
-    const board = globalThis.__board();
-    const housing = document.querySelector(".board-housing");
-    const box = housing?.getBoundingClientRect();
-    const body = getComputedStyle(document.body);
-    return {
-      desk: document.body.classList.contains("desk"),
-      housing: {
-        display:
-          housing === null ? "missing" : getComputedStyle(housing).display,
-        box:
-          box === undefined
-            ? null
-            : {
-                left: box.left,
-                top: box.top,
-                right: box.right,
-                bottom: box.bottom,
-              },
-        skin: housing?.querySelector(":scope > canvas.board-skin")?.width ?? 0,
-      },
-      board,
-      bg: { image: body.backgroundImage, size: body.backgroundSize },
-      lip:
-        box === undefined
-          ? null
-          : {
-              left: board.left - box.left,
-              top: board.top - box.top,
-              right: box.right - board.right,
-              bottom: box.bottom - board.bottom,
-            },
-    };
-  });
-}
-
 export {
   cardFacts,
   CARD_LEGENDS,
@@ -844,5 +803,4 @@ export {
   boardArtAt2x,
   boardContrast,
   boardFontsLoaded,
-  deskFacts,
 };

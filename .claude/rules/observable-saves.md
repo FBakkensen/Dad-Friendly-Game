@@ -30,4 +30,4 @@ if (result.kind === "failed") {
 }
 ```
 
-Do not claim phone and PC match from code inspection. Read the save line in the browser.
+Do not claim two devices match from code inspection. Read the save line in the browser.

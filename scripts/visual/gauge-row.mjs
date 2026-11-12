@@ -32,8 +32,8 @@ import {
 } from "./measure.mjs";
 
 // The gauge row (#371): the output gauge, the mine window down No. 2 Shaft
-// with its vein and Legacy plate, and the crew plate, at the phone and the
-// three PC sizes, in each band. The bars are the board's: no scroll, 48px
+// with its vein and Legacy plate, and the crew plate, at the phone, in each
+// band. The bars are the board's: no scroll, 48px
 // targets 8px apart (the vein exempt from its gap to the window only), 13px
 // text, art at exactly 2x, 4.5:1 contrast at p10/p90, and the crew plate's
 // words on the plate. These pages keep the bundled faces (Barlow Condensed,

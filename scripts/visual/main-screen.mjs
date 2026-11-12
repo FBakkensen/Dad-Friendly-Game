@@ -73,7 +73,7 @@ async function veinInView(page) {
   }, MINE_WINDOW_RULES);
 }
 
-// The main screen and its sheets, at the phone and on the PC.
+// The main screen and its sheets, at the phone.
 for (const viewport of SCREENS) {
   section(`section 1 (main screen) ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;

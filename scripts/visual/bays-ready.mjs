@@ -32,7 +32,7 @@ import {
 
 // The machine bays and the Ready row (#372): the band tag and three bays
 // under the gauge row, then the Ready now plate and the red DIG button, at
-// the phone and the three PC sizes. In each band the tag reads the layer's
+// the phone. In each band the tag reads the layer's
 // words and the bays are C2's tiers; every bay's words, flaps and price stay
 // in its button; the bars are the board's (48px targets 8px apart, 13px text,
 // art at exactly 2x, 4.5:1 contrast at p10/p90); the page never scrolls and

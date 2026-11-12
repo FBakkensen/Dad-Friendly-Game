@@ -36,7 +36,7 @@ How we build is dad-friendly too. The superpowers plugin is the workflow (`super
 - A plan keeps each screen's browser checks green in the task that changes that screen, never in a later "fix the checks" task.
 - A full gate takes 10–14 minutes. Start it in the background and wait for it to finish. Never wrap it in `timeout`, and never poll it in a sleep loop.
 - Commit and push the sitting's branch as work lands (`CLAUDE.md`). The ship-sitting skill has the details.
-- Verify in a real browser with `npm run play` (`scripts/play.mjs`, Chrome through puppeteer-core): start from a named save, tap the fat target by selector or aria-label, and look at the phone and desktop shots. Read `log.txt` for the console, failed requests, and the save line. Any page error fails the run. `npm run play -- --help` lists the saves and actions.
+- Verify in a real browser with `npm run play` (`scripts/play.mjs`, Chrome through puppeteer-core): start from a named save, tap the fat target by selector or aria-label, and look at the phone shots. Read `log.txt` for the console, failed requests, and the save line. Any page error fails the run. `npm run play -- --help` lists the saves and actions.
 - `superpowers:verification-before-completion` applies. The gate and `npm run play` are the evidence; code inspection alone never proves a sliver.
 - Do not add Playwright unless asked.
 
