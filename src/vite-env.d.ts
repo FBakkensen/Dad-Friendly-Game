@@ -10,3 +10,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** The build's id, defined by `vite build` only (#516): see `src/build-stamp.ts`. */
+declare const __APP_BUILD__: string | undefined;

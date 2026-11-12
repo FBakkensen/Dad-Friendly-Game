@@ -1,8 +1,48 @@
+import { execFile } from "node:child_process";
+import { readFile, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { promisify } from "node:util";
+import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 import { assertProductionFirebaseWebConfig } from "./src/auth.ts";
+import { buildId, stampServiceWorker } from "./src/build-stamp.ts";
+
+const run = promisify(execFile);
+
+/**
+ * Stamps one id per build (#516): `__APP_BUILD__` for the field log's
+ * version, and the same id in `sw.js`, so each deploy ships a worker with
+ * new bytes and an open page's update check finds it.
+ */
+function stampBuild(): Plugin {
+  let id = "";
+  let outDir = "";
+  return {
+    name: "stamp-build",
+    apply: "build",
+    config: async () => {
+      id = await buildId(process.env, async () => {
+        const { stdout } = await run("git", ["rev-parse", "--short", "HEAD"]);
+        return stdout;
+      });
+      return { define: { __APP_BUILD__: JSON.stringify(id) } };
+    },
+    configResolved: (config) => {
+      outDir = resolve(config.root, config.build.outDir);
+    },
+    closeBundle: async () => {
+      const worker = join(outDir, "sw.js");
+      await writeFile(
+        worker,
+        stampServiceWorker(await readFile(worker, "utf8"), id),
+      );
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
+    stampBuild(),
     {
       // Runs only for real `vite build`, so tools that load this config (knip) don't trip it.
       name: "require-firebase-config",
@@ -64,6 +104,12 @@ export default defineConfig({
           lines: 100,
         },
         "src/board-host.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/build-stamp.ts": {
           statements: 100,
           branches: 100,
           functions: 100,
