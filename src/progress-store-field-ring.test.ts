@@ -3,8 +3,10 @@ import { createMemoryAuth } from "./auth";
 import { createMemoryCloudSave, type CloudSave } from "./cloud-save";
 import { FIELD_RING_KEY, readKeptEvents } from "./field-ring";
 import { FIELD_RING_GAP_MS } from "./local-saves";
-import { createLogger } from "./log";
+import { createLogger, type LogEvent } from "./log";
+import { createMountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
+import { writeSessionSave } from "./session-save";
 import { LOADING_LOG_MS } from "./store-actions";
 import type { TabWriter } from "./tab-writer";
 
@@ -199,6 +201,90 @@ describe("the field log kept on this device (#479)", () => {
     expect(loaded.map((event) => event.data)).toEqual([
       { ms: LOADING_LOG_MS + 1_000 },
     ]);
+    progress.dispose();
+  });
+
+  it("logs a device copy the storage refuses, and plays on", () => {
+    const storage = createMemoryStorage();
+    const setItem = storage.setItem.bind(storage);
+    storage.setItem = (key, value) => {
+      if (key === FIELD_RING_KEY) {
+        throw new Error("quota");
+      }
+      setItem(key, value);
+    };
+    const logged: LogEvent[] = [];
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      logger: {
+        record: (event) => logged.push(event),
+        latest: () => logged.at(-1),
+      },
+      sessionStorage: storage,
+      now: () => 1_000,
+    });
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    progress.dispatch({ kind: "buyTier", id: "helper" });
+    progress.flush();
+    expect(logged).toContainEqual(
+      expect.objectContaining({
+        level: "error",
+        code: "field-log.keep",
+        detail: "failed",
+      }),
+    );
+    expect(codes(progress.fieldLog().events)).toEqual(["tier.buy"]);
+    progress.dispose();
+  });
+
+  it("keeps nothing without storage, and a closed store refuses quietly", () => {
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      now: () => 1_000,
+    });
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    progress.dispatch({ kind: "buyTier", id: "helper" });
+    progress.flush();
+    expect(codes(progress.fieldLog().events)).toEqual(["tier.buy"]);
+    progress.dispose();
+    progress.startOver();
+    expect(codes(progress.fieldLog().events)).toEqual(["tier.buy"]);
+  });
+
+  it("logs a pass refused while the save loads", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...createMountain(), remaining: 0 },
+      lastSeen: 1_000,
+    });
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: silentCloud(),
+      sessionStorage: storage,
+      now: () => 5_000,
+    });
+    expect(progress.getSnapshot().mountain.remaining).toBe(0);
+    expect(progress.passTheMine()).toBe(false);
+    expect(
+      progress
+        .fieldLog()
+        .events.filter((event) => event.code === "run.refused")
+        .map((event) => event.data),
+    ).toEqual([{ id: "pass", source: "loading" }]);
+    progress.dispose();
+  });
+
+  it("plays signed in on a device with no storage", async () => {
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: createMemoryCloudSave(),
+      now: () => 5_000,
+    });
+    await Promise.resolve();
+    expect(progress.getSnapshot().ready).toBe(true);
+    progress.dismiss("homecoming");
+    progress.flush();
     progress.dispose();
   });
 });
