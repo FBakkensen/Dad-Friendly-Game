@@ -118,7 +118,8 @@ export function boostRowView(
           price: clock,
           dimTag: false,
           verb: "Running",
-          lamp: "off" as const,
+          // Running now: amber, by the one lamp rule (#509).
+          lamp: "amber" as const,
           can: false,
         }
       : buyFace(mountain.pocket, cost);

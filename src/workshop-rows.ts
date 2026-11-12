@@ -175,6 +175,8 @@ export function recipeRowView(
     badge: card.level ?? "",
     info: [card.effect],
     flag: recipeFlag(card, teach),
+    // The taught craft is the board's pick: amber over green, as every New row (#509).
+    lamp: isNewCraft(card, teach) ? "amber" : face.lamp,
     gain: card.time,
     pick: false,
     aria: `${card.name}. ${sentence(card.effect)} ${tail}`,

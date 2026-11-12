@@ -397,6 +397,16 @@ describe("an engineer's row (#455)", () => {
     const mountain = fiveCrew();
     const nils = engineerRowView(crew(mountain, 1), ctxOf(mountain), NONE);
     expect(nils.lamp).toBe("off");
+    // Her page's camp post is "here now" and dark too: rest is not running (#509).
+    const camp = postRowView(
+      crew(mountain, 1),
+      1,
+      "camp",
+      ctxOf(mountain),
+      NONE,
+    );
+    expect(camp.name).toMatch(/here now$/);
+    expect(camp.lamp).toBe("off");
     expect(nils.state).toBe("ready");
     expect(nils.info[0]).toBe("Resting at camp");
   });

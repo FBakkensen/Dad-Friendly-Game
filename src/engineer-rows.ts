@@ -446,8 +446,8 @@ export function postRowView(
     // Her own post's gain is the page's kick (her duty), so the name keeps the row's width.
     gain: here || gain === undefined || gain === NONE_BUILT ? "" : gain,
     flag: isNew ? NEW_FLAG : NO_FLAG,
-    // Her own post is running, and the teach's post is the pick: both amber (#509).
-    lamp: here || isNew ? "amber" : "off",
+    // Her own post is running (camp is rest, so dark), and the teach's post is the pick: both amber (#509).
+    lamp: isNew || (here && post !== "camp") ? "amber" : "off",
     state: here ? "owned" : "ready",
     aria: `${name}. ${benefit}`,
   };

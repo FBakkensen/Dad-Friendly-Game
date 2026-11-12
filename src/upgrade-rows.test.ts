@@ -121,7 +121,7 @@ describe("boost rows", () => {
       state: "running",
       price: formatClock(252_000),
       verb: "Running",
-      lamp: "off",
+      lamp: "amber",
       dimTag: false,
       can: false,
     });
