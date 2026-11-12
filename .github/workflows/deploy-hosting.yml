@@ -29,6 +29,13 @@ jobs:
           VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+      # Every deploy must ship a worker with new bytes, or open pages never see the update card (#516).
+      - name: Check the service worker is stamped
+        run: |
+          if grep -q "^// Build: dev$" dist/sw.js || ! grep -q "^// Build: " dist/sw.js; then
+            echo "dist/sw.js carries no build stamp" >&2
+            exit 1
+          fi
       - name: Deploy Firestore
         # github-action-hosting needs Firebase Rules Admin, Firebase Rules Firestore Service Agent, and Cloud Datastore Index Admin.
         run: |

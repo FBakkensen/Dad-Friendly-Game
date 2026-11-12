@@ -93,11 +93,17 @@ export function chipTime(ms: number): string {
 }
 
 /**
- * A short wait for the Ready now plate: "4m", "1h 5m", ">99h". Rounds up to
- * whole minutes, at least 1, so a stone short never reads as now.
+ * A short wait for the Ready now plate: "40s", "4m", "1h 5m", ">99h". Under a
+ * minute it counts whole seconds, past that whole minutes, both rounded up and
+ * at least 1, so a stone short never reads as now.
  */
 export function etaShort(ms: number): string {
-  const minutes = Math.max(1, Math.ceil(ms / 60_000));
+  // The last minute counts seconds, so three seconds never reads "1m" (#517).
+  const seconds = Math.max(1, Math.ceil(ms / 1000));
+  if (seconds < 60) {
+    return `${String(seconds)}s`;
+  }
+  const minutes = Math.ceil(ms / 60_000);
   if (minutes < 60) {
     return `${String(minutes)}m`;
   }

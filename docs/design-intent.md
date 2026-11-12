@@ -75,7 +75,7 @@ The choices are the game. Real numbers let the player reason for himself. A numb
 - Discoveries stay vague: relic finds, expedition finds, hazards, what comes next.
 - No "?" in player text.
 
-One written exception (decision D1, #372): the Ready now plate's Saving for time, "in 4m", is the time until the pocket reaches the price at the current speed, rounded up to the minute. It shows only on that plate, and never at zero speed.
+One written exception (decision D1, #372): the Ready now plate's Saving for time, "in 4m", is the time until the pocket reaches the price at the current speed, rounded up to the minute, and to the second in its last minute, so a cart three seconds away never reads "in 1m" (#517). It shows only on that plate, and never at zero speed.
 
 **A choice must not be obvious.** If every option grows the same way, the best buy is a single sort and the other buttons are scenery. Before #356 every machine added a fixed output and doubled in price (it now climbs a gentle curve, and the deeper bands dig more stones per stone of depth; [Numbers now](DESIGN.md#numbers-now)), so "cheapest output per stone" is always the answer. The lab agrees: the same move is best 25–47% of the time, and boosts and crafts are almost never the best move.
 

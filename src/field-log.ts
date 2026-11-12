@@ -1,3 +1,4 @@
+import { appVersion } from "./build-stamp";
 import { BOOSTS, type BoostId } from "./boosts";
 import { DEVICE_ID_MAX } from "./device-id";
 import type { MoveEvent } from "./economy/actions";
@@ -18,8 +19,8 @@ export const FIELD_STONES_CAP = 1_000_000_000_000_000;
  * to this device's `fieldLogs/{uid}/devices/{deviceId}` (#485). Nothing here is personal (no email, display name, or uid).
  */
 
-/** Named in every snapshot. The package is not published, so this is the stamp. */
-export const APP_VERSION = "0.0.0";
+/** Named in every snapshot: the build's commit (#516), or `dev` where no build stamped it. */
+export const APP_VERSION = appVersion();
 
 /** How many events the ring remembers. */
 export const EVENT_RING_LIMIT = 200;
