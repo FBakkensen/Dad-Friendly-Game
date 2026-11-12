@@ -318,7 +318,7 @@ describe("found tools", () => {
       price: FOUND_LABEL,
       dimTag: false,
       verb: "",
-      lamp: "green",
+      lamp: "off",
       state: "found",
       pick: false,
       can: false,

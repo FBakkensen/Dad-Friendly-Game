@@ -268,7 +268,7 @@ function goalWords(mountain: Mountain): string {
 
 const GOAL_LAMP: Readonly<
   Record<ReturnType<typeof relicGoal>["kind"], RowLamp>
-> = { unguided: "off", next: "amber", done: "green" };
+> = { unguided: "off", next: "amber", done: "off" };
 
 /** The relics row: the count found, the goal, the next layer's hint and the bar. */
 export function relicsRowView(mountain: Mountain): RelicsRowView {
@@ -325,7 +325,8 @@ export function accountRowView(state: AuthState): RowView {
         ...row,
         info: [said],
         verb: SIGN_OUT,
-        lamp: "green",
+        // Signed in is a state, not a thing to do: dark, by the one lamp rule (#509).
+        lamp: "off",
         state: "owned",
         can: true,
         aria: `${said}. ${SIGN_OUT}`,

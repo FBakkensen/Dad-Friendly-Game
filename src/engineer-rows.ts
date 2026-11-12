@@ -380,7 +380,7 @@ function teachNames(teach: EngineerTeach, name: EngineerName): boolean {
   );
 }
 
-/** Green while tending or out, off at camp. */
+/** Amber while tending or out (she is at work, #509), dark at camp. */
 function dutyLook(post: Duty): {
   readonly lamp: RowLamp;
   readonly state: RowState;
@@ -388,7 +388,7 @@ function dutyLook(post: Duty): {
   if (post === "camp") {
     return { lamp: "off", state: "ready" };
   }
-  return { lamp: "green", state: post === "tunnel" ? "running" : "owned" };
+  return { lamp: "amber", state: post === "tunnel" ? "running" : "owned" };
 }
 
 /** One engineer's row on the list: her name, her rank in words, and her duty. */
@@ -446,7 +446,8 @@ export function postRowView(
     // Her own post's gain is the page's kick (her duty), so the name keeps the row's width.
     gain: here || gain === undefined || gain === NONE_BUILT ? "" : gain,
     flag: isNew ? NEW_FLAG : NO_FLAG,
-    lamp: here ? "green" : isNew ? "amber" : "off",
+    // Her own post is running, and the teach's post is the pick: both amber (#509).
+    lamp: here || isNew ? "amber" : "off",
     state: here ? "owned" : "ready",
     aria: `${name}. ${benefit}`,
   };

@@ -250,12 +250,12 @@ describe("the sketch row (#374)", () => {
 });
 
 describe("the bench row (#374)", () => {
-  it("a free bench: green and ready, with no clock, bar or cancel", () => {
+  it("a free bench: dark and ready, with no clock, bar or cancel", () => {
     const row = benchRowView(benchView(granite(), NOW), false);
     expect(row).toMatchObject({
       name: BENCH_FREE,
       info: [WORKSHOP_FREE_ASIDE],
-      lamp: "green",
+      lamp: "off",
       state: "ready",
       gain: "",
       why: "",

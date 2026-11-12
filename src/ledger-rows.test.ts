@@ -314,7 +314,7 @@ describe("relicsRowView (#375)", () => {
       icon: "mantle",
       lit: true,
       progress: undefined,
-      lamp: "green",
+      lamp: "off",
       state: "found",
       why: "",
     });
@@ -356,7 +356,7 @@ describe("accountRowView (#375)", () => {
       name: "Account",
       info: [`Signed in as ${label}`],
       verb: "Sign out",
-      lamp: "green",
+      lamp: "off",
       state: "owned",
       can: true,
       aria: `Signed in as ${label}. Sign out`,

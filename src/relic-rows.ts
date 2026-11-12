@@ -58,8 +58,8 @@ const SHELF_ROW = {
 } as const satisfies Partial<RowView>;
 
 /**
- * One relic on the shelf: found, it lights green with its virtue and power and opens its
- * detail; the next to find is amber with its tease and, once the Lantern guides, the vague
+ * One relic on the shelf: found, it shows its virtue and power and opens its detail, its lamp
+ * dark (#509); the next to find is amber with its tease and, once the Lantern guides, the vague
  * hint; any further down is dark with its tease.
  */
 export function shelfRowView(mountain: Mountain, relic: Relic): RowView {
@@ -70,7 +70,8 @@ export function shelfRowView(mountain: Mountain, relic: Relic): RowView {
       name: words.title,
       info: [words.line, `Your power: ${relic.boost}`],
       why: "",
-      lamp: "green",
+      // Found is done: dark, and the next to find is the amber one (#509).
+      lamp: "off",
       state: "found",
       can: true,
       aria: `${relic.name}: see your power`,

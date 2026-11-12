@@ -1,4 +1,8 @@
-/** A row's lamp: lamp.png's four frames. */
+/**
+ * A row's lamp: lamp.png's four frames, by one rule (#509, `docs/DESIGN.md`):
+ * green, a spend the pocket covers now; amber, the board's pick or something
+ * running; red, trouble; off, everything else.
+ */
 export type RowLamp = "off" | "amber" | "green" | "red";
 
 /** What a drawer row is doing now. */

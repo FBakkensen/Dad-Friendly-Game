@@ -206,7 +206,8 @@ export function toolRowView(
     price: FOUND_LABEL,
     dimTag: false,
     verb: "",
-    lamp: "green",
+    // Found and working, with nothing to tap: dark, by the one lamp rule (#509).
+    lamp: "off",
     state: "found",
     pick: false,
     can: false,
