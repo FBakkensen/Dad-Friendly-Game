@@ -198,6 +198,54 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     progress.dispose();
   });
 
+  it("keeps the mountain in play when the copy write throws", async () => {
+    const memory = createMemoryCloudSave();
+    const { progress, logger } = await playing(
+      { ...minedMountain(40_000), startedAt: 500 },
+      {
+        cloud: {
+          ...memory,
+          archiveCopy: () => Promise.reject(new Error("offline")),
+        },
+      },
+    );
+    await expect(progress.passTheMine()).resolves.toBe(false);
+    await expect(progress.startOver()).resolves.toBe(false);
+    expect(progress.getSnapshot().mountain.startedAt).toBe(500);
+    expect(logger.latest()?.detail).toBe("start-over rejected");
+    progress.dispose();
+  });
+
+  it("restores nothing where a copy cannot be kept first", async () => {
+    const memory = createMemoryCloudSave();
+    await memory.archiveCopy?.({
+      uid: user.uid,
+      mountain: { ...minedMountain(9), startedAt: 500 },
+      lastSeen: 1,
+      rev: 1,
+      deviceId: "other-device",
+      deviceLabel: "Safari on iPhone",
+      reason: "conflict",
+    });
+    const noShelf: CloudSave = {
+      load: memory.load,
+      write: memory.write,
+      writeFieldLog: memory.writeFieldLog,
+      watch: memory.watch,
+      ...(memory.listCopies === undefined
+        ? {}
+        : { listCopies: memory.listCopies }),
+    };
+    const { progress } = await playing(
+      { ...minedMountain(40_000), startedAt: 500 },
+      { cloud: noShelf },
+    );
+    const [copy] = await progress.savedCopies();
+    await expect(progress.restoreCopy(copy?.id ?? "")).resolves.toBe("kept");
+    expect(progress.getSnapshot().mountain.pocket).toBe(40_000);
+    progress.dispose();
+  });
+
   it("gives up on a copy that does not land in time", async () => {
     const left = { ...minedMountain(40_000), helpers: 3, startedAt: 500 };
     const { progress, logger } = await playing(left, {
